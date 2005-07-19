@@ -15,9 +15,6 @@ INIT {
 ok(Film->can('db_Main'), 'set_db()');
 is(Film->__driver, "SQLite", "Driver set correctly");
 
-SKIP: {
-  skip "Bunch of slightly different error messages", 5;
-
 {
 	my $nul = eval { Film->retrieve() };
 	is $nul, undef, "Can't retrieve nothing";
@@ -35,9 +32,7 @@ SKIP: {
 } 
 
 eval { my $duh = Film->create; };
-like $@, qr/create needs a hashref/, "create needs a hashref";
-
-} # End skip block
+like $@, qr/create needs a hashref/, "needs a hashref";
 
 ok +Film->create_test_film;
 
@@ -349,7 +344,7 @@ if (0) {
 }
 
 SKIP: {
-	skip "Scalar::Util::weaken not available", 3
+	skip "Scalar::Util::weaken not available", 3;
 		#if !$Class::DBI::Weaken_Is_Available;
 
 	# my bad taste is your bad taste

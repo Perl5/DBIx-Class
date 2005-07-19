@@ -3,6 +3,9 @@ package DBIx::Class::Core;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Table DBIx::Class::SQL DBIx::Class::DB/;
+use base qw/DBIx::Class::PK
+            DBIx::Class::Table
+            DBIx::Class::SQL
+            DBIx::Class::DB/;
 
 1;

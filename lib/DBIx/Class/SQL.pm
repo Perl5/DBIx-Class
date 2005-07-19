@@ -12,20 +12,22 @@ use constant COND => 2;
 __PACKAGE__->mk_classdata('_sql_statements',
   {
     'select' =>
-      sub { "SELECT ".join(', ', @$_[COLS])." FROM $_[FROM] WHERE $_[COND]"; },
+      sub { "SELECT ".join(', ', @{$_[COLS]})." FROM $_[FROM] WHERE $_[COND]"; },
     'update' =>
-      sub { "UPDATE $_[FROM] SET ".join(', ', map { "$_ = ?" } @$_[COLS]).
+      sub { "UPDATE $_[FROM] SET ".join(', ', map { "$_ = ?" } @{$_[COLS]}).
               " WHERE $_[COND]"; },
     'insert' =>
-      sub { "INSERT INTO $_[FROM] (".join(', ', @$_[COLS]).") VALUES (".
-              join(', ', map { '?' } @$_[COLS]).")"; },
+      sub { "INSERT INTO $_[FROM] (".join(', ', @{$_[COLS]}).") VALUES (".
+              join(', ', map { '?' } @{$_[COLS]}).")"; },
     'delete' =>
       sub { "DELETE FROM $_[FROM] WHERE $_[COND]"; },
   } );
 
 sub _get_sql {
   my ($class, $name, $cols, $from, $cond) = @_;
-  return $class->_sql_statements->{$name}->($cols, $from, $cond);
+  my $sql = $class->_sql_statements->{$name}->($cols, $from, $cond);
+  #warn $sql;
+  return $sql;
 }
 
 sub _sql_to_sth {

@@ -25,16 +25,15 @@ sub columns {
 sub _set_column_group {
   my ($class, $group, @cols) = @_;
   $class->_register_column_group($group => @cols);
-  $class->_register_columns(@cols);
-  $class->_mk_column_accessors(@cols);
+  #$class->_register_columns(@cols);
+  #$class->_mk_column_accessors(@cols);
+  $class->set_columns(@cols);
 }
 
 sub _register_column_group {
   my ($class, $group, @cols) = @_;
   if ($group eq 'Primary') {
-    my %pri;
-    $pri{$_} = {} for @cols;
-    $class->_primaries(\%pri);
+    $class->set_primary(@cols);
   }
 
   my $groups = { %{$class->_column_groups} };

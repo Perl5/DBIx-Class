@@ -87,7 +87,7 @@ ok(!State->find_column('HGLAGAGlAG'), '!find_column HGLAGAGlAG');
 
 {
         SKIP: {
-          skip "Different error message", 1;
+          skip "No column objects", 1;
 
   	  eval { my @grps = State->__grouper->groups_for("Huh"); };
 	  ok $@, "Huh not in groups";
@@ -101,7 +101,6 @@ ok(!State->find_column('HGLAGAGlAG'), '!find_column HGLAGAGlAG');
 }
 
 SKIP: {
-        skip "->retrieve not yet supported by CDBI compat", 1;
 	local $SIG{__WARN__} = sub { };
 	eval { DBIx::Class->retrieve(1) };
 	like $@, qr/Can't retrieve unless primary columns are defined/, "Need primary key for retrieve";
