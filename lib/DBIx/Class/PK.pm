@@ -31,8 +31,8 @@ sub retrieve {
   my $query;
   if (ref $vals[0] eq 'HASH') {
     $query = $vals[0];
-  } elsif (@pk == 1 && @vals == 1) {
-    return ($class->retrieve_from_sql($class->_ident_cond, $vals[0]))[0];
+  } elsif (@pk == @vals) {
+    return ($class->retrieve_from_sql($class->_ident_cond, @vals))[0];
   } else {
     $query = {@vals};
   }

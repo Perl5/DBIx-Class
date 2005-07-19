@@ -13,7 +13,7 @@ sub find_or_create {
 sub id {
   my ($self) = @_;
   die "Can't call id() as a class method" unless ref $self;
-  my @pk = $self->_ident_value;
+  my @pk = $self->_ident_values;
   return (wantarray ? @pk : $pk[0]);
 }
 

@@ -19,6 +19,7 @@ sub new {
       $new->set($k => $v);
     }
   }
+  $new->{_dirty_columns} = {};
   return $new;
 }
 
@@ -43,36 +44,60 @@ sub update {
   my ($self) = @_;
   die "Not in database" unless $self->{_in_database};
   my @to_update = keys %{$self->{_dirty_columns} || {}};
+  return -1 unless @to_update;
   my $sth = $self->_get_sth('update', \@to_update,
                               $self->_table_name, $self->_ident_cond);
-  $sth->execute( (map { $self->{_column_data}{$_} } @to_update),
+  my $rows = $sth->execute( (map { $self->{_column_data}{$_} } @to_update),
                   $self->_ident_values );
+  if ($rows == 0) {
+    die "Can't update $self: row not found";
+  } elsif ($rows > 1) {
+    die "Can't update $self: updated more than one row";
+  }
   $self->{_dirty_columns} = {};
   return $self;
 }
 
 sub delete {
-  my ($self) = @_;
-  my $sth = $self->_get_sth('delete', undef,
-                              $self->_table_name, $self->_ident_cond);
-  $sth->execute($self->_ident_values);
-  delete $self->{_in_database};
+  my $self = shift;
+  if (ref $self) {
+    my $sth = $self->_get_sth('delete', undef,
+                                $self->_table_name, $self->_ident_cond);
+    $sth->execute($self->_ident_values);
+    $sth->finish;
+    delete $self->{_in_database};
+  } else {
+    my $query = (ref $_[0] eq 'HASH' ? $_[0] : {@_});
+    my ($cond, $param) = $self->_where_from_hash($query);
+    my $sth = $self->_get_sth('delete', undef, $self->_table_name, $cond);
+    $sth->execute(@$param);
+    $sth->finish;
+  }
   return $self;
+}
+
+sub discard_changes {
+  my ($self) = @_;
+  $_[0] = $self->retrieve($self->id);
 }
 
 sub get {
   my ($self, $column) = @_;
   die "Can't fetch data as class method" unless ref $self;
-  die "No such column '${column}'" unless $self->_columns->{$column};
-  return $self->{_column_data}{$column};
+  #die "No such column '${column}'" unless $self->_columns->{$column};
+  return $self->{_column_data}{$column} if $self->_columns->{$column};
+  return shift->SUPER::get(@_);
 }
 
 sub set {
   my ($self, $column, $value) = @_;
-  die "No such column '${column}'" unless $self->_columns->{$column};
-  die "set_column called for ${column} without value" if @_ < 3;
-  $self->{_dirty_columns}{$column} = 1;
-  return $self->{_column_data}{$column} = $value;
+  #die "No such column '${column}'" unless $self->_columns->{$column};
+  #die "set_column called for ${column} without value" if @_ < 3;
+  if ($self->_columns->{$column}) {
+    $self->{_dirty_columns}{$column} = 1;
+    return $self->{_column_data}{$column} = $value;
+  }
+  return shift->SUPER::set(@_);
 }
 
 sub _register_columns {
@@ -95,7 +120,7 @@ sub set_columns {
 
 sub retrieve_from_sql {
   my ($class, $cond, @vals) = @_;
-  $cond =~ s/^\s*WHERE//;
+  $cond =~ s/^\s*WHERE//i;
   my @cols = $class->_select_columns;
   my $sth = $class->_get_sth( 'select', \@cols, $class->_table_name, $cond);
   $sth->execute(@vals);
@@ -104,6 +129,7 @@ sub retrieve_from_sql {
     my $new = $class->new;
     $new->set($_, shift @row) for @cols;
     $new->{_in_database} = 1;
+    $new->{_dirty_columns} = {};
     push(@found, $new);
   }
   return @found;
@@ -112,8 +138,15 @@ sub retrieve_from_sql {
 sub search {
   my $class    = shift;
   my $where    = ref $_[0] eq "HASH" ? shift: {@_};
-  my $cond     = join(' AND ', map { "$_ = ?" } keys %$where);
-  return $class->retrieve_from_sql($cond, values %$where);
+  my ($cond, $param)  = $class->_where_from_hash($where);
+  return $class->retrieve_from_sql($cond, @{$param});
+}
+
+sub search_like {
+  my $class    = shift;
+  my $where    = ref $_[0] eq "HASH" ? shift: {@_};
+  my ($cond, $param)  = $class->_where_from_hash($where, { cmp => 'like' });
+  return $class->retrieve_from_sql($cond, @{$param});
 }
 
 sub _select_columns {
@@ -124,7 +157,18 @@ sub copy {
   my ($self, $changes) = @_;
   my $new = bless({ _column_data => { %{$self->{_column_data}}} }, ref $self);
   $new->set($_ => $changes->{$_}) for keys %$changes;
-  return $new;
+  return $new->insert;
+}
+
+sub _where_from_hash {
+  my ($self, $query, $opts) = @_;
+  my $op = $opts->{'cmp'} || '=';
+  my $cond = join(' AND ',
+               map { (defined $query->{$_}
+                       ? "$_ $op ?"
+                       : (do { delete $query->{$_}; "$_ IS NULL"; }));
+                   } keys %$query);
+  return ($cond, [ values %$query ]);
 }
 
 1;
