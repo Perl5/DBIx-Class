@@ -77,7 +77,7 @@ $gone->update;
 
 {
 	my @films = eval { Film->retrieve_all };
-	is(@films, 2, "We have 2 films in total");
+	cmp_ok(@films, '==', 2, "We have 2 films in total");
 }
 
 my $gone_copy = Film->retrieve('Gone With The Wind');

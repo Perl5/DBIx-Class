@@ -29,7 +29,7 @@ sub id {
 
 sub retrieve_all {
   my ($class) = @_;
-  return $class->search( { 1 => 1 } );
+  return $class->retrieve_from_sql( '1' );
 }
 
 1;
