@@ -3,16 +3,20 @@ package DBIx::Class::CDBICompat::Stringify;
 use strict;
 use warnings;
 
+use Scalar::Util;
+
 use overload
-  '""' => sub { shift->stringify_self };
+  '""' => sub {
+            return Scalar::Util::refaddr($_[0]) if (caller)[0] eq 'NEXT';
+            return shift->stringify_self; },
+  fallback => 1;
 
 sub stringify_self {
         my $self = shift;
-        #return (ref $self || $self) unless $self;    # empty PK
-        #return ref $self unless $self;
         my @cols = $self->columns('Stringify');
-        #@cols = $self->primary_column unless @cols;
-        #return join "/", map { $self->get($_) } @cols;
+        @cols = $self->primary_column unless @cols;
+        my $ret = join "/", map { $self->get($_) } @cols;
+        return $ret || ref $self;
 }
 
 1;

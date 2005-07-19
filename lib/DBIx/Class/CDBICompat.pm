@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::CDBICompat::Convenience
+            DBIx::Class::CDBICompat::Stringify
             DBIx::Class::CDBICompat::ObjIndexStubs
             DBIx::Class::CDBICompat::DestroyWarning
             DBIx::Class::CDBICompat::Constructor
@@ -13,5 +14,4 @@ use base qw/DBIx::Class::CDBICompat::Convenience
             DBIx::Class::CDBICompat::ColumnGroups
             DBIx::Class::CDBICompat::ImaDBI/;
 
-           # DBIx::Class::CDBICompat::Stringify
 1;
