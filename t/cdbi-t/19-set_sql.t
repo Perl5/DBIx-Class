@@ -62,6 +62,8 @@ Film->set_sql(
 	is $pgs[1]->id, $f4->id, "and F4";
 };
 
+SKIP: {
+  skip "DBIx::Class doesn't have has_a yet", 6;
 {
 	Actor->has_a(film => "Film");
 	Film->set_sql(
@@ -104,3 +106,4 @@ Film->set_sql(
 	is $apg[1]->title, "B", "and B";
 }
 
+} # end SKIP block
