@@ -29,10 +29,24 @@ sub set_sql {
     sub {
       my $sql = $sql;
       my $class = shift;
-      my $table = $class->_table_name;
-      $sql =~ s/__TABLE__/$table/;
-      return $class->_sql_to_sth(sprintf($sql, @_));
+      return $class->_sql_to_sth($class->transform_sql($sql, @_));
     };
+  if ($sql =~ /select/i) {
+    my $meth = "sql_${name}";
+    *{"${class}::search_${name}"} =
+      sub {
+        my ($class, @args) = @_;
+        $class->sth_to_objects($class->$meth, \@args);
+      };
+  }
+}
+
+sub transform_sql {
+  my ($class, $sql, @args) = @_;
+  my $table = $class->_table_name;
+  $sql =~ s/__TABLE__/$table/g;
+  $sql =~ s/__ESSENTIAL__/join(' ', $class->columns('Essential'))/eg;
+  return sprintf($sql, @args);
 }
 
 1;

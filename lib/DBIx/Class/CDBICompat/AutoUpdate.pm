@@ -7,10 +7,11 @@ use base qw/Class::Data::Inheritable/;
 
 __PACKAGE__->mk_classdata('__AutoCommit');
 
-sub set {
+sub set_column {
   my $self = shift;
-  $self->NEXT::set(@_);
+  my $ret = $self->NEXT::set_column(@_);
   $self->update if ($self->autoupdate && $self->{_in_database});
+  return $ret;
 }
 
 sub autoupdate {

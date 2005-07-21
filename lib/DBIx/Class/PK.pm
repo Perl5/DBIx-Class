@@ -17,7 +17,7 @@ sub _ident_values {
   return (map { $self->{_column_data}{$_} } keys %{$self->_primaries});
 }
 
-sub set_primary {
+sub set_primary_key {
   my ($class, @cols) = @_;
   my %pri;
   $pri{$_} = {} for @cols;
@@ -40,6 +40,12 @@ sub retrieve {
     unless (keys %$query >= @pk); # If we check 'em we run afoul of uc/lc
                                   # column names etc. Not sure what to do yet
   return ($class->search($query))[0];
+}
+
+sub discard_changes {
+  my ($self) = @_;
+  delete $self->{_dirty_columns};
+  $_[0] = $self->retrieve($self->id);
 }
 
 1;

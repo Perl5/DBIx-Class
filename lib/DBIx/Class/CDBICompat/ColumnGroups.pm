@@ -8,47 +8,44 @@ use base qw/Class::Data::Inheritable/;
 
 __PACKAGE__->mk_classdata('_column_groups' => { });
 
-sub table {
-  shift->_table_name(@_);
-}
-
 sub columns {
   my $proto = shift;
   my $class = ref $proto || $proto;
   my $group = shift || "All";
-  $class->_set_column_group($group => @_) if @_;
+  $class->_add_column_group($group => @_) if @_;
   return $class->all_columns    if $group eq "All";
   return $class->primary_column if $group eq "Primary";
   return keys %{$class->_column_groups->{$group}};
 }
 
-sub _set_column_group {
+sub _add_column_group {
   my ($class, $group, @cols) = @_;
   $class->_register_column_group($group => @cols);
-  #$class->_register_columns(@cols);
-  #$class->_mk_column_accessors(@cols);
-  $class->set_columns(@cols);
+  $class->add_columns(@cols);
 }
 
 sub _register_column_group {
   my ($class, $group, @cols) = @_;
   if ($group eq 'Primary') {
-    $class->set_primary(@cols);
+    $class->set_primary_key(@cols);
   }
 
   my $groups = { %{$class->_column_groups} };
 
   if ($group eq 'All') {
-    unless ($class->_column_groups->{'Primary'}) {
+    unless (exists $class->_column_groups->{'Primary'}) {
       $groups->{'Primary'}{$cols[0]} = {};
-      $class->_primaries({ $cols[0] => {} });
+      $class->set_primary_key($cols[0]);
     }
-    unless ($class->_column_groups->{'Essential'}) {
+    unless (exists $class->_column_groups->{'Essential'}) {
       $groups->{'Essential'}{$cols[0]} = {};
     }
   }
 
   $groups->{$group}{$_} ||= {} for @cols;
+  if ($group eq 'Essential') {
+    $groups->{$group}{$_} ||= {} for keys %{ $class->_primaries || {} };
+  }
   $class->_column_groups($groups);
 }
 

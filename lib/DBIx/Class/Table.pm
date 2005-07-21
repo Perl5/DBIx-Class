@@ -3,7 +3,7 @@ package DBIx::Class::Table;
 use strict;
 use warnings;
 
-use base qw/Class::Data::Inheritable Class::Accessor DBIx::Class::SQL/;
+use base qw/Class::Data::Inheritable DBIx::Class::SQL/;
 
 __PACKAGE__->mk_classdata('_columns' => {});
 
@@ -16,10 +16,9 @@ sub new {
   if ($attrs) {
     die "attrs must be a hashref" unless ref($attrs) eq 'HASH';
     while (my ($k, $v) = each %{$attrs}) {
-      $new->set($k => $v);
+      $new->store_column($k => $v);
     }
   }
-  $new->{_dirty_columns} = {};
   return $new;
 }
 
@@ -76,28 +75,26 @@ sub delete {
   return $self;
 }
 
-sub discard_changes {
-  my ($self) = @_;
-  $_[0] = $self->retrieve($self->id);
-}
-
-sub get {
+sub get_column {
   my ($self, $column) = @_;
   die "Can't fetch data as class method" unless ref $self;
-  #die "No such column '${column}'" unless $self->_columns->{$column};
+  die "No such column '${column}'" unless $self->_columns->{$column};
   return $self->{_column_data}{$column} if $self->_columns->{$column};
-  return shift->SUPER::get(@_);
 }
 
-sub set {
+sub set_column {
+  my $self = shift;
+  my ($column) = @_;
+  my $ret = $self->store_column(@_);
+  $self->{_dirty_columns}{$column} = 1;
+  return $ret;
+}
+
+sub store_column {
   my ($self, $column, $value) = @_;
-  #die "No such column '${column}'" unless $self->_columns->{$column};
-  #die "set_column called for ${column} without value" if @_ < 3;
-  if ($self->_columns->{$column}) {
-    $self->{_dirty_columns}{$column} = 1;
-    return $self->{_column_data}{$column} = $value;
-  }
-  return shift->SUPER::set(@_);
+  die "No such column '${column}'" unless $self->_columns->{$column};
+  die "set_column called for ${column} without value" if @_ < 3;
+  return $self->{_column_data}{$column} = $value;
 }
 
 sub _register_columns {
@@ -109,10 +106,10 @@ sub _register_columns {
 
 sub _mk_column_accessors {
   my ($class, @cols) = @_;
-  $class->mk_accessors(@cols);
+  $class->mk_group_accessors('column' => @cols);
 }
 
-sub set_columns {
+sub add_columns {
   my ($class, @cols) = @_;
   $class->_register_columns(@cols);
   $class->_mk_column_accessors(@cols);
@@ -123,13 +120,18 @@ sub retrieve_from_sql {
   $cond =~ s/^\s*WHERE//i;
   my @cols = $class->_select_columns;
   my $sth = $class->_get_sth( 'select', \@cols, $class->_table_name, $cond);
-  $sth->execute(@vals);
+  return $class->sth_to_objects($sth, \@vals, \@cols);
+}
+
+sub sth_to_objects {
+  my ($class, $sth, $args, $cols) = @_;
+  my @cols = ((ref $cols eq 'ARRAY') ? @$cols : @{$sth->{NAME_lc}} );
+  $sth->execute(@$args);
   my @found;
   while (my @row = $sth->fetchrow_array) {
     my $new = $class->new;
-    $new->set($_, shift @row) for @cols;
+    $new->store_column($_, shift @row) for @cols;
     $new->{_in_database} = 1;
-    $new->{_dirty_columns} = {};
     push(@found, $new);
   }
   return @found;
@@ -156,7 +158,7 @@ sub _select_columns {
 sub copy {
   my ($self, $changes) = @_;
   my $new = bless({ _column_data => { %{$self->{_column_data}}} }, ref $self);
-  $new->set($_ => $changes->{$_}) for keys %$changes;
+  $new->set_column($_ => $changes->{$_}) for keys %$changes;
   return $new->insert;
 }
 
@@ -169,6 +171,10 @@ sub _where_from_hash {
                        : (do { delete $query->{$_}; "$_ IS NULL"; }));
                    } keys %$query);
   return ($cond, [ values %$query ]);
+}
+
+sub table {
+  shift->_table_name(@_);
 }
 
 1;

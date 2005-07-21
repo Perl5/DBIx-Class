@@ -14,14 +14,19 @@ sub _register_columns {
   return $class->NEXT::_register_columns(map lc, @cols);
 }
 
-sub get {
+sub get_column {
   my ($class, $get, @rest) = @_;
-  return $class->NEXT::get(lc $get, @rest);
+  return $class->NEXT::get_column(lc $get, @rest);
 }
 
-sub set {
+sub set_column {
   my ($class, $set, @rest) = @_;
-  return $class->NEXT::set(lc $set, @rest);
+  return $class->NEXT::set_column(lc $set, @rest);
+}
+
+sub store_column {
+  my ($class, $set, @rest) = @_;
+  return $class->NEXT::store_column(lc $set, @rest);
 }
 
 sub find_column {
@@ -29,12 +34,12 @@ sub find_column {
   return $class->NEXT::find_column(lc $col);
 }
 
-sub _mk_accessors {
-  my ($class, $type, @fields) = @_;
+sub _mk_group_accessors {
+  my ($class, $type, $group, @fields) = @_;
   my %fields;
   $fields{$_} = 1 for @fields,
                     map lc, grep { !defined &{"${class}::${_}"} } @fields;
-  return $class->NEXT::_mk_accessors($type, keys %fields);
+  return $class->NEXT::_mk_group_accessors($type, $group, keys %fields);
 }
 
 1;

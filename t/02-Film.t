@@ -238,6 +238,7 @@ is($btaste->Director, $orig_director, 'discard_changes()');
 		$btaste3->NumExplodingSheep(13);
 	}
 	is @warnings, 1, "DESTROY without update warns";
+print join("\n", @warnings);
 	Film->autoupdate(0);
 }
 

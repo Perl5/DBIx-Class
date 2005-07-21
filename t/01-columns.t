@@ -95,7 +95,7 @@ ok(!State->find_column('HGLAGAGlAG'), '!find_column HGLAGAGlAG');
 
 	my @grps = sort State->__grouper->groups_for(State->_find_columns(qw/rain capital/));
 	is @grps, 2, "Rain and Capital = 2 groups";
-        my @grps = sort @grps; # Because DBIx::Class is hash-based
+        @grps = sort @grps; # Because DBIx::Class is hash-based
 	is $grps[0], 'Other',   " - Other";
 	is $grps[1], 'Weather', " - Weather";
 }
