@@ -4,6 +4,13 @@ use strict;
 use warnings;
 
 use NEXT;
+use base qw/Class::Data::Inheritable/;
+
+__PACKAGE__->mk_classdata('_transform_sql_handlers' =>
+  {
+    'TABLE' => sub { return $_[0]->_table_name },
+    'ESSENTIAL' => sub { join(' ', $_[0]->columns('Essential')) },
+  } );
 
 sub db_Main {
   return $_[0]->_get_dbh;
@@ -44,8 +51,10 @@ sub set_sql {
 sub transform_sql {
   my ($class, $sql, @args) = @_;
   my $table = $class->_table_name;
-  $sql =~ s/__TABLE__/$table/g;
-  $sql =~ s/__ESSENTIAL__/join(' ', $class->columns('Essential'))/eg;
+  foreach my $key (keys %{ $class->_transform_sql_handlers }) {
+    my $h = $class->_transform_sql_handlers->{$key};
+    $sql =~ s/__$key(?:\(([^\)]+)\))?__/$h->($class, $1)/eg;
+  }
   return sprintf($sql, @args);
 }
 
