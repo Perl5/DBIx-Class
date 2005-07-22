@@ -280,7 +280,7 @@ print join("\n", @warnings);
 
 # Change after_update policy
 SKIP: {
-        skip "DBIx::Class compat doesn't handle triggers yet", 4;
+        skip "DBIx::Class compat doesn't handle the exists stuff quite right yet", 4;
 	my $bt = Film->retrieve($btaste->id);
 	$bt->autoupdate(1);
 

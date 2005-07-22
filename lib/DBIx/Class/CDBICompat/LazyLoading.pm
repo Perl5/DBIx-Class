@@ -23,6 +23,7 @@ sub _flesh {
   my %want;
   $want{$_} = 1 for map { keys %{$self->_column_groups->{$_}} } @groups;
   if (my @want = grep { !exists $self->{'_column_data'}{$_} } keys %want) {
+    #warn "@want";
     my $sth = $self->_get_sth('select', \@want, $self->_table_name,
                                 $self->_ident_cond); 
     $sth->execute($self->_ident_values);

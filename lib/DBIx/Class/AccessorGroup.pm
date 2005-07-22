@@ -1,5 +1,12 @@
 package DBIx::Class::AccessorGroup;
 
+use strict;
+use warnings;
+
+use base qw/Class::Data::Inheritable/;
+
+__PACKAGE__->mk_classdata('_accessor_group_deleted' => { });
+
 sub mk_group_accessors {
     my($self, $group, @fields) = @_;
 
@@ -9,6 +16,7 @@ sub mk_group_accessors {
 
 {
     no strict 'refs';
+    no warnings 'redefine';
 
     sub _mk_group_accessors {
         my($self, $maker, $group, @fields) = @_;
@@ -27,11 +35,13 @@ sub mk_group_accessors {
             my $accessor = $self->$maker($group, $field);
             my $alias = "_${field}_accessor";
 
-            *{$class."\:\:$field"}  = $accessor
-              unless defined &{$class."\:\:$field"};
+            #warn "$class $group $field $alias";
 
-            *{$class."\:\:$alias"}  = $accessor
-              unless defined &{$class."\:\:$alias"};
+            *{$class."\:\:$field"}  = $accessor;
+              #unless defined &{$class."\:\:$field"}
+
+            *{$class."\:\:$alias"}  = $accessor;
+              #unless defined &{$class."\:\:$alias"}
         }
     }
 }
@@ -59,10 +69,10 @@ sub make_group_accessor {
         my $self = shift;
 
         if(@_) {
-            return $self->set($field, @_);
+            return $self->$set($field, @_);
         }
         else {
-            return $self->get($field);
+            return $self->$get($field);
         }
     };
 }
@@ -82,7 +92,7 @@ sub make_group_ro_accessor {
                         "objects of class '$class'");
         }
         else {
-            return $self->get($field);
+            return $self->$get($field);
         }
     };
 }
@@ -102,9 +112,18 @@ sub make_group_wo_accessor {
                         "objects of class '$class'");
         }
         else {
-            return $self->set($field, @_);
+            return $self->$set($field, @_);
         }
     };
+}
+
+sub delete_accessor {
+  my ($class, $accessor) = @_;
+  $class = ref $class if ref $class;
+  my $sym = "${class}::${accessor}";
+  undef &$sym;
+  delete $DB::sub{$sym};
+  #$class->_accessor_group_deleted->{"${class}::${accessor}"} = 1;
 }
 
 1;

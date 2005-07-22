@@ -66,10 +66,14 @@ sub delete {
     $sth->finish;
     delete $self->{_in_database};
   } else {
+    my $attrs = { };
+    if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+      $attrs = { %{ pop(@_) } };
+    }
     my $query = (ref $_[0] eq 'HASH' ? $_[0] : {@_});
-    my ($cond, $param) = $self->_where_from_hash($query);
+    my ($cond, @param) = $self->_cond_resolve($query, $attrs);
     my $sth = $self->_get_sth('delete', undef, $self->_table_name, $cond);
-    $sth->execute(@$param);
+    $sth->execute(@param);
     $sth->finish;
   }
   return $self;
@@ -138,17 +142,23 @@ sub sth_to_objects {
 }
 
 sub search {
-  my $class    = shift;
-  my $where    = ref $_[0] eq "HASH" ? shift: {@_};
-  my ($cond, $param)  = $class->_where_from_hash($where);
-  return $class->retrieve_from_sql($cond, @{$param});
+  my $class = shift;
+  my $attrs = { };
+  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+    $attrs = { %{ pop(@_) } };
+  }
+  my $query    = ref $_[0] eq "HASH" ? shift: {@_};
+  my ($cond, @param)  = $class->_cond_resolve($query, $attrs);
+  return $class->retrieve_from_sql($cond, @param);
 }
 
 sub search_like {
   my $class    = shift;
-  my $where    = ref $_[0] eq "HASH" ? shift: {@_};
-  my ($cond, $param)  = $class->_where_from_hash($where, { cmp => 'like' });
-  return $class->retrieve_from_sql($cond, @{$param});
+  my $attrs = { };
+  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+    $attrs = pop(@_);
+  }
+  return $class->search(@_, { %$attrs, cmp => 'LIKE' });
 }
 
 sub _select_columns {
@@ -162,15 +172,15 @@ sub copy {
   return $new->insert;
 }
 
-sub _where_from_hash {
-  my ($self, $query, $opts) = @_;
-  my $op = $opts->{'cmp'} || '=';
+sub _cond_resolve {
+  my ($self, $query, $attrs) = @_;
+  my $op = $attrs->{'cmp'} || '=';
   my $cond = join(' AND ',
                map { (defined $query->{$_}
                        ? "$_ $op ?"
                        : (do { delete $query->{$_}; "$_ IS NULL"; }));
                    } keys %$query);
-  return ($cond, [ values %$query ]);
+  return ($cond, values %$query);
 }
 
 sub table {

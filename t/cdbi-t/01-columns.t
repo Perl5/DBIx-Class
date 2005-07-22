@@ -37,7 +37,7 @@ use base 'DBIx::Class';
 
 City->table('City');
 City->columns(All => qw/Name State Population/);
-#City->has_a(State => 'State');
+City->has_a(State => 'State');
 
 
 #-------------------------------------------------------------------------

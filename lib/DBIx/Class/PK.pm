@@ -32,14 +32,18 @@ sub retrieve {
   if (ref $vals[0] eq 'HASH') {
     $query = $vals[0];
   } elsif (@pk == @vals) {
-    return ($class->retrieve_from_sql($class->_ident_cond, @vals))[0];
+    my $ret = ($class->retrieve_from_sql($class->_ident_cond, @vals))[0];
+    #warn "$class: ".join(', ', %{$ret->{_column_data}});
+    return $ret;
   } else {
     $query = {@vals};
   }
   die "Can't retrieve unless all primary keys are specified"
     unless (keys %$query >= @pk); # If we check 'em we run afoul of uc/lc
                                   # column names etc. Not sure what to do yet
-  return ($class->search($query))[0];
+  my $ret = ($class->search($query))[0];
+  #warn "$class: ".join(', ', %{$ret->{_column_data}});
+  return $ret;
 }
 
 sub discard_changes {
