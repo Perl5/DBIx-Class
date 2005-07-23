@@ -12,8 +12,14 @@ sub has_many {
     if $too_many;
   if (ref $f_key eq 'HASH') { $args = $f_key; undef $f_key; };
   unless ($f_key) {
-    ($f_key) = grep { $f_class && $_->{class} eq $class }
+    ($f_key) = grep { $_->{class} && $_->{class} eq $class }
                  $f_class->_relationships;
+  }
+  unless ($f_key) {
+    #warn join(', ', %{ $f_class->_columns });
+    $class =~ /([^\:]+)$/;
+    #warn $1;
+    $f_key = lc $1 if $f_class->_columns->{lc $1};
   }
   die "Unable to resolve foreign key for has_many from ${class} to ${f_class}"
     unless $f_key;

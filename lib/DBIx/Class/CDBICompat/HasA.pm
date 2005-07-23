@@ -43,12 +43,16 @@ sub set_has_a {
 
 sub store_has_a {
   my ($self, $rel, $obj) = @_;
-  return $self->set_column($rel, $obj) unless ref $obj;
+  unless (ref $obj) {
+    delete $self->{_relationship_data}{$rel};
+    return $self->store_column($rel, $obj);
+  }
   my $rel_obj = $self->_relationships->{$rel};
   die "Can't set $rel: object $obj is not of class ".$rel_obj->{class}
      unless $obj->isa($rel_obj->{class});
   $self->{_relationship_data}{$rel} = $obj;
-  $self->set_column($rel, ($obj->_ident_values)[0]);
+  #warn "Storing $obj: ".($obj->_ident_values)[0];
+  $self->store_column($rel, ($obj->_ident_values)[0]);
   return $obj;
 }
 

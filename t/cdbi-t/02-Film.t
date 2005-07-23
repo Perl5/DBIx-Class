@@ -174,7 +174,7 @@ eval {
 		cmp_ok(Film->search(Director => 'Elaine May'), '==',
 			0, "0 Films by Elaine May");
                 SKIP: {
-                    skip "No deprecated warnings from DBIx::Class", 1;
+                    skip "No deprecated warnings from compat layer", 1;
 		    is $deprecated, 1, "Got a deprecated warning";
                 }
 	}

@@ -9,6 +9,8 @@ __PACKAGE__->mk_classdata('_columns' => {});
 
 __PACKAGE__->mk_classdata('_table_name');
 
+__PACKAGE__->mk_classdata('table_alias'); # FIXME XXX
+
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;

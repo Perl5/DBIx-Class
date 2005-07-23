@@ -95,12 +95,12 @@ ok(!State->find_column('HGLAGAGlAG'), '!find_column HGLAGAGlAG');
 
 	my @grps = sort State->__grouper->groups_for(State->_find_columns(qw/rain capital/));
 	is @grps, 2, "Rain and Capital = 2 groups";
-        @grps = sort @grps; # Because DBIx::Class is hash-based
+        @grps = sort @grps; # Because the underlying API is hash-based
 	is $grps[0], 'Other',   " - Other";
 	is $grps[1], 'Weather', " - Weather";
 }
 
-SKIP: {
+{
 	local $SIG{__WARN__} = sub { };
 	eval { DBIx::Class->retrieve(1) };
 	like $@, qr/Can't retrieve unless primary columns are defined/, "Need primary key for retrieve";

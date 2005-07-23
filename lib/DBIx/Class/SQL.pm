@@ -26,6 +26,7 @@ __PACKAGE__->mk_classdata('_sql_statements',
 sub _get_sql {
   my ($class, $name, $cols, $from, $cond) = @_;
   my $sql = $class->_sql_statements->{$name}->($cols, $from, $cond);
+  #warn $sql;
   return $sql;
 }
 
