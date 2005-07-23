@@ -2,7 +2,7 @@ package DBIx::Class::Test::SQLite;
 
 =head1 NAME
 
-DBIx::Class::Test::SQLite - Base class for DBIx::Class tests, shamelessly ripped from Class::DBI::Test::SQLite
+DBIx::Class::Test::SQLite - Base class for running Class::DBI tests against DBIx::Class compat layer, shamelessly ripped from Class::DBI::Test::SQLite
 
 =head1 SYNOPSIS
 
@@ -32,7 +32,7 @@ tie it to the class.
 
 use strict;
 
-use base 'DBIx::Class';
+use base qw/DBIx::Class::PK::Auto::SQLite DBIx::Class::PK::Auto DBIx::Class/;
 use File::Temp qw/tempfile/;
 my (undef, $DB) = tempfile();
 END { unlink $DB if -e $DB }

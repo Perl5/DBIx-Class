@@ -60,6 +60,7 @@ sub update {
 sub delete {
   my $self = shift;
   if (ref $self) {
+    #warn $self->_ident_cond.' '.join(', ', $self->_ident_values);
     my $sth = $self->_get_sth('delete', undef,
                                 $self->_table_name, $self->_ident_cond);
     $sth->execute($self->_ident_values);
@@ -124,6 +125,7 @@ sub retrieve_from_sql {
   $cond =~ s/^\s*WHERE//i;
   my @cols = $class->_select_columns;
   my $sth = $class->_get_sth( 'select', \@cols, $class->_table_name, $cond);
+  #warn "$cond @vals";
   return $class->sth_to_objects($sth, \@vals, \@cols);
 }
 

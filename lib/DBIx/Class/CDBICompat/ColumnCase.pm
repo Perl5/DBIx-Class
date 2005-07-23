@@ -22,6 +22,11 @@ sub has_a {
   return 1;
 }
 
+sub has_many {
+  my ($class, $rel, $f_class, $f_key, @rest) = @_;
+  return $class->NEXT::ACTUAL::has_many($rel, $f_class, lc($f_key), @rest);
+}
+
 sub get_has_a {
   my ($class, $get, @rest) = @_;
   return $class->NEXT::ACTUAL::get_has_a(lc($get), @rest);
@@ -59,10 +64,15 @@ sub find_column {
 
 sub _mk_group_accessors {
   my ($class, $type, $group, @fields) = @_;
-  my %fields;
-  $fields{$_} = 1 for @fields,
-                    map lc, grep { !defined &{"${class}::${_}"} } @fields;
-  return $class->NEXT::ACTUAL::_mk_group_accessors($type, $group, keys %fields);
+  #warn join(', ', map { ref $_ ? (@$_) : ($_) } @fields);
+  my @extra;
+  foreach (@fields) {
+    my ($acc, $field) = ref $_ ? @$_ : ($_, $_);
+    next if defined &{"${class}::${acc}"};
+    push(@extra, [ lc $acc => $field ]);
+  }
+  return $class->NEXT::ACTUAL::_mk_group_accessors($type, $group,
+                                                     @fields, @extra);
 }
 
 sub _cond_key {

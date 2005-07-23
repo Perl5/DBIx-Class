@@ -26,11 +26,13 @@ sub _add_column_group {
 
 sub _register_column_group {
   my ($class, $group, @cols) = @_;
-  if ($group eq 'Primary') {
-    $class->set_primary_key(@cols);
-  }
 
   my $groups = { %{$class->_column_groups} };
+
+  if ($group eq 'Primary') {
+    $class->set_primary_key(@cols);
+    $groups->{'Essential'}{$_} ||= {} for @cols;
+  }
 
   if ($group eq 'All') {
     unless (exists $class->_column_groups->{'Primary'}) {
@@ -38,14 +40,17 @@ sub _register_column_group {
       $class->set_primary_key($cols[0]);
     }
     unless (exists $class->_column_groups->{'Essential'}) {
+      #$class->_register_column_group('Essential' => $cols[0]);
       $groups->{'Essential'}{$cols[0]} = {};
+      #$groups->{'Essential'}{$_} ||= {} for keys %{ $class->_primaries || {} };
     }
   }
 
   $groups->{$group}{$_} ||= {} for @cols;
-  if ($group eq 'Essential') {
-    $groups->{$group}{$_} ||= {} for keys %{ $class->_primaries || {} };
-  }
+  #if ($group eq 'Essential') {
+  #  $groups->{$group}{$_} ||= {} for keys %{ $class->_primaries || {} };
+  #}
+
   $class->_column_groups($groups);
 }
 

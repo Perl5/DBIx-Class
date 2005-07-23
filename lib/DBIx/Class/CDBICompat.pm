@@ -13,6 +13,7 @@ use base qw/DBIx::Class::CDBICompat::Convenience
             DBIx::Class::CDBICompat::Constructor
             DBIx::Class::CDBICompat::AccessorMapping
             DBIx::Class::CDBICompat::ColumnCase
+            DBIx::Class::CDBICompat::HasMany
             DBIx::Class::CDBICompat::HasA
             DBIx::Class::CDBICompat::LazyLoading
             DBIx::Class::CDBICompat::AutoUpdate

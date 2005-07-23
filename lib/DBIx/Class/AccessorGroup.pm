@@ -32,12 +32,16 @@ sub mk_group_accessors {
                              "'$class' is unwise.");
             }
 
+            my $name = $field;
+
+            ($name, $field) = @$field if ref $field;
+
             my $accessor = $self->$maker($group, $field);
-            my $alias = "_${field}_accessor";
+            my $alias = "_${name}_accessor";
 
             #warn "$class $group $field $alias";
 
-            *{$class."\:\:$field"}  = $accessor;
+            *{$class."\:\:$name"}  = $accessor;
               #unless defined &{$class."\:\:$field"}
 
             *{$class."\:\:$alias"}  = $accessor;

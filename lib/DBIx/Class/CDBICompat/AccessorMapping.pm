@@ -5,10 +5,10 @@ use warnings;
 
 use NEXT;
 
-sub _mk_column_accessors {
-  my ($class, @cols) = @_;
+sub mk_group_accessors {
+  my ($class, $group, @cols) = @_;
   unless ($class->can('accessor_name') || $class->can('mutator_name')) {
-    return $class->NEXT::_mk_column_accessors('column' => @cols);
+    return $class->NEXT::mk_group_accessors($group => @cols);
   }
   foreach my $col (@cols) {
     my $ro_meth = ($class->can('accessor_name')
@@ -18,10 +18,10 @@ sub _mk_column_accessors {
                     ? $class->mutator_name($col)
                     : $col);
     if ($ro_meth eq $wo_meth) {
-      $class->mk_group_accessors('column' => $col);
+      $class->mk_group_accessors($group => [ $ro_meth => $col ]);
     } else {
-      $class->mk_group_ro_accessors('column' => $ro_meth);
-      $class->mk_group_wo_accessors('column' => $wo_meth);
+      $class->mk_group_ro_accessors($group => [ $ro_meth => $col ]);
+      $class->mk_group_wo_accessors($group => [ $wo_meth => $col ]);
     }
   }
 }
