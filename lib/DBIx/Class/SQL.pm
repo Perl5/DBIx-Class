@@ -32,7 +32,7 @@ sub _get_sql {
 
 sub _sql_to_sth {
   my ($class, $sql) = @_;
-  return $class->_get_dbh->prepare($sql);
+  return $class->_get_dbh->prepare_cached($sql);
 }
 
 sub _get_sth {

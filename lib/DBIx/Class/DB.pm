@@ -1,6 +1,7 @@
 package DBIx::Class::DB;
 
 use base qw/Class::Data::Inheritable/;
+use DBI;
 
 __PACKAGE__->mk_classdata('_dbi_connect_info');
 __PACKAGE__->mk_classdata('_dbi_connect_package');
@@ -24,7 +25,7 @@ sub _populate_dbh {
 
 sub _dbi_connect {
   my ($class, @info) = @_;
-  return DBI->connect(@info);
+  return DBI->connect_cached(@info);
 }
 
 sub connection {

@@ -52,4 +52,11 @@ sub discard_changes {
   $_[0] = $self->retrieve($self->id);
 }
 
+sub id {
+  my ($self) = @_;
+  die "Can't call id() as a class method" unless ref $self;
+  my @pk = $self->_ident_values;
+  return (wantarray ? @pk : $pk[0]);
+}
+
 1;

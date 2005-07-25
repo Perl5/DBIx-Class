@@ -10,23 +10,6 @@ sub find_or_create {
   return defined($exists) ? $exists : $class->create($hash);
 }
 
-sub id {
-  my ($self) = @_;
-  die "Can't call id() as a class method" unless ref $self;
-  my @pk = $self->_ident_values;
-  return (wantarray ? @pk : $pk[0]);
-}
-
-#sub insert {
-#  my $self = shift;
-#  $self->NEXT::insert(@_);
-#  my @pk = keys %{ $self->_primaries };
-#  if ((@pk == 1) && (!$self->{_column_data}{$pk[0]})) {
-#    $self->{_column_data}{$pk[0]} = $self->_get_dbh->last_insert_id;
-#  }
-#  return $self;
-#}
-
 sub retrieve_all {
   my ($class) = @_;
   return $class->retrieve_from_sql( '1' );

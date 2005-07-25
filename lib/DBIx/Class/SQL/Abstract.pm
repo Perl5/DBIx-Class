@@ -124,7 +124,7 @@ sub _cond_resolve {
   }
 
   # assemble and return sql
-  my $wsql = @sqlf ? '( ' . join(" $join ", @sqlf) . ' )' : '';
+  my $wsql = @sqlf ? '( ' . join(" $join ", @sqlf) . ' )' : '1 = 1';
   return wantarray ? ($wsql, @{$attrs->{bind} || []}) : $wsql; 
 }
 

@@ -30,9 +30,14 @@ sub insert {
   my $sth = $self->_get_sth('insert', [ keys %{$self->{_column_data}} ],
                               $self->_table_name, undef);
   $sth->execute(values %{$self->{_column_data}});
+  $sth->finish;
   $self->{_in_database} = 1;
   $self->{_dirty_columns} = {};
   return $self;
+}
+
+sub in_database {
+  return $_[0]->{_in_database};
 }
 
 sub create {
@@ -50,6 +55,7 @@ sub update {
                               $self->_table_name, $self->_ident_cond);
   my $rows = $sth->execute( (map { $self->{_column_data}{$_} } @to_update),
                   $self->_ident_values );
+  $sth->finish;
   if ($rows == 0) {
     die "Can't update $self: row not found";
   } elsif ($rows > 1) {
@@ -62,6 +68,7 @@ sub update {
 sub delete {
   my $self = shift;
   if (ref $self) {
+    die "Not in database" unless $self->{_in_database};
     #warn $self->_ident_cond.' '.join(', ', $self->_ident_values);
     my $sth = $self->_get_sth('delete', undef,
                                 $self->_table_name, $self->_ident_cond);
@@ -125,7 +132,8 @@ sub add_columns {
 sub retrieve_from_sql {
   my ($class, $cond, @vals) = @_;
   $cond =~ s/^\s*WHERE//i;
-  my @cols = $class->_select_columns;
+  my $attrs = (ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
+  my @cols = $class->_select_columns($attrs);
   my $sth = $class->_get_sth( 'select', \@cols, $class->_table_name, $cond);
   #warn "$cond @vals";
   return $class->sth_to_objects($sth, \@vals, \@cols);
@@ -142,6 +150,7 @@ sub sth_to_objects {
     $new->{_in_database} = 1;
     push(@found, $new);
   }
+  $sth->finish;
   return @found;
 }
 
@@ -178,6 +187,7 @@ sub copy {
 
 sub _cond_resolve {
   my ($self, $query, $attrs) = @_;
+  return '1 = 1' unless keys %$query;
   my $op = $attrs->{'cmp'} || '=';
   my $cond = join(' AND ',
                map { (defined $query->{$_}

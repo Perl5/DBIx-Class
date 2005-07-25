@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use base qw/Class::Data::Inheritable/;
+use NEXT;
 
 __PACKAGE__->mk_classdata('_accessor_group_deleted' => { });
 

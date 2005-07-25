@@ -11,10 +11,10 @@ sub has_many {
   die "has_many only works with a single primary key; ${class} has more"
     if $too_many;
   if (ref $f_key eq 'HASH') { $args = $f_key; undef $f_key; };
-  unless ($f_key) {
-    ($f_key) = grep { $_->{class} && $_->{class} eq $class }
-                 $f_class->_relationships;
-  }
+  #unless ($f_key) { Not selective enough. Removed pending fix.
+  #  ($f_rel) = grep { $_->{class} && $_->{class} eq $class }
+  #               $f_class->_relationships;
+  #}
   unless ($f_key) {
     #warn join(', ', %{ $f_class->_columns });
     $class =~ /([^\:]+)$/;
