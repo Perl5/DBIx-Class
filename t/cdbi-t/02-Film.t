@@ -4,7 +4,7 @@ $| = 1;
 
 BEGIN {
 	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 93);
+	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 95);
 }
 
 INIT {
@@ -359,6 +359,10 @@ SKIP: {
 	is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste2),
 		"Retrieving twice gives ref to same object";
 
+	my ($btaste5) = Film->search(title=>'Bad Taste');
+	is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste5),
+		"Searching also gives ref to same object";
+
 	$btaste2->remove_from_object_index;
 	my $btaste3 = Film->retrieve('Bad Taste');
 	isnt Scalar::Util::refaddr($btaste2), Scalar::Util::refaddr($btaste3),
@@ -368,4 +372,15 @@ SKIP: {
 	my $btaste4 = Film->retrieve('Bad Taste');
 	isnt Scalar::Util::refaddr($btaste2), Scalar::Util::refaddr($btaste4),
 		"Clearing cache and retrieving again gives new object";
+ 
+  $btaste=Film->create({
+		Title             => 'Bad Taste 2',
+		Director          => 'Peter Jackson',
+		Rating            => 'R',
+		NumExplodingSheep => 2,
+	});
+	$btaste2 = Film->retrieve('Bad Taste 2');
+	is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste2),
+		"Creating and retrieving gives ref to same object";
+ 
 }
