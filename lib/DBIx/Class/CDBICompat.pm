@@ -6,6 +6,7 @@ use warnings;
 use base qw/DBIx::Class::CDBICompat::Convenience
             DBIx::Class::CDBICompat::Triggers
             DBIx::Class::CDBICompat::GetSet
+            DBIx::Class::CDBICompat::LiveObjectIndex
             DBIx::Class::CDBICompat::AttributeAPI
             DBIx::Class::CDBICompat::Stringify
             DBIx::Class::CDBICompat::ObjIndexStubs

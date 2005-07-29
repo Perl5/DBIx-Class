@@ -9,7 +9,7 @@ __PACKAGE__->mk_classdata('_columns' => {});
 
 __PACKAGE__->mk_classdata('_table_name');
 
-__PACKAGE__->mk_classdata('table_alias'); # FIXME XXX
+__PACKAGE__->mk_classdata('table_alias'); # Doesn't actually do anything yet!
 
 sub new {
   my ($class, $attrs) = @_;
@@ -27,6 +27,7 @@ sub new {
 sub insert {
   my ($self) = @_;
   return if $self->in_database;
+  #use Data::Dumper; warn Dumper($self);
   my $sth = $self->_get_sth('insert', [ keys %{$self->{_column_data}} ],
                               $self->_table_name, undef);
   $sth->execute(values %{$self->{_column_data}});
@@ -95,7 +96,9 @@ sub get_column {
   my ($self, $column) = @_;
   die "Can't fetch data as class method" unless ref $self;
   die "No such column '${column}'" unless $self->_columns->{$column};
-  return $self->{_column_data}{$column} if $self->_columns->{$column};
+  return $self->{_column_data}{$column}
+    if exists $self->{_column_data}{$column};
+  return undef;
 }
 
 sub set_column {
@@ -147,13 +150,18 @@ sub sth_to_objects {
   $sth->execute(@$args);
   my @found;
   while (my @row = $sth->fetchrow_array) {
-    my $new = $class->new;
-    $new->store_column($_, shift @row) for @cols;
-    $new->in_database(1);
-    push(@found, $new);
+    push(@found, $class->_row_to_object(\@cols, \@row));
   }
   $sth->finish;
   return @found;
+}
+
+sub _row_to_object { # WARNING: Destructive to @$row
+  my ($class, $cols, $row) = @_;
+  my $new = $class->new;
+  $new->store_column($_, shift @$row) for @$cols;
+  $new->in_database(1);
+  return $new;
 }
 
 sub search {

@@ -50,7 +50,15 @@ sub retrieve {
 sub discard_changes {
   my ($self) = @_;
   delete $self->{_dirty_columns};
-  $_[0] = $self->retrieve($self->id);
+  return unless $self->in_database; # Don't reload if we aren't real!
+  my ($reload) = $self->retrieve($self->id);
+  unless ($reload) { # If we got deleted in the mean-time
+    $self->in_database(0);
+    return $self;
+  }
+  $self->store_column($_ => $reload->get_column($_))
+    foreach keys %{$self->_columns};
+  return $self;
 }
 
 sub id {

@@ -32,7 +32,7 @@ tie it to the class.
 
 use strict;
 
-use base qw/DBIx::Class::PK::Auto::SQLite DBIx::Class::PK::Auto DBIx::Class/;
+use base qw/DBIx::Class::CDBICompat DBIx::Class::PK::Auto::SQLite DBIx::Class::PK::Auto DBIx::Class::Core/;
 use File::Temp qw/tempfile/;
 my (undef, $DB) = tempfile();
 END { unlink $DB if -e $DB }

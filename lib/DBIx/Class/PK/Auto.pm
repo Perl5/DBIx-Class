@@ -12,7 +12,7 @@ sub insert {
     || (keys %{ $self->_primaries });
   die "More than one possible key found for auto-inc on ".ref $self
     if $too_many;
-  unless (exists $self->{_column_data}{$pri}) {
+  unless (defined $self->get_column($pri)) {
     die "Can't auto-inc for $pri on ".ref $self.": no _last_insert_id method"
       unless $self->can('_last_insert_id');
     my $id = $self->_last_insert_id;

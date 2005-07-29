@@ -349,7 +349,7 @@ if (0) {
 }
 
 SKIP: {
-        skip "DBIx::Class doesn't yet have a live objects index", 3;
+        #skip "DBIx::Class doesn't yet have a live objects index", 3;
 	#skip "Scalar::Util::weaken not available", 3
 		#if !$Class::DBI::Weaken_Is_Available;
 
