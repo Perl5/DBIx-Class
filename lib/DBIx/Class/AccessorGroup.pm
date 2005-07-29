@@ -3,10 +3,7 @@ package DBIx::Class::AccessorGroup;
 use strict;
 use warnings;
 
-use base qw/Class::Data::Inheritable/;
 use NEXT;
-
-__PACKAGE__->mk_classdata('_accessor_group_deleted' => { });
 
 sub mk_group_accessors {
     my($self, $group, @fields) = @_;
@@ -120,15 +117,6 @@ sub make_group_wo_accessor {
             return $self->$set($field, @_);
         }
     };
-}
-
-sub delete_accessor {
-  my ($class, $accessor) = @_;
-  $class = ref $class if ref $class;
-  my $sym = "${class}::${accessor}";
-  undef &$sym;
-  delete $DB::sub{$sym};
-  #$class->_accessor_group_deleted->{"${class}::${accessor}"} = 1;
 }
 
 1;

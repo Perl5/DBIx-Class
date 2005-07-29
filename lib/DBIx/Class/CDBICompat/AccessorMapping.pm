@@ -17,6 +17,7 @@ sub mk_group_accessors {
     my $wo_meth = ($class->can('mutator_name')
                     ? $class->mutator_name($col)
                     : $col);
+    #warn "$col $ro_meth $wo_meth";
     if ($ro_meth eq $wo_meth) {
       $class->NEXT::ACTUAL::mk_group_accessors($group => [ $ro_meth => $col ]);
     } else {

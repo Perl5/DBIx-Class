@@ -43,7 +43,7 @@ sub _cond_value {
     unless ($value =~ s/^self\.//) {
       die "Unable to convert relationship to WHERE clause: invalid value ${value}";
     }
-    unless ($self->can($value)) {
+    unless ($self->_columns->{$value}) {
       die "Unable to convert relationship to WHERE clause: no such accessor ${value}";
     }
     push(@{$attrs->{bind}}, $self->get_column($value));
@@ -80,7 +80,8 @@ sub search_related {
   $attrs->{_action} = 'convert';
   my ($cond) = $self->_cond_resolve($rel_obj->{cond}, $attrs);
   $cond = "${s_cond} AND ${cond}" if $s_cond;
-  return $rel_obj->{class}->retrieve_from_sql($cond, @{$attrs->{bind} || {}});
+  return $rel_obj->{class}->retrieve_from_sql($cond, @{$attrs->{bind} || []},
+                                                $attrs);
 }
 
 sub create_related {

@@ -17,7 +17,6 @@ sub _register_columns {
 sub has_a {
   my ($class, $col, @rest) = @_;
   $class->NEXT::ACTUAL::has_a(lc($col), @rest);
-  $class->delete_accessor($col);
   $class->mk_group_accessors('has_a' => $col);
   return 1;
 }
@@ -68,6 +67,7 @@ sub _mk_group_accessors {
   my @extra;
   foreach (@fields) {
     my ($acc, $field) = ref $_ ? @$_ : ($_, $_);
+    #warn "$acc ".lc($acc)." $field";
     next if defined &{"${class}::${acc}"};
     push(@extra, [ lc $acc => $field ]);
   }

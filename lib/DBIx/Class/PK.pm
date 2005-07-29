@@ -26,13 +26,14 @@ sub set_primary_key {
 
 sub retrieve {
   my ($class, @vals) = @_;
+  my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
   my @pk = keys %{$class->_primaries};
   die "Can't retrieve unless primary columns are defined" unless @pk;
   my $query;
   if (ref $vals[0] eq 'HASH') {
     $query = $vals[0];
   } elsif (@pk == @vals) {
-    my $ret = ($class->retrieve_from_sql($class->_ident_cond, @vals))[0];
+    my $ret = ($class->retrieve_from_sql($class->_ident_cond, @vals, $attrs))[0];
     #warn "$class: ".join(', ', %{$ret->{_column_data}});
     return $ret;
   } else {

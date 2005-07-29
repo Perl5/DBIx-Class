@@ -26,18 +26,20 @@ sub new {
 
 sub insert {
   my ($self) = @_;
-  return if $self->{_in_database};
+  return if $self->in_database;
   my $sth = $self->_get_sth('insert', [ keys %{$self->{_column_data}} ],
                               $self->_table_name, undef);
   $sth->execute(values %{$self->{_column_data}});
   $sth->finish;
-  $self->{_in_database} = 1;
+  $self->in_database(1);
   $self->{_dirty_columns} = {};
   return $self;
 }
 
 sub in_database {
-  return $_[0]->{_in_database};
+  my ($self, $val) = @_;
+  $self->{_in_database} = $val if @_ > 1;
+  return $self->{_in_database};
 }
 
 sub create {
@@ -48,7 +50,7 @@ sub create {
 
 sub update {
   my ($self) = @_;
-  die "Not in database" unless $self->{_in_database};
+  die "Not in database" unless $self->in_database;
   my @to_update = keys %{$self->{_dirty_columns} || {}};
   return -1 unless @to_update;
   my $sth = $self->_get_sth('update', \@to_update,
@@ -68,13 +70,13 @@ sub update {
 sub delete {
   my $self = shift;
   if (ref $self) {
-    die "Not in database" unless $self->{_in_database};
+    die "Not in database" unless $self->in_database;
     #warn $self->_ident_cond.' '.join(', ', $self->_ident_values);
     my $sth = $self->_get_sth('delete', undef,
                                 $self->_table_name, $self->_ident_cond);
     $sth->execute($self->_ident_values);
     $sth->finish;
-    delete $self->{_in_database};
+    $self->in_database(undef);
   } else {
     my $attrs = { };
     if (@_ > 1 && ref $_[$#_] eq 'HASH') {
@@ -147,7 +149,7 @@ sub sth_to_objects {
   while (my @row = $sth->fetchrow_array) {
     my $new = $class->new;
     $new->store_column($_, shift @row) for @cols;
-    $new->{_in_database} = 1;
+    $new->in_database(1);
     push(@found, $new);
   }
   $sth->finish;
@@ -162,7 +164,7 @@ sub search {
   }
   my $query    = ref $_[0] eq "HASH" ? shift: {@_};
   my ($cond, @param)  = $class->_cond_resolve($query, $attrs);
-  return $class->retrieve_from_sql($cond, @param);
+  return $class->retrieve_from_sql($cond, @param, $attrs);
 }
 
 sub search_like {

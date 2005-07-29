@@ -13,7 +13,6 @@ sub has_a {
   $self->add_relationship($col, $f_class,
                             { "foreign.${pri}" => "self.${col}" },
                             { _type => 'has_a' } );
-  $self->delete_accessor($col);
   $self->mk_group_accessors('has_a' => $col);
   return 1;
 }
