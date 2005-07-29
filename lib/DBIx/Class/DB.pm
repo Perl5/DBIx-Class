@@ -50,6 +50,10 @@ sub connection {
   $class->_dbi_connect_info(\@info);
 }
 
+sub dbi_commit { $_[0]->_get_dbh->commit; }
+
+sub dbi_rollback { $_[0]->_get_dbh->rollback; }
+
 1;
 
 =back
