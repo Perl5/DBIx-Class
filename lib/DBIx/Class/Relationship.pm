@@ -70,7 +70,7 @@ sub search_related {
   }
   my $rel_obj = $self->_relationships->{$rel};
   die "No such relationship ${rel}" unless $rel;
-  $attrs = { %{$rel_obj->{attrs}}, %{$attrs || {}} };
+  $attrs = { %{$rel_obj->{attrs} || {}}, %{$attrs || {}} };
   my $s_cond;
   if (@_) {
     die "Invalid query: @_" if (@_ > 1 && (@_ % 2 == 1));
