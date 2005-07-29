@@ -140,3 +140,26 @@ sub _cond_value {
 }
   
 1;
+
+=head1 NAME 
+
+DBIx::Class::SQL::Abstract - SQL::Abstract customized for DBIC.
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This is a customized version of L<SQL::Abstract> for use in 
+generating L<DBIx::Searchbuilder> searches.
+
+=cut
+
+=head1 AUTHORS
+
+Matt S. Trout <perl-stuff@trout.me.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut

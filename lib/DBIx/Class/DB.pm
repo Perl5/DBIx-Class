@@ -7,6 +7,22 @@ __PACKAGE__->mk_classdata('_dbi_connect_info');
 __PACKAGE__->mk_classdata('_dbi_connect_package');
 __PACKAGE__->mk_classdata('_dbh');
 
+=head1 NAME 
+
+DBIx::Class::DB - DBIx::Class Database connection
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This class represents the connection to the database
+
+=head1 METHODS
+
+=over 4
+
+=cut
+
 sub _get_dbh {
   my ($class) = @_;
   my $dbh;
@@ -35,3 +51,16 @@ sub connection {
 }
 
 1;
+
+=back
+
+=head1 AUTHORS
+
+Matt S. Trout <perl-stuff@trout.me.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
+

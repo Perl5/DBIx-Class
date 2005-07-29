@@ -3,6 +3,28 @@ package DBIx::Class::PK::Auto;
 use strict;
 use warnings;
 
+=head1 NAME 
+
+DBIx::Class::PK::Auto - Automatic Primary Key class
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This class overrides the insert method to get automatically
+incremented primary keys.
+
+=head1 METHODS
+
+=over 4
+
+=item insert
+
+Overrides insert so that it will get the value of autoincremented
+primary keys.
+
+=cut
+
 sub insert {
   my ($self, @rest) = @_;
   my $ret = $self->NEXT::ACTUAL::insert(@rest);
@@ -23,3 +45,16 @@ sub insert {
 }
 
 1;
+
+=back
+
+=head1 AUTHORS
+
+Matt S. Trout <perl-stuff@trout.me.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
+

@@ -9,7 +9,24 @@ __PACKAGE__->mk_classdata('_columns' => {});
 
 __PACKAGE__->mk_classdata('_table_name');
 
-__PACKAGE__->mk_classdata('table_alias'); # Doesn't actually do anything yet!
+__PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything yet!
+
+=head1 NAME 
+
+DBIx::Class::Table - Basic table methods
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This class is responsible for defining and doing basic operations on 
+L<DBIx::Class> objects.
+
+=head1 METHODS
+
+=over 4
+
+=cut
 
 sub new {
   my ($class, $attrs) = @_;
@@ -212,3 +229,16 @@ sub table {
 }
 
 1;
+
+=back
+
+=head1 AUTHORS
+
+Matt S. Trout <perl-stuff@trout.me.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
+

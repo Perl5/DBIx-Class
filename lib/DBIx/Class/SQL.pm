@@ -9,6 +9,20 @@ use constant COLS => 0;
 use constant FROM => 1;
 use constant COND => 2;
 
+=head1 NAME 
+
+DBIx::Class::SQL -  SQL Specific methods for DBIx::Class
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This class contains methods that generates SQL queries for
+the rest of the L<DBIx::Class> hiarchy. It's also responsible
+for executing these.
+
+=cut
+
 __PACKAGE__->mk_classdata('_sql_statements',
   {
     'select' =>
@@ -41,3 +55,13 @@ sub _get_sth {
 }
 
 1;
+
+=head1 AUTHORS
+
+Matt S. Trout <perl-stuff@trout.me.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut

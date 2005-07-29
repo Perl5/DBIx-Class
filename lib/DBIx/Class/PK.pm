@@ -7,6 +7,24 @@ use base qw/Class::Data::Inheritable DBIx::Class::SQL/;
 
 __PACKAGE__->mk_classdata('_primaries' => {});
 
+=head1 NAME 
+
+DBIx::Class::PK - Primary Key class
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This class represents methods handling primary keys
+and depending on them.
+
+=head1 METHODS
+
+=over 4
+
+=cut
+
+
 sub _ident_cond {
   my ($class) = @_;
   return join(" AND ", map { "$_ = ?" } keys %{$class->_primaries});
@@ -69,3 +87,16 @@ sub id {
 }
 
 1;
+
+=back
+
+=head1 AUTHORS
+
+Matt S. Trout <perl-stuff@trout.me.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
+

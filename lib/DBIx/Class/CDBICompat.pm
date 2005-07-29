@@ -22,3 +22,24 @@ use base qw/DBIx::Class::CDBICompat::Convenience
             DBIx::Class::CDBICompat::ImaDBI/;
 
 1;
+
+=head1 NAME 
+
+DBIx::Class::CDBICompat - Class::DBI Compatability layer.
+
+=head1 DESCRIPTION
+
+This class just inherits from the various modules that makes 
+up the Class::DBI compability layer.
+
+
+=head1 AUTHORS
+
+Matt S. Trout <perl-stuff@trout.me.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
+

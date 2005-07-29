@@ -5,6 +5,23 @@ use warnings;
 
 use NEXT;
 
+=head1 NAME 
+
+DBIx::Class::AccessorGroup -  Lets you build groups of accessors
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This class lets you build groups of accessors that will call different
+getters and setters.
+
+=head1 METHODS
+
+=over 4
+
+=cut
+
 sub mk_group_accessors {
     my($self, $group, @fields) = @_;
 
@@ -120,3 +137,16 @@ sub make_group_wo_accessor {
 }
 
 1;
+
+=back
+
+=head1 AUTHORS
+
+Matt S. Trout <perl-stuff@trout.me.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
+

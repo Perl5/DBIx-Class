@@ -17,3 +17,26 @@ sub _cond_resolve {
 }
 
 1;
+
+=head1 NAME 
+
+DBIx::Class::SQL::OrderBy - Implements sorting for DBIC's SQL backend
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This class implements the order_by attribute to L<DBIx::Class>'s search
+builder.
+
+=cut
+
+=head1 AUTHORS
+
+Matt S. Trout <perl-stuff@trout.me.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
