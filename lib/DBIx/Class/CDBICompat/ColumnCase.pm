@@ -23,7 +23,9 @@ sub has_a {
 
 sub has_many {
   my ($class, $rel, $f_class, $f_key, @rest) = @_;
-  return $class->NEXT::ACTUAL::has_many($rel, $f_class, lc($f_key), @rest);
+  return $class->NEXT::ACTUAL::has_many($rel, $f_class, ( ref($f_key) ? 
+                                                          $f_key : 
+                                                          lc($f_key) ), @rest);
 }
 
 sub get_has_a {
