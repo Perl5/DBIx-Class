@@ -2,6 +2,7 @@ package DBIx::Class::PK;
 
 use strict;
 use warnings;
+use Tie::IxHash;
 
 use base qw/Class::Data::Inheritable DBIx::Class::SQL/;
 
@@ -38,7 +39,8 @@ sub _ident_values {
 sub set_primary_key {
   my ($class, @cols) = @_;
   my %pri;
-  $pri{$_} = {} for @cols;
+  tie %pri, 'Tie::IxHash';
+  %pri = map { $_ => {} } @cols;
   $class->_primaries(\%pri);
 }
 

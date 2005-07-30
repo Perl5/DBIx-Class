@@ -31,6 +31,10 @@ CREATE TABLE tags (tagid INTEGER NOT NULL PRIMARY KEY, cd INTEGER NOT NULL,
 CREATE TABLE twokeys (artist INTEGER NOT NULL, cd INTEGER NOT NULL,
                       PRIMARY KEY (artist, cd) );
 
+CREATE TABLE fourkeys (foo INTEGER NOT NULL, bar INTEGER NOT NULL,
+                      hello INTEGER NOT NULL, goodbye INTEGER NOT NULL,
+                      PRIMARY KEY (foo, bar, hello, goodbye) );
+
 CREATE TABLE onekey (id INTEGER NOT NULL PRIMARY KEY,
                       artist INTEGER NOT NULL, cd INTEGER NOT NULL );
 
@@ -87,6 +91,10 @@ INSERT INTO twokeys (artist, cd) VALUES (1, 1);
 INSERT INTO twokeys (artist, cd) VALUES (1, 2);
 
 INSERT INTO twokeys (artist, cd) VALUES (2, 2);
+
+INSERT INTO fourkeys (foo, bar, hello, goodbye) VALUES (1, 2, 3, 4);
+
+INSERT INTO fourkeys (foo, bar, hello, goodbye) VALUES (5, 4, 3, 6);
 
 INSERT INTO onekey (id, artist, cd) VALUES (1, 1, 1);
 
@@ -158,12 +166,20 @@ DBICTest::TwoKeys->set_primary_key(qw/artist cd/);
 #DBICTest::TwoKeys->has_a(artist => 'SweetTest::Artist');
 #DBICTest::TwoKeys->has_a(cd => 'SweetTest::CD');
 
+package DBICTest::FourKeys;
+
+use base 'DBICTest';
+
+DBICTest::FourKeys->table('fourkeys');
+DBICTest::FourKeys->add_columns(qw/foo bar hello goodbye/);
+DBICTest::FourKeys->set_primary_key(qw/foo bar hello goodbye/);
+
 package DBICTest::OneKey;
 
 use base 'DBICTest';
 
 DBICTest::OneKey->table('onekey');
 DBICTest::OneKey->add_columns(qw/id artist cd/);
-DBICTest::TwoKeys->set_primary_key('id');
+DBICTest::OneKey->set_primary_key('id');
 
 1;
