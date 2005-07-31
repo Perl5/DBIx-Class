@@ -7,13 +7,14 @@ use overload
         fallback => 1;
 
 sub new {
-  my ($it_class, $db_class, $sth, $args, $cols) = @_;
+  my ($it_class, $db_class, $sth, $args, $cols, $attrs) = @_;
   $sth->execute(@{$args || []}) unless $sth->{Active};
   my $new = {
     class => $db_class,
     sth => $sth,
     cols => $cols,
-    args => $args };
+    args => $args,
+    attrs => $attrs };
   return bless ($new, $it_class);
 }
 
@@ -26,7 +27,18 @@ sub next {
 }
 
 sub count {
-  return scalar $_[0]->all; # So inefficient
+  my ($self) = @_;
+  if (my $cond = $self->{attrs}->{where}) {
+    my $class = $self->{class};
+    my $sth = $class->_get_sth( 'select', [ 'COUNT(*)' ],
+                                  $class->_table_name, $cond);
+    $sth->execute(@{$self->{args} || []});
+    my ($count) = $sth->fetchrow_array;
+    $sth->finish;
+    return $count;
+  } else {
+    return scalar $_[0]->all; # So inefficient
+  }
 }
 
 sub all {

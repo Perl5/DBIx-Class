@@ -162,15 +162,15 @@ sub retrieve_from_sql {
   my @cols = $class->_select_columns($attrs);
   my $sth = $class->_get_sth( 'select', \@cols, $class->_table_name, $cond);
   #warn "$cond @vals";
-  return $class->sth_to_objects($sth, \@vals, \@cols);
+  return $class->sth_to_objects($sth, \@vals, \@cols, { where => $cond });
 }
 
 sub sth_to_objects {
-  my ($class, $sth, $args, $cols) = @_;
+  my ($class, $sth, $args, $cols, $attrs) = @_;
   my @cols = ((ref $cols eq 'ARRAY') ? @$cols : @{$sth->{NAME_lc}} );
   my $cursor_class = $class->_cursor_class;
   eval "use $cursor_class;";
-  my $cursor = $cursor_class->new($class, $sth, $args, \@cols);
+  my $cursor = $cursor_class->new($class, $sth, $args, \@cols, $attrs);
   return (wantarray ? $cursor->all : $cursor);
 }
 
