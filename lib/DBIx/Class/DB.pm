@@ -41,7 +41,7 @@ sub _populate_dbh {
 
 sub _dbi_connect {
   my ($class, @info) = @_;
-  return DBI->connect_cached(@info);
+  return DBI->connect(@info);
 }
 
 sub connection {

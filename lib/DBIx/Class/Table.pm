@@ -3,13 +3,17 @@ package DBIx::Class::Table;
 use strict;
 use warnings;
 
-use base qw/Class::Data::Inheritable DBIx::Class::SQL/;
+use DBIx::Class::Cursor;
+
+use base qw/Class::Data::Inheritable/;
 
 __PACKAGE__->mk_classdata('_columns' => {});
 
 __PACKAGE__->mk_classdata('_table_name');
 
 __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything yet!
+
+__PACKAGE__->mk_classdata('_cursor_class' => 'DBIx::Class::Cursor');
 
 =head1 NAME 
 
@@ -164,13 +168,10 @@ sub retrieve_from_sql {
 sub sth_to_objects {
   my ($class, $sth, $args, $cols) = @_;
   my @cols = ((ref $cols eq 'ARRAY') ? @$cols : @{$sth->{NAME_lc}} );
-  $sth->execute(@$args);
-  my @found;
-  while (my @row = $sth->fetchrow_array) {
-    push(@found, $class->_row_to_object(\@cols, \@row));
-  }
-  $sth->finish;
-  return @found;
+  my $cursor_class = $class->_cursor_class;
+  eval "use $cursor_class;";
+  my $cursor = $cursor_class->new($class, $sth, $args, \@cols);
+  return (wantarray ? $cursor->all : $cursor);
 }
 
 sub _row_to_object { # WARNING: Destructive to @$row
@@ -226,6 +227,18 @@ sub _cond_resolve {
 
 sub table {
   shift->_table_name(@_);
+}
+
+sub find_or_create {
+  my $class    = shift;
+  my $hash     = ref $_[0] eq "HASH" ? shift: {@_};
+  my ($exists) = $class->search($hash);
+  return defined($exists) ? $exists : $class->create($hash);
+}
+
+sub retrieve_all {
+  my ($class) = @_;
+  return $class->retrieve_from_sql( '1' );
 }
 
 1;

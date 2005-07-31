@@ -93,12 +93,11 @@ is $@, '', "No errors";
 # Iterators
 #----------------------------------------------------------------------
 
-SKIP: {
-  skip "Compat layer doesn't have iterator support yet", 33;
+my $it_class = 'DBIx::Class::Cursor';
 
 sub test_normal_iterator {
 	my $it = $film->actors;
-	isa_ok $it, "Class::DBI::Iterator";
+	isa_ok $it, $it_class;
 	is $it->count, 3, " - with 3 elements";
 	my $i = 0;
 	while (my $film = $it->next) {
@@ -112,7 +111,7 @@ test_normal_iterator;
 {
 	Film->has_many(actor_ids => [ Actor => 'id' ]);
 	my $it = $film->actor_ids;
-	isa_ok $it, "Class::DBI::Iterator";
+	isa_ok $it, $it_class;
 	is $it->count, 3, " - with 3 elements";
 	my $i = 0;
 	while (my $film_id = $it->next) {
@@ -124,6 +123,10 @@ test_normal_iterator;
 
 # make sure nothing gets clobbered;
 test_normal_iterator;
+
+SKIP: {
+  skip "dbic iterators don't support slice yet", 12;
+
 
 {
 	my @acts = $film->actors->slice(1, 2);

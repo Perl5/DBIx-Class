@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Tie::IxHash;
 
-use base qw/Class::Data::Inheritable DBIx::Class::SQL/;
+use base qw/Class::Data::Inheritable/;
 
 __PACKAGE__->mk_classdata('_primaries' => {});
 
