@@ -32,9 +32,8 @@ sub count {
     my $class = $self->{class};
     my $sth = $class->_get_sth( 'select', [ 'COUNT(*)' ],
                                   $class->_table_name, $cond);
-    $sth->execute(@{$self->{args} || []});
-    my ($count) = $sth->fetchrow_array;
-    $sth->finish;
+    my ($count) = $class->_get_dbh->selectrow_array(
+                                      $sth, undef, @{$self->{args} || []});
     return $count;
   } else {
     return scalar $_[0]->all; # So inefficient
