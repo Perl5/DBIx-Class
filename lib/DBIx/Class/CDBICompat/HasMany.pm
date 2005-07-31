@@ -14,7 +14,7 @@ sub has_many {
 
   if (!$self_key || $self_key eq 'id') {
     my ($pri, $too_many) = keys %{ $class->_primaries };
-    die "has_many only works with a single primary key; ${class} has more"
+    $class->throw( "has_many only works with a single primary key; ${class} has more" )
       if $too_many;
     $self_key = $pri;
   }
@@ -35,9 +35,9 @@ sub has_many {
     $f_key = lc $1 if $f_class->_columns->{lc $1};
   }
 
-  die "Unable to resolve foreign key for has_many from ${class} to ${f_class}"
+  $class->throw( "Unable to resolve foreign key for has_many from ${class} to ${f_class}" )
     unless $f_key;
-  die "No such column ${f_key} on foreign class ${f_class}"
+  $class->throw( "No such column ${f_key} on foreign class ${f_class}" )
     unless $f_class->_columns->{$f_key};
   $class->add_relationship($rel, $f_class,
                             { "foreign.${f_key}" => "self.${self_key}" },

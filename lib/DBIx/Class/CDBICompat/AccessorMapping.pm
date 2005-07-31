@@ -29,7 +29,7 @@ sub mk_group_accessors {
 
 sub create {
   my ($class, $attrs, @rest) = @_;
-  die "create needs a hashref" unless ref $attrs eq 'HASH';
+  $class->throw( "create needs a hashref" ) unless ref $attrs eq 'HASH';
   $attrs = { %$attrs };
   my %att;
   foreach my $col (keys %{ $class->_columns }) {

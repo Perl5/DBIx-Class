@@ -69,7 +69,7 @@ sub _cond_resolve {
             my $u = uc($1);
             if ($u =~ /BETWEEN/) {
               # SQL sucks
-              die "BETWEEN must have exactly two arguments" unless @$x == 2;
+              $self->throw( "BETWEEN must have exactly two arguments" ) unless @$x == 2;
               push @sqlf, join ' ',
                             $self->_cond_key($attrs => $k), $u,
                             $self->_cond_value($attrs => $k => $x->[0]),

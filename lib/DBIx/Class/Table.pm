@@ -37,7 +37,7 @@ sub new {
   $class = ref $class if ref $class;
   my $new = bless({ _column_data => { } }, $class);
   if ($attrs) {
-    die "attrs must be a hashref" unless ref($attrs) eq 'HASH';
+    $new->throw("attrs must be a hashref" ) unless ref($attrs) eq 'HASH';
     while (my ($k, $v) = each %{$attrs}) {
       $new->store_column($k => $v);
     }
@@ -66,13 +66,13 @@ sub in_database {
 
 sub create {
   my ($class, $attrs) = @_;
-  die "create needs a hashref" unless ref $attrs eq 'HASH';
+  $class->throw( "create needs a hashref" ) unless ref $attrs eq 'HASH';
   return $class->new($attrs)->insert;
 }
 
 sub update {
   my ($self) = @_;
-  die "Not in database" unless $self->in_database;
+  $self->throw( "Not in database" ) unless $self->in_database;
   my @to_update = keys %{$self->{_dirty_columns} || {}};
   return -1 unless @to_update;
   my $sth = $self->_get_sth('update', \@to_update,
@@ -81,9 +81,9 @@ sub update {
                   $self->_ident_values );
   $sth->finish;
   if ($rows == 0) {
-    die "Can't update $self: row not found";
+    $self->throw( "Can't update $self: row not found" );
   } elsif ($rows > 1) {
-    die "Can't update $self: updated more than one row";
+    $self->throw("Can't update $self: updated more than one row");
   }
   $self->{_dirty_columns} = {};
   return $self;
@@ -92,7 +92,7 @@ sub update {
 sub delete {
   my $self = shift;
   if (ref $self) {
-    die "Not in database" unless $self->in_database;
+    $self->throw( "Not in database" ) unless $self->in_database;
     #warn $self->_ident_cond.' '.join(', ', $self->_ident_values);
     my $sth = $self->_get_sth('delete', undef,
                                 $self->_table_name, $self->_ident_cond);
@@ -115,8 +115,8 @@ sub delete {
 
 sub get_column {
   my ($self, $column) = @_;
-  die "Can't fetch data as class method" unless ref $self;
-  die "No such column '${column}'" unless $self->_columns->{$column};
+  $self->throw( "Can't fetch data as class method" ) unless ref $self;
+  $self->throw( "No such column '${column}'" ) unless $self->_columns->{$column};
   return $self->{_column_data}{$column}
     if exists $self->{_column_data}{$column};
   return undef;
@@ -132,8 +132,10 @@ sub set_column {
 
 sub store_column {
   my ($self, $column, $value) = @_;
-  die "No such column '${column}'" unless $self->_columns->{$column};
-  die "set_column called for ${column} without value" if @_ < 3;
+  $self->throw( "No such column '${column}'" ) 
+    unless $self->_columns->{$column};
+  $self->throw( "set_column called for ${column} without value" ) 
+    if @_ < 3;
   return $self->{_column_data}{$column} = $value;
 }
 

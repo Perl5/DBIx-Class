@@ -39,7 +39,7 @@ sub _cond_key {
   my $action = $attrs->{_action} || '';
   if ($action eq 'convert') {
     unless ($key =~ s/^foreign\.//) {
-      die "Unable to convert relationship to WHERE clause: invalid key ${key}";
+      $self->throw("Unable to convert relationship to WHERE clause: invalid key ${key}");
     }
     return $key;
   } elsif ($action eq 'join') {
@@ -47,8 +47,8 @@ sub _cond_key {
     if ($attrs->{_aliases}{$type}) {
       return join('.', $attrs->{_aliases}{$type}, $field);
     } else {
-      die "Unable to resolve type ${type}: only have aliases for ".
-            join(', ', keys %{$attrs->{_aliases}{$type} || {}});
+      $self->throw( "Unable to resolve type ${type}: only have aliases for ".
+            join(', ', keys %{$attrs->{_aliases}{$type} || {}}) );
     }
   }
   return $self->NEXT::ACTUAL::_cond_key($attrs, $key);
@@ -59,10 +59,10 @@ sub _cond_value {
   my $action = $attrs->{_action} || '';
   if ($action eq 'convert') {
     unless ($value =~ s/^self\.//) {
-      die "Unable to convert relationship to WHERE clause: invalid value ${value}";
+      $self->throw( "Unable to convert relationship to WHERE clause: invalid value ${value}" );
     }
     unless ($self->_columns->{$value}) {
-      die "Unable to convert relationship to WHERE clause: no such accessor ${value}";
+      $self->throw( "Unable to convert relationship to WHERE clause: no such accessor ${value}" );
     }
     push(@{$attrs->{bind}}, $self->get_column($value));
     return '?';
@@ -71,8 +71,8 @@ sub _cond_value {
     if ($attrs->{_aliases}{$type}) {
       return join('.', $attrs->{_aliases}{$type}, $field);
     } else {
-      die "Unable to resolve type ${type}: only have aliases for ".
-            join(', ', keys %{$attrs->{_aliases}{$type} || {}});
+      $self->throw( "Unable to resolve type ${type}: only have aliases for ".
+            join(', ', keys %{$attrs->{_aliases}{$type} || {}}) );
     }
   }
       
@@ -87,11 +87,11 @@ sub search_related {
     $attrs = { %{ pop(@_) } };
   }
   my $rel_obj = $self->_relationships->{$rel};
-  die "No such relationship ${rel}" unless $rel;
+  $self->throw( "No such relationship ${rel}" ) unless $rel;
   $attrs = { %{$rel_obj->{attrs} || {}}, %{$attrs || {}} };
   my $s_cond;
   if (@_) {
-    die "Invalid query: @_" if (@_ > 1 && (@_ % 2 == 1));
+    $self->throw( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
     my $query = ((@_ > 1) ? {@_} : shift);
     $s_cond = $self->_cond_resolve($query, $attrs);
   }
@@ -104,11 +104,13 @@ sub search_related {
 
 sub create_related {
   my ($self, $rel, $values, $attrs) = @_;
-  die "Can't call create_related as class method" unless ref $self;
-  die "create_related needs a hash" unless (ref $values eq 'HASH');
+  $self->throw( "Can't call create_related as class method" ) 
+    unless ref $self;
+  $self->throw( "create_related needs a hash" ) 
+    unless (ref $values eq 'HASH');
   my $rel_obj = $self->_relationships->{$rel};
-  die "No such relationship ${rel}" unless $rel;
-  die "Can't abstract implicit create for ${rel}, condition not a hash"
+  $self->throw( "No such relationship ${rel}" ) unless $rel;
+  $self->throw( "Can't abstract implicit create for ${rel}, condition not a hash" )
     unless ref $rel_obj->{cond} eq 'HASH';
   $attrs = { %{$rel_obj->{attrs}}, %{$attrs || {}}, _action => 'convert' };
   my %fields = %$values;

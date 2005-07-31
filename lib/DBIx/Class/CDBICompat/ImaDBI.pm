@@ -39,7 +39,7 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
           ($rel_obj) = grep { $_->{class} && $_->{class} eq $to_class }
                          values %{ $from_class->_relationships };
         }
-        die "No relationship to JOIN from ${from_class} to ${to_class}"
+        $self->throw( "No relationship to JOIN from ${from_class} to ${to_class}" )
           unless $rel_obj;
         my $attrs = {
           _aliases => { self => $from, foreign => $to },

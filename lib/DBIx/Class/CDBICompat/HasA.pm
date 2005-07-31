@@ -5,10 +5,10 @@ use warnings;
 
 sub has_a {
   my ($self, $col, $f_class) = @_;
-  die "No such column ${col}" unless $self->_columns->{$col};
+  $self->throw( "No such column ${col}" ) unless $self->_columns->{$col};
   eval "require $f_class";
   my ($pri, $too_many) = keys %{ $f_class->_primaries };
-  die "has_a only works with a single primary key; ${f_class} has more"
+  $self->throw( "has_a only works with a single primary key; ${f_class} has more" )
     if $too_many;
   $self->add_relationship($col, $f_class,
                             { "foreign.${pri}" => "self.${col}" },
@@ -47,7 +47,7 @@ sub store_has_a {
     return $self->store_column($rel, $obj);
   }
   my $rel_obj = $self->_relationships->{$rel};
-  die "Can't set $rel: object $obj is not of class ".$rel_obj->{class}
+  $self->throw( "Can't set $rel: object $obj is not of class ".$rel_obj->{class} )
      unless $obj->isa($rel_obj->{class});
   $self->{_relationship_data}{$rel} = $obj;
   #warn "Storing $obj: ".($obj->_ident_values)[0];
@@ -75,7 +75,7 @@ sub _cond_value {
   if ( my $rel_obj = $self->_relationships->{$key} ) {
     my $rel_type = $rel_obj->{attrs}{_type} || '';
     if ($rel_type eq 'has_a' && ref $value) {
-      die "Object $value is not of class ".$rel_obj->{class}
+      $self->throw( "Object $value is not of class ".$rel_obj->{class} )
          unless $value->isa($rel_obj->{class});
       $value = ($value->_ident_values)[0];
       #warn $value;

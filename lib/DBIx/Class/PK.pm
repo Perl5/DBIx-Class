@@ -48,7 +48,8 @@ sub retrieve {
   my ($class, @vals) = @_;
   my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
   my @pk = keys %{$class->_primaries};
-  die "Can't retrieve unless primary columns are defined" unless @pk;
+  $class->throw( "Can't retrieve unless primary columns are defined" ) 
+    unless @pk;
   my $query;
   if (ref $vals[0] eq 'HASH') {
     $query = $vals[0];
@@ -59,7 +60,7 @@ sub retrieve {
   } else {
     $query = {@vals};
   }
-  die "Can't retrieve unless all primary keys are specified"
+  $class->throw( "Can't retrieve unless all primary keys are specified" )
     unless (keys %$query >= @pk); # If we check 'em we run afoul of uc/lc
                                   # column names etc. Not sure what to do yet
   my $ret = ($class->search($query))[0];
@@ -83,7 +84,7 @@ sub discard_changes {
 
 sub id {
   my ($self) = @_;
-  die "Can't call id() as a class method" unless ref $self;
+  $self->throw( "Can't call id() as a class method" ) unless ref $self;
   my @pk = $self->_ident_values;
   return (wantarray ? @pk : $pk[0]);
 }

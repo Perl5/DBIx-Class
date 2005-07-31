@@ -10,6 +10,7 @@ use base qw/DBIx::Class::Relationship
             DBIx::Class::Table
             DBIx::Class::SQL
             DBIx::Class::DB
+            DBIx::Class::Exception
             DBIx::Class::AccessorGroup/;
 
 1;
