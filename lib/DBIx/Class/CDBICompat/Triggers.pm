@@ -1,5 +1,7 @@
 package DBIx::Class::CDBICompat::Triggers;
 
+use strict;
+use warnings;
 use Class::Trigger;
 
 sub insert {
@@ -26,6 +28,13 @@ sub delete {
   $self->NEXT::ACTUAL::delete(@_);
   $self->call_trigger('after_delete') if ref $self;
   return $self;
+}
+
+sub store_column {
+  my ($self, $column, $value, @rest) = @_;
+  my $vals = { $column => $value };
+  $self->call_trigger("before_set_${column}", $value, $vals);
+  return $self->NEXT::ACTUAL::store_column($column, $vals->{$column});
 }
 
 1;
