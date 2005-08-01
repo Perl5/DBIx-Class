@@ -5,6 +5,7 @@ use warnings;
 
 use base qw/DBIx::Class::CDBICompat::Constraints
             DBIx::Class::CDBICompat::Triggers
+            DBIx::Class::CDBICompat::ReadOnly
             DBIx::Class::CDBICompat::GetSet
             DBIx::Class::CDBICompat::LiveObjectIndex
             DBIx::Class::CDBICompat::AttributeAPI
@@ -17,6 +18,7 @@ use base qw/DBIx::Class::CDBICompat::Constraints
             DBIx::Class::CDBICompat::HasA
             DBIx::Class::CDBICompat::LazyLoading
             DBIx::Class::CDBICompat::AutoUpdate
+            DBIx::Class::CDBICompat::TempColumns
             DBIx::Class::CDBICompat::ColumnGroups
             DBIx::Class::CDBICompat::ImaDBI/;
 

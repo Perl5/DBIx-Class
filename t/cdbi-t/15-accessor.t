@@ -3,7 +3,7 @@ use Test::More;
 
 BEGIN {
 	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 55);
+	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 53);
 }
 
 INIT {
@@ -127,7 +127,7 @@ eval {
 }
 
 SKIP: {    # have non persistent accessor?
-        skip "Compat layer doesn't handle TEMP columns yet", 11;
+        #skip "Compat layer doesn't handle TEMP columns yet", 11;
 	Film->columns(TEMP => qw/nonpersistent/);
 	ok(Film->find_column('nonpersistent'), "nonpersistent is a column");
 	ok(!Film->has_real_column('nonpersistent'), " - but it's not real");
@@ -148,7 +148,7 @@ SKIP: {    # have non persistent accessor?
 }
 
 SKIP: {    # was bug with TEMP and no Essential
-        skip "Compat layer doesn't have TEMP columns yet", 5;
+        #skip "Compat layer doesn't have TEMP columns yet", 5;
 	is_deeply(
 		Actor->columns('Essential'),
 		Actor->columns('Primary'),
@@ -162,7 +162,7 @@ SKIP: {    # was bug with TEMP and no Essential
 }
 
 SKIP: {
-        skip "Compat layer doesn't handle read-only objects yet", 10;
+        #skip "Compat layer doesn't handle read-only objects yet", 10;
 	Film->autoupdate(1);
 	my $naked = Film->create({ title => 'Naked' });
 	my $sandl = Film->create({ title => 'Secrets and Lies' });
@@ -190,6 +190,3 @@ SKIP: {
 	like $@, qr/read only/, "Or create new films";
 	$SIG{__WARN__} = sub { };
 }
-
-SKIP: { skip "Lost a test adding skips somewhere, sorry", 2 }
-
