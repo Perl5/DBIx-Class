@@ -45,7 +45,7 @@ my @film  = (
 }
 
 SKIP: {
-  skip "Iterator doesn't yet have slice support", 19;
+  #skip "Iterator doesn't yet have slice support", 19;
 
 {
 	my $it = Film->retrieve_all;

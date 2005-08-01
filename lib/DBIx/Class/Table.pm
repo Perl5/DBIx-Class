@@ -15,6 +15,8 @@ __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything 
 
 __PACKAGE__->mk_classdata('_cursor_class' => 'DBIx::Class::Cursor');
 
+sub iterator_class { shift->_cursor_class(@_) }
+
 =head1 NAME 
 
 DBIx::Class::Table - Basic table methods

@@ -125,7 +125,7 @@ test_normal_iterator;
 test_normal_iterator;
 
 SKIP: {
-  skip "dbic iterators don't support slice yet", 12;
+  #skip "dbic iterators don't support slice yet", 12;
 
 
 {
@@ -149,7 +149,9 @@ SKIP: {
 
 package Class::DBI::My::Iterator;
 
-use base 'Class::DBI::Iterator';
+use vars qw/@ISA/;
+
+@ISA = ($it_class);
 
 sub slice { qw/fred barney/ }
 
