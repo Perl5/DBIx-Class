@@ -120,7 +120,10 @@ use base 'DBICTest';
 DBICTest::Tag->table('tags');
 DBICTest::Tag->add_columns(qw/tagid cd tag/);
 DBICTest::Tag->set_primary_key('tagid');
-#DBICTest::Tag->has_a(cd => 'SweetTest::CD');
+DBICTest::Tag->add_relationship(
+    cd => 'DBICTest::CD',
+    { 'foreign.cdid' => 'self.cd' }
+);
 
 package DBICTest::Track;
 
@@ -129,7 +132,10 @@ use base 'DBICTest';
 DBICTest::Track->table('track');
 DBICTest::Track->add_columns(qw/trackid cd position title/);
 DBICTest::Track->set_primary_key('trackid');
-#DBICTest::Track->has_a(cd => 'SweetTest::CD');
+DBICTest::Track->add_relationship(
+    cd => 'DBICTest::CD',
+    { 'foreign.cdid' => 'self.cd' }
+);
 
 package DBICTest::CD;
 
@@ -137,13 +143,20 @@ use base 'DBICTest';
 
 DBICTest::CD->table('cd');
 DBICTest::CD->add_columns(qw/cdid artist title year/);
-DBICTest::CD->set_primary_key('trackid');
-
-#DBICTest::CD->has_many(tracks => 'SweetTest::Track');
-#DBICTest::CD->has_many(tags => 'SweetTest::Tag');
-#DBICTest::CD->has_a(artist => 'SweetTest::Artist');
-
-#DBICTest::CD->might_have(liner_notes => 'SweetTest::LinerNotes' => qw/notes/);
+DBICTest::CD->set_primary_key('cdid');
+DBICTest::CD->add_relationship(
+    artist => 'DBICTest::Artist',
+    { 'foreign.artistid' => 'self.artist' }
+);
+DBICTest::CD->add_relationship(
+    tracks => 'DBICTest::Track',
+    { 'foreign.cd' => 'self.cdid' }
+);
+DBICTest::CD->add_relationship(
+    tags => 'DBICTest::Tag',
+    { 'foreign.cd' => 'self.cdid' }
+);
+#DBICTest::CD->might_have(liner_notes => 'DBICTest::LinerNotes' => qw/notes/);
 
 package DBICTest::Artist;
 
@@ -152,27 +165,19 @@ use base 'DBICTest';
 DBICTest::Artist->table('artist');
 DBICTest::Artist->add_columns(qw/artistid name/);
 DBICTest::Artist->set_primary_key('artistid');
-#DBICTest::Artist->has_many(cds => 'SweetTest::CD');
-#DBICTest::Artist->has_many(twokeys => 'SweetTest::TwoKeys');
-#DBICTest::Artist->has_many(onekeys => 'SweetTest::OneKey');
-
-package DBICTest::TwoKeys;
-
-use base 'DBICTest';
-
-DBICTest::TwoKeys->table('twokeys');
-DBICTest::TwoKeys->add_columns(qw/artist cd/);
-DBICTest::TwoKeys->set_primary_key(qw/artist cd/);
-#DBICTest::TwoKeys->has_a(artist => 'SweetTest::Artist');
-#DBICTest::TwoKeys->has_a(cd => 'SweetTest::CD');
-
-package DBICTest::FourKeys;
-
-use base 'DBICTest';
-
-DBICTest::FourKeys->table('fourkeys');
-DBICTest::FourKeys->add_columns(qw/foo bar hello goodbye/);
-DBICTest::FourKeys->set_primary_key(qw/foo bar hello goodbye/);
+DBICTest::Artist->add_relationship(
+    cds => 'DBICTest::CD',
+    { 'foreign.artist' => 'self.artistid' },
+    { order_by => 'year' }
+);
+DBICTest::Artist->add_relationship(
+    twokeys => 'DBICTest::TwoKeys',
+    { 'foreign.artist' => 'self.artistid' }
+);
+DBICTest::Artist->add_relationship(
+    onekeys => 'DBICTest::OneKey',
+    { 'foreign.artist' => 'self.artistid' }
+);
 
 package DBICTest::OneKey;
 
@@ -181,5 +186,29 @@ use base 'DBICTest';
 DBICTest::OneKey->table('onekey');
 DBICTest::OneKey->add_columns(qw/id artist cd/);
 DBICTest::OneKey->set_primary_key('id');
+
+package DBICTest::TwoKeys;
+
+use base 'DBICTest';
+
+DBICTest::TwoKeys->table('twokeys');
+DBICTest::TwoKeys->add_columns(qw/artist cd/);
+DBICTest::TwoKeys->set_primary_key(qw/artist cd/);
+DBICTest::TwoKeys->add_relationship(
+    artist => 'DBICTest::Artist',
+    { 'foreign.artistid' => 'self.artist' }
+);
+DBICTest::TwoKeys->add_relationship(
+    cd => 'DBICTest::CD',
+    { 'foreign.cdid' => 'self.cd' }
+);
+
+package DBICTest::FourKeys;
+
+use base 'DBICTest';
+
+DBICTest::FourKeys->table('fourkeys');
+DBICTest::FourKeys->add_columns(qw/foo bar hello goodbye/);
+DBICTest::FourKeys->set_primary_key(qw/foo bar hello goodbye/);
 
 1;
