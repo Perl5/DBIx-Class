@@ -39,4 +39,4 @@ like($@, qr/no such accessor/, 'failed when creating a rel with invalid key, ok'
 eval {
     $artist->add_relationship( tracks => 'DBICTest::Track' );
 };
-like($@, qr/no join condition/, 'failed when creating a rel without join condition, ok');
+like($@, qr/join condition/, 'failed when creating a rel without join condition, ok');
