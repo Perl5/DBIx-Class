@@ -47,10 +47,7 @@ sub next {
     $self->{live_sth} = 1;
   }
   my @row = $self->{sth}->fetchrow_array;
-  unless (@row) {
-    $self->{sth}->finish if $self->{sth}->{Active};
-    return;
-  }
+  return unless (@row);
   $self->{pos}++;
   return $self->{class}->_row_to_object($self->{cols}, \@row);
 }
