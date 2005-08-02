@@ -76,6 +76,12 @@ is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is(DBICTest::Artist->count, 4, 'count ok');
 
+use DBIx::Class::PK::Auto;
+use DBIx::Class::PK::Auto::SQLite;
+
+unshift(@DBICTest::Artist::ISA, qw/DBIx::Class::PK::Auto
+                                   DBIx::Class::PK::Auto::SQLite/);
+
 # add an artist without primary key to test Auto
 my $artist = DBICTest::Artist->create( { name => 'Auto' } );
 $artist->name( 'Auto Change' );
