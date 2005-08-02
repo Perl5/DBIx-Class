@@ -16,8 +16,6 @@ sub _cond_resolve {
 
   # If an arrayref, then we join each element
   if ($ref eq 'ARRAY') {
-    use Data::Dumper;
-    #$self->_debug( Dumper($cond) );
     # need to use while() so can shift() for arrays
     my $subjoin;
     while (my $el = shift @$cond) {
