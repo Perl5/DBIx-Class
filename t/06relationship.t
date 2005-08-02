@@ -28,7 +28,7 @@ is( ($artist->search_related('cds'))[3]->title, 'Big Flop', 'create_related ok' 
 
 SKIP: {
 
-  skip "Relationship with invalid cols not yet checked", 1;
+  #skip "Relationship with invalid cols not yet checked", 1;
 
 # try to add a bogus relationship using the wrong cols
 eval {
@@ -37,7 +37,7 @@ eval {
         { 'foreign.cd' => 'self.cdid' }
     );
 };
-like($@, qr/no such accessor/, 'failed when creating a rel with invalid key, ok');
+like($@, qr/Unknown column/, 'failed when creating a rel with invalid key, ok');
 
 } # End SKIP block
 

@@ -17,20 +17,20 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
         return $class->_table_name unless $data;
         my ($f_class, $alias) = split(/=/, $data);
         $f_class ||= $class;
-        $self->{_aliases}{$alias} = $f_class;
+        $self->{_classes}{$alias} = $f_class;
         return $f_class->_table_name." ${alias}";
       },
     'ESSENTIAL' =>
       sub {
         my ($self, $class, $data) = @_;
         return join(' ', $class->columns('Essential')) unless $data;
-        return join(' ', $self->{_aliases}{$data}->columns('Essential'));
+        return join(' ', $self->{_classes}{$data}->columns('Essential'));
       },
     'JOIN' =>
       sub {
         my ($self, $class, $data) = @_;
         my ($from, $to) = split(/ /, $data);
-        my ($from_class, $to_class) = @{$self->{_aliases}}{$from, $to};
+        my ($from_class, $to_class) = @{$self->{_classes}}{$from, $to};
         my ($rel_obj) = grep { $_->{class} && $_->{class} eq $to_class }
                           values %{ $from_class->_relationships };
         unless ($rel_obj) {
@@ -42,6 +42,7 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
         $self->throw( "No relationship to JOIN from ${from_class} to ${to_class}" )
           unless $rel_obj;
         my $attrs = {
+          %$self,
           _aliases => { self => $from, foreign => $to },
           _action => 'join',
         };

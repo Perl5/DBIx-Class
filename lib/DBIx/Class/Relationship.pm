@@ -28,11 +28,20 @@ on searches.
 sub add_relationship {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
   die "Can't create relationship without join condition" unless $cond;
+  $attrs ||= {};
+  eval "use $f_class;";
   my %rels = %{ $class->_relationships };
   $rels{$rel} = { class => $f_class,
                   cond  => $cond,
                   attrs => $attrs };
   $class->_relationships(\%rels);
+  #warn %{$f_class->_columns};
+  return unless eval { %{$f_class->_columns}; }; # Foreign class not loaded
+  my %join = (%$attrs, _action => 'join',
+    _aliases => { 'self' => 'me', 'foreign' => $rel },
+    _classes => { 'me' => $class, $rel => $f_class });
+  eval { $class->_cond_resolve($cond, \%join) };
+  $class->throw("Error creating relationship $rel: $@") if $@;
 }
 
 sub _cond_key {
@@ -45,11 +54,14 @@ sub _cond_key {
     return $key;
   } elsif ($action eq 'join') {
     my ($type, $field) = split(/\./, $key);
-    if ($attrs->{_aliases}{$type}) {
-      return join('.', $attrs->{_aliases}{$type}, $field);
+    if (my $alias = $attrs->{_aliases}{$type}) {
+      my $class = $attrs->{_classes}{$alias};
+      $self->throw("Unknown column $field on $class as $alias")
+        unless exists $class->_columns->{$field};
+      return join('.', $alias, $field);
     } else {
       $self->throw( "Unable to resolve type ${type}: only have aliases for ".
-            join(', ', keys %{$attrs->{_aliases}{$type} || {}}) );
+            join(', ', keys %{$attrs->{_aliases} || {}}) );
     }
   }
   return $self->NEXT::ACTUAL::_cond_key($attrs, $key);
@@ -69,11 +81,14 @@ sub _cond_value {
     return '?';
   } elsif ($action eq 'join') {
     my ($type, $field) = split(/\./, $value);
-    if ($attrs->{_aliases}{$type}) {
-      return join('.', $attrs->{_aliases}{$type}, $field);
+    if (my $alias = $attrs->{_aliases}{$type}) {
+      my $class = $attrs->{_classes}{$alias};
+      $self->throw("Unknown column $field on $class as $alias")
+        unless exists $class->_columns->{$field};
+      return join('.', $alias, $field);
     } else {
       $self->throw( "Unable to resolve type ${type}: only have aliases for ".
-            join(', ', keys %{$attrs->{_aliases}{$type} || {}}) );
+            join(', ', keys %{$attrs->{_aliases} || {}}) );
     }
   }
       
