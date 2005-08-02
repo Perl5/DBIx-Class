@@ -75,3 +75,9 @@ $new_again = DBICTest::Artist->retrieve(4);
 is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is(DBICTest::Artist->count, 4, 'count ok');
+
+# add an artist without primary key to test Auto
+my $artist = DBICTest::Artist->create( { name => 'Auto' } );
+$artist->name( 'Auto Change' );
+ok($artist->update, 'update on object created without PK ok');
+
