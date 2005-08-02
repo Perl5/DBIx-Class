@@ -127,8 +127,9 @@ sub get_column {
 sub set_column {
   my $self = shift;
   my ($column) = @_;
+  my $old = $self->get_column($column);
   my $ret = $self->store_column(@_);
-  $self->{_dirty_columns}{$column} = 1;
+  $self->{_dirty_columns}{$column} = 1 unless defined $old && $old eq $ret;
   return $ret;
 }
 
@@ -249,6 +250,10 @@ sub insert_or_update {
 sub retrieve_all {
   my ($class) = @_;
   return $class->retrieve_from_sql( '1' );
+}
+
+sub is_changed {
+  return keys %{shift->{_dirty_columns} || {}};
 }
 
 1;
