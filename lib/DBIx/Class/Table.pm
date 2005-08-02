@@ -32,6 +32,12 @@ L<DBIx::Class> objects.
 
 =over 4
 
+=item new
+
+  my $obj = My::Class->new($attrs);
+
+Creates a new object from column => value mappings passed as a hash ref
+
 =cut
 
 sub new {
@@ -47,17 +53,36 @@ sub new {
   return $new;
 }
 
+=item insert
+
+  $obj->insert;
+
+Inserts an object into the database if it isn't already in there. Returns
+the object itself.
+
+=cut
+
 sub insert {
   my ($self) = @_;
-  return if $self->in_database;
+  return $self if $self->in_database;
   #use Data::Dumper; warn Dumper($self);
   my $sth = $self->_get_sth('insert', [ keys %{$self->{_column_data}} ],
                               $self->_table_name, undef);
   $sth->execute(values %{$self->{_column_data}});
+  $sth->finish;
   $self->in_database(1);
   $self->{_dirty_columns} = {};
   return $self;
 }
+
+=item in_database
+
+  $obj->in_database; # Get value
+  $obj->in_database(1); # Set value
+
+Indicated whether the object exists as a row in the database or not
+
+=cut
 
 sub in_database {
   my ($self, $val) = @_;
@@ -65,11 +90,28 @@ sub in_database {
   return $self->{_in_database};
 }
 
+=item create
+
+  my $new = My::Class->create($attrs);
+
+A shortcut for My::Class->new($attrs)->insert;
+
+=cut
+
 sub create {
   my ($class, $attrs) = @_;
   $class->throw( "create needs a hashref" ) unless ref $attrs eq 'HASH';
   return $class->new($attrs)->insert;
 }
+
+=item update
+
+  $obj->update;
+
+Must be run on an object that is already in the database; issues an SQL
+UPDATE query to commit any changes to the object to the db if required.
+
+=cut
 
 sub update {
   my ($self) = @_;
@@ -80,6 +122,7 @@ sub update {
                               $self->_table_name, $self->_ident_cond);
   my $rows = $sth->execute( (map { $self->{_column_data}{$_} } @to_update),
                   $self->_ident_values );
+  $sth->finish;
   if ($rows == 0) {
     $self->throw( "Can't update $self: row not found" );
   } elsif ($rows > 1) {
@@ -89,6 +132,16 @@ sub update {
   return $self;
 }
 
+=item delete
+
+  $obj->delete
+
+Deletes the object from the database. The object is still perfectly usable
+accessor-wise etc. but ->in_database will now return 0 and the object must
+be re ->insert'ed before it can be ->update'ed
+
+=cut
+
 sub delete {
   my $self = shift;
   if (ref $self) {
@@ -97,7 +150,9 @@ sub delete {
     my $sth = $self->_get_sth('delete', undef,
                                 $self->_table_name, $self->_ident_cond);
     $sth->execute($self->_ident_values);
+    $sth->finish;
     $self->in_database(undef);
+      # Should probably also arrange to trash PK if auto
   } else {
     my $attrs = { };
     if (@_ > 1 && ref $_[$#_] eq 'HASH') {
@@ -107,9 +162,18 @@ sub delete {
     my ($cond, @param) = $self->_cond_resolve($query, $attrs);
     my $sth = $self->_get_sth('delete', undef, $self->_table_name, $cond);
     $sth->execute(@param);
+    $sth->finish;
   }
   return $self;
 }
+
+=item get_column
+
+  my $val = $obj->get_column($col);
+
+Fetches a column value
+
+=cut
 
 sub get_column {
   my ($self, $column) = @_;
@@ -120,6 +184,15 @@ sub get_column {
   return undef;
 }
 
+=item set_column
+
+  $obj->set_column($col => $val);
+
+Sets a column value; if the new value is different to the old the column
+is marked as dirty for when you next call $obj->update
+
+=cut
+
 sub set_column {
   my $self = shift;
   my ($column) = @_;
@@ -128,6 +201,14 @@ sub set_column {
   $self->{_dirty_columns}{$column} = 1 unless defined $old && $old eq $ret;
   return $ret;
 }
+
+=item store_column
+
+  $obj->store_column($col => $val);
+
+Sets a column value without marking it as dirty
+
+=cut
 
 sub store_column {
   my ($self, $column, $value) = @_;
@@ -150,11 +231,26 @@ sub _mk_column_accessors {
   $class->mk_group_accessors('column' => @cols);
 }
 
+=item add_columns
+
+  __PACKAGE__->add_columns(qw/col1 col2 col3/);
+
+Adds columns to the current package, and creates accessors for them
+
+=cut
+
 sub add_columns {
   my ($class, @cols) = @_;
   $class->_register_columns(@cols);
   $class->_mk_column_accessors(@cols);
 }
+
+=item retrieve_from_sql
+
+  my @obj    = $class->retrieve_from_sql($sql_where_cond, @bind);
+  my $cursor = $class->retrieve_from_sql($sql_where_cond, @bind);
+
+=cut
 
 sub retrieve_from_sql {
   my ($class, $cond, @vals) = @_;
@@ -166,6 +262,12 @@ sub retrieve_from_sql {
   return $class->sth_to_objects($sth, \@vals, \@cols, { where => $cond });
 }
 
+=item count_from_sql
+
+  my $count = $class->count($sql_where_cond);
+
+=cut
+
 sub count_from_sql {
   my ($class, $cond, @vals) = @_;
   $cond =~ s/^\s*WHERE//i;
@@ -175,8 +277,15 @@ sub count_from_sql {
   #warn "$cond @vals";
   $sth->execute(@vals);
   my ($count) = $sth->fetchrow_array;
+  $sth->finish;
   return $count;
 }
+
+=item count
+
+  my $count = $class->count({ foo => 3 });
+
+=cut
 
 sub count {
   my $class = shift;
@@ -188,6 +297,13 @@ sub count {
   my ($cond, @param)  = $class->_cond_resolve($query, $attrs);
   return $class->count_from_sql($cond, @param, $attrs);
 }
+
+=item sth_to_objects
+
+  my @obj    = $class->sth_to_objects($sth, \@bind, \@columns, $attrs);
+  my $cursor = $class->sth_to_objects($sth, \@bind, \@columns, $attrs);
+
+=cut
 
 sub sth_to_objects {
   my ($class, $sth, $args, $cols, $attrs) = @_;
@@ -207,6 +323,13 @@ sub _row_to_object { # WARNING: Destructive to @$row
   return $new;
 }
 
+=item search 
+
+  my @obj    = $class->search({ foo => 3 });
+  my $cursor = $class->search({ foo => 3 });
+
+=cut
+
 sub search {
   my $class = shift;
   my $attrs = { };
@@ -217,6 +340,12 @@ sub search {
   my ($cond, @param)  = $class->_cond_resolve($query, $attrs);
   return $class->retrieve_from_sql($cond, @param, $attrs);
 }
+
+=item search_like
+
+Identical to search except defaults to 'LIKE' instead of '=' in condition
+
+=cut
 
 sub search_like {
   my $class    = shift;
@@ -230,6 +359,12 @@ sub search_like {
 sub _select_columns {
   return keys %{$_[0]->_columns};
 }
+
+=item copy
+
+  my $copy = $orig->copy({ change => $to, ... });
+
+=cut
 
 sub copy {
   my ($self, $changes) = @_;
@@ -250,9 +385,24 @@ sub _cond_resolve {
   return ($cond, values %$query);
 }
 
+=item table
+
+  __PACKAGE__->table('tbl_name');
+
+=cut
+
 sub table {
   shift->_table_name(@_);
 }
+
+=item find_or_create
+
+  $class->find_or_create({ key => $val, ... });
+
+Searches for a record matching the search condition; if it doesn't find one,
+creates one and returns that instead
+
+=cut
 
 sub find_or_create {
   my $class    = shift;
@@ -261,15 +411,35 @@ sub find_or_create {
   return defined($exists) ? $exists : $class->create($hash);
 }
 
+=item insert_or_update
+
+  $obj->insert_or_update
+
+Updates the object if it's already in the db, else inserts it
+
+=cut
+
 sub insert_or_update {
   my $self = shift;
   return ($self->in_database ? $self->update : $self->insert);
 }
 
+=item retrieve_all
+
+  my @all = $class->retrieve_all;
+
+=cut
+
 sub retrieve_all {
   my ($class) = @_;
   return $class->retrieve_from_sql( '1' );
 }
+
+=item is_changed
+
+  my @changed_col_names = $obj->is_changed
+
+=cut
 
 sub is_changed {
   return keys %{shift->{_dirty_columns} || {}};

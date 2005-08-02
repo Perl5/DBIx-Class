@@ -44,13 +44,38 @@ sub _dbi_connect {
   return DBI->connect(@info);
 }
 
+=item connection
+
+  __PACKAGE__->connection($dsn, $user, $pass, $attrs);
+
+Specifies the arguments that will be passed to DBI->connect(...) to
+instantiate the class dbh when required.
+
+=cut
+
 sub connection {
   my ($class, @info) = @_;
   $class->_dbi_connect_package($class);
   $class->_dbi_connect_info(\@info);
 }
 
+=item dbi_commit
+
+  $class->dbi_commit;
+
+Issues a commit again the current dbh
+
+=cut
+
 sub dbi_commit { $_[0]->_get_dbh->commit; }
+
+=item dbi_rollback
+
+  $class->dbi_rollback;
+
+Issues a rollback again the current dbh
+
+=cut
 
 sub dbi_rollback { $_[0]->_get_dbh->rollback; }
 
