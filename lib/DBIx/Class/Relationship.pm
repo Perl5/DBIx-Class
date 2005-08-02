@@ -36,12 +36,19 @@ sub add_relationship {
                   attrs => $attrs };
   $class->_relationships(\%rels);
   #warn %{$f_class->_columns};
+
   return unless eval { %{$f_class->_columns}; }; # Foreign class not loaded
   my %join = (%$attrs, _action => 'join',
     _aliases => { 'self' => 'me', 'foreign' => $rel },
     _classes => { 'me' => $class, $rel => $f_class });
   eval { $class->_cond_resolve($cond, \%join) };
-  $class->throw("Error creating relationship $rel: $@") if $@;
+
+  if ($@) { # If the resolve failed, back out and re-throw the error
+    delete $rels{$rel}; # 
+    $class->_relationships(\%rels);
+    $class->throw("Error creating relationship $rel: $@");
+  }
+  1;
 }
 
 sub _cond_key {
