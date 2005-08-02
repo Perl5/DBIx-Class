@@ -96,4 +96,9 @@ sub delete_all {
   return 1;
 }
 
+sub DESTROY {
+  my ($self) = @_;
+  $self->{sth}->finish if $self->{sth}->{Active};
+}
+
 1;
