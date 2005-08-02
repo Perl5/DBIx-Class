@@ -1,6 +1,6 @@
 use Test::More;
 
-plan tests => 19;
+plan tests => 20;
 
 use lib qw(t/lib);
 
@@ -73,3 +73,5 @@ $new->update;
 $new_again = DBICTest::Artist->retrieve(4);
 
 is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
+
+is(DBICTest::Artist->count, 4, 'count ok');

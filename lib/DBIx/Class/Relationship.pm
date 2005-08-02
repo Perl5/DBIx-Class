@@ -182,6 +182,22 @@ sub update_from_related {
   $self->update;
 }
 
+sub count_related {
+  my $self = shift;
+  my $rel = shift;
+  my $rel_obj = $self->_relationships->{$rel};
+  $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
+  my $cond = $rel_obj->{cond};
+  my $count_cond = {};
+  foreach my $key (keys %$cond) {
+    $key =~ m/^foreign\.([^\.]+)$/;
+    my $count_key = $1;
+    $cond->{$key} =~ m/^self\.([^\.]+)$/;
+    $count_cond->{$count_key} = $self->get_column($1);
+  }
+  return $rel_obj->{class}->count( $count_cond );
+}
+
 1;
 
 =back

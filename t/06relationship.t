@@ -1,6 +1,6 @@
 use Test::More;
 
-plan tests => 7;
+plan tests => 8;
 
 use lib qw(t/lib);
 
@@ -25,6 +25,9 @@ $artist->create_related( 'cds', {
     year => 2005,
 } );
 is( ($artist->search_related('cds'))[3]->title, 'Big Flop', 'create_related ok' );
+
+# count_related
+is( $artist->count_related('cds'), 4, 'count_related ok' );
 
 SKIP: {
 
