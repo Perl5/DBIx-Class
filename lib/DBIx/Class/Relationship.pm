@@ -104,6 +104,18 @@ sub _cond_value {
 
 sub search_related {
   my $self = shift;
+  $self->_from_sql_related('retrieve', @_);
+}
+
+sub count_related {
+  my $self = shift;
+  $self->_from_sql_related('count', @_);
+}
+
+sub _from_sql_related {
+  my $self = shift;
+  my $op = shift;
+  my $meth = "${op}_from_sql";
   my $rel = shift;
   my $attrs = { };
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
@@ -118,11 +130,11 @@ sub search_related {
     my $query = ((@_ > 1) ? {@_} : shift);
     $s_cond = $self->_cond_resolve($query, $attrs);
   }
-  $attrs->{_action} = 'convert';
+  $attrs->{_action} = 'convert'; # shouldn't we resolve the cond to something
+                                 # to merge into the AST really?
   my ($cond) = $self->_cond_resolve($rel_obj->{cond}, $attrs);
   $cond = "${s_cond} AND ${cond}" if $s_cond;
-  return $rel_obj->{class}->retrieve_from_sql($cond, @{$attrs->{bind} || []},
-                                                $attrs);
+  return $rel_obj->{class}->$meth($cond, @{$attrs->{bind} || []}, $attrs);
 }
 
 sub create_related {
@@ -180,22 +192,6 @@ sub update_from_related {
   my $self = shift;
   $self->set_from_related(@_);
   $self->update;
-}
-
-sub count_related {
-  my $self = shift;
-  my $rel = shift;
-  my $rel_obj = $self->_relationships->{$rel};
-  $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
-  my $cond = $rel_obj->{cond};
-  my $count_cond = {};
-  foreach my $key (keys %$cond) {
-    $key =~ m/^foreign\.([^\.]+)$/;
-    my $count_key = $1;
-    $cond->{$key} =~ m/^self\.([^\.]+)$/;
-    $count_cond->{$count_key} = $self->get_column($1);
-  }
-  return $rel_obj->{class}->count( $count_cond );
 }
 
 1;

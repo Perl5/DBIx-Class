@@ -170,6 +170,19 @@ sub retrieve_from_sql {
   return $class->sth_to_objects($sth, \@vals, \@cols, { where => $cond });
 }
 
+sub count_from_sql {
+  my ($class, $cond, @vals) = @_;
+  $cond =~ s/^\s*WHERE//i;
+  my $attrs = (ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
+  my @cols = 'COUNT(*)';
+  my $sth = $class->_get_sth( 'select', \@cols, $class->_table_name, $cond);
+  #warn "$cond @vals";
+  $sth->execute(@vals);
+  my ($count) = $sth->fetchrow_array;
+  $sth->finish;
+  return $count;
+}
+
 sub count {
   my $class = shift;
   my $attrs = { };
@@ -178,12 +191,7 @@ sub count {
   }
   my $query    = ref $_[0] eq "HASH" ? shift: {@_};
   my ($cond, @param)  = $class->_cond_resolve($query, $attrs);
-  my $sth = $class->_get_sth( 'select', [ 'COUNT(*)' ],
-                                $class->_table_name, $cond );
-  $sth->execute(@param);
-  my ($count) = $sth->fetchrow_array;
-  $sth->finish;
-  return $count;
+  return $class->count_from_sql($cond, @param, $attrs);
 }
 
 sub sth_to_objects {
