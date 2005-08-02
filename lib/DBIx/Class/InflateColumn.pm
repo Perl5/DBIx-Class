@@ -14,6 +14,7 @@ sub inflate_column {
 
 sub _inflate_column_value {
   my ($self, $col, $value) = @_;
+  return $value unless defined $value; # NULL is NULL is NULL
   return $value unless exists $self->_columns->{$col}{_inflate_info}{inflate};
   my $inflate = $self->_columns->{$col}{_inflate_info}{inflate};
   return $inflate->($value, $self);
@@ -53,9 +54,11 @@ sub store_inflated_column {
     delete $self->{_inflated_column}{$col};
     return $self->store_column($col, $obj);
   }
+  my $deflated = $self->_deflate_column_value($col, $obj);
+           # Do this now so we don't store if it's invalid
   $self->{_inflated_column}{$col} = $obj;
   #warn "Storing $obj: ".($obj->_ident_values)[0];
-  $self->store_column($col, $self->_deflate_column_value($col, $obj));
+  $self->store_column($col, $deflated);
   return $obj;
 }
 

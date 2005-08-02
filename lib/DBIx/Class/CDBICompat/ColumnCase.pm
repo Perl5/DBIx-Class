@@ -17,7 +17,7 @@ sub _register_columns {
 sub has_a {
   my ($class, $col, @rest) = @_;
   $class->NEXT::ACTUAL::has_a(lc($col), @rest);
-  $class->mk_group_accessors('has_a' => $col);
+  $class->mk_group_accessors('inflated_column' => $col);
   return 1;
 }
 
@@ -28,19 +28,19 @@ sub has_many {
                                                           lc($f_key) ), @rest);
 }
 
-sub get_has_a {
+sub get_inflated_column {
   my ($class, $get, @rest) = @_;
-  return $class->NEXT::ACTUAL::get_has_a(lc($get), @rest);
+  return $class->NEXT::ACTUAL::get_inflated_column(lc($get), @rest);
 }
 
-sub store_has_a {
+sub store_inflated_column {
   my ($class, $set, @rest) = @_;
-  return $class->NEXT::ACTUAL::store_has_a(lc($set), @rest);
+  return $class->NEXT::ACTUAL::store_inflated_column(lc($set), @rest);
 }
 
-sub set_has_a {
+sub set_inflated_column {
   my ($class, $set, @rest) = @_;
-  return $class->NEXT::ACTUAL::set_has_a(lc($set), @rest);
+  return $class->NEXT::ACTUAL::set_inflated_column(lc($set), @rest);
 }
 
 sub get_column {
