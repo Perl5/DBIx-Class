@@ -3,6 +3,7 @@ package DBICTest;
 use strict;
 use warnings;
 use base qw/DBIx::Class::Core/;
+use DateTime;
 
 my $db_file = "t/var/DBIxClass.db";
 
