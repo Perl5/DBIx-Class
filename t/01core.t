@@ -1,6 +1,6 @@
 use Test::More;
 
-plan tests => 20;
+plan tests => 21;
 
 use lib qw(t/lib);
 
