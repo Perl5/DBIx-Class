@@ -158,10 +158,6 @@ DBICTest::CD->add_relationship(
     { 'foreign.cd' => 'self.cdid' }
 );
 #DBICTest::CD->might_have(liner_notes => 'DBICTest::LinerNotes' => qw/notes/);
-DBICTest::CD->inflate_column( 'year',
-    { inflate => sub { DateTime->new( year => shift ) },
-      deflate => sub { shift->year } }
-);
 
 package DBICTest::Artist;
 

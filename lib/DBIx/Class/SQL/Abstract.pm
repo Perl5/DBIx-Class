@@ -56,7 +56,7 @@ sub _cond_resolve {
       } elsif (! defined($v)) {
         # undef = null
         $self->_debug("UNDEF($k) means IS NULL");
-        push @sqlf, $k . ' IS NULL'
+        push @sqlf, $self->_cond_key($attrs => $k) . ' IS NULL'
       } elsif (ref $v eq 'ARRAY') {
         # multiple elements: multiple options
         # warnings... $self->_debug("ARRAY($k) means multiple elements: [ @$v ]");

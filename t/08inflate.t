@@ -7,8 +7,14 @@ use lib qw(t/lib);
 
 use_ok('DBICTest');
 
+DBICTest::CD->inflate_column( 'year',
+    { inflate => sub { DateTime->new( year => shift ) },
+      deflate => sub { shift->year } }
+);
+
 # inflation test
 my $cd = DBICTest::CD->retrieve(3);
+
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 
 is( $cd->year->month, 1, 'inflated month ok' );
@@ -19,4 +25,4 @@ $cd->year( $now );
 $cd->update;
 
 ($cd) = DBICTest::CD->search( year => $now->year );
-is( $cd->year, $now->year, 'deflate ok' );
+is( $cd->year->year, $now->year, 'deflate ok' );

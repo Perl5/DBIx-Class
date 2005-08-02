@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::Relationship
+            DBIx::Class::InflateColumn
             DBIx::Class::SQL::OrderBy
             DBIx::Class::SQL::Abstract
             DBIx::Class::PK
