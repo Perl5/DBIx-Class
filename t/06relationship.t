@@ -1,6 +1,6 @@
 use Test::More;
 
-plan tests => 8;
+plan tests => 14;
 
 use lib qw(t/lib);
 
@@ -29,9 +29,46 @@ is( ($artist->search_related('cds'))[3]->title, 'Big Flop', 'create_related ok' 
 # count_related
 is( $artist->count_related('cds'), 4, 'count_related ok' );
 
-SKIP: {
+# set_from_related
+my $track = DBICTest::Track->create( {
+  trackid => 1,
+  cd => 3,
+  position => 98,
+  title => 'Hidden Track'
+} );
+$track->set_from_related( cd => $cd );
+is( $track->cd, 4, 'set_from_related ok' );
 
-  #skip "Relationship with invalid cols not yet checked", 1;
+# update_from_related, the same as set_from_related, but it calls update afterwards
+$track = DBICTest::Track->create( {
+  trackid => 2,
+  cd => 3,
+  position => 99,
+  title => 'Hidden Track'
+} );
+$track->update_from_related( cd => $cd );
+is( (DBICTest::Track->search( cd => 4, position => 99 ))[0]->cd, 4, 'update_from_related ok' );
+
+# find_or_create_related with an existing record
+$cd = $artist->find_or_create_related( 'cds', { title => 'Big Flop' } );
+is( $cd->year, 2005, 'find_or_create_related on existing record ok' );
+
+# find_or_create_related creating a new record
+$cd = $artist->find_or_create_related( 'cds', {
+  title => 'Greatest Hits',
+  year => 2006,
+} );
+is( $cd->title, 'Greatest Hits', 'find_or_create_related new record ok' );
+my @cds = $artist->search_related('cds');
+is( ($artist->search_related('cds'))[4]->title, 'Greatest Hits', 'find_or_create_related new record search ok' );
+
+SKIP: {
+    skip 'Need to add delete_related', 1;
+    # delete_related
+    ($cd) = DBICTest::CD->search( title => 'Greatest Hits' );
+    $artist->delete_related( cds => $cd );
+    is( DBICTest::CD->search( title => 'Greatest Hits' ), undef, 'delete_related ok' );
+};
 
 # try to add a bogus relationship using the wrong cols
 eval {
@@ -41,8 +78,6 @@ eval {
     );
 };
 like($@, qr/Unknown column/, 'failed when creating a rel with invalid key, ok');
-
-} # End SKIP block
 
 # another bogus relationship using no join condition
 eval {
