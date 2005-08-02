@@ -25,8 +25,9 @@ sub _add_relationship_accessor {
       } elsif (exists $self->{_relationship_data}{$rel}) {
         return $self->{_relationship_data}{$rel};
       } else {
-        return $self->{_relationship_data}{$rel}
-                 = $self->find_or_create_related($rel, {}, {});
+        my ($val) = $self->search_related($rel, {}, {});
+        return unless $val;
+        return $self->{_relationship_data}{$rel} = $val;
       }
     };
   } elsif ($acc_type eq 'filter') {

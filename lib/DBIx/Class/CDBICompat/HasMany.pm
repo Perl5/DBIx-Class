@@ -40,7 +40,7 @@ sub has_many {
   $class->throw( "No such column ${f_key} on foreign class ${f_class}" )
     unless $f_class->_columns->{$f_key};
   $args ||= {};
-  my $cascade = not (ref $args eq 'HAS' && delete $args->{no_cascade_delete});
+  my $cascade = not (ref $args eq 'HASH' && delete $args->{no_cascade_delete});
   $class->add_relationship($rel, $f_class,
                             { "foreign.${f_key}" => "self.${self_key}" },
                             { accessor => 'multi',

@@ -241,6 +241,11 @@ sub find_or_create {
   return defined($exists) ? $exists : $class->create($hash);
 }
 
+sub insert_or_update {
+  my $self = shift;
+  return ($self->in_database ? $self->update : $self->insert);
+}
+
 sub retrieve_all {
   my ($class) = @_;
   return $class->retrieve_from_sql( '1' );

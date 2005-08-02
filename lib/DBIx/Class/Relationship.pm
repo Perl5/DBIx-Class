@@ -132,9 +132,9 @@ sub create_related {
 
 sub new_related {
   my ($self, $rel, $values, $attrs) = @_;
-  $self->throw( "Can't call create_related as class method" ) 
+  $self->throw( "Can't call new_related as class method" ) 
     unless ref $self;
-  $self->throw( "create_related needs a hash" ) 
+  $self->throw( "new_related needs a hash" ) 
     unless (ref $values eq 'HASH');
   my $rel_obj = $self->_relationships->{$rel};
   $self->throw( "No such relationship ${rel}" ) unless $rel_obj;

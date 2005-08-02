@@ -5,6 +5,7 @@ use warnings;
 
 use base qw/DBIx::Class::Relationship::Accessor
             DBIx::Class::Relationship::CascadeActions
+            DBIx::Class::Relationship::ProxyMethods
             DBIx::Class::Relationship
             DBIx::Class::InflateColumn
             DBIx::Class::SQL::OrderBy
