@@ -54,7 +54,6 @@ sub insert {
   my $sth = $self->_get_sth('insert', [ keys %{$self->{_column_data}} ],
                               $self->_table_name, undef);
   $sth->execute(values %{$self->{_column_data}});
-  $sth->finish;
   $self->in_database(1);
   $self->{_dirty_columns} = {};
   return $self;
@@ -81,7 +80,6 @@ sub update {
                               $self->_table_name, $self->_ident_cond);
   my $rows = $sth->execute( (map { $self->{_column_data}{$_} } @to_update),
                   $self->_ident_values );
-  $sth->finish;
   if ($rows == 0) {
     $self->throw( "Can't update $self: row not found" );
   } elsif ($rows > 1) {
@@ -99,7 +97,6 @@ sub delete {
     my $sth = $self->_get_sth('delete', undef,
                                 $self->_table_name, $self->_ident_cond);
     $sth->execute($self->_ident_values);
-    $sth->finish;
     $self->in_database(undef);
   } else {
     my $attrs = { };
@@ -110,7 +107,6 @@ sub delete {
     my ($cond, @param) = $self->_cond_resolve($query, $attrs);
     my $sth = $self->_get_sth('delete', undef, $self->_table_name, $cond);
     $sth->execute(@param);
-    $sth->finish;
   }
   return $self;
 }
@@ -179,7 +175,6 @@ sub count_from_sql {
   #warn "$cond @vals";
   $sth->execute(@vals);
   my ($count) = $sth->fetchrow_array;
-  $sth->finish;
   return $count;
 }
 

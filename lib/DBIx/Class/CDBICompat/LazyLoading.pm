@@ -28,7 +28,6 @@ sub _flesh {
                                 $self->_ident_cond); 
     $sth->execute($self->_ident_values);
     my @val = $sth->fetchrow_array;
-    $sth->finish;
     foreach my $w (@want) {
       $self->{'_column_data'}{$w} = shift @val;
     }
