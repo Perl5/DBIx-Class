@@ -12,17 +12,19 @@ sub inflate_column {
   return 1;
 }
 
-sub _inflate_column_value {
+sub _inflated_column {
   my ($self, $col, $value) = @_;
   return $value unless defined $value; # NULL is NULL is NULL
+  return $value unless exists $self->_columns->{$col}{_inflate_info};
   return $value unless exists $self->_columns->{$col}{_inflate_info}{inflate};
   my $inflate = $self->_columns->{$col}{_inflate_info}{inflate};
   return $inflate->($value, $self);
 }
 
-sub _deflate_column_value {
+sub _deflated_column {
   my ($self, $col, $value) = @_;
   return $value unless ref $value; # If it's not an object, don't touch it
+  return $value unless exists $self->_columns->{$col}{_inflate_info};
   return $value unless exists $self->_columns->{$col}{_inflate_info}{deflate};
   my $deflate = $self->_columns->{$col}{_inflate_info}{deflate};
   return $deflate->($value, $self);
@@ -32,13 +34,11 @@ sub get_inflated_column {
   my ($self, $col) = @_;
   $self->throw("$col is not an inflated column") unless
     exists $self->_columns->{$col}{_inflate_info};
-  #warn $rel;
-  #warn join(', ', %{$self->{_column_data}});
+
   return $self->{_inflated_column}{$col}
     if exists $self->{_inflated_column}{$col};
-  #my ($pri) = (keys %{$self->_relationships->{$rel}{class}->_primaries})[0];
   return $self->{_inflated_column}{$col} =
-           $self->_inflate_column_value($col, $self->get_column($col));
+           $self->_inflated_column($col, $self->get_column($col));
 }
 
 sub set_inflated_column {
@@ -54,8 +54,10 @@ sub store_inflated_column {
     delete $self->{_inflated_column}{$col};
     return $self->store_column($col, $obj);
   }
-  my $deflated = $self->_deflate_column_value($col, $obj);
+
+  my $deflated = $self->_deflated_column($col, $obj);
            # Do this now so we don't store if it's invalid
+
   $self->{_inflated_column}{$col} = $obj;
   #warn "Storing $obj: ".($obj->_ident_values)[0];
   $self->store_column($col, $deflated);
@@ -68,7 +70,7 @@ sub new {
   my %deflated;
   foreach my $key (keys %$attrs) {
     if (exists $class->_columns->{$key}{_inflate_info}) {
-      $deflated{$key} = $class->_deflate_column_value($key,
+      $deflated{$key} = $class->_deflated_column($key,
                                                         delete $attrs->{$key});
     }
   }
@@ -78,7 +80,7 @@ sub new {
 sub _cond_value {
   my ($self, $attrs, $key, $value) = @_;
   if (exists $self->_columns->{$key}) {
-    $value = $self->_deflate_column_value($key, $value);
+    $value = $self->_deflated_column($key, $value);
   }
   return $self->NEXT::ACTUAL::_cond_value($attrs, $key, $value);
 }

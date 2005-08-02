@@ -39,34 +39,14 @@ sub has_many {
     unless $f_key;
   $class->throw( "No such column ${f_key} on foreign class ${f_class}" )
     unless $f_class->_columns->{$f_key};
+  $args ||= {};
+  my $cascade = not (ref $args eq 'HAS' && delete $args->{no_cascade_delete});
   $class->add_relationship($rel, $f_class,
                             { "foreign.${f_key}" => "self.${self_key}" },
-                            { _type => 'has_many', %{$args || {}} } );
-  {
-    no strict 'refs';
-    *{"${class}::${rel}"} = sub { shift->search_related($rel, @_); };
-    *{"${class}::add_to_${rel}"} = sub { shift->create_related($rel, @_); };
-  }
+                            { accessor => 'multi',
+                              ($cascade ? ('cascade_delete' => 1) : ()),
+                              %$args } );
   return 1;
 }
 
-sub delete {
-  my ($self, @rest) = @_;
-  return $self->NEXT::ACTUAL::delete(@rest) unless ref $self;
-    # I'm just ignoring this for class deletes because hell, the db should
-    # be handling this anyway. Assuming we have joins we probably actually
-    # *could* do them, but I'd rather not.
-
-  my $ret = $self->NEXT::ACTUAL::delete(@rest);
-
-  my %rels = %{ $self->_relationships };
-  my @hm = grep { $rels{$_}{attrs}{_type}
-                   && $rels{$_}{attrs}{_type} eq 'has_many' } keys %rels;
-  foreach my $has_many (@hm) {
-    unless ($rels{$has_many}->{attrs}{no_cascade_delete}) {
-      $_->delete for $self->search_related($has_many)
-    }
-  }
-  return $ret;
-}
 1;

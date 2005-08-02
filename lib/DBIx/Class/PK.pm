@@ -77,8 +77,10 @@ sub discard_changes {
     $self->in_database(0);
     return $self;
   }
-  $self->store_column($_ => $reload->get_column($_))
-    foreach keys %{$self->_columns};
+  delete @{$self}{keys %$self};
+  @{$self}{keys %$reload} = values %$reload;
+  #$self->store_column($_ => $reload->get_column($_))
+  #  foreach keys %{$self->_columns};
   return $self;
 }
 

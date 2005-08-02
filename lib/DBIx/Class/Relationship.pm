@@ -110,7 +110,7 @@ sub search_related {
     $attrs = { %{ pop(@_) } };
   }
   my $rel_obj = $self->_relationships->{$rel};
-  $self->throw( "No such relationship ${rel}" ) unless $rel;
+  $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
   $attrs = { %{$rel_obj->{attrs} || {}}, %{$attrs || {}} };
   my $s_cond;
   if (@_) {
@@ -126,13 +126,18 @@ sub search_related {
 }
 
 sub create_related {
+  my $class = shift;
+  return $class->new_related(@_)->insert;
+}
+
+sub new_related {
   my ($self, $rel, $values, $attrs) = @_;
   $self->throw( "Can't call create_related as class method" ) 
     unless ref $self;
   $self->throw( "create_related needs a hash" ) 
     unless (ref $values eq 'HASH');
   my $rel_obj = $self->_relationships->{$rel};
-  $self->throw( "No such relationship ${rel}" ) unless $rel;
+  $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
   $self->throw( "Can't abstract implicit create for ${rel}, condition not a hash" )
     unless ref $rel_obj->{cond} eq 'HASH';
   $attrs = { %{$rel_obj->{attrs}}, %{$attrs || {}}, _action => 'convert' };
@@ -141,7 +146,40 @@ sub create_related {
     $self->_cond_value($attrs, $k => $v);
     $fields{$self->_cond_key($attrs, $k)} = (@{delete $attrs->{bind}})[0];
   }
-  return $rel_obj->{class}->create(\%fields);
+  return $rel_obj->{class}->new(\%fields);
+}
+
+sub find_or_create_related {
+  my $self = shift;
+  return ($self->search_related(@_))[0] || $self->create_related(@_);
+}
+
+sub set_from_related {
+  my ($self, $rel, $f_obj) = @_;
+  my $rel_obj = $self->_relationships->{$rel};
+  $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
+  my $cond = $rel_obj->{cond};
+  $self->throw( "set_from_related can only handle a hash condition; the "
+    ."condition for $rel is of type ".(ref $cond ? ref $cond : 'plain scalar'))
+      unless ref $cond eq 'HASH';
+  $self->throw( "Object $f_obj isn't a ".$rel_obj->{class} )
+    unless $f_obj->isa($rel_obj->{class});
+  foreach my $key (keys %$cond) {
+    next if ref $cond->{$key}; # Skip literals and complex conditions
+    $self->throw("set_from_related can't handle $key as key")
+      unless $key =~ m/^foreign\.([^\.]+)$/;
+    my $val = $f_obj->get_column($1);
+    $self->throw("set_from_related can't handle ".$cond->{$key}." as value")
+      unless $cond->{$key} =~ m/^self\.([^\.]+)$/;
+    $self->set_column($1 => $val);
+  }
+  return 1;
+}
+
+sub update_from_related {
+  my $self = shift;
+  $self->set_from_related(@_);
+  $self->update;
 }
 
 1;

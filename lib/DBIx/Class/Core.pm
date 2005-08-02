@@ -3,7 +3,9 @@ package DBIx::Class::Core;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Relationship
+use base qw/DBIx::Class::Relationship::Accessor
+            DBIx::Class::Relationship::CascadeActions
+            DBIx::Class::Relationship
             DBIx::Class::InflateColumn
             DBIx::Class::SQL::OrderBy
             DBIx::Class::SQL::Abstract

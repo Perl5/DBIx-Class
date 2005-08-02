@@ -172,9 +172,10 @@ sub retrieve_from_sql {
 sub sth_to_objects {
   my ($class, $sth, $args, $cols, $attrs) = @_;
   my @cols = ((ref $cols eq 'ARRAY') ? @$cols : @{$sth->{NAME_lc}} );
+  my @args = map { ref $_ ? ''.$_ : $_ } @$args; # Stringify objects
   my $cursor_class = $class->_cursor_class;
   eval "use $cursor_class;";
-  my $cursor = $cursor_class->new($class, $sth, $args, \@cols, $attrs);
+  my $cursor = $cursor_class->new($class, $sth, \@args, \@cols, $attrs);
   return (wantarray ? $cursor->all : $cursor);
 }
 
