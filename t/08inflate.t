@@ -1,4 +1,5 @@
 use Test::More;
+use DateTime;
 
 plan tests => 4;
 
@@ -13,8 +14,9 @@ is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 is( $cd->year->month, 1, 'inflated month ok' );
 
 # deflate test
-$cd->year( 2005 );
+my $now = DateTime->now;
+$cd->year( $now );
 $cd->update;
 
-($cd) = DBICTest::CD->search( year => 2005 );
-is( $cd->year, 2005, 'deflate ok' );
+($cd) = DBICTest::CD->search( year => $now->year );
+is( $cd->year, $now->year, 'deflate ok' );
