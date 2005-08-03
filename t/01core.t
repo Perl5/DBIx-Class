@@ -1,6 +1,6 @@
 use Test::More;
 
-plan tests => 21;
+plan tests => 22;
 
 use lib qw(t/lib);
 
@@ -76,14 +76,17 @@ is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is(DBICTest::Artist->count, 4, 'count ok');
 
-use DBIx::Class::PK::Auto;
-use DBIx::Class::PK::Auto::SQLite;
+# insert_or_update
+$new = DBICTest::Track->new( {
+  trackid => 100,
+  cd => 1,
+  position => 1,
+  title => 'Insert or Update',
+} );
+$new->insert_or_update;
+ok($new->in_database, 'insert_or_update insert ok');
 
-unshift(@DBICTest::Artist::ISA, qw/DBIx::Class::PK::Auto
-                                   DBIx::Class::PK::Auto::SQLite/);
-
-# add an artist without primary key to test Auto
-my $artist = DBICTest::Artist->create( { name => 'Auto' } );
-$artist->name( 'Auto Change' );
-ok($artist->update, 'update on object created without PK ok');
-
+# test in update mode
+$new->position(5);
+$new->insert_or_update;
+is( DBICTest::Track->retrieve(100)->position, 5, 'insert_or_update update ok');

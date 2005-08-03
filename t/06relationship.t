@@ -59,7 +59,7 @@ $cd = $artist->find_or_create_related( 'cds', {
   year => 2006,
 } );
 is( $cd->title, 'Greatest Hits', 'find_or_create_related new record ok' );
-my @cds = $artist->search_related('cds');
+@cds = $artist->search_related('cds');
 is( ($artist->search_related('cds'))[4]->title, 'Greatest Hits', 'find_or_create_related new record search ok' );
 
 SKIP: {
