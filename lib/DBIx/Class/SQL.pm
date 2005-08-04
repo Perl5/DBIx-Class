@@ -45,16 +45,6 @@ sub create_sql {
 
 *_get_sql = \&create_sql;
 
-sub _sql_to_sth {
-  my ($class, $sql) = @_;
-  return $class->_get_dbh->prepare($sql);
-}
-
-sub _get_sth {
-  my $class = shift;
-  return $class->_sql_to_sth($class->_get_sql(@_));
-}
-
 1;
 
 =head1 AUTHORS
