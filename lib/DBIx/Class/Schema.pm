@@ -8,6 +8,47 @@ use DBIx::Class;
 
 __PACKAGE__->mk_classdata('_class_registrations' => {});
 
+=head1 NAME
+
+DBIx::Class::Schema - composable schemas
+
+=head1 SYNOPSIS
+
+  in My/Schema.pm
+
+  package My::Schema;
+
+  use base qw/DBIx::Class::Schema/;
+
+  __PACKAGE__->load_classes(qw/Foo Bar Baz/);
+
+  in My/Schema/Foo.pm
+
+  package My::Schema::Foo;
+
+  use base qw/DBIx::Class::Core/;
+
+  __PACKAGE__->table('foo');
+  ...
+
+  in My/DB.pm
+
+  use My::Schema;
+
+  My::Schema->compose_connection('My::DB', $dsn, $user, $pass, $attrs);
+
+  then in app code
+
+  my @obj = My::DB::Foo->retrieve_all; # My::DB::Foo isa My::Schema::Foo My::DB
+
+=head1 DESCRIPTION
+
+=head1 METHODS
+
+=over 4
+
+=cut
+
 sub register_class {
   my ($class, $name, $to_register) = @_;
   my %reg = %{$class->_class_registrations};
@@ -45,3 +86,16 @@ sub compose_connection {
 }
 
 1;
+
+=back
+
+=head1 AUTHORS
+
+Matt S. Trout <perl-stuff@trout.me.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
+
