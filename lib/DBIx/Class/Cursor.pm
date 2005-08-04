@@ -11,8 +11,8 @@ sub new {
   #use Data::Dumper; warn Dumper(@_);
   $it_class = ref $it_class if ref $it_class;
   unless ($sth) {
-    $sth = $db_class->_get_sth('select', $cols,
-                             $db_class->_table_name, $attrs->{where});
+    $sth = $db_class->storage->select($db_class->_table_name,$cols,
+                                        $attrs->{where},$attrs);
   }
   my $new = {
     class => $db_class,
@@ -56,12 +56,8 @@ sub count {
   my ($self) = @_;
   return $self->{attrs}{rows} if $self->{attrs}{rows};
   if (my $cond = $self->{attrs}->{where}) {
-    my $class = $self->{class};
-    my $sth = $class->_get_sth( 'select', [ 'COUNT(*)' ],
-                                  $class->_table_name, $cond);
-    my ($count) = $class->_get_dbh->selectrow_array(
-                                      $sth, undef, @{$self->{args} || []});
-    return $count;
+#warn "Counting ".$$cond;
+    return $self->{class}->count($cond, { bind => $self->{args} });
   } else {
     return scalar $_[0]->all; # So inefficient
   }

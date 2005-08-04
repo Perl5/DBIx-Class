@@ -159,6 +159,8 @@ eval {
 		Film->create({ Title => 'Mikey and Nicky', Director => 'Elaine May' });
 	my $new_leaf =
 		Film->create({ Title => 'A New Leaf', Director => 'Elaine May' });
+
+#use Data::Dumper; die Dumper(Film->search( Director => 'Elaine May' ));
 	cmp_ok(Film->search(Director => 'Elaine May'), '==', 3,
 		"3 Films by Elaine May");
 	ok(Film->retrieve('Ishtar')->delete,
@@ -226,7 +228,10 @@ is($btaste->Director, $orig_director, 'discard_changes()');
 	my $btaste2 = Film->retrieve($btaste->id);
 	$btaste->NumExplodingSheep(18);
 	my @warnings;
-	local $SIG{__WARN__} = sub { push @warnings, @_; };
+	local $SIG{__WARN__} = sub {
+          unless ($_[0] =~ m/ContextualFetch/) {
+            push(@warnings, @_);
+          } };
 	{
 
 		# unhook from live object cache, so next one is not from cache

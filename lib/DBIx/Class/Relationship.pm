@@ -104,12 +104,12 @@ sub _cond_value {
 
 sub search_related {
   my $self = shift;
-  $self->_from_sql_related('retrieve', @_);
+  return $self->_from_sql_related('retrieve', @_);
 }
 
 sub count_related {
   my $self = shift;
-  $self->_from_sql_related('count', @_);
+  return $self->_from_sql_related('count', @_);
 }
 
 sub _from_sql_related {
@@ -134,6 +134,7 @@ sub _from_sql_related {
                                  # to merge into the AST really?
   my ($cond) = $self->_cond_resolve($rel_obj->{cond}, $attrs);
   $cond = "${s_cond} AND ${cond}" if $s_cond;
+  #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}});
   return $rel_obj->{class}->$meth($cond, @{$attrs->{bind} || []}, $attrs);
 }
 

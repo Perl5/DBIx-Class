@@ -53,18 +53,18 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
   } );
 
 sub db_Main {
-  return $_[0]->_get_dbh;
+  return $_[0]->storage->dbh;
 }
 
-sub _dbi_connect {
+sub connection {
   my ($class, @info) = @_;
   $info[3] = { %{ $info[3] || {}} };
   $info[3]->{RootClass} = 'DBIx::ContextualFetch';
-  return $class->NEXT::_dbi_connect(@info);
+  return $class->NEXT::connection(@info);
 }
 
 sub __driver {
-  return $_[0]->_get_dbh->{Driver}->{Name};
+  return $_[0]->storage->dbh->{Driver}->{Name};
 }
 
 sub set_sql {
@@ -76,7 +76,7 @@ sub set_sql {
     sub {
       my $sql = $sql;
       my $class = shift;
-      return $class->_sql_to_sth($class->transform_sql($sql, @_));
+      return $class->storage->sth($class->transform_sql($sql, @_));
     };
   if ($sql =~ /select/i) {
     my $meth = "sql_${name}";

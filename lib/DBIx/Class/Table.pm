@@ -66,10 +66,12 @@ sub insert {
   my ($self) = @_;
   return $self if $self->in_database;
   #use Data::Dumper; warn Dumper($self);
-  my $sth = $self->_get_sth('insert', [ keys %{$self->{_column_data}} ],
-                              $self->_table_name, undef);
-  $sth->execute(values %{$self->{_column_data}});
-  $sth->finish;
+  my %in;
+  $in{$_} = $self->get_column($_)
+    for grep { defined $self->get_column($_) } $self->columns;
+  my %out = %{ $self->storage->insert($self->_table_name, \%in) };
+  $self->store_column($_, $out{$_})
+    for grep { $self->get_column($_) ne $out{$_} } keys %out;
   $self->in_database(1);
   $self->{_dirty_columns} = {};
   return $self;
@@ -114,22 +116,27 @@ UPDATE query to commit any changes to the object to the db if required.
 =cut
 
 sub update {
-  my ($self) = @_;
+  my ($self, $upd) = @_;
   $self->throw( "Not in database" ) unless $self->in_database;
-  my @to_update = keys %{$self->{_dirty_columns} || {}};
-  return -1 unless @to_update;
-  my $sth = $self->_get_sth('update', \@to_update,
-                              $self->_table_name, $self->_ident_cond);
-  my $rows = $sth->execute( (map { $self->{_column_data}{$_} } @to_update),
-                  $self->_ident_values );
-  $sth->finish;
+  my %to_update = %{$upd || {}};
+  $to_update{$_} = $self->get_column($_) for $self->is_changed;
+  return -1 unless keys %to_update;
+  my $rows = $self->storage->update($self->_table_name, \%to_update,
+                                      $self->ident_condition);
   if ($rows == 0) {
-    $self->throw( "Can't update $self: row not found" );
+    $self->throw( "Can't update ${self}: row not found" );
   } elsif ($rows > 1) {
-    $self->throw("Can't update $self: updated more than one row");
+    $self->throw("Can't update ${self}: updated more than one row");
   }
   $self->{_dirty_columns} = {};
   return $self;
+}
+
+sub ident_condition {
+  my ($self) = @_;
+  my %cond;
+  $cond{$_} = $self->get_column($_) for keys %{$self->_primaries};
+  return \%cond;
 }
 
 =item delete
@@ -147,22 +154,18 @@ sub delete {
   if (ref $self) {
     $self->throw( "Not in database" ) unless $self->in_database;
     #warn $self->_ident_cond.' '.join(', ', $self->_ident_values);
-    my $sth = $self->_get_sth('delete', undef,
-                                $self->_table_name, $self->_ident_cond);
-    $sth->execute($self->_ident_values);
-    $sth->finish;
+    $self->storage->delete($self->_table_name, $self->ident_condition);
     $self->in_database(undef);
+    #$self->store_column($_ => undef) for $self->primary_columns;
       # Should probably also arrange to trash PK if auto
+      # but if we do, post-delete cascade triggers fail :/
   } else {
     my $attrs = { };
     if (@_ > 1 && ref $_[$#_] eq 'HASH') {
       $attrs = { %{ pop(@_) } };
     }
     my $query = (ref $_[0] eq 'HASH' ? $_[0] : {@_});
-    my ($cond, @param) = $self->_cond_resolve($query, $attrs);
-    my $sth = $self->_get_sth('delete', undef, $self->_table_name, $cond);
-    $sth->execute(@param);
-    $sth->finish;
+    $self->storage->delete($self->_table_name, $query);
   }
   return $self;
 }
@@ -257,9 +260,8 @@ sub retrieve_from_sql {
   $cond =~ s/^\s*WHERE//i;
   my $attrs = (ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
   my @cols = $class->_select_columns($attrs);
-  my $sth = $class->_get_sth( 'select', \@cols, $class->_table_name, $cond);
-  #warn "$cond @vals";
-  return $class->sth_to_objects($sth, \@vals, \@cols, { where => $cond });
+  #warn "@cols $cond @vals";
+  return $class->sth_to_objects(undef, \@vals, \@cols, { where => \$cond });
 }
 
 =item count_from_sql
@@ -269,13 +271,13 @@ sub retrieve_from_sql {
 =cut
 
 sub count_from_sql {
-  my ($class, $cond, @vals) = @_;
+  my ($self, $cond, @vals) = @_;
   $cond =~ s/^\s*WHERE//i;
   my $attrs = (ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
   my @cols = 'COUNT(*)';
-  my $sth = $class->_get_sth( 'select', \@cols, $class->_table_name, $cond);
+  $attrs->{bind} = [ @vals ];
+  my $sth = $self->storage->select($self->_table_name,\@cols,\$cond, $attrs);
   #warn "$cond @vals";
-  $sth->execute(@vals);
   my ($count) = $sth->fetchrow_array;
   $sth->finish;
   return $count;
@@ -293,9 +295,9 @@ sub count {
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
     $attrs = { %{ pop(@_) } };
   }
-  my $query    = ref $_[0] eq "HASH" ? shift: {@_};
-  my ($cond, @param)  = $class->_cond_resolve($query, $attrs);
-  return $class->count_from_sql($cond, @param, $attrs);
+  my $query    = ref $_[0] eq "HASH" || (@_ == 1) ? shift: {@_};
+  my ($cond)  = $class->_cond_resolve($query, $attrs);
+  return $class->count_from_sql($cond, @{$attrs->{bind}||[]}, $attrs);
 }
 
 =item sth_to_objects
@@ -332,6 +334,7 @@ sub _row_to_object { # WARNING: Destructive to @$row
 
 sub search {
   my $class = shift;
+  #warn "@_";
   my $attrs = { };
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
     $attrs = { %{ pop(@_) } };
@@ -444,6 +447,8 @@ sub retrieve_all {
 sub is_changed {
   return keys %{shift->{_dirty_columns} || {}};
 }
+
+sub columns { return keys %{shift->_columns}; }
 
 1;
 

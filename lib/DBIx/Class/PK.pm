@@ -91,6 +91,10 @@ sub id {
   return (wantarray ? @pk : $pk[0]);
 }
 
+sub primary_columns {
+  return keys %{shift->_primaries};
+}
+
 1;
 
 =back

@@ -1,5 +1,8 @@
 package DBIx::Class::SQL::Abstract;
 
+use strict;
+use warnings;
+
 # Many thanks to SQL::Abstract, from which I stole most of this
 
 sub _debug { }

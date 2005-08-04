@@ -1,21 +1,30 @@
 package DBIx::Class::DB;
 
 use base qw/Class::Data::Inheritable/;
+use DBIx::Class::Storage::DBI;
 use DBI;
-
-__PACKAGE__->mk_classdata('_dbi_connect_info');
-__PACKAGE__->mk_classdata('_dbi_connect_package');
-__PACKAGE__->mk_classdata('_dbh');
 
 =head1 NAME 
 
-DBIx::Class::DB - DBIx::Class Database connection
+DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
 
 =head1 SYNOPSIS
 
+  package MyDB;
+
+  use base qw/DBIx::Class/;
+  __PACKAGE__->load_components('DB');
+
+  __PACKAGE__->connection('dbi:...', 'user', 'pass', \%attrs);
+
+  package MyDB::MyTable;
+
+  use base qw/MyDB/;
+  __PACKAGE__->load_components('Table');
+
 =head1 DESCRIPTION
 
-This class represents the connection to the database
+This class provides a simple way of specifying a database connection.
 
 =head1 METHODS
 
@@ -23,26 +32,7 @@ This class represents the connection to the database
 
 =cut
 
-sub _get_dbh {
-  my ($class) = @_;
-  my $dbh;
-  unless (($dbh = $class->_dbh) && $dbh->FETCH('Active') && $dbh->ping) {
-    $class->_populate_dbh;
-  }
-  return $class->_dbh;
-}
-
-sub _populate_dbh {
-  my ($class) = @_;
-  my @info = @{$class->_dbi_connect_info || []};
-  my $pkg = $class->_dbi_connect_package || $class;
-  $pkg->_dbh($class->_dbi_connect(@info));
-}
-
-sub _dbi_connect {
-  my ($class, @info) = @_;
-  return DBI->connect(@info);
-}
+__PACKAGE__->mk_classdata('storage');
 
 =item connection
 
@@ -55,8 +45,9 @@ instantiate the class dbh when required.
 
 sub connection {
   my ($class, @info) = @_;
-  $class->_dbi_connect_package($class);
-  $class->_dbi_connect_info(\@info);
+  my $storage = DBIx::Class::Storage::DBI->new;
+  $storage->connect_info(\@info);
+  $class->storage($storage);
 }
 
 =item dbi_commit
@@ -67,7 +58,7 @@ Issues a commit again the current dbh
 
 =cut
 
-sub dbi_commit { $_[0]->_get_dbh->commit; }
+sub dbi_commit { $_[0]->storage->commit; }
 
 =item dbi_rollback
 
@@ -77,7 +68,9 @@ Issues a rollback again the current dbh
 
 =cut
 
-sub dbi_rollback { $_[0]->_get_dbh->rollback; }
+sub dbi_rollback { $_[0]->storage->rollback; }
+
+sub _get_dbh { shift->storage->dbh; }
 
 1;
 

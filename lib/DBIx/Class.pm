@@ -10,7 +10,7 @@ $VERSION = '0.01';
 
 sub load_components {
   my $class = shift;
-  my @comp = map { "DBIx::Class::$_" } @_;
+  my @comp = map { "DBIx::Class::$_" } grep { $_ !~ /^#/ } @_;
   foreach my $comp (@comp) {
     eval "use $comp";
     die $@ if $@;

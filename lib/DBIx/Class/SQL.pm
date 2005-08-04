@@ -28,8 +28,7 @@ __PACKAGE__->mk_classdata('_sql_statements',
     'select' =>
       sub { "SELECT ".join(', ', @{$_[COLS]})." FROM $_[FROM] WHERE $_[COND]"; },
     'update' =>
-      sub { "UPDATE $_[FROM] SET ".join(', ', map { "$_ = ?" } @{$_[COLS]}).
-              " WHERE $_[COND]"; },
+      sub { "UPDATE $_[FROM] SET $_[COLS] WHERE $_[COND]"; },
     'insert' =>
       sub { "INSERT INTO $_[FROM] (".join(', ', @{$_[COLS]}).") VALUES (".
               join(', ', map { '?' } @{$_[COLS]}).")"; },
@@ -37,12 +36,14 @@ __PACKAGE__->mk_classdata('_sql_statements',
       sub { "DELETE FROM $_[FROM] WHERE $_[COND]"; },
   } );
 
-sub _get_sql {
+sub create_sql {
   my ($class, $name, $cols, $from, $cond) = @_;
   my $sql = $class->_sql_statements->{$name}->($cols, $from, $cond);
   #warn $sql;
   return $sql;
 }
+
+*_get_sql = \&create_sql;
 
 sub _sql_to_sth {
   my ($class, $sql) = @_;
