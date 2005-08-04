@@ -69,19 +69,26 @@ sub load_classes {
 
 sub compose_connection {
   my ($class, $target, @info) = @_;
-  {
-    no strict 'refs';
-    unshift(@{"${target}::ISA"}, 'DBIx::Class');
-  }
-  $target->load_components('DB');
-  $target->connection(@info);
+  $class->setup_connection_class($target, @info);
   my %reg = %{ $class->_class_registrations };
   while (my ($comp, $comp_class) = each %reg) {
     my $target_class = "${target}::${comp}";
-    {
-      no strict 'refs';
-      unshift(@{"${target_class}::ISA"}, $comp_class, $target);
-    }
+    $class->inject_base($target_class, $comp_class, $target);
+  }
+}
+
+sub setup_connection_class {
+  my ($class, $target, @info) = @_;
+  $class->inject_base($target => 'DBIx::Class');
+  $target->load_components('DB');
+  $target->connection(@info);
+}
+
+sub inject_base {
+  my ($class, $target, @to_inject) = @_;
+  {
+    no strict 'refs';
+    unshift(@{"${target}::ISA"}, @to_inject);
   }
 }
 
