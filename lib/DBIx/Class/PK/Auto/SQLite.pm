@@ -8,7 +8,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/PK::Auto/);
 
 sub last_insert_id {
-  return $_[0]->_get_dbh->func('last_insert_rowid');
+  return $_[0]->storage->dbh->func('last_insert_rowid');
 }
 
 1;

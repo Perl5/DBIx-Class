@@ -13,7 +13,7 @@ mkdir("t/var") unless -d "t/var";
 
 __PACKAGE__->connection("dbi:SQLite:${db_file}");
 
-my $dbh = __PACKAGE__->_get_dbh;
+my $dbh = __PACKAGE__->storage->dbh;
 
 my $sql = <<EOSQL;
 CREATE TABLE artist (artistid INTEGER NOT NULL PRIMARY KEY, name VARCHAR);

@@ -70,8 +70,6 @@ Issues a rollback again the current dbh
 
 sub dbi_rollback { $_[0]->storage->rollback; }
 
-sub _get_dbh { shift->storage->dbh; }
-
 1;
 
 =back
