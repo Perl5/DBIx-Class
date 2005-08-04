@@ -15,7 +15,6 @@ __PACKAGE__->load_components(qw/
   SQL::Abstract
   PK
   Table
-  DB
   Exception
   AccessorGroup/);
 

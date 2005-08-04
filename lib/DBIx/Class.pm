@@ -43,14 +43,14 @@ use base qw/Class::DBI/;
 with
 
 use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/CDBICompat Core/);
+__PACKAGE__->load_components(qw/CDBICompat Core DB/);
 
 will probably get you started.
 
 If you're using AUTO_INCREMENT for your primary columns, you'll also want
 yo load the approriate PK::Auto subclass - e.g.
 
-__PACKAGE__->load_components(qw/CDBICompat PK::Auto::SQLite Core/);
+__PACKAGE__->load_components(qw/CDBICompat PK::Auto::SQLite Core DB/);
 
 (with is what ::Test::SQLite does to present the Class::DBI::Test::SQLite
 interface)
@@ -59,7 +59,7 @@ If you fancy playing around with DBIx::Class from scratch, then read the docs
 for ::Table and ::Relationship,
 
 use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/Core/);
+__PACKAGE__->load_components(qw/Core DB/);
 
 and have a look at t/lib/DBICTest.pm for a brief example.
 
