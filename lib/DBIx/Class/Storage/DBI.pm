@@ -123,6 +123,9 @@ sub select {
   if (@{$attrs->{bind}||[]}) {
     $sth->execute( @{$attrs->{bind}||[]} );
   } else {
+    # disable unexplained 'Use of uninitialized value in subroutine entry'
+    # warnings
+    no warnings 'uninitialized';
     $sth->execute;
   }
   return $sth;
