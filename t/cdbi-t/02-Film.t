@@ -228,10 +228,7 @@ is($btaste->Director, $orig_director, 'discard_changes()');
 	my $btaste2 = Film->retrieve($btaste->id);
 	$btaste->NumExplodingSheep(18);
 	my @warnings;
-	local $SIG{__WARN__} = sub {
-          unless ($_[0] =~ m/ContextualFetch/) {
-            push(@warnings, @_);
-          } };
+	local $SIG{__WARN__} = sub { push(@warnings, @_); };
 	{
 
 		# unhook from live object cache, so next one is not from cache

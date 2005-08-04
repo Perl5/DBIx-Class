@@ -2,6 +2,7 @@ package DBIx::Class::CDBICompat::ImaDBI;
 
 use strict;
 use warnings;
+use DBIx::ContextualFetch;
 
 use NEXT;
 use base qw/Class::Data::Inheritable/;
@@ -97,6 +98,23 @@ sub transform_sql {
     $sql =~ s/__$key(?:\(([^\)]+)\))?__/$h->($attrs, $class, $1)/eg;
   }
   return sprintf($sql, @args);
+}
+
+package DBIx::ContextualFetch::st;
+
+no warnings 'redefine';
+
+sub _untaint_execute {
+  my $sth = shift;
+  my $old_value = $sth->{Taint};
+  $sth->{Taint} = 0;
+  my $ret;
+  {
+    no warnings 'uninitialized';
+    $ret = $sth->SUPER::execute(@_);
+  }
+  $sth->{Taint} = $old_value;
+  return $ret;
 }
 
 1;
