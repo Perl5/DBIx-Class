@@ -1,5 +1,7 @@
 use Test::More;
-use DateTime;
+
+eval { require DateTime };
+plan skip_all => "Need DateTime for inflation tests" if $@;
 
 plan tests => 4;
 
