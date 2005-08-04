@@ -7,6 +7,7 @@ use DBIx::Class;
 
 package A;
 @A::ISA = qw(DBIx::Class);
+__PACKAGE__->load_components(qw/CDBICompat Core/);
 __PACKAGE__->columns(Primary => 'id');
 
 package A::B;

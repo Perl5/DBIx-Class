@@ -2,26 +2,28 @@ package DBIx::Class::CDBICompat;
 
 use strict;
 use warnings;
+use base qw/DBIx::Class/;
 
-use base qw/DBIx::Class::CDBICompat::Constraints
-            DBIx::Class::CDBICompat::Triggers
-            DBIx::Class::CDBICompat::ReadOnly
-            DBIx::Class::CDBICompat::GetSet
-            DBIx::Class::CDBICompat::LiveObjectIndex
-            DBIx::Class::CDBICompat::AttributeAPI
-            DBIx::Class::CDBICompat::Stringify
-            DBIx::Class::CDBICompat::DestroyWarning
-            DBIx::Class::CDBICompat::Constructor
-            DBIx::Class::CDBICompat::AccessorMapping
-            DBIx::Class::CDBICompat::ColumnCase
-            DBIx::Class::CDBICompat::MightHave
-            DBIx::Class::CDBICompat::HasMany
-            DBIx::Class::CDBICompat::HasA
-            DBIx::Class::CDBICompat::LazyLoading
-            DBIx::Class::CDBICompat::AutoUpdate
-            DBIx::Class::CDBICompat::TempColumns
-            DBIx::Class::CDBICompat::ColumnGroups
-            DBIx::Class::CDBICompat::ImaDBI/;
+__PACKAGE__->load_components(qw/
+  CDBICompat::Constraints
+  CDBICompat::Triggers
+  CDBICompat::ReadOnly
+  CDBICompat::GetSet
+  CDBICompat::LiveObjectIndex
+  CDBICompat::AttributeAPI
+  CDBICompat::Stringify
+  CDBICompat::DestroyWarning
+  CDBICompat::Constructor
+  CDBICompat::AccessorMapping
+  CDBICompat::ColumnCase
+  CDBICompat::MightHave
+  CDBICompat::HasMany
+  CDBICompat::HasA
+  CDBICompat::LazyLoading
+  CDBICompat::AutoUpdate
+  CDBICompat::TempColumns
+  CDBICompat::ColumnGroups
+  CDBICompat::ImaDBI/);
 
             #DBIx::Class::CDBICompat::ObjIndexStubs
 1;

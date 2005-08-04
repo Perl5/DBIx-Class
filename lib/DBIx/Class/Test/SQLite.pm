@@ -32,12 +32,15 @@ tie it to the class.
 
 use strict;
 
-use base qw/DBIx::Class::CDBICompat DBIx::Class::PK::Auto::SQLite DBIx::Class::PK::Auto DBIx::Class::Core/;
+use base qw/DBIx::Class/;
+
+__PACKAGE__->load_components(qw/CDBICompat PK::Auto::SQLite Core/);
+
 use File::Temp qw/tempfile/;
 my (undef, $DB) = tempfile();
 END { unlink $DB if -e $DB }
 
-my @DSN = ("dbi:SQLite:dbname=$DB", '', '', { AutoCommit => 1 });
+my @DSN = ("dbi:SQLite:dbname=$DB", '', '', { AutoCommit => 1, RaiseError => 1 });
 
 __PACKAGE__->connection(@DSN);
 __PACKAGE__->set_sql(_table_pragma => 'PRAGMA table_info(__TABLE__)');

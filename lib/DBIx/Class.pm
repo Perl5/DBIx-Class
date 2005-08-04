@@ -3,11 +3,21 @@ package DBIx::Class;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::CDBICompat DBIx::Class::Core/;
-
 use vars qw($VERSION);
+use base;
 
 $VERSION = '0.01';
+
+sub load_components {
+  my $class = shift;
+  my @comp = map { "DBIx::Class::$_" } @_;
+  foreach my $comp (@comp) {
+    eval "use $comp";
+    die $@ if $@;
+  }
+  no strict 'refs';
+  unshift(@{"${class}::ISA"}, @comp);
+}
 
 1;
 
@@ -32,17 +42,24 @@ use base qw/Class::DBI/;
 
 with
 
-use base qw/DBIx::Class::CDBICompat DBIx::Class::Core/;
+use base qw/DBIx::Class/;
+__PACKAGE__->load_components(qw/CDBICompat Core/);
 
 will probably get you started.
 
 If you're using AUTO_INCREMENT for your primary columns, you'll also want
-PK::Auto and an appropriate PK::Auto::DBName (e.g. ::SQLite).
+yo load the approriate PK::Auto subclass - e.g.
+
+__PACKAGE__->load_components(qw/CDBICompat PK::Auto::SQLite Core/);
+
+(with is what ::Test::SQLite does to present the Class::DBI::Test::SQLite
+interface)
 
 If you fancy playing around with DBIx::Class from scratch, then read the docs
 for ::Table and ::Relationship,
 
 use base qw/DBIx::Class/;
+__PACKAGE__->load_components(qw/Core/);
 
 and have a look at t/lib/DBICTest.pm for a brief example.
 

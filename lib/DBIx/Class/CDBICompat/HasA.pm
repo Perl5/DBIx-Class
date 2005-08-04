@@ -24,7 +24,7 @@ sub has_a {
     if $too_many;
   $self->add_relationship($col, $f_class,
                             { "foreign.${pri}" => "self.${col}" },
-                            { _type => 'has_a', accessor => 'filter' } );
+                            { accessor => 'filter' } );
   return 1;
 }
 

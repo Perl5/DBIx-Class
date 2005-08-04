@@ -373,17 +373,17 @@ sub copy {
   return $new->insert;
 }
 
-sub _cond_resolve {
-  my ($self, $query, $attrs) = @_;
-  return '1 = 1' unless keys %$query;
-  my $op = $attrs->{'cmp'} || '=';
-  my $cond = join(' AND ',
-               map { (defined $query->{$_}
-                       ? "$_ $op ?"
-                       : (do { delete $query->{$_}; "$_ IS NULL"; }));
-                   } keys %$query);
-  return ($cond, values %$query);
-}
+#sub _cond_resolve {
+#  my ($self, $query, $attrs) = @_;
+#  return '1 = 1' unless keys %$query;
+#  my $op = $attrs->{'cmp'} || '=';
+#  my $cond = join(' AND ',
+#               map { (defined $query->{$_}
+#                       ? "$_ $op ?"
+#                       : (do { delete $query->{$_}; "$_ IS NULL"; }));
+#                   } keys %$query);
+#  return ($cond, values %$query);
+#}
 
 =item table
 

@@ -36,8 +36,8 @@ sub insert {
     if $too_many;
   unless (defined $self->get_column($pri)) {
     $self->throw( "Can't auto-inc for $pri on ".ref $self.": no _last_insert_id method" )
-      unless $self->can('_last_insert_id');
-    my $id = $self->_last_insert_id;
+      unless $self->can('last_insert_id');
+    my $id = $self->last_insert_id;
     $self->throw( "Can't get last insert id" ) unless $id;
     $self->store_column($pri => $id);
   }
