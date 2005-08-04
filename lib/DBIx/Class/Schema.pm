@@ -6,7 +6,7 @@ use warnings;
 use base qw/Class::Data::Inheritable/;
 use DBIx::Class;
 
-__PACKAGE__->mk_classdata('_class_registrations' => {});
+__PACKAGE__->mk_classdata('class_registrations' => {});
 
 =head1 NAME
 
@@ -51,9 +51,13 @@ DBIx::Class::Schema - composable schemas
 
 sub register_class {
   my ($class, $name, $to_register) = @_;
-  my %reg = %{$class->_class_registrations};
+  my %reg = %{$class->class_registrations};
   $reg{$name} = $to_register;
-  $class->_class_registrations(\%reg);
+  $class->class_registrations(\%reg);
+}
+
+sub registered_classes {
+  return values %{shift->class_registrations};
 }
 
 sub load_classes {
@@ -70,7 +74,7 @@ sub load_classes {
 sub compose_connection {
   my ($class, $target, @info) = @_;
   $class->setup_connection_class($target, @info);
-  my %reg = %{ $class->_class_registrations };
+  my %reg = %{ $class->class_registrations };
   while (my ($comp, $comp_class) = each %reg) {
     my $target_class = "${target}::${comp}";
     $class->inject_base($target_class, $comp_class, $target);
