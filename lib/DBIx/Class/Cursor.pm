@@ -11,6 +11,7 @@ sub new {
   #use Data::Dumper; warn Dumper(@_);
   $it_class = ref $it_class if ref $it_class;
   unless ($sth) {
+    $attrs->{bind} = $args;
     $sth = $db_class->storage->select($db_class->_table_name,$cols,
                                         $attrs->{where},$attrs);
   }

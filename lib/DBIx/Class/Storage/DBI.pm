@@ -1,5 +1,7 @@
 package DBIx::Class::Storage::DBI;
 
+use strict;
+use warnings;
 use DBI;
 
 use base qw/DBIx::Class/;
@@ -83,7 +85,7 @@ sub insert {
   my $sql = $self->create_sql('insert', [ keys %{$to_insert} ], $ident, undef);
   my $sth = $self->sth($sql);
   $sth->execute(values %{$to_insert});
-  $self->throw( "Couldn't insert ".join(%to_insert)." into ${ident}" )
+  $self->throw( "Couldn't insert ".join(', ', map "$_ => $to_insert->{$_}", keys %$to_insert)." into ${ident}" )
     unless $sth->rows;
   return $to_insert;
 }
@@ -120,14 +122,7 @@ sub select {
   my $sql = $self->create_sql('select', $select, $ident, $cond_sql);
   #warn $sql.' '.join(', ', @{$attrs->{bind}||[]});
   my $sth = $self->sth($sql);
-  if (@{$attrs->{bind}||[]}) {
-    $sth->execute( @{$attrs->{bind}||[]} );
-  } else {
-    # disable unexplained 'Use of uninitialized value in subroutine entry'
-    # warnings
-    no warnings 'uninitialized';
-    $sth->execute;
-  }
+  $sth->execute( @{$attrs->{bind}||[]} );
   return $sth;
 }
 
