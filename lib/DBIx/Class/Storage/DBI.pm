@@ -3,15 +3,22 @@ package DBIx::Class::Storage::DBI;
 use strict;
 use warnings;
 use DBI;
+use SQL::Abstract;
+use DBIx::Class::Cursor;
 
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/SQL::Abstract SQL Exception AccessorGroup/);
+__PACKAGE__->load_components(qw/SQL SQL::Abstract Exception AccessorGroup/);
 
-__PACKAGE__->mk_group_accessors('simple' => qw/connect_info _dbh/);
+__PACKAGE__->mk_group_accessors('simple' =>
+  qw/connect_info _dbh sql_maker debug cursor/);
 
 sub new {
-  bless({}, ref $_[0] || $_[0]);
+  my $new = bless({}, ref $_[0] || $_[0]);
+  $new->sql_maker(new SQL::Abstract);
+  $new->cursor("DBIx::Class::Cursor");
+  #$new->debug(1);
+  return $new;
 }
 
 sub get_simple {
@@ -80,50 +87,40 @@ Issues a rollback again the current dbh
 
 sub rollback { $_[0]->dbh->rollback; }
 
+sub _execute {
+  my ($self, $op, $extra_bind, $ident, @args) = @_;
+  my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
+  warn "$sql: @bind" if $self->debug;
+  my $sth = $self->sth($sql);
+  unshift(@bind, @$extra_bind) if $extra_bind;
+  @bind = map { ref $_ ? ''.$_ : $_ } @bind;
+  my $rv = $sth->execute(@bind); # stringify args
+  return (wantarray ? ($rv, $sth, @bind) : $rv);
+}
+
 sub insert {
   my ($self, $ident, $to_insert) = @_;
-  my $sql = $self->create_sql('insert', [ keys %{$to_insert} ], $ident, undef);
-  my $sth = $self->sth($sql);
-  $sth->execute(values %{$to_insert});
   $self->throw( "Couldn't insert ".join(', ', map "$_ => $to_insert->{$_}", keys %$to_insert)." into ${ident}" )
-    unless $sth->rows;
+    unless ($self->_execute('insert' => [], $ident, $to_insert) > 0);
   return $to_insert;
 }
 
 sub update {
-  my ($self, $ident, $to_update, $condition) = @_;
-  my $attrs = { };
-  my $set_sql = $self->_cond_resolve($to_update, $attrs, ',');
-  $set_sql =~ s/^\(//;
-  $set_sql =~ s/\)$//;
-  my $cond_sql = $self->_cond_resolve($condition, $attrs);
-  my $sql = $self->create_sql('update', $set_sql, $ident, $cond_sql);
-  my $sth = $self->sth($sql);
-  my $rows = $sth->execute( @{$attrs->{bind}||[]} );
-  return $rows;
+  return shift->_execute('update' => [], @_);
 }
 
 sub delete {
-  my ($self, $ident, $condition) = @_;
-  my $attrs = { };
-  my $cond_sql = $self->_cond_resolve($condition, $attrs);
-  my $sql = $self->create_sql('delete', undef, $ident, $cond_sql);
-  #warn "$sql ".join(', ',@{$attrs->{bind}||[]});
-  my $sth = $self->sth($sql);
-  return $sth->execute( @{$attrs->{bind}||[]} );
+  return shift->_execute('delete' => [], @_);
 }
 
 sub select {
   my ($self, $ident, $select, $condition, $attrs) = @_;
-  $attrs ||= { };
-  #my $select_sql = $self->_cond_resolve($select, $attrs, ',');
-  my $cond_sql = $self->_cond_resolve($condition, $attrs);
-  1 while $cond_sql =~ s/^\s*\(\s*(.*ORDER.*)\s*\)\s*$/$1/;
-  my $sql = $self->create_sql('select', $select, $ident, $cond_sql);
-  #warn $sql.' '.join(', ', @{$attrs->{bind}||[]});
-  my $sth = $self->sth($sql);
-  $sth->execute( @{$attrs->{bind}||[]} );
-  return $sth;
+  my $order = $attrs->{order_by};
+  if (ref $condition eq 'SCALAR') {
+    $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
+  }
+  my ($rv, $sth, @bind) = $self->_execute('select', $attrs->{bind}, $ident, $select, $condition, $order);
+  return $self->cursor->new($sth, \@bind, $attrs);
 }
 
 sub sth {

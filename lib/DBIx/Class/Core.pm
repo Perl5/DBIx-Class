@@ -2,6 +2,7 @@ package DBIx::Class::Core;
 
 use strict;
 use warnings;
+no warnings 'qw';
 
 use base qw/DBIx::Class/;
 
@@ -11,7 +12,7 @@ __PACKAGE__->load_components(qw/
   Relationship::ProxyMethods
   Relationship
   InflateColumn
-  SQL::OrderBy
+  #SQL::OrderBy
   SQL::Abstract
   PK
   Table

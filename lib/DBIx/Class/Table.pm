@@ -3,7 +3,7 @@ package DBIx::Class::Table;
 use strict;
 use warnings;
 
-use DBIx::Class::Cursor;
+use DBIx::Class::ResultSet;
 
 use base qw/Class::Data::Inheritable/;
 
@@ -13,9 +13,9 @@ __PACKAGE__->mk_classdata('_table_name');
 
 __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything yet!
 
-__PACKAGE__->mk_classdata('_cursor_class' => 'DBIx::Class::Cursor');
+__PACKAGE__->mk_classdata('_resultset_class' => 'DBIx::Class::ResultSet');
 
-sub iterator_class { shift->_cursor_class(@_) }
+sub iterator_class { shift->_resultset_class(@_) }
 
 =head1 NAME 
 
@@ -261,7 +261,7 @@ sub retrieve_from_sql {
   my $attrs = (ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
   my @cols = $class->_select_columns($attrs);
   #warn "@cols $cond @vals";
-  return $class->sth_to_objects(undef, \@vals, \@cols, { where => \$cond });
+  return $class->cursor_to_resultset(undef, \@vals, \@cols, { where => \$cond, %$attrs });
 }
 
 =item count_from_sql
@@ -271,16 +271,11 @@ sub retrieve_from_sql {
 =cut
 
 sub count_from_sql {
-  my ($self, $cond, @vals) = @_;
+  my ($class, $cond, @vals) = @_;
   $cond =~ s/^\s*WHERE//i;
   my $attrs = (ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
-  my @cols = 'COUNT(*)';
   $attrs->{bind} = [ @vals ];
-  my $sth = $self->storage->select($self->_table_name,\@cols,\$cond, $attrs);
-  #warn "$cond @vals";
-  my ($count) = $sth->fetchrow_array;
-  $sth->finish;
-  return $count;
+  return $class->count($cond, $attrs);
 }
 
 =item count
@@ -295,26 +290,19 @@ sub count {
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
     $attrs = { %{ pop(@_) } };
   }
-  my $query    = ref $_[0] eq "HASH" || (@_ == 1) ? shift: {@_};
-  my ($cond)  = $class->_cond_resolve($query, $attrs);
-  return $class->count_from_sql($cond, @{$attrs->{bind}||[]}, $attrs);
+  my $query  = ref $_[0] eq "HASH" || (@_ == 1) ? shift: {@_};
+  my @cols = 'COUNT(*)';
+  my $cursor = $class->storage->select($class->_table_name, \@cols,
+                                         $query, $attrs);
+  return ($cursor->next)[0];
 }
 
-=item sth_to_objects
-
-  my @obj    = $class->sth_to_objects($sth, \@bind, \@columns, $attrs);
-  my $cursor = $class->sth_to_objects($sth, \@bind, \@columns, $attrs);
-
-=cut
-
-sub sth_to_objects {
+sub cursor_to_resultset {
   my ($class, $sth, $args, $cols, $attrs) = @_;
-  my @cols = ((ref $cols eq 'ARRAY') ? @$cols : @{$sth->{NAME_lc}} );
-  my @args = map { ref $_ ? ''.$_ : $_ } @$args; # Stringify objects
-  my $cursor_class = $class->_cursor_class;
-  eval "use $cursor_class;";
-  my $cursor = $cursor_class->new($class, $sth, \@args, \@cols, $attrs);
-  return (wantarray ? $cursor->all : $cursor);
+  my $rs_class = $class->_resultset_class;
+  eval "use $rs_class;";
+  my $rs = $rs_class->new($class, $sth, $args, $cols, $attrs);
+  return (wantarray ? $rs->all : $rs);
 }
 
 sub _row_to_object { # WARNING: Destructive to @$row
@@ -340,8 +328,9 @@ sub search {
     $attrs = { %{ pop(@_) } };
   }
   my $query    = ref $_[0] eq "HASH" ? shift: {@_};
-  my ($cond, @param)  = $class->_cond_resolve($query, $attrs);
-  return $class->retrieve_from_sql($cond, @param, $attrs);
+  my @cols = $class->_select_columns;
+  return $class->cursor_to_resultset(undef, $attrs->{bind}, \@cols,
+                                    { where => $query, %$attrs });
 }
 
 =item search_like
@@ -356,7 +345,9 @@ sub search_like {
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
     $attrs = pop(@_);
   }
-  return $class->search(@_, { %$attrs, cmp => 'LIKE' });
+  my $query    = ref $_[0] eq "HASH" ? { %{shift()} }: {@_};
+  $query->{$_} = { 'like' => $query->{$_} } for keys %$query;
+  return $class->search($query, { %$attrs });
 }
 
 sub _select_columns {

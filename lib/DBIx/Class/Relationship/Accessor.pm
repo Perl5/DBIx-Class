@@ -8,12 +8,12 @@ sub add_relationship {
   my $ret = $class->NEXT::ACTUAL::add_relationship($rel => @rest);
   my $rel_obj = $class->_relationships->{$rel};
   if (my $acc_type = $rel_obj->{attrs}{accessor}) {
-    $class->_add_relationship_accessor($rel => $acc_type);
+    $class->add_relationship_accessor($rel => $acc_type);
   }
   return $ret;
 }
 
-sub _add_relationship_accessor {
+sub add_relationship_accessor {
   my ($class, $rel, $acc_type) = @_;
   my %meth;
   if ($acc_type eq 'single') {

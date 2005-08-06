@@ -84,9 +84,21 @@ sub set_sql {
     *{"${class}::search_${name}"} =
       sub {
         my ($class, @args) = @_;
-        $class->sth_to_objects($class->$meth, \@args);
+        my $sth = $class->$meth;
+        $sth->execute(@args);
+        return $class->sth_to_objects($sth);
       };
   }
+}
+
+sub sth_to_objects {
+  my ($class, $sth) = @_;
+  my @cols = $class->_select_columns;
+  my @ret;
+  while (my @row = $sth->fetchrow_array) {
+    push(@ret, $class->_row_to_object(\@cols,\@row));
+  }
+  return @ret;
 }
 
 sub transform_sql {

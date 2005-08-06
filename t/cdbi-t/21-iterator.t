@@ -9,7 +9,7 @@ BEGIN {
 use lib 't/testlib';
 use Film;
 
-my $it_class = "DBIx::Class::Cursor";
+my $it_class = "DBIx::Class::ResultSet";
 
 my @film  = (
 	Film->create({ Title => 'Film 1' }),

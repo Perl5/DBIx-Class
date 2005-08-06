@@ -24,12 +24,12 @@ sub _flesh {
   my %want;
   $want{$_} = 1 for map { keys %{$self->_column_groups->{$_}} } @groups;
   if (my @want = grep { !exists $self->{'_column_data'}{$_} } keys %want) {
-    my $sth = $self->storage->select($self->_table_name, \@want,
+    my $cursor = $self->storage->select($self->_table_name, \@want,
                 \$self->_ident_cond, { bind => [ $self->_ident_values ] });
     #my $sth = $self->storage->select($self->_table_name, \@want,
     #                                   $self->ident_condition);
     # Not sure why the first one works and this doesn't :(
-    my @val = $sth->fetchrow_array;
+    my @val = $cursor->next;
 #warn "Flesh: ".join(', ', @want, '=>', @val);
     foreach my $w (@want) {
       $self->{'_column_data'}{$w} = shift @val;
