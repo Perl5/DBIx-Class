@@ -4,8 +4,9 @@ use strict;
 use warnings;
 
 use base qw/Class::Data::Inheritable/;
-use DBIx::Class;
+use base qw/DBIx::Class/;
 
+__PACKAGE__->load_components(qw/Exception/);
 __PACKAGE__->mk_classdata('class_registrations' => {});
 
 =head1 NAME
@@ -63,6 +64,13 @@ sub registered_classes {
 sub load_classes {
   my $class = shift;
   my @comp = grep { $_ !~ /^#/ } @_;
+  unless (@comp) {
+    eval "require Module::Find;";
+    $class->throw("No arguments to load_classes and couldn't load".
+      " Module::Find ($@)") if $@;
+    @comp = map { substr $_, length "${class}::"  }
+              Module::Find::findallmod($class);
+  }
   foreach my $comp (@comp) {
     my $comp_class = "${class}::${comp}";
     eval "use $comp_class";
