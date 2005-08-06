@@ -64,7 +64,7 @@ the object itself.
 
 sub insert {
   my ($self) = @_;
-  return $self if $self->in_database;
+  return $self if $self->in_storage;
   #use Data::Dumper; warn Dumper($self);
   my %in;
   $in{$_} = $self->get_column($_)
@@ -72,24 +72,24 @@ sub insert {
   my %out = %{ $self->storage->insert($self->_table_name, \%in) };
   $self->store_column($_, $out{$_})
     for grep { $self->get_column($_) ne $out{$_} } keys %out;
-  $self->in_database(1);
+  $self->in_storage(1);
   $self->{_dirty_columns} = {};
   return $self;
 }
 
-=item in_database
+=item in_storage
 
-  $obj->in_database; # Get value
-  $obj->in_database(1); # Set value
+  $obj->in_storage; # Get value
+  $obj->in_storage(1); # Set value
 
 Indicated whether the object exists as a row in the database or not
 
 =cut
 
-sub in_database {
+sub in_storage {
   my ($self, $val) = @_;
-  $self->{_in_database} = $val if @_ > 1;
-  return $self->{_in_database};
+  $self->{_in_storage} = $val if @_ > 1;
+  return $self->{_in_storage};
 }
 
 =item create
@@ -117,7 +117,7 @@ UPDATE query to commit any changes to the object to the db if required.
 
 sub update {
   my ($self, $upd) = @_;
-  $self->throw( "Not in database" ) unless $self->in_database;
+  $self->throw( "Not in database" ) unless $self->in_storage;
   my %to_update = %{$upd || {}};
   $to_update{$_} = $self->get_column($_) for $self->is_changed;
   return -1 unless keys %to_update;
@@ -144,7 +144,7 @@ sub ident_condition {
   $obj->delete
 
 Deletes the object from the database. The object is still perfectly usable
-accessor-wise etc. but ->in_database will now return 0 and the object must
+accessor-wise etc. but ->in_storage will now return 0 and the object must
 be re ->insert'ed before it can be ->update'ed
 
 =cut
@@ -152,10 +152,10 @@ be re ->insert'ed before it can be ->update'ed
 sub delete {
   my $self = shift;
   if (ref $self) {
-    $self->throw( "Not in database" ) unless $self->in_database;
+    $self->throw( "Not in database" ) unless $self->in_storage;
     #warn $self->_ident_cond.' '.join(', ', $self->_ident_values);
     $self->storage->delete($self->_table_name, $self->ident_condition);
-    $self->in_database(undef);
+    $self->in_storage(undef);
     #$self->store_column($_ => undef) for $self->primary_columns;
       # Should probably also arrange to trash PK if auto
       # but if we do, post-delete cascade triggers fail :/
@@ -308,7 +308,7 @@ sub _row_to_object { # WARNING: Destructive to @$row
   my ($class, $cols, $row) = @_;
   my $new = $class->new;
   $new->store_column($_, shift @$row) for @$cols;
-  $new->in_database(1);
+  $new->in_storage(1);
   return $new;
 }
 
@@ -414,7 +414,7 @@ Updates the object if it's already in the db, else inserts it
 
 sub insert_or_update {
   my $self = shift;
-  return ($self->in_database ? $self->update : $self->insert);
+  return ($self->in_storage ? $self->update : $self->insert);
 }
 
 =item is_changed

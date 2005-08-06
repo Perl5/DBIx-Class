@@ -71,10 +71,10 @@ sub find {
 sub discard_changes {
   my ($self) = @_;
   delete $self->{_dirty_columns};
-  return unless $self->in_database; # Don't reload if we aren't real!
+  return unless $self->in_storage; # Don't reload if we aren't real!
   my ($reload) = $self->find($self->id);
   unless ($reload) { # If we got deleted in the mean-time
-    $self->in_database(0);
+    $self->in_storage(0);
     return $self;
   }
   delete @{$self}{keys %$self};

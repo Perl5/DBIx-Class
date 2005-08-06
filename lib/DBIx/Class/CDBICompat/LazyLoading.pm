@@ -10,7 +10,7 @@ sub _select_columns {
 sub get_column {
   my ($self, $col) = @_;
   if ((ref $self) && (!exists $self->{'_column_data'}{$col})
-    && $self->{'_in_database'}) {
+    && $self->{'_in_storage'}) {
     $self->_flesh(grep { exists $self->_column_groups->{$_}{$col}
                            && $_ ne 'All' }
                    keys %{ $self->_column_groups || {} });

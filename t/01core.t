@@ -34,7 +34,7 @@ $art->delete;
 
 cmp_ok(@art, '==', 2, 'And then there were two');
 
-ok(!$art->in_database, "It knows it's dead");
+ok(!$art->in_storage, "It knows it's dead");
 
 eval { $art->delete; };
 
@@ -44,7 +44,7 @@ is($art->name, 'We Are In Rehab', 'But the object is still live');
 
 $art->insert;
 
-ok($art->in_database, "Re-created");
+ok($art->in_storage, "Re-created");
 
 @art = DBICTest::Artist->search({ });
 
@@ -84,7 +84,7 @@ $new = DBICTest::Track->new( {
   title => 'Insert or Update',
 } );
 $new->insert_or_update;
-ok($new->in_database, 'insert_or_update insert ok');
+ok($new->in_storage, 'insert_or_update insert ok');
 
 # test in update mode
 $new->position(5);

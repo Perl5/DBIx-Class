@@ -85,7 +85,7 @@ sub discard_changes {
   if (my $key = $self->_live_object_key) {
     $self->remove_from_object_index;
     my $ret = $self->NEXT::ACTUAL::discard_changes;
-    $self->live_object_index->{$key} = $self if $self->in_database;
+    $self->live_object_index->{$key} = $self if $self->in_storage;
     return $ret;
   } else {
     return $self->NEXT::ACTUAL::discard_changes;
