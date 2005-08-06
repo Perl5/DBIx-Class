@@ -258,10 +258,9 @@ sub add_columns {
 sub retrieve_from_sql {
   my ($class, $cond, @vals) = @_;
   $cond =~ s/^\s*WHERE//i;
-  my $attrs = (ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
-  my @cols = $class->_select_columns($attrs);
-  #warn "@cols $cond @vals";
-  return $class->cursor_to_resultset(undef, \@vals, \@cols, { where => \$cond, %$attrs });
+  my $attrs = (ref $vals[$#vals] eq 'HASH' ? { %{ pop(@vals) } } : {});
+  $attrs->{bind} = \@vals;
+  return $class->search(\$cond, $attrs);
 }
 
 =item count_from_sql
@@ -327,7 +326,7 @@ sub search {
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
     $attrs = { %{ pop(@_) } };
   }
-  my $query    = ref $_[0] eq "HASH" ? shift: {@_};
+  my $query    = (@_ == 1 || ref $_[0] eq "HASH" ? shift: {@_});
   my @cols = $class->_select_columns;
   return $class->cursor_to_resultset(undef, $attrs->{bind}, \@cols,
                                     { where => $query, %$attrs });
