@@ -16,7 +16,7 @@ for (10..15) {
     } );
 }
 DBICTest::Artist->dbi_commit;
-my ($artist) = DBICTest::Artist->retrieve(15);
+my ($artist) = DBICTest::Artist->find(15);
 is($artist->name, 'artist number 15', "Commit ok");
 
 # repeat the test using AutoCommit = 1 to force the commit
@@ -28,7 +28,7 @@ for (16..20) {
     } );
 }
 DBICTest::Artist->storage->dbh->{AutoCommit} = 1;
-($artist) = DBICTest::Artist->retrieve(20);
+($artist) = DBICTest::Artist->find(20);
 is($artist->name, 'artist number 20', "Commit using AutoCommit ok");
 
 # add some rows inside a transaction and roll it back

@@ -10,7 +10,7 @@ sub add_constructor {
   *{"${class}::${meth}"} =
     sub {
       my ($class, @args) = @_;
-      return $class->retrieve_from_sql($sql, @args);
+      return $class->search_literal($sql, @args);
     };
 }
 

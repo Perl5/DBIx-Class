@@ -104,18 +104,18 @@ sub _cond_value {
 
 sub search_related {
   my $self = shift;
-  return $self->_from_sql_related('retrieve', @_);
+  return $self->_literal_related('search', @_);
 }
 
 sub count_related {
   my $self = shift;
-  return $self->_from_sql_related('count', @_);
+  return $self->_literal_related('count', @_);
 }
 
-sub _from_sql_related {
+sub _literal_related {
   my $self = shift;
   my $op = shift;
-  my $meth = "${op}_from_sql";
+  my $meth = "${op}_literal";
   my $rel = shift;
   my $attrs = { };
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {

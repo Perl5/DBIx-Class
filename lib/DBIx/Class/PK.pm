@@ -44,23 +44,23 @@ sub set_primary_key {
   $class->_primaries(\%pri);
 }
 
-sub retrieve {
+sub find {
   my ($class, @vals) = @_;
   my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
   my @pk = keys %{$class->_primaries};
-  $class->throw( "Can't retrieve unless primary columns are defined" ) 
+  $class->throw( "Can't find unless primary columns are defined" ) 
     unless @pk;
   my $query;
   if (ref $vals[0] eq 'HASH') {
     $query = $vals[0];
   } elsif (@pk == @vals) {
-    my $ret = ($class->retrieve_from_sql($class->_ident_cond, @vals, $attrs))[0];
+    my $ret = ($class->search_literal($class->_ident_cond, @vals, $attrs))[0];
     #warn "$class: ".join(', ', %{$ret->{_column_data}});
     return $ret;
   } else {
     $query = {@vals};
   }
-  $class->throw( "Can't retrieve unless all primary keys are specified" )
+  $class->throw( "Can't find unless all primary keys are specified" )
     unless (keys %$query >= @pk); # If we check 'em we run afoul of uc/lc
                                   # column names etc. Not sure what to do yet
   my $ret = ($class->search($query))[0];
@@ -72,7 +72,7 @@ sub discard_changes {
   my ($self) = @_;
   delete $self->{_dirty_columns};
   return unless $self->in_database; # Don't reload if we aren't real!
-  my ($reload) = $self->retrieve($self->id);
+  my ($reload) = $self->find($self->id);
   unless ($reload) { # If we got deleted in the mean-time
     $self->in_database(0);
     return $self;

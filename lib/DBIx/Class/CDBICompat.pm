@@ -22,6 +22,7 @@ __PACKAGE__->load_components(qw/
   CDBICompat::LazyLoading
   CDBICompat::AutoUpdate
   CDBICompat::TempColumns
+  CDBICompat::Retrieve
   CDBICompat::ColumnGroups
   CDBICompat::ImaDBI/);
 

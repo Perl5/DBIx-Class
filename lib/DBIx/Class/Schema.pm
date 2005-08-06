@@ -39,7 +39,7 @@ DBIx::Class::Schema - composable schemas
 
   then in app code
 
-  my @obj = My::DB::Foo->retrieve_all; # My::DB::Foo isa My::Schema::Foo My::DB
+  my @obj = My::DB::Foo->search({}); # My::DB::Foo isa My::Schema::Foo My::DB
 
 =head1 DESCRIPTION
 

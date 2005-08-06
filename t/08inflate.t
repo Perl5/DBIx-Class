@@ -15,7 +15,7 @@ DBICTest::CD->inflate_column( 'year',
 );
 
 # inflation test
-my $cd = DBICTest::CD->retrieve(3);
+my $cd = DBICTest::CD->find(3);
 
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 

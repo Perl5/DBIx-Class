@@ -7,12 +7,12 @@ use lib qw(t/lib);
 use_ok('DBICTest');
 
 # has_a test
-my $cd = DBICTest::CD->retrieve(4);
+my $cd = DBICTest::CD->find(4);
 my ($artist) = $cd->search_related('artist');
 is($artist->name, 'Random Boy Band', 'has_a search_related ok');
 
 # has_many test with an order_by clause defined
-$artist = DBICTest::Artist->retrieve(1);
+$artist = DBICTest::Artist->find(1);
 is( ($artist->search_related('cds'))[1]->title, 'Spoonful of bees', 'has_many search_related with order_by ok' );
 
 # search_related with additional abstract query

@@ -106,11 +106,11 @@ ok(!State->find_column('HGLAGAGlAG'), '!find_column HGLAGAGlAG');
 {
         package DieTest;
         @DieTest::ISA = qw(DBIx::Class);
-        DieTest->load_components(qw/Core/);
+        DieTest->load_components(qw/CDBICompat::Retrieve Core/);
         package main;
 	local $SIG{__WARN__} = sub { };
 	eval { DieTest->retrieve(1) };
-	like $@, qr/Can't retrieve unless primary columns are defined/, "Need primary key for retrieve";
+	like $@, qr/unless primary columns are defined/, "Need primary key for retrieve";
 }
 
 #-----------------------------------------------------------------------

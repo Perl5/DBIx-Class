@@ -248,14 +248,14 @@ sub add_columns {
   $class->_mk_column_accessors(@cols);
 }
 
-=item retrieve_from_sql
+=item search_literal
 
-  my @obj    = $class->retrieve_from_sql($sql_where_cond, @bind);
-  my $cursor = $class->retrieve_from_sql($sql_where_cond, @bind);
+  my @obj    = $class->search_literal($literal_where_cond, @bind);
+  my $cursor = $class->search_literal($literal_where_cond, @bind);
 
 =cut
 
-sub retrieve_from_sql {
+sub search_literal {
   my ($class, $cond, @vals) = @_;
   $cond =~ s/^\s*WHERE//i;
   my $attrs = (ref $vals[$#vals] eq 'HASH' ? { %{ pop(@vals) } } : {});
@@ -263,13 +263,13 @@ sub retrieve_from_sql {
   return $class->search(\$cond, $attrs);
 }
 
-=item count_from_sql
+=item count_literal
 
-  my $count = $class->count($sql_where_cond);
+  my $count = $class->count_literal($literal_where_cond);
 
 =cut
 
-sub count_from_sql {
+sub count_literal {
   my ($class, $cond, @vals) = @_;
   $cond =~ s/^\s*WHERE//i;
   my $attrs = (ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
@@ -415,17 +415,6 @@ Updates the object if it's already in the db, else inserts it
 sub insert_or_update {
   my $self = shift;
   return ($self->in_database ? $self->update : $self->insert);
-}
-
-=item retrieve_all
-
-  my @all = $class->retrieve_all;
-
-=cut
-
-sub retrieve_all {
-  my ($class) = @_;
-  return $class->retrieve_from_sql( '1' );
 }
 
 =item is_changed

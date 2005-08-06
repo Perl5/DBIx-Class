@@ -19,7 +19,7 @@ DBICTest::CD->has_a( 'year', 'DateTime',
 );
 
 # inflation test
-my $cd = DBICTest::CD->retrieve(3);
+my $cd = DBICTest::CD->find(3);
 
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 
@@ -40,7 +40,7 @@ DBICTest::CD->has_a( 'year', 'DateTime',
 );
 
 # inflation test
-$cd = DBICTest::CD->retrieve(3);
+$cd = DBICTest::CD->find(3);
 
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 

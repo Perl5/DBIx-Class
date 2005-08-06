@@ -70,7 +70,7 @@ $new->name('Man With A Spoon');
 
 $new->update;
 
-$new_again = DBICTest::Artist->retrieve(4);
+$new_again = DBICTest::Artist->find(4);
 
 is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
@@ -89,4 +89,4 @@ ok($new->in_database, 'insert_or_update insert ok');
 # test in update mode
 $new->position(5);
 $new->insert_or_update;
-is( DBICTest::Track->retrieve(100)->position, 5, 'insert_or_update update ok');
+is( DBICTest::Track->find(100)->position, 5, 'insert_or_update update ok');

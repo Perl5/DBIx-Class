@@ -10,7 +10,7 @@ use lib qw(t/lib);
 
 use_ok('DBICTest');
 
-my $art = DBICTest::Artist->retrieve(1);
+my $art = DBICTest::Artist->find(1);
 
 isa_ok $art => 'DBICTest::Artist';
 
