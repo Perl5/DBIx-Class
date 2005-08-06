@@ -9,9 +9,7 @@ use lib qw(t/lib);
 
 use_ok('DBICTest');
 
-use DBIx::Class::CDBICompat::HasA;
-
-unshift(@DBICTest::ISA, 'DBIx::Class::CDBICompat::HasA');
+DBICTest::CD->load_components(qw/CDBICompat::HasA/);
 
 DBICTest::CD->has_a( 'year', 'DateTime',
       inflate => sub { DateTime->new( year => shift ) },

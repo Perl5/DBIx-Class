@@ -11,7 +11,7 @@ mkdir("t/var") unless -d "t/var";
 
 DBICTest::Schema->compose_connection('DBICTest' => "dbi:SQLite:${db_file}");
 
-my $dbh = DBICTest->storage->dbh;
+my $dbh = DBICTest::_db->storage->dbh;
 
 my $sql = <<EOSQL;
 CREATE TABLE artist (artistid INTEGER NOT NULL PRIMARY KEY, name VARCHAR);

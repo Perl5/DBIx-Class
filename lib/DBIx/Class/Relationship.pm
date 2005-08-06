@@ -135,7 +135,8 @@ sub _literal_related {
   my ($cond) = $self->_cond_resolve($rel_obj->{cond}, $attrs);
   $cond = "${s_cond} AND ${cond}" if $s_cond;
   #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}});
-  return $rel_obj->{class}->$meth($cond, @{$attrs->{bind} || []}, $attrs);
+  return $self->resolve_class($rel_obj->{class}
+           )->$meth($cond, @{$attrs->{bind} || []}, $attrs);
 }
 
 sub create_related {
@@ -159,7 +160,7 @@ sub new_related {
     $self->_cond_value($attrs, $k => $v);
     $fields{$self->_cond_key($attrs, $k)} = (@{delete $attrs->{bind}})[0];
   }
-  return $rel_obj->{class}->new(\%fields);
+  return $self->resolve_class($rel_obj->{class})->new(\%fields);
 }
 
 sub find_or_create_related {
@@ -175,8 +176,9 @@ sub set_from_related {
   $self->throw( "set_from_related can only handle a hash condition; the "
     ."condition for $rel is of type ".(ref $cond ? ref $cond : 'plain scalar'))
       unless ref $cond eq 'HASH';
-  $self->throw( "Object $f_obj isn't a ".$rel_obj->{class} )
-    unless $f_obj->isa($rel_obj->{class});
+  my $f_class = $self->resolve_class($rel_obj->{class});
+  $self->throw( "Object $f_obj isn't a ".$f_class )
+    unless $f_obj->isa($f_class);
   foreach my $key (keys %$cond) {
     next if ref $cond->{$key}; # Skip literals and complex conditions
     $self->throw("set_from_related can't handle $key as key")

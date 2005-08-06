@@ -2,6 +2,7 @@ package DBIx::Class::DB;
 
 use base qw/Class::Data::Inheritable/;
 use DBIx::Class::Storage::DBI;
+use DBIx::Class::ClassResolver::PassThrough;
 use DBI;
 
 =head1 NAME 
@@ -34,6 +35,8 @@ This class provides a simple way of specifying a database connection.
 =cut
 
 __PACKAGE__->mk_classdata('storage');
+__PACKAGE__->mk_classdata('class_resolver' =>
+                            'DBIx::Class::ClassResolver::PassThrough');
 
 =item connection
 
@@ -70,6 +73,8 @@ Issues a rollback again the current dbh
 =cut
 
 sub dbi_rollback { $_[0]->storage->rollback; }
+
+sub resolve_class { return shift->class_resolver->class(@_); }
 
 1;
 

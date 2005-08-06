@@ -81,12 +81,25 @@ sub load_classes {
 
 sub compose_connection {
   my ($class, $target, @info) = @_;
-  $class->setup_connection_class($target, @info);
+  my $conn_class = "${target}::_db";
+  $class->setup_connection_class($conn_class, @info);
   my %reg = %{ $class->class_registrations };
+  my %target;
+  my %map;
   while (my ($comp, $comp_class) = each %reg) {
     my $target_class = "${target}::${comp}";
-    $class->inject_base($target_class, $comp_class, $target);
+    $class->inject_base($target_class, $comp_class, $conn_class);
+    @map{$comp, $comp_class} = ($target_class, $target_class);
   }
+  {
+    no strict 'refs';
+    *{"${target}::class"} =
+      sub {
+        my ($class, $to_map) = @_;
+        return $map{$to_map};
+      };
+  }
+  $conn_class->class_resolver($target);
 }
 
 sub setup_connection_class {

@@ -1,16 +1,16 @@
-package DBICTest::TwoKeys;
+package DBICTest::Schema::TwoKeys;
 
 use base 'DBIx::Class::Core';
 
-DBICTest::TwoKeys->table('twokeys');
-DBICTest::TwoKeys->add_columns(qw/artist cd/);
-DBICTest::TwoKeys->set_primary_key(qw/artist cd/);
-DBICTest::TwoKeys->add_relationship(
-    artist => 'DBICTest::Artist',
+DBICTest::Schema::TwoKeys->table('twokeys');
+DBICTest::Schema::TwoKeys->add_columns(qw/artist cd/);
+DBICTest::Schema::TwoKeys->set_primary_key(qw/artist cd/);
+DBICTest::Schema::TwoKeys->add_relationship(
+    artist => 'DBICTest::Schema::Artist',
     { 'foreign.artistid' => 'self.artist' }
 );
-DBICTest::TwoKeys->add_relationship(
-    cd => 'DBICTest::CD',
+DBICTest::Schema::TwoKeys->add_relationship(
+    cd => 'DBICTest::Schema::CD',
     { 'foreign.cdid' => 'self.cd' }
 );
 

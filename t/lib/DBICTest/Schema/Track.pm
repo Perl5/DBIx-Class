@@ -1,12 +1,12 @@
-package DBICTest::Track;
+package DBICTest::Schema::Track;
 
 use base 'DBIx::Class::Core';
 
-DBICTest::Track->table('track');
-DBICTest::Track->add_columns(qw/trackid cd position title/);
-DBICTest::Track->set_primary_key('trackid');
-DBICTest::Track->add_relationship(
-    cd => 'DBICTest::CD',
+DBICTest::Schema::Track->table('track');
+DBICTest::Schema::Track->add_columns(qw/trackid cd position title/);
+DBICTest::Schema::Track->set_primary_key('trackid');
+DBICTest::Schema::Track->add_relationship(
+    cd => 'DBICTest::Schema::CD',
     { 'foreign.cdid' => 'self.cd' }
 );
 

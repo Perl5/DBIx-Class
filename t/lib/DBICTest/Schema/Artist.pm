@@ -1,21 +1,21 @@
-package DBICTest::Artist;
+package DBICTest::Schema::Artist;
 
 use base 'DBIx::Class::Core';
 
-DBICTest::Artist->table('artist');
-DBICTest::Artist->add_columns(qw/artistid name/);
-DBICTest::Artist->set_primary_key('artistid');
-DBICTest::Artist->add_relationship(
-    cds => 'DBICTest::CD',
+DBICTest::Schema::Artist->table('artist');
+DBICTest::Schema::Artist->add_columns(qw/artistid name/);
+DBICTest::Schema::Artist->set_primary_key('artistid');
+DBICTest::Schema::Artist->add_relationship(
+    cds => 'DBICTest::Schema::CD',
     { 'foreign.artist' => 'self.artistid' },
     { order_by => 'year' }
 );
-DBICTest::Artist->add_relationship(
-    twokeys => 'DBICTest::TwoKeys',
+DBICTest::Schema::Artist->add_relationship(
+    twokeys => 'DBICTest::Schema::TwoKeys',
     { 'foreign.artist' => 'self.artistid' }
 );
-DBICTest::Artist->add_relationship(
-    onekeys => 'DBICTest::OneKey',
+DBICTest::Schema::Artist->add_relationship(
+    onekeys => 'DBICTest::Schema::OneKey',
     { 'foreign.artist' => 'self.artistid' }
 );
 
