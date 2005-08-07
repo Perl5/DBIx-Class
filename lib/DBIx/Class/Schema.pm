@@ -113,7 +113,7 @@ sub inject_base {
   my ($class, $target, @to_inject) = @_;
   {
     no strict 'refs';
-    unshift(@{"${target}::ISA"}, @to_inject);
+    unshift(@{"${target}::ISA"}, grep { $target ne $_ } @to_inject);
   }
 }
 
