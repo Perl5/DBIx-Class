@@ -4,29 +4,29 @@ use strict;
 use warnings;
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/
-  CDBICompat::Constraints
-  CDBICompat::Triggers
-  CDBICompat::ReadOnly
-  CDBICompat::GetSet
-  CDBICompat::LiveObjectIndex
-  CDBICompat::AttributeAPI
-  CDBICompat::Stringify
-  CDBICompat::DestroyWarning
-  CDBICompat::Constructor
-  CDBICompat::AccessorMapping
-  CDBICompat::ColumnCase
-  CDBICompat::MightHave
-  CDBICompat::HasMany
-  CDBICompat::HasA
-  CDBICompat::LazyLoading
-  CDBICompat::AutoUpdate
-  CDBICompat::TempColumns
-  CDBICompat::Retrieve
-  CDBICompat::ColumnGroups
-  CDBICompat::ImaDBI/);
+__PACKAGE__->load_own_components(qw/
+  Constraints
+  Triggers
+  ReadOnly
+  GetSet
+  LiveObjectIndex
+  AttributeAPI
+  Stringify
+  DestroyWarning
+  Constructor
+  AccessorMapping
+  ColumnCase
+  MightHave
+  HasMany
+  HasA
+  LazyLoading
+  AutoUpdate
+  TempColumns
+  Retrieve
+  ColumnGroups
+  ImaDBI/);
 
-            #DBIx::Class::CDBICompat::ObjIndexStubs
+            #DBIx::Class::ObjIndexStubs
 1;
 
 =head1 NAME 

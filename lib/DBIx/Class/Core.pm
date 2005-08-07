@@ -7,12 +7,8 @@ no warnings 'qw';
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/
-  Relationship::Accessor
-  Relationship::CascadeActions
-  Relationship::ProxyMethods
   Relationship
   InflateColumn
-  #SQL::OrderBy
   SQL::Abstract
   PK
   Table
