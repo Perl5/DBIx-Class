@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use DBI;
 use SQL::Abstract;
-use DBIx::Class::Cursor;
+use DBIx::Class::Storage::DBI::Cursor;
 
 use base qw/DBIx::Class/;
 
@@ -16,8 +16,8 @@ __PACKAGE__->mk_group_accessors('simple' =>
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
   $new->sql_maker(new SQL::Abstract);
-  $new->cursor("DBIx::Class::Cursor");
-  #$new->debug(1);
+  $new->cursor("DBIx::Class::Storage::DBI::Cursor");
+  $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
   return $new;
 }
 

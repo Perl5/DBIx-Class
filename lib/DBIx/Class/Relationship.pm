@@ -196,6 +196,11 @@ sub update_from_related {
   $self->update;
 }
 
+sub delete_related {
+  my $self = shift;
+  return $self->search_related(@_)->delete;
+}
+
 1;
 
 =back

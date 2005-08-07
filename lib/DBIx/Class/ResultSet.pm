@@ -71,10 +71,12 @@ sub first {
   return $_[0]->reset->next;
 }
 
-sub delete_all {
+sub delete {
   my ($self) = @_;
   $_->delete for $self->all;
   return 1;
 }
+
+*delete_all = \&delete; # Yeah, yeah, yeah ...
 
 1;

@@ -63,11 +63,10 @@ is( $cd->title, 'Greatest Hits', 'find_or_create_related new record ok' );
 is( ($artist->search_related('cds'))[4]->title, 'Greatest Hits', 'find_or_create_related new record search ok' );
 
 SKIP: {
-    skip 'Need to add delete_related', 1;
+    #skip 'Need to add delete_related', 1;
     # delete_related
-    ($cd) = DBICTest::CD->search( title => 'Greatest Hits' );
-    $artist->delete_related( cds => $cd );
-    is( DBICTest::CD->search( title => 'Greatest Hits' ), undef, 'delete_related ok' );
+    $artist->delete_related( cds => { title => 'Greatest Hits' });
+    cmp_ok( DBICTest::CD->search( title => 'Greatest Hits' ), '==', 0, 'delete_related ok' );
 };
 
 # try to add a bogus relationship using the wrong cols
