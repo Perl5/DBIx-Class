@@ -289,7 +289,7 @@ sub count {
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
     $attrs = { %{ pop(@_) } };
   }
-  my $query  = ref $_[0] eq "HASH" || (@_ == 1) ? shift: {@_};
+  my $query    = (@_ == 1 || ref $_[0] eq "HASH" ? shift: {@_});
   my @cols = 'COUNT(*)';
   my $cursor = $class->storage->select($class->_table_name, \@cols,
                                          $query, $attrs);

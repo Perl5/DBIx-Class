@@ -90,9 +90,9 @@ sub rollback { $_[0]->dbh->rollback; }
 sub _execute {
   my ($self, $op, $extra_bind, $ident, @args) = @_;
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
+  unshift(@bind, @$extra_bind) if $extra_bind;
   warn "$sql: @bind" if $self->debug;
   my $sth = $self->sth($sql);
-  unshift(@bind, @$extra_bind) if $extra_bind;
   @bind = map { ref $_ ? ''.$_ : $_ } @bind;
   my $rv = $sth->execute(@bind); # stringify args
   return (wantarray ? ($rv, $sth, @bind) : $rv);

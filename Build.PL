@@ -8,6 +8,7 @@ my %arguments = (
     requires           => {
         'DBI'           => 0,
         'NEXT'          => 0,
+        'SQL::Abstract' => 1.19,
         'DBD::SQLite'   => 1.08,
 	'Tie::IxHash'   => 0,
     },

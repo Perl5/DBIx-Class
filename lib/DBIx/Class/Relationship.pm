@@ -104,18 +104,17 @@ sub _cond_value {
 
 sub search_related {
   my $self = shift;
-  return $self->_literal_related('search', @_);
+  return $self->_query_related('search', @_);
 }
 
 sub count_related {
   my $self = shift;
-  return $self->_literal_related('count', @_);
+  return $self->_query_related('count', @_);
 }
 
-sub _literal_related {
+sub _query_related {
   my $self = shift;
-  my $op = shift;
-  my $meth = "${op}_literal";
+  my $meth = shift;
   my $rel = shift;
   my $attrs = { };
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
@@ -124,19 +123,19 @@ sub _literal_related {
   my $rel_obj = $self->_relationships->{$rel};
   $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
   $attrs = { %{$rel_obj->{attrs} || {}}, %{$attrs || {}} };
-  my $s_cond;
-  if (@_) {
-    $self->throw( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
-    my $query = ((@_ > 1) ? {@_} : shift);
-    $s_cond = $self->_cond_resolve($query, $attrs);
-  }
+
+  $self->throw( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
+  my $query = ((@_ > 1) ? {@_} : shift);
+
   $attrs->{_action} = 'convert'; # shouldn't we resolve the cond to something
                                  # to merge into the AST really?
   my ($cond) = $self->_cond_resolve($rel_obj->{cond}, $attrs);
-  $cond = "${s_cond} AND ${cond}" if $s_cond;
+  $query = ($query ? { '-and' => [ \$cond, $query ] } : \$cond);
+  #use Data::Dumper; warn Dumper($query);
   #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}});
+  delete $attrs->{_action};
   return $self->resolve_class($rel_obj->{class}
-           )->$meth($cond, @{$attrs->{bind} || []}, $attrs);
+           )->$meth($query, $attrs);
 }
 
 sub create_related {
