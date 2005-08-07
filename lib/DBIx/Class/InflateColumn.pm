@@ -77,12 +77,13 @@ sub new {
   return $class->NEXT::ACTUAL::new({ %$attrs, %deflated }, @rest);
 }
 
-sub _cond_value {
-  my ($self, $attrs, $key, $value) = @_;
-  if (exists $self->_columns->{$key}) {
-    $value = $self->_deflated_column($key, $value);
-  }
-  return $self->NEXT::ACTUAL::_cond_value($attrs, $key, $value);
-}
+# **** B0RKEN. DOESN'T GET CALLED!
+#sub _cond_value {
+#  my ($self, $attrs, $key, $value) = @_;
+#  if (exists $self->_columns->{$key}) {
+#    $value = $self->_deflated_column($key, $value);
+#  }
+#  return $self->NEXT::ACTUAL::_cond_value($attrs, $key, $value);
+#}
 
 1;
