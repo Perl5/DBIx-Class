@@ -88,7 +88,7 @@ sub compose_connection {
   my %map;
   while (my ($comp, $comp_class) = each %reg) {
     my $target_class = "${target}::${comp}";
-    $class->inject_base($target_class, $comp_class, $conn_class);
+    $class->inject_base($target_class, $conn_class, $comp_class);
     @map{$comp, $comp_class} = ($target_class, $target_class);
   }
   {
