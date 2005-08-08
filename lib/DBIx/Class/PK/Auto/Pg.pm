@@ -30,17 +30,17 @@ sub get_autoinc_seq {
 
 =head1 NAME 
 
-DBIx::Class::PK::Auto::SQLite - Automatic Primary Key class for SQLite
+DBIx::Class::PK::Auto::Pg- Automatic Primary Key class for Postgresql
 
 =head1 SYNOPSIS
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for SQLite.
+This class implements autoincrements for Postgresql.
 
 =head1 AUTHORS
 
-Matt S. Trout <perl-stuff@trout.me.uk>
+Marcus Ramberg <m.ramberg@cpan.org>
 
 =head1 LICENSE
 
