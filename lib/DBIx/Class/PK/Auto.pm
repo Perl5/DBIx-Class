@@ -14,6 +14,9 @@ DBIx::Class::PK::Auto - Automatic Primary Key class
 This class overrides the insert method to get automatically
 incremented primary keys.
 
+You don't want to be using this directly - instead load the appropriate
+one for your database, e.g. PK::Auto::SQLite
+
 =head1 METHODS
 
 =over 4

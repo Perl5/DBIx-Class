@@ -7,20 +7,17 @@ use overload
         fallback => 1;
 
 sub new {
-  my ($it_class, $db_class, $cursor, $args, $cols, $attrs) = @_;
+  my ($it_class, $db_class, $attrs) = @_;
   #use Data::Dumper; warn Dumper(@_);
   $it_class = ref $it_class if ref $it_class;
   $attrs = { %{ $attrs || {} } };
-  unless ($cursor) {
-    $attrs->{bind} = $args;
-    $cursor = $db_class->storage->select($db_class->_table_name,$cols,
+  my $cols = [ $db_class->_select_columns ];
+  my $cursor = $db_class->storage->select($db_class->_table_name,$cols,
                                         $attrs->{where},$attrs);
-  }
   my $new = {
     class => $db_class,
     cursor => $cursor,
     cols => $cols,
-    args => $args,
     cond => $attrs->{where},
     attrs => $attrs };
   return bless ($new, $it_class);
@@ -32,8 +29,7 @@ sub slice {
   $self->{class}->throw("Can't slice without where") unless $attrs->{where};
   $attrs->{offset} = $min;
   $attrs->{rows} = ($max ? ($max - $min + 1) : 1);
-  my $slice = $self->new($self->{class}, undef, $self->{args},
-                           $self->{cols}, $attrs);
+  my $slice = $self->new($self->{class}, $attrs);
   return (wantarray ? $slice->all : $slice);
 }
 
@@ -47,7 +43,14 @@ sub next {
 sub count {
   my ($self) = @_;
   return $self->{attrs}{rows} if $self->{attrs}{rows};
-  return $self->{class}->count($self->{cond}, { bind => $self->{args} });
+    # This is a hack, and will break on the last page of a paged set.
+    # Once we have limit support in Storage, kill it.
+
+  my $db_class = $self->{class};
+  my @cols = 'COUNT(*)';
+  my $cursor = $db_class->storage->select($db_class->_table_name, \@cols,
+                                            $self->{cond}, $self->{attrs});
+  return ($cursor->next)[0];
 }
 
 sub all {

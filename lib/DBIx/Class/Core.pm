@@ -11,6 +11,7 @@ __PACKAGE__->load_components(qw/
   InflateColumn
   SQL::Abstract
   PK
+  Row
   Table
   Exception
   AccessorGroup/);
