@@ -8,7 +8,7 @@ use DBIx::Class::Storage::DBI::Cursor;
 
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/SQL SQL::Abstract Exception AccessorGroup/);
+__PACKAGE__->load_components(qw/Exception AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/connect_info _dbh sql_maker debug cursor/);
@@ -93,8 +93,8 @@ sub _execute {
   unshift(@bind, @$extra_bind) if $extra_bind;
   warn "$sql: @bind" if $self->debug;
   my $sth = $self->sth($sql);
-  @bind = map { ref $_ ? ''.$_ : $_ } @bind;
-  my $rv = $sth->execute(@bind); # stringify args
+  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+  my $rv = $sth->execute(@bind);
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
 

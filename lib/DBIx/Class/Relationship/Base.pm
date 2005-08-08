@@ -41,7 +41,7 @@ sub add_relationship {
   my %join = (%$attrs, _action => 'join',
     _aliases => { 'self' => 'me', 'foreign' => $rel },
     _classes => { 'me' => $class, $rel => $f_class });
-  eval { $class->_cond_resolve($cond, \%join) };
+  eval { $class->resolve_condition($cond, \%join) };
 
   if ($@) { # If the resolve failed, back out and re-throw the error
     delete $rels{$rel}; # 
@@ -49,6 +49,25 @@ sub add_relationship {
     $class->throw("Error creating relationship $rel: $@");
   }
   1;
+}
+
+sub resolve_condition {
+  my ($self, $cond, $attrs) = @_;
+  if (ref $cond eq 'HASH') {
+    my %ret;
+    foreach my $key (keys %$cond) {
+      my $val = $cond->{$key};
+      if (ref $val) {
+        $self->throw("Can't handle this yet :(");
+      } else {
+        $ret{$self->_cond_key($attrs => $key)}
+          = $self->_cond_value($attrs => $key => $val);
+      }
+    }
+    return \%ret;
+  } else {
+   $self->throw("Can't handle this yet :(");
+  }
 }
 
 sub _cond_key {
@@ -84,15 +103,17 @@ sub _cond_value {
     unless ($self->_columns->{$value}) {
       $self->throw( "Unable to convert relationship to WHERE clause: no such accessor ${value}" );
     }
-    push(@{$attrs->{bind}}, $self->get_column($value));
-    return '?';
+    return $self->get_column($value);
   } elsif ($action eq 'join') {
     my ($type, $field) = split(/\./, $value);
     if (my $alias = $attrs->{_aliases}{$type}) {
       my $class = $attrs->{_classes}{$alias};
       $self->throw("Unknown column $field on $class as $alias")
         unless exists $class->_columns->{$field};
-      return join('.', $alias, $field);
+      my $ret = join('.', $alias, $field);
+      # return { '=' => \$ret }; # SQL::Abstract doesn't handle this yet :(
+      $ret = " = ${ret}";
+      return \$ret;
     } else {
       $self->throw( "Unable to resolve type ${type}: only have aliases for ".
             join(', ', keys %{$attrs->{_aliases} || {}}) );
@@ -129,10 +150,10 @@ sub _query_related {
 
   $attrs->{_action} = 'convert'; # shouldn't we resolve the cond to something
                                  # to merge into the AST really?
-  my ($cond) = $self->_cond_resolve($rel_obj->{cond}, $attrs);
-  $query = ($query ? { '-and' => [ \$cond, $query ] } : \$cond);
+  my ($cond) = $self->resolve_condition($rel_obj->{cond}, $attrs);
+  $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
   #use Data::Dumper; warn Dumper($query);
-  #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}});
+  #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}||[]});
   delete $attrs->{_action};
   return $self->resolve_class($rel_obj->{class}
            )->$meth($query, $attrs);
@@ -154,11 +175,10 @@ sub new_related {
   $self->throw( "Can't abstract implicit create for ${rel}, condition not a hash" )
     unless ref $rel_obj->{cond} eq 'HASH';
   $attrs = { %{$rel_obj->{attrs}}, %{$attrs || {}}, _action => 'convert' };
-  my %fields = %$values;
-  while (my ($k, $v) = each %{$rel_obj->{cond}}) {
-    $self->_cond_value($attrs, $k => $v);
-    $fields{$self->_cond_key($attrs, $k)} = (@{delete $attrs->{bind}})[0];
-  }
+
+  my %fields = %{$self->resolve_condition($rel_obj->{cond},$attrs)};
+  $fields{$_} = $values->{$_} for keys %$values;
+
   return $self->resolve_class($rel_obj->{class})->new(\%fields);
 }
 

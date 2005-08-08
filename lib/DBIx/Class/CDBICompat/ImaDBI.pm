@@ -47,7 +47,9 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
           _aliases => { self => $from, foreign => $to },
           _action => 'join',
         };
-        my $join = $from_class->_cond_resolve($rel_obj->{cond}, $attrs);
+        my $join = $from_class->storage->sql_maker->where(
+          $from_class->resolve_condition($rel_obj->{cond}, $attrs) );
+        $join =~ s/^\s*WHERE//i;
         return $join;
       }
         
@@ -109,6 +111,7 @@ sub transform_sql {
     my $h = $class->_transform_sql_handlers->{$key};
     $sql =~ s/__$key(?:\(([^\)]+)\))?__/$h->($attrs, $class, $1)/eg;
   }
+  #warn $sql;
   return sprintf($sql, @args);
 }
 

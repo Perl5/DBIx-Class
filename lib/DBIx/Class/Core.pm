@@ -7,9 +7,8 @@ no warnings 'qw';
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/
-  Relationship
   InflateColumn
-  SQL::Abstract
+  Relationship
   PK
   Row
   Table
