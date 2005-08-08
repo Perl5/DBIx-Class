@@ -5,7 +5,7 @@ use Test::More;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
-warn "$dsn $user $pass";
+#warn "$dsn $user $pass";
 
 plan skip_all, 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
