@@ -1,5 +1,6 @@
 package DBIx::Class::PK::Auto;
 
+use base qw/Class::Data::Inheritable/;
 use strict;
 use warnings;
 
@@ -46,6 +47,15 @@ sub insert {
   }
   return $ret;
 }
+
+=item sequence
+
+Manually define the correct sequence for your table, to avoid the overhead
+associated with looking up the sequence automatically.
+
+=cut
+
+__PACKAGE__->mk_classdata('sequence');
 
 1;
 

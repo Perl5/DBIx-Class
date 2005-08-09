@@ -16,6 +16,10 @@ sub last_insert_id {
 
 sub get_autoinc_seq {
   my $self=shift;
+  
+  # return the user-defined sequence if known
+  return $self->sequence if ($self->sequence);
+  
   my $dbh= $self->storage->dbh;
     my $sth	= $dbh->column_info( undef, undef, $self->_table_name, '%');
     while (my $foo = $sth->fetchrow_arrayref){
