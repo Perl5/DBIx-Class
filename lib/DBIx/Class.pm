@@ -45,23 +45,38 @@ and meant to support compability with it, while restructuring the
 insides, and making it possible to support some new features like 
 self-joins, distinct, group bys and more.
 
+It's currently considered EXPERIMENTAL - bring this near a production
+database at your own risk! The API is *not* fixed yet, although most of
+the primitives should be good for the future and any API changes will be
+posted to the mailing list before they're committed.
+
+The community can be found via -
+
+  Mailing list: http://lists.rawmode.org/mailman/listinfo/dbix-class/
+
+  SVN: http://dev.catalyst.perl.org/repos/bast/trunk/DBIx-Class/
+
+  Wiki: http://dbix-class.shadowcatsystems.co.uk/
+
+  IRC: irc.perl.org#dbix-class
+
 =head1 QUICKSTART
 
 If you're using Class::DBI, replacing
 
-use base qw/Class::DBI/;
+  use base qw/Class::DBI/;
 
 with
 
-use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/CDBICompat Core DB/);
+  use base qw/DBIx::Class/;
+  __PACKAGE__->load_components(qw/CDBICompat Core DB/);
 
 will probably get you started.
 
 If you're using AUTO_INCREMENT for your primary columns, you'll also want
 yo load the approriate PK::Auto subclass - e.g.
 
-__PACKAGE__->load_components(qw/CDBICompat PK::Auto::SQLite Core DB/);
+  __PACKAGE__->load_components(qw/CDBICompat PK::Auto::SQLite Core DB/);
 
 (with is what ::Test::SQLite does to present the Class::DBI::Test::SQLite
 interface)
@@ -69,14 +84,14 @@ interface)
 If you fancy playing around with DBIx::Class from scratch, then read the docs
 for ::Table and ::Relationship,
 
-use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/Core DB/);
+  use base qw/DBIx::Class/;
+  __PACKAGE__->load_components(qw/Core DB/);
 
 and have a look at t/lib/DBICTest.pm for a brief example.
 
 =head1 AUTHORS
 
-Matt S. Trout <perl-stuff@trout.me.uk>
+Matt S. Trout <mst@shadowcatsystems.co.uk>
 
 =head1 LICENSE
 

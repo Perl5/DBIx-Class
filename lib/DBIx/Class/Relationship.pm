@@ -33,7 +33,7 @@ on searches.
 
 =head1 AUTHORS
 
-Matt S. Trout <perl-stuff@trout.me.uk>
+Matt S. Trout <mst@shadowcatsystems.co.uk>
 
 =head1 LICENSE
 

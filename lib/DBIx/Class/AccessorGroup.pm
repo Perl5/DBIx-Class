@@ -142,7 +142,7 @@ sub make_group_wo_accessor {
 
 =head1 AUTHORS
 
-Matt S. Trout <perl-stuff@trout.me.uk>
+Matt S. Trout <mst@shadowcatsystems.co.uk>
 
 =head1 LICENSE
 
