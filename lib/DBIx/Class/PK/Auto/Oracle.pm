@@ -19,7 +19,9 @@ sub get_autoinc_seq {
   my $self = shift;
   
   # return the user-defined sequence if known
-  return $self->sequence if ($self->sequence);
+  if ($self->sequence) {
+    return $self->{_autoinc_seq} = $self->sequence;
+  }
   
   # look up the correct sequence automatically
   my $dbh = $self->storage->dbh;
