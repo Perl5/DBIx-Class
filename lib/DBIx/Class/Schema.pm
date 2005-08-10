@@ -6,7 +6,7 @@ use warnings;
 use base qw/Class::Data::Inheritable/;
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/Exception/);
+__PACKAGE__->load_components(qw/Exception Componentised/);
 __PACKAGE__->mk_classdata('class_registrations' => {});
 
 =head1 NAME
@@ -89,6 +89,7 @@ sub compose_connection {
   while (my ($comp, $comp_class) = each %reg) {
     my $target_class = "${target}::${comp}";
     $class->inject_base($target_class, $conn_class, $comp_class);
+    $target_class->table($comp_class->table);
     @map{$comp, $comp_class} = ($target_class, $target_class);
   }
   {
@@ -107,14 +108,6 @@ sub setup_connection_class {
   $class->inject_base($target => 'DBIx::Class');
   $target->load_components('DB');
   $target->connection(@info);
-}
-
-sub inject_base {
-  my ($class, $target, @to_inject) = @_;
-  {
-    no strict 'refs';
-    unshift(@{"${target}::ISA"}, grep { $target ne $_ } @to_inject);
-  }
 }
 
 1;

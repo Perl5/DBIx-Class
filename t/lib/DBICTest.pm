@@ -1,7 +1,6 @@
 use strict;
 use warnings;
 use DBICTest::Schema;
-use DateTime;
 
 my $db_file = "t/var/DBIxClass.db";
 

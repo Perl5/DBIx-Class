@@ -4,31 +4,10 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-use base;
+use base qw/DBIx::Class::Componentised/;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
-sub load_components {
-  my $class = shift;
-  my @comp = map { "DBIx::Class::$_" } grep { $_ !~ /^#/ } @_;
-  $class->_load_components(@comp);
-}
-
-sub load_own_components {
-  my $class = shift;
-  my @comp = map { "${class}::$_" } grep { $_ !~ /^#/ } @_;
-  $class->_load_components(@comp);
-}
-
-sub _load_components {
-  my ($class, @comp) = @_;
-  foreach my $comp (@comp) {
-    eval "use $comp";
-    die $@ if $@;
-  }
-  no strict 'refs';
-  unshift(@{"${class}::ISA"}, @comp);
-}
 
 1;
 

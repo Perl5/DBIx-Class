@@ -1,6 +1,6 @@
 use Test::More;
 
-plan tests => 22;
+plan tests => 23;
 
 use lib qw(t/lib);
 
@@ -90,3 +90,7 @@ ok($new->in_storage, 'insert_or_update insert ok');
 $new->position(5);
 $new->insert_or_update;
 is( DBICTest::Track->find(100)->position, 5, 'insert_or_update update ok');
+
+eval { DBICTest::Track->load_components('DoesNotExist'); };
+
+ok $@, $@;
