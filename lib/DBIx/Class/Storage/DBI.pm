@@ -57,8 +57,7 @@ sub dbh {
 
 sub sql_maker {
   my ($self) = @_;
-  my $maker;
-  unless ($maker = $self->_sql_maker) {
+  unless ($self->_sql_maker) {
     $self->_sql_maker(new SQL::Abstract::Limit( limit_dialect => $self->dbh ));
   }
   return $self->_sql_maker;
