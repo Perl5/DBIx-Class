@@ -24,8 +24,26 @@ $dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY 
 
 MySQLTest::Artist->load_components('PK::Auto::MySQL');
 
+# test primary key handling
 my $new = MySQLTest::Artist->create({ name => 'foo' });
-
 ok($new->artistid, "Auto-PK worked");
+
+# test LIMIT support
+for (1..6) {
+    MySQLTest::Artist->create({ name => 'Artist ' . $_ });
+}
+my $it = MySQLTest::Artist->search( {},
+    { rows => 3,
+      offset => 2,
+      order_by => 'artistid' }
+);
+is( $it->count, 3, "LIMIT count ok" );
+is( $it->next->name, "Artist 2", "iterator->next ok" );
+$it->next;
+$it->next;
+is( $it->next, undef, "next past end of resultset ok" );
+
+# clean up our mess
+$dbh->do("DROP TABLE artist");
 
 1;
