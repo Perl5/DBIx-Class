@@ -126,7 +126,13 @@ sub select {
   if (ref $condition eq 'SCALAR') {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
-  my ($rv, $sth, @bind) = $self->_execute('select', $attrs->{bind}, $ident, $select, $condition, $order, $attrs->{rows}, $attrs->{offset});
+  my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
+  if ($self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
+    $attrs->{software_limit} = 1;
+  } else {
+    push @args, $attrs->{rows}, $attrs->{offset};
+  }
+  my ($rv, $sth, @bind) = $self->_execute(@args);
   return $self->cursor->new($sth, \@bind, $attrs);
 }
 
@@ -136,7 +142,13 @@ sub select_single {
   if (ref $condition eq 'SCALAR') {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
-  my ($rv, $sth, @bind) = $self->_execute('select', $attrs->{bind}, $ident, $select, $condition, $order, 1, $attrs->{offset});
+  my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
+  if ($self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
+    $attrs->{software_limit} = 1;
+  } else {
+    push @args, 1, $attrs->{offset};
+  }  
+  my ($rv, $sth, @bind) = $self->_execute(@args);
   return $sth->fetchrow_array;
 }
 
