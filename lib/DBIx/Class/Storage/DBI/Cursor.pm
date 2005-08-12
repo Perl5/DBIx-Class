@@ -21,16 +21,27 @@ sub next {
   my ($self) = @_;
   return if $self->{attrs}{rows}
     && $self->{pos} >= $self->{attrs}{rows}; # + $self->{attrs}{offset});
+  my $sth = $self->{sth};
   unless ($self->{live_sth}) {
-    $self->{sth}->execute(@{$self->{args} || []});
+    $sth->execute(@{$self->{args} || []});
     if (my $offset = $self->{attrs}{offset}) {
-      $self->{sth}->fetch for 1 .. $offset;
+      $sth->fetch for 1 .. $offset;
     }
     $self->{live_sth} = 1;
   }
-  my @row = $self->{sth}->fetchrow_array;
+  my @row = $sth->fetchrow_array;
   $self->{pos}++ if @row;
   return @row;
+}
+
+sub all {
+  my ($self) = @_;
+  return $self->SUPER::all if $self->{attrs}{rows};
+  my $sth = $self->{sth};
+  $sth->finish if $sth->{Active};
+  $sth->execute(@{$self->{args} || []});
+  delete $self->{live_sth};
+  return @{$sth->fetchall_arrayref};
 }
 
 sub reset {

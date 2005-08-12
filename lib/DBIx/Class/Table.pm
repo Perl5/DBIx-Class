@@ -169,7 +169,7 @@ creates one and returns that instead
 sub find_or_create {
   my $class    = shift;
   my $hash     = ref $_[0] eq "HASH" ? shift: {@_};
-  my ($exists) = $class->search($hash);
+  my $exists = $class->find($hash);
   return defined($exists) ? $exists : $class->create($hash);
 }
 

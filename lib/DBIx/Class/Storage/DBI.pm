@@ -123,6 +123,16 @@ sub select {
   return $self->cursor->new($sth, \@bind, $attrs);
 }
 
+sub select_single {
+  my ($self, $ident, $select, $condition, $attrs) = @_;
+  my $order = $attrs->{order_by};
+  if (ref $condition eq 'SCALAR') {
+    $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
+  }
+  my ($rv, $sth, @bind) = $self->_execute('select', $attrs->{bind}, $ident, $select, $condition, $order);
+  return $sth->fetchrow_array;
+}
+
 sub sth {
   shift->dbh->prepare(@_);
 }

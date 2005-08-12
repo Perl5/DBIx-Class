@@ -25,7 +25,7 @@ sub add_relationship_accessor {
       } elsif (exists $self->{_relationship_data}{$rel}) {
         return $self->{_relationship_data}{$rel};
       } else {
-        my ($val) = $self->search_related($rel, {}, {});
+        my $val = $self->find_related($rel, {}, {});
         return unless $val;
         return $self->{_relationship_data}{$rel} = $val;
       }

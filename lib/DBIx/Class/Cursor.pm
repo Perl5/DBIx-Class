@@ -15,4 +15,15 @@ sub reset {
   die "Virtual method!";
 }
 
+sub all {
+  my ($self) = @_;
+  $self->reset;
+  my @all;
+  while (my @row = $self->next) {
+    push(@all, \@row);
+  }
+  $self->reset;
+  return @all;
+}
+
 1;

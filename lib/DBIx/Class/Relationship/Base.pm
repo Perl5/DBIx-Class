@@ -182,9 +182,25 @@ sub new_related {
   return $self->resolve_class($rel_obj->{class})->new(\%fields);
 }
 
+sub find_related {
+  my $self = shift;
+  my $rel = shift;
+  my $rel_obj = $self->_relationships->{$rel};
+  $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
+  my ($cond) = $self->resolve_condition($rel_obj->{cond}, { _action => 'convert' });
+  $self->throw( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
+  my $attrs = { };
+  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+    $attrs = { %{ pop(@_) } };
+  }
+  my $query = ((@_ > 1) ? {@_} : shift);
+  $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
+  return $self->resolve_class($rel_obj->{class})->find($query);
+}
+
 sub find_or_create_related {
   my $self = shift;
-  return ($self->search_related(@_))[0] || $self->create_related(@_);
+  return $self->find_related(@_) || $self->create_related(@_);
 }
 
 sub set_from_related {

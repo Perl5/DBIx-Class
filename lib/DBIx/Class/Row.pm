@@ -208,10 +208,11 @@ sub store_column {
   return $self->{_column_data}{$column} = $value;
 }
 
-sub _row_to_object { # WARNING: Destructive to @$row
+sub _row_to_object {
   my ($class, $cols, $row) = @_;
-  my $new = $class->new;
-  $new->store_column($_, shift @$row) for @$cols;
+  my %vals;
+  $vals{$cols->[$_]} = $row->[$_] for 0 .. $#$cols;
+  my $new = $class->new(\%vals);
   $new->in_storage(1);
   return $new;
 }

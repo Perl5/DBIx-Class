@@ -48,20 +48,15 @@ sub count {
 
   my $db_class = $self->{class};
   my @cols = 'COUNT(*)';
-  my $cursor = $db_class->storage->select($db_class->_table_name, \@cols,
+  my ($c) = $db_class->storage->select_single($db_class->_table_name, \@cols,
                                             $self->{cond}, $self->{attrs});
-  return ($cursor->next)[0];
+  return $c; # ($cursor->next)[0];
 }
 
 sub all {
   my ($self) = @_;
-  $self->reset;
-  my @all;
-  while (my $obj = $self->next) {
-    push(@all, $obj);
-  }
-  $self->reset;
-  return @all;
+  return map { $self->{class}->_row_to_object($self->{cols}, $_); }
+           $self->{cursor}->all;
 }
 
 sub reset {
