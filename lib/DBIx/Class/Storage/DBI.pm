@@ -11,7 +11,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/Exception AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/connect_info _dbh sql_maker debug cursor/);
+  qw/connect_info _dbh _sql_maker debug cursor/);
 
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
@@ -55,11 +55,19 @@ sub dbh {
   return $self->_dbh;
 }
 
+sub sql_maker {
+  my ($self) = @_;
+  my $maker;
+  unless ($maker = $self->_sql_maker) {
+    $self->_sql_maker(new SQL::Abstract::Limit( limit_dialect => $self->dbh ));
+  }
+  return $self->_sql_maker;
+}
+
 sub _populate_dbh {
   my ($self) = @_;
   my @info = @{$self->connect_info || []};
   $self->_dbh($self->_connect(@info));
-  $self->sql_maker(new SQL::Abstract::Limit( limit_dialect => $self->_dbh ));
 }
 
 sub _connect {
