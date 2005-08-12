@@ -24,9 +24,6 @@ sub next {
   my $sth = $self->{sth};
   unless ($self->{live_sth}) {
     $sth->execute(@{$self->{args} || []});
-    if (my $offset = $self->{attrs}{offset}) {
-      $sth->fetch for 1 .. $offset;
-    }
     $self->{live_sth} = 1;
   }
   my @row = $sth->fetchrow_array;

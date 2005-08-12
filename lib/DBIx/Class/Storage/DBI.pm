@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI;
 use strict;
 use warnings;
 use DBI;
-use SQL::Abstract;
+use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 
 use base qw/DBIx::Class/;
@@ -15,7 +15,6 @@ __PACKAGE__->mk_group_accessors('simple' =>
 
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
-  $new->sql_maker(new SQL::Abstract);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
   return $new;
@@ -60,6 +59,7 @@ sub _populate_dbh {
   my ($self) = @_;
   my @info = @{$self->connect_info || []};
   $self->_dbh($self->_connect(@info));
+  $self->sql_maker(new SQL::Abstract::Limit( limit_dialect => $self->_dbh ));
 }
 
 sub _connect {
@@ -119,7 +119,7 @@ sub select {
   if (ref $condition eq 'SCALAR') {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
-  my ($rv, $sth, @bind) = $self->_execute('select', $attrs->{bind}, $ident, $select, $condition, $order);
+  my ($rv, $sth, @bind) = $self->_execute('select', $attrs->{bind}, $ident, $select, $condition, $order, $attrs->{rows}, $attrs->{offset});
   return $self->cursor->new($sth, \@bind, $attrs);
 }
 
@@ -129,7 +129,7 @@ sub select_single {
   if (ref $condition eq 'SCALAR') {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
-  my ($rv, $sth, @bind) = $self->_execute('select', $attrs->{bind}, $ident, $select, $condition, $order);
+  my ($rv, $sth, @bind) = $self->_execute('select', $attrs->{bind}, $ident, $select, $condition, $order, 1, $attrs->{offset});
   return $sth->fetchrow_array;
 }
 

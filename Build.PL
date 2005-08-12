@@ -9,7 +9,7 @@ my %arguments = (
         'DBI'                       => 0,
         'UNIVERSAL::require'        => 0,
         'NEXT'                      => 0,
-        'SQL::Abstract'             => 1.19,
+        'SQL::Abstract::Limit'      => 0.033,
         'DBD::SQLite'               => 1.08,
 	'Tie::IxHash'               => 0,
     },
