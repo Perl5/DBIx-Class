@@ -68,9 +68,23 @@ for ::Table and ::Relationship,
 
 and have a look at t/lib/DBICTest.pm for a brief example.
 
-=head1 AUTHORS
+=head1 AUTHOR
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>
+
+=head1 CONTRIBUTORS
+
+Andy Grundman <andy@hybridized.org>
+
+Brian Cassidy <bricas@cpan.org>
+
+Dan Kubb <dan.kubb-cpan@onautopilot.com>
+
+Dan Sully <daniel@cpan.org>
+
+davekam
+
+Marcus Ramberg <mramberg@cpan.org>
 
 =head1 LICENSE
 
