@@ -9,7 +9,7 @@ plan skip_all, 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. ' 
   'Warning: This test drops and creates a table called \'artist\''
   unless ($dsn && $user && $pass);
 
-plan tests => 1;
+plan tests => 4;
 
 DBICTest::Schema->compose_connection('OraTest' => $dsn, $user, $pass);
 
@@ -37,10 +37,26 @@ $dbh->do(qq{
 
 OraTest::Artist->load_components('PK::Auto::Oracle');
 
+# test primary key handling
 my $new = OraTest::Artist->create({ name => 'foo' });
-
 ok($new->artistid, "Oracle Auto-PK worked");
 
+# test LIMIT support
+for (1..6) {
+    OraTest::Artist->create({ name => 'Artist ' . $_ });
+}
+my $it = OraTest::Artist->search( {},
+    { rows => 3,
+      offset => 2,
+      order_by => 'artistid' }
+);
+is( $it->count, 3, "LIMIT count ok" );
+is( $it->next->name, "Artist 2", "iterator->next ok" );
+$it->next;
+$it->next;
+is( $it->next, undef, "next past end of resultset ok" );
+
+# clean up our mess
 $dbh->do("DROP SEQUENCE artist_seq");
 $dbh->do("DROP TABLE artist");
 
