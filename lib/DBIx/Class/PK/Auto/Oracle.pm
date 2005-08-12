@@ -60,6 +60,7 @@ This class implements autoincrements for Oracle.
 =head1 AUTHORS
 
 Andy Grundman <andy@hybridized.org>
+
 Scott Connelly <scottsweep@yahoo.com>
 
 =head1 LICENSE

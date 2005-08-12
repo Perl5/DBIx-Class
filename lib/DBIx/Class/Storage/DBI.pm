@@ -164,6 +164,8 @@ sub sth {
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>
 
+Andy Grundman <andy@hybridized.org>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.

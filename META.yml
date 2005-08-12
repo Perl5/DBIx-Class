@@ -1,0 +1,122 @@
+---
+name: DBIx-Class
+version: 0.02
+author: ~
+abstract: Because the brain is a terrible thing to waste.
+license: perl
+requires:
+  DBD::SQLite: 1.08
+  DBI: 0
+  NEXT: 0
+  SQL::Abstract::Limit: 0.033
+  Tie::IxHash: 0
+  UNIVERSAL::require: 0
+provides:
+  DBIx::Class:
+    file: lib/DBIx/Class.pm
+    version: 0.02
+  DBIx::Class::AccessorGroup:
+    file: lib/DBIx/Class/AccessorGroup.pm
+  DBIx::Class::CDBICompat:
+    file: lib/DBIx/Class/CDBICompat.pm
+  DBIx::Class::CDBICompat::AccessorMapping:
+    file: lib/DBIx/Class/CDBICompat/AccessorMapping.pm
+  DBIx::Class::CDBICompat::AttributeAPI:
+    file: lib/DBIx/Class/CDBICompat/AttributeAPI.pm
+  DBIx::Class::CDBICompat::AutoUpdate:
+    file: lib/DBIx/Class/CDBICompat/AutoUpdate.pm
+  DBIx::Class::CDBICompat::ColumnCase:
+    file: lib/DBIx/Class/CDBICompat/ColumnCase.pm
+  DBIx::Class::CDBICompat::ColumnGroups:
+    file: lib/DBIx/Class/CDBICompat/ColumnGroups.pm
+  DBIx::Class::CDBICompat::ColumnGroups::GrouperShim:
+    file: lib/DBIx/Class/CDBICompat/ColumnGroups.pm
+  DBIx::Class::CDBICompat::Constraints:
+    file: lib/DBIx/Class/CDBICompat/Constraints.pm
+  DBIx::Class::CDBICompat::Constructor:
+    file: lib/DBIx/Class/CDBICompat/Constructor.pm
+  DBIx::Class::CDBICompat::DestroyWarning:
+    file: lib/DBIx/Class/CDBICompat/DestroyWarning.pm
+  DBIx::Class::CDBICompat::GetSet:
+    file: lib/DBIx/Class/CDBICompat/GetSet.pm
+  DBIx::Class::CDBICompat::HasA:
+    file: lib/DBIx/Class/CDBICompat/HasA.pm
+  DBIx::Class::CDBICompat::HasMany:
+    file: lib/DBIx/Class/CDBICompat/HasMany.pm
+  DBIx::Class::CDBICompat::ImaDBI:
+    file: lib/DBIx/Class/CDBICompat/ImaDBI.pm
+  DBIx::Class::CDBICompat::LazyLoading:
+    file: lib/DBIx/Class/CDBICompat/LazyLoading.pm
+  DBIx::Class::CDBICompat::LiveObjectIndex:
+    file: lib/DBIx/Class/CDBICompat/LiveObjectIndex.pm
+  DBIx::Class::CDBICompat::MightHave:
+    file: lib/DBIx/Class/CDBICompat/MightHave.pm
+  DBIx::Class::CDBICompat::ObjIndexStubs:
+    file: lib/DBIx/Class/CDBICompat/ObjIndexStubs.pm
+  DBIx::Class::CDBICompat::ReadOnly:
+    file: lib/DBIx/Class/CDBICompat/ReadOnly.pm
+  DBIx::Class::CDBICompat::Retrieve:
+    file: lib/DBIx/Class/CDBICompat/Retrieve.pm
+  DBIx::Class::CDBICompat::Stringify:
+    file: lib/DBIx/Class/CDBICompat/Stringify.pm
+  DBIx::Class::CDBICompat::TempColumns:
+    file: lib/DBIx/Class/CDBICompat/TempColumns.pm
+  DBIx::Class::CDBICompat::Triggers:
+    file: lib/DBIx/Class/CDBICompat/Triggers.pm
+  DBIx::Class::ClassResolver::PassThrough:
+    file: lib/DBIx/Class/ClassResolver/PassThrough.pm
+  DBIx::Class::Componentised:
+    file: lib/DBIx/Class/Componentised.pm
+  DBIx::Class::Core:
+    file: lib/DBIx/Class/Core.pm
+  DBIx::Class::Cursor:
+    file: lib/DBIx/Class/Cursor.pm
+  DBIx::Class::DB:
+    file: lib/DBIx/Class/DB.pm
+  DBIx::Class::Exception:
+    file: lib/DBIx/Class/Exception.pm
+  DBIx::Class::Exception::Base:
+    file: lib/DBIx/Class/Exception.pm
+  DBIx::Class::InflateColumn:
+    file: lib/DBIx/Class/InflateColumn.pm
+  DBIx::Class::PK:
+    file: lib/DBIx/Class/PK.pm
+  DBIx::Class::PK::Auto:
+    file: lib/DBIx/Class/PK/Auto.pm
+  DBIx::Class::PK::Auto::MSSQL:
+    file: lib/DBIx/Class/PK/Auto/MSSQL.pm
+  DBIx::Class::PK::Auto::MySQL:
+    file: lib/DBIx/Class/PK/Auto/MySQL.pm
+  DBIx::Class::PK::Auto::Oracle:
+    file: lib/DBIx/Class/PK/Auto/Oracle.pm
+  DBIx::Class::PK::Auto::Pg:
+    file: lib/DBIx/Class/PK/Auto/Pg.pm
+  DBIx::Class::PK::Auto::SQLite:
+    file: lib/DBIx/Class/PK/Auto/SQLite.pm
+  DBIx::Class::Relationship:
+    file: lib/DBIx/Class/Relationship.pm
+  DBIx::Class::Relationship::Accessor:
+    file: lib/DBIx/Class/Relationship/Accessor.pm
+  DBIx::Class::Relationship::Base:
+    file: lib/DBIx/Class/Relationship/Base.pm
+  DBIx::Class::Relationship::CascadeActions:
+    file: lib/DBIx/Class/Relationship/CascadeActions.pm
+  DBIx::Class::Relationship::ProxyMethods:
+    file: lib/DBIx/Class/Relationship/ProxyMethods.pm
+  DBIx::Class::ResultSet:
+    file: lib/DBIx/Class/ResultSet.pm
+  DBIx::Class::Row:
+    file: lib/DBIx/Class/Row.pm
+  DBIx::Class::Schema:
+    file: lib/DBIx/Class/Schema.pm
+  DBIx::Class::Storage::DBI:
+    file: lib/DBIx/Class/Storage/DBI.pm
+  DBIx::Class::Storage::DBI::Cursor:
+    file: lib/DBIx/Class/Storage/DBI/Cursor.pm
+  DBIx::Class::Table:
+    file: lib/DBIx/Class/Table.pm
+  DBIx::Class::Test::SQLite:
+    file: lib/DBIx/Class/Test/SQLite.pm
+  DBIx::ContextualFetch::st:
+    file: lib/DBIx/Class/CDBICompat/ImaDBI.pm
+generated_by: Module::Build version 0.2611

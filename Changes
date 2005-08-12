@@ -1,0 +1,10 @@
+Revision history for DBIx::Class
+
+0.02    2005-08-12 18:00:00
+        - Test fixes.
+        - Performance improvements.
+        - Oracle primary key support.
+        - SQL::Abstract::Limit integration for database-agnostic limiting.
+
+0.01    2005-08-08 17:10:00
+        - initial release
