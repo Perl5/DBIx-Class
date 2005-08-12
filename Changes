@@ -4,6 +4,7 @@ Revision history for DBIx::Class
         - Test fixes.
         - Performance improvements.
         - Oracle primary key support.
+        - MS-SQL primary key support.
         - SQL::Abstract::Limit integration for database-agnostic limiting.
 
 0.01    2005-08-08 17:10:00

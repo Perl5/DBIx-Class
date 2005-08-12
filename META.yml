@@ -1,7 +1,8 @@
 ---
 name: DBIx-Class
 version: 0.02
-author: ~
+author:
+  - Matt S. Trout <mst@shadowcatsystems.co.uk>
 abstract: Because the brain is a terrible thing to waste.
 license: perl
 requires:
