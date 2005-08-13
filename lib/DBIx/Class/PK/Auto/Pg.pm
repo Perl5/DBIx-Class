@@ -36,7 +36,7 @@ sub get_autoinc_seq {
 
 =head1 NAME 
 
-DBIx::Class::PK::Auto::Pg- Automatic Primary Key class for Postgresql
+DBIx::Class::PK::Auto::Pg - Automatic Primary Key class for Postgresql
 
 =head1 SYNOPSIS
 
