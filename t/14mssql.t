@@ -10,9 +10,9 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all, 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-plan tests => 1;
+plan tests => 4;
 
-DBICTest::Schema->compose_connection('MSSQLTest' => $dsn, $user, $pass);
+DBICTest::Schema->compose_connection( 'MSSQLTest' => $dsn, $user, $pass );
 
 my $dbh = MSSQLTest::Artist->storage->dbh;
 
@@ -23,8 +23,26 @@ $dbh->do("CREATE TABLE artist (artistid INT IDENTITY PRIMARY KEY, name VARCHAR(2
 
 MSSQLTest::Artist->load_components('PK::Auto::MSSQL');
 
-my $new = MSSQLTest::Artist->create({ name => 'foo' });
-
+# Test PK
+my $new = MSSQLTest::Artist->create( { name => 'foo' } );
 ok($new->artistid, "Auto-PK worked");
+
+# Test LIMIT
+for (1..6) {
+    MSSQLTest::Artist->create( { name => 'Artist ' . $_ } );
+}
+
+my $it = MSSQLTest::Artist->search( { },
+    { rows     => 3,
+      offset   => 2,
+      order_by => 'artistid'
+    }
+);
+
+is( $it->count, 3, "LIMIT count ok" );
+is( $it->next->name, "Artist 2", "iterator->next ok" );
+$it->next;
+$it->next;
+is( $it->next, undef, "next past end of resultset ok" );
 
 1;
