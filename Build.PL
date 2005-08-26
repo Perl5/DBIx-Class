@@ -6,6 +6,7 @@ my %arguments = (
     license            => 'perl',
     module_name        => 'DBIx::Class',
     requires           => {
+        'Data::Page'                => 0,
         'DBI'                       => 0,
         'UNIVERSAL::require'        => 0,
         'NEXT'                      => 0,

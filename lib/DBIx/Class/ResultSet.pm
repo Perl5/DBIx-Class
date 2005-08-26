@@ -42,15 +42,19 @@ sub next {
 
 sub count {
   my ($self) = @_;
-  return $self->{attrs}{rows} if $self->{attrs}{rows};
-    # This is a hack, and will break on the last page of a paged set.
-    # Once we have limit support in Storage, kill it.
-
   my $db_class = $self->{class};
+
+  # offset breaks COUNT(*), so remove it
+  my $attrs = { %{ $self->{attrs} } };
+  delete $attrs->{offset};
+      
   my @cols = 'COUNT(*)';
   my ($c) = $db_class->storage->select_single($db_class->_table_name, \@cols,
-                                            $self->{cond}, $self->{attrs});
-  return $c; # ($cursor->next)[0];
+                                            $self->{cond}, $attrs);
+  return 0 unless $c;
+  return ( $attrs->{rows} && $attrs->{rows} < $c ) 
+    ? $attrs->{rows} 
+    : $c;
 }
 
 sub all {
