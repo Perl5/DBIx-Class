@@ -32,6 +32,12 @@ primary keys.
 sub insert {
   my ($self, @rest) = @_;
   my $ret = $self->NEXT::ACTUAL::insert(@rest);
+
+  # if all primaries are already populated, skip auto-inc
+  my $populated = 0;
+  map { $populated++ if $self->$_ } keys %{ $self->_primaries };
+  return $ret if ( $populated == scalar keys %{ $self->_primaries } );
+
   my ($pri, $too_many) =
     (grep { $self->_primaries->{$_}{'auto_increment'} }
        keys %{ $self->_primaries })
