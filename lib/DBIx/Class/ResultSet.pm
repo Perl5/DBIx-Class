@@ -12,15 +12,20 @@ sub new {
   $it_class = ref $it_class if ref $it_class;
   $attrs = { %{ $attrs || {} } };
   my $cols = [ $db_class->_select_columns ];
-  my $cursor = $db_class->storage->select($db_class->_table_name,$cols,
-                                        $attrs->{where},$attrs);
   my $new = {
     class => $db_class,
-    cursor => $cursor,
     cols => $cols,
     cond => $attrs->{where},
     attrs => $attrs };
   return bless ($new, $it_class);
+}
+
+sub cursor {
+  my ($self) = @_;
+  my ($db_class, $attrs) = @{$self}{qw/class attrs/};
+  return $self->{cursor}
+    ||= $db_class->storage->select($db_class->_table_name, $self->{cols},
+          $attrs->{where},$attrs);
 }
 
 sub slice {
@@ -35,7 +40,7 @@ sub slice {
 
 sub next {
   my ($self) = @_;
-  my @row = $self->{cursor}->next;
+  my @row = $self->cursor->next;
   return unless (@row);
   return $self->{class}->_row_to_object($self->{cols}, \@row);
 }
@@ -60,12 +65,12 @@ sub count {
 sub all {
   my ($self) = @_;
   return map { $self->{class}->_row_to_object($self->{cols}, $_); }
-           $self->{cursor}->all;
+           $self->cursor->all;
 }
 
 sub reset {
   my ($self) = @_;
-  $self->{cursor}->reset;
+  $self->cursor->reset;
   return $self;
 }
 
