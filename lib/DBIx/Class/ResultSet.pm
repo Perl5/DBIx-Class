@@ -49,9 +49,9 @@ sub count {
   my ($self) = @_;
   my $db_class = $self->{class};
 
-  # offset breaks COUNT(*), so remove it
+  # offset and order by are not needed to count
   my $attrs = { %{ $self->{attrs} } };
-  delete $attrs->{offset};
+  delete $attrs->{$_} for qw/offset order_by/;
       
   my @cols = 'COUNT(*)';
   my ($c) = $db_class->storage->select_single($db_class->_table_name, \@cols,

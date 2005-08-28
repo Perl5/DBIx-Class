@@ -9,7 +9,6 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/
   InflateColumn
   Relationship
-  Pager
   PK
   Row
   Table

@@ -23,6 +23,7 @@ __PACKAGE__->load_own_components(qw/
   AutoUpdate
   TempColumns
   Retrieve
+  Pager
   ColumnGroups
   ImaDBI/);
 

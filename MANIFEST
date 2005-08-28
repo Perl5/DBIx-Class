@@ -19,6 +19,7 @@ lib/DBIx/Class/CDBICompat/LazyLoading.pm
 lib/DBIx/Class/CDBICompat/LiveObjectIndex.pm
 lib/DBIx/Class/CDBICompat/MightHave.pm
 lib/DBIx/Class/CDBICompat/ObjIndexStubs.pm
+lib/DBIx/Class/CDBICompat/Pager.pm
 lib/DBIx/Class/CDBICompat/ReadOnly.pm
 lib/DBIx/Class/CDBICompat/Retrieve.pm
 lib/DBIx/Class/CDBICompat/Stringify.pm
@@ -58,6 +59,7 @@ t/03podcoverage.t
 t/04db.t
 t/05multipk.t
 t/06relationship.t
+t/07pager.t
 t/08inflate.t
 t/08inflate_has_a.t
 t/09update.t
@@ -83,6 +85,7 @@ t/cdbi-t/16-reserved.t
 t/cdbi-t/18-has_a.t
 t/cdbi-t/19-set_sql.t
 t/cdbi-t/21-iterator.t
+t/cdbi-t/30-pager.t
 t/cdbi-t/98-failure.t
 t/lib/DBICTest.pm
 t/lib/DBICTest/Schema.pm
