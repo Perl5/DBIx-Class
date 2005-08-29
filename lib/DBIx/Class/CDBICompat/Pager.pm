@@ -9,8 +9,7 @@ sub page {
   my $class = shift;
 
   my $it = $class->search(@_);
-  my $pager = $class->_page_object;
-  return ( $pager, $it );
+  return ( $it->pager, $it );
 }
 
 1;

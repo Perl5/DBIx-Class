@@ -16,8 +16,6 @@ __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything 
 
 __PACKAGE__->mk_classdata('_resultset_class' => 'DBIx::Class::ResultSet');
 
-__PACKAGE__->mk_classdata('_page_object');
-
 sub iterator_class { shift->_resultset_class(@_) }
 
 =head1 NAME 
@@ -116,24 +114,7 @@ sub search {
   }
   $attrs->{where} = (@_ == 1 || ref $_[0] eq "HASH" ? shift: {@_});
   
-  # for pagination, we create the resultset with no limit and slice it later
-  my $page = {};
-  if ( $attrs->{page} ) {
-    map { $page->{$_} = $attrs->{$_} } qw/rows page/;
-    delete $attrs->{$_} for qw/rows offset page/;
-  }
-
   my $rs = $class->resultset($attrs);
-  
-  if ( $page->{page} ) {
-    my $pager = Data::Page->new( 
-      $rs->count, 
-      $page->{rows} || 10, 
-      $page->{page} || 1 );
-    $class->_page_object( $pager );
-    return $rs->slice( $pager->skipped,
-      $pager->skipped + $pager->entries_per_page - 1 );
-  }
   
   return (wantarray ? $rs->all : $rs);
 }
@@ -194,17 +175,6 @@ sub find_or_create {
 }
 
 sub columns { return keys %{shift->_columns}; }
-
-=item page
-
-  $pager = $class->page;
-  
-Returns a Data::Page object for the most recent search that was performed
-using the page parameter.
-
-=cut
-
-sub page { shift->_page_object }
 
 1;
 
