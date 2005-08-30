@@ -1,6 +1,6 @@
 use Test::More;
 
-plan tests => 8;
+plan tests => 13;
 
 use lib qw(t/lib);
 
@@ -45,4 +45,22 @@ $it = DBICTest::CD->search(
 );
 my $page = $it->page(2);
 
+is( $page->count, 2, "standard resultset paged rs count ok" );
+
 is( $page->next->title, "Generic Manufactured Singles", "second page of standard resultset ok" );
+
+# test software-based limit paging
+$it = DBICTest::CD->search(
+  {},
+  { order_by => 'title',
+    rows => 3,
+    page => 2,
+    software_limit => 1 }
+);
+is( $it->pager->entries_on_this_page, 2, "software entries_on_this_page ok" );
+
+is( $it->pager->previous_page, 1, "software previous_page ok" );
+
+is( $it->count, 2, "software count on paged rs ok" );
+
+is( $it->next->title, "Generic Manufactured Singles", "software iterator->next ok" );

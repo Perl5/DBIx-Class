@@ -20,7 +20,9 @@ sub new {
     count => undef,
     pager => undef,
     attrs => $attrs };
-  return bless ($new, $it_class);
+  bless ($new, $it_class);
+  $new->pager if ($attrs->{page});
+  return $new;
 }
 
 sub cursor {
@@ -65,6 +67,7 @@ sub count {
                                               $self->{cond}, $attrs);
   }
   return 0 unless $self->{count};
+  return $self->{pager}->entries_on_this_page if ($self->{pager});
   return ( $attrs->{rows} && $attrs->{rows} < $self->{count} ) 
     ? $attrs->{rows} 
     : $self->{count};

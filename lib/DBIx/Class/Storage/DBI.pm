@@ -127,8 +127,9 @@ sub select {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
   my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
-  if ($self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
-    $attrs->{software_limit} = 1;
+  if ($attrs->{software_limit} ||
+      $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
+        $attrs->{software_limit} = 1;
   } else {
     push @args, $attrs->{rows}, $attrs->{offset};
   }
@@ -143,8 +144,9 @@ sub select_single {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
   my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
-  if ($self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
-    $attrs->{software_limit} = 1;
+  if ($attrs->{software_limit} ||
+      $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
+        $attrs->{software_limit} = 1;
   } else {
     push @args, 1, $attrs->{offset};
   }  
