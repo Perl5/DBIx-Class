@@ -5,6 +5,7 @@ use warnings;
 use overload
         '0+'     => 'count',
         fallback => 1;
+use Data::Page;
 
 sub new {
   my ($it_class, $db_class, $attrs) = @_;
@@ -16,13 +17,21 @@ sub new {
     class => $db_class,
     cols => $cols,
     cond => $attrs->{where},
+    count => undef,
+    pager => undef,
     attrs => $attrs };
-  return bless ($new, $it_class);
+  bless ($new, $it_class);
+  $new->pager if ($attrs->{page});
+  return $new;
 }
 
 sub cursor {
   my ($self) = @_;
   my ($db_class, $attrs) = @{$self}{qw/class attrs/};
+  if ($attrs->{page}) {
+    $attrs->{rows} = $self->pager->entries_per_page;
+    $attrs->{offset} = $self->pager->skipped;
+  }
   return $self->{cursor}
     ||= $db_class->storage->select($db_class->_table_name, $self->{cols},
           $attrs->{where},$attrs);
@@ -48,18 +57,20 @@ sub next {
 sub count {
   my ($self) = @_;
   my $db_class = $self->{class};
-
-  # offset and order by are not needed to count
   my $attrs = { %{ $self->{attrs} } };
-  delete $attrs->{$_} for qw/offset order_by/;
-      
-  my @cols = 'COUNT(*)';
-  my ($c) = $db_class->storage->select_single($db_class->_table_name, \@cols,
-                                            $self->{cond}, $attrs);
-  return 0 unless $c;
-  return ( $attrs->{rows} && $attrs->{rows} < $c ) 
+  unless ($self->{count}) {
+    # offset and order by are not needed to count
+    delete $attrs->{$_} for qw/offset order_by/;
+        
+    my @cols = 'COUNT(*)';
+    $self->{count} = $db_class->storage->select_single($db_class->_table_name, \@cols,
+                                              $self->{cond}, $attrs);
+  }
+  return 0 unless $self->{count};
+  return $self->{pager}->entries_on_this_page if ($self->{pager});
+  return ( $attrs->{rows} && $attrs->{rows} < $self->{count} ) 
     ? $attrs->{rows} 
-    : $c;
+    : $self->{count};
 }
 
 sub all {
@@ -85,5 +96,23 @@ sub delete {
 }
 
 *delete_all = \&delete; # Yeah, yeah, yeah ...
+
+sub pager {
+  my ($self) = @_;
+  my $attrs = $self->{attrs};
+  delete $attrs->{offset};
+  my $rows_per_page = delete $attrs->{rows} || 10;
+  $self->{pager} ||= Data::Page->new(
+    $self->count, $rows_per_page, $attrs->{page} || 1);
+  $attrs->{rows} = $rows_per_page;
+  return $self->{pager};
+}
+
+sub page {
+  my ($self, $page) = @_;
+  my $attrs = $self->{attrs};
+  $attrs->{page} = $page;
+  return $self->new($self->{class}, $attrs);
+}
 
 1;

@@ -128,8 +128,9 @@ sub _select {
   }
   $ident = $self->_build_from($ident) if ref $ident;
   my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
-  if ($self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
-    $attrs->{software_limit} = 1;
+  if ($attrs->{software_limit} ||
+      $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
+        $attrs->{software_limit} = 1;
   } else {
     push @args, $attrs->{rows}, $attrs->{offset};
   }
