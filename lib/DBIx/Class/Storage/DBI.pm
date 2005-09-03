@@ -6,6 +6,60 @@ use DBI;
 use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 
+BEGIN {
+
+package DBIC::SQL::Abstract; # Temporary. Merge upstream.
+
+use base qw/SQL::Abstract::Limit/;
+
+sub select {
+  my ($self, $ident, @rest) = @_;
+  return $self->SUPER::select($self->from($ident), @rest);
+}
+
+sub from {
+  my ($self, $from) = @_;
+  if (ref $from eq 'ARRAY') {
+    return $self->_recurse_from(@$from);
+  } elsif (ref $from eq 'HASH') {
+    return $self->_make_as($from);
+  } else {
+    return $from;
+  }
+}
+
+sub _recurse_from {
+  my ($self, $from, @join) = @_;
+  my @sqlf;
+  push(@sqlf, $self->_make_as($from));
+  foreach my $j (@join) {
+    my ($to, $on) = @$j;
+    push(@sqlf, ' JOIN ');
+    if (ref $to eq 'ARRAY') {
+      push(@sqlf, '(', $self->_recurse_from(@$to), ')');
+    } else {
+      push(@sqlf, $self->_make_as($to));
+    }
+    push(@sqlf, ' ON ', $self->_join_condition($on));
+  }
+  return join('', @sqlf);
+}
+
+sub _make_as {
+  my ($self, $from) = @_;
+  return join(' ', reverse each %$from);
+}
+
+sub _join_condition {
+  my ($self, $cond) = @_;
+  die "no chance" unless ref $cond eq 'HASH';
+  my %j;
+  for (keys %$cond) { my $x = '= '.$cond->{$_}; $j{$_} = \$x; };
+  return $self->_recurse_where(\%j);
+}
+
+} # End of BEGIN block
+
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/Exception AccessorGroup/);
@@ -58,7 +112,7 @@ sub dbh {
 sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
-    $self->_sql_maker(new SQL::Abstract::Limit( limit_dialect => $self->dbh ));
+    $self->_sql_maker(new DBIC::SQL::Abstract( limit_dialect => $self->dbh ));
   }
   return $self->_sql_maker;
 }
@@ -126,7 +180,6 @@ sub _select {
   if (ref $condition eq 'SCALAR') {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
-  $ident = $self->_build_from($ident) if ref $ident;
   my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
   if ($attrs->{software_limit} ||
       $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
