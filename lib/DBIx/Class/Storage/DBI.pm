@@ -120,12 +120,13 @@ sub delete {
   return shift->_execute('delete' => [], @_);
 }
 
-sub select {
+sub _select {
   my ($self, $ident, $select, $condition, $attrs) = @_;
   my $order = $attrs->{order_by};
   if (ref $condition eq 'SCALAR') {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
+  $ident = $self->_build_from($ident) if ref $ident;
   my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
   if ($attrs->{software_limit} ||
       $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
@@ -133,24 +134,19 @@ sub select {
   } else {
     push @args, $attrs->{rows}, $attrs->{offset};
   }
-  my ($rv, $sth, @bind) = $self->_execute(@args);
+  return $self->_execute(@args);
+}
+
+sub select {
+  my $self = shift;
+  my ($ident, $select, $condition, $attrs) = @_;
+  my ($rv, $sth, @bind) = $self->_select(@_);
   return $self->cursor->new($sth, \@bind, $attrs);
 }
 
 sub select_single {
-  my ($self, $ident, $select, $condition, $attrs) = @_;
-  my $order = $attrs->{order_by};
-  if (ref $condition eq 'SCALAR') {
-    $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
-  }
-  my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
-  if ($attrs->{software_limit} ||
-      $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
-        $attrs->{software_limit} = 1;
-  } else {
-    push @args, 1, $attrs->{offset};
-  }  
-  my ($rv, $sth, @bind) = $self->_execute(@args);
+  my $self = shift;
+  my ($rv, $sth, @bind) = $self->_select(@_);
   return $sth->fetchrow_array;
 }
 
