@@ -34,11 +34,20 @@ sub _recurse_from {
   push(@sqlf, $self->_make_as($from));
   foreach my $j (@join) {
     my ($to, $on) = @$j;
-    push(@sqlf, ' JOIN ');
+
+	# check whether a join type exists
+	my $join_clause = '';
+	if (ref($to) eq 'HASH' and exists($to->{-join_type})) {
+		$join_clause = ' '.uc($to->{-join_type}).' JOIN ';
+	} else {
+		$join_clause = ' JOIN ';
+	}
+    push(@sqlf, $join_clause);
+
     if (ref $to eq 'ARRAY') {
       push(@sqlf, '(', $self->_recurse_from(@$to), ')');
     } else {
-      push(@sqlf, $self->_make_as($to));
+      push(@sqlf, '(', $self->_make_as($to), ')');
     }
     push(@sqlf, ' ON ', $self->_join_condition($on));
   }
@@ -47,7 +56,15 @@ sub _recurse_from {
 
 sub _make_as {
   my ($self, $from) = @_;
-  return join(' ', reverse each %$from);
+  	return join(' AS ', reverse each %{$self->_skip_options($from)});
+}
+
+sub _skip_options {
+	my ($self, $hash) = @_;
+	my $clean_hash = {};
+	$clean_hash->{$_} = $hash->{$_}
+		for grep {!/^-/} keys %$hash;
+	return $clean_hash;
 }
 
 sub _join_condition {
