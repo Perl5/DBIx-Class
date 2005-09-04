@@ -47,7 +47,7 @@ sub _recurse_from {
     if (ref $to eq 'ARRAY') {
       push(@sqlf, '(', $self->_recurse_from(@$to), ')');
     } else {
-      push(@sqlf, '(', $self->_make_as($to), ')');
+      push(@sqlf, $self->_make_as($to));
     }
     push(@sqlf, ' ON ', $self->_join_condition($on));
   }
@@ -56,7 +56,7 @@ sub _recurse_from {
 
 sub _make_as {
   my ($self, $from) = @_;
-  	return join(' AS ', reverse each %{$self->_skip_options($from)});
+  	return join(' ', reverse each %{$self->_skip_options($from)});
 }
 
 sub _skip_options {

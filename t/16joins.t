@@ -20,8 +20,8 @@ my @j = (
     [ { father => 'person' }, { 'father.person_id' => 'child.father_id' }, ],
     [ { mother => 'person' }, { 'mother.person_id' => 'child.mother_id' } ],
 );
-my $match = 'person AS child JOIN (person AS father) ON ( father.person_id = '
-          . 'child.father_id ) JOIN (person AS mother) ON ( mother.person_id '
+my $match = 'person child JOIN person father ON ( father.person_id = '
+          . 'child.father_id ) JOIN person mother ON ( mother.person_id '
           . '= child.mother_id )'
           ;
 is( $sa->_recurse_from(@j), $match, 'join 1 ok' );
@@ -36,7 +36,7 @@ my @j2 = (
         { 'mother.person_id' => 'child.mother_id' }
     ],
 );
-$match = 'person AS mother JOIN (person AS child JOIN (person AS father) ON ('
+$match = 'person mother JOIN (person child JOIN person father ON ('
        . ' father.person_id = child.father_id )) ON ( mother.person_id = '
        . 'child.mother_id )'
        ;
@@ -47,8 +47,8 @@ my @j3 = (
     [ { father => 'person', -join_type => 'inner' }, { 'father.person_id' => 'child.father_id' }, ],
     [ { mother => 'person', -join_type => 'inner'  }, { 'mother.person_id' => 'child.mother_id' } ],
 );
-my $match = 'person AS child INNER JOIN (person AS father) ON ( father.person_id = '
-          . 'child.father_id ) INNER JOIN (person AS mother) ON ( mother.person_id '
+my $match = 'person child INNER JOIN person father ON ( father.person_id = '
+          . 'child.father_id ) INNER JOIN person mother ON ( mother.person_id '
           . '= child.mother_id )'
           ;
 
