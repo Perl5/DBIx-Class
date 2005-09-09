@@ -5,7 +5,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 4 );
+        : ( tests => 12 );
 }
 
 use lib qw(t/lib);
@@ -53,3 +53,41 @@ my $match = 'person child INNER JOIN person father ON ( father.person_id = '
           ;
 
 is( $sa->_recurse_from(@j3), $match, 'join 3 (inner join) ok');
+
+my $rs = DBICTest::CD->search(
+           { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
+           { from => [ { 'cd' => 'cd' },
+                         [
+                           { artist => 'artist' },
+                           { 'cd.artist' => 'artist.artistid' }
+                         ] ] }
+         );
+
+cmp_ok( $rs->count, '==', 1, "Single record in resultset");
+
+is($rs->first->title, 'Forkful of bees', 'Correct record returned');
+
+$rs = DBICTest::CD->search(
+           { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
+           { join => 'artist' });
+
+cmp_ok( $rs->count, '==', 1, "Single record in resultset");
+
+is($rs->first->title, 'Forkful of bees', 'Correct record returned');
+
+$rs = DBICTest::CD->search(
+           { 'artist.name' => 'We Are Goth',
+             'liner_notes.notes' => 'Kill Yourself!' },
+           { join => [ qw/artist liner_notes/ ] });
+
+cmp_ok( $rs->count, '==', 1, "Single record in resultset");
+
+is($rs->first->title, 'Come Be Depressed With Us', 'Correct record returned');
+
+$rs = DBICTest::Artist->search(
+        { 'liner_notes.notes' => 'Kill Yourself!' },
+        { join => { 'cds' => 'liner_notes' } });
+
+cmp_ok( $rs->count, '==', 1, "Single record in resultset");
+
+is($rs->first->name, 'We Are Goth', 'Correct record returned');

@@ -12,11 +12,16 @@ sub new {
   #use Data::Dumper; warn Dumper(@_);
   $it_class = ref $it_class if ref $it_class;
   $attrs = { %{ $attrs || {} } };
-  my $cols = [ $db_class->_select_columns ];
+  if ($attrs->{join}) {
+    $attrs->{from} = [ { 'me' => $db_class->_table_name },
+                         $db_class->_resolve_join($attrs->{join}, 'me') ];
+    $attrs->{cols} = [ map { "me.$_" } $db_class->_select_columns ];
+  }
   my $new = {
     class => $db_class,
-    cols => $cols,
+    cols => $attrs->{cols} || [ $db_class->_select_columns ],
     cond => $attrs->{where},
+    from => $attrs->{from} || $db_class->_table_name,
     count => undef,
     pager => undef,
     attrs => $attrs };
@@ -33,7 +38,7 @@ sub cursor {
     $attrs->{offset} = $self->pager->skipped;
   }
   return $self->{cursor}
-    ||= $db_class->storage->select($db_class->_table_name, $self->{cols},
+    ||= $db_class->storage->select($self->{from}, $self->{cols},
           $attrs->{where},$attrs);
 }
 
@@ -63,7 +68,7 @@ sub count {
     delete $attrs->{$_} for qw/offset order_by/;
         
     my @cols = 'COUNT(*)';
-    $self->{count} = $db_class->storage->select_single($db_class->_table_name, \@cols,
+    $self->{count} = $db_class->storage->select_single($self->{from}, \@cols,
                                               $self->{cond}, $attrs);
   }
   return 0 unless $self->{count};

@@ -211,7 +211,11 @@ sub store_column {
 sub _row_to_object {
   my ($class, $cols, $row) = @_;
   my %vals;
-  $vals{$cols->[$_]} = $row->[$_] for 0 .. $#$cols;
+  foreach my $pos (0..$#$cols) {
+    my $c = $cols->[$pos];
+    $c =~ s/^me\.//;
+    $vals{$c} = $row->[$pos];
+  }
   my $new = $class->new(\%vals);
   $new->in_storage(1);
   return $new;

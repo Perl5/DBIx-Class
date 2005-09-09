@@ -15,6 +15,7 @@ my %arguments = (
         'SQL::Abstract::Limit'      => 0.033,
         'DBD::SQLite'               => 1.08,
 	'Tie::IxHash'               => 0,
+        'Storable'                  => 0,
     },
     create_makefile_pl => 'passthrough',
     create_readme      => 1,
