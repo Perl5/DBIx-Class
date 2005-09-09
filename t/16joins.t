@@ -1,11 +1,12 @@
 use strict;
 use Test::More;
+use IO::File;
 
 BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 21 );
+        : ( tests => 22 );
 }
 
 use lib qw(t/lib);
@@ -103,13 +104,16 @@ DBICTest::Schema::CD->add_relationship(
     { 'foreign.liner_id' => 'self.cdid' },
     { join_type => 'LEFT', accessor => 'single' });
 
-
 $rs = DBICTest::CD->search(
            { 'artist.name' => 'Caterwauler McCrae' },
            { prefetch => [ qw/artist liner_notes/ ],
              order_by => 'me.cdid' });
 
 cmp_ok($rs->count, '==', 3, 'Correct number of records returned');
+
+# start test for prefetch SELECT count
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
 
 my @cd = $rs->all;
 
@@ -120,6 +124,18 @@ ok(!exists $cd[0]->{_relationship_data}{liner_notes}, 'No prefetch for NULL LEFT
 is($cd[1]->{_relationship_data}{liner_notes}->notes, 'Buy Whiskey!', 'Prefetch for present LEFT JOIN');
 
 is($cd[2]->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'Prefetch on parent object ok');
+
+# count the SELECTs
+DBI->trace(0);
+my $selects = 0;
+my $trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT/;
+}
+$trace->close;
+unlink 't/var/dbic.trace';
+is($selects, 1, 'prefetch ran only 1 select statement');
 
 my ($artist) = DBICTest::Artist->search({ 'cds.year' => 2001 },
                  { order_by => 'artistid DESC', join => 'cds' });
