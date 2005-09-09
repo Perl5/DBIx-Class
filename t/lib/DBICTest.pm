@@ -36,6 +36,12 @@ CREATE TABLE fourkeys (foo INTEGER NOT NULL, bar INTEGER NOT NULL,
 CREATE TABLE onekey (id INTEGER NOT NULL PRIMARY KEY,
                       artist INTEGER NOT NULL, cd INTEGER NOT NULL );
 
+CREATE TABLE self_ref (id INTEGER NOT NULL PRIMARY KEY,
+                      name VARCHAR );
+
+CREATE TABLE self_ref_alias (self_ref INTEGER NOT NULL, alias INTEGER NOT NULL,
+                      PRIMARY KEY( self_ref, alias ) );
+
 INSERT INTO artist (artistid, name) VALUES (1, 'Caterwauler McCrae');
 
 INSERT INTO artist (artistid, name) VALUES (2, 'Random Boy Band');
@@ -99,6 +105,12 @@ INSERT INTO onekey (id, artist, cd) VALUES (1, 1, 1);
 INSERT INTO onekey (id, artist, cd) VALUES (2, 1, 2);
 
 INSERT INTO onekey (id, artist, cd) VALUES (3, 2, 2);
+
+INSERT INTO self_ref(id, name) VALUES (1, 'First');
+
+INSERT INTO self_ref(id, name) VALUES (2, 'Second');
+
+INSERT INTO self_ref_alias(self_ref, alias) VALUES (1, 2);
 EOSQL
 
 $dbh->do($_) for split(/\n\n/, $sql);
