@@ -38,10 +38,7 @@ sub add_relationship {
   #warn %{$f_class->_columns};
 
   return unless eval { %{$f_class->_columns}; }; # Foreign class not loaded
-  my %join = (%$attrs, _action => 'join',
-    _aliases => { 'self' => 'me', 'foreign' => $rel },
-    _classes => { 'me' => $class, $rel => $f_class });
-  eval { $class->resolve_condition($cond, \%join) };
+  eval { $class->_resolve_join($rel, 'me') };
 
   if ($@) { # If the resolve failed, back out and re-throw the error
     delete $rels{$rel}; # 
@@ -49,6 +46,29 @@ sub add_relationship {
     $class->throw("Error creating relationship $rel: $@");
   }
   1;
+}
+
+sub _resolve_join {
+  my ($class, $join, $alias) = @_;
+  if (ref $join eq 'ARRAY') {
+    return map { $class->_resolve_join($_, $alias) } @$join;
+  } elsif (ref $join eq 'HASH') {
+    return map { $class->_resolve_join($_, $alias),
+                 $class->_relationships->{$_}{class}->_resolve_join($join->{$_}, $_) }
+           keys %$join;
+  } elsif (ref $join) {
+    $class->throw("No idea how to resolve join reftype ".ref $join);
+  } else {
+    my $rel_obj = $class->_relationships->{$join};
+    $class->throw("No such relationship ${join}") unless $rel_obj;
+    my $j_class = $rel_obj->{class};
+    my %join = (_action => 'join',
+         _aliases => { 'self' => $alias, 'foreign' => $join },
+         _classes => { $alias => $class, $join => $j_class });
+    my $j_cond = $j_class->resolve_condition($rel_obj->{cond}, \%join);
+    return [ { $join => $j_class->_table_name,
+               -join_type => $rel_obj->{attrs}{join_type} || '' }, $j_cond ];
+  }
 }
 
 sub resolve_condition {
@@ -110,10 +130,7 @@ sub _cond_value {
       my $class = $attrs->{_classes}{$alias};
       $self->throw("Unknown column $field on $class as $alias")
         unless exists $class->_columns->{$field};
-      my $ret = join('.', $alias, $field);
-      # return { '=' => \$ret }; # SQL::Abstract doesn't handle this yet :(
-      $ret = " = ${ret}";
-      return \$ret;
+      return join('.', $alias, $field);
     } else {
       $self->throw( "Unable to resolve type ${type}: only have aliases for ".
             join(', ', keys %{$attrs->{_aliases} || {}}) );

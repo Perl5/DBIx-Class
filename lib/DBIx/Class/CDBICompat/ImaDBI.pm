@@ -47,9 +47,8 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
           _aliases => { self => $from, foreign => $to },
           _action => 'join',
         };
-        my $join = $from_class->storage->sql_maker->where(
+        my $join = $from_class->storage->sql_maker->_join_condition(
           $from_class->resolve_condition($rel_obj->{cond}, $attrs) );
-        $join =~ s/^\s*WHERE//i;
         return $join;
       }
         
