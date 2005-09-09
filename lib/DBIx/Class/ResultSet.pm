@@ -12,10 +12,26 @@ sub new {
   #use Data::Dumper; warn Dumper(@_);
   $it_class = ref $it_class if ref $it_class;
   $attrs = { %{ $attrs || {} } };
+  my %seen;
+  $attrs->{cols} ||= [ map { "me.$_" } $db_class->_select_columns ];
+  $attrs->{from} ||= [ { 'me' => $db_class->_table_name } ];
   if ($attrs->{join}) {
-    $attrs->{from} = [ { 'me' => $db_class->_table_name },
-                         $db_class->_resolve_join($attrs->{join}, 'me') ];
-    $attrs->{cols} = [ map { "me.$_" } $db_class->_select_columns ];
+    foreach my $j (ref $attrs->{join} eq 'ARRAY'
+              ? (@{$attrs->{join}}) : ($attrs->{join})) {
+      if (ref $j eq 'HASH') {
+        $seen{$_} = 1 foreach keys %$j;
+      } else {
+        $seen{$j} = 1;
+      }
+    }
+    push(@{$attrs->{from}}, $db_class->_resolve_join($attrs->{join}, 'me'));
+  }
+  foreach my $pre (@{$attrs->{prefetch} || []}) {
+    push(@{$attrs->{from}}, $db_class->_resolve_join($pre, 'me'))
+      unless $seen{$pre};
+    push(@{$attrs->{cols}},
+      map { "$pre.$_" }
+      $db_class->_relationships->{$pre}->{class}->columns);
   }
   my $new = {
     class => $db_class,
@@ -56,7 +72,37 @@ sub next {
   my ($self) = @_;
   my @row = $self->cursor->next;
   return unless (@row);
-  return $self->{class}->_row_to_object($self->{cols}, \@row);
+  return $self->_construct_object(@row);
+}
+
+sub _construct_object {
+  my ($self, @row) = @_;
+  my @cols = $self->{class}->_select_columns;
+  unless ($self->{attrs}{prefetch}) {
+    return $self->{class}->_row_to_object(\@cols, \@row);
+  } else {
+    my @main = splice(@row, 0, scalar @cols);
+    my $new = $self->{class}->_row_to_object(\@cols, \@main);
+    PRE: foreach my $pre (@{$self->{attrs}{prefetch}}) {
+      my $rel_obj = $self->{class}->_relationships->{$pre};
+      my @pre_cols = $rel_obj->{class}->columns;
+      my @vals = splice(@row, 0, scalar @pre_cols);
+      my $fetched = $rel_obj->{class}->_row_to_object(\@pre_cols, \@vals);
+      $self->{class}->throw("No accessor for prefetched $pre")
+        unless defined $rel_obj->{attrs}{accessor};
+      if ($rel_obj->{attrs}{accessor} eq 'single') {
+        foreach my $pri ($rel_obj->{class}->primary_columns) {
+          next PRE unless defined $fetched->get_column($pri);
+        }
+        $new->{_relationship_data}{$pre} = $fetched;
+      } elsif ($rel_obj->{attrs}{accessor} eq 'filter') {
+        $new->{_inflated_column}{$pre} = $fetched;
+      } else {
+        $self->{class}->throw("Don't know to to store prefetched $pre");
+      }
+    }
+    return $new;
+  }
 }
 
 sub count {
@@ -80,7 +126,7 @@ sub count {
 
 sub all {
   my ($self) = @_;
-  return map { $self->{class}->_row_to_object($self->{cols}, $_); }
+  return map { $self->_construct_object(@$_); }
            $self->cursor->all;
 }
 

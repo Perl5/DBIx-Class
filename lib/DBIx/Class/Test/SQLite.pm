@@ -22,11 +22,11 @@ DBIx::Class::Test::SQLite - Base class for running Class::DBI tests against DBIx
 	
 =head1 DESCRIPTION
 
-This provides a simple base class for DBIx::Class tests using SQLite.
-Each class for the test should inherit from this, provide a create_sql()
-method which returns a string representing the SQL used to create the
-table for the class, and then call set_table() to create the table, and
-tie it to the class.
+This provides a simple base class for DBIx::Class::CDBICompat tests using
+SQLite.  Each class for the test should inherit from this, provide a
+create_sql() method which returns a string representing the SQL used to
+create the table for the class, and then call set_table() to create the
+table, and tie it to the class.
 
 =cut
 

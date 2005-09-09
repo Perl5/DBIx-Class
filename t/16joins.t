@@ -5,7 +5,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 12 );
+        : ( tests => 17 );
 }
 
 use lib qw(t/lib);
@@ -56,10 +56,10 @@ is( $sa->_recurse_from(@j3), $match, 'join 3 (inner join) ok');
 
 my $rs = DBICTest::CD->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
-           { from => [ { 'cd' => 'cd' },
+           { from => [ { 'me' => 'cd' },
                          [
                            { artist => 'artist' },
-                           { 'cd.artist' => 'artist.artistid' }
+                           { 'me.artist' => 'artist.artistid' }
                          ] ] }
          );
 
@@ -91,3 +91,32 @@ $rs = DBICTest::Artist->search(
 cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->name, 'We Are Goth', 'Correct record returned');
+
+DBICTest::Schema::CD->add_relationship(
+    artist => 'DBICTest::Schema::Artist',
+    { 'foreign.artistid' => 'self.artist' },
+    { accessor => 'filter' },
+);
+
+DBICTest::Schema::CD->add_relationship(
+    liner_notes => 'DBICTest::Schema::LinerNotes',
+    { 'foreign.liner_id' => 'self.cdid' },
+    { join_type => 'LEFT', accessor => 'single' });
+
+
+$rs = DBICTest::CD->search(
+           { 'artist.name' => 'Caterwauler McCrae' },
+           { prefetch => [ qw/artist liner_notes/ ],
+             order_by => 'me.cdid' });
+
+cmp_ok($rs->count, '==', 3, 'Correct number of records returned');
+
+my @cd = $rs->all;
+
+is($cd[0]->title, 'Spoonful of bees', 'First record returned ok');
+
+ok(!exists $cd[0]->{_relationship_data}{liner_notes}, 'No prefetch for NULL LEFT JOIN');
+
+is($cd[1]->{_relationship_data}{liner_notes}->notes, 'Buy Whiskey!', 'Prefetch for present LEFT JOIN');
+
+is($cd[2]->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'Prefetch on parent object ok');

@@ -7,7 +7,7 @@ DBICTest::Schema::CD->add_columns(qw/cdid artist title year/);
 DBICTest::Schema::CD->set_primary_key('cdid');
 DBICTest::Schema::CD->add_relationship(
     artist => 'DBICTest::Schema::Artist',
-    { 'foreign.artistid' => 'self.artist' }
+    { 'foreign.artistid' => 'self.artist' },
 );
 DBICTest::Schema::CD->add_relationship(
     tracks => 'DBICTest::Schema::Track',
