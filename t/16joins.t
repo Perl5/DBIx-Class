@@ -5,7 +5,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 17 );
+        : ( tests => 21 );
 }
 
 use lib qw(t/lib);
@@ -47,7 +47,7 @@ my @j3 = (
     [ { father => 'person', -join_type => 'inner' }, { 'father.person_id' => 'child.father_id' }, ],
     [ { mother => 'person', -join_type => 'inner'  }, { 'mother.person_id' => 'child.mother_id' } ],
 );
-my $match = 'person child INNER JOIN person father ON ( father.person_id = '
+$match = 'person child INNER JOIN person father ON ( father.person_id = '
           . 'child.father_id ) INNER JOIN person mother ON ( mother.person_id '
           . '= child.mother_id )'
           ;
@@ -120,3 +120,20 @@ ok(!exists $cd[0]->{_relationship_data}{liner_notes}, 'No prefetch for NULL LEFT
 is($cd[1]->{_relationship_data}{liner_notes}->notes, 'Buy Whiskey!', 'Prefetch for present LEFT JOIN');
 
 is($cd[2]->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'Prefetch on parent object ok');
+
+my ($artist) = DBICTest::Artist->search({ 'cds.year' => 2001 },
+                 { order_by => 'artistid DESC', join => 'cds' });
+
+is($artist->name, 'Random Boy Band', "Join search by object ok");
+
+my @cds = DBICTest::CD->search({ 'liner_notes.notes' => 'Buy Merch!' },
+                               { join => 'liner_notes' });
+
+cmp_ok(scalar @cds, '==', 1, "Single CD retrieved via might_have");
+
+is($cds[0]->title, "Generic Manufactured Singles", "Correct CD retrieved");
+
+my @artists = DBICTest::Artist->search({ 'tags.tag' => 'Shiny' },
+                                       { join => { 'cds' => 'tags' } });
+
+cmp_ok( @artists, '==', 2, "two-join search ok" );

@@ -44,6 +44,7 @@ sub has_many {
   $class->add_relationship($rel, $f_class,
                             { "foreign.${f_key}" => "self.${self_key}" },
                             { accessor => 'multi',
+                              join_type => 'LEFT',
                               ($cascade ? ('cascade_delete' => 1) : ()),
                               %$args } );
   return 1;
