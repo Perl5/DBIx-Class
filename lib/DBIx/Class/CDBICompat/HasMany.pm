@@ -6,18 +6,16 @@ use warnings;
 sub has_many {
   my ($class, $rel, $f_class, $f_key, $args) = @_;
 
-  my $self_key;
+  my @f_method;
 
   if (ref $f_class eq 'ARRAY') {
-    ($f_class, $self_key) = @$f_class;
+    ($f_class, @f_method) = @$f_class;
   }
 
-  if (!$self_key || $self_key eq 'id') {
-    my ($pri, $too_many) = keys %{ $class->_primaries };
-    $class->throw( "has_many only works with a single primary key; ${class} has more" )
+  my ($pri, $too_many) = keys %{ $class->_primaries };
+  $class->throw( "has_many only works with a single primary key; ${class} has more" )
       if $too_many;
-    $self_key = $pri;
-  }
+  my $self_key = $pri;
     
   eval "require $f_class";
 
@@ -41,13 +39,26 @@ sub has_many {
     unless $f_class->_columns->{$f_key};
   $args ||= {};
   my $cascade = not (ref $args eq 'HASH' && delete $args->{no_cascade_delete});
-  $class->add_relationship($rel, $f_class,
+
+ $class->add_relationship($rel, $f_class,
                             { "foreign.${f_key}" => "self.${self_key}" },
                             { accessor => 'multi',
                               join_type => 'LEFT',
                               ($cascade ? ('cascade_delete' => 1) : ()),
                               %$args } );
-  return 1;
+  if (@f_method) {
+    no strict 'refs';
+    no warnings 'redefine';
+    my $post_proc = sub { my $o = shift; $o = $o->$_ for @f_method; $o; };
+    *{"${class}::${rel}"} =
+      sub {
+        my $rs = shift->search_related($rel => @_);
+        $rs->{attrs}{record_filter} = $post_proc;
+        return (wantarray ? $rs->all : $rs);
+      };
+    return 1;
+  }
+
 }
 
 1;

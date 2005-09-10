@@ -78,11 +78,12 @@ sub next {
 sub _construct_object {
   my ($self, @row) = @_;
   my @cols = $self->{class}->_select_columns;
+  my $new;
   unless ($self->{attrs}{prefetch}) {
-    return $self->{class}->_row_to_object(\@cols, \@row);
+    $new = $self->{class}->_row_to_object(\@cols, \@row);
   } else {
     my @main = splice(@row, 0, scalar @cols);
-    my $new = $self->{class}->_row_to_object(\@cols, \@main);
+    $new = $self->{class}->_row_to_object(\@cols, \@main);
     PRE: foreach my $pre (@{$self->{attrs}{prefetch}}) {
       my $rel_obj = $self->{class}->_relationships->{$pre};
       my @pre_cols = $rel_obj->{class}->columns;
@@ -101,8 +102,10 @@ sub _construct_object {
         $self->{class}->throw("Don't know to to store prefetched $pre");
       }
     }
-    return $new;
   }
+  $new = $self->{attrs}{record_filter}->($new)
+    if exists $self->{attrs}{record_filter};
+  return $new;
 }
 
 sub count {
