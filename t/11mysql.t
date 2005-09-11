@@ -10,7 +10,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all, 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 1;
+plan tests => 4;
 
 DBICTest::Schema->compose_connection('MySQLTest' => $dsn, $user, $pass);
 
