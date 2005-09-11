@@ -16,6 +16,7 @@ my %arguments = (
         'DBD::SQLite'               => 1.08,
 	'Tie::IxHash'               => 0,
         'Storable'                  => 0,
+        'Module::Find'              => 0,
     },
     create_makefile_pl => 'passthrough',
     create_readme      => 1,
