@@ -1,6 +1,6 @@
 ---
 name: DBIx-Class
-version: 0.02
+version: 0.03
 author:
   - Matt S. Trout <mst@shadowcatsystems.co.uk>
 abstract: Because the brain is a terrible thing to waste.
@@ -8,14 +8,21 @@ license: perl
 requires:
   DBD::SQLite: 1.08
   DBI: 0
+  Data::Page: 0
+  Module::Find: 0
   NEXT: 0
-  SQL::Abstract::Limit: 0.033
+  SQL::Abstract: 1.2
+  SQL::Abstract::Limit: 0.101
+  Scalar::Util: 0
+  Storable: 0
   Tie::IxHash: 0
   UNIVERSAL::require: 0
 provides:
+  DBIC::SQL::Abstract:
+    file: lib/DBIx/Class/Storage/DBI.pm
   DBIx::Class:
     file: lib/DBIx/Class.pm
-    version: 0.02
+    version: 0.03
   DBIx::Class::AccessorGroup:
     file: lib/DBIx/Class/AccessorGroup.pm
   DBIx::Class::CDBICompat:
@@ -54,6 +61,8 @@ provides:
     file: lib/DBIx/Class/CDBICompat/MightHave.pm
   DBIx::Class::CDBICompat::ObjIndexStubs:
     file: lib/DBIx/Class/CDBICompat/ObjIndexStubs.pm
+  DBIx::Class::CDBICompat::Pager:
+    file: lib/DBIx/Class/CDBICompat/Pager.pm
   DBIx::Class::CDBICompat::ReadOnly:
     file: lib/DBIx/Class/CDBICompat/ReadOnly.pm
   DBIx::Class::CDBICompat::Retrieve:
@@ -102,6 +111,8 @@ provides:
     file: lib/DBIx/Class/Relationship/Base.pm
   DBIx::Class::Relationship::CascadeActions:
     file: lib/DBIx/Class/Relationship/CascadeActions.pm
+  DBIx::Class::Relationship::HasOne:
+    file: lib/DBIx/Class/Relationship/HasOne.pm
   DBIx::Class::Relationship::ProxyMethods:
     file: lib/DBIx/Class/Relationship/ProxyMethods.pm
   DBIx::Class::ResultSet:

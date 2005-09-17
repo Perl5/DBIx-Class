@@ -7,7 +7,7 @@ sub has_a {
   my ($self, $col, $f_class, %args) = @_;
   $self->throw( "No such column ${col}" ) unless $self->_columns->{$col};
   eval "require $f_class";
-  if ($args{'inflate'} || $args{'deflate'}) {
+  if ($args{'inflate'} || $args{'deflate'}) { # Non-database has_a
     if (!ref $args{'inflate'}) {
       my $meth = $args{'inflate'};
       $args{'inflate'} = sub { $f_class->$meth(shift); };
@@ -20,11 +20,10 @@ sub has_a {
     return 1;
   }
   my ($pri, $too_many) = keys %{ $f_class->_primaries };
-  $self->throw( "has_a only works with a single primary key; ${f_class} has more" )
+  $self->throw( "has_a only works with a single primary key; ${f_class} has more. try using a has_one relationship instead of Class::DBI compat rels" )
     if $too_many;
-  $self->add_relationship($col, $f_class,
-                            { "foreign.${pri}" => "self.${col}" },
-                            { accessor => 'filter' } );
+
+  $self->has_one($col, $f_class);
   return 1;
 }
 

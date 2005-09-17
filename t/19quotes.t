@@ -6,12 +6,14 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 2 );
+        : ( tests => 3 );
 }
 
 use lib qw(t/lib);
 
 use_ok('DBICTest');
+
+use_ok('DBICTest::HelperRels');
 
 DBICTest::_db->storage->sql_maker->{'quote_char'} = q!'!;
 DBICTest::_db->storage->sql_maker->{'name_sep'} = '.';
