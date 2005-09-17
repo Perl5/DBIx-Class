@@ -12,12 +12,7 @@ package DBIC::SQL::Abstract; # Temporary. Merge upstream.
 
 use base qw/SQL::Abstract::Limit/;
 
-sub select {
-  my ($self, $ident, @rest) = @_;
-  return $self->SUPER::select($self->from($ident), @rest);
-}
-
-sub from {
+sub _table {
   my ($self, $from) = @_;
   if (ref $from eq 'ARRAY') {
     return $self->_recurse_from(@$from);
@@ -56,7 +51,8 @@ sub _recurse_from {
 
 sub _make_as {
   my ($self, $from) = @_;
-  	return join(' ', reverse each %{$self->_skip_options($from)});
+  	return join(' ', map { $self->_quote($_) }
+                           reverse each %{$self->_skip_options($from)});
 }
 
 sub _skip_options {
@@ -71,8 +67,14 @@ sub _join_condition {
   my ($self, $cond) = @_;
   die "no chance" unless ref $cond eq 'HASH';
   my %j;
-  for (keys %$cond) { my $x = '= '.$cond->{$_}; $j{$_} = \$x; };
+  for (keys %$cond) { my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x; };
   return $self->_recurse_where(\%j);
+}
+
+sub _quote {
+  my ($self, $label) = @_;
+  return '' unless defined $label;
+  return $self->SUPER::_quote($label);
 }
 
 } # End of BEGIN block
