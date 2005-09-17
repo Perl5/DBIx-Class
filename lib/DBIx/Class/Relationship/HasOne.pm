@@ -4,10 +4,10 @@ use strict;
 use warnings;
 
 sub has_one {
-  my ($class, $acc_name, $f_class, $conds, $args) = @_;
+  my ($class, $acc_name, $f_class, $cond) = @_;
   eval "require $f_class";
   # single key relationship
-  if (not defined $conds && not defined $args) {
+  if (not defined $cond) {
     my ($pri, $too_many) = keys %{ $f_class->_primaries };
     my $acc_type = ($class->_columns->{$acc_name}) ? 'filter' : 'single';
     $class->add_relationship($acc_name, $f_class,
@@ -18,9 +18,9 @@ sub has_one {
   # multiple key relationship
   else {
     my %f_primaries = %{ $f_class->_primaries };
-    my $conds_rel;
-    for (keys %$conds) {
-      $conds_rel->{"foreign.$_"} = "self.".$conds->{$_};
+    my $cond_rel;
+    for (keys %$cond) {
+      $cond_rel->{"foreign.$_"} = "self.".$cond->{$_};
       # primary key usage checks
       if (exists $f_primaries{$_}) {
         delete $f_primaries{$_};
@@ -32,7 +32,7 @@ sub has_one {
     }
     $class->throw("not all primary keys used in multi key relationship!") if keys %f_primaries;
     $class->add_relationship($acc_name, $f_class,
-      $conds_rel,
+      $cond_rel,
       { accessor => 'single' }
     );
   }
