@@ -14,13 +14,14 @@ DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
   package MyDB;
 
   use base qw/DBIx::Class/;
-  __PACKAGE__->load_components('Core');
+  __PACKAGE__->load_components('DB');
 
   __PACKAGE__->connection('dbi:...', 'user', 'pass', \%attrs);
 
   package MyDB::MyTable;
 
   use base qw/MyDB/;
+  __PACKAGE__->load_components('Core');
 
   ...
 

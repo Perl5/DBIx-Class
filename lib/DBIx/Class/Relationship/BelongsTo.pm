@@ -39,4 +39,12 @@ sub belongs_to {
   return 1;
 }
 
+=head1 AUTHORS
+
+Alexander Hartmaier <Alexander.Hartmaier@t-systems.at>
+
+Matt S. Trout <mst@shadowcatsystems.co.uk>
+
+=cut
+
 1;

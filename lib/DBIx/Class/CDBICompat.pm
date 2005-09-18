@@ -18,6 +18,7 @@ __PACKAGE__->load_own_components(qw/
   ColumnCase
   HasMany
   HasA
+  MightHave
   LazyLoading
   AutoUpdate
   TempColumns

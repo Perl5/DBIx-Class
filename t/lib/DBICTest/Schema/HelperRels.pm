@@ -12,7 +12,8 @@ DBICTest::Schema::CD->belongs_to('artist', 'DBICTest::Schema::Artist');
 DBICTest::Schema::CD->has_many(tracks => 'DBICTest::Schema::Track');
 DBICTest::Schema::CD->has_many(tags => 'DBICTest::Schema::Tag');
 
-DBICTest::Schema::CD->might_have(liner_notes => 'DBICTest::Schema::LinerNotes' => qw/notes/);
+DBICTest::Schema::CD->might_have(liner_notes => 'DBICTest::Schema::LinerNotes',
+                                  undef, { proxy => [ qw/notes/ ] });
 
 DBICTest::Schema::SelfRefAlias->belongs_to(
   self_ref => 'DBICTest::Schema::SelfRef');

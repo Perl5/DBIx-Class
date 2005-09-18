@@ -12,11 +12,8 @@ sub has_one {
 }
 
 sub _has_one {
-  my ($class, $join_type, $rel, $f_class, @columns) = @_;
-  my $cond;
-  if (ref $columns[0]) {
-    $cond = shift @columns;
-  } else {
+  my ($class, $join_type, $rel, $f_class, $cond, $attrs) = @_;
+  unless ($cond) {
     my ($pri, $too_many) = keys %{ $class->_primaries };
     $class->throw( "might_have/has_one can only infer join for a single primary key; ${class} has more" )
       if $too_many;
@@ -28,20 +25,14 @@ sub _has_one {
       $class->throw( "might_have/has_one can only infer join for a single primary key; ${f_class} has more" )
         if $too_many;
     }
-    $cond = { "foreign.${f_key}" => "self.${pri}" },
+    $cond = { "foreign.${f_key}" => "self.${pri}" };
   }
-  shift(@columns) unless defined $columns[0]; # Explicit empty condition
-  my %attrs;
-  if (ref $columns[0] eq 'HASH') {
-    %attrs = %{shift @columns};
-  }
-  shift(@columns) unless defined $columns[0]; # Explicit empty attrs
   $class->add_relationship($rel, $f_class,
    $cond,
-   { accessor => 'single', (@columns ? (proxy => \@columns) : ()),
+   { accessor => 'single',
      cascade_update => 1, cascade_delete => 1,
      ($join_type ? ('join_type' => $join_type) : ()),
-     %attrs });
+     %{$attrs || {}} });
   1;
 }
 

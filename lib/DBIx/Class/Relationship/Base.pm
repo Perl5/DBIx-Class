@@ -23,6 +23,19 @@ on searches.
 
 =over 4
 
+=item add_relationship
+
+  __PACKAGE__->add_relationship('relname', 'Foreign::Class', $cond, $attrs);
+
+The condition needs to be an SQL::Abstract-style representation of the
+join between the tables - for example if you're creating a rel from Foo to Bar
+
+  { 'foreign.foo_id' => 'self.id' }
+
+will result in a JOIN clause like
+
+  foo me JOIN bar bar ON bar.foo_id = me.id
+
 =cut
 
 sub add_relationship {
@@ -140,10 +153,22 @@ sub _cond_value {
   return $self->NEXT::ACTUAL::_cond_value($attrs, $key, $value)
 }
 
+=item search_related
+
+  My::Table->search_related('relname', $cond, $attrs);
+
+=cut
+
 sub search_related {
   my $self = shift;
   return $self->_query_related('search', @_);
 }
+
+=item count_related
+
+  My::Table->count_related('relname', $cond, $attrs);
+
+=cut
 
 sub count_related {
   my $self = shift;
@@ -176,10 +201,22 @@ sub _query_related {
            )->$meth($query, $attrs);
 }
 
+=item create_related
+
+  My::Table->create_related('relname', \%col_data);
+
+=cut
+
 sub create_related {
   my $class = shift;
   return $class->new_related(@_)->insert;
 }
+
+=item new_related
+
+  My::Table->new_related('relname', \%col_data);
+
+=cut
 
 sub new_related {
   my ($self, $rel, $values, $attrs) = @_;
@@ -199,6 +236,12 @@ sub new_related {
   return $self->resolve_class($rel_obj->{class})->new(\%fields);
 }
 
+=item find_related
+
+  My::Table->find_related('relname', @pri_vals | \%pri_vals);
+
+=cut
+
 sub find_related {
   my $self = shift;
   my $rel = shift;
@@ -215,10 +258,22 @@ sub find_related {
   return $self->resolve_class($rel_obj->{class})->find($query);
 }
 
+=item find_or_create_related
+
+  My::Table->find_or_create_related('relname', \%col_data);
+
+=cut
+
 sub find_or_create_related {
   my $self = shift;
   return $self->find_related(@_) || $self->create_related(@_);
 }
+
+=item set_from_related
+
+  My::Table->set_from_related('relname', $rel_obj);
+
+=cut
 
 sub set_from_related {
   my ($self, $rel, $f_obj) = @_;
@@ -243,11 +298,23 @@ sub set_from_related {
   return 1;
 }
 
+=item update_from_related
+
+  My::Table->update_from_related('relname', $rel_obj);
+
+=cut
+
 sub update_from_related {
   my $self = shift;
   $self->set_from_related(@_);
   $self->update;
 }
+
+=item delete_related
+
+  My::Table->delete_related('relname', $cond, $attrs);
+
+=cut
 
 sub delete_related {
   my $self = shift;

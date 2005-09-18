@@ -12,7 +12,7 @@ sub delete {
   my %rels = %{ $self->_relationships };
   my @cascade = grep { $rels{$_}{attrs}{cascade_delete} } keys %rels;
   foreach my $rel (@cascade) {
-    $_->delete for $self->search_related($rel);
+    $self->search_related($rel)->delete;
   }
   return $ret;
 }
