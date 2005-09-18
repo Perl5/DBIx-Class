@@ -20,10 +20,10 @@ sub has_a {
     return 1;
   }
   my ($pri, $too_many) = keys %{ $f_class->_primaries };
-  $self->throw( "has_a only works with a single primary key; ${f_class} has more. try using a has_one relationship instead of Class::DBI compat rels" )
+  $self->throw( "has_a only works with a single primary key; ${f_class} has more. try using a belongs_to relationship instead of Class::DBI compat rels" )
     if $too_many;
 
-  $self->has_one($col, $f_class);
+  $self->belongs_to($col, $f_class);
   return 1;
 }
 

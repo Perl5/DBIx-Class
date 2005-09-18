@@ -3,40 +3,46 @@ package DBIx::Class::Relationship::HasOne;
 use strict;
 use warnings;
 
+sub might_have {
+  shift->_has_one('LEFT' => @_);
+}
+
 sub has_one {
-  my ($class, $acc_name, $f_class, $cond) = @_;
-  eval "require $f_class";
-  # single key relationship
-  if (not defined $cond) {
-    my ($pri, $too_many) = keys %{ $f_class->_primaries };
-    my $acc_type = ($class->_columns->{$acc_name}) ? 'filter' : 'single';
-    $class->add_relationship($acc_name, $f_class,
-      { "foreign.${pri}" => "self.${acc_name}" },
-      { accessor => $acc_type }
-    );
-  }
-  # multiple key relationship
-  else {
-    my %f_primaries = %{ $f_class->_primaries };
-    my $cond_rel;
-    for (keys %$cond) {
-      $cond_rel->{"foreign.$_"} = "self.".$cond->{$_};
-      # primary key usage checks
-      if (exists $f_primaries{$_}) {
-        delete $f_primaries{$_};
-      }
-      else
-      {
-        $class->throw("non primary key used in join condition: $_");
-      }
+  shift->_has_one(undef => @_);
+}
+
+sub _has_one {
+  my ($class, $join_type, $rel, $f_class, @columns) = @_;
+  my $cond;
+  if (ref $columns[0]) {
+    $cond = shift @columns;
+  } else {
+    my ($pri, $too_many) = keys %{ $class->_primaries };
+    $class->throw( "might_have/has_one can only infer join for a single primary key; ${class} has more" )
+      if $too_many;
+    my $f_key;
+    if ($f_class->_columns->{$rel}) {
+      $f_key = $rel;
+    } else {
+      ($f_key, $too_many) = keys %{ $f_class->_primaries };
+      $class->throw( "might_have/has_one can only infer join for a single primary key; ${f_class} has more" )
+        if $too_many;
     }
-    $class->throw("not all primary keys used in multi key relationship!") if keys %f_primaries;
-    $class->add_relationship($acc_name, $f_class,
-      $cond_rel,
-      { accessor => 'single' }
-    );
+    $cond = { "foreign.${f_key}" => "self.${pri}" },
   }
-  return 1;
+  shift(@columns) unless defined $columns[0]; # Explicit empty condition
+  my %attrs;
+  if (ref $columns[0] eq 'HASH') {
+    %attrs = %{shift @columns};
+  }
+  shift(@columns) unless defined $columns[0]; # Explicit empty attrs
+  $class->add_relationship($rel, $f_class,
+   $cond,
+   { accessor => 'single', (@columns ? (proxy => \@columns) : ()),
+     cascade_update => 1, cascade_delete => 1,
+     ($join_type ? ('join_type' => $join_type) : ()),
+     %attrs });
+  1;
 }
 
 1;

@@ -49,7 +49,7 @@ sub throw {
 
     my $message = $params{message} || $params{error} || $! || '';
 
-    local $Carp::CarpLevel = 1;
+    local $Carp::CarpLevel = (caller(1) eq 'NEXT' ? 2 : 1);
 
     Carp::croak($message);
 }

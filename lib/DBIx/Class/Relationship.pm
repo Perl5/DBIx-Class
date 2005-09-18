@@ -5,7 +5,15 @@ use warnings;
 
 use base qw/DBIx::Class Class::Data::Inheritable/;
 
-__PACKAGE__->load_own_components(qw/Accessor CascadeActions ProxyMethods Base HasOne/);
+__PACKAGE__->load_own_components(qw/
+  HasMany
+  HasOne
+  BelongsTo
+  Accessor
+  CascadeActions
+  ProxyMethods
+  Base
+/);
 
 __PACKAGE__->mk_classdata('_relationships', { } );
 

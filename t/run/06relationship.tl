@@ -4,22 +4,35 @@ plan tests => 13;
 
 # has_a test
 my $cd = DBICTest::CD->find(4);
-my ($artist) = $cd->search_related('artist');
+my ($artist) = ($INC{'DBICTest/HelperRels'}
+                  ? $cd->artist
+                  : $cd->search_related('artist'));
 is($artist->name, 'Random Boy Band', 'has_a search_related ok');
 
 # has_many test with an order_by clause defined
 $artist = DBICTest::Artist->find(1);
-is( ($artist->search_related('cds'))[1]->title, 'Spoonful of bees', 'has_many search_related with order_by ok' );
+my @cds = ($INC{'DBICTest/HelperRels'}
+             ? $artist->cds
+             : $artist->search_related('cds'));
+is( $cds[1]->title, 'Spoonful of bees', 'has_many search_related with order_by ok' );
 
 # search_related with additional abstract query
-my @cds = $artist->search_related('cds', { title => { like => '%of%' } } );
+@cds = ($INC{'DBICTest/HelperRels'}
+          ? $artist->cds({ title => { like => '%of%' } })
+          : $artist->search_related('cds', { title => { like => '%of%' } } )
+       );
 is( $cds[1]->title, 'Forkful of bees', 'search_related with abstract query ok' );
 
 # creating a related object
-$artist->create_related( 'cds', {
-    title => 'Big Flop',
-    year => 2005,
-} );
+if ($INC{'DBICTest/HelperRels.pm'}) {
+  $artist->add_to_cds({ title => 'Big Flop', year => 2005 });
+} else {
+  $artist->create_related( 'cds', {
+      title => 'Big Flop',
+      year => 2005,
+  } );
+}
+
 is( ($artist->search_related('cds'))[3]->title, 'Big Flop', 'create_related ok' );
 
 # count_related

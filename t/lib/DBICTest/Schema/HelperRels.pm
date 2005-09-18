@@ -2,79 +2,33 @@ package DBICTest::Schema::BasicRels;
 
 use base 'DBIx::Class::Core';
 
-DBICTest::Schema::Artist->add_relationship(
-    cds => 'DBICTest::Schema::CD',
-    { 'foreign.artist' => 'self.artistid' },
-    { order_by => 'year' }
-);
-DBICTest::Schema::Artist->add_relationship(
-    twokeys => 'DBICTest::Schema::TwoKeys',
-    { 'foreign.artist' => 'self.artistid' }
-);
-DBICTest::Schema::Artist->add_relationship(
-    onekeys => 'DBICTest::Schema::OneKey',
-    { 'foreign.artist' => 'self.artistid' }
-);
+DBICTest::Schema::Artist->has_many(cds => 'DBICTest::Schema::CD', undef,
+                                     { order_by => 'year' });
+DBICTest::Schema::Artist->has_many(twokeys => 'DBICTest::Schema::TwoKeys');
+DBICTest::Schema::Artist->has_many(onekeys => 'DBICTest::Schema::OneKey');
 
-DBICTest::Schema::CD->has_one('artist', 'DBICTest::Schema::Artist');
-#DBICTest::Schema::CD->add_relationship(
-#    artist => 'DBICTest::Schema::Artist',
-#    { 'foreign.artistid' => 'self.artist' },
-#);
-DBICTest::Schema::CD->add_relationship(
-    tracks => 'DBICTest::Schema::Track',
-    { 'foreign.cd' => 'self.cdid' }
-);
-DBICTest::Schema::CD->add_relationship(
-    tags => 'DBICTest::Schema::Tag',
-    { 'foreign.cd' => 'self.cdid' }
-);
-#DBICTest::Schema::CD->might_have(liner_notes => 'DBICTest::Schema::LinerNotes' => qw/notes/);
-DBICTest::Schema::CD->add_relationship(
-    liner_notes => 'DBICTest::Schema::LinerNotes',
-    { 'foreign.liner_id' => 'self.cdid' },
-    { join_type => 'LEFT' }
-);
+DBICTest::Schema::CD->belongs_to('artist', 'DBICTest::Schema::Artist');
 
-DBICTest::Schema::SelfRefAlias->add_relationship(
-    self_ref => 'DBICTest::Schema::SelfRef',
-    { 'foreign.id' => 'self.self_ref' },
-    { accessor     => 'single' }
+DBICTest::Schema::CD->has_many(tracks => 'DBICTest::Schema::Track');
+DBICTest::Schema::CD->has_many(tags => 'DBICTest::Schema::Tag');
 
-);
-DBICTest::Schema::SelfRefAlias->add_relationship(
-    alias => 'DBICTest::Schema::SelfRef',
-    { 'foreign.id' => 'self.alias' },
-    { accessor     => 'single' }
-);
+DBICTest::Schema::CD->might_have(liner_notes => 'DBICTest::Schema::LinerNotes' => qw/notes/);
 
-DBICTest::Schema::SelfRef->add_relationship(
-    aliases => 'DBICTest::Schema::SelfRefAlias',
-    { 'foreign.self_ref' => 'self.id' },
-    { accessor => 'multi' }
-);
+DBICTest::Schema::SelfRefAlias->belongs_to(
+  self_ref => 'DBICTest::Schema::SelfRef');
 
-DBICTest::Schema::Tag->has_one('cd', 'DBICTest::Schema::CD');
-#DBICTest::Schema::Tag->add_relationship(
-#    cd => 'DBICTest::Schema::CD',
-#    { 'foreign.cdid' => 'self.cd' }
-#);
+DBICTest::Schema::SelfRefAlias->belongs_to(
+  alias => 'DBICTest::Schema::SelfRef');
 
-DBICTest::Schema::Track->has_one('cd', 'DBICTest::Schema::CD');
-#DBICTest::Schema::Track->add_relationship(
-#    cd => 'DBICTest::Schema::CD',
-#    { 'foreign.cdid' => 'self.cd' }
-#);
+DBICTest::Schema::SelfRef->has_many(
+  aliases => 'DBICTest::Schema::SelfRefAlias' => 'self_ref');
 
-DBICTest::Schema::TwoKeys->has_one('artist', 'DBICTest::Schema::Artist');
-# DBICTest::Schema::TwoKeys->add_relationship(
-#    artist => 'DBICTest::Schema::Artist',
-#    { 'foreign.artistid' => 'self.artist' }
-# );
-DBICTest::Schema::TwoKeys->has_one('cd', 'DBICTest::Schema::CD');
-#DBICTest::Schema::TwoKeys->add_relationship(
-#    cd => 'DBICTest::Schema::CD',
-#    { 'foreign.cdid' => 'self.cd' }
-#);
+DBICTest::Schema::Tag->belongs_to('cd', 'DBICTest::Schema::CD');
+
+DBICTest::Schema::Track->belongs_to('cd', 'DBICTest::Schema::CD');
+
+DBICTest::Schema::TwoKeys->belongs_to('artist', 'DBICTest::Schema::Artist');
+
+DBICTest::Schema::TwoKeys->belongs_to('cd', 'DBICTest::Schema::CD');
 
 1;

@@ -16,7 +16,6 @@ __PACKAGE__->load_own_components(qw/
   Constructor
   AccessorMapping
   ColumnCase
-  MightHave
   HasMany
   HasA
   LazyLoading
