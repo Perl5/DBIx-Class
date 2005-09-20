@@ -99,7 +99,7 @@ sub _construct_object {
       } elsif ($rel_obj->{attrs}{accessor} eq 'filter') {
         $new->{_inflated_column}{$pre} = $fetched;
       } else {
-        $self->{class}->throw("Don't know to to store prefetched $pre");
+        $self->{class}->throw("Don't know how to store prefetched $pre");
       }
     }
   }

@@ -4,7 +4,7 @@ $| = 1;
 
 BEGIN {
 	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 95);
+	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 96);
 }
 
 INIT {
@@ -79,6 +79,9 @@ $gone->update;
 	my @films = eval { Film->retrieve_all };
 	cmp_ok(@films, '==', 2, "We have 2 films in total");
 }
+
+# EXTRA TEST: added by mst to check a bug found by Numa
+cmp_ok(Film->count_all, '==', 2, "count_all confirms 2 films");
 
 my $gone_copy = Film->retrieve('Gone With The Wind');
 ok($gone->NumExplodingSheep == 5, 'update()');
