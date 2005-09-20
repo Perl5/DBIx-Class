@@ -42,7 +42,9 @@ lib/DBIx/Class/PK/Auto/SQLite.pm
 lib/DBIx/Class/Relationship.pm
 lib/DBIx/Class/Relationship/Accessor.pm
 lib/DBIx/Class/Relationship/Base.pm
+lib/DBIx/Class/Relationship/BelongsTo.pm
 lib/DBIx/Class/Relationship/CascadeActions.pm
+lib/DBIx/Class/Relationship/HasMany.pm
 lib/DBIx/Class/Relationship/HasOne.pm
 lib/DBIx/Class/Relationship/ProxyMethods.pm
 lib/DBIx/Class/ResultSet.pm
@@ -59,6 +61,7 @@ README
 script/nextalyzer.pl
 t/02pod.t
 t/03podcoverage.t
+t/19quotes.t
 t/basicrels/01core.t
 t/basicrels/04db.t
 t/basicrels/05multipk.t

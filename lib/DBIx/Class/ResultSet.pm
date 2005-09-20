@@ -31,7 +31,7 @@ sub new {
       unless $seen{$pre};
     push(@{$attrs->{cols}},
       map { "$pre.$_" }
-      $db_class->_relationships->{$pre}->{class}->columns);
+      $db_class->_relationships->{$pre}->{class}->_select_columns);
   }
   my $new = {
     class => $db_class,

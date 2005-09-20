@@ -109,8 +109,12 @@ provides:
     file: lib/DBIx/Class/Relationship/Accessor.pm
   DBIx::Class::Relationship::Base:
     file: lib/DBIx/Class/Relationship/Base.pm
+  DBIx::Class::Relationship::BelongsTo:
+    file: lib/DBIx/Class/Relationship/BelongsTo.pm
   DBIx::Class::Relationship::CascadeActions:
     file: lib/DBIx/Class/Relationship/CascadeActions.pm
+  DBIx::Class::Relationship::HasMany:
+    file: lib/DBIx/Class/Relationship/HasMany.pm
   DBIx::Class::Relationship::HasOne:
     file: lib/DBIx/Class/Relationship/HasOne.pm
   DBIx::Class::Relationship::ProxyMethods:
