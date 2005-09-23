@@ -6,7 +6,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 21 );
+        : ( tests => 22 );
 }
 
 # test the abstract join => SQL generator
@@ -118,6 +118,8 @@ is($cd[0]->title, 'Spoonful of bees', 'First record returned ok');
 ok(!exists $cd[0]->{_relationship_data}{liner_notes}, 'No prefetch for NULL LEFT JOIN');
 
 is($cd[1]->{_relationship_data}{liner_notes}->notes, 'Buy Whiskey!', 'Prefetch for present LEFT JOIN');
+
+is(ref $cd[1]->liner_notes, 'DBICTest::LinerNotes', 'Prefetch returns correct class');
 
 is($cd[2]->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'Prefetch on parent object ok');
 

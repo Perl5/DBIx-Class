@@ -86,9 +86,10 @@ sub _construct_object {
     $new = $self->{class}->_row_to_object(\@cols, \@main);
     PRE: foreach my $pre (@{$self->{attrs}{prefetch}}) {
       my $rel_obj = $self->{class}->_relationships->{$pre};
-      my @pre_cols = $rel_obj->{class}->columns;
+      my $pre_class = $self->{class}->resolve_class($rel_obj->{class});
+      my @pre_cols = $pre_class->_select_columns;
       my @vals = splice(@row, 0, scalar @pre_cols);
-      my $fetched = $rel_obj->{class}->_row_to_object(\@pre_cols, \@vals);
+      my $fetched = $pre_class->_row_to_object(\@pre_cols, \@vals);
       $self->{class}->throw("No accessor for prefetched $pre")
         unless defined $rel_obj->{attrs}{accessor};
       if ($rel_obj->{attrs}{accessor} eq 'single') {
