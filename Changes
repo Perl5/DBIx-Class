@@ -1,6 +1,10 @@
 Revision history for DBIx::Class
 
-0.03
+0.03001
+        - Fixes to relationship helpers
+        - IMPORTANT: prefetch/schema combination bug fix
+
+0.03   2005-09-20
         - Paging support
         - Join support on search
         - Prefetch support on search
