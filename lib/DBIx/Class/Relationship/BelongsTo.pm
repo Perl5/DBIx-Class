@@ -17,20 +17,23 @@ sub belongs_to {
   }
   # multiple key relationship
   else {
-    my %f_primaries = %{ $f_class->_primaries };
+    my %f_primaries = eval { %{ $f_class->_primaries } };
+    my $f_loaded = !$@;
     my $cond_rel;
     for (keys %$cond) {
+      if (m/\./) { # Explicit join condition
+        $cond_rel = $cond;
+        last;
+      }
       $cond_rel->{"foreign.$_"} = "self.".$cond->{$_};
       # primary key usage checks
       if (exists $f_primaries{$_}) {
         delete $f_primaries{$_};
-      }
-      else
-      {
+      } elsif ($f_loaded) {
         $class->throw("non primary key used in join condition: $_");
       }
     }
-    $class->throw("not all primary keys used in multi key relationship!") if keys %f_primaries;
+    $class->throw("not all primary keys used in multi key relationship!") if $f_loaded && keys %f_primaries;
     $class->add_relationship($rel, $f_class,
       $cond_rel,
       { accessor => 'single', %{$attrs ||{}} }

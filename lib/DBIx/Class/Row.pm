@@ -104,7 +104,10 @@ UPDATE query to commit any changes to the object to the db if required.
 sub update {
   my ($self, $upd) = @_;
   $self->throw( "Not in database" ) unless $self->in_storage;
-  my %to_update = %{$upd || {}};
+  if (ref $upd eq 'HASH') {
+    $self->$_($upd->{$_}) for keys %$upd;
+  }
+  my %to_update;
   $to_update{$_} = $self->get_column($_) for $self->is_changed;
   return -1 unless keys %to_update;
   my $rows = $self->storage->update($self->_table_name, \%to_update,

@@ -13,12 +13,14 @@ sub has_one {
 
 sub _has_one {
   my ($class, $join_type, $rel, $f_class, $cond, $attrs) = @_;
-  unless ($cond) {
+  unless (ref $cond) {
     my ($pri, $too_many) = keys %{ $class->_primaries };
     $class->throw( "might_have/has_one can only infer join for a single primary key; ${class} has more" )
       if $too_many;
     my $f_key;
-    if ($f_class->_columns->{$rel}) {
+    if ($cond) {
+      $f_key = $cond;
+    } elsif ($f_class->_columns->{$rel}) {
       $f_key = $rel;
     } else {
       ($f_key, $too_many) = keys %{ $f_class->_primaries };
