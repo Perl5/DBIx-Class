@@ -19,9 +19,6 @@ sub has_a {
     $self->inflate_column($col, \%args);
     return 1;
   }
-  my ($pri, $too_many) = keys %{ $f_class->_primaries };
-  $self->throw( "has_a only works with a single primary key; ${f_class} has more. try using a belongs_to relationship instead of Class::DBI compat rels" )
-    if $too_many;
 
   $self->belongs_to($col, $f_class);
   return 1;
