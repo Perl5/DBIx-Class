@@ -1,9 +1,9 @@
 ---
 name: DBIx-Class
-version: 0.03
+version: 0.03001
 author:
   - Matt S. Trout <mst@shadowcatsystems.co.uk>
-abstract: Because the brain is a terrible thing to waste.
+abstract: Extensible and flexible object <-> relational mapper.
 license: perl
 requires:
   DBD::SQLite: 1.08
@@ -22,7 +22,7 @@ provides:
     file: lib/DBIx/Class/Storage/DBI.pm
   DBIx::Class:
     file: lib/DBIx/Class.pm
-    version: 0.03
+    version: 0.03001
   DBIx::Class::AccessorGroup:
     file: lib/DBIx/Class/AccessorGroup.pm
   DBIx::Class::CDBICompat:
