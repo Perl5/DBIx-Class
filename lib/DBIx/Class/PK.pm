@@ -25,7 +25,6 @@ and depending on them.
 
 =cut
 
-
 sub _ident_cond {
   my ($class) = @_;
   return join(" AND ", map { "$_ = ?" } keys %{$class->_primaries});
@@ -39,8 +38,7 @@ sub _ident_values {
 sub set_primary_key {
   my ($class, @cols) = @_;
   my %pri;
-  tie %pri, 'Tie::IxHash';
-  %pri = map { $_ => {} } @cols;
+  tie %pri, 'Tie::IxHash', map { $_ => {} } @cols;
   $class->_primaries(\%pri);
 }
 
@@ -96,6 +94,19 @@ sub id {
 
 sub primary_columns {
   return keys %{shift->_primaries};
+}
+
+sub ID {
+  my ($self) = @_;
+  $self->throw( "Can't call ID() as a class method" ) unless ref $self;
+  return undef unless $self->in_storage;
+  return $self->_create_ID(map { $_ => $self->{_column_data}{$_} } keys %{$self->_primaries});
+}
+
+sub _create_ID {
+  my ($class,%vals) = @_;
+  $class = ref $class || $class;
+  return join '|', $class, map { $_ . '=' . $vals{$_} } sort keys %vals;    
 }
 
 1;
