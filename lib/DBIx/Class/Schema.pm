@@ -100,7 +100,7 @@ sub compose_connection {
         return $map{$to_map};
       };
   }
-  $conn_class->class_resolver($target);
+  $conn_class->class_resolver->class($target);
 }
 
 sub setup_connection_class {
