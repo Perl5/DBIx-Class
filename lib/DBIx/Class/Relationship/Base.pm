@@ -112,6 +112,7 @@ sub _cond_key {
     }
     return $key;
   } elsif ($action eq 'join') {
+    return $key unless $key =~ /\./;
     my ($type, $field) = split(/\./, $key);
     if (my $alias = $attrs->{_aliases}{$type}) {
       my $class = $attrs->{_classes}{$alias};
@@ -138,6 +139,7 @@ sub _cond_value {
     }
     return $self->get_column($value);
   } elsif ($action eq 'join') {
+    return $key unless $key =~ /\./;
     my ($type, $field) = split(/\./, $value);
     if (my $alias = $attrs->{_aliases}{$type}) {
       my $class = $attrs->{_classes}{$alias};

@@ -33,7 +33,7 @@ sub new {
   if ($attrs) {
     $new->throw("attrs must be a hashref" ) unless ref($attrs) eq 'HASH';
     while (my ($k, $v) = each %{$attrs}) {
-      $new->store_column($k => $v);
+      $new->store_column($k => $v) if exists $class->_columns->{$k};
     }
   }
   return $new;

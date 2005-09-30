@@ -73,8 +73,7 @@ sub load_classes {
   }
   foreach my $comp (@comp) {
     my $comp_class = "${class}::${comp}";
-    eval "use $comp_class";
-    die $@ if $@;
+    eval "use $comp_class"; # If it fails, assume the user fixed it
     $class->register_class($comp => $comp_class);
   }
 }
@@ -99,6 +98,7 @@ sub compose_connection {
         my ($class, $to_map) = @_;
         return $map{$to_map};
       };
+    *{"${target}::classes"} = sub { return \%map; };
   }
   $conn_class->class_resolver($target);
 }

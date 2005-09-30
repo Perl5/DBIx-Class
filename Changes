@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+0.03002
+        - Minor bugfix to new (Row.pm)
+        - Schema doesn't die if it can't load a class (Schema.pm)
+
 0.03001 2005-09-23 14:00:00
         - Fixes to relationship helpers
         - IMPORTANT: prefetch/schema combination bug fix
