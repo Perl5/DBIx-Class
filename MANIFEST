@@ -54,6 +54,7 @@ lib/DBIx/Class/Storage/DBI.pm
 lib/DBIx/Class/Storage/DBI/Cursor.pm
 lib/DBIx/Class/Table.pm
 lib/DBIx/Class/Test/SQLite.pm
+lib/DBIx/Class/UUIDColumns.pm
 Makefile.PL
 MANIFEST			This list of files
 META.yml
@@ -116,6 +117,7 @@ t/helperrels/15limit.t
 t/helperrels/16joins.t
 t/helperrels/17join_count.t
 t/helperrels/18self_referencial.t
+t/helperrels/19uuid.t
 t/lib/DBICTest.pm
 t/lib/DBICTest/BasicRels.pm
 t/lib/DBICTest/HelperRels.pm
@@ -149,6 +151,7 @@ t/run/15limit.tl
 t/run/16joins.tl
 t/run/17join_count.tl
 t/run/18self_referencial.tl
+t/run/19uuid.tl
 t/testlib/Actor.pm
 t/testlib/ActorAlias.pm
 t/testlib/Binary.pm
