@@ -18,6 +18,9 @@ my %arguments = (
         'Storable'                  => 0,
         'Module::Find'              => 0,
     },
+    reommends          => {
+        'Data::UUID'                => 0,
+    },
     create_makefile_pl => 'passthrough',
     create_readme      => 1,
     test_files         => [ glob('t/*.t'), glob('t/*/*.t') ]
