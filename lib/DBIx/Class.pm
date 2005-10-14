@@ -41,32 +41,43 @@ The community can be found via -
 
 =head1 QUICKSTART
 
-If you're using Class::DBI, replacing
+If you're using Class::DBI, and want an easy and fast way of migrating to
+DBIx::Class look at L<DBIx::Class::CDBICompat>.
 
-  use base qw/Class::DBI/;
+There are two ways of using DBIx::Class, the 'simple' and the 'schema' one.
 
-with
+The 'simple' way of using DBIx::Class needs less classes than the 'schema'
+way but doesn't give you the ability to use different database connections.
 
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/CDBICompat Core DB/);
+Some examples where different database connections are useful are:
 
-will probably get you started.
+different users with different rights
+different databases with the same schema.
 
-If you're using AUTO_INCREMENT for your primary columns, you'll also want
-yo load the approriate PK::Auto subclass - e.g.
+=head1 Simple
 
-  __PACKAGE__->load_components(qw/CDBICompat PK::Auto::SQLite Core DB/);
+First you need to create a base class all other classes inherit from.
 
-(with is what ::Test::SQLite does to present the Class::DBI::Test::SQLite
-interface)
+Look at L<DBIx::Class::DB> how to do this
 
-If you fancy playing around with DBIx::Class from scratch, then read the docs
-for DBIx::Class::Table, ::Row, ::Schema, ::DB and ::Relationship,
+Next you need to create a class for every table you want to use with
+DBIx::Class.
 
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core DB/);
+Look at L<DBIx::Class::Table> how to do this.
 
-and have a look at t/lib/DBICTest.pm for a brief example.
+
+=head2 Schema
+
+With this approach the table classes inherit directly from DBIx::Class::Core,
+although it might be a good idea to create a 'parent' class for all table
+classes which inherits from DBIx::Class::Core and adds additional methods
+needed by all table classes, e.g. reading a config file, loading auto primary
+key support.
+
+Look at L<DBIx::Class::Schema> how to do this.
+
+If you need more hand-holding, check out the introduction in the 
+manual below.
 
 =head1 SEE ALSO
 
@@ -74,7 +85,7 @@ and have a look at t/lib/DBICTest.pm for a brief example.
 
 =item L<DBIx::Class::Core> - DBIC Core Classes
 
-=item L<DBIx::Class::CDBICompat - L<Class::DBI> Compat layer.
+=item L<DBIx::Class::CDBICompat> - L<Class::DBI> Compat layer.
 
 =item L<DBIx::Class::Manual> - User's manual.
 

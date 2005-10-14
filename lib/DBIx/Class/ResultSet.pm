@@ -300,11 +300,6 @@ For paged resultsset, how  many rows per page
 
 For paged resultsset, which page to start on.
 
-=item accesor
-
-Tells the  recordset how to prefetch relations. Can either be 'single' or
-'filter'.
-
 =back
 
 1;
