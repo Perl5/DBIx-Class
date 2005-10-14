@@ -170,4 +170,38 @@ sub page {
   return $self->new($self->{class}, $attrs);
 }
 
+=head1 NAME
+
+DBIX::Class::Recordset - Responsible for fetching and creating recordsets.
+
+=head1 SYNOPSIS;
+
+$rs=MyApp::DB::Class->search(registered=>1);
+
+
+=head1 Attributes
+
+The recordset is responsible for handling the various attributes that
+can be passed in with the search functions. Here's an overview of them:
+
+=over 4
+
+=item order_by
+
+Which column to order the results by. 
+=item page
+
+Should the resultset be paged? This can also be enabled by using the 
+'page' option.
+
+=item rows
+
+For paged resultsset, how  many rows per page
+
+=item  offset
+
+For paged resultsset, which page to start on.
+
+=back
+
 1;

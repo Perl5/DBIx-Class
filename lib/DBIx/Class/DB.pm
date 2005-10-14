@@ -33,6 +33,17 @@ This class provides a simple way of specifying a database connection.
 
 =over 4
 
+
+=item storage
+
+Which storage backend to be used. Defaults to L<DBIx::Class::Storage::DBI>
+
+=item class_resolver
+
+Which class to use for resolving a class. Defaults to 
+L<DBIx::Class::ClassResolver::Passthrough>, which returns whatever you throw
+at it. See resolve_class below.
+
 =cut
 
 __PACKAGE__->mk_classdata('storage');

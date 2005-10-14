@@ -68,6 +68,18 @@ for DBIx::Class::Table, ::Row, ::Schema, ::DB and ::Relationship,
 
 and have a look at t/lib/DBICTest.pm for a brief example.
 
+=head1 SEE ALSO
+
+=over 4
+
+=item L<DBIx::Class::Core> - DBIC Core Classes
+
+=item L<DBIx::Class::CDBICompat - L<Class::DBI> Compat layer.
+
+=item L<DBIx::Class::Manual> - User's manual.
+
+=back
+
 =head1 AUTHOR
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>

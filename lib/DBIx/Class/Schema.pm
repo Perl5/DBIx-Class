@@ -48,6 +48,12 @@ DBIx::Class::Schema - composable schemas
 
 =over 4
 
+=item register_class <component> <component_class>
+
+Registers the class in the schema's class_registrations. This is a hash
+containing components, and their representative classes. It's used by
+compose_connection to create/modify all the existing database classes.
+
 =cut
 
 sub register_class {
@@ -57,9 +63,25 @@ sub register_class {
   $class->class_registrations(\%reg);
 }
 
+=item registered_classes
+
+Simple read-only accessor for the schema's registered classes. See 
+register_class above if you want to modify it.
+
+
+=cut
+
 sub registered_classes {
   return values %{shift->class_registrations};
 }
+
+=item  load_classes [<classes>}
+
+Uses L<Module::Find> to find all components, unless specified explicitly.
+Then it loads the component (using L<use>), and registers them (using 
+B<register_class>
+
+=cut
 
 sub load_classes {
   my $class = shift;
@@ -77,6 +99,10 @@ sub load_classes {
     $class->register_class($comp => $comp_class);
   }
 }
+
+=item compose_connection
+
+=cut
 
 sub compose_connection {
   my ($class, $target, @info) = @_;
@@ -102,6 +128,10 @@ sub compose_connection {
   }
   $conn_class->class_resolver($target);
 }
+
+=item setup_connection_class <$target> <@info>
+
+=cut
 
 sub setup_connection_class {
   my ($class, $target, @info) = @_;

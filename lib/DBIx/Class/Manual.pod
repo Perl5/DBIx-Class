@@ -1,0 +1,34 @@
+=head1 USER MANUAL
+
+This is the L<DBIx::Class> users manual. DBIx::Class is a SQL->OOP mapper. 
+This means that it can represent your SQL tables as perl classes, and give
+you convenient accessors and methods for retrieving and updating information
+from your SQL database.
+
+=head1 SECTIONS
+
+=over 4
+
+=item L<DBIx::Class::Manual::Intro>
+
+A beginner's introduction to using the native DBIx::Class interface
+
+=item L<DBIx::Class::Manual::Cookbook>
+
+Convenient reciepes for DBIC usage.
+
+=item L<DBIx::Class::Manual::FAQ>
+
+Frequently asked questions about DBIC.
+
+=item L<DBIx::Class::Manual::Troubleshooting>
+
+Got trouble? Let us shoot it for you.
+
+=back
+
+If you're using the CDBI Compat layer, we suggest reading the L<Class::DBI>
+documentation. It should behave the same way.
+
+=cut
+

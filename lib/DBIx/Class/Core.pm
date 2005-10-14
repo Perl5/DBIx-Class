@@ -24,8 +24,28 @@ DBIx::Class::Core - Core set of DBIx::Class modules.
 =head1 DESCRIPTION
 
 This class just inherits from the various modules that makes 
-up the DBIx::Class core features.
+up the DBIx::Class core features. This makes it a convenient base
+class for your DBIx::Class setup.
 
+At the moment those are:
+
+=over 4
+
+=item L<DBIx::Class::InflateColumn>
+
+=item L<DBIx::Class::Relationship>
+
+=item L<DBIx::Class::PK>
+
+=item L<DBIx::Class::Row>
+
+=item L<DBIx::Class::Table>
+
+=item L<DBIx::Class::Exception>
+
+=item L<DBIx::Class::AccessorGroup>
+
+=back
 
 =head1 AUTHORS
 
