@@ -1,0 +1,20 @@
+=head1 Frequetly Asked Questions
+
+=over 4
+
+=item What is the point of this module? Is it a fork of Class::DBI?
+
+=item Who's the intended audience for this module?
+
+=item What databases does it support?
+
+=item What's the current status of this module?
+
+=item What's planned in the future?
+
+=item Where can I go for support?
+
+=back
+
+=cut
+

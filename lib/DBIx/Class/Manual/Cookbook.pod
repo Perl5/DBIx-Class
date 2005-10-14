@@ -1,0 +1,68 @@
+=head1 DBIx::Class Cookbook
+
+=over 4
+
+=item Input validation.
+
+=item Using joins
+
+=item Many-to-many relationships
+
+This is not as easy as it could be, but it's possible. Here's an example to 
+illustrate:
+
+    package Base; 
+
+    use base qw/DBIx::Class/;
+
+    __PACKAGE__->load_components(qw/Core DB/);
+    __PACKAGE__->connection(...);
+
+    package Left;
+
+    use base qw/Base/;
+
+    __PACKAGE__->table('left');
+    __PACKAGE__->add_columns(qw/id left_stuff/);
+    __PACKAGE__->set_primary_key(qw/id/);
+    __PACKAGE__->has_many('mid' => 'Mid');
+
+    sub right {
+     my ($self) = @_;
+     return Right->search(
+       { 'left.id' => $self->id },
+       { join => { 'mid' => 'left' }});
+    }
+
+    package Mid;
+
+    use base qw/Base/;
+
+    __PACKAGE__->table('mid');
+    __PACKAGE__->add_columns(qw/left right/);
+    __PACKAGE__->set_primary_key(qw/left right/);
+
+    __PACKAGE__->belongs_to('left' => 'Left');
+    __PACKAGE__->belongs_to('right' => 'Right');
+
+    package Right;
+
+    use base qw/Base/;
+
+    __PACKAGE__->table('right');
+    __PACKAGE__->add_columns(qw/id right_stuff/);
+    __PACKAGE__->set_primary_key(qw/id/);
+    __PACKAGE__->has_many('mid' => 'Mid');
+
+    sub left {
+     my ($self) = @_;
+     return Left->search(
+       { 'right.id' => $self->id },
+       { join => { 'mid' => 'right' });
+    }
+
+=item Advanced Exception handling
+
+=item Transactions
+
+=back

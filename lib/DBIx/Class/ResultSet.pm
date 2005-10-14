@@ -7,6 +7,29 @@ use overload
         fallback => 1;
 use Data::Page;
 
+=head1 NAME
+
+DBIX::Class::Recordset - Responsible for fetching and creating recordsets.
+
+=head1 SYNOPSIS;
+
+$rs=MyApp::DB::Class->search(registered=>1);
+
+=head1 DESCRIPTION
+
+The recordset is also know as an iterator.
+
+=head1 METHODS
+
+=over 4
+
+=item new  <db_class> <attrs>
+
+The recordset constructor. Takes a db class and an
+attribute hash (see below for more info on attributes)
+
+=cut
+
 sub new {
   my ($it_class, $db_class, $attrs) = @_;
   #use Data::Dumper; warn Dumper(@_);
@@ -46,6 +69,12 @@ sub new {
   return $new;
 }
 
+=item cursor
+
+Return a storage driven cursor to the given record set.
+
+=cut
+
 sub cursor {
   my ($self) = @_;
   my ($db_class, $attrs) = @{$self}{qw/class attrs/};
@@ -58,6 +87,12 @@ sub cursor {
           $attrs->{where},$attrs);
 }
 
+=item slice <first> <last>
+
+return a number of elements from the given record set.
+
+=cut
+
 sub slice {
   my ($self, $min, $max) = @_;
   my $attrs = { %{ $self->{attrs} || {} } };
@@ -67,6 +102,12 @@ sub slice {
   my $slice = $self->new($self->{class}, $attrs);
   return (wantarray ? $slice->all : $slice);
 }
+
+=item next 
+
+Returns the next element in this record set.
+
+=cut
 
 sub next {
   my ($self) = @_;
@@ -109,6 +150,14 @@ sub _construct_object {
   return $new;
 }
 
+=item count
+
+Performs an SQL count with the same query as the resultset was built
+with to find the number of elements.
+
+=cut
+
+
 sub count {
   my ($self) = @_;
   my $db_class = $self->{class};
@@ -128,11 +177,24 @@ sub count {
     : $self->{count};
 }
 
+=item all
+
+Returns all elements in the recordset. Is called implictly if the search
+method is used in list context.
+
+=cut
+
 sub all {
   my ($self) = @_;
   return map { $self->_construct_object(@$_); }
            $self->cursor->all;
 }
+
+=item reset
+
+Reset this recordset's cursor, so you can iterate through the elements again.
+
+=cut
 
 sub reset {
   my ($self) = @_;
@@ -140,9 +202,21 @@ sub reset {
   return $self;
 }
 
+=item first
+
+resets the recordset and returns the first element.
+
+=cut
+
 sub first {
   return $_[0]->reset->next;
 }
+
+=item delete
+
+Deletes all elements in the recordset.
+
+=cut
 
 sub delete {
   my ($self) = @_;
@@ -151,6 +225,13 @@ sub delete {
 }
 
 *delete_all = \&delete; # Yeah, yeah, yeah ...
+
+=item pager
+
+Returns a L<Data::Page> object for the current resultset. Only makes
+sense for queries with page turned on.
+
+=cut
 
 sub pager {
   my ($self) = @_;
@@ -163,6 +244,12 @@ sub pager {
   return $self->{pager};
 }
 
+=item page <page>
+
+Returns a new recordset representing a given page.
+
+=cut
+
 sub page {
   my ($self, $page) = @_;
   my $attrs = $self->{attrs};
@@ -170,14 +257,7 @@ sub page {
   return $self->new($self->{class}, $attrs);
 }
 
-=head1 NAME
-
-DBIX::Class::Recordset - Responsible for fetching and creating recordsets.
-
-=head1 SYNOPSIS;
-
-$rs=MyApp::DB::Class->search(registered=>1);
-
+=back 
 
 =head1 Attributes
 
@@ -189,6 +269,24 @@ can be passed in with the search functions. Here's an overview of them:
 =item order_by
 
 Which column to order the results by. 
+
+=item cols
+
+Which cols should be retrieved on the first search.
+
+=item join
+
+Contains a list of relations that should be joined for this query. Can also 
+contain a hash referece to refer to that relation's relations.
+
+=item from 
+
+This attribute can contain a arrayref of  elements. each element can be another
+arrayref, to nest joins, or it can be a hash which represents the two sides
+of the join. 
+
+*NOTE* Use this on your own risk. This allows you to shoot your foot off!
+
 =item page
 
 Should the resultset be paged? This can also be enabled by using the 
@@ -201,6 +299,11 @@ For paged resultsset, how  many rows per page
 =item  offset
 
 For paged resultsset, which page to start on.
+
+=item accesor
+
+Tells the  recordset how to prefetch relations. Can either be 'single' or
+'filter'.
 
 =back
 
