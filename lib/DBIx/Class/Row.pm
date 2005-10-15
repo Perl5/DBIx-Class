@@ -209,7 +209,7 @@ sub set_column {
 
 =item set_columns
 
-  my $copy = $orig->copy({ $col => $val, ... });
+  my $copy = $orig->set_columns({ $col => $val, ... });
 
 Set more than one column value at once.
 
