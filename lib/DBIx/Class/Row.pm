@@ -176,6 +176,19 @@ sub get_column {
   return undef;
 }
 
+=item get_columns
+
+  my %data = $obj->get_columns;
+
+Fetch all column values at once.
+
+=cut
+
+sub get_columns {
+  my $self = shift;
+  return map { $_ => $self->get_column($_) } $self->columns;
+}
+
 =item set_column
 
   $obj->set_column($col => $val);
@@ -193,6 +206,29 @@ sub set_column {
   $self->{_dirty_columns}{$column} = 1 unless defined $old && $old eq $ret;
   return $ret;
 }
+
+=item set_columns
+
+  my $copy = $orig->copy({ $col => $val, ... });
+
+Set more than one column value at once.
+
+=cut
+
+sub set_columns {
+  my ($self,$data) = @_;
+  while (my ($col,$val) = each %$data) {
+    $self->set_column($col,$val);
+  }
+}
+
+=item copy
+
+  my $copy = $orig->copy({ change => $to, ... });
+
+Insert a new row with the specified changes.
+
+=cut
 
 =item store_column
 
@@ -219,12 +255,6 @@ sub _row_to_object {
   $new->in_storage(1);
   return $new;
 }
-
-=item copy
-
-  my $copy = $orig->copy({ change => $to, ... });
-
-=cut
 
 sub copy {
   my ($self, $changes) = @_;

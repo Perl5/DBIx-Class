@@ -1,6 +1,6 @@
 sub run_tests {
 
-plan tests => 23; 
+plan tests => 27; 
 
 my @art = DBICTest::Artist->search({ }, { order_by => 'name DESC'});
 
@@ -73,6 +73,22 @@ is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 is($new_again->ID, 'DBICTest::Artist|artistid=4', 'unique object id generated correctly');
 
 is(DBICTest::Artist->count, 4, 'count ok');
+
+my $cd = DBICTest::CD->find(1);
+my %cols = $cd->get_columns;
+
+cmp_ok(keys %cols, '==', 4, 'get_columns number of columns ok');
+
+is($cols{title}, 'Spoonful of bees', 'get_columns values ok');
+
+%cols = ( title => 'Forkful of bees', year => 2005);
+$cd->set_columns(\%cols);
+
+is($cd->title, 'Forkful of bees', 'set_columns ok');
+
+is($cd->year, 2005, 'set_columns ok');
+
+$cd->discard_changes;
 
 # insert_or_update
 $new = DBICTest::Track->new( {
