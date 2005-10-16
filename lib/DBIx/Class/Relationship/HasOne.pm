@@ -13,6 +13,7 @@ sub has_one {
 
 sub _has_one {
   my ($class, $join_type, $rel, $f_class, $cond, $attrs) = @_;
+  eval "require $f_class";
   unless (ref $cond) {
     my ($pri, $too_many) = keys %{ $class->_primaries };
     $class->throw( "might_have/has_one can only infer join for a single primary key; ${class} has more" )
