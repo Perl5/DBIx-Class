@@ -20,7 +20,8 @@ like this:
 You will also want to load some of L<DBIx::Class>'s components. 
 L<DBIx::Class::Core>  provides a good basic set. In addition you'll
 have to use either L<DBIx::Class::Schema> or L<DBIx::Class::DB> We'll
-use DB in this introduction, since it involves less magic.
+use DB in this introduction, since it involves less magic. Schema is 
+mostly useful if you want to use multiple database connections.
 
   __PACKAGE__->load_components(qw/Core DB/);
 
