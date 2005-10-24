@@ -115,7 +115,7 @@ my @cd = $rs->all;
 
 is($cd[0]->title, 'Spoonful of bees', 'First record returned ok');
 
-ok(!exists $cd[0]->{_relationship_data}{liner_notes}, 'No prefetch for NULL LEFT JOIN');
+ok(!defined $cd[0]->liner_notes, 'No prefetch for NULL LEFT join');
 
 is($cd[1]->{_relationship_data}{liner_notes}->notes, 'Buy Whiskey!', 'Prefetch for present LEFT JOIN');
 

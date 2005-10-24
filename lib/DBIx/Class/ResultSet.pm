@@ -135,7 +135,10 @@ sub _construct_object {
         unless defined $rel_obj->{attrs}{accessor};
       if ($rel_obj->{attrs}{accessor} eq 'single') {
         foreach my $pri ($rel_obj->{class}->primary_columns) {
-          next PRE unless defined $fetched->get_column($pri);
+          unless (defined $fetched->get_column($pri)) {
+            undef $fetched;
+            last;
+          }
         }
         $new->{_relationship_data}{$pre} = $fetched;
       } elsif ($rel_obj->{attrs}{accessor} eq 'filter') {
