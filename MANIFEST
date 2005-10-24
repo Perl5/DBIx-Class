@@ -32,6 +32,12 @@ lib/DBIx/Class/Cursor.pm
 lib/DBIx/Class/DB.pm
 lib/DBIx/Class/Exception.pm
 lib/DBIx/Class/InflateColumn.pm
+lib/DBIx/Class/Manual.pod
+lib/DBIx/Class/Manual/Cookbook.pod
+lib/DBIx/Class/Manual/FAQ.pod
+lib/DBIx/Class/Manual/Intro.pod
+lib/DBIx/Class/Manual/Troubleshooting.pod
+lib/DBIx/Class/ObjectCache.pm
 lib/DBIx/Class/PK.pm
 lib/DBIx/Class/PK/Auto.pm
 lib/DBIx/Class/PK/Auto/MSSQL.pm

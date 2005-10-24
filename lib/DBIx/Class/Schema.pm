@@ -112,6 +112,15 @@ as well as dbh connection info, and creates a L<DBIx::Class::DB> class as
 well as subclasses for each of your database classes in this namespace, using
 this connection.
 
+It will also setup a ->table method on the target class, which lets you
+resolve database classes based on the schema component name, for example
+
+  MyApp::DB->table('Foo') # returns MyApp::DB::Foo, 
+                          # which ISA MyApp::Schema::Foo
+
+This is the recommended API for accessing Schema generated classes, and 
+using it might give you instant advantages with future versions of DBIC.
+
 =cut
 
 sub compose_connection {

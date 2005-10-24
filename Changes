@@ -1,6 +1,6 @@
 Revision history for DBIx::Class
 
-0.03002
+0.03002 2005-10-20 22:35:00
         - Minor bugfix to new (Row.pm)
         - Schema doesn't die if it can't load a class (Schema.pm)
         - New UUID columns plugin (UUIDColumns.pm)
