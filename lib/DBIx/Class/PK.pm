@@ -136,6 +136,7 @@ sub ID {
 
 sub _create_ID {
   my ($class,%vals) = @_;
+  return undef unless 0 == grep { !defined } values %vals;
   $class = ref $class || $class;
   return join '|', $class, map { $_ . '=' . $vals{$_} } sort keys %vals;    
 }

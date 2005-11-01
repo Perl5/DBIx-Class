@@ -118,7 +118,9 @@ sub next {
 
 sub _construct_object {
   my ($self, @row) = @_;
-  my @cols = $self->{class}->_select_columns;
+  my @cols = @{ $self->{attrs}{cols} };
+  s/^me\.// for @cols;
+  @cols = grep { ! /\./ } @cols;
   my $new;
   unless ($self->{attrs}{prefetch}) {
     $new = $self->{class}->_row_to_object(\@cols, \@row);
