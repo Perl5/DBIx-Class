@@ -16,7 +16,7 @@ sub belongs_to {
     my $acc_type = ($class->_columns->{$rel}) ? 'filter' : 'single';
     $class->add_relationship($rel, $f_class,
       { "foreign.${pri}" => "self.${rel}" },
-      { accessor => $acc_type }
+      { accessor => $acc_type, %{$attrs || {}} }
     );
   }
   # multiple key relationship
