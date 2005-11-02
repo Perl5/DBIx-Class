@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.03003
+        - Changed use to require in Relationship/Base to avoid import
+
 0.03002 2005-10-20 22:35:00
         - Minor bugfix to new (Row.pm)
         - Schema doesn't die if it can't load a class (Schema.pm)

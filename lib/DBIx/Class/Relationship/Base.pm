@@ -42,7 +42,7 @@ sub add_relationship {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
   die "Can't create relationship without join condition" unless $cond;
   $attrs ||= {};
-  eval "use $f_class;";
+  eval "require $f_class;";
   my %rels = %{ $class->_relationships };
   $rels{$rel} = { class => $f_class,
                   cond  => $cond,
