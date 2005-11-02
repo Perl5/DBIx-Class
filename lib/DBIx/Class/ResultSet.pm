@@ -120,7 +120,7 @@ sub _construct_object {
   my ($self, @row) = @_;
   my @cols = @{ $self->{attrs}{cols} };
   s/^me\.// for @cols;
-  @cols = grep { ! /\./ } @cols;
+  @cols = grep { /\(/ or ! /\./ } @cols;
   my $new;
   unless ($self->{attrs}{prefetch}) {
     $new = $self->{class}->_row_to_object(\@cols, \@row);
