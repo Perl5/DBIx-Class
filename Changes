@@ -1,13 +1,14 @@
 Revision history for DBIx::Class
 
-0.03003
-        - Changed use to require in Relationship/Base to avoid import
+0.03003 2005-11-03 17:00:00
+        - POD fixes.
+        - Changed use to require in Relationship/Base to avoid import.
 
 0.03002 2005-10-20 22:35:00
         - Minor bugfix to new (Row.pm)
         - Schema doesn't die if it can't load a class (Schema.pm)
         - New UUID columns plugin (UUIDColumns.pm)
-	- Documentation improvements.
+        - Documentation improvements.
 
 0.03001 2005-09-23 14:00:00
         - Fixes to relationship helpers

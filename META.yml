@@ -1,6 +1,6 @@
 ---
 name: DBIx-Class
-version: 0.03002
+version: 0.03003
 author:
   - Matt S. Trout <mst@shadowcatsystems.co.uk>
 abstract: Extensible and flexible object <-> relational mapper.
@@ -22,7 +22,7 @@ provides:
     file: lib/DBIx/Class/Storage/DBI.pm
   DBIx::Class:
     file: lib/DBIx/Class.pm
-    version: 0.03002
+    version: 0.03003
   DBIx::Class::AccessorGroup:
     file: lib/DBIx/Class/AccessorGroup.pm
   DBIx::Class::CDBICompat:
@@ -139,4 +139,4 @@ provides:
     file: lib/DBIx/Class/UUIDColumns.pm
   DBIx::ContextualFetch::st:
     file: lib/DBIx/Class/CDBICompat/ImaDBI.pm
-generated_by: Module::Build version 0.2607
+generated_by: Module::Build version 0.2611
