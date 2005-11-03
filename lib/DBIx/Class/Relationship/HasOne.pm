@@ -19,15 +19,22 @@ sub _has_one {
     $class->throw( "might_have/has_one can only infer join for a single primary key; ${class} has more" )
       if $too_many;
     my $f_key;
-    if ($cond) {
+    my $f_class_loaded = eval { $f_class->_columns };
+    my $guess;
+    if (defined $cond && length $cond) {
       $f_key = $cond;
-    } elsif ($f_class->_columns->{$rel}) {
+      $guess = "caller specified foreign key '$f_key'";
+    } elsif ($f_class_loaded && $f_class->_columns->{$rel}) {
       $f_key = $rel;
+      $guess = "using given relationship '$rel' for foreign key";
     } else {
       ($f_key, $too_many) = keys %{ $f_class->_primaries };
       $class->throw( "might_have/has_one can only infer join for a single primary key; ${f_class} has more" )
         if $too_many;
+      $guess = "using primary key of foreign class for foreign key";
     }
+    $class->throw("No such column ${f_key} on foreign class ${f_class} ($guess)")
+      if $f_class_loaded && !exists $f_class->_columns->{$f_key}; 
     $cond = { "foreign.${f_key}" => "self.${pri}" };
   }
   $class->add_relationship($rel, $f_class,
