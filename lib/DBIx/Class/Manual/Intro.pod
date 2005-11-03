@@ -28,7 +28,7 @@ mostly useful if you want to use multiple database connections.
 If you want serial/auto-incremental primary keys, you'll need to add
 the apropriate component for your db as well, for example
 
-  __PACKAGE__->load_components(qw/Core DB PK::Auto::SQLite/);
+  __PACKAGE__->load_components(qw/PK::Auto::SQLite Core DB/);
 
 Once you've loaded the components, it's time to  set up your connection:
 

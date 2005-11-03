@@ -9,7 +9,7 @@ __PACKAGE__->mk_classdata('_relationships', { } );
 
 =head1 NAME 
 
-DBIx::Class::Relationship - Inter-table relationships
+DBIx::Class::Relationship::Base - Inter-table relationships
 
 =head1 SYNOPSIS
 
