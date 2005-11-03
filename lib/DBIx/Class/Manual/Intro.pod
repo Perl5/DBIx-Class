@@ -1,6 +1,6 @@
 =head1 NAME
 
-DBIx::Class::Manual::Intro
+DBIx::Class::Manual::Intro - Introduction to DBIx::Class
 
 =head1 Introduction.
 

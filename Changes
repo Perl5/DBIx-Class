@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+	- Updated name section for manual pods
+	
 0.03003 2005-11-03 17:00:00
         - POD fixes.
         - Changed use to require in Relationship/Base to avoid import.

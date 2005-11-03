@@ -1,8 +1,10 @@
-=head1 Troubleshooting
+=head1 NAME
+
+DBIx::Class::Manual::Troubleshooting - Got a problem? Shoot it.
 
 =over 4
 
-=item 
+=item  "Can't locate storage blabla"
 
 =back
 

@@ -1,6 +1,6 @@
-=head1 NAME
+=head1 NAME 
 
-DBIx::Class::Manual::Cookbook
+DBIx::Class::Manual::Cookbook - Misc receipes
 
 =over 4
 

@@ -1,8 +1,8 @@
-=head1 NAME
+=head1 NAME 
 
-DBIx::Class::Manual::FAQ
+DBIx::Class::Manual::FAQ - Frequently Asked Questions
 
-=head1 Frequetly Asked Questions
+=head1 QUESTIONS 
 
 =over 4
 
