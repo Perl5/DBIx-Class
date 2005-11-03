@@ -1,3 +1,7 @@
+=head1 NAME
+
+DBIx::Class::Manual::Intro
+
 =head1 Introduction.
 
 So, you are bored with SQL, and want a native perl interface for your classes?

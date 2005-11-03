@@ -1,4 +1,6 @@
-=head1 DBIx::Class Cookbook
+=head1 NAME
+
+DBIx::Class::Manual::Cookbook
 
 =over 4
 

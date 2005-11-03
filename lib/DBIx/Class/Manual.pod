@@ -1,3 +1,7 @@
+=head1 NAME
+
+DBIx::Class::Manual
+
 =head1 USER MANUAL
 
 This is the L<DBIx::Class> users manual. DBIx::Class is a SQL->OOP mapper. 
