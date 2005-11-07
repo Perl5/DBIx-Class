@@ -28,17 +28,10 @@ sub belongs_to {
         last;
       }
       $cond_rel->{"foreign.$_"} = "self.".$cond->{$_};
-      # primary key usage checks
-      if (exists $f_primaries{$_}) {
-        delete $f_primaries{$_};
-      } elsif ($f_loaded) {
-        $class->throw("non primary key used in join condition: $_");
-      }
     }
-    $class->throw("Invalid belongs_to specification for ${rel} on ${class}; primary key columns ".join(', ', keys %f_primaries)." of ${f_class} not specified in join condition") if ($f_loaded && keys %f_primaries);
     $class->add_relationship($rel, $f_class,
       $cond_rel,
-      { accessor => 'single', %{$attrs ||{}} }
+      { accessor => 'single', %{$attrs || {}} }
     );
   }
   return 1;
