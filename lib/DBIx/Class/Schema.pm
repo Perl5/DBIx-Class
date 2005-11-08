@@ -15,7 +15,7 @@ DBIx::Class::Schema - composable schemas
 
 =head1 SYNOPSIS
 
-  in My/Schema.pm
+in My/Schema.pm
 
   package My::Schema;
 
@@ -23,22 +23,23 @@ DBIx::Class::Schema - composable schemas
 
   __PACKAGE__->load_classes(qw/Foo Bar Baz/);
 
-  in My/Schema/Foo.pm
+in My/Schema/Foo.pm
 
   package My::Schema::Foo;
 
-  use base qw/DBIx::Class::Core/;
+  use base qw/DBIx::Class/;
 
+  __PACKAGE__->load_components(qw/Core PK::Auto::Pg/); # for example
   __PACKAGE__->table('foo');
   ...
 
-  in My/DB.pm
+in My/DB.pm
 
   use My::Schema;
 
   My::Schema->compose_connection('My::DB', $dsn, $user, $pass, $attrs);
 
-  then in app code
+then in app code
 
   my @obj = My::DB::Foo->search({}); # My::DB::Foo isa My::Schema::Foo My::DB
 
@@ -48,6 +49,10 @@ Creates database classes based on a schema. This allows you to have more than
 one concurrent connection using the same database classes, by making 
 subclasses under a new namespace for each connection. If you only need one 
 class, you should probably use L<DBIx::Class::DB> directly instead.
+
+NB: If you're used to L<Class::DBI> it's worth reading the L</SYNOPSIS>
+carefully as DBIx::Class does things a little differently. Note in
+particular which module inherits off which.
 
 =head1 METHODS
 
