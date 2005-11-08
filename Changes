@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+0.03004
+        - Added an || '' to the CDBICompat stringify to avoid null warnings
 	- Updated name section for manual pods
 	
 0.03003 2005-11-03 17:00:00
