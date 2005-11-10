@@ -100,8 +100,18 @@ sub count {
 
 =item search 
 
-  my @obj    = $class->search({ foo => 3 });
+  my @obj    = $class->search({ foo => 3 }); # "... WHERE foo = 3"
   my $cursor = $class->search({ foo => 3 });
+
+To retrieve all rows, simply call C<search()> with no condition parameter,
+
+  my @all = $class->search(); # equivalent to search({})
+
+If you need to pass in additional attributes (see
+L<DBIx::Class::ResultSet/Attributes> for details) an empty hash indicates
+no condition,
+
+  my @all = $class->search({}, { cols => [qw/foo bar/] }); # "SELECT foo, bar FROM $class_table"
 
 =cut
 
