@@ -18,7 +18,7 @@ my %arguments = (
         'Storable'                  => 0,
         'Module::Find'              => 0,
     },
-    reommends          => {
+    recommends          => {
         'Data::UUID'                => 0,
     },
     create_makefile_pl => 'passthrough',
