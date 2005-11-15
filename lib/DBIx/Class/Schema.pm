@@ -2,6 +2,7 @@ package DBIx::Class::Schema;
 
 use strict;
 use warnings;
+use DBIx::Class::DB;
 
 use base qw/Class::Data::Inheritable/;
 use base qw/DBIx::Class/;
@@ -137,7 +138,7 @@ sub compose_connection {
   my %map;
   while (my ($comp, $comp_class) = each %reg) {
     my $target_class = "${target}::${comp}";
-    $class->inject_base($target_class, $conn_class, $comp_class);
+    $class->inject_base($target_class, $comp_class, $conn_class);
     $target_class->table($comp_class->table);
     @map{$comp, $comp_class} = ($target_class, $target_class);
   }
@@ -162,8 +163,8 @@ and the subclasses the schema creates.
 
 sub setup_connection_class {
   my ($class, $target, @info) = @_;
-  $class->inject_base($target => 'DBIx::Class');
-  $target->load_components('DB');
+  $class->inject_base($target => 'DBIx::Class::DB');
+  #$target->load_components('DB');
   $target->connection(@info);
 }
 
