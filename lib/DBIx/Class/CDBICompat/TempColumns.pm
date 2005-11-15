@@ -58,7 +58,7 @@ sub set_temp {
 }
 
 sub has_real_column {
-  return 1 if shift->_columns->{shift};
+  return 1 if shift->has_column(shift);
 }
 
 1;

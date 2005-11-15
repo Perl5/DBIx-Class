@@ -32,7 +32,7 @@ sub create {
   $class->throw( "create needs a hashref" ) unless ref $attrs eq 'HASH';
   $attrs = { %$attrs };
   my %att;
-  foreach my $col (keys %{ $class->_columns }) {
+  foreach my $col ($class->columns) {
     if ($class->can('accessor_name')) {
       my $acc = $class->accessor_name($col);
 #warn "$col $acc";

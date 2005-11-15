@@ -46,7 +46,7 @@ sub find {
   # but, it's a start anyway. probably find in PK.pm needs to
   # call a hook, or some such thing. -Dave/ningu
   my ($object,$key);
-  my @pk = keys %{$self->_primaries};
+  my @pk = $self->primary_columns;
   if (ref $vals[0] eq 'HASH') {
     my $cond = $vals[0]->{'-and'};
     $key = $self->_create_ID(%{$cond->[0]}) if ref $cond eq 'ARRAY';

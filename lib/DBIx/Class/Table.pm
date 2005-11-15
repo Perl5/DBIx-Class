@@ -184,6 +184,39 @@ sub find_or_create {
   return defined($exists) ? $exists : $class->create($hash);
 }
 
+=item has_column                                                                
+                                                                                
+  if ($obj->has_column($col)) { ... }                                           
+                                                                                
+Returns 1 if the object has a column of this name, 0 otherwise                  
+                                                                                
+=cut                                                                            
+
+sub has_column {
+  my ($self, $column) = @_;
+  return exists $self->_columns->{$column};
+}
+
+=item column_info                                                               
+                                                                                
+  my $info = $obj->column_info($col);                                           
+                                                                                
+Returns the column metadata hashref for the column                              
+                                                                                
+=cut                                                                            
+
+sub column_info {
+  my ($self, $column) = @_;
+  die "No such column $column" unless exists $self->_columns->{$column};
+  return $self->_columns->{$column};
+}
+
+=item columns                                                                   
+                                                                                
+  my @column_names = $obj->columns;                                             
+                                                                                
+=cut                                                                            
+
 sub columns { return keys %{shift->_columns}; }
 
 1;

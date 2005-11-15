@@ -2,6 +2,8 @@ Revision history for DBIx::Class
 
         - Moved get_simple and set_simple into AccessorGroup
         - Made 'new' die if given invalid columns
+        - Added has_column and column_info to Table.pm
+        - Refactored away from direct use of _columns and _primaries
 
 0.03004
         - Added an || '' to the CDBICompat stringify to avoid null warnings

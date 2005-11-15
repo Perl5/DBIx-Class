@@ -32,7 +32,7 @@ sub add_relationship_accessor {
     };
   } elsif ($acc_type eq 'filter') {
     $class->throw("No such column $rel to filter")
-       unless exists $class->_columns->{$rel};
+       unless $class->has_column($rel);
     my $f_class = $class->_relationships->{$rel}{class};
     $class->inflate_column($rel,
       { inflate => sub {

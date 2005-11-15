@@ -58,13 +58,13 @@ sub all_columns { return keys %{$_[0]->_columns}; }
 
 sub primary_column {
   my ($class) = @_;
-  my @pri = keys %{$class->_primaries};
+  my @pri = $class->primary_columns;
   return wantarray ? @pri : $pri[0];
 }
 
 sub find_column {
   my ($class, $col) = @_;
-  return $col if $class->_columns->{$col};
+  return $col if $class->has_column($col);
 }
 
 sub __grouper {

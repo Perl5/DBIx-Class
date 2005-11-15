@@ -33,7 +33,7 @@ sub new {
   if ($attrs) {
     $new->throw("attrs must be a hashref" ) unless ref($attrs) eq 'HASH';
     while (my ($k, $v) = each %{$attrs}) {
-      die "No such column $k on $class" unless exists $class->_columns->{$k};
+      die "No such column $k on $class" unless $class->has_column($k);
       $new->store_column($k => $v);
     }
   }
@@ -122,13 +122,6 @@ sub update {
   return $self;
 }
 
-sub ident_condition {
-  my ($self) = @_;
-  my %cond;
-  $cond{$_} = $self->get_column($_) for keys %{$self->_primaries};
-  return \%cond;
-}
-
 =item delete
 
   $obj->delete
@@ -171,7 +164,7 @@ Fetches a column value
 sub get_column {
   my ($self, $column) = @_;
   $self->throw( "Can't fetch data as class method" ) unless ref $self;
-  $self->throw( "No such column '${column}'" ) unless $self->_columns->{$column};
+  $self->throw( "No such column '${column}'" ) unless $self->has_column($column);
   return $self->{_column_data}{$column}
     if exists $self->{_column_data}{$column};
   return undef;
@@ -242,7 +235,7 @@ Sets a column value without marking it as dirty
 sub store_column {
   my ($self, $column, $value) = @_;
   $self->throw( "No such column '${column}'" ) 
-    unless $self->_columns->{$column};
+    unless $self->has_column($column);
   $self->throw( "set_column called for ${column} without value" ) 
     if @_ < 3;
   return $self->{_column_data}{$column} = $value;
