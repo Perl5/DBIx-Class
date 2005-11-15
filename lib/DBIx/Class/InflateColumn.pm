@@ -67,23 +67,12 @@ sub store_inflated_column {
 sub new {
   my ($class, $attrs, @rest) = @_;
   $attrs ||= {};
-  my %deflated;
   foreach my $key (keys %$attrs) {
-    if (exists $class->_columns->{$key}{_inflate_info}) {
-      $deflated{$key} = $class->_deflated_column($key,
-                                                        delete $attrs->{$key});
+    if (ref $attrs->{$key} && exists $class->_columns->{$key}{_inflate_info}) {
+      $attrs->{$key} = $class->_deflated_column($key, $attrs->{$key});
     }
   }
-  return $class->NEXT::ACTUAL::new({ %$attrs, %deflated }, @rest);
+  return $class->NEXT::ACTUAL::new($attrs, @rest);
 }
-
-# **** B0RKEN. DOESN'T GET CALLED!
-#sub _cond_value {
-#  my ($self, $attrs, $key, $value) = @_;
-#  if (exists $self->_columns->{$key}) {
-#    $value = $self->_deflated_column($key, $value);
-#  }
-#  return $self->NEXT::ACTUAL::_cond_value($attrs, $key, $value);
-#}
 
 1;

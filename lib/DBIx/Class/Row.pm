@@ -33,7 +33,8 @@ sub new {
   if ($attrs) {
     $new->throw("attrs must be a hashref" ) unless ref($attrs) eq 'HASH';
     while (my ($k, $v) = each %{$attrs}) {
-      $new->store_column($k => $v) if exists $class->_columns->{$k};
+      die "No such column $k on $class" unless exists $class->_columns->{$k};
+      $new->store_column($k => $v);
     }
   }
   return $new;
@@ -251,7 +252,7 @@ sub _row_to_object {
   my ($class, $cols, $row) = @_;
   my %vals;
   $vals{$cols->[$_]} = $row->[$_] for 0 .. $#$cols;
-  my $new = $class->new(\%vals);
+  my $new = bless({ _column_data => \%vals }, ref $class || $class);
   $new->in_storage(1);
   return $new;
 }

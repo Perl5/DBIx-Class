@@ -136,6 +136,16 @@ sub make_group_wo_accessor {
     };
 }
 
+sub get_simple {
+  my ($self, $get) = @_;
+  return $self->{$get};
+}
+
+sub set_simple {
+  my ($self, $set, $val) = @_;
+  return $self->{$set} = $val;
+}
+
 1;
 
 =back
