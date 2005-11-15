@@ -1,5 +1,5 @@
 package DBIx::Class::UUIDColumns;
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 use Data::UUID;
 

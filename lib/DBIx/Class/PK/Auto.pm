@@ -1,6 +1,6 @@
 package DBIx::Class::PK::Auto;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class::PK/;
 use strict;
 use warnings;
 

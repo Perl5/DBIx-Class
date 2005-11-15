@@ -3,7 +3,7 @@ package DBIx::Class::Relationship::Base;
 use strict;
 use warnings;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata('_relationships', { } );
 

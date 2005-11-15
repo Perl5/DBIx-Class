@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use DBIx::Class::DB;
 
-use base qw/Class::Data::Inheritable/;
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/Exception/);

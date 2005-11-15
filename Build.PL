@@ -9,7 +9,6 @@ my %arguments = (
         'Data::Page'                => 0,
         'DBI'                       => 0,
         'UNIVERSAL::require'        => 0,
-        'NEXT'                      => 0,
         'Scalar::Util'              => 0,
         'SQL::Abstract'             => 1.20,
         'SQL::Abstract::Limit'      => 0.101,
@@ -20,6 +19,7 @@ my %arguments = (
 	'Tie::IxHash'               => 0,
         'Storable'                  => 0,
         'Module::Find'              => 0,
+        'Class::C3'                 => 0.05,
     },
     recommends          => {
         'Data::UUID'                => 0,
