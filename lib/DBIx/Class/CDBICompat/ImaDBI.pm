@@ -62,7 +62,7 @@ sub connection {
   my ($class, @info) = @_;
   $info[3] = { %{ $info[3] || {}} };
   $info[3]->{RootClass} = 'DBIx::ContextualFetch';
-  return $class->NEXT::connection(@info);
+  return $class->next::method(@info);
 }
 
 sub __driver {

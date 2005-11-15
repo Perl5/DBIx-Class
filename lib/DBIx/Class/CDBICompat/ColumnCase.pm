@@ -6,61 +6,61 @@ use NEXT;
 
 sub _register_column_group {
   my ($class, $group, @cols) = @_;
-  return $class->NEXT::ACTUAL::_register_column_group($group => map lc, @cols);
+  return $class->next::method($group => map lc, @cols);
 }
 
 sub _register_columns {
   my ($class, @cols) = @_;
-  return $class->NEXT::ACTUAL::_register_columns(map lc, @cols);
+  return $class->next::method(map lc, @cols);
 }
 
 sub has_a {
   my ($class, $col, @rest) = @_;
-  $class->NEXT::ACTUAL::has_a(lc($col), @rest);
+  $class->next::method(lc($col), @rest);
   $class->mk_group_accessors('inflated_column' => $col);
   return 1;
 }
 
 sub has_many {
   my ($class, $rel, $f_class, $f_key, @rest) = @_;
-  return $class->NEXT::ACTUAL::has_many($rel, $f_class, ( ref($f_key) ? 
+  return $class->next::method($rel, $f_class, ( ref($f_key) ? 
                                                           $f_key : 
                                                           lc($f_key) ), @rest);
 }
 
 sub get_inflated_column {
   my ($class, $get, @rest) = @_;
-  return $class->NEXT::ACTUAL::get_inflated_column(lc($get), @rest);
+  return $class->next::method(lc($get), @rest);
 }
 
 sub store_inflated_column {
   my ($class, $set, @rest) = @_;
-  return $class->NEXT::ACTUAL::store_inflated_column(lc($set), @rest);
+  return $class->next::method(lc($set), @rest);
 }
 
 sub set_inflated_column {
   my ($class, $set, @rest) = @_;
-  return $class->NEXT::ACTUAL::set_inflated_column(lc($set), @rest);
+  return $class->next::method(lc($set), @rest);
 }
 
 sub get_column {
   my ($class, $get, @rest) = @_;
-  return $class->NEXT::ACTUAL::get_column(lc($get), @rest);
+  return $class->next::method(lc($get), @rest);
 }
 
 sub set_column {
   my ($class, $set, @rest) = @_;
-  return $class->NEXT::ACTUAL::set_column(lc($set), @rest);
+  return $class->next::method(lc($set), @rest);
 }
 
 sub store_column {
   my ($class, $set, @rest) = @_;
-  return $class->NEXT::ACTUAL::store_column(lc($set), @rest);
+  return $class->next::method(lc($set), @rest);
 }
 
 sub find_column {
   my ($class, $col) = @_;
-  return $class->NEXT::ACTUAL::find_column(lc($col));
+  return $class->next::method(lc($col));
 }
 
 sub _mk_group_accessors {
@@ -73,25 +73,25 @@ sub _mk_group_accessors {
     next if defined &{"${class}::${acc}"};
     push(@extra, [ lc $acc => $field ]);
   }
-  return $class->NEXT::ACTUAL::_mk_group_accessors($type, $group,
+  return $class->next::method($type, $group,
                                                      @fields, @extra);
 }
 
 sub _cond_key {
   my ($class, $attrs, $key, @rest) = @_;
-  return $class->NEXT::ACTUAL::_cond_key($attrs, lc($key), @rest);
+  return $class->next::method($attrs, lc($key), @rest);
 }
 
 sub _cond_value {
   my ($class, $attrs, $key, @rest) = @_;
-  return $class->NEXT::ACTUAL::_cond_value($attrs, lc($key), @rest);
+  return $class->next::method($attrs, lc($key), @rest);
 }
 
 sub new {
   my ($class, $attrs, @rest) = @_;
   my %att;
   $att{lc $_} = $attrs->{$_} for keys %$attrs;
-  return $class->NEXT::ACTUAL::new(\%att, @rest);
+  return $class->next::method(\%att, @rest);
 }
 
 1;

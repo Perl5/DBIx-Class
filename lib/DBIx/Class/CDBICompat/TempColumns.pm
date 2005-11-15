@@ -15,7 +15,7 @@ sub _add_column_group {
     $tmp{$_} = 1 for @cols;
     $class->_temp_columns(\%tmp);
   } else {
-    return $class->NEXT::ACTUAL::_add_column_group($group, @cols);
+    return $class->next::method($group, @cols);
   }
 }
 
@@ -25,7 +25,7 @@ sub new {
   foreach my $key (keys %$attrs) {
     $temp{$key} = delete $attrs->{$key} if $class->_temp_columns->{$key};
   }
-  my $new = $class->NEXT::ACTUAL::new($attrs, @rest);
+  my $new = $class->next::method($attrs, @rest);
   foreach my $key (keys %temp) {
     $new->set_temp($key, $temp{$key});
   }
@@ -36,7 +36,7 @@ sub new {
 sub find_column {
   my ($class, $col, @rest) = @_;
   return $col if $class->_temp_columns->{$col};
-  return $class->NEXT::ACTUAL::find_column($col, @rest);
+  return $class->next::method($col, @rest);
 }
 
 sub get_temp {

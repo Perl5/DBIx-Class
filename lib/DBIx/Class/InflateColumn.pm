@@ -75,7 +75,7 @@ sub new {
       $attrs->{$key} = $class->_deflated_column($key, $attrs->{$key});
     }
   }
-  return $class->NEXT::ACTUAL::new($attrs, @rest);
+  return $class->next::method($attrs, @rest);
 }
 
 1;

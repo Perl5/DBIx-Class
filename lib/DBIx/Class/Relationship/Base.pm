@@ -123,7 +123,7 @@ sub _cond_key {
             join(', ', keys %{$attrs->{_aliases} || {}}) );
     }
   }
-  return $self->NEXT::ACTUAL::_cond_key($attrs, $key);
+  return $self->next::method($attrs, $key);
 }
 
 sub _cond_value {
@@ -151,7 +151,7 @@ sub _cond_value {
     }
   }
       
-  return $self->NEXT::ACTUAL::_cond_value($attrs, $key, $value)
+  return $self->next::method($attrs, $key, $value)
 }
 
 =item search_related
