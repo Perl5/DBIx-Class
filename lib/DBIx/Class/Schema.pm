@@ -6,7 +6,7 @@ use warnings;
 use base qw/Class::Data::Inheritable/;
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/Exception Componentised/);
+__PACKAGE__->load_components(qw/Exception/);
 __PACKAGE__->mk_classdata('class_registrations' => {});
 
 =head1 NAME
