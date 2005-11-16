@@ -1,5 +1,5 @@
 package DBIx::Class::UUIDColumns;
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 use Data::UUID;
 
@@ -45,7 +45,7 @@ sub insert {
 	$self->store_column( $column, $self->get_uuid )
 	    unless defined $self->get_column( $column );
     }
-    $self->NEXT::ACTUAL::insert;
+    $self->next::method;
 }
 
 sub get_uuid {

@@ -3,6 +3,8 @@ package DBIx::Class::Row;
 use strict;
 use warnings;
 
+use base qw/DBIx::Class/;
+
 =head1 NAME 
 
 DBIx::Class::Row - Basic row methods

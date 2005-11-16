@@ -6,7 +6,7 @@ use warnings;
 use DBIx::Class::ResultSet;
 use Data::Page;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata('_columns' => {});
 

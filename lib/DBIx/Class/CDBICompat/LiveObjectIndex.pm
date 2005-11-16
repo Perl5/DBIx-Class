@@ -33,7 +33,7 @@ sub clear_object_index {
 
 sub insert {
   my ($self, @rest) = @_;
-  $self->NEXT::ACTUAL::insert(@rest);
+  $self->next::method(@rest);
     # Because the insert will die() if it can't insert into the db (or should)
     # we can be sure the object *was* inserted if we got this far. In which
     # case, given primary keys are unique and ID only returns a
@@ -53,7 +53,7 @@ sub insert {
 
 sub _row_to_object {
   my ($class, @rest) = @_;
-  my $new = $class->NEXT::ACTUAL::_row_to_object(@rest);
+  my $new = $class->next::method(@rest);
   if (my $key = $new->ID) {
     #warn "Key $key";
     my $live = $class->live_object_index;
@@ -70,11 +70,11 @@ sub discard_changes {
   my ($self) = @_;
   if (my $key = $self->ID) {
     $self->remove_from_object_index;
-    my $ret = $self->NEXT::ACTUAL::discard_changes;
+    my $ret = $self->next::method;
     $self->live_object_index->{$key} = $self if $self->in_storage;
     return $ret;
   } else {
-    return $self->NEXT::ACTUAL::discard_changes;
+    return $self->next::method;
   }
 }
 

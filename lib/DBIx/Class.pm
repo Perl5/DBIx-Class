@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-use base qw/DBIx::Class::Componentised/;
+use base qw/DBIx::Class::Componentised Class::Data::Inheritable/;
 
 $VERSION = '0.03004';
 

@@ -1,6 +1,6 @@
 package DBIx::Class::DB;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 use DBIx::Class::Storage::DBI;
 use DBIx::Class::ClassResolver::PassThrough;
 use DBI;

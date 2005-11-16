@@ -3,7 +3,7 @@ package DBIx::Class::ObjectCache;
 use strict;
 use warnings;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata('cache');
 
@@ -33,14 +33,14 @@ implements the required C<get>, C<set>, and C<remove> methods.
 
 sub insert {
   my $self = shift;
-  $self->NEXT::ACTUAL::insert(@_);
+  $self->next::method(@_);
   $self->_insert_into_cache if $self->cache;  
   return $self;
 }
 
 sub find {
   my ($self,@vals) = @_;
-  return $self->NEXT::ACTUAL::find(@vals) unless $self->cache;
+  return $self->next::method(@vals) unless $self->cache;
   
   # this is a terrible hack here. I know it can be improved.
   # but, it's a start anyway. probably find in PK.pm needs to
@@ -62,14 +62,14 @@ sub find {
     return $object;
   }
   
-  $object = $self->NEXT::ACTUAL::find(@vals);
+  $object = $self->next::method(@vals);
   $object->_insert_into_cache if $object;
   return $object;
 }
 
 sub update {
   my $self = shift;
-  my $new = $self->NEXT::ACTUAL::update(@_);
+  my $new = $self->next::method(@_);
   $self->_insert_into_cache if $self->cache;
   return;
 }
@@ -77,12 +77,12 @@ sub update {
 sub delete {
   my $self = shift;
   $self->cache->remove($self->ID) if $self->cache;
-  return $self->NEXT::ACTUAL::delete(@_);
+  return $self->next::method(@_);
 }
 
 sub _row_to_object {
   my $self = shift;
-  my $new = $self->NEXT::ACTUAL::_row_to_object(@_);
+  my $new = $self->next::method(@_);
   $new->_insert_into_cache if $self->cache;
   return $new;
 }

@@ -8,7 +8,7 @@ use NEXT;
 sub mk_group_accessors {
   my ($class, $group, @cols) = @_;
   unless ($class->can('accessor_name') || $class->can('mutator_name')) {
-    return $class->NEXT::ACTUAL::mk_group_accessors($group => @cols);
+    return $class->next::method($group => @cols);
   }
   foreach my $col (@cols) {
     my $ro_meth = ($class->can('accessor_name')
@@ -19,7 +19,7 @@ sub mk_group_accessors {
                     : $col);
     #warn "$col $ro_meth $wo_meth";
     if ($ro_meth eq $wo_meth) {
-      $class->NEXT::ACTUAL::mk_group_accessors($group => [ $ro_meth => $col ]);
+      $class->next::method($group => [ $ro_meth => $col ]);
     } else {
       $class->mk_group_ro_accessors($group => [ $ro_meth => $col ]);
       $class->mk_group_wo_accessors($group => [ $wo_meth => $col ]);
@@ -43,7 +43,7 @@ sub create {
       $att{$col} = delete $attrs->{$mut} if exists $attrs->{$mut};
     }
   }
-  return $class->NEXT::ACTUAL::create({ %$attrs, %att }, @rest);
+  return $class->next::method({ %$attrs, %att }, @rest);
 }
 
 1;

@@ -1,6 +1,6 @@
 package DBIx::Class::PK::Auto;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class::PK/;
 use strict;
 use warnings;
 
@@ -31,7 +31,7 @@ primary keys.
 
 sub insert {
   my ($self, @rest) = @_;
-  my $ret = $self->NEXT::ACTUAL::insert(@rest);
+  my $ret = $self->next::method(@rest);
 
   # if all primaries are already populated, skip auto-inc
   my $populated = 0;

@@ -5,7 +5,7 @@ use warnings;
 
 sub add_relationship {
   my ($class, $rel, @rest) = @_;
-  my $ret = $class->NEXT::ACTUAL::add_relationship($rel => @rest);
+  my $ret = $class->next::method($rel => @rest);
   my $rel_obj = $class->_relationships->{$rel};
   if (my $acc_type = $rel_obj->{attrs}{accessor}) {
     $class->add_relationship_accessor($rel => $acc_type);

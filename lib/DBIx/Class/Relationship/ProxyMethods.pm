@@ -3,11 +3,11 @@ package DBIx::Class::Relationship::ProxyMethods;
 use strict;
 use warnings;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 sub add_relationship {
   my ($class, $rel, @rest) = @_;
-  my $ret = $class->NEXT::ACTUAL::add_relationship($rel => @rest);
+  my $ret = $class->next::method($rel => @rest);
   if (my $proxy_list = $class->_relationships->{$rel}->{attrs}{proxy}) {
     $class->proxy_to_related($rel,
               (ref $proxy_list ? @$proxy_list : $proxy_list));

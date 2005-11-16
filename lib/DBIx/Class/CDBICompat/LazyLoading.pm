@@ -15,7 +15,7 @@ sub get_column {
                            && $_ ne 'All' }
                    keys %{ $self->_column_groups || {} });
   }
-  $self->NEXT::get_column(@_[1..$#_]);
+  $self->next::method(@_[1..$#_]);
 }
 
 sub _flesh {
