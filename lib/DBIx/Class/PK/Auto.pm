@@ -35,7 +35,7 @@ sub insert {
 
   # if all primaries are already populated, skip auto-inc
   my $populated = 0;
-  map { $populated++ if defined $self->$_ } $self->primary_columns;
+  map { $populated++ if $self->has_column($_) } $self->primary_columns;
   return $ret if ( $populated == scalar $self->primary_columns );
 
   my ($pri, $too_many) =
