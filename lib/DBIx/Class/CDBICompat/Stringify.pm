@@ -6,9 +6,7 @@ use warnings;
 use Scalar::Util;
 
 use overload
-  '""' => sub {
-            return Scalar::Util::refaddr($_[0]) if (caller)[0] eq 'NEXT';
-            return shift->stringify_self; },
+  '""' => sub { return shift->stringify_self; },
   fallback => 1;
 
 sub stringify_self {
