@@ -15,7 +15,6 @@ illustrate:
 
 	# Set up inherited connection information
 	package MyApp::DBIC; 
-
 	use base qw/DBIx::Class/;
 
 	__PACKAGE__->load_components(qw/PK::Auto::SQLite Core DB/);
@@ -36,16 +35,16 @@ illustrate:
 	sub books {
 	  my ($self) = @_;
 	  return MyApp::DBIC::Book->search(
-		{ 'b2a.authID' => $self->authID }, { join => 'b2a' }
-	  );
+		{ 'b2a.authID' => $self->authID }, # WHERE clause
+		{ join => 'b2a' } # join condition (part of search attrs)
 	    # 'b2a' refers to the relationship named earlier in the Author class.
 		# 'b2a.authID' refers to the authID column of the b2a relationship,
 		# which becomes accessible in the search by being joined.  
+	  );
 	}
 
 	# define the link table class
 	package MyApp::DBIC::Book2Author;
-
 	use base qw/MyApp::DBIC/;
 
 	__PACKAGE__->table('book2author');
@@ -56,7 +55,6 @@ illustrate:
 	__PACKAGE__->belongs_to('bookID' => 'MyApp::DBIC::Book');
 
 	package MyApp::DBIC::Book;
-
 	use base qw/MyApp::DBIC/;
 
 	__PACKAGE__->table('books');
@@ -69,7 +67,7 @@ illustrate:
 	 my ($self) = @_;
 	 return MyApp::DBIC::Author->search(
 	   { 'b2a.bookID' => $self->bookID }, # WHERE clause
-	   { join => 'b2a' }); # Join condition
+	   { join => 'b2a' }); # join condition (part of search attrs)
 	}
 
 	# So the above search returns an author record where the bookID field of the
