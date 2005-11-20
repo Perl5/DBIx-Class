@@ -8,7 +8,9 @@ sub inject_base {
     no strict 'refs';
     unshift(@{"${target}::ISA"}, grep { $target ne $_ } @to_inject);
   }
-  eval "package $target; use Class::C3;";
+  my $table = { Class::C3::_dump_MRO_table };
+  eval "package $target; use Class::C3;" unless exists $table->{$target};
+  Class::C3::reinitialize() if defined $table->{$target};
 }
 
 sub load_components {
