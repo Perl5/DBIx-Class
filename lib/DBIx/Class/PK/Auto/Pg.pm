@@ -27,7 +27,7 @@ sub get_autoinc_seq {
     while (my $foo = $sth->fetchrow_arrayref){
       if(defined $foo->[12] && $foo->[12] =~ /^nextval/) {
         ($self->{_autoinc_seq}) = $foo->[12] =~ 
-	  m!^nextval\('"?([^"']+)"?'::text\)!;
+          m!^nextval\('"?([^"']+)"?'::(?:text|regclass)\)!;
       }
     }
 }
