@@ -2,7 +2,8 @@ package DBIx::Class::CDBICompat::ColumnCase;
 
 use strict;
 use warnings;
-use NEXT;
+
+use base qw/DBIx::Class/;
 
 sub _register_column_group {
   my ($class, $group, @cols) = @_;

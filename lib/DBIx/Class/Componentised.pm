@@ -9,7 +9,7 @@ sub inject_base {
     unshift(@{"${target}::ISA"}, grep { $target ne $_ } @to_inject);
   }
   my $table = { Class::C3::_dump_MRO_table };
-  eval "package $target; use Class::C3;" unless exists $table->{$target};
+  eval "package $target; import Class::C3;" unless exists $table->{$target};
   Class::C3::reinitialize() if defined $table->{$target};
 }
 
