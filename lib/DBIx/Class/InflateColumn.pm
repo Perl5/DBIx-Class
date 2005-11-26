@@ -2,6 +2,7 @@ package DBIx::Class::InflateColumn;
 
 use strict;
 use warnings;
+use base qw/DBIx::Class::Row/;
 
 sub inflate_column {
   my ($self, $col, $attrs) = @_;

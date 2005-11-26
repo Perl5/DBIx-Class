@@ -2,9 +2,8 @@ package DBIx::Class::CDBICompat::ColumnGroups;
 
 use strict;
 use warnings;
-use NEXT;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class::Row/;
 
 __PACKAGE__->mk_classdata('_column_groups' => { });
 

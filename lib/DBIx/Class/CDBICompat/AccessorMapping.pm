@@ -3,8 +3,6 @@ package DBIx::Class::CDBICompat::AccessorMapping;
 use strict;
 use warnings;
 
-use NEXT;
-
 sub mk_group_accessors {
   my ($class, $group, @cols) = @_;
   unless ($class->can('accessor_name') || $class->can('mutator_name')) {
@@ -27,23 +25,20 @@ sub mk_group_accessors {
   }
 }
 
-sub create {
+sub new {
   my ($class, $attrs, @rest) = @_;
   $class->throw( "create needs a hashref" ) unless ref $attrs eq 'HASH';
-  $attrs = { %$attrs };
-  my %att;
   foreach my $col ($class->columns) {
     if ($class->can('accessor_name')) {
       my $acc = $class->accessor_name($col);
-#warn "$col $acc";
-      $att{$col} = delete $attrs->{$acc} if exists $attrs->{$acc};
+      $attrs->{$col} = delete $attrs->{$acc} if exists $attrs->{$acc};
     }
     if ($class->can('mutator_name')) {
       my $mut = $class->mutator_name($col);
-      $att{$col} = delete $attrs->{$mut} if exists $attrs->{$mut};
+      $attrs->{$col} = delete $attrs->{$mut} if exists $attrs->{$mut};
     }
   }
-  return $class->next::method({ %$attrs, %att }, @rest);
+  return $class->next::method($attrs, @rest);
 }
 
 1;

@@ -34,7 +34,7 @@ use strict;
 
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/CDBICompat PK::Auto::SQLite Core DB/);
+__PACKAGE__->load_components(qw/PK::Auto::SQLite CDBICompat Core DB/);
 
 use File::Temp qw/tempfile/;
 my (undef, $DB) = tempfile();

@@ -3,8 +3,6 @@ package DBIx::Class::AccessorGroup;
 use strict;
 use warnings;
 
-use NEXT;
-
 =head1 NAME 
 
 DBIx::Class::AccessorGroup -  Lets you build groups of accessors

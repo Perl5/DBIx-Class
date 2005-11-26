@@ -1,6 +1,7 @@
 package DBIx::Class::PK::Auto;
 
-use base qw/DBIx::Class::PK/;
+#use base qw/DBIx::Class::PK/;
+use base qw/DBIx::Class/;
 use strict;
 use warnings;
 

@@ -2,7 +2,7 @@ package DBIx::Class::CDBICompat::TempColumns;
 
 use strict;
 use warnings;
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata('_temp_columns' => { });
 

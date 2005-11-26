@@ -13,12 +13,13 @@ my %arguments = (
         'SQL::Abstract'             => 1.20,
         'SQL::Abstract::Limit'      => 0.101,
         'DBD::SQLite'               => 1.08,
+        'Class::C3'                 => 0.07,
+	'Tie::IxHash'               => 0,
+        'Module::Find'              => 0,
+        'Storable'                  => 0,
         # Following for CDBICompat only
         'Class::Trigger'            => 0,
         'DBIx::ContextualFetch'     => 0,
-	'Tie::IxHash'               => 0,
-        'Storable'                  => 0,
-        'Module::Find'              => 0,
         'Class::C3'                 => 0.05,
     },
     recommends          => {

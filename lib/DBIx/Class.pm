@@ -6,7 +6,7 @@ use warnings;
 use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Data::Inheritable/;
 
-$VERSION = '0.03999_01';
+$VERSION = '0.03999_03';
 
 
 1;
@@ -24,10 +24,11 @@ and meant to support compability with it, while restructuring the
 insides, and making it possible to support some new features like 
 self-joins, distinct, group bys and more.
 
-It's currently considered EXPERIMENTAL - bring this near a production
-database at your own risk! The API is *not* fixed yet, although most of
-the primitives should be good for the future and any API changes will be
-posted to the mailing list before they're committed.
+This project is still at an early stage so the maintainers don't make
+any absolute promise that full backwards-compatibility will be supported;
+however if we can without compromising the improvements we're trying to
+make, we will, and any non-compatible changes will merit a full justification
+on the mailing list and a CPAN developer release for people to test against.
 
 The community can be found via -
 
