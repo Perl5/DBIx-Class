@@ -1,9 +1,14 @@
 Revision history for DBIx::Class
 
+0.04001
+        - Fix so set_inflated_column calls set_column
+
+0.04 2005-11-26
         - Moved get_simple and set_simple into AccessorGroup
         - Made 'new' die if given invalid columns
         - Added has_column and column_info to Table.pm
         - Refactored away from direct use of _columns and _primaries
+        - Switched from NEXT to Class::C3
 
 0.03004
         - Added an || '' to the CDBICompat stringify to avoid null warnings

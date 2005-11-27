@@ -6,7 +6,7 @@ use warnings;
 use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Data::Inheritable/;
 
-$VERSION = '0.04';
+$VERSION = '0.04001';
 
 
 1;

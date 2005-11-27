@@ -46,24 +46,29 @@ sub get_inflated_column {
 
 sub set_inflated_column {
   my ($self, $col, @rest) = @_;
-  my $ret = $self->store_inflated_column($col, @rest);
-  $self->{_dirty_columns}{$col} = 1;
+  my $ret = $self->_inflated_column_op('set', $col, @rest);
   return $ret;
 }
 
 sub store_inflated_column {
-  my ($self, $col, $obj) = @_;
+  my ($self, $col, @rest) = @_;
+  my $ret = $self->_inflated_column_op('store', $col, @rest);
+  return $ret;
+}
+
+sub _inflated_column_op {
+  my ($self, $op, $col, $obj) = @_;
+  my $meth = "${op}_column";
   unless (ref $obj) {
     delete $self->{_inflated_column}{$col};
-    return $self->store_column($col, $obj);
+    return $self->$meth($col, $obj);
   }
 
   my $deflated = $self->_deflated_column($col, $obj);
            # Do this now so we don't store if it's invalid
 
   $self->{_inflated_column}{$col} = $obj;
-  #warn "Storing $obj: ".($obj->_ident_values)[0];
-  $self->store_column($col, $deflated);
+  $self->$meth($col, $deflated);
   return $obj;
 }
 
