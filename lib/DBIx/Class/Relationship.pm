@@ -3,7 +3,7 @@ package DBIx::Class::Relationship;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 __PACKAGE__->load_own_components(qw/
   HasMany

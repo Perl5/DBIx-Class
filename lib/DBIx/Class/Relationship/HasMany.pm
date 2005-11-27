@@ -9,11 +9,11 @@ sub has_many {
   eval "require $f_class";
 
   unless (ref $cond) {
-    my ($pri, $too_many) = keys %{ $class->_primaries };
+    my ($pri, $too_many) = $class->primary_columns;
     $class->throw( "has_many can only infer join for a single primary key; ${class} has more" )
       if $too_many;
     my $f_key;
-    my $f_class_loaded = eval { $f_class->_columns };
+    my $f_class_loaded = eval { $f_class->columns };
     my $guess;
     if (defined $cond && length $cond) {
       $f_key = $cond;
@@ -24,7 +24,7 @@ sub has_many {
       $guess = "using our class name '$class' as foreign key";
     }
     $class->throw("No such column ${f_key} on foreign class ${f_class} ($guess)")
-      if $f_class_loaded && !exists $f_class->_columns->{$f_key}; 
+      if $f_class_loaded && !$f_class->has_column($f_key);
     $cond = { "foreign.${f_key}" => "self.${pri}" },
   }
 

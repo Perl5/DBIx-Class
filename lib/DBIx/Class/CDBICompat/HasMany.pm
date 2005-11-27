@@ -19,7 +19,7 @@ sub has_many {
     $args->{cascade_delete} = 0;
   }
 
-  $class->NEXT::has_many($rel, $f_class, $f_key, $args);
+  $class->next::method($rel, $f_class, $f_key, $args);
 
   if (@f_method) {
     no strict 'refs';

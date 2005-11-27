@@ -3,8 +3,6 @@ package DBIx::Class::AccessorGroup;
 use strict;
 use warnings;
 
-use NEXT;
-
 =head1 NAME 
 
 DBIx::Class::AccessorGroup -  Lets you build groups of accessors
@@ -134,6 +132,16 @@ sub make_group_wo_accessor {
             return $self->$set($field, @_);
         }
     };
+}
+
+sub get_simple {
+  my ($self, $get) = @_;
+  return $self->{$get};
+}
+
+sub set_simple {
+  my ($self, $set, $val) = @_;
+  return $self->{$set} = $val;
 }
 
 1;

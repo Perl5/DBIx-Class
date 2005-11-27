@@ -140,7 +140,7 @@ SKIP: {
 		YA::Film->add_relationship_type(has_a => "YA::HasA");
 
 		package YA::HasA;
-		use base 'Class::DBI::Relationship::HasA';
+		#use base 'Class::DBI::Relationship::HasA';
 
 		sub _inflator {
 			my $self  = shift;

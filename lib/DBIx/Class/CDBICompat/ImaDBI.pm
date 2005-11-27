@@ -4,8 +4,7 @@ use strict;
 use warnings;
 use DBIx::ContextualFetch;
 
-use NEXT;
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata('_transform_sql_handler_order'
                             => [ qw/TABLE ESSENTIAL JOIN/ ] );
@@ -62,7 +61,7 @@ sub connection {
   my ($class, @info) = @_;
   $info[3] = { %{ $info[3] || {}} };
   $info[3]->{RootClass} = 'DBIx::ContextualFetch';
-  return $class->NEXT::connection(@info);
+  return $class->next::method(@info);
 }
 
 sub __driver {

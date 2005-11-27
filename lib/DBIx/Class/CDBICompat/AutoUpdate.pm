@@ -9,7 +9,7 @@ __PACKAGE__->mk_classdata('__AutoCommit');
 
 sub set_column {
   my $self = shift;
-  my $ret = $self->NEXT::set_column(@_);
+  my $ret = $self->next::method(@_);
   $self->update if ($self->autoupdate && $self->{_in_storage});
   return $ret;
 }

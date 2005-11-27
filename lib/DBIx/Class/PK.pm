@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Tie::IxHash;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class::Row/;
 
 __PACKAGE__->mk_classdata('_primaries' => {});
 
@@ -98,8 +98,6 @@ sub discard_changes {
   }
   delete @{$self}{keys %$self};
   @{$self}{keys %$reload} = values %$reload;
-  #$self->store_column($_ => $reload->get_column($_))
-  #  foreach keys %{$self->_columns};
   return $self;
 }
 
@@ -139,6 +137,13 @@ sub _create_ID {
   return undef unless 0 == grep { !defined } values %vals;
   $class = ref $class || $class;
   return join '|', $class, map { $_ . '=' . $vals{$_} } sort keys %vals;    
+}
+
+sub ident_condition {
+  my ($self) = @_;
+  my %cond;
+  $cond{$_} = $self->get_column($_) for $self->primary_columns;
+  return \%cond;
 }
 
 1;

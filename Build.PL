@@ -9,16 +9,20 @@ my %arguments = (
         'Data::Page'                => 0,
         'DBI'                       => 0,
         'UNIVERSAL::require'        => 0,
-        'NEXT'                      => 0,
         'Scalar::Util'              => 0,
         'SQL::Abstract'             => 1.20,
         'SQL::Abstract::Limit'      => 0.101,
         'DBD::SQLite'               => 1.08,
+        'Class::C3'                 => 0.07,
 	'Tie::IxHash'               => 0,
-        'Storable'                  => 0,
         'Module::Find'              => 0,
+        'Storable'                  => 0,
+        # Following for CDBICompat only
+        'Class::Trigger'            => 0,
+        'DBIx::ContextualFetch'     => 0,
+        'Class::C3'                 => 0.05,
     },
-    reommends          => {
+    recommends          => {
         'Data::UUID'                => 0,
     },
     create_makefile_pl => 'passthrough',

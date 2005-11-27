@@ -6,7 +6,7 @@ use warnings;
 use DBIx::Class::ResultSet;
 use Data::Page;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata('_columns' => {});
 
@@ -100,8 +100,18 @@ sub count {
 
 =item search 
 
-  my @obj    = $class->search({ foo => 3 });
+  my @obj    = $class->search({ foo => 3 }); # "... WHERE foo = 3"
   my $cursor = $class->search({ foo => 3 });
+
+To retrieve all rows, simply call C<search()> with no condition parameter,
+
+  my @all = $class->search(); # equivalent to search({})
+
+If you need to pass in additional attributes (see
+L<DBIx::Class::ResultSet/Attributes> for details) an empty hash indicates
+no condition,
+
+  my @all = $class->search({}, { cols => [qw/foo bar/] }); # "SELECT foo, bar FROM $class_table"
 
 =cut
 
@@ -173,6 +183,39 @@ sub find_or_create {
   my $exists = $class->find($hash);
   return defined($exists) ? $exists : $class->create($hash);
 }
+
+=item has_column                                                                
+                                                                                
+  if ($obj->has_column($col)) { ... }                                           
+                                                                                
+Returns 1 if the object has a column of this name, 0 otherwise                  
+                                                                                
+=cut                                                                            
+
+sub has_column {
+  my ($self, $column) = @_;
+  return exists $self->_columns->{$column};
+}
+
+=item column_info                                                               
+                                                                                
+  my $info = $obj->column_info($col);                                           
+                                                                                
+Returns the column metadata hashref for the column                              
+                                                                                
+=cut                                                                            
+
+sub column_info {
+  my ($self, $column) = @_;
+  die "No such column $column" unless exists $self->_columns->{$column};
+  return $self->_columns->{$column};
+}
+
+=item columns                                                                   
+                                                                                
+  my @column_names = $obj->columns;                                             
+                                                                                
+=cut                                                                            
 
 sub columns { return keys %{shift->_columns}; }
 

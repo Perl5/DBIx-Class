@@ -9,7 +9,7 @@ use Data::Page;
 
 =head1 NAME
 
-DBIX::Class::Recordset - Responsible for fetching and creating recordsets.
+DBIX::Class::ResultSet - Responsible for fetching and creating resultset.
 
 =head1 SYNOPSIS;
 
@@ -17,7 +17,7 @@ $rs=MyApp::DB::Class->search(registered=>1);
 
 =head1 DESCRIPTION
 
-The recordset is also know as an iterator.
+The resultset is also known as an iterator.
 
 =head1 METHODS
 
@@ -25,7 +25,7 @@ The recordset is also know as an iterator.
 
 =item new  <db_class> <attrs>
 
-The recordset constructor. Takes a db class and an
+The resultset constructor. Takes a db class and an
 attribute hash (see below for more info on attributes)
 
 =cut
@@ -71,7 +71,7 @@ sub new {
 
 =item cursor
 
-Return a storage driven cursor to the given record set.
+Return a storage driven cursor to the given resultset.
 
 =cut
 
@@ -89,7 +89,7 @@ sub cursor {
 
 =item slice <first> <last>
 
-return a number of elements from the given record set.
+return a number of elements from the given resultset.
 
 =cut
 
@@ -105,7 +105,7 @@ sub slice {
 
 =item next 
 
-Returns the next element in this record set.
+Returns the next element in this resultset.
 
 =cut
 
@@ -184,7 +184,7 @@ sub count {
 
 =item all
 
-Returns all elements in the recordset. Is called implictly if the search
+Returns all elements in the resultset. Is called implictly if the search
 method is used in list context.
 
 =cut
@@ -197,7 +197,7 @@ sub all {
 
 =item reset
 
-Reset this recordset's cursor, so you can iterate through the elements again.
+Reset this resultset's cursor, so you can iterate through the elements again.
 
 =cut
 
@@ -209,7 +209,7 @@ sub reset {
 
 =item first
 
-resets the recordset and returns the first element.
+resets the resultset and returns the first element.
 
 =cut
 
@@ -219,7 +219,7 @@ sub first {
 
 =item delete
 
-Deletes all elements in the recordset.
+Deletes all elements in the resultset.
 
 =cut
 
@@ -251,7 +251,7 @@ sub pager {
 
 =item page <page>
 
-Returns a new recordset representing a given page.
+Returns a new resultset representing a given page.
 
 =cut
 
@@ -266,7 +266,7 @@ sub page {
 
 =head1 Attributes
 
-The recordset is responsible for handling the various attributes that
+The resultset is responsible for handling the various attributes that
 can be passed in with the search functions. Here's an overview of them:
 
 =over 4

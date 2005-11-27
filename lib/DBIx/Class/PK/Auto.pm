@@ -1,6 +1,7 @@
 package DBIx::Class::PK::Auto;
 
-use base qw/Class::Data::Inheritable/;
+#use base qw/DBIx::Class::PK/;
+use base qw/DBIx::Class/;
 use strict;
 use warnings;
 
@@ -31,17 +32,17 @@ primary keys.
 
 sub insert {
   my ($self, @rest) = @_;
-  my $ret = $self->NEXT::ACTUAL::insert(@rest);
+  my $ret = $self->next::method(@rest);
 
   # if all primaries are already populated, skip auto-inc
   my $populated = 0;
-  map { $populated++ if $self->$_ } keys %{ $self->_primaries };
-  return $ret if ( $populated == scalar keys %{ $self->_primaries } );
+  map { $populated++ if defined $self->get_column($_) } $self->primary_columns;
+  return $ret if ( $populated == scalar $self->primary_columns );
 
   my ($pri, $too_many) =
-    (grep { $self->_primaries->{$_}{'auto_increment'} }
-       keys %{ $self->_primaries })
-    || (keys %{ $self->_primaries });
+    (grep { $self->column_info($_)->{'auto_increment'} }
+       $self->primary_columns)
+    || $self->primary_columns;
   $self->throw( "More than one possible key found for auto-inc on ".ref $self )
     if $too_many;
   unless (defined $self->get_column($pri)) {

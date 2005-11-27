@@ -2,9 +2,8 @@ package DBIx::Class::CDBICompat::ColumnGroups;
 
 use strict;
 use warnings;
-use NEXT;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class::Row/;
 
 __PACKAGE__->mk_classdata('_column_groups' => { });
 
@@ -58,13 +57,13 @@ sub all_columns { return keys %{$_[0]->_columns}; }
 
 sub primary_column {
   my ($class) = @_;
-  my @pri = keys %{$class->_primaries};
+  my @pri = $class->primary_columns;
   return wantarray ? @pri : $pri[0];
 }
 
 sub find_column {
   my ($class, $col) = @_;
-  return $col if $class->_columns->{$col};
+  return $col if $class->has_column($col);
 }
 
 sub __grouper {

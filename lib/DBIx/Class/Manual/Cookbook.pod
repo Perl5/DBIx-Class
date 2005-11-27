@@ -13,55 +13,66 @@ DBIx::Class::Manual::Cookbook - Misc receipes
 This is not as easy as it could be, but it's possible. Here's an example to 
 illustrate:
 
-    package Base; 
+	# Set up inherited connection information
+	package MyApp::DBIC; 
+	use base qw/DBIx::Class/;
 
-    use base qw/DBIx::Class/;
+	__PACKAGE__->load_components(qw/PK::Auto::SQLite Core DB/);
+	__PACKAGE__->connection(...);
 
-    __PACKAGE__->load_components(qw/Core DB/);
-    __PACKAGE__->connection(...);
+	# Set up a class for the 'authors' table
+	package MyApp::DBIC::Author;
+	use base qw/MyApp::DBIC/;
 
-    package Left;
+	__PACKAGE__->table('authors');
+	__PACKAGE__->add_columns(qw/authID first_name last_name/);
+	__PACKAGE__->set_primary_key(qw/authID/);
 
-    use base qw/Base/;
+	# Define relationship to the link table
+	__PACKAGE__->has_many('b2a' => 'MyApp::DBIC::Book2Author', 'authID');
 
-    __PACKAGE__->table('left');
-    __PACKAGE__->add_columns(qw/id left_stuff/);
-    __PACKAGE__->set_primary_key(qw/id/);
-    __PACKAGE__->has_many('mid' => 'Mid');
+	# Create the accessor for books from the ::Author class
+	sub books {
+	  my ($self) = @_;
+	  return MyApp::DBIC::Book->search(
+		{ 'b2a.authID' => $self->authID }, # WHERE clause
+		{ join => 'b2a' } # join condition (part of search attrs)
+	    # 'b2a' refers to the relationship named earlier in the Author class.
+		# 'b2a.authID' refers to the authID column of the b2a relationship,
+		# which becomes accessible in the search by being joined.  
+	  );
+	}
 
-    sub right {
-     my ($self) = @_;
-     return Right->search(
-       { 'left.id' => $self->id },
-       { join => { 'mid' => 'left' }});
-    }
+	# define the link table class
+	package MyApp::DBIC::Book2Author;
+	use base qw/MyApp::DBIC/;
 
-    package Mid;
+	__PACKAGE__->table('book2author');
+	__PACKAGE__->add_columns(qw/bookID authID/);
+	__PACKAGE__->set_primary_key(qw/bookID authID/);
 
-    use base qw/Base/;
+	__PACKAGE__->belongs_to('authID' => 'MyApp::DBIC::Author');
+	__PACKAGE__->belongs_to('bookID' => 'MyApp::DBIC::Book');
 
-    __PACKAGE__->table('mid');
-    __PACKAGE__->add_columns(qw/left right/);
-    __PACKAGE__->set_primary_key(qw/left right/);
+	package MyApp::DBIC::Book;
+	use base qw/MyApp::DBIC/;
 
-    __PACKAGE__->belongs_to('left' => 'Left');
-    __PACKAGE__->belongs_to('right' => 'Right');
+	__PACKAGE__->table('books');
+	__PACKAGE__->add_columns(qw/bookID title edition isbn publisher year/);
+	__PACKAGE__->set_primary_key(qw/bookID/);
+	
+	__PACKAGE__->has_many('b2a' => 'MyApp::DBIC::Book2Author', 'bookID');
 
-    package Right;
+	sub authors {
+	 my ($self) = @_;
+	 return MyApp::DBIC::Author->search(
+	   { 'b2a.bookID' => $self->bookID }, # WHERE clause
+	   { join => 'b2a' }); # join condition (part of search attrs)
+	}
 
-    use base qw/Base/;
-
-    __PACKAGE__->table('right');
-    __PACKAGE__->add_columns(qw/id right_stuff/);
-    __PACKAGE__->set_primary_key(qw/id/);
-    __PACKAGE__->has_many('mid' => 'Mid');
-
-    sub left {
-     my ($self) = @_;
-     return Left->search(
-       { 'right.id' => $self->id },
-       { join => { 'mid' => 'right' });
-    }
+	# So the above search returns an author record where the bookID field of the
+	# book2author table equals the bookID of the books (using the bookID 
+	# relationship table
 
 =item Advanced Exception handling
 

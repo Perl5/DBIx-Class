@@ -1,11 +1,16 @@
 package DBIx::Class::Componentised;
 
+use Class::C3;
+
 sub inject_base {
   my ($class, $target, @to_inject) = @_;
   {
     no strict 'refs';
     unshift(@{"${target}::ISA"}, grep { $target ne $_ } @to_inject);
   }
+  my $table = { Class::C3::_dump_MRO_table };
+  eval "package $target; import Class::C3;" unless exists $table->{$target};
+  Class::C3::reinitialize() if defined $table->{$target};
 }
 
 sub load_components {

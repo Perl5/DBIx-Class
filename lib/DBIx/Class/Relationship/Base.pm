@@ -3,7 +3,7 @@ package DBIx::Class::Relationship::Base;
 use strict;
 use warnings;
 
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata('_relationships', { } );
 
@@ -48,9 +48,8 @@ sub add_relationship {
                   cond  => $cond,
                   attrs => $attrs };
   $class->_relationships(\%rels);
-  #warn %{$f_class->_columns};
 
-  return unless eval { %{$f_class->_columns}; }; # Foreign class not loaded
+  return unless eval { $f_class->can('columns'); }; # Foreign class not loaded
   eval { $class->_resolve_join($rel, 'me') };
 
   if ($@) { # If the resolve failed, back out and re-throw the error
@@ -117,14 +116,14 @@ sub _cond_key {
     if (my $alias = $attrs->{_aliases}{$type}) {
       my $class = $attrs->{_classes}{$alias};
       $self->throw("Unknown column $field on $class as $alias")
-        unless exists $class->_columns->{$field};
+        unless $class->has_column($field);
       return join('.', $alias, $field);
     } else {
       $self->throw( "Unable to resolve type ${type}: only have aliases for ".
             join(', ', keys %{$attrs->{_aliases} || {}}) );
     }
   }
-  return $self->NEXT::ACTUAL::_cond_key($attrs, $key);
+  return $self->next::method($attrs, $key);
 }
 
 sub _cond_value {
@@ -134,7 +133,7 @@ sub _cond_value {
     unless ($value =~ s/^self\.//) {
       $self->throw( "Unable to convert relationship to WHERE clause: invalid value ${value}" );
     }
-    unless ($self->_columns->{$value}) {
+    unless ($self->has_column($value)) {
       $self->throw( "Unable to convert relationship to WHERE clause: no such accessor ${value}" );
     }
     return $self->get_column($value);
@@ -144,7 +143,7 @@ sub _cond_value {
     if (my $alias = $attrs->{_aliases}{$type}) {
       my $class = $attrs->{_classes}{$alias};
       $self->throw("Unknown column $field on $class as $alias")
-        unless exists $class->_columns->{$field};
+        unless $class->has_column($field);
       return join('.', $alias, $field);
     } else {
       $self->throw( "Unable to resolve type ${type}: only have aliases for ".
@@ -152,7 +151,7 @@ sub _cond_value {
     }
   }
       
-  return $self->NEXT::ACTUAL::_cond_value($attrs, $key, $value)
+  return $self->next::method($attrs, $key, $value)
 }
 
 =item search_related

@@ -2,7 +2,7 @@ package DBIx::Class::CDBICompat;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class/;
+use base qw/DBIx::Class::Core DBIx::Class::DB/;
 
 __PACKAGE__->load_own_components(qw/
   Constraints
@@ -16,8 +16,8 @@ __PACKAGE__->load_own_components(qw/
   Constructor
   AccessorMapping
   ColumnCase
-  HasMany
   HasA
+  HasMany
   MightHave
   LazyLoading
   AutoUpdate

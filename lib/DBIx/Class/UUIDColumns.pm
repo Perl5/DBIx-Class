@@ -1,5 +1,5 @@
 package DBIx::Class::UUIDColumns;
-use base qw/Class::Data::Inheritable/;
+use base qw/DBIx::Class/;
 
 use Data::UUID;
 
@@ -34,7 +34,7 @@ Note that the component needs to be loaded before Core.
 sub uuid_columns {
     my $self = shift;
     for (@_) {
-	die "column $_ doesn't exist" unless exists $self->_columns->{$_};
+	die "column $_ doesn't exist" unless $self->has_column($_);
     }
     $self->uuid_auto_columns(\@_);
 }
@@ -42,10 +42,10 @@ sub uuid_columns {
 sub insert {
     my ($self) = @_;
     for my $column (@{$self->uuid_auto_columns}) {
-	$self->$column( $self->get_uuid )
-	    unless defined $self->$column;
+	$self->store_column( $column, $self->get_uuid )
+	    unless defined $self->get_column( $column );
     }
-    $self->NEXT::ACTUAL::insert;
+    $self->next::method;
 }
 
 sub get_uuid {
