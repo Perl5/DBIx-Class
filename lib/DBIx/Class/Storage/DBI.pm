@@ -162,7 +162,7 @@ sub _execute {
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
   unshift(@bind, @$extra_bind) if $extra_bind;
   warn "$sql: @bind" if $self->debug;
-  my $sth = $self->sth($sql);
+  my $sth = $self->sth($sql,$op);
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv = $sth->execute(@bind);
   return (wantarray ? ($rv, $sth, @bind) : $rv);
@@ -213,7 +213,9 @@ sub select_single {
 }
 
 sub sth {
-  shift->dbh->prepare(@_);
+  my ($self, $sql, $op) = @_;
+  my $meth = (defined $op && $op ne 'select' ? 'prepare_cached' : 'prepare');
+  return $self->dbh->$meth($sql);
 }
 
 1;

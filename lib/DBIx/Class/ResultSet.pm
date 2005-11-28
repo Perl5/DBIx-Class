@@ -31,9 +31,9 @@ attribute hash (see below for more info on attributes)
 =cut
 
 sub new {
-  my ($it_class, $db_class, $attrs) = @_;
+  my ($class, $db_class, $attrs) = @_;
   #use Data::Dumper; warn Dumper(@_);
-  $it_class = ref $it_class if ref $it_class;
+  $class = ref $class if ref $class;
   $attrs = { %{ $attrs || {} } };
   my %seen;
   $attrs->{cols} ||= [ map { "me.$_" } $db_class->_select_columns ];
@@ -57,14 +57,14 @@ sub new {
       $db_class->_relationships->{$pre}->{class}->_select_columns);
   }
   my $new = {
-    class => $db_class,
+    source => $db_class,
     cols => $attrs->{cols} || [ $db_class->_select_columns ],
     cond => $attrs->{where},
     from => $attrs->{from} || $db_class->_table_name,
     count => undef,
     pager => undef,
     attrs => $attrs };
-  bless ($new, $it_class);
+  bless ($new, $class);
   $new->pager if ($attrs->{page});
   return $new;
 }
@@ -77,13 +77,13 @@ Return a storage driven cursor to the given resultset.
 
 sub cursor {
   my ($self) = @_;
-  my ($db_class, $attrs) = @{$self}{qw/class attrs/};
+  my ($source, $attrs) = @{$self}{qw/source attrs/};
   if ($attrs->{page}) {
     $attrs->{rows} = $self->pager->entries_per_page;
     $attrs->{offset} = $self->pager->skipped;
   }
   return $self->{cursor}
-    ||= $db_class->storage->select($self->{from}, $self->{cols},
+    ||= $source->storage->select($self->{from}, $self->{cols},
           $attrs->{where},$attrs);
 }
 
@@ -96,10 +96,10 @@ return a number of elements from the given resultset.
 sub slice {
   my ($self, $min, $max) = @_;
   my $attrs = { %{ $self->{attrs} || {} } };
-  $self->{class}->throw("Can't slice without where") unless $attrs->{where};
+  $self->{source}->throw("Can't slice without where") unless $attrs->{where};
   $attrs->{offset} = $min;
   $attrs->{rows} = ($max ? ($max - $min + 1) : 1);
-  my $slice = $self->new($self->{class}, $attrs);
+  my $slice = $self->new($self->{source}, $attrs);
   return (wantarray ? $slice->all : $slice);
 }
 
@@ -123,17 +123,17 @@ sub _construct_object {
   @cols = grep { /\(/ or ! /\./ } @cols;
   my $new;
   unless ($self->{attrs}{prefetch}) {
-    $new = $self->{class}->_row_to_object(\@cols, \@row);
+    $new = $self->{source}->_row_to_object(\@cols, \@row);
   } else {
     my @main = splice(@row, 0, scalar @cols);
-    $new = $self->{class}->_row_to_object(\@cols, \@main);
+    $new = $self->{source}->_row_to_object(\@cols, \@main);
     PRE: foreach my $pre (@{$self->{attrs}{prefetch}}) {
-      my $rel_obj = $self->{class}->_relationships->{$pre};
-      my $pre_class = $self->{class}->resolve_class($rel_obj->{class});
+      my $rel_obj = $self->{source}->_relationships->{$pre};
+      my $pre_class = $self->{source}->resolve_class($rel_obj->{class});
       my @pre_cols = $pre_class->_select_columns;
       my @vals = splice(@row, 0, scalar @pre_cols);
       my $fetched = $pre_class->_row_to_object(\@pre_cols, \@vals);
-      $self->{class}->throw("No accessor for prefetched $pre")
+      $self->{source}->throw("No accessor for prefetched $pre")
         unless defined $rel_obj->{attrs}{accessor};
       if ($rel_obj->{attrs}{accessor} eq 'single') {
         foreach my $pri ($rel_obj->{class}->primary_columns) {
@@ -146,7 +146,7 @@ sub _construct_object {
       } elsif ($rel_obj->{attrs}{accessor} eq 'filter') {
         $new->{_inflated_column}{$pre} = $fetched;
       } else {
-        $self->{class}->throw("Don't know how to store prefetched $pre");
+        $self->{source}->throw("Don't know how to store prefetched $pre");
       }
     }
   }
@@ -165,15 +165,14 @@ with to find the number of elements.
 
 sub count {
   my ($self) = @_;
-  my $db_class = $self->{class};
   my $attrs = { %{ $self->{attrs} } };
   unless ($self->{count}) {
     # offset and order by are not needed to count
     delete $attrs->{$_} for qw/offset order_by/;
         
     my @cols = 'COUNT(*)';
-    $self->{count} = $db_class->storage->select_single($self->{from}, \@cols,
-                                              $self->{cond}, $attrs);
+    $self->{count} = $self->{source}->storage->select_single(
+        $self->{from}, \@cols, $self->{cond}, $attrs);
   }
   return 0 unless $self->{count};
   return $self->{pager}->entries_on_this_page if ($self->{pager});
@@ -259,7 +258,7 @@ sub page {
   my ($self, $page) = @_;
   my $attrs = $self->{attrs};
   $attrs->{page} = $page;
-  return $self->new($self->{class}, $attrs);
+  return $self->new($self->{source}, $attrs);
 }
 
 =back 

@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+0.0499_01
+
 0.04001
         - Fix so set_inflated_column calls set_column
 
