@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use DBIx::Class::ResultSet;
-use Data::Page;
 
 use base qw/DBIx::Class/;
 
