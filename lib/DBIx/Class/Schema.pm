@@ -85,28 +85,60 @@ sub registered_classes {
   return values %{shift->class_registrations};
 }
 
-=item  load_classes [<classes>}
+=item  load_classes [<classes>, (<class>, <class>), {<namespace> => [<classes>]}]
 
 Uses L<Module::Find> to find all classes under the database class' namespace,
 or uses the classes you select.  Then it loads the component (using L<use>), 
 and registers them (using B<register_class>);
 
+It is possible to comment out classes with a leading '#', but note that perl
+will think it's a mistake (trying to use a comment in a qw list) so you'll
+need to add "no warnings 'qw';" before your load_classes call.
+
 =cut
 
 sub load_classes {
-  my $class = shift;
-  my @comp = grep { $_ !~ /^#/ } @_;
-  unless (@comp) {
+  my ($class, @params) = @_;
+  
+  my %comps_for;
+  
+  if (@params) {
+    foreach my $param (@params) {
+      if (ref $param eq 'ARRAY') {
+        # filter out commented entries
+        my @modules = grep { $_ !~ /^#/ } @$param;
+        
+        push (@{$comps_for{$class}}, @modules);
+      }
+      elsif (ref $param eq 'HASH') {
+        # more than one namespace possible
+        for my $comp ( keys %$param ) {
+          # filter out commented entries
+          my @modules = grep { $_ !~ /^#/ } @{$param->{$comp}};
+
+          push (@{$comps_for{$comp}}, @modules);
+        }
+      }
+      else {
+        # filter out commented entries
+        push (@{$comps_for{$class}}, $param) if $param !~ /^#/;
+      }
+    }
+  } else {
     eval "require Module::Find;";
     $class->throw("No arguments to load_classes and couldn't load".
       " Module::Find ($@)") if $@;
-    @comp = map { substr $_, length "${class}::"  }
-              Module::Find::findallmod($class);
+    my @comp = map { substr $_, length "${class}::"  } Module::Find::findallmod($class);
+    $comps_for{$class} = \@comp;
   }
-  foreach my $comp (@comp) {
-    my $comp_class = "${class}::${comp}";
-    eval "use $comp_class"; # If it fails, assume the user fixed it
-    $class->register_class($comp => $comp_class);
+
+  foreach my $prefix (keys %comps_for) {
+    foreach my $comp (@{$comps_for{$prefix}||[]}) {
+      my $comp_class = "${prefix}::${comp}";
+      print "$comp_class\n";
+      eval "use $comp_class"; # If it fails, assume the user fixed it
+      $class->register_class($comp => $comp_class);
+    }
   }
 }
 
