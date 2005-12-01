@@ -217,7 +217,10 @@ sub column_info {
                                                                                 
 =cut                                                                            
 
-sub columns { return keys %{shift->_columns}; }
+sub columns {
+  die "columns() is a read-only accessor, did you mean add_columns()?" if (@_ > 1);
+  return keys %{shift->_columns};
+}
 
 1;
 
