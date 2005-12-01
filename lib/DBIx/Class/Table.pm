@@ -62,60 +62,6 @@ sub add_columns {
   $class->_mk_column_accessors(@cols);
 }
 
-=item search_literal
-
-  my @obj    = $class->search_literal($literal_where_cond, @bind);
-  my $cursor = $class->search_literal($literal_where_cond, @bind);
-
-=cut
-
-sub search_literal {
-  my ($class, $cond, @vals) = @_;
-  $cond =~ s/^\s*WHERE//i;
-  my $attrs = (ref $vals[$#vals] eq 'HASH' ? { %{ pop(@vals) } } : {});
-  $attrs->{bind} = \@vals;
-  return $class->search(\$cond, $attrs);
-}
-
-=item count_literal
-
-  my $count = $class->count_literal($literal_where_cond);
-
-=cut
-
-sub count_literal {
-  my $class = shift;
-  return $class->search_literal(@_)->count;
-}
-
-=item count
-
-  my $count = $class->count({ foo => 3 });
-
-=cut
-
-sub count {
-  my $class = shift;
-  return $class->search(@_)->count;
-}
-
-=item search 
-
-  my @obj    = $class->search({ foo => 3 }); # "... WHERE foo = 3"
-  my $cursor = $class->search({ foo => 3 });
-
-To retrieve all rows, simply call C<search()> with no condition parameter,
-
-  my @all = $class->search(); # equivalent to search({})
-
-If you need to pass in additional attributes (see
-L<DBIx::Class::ResultSet/Attributes> for details) an empty hash indicates
-no condition,
-
-  my @all = $class->search({}, { cols => [qw/foo bar/] }); # "SELECT foo, bar FROM $class_table"
-
-=cut
-
 sub resultset {
   my $class = shift;
 

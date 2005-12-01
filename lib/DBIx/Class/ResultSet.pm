@@ -71,19 +71,27 @@ sub new {
 
 =item search
 
-Runs a search against the current resultset.
+  my @obj    = $rs->search({ foo => 3 }); # "... WHERE foo = 3"              
+  my $new_rs = $rs->search({ foo => 3 });                                    
+                                                                                
+If you need to pass in additional attributes but no additional condition,
+call it as ->search(undef, \%attrs);
+                                                                                
+  my @all = $class->search({}, { cols => [qw/foo bar/] }); # "SELECT foo, bar FROM $class_table"
 
 =cut
 
 sub search {
   my $self = shift;
 
+  #use Data::Dumper;warn Dumper(@_);
+
   my $attrs = { %{$self->{attrs}} };
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
     $attrs = { %{ pop(@_) } };
   }
 
-  my $where = (@_ == 1 || ref $_[0] eq "HASH" ? shift: {@_});
+  my $where = ((@_ == 1 || ref $_[0] eq "HASH") ? shift : {@_});
   if (defined $where) {
     $where = (defined $attrs->{where}
                 ? { '-and' => [ $where, $attrs->{where} ] }
@@ -96,6 +104,20 @@ sub search {
   return (wantarray ? $rs->all : $rs);
 }
 
+=item search_literal                                                              
+  my @obj    = $rs->search_literal($literal_where_cond, @bind);
+  my $new_rs = $rs->search_literal($literal_where_cond, @bind);
+
+Pass a literal chunk of SQL to be added to the conditional part of the
+resultset
+
+=cut                                                                              
+sub search_literal {
+  my ($self, $cond, @vals) = @_;
+  my $attrs = (ref $vals[$#vals] eq 'HASH' ? { %{ pop(@vals) } } : {});
+  $attrs->{bind} = [ @{$self->{attrs}{bind}||[]}, @vals ];
+  return $self->search(\$cond, $attrs);
+}
 
 =item cursor
 
@@ -186,13 +208,14 @@ sub _construct_object {
 =item count
 
 Performs an SQL count with the same query as the resultset was built
-with to find the number of elements.
+with to find the number of elements. If passed arguments, does a search
+on the resultset and counts the results of that.
 
 =cut
 
-
 sub count {
-  my ($self) = @_;
+  my $self = shift;
+  return $self->search(@_)->count if @_ && defined $_[0];
   my $attrs = { %{ $self->{attrs} } };
   unless ($self->{count}) {
     # offset and order by are not needed to count
@@ -208,6 +231,14 @@ sub count {
     ? $attrs->{rows} 
     : $self->{count};
 }
+
+=item count_literal
+
+Calls search_literal with the passed arguments, then count
+
+=cut
+
+sub count_literal { shift->search_literal(@_)->count; }
 
 =item all
 
