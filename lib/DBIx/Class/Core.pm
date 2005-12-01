@@ -9,6 +9,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/
   InflateColumn
   Relationship
+  ResultSetInstance
   PK
   Row
   Table

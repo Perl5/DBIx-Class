@@ -37,7 +37,9 @@ L<DBIx::Class> objects.
 sub _register_columns {
   my ($class, @cols) = @_;
   my $names = { %{$class->_columns} };
-  $names->{$_} ||= {} for @cols;
+  while (my $col = shift @cols) {
+    $names->{$col} = (ref $cols[0] ? shift : {});
+  }
   $class->_columns($names); 
 }
 
@@ -113,20 +115,6 @@ no condition,
   my @all = $class->search({}, { cols => [qw/foo bar/] }); # "SELECT foo, bar FROM $class_table"
 
 =cut
-
-sub search {
-  my $class = shift;
-  #warn "@_";
-  my $attrs = { };
-  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
-    $attrs = { %{ pop(@_) } };
-  }
-  $attrs->{where} = (@_ == 1 || ref $_[0] eq "HASH" ? shift: {@_});
-  
-  my $rs = $class->resultset($attrs);
-  
-  return (wantarray ? $rs->all : $rs);
-}
 
 sub resultset {
   my $class = shift;

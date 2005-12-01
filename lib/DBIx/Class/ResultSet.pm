@@ -58,9 +58,9 @@ sub new {
   }
   my $new = {
     source => $db_class,
-    cols => $attrs->{cols} || [ $db_class->_select_columns ],
+    cols => $attrs->{cols},
     cond => $attrs->{where},
-    from => $attrs->{from} || $db_class->_table_name,
+    from => $attrs->{from},
     count => undef,
     pager => undef,
     attrs => $attrs };
@@ -68,6 +68,34 @@ sub new {
   $new->pager if ($attrs->{page});
   return $new;
 }
+
+=item search
+
+Runs a search against the current resultset.
+
+=cut
+
+sub search {
+  my $self = shift;
+
+  my $attrs = { %{$self->{attrs}} };
+  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+    $attrs = { %{ pop(@_) } };
+  }
+
+  my $where = (@_ == 1 || ref $_[0] eq "HASH" ? shift: {@_});
+  if (defined $where) {
+    $where = (defined $attrs->{where}
+                ? { '-and' => [ $where, $attrs->{where} ] }
+                : $where);
+    $attrs->{where} = $where;
+  }
+
+  my $rs = $self->new($self->{source}, $attrs);
+
+  return (wantarray ? $rs->all : $rs);
+}
+
 
 =item cursor
 
