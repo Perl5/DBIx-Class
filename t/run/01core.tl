@@ -1,6 +1,6 @@
 sub run_tests {
 
-plan tests => 28; 
+plan tests => 29; 
 
 my @art = DBICTest::Artist->search({ }, { order_by => 'name DESC'});
 
@@ -111,6 +111,8 @@ is( DBICTest::Track->find(100)->position, 5, 'insert_or_update update ok');
 eval { DBICTest::Track->load_components('DoesNotExist'); };
 
 ok $@, $@;
+
+is(DBICTest::Artist->field_name_for->{name}, 'artist name', 'mk_classdata usage ok');
 
 }
 
