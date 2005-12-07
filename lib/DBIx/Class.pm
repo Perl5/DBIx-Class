@@ -106,9 +106,13 @@ Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
 Dan Sully <daniel@cpan.org>
 
-davekam
+David Kamholz <dkamholz@cpan.org>
+
+Jules Bean
 
 Marcus Ramberg <mramberg@cpan.org>
+
+Paul Makepeace
 
 =head1 LICENSE
 
