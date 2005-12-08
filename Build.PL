@@ -6,7 +6,7 @@ my %arguments = (
     license            => 'perl',
     module_name        => 'DBIx::Class',
     requires           => {
-        'Data::Page'                => 0,
+        'Data::Page'                => 2.00,
         'DBI'                       => 0,
         'UNIVERSAL::require'        => 0,
         'Scalar::Util'              => 0,
@@ -14,13 +14,12 @@ my %arguments = (
         'SQL::Abstract::Limit'      => 0.101,
         'DBD::SQLite'               => 1.08,
         'Class::C3'                 => 0.07,
-	'Tie::IxHash'               => 0,
+	    'Tie::IxHash'               => 0,
         'Module::Find'              => 0,
         'Storable'                  => 0,
         # Following for CDBICompat only
         'Class::Trigger'            => 0,
         'DBIx::ContextualFetch'     => 0,
-        'Class::C3'                 => 0.05,
     },
     recommends          => {
         'Data::UUID'                => 0,

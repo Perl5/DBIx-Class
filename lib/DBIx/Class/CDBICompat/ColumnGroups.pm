@@ -19,8 +19,8 @@ sub columns {
 
 sub _add_column_group {
   my ($class, $group, @cols) = @_;
-  $class->_register_column_group($group => @cols);
   $class->add_columns(@cols);
+  $class->_register_column_group($group => @cols);
 }
 
 sub _register_column_group {

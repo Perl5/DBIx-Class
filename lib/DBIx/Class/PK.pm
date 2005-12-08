@@ -43,6 +43,11 @@ define one or more columns as primary key for this class
 
 sub set_primary_key {
   my ($class, @cols) = @_;
+  # check if primary key columns are valid columns
+  for (@cols) {
+    $class->throw( "Column $_ can't be used as primary key because it isn't defined in $class" )
+      unless $class->has_column($_);
+  }
   my %pri;
   tie %pri, 'Tie::IxHash', map { $_ => {} } @cols;
   $class->_primaries(\%pri);

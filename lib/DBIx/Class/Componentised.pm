@@ -6,7 +6,7 @@ sub inject_base {
   my ($class, $target, @to_inject) = @_;
   {
     no strict 'refs';
-    unshift(@{"${target}::ISA"}, grep { $target ne $_ } @to_inject);
+    unshift(@{"${target}::ISA"}, grep { $target ne $_ && !$target->isa($_)} @to_inject);
   }
   my $table = { Class::C3::_dump_MRO_table };
   eval "package $target; import Class::C3;" unless exists $table->{$target};

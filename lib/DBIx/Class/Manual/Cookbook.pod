@@ -1,8 +1,12 @@
 =head1 NAME 
 
-DBIx::Class::Manual::Cookbook - Misc receipes
+DBIx::Class::Manual::Cookbook - Misc recipes
 
-=over 4
+=head1 DESCRIPTION
+
+Things that could be handy
+
+=head1 RECIPES
 
 =item Input validation.
 
