@@ -137,6 +137,23 @@ sub cursor {
           $attrs->{where},$attrs);
 }
 
+=item search_like                                                               
+                                                                                
+Identical to search except defaults to 'LIKE' instead of '=' in condition       
+                                                                                
+=cut                                                                            
+
+sub search_like {
+  my $class    = shift;
+  my $attrs = { };
+  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+    $attrs = pop(@_);
+  }
+  my $query    = ref $_[0] eq "HASH" ? { %{shift()} }: {@_};
+  $query->{$_} = { 'like' => $query->{$_} } for keys %$query;
+  return $class->search($query, { %$attrs });
+}
+
 =item slice <first> <last>
 
 return a number of elements from the given resultset.
