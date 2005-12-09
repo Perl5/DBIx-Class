@@ -4,7 +4,9 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-use base qw/DBIx::Class::Componentised Class::Data::Inheritable/;
+use base qw/DBIx::Class::Componentised Class::Data::Accessor/;
+
+sub mk_classdata { shift->mk_classaccessor(@_); }
 
 $VERSION = '0.0499_01';
 

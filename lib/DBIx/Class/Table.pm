@@ -62,12 +62,16 @@ sub add_columns {
   $class->_mk_column_accessors(@cols);
 }
 
-sub resultset {
+sub resultset_instance {
   my $class = shift;
+  $class->next::method($class->construct_resultset);
+}
 
+sub construct_resultset {
+  my $class = shift;
   my $rs_class = $class->_resultset_class;
   eval "use $rs_class;";
-  my $rs = $rs_class->new($class, @_);
+  return $rs_class->new($class);
 }
 
 =item search_like
