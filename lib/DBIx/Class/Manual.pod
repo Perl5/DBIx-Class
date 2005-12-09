@@ -1,6 +1,6 @@
 =head1 NAME 
 
-DBIx::Class::Manual- Index of the Manual
+DBIx::Class::Manual - Index of the Manual
 
 =head1 DESCRIPTION
 

@@ -9,7 +9,7 @@ use Data::Page;
 
 =head1 NAME
 
-DBIX::Class::ResultSet - Responsible for fetching and creating resultset.
+DBIx::Class::ResultSet - Responsible for fetching and creating resultset.
 
 =head1 SYNOPSIS;
 
