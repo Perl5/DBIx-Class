@@ -2,6 +2,7 @@ Revision history for DBIx::Class
 
 0.04001
         - Fix so set_inflated_column calls set_column
+        - Allow syntax errors in relationship classes to be reported.
 
 0.04 2005-11-26
         - Moved get_simple and set_simple into AccessorGroup

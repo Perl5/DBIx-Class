@@ -6,6 +6,10 @@ use warnings;
 sub belongs_to {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
   eval "require $f_class";
+  if ($@) {
+    $class->throw($@) unless $@ =~ /Can't locate/;
+  }
+
   my %f_primaries;
   $f_primaries{$_} = 1 for eval { $f_class->primary_columns };
   my $f_loaded = !$@;

@@ -43,6 +43,9 @@ sub add_relationship {
   die "Can't create relationship without join condition" unless $cond;
   $attrs ||= {};
   eval "require $f_class;";
+  if ($@) {
+    $class->throw($@) unless $@ =~ /Can't locate/;
+  }
   my %rels = %{ $class->_relationships };
   $rels{$rel} = { class => $f_class,
                   cond  => $cond,
