@@ -2,11 +2,7 @@
 
 DBIx::Class::Manual::Troubleshooting - Got a problem? Shoot it.
 
-=over 4
-
-=item  "Can't locate storage blabla"
-
-=back
+=head2  "Can't locate storage blabla"
 
 =cut
 

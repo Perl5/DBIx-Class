@@ -124,7 +124,6 @@ This class implements the trigger functionality.
 
 =back
 
-
 =head1 AUTHORS
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>

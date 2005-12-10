@@ -21,9 +21,7 @@ one for your database, e.g. PK::Auto::SQLite
 
 =head1 METHODS
 
-=over 4
-
-=item insert
+=head2 insert
 
 Overrides insert so that it will get the value of autoincremented
 primary keys.
@@ -55,7 +53,7 @@ sub insert {
   return $ret;
 }
 
-=item sequence
+=head2 sequence
 
 Manually define the correct sequence for your table, to avoid the overhead
 associated with looking up the sequence automatically.
@@ -65,8 +63,6 @@ associated with looking up the sequence automatically.
 __PACKAGE__->mk_classdata('sequence');
 
 1;
-
-=back
 
 =head1 AUTHORS
 

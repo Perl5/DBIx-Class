@@ -31,18 +31,15 @@ This class provides a simple way of specifying a database connection.
 
 =head1 METHODS
 
-=over 4
+=head2 storage
 
+Sets or gets the storage backend. Defaults to L<DBIx::Class::Storage::DBI>.
 
-=item storage
+=head2 class_resolver
 
-Which storage backend to be used. Defaults to L<DBIx::Class::Storage::DBI>
-
-=item class_resolver
-
-Which class to use for resolving a class. Defaults to 
-L<DBIx::Class::ClassResolver::Passthrough>, which returns whatever you throw
-at it. See resolve_class below.
+Sets or gets the class to use for resolving a class. Defaults to 
+L<DBIx::Class::ClassResolver::Passthrough>, which returns whatever you give
+it. See resolve_class below.
 
 =cut
 
@@ -50,7 +47,7 @@ __PACKAGE__->mk_classdata('storage');
 __PACKAGE__->mk_classdata('class_resolver' =>
                             'DBIx::Class::ClassResolver::PassThrough');
 
-=item connection
+=head2 connection
 
   __PACKAGE__->connection($dsn, $user, $pass, $attrs);
 
@@ -66,21 +63,17 @@ sub connection {
   $class->storage($storage);
 }
 
-=item dbi_commit
+=head2 dbi_commit
 
-  $class->dbi_commit;
-
-Issues a commit again the current dbh
+Issues a commit against the current dbh.
 
 =cut
 
 sub dbi_commit { $_[0]->storage->commit; }
 
-=item dbi_rollback
+=head2 dbi_rollback
 
-  $class->dbi_rollback;
-
-Issues a rollback again the current dbh
+Issues a rollback against the current dbh.
 
 =cut
 
@@ -89,8 +82,6 @@ sub dbi_rollback { $_[0]->storage->rollback; }
 sub resolve_class { return shift->class_resolver->class(@_); }
 
 1;
-
-=back
 
 =head1 AUTHORS
 

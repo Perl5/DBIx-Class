@@ -105,8 +105,6 @@ This class represents the connection to the database
 
 =head1 METHODS
 
-=over 4
-
 =cut
 
 sub dbh {
@@ -137,7 +135,7 @@ sub _connect {
   return DBI->connect(@info);
 }
 
-=item commit
+=head2 commit
 
   $class->commit;
 
@@ -147,7 +145,7 @@ Issues a commit again the current dbh
 
 sub commit { $_[0]->dbh->commit; }
 
-=item rollback
+=head2 rollback
 
   $class->rollback;
 
@@ -217,8 +215,6 @@ sub sth {
 }
 
 1;
-
-=back
 
 =head1 AUTHORS
 

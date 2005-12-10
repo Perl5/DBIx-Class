@@ -8,11 +8,11 @@ Things that could be handy
 
 =head1 RECIPES
 
-=item Input validation.
+=head2 Input validation.
 
-=item Using joins
+=head2 Using joins
 
-=item Many-to-many relationships
+=head2 Many-to-many relationships
 
 This is not as easy as it could be, but it's possible. Here's an example to 
 illustrate:
@@ -78,8 +78,8 @@ illustrate:
 	# book2author table equals the bookID of the books (using the bookID 
 	# relationship table
 
-=item Advanced Exception handling
+=head2 Advanced Exception handling
 
-=item Transactions
+=head2 Transactions
 
 =back

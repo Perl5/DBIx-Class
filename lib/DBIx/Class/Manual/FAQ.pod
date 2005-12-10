@@ -4,21 +4,17 @@ DBIx::Class::Manual::FAQ - Frequently Asked Questions
 
 =head1 QUESTIONS 
 
-=over 4
+=head2 What is the point of this module? Is it a fork of Class::DBI?
 
-=item What is the point of this module? Is it a fork of Class::DBI?
+=head2 Who's the intended audience for this module?
 
-=item Who's the intended audience for this module?
+=head2 What databases does it support?
 
-=item What databases does it support?
+=head2 What's the current status of this module?
 
-=item What's the current status of this module?
+=head2 What's planned in the future?
 
-=item What's planned in the future?
-
-=item Where can I go for support?
-
-=back
+=head2 Where can I go for support?
 
 =cut
 

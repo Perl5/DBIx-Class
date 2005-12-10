@@ -21,9 +21,7 @@ on searches.
 
 =head1 METHODS
 
-=over 4
-
-=item add_relationship
+=head2 add_relationship
 
   __PACKAGE__->add_relationship('relname', 'Foreign::Class', $cond, $attrs);
 
@@ -157,7 +155,7 @@ sub _cond_value {
   return $self->next::method($attrs, $key, $value)
 }
 
-=item search_related
+=head2 search_related
 
   My::Table->search_related('relname', $cond, $attrs);
 
@@ -168,7 +166,7 @@ sub search_related {
   return $self->_query_related('search', @_);
 }
 
-=item count_related
+=head2 count_related
 
   My::Table->count_related('relname', $cond, $attrs);
 
@@ -205,7 +203,7 @@ sub _query_related {
            )->$meth($query, $attrs);
 }
 
-=item create_related
+=head2 create_related
 
   My::Table->create_related('relname', \%col_data);
 
@@ -216,7 +214,7 @@ sub create_related {
   return $class->new_related(@_)->insert;
 }
 
-=item new_related
+=head2 new_related
 
   My::Table->new_related('relname', \%col_data);
 
@@ -240,7 +238,7 @@ sub new_related {
   return $self->resolve_class($rel_obj->{class})->new(\%fields);
 }
 
-=item find_related
+=head2 find_related
 
   My::Table->find_related('relname', @pri_vals | \%pri_vals);
 
@@ -262,7 +260,7 @@ sub find_related {
   return $self->resolve_class($rel_obj->{class})->find($query);
 }
 
-=item find_or_create_related
+=head2 find_or_create_related
 
   My::Table->find_or_create_related('relname', \%col_data);
 
@@ -273,7 +271,7 @@ sub find_or_create_related {
   return $self->find_related(@_) || $self->create_related(@_);
 }
 
-=item set_from_related
+=head2 set_from_related
 
   My::Table->set_from_related('relname', $rel_obj);
 
@@ -302,7 +300,7 @@ sub set_from_related {
   return 1;
 }
 
-=item update_from_related
+=head2 update_from_related
 
   My::Table->update_from_related('relname', $rel_obj);
 
@@ -314,7 +312,7 @@ sub update_from_related {
   $self->update;
 }
 
-=item delete_related
+=head2 delete_related
 
   My::Table->delete_related('relname', $cond, $attrs);
 
@@ -326,8 +324,6 @@ sub delete_related {
 }
 
 1;
-
-=back
 
 =head1 AUTHORS
 

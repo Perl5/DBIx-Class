@@ -42,15 +42,13 @@ Both C<$cond> and C<$attrs> are optional. Pass C<undef> for C<$cond> if
 you want to use the default value for it, but still want to set C<$attrs>.
 The following attributes are recognize:
 
-=over 4
-
-=item join_type
+=head2 join_type
 
 Explicitly specifies the type of join to use in the relationship. Any SQL
 join type is valid, e.g. C<LEFT> or C<RIGHT>. It will be placed in the SQL
 command immediately before C<JOIN>.
 
-=item proxy
+=head2 proxy
 
 An arrayref containing a list of accessors in the foreign class to proxy in
 the main class. If, for example, you do the following:
@@ -61,8 +59,6 @@ Then, assuming Bar has an accessor named margle, you can do:
 
   my $obj = Foo->find(1);
   $obj->margle(10); # set margle; Bar object is created if it doesn't exist
-
-=back
 
 =head2 belongs_to
 

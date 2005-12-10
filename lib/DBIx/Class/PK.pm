@@ -21,8 +21,6 @@ and depending on them.
 
 =head1 METHODS
 
-=over 4
-
 =cut
 
 sub _ident_cond {
@@ -35,7 +33,7 @@ sub _ident_values {
   return (map { $self->{_column_data}{$_} } keys %{$self->_primaries});
 }
 
-=item set_primary_key <@cols>
+=head2 set_primary_key <@cols>
 
 define one or more columns as primary key for this class
 
@@ -53,7 +51,7 @@ sub set_primary_key {
   $class->_primaries(\%pri);
 }
 
-=item find
+=head2 find
 
 Finds columns based on the primary key(s).
 
@@ -86,7 +84,7 @@ sub find {
   return (@row ? $class->_row_to_object(\@cols, \@row) : ());
 }
 
-=item discard_changes
+=head2 discard_changes
 
 Roll back changes that hasn't been comitted to the database.
 
@@ -106,7 +104,7 @@ sub discard_changes {
   return $self;
 }
 
-=item id
+=head2 id
 
 returns the primary key(s) for the current row. Can't be called as
 a class method.
@@ -120,7 +118,7 @@ sub id {
   return (wantarray ? @pk : $pk[0]);
 }
 
-=item  primary_columns
+=head2  primary_columns
 
 read-only accessor which returns a list of primary keys.
 
@@ -152,8 +150,6 @@ sub ident_condition {
 }
 
 1;
-
-=back
 
 =head1 AUTHORS
 

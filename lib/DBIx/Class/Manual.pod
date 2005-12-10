@@ -11,25 +11,21 @@ from your SQL database.
 
 =head1 SECTIONS
 
-=over 4
-
-=item L<DBIx::Class::Manual::Intro>
+=head2 L<DBIx::Class::Manual::Intro>
 
 A beginner's introduction to using the native DBIx::Class interface
 
-=item L<DBIx::Class::Manual::Cookbook>
+=head2 L<DBIx::Class::Manual::Cookbook>
 
 Convenient reciepes for DBIC usage.
 
-=item L<DBIx::Class::Manual::FAQ>
+=head2 L<DBIx::Class::Manual::FAQ>
 
 Frequently asked questions about DBIC.
 
-=item L<DBIx::Class::Manual::Troubleshooting>
+=head2 L<DBIx::Class::Manual::Troubleshooting>
 
 Got trouble? Let us shoot it for you.
-
-=back
 
 If you're using the CDBI Compat layer, we suggest reading the L<Class::DBI>
 documentation. It should behave the same way.
