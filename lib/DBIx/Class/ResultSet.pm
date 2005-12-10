@@ -11,22 +11,24 @@ use Data::Page;
 
 DBIx::Class::ResultSet - Responsible for fetching and creating resultset.
 
-=head1 SYNOPSIS;
+=head1 SYNOPSIS
 
-$rs=MyApp::DB::Class->search(registered=>1);
+my $rs = MyApp::DB::Class->search(registered => 1);
+my @rows = MyApp::DB::Class->search(foo => 'bar');
 
 =head1 DESCRIPTION
 
-The resultset is also known as an iterator.
+The resultset is also known as an iterator. It is responsible for handling
+queries that may return an arbitrary number of rows, e.g. via C<search>
+or a C<has_many> relationship.
 
 =head1 METHODS
 
-=over 4
+=head2 new($db_class, \%$attrs)
 
-=item new  <db_class> <attrs>
-
-The resultset constructor. Takes a db class and an
-attribute hash (see below for more info on attributes)
+The resultset constructor. Takes a table class and an attribute hash
+(see below for more information on attributes). Does not perform
+any queries -- these are executed as needed by the other methods.
 
 =cut
 
@@ -69,9 +71,9 @@ sub new {
   return $new;
 }
 
-=item cursor
+=head2 cursor
 
-Return a storage driven cursor to the given resultset.
+Return a storage-driven cursor to the given resultset.
 
 =cut
 
@@ -87,9 +89,9 @@ sub cursor {
           $attrs->{where},$attrs);
 }
 
-=item slice <first> <last>
+=head2 slice($first, $last)
 
-return a number of elements from the given resultset.
+Returns a subset of elements from the resultset.
 
 =cut
 
@@ -103,9 +105,9 @@ sub slice {
   return (wantarray ? $slice->all : $slice);
 }
 
-=item next 
+=head2 next 
 
-Returns the next element in this resultset.
+Returns the next element in the resultset (undef is there is none).
 
 =cut
 
@@ -155,13 +157,12 @@ sub _construct_object {
   return $new;
 }
 
-=item count
+=head2 count
 
-Performs an SQL count with the same query as the resultset was built
+Performs an SQL C<COUNT> with the same query as the resultset was built
 with to find the number of elements.
 
 =cut
-
 
 sub count {
   my ($self) = @_;
@@ -182,10 +183,10 @@ sub count {
     : $self->{count};
 }
 
-=item all
+=head2 all
 
-Returns all elements in the resultset. Is called implictly if the search
-method is used in list context.
+Returns all elements in the resultset. Called implictly if the resultset
+is returned in list context.
 
 =cut
 
@@ -195,9 +196,9 @@ sub all {
            $self->cursor->all;
 }
 
-=item reset
+=head2 reset
 
-Reset this resultset's cursor, so you can iterate through the elements again.
+Resets the resultset's cursor, so you can iterate through the elements again.
 
 =cut
 
@@ -207,9 +208,9 @@ sub reset {
   return $self;
 }
 
-=item first
+=head2 first
 
-resets the resultset and returns the first element.
+Resets the resultset and returns the first element.
 
 =cut
 
@@ -217,7 +218,7 @@ sub first {
   return $_[0]->reset->next;
 }
 
-=item delete
+=head2 delete
 
 Deletes all elements in the resultset.
 
@@ -231,7 +232,7 @@ sub delete {
 
 *delete_all = \&delete; # Yeah, yeah, yeah ...
 
-=item pager
+=head2 pager
 
 Returns a L<Data::Page> object for the current resultset. Only makes
 sense for queries with page turned on.
@@ -249,9 +250,9 @@ sub pager {
   return $self->{pager};
 }
 
-=item page <page>
+=head2 page($page_num)
 
-Returns a new resultset representing a given page.
+Returns a new resultset for the specified page.
 
 =cut
 
@@ -262,49 +263,48 @@ sub page {
   return $self->new($self->{class}, $attrs);
 }
 
-=back 
-
 =head1 Attributes
 
-The resultset is responsible for handling the various attributes that
-can be passed in with the search functions. Here's an overview of them:
+The resultset takes various attributes that modify its behavior.
+Here's an overview of them:
 
-=over 4
+=head2 order_by
 
-=item order_by
+Which column(s) to order the results by. This is currently passed
+through directly to SQL, so you can give e.g. C<foo DESC> for a 
+descending order.
 
-Which column to order the results by. 
+=head2 cols
 
-=item cols
+Which columns should be retrieved.
 
-Which cols should be retrieved on the first search.
-
-=item join
+=head2 join
 
 Contains a list of relations that should be joined for this query. Can also 
-contain a hash referece to refer to that relation's relations.
+contain a hash reference to refer to that relation's relations. So, if one column
+in your class C<belongs_to> foo and another C<belongs_to> bar, you can do
+C<< join => [qw/ foo bar /] >> to join both (and e.g. use them for C<order_by>).
+If a foo contains many margles and you want to join those too, you can do
+C<< join => { foo => 'margle' } >>. If you want to fetch the columns from the
+related table as well, see C<prefetch> below.
 
-=item from 
+=head2 from 
 
-This attribute can contain a arrayref of  elements. each element can be another
+This attribute can contain a arrayref of elements. Each element can be another
 arrayref, to nest joins, or it can be a hash which represents the two sides
 of the join. 
 
-*NOTE* Use this on your own risk. This allows you to shoot your foot off!
+NOTE: Use this on your own risk. This allows you to shoot your foot off!
 
-=item page
+=head2 page
 
-Should the resultset be paged? This can also be enabled by using the 
-'page' option.
+For a paged resultset, specifies which page to retrieve. Leave unset
+for an unpaged resultset.
 
-=item rows
+=head2 rows
 
-For paged resultsset, how  many rows per page
+For a paged resultset, how many rows per page
 
-=item  offset
-
-For paged resultsset, which page to start on.
-
-=back
+=cut
 
 1;
