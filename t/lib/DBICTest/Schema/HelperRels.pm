@@ -26,7 +26,7 @@ DBICTest::Schema::SelfRef->has_many(
 
 DBICTest::Schema::Tag->belongs_to('cd', 'DBICTest::Schema::CD');
 
-DBICTest::Schema::Track->belongs_to('cd', 'DBICTest::Schema::CD');
+DBICTest::Schema::Track->belongs_to('cd', 'DBICTest::Schema::CD', 'cdid');
 
 DBICTest::Schema::TwoKeys->belongs_to('artist', 'DBICTest::Schema::Artist');
 

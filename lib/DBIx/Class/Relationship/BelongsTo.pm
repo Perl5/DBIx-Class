@@ -13,12 +13,19 @@ sub belongs_to {
   my %f_primaries;
   $f_primaries{$_} = 1 for eval { $f_class->primary_columns };
   my $f_loaded = !$@;
+  
   # single key relationship
-  if (not defined $cond) {
-    $class->throw("Can't infer join condition for ${rel} on ${class}; unable to load ${f_class}") unless $f_loaded;
-    my ($pri, $too_many) = keys %f_primaries;
-    $class->throw("Can't infer join condition for ${rel} on ${class}; ${f_class} has multiple primary key") if $too_many;
-    $class->throw("Can't find any primary keys for $f_class, try adding some") if !$pri;
+  if (!ref $cond) {
+    my ($pri,$too_many);
+    if (!defined $cond) {
+      $class->throw("Can't infer join condition for ${rel} on ${class}; unable to load ${f_class}") unless $f_loaded;
+      ($pri, $too_many) = keys %f_primaries;
+      $class->throw("Can't infer join condition for ${rel} on ${class}; ${f_class} has no primary keys") unless defined $pri;      
+      $class->throw("Can't infer join condition for ${rel} on ${class}; ${f_class} has multiple primary key") if $too_many;      
+    }
+    else {
+      $pri = $cond;
+    }
     my $acc_type = ($class->has_column($rel)) ? 'filter' : 'single';
     $class->add_relationship($rel, $f_class,
       { "foreign.${pri}" => "self.${rel}" },
@@ -26,7 +33,7 @@ sub belongs_to {
     );
   }
   # multiple key relationship
-  else {
+  elsif (ref $cond eq 'HASH') {
     my $cond_rel;
     for (keys %$cond) {
       if (m/\./) { # Explicit join condition
@@ -39,6 +46,9 @@ sub belongs_to {
       $cond_rel,
       { accessor => 'single', %{$attrs || {}} }
     );
+  }
+  else {
+    $class->throw('third argument for belongs_to must be undef, a column name, or a join condition');
   }
   return 1;
 }
