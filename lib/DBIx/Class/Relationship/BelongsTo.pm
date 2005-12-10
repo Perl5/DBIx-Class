@@ -18,6 +18,7 @@ sub belongs_to {
     $class->throw("Can't infer join condition for ${rel} on ${class}; unable to load ${f_class}") unless $f_loaded;
     my ($pri, $too_many) = keys %f_primaries;
     $class->throw("Can't infer join condition for ${rel} on ${class}; ${f_class} has multiple primary key") if $too_many;
+    $class->throw("Can't find any primary keys for $f_class, try adding some") if !$pri;
     my $acc_type = ($class->has_column($rel)) ? 'filter' : 'single';
     $class->add_relationship($rel, $f_class,
       { "foreign.${pri}" => "self.${rel}" },
