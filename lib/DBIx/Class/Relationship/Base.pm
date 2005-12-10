@@ -26,13 +26,48 @@ on searches.
   __PACKAGE__->add_relationship('relname', 'Foreign::Class', $cond, $attrs);
 
 The condition needs to be an SQL::Abstract-style representation of the
-join between the tables - for example if you're creating a rel from Foo to Bar
+join between the tables. For example, if you're creating a rel from Foo to Bar,
 
   { 'foreign.foo_id' => 'self.id' }
 
-will result in a JOIN clause like
+will result in the JOIN clause
 
   foo me JOIN bar bar ON bar.foo_id = me.id
+
+You can specify as many foreign => self mappings as necessary.
+
+Valid attributes are as follows:
+
+=over 4
+
+=item join_type
+
+Explicitly specifies the type of join to use in the relationship. Any SQL
+join type is valid, e.g. C<LEFT> or C<RIGHT>. It will be placed in the SQL
+command immediately before C<JOIN>.
+
+=item proxy
+
+An arrayref containing a list of accessors in the foreign class to proxy in
+the main class. If, for example, you do the following:
+  
+  __PACKAGE__->might_have(bar => 'Bar', undef, { proxy => qw[/ margle /] });
+  
+Then, assuming Bar has an accessor named margle, you can do:
+
+  my $obj = Foo->find(1);
+  $obj->margle(10); # set margle; Bar object is created if it doesn't exist
+  
+=item accessor
+
+Specifies the type of accessor that should be created for the relationship.
+Valid values are C<single> (for when there is only a single related object),
+C<multi> (when there can be many), and C<filter> (for when there is a single
+related object, but you also want the relationship accessor to double as
+a column accessor). For C<multi> accessors, an add_to_* method is also
+created, which calls C<create_related> for the relationship.
+
+=back
 
 =cut
 
