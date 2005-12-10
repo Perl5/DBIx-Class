@@ -280,13 +280,21 @@ Which columns should be retrieved.
 
 =head2 join
 
-Contains a list of relations that should be joined for this query. Can also 
+Contains a list of relationships that should be joined for this query. Can also 
 contain a hash reference to refer to that relation's relations. So, if one column
 in your class C<belongs_to> foo and another C<belongs_to> bar, you can do
 C<< join => [qw/ foo bar /] >> to join both (and e.g. use them for C<order_by>).
 If a foo contains many margles and you want to join those too, you can do
 C<< join => { foo => 'margle' } >>. If you want to fetch the columns from the
 related table as well, see C<prefetch> below.
+
+=head2 prefetch
+
+Contains a list of relationships that should be fetched along with the main 
+query (when they are accessed afterwards they will have already been
+"prefetched"). This is useful for when you know you will need the related
+object(s), because it saves a query. Currently limited to prefetching
+one relationship deep, so unlike C<join>, prefetch must be an arrayref.
 
 =head2 from 
 

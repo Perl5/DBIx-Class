@@ -8,7 +8,6 @@ use base qw/DBIx::Class::Componentised Class::Data::Inheritable/;
 
 $VERSION = '0.04001';
 
-
 1;
 
 =head1 NAME 
