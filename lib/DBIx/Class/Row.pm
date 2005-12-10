@@ -157,7 +157,9 @@ sub delete {
 
   my $val = $obj->get_column($col);
 
-Fetches a column value
+Gets a column value from a row object. Currently, does not do
+any queries; the column must have already been fetched from
+the database and stored in the object.
 
 =cut
 
@@ -174,7 +176,7 @@ sub get_column {
 
   my %data = $obj->get_columns;
 
-Fetch all column values at once.
+Does C<get_column>, for all column values at once.
 
 =cut
 
@@ -187,8 +189,8 @@ sub get_columns {
 
   $obj->set_column($col => $val);
 
-Sets a column value; if the new value is different to the old the column
-is marked as dirty for when you next call $obj->update
+Sets a column value. If the new value is different from the old one,
+the column is marked as dirty for when you next call $obj->update.
 
 =cut
 
@@ -205,7 +207,7 @@ sub set_column {
 
   my $copy = $orig->set_columns({ $col => $val, ... });
 
-Set more than one column value at once.
+Sets more than one column value at once.
 
 =cut
 
@@ -220,7 +222,7 @@ sub set_columns {
 
   my $copy = $orig->copy({ change => $to, ... });
 
-Insert a new row with the specified changes.
+Inserts a new row with the specified changes.
 
 =cut
 
@@ -228,7 +230,7 @@ Insert a new row with the specified changes.
 
   $obj->store_column($col => $val);
 
-Sets a column value without marking it as dirty
+Sets a column value without marking it as dirty.
 
 =cut
 
@@ -261,7 +263,7 @@ sub copy {
 
   $obj->insert_or_update
 
-Updates the object if it's already in the db, else inserts it
+Updates the object if it's already in the db, else inserts it.
 
 =cut
 

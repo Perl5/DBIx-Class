@@ -24,7 +24,7 @@ DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
   package MyDB::MyTable;
 
   use base qw/MyDB/;
-  __PACKAGE__->load_components('Core');
+  __PACKAGE__->load_components('Core'); # just load this in MyDB if it will always be there
 
   ...
 

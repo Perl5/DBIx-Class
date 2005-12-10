@@ -26,8 +26,8 @@ DBIx::Class::Table - Basic table methods
 
 =head1 DESCRIPTION
 
-This class is responsible for defining and doing basic operations on 
-L<DBIx::Class> objects.
+This class is responsible for defining and doing table-level operations on 
+L<DBIx::Class> classes.
 
 =head1 METHODS
 
@@ -49,7 +49,7 @@ sub _mk_column_accessors {
 
   __PACKAGE__->add_columns(qw/col1 col2 col3/);
 
-Adds columns to the current package, and creates accessors for them
+Adds columns to the current class and creates accessors for them.
 
 =cut
 
@@ -159,6 +159,8 @@ sub _select_columns {
 =head2 table
 
   __PACKAGE__->table('tbl_name');
+  
+Gets or sets the table name.
 
 =cut
 
@@ -171,7 +173,7 @@ sub table {
   $class->find_or_create({ key => $val, ... });
 
 Searches for a record matching the search condition; if it doesn't find one,
-creates one and returns that instead
+creates one and returns that instead.
 
 =cut
 
@@ -186,7 +188,7 @@ sub find_or_create {
                                                                                 
   if ($obj->has_column($col)) { ... }                                           
                                                                                 
-Returns 1 if the object has a column of this name, 0 otherwise                  
+Returns 1 if the class has a column of this name, 0 otherwise.                  
                                                                                 
 =cut                                                                            
 
@@ -199,7 +201,7 @@ sub has_column {
                                                                                 
   my $info = $obj->column_info($col);                                           
                                                                                 
-Returns the column metadata hashref for the column                              
+Returns the column metadata hashref for a column.
                                                                                 
 =cut                                                                            
 
