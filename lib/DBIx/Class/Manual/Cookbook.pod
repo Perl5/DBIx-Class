@@ -29,14 +29,14 @@ L<DBIx::Class::Storage::DBI>. Here is an example of the recommended way to use i
 
     my $obj = Genus->find(12);
     eval {
-        MyDB->tx_begin;
+        MyDB->txn_begin;
         $obj->add_to_species({ name => 'troglodyte' });
         $obj->wings(2);
         $obj->update;
         cromulate($obj); # can have a nested transation
-        MyDB->tx_commit;
+        MyDB->txn_commit;
     };
-    if ($@) { eval { MyDB->tx_rollback } } # rollback might fail, too
+    if ($@) { eval { MyDB->txn_rollback } } # rollback might fail, too
 
 Currently, a nested commit will do nothing and a nested rollback will die.
 The code at each level must be sure to call rollback in the case of an error,

@@ -137,23 +137,23 @@ sub _connect {
   return DBI->connect(@info);
 }
 
-=head2 tx_begin
+=head2 txn_begin
 
 Calls begin_work on the current dbh.
 
 =cut
 
-sub tx_begin {
+sub txn_begin {
   $_[0]->dbh->begin_work if $TRANSACTION++ == 0 and $_[0]->dbh->{AutoCommit};
 }
 
-=head2 tx_commit
+=head2 txn_commit
 
 Issues a commit against the current dbh.
 
 =cut
 
-sub tx_commit {
+sub txn_commit {
   if ($TRANSACTION == 0) {
     $_[0]->dbh->commit;
   }
@@ -162,13 +162,13 @@ sub tx_commit {
   }
 }
 
-=head2 tx_rollback
+=head2 txn_rollback
 
 Issues a rollback against the current dbh.
 
 =cut
 
-sub tx_rollback {
+sub txn_rollback {
   if ($TRANSACTION == 0) {
     $_[0]->dbh->rollback;
   }

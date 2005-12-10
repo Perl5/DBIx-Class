@@ -5,8 +5,8 @@ use DBIx::Class::Storage::DBI;
 use DBIx::Class::ClassResolver::PassThrough;
 use DBI;
 
-*dbi_commit = \&tx_commit;
-*dbi_rollback = \&tx_rollback;
+*dbi_commit = \&txn_commit;
+*dbi_rollback = \&txn_rollback;
 
 =head1 NAME 
 
@@ -66,29 +66,29 @@ sub connection {
   $class->storage($storage);
 }
 
-=head2 tx_begin
+=head2 txn_begin
 
 Begins a transaction (does nothing if AutoCommit is off).
 
 =cut
 
-sub tx_begin { $_[0]->storage->tx_begin }
+sub txn_begin { $_[0]->storage->txn_begin }
 
-=head2 tx_commit
+=head2 txn_commit
 
 Commits the current transaction.
 
 =cut
 
-sub tx_commit { $_[0]->storage->tx_commit }
+sub txn_commit { $_[0]->storage->txn_commit }
 
-=head2 tx_rollback
+=head2 txn_rollback
 
 Rolls back the current transaction.
 
 =cut
 
-sub tx_rollback { $_[0]->storage->tx_rollback }
+sub txn_rollback { $_[0]->storage->txn_rollback }
 
 sub resolve_class { return shift->class_resolver->class(@_); }
 
