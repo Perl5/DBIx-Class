@@ -5,6 +5,9 @@ use DBIx::Class::Storage::DBI;
 use DBIx::Class::ClassResolver::PassThrough;
 use DBI;
 
+*dbi_commit = \&tx_commit;
+*dbi_rollback = \&tx_rollback;
+
 =head1 NAME 
 
 DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
@@ -63,21 +66,29 @@ sub connection {
   $class->storage($storage);
 }
 
-=head2 dbi_commit
+=head2 tx_begin
 
-Issues a commit against the current dbh.
-
-=cut
-
-sub dbi_commit { $_[0]->storage->commit; }
-
-=head2 dbi_rollback
-
-Issues a rollback against the current dbh.
+Begins a transaction (does nothing if AutoCommit is off).
 
 =cut
 
-sub dbi_rollback { $_[0]->storage->rollback; }
+sub tx_commit { $_[0]->storage->tx_begin }
+
+=head2 tx_commit
+
+Commits the current transaction.
+
+=cut
+
+sub tx_commit { $_[0]->storage->tx_commit }
+
+=head2 tx_rollback
+
+Rolls back the current transaction.
+
+=cut
+
+sub tx_rollback { $_[0]->storage->tx_rollback }
 
 sub resolve_class { return shift->class_resolver->class(@_); }
 

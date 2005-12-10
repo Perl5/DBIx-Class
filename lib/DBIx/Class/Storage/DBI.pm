@@ -86,6 +86,8 @@ __PACKAGE__->load_components(qw/Exception AccessorGroup/);
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/connect_info _dbh _sql_maker debug cursor/);
 
+our $TRANSACTION = 0;
+
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
@@ -135,25 +137,35 @@ sub _connect {
   return DBI->connect(@info);
 }
 
-=head2 commit
+=head2 tx_begin
 
-  $class->commit;
-
-Issues a commit again the current dbh
+Calls begin_work on the current dbh.
 
 =cut
 
-sub commit { $_[0]->dbh->commit; }
+sub tx_begin {
+  $_[0]->dbh->begin_work if $TRANSACTION++ == 0 and $_[0]->dbh->{AutoCommit};
+}
 
-=head2 rollback
+=head2 tx_commit
 
-  $class->rollback;
-
-Issues a rollback again the current dbh
+Issues a commit against the current dbh.
 
 =cut
 
-sub rollback { $_[0]->dbh->rollback; }
+sub tx_commit {
+  $_[0]->dbh->commit if --$TRANSACTION == 0;
+}
+
+=head2 tx_rollback
+
+Issues a rollback against the current dbh.
+
+=cut
+
+sub tx_rollback {
+  --$TRANSACTION == 0 ? $_[0]->dbh->rollback : die $@;
+}
 
 sub _execute {
   my ($self, $op, $extra_bind, $ident, @args) = @_;
