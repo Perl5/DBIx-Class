@@ -82,15 +82,11 @@ manual below.
 
 =head1 SEE ALSO
 
-=over 4
+=head2 L<DBIx::Class::Core> - DBIC Core Classes
 
-=item L<DBIx::Class::Core> - DBIC Core Classes
+=head2 L<DBIx::Class::CDBICompat> - L<Class::DBI> Compat layer.
 
-=item L<DBIx::Class::CDBICompat> - L<Class::DBI> Compat layer.
-
-=item L<DBIx::Class::Manual> - User's manual.
-
-=back
+=head2 L<DBIx::Class::Manual> - User's manual.
 
 =head1 AUTHOR
 

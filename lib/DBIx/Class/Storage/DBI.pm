@@ -154,7 +154,12 @@ Issues a commit against the current dbh.
 =cut
 
 sub tx_commit {
-  $_[0]->dbh->commit if --$TRANSACTION == 0;
+  if ($TRANSACTION == 0) {
+    $_[0]->dbh->commit;
+  }
+  else {
+    $_[0]->dbh->commit if --$TRANSACTION == 0;    
+  }
 }
 
 =head2 tx_rollback
@@ -164,7 +169,12 @@ Issues a rollback against the current dbh.
 =cut
 
 sub tx_rollback {
-  --$TRANSACTION == 0 ? $_[0]->dbh->rollback : die $@;
+  if ($TRANSACTION == 0) {
+    $_[0]->dbh->rollback;
+  }
+  else {
+    --$TRANSACTION == 0 ? $_[0]->dbh->rollback : die $@;    
+  }
 }
 
 sub _execute {

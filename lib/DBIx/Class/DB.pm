@@ -72,7 +72,7 @@ Begins a transaction (does nothing if AutoCommit is off).
 
 =cut
 
-sub tx_commit { $_[0]->storage->tx_begin }
+sub tx_begin { $_[0]->storage->tx_begin }
 
 =head2 tx_commit
 
