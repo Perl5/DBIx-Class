@@ -24,6 +24,9 @@
 \#$
 \b\.#
 
+# avoid OS X finder files
+\.DS_Store$
+
 # Don't ship the test db
 ^t/var
 

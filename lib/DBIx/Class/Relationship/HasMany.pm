@@ -7,6 +7,9 @@ sub has_many {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
     
   eval "require $f_class";
+  if ($@) {
+    $class->throw($@) unless $@ =~ /Can't locate/;
+  }
 
   unless (ref $cond) {
     my ($pri, $too_many) = $class->primary_columns;

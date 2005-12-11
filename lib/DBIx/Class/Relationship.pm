@@ -26,46 +26,45 @@ DBIx::Class::Relationship - Inter-table relationships
 =head1 DESCRIPTION
 
 This class handles relationships between the tables in your database
-model. It allows your to set up relationships, and to perform joins
-on searches.
+model. It allows you to set up relationships and perform joins on them.
 
-This POD details only the convenience methods for setting up standard
-relationship types. For more information see ::Relationship::Base
+Only the helper methods for setting up standard relationship types
+are documented here. For the basic, lower-level methods, see
+L<DBIx::Class::Relationship::Base>.
 
 =head1 METHODS
 
-All convenience methods take a signature of the following format -
+All helper methods take the following arguments:
 
-  __PACKAGE__>method_name('relname', 'Foreign::Class', $join?, $attrs?);
-
-
+  __PACKAGE__>method_name('relname', 'Foreign::Class', $cond, $attrs);
+  
+Both C<$cond> and C<$attrs> are optional. Pass C<undef> for C<$cond> if
+you want to use the default value for it, but still want to set C<$attrs>.
+The following attributes are recognize:
 
 =over 4
 
-=item has_one
+=item join_type
 
-  my $f_obj = $obj->relname;
+Explicitly specifies the type of join to use in the relationship. Any SQL
+join type is valid, e.g. C<LEFT> or C<RIGHT>. It will be placed in the SQL
+command immediately before C<JOIN>.
 
-Creates a one-one relationship with another class; defaults to PK-PK for
-the join condition unless a condition is specified.
+=item proxy
 
-=item might_have
+An arrayref containing a list of accessors in the foreign class to proxy in
+the main class. If, for example, you do the following:
+  
+  __PACKAGE__->might_have(bar => 'Bar', undef, { proxy => qw[/ margle /] });
+  
+Then, assuming Bar has an accessor named margle, you can do:
 
-  my $f_obj = $obj->relname;
+  my $obj = Foo->find(1);
+  $obj->margle(10); # set margle; Bar object is created if it doesn't exist
 
-Creates an optional one-one relationship with another class; defaults to PK-PK
-for the join condition unless a condition is specified.
+=back
 
-=item has_many
-
-  my @f_obj = $obj->relname($cond?, $attrs?);
-  my $f_result_set = $obj->relname($cond?, $attrs?);
-
-  $obj->add_to_relname(\%col_data);
-
-Creates a one-many relationship with another class; 
-
-=item belongs_to
+=head2 belongs_to
 
   my $f_obj = $obj->relname;
 
@@ -76,11 +75,32 @@ column name instead of a condition that is assumed to be the FK, if not
 has_many assumes the FK is the relname is that is a column on the current
 class.
 
+=head2 has_many
+
+  my @f_obj = $obj->relname($cond?, $attrs?);
+  my $f_result_set = $obj->relname($cond?, $attrs?);
+
+  $obj->add_to_relname(\%col_data);
+
+Creates a one-many relationship with another class; 
+
+=head2 might_have
+
+  my $f_obj = $obj->relname;
+
+Creates an optional one-one relationship with another class; defaults to PK-PK
+for the join condition unless a condition is specified.
+
+=head2 has_one
+
+  my $f_obj = $obj->relname;
+
+Creates a one-one relationship with another class; defaults to PK-PK for
+the join condition unless a condition is specified.
+
 =cut
 
 1;
-
-=back
 
 =head1 AUTHORS
 

@@ -67,7 +67,9 @@ META.yml
 README
 t/02pod.t
 t/03podcoverage.t
+t/04dont_break_c3.t
 t/19quotes.t
+t/20setuperrors.t
 t/basicrels/01core.t
 t/basicrels/04db.t
 t/basicrels/05multipk.t
