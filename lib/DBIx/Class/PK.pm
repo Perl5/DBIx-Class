@@ -16,12 +16,10 @@ DBIx::Class::PK - Primary Key class
 
 =head1 DESCRIPTION
 
-This class represents methods handling primary keys
-and depending on them.
+This class contains methods for handling primary keys and methods 
+depending on them.
 
 =head1 METHODS
-
-=over 4
 
 =cut
 
@@ -35,9 +33,10 @@ sub _ident_values {
   return (map { $self->{_column_data}{$_} } keys %{$self->_primaries});
 }
 
-=item set_primary_key <@cols>
+=head2 set_primary_key(@cols)
 
-define one or more columns as primary key for this class
+Defines one or more columns as primary key for this class. Should be
+called after C<columns>.
 
 =cut
 
@@ -53,9 +52,9 @@ sub set_primary_key {
   $class->_primaries(\%pri);
 }
 
-=item find
+=head2 find(@colvalues), find(\%cols)
 
-Finds columns based on the primary key(s).
+Finds a row based on its primary key(s).
 
 =cut
 
@@ -86,9 +85,10 @@ sub find {
   return (@row ? $class->_row_to_object(\@cols, \@row) : ());
 }
 
-=item discard_changes
+=head2 discard_changes
 
-Roll back changes that hasn't been comitted to the database.
+Re-selects the row from the database, losing any changes that had
+been made.
 
 =cut
 
@@ -106,9 +106,9 @@ sub discard_changes {
   return $self;
 }
 
-=item id
+=head2 id
 
-returns the primary key(s) for the current row. Can't be called as
+Returns the primary key(s) for a row. Can't be called as
 a class method.
 
 =cut
@@ -120,15 +120,24 @@ sub id {
   return (wantarray ? @pk : $pk[0]);
 }
 
-=item  primary_columns
+=head2 primary_columns
 
-read-only accessor which returns a list of primary keys.
+Read-only accessor which returns the list of primary keys for a class
+(in scalar context, only returns the first primary key).
 
 =cut
 
 sub primary_columns {
   return keys %{shift->_primaries};
 }
+
+=head2 ID
+
+Returns a unique id string identifying a row object by primary key.
+Used by L<DBIx::Class::CDBICompat::LiveObjectIndex> and 
+L<DBIx::Class::ObjectCache>.
+
+=cut
 
 sub ID {
   my ($self) = @_;
@@ -152,8 +161,6 @@ sub ident_condition {
 }
 
 1;
-
-=back
 
 =head1 AUTHORS
 

@@ -21,20 +21,53 @@ on searches.
 
 =head1 METHODS
 
-=over 4
-
-=item add_relationship
+=head2 add_relationship
 
   __PACKAGE__->add_relationship('relname', 'Foreign::Class', $cond, $attrs);
 
 The condition needs to be an SQL::Abstract-style representation of the
-join between the tables - for example if you're creating a rel from Foo to Bar
+join between the tables. For example, if you're creating a rel from Foo to Bar,
 
   { 'foreign.foo_id' => 'self.id' }
 
-will result in a JOIN clause like
+will result in the JOIN clause
 
   foo me JOIN bar bar ON bar.foo_id = me.id
+
+You can specify as many foreign => self mappings as necessary.
+
+Valid attributes are as follows:
+
+=over 4
+
+=item join_type
+
+Explicitly specifies the type of join to use in the relationship. Any SQL
+join type is valid, e.g. C<LEFT> or C<RIGHT>. It will be placed in the SQL
+command immediately before C<JOIN>.
+
+=item proxy
+
+An arrayref containing a list of accessors in the foreign class to proxy in
+the main class. If, for example, you do the following:
+  
+  __PACKAGE__->might_have(bar => 'Bar', undef, { proxy => qw[/ margle /] });
+  
+Then, assuming Bar has an accessor named margle, you can do:
+
+  my $obj = Foo->find(1);
+  $obj->margle(10); # set margle; Bar object is created if it doesn't exist
+  
+=item accessor
+
+Specifies the type of accessor that should be created for the relationship.
+Valid values are C<single> (for when there is only a single related object),
+C<multi> (when there can be many), and C<filter> (for when there is a single
+related object, but you also want the relationship accessor to double as
+a column accessor). For C<multi> accessors, an add_to_* method is also
+created, which calls C<create_related> for the relationship.
+
+=back
 
 =cut
 
@@ -157,7 +190,7 @@ sub _cond_value {
   return $self->next::method($attrs, $key, $value)
 }
 
-=item search_related
+=head2 search_related
 
   My::Table->search_related('relname', $cond, $attrs);
 
@@ -168,7 +201,7 @@ sub search_related {
   return $self->_query_related('search', @_);
 }
 
-=item count_related
+=head2 count_related
 
   My::Table->count_related('relname', $cond, $attrs);
 
@@ -205,7 +238,7 @@ sub _query_related {
            )->$meth($query, $attrs);
 }
 
-=item create_related
+=head2 create_related
 
   My::Table->create_related('relname', \%col_data);
 
@@ -216,7 +249,7 @@ sub create_related {
   return $class->new_related(@_)->insert;
 }
 
-=item new_related
+=head2 new_related
 
   My::Table->new_related('relname', \%col_data);
 
@@ -240,7 +273,7 @@ sub new_related {
   return $self->resolve_class($rel_obj->{class})->new(\%fields);
 }
 
-=item find_related
+=head2 find_related
 
   My::Table->find_related('relname', @pri_vals | \%pri_vals);
 
@@ -262,7 +295,7 @@ sub find_related {
   return $self->resolve_class($rel_obj->{class})->find($query);
 }
 
-=item find_or_create_related
+=head2 find_or_create_related
 
   My::Table->find_or_create_related('relname', \%col_data);
 
@@ -273,7 +306,7 @@ sub find_or_create_related {
   return $self->find_related(@_) || $self->create_related(@_);
 }
 
-=item set_from_related
+=head2 set_from_related
 
   My::Table->set_from_related('relname', $rel_obj);
 
@@ -302,7 +335,7 @@ sub set_from_related {
   return 1;
 }
 
-=item update_from_related
+=head2 update_from_related
 
   My::Table->update_from_related('relname', $rel_obj);
 
@@ -314,7 +347,7 @@ sub update_from_related {
   $self->update;
 }
 
-=item delete_related
+=head2 delete_related
 
   My::Table->delete_related('relname', $cond, $attrs);
 
@@ -326,8 +359,6 @@ sub delete_related {
 }
 
 1;
-
-=back
 
 =head1 AUTHORS
 

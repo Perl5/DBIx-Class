@@ -8,11 +8,43 @@ Things that could be handy
 
 =head1 RECIPES
 
-=item Input validation.
+=head2 Disconnecting cleanly
 
-=item Using joins
+If you find yourself quitting an app with Control-C a lot during development,
+you might like to put the following signal handler in your main database
+class to make sure it disconnects cleanly:
 
-=item Many-to-many relationships
+    $SIG{INT} = sub {
+        __PACKAGE__->storage->dbh->disconnect;
+    };
+
+=head2 Using joins and prefetch
+
+See L<DBIx::Class::ResultSet/Attributes>.
+
+=head2 Transactions
+
+As of version 0.04001, there is improved transaction support in
+L<DBIx::Class::Storage::DBI>. Here is an example of the recommended way to use it:
+
+    my $obj = Genus->find(12);
+    eval {
+        MyDB->txn_begin;
+        $obj->add_to_species({ name => 'troglodyte' });
+        $obj->wings(2);
+        $obj->update;
+        cromulate($obj); # can have a nested transation
+        MyDB->txn_commit;
+    };
+    if ($@) { eval { MyDB->txn_rollback } } # rollback might fail, too
+
+Currently, a nested commit will do nothing and a nested rollback will die.
+The code at each level must be sure to call rollback in the case of an error,
+to ensure that the rollback will propagate to the top level and be issued.
+Support for savepoints and for true nested transactions (for databases that
+support them) will hopefully be added in the future.
+
+=head2 Many-to-many relationships
 
 This is not as easy as it could be, but it's possible. Here's an example to 
 illustrate:
@@ -77,9 +109,5 @@ illustrate:
 	# So the above search returns an author record where the bookID field of the
 	# book2author table equals the bookID of the books (using the bookID 
 	# relationship table
-
-=item Advanced Exception handling
-
-=item Transactions
 
 =back

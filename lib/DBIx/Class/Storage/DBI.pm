@@ -86,6 +86,8 @@ __PACKAGE__->load_components(qw/Exception AccessorGroup/);
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/connect_info _dbh _sql_maker debug cursor/);
 
+our $TRANSACTION = 0;
+
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
@@ -104,8 +106,6 @@ DBIx::Class::Storage::DBI - DBI storage handler
 This class represents the connection to the database
 
 =head1 METHODS
-
-=over 4
 
 =cut
 
@@ -137,25 +137,45 @@ sub _connect {
   return DBI->connect(@info);
 }
 
-=item commit
+=head2 txn_begin
 
-  $class->commit;
-
-Issues a commit again the current dbh
+Calls begin_work on the current dbh.
 
 =cut
 
-sub commit { $_[0]->dbh->commit; }
+sub txn_begin {
+  $_[0]->dbh->begin_work if $TRANSACTION++ == 0 and $_[0]->dbh->{AutoCommit};
+}
 
-=item rollback
+=head2 txn_commit
 
-  $class->rollback;
-
-Issues a rollback again the current dbh
+Issues a commit against the current dbh.
 
 =cut
 
-sub rollback { $_[0]->dbh->rollback; }
+sub txn_commit {
+  if ($TRANSACTION == 0) {
+    $_[0]->dbh->commit;
+  }
+  else {
+    $_[0]->dbh->commit if --$TRANSACTION == 0;    
+  }
+}
+
+=head2 txn_rollback
+
+Issues a rollback against the current dbh.
+
+=cut
+
+sub txn_rollback {
+  if ($TRANSACTION == 0) {
+    $_[0]->dbh->rollback;
+  }
+  else {
+    --$TRANSACTION == 0 ? $_[0]->dbh->rollback : die $@;    
+  }
+}
 
 sub _execute {
   my ($self, $op, $extra_bind, $ident, @args) = @_;
@@ -219,8 +239,6 @@ sub sth {
 }
 
 1;
-
-=back
 
 =head1 AUTHORS
 

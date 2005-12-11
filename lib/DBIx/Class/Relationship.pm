@@ -36,67 +36,69 @@ L<DBIx::Class::Relationship::Base>.
 
 All helper methods take the following arguments:
 
-  __PACKAGE__>method_name('relname', 'Foreign::Class', $cond, $attrs);
+  __PACKAGE__>$method_name('relname', 'Foreign::Class', $cond, $attrs);
   
 Both C<$cond> and C<$attrs> are optional. Pass C<undef> for C<$cond> if
 you want to use the default value for it, but still want to set C<$attrs>.
-The following attributes are recognize:
-
-=over 4
-
-=item join_type
-
-Explicitly specifies the type of join to use in the relationship. Any SQL
-join type is valid, e.g. C<LEFT> or C<RIGHT>. It will be placed in the SQL
-command immediately before C<JOIN>.
-
-=item proxy
-
-An arrayref containing a list of accessors in the foreign class to proxy in
-the main class. If, for example, you do the following:
-  
-  __PACKAGE__->might_have(bar => 'Bar', undef, { proxy => qw[/ margle /] });
-  
-Then, assuming Bar has an accessor named margle, you can do:
-
-  my $obj = Foo->find(1);
-  $obj->margle(10); # set margle; Bar object is created if it doesn't exist
-
-=back
+See L<DBIx::Class::Relationship::Base> for a list of valid attributes.
 
 =head2 belongs_to
 
-  my $f_obj = $obj->relname;
+  # in a Bar class (where Foo has many Bars)
+  __PACKAGE__->belongs_to(foo => Foo);
+  my $f_obj = $obj->foo;
+  $obj->foo($new_f_obj);
 
-  $obj->relname($new_f_obj);
+Creates a relationship where the calling class stores the foreign class's 
+primary key in one (or more) of its columns. If $cond is a column name
+instead of a join condition hash, that is used as the name of the column
+holding the foreign key. If $cond is not given, the relname is used as
+the column name.
 
-Creates a relationship where we store the foreign class' PK; if $join is a
-column name instead of a condition that is assumed to be the FK, if not
-has_many assumes the FK is the relname is that is a column on the current
-class.
+NOTE: If you are used to L<Class::DBI> relationships, this is the equivalent
+of C<has_a>.
 
 =head2 has_many
 
-  my @f_obj = $obj->relname($cond?, $attrs?);
-  my $f_result_set = $obj->relname($cond?, $attrs?);
+  # in a Foo class (where Foo has many Bars)
+  __PACKAGE__->has_many(bar => Bar, 'foo');
+  my $f_resultset = $obj->foo;
+  my $f_resultset = $obj->foo({ name => { LIKE => '%macaroni%' }, { prefetch => [qw/bar/] });
+  my @f_obj = $obj->foo;
 
-  $obj->add_to_relname(\%col_data);
+  $obj->add_to_foo(\%col_data);
 
-Creates a one-many relationship with another class; 
+Creates a one-to-many relationship, where the corresponding elements of the
+foreign class store the calling class's primary key in one (or more) of its
+columns. You should pass the name of the column in the foreign class as the
+$cond argument, or specify a complete join condition.
+
+If you delete an object in a class with a C<has_many> relationship, all
+related objects will be deleted as well. However, any database-level
+cascade or restrict will take precedence.
 
 =head2 might_have
 
-  my $f_obj = $obj->relname;
+  __PACKAGE__->might_have(baz => Baz);
+  my $f_obj = $obj->baz; # to get the baz object
 
-Creates an optional one-one relationship with another class; defaults to PK-PK
-for the join condition unless a condition is specified.
+Creates an optional one-to-one relationship with a class, where the foreign class 
+stores our primary key in one of its columns. Defaults to the primary key of the
+foreign class unless $cond specifies a column or join condition.
+
+If you update or delete an object in a class with a C<might_have> relationship, 
+the related object will be updated or deleted as well. Any database-level update
+or delete constraints will override this behavior.
 
 =head2 has_one
 
-  my $f_obj = $obj->relname;
+  __PACKAGE__->has_one(gorch => Gorch);
+  my $f_obj = $obj->gorch;
 
-Creates a one-one relationship with another class; defaults to PK-PK for
-the join condition unless a condition is specified.
+Creates a one-to-one relationship with another class. This is just like C<might_have>,
+except the implication is that the other object is always present. The only different
+between C<has_one> and C<might_have> is that C<has_one> uses an (ordinary) inner join,
+whereas C<might_have> uses a left join.
 
 =cut
 

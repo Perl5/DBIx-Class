@@ -14,7 +14,7 @@ __PACKAGE__->mk_classdata('cache');
 =head1 SYNOPSIS
 
     # in your class definition
-    use Cache::FastMmmap;
+    use Cache::FastMmap;
     __PACKAGE__->cache(Cache::FastMmap->new);
 
 =head1 DESCRIPTION
@@ -99,7 +99,7 @@ sub _insert_into_cache {
 
 =head1 AUTHORS
 
-David Kamholz <davekam@pobox.com>
+David Kamholz <dkamholz@cpan.org>
 
 =head1 LICENSE
 

@@ -5,6 +5,9 @@ use DBIx::Class::Storage::DBI;
 use DBIx::Class::ClassResolver::PassThrough;
 use DBI;
 
+*dbi_commit = \&txn_commit;
+*dbi_rollback = \&txn_rollback;
+
 =head1 NAME 
 
 DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
@@ -21,7 +24,7 @@ DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
   package MyDB::MyTable;
 
   use base qw/MyDB/;
-  __PACKAGE__->load_components('Core');
+  __PACKAGE__->load_components('Core'); # just load this in MyDB if it will always be there
 
   ...
 
@@ -31,18 +34,15 @@ This class provides a simple way of specifying a database connection.
 
 =head1 METHODS
 
-=over 4
+=head2 storage
 
+Sets or gets the storage backend. Defaults to L<DBIx::Class::Storage::DBI>.
 
-=item storage
+=head2 class_resolver
 
-Which storage backend to be used. Defaults to L<DBIx::Class::Storage::DBI>
-
-=item class_resolver
-
-Which class to use for resolving a class. Defaults to 
-L<DBIx::Class::ClassResolver::Passthrough>, which returns whatever you throw
-at it. See resolve_class below.
+Sets or gets the class to use for resolving a class. Defaults to 
+L<DBIx::Class::ClassResolver::Passthrough>, which returns whatever you give
+it. See resolve_class below.
 
 =cut
 
@@ -50,7 +50,7 @@ __PACKAGE__->mk_classdata('storage');
 __PACKAGE__->mk_classdata('class_resolver' =>
                             'DBIx::Class::ClassResolver::PassThrough');
 
-=item connection
+=head2 connection
 
   __PACKAGE__->connection($dsn, $user, $pass, $attrs);
 
@@ -66,31 +66,33 @@ sub connection {
   $class->storage($storage);
 }
 
-=item dbi_commit
+=head2 txn_begin
 
-  $class->dbi_commit;
-
-Issues a commit again the current dbh
+Begins a transaction (does nothing if AutoCommit is off).
 
 =cut
 
-sub dbi_commit { $_[0]->storage->commit; }
+sub txn_begin { $_[0]->storage->txn_begin }
 
-=item dbi_rollback
+=head2 txn_commit
 
-  $class->dbi_rollback;
-
-Issues a rollback again the current dbh
+Commits the current transaction.
 
 =cut
 
-sub dbi_rollback { $_[0]->storage->rollback; }
+sub txn_commit { $_[0]->storage->txn_commit }
+
+=head2 txn_rollback
+
+Rolls back the current transaction.
+
+=cut
+
+sub txn_rollback { $_[0]->storage->txn_rollback }
 
 sub resolve_class { return shift->class_resolver->class(@_); }
 
 1;
-
-=back
 
 =head1 AUTHORS
 

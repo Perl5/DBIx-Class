@@ -56,9 +56,7 @@ particular which module inherits off which.
 
 =head1 METHODS
 
-=over 4
-
-=item register_class <component> <component_class>
+=head2 register_class <component> <component_class>
 
 Registers the class in the schema's class_registrations. This is a hash
 containing database classes, keyed by their monikers. It's used by
@@ -73,7 +71,7 @@ sub register_class {
   $class->class_registrations(\%reg);
 }
 
-=item registered_classes
+=head2 registered_classes
 
 Simple read-only accessor for the schema's registered classes. See 
 register_class above if you want to modify it.
@@ -85,7 +83,7 @@ sub registered_classes {
   return values %{shift->class_registrations};
 }
 
-=item  load_classes [<classes>, (<class>, <class>), {<namespace> => [<classes>]}]
+=head2  load_classes [<classes>, (<class>, <class>), {<namespace> => [<classes>]}]
 
 Uses L<Module::Find> to find all classes under the database class' namespace,
 or uses the classes you select.  Then it loads the component (using L<use>), 
@@ -142,7 +140,7 @@ sub load_classes {
   }
 }
 
-=item compose_connection <target> <@db_info>
+=head2 compose_connection <target> <@db_info>
 
 This is the most important method in this class. it takes a target namespace,
 as well as dbh connection info, and creates a L<DBIx::Class::DB> class as
@@ -185,7 +183,7 @@ sub compose_connection {
   $conn_class->class_resolver($target);
 }
 
-=item setup_connection_class <$target> <@info>
+=head2 setup_connection_class <$target> <@info>
 
 Sets up a database connection class to inject between the schema
 and the subclasses the schema creates.
@@ -200,8 +198,6 @@ sub setup_connection_class {
 }
 
 1;
-
-=back
 
 =head1 AUTHORS
 

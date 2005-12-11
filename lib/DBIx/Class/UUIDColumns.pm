@@ -24,9 +24,7 @@ Note that the component needs to be loaded before Core.
 
 =head1 METHODS
 
-=over 4
-
-=item uuid_columns
+=head2 uuid_columns
 
 =cut
 
@@ -51,8 +49,6 @@ sub insert {
 sub get_uuid {
     return Data::UUID->new->to_string(Data::UUID->new->create),
 }
-
-=back
 
 =head1 AUTHORS
 

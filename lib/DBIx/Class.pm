@@ -10,7 +10,6 @@ sub mk_classdata { shift->mk_classaccessor(@_); }
 
 $VERSION = '0.0499_01';
 
-
 1;
 
 =head1 NAME 
@@ -21,14 +20,14 @@ DBIx::Class - Extensible and flexible object <-> relational mapper.
 
 =head1 DESCRIPTION
 
-This is a sql to oop mapper, inspired by the L<Class::DBI> framework, 
+This is an SQL to OO mapper, inspired by the L<Class::DBI> framework, 
 and meant to support compability with it, while restructuring the 
-insides, and making it possible to support some new features like 
+internals and making it possible to support some new features like 
 self-joins, distinct, group bys and more.
 
-This project is still at an early stage so the maintainers don't make
+This project is still at an early stage, so the maintainers don't make
 any absolute promise that full backwards-compatibility will be supported;
-however if we can without compromising the improvements we're trying to
+however, if we can without compromising the improvements we're trying to
 make, we will, and any non-compatible changes will merit a full justification
 on the mailing list and a CPAN developer release for people to test against.
 
@@ -44,13 +43,12 @@ The community can be found via -
 
 =head1 QUICKSTART
 
-If you're using Class::DBI, and want an easy and fast way of migrating to
-DBIx::Class look at L<DBIx::Class::CDBICompat>.
+If you're using L<Class::DBI>, and want an easy and fast way of migrating to
+DBIx::Class, take a look at L<DBIx::Class::CDBICompat>.
 
-There are two ways of using DBIx::Class, the 'simple' and the 'schema' one.
-
-The 'simple' way of using DBIx::Class needs less classes than the 'schema'
-way but doesn't give you the ability to use different database connections.
+There are two ways of using DBIx::Class, the "simple" way and the "schema" way.
+The "simple" way of using DBIx::Class needs less classes than the "schema"
+way but doesn't give you the ability to easily use different database connections.
 
 Some examples where different database connections are useful are:
 
@@ -59,40 +57,42 @@ different databases with the same schema.
 
 =head1 Simple
 
-First you need to create a base class all other classes inherit from.
+First you need to create a base class which all other classes will inherit from.
+See L<DBIx::Class::DB> for information on how to do this.
 
-Look at L<DBIx::Class::DB> how to do this
-
-Next you need to create a class for every table you want to use with
-DBIx::Class.
-
-Look at L<DBIx::Class::Table> how to do this.
-
+Then you need to create a class for every table you want to use with DBIx::Class.
+See L<DBIx::Class::Table> for information on how to do this.
 
 =head2 Schema
 
-With this approach the table classes inherit directly from DBIx::Class::Core,
-although it might be a good idea to create a 'parent' class for all table
-classes which inherits from DBIx::Class::Core and adds additional methods
-needed by all table classes, e.g. reading a config file, loading auto primary
+With this approach, the table classes inherit directly from DBIx::Class::Core,
+although it might be a good idea to create a "parent" class for all table
+classes that inherits from DBIx::Class::Core and adds additional methods
+needed by all table classes, e.g. reading a config file or loading auto primary
 key support.
 
-Look at L<DBIx::Class::Schema> how to do this.
+Look at L<DBIx::Class::Schema> for information on how to do this.
 
-If you need more hand-holding, check out the introduction in the 
+If you need more help, check out the introduction in the 
 manual below.
 
 =head1 SEE ALSO
 
-=over 4
+=head2 L<DBIx::Class::Core> - DBIC Core Classes
 
-=item L<DBIx::Class::Core> - DBIC Core Classes
+=head2 L<DBIx::Class::Manual> - User's manual
 
-=item L<DBIx::Class::CDBICompat> - L<Class::DBI> Compat layer.
+=head2 L<DBIx::Class::CDBICompat> - L<Class::DBI> Compat layer
 
-=item L<DBIx::Class::Manual> - User's manual.
+=head2 L<DBIx::Class::DB> - database-level methods
 
-=back
+=head2 L<DBIx::Class::Table> - table-level methods
+
+=head2 L<DBIx::Class::Row> - row-level methods
+
+=head2 L<DBIx::Class::PK> - primary key methods
+
+=head2 L<DBIx::Class::Relationship> - relationships between tables
 
 =head1 AUTHOR
 

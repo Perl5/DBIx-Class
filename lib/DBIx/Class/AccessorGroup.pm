@@ -16,8 +16,6 @@ getters and setters.
 
 =head1 METHODS
 
-=over 4
-
 =cut
 
 sub mk_group_accessors {
@@ -145,8 +143,6 @@ sub set_simple {
 }
 
 1;
-
-=back
 
 =head1 AUTHORS
 

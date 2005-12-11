@@ -18,9 +18,7 @@ derived from L<DBIx::Class::Table> objects.
 
 =head1 METHODS
 
-=over 4
-
-=item new
+=head2 new
 
   my $obj = My::Class->new($attrs);
 
@@ -42,7 +40,7 @@ sub new {
   return $new;
 }
 
-=item insert
+=head2 insert
 
   $obj->insert;
 
@@ -66,7 +64,7 @@ sub insert {
   return $self;
 }
 
-=item in_storage
+=head2 in_storage
 
   $obj->in_storage; # Get value
   $obj->in_storage(1); # Set value
@@ -81,7 +79,7 @@ sub in_storage {
   return $self->{_in_storage};
 }
 
-=item create
+=head2 create
 
   my $new = My::Class->create($attrs);
 
@@ -95,7 +93,7 @@ sub create {
   return $class->new($attrs)->insert;
 }
 
-=item update
+=head2 update
 
   $obj->update;
 
@@ -124,7 +122,7 @@ sub update {
   return $self;
 }
 
-=item delete
+=head2 delete
 
   $obj->delete
 
@@ -155,11 +153,13 @@ sub delete {
   return $self;
 }
 
-=item get_column
+=head2 get_column
 
   my $val = $obj->get_column($col);
 
-Fetches a column value
+Gets a column value from a row object. Currently, does not do
+any queries; the column must have already been fetched from
+the database and stored in the object.
 
 =cut
 
@@ -172,11 +172,11 @@ sub get_column {
   return undef;
 }
 
-=item get_columns
+=head2 get_columns
 
   my %data = $obj->get_columns;
 
-Fetch all column values at once.
+Does C<get_column>, for all column values at once.
 
 =cut
 
@@ -185,12 +185,12 @@ sub get_columns {
   return map { $_ => $self->get_column($_) } $self->columns;
 }
 
-=item set_column
+=head2 set_column
 
   $obj->set_column($col => $val);
 
-Sets a column value; if the new value is different to the old the column
-is marked as dirty for when you next call $obj->update
+Sets a column value. If the new value is different from the old one,
+the column is marked as dirty for when you next call $obj->update.
 
 =cut
 
@@ -203,11 +203,11 @@ sub set_column {
   return $ret;
 }
 
-=item set_columns
+=head2 set_columns
 
   my $copy = $orig->set_columns({ $col => $val, ... });
 
-Set more than one column value at once.
+Sets more than one column value at once.
 
 =cut
 
@@ -218,19 +218,19 @@ sub set_columns {
   }
 }
 
-=item copy
+=head2 copy
 
   my $copy = $orig->copy({ change => $to, ... });
 
-Insert a new row with the specified changes.
+Inserts a new row with the specified changes.
 
 =cut
 
-=item store_column
+=head2 store_column
 
   $obj->store_column($col => $val);
 
-Sets a column value without marking it as dirty
+Sets a column value without marking it as dirty.
 
 =cut
 
@@ -259,11 +259,11 @@ sub copy {
   return $new->insert;
 }
 
-=item insert_or_update
+=head2 insert_or_update
 
   $obj->insert_or_update
 
-Updates the object if it's already in the db, else inserts it
+Updates the object if it's already in the db, else inserts it.
 
 =cut
 
@@ -272,7 +272,7 @@ sub insert_or_update {
   return ($self->in_storage ? $self->update : $self->insert);
 }
 
-=item is_changed
+=head2 is_changed
 
   my @changed_col_names = $obj->is_changed
 
@@ -283,8 +283,6 @@ sub is_changed {
 }
 
 1;
-
-=back
 
 =head1 AUTHORS
 
