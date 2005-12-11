@@ -48,7 +48,7 @@ my $track = DBICTest::Track->create( {
 $track->set_from_related( cd => $cd );
 
 if ($INC{'DBICTest/HelperRels.pm'}) { # except inflated object
-  is($track->cd->cdid, 4, 'set_from_related ok' );
+  is($track->disc->cdid, 4, 'set_from_related ok, including alternative accessor' );
 } else {
   is( $track->cd, 4, 'set_from_related ok' );
 }
