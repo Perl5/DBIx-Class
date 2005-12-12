@@ -191,7 +191,7 @@ sub _execute {
 sub insert {
   my ($self, $ident, $to_insert) = @_;
   $self->throw( "Couldn't insert ".join(', ', map "$_ => $to_insert->{$_}", keys %$to_insert)." into ${ident}" )
-    unless ($self->_execute('insert' => [], $ident, $to_insert) > 0);
+    unless ($self->_execute('insert' => [], $ident, $to_insert));
   return $to_insert;
 }
 
