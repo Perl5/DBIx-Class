@@ -53,7 +53,7 @@ Some examples where different database connections are useful are:
 different users with different rights
 different databases with the same schema.
 
-=head1 Simple
+=head2 Simple
 
 First you need to create a base class which all other classes will inherit from.
 See L<DBIx::Class::DB> for information on how to do this.
