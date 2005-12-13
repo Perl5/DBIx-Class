@@ -90,6 +90,8 @@ manual below.
 
 =head2 L<DBIx::Class::PK> - primary key methods
 
+=head2 L<DBIx::Class::ResultSet> - search result-set methods
+
 =head2 L<DBIx::Class::Relationship> - relationships between tables
 
 =head1 AUTHOR
