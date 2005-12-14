@@ -10,7 +10,7 @@ __PACKAGE__->load_components(qw/PK::Auto/);
 sub last_insert_id {
   my $self = shift;
   $self->get_autoinc_seq unless $self->{_autoinc_seq};
-  my $sql = "SELECT " . $self->{_autoinc_seq} . ".nextval FROM DUAL";
+  my $sql = "SELECT " . $self->{_autoinc_seq} . ".currval FROM DUAL";
   my ($id) = $self->storage->dbh->selectrow_array($sql);
   return $id;  
 }

@@ -19,6 +19,11 @@ incremented primary keys.
 You don't want to be using this directly - instead load the appropriate
 one for your database, e.g. PK::Auto::SQLite
 
+=head1 LOGIC
+
+PK::Auto does this by letting the database assign the primary key field
+and fetching the assigned value afterwards.
+
 =head1 METHODS
 
 =head2 insert

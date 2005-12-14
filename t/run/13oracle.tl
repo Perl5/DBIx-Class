@@ -36,7 +36,7 @@ OraTest::Artist->load_components('PK::Auto::Oracle');
 
 # test primary key handling
 my $new = OraTest::Artist->create({ name => 'foo' });
-ok($new->artistid, "Oracle Auto-PK worked");
+is($new->artistid, 1, "Oracle Auto-PK worked");
 
 # test LIMIT support
 for (1..6) {
