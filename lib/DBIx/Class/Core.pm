@@ -11,7 +11,7 @@ __PACKAGE__->load_components(qw/
   Relationship
   PK
   Row
-  Table
+  TableInstance
   ResultSetInstance
   Exception
   AccessorGroup/);

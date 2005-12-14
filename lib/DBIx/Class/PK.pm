@@ -79,10 +79,10 @@ sub find {
   $class->throw( "Can't find unless all primary keys are specified" )
     unless (keys %$query >= @pk); # If we check 'em we run afoul of uc/lc
                                   # column names etc. Not sure what to do yet
-  #return $class->search($query)->next;
-  my @cols = $class->_select_columns;
-  my @row = $class->storage->select_single($class->_table_name, \@cols, $query);
-  return (@row ? $class->_row_to_object(\@cols, \@row) : ());
+  return $class->search($query)->next;
+  #my @cols = $class->_select_columns;
+  #my @row = $class->storage->select_single($class->_table_name, \@cols, $query);
+  #return (@row ? $class->_row_to_object(\@cols, \@row) : ());
 }
 
 =head2 discard_changes
