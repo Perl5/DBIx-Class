@@ -28,6 +28,8 @@ DBICTest::Schema::Tag->belongs_to('cd', 'DBICTest::Schema::CD');
 
 DBICTest::Schema::Track->belongs_to('cd', 'DBICTest::Schema::CD', 'cdid');
 
+DBICTest::Schema::Track->belongs_to('disc', 'DBICTest::Schema::CD', 'cd');
+
 DBICTest::Schema::TwoKeys->belongs_to('artist', 'DBICTest::Schema::Artist');
 
 DBICTest::Schema::TwoKeys->belongs_to('cd', 'DBICTest::Schema::CD');

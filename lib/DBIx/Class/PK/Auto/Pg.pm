@@ -8,28 +8,31 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/PK::Auto/);
 
 sub last_insert_id {
-  my $self=shift;
+  my $self = shift;
   $self->get_autoinc_seq unless $self->{_autoinc_seq};
   $self->storage->dbh->last_insert_id(undef,undef,undef,undef,
     {sequence=>$self->{_autoinc_seq}});
 }
 
 sub get_autoinc_seq {
-  my $self=shift;
+  my $self = shift;
   
   # return the user-defined sequence if known
   if ($self->sequence) {
     return $self->{_autoinc_seq} = $self->sequence;
   }
   
-  my $dbh= $self->storage->dbh;
-    my $sth	= $dbh->column_info( undef, undef, $self->_table_name, '%');
-    while (my $foo = $sth->fetchrow_arrayref){
-      if(defined $foo->[12] && $foo->[12] =~ /^nextval/) {
-        ($self->{_autoinc_seq}) = $foo->[12] =~ 
-          m!^nextval\('"?([^"']+)"?'::(?:text|regclass)\)!;
-      }
-    }
+  my @pri = keys %{ $self->_primaries };
+  my $dbh = $self->storage->dbh;
+  while (my $col = shift @pri) {
+    my $info = $dbh->column_info(undef,undef,$self->table,$col)->fetchrow_arrayref;
+    if (defined $info->[12] and $info->[12] =~ 
+      /^nextval\('"?([^"']+)"?'::(?:text|regclass)\)/)
+    {
+      $self->{_autoinc_seq} = $1;
+      last;
+    } 
+  }
 }
 
 1;

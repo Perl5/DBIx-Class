@@ -133,7 +133,6 @@ sub load_classes {
   foreach my $prefix (keys %comps_for) {
     foreach my $comp (@{$comps_for{$prefix}||[]}) {
       my $comp_class = "${prefix}::${comp}";
-      print "$comp_class\n";
       eval "use $comp_class"; # If it fails, assume the user fixed it
       $class->register_class($comp => $comp_class);
     }

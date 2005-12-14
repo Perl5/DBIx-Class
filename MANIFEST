@@ -68,6 +68,7 @@ README
 t/02pod.t
 t/03podcoverage.t
 t/04dont_break_c3.t
+t/18inserterror.t
 t/19quotes.t
 t/20setuperrors.t
 t/basicrels/01core.t
