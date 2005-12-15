@@ -6,6 +6,8 @@ use warnings;
 use DBIx::Class::ResultSet;
 use Data::Page;
 
+use Carp qw/croak/;
+
 use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata('_columns' => {});
@@ -115,8 +117,8 @@ no condition,
 
 sub search {
   my $class = shift;
-  #warn "@_";
   my $attrs = { };
+  croak "Table not defined for ". ( ref $class || $class ) unless $class->table();
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
     $attrs = { %{ pop(@_) } };
   }
@@ -207,7 +209,7 @@ Returns the column metadata hashref for a column.
 
 sub column_info {
   my ($self, $column) = @_;
-  die "No such column $column" unless exists $self->_columns->{$column};
+  croak "No such column $column" unless exists $self->_columns->{$column};
   return $self->_columns->{$column};
 }
 
@@ -218,7 +220,7 @@ sub column_info {
 =cut                                                                            
 
 sub columns {
-  die "columns() is a read-only accessor, did you mean add_columns()?" if (@_ > 1);
+  croak "columns() is a read-only accessor, did you mean add_columns()?" if (@_ > 1);
   return keys %{shift->_columns};
 }
 
