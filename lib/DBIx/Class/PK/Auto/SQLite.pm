@@ -19,6 +19,10 @@ DBIx::Class::PK::Auto::SQLite - Automatic Primary Key class for SQLite
 
 =head1 SYNOPSIS
 
+    # In your table classes
+    __PACKAGE__->load_components(qw/PK::Auto::SQLite Core/);
+    __PACKAGE__->set_primary_key('id');
+
 =head1 DESCRIPTION
 
 This class implements autoincrements for SQLite.

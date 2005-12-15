@@ -43,6 +43,10 @@ DBIx::Class::PK::Auto::Pg - Automatic Primary Key class for Postgresql
 
 =head1 SYNOPSIS
 
+    # In your table classes
+    __PACKAGE__->load_components(qw/PK::Auto::Pg Core/);
+    __PACKAGE__->set_primary_key('id');
+
 =head1 DESCRIPTION
 
 This class implements autoincrements for Postgresql.

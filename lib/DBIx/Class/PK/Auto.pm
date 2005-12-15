@@ -11,18 +11,24 @@ DBIx::Class::PK::Auto - Automatic Primary Key class
 
 =head1 SYNOPSIS
 
+    # In your table classes (replace PK::Auto::SQLite with your
+    # database)
+    __PACKAGE__->load_components(qw/PK::Auto::SQLite Core/);
+    __PACKAGE__->set_primary_key('id');
+
 =head1 DESCRIPTION
 
 This class overrides the insert method to get automatically
 incremented primary keys.
 
-You don't want to be using this directly - instead load the appropriate
-one for your database, e.g. PK::Auto::SQLite
+You don't want to be using this directly - instead load the
+appropriate one for your database, e.g. C<PK::Auto::SQLite>, before
+C<Core>.
 
 =head1 LOGIC
 
-PK::Auto does this by letting the database assign the primary key field
-and fetching the assigned value afterwards.
+PK::Auto does this by letting the database assign the primary key
+field and fetching the assigned value afterwards.
 
 =head1 METHODS
 

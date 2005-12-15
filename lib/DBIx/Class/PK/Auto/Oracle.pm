@@ -53,6 +53,10 @@ DBIx::Class::PK::Auto::Oracle - Automatic Primary Key class for Oracle
 
 =head1 SYNOPSIS
 
+    # In your table classes
+    __PACKAGE__->load_components(qw/PK::Auto::Oracle Core/);
+    __PACKAGE__->set_primary_key('id');
+
 =head1 DESCRIPTION
 
 This class implements autoincrements for Oracle.
