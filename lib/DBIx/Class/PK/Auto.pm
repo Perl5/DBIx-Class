@@ -22,12 +22,24 @@ This class overrides the insert method to get automatically
 incremented primary keys.
 
 You don't want to be using this directly - instead load the
-appropriate one for your database, e.g. C<PK::Auto::SQLite>, before
-C<Core>.
+appropriate one for your database, e.g. C<PK::Auto::SQLite>, in your
+table classes:
+
+    __PACKAGE__->load_components(qw/PK::Auto::SQLite Core/);
+
+Note that C<PK::Auto::SQLite> is specified as the leftmost argument.
+
+Alternatively, you can load the components separately:
+
+    __PACKAGE__->load_components(qw/Core/);
+    __PACKAGE__->load_components(qw/PK::Auto::SQLite/);
+
+This can be used, for example, if you have different databases and
+need to determine the appropriate C<PK::Auto> class at runtime.
 
 =head1 LOGIC
 
-PK::Auto does this by letting the database assign the primary key
+C<PK::Auto> does this by letting the database assign the primary key
 field and fetching the assigned value afterwards.
 
 =head1 METHODS
