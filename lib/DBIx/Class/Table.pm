@@ -31,7 +31,7 @@ L<DBIx::Class> classes.
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
-  my $new = bless($attrs || {}, $class);
+  my $new = bless({ %{$attrs || {}} }, $class);
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
   $new->{_columns} ||= {};
   $new->{name} ||= "!!NAME NOT SET!!";

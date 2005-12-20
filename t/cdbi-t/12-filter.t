@@ -158,7 +158,6 @@ sub slice { qw/fred barney/ }
 package main;
 
 Actor->iterator_class('Class::DBI::My::Iterator');
-Actor->resultset_instance(Actor->construct_resultset);
 
 {
 	my @acts = $film->actors->slice(1, 2);

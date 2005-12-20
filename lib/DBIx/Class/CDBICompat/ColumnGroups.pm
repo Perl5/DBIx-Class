@@ -39,21 +39,16 @@ sub _register_column_group {
       $class->set_primary_key($cols[0]);
     }
     unless (exists $class->_column_groups->{'Essential'}) {
-      #$class->_register_column_group('Essential' => $cols[0]);
       $groups->{'Essential'}{$cols[0]} = {};
-      #$groups->{'Essential'}{$_} ||= {} for keys %{ $class->_primaries || {} };
     }
   }
 
   $groups->{$group}{$_} ||= {} for @cols;
-  #if ($group eq 'Essential') {
-  #  $groups->{$group}{$_} ||= {} for keys %{ $class->_primaries || {} };
-  #}
 
   $class->_column_groups($groups);
 }
 
-sub all_columns { return keys %{$_[0]->_columns}; }
+sub all_columns { return shift->table_instance->columns; }
 
 sub primary_column {
   my ($class) = @_;

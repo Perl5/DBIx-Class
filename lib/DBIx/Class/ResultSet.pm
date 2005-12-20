@@ -38,7 +38,7 @@ sub new {
   $class = ref $class if ref $class;
   $attrs = { %{ $attrs || {} } };
   my %seen;
-  $attrs->{cols} ||= [ map { "me.$_" } $source->columns ];
+  $attrs->{cols} ||= [ map { "me.$_" } $source->result_class->_select_columns ];
   $attrs->{from} ||= [ { 'me' => $source->name } ];
   if ($attrs->{join}) {
     foreach my $j (ref $attrs->{join} eq 'ARRAY'
@@ -56,7 +56,7 @@ sub new {
       unless $seen{$pre};
     push(@{$attrs->{cols}},
       map { "$pre.$_" }
-      $source->result_class->_relationships->{$pre}->{class}->table->columns);
+      $source->result_class->_relationships->{$pre}->{class}->columns);
   }
   my $new = {
     source => $source,

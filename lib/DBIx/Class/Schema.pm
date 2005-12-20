@@ -167,9 +167,6 @@ sub compose_connection {
   while (my ($comp, $comp_class) = each %reg) {
     my $target_class = "${target}::${comp}";
     $class->inject_base($target_class, $comp_class, $conn_class);
-    my $table = $comp_class->table->new({ %{$comp_class->table} });
-    $table->result_class($target_class);
-    $target_class->table($table);
     @map{$comp, $comp_class} = ($target_class, $target_class);
   }
   {

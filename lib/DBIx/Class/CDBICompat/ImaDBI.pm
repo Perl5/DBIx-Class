@@ -70,8 +70,6 @@ sub __driver {
 
 sub set_sql {
   my ($class, $name, $sql) = @_;
-  my $table = $class->_table_name;
-  #$sql =~ s/__TABLE__/$table/;
   no strict 'refs';
   *{"${class}::sql_${name}"} =
     sub {
@@ -103,7 +101,6 @@ sub sth_to_objects {
 
 sub transform_sql {
   my ($class, $sql, @args) = @_;
-  my $table = $class->_table_name;
   my $attrs = { };
   foreach my $key (@{$class->_transform_sql_handler_order}) {
     my $h = $class->_transform_sql_handlers->{$key};

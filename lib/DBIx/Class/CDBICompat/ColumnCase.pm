@@ -15,6 +15,12 @@ sub _register_columns {
   return $class->next::method(map lc, @cols);
 }
 
+sub add_columns {
+  my ($class, @cols) = @_;
+  $class->table_instance->add_columns(map lc, @cols);
+  $class->_mk_column_accessors(@cols);
+}
+
 sub has_a {
   my ($class, $col, @rest) = @_;
   $class->next::method(lc($col), @rest);
