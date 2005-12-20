@@ -110,4 +110,16 @@ illustrate:
 	# book2author table equals the bookID of the books (using the bookID 
 	# relationship table
 
+=head2 Setting default values
+
+It's as simple as overriding the C<new> method. Note the use of C<next::method>.
+
+    sub new {
+        my( $class, $attrs ) = @_; 
+        
+        $attrs->{ foo } = 'bar' unless defined $attrs->{ foo };
+        
+        $class->next::method( $attrs );
+    }
+
 =back

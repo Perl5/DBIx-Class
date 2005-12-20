@@ -5,6 +5,8 @@ use warnings;
 
 use DBIx::Class::ResultSet;
 
+use Carp qw/croak/;
+
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
@@ -89,7 +91,7 @@ Returns the column metadata hashref for a column.
 
 sub column_info {
   my ($self, $column) = @_;
-  die "No such column $column" unless exists $self->_columns->{$column};
+  croak "No such column $column" unless exists $self->_columns->{$column};
   return $self->_columns->{$column};
 }
 
@@ -100,7 +102,7 @@ sub column_info {
 =cut                                                                            
 
 sub columns {
-  die "columns() is a read-only accessor, did you mean add_columns()?" if (@_ > 1);
+  croak "columns() is a read-only accessor, did you mean add_columns()?" if (@_ > 1);
   return keys %{shift->_columns};
 }
 
