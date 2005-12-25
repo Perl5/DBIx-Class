@@ -13,8 +13,7 @@ __PACKAGE__->load_components(qw/
   Row
   Table
   Exception
-  AccessorGroup
-  Validation/);
+  AccessorGroup/);
 
 1;
 
