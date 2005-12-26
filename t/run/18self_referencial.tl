@@ -20,7 +20,7 @@ sub run_tests {
 
 plan tests => 4;
 
-my $item = DBICTest::SelfRef->find( 1 );
+my $item = DBICTest->class("SelfRef")->find( 1 );
 is( $item->name, 'First', 'proper start item' );
 
 my @aliases = $item->aliases;

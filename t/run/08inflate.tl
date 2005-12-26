@@ -12,7 +12,7 @@ DBICTest::Schema::CD->inflate_column( 'year',
 Class::C3->reinitialize;
 
 # inflation test
-my $cd = DBICTest::CD->find(3);
+my $cd = DBICTest->class("CD")->find(3);
 
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 
@@ -23,7 +23,7 @@ my $now = DateTime->now;
 $cd->year( $now );
 $cd->update;
 
-($cd) = DBICTest::CD->search( year => $now->year );
+($cd) = DBICTest->class("CD")->search( year => $now->year );
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 }

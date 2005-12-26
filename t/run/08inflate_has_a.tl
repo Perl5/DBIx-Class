@@ -14,7 +14,7 @@ DBICTest::Schema::CD->has_a( 'year', 'DateTime',
 Class::C3->reinitialize;
 
 # inflation test
-my $cd = DBICTest::CD->find(3);
+my $cd = DBICTest->class("CD")->find(3);
 
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 
@@ -25,17 +25,17 @@ my $now = DateTime->now;
 $cd->year( $now );
 $cd->update;
 
-($cd) = DBICTest::CD->search( year => $now->year );
+($cd) = DBICTest->class("CD")->search( year => $now->year );
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 # re-test using alternate deflate syntax
-DBICTest::CD->has_a( 'year', 'DateTime',
+DBICTest->class("CD")->has_a( 'year', 'DateTime',
       inflate => sub { DateTime->new( year => shift ) },
       deflate => 'year'
 );
 
 # inflation test
-$cd = DBICTest::CD->find(3);
+$cd = DBICTest->class("CD")->find(3);
 
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 
@@ -46,7 +46,7 @@ $now = DateTime->now;
 $cd->year( $now );
 $cd->update;
 
-($cd) = DBICTest::CD->search( year => $now->year );
+($cd) = DBICTest->class("CD")->search( year => $now->year );
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 }

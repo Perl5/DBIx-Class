@@ -4,27 +4,27 @@ plan tests => 2;
 
 # add some rows inside a transaction and commit it
 # XXX: Is storage->dbh the only way to get a dbh?
-DBICTest::Artist->txn_begin;
+DBICTest->class("Artist")->txn_begin;
 for (10..15) {
-    DBICTest::Artist->create( { 
+    DBICTest->class("Artist")->create( { 
         artistid => $_,
         name => "artist number $_",
     } );
 }
-DBICTest::Artist->txn_commit;
-my ($artist) = DBICTest::Artist->find(15);
+DBICTest->class("Artist")->txn_commit;
+my ($artist) = DBICTest->class("Artist")->find(15);
 is($artist->name, 'artist number 15', "Commit ok");
 
 # add some rows inside a transaction and roll it back
-DBICTest::Artist->txn_begin;
+DBICTest->class("Artist")->txn_begin;
 for (21..30) {
-    DBICTest::Artist->create( {
+    DBICTest->class("Artist")->create( {
         artistid => $_,
         name => "artist number $_",
     } );
 }
-DBICTest::Artist->txn_rollback;
-($artist) = DBICTest::Artist->search( artistid => 25 );
+DBICTest->class("Artist")->txn_rollback;
+($artist) = DBICTest->class("Artist")->search( artistid => 25 );
 is($artist, undef, "Rollback ok");
 
 }

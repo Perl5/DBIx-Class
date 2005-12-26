@@ -2,7 +2,7 @@ sub run_tests {
 
 plan tests => 29; 
 
-my @art = DBICTest::Artist->search({ }, { order_by => 'name DESC'});
+my @art = DBICTest->class("Artist")->search({ }, { order_by => 'name DESC'});
 
 cmp_ok(@art, '==', 3, "Three artists returned");
 
@@ -18,7 +18,7 @@ is($art->get_column("name"), 'We Are In Rehab', 'And via get_column');
 
 ok($art->update, 'Update run');
 
-@art = DBICTest::Artist->search({ name => 'We Are In Rehab' });
+@art = DBICTest->class("Artist")->search({ name => 'We Are In Rehab' });
 
 cmp_ok(@art, '==', 1, "Changed artist returned by search");
 
@@ -26,7 +26,7 @@ cmp_ok($art[0]->artistid, '==', 3,'Correct artist too');
 
 $art->delete;
 
-@art = DBICTest::Artist->search({ });
+@art = DBICTest->class("Artist")->search({ });
 
 cmp_ok(@art, '==', 2, 'And then there were two');
 
@@ -42,15 +42,15 @@ $art->insert;
 
 ok($art->in_storage, "Re-created");
 
-@art = DBICTest::Artist->search({ });
+@art = DBICTest->class("Artist")->search({ });
 
 cmp_ok(@art, '==', 3, 'And now there are three again');
 
-my $new = DBICTest::Artist->create({ artistid => 4 });
+my $new = DBICTest->class("Artist")->create({ artistid => 4 });
 
 cmp_ok($new->artistid, '==', 4, 'Create produced record ok');
 
-@art = DBICTest::Artist->search({ });
+@art = DBICTest->class("Artist")->search({ });
 
 cmp_ok(@art, '==', 4, "Oh my god! There's four of them!");
 
@@ -66,15 +66,15 @@ $new->name('Man With A Spoon');
 
 $new->update;
 
-$new_again = DBICTest::Artist->find(4);
+$new_again = DBICTest->class("Artist")->find(4);
 
 is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is($new_again->ID, 'DBICTest::Artist|artistid=4', 'unique object id generated correctly');
 
-is(DBICTest::Artist->count, 4, 'count ok');
+is(DBICTest->class("Artist")->count, 4, 'count ok');
 
-my $cd = DBICTest::CD->find(1);
+my $cd = DBICTest->class("CD")->find(1);
 my %cols = $cd->get_columns;
 
 cmp_ok(keys %cols, '==', 4, 'get_columns number of columns ok');
@@ -90,11 +90,11 @@ is($cd->year, 2005, 'set_columns ok');
 
 $cd->discard_changes;
 
-$cd = DBICTest::CD->search({ title => 'Spoonful of bees' }, { cols => ['title'] })->next;
+$cd = DBICTest->class("CD")->search({ title => 'Spoonful of bees' }, { cols => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');
 
 # insert_or_update
-$new = DBICTest::Track->new( {
+$new = DBICTest->class("Track")->new( {
   trackid => 100,
   cd => 1,
   position => 1,
@@ -106,13 +106,13 @@ ok($new->in_storage, 'insert_or_update insert ok');
 # test in update mode
 $new->position(5);
 $new->insert_or_update;
-is( DBICTest::Track->find(100)->position, 5, 'insert_or_update update ok');
+is( DBICTest->class("Track")->find(100)->position, 5, 'insert_or_update update ok');
 
-eval { DBICTest::Track->load_components('DoesNotExist'); };
+eval { DBICTest->class("Track")->load_components('DoesNotExist'); };
 
 ok $@, $@;
 
-is(DBICTest::Artist->field_name_for->{name}, 'artist name', 'mk_classdata usage ok');
+is(DBICTest->class("Artist")->field_name_for->{name}, 'artist name', 'mk_classdata usage ok');
 
 }
 

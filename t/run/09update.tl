@@ -5,7 +5,7 @@ BEGIN {
         plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 3);
 }                                                                               
 
-my $art = DBICTest::Artist->find(1);
+my $art = DBICTest->class("Artist")->find(1);
 
 isa_ok $art => 'DBICTest::Artist';
 

@@ -8,7 +8,7 @@ plan skip_all, 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. ' 
 
 plan tests => 4;
 
-DBICTest::Schema->compose_connection('OraTest' => $dsn, $user, $pass);
+DBICTest->class("Schema")->compose_connection('OraTest' => $dsn, $user, $pass);
 
 my $dbh = OraTest::Artist->storage->dbh;
 

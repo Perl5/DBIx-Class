@@ -6,7 +6,7 @@ BEGIN {
 }                                                                               
 
 # test LIMIT
-my $it = DBICTest::CD->search( {},
+my $it = DBICTest->class("CD")->search( {},
     { rows => 3,
       order_by => 'title' }
 );
@@ -17,7 +17,7 @@ $it->next;
 is( $it->next, undef, "next past end of resultset ok" );
 
 # test OFFSET
-my @cds = DBICTest::CD->search( {},
+my @cds = DBICTest->class("CD")->search( {},
     { rows => 2,
       offset => 2,
       order_by => 'year' }
@@ -25,7 +25,7 @@ my @cds = DBICTest::CD->search( {},
 is( $cds[0]->title, "Spoonful of bees", "offset ok" );
 
 # test software-based limiting
-$it = DBICTest::CD->search( {},
+$it = DBICTest->class("CD")->search( {},
     { rows => 3,
       software_limit => 1,
       order_by => 'title' }
@@ -36,7 +36,7 @@ $it->next;
 $it->next;
 is( $it->next, undef, "software next past end of resultset ok" );
 
-@cds = DBICTest::CD->search( {},
+@cds = DBICTest->class("CD")->search( {},
     { rows => 2,
       offset => 2,
       software_limit => 1,
@@ -46,7 +46,7 @@ is( $cds[0]->title, "Spoonful of bees", "software offset ok" );
 
 # based on a failing criteria submitted by waswas
 # requires SQL::Abstract >= 1.20
-$it = DBICTest::CD->search(
+$it = DBICTest->class("CD")->search(
     { title => [
         -and => 
             {
