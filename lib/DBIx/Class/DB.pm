@@ -12,6 +12,14 @@ __PACKAGE__->load_components(qw/ResultSetInstance/);
 
 sub storage { shift->storage_instance(@_); }
 
+sub resultset_instance {
+  my $class = shift;
+  my $table = $class->table_instance->new($class->table_instance);
+  $table->storage($class->storage_instance);
+  $table->result_class($class);
+  return $table->resultset;
+}
+
 =head1 NAME 
 
 DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
