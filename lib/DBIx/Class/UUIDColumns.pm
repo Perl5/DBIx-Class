@@ -39,6 +39,7 @@ sub uuid_columns {
 
 sub insert {
     my ($self) = @_;
+    warn "Got here";
     for my $column (@{$self->uuid_auto_columns}) {
 	$self->store_column( $column, $self->get_uuid )
 	    unless defined $self->get_column( $column );

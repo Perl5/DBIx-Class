@@ -5,10 +5,11 @@ plan skip_all => "Need DateTime for inflation tests" if $@;
 
 plan tests => 3;
 
-DBICTest::CD->inflate_column( 'year',
+DBICTest::Schema::CD->inflate_column( 'year',
     { inflate => sub { DateTime->new( year => shift ) },
       deflate => sub { shift->year } }
 );
+Class::C3->reinitialize;
 
 # inflation test
 my $cd = DBICTest::CD->find(3);

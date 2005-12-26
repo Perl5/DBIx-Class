@@ -50,7 +50,7 @@ sub add_columns {
 sub resultset_instance {
   my $class = shift;
   my $table = $class->table_instance->new($class->table_instance);
-  $table->storage($class->storage);
+  $table->storage($class->storage_instance);
   $table->result_class($class);
   return $table->resultset;
 }

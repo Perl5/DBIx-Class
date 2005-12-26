@@ -12,7 +12,6 @@ __PACKAGE__->load_components(qw/
   PK
   Row
   TableInstance
-  ResultSetInstance
   Exception
   AccessorGroup/);
 

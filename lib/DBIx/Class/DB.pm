@@ -5,8 +5,12 @@ use DBIx::Class::Storage::DBI;
 use DBIx::Class::ClassResolver::PassThrough;
 use DBI;
 
+__PACKAGE__->load_components(qw/ResultSetInstance/);
+
 *dbi_commit = \&txn_commit;
 *dbi_rollback = \&txn_rollback;
+
+sub storage { shift->storage_instance(@_); }
 
 =head1 NAME 
 
@@ -46,7 +50,6 @@ it. See resolve_class below.
 
 =cut
 
-__PACKAGE__->mk_classdata('storage');
 __PACKAGE__->mk_classdata('class_resolver' =>
                             'DBIx::Class::ClassResolver::PassThrough');
 
@@ -63,7 +66,7 @@ sub connection {
   my ($class, @info) = @_;
   my $storage = DBIx::Class::Storage::DBI->new;
   $storage->connect_info(\@info);
-  $class->storage($storage);
+  $class->mk_classdata('storage_instance' => $storage);
 }
 
 =head2 txn_begin
