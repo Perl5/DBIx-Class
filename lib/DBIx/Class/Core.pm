@@ -14,8 +14,7 @@ __PACKAGE__->load_components(qw/
   TableInstance
   ResultSetInstance
   Exception
-  AccessorGroup
-  Validation/);
+  AccessorGroup/);
 
 1;
 
