@@ -8,9 +8,11 @@ unlink($db_file) if -e $db_file;
 unlink($db_file . "-journal") if -e $db_file . "-journal";
 mkdir("t/var") unless -d "t/var";
 
+my $dsn = "dbi:SQLite:${db_file}";
+
 DBICTest::Schema->compose_connection('DBICTest' => "dbi:SQLite:${db_file}");
 
-my $dbh = DBICTest::_db->storage->dbh;
+my $dbh = DBI->connect($dsn);
 
 my $sql = <<EOSQL;
 CREATE TABLE artist (artistid INTEGER NOT NULL PRIMARY KEY, name VARCHAR);

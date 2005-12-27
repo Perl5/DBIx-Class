@@ -24,11 +24,11 @@ or a C<has_many> relationship.
 
 =head1 METHODS
 
-=head2 new($db_class, \%$attrs)
+=head2 new($source, \%$attrs)
 
-The resultset constructor. Takes a table class and an attribute hash
-(see below for more information on attributes). Does not perform
-any queries -- these are executed as needed by the other methods.
+The resultset constructor. Takes a source object (usually a DBIx::Class::Table)
+and an attribute hash (see below for more information on attributes). Does
+not perform any queries -- these are executed as needed by the other methods.
 
 =cut
 
@@ -38,7 +38,14 @@ sub new {
   $class = ref $class if ref $class;
   $attrs = { %{ $attrs || {} } };
   my %seen;
-  $attrs->{cols} ||= [ map { "me.$_" } $source->result_class->_select_columns ];
+  if (!$attrs->{select}) {
+    my @cols = ($attrs->{cols}
+                 ? @{delete $attrs->{cols}}
+                 : $source->result_class->_select_columns);
+    $attrs->{select} = [ map { m/\./ ? $_ : "me.$_" } @cols ];
+  }
+  $attrs->{as} ||= [ map { m/^me\.(.*)$/ ? $1 : $_ } @{$attrs->{select}} ];
+  #use Data::Dumper; warn Dumper(@{$attrs}{qw/select as/});
   $attrs->{from} ||= [ { 'me' => $source->name } ];
   if ($attrs->{join}) {
     foreach my $j (ref $attrs->{join} eq 'ARRAY'
@@ -54,21 +61,22 @@ sub new {
   foreach my $pre (@{$attrs->{prefetch} || []}) {
     push(@{$attrs->{from}}, $source->result_class->_resolve_join($pre, 'me'))
       unless $seen{$pre};
-    push(@{$attrs->{cols}},
+    my @pre = 
       map { "$pre.$_" }
-      $source->result_class->_relationships->{$pre}->{class}->columns);
+      $source->result_class->_relationships->{$pre}->{class}->columns;
+    push(@{$attrs->{select}}, @pre);
+    push(@{$attrs->{as}}, @pre);
   }
   my $new = {
     source => $source,
     result_class => $source->result_class,
-    cols => $attrs->{cols},
     cond => $attrs->{where},
     from => $attrs->{from},
     count => undef,
     pager => undef,
     attrs => $attrs };
   bless ($new, $class);
-  $new->pager if ($attrs->{page});
+  $new->pager if $attrs->{page};
   return $new;
 }
 
@@ -137,7 +145,7 @@ sub cursor {
     $attrs->{offset} = $self->pager->skipped;
   }
   return $self->{cursor}
-    ||= $source->storage->select($self->{from}, $self->{cols},
+    ||= $source->storage->select($self->{from}, $attrs->{select},
           $attrs->{where},$attrs);
 }
 
@@ -189,8 +197,8 @@ sub next {
 
 sub _construct_object {
   my ($self, @row) = @_;
-  my @cols = @{ $self->{attrs}{cols} };
-  s/^me\.// for @cols;
+  my @cols = @{ $self->{attrs}{as} };
+  #warn "@cols -> @row";
   @cols = grep { /\(/ or ! /\./ } @cols;
   my $new;
   unless ($self->{attrs}{prefetch}) {
@@ -237,19 +245,20 @@ on the resultset and counts the results of that.
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ && defined $_[0];
-  my $attrs = { %{ $self->{attrs} } };
   unless ($self->{count}) {
-    # offset and order by are not needed to count
-    delete $attrs->{$_} for qw/offset order_by/;
+    my $attrs = { %{ $self->{attrs} },
+                  select => [ 'COUNT(*)' ], as => [ 'count' ] };
+    # offset and order by are not needed to count, page, join and prefetch
+    # will get in the way (add themselves to from again ...)
+    delete $attrs->{$_} for qw/offset order_by page join prefetch/;
         
     my @cols = 'COUNT(*)';
-    $self->{count} = $self->{source}->storage->select_single(
-        $self->{from}, \@cols, $self->{cond}, $attrs);
+    ($self->{count}) = $self->search(undef, $attrs)->cursor->next;
   }
   return 0 unless $self->{count};
   return $self->{pager}->entries_on_this_page if ($self->{pager});
-  return ( $attrs->{rows} && $attrs->{rows} < $self->{count} ) 
-    ? $attrs->{rows} 
+  return ( $self->{attrs}->{rows} && $self->{attrs}->{rows} < $self->{count} ) 
+    ? $self->{attrs}->{rows} 
     : $self->{count};
 }
 
@@ -352,9 +361,19 @@ Which column(s) to order the results by. This is currently passed
 through directly to SQL, so you can give e.g. C<foo DESC> for a 
 descending order.
 
-=head2 cols
+=head2 cols (arrayref)
 
-Which columns should be retrieved.
+Shortcut to request a particular set of columns to be retrieved - adds
+'me.' onto the start of any column without a '.' in it and sets 'select'
+from that, then auto-populates 'as' from 'select' as normal
+
+=head2 select (arrayref)
+
+Indicates which columns should be selected from the storage
+
+=head2 as (arrayref)
+
+Indicates column names for object inflation
 
 =head2 join
 
