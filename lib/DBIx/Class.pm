@@ -8,7 +8,7 @@ use base qw/DBIx::Class::Componentised Class::Data::Accessor/;
 
 sub mk_classdata { shift->mk_classaccessor(@_); }
 
-$VERSION = '0.04999_01';
+$VERSION = '0.04999_02';
 
 1;
 
