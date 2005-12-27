@@ -69,7 +69,6 @@ sub new {
   }
   my $new = {
     source => $source,
-    result_class => $source->result_class,
     cond => $attrs->{where},
     from => $attrs->{from},
     count => undef,

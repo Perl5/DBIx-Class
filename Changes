@@ -1,5 +1,13 @@
 Revision history for DBIx::Class
 
+0.04999_01 2005-12-27 03:33:42
+        - search and related methods moved to ResultSet
+        - select and as added to ResultSet attrs
+        - added DBIx::Class::Table and TableInstance for table-per-class
+        - added DBIx::Class::ResultSetInstance which handles proxying
+          search etc. as a superclass of DBIx::Class::DB
+        - assorted test and code cleanup work
+
 0.04001 2005-12-13 22:00:00
         - Fix so set_inflated_column calls set_column
         - Syntax errors in relationship classes are now reported
