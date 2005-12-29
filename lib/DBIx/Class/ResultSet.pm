@@ -58,6 +58,7 @@ sub new {
     }
     push(@{$attrs->{from}}, $source->result_class->_resolve_join($attrs->{join}, 'me'));
   }
+  $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
   foreach my $pre (@{$attrs->{prefetch} || []}) {
     push(@{$attrs->{from}}, $source->result_class->_resolve_join($pre, 'me'))
       unless $seen{$pre};
@@ -244,9 +245,11 @@ on the resultset and counts the results of that.
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ && defined $_[0];
+  die "Unable to ->count with a GROUP BY" if defined $self->{attrs}{group_by};
   unless ($self->{count}) {
     my $attrs = { %{ $self->{attrs} },
-                  select => [ 'COUNT(*)' ], as => [ 'count' ] };
+                  select => { 'count' => '*' },
+                  as => [ 'count' ] };
     # offset and order by are not needed to count, page, join and prefetch
     # will get in the way (add themselves to from again ...)
     delete $attrs->{$_} for qw/offset order_by page join prefetch/;
@@ -408,6 +411,15 @@ for an unpaged resultset.
 =head2 rows
 
 For a paged resultset, how many rows per page
+
+=head2 group_by
+
+A list of columns to group by (note that 'count' doesn't work on grouped
+resultsets)
+
+=head2 distinct
+
+Set to 1 to group by all columns
 
 =cut
 

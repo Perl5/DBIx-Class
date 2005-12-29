@@ -22,7 +22,7 @@ __PACKAGE__->load_classes(qw/
     '#dummy',
     'SelfRef',
   ),
-  qw/SelfRefAlias/
+  qw/SelfRefAlias CDWithArtist/
 );
 
 1;

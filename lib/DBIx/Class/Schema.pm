@@ -29,7 +29,7 @@ in My/Schema/Foo.pm
 
   use base qw/DBIx::Class/;
 
-  __PACKAGE__->load_components(qw/Core PK::Auto::Pg/); # for example
+  __PACKAGE__->load_components(qw/PK::Auto::Pg Core/); # for example
   __PACKAGE__->table('foo');
   ...
 
@@ -146,14 +146,20 @@ as well as dbh connection info, and creates a L<DBIx::Class::DB> class as
 well as subclasses for each of your database classes in this namespace, using
 this connection.
 
-It will also setup a ->table method on the target class, which lets you
+It will also setup a ->class method on the target class, which lets you
 resolve database classes based on the schema component name, for example
 
-  MyApp::DB->table('Foo') # returns MyApp::DB::Foo, 
+  MyApp::DB->class('Foo') # returns MyApp::DB::Foo, 
                           # which ISA MyApp::Schema::Foo
 
 This is the recommended API for accessing Schema generated classes, and 
 using it might give you instant advantages with future versions of DBIC.
+
+WARNING: Loading components into Schema classes after compose_connection
+may not cause them to be seen by the classes in your target namespace due
+to the dispatch table approach used by Class::C3. If you do this you may find
+you need to call Class::C3->reinitialize() afterwards to get the behaviour
+you expect.
 
 =cut
 

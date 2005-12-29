@@ -5,7 +5,7 @@ use base 'DBIx::Class::Core';
 DBICTest::Schema::Artist->add_relationship(
     cds => 'DBICTest::Schema::CD',
     { 'foreign.artist' => 'self.artistid' },
-    { order_by => 'year' }
+    { order_by => 'year', join_type => 'LEFT', cascade_delete => 1 }
 );
 DBICTest::Schema::Artist->add_relationship(
     twokeys => 'DBICTest::Schema::TwoKeys',
@@ -22,11 +22,13 @@ DBICTest::Schema::CD->add_relationship(
 );
 DBICTest::Schema::CD->add_relationship(
     tracks => 'DBICTest::Schema::Track',
-    { 'foreign.cd' => 'self.cdid' }
+    { 'foreign.cd' => 'self.cdid' },
+    { join_type => 'LEFT', cascade_delete => 1 }
 );
 DBICTest::Schema::CD->add_relationship(
     tags => 'DBICTest::Schema::Tag',
-    { 'foreign.cd' => 'self.cdid' }
+    { 'foreign.cd' => 'self.cdid' },
+    { join_type => 'LEFT', cascade_delete => 1 }
 );
 #DBICTest::Schema::CD->might_have(liner_notes => 'DBICTest::Schema::LinerNotes' => qw/notes/);
 DBICTest::Schema::CD->add_relationship(

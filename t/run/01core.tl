@@ -1,6 +1,6 @@
 sub run_tests {
 
-plan tests => 29; 
+plan tests => 31; 
 
 my @art = DBICTest->class("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -113,6 +113,16 @@ eval { DBICTest->class("Track")->load_components('DoesNotExist'); };
 ok $@, $@;
 
 is(DBICTest->class("Artist")->field_name_for->{name}, 'artist name', 'mk_classdata usage ok');
+
+my $search = [ { 'tags.tag' => 'Cheesy' }, { 'tags.tag' => 'Blue' } ];
+
+my $rs = DBICTest->class("CD")->search($search, { join => 'tags' });
+
+cmp_ok($rs->all, '==', 5, 'Search with OR ok');
+
+$rs = DBICTest->class("CD")->search($search, { join => 'tags', distinct => 1 });
+
+cmp_ok($rs->all, '==', 4, 'DISTINCT search with OR ok');
 
 }
 

@@ -12,6 +12,55 @@ package DBIC::SQL::Abstract; # Temporary. Merge upstream.
 
 use base qw/SQL::Abstract::Limit/;
 
+sub select {
+  my ($self, $table, $fields, $where, $order, @rest) = @_;
+  @rest = (-1) unless defined $rest[0];
+  $self->SUPER::select($table, $self->_recurse_fields($fields), 
+                         $where, $order, @rest);
+}
+
+sub _emulate_limit {
+  my $self = shift;
+  if ($_[3] == -1) {
+    return $_[1].$self->_order_by($_[2]);
+  } else {
+    return $self->SUPER::_emulate_limit(@_);
+  }
+}
+
+sub _recurse_fields {
+  my ($self, $fields) = @_;
+  my $ref = ref $fields;
+  return $self->_quote($fields) unless $ref;
+  return $$fields if $ref eq 'SCALAR';
+
+  if ($ref eq 'ARRAY') {
+    return join(', ', map { $self->_recurse_fields($_) } @$fields);
+  } elsif ($ref eq 'HASH') {
+    foreach my $func (keys %$fields) {
+      return $self->_sqlcase($func)
+        .'( '.$self->_recurse_fields($fields->{$func}).' )';
+    }
+  }
+}
+
+sub _order_by {
+  my $self = shift;
+  my $ret = '';
+  if (ref $_[0] eq 'HASH') {
+    if (defined $_[0]->{group_by}) {
+      $ret = $self->_sqlcase(' group by ')
+               .$self->_recurse_fields($_[0]->{group_by});
+    }
+    if (defined $_[0]->{order_by}) {
+      $ret .= $self->SUPER::_order_by($_[0]->{order_by});
+    }
+  } else {
+    $ret = $self->SUPER::_order_by(@_);
+  }
+  return $ret;
+}
+
 sub _table {
   my ($self, $from) = @_;
   if (ref $from eq 'ARRAY') {
@@ -30,13 +79,13 @@ sub _recurse_from {
   foreach my $j (@join) {
     my ($to, $on) = @$j;
 
-	# check whether a join type exists
-	my $join_clause = '';
-	if (ref($to) eq 'HASH' and exists($to->{-join_type})) {
-		$join_clause = ' '.uc($to->{-join_type}).' JOIN ';
-	} else {
-		$join_clause = ' JOIN ';
-	}
+    # check whether a join type exists
+    my $join_clause = '';
+    if (ref($to) eq 'HASH' and exists($to->{-join_type})) {
+      $join_clause = ' '.uc($to->{-join_type}).' JOIN ';
+    } else {
+      $join_clause = ' JOIN ';
+    }
     push(@sqlf, $join_clause);
 
     if (ref $to eq 'ARRAY') {
@@ -51,16 +100,16 @@ sub _recurse_from {
 
 sub _make_as {
   my ($self, $from) = @_;
-  	return join(' ', map { $self->_quote($_) }
+  return join(' ', map { (ref $_ eq 'SCALAR' ? $$_ : $self->_quote($_)) }
                            reverse each %{$self->_skip_options($from)});
 }
 
 sub _skip_options {
-	my ($self, $hash) = @_;
-	my $clean_hash = {};
-	$clean_hash->{$_} = $hash->{$_}
-		for grep {!/^-/} keys %$hash;
-	return $clean_hash;
+  my ($self, $hash) = @_;
+  my $clean_hash = {};
+  $clean_hash->{$_} = $hash->{$_}
+    for grep {!/^-/} keys %$hash;
+  return $clean_hash;
 }
 
 sub _join_condition {
@@ -208,6 +257,10 @@ sub _select {
   my $order = $attrs->{order_by};
   if (ref $condition eq 'SCALAR') {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
+  }
+  if (exists $attrs->{group_by}) {
+    $order = { group_by => $attrs->{group_by},
+               ($order ? (order_by => $order) : ()) };
   }
   my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
   if ($attrs->{software_limit} ||

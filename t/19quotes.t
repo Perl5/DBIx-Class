@@ -19,7 +19,7 @@ DBICTest::_db->storage->sql_maker->{'quote_char'} = q!'!;
 DBICTest::_db->storage->sql_maker->{'name_sep'} = '.';
 
 my $rs = DBICTest::CD->search(
-           { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
+           { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { join => 'artist' });
 
 cmp_ok( $rs->count, '==', 1, "join with fields quoted");
