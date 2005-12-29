@@ -122,4 +122,11 @@ It's as simple as overriding the C<new> method. Note the use of C<next::method>.
         $class->next::method( $attrs );
     }
 
+=head2 Stringification
+
+Deploy the standard stringification technique by using the C<overload> module. Replace
+C<foo> with the column/method of your choice.
+
+    use overload '""' => 'foo', fallback => 1;
+
 =back

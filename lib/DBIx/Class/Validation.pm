@@ -32,7 +32,7 @@ sub validation {
     
     $class->validation_module( $args{module} ) if (exists $args{module});
     $class->validation_profile( $args{profile} ) if (exists $args{profile});
-    $class->validatio_auto( $args{auto} ) if (exists $args{auto});
+    $class->validation_auto( $args{auto} ) if (exists $args{auto});
 }
 
 sub validate {
