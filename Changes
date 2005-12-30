@@ -1,5 +1,12 @@
 Revision history for DBIx::Class
 
+        - added GROUP BY and DISTINCT support
+        - hacked around SQL::Abstract::Limit some more in DBIC::SQL::Abstract
+          (this may have fixed complex quoting)
+        - moved inflation to inflate_result in Row.pm
+        - added $rs->search_related
+        - split compose_namespace out of compose_connection in Schema
+
 0.04999_01 2005-12-27 03:33:42
         - search and related methods moved to ResultSet
         - select and as added to ResultSet attrs
