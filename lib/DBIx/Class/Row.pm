@@ -243,12 +243,39 @@ sub store_column {
   return $self->{_column_data}{$column} = $value;
 }
 
-sub _row_to_object {
-  my ($class, $cols, $row) = @_;
-  my %vals;
-  $vals{$cols->[$_]} = $row->[$_] for 0 .. $#$cols;
-  my $new = bless({ _column_data => \%vals }, ref $class || $class);
+=head2 inflate_result
+
+  Class->inflate_result(\%me, \%prefetch?)
+
+Called by ResultSet to inflate a result from storage
+
+=cut
+
+sub inflate_result {
+  my ($class, $me, $prefetch) = @_;
+  #use Data::Dumper; print Dumper(@_);
+  my $new = bless({ _column_data => $me }, ref $class || $class);
   $new->in_storage(1);
+  PRE: foreach my $pre (keys %{$prefetch||{}}) {
+    my $rel_obj = $class->_relationships->{$pre};
+    my $pre_class = $class->resolve_class($rel_obj->{class});
+    my $fetched = $pre_class->inflate_result($prefetch->{$pre});
+    $class->throw("No accessor for prefetched $pre")
+      unless defined $rel_obj->{attrs}{accessor};
+    if ($rel_obj->{attrs}{accessor} eq 'single') {
+      PRIMARY: foreach my $pri ($rel_obj->{class}->primary_columns) {
+        unless (defined $fetched->get_column($pri)) {
+          undef $fetched;
+          last PRIMARY;
+        }
+      }
+      $new->{_relationship_data}{$pre} = $fetched;
+    } elsif ($rel_obj->{attrs}{accessor} eq 'filter') {
+      $new->{_inflated_column}{$pre} = $fetched;
+    } else {
+      $class->throw("Don't know how to store prefetched $pre");
+    }
+  }
   return $new;
 }
 

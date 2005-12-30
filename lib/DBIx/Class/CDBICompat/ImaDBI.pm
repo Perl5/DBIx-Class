@@ -91,10 +91,9 @@ sub set_sql {
 
 sub sth_to_objects {
   my ($class, $sth) = @_;
-  my @cols = $class->_select_columns;
   my @ret;
-  while (my @row = $sth->fetchrow_array) {
-    push(@ret, $class->_row_to_object(\@cols,\@row));
+  while (my $row = $sth->fetchrow_hashref) {
+    push(@ret, $class->inflate_result($row));
   }
   return @ret;
 }

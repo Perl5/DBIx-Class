@@ -51,7 +51,7 @@ sub insert {
   return $self;
 }
 
-sub _row_to_object {
+sub inflate_result {
   my ($class, @rest) = @_;
   my $new = $class->next::method(@rest);
   if (my $key = $new->ID) {

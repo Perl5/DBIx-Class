@@ -47,19 +47,19 @@ sub new {
   $attrs->{as} ||= [ map { m/^me\.(.*)$/ ? $1 : $_ } @{$attrs->{select}} ];
   #use Data::Dumper; warn Dumper(@{$attrs}{qw/select as/});
   $attrs->{from} ||= [ { 'me' => $source->name } ];
-  if ($attrs->{join}) {
-    foreach my $j (ref $attrs->{join} eq 'ARRAY'
-              ? (@{$attrs->{join}}) : ($attrs->{join})) {
+  if (my $join = delete $attrs->{join}) {
+    foreach my $j (ref $join eq 'ARRAY'
+              ? (@{$join}) : ($join)) {
       if (ref $j eq 'HASH') {
         $seen{$_} = 1 foreach keys %$j;
       } else {
         $seen{$j} = 1;
       }
     }
-    push(@{$attrs->{from}}, $source->result_class->_resolve_join($attrs->{join}, 'me'));
+    push(@{$attrs->{from}}, $source->result_class->_resolve_join($join, 'me'));
   }
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
-  foreach my $pre (@{$attrs->{prefetch} || []}) {
+  foreach my $pre (@{delete $attrs->{prefetch} || []}) {
     push(@{$attrs->{from}}, $source->result_class->_resolve_join($pre, 'me'))
       unless $seen{$pre};
     my @pre = 
@@ -131,6 +131,14 @@ sub search_literal {
   return $self->search(\$cond, $attrs);
 }
 
+=head2 search_related
+
+  $rs->search_related('relname', $cond?, $attrs?);
+
+=cut
+
+sub search_related { }
+
 =head2 cursor
 
 Returns a storage-driven cursor to the given resultset.
@@ -199,36 +207,15 @@ sub _construct_object {
   my ($self, @row) = @_;
   my @cols = @{ $self->{attrs}{as} };
   #warn "@cols -> @row";
-  @cols = grep { /\(/ or ! /\./ } @cols;
-  my $new;
-  unless ($self->{attrs}{prefetch}) {
-    $new = $self->{source}->result_class->_row_to_object(\@cols, \@row);
-  } else {
-    my @main = splice(@row, 0, scalar @cols);
-    $new = $self->{source}->result_class->_row_to_object(\@cols, \@main);
-    PRE: foreach my $pre (@{$self->{attrs}{prefetch}}) {
-      my $rel_obj = $self->{source}->result_class->_relationships->{$pre};
-      my $pre_class = $self->{source}->result_class->resolve_class($rel_obj->{class});
-      my @pre_cols = $pre_class->_select_columns;
-      my @vals = splice(@row, 0, scalar @pre_cols);
-      my $fetched = $pre_class->_row_to_object(\@pre_cols, \@vals);
-      $self->{source}->result_class->throw("No accessor for prefetched $pre")
-        unless defined $rel_obj->{attrs}{accessor};
-      if ($rel_obj->{attrs}{accessor} eq 'single') {
-        foreach my $pri ($rel_obj->{class}->primary_columns) {
-          unless (defined $fetched->get_column($pri)) {
-            undef $fetched;
-            last;
-          }
-        }
-        $new->{_relationship_data}{$pre} = $fetched;
-      } elsif ($rel_obj->{attrs}{accessor} eq 'filter') {
-        $new->{_inflated_column}{$pre} = $fetched;
-      } else {
-        $self->{source}->result_class->throw("Don't know how to store prefetched $pre");
-      }
+  my (%me, %pre);
+  foreach my $col (@cols) {
+    if ($col =~ /([^\.]+)\.([^\.]+)/) {
+      $pre{$1}{$2} = shift @row;
+    } else {
+      $me{$col} = shift @row;
     }
   }
+  my $new = $self->{source}->result_class->inflate_result(\%me, \%pre);
   $new = $self->{attrs}{record_filter}->($new)
     if exists $self->{attrs}{record_filter};
   return $new;
