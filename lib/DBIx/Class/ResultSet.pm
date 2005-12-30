@@ -79,10 +79,10 @@ sub new {
     cond => $attrs->{where},
     from => $attrs->{from},
     count => undef,
+    page => delete $attrs->{page},
     pager => undef,
     attrs => $attrs };
   bless ($new, $class);
-  #$new->pager if $attrs->{page};
   return $new;
 }
 
@@ -339,11 +339,11 @@ sense for queries with page turned on.
 sub pager {
   my ($self) = @_;
   my $attrs = $self->{attrs};
-  die "Can't create pager for non-paged rs" unless $attrs->{page};
+  die "Can't create pager for non-paged rs" unless $self->{page};
   $attrs->{rows} ||= 10;
   $self->count;
   return $self->{pager} ||= Data::Page->new(
-    $self->{count}, $attrs->{rows}, $attrs->{page});
+    $self->{count}, $attrs->{rows}, $self->{page});
 }
 
 =head2 page($page_num)

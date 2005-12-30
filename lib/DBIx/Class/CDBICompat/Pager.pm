@@ -9,7 +9,7 @@ sub page {
   my $class = shift;
 
   my $rs = $class->search(@_);
-  unless ($rs->{attrs}{page}) {
+  unless ($rs->{page}) {
     $rs = $rs->page(1);
   }
   return ( $rs->pager, $rs );
