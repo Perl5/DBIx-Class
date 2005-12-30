@@ -9,7 +9,7 @@ plan skip_all, 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
 
 plan tests => 4;
 
-DBICTest->class("Schema")->compose_connection('MySQLTest' => $dsn, $user, $pass);
+DBICTest::Schema->compose_connection('MySQLTest' => $dsn, $user, $pass);
 
 my $dbh = MySQLTest::Artist->storage->dbh;
 
