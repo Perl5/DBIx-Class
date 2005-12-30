@@ -8,7 +8,6 @@ use DBIx::Class::Table;
 
 __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything yet!
 
-__PACKAGE__->mk_classdata('_resultset_class' => 'DBIx::Class::ResultSet');
 __PACKAGE__->mk_classdata('table_class' => 'DBIx::Class::Table');
 
 sub iterator_class { shift->table_instance->resultset_class(@_) }
@@ -68,7 +67,6 @@ sub table {
       {
         name => $table,
         result_class => $class,
-        #storage => $class->storage,
       });
     if ($class->can('table_instance')) {
       $table->{_columns} = { %{$class->table_instance->{_columns}||{}} };
@@ -127,6 +125,10 @@ sub column_info {
 
 sub columns {
   return shift->table_instance->columns(@_);
+}
+
+sub result_source {
+  return shift->table_instance(@_);
 }
 
 1;

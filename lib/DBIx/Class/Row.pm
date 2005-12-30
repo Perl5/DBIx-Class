@@ -259,7 +259,7 @@ sub inflate_result {
   PRE: foreach my $pre (keys %{$prefetch||{}}) {
     my $rel_obj = $class->_relationships->{$pre};
     my $pre_class = $class->resolve_class($rel_obj->{class});
-    my $fetched = $pre_class->inflate_result($prefetch->{$pre});
+    my $fetched = $pre_class->inflate_result(@{$prefetch->{$pre}});
     $class->throw("No accessor for prefetched $pre")
       unless defined $rel_obj->{attrs}{accessor};
     if ($rel_obj->{attrs}{accessor} eq 'single') {

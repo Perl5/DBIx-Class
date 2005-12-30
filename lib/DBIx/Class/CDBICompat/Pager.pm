@@ -8,8 +8,11 @@ use warnings FATAL => 'all';
 sub page {
   my $class = shift;
 
-  my $it = $class->search(@_);
-  return ( $it->pager, $it );
+  my $rs = $class->search(@_);
+  unless ($rs->{attrs}{page}) {
+    $rs = $rs->page(1);
+  }
+  return ( $rs->pager, $rs );
 }
 
 1;

@@ -1,6 +1,6 @@
 sub run_tests {
 
-plan tests => 31; 
+plan tests => 33; 
 
 my @art = DBICTest->class("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -116,13 +116,23 @@ is(DBICTest->class("Artist")->field_name_for->{name}, 'artist name', 'mk_classda
 
 my $search = [ { 'tags.tag' => 'Cheesy' }, { 'tags.tag' => 'Blue' } ];
 
-my $rs = DBICTest->class("CD")->search($search, { join => 'tags' });
+my $or_rs = DBICTest->class("CD")->search($search, { join => 'tags',
+                                                  order_by => 'cdid' });
 
-cmp_ok($rs->all, '==', 5, 'Search with OR ok');
+cmp_ok($or_rs->count, '==', 5, 'Search with OR ok');
 
-$rs = DBICTest->class("CD")->search($search, { join => 'tags', distinct => 1 });
+my $distinct_rs = DBICTest->class("CD")->search($search, { join => 'tags', distinct => 1 });
 
-cmp_ok($rs->all, '==', 4, 'DISTINCT search with OR ok');
+cmp_ok($distinct_rs->all, '==', 4, 'DISTINCT search with OR ok');
+
+my $tag_rs = DBICTest->class('Tag')->search(
+               [ { 'me.tag' => 'Cheesy' }, { 'me.tag' => 'Blue' } ]);
+
+my $rel_rs = $tag_rs->search_related('cd');
+
+cmp_ok($rel_rs->count, '==', 5, 'Related search ok');
+
+cmp_ok($or_rs->next->cdid, '==', $rel_rs->next->cdid, 'Related object ok');
 
 }
 

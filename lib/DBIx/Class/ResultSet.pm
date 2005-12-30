@@ -38,15 +38,16 @@ sub new {
   $class = ref $class if ref $class;
   $attrs = { %{ $attrs || {} } };
   my %seen;
+  my $alias = ($attrs->{alias} ||= 'me');
   if (!$attrs->{select}) {
     my @cols = ($attrs->{cols}
                  ? @{delete $attrs->{cols}}
                  : $source->result_class->_select_columns);
-    $attrs->{select} = [ map { m/\./ ? $_ : "me.$_" } @cols ];
+    $attrs->{select} = [ map { m/\./ ? $_ : "${alias}.$_" } @cols ];
   }
-  $attrs->{as} ||= [ map { m/^me\.(.*)$/ ? $1 : $_ } @{$attrs->{select}} ];
+  $attrs->{as} ||= [ map { m/^$alias\.(.*)$/ ? $1 : $_ } @{$attrs->{select}} ];
   #use Data::Dumper; warn Dumper(@{$attrs}{qw/select as/});
-  $attrs->{from} ||= [ { 'me' => $source->name } ];
+  $attrs->{from} ||= [ { $alias => $source->name } ];
   if (my $join = delete $attrs->{join}) {
     foreach my $j (ref $join eq 'ARRAY'
               ? (@{$join}) : ($join)) {
@@ -56,17 +57,22 @@ sub new {
         $seen{$j} = 1;
       }
     }
-    push(@{$attrs->{from}}, $source->result_class->_resolve_join($join, 'me'));
+    push(@{$attrs->{from}}, $source->result_class->_resolve_join($join, $attrs->{alias}));
   }
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
   foreach my $pre (@{delete $attrs->{prefetch} || []}) {
-    push(@{$attrs->{from}}, $source->result_class->_resolve_join($pre, 'me'))
+    push(@{$attrs->{from}}, $source->result_class->_resolve_join($pre, $attrs->{alias}))
       unless $seen{$pre};
     my @pre = 
       map { "$pre.$_" }
       $source->result_class->_relationships->{$pre}->{class}->columns;
     push(@{$attrs->{select}}, @pre);
     push(@{$attrs->{as}}, @pre);
+  }
+  if ($attrs->{page}) {
+    $attrs->{rows} ||= 10;
+    $attrs->{offset} ||= 0;
+    $attrs->{offset} += ($attrs->{rows} * ($attrs->{page} - 1));
   }
   my $new = {
     source => $source,
@@ -76,7 +82,7 @@ sub new {
     pager => undef,
     attrs => $attrs };
   bless ($new, $class);
-  $new->pager if $attrs->{page};
+  #$new->pager if $attrs->{page};
   return $new;
 }
 
@@ -99,10 +105,10 @@ sub search {
 
   my $attrs = { %{$self->{attrs}} };
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
-    $attrs = { %{ pop(@_) } };
+    $attrs = { %$attrs, %{ pop(@_) } };
   }
 
-  my $where = ((@_ == 1 || ref $_[0] eq "HASH") ? shift : {@_});
+  my $where = (@_ ? ((@_ == 1 || ref $_[0] eq "HASH") ? shift : {@_}) : undef());
   if (defined $where) {
     $where = (defined $attrs->{where}
                 ? { '-and' => [ $where, $attrs->{where} ] }
@@ -137,7 +143,26 @@ sub search_literal {
 
 =cut
 
-sub search_related { }
+sub search_related {
+  my ($self, $rel, @rest) = @_;
+  my $rel_obj = $self->{source}->result_class->_relationships->{$rel};
+  $self->{source}->result_class->throw(
+    "No such relationship ${rel} in search_related")
+      unless $rel_obj;
+  my $r_class = $self->{source}->result_class->resolve_class($rel_obj->{class});
+  my $source = $r_class->result_source;
+  $source = bless({ %{$source} }, ref $source || $source);
+  $source->storage($self->{source}->storage);
+  $source->result_class($r_class);
+  my $rs = $self->search(undef, { join => $rel });
+  #use Data::Dumper; warn Dumper($rs);
+  return $source->resultset_class->new(
+           $source, { %{$rs->{attrs}},
+                      alias => $rel,
+                      select => undef(),
+                      as => undef() }
+           )->search(@rest);
+}
 
 =head2 cursor
 
@@ -148,10 +173,7 @@ Returns a storage-driven cursor to the given resultset.
 sub cursor {
   my ($self) = @_;
   my ($source, $attrs) = @{$self}{qw/source attrs/};
-  if ($attrs->{page}) {
-    $attrs->{rows} = $self->pager->entries_per_page;
-    $attrs->{offset} = $self->pager->skipped;
-  }
+  $attrs = { %$attrs };
   return $self->{cursor}
     ||= $source->storage->select($self->{from}, $attrs->{select},
           $attrs->{where},$attrs);
@@ -183,8 +205,8 @@ Returns a subset of elements from the resultset.
 sub slice {
   my ($self, $min, $max) = @_;
   my $attrs = { %{ $self->{attrs} || {} } };
-  $self->{source}->result_class->throw("Can't slice without where") unless $attrs->{where};
-  $attrs->{offset} = $min;
+  $attrs->{offset} ||= 0;
+  $attrs->{offset} += $min;
   $attrs->{rows} = ($max ? ($max - $min + 1) : 1);
   my $slice = $self->new($self->{source}, $attrs);
   return (wantarray ? $slice->all : $slice);
@@ -210,7 +232,7 @@ sub _construct_object {
   my (%me, %pre);
   foreach my $col (@cols) {
     if ($col =~ /([^\.]+)\.([^\.]+)/) {
-      $pre{$1}{$2} = shift @row;
+      $pre{$1}[0]{$2} = shift @row;
     } else {
       $me{$col} = shift @row;
     }
@@ -233,22 +255,21 @@ sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ && defined $_[0];
   die "Unable to ->count with a GROUP BY" if defined $self->{attrs}{group_by};
-  unless ($self->{count}) {
+  unless (defined $self->{count}) {
     my $attrs = { %{ $self->{attrs} },
                   select => { 'count' => '*' },
                   as => [ 'count' ] };
-    # offset and order by are not needed to count, page, join and prefetch
-    # will get in the way (add themselves to from again ...)
-    delete $attrs->{$_} for qw/offset order_by page join prefetch/;
+    # offset, order by and page are not needed to count
+    delete $attrs->{$_} for qw/rows offset order_by page pager/;
         
-    my @cols = 'COUNT(*)';
-    ($self->{count}) = $self->search(undef, $attrs)->cursor->next;
+    ($self->{count}) = $self->new($self->{source}, $attrs)->cursor->next;
   }
   return 0 unless $self->{count};
-  return $self->{pager}->entries_on_this_page if ($self->{pager});
-  return ( $self->{attrs}->{rows} && $self->{attrs}->{rows} < $self->{count} ) 
-    ? $self->{attrs}->{rows} 
-    : $self->{count};
+  my $count = $self->{count};
+  $count -= $self->{attrs}{offset} if $self->{attrs}{offset};
+  $count = $self->{attrs}{rows} if
+    ($self->{attrs}{rows} && $self->{attrs}{rows} < $count);
+  return $count;
 }
 
 =head2 count_literal
@@ -318,12 +339,11 @@ sense for queries with page turned on.
 sub pager {
   my ($self) = @_;
   my $attrs = $self->{attrs};
-  delete $attrs->{offset};
-  my $rows_per_page = delete $attrs->{rows} || 10;
-  $self->{pager} ||= Data::Page->new(
-    $self->count, $rows_per_page, $attrs->{page} || 1);
-  $attrs->{rows} = $rows_per_page;
-  return $self->{pager};
+  die "Can't create pager for non-paged rs" unless $attrs->{page};
+  $attrs->{rows} ||= 10;
+  $self->count;
+  return $self->{pager} ||= Data::Page->new(
+    $self->{count}, $attrs->{rows}, $attrs->{page});
 }
 
 =head2 page($page_num)
@@ -334,7 +354,7 @@ Returns a new resultset for the specified page.
 
 sub page {
   my ($self, $page) = @_;
-  my $attrs = $self->{attrs};
+  my $attrs = { %{$self->{attrs}} };
   $attrs->{page} = $page;
   return $self->new($self->{source}, $attrs);
 }
