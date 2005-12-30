@@ -167,12 +167,17 @@ sub compose_connection {
   my ($class, $target, @info) = @_;
   my $conn_class = "${target}::_db";
   $class->setup_connection_class($conn_class, @info);
+  $class->compose_namespace($target, $conn_class);
+}
+
+sub compose_namespace {
+  my ($class, $target, $base) = @_;
   my %reg = %{ $class->class_registrations };
   my %target;
   my %map;
   while (my ($comp, $comp_class) = each %reg) {
     my $target_class = "${target}::${comp}";
-    $class->inject_base($target_class, $comp_class, $conn_class);
+    $class->inject_base($target_class, $comp_class, $base);
     @map{$comp, $comp_class} = ($target_class, $target_class);
   }
   {
@@ -184,7 +189,7 @@ sub compose_connection {
       };
     *{"${target}::classes"} = sub { return \%map; };
   }
-  $conn_class->class_resolver($target);
+  $base->class_resolver($target);
 }
 
 =head2 setup_connection_class <$target> <@info>
