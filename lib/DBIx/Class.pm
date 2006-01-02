@@ -7,6 +7,7 @@ use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Data::Accessor/;
 
 sub mk_classdata { shift->mk_classaccessor(@_); }
+sub component_base_class { 'DBIx::Class' }
 
 $VERSION = '0.04999_02';
 

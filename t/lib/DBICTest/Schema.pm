@@ -21,6 +21,8 @@ __PACKAGE__->load_classes(qw/
     'FourKeys',
     '#dummy',
     'SelfRef',
+    'Producer',
+    'CD_to_Producer',
   ),
   qw/SelfRefAlias CDWithArtist/
 );

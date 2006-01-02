@@ -10,7 +10,7 @@ mkdir("t/var") unless -d "t/var";
 
 my $dsn = "dbi:SQLite:${db_file}";
 
-DBICTest::Schema->compose_connection('DBICTest' => "dbi:SQLite:${db_file}");
+DBICTest::Schema->compose_connection('DBICTest' => $dsn);
 
 my $dbh = DBI->connect($dsn);
 
@@ -43,6 +43,10 @@ CREATE TABLE self_ref (id INTEGER NOT NULL PRIMARY KEY,
 
 CREATE TABLE self_ref_alias (self_ref INTEGER NOT NULL, alias INTEGER NOT NULL,
                       PRIMARY KEY( self_ref, alias ) );
+
+CREATE TABLE producer (producerid INTEGER NOT NULL PRIMARY KEY, name VARCHAR);
+
+CREATE TABLE cd_to_producer (cd INTEGER NOT NULL, producer INTEGER NOT NULL);
 
 INSERT INTO artist (artistid, name) VALUES (1, 'Caterwauler McCrae');
 
@@ -108,11 +112,16 @@ INSERT INTO onekey (id, artist, cd) VALUES (2, 1, 2);
 
 INSERT INTO onekey (id, artist, cd) VALUES (3, 2, 2);
 
-INSERT INTO self_ref(id, name) VALUES (1, 'First');
+INSERT INTO self_ref (id, name) VALUES (1, 'First');
 
-INSERT INTO self_ref(id, name) VALUES (2, 'Second');
+INSERT INTO self_ref (id, name) VALUES (2, 'Second');
 
-INSERT INTO self_ref_alias(self_ref, alias) VALUES (1, 2);
+INSERT INTO self_ref_alias (self_ref, alias) VALUES (1, 2);
+
+INSERT INTO producer (producerid, name) VALUES (1, 'Matt S Trout');
+
+INSERT INTO cd_to_producer (cd, producer) VALUES (1, 1);
+
 EOSQL
 
 $dbh->do($_) for split(/\n\n/, $sql);

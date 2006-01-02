@@ -1,6 +1,6 @@
 sub run_tests {
   
-plan tests => 13;
+plan tests => 14;
 
 # has_a test
 my $cd = DBICTest->class("CD")->find(4);
@@ -104,6 +104,11 @@ eval {
     DBICTest::Schema::Artist->add_relationship( tracks => 'DBICTest::Track' );
 };
 like($@, qr/join condition/, 'failed when creating a rel without join condition, ok');
+
+# many_to_many helper test
+$cd = DBICTest->class("CD")->find(1);
+my @producers = $cd->producers();
+is( $producers[0]->name, 'Matt S Trout', 'many_to_many ok' );
 
 }
 

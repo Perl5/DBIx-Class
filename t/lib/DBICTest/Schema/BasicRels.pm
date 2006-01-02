@@ -36,7 +36,11 @@ DBICTest::Schema::CD->add_relationship(
     { 'foreign.liner_id' => 'self.cdid' },
     { join_type => 'LEFT' }
 );
-
+DBICTest::Schema::CD->add_relationship(
+    cd_to_producer => 'DBICTest::Schema::CD_to_Producer',
+    { 'foreign.cd' => 'self.cdid' },
+    { join_type => 'LEFT', cascade_delete => 1 }
+);
 
 DBICTest::Schema::SelfRefAlias->add_relationship(
     self_ref => 'DBICTest::Schema::SelfRef',
@@ -74,5 +78,17 @@ DBICTest::Schema::TwoKeys->add_relationship(
     cd => 'DBICTest::Schema::CD',
     { 'foreign.cdid' => 'self.cd' }
 );
+
+DBICTest::Schema::CD_to_Producer->add_relationship(
+    cd => 'DBICTest::Schema::CD',
+    { 'foreign.cdid' => 'self.cd' }
+);
+DBICTest::Schema::CD_to_Producer->add_relationship(
+    producer => 'DBICTest::Schema::Producer',
+    { 'foreign.producerid' => 'self.producer' }
+);
+
+# now the Helpers
+DBICTest::Schema::CD->many_to_many( 'producers', 'cd_to_producer', 'producer');
 
 1;
