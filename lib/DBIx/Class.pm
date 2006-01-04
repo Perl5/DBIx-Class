@@ -4,9 +4,16 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-use base qw/DBIx::Class::Componentised Class::Data::Inheritable/;
+use base qw/DBIx::Class::Componentised Class::Data::Accessor/;
 
-$VERSION = '0.04001';
+sub mk_classdata { shift->mk_classaccessor(@_); }
+sub component_base_class { 'DBIx::Class' }
+
+# Always remember to do all digits for the version even if they're 0
+# i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
+# brain damage and presumably various other packaging systems too
+
+$VERSION = '0.04999_02';
 
 1;
 

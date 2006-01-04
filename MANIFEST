@@ -52,15 +52,20 @@ lib/DBIx/Class/Relationship/BelongsTo.pm
 lib/DBIx/Class/Relationship/CascadeActions.pm
 lib/DBIx/Class/Relationship/HasMany.pm
 lib/DBIx/Class/Relationship/HasOne.pm
+lib/DBIx/Class/Relationship/Helpers.pm
+lib/DBIx/Class/Relationship/ManyToMany.pm
 lib/DBIx/Class/Relationship/ProxyMethods.pm
 lib/DBIx/Class/ResultSet.pm
+lib/DBIx/Class/ResultSetInstance.pm
 lib/DBIx/Class/Row.pm
 lib/DBIx/Class/Schema.pm
 lib/DBIx/Class/Storage/DBI.pm
 lib/DBIx/Class/Storage/DBI/Cursor.pm
 lib/DBIx/Class/Table.pm
+lib/DBIx/Class/TableInstance.pm
 lib/DBIx/Class/Test/SQLite.pm
 lib/DBIx/Class/UUIDColumns.pm
+lib/DBIx/Class/Validation.pm
 Makefile.PL
 MANIFEST			This list of files
 META.yml
@@ -94,7 +99,6 @@ t/cdbi-t/02-Film.t
 t/cdbi-t/03-subclassing.t
 t/cdbi-t/04-lazy.t
 t/cdbi-t/06-hasa.t
-t/cdbi-t/08-inheritcols.t
 t/cdbi-t/09-has_many.t
 t/cdbi-t/11-triggers.t
 t/cdbi-t/12-filter.t
@@ -133,10 +137,12 @@ t/lib/DBICTest/Schema.pm
 t/lib/DBICTest/Schema/Artist.pm
 t/lib/DBICTest/Schema/BasicRels.pm
 t/lib/DBICTest/Schema/CD.pm
+t/lib/DBICTest/Schema/CD_to_Producer.pm
 t/lib/DBICTest/Schema/FourKeys.pm
 t/lib/DBICTest/Schema/HelperRels.pm
 t/lib/DBICTest/Schema/LinerNotes.pm
 t/lib/DBICTest/Schema/OneKey.pm
+t/lib/DBICTest/Schema/Producer.pm
 t/lib/DBICTest/Schema/SelfRef.pm
 t/lib/DBICTest/Schema/SelfRefAlias.pm
 t/lib/DBICTest/Schema/Tag.pm

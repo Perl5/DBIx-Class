@@ -6,9 +6,7 @@ use warnings;
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_own_components(qw/
-  HasMany
-  HasOne
-  BelongsTo
+  Helpers
   Accessor
   CascadeActions
   ProxyMethods
@@ -99,6 +97,12 @@ Creates a one-to-one relationship with another class. This is just like C<might_
 except the implication is that the other object is always present. The only different
 between C<has_one> and C<might_have> is that C<has_one> uses an (ordinary) inner join,
 whereas C<might_have> uses a left join.
+
+
+=head2 many_to_many                                                             
+                                                                                
+  __PACKAGE__->many_to_many( 'accessorname' => 'a_to_b', 'table_b' );           
+  my @f_objs = $obj_a->accessorname;                                            
 
 =cut
 

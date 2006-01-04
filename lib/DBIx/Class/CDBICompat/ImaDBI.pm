@@ -70,8 +70,6 @@ sub __driver {
 
 sub set_sql {
   my ($class, $name, $sql) = @_;
-  my $table = $class->_table_name;
-  #$sql =~ s/__TABLE__/$table/;
   no strict 'refs';
   *{"${class}::sql_${name}"} =
     sub {
@@ -93,17 +91,15 @@ sub set_sql {
 
 sub sth_to_objects {
   my ($class, $sth) = @_;
-  my @cols = $class->_select_columns;
   my @ret;
-  while (my @row = $sth->fetchrow_array) {
-    push(@ret, $class->_row_to_object(\@cols,\@row));
+  while (my $row = $sth->fetchrow_hashref) {
+    push(@ret, $class->inflate_result($row));
   }
   return @ret;
 }
 
 sub transform_sql {
   my ($class, $sql, @args) = @_;
-  my $table = $class->_table_name;
   my $attrs = { };
   foreach my $key (@{$class->_transform_sql_handler_order}) {
     my $h = $class->_transform_sql_handlers->{$key};

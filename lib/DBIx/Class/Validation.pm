@@ -7,7 +7,8 @@ use base qw( DBIx::Class );
 use Carp qw( croak );
 use English qw( -no_match_vars );
 
-local $^W = 0; # Silence C:D:I redefined sub errors.
+#local $^W = 0; # Silence C:D:I redefined sub errors.
+# Switched to C::D::Accessor which doesn't do this. Hate hate hate hate.
 
 our $VERSION = '0.01';
 

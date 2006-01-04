@@ -121,14 +121,17 @@ package State;
 package A;
 @A::ISA = qw(DBIx::Class);
 __PACKAGE__->load_components(qw/CDBICompat Core/);
+__PACKAGE__->table('dummy');
 __PACKAGE__->columns(Primary => 'id');
 
 package A::B;
 @A::B::ISA = 'A';
+__PACKAGE__->table('dummy2');
 __PACKAGE__->columns(All => qw(id b1));
 
 package A::C;
 @A::C::ISA = 'A';
+__PACKAGE__->table('dummy3');
 __PACKAGE__->columns(All => qw(id c1 c2 c3));
 
 package main;

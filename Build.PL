@@ -17,6 +17,7 @@ my %arguments = (
 	    'Tie::IxHash'               => 0,
         'Module::Find'              => 0,
         'Storable'                  => 0,
+        'Class::Data::Accessor'     => 0.01,
         # Following for CDBICompat only
         'Class::Trigger'            => 0,
         'DBIx::ContextualFetch'     => 0,

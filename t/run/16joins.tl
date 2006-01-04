@@ -51,7 +51,7 @@ $match = 'person child INNER JOIN person father ON ( father.person_id = '
 
 is( $sa->_recurse_from(@j3), $match, 'join 3 (inner join) ok');
 
-my $rs = DBICTest::CD->search(
+my $rs = DBICTest->class("CD")->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { from => [ { 'me' => 'cd' },
                          [
@@ -64,7 +64,7 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->title, 'Forkful of bees', 'Correct record returned');
 
-$rs = DBICTest::CD->search(
+$rs = DBICTest->class("CD")->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { join => 'artist' });
 
@@ -72,7 +72,7 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->title, 'Forkful of bees', 'Correct record returned');
 
-$rs = DBICTest::CD->search(
+$rs = DBICTest->class("CD")->search(
            { 'artist.name' => 'We Are Goth',
              'liner_notes.notes' => 'Kill Yourself!' },
            { join => [ qw/artist liner_notes/ ] });
@@ -81,7 +81,7 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->title, 'Come Be Depressed With Us', 'Correct record returned');
 
-$rs = DBICTest::Artist->search(
+$rs = DBICTest->class("Artist")->search(
         { 'liner_notes.notes' => 'Kill Yourself!' },
         { join => { 'cds' => 'liner_notes' } });
 
@@ -100,7 +100,7 @@ DBICTest::Schema::CD->add_relationship(
     { 'foreign.liner_id' => 'self.cdid' },
     { join_type => 'LEFT', accessor => 'single' });
 
-$rs = DBICTest::CD->search(
+$rs = DBICTest->class("CD")->search(
            { 'artist.name' => 'Caterwauler McCrae' },
            { prefetch => [ qw/artist liner_notes/ ],
              order_by => 'me.cdid' });
@@ -135,19 +135,19 @@ $trace->close;
 unlink 't/var/dbic.trace';
 is($selects, 1, 'prefetch ran only 1 select statement');
 
-my ($artist) = DBICTest::Artist->search({ 'cds.year' => 2001 },
+my ($artist) = DBICTest->class("Artist")->search({ 'cds.year' => 2001 },
                  { order_by => 'artistid DESC', join => 'cds' });
 
 is($artist->name, 'Random Boy Band', "Join search by object ok");
 
-my @cds = DBICTest::CD->search({ 'liner_notes.notes' => 'Buy Merch!' },
+my @cds = DBICTest->class("CD")->search({ 'liner_notes.notes' => 'Buy Merch!' },
                                { join => 'liner_notes' });
 
 cmp_ok(scalar @cds, '==', 1, "Single CD retrieved via might_have");
 
 is($cds[0]->title, "Generic Manufactured Singles", "Correct CD retrieved");
 
-my @artists = DBICTest::Artist->search({ 'tags.tag' => 'Shiny' },
+my @artists = DBICTest->class("Artist")->search({ 'tags.tag' => 'Shiny' },
                                        { join => { 'cds' => 'tags' } });
 
 cmp_ok( @artists, '==', 2, "two-join search ok" );

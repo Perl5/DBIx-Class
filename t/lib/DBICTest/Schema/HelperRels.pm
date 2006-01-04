@@ -1,4 +1,4 @@
-package DBICTest::Schema::BasicRels;
+package DBICTest::Schema::HelperRels;
 
 use base 'DBIx::Class::Core';
 
@@ -11,13 +11,13 @@ DBICTest::Schema::CD->belongs_to('artist', 'DBICTest::Schema::Artist');
 
 DBICTest::Schema::CD->has_many(tracks => 'DBICTest::Schema::Track');
 DBICTest::Schema::CD->has_many(tags => 'DBICTest::Schema::Tag');
+DBICTest::Schema::CD->has_many(cd_to_producer => 'DBICTest::Schema::CD_to_Producer' => 'cd');
 
 DBICTest::Schema::CD->might_have(liner_notes => 'DBICTest::Schema::LinerNotes',
                                   undef, { proxy => [ qw/notes/ ] });
 
 DBICTest::Schema::SelfRefAlias->belongs_to(
   self_ref => 'DBICTest::Schema::SelfRef');
-
 DBICTest::Schema::SelfRefAlias->belongs_to(
   alias => 'DBICTest::Schema::SelfRef');
 
@@ -27,11 +27,15 @@ DBICTest::Schema::SelfRef->has_many(
 DBICTest::Schema::Tag->belongs_to('cd', 'DBICTest::Schema::CD');
 
 DBICTest::Schema::Track->belongs_to('cd', 'DBICTest::Schema::CD');
-
 DBICTest::Schema::Track->belongs_to('disc', 'DBICTest::Schema::CD', 'cd');
 
 DBICTest::Schema::TwoKeys->belongs_to('artist', 'DBICTest::Schema::Artist');
-
 DBICTest::Schema::TwoKeys->belongs_to('cd', 'DBICTest::Schema::CD');
+
+DBICTest::Schema::CD_to_Producer->belongs_to('cd', 'DBICTest::Schema::CD', { 'foreign.cdid' => 'self.cd' });
+DBICTest::Schema::CD_to_Producer->belongs_to('producer', 'DBICTest::Schema::Producer', { 'foreign.producerid' => 'self.producer' });
+
+# now the Helpers
+DBICTest::Schema::CD->many_to_many( 'producers', 'cd_to_producer', 'producer');
 
 1;

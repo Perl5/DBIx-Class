@@ -139,13 +139,17 @@ sub resolve_condition {
 }
 
 sub _cond_key {
-  my ($self, $attrs, $key) = @_;
+  my ($self, $attrs, $key, $alias) = @_;
   my $action = $attrs->{_action} || '';
   if ($action eq 'convert') {
     unless ($key =~ s/^foreign\.//) {
       $self->throw("Unable to convert relationship to WHERE clause: invalid key ${key}");
     }
-    return $key;
+    if (defined (my $alias = $attrs->{_aliases}{foreign})) {
+      return "${alias}.${key}";
+    } else {
+      return $key;
+    }
   } elsif ($action eq 'join') {
     return $key unless $key =~ /\./;
     my ($type, $field) = split(/\./, $key);
@@ -198,23 +202,6 @@ sub _cond_value {
 
 sub search_related {
   my $self = shift;
-  return $self->_query_related('search', @_);
-}
-
-=head2 count_related
-
-  My::Table->count_related('relname', $cond, $attrs);
-
-=cut
-
-sub count_related {
-  my $self = shift;
-  return $self->_query_related('count', @_);
-}
-
-sub _query_related {
-  my $self = shift;
-  my $meth = shift;
   my $rel = shift;
   my $attrs = { };
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
@@ -235,7 +222,18 @@ sub _query_related {
   #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}||[]});
   delete $attrs->{_action};
   return $self->resolve_class($rel_obj->{class}
-           )->$meth($query, $attrs);
+           )->search($query, $attrs);
+}
+
+=head2 count_related
+
+  My::Table->count_related('relname', $cond, $attrs);
+
+=cut
+
+sub count_related {
+  my $self = shift;
+  return $self->search_related(@_)->count;
 }
 
 =head2 create_related

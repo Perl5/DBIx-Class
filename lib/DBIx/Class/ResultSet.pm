@@ -24,69 +24,176 @@ or a C<has_many> relationship.
 
 =head1 METHODS
 
-=head2 new($db_class, \%$attrs)
+=head2 new($source, \%$attrs)
 
-The resultset constructor. Takes a table class and an attribute hash
-(see below for more information on attributes). Does not perform
-any queries -- these are executed as needed by the other methods.
+The resultset constructor. Takes a source object (usually a DBIx::Class::Table)
+and an attribute hash (see below for more information on attributes). Does
+not perform any queries -- these are executed as needed by the other methods.
 
 =cut
 
 sub new {
-  my ($it_class, $db_class, $attrs) = @_;
+  my ($class, $source, $attrs) = @_;
   #use Data::Dumper; warn Dumper(@_);
-  $it_class = ref $it_class if ref $it_class;
+  $class = ref $class if ref $class;
   $attrs = { %{ $attrs || {} } };
   my %seen;
-  $attrs->{cols} ||= [ map { "me.$_" } $db_class->_select_columns ];
-  $attrs->{from} ||= [ { 'me' => $db_class->_table_name } ];
-  if ($attrs->{join}) {
-    foreach my $j (ref $attrs->{join} eq 'ARRAY'
-              ? (@{$attrs->{join}}) : ($attrs->{join})) {
+  my $alias = ($attrs->{alias} ||= 'me');
+  if (!$attrs->{select}) {
+    my @cols = ($attrs->{cols}
+                 ? @{delete $attrs->{cols}}
+                 : $source->result_class->_select_columns);
+    $attrs->{select} = [ map { m/\./ ? $_ : "${alias}.$_" } @cols ];
+  }
+  $attrs->{as} ||= [ map { m/^$alias\.(.*)$/ ? $1 : $_ } @{$attrs->{select}} ];
+  #use Data::Dumper; warn Dumper(@{$attrs}{qw/select as/});
+  $attrs->{from} ||= [ { $alias => $source->name } ];
+  if (my $join = delete $attrs->{join}) {
+    foreach my $j (ref $join eq 'ARRAY'
+              ? (@{$join}) : ($join)) {
       if (ref $j eq 'HASH') {
         $seen{$_} = 1 foreach keys %$j;
       } else {
         $seen{$j} = 1;
       }
     }
-    push(@{$attrs->{from}}, $db_class->_resolve_join($attrs->{join}, 'me'));
+    push(@{$attrs->{from}}, $source->result_class->_resolve_join($join, $attrs->{alias}));
   }
-  foreach my $pre (@{$attrs->{prefetch} || []}) {
-    push(@{$attrs->{from}}, $db_class->_resolve_join($pre, 'me'))
+  $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
+  foreach my $pre (@{delete $attrs->{prefetch} || []}) {
+    push(@{$attrs->{from}}, $source->result_class->_resolve_join($pre, $attrs->{alias}))
       unless $seen{$pre};
-    push(@{$attrs->{cols}},
+    my @pre = 
       map { "$pre.$_" }
-      $db_class->_relationships->{$pre}->{class}->_select_columns);
+      $source->result_class->_relationships->{$pre}->{class}->columns;
+    push(@{$attrs->{select}}, @pre);
+    push(@{$attrs->{as}}, @pre);
+  }
+  if ($attrs->{page}) {
+    $attrs->{rows} ||= 10;
+    $attrs->{offset} ||= 0;
+    $attrs->{offset} += ($attrs->{rows} * ($attrs->{page} - 1));
   }
   my $new = {
-    class => $db_class,
-    cols => $attrs->{cols} || [ $db_class->_select_columns ],
+    source => $source,
     cond => $attrs->{where},
-    from => $attrs->{from} || $db_class->_table_name,
+    from => $attrs->{from},
     count => undef,
+    page => delete $attrs->{page},
     pager => undef,
     attrs => $attrs };
-  bless ($new, $it_class);
-  $new->pager if ($attrs->{page});
+  bless ($new, $class);
   return $new;
+}
+
+=head2 search
+
+  my @obj    = $rs->search({ foo => 3 }); # "... WHERE foo = 3"              
+  my $new_rs = $rs->search({ foo => 3 });                                    
+                                                                                
+If you need to pass in additional attributes but no additional condition,
+call it as ->search(undef, \%attrs);
+                                                                                
+  my @all = $class->search({}, { cols => [qw/foo bar/] }); # "SELECT foo, bar FROM $class_table"
+
+=cut
+
+sub search {
+  my $self = shift;
+
+  #use Data::Dumper;warn Dumper(@_);
+
+  my $attrs = { %{$self->{attrs}} };
+  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+    $attrs = { %$attrs, %{ pop(@_) } };
+  }
+
+  my $where = (@_ ? ((@_ == 1 || ref $_[0] eq "HASH") ? shift : {@_}) : undef());
+  if (defined $where) {
+    $where = (defined $attrs->{where}
+                ? { '-and' => [ $where, $attrs->{where} ] }
+                : $where);
+    $attrs->{where} = $where;
+  }
+
+  my $rs = $self->new($self->{source}, $attrs);
+
+  return (wantarray ? $rs->all : $rs);
+}
+
+=head2 search_literal                                                              
+  my @obj    = $rs->search_literal($literal_where_cond, @bind);
+  my $new_rs = $rs->search_literal($literal_where_cond, @bind);
+
+Pass a literal chunk of SQL to be added to the conditional part of the
+resultset
+
+=cut
+                                                         
+sub search_literal {
+  my ($self, $cond, @vals) = @_;
+  my $attrs = (ref $vals[$#vals] eq 'HASH' ? { %{ pop(@vals) } } : {});
+  $attrs->{bind} = [ @{$self->{attrs}{bind}||[]}, @vals ];
+  return $self->search(\$cond, $attrs);
+}
+
+=head2 search_related
+
+  $rs->search_related('relname', $cond?, $attrs?);
+
+=cut
+
+sub search_related {
+  my ($self, $rel, @rest) = @_;
+  my $rel_obj = $self->{source}->result_class->_relationships->{$rel};
+  $self->{source}->result_class->throw(
+    "No such relationship ${rel} in search_related")
+      unless $rel_obj;
+  my $r_class = $self->{source}->result_class->resolve_class($rel_obj->{class});
+  my $source = $r_class->result_source;
+  $source = bless({ %{$source} }, ref $source || $source);
+  $source->storage($self->{source}->storage);
+  $source->result_class($r_class);
+  my $rs = $self->search(undef, { join => $rel });
+  #use Data::Dumper; warn Dumper($rs);
+  return $source->resultset_class->new(
+           $source, { %{$rs->{attrs}},
+                      alias => $rel,
+                      select => undef(),
+                      as => undef() }
+           )->search(@rest);
 }
 
 =head2 cursor
 
-Return a storage-driven cursor to the given resultset.
+Returns a storage-driven cursor to the given resultset.
 
 =cut
 
 sub cursor {
   my ($self) = @_;
-  my ($db_class, $attrs) = @{$self}{qw/class attrs/};
-  if ($attrs->{page}) {
-    $attrs->{rows} = $self->pager->entries_per_page;
-    $attrs->{offset} = $self->pager->skipped;
-  }
+  my ($source, $attrs) = @{$self}{qw/source attrs/};
+  $attrs = { %$attrs };
   return $self->{cursor}
-    ||= $db_class->storage->select($self->{from}, $self->{cols},
+    ||= $source->storage->select($self->{from}, $attrs->{select},
           $attrs->{where},$attrs);
+}
+
+=head2 search_like                                                               
+                                                                                
+Identical to search except defaults to 'LIKE' instead of '=' in condition       
+                                                                                
+=cut                                                                            
+
+sub search_like {
+  my $class    = shift;
+  my $attrs = { };
+  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+    $attrs = pop(@_);
+  }
+  my $query    = ref $_[0] eq "HASH" ? { %{shift()} }: {@_};
+  $query->{$_} = { 'like' => $query->{$_} } for keys %$query;
+  return $class->search($query, { %$attrs });
 }
 
 =head2 slice($first, $last)
@@ -98,10 +205,10 @@ Returns a subset of elements from the resultset.
 sub slice {
   my ($self, $min, $max) = @_;
   my $attrs = { %{ $self->{attrs} || {} } };
-  $self->{class}->throw("Can't slice without where") unless $attrs->{where};
-  $attrs->{offset} = $min;
+  $attrs->{offset} ||= 0;
+  $attrs->{offset} += $min;
   $attrs->{rows} = ($max ? ($max - $min + 1) : 1);
-  my $slice = $self->new($self->{class}, $attrs);
+  my $slice = $self->new($self->{source}, $attrs);
   return (wantarray ? $slice->all : $slice);
 }
 
@@ -120,38 +227,17 @@ sub next {
 
 sub _construct_object {
   my ($self, @row) = @_;
-  my @cols = @{ $self->{attrs}{cols} };
-  s/^me\.// for @cols;
-  @cols = grep { /\(/ or ! /\./ } @cols;
-  my $new;
-  unless ($self->{attrs}{prefetch}) {
-    $new = $self->{class}->_row_to_object(\@cols, \@row);
-  } else {
-    my @main = splice(@row, 0, scalar @cols);
-    $new = $self->{class}->_row_to_object(\@cols, \@main);
-    PRE: foreach my $pre (@{$self->{attrs}{prefetch}}) {
-      my $rel_obj = $self->{class}->_relationships->{$pre};
-      my $pre_class = $self->{class}->resolve_class($rel_obj->{class});
-      my @pre_cols = $pre_class->_select_columns;
-      my @vals = splice(@row, 0, scalar @pre_cols);
-      my $fetched = $pre_class->_row_to_object(\@pre_cols, \@vals);
-      $self->{class}->throw("No accessor for prefetched $pre")
-        unless defined $rel_obj->{attrs}{accessor};
-      if ($rel_obj->{attrs}{accessor} eq 'single') {
-        foreach my $pri ($rel_obj->{class}->primary_columns) {
-          unless (defined $fetched->get_column($pri)) {
-            undef $fetched;
-            last;
-          }
-        }
-        $new->{_relationship_data}{$pre} = $fetched;
-      } elsif ($rel_obj->{attrs}{accessor} eq 'filter') {
-        $new->{_inflated_column}{$pre} = $fetched;
-      } else {
-        $self->{class}->throw("Don't know how to store prefetched $pre");
-      }
+  my @cols = @{ $self->{attrs}{as} };
+  #warn "@cols -> @row";
+  my (%me, %pre);
+  foreach my $col (@cols) {
+    if ($col =~ /([^\.]+)\.([^\.]+)/) {
+      $pre{$1}[0]{$2} = shift @row;
+    } else {
+      $me{$col} = shift @row;
     }
   }
+  my $new = $self->{source}->result_class->inflate_result(\%me, \%pre);
   $new = $self->{attrs}{record_filter}->($new)
     if exists $self->{attrs}{record_filter};
   return $new;
@@ -160,28 +246,39 @@ sub _construct_object {
 =head2 count
 
 Performs an SQL C<COUNT> with the same query as the resultset was built
-with to find the number of elements.
+with to find the number of elements. If passed arguments, does a search
+on the resultset and counts the results of that.
 
 =cut
 
 sub count {
-  my ($self) = @_;
-  my $db_class = $self->{class};
-  my $attrs = { %{ $self->{attrs} } };
-  unless ($self->{count}) {
-    # offset and order by are not needed to count
-    delete $attrs->{$_} for qw/offset order_by/;
+  my $self = shift;
+  return $self->search(@_)->count if @_ && defined $_[0];
+  die "Unable to ->count with a GROUP BY" if defined $self->{attrs}{group_by};
+  unless (defined $self->{count}) {
+    my $attrs = { %{ $self->{attrs} },
+                  select => { 'count' => '*' },
+                  as => [ 'count' ] };
+    # offset, order by and page are not needed to count
+    delete $attrs->{$_} for qw/rows offset order_by page pager/;
         
-    my @cols = 'COUNT(*)';
-    $self->{count} = $db_class->storage->select_single($self->{from}, \@cols,
-                                              $self->{cond}, $attrs);
+    ($self->{count}) = $self->new($self->{source}, $attrs)->cursor->next;
   }
   return 0 unless $self->{count};
-  return $self->{pager}->entries_on_this_page if ($self->{pager});
-  return ( $attrs->{rows} && $attrs->{rows} < $self->{count} ) 
-    ? $attrs->{rows} 
-    : $self->{count};
+  my $count = $self->{count};
+  $count -= $self->{attrs}{offset} if $self->{attrs}{offset};
+  $count = $self->{attrs}{rows} if
+    ($self->{attrs}{rows} && $self->{attrs}{rows} < $count);
+  return $count;
 }
+
+=head2 count_literal
+
+Calls search_literal with the passed arguments, then count.
+
+=cut
+
+sub count_literal { shift->search_literal(@_)->count; }
 
 =head2 all
 
@@ -242,12 +339,11 @@ sense for queries with page turned on.
 sub pager {
   my ($self) = @_;
   my $attrs = $self->{attrs};
-  delete $attrs->{offset};
-  my $rows_per_page = delete $attrs->{rows} || 10;
-  $self->{pager} ||= Data::Page->new(
-    $self->count, $rows_per_page, $attrs->{page} || 1);
-  $attrs->{rows} = $rows_per_page;
-  return $self->{pager};
+  die "Can't create pager for non-paged rs" unless $self->{page};
+  $attrs->{rows} ||= 10;
+  $self->count;
+  return $self->{pager} ||= Data::Page->new(
+    $self->{count}, $attrs->{rows}, $self->{page});
 }
 
 =head2 page($page_num)
@@ -258,9 +354,9 @@ Returns a new resultset for the specified page.
 
 sub page {
   my ($self, $page) = @_;
-  my $attrs = $self->{attrs};
+  my $attrs = { %{$self->{attrs}} };
   $attrs->{page} = $page;
-  return $self->new($self->{class}, $attrs);
+  return $self->new($self->{source}, $attrs);
 }
 
 =head1 Attributes
@@ -274,9 +370,19 @@ Which column(s) to order the results by. This is currently passed
 through directly to SQL, so you can give e.g. C<foo DESC> for a 
 descending order.
 
-=head2 cols
+=head2 cols (arrayref)
 
-Which columns should be retrieved.
+Shortcut to request a particular set of columns to be retrieved - adds
+'me.' onto the start of any column without a '.' in it and sets 'select'
+from that, then auto-populates 'as' from 'select' as normal
+
+=head2 select (arrayref)
+
+Indicates which columns should be selected from the storage
+
+=head2 as (arrayref)
+
+Indicates column names for object inflation
 
 =head2 join
 
@@ -312,6 +418,15 @@ for an unpaged resultset.
 =head2 rows
 
 For a paged resultset, how many rows per page
+
+=head2 group_by
+
+A list of columns to group by (note that 'count' doesn't work on grouped
+resultsets)
+
+=head2 distinct
+
+Set to 1 to group by all columns
 
 =cut
 
