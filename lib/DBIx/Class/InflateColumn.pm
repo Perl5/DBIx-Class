@@ -4,6 +4,56 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Row/;
 
+=head1 NAME 
+
+DBIx::Class::InflateColumn - Automatically create objects from column data
+
+=head1 SYNOPSIS
+
+    # In your table classes
+    __PACKAGE__->inflate_column('column_name', {
+        inflate => sub { ... },
+        deflate => sub { ... },
+    });
+
+=head1 DESCRIPTION
+
+This component translates column data into objects, i.e. "inflating"
+the column data. It also "deflates" objects into an appropriate format
+for the database.
+
+It can be used, for example, to automatically convert to and from
+L<DateTime> objects for your date and time fields. 
+
+=head1 METHODS
+
+=head2 inflate_column
+
+Instruct L<DBIx::Class> to inflate the given column. 
+
+In addition to the column name, you must provide C<inflate> and
+C<deflate> methods. The C<inflate> method is called when you access
+the field, while the C<deflate> method is called when the field needs
+to used by the database.
+
+For example, if you have a table C<events> with a timestamp field
+named C<insert_time>, you could inflate the column in the
+corresponding table class using something like:
+
+    __PACKAGE__->inflate_column('insert_time', {
+        inflate => sub { DateTime::Format::Pg->parse_datetime(shift); },
+        deflate => sub { DateTime::Format::Pg->format_datetime(shift); },
+    });
+
+(Replace L<DateTime::Format::Pg> with the appropriate module for your
+database, or consider L<DateTime::Format::DBI>.)
+
+In this example, calls to an event's C<insert_time> accessor return a
+L<DateTime> object. This L<DateTime> object is later "deflated" when
+used in the database layer.
+
+=cut
+
 sub inflate_column {
   my ($self, $col, $attrs) = @_;
   die "No such column $col to inflate" unless $self->has_column($col);
@@ -83,5 +133,29 @@ sub new {
   }
   return $class->next::method($attrs, @rest);
 }
+
+=head1 SEE ALSO
+
+=over 4
+
+=item L<DBIx::Class::Core> - This component is loaded as part of the
+      "core" L<DBIx::Class> components; generally there is no need to
+      load it directly
+
+=back
+
+=head1 AUTHOR
+
+Matt S. Trout <mst@shadowcatsystems.co.uk>
+
+=head1 CONTRIBUTORS
+
+Daniel Westermann-Clark <danieltwc@cpan.org> (documentation)
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
 
 1;
