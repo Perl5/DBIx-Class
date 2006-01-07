@@ -96,7 +96,7 @@ sub discard_changes {
   my ($self) = @_;
   delete $self->{_dirty_columns};
   return unless $self->in_storage; # Don't reload if we aren't real!
-  my ($reload) = $self->find($self->id);
+  my ($reload) = $self->find(map { $self->$_ } $self->primary_columns);
   unless ($reload) { # If we got deleted in the mean-time
     $self->in_storage(0);
     return $self;
