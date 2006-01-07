@@ -359,7 +359,7 @@ sub page {
   return $self->new($self->{source}, $attrs);
 }
 
-=head1 Attributes
+=head1 ATTRIBUTES
 
 The resultset takes various attributes that modify its behavior.
 Here's an overview of them:

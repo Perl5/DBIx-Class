@@ -1,18 +1,47 @@
 =head1 NAME 
 
-DBIx::Class::Manual::Cookbook - Misc recipes
-
-=head1 DESCRIPTION
-
-Things that could be handy
+DBIx::Class::Manual::Cookbook - Miscellaneous recipes
 
 =head1 RECIPES
 
+=head2 Complex searches
+
+Sometimes you need to formulate a query using specific operators:
+
+    my @albums = MyApp::DB::Album->search({
+        artist => { 'like', '%Lamb%' },
+        title  => { 'like', '%Fear of Fours%' },
+    });
+
+This results in something like the following C<WHERE> clause:
+
+    WHERE artist LIKE '%Lamb%' AND title LIKE '%Fear of Fours%'
+
+Other queries might require slightly more complex logic:
+
+    my @albums = MyApp::DB::Album->search({
+        -or => [
+            -and => [
+                artist => { 'like', '%Smashing Pumpkins%' },
+                title  => 'Siamese Dream',
+            ],
+            artist => 'Starchildren',
+        ],
+    });
+
+This results in the following C<WHERE> clause:
+
+    WHERE ( artist LIKE '%Smashing Pumpkins%' AND title = 'Siamese Dream' )
+          OR artist = 'Starchildren'
+
+For more information on generating complex queries, see
+L<SQL::Abstract/WHERE CLAUSES>.
+
 =head2 Disconnecting cleanly
 
-If you find yourself quitting an app with Control-C a lot during development,
-you might like to put the following signal handler in your main database
-class to make sure it disconnects cleanly:
+If you find yourself quitting an app with Control-C a lot during
+development, you might like to put the following signal handler in
+your main database class to make sure it disconnects cleanly:
 
     $SIG{INT} = sub {
         __PACKAGE__->storage->dbh->disconnect;
@@ -20,113 +49,122 @@ class to make sure it disconnects cleanly:
 
 =head2 Using joins and prefetch
 
-See L<DBIx::Class::ResultSet/Attributes>.
+See L<DBIx::Class::ResultSet/ATTRIBUTES>.
 
 =head2 Transactions
 
 As of version 0.04001, there is improved transaction support in
-L<DBIx::Class::Storage::DBI>. Here is an example of the recommended way to use it:
+L<DBIx::Class::Storage::DBI>. Here is an example of the recommended
+way to use it:
 
-    my $obj = Genus->find(12);
+    my $genus = Genus->find(12);
     eval {
         MyDB->txn_begin;
-        $obj->add_to_species({ name => 'troglodyte' });
-        $obj->wings(2);
-        $obj->update;
-        cromulate($obj); # can have a nested transation
+        $genus->add_to_species({ name => 'troglodyte' });
+        $genus->wings(2);
+        $genus->update;
+        cromulate($genus); # Can have a nested transation
         MyDB->txn_commit;
     };
-    if ($@) { eval { MyDB->txn_rollback } } # rollback might fail, too
+    if ($@) {
+        # Rollback might fail, too
+        eval {
+            MyDB->txn_rollback
+        };
+    }
 
-Currently, a nested commit will do nothing and a nested rollback will die.
-The code at each level must be sure to call rollback in the case of an error,
-to ensure that the rollback will propagate to the top level and be issued.
-Support for savepoints and for true nested transactions (for databases that
-support them) will hopefully be added in the future.
+Currently, a nested commit will do nothing and a nested rollback will
+die. The code at each level must be sure to call rollback in the case
+of an error, to ensure that the rollback will propagate to the top
+level and be issued. Support for savepoints and for true nested
+transactions (for databases that support them) will hopefully be added
+in the future.
 
 =head2 Many-to-many relationships
 
-This is not as easy as it could be, but it's possible. Here's an example to 
-illustrate:
+This is not as easy as it could be, but it's possible. Here's an
+example to illustrate:
 
-	# Set up inherited connection information
-	package MyApp::DBIC; 
-	use base qw/DBIx::Class/;
+    # Set up inherited connection information
+    package MyApp::DBIC; 
+    use base qw/DBIx::Class/;
 
-	__PACKAGE__->load_components(qw/PK::Auto::SQLite Core DB/);
-	__PACKAGE__->connection(...);
+    __PACKAGE__->load_components(qw/PK::Auto::SQLite Core DB/);
+    __PACKAGE__->connection(...);
 
-	# Set up a class for the 'authors' table
-	package MyApp::DBIC::Author;
-	use base qw/MyApp::DBIC/;
+    # Set up a class for the 'authors' table
+    package MyApp::DBIC::Author;
+    use base qw/MyApp::DBIC/;
 
-	__PACKAGE__->table('authors');
-	__PACKAGE__->add_columns(qw/authID first_name last_name/);
-	__PACKAGE__->set_primary_key(qw/authID/);
+    __PACKAGE__->table('authors');
+    __PACKAGE__->add_columns(qw/authID first_name last_name/);
+    __PACKAGE__->set_primary_key(qw/authID/);
 
-	# Define relationship to the link table
-	__PACKAGE__->has_many('b2a' => 'MyApp::DBIC::Book2Author', 'authID');
+    # Define relationship to the link table
+    __PACKAGE__->has_many('b2a' => 'MyApp::DBIC::Book2Author', 'authID');
 
-	# Create the accessor for books from the ::Author class
-	sub books {
-	  my ($self) = @_;
-	  return MyApp::DBIC::Book->search(
-		{ 'b2a.authID' => $self->authID }, # WHERE clause
-		{ join => 'b2a' } # join condition (part of search attrs)
-	    # 'b2a' refers to the relationship named earlier in the Author class.
-		# 'b2a.authID' refers to the authID column of the b2a relationship,
-		# which becomes accessible in the search by being joined.  
-	  );
-	}
+    # Create the accessor for books from the Author class
+    sub books {
+      my ($self) = @_;
+      return MyApp::DBIC::Book->search(
+        { 'b2a.authID' => $self->authID }, # WHERE clause
+        { join => 'b2a' } # join condition (part of search attrs)
+        # 'b2a' refers to the relationship named earlier in the Author class.
+        # 'b2a.authID' refers to the authID column of the b2a relationship,
+        # which becomes accessible in the search by being joined.  
+      );
+    }
 
-	# define the link table class
-	package MyApp::DBIC::Book2Author;
-	use base qw/MyApp::DBIC/;
+    # Define the link table class
+    package MyApp::DBIC::Book2Author;
+    use base qw/MyApp::DBIC/;
 
-	__PACKAGE__->table('book2author');
-	__PACKAGE__->add_columns(qw/bookID authID/);
-	__PACKAGE__->set_primary_key(qw/bookID authID/);
+    __PACKAGE__->table('book2author');
+    __PACKAGE__->add_columns(qw/bookID authID/);
+    __PACKAGE__->set_primary_key(qw/bookID authID/);
 
-	__PACKAGE__->belongs_to('authID' => 'MyApp::DBIC::Author');
-	__PACKAGE__->belongs_to('bookID' => 'MyApp::DBIC::Book');
+    __PACKAGE__->belongs_to('authID' => 'MyApp::DBIC::Author');
+    __PACKAGE__->belongs_to('bookID' => 'MyApp::DBIC::Book');
 
-	package MyApp::DBIC::Book;
-	use base qw/MyApp::DBIC/;
+    package MyApp::DBIC::Book;
+    use base qw/MyApp::DBIC/;
 
-	__PACKAGE__->table('books');
-	__PACKAGE__->add_columns(qw/bookID title edition isbn publisher year/);
-	__PACKAGE__->set_primary_key(qw/bookID/);
-	
-	__PACKAGE__->has_many('b2a' => 'MyApp::DBIC::Book2Author', 'bookID');
+    __PACKAGE__->table('books');
+    __PACKAGE__->add_columns(qw/bookID title edition isbn publisher year/);
+    __PACKAGE__->set_primary_key(qw/bookID/);
+    
+    __PACKAGE__->has_many('b2a' => 'MyApp::DBIC::Book2Author', 'bookID');
 
-	sub authors {
-	 my ($self) = @_;
-	 return MyApp::DBIC::Author->search(
-	   { 'b2a.bookID' => $self->bookID }, # WHERE clause
-	   { join => 'b2a' }); # join condition (part of search attrs)
-	}
 
-	# So the above search returns an author record where the bookID field of the
-	# book2author table equals the bookID of the books (using the bookID 
-	# relationship table
+    # Returns an author record where the bookID field of the
+    # book2author table equals the bookID of the books (using the
+    # bookID relationship table)
+    sub authors {
+        my ($self) = @_;
+        return MyApp::DBIC::Author->search(
+            { 'b2a.bookID' => $self->bookID }, # WHERE clause
+            { join => 'b2a' } # JOIN condition
+        ); 
+    }
 
 =head2 Setting default values
 
-It's as simple as overriding the C<new> method. Note the use of C<next::method>.
+It's as simple as overriding the C<new> method. Note the use of
+C<next::method>.
 
     sub new {
-        my( $class, $attrs ) = @_; 
-        
-        $attrs->{ foo } = 'bar' unless defined $attrs->{ foo };
-        
-        $class->next::method( $attrs );
+        my ( $class, $attrs ) = @_;
+
+        $attrs->{foo} = 'bar' unless defined $attrs->{foo};
+
+        $class->next::method($attrs);
     }
 
 =head2 Stringification
 
-Deploy the standard stringification technique by using the C<overload> module. Replace
-C<foo> with the column/method of your choice.
+Employ the standard stringification technique by using the C<overload>
+module. Replace C<foo> with the column/method of your choice.
 
     use overload '""' => 'foo', fallback => 1;
 
-=back
+=cut
