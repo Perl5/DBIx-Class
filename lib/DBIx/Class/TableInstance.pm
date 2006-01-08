@@ -111,10 +111,6 @@ sub columns {
   return shift->table_instance->columns(@_);
 }
 
-sub result_source {
-  return shift->table_instance(@_);
-}
-
 sub set_primary_key { shift->table_instance->set_primary_key(@_); }
 sub primary_columns { shift->table_instance->primary_columns(@_); }
 

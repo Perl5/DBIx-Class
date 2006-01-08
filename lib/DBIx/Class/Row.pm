@@ -53,7 +53,8 @@ sub insert {
   my ($self) = @_;
   return $self if $self->in_storage;
   #use Data::Dumper; warn Dumper($self);
-  $self->storage->insert($self->_table_name, { $self->get_columns });
+  $self->result_source->storage->insert(
+    $self->_table_name, { $self->get_columns });
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
   return $self;
@@ -88,8 +89,8 @@ sub update {
   $self->throw( "Not in database" ) unless $self->in_storage;
   my %to_update = $self->get_dirty_columns;
   return -1 unless keys %to_update;
-  my $rows = $self->storage->update($self->result_source->from, \%to_update,
-                                      $self->ident_condition);
+  my $rows = $self->result_source->storage->update(
+               $self->result_source->from, \%to_update, $self->ident_condition);
   if ($rows == 0) {
     $self->throw( "Can't update ${self}: row not found" );
   } elsif ($rows > 1) {
@@ -114,7 +115,8 @@ sub delete {
   if (ref $self) {
     $self->throw( "Not in database" ) unless $self->in_storage;
     #warn $self->_ident_cond.' '.join(', ', $self->_ident_values);
-    $self->storage->delete($self->result_source->from, $self->ident_condition);
+    $self->result_source->storage->delete(
+      $self->result_source->from, $self->ident_condition);
     $self->in_storage(undef);
     #$self->store_column($_ => undef) for $self->primary_columns;
       # Should probably also arrange to trash PK if auto
