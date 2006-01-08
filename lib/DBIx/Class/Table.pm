@@ -11,7 +11,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_columns name resultset_class result_class storage/);
+  qw/_columns _primaries name resultset_class result_class storage/);
 
 =head1 NAME 
 
@@ -41,14 +41,11 @@ sub new {
 sub add_columns {
   my ($self, @cols) = @_;
   while (my $col = shift @cols) {
-    $self->add_column($col => (ref $cols[0] ? shift : {}));
+    $self->_columns->{$col} = (ref $cols[0] ? shift : {});
   }
 }
 
-sub add_column {
-  my ($self, $col, $info) = @_;
-  $self->_columns->{$col} = $info || {};
-}
+*add_column = \&add_columns;
 
 =head2 add_columns
 
@@ -58,6 +55,12 @@ sub add_column {
 
 Adds columns to the table object. If supplied key => hashref pairs uses
 the hashref as the column_info for that column.
+
+=head2 add_column
+
+  $table->add_column('col' => \%info?);
+
+Convenience alias to add_columns
 
 =cut
 
@@ -95,8 +98,8 @@ sub column_info {
   return $self->_columns->{$column};
 }
 
-=head2 columns                                                                   
-                                                                                
+=head2 columns
+
   my @column_names = $obj->columns;                                             
                                                                                 
 =cut                                                                            
@@ -105,6 +108,34 @@ sub columns {
   croak "columns() is a read-only accessor, did you mean add_columns()?" if (@_ > 1);
   return keys %{shift->_columns};
 }
+
+=head2 set_primary_key(@cols)                                                   
+                                                                                
+Defines one or more columns as primary key for this table. Should be            
+called after C<add_columns>.
+                                                                                
+=cut                                                                            
+
+sub set_primary_key {
+  my ($self, @cols) = @_;
+  # check if primary key columns are valid columns
+  for (@cols) {
+    $self->throw("No such column $_ on table ".$self->name)
+      unless $self->has_column($_);
+  }
+  $self->_primaries(\@cols);
+}
+
+=head2 primary_columns                                                          
+                                                                                
+Read-only accessor which returns the list of primary keys.
+                                                                                
+=cut                                                                            
+
+sub primary_columns {
+  return @{shift->_primaries||[]};
+}
+
 
 1;
 

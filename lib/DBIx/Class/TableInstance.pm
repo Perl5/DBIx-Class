@@ -117,8 +117,8 @@ sub column_info {
   return $self->table_instance->column_info($column);
 }
 
-=head2 columns                                                                   
-                                                                                
+=head2 columns
+
   my @column_names = $obj->columns;                                             
                                                                                 
 =cut                                                                            
@@ -130,6 +130,9 @@ sub columns {
 sub result_source {
   return shift->table_instance(@_);
 }
+
+sub set_primary_key { shift->table_instance->set_primary_key(@_); }
+sub primary_columns { shift->table_instance->primary_columns(@_); }
 
 1;
 

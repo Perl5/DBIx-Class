@@ -1,6 +1,6 @@
 use strict;
 
-use Test::More tests => 25;
+use Test::More tests => 24;
 
 #-----------------------------------------------------------------------
 # Make sure that we can set up columns properly
@@ -103,15 +103,16 @@ ok(!State->find_column('HGLAGAGlAG'), '!find_column HGLAGAGlAG');
 	is $grps[1], 'Weather', " - Weather";
 }
 
-{
-        package DieTest;
-        @DieTest::ISA = qw(DBIx::Class);
-        DieTest->load_components(qw/CDBICompat::Retrieve Core/);
-        package main;
-	local $SIG{__WARN__} = sub { };
-	eval { DieTest->retrieve(1) };
-	like $@, qr/unless primary columns are defined/, "Need primary key for retrieve";
-}
+#{
+#        
+#        package DieTest;
+#        @DieTest::ISA = qw(DBIx::Class);
+#        DieTest->load_components(qw/CDBICompat::Retrieve Core/);
+#        package main;
+#	local $SIG{__WARN__} = sub { };
+#	eval { DieTest->retrieve(1) };
+#	like $@, qr/unless primary columns are defined/, "Need primary key for retrieve";
+#}
 
 #-----------------------------------------------------------------------
 # Make sure that columns inherit properly
