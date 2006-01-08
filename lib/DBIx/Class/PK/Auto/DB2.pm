@@ -20,3 +20,5 @@ sub last_insert_id
     return @res ? $res[0] : undef;
                          
 }
+
+1;
