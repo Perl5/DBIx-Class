@@ -6,6 +6,9 @@ Revision history for DBIx::Class
         - moved inflation to inflate_result in Row.pm
         - added $rs->search_related
         - split compose_namespace out of compose_connection in Schema
+        - ResultSet now handles find
+        - various *_related methods are now ->search_related->*
+        - added new_result to ResultSet
 
 0.04999_01 2005-12-27 03:33:42
         - search and related methods moved to ResultSet

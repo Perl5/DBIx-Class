@@ -8,6 +8,8 @@ use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/Exception/);
 __PACKAGE__->mk_classdata('class_registrations' => {});
+__PACKAGE__->mk_classdata('storage_type' => 'DBI');
+__PACKAGE__->mk_classdata('storage');
 
 =head1 NAME
 

@@ -53,12 +53,8 @@ sub insert {
   my ($self) = @_;
   return $self if $self->in_storage;
   #use Data::Dumper; warn Dumper($self);
-  my %in;
-  $in{$_} = $self->get_column($_)
-    for grep { defined $self->get_column($_) } $self->columns;
-  my %out = %{ $self->storage->insert($self->_table_name, \%in) };
-  $self->store_column($_, $out{$_})
-    for grep { $self->get_column($_) ne $out{$_} } keys %out;
+  $self->result_source->storage->insert(
+    $self->_table_name, { $self->get_columns });
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
   return $self;
@@ -79,20 +75,6 @@ sub in_storage {
   return $self->{_in_storage};
 }
 
-=head2 create
-
-  my $new = My::Class->create($attrs);
-
-A shortcut for My::Class->new($attrs)->insert;
-
-=cut
-
-sub create {
-  my ($class, $attrs) = @_;
-  $class->throw( "create needs a hashref" ) unless ref $attrs eq 'HASH';
-  return $class->new($attrs)->insert;
-}
-
 =head2 update
 
   $obj->update;
@@ -105,11 +87,10 @@ UPDATE query to commit any changes to the object to the db if required.
 sub update {
   my ($self, $upd) = @_;
   $self->throw( "Not in database" ) unless $self->in_storage;
-  my %to_update;
-  $to_update{$_} = $self->get_column($_) for $self->is_changed;
+  my %to_update = $self->get_dirty_columns;
   return -1 unless keys %to_update;
-  my $rows = $self->storage->update($self->_table_name, \%to_update,
-                                      $self->ident_condition);
+  my $rows = $self->result_source->storage->update(
+               $self->result_source->from, \%to_update, $self->ident_condition);
   if ($rows == 0) {
     $self->throw( "Can't update ${self}: row not found" );
   } elsif ($rows > 1) {
@@ -134,7 +115,8 @@ sub delete {
   if (ref $self) {
     $self->throw( "Not in database" ) unless $self->in_storage;
     #warn $self->_ident_cond.' '.join(', ', $self->_ident_values);
-    $self->storage->delete($self->_table_name, $self->ident_condition);
+    $self->result_source->storage->delete(
+      $self->result_source->from, $self->ident_condition);
     $self->in_storage(undef);
     #$self->store_column($_ => undef) for $self->primary_columns;
       # Should probably also arrange to trash PK if auto
@@ -163,9 +145,9 @@ the database and stored in the object.
 sub get_column {
   my ($self, $column) = @_;
   $self->throw( "Can't fetch data as class method" ) unless ref $self;
-  $self->throw( "No such column '${column}'" ) unless $self->has_column($column);
   return $self->{_column_data}{$column}
     if exists $self->{_column_data}{$column};
+  $self->throw( "No such column '${column}'" ) unless $self->has_column($column);
   return undef;
 }
 
@@ -179,7 +161,21 @@ Does C<get_column>, for all column values at once.
 
 sub get_columns {
   my $self = shift;
-  return map { $_ => $self->get_column($_) } $self->columns;
+  return return %{$self->{_column_data}};
+}
+
+=head2 get_dirty_columns
+
+  my %data = $obj->get_dirty_columns;
+
+Identical to get_columns but only returns those that have been changed.
+
+=cut
+
+sub get_dirty_columns {
+  my $self = shift;
+  return map { $_ => $self->{_column_data}{$_} }
+           keys %{$self->{_dirty_columns}};
 }
 
 =head2 set_column
@@ -234,7 +230,7 @@ Sets a column value without marking it as dirty.
 sub store_column {
   my ($self, $column, $value) = @_;
   $self->throw( "No such column '${column}'" ) 
-    unless $self->has_column($column);
+    unless exists $self->{_column_data}{$column} || $self->has_column($column);
   $self->throw( "set_column called for ${column} without value" ) 
     if @_ < 3;
   return $self->{_column_data}{$column} = $value;

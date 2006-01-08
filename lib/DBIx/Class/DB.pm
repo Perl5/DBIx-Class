@@ -20,6 +20,14 @@ sub resultset_instance {
   return $table->resultset;
 }
 
+sub result_source {
+  my $class = shift;
+  my $table = $class->table_instance->new($class->table_instance);
+  $table->storage($class->storage_instance);
+  $table->result_class($class);
+  return $table;
+}
+
 =head1 NAME 
 
 DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance

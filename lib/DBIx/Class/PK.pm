@@ -6,8 +6,6 @@ use Tie::IxHash;
 
 use base qw/DBIx::Class::Row/;
 
-__PACKAGE__->mk_classdata('_primaries' => {});
-
 =head1 NAME 
 
 DBIx::Class::PK - Primary Key class
@@ -25,64 +23,12 @@ depending on them.
 
 sub _ident_cond {
   my ($class) = @_;
-  return join(" AND ", map { "$_ = ?" } keys %{$class->_primaries});
+  return join(" AND ", map { "$_ = ?" } $class->primary_columns);
 }
 
 sub _ident_values {
   my ($self) = @_;
-  return (map { $self->{_column_data}{$_} } keys %{$self->_primaries});
-}
-
-=head2 set_primary_key(@cols)
-
-Defines one or more columns as primary key for this class. Should be
-called after C<columns>.
-
-=cut
-
-sub set_primary_key {
-  my ($class, @cols) = @_;
-  # check if primary key columns are valid columns
-  for (@cols) {
-    $class->throw( "Column $_ can't be used as primary key because it isn't defined in $class" )
-      unless $class->has_column($_);
-  }
-  my %pri;
-  tie %pri, 'Tie::IxHash', map { $_ => {} } @cols;
-  $class->_primaries(\%pri);
-}
-
-=head2 find(@colvalues), find(\%cols)
-
-Finds a row based on its primary key(s).
-
-=cut
-
-sub find {
-  my ($class, @vals) = @_;
-  my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
-  my @pk = keys %{$class->_primaries};
-  $class->throw( "Can't find unless primary columns are defined" ) 
-    unless @pk;
-  my $query;
-  if (ref $vals[0] eq 'HASH') {
-    $query = $vals[0];
-  } elsif (@pk == @vals) {
-    $query = {};
-    @{$query}{@pk} = @vals;
-    #my $ret = ($class->search_literal($class->_ident_cond, @vals, $attrs))[0];
-    #warn "$class: ".join(', ', %{$ret->{_column_data}});
-    #return $ret;
-  } else {
-    $query = {@vals};
-  }
-  $class->throw( "Can't find unless all primary keys are specified" )
-    unless (keys %$query >= @pk); # If we check 'em we run afoul of uc/lc
-                                  # column names etc. Not sure what to do yet
-  return $class->search($query)->next;
-  #my @cols = $class->_select_columns;
-  #my @row = $class->storage->select_single($class->_table_name, \@cols, $query);
-  #return (@row ? $class->_row_to_object(\@cols, \@row) : ());
+  return (map { $self->{_column_data}{$_} } $self->primary_columns);
 }
 
 =head2 discard_changes
@@ -96,7 +42,7 @@ sub discard_changes {
   my ($self) = @_;
   delete $self->{_dirty_columns};
   return unless $self->in_storage; # Don't reload if we aren't real!
-  my ($reload) = $self->find($self->id);
+  my ($reload) = $self->find(map { $self->$_ } $self->primary_columns);
   unless ($reload) { # If we got deleted in the mean-time
     $self->in_storage(0);
     return $self;
@@ -120,17 +66,6 @@ sub id {
   return (wantarray ? @pk : $pk[0]);
 }
 
-=head2 primary_columns
-
-Read-only accessor which returns the list of primary keys for a class
-(in scalar context, only returns the first primary key).
-
-=cut
-
-sub primary_columns {
-  return keys %{shift->_primaries};
-}
-
 =head2 ID
 
 Returns a unique id string identifying a row object by primary key.
@@ -143,7 +78,7 @@ sub ID {
   my ($self) = @_;
   $self->throw( "Can't call ID() as a class method" ) unless ref $self;
   return undef unless $self->in_storage;
-  return $self->_create_ID(map { $_ => $self->{_column_data}{$_} } keys %{$self->_primaries});
+  return $self->_create_ID(map { $_ => $self->{_column_data}{$_} } $self->primary_columns);
 }
 
 sub _create_ID {
@@ -154,9 +89,9 @@ sub _create_ID {
 }
 
 sub ident_condition {
-  my ($self) = @_;
+  my ($self, $alias) = @_;
   my %cond;
-  $cond{$_} = $self->get_column($_) for $self->primary_columns;
+  $cond{(defined $alias ? "${alias}.$_" : $_)} = $self->get_column($_) for $self->primary_columns;
   return \%cond;
 }
 

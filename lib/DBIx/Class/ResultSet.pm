@@ -33,9 +33,10 @@ not perform any queries -- these are executed as needed by the other methods.
 =cut
 
 sub new {
-  my ($class, $source, $attrs) = @_;
+  my $class = shift;
+  $class->new_result(@_) if ref $class;
+  my ($source, $attrs) = @_;
   #use Data::Dumper; warn Dumper(@_);
-  $class = ref $class if ref $class;
   $attrs = { %{ $attrs || {} } };
   my %seen;
   my $alias = ($attrs->{alias} ||= 'me');
@@ -47,7 +48,7 @@ sub new {
   }
   $attrs->{as} ||= [ map { m/^$alias\.(.*)$/ ? $1 : $_ } @{$attrs->{select}} ];
   #use Data::Dumper; warn Dumper(@{$attrs}{qw/select as/});
-  $attrs->{from} ||= [ { $alias => $source->name } ];
+  $attrs->{from} ||= [ { $alias => $source->from } ];
   if (my $join = delete $attrs->{join}) {
     foreach my $j (ref $join eq 'ARRAY'
               ? (@{$join}) : ($join)) {
@@ -116,7 +117,7 @@ sub search {
     $attrs->{where} = $where;
   }
 
-  my $rs = $self->new($self->{source}, $attrs);
+  my $rs = (ref $self)->new($self->{source}, $attrs);
 
   return (wantarray ? $rs->all : $rs);
 }
@@ -135,6 +136,36 @@ sub search_literal {
   my $attrs = (ref $vals[$#vals] eq 'HASH' ? { %{ pop(@vals) } } : {});
   $attrs->{bind} = [ @{$self->{attrs}{bind}||[]}, @vals ];
   return $self->search(\$cond, $attrs);
+}
+
+=head2 find(@colvalues), find(\%cols)
+
+Finds a row based on its primary key(s).                                        
+
+=cut                                                                            
+
+sub find {
+  my ($self, @vals) = @_;
+  my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
+  my @pk = $self->{source}->primary_columns;
+  #use Data::Dumper; warn Dumper($attrs, @vals, @pk);
+  $self->{source}->result_class->throw( "Can't find unless primary columns are defined" )
+    unless @pk;
+  my $query;
+  if (ref $vals[0] eq 'HASH') {
+    $query = $vals[0];
+  } elsif (@pk == @vals) {
+    $query = {};
+    @{$query}{@pk} = @vals;
+  } else {
+    $query = {@vals};
+  }
+  #warn Dumper($query);
+  # Useless -> disabled
+  #$self->{source}->result_class->throw( "Can't find unless all primary keys are specified" )
+  #  unless (keys %$query >= @pk); # If we check 'em we run afoul of uc/lc
+                                  # column names etc. Not sure what to do yet
+  return $self->search($query)->next;
 }
 
 =head2 search_related
@@ -208,7 +239,7 @@ sub slice {
   $attrs->{offset} ||= 0;
   $attrs->{offset} += $min;
   $attrs->{rows} = ($max ? ($max - $min + 1) : 1);
-  my $slice = $self->new($self->{source}, $attrs);
+  my $slice = (ref $self)->new($self->{source}, $attrs);
   return (wantarray ? $slice->all : $slice);
 }
 
@@ -262,7 +293,7 @@ sub count {
     # offset, order by and page are not needed to count
     delete $attrs->{$_} for qw/rows offset order_by page pager/;
         
-    ($self->{count}) = $self->new($self->{source}, $attrs)->cursor->next;
+    ($self->{count}) = (ref $self)->new($self->{source}, $attrs)->cursor->next;
   }
   return 0 unless $self->{count};
   my $count = $self->{count};
@@ -356,10 +387,60 @@ sub page {
   my ($self, $page) = @_;
   my $attrs = { %{$self->{attrs}} };
   $attrs->{page} = $page;
-  return $self->new($self->{source}, $attrs);
+  return (ref $self)->new($self->{source}, $attrs);
 }
 
-=head1 Attributes
+=head2 new_result(\%vals)
+
+Creates a result in the resultset's result class
+
+=cut
+
+sub new_result {
+  my ($self, $values) = @_;
+  $self->{source}->result_class->throw( "new_result needs a hash" )
+    unless (ref $values eq 'HASH');
+  $self->{source}->result_class->throw( "Can't abstract implicit construct, condition not a hash" )
+    if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
+  my %new = %$values;
+  my $alias = $self->{attrs}{alias};
+  foreach my $key (keys %{$self->{cond}||{}}) {
+    $new{$1} = $self->{cond}{$key} if ($key =~ m/^(?:$alias\.)?([^\.]+)$/);
+  }
+  return $self->{source}->result_class->new(\%new);
+}
+
+=head2 create(\%vals)
+
+Inserts a record into the resultset and returns the object
+
+Effectively a shortcut for ->new_result(\%vals)->insert
+
+=cut
+
+sub create {
+  my ($self, $attrs) = @_;
+  $self->{source}->result_class->throw( "create needs a hashref" ) unless ref $attrs eq 'HASH';
+  return $self->new_result($attrs)->insert;
+}
+
+=head2 find_or_create(\%vals)
+
+  $class->find_or_create({ key => $val, ... });                                 
+                                                                                
+Searches for a record matching the search condition; if it doesn't find one,    
+creates one and returns that instead.                                           
+                                                                                
+=cut
+
+sub find_or_create {
+  my $self     = shift;
+  my $hash     = ref $_[0] eq "HASH" ? shift: {@_};
+  my $exists   = $self->find($hash);
+  return defined($exists) ? $exists : $self->create($hash);
+}
+
+=head1 ATTRIBUTES
 
 The resultset takes various attributes that modify its behavior.
 Here's an overview of them:

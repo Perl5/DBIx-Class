@@ -244,7 +244,8 @@ sub count_related {
 
 sub create_related {
   my $class = shift;
-  return $class->new_related(@_)->insert;
+  my $rel = shift;
+  return $class->search_related($rel)->create(@_);
 }
 
 =head2 new_related
@@ -255,20 +256,7 @@ sub create_related {
 
 sub new_related {
   my ($self, $rel, $values, $attrs) = @_;
-  $self->throw( "Can't call new_related as class method" ) 
-    unless ref $self;
-  $self->throw( "new_related needs a hash" ) 
-    unless (ref $values eq 'HASH');
-  my $rel_obj = $self->_relationships->{$rel};
-  $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
-  $self->throw( "Can't abstract implicit create for ${rel}, condition not a hash" )
-    unless ref $rel_obj->{cond} eq 'HASH';
-  $attrs = { %{$rel_obj->{attrs}}, %{$attrs || {}}, _action => 'convert' };
-
-  my %fields = %{$self->resolve_condition($rel_obj->{cond},$attrs)};
-  $fields{$_} = $values->{$_} for keys %$values;
-
-  return $self->resolve_class($rel_obj->{class})->new(\%fields);
+  return $self->search_related($rel)->new($values, $attrs);
 }
 
 =head2 find_related
@@ -280,17 +268,7 @@ sub new_related {
 sub find_related {
   my $self = shift;
   my $rel = shift;
-  my $rel_obj = $self->_relationships->{$rel};
-  $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
-  my ($cond) = $self->resolve_condition($rel_obj->{cond}, { _action => 'convert' });
-  $self->throw( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
-  my $attrs = { };
-  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
-    $attrs = { %{ pop(@_) } };
-  }
-  my $query = ((@_ > 1) ? {@_} : shift);
-  $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
-  return $self->resolve_class($rel_obj->{class})->find($query);
+  return $self->search_related($rel)->find(@_);
 }
 
 =head2 find_or_create_related

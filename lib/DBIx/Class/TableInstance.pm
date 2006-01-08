@@ -75,22 +75,6 @@ sub table {
   $class->mk_classdata('table_instance' => $table);
 }
 
-=head2 find_or_create
-
-  $class->find_or_create({ key => $val, ... });
-
-Searches for a record matching the search condition; if it doesn't find one,
-creates one and returns that instead.
-
-=cut
-
-sub find_or_create {
-  my $class    = shift;
-  my $hash     = ref $_[0] eq "HASH" ? shift: {@_};
-  my $exists = $class->find($hash);
-  return defined($exists) ? $exists : $class->create($hash);
-}
-
 =head2 has_column                                                                
                                                                                 
   if ($obj->has_column($col)) { ... }                                           
@@ -117,8 +101,8 @@ sub column_info {
   return $self->table_instance->column_info($column);
 }
 
-=head2 columns                                                                   
-                                                                                
+=head2 columns
+
   my @column_names = $obj->columns;                                             
                                                                                 
 =cut                                                                            
@@ -127,9 +111,8 @@ sub columns {
   return shift->table_instance->columns(@_);
 }
 
-sub result_source {
-  return shift->table_instance(@_);
-}
+sub set_primary_key { shift->table_instance->set_primary_key(@_); }
+sub primary_columns { shift->table_instance->primary_columns(@_); }
 
 1;
 
