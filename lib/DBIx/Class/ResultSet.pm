@@ -424,6 +424,22 @@ sub create {
   return $self->new_result($attrs)->insert;
 }
 
+=head2 find_or_create(\%vals)
+
+  $class->find_or_create({ key => $val, ... });                                 
+                                                                                
+Searches for a record matching the search condition; if it doesn't find one,    
+creates one and returns that instead.                                           
+                                                                                
+=cut
+
+sub find_or_create {
+  my $self     = shift;
+  my $hash     = ref $_[0] eq "HASH" ? shift: {@_};
+  my $exists   = $self->find($hash);
+  return defined($exists) ? $exists : $self->create($hash);
+}
+
 =head1 ATTRIBUTES
 
 The resultset takes various attributes that modify its behavior.
