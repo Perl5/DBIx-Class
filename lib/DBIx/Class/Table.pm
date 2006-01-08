@@ -66,9 +66,7 @@ Convenience alias to add_columns
 
 sub resultset {
   my $self = shift;
-  my $rs_class = $self->resultset_class;
-  eval "use $rs_class;";
-  return $rs_class->new($self);
+  return $self->{resultset} ||= $self->resultset_class->new($self);
 }
 
 =head2 has_column                                                                
@@ -135,6 +133,14 @@ Read-only accessor which returns the list of primary keys.
 sub primary_columns {
   return @{shift->_primaries||[]};
 }
+
+=head2 from
+
+Returns the FROM entry for the table (i.e. the table name)
+
+=cut
+
+sub from { return shift->name(@_); }
 
 
 1;

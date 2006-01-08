@@ -74,20 +74,6 @@ sub in_storage {
   return $self->{_in_storage};
 }
 
-=head2 create
-
-  my $new = My::Class->create($attrs);
-
-A shortcut for My::Class->new($attrs)->insert;
-
-=cut
-
-sub create {
-  my ($class, $attrs) = @_;
-  $class->throw( "create needs a hashref" ) unless ref $attrs eq 'HASH';
-  return $class->new($attrs)->insert;
-}
-
 =head2 update
 
   $obj->update;
@@ -102,7 +88,7 @@ sub update {
   $self->throw( "Not in database" ) unless $self->in_storage;
   my %to_update = $self->get_dirty_columns;
   return -1 unless keys %to_update;
-  my $rows = $self->storage->update($self->_table_name, \%to_update,
+  my $rows = $self->storage->update($self->result_source->from, \%to_update,
                                       $self->ident_condition);
   if ($rows == 0) {
     $self->throw( "Can't update ${self}: row not found" );
@@ -128,7 +114,7 @@ sub delete {
   if (ref $self) {
     $self->throw( "Not in database" ) unless $self->in_storage;
     #warn $self->_ident_cond.' '.join(', ', $self->_ident_values);
-    $self->storage->delete($self->_table_name, $self->ident_condition);
+    $self->storage->delete($self->result_source->from, $self->ident_condition);
     $self->in_storage(undef);
     #$self->store_column($_ => undef) for $self->primary_columns;
       # Should probably also arrange to trash PK if auto

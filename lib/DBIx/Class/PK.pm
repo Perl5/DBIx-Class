@@ -89,9 +89,9 @@ sub _create_ID {
 }
 
 sub ident_condition {
-  my ($self) = @_;
+  my ($self, $alias) = @_;
   my %cond;
-  $cond{$_} = $self->get_column($_) for $self->primary_columns;
+  $cond{(defined $alias ? "${alias}.$_" : $_)} = $self->get_column($_) for $self->primary_columns;
   return \%cond;
 }
 

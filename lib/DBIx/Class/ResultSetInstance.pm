@@ -8,5 +8,6 @@ sub search_like    { shift->resultset_instance->search_like(@_);    }
 sub count          { shift->resultset_instance->count(@_);          }
 sub count_literal  { shift->resultset_instance->count_literal(@_);  }
 sub find           { shift->resultset_instance->find(@_);           }
+sub create         { shift->resultset_instance->create(@_);          }
 
 1;
