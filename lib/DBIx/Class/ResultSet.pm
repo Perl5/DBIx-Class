@@ -137,6 +137,36 @@ sub search_literal {
   return $self->search(\$cond, $attrs);
 }
 
+=head2 find(@colvalues), find(\%cols)
+
+Finds a row based on its primary key(s).                                        
+
+=cut                                                                            
+
+sub find {
+  my ($self, @vals) = @_;
+  my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
+  my @pk = $self->{source}->primary_columns;
+  #use Data::Dumper; warn Dumper($attrs, @vals, @pk);
+  $self->{source}->result_class->throw( "Can't find unless primary columns are defined" )
+    unless @pk;
+  my $query;
+  if (ref $vals[0] eq 'HASH') {
+    $query = $vals[0];
+  } elsif (@pk == @vals) {
+    $query = {};
+    @{$query}{@pk} = @vals;
+  } else {
+    $query = {@vals};
+  }
+  #warn Dumper($query);
+  # Useless -> disabled
+  #$self->{source}->result_class->throw( "Can't find unless all primary keys are specified" )
+  #  unless (keys %$query >= @pk); # If we check 'em we run afoul of uc/lc
+                                  # column names etc. Not sure what to do yet
+  return $self->search($query)->next;
+}
+
 =head2 search_related
 
   $rs->search_related('relname', $cond?, $attrs?);

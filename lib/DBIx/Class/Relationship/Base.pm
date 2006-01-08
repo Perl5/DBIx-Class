@@ -280,6 +280,9 @@ sub new_related {
 sub find_related {
   my $self = shift;
   my $rel = shift;
+  return $self->search_related($rel)->find(@_);
+
+  # Marked for death.
   my $rel_obj = $self->_relationships->{$rel};
   $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
   my ($cond) = $self->resolve_condition($rel_obj->{cond}, { _action => 'convert' });
