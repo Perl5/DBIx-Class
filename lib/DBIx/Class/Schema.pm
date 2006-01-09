@@ -98,6 +98,33 @@ sub class {
   return $self->class_registrations->{$class};
 }
 
+=head2 source
+
+  my $source = $schema->source('Foo');
+
+Returns the result source object for the registered name
+
+=cut
+
+sub source {
+  my ($self, $class) = @_;
+  return $self->class_registrations->{$class}->result_source;
+}
+
+=head2 resultset
+
+  my $rs = $schema->resultset('Foo');
+
+Returns the resultset for the registered name
+
+=cut
+
+sub resultset {
+  my ($self, $class) = @_;
+  return $self->class_registrations->{$class}->result_source->resultset;
+}
+
+
 =head2  load_classes [<classes>, (<class>, <class>), {<namespace> => [<classes>]}]
 
 Uses L<Module::Find> to find all classes under the database class' namespace,
@@ -182,10 +209,10 @@ you expect.
 =cut
 
 sub compose_connection {
-  my ($class, $target, @info) = @_;
+  my ($self, $target, @info) = @_;
   my $conn_class = "${target}::_db";
-  $class->setup_connection_class($conn_class, @info);
-  my $schema = $class->compose_namespace($target, $conn_class);
+  $self->setup_connection_class($conn_class, @info);
+  my $schema = $self->compose_namespace($target, $conn_class);
   $schema->storage($conn_class->storage);
   foreach my $class ($schema->registered_classes) {
     my $source = $class->result_source;
@@ -193,6 +220,7 @@ sub compose_connection {
     $source->schema($schema);
     $source->result_class($class);
     $class->mk_classdata(result_source => $source);
+    $class->mk_classdata(resultset_instance => $source->resultset);
   }
   return $schema;
 }
@@ -205,7 +233,7 @@ sub compose_namespace {
   my $schema = bless({ }, $class);
   while (my ($comp, $comp_class) = each %reg) {
     my $target_class = "${target}::${comp}";
-    $class->inject_base($target_class, $comp_class, $base);
+    $class->inject_base($target_class, $comp_class, ($base ? $base : ()));
     @map{$comp, $comp_class} = ($target_class, $target_class);
   }
   $schema->class_registrations(\%map);

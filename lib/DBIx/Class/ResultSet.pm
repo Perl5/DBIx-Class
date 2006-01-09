@@ -6,6 +6,7 @@ use overload
         '0+'     => 'count',
         fallback => 1;
 use Data::Page;
+use Storable;
 
 =head1 NAME
 
@@ -37,7 +38,7 @@ sub new {
   $class->new_result(@_) if ref $class;
   my ($source, $attrs) = @_;
   #use Data::Dumper; warn Dumper(@_);
-  $attrs = { %{ $attrs || {} } };
+  $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
   my %seen;
   my $alias = ($attrs->{alias} ||= 'me');
   if (!$attrs->{select}) {
@@ -180,18 +181,13 @@ sub search_related {
   $self->{source}->result_class->throw(
     "No such relationship ${rel} in search_related")
       unless $rel_obj;
-  my $r_class = $self->{source}->result_class->resolve_class($rel_obj->{class});
-  my $source = $r_class->result_source;
-  $source = bless({ %{$source} }, ref $source || $source);
-  $source->storage($self->{source}->storage);
-  $source->result_class($r_class);
   my $rs = $self->search(undef, { join => $rel });
-  #use Data::Dumper; warn Dumper($rs);
-  return $source->resultset_class->new(
-           $source, { %{$rs->{attrs}},
-                      alias => $rel,
-                      select => undef(),
-                      as => undef() }
+  return $self->{source}->schema->resultset($rel_obj->{class}
+           )->search( undef,
+             { %{$rs->{attrs}},
+               alias => $rel,
+               select => undef(),
+               as => undef() }
            )->search(@rest);
 }
 
@@ -290,8 +286,8 @@ sub count {
     my $attrs = { %{ $self->{attrs} },
                   select => { 'count' => '*' },
                   as => [ 'count' ] };
-    # offset, order by and page are not needed to count
-    delete $attrs->{$_} for qw/rows offset order_by page pager/;
+    # offset, order by and page are not needed to count. record_filter is cdbi
+    delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
         
     ($self->{count}) = (ref $self)->new($self->{source}, $attrs)->cursor->next;
   }

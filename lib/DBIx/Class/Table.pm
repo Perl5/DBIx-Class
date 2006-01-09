@@ -66,7 +66,7 @@ Convenience alias to add_columns
 
 sub resultset {
   my $self = shift;
-  return $self->{resultset} ||= $self->resultset_class->new($self);
+  return $self->resultset_class->new($self);
 }
 
 =head2 has_column                                                                
