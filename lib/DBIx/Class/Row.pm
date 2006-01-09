@@ -247,11 +247,13 @@ Called by ResultSet to inflate a result from storage
 sub inflate_result {
   my ($class, $me, $prefetch) = @_;
   #use Data::Dumper; print Dumper(@_);
-  my $new = bless({ _column_data => $me }, ref $class || $class);
-  $new->in_storage(1);
+  my $new = bless({ _column_data => $me, _in_storage => 1 },
+                    ref $class || $class);
+  my $schema;
   PRE: foreach my $pre (keys %{$prefetch||{}}) {
     my $rel_obj = $class->_relationships->{$pre};
-    my $pre_class = $class->resolve_class($rel_obj->{class});
+    $schema ||= $new->result_source->schema;
+    my $pre_class = $schema->class($rel_obj->{class});
     my $fetched = $pre_class->inflate_result(@{$prefetch->{$pre}});
     $class->throw("No accessor for prefetched $pre")
       unless defined $rel_obj->{attrs}{accessor};

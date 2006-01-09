@@ -67,10 +67,11 @@ compose_connection to create/modify all the existing database classes.
 =cut
 
 sub register_class {
-  my ($class, $name, $to_register) = @_;
-  my %reg = %{$class->class_registrations};
+  my ($self, $name, $to_register) = @_;
+  my %reg = %{$self->class_registrations};
   $reg{$name} = $to_register;
-  $class->class_registrations(\%reg);
+  $self->class_registrations(\%reg);
+  $to_register->result_source->schema($self);
 }
 
 =head2 registered_classes

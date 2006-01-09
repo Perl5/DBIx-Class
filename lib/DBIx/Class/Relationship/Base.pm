@@ -221,7 +221,7 @@ sub search_related {
   #use Data::Dumper; warn Dumper($query);
   #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}||[]});
   delete $attrs->{_action};
-  return $self->resolve_class($rel_obj->{class}
+  return $self->result_source->schema->resultset($rel_obj->{class}
            )->search($query, $attrs);
 }
 
@@ -296,7 +296,7 @@ sub set_from_related {
   $self->throw( "set_from_related can only handle a hash condition; the "
     ."condition for $rel is of type ".(ref $cond ? ref $cond : 'plain scalar'))
       unless ref $cond eq 'HASH';
-  my $f_class = $self->resolve_class($rel_obj->{class});
+  my $f_class = $self->result_source->schema->class($rel_obj->{class});
   $self->throw( "Object $f_obj isn't a ".$f_class )
     unless $f_obj->isa($f_class);
   foreach my $key (keys %$cond) {

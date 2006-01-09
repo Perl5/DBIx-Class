@@ -10,9 +10,9 @@ __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything 
 
 __PACKAGE__->mk_classdata('table_class' => 'DBIx::Class::Table');
 
-sub iterator_class { shift->table_instance->resultset_class(@_) }
-sub resultset_class { shift->table_instance->resultset_class(@_) }
-sub _table_name { shift->table_instance->name }
+sub iterator_class { shift->result_source->resultset_class(@_) }
+sub resultset_class { shift->result_source->resultset_class(@_) }
+sub _table_name { shift->result_source->name }
 
 =head1 NAME 
 
@@ -43,12 +43,12 @@ Adds columns to the current class and creates accessors for them.
 
 sub add_columns {
   my ($class, @cols) = @_;
-  $class->table_instance->add_columns(@cols);
+  $class->result_source->add_columns(@cols);
   $class->_mk_column_accessors(@cols);
 }
 
 sub _select_columns {
-  return shift->table_instance->columns;
+  return shift->result_source->columns;
 }
 
 =head2 table
@@ -61,18 +61,22 @@ Gets or sets the table name.
 
 sub table {
   my ($class, $table) = @_;
-  return $class->table_instance->name unless $table;
+  return $class->result_source->name unless $table;
   unless (ref $table) {
     $table = $class->table_class->new(
       {
         name => $table,
         result_class => $class,
       });
-    if ($class->can('table_instance')) {
-      $table->{_columns} = { %{$class->table_instance->{_columns}||{}} };
+    if ($class->can('result_source')) {
+      $table->{_columns} = { %{$class->result_source->{_columns}||{}} };
     }
   }
-  $class->mk_classdata('table_instance' => $table);
+  $class->mk_classdata('result_source' => $table);
+  if ($class->can('schema_instance')) {
+    $class =~ m/([^:]+)$/;
+    $class->schema_instance->register_class($class, $class);
+  }
 }
 
 =head2 has_column                                                                
@@ -85,7 +89,7 @@ Returns 1 if the class has a column of this name, 0 otherwise.
 
 sub has_column {
   my ($self, $column) = @_;
-  return $self->table_instance->has_column($column);
+  return $self->result_source->has_column($column);
 }
 
 =head2 column_info                                                               
@@ -98,7 +102,7 @@ Returns the column metadata hashref for a column.
 
 sub column_info {
   my ($self, $column) = @_;
-  return $self->table_instance->column_info($column);
+  return $self->result_source->column_info($column);
 }
 
 =head2 columns
@@ -108,11 +112,11 @@ sub column_info {
 =cut                                                                            
 
 sub columns {
-  return shift->table_instance->columns(@_);
+  return shift->result_source->columns(@_);
 }
 
-sub set_primary_key { shift->table_instance->set_primary_key(@_); }
-sub primary_columns { shift->table_instance->primary_columns(@_); }
+sub set_primary_key { shift->result_source->set_primary_key(@_); }
+sub primary_columns { shift->result_source->primary_columns(@_); }
 
 1;
 
