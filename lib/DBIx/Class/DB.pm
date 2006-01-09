@@ -15,7 +15,7 @@ sub storage { shift->storage_instance(@_); }
 sub resultset_instance {
   my $class = shift;
   my $table = $class->table_instance->new($class->table_instance);
-  $table->storage($class->storage_instance);
+  $table->schema($class);
   $table->result_class($class);
   return $table->resultset;
 }
@@ -23,7 +23,7 @@ sub resultset_instance {
 sub result_source {
   my $class = shift;
   my $table = $class->table_instance->new($class->table_instance);
-  $table->storage($class->storage_instance);
+  $table->schema($class);
   $table->result_class($class);
   return $table;
 }

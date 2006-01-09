@@ -10,7 +10,7 @@ mkdir("t/var") unless -d "t/var";
 
 my $dsn = "dbi:SQLite:${db_file}";
 
-DBICTest::Schema->compose_connection('DBICTest' => $dsn);
+my $schema = DBICTest::Schema->compose_connection('DBICTest' => $dsn);
 
 my $dbh = DBI->connect($dsn);
 
@@ -125,5 +125,7 @@ INSERT INTO cd_to_producer (cd, producer) VALUES (1, 1);
 EOSQL
 
 $dbh->do($_) for split(/\n\n/, $sql);
+
+$schema->storage->dbh->do("PRAGMA synchronous = OFF");
 
 1;

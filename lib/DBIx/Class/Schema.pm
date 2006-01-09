@@ -85,6 +85,19 @@ sub registered_classes {
   return values %{shift->class_registrations};
 }
 
+=head2 class
+
+  my $class = $schema->class('Foo');
+
+Shortcut to retrieve a single class by its registered name
+
+=cut
+
+sub class {
+  my ($self, $class) = @_;
+  return $self->class_registrations->{$class};
+}
+
 =head2  load_classes [<classes>, (<class>, <class>), {<namespace> => [<classes>]}]
 
 Uses L<Module::Find> to find all classes under the database class' namespace,
@@ -136,6 +149,9 @@ sub load_classes {
     foreach my $comp (@{$comps_for{$prefix}||[]}) {
       my $comp_class = "${prefix}::${comp}";
       eval "use $comp_class"; # If it fails, assume the user fixed it
+      if ($@) {
+        die $@ unless $@ =~ /Can't locate/;
+      }
       $class->register_class($comp => $comp_class);
     }
   }
@@ -169,7 +185,16 @@ sub compose_connection {
   my ($class, $target, @info) = @_;
   my $conn_class = "${target}::_db";
   $class->setup_connection_class($conn_class, @info);
-  $class->compose_namespace($target, $conn_class);
+  my $schema = $class->compose_namespace($target, $conn_class);
+  $schema->storage($conn_class->storage);
+  foreach my $class ($schema->registered_classes) {
+    my $source = $class->result_source;
+    $source = $source->new($source);
+    $source->schema($schema);
+    $source->result_class($class);
+    $class->mk_classdata(result_source => $source);
+  }
+  return $schema;
 }
 
 sub compose_namespace {
@@ -177,21 +202,22 @@ sub compose_namespace {
   my %reg = %{ $class->class_registrations };
   my %target;
   my %map;
+  my $schema = bless({ }, $class);
   while (my ($comp, $comp_class) = each %reg) {
     my $target_class = "${target}::${comp}";
     $class->inject_base($target_class, $comp_class, $base);
     @map{$comp, $comp_class} = ($target_class, $target_class);
   }
+  $schema->class_registrations(\%map);
   {
     no strict 'refs';
+    *{"${target}::schema"} =
+      sub { $schema };
     *{"${target}::class"} =
-      sub {
-        my ($class, $to_map) = @_;
-        return $map{$to_map};
-      };
-    *{"${target}::classes"} = sub { return \%map; };
+      sub { shift->schema->class(@_) };
   }
   $base->class_resolver($target);
+  return $schema;
 }
 
 =head2 setup_connection_class <$target> <@info>

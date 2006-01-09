@@ -11,7 +11,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_columns _primaries name resultset_class result_class storage/);
+  qw/_columns _primaries name resultset_class result_class schema/);
 
 =head1 NAME 
 
@@ -140,8 +140,15 @@ Returns the FROM entry for the table (i.e. the table name)
 
 =cut
 
-sub from { return shift->name(@_); }
+sub from { shift->name; }
 
+=head2 storage
+
+Returns the storage handle for the current schema
+
+=cut
+
+sub storage { shift->schema->storage; }
 
 1;
 
