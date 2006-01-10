@@ -155,24 +155,30 @@ of arguments as a search.
 L<DBIx::Class> provides a few different ways to retrieve data from
 your database.  The simplest looks something like this:
 
-    my $album = MyApp::DB::Album->search( artist => 'Santana' );
+    my $iter = MyApp::DB::Album->search( artist => 'Santana' );
 
-Note that all the search methods return a L<DBIx::Class::ResultSet>
-object in scalar context or a list containing all the records in list
-context.
+Note that all the C<search> methods return a L<DBIx::Class::ResultSet>
+object in scalar context. So, if you want the first album:
+
+    my $album = $iter->first;
+
+In list context, the C<search> methods return all of the matching
+rows:
+
+    my @albums = MyApp::DB::Album->search( artist => 'Santana' );
 
 We also provide a handy shortcut for doing a C<LIKE> search:
 
-    my $album = MyApp::DB::Album->search_like( artist => 'Jimi%' );
+    my $iter = MyApp::DB::Album->search_like( artist => 'Jimi%' );
 
 Or you can provide your own handmade C<WHERE> clause, like:
   
-    my $album = MyApp::DB::Album->search_literal( 'artist = ?', 'Peter Frampton' );
+    my $iter = MyApp::DB::Album->search_literal( 'artist = ?', 'Peter Frampton' );
 
 The preferred way to generate complex queries is to provide a
 L<SQL::Abstract> construct to C<search>:
 
-    my $album = MyApp::DB::Album->search({
+    my $iter = MyApp::DB::Album->search({
         artist => { '!=', 'Janis Joplin' },
         year   => { '<' => 1980 },
         id     => [ 1, 14, 15, 65, 43 ]
@@ -184,7 +190,7 @@ L<DBIx::Class::Manual::Cookbook>.
 The search can also be modified by passing another hash with
 attributes:
 
-    my $album = MyApp::DB::Album->search( 
+    my $iter = MyApp::DB::Album->search( 
         { artist => 'Bob Marley' },
         { page => 1, rows => 2, order_by => 'year' }
     );
