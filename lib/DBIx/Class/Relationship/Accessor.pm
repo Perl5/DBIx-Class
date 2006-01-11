@@ -6,7 +6,7 @@ use warnings;
 sub add_relationship {
   my ($class, $rel, @rest) = @_;
   my $ret = $class->next::method($rel => @rest);
-  my $rel_obj = $class->_relationships->{$rel};
+  my $rel_obj = $class->relationship_info($rel);
   if (my $acc_type = $rel_obj->{attrs}{accessor}) {
     $class->add_relationship_accessor($rel => $acc_type);
   }
@@ -33,7 +33,7 @@ sub add_relationship_accessor {
   } elsif ($acc_type eq 'filter') {
     $class->throw("No such column $rel to filter")
        unless $class->has_column($rel);
-    my $f_class = $class->_relationships->{$rel}{class};
+    my $f_class = $class->relationship_info($rel)->{class};
     $class->inflate_column($rel,
       { inflate => sub {
           my ($val, $self) = @_;

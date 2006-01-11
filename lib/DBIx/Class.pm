@@ -123,6 +123,12 @@ Marcus Ramberg <mramberg@cpan.org>
 
 Paul Makepeace
 
+CL Kao
+
+Jess Robinson
+
+Marcus Ramberg
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.

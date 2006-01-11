@@ -251,7 +251,8 @@ sub inflate_result {
                     ref $class || $class);
   my $schema;
   PRE: foreach my $pre (keys %{$prefetch||{}}) {
-    my $rel_obj = $class->_relationships->{$pre};
+    my $rel_obj = $class->relationship_info($pre);
+    die "Can't prefetch non-eistant relationship ${pre}" unless $rel_obj;
     $schema ||= $new->result_source->schema;
     my $pre_class = $schema->class($rel_obj->{class});
     my $fetched = $pre_class->inflate_result(@{$prefetch->{$pre}});

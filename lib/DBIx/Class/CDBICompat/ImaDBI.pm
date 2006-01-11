@@ -32,12 +32,14 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
         my ($from, $to) = split(/ /, $data);
         my ($from_class, $to_class) = @{$self->{_classes}}{$from, $to};
         my ($rel_obj) = grep { $_->{class} && $_->{class} eq $to_class }
-                          values %{ $from_class->_relationships };
+                          map { $from_class->relationship_info($_) }
+                            $from_class->relationships;
         unless ($rel_obj) {
           ($from, $to) = ($to, $from);
           ($from_class, $to_class) = ($to_class, $from_class);
           ($rel_obj) = grep { $_->{class} && $_->{class} eq $to_class }
-                         values %{ $from_class->_relationships };
+                          map { $from_class->relationship_info($_) }
+                            $from_class->relationships;
         }
         $self->throw( "No relationship to JOIN from ${from_class} to ${to_class}" )
           unless $rel_obj;

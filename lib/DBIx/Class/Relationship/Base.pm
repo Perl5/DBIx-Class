@@ -102,12 +102,12 @@ sub _resolve_join {
     return map { $class->_resolve_join($_, $alias) } @$join;
   } elsif (ref $join eq 'HASH') {
     return map { $class->_resolve_join($_, $alias),
-                 $class->_relationships->{$_}{class}->_resolve_join($join->{$_}, $_) }
+                 $class->relationship_info($_)->{class}->_resolve_join($join->{$_}, $_) }
            keys %$join;
   } elsif (ref $join) {
     $class->throw("No idea how to resolve join reftype ".ref $join);
   } else {
-    my $rel_obj = $class->_relationships->{$join};
+    my $rel_obj = $class->relationship_info($join);
     $class->throw("No such relationship ${join}") unless $rel_obj;
     my $j_class = $rel_obj->{class};
     my %join = (_action => 'join',
@@ -207,7 +207,7 @@ sub search_related {
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
     $attrs = { %{ pop(@_) } };
   }
-  my $rel_obj = $self->_relationships->{$rel};
+  my $rel_obj = $self->relationship_info($rel);
   $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
   $attrs = { %{$rel_obj->{attrs} || {}}, %{$attrs || {}} };
 
@@ -290,7 +290,7 @@ sub find_or_create_related {
 
 sub set_from_related {
   my ($self, $rel, $f_obj) = @_;
-  my $rel_obj = $self->_relationships->{$rel};
+  my $rel_obj = $self->relationship_info($rel);
   $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
   my $cond = $rel_obj->{cond};
   $self->throw( "set_from_related can only handle a hash condition; the "

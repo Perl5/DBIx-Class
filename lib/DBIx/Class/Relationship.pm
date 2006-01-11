@@ -15,6 +15,21 @@ __PACKAGE__->load_own_components(qw/
 
 __PACKAGE__->mk_classdata('_relationships', { } );
 
+sub relationships
+{
+    my $self = shift;
+
+    return keys %{$self->_relationships};
+}
+
+sub relationship_info
+{
+    my $self = shift;
+    my ($rel) = @_;
+
+    return $self->_relationships->{$rel};
+}
+
 =head1 NAME 
 
 DBIx::Class::Relationship - Inter-table relationships

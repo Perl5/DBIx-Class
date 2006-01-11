@@ -67,7 +67,7 @@ sub new {
       unless $seen{$pre};
     my @pre = 
       map { "$pre.$_" }
-      $source->result_class->_relationships->{$pre}->{class}->columns;
+      $source->result_class->relationship_info($pre)->{class}->columns;
     push(@{$attrs->{select}}, @pre);
     push(@{$attrs->{as}}, @pre);
   }
@@ -177,7 +177,7 @@ sub find {
 
 sub search_related {
   my ($self, $rel, @rest) = @_;
-  my $rel_obj = $self->{source}->result_class->_relationships->{$rel};
+  my $rel_obj = $self->{source}->result_class->relationship_info($rel);
   $self->{source}->result_class->throw(
     "No such relationship ${rel} in search_related")
       unless $rel_obj;
