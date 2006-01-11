@@ -6,7 +6,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 22 );
+        : ( tests => 23 );
 }
 
 # test the abstract join => SQL generator
@@ -80,6 +80,13 @@ $rs = DBICTest->class("CD")->search(
 cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->title, 'Come Be Depressed With Us', 'Correct record returned');
+
+# when using join attribute, make sure slice()ing all objects has same count as all()
+$rs = DBICTest->class("CD")->search(
+    { 'artist' => 1 },
+    { join => [qw/artist/], order_by => 'artist.name' }
+);
+cmp_ok( scalar $rs->all, '==', scalar $rs->slice(0, $rs->count - 1), 'slice() with join has same count as all()' );
 
 $rs = DBICTest->class("Artist")->search(
         { 'liner_notes.notes' => 'Kill Yourself!' },
