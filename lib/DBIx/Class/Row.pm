@@ -257,13 +257,13 @@ sub inflate_result {
     my $fetched = $pre_class->inflate_result(@{$prefetch->{$pre}});
     $class->throw("No accessor for prefetched $pre")
       unless defined $rel_obj->{attrs}{accessor};
-    if ($rel_obj->{attrs}{accessor} eq 'single') {
-      PRIMARY: foreach my $pri ($rel_obj->{class}->primary_columns) {
-        unless (defined $fetched->get_column($pri)) {
-          undef $fetched;
-          last PRIMARY;
-        }
+    PRIMARY: foreach my $pri ($rel_obj->{class}->primary_columns) {
+      unless (defined $fetched->get_column($pri)) {
+        undef $fetched;
+        last PRIMARY;
       }
+    }
+    if ($rel_obj->{attrs}{accessor} eq 'single') {
       $new->{_relationship_data}{$pre} = $fetched;
     } elsif ($rel_obj->{attrs}{accessor} eq 'filter') {
       $new->{_inflated_column}{$pre} = $fetched;
