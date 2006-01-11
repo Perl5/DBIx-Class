@@ -37,6 +37,12 @@ release for people to test against.
 
   IRC: irc.perl.org#dbix-class
 
+=head2 Inflating your date/time columns
+
+You can use L<DBIx::Class::InflateColumn> to automatically create
+L<DateTime> objects from your date/time columns. For more information,
+see L<DBIx::Class::InflateColumn>.
+
 =head1 POSTGRESQL-SPECIFIC PROBLEMS
 
 =head2 Can't get last insert ID; inserts with serial primary keys fail
