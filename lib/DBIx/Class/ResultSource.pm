@@ -45,7 +45,12 @@ sub add_columns {
     if !$self->_ordered_columns;
   push @{ $self->_ordered_columns }, @cols;
   while (my $col = shift @cols) {
-    $self->_columns->{$col} = (ref $cols[0] ? shift : {});
+
+    my $column_info = ref $cols[0] ? shift : {};
+      # If next entry is { ... } use that for the column info, if not
+      # use an empty hashref
+
+    $self->_columns->{$col} = $column_info;
   }
 }
 
