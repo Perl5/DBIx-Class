@@ -1,6 +1,6 @@
 sub run_tests {
 
-plan tests => 33; 
+plan tests => 34; 
 
 my @art = DBICTest->class("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -89,6 +89,11 @@ is($cd->title, 'Forkful of bees', 'set_columns ok');
 is($cd->year, 2005, 'set_columns ok');
 
 $cd->discard_changes;
+
+# check whether ResultSource->ordered_columns returns columns in order originally supplied
+my @cd = DBICTest->class("CD")->find(1)->result_source->ordered_columns;
+
+is_deeply( \@cd, [qw/cdid artist title year/], 'ordered_columns');
 
 $cd = DBICTest->class("CD")->search({ title => 'Spoonful of bees' }, { cols => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');

@@ -11,7 +11,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_columns _primaries name resultset_class result_class schema from/);
+  qw/_ordered_columns _columns _primaries name resultset_class result_class schema from/);
 
 =head1 NAME 
 
@@ -33,6 +33,7 @@ sub new {
   $class = ref $class if ref $class;
   my $new = bless({ %{$attrs || {}} }, $class);
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
+  $new->{_ordered_columns} ||= [];
   $new->{_columns} ||= {};
   $new->{name} ||= "!!NAME NOT SET!!";
   return $new;
@@ -40,6 +41,9 @@ sub new {
 
 sub add_columns {
   my ($self, @cols) = @_;
+  $self->_ordered_columns( \@cols )
+    if !$self->_ordered_columns;
+  push @{ $self->_ordered_columns }, @cols;
   while (my $col = shift @cols) {
     $self->_columns->{$col} = (ref $cols[0] ? shift : {});
   }
@@ -105,6 +109,19 @@ sub column_info {
 sub columns {
   croak "columns() is a read-only accessor, did you mean add_columns()?" if (@_ > 1);
   return keys %{shift->_columns};
+}
+
+=head2 ordered_columns
+
+  my @column_names = $obj->ordered_columns;
+
+Like columns(), but returns column names using the order in which they were
+originally supplied to add_columns().
+
+=cut
+
+sub ordered_columns {
+  return @{shift->{_ordered_columns}||[]};
 }
 
 =head2 set_primary_key(@cols)                                                   
