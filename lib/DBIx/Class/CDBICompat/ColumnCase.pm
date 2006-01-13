@@ -84,16 +84,6 @@ sub _mk_group_accessors {
                                                      @fields, @extra);
 }
 
-sub _cond_key {
-  my ($class, $attrs, $key, @rest) = @_;
-  return $class->next::method($attrs, lc($key), @rest);
-}
-
-sub _cond_value {
-  my ($class, $attrs, $key, @rest) = @_;
-  return $class->next::method($attrs, lc($key), @rest);
-}
-
 sub new {
   my ($class, $attrs, @rest) = @_;
   my %att;
