@@ -242,6 +242,8 @@ sub add_relationship {
 
   return 1;
 
+  # XXX disabled. doesn't work properly currently. skip in tests.
+
   my $f_source = $self->schema->source($f_source_name);
   unless ($f_source) {
     eval "require $f_source_name;";
@@ -287,6 +289,17 @@ sub relationship_info {
   return $self->_relationships->{$rel};
 } 
 
+=head2 has_relationship($rel)
+
+Returns 1 if the source has a relationship of this name, 0 otherwise.
+                                                                                
+=cut                                                                            
+
+sub has_relationship {
+  my ($self, $rel) = @_;
+  return exists $self->_relationships->{$rel};
+}
+
 =head2 resolve_join($relation)
 
 Returns the join structure required for the related result source
@@ -304,18 +317,45 @@ sub resolve_join {
   } elsif (ref $join) {
     die("No idea how to resolve join reftype ".ref $join);
   } else {
-    my $rel_obj = $self->relationship_info($join);
-    #use Data::Dumper; warn Dumper($class->result_source) unless $rel_obj;
-    die("No such relationship ${join}") unless $rel_obj;
-    my $j_class = $self->related_source($join)->result_class;
-    my %join = (_action => 'join',
-         _aliases => { 'self' => $alias, 'foreign' => $join },
-         _classes => { $alias => $self->result_class, $join => $j_class });
-    my $j_cond = $j_class->resolve_condition($rel_obj->{cond}, \%join);
-    return [ { $join => $j_class->_table_name,
-               -join_type => $rel_obj->{attrs}{join_type} || '' }, $j_cond ];
+    die("No such relationship ${join}") unless $self->has_relationship($join);
+    my $type = $self->relationship_info($join)->{attrs}{join_type} || '';
+    return [ { $join => $self->related_source($join)->from,
+               -join_type => $type },
+             $self->resolve_condition($join, $alias) ];
   }
 }
+
+=head2 resolve_condition($rel, $alias|$object)
+
+Returns the conditional for the specified relationship. If given an alias,
+returns a join condition; if given an object, inverts that object to produce
+a related conditional from that object.
+
+=cut
+
+sub resolve_condition {
+  my ($self, $rel, $for) = @_;
+  my $cond = $self->relationship_info($rel)->{cond};
+  #warn %$cond;
+  if (ref $cond eq 'HASH') {
+    my %ret;
+    while (my ($k, $v) = each %{$cond}) {
+      # XXX should probably check these are valid columns
+      $k =~ s/^foreign\./${rel}./ || die "Invalid rel cond key ${k}";
+      if (ref $for) { # Object
+        die "Invalid ref cond val ${v}" unless $v =~ m/^self\.(.*)$/;
+        $ret{$k} = $for->$1;
+      } else {
+        $v =~ s/^self\./${for}./ || die "Invalid rel cond val ${v}";
+      }
+      $ret{$k} = $v;
+    }
+    return \%ret;
+  } else {
+   die("Can't handle this yet :(");
+  }
+}
+
 
 =head2 related_source($relname)
 
