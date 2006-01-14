@@ -243,8 +243,10 @@ sub compose_namespace {
     no strict 'refs';
     *{"${target}::schema"} =
       sub { $schema };
-    *{"${target}::class"} =
-      sub { shift->schema->class(@_) };
+    foreach my $meth (qw/class source resultset/) {
+      *{"${target}::${meth}"} =
+        sub { shift->schema->$meth(@_) };
+    }
   }
   $base->class_resolver($target);
   return $schema;

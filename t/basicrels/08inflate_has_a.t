@@ -4,4 +4,4 @@ use DBICTest;
 use DBICTest::BasicRels;
 
 require "t/run/08inflate_has_a.tl";
-run_tests();
+run_tests("DBICTest");

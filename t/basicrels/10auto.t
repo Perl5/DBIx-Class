@@ -4,4 +4,4 @@ use DBICTest;
 use DBICTest::BasicRels;
 
 require "t/run/10auto.tl";
-run_tests();
+run_tests("DBICTest");

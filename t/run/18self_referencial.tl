@@ -1,4 +1,5 @@
 sub run_tests {
+my $schema = shift;
 
 # this test will check to see if you can have 2 columns
 # in the same class pointing at the same other class
@@ -20,7 +21,7 @@ sub run_tests {
 
 plan tests => 4;
 
-my $item = DBICTest->class("SelfRef")->find( 1 );
+my $item = $schema->class("SelfRef")->find( 1 );
 is( $item->name, 'First', 'proper start item' );
 
 my @aliases = $item->aliases;

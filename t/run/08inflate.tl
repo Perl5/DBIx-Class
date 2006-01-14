@@ -1,4 +1,5 @@
 sub run_tests {
+my $schema = shift;
 
 eval { require DateTime };
 plan skip_all => "Need DateTime for inflation tests" if $@;
@@ -12,7 +13,7 @@ DBICTest::Schema::CD->inflate_column( 'year',
 Class::C3->reinitialize;
 
 # inflation test
-my $cd = DBICTest->class("CD")->find(3);
+my $cd = $schema->class("CD")->find(3);
 
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 
@@ -23,7 +24,7 @@ my $now = DateTime->now;
 $cd->year( $now );
 $cd->update;
 
-($cd) = DBICTest->class("CD")->search( year => $now->year );
+($cd) = $schema->class("CD")->search( year => $now->year );
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 }

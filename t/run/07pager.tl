@@ -1,9 +1,10 @@
 sub run_tests {
+my $schema = shift;
 
 plan tests => 12;
 
 # first page
-my $it = DBICTest->class("CD")->search(
+my $it = $schema->class("CD")->search(
     {},
     { order_by => 'title',
       rows => 3,
@@ -24,7 +25,7 @@ $it->next;
 is( $it->next, undef, "next past end of page ok" );
 
 # second page, testing with array
-my @page2 = DBICTest->class("CD")->search( 
+my @page2 = $schema->class("CD")->search( 
     {},
     { order_by => 'title',
       rows => 3,
@@ -34,7 +35,7 @@ my @page2 = DBICTest->class("CD")->search(
 is( $page2[0]->title, "Generic Manufactured Singles", "second page first title ok" );
 
 # page a standard resultset
-$it = DBICTest->class("CD")->search(
+$it = $schema->class("CD")->search(
   {},
   { order_by => 'title',
     rows => 3 }
@@ -46,7 +47,7 @@ is( $page->count, 2, "standard resultset paged rs count ok" );
 is( $page->next->title, "Generic Manufactured Singles", "second page of standard resultset ok" );
 
 # test software-based limit paging
-$it = DBICTest->class("CD")->search(
+$it = $schema->class("CD")->search(
   {},
   { order_by => 'title',
     rows => 3,

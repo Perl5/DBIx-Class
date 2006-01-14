@@ -4,4 +4,4 @@ use DBICTest;
 use DBICTest::BasicRels;
 
 require "t/run/17join_count.tl";
-run_tests();
+run_tests("DBICTest");

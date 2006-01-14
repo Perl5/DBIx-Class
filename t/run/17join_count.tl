@@ -1,22 +1,23 @@
 sub run_tests {
+my $schema = shift;
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
 plan tests => 4;
 
-cmp_ok(DBICTest->class("CD")->count({ 'artist.name' => 'Caterwauler McCrae' },
+cmp_ok($schema->class("CD")->count({ 'artist.name' => 'Caterwauler McCrae' },
                            { join => 'artist' }),
            '==', 3, 'Count by has_a ok');
 
-cmp_ok(DBICTest->class("CD")->count({ 'tags.tag' => 'Blue' }, { join => 'tags' }),
+cmp_ok($schema->class("CD")->count({ 'tags.tag' => 'Blue' }, { join => 'tags' }),
            '==', 4, 'Count by has_many ok');
 
-cmp_ok(DBICTest->class("CD")->count(
+cmp_ok($schema->class("CD")->count(
            { 'liner_notes.notes' => { '!=' =>  undef } },
            { join => 'liner_notes' }),
            '==', 3, 'Count by might_have ok');
 
-cmp_ok(DBICTest->class("CD")->count(
+cmp_ok($schema->class("CD")->count(
            { 'year' => { '>', 1998 }, 'tags.tag' => 'Cheesy',
                'liner_notes.notes' => { 'like' => 'Buy%' } },
            { join => [ qw/tags liner_notes/ ] } ),

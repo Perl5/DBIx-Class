@@ -1,11 +1,12 @@
 sub run_tests {
+my $schema = shift;
 
 plan tests => 2;
 
-DBICTest->class("Artist")->load_components(qw/PK::Auto::SQLite/);
+$schema->class("Artist")->load_components(qw/PK::Auto::SQLite/);
 
 # add an artist without primary key to test Auto
-my $artist = DBICTest->class("Artist")->create( { name => 'Auto' } );
+my $artist = $schema->class("Artist")->create( { name => 'Auto' } );
 $artist->name( 'Auto Change' );
 ok($artist->update, 'update on object created without PK ok');
 

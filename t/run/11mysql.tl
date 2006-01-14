@@ -1,4 +1,5 @@
 sub run_tests {
+my $schema = shift;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 

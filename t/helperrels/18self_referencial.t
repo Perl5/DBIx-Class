@@ -4,4 +4,4 @@ use DBICTest;
 use DBICTest::HelperRels;
 
 require "t/run/18self_referencial.tl";
-run_tests();
+run_tests("DBICTest");

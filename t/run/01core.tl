@@ -1,8 +1,9 @@
 sub run_tests {
+my $schema = shift;
 
 plan tests => 34; 
 
-my @art = DBICTest->class("Artist")->search({ }, { order_by => 'name DESC'});
+my @art = $schema->class("Artist")->search({ }, { order_by => 'name DESC'});
 
 cmp_ok(@art, '==', 3, "Three artists returned");
 
@@ -18,7 +19,7 @@ is($art->get_column("name"), 'We Are In Rehab', 'And via get_column');
 
 ok($art->update, 'Update run');
 
-@art = DBICTest->class("Artist")->search({ name => 'We Are In Rehab' });
+@art = $schema->class("Artist")->search({ name => 'We Are In Rehab' });
 
 cmp_ok(@art, '==', 1, "Changed artist returned by search");
 
@@ -26,7 +27,7 @@ cmp_ok($art[0]->artistid, '==', 3,'Correct artist too');
 
 $art->delete;
 
-@art = DBICTest->class("Artist")->search({ });
+@art = $schema->class("Artist")->search({ });
 
 cmp_ok(@art, '==', 2, 'And then there were two');
 
@@ -42,15 +43,15 @@ $art->insert;
 
 ok($art->in_storage, "Re-created");
 
-@art = DBICTest->class("Artist")->search({ });
+@art = $schema->class("Artist")->search({ });
 
 cmp_ok(@art, '==', 3, 'And now there are three again');
 
-my $new = DBICTest->class("Artist")->create({ artistid => 4 });
+my $new = $schema->class("Artist")->create({ artistid => 4 });
 
 cmp_ok($new->artistid, '==', 4, 'Create produced record ok');
 
-@art = DBICTest->class("Artist")->search({ });
+@art = $schema->class("Artist")->search({ });
 
 cmp_ok(@art, '==', 4, "Oh my god! There's four of them!");
 
@@ -66,15 +67,15 @@ $new->name('Man With A Spoon');
 
 $new->update;
 
-$new_again = DBICTest->class("Artist")->find(4);
+$new_again = $schema->class("Artist")->find(4);
 
 is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is($new_again->ID, 'DBICTest::Artist|artistid=4', 'unique object id generated correctly');
 
-is(DBICTest->class("Artist")->count, 4, 'count ok');
+is($schema->class("Artist")->count, 4, 'count ok');
 
-my $cd = DBICTest->class("CD")->find(1);
+my $cd = $schema->class("CD")->find(1);
 my %cols = $cd->get_columns;
 
 cmp_ok(keys %cols, '==', 4, 'get_columns number of columns ok');
@@ -91,15 +92,15 @@ is($cd->year, 2005, 'set_columns ok');
 $cd->discard_changes;
 
 # check whether ResultSource->ordered_columns returns columns in order originally supplied
-my @cd = DBICTest->class("CD")->find(1)->result_source->ordered_columns;
+my @cd = $schema->source("CD")->ordered_columns;
 
 is_deeply( \@cd, [qw/cdid artist title year/], 'ordered_columns');
 
-$cd = DBICTest->class("CD")->search({ title => 'Spoonful of bees' }, { cols => ['title'] })->next;
+$cd = $schema->class("CD")->search({ title => 'Spoonful of bees' }, { cols => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');
 
 # insert_or_update
-$new = DBICTest->class("Track")->new( {
+$new = $schema->class("Track")->new( {
   trackid => 100,
   cd => 1,
   position => 1,
@@ -111,26 +112,26 @@ ok($new->in_storage, 'insert_or_update insert ok');
 # test in update mode
 $new->position(5);
 $new->insert_or_update;
-is( DBICTest->class("Track")->find(100)->position, 5, 'insert_or_update update ok');
+is( $schema->class("Track")->find(100)->position, 5, 'insert_or_update update ok');
 
-eval { DBICTest->class("Track")->load_components('DoesNotExist'); };
+eval { $schema->class("Track")->load_components('DoesNotExist'); };
 
 ok $@, $@;
 
-is(DBICTest->class("Artist")->field_name_for->{name}, 'artist name', 'mk_classdata usage ok');
+is($schema->class("Artist")->field_name_for->{name}, 'artist name', 'mk_classdata usage ok');
 
 my $search = [ { 'tags.tag' => 'Cheesy' }, { 'tags.tag' => 'Blue' } ];
 
-my $or_rs = DBICTest->class("CD")->search($search, { join => 'tags',
+my $or_rs = $schema->class("CD")->search($search, { join => 'tags',
                                                   order_by => 'cdid' });
 
 cmp_ok($or_rs->count, '==', 5, 'Search with OR ok');
 
-my $distinct_rs = DBICTest->class("CD")->search($search, { join => 'tags', distinct => 1 });
+my $distinct_rs = $schema->class("CD")->search($search, { join => 'tags', distinct => 1 });
 
 cmp_ok($distinct_rs->all, '==', 4, 'DISTINCT search with OR ok');
 
-my $tag_rs = DBICTest->class('Tag')->search(
+my $tag_rs = $schema->class('Tag')->search(
                [ { 'me.tag' => 'Cheesy' }, { 'me.tag' => 'Blue' } ]);
 
 my $rel_rs = $tag_rs->search_related('cd');
