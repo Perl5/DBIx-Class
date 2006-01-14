@@ -109,7 +109,8 @@ Returns the result source object for the registered name
 
 sub source {
   my ($self, $class) = @_;
-  return $self->class_registrations->{$class}->result_source;
+  return $self->class_registrations->{$class}->result_source
+    if $self->class_registrations->{$class};
 }
 
 =head2 resultset
@@ -181,6 +182,7 @@ sub load_classes {
         die $@ unless $@ =~ /Can't locate/;
       }
       $class->register_class($comp => $comp_class);
+      #$class->register_class($comp_class => $comp_class);
     }
   }
 }

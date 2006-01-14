@@ -105,9 +105,13 @@ Rolls back the current transaction.
 
 sub txn_rollback { $_[0]->storage->txn_rollback }
 
-sub resolve_class {
-  warn "resolve_class deprecated as of 0.04999_02";
-  return shift->class_resolver->class(@_);
+{
+  my $warn;
+
+  sub resolve_class {
+    warn "resolve_class deprecated as of 0.04999_02" unless $warn++;
+    return shift->class_resolver->class(@_);
+  }
 }
 
 1;

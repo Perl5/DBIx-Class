@@ -59,11 +59,11 @@ sub new {
         $seen{$j} = 1;
       }
     }
-    push(@{$attrs->{from}}, $source->result_class->_resolve_join($join, $attrs->{alias}));
+    push(@{$attrs->{from}}, $source->resolve_join($join, $attrs->{alias}));
   }
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
   foreach my $pre (@{delete $attrs->{prefetch} || []}) {
-    push(@{$attrs->{from}}, $source->result_class->_resolve_join($pre, $attrs->{alias}))
+    push(@{$attrs->{from}}, $source->resolve_join($pre, $attrs->{alias}))
       unless $seen{$pre};
     my @pre = 
       map { "$pre.$_" }

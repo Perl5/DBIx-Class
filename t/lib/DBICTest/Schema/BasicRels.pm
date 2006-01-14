@@ -19,6 +19,7 @@ DBICTest::Schema::Artist->add_relationship(
 DBICTest::Schema::CD->add_relationship(
     artist => 'DBICTest::Schema::Artist',
     { 'foreign.artistid' => 'self.artist' },
+    { accessor => 'filter' },
 );
 DBICTest::Schema::CD->add_relationship(
     tracks => 'DBICTest::Schema::Track',
@@ -34,7 +35,7 @@ DBICTest::Schema::CD->add_relationship(
 DBICTest::Schema::CD->add_relationship(
     liner_notes => 'DBICTest::Schema::LinerNotes',
     { 'foreign.liner_id' => 'self.cdid' },
-    { join_type => 'LEFT' }
+    { join_type => 'LEFT', accessor => 'single' }
 );
 DBICTest::Schema::CD->add_relationship(
     cd_to_producer => 'DBICTest::Schema::CD_to_Producer',

@@ -72,28 +72,15 @@ created, which calls C<create_related> for the relationship.
 =cut
 
 sub add_relationship {
-  my ($class, $rel, $f_class, $cond, $attrs) = @_;
-  die "Can't create relationship without join condition" unless $cond;
-  $attrs ||= {};
-  eval "require $f_class;";
-  if ($@) {
-    $class->throw($@) unless $@ =~ /Can't locate/;
-  }
-  my %rels = %{ $class->_relationships };
-  $rels{$rel} = { class => $f_class,
-                  cond  => $cond,
-                  attrs => $attrs };
-  $class->_relationships(\%rels);
+  shift->result_source->add_relationship(@_);
+}
 
-  return unless eval { $f_class->can('columns'); }; # Foreign class not loaded
-  eval { $class->_resolve_join($rel, 'me') };
+sub relationships {
+  shift->result_source->relationships(@_);
+}
 
-  if ($@) { # If the resolve failed, back out and re-throw the error
-    delete $rels{$rel}; # 
-    $class->_relationships(\%rels);
-    $class->throw("Error creating relationship $rel: $@");
-  }
-  1;
+sub relationship_info {
+  shift->result_source->relationship_info(@_);
 }
 
 sub _resolve_join {
@@ -108,6 +95,7 @@ sub _resolve_join {
     $class->throw("No idea how to resolve join reftype ".ref $join);
   } else {
     my $rel_obj = $class->relationship_info($join);
+    #use Data::Dumper; warn Dumper($class->result_source) unless $rel_obj;
     $class->throw("No such relationship ${join}") unless $rel_obj;
     my $j_class = $rel_obj->{class};
     my %join = (_action => 'join',

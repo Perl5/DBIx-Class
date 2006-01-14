@@ -93,7 +93,7 @@ SKIP: {
 # try to add a bogus relationship using the wrong cols
 eval {
     DBICTest::Schema::Artist->add_relationship(
-        tracks => 'DBICTest::Track',
+        tracks => 'DBICTest::Schema::Track',
         { 'foreign.cd' => 'self.cdid' }
     );
 };

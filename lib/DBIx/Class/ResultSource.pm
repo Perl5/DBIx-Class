@@ -11,7 +11,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_ordered_columns _columns _primaries name resultset_class result_class schema from/);
+  qw/_ordered_columns _columns _primaries name resultset_class result_class schema from _relationships/);
 
 =head1 NAME 
 
@@ -35,6 +35,7 @@ sub new {
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
   $new->{_ordered_columns} ||= [];
   $new->{_columns} ||= {};
+  $new->{_relationships} ||= {};
   $new->{name} ||= "!!NAME NOT SET!!";
   return $new;
 }
@@ -171,6 +172,122 @@ Returns the storage handle for the current schema
 =cut
 
 sub storage { shift->schema->storage; }
+
+=head2 add_relationship
+
+  $source->add_relationship('relname', 'related_source', $cond, $attrs);
+
+The relation name can be arbitrary, but must be unique for each relationship
+attached to this result source. 'related_source' should be the name with
+which the related result source was registered with the current schema
+(for simple schemas this is usally either Some::Namespace::Foo or just Foo)
+
+The condition needs to be an SQL::Abstract-style representation of the join
+between the tables. For example, if you're creating a rel from Foo to Bar,
+
+  { 'foreign.foo_id' => 'self.id' }                                             
+                                                                                
+will result in the JOIN clause                                                  
+                                                                                
+  foo me JOIN bar bar ON bar.foo_id = me.id                                     
+                                                                                
+You can specify as many foreign => self mappings as necessary.
+
+Valid attributes are as follows:                                                
+                                                                                
+=over 4                                                                         
+                                                                                
+=item join_type                                                                 
+                                                                                
+Explicitly specifies the type of join to use in the relationship. Any SQL       
+join type is valid, e.g. C<LEFT> or C<RIGHT>. It will be placed in the SQL      
+command immediately before C<JOIN>.                                             
+                                                                                
+=item proxy                                                                     
+                                                                                
+An arrayref containing a list of accessors in the foreign class to proxy in     
+the main class. If, for example, you do the following:                          
+                                                                                
+  __PACKAGE__->might_have(bar => 'Bar', undef, { proxy => qw[/ margle /] });    
+                                                                                
+Then, assuming Bar has an accessor named margle, you can do:                    
+                                                                                
+  my $obj = Foo->find(1);                                                       
+  $obj->margle(10); # set margle; Bar object is created if it doesn't exist     
+                                                                                
+=item accessor                                                                  
+                                                                                
+Specifies the type of accessor that should be created for the relationship.     
+Valid values are C<single> (for when there is only a single related object),    
+C<multi> (when there can be many), and C<filter> (for when there is a single    
+related object, but you also want the relationship accessor to double as        
+a column accessor). For C<multi> accessors, an add_to_* method is also          
+created, which calls C<create_related> for the relationship.                    
+                                                                                
+=back
+
+=cut
+
+sub add_relationship {
+  my ($self, $rel, $f_source_name, $cond, $attrs) = @_;
+  die "Can't create relationship without join condition" unless $cond;
+  $attrs ||= {};
+  my %rels = %{ $self->_relationships };
+  $rels{$rel} = { class => $f_source_name,
+                  cond  => $cond,
+                  attrs => $attrs };
+  $self->_relationships(\%rels);
+
+  my $f_source = $self->schema->source($f_source_name);
+  unless ($f_source) {
+    eval "require $f_source_name;";
+    if ($@) {
+      die $@ unless $@ =~ /Can't locate/;
+    }
+    $f_source = $f_source_name->result_source;
+  }
+  return unless $f_source; # Can't test rel without f_source
+
+  eval { $self->resolve_join($rel, 'me') };
+
+  if ($@) { # If the resolve failed, back out and re-throw the error
+    delete $rels{$rel}; # 
+    $self->_relationships(\%rels);
+    die "Error creating relationship $rel: $@";
+  }
+  1;
+}
+
+=head2 relationships()
+
+Returns all valid relationship names for this source
+
+=cut
+
+sub relationships {
+  return keys %{shift->_relationships};
+}
+
+=head2 relationship_info($relname)
+
+Returns the relationship information for the specified relationship name
+
+=cut
+
+sub relationship_info {
+  my ($self, $rel) = @_;
+  return $self->_relationships->{$rel};
+} 
+
+=head2 resolve_join($relation)
+
+Returns the join structure required for the related result source
+
+=cut
+
+sub resolve_join {
+  shift->result_class->_resolve_join(@_);
+}
 
 1;
 

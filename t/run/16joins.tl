@@ -96,17 +96,6 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->name, 'We Are Goth', 'Correct record returned');
 
-DBICTest::Schema::CD->add_relationship(
-    artist => 'DBICTest::Schema::Artist',
-    { 'foreign.artistid' => 'self.artist' },
-    { accessor => 'filter' },
-);
-
-DBICTest::Schema::CD->add_relationship(
-    liner_notes => 'DBICTest::Schema::LinerNotes',
-    { 'foreign.liner_id' => 'self.cdid' },
-    { join_type => 'LEFT', accessor => 'single' });
-
 $rs = DBICTest->class("CD")->search(
            { 'artist.name' => 'Caterwauler McCrae' },
            { prefetch => [ qw/artist liner_notes/ ],
