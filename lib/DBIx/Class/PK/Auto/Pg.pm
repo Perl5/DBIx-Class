@@ -22,7 +22,7 @@ sub get_autoinc_seq {
     return $self->{_autoinc_seq} = $self->sequence;
   }
   
-  my @pri = keys %{ $self->_primaries };
+  my @pri = $self->primary_columns;
   my $dbh = $self->storage->dbh;
   while (my $col = shift @pri) {
     my $info = $dbh->column_info(undef,undef,$self->table,$col)->fetchrow_arrayref;
