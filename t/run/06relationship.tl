@@ -3,7 +3,7 @@ my $schema = shift;
 
 use strict;
 use warnings;  
-plan tests => 17;
+plan tests => 18;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -119,9 +119,16 @@ is($undir_maps->count, 1, 'found 1 undirected map for artist 1');
 $undir_maps = $schema->resultset("Artist")->find(2)->artist_undirected_maps;
 is($undir_maps->count, 1, 'found 1 undirected map for artist 2');
 
-my @art = $undir_maps->search_related('mapped_artists')->all;
+my $mapped_rs = $undir_maps->search_related('mapped_artists');
+
+my @art = $mapped_rs->all;
 
 cmp_ok(@art, '==', 2, "Both artist returned from map");
+
+my $searched = $mapped_rs->search({'mapped_artists.artistid' => {'!=', undef}});
+
+cmp_ok($searched->count, '==', 2, "Both artist returned from map after adding another condition");
+
 
 }
 

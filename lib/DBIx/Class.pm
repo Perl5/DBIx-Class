@@ -131,6 +131,8 @@ Marcus Ramberg
 
 Will Hawes
 
+Todd Lipcon
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.

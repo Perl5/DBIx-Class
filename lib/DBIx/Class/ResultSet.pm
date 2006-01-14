@@ -113,7 +113,9 @@ sub search {
   my $where = (@_ ? ((@_ == 1 || ref $_[0] eq "HASH") ? shift : {@_}) : undef());
   if (defined $where) {
     $where = (defined $attrs->{where}
-                ? { '-and' => [ $where, $attrs->{where} ] }
+                ? { '-and' =>
+                    [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
+                        $where, $attrs->{where} ] }
                 : $where);
     $attrs->{where} = $where;
   }
