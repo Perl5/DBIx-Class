@@ -83,81 +83,6 @@ sub relationship_info {
   shift->result_source->relationship_info(@_);
 }
 
-sub resolve_condition {
-  my ($self, $cond, $attrs) = @_;
-  if (ref $cond eq 'HASH') {
-    my %ret;
-    foreach my $key (keys %$cond) {
-      my $val = $cond->{$key};
-      if (ref $val) {
-        $self->throw("Can't handle this yet :(");
-      } else {
-        $ret{$self->_cond_key($attrs => $key)}
-          = $self->_cond_value($attrs => $key => $val);
-      }
-    }
-    return \%ret;
-  } else {
-   $self->throw("Can't handle this yet :(");
-  }
-}
-
-sub _cond_key {
-  my ($self, $attrs, $key, $alias) = @_;
-  my $action = $attrs->{_action} || '';
-  if ($action eq 'convert') {
-    unless ($key =~ s/^foreign\.//) {
-      $self->throw("Unable to convert relationship to WHERE clause: invalid key ${key}");
-    }
-    if (defined (my $alias = $attrs->{_aliases}{foreign})) {
-      return "${alias}.${key}";
-    } else {
-      return $key;
-    }
-  } elsif ($action eq 'join') {
-    return $key unless $key =~ /\./;
-    my ($type, $field) = split(/\./, $key);
-    if (my $alias = $attrs->{_aliases}{$type}) {
-      my $class = $attrs->{_classes}{$alias};
-      $self->throw("Unknown column $field on $class as $alias")
-        unless $class->has_column($field);
-      return join('.', $alias, $field);
-    } else {
-      $self->throw( "Unable to resolve type ${type}: only have aliases for ".
-            join(', ', keys %{$attrs->{_aliases} || {}}) );
-    }
-  }
-  return $self->next::method($attrs, $key);
-}
-
-sub _cond_value {
-  my ($self, $attrs, $key, $value) = @_;
-  my $action = $attrs->{_action} || '';
-  if ($action eq 'convert') {
-    unless ($value =~ s/^self\.//) {
-      $self->throw( "Unable to convert relationship to WHERE clause: invalid value ${value}" );
-    }
-    unless ($self->has_column($value)) {
-      $self->throw( "Unable to convert relationship to WHERE clause: no such accessor ${value}" );
-    }
-    return $self->get_column($value);
-  } elsif ($action eq 'join') {
-    return $key unless $key =~ /\./;
-    my ($type, $field) = split(/\./, $value);
-    if (my $alias = $attrs->{_aliases}{$type}) {
-      my $class = $attrs->{_classes}{$alias};
-      $self->throw("Unknown column $field on $class as $alias")
-        unless $class->has_column($field);
-      return join('.', $alias, $field);
-    } else {
-      $self->throw( "Unable to resolve type ${type}: only have aliases for ".
-            join(', ', keys %{$attrs->{_aliases} || {}}) );
-    }
-  }
-      
-  return $self->next::method($attrs, $key, $value)
-}
-
 =head2 search_related
 
   My::Table->search_related('relname', $cond, $attrs);
@@ -166,6 +91,7 @@ sub _cond_value {
 
 sub search_related {
   my $self = shift;
+  die "Can't call *_related as class methods" unless ref $self;
   my $rel = shift;
   my $attrs = { };
   if (@_ > 1 && ref $_[$#_] eq 'HASH') {
@@ -178,15 +104,12 @@ sub search_related {
   $self->throw( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
   my $query = ((@_ > 1) ? {@_} : shift);
 
-  $attrs->{_action} = 'convert'; # shouldn't we resolve the cond to something
-                                 # to merge into the AST really?
-  my ($cond) = $self->resolve_condition($rel_obj->{cond}, $attrs);
+  my ($cond) = $self->result_source->resolve_condition($rel_obj->{cond}, $rel, $self);
   $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
-  #use Data::Dumper; warn Dumper($query);
+  #use Data::Dumper; warn Dumper($cond);
   #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}||[]});
-  delete $attrs->{_action};
-  return $self->result_source->schema->resultset($rel_obj->{class}
-           )->search($query, $attrs);
+  return $self->result_source->related_source($rel
+           )->resultset->search($query, $attrs);
 }
 
 =head2 count_related
@@ -207,9 +130,9 @@ sub count_related {
 =cut
 
 sub create_related {
-  my $class = shift;
+  my $self = shift;
   my $rel = shift;
-  return $class->search_related($rel)->create(@_);
+  return $self->search_related($rel)->create(@_);
 }
 
 =head2 new_related

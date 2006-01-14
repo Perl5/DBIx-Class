@@ -79,8 +79,8 @@ sub resultset {
   return $self->resultset_class->new($self);
 }
 
-=head2 has_column                                                                
-                                                                                
+=head2 has_column
+
   if ($obj->has_column($col)) { ... }                                           
                                                                                 
 Returns 1 if the source has a column of this name, 0 otherwise.
@@ -317,38 +317,39 @@ sub resolve_join {
   } elsif (ref $join) {
     die("No idea how to resolve join reftype ".ref $join);
   } else {
-    die("No such relationship ${join}") unless $self->has_relationship($join);
-    my $type = $self->relationship_info($join)->{attrs}{join_type} || '';
+    my $rel_info = $self->relationship_info($join);
+    die("No such relationship ${join}") unless $rel_info;
+    my $type = $rel_info->{attrs}{join_type} || '';
     return [ { $join => $self->related_source($join)->from,
                -join_type => $type },
-             $self->resolve_condition($join, $alias) ];
+             $self->resolve_condition($rel_info->{cond}, $join, $alias) ];
   }
 }
 
-=head2 resolve_condition($rel, $alias|$object)
+=head2 resolve_condition($cond, $rel, $alias|$object)
 
-Returns the conditional for the specified relationship. If given an alias,
+Resolves the passed condition to a concrete query fragment. If given an alias,
 returns a join condition; if given an object, inverts that object to produce
 a related conditional from that object.
 
 =cut
 
 sub resolve_condition {
-  my ($self, $rel, $for) = @_;
-  my $cond = $self->relationship_info($rel)->{cond};
+  my ($self, $cond, $rel, $for) = @_;
   #warn %$cond;
   if (ref $cond eq 'HASH') {
     my %ret;
     while (my ($k, $v) = each %{$cond}) {
       # XXX should probably check these are valid columns
-      $k =~ s/^foreign\./${rel}./ || die "Invalid rel cond key ${k}";
+      $k =~ s/^foreign\.// || die "Invalid rel cond key ${k}";
+      $v =~ s/^self\.// || die "Invalid rel cond val ${v}";
       if (ref $for) { # Object
-        die "Invalid ref cond val ${v}" unless $v =~ m/^self\.(.*)$/;
-        $ret{$k} = $for->$1;
+        #warn "$self $k $for $v";
+        $ret{$k} = $for->get_column($v);
+        #warn %ret;
       } else {
-        $v =~ s/^self\./${for}./ || die "Invalid rel cond val ${v}";
+        $ret{"${rel}.${k}"} = "${for}.${v}";
       }
-      $ret{$k} = $v;
     }
     return \%ret;
   } else {
