@@ -21,7 +21,7 @@ my $schema = shift;
 
 plan tests => 4;
 
-my $item = $schema->class("SelfRef")->find( 1 );
+my $item = $schema->resultset("SelfRef")->find( 1 );
 is( $item->name, 'First', 'proper start item' );
 
 my @aliases = $item->aliases;

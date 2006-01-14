@@ -52,7 +52,7 @@ $match = 'person child INNER JOIN person father ON ( father.person_id = '
 
 is( $sa->_recurse_from(@j3), $match, 'join 3 (inner join) ok');
 
-my $rs = $schema->class("CD")->search(
+my $rs = $schema->resultset("CD")->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { from => [ { 'me' => 'cd' },
                          [
@@ -65,7 +65,7 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->title, 'Forkful of bees', 'Correct record returned');
 
-$rs = $schema->class("CD")->search(
+$rs = $schema->resultset("CD")->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { join => 'artist' });
 
@@ -73,7 +73,7 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->title, 'Forkful of bees', 'Correct record returned');
 
-$rs = $schema->class("CD")->search(
+$rs = $schema->resultset("CD")->search(
            { 'artist.name' => 'We Are Goth',
              'liner_notes.notes' => 'Kill Yourself!' },
            { join => [ qw/artist liner_notes/ ] });
@@ -83,13 +83,13 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 is($rs->first->title, 'Come Be Depressed With Us', 'Correct record returned');
 
 # when using join attribute, make sure slice()ing all objects has same count as all()
-$rs = $schema->class("CD")->search(
+$rs = $schema->resultset("CD")->search(
     { 'artist' => 1 },
     { join => [qw/artist/], order_by => 'artist.name' }
 );
 cmp_ok( scalar $rs->all, '==', scalar $rs->slice(0, $rs->count - 1), 'slice() with join has same count as all()' );
 
-$rs = $schema->class("Artist")->search(
+$rs = $schema->resultset("Artist")->search(
         { 'liner_notes.notes' => 'Kill Yourself!' },
         { join => { 'cds' => 'liner_notes' } });
 
@@ -97,7 +97,7 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->name, 'We Are Goth', 'Correct record returned');
 
-$rs = $schema->class("CD")->search(
+$rs = $schema->resultset("CD")->search(
            { 'artist.name' => 'Caterwauler McCrae' },
            { prefetch => [ qw/artist liner_notes/ ],
              order_by => 'me.cdid' });
@@ -132,19 +132,19 @@ $trace->close;
 unlink 't/var/dbic.trace';
 is($selects, 1, 'prefetch ran only 1 select statement');
 
-my ($artist) = $schema->class("Artist")->search({ 'cds.year' => 2001 },
+my ($artist) = $schema->resultset("Artist")->search({ 'cds.year' => 2001 },
                  { order_by => 'artistid DESC', join => 'cds' });
 
 is($artist->name, 'Random Boy Band', "Join search by object ok");
 
-my @cds = $schema->class("CD")->search({ 'liner_notes.notes' => 'Buy Merch!' },
+my @cds = $schema->resultset("CD")->search({ 'liner_notes.notes' => 'Buy Merch!' },
                                { join => 'liner_notes' });
 
 cmp_ok(scalar @cds, '==', 1, "Single CD retrieved via might_have");
 
 is($cds[0]->title, "Generic Manufactured Singles", "Correct CD retrieved");
 
-my @artists = $schema->class("Artist")->search({ 'tags.tag' => 'Shiny' },
+my @artists = $schema->resultset("Artist")->search({ 'tags.tag' => 'Shiny' },
                                        { join => { 'cds' => 'tags' } });
 
 cmp_ok( @artists, '==', 2, "two-join search ok" );

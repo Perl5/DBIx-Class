@@ -35,7 +35,7 @@ not perform any queries -- these are executed as needed by the other methods.
 
 sub new {
   my $class = shift;
-  $class->new_result(@_) if ref $class;
+  return $class->new_result(@_) if ref $class;
   my ($source, $attrs) = @_;
   #use Data::Dumper; warn Dumper(@_);
   $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
@@ -67,7 +67,7 @@ sub new {
       unless $seen{$pre};
     my @pre = 
       map { "$pre.$_" }
-      $source->result_class->relationship_info($pre)->{class}->columns;
+      $source->related_source($pre)->columns;
     push(@{$attrs->{select}}, @pre);
     push(@{$attrs->{as}}, @pre);
   }
@@ -177,7 +177,7 @@ sub find {
 
 sub search_related {
   my ($self, $rel, @rest) = @_;
-  my $rel_obj = $self->{source}->result_class->relationship_info($rel);
+  my $rel_obj = $self->{source}->relationship_info($rel);
   $self->{source}->result_class->throw(
     "No such relationship ${rel} in search_related")
       unless $rel_obj;

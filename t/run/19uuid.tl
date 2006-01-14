@@ -9,7 +9,7 @@ DBICTest::Schema::Artist->load_components('UUIDColumns');
 DBICTest::Schema::Artist->uuid_columns('name');
 Class::C3->reinitialize();
 
-my $artist = $schema->class("Artist")->create( { artistid => 100 } );
+my $artist = $schema->resultset("Artist")->create( { artistid => 100 } );
 like $artist->name, qr/[\w-]{36}/, 'got something like uuid';
 
 }
