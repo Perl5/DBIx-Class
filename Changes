@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+0.04999_02 2006-01-14 07:17:35
+        - Schema is now self-contained; no requirement for co-operation
+        - add_relationship, relationships, relationship_info, has_relationship
+        - relationship handling on ResultSource
+        - all table handling now in Table.pm / ResultSource.pm
         - added GROUP BY and DISTINCT support
         - hacked around SQL::Abstract::Limit some more in DBIC::SQL::Abstract
           (this may have fixed complex quoting)

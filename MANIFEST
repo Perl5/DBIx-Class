@@ -40,6 +40,7 @@ lib/DBIx/Class/Manual/Troubleshooting.pod
 lib/DBIx/Class/ObjectCache.pm
 lib/DBIx/Class/PK.pm
 lib/DBIx/Class/PK/Auto.pm
+lib/DBIx/Class/PK/Auto/DB2.pm
 lib/DBIx/Class/PK/Auto/MSSQL.pm
 lib/DBIx/Class/PK/Auto/MySQL.pm
 lib/DBIx/Class/PK/Auto/Oracle.pm
@@ -57,6 +58,7 @@ lib/DBIx/Class/Relationship/ManyToMany.pm
 lib/DBIx/Class/Relationship/ProxyMethods.pm
 lib/DBIx/Class/ResultSet.pm
 lib/DBIx/Class/ResultSetInstance.pm
+lib/DBIx/Class/ResultSource.pm
 lib/DBIx/Class/Row.pm
 lib/DBIx/Class/Schema.pm
 lib/DBIx/Class/Storage/DBI.pm
@@ -135,6 +137,7 @@ t/lib/DBICTest/BasicRels.pm
 t/lib/DBICTest/HelperRels.pm
 t/lib/DBICTest/Schema.pm
 t/lib/DBICTest/Schema/Artist.pm
+t/lib/DBICTest/Schema/ArtistUndirectedMap.pm
 t/lib/DBICTest/Schema/BasicRels.pm
 t/lib/DBICTest/Schema/CD.pm
 t/lib/DBICTest/Schema/CD_to_Producer.pm
@@ -148,7 +151,9 @@ t/lib/DBICTest/Schema/SelfRefAlias.pm
 t/lib/DBICTest/Schema/Tag.pm
 t/lib/DBICTest/Schema/Track.pm
 t/lib/DBICTest/Schema/TwoKeys.pm
+t/lib/DBICTest/Setup.pm
 t/run/01core.tl
+t/run/01core.tl.rej
 t/run/04db.tl
 t/run/05multipk.tl
 t/run/06relationship.tl
