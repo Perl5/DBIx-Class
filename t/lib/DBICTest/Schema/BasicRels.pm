@@ -15,7 +15,15 @@ DBICTest::Schema::Artist->add_relationship(
     onekeys => 'DBICTest::Schema::OneKey',
     { 'foreign.artist' => 'self.artistid' }
 );
-
+DBICTest::Schema::Artist->add_relationship(
+    artist_undirected_maps => 'DBICTest::Schema::ArtistUndirectedMap',
+    [{'foreign.id1' => 'self.artistid'}, {'foreign.id2' => 'self.artistid'}],
+    { accessor => 'multi' }
+);
+DBICTest::Schema::ArtistUndirectedMap->add_relationship(
+    'mapped_artists', 'DBICTest::Schema::Artist',
+    [{'foreign.artistid' => 'self.id1'}, {'foreign.artistid' => 'self.id2'}]
+);
 DBICTest::Schema::CD->add_relationship(
     artist => 'DBICTest::Schema::Artist',
     { 'foreign.artistid' => 'self.artist' },

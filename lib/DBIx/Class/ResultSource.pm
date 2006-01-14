@@ -352,6 +352,8 @@ sub resolve_condition {
       }
     }
     return \%ret;
+  } elsif (ref $cond eq 'ARRAY') {
+    return [ map { $self->resolve_condition($_, $rel, $for) } @$cond ];
   } else {
    die("Can't handle this yet :(");
   }

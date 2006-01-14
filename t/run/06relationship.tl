@@ -1,6 +1,8 @@
 sub run_tests {
-  
-plan tests => 14;
+
+use strict;
+use warnings;  
+plan tests => 17;
 
 # has_a test
 my $cd = DBICTest->class("CD")->find(4);
@@ -108,6 +110,17 @@ like($@, qr/join condition/, 'failed when creating a rel without join condition,
 $cd = DBICTest->class("CD")->find(1);
 my @producers = $cd->producers();
 is( $producers[0]->name, 'Matt S Trout', 'many_to_many ok' );
+
+# test undirected many-to-many relationship (e.g. "related artists")
+my $undir_maps = DBICTest->class("Artist")->find(1)->artist_undirected_maps;
+is($undir_maps->count, 1, 'found 1 undirected map for artist 1');
+
+$undir_maps = DBICTest->class("Artist")->find(2)->artist_undirected_maps;
+is($undir_maps->count, 1, 'found 1 undirected map for artist 2');
+
+my @art = $undir_maps->search_related('mapped_artists')->all;
+
+cmp_ok(@art, '==', 2, "Both artist returned from map");
 
 }
 

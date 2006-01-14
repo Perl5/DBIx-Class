@@ -21,6 +21,7 @@ __PACKAGE__->load_classes(qw/
     'FourKeys',
     '#dummy',
     'SelfRef',
+    'ArtistUndirectedMap',
     'Producer',
     'CD_to_Producer',
   ),

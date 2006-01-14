@@ -114,10 +114,15 @@ sub _skip_options {
 
 sub _join_condition {
   my ($self, $cond) = @_;
-  die "no chance" unless ref $cond eq 'HASH';
-  my %j;
-  for (keys %$cond) { my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x; };
-  return $self->_recurse_where(\%j);
+  if (ref $cond eq 'HASH') {
+    my %j;
+    for (keys %$cond) { my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x; };
+    return $self->_recurse_where(\%j);
+  } elsif (ref $cond eq 'ARRAY') {
+    return join(' OR ', map { $self->_join_condition($_) } @$cond);
+  } else {
+    die "Can't handle this yet!";
+  }
 }
 
 sub _quote {

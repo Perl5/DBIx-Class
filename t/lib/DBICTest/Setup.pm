@@ -44,6 +44,8 @@ CREATE TABLE self_ref (id INTEGER NOT NULL PRIMARY KEY,
 CREATE TABLE self_ref_alias (self_ref INTEGER NOT NULL, alias INTEGER NOT NULL,
                       PRIMARY KEY( self_ref, alias ) );
 
+CREATE TABLE artist_undirected_map (id1 INTEGER NOT NULL, id2 INTEGER NOT NULL, PRIMARY KEY(id1, id2));
+
 CREATE TABLE producer (producerid INTEGER NOT NULL PRIMARY KEY, name VARCHAR);
 
 CREATE TABLE cd_to_producer (cd INTEGER NOT NULL, producer INTEGER NOT NULL);
@@ -117,6 +119,8 @@ INSERT INTO self_ref (id, name) VALUES (1, 'First');
 INSERT INTO self_ref (id, name) VALUES (2, 'Second');
 
 INSERT INTO self_ref_alias (self_ref, alias) VALUES (1, 2);
+
+INSERT INTO artist_undirected_map (id1, id2) VALUES (1, 2);
 
 INSERT INTO producer (producerid, name) VALUES (1, 'Matt S Trout');
 
