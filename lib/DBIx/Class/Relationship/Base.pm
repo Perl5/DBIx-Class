@@ -83,30 +83,6 @@ sub relationship_info {
   shift->result_source->relationship_info(@_);
 }
 
-sub _resolve_join {
-  my ($class, $join, $alias) = @_;
-  if (ref $join eq 'ARRAY') {
-    return map { $class->_resolve_join($_, $alias) } @$join;
-  } elsif (ref $join eq 'HASH') {
-    return map { $class->_resolve_join($_, $alias),
-                 $class->relationship_info($_)->{class}->_resolve_join($join->{$_}, $_) }
-           keys %$join;
-  } elsif (ref $join) {
-    $class->throw("No idea how to resolve join reftype ".ref $join);
-  } else {
-    my $rel_obj = $class->relationship_info($join);
-    #use Data::Dumper; warn Dumper($class->result_source) unless $rel_obj;
-    $class->throw("No such relationship ${join}") unless $rel_obj;
-    my $j_class = $rel_obj->{class};
-    my %join = (_action => 'join',
-         _aliases => { 'self' => $alias, 'foreign' => $join },
-         _classes => { $alias => $class, $join => $j_class });
-    my $j_cond = $j_class->resolve_condition($rel_obj->{cond}, \%join);
-    return [ { $join => $j_class->_table_name,
-               -join_type => $rel_obj->{attrs}{join_type} || '' }, $j_cond ];
-  }
-}
-
 sub resolve_condition {
   my ($self, $cond, $attrs) = @_;
   if (ref $cond eq 'HASH') {

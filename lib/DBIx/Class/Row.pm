@@ -192,7 +192,8 @@ sub set_column {
   my ($column) = @_;
   my $old = $self->get_column($column);
   my $ret = $self->store_column(@_);
-  $self->{_dirty_columns}{$column} = 1 unless defined $old && $old eq $ret;
+  $self->{_dirty_columns}{$column} = 1
+    if (defined $old ^ defined $ret) || (defined $old && $old ne $ret);
   return $ret;
 }
 

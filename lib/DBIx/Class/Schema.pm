@@ -182,7 +182,6 @@ sub load_classes {
         die $@ unless $@ =~ /Can't locate/;
       }
       $class->register_class($comp => $comp_class);
-      #$class->register_class($comp_class => $comp_class);
     }
   }
 }

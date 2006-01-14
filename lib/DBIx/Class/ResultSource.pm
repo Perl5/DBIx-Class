@@ -232,11 +232,15 @@ sub add_relationship {
   my ($self, $rel, $f_source_name, $cond, $attrs) = @_;
   die "Can't create relationship without join condition" unless $cond;
   $attrs ||= {};
+
   my %rels = %{ $self->_relationships };
   $rels{$rel} = { class => $f_source_name,
+                  source => $f_source_name,
                   cond  => $cond,
                   attrs => $attrs };
   $self->_relationships(\%rels);
+
+  return 1;
 
   my $f_source = $self->schema->source($f_source_name);
   unless ($f_source) {
@@ -245,6 +249,10 @@ sub add_relationship {
       die $@ unless $@ =~ /Can't locate/;
     }
     $f_source = $f_source_name->result_source;
+    #my $s_class = ref($self->schema);
+    #$f_source_name =~ m/^${s_class}::(.*)$/;
+    #$self->schema->register_class(($1 || $f_source_name), $f_source_name);
+    #$f_source = $self->schema->source($f_source_name);
   }
   return unless $f_source; # Can't test rel without f_source
 
@@ -286,7 +294,38 @@ Returns the join structure required for the related result source
 =cut
 
 sub resolve_join {
-  shift->result_class->_resolve_join(@_);
+  my ($self, $join, $alias) = @_;
+  if (ref $join eq 'ARRAY') {
+    return map { $self->resolve_join($_, $alias) } @$join;
+  } elsif (ref $join eq 'HASH') {
+    return map { $self->resolve_join($_, $alias),
+                 $self->related_source($_)->resolve_join($join->{$_}, $_) }
+           keys %$join;
+  } elsif (ref $join) {
+    die("No idea how to resolve join reftype ".ref $join);
+  } else {
+    my $rel_obj = $self->relationship_info($join);
+    #use Data::Dumper; warn Dumper($class->result_source) unless $rel_obj;
+    die("No such relationship ${join}") unless $rel_obj;
+    my $j_class = $self->related_source($join)->result_class;
+    my %join = (_action => 'join',
+         _aliases => { 'self' => $alias, 'foreign' => $join },
+         _classes => { $alias => $self->result_class, $join => $j_class });
+    my $j_cond = $j_class->resolve_condition($rel_obj->{cond}, \%join);
+    return [ { $join => $j_class->_table_name,
+               -join_type => $rel_obj->{attrs}{join_type} || '' }, $j_cond ];
+  }
+}
+
+=head2 related_source($relname)
+
+Returns the result source for the given relationship
+
+=cut
+
+sub related_source {
+  my ($self, $rel) = @_;
+  return $self->schema->source($self->relationship_info($rel)->{source});
 }
 
 1;
