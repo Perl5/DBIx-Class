@@ -37,7 +37,7 @@ sub new {
   my $class = shift;
   return $class->new_result(@_) if ref $class;
   my ($source, $attrs) = @_;
-  #use Data::Dumper; warn Dumper(@_);
+  #use Data::Dumper; warn Dumper($attrs);
   $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
   my %seen;
   my $alias = ($attrs->{alias} ||= 'me');

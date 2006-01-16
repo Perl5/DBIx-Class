@@ -34,7 +34,7 @@ sub get_autoinc_seq {
   # trigger_body is a LONG
   $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
   my $sth = $dbh->prepare($sql);
-  $sth->execute( uc($self->_table_name) );
+  $sth->execute( uc($self->result_source->name) );
   while (my ($insert_trigger) = $sth->fetchrow_array) {
     if ($insert_trigger =~ m!(\w+)\.nextval!i ) {
       $self->{_autoinc_seq} = uc($1);

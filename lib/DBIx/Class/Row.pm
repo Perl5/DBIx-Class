@@ -54,7 +54,7 @@ sub insert {
   return $self if $self->in_storage;
   #use Data::Dumper; warn Dumper($self);
   $self->result_source->storage->insert(
-    $self->_table_name, { $self->get_columns });
+    $self->result_source->from, { $self->get_columns });
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
   return $self;
