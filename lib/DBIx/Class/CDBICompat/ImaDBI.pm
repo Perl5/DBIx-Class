@@ -91,7 +91,7 @@ sub sth_to_objects {
   my ($class, $sth) = @_;
   my @ret;
   while (my $row = $sth->fetchrow_hashref) {
-    push(@ret, $class->inflate_result($row));
+    push(@ret, $class->inflate_result($class->result_source, $row));
   }
   return @ret;
 }

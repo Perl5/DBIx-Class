@@ -88,7 +88,7 @@ sub update {
   my ($self, $upd) = @_;
   $self->throw( "Not in database" ) unless $self->in_storage;
   my %to_update = $self->get_dirty_columns;
-  return -1 unless keys %to_update;
+  return $self unless keys %to_update;
   my $rows = $self->result_source->storage->update(
                $self->result_source->from, \%to_update, $self->ident_condition);
   if ($rows == 0) {
@@ -114,20 +114,16 @@ sub delete {
   my $self = shift;
   if (ref $self) {
     $self->throw( "Not in database" ) unless $self->in_storage;
-    #warn $self->_ident_cond.' '.join(', ', $self->_ident_values);
     $self->result_source->storage->delete(
       $self->result_source->from, $self->ident_condition);
     $self->in_storage(undef);
-    #$self->store_column($_ => undef) for $self->primary_columns;
-      # Should probably also arrange to trash PK if auto
-      # but if we do, post-delete cascade triggers fail :/
   } else {
     my $attrs = { };
     if (@_ > 1 && ref $_[$#_] eq 'HASH') {
       $attrs = { %{ pop(@_) } };
     }
     my $query = (ref $_[0] eq 'HASH' ? $_[0] : {@_});
-    $self->storage->delete($self->_table_name, $query);
+    $self->result_source->resultset->search(@_)->delete;
   }
   return $self;
 }
@@ -210,6 +206,7 @@ sub set_columns {
   while (my ($col,$val) = each %$data) {
     $self->set_column($col,$val);
   }
+  return $self;
 }
 
 =head2 copy
@@ -219,6 +216,13 @@ sub set_columns {
 Inserts a new row with the specified changes.
 
 =cut
+
+sub copy {
+  my ($self, $changes) = @_;
+  my $new = bless({ _column_data => { %{$self->{_column_data}}} }, ref $self);
+  $new->set_column($_ => $changes->{$_}) for keys %$changes;
+  return $new->insert;
+}
 
 =head2 store_column
 
@@ -239,24 +243,28 @@ sub store_column {
 
 =head2 inflate_result
 
-  Class->inflate_result(\%me, \%prefetch?)
+  Class->inflate_result($result_source, \%me, \%prefetch?)
 
 Called by ResultSet to inflate a result from storage
 
 =cut
 
 sub inflate_result {
-  my ($class, $me, $prefetch) = @_;
+  my ($class, $source, $me, $prefetch) = @_;
   #use Data::Dumper; print Dumper(@_);
-  my $new = bless({ _column_data => $me, _in_storage => 1 },
-                    ref $class || $class);
+  my $new = bless({ result_source => $source,
+                    _column_data => $me,
+                    _in_storage => 1
+                  },
+                  ref $class || $class);
   my $schema;
   PRE: foreach my $pre (keys %{$prefetch||{}}) {
     my $rel_obj = $class->relationship_info($pre);
     die "Can't prefetch non-eistant relationship ${pre}" unless $rel_obj;
-    $schema ||= $new->result_source->schema;
+    $schema ||= $source->schema;
     my $pre_class = $schema->class($rel_obj->{class});
-    my $fetched = $pre_class->inflate_result(@{$prefetch->{$pre}});
+    my $fetched = $pre_class->inflate_result(
+                    $schema->source($pre_class), @{$prefetch->{$pre}});
     $class->throw("No accessor for prefetched $pre")
       unless defined $rel_obj->{attrs}{accessor};
     PRIMARY: foreach my $pri ($rel_obj->{class}->primary_columns) {
@@ -274,13 +282,6 @@ sub inflate_result {
     }
   }
   return $new;
-}
-
-sub copy {
-  my ($self, $changes) = @_;
-  my $new = bless({ _column_data => { %{$self->{_column_data}}} }, ref $self);
-  $new->set_column($_ => $changes->{$_}) for keys %$changes;
-  return $new->insert;
 }
 
 =head2 insert_or_update
