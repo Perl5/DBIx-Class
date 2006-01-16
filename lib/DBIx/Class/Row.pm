@@ -5,7 +5,9 @@ use warnings;
 
 use base qw/DBIx::Class/;
 
-#__PACKAGE__->mk_group_accessors('simple' => 'result_source');
+__PACKAGE__->load_components(qw/AccessorGroup/);
+
+__PACKAGE__->mk_group_accessors('simple' => 'result_source');
 
 =head1 NAME 
 
@@ -47,16 +49,20 @@ sub new {
   $obj->insert;
 
 Inserts an object into the database if it isn't already in there. Returns
-the object itself.
+the object itself. Requires the object's result source to be set, or the
+class to have a result_source_instance method.
 
 =cut
 
 sub insert {
   my ($self) = @_;
   return $self if $self->in_storage;
+  $self->{result_source} ||= $self->result_source_instance
+    if $self->can('result_source_instance');
+  my $source = $self->{result_source};
+  die "No result_source set on this object; can't insert" unless $source;
   #use Data::Dumper; warn Dumper($self);
-  $self->result_source->storage->insert(
-    $self->result_source->from, { $self->get_columns });
+  $source->storage->insert($source->from, { $self->get_columns });
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
   return $self;
@@ -120,12 +126,14 @@ sub delete {
       $self->result_source->from, $self->ident_condition);
     $self->in_storage(undef);
   } else {
+    die "Can't do class delete without a ResultSource instance"
+      unless $self->can('result_source_instance');
     my $attrs = { };
     if (@_ > 1 && ref $_[$#_] eq 'HASH') {
       $attrs = { %{ pop(@_) } };
     }
     my $query = (ref $_[0] eq 'HASH' ? $_[0] : {@_});
-    $self->result_source->resultset->search(@_)->delete;
+    $self->result_source_instance->resultset->search(@_)->delete;
   }
   return $self;
 }
@@ -308,6 +316,12 @@ sub insert_or_update {
 sub is_changed {
   return keys %{shift->{_dirty_columns} || {}};
 }
+
+=head2 result_source
+
+  Accessor to the ResultSource this object was created from
+
+=cut
 
 1;
 

@@ -48,6 +48,4 @@ sub relationship_info {
   shift->result_source_instance->relationship_info(@_);
 }
 
-sub result_source { shift->result_source_instance(@_); }
-
 1;

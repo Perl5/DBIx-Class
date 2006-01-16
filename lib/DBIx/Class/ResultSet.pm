@@ -446,7 +446,9 @@ sub new_result {
   foreach my $key (keys %{$self->{cond}||{}}) {
     $new{$1} = $self->{cond}{$key} if ($key =~ m/^(?:$alias\.)?([^\.]+)$/);
   }
-  return $self->{source}->result_class->new(\%new);
+  my $obj = $self->{source}->result_class->new(\%new);
+  $obj->result_source($self->{source}) if $obj->can('result_source');
+  $obj;
 }
 
 =head2 create(\%vals)
