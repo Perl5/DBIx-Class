@@ -114,7 +114,7 @@ $new->position(5);
 $new->insert_or_update;
 is( $schema->resultset("Track")->find(100)->position, 5, 'insert_or_update update ok');
 
-eval { $schema->resultset("Track")->load_components('DoesNotExist'); };
+eval { $schema->class("Track")->load_components('DoesNotExist'); };
 
 ok $@, $@;
 

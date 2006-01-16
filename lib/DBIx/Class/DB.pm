@@ -15,7 +15,7 @@ sub storage { shift->schema_instance(@_)->storage; }
 
 sub resultset_instance {
   my $class = shift;
-  my $source = $class->result_source;
+  my $source = $class->result_source_instance;
   if ($source->result_class ne $class) {
     $source = $source->new($source);
     $source->result_class($class);

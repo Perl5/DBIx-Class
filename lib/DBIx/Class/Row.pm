@@ -5,6 +5,8 @@ use warnings;
 
 use base qw/DBIx::Class/;
 
+#__PACKAGE__->mk_group_accessors('simple' => 'result_source');
+
 =head1 NAME 
 
 DBIx::Class::Row - Basic row methods

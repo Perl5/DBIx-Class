@@ -17,7 +17,7 @@ sub _register_columns {
 
 sub add_columns {
   my ($class, @cols) = @_;
-  $class->result_source->add_columns(map lc, @cols);
+  $class->result_source_instance->add_columns(map lc, @cols);
   $class->_mk_column_accessors(@cols);
 }
 

@@ -71,18 +71,6 @@ created, which calls C<create_related> for the relationship.
 
 =cut
 
-sub add_relationship {
-  shift->result_source->add_relationship(@_);
-}
-
-sub relationships {
-  shift->result_source->relationships(@_);
-}
-
-sub relationship_info {
-  shift->result_source->relationship_info(@_);
-}
-
 =head2 search_related
 
   My::Table->search_related('relname', $cond, $attrs);

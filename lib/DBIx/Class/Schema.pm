@@ -71,7 +71,7 @@ sub register_class {
   my %reg = %{$self->class_registrations};
   $reg{$name} = $to_register;
   $self->class_registrations(\%reg);
-  $to_register->result_source->schema($self);
+  $to_register->result_source_instance->schema($self);
 }
 
 =head2 registered_classes
@@ -109,7 +109,7 @@ Returns the result source object for the registered name
 
 sub source {
   my ($self, $class) = @_;
-  return $self->class_registrations->{$class}->result_source
+  return $self->class_registrations->{$class}->result_source_instance
     if $self->class_registrations->{$class};
 }
 
@@ -123,7 +123,7 @@ Returns the resultset for the registered name
 
 sub resultset {
   my ($self, $class) = @_;
-  return $self->class_registrations->{$class}->result_source->resultset;
+  return $self->class_registrations->{$class}->result_source_instance->resultset;
 }
 
 
@@ -217,11 +217,11 @@ sub compose_connection {
   my $schema = $self->compose_namespace($target, $conn_class);
   $schema->storage($conn_class->storage);
   foreach my $class ($schema->registered_classes) {
-    my $source = $class->result_source;
+    my $source = $class->result_source_instance;
     $source = $source->new($source);
     $source->schema($schema);
     $source->result_class($class);
-    $class->mk_classdata(result_source => $source);
+    $class->mk_classdata(result_source_instance => $source);
     $class->mk_classdata(resultset_instance => $source->resultset);
   }
   return $schema;

@@ -36,6 +36,18 @@ sub columns {
 sub set_primary_key { shift->result_source_instance->set_primary_key(@_); }     
 sub primary_columns { shift->result_source_instance->primary_columns(@_); }
 
+sub add_relationship {
+  shift->result_source_instance->add_relationship(@_);
+}
+
+sub relationships {
+  shift->result_source_instance->relationships(@_);
+}
+
+sub relationship_info {
+  shift->result_source_instance->relationship_info(@_);
+}
+
 sub result_source { shift->result_source_instance(@_); }
 
 1;
