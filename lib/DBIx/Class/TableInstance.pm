@@ -56,6 +56,8 @@ sub table {
       });
     if ($class->can('result_source_instance')) {
       $table->{_columns} = { %{$class->result_source_instance->{_columns}||{}} };
+      $table->{_ordered_columns} =
+        [ @{$class->result_source_instance->{_ordered_columns}||[]} ];
     }
   }
   $class->mk_classdata('result_source_instance' => $table);

@@ -91,10 +91,10 @@ is($cd->year, 2005, 'set_columns ok');
 
 $cd->discard_changes;
 
-# check whether ResultSource->ordered_columns returns columns in order originally supplied
-my @cd = $schema->source("CD")->ordered_columns;
+# check whether ResultSource->columns returns columns in order originally supplied
+my @cd = $schema->source("CD")->columns;
 
-is_deeply( \@cd, [qw/cdid artist title year/], 'ordered_columns');
+is_deeply( \@cd, [qw/cdid artist title year/], 'column order');
 
 $cd = $schema->resultset("CD")->search({ title => 'Spoonful of bees' }, { cols => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');
