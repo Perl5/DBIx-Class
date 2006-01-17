@@ -26,7 +26,7 @@ DBIx::Class::TableInstance - provides a classdata table object and method proxie
 
 sub _mk_column_accessors {
   my ($class, @cols) = @_;
-  $class->mk_group_accessors('column' => @cols);
+  $class->mk_group_accessors('column' => grep { !ref } @cols);
 }
 
 =head2 add_columns

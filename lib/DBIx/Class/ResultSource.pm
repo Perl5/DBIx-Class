@@ -48,7 +48,7 @@ sub add_columns {
   my $columns = $self->_columns;
   while (my $col = shift @cols) {
 
-    my $column_info = ref $cols[0] ? shift : {};
+    my $column_info = ref $cols[0] ? shift(@cols) : {};
       # If next entry is { ... } use that for the column info, if not
       # use an empty hashref
 
@@ -57,6 +57,7 @@ sub add_columns {
     $columns->{$col} = $column_info;
   }
   push @{ $self->_ordered_columns }, @added;
+  return $self;
 }
 
 *add_column = \&add_columns;
@@ -143,7 +144,7 @@ sub set_primary_key {
 =head2 primary_columns                                                          
                                                                                 
 Read-only accessor which returns the list of primary keys.
-                                                                                
+
 =cut                                                                            
 
 sub primary_columns {
@@ -233,7 +234,7 @@ sub add_relationship {
                   attrs => $attrs };
   $self->_relationships(\%rels);
 
-  return 1;
+  return $self;
 
   # XXX disabled. doesn't work properly currently. skip in tests.
 
