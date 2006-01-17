@@ -2,6 +2,8 @@ package SQL::Translator::Parser::DBIx::Class;
 
 # AUTHOR: Jess Robinson
 
+# Some mistakes the fault of Matt S Trout
+
 use strict;
 use warnings;
 use vars qw($DEBUG $VERSION @EXPORT_OK);
@@ -73,12 +75,22 @@ sub parse {
             my $rel_info = $source->relationship_info($rel);
             print "Accessor: $rel_info->{attrs}{accessor}\n";
             next if(!exists $rel_info->{attrs}{accessor} ||
-                    $rel_info->{attrs}{accessor} ne 'filter');
-            my $rel_table = $source->related_source($rel)->name; # rel_info->{class}->table();
+                    $rel_info->{attrs}{accessor} eq 'multi');
+            # Going by the accessor type isn't such a good idea (yes, I know
+            # I suggested it). I think the best way to tell if something's a
+            # foreign key constraint is to assume if it doesn't include our
+            # primaries then it is (dumb but it'll do). Ignore any rel cond
+            # that isn't a straight hash, but get both sets of keys in full
+            # so you don't barf on multi-primaries. Oh, and a dog-simple
+            # deploy method to chuck the results of this exercise at a db
+            # for testing is
+            # $schema->storage->dbh->do($_) for split(";\n", $sql);
+            #         -- mst (03:42 local time, please excuse any mistakes)
+            my $rel_table = $rel_info->{class}->table();
             my $cond = (keys (%{$rel_info->{cond}}))[0];
             my ($refkey) = $cond =~ /^\w+\.(\w+)$/;
             if($rel_table && $refkey)
-            {
+            { 
                 $table->add_constraint(
                             type             => 'foreign_key', 
                             name             => "fk_${rel}_id",
