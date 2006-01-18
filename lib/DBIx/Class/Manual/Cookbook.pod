@@ -8,7 +8,7 @@ DBIx::Class::Manual::Cookbook - Miscellaneous recipes
 
 Sometimes you need to formulate a query using specific operators:
 
-  my @albums = MyApp::DB::Album->search({
+  my @albums = $schema->resultset('Album')->search({
     artist => { 'like', '%Lamb%' },
     title  => { 'like', '%Fear of Fours%' },
   });
@@ -19,7 +19,7 @@ This results in something like the following C<WHERE> clause:
 
 Other queries might require slightly more complex logic:
 
-  my @albums = MyApp::DB::Album->search({
+  my @albums = $schema->resultset('Album')->search({
     -or => [
       -and => [
         artist => { 'like', '%Smashing Pumpkins%' },
@@ -49,7 +49,157 @@ your main database class to make sure it disconnects cleanly:
 
 =head2 Using joins and prefetch
 
-See L<DBIx::Class::ResultSet/ATTRIBUTES>.
+You can use the "join" attribute to allow searching on, or sorting your
+results by, one or more columns in a related table. To return
+all CDs matching a particular artist name:
+
+    my $rs = $schema->resultset('CD')->search(
+        {
+            'artist.name' => 'Bob Marley'    
+        },
+        {
+            join => [qw/artist/], # join the artist table
+        }
+    );
+
+    # equivalent SQL:
+    # SELECT cd.* FROM cd
+    # JOIN artist ON cd.artist = artist.id
+    # WHERE artist.name = 'Bob Marley'
+
+If required, you can now sort on any column in the related table(s) by
+including it in your "order_by" attribute:
+
+    my $rs = $schema->resultset('CD')->search(
+        {
+            'artist.name' => 'Bob Marley'
+        },
+        {
+            join => [qw/ artist /],
+            order_by => [qw/ artist.name /]
+        }
+    };
+
+    # equivalent SQL:
+    # SELECT cd.* FROM cd
+    # JOIN artist ON cd.artist = artist.id
+    # WHERE artist.name = 'Bob Marley'
+    # ORDER BY artist.name
+
+Note that the "join" attribute should only be used when you need to search or
+sort using columns in a related table. Joining related tables when you
+only need columns from the main table will make performance worse!
+
+Now let's say you want to display a list of CDs, each with the name of
+the artist. The following will work fine:
+
+    while (my $cd = $rs->next) {
+        print "CD: " . $cd->title . ", Artist: " . $cd->artist->name;
+    }
+
+There is a problem however. We have searched both cd and artist tables in our
+main query, but we have only returned data from the cd table. To get the artist
+name for any of the CD objects returned, DBIx::Class will go back to the
+database:
+
+    SELECT artist.* FROM artist WHERE artist.id = ?
+
+A statement like the one above will run for each and every CD returned by our
+main query. Five CDs, five extra queries. A hundred CDs, one hundred extra
+queries!
+
+Thankfully, DBIx::Class has a "prefetch" attribute to solve this problem. This
+allows you to fetch results from a related table as well as the main table
+for your class:
+
+    my $rs = $schema->resultset('CD')->search(
+        {
+            'artist.name' => 'Bob Marley'
+        },
+        {
+            join => [qw/ artist /],
+            order_by => [qw/ artist.name /],
+            prefetch => [qw/ artist /] # return artist data too!
+        }
+    );
+
+    # equivalent SQL (note SELECT from both "cd" and "artist")
+    # SELECT cd.*, artist.* FROM cd
+    # JOIN artist ON cd.artist = artist.id
+    # WHERE artist.name = 'Bob Marley'
+    # ORDER BY artist.name
+
+The code to print the CD list remains the same:
+
+    while (my $cd = $rs->next) {
+        print "CD: " . $cd->title . ", Artist: " . $cd->artist->name;
+    }
+
+DBIx::Class has now prefetched all matching data from the "artist" table,
+so no additional SQL statements are executed. You now have a much more
+efficient query.
+
+Note that as of DBIx::Class 0.04, "prefetch" cannot be used with has_many
+relationships. You will get an error along the lines of "No accessor for
+prefetched ..." if you try.
+
+Note that "prefetch" should only be used when you know you will
+definitely use data from a related table. Pre-fetching related tables when you
+only need columns from the main table will make performance worse!
+
+=head2 Multi-step joins
+
+Sometimes you want to join more than one relationship deep. In this example,
+we want to find all Artist objects who have CDs whose LinerNotes contain a
+specific string:
+
+    # Artist->has_many('cds' => 'CD', 'artist');
+    # CD->has_one('liner_notes' => 'LinerNotes', 'cd');
+
+    $rs = $schema->resultset('Artist')->search(
+        {
+            'liner_notes.notes' => { 'like', '%some text%' },
+        },
+        {
+            join => {
+                'cds' => 'liner_notes'
+            }
+        }
+    );
+
+    # equivalent SQL
+    # SELECT artist.* FROM artist
+    # JOIN ( cd ON artist.id = cd.artist )
+    # JOIN ( liner_notes ON cd.id = liner_notes.cd )
+    # WHERE liner_notes.notes LIKE '%some text%'
+
+Joins can be nested to an arbitrary level. So if we decide later that we
+want to reduce the number of Artists returned based on who wrote the liner
+notes:
+
+    # LinerNotes->has_one('author' => 'Person');
+
+    $rs = $schema->resultset('Artist')->search(
+        {
+            'liner_notes.notes' => { 'like', '%some text%' },
+            'author.name' => 'A. Writer'
+        },
+        {
+            join => {
+                'cds' => {
+                    'liner_notes' => 'author'
+                }
+            }
+        }
+    );
+
+    # equivalent SQL
+    # SELECT artist.* FROM artist
+    # JOIN ( cd ON artist.id = cd.artist )
+    # JOIN ( liner_notes ON cd.id = liner_notes.cd )
+    # JOIN ( author ON author.id = liner_notes.author )
+    # WHERE liner_notes.notes LIKE '%some text%'
+    # AND author.name = 'A. Writer'
 
 =head2 Transactions
 
@@ -82,70 +232,37 @@ in the future.
 
 =head2 Many-to-many relationships
 
-This is not as easy as it could be, but it's possible.  Here's an
-example to illustrate:
+This is straightforward using L<DBIx::Class::Relationship::ManyToMany>:
 
-  # Set up inherited connection information
-  package MyApp::DBIC; 
-  use base qw/DBIx::Class/;
+    package My::DB;
+    # set up connection here...
 
-  __PACKAGE__->load_components(qw/PK::Auto::SQLite Core DB/);
-  __PACKAGE__->connection(...);
+    package My::User;
+    use base 'My::DB';
+    __PACKAGE__->table('user');
+    __PACKAGE__->add_columns(qw/id name/);
+    __PACKAGE__->set_primary_key('id');
+    __PACKAGE__->has_many('user_address' => 'My::UserAddress', 'user');
+    __PACKAGE__->many_to_many('addresses' => 'user_address', 'address');
 
-  # Set up a class for the 'authors' table
-  package MyApp::DBIC::Author;
-  use base qw/MyApp::DBIC/;
+    package My::UserAddress;
+    use base 'My::DB';
+    __PACKAGE__->table('user_address');
+    __PACKAGE__->add_columns(qw/user address/);
+    __PACKAGE__->set_primary_key(qw/user address/);
+    __PACKAGE__->belongs_to('user' => 'My::User');
+    __PACKAGE__->belongs_to('address' => 'My::Address');
 
-  __PACKAGE__->table('authors');
-  __PACKAGE__->add_columns(qw/authID first_name last_name/);
-  __PACKAGE__->set_primary_key(qw/authID/);
+    package My::Address;
+    use base 'My::DB';
+    __PACKAGE__->table('address');
+    __PACKAGE__->add_columns(qw/id street town area_code country/);
+    __PACKAGE__->set_primary_key('id');
+    __PACKAGE__->has_many('user_address' => 'My::UserAddress', 'address');
+    __PACKAGE__->many_to_many('users' => 'user_address', 'user');
 
-  # Define relationship to the link table
-  __PACKAGE__->has_many('b2a' => 'MyApp::DBIC::Book2Author', 'authID');
-
-  # Create the accessor for books from the Author class
-  sub books {
-    my ($self) = @_;
-    return MyApp::DBIC::Book->search(
-      { 'b2a.authID' => $self->authID }, # WHERE clause
-      { join => 'b2a' } # join condition (part of search attrs)
-      # 'b2a' refers to the relationship named earlier in the Author class.
-      # 'b2a.authID' refers to the authID column of the b2a relationship,
-      # which becomes accessible in the search by being joined.
-    );
-  }
-
-  # Define the link table class
-  package MyApp::DBIC::Book2Author;
-  use base qw/MyApp::DBIC/;
-
-  __PACKAGE__->table('book2author');
-  __PACKAGE__->add_columns(qw/bookID authID/);
-  __PACKAGE__->set_primary_key(qw/bookID authID/);
-
-  __PACKAGE__->belongs_to('authID' => 'MyApp::DBIC::Author');
-  __PACKAGE__->belongs_to('bookID' => 'MyApp::DBIC::Book');
-
-  package MyApp::DBIC::Book;
-  use base qw/MyApp::DBIC/;
-
-  __PACKAGE__->table('books');
-  __PACKAGE__->add_columns(qw/bookID title edition isbn publisher year/);
-  __PACKAGE__->set_primary_key(qw/bookID/);
-  
-  __PACKAGE__->has_many('b2a' => 'MyApp::DBIC::Book2Author', 'bookID');
-
-
-  # Returns an author record where the bookID field of the
-  # book2author table equals the bookID of the books (using the
-  # bookID relationship table)
-  sub authors {
-    my ($self) = @_;
-    return MyApp::DBIC::Author->search(
-      { 'b2a.bookID' => $self->bookID }, # WHERE clause
-      { join => 'b2a' } # JOIN condition
-    ); 
-  }
+    $rs = $user->addresses(); # get all addresses for a user
+    $rs = $address->users(); # get all users for an address
 
 =head2 Setting default values
 
