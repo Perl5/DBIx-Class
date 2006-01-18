@@ -292,8 +292,8 @@ sub select_single {
 
 sub sth {
   my ($self, $sql, $op) = @_;
-  my $meth = (defined $op && $op ne 'select' ? 'prepare_cached' : 'prepare');
-  return $self->dbh->$meth($sql);
+  # 3 is the if_active parameter which avoids active sth re-use
+  return $self->dbh->prepare_cached($sql, {}, 3);
 }
 
 1;
