@@ -269,23 +269,22 @@ sub inflate_result {
                   ref $class || $class);
   my $schema;
   PRE: foreach my $pre (keys %{$prefetch||{}}) {
-    my $rel_obj = $class->relationship_info($pre);
-    die "Can't prefetch non-eistant relationship ${pre}" unless $rel_obj;
-    $schema ||= $source->schema;
-    my $pre_class = $schema->class($rel_obj->{class});
-    my $fetched = $pre_class->inflate_result(
-                    $schema->source($pre_class), @{$prefetch->{$pre}});
+    my $pre_source = $source->related_source($pre);
+    die "Can't prefetch non-existant relationship ${pre}" unless $pre_source;
+    my $fetched = $pre_source->result_class->inflate_result(
+                    $pre_source, @{$prefetch->{$pre}});
+    my $accessor = $source->relationship_info($pre)->{attrs}{accessor};
     $class->throw("No accessor for prefetched $pre")
-      unless defined $rel_obj->{attrs}{accessor};
-    PRIMARY: foreach my $pri ($rel_obj->{class}->primary_columns) {
+      unless defined $accessor;
+    PRIMARY: foreach my $pri ($pre_source->primary_columns) {
       unless (defined $fetched->get_column($pri)) {
         undef $fetched;
         last PRIMARY;
       }
     }
-    if ($rel_obj->{attrs}{accessor} eq 'single') {
+    if ($accessor eq 'single') {
       $new->{_relationship_data}{$pre} = $fetched;
-    } elsif ($rel_obj->{attrs}{accessor} eq 'filter') {
+    } elsif ($accessor eq 'filter') {
       $new->{_inflated_column}{$pre} = $fetched;
     } else {
       $class->throw("Don't know how to store prefetched $pre");
