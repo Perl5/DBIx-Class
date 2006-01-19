@@ -481,6 +481,16 @@ sub find_or_create {
   return defined($exists) ? $exists : $self->create($hash);
 }
 
+=head2 self
+
+  my $rs = $rs->self;
+
+Just returns the resultset. Useful for Template Toolkit.
+
+=cut
+
+sub self { shift; }
+
 =head1 ATTRIBUTES
 
 The resultset takes various attributes that modify its behavior.
