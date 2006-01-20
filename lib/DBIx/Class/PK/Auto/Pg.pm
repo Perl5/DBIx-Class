@@ -23,7 +23,7 @@ sub get_autoinc_seq {
   }
   
   my @pri = $self->primary_columns;
-  my $dbh = $self->storage->dbh;
+  my $dbh = $self->result_source->storage->dbh;
   while (my $col = shift @pri) {
     my $info = $dbh->column_info(undef,undef,$self->table,$col)->fetchrow_arrayref;
     if (defined $info->[12] and $info->[12] =~ 
