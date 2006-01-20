@@ -20,6 +20,7 @@ sub new {
 sub next {
   my ($self) = @_;
   if ($self->{attrs}{rows} && $self->{pos} >= $self->{attrs}{rows}) {
+    $self->{sth}->finish if $self->{sth}->{Active};
     delete $self->{sth};
     $self->{done} = 1;
   }

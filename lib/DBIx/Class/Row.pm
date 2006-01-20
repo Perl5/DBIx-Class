@@ -320,7 +320,7 @@ sub is_changed {
 
   Accessor to the ResultSource this object was created from
 
-=head2 register_column
+=head2 register_column($column, $column_info)
 
   Registers a column on the class and creates an accessor for it
 

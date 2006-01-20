@@ -3,14 +3,12 @@ package DBIx::Class::Relationship::Accessor;
 use strict;
 use warnings;
 
-sub add_relationship {
-  my ($class, $rel, @rest) = @_;
-  my $ret = $class->next::method($rel => @rest);
-  my $rel_obj = $class->relationship_info($rel);
-  if (my $acc_type = $rel_obj->{attrs}{accessor}) {
+sub register_relationship {
+  my ($class, $rel, $info) = @_;
+  if (my $acc_type = $info->{attrs}{accessor}) {
     $class->add_relationship_accessor($rel => $acc_type);
   }
-  return $ret;
+  $class->next::method($rel => $info);
 }
 
 sub add_relationship_accessor {

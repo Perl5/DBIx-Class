@@ -69,7 +69,13 @@ created, which calls C<create_related> for the relationship.
 
 =back
 
+=head2 register_relationship($relname, $rel_info)
+
+Registers a relationship on the class
+
 =cut
+
+sub register_relationship { }
 
 =head2 search_related
 

@@ -40,7 +40,10 @@ sub set_primary_key { shift->result_source_instance->set_primary_key(@_); }
 sub primary_columns { shift->result_source_instance->primary_columns(@_); }
 
 sub add_relationship {
-  shift->result_source_instance->add_relationship(@_);
+  my ($class, $rel, @rest) = @_;
+  my $source = $class->result_source_instance;
+  $source->add_relationship($rel => @rest);
+  $class->register_relationship($rel => $source->relationship_info($rel));
 }
 
 sub relationships {

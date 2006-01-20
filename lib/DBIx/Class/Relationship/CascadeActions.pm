@@ -9,7 +9,8 @@ sub delete {
 
   my $ret = $self->next::method(@rest);
 
-  my %rels = map { $_ => $self->relationship_info($_) } $self->relationships;
+  my $source = $self->result_source;
+  my %rels = map { $_ => $source->relationship_info($_) } $source->relationships;
   my @cascade = grep { $rels{$_}{attrs}{cascade_delete} } keys %rels;
   foreach my $rel (@cascade) {
     $self->search_related($rel)->delete;
@@ -24,7 +25,8 @@ sub update {
 
   my $ret = $self->next::method(@rest);
 
-  my %rels = map { $_ => $self->relationship_info($_) } $self->relationships;
+  my $source = $self->result_source;
+  my %rels = map { $_ => $source->relationship_info($_) } $source->relationships;
   my @cascade = grep { $rels{$_}{attrs}{cascade_update} } keys %rels;
   foreach my $rel (@cascade) {
     $_->update for $self->$rel;
