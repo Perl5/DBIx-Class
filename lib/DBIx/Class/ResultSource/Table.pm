@@ -1,4 +1,4 @@
-package DBIx::Class::Table;
+package DBIx::Class::ResultSource::Table;
 
 use strict;
 use warnings;

@@ -59,15 +59,17 @@ lib/DBIx/Class/Relationship/ProxyMethods.pm
 lib/DBIx/Class/ResultSet.pm
 lib/DBIx/Class/ResultSetInstance.pm
 lib/DBIx/Class/ResultSource.pm
+lib/DBIx/Class/ResultSource/Table.pm
+lib/DBIx/Class/ResultSourceInstance.pm
 lib/DBIx/Class/Row.pm
 lib/DBIx/Class/Schema.pm
 lib/DBIx/Class/Storage/DBI.pm
 lib/DBIx/Class/Storage/DBI/Cursor.pm
-lib/DBIx/Class/Table.pm
 lib/DBIx/Class/TableInstance.pm
 lib/DBIx/Class/Test/SQLite.pm
 lib/DBIx/Class/UUIDColumns.pm
 lib/DBIx/Class/Validation.pm
+lib/SQL/Translator/Parser/DBIx/Class.pm
 Makefile.PL
 MANIFEST			This list of files
 META.yml
@@ -153,7 +155,6 @@ t/lib/DBICTest/Schema/Track.pm
 t/lib/DBICTest/Schema/TwoKeys.pm
 t/lib/DBICTest/Setup.pm
 t/run/01core.tl
-t/run/01core.tl.rej
 t/run/04db.tl
 t/run/05multipk.tl
 t/run/06relationship.tl
