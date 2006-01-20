@@ -11,7 +11,7 @@ sub last_insert_id
 {
     my ($self) = @_;
 
-    my $dbh = $self->storage->dbh;
+    my $dbh = $self->result_source->storage->dbh;
     my $sth = $dbh->prepare_cached("VALUES(IDENTITY_VAL_LOCAL())");
     $sth->execute();
 

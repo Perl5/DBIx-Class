@@ -10,7 +10,7 @@ __PACKAGE__->load_components(qw/PK::Auto/);
 sub last_insert_id {
   my $self = shift;
   $self->get_autoinc_seq unless $self->{_autoinc_seq};
-  $self->storage->dbh->last_insert_id(undef,undef,undef,undef,
+  $self->result_source->storage->dbh->last_insert_id(undef,undef,undef,undef,
     {sequence=>$self->{_autoinc_seq}});
 }
 

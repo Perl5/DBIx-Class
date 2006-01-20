@@ -11,7 +11,7 @@ sub last_insert_id {
   my $self = shift;
   $self->get_autoinc_seq unless $self->{_autoinc_seq};
   my $sql = "SELECT " . $self->{_autoinc_seq} . ".currval FROM DUAL";
-  my ($id) = $self->storage->dbh->selectrow_array($sql);
+  my ($id) = $self->result_source->storage->dbh->selectrow_array($sql);
   return $id;  
 }
 
@@ -24,7 +24,7 @@ sub get_autoinc_seq {
   }
   
   # look up the correct sequence automatically
-  my $dbh = $self->storage->dbh;
+  my $dbh = $self->result_source->storage->dbh;
   my $sql = qq{
     SELECT trigger_body FROM ALL_TRIGGERS t
     WHERE t.table_name = ?

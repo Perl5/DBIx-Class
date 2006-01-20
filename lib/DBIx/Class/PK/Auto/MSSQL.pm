@@ -8,7 +8,8 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/PK::Auto/);
 
 sub last_insert_id {
-  my( $id ) = $_[0]->storage->dbh->selectrow_array( 'SELECT @@IDENTITY' );
+  my( $id ) = $_[0]->result_source->storage->dbh->selectrow_array(
+                                                    'SELECT @@IDENTITY' );
   return $id;
 }
 

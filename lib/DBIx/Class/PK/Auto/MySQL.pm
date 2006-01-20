@@ -8,7 +8,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/PK::Auto/);
 
 sub last_insert_id {
-  return $_[0]->storage->dbh->{mysql_insertid};
+  return $_[0]->result_source->storage->dbh->{mysql_insertid};
 }
 
 1;

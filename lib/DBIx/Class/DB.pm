@@ -25,7 +25,7 @@ sub resultset_instance {
 
 =head1 NAME 
 
-DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
+DBIx::Class::DB - Non-recommended classdata schema component
 
 =head1 SYNOPSIS
 
@@ -45,7 +45,10 @@ DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
 
 =head1 DESCRIPTION
 
-This class provides a simple way of specifying a database connection.
+This class is designed to support the Class::DBI connection-as-classdata style
+for DBIx::Class. You are *strongly* recommended to use a DBIx::Class::Schema
+instead; DBIx::Class::DB will continue to be supported but new development
+will be focused on Schema-based DBIx::Class setups.
 
 =head1 METHODS
 
@@ -75,9 +78,23 @@ instantiate the class dbh when required.
 
 sub connection {
   my ($class, @info) = @_;
-  my $storage = DBIx::Class::Storage::DBI->new;
-  $storage->connect_info(\@info);
-  my $schema = bless({ storage => $storage }, 'DBIx::Class::Schema');
+  $class->setup_schema_instance unless $class->can('schema_instance');
+  $class->schema_instance->connection(@info);
+}
+
+=head2 setup_schema_instance
+
+Creates a class method ->schema_instance which contains a DBIx::Class::Schema;
+all class-method operations are proxies through to this object. If you don't
+call ->connection in your DBIx::Class::DB subclass at load time you *must*
+call ->setup_schema_instance in order for subclasses to find the schema and
+register themselves with it.
+
+=cut
+
+sub setup_schema_instance {
+  my $class = shift;
+  my $schema = bless({}, 'DBIx::Class::Schema');
   $class->mk_classdata('schema_instance' => $schema);
 }
 

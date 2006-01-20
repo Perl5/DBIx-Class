@@ -15,8 +15,8 @@ use_ok('DBICTest');
 
 use_ok('DBICTest::HelperRels');
 
-DBICTest::_db->storage->sql_maker->{'quote_char'} = q!'!;
-DBICTest::_db->storage->sql_maker->{'name_sep'} = '.';
+DBICTest->schema->storage->sql_maker->{'quote_char'} = q!'!;
+DBICTest->schema->storage->sql_maker->{'name_sep'} = '.';
 
 my $rs = DBICTest::CD->search(
            { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
