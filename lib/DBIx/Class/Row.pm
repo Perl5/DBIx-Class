@@ -3,6 +3,8 @@ package DBIx::Class::Row;
 use strict;
 use warnings;
 
+use Carp qw/croak/;
+
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/AccessorGroup/);
@@ -37,7 +39,7 @@ sub new {
   if ($attrs) {
     $new->throw("attrs must be a hashref" ) unless ref($attrs) eq 'HASH';
     while (my ($k, $v) = each %{$attrs}) {
-      die "No such column $k on $class" unless $class->has_column($k);
+      croak "No such column $k on $class" unless $class->has_column($k);
       $new->store_column($k => $v);
     }
   }
@@ -60,7 +62,7 @@ sub insert {
   $self->{result_source} ||= $self->result_source_instance
     if $self->can('result_source_instance');
   my $source = $self->{result_source};
-  die "No result_source set on this object; can't insert" unless $source;
+  croak "No result_source set on this object; can't insert" unless $source;
   #use Data::Dumper; warn Dumper($self);
   $source->storage->insert($source->from, { $self->get_columns });
   $self->in_storage(1);
@@ -126,7 +128,7 @@ sub delete {
       $self->result_source->from, $self->ident_condition);
     $self->in_storage(undef);
   } else {
-    die "Can't do class delete without a ResultSource instance"
+    croak "Can't do class delete without a ResultSource instance"
       unless $self->can('result_source_instance');
     my $attrs = { };
     if (@_ > 1 && ref $_[$#_] eq 'HASH') {
@@ -270,7 +272,7 @@ sub inflate_result {
   my $schema;
   PRE: foreach my $pre (keys %{$prefetch||{}}) {
     my $pre_source = $source->related_source($pre);
-    die "Can't prefetch non-existant relationship ${pre}" unless $pre_source;
+    croak "Can't prefetch non-existant relationship ${pre}" unless $pre_source;
     my $fetched = $pre_source->result_class->inflate_result(
                     $pre_source, @{$prefetch->{$pre}});
     my $accessor = $source->relationship_info($pre)->{attrs}{accessor};

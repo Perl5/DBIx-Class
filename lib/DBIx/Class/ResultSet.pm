@@ -2,6 +2,7 @@ package DBIx::Class::ResultSet;
 
 use strict;
 use warnings;
+use Carp qw/croak/;
 use overload
         '0+'     => 'count',
         'bool'   => sub { 1; },
@@ -285,7 +286,7 @@ on the resultset and counts the results of that.
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ && defined $_[0];
-  die "Unable to ->count with a GROUP BY" if defined $self->{attrs}{group_by};
+  croak "Unable to ->count with a GROUP BY" if defined $self->{attrs}{group_by};
   unless (defined $self->{count}) {
     my $attrs = { %{ $self->{attrs} },
                   select => { 'count' => '*' },
@@ -354,7 +355,7 @@ Sets the specified columns in the resultset to the supplied values
 
 sub update {
   my ($self, $values) = @_;
-  die "Values for update must be a hash" unless ref $values eq 'HASH';
+  croak "Values for update must be a hash" unless ref $values eq 'HASH';
   return $self->{source}->storage->update(
            $self->{source}->from, $values, $self->{cond});
 }
@@ -368,7 +369,7 @@ cascade triggers, ->update will not.
 
 sub update_all {
   my ($self, $values) = @_;
-  die "Values for update must be a hash" unless ref $values eq 'HASH';
+  croak "Values for update must be a hash" unless ref $values eq 'HASH';
   foreach my $obj ($self->all) {
     $obj->set_columns($values)->update;
   }
@@ -410,7 +411,7 @@ sense for queries with page turned on.
 sub pager {
   my ($self) = @_;
   my $attrs = $self->{attrs};
-  die "Can't create pager for non-paged rs" unless $self->{page};
+  croak "Can't create pager for non-paged rs" unless $self->{page};
   $attrs->{rows} ||= 10;
   $self->count;
   return $self->{pager} ||= Data::Page->new(

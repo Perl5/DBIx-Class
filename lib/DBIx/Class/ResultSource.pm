@@ -224,7 +224,7 @@ created, which calls C<create_related> for the relationship.
 
 sub add_relationship {
   my ($self, $rel, $f_source_name, $cond, $attrs) = @_;
-  die "Can't create relationship without join condition" unless $cond;
+  croak "Can't create relationship without join condition" unless $cond;
   $attrs ||= {};
 
   my %rels = %{ $self->_relationships };
@@ -257,7 +257,7 @@ sub add_relationship {
   if ($@) { # If the resolve failed, back out and re-throw the error
     delete $rels{$rel}; # 
     $self->_relationships(\%rels);
-    die "Error creating relationship $rel: $@";
+    croak "Error creating relationship $rel: $@";
   }
   1;
 }
@@ -309,10 +309,10 @@ sub resolve_join {
                  $self->related_source($_)->resolve_join($join->{$_}, $_) }
            keys %$join;
   } elsif (ref $join) {
-    die("No idea how to resolve join reftype ".ref $join);
+    croak ("No idea how to resolve join reftype ".ref $join);
   } else {
     my $rel_info = $self->relationship_info($join);
-    die("No such relationship ${join}") unless $rel_info;
+    croak("No such relationship ${join}") unless $rel_info;
     my $type = $rel_info->{attrs}{join_type} || '';
     return [ { $join => $self->related_source($join)->from,
                -join_type => $type },
@@ -335,8 +335,8 @@ sub resolve_condition {
     my %ret;
     while (my ($k, $v) = each %{$cond}) {
       # XXX should probably check these are valid columns
-      $k =~ s/^foreign\.// || die "Invalid rel cond key ${k}";
-      $v =~ s/^self\.// || die "Invalid rel cond val ${v}";
+      $k =~ s/^foreign\.// || croak "Invalid rel cond key ${k}";
+      $v =~ s/^self\.// || croak "Invalid rel cond val ${v}";
       if (ref $for) { # Object
         #warn "$self $k $for $v";
         $ret{$k} = $for->get_column($v);

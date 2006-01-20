@@ -3,6 +3,8 @@ package DBIx::Class::PK::Auto::Oracle;
 use strict;
 use warnings;
 
+use Carp qw/croak/;
+
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/PK::Auto/);
@@ -41,7 +43,7 @@ sub get_autoinc_seq {
     }
   }
   unless ($self->{_autoinc_seq}) {
-    die "Unable to find a sequence INSERT trigger on table '" . $self->_table_name . "'.";
+    croak "Unable to find a sequence INSERT trigger on table '" . $self->_table_name . "'.";
   }
 }
 

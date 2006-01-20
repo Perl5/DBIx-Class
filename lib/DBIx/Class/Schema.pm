@@ -2,6 +2,8 @@ package DBIx::Class::Schema;
 
 use strict;
 use warnings;
+
+use Carp qw/croak/;
 use UNIVERSAL::require;
 
 use base qw/DBIx::Class/;
@@ -119,7 +121,7 @@ sub source {
 
   # if we got here, they probably passed a full class name
   my $mapped = $self->class_mappings->{$moniker};
-  die "Can't find source for ${moniker}"
+  croak "Can't find source for ${moniker}"
     unless $mapped && exists $sreg->{$mapped};
   return $sreg->{$mapped};
 }
