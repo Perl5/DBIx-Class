@@ -4,11 +4,11 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::ResultSourceInstance/;
-use DBIx::Class::Table;
+use DBIx::Class::ResultSource::Table;
 
 __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything yet!
 
-__PACKAGE__->mk_classdata('table_class' => 'DBIx::Class::Table');
+__PACKAGE__->mk_classdata('table_class' => 'DBIx::Class::ResultSource::Table');
 
 =head1 NAME 
 

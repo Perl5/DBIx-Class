@@ -9,14 +9,15 @@ DBIx::Class::Manual::FAQ - Frequently asked questions
 This is an alternative to L<Class::DBI>, intended to provide greater
 functionality and simplicity.
 
-It is inspired by the L<Class::DBI> framework, and meant to support
-compability with it, while restructuring the internals and making it
-possible to support some new features like self-joins, C<DISTINCT>,
+It is inspired by the L<Class::DBI> framework, and provides a compat
+layer to ease porting, but with a resultset-oriented, MI-based
+design that makes extension easier and allows us to support more
+complex relational operations like self-joins, C<DISTINCT>,
 C<GROUP BY>s and more.
 
 =head2 What databases does it support?
 
-At least MSSQL, MySQL, Oracle, PostgreSQL and SQLite.
+At least MSSQL, MySQL, Oracle, PostgreSQL, SQLite and DB2.
 
 =head2 What's the current status of this module?
 
