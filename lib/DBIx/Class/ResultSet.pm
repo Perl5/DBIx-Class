@@ -40,20 +40,6 @@ sub new {
   #use Data::Dumper; warn Dumper($attrs);
   $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
   my %seen;
-
-  # wrong! we cannot delete select/as because it will interfere with the count() method. need to just set alias correctly in the first instance
-=pod
-  if( $attrs->{from} && $attrs->{alias} eq 'me' ) {
-    my @keys = keys( %{$attrs->{from}->[0]} );
-    $attrs->{alias} = $keys[0];
-    delete $attrs->{select};
-    delete $attrs->{as};
-    #die Dumper $attrs;
-  }
-=cut
-# alias should be set in accordance with from if alias is not defined or = "me"
-# could also alter the line below instead, i.e. use alias if defined, then get from "from", then class->table, then "me" as a last resort.
-
   my $alias = ($attrs->{alias} ||= 'me');
   if (!$attrs->{select}) {
     my @cols = ($attrs->{cols}
