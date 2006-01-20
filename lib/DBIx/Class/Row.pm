@@ -167,7 +167,7 @@ Does C<get_column>, for all column values at once.
 
 sub get_columns {
   my $self = shift;
-  return return %{$self->{_column_data}};
+  return %{$self->{_column_data}};
 }
 
 =head2 get_dirty_columns

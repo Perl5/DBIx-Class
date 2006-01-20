@@ -8,7 +8,7 @@ use DBIx::Class::Storage::DBI::Cursor;
 
 BEGIN {
 
-package DBIC::SQL::Abstract; # Temporary. Merge upstream.
+package DBIC::SQL::Abstract; # Would merge upstream, but nate doesn't reply :(
 
 use base qw/SQL::Abstract::Limit/;
 
@@ -280,8 +280,7 @@ sub _select {
 sub select {
   my $self = shift;
   my ($ident, $select, $condition, $attrs) = @_;
-  my ($rv, $sth, @bind) = $self->_select(@_);
-  return $self->cursor->new($sth, \@bind, $attrs);
+  return $self->cursor->new($self, \@_, $attrs);
 }
 
 sub select_single {
@@ -291,7 +290,7 @@ sub select_single {
 }
 
 sub sth {
-  my ($self, $sql, $op) = @_;
+  my ($self, $sql) = @_;
   # 3 is the if_active parameter which avoids active sth re-use
   return $self->dbh->prepare_cached($sql, {}, 3);
 }
