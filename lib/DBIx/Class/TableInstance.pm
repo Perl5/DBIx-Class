@@ -22,13 +22,6 @@ DBIx::Class::TableInstance - provides a classdata table object and method proxie
 
 =head1 METHODS
 
-=cut
-
-sub _mk_column_accessors {
-  my ($class, @cols) = @_;
-  $class->mk_group_accessors('column' => grep { !ref } @cols);
-}
-
 =head2 add_columns
 
   __PACKAGE__->add_columns(qw/col1 col2 col3/);

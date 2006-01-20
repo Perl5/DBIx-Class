@@ -10,15 +10,10 @@ sub _register_column_group {
   return $class->next::method($group => map lc, @cols);
 }
 
-sub _register_columns {
-  my ($class, @cols) = @_;
-  return $class->next::method(map lc, @cols);
-}
-
 sub add_columns {
   my ($class, @cols) = @_;
+  $class->mk_group_accessors(column => @cols);
   $class->result_source_instance->add_columns(map lc, @cols);
-  $class->_mk_column_accessors(@cols);
 }
 
 sub has_a {

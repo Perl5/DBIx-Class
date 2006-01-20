@@ -320,7 +320,16 @@ sub is_changed {
 
   Accessor to the ResultSource this object was created from
 
+=head2 register_column
+
+  Registers a column on the class and creates an accessor for it
+
 =cut
+
+sub register_column {
+  my ($class, $col, $info) = @_;
+  $class->mk_group_accessors('column' => $col);
+}
 
 1;
 

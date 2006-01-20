@@ -10,8 +10,11 @@ sub resultset_class { shift->result_source_instance->resultset_class(@_) }
 
 sub add_columns {
   my ($class, @cols) = @_;
-  $class->result_source_instance->add_columns(@cols);
-  $class->_mk_column_accessors(@cols);
+  my $source = $class->result_source_instance;
+  $source->add_columns(@cols);
+  foreach my $c (grep { !ref } @cols) {
+    $class->register_column($c => $source->column_info($c));
+  }
 }
 
 sub _select_columns {
