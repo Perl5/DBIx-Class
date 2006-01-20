@@ -159,6 +159,25 @@ any of your aliases using either of these:
         }
     );
 
+=head2 Grouping results
+
+DBIx::Class supports GROUP BY as follows:
+
+    $rs = $schema->resultset('Artist')->search(
+        {},
+        {
+            join => [qw/ cds /],
+            select => [ 'name', { count => 'cds.cdid' } ],
+            as => [qw/ name cd_count /],
+            group_by => [qw/ name /]
+        }
+    );
+
+    # e.g.
+    # SELECT name, COUNT( cds.cdid ) FROM artist me
+    # LEFT JOIN cd cds ON ( cds.artist = me.artistid )
+    # GROUP BY name
+
 =head2 Using joins and prefetch
 
 You can use the "join" attribute to allow searching on, or sorting your
