@@ -4,6 +4,37 @@ DBIx::Class::Manual::Cookbook - Miscellaneous recipes
 
 =head1 RECIPES
 
+=head2 Paged results
+
+When you expect a large number of results, you can ask DBIx::Class for a paged
+resultset, which will fetch only a small number of records at a time:
+
+    $rs = $schema->resultset('Artist')->search(
+        {},
+        {
+            page => 1, # page to return (defaults to 1)
+            rows => 10, # number of results per page
+        },
+    );
+
+    $rs->all(); # return all records for page 1
+
+The "page" attribute does not have to be specified in your search:
+
+    $rs = $schema->resultset('Artist')->search(
+        {},
+        {
+            rows => 10,
+        }
+    );
+
+    $rs->page(1); # return DBIx::Class::ResultSet containing first 10 records
+
+In either of the above cases, you can return a L<Data::Page> object for the
+resultset (suitable for use in a TT template etc) using the pager() method:
+
+    $pager = $rs->pager();
+
 =head2 Complex searches
 
 Sometimes you need to formulate a query using specific operators:
@@ -46,6 +77,87 @@ your main database class to make sure it disconnects cleanly:
   $SIG{INT} = sub {
     __PACKAGE__->storage->dbh->disconnect;
   };
+
+=head2 Using cols
+
+When you only want selected columns from a table, you can use "cols" to
+specify which ones you need (you could also use "select", but "cols" is the
+recommended way):
+
+    $rs = $schema->resultset('Artist')->search(
+        {},
+        {
+            cols => [qw/ name /]
+        }
+    );
+
+    # e.g.
+    # SELECT artist.name FROM artist
+
+=head2 Using select and as
+
+The combination of "select" and "as" is probably most useful when you want to
+return the result of a function or stored procedure as a column value. You use
+"select" to specify the source for your column value (e.g. a column name,
+function or stored procedure name). You then use "as" to set the column name
+you will use to access the returned value:
+
+    $rs = $schema->resultset('Artist')->search(
+        {},
+        {
+            select => [ 'name', { LENGTH => 'name' } ],
+            as => [qw/ name name_length /],
+        }
+    );
+
+    # e.g.
+    # SELECT name name, LENGTH( name ) name_length
+    # FROM artist
+
+If your alias exists as a column in your base class (i.e. it was added with
+add_columns()), you just access it as normal. Our Artist class has a "name"
+column, so we just use the "name" accessor:
+
+    my $artist = $rs->first();
+    my $name = $artist->name();
+
+If on the other hand the alias does not correspond to an existing column, you
+can get the value using the get_column() accessor:
+
+    my $name_length = $artist->get_column('name_length');
+
+If you don't like using "get_column()", you can always create an accessor for
+any of your aliases using either of these:
+
+    # define accessor manually
+    sub name_length { shift->get_column('name_length'); }
+    
+    # or use DBIx::Class::AccessorGroup
+    __PACKAGE__->mk_group_accessors('column' => 'name_length');
+
+=head2 SELECT DISTINCT with multiple columns
+
+    $rs = $schema->resultset('Foo')->search(
+        {},
+        {
+            select => [
+                { distinct => [ $source->columns ] }
+            ],
+            as => [ $source->columns ]
+        }
+    );
+
+=head2 SELECT COUNT(DISTINCT colname)
+
+    $rs = $schema->resultset('Foo')->search(
+        {},
+        {
+            select => [
+                { count => { distinct => 'colname' } }
+            ],
+            as => [ 'count' ]
+        }
+    );
 
 =head2 Using joins and prefetch
 
@@ -177,7 +289,7 @@ Joins can be nested to an arbitrary level. So if we decide later that we
 want to reduce the number of Artists returned based on who wrote the liner
 notes:
 
-    # LinerNotes->has_one('author' => 'Person');
+    # LinerNotes->belongs_to('author' => 'Person');
 
     $rs = $schema->resultset('Artist')->search(
         {
