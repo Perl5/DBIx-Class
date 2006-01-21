@@ -20,40 +20,35 @@ DBIx::Class::Schema - composable schemas
 
 =head1 SYNOPSIS
 
-in My/Schema.pm
-
   package My::Schema;
-
   use base qw/DBIx::Class::Schema/;
-
+  
+  # load My::Schema::Foo, My::Schema::Bar, My::Schema::Baz
   __PACKAGE__->load_classes(qw/Foo Bar Baz/);
 
-in My/Schema/Foo.pm
-
   package My::Schema::Foo;
-
   use base qw/DBIx::Class/;
-
   __PACKAGE__->load_components(qw/PK::Auto::Pg Core/); # for example
   __PACKAGE__->table('foo');
-  ...
 
-in My/DB.pm
+  my $schema1 = My::Schema->connect(
+    $dsn,
+    $user,
+    $password,
+    $attrs
+  );
 
-  use My::Schema;
+  my $schema2 = My::Schema->connect( ... );
 
-  My::Schema->compose_connection('My::DB', $dsn, $user, $pass, $attrs);
-
-then in app code
-
-  my @obj = My::DB::Foo->search({}); # My::DB::Foo isa My::Schema::Foo My::DB
+  # fetch objects using My::Schema::Foo
+  my $resultset = $schema1->resultset('Foo')->search( ... );
+  my @objects = $schema2->resultset('Foo')->search( ... );
 
 =head1 DESCRIPTION
 
-Creates database classes based on a schema. This allows you to have more than
-one concurrent connection using the same database classes, by making 
-subclasses under a new namespace for each connection. If you only need one 
-class, you should probably use L<DBIx::Class::DB> directly instead.
+Creates database classes based on a schema. This is the recommended way to
+use L<DBIx::Class> and allows you to use more than one concurrent connection
+with your classes.
 
 NB: If you're used to L<Class::DBI> it's worth reading the L</SYNOPSIS>
 carefully as DBIx::Class does things a little differently. Note in
