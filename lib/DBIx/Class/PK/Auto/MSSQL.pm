@@ -17,13 +17,13 @@ sub last_insert_id {
 
 =head1 NAME 
 
-DBIx::Class::PK::Auto::MSSQL - Automatic Primary Key class for MSSQL
+DBIx::Class::PK::Auto::MSSQL - Automatic primary key class for MSSQL
 
 =head1 SYNOPSIS
 
-    # In your table classes
-    __PACKAGE__->load_components(qw/PK::Auto::MSSQL Core/);
-    __PACKAGE__->set_primary_key('id');
+  # In your table classes
+  __PACKAGE__->load_components(qw/PK::Auto::MSSQL Core/);
+  __PACKAGE__->set_primary_key('id');
 
 =head1 DESCRIPTION
 

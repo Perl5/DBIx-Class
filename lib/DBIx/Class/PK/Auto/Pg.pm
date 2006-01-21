@@ -39,17 +39,17 @@ sub get_autoinc_seq {
 
 =head1 NAME 
 
-DBIx::Class::PK::Auto::Pg - Automatic Primary Key class for Postgresql
+DBIx::Class::PK::Auto::Pg - Automatic primary key class for PostgreSQL
 
 =head1 SYNOPSIS
 
-    # In your table classes
-    __PACKAGE__->load_components(qw/PK::Auto::Pg Core/);
-    __PACKAGE__->set_primary_key('id');
+  # In your table classes
+  __PACKAGE__->load_components(qw/PK::Auto::Pg Core/);
+  __PACKAGE__->set_primary_key('id');
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for Postgresql.
+This class implements autoincrements for PostgreSQL.
 
 =head1 AUTHORS
 
@@ -60,4 +60,3 @@ Marcus Ramberg <m.ramberg@cpan.org>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-

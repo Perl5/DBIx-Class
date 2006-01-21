@@ -15,13 +15,13 @@ sub last_insert_id {
 
 =head1 NAME 
 
-DBIx::Class::PK::Auto::MySQL - Automatic Primary Key class for MySQL
+DBIx::Class::PK::Auto::MySQL - Automatic primary key class for MySQL
 
 =head1 SYNOPSIS
 
-    # In your table classes
-    __PACKAGE__->load_components(qw/PK::Auto::MySQL Core/);
-    __PACKAGE__->set_primary_key('id');
+  # In your table classes
+  __PACKAGE__->load_components(qw/PK::Auto::MySQL Core/);
+  __PACKAGE__->set_primary_key('id');
 
 =head1 DESCRIPTION
 
@@ -36,4 +36,3 @@ Matt S. Trout <mst@shadowcatsystems.co.uk>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-

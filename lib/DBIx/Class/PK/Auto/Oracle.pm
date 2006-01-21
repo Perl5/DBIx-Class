@@ -51,13 +51,13 @@ sub get_autoinc_seq {
 
 =head1 NAME 
 
-DBIx::Class::PK::Auto::Oracle - Automatic Primary Key class for Oracle
+DBIx::Class::PK::Auto::Oracle - Automatic primary key class for Oracle
 
 =head1 SYNOPSIS
 
-    # In your table classes
-    __PACKAGE__->load_components(qw/PK::Auto::Oracle Core/);
-    __PACKAGE__->set_primary_key('id');
+  # In your table classes
+  __PACKAGE__->load_components(qw/PK::Auto::Oracle Core/);
+  __PACKAGE__->set_primary_key('id');
 
 =head1 DESCRIPTION
 
@@ -74,4 +74,3 @@ Scott Connelly <scottsweep@yahoo.com>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
