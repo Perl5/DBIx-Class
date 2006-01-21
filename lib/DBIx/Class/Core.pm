@@ -19,15 +19,19 @@ __PACKAGE__->load_components(qw/
 
 =head1 NAME 
 
-DBIx::Class::Core - Core set of DBIx::Class modules.
+DBIx::Class::Core - Core set of DBIx::Class modules
+
+=head1 SYNOPSIS
+
+  # In your table classes
+  __PACKAGE__->load_components(qw/Core/);
 
 =head1 DESCRIPTION
 
-This class just inherits from the various modules that makes 
-up the DBIx::Class core features. This makes it a convenient base
-class for your DBIx::Class setup.
+This class just inherits from the various modules that make up the
+L<DBIx::Class> core features.  You almost certainly want these.
 
-At the moment those are:
+The core modules currently are:
 
 =over 4
 
@@ -39,13 +43,17 @@ At the moment those are:
 
 =item L<DBIx::Class::Row>
 
-=item L<DBIx::Class::Table>
+=item L<DBIx::Class::TableInstance>
 
 =item L<DBIx::Class::Exception>
 
 =item L<DBIx::Class::AccessorGroup>
 
 =back
+
+If you are also using a L<DBIx::Class::PK::Auto> component, please
+make sure you load it correctly. Refer to
+L<DBIx::Class::PK::Auto/DESCRIPTION> for more information.
 
 =head1 AUTHORS
 
@@ -56,4 +64,3 @@ Matt S. Trout <mst@shadowcatsystems.co.uk>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
