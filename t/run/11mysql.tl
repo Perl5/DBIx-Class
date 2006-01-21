@@ -55,7 +55,7 @@ my $test_type_info = {
 };
 
 
-my $type_info = MySQLTest::Artist->storage->columns_info_for('artist');
+my $type_info = MySQLTest->schema->storage->columns_info_for('artist');
 is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
 
 
