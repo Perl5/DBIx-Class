@@ -108,6 +108,21 @@ Returns the column metadata hashref for a column.
 sub column_info {
   my ($self, $column) = @_;
   croak "No such column $column" unless exists $self->_columns->{$column};
+  if ( (! $self->_columns->{$column}->{data_type})
+       && $self->schema && $self->storage() ){
+      my $info;
+############ eval for the case of storage without table 
+      eval{
+          $info = $self->storage->columns_info_for ( $self->from() );
+      };
+      if ( ! $@ ){
+          for my $col ( keys %{$self->_columns} ){
+              for my $i ( keys %{$info->{$col}} ){
+                  $self->_columns()->{$col}->{$i} = $info->{$col}->{$i};
+              }
+          }
+      }
+  }
   return $self->_columns->{$column};
 }
 

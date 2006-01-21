@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 34; 
+plan tests => 36; 
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -140,6 +140,11 @@ cmp_ok($rel_rs->count, '==', 5, 'Related search ok');
 
 cmp_ok($or_rs->next->cdid, '==', $rel_rs->next->cdid, 'Related object ok');
 
+
+ok($schema->storage(), 'Storage available');
+
+my $typeinfo = $schema->source("Artist")->column_info('artistid');
+is($typeinfo->{data_type}, 'INTEGER', 'column_info ok');
 }
 
 1;

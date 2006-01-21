@@ -253,6 +253,7 @@ Returns the next element in the resultset (undef is there is none).
 sub next {
   my ($self) = @_;
   my @row = $self->cursor->next;
+#  warn Dumper(\@row); use Data::Dumper;
   return unless (@row);
   return $self->_construct_object(@row);
 }

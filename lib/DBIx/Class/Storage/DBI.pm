@@ -295,6 +295,34 @@ sub sth {
   return $self->dbh->prepare_cached($sql, {}, 3);
 }
 
+=head2 columns_info_for
+
+Returns database type info for a given table columns.
+
+=cut
+
+sub columns_info_for {
+    my ($self, $table) = @_;
+    my $sth = $self->dbh->prepare("SELECT * FROM $table WHERE 1=0");
+    $sth->execute;
+    my %result;
+    my @columns = @{$sth->{NAME}};
+    for my $i ( 0 .. $#columns ){
+        my $type = $sth->{TYPE}->[$i];
+        my $info = $self->dbh->type_info($type);
+        my %column_info;
+        if ( $info ){
+            $column_info{data_type} = $info->{TYPE_NAME};
+            $column_info{size} = $info->{COLUMN_SIZE};
+            $column_info{is_nullable} = $info->{NULLABLE};
+        }else{
+            $column_info{data_type} = $type;
+        }
+        $result{$columns[$i]} = \%column_info;
+    }
+    return \%result;
+}
+
 1;
 
 =head1 AUTHORS

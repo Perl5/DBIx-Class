@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
   
-plan tests => 2;
+plan tests => 3;
 
 # add some rows inside a transaction and commit it
 # XXX: Is storage->dbh the only way to get a dbh?
@@ -27,6 +27,17 @@ for (21..30) {
 $schema->storage->txn_rollback;
 ($artist) = $schema->resultset("Artist")->search( artistid => 25 );
 is($artist, undef, "Rollback ok");
+
+my $type_info = $schema->storage->columns_info_for('artist');
+my $test_type_info = {
+    'artistid' => {
+        'data_type' => 'INTEGER'
+    },
+    'name' => {
+        'data_type' => 'VARCHAR'
+    }
+};
+is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
 
 }
 

@@ -12,7 +12,7 @@ plan tests => 4;
 
 $schema->resultset("Schema")->compose_connection( 'MSSQLTest' => $dsn, $user, $pass );
 
-my $dbh = MSSQLTest::Artist->storage->dbh;
+my $dbh = MSSQLTest->schema->storage->dbh;
 
 $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
     DROP TABLE artist");

@@ -8,11 +8,11 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all, 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 4;
+plan tests => 5;
 
 DBICTest::Schema->compose_connection('MySQLTest' => $dsn, $user, $pass);
 
-my $dbh = MySQLTest::Artist->storage->dbh;
+my $dbh = MySQLTest->schema->storage->dbh;
 
 $dbh->do("DROP TABLE IF EXISTS artist;");
 
@@ -40,6 +40,25 @@ is( $it->next->name, "Artist 2", "iterator->next ok" );
 $it->next;
 $it->next;
 is( $it->next, undef, "next past end of resultset ok" );
+
+my $test_type_info = {
+    'artistid' => {
+        'data_type' => 'integer',
+        'is_nullable' => 1,
+        'size' => 10
+    },
+    'name' => {
+        'data_type' => 'varchar',
+        'is_nullable' => 1,
+        'size' => 255
+    }
+};
+
+
+my $type_info = MySQLTest::Artist->storage->columns_info_for('artist');
+is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
+
+
 
 # clean up our mess
 $dbh->do("DROP TABLE artist");
