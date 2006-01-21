@@ -4,38 +4,40 @@ DBIx::Class::Manual::Cookbook - Miscellaneous recipes
 
 =head1 RECIPES
 
-=head2 Paged results
+=head2 Searching
 
-When you expect a large number of results, you can ask DBIx::Class for a paged
-resultset, which will fetch only a small number of records at a time:
+=head3 Paged results
 
-    $rs = $schema->resultset('Artist')->search(
-        {},
-        {
-            page => 1, # page to return (defaults to 1)
-            rows => 10, # number of results per page
-        },
-    );
+When you expect a large number of results, you can ask L<DBIx::Class> for a
+paged resultset, which will fetch only a small number of records at a time:
 
-    $rs->all(); # return all records for page 1
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      page => 1,  # page to return (defaults to 1)
+      rows => 10, # number of results per page
+    },
+  );
 
-The "page" attribute does not have to be specified in your search:
+  return $rs->all(); # all records for page 1
 
-    $rs = $schema->resultset('Artist')->search(
-        {},
-        {
-            rows => 10,
-        }
-    );
+The C<page> attribute does not have to be specified in your search:
 
-    $rs->page(1); # return DBIx::Class::ResultSet containing first 10 records
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      rows => 10,
+    }
+  );
+
+  return $rs->page(1); # DBIx::Class::ResultSet containing first 10 records
 
 In either of the above cases, you can return a L<Data::Page> object for the
-resultset (suitable for use in a TT template etc) using the pager() method:
+resultset (suitable for use in e.g. a template) using the C<pager> method:
 
-    $pager = $rs->pager();
+  return $rs->pager();
 
-=head2 Complex searches
+=head3 Complex WHERE clauses
 
 Sometimes you need to formulate a query using specific operators:
 
@@ -68,269 +70,260 @@ This results in the following C<WHERE> clause:
 For more information on generating complex queries, see
 L<SQL::Abstract/WHERE CLAUSES>.
 
-=head2 Disconnecting cleanly
+=head3 Using specific columns
 
-If you find yourself quitting an app with Control-C a lot during
-development, you might like to put the following signal handler in
-your main database class to make sure it disconnects cleanly:
+When you only want selected columns from a table, you can use C<cols> to
+specify which ones you need:
 
-  $SIG{INT} = sub {
-    __PACKAGE__->storage->dbh->disconnect;
-  };
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      cols => [qw/ name /]
+    }
+  );
 
-=head2 Using cols
+  # Equivalent SQL:
+  # SELECT artist.name FROM artist
 
-When you only want selected columns from a table, you can use "cols" to
-specify which ones you need (you could also use "select", but "cols" is the
-recommended way):
+=head3 Using database functions or stored procedures
 
-    $rs = $schema->resultset('Artist')->search(
-        {},
-        {
-            cols => [qw/ name /]
-        }
-    );
+The combination of C<select> and C<as> can be used to return the result of a
+database function or stored procedure as a column value. You use C<select> to
+specify the source for your column value (e.g. a column name, function, or
+stored procedure name). You then use C<as> to set the column name you will use
+to access the returned value:
 
-    # e.g.
-    # SELECT artist.name FROM artist
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      select => [ 'name', { LENGTH => 'name' } ],
+      as     => [qw/ name name_length /],
+    }
+  );
 
-=head2 Using select and as
-
-The combination of "select" and "as" is probably most useful when you want to
-return the result of a function or stored procedure as a column value. You use
-"select" to specify the source for your column value (e.g. a column name,
-function or stored procedure name). You then use "as" to set the column name
-you will use to access the returned value:
-
-    $rs = $schema->resultset('Artist')->search(
-        {},
-        {
-            select => [ 'name', { LENGTH => 'name' } ],
-            as => [qw/ name name_length /],
-        }
-    );
-
-    # e.g.
-    # SELECT name name, LENGTH( name ) name_length
-    # FROM artist
+  # Equivalent SQL:
+  # SELECT name name, LENGTH( name ) name_length
+  # FROM artist
 
 If your alias exists as a column in your base class (i.e. it was added with
-add_columns()), you just access it as normal. Our Artist class has a "name"
-column, so we just use the "name" accessor:
+C<add_columns>), you just access it as normal. Our C<Artist> class has a C<name>
+column, so we just use the C<name> accessor:
 
-    my $artist = $rs->first();
-    my $name = $artist->name();
+  my $artist = $rs->first();
+  my $name = $artist->name();
 
 If on the other hand the alias does not correspond to an existing column, you
-can get the value using the get_column() accessor:
+can get the value using the C<get_column> accessor:
 
-    my $name_length = $artist->get_column('name_length');
+  my $name_length = $artist->get_column('name_length');
 
-If you don't like using "get_column()", you can always create an accessor for
+If you don't like using C<get_column>, you can always create an accessor for
 any of your aliases using either of these:
 
-    # define accessor manually
-    sub name_length { shift->get_column('name_length'); }
+  # Define accessor manually:
+  sub name_length { shift->get_column('name_length'); }
     
-    # or use DBIx::Class::AccessorGroup
-    __PACKAGE__->mk_group_accessors('column' => 'name_length');
+  # Or use DBIx::Class::AccessorGroup:
+  __PACKAGE__->mk_group_accessors('column' => 'name_length');
 
-=head2 SELECT DISTINCT with multiple columns
+=head3 SELECT DISTINCT with multiple columns
 
-    $rs = $schema->resultset('Foo')->search(
-        {},
-        {
-            select => [
-                { distinct => [ $source->columns ] }
-            ],
-            as => [ $source->columns ]
-        }
-    );
+  my $rs = $schema->resultset('Foo')->search(
+    {},
+    {
+      select => [
+        { distinct => [ $source->columns ] }
+      ],
+      as => [ $source->columns ]
+    }
+  );
 
-=head2 SELECT COUNT(DISTINCT colname)
+=head3 SELECT COUNT(DISTINCT colname)
 
-    $rs = $schema->resultset('Foo')->search(
-        {},
-        {
-            select => [
-                { count => { distinct => 'colname' } }
-            ],
-            as => [ 'count' ]
-        }
-    );
+  my $rs = $schema->resultset('Foo')->search(
+    {},
+    {
+      select => [
+        { count => { distinct => 'colname' } }
+      ],
+      as => [ 'count' ]
+    }
+  );
 
-=head2 Grouping results
+=head3 Grouping results
 
-DBIx::Class supports GROUP BY as follows:
+L<DBIx::Class> supports C<GROUP BY> as follows:
 
-    $rs = $schema->resultset('Artist')->search(
-        {},
-        {
-            join => [qw/ cds /],
-            select => [ 'name', { count => 'cds.cdid' } ],
-            as => [qw/ name cd_count /],
-            group_by => [qw/ name /]
-        }
-    );
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      join     => [qw/ cds /],
+      select   => [ 'name', { count => 'cds.cdid' } ],
+      as       => [qw/ name cd_count /],
+      group_by => [qw/ name /]
+    }
+  );
 
-    # e.g.
-    # SELECT name, COUNT( cds.cdid ) FROM artist me
-    # LEFT JOIN cd cds ON ( cds.artist = me.artistid )
-    # GROUP BY name
+  # Equivalent SQL:
+  # SELECT name, COUNT( cds.cdid ) FROM artist me
+  # LEFT JOIN cd cds ON ( cds.artist = me.artistid )
+  # GROUP BY name
 
 =head2 Using joins and prefetch
 
-You can use the "join" attribute to allow searching on, or sorting your
-results by, one or more columns in a related table. To return
-all CDs matching a particular artist name:
+You can use the C<join> attribute to allow searching on, or sorting your
+results by, one or more columns in a related table. To return all CDs matching
+a particular artist name:
 
-    my $rs = $schema->resultset('CD')->search(
-        {
-            'artist.name' => 'Bob Marley'    
-        },
-        {
-            join => [qw/artist/], # join the artist table
-        }
-    );
-
-    # equivalent SQL:
-    # SELECT cd.* FROM cd
-    # JOIN artist ON cd.artist = artist.id
-    # WHERE artist.name = 'Bob Marley'
-
-If required, you can now sort on any column in the related table(s) by
-including it in your "order_by" attribute:
-
-    my $rs = $schema->resultset('CD')->search(
-        {
-            'artist.name' => 'Bob Marley'
-        },
-        {
-            join => [qw/ artist /],
-            order_by => [qw/ artist.name /]
-        }
-    };
-
-    # equivalent SQL:
-    # SELECT cd.* FROM cd
-    # JOIN artist ON cd.artist = artist.id
-    # WHERE artist.name = 'Bob Marley'
-    # ORDER BY artist.name
-
-Note that the "join" attribute should only be used when you need to search or
-sort using columns in a related table. Joining related tables when you
-only need columns from the main table will make performance worse!
-
-Now let's say you want to display a list of CDs, each with the name of
-the artist. The following will work fine:
-
-    while (my $cd = $rs->next) {
-        print "CD: " . $cd->title . ", Artist: " . $cd->artist->name;
+  my $rs = $schema->resultset('CD')->search(
+    {
+      'artist.name' => 'Bob Marley'    
+    },
+    {
+      join => [qw/artist/], # join the artist table
     }
+  );
 
-There is a problem however. We have searched both cd and artist tables in our
-main query, but we have only returned data from the cd table. To get the artist
-name for any of the CD objects returned, DBIx::Class will go back to the
-database:
+  # Equivalent SQL:
+  # SELECT cd.* FROM cd
+  # JOIN artist ON cd.artist = artist.id
+  # WHERE artist.name = 'Bob Marley'
 
-    SELECT artist.* FROM artist WHERE artist.id = ?
+If required, you can now sort on any column in the related tables by including
+it in your C<order_by> attribute:
+
+  my $rs = $schema->resultset('CD')->search(
+    {
+      'artist.name' => 'Bob Marley'
+    },
+    {
+      join     => [qw/ artist /],
+      order_by => [qw/ artist.name /]
+    }
+  };
+
+  # Equivalent SQL:
+  # SELECT cd.* FROM cd
+  # JOIN artist ON cd.artist = artist.id
+  # WHERE artist.name = 'Bob Marley'
+  # ORDER BY artist.name
+
+Note that the C<join> attribute should only be used when you need to search or
+sort using columns in a related table. Joining related tables when you only
+need columns from the main table will make performance worse!
+
+Now let's say you want to display a list of CDs, each with the name of the
+artist. The following will work fine:
+
+  while (my $cd = $rs->next) {
+    print "CD: " . $cd->title . ", Artist: " . $cd->artist->name;
+  }
+
+There is a problem however. We have searched both the C<cd> and C<artist> tables
+in our main query, but we have only returned data from the C<cd> table. To get
+the artist name for any of the CD objects returned, L<DBIx::Class> will go back
+to the database:
+
+  SELECT artist.* FROM artist WHERE artist.id = ?
 
 A statement like the one above will run for each and every CD returned by our
 main query. Five CDs, five extra queries. A hundred CDs, one hundred extra
 queries!
 
-Thankfully, DBIx::Class has a "prefetch" attribute to solve this problem. This
-allows you to fetch results from a related table as well as the main table
+Thankfully, L<DBIx::Class> has a C<prefetch> attribute to solve this problem.
+This allows you to fetch results from a related table as well as the main table
 for your class:
 
-    my $rs = $schema->resultset('CD')->search(
-        {
-            'artist.name' => 'Bob Marley'
-        },
-        {
-            join => [qw/ artist /],
-            order_by => [qw/ artist.name /],
-            prefetch => [qw/ artist /] # return artist data too!
-        }
-    );
+  my $rs = $schema->resultset('CD')->search(
+    {
+      'artist.name' => 'Bob Marley'
+    },
+    {
+      join     => [qw/ artist /],
+      order_by => [qw/ artist.name /],
+      prefetch => [qw/ artist /] # return artist data too!
+    }
+  );
 
-    # equivalent SQL (note SELECT from both "cd" and "artist")
-    # SELECT cd.*, artist.* FROM cd
-    # JOIN artist ON cd.artist = artist.id
-    # WHERE artist.name = 'Bob Marley'
-    # ORDER BY artist.name
+  # Equivalent SQL (note SELECT from both "cd" and "artist"):
+  # SELECT cd.*, artist.* FROM cd
+  # JOIN artist ON cd.artist = artist.id
+  # WHERE artist.name = 'Bob Marley'
+  # ORDER BY artist.name
 
 The code to print the CD list remains the same:
 
-    while (my $cd = $rs->next) {
-        print "CD: " . $cd->title . ", Artist: " . $cd->artist->name;
-    }
+  while (my $cd = $rs->next) {
+    print "CD: " . $cd->title . ", Artist: " . $cd->artist->name;
+  }
 
-DBIx::Class has now prefetched all matching data from the "artist" table,
+L<DBIx::Class> has now prefetched all matching data from the C<artist> table,
 so no additional SQL statements are executed. You now have a much more
 efficient query.
 
-Note that as of DBIx::Class 0.04, "prefetch" cannot be used with has_many
-relationships. You will get an error along the lines of "No accessor for
-prefetched ..." if you try.
+Note that as of L<DBIx::Class> 0.04, C<prefetch> cannot be used with
+C<has_many> relationships. You will get an error along the lines of "No
+accessor for prefetched ..." if you try.
 
-Note that "prefetch" should only be used when you know you will
+Also note that C<prefetch> should only be used when you know you will
 definitely use data from a related table. Pre-fetching related tables when you
 only need columns from the main table will make performance worse!
 
-=head2 Multi-step joins
+=head3 Multi-step joins
 
 Sometimes you want to join more than one relationship deep. In this example,
-we want to find all Artist objects who have CDs whose LinerNotes contain a
-specific string:
+we want to find all C<Artist> objects who have C<CD>s whose C<LinerNotes>
+contain a specific string:
 
-    # Artist->has_many('cds' => 'CD', 'artist');
-    # CD->has_one('liner_notes' => 'LinerNotes', 'cd');
+  # Relationships defined elsewhere:
+  # Artist->has_many('cds' => 'CD', 'artist');
+  # CD->has_one('liner_notes' => 'LinerNotes', 'cd');
 
-    $rs = $schema->resultset('Artist')->search(
-        {
-            'liner_notes.notes' => { 'like', '%some text%' },
-        },
-        {
-            join => {
-                'cds' => 'liner_notes'
-            }
-        }
-    );
+  my $rs = $schema->resultset('Artist')->search(
+    {
+      'liner_notes.notes' => { 'like', '%some text%' },
+    },
+    {
+      join => {
+        'cds' => 'liner_notes'
+      }
+    }
+  );
 
-    # equivalent SQL
-    # SELECT artist.* FROM artist
-    # JOIN ( cd ON artist.id = cd.artist )
-    # JOIN ( liner_notes ON cd.id = liner_notes.cd )
-    # WHERE liner_notes.notes LIKE '%some text%'
+  # Equivalent SQL:
+  # SELECT artist.* FROM artist
+  # JOIN ( cd ON artist.id = cd.artist )
+  # JOIN ( liner_notes ON cd.id = liner_notes.cd )
+  # WHERE liner_notes.notes LIKE '%some text%'
 
 Joins can be nested to an arbitrary level. So if we decide later that we
 want to reduce the number of Artists returned based on who wrote the liner
 notes:
 
-    # LinerNotes->belongs_to('author' => 'Person');
+  # Relationship defined elsewhere:
+  # LinerNotes->belongs_to('author' => 'Person');
 
-    $rs = $schema->resultset('Artist')->search(
-        {
-            'liner_notes.notes' => { 'like', '%some text%' },
-            'author.name' => 'A. Writer'
-        },
-        {
-            join => {
-                'cds' => {
-                    'liner_notes' => 'author'
-                }
-            }
+  my $rs = $schema->resultset('Artist')->search(
+    {
+      'liner_notes.notes' => { 'like', '%some text%' },
+      'author.name' => 'A. Writer'
+    },
+    {
+      join => {
+        'cds' => {
+          'liner_notes' => 'author'
         }
-    );
+      }
+    }
+  );
 
-    # equivalent SQL
-    # SELECT artist.* FROM artist
-    # JOIN ( cd ON artist.id = cd.artist )
-    # JOIN ( liner_notes ON cd.id = liner_notes.cd )
-    # JOIN ( author ON author.id = liner_notes.author )
-    # WHERE liner_notes.notes LIKE '%some text%'
-    # AND author.name = 'A. Writer'
+  # Equivalent SQL:
+  # SELECT artist.* FROM artist
+  # JOIN ( cd ON artist.id = cd.artist )
+  # JOIN ( liner_notes ON cd.id = liner_notes.cd )
+  # JOIN ( author ON author.id = liner_notes.author )
+  # WHERE liner_notes.notes LIKE '%some text%'
+  # AND author.name = 'A. Writer'
 
 =head2 Transactions
 
@@ -365,37 +358,37 @@ in the future.
 
 This is straightforward using L<DBIx::Class::Relationship::ManyToMany>:
 
-    package My::DB;
-    # set up connection here...
+  package My::DB;
+  # ... set up connection ...
 
-    package My::User;
-    use base 'My::DB';
-    __PACKAGE__->table('user');
-    __PACKAGE__->add_columns(qw/id name/);
-    __PACKAGE__->set_primary_key('id');
-    __PACKAGE__->has_many('user_address' => 'My::UserAddress', 'user');
-    __PACKAGE__->many_to_many('addresses' => 'user_address', 'address');
+  package My::User;
+  use base 'My::DB';
+  __PACKAGE__->table('user');
+  __PACKAGE__->add_columns(qw/id name/);
+  __PACKAGE__->set_primary_key('id');
+  __PACKAGE__->has_many('user_address' => 'My::UserAddress', 'user');
+  __PACKAGE__->many_to_many('addresses' => 'user_address', 'address');
 
-    package My::UserAddress;
-    use base 'My::DB';
-    __PACKAGE__->table('user_address');
-    __PACKAGE__->add_columns(qw/user address/);
-    __PACKAGE__->set_primary_key(qw/user address/);
-    __PACKAGE__->belongs_to('user' => 'My::User');
-    __PACKAGE__->belongs_to('address' => 'My::Address');
+  package My::UserAddress;
+  use base 'My::DB';
+  __PACKAGE__->table('user_address');
+  __PACKAGE__->add_columns(qw/user address/);
+  __PACKAGE__->set_primary_key(qw/user address/);
+  __PACKAGE__->belongs_to('user' => 'My::User');
+  __PACKAGE__->belongs_to('address' => 'My::Address');
 
-    package My::Address;
-    use base 'My::DB';
-    __PACKAGE__->table('address');
-    __PACKAGE__->add_columns(qw/id street town area_code country/);
-    __PACKAGE__->set_primary_key('id');
-    __PACKAGE__->has_many('user_address' => 'My::UserAddress', 'address');
-    __PACKAGE__->many_to_many('users' => 'user_address', 'user');
+  package My::Address;
+  use base 'My::DB';
+  __PACKAGE__->table('address');
+  __PACKAGE__->add_columns(qw/id street town area_code country/);
+  __PACKAGE__->set_primary_key('id');
+  __PACKAGE__->has_many('user_address' => 'My::UserAddress', 'address');
+  __PACKAGE__->many_to_many('users' => 'user_address', 'user');
 
-    $rs = $user->addresses(); # get all addresses for a user
-    $rs = $address->users(); # get all users for an address
+  $rs = $user->addresses(); # get all addresses for a user
+  $rs = $address->users(); # get all users for an address
 
-=head2 Setting default values
+=head2 Setting default values for a row
 
 It's as simple as overriding the C<new> method.  Note the use of
 C<next::method>.
@@ -414,5 +407,15 @@ Employ the standard stringification technique by using the C<overload>
 module.  Replace C<foo> with the column/method of your choice.
 
   use overload '""' => 'foo', fallback => 1;
+
+=head2 Disconnecting cleanly
+
+If you find yourself quitting an app with Control-C a lot during
+development, you might like to put the following signal handler in
+your main database class to make sure it disconnects cleanly:
+
+  $SIG{INT} = sub {
+    __PACKAGE__->storage->dbh->disconnect;
+  };
 
 =cut
