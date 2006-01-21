@@ -3,8 +3,11 @@ package DBIx::Class::CDBICompat::LazyLoading;
 use strict;
 use warnings;
 
-sub _select_columns {
-  return shift->columns('Essential');
+sub resultset_instance {
+  my $self = shift;
+  my $rs = $self->next::method(@_);
+  $rs = $rs->search(undef, { cols => [ $self->columns('Essential') ] });
+  return $rs;
 }
 
 sub get_column {

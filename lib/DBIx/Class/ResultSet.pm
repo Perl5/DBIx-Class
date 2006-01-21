@@ -43,10 +43,11 @@ sub new {
   $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
   my %seen;
   my $alias = ($attrs->{alias} ||= 'me');
-  if (!$attrs->{select}) {
+  if ($attrs->{cols} || !$attrs->{select}) {
+    delete $attrs->{as} if $attrs->{cols};
     my @cols = ($attrs->{cols}
                  ? @{delete $attrs->{cols}}
-                 : $source->result_class->_select_columns);
+                 : $source->columns);
     $attrs->{select} = [ map { m/\./ ? $_ : "${alias}.$_" } @cols ];
   }
   $attrs->{as} ||= [ map { m/^$alias\.(.*)$/ ? $1 : $_ } @{$attrs->{select}} ];

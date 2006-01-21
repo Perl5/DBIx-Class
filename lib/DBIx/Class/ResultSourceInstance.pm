@@ -17,10 +17,6 @@ sub add_columns {
   }
 }
 
-sub _select_columns {
-  return shift->result_source_instance->columns;
-}
-
 sub has_column {                                                                
   my ($self, $column) = @_;                                                     
   return $self->result_source_instance->has_column($column);                    
