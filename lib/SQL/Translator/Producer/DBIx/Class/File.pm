@@ -57,8 +57,11 @@ sub produce
     $tt_vars{pkclass} = $pkclass;
 
     my $schemaoutput .= << "DATA";
+
 package ${dbixschema};
 use base 'DBIx::Class::Schema';
+use strict;
+use warnings;
 DATA
 
     my %tableoutput = ();
@@ -67,8 +70,11 @@ DATA
     {
         my $tname = $table->name;
         my $output .= qq{
+
 package ${dbixschema}::${tname};
 use base 'DBIx::Class';
+use strict;
+use warnings;
 
 __PACKAGE__->load_components(qw/${pkclass} Core/);
 __PACKAGE__->table('${tname}');
@@ -106,7 +112,7 @@ __PACKAGE__->table('${tname}');
         {
             my @pk = map { $_->name } ($pk->fields);
             $output .= "__PACKAGE__->set_primary_key(";
-            $output .= "'" . join("', '", @pk) . "');";
+            $output .= "'" . join("', '", @pk) . "');\n";
         }
 
         foreach my $cont ($table->get_constraints)
@@ -114,7 +120,11 @@ __PACKAGE__->table('${tname}');
 #            print Data::Dumper::Dumper($cont->type);
             if($cont->type =~ /foreign key/i)
             {
-                $output .= "\n__PACKAGE__->belongs_to('" . 
+#                 $output .= "\n__PACKAGE__->belongs_to('" . 
+#                     $cont->fields->[0]->name . "', '" .
+#                     "${dbixschema}::" . $cont->reference_table . "');\n";
+
+                $tableextras{$table->name} .= "\n__PACKAGE__->belongs_to('" . 
                     $cont->fields->[0]->name . "', '" .
                     "${dbixschema}::" . $cont->reference_table . "');\n";
                 
@@ -126,23 +136,22 @@ __PACKAGE__->table('${tname}');
             }
         }
 
-        $tableoutput{$table->name} = $output;
+        $tableoutput{$table->name} .= $output;
+    }
+
+    foreach my $to (keys %tableoutput)
+    {
+        $output .= $tableoutput{$to};
+        $schemaoutput .= "\n__PACKAGE__->register_class('${to}', '${dbixschema}::${to}');\n"; 
     }
 
     foreach my $te (keys %tableextras)
     {
-        $tableoutput{$te} .= $tableextras{$te} . "\n";
+        $output .= "\npackage ${dbixschema}::$te;\n";
+        $output .= $tableextras{$te} . "\n";
+#        $tableoutput{$te} .= $tableextras{$te} . "\n";
     }
-
-    $schemaoutput .= "\n__PACKAGE__->load_classes(";
-    foreach my $to (keys %tableoutput)
-    {
-        $output .= $tableoutput{$to};
-        $schemaoutput .= "'${to}',"; 
-    }
-    chop $schemaoutput;
-    $schemaoutput .= ");\n";
 
 #    print "$output\n";
-    return $schemaoutput . $output . "\n1;\n";
+    return "${output}\n\n${schemaoutput}\n1;\n";
 }
