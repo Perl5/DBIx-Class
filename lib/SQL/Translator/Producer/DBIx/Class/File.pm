@@ -134,12 +134,15 @@ __PACKAGE__->table('${tname}');
         $tableoutput{$te} .= $tableextras{$te} . "\n";
     }
 
-
+    $schemaoutput .= "\n__PACKAGE__->load_classes(";
     foreach my $to (keys %tableoutput)
     {
         $output .= $tableoutput{$to};
+        $schemaoutput .= "'${to}',"; 
     }
+    chop $schemaoutput;
+    $schemaoutput .= ");\n";
 
-    print "$output\n";
-    return $output;
+#    print "$output\n";
+    return $schemaoutput . $output . "\n1;\n";
 }
