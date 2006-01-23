@@ -418,4 +418,84 @@ your main database class to make sure it disconnects cleanly:
     __PACKAGE__->storage->dbh->disconnect;
   };
 
+=head2 Schema import/export
+
+This functionality requires you to have L<SQL::Translator> (also known as
+"SQL Fairy") installed.
+
+To create a DBIx::Class schema from an existing database:
+
+ sqlt --from DBI
+      --to DBIx::Class::File
+      --prefix "MySchema" > MySchema.pm
+
+To create a MySQL database from an existing L<DBIx::Class> schema, convert the
+schema to MySQL's dialect of SQL:
+
+  sqlt --from DBIx::Class --to MySQL --DBIx::Class "MySchema.pm" > Schema1.sql
+  
+And import using the mysql client:
+
+  mysql -h "host" -D "database" -u "user" -p < Schema1.sql
+
+=head2 Schema versioning
+
+The following example shows simplistically how you might use DBIx::Class to
+deploy versioned schemas to your customers. The basic process is as follows:
+
+1) Create a DBIx::Class schema
+2) Save the schema
+3) Deploy to customers
+4) Modify schema to change functionality
+5) Deploy update to customers
+
+=head3 Create a DBIx::Class schema
+
+This can either be done manually, or generated from an existing database as
+described under C<Schema import/export>.
+
+=head3 Save the schema
+
+Use C<sqlt> to transform your schema into an SQL script suitable for your
+customer's database. E.g. for MySQL:
+
+  sqlt --from DBIx::Class
+       --to MySQL
+       --DBIx::Class "MySchema.pm" > Schema1.mysql.sql
+
+If you need to target databases from multiple vendors, just generate an SQL
+script suitable for each. To support PostgreSQL too:
+
+  sqlt --from DBIx::Class
+       --to PostgreSQL
+       --DBIx::Class "MySchema.pm" > Schema1.pgsql.sql
+
+=head3 Deploy to customers
+
+There are several ways you could deploy your schema. These are probably
+beyond the scope of this recipe, but might include:
+
+1) Require customer to apply manually using their RDBMS.
+2) Package along with your app, making database dump/schema update/tests
+all part of your install.
+
+=head3 Modify the schema to change functionality
+
+As your application evolves, it may be necessary to modify your schema to
+change functionality. Once the changes are made to your schema in DBIx::Class,
+export the modified schema as before, taking care not to overwrite the original:
+
+  sqlt --from DBIx::Class
+       --to MySQL
+       --DBIx::Class "Anything.pm" > Schema2.mysql.sql
+
+Next, use sqlt-diff to create an SQL script that will update the customer's
+database schema:
+
+  sqlt-diff --to MySQL Schema1=MySQL Schema2=MySQL > SchemaUpdate.mysql.sql
+
+=head3 Deploy update to customers
+
+The schema update can be deployed to customers using the same method as before.
+
 =cut
