@@ -438,6 +438,44 @@ And import using the mysql client:
 
   mysql -h "host" -D "database" -u "user" -p < Schema1.sql
 
+=head2 Easy migration from class-based to schema-based setup
+
+You want to start using the schema-based approach to L<DBIx::Class>
+(see L<SchemaIntro.pod>), but have an established class-based setup with lots
+of existing classes that you don't want to move by hand. Try this nifty script
+instead:
+
+  use MyDB;
+  use SQL::Translator;
+  
+  my $schema = MyDB->schema_instance;
+  
+  my $translator           =  SQL::Translator->new( 
+      debug                => $debug          ||  0,
+      trace                => $trace          ||  0,
+      no_comments          => $no_comments    ||  0,
+      show_warnings        => $show_warnings  ||  0,
+      add_drop_table       => $add_drop_table ||  0,
+      validate             => $validate       ||  0,
+      parser_args          => {
+         'DBIx::Schema'    => $schema,
+                              }
+      producer_args   => {
+          'prefix'         => 'My::Schema',
+                         }
+  );
+  
+  $translator->parser('DBIx::Class');
+  $translator->producer('DBIx::Class::File');
+  
+  my $output = $translator->translate(@args) or die
+          "Error: " . $translator->error;
+  
+  print $output;
+
+You could use L<Module::Find> to search for all subclasses in the MyDB::*
+namespace, which is currently left as an excercise for the reader.
+
 =head2 Schema versioning
 
 The following example shows simplistically how you might use DBIx::Class to
