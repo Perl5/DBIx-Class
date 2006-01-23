@@ -16,22 +16,46 @@ DBIx::Class::ResultSet - Responsible for fetching and creating resultset.
 
 =head1 SYNOPSIS
 
-  my $rs = MyApp::DB::Class->search(registered => 1);
-  my @rows = MyApp::DB::Class->search(foo => 'bar');
+  my $rs   = $schema->resultset('User')->search(registered => 1);
+  my @rows = $schema->resultset('Foo')->search(bar => 'baz');
 
 =head1 DESCRIPTION
 
 The resultset is also known as an iterator. It is responsible for handling
-queries that may return an arbitrary number of rows, e.g. via C<search>
+queries that may return an arbitrary number of rows, e.g. via L</search>
 or a C<has_many> relationship.
+
+In the examples below, the following table classes are used:
+
+  package MyApp::Schema::Artist;
+  use base qw/DBIx::Class/;
+  __PACKAGE__->table('artist');
+  __PACKAGE__->add_columns(qw/artistid name/);
+  __PACKAGE__->set_primary_key('artistid');
+  __PACKAGE__->has_many(cds => 'MyApp::Schema::CD');
+  1;
+
+  package MyApp::Schema::CD;
+  use base qw/DBIx::Class/;
+  __PACKAGE__->table('artist');
+  __PACKAGE__->add_columns(qw/cdid artist title year/);
+  __PACKAGE__->set_primary_key('cdid');
+  __PACKAGE__->belongs_to(artist => 'MyApp::Schema::Artist');
+  1;
 
 =head1 METHODS
 
 =head2 new($source, \%$attrs)
 
-The resultset constructor. Takes a source object (usually a DBIx::Class::Table)
-and an attribute hash (see below for more information on attributes). Does
-not perform any queries -- these are executed as needed by the other methods.
+The resultset constructor. Takes a source object (usually a
+L<DBIx::Class::TableInstance>) and an attribute hash (see L</ATRRIBUTES>
+below).  Does not perform any queries -- these are executed as needed by the
+other methods.
+
+Generally you won't need to construct a resultset manually.  You'll
+automatically get one from e.g. a L</search> called in scalar context:
+
+  my $rs = $schema->resultset('CD')->search({ title => '100th Window' });
 
 =cut
 
@@ -97,9 +121,10 @@ sub new {
   my $new_rs = $rs->search({ foo => 3 });
 
 If you need to pass in additional attributes but no additional condition,
-call it as ->search(undef, \%attrs);
+call it as C<search({}, \%attrs);>.
 
-  my @all = $class->search({}, { cols => [qw/foo bar/] }); # "SELECT foo, bar FROM $class_table"
+  # "SELECT foo, bar FROM $class_table"
+  my @all = $class->search({}, { cols => [qw/foo bar/] });
 
 =cut
 
@@ -149,17 +174,6 @@ sub search_literal {
 
 Finds a row based on its primary key or unique constraint. For example:
 
-  # In your table class
-  package MyApp::Schema::CD;
-
-  __PACKAGE__->table('cd');
-  __PACKAGE__->add_columns(qw/cdid artist title year/);
-  __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->add_unique_constraint(artist_title => [ qw/artist title/ ]);
-
-  1;
-
-  # In your application
   my $cd = $schema->resultset('CD')->find(5);
 
 Also takes an optional C<key> attribute, to search by a specific key or unique
@@ -172,6 +186,8 @@ constraint. For example:
     },
     { key => 'artist_title' }
   );
+
+See also L</find_or_create> and L</update_or_create>.
 
 =cut
 
@@ -211,6 +227,9 @@ sub find {
 
   $rs->search_related('relname', $cond?, $attrs?);
 
+Search the specified relationship. Optionally specify a condition for matching
+records.
+
 =cut
 
 sub search_related {
@@ -246,7 +265,11 @@ sub cursor {
 
 =head2 search_like
 
-Identical to search except defaults to 'LIKE' instead of '=' in condition
+Perform a search, but use C<LIKE> instead of equality as the condition. Note
+that this is simply a convenience method; you most likely want to use
+L</search> with specific operators.
+
+For more information, see L<DBIx::Class::Manual::Cookbook>.
 
 =cut
 
@@ -279,7 +302,14 @@ sub slice {
 
 =head2 next
 
-Returns the next element in the resultset (undef is there is none).
+Returns the next element in the resultset (C<undef> is there is none).
+
+Can be used to efficiently iterate over records in the resultset:
+
+  my $rs = $schema->resultset('CD')->search({});
+  while (my $cd = $rs->next) {
+    print $cd->title;
+  }
 
 =cut
 
@@ -341,7 +371,7 @@ sub count {
 
 =head2 count_literal
 
-Calls search_literal with the passed arguments, then count.
+Calls L</search_literal> with the passed arguments, then L</count>.
 
 =cut
 
@@ -384,7 +414,7 @@ sub first {
 
 =head2 update(\%values)
 
-Sets the specified columns in the resultset to the supplied values
+Sets the specified columns in the resultset to the supplied values.
 
 =cut
 
@@ -397,8 +427,8 @@ sub update {
 
 =head2 update_all(\%values)
 
-Fetches all objects and updates them one at a time. ->update_all will run
-cascade triggers, ->update will not.
+Fetches all objects and updates them one at a time.  Note that C<update_all>
+will run cascade triggers while L</update> will not.
 
 =cut
 
@@ -425,8 +455,8 @@ sub delete {
 
 =head2 delete_all
 
-Fetches all objects and deletes them one at a time. ->delete_all will run
-cascade triggers, ->delete will not.
+Fetches all objects and deletes them one at a time.  Note that C<delete_all>
+will run cascade triggers while L</delete> will not.
 
 =cut
 
@@ -439,7 +469,7 @@ sub delete_all {
 =head2 pager
 
 Returns a L<Data::Page> object for the current resultset. Only makes
-sense for queries with page turned on.
+sense for queries with a C<page> attribute.
 
 =cut
 
@@ -492,7 +522,7 @@ sub new_result {
 
 Inserts a record into the resultset and returns the object.
 
-Effectively a shortcut for ->new_result(\%vals)->insert
+Effectively a shortcut for C<< ->new_result(\%vals)->insert >>.
 
 =cut
 
@@ -509,17 +539,6 @@ sub create {
 Searches for a record matching the search condition; if it doesn't find one,    
 creates one and returns that instead.                                           
 
-  # In your table class
-  package MyApp::Schema::CD;
-
-  __PACKAGE__->table('cd');
-  __PACKAGE__->add_columns(qw/cdid artist title year/);
-  __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->add_unique_constraint(artist_title => [ qw/artist title/ ]);
-
-  1;
-
-  # In your application
   my $cd = $schema->resultset('CD')->find_or_create({
     cdid   => 5,
     artist => 'Massive Attack',
@@ -577,6 +596,8 @@ source, including the primary key.
 
 If the C<key> is specified as C<primary>, search only on the primary key.
 
+See also L</find> and L</find_or_create>.
+
 =cut
 
 sub update_or_create {
@@ -620,74 +641,101 @@ sub update_or_create {
 
 =head1 ATTRIBUTES
 
-The resultset takes various attributes that modify its behavior.
-Here's an overview of them:
+The resultset takes various attributes that modify its behavior. Here's an
+overview of them:
 
 =head2 order_by
 
-Which column(s) to order the results by. This is currently passed
-through directly to SQL, so you can give e.g. C<foo DESC> for a 
-descending order.
+Which column(s) to order the results by. This is currently passed through
+directly to SQL, so you can give e.g. C<foo DESC> for a descending order.
 
 =head2 cols (arrayref)
 
-Shortcut to request a particular set of columns to be retrieved - adds
-'me.' onto the start of any column without a '.' in it and sets 'select'
-from that, then auto-populates 'as' from 'select' as normal
+Shortcut to request a particular set of columns to be retrieved.  Adds
+C<me.> onto the start of any column without a C<.> in it and sets C<select>
+from that, then auto-populates C<as> from C<select> as normal.
 
 =head2 select (arrayref)
 
-Indicates which columns should be selected from the storage
+Indicates which columns should be selected from the storage.
 
 =head2 as (arrayref)
 
-Indicates column names for object inflation
+Indicates column names for object inflation.
 
 =head2 join
 
-Contains a list of relationships that should be joined for this query. Can also 
-contain a hash reference to refer to that relation's relations. So, if one column
-in your class C<belongs_to> foo and another C<belongs_to> bar, you can do
-C<< join => [qw/ foo bar /] >> to join both (and e.g. use them for C<order_by>).
-If a foo contains many margles and you want to join those too, you can do
-C<< join => { foo => 'margle' } >>. If you want to fetch the columns from the
-related table as well, see C<prefetch> below.
+Contains a list of relationships that should be joined for this query.  For
+example:
+
+  # Get CDs by Nine Inch Nails
+  my $rs = $schema->resultset('CD')->search(
+    { 'artist.name' => 'Nine Inch Nails' },
+    { join => 'artist' }
+  );
+
+Can also contain a hash reference to refer to the other relation's relations.
+For example:
+
+  package MyApp::Schema::Track;
+  use base qw/DBIx::Class/;
+  __PACKAGE__->table('track');
+  __PACKAGE__->add_columns(qw/trackid cd position title/);
+  __PACKAGE__->set_primary_key('trackid');
+  __PACKAGE__->belongs_to(cd => 'MyApp::Schema::CD');
+  1;
+
+  # In your application
+  my $rs = $schema->resultset('Artist')->search(
+    { 'track.title' => 'Teardrop' },
+    {
+      join     => { cd => 'track' },
+      order_by => 'artist.name',
+    }
+  );
+
+If you want to fetch the columns from the related table as well, see
+C<prefetch> below.
 
 =head2 prefetch
 
 Contains a list of relationships that should be fetched along with the main 
 query (when they are accessed afterwards they will have already been
-"prefetched"). This is useful for when you know you will need the related
-object(s), because it saves a query. Currently limited to prefetching
+"prefetched").  This is useful for when you know you will need the related
+objects, because it saves a query.  Currently limited to prefetching
 one relationship deep, so unlike C<join>, prefetch must be an arrayref.
 
 =head2 from 
 
-This attribute can contain a arrayref of elements. Each element can be another
+This attribute can contain a arrayref of elements.  Each element can be another
 arrayref, to nest joins, or it can be a hash which represents the two sides
 of the join. 
 
-NOTE: Use this on your own risk. This allows you to shoot your foot off!
+NOTE: Use this on your own risk.  This allows you to shoot off your foot!
 
 =head2 page
 
-For a paged resultset, specifies which page to retrieve. Leave unset
+For a paged resultset, specifies which page to retrieve.  Leave unset
 for an unpaged resultset.
 
 =head2 rows
 
-For a paged resultset, how many rows per page
+For a paged resultset, how many rows per page.  Can also be used to simulate an
+SQL C<LIMIT>.
 
-=head2 group_by (listref)
+=head2 group_by (arrayref)
 
-A listref of columns to group by (note that 'count' doesn't work on grouped
-resultsets)
+A arrayref of columns to group by (note that L</count> doesn't work on grouped
+resultsets).
 
   group_by => [qw/ column1 column2 ... /]
 
 =head2 distinct
 
-Set to 1 to group by all columns
+Set to 1 to group by all columns.
+
+For more examples of using these attributes, see
+L<DBIx::Class::Manual::Cookbook>.
 
 =cut
 
