@@ -16,8 +16,8 @@ DBIx::Class::ResultSet - Responsible for fetching and creating resultset.
 
 =head1 SYNOPSIS
 
-my $rs = MyApp::DB::Class->search(registered => 1);
-my @rows = MyApp::DB::Class->search(foo => 'bar');
+  my $rs = MyApp::DB::Class->search(registered => 1);
+  my @rows = MyApp::DB::Class->search(foo => 'bar');
 
 =head1 DESCRIPTION
 
@@ -93,12 +93,12 @@ sub new {
 
 =head2 search
 
-  my @obj    = $rs->search({ foo => 3 }); # "... WHERE foo = 3"              
-  my $new_rs = $rs->search({ foo => 3 });                                    
-                                                                                
+  my @obj    = $rs->search({ foo => 3 }); # "... WHERE foo = 3"
+  my $new_rs = $rs->search({ foo => 3 });
+
 If you need to pass in additional attributes but no additional condition,
 call it as ->search(undef, \%attrs);
-                                                                                
+
   my @all = $class->search({}, { cols => [qw/foo bar/] }); # "SELECT foo, bar FROM $class_table"
 
 =cut
@@ -128,12 +128,13 @@ sub search {
   return (wantarray ? $rs->all : $rs);
 }
 
-=head2 search_literal                                                              
+=head2 search_literal
+
   my @obj    = $rs->search_literal($literal_where_cond, @bind);
   my $new_rs = $rs->search_literal($literal_where_cond, @bind);
 
 Pass a literal chunk of SQL to be added to the conditional part of the
-resultset
+resultset.
 
 =cut
                                                          
@@ -144,25 +145,57 @@ sub search_literal {
   return $self->search(\$cond, $attrs);
 }
 
-=head2 find(@colvalues), find(\%cols)
+=head2 find(@colvalues), find(\%cols, \%attrs?)
 
-Finds a row based on its primary key(s).                                        
+Finds a row based on its primary key or unique constraint. For example:
 
-=cut                                                                            
+  # In your table class
+  package MyApp::Schema::CD;
+
+  __PACKAGE__->table('cd');
+  __PACKAGE__->add_columns(qw/cdid artist title year/);
+  __PACKAGE__->set_primary_key('cdid');
+  __PACKAGE__->add_unique_constraint(artist_title => [ qw/artist title/ ]);
+
+  1;
+
+  # In your application
+  my $cd = $schema->resultset('CD')->find(5);
+
+Also takes an optional C<key> attribute, to search by a specific key or unique
+constraint. For example:
+
+  my $cd = $schema->resultset('CD')->find_or_create(
+    {
+      artist => 'Massive Attack',
+      title  => 'Mezzanine',
+    },
+    { key => 'artist_title' }
+  );
+
+=cut
 
 sub find {
   my ($self, @vals) = @_;
   my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
-  my @pk = $self->{source}->primary_columns;
-  #use Data::Dumper; warn Dumper($attrs, @vals, @pk);
-  $self->{source}->result_class->throw( "Can't find unless primary columns are defined" )
-    unless @pk;
+
+  my @cols = $self->{source}->primary_columns;
+  if (exists $attrs->{key}) {
+    my %uniq = $self->{source}->unique_constraints;
+    $self->( "Unknown key " . $attrs->{key} . " on " . $self->name )
+      unless exists $uniq{$attrs->{key}};
+    @cols = @{ $uniq{$attrs->{key}} };
+  }
+  #use Data::Dumper; warn Dumper($attrs, @vals, @cols);
+  $self->{source}->result_class->throw( "Can't find unless a primary key or unique constraint is defined" )
+    unless @cols;
+
   my $query;
   if (ref $vals[0] eq 'HASH') {
     $query = $vals[0];
-  } elsif (@pk == @vals) {
+  } elsif (@cols == @vals) {
     $query = {};
-    @{$query}{@pk} = @vals;
+    @{$query}{@cols} = @vals;
   } else {
     $query = {@vals};
   }
@@ -211,11 +244,11 @@ sub cursor {
           $attrs->{where},$attrs);
 }
 
-=head2 search_like                                                               
-                                                                                
-Identical to search except defaults to 'LIKE' instead of '=' in condition       
-                                                                                
-=cut                                                                            
+=head2 search_like
+
+Identical to search except defaults to 'LIKE' instead of '=' in condition
+
+=cut
 
 sub search_like {
   my $class    = shift;
@@ -244,7 +277,7 @@ sub slice {
   return (wantarray ? $slice->all : $slice);
 }
 
-=head2 next 
+=head2 next
 
 Returns the next element in the resultset (undef is there is none).
 
@@ -435,7 +468,7 @@ sub page {
 
 =head2 new_result(\%vals)
 
-Creates a result in the resultset's result class
+Creates a result in the resultset's result class.
 
 =cut
 
@@ -457,7 +490,7 @@ sub new_result {
 
 =head2 create(\%vals)
 
-Inserts a record into the resultset and returns the object
+Inserts a record into the resultset and returns the object.
 
 Effectively a shortcut for ->new_result(\%vals)->insert
 
@@ -469,20 +502,120 @@ sub create {
   return $self->new_result($attrs)->insert;
 }
 
-=head2 find_or_create(\%vals)
+=head2 find_or_create(\%vals, \%attrs?)
 
-  $class->find_or_create({ key => $val, ... });                                 
-                                                                                
+  $class->find_or_create({ key => $val, ... });
+
 Searches for a record matching the search condition; if it doesn't find one,    
 creates one and returns that instead.                                           
-                                                                                
+
+  # In your table class
+  package MyApp::Schema::CD;
+
+  __PACKAGE__->table('cd');
+  __PACKAGE__->add_columns(qw/cdid artist title year/);
+  __PACKAGE__->set_primary_key('cdid');
+  __PACKAGE__->add_unique_constraint(artist_title => [ qw/artist title/ ]);
+
+  1;
+
+  # In your application
+  my $cd = $schema->resultset('CD')->find_or_create({
+    cdid   => 5,
+    artist => 'Massive Attack',
+    title  => 'Mezzanine',
+    year   => 2005,
+  });
+
+Also takes an optional C<key> attribute, to search by a specific key or unique
+constraint. For example:
+
+  my $cd = $schema->resultset('CD')->find_or_create(
+    {
+      artist => 'Massive Attack',
+      title  => 'Mezzanine',
+    },
+    { key => 'artist_title' }
+  );
+
+See also L</find> and L</update_or_create>.
+
 =cut
 
 sub find_or_create {
   my $self     = shift;
-  my $hash     = ref $_[0] eq "HASH" ? shift: {@_};
-  my $exists   = $self->find($hash);
+  my $attrs    = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $hash     = ref $_[0] eq "HASH" ? shift : {@_};
+  my $exists   = $self->find($hash, $attrs);
   return defined($exists) ? $exists : $self->create($hash);
+}
+
+=head2 update_or_create
+
+  $class->update_or_create({ key => $val, ... });
+
+First, search for an existing row matching one of the unique constraints
+(including the primary key) on the source of this resultset.  If a row is
+found, update it with the other given column values.  Otherwise, create a new
+row.
+
+Takes an optional C<key> attribute to search on a specific unique constraint.
+For example:
+
+  # In your application
+  my $cd = $schema->resultset('CD')->update_or_create(
+    {
+      artist => 'Massive Attack',
+      title  => 'Mezzanine',
+      year   => 1998,
+    },
+    { key => 'artist_title' }
+  );
+
+If no C<key> is specified, it searches on all unique constraints defined on the
+source, including the primary key.
+
+If the C<key> is specified as C<primary>, search only on the primary key.
+
+=cut
+
+sub update_or_create {
+  my $self = shift;
+
+  my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $hash  = ref $_[0] eq "HASH" ? shift : {@_};
+
+  my %unique_constraints = $self->{source}->unique_constraints;
+  my @constraint_names   = (exists $attrs->{key}
+                            ? ($attrs->{key})
+                            : keys %unique_constraints);
+
+  my @unique_hashes;
+  foreach my $name (@constraint_names) {
+    my @unique_cols = @{ $unique_constraints{$name} };
+    my %unique_hash =
+      map  { $_ => $hash->{$_} }
+      grep { exists $hash->{$_} }
+      @unique_cols;
+
+    push @unique_hashes, \%unique_hash
+      if (scalar keys %unique_hash == scalar @unique_cols);
+  }
+
+  my $row;
+  if (@unique_hashes) {
+    $row = $self->search(\@unique_hashes, { rows => 1 })->first;
+    if ($row) {
+      $row->set_columns($hash);
+      $row->update;
+    }
+  }
+
+  unless ($row) {
+    $row = $self->create($hash);
+  }
+
+  return $row;
 }
 
 =head1 ATTRIBUTES

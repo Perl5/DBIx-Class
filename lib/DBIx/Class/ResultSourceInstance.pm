@@ -35,6 +35,9 @@ sub columns {
 sub set_primary_key { shift->result_source_instance->set_primary_key(@_); }     
 sub primary_columns { shift->result_source_instance->primary_columns(@_); }
 
+sub add_unique_constraint { shift->result_source_instance->add_unique_constraint(@_); }     
+sub unique_constraints { shift->result_source_instance->unique_constraints(@_); }
+
 sub add_relationship {
   my ($class, $rel, @rest) = @_;
   my $source = $class->result_source_instance;

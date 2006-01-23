@@ -11,7 +11,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_ordered_columns _columns _primaries name resultset_class result_class schema from _relationships/);
+  qw/_ordered_columns _columns _primaries _unique_constraints name resultset_class result_class schema from _relationships/);
 
 =head1 NAME 
 
@@ -131,20 +131,22 @@ sub column_info {
   my @column_names = $obj->columns;
 
 Returns all column names in the order they were declared to add_columns
-                                                                                
-=cut                                                                            
+
+=cut
 
 sub columns {
   croak "columns() is a read-only accessor, did you mean add_columns()?" if (@_ > 1);
   return @{shift->{_ordered_columns}||[]};
 }
 
-=head2 set_primary_key(@cols)                                                   
-                                                                                
+=head2 set_primary_key(@cols)
+
 Defines one or more columns as primary key for this source. Should be
 called after C<add_columns>.
-                                                                                
-=cut                                                                            
+
+Additionally, defines a unique constraint named C<primary>.
+
+=cut
 
 sub set_primary_key {
   my ($self, @cols) = @_;
@@ -154,16 +156,51 @@ sub set_primary_key {
       unless $self->has_column($_);
   }
   $self->_primaries(\@cols);
+
+  $self->add_unique_constraint(primary => \@cols);
 }
 
-=head2 primary_columns                                                          
-                                                                                
+=head2 primary_columns
+
 Read-only accessor which returns the list of primary keys.
 
-=cut                                                                            
+=cut
 
 sub primary_columns {
   return @{shift->_primaries||[]};
+}
+
+=head2 add_unique_constraint
+
+Declare a unique constraint on this source. Call once for each unique
+constraint.
+
+  # For e.g. UNIQUE (column1, column2)
+  __PACKAGE__->add_unique_constraint(constraint_name => [ qw/column1 column2/ ]);
+
+=cut
+
+sub add_unique_constraint {
+  my ($self, $name, $cols) = @_;
+
+  for (@$cols) {
+    $self->throw("No such column $_ on table ".$self->name)
+      unless $self->has_column($_);
+  }
+
+  my %unique_constraints = $self->unique_constraints;
+  $unique_constraints{$name} = $cols;
+  $self->_unique_constraints(\%unique_constraints);
+}
+
+=head2 unique_constraints
+
+Read-only accessor which returns the list of unique constraints on this source.
+
+=cut
+
+sub unique_constraints {
+  return %{shift->_unique_constraints||{}};
 }
 
 =head2 from
