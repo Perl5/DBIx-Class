@@ -133,6 +133,8 @@ Will Hawes
 
 Todd Lipcon
 
+Daniel Westermann-Clark <danieltwc@cpan.org>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
