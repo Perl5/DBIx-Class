@@ -11,7 +11,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/Exception/);
 __PACKAGE__->mk_classdata('class_mappings' => {});
 __PACKAGE__->mk_classdata('source_registrations' => {});
-__PACKAGE__->mk_classdata('storage_type' => 'DBI');
+__PACKAGE__->mk_classdata('storage_type' => '::DBI');
 __PACKAGE__->mk_classdata('storage');
 
 =head1 NAME
@@ -294,7 +294,9 @@ the schema.
 
 sub connection {
   my ($self, @info) = @_;
-  my $storage_class = 'DBIx::Class::Storage::'.$self->storage_type;
+  my $storage_class = $self->storage_type;
+  $storage_class = 'DBIx::Class::Storage'.$storage_class
+    if $storage_class =~ m/^::/;
   $storage_class->require;
   my $storage = $storage_class->new;
   $storage->connect_info(\@info);

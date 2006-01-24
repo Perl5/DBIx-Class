@@ -36,6 +36,7 @@ lib/DBIx/Class/Manual.pod
 lib/DBIx/Class/Manual/Cookbook.pod
 lib/DBIx/Class/Manual/FAQ.pod
 lib/DBIx/Class/Manual/Intro.pod
+lib/DBIx/Class/Manual/SchemaIntro.pod
 lib/DBIx/Class/Manual/Troubleshooting.pod
 lib/DBIx/Class/ObjectCache.pm
 lib/DBIx/Class/PK.pm
@@ -57,25 +58,25 @@ lib/DBIx/Class/Relationship/Helpers.pm
 lib/DBIx/Class/Relationship/ManyToMany.pm
 lib/DBIx/Class/Relationship/ProxyMethods.pm
 lib/DBIx/Class/ResultSet.pm
-lib/DBIx/Class/ResultSetInstance.pm
+lib/DBIx/Class/ResultSetProxy.pm
 lib/DBIx/Class/ResultSource.pm
 lib/DBIx/Class/ResultSource/Table.pm
-lib/DBIx/Class/ResultSourceInstance.pm
+lib/DBIx/Class/ResultSourceProxy.pm
+lib/DBIx/Class/ResultSourceProxy/Table.pm
 lib/DBIx/Class/Row.pm
 lib/DBIx/Class/Schema.pm
 lib/DBIx/Class/Storage/DBI.pm
 lib/DBIx/Class/Storage/DBI/Cursor.pm
-lib/DBIx/Class/TableInstance.pm
 lib/DBIx/Class/Test/SQLite.pm
 lib/DBIx/Class/UUIDColumns.pm
 lib/DBIx/Class/Validation.pm
 lib/SQL/Translator/Parser/DBIx/Class.pm
+lib/SQL/Translator/Producer/DBIx/Class/File.pm
 Makefile.PL
 MANIFEST			This list of files
-META.yml
 README
 t/02pod.t
-t/03podcoverage.t
+t/03podcoverage.t.disabled
 t/04dont_break_c3.t
 t/18inserterror.t
 t/19quotes.t
@@ -134,6 +135,7 @@ t/helperrels/16joins.t
 t/helperrels/17join_count.t
 t/helperrels/18self_referencial.t
 t/helperrels/19uuid.t
+t/helperrels/20unique.t
 t/lib/DBICTest.pm
 t/lib/DBICTest/BasicRels.pm
 t/lib/DBICTest/HelperRels.pm
@@ -172,6 +174,7 @@ t/run/16joins.tl
 t/run/17join_count.tl
 t/run/18self_referencial.tl
 t/run/19uuid.tl
+t/run/20unique.tl
 t/testlib/Actor.pm
 t/testlib/ActorAlias.pm
 t/testlib/Binary.pm
@@ -190,3 +193,4 @@ t/testlib/MyStarLinkMCPK.pm
 t/testlib/Order.pm
 t/testlib/OtherFilm.pm
 t/testlib/PgBase.pm
+META.yml

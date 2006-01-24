@@ -8,10 +8,7 @@ use DBIx::Class::ResultSet;
 use Carp qw/croak/;
 
 use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/ResultSource AccessorGroup/);
-
-__PACKAGE__->mk_group_accessors('simple' =>
-  qw/_columns _primaries name resultset_class result_class schema/);
+__PACKAGE__->load_components(qw/ResultSource/);
 
 =head1 NAME 
 
