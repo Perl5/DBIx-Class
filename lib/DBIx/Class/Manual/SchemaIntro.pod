@@ -93,6 +93,10 @@ a second database you want to access:
 Note that L<DBIx::Class::Schema> does not cache connnections for you. If you
 use multiple connections, you need to do this manually.
 
+To execute some sql statements on every connect you can pass them to your schema after the connect:
+
+  $schema->storage->on_connect_do(\@on_connect_sql_statments);
+
 The simplest way to get a record is by primary key:
 
   my $schema = My::Schema->connect( ... );

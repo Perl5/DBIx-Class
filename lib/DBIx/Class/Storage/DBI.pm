@@ -138,7 +138,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/Exception AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/connect_info _dbh _sql_maker debug cursor/);
+  qw/connect_info _dbh _sql_maker debug cursor on_connect_do/);
 
 our $TRANSACTION = 0;
 
@@ -163,6 +163,12 @@ This class represents the connection to the database
 
 =cut
 
+=head2 on_connect_do
+
+Executes the sql statements given as a listref on every db connect.
+
+=cut
+
 sub dbh {
   my ($self) = @_;
   my $dbh;
@@ -184,6 +190,11 @@ sub _populate_dbh {
   my ($self) = @_;
   my @info = @{$self->connect_info || []};
   $self->_dbh($self->_connect(@info));
+
+  # if on-connect sql statements are given execute them
+  foreach my $sql_statement (@{$self->on_connect_do || []}) {
+    $self->_dbh->do($sql_statement);
+  }
 }
 
 sub _connect {
