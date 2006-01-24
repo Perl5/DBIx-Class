@@ -314,22 +314,24 @@ Returns database type info for a given table columns.
 
 sub columns_info_for {
     my ($self, $table) = @_;
-    my $sth = $self->dbh->prepare("SELECT * FROM $table WHERE 1=0");
-    $sth->execute;
     my %result;
-    my @columns = @{$sth->{NAME}};
-    for my $i ( 0 .. $#columns ){
-        my $type = $sth->{TYPE}->[$i];
-        my $info = $self->dbh->type_info($type);
-        my %column_info;
-        if ( $info ){
+    if ( $self->dbh->can( 'column_info' ) ){
+        my $sth = $self->dbh->column_info( undef, undef, $table, '%' );
+        $sth->execute();
+        while ( my $info = $sth->fetchrow_hashref() ){
+            my %column_info;
             $column_info{data_type} = $info->{TYPE_NAME};
             $column_info{size} = $info->{COLUMN_SIZE};
             $column_info{is_nullable} = $info->{NULLABLE};
-        }else{
-            $column_info{data_type} = $type;
+            $result{$info->{COLUMN_NAME}} = \%column_info;
         }
-        $result{$columns[$i]} = \%column_info;
+    }else{
+        my $sth = $self->dbh->prepare("SELECT * FROM $table WHERE 1=0");
+        $sth->execute;
+        my @columns = @{$sth->{NAME}};
+        for my $i ( 0 .. $#columns ){
+            $result{$columns[$i]}{data_type} = $sth->{TYPE}->[$i];
+        }
     }
     return \%result;
 }

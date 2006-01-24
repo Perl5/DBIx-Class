@@ -137,6 +137,8 @@ Daniel Westermann-Clark <danieltwc@cpan.org>
 
 Alexander Hartmaier <alex_hartmaier@hotmail.com>
 
+Zbigniew Lukasiak
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.

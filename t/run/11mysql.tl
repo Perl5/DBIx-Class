@@ -16,7 +16,7 @@ my $dbh = MySQLTest->schema->storage->dbh;
 
 $dbh->do("DROP TABLE IF EXISTS artist;");
 
-$dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255));");
+$dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), charfield CHAR(10));");
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
@@ -43,15 +43,20 @@ is( $it->next, undef, "next past end of resultset ok" );
 
 my $test_type_info = {
     'artistid' => {
-        'data_type' => 'integer',
-        'is_nullable' => 1,
-        'size' => 10
+        'data_type' => 'INT',
+        'is_nullable' => 0,
+        'size' => 11
     },
     'name' => {
-        'data_type' => 'varchar',
+        'data_type' => 'VARCHAR',
         'is_nullable' => 1,
         'size' => 255
-    }
+    },
+    'charfield' => {
+        'data_type' => 'VARCHAR',
+        'is_nullable' => 1,
+        'size' => 10 
+    },
 };
 
 

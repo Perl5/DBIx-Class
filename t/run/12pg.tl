@@ -14,7 +14,7 @@ DBICTest::Schema->compose_connection('PgTest' => $dsn, $user, $pass);
 
 my $dbh = PgTest->schema->storage->dbh;
 
-$dbh->do("CREATE TABLE artist (artistid serial PRIMARY KEY, name VARCHAR(255));");
+$dbh->do("CREATE TABLE artist (artistid serial PRIMARY KEY, name VARCHAR(255), charfield CHAR(10));");
 
 PgTest::Artist->load_components('PK::Auto::Pg');
 
@@ -28,15 +28,20 @@ is($new->artistid, 2, "Auto-PK worked");
 
 my $test_type_info = {
     'artistid' => {
-        'data_type' => 'int4',
+        'data_type' => 'integer',
+        'is_nullable' => 0,
+        'size' => 4 
+    },
+    'name' => {
+        'data_type' => 'character varying',
+        'is_nullable' => 1,
+        'size' => 255 
+    },
+    'charfield' => {
+        'data_type' => 'character',
         'is_nullable' => 1,
         'size' => 10
     },
-    'name' => {
-        'data_type' => 'text',
-        'is_nullable' => 1,
-        'size' => 4096
-    }
 };
 
 my $type_info = PgTest->schema->storage->columns_info_for('artist');
