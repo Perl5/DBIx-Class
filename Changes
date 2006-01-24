@@ -1,8 +1,16 @@
 Revision history for DBIx::Class
 
+0.04999_04 2006-01-24 21:48:21
+        - more documentation improvements
+        - add columns_info_for for vendor-specific column info (Zbigniew Lukasiak)
+        - add SQL::Translator::Producer for DBIx::Class table classes (Jess Robinson)
+        - add unique constraint declaration (Daniel Westermann-Clark)
+        - add new update_or_create method (Daniel Westermann-Clark)
+        - minor fixes to UUIDColumns
+
 0.04999_03 2006-01-20 06:05:27
-        - Imported Jess Robinson's SQL::Translator::Parser::DBIx::Class
-        - Lots of internals cleanup to eliminate result_source_instance requirement
+        - imported Jess Robinson's SQL::Translator::Parser::DBIx::Class
+        - lots of internals cleanup to eliminate result_source_instance requirement
         - added register_column and register_relationship class APIs
         - made Storage::DBI use prepare_cached safely (thanks to Tim Bunce)
         - many documentation improvements (thanks guys!)
