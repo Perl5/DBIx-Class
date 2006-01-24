@@ -138,13 +138,12 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/Exception AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/connect_info _dbh _sql_maker debug cursor on_connect_do/);
-
-our $TRANSACTION = 0;
+  qw/connect_info _dbh _sql_maker debug cursor on_connect_do transaction_depth/);
 
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
+  $new->transaction_depth(0);
   $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
   return $new;
 }
@@ -209,7 +208,8 @@ Calls begin_work on the current dbh.
 =cut
 
 sub txn_begin {
-  $_[0]->dbh->begin_work if $TRANSACTION++ == 0 and $_[0]->dbh->{AutoCommit};
+  my $self = shift;
+  $self->dbh->begin_work if $self->{transaction_depth}++ == 0 and $self->dbh->{AutoCommit};
 }
 
 =head2 txn_commit
@@ -219,11 +219,12 @@ Issues a commit against the current dbh.
 =cut
 
 sub txn_commit {
-  if ($TRANSACTION == 0) {
-    $_[0]->dbh->commit;
+  my $self = shift;
+  if ($self->{transaction_depth} == 0) {
+    $self->dbh->commit unless $self->dbh->{AutoCommit};
   }
   else {
-    $_[0]->dbh->commit if --$TRANSACTION == 0;    
+    $self->dbh->commit if --$self->{transaction_depth} == 0;    
   }
 }
 
@@ -234,11 +235,12 @@ Issues a rollback against the current dbh.
 =cut
 
 sub txn_rollback {
-  if ($TRANSACTION == 0) {
-    $_[0]->dbh->rollback;
+  my $self = shift;
+  if ($self->{transaction_depth} == 0) {
+    $self->dbh->rollback unless $self->dbh->{AutoCommit};
   }
   else {
-    --$TRANSACTION == 0 ? $_[0]->dbh->rollback : die $@;    
+    --$self->{transaction_depth} == 0 ? $self->dbh->rollback : die $@;    
   }
 }
 
