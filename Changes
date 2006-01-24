@@ -6,6 +6,8 @@ Revision history for DBIx::Class
         - add SQL::Translator::Producer for DBIx::Class table classes (Jess Robinson)
         - add unique constraint declaration (Daniel Westermann-Clark)
         - add new update_or_create method (Daniel Westermann-Clark)
+        - rename ResultSetInstance class to ResultSetProxy, ResultSourceInstance
+          to ResultSourceProxy, and TableInstance to ResultSourceProxy::Table
         - minor fixes to UUIDColumns
 
 0.04999_03 2006-01-20 06:05:27
