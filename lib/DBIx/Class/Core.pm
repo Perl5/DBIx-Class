@@ -11,7 +11,7 @@ __PACKAGE__->load_components(qw/
   Relationship
   PK
   Row
-  TableInstance
+  ResultSourceProxy::Table
   Exception
   AccessorGroup/);
 
@@ -43,7 +43,7 @@ The core modules currently are:
 
 =item L<DBIx::Class::Row>
 
-=item L<DBIx::Class::TableInstance>
+=item L<DBIx::Class::ResultSourceProxy::Table>
 
 =item L<DBIx::Class::Exception>
 

@@ -6,7 +6,7 @@ use DBIx::Class::Storage::DBI;
 use DBIx::Class::ClassResolver::PassThrough;
 use DBI;
 
-__PACKAGE__->load_components(qw/ResultSetInstance/);
+__PACKAGE__->load_components(qw/ResultSetProxy/);
 
 *dbi_commit = \&txn_commit;
 *dbi_rollback = \&txn_rollback;

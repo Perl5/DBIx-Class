@@ -1,9 +1,9 @@
-package DBIx::Class::TableInstance;
+package DBIx::Class::ResultSourceProxy::Table;
 
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::ResultSourceInstance/;
+use base qw/DBIx::Class::ResultSourceProxy/;
 use DBIx::Class::ResultSource::Table;
 
 __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything yet!
@@ -12,7 +12,7 @@ __PACKAGE__->mk_classdata('table_class' => 'DBIx::Class::ResultSource::Table');
 
 =head1 NAME 
 
-DBIx::Class::TableInstance - provides a classdata table object and method proxies
+DBIx::Class::ResultSourceProxy::Table - provides a classdata table object and method proxies
 
 =head1 SYNOPSIS
 

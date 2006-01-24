@@ -15,7 +15,7 @@ L<DBIx::Class::Schema>:
   package My::Schema;
   use base qw/DBIx::Class::Schema/;
 
-In this class you load your resultsource ("table", "model") classes, which
+In this class you load your result_source ("table", "model") classes, which
 we will define later, using the load_classes() method. You can specify which
 classes to load manually: 
 

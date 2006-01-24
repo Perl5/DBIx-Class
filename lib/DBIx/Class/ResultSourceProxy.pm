@@ -1,4 +1,4 @@
-package DBIx::Class::ResultSourceInstance;
+package DBIx::Class::ResultSourceProxy;
 
 use strict;
 use warnings;

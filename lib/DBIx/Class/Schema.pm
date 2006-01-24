@@ -58,7 +58,7 @@ particular which module inherits off which.
 
 =head2 register_class <moniker> <component_class>
 
-Registers a class which isa ResultSourceInstance; equivalent to calling
+Registers a class which isa ResultSourceProxy; equivalent to calling
 
   $schema->register_source($moniker, $class->result_source_instance);
 
@@ -229,7 +229,7 @@ you expect.
 
 sub compose_connection {
   my ($self, $target, @info) = @_;
-  my $base = 'DBIx::Class::ResultSetInstance';
+  my $base = 'DBIx::Class::ResultSetProxy';
   $base->require;
   my $schema = $self->compose_namespace($target, $base);
   $schema->connection(@info);
