@@ -25,7 +25,7 @@ __PACKAGE__->load_classes(qw/
     'Producer',
     'CD_to_Producer',
   ),
-  qw/SelfRefAlias CDWithArtist/
+  qw/SelfRefAlias/
 );
 
 1;
