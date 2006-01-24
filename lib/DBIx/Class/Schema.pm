@@ -287,7 +287,7 @@ sub setup_connection_class {
 =head2 connection(@args)
 
 Instantiates a new Storage object of type storage_type and passes the
-arguments to $storage->connection_info. Sets the connection in-place on
+arguments to $storage->connect_info. Sets the connection in-place on
 the schema.
 
 =cut
