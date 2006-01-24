@@ -537,7 +537,7 @@ sub create {
   $class->find_or_create({ key => $val, ... });
 
 Searches for a record matching the search condition; if it doesn't find one,    
-creates one and returns that instead.                                           
+creates one and returns that instead.                                       
 
   my $cd = $schema->resultset('CD')->find_or_create({
     cdid   => 5,
@@ -664,11 +664,11 @@ names:
   $rs = $schema->resultset('Foo')->search(
     {},
     {
-      select => {
+      select => [
         'column_name',
         { count => 'column_to_count' },
         { sum => 'column_to_sum' }
-      }
+      ]
     }
   );
 
@@ -685,10 +685,10 @@ procedure names:
   $rs = $schema->resultset('Foo')->search(
     {},
     {
-      select => {
+      select => [
         'column1',
         { count => 'column2' }
-      },
+      ],
       as => [qw/ column1 column2_count /]
     }
   );
