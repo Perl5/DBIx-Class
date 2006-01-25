@@ -9,6 +9,7 @@ Revision history for DBIx::Class
         - rename ResultSetInstance class to ResultSetProxy, ResultSourceInstance
           to ResultSourceProxy, and TableInstance to ResultSourceProxy::Table
         - minor fixes to UUIDColumns
+        - add debugfh method and ENV magic for tracing SQL (Nigel Metheringham)
 
 0.04999_03 2006-01-20 06:05:27
         - imported Jess Robinson's SQL::Translator::Parser::DBIx::Class

@@ -139,6 +139,8 @@ Alexander Hartmaier <alex_hartmaier@hotmail.com>
 
 Zbigniew Lukasiak
 
+Nigel Metheringham <nigelm@cpan.org>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
