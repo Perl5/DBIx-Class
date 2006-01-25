@@ -12,7 +12,7 @@ sub last_insert_id
     my ($self) = @_;
 
     my $dbh = $self->result_source->storage->dbh;
-    my $sth = $dbh->prepare_cached("VALUES(IDENTITY_VAL_LOCAL())");
+    my $sth = $dbh->prepare_cached("VALUES(IDENTITY_VAL_LOCAL())", {}, 3);
     $sth->execute();
 
     my @res = $sth->fetchrow_array();
