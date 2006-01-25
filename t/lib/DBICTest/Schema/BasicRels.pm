@@ -71,12 +71,14 @@ DBICTest::Schema::SelfRef->add_relationship(
 
 DBICTest::Schema::Tag->add_relationship(
     cd => 'DBICTest::Schema::CD',
-    { 'foreign.cdid' => 'self.cd' }
+    { 'foreign.cdid' => 'self.cd' },
+    { accessor => 'single' }
 );
 
 DBICTest::Schema::Track->add_relationship(
     cd => 'DBICTest::Schema::CD',
-    { 'foreign.cdid' => 'self.cd' }
+    { 'foreign.cdid' => 'self.cd' },
+    { accessor => 'single' }
 );
 
 DBICTest::Schema::TwoKeys->add_relationship(
