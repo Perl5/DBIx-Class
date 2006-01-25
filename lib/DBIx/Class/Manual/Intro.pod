@@ -6,67 +6,72 @@ DBIx::Class::Manual::Intro - Introduction to DBIx::Class
 
 So, you are bored with SQL, and want a native Perl interface for your
 database?  Or you've been doing this for a while with L<Class::DBI>,
-and think there's a better way? You've come to the right place. Let's
-look at how you can set and use your first native L<DBIx::Class> tree.
+and think there's a better way?  You've come to the right place.
+Let's look at how you can set and use your first native L<DBIx::Class>
+tree.
 
-First we'll see how you can set up your classes yourself. If you want
+First we'll see how you can set up your classes yourself.  If you want
 them to be auto-discovered, just skip to the next section, which shows
 you how to use L<DBIx::Class::Loader>.
 
 =head2 Setting it up manually
 
-First, you'll need a base class. It should inherit from DBIx::Class
-like this:
+First, you'll need a base class.  It should inherit from
+L<DBIx::Class> like this:
 
-    package MyApp::DB;
-    use base qw/DBIx::Class/;
+  package MyApp::DB;
+  use base qw/DBIx::Class/;
 
-You will also want to load some of L<DBIx::Class>'s components.
-L<DBIx::Class::Core> provides a good basic set. In addition you'll
-have to use either L<DBIx::Class::Schema> or L<DBIx::Class::DB> We'll
-use C<DB> in this introduction, since it involves less magic.
-L<Schema> is mostly useful if you want to use multiple database
+You will also want to load some of the L<DBIx::Class> components.
+L<DBIx::Class::Core> provides a good starter set.  In addition you'll
+have to use either L<DBIx::Class::Schema> or L<DBIx::Class::DB>.
+We'll use C<DB> in this introduction, since it involves less magic.
+C<Schema> is mostly useful if you want to use multiple database
 connections.
 
-    __PACKAGE__->load_components(qw/Core DB/);
+  __PACKAGE__->load_components(qw/Core DB/);
 
-If you want serial/auto-incremental primary keys, you'll need to add
-the apropriate component for your db as well, for example. The
-L<DBIx::Class::PK::Auto> modules help L<DBIx::Class> keep up with
-newly generated keys in auto increment database fields.
+If you want serial/auto-incrementing primary keys, you should use the
+L<DBIx::Class::PK::Auto> component for your database.  For example, if
+you're using SQLite add C<PK::Auto::SQLite> to the list:
 
-    __PACKAGE__->load_components(qw/PK::Auto::SQLite Core DB/);
+  __PACKAGE__->load_components(qw/PK::Auto::SQLite Core DB/);
 
-Once you've loaded the components, it's time to  set up your connection:
+C<PK::Auto> classes exist for many databases; see
+L<DBIx::Class::PK::Auto> for more information.
 
-    __PACKAGE__->connection('dbi:SQLite:/home/me/myapp/my.db');
+Once you've loaded the components, it's time to set up your
+connection:
 
-This method is similar to the normal L<DBI>, and can take username,
-password, and L<DBI> attribute hash as well as the DSN.
+  __PACKAGE__->connection('dbi:SQLite:/home/me/myapp/my.db');
+
+This method is similar to the normal L<DBI> C<connect> method, and can
+take username, password, and L<DBI> attribute hash as well as the DSN.
 
 With that out of the way, we can define our first table class:
 
-    package MyApp::DB::Album;
-    use base qw/MyApp::DB/;
+  package MyApp::DB::Album;
+  use base qw/MyApp::DB/;
 
 Then we specify which table it uses,
 
-    __PACKAGE__->table('album');
+  __PACKAGE__->table('album');
 
 and specify which columns it has.
 
-    __PACKAGE__->add_columns(qw/albumID artist title label year/);
+  __PACKAGE__->add_columns(qw/albumid artist title label year/);
 
 This will automatically create accessors for each of the columns, so
 that you can read/update the values in rows you've retrieved.
 
 Also, you need to tell it which column is the primary key:
 
-    __PACKAGE__->set_primary_key('albumID');
+  __PACKAGE__->set_primary_key('albumid');
 
-If you have multiple primary keys, just pass a list instead.
+If you have a primary key composed of multiple columns, just pass a
+list instead.
 
-That's pretty much all you need for a basic setup. If you have more
+That's pretty much all you need for a basic setup.  If you have more
 advanced needs like using more than one database connection for the
 same class, see L<DBIx::Class::Schema>.
 
@@ -74,52 +79,52 @@ same class, see L<DBIx::Class::Schema>.
 
 This is an additional class, and not part of the L<DBIx::Class>
 distribution.  Like L<Class::DBI::Loader>, it inspects your database,
-and automatically creates classes for all the tables in your
-database. Here's a simple setup:
+and automatically creates classes for all the tables in your database.
+Here's a simple setup:
 
-    package MyApp::DB;
-    use DBIx::Class::Loader;
+  package MyApp::DB;
+  use DBIx::Class::Loader;
 
-    my $loader = DBIx::Class::Loader->new(
-        dsn       => 'dbi:SQLite:/home/me/myapp/my.db',
-        namespace => 'MyApp::DB'
-    );
+  my $loader = DBIx::Class::Loader->new(
+    dsn       => 'dbi:SQLite:/home/me/myapp/my.db',
+    namespace => 'MyApp::DB'
+  );
 
-    1;
+  1;
 
-This should be equivalent to the manual in the section above.
-L<DBIx::Class::Loader> takes lots of other options. For more
+This should be equivalent to the manual setup in the section above.
+L<DBIx::Class::Loader> takes lots of other options.  For more
 information, consult its documentation.
 
 =head2 Basic usage
 
-Once you've defined the basic classes, you can start interacting with
-your database. The simplest way to get a column is by primary key:
+Once you've defined the basic classes, either manually or using
+L<DBIx::Class::Loader>, you can start interacting with your database.
+The simplest way to get a record is by primary key:
 
-    my $albumID = 14;
-    my $album   = MyApp::DB::Album->find($albumID);
+  my $album = MyApp::DB::Album->find(14);
 
-This will run a select with C<albumID = 14> in the C<WHERE> clause,
-and return an instance of C<MyApp::DB::Artist> that represents this
-row. Once you have that row, you can access and update columns:
+This will run a C<SELECT> with C<albumid = 14> in the C<WHERE> clause,
+and return an instance of C<MyApp::DB::Album> that represents this
+row.  Once you have that row, you can access and update columns:
 
-    $album->title('Physical Graffiti');
-    my $title = $album->title; # $title holds 'Physical Graffiti'
+  $album->title('Physical Graffiti');
+  my $title = $album->title; # $title holds 'Physical Graffiti'
 
 If you prefer, you can use the C<set_column> and C<get_column>
 accessors instead:
 
-    $album->set_column('title', 'Presence');
-    $title = $album->get_column('title');
+  $album->set_column('title', 'Presence');
+  $title = $album->get_column('title');
 
 Just like with L<Class::DBI>, you do an C<update> to commit your
 changes to the database:
 
-    $album->update;
+  $album->update;
 
-If needed, you can drop your local changes instead like this:
+If needed, you can throw away your local changes like this:
 
-    $album->discard_changes if $album->is_changed;
+  $album->discard_changes if $album->is_changed;
 
 As you can see, C<is_changed> allows you to check if there are local
 changes to your object.
@@ -127,67 +132,104 @@ changes to your object.
 =head2 Adding and removing rows
 
 To create a new record in the database, you can use the C<create>
-method from L<DBIx::Class::Row>. It returns a
-L<DBIx::Class::ResultSet> object that can be used to access the data
-in the new record.
+method.  It returns an instance of C<MyApp::DB::Album> that can be
+used to access the data in the new record:
 
-    my $new_album = MyApp::DB::Album->create({ 
-        title  => 'Wish You Were Here',
-        artist => 'Pink Floyd'
-    });
+  my $new_album = MyApp::DB::Album->create({ 
+    title  => 'Wish You Were Here',
+    artist => 'Pink Floyd'
+  });
 
 Now you can add data to the new record:
 
-    $new_album->label('Capitol');
-    $new_album->year('1975');
+  $new_album->label('Capitol');
+  $new_album->year('1975');
+  $new_album->update;
 
-Likewise, you can remove if from the database like this:
+Likewise, you can remove it from the database like this:
 
-    $new_album->delete;
+  $new_album->delete;
 
-or even without retrieving first. This operation takes the same kind
-of arguments as a search.
+You can also remove records without or retrieving first.  This
+operation takes the same kind of arguments as a search.
 
-    MyApp::DB::Album->delete({ artist => 'Falco' });
+  # Delete all of Falco's albums
+  MyApp::DB::Album->delete({ artist => 'Falco' });
 
 =head2 Finding your objects
 
 L<DBIx::Class> provides a few different ways to retrieve data from
-your database.  The simplest looks something like this:
+your database.  Here's one example:
 
-    my $album = MyApp::DB::Album->search( artist => 'Santana' );
+  # Find all of Santana's albums
+  my $rs = MyApp::DB::Album->search({ artist => 'Santana' });
 
-Note that all the search methods return a L<DBIx::Class::ResultSet>
-object in scalar context or a list containing all the records in list
-context.
+In scalar context, as above, C<search> returns a
+L<DBIx::Class::ResultSet> object.  It can be used to peek at the first
+album returned by the database:
+
+  my $album = $rs->first;
+  print $album->title;
+
+Or, you can loop over the albums and update each one:
+
+  while (my $album = $rs->next) {
+    print $album->artist . ' - ' . $album->title;
+    $album->year(2001);
+    $album->update;
+  }
+
+For more information on what you can do with a
+L<DBIx::Class::ResultSet>, see L<DBIx::Class::ResultSet/METHODS>.
+
+In list context, the C<search> method returns all of the matching
+rows:
+
+  # Fetch immediately all of Carlos Santana's albums
+  my @albums = MyApp::DB::Album->search({ artist => 'Carlos Santana' });
+  foreach my $album (@albums) {
+    print $album->artist . ' - ' . $album->title;
+  }
 
 We also provide a handy shortcut for doing a C<LIKE> search:
 
-    my $album = MyApp::DB::Album->search_like( artist => 'Jimi%' );
+  # Find albums whose artist starts with 'Jimi'
+  my $rs = MyApp::DB::Album->search_like({ artist => 'Jimi%' });
 
 Or you can provide your own handmade C<WHERE> clause, like:
-  
-    my $album = MyApp::DB::Album->search_literal( 'artist = ?', 'Peter Frampton' );
+
+  # Find Peter Frampton albums from the year 1986
+  my $where = 'artist = ? AND year = ?';
+  my @bind  = ( 'Peter Frampton', 1986 );
+  my $rs    = MyApp::DB::Album->search_literal( $where, @bind );
 
 The preferred way to generate complex queries is to provide a
 L<SQL::Abstract> construct to C<search>:
 
-    my $album = MyApp::DB::Album->search({
-        artist => { '!=', 'Janis Joplin' },
-        year   => { '<' => 1980 },
-        id     => [ 1, 14, 15, 65, 43 ]
-    });
+  my $rs = MyApp::DB::Album->search({
+    artist  => { '!=', 'Janis Joplin' },
+    year    => { '<' => 1980 },
+    albumid => [ 1, 14, 15, 65, 43 ]
+  });
 
-For more examples of complex searches, see
+This results in something like the following C<WHERE> clause:
+
+  WHERE artist != 'Janis Joplin'
+    AND year < 1980
+    AND albumid IN (1, 14, 15, 65, 43)
+
+For more examples of complex queries, see
 L<DBIx::Class::Manual::Cookbook>.
 
 The search can also be modified by passing another hash with
 attributes:
 
-    my $album = MyApp::DB::Album->search( 
-        { artist => 'Bob Marley' },
-        { page => 1, rows => 2, order_by => 'year' }
-    );
+  my @albums = MyApp::DB::Album->search(
+    { artist => 'Bob Marley' },
+    { rows => 2, order_by => 'year DESC' }
+  );
+
+C<@albums> then holds the two most recent Bob Marley albums.
 
 For a complete overview of the available attributes, see
 L<DBIx::Class::ResultSet/ATTRIBUTES>.

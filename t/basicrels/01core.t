@@ -4,4 +4,4 @@ use DBICTest;
 use DBICTest::BasicRels;
 
 require "t/run/01core.tl";
-run_tests();
+run_tests(DBICTest->schema);

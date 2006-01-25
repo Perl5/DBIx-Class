@@ -7,47 +7,45 @@ use warnings;
 
 =head1 NAME 
 
-DBIx::Class::PK::Auto - Automatic Primary Key class
+DBIx::Class::PK::Auto - Automatic primary key class
 
 =head1 SYNOPSIS
 
-    # In your table classes (replace PK::Auto::SQLite with your
-    # database)
-    __PACKAGE__->load_components(qw/PK::Auto::SQLite Core/);
-    __PACKAGE__->set_primary_key('id');
+  # In your table classes (replace PK::Auto::SQLite with your database)
+  __PACKAGE__->load_components(qw/PK::Auto::SQLite Core/);
+  __PACKAGE__->set_primary_key('id');
 
 =head1 DESCRIPTION
 
-This class overrides the insert method to get automatically
-incremented primary keys.
+This class overrides the insert method to get automatically incremented primary
+keys.
 
-You don't want to be using this directly - instead load the
-appropriate one for your database, e.g. C<PK::Auto::SQLite>, in your
-table classes:
+You don't want to be using this directly - instead load the appropriate one for
+your database, e.g. C<PK::Auto::SQLite>, in your table classes:
 
-    __PACKAGE__->load_components(qw/PK::Auto::SQLite Core/);
+  __PACKAGE__->load_components(qw/PK::Auto::SQLite Core/);
 
 Note that C<PK::Auto::SQLite> is specified as the leftmost argument.
 
 Alternatively, you can load the components separately:
 
-    __PACKAGE__->load_components(qw/Core/);
-    __PACKAGE__->load_components(qw/PK::Auto::SQLite/);
+  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->load_components(qw/PK::Auto::SQLite/);
 
-This can be used, for example, if you have different databases and
-need to determine the appropriate C<PK::Auto> class at runtime.
+This can be used, for example, if you have different databases and need to
+determine the appropriate C<PK::Auto> class at runtime.
 
 =head1 LOGIC
 
-C<PK::Auto> does this by letting the database assign the primary key
-field and fetching the assigned value afterwards.
+C<PK::Auto> does this by letting the database assign the primary key field and
+fetching the assigned value afterwards.
 
 =head1 METHODS
 
 =head2 insert
 
-Overrides insert so that it will get the value of autoincremented
-primary keys.
+Overrides C<insert> so that it will get the value of autoincremented primary
+keys.
 
 =cut
 
@@ -96,4 +94,3 @@ Matt S. Trout <mst@shadowcatsystems.co.uk>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-

@@ -8,6 +8,11 @@ sub inject_base {
     no strict 'refs';
     unshift(@{"${target}::ISA"}, grep { $target ne $_ && !$target->isa($_)} @to_inject);
   }
+
+  # Yes, this is hack. But it *does* work. Please don't submit tickets about
+  # it on the basis of the comments in Class::C3, the author was on #dbix-class
+  # while I was implementing this.
+
   my $table = { Class::C3::_dump_MRO_table };
   eval "package $target; import Class::C3;" unless exists $table->{$target};
   Class::C3::reinitialize() if defined $table->{$target};

@@ -4,4 +4,4 @@ use DBICTest;
 use DBICTest::HelperRels;
 
 require "t/run/13oracle.tl";
-run_tests();
+run_tests(DBICTest->schema);

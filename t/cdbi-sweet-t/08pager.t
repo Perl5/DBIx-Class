@@ -10,7 +10,7 @@ plan tests => 10;
 
 use lib 't/lib';
 
-use_ok('DBICTest');
+use_ok('DBICTest::HelperRels');
 
 DBICTest::CD->load_components(qw/CDBICompat::Pager/);
 

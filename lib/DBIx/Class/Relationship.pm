@@ -13,8 +13,6 @@ __PACKAGE__->load_own_components(qw/
   Base
 /);
 
-__PACKAGE__->mk_classdata('_relationships', { } );
-
 =head1 NAME 
 
 DBIx::Class::Relationship - Inter-table relationships

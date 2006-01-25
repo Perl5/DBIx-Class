@@ -45,6 +45,7 @@ my @DSN = ("dbi:SQLite:dbname=$DB", '', '', { AutoCommit => 1, RaiseError => 1 }
 __PACKAGE__->connection(@DSN);
 __PACKAGE__->set_sql(_table_pragma => 'PRAGMA table_info(__TABLE__)');
 __PACKAGE__->set_sql(_create_me    => 'CREATE TABLE __TABLE__ (%s)');
+__PACKAGE__->storage->dbh->do("PRAGMA synchronous = OFF");
 
 =head1 METHODS
 
@@ -67,11 +68,6 @@ sub _create_test_table {
 	my $class = shift;
         my @vals  = $class->sql__table_pragma->select_row;
         $class->sql__create_me($class->create_sql)->execute unless @vals;
-#	my @vals  = $class->_sql_to_sth(
-#                      'PRAGMA table_info(__TABLE__)')->select_row;
-#	$class->_sql_to_sth(
-#          'CREATE TABLE '.$class->table.' ('.$class->create_sql.')'
-#            )->execute unless @vals;
 }
 
 =head2 create_sql (abstract)

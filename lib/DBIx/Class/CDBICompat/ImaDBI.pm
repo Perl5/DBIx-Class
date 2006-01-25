@@ -14,11 +14,11 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
     'TABLE' =>
       sub {
         my ($self, $class, $data) = @_;
-        return $class->_table_name unless $data;
+        return $class->result_source_instance->name unless $data;
         my ($f_class, $alias) = split(/=/, $data);
         $f_class ||= $class;
         $self->{_classes}{$alias} = $f_class;
-        return $f_class->_table_name." ${alias}";
+        return $f_class->result_source_instance->name." ${alias}";
       },
     'ESSENTIAL' =>
       sub {
@@ -32,22 +32,20 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
         my ($from, $to) = split(/ /, $data);
         my ($from_class, $to_class) = @{$self->{_classes}}{$from, $to};
         my ($rel_obj) = grep { $_->{class} && $_->{class} eq $to_class }
-                          values %{ $from_class->_relationships };
+                          map { $from_class->relationship_info($_) }
+                            $from_class->relationships;
         unless ($rel_obj) {
           ($from, $to) = ($to, $from);
           ($from_class, $to_class) = ($to_class, $from_class);
           ($rel_obj) = grep { $_->{class} && $_->{class} eq $to_class }
-                         values %{ $from_class->_relationships };
+                          map { $from_class->relationship_info($_) }
+                            $from_class->relationships;
         }
         $self->throw( "No relationship to JOIN from ${from_class} to ${to_class}" )
           unless $rel_obj;
-        my $attrs = {
-          %$self,
-          _aliases => { self => $from, foreign => $to },
-          _action => 'join',
-        };
         my $join = $from_class->storage->sql_maker->_join_condition(
-          $from_class->resolve_condition($rel_obj->{cond}, $attrs) );
+          $from_class->result_source_instance->resolve_condition(
+            $rel_obj->{cond}, $to, $from) );
         return $join;
       }
         
@@ -93,7 +91,7 @@ sub sth_to_objects {
   my ($class, $sth) = @_;
   my @ret;
   while (my $row = $sth->fetchrow_hashref) {
-    push(@ret, $class->inflate_result($row));
+    push(@ret, $class->inflate_result($class->result_source_instance, $row));
   }
   return @ret;
 }

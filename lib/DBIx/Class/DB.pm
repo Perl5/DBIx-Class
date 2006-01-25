@@ -1,36 +1,31 @@
 package DBIx::Class::DB;
 
 use base qw/DBIx::Class/;
+use DBIx::Class::Schema;
 use DBIx::Class::Storage::DBI;
 use DBIx::Class::ClassResolver::PassThrough;
 use DBI;
 
-__PACKAGE__->load_components(qw/ResultSetInstance/);
+__PACKAGE__->load_components(qw/ResultSetProxy/);
 
 *dbi_commit = \&txn_commit;
 *dbi_rollback = \&txn_rollback;
 
-sub storage { shift->storage_instance(@_); }
+sub storage { shift->schema_instance(@_)->storage; }
 
 sub resultset_instance {
   my $class = shift;
-  my $table = $class->table_instance->new($class->table_instance);
-  $table->storage($class->storage_instance);
-  $table->result_class($class);
-  return $table->resultset;
-}
-
-sub result_source {
-  my $class = shift;
-  my $table = $class->table_instance->new($class->table_instance);
-  $table->storage($class->storage_instance);
-  $table->result_class($class);
-  return $table;
+  my $source = $class->result_source_instance;
+  if ($source->result_class ne $class) {
+    $source = $source->new($source);
+    $source->result_class($class);
+  }
+  return $source->resultset;
 }
 
 =head1 NAME 
 
-DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
+DBIx::Class::DB - Non-recommended classdata schema component
 
 =head1 SYNOPSIS
 
@@ -50,7 +45,10 @@ DBIx::Class::DB - Simple DBIx::Class Database connection by class inheritance
 
 =head1 DESCRIPTION
 
-This class provides a simple way of specifying a database connection.
+This class is designed to support the Class::DBI connection-as-classdata style
+for DBIx::Class. You are *strongly* recommended to use a DBIx::Class::Schema
+instead; DBIx::Class::DB will continue to be supported but new development
+will be focused on Schema-based DBIx::Class setups.
 
 =head1 METHODS
 
@@ -58,7 +56,7 @@ This class provides a simple way of specifying a database connection.
 
 Sets or gets the storage backend. Defaults to L<DBIx::Class::Storage::DBI>.
 
-=head2 class_resolver
+=head2 class_resolver ****DEPRECATED****
 
 Sets or gets the class to use for resolving a class. Defaults to 
 L<DBIx::Class::ClassResolver::Passthrough>, which returns whatever you give
@@ -80,9 +78,24 @@ instantiate the class dbh when required.
 
 sub connection {
   my ($class, @info) = @_;
-  my $storage = DBIx::Class::Storage::DBI->new;
-  $storage->connect_info(\@info);
-  $class->mk_classdata('storage_instance' => $storage);
+  $class->setup_schema_instance unless $class->can('schema_instance');
+  $class->schema_instance->connection(@info);
+}
+
+=head2 setup_schema_instance
+
+Creates a class method ->schema_instance which contains a DBIx::Class::Schema;
+all class-method operations are proxies through to this object. If you don't
+call ->connection in your DBIx::Class::DB subclass at load time you *must*
+call ->setup_schema_instance in order for subclasses to find the schema and
+register themselves with it.
+
+=cut
+
+sub setup_schema_instance {
+  my $class = shift;
+  my $schema = bless({}, 'DBIx::Class::Schema');
+  $class->mk_classdata('schema_instance' => $schema);
 }
 
 =head2 txn_begin
@@ -109,7 +122,14 @@ Rolls back the current transaction.
 
 sub txn_rollback { $_[0]->storage->txn_rollback }
 
-sub resolve_class { return shift->class_resolver->class(@_); }
+{
+  my $warn;
+
+  sub resolve_class {
+    warn "resolve_class deprecated as of 0.04999_02" unless $warn++;
+    return shift->class_resolver->class(@_);
+  }
+}
 
 1;
 

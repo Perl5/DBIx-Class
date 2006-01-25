@@ -2,6 +2,9 @@ package DBIx::Class::InflateColumn;
 
 use strict;
 use warnings;
+
+use Carp qw/croak/;
+
 use base qw/DBIx::Class::Row/;
 
 =head1 NAME 
@@ -56,8 +59,8 @@ used in the database layer.
 
 sub inflate_column {
   my ($self, $col, $attrs) = @_;
-  die "No such column $col to inflate" unless $self->has_column($col);
-  die "inflate_column needs attr hashref" unless ref $attrs eq 'HASH';
+  croak "No such column $col to inflate" unless $self->has_column($col);
+  croak "inflate_column needs attr hashref" unless ref $attrs eq 'HASH';
   $self->column_info($col)->{_inflate_info} = $attrs;
   $self->mk_group_accessors('inflated_column' => $col);
   return 1;
@@ -66,20 +69,20 @@ sub inflate_column {
 sub _inflated_column {
   my ($self, $col, $value) = @_;
   return $value unless defined $value; # NULL is NULL is NULL
-  my $info = $self->column_info($col) || die "No column info for $col";
+  my $info = $self->column_info($col) || croak "No column info for $col";
   return $value unless exists $info->{_inflate_info};
   my $inflate = $info->{_inflate_info}{inflate};
-  die "No inflator for $col" unless defined $inflate;
+  croak "No inflator for $col" unless defined $inflate;
   return $inflate->($value, $self);
 }
 
 sub _deflated_column {
   my ($self, $col, $value) = @_;
   return $value unless ref $value; # If it's not an object, don't touch it
-  my $info = $self->column_info($col) || die "No column info for $col";
+  my $info = $self->column_info($col) || croak "No column info for $col";
   return $value unless exists $info->{_inflate_info};
   my $deflate = $info->{_inflate_info}{deflate};
-  die "No deflator for $col" unless defined $deflate;
+  croak "No deflator for $col" unless defined $deflate;
   return $deflate->($value, $self);
 }
 

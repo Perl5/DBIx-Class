@@ -8,7 +8,7 @@ use DBIx::Class::Storage::DBI::Cursor;
 
 BEGIN {
 
-package DBIC::SQL::Abstract; # Temporary. Merge upstream.
+package DBIC::SQL::Abstract; # Would merge upstream, but nate doesn't reply :(
 
 use base qw/SQL::Abstract::Limit/;
 
@@ -114,10 +114,15 @@ sub _skip_options {
 
 sub _join_condition {
   my ($self, $cond) = @_;
-  die "no chance" unless ref $cond eq 'HASH';
-  my %j;
-  for (keys %$cond) { my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x; };
-  return $self->_recurse_where(\%j);
+  if (ref $cond eq 'HASH') {
+    my %j;
+    for (keys %$cond) { my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x; };
+    return $self->_recurse_where(\%j);
+  } elsif (ref $cond eq 'ARRAY') {
+    return join(' OR ', map { $self->_join_condition($_) } @$cond);
+  } else {
+    die "Can't handle this yet!";
+  }
 }
 
 sub _quote {
@@ -133,7 +138,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/Exception AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/connect_info _dbh _sql_maker debug cursor/);
+  qw/connect_info _dbh _sql_maker debug cursor on_connect_do/);
 
 our $TRANSACTION = 0;
 
@@ -158,6 +163,12 @@ This class represents the connection to the database
 
 =cut
 
+=head2 on_connect_do
+
+Executes the sql statements given as a listref on every db connect.
+
+=cut
+
 sub dbh {
   my ($self) = @_;
   my $dbh;
@@ -179,6 +190,11 @@ sub _populate_dbh {
   my ($self) = @_;
   my @info = @{$self->connect_info || []};
   $self->_dbh($self->_connect(@info));
+
+  # if on-connect sql statements are given execute them
+  foreach my $sql_statement (@{$self->on_connect_do || []}) {
+    $self->_dbh->do($sql_statement);
+  }
 }
 
 sub _connect {
@@ -275,8 +291,7 @@ sub _select {
 sub select {
   my $self = shift;
   my ($ident, $select, $condition, $attrs) = @_;
-  my ($rv, $sth, @bind) = $self->_select(@_);
-  return $self->cursor->new($sth, \@bind, $attrs);
+  return $self->cursor->new($self, \@_, $attrs);
 }
 
 sub select_single {
@@ -286,9 +301,39 @@ sub select_single {
 }
 
 sub sth {
-  my ($self, $sql, $op) = @_;
-  my $meth = (defined $op && $op ne 'select' ? 'prepare_cached' : 'prepare');
-  return $self->dbh->$meth($sql);
+  my ($self, $sql) = @_;
+  # 3 is the if_active parameter which avoids active sth re-use
+  return $self->dbh->prepare_cached($sql, {}, 3);
+}
+
+=head2 columns_info_for
+
+Returns database type info for a given table columns.
+
+=cut
+
+sub columns_info_for {
+    my ($self, $table) = @_;
+    my %result;
+    if ( $self->dbh->can( 'column_info' ) ){
+        my $sth = $self->dbh->column_info( undef, undef, $table, '%' );
+        $sth->execute();
+        while ( my $info = $sth->fetchrow_hashref() ){
+            my %column_info;
+            $column_info{data_type} = $info->{TYPE_NAME};
+            $column_info{size} = $info->{COLUMN_SIZE};
+            $column_info{is_nullable} = $info->{NULLABLE};
+            $result{$info->{COLUMN_NAME}} = \%column_info;
+        }
+    }else{
+        my $sth = $self->dbh->prepare("SELECT * FROM $table WHERE 1=0");
+        $sth->execute;
+        my @columns = @{$sth->{NAME}};
+        for my $i ( 0 .. $#columns ){
+            $result{$columns[$i]}{data_type} = $sth->{TYPE}->[$i];
+        }
+    }
+    return \%result;
 }
 
 1;

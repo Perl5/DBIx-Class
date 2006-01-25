@@ -24,4 +24,22 @@ sub has_a {
   return 1;
 }
 
+sub search {
+  my $self = shift;
+  my $attrs = {};
+  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+    $attrs = { %{ pop(@_) } };
+  }
+  my $where = (@_ ? ((@_ == 1) ? ((ref $_[0] eq "HASH") ? { %{+shift} } : shift)
+                               : {@_})
+                  : undef());
+  if (ref $where eq 'HASH') {
+    foreach my $key (keys %$where) { # has_a deflation hack
+      $where->{$key} = ''.$where->{$key}
+        if eval { $where->{$key}->isa('DBIx::Class') };
+    }
+  }
+  $self->next::method($where, $attrs);
+}
+
 1;

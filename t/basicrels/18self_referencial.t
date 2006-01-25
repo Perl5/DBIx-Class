@@ -4,4 +4,4 @@ use DBICTest;
 use DBICTest::BasicRels;
 
 require "t/run/18self_referencial.tl";
-run_tests();
+run_tests(DBICTest->schema);

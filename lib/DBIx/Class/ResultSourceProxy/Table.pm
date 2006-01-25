@@ -1,22 +1,18 @@
-package DBIx::Class::TableInstance;
+package DBIx::Class::ResultSourceProxy::Table;
 
 use strict;
 use warnings;
 
-use base qw/DBIx::Class/;
-use DBIx::Class::Table;
+use base qw/DBIx::Class::ResultSourceProxy/;
+use DBIx::Class::ResultSource::Table;
 
 __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything yet!
 
-__PACKAGE__->mk_classdata('table_class' => 'DBIx::Class::Table');
-
-sub iterator_class { shift->table_instance->resultset_class(@_) }
-sub resultset_class { shift->table_instance->resultset_class(@_) }
-sub _table_name { shift->table_instance->name }
+__PACKAGE__->mk_classdata('table_class' => 'DBIx::Class::ResultSource::Table');
 
 =head1 NAME 
 
-DBIx::Class::TableInstance - provides a classdata table object and method proxies
+DBIx::Class::ResultSourceProxy::Table - provides a classdata table object and method proxies
 
 =head1 SYNOPSIS
 
@@ -26,13 +22,6 @@ DBIx::Class::TableInstance - provides a classdata table object and method proxie
 
 =head1 METHODS
 
-=cut
-
-sub _mk_column_accessors {
-  my ($class, @cols) = @_;
-  $class->mk_group_accessors('column' => @cols);
-}
-
 =head2 add_columns
 
   __PACKAGE__->add_columns(qw/col1 col2 col3/);
@@ -40,16 +29,6 @@ sub _mk_column_accessors {
 Adds columns to the current class and creates accessors for them.
 
 =cut
-
-sub add_columns {
-  my ($class, @cols) = @_;
-  $class->table_instance->add_columns(@cols);
-  $class->_mk_column_accessors(@cols);
-}
-
-sub _select_columns {
-  return shift->table_instance->columns;
-}
 
 =head2 table
 
@@ -61,18 +40,24 @@ Gets or sets the table name.
 
 sub table {
   my ($class, $table) = @_;
-  return $class->table_instance->name unless $table;
+  return $class->result_source_instance->name unless $table;
   unless (ref $table) {
     $table = $class->table_class->new(
       {
         name => $table,
         result_class => $class,
       });
-    if ($class->can('table_instance')) {
-      $table->{_columns} = { %{$class->table_instance->{_columns}||{}} };
+    if ($class->can('result_source_instance')) {
+      $table->{_columns} = { %{$class->result_source_instance->{_columns}||{}} };
+      $table->{_ordered_columns} =
+        [ @{$class->result_source_instance->{_ordered_columns}||[]} ];
     }
   }
-  $class->mk_classdata('table_instance' => $table);
+  $class->mk_classdata('result_source_instance' => $table);
+  if ($class->can('schema_instance')) {
+    $class =~ m/([^:]+)$/;
+    $class->schema_instance->register_class($class, $class);
+  }
 }
 
 =head2 has_column                                                                
@@ -83,11 +68,6 @@ Returns 1 if the class has a column of this name, 0 otherwise.
                                                                                 
 =cut                                                                            
 
-sub has_column {
-  my ($self, $column) = @_;
-  return $self->table_instance->has_column($column);
-}
-
 =head2 column_info                                                               
                                                                                 
   my $info = $obj->column_info($col);                                           
@@ -96,23 +76,11 @@ Returns the column metadata hashref for a column.
                                                                                 
 =cut                                                                            
 
-sub column_info {
-  my ($self, $column) = @_;
-  return $self->table_instance->column_info($column);
-}
-
 =head2 columns
 
   my @column_names = $obj->columns;                                             
                                                                                 
 =cut                                                                            
-
-sub columns {
-  return shift->table_instance->columns(@_);
-}
-
-sub set_primary_key { shift->table_instance->set_primary_key(@_); }
-sub primary_columns { shift->table_instance->primary_columns(@_); }
 
 1;
 

@@ -8,7 +8,8 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/PK::Auto/);
 
 sub last_insert_id {
-  my( $id ) = $_[0]->storage->dbh->selectrow_array( 'SELECT @@IDENTITY' );
+  my( $id ) = $_[0]->result_source->storage->dbh->selectrow_array(
+                                                    'SELECT @@IDENTITY' );
   return $id;
 }
 
@@ -16,13 +17,13 @@ sub last_insert_id {
 
 =head1 NAME 
 
-DBIx::Class::PK::Auto::MSSQL - Automatic Primary Key class for MSSQL
+DBIx::Class::PK::Auto::MSSQL - Automatic primary key class for MSSQL
 
 =head1 SYNOPSIS
 
-    # In your table classes
-    __PACKAGE__->load_components(qw/PK::Auto::MSSQL Core/);
-    __PACKAGE__->set_primary_key('id');
+  # In your table classes
+  __PACKAGE__->load_components(qw/PK::Auto::MSSQL Core/);
+  __PACKAGE__->set_primary_key('id');
 
 =head1 DESCRIPTION
 

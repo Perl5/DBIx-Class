@@ -1,4 +1,4 @@
-package DBIx::Class::ResultSetInstance;
+package DBIx::Class::ResultSetProxy;
 
 use base qw/DBIx::Class/;
 

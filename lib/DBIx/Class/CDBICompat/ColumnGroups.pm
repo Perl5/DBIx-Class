@@ -48,7 +48,7 @@ sub _register_column_group {
   $class->_column_groups($groups);
 }
 
-sub all_columns { return shift->table_instance->columns; }
+sub all_columns { return shift->result_source_instance->columns; }
 
 sub primary_column {
   my ($class) = @_;

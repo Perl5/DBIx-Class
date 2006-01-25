@@ -3,14 +3,12 @@ package DBIx::Class::Relationship::Accessor;
 use strict;
 use warnings;
 
-sub add_relationship {
-  my ($class, $rel, @rest) = @_;
-  my $ret = $class->next::method($rel => @rest);
-  my $rel_obj = $class->_relationships->{$rel};
-  if (my $acc_type = $rel_obj->{attrs}{accessor}) {
+sub register_relationship {
+  my ($class, $rel, $info) = @_;
+  if (my $acc_type = $info->{attrs}{accessor}) {
     $class->add_relationship_accessor($rel => $acc_type);
   }
-  return $ret;
+  $class->next::method($rel => $info);
 }
 
 sub add_relationship_accessor {
@@ -33,7 +31,7 @@ sub add_relationship_accessor {
   } elsif ($acc_type eq 'filter') {
     $class->throw("No such column $rel to filter")
        unless $class->has_column($rel);
-    my $f_class = $class->_relationships->{$rel}{class};
+    my $f_class = $class->relationship_info($rel)->{class};
     $class->inflate_column($rel,
       { inflate => sub {
           my ($val, $self) = @_;

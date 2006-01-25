@@ -4,4 +4,4 @@ use DBICTest;
 use DBICTest::HelperRels;
 
 require "t/run/14mssql.tl";
-run_tests();
+run_tests(DBICTest->schema);

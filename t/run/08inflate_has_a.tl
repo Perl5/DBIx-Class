@@ -1,4 +1,5 @@
 sub run_tests {
+my $schema = shift;
 
 eval { require DateTime };
 plan skip_all => "Need DateTime for inflation tests" if $@;
@@ -14,7 +15,7 @@ DBICTest::Schema::CD->has_a( 'year', 'DateTime',
 Class::C3->reinitialize;
 
 # inflation test
-my $cd = DBICTest->class("CD")->find(3);
+my $cd = $schema->resultset("CD")->find(3);
 
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 
@@ -25,17 +26,17 @@ my $now = DateTime->now;
 $cd->year( $now );
 $cd->update;
 
-($cd) = DBICTest->class("CD")->search( year => $now->year );
+($cd) = $schema->resultset("CD")->search( year => $now->year );
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 # re-test using alternate deflate syntax
-DBICTest->class("CD")->has_a( 'year', 'DateTime',
+$schema->class("CD")->has_a( 'year', 'DateTime',
       inflate => sub { DateTime->new( year => shift ) },
       deflate => 'year'
 );
 
 # inflation test
-$cd = DBICTest->class("CD")->find(3);
+$cd = $schema->resultset("CD")->find(3);
 
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 
@@ -46,7 +47,7 @@ $now = DateTime->now;
 $cd->year( $now );
 $cd->update;
 
-($cd) = DBICTest->class("CD")->search( year => $now->year );
+($cd) = $schema->resultset("CD")->search( year => $now->year );
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 }

@@ -1,5 +1,19 @@
 Revision history for DBIx::Class
 
+0.04999_03 2006-01-20 06:05:27
+        - Imported Jess Robinson's SQL::Translator::Parser::DBIx::Class
+        - Lots of internals cleanup to eliminate result_source_instance requirement
+        - added register_column and register_relationship class APIs
+        - made Storage::DBI use prepare_cached safely (thanks to Tim Bunce)
+        - many documentation improvements (thanks guys!)
+        - added ->connection, ->connect, ->register_source and ->clone schema methods
+	- Use croak instead of die for user errors.
+
+0.04999_02 2006-01-14 07:17:35
+        - Schema is now self-contained; no requirement for co-operation
+        - add_relationship, relationships, relationship_info, has_relationship
+        - relationship handling on ResultSource
+        - all table handling now in Table.pm / ResultSource.pm
         - added GROUP BY and DISTINCT support
         - hacked around SQL::Abstract::Limit some more in DBIC::SQL::Abstract
           (this may have fixed complex quoting)

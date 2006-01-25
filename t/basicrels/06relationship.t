@@ -4,4 +4,4 @@ use DBICTest;
 use DBICTest::BasicRels;
 
 require "t/run/06relationship.tl";
-run_tests();
+run_tests(DBICTest->schema);

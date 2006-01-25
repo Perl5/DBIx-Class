@@ -32,8 +32,25 @@ DBICTest::Schema::Track->belongs_to('disc', 'DBICTest::Schema::CD', 'cd');
 DBICTest::Schema::TwoKeys->belongs_to('artist', 'DBICTest::Schema::Artist');
 DBICTest::Schema::TwoKeys->belongs_to('cd', 'DBICTest::Schema::CD');
 
-DBICTest::Schema::CD_to_Producer->belongs_to('cd', 'DBICTest::Schema::CD', { 'foreign.cdid' => 'self.cd' });
-DBICTest::Schema::CD_to_Producer->belongs_to('producer', 'DBICTest::Schema::Producer', { 'foreign.producerid' => 'self.producer' });
+DBICTest::Schema::CD_to_Producer->belongs_to(
+  'cd', 'DBICTest::Schema::CD',
+  { 'foreign.cdid' => 'self.cd' }
+);
+DBICTest::Schema::CD_to_Producer->belongs_to(
+  'producer', 'DBICTest::Schema::Producer',
+  { 'foreign.producerid' => 'self.producer' }
+);
+DBICTest::Schema::Artist->has_many(
+  'artist_undirected_maps', 'DBICTest::Schema::ArtistUndirectedMap',
+  [{'foreign.id1' => 'self.artistid'}, {'foreign.id2' => 'self.artistid'}]
+);
+DBICTest::Schema::ArtistUndirectedMap->belongs_to(
+  'artist1', 'DBICTest::Schema::Artist', 'id1');
+DBICTest::Schema::ArtistUndirectedMap->belongs_to(
+  'artist2', 'DBICTest::Schema::Artist', 'id2');
+DBICTest::Schema::ArtistUndirectedMap->has_many(
+  'mapped_artists', 'DBICTest::Schema::Artist',
+  [{'foreign.artistid' => 'self.id1'}, {'foreign.artistid' => 'self.id2'}]);
 
 # now the Helpers
 DBICTest::Schema::CD->many_to_many( 'producers', 'cd_to_producer', 'producer');

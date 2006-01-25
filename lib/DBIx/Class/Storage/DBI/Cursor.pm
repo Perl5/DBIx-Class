@@ -6,51 +6,58 @@ use strict;
 use warnings;
 
 sub new {
-  my ($it_class, $sth, $args, $attrs) = @_;
+  my ($class, $storage, $args, $attrs) = @_;
   #use Data::Dumper; warn Dumper(@_);
-  $it_class = ref $it_class if ref $it_class;
+  $class = ref $class if ref $class;
   my $new = {
-    sth => $sth,
+    storage => $storage,
     args => $args,
     pos => 0,
     attrs => $attrs };
-  return bless ($new, $it_class);
+  return bless ($new, $class);
 }
 
 sub next {
   my ($self) = @_;
-  return if $self->{attrs}{rows}
-    && $self->{pos} >= $self->{attrs}{rows}; # + $self->{attrs}{offset});
-  my $sth = $self->{sth};
-  unless ($self->{live_sth}) {
-    $sth->execute(@{$self->{args} || []});
+  if ($self->{attrs}{rows} && $self->{pos} >= $self->{attrs}{rows}) {
+    $self->{sth}->finish if $self->{sth}->{Active};
+    delete $self->{sth};
+    $self->{done} = 1;
+  }
+  return if $self->{done};
+  unless ($self->{sth}) {
+    $self->{sth} = ($self->{storage}->_select(@{$self->{args}}))[1];
     if ($self->{attrs}{software_limit}) {
       if (my $offset = $self->{attrs}{offset}) {
-        $sth->fetch for 1 .. $offset;
+        $self->{sth}->fetch for 1 .. $offset;
       }
     }
-    $self->{live_sth} = 1;
   }
-  my @row = $sth->fetchrow_array;
-  $self->{pos}++ if @row;
+  my @row = $self->{sth}->fetchrow_array;
+  if (@row) {
+    $self->{pos}++;
+  } else {
+    delete $self->{sth};
+    $self->{done} = 1;
+  }
   return @row;
 }
 
 sub all {
   my ($self) = @_;
   return $self->SUPER::all if $self->{attrs}{rows};
-  my $sth = $self->{sth};
-  $sth->finish if $sth->{Active};
-  $sth->execute(@{$self->{args} || []});
-  delete $self->{live_sth};
+  $self->{sth}->finish if $self->{sth}->{Active};
+  delete $self->{sth};
+  my ($rv, $sth) = $self->{storage}->_select(@{$self->{args}});
   return @{$sth->fetchall_arrayref};
 }
 
 sub reset {
   my ($self) = @_;
   $self->{sth}->finish if $self->{sth}->{Active};
+  delete $self->{sth};
   $self->{pos} = 0;
-  $self->{live_sth} = 0;
+  delete $self->{done};
   return $self;
 }
 

@@ -1,4 +1,5 @@
 sub run_tests {
+my $schema = shift;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_ORA_${_}" } qw/DSN USER PASS/};
 
@@ -10,7 +11,7 @@ plan tests => 4;
 
 DBICTest::Schema->compose_connection('OraTest' => $dsn, $user, $pass);
 
-my $dbh = OraTest::Artist->storage->dbh;
+my $dbh = OraTest->schema->storage->dbh;
 
 eval {
   $dbh->do("DROP SEQUENCE artist_seq");

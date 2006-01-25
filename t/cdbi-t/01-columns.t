@@ -7,8 +7,7 @@ use Test::More tests => 24;
 #-----------------------------------------------------------------------
 package State;
 
-use base 'DBIx::Class';
-State->load_components(qw/CDBICompat Core/);
+use base 'DBIx::Class::Test::SQLite';
 
 State->table('State');
 State->columns(Essential => qw/Abbreviation Name/);
@@ -34,8 +33,7 @@ sub Snowfall { 1 }
 
 package City;
 
-use base 'DBIx::Class';
-City->load_components(qw/CDBICompat Core/);
+use base 'DBIx::Class::Test::SQLite';
 
 City->table('City');
 City->columns(All => qw/Name State Population/);
@@ -44,8 +42,7 @@ City->has_a(State => 'State');
 
 #-------------------------------------------------------------------------
 package CD;
-use base 'DBIx::Class';
-CD->load_components(qw/CDBICompat Core/);
+use base 'DBIx::Class::Test::SQLite';
 
 CD->table('CD');
 CD->columns('All' => qw/artist title length/);
