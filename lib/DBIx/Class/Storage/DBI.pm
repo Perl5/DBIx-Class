@@ -5,6 +5,7 @@ use warnings;
 use DBI;
 use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
+use IO::File;
 
 BEGIN {
 
@@ -138,12 +139,17 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/Exception AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/connect_info _dbh _sql_maker debug cursor on_connect_do transaction_depth/);
+  qw/connect_info _dbh _sql_maker debug debugfh cursor on_connect_do transaction_depth/);
 
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->transaction_depth(0);
+  if ($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} =~ /=(.+)$/) {
+    $new->debugfh(IO::File->new($1, 'w')||die "Cannot open trace file $1");
+  } else {
+    $new->debugfh(IO::File->new('>&STDERR'));
+  }
   $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
   return $new;
 }
@@ -165,6 +171,18 @@ This class represents the connection to the database
 =head2 on_connect_do
 
 Executes the sql statements given as a listref on every db connect.
+
+=head2 debug
+
+Causes SQL trace information to be emitted on C<debugfh> filehandle
+(or C<STDERR> if C<debugfh> has not specifically been set).
+
+=head2 debugfh
+
+Sets or retrieves the filehandle used for trace/debug output.  This
+should be an IO::Handle compatible object (only the C<print> method is
+used).  Initially set to be STDERR - although see information on the
+L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
 
 =cut
 
@@ -248,7 +266,7 @@ sub _execute {
   my ($self, $op, $extra_bind, $ident, @args) = @_;
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
   unshift(@bind, @$extra_bind) if $extra_bind;
-  warn "$sql: @bind" if $self->debug;
+  $self->debugfh->print("$sql: @bind\n") if $self->debug;
   my $sth = $self->sth($sql,$op);
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv = $sth->execute(@bind);
@@ -339,6 +357,16 @@ sub columns_info_for {
 }
 
 1;
+
+=head1 ENVIRONMENT VARIABLES
+
+=head2 DBIX_CLASS_STORAGE_DBI_DEBUG
+
+If C<DBIX_CLASS_STORAGE_DBI_DEBUG> is set then SQL trace information
+is produced (as when the L<debug> method is set).
+
+If the value is of the form C<1=/path/name> then the trace output is
+written to the file C</path/name>.
 
 =head1 AUTHORS
 
