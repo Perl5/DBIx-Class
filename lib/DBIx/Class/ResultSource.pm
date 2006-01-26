@@ -407,6 +407,79 @@ sub resolve_condition {
   }
 }
 
+=head2 resolve_prefetch (hashref/arrayref/scalar)
+ 
+Accepts one or more relationships for the current source and returns an
+array of column names for each of those relationships. Column names are
+prefixed relative to the current source, in accordance with where they appear
+in the supplied relationships. Examples:
+
+  my $source = $schema->$resultset('Tag')->source;
+  @columns = $source->resolve_prefetch( { cd => 'artist' } );
+
+  # @columns =
+  #(
+  #  'cd.cdid',
+  #  'cd.artist',
+  #  'cd.title',
+  #  'cd.year',
+  #  'cd.artist.artistid',
+  #  'cd.artist.name'
+  #)
+
+  @columns = $source->resolve_prefetch( qw[/ cd /] );
+
+  # @columns =
+  #(
+  #   'cd.cdid',
+  #   'cd.artist',
+  #   'cd.title',
+  #   'cd.year'
+  #)
+
+  $source = $schema->resultset('CD')->source;
+  @columns = $source->resolve_prefetch( qw[/ artist producer /] );
+
+  # @columns =
+  #(
+  #  'artist.artistid',
+  #  'artist.name',
+  #  'producer.producerid',
+  #  'producer.name'
+  #)  
+  
+=cut
+
+sub resolve_prefetch {
+  my( $self, $pre, $alias ) = @_;
+  use Data::Dumper;
+  #$alias ||= $self->name;
+  #warn $alias, Dumper $pre;
+  if( ref $pre eq 'ARRAY' ) {
+    return map { $self->resolve_prefetch( $_, $alias ) } @$pre;
+  }
+  elsif( ref $pre eq 'HASH' ) {
+    my @ret =
+    map {
+      $self->resolve_prefetch($_, $alias),
+      $self->related_source($_)->resolve_prefetch( $pre->{$_}, $_ )
+    }
+    keys %$pre;
+    #die Dumper \@ret;
+    return @ret;
+  }
+  elsif( ref $pre ) {
+    croak( "don't know how to resolve prefetch reftype " . ref $pre);
+  }
+  else {
+    my $rel_info = $self->relationship_info( $pre );
+    croak( $self->name . " has no such relationship '$pre'" ) unless $rel_info;
+    my $prefix = $alias && $alias ne 'me' ? "$alias.$pre" : $pre;
+    my @ret = map { "$prefix.$_" } $self->related_source($pre)->columns;
+    #warn $alias, Dumper (\@ret);
+    return @ret;
+  }
+}
 
 =head2 related_source($relname)
 

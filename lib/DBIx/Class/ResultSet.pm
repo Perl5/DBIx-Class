@@ -89,15 +89,28 @@ sub new {
     push(@{$attrs->{from}}, $source->resolve_join($join, $attrs->{alias}));
   }
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
-  foreach my $pre (@{delete $attrs->{prefetch} || []}) {
-    push(@{$attrs->{from}}, $source->resolve_join($pre, $attrs->{alias}))
-      unless $seen{$pre};
-    my @pre = 
-      map { "$pre.$_" }
-      $source->related_source($pre)->columns;
-    push(@{$attrs->{select}}, @pre);
-    push(@{$attrs->{as}}, @pre);
+
+  if (my $prefetch = delete $attrs->{prefetch}) {
+    foreach my $p (ref $prefetch eq 'ARRAY'
+              ? (@{$prefetch}) : ($prefetch)) {
+      if( ref $p eq 'HASH' ) {
+        foreach my $key (keys %$p) {
+          push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
+            unless $seen{$key};
+        }
+      }
+      else {
+        push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
+            unless $seen{$p};
+      }
+      my @cols = ();
+      push @cols, $source->resolve_prefetch($p, $attrs->{alias});
+      #die Dumper \@cols;
+      push(@{$attrs->{select}}, @cols);
+      push(@{$attrs->{as}}, @cols);
+    }
   }
+
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
     $attrs->{offset} ||= 0;
@@ -323,18 +336,21 @@ sub next {
 
 sub _construct_object {
   my ($self, @row) = @_;
-  my @cols = @{ $self->{attrs}{as} };
+  my @as = @{ $self->{attrs}{as} };
   #warn "@cols -> @row";
-  my (%me, %pre);
-  foreach my $col (@cols) {
-    if ($col =~ /([^\.]+)\.([^\.]+)/) {
-      $pre{$1}[0]{$2} = shift @row;
-    } else {
-      $me{$col} = shift @row;
+  my $info = [ {}, {} ];
+  foreach my $as (@as) {
+    my $target = $info;
+    my @parts = split(/\./, $as);
+    my $col = pop(@parts);
+    foreach my $p (@parts) {
+      $target = $target->[1]->{$p} ||= [];
     }
+    $target->[0]->{$col} = shift @row;
   }
+  #use Data::Dumper; warn Dumper(\@as, $info);
   my $new = $self->{source}->result_class->inflate_result(
-              $self->{source}, \%me, \%pre);
+              $self->{source}, @$info);
   $new = $self->{attrs}{record_filter}->($new)
     if exists $self->{attrs}{record_filter};
   return $new;

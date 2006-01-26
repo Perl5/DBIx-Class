@@ -7,7 +7,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 23 );
+        : ( tests => 27 );
 }
 
 # test the abstract join => SQL generator
@@ -121,7 +121,7 @@ is(ref $cd[1]->liner_notes, 'DBICTest::LinerNotes', 'Prefetch returns correct cl
 is($cd[2]->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'Prefetch on parent object ok');
 
 # count the SELECTs
-DBI->trace(0);
+DBI->trace(0, undef);
 my $selects = 0;
 my $trace = IO::File->new('t/var/dbic.trace', '<') 
     or die "Unable to read trace file";
@@ -131,6 +131,45 @@ while (<$trace>) {
 $trace->close;
 unlink 't/var/dbic.trace';
 is($selects, 1, 'prefetch ran only 1 select statement');
+
+# start test for nested prefetch SELECT count
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
+
+$rs = $schema->resultset('Tag')->search(
+  {},
+  {
+    prefetch => { cd => 'artist' }
+  }
+);
+
+my $tag = $rs->first;
+
+is( $tag->cd->title, 'Spoonful of bees', 'step 1 ok for nested prefetch' );
+
+is( $tag->cd->artist->name, 'Caterwauler McCrae', 'step 2 ok for nested prefetch');
+
+# count the SELECTs
+DBI->trace(0, undef);
+my $selects = 0;
+my $trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT(?!.*WHERE 1=0.*)/;
+}
+$trace->close;
+unlink 't/var/dbic.trace';
+is($selects, 1, 'nested prefetch ran exactly 1 select statement (excluding column_info)');
+
+$rs = $schema->resultset('Tag')->search(
+  {},
+  {
+    join => { cd => 'artist' },
+    prefetch => { cd => 'artist' }
+  }
+);
+
+cmp_ok( $rs->count, '>=', 0, 'nested prefetch does not duplicate joins' );
 
 my ($artist) = $schema->resultset("Artist")->search({ 'cds.year' => 2001 },
                  { order_by => 'artistid DESC', join => 'cds' });
