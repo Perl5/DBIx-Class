@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+        - multi-step prefetch!
+        - inheritance fixes
+        - test tweaks
+
 0.04999_04 2006-01-24 21:48:21
         - more documentation improvements
         - add columns_info_for for vendor-specific column info (Zbigniew Lukasiak)
