@@ -145,7 +145,8 @@ sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->transaction_depth(0);
-  if ($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} =~ /=(.+)$/) {
+  if (defined($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}) &&
+     ($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} =~ /=(.+)$/)) {
     $new->debugfh(IO::File->new($1, 'w')||die "Cannot open trace file $1");
   } else {
     $new->debugfh(IO::File->new('>&STDERR'));
