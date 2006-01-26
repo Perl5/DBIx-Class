@@ -45,7 +45,7 @@ sub belongs_to {
       }
       $cond_rel->{"foreign.$_"} = "self.".$cond->{$_};
     }
-    my $acc_type = (scalar keys %$cond_rel == 1) ? 'filter' : 'single';
+    my $acc_type = (keys %$cond_rel == 1 and $class->has_column($rel)) ? 'filter' : 'single';
     $class->add_relationship($rel, $f_class,
       $cond_rel,
       { accessor => $acc_type, %{$attrs || {}} }
