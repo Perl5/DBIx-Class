@@ -7,6 +7,8 @@ use DBIx::Class::ResultSet;
 
 use Carp qw/croak/;
 
+use Storable;
+
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
@@ -33,9 +35,9 @@ sub new {
   $class = ref $class if ref $class;
   my $new = bless({ %{$attrs || {}} }, $class);
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
-  $new->{_ordered_columns} ||= [];
-  $new->{_columns} ||= {};
-  $new->{_relationships} ||= {};
+  $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];
+  $new->{_columns} = { %{$new->{_columns}||{}} };
+  $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
   return $new;
 }
