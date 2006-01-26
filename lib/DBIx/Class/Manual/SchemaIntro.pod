@@ -193,7 +193,7 @@ rows:
 We also provide a handy shortcut for doing a C<LIKE> search:
 
   # Find albums whose artist starts with 'Jimi'
-  my $rs = MyApp::DB::Album->search_like({ artist => 'Jimi%' });
+  my $rs = $schema->resultset('Album')->search_like({ artist => 'Jimi%' });
 
 Or you can provide your own handmade C<WHERE> clause, like:
 
