@@ -42,16 +42,11 @@ sub table {
   my ($class, $table) = @_;
   return $class->result_source_instance->name unless $table;
   unless (ref $table) {
-    $table = $class->table_class->new(
-      {
+    $table = $class->table_class->new({
+        $class->can('result_source_instance') ? %{$class->result_source_instance} : (),
         name => $table,
         result_class => $class,
-      });
-    if ($class->can('result_source_instance')) {
-      $table->{_columns} = { %{$class->result_source_instance->{_columns}||{}} };
-      $table->{_ordered_columns} =
-        [ @{$class->result_source_instance->{_ordered_columns}||[]} ];
-    }
+    });
   }
   $class->mk_classdata('result_source_instance' => $table);
   if ($class->can('schema_instance')) {
