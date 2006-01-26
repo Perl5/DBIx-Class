@@ -414,6 +414,9 @@ Returns the result source for the given relationship
 
 sub related_source {
   my ($self, $rel) = @_;
+  if( !$self->has_relationship( $rel ) ) {
+    croak "No such relationship '$rel'";
+  }
   return $self->schema->source($self->relationship_info($rel)->{source});
 }
 
