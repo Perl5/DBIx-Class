@@ -8,7 +8,7 @@ sub might_have {
 }
 
 sub has_one {
-  shift->_has_one(undef => @_);
+  shift->_has_one(undef() => @_);
 }
 
 sub _has_one {
