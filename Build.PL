@@ -19,8 +19,6 @@ my %arguments = (
         'Storable'                  => 0,
         'Class::Data::Accessor'     => 0.01,
         # Following for CDBICompat only
-        'Class::Trigger'            => 0,
-        'DBIx::ContextualFetch'     => 0,
 	'Carp::Clan'		    => 0,
     },
     recommends          => {

@@ -3,6 +3,13 @@ package DBIx::Class::CDBICompat;
 use strict;
 use warnings;
 use base qw/DBIx::Class::Core DBIx::Class::DB/;
+use Carp::Clan qw/^DBIx::Class/;
+
+eval {
+  require Class::Trigger;
+  require DBIx::ContextualFetch;
+};
+croak "Class::Trigger and DBIx::ContextualFetch is required for CDBICompat" if $@;
 
 __PACKAGE__->load_own_components(qw/
   Constraints
