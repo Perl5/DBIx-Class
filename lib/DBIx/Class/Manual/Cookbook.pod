@@ -231,8 +231,7 @@ main query. Five CDs, five extra queries. A hundred CDs, one hundred extra
 queries!
 
 Thankfully, L<DBIx::Class> has a C<prefetch> attribute to solve this problem.
-This allows you to fetch results from a related table as well as the main table
-for your class:
+This allows you to fetch results from related tables in advance:
 
   my $rs = $schema->resultset('CD')->search(
     {
@@ -324,6 +323,31 @@ notes:
   # JOIN ( author ON author.id = liner_notes.author )
   # WHERE liner_notes.notes LIKE '%some text%'
   # AND author.name = 'A. Writer'
+
+=head2 Multi-step prefetch
+
+From 0.04999_05 onwards, C<prefetch> can be nested more than one relationship
+deep using the same syntax as a multi-step join:
+
+  my $rs = $schema->resultset('Tag')->search(
+    {},
+    {
+      prefetch => {
+        cd => 'artist'
+      }
+    }
+  );
+
+  # Equivalent SQL:
+  # SELECT tag.*, cd.*, artist.* FROM tag
+  # JOIN cd ON tag.cd = cd.cdid
+  # JOIN artist ON cd.artist = artist.artistid
+
+Now accessing our C<cd> and C<artist> relationships does not need additional
+SQL statements:
+
+  my $tag = $rs->first;
+  print $tag->cd->artist->name;
 
 =head2 Transactions
 
