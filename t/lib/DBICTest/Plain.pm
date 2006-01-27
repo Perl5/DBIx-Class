@@ -1,0 +1,33 @@
+package DBICTest::Plain;
+
+use strict;
+use warnings;
+use base qw/Catalyst::Model::DBIC::Plain/;
+use DBI;
+
+my $db_file = "t/var/Plain.db";
+
+unlink($db_file) if -e $db_file;
+unlink($db_file . "-journal") if -e $db_file . "-journal";
+mkdir("t/var") unless -d "t/var";
+
+my $dsn = "dbi:SQLite:${db_file}";
+
+__PACKAGE__->load_classes;
+my $schema = __PACKAGE__->compose_connection(__PACKAGE__, $dsn);
+
+my $dbh = DBI->connect($dsn);
+
+my $sql = <<EOSQL;
+CREATE TABLE test (
+  id INTEGER NOT NULL,
+  name VARCHAR(32) NOT NULL
+);
+
+INSERT INTO test (id, name) VALUES (1, 'DBIC::Plain is broken!');
+
+EOSQL
+
+$dbh->do($_) for split(/\n\n/, $sql);
+
+1;

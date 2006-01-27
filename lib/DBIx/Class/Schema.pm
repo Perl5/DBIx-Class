@@ -241,6 +241,7 @@ sub compose_connection {
       $class->mk_classdata(resultset_instance => $source->resultset);
       $class->mk_classdata(class_resolver => $self);
     }
+    $self->connection(@info);
     return $self;
   }
 
