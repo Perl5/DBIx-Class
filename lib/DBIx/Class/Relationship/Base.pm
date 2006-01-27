@@ -108,7 +108,7 @@ sub search_related {
 
 =head2 count_related
 
-  My::Table->count_related('relname', $cond, $attrs);
+  $obj->count_related('relname', $cond, $attrs);
 
 =cut
 

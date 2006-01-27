@@ -560,4 +560,18 @@ database schema:
 
 The schema update can be deployed to customers using the same method as before.
 
+=head2 Setting limit dialect for SQL::Abstract::Limit
+
+In some cases, SQL::Abstract::Limit cannot determine the dialect of the remote
+SQL-server by looking at the database-handle. This is a common problem when
+using the DBD::JDBC, since the DBD-driver only know that in has a Java-driver
+available, not which JDBC-driver the Java component has loaded.
+This specifically sets the limit_dialect to Microsoft SQL-server (Se more names
+in SQL::Abstract::Limit -documentation.
+
+  __PACKAGE__->storage->sql_maker->limit_dialect('mssql');
+
+The JDBC-bridge is one way of getting access to a MSSQL-server from a platform
+that Microsoft doesn't deliver native client libraries for. (e.g. Linux)
+
 =cut

@@ -132,6 +132,16 @@ sub _quote {
   return $self->SUPER::_quote($label);
 }
 
+# Accessor for setting limit dialect. This is useful
+# for JDBC-bridge among others where the remote SQL-dialect cannot
+# be determined by the name of the driver alone.
+#
+sub limit_dialect {
+    my $self = shift;
+    $self->{limit_dialect} = shift if @_;
+    return $self->{limit_dialect};
+}
+
 } # End of BEGIN block
 
 use base qw/DBIx::Class/;
