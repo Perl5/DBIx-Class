@@ -61,7 +61,7 @@ a class method.
 
 sub id {
   my ($self) = @_;
-  $self->throw( "Can't call id() as a class method" ) unless ref $self;
+  $self->throw_exception( "Can't call id() as a class method" ) unless ref $self;
   my @pk = $self->_ident_values;
   return (wantarray ? @pk : $pk[0]);
 }
@@ -76,7 +76,7 @@ L<DBIx::Class::ObjectCache>.
 
 sub ID {
   my ($self) = @_;
-  $self->throw( "Can't call ID() as a class method" ) unless ref $self;
+  $self->throw_exception( "Can't call ID() as a class method" ) unless ref $self;
   return undef unless $self->in_storage;
   return $self->_create_ID(map { $_ => $self->{_column_data}{$_} } $self->primary_columns);
 }

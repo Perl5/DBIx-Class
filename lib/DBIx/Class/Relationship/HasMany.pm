@@ -8,12 +8,12 @@ sub has_many {
     
   eval "require $f_class";
   if ($@) {
-    $class->throw($@) unless $@ =~ /Can't locate/;
+    $class->throw_exception($@) unless $@ =~ /Can't locate/;
   }
 
   unless (ref $cond) {
     my ($pri, $too_many) = $class->primary_columns;
-    $class->throw( "has_many can only infer join for a single primary key; ${class} has more" )
+    $class->throw_exception( "has_many can only infer join for a single primary key; ${class} has more" )
       if $too_many;
     my $f_key;
     my $f_class_loaded = eval { $f_class->columns };
@@ -26,7 +26,7 @@ sub has_many {
       $f_key = lc $1; # go ahead and guess; best we can do
       $guess = "using our class name '$class' as foreign key";
     }
-    $class->throw("No such column ${f_key} on foreign class ${f_class} ($guess)")
+    $class->throw_exception("No such column ${f_key} on foreign class ${f_class} ($guess)")
       if $f_class_loaded && !$f_class->has_column($f_key);
     $cond = { "foreign.${f_key}" => "self.${pri}" },
   }

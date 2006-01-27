@@ -62,13 +62,13 @@ sub insert {
     (grep { $self->column_info($_)->{'auto_increment'} }
        $self->primary_columns)
     || $self->primary_columns;
-  $self->throw( "More than one possible key found for auto-inc on ".ref $self )
+  $self->throw_exception( "More than one possible key found for auto-inc on ".ref $self )
     if $too_many;
   unless (defined $self->get_column($pri)) {
-    $self->throw( "Can't auto-inc for $pri on ".ref $self.": no _last_insert_id method" )
+    $self->throw_exception( "Can't auto-inc for $pri on ".ref $self.": no _last_insert_id method" )
       unless $self->can('last_insert_id');
     my $id = $self->last_insert_id;
-    $self->throw( "Can't get last insert id" ) unless $id;
+    $self->throw_exception( "Can't get last insert id" ) unless $id;
     $self->store_column($pri => $id);
   }
   return $ret;

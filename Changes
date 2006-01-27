@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+	- Removed DBIx::Class::Exception
+	- unified throw_exception stuff, using Carp::Clan
+	- report query when sth generation fails.
         - multi-step prefetch!
         - inheritance fixes
         - test tweaks

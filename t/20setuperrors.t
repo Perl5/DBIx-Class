@@ -11,5 +11,5 @@ eval {
   __PACKAGE__->columns qw/this doesnt work as expected/;
 };
 
-like($@,qr/^columns\(\) is a read-only/,
+like($@,qr/\bcolumns\(\) is a read-only/,
      "columns() error when apparently misused");

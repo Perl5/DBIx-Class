@@ -3,6 +3,8 @@ package DBIx::Class::AccessorGroup;
 use strict;
 use warnings;
 
+use Carp::Clan qw/^DBIx::Class/;
+
 =head1 NAME 
 
 DBIx::Class::AccessorGroup -  Lets you build groups of accessors
@@ -38,8 +40,7 @@ sub mk_group_accessors {
 
         foreach my $field (@fields) {
             if( $field eq 'DESTROY' ) {
-                require Carp;
-                &Carp::carp("Having a data accessor named DESTROY  in ".
+                carp("Having a data accessor named DESTROY  in ".
                              "'$class' is unwise.");
             }
 
@@ -102,8 +103,7 @@ sub make_group_ro_accessor {
 
         if(@_) {
             my $caller = caller;
-            require Carp;
-            Carp::croak("'$caller' cannot alter the value of '$field' on ".
+            croak("'$caller' cannot alter the value of '$field' on ".
                         "objects of class '$class'");
         }
         else {
@@ -123,7 +123,7 @@ sub make_group_wo_accessor {
         unless (@_) {
             my $caller = caller;
             require Carp;
-            Carp::croak("'$caller' cannot access the value of '$field' on ".
+            croak("'$caller' cannot access the value of '$field' on ".
                         "objects of class '$class'");
         }
         else {

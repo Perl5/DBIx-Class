@@ -6,6 +6,7 @@ use DBI;
 use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 use IO::File;
+use Carp::Clan qw/DBIx::Class/;
 
 BEGIN {
 
@@ -157,7 +158,7 @@ sub new {
   $new->transaction_depth(0);
   if (defined($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}) &&
      ($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} =~ /=(.+)$/)) {
-    $new->debugfh(IO::File->new($1, 'w')||die "Cannot open trace file $1");
+    $new->debugfh(IO::File->new($1, 'w')||croak "Cannot open trace file $1");
   } else {
     $new->debugfh(IO::File->new('>&STDERR'));
   }
@@ -280,13 +281,18 @@ sub _execute {
   $self->debugfh->print("$sql: @bind\n") if $self->debug;
   my $sth = $self->sth($sql,$op);
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
-  my $rv = $sth->execute(@bind);
+  my $rv;
+  if ($sth) {  
+    $rv = $sth->execute(@bind);
+  } else { 
+    croak "'$sql' did not generate a statement.";
+  }
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
 
 sub insert {
   my ($self, $ident, $to_insert) = @_;
-  $self->throw( "Couldn't insert ".join(', ', map "$_ => $to_insert->{$_}", keys %$to_insert)." into ${ident}" )
+  croak( "Couldn't insert ".join(', ', map "$_ => $to_insert->{$_}", keys %$to_insert)." into ${ident}" )
     unless ($self->_execute('insert' => [], $ident, $to_insert));
   return $to_insert;
 }

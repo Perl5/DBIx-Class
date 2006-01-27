@@ -92,10 +92,10 @@ sub search_related {
     $attrs = { %{ pop(@_) } };
   }
   my $rel_obj = $self->relationship_info($rel);
-  $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
+  $self->throw_exception( "No such relationship ${rel}" ) unless $rel_obj;
   $attrs = { %{$rel_obj->{attrs} || {}}, %{$attrs || {}} };
 
-  $self->throw( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
+  $self->throw_exception( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
   my $query = ((@_ > 1) ? {@_} : shift);
 
   my ($cond) = $self->result_source->resolve_condition($rel_obj->{cond}, $rel, $self);
@@ -172,20 +172,20 @@ sub find_or_create_related {
 sub set_from_related {
   my ($self, $rel, $f_obj) = @_;
   my $rel_obj = $self->relationship_info($rel);
-  $self->throw( "No such relationship ${rel}" ) unless $rel_obj;
+  $self->throw_exception( "No such relationship ${rel}" ) unless $rel_obj;
   my $cond = $rel_obj->{cond};
-  $self->throw( "set_from_related can only handle a hash condition; the "
+  $self->throw_exception( "set_from_related can only handle a hash condition; the "
     ."condition for $rel is of type ".(ref $cond ? ref $cond : 'plain scalar'))
       unless ref $cond eq 'HASH';
   my $f_class = $self->result_source->schema->class($rel_obj->{class});
-  $self->throw( "Object $f_obj isn't a ".$f_class )
+  $self->throw_exception( "Object $f_obj isn't a ".$f_class )
     unless $f_obj->isa($f_class);
   foreach my $key (keys %$cond) {
     next if ref $cond->{$key}; # Skip literals and complex conditions
-    $self->throw("set_from_related can't handle $key as key")
+    $self->throw_exception("set_from_related can't handle $key as key")
       unless $key =~ m/^foreign\.([^\.]+)$/;
     my $val = $f_obj->get_column($1);
-    $self->throw("set_from_related can't handle ".$cond->{$key}." as value")
+    $self->throw_exception("set_from_related can't handle ".$cond->{$key}." as value")
       unless $cond->{$key} =~ m/^self\.([^\.]+)$/;
     $self->set_column($1 => $val);
   }

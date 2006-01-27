@@ -7,7 +7,7 @@ sub belongs_to {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
   eval "require $f_class";
   if ($@) {
-    $class->throw($@) unless $@ =~ /Can't locate/;
+    $class->throw_exception($@) unless $@ =~ /Can't locate/;
   }
 
   my %f_primaries;
@@ -16,17 +16,17 @@ sub belongs_to {
   
   # single key relationship
   if (!ref $cond) {
-    $class->throw("Can't infer join condition for ${rel} on ${class}; unable to load ${f_class}")
+    $class->throw_exception("Can't infer join condition for ${rel} on ${class}; unable to load ${f_class}")
       unless $f_loaded;
 
     my ($pri, $too_many) = keys %f_primaries;
-    $class->throw("Can't infer join condition for ${rel} on ${class}; ${f_class} has no primary keys")
+    $class->throw_exception("Can't infer join condition for ${rel} on ${class}; ${f_class} has no primary keys")
       unless defined $pri;      
-    $class->throw("Can't infer join condition for ${rel} on ${class}; ${f_class} has multiple primary key")
+    $class->throw_exception("Can't infer join condition for ${rel} on ${class}; ${f_class} has multiple primary key")
       if $too_many;      
 
     my $fk = defined $cond ? $cond : $rel;
-    $class->throw("Can't infer join condition for ${rel} on ${class}; $fk is not a column")
+    $class->throw_exception("Can't infer join condition for ${rel} on ${class}; $fk is not a column")
       unless $class->has_column($fk);
 
     my $acc_type = $class->has_column($rel) ? 'filter' : 'single';
@@ -52,7 +52,7 @@ sub belongs_to {
     );
   }
   else {
-    $class->throw('third argument for belongs_to must be undef, a column name, or a join condition');
+    $class->throw_exception('third argument for belongs_to must be undef, a column name, or a join condition');
   }
   return 1;
 }

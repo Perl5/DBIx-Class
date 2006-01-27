@@ -3,9 +3,8 @@ package DBIx::Class::Row;
 use strict;
 use warnings;
 
-use Carp qw/croak/;
-
 use base qw/DBIx::Class/;
+use Carp::Clan qw/^DBIx::Class/;
 
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
@@ -37,9 +36,9 @@ sub new {
   $class = ref $class if ref $class;
   my $new = bless({ _column_data => { } }, $class);
   if ($attrs) {
-    $new->throw("attrs must be a hashref" ) unless ref($attrs) eq 'HASH';
+    $new->throw_exception("attrs must be a hashref" ) unless ref($attrs) eq 'HASH';
     while (my ($k, $v) = each %{$attrs}) {
-      croak "No such column $k on $class" unless $class->has_column($k);
+      $new->throw_exception("No such column $k on $class") unless $class->has_column($k);
       $new->store_column($k => $v);
     }
   }
@@ -62,7 +61,7 @@ sub insert {
   $self->{result_source} ||= $self->result_source_instance
     if $self->can('result_source_instance');
   my $source = $self->{result_source};
-  croak "No result_source set on this object; can't insert" unless $source;
+  $self->throw_exception("No result_source set on this object; can't insert") unless $source;
   #use Data::Dumper; warn Dumper($self);
   $source->storage->insert($source->from, { $self->get_columns });
   $self->in_storage(1);
@@ -96,15 +95,15 @@ UPDATE query to commit any changes to the object to the db if required.
 
 sub update {
   my ($self, $upd) = @_;
-  $self->throw( "Not in database" ) unless $self->in_storage;
+  $self->throw_exception( "Not in database" ) unless $self->in_storage;
   my %to_update = $self->get_dirty_columns;
   return $self unless keys %to_update;
   my $rows = $self->result_source->storage->update(
                $self->result_source->from, \%to_update, $self->ident_condition);
   if ($rows == 0) {
-    $self->throw( "Can't update ${self}: row not found" );
+    $self->throw_exception( "Can't update ${self}: row not found" );
   } elsif ($rows > 1) {
-    $self->throw("Can't update ${self}: updated more than one row");
+    $self->throw_exception("Can't update ${self}: updated more than one row");
   }
   $self->{_dirty_columns} = {};
   return $self;
@@ -123,12 +122,12 @@ be re ->insert'ed before it can be ->update'ed
 sub delete {
   my $self = shift;
   if (ref $self) {
-    $self->throw( "Not in database" ) unless $self->in_storage;
+    $self->throw_exception( "Not in database" ) unless $self->in_storage;
     $self->result_source->storage->delete(
       $self->result_source->from, $self->ident_condition);
     $self->in_storage(undef);
   } else {
-    croak "Can't do class delete without a ResultSource instance"
+    $self->throw_exception("Can't do class delete without a ResultSource instance")
       unless $self->can('result_source_instance');
     my $attrs = { };
     if (@_ > 1 && ref $_[$#_] eq 'HASH') {
@@ -152,10 +151,10 @@ the database and stored in the object.
 
 sub get_column {
   my ($self, $column) = @_;
-  $self->throw( "Can't fetch data as class method" ) unless ref $self;
+  $self->throw_exception( "Can't fetch data as class method" ) unless ref $self;
   return $self->{_column_data}{$column}
     if exists $self->{_column_data}{$column};
-  $self->throw( "No such column '${column}'" ) unless $self->has_column($column);
+  $self->throw_exception( "No such column '${column}'" ) unless $self->has_column($column);
   return undef;
 }
 
@@ -246,9 +245,9 @@ Sets a column value without marking it as dirty.
 
 sub store_column {
   my ($self, $column, $value) = @_;
-  $self->throw( "No such column '${column}'" ) 
+  $self->throw_exception( "No such column '${column}'" ) 
     unless exists $self->{_column_data}{$column} || $self->has_column($column);
-  $self->throw( "set_column called for ${column} without value" ) 
+  $self->throw_exception( "set_column called for ${column} without value" ) 
     if @_ < 3;
   return $self->{_column_data}{$column} = $value;
 }
@@ -272,11 +271,11 @@ sub inflate_result {
   my $schema;
   PRE: foreach my $pre (keys %{$prefetch||{}}) {
     my $pre_source = $source->related_source($pre);
-    croak "Can't prefetch non-existant relationship ${pre}" unless $pre_source;
+    $class->throw_exception("Can't prefetch non-existant relationship ${pre}") unless $pre_source;
     my $fetched = $pre_source->result_class->inflate_result(
                     $pre_source, @{$prefetch->{$pre}});
     my $accessor = $source->relationship_info($pre)->{attrs}{accessor};
-    $class->throw("No accessor for prefetched $pre")
+    $class->throw_exception("No accessor for prefetched $pre")
       unless defined $accessor;
     PRIMARY: foreach my $pri ($pre_source->primary_columns) {
       unless (defined $fetched->get_column($pri)) {
@@ -289,7 +288,7 @@ sub inflate_result {
     } elsif ($accessor eq 'filter') {
       $new->{_inflated_column}{$pre} = $fetched;
     } else {
-      $class->throw("Don't know how to store prefetched $pre");
+      $class->throw_exception("Don't know how to store prefetched $pre");
     }
   }
   return $new;
@@ -331,6 +330,22 @@ sub is_changed {
 sub register_column {
   my ($class, $col, $info) = @_;
   $class->mk_group_accessors('column' => $col);
+}
+
+
+=item throw_exception
+
+See Schema's throw_exception.
+
+=cut
+
+sub throw_exception {
+  my $self=shift;
+  if (ref $self && ref $self->result_source) {
+    $self->result_source->schema->throw_exception(@_);
+  } else {
+    croak(@_);
+  }
 }
 
 1;

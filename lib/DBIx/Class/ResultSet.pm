@@ -2,13 +2,16 @@ package DBIx::Class::ResultSet;
 
 use strict;
 use warnings;
-use Carp qw/croak/;
 use overload
         '0+'     => 'count',
         'bool'   => sub { 1; },
         fallback => 1;
 use Data::Page;
 use Storable;
+
+use base qw/DBIx::Class/;
+__PACKAGE__->load_components(qw/AccessorGroup/);
+__PACKAGE__->mk_group_accessors('simple' => 'result_source');
 
 =head1 NAME
 
@@ -117,7 +120,7 @@ sub new {
     $attrs->{offset} += ($attrs->{rows} * ($attrs->{page} - 1));
   }
   my $new = {
-    source => $source,
+    result_source => $source,
     cond => $attrs->{where},
     from => $attrs->{from},
     count => undef,
@@ -161,7 +164,7 @@ sub search {
     $attrs->{where} = $where;
   }
 
-  my $rs = (ref $self)->new($self->{source}, $attrs);
+  my $rs = (ref $self)->new($self->result_source, $attrs);
 
   return (wantarray ? $rs->all : $rs);
 }
@@ -208,15 +211,15 @@ sub find {
   my ($self, @vals) = @_;
   my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
 
-  my @cols = $self->{source}->primary_columns;
+  my @cols = $self->result_source->primary_columns;
   if (exists $attrs->{key}) {
-    my %uniq = $self->{source}->unique_constraints;
+    my %uniq = $self->result_source->unique_constraints;
     $self->( "Unknown key " . $attrs->{key} . " on " . $self->name )
       unless exists $uniq{$attrs->{key}};
     @cols = @{ $uniq{$attrs->{key}} };
   }
   #use Data::Dumper; warn Dumper($attrs, @vals, @cols);
-  $self->{source}->result_class->throw( "Can't find unless a primary key or unique constraint is defined" )
+  $self->throw_exception( "Can't find unless a primary key or unique constraint is defined" )
     unless @cols;
 
   my $query;
@@ -229,10 +232,6 @@ sub find {
     $query = {@vals};
   }
   #warn Dumper($query);
-  # Useless -> disabled
-  #$self->{source}->result_class->throw( "Can't find unless all primary keys are specified" )
-  #  unless (keys %$query >= @pk); # If we check 'em we run afoul of uc/lc
-                                  # column names etc. Not sure what to do yet
   return $self->search($query)->next;
 }
 
@@ -247,12 +246,12 @@ records.
 
 sub search_related {
   my ($self, $rel, @rest) = @_;
-  my $rel_obj = $self->{source}->relationship_info($rel);
-  $self->{source}->result_class->throw(
+  my $rel_obj = $self->result_source->relationship_info($rel);
+  $self->throw_exception(
     "No such relationship ${rel} in search_related")
       unless $rel_obj;
   my $rs = $self->search(undef, { join => $rel });
-  return $self->{source}->schema->resultset($rel_obj->{class}
+  return $self->result_source->schema->resultset($rel_obj->{class}
            )->search( undef,
              { %{$rs->{attrs}},
                alias => $rel,
@@ -269,10 +268,10 @@ Returns a storage-driven cursor to the given resultset.
 
 sub cursor {
   my ($self) = @_;
-  my ($source, $attrs) = @{$self}{qw/source attrs/};
+  my ($attrs) = $self->{attrs};
   $attrs = { %$attrs };
   return $self->{cursor}
-    ||= $source->storage->select($self->{from}, $attrs->{select},
+    ||= $self->result_source->storage->select($self->{from}, $attrs->{select},
           $attrs->{where},$attrs);
 }
 
@@ -309,7 +308,7 @@ sub slice {
   $attrs->{offset} ||= 0;
   $attrs->{offset} += $min;
   $attrs->{rows} = ($max ? ($max - $min + 1) : 1);
-  my $slice = (ref $self)->new($self->{source}, $attrs);
+  my $slice = (ref $self)->new($self->result_source, $attrs);
   return (wantarray ? $slice->all : $slice);
 }
 
@@ -349,12 +348,19 @@ sub _construct_object {
     $target->[0]->{$col} = shift @row;
   }
   #use Data::Dumper; warn Dumper(\@as, $info);
-  my $new = $self->{source}->result_class->inflate_result(
-              $self->{source}, @$info);
+  my $new = $self->result_source->result_class->inflate_result(
+              $self->result_source, @$info);
   $new = $self->{attrs}{record_filter}->($new)
     if exists $self->{attrs}{record_filter};
   return $new;
 }
+
+=head2 result_source 
+
+Returns a reference to the result source for this recordset.
+
+=cut
+
 
 =head2 count
 
@@ -367,7 +373,9 @@ on the resultset and counts the results of that.
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ && defined $_[0];
-  croak "Unable to ->count with a GROUP BY" if defined $self->{attrs}{group_by};
+  $self->throw_exception(
+    "Unable to ->count with a GROUP BY" 
+  ) if defined $self->{attrs}{group_by};
   unless (defined $self->{count}) {
     my $attrs = { %{ $self->{attrs} },
                   select => { 'count' => '*' },
@@ -375,7 +383,7 @@ sub count {
     # offset, order by and page are not needed to count. record_filter is cdbi
     delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
         
-    ($self->{count}) = (ref $self)->new($self->{source}, $attrs)->cursor->next;
+    ($self->{count}) = (ref $self)->new($self->result_source, $attrs)->cursor->next;
   }
   return 0 unless $self->{count};
   my $count = $self->{count};
@@ -436,9 +444,9 @@ Sets the specified columns in the resultset to the supplied values.
 
 sub update {
   my ($self, $values) = @_;
-  croak "Values for update must be a hash" unless ref $values eq 'HASH';
-  return $self->{source}->storage->update(
-           $self->{source}->from, $values, $self->{cond});
+  $self->throw_exception("Values for update must be a hash") unless ref $values eq 'HASH';
+  return $self->result_source->storage->update(
+           $self->result_source->from, $values, $self->{cond});
 }
 
 =head2 update_all(\%values)
@@ -450,7 +458,7 @@ will run cascade triggers while L</update> will not.
 
 sub update_all {
   my ($self, $values) = @_;
-  croak "Values for update must be a hash" unless ref $values eq 'HASH';
+  $self->throw_exception("Values for update must be a hash") unless ref $values eq 'HASH';
   foreach my $obj ($self->all) {
     $obj->set_columns($values)->update;
   }
@@ -465,7 +473,7 @@ Deletes the contents of the resultset from its result source.
 
 sub delete {
   my ($self) = @_;
-  $self->{source}->storage->delete($self->{source}->from, $self->{cond});
+  $self->result_source->storage->delete($self->result_source->from, $self->{cond});
   return 1;
 }
 
@@ -492,7 +500,7 @@ sense for queries with a C<page> attribute.
 sub pager {
   my ($self) = @_;
   my $attrs = $self->{attrs};
-  croak "Can't create pager for non-paged rs" unless $self->{page};
+  $self->throw_exception("Can't create pager for non-paged rs") unless $self->{page};
   $attrs->{rows} ||= 10;
   $self->count;
   return $self->{pager} ||= Data::Page->new(
@@ -509,7 +517,7 @@ sub page {
   my ($self, $page) = @_;
   my $attrs = { %{$self->{attrs}} };
   $attrs->{page} = $page;
-  return (ref $self)->new($self->{source}, $attrs);
+  return (ref $self)->new($self->result_source, $attrs);
 }
 
 =head2 new_result(\%vals)
@@ -520,17 +528,17 @@ Creates a result in the resultset's result class.
 
 sub new_result {
   my ($self, $values) = @_;
-  $self->{source}->result_class->throw( "new_result needs a hash" )
+  $self->throw_exception( "new_result needs a hash" )
     unless (ref $values eq 'HASH');
-  $self->{source}->result_class->throw( "Can't abstract implicit construct, condition not a hash" )
+  $self->throw_exception( "Can't abstract implicit construct, condition not a hash" )
     if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
   my %new = %$values;
   my $alias = $self->{attrs}{alias};
   foreach my $key (keys %{$self->{cond}||{}}) {
     $new{$1} = $self->{cond}{$key} if ($key =~ m/^(?:$alias\.)?([^\.]+)$/);
   }
-  my $obj = $self->{source}->result_class->new(\%new);
-  $obj->result_source($self->{source}) if $obj->can('result_source');
+  my $obj = $self->result_source->result_class->new(\%new);
+  $obj->result_source($self->result_source) if $obj->can('result_source');
   $obj;
 }
 
@@ -544,7 +552,7 @@ Effectively a shortcut for C<< ->new_result(\%vals)->insert >>.
 
 sub create {
   my ($self, $attrs) = @_;
-  $self->{source}->result_class->throw( "create needs a hashref" ) unless ref $attrs eq 'HASH';
+  $self->throw_exception( "create needs a hashref" ) unless ref $attrs eq 'HASH';
   return $self->new_result($attrs)->insert;
 }
 
@@ -622,7 +630,7 @@ sub update_or_create {
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
   my $hash  = ref $_[0] eq "HASH" ? shift : {@_};
 
-  my %unique_constraints = $self->{source}->unique_constraints;
+  my %unique_constraints = $self->result_source->unique_constraints;
   my @constraint_names   = (exists $attrs->{key}
                             ? ($attrs->{key})
                             : keys %unique_constraints);
@@ -653,6 +661,17 @@ sub update_or_create {
   }
 
   return $row;
+}
+
+=head2 throw_exception
+
+See Schema's throw_exception
+
+=cut
+
+sub throw_exception {
+  my $self=shift;
+  $self->result_source->schema->throw_exception(@_);
 }
 
 =head1 ATTRIBUTES

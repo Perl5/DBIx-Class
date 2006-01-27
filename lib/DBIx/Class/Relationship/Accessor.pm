@@ -29,7 +29,7 @@ sub add_relationship_accessor {
       }
     };
   } elsif ($acc_type eq 'filter') {
-    $class->throw("No such column $rel to filter")
+    $class->throw_exception("No such column $rel to filter")
        unless $class->has_column($rel);
     my $f_class = $class->relationship_info($rel)->{class};
     $class->inflate_column($rel,
@@ -39,7 +39,7 @@ sub add_relationship_accessor {
         },
         deflate => sub {
           my ($val, $self) = @_;
-          $self->throw("$val isn't a $f_class") unless $val->isa($f_class);
+          $self->throw_exception("$val isn't a $f_class") unless $val->isa($f_class);
           return ($val->_ident_values)[0];
             # WARNING: probably breaks for multi-pri sometimes. FIXME
         }
@@ -49,7 +49,7 @@ sub add_relationship_accessor {
     $meth{$rel} = sub { shift->search_related($rel, @_) };
     $meth{"add_to_${rel}"} = sub { shift->create_related($rel, @_); };
   } else {
-    $class->throw("No such relationship accessor type $acc_type");
+    $class->throw_exception("No such relationship accessor type $acc_type");
   }
   {
     no strict 'refs';

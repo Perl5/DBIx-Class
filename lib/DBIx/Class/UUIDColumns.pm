@@ -1,8 +1,6 @@
 package DBIx::Class::UUIDColumns;
 use base qw/DBIx::Class/;
 
-use Carp qw/croak/;
-
 use Data::UUID;
 
 __PACKAGE__->mk_classdata( 'uuid_auto_columns' => [] );
@@ -34,7 +32,7 @@ Note that the component needs to be loaded before Core.
 sub uuid_columns {
     my $self = shift;
     for (@_) {
-	croak "column $_ doesn't exist" unless $self->has_column($_);
+	$self->throw_exception("column $_ doesn't exist") unless $self->has_column($_);
     }
     $self->uuid_auto_columns(\@_);
 }

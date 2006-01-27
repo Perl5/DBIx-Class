@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use base qw( DBIx::Class );
-use Carp qw( croak );
 use English qw( -no_match_vars );
 
 #local $^W = 0; # Silence C:D:I redefined sub errors.
@@ -21,8 +20,8 @@ sub validation_module {
     my $module = shift;
     
     eval("use $module");
-    croak("Unable to load the validation module '$module' because $EVAL_ERROR") if ($EVAL_ERROR);
-    croak("The '$module' module does not support the check method") if (!$module->can('check'));
+    $class->throw_exception("Unable to load the validation module '$module' because $EVAL_ERROR") if ($EVAL_ERROR);
+    $class->throw_exception("The '$module' module does not support the check method") if (!$module->can('check'));
     
     $class->_validation_module_accessor( $module );
 }
@@ -43,7 +42,7 @@ sub validate {
     my $profile = $self->validation_profile();
     my $result = $module->check( \%data => $profile );
     return $result if ($result->success());
-    croak( $result );
+    $self->throw_exception( $result );
 }
 
 sub insert {

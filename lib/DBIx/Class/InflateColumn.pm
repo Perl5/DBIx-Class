@@ -3,7 +3,6 @@ package DBIx::Class::InflateColumn;
 use strict;
 use warnings;
 
-use Carp qw/croak/;
 
 use base qw/DBIx::Class::Row/;
 
@@ -59,8 +58,8 @@ used in the database layer.
 
 sub inflate_column {
   my ($self, $col, $attrs) = @_;
-  croak "No such column $col to inflate" unless $self->has_column($col);
-  croak "inflate_column needs attr hashref" unless ref $attrs eq 'HASH';
+  $self->throw_exception("No such column $col to inflate") unless $self->has_column($col);
+  $self->throw_exception("inflate_column needs attr hashref") unless ref $attrs eq 'HASH';
   $self->column_info($col)->{_inflate_info} = $attrs;
   $self->mk_group_accessors('inflated_column' => $col);
   return 1;
@@ -69,26 +68,26 @@ sub inflate_column {
 sub _inflated_column {
   my ($self, $col, $value) = @_;
   return $value unless defined $value; # NULL is NULL is NULL
-  my $info = $self->column_info($col) || croak "No column info for $col";
+  my $info = $self->column_info($col) || $self->throw_exception("No column info for $col");
   return $value unless exists $info->{_inflate_info};
   my $inflate = $info->{_inflate_info}{inflate};
-  croak "No inflator for $col" unless defined $inflate;
+  $self->throw_exception("No inflator for $col") unless defined $inflate;
   return $inflate->($value, $self);
 }
 
 sub _deflated_column {
   my ($self, $col, $value) = @_;
   return $value unless ref $value; # If it's not an object, don't touch it
-  my $info = $self->column_info($col) || croak "No column info for $col";
+  my $info = $self->column_info($col) || $self->throw_exception("No column info for $col");
   return $value unless exists $info->{_inflate_info};
   my $deflate = $info->{_inflate_info}{deflate};
-  croak "No deflator for $col" unless defined $deflate;
+  $self->throw_exception("No deflator for $col") unless defined $deflate;
   return $deflate->($value, $self);
 }
 
 sub get_inflated_column {
   my ($self, $col) = @_;
-  $self->throw("$col is not an inflated column") unless
+  $self->throw_exception("$col is not an inflated column") unless
     exists $self->column_info($col)->{_inflate_info};
 
   return $self->{_inflated_column}{$col}

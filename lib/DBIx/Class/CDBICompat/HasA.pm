@@ -5,7 +5,7 @@ use warnings;
 
 sub has_a {
   my ($self, $col, $f_class, %args) = @_;
-  $self->throw( "No such column ${col}" ) unless $self->has_column($col);
+  $self->throw_exception( "No such column ${col}" ) unless $self->has_column($col);
   eval "require $f_class";
   if ($args{'inflate'} || $args{'deflate'}) { # Non-database has_a
     if (!ref $args{'inflate'}) {

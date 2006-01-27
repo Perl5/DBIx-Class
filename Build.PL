@@ -21,6 +21,7 @@ my %arguments = (
         # Following for CDBICompat only
         'Class::Trigger'            => 0,
         'DBIx::ContextualFetch'     => 0,
+	'Carp::Clan'		    => 0,
     },
     recommends          => {
         'Data::UUID'                => 0,

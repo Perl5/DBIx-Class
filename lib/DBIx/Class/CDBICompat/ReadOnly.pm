@@ -5,7 +5,7 @@ use warnings;
 
 sub make_read_only {
   my $proto = shift;
-  $proto->add_trigger("before_$_" => sub { shift->throw("$proto is read only") })
+  $proto->add_trigger("before_$_" => sub { shift->throw_exception("$proto is read only") })
     foreach qw/create delete update/;
   return $proto;
 }

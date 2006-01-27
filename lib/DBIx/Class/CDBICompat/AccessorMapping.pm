@@ -27,7 +27,7 @@ sub mk_group_accessors {
 
 sub new {
   my ($class, $attrs, @rest) = @_;
-  $class->throw( "create needs a hashref" ) unless ref $attrs eq 'HASH';
+  $class->throw_exception( "create needs a hashref" ) unless ref $attrs eq 'HASH';
   foreach my $col ($class->columns) {
     if ($class->can('accessor_name')) {
       my $acc = $class->accessor_name($col);

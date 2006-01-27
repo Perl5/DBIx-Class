@@ -3,12 +3,11 @@ package DBIx::Class::Schema;
 use strict;
 use warnings;
 
-use Carp qw/croak/;
+use Carp::Clan qw/^DBIx::Class/;
 use UNIVERSAL::require;
 
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/Exception/);
 __PACKAGE__->mk_classdata('class_mappings' => {});
 __PACKAGE__->mk_classdata('source_registrations' => {});
 __PACKAGE__->mk_classdata('storage_type' => '::DBI');
@@ -116,7 +115,7 @@ sub source {
 
   # if we got here, they probably passed a full class name
   my $mapped = $self->class_mappings->{$moniker};
-  croak "Can't find source for ${moniker}"
+  $self->throw_exception("Can't find source for ${moniker}")
     unless $mapped && exists $sreg->{$mapped};
   return $sreg->{$mapped};
 }
@@ -185,7 +184,7 @@ sub load_classes {
     }
   } else {
     eval "require Module::Find;";
-    $class->throw("No arguments to load_classes and couldn't load".
+    $class->throw_exception("No arguments to load_classes and couldn't load".
       " Module::Find ($@)") if $@;
     my @comp = map { substr $_, length "${class}::"  } Module::Find::findallmod($class);
     $comps_for{$class} = \@comp;
@@ -342,6 +341,17 @@ sub clone {
     $clone->register_source($moniker => $new);
   }
   return $clone;
+}
+
+=item throw_exception
+
+Defaults to using Carp::Clan to report errors from user perspective.
+
+=cut
+
+sub throw_exception {
+  my ($self) = shift;
+  croak @_;
 }
 
 1;

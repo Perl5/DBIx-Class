@@ -41,8 +41,8 @@ sub find_column {
 
 sub get_temp {
   my ($self, $column) = @_;
-  $self->throw( "Can't fetch data as class method" ) unless ref $self;
-  $self->throw( "No such TEMP column '${column}'" ) unless $self->_temp_columns->{$column} ;
+  $self->throw_exception( "Can't fetch data as class method" ) unless ref $self;
+  $self->throw_exception( "No such TEMP column '${column}'" ) unless $self->_temp_columns->{$column} ;
   return $self->{_temp_column_data}{$column}
     if exists $self->{_temp_column_data}{$column};
   return undef;
@@ -50,9 +50,9 @@ sub get_temp {
 
 sub set_temp {
   my ($self, $column, $value) = @_;
-  $self->throw( "No such TEMP column '${column}'" )
+  $self->throw_exception( "No such TEMP column '${column}'" )
     unless $self->_temp_columns->{$column};
-  $self->throw( "set_temp called for ${column} without value" )
+  $self->throw_exception( "set_temp called for ${column} without value" )
     if @_ < 3;
   return $self->{_temp_column_data}{$column} = $value;
 }
