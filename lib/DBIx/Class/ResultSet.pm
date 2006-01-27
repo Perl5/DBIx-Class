@@ -756,16 +756,40 @@ For example:
     }
   );
 
-If you want to fetch the columns from the related table as well, see
-C<prefetch> below.
+If you want to fetch columns from related tables as well, see C<prefetch>
+below.
 
-=head2 prefetch
+=head2 prefetch arrayref/hashref
 
-Contains a list of relationships that should be fetched along with the main 
+Contains one or more relationships that should be fetched along with the main 
 query (when they are accessed afterwards they will have already been
 "prefetched").  This is useful for when you know you will need the related
-objects, because it saves a query.  Currently limited to prefetching
-one relationship deep, so unlike C<join>, prefetch must be an arrayref.
+objects, because it saves at least one query:
+
+  my $rs = $schema->resultset('Tag')->search(
+    {},
+    {
+      prefetch => {
+        cd => 'artist'
+      }
+    }
+  );
+
+The initial search results in SQL like the following:
+
+  SELECT tag.*, cd.*, artist.* FROM tag
+  JOIN cd ON tag.cd = cd.cdid
+  JOIN artist ON cd.artist = artist.artistid
+
+L<DBIx::Class> has no need to go back to the database when we access the
+C<cd> or C<artist> relationships, which saves us two SQL statements in this
+case.
+
+Any prefetched relationship will be joined automatically, so there is no need
+for a C<join> attribute in the above search.
+
+C<prefetch> can be used with the following relationship types: C<belongs_to>,
+C<has_one>.
 
 =head2 from (arrayref)
 
