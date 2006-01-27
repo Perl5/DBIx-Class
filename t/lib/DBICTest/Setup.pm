@@ -15,40 +15,6 @@ my $schema = DBICTest::Schema->compose_connection('DBICTest' => $dsn);
 my $dbh = DBI->connect($dsn);
 
 my $sql = <<EOSQL;
-CREATE TABLE artist (artistid INTEGER NOT NULL PRIMARY KEY, name VARCHAR);
-
-CREATE TABLE cd (cdid INTEGER NOT NULL PRIMARY KEY, artist INTEGER NOT NULL,
-                     title VARCHAR, year VARCHAR);
-
-CREATE TABLE liner_notes (liner_id INTEGER NOT NULL PRIMARY KEY, notes VARCHAR);
-
-CREATE TABLE track (trackid INTEGER NOT NULL PRIMARY KEY, cd INTEGER NOT NULL,
-                       position INTEGER NOT NULL, title VARCHAR);
-
-CREATE TABLE tags (tagid INTEGER NOT NULL PRIMARY KEY, cd INTEGER NOT NULL,
-                      tag VARCHAR);
-
-CREATE TABLE twokeys (artist INTEGER NOT NULL, cd INTEGER NOT NULL,
-                      PRIMARY KEY (artist, cd) );
-
-CREATE TABLE fourkeys (foo INTEGER NOT NULL, bar INTEGER NOT NULL,
-                      hello INTEGER NOT NULL, goodbye INTEGER NOT NULL,
-                      PRIMARY KEY (foo, bar, hello, goodbye) );
-
-CREATE TABLE onekey (id INTEGER NOT NULL PRIMARY KEY,
-                      artist INTEGER NOT NULL, cd INTEGER NOT NULL );
-
-CREATE TABLE self_ref (id INTEGER NOT NULL PRIMARY KEY,
-                      name VARCHAR );
-
-CREATE TABLE self_ref_alias (self_ref INTEGER NOT NULL, alias INTEGER NOT NULL,
-                      PRIMARY KEY( self_ref, alias ) );
-
-CREATE TABLE artist_undirected_map (id1 INTEGER NOT NULL, id2 INTEGER NOT NULL, PRIMARY KEY(id1, id2));
-
-CREATE TABLE producer (producerid INTEGER NOT NULL PRIMARY KEY, name VARCHAR);
-
-CREATE TABLE cd_to_producer (cd INTEGER NOT NULL, producer INTEGER NOT NULL);
 
 INSERT INTO artist (artistid, name) VALUES (1, 'Caterwauler McCrae');
 
@@ -128,8 +94,52 @@ INSERT INTO cd_to_producer (cd, producer) VALUES (1, 1);
 
 EOSQL
 
+open IN, "t/lib/sqlite.sql";
+
+{ local $/ = undef; $sql = <IN>.$sql; }
+
+close IN;
+
 $dbh->do($_) for split(/\n\n/, $sql);
 
 $schema->storage->dbh->do("PRAGMA synchronous = OFF");
 
 1;
+
+__DATA__
+
+CREATE TABLE artist (artistid INTEGER NOT NULL PRIMARY KEY, name VARCHAR);
+
+CREATE TABLE cd (cdid INTEGER NOT NULL PRIMARY KEY, artist INTEGER NOT NULL,
+                     title VARCHAR, year VARCHAR);
+
+CREATE TABLE liner_notes (liner_id INTEGER NOT NULL PRIMARY KEY, notes VARCHAR);
+
+CREATE TABLE track (trackid INTEGER NOT NULL PRIMARY KEY, cd INTEGER NOT NULL,
+                       position INTEGER NOT NULL, title VARCHAR);
+
+CREATE TABLE tags (tagid INTEGER NOT NULL PRIMARY KEY, cd INTEGER NOT NULL,
+                      tag VARCHAR);
+
+CREATE TABLE twokeys (artist INTEGER NOT NULL, cd INTEGER NOT NULL,
+                      PRIMARY KEY (artist, cd) );
+
+CREATE TABLE fourkeys (foo INTEGER NOT NULL, bar INTEGER NOT NULL,
+                      hello INTEGER NOT NULL, goodbye INTEGER NOT NULL,
+                      PRIMARY KEY (foo, bar, hello, goodbye) );
+
+CREATE TABLE onekey (id INTEGER NOT NULL PRIMARY KEY,
+                      artist INTEGER NOT NULL, cd INTEGER NOT NULL );
+
+CREATE TABLE self_ref (id INTEGER NOT NULL PRIMARY KEY,
+                      name VARCHAR );
+
+CREATE TABLE self_ref_alias (self_ref INTEGER NOT NULL, alias INTEGER NOT NULL,
+                      PRIMARY KEY( self_ref, alias ) );
+
+CREATE TABLE artist_undirected_map (id1 INTEGER NOT NULL, id2 INTEGER NOT NULL, PRIMARY KEY(id1, id2));
+
+CREATE TABLE producer (producerid INTEGER NOT NULL PRIMARY KEY, name VARCHAR);
+
+CREATE TABLE cd_to_producer (cd INTEGER NOT NULL, producer INTEGER NOT NULL);
+

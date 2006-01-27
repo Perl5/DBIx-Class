@@ -40,11 +40,12 @@ sub parse {
 
 #    print Dumper($dbixschema->registered_classes);
 
-    foreach my $tableclass ($dbixschema->registered_classes)
+    #foreach my $tableclass ($dbixschema->registered_classes)
+    foreach my $moniker ($dbixschema->sources)
     {
-        eval "use $tableclass";
-        print("Can't load $tableclass"), next if($@);
-        my $source = $tableclass->result_source_instance;
+        #eval "use $tableclass";
+        #print("Can't load $tableclass"), next if($@);
+        my $source = $dbixschema->source($moniker);
 
         my $table = $schema->add_table(
                                        name => $source->name,
@@ -57,13 +58,15 @@ sub parse {
             # data_type is a number, column_type is text?
             my %colinfo = (
               name => $col,
-              default_value => '',
               size => 0,
               is_auto_increment => 0,
               is_foreign_key => 0,
               is_nullable => 0,
               %{$source->column_info($col)}
             );
+            if ($colinfo{is_nullable}) {
+              $colinfo{default} = '' unless exists $colinfo{default};
+            }
             my $f = $table->add_field(%colinfo) || die $table->error;
         }
         $table->primary_key($source->primary_columns);

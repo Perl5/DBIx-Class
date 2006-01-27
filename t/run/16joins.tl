@@ -151,8 +151,8 @@ is( $tag->cd->artist->name, 'Caterwauler McCrae', 'step 2 ok for nested prefetch
 
 # count the SELECTs
 DBI->trace(0, undef);
-my $selects = 0;
-my $trace = IO::File->new('t/var/dbic.trace', '<') 
+$selects = 0;
+$trace = IO::File->new('t/var/dbic.trace', '<') 
     or die "Unable to read trace file";
 while (<$trace>) {
     $selects++ if /SELECT(?!.*WHERE 1=0.*)/;

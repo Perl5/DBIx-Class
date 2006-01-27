@@ -143,6 +143,8 @@ cmp_ok($or_rs->next->cdid, '==', $rel_rs->next->cdid, 'Related object ok');
 
 ok($schema->storage(), 'Storage available');
 
+$schema->source("Artist")->{_columns}{'artistid'} = {};
+
 my $typeinfo = $schema->source("Artist")->column_info('artistid');
 is($typeinfo->{data_type}, 'INTEGER', 'column_info ok');
 }

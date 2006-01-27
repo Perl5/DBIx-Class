@@ -34,7 +34,7 @@ my $test_type_info = {
         'data_type' => 'INTEGER'
     },
     'name' => {
-        'data_type' => 'VARCHAR'
+        'data_type' => 'varchar'
     }
 };
 is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
