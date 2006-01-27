@@ -199,6 +199,7 @@ sub load_classes {
         die $@ unless $@ =~ /Can't locate/;
       }
       $class->register_class($comp => $comp_class);
+      #  if $class->can('result_source_instance');
     }
   }
 }
@@ -231,6 +232,19 @@ sub compose_connection {
   my ($self, $target, @info) = @_;
   my $base = 'DBIx::Class::ResultSetProxy';
   $base->require;
+
+  if ($self eq $target) {
+    # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
+    foreach my $moniker ($self->sources) {
+      my $source = $self->source($moniker);
+      my $class = $source->result_class;
+      $self->inject_base($class, $base);
+      $class->mk_classdata(resultset_instance => $source->resultset);
+      $class->mk_classdata(class_resolver => $self);
+    }
+    return $self;
+  }
+
   my $schema = $self->compose_namespace($target, $base);
   $schema->connection(@info);
   foreach my $moniker ($schema->sources) {
