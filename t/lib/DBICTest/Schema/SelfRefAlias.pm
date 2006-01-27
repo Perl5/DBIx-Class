@@ -11,6 +11,6 @@ __PACKAGE__->add_columns(
     data_type => 'integer',
   },
 );
-__PACKAGE__->set_primary_key('self_ref alias');
+__PACKAGE__->set_primary_key(qw/self_ref alias/);
 
 1;
