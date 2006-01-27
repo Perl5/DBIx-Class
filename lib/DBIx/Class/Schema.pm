@@ -344,6 +344,32 @@ sub clone {
   return $clone;
 }
 
+=item populate($moniker, \@data);
+
+Populates the source registered with the given moniker with the supplied data.
+@data should be a list of listrefs, the first containing column names, the
+second matching values - i.e.
+
+$schema->populate('Foo', [
+  [ qw/foo_id foo_string/ ],
+  [ 1, 'One' ],
+  [ 2, 'Two' ],
+  ...
+]);
+
+=cut
+
+sub populate {
+  my ($self, $name, $data) = @_;
+  my $rs = $self->resultset($name);
+  my @names = @{shift(@$data)};
+  foreach my $item (@$data) {
+    my %create;
+    @create{@names} = @$item;
+    $rs->create(\%create);
+  }
+}
+
 =item throw_exception
 
 Defaults to using Carp::Clan to report errors from user perspective.

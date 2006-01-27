@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - added $schema->populate to load test data (similar to AR fixtures)
 	- removed cdbi-t dependencies, only run tests if installed
 	- Removed DBIx::Class::Exception
 	- unified throw_exception stuff, using Carp::Clan
