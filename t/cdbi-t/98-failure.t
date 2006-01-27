@@ -1,18 +1,18 @@
 use strict;
 use Test::More;
 
-BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => 'Class::Trigger and DBIx::ContextualFetch required') : (tests=> 24);
-}
-
 #----------------------------------------------------------------------
 # Test database failures
 #----------------------------------------------------------------------
 
 BEGIN {
-	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 7);
+  eval "use DBIx::Class::CDBICompat;";
+  if ($@) {
+    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
+    next;
+  }
+  eval "use DBD::SQLite";
+  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 7);
 }
 
 use lib 't/testlib';
