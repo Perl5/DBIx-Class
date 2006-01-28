@@ -13,6 +13,7 @@ DBICTest::Schema::Track->add_columns(
   },
   'position' => {
     data_type => 'integer',
+    accessor => 'pos',
   },
   'title' => {
     data_type => 'varchar',

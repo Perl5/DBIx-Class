@@ -323,13 +323,20 @@ sub is_changed {
 
 =head2 register_column($column, $column_info)
 
-  Registers a column on the class and creates an accessor for it
+  Registers a column on the class. If the column_info has an 'accessor' key,
+  creates an accessor named after the value if defined; if there is no such
+  key, creates an accessor with the same name as the column
 
 =cut
 
 sub register_column {
   my ($class, $col, $info) = @_;
-  $class->mk_group_accessors('column' => $col);
+  my $acc = $col;
+  if (exists $info->{accessor}) {
+    return unless defined $info->{accessor};
+    $acc = [ $info->{accessor}, $col ];
+  }
+  $class->mk_group_accessors('column' => $acc);
 }
 
 

@@ -2,7 +2,6 @@ package DBIx::Class::PK;
 
 use strict;
 use warnings;
-use Tie::IxHash;
 
 use base qw/DBIx::Class::Row/;
 
