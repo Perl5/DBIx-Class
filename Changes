@@ -1,6 +1,6 @@
 Revision history for DBIx::Class
 
-0.04999_06
+0.04999_06 2006-01-28 21:20:32
         - fix Storage/DBI (tried to load deprecated ::Exception component)
 
 0.04999_05 2006-01-28 20:13:52
