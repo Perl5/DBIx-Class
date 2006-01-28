@@ -147,7 +147,7 @@ sub limit_dialect {
 
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/Exception AccessorGroup/);
+__PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/connect_info _dbh _sql_maker debug debugfh cursor on_connect_do transaction_depth/);
