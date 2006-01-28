@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use Carp::Clan qw/^DBIx::Class/;
-use UNIVERSAL::require;
 
 use base qw/DBIx::Class/;
 
@@ -230,7 +229,9 @@ you expect.
 sub compose_connection {
   my ($self, $target, @info) = @_;
   my $base = 'DBIx::Class::ResultSetProxy';
-  $base->require;
+  eval "require ${base};";
+  $self->throw_exception("No arguments to load_classes and couldn't load".
+      " ${base} ($@)") if $@;
 
   if ($self eq $target) {
     # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
@@ -311,7 +312,9 @@ sub connection {
   my $storage_class = $self->storage_type;
   $storage_class = 'DBIx::Class::Storage'.$storage_class
     if $storage_class =~ m/^::/;
-  $storage_class->require;
+  eval "require ${storage_class};";
+  $self->throw_exception("No arguments to load_classes and couldn't load".
+      " ${storage_class} ($@)") if $@;
   my $storage = $storage_class->new;
   $storage->connect_info(\@info);
   $self->storage($storage);

@@ -8,7 +8,6 @@ my %arguments = (
     requires           => {
         'Data::Page'                => 2.00,
         'DBI'                       => 1.40,
-        'UNIVERSAL::require'        => 0,
         'Scalar::Util'              => 0,
         'SQL::Abstract'             => 1.20,
         'SQL::Abstract::Limit'      => 0.101,
@@ -18,7 +17,6 @@ my %arguments = (
         'Module::Find'              => 0,
         'Storable'                  => 0,
         'Class::Data::Accessor'     => 0.01,
-        # Following for CDBICompat only
 	'Carp::Clan'		    => 0,
     },
     recommends          => {
