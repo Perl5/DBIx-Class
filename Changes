@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - count will now work for grouped resultsets
+        - added accessor => option to column_info to specify accessor name
         - added $schema->populate to load test data (similar to AR fixtures)
 	- removed cdbi-t dependencies, only run tests if installed
 	- Removed DBIx::Class::Exception
