@@ -198,12 +198,31 @@ L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
 
 =cut
 
-sub dbh {
+sub disconnect {
   my ($self) = @_;
+
+  $self->_dbh->disconnect if $self->_dbh;
+}
+
+sub connected {
+  my ($self) = @_;
+
   my $dbh;
-  unless (($dbh = $self->_dbh) && $dbh->FETCH('Active') && $dbh->ping) {
+  (($dbh = $self->_dbh) && $dbh->FETCH('Active') && $dbh->ping)
+}
+
+sub ensure_connected {
+  my ($self) = @_;
+
+  unless ($self->connected) {
     $self->_populate_dbh;
   }
+}
+
+sub dbh {
+  my ($self) = @_;
+
+  $self->ensure_connected;
   return $self->_dbh;
 }
 
