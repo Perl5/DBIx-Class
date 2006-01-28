@@ -350,10 +350,14 @@ sub select {
   return $self->cursor->new($self, \@_, $attrs);
 }
 
+# Need to call finish() to work round broken DBDs
+
 sub select_single {
   my $self = shift;
   my ($rv, $sth, @bind) = $self->_select(@_);
-  return $sth->fetchrow_array;
+  my @row = $sth->fetchrow_array;
+  $sth->finish();
+  return @row;
 }
 
 sub sth {
