@@ -368,6 +368,12 @@ Performs an SQL C<COUNT> with the same query as the resultset was built
 with to find the number of elements. If passed arguments, does a search
 on the resultset and counts the results of that.
 
+Note: When using C<count> with C<group_by>, L<DBIX::Class> emulates C<GROUP BY>
+using C<COUNT( DISTINCT( columns ) )>. Some databases (notably SQLite) do
+not support C<DISTINCT> with multiple columns. If you are using such a
+database, you should only use columns from the main table in your C<group_by>
+clause.
+
 =cut
 
 sub count {
@@ -932,8 +938,7 @@ Can also be used to simulate an SQL C<LIMIT>.
 
 =head2 group_by (arrayref)
 
-A arrayref of columns to group by. Can include columns of joined tables. Note
-note that L</count> doesn't work on grouped resultsets.
+A arrayref of columns to group by. Can include columns of joined tables.
 
   group_by => [qw/ column1 column2 ... /]
 
