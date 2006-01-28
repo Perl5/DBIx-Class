@@ -7,15 +7,17 @@ my %arguments = (
     module_name        => 'DBIx::Class',
     requires           => {
         'Data::Page'                => 2.00,
-        'DBI'                       => 1.40,
         'Scalar::Util'              => 0,
         'SQL::Abstract'             => 1.20,
         'SQL::Abstract::Limit'      => 0.101,
-        'DBD::SQLite'               => 1.08,
         'Class::C3'                 => 0.07,
         'Storable'                  => 0,
         'Class::Data::Accessor'     => 0.01,
 	'Carp::Clan'		    => 0,
+    },
+    build_requires      => {
+        'DBD::SQLite'               => 1.08,
+        'DBI'                       => 1.40,
     },
     recommends          => {
         'Data::UUID'                => 0,
