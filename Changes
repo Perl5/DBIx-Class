@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - properly skip t/30dbicplain.t when Catalyst::Model::DBIC::Plain isn't
+          installed
+
 0.04999_06 2006-01-28 21:20:32
         - fix Storage/DBI (tried to load deprecated ::Exception component)
 
