@@ -373,17 +373,37 @@ on the resultset and counts the results of that.
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ && defined $_[0];
-  $self->throw_exception(
-    "Unable to ->count with a GROUP BY" 
-  ) if defined $self->{attrs}{group_by};
   unless (defined $self->{count}) {
+    my $group_by;
+    my $select = { 'count' => '*' };
+    if( $group_by = delete $self->{attrs}{group_by} ) {
+      my @distinct = @$group_by;
+      # todo: try CONCAT for multi-column pk
+      my @pk = $self->result_source->primary_columns;
+      if( scalar(@pk) == 1 ) {
+        my $pk = shift(@pk);
+        my $alias = $self->{attrs}{alias};
+        my $re = qr/^($alias\.)?$pk$/;
+        foreach my $column ( @$group_by ) {
+          if( $column =~ $re ) {
+            @distinct = ( $column );
+            last;
+          }
+        } 
+      }
+
+      $select = { count => { 'distinct' => \@distinct } };
+      #use Data::Dumper; die Dumper $select;
+    }
+
     my $attrs = { %{ $self->{attrs} },
-                  select => { 'count' => '*' },
+                  select => $select,
                   as => [ 'count' ] };
     # offset, order by and page are not needed to count. record_filter is cdbi
     delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
         
     ($self->{count}) = (ref $self)->new($self->result_source, $attrs)->cursor->next;
+    $self->{attrs}{group_by} = $group_by;
   }
   return 0 unless $self->{count};
   my $count = $self->{count};

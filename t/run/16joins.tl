@@ -7,7 +7,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 27 );
+        : ( tests => 31 );
 }
 
 # test the abstract join => SQL generator
@@ -188,6 +188,23 @@ my @artists = $schema->resultset("Artist")->search({ 'tags.tag' => 'Shiny' },
 
 cmp_ok( @artists, '==', 2, "two-join search ok" );
 
+$rs = $schema->resultset("CD")->search(
+  {},
+  { group_by => [qw/ title me.cdid /] }
+);
+
+cmp_ok( $rs->count, '==', 5, "count() ok after group_by on main pk" );
+
+cmp_ok( scalar $rs->all, '==', 5, "all() returns same count as count() after group_by on main pk" );
+
+$rs = $schema->resultset("CD")->search(
+  {},
+  { join => [qw/ artist /], group_by => [qw/ artist.name /] }
+);
+
+cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
+
+cmp_ok( scalar $rs->all, '==', 3, "all() returns same count as count() after group_by on related column" );
 }
 
 1;
