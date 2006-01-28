@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+0.04999_06
+        - fix Storage/DBI (tried to load deprecated ::Exception component)
+
+0.04999_05 2006-01-28 20:13:52
         - count will now work for grouped resultsets
         - added accessor => option to column_info to specify accessor name
         - added $schema->populate to load test data (similar to AR fixtures)
