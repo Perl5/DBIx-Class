@@ -2,7 +2,7 @@ package DBICTest::Plain;
 
 use strict;
 use warnings;
-use base qw/Catalyst::Model::DBIC::Plain/;
+use base qw/DBIx::Class::Schema/;
 use DBI;
 
 my $db_file = "t/var/Plain.db";

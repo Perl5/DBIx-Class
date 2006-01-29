@@ -5,8 +5,7 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
-eval 'use DBICTest::Plain; 1'
-  or plan skip_all => 'Install Catalyst::Model::DBIC::Plain to run this test';
+use DBICTest::Plain;
 
 plan tests => 1;
 
