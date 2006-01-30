@@ -16,7 +16,7 @@ my %arguments = (
 	'Carp::Clan'		    => 0,
     },
     build_requires      => {
-        'DBD::SQLite'               => 1.08,
+        'DBD::SQLite'               => 1.11,
         'DBI'                       => 1.40,
     },
     recommends          => {
