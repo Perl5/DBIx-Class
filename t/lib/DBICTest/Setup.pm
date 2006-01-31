@@ -103,11 +103,15 @@ $schema->populate('ArtistUndirectedMap', [
 $schema->populate('Producer', [
   [ qw/producerid name/ ],
   [ 1, 'Matt S Trout' ],
+  [ 2, 'Bob The Builder' ],
+  [ 3, 'Fred The Phenotype' ],
 ]);
 
 $schema->populate('CD_to_Producer', [
   [ qw/cd producer/ ],
   [ 1, 1 ],
+  [ 1, 2 ],
+  [ 1, 3 ],
 ]);
 
 1;

@@ -100,5 +100,6 @@ DBICTest::Schema::CD_to_Producer->add_relationship(
 
 # now the Helpers
 DBICTest::Schema::CD->many_to_many( 'producers', 'cd_to_producer', 'producer');
+DBICTest::Schema::CD->many_to_many( 'producers_sorted', 'cd_to_producer', 'producer', { order_by => 'producer.name' });
 
 1;

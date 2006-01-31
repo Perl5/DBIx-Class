@@ -3,7 +3,7 @@ my $schema = shift;
 
 use strict;
 use warnings;  
-plan tests => 18;
+plan tests => 20;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -111,6 +111,8 @@ like($@, qr/join condition/, 'failed when creating a rel without join condition,
 $cd = $schema->resultset("CD")->find(1);
 my @producers = $cd->producers();
 is( $producers[0]->name, 'Matt S Trout', 'many_to_many ok' );
+is( $cd->producers_sorted->next->name, 'Bob The Builder', 'sorted many_to_many ok' );
+is( $cd->producers_sorted(producerid => 3)->next->name, 'Fred The Phenotype', 'sorted many_to_many with search condition ok' );
 
 # test undirected many-to-many relationship (e.g. "related artists")
 my $undir_maps = $schema->resultset("Artist")->find(1)->artist_undirected_maps;
