@@ -71,7 +71,7 @@ $new_again = $schema->resultset("Artist")->find(4);
 
 is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
-is($new_again->ID, 'DBICTest::Artist|artistid=4', 'unique object id generated correctly');
+is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
 
 is($schema->resultset("Artist")->count, 4, 'count ok');
 

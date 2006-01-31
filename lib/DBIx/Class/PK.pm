@@ -81,10 +81,9 @@ sub ID {
 }
 
 sub _create_ID {
-  my ($class,%vals) = @_;
+  my ($self,%vals) = @_;
   return undef unless 0 == grep { !defined } values %vals;
-  $class = ref $class || $class;
-  return join '|', $class, map { $_ . '=' . $vals{$_} } sort keys %vals;    
+  return join '|', ref $self || $self, $self->result_source->name, map { $_ . '=' . $vals{$_} } sort keys %vals;    
 }
 
 sub ident_condition {
