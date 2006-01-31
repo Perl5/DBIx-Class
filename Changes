@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - remove ObjectCache, not yet working in 0.05
+        - let many_to_many rels have attrs
+        - fix ID method in PK.pm to be saner for new internals
         - fix t/30dbicplain.t to use ::Schema instead of
           Catalyst::Model::DBIC::Plain
 
