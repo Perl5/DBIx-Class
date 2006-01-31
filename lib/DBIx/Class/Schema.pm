@@ -347,7 +347,7 @@ sub clone {
   return $clone;
 }
 
-=item populate($moniker, \@data);
+=head2 populate($moniker, \@data);
 
 Populates the source registered with the given moniker with the supplied data.
 @data should be a list of listrefs, the first containing column names, the
@@ -373,7 +373,7 @@ sub populate {
   }
 }
 
-=item throw_exception
+=head2 throw_exception
 
 Defaults to using Carp::Clan to report errors from user perspective.
 

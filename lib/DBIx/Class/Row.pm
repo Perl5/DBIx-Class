@@ -340,7 +340,7 @@ sub register_column {
 }
 
 
-=item throw_exception
+=head2 throw_exception
 
 See Schema's throw_exception.
 
