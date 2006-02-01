@@ -106,7 +106,7 @@ This will run a C<SELECT> with C<albumid = 14> in the C<WHERE> clause,
 and return an instance of C<My::Schema::Album> that represents this
 row. Once you have that row, you can access and update columns:
 
-  $album->name('Physical Graffiti');
+  $album->title('Physical Graffiti');
   my $title = $album->title; # holds 'Physical Graffiti'
 
 If you prefer, you can use the C<set_column> and C<get_column>
