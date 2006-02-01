@@ -247,6 +247,11 @@ sub compose_connection {
   }
 
   my $schema = $self->compose_namespace($target, $base);
+  {
+    no strict 'refs';
+    *{"${target}::schema"} = sub { $schema };
+  }
+
   $schema->connection(@info);
   foreach my $moniker ($schema->sources) {
     my $source = $schema->source($moniker);
@@ -275,8 +280,6 @@ sub compose_namespace {
   }
   {
     no strict 'refs';
-    *{"${target}::schema"} =
-      sub { $schema };
     foreach my $meth (qw/class source resultset/) {
       *{"${target}::${meth}"} =
         sub { shift->schema->$meth(@_) };
