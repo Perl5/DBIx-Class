@@ -505,11 +505,29 @@ namespace, which is currently left as an excercise for the reader.
 The following example shows simplistically how you might use DBIx::Class to
 deploy versioned schemas to your customers. The basic process is as follows:
 
-1) Create a DBIx::Class schema
-2) Save the schema
-3) Deploy to customers
-4) Modify schema to change functionality
-5) Deploy update to customers
+=over 4
+
+=item 1.
+
+Create a DBIx::Class schema
+
+=item 2.
+
+Save the schema
+
+=item 3.
+
+Deploy to customers
+
+=item 4.
+
+Modify schema to change functionality
+
+=item 5.
+
+Deploy update to customers
+
+=back
 
 =head3 Create a DBIx::Class schema
 
@@ -537,9 +555,18 @@ script suitable for each. To support PostgreSQL too:
 There are several ways you could deploy your schema. These are probably
 beyond the scope of this recipe, but might include:
 
-1) Require customer to apply manually using their RDBMS.
-2) Package along with your app, making database dump/schema update/tests
+=over 4
+
+=item 1.
+
+Require customer to apply manually using their RDBMS.
+
+=item 2.
+
+Package along with your app, making database dump/schema update/tests
 all part of your install.
+
+=back
 
 =head3 Modify the schema to change functionality
 
