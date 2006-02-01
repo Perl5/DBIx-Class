@@ -28,6 +28,7 @@ sub parse {
     my ($tr, $data) = @_;
     my $args        = $tr->parser_args;
     my $dbixschema  = $args->{'DBIx::Schema'} || $data;
+    $dbixschema   ||= $args->{'package'};
     
     die 'No DBIx::Schema' unless ($dbixschema);
     if (!ref $dbixschema) {
