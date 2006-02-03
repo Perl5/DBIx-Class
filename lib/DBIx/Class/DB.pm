@@ -104,7 +104,7 @@ Begins a transaction (does nothing if AutoCommit is off).
 
 =cut
 
-sub txn_begin { $_[0]->storage->txn_begin }
+sub txn_begin { $_[0]->schema_instance->txn_begin }
 
 =head2 txn_commit
 
@@ -112,7 +112,7 @@ Commits the current transaction.
 
 =cut
 
-sub txn_commit { $_[0]->storage->txn_commit }
+sub txn_commit { $_[0]->schema_instance->txn_commit }
 
 =head2 txn_rollback
 
@@ -120,7 +120,7 @@ Rolls back the current transaction.
 
 =cut
 
-sub txn_rollback { $_[0]->storage->txn_rollback }
+sub txn_rollback { $_[0]->schema_instance->txn_rollback }
 
 {
   my $warn;

@@ -330,7 +330,31 @@ Conveneience method, equivalent to $schema->clone->connection(@info)
 
 =cut
 
-sub connect { shift->clone->connection(@_) };
+sub connect { shift->clone->connection(@_) }
+
+=head2 txn_begin
+
+Begins a transaction (does nothing if AutoCommit is off).
+
+=cut
+
+sub txn_begin { shift->storage->txn_begin }
+
+=head2 txn_commit
+
+Commits the current transaction.
+
+=cut
+
+sub txn_commit { shift->storage->txn_commit }
+
+=head2 txn_rollback
+
+Rolls back the current transaction.
+
+=cut
+
+sub txn_rollback { shift->storage->txn_rollback }
 
 =head2 clone
 
