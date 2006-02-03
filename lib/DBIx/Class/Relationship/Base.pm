@@ -51,7 +51,7 @@ command immediately before C<JOIN>.
 An arrayref containing a list of accessors in the foreign class to proxy in
 the main class. If, for example, you do the following:
   
-  __PACKAGE__->might_have(bar => 'Bar', undef, { proxy => qw[/ margle /] });
+  __PACKAGE__->might_have(bar => 'Bar', undef, { proxy => [ qw/margle/ ] });
   
 Then, assuming Bar has an accessor named margle, you can do:
 

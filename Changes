@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+0.05000 2006-02-01 16:48:30
+        - assorted doc fixes
         - remove ObjectCache, not yet working in 0.05
         - let many_to_many rels have attrs
         - fix ID method in PK.pm to be saner for new internals
