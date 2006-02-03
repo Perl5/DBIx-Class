@@ -3,10 +3,9 @@ use strict;
 use base 'DBIx::Class';
 use Class::Inspector;
 
-__PACKAGE__->mk_classdata($_) for qw/ _attr_cache base_resultset_class custom_resultset_class_suffix /;
-__PACKAGE__->_attr_cache({});
+__PACKAGE__->mk_classdata($_) for qw/ base_resultset_class table_resultset_class_suffix /;
 __PACKAGE__->base_resultset_class('DBIx::Class::ResultSet');
-__PACKAGE__->custom_resultset_class_suffix('::_resultset');
+__PACKAGE__->table_resultset_class_suffix('::_resultset');
 
 sub table {
     my ($self,@rest) = @_;
@@ -19,12 +18,6 @@ sub load_resultset_components {
     my ($self,@comp) = @_;
     my $resultset_class = $self->_setup_resultset_class;
     $resultset_class->load_components(@comp);
-}
-
-sub MODIFY_CODE_ATTRIBUTES {
-    my ($class,$code,@attrs) = @_;
-    $class->_attr_cache({ %{$class->_attr_cache}, $code => [@attrs] });
-    return ();
 }
 
 sub _register_attributes {
@@ -40,12 +33,11 @@ sub _register_attributes {
             undef *{"$self\::$meth"};
         }
     }
-    $self->_attr_cache(undef);
 }
 
 sub _setup_resultset_class {
     my $self = shift;
-    my $resultset_class = $self . $self->custom_resultset_class_suffix;
+    my $resultset_class = $self . $self->table_resultset_class_suffix;
     no strict 'refs';
     unless (@{"$resultset_class\::ISA"}) {
         @{"$resultset_class\::ISA"} = ($self->base_resultset_class);
@@ -55,7 +47,7 @@ sub _setup_resultset_class {
 
 sub _register_resultset_class {
     my $self = shift;
-    my $resultset_class = $self . $self->custom_resultset_class_suffix;
+    my $resultset_class = $self . $self->table_resultset_class_suffix;
     no strict 'refs';
     if (@{"$resultset_class\::ISA"}) {
         $self->result_source_instance->resultset_class($resultset_class);        

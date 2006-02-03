@@ -15,6 +15,17 @@ sub component_base_class { 'DBIx::Class' }
 
 $VERSION = '0.05000';
 
+sub MODIFY_CODE_ATTRIBUTES {
+    my ($class,$code,@attrs) = @_;
+    unless ($class->can('_attr_cache')) {
+        $class->mk_classdata('_attr_cache');
+        $class->_attr_cache({});
+    }
+    my $cache = $class->_attr_cache;
+    $class->_attr_cache->{$code} = [@attrs];
+    return ();
+}
+
 1;
 
 =head1 NAME 
