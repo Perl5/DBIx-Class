@@ -1,4 +1,4 @@
-package DBIx::Class::MethodAttributes;
+package DBIx::Class::ResultSetManager;
 use strict;
 use base 'DBIx::Class';
 use Class::Inspector;
