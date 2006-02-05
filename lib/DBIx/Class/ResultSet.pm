@@ -78,6 +78,10 @@ sub new {
     $attrs->{select} = [ map { m/\./ ? $_ : "${alias}.$_" } @cols ];
   }
   $attrs->{as} ||= [ map { m/^$alias\.(.*)$/ ? $1 : $_ } @{$attrs->{select}} ];
+  if (my $include = delete $attrs->{include_columns}) {
+    push(@{$attrs->{select}}, @$include);
+    push(@{$attrs->{as}}, map { m/([^\.]+)$/; $1; } @$include);
+  }
   #use Data::Dumper; warn Dumper(@{$attrs}{qw/select as/});
   $attrs->{from} ||= [ { $alias => $source->from } ];
   if (my $join = delete $attrs->{join}) {
@@ -719,6 +723,14 @@ directly to SQL, so you can give e.g. C<foo DESC> for a descending order.
 Shortcut to request a particular set of columns to be retrieved.  Adds
 C<me.> onto the start of any column without a C<.> in it and sets C<select>
 from that, then auto-populates C<as> from C<select> as normal.
+
+=head2 include_columns (arrayref)
+
+Shortcut to include additional columns in the returned results - for example
+
+  { include_columns => ['foo.name'], join => ['foo'] }
+
+would add a 'name' column to the information passed to object inflation
 
 =head2 select (arrayref)
 

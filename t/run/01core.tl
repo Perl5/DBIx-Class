@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 36; 
+plan tests => 38; 
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -98,6 +98,11 @@ is_deeply( \@cd, [qw/cdid artist title year/], 'column order');
 
 $cd = $schema->resultset("CD")->search({ title => 'Spoonful of bees' }, { cols => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');
+
+$cd = $schema->resultset("CD")->search(undef, { include_columns => [ 'artist.name' ], join => [ 'artist' ] })->find(1);
+
+is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
+is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
 
 # insert_or_update
 $new = $schema->resultset("Track")->new( {

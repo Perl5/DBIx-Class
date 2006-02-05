@@ -5,8 +5,12 @@ use warnings;
 
 use base qw/DBIx::Class/;
 
-sub iterator_class { shift->result_source_instance->resultset_class(@_) }
+sub iterator_class  { shift->result_source_instance->resultset_class(@_) }
 sub resultset_class { shift->result_source_instance->resultset_class(@_) }
+
+sub resultset_attributes {
+  shift->result_source_instance->resultset_attributes(@_);
+}
 
 sub add_columns {
   my ($class, @cols) = @_;

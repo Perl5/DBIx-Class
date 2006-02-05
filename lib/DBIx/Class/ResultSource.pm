@@ -12,7 +12,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_ordered_columns _columns _primaries _unique_constraints name resultset_class result_class schema from _relationships/);
+  qw/_ordered_columns _columns _primaries _unique_constraints name resultset_class resultset_attributes result_class schema from _relationships/);
 
 =head1 NAME 
 
@@ -34,12 +34,30 @@ sub new {
   $class = ref $class if ref $class;
   my $new = bless({ %{$attrs || {}} }, $class);
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
+  $new->{resultset_attributes} = { %{$new->{resultset_attributes} || {}} };
   $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];
   $new->{_columns} = { %{$new->{_columns}||{}} };
   $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
   return $new;
 }
+
+=head2 add_columns
+
+  $table->add_columns(qw/col1 col2 col3/);
+
+  $table->add_columns('col1' => \%col1_info, 'col2' => \%col2_info, ...);
+
+Adds columns to the result source. If supplied key => hashref pairs uses
+the hashref as the column_info for that column.
+
+=head2 add_column
+
+  $table->add_column('col' => \%info?);
+
+Convenience alias to add_columns
+
+=cut
 
 sub add_columns {
   my ($self, @cols) = @_;
@@ -62,28 +80,6 @@ sub add_columns {
 }
 
 *add_column = \&add_columns;
-
-=head2 add_columns
-
-  $table->add_columns(qw/col1 col2 col3/);
-
-  $table->add_columns('col1' => \%col1_info, 'col2' => \%col2_info, ...);
-
-Adds columns to the result source. If supplied key => hashref pairs uses
-the hashref as the column_info for that column.
-
-=head2 add_column
-
-  $table->add_column('col' => \%info?);
-
-Convenience alias to add_columns
-
-=cut
-
-sub resultset {
-  my $self = shift;
-  return $self->resultset_class->new($self);
-}
 
 =head2 has_column
 
@@ -415,7 +411,7 @@ array of column names for each of those relationships. Column names are
 prefixed relative to the current source, in accordance with where they appear
 in the supplied relationships. Examples:
 
-  my $source = $schema->$resultset('Tag')->source;
+  my $source = $schema->resultset('Tag')->source;
   @columns = $source->resolve_prefetch( { cd => 'artist' } );
 
   # @columns =
@@ -496,7 +492,28 @@ sub related_source {
   return $self->schema->source($self->relationship_info($rel)->{source});
 }
 
-1;
+=head2 resultset
+
+Returns a resultset for the given source created by calling
+
+$self->resultset_class->new($self, $self->resultset_attributes)
+
+=head2 resultset_class
+
+Simple accessor.
+
+=head2 resultset_attributes
+
+Simple accessor.
+
+=cut
+
+sub resultset {
+  my $self = shift;
+  return $self->resultset_class->new($self, $self->{resultset_attributes});
+}
+
+=cut
 
 =head2 throw_exception
 

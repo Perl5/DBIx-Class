@@ -1,5 +1,12 @@
 Revision history for DBIx::Class
 
+0.05001
+        - added experimental Serialize and ResultSetManager components
+        - fix to find() for complex resultsets
+        - added of $storage->debugcb(sub { ... })
+        - added $source->resultset_attributes accessor
+        - added include_columns rs attr
+
 0.05000 2006-02-01 16:48:30
         - assorted doc fixes
         - remove ObjectCache, not yet working in 0.05
