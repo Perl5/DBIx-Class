@@ -224,12 +224,16 @@ sub find {
 
   my $query;
   if (ref $vals[0] eq 'HASH') {
-    $query = $vals[0];
+    $query = { %{$vals[0]} };
   } elsif (@cols == @vals) {
     $query = {};
     @{$query}{@cols} = @vals;
   } else {
     $query = {@vals};
+  }
+  foreach (keys %$query) {
+    next if m/\./;
+    $query->{$self->{attrs}{alias}.'.'.$_} = delete $query->{$_};
   }
   #warn Dumper($query);
   return $self->search($query)->next;
