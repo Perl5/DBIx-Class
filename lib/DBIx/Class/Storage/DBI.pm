@@ -143,6 +143,14 @@ sub limit_dialect {
     return $self->{limit_dialect};
 }
 
+package DBIx::Class::Storage::DBI::DebugCallback;
+
+sub print {
+  my ($self, $string) = @_;
+  $string =~ m/^(\w+)/;
+  ${$self}->($1, $string);
+}
+
 } # End of BEGIN block
 
 use base qw/DBIx::Class/;
@@ -196,7 +204,20 @@ should be an IO::Handle compatible object (only the C<print> method is
 used).  Initially set to be STDERR - although see information on the
 L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
 
+=head2 debugcb
+
+Sets a callback to be executed each time a statement is run; takes a sub
+reference. Overrides debugfh. Callback is executed as $sub->($op, $info)
+where $op is SELECT/INSERT/UPDATE/DELETE and $info is what would normally
+be printed.
+
 =cut
+
+sub debugcb {
+  my ($self, $cb) = @_;
+  my $cb_obj = bless(\$cb, 'DBIx::Class::Storage::DBI::DebugCallback');
+  $self->debugfh($cb_obj);
+}
 
 sub disconnect {
   my ($self) = @_;
