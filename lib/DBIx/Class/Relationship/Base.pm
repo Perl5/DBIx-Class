@@ -99,6 +99,11 @@ sub search_related {
   my $query = ((@_ > 1) ? {@_} : shift);
 
   my ($cond) = $self->result_source->resolve_condition($rel_obj->{cond}, $rel, $self);
+  foreach my $key (keys %$cond) {
+    unless ($key =~ m/\./) {
+      $cond->{"me.$key"} = delete $cond->{$key};
+    }
+  }
   $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
   #use Data::Dumper; warn Dumper($cond);
   #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}||[]});
