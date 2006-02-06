@@ -29,6 +29,7 @@ DBIx::Class::Schema - composable schemas
   __PACKAGE__->load_components(qw/PK::Auto::Pg Core/); # for example
   __PACKAGE__->table('foo');
 
+  # Elsewhere in your code:
   my $schema1 = My::Schema->connect(
     $dsn,
     $user,
