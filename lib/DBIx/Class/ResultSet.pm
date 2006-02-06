@@ -816,7 +816,18 @@ For example:
     }
   );
 
-If you want to fetch columns from related tables as well, see C<prefetch>
+If the same join is supplied twice, it will be aliased to <rel>_2 (and
+similarly for a third time). For e.g.
+
+  my $rs = $schema->resultset('Artist')->search(
+    { 'cds.title'   => 'Foo',
+      'cds_2.title' => 'Bar' },
+    { join => [ qw/cds cds/ ] });
+
+will return a set of all artists that have both a cd with title Foo and a cd
+with title Bar.
+
+If you want to fetch related objects from other tables as well, see C<prefetch>
 below.
 
 =head2 prefetch arrayref/hashref
@@ -845,11 +856,14 @@ L<DBIx::Class> has no need to go back to the database when we access the
 C<cd> or C<artist> relationships, which saves us two SQL statements in this
 case.
 
-Any prefetched relationship will be joined automatically, so there is no need
-for a C<join> attribute in the above search.
+Simple prefetches will be joined automatically, so there is no need
+for a C<join> attribute in the above search. If you're prefetching to
+depth (e.g. { cd => { artist => 'label' } or similar), you'll need to
+specify the join as well.
 
 C<prefetch> can be used with the following relationship types: C<belongs_to>,
-C<has_one>.
+C<has_one> (or if you're using C<add_relationship>, any relationship declared
+with an accessor type of 'single' or 'filter').
 
 =head2 from (arrayref)
 
