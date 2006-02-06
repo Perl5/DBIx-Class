@@ -77,7 +77,6 @@ sub parse {
         foreach my $rel (@rels)
         {
             my $rel_info = $source->relationship_info($rel);
-            print "Accessor: $rel_info->{attrs}{accessor}\n";
             next if(!exists $rel_info->{attrs}{accessor} ||
                     $rel_info->{attrs}{accessor} eq 'multi');
             # Going by the accessor type isn't such a good idea (yes, I know
