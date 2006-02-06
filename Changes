@@ -1,6 +1,6 @@
 Revision history for DBIx::Class
 
-0.05001
+0.05001 2006-02-06 15:28:10
         - debug output now prints NULL for undef params
         - multi-step prefetch along the same rel (e.g. for trees) now works
         - added multi-join (join => [ 'foo', 'foo' ]), aliases second to foo_2

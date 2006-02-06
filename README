@@ -58,15 +58,16 @@ QUICKSTART
     If you need more help, check out the introduction in the manual below.
 
 SEE ALSO
-  DBIx::Class::Core - DBIC Core Classes
-  DBIx::Class::Manual - User's manual
-  DBIx::Class::CDBICompat - Class::DBI Compat layer
-  DBIx::Class::DB - database-level methods
-  DBIx::Class::Table - table-level methods
-  DBIx::Class::Row - row-level methods
-  DBIx::Class::PK - primary key methods
-  DBIx::Class::ResultSet - search result-set methods
-  DBIx::Class::Relationship - relationships between tables
+    DBIx::Class::Core - DBIC Core Classes
+    DBIx::Class::Manual - User's manual
+    DBIx::Class::CDBICompat - Class::DBI Compat layer
+    DBIx::Class::Schema
+    DBIx::Class::ResultSet
+    DBIx::Class::ResultSource
+    DBIx::Class::Row - row-level methods
+    DBIx::Class::PK - primary key methods
+    DBIx::Class::Relationship - relationships between tables
+
 AUTHOR
     Matt S. Trout <mst@shadowcatsystems.co.uk>
 
