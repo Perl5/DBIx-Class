@@ -24,8 +24,9 @@ sub get_autoinc_seq {
   
   my @pri = $self->primary_columns;
   my $dbh = $self->result_source->storage->dbh;
+  my ($schema,$table) = $self->table =~ /^(.+)\.(.+)$/ ? ($1,$2) : (undef,$self->table);
   while (my $col = shift @pri) {
-    my $info = $dbh->column_info(undef,undef,$self->table,$col)->fetchrow_arrayref;
+    my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_arrayref;
     if (defined $info->[12] and $info->[12] =~ 
       /^nextval\('"?([^"']+)"?'::(?:text|regclass)\)/)
     {

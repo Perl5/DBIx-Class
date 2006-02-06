@@ -240,7 +240,7 @@ sub find {
     $query->{$self->{attrs}{alias}.'.'.$_} = delete $query->{$_};
   }
   #warn Dumper($query);
-  return $self->search($query)->next;
+  return $self->search($query,$attrs)->next;
 }
 
 =head2 search_related

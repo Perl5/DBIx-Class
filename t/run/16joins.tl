@@ -7,7 +7,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 31 );
+        : ( tests => 33 );
 }
 
 # test the abstract join => SQL generator
@@ -160,6 +160,26 @@ while (<$trace>) {
 $trace->close;
 unlink 't/var/dbic.trace';
 is($selects, 1, 'nested prefetch ran exactly 1 select statement (excluding column_info)');
+
+# start test for prefetch on find SELECT count
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
+
+my $cd = $schema->resultset('CD')->find(1, { prefetch => 'artist' });
+
+is($cd->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'artist prefetched correctly on find');
+
+# count the SELECTs
+DBI->trace(0, undef);
+$selects = 0;
+$trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT(?!.*WHERE 1=0.*)/;
+}
+$trace->close;
+unlink 't/var/dbic.trace';
+is($selects, 1, 'find with prefetch ran exactly 1 select statement (excluding column_info)');
 
 $rs = $schema->resultset('Tag')->search(
   {},

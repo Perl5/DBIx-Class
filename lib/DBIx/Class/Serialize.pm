@@ -13,8 +13,8 @@ sub STORABLE_freeze {
 sub STORABLE_thaw {
     my ($self,$cloning,$serialized) = @_;
     %$self = %{ thaw($serialized) };
-    no strict 'refs';
     $self->result_source($self->result_source_instance);
+#    no strict 'refs';
 #    my $class = ${(ref $self) . '::ISA'}[0];
 #    my $schema = $self->result_source_instance->schema;
 #    $self->result_source($schema->source($class));
