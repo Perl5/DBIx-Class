@@ -13,7 +13,7 @@ my %arguments = (
         'Class::C3'                 => 0.07,
         'Storable'                  => 0,
         'Class::Data::Accessor'     => 0.01,
-	'Carp::Clan'		    => 0,
+     	'Carp::Clan'		    => 0,
         'DBI'                       => 1.40,
     },
     build_requires      => {
