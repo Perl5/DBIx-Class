@@ -318,7 +318,10 @@ sub _execute {
   my ($self, $op, $extra_bind, $ident, @args) = @_;
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
   unshift(@bind, @$extra_bind) if $extra_bind;
-  $self->debugfh->print("$sql: @bind\n") if $self->debug;
+  if ($self->debug) {
+      my @debug_bind = map { defined $_ ? $_ : 'NULL' } @bind;
+      $self->debugfh->print("$sql: @debug_bind\n");
+  }
   my $sth = $self->sth($sql,$op);
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
