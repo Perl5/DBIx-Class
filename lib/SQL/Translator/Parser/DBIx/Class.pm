@@ -90,7 +90,7 @@ sub parse {
             # for testing is
             # $schema->storage->dbh->do($_) for split(";\n", $sql);
             #         -- mst (03:42 local time, please excuse any mistakes)
-            my $rel_table = $rel_info->{class}->table();
+            my $rel_table = $source->related_source($rel)->name;
             my $cond = (keys (%{$rel_info->{cond}}))[0];
             my ($refkey) = $cond =~ /^\w+\.(\w+)$/;
             if($rel_table && $refkey)
