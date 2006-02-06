@@ -510,7 +510,28 @@ Deletes the contents of the resultset from its result source.
 
 sub delete {
   my ($self) = @_;
-  $self->result_source->storage->delete($self->result_source->from, $self->{cond});
+  my $del = {};
+  $self->throw_exception("Can't delete on resultset with condition unless hash or array")
+    unless (ref($self->{cond}) eq 'HASH' || ref($self->{cond}) eq 'ARRAY');
+  if (ref $self->{cond} eq 'ARRAY') {
+    $del = [ map { my %hash;
+      foreach my $key (keys %{$_}) {
+        $key =~ /([^\.]+)$/;
+        $hash{$1} = $_->{$key};
+      }; \%hash; } @{$self->{cond}} ];
+  } elsif ((keys %{$self->{cond}})[0] eq '-and') {
+    $del->{-and} = [ map { my %hash;
+      foreach my $key (keys %{$_}) {
+        $key =~ /([^\.]+)$/;
+        $hash{$1} = $_->{$key};
+      }; \%hash; } @{$self->{cond}{-and}} ];
+  } else {
+    foreach my $key (keys %{$self->{cond}}) {
+      $key =~ /([^\.]+)$/;
+      $del->{$1} = $self->{cond}{$key};
+    }
+  }
+  $self->result_source->storage->delete($self->result_source->from, $del);
   return 1;
 }
 

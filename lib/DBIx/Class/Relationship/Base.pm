@@ -99,9 +99,20 @@ sub search_related {
   my $query = ((@_ > 1) ? {@_} : shift);
 
   my ($cond) = $self->result_source->resolve_condition($rel_obj->{cond}, $rel, $self);
-  foreach my $key (keys %$cond) {
-    unless ($key =~ m/\./) {
-      $cond->{"me.$key"} = delete $cond->{$key};
+  if (ref $cond eq 'ARRAY') {
+    $cond = [ map { my %hash;
+      foreach my $key (keys %{$_}) {
+        unless ($key =~ m/\./) {
+          $hash{"me.$key"} = $_->{$key};
+        } else {
+          $hash{$key} = $_->{$key};
+        }
+      }; \%hash; } @$cond ];
+  } else {
+    foreach my $key (keys %$cond) {
+      unless ($key =~ m/\./) {
+        $cond->{"me.$key"} = delete $cond->{$key};
+      }
     }
   }
   $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
