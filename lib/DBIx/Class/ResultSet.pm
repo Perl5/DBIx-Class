@@ -110,11 +110,10 @@ sub new {
         push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
             unless $seen{$p};
       }
-      my @cols = ();
-      push @cols, $source->resolve_prefetch($p, $attrs->{alias});
+      my @prefetch = $source->resolve_prefetch($p, $attrs->{alias});
       #die Dumper \@cols;
-      push(@{$attrs->{select}}, @cols);
-      push(@{$attrs->{as}}, @cols);
+      push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
+      push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
     }
   }
 

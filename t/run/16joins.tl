@@ -7,7 +7,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 33 );
+        : ( tests => 35 );
 }
 
 # test the abstract join => SQL generator
@@ -225,6 +225,15 @@ $rs = $schema->resultset("CD")->search(
 cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
 
 cmp_ok( scalar $rs->all, '==', 3, "all() returns same count as count() after group_by on related column" );
-}
+
+$rs = $schema->resultset("Artist")->search(
+        { 'cds.title' => 'Spoonful of bees',
+          'cds_2.title' => 'Forkful of bees' },
+        { join => [ 'cds', 'cds' ] });
+
+cmp_ok($rs->count, '==', 1, "single artist returned from multi-join");
+is($rs->next->name, 'Caterwauler McCrae', "Correct artist returned");
+
+} # end run_tests
 
 1;
