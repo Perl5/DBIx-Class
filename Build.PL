@@ -22,6 +22,7 @@ my %arguments = (
     recommends          => {
         'Data::UUID'                => 0,
         'Module::Find'              => 0,
+        'Class::Inspector'          => 0,
     },
     create_makefile_pl => 'passthrough',
     create_readme      => 1,

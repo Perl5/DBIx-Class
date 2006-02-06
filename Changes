@@ -1,6 +1,10 @@
 Revision history for DBIx::Class
 
-0.05001 2006-02-06 15:28:10
+0.05002 2006-02-06 12:12:03
+        - Added recommends for Class::Inspector
+        - Added skip_all to t/40resultsetmanager.t if no Class::Inspector available
+
+0.05001 2006-02-05 15:28:10
         - debug output now prints NULL for undef params
         - multi-step prefetch along the same rel (e.g. for trees) now works
         - added multi-join (join => [ 'foo', 'foo' ]), aliases second to foo_2

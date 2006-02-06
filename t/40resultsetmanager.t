@@ -7,7 +7,12 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest::Extra;
 
-plan tests => 4;
+BEGIN {
+    eval "use Class::Inspector";
+    plan $@
+        ? ( skip_all => 'needs Class:Inspector for testing' )
+        : ( tests => 4 );
+}
 
 my $schema = DBICTest::Extra->compose_connection('DB', 'foo');
 my $rs = $schema->resultset('Foo');
