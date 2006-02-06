@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Fri Jan 27 01:16:24 2006
+-- Created on Mon Feb  6 01:07:16 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -14,20 +14,20 @@ CREATE TABLE twokeys (
 );
 
 --
--- Table: liner_notes
---
-CREATE TABLE liner_notes (
-  liner_id INTEGER PRIMARY KEY NOT NULL,
-  notes varchar NOT NULL
-);
-
---
 -- Table: cd_to_producer
 --
 CREATE TABLE cd_to_producer (
   cd integer NOT NULL,
   producer integer NOT NULL,
   PRIMARY KEY (cd, producer)
+);
+
+--
+-- Table: liner_notes
+--
+CREATE TABLE liner_notes (
+  liner_id INTEGER PRIMARY KEY NOT NULL,
+  notes varchar NOT NULL
 );
 
 --
@@ -43,7 +43,8 @@ CREATE TABLE artist (
 --
 CREATE TABLE self_ref_alias (
   self_ref integer NOT NULL,
-  alias integer NOT NULL
+  alias integer NOT NULL,
+  PRIMARY KEY (self_ref, alias)
 );
 
 --
@@ -77,6 +78,14 @@ CREATE TABLE artist_undirected_map (
 );
 
 --
+-- Table: producer
+--
+CREATE TABLE producer (
+  producerid INTEGER PRIMARY KEY NOT NULL,
+  name varchar NOT NULL
+);
+
+--
 -- Table: onekey
 --
 CREATE TABLE onekey (
@@ -96,18 +105,11 @@ CREATE TABLE track (
 );
 
 --
--- Table: producer
+-- Table: treelike
 --
-CREATE TABLE producer (
-  producerid INTEGER PRIMARY KEY NOT NULL,
-  name varchar NOT NULL
-);
-
---
--- Table: self_ref
---
-CREATE TABLE self_ref (
+CREATE TABLE treelike (
   id INTEGER PRIMARY KEY NOT NULL,
+  parent integer NOT NULL,
   name varchar NOT NULL
 );
 
@@ -119,6 +121,14 @@ CREATE TABLE tags (
   cd integer NOT NULL,
   tag varchar NOT NULL,
   PRIMARY KEY (tagid)
+);
+
+--
+-- Table: self_ref
+--
+CREATE TABLE self_ref (
+  id INTEGER PRIMARY KEY NOT NULL,
+  name varchar NOT NULL
 );
 
 COMMIT;

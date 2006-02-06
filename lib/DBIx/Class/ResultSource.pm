@@ -358,9 +358,11 @@ sub resolve_join {
     return map { $self->resolve_join($_, $alias, $seen) } @$join;
   } elsif (ref $join eq 'HASH') {
     return
-      map { $self->resolve_join($_, $alias, $seen),
-            $self->related_source($_)->resolve_join($join->{$_}, $_, $seen) }
-           keys %$join;
+      map {
+        my $as = ($seen->{$_} ? $_.'_'.($seen->{$_}+1) : $_);
+        ($self->resolve_join($_, $alias, $seen),
+          $self->related_source($_)->resolve_join($join->{$_}, $as, $seen));
+      } keys %$join;
   } elsif (ref $join) {
     $self->throw_exception("No idea how to resolve join reftype ".ref $join);
   } else {

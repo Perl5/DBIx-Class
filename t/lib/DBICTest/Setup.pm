@@ -114,4 +114,12 @@ $schema->populate('CD_to_Producer', [
   [ 1, 3 ],
 ]);
 
+$schema->populate('TreeLike', [
+  [ qw/id parent name/ ],
+  [ 1, 0, 'foo'  ],
+  [ 2, 1, 'bar'  ],
+  [ 3, 2, 'baz'  ],
+  [ 4, 3, 'quux' ],
+]);
+
 1;

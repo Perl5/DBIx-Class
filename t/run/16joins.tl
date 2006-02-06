@@ -7,7 +7,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 35 );
+        : ( tests => 40 );
 }
 
 # test the abstract join => SQL generator
@@ -233,6 +233,27 @@ $rs = $schema->resultset("Artist")->search(
 
 cmp_ok($rs->count, '==', 1, "single artist returned from multi-join");
 is($rs->next->name, 'Caterwauler McCrae', "Correct artist returned");
+
+my $queries;
+$schema->storage->debugcb(sub { $queries++ });
+$schema->storage->debug(1);
+
+my $tree_like =
+     $schema->resultset('TreeLike')->find(4,
+       { join     => { parent => { parent => 'parent' } },
+         prefetch => { parent => { parent => 'parent' } } });
+
+is($tree_like->name, 'quux', 'Bottom of tree ok');
+$tree_like = $tree_like->parent;
+is($tree_like->name, 'baz', 'First level up ok');
+$tree_like = $tree_like->parent;
+is($tree_like->name, 'bar', 'Second level up ok');
+$tree_like = $tree_like->parent;
+is($tree_like->name, 'foo', 'Third level up ok');
+
+$schema->storage->debug(0);
+
+cmp_ok($queries, '==', 1, 'Only one query run');
 
 } # end run_tests
 
