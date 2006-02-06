@@ -4,4 +4,4 @@ use base 'DBIx::Class';
 __PACKAGE__->load_components(qw/ ResultSetManager Core /);
 __PACKAGE__->table('foo');
 
-sub bar : resultset { 'good' }
+sub bar : ResultSet { 'good' }

@@ -56,6 +56,7 @@ lib/DBIx/Class/Relationship/Helpers.pm
 lib/DBIx/Class/Relationship/ManyToMany.pm
 lib/DBIx/Class/Relationship/ProxyMethods.pm
 lib/DBIx/Class/ResultSet.pm
+lib/DBIx/Class/ResultSetManager.pm
 lib/DBIx/Class/ResultSetProxy.pm
 lib/DBIx/Class/ResultSource.pm
 lib/DBIx/Class/ResultSource/Table.pm
@@ -63,6 +64,7 @@ lib/DBIx/Class/ResultSourceProxy.pm
 lib/DBIx/Class/ResultSourceProxy/Table.pm
 lib/DBIx/Class/Row.pm
 lib/DBIx/Class/Schema.pm
+lib/DBIx/Class/Serialize.pm
 lib/DBIx/Class/Storage/DBI.pm
 lib/DBIx/Class/Storage/DBI/Cursor.pm
 lib/DBIx/Class/Test/SQLite.pm
@@ -81,6 +83,7 @@ t/18inserterror.t
 t/19quotes.t
 t/20setuperrors.t
 t/30dbicplain.t
+t/40resultsetmanager.t
 t/basicrels/01core.t
 t/basicrels/04db.t
 t/basicrels/05multipk.t
@@ -139,6 +142,8 @@ t/helperrels/19uuid.t
 t/helperrels/20unique.t
 t/lib/DBICTest.pm
 t/lib/DBICTest/BasicRels.pm
+t/lib/DBICTest/Extra.pm
+t/lib/DBICTest/Extra/Foo.pm
 t/lib/DBICTest/HelperRels.pm
 t/lib/DBICTest/Plain.pm
 t/lib/DBICTest/Plain/Test.pm
@@ -157,6 +162,7 @@ t/lib/DBICTest/Schema/SelfRef.pm
 t/lib/DBICTest/Schema/SelfRefAlias.pm
 t/lib/DBICTest/Schema/Tag.pm
 t/lib/DBICTest/Schema/Track.pm
+t/lib/DBICTest/Schema/TreeLike.pm
 t/lib/DBICTest/Schema/TwoKeys.pm
 t/lib/DBICTest/Setup.pm
 t/lib/sqlite.sql

@@ -28,7 +28,7 @@ sub _register_attributes {
     foreach my $meth (@{Class::Inspector->methods($self) || []}) {
         my $attrs = $cache->{$self->can($meth)};
         next unless $attrs;
-        if ($attrs->[0] eq 'resultset') {
+        if ($attrs->[0] eq 'ResultSet') {
             no strict 'refs';
             my $resultset_class = $self->_setup_resultset_class;
             *{"$resultset_class\::$meth"} = *{"$self\::$meth"};
@@ -79,7 +79,7 @@ __END__
 
 This package implements two useful features for customizing resultset classes.
 C<load_resultset_components> loads components in addition to C<DBIx::Class::ResultSet>
-(or whatever you set as C<base_resultset_class>). Any methods tagged with the C<resultset>
+(or whatever you set as C<base_resultset_class>). Any methods tagged with the C<ResultSet>
 attribute will be moved into a table-specific resultset class (by default called
 C<Class::_resultset>).
 
