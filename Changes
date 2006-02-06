@@ -7,6 +7,7 @@ Revision history for DBIx::Class
         - hack PK::Auto::Pg for "table" names referencing a schema
         - find() with attributes works
         - added experimental Serialize and ResultSetManager components
+        - added code attribute recording to DBIx::Class
         - fix to find() for complex resultsets
         - added of $storage->debugcb(sub { ... })
         - added $source->resultset_attributes accessor

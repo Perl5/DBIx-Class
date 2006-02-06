@@ -59,3 +59,36 @@ sub _register_resultset_class {
 }
 
 1;
+
+__END__
+
+=head1 NAME 
+
+    DBIx::Class::ResultSetManager - helpful methods for managing resultset classes (EXPERIMENTAL)
+
+=head1 SYNOPSIS
+
+    # in a table class
+    __PACKAGE__->load_components(qw/ResultSetManager/);
+    __PACKAGE__->load_resultset_components(qw/AlwaysRS/);
+    
+    # will be removed from the table class and inserted into a table-specific resultset class
+    sub foo : resultset { ... }
+
+=head1 DESCRIPTION
+
+This package implements two useful features for customizing resultset classes.
+C<load_resultset_components> loads components in addition to C<DBIx::Class::ResultSet>
+(or whatever you set as C<base_resultset_class>). Any methods tagged with the C<resultset>
+attribute will be moved into a table-specific resultset class (by default called
+C<Class::_resultset>).
+
+=head1 AUTHORS
+
+David Kamholz <dkamholz@cpan.org>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
