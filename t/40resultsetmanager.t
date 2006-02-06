@@ -7,9 +7,9 @@ use Test::More;
 use lib qw(t/lib);
 
 BEGIN {
-  eval { require Class::Inspector };
+  eval { require Class::Inspector; require Module::Find };
   if ($@ =~ m{Can.t locate Class/Inspector.pm}) {
-    plan skip_all => "ResultSetManager requires Class::Inspector";
+    plan skip_all => "ResultSetManager requires Class::Inspector and Module::Find";
   } else {
     plan tests => 4;
   }
