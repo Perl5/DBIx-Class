@@ -98,8 +98,11 @@ sub update {
   $self->throw_exception( "Not in database" ) unless $self->in_storage;
   my %to_update = $self->get_dirty_columns;
   return $self unless keys %to_update;
+  my $ident_cond = $self->ident_condition;
+  $self->throw_exception("Cannot safely update a row in a PK-less table")
+    if ! keys %$ident_cond;
   my $rows = $self->result_source->storage->update(
-               $self->result_source->from, \%to_update, $self->ident_condition);
+               $self->result_source->from, \%to_update, $ident_cond);
   if ($rows == 0) {
     $self->throw_exception( "Can't update ${self}: row not found" );
   } elsif ($rows > 1) {
@@ -123,8 +126,11 @@ sub delete {
   my $self = shift;
   if (ref $self) {
     $self->throw_exception( "Not in database" ) unless $self->in_storage;
+    my $ident_cond = $self->ident_condition;
+    $self->throw_exception("Cannot safely delete a row in a PK-less table")
+      if ! keys %$ident_cond;
     $self->result_source->storage->delete(
-      $self->result_source->from, $self->ident_condition);
+      $self->result_source->from, $ident_cond);
     $self->in_storage(undef);
   } else {
     $self->throw_exception("Can't do class delete without a ResultSource instance")
