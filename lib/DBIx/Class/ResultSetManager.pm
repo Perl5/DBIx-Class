@@ -9,9 +9,12 @@ __PACKAGE__->table_resultset_class_suffix('::_resultset');
 
 sub table {
     my ($self,@rest) = @_;
-    $self->next::method(@rest);
-    $self->_register_attributes;
-    $self->_register_resultset_class;
+    my $ret = $self->next::method(@rest);
+    if (@rest) {
+        $self->_register_attributes;
+        $self->_register_resultset_class;        
+    }
+    return $ret;
 }
 
 sub load_resultset_components {
