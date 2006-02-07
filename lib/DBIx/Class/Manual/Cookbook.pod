@@ -439,7 +439,7 @@ development, you might like to put the following signal handler in
 your main database class to make sure it disconnects cleanly:
 
   $SIG{INT} = sub {
-    __PACKAGE__->storage->dbh->disconnect;
+    __PACKAGE__->storage->disconnect;
   };
 
 =head2 Schema import/export
