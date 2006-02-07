@@ -142,6 +142,27 @@ sub set_simple {
   return $self->{$set} = $val;
 }
 
+sub get_component_class {
+  my ($self, $get) = @_;
+  if (ref $self) {
+      return $self->{$get};
+  } else {
+      $get = "_$get";
+      return $self->can($get) ? $self->$get : undef;      
+  }
+}
+
+sub set_component_class {
+  my ($self, $set, $val) = @_;
+  eval "require $val";
+  if (ref $self) {
+      return $self->{$set} = $val;
+  } else {
+      $set = "_$set";
+      return $self->can($set) ? $self->$set($val) : $self->mk_classdata($set => $val);      
+  }  
+}
+
 1;
 
 =head1 AUTHORS
