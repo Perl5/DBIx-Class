@@ -12,7 +12,7 @@ __PACKAGE__->load_components(qw/ResultSource/);
 
 =head1 NAME 
 
-DBIx::Class::Table - Table object
+DBIx::Class::ResultSource::Table - Table object
 
 =head1 SYNOPSIS
 

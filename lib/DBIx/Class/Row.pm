@@ -19,7 +19,7 @@ DBIx::Class::Row - Basic row methods
 =head1 DESCRIPTION
 
 This class is responsible for defining and doing basic operations on rows
-derived from L<DBIx::Class::Table> objects.
+derived from L<DBIx::Class::ResultSource> objects.
 
 =head1 METHODS
 
