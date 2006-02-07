@@ -31,7 +31,7 @@ sub _register_attributes {
         if ($attrs->[0] eq 'ResultSet') {
             no strict 'refs';
             my $resultset_class = $self->_setup_resultset_class;
-            *{"$resultset_class\::$meth"} = *{"$self\::$meth"};
+            *{"$resultset_class\::$meth"} = $self->can($meth);
             undef *{"$self\::$meth"};
         }
     }
