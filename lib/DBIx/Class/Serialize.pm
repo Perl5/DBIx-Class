@@ -4,7 +4,7 @@ use Storable qw/freeze thaw/;
 
 sub STORABLE_freeze {
     my ($self,$cloning) = @_;
-    return if $cloning;
+    #return if $cloning;
     my $to_serialize = { %$self };
     delete $to_serialize->{result_source};
     return (freeze($to_serialize));
