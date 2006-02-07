@@ -222,7 +222,11 @@ sub debugcb {
 sub disconnect {
   my ($self) = @_;
 
-  $self->_dbh->disconnect if $self->_dbh;
+  if( $self->connected ) {
+    $self->_dbh->rollback unless $self->_dbh->{AutoCommit};
+    $self->_dbh->disconnect;
+    $self->_dbh(undef);
+  }
 }
 
 sub connected {
@@ -419,6 +423,8 @@ sub columns_info_for {
     }
     return \%result;
 }
+
+sub DESTROY { shift->disconnect }
 
 1;
 
