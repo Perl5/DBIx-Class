@@ -22,6 +22,11 @@ __END__
 
 DBIx::Class::ResultSource::Table::Cached - Table object that caches its own resultset
 
+=head1 SYNOPSIS
+    
+    # in a table class or base of table classes (_before_ you call ->table)
+    __PACKAGE__->table_class('DBIx::Class::ResultSource::Table::Cached');
+
 =head1 DESCRIPTION
 
 This is a modified version of L<DBIx::Class::ResultSource::Table> that caches
