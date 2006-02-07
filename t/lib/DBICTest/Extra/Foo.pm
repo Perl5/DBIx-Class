@@ -5,3 +5,5 @@ __PACKAGE__->load_components(qw/ ResultSetManager Core /);
 __PACKAGE__->table('foo');
 
 sub bar : ResultSet { 'good' }
+
+1;
