@@ -524,8 +524,6 @@ sub resultset {
   return $self->resultset_class->new($self, $self->{resultset_attributes});
 }
 
-=cut
-
 =head2 throw_exception
 
 See schema's throw_exception
