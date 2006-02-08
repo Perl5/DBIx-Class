@@ -1,5 +1,13 @@
 Revision history for DBIx::Class
 
+0.05003 2006-02-08 17:50:20
+        - add component_class accessors and use them for *_class
+        - small fixes to Serialize and ResultSetManager
+        - prevent accidental table-wide update/delete on row-object 
+          from PK-less table 
+        - rollback on disconnect, and disconnect on DESTROY
+        - fixes to deep search and search_relateduser 
+
 0.05002 2006-02-06 12:12:03
         - Added recommends for Class::Inspector
         - Added skip_all to t/40resultsetmanager.t if no Class::Inspector available
