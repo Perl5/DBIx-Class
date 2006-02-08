@@ -76,7 +76,7 @@ __END__
     __PACKAGE__->load_resultset_components(qw/AlwaysRS/);
     
     # will be removed from the table class and inserted into a table-specific resultset class
-    sub foo : resultset { ... }
+    sub foo : ResultSet { ... }
 
 =head1 DESCRIPTION
 
