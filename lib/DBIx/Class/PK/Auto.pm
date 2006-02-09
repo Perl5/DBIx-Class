@@ -65,9 +65,9 @@ sub insert {
   $self->throw_exception( "More than one possible key found for auto-inc on ".ref $self )
     if $too_many;
   unless (defined $self->get_column($pri)) {
-    $self->throw_exception( "Can't auto-inc for $pri on ".ref $self.": no _last_insert_id method" )
-      unless $self->can('last_insert_id');
-    my $id = $self->last_insert_id;
+#     $self->throw_exception( "Can't auto-inc for $pri on ".ref $self.": no _last_insert_id method" )
+#       unless $self->can('last_insert_id');
+    my $id = $self->result_source->storage->last_insert_id($self->result_source);
     $self->throw_exception( "Can't get last insert id" ) unless $id;
     $self->store_column($pri => $id);
   }

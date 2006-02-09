@@ -263,7 +263,13 @@ sub _populate_dbh {
   my ($self) = @_;
   my @info = @{$self->connect_info || []};
   $self->_dbh($self->_connect(@info));
-
+  my $driver = $self->_dbh->{Driver}->{Name};
+  eval qq{
+require DBIx::Class::Storage::DBI::${driver};
+  };
+  if(!$@) {
+    bless $self, "DBIx::Class::Storage::DBI::${driver}";
+  }
   # if on-connect sql statements are given execute them
   foreach my $sql_statement (@{$self->on_connect_do || []}) {
     $self->_dbh->do($sql_statement);
@@ -423,6 +429,15 @@ sub columns_info_for {
     }
     return \%result;
 }
+
+sub last_insert_id {
+  my ($self, $row) = @_;
+    
+  return $self->dbh->func('last_insert_rowid');
+
+}
+
+
 
 sub DESTROY { shift->disconnect }
 

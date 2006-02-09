@@ -33,7 +33,7 @@ $dbh->do(qq{
   END;
 });
 
-OraTest::Artist->load_components('PK::Auto::Oracle');
+OraTest::Artist->load_components('PK::Auto');
 
 # test primary key handling
 my $new = OraTest::Artist->create({ name => 'foo' });

@@ -3,7 +3,7 @@ my $schema = shift;
 
 plan tests => 2;
 
-$schema->class("Artist")->load_components(qw/PK::Auto::SQLite/);
+$schema->class("Artist")->load_components(qw/PK::Auto/);
 
 # add an artist without primary key to test Auto
 my $artist = $schema->resultset("Artist")->create( { name => 'Auto' } );

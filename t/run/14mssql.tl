@@ -19,7 +19,7 @@ $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
 
 $dbh->do("CREATE TABLE artist (artistid INT IDENTITY PRIMARY KEY, name VARCHAR(255));");
 
-MSSQLTest::Artist->load_components('PK::Auto::MSSQL');
+MSSQLTest::Artist->load_components('PK::Auto');
 
 # Test PK
 my $new = MSSQLTest::Artist->create( { name => 'foo' } );
