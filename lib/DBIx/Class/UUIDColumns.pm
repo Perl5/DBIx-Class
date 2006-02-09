@@ -13,11 +13,11 @@ DBIx::Class::UUIDColumns - Implicit uuid columns
 
   pacakge Artist;
   __PACKAGE__->load_components(qw/UUIDColumns Core DB/);
-  __PACKAGE__->uuid_columns( 'artist_id' );x
+  __PACKAGE__->uuid_columns( 'artist_id' );
 
 =head1 DESCRIPTION
 
-This L<DBIx::Class> component resambles the behaviour of
+This L<DBIx::Class> component resembles the behaviour of
 L<Class::DBI::UUID>, to make some columns implicitly created as uuid.
 
 Note that the component needs to be loaded before Core.

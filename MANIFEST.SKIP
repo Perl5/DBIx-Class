@@ -12,6 +12,9 @@
 \bblibdirs$
 ^MANIFEST\.SKIP$
 
+# for developers only :)
+^TODO$
+
 # Avoid Module::Build generated and utility files.
 \bBuild$
 \b_build
