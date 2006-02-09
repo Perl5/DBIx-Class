@@ -160,6 +160,8 @@ Jesper Krogh
 
 Brandon Black
 
+Christopher H. Laco
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
