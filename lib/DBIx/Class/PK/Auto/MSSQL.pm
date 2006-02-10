@@ -7,31 +7,19 @@ use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/PK::Auto/);
 
-sub last_insert_id {
-  my( $id ) = $_[0]->result_source->storage->dbh->selectrow_array(
-                                                    'SELECT @@IDENTITY' );
-  return $id;
-}
-
 1;
 
 =head1 NAME 
 
-DBIx::Class::PK::Auto::MSSQL - Automatic primary key class for MSSQL
+DBIx::Class::PK::Auto::MSSQL - (DEPRECATED) Automatic primary key class for MSSQL
 
 =head1 SYNOPSIS
 
-  # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto::MSSQL Core/);
-  __PACKAGE__->set_primary_key('id');
-
-=head1 DESCRIPTION
-
-This class implements autoincrements for MSSQL.
+Just load PK::Auto instead; auto-inc is now handled by Storage.
 
 =head1 AUTHORS
 
-Brian Cassidy <bricas@cpan.org>
+Matt S Trout <mst@shadowcatsystems.co.uk>
 
 =head1 LICENSE
 
