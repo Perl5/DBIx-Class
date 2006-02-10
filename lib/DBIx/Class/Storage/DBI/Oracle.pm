@@ -11,18 +11,19 @@ use base qw/DBIx::Class::Storage::DBI/;
 
 sub last_insert_id {
   my ($self, $source) = shift;
-  $self->get_autoinc_seq($source) unless $self->{_autoinc_seq};
-  my $sql = "SELECT " . $self->{_autoinc_seq} . ".currval FROM DUAL";
+  $self->get_autoinc_seq($source) unless $source->{_autoinc_seq};
+  my $sql = "SELECT " . $source->{_autoinc_seq} . ".currval FROM DUAL";
   my ($id) = $self->_dbh->selectrow_array($sql);
   return $id;  
 }
 
 sub get_autoinc_seq {
-  my ($self, $source) = shift;
+  my ($self, $source) = @_;
   
   # return the user-defined sequence if known
-  if ($source->sequence) {
-    return $self->{_autoinc_seq} = $source->sequence;
+  my $result_class = $source->result_class;
+  if ($result_class->can('sequence') and $result_class->sequence) {
+    return ($source->{_autoinc_seq} = $result_class->sequence);      
   }
   
   # look up the correct sequence automatically
@@ -39,10 +40,10 @@ sub get_autoinc_seq {
   $sth->execute( uc($source->name) );
   while (my ($insert_trigger) = $sth->fetchrow_array) {
     if ($insert_trigger =~ m!(\w+)\.nextval!i ) {
-      $self->{_autoinc_seq} = uc($1);
+      $source->{_autoinc_seq} = uc($1);
     }
   }
-  unless ($self->{_autoinc_seq}) {
+  unless ($source->{_autoinc_seq}) {
     croak "Unable to find a sequence INSERT trigger on table '" . $self->_table_name . "'.";
   }
 }

@@ -6,7 +6,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 
 sub last_insert_id {
-  return $self->dbh->func('last_insert_rowid');
+  return $_[0]->dbh->func('last_insert_rowid');
 }
 
 1;

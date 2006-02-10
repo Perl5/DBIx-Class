@@ -264,10 +264,8 @@ sub _populate_dbh {
   my @info = @{$self->connect_info || []};
   $self->_dbh($self->_connect(@info));
   my $driver = $self->_dbh->{Driver}->{Name};
-  eval qq{
-require DBIx::Class::Storage::DBI::${driver};
-  };
-  if(!$@) {
+  eval "require DBIx::Class::Storage::DBI::${driver}";
+  unless ($@) {
     bless $self, "DBIx::Class::Storage::DBI::${driver}";
   }
   # if on-connect sql statements are given execute them

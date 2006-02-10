@@ -9,29 +9,31 @@ use base qw/DBIx::Class::Storage::DBI/;
 
 sub last_insert_id {
   my ($self, $source) = @_;
-  $self->get_autoinc_seq unless $self->{_autoinc_seq};
+  $self->get_autoinc_seq($source) unless $source->{_autoinc_seq};
   $self->_dbh->last_insert_id(undef,undef,undef,undef,
-    {sequence=>$self->{_autoinc_seq}});
+    {sequence => $source->{_autoinc_seq}});
 }
 
 sub get_autoinc_seq {
-  my $self = shift;
+  my ($self,$source) = @_;
   
   # return the user-defined sequence if known
-  if ($source->sequence) {
-    return $self->{_autoinc_seq} = $source->sequence;
+  my $result_class = $source->result_class;
+  if ($result_class->can('sequence') and $result_class->sequence) {
+    return ($source->{_autoinc_seq} = $result_class->sequence);      
   }
   
   my @pri = $source->primary_columns;
   my $dbh = $self->_dbh;
-  my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2) : (undef,$sou
-rce->table);
+  my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2)
+    : (undef,$source->name);
   while (my $col = shift @pri) {
     my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_arrayref;
     if (defined $info->[12] and $info->[12] =~ 
       /^nextval\('"?([^"']+)"?'::(?:text|regclass)\)/)
     {
-      $self->{_autoinc_seq} = $1;
+      warn "setting autoinc_seq on $source to $1";
+      $source->{_autoinc_seq} = $1;
       last;
     } 
   }
