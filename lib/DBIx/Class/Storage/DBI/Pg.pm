@@ -8,21 +8,14 @@ use base qw/DBIx::Class::Storage::DBI/;
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
 sub last_insert_id {
-  my ($self, $source) = @_;
-  $self->get_autoinc_seq($source) unless $source->{_autoinc_seq};
-  $self->_dbh->last_insert_id(undef,undef,undef,undef,
-    {sequence => $source->{_autoinc_seq}});
+  my ($self,$source,$col) = @_;
+  my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
+  $self->_dbh->last_insert_id(undef,undef,undef,undef, {sequence => $seq});
 }
 
 sub get_autoinc_seq {
-  my ($self,$source) = @_;
-  
-  # return the user-defined sequence if known
-  my $result_class = $source->result_class;
-  if ($result_class->can('sequence') and $result_class->sequence) {
-    return ($source->{_autoinc_seq} = $result_class->sequence);      
-  }
-  
+  my ($self,$source,$col) = @_;
+    
   my @pri = $source->primary_columns;
   my $dbh = $self->_dbh;
   my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2)
@@ -32,8 +25,7 @@ sub get_autoinc_seq {
     if (defined $info->[12] and $info->[12] =~ 
       /^nextval\('"?([^"']+)"?'::(?:text|regclass)\)/)
     {
-      $source->{_autoinc_seq} = $1;
-      last;
+      return $1;
     } 
   }
 }

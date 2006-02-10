@@ -10,22 +10,16 @@ use base qw/DBIx::Class::Storage::DBI/;
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
 sub last_insert_id {
-  my ($self, $source) = shift;
-  $self->get_autoinc_seq($source) unless $source->{_autoinc_seq};
-  my $sql = "SELECT " . $source->{_autoinc_seq} . ".currval FROM DUAL";
+  my ($self,$source,$col) = @_;
+  my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
+  my $sql = "SELECT " . $seq . ".currval FROM DUAL";
   my ($id) = $self->_dbh->selectrow_array($sql);
   return $id;  
 }
 
 sub get_autoinc_seq {
-  my ($self, $source) = @_;
-  
-  # return the user-defined sequence if known
-  my $result_class = $source->result_class;
-  if ($result_class->can('sequence') and $result_class->sequence) {
-    return ($source->{_autoinc_seq} = $result_class->sequence);      
-  }
-  
+  my ($self,$source,$col) = @_;
+    
   # look up the correct sequence automatically
   my $dbh = $self->_dbh;
   my $sql = qq{
@@ -39,13 +33,9 @@ sub get_autoinc_seq {
   my $sth = $dbh->prepare($sql);
   $sth->execute( uc($source->name) );
   while (my ($insert_trigger) = $sth->fetchrow_array) {
-    if ($insert_trigger =~ m!(\w+)\.nextval!i ) {
-      $source->{_autoinc_seq} = uc($1);
-    }
+    return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
   }
-  unless ($source->{_autoinc_seq}) {
-    croak "Unable to find a sequence INSERT trigger on table '" . $self->_table_name . "'.";
-  }
+  croak "Unable to find a sequence INSERT trigger on table '" . $source->name . "'.";
 }
 
 1;

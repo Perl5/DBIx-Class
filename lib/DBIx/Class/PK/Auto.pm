@@ -53,24 +53,15 @@ sub insert {
   my ($self, @rest) = @_;
   my $ret = $self->next::method(@rest);
 
-  # if all primaries are already populated, skip auto-inc
-  my $populated = 0;
-  map { $populated++ if defined $self->get_column($_) } $self->primary_columns;
-  return $ret if ( $populated == scalar $self->primary_columns );
-
-  my ($pri, $too_many) =
-    (grep { $self->column_info($_)->{'auto_increment'} }
-       $self->primary_columns)
-    || $self->primary_columns;
+  my ($pri, $too_many) = grep { !defined $self->get_column($_) } $self->primary_columns;
+  return $ret unless defined $pri; # if all primaries are already populated, skip auto-inc
   $self->throw_exception( "More than one possible key found for auto-inc on ".ref $self )
-    if $too_many;
-  unless (defined $self->get_column($pri)) {
-#     $self->throw_exception( "Can't auto-inc for $pri on ".ref $self.": no _last_insert_id method" )
-#       unless $self->can('last_insert_id');
-    my $id = $self->result_source->storage->last_insert_id($self->result_source);
-    $self->throw_exception( "Can't get last insert id" ) unless $id;
-    $self->store_column($pri => $id);
-  }
+    if defined $too_many;
+
+  my $id = $self->result_source->storage->last_insert_id($self->result_source,$pri);
+  $self->throw_exception( "Can't get last insert id" ) unless $id;
+  $self->store_column($pri => $id);
+
   return $ret;
 }
 
