@@ -32,7 +32,6 @@ sub get_autoinc_seq {
     if (defined $info->[12] and $info->[12] =~ 
       /^nextval\('"?([^"']+)"?'::(?:text|regclass)\)/)
     {
-      warn "setting autoinc_seq on $source to $1";
       $source->{_autoinc_seq} = $1;
       last;
     } 
