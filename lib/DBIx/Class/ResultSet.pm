@@ -240,7 +240,9 @@ sub find {
     $query->{$self->{attrs}{alias}.'.'.$_} = delete $query->{$_};
   }
   #warn Dumper($query);
-  return $self->search($query,$attrs)->next;
+  return (keys %$attrs
+           ? $self->search($query,$attrs)->single
+           : $self->single($query));
 }
 
 =head2 search_related
@@ -285,6 +287,34 @@ sub cursor {
     ||= $self->result_source->storage->select($self->{from}, $attrs->{select},
           $attrs->{where},$attrs);
 }
+
+=head2 single
+
+Inflates the first result without creating a cursor
+
+=cut
+
+sub single {
+  my ($self, $extra) = @_;
+  my ($attrs) = $self->{attrs};
+  $attrs = { %$attrs };
+  if ($extra) {
+    if (defined $attrs->{where}) {
+      $attrs->{where} = {
+        '-and'
+          => [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
+               delete $attrs->{where}, $extra ]
+      };
+    } else {
+      $attrs->{where} = $extra;
+    }
+  }
+  my @data = $self->result_source->storage->select_single(
+          $self->{from}, $attrs->{select},
+          $attrs->{where},$attrs);
+  return (@data ? $self->_construct_object(@data) : ());
+}
+
 
 =head2 search_like
 
