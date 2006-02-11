@@ -130,6 +130,7 @@ sub _join_condition {
 sub _quote {
   my ($self, $label) = @_;
   return '' unless defined $label;
+  return $label unless $self->{quote_char};
   return $self->SUPER::_quote($label);
 }
 
