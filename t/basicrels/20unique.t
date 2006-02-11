@@ -3,5 +3,5 @@ use lib qw(t/lib);
 use DBICTest;
 use DBICTest::BasicRels;
 
-require "t/run/21db2.tl";
+require "t/run/20unique.tl";
 run_tests(DBICTest->schema);
