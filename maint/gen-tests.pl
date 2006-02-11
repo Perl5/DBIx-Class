@@ -10,7 +10,7 @@ sub gen_tests {
     system("rm -f t/$dir/*.t");
     
     foreach my $test (map { m[^t/run/(.+)\.tl$]; $1 } split(/\n/, `ls t/run/*.tl`)) {
-        open(my $fh, '>', "t/$dir/${test}.t") or die $1;
+        open(my $fh, '>', "t/$dir/${test}.t") or die $!;
         print $fh <<"EOF";
 use Test::More;
 use lib qw(t/lib);
