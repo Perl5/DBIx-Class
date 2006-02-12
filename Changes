@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - add horrific fix to make Oracle's retarded limit syntax work
+
 0.05003 2006-02-08 17:50:20
         - add component_class accessors and use them for *_class
         - small fixes to Serialize and ResultSetManager

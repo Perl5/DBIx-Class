@@ -134,6 +134,14 @@ sub _quote {
   return $self->SUPER::_quote($label);
 }
 
+sub _RowNum {
+   my $self = shift;
+   my $c;
+   $_[0] =~ s/SELECT (.*?) FROM/
+     'SELECT '.join(', ', map { $_.' AS col'.++$c } split(', ', $1)).' FROM'/e;
+   $self->SUPER::_RowNum(@_);
+}
+
 # Accessor for setting limit dialect. This is useful
 # for JDBC-bridge among others where the remote SQL-dialect cannot
 # be determined by the name of the driver alone.
