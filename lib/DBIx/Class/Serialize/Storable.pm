@@ -12,7 +12,7 @@ sub STORABLE_freeze {
 sub STORABLE_thaw {
     my ($self,$cloning,$serialized) = @_;
     %$self = %{ Storable::thaw($serialized) };
-    $self->result_source($self->result_source_instance);
+    $self->result_source($self->result_source_instance) if $self->can('result_source_instance');
 }
 
 1;
