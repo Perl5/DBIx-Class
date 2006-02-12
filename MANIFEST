@@ -64,17 +64,29 @@ lib/DBIx/Class/ResultSourceProxy.pm
 lib/DBIx/Class/ResultSourceProxy/Table.pm
 lib/DBIx/Class/Row.pm
 lib/DBIx/Class/Schema.pm
-lib/DBIx/Class/Serialize.pm
+lib/DBIx/Class/Serialize/Storable.pm
 lib/DBIx/Class/Storage/DBI.pm
 lib/DBIx/Class/Storage/DBI/Cursor.pm
+lib/DBIx/Class/Storage/DBI/DB2.pm
+lib/DBIx/Class/Storage/DBI/MSSQL.pm
+lib/DBIx/Class/Storage/DBI/mysql.pm
+lib/DBIx/Class/Storage/DBI/Oracle.pm
+lib/DBIx/Class/Storage/DBI/Pg.pm
+lib/DBIx/Class/Storage/DBI/SQLite.pm
 lib/DBIx/Class/Test/SQLite.pm
 lib/DBIx/Class/UUIDColumns.pm
+lib/DBIx/Class/UUIDMaker.pm
+lib/DBIx/Class/UUIDMaker/APR/UUID.pm
+lib/DBIx/Class/UUIDMaker/Data/Uniqid.pm
+lib/DBIx/Class/UUIDMaker/Data/UUID.pm
+lib/DBIx/Class/UUIDMaker/UUID.pm
+lib/DBIx/Class/UUIDMaker/Win32/Guidgen.pm
+lib/DBIx/Class/UUIDMaker/Win32API/GUID.pm
 lib/DBIx/Class/Validation.pm
 lib/SQL/Translator/Parser/DBIx/Class.pm
 lib/SQL/Translator/Producer/DBIx/Class/File.pm
 Makefile.PL
 MANIFEST			This list of files
-META.yml
 README
 t/02pod.t
 t/03podcoverage.t.disabled
@@ -96,12 +108,15 @@ t/basicrels/10auto.t
 t/basicrels/11mysql.t
 t/basicrels/12pg.t
 t/basicrels/13oracle.t
+t/basicrels/145db2.t
 t/basicrels/14mssql.t
 t/basicrels/15limit.t
 t/basicrels/16joins.t
 t/basicrels/17join_count.t
 t/basicrels/18self_referencial.t
 t/basicrels/19uuid.t
+t/basicrels/20unique.t
+t/basicrels/21serialize.t
 t/cdbi-sweet-t/08pager.t
 t/cdbi-t/01-columns.t
 t/cdbi-t/02-Film.t
@@ -133,6 +148,7 @@ t/helperrels/10auto.t
 t/helperrels/11mysql.t
 t/helperrels/12pg.t
 t/helperrels/13oracle.t
+t/helperrels/145db2.t
 t/helperrels/14mssql.t
 t/helperrels/15limit.t
 t/helperrels/16joins.t
@@ -140,6 +156,7 @@ t/helperrels/17join_count.t
 t/helperrels/18self_referencial.t
 t/helperrels/19uuid.t
 t/helperrels/20unique.t
+t/helperrels/21serialize.t
 t/lib/DBICTest.pm
 t/lib/DBICTest/BasicRels.pm
 t/lib/DBICTest/Extra.pm
@@ -178,6 +195,7 @@ t/run/10auto.tl
 t/run/11mysql.tl
 t/run/12pg.tl
 t/run/13oracle.tl
+t/run/145db2.tl
 t/run/14mssql.tl
 t/run/15limit.tl
 t/run/16joins.tl
@@ -185,6 +203,7 @@ t/run/17join_count.tl
 t/run/18self_referencial.tl
 t/run/19uuid.tl
 t/run/20unique.tl
+t/run/21serialize.tl
 t/testlib/Actor.pm
 t/testlib/ActorAlias.pm
 t/testlib/Binary.pm
@@ -203,3 +222,4 @@ t/testlib/MyStarLinkMCPK.pm
 t/testlib/Order.pm
 t/testlib/OtherFilm.pm
 t/testlib/PgBase.pm
+META.yml

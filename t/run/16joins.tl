@@ -7,7 +7,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 40 );
+        : ( tests => 41 );
 }
 
 # test the abstract join => SQL generator
@@ -132,6 +132,15 @@ $trace->close;
 unlink 't/var/dbic.trace';
 is($selects, 1, 'prefetch ran only 1 select statement');
 
+# test for partial prefetch via cols attr
+my $cd = $schema->resultset('CD')->find(1,
+    {
+      cols => [qw/title artist.name/], 
+      join => 'artist'
+    }
+);
+ok(eval { $cd->artist->name eq 'Caterwauler McCrae' }, 'single related column prefetched');
+
 # start test for nested prefetch SELECT count
 unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
 DBI->trace(1, 't/var/dbic.trace');
@@ -165,7 +174,7 @@ is($selects, 1, 'nested prefetch ran exactly 1 select statement (excluding colum
 unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
 DBI->trace(1, 't/var/dbic.trace');
 
-my $cd = $schema->resultset('CD')->find(1, { prefetch => 'artist' });
+$cd = $schema->resultset('CD')->find(1, { prefetch => 'artist' });
 
 is($cd->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'artist prefetched correctly on find');
 
