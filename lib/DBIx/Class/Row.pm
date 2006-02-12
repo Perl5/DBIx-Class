@@ -278,17 +278,16 @@ sub inflate_result {
   PRE: foreach my $pre (keys %{$prefetch||{}}) {
     my $pre_source = $source->related_source($pre);
     $class->throw_exception("Can't prefetch non-existant relationship ${pre}") unless $pre_source;
-    my $fetched = $pre_source->result_class->inflate_result(
-                    $pre_source, @{$prefetch->{$pre}});
+    my $fetched;
+    unless ($pre_source->primary_columns == grep { exists $prefetch->{$pre}[0]{$_} 
+       and !defined $prefetch->{$pre}[0]{$_} } $pre_source->primary_columns)
+    {
+      $fetched = $pre_source->result_class->inflate_result(
+                      $pre_source, @{$prefetch->{$pre}});      
+    }
     my $accessor = $source->relationship_info($pre)->{attrs}{accessor};
     $class->throw_exception("No accessor for prefetched $pre")
       unless defined $accessor;
-    PRIMARY: foreach my $pri ($pre_source->primary_columns) {
-      unless (defined $fetched->get_column($pri)) {
-        undef $fetched;
-        last PRIMARY;
-      }
-    }
     if ($accessor eq 'single') {
       $new->{_relationship_data}{$pre} = $fetched;
     } elsif ($accessor eq 'filter') {

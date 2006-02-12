@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - allow specification of related columns via cols attr when primary 
+          keys of the related table are not fetched
         - add horrific fix to make Oracle's retarded limit syntax work
 
 0.05003 2006-02-08 17:50:20
