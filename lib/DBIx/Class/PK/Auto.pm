@@ -72,7 +72,12 @@ associated with looking up the sequence automatically.
 
 =cut
 
-__PACKAGE__->mk_classdata('sequence');
+sub sequence {
+    my ($self,$seq) = @_;
+    foreach my $pri ($self->primary_columns) {
+        $self->column_info($pri)->{sequence} = $seq;
+    }
+}
 
 1;
 
