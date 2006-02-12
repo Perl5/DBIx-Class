@@ -22,7 +22,7 @@ sub get_autoinc_seq {
     
   # look up the correct sequence automatically
   my $dbh = $self->_dbh;
-  my $sql = qq{
+  my $sql = q{
     SELECT trigger_body FROM ALL_TRIGGERS t
     WHERE t.table_name = ?
     AND t.triggering_event = 'INSERT'
