@@ -5,7 +5,8 @@ Revision history for DBIx::Class
 
 0.05004 2006-02-13 20:59:00
         - allow specification of related columns via cols attr when primary 
-        - fix count for group_by as scalar keys of the related table are not fetched
+          keys of the related table are not fetched
+        - fix count for group_by as scalar
         - add horrific fix to make Oracle's retarded limit syntax work
         - remove Carp require
 
