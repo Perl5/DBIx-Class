@@ -10,7 +10,7 @@ plan skip_all, 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
 
 plan tests => 4;
 
-$schema->resultset("Schema")->compose_connection( 'MSSQLTest' => $dsn, $user, $pass );
+$schema->compose_connection( 'MSSQLTest' => $dsn, $user, $pass );
 
 my $dbh = MSSQLTest->schema->storage->dbh;
 
