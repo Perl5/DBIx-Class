@@ -160,6 +160,8 @@ Jesper Krogh
 
 Brandon Black
 
+Scotty Allen <scotty@scottyallen.com>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
