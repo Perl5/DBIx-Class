@@ -401,7 +401,7 @@ sub count {
         my $pk = shift(@pk);
         my $alias = $self->{attrs}{alias};
         my $re = qr/^($alias\.)?$pk$/;
-        foreach my $column ( @$group_by ) {
+        foreach my $column ( @distinct) {
           if( $column =~ $re ) {
             @distinct = ( $column );
             last;
