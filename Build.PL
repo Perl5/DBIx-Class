@@ -18,6 +18,7 @@ my %arguments = (
     },
     build_requires      => {
         'DBD::SQLite'               => 1.11,
+        'version'                   => 0,
     },
     recommends          => {
         'Data::UUID'                => 0,
