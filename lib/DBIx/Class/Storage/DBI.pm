@@ -336,6 +336,7 @@ sub _execute {
       $self->debugfh->print("$sql: @debug_bind\n");
   }
   my $sth = $self->sth($sql,$op);
+  croak "no sth generated via sql: $sql" unless $sth;
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {  
