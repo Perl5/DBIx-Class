@@ -84,6 +84,7 @@ t/19quotes.t
 t/20setuperrors.t
 t/30dbicplain.t
 t/40resultsetmanager.t
+t/41orrible.t
 t/basicrels/01core.t
 t/basicrels/04db.t
 t/basicrels/05multipk.t
