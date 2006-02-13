@@ -40,6 +40,7 @@ sub new {
   $new->{_columns} = { %{$new->{_columns}||{}} };
   $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
+  $new->{_columns_info_loaded} ||= 0;
   return $new;
 }
 
@@ -107,8 +108,11 @@ sub column_info {
   my ($self, $column) = @_;
   $self->throw_exception("No such column $column") 
     unless exists $self->_columns->{$column};
-  if ( (! $self->_columns->{$column}->{data_type})
+  #warn $self->{_columns_info_loaded}, "\n";
+  if ( ! $self->_columns->{$column}->{data_type} 
+       && ! $self->{_columns_info_loaded} 
        && $self->schema && $self->storage() ){
+      $self->{_columns_info_loaded}++;
       my $info;
 ############ eval for the case of storage without table 
       eval{

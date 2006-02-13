@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 38; 
+plan tests => 39; 
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -152,6 +152,9 @@ $schema->source("Artist")->{_columns}{'artistid'} = {};
 
 my $typeinfo = $schema->source("Artist")->column_info('artistid');
 is($typeinfo->{data_type}, 'INTEGER', 'column_info ok');
+$schema->source("Artist")->column_info('artistid');
+ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info flag set');
+
 }
 
 1;
