@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+	- Another fix for count with scalar group_by.
+
 0.05005 2006-02-13 21:24:51
         - remove build dependency on version.pm
 
