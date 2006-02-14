@@ -5,11 +5,12 @@ use base 'DBIx::Class::Core';
 DBICTest::Schema::Artist->add_relationship(
     cds => 'DBICTest::Schema::CD',
     { 'foreign.artist' => 'self.artistid' },
-    { order_by => 'year', join_type => 'LEFT', cascade_delete => 1 }
+    { order_by => 'year', join_type => 'LEFT', cascade_delete => 1, cascade_copy => 1 }
 );
 DBICTest::Schema::Artist->add_relationship(
     twokeys => 'DBICTest::Schema::TwoKeys',
-    { 'foreign.artist' => 'self.artistid' }
+    { 'foreign.artist' => 'self.artistid' },
+    { cascade_copy => 1 }
 );
 DBICTest::Schema::Artist->add_relationship(
     onekeys => 'DBICTest::Schema::OneKey',
@@ -37,7 +38,7 @@ DBICTest::Schema::CD->add_relationship(
 DBICTest::Schema::CD->add_relationship(
     tags => 'DBICTest::Schema::Tag',
     { 'foreign.cd' => 'self.cdid' },
-    { join_type => 'LEFT', cascade_delete => 1 }
+    { join_type => 'LEFT', cascade_delete => 1, cascade_copy => 1 }
 );
 #DBICTest::Schema::CD->might_have(liner_notes => 'DBICTest::Schema::LinerNotes' => qw/notes/);
 DBICTest::Schema::CD->add_relationship(

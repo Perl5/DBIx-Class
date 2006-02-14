@@ -2,6 +2,8 @@ package DBICTest::Schema::OneKey;
 
 use base 'DBIx::Class::Core';
 
+__PACKAGE__->load_components('PK::Auto');
+
 DBICTest::Schema::OneKey->table('onekey');
 DBICTest::Schema::OneKey->add_columns(
   'id' => {

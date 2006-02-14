@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Mon Feb  6 01:07:16 2006
+-- Created on Tue Feb 14 16:16:19 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -117,10 +117,9 @@ CREATE TABLE treelike (
 -- Table: tags
 --
 CREATE TABLE tags (
-  tagid varchar NOT NULL,
+  tagid INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL,
-  tag varchar NOT NULL,
-  PRIMARY KEY (tagid)
+  tag varchar NOT NULL
 );
 
 --

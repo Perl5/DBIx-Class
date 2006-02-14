@@ -2,6 +2,8 @@ package DBICTest::Schema::CD;
 
 use base 'DBIx::Class::Core';
 
+__PACKAGE__->load_components('PK::Auto');
+
 DBICTest::Schema::CD->table('cd');
 DBICTest::Schema::CD->add_columns(
   'cdid' => {

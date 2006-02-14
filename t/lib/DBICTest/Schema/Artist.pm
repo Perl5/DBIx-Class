@@ -2,6 +2,8 @@ package DBICTest::Schema::Artist;
 
 use base 'DBIx::Class::Core';
 
+__PACKAGE__->load_components('PK::Auto');
+
 DBICTest::Schema::Artist->table('artist');
 DBICTest::Schema::Artist->add_columns(
   'artistid' => {

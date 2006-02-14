@@ -1,7 +1,10 @@
 Revision history for DBIx::Class
 
+        - added cascade_copy relationship attribute
+          (sponsored by Airspace Software, http://www.airspace.co.uk/)
         - clean up set_from_related
         - made copy() automatically null out auto-inc columns
+        - remove dependency on Module::Find in 40resultsetmanager.t (RT #17598)
 	- Another fix for count with scalar group_by.
 
 0.05005 2006-02-13 21:24:51

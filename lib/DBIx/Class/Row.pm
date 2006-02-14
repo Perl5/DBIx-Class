@@ -236,6 +236,7 @@ Inserts a new row with the specified changes.
 
 sub copy {
   my ($self, $changes) = @_;
+  $changes ||= {};
   my $col_data = { %{$self->{_column_data}} };
   foreach my $col (keys %$col_data) {
     delete $col_data->{$col}
@@ -243,7 +244,18 @@ sub copy {
   }
   my $new = bless({ _column_data => $col_data }, ref $self);
   $new->set_column($_ => $changes->{$_}) for keys %$changes;
-  return $new->insert;
+  $new->insert;
+  foreach my $rel ($self->result_source->relationships) {
+    my $rel_info = $self->result_source->relationship_info($rel);
+    if ($rel_info->{attrs}{cascade_copy}) {
+      my $resolved = $self->result_source->resolve_condition(
+       $rel_info->{cond}, $rel, $new);
+      foreach my $related ($self->search_related($rel)) {
+        $related->copy($resolved);
+      }
+    }
+  }
+  $new;
 }
 
 =head2 store_column
