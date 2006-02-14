@@ -1,14 +1,13 @@
 Revision history for DBIx::Class
 
         - add horrific fix to make Oracle's retarded limit syntax work
+        - changed UUIDColumns to use new UUIDMaker classes for uuid creation
+        using whatever module may be available
 
 0.05003 2006-02-08 17:50:20
         - add component_class accessors and use them for *_class
         - small fixes to Serialize and ResultSetManager
-        - prevent accidental table-wide update/delete on row-object 
-          from PK-less table 
         - rollback on disconnect, and disconnect on DESTROY
-        - fixes to deep search and search_relateduser 
 
 0.05002 2006-02-06 12:12:03
         - Added recommends for Class::Inspector
@@ -112,7 +111,6 @@ Revision history for DBIx::Class
 0.03004
         - Added an || '' to the CDBICompat stringify to avoid null warnings
 	- Updated name section for manual pods
-	
 0.03003 2005-11-03 17:00:00
         - POD fixes.
         - Changed use to require in Relationship/Base to avoid import.
