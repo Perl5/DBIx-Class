@@ -1,8 +1,16 @@
 Revision history for DBIx::Class
 
+	- Another fix for count with scalar group_by.
+
+0.05005 2006-02-13 21:24:51
+        - remove build dependency on version.pm
+
+0.05004 2006-02-13 20:59:00
+        - allow specification of related columns via cols attr when primary 
+          keys of the related table are not fetched
+        - fix count for group_by as scalar
         - add horrific fix to make Oracle's retarded limit syntax work
-        - changed UUIDColumns to use new UUIDMaker classes for uuid creation
-        using whatever module may be available
+        - remove Carp require
 
 0.05003 2006-02-08 17:50:20
         - add component_class accessors and use them for *_class

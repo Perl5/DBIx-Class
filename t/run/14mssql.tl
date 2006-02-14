@@ -10,7 +10,7 @@ plan skip_all, 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
 
 plan tests => 4;
 
-$schema->resultset("Schema")->compose_connection( 'MSSQLTest' => $dsn, $user, $pass );
+$schema->compose_connection( 'MSSQLTest' => $dsn, $user, $pass );
 
 my $dbh = MSSQLTest->schema->storage->dbh;
 
@@ -19,7 +19,7 @@ $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
 
 $dbh->do("CREATE TABLE artist (artistid INT IDENTITY PRIMARY KEY, name VARCHAR(255));");
 
-MSSQLTest::Artist->load_components('PK::Auto');
+MSSQLTest::Artist->load_components('PK::Auto::MSSQL');
 
 # Test PK
 my $new = MSSQLTest::Artist->create( { name => 'foo' } );

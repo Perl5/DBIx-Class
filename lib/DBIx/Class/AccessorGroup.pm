@@ -122,7 +122,6 @@ sub make_group_wo_accessor {
 
         unless (@_) {
             my $caller = caller;
-            require Carp;
             croak("'$caller' cannot access the value of '$field' on ".
                         "objects of class '$class'");
         }

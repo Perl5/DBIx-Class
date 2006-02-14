@@ -167,7 +167,8 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/connect_info _dbh _sql_maker debug debugfh cursor on_connect_do transaction_depth/);
+  qw/connect_info _dbh _sql_maker _connection_pid debug debugfh cursor
+     on_connect_do transaction_depth/);
 
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
@@ -256,6 +257,8 @@ sub ensure_connected {
 sub dbh {
   my ($self) = @_;
 
+  $self->_dbh(undef)
+    if $self->_connection_pid && $self->_connection_pid != $$;
   $self->ensure_connected;
   return $self->_dbh;
 }
@@ -281,11 +284,22 @@ sub _populate_dbh {
   foreach my $sql_statement (@{$self->on_connect_do || []}) {
     $self->_dbh->do($sql_statement);
   }
+
+  $self->_connection_pid($$);
 }
 
 sub _connect {
   my ($self, @info) = @_;
-  return DBI->connect(@info);
+
+  if ($INC{'Apache/DBI.pm'} && $ENV{MOD_PERL}) {
+      my $old_connect_via = $DBI::connect_via;
+      $DBI::connect_via = 'connect';
+      my $dbh = DBI->connect(@info);
+      $DBI::connect_via = $old_connect_via;
+      return $dbh;
+  }
+
+  DBI->connect(@info);
 }
 
 =head2 txn_begin
@@ -340,6 +354,7 @@ sub _execute {
       $self->debugfh->print("$sql: @debug_bind\n");
   }
   my $sth = $self->sth($sql,$op);
+  croak "no sth generated via sql: $sql" unless $sth;
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {  

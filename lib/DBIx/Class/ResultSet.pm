@@ -424,14 +424,14 @@ sub count {
     my $group_by;
     my $select = { 'count' => '*' };
     if( $group_by = delete $self->{attrs}{group_by} ) {
-      my @distinct = @$group_by;
+      my @distinct = (ref $group_by ?  @$group_by : ($group_by));
       # todo: try CONCAT for multi-column pk
       my @pk = $self->result_source->primary_columns;
       if( scalar(@pk) == 1 ) {
         my $pk = shift(@pk);
         my $alias = $self->{attrs}{alias};
         my $re = qr/^($alias\.)?$pk$/;
-        foreach my $column ( @$group_by ) {
+        foreach my $column ( @distinct) {
           if( $column =~ $re ) {
             @distinct = ( $column );
             last;
