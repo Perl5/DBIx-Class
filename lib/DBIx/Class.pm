@@ -160,6 +160,8 @@ Jesper Krogh
 
 Brandon Black
 
+Christopher H. Laco
+
 Scotty Allen <scotty@scottyallen.com>
 
 =head1 LICENSE
