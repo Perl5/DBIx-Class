@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - clean up set_from_related
+        - made copy() automatically null out auto-inc columns
 	- Another fix for count with scalar group_by.
 
 0.05005 2006-02-13 21:24:51

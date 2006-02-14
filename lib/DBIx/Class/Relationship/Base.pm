@@ -196,15 +196,9 @@ sub set_from_related {
   my $f_class = $self->result_source->schema->class($rel_obj->{class});
   $self->throw_exception( "Object $f_obj isn't a ".$f_class )
     unless $f_obj->isa($f_class);
-  foreach my $key (keys %$cond) {
-    next if ref $cond->{$key}; # Skip literals and complex conditions
-    $self->throw_exception("set_from_related can't handle $key as key")
-      unless $key =~ m/^foreign\.([^\.]+)$/;
-    my $val = $f_obj->get_column($1);
-    $self->throw_exception("set_from_related can't handle ".$cond->{$key}." as value")
-      unless $cond->{$key} =~ m/^self\.([^\.]+)$/;
-    $self->set_column($1 => $val);
-  }
+  $self->set_columns(
+    $self->result_source->resolve_condition(
+       $rel_obj->{cond}, $f_obj, $rel));
   return 1;
 }
 

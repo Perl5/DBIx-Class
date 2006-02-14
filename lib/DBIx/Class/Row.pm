@@ -236,7 +236,12 @@ Inserts a new row with the specified changes.
 
 sub copy {
   my ($self, $changes) = @_;
-  my $new = bless({ _column_data => { %{$self->{_column_data}}} }, ref $self);
+  my $col_data = { %{$self->{_column_data}} };
+  foreach my $col (keys %$col_data) {
+    delete $col_data->{$col}
+      if $self->result_source->column_info($col)->{is_auto_increment};
+  }
+  my $new = bless({ _column_data => $col_data }, ref $self);
   $new->set_column($_ => $changes->{$_}) for keys %$changes;
   return $new->insert;
 }

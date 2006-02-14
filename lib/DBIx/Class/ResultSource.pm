@@ -405,6 +405,8 @@ sub resolve_condition {
         #warn "$self $k $for $v";
         $ret{$k} = $for->get_column($v);
         #warn %ret;
+      } elsif (ref $as) { # reverse object
+        $ret{$v} = $as->get_column($k);
       } else {
         $ret{"${as}.${k}"} = "${for}.${v}";
       }
