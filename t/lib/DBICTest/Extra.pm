@@ -1,6 +1,6 @@
 package DBICTest::Extra;
 use base 'DBIx::Class::Schema';
 
-__PACKAGE__->load_classes;
+__PACKAGE__->load_classes("Foo");
 
 1;
