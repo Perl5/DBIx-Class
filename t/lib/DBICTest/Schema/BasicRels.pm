@@ -5,7 +5,7 @@ use base 'DBIx::Class::Core';
 DBICTest::Schema::Artist->add_relationship(
     cds => 'DBICTest::Schema::CD',
     { 'foreign.artist' => 'self.artistid' },
-    { order_by => 'year', join_type => 'LEFT', cascade_delete => 1, cascade_copy => 1 }
+    { order_by => 'year', join_type => 'LEFT', cascade_delete => 1, cascade_copy => 1, accessor => 'multi' }
 );
 DBICTest::Schema::Artist->add_relationship(
     twokeys => 'DBICTest::Schema::TwoKeys',

@@ -85,41 +85,15 @@ sub register_relationship { }
 
 sub search_related {
   my $self = shift;
-  die "Can't call *_related as class methods" unless ref $self;
   my $rel = shift;
-  my $attrs = { };
-  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
-    $attrs = { %{ pop(@_) } };
+  my $rs = $self->related_resultset($rel);
+  if( @_ ) {
+    return $rs->search(@_);
   }
-  my $rel_obj = $self->relationship_info($rel);
-  $self->throw_exception( "No such relationship ${rel}" ) unless $rel_obj;
-  $attrs = { %{$rel_obj->{attrs} || {}}, %{$attrs || {}} };
-
-  $self->throw_exception( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
-  my $query = ((@_ > 1) ? {@_} : shift);
-
-  my ($cond) = $self->result_source->resolve_condition($rel_obj->{cond}, $rel, $self);
-  if (ref $cond eq 'ARRAY') {
-    $cond = [ map { my %hash;
-      foreach my $key (keys %{$_}) {
-        unless ($key =~ m/\./) {
-          $hash{"me.$key"} = $_->{$key};
-        } else {
-          $hash{$key} = $_->{$key};
-        }
-      }; \%hash; } @$cond ];
-  } else {
-    foreach my $key (keys %$cond) {
-      unless ($key =~ m/\./) {
-        $cond->{"me.$key"} = delete $cond->{$key};
-      }
-    }
+  else {
+    # search() returns a new resultset, so related_resultsets would be lost
+    return wantarray ? $rs->all : $rs;
   }
-  $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
-  #use Data::Dumper; warn Dumper($cond);
-  #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}||[]});
-  return $self->result_source->related_source($rel
-           )->resultset->search($query, $attrs);
 }
 
 =head2 count_related
@@ -142,7 +116,9 @@ sub count_related {
 sub create_related {
   my $self = shift;
   my $rel = shift;
-  return $self->search_related($rel)->create(@_);
+  my $obj = $self->search_related($rel)->create(@_);
+  delete $self->{related_resultsets}->{$rel};
+  return $obj;
 }
 
 =head2 new_related
@@ -222,10 +198,71 @@ sub update_from_related {
 
 sub delete_related {
   my $self = shift;
-  return $self->search_related(@_)->delete;
+  my $obj = $self->search_related(@_)->delete;
+  delete $self->{related_resultsets}->{$_[0]};
+  return $obj;
 }
 
 1;
+
+=head2 related_resultset($name)
+
+Returns a L<DBIx::Class::ResultSet> for the relationship named $name.
+
+  $rs = My::Table->related_resultset('related_table');
+
+=cut
+
+sub related_resultset {
+  my $self = shift;
+  $self->throw_exception("Can't call *_related as class methods") unless ref $self;
+  my $rel = shift;
+  $self->{related_resultsets} ||= {};
+  #use Data::Dumper; warn "related_resultsets: ", Dumper $self->{related_resultsets};
+  my $resultsets = $self->{related_resultsets};
+  if( !exists $resultsets->{$rel} ) {
+
+    #warn "creating related resultset for relation '$rel'", \$self;
+    my $source = $self->result_source;
+    # if relation exists but resultset doesn't, create the resultset
+
+    my $attrs = { };
+    if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+      $attrs = { %{ pop(@_) } };
+    }
+  
+    my $rel_obj = $self->relationship_info($rel);
+    $self->throw_exception( "No such relationship ${rel}" ) unless $rel_obj;
+    $attrs = { %{$rel_obj->{attrs} || {}}, %{$attrs || {}} };
+
+    $self->throw_exception( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
+    my $query = ((@_ > 1) ? {@_} : shift);
+
+    my ($cond) = $self->result_source->resolve_condition($rel_obj->{cond}, $rel, $self);
+    if (ref $cond eq 'ARRAY') {
+      $cond = [ map { my %hash;
+        foreach my $key (keys %{$_}) {
+          unless ($key =~ m/\./) {
+            $hash{"me.$key"} = $_->{$key};
+          } else {
+           $hash{$key} = $_->{$key};
+          }
+        }; \%hash; } @$cond ];
+      } else {
+      foreach my $key (keys %$cond) {
+        unless ($key =~ m/\./) {
+          $cond->{"me.$key"} = delete $cond->{$key};
+        }
+      }
+    }
+    $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
+    #use Data::Dumper; warn Dumper($cond);
+    #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}||[]});
+    $resultsets->{$rel} = 
+      $self->result_source->related_source($rel)->resultset->search($query, $attrs);
+  }
+  return $resultsets->{$rel};
+}
 
 =head1 AUTHORS
 
