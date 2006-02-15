@@ -148,7 +148,7 @@ is($selects, 1, 'prefetch ran only 1 select statement');
 my $cd = $schema->resultset('CD')->find(1,
     {
       cols => [qw/title artist.name/], 
-      join => 'artist'
+      join => { 'artist' => {} }
     }
 );
 ok(eval { $cd->artist->name eq 'Caterwauler McCrae' }, 'single related column prefetched');

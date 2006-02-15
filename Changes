@@ -1,9 +1,13 @@
 Revision history for DBIx::Class
 
+        - minor tweak to tests for join edge case
+        - added cascade_copy relationship attribute
+          (sponsored by Airspace Software, http://www.airspace.co.uk/)
+        - clean up set_from_related
+        - made copy() automatically null out auto-inc columns
         - made update(\%hash) work on row as well as rs
         - another fix for count with scalar group_by
         - remove dependency on Module::Find in 40resultsetmanager.t (RT #17598)
-	- Another fix for count with scalar group_by.
 
 0.05005 2006-02-13 21:24:51
         - remove build dependency on version.pm
