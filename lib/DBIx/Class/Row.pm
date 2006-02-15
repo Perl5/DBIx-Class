@@ -97,6 +97,7 @@ UPDATE query to commit any changes to the object to the db if required.
 sub update {
   my ($self, $upd) = @_;
   $self->throw_exception( "Not in database" ) unless $self->in_storage;
+  $self->set_columns($upd) if $upd;
   my %to_update = $self->get_dirty_columns;
   return $self unless keys %to_update;
   my $ident_cond = $self->ident_condition;
