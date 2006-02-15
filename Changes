@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - made update(\%hash) work on row as well as rs
         - another fix for count with scalar group_by
         - remove dependency on Module::Find in 40resultsetmanager.t (RT #17598)
 
