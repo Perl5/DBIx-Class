@@ -44,6 +44,8 @@ sub new {
   return $new;
 }
 
+=pod
+
 =head2 add_columns
 
   $table->add_columns(qw/col1 col2 col3/);
@@ -52,6 +54,66 @@ sub new {
 
 Adds columns to the result source. If supplied key => hashref pairs uses
 the hashref as the column_info for that column.
+
+Repeated calls of this method will add more columns, not replace them.
+
+The contents of the column_info are not set in stone, the following
+keys are currently recognised/used by DBIx::Class. 
+
+=over 4
+
+=item accessor 
+
+Use this to set the name of the accessor for this column. If unset,
+the name of the column will be used.
+
+=item data_type
+
+This contains the column type, it is automatically filled by the
+L<SQL::Translator::Producer::DBIx::Class::File> producer, and the
+L<DBIx::Class::Schema::Loader> module. If you do not enter the
+data_type, DBIx::Class will attempt to retrieve it from the
+database for you, using L<DBI>s column_info method. The values of this
+key are typically upper-cased.
+
+Currently there is no standard set of values for the data_type, use
+whatever your database(s) support.
+
+=item size
+
+The length of your column, if it is a column type that can have a size
+restriction. This is currently not used by DBIx::Class. 
+
+=item is_nullable
+
+If the column is allowed to contain NULL values, set a true value
+(typically 1), here. This is currently not used by DBIx::Class.
+
+=item is_auto_increment
+
+Set this to a true value if this is a column that is somehow
+automatically filled. This is currently not used by DBIx::Class.
+
+=item is_foreign_key
+
+Set this to a true value if this column represents a key from a
+foreign table. This is currently not used by DBIx::Class.
+
+=item default_value
+
+Set this to the default value which will be inserted into this column
+by the database. Can contain either values or functions. This is
+currently not used by DBIx::Class. 
+
+=item sequence
+
+If your column is using a sequence to create it's values, set the name
+of the sequence here, to allow the values to be retrieved
+automatically by the L<DBIx::Class::PK::Auto> module. PK::Auto will
+attempt to retrieve the sequence name from the database, if this value
+is left unset.
+
+=back
 
 =head2 add_column
 
@@ -85,11 +147,11 @@ sub add_columns {
 
 =head2 has_column
 
-  if ($obj->has_column($col)) { ... }                                           
-                                                                                
+  if ($obj->has_column($col)) { ... }
+
 Returns 1 if the source has a column of this name, 0 otherwise.
-                                                                                
-=cut                                                                            
+
+=cut
 
 sub has_column {
   my ($self, $column) = @_;
@@ -98,11 +160,12 @@ sub has_column {
 
 =head2 column_info 
 
-  my $info = $obj->column_info($col);                                           
+  my $info = $obj->column_info($col);
 
-Returns the column metadata hashref for a column.
-                                                                                
-=cut                                                                            
+Returns the column metadata hashref for a column. See the description
+of add_column for information on the contents of the hashref.
+
+=cut
 
 sub column_info {
   my ($self, $column) = @_;
@@ -150,6 +213,9 @@ called after C<add_columns>.
 
 Additionally, defines a unique constraint named C<primary>.
 
+The primary key columns are used by L<DBIx::Class::PK::Auto> to
+retrieve automatically created values from the database. 
+
 =cut
 
 sub set_primary_key {
@@ -177,7 +243,8 @@ sub primary_columns {
 =head2 add_unique_constraint
 
 Declare a unique constraint on this source. Call once for each unique
-constraint.
+constraint. Unique constraints are used when you call C<find> on a
+L<DBIx::Class::ResultSet, only columns in the constraint are searched,
 
   # For e.g. UNIQUE (column1, column2)
   __PACKAGE__->add_unique_constraint(constraint_name => [ qw/column1 column2/ ]);
@@ -217,7 +284,9 @@ contents.
 
 =head2 storage
 
-Returns the storage handle for the current schema
+Returns the storage handle for the current schema. 
+
+See also: L<DBIx::Class::Storage>
 
 =cut
 
@@ -233,47 +302,48 @@ which the related result source was registered with the current schema
 (for simple schemas this is usally either Some::Namespace::Foo or just Foo)
 
 The condition needs to be an SQL::Abstract-style representation of the join
-between the tables. For example, if you're creating a rel from Foo to Bar,
+between the tables. For example, if you're creating a rel from Author to Book,
 
-  { 'foreign.foo_id' => 'self.id' }                                             
-                                                                                
-will result in the JOIN clause                                                  
-                                                                                
-  foo me JOIN bar bar ON bar.foo_id = me.id                                     
-                                                                                
+  { 'foreign.author_id' => 'self.id' }
+
+will result in the JOIN clause
+
+  author me JOIN book foreign ON foreign.author_id = me.id
+
 You can specify as many foreign => self mappings as necessary.
 
-Valid attributes are as follows:                                                
-                                                                                
-=over 4                                                                         
-                                                                                
-=item join_type                                                                 
-                                                                                
-Explicitly specifies the type of join to use in the relationship. Any SQL       
-join type is valid, e.g. C<LEFT> or C<RIGHT>. It will be placed in the SQL      
-command immediately before C<JOIN>.                                             
-                                                                                
-=item proxy                                                                     
-                                                                                
-An arrayref containing a list of accessors in the foreign class to proxy in     
-the main class. If, for example, you do the following:                          
-                                                                                
-  __PACKAGE__->might_have(bar => 'Bar', undef, { proxy => [ qw/margle/ ] });    
-                                                                                
-Then, assuming Bar has an accessor named margle, you can do:                    
-                                                                                
-  my $obj = Foo->find(1);                                                       
-  $obj->margle(10); # set margle; Bar object is created if it doesn't exist     
-                                                                                
-=item accessor                                                                  
-                                                                                
-Specifies the type of accessor that should be created for the relationship.     
-Valid values are C<single> (for when there is only a single related object),    
-C<multi> (when there can be many), and C<filter> (for when there is a single    
-related object, but you also want the relationship accessor to double as        
-a column accessor). For C<multi> accessors, an add_to_* method is also          
-created, which calls C<create_related> for the relationship.                    
-                                                                                
+Valid attributes are as follows:
+
+=over 4
+
+=item join_type
+
+Explicitly specifies the type of join to use in the relationship. Any
+SQL join type is valid, e.g. C<LEFT> or C<RIGHT>. It will be placed in
+the SQL command immediately before C<JOIN>.
+
+=item proxy
+
+An arrayref containing a list of accessors in the foreign class to
+proxy in the main class. If, for example, you do the following: 
+
+  __PACKAGE__->might_have(bar => 'Bar', undef, { proxy => [ qw/margle/] }); 
+
+Then, assuming Bar has an accessor named margle, you can do:
+
+  my $obj = Foo->find(1);
+  $obj->margle(10); # set margle; Bar object is created if it doesn't exist
+
+=item accessor
+
+Specifies the type of accessor that should be created for the
+relationship. Valid values are C<single> (for when there is only a single 
+related object), C<multi> (when there can be many), and C<filter> (for 
+when there is a single related object, but you also want the relationship 
+accessor to double as a column accessor). For C<multi> accessors, an 
+add_to_* method is also created, which calls C<create_related> for the 
+relationship.
+
 =back
 
 =cut
@@ -342,8 +412,8 @@ sub relationship_info {
 =head2 has_relationship($rel)
 
 Returns 1 if the source has a relationship of this name, 0 otherwise.
-                                                                                
-=cut                                                                            
+
+=cut
 
 sub has_relationship {
   my ($self, $rel) = @_;
@@ -417,7 +487,7 @@ sub resolve_condition {
 }
 
 =head2 resolve_prefetch (hashref/arrayref/scalar)
- 
+
 Accepts one or more relationships for the current source and returns an
 array of column names for each of those relationships. Column names are
 prefixed relative to the current source, in accordance with where they appear
@@ -456,7 +526,7 @@ in the supplied relationships. Examples:
   #  'producer.producerid',
   #  'producer.name'
   #)  
-  
+
 =cut
 
 sub resolve_prefetch {
@@ -496,7 +566,7 @@ sub resolve_prefetch {
 
 =head2 related_source($relname)
 
-Returns the result source for the given relationship
+Returns the result source object for the given relationship
 
 =cut
 
@@ -510,17 +580,19 @@ sub related_source {
 
 =head2 resultset
 
-Returns a resultset for the given source created by calling
+Returns a resultset for the given source, by calling:
 
-$self->resultset_class->new($self, $self->resultset_attributes)
+  $self->resultset_class->new($self, $self->resultset_attributes)
 
 =head2 resultset_class
 
-Simple accessor.
+Set the class of the resultset, this is useful if you want to create your
+own resultset methods. Create your own class derived from
+L<DBIx::Class::ResultSet>, and set it here.
 
 =head2 resultset_attributes
 
-Simple accessor.
+Specify here any attributes you wish to pass to your specialised resultset.
 
 =cut
 
@@ -531,7 +603,7 @@ sub resultset {
 
 =head2 throw_exception
 
-See schema's throw_exception
+See throw_exception in L<DBIx::Class::Schema>.
 
 =cut
 
