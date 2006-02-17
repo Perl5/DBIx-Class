@@ -35,7 +35,7 @@ sub _register_attributes {
             no strict 'refs';
             my $resultset_class = $self->_setup_resultset_class;
             *{"$resultset_class\::$meth"} = $self->can($meth);
-            undef *{"$self\::$meth"};
+            delete ${"${self}::"}{$meth};
         }
     }
 }
