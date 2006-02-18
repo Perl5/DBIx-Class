@@ -84,16 +84,7 @@ sub register_relationship { }
 =cut
 
 sub search_related {
-  my $self = shift;
-  my $rel = shift;
-  my $rs = $self->related_resultset($rel);
-  if( @_ ) {
-    return $rs->search(@_);
-  }
-  else {
-    # search() returns a new resultset, so related_resultsets would be lost
-    return wantarray ? $rs->all : $rs;
-  }
+  return shift->related_resultset(shift)->search(@_);
 }
 
 =head2 count_related

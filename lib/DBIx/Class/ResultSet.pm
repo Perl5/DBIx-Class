@@ -152,24 +152,30 @@ sub search {
   my $self = shift;
 
   #use Data::Dumper;warn Dumper(@_);
+  my $rs;
+  if( @_ ) {
+    
+    my $attrs = { %{$self->{attrs}} };
+    if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+     $attrs = { %$attrs, %{ pop(@_) } };
+    }
 
-  my $attrs = { %{$self->{attrs}} };
-  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
-    $attrs = { %$attrs, %{ pop(@_) } };
-  }
-
-  my $where = (@_ ? ((@_ == 1 || ref $_[0] eq "HASH") ? shift : {@_}) : undef());
-  if (defined $where) {
-    $where = (defined $attrs->{where}
+    my $where = (@_ ? ((@_ == 1 || ref $_[0] eq "HASH") ? shift : {@_}) : undef());
+    if (defined $where) {
+      $where = (defined $attrs->{where}
                 ? { '-and' =>
                     [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
                         $where, $attrs->{where} ] }
                 : $where);
-    $attrs->{where} = $where;
+      $attrs->{where} = $where;
+    }
+
+    $rs = (ref $self)->new($self->result_source, $attrs);
   }
-
-  my $rs = (ref $self)->new($self->result_source, $attrs);
-
+  else {
+    $rs = $self;
+    $rs->reset();
+  }
   return (wantarray ? $rs->all : $rs);
 }
 
