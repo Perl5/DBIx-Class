@@ -244,7 +244,7 @@ sub primary_columns {
 
 Declare a unique constraint on this source. Call once for each unique
 constraint. Unique constraints are used when you call C<find> on a
-L<DBIx::Class::ResultSet, only columns in the constraint are searched,
+L<DBIx::Class::ResultSet>, only columns in the constraint are searched,
 
   # For e.g. UNIQUE (column1, column2)
   __PACKAGE__->add_unique_constraint(constraint_name => [ qw/column1 column2/ ]);
