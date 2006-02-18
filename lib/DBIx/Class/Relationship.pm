@@ -97,8 +97,8 @@ between C<has_one> and C<might_have> is that C<has_one> uses an (ordinary) inner
 whereas C<might_have> uses a left join.
 
 
-=head2 many_to_many                                                             
-                                                                                
+=head2 many_to_many
+
   __PACKAGE__->many_to_many( 'accessorname' => 'a_to_b', 'table_b' );           
   my @f_objs = $obj_a->accessorname;                                            
 

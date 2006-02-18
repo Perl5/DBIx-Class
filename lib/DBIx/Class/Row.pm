@@ -327,7 +327,9 @@ sub is_changed {
 
   Accessor to the ResultSource this object was created from
 
-=head2 register_column($column, $column_info)
+=head2 register_column
+
+=head3 Arguments: ($column, $column_info)
 
   Registers a column on the class. If the column_info has an 'accessor' key,
   creates an accessor named after the value if defined; if there is no such

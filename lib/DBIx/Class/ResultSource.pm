@@ -158,7 +158,7 @@ sub has_column {
   return exists $self->_columns->{$column};
 }
 
-=head2 column_info 
+=head2 column_info
 
   my $info = $obj->column_info($col);
 
@@ -206,7 +206,9 @@ sub columns {
   return @{$self->{_ordered_columns}||[]};
 }
 
-=head2 set_primary_key(@cols)
+=head2 set_primary_key
+
+=head3 Arguments: (@cols)
 
 Defines one or more columns as primary key for this source. Should be
 called after C<add_columns>.
@@ -388,7 +390,7 @@ sub add_relationship {
   1;
 }
 
-=head2 relationships()
+=head2 relationships
 
 Returns all valid relationship names for this source
 
@@ -398,7 +400,9 @@ sub relationships {
   return keys %{shift->_relationships};
 }
 
-=head2 relationship_info($relname)
+=head2 relationship_info
+
+=head3 Arguments: ($relname)
 
 Returns the relationship information for the specified relationship name
 
@@ -409,7 +413,9 @@ sub relationship_info {
   return $self->_relationships->{$rel};
 } 
 
-=head2 has_relationship($rel)
+=head2 has_relationship
+
+=head3 Arguments: ($rel)
 
 Returns 1 if the source has a relationship of this name, 0 otherwise.
 
@@ -420,7 +426,9 @@ sub has_relationship {
   return exists $self->_relationships->{$rel};
 }
 
-=head2 resolve_join($relation)
+=head2 resolve_join
+
+=head3 Arguments: ($relation)
 
 Returns the join structure required for the related result source
 
@@ -453,7 +461,9 @@ sub resolve_join {
   }
 }
 
-=head2 resolve_condition($cond, $as, $alias|$object)
+=head2 resolve_condition
+
+=head3 Arguments: ($cond, $as, $alias|$object)
 
 Resolves the passed condition to a concrete query fragment. If given an alias,
 returns a join condition; if given an object, inverts that object to produce
@@ -486,7 +496,9 @@ sub resolve_condition {
   }
 }
 
-=head2 resolve_prefetch (hashref/arrayref/scalar)
+=head2 resolve_prefetch
+
+=head3 Arguments: (hashref/arrayref/scalar)
 
 Accepts one or more relationships for the current source and returns an
 array of column names for each of those relationships. Column names are
@@ -564,7 +576,9 @@ sub resolve_prefetch {
   }
 }
 
-=head2 related_source($relname)
+=head2 related_source
+
+=head3 Arguments: ($relname)
 
 Returns the result source object for the given relationship
 
