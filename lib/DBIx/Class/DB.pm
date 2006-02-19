@@ -56,7 +56,9 @@ will be focused on Schema-based DBIx::Class setups.
 
 Sets or gets the storage backend. Defaults to L<DBIx::Class::Storage::DBI>.
 
-=head2 class_resolver ****DEPRECATED****
+=head2 class_resolver
+
+****DEPRECATED****
 
 Sets or gets the class to use for resolving a class. Defaults to 
 L<DBIx::Class::ClassResolver::Passthrough>, which returns whatever you give

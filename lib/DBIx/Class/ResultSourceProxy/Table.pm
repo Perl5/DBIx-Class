@@ -56,27 +56,29 @@ sub table {
   }
 }
 
-=head2 has_column                                                                
-                                                                                
-  if ($obj->has_column($col)) { ... }                                           
-                                                                                
-Returns 1 if the class has a column of this name, 0 otherwise.                  
-                                                                                
-=cut                                                                            
+=head2 has_column
 
-=head2 column_info                                                               
-                                                                                
-  my $info = $obj->column_info($col);                                           
-                                                                                
-Returns the column metadata hashref for a column.
-                                                                                
-=cut                                                                            
+  if ($obj->has_column($col)) { ... }
+
+Returns 1 if the class has a column of this name, 0 otherwise.
+
+=cut
+
+=head2 column_info
+
+  my $info = $obj->column_info($col);
+
+Returns the column metadata hashref for a column. For a description of
+the various types of column data in this hashref, see
+L<DBIx::Class::ResultSource/add_column> 
+
+=cut
 
 =head2 columns
 
-  my @column_names = $obj->columns;                                             
-                                                                                
-=cut                                                                            
+  my @column_names = $obj->columns;
+
+=cut
 
 1;
 

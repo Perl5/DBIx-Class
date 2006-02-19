@@ -70,7 +70,9 @@ sub _create_test_table {
         $class->sql__create_me($class->create_sql)->execute unless @vals;
 }
 
-=head2 create_sql (abstract)
+=head2 create_sql
+
+This is an abstract method you must override.
 
 	sub create_sql { 
 		return q{

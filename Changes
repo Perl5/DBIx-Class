@@ -5,6 +5,9 @@ Revision history for DBIx::Class
           (sponsored by Airspace Software, http://www.airspace.co.uk/)
         - clean up set_from_related
         - made copy() automatically null out auto-inc columns
+
+0.05006 2006-02-17 15:32:40
+        - storage fix for fork() and workaround for Apache::DBI
         - made update(\%hash) work on row as well as rs
         - another fix for count with scalar group_by
         - remove dependency on Module::Find in 40resultsetmanager.t (RT #17598)

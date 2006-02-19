@@ -55,7 +55,9 @@ particular which module inherits off which.
 
 =head1 METHODS
 
-=head2 register_class <moniker> <component_class>
+=head2 register_class
+
+=head3 Arguments: <moniker> <component_class>
 
 Registers a class which isa ResultSourceProxy; equivalent to calling
 
@@ -68,7 +70,9 @@ sub register_class {
   $self->register_source($moniker => $to_register->result_source_instance);
 }
 
-=head2 register_source <moniker> <result source>
+=head2 register_source
+
+=head3 Arguments: <moniker> <result source>
 
 Registers the result source in the schema with the given moniker
 
@@ -143,7 +147,9 @@ sub resultset {
   return $self->source($moniker)->resultset;
 }
 
-=head2  load_classes [<classes>, (<class>, <class>), {<namespace> => [<classes>]}]
+=head2 load_classes
+
+=head3 Arguments: [<classes>, (<class>, <class>), {<namespace> => [<classes>]}]
 
 Uses L<Module::Find> to find all classes under the database class' namespace,
 or uses the classes you select.  Then it loads the component (using L<use>), 
@@ -203,7 +209,9 @@ sub load_classes {
   }
 }
 
-=head2 compose_connection <target> <@db_info>
+=head2 compose_connection
+
+=head3 Arguments: <target> <@db_info>
 
 This is the most important method in this class. it takes a target namespace,
 as well as dbh connection info, and creates a L<DBIx::Class::DB> class as
@@ -289,7 +297,9 @@ sub compose_namespace {
   return $schema;
 }
 
-=head2 setup_connection_class <$target> <@info>
+=head2 setup_connection_class
+
+=head3 Arguments: <$target> <@info>
 
 Sets up a database connection class to inject between the schema
 and the subclasses the schema creates.
@@ -303,7 +313,9 @@ sub setup_connection_class {
   $target->connection(@info);
 }
 
-=head2 connection(@args)
+=head2 connection
+
+=head3 Arguments: (@args)
 
 Instantiates a new Storage object of type storage_type and passes the
 arguments to $storage->connect_info. Sets the connection in-place on
@@ -325,7 +337,9 @@ sub connection {
   return $self;
 }
 
-=head2 connect(@info)
+=head2 connect
+
+=head3 Arguments: (@info)
 
 Conveneience method, equivalent to $schema->clone->connection(@info)
 
@@ -375,7 +389,9 @@ sub clone {
   return $clone;
 }
 
-=head2 populate($moniker, \@data);
+=head2 populate
+
+=head3 Arguments: ($moniker, \@data);
 
 Populates the source registered with the given moniker with the supplied data.
 @data should be a list of listrefs, the first containing column names, the

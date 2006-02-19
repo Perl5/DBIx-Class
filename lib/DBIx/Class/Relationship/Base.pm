@@ -69,7 +69,9 @@ created, which calls C<create_related> for the relationship.
 
 =back
 
-=head2 register_relationship($relname, $rel_info)
+=head2 register_relationship
+
+=head3 Arguments: ($relname, $rel_info)
 
 Registers a relationship on the class
 
