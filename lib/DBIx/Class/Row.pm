@@ -258,7 +258,7 @@ sub copy {
       }
     }
   }
-  $new;
+  return $new;
 }
 
 =head2 store_column
