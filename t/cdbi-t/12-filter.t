@@ -164,6 +164,8 @@ package main;
 
 Actor->iterator_class('Class::DBI::My::Iterator');
 
+delete $film->{related_resultsets};
+
 {
 	my @acts = $film->actors->slice(1, 2);
 	is @acts, 2, "Slice gives 2 results";

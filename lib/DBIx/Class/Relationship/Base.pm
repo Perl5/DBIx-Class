@@ -202,7 +202,7 @@ sub delete_related {
 
 Returns a L<DBIx::Class::ResultSet> for the relationship named $name.
 
-  $rs = My::Table->related_resultset('related_table');
+  $rs = $obj->related_resultset('related_table');
 
 =cut
 
