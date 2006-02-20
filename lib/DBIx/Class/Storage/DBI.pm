@@ -299,7 +299,10 @@ sub _connect {
       return $dbh;
   }
 
-  DBI->connect(@info);
+  my $dbh = DBI->connect(@info);
+  croak "DBI Connection failed: $DBI::errstr"
+      unless $dbh;
+  $dbh;
 }
 
 =head2 txn_begin
