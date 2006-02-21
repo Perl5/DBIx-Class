@@ -63,6 +63,12 @@ sub _order_by {
   return $ret;
 }
 
+sub _order_directions {
+  my ($self, $order) = @_;
+  $order = $order->{order_by} if ref $order eq 'HASH';
+  return $self->SUPER::_order_directions($order);
+}
+
 sub _table {
   my ($self, $from) = @_;
   if (ref $from eq 'ARRAY') {
