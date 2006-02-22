@@ -82,8 +82,8 @@ $artist = $rs->first;
 
 # count the SELECTs
 DBI->trace(0, undef);
-my $selects = 0;
-my $trace = IO::File->new('t/var/dbic.trace', '<') 
+$selects = 0;
+$trace = IO::File->new('t/var/dbic.trace', '<') 
     or die "Unable to read trace file";
 while (<$trace>) {
     $selects++ if /SELECT/;
@@ -93,7 +93,7 @@ unlink 't/var/dbic.trace';
 is($selects, 3, 'one SQL statement for each cached table with nested prefetch');
 
 my @objs;
-my $artist = $rs->find(1);
+$artist = $rs->find(1);
 
 unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
 DBI->trace(1, 't/var/dbic.trace');
@@ -116,8 +116,8 @@ is_deeply( \@objs, [ 2, 5, 8 ], 'second cd has correct tags' );
 
 # count the SELECTs
 DBI->trace(0, undef);
-my $selects = 0;
-my $trace = IO::File->new('t/var/dbic.trace', '<') 
+$selects = 0;
+$trace = IO::File->new('t/var/dbic.trace', '<') 
     or die "Unable to read trace file";
 while (<$trace>) {
     $selects++ if /SELECT/;
