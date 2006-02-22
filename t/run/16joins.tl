@@ -255,12 +255,12 @@ SKIP: {
 
 $rs = $schema->resultset("Artist")->search(
   {},
-      { join => [qw/ cds /], group_by => [qw/ me.name /], having =>{ 'MAX(cds.cdid)'=>{'<',5 } } }
+      { join => [qw/ cds /], group_by => [qw/ me.name /], having =>{ 'MAX(cds.cdid)'=> \'< 5' } }
 );
 
 cmp_ok( $rs->all, '==', 2, "results ok after group_by on related column with a having" );
 
-$rs = $rs->search( undef, {  having =>{ 'count(*)'=>{'>',2 } }});
+$rs = $rs->search( undef, {  having =>{ 'count(*)'=> \'> 2' }});
 
 cmp_ok( $rs->all, '==', 1, "count() ok after group_by on related column with a having" );
 
