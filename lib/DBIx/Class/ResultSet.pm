@@ -32,6 +32,7 @@ In the examples below, the following table classes are used:
 
   package MyApp::Schema::Artist;
   use base qw/DBIx::Class/;
+  __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/artistid name/);
   __PACKAGE__->set_primary_key('artistid');
@@ -40,7 +41,8 @@ In the examples below, the following table classes are used:
 
   package MyApp::Schema::CD;
   use base qw/DBIx::Class/;
-  __PACKAGE__->table('artist');
+  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/cdid artist title year/);
   __PACKAGE__->set_primary_key('cdid');
   __PACKAGE__->belongs_to(artist => 'MyApp::Schema::Artist');

@@ -15,7 +15,6 @@ sub inject_base {
 
   my $table = { Class::C3::_dump_MRO_table };
   eval "package $target; import Class::C3;" unless exists $table->{$target};
-  Class::C3::reinitialize() if defined $table->{$target};
 }
 
 sub load_components {
@@ -23,6 +22,7 @@ sub load_components {
   my $base = $class->component_base_class;
   my @comp = map { "${base}::$_" } grep { $_ !~ /^#/ } @_;
   $class->_load_components(@comp);
+  Class::C3::reinitialize();
 }
 
 sub load_own_components {
