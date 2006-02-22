@@ -253,7 +253,24 @@ SKIP: {
     cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
 }
 
-cmp_ok( scalar $rs->all, '==', 3, "all() returns same count as count() after group_by on related column" );
+$rs = $schema->resultset("CD")->search(
+  {},
+      { join => [qw/ artist /], group_by => [qw/ artist.name /], having =>{ 'MAX(cd.id)'=>{'<',5 } } }
+);
+
+SKIP: {
+    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
+        if $is_broken_sqlite;
+    cmp_ok( $rs->count, '==', 2, "count() ok after group_by on related column with a having" );
+}
+
+$rs = $rs->search( {1=>1}, {  having =>{ 'count(*)'=>{'>',2 } }});
+
+SKIP: {
+    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
+        if $is_broken_sqlite;
+    cmp_ok( $rs->count, '==', 1, "count() ok after group_by on related column with a having" );
+}
 
 $rs = $schema->resultset("Artist")->search(
         { 'cds.title' => 'Spoonful of bees',
