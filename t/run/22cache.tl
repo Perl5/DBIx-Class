@@ -3,7 +3,7 @@ my $schema = shift;
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 8;
+plan tests => 12;
 
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
@@ -21,7 +21,7 @@ $rs = $schema->resultset("Artist")->search(
   }
 );
 
-# use Data::Dumper; $Data::Dumper::Deparse = 1;
+use Data::Dumper; $Data::Dumper::Deparse = 1;
 
 # start test for prefetch SELECT count
 unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
@@ -73,6 +73,59 @@ $rs = $schema->resultset("Artist")->search(
     cache => 1
   }
 );
+
+# SELECT count for nested has_many prefetch
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
+
+$artist = $rs->first;
+
+# count the SELECTs
+DBI->trace(0, undef);
+my $selects = 0;
+my $trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT/;
+}
+$trace->close;
+unlink 't/var/dbic.trace';
+is($selects, 3, 'one SQL statement for each cached table with nested prefetch');
+
+my @objs;
+my $artist = $rs->find(1);
+
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
+
+my $cds = $artist->cds;
+my $tags = $cds->next->tags;
+while( my $tag = $tags->next ) {
+  push @objs, $tag->tagid; #warn "tag:", $tag->ID;
+}
+
+is_deeply( \@objs, [ 1 ], 'first cd has correct tags' );
+
+$tags = $cds->next->tags;
+@objs = ();
+while( my $tag = $tags->next ) {
+  push @objs, $tag->id; #warn "tag: ", $tag->ID;
+}
+
+is_deeply( \@objs, [ 2, 5, 8 ], 'second cd has correct tags' );
+
+# count the SELECTs
+DBI->trace(0, undef);
+my $selects = 0;
+my $trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT/;
+}
+$trace->close;
+unlink 't/var/dbic.trace';
+
+is( $selects, 0, 'no additional SQL statements while checking nested data' );
 
 }
 

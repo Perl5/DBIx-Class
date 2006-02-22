@@ -382,6 +382,7 @@ sub _construct_object {
   my ($self, @row) = @_;
   my @row_orig = @row; # copy @row for key comparison later, because @row will change
   my @as = @{ $self->{attrs}{as} };
+#use Data::Dumper; warn Dumper \@as;
   #warn "@cols -> @row";
   my $info = [ {}, {} ];
   foreach my $as (@as) {
@@ -392,57 +393,9 @@ sub _construct_object {
     foreach my $p (@parts) {
       $target = $target->[1]->{$p} ||= [];
       
-      # if cache is enabled, fetch inflated objs for prefetch
-      if( $rs->{attrs}->{cache} ) {
-        my $rel_info = $rs->result_source->relationship_info($p);
-        my $cond = $rel_info->{cond};
-        my $parent_rs = $rs;
-        $rs = $rs->related_resultset($p);
-        $rs->{attrs}->{cache} = 1;
-        my @objs = ();
-          
-        # populate related resultset's cache if empty
-        if( !@{ $rs->get_cache } ) {
-          $rs->all;
-        }
-
-        # get ordinals for pk columns in $row, so values can be compared
-        my $map = {};
-        keys %$cond;
-        my $re = qr/^\w+\./;
-        while( my( $rel_key, $pk ) = ( each %$cond ) ) {
-          $rel_key =~ s/$re//;
-          $pk =~ s/$re//;
-          $map->{$rel_key} = $pk;
-        } #die Dumper $map;
-          
-        keys %$map;
-        while( my( $rel_key, $pk ) = each( %$map ) ) {
-          my $i = 0;
-          foreach my $col ( $parent_rs->result_source->columns ) {
-            if( $col eq $pk ) {
-              $map->{$rel_key} = $i;
-            }
-            $i++;
-          }
-        } #die Dumper $map;
-
-        $rs->reset(); # reset cursor/cache position 
-          
-        # get matching objects for inflation
-        OBJ: while( my $rel_obj = $rs->next ) {
-          keys %$map;
-          KEYS: while( my( $rel_key, $ordinal ) = each %$map ) {
-            # use get_column to avoid auto inflation (want scalar value)
-            if( $rel_obj->get_column($rel_key) ne $row_orig[$ordinal] ) {
-              next OBJ;
-            }
-            push @objs, $rel_obj;
-          }
-        }
-        $target->[0] = \@objs;
-      }
+      $rs = $rs->related_resultset($p) if $rs->{attrs}->{cache};
     }
+    
     $target->[0]->{$col} = shift @row
       if ref($target->[0]) ne 'ARRAY'; # arrayref is pre-inflated objects, do not overwrite
   }
@@ -451,7 +404,54 @@ sub _construct_object {
               $self->result_source, @$info);
   $new = $self->{attrs}{record_filter}->($new)
     if exists $self->{attrs}{record_filter};
+ 
+  if( $self->{attrs}->{cache} ) {
+    while( my( $rel, $rs ) = each( %{$self->{related_resultsets}} ) ) {
+      $rs->all;
+      #warn "$rel:", @{$rs->get_cache};
+    }
+    $self->build_rr( $self, $new );
+  }
+ 
   return $new;
+}
+  
+sub build_rr {
+  # build related resultsets for supplied object
+  my ( $self, $context, $obj ) = @_;
+  
+  my $re = qr/^\w+\./;
+  while( my ($rel, $rs) = each( %{$context->{related_resultsets}} ) ) {  
+    #warn "context:", $context->result_source->name, ", rel:$rel, rs:", $rs->result_source->name;
+    my @objs = ();
+    my $map = {};
+    my $cond = $context->result_source->relationship_info($rel)->{cond};
+    keys %$cond;
+    while( my( $rel_key, $pk ) = each(%$cond) ) {
+      $rel_key =~ s/$re//;
+      $pk =~ s/$re//;
+      $map->{$rel_key} = $pk;
+    }
+    
+    $rs->reset();
+    while( my $rel_obj = $rs->next ) {
+      while( my( $rel_key, $pk ) = each(%$map) ) {
+        if( $rel_obj->get_column($rel_key) eq $obj->get_column($pk) ) {
+          push @objs, $rel_obj;
+        }
+      }
+    }
+
+    my $rel_rs = $obj->related_resultset($rel);
+    $rel_rs->{attrs}->{cache} = 1;
+    $rel_rs->set_cache( \@objs );
+    
+    while( my $rel_obj = $rel_rs->next ) {
+      $self->build_rr( $rs, $rel_obj );
+    }
+    
+  }
+  
 }
 
 =head2 result_source
