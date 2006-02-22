@@ -7,7 +7,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 41 );
+        : ( tests => 42 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -253,24 +253,16 @@ SKIP: {
     cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
 }
 
-$rs = $schema->resultset("CD")->search(
+$rs = $schema->resultset("Artist")->search(
   {},
-      { join => [qw/ artist /], group_by => [qw/ artist.name /], having =>{ 'MAX(cd.id)'=>{'<',5 } } }
+      { join => [qw/ cds /], group_by => [qw/ me.name /], having =>{ 'MAX(cds.cdid)'=>{'<',5 } } }
 );
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok( $rs->count, '==', 2, "count() ok after group_by on related column with a having" );
-}
+cmp_ok( $rs->all, '==', 2, "results ok after group_by on related column with a having" );
 
-$rs = $rs->search( {1=>1}, {  having =>{ 'count(*)'=>{'>',2 } }});
+$rs = $rs->search( undef, {  having =>{ 'count(*)'=>{'>',2 } }});
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok( $rs->count, '==', 1, "count() ok after group_by on related column with a having" );
-}
+cmp_ok( $rs->all, '==', 1, "count() ok after group_by on related column with a having" );
 
 $rs = $schema->resultset("Artist")->search(
         { 'cds.title' => 'Spoonful of bees',

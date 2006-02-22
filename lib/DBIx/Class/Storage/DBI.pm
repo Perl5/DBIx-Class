@@ -17,8 +17,10 @@ use base qw/SQL::Abstract::Limit/;
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
   @rest = (-1) unless defined $rest[0];
-  $self->SUPER::select($table, $self->_recurse_fields($fields), 
-                         $where, $order, @rest);
+  local $self->{having_bind} = [];
+  my ($sql, @ret) = $self->SUPER::select($table,
+                      $self->_recurse_fields($fields), $where, $order, @rest);
+  return wantarray ? ($sql, @ret, @{$self->{having_bind}}) : $sql;
 }
 
 sub _emulate_limit {
@@ -49,10 +51,17 @@ sub _recurse_fields {
 sub _order_by {
   my $self = shift;
   my $ret = '';
+  my @extra;
   if (ref $_[0] eq 'HASH') {
     if (defined $_[0]->{group_by}) {
       $ret = $self->_sqlcase(' group by ')
                .$self->_recurse_fields($_[0]->{group_by});
+    }
+    if (defined $_[0]->{having}) {
+      my $frag;
+      ($frag, @extra) = $self->_recurse_where($_[0]->{having});
+      push(@{$self->{having_bind}}, @extra);
+      $ret .= $self->_sqlcase(' having ').$frag;
     }
     if (defined $_[0]->{order_by}) {
       $ret .= $self->SUPER::_order_by($_[0]->{order_by});
@@ -395,8 +404,9 @@ sub _select {
   if (ref $condition eq 'SCALAR') {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
-  if (exists $attrs->{group_by}) {
+  if (exists $attrs->{group_by} || $attrs->{having}) {
     $order = { group_by => $attrs->{group_by},
+               having => $attrs->{having},
                ($order ? (order_by => $order) : ()) };
   }
   my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);

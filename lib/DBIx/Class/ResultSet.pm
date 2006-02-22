@@ -160,6 +160,7 @@ sub search {
   if( @_ ) {
     
     my $attrs = { %{$self->{attrs}} };
+    my $having = delete $attrs->{having};
     if (@_ > 1 && ref $_[$#_] eq 'HASH') {
      $attrs = { %$attrs, %{ pop(@_) } };
     }
@@ -172,6 +173,15 @@ sub search {
                         $where, $attrs->{where} ] }
                 : $where);
       $attrs->{where} = $where;
+    }
+
+    if (defined $having) {
+      $having = (defined $attrs->{having}
+                ? { '-and' =>
+                    [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
+                        $having, $attrs->{having} ] }
+                : $having);
+      $attrs->{having} = $having;
     }
 
     $rs = (ref $self)->new($self->result_source, $attrs);
@@ -485,13 +495,15 @@ sub count {
       if @{ $self->get_cache };
     my $group_by;
     my $select = { 'count' => '*' };
-    if( $group_by = delete $self->{attrs}{group_by} ) {
+    my $attrs = { %{ $self->{attrs} } };
+    if( $group_by = delete $attrs->{group_by} ) {
+      delete $attrs->{having};
       my @distinct = (ref $group_by ?  @$group_by : ($group_by));
       # todo: try CONCAT for multi-column pk
       my @pk = $self->result_source->primary_columns;
       if( scalar(@pk) == 1 ) {
         my $pk = shift(@pk);
-        my $alias = $self->{attrs}{alias};
+        my $alias = $attrs->{alias};
         my $re = qr/^($alias\.)?$pk$/;
         foreach my $column ( @distinct) {
           if( $column =~ $re ) {
@@ -505,14 +517,12 @@ sub count {
       #use Data::Dumper; die Dumper $select;
     }
 
-    my $attrs = { %{ $self->{attrs} },
-                  select => $select,
-                  as => [ 'count' ] };
+    $attrs->{select} = $select;
+    $attrs->{as} = [ 'count' ];
     # offset, order by and page are not needed to count. record_filter is cdbi
     delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
         
     ($self->{count}) = (ref $self)->new($self->result_source, $attrs)->cursor->next;
-    $self->{attrs}{group_by} = $group_by;
   }
   return 0 unless $self->{count};
   my $count = $self->{count};
