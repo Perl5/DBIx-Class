@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - tweak to Componentised for Class::C3 0.11
+        - fixes for auto-inc under MSSQL
+
 0.05006 2006-02-17 15:32:40
         - storage fix for fork() and workaround for Apache::DBI
         - made update(\%hash) work on row as well as rs
