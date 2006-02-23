@@ -3,7 +3,7 @@ package DBIx::Class::ResultSet;
 use strict;
 use warnings;
 use overload
-        '0+'     => 'count',
+        '0+'     => \&count,
         'bool'   => sub { 1; },
         fallback => 1;
 use Data::Page;

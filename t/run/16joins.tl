@@ -73,7 +73,7 @@ my $rs = $schema->resultset("CD")->search(
                          ] ] }
          );
 
-cmp_ok( $rs->count, '==', 1, "Single record in resultset");
+cmp_ok( $rs + 0, '==', 1, "Single record in resultset");
 
 is($rs->first->title, 'Forkful of bees', 'Correct record returned');
 
@@ -81,7 +81,7 @@ $rs = $schema->resultset("CD")->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { join => 'artist' });
 
-cmp_ok( $rs->count, '==', 1, "Single record in resultset");
+cmp_ok( $rs + 0, '==', 1, "Single record in resultset");
 
 is($rs->first->title, 'Forkful of bees', 'Correct record returned');
 
@@ -90,7 +90,7 @@ $rs = $schema->resultset("CD")->search(
              'liner_notes.notes' => 'Kill Yourself!' },
            { join => [ qw/artist liner_notes/ ] });
 
-cmp_ok( $rs->count, '==', 1, "Single record in resultset");
+cmp_ok( $rs + 0, '==', 1, "Single record in resultset");
 
 is($rs->first->title, 'Come Be Depressed With Us', 'Correct record returned');
 
@@ -114,7 +114,7 @@ $rs = $schema->resultset("CD")->search(
            { prefetch => [ qw/artist liner_notes/ ],
              order_by => 'me.cdid' });
 
-cmp_ok($rs->count, '==', 3, 'Correct number of records returned');
+cmp_ok($rs + 0, '==', 3, 'Correct number of records returned');
 
 # start test for prefetch SELECT count
 unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
