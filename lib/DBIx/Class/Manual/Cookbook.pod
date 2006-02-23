@@ -601,4 +601,20 @@ in SQL::Abstract::Limit -documentation.
 The JDBC-bridge is one way of getting access to a MSSQL-server from a platform
 that Microsoft doesn't deliver native client libraries for. (e.g. Linux)
 
+=head2 Setting quotes for the generated SQL. 
+
+If the database contains columnames with spaces and/or reserved words, the
+SQL-query needs to be quoted. This is done using:
+
+  __PACKAGE__->storage->sql_maker->quote_char([ qw/[ ]/] );
+  __PACKAGE__->storage->sql_maker->name_sep('.');
+
+The first sets the quotesymbols. If the quote i "symmetric" as " or '
+  
+  __PACKAGE__->storage->sql_maker->quote_char('"');
+
+is enough. If the left qoute differs form the right quote, the first 
+notation should be used. name_sep needs to be set to allow the 
+SQL generator to put the quotes the correct place. 
+
 =cut
