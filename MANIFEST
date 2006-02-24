@@ -34,6 +34,7 @@ lib/DBIx/Class/InflateColumn.pm
 lib/DBIx/Class/Manual.pod
 lib/DBIx/Class/Manual/Cookbook.pod
 lib/DBIx/Class/Manual/FAQ.pod
+lib/DBIx/Class/Manual/Glossary.pod
 lib/DBIx/Class/Manual/Intro.pod
 lib/DBIx/Class/Manual/SchemaIntro.pod
 lib/DBIx/Class/Manual/Troubleshooting.pod
@@ -85,6 +86,7 @@ t/20setuperrors.t
 t/30dbicplain.t
 t/40resultsetmanager.t
 t/41orrible.t
+t/42toplimit.t
 t/50fork.t
 t/basicrels/01core.t
 t/basicrels/04db.t
