@@ -428,6 +428,18 @@ sub throw_exception {
   croak @_;
 }
 
+=head2 deploy
+
+Attempts to deploy the schema to the current storage
+
+=cut
+
+sub deploy {
+  my ($self) = shift;
+  $self->throw_exception("Can't deploy without storage") unless $self->storage;
+  $self->storage->deploy($self);
+}
+
 1;
 
 =head1 AUTHORS

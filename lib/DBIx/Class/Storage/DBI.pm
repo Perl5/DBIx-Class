@@ -215,12 +215,17 @@ sub new {
   $new->transaction_depth(0);
   if (defined($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}) &&
      ($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} =~ /=(.+)$/)) {
-    $new->debugfh(IO::File->new($1, 'w')||croak "Cannot open trace file $1");
+    $new->debugfh(IO::File->new($1, 'w')) || $new->throw_exception("Cannot open trace file $1");
   } else {
     $new->debugfh(IO::File->new('>&STDERR'));
   }
   $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
   return $new;
+}
+
+sub throw_exception {
+  my ($self, $msg) = @_;
+  croask($msg);
 }
 
 =head1 NAME 
@@ -339,7 +344,7 @@ sub _connect {
   }
 
   my $dbh = DBI->connect(@info);
-  croak "DBI Connection failed: $DBI::errstr"
+  $self->throw_exception("DBI Connection failed: $DBI::errstr")
       unless $dbh;
   $dbh;
 }
@@ -396,20 +401,20 @@ sub _execute {
       $self->debugfh->print("$sql: @debug_bind\n");
   }
   my $sth = $self->sth($sql,$op);
-  croak "no sth generated via sql: $sql" unless $sth;
+  $self->throw_exception("no sth generated via sql: $sql") unless $sth;
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {  
     $rv = $sth->execute(@bind);
   } else { 
-    croak "'$sql' did not generate a statement.";
+    $self->throw_exception("'$sql' did not generate a statement.");
   }
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
 
 sub insert {
   my ($self, $ident, $to_insert) = @_;
-  croak( "Couldn't insert ".join(', ', map "$_ => $to_insert->{$_}", keys %$to_insert)." into ${ident}" )
+  $self->throw_exception( "Couldn't insert ".join(', ', map "$_ => $to_insert->{$_}", keys %$to_insert)." into ${ident}" )
     unless ($self->_execute('insert' => [], $ident, $to_insert));
   return $to_insert;
 }
@@ -484,7 +489,7 @@ sub columns_info_for {
             $column_info{is_nullable} = $info->{NULLABLE};
             $result{$info->{COLUMN_NAME}} = \%column_info;
         }
-    }else{
+    } else {
         my $sth = $self->dbh->prepare("SELECT * FROM $table WHERE 1=0");
         $sth->execute;
         my @columns = @{$sth->{NAME}};
@@ -502,7 +507,31 @@ sub last_insert_id {
 
 }
 
+sub sqlt_type {
+  my ($self) = @_;
+  my $dsn = $self->connect_info->[0];
+  $dsn =~ /^dbi:(.*?)\d*:/;
+  return $1;
+}
 
+sub deployment_statements {
+  my ($self, $schema, $type) = @_;
+  $type ||= $self->sqlt_type;
+  eval "use SQL::Translator";
+  $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
+  eval "use SQL::Translator::Parser::DBIx::Class;";
+  $self->throw_exception($@) if $@; 
+  eval "use SQL::Translator::Producer::${type};";
+  $self->throw_exception($@) if $@;
+  my $tr = SQL::Translator->new();
+  SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
+  return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
+}
+
+sub deploy {
+  my ($self, $schema, $type) = @_;
+  $self->dbh->do($_) for split(";\n", $self->deployment_statements($schema, $type));
+}
 
 sub DESTROY { shift->disconnect }
 

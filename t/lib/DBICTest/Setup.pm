@@ -1,30 +1,26 @@
 use strict;
 use warnings;
-use DBICTest::Schema;
+use DBICTest;
 
-my $db_file = "t/var/DBIxClass.db";
-
-unlink($db_file) if -e $db_file;
-unlink($db_file . "-journal") if -e $db_file . "-journal";
-mkdir("t/var") unless -d "t/var";
-
-my $dsn = "dbi:SQLite:${db_file}";
-
-my $schema = DBICTest::Schema->compose_connection('DBICTest' => $dsn);
+my $schema = DBICTest->initialise;
 
 $schema->storage->on_connect_do([ "PRAGMA synchronous = OFF" ]);
 
 my $dbh = $schema->storage->dbh;
 
-open IN, "t/lib/sqlite.sql";
+if ($ENV{"DBICTEST_SQLT_DEPLOY"}) {
+  $schema->deploy;
+} else {
+  open IN, "t/lib/sqlite.sql";
 
-my $sql;
+  my $sql;
 
-{ local $/ = undef; $sql = <IN>; }
+  { local $/ = undef; $sql = <IN>; }
 
-close IN;
+  close IN;
 
-$dbh->do($_) for split(/\n\n/, $sql);
+  $dbh->do($_) for split(/\n\n/, $sql);
+}
 
 $schema->storage->dbh->do("PRAGMA synchronous = OFF");
 
