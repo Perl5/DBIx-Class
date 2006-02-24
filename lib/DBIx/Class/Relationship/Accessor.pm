@@ -39,8 +39,7 @@ sub add_relationship_accessor {
         },
         deflate => sub {
           my ($val, $self) = @_;
-          $self->throw_exception("$val isn't a $f_class")
-            unless $val->isa($self->result_source->schema->class($f_class));
+          $self->throw_exception("$val isn't a $f_class") unless $val->isa($f_class);
           return ($val->_ident_values)[0];
             # WARNING: probably breaks for multi-pri sometimes. FIXME
         }
