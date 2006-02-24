@@ -6,6 +6,7 @@ Revision history for DBIx::Class
         - clean up set_from_related
         - made copy() automatically null out auto-inc columns
 
+0.05007 2006-02-24 00:59:00
         - tweak to Componentised for Class::C3 0.11
         - fixes for auto-inc under MSSQL
 
