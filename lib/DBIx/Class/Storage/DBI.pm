@@ -225,7 +225,7 @@ sub new {
 
 sub throw_exception {
   my ($self, $msg) = @_;
-  croask($msg);
+  croak($msg);
 }
 
 =head1 NAME 
