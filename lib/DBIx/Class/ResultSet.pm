@@ -155,7 +155,6 @@ call it as C<search({}, \%attrs);>.
 sub search {
   my $self = shift;
 
-  #use Data::Dumper;warn Dumper(@_);
   my $rs;
   if( @_ ) {
     
@@ -165,7 +164,14 @@ sub search {
      $attrs = { %$attrs, %{ pop(@_) } };
     }
 
-    my $where = (@_ ? ((@_ == 1 || ref $_[0] eq "HASH") ? shift : {@_}) : undef());
+    my $where = (@_
+                  ? ((@_ == 1 || ref $_[0] eq "HASH")
+                      ? shift
+                      : ((@_ % 2)
+                          ? $self->throw_exception(
+                              "Odd number of arguments to search")
+                          : {@_}))
+                  : undef());
     if (defined $where) {
       $where = (defined $attrs->{where}
                 ? { '-and' =>
@@ -377,12 +383,16 @@ Can be used to efficiently iterate over records in the resultset:
 
 sub next {
   my ($self) = @_;
-  my $cache = $self->get_cache;
-  if( @$cache ) {
+  my $cache;
+  if( @{$cache = $self->{all_cache} || []}) {
     $self->{all_cache_position} ||= 0;
     my $obj = $cache->[$self->{all_cache_position}];
     $self->{all_cache_position}++;
     return $obj;
+  }
+  if ($self->{attrs}{cache}) {
+    $self->{all_cache_position} = 0;
+    return ($self->all)[0];
   }
   my @row = $self->cursor->next;
 #  warn Dumper(\@row); use Data::Dumper;
@@ -555,7 +565,7 @@ sub all {
     my @obj = map { $self->_construct_object(@$_); }
             $self->cursor->all;
     $self->set_cache( \@obj );
-    return @{ $self->get_cache };
+    return @obj;
   }
   return map { $self->_construct_object(@$_); }
            $self->cursor->all;
