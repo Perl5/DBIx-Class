@@ -371,6 +371,96 @@ Rolls back the current transaction.
 
 sub txn_rollback { shift->storage->txn_rollback }
 
+=head2 txn_do
+
+=head3 Arguments: <coderef>, [@coderef_args]
+
+Executes <coderef> with (optional) arguments <@coderef_args> transactionally,
+returning its result (if any). If an exception is caught, a rollback is issued
+and the exception is rethrown. If the rollback fails, (i.e. throws an
+exception) an exception is thrown that includes a "Rollback failed" message.
+
+For example,
+
+  my $foo = $schema->resultset('foo')->find(1);
+
+  my $coderef = sub {
+    my ($foo, @bars) = @_;
+
+    # If any one of these fails, the entire transaction fails
+    $foo->create_related('bars', {
+      col => $_
+    }) foreach (@bars);
+
+    return $foo->bars;
+  };
+
+  my $rs;
+  eval {
+    $rs = $schema->txn_do($coderef, $foo, qw/foo bar baz/);
+  };
+
+  if ($@) {
+    my $error = $@;
+    if ($error =~ /Rollback failed/) {
+      die "something terrible has happened!";
+    } else {
+      deal_with_failed_transaction();
+      die $error;
+    }
+  }
+
+Nested transactions should work as expected (i.e. only the outermost
+transaction will issue a txn_commit on the Schema's storage)
+
+=cut
+
+sub txn_do {
+  my ($self, $coderef, @args) = @_;
+
+  ref $self or $self->throw_exception('Cannot execute txn_do as a '.
+    'class method');
+
+  my (@return_values, $return_value);
+
+  $self->txn_begin; # If this throws an exception, no rollback is needed
+
+  my $wantarray = wantarray; # Need to save this since it's reset in eval{}
+
+  eval {
+    # Need to differentiate between scalar/list context to allow for returning
+    # a list in scalar context to get the size of the list
+    if ($wantarray) {
+      @return_values = $coderef->(@args);
+    } else {
+      $return_value = $coderef->(@args);
+    }
+    $self->txn_commit;
+  };
+
+  if ($@) {
+    my $error = $@;
+
+    eval {
+      $self->txn_rollback;
+    };
+
+    if ($@) {
+      my $rollback_error = $@;
+      my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
+      $self->throw_exception($error)  # propagate nested rollback
+	if $rollback_error =~ /$exception_class/;
+
+      $self->throw_exception("Transaction aborted: $error. Rollback failed: ".
+                             $rollback_error);
+    } else {
+      $self->throw_exception($error); # txn failed but rollback succeeded
+    }
+  }
+
+  return $wantarray ? @return_values : $return_value;
+}
+
 =head2 clone
 
 Clones the schema and its associated result_source objects and returns the
@@ -397,12 +487,12 @@ Populates the source registered with the given moniker with the supplied data.
 @data should be a list of listrefs, the first containing column names, the
 second matching values - i.e.
 
-$schema->populate('Foo', [
-  [ qw/foo_id foo_string/ ],
-  [ 1, 'One' ],
-  [ 2, 'Two' ],
-  ...
-]);
+  $schema->populate('Foo', [
+    [ qw/foo_id foo_string/ ],
+    [ 1, 'One' ],
+    [ 2, 'Two' ],
+    ...
+  ]);
 
 =cut
 

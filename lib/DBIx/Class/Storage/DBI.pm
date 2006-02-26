@@ -1,5 +1,7 @@
 package DBIx::Class::Storage::DBI;
 
+use base 'DBIx::Class::Storage';
+
 use strict;
 use warnings;
 use DBI;
@@ -363,11 +365,24 @@ Issues a rollback against the current dbh.
 
 sub txn_rollback {
   my $self = shift;
-  if ($self->{transaction_depth} == 0) {
-    $self->dbh->rollback unless $self->dbh->{AutoCommit};
-  }
-  else {
-    --$self->{transaction_depth} == 0 ? $self->dbh->rollback : die $@;    
+
+  eval {
+    if ($self->{transaction_depth} == 0) {
+      $self->dbh->rollback unless $self->dbh->{AutoCommit};
+    }
+    else {
+      --$self->{transaction_depth} == 0 ?
+        $self->dbh->rollback :
+	die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
+    }
+  };
+
+  if ($@) {
+    my $error = $@;
+    my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
+    $error =~ /$exception_class/ and $self->throw_exception($error);
+    $self->{transaction_depth} = 0;          # ensure that a failed rollback
+    $self->throw_exception($error);          # resets the transaction depth
   }
 }
 
