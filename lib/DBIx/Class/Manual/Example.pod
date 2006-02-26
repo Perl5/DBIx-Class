@@ -139,7 +139,7 @@ testdb.pl:
  use DB::Main;
  use strict;
 
- my $schema = DB::Main->connect('dbi:mysql:cdtestdb', 'serval', 'TNOownage');
+ my $schema = DB::Main->connect('dbi:mysql:cdtestdb', 'testuser', 'testpass');
 
  get_tracks_by_cd('Bad');
  get_tracks_by_artist('Michael Jackson');
