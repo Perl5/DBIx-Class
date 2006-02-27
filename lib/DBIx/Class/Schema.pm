@@ -418,8 +418,10 @@ transaction will issue a txn_commit on the Schema's storage)
 sub txn_do {
   my ($self, $coderef, @args) = @_;
 
-  ref $self or $self->throw_exception('Cannot execute txn_do as a '.
-    'class method');
+  ref $self or $self->throw_exception
+    ('Cannot execute txn_do as a class method');
+  ref $coderef eq 'CODE' or $self->throw_exception
+    ('$coderef must be a CODE reference');
 
   my (@return_values, $return_value);
 

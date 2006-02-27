@@ -1,6 +1,6 @@
 sub run_tests {
 my $schema = shift;
-plan tests => 37;
+plan tests => 39;
 
 my $code = sub {
   my ($artist, @cd_titles) = @_;
@@ -12,6 +12,19 @@ my $code = sub {
   
   return $artist->cds->all;
 };
+
+# Test checking of parameters
+{
+
+  eval {
+    (ref $schema)->txn_do(sub{});
+  };
+  like($@, qr/class method/, '$coderef parameter check ok');
+  eval {
+    $schema->txn_do('');
+  };
+  like($@, qr/must be a CODE reference/, '$coderef parameter check ok');
+}
 
 # Test successful txn_do() - scalar context
 {
