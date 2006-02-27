@@ -15,11 +15,10 @@ my $code = sub {
 
 # Test checking of parameters
 {
-
   eval {
     (ref $schema)->txn_do(sub{});
   };
-  like($@, qr/class method/, '$coderef parameter check ok');
+  like($@, qr/class method/, '$self parameter check ok');
   eval {
     $schema->txn_do('');
   };
