@@ -530,7 +530,9 @@ sub deployment_statements {
 
 sub deploy {
   my ($self, $schema, $type) = @_;
-  $self->dbh->do($_) for split(";\n", $self->deployment_statements($schema, $type));
+  foreach(split(";\n", $self->deployment_statements($schema, $type))) {
+	  $self->dbh->do($_) or warn "SQL was:\n $_";
+  } 
 }
 
 sub DESTROY { shift->disconnect }

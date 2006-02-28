@@ -11,6 +11,10 @@ sub last_insert_id {
   return $_[0]->_dbh->{mysql_insertid};
 }
 
+sub sqlt_type {
+  return 'MySQL';
+}
+
 1;
 
 =head1 NAME 
