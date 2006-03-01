@@ -5,6 +5,16 @@ eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
 plan tests => 12;
 
+warn "
+This test WILL fail. That's because the has_many prefetch code is
+only half re-written. However, it was utterly borken before, so
+this is arguably an improvement. If you fancy having a go at making
+_construct_object in resultset collapse multiple results into
+appropriate nested structures for inflate_result, be my guest.
+     -- mst
+
+";
+
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
 );
@@ -18,7 +28,6 @@ $rs = $schema->resultset("Artist")->search(
   {
     join => [ qw/ cds /],
     prefetch => [qw/ cds /],
-    cache => 1,
   }
 );
 
@@ -72,7 +81,6 @@ $rs = $schema->resultset("Artist")->search(
     prefetch => {
       cds => 'tags'
     },
-    cache => 1
   }
 );
 

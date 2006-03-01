@@ -545,35 +545,41 @@ in the supplied relationships. Examples:
 =cut
 
 sub resolve_prefetch {
-  my ($self, $pre, $alias, $seen) = @_;
+  my ($self, $pre, $alias, $seen, $order) = @_;
   $seen ||= {};
   use Data::Dumper;
   #$alias ||= $self->name;
   #warn $alias, Dumper $pre;
   if( ref $pre eq 'ARRAY' ) {
-    return map { $self->resolve_prefetch( $_, $alias, $seen ) } @$pre;
+    return map { $self->resolve_prefetch( $_, $alias, $seen, $order ) } @$pre;
   }
   elsif( ref $pre eq 'HASH' ) {
     my @ret =
     map {
-      $self->resolve_prefetch($_, $alias, $seen),
+      $self->resolve_prefetch($_, $alias, $seen, $order),
       $self->related_source($_)->resolve_prefetch(
-                                   $pre->{$_}, "${alias}.$_", $seen)
+                                   $pre->{$_}, "${alias}.$_", $seen, $order)
         } keys %$pre;
     #die Dumper \@ret;
     return @ret;
   }
   elsif( ref $pre ) {
-    $self->throw_exception( "don't know how to resolve prefetch reftype " . ref $pre);
+    $self->throw_exception(
+      "don't know how to resolve prefetch reftype ".ref($pre));
   }
   else {
     my $count = ++$seen->{$pre};
     my $as = ($count > 1 ? "${pre}_${count}" : $pre);
     my $rel_info = $self->relationship_info( $pre );
-    $self->throw_exception( $self->name . " has no such relationship '$pre'" ) unless $rel_info;
+    $self->throw_exception( $self->name . " has no such relationship '$pre'" )
+      unless $rel_info;
     my $as_prefix = ($alias =~ /^.*?\.(.*)$/ ? $1.'.' : '');
+    my $rel_source = $self->related_source($pre);
+    push(@$order,
+      map { "${as}.$_" }
+        (@{$rel_info->{order_by}||[]}, $rel_source->primary_columns));
     return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
-      $self->related_source($pre)->columns;
+      $rel_source->columns;
     #warn $alias, Dumper (\@ret);
     #return @ret;
   }

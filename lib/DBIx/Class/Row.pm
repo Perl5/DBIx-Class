@@ -298,25 +298,37 @@ sub inflate_result {
   foreach my $pre (keys %{$prefetch||{}}) {
     my $pre_val = $prefetch->{$pre};
     my $pre_source = $source->related_source($pre);
-    $class->throw_exception("Can't prefetch non-existent relationship ${pre}") unless $pre_source;
-    my $fetched;
-    unless ($pre_source->primary_columns == grep { exists $prefetch->{$pre}[0]{$_} 
-       and !defined $prefetch->{$pre}[0]{$_} } $pre_source->primary_columns)
-    {
-      $fetched = $pre_source->result_class->inflate_result(
-                    $pre_source, @{$prefetch->{$pre}});      
-    }
-    my $accessor = $source->relationship_info($pre)->{attrs}{accessor};
-    $class->throw_exception("No accessor for prefetched $pre")
-     unless defined $accessor;
-    if ($accessor eq 'single') {
-      $new->{_relationship_data}{$pre} = $fetched;
-    } elsif ($accessor eq 'filter') {
-     $new->{_inflated_column}{$pre} = $fetched;
-    } elsif ($accessor eq 'multi') {
-      
+    $class->throw_exception("Can't prefetch non-existent relationship ${pre}")
+      unless $pre_source;
+    if (ref $pre_val->[0] eq 'ARRAY') { # multi
+      my @pre_objects;
+      foreach my $pre_rec (@$pre_val) {
+        unless ($pre_source->primary_columns == grep { exists $pre_rec->[0]{$_} 
+           and !defined $pre_rec->[0]{$_} } $pre_source->primary_columns) {
+          next;
+        }
+        push(@pre_objects, $pre_source->result_class->inflate_result(
+                             $pre_source, @{$pre_rec}));
+      }
+      $new->related_resultset($pre)->set_cache(\@pre_objects);
     } else {
-     $class->throw_exception("Prefetch not supported with accessor '$accessor'");
+      my $fetched;
+      unless ($pre_source->primary_columns == grep { exists $pre_val->[0]{$_} 
+         and !defined $pre_val->[0]{$_} } $pre_source->primary_columns)
+      {
+        $fetched = $pre_source->result_class->inflate_result(
+                      $pre_source, @{$pre_val});      
+      }
+      my $accessor = $source->relationship_info($pre)->{attrs}{accessor};
+      $class->throw_exception("No accessor for prefetched $pre")
+       unless defined $accessor;
+      if ($accessor eq 'single') {
+        $new->{_relationship_data}{$pre} = $fetched;
+      } elsif ($accessor eq 'filter') {
+        $new->{_inflated_column}{$pre} = $fetched;
+      } else {
+       $class->throw_exception("Prefetch not supported with accessor '$accessor'");
+      }
     }
   }
   return $new;

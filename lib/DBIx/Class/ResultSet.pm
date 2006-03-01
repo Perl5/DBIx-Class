@@ -102,6 +102,10 @@ sub new {
   }
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
 
+  $attrs->{order_by} = [ $attrs->{order_by} ]
+    if $attrs->{order_by} && !ref($attrs->{order_by});
+  $attrs->{order_by} ||= [];
+
   if (my $prefetch = delete $attrs->{prefetch}) {
     foreach my $p (ref $prefetch eq 'ARRAY'
               ? (@{$prefetch}) : ($prefetch)) {
@@ -115,7 +119,8 @@ sub new {
         push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
             unless $seen{$p};
       }
-      my @prefetch = $source->resolve_prefetch($p, $attrs->{alias});
+      my @prefetch = $source->resolve_prefetch(
+           $p, $attrs->{alias}, {}, $attrs->{order_by});
       #die Dumper \@cols;
       push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
       push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
@@ -394,7 +399,7 @@ sub next {
     $self->{all_cache_position} = 0;
     return ($self->all)[0];
   }
-  my @row = $self->cursor->next;
+  my @row = delete $self->{stashed_row} || $self->cursor->next;
 #  warn Dumper(\@row); use Data::Dumper;
   return unless (@row);
   return $self->_construct_object(@row);
@@ -427,53 +432,7 @@ sub _construct_object {
   $new = $self->{attrs}{record_filter}->($new)
     if exists $self->{attrs}{record_filter};
  
-  if( $self->{attrs}->{cache} ) {
-    while( my( $rel, $rs ) = each( %{$self->{related_resultsets}} ) ) {
-      $rs->all;
-      #warn "$rel:", @{$rs->get_cache};
-    }
-    $self->build_rr( $self, $new );
-  }
- 
   return $new;
-}
-  
-sub build_rr {
-  # build related resultsets for supplied object
-  my ( $self, $context, $obj ) = @_;
-  
-  my $re = qr/^\w+\./;
-  while( my ($rel, $rs) = each( %{$context->{related_resultsets}} ) ) {  
-    #warn "context:", $context->result_source->name, ", rel:$rel, rs:", $rs->result_source->name;
-    my @objs = ();
-    my $map = {};
-    my $cond = $context->result_source->relationship_info($rel)->{cond};
-    keys %$cond;
-    while( my( $rel_key, $pk ) = each(%$cond) ) {
-      $rel_key =~ s/$re//;
-      $pk =~ s/$re//;
-      $map->{$rel_key} = $pk;
-    }
-    
-    $rs->reset();
-    while( my $rel_obj = $rs->next ) {
-      while( my( $rel_key, $pk ) = each(%$map) ) {
-        if( $rel_obj->get_column($rel_key) eq $obj->get_column($pk) ) {
-          push @objs, $rel_obj;
-        }
-      }
-    }
-
-    my $rel_rs = $obj->related_resultset($rel);
-    $rel_rs->{attrs}->{cache} = 1;
-    $rel_rs->set_cache( \@objs );
-    
-    while( my $rel_obj = $rel_rs->next ) {
-      $self->build_rr( $rs, $rel_obj );
-    }
-    
-  }
-  
 }
 
 =head2 result_source
@@ -913,13 +872,12 @@ sub related_resultset {
       "search_related: result source '" . $self->result_source->name .
       "' has no such relationship ${rel}")
       unless $rel_obj; #die Dumper $self->{attrs};
-    my $rs;
-    if( $self->{attrs}->{cache} ) {
-      $rs = $self->search(undef);
-    }
-    else {
-      $rs = $self->search(undef, { join => $rel });
-    }
+    my $rs = $self->search(undef, { join => $rel });
+    #if( $self->{attrs}->{cache} ) {
+    #  $rs = $self->search(undef);
+    #}
+    #else {
+    #}
     #use Data::Dumper; die Dumper $rs->{attrs};#$rs = $self->search( undef );
     #use Data::Dumper; warn Dumper $self->{attrs}, Dumper $rs->{attrs};
     my $alias = (defined $rs->{attrs}{seen_join}{$rel}
