@@ -42,7 +42,8 @@ DBICTest::Schema::CD_to_Producer->belongs_to(
 );
 DBICTest::Schema::Artist->has_many(
   'artist_undirected_maps', 'DBICTest::Schema::ArtistUndirectedMap',
-  [{'foreign.id1' => 'self.artistid'}, {'foreign.id2' => 'self.artistid'}]
+  [{'foreign.id1' => 'self.artistid'}, {'foreign.id2' => 'self.artistid'}],
+  { cascade_copy => 0 } # this would *so* not make sense
 );
 DBICTest::Schema::ArtistUndirectedMap->belongs_to(
   'artist1', 'DBICTest::Schema::Artist', 'id1');

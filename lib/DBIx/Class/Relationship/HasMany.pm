@@ -35,6 +35,7 @@ sub has_many {
                             { accessor => 'multi',
                               join_type => 'LEFT',
                               cascade_delete => 1,
+                              cascade_copy => 1,
                               %{$attrs||{}} } );
 }
 

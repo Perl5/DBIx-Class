@@ -4,19 +4,9 @@ use strict;
 use warnings;
 use lib qw(lib t/lib);
 
-use UNIVERSAL::require;
+use DBICTest;
+use DBICTest::HelperRels;
 
-my $from = 'SQL::Translator::Parser::DBIx::Class';
-my $to = 'SQL::Translator::Producer::SQLite';
-my $sqlt = 'SQL::Translator';
-my $schema = 'DBICTest::Schema';
+my $schema = DBICTest->initialise;
 
-$from->require;
-$to->require;
-$sqlt->require;
-$schema->require;
-
-my $tr = $sqlt->new;
-
-$from->can("parse")->($tr, $schema);
-print $to->can("produce")->($tr);
+print $schema->storage->deployment_statements($schema);

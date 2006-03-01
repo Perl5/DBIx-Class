@@ -160,11 +160,11 @@ Jesper Krogh
 
 Brandon Black
 
+Christopher H. Laco
+
 Scotty Allen <scotty@scottyallen.com>
 
 sc_
-
-Justin Guenther <guentherj@agr.gc.ca>
 
 =head1 LICENSE
 

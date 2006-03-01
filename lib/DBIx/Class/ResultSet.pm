@@ -155,25 +155,47 @@ call it as C<search({}, \%attrs);>.
 sub search {
   my $self = shift;
 
-  #use Data::Dumper;warn Dumper(@_);
+  my $rs;
+  if( @_ ) {
+    
+    my $attrs = { %{$self->{attrs}} };
+    my $having = delete $attrs->{having};
+    if (@_ > 1 && ref $_[$#_] eq 'HASH') {
+     $attrs = { %$attrs, %{ pop(@_) } };
+    }
 
-  my $attrs = { %{$self->{attrs}} };
-  if (@_ > 1 && ref $_[$#_] eq 'HASH') {
-    $attrs = { %$attrs, %{ pop(@_) } };
-  }
-
-  my $where = (@_ ? ((@_ == 1 || ref $_[0] eq "HASH") ? shift : {@_}) : undef());
-  if (defined $where) {
-    $where = (defined $attrs->{where}
+    my $where = (@_
+                  ? ((@_ == 1 || ref $_[0] eq "HASH")
+                      ? shift
+                      : ((@_ % 2)
+                          ? $self->throw_exception(
+                              "Odd number of arguments to search")
+                          : {@_}))
+                  : undef());
+    if (defined $where) {
+      $where = (defined $attrs->{where}
                 ? { '-and' =>
                     [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
                         $where, $attrs->{where} ] }
                 : $where);
-    $attrs->{where} = $where;
+      $attrs->{where} = $where;
+    }
+
+    if (defined $having) {
+      $having = (defined $attrs->{having}
+                ? { '-and' =>
+                    [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
+                        $having, $attrs->{having} ] }
+                : $having);
+      $attrs->{having} = $having;
+    }
+
+    $rs = (ref $self)->new($self->result_source, $attrs);
   }
-
-  my $rs = (ref $self)->new($self->result_source, $attrs);
-
+  else {
+    $rs = $self;
+    $rs->reset();
+  }
   return (wantarray ? $rs->all : $rs);
 }
 
@@ -246,7 +268,9 @@ sub find {
     $query->{$self->{attrs}{alias}.'.'.$_} = delete $query->{$_};
   }
   #warn Dumper($query);
-  return $self->search($query,$attrs)->next;
+  return (keys %$attrs
+           ? $self->search($query,$attrs)->single
+           : $self->single($query));
 }
 
 =head2 search_related
@@ -259,22 +283,7 @@ records.
 =cut
 
 sub search_related {
-  my ($self, $rel, @rest) = @_;
-  my $rel_obj = $self->result_source->relationship_info($rel);
-  $self->throw_exception(
-    "No such relationship ${rel} in search_related")
-      unless $rel_obj;
-  my $rs = $self->search(undef, { join => $rel });
-  my $alias = ($rs->{attrs}{seen_join}{$rel} > 1
-                ? join('_', $rel, $rs->{attrs}{seen_join}{$rel})
-                : $rel);
-  return $self->result_source->schema->resultset($rel_obj->{class}
-           )->search( undef,
-             { %{$rs->{attrs}},
-               alias => $alias,
-               select => undef(),
-               as => undef() }
-           )->search(@rest);
+  return shift->related_resultset(shift)->search(@_);
 }
 
 =head2 cursor
@@ -291,6 +300,34 @@ sub cursor {
     ||= $self->result_source->storage->select($self->{from}, $attrs->{select},
           $attrs->{where},$attrs);
 }
+
+=head2 single
+
+Inflates the first result without creating a cursor
+
+=cut
+
+sub single {
+  my ($self, $extra) = @_;
+  my ($attrs) = $self->{attrs};
+  $attrs = { %$attrs };
+  if ($extra) {
+    if (defined $attrs->{where}) {
+      $attrs->{where} = {
+        '-and'
+          => [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
+               delete $attrs->{where}, $extra ]
+      };
+    } else {
+      $attrs->{where} = $extra;
+    }
+  }
+  my @data = $self->result_source->storage->select_single(
+          $self->{from}, $attrs->{select},
+          $attrs->{where},$attrs);
+  return (@data ? $self->_construct_object(@data) : ());
+}
+
 
 =head2 search_like
 
@@ -346,6 +383,17 @@ Can be used to efficiently iterate over records in the resultset:
 
 sub next {
   my ($self) = @_;
+  my $cache;
+  if( @{$cache = $self->{all_cache} || []}) {
+    $self->{all_cache_position} ||= 0;
+    my $obj = $cache->[$self->{all_cache_position}];
+    $self->{all_cache_position}++;
+    return $obj;
+  }
+  if ($self->{attrs}{cache}) {
+    $self->{all_cache_position} = 0;
+    return ($self->all)[0];
+  }
   my @row = $self->cursor->next;
 #  warn Dumper(\@row); use Data::Dumper;
   return unless (@row);
@@ -354,24 +402,78 @@ sub next {
 
 sub _construct_object {
   my ($self, @row) = @_;
+  my @row_orig = @row; # copy @row for key comparison later, because @row will change
   my @as = @{ $self->{attrs}{as} };
+#use Data::Dumper; warn Dumper \@as;
   #warn "@cols -> @row";
   my $info = [ {}, {} ];
   foreach my $as (@as) {
+    my $rs = $self;
     my $target = $info;
     my @parts = split(/\./, $as);
     my $col = pop(@parts);
     foreach my $p (@parts) {
       $target = $target->[1]->{$p} ||= [];
+      
+      $rs = $rs->related_resultset($p) if $rs->{attrs}->{cache};
     }
-    $target->[0]->{$col} = shift @row;
+    
+    $target->[0]->{$col} = shift @row
+      if ref($target->[0]) ne 'ARRAY'; # arrayref is pre-inflated objects, do not overwrite
   }
   #use Data::Dumper; warn Dumper(\@as, $info);
   my $new = $self->result_source->result_class->inflate_result(
               $self->result_source, @$info);
   $new = $self->{attrs}{record_filter}->($new)
     if exists $self->{attrs}{record_filter};
+ 
+  if( $self->{attrs}->{cache} ) {
+    while( my( $rel, $rs ) = each( %{$self->{related_resultsets}} ) ) {
+      $rs->all;
+      #warn "$rel:", @{$rs->get_cache};
+    }
+    $self->build_rr( $self, $new );
+  }
+ 
   return $new;
+}
+  
+sub build_rr {
+  # build related resultsets for supplied object
+  my ( $self, $context, $obj ) = @_;
+  
+  my $re = qr/^\w+\./;
+  while( my ($rel, $rs) = each( %{$context->{related_resultsets}} ) ) {  
+    #warn "context:", $context->result_source->name, ", rel:$rel, rs:", $rs->result_source->name;
+    my @objs = ();
+    my $map = {};
+    my $cond = $context->result_source->relationship_info($rel)->{cond};
+    keys %$cond;
+    while( my( $rel_key, $pk ) = each(%$cond) ) {
+      $rel_key =~ s/$re//;
+      $pk =~ s/$re//;
+      $map->{$rel_key} = $pk;
+    }
+    
+    $rs->reset();
+    while( my $rel_obj = $rs->next ) {
+      while( my( $rel_key, $pk ) = each(%$map) ) {
+        if( $rel_obj->get_column($rel_key) eq $obj->get_column($pk) ) {
+          push @objs, $rel_obj;
+        }
+      }
+    }
+
+    my $rel_rs = $obj->related_resultset($rel);
+    $rel_rs->{attrs}->{cache} = 1;
+    $rel_rs->set_cache( \@objs );
+    
+    while( my $rel_obj = $rel_rs->next ) {
+      $self->build_rr( $rs, $rel_obj );
+    }
+    
+  }
+  
 }
 
 =head2 result_source
@@ -399,15 +501,19 @@ sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ && defined $_[0];
   unless (defined $self->{count}) {
+    return scalar @{ $self->get_cache }
+      if @{ $self->get_cache };
     my $group_by;
     my $select = { 'count' => '*' };
-    if( $group_by = delete $self->{attrs}{group_by} ) {
+    my $attrs = { %{ $self->{attrs} } };
+    if( $group_by = delete $attrs->{group_by} ) {
+      delete $attrs->{having};
       my @distinct = (ref $group_by ?  @$group_by : ($group_by));
       # todo: try CONCAT for multi-column pk
       my @pk = $self->result_source->primary_columns;
       if( scalar(@pk) == 1 ) {
         my $pk = shift(@pk);
-        my $alias = $self->{attrs}{alias};
+        my $alias = $attrs->{alias};
         my $re = qr/^($alias\.)?$pk$/;
         foreach my $column ( @distinct) {
           if( $column =~ $re ) {
@@ -421,14 +527,12 @@ sub count {
       #use Data::Dumper; die Dumper $select;
     }
 
-    my $attrs = { %{ $self->{attrs} },
-                  select => $select,
-                  as => [ 'count' ] };
+    $attrs->{select} = $select;
+    $attrs->{as} = [ 'count' ];
     # offset, order by and page are not needed to count. record_filter is cdbi
     delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
         
     ($self->{count}) = (ref $self)->new($self->result_source, $attrs)->cursor->next;
-    $self->{attrs}{group_by} = $group_by;
   }
   return 0 unless $self->{count};
   my $count = $self->{count};
@@ -455,6 +559,14 @@ is returned in list context.
 
 sub all {
   my ($self) = @_;
+  return @{ $self->get_cache }
+    if @{ $self->get_cache };
+  if( $self->{attrs}->{cache} ) {
+    my @obj = map { $self->_construct_object(@$_); }
+            $self->cursor->all;
+    $self->set_cache( \@obj );
+    return @obj;
+  }
   return map { $self->_construct_object(@$_); }
            $self->cursor->all;
 }
@@ -467,6 +579,7 @@ Resets the resultset's cursor, so you can iterate through the elements again.
 
 sub reset {
   my ($self) = @_;
+  $self->{all_cache_position} = 0;
   $self->cursor->reset;
   return $self;
 }
@@ -739,6 +852,90 @@ sub update_or_create {
   }
 
   return $row;
+}
+
+=head2 get_cache
+
+Gets the contents of the cache for the resultset.
+
+=cut
+
+sub get_cache {
+  my $self = shift;
+  return $self->{all_cache} || [];
+}
+
+=head2 set_cache
+
+Sets the contents of the cache for the resultset. Expects an arrayref of objects of the same class as those produced by the resultset.
+
+=cut
+
+sub set_cache {
+  my ( $self, $data ) = @_;
+  $self->throw_exception("set_cache requires an arrayref")
+    if ref $data ne 'ARRAY';
+  my $result_class = $self->result_source->result_class;
+  foreach( @$data ) {
+    $self->throw_exception("cannot cache object of type '$_', expected '$result_class'")
+      if ref $_ ne $result_class;
+  }
+  $self->{all_cache} = $data;
+}
+
+=head2 clear_cache
+
+Clears the cache for the resultset.
+
+=cut
+
+sub clear_cache {
+  my $self = shift;
+  $self->set_cache([]);
+}
+
+=head2 related_resultset
+
+Returns a related resultset for the supplied relationship name.
+
+  $rs = $rs->related_resultset('foo');
+
+=cut
+
+sub related_resultset {
+  my ( $self, $rel, @rest ) = @_;
+  $self->{related_resultsets} ||= {};
+  my $resultsets = $self->{related_resultsets};
+  if( !exists $resultsets->{$rel} ) {
+    #warn "fetching related resultset for rel '$rel'";
+    my $rel_obj = $self->result_source->relationship_info($rel);
+    $self->throw_exception(
+      "search_related: result source '" . $self->result_source->name .
+      "' has no such relationship ${rel}")
+      unless $rel_obj; #die Dumper $self->{attrs};
+    my $rs;
+    if( $self->{attrs}->{cache} ) {
+      $rs = $self->search(undef);
+    }
+    else {
+      $rs = $self->search(undef, { join => $rel });
+    }
+    #use Data::Dumper; die Dumper $rs->{attrs};#$rs = $self->search( undef );
+    #use Data::Dumper; warn Dumper $self->{attrs}, Dumper $rs->{attrs};
+    my $alias = (defined $rs->{attrs}{seen_join}{$rel}
+                  && $rs->{attrs}{seen_join}{$rel} > 1
+                ? join('_', $rel, $rs->{attrs}{seen_join}{$rel})
+                : $rel);
+    $resultsets->{$rel} =
+      $self->result_source->schema->resultset($rel_obj->{class}
+           )->search( undef,
+             { %{$rs->{attrs}},
+               alias => $alias,
+               select => undef(),
+               as => undef() }
+           )->search(@rest);
+  }
+  return $resultsets->{$rel};
 }
 
 =head2 throw_exception

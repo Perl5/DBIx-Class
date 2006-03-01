@@ -38,7 +38,7 @@ $dbh->do(qq{
   END;
 });
 
-OraTest::Artist->load_components('PK::Auto::Oracle');
+OraTest::Artist->load_components('PK::Auto');
 OraTest::CD->load_components('PK::Auto::Oracle');
 OraTest::Track->load_components('PK::Auto::Oracle');
 

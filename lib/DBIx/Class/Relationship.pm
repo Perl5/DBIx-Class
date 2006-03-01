@@ -99,8 +99,12 @@ whereas C<might_have> uses a left join.
 
 =head2 many_to_many
 
-  __PACKAGE__->many_to_many( 'accessorname' => 'a_to_b', 'table_b' );           
-  my @f_objs = $obj_a->accessorname;                                            
+  __PACKAGE__->many_to_many( 'accessorname' => 'a_to_b', 'table_b' );
+  my @f_objs = $obj_a->accessorname;
+
+Creates an accessor bridging two relationships; not strictly a relationship
+in its own right, although the accessor will return a resultset or collection
+of objects just as a has_many would.
 
 =cut
 

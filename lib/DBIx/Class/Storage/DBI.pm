@@ -19,8 +19,10 @@ use base qw/SQL::Abstract::Limit/;
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
   @rest = (-1) unless defined $rest[0];
-  $self->SUPER::select($table, $self->_recurse_fields($fields), 
-                         $where, $order, @rest);
+  local $self->{having_bind} = [];
+  my ($sql, @ret) = $self->SUPER::select($table,
+                      $self->_recurse_fields($fields), $where, $order, @rest);
+  return wantarray ? ($sql, @ret, @{$self->{having_bind}}) : $sql;
 }
 
 sub _emulate_limit {
@@ -51,10 +53,17 @@ sub _recurse_fields {
 sub _order_by {
   my $self = shift;
   my $ret = '';
+  my @extra;
   if (ref $_[0] eq 'HASH') {
     if (defined $_[0]->{group_by}) {
       $ret = $self->_sqlcase(' group by ')
                .$self->_recurse_fields($_[0]->{group_by});
+    }
+    if (defined $_[0]->{having}) {
+      my $frag;
+      ($frag, @extra) = $self->_recurse_where($_[0]->{having});
+      push(@{$self->{having_bind}}, @extra);
+      $ret .= $self->_sqlcase(' having ').$frag;
     }
     if (defined $_[0]->{order_by}) {
       $ret .= $self->SUPER::_order_by($_[0]->{order_by});
@@ -138,16 +147,7 @@ sub _join_condition {
 sub _quote {
   my ($self, $label) = @_;
   return '' unless defined $label;
-  return "*" if $label eq '*';
   return $label unless $self->{quote_char};
-  if(ref $self->{quote_char} eq "ARRAY"){
-    return $self->{quote_char}->[0] . $label . $self->{quote_char}->[1]
-      if !defined $self->{name_sep};
-    my $sep = $self->{name_sep};
-    return join($self->{name_sep},
-        map { $self->{quote_char}->[0] . $_ . $self->{quote_char}->[1]  }
-       split(/\Q$sep\E/,$label));
-  }
   return $self->SUPER::_quote($label);
 }
 
@@ -208,12 +208,17 @@ sub new {
   $new->transaction_depth(0);
   if (defined($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}) &&
      ($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} =~ /=(.+)$/)) {
-    $new->debugfh(IO::File->new($1, 'w')||croak "Cannot open trace file $1");
+    $new->debugfh(IO::File->new($1, 'w')) || $new->throw_exception("Cannot open trace file $1");
   } else {
     $new->debugfh(IO::File->new('>&STDERR'));
   }
   $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
   return $new;
+}
+
+sub throw_exception {
+  my ($self, $msg) = @_;
+  croak($msg);
 }
 
 =head1 NAME 
@@ -309,7 +314,11 @@ sub _populate_dbh {
   my ($self) = @_;
   my @info = @{$self->connect_info || []};
   $self->_dbh($self->_connect(@info));
-
+  my $driver = $self->_dbh->{Driver}->{Name};
+  eval "require DBIx::Class::Storage::DBI::${driver}";
+  unless ($@) {
+    bless $self, "DBIx::Class::Storage::DBI::${driver}";
+  }
   # if on-connect sql statements are given execute them
   foreach my $sql_statement (@{$self->on_connect_do || []}) {
     $self->_dbh->do($sql_statement);
@@ -329,7 +338,10 @@ sub _connect {
       return $dbh;
   }
 
-  DBI->connect(@info);
+  my $dbh = DBI->connect(@info);
+  $self->throw_exception("DBI Connection failed: $DBI::errstr")
+      unless $dbh;
+  $dbh;
 }
 
 =head2 txn_begin
@@ -403,20 +415,20 @@ sub _execute {
       $self->debugfh->print("$sql: " . join(', ', @debug_bind) . "\n");
   }
   my $sth = $self->sth($sql,$op);
-  croak "no sth generated via sql: $sql" unless $sth;
+  $self->throw_exception("no sth generated via sql: $sql") unless $sth;
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {  
     $rv = $sth->execute(@bind);
   } else { 
-    croak "'$sql' did not generate a statement.";
+    $self->throw_exception("'$sql' did not generate a statement.");
   }
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
 
 sub insert {
   my ($self, $ident, $to_insert) = @_;
-  croak( "Couldn't insert ".join(', ', map "$_ => $to_insert->{$_}", keys %$to_insert)." into ${ident}" )
+  $self->throw_exception( "Couldn't insert ".join(', ', map "$_ => $to_insert->{$_}", keys %$to_insert)." into ${ident}" )
     unless ($self->_execute('insert' => [], $ident, $to_insert));
   return $to_insert;
 }
@@ -435,8 +447,9 @@ sub _select {
   if (ref $condition eq 'SCALAR') {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
-  if (exists $attrs->{group_by}) {
+  if (exists $attrs->{group_by} || $attrs->{having}) {
     $order = { group_by => $attrs->{group_by},
+               having => $attrs->{having},
                ($order ? (order_by => $order) : ()) };
   }
   my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
@@ -490,7 +503,7 @@ sub columns_info_for {
             $column_info{is_nullable} = $info->{NULLABLE};
             $result{$info->{COLUMN_NAME}} = \%column_info;
         }
-    }else{
+    } else {
         my $sth = $self->dbh->prepare("SELECT * FROM $table WHERE 1=0");
         $sth->execute;
         my @columns = @{$sth->{NAME}};
@@ -499,6 +512,41 @@ sub columns_info_for {
         }
     }
     return \%result;
+}
+
+sub last_insert_id {
+  my ($self, $row) = @_;
+    
+  return $self->dbh->func('last_insert_rowid');
+
+}
+
+sub sqlt_type {
+  my ($self) = @_;
+  my $dsn = $self->connect_info->[0];
+  $dsn =~ /^dbi:(.*?)\d*:/;
+  return $1;
+}
+
+sub deployment_statements {
+  my ($self, $schema, $type) = @_;
+  $type ||= $self->sqlt_type;
+  eval "use SQL::Translator";
+  $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
+  eval "use SQL::Translator::Parser::DBIx::Class;";
+  $self->throw_exception($@) if $@; 
+  eval "use SQL::Translator::Producer::${type};";
+  $self->throw_exception($@) if $@;
+  my $tr = SQL::Translator->new();
+  SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
+  return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
+}
+
+sub deploy {
+  my ($self, $schema, $type) = @_;
+  foreach(split(";\n", $self->deployment_statements($schema, $type))) {
+	  $self->dbh->do($_) or warn "SQL was:\n $_";
+  } 
 }
 
 sub DESTROY { shift->disconnect }

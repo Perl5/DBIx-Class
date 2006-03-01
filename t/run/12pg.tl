@@ -16,7 +16,7 @@ my $dbh = PgTest->schema->storage->dbh;
 
 $dbh->do("CREATE TABLE artist (artistid serial PRIMARY KEY, name VARCHAR(255), charfield CHAR(10));");
 
-PgTest::Artist->load_components('PK::Auto::Pg');
+PgTest::Artist->load_components('PK::Auto');
 
 my $new = PgTest::Artist->create({ name => 'foo' });
 

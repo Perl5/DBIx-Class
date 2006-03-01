@@ -7,6 +7,7 @@ use DBIx::Class::ResultSet;
 use Carp::Clan qw/^DBIx::Class/;
 
 use Storable;
+use Scalar::Util qw/weaken/;
 
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
@@ -33,7 +34,7 @@ retrieved, most usually a table (see L<DBIx::Class::ResultSource::Table>)
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
-  my $new = bless({ %{$attrs || {}} }, $class);
+  my $new = bless({ %{$attrs || {}}, _resultset => undef }, $class);
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
   $new->{resultset_attributes} = { %{$new->{resultset_attributes} || {}} };
   $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];
@@ -484,6 +485,8 @@ sub resolve_condition {
         #warn "$self $k $for $v";
         $ret{$k} = $for->get_column($v);
         #warn %ret;
+      } elsif (ref $as) { # reverse object
+        $ret{$v} = $as->get_column($k);
       } else {
         $ret{"${as}.${k}"} = "${for}.${v}";
       }
@@ -612,7 +615,12 @@ Specify here any attributes you wish to pass to your specialised resultset.
 
 sub resultset {
   my $self = shift;
-  return $self->resultset_class->new($self, $self->{resultset_attributes});
+  return $self->{_resultset} if ref $self->{_resultset} eq $self->resultset_class;
+  return $self->{_resultset} = do {
+    my $rs = $self->resultset_class->new($self, $self->{resultset_attributes});
+    weaken $rs->result_source;
+    $rs;
+  };
 }
 
 =head2 throw_exception

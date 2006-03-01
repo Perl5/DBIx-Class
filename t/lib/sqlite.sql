@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Mon Feb  6 01:07:16 2006
+-- Created on Fri Feb 24 15:13:57 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -78,14 +78,6 @@ CREATE TABLE artist_undirected_map (
 );
 
 --
--- Table: producer
---
-CREATE TABLE producer (
-  producerid INTEGER PRIMARY KEY NOT NULL,
-  name varchar NOT NULL
-);
-
---
 -- Table: onekey
 --
 CREATE TABLE onekey (
@@ -105,6 +97,14 @@ CREATE TABLE track (
 );
 
 --
+-- Table: producer
+--
+CREATE TABLE producer (
+  producerid INTEGER PRIMARY KEY NOT NULL,
+  name varchar NOT NULL
+);
+
+--
 -- Table: treelike
 --
 CREATE TABLE treelike (
@@ -117,10 +117,9 @@ CREATE TABLE treelike (
 -- Table: tags
 --
 CREATE TABLE tags (
-  tagid varchar NOT NULL,
+  tagid INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL,
-  tag varchar NOT NULL,
-  PRIMARY KEY (tagid)
+  tag varchar NOT NULL
 );
 
 --

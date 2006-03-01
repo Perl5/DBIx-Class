@@ -7,7 +7,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 41 );
+        : ( tests => 42 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -148,7 +148,7 @@ is($selects, 1, 'prefetch ran only 1 select statement');
 my $cd = $schema->resultset('CD')->find(1,
     {
       cols => [qw/title artist.name/], 
-      join => 'artist'
+      join => { 'artist' => {} }
     }
 );
 ok(eval { $cd->artist->name eq 'Caterwauler McCrae' }, 'single related column prefetched');
@@ -253,7 +253,16 @@ SKIP: {
     cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
 }
 
-cmp_ok( scalar $rs->all, '==', 3, "all() returns same count as count() after group_by on related column" );
+$rs = $schema->resultset("Artist")->search(
+  {},
+      { join => [qw/ cds /], group_by => [qw/ me.name /], having =>{ 'MAX(cds.cdid)'=> \'< 5' } }
+);
+
+cmp_ok( $rs->all, '==', 2, "results ok after group_by on related column with a having" );
+
+$rs = $rs->search( undef, {  having =>{ 'count(*)'=> \'> 2' }});
+
+cmp_ok( $rs->all, '==', 1, "count() ok after group_by on related column with a having" );
 
 $rs = $schema->resultset("Artist")->search(
         { 'cds.title' => 'Spoonful of bees',

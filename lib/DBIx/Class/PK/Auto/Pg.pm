@@ -7,55 +7,19 @@ use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/PK::Auto/);
 
-sub last_insert_id {
-  my $self = shift;
-  $self->get_autoinc_seq unless $self->{_autoinc_seq};
-  $self->result_source->storage->dbh->last_insert_id(undef,undef,undef,undef,
-    {sequence=>$self->{_autoinc_seq}});
-}
-
-sub get_autoinc_seq {
-  my $self = shift;
-  
-  # return the user-defined sequence if known
-  if ($self->sequence) {
-    return $self->{_autoinc_seq} = $self->sequence;
-  }
-  
-  my @pri = $self->primary_columns;
-  my $dbh = $self->result_source->storage->dbh;
-  my ($schema,$table) = $self->table =~ /^(.+)\.(.+)$/ ? ($1,$2) : (undef,$self->table);
-  while (my $col = shift @pri) {
-    my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_arrayref;
-    if (defined $info->[12] and $info->[12] =~ 
-      /^nextval\('([^']+)'::(?:text|regclass)\)/)
-    {
-      $self->{_autoinc_seq} = $1;
-      #$self->{_autoinc_seq} =~ s/"//g;
-      last;
-    } 
-  }
-}
-
 1;
 
 =head1 NAME 
 
-DBIx::Class::PK::Auto::Pg - Automatic primary key class for PostgreSQL
+DBIx::Class::PK::Auto::Pg - (DEPRECATED) Automatic primary key class for Pg
 
 =head1 SYNOPSIS
 
-  # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto::Pg Core/);
-  __PACKAGE__->set_primary_key('id');
-
-=head1 DESCRIPTION
-
-This class implements autoincrements for PostgreSQL.
+Just load PK::Auto instead; auto-inc is now handled by Storage.
 
 =head1 AUTHORS
 
-Marcus Ramberg <m.ramberg@cpan.org>
+Matt S Trout <mst@shadowcatsystems.co.uk>
 
 =head1 LICENSE
 

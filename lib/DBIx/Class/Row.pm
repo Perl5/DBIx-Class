@@ -66,6 +66,7 @@ sub insert {
   $source->storage->insert($source->from, { $self->get_columns });
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
+  $self->{related_resultsets} = {};
   return $self;
 }
 
@@ -110,6 +111,7 @@ sub update {
     $self->throw_exception("Can't update ${self}: updated more than one row");
   }
   $self->{_dirty_columns} = {};
+  $self->{related_resultsets} = {};
   return $self;
 }
 
@@ -237,9 +239,26 @@ Inserts a new row with the specified changes.
 
 sub copy {
   my ($self, $changes) = @_;
-  my $new = bless({ _column_data => { %{$self->{_column_data}}} }, ref $self);
-  $new->set_column($_ => $changes->{$_}) for keys %$changes;
-  return $new->insert;
+  $changes ||= {};
+  my $col_data = { %{$self->{_column_data}} };
+  foreach my $col (keys %$col_data) {
+    delete $col_data->{$col}
+      if $self->result_source->column_info($col)->{is_auto_increment};
+  }
+  my $new = bless({ _column_data => $col_data }, ref $self);
+  $new->set_columns($changes);
+  $new->insert;
+  foreach my $rel ($self->result_source->relationships) {
+    my $rel_info = $self->result_source->relationship_info($rel);
+    if ($rel_info->{attrs}{cascade_copy}) {
+      my $resolved = $self->result_source->resolve_condition(
+       $rel_info->{cond}, $rel, $new);
+      foreach my $related ($self->search_related($rel)) {
+        $related->copy($resolved);
+      }
+    }
+  }
+  return $new;
 }
 
 =head2 store_column
@@ -276,25 +295,28 @@ sub inflate_result {
                   },
                   ref $class || $class);
   my $schema;
-  PRE: foreach my $pre (keys %{$prefetch||{}}) {
+  foreach my $pre (keys %{$prefetch||{}}) {
+    my $pre_val = $prefetch->{$pre};
     my $pre_source = $source->related_source($pre);
-    $class->throw_exception("Can't prefetch non-existant relationship ${pre}") unless $pre_source;
+    $class->throw_exception("Can't prefetch non-existent relationship ${pre}") unless $pre_source;
     my $fetched;
     unless ($pre_source->primary_columns == grep { exists $prefetch->{$pre}[0]{$_} 
        and !defined $prefetch->{$pre}[0]{$_} } $pre_source->primary_columns)
     {
       $fetched = $pre_source->result_class->inflate_result(
-                      $pre_source, @{$prefetch->{$pre}});      
+                    $pre_source, @{$prefetch->{$pre}});      
     }
     my $accessor = $source->relationship_info($pre)->{attrs}{accessor};
     $class->throw_exception("No accessor for prefetched $pre")
-      unless defined $accessor;
+     unless defined $accessor;
     if ($accessor eq 'single') {
       $new->{_relationship_data}{$pre} = $fetched;
     } elsif ($accessor eq 'filter') {
-      $new->{_inflated_column}{$pre} = $fetched;
+     $new->{_inflated_column}{$pre} = $fetched;
+    } elsif ($accessor eq 'multi') {
+      
     } else {
-      $class->throw_exception("Don't know how to store prefetched $pre");
+     $class->throw_exception("Prefetch not supported with accessor '$accessor'");
     }
   }
   return $new;

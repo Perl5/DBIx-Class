@@ -20,7 +20,7 @@ $dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY 
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
-MySQLTest::Artist->load_components('PK::Auto::MySQL');
+MySQLTest::Artist->load_components('PK::Auto');
 
 # test primary key handling
 my $new = MySQLTest::Artist->create({ name => 'foo' });

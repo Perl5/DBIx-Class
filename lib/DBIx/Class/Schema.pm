@@ -373,13 +373,12 @@ sub txn_rollback { shift->storage->txn_rollback }
 
 =head2 txn_do
 
-=head3 Arguments: <$coderef>, [@coderef_args]
+=head3 Arguments: <coderef>, [@coderef_args]
 
-Executes C<$coderef> with (optional) arguments C<@coderef_args>
-transactionally, returning its result (if any). If an exception is
-caught, a rollback is issued and the exception is rethrown. If the
-rollback fails, (i.e. throws an exception) an exception is thrown that
-includes a "Rollback failed" message.
+Executes <coderef> with (optional) arguments <@coderef_args> transactionally,
+returning its result (if any). If an exception is caught, a rollback is issued
+and the exception is rethrown. If the rollback fails, (i.e. throws an
+exception) an exception is thrown that includes a "Rollback failed" message.
 
 For example,
 
@@ -411,7 +410,7 @@ For example,
     }
   }
 
-Nested transactions work as expected (i.e. only the outermost
+Nested transactions should work as expected (i.e. only the outermost
 transaction will issue a txn_commit on the Schema's storage)
 
 =cut
@@ -519,6 +518,18 @@ Defaults to using Carp::Clan to report errors from user perspective.
 sub throw_exception {
   my ($self) = shift;
   croak @_;
+}
+
+=head2 deploy
+
+Attempts to deploy the schema to the current storage
+
+=cut
+
+sub deploy {
+  my ($self) = shift;
+  $self->throw_exception("Can't deploy without storage") unless $self->storage;
+  $self->storage->deploy($self);
 }
 
 1;

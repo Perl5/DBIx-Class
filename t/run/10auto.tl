@@ -4,6 +4,7 @@ my $schema = shift;
 plan tests => 2;
 
 $schema->class("Artist")->load_components(qw/PK::Auto::SQLite/);
+  # Should just be PK::Auto but this ensures the compat shim works
 
 # add an artist without primary key to test Auto
 my $artist = $schema->resultset("Artist")->create( { name => 'Auto' } );

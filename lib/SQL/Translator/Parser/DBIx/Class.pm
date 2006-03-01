@@ -72,7 +72,6 @@ sub parse {
         }
         $table->primary_key($source->primary_columns);
 
-
         my @rels = $source->relationships();
         foreach my $rel (@rels)
         {
@@ -92,15 +91,16 @@ sub parse {
             my $rel_table = $source->related_source($rel)->name;
             my $cond = (keys (%{$rel_info->{cond}}))[0];
             my ($refkey) = $cond =~ /^\w+\.(\w+)$/;
+            my ($key) = $rel_info->{cond}->{$cond} =~ /^\w+\.(\w+)$/;
             if($rel_table && $refkey)
             { 
                 $table->add_constraint(
                             type             => 'foreign_key', 
-                            name             => "fk_${rel}_id",
-                            fields           => $rel,
+                            name             => "fk_${key}",
+                            fields           => $key,
                             reference_fields => $refkey,
                             reference_table  => $rel_table,
-                                       );
+                );
             }
         }
     }

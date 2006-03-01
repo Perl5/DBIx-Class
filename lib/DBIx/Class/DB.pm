@@ -14,7 +14,7 @@ __PACKAGE__->load_components(qw/ResultSetProxy/);
 sub storage { shift->schema_instance(@_)->storage; }
 
 sub resultset_instance {
-  my $class = shift;
+  my $class = ref $_[0] || $_[0];
   my $source = $class->result_source_instance;
   if ($source->result_class ne $class) {
     $source = $source->new($source);

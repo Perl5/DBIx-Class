@@ -1,19 +1,18 @@
-package DBIx::Class::Serialize;
+package DBIx::Class::Serialize::Storable;
 use strict;
-use Storable qw/freeze thaw/;
+use Storable;
 
 sub STORABLE_freeze {
     my ($self,$cloning) = @_;
-    #return if $cloning;
     my $to_serialize = { %$self };
     delete $to_serialize->{result_source};
-    return (freeze($to_serialize));
+    return (Storable::freeze($to_serialize));
 }
 
 sub STORABLE_thaw {
     my ($self,$cloning,$serialized) = @_;
-    %$self = %{ thaw($serialized) };
-    $self->result_source($self->result_source_instance);
+    %$self = %{ Storable::thaw($serialized) };
+    $self->result_source($self->result_source_instance) if $self->can('result_source_instance');
 }
 
 1;
@@ -22,12 +21,12 @@ __END__
 
 =head1 NAME 
 
-    DBIx::Class::Serialize - hooks for Storable freeze/thaw (EXPERIMENTAL)
+    DBIx::Class::Serialize::Storable - hooks for Storable freeze/thaw (EXPERIMENTAL)
 
 =head1 SYNOPSIS
 
     # in a table class definition
-    __PACKAGE__->load_components(qw/Serialize/);
+    __PACKAGE__->load_components(qw/Serialize::Storable/);
     
     # meanwhile, in a nearby piece of code
     my $obj = $schema->resultset('Foo')->find(12);
