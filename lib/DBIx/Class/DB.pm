@@ -67,7 +67,7 @@ it. See resolve_class below.
 =cut
 
 __PACKAGE__->mk_classdata('class_resolver' =>
-                            'DBIx::Class::ClassResolver::PassThrough');
+                          'DBIx::Class::ClassResolver::PassThrough');
 
 =head2 connection
 
@@ -106,7 +106,7 @@ Begins a transaction (does nothing if AutoCommit is off).
 
 =cut
 
-sub txn_begin { $_[0]->schema_instance->txn_begin }
+sub txn_begin { shift->schema_instance->txn_begin(@_); }
 
 =head2 txn_commit
 
@@ -114,7 +114,7 @@ Commits the current transaction.
 
 =cut
 
-sub txn_commit { $_[0]->schema_instance->txn_commit }
+sub txn_commit { shift->schema_instance->txn_commit(@_); }
 
 =head2 txn_rollback
 
@@ -122,7 +122,17 @@ Rolls back the current transaction.
 
 =cut
 
-sub txn_rollback { $_[0]->schema_instance->txn_rollback }
+sub txn_rollback { shift->schema_instance->txn_rollback(@_); }
+
+=head2 txn_do
+
+Executes a block of code transactionally. If this code reference
+throws an exception, the transaction is rolled back and the exception
+is rethrown. See txn_do in L<DBIx::Class::Schema> for more details.
+
+=cut
+
+sub txn_do { shift->schema_instance->txn_do(@_); }
 
 {
   my $warn;

@@ -336,11 +336,15 @@ sub _connect {
 
 Calls begin_work on the current dbh.
 
+See L<DBIx::Class::Schema> for the txn_do() method, which allows for
+an entire code block to be executed transactionally.
+
 =cut
 
 sub txn_begin {
   my $self = shift;
-  $self->dbh->begin_work if $self->{transaction_depth}++ == 0 and $self->dbh->{AutoCommit};
+  $self->dbh->begin_work
+    if $self->{transaction_depth}++ == 0 and $self->dbh->{AutoCommit};
 }
 
 =head2 txn_commit
@@ -361,7 +365,9 @@ sub txn_commit {
 
 =head2 txn_rollback
 
-Issues a rollback against the current dbh.
+Issues a rollback against the current dbh. A nested rollback will
+throw a L<DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION> exception,
+which allows the rollback to propagate to the outermost transaction.
 
 =cut
 
@@ -393,8 +399,8 @@ sub _execute {
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
   unshift(@bind, @$extra_bind) if $extra_bind;
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? $_ : 'NULL' } @bind;
-      $self->debugfh->print("$sql: @debug_bind\n");
+      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
+      $self->debugfh->print("$sql: " . join(', ', @debug_bind) . "\n");
   }
   my $sth = $self->sth($sql,$op);
   croak "no sth generated via sql: $sql" unless $sth;

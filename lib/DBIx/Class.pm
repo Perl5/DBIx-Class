@@ -164,6 +164,8 @@ Scotty Allen <scotty@scottyallen.com>
 
 sc_
 
+Justin Guenther <jguenther@agr.gc.ca>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
