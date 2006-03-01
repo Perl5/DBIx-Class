@@ -28,7 +28,10 @@ my ($first_rs, $joe_record);
 eval {
     my $dbh = PgTest->schema->storage->dbh;
 
-    $dbh->do("CREATE TABLE cd (cdid serial PRIMARY KEY, artist INTEGER NOT NULL UNIQUE, title VARCHAR(255) NOT NULL UNIQUE, year VARCHAR(255));");
+    eval {
+        $dbh->do("DROP TABLE cd");
+        $dbh->do("CREATE TABLE cd (cdid serial PRIMARY KEY, artist INTEGER NOT NULL UNIQUE, title VARCHAR(255) NOT NULL UNIQUE, year VARCHAR(255));");
+    };
 
     PgTest->resultset('CD')->create({ title => 'vacation in antarctica', artist => 123, year => 1901 });
     PgTest->resultset('CD')->create({ title => 'vacation in antarctica part 2', artist => 456, year => 1901 });
