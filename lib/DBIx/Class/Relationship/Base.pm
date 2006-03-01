@@ -210,51 +210,31 @@ sub related_resultset {
   my $self = shift;
   $self->throw_exception("Can't call *_related as class methods") unless ref $self;
   my $rel = shift;
-  $self->{related_resultsets} ||= {};
-  #use Data::Dumper; warn "related_resultsets: ", Dumper $self->{related_resultsets};
-  my $resultsets = $self->{related_resultsets};
-  if( !exists $resultsets->{$rel} ) {
-
-    #warn "creating related resultset for relation '$rel'", \$self;
-    my $source = $self->result_source;
-    # if relation exists but resultset doesn't, create the resultset
-
-    my $attrs = { };
-    if (@_ > 1 && ref $_[$#_] eq 'HASH') {
-      $attrs = { %{ pop(@_) } };
-    }
+  my $rel_obj = $self->relationship_info($rel);
+  $self->throw_exception( "No such relationship ${rel}" ) unless $rel_obj;
   
-    my $rel_obj = $self->relationship_info($rel);
-    $self->throw_exception( "No such relationship ${rel}" ) unless $rel_obj;
-    $attrs = { %{$rel_obj->{attrs} || {}}, %{$attrs || {}} };
+  return $self->{related_resultsets}{$rel} ||= do {
+    my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+    $attrs = { %{$rel_obj->{attrs} || {}}, %$attrs };
 
     $self->throw_exception( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
     my $query = ((@_ > 1) ? {@_} : shift);
 
-    my ($cond) = $self->result_source->resolve_condition($rel_obj->{cond}, $rel, $self);
+    my $cond = $self->result_source->resolve_condition($rel_obj->{cond}, $rel, $self);
     if (ref $cond eq 'ARRAY') {
-      $cond = [ map { my %hash;
-        foreach my $key (keys %{$_}) {
-          unless ($key =~ m/\./) {
-            $hash{"me.$key"} = $_->{$key};
-          } else {
-           $hash{$key} = $_->{$key};
-          }
-        }; \%hash; } @$cond ];
-      } else {
-      foreach my $key (keys %$cond) {
-        unless ($key =~ m/\./) {
-          $cond->{"me.$key"} = delete $cond->{$key};
-        }
+      $cond = [ map { my $hash;
+        foreach my $key (keys %$_) {
+          my $newkey = $key =~ /\./ ? "me.$key" : $key;
+          $hash->{$newkey} = $_->{$key};
+        }; $hash } @$cond ];
+    } else {
+      foreach my $key (grep { ! /\./ } keys %$cond) {
+        $cond->{"me.$key"} = delete $cond->{$key};
       }
     }
     $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
-    #use Data::Dumper; warn Dumper($cond);
-    #warn $rel_obj->{class}." $meth $cond ".join(', ', @{$attrs->{bind}||[]});
-    $resultsets->{$rel} = 
-      $self->result_source->related_source($rel)->resultset->search($query, $attrs);
-  }
-  return $resultsets->{$rel};
+    $self->result_source->related_source($rel)->resultset->search($query, $attrs);
+  };
 }
 
 =head1 AUTHORS
