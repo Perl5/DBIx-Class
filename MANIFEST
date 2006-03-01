@@ -66,6 +66,7 @@ lib/DBIx/Class/ResultSourceProxy/Table.pm
 lib/DBIx/Class/Row.pm
 lib/DBIx/Class/Schema.pm
 lib/DBIx/Class/Serialize/Storable.pm
+lib/DBIx/Class/Storage.pm
 lib/DBIx/Class/Storage/DBI.pm
 lib/DBIx/Class/Storage/DBI/Cursor.pm
 lib/DBIx/Class/Storage/DBI/DB2.pm
@@ -162,9 +163,7 @@ t/helperrels/17join_count.t
 t/helperrels/18self_referencial.t
 t/helperrels/19uuid.t
 t/helperrels/20unique.t
-t/helperrels/21serialize.t
-t/helperrels/22cascade_copy.t
-t/helperrels/23cache.t
+t/helperrels/21transactions.t
 t/lib/DBICTest.pm
 t/lib/DBICTest/BasicRels.pm
 t/lib/DBICTest/Extra.pm
@@ -211,9 +210,7 @@ t/run/17join_count.tl
 t/run/18self_referencial.tl
 t/run/19uuid.tl
 t/run/20unique.tl
-t/run/21serialize.tl
-t/run/22cascade_copy.tl
-t/run/23cache.tl
+t/run/21transactions.tl
 t/testlib/Actor.pm
 t/testlib/ActorAlias.pm
 t/testlib/Binary.pm

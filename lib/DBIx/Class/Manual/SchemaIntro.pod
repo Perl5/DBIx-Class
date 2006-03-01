@@ -27,8 +27,8 @@ Or load classes by namespace:
   # load My::Schema::Album, My::Schema::Artist and My::OtherSchema::LinerNotes
   __PACKAGE__->load_classes(
     {
-      'My::Schema' => qw/ Album Artist /,
-      'My::OtherSchema' => qw/ LinerNotes /
+      'My::Schema' => [qw/ Album Artist /],
+      'My::OtherSchema' => [qw/ LinerNotes /]
     }
   );
 

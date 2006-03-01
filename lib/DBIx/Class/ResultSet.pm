@@ -208,7 +208,7 @@ Pass a literal chunk of SQL to be added to the conditional part of the
 resultset.
 
 =cut
-                                                         
+
 sub search_literal {
   my ($self, $cond, @vals) = @_;
   my $attrs = (ref $vals[$#vals] eq 'HASH' ? { %{ pop(@vals) } } : {});
@@ -227,7 +227,7 @@ Finds a row based on its primary key or unique constraint. For example:
 Also takes an optional C<key> attribute, to search by a specific key or unique
 constraint. For example:
 
-  my $cd = $schema->resultset('CD')->find_or_create(
+  my $cd = $schema->resultset('CD')->find(
     {
       artist => 'Massive Attack',
       title  => 'Mezzanine',
@@ -751,8 +751,8 @@ sub create {
 
   $class->find_or_create({ key => $val, ... });
 
-Searches for a record matching the search condition; if it doesn't find one,    
-creates one and returns that instead.                                       
+Searches for a record matching the search condition; if it doesn't find one,
+creates one and returns that instead.
 
   my $cd = $schema->resultset('CD')->find_or_create({
     cdid   => 5,
@@ -1171,7 +1171,7 @@ then search against all mothers of those children:
                       ]
                   ],
                   { 'mother.person_id' => 'child.mother_id' }
-              ],                
+              ],
           ]
       },
   );
