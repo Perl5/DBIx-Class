@@ -28,9 +28,10 @@ sub get_autoinc_seq {
   while (my $col = shift @pri) {
     my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_arrayref;
     if (defined $info->[12] and $info->[12] =~ 
-      /^nextval\('"?([^"']+)"?'::(?:text|regclass)\)/)
+      /^nextval\('([^']+)'::(?:text|regclass)\)/)
     {
       $self->{_autoinc_seq} = $1;
+      #$self->{_autoinc_seq} =~ s/"//g;
       last;
     } 
   }
