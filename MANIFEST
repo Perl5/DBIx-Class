@@ -33,6 +33,7 @@ lib/DBIx/Class/DB.pm
 lib/DBIx/Class/InflateColumn.pm
 lib/DBIx/Class/Manual.pod
 lib/DBIx/Class/Manual/Cookbook.pod
+lib/DBIx/Class/Manual/Example.pod
 lib/DBIx/Class/Manual/FAQ.pod
 lib/DBIx/Class/Manual/Glossary.pod
 lib/DBIx/Class/Manual/Intro.pod
@@ -89,6 +90,7 @@ lib/SQL/Translator/Parser/DBIx/Class.pm
 lib/SQL/Translator/Producer/DBIx/Class/File.pm
 Makefile.PL
 MANIFEST			This list of files
+META.yml
 README
 t/02pod.t
 t/03podcoverage.t.disabled
@@ -122,8 +124,10 @@ t/basicrels/18self_referencial.t
 t/basicrels/19uuid.t
 t/basicrels/20unique.t
 t/basicrels/21serialize.t
+t/basicrels/21transactions.t
 t/basicrels/22cascade_copy.t
 t/basicrels/23cache.t
+t/basicrels/24serialize.t
 t/cdbi-sweet-t/08pager.t
 t/cdbi-t/01-columns.t
 t/cdbi-t/02-Film.t
@@ -164,6 +168,9 @@ t/helperrels/18self_referencial.t
 t/helperrels/19uuid.t
 t/helperrels/20unique.t
 t/helperrels/21transactions.t
+t/helperrels/22cascade_copy.t
+t/helperrels/23cache.t
+t/helperrels/24serialize.t
 t/lib/DBICTest.pm
 t/lib/DBICTest/BasicRels.pm
 t/lib/DBICTest/Extra.pm
@@ -211,6 +218,9 @@ t/run/18self_referencial.tl
 t/run/19uuid.tl
 t/run/20unique.tl
 t/run/21transactions.tl
+t/run/22cascade_copy.tl
+t/run/23cache.tl
+t/run/24serialize.tl
 t/testlib/Actor.pm
 t/testlib/ActorAlias.pm
 t/testlib/Binary.pm
@@ -229,4 +239,3 @@ t/testlib/MyStarLinkMCPK.pm
 t/testlib/Order.pm
 t/testlib/OtherFilm.pm
 t/testlib/PgBase.pm
-META.yml
