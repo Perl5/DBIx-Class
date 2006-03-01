@@ -289,8 +289,10 @@ sub ensure_connected {
 sub dbh {
   my ($self) = @_;
 
-  $self->_dbh(undef)
-    if $self->_connection_pid && $self->_connection_pid != $$;
+  if($self->_connection_pid && $self->_connection_pid != $$) {
+      $self->_dbh->{InactiveDestroy} = 1;
+      $self->_dbh(undef)
+  }
   $self->ensure_connected;
   return $self->_dbh;
 }
