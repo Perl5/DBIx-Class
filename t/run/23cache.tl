@@ -16,6 +16,7 @@ is( scalar @{ $rs->get_cache }, 0, 'cache is not populated without cache attribu
 $rs = $schema->resultset("Artist")->search(
   { 'artistid' => 1 },
   {
+    join => [ qw/ cds /],
     prefetch => [qw/ cds /],
     cache => 1,
   }
@@ -67,6 +68,7 @@ is( scalar keys %{$artist->{related_resultsets}}, 0, 'related resultsets deleted
 $rs = $schema->resultset("Artist")->search(
   { artistid => 1 },
   {
+    join => { cds => 'tags' },
     prefetch => {
       cds => 'tags'
     },
