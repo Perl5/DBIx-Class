@@ -30,6 +30,10 @@ sub get_autoinc_seq {
   }
 }
 
+sub sqlt_type {
+  return 'PostgreSQL';
+}
+
 1;
 
 =head1 NAME 
