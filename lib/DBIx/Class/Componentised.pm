@@ -20,7 +20,7 @@ sub inject_base {
 sub load_components {
   my $class = shift;
   my $base = $class->component_base_class;
-  my @comp = map { "${base}::$_" } grep { $_ !~ /^#/ } @_;
+  my @comp = map { /^\+(.*)$/ ? $1 : "${base}::$_" } grep { $_ !~ /^#/ } @_;
   $class->_load_components(@comp);
   Class::C3::reinitialize();
 }
