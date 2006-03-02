@@ -496,10 +496,10 @@ instead:
       validate             => $validate       ||  0,
       parser_args          => {
          'DBIx::Schema'    => $schema,
-                              }
+                              },
       producer_args   => {
           'prefix'         => 'My::Schema',
-                         }
+                         },
   );
   
   $translator->parser('DBIx::Class');
