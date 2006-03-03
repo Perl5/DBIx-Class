@@ -46,7 +46,7 @@ Save the following into a example.sql
 
  CREATE TABLE cd (
  cdid INTEGER PRIMARY KEY,
- artist INTEGER NOT NULL REFERENCES artist(id)
+ artist INTEGER NOT NULL REFERENCES artist(id),
  title TEXT NOT NULL);
 
  CREATE TABLE track (
