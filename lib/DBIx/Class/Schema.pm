@@ -61,7 +61,7 @@ particular which module inherits off which.
 
 Registers a class which isa ResultSourceProxy; equivalent to calling
 
-  $schema->register_source($moniker, $class->result_source_instance);
+  $schema->register_source($moniker, $component_class->result_source_instance);
 
 =cut
 
@@ -373,12 +373,13 @@ sub txn_rollback { shift->storage->txn_rollback }
 
 =head2 txn_do
 
-=head3 Arguments: <coderef>, [@coderef_args]
+=head3 Arguments: <$coderef>, [@coderef_args]
 
-Executes <coderef> with (optional) arguments <@coderef_args> transactionally,
-returning its result (if any). If an exception is caught, a rollback is issued
-and the exception is rethrown. If the rollback fails, (i.e. throws an
-exception) an exception is thrown that includes a "Rollback failed" message.
+Executes C<$coderef> with (optional) arguments C<@coderef_args>
+transactionally, returning its result (if any). If an exception is
+caught, a rollback is issued and the exception is rethrown. If the
+rollback fails, (i.e. throws an exception) an exception is thrown that
+includes a "Rollback failed" message.
 
 For example,
 
@@ -410,7 +411,7 @@ For example,
     }
   }
 
-Nested transactions should work as expected (i.e. only the outermost
+Nested transactions work as expected (i.e. only the outermost
 transaction will issue a txn_commit on the Schema's storage)
 
 =cut

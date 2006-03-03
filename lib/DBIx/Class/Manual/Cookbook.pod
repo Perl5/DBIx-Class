@@ -352,29 +352,42 @@ SQL statements:
 =head2 Transactions
 
 As of version 0.04001, there is improved transaction support in
-L<DBIx::Class::Storage::DBI>.  Here is an example of the recommended
-way to use it:
+L<DBIx::Class::Storage::DBI> and L<DBIx::Class::Schema>.  Here is an
+example of the recommended way to use it:
 
-  my $genus = Genus->find(12);
-  eval {
-    MyDB->txn_begin;
+  my $genus = $schema->resultset('Genus')->find(12);
+
+  my $coderef1 = sub {
+    my ($schema, $genus, $code) = @_;
     $genus->add_to_species({ name => 'troglodyte' });
     $genus->wings(2);
     $genus->update;
-    cromulate($genus); # Can have a nested transation
-    MyDB->txn_commit;
+    $schema->txn_do($code, $genus); # Can have a nested transation
+    return $genus->species;
   };
-  if ($@) {
-    # Rollback might fail, too
-    eval {
-      MyDB->txn_rollback
-    };
+
+  my $coderef2 = sub {
+    my ($genus) = @_;
+    $genus->extinct(1);
+    $genus->update;
+  };
+
+  my $rs;
+  eval {
+    $rs = $schema->txn_do($coderef1, $schema, $genus, $coderef2);
+  };
+
+  if ($@) {                             # Transaction failed
+    die "the sky is falling!"           #
+      if ($@ =~ /Rollback failed/);     # Rollback failed
+
+    deal_with_failed_transaction();
   }
 
-Currently, a nested commit will do nothing and a nested rollback will
-die.  The code at each level must be sure to call rollback in the case
-of an error, to ensure that the rollback will propagate to the top
-level and be issued.  Support for savepoints and for true nested
+Nested transactions will work as expected. That is, only the outermost
+transaction will actually issue a commit to the $dbh, and a rollback
+at any level of any transaction will cause the entire nested
+transaction to fail. Support for savepoints and for true nested
 transactions (for databases that support them) will hopefully be added
 in the future.
 
@@ -483,10 +496,10 @@ instead:
       validate             => $validate       ||  0,
       parser_args          => {
          'DBIx::Schema'    => $schema,
-                              }
+                              },
       producer_args   => {
           'prefix'         => 'My::Schema',
-                         }
+                         },
   );
   
   $translator->parser('DBIx::Class');

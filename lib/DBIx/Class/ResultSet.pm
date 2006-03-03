@@ -55,7 +55,7 @@ In the examples below, the following table classes are used:
 =head3 Arguments: ($source, \%$attrs)
 
 The resultset constructor. Takes a source object (usually a
-L<DBIx::Class::ResultSourceProxy::Table>) and an attribute hash (see L</ATRRIBUTES>
+L<DBIx::Class::ResultSourceProxy::Table>) and an attribute hash (see L</ATTRIBUTES>
 below).  Does not perform any queries -- these are executed as needed by the
 other methods.
 
