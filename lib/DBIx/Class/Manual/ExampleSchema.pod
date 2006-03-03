@@ -71,7 +71,7 @@ DB/Main.pm:
    
  package DB::Main;
  use base qw/DBIx::Class::Schema/;
- __PACKAGE__->load_classes(qw/Artist CD Track/);
+ __PACKAGE__->load_classes(qw/Artist Cd Track/);
 
  1;
 
@@ -84,14 +84,14 @@ DB/Main/Artist.pm:
  __PACKAGE__->table('artist');
  __PACKAGE__->add_columns(qw/ artistid name /);
  __PACKAGE__->set_primary_key('artistid');
- __PACKAGE__->has_many('cds' => 'DB::Main::CD');
+ __PACKAGE__->has_many('cds' => 'DB::Main::Cd');
 
  1;
 
 
-DB/Main/CD.pm:
+DB/Main/Cd.pm:
 
- package DB::Main::CD;
+ package DB::Main::Cd;
  use base qw/DBIx::Class/;
  __PACKAGE__->load_components(qw/Core/);
  __PACKAGE__->table('cd');
@@ -111,7 +111,7 @@ DB/Main/Track.pm:
  __PACKAGE__->table('track');
  __PACKAGE__->add_columns(qw/ trackid cd title/);
  __PACKAGE__->set_primary_key('trackid');
- __PACKAGE__->belongs_to('cd' => 'DB::Main::CD');
+ __PACKAGE__->belongs_to('cd' => 'DB::Main::Cd');
 
  1;
 
@@ -151,7 +151,7 @@ insertdb.pl
      push @cds, [$lp, $artist->first];
  }
 
- $schema->populate('CD', [
+ $schema->populate('Cd', [
      [qw/title artist/],
      @cds,
  ]);
@@ -169,7 +169,7 @@ insertdb.pl
 
  my @tracks;
  foreach my $track (keys %tracks) {
-     my $cdname = $schema->resultset('CD')->search({
+     my $cdname = $schema->resultset('Cd')->search({
          title => $tracks{$track},
      });
      push @tracks, [$cdname->first, $track];
@@ -243,7 +243,7 @@ testdb.pl:
  sub get_cd_by_track {
      my $tracktitle = shift;
      print "get_cd_by_track($tracktitle):\n";
-     my $rs = $schema->resultset('CD')->search(
+     my $rs = $schema->resultset('Cd')->search(
          {
              'tracks.title' => $tracktitle
          },
@@ -258,7 +258,7 @@ testdb.pl:
  sub get_cds_by_artist {
      my $artistname = shift;
      print "get_cds_by_artist($artistname):\n";
-     my $rs = $schema->resultset('CD')->search(
+     my $rs = $schema->resultset('Cd')->search(
          {
              'artist.name' => $artistname
          },
