@@ -124,6 +124,18 @@ sub _inflated_column_op {
   return $obj;
 }
 
+sub update {
+  my ($class, $attrs, @rest) = @_;
+  $attrs ||= {};
+  foreach my $key (keys %$attrs) {
+    if (ref $attrs->{$key}
+          && exists $class->column_info($key)->{_inflate_info}) {
+      $attrs->{$key} = $class->_deflated_column($key, $attrs->{$key});
+    }
+  }
+  return $class->next::method($attrs, @rest);
+}
+
 sub new {
   my ($class, $attrs, @rest) = @_;
   $attrs ||= {};

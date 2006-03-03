@@ -16,6 +16,7 @@ __PACKAGE__->load_classes(qw/
     OneKey
     #dummy
     TwoKeys
+    Serialized
   /]},
   (
     'FourKeys',

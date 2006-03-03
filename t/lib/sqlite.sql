@@ -131,4 +131,12 @@ CREATE TABLE self_ref (
   name varchar NOT NULL
 );
 
+--
+-- Table: serialized
+--
+CREATE TABLE serialized (
+    id INTEGER PRIMARY KEY NOT NULL,
+    serialized text NOT NULL
+);
+
 COMMIT;

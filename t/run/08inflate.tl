@@ -4,7 +4,7 @@ my $schema = shift;
 eval { require DateTime };
 plan skip_all => "Need DateTime for inflation tests" if $@;
 
-plan tests => 3;
+plan tests => 5;
 
 DBICTest::Schema::CD->inflate_column( 'year',
     { inflate => sub { DateTime->new( year => shift ) },
@@ -26,6 +26,34 @@ $cd->update;
 
 ($cd) = $schema->resultset("CD")->search( year => $now->year );
 is( $cd->year->year, $now->year, 'deflate ok' );
+
+use YAML;
+DBICTest::Schema::Serialized->inflate_column( 'serialized',
+    { inflate => sub { Load (shift) },
+      deflate => sub { die "Expecting a reference" unless (ref $_[0]); Dump (shift) } }
+);
+Class::C3->reinitialize;
+
+my $complex1 = {
+    id => 1,
+    serialized => {
+        a => 1,
+        b => 2,
+    },
+};
+
+my $complex2 = {
+    id => 1,
+    serialized => [qw/a b 1 2/],
+};
+
+my $rs = $schema->resultset('Serialized');
+
+my $entry = $rs->create($complex2);
+
+ok($entry->update ($complex1), "update with hashref deflating ok");
+
+ok($entry->update ($complex2), "update with arrayref deflating ok");
 
 }
 
