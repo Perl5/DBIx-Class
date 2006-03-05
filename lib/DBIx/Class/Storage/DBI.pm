@@ -339,17 +339,25 @@ sub _populate_dbh {
 sub _connect {
   my ($self, @info) = @_;
 
+  my ($old_connect_via, $dbh);
+
   if ($INC{'Apache/DBI.pm'} && $ENV{MOD_PERL}) {
-      my $old_connect_via = $DBI::connect_via;
+      $old_connect_via = $DBI::connect_via;
       $DBI::connect_via = 'connect';
-      my $dbh = DBI->connect(@info);
-      $DBI::connect_via = $old_connect_via;
-      return $dbh;
   }
 
-  my $dbh = DBI->connect(@info);
+  if(ref $info[0] eq 'CODE') {
+      $dbh = &{$info[0]};
+  }
+  else {
+      $dbh = DBI->connect(@info);
+  }
+
+  $DBI::connect_via = $old_connect_via if $old_connect_via;
+
   $self->throw_exception("DBI Connection failed: $DBI::errstr")
       unless $dbh;
+
   $dbh;
 }
 
@@ -530,12 +538,7 @@ sub last_insert_id {
 
 }
 
-sub sqlt_type {
-  my ($self) = @_;
-  my $dsn = $self->connect_info->[0];
-  $dsn =~ /^dbi:(.*?)\d*:/;
-  return $1;
-}
+sub sqlt_type { shift->dbh->{Driver}->{Name} }
 
 sub deployment_statements {
   my ($self, $schema, $type) = @_;

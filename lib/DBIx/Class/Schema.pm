@@ -36,8 +36,8 @@ DBIx::Class::Schema - composable schemas
     $password,
     $attrs
   );
-
-  my $schema2 = My::Schema->connect( ... );
+  
+  my $schema2 = My::Schema->connect($coderef_returning_dbh);
 
   # fetch objects using My::Schema::Foo
   my $resultset = $schema1->resultset('Foo')->search( ... );

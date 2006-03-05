@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - Storage::DBI connect_info supports coderef returning dbh as 1st arg
         - add_components() doesn't prepend base when comp. prefixed with +
         - $schema->deploy
         - HAVING support
