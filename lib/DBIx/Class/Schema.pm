@@ -196,16 +196,26 @@ sub load_classes {
     $comps_for{$class} = \@comp;
   }
 
-  foreach my $prefix (keys %comps_for) {
-    foreach my $comp (@{$comps_for{$prefix}||[]}) {
-      my $comp_class = "${prefix}::${comp}";
-      eval "use $comp_class"; # If it fails, assume the user fixed it
-      if ($@) {
-        die $@ unless $@ =~ /Can't locate/;
+  my @to_register;
+  {
+    no warnings qw/redefine/;
+    local *Class::C3::reinitialize = sub { };
+    foreach my $prefix (keys %comps_for) {
+      foreach my $comp (@{$comps_for{$prefix}||[]}) {
+        my $comp_class = "${prefix}::${comp}";
+        eval "use $comp_class"; # If it fails, assume the user fixed it
+        if ($@) {
+          die $@ unless $@ =~ /Can't locate/;
+        }
+        push(@to_register, [ $comp, $comp_class ]);
       }
-      $class->register_class($comp => $comp_class);
-      #  if $class->can('result_source_instance');
     }
+  }
+  Class::C3->reinitialize;
+
+  foreach my $to (@to_register) {
+    $class->register_class(@$to);
+    #  if $class->can('result_source_instance');
   }
 }
 
