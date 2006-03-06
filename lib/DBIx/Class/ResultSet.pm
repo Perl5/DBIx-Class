@@ -11,7 +11,7 @@ use Storable;
 
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
-__PACKAGE__->mk_group_accessors('simple' => 'result_source');
+__PACKAGE__->mk_group_accessors('simple' => qw/result_source result_class/);
 
 =head1 NAME
 
@@ -134,6 +134,7 @@ sub new {
   }
   my $new = {
     result_source => $source,
+    result_class => $attrs->{result_class} || $source->result_class,
     cond => $attrs->{where},
     from => $attrs->{from},
     count => undef,
@@ -427,8 +428,7 @@ sub _construct_object {
       if ref($target->[0]) ne 'ARRAY'; # arrayref is pre-inflated objects, do not overwrite
   }
   #use Data::Dumper; warn Dumper(\@as, $info);
-  my $new = $self->result_source->result_class->inflate_result(
-              $self->result_source, @$info);
+  my $new = $self->result_class->inflate_result($self->result_source, @$info);
   $new = $self->{attrs}{record_filter}->($new)
     if exists $self->{attrs}{record_filter};
  
@@ -683,7 +683,7 @@ sub new_result {
   foreach my $key (keys %{$self->{cond}||{}}) {
     $new{$1} = $self->{cond}{$key} if ($key =~ m/^(?:$alias\.)?([^\.]+)$/);
   }
-  my $obj = $self->result_source->result_class->new(\%new);
+  my $obj = $self->result_class->new(\%new);
   $obj->result_source($self->result_source) if $obj->can('result_source');
   $obj;
 }
@@ -834,7 +834,7 @@ sub set_cache {
   my ( $self, $data ) = @_;
   $self->throw_exception("set_cache requires an arrayref")
     if ref $data ne 'ARRAY';
-  my $result_class = $self->result_source->result_class;
+  my $result_class = $self->result_class;
   foreach( @$data ) {
     $self->throw_exception("cannot cache object of type '$_', expected '$result_class'")
       if ref $_ ne $result_class;
