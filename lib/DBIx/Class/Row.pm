@@ -132,6 +132,10 @@ sub delete {
     my $ident_cond = $self->ident_condition;
     $self->throw_exception("Cannot safely delete a row in a PK-less table")
       if ! keys %$ident_cond;
+    foreach my $column (keys %$ident_cond) {
+	$self->throw_exception("Can't delete the object unless it has loaded the primary keys")
+	unless exists $self->{_column_data}{$column};
+    }
     $self->result_source->storage->delete(
       $self->result_source->from, $ident_cond);
     $self->in_storage(undef);

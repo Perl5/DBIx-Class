@@ -621,6 +621,7 @@ Specify here any attributes you wish to pass to your specialised resultset.
 
 sub resultset {
   my $self = shift;
+  $self->throw_exception('resultset does not take any arguments. If you want another resultset, call it on the schema instead.') if scalar @_;
   return $self->{_resultset} if ref $self->{_resultset} eq $self->resultset_class;
   return $self->{_resultset} = do {
     my $rs = $self->resultset_class->new($self, $self->{resultset_attributes});
