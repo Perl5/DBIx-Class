@@ -3,7 +3,7 @@ my $schema = shift;
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 13;
+plan tests => 14;
 
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
@@ -12,26 +12,6 @@ my $rs = $schema->resultset("Artist")->search(
 my $artist = $rs->first;
 
 is( scalar @{ $rs->get_cache }, 0, 'cache is not populated without cache attribute' );
-
-# start test for prefetch SELECT count
-unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
-DBI->trace(1, 't/var/dbic.trace');
-
-$artist = $schema->resultset('Artist')->find(1, { prefetch => [qw/cds/] });
-
-# count the SELECTs
-DBI->trace(0, undef);
-$selects = 0;
-$trace = IO::File->new('t/var/dbic.trace', '<') 
-    or die "Unable to read trace file";
-while (<$trace>) {
-    $selects++ if /SELECT/;
-}
-$trace->close;
-unlink 't/var/dbic.trace';
-
-is( $selects, 1, 'only one select statement on find with has_many prefetch' );
-
 
 $rs = $schema->resultset("Artist")->search(
   { 'artistid' => 1 },
@@ -146,6 +126,45 @@ $trace->close;
 unlink 't/var/dbic.trace';
 
 is( $selects, 0, 'no additional SQL statements while checking nested data' );
+
+# start test for prefetch SELECT count
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
+
+$artist = $schema->resultset('Artist')->find(1, { prefetch => [qw/cds/] });
+
+# count the SELECTs
+DBI->trace(0, undef);
+$selects = 0;
+$trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT/;
+}
+$trace->close;
+unlink 't/var/dbic.trace';
+
+is( $selects, 1, 'only one select statement on find with inline has_many prefetch' );
+
+# start test for prefetch SELECT count
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
+
+$rs = $schema->resultset('Artist')->search(undef, { prefetch => [qw/cds/] });
+$artist = $rs->find(1);
+
+# count the SELECTs
+DBI->trace(0, undef);
+$selects = 0;
+$trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT/;
+}
+$trace->close;
+unlink 't/var/dbic.trace';
+
+is( $selects, 1, 'only one select statement on find with has_many prefetch on resultset' );
 
 }
 
