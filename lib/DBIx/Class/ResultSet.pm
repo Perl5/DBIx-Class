@@ -106,7 +106,10 @@ sub new {
     if $attrs->{order_by} && !ref($attrs->{order_by});
   $attrs->{order_by} ||= [];
 
+  my $collapse = {};
+
   if (my $prefetch = delete $attrs->{prefetch}) {
+    my @pre_order;
     foreach my $p (ref $prefetch eq 'ARRAY'
               ? (@{$prefetch}) : ($prefetch)) {
       if( ref $p eq 'HASH' ) {
@@ -120,11 +123,12 @@ sub new {
             unless $seen{$p};
       }
       my @prefetch = $source->resolve_prefetch(
-           $p, $attrs->{alias}, {}, $attrs->{order_by});
+           $p, $attrs->{alias}, {}, \@pre_order, $collapse);
       #die Dumper \@cols;
       push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
       push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
     }
+    push(@{$attrs->{order_by}}, @pre_order);
   }
 
   if ($attrs->{page}) {
@@ -132,11 +136,17 @@ sub new {
     $attrs->{offset} ||= 0;
     $attrs->{offset} += ($attrs->{rows} * ($attrs->{page} - 1));
   }
+
+#if (keys %{$collapse}) {
+#  use Data::Dumper; warn Dumper($collapse);
+#}
+
   my $new = {
     result_source => $source,
     result_class => $attrs->{result_class} || $source->result_class,
     cond => $attrs->{where},
     from => $attrs->{from},
+    collapse => $collapse,
     count => undef,
     page => delete $attrs->{page},
     pager => undef,
@@ -397,10 +407,12 @@ sub next {
     return $obj;
   }
   if ($self->{attrs}{cache}) {
-    $self->{all_cache_position} = 0;
+    $self->{all_cache_position} = 1;
     return ($self->all)[0];
   }
-  my @row = delete $self->{stashed_row} || $self->cursor->next;
+  my @row = (exists $self->{stashed_row}
+               ? @{delete $self->{stashed_row}}
+               : $self->cursor->next);
 #  warn Dumper(\@row); use Data::Dumper;
   return unless (@row);
   return $self->_construct_object(@row);
@@ -408,31 +420,75 @@ sub next {
 
 sub _construct_object {
   my ($self, @row) = @_;
-  my @row_orig = @row; # copy @row for key comparison later, because @row will change
   my @as = @{ $self->{attrs}{as} };
-#use Data::Dumper; warn Dumper \@as;
-  #warn "@cols -> @row";
-  my $info = [ {}, {} ];
-  foreach my $as (@as) {
-    my $rs = $self;
-    my $target = $info;
-    my @parts = split(/\./, $as);
-    my $col = pop(@parts);
-    foreach my $p (@parts) {
-      $target = $target->[1]->{$p} ||= [];
-      
-      $rs = $rs->related_resultset($p) if $rs->{attrs}->{cache};
-    }
-    
-    $target->[0]->{$col} = shift @row
-      if ref($target->[0]) ne 'ARRAY'; # arrayref is pre-inflated objects, do not overwrite
-  }
+
+  my $info = $self->_collapse_result(\@as, \@row);
+
   #use Data::Dumper; warn Dumper(\@as, $info);
   my $new = $self->result_class->inflate_result($self->result_source, @$info);
+
   $new = $self->{attrs}{record_filter}->($new)
     if exists $self->{attrs}{record_filter};
  
   return $new;
+}
+
+sub _collapse_result {
+  my ($self, $as, $row, $prefix) = @_;
+
+  my %const;
+
+  my @copy = @$row;
+  foreach my $as (@$as) {
+    if (defined $prefix && !($as =~ s/\Q${prefix}\E\.//)) {
+      shift @copy;
+      next;
+    }
+    $as =~ /^(?:(.*)\.)?([^\.]+)$/;
+    $const{$1||''}{$2} = shift @copy;
+  }
+
+  #warn "@cols -> @row";
+  my $info = [ {}, {} ];
+  foreach my $key (keys %const) {
+    if (length $key) {
+      my $target = $info;
+      my @parts = split(/\./, $key);
+      foreach my $p (@parts) {
+        $target = $target->[1]->{$p} ||= [];
+      }
+      $target->[0] = $const{$key};
+    } else {
+      $info->[0] = $const{$key};
+    }
+  }
+
+  if (!defined($prefix) && keys %{$self->{collapse}}) {
+    my ($c) = sort { length $a <=> length $b } keys %{$self->{collapse}};
+    #warn "Collapsing ${c}";
+    my $target = $info;
+    #warn Data::Dumper::Dumper($target);
+    foreach my $p (split(/\./, $c)) {
+      $target = $target->[1]->{$p};
+    }
+    my @co_key = @{$self->{collapse}{$c}};
+    my %co_check = map { ($_, $target->[0]->{$_}); } @co_key;
+    my $tree = $self->_collapse_result($as, $row, $c);
+    #warn Data::Dumper::Dumper($target);
+    my (@final, @raw);
+    while ( !(grep { $co_check{$_} ne $tree->[0]->{$_} } @co_key) ) {
+      push(@final, $tree);
+      last unless (@raw = $self->cursor->next);
+      $row = $self->{stashed_row} = \@raw;
+      $tree = $self->_collapse_result($as, $row, $c);
+    }
+    @{$target} = @final;
+    #warn Data::Dumper::Dumper($target);
+  }
+
+  #warn Dumper($info);
+
+  return $info;
 }
 
 =head2 result_source

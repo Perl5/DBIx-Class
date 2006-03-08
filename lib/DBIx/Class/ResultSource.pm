@@ -545,21 +545,23 @@ in the supplied relationships. Examples:
 =cut
 
 sub resolve_prefetch {
-  my ($self, $pre, $alias, $seen, $order) = @_;
+  my ($self, $pre, $alias, $seen, $order, $collapse) = @_;
   $seen ||= {};
   use Data::Dumper;
   #$alias ||= $self->name;
   #warn $alias, Dumper $pre;
   if( ref $pre eq 'ARRAY' ) {
-    return map { $self->resolve_prefetch( $_, $alias, $seen, $order ) } @$pre;
+    return
+      map { $self->resolve_prefetch( $_, $alias, $seen, $order, $collapse ) }
+        @$pre;
   }
   elsif( ref $pre eq 'HASH' ) {
     my @ret =
     map {
-      $self->resolve_prefetch($_, $alias, $seen, $order),
+      $self->resolve_prefetch($_, $alias, $seen, $order, $collapse),
       $self->related_source($_)->resolve_prefetch(
-                                   $pre->{$_}, "${alias}.$_", $seen, $order)
-        } keys %$pre;
+               $pre->{$_}, "${alias}.$_", $seen, $order, $collapse)
+    } keys %$pre;
     #die Dumper \@ret;
     return @ret;
   }
@@ -575,9 +577,18 @@ sub resolve_prefetch {
       unless $rel_info;
     my $as_prefix = ($alias =~ /^.*?\.(.*)$/ ? $1.'.' : '');
     my $rel_source = $self->related_source($pre);
-    push(@$order,
-      map { "${as}.$_" }
-        (@{$rel_info->{order_by}||[]}, $rel_source->primary_columns));
+
+    if (exists $rel_info->{attrs}{accessor}
+         && $rel_info->{attrs}{accessor} eq 'multi') {
+      $self->throw_exception(
+        "Can't prefetch has_many ${pre} (join cond too complex)")
+        unless ref($rel_info->{cond}) eq 'HASH';
+      my @key = map { (/^foreign\.(.*)$/ ? ($1) : ()); }
+                    keys %{$rel_info->{cond}};
+      $collapse->{"${as_prefix}${pre}"} = \@key;
+      push(@$order, map { "${as}.$_" } (@key, @{$rel_info->{order_by}||[]}));
+    }
+
     return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
       $rel_source->columns;
     #warn $alias, Dumper (\@ret);

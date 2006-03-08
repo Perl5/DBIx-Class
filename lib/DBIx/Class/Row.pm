@@ -304,7 +304,8 @@ sub inflate_result {
     my $pre_source = $source->related_source($pre);
     $class->throw_exception("Can't prefetch non-existent relationship ${pre}")
       unless $pre_source;
-    if (ref $pre_val->[0] eq 'ARRAY') { # multi
+    #warn Data::Dumper::Dumper($pre_val)." ";
+    if (ref($pre_val->[0]) eq 'ARRAY') { # multi
       my @pre_objects;
       foreach my $pre_rec (@$pre_val) {
         unless ($pre_source->primary_columns == grep { exists $pre_rec->[0]{$_} 
