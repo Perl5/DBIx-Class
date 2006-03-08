@@ -28,7 +28,7 @@ sub has_many {
     }
     $class->throw_exception("No such column ${f_key} on foreign class ${f_class} ($guess)")
       if $f_class_loaded && !$f_class->has_column($f_key);
-    $cond = { "foreign.${f_key}" => "self.${pri}" },
+    $cond = { "foreign.${f_key}" => "self.${pri}" };
   }
 
   $class->add_relationship($rel, $f_class, $cond,

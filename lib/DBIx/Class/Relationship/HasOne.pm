@@ -22,9 +22,8 @@ sub _has_one {
     my ($pri, $too_many) = $class->primary_columns;
     $class->throw_exception( "might_have/has_one can only infer join for a single primary key; ${class} has more" )
       if $too_many;
-    my $f_key;
     my $f_class_loaded = eval { $f_class->columns };
-    my $guess;
+    my ($f_key,$guess);
     if (defined $cond && length $cond) {
       $f_key = $cond;
       $guess = "caller specified foreign key '$f_key'";
