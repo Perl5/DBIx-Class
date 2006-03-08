@@ -170,6 +170,8 @@ Robert Sedlacek <phaylon@dunkelheit.at>
 
 Justin Guenther <jguenther@agr.gc.ca>
 
+Daisuke Murase <typester@cpan.org>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.

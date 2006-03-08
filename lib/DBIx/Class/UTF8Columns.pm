@@ -61,6 +61,21 @@ sub get_column {
     $value;
 }
 
+=head2 get_columns
+
+=cut
+
+sub get_columns {
+    my $self = shift;
+    my %data = $self->next::method(@_);
+
+    for (@{ $self->force_utf8_columns }) {
+        Encode::_utf8_on($data{$_}) if $data{$_} and !Encode::is_utf8($_);
+    }
+
+    %data;
+}
+
 =head2 store_column
 
 =cut
