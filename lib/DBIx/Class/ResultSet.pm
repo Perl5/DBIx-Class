@@ -76,11 +76,10 @@ sub new {
   my $alias = ($attrs->{alias} ||= 'me');
   
   $attrs->{columns} ||= delete $attrs->{cols} if $attrs->{cols};
+  delete $attrs->{as} if $attrs->{columns};
   $attrs->{columns} ||= [ $source->columns ] unless $attrs->{select};
-  if ($attrs->{columns}) {
-    delete $attrs->{as};
-    $attrs->{select} = [ map { m/\./ ? $_ : "${alias}.$_" } @{delete $attrs->{columns}} ];
-  }
+  $attrs->{select} = [ map { m/\./ ? $_ : "${alias}.$_" } @{delete $attrs->{columns}} ]
+    if $attrs->{columns};
   $attrs->{as} ||= [ map { m/^\Q$alias.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}} ];
   if (my $include = delete $attrs->{include_columns}) {
     push(@{$attrs->{select}}, @$include);
@@ -103,7 +102,7 @@ sub new {
   }
   
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
-  $attrs->{order_by} = [ $attrs->{order_by} ] if !ref($attrs->{order_by});
+  $attrs->{order_by} = [ $attrs->{order_by} ] if $attrs->{order_by} and !ref($attrs->{order_by});
   $attrs->{order_by} ||= [];
 
   my $collapse = $attrs->{collapse} || {};
