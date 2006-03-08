@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 39; 
+plan tests => 41; 
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -145,6 +145,12 @@ cmp_ok($rel_rs->count, '==', 5, 'Related search ok');
 
 cmp_ok($or_rs->next->cdid, '==', $rel_rs->next->cdid, 'Related object ok');
 
+
+my $tag = $schema->resultset('Tag')->search(
+               [ { 'me.tag' => 'Blue' } ], { cols=>[qw/tagid/] } )->next;
+
+cmp_ok($tag->has_column_loaded('tagid'), '==', 1, 'Has tagid loaded');
+cmp_ok($tag->has_column_loaded('tag'), '==', 0, 'Has not tag  loaded');
 
 ok($schema->storage(), 'Storage available');
 
