@@ -106,7 +106,7 @@ sub new {
     if $attrs->{order_by} && !ref($attrs->{order_by});
   $attrs->{order_by} ||= [];
 
-  my $collapse = {};
+  my $collapse = $attrs->{collapse} || {};
 
   if (my $prefetch = delete $attrs->{prefetch}) {
     my @pre_order;
@@ -130,6 +130,8 @@ sub new {
     }
     push(@{$attrs->{order_by}}, @pre_order);
   }
+
+  $attrs->{collapse} = $collapse;
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
