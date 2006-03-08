@@ -284,9 +284,13 @@ sub find {
     $query->{$self->{attrs}{alias}.'.'.$_} = delete $query->{$_};
   }
   #warn Dumper($query);
-  return (keys %$attrs
-           ? $self->search($query,$attrs)->single
-           : $self->single($query));
+  
+  if (keys %$attrs) {
+      my $rs = $self->search($query,$attrs);
+      return keys %{$rs->{collapse}} ? $rs->next : $rs->single;
+  } else {
+      return keys %{$self->{collapse}} ? $self->search($query)->next : $self->single($query);
+  }
 }
 
 =head2 search_related
@@ -422,7 +426,9 @@ sub _construct_object {
   my ($self, @row) = @_;
   my @as = @{ $self->{attrs}{as} };
 
+  warn "collapsing";
   my $info = $self->_collapse_result(\@as, \@row);
+  warn "done collapsing";
 
   my $new = $self->result_class->inflate_result($self->result_source, @$info);
 
