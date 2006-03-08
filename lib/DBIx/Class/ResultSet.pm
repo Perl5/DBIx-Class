@@ -424,7 +424,6 @@ sub _construct_object {
 
   my $info = $self->_collapse_result(\@as, \@row);
 
-  #use Data::Dumper; warn Dumper(\@as, $info);
   my $new = $self->result_class->inflate_result($self->result_source, @$info);
 
   $new = $self->{attrs}{record_filter}->($new)
@@ -453,7 +452,6 @@ sub _collapse_result {
     }
   }
 
-  #warn "@cols -> @row";
   my $info = [ {}, {} ];
   foreach my $key (keys %const) {
     if (length $key) {
@@ -474,9 +472,7 @@ sub _collapse_result {
                    : keys %{$self->{collapse}});
   if (@collapse) {
     my ($c) = sort { length $a <=> length $b } @collapse;
-    #warn "Collapsing ${c}";
     my $target = $info;
-    #warn Data::Dumper::Dumper($target);
     foreach my $p (split(/\./, $c)) {
       $target = $target->[1]->{$p} ||= [];
     }
@@ -484,7 +480,6 @@ sub _collapse_result {
     my @co_key = @{$self->{collapse}{$c_prefix}};
     my %co_check = map { ($_, $target->[0]->{$_}); } @co_key;
     my $tree = $self->_collapse_result($as, $row, $c_prefix);
-    #warn Data::Dumper::Dumper($tree, $row);
     my (@final, @raw);
     while ( !(grep {
                 !defined($tree->[0]->{$_})
@@ -497,11 +492,7 @@ sub _collapse_result {
       #warn Data::Dumper::Dumper($tree, $row);
     }
     @{$target} = @final;
-    #warn Data::Dumper::Dumper($target);
-    #warn Data::Dumper::Dumper($info);
   }
-
-  #warn Dumper($info);
 
   return $info;
 }

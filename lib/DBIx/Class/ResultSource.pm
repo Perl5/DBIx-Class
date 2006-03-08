@@ -547,7 +547,6 @@ in the supplied relationships. Examples:
 sub resolve_prefetch {
   my ($self, $pre, $alias, $seen, $order, $collapse) = @_;
   $seen ||= {};
-  use Data::Dumper;
   #$alias ||= $self->name;
   #warn $alias, Dumper $pre;
   if( ref $pre eq 'ARRAY' ) {
