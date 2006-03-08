@@ -5,16 +5,6 @@ eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
 plan tests => 12;
 
-warn "
-This test WILL fail. That's because the has_many prefetch code is
-only half re-written. However, it was utterly borken before, so
-this is arguably an improvement. If you fancy having a go at making
-_construct_object in resultset collapse multiple results into
-appropriate nested structures for inflate_result, be my guest.
-     -- mst
-
-";
-
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
 );
@@ -65,7 +55,7 @@ while (<$trace>) {
 }
 $trace->close;
 unlink 't/var/dbic.trace';
-is($selects, 2, 'only one SQL statement for each cached table');
+is($selects, 1, 'only one SQL statement executed');
 
 # make sure related_resultset is deleted after object is updated
 $artist->set_column('name', 'New Name');
@@ -88,7 +78,7 @@ $rs = $schema->resultset("Artist")->search(
 unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
 DBI->trace(1, 't/var/dbic.trace');
 
-$artist = $rs->first;
+$artist = ($rs->all)[0];
 
 # count the SELECTs
 DBI->trace(0, undef);
@@ -100,10 +90,10 @@ while (<$trace>) {
 }
 $trace->close;
 unlink 't/var/dbic.trace';
-is($selects, 3, 'one SQL statement for each cached table with nested prefetch');
+is($selects, 1, 'only one SQL statement executed');
 
 my @objs;
-$artist = $rs->find(1);
+#$artist = $rs->find(1);
 
 unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
 DBI->trace(1, 't/var/dbic.trace');
@@ -111,10 +101,10 @@ DBI->trace(1, 't/var/dbic.trace');
 my $cds = $artist->cds;
 my $tags = $cds->next->tags;
 while( my $tag = $tags->next ) {
-  push @objs, $tag->tagid; #warn "tag:", $tag->ID;
+  push @objs, $tag->tagid; #warn "tag:", $tag->ID, " => ", $tag->tag;
 }
 
-is_deeply( \@objs, [ 1 ], 'first cd has correct tags' );
+is_deeply( \@objs, [ 3 ], 'first cd has correct tags' );
 
 $tags = $cds->next->tags;
 @objs = ();

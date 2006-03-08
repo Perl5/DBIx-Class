@@ -586,7 +586,12 @@ sub resolve_prefetch {
       my @key = map { (/^foreign\.(.*)$/ ? ($1) : ()); }
                     keys %{$rel_info->{cond}};
       $collapse->{"${as_prefix}${pre}"} = \@key;
-      push(@$order, map { "${as}.$_" } (@key, @{$rel_info->{order_by}||[]}));
+      my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
+                   ? @{$rel_info->{attrs}{order_by}}
+                   : (defined $rel_info->{attrs}{order_by}
+                       ? ($rel_info->{attrs}{order_by})
+                       : ()));
+      push(@$order, map { "${as}.$_" } (@key, @ord));
     }
 
     return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }

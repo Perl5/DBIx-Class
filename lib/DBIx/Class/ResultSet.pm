@@ -439,13 +439,18 @@ sub _collapse_result {
   my %const;
 
   my @copy = @$row;
-  foreach my $as (@$as) {
-    if (defined $prefix && !($as =~ s/\Q${prefix}\E\.//)) {
-      shift @copy;
-      next;
+  foreach my $this_as (@$as) {
+    my $val = shift @copy;
+    if (defined $prefix) {
+      if ($this_as =~ m/^\Q${prefix}.\E(.+)$/) {
+        my $remain = $1;
+        $remain =~ /^(?:(.*)\.)?([^\.]+)$/;
+        $const{$1||''}{$2} = $val;
+      }
+    } else {
+      $this_as =~ /^(?:(.*)\.)?([^\.]+)$/;
+      $const{$1||''}{$2} = $val;
     }
-    $as =~ /^(?:(.*)\.)?([^\.]+)$/;
-    $const{$1||''}{$2} = shift @copy;
   }
 
   #warn "@cols -> @row";
@@ -463,27 +468,37 @@ sub _collapse_result {
     }
   }
 
-  if (!defined($prefix) && keys %{$self->{collapse}}) {
-    my ($c) = sort { length $a <=> length $b } keys %{$self->{collapse}};
+  my @collapse = (defined($prefix)
+                   ? (map { (m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()); }
+                       keys %{$self->{collapse}})
+                   : keys %{$self->{collapse}});
+  if (@collapse) {
+    my ($c) = sort { length $a <=> length $b } @collapse;
     #warn "Collapsing ${c}";
     my $target = $info;
     #warn Data::Dumper::Dumper($target);
     foreach my $p (split(/\./, $c)) {
-      $target = $target->[1]->{$p};
+      $target = $target->[1]->{$p} ||= [];
     }
-    my @co_key = @{$self->{collapse}{$c}};
+    my $c_prefix = (defined($prefix) ? "${prefix}.${c}" : $c);
+    my @co_key = @{$self->{collapse}{$c_prefix}};
     my %co_check = map { ($_, $target->[0]->{$_}); } @co_key;
-    my $tree = $self->_collapse_result($as, $row, $c);
-    #warn Data::Dumper::Dumper($target);
+    my $tree = $self->_collapse_result($as, $row, $c_prefix);
+    #warn Data::Dumper::Dumper($tree, $row);
     my (@final, @raw);
-    while ( !(grep { $co_check{$_} ne $tree->[0]->{$_} } @co_key) ) {
+    while ( !(grep {
+                !defined($tree->[0]->{$_})
+                || $co_check{$_} ne $tree->[0]->{$_}
+              } @co_key) ) {
       push(@final, $tree);
       last unless (@raw = $self->cursor->next);
       $row = $self->{stashed_row} = \@raw;
-      $tree = $self->_collapse_result($as, $row, $c);
+      $tree = $self->_collapse_result($as, $row, $c_prefix);
+      #warn Data::Dumper::Dumper($tree, $row);
     }
     @{$target} = @final;
     #warn Data::Dumper::Dumper($target);
+    #warn Data::Dumper::Dumper($info);
   }
 
   #warn Dumper($info);
@@ -576,14 +591,29 @@ sub all {
   my ($self) = @_;
   return @{ $self->get_cache }
     if @{ $self->get_cache };
-  if( $self->{attrs}->{cache} ) {
-    my @obj = map { $self->_construct_object(@$_); }
-            $self->cursor->all;
-    $self->set_cache( \@obj );
-    return @obj;
+
+  my @obj;
+
+  if (keys %{$self->{collapse}}) {
+      # Using $self->cursor->all is really just an optimisation.
+      # If we're collapsing has_many prefetches it probably makes
+      # very little difference, and this is cleaner than hacking
+      # _construct_object to survive the approach
+    my @row;
+    $self->cursor->reset;
+    while (@row = $self->cursor->next) {
+      push(@obj, $self->_construct_object(@row));
+    }
+  } else {
+    @obj = map { $self->_construct_object(@$_); }
+             $self->cursor->all;
   }
-  return map { $self->_construct_object(@$_); }
-           $self->cursor->all;
+
+  if( $self->{attrs}->{cache} ) {
+    $self->set_cache( \@obj );
+  }
+
+  return @obj;
 }
 
 =head2 reset
