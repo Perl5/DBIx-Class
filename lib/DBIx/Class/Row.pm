@@ -171,6 +171,14 @@ sub get_column {
   return undef;
 }
 
+sub has_column_loaded {
+  my ($self, $column) = @_;
+  $self->throw_exception( "Can't call has_column data as class method" ) unless ref $self;
+  return 1
+    if exists $self->{_column_data}{$column};
+  return 0;
+}
+
 =head2 get_columns
 
   my %data = $obj->get_columns;
