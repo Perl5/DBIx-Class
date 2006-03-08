@@ -69,29 +69,30 @@ automatically get one from e.g. a L</search> called in scalar context:
 sub new {
   my $class = shift;
   return $class->new_result(@_) if ref $class;
+  
   my ($source, $attrs) = @_;
   #use Data::Dumper; warn Dumper($attrs);
   $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
-  my %seen;
   my $alias = ($attrs->{alias} ||= 'me');
-  if ($attrs->{cols} || !$attrs->{select}) {
-    delete $attrs->{as} if $attrs->{cols};
-    my @cols = ($attrs->{cols}
-                 ? @{delete $attrs->{cols}}
-                 : $source->columns);
-    $attrs->{select} = [ map { m/\./ ? $_ : "${alias}.$_" } @cols ];
+  
+  $attrs->{columns} ||= delete $attrs->{cols} if $attrs->{cols};
+  $attrs->{columns} ||= [ $source->columns ] unless $attrs->{select};
+  if ($attrs->{columns}) {
+    delete $attrs->{as};
+    $attrs->{select} = [ map { m/\./ ? $_ : "${alias}.$_" } @{delete $attrs->{columns}} ];
   }
-  $attrs->{as} ||= [ map { m/^$alias\.(.*)$/ ? $1 : $_ } @{$attrs->{select}} ];
+  $attrs->{as} ||= [ map { m/^\Q$alias.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}} ];
   if (my $include = delete $attrs->{include_columns}) {
     push(@{$attrs->{select}}, @$include);
     push(@{$attrs->{as}}, map { m/([^\.]+)$/; $1; } @$include);
   }
   #use Data::Dumper; warn Dumper(@{$attrs}{qw/select as/});
+
   $attrs->{from} ||= [ { $alias => $source->from } ];
   $attrs->{seen_join} ||= {};
+  my %seen;
   if (my $join = delete $attrs->{join}) {
-    foreach my $j (ref $join eq 'ARRAY'
-              ? (@{$join}) : ($join)) {
+    foreach my $j (ref $join eq 'ARRAY' ? @$join : ($join)) {
       if (ref $j eq 'HASH') {
         $seen{$_} = 1 foreach keys %$j;
       } else {
@@ -100,38 +101,33 @@ sub new {
     }
     push(@{$attrs->{from}}, $source->resolve_join($join, $attrs->{alias}, $attrs->{seen_join}));
   }
+  
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
-
-  $attrs->{order_by} = [ $attrs->{order_by} ]
-    if $attrs->{order_by} && !ref($attrs->{order_by});
+  $attrs->{order_by} = [ $attrs->{order_by} ] if !ref($attrs->{order_by});
   $attrs->{order_by} ||= [];
 
   my $collapse = $attrs->{collapse} || {};
-
   if (my $prefetch = delete $attrs->{prefetch}) {
     my @pre_order;
-    foreach my $p (ref $prefetch eq 'ARRAY'
-              ? (@{$prefetch}) : ($prefetch)) {
-      if( ref $p eq 'HASH' ) {
+    foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
+      if ( ref $p eq 'HASH' ) {
         foreach my $key (keys %$p) {
           push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
             unless $seen{$key};
         }
-      }
-      else {
+      } else {
         push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
             unless $seen{$p};
       }
       my @prefetch = $source->resolve_prefetch(
            $p, $attrs->{alias}, {}, \@pre_order, $collapse);
-      #die Dumper \@cols;
       push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
       push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
     }
     push(@{$attrs->{order_by}}, @pre_order);
   }
-
   $attrs->{collapse} = $collapse;
+#  use Data::Dumper; warn Dumper($collapse) if keys %{$collapse};
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
@@ -139,11 +135,7 @@ sub new {
     $attrs->{offset} += ($attrs->{rows} * ($attrs->{page} - 1));
   }
 
-#if (keys %{$collapse}) {
-#  use Data::Dumper; warn Dumper($collapse);
-#}
-
-  my $new = {
+  bless {
     result_source => $source,
     result_class => $attrs->{result_class} || $source->result_class,
     cond => $attrs->{where},
@@ -152,9 +144,8 @@ sub new {
     count => undef,
     page => delete $attrs->{page},
     pager => undef,
-    attrs => $attrs };
-  bless ($new, $class);
-  return $new;
+    attrs => $attrs
+  }, $class;
 }
 
 =head2 search
@@ -163,10 +154,10 @@ sub new {
   my $new_rs = $rs->search({ foo => 3 });
 
 If you need to pass in additional attributes but no additional condition,
-call it as C<search({}, \%attrs);>.
+call it as C<search(undef, \%attrs);>.
 
   # "SELECT foo, bar FROM $class_table"
-  my @all = $class->search({}, { cols => [qw/foo bar/] });
+  my @all = $class->search(undef, { columns => [qw/foo bar/] });
 
 =cut
 
@@ -396,7 +387,7 @@ Returns the next element in the resultset (C<undef> is there is none).
 
 Can be used to efficiently iterate over records in the resultset:
 
-  my $rs = $schema->resultset('CD')->search({});
+  my $rs = $schema->resultset('CD')->search;
   while (my $cd = $rs->next) {
     print $cd->title;
   }
@@ -1000,13 +991,14 @@ overview of them:
 Which column(s) to order the results by. This is currently passed through
 directly to SQL, so you can give e.g. C<foo DESC> for a descending order.
 
-=head2 cols
+=head2 columns
 
 =head3 Arguments: (arrayref)
 
 Shortcut to request a particular set of columns to be retrieved.  Adds
 C<me.> onto the start of any column without a C<.> in it and sets C<select>
-from that, then auto-populates C<as> from C<select> as normal.
+from that, then auto-populates C<as> from C<select> as normal. (You may also
+use the C<cols> attribute, as in earlier versions of DBIC.)
 
 =head2 include_columns
 
@@ -1027,7 +1019,7 @@ column names, or in the case of RDBMS back ends, function or stored procedure
 names:
 
   $rs = $schema->resultset('Foo')->search(
-    {},
+    undef,
     {
       select => [
         'column_name',
@@ -1050,7 +1042,7 @@ C<select>, usually when C<select> contains one or more function or stored
 procedure names:
 
   $rs = $schema->resultset('Foo')->search(
-    {},
+    undef,
     {
       select => [
         'column1',
@@ -1131,7 +1123,7 @@ query (when they are accessed afterwards they will have already been
 objects, because it saves at least one query:
 
   my $rs = $schema->resultset('Tag')->search(
-    {},
+    undef,
     {
       prefetch => {
         cd => 'artist'
@@ -1198,7 +1190,7 @@ C<from> can be used to nest joins. Here we return all children with a father,
 then search against all mothers of those children:
 
   $rs = $schema->resultset('Person')->search(
-      {},
+      undef,
       {
           alias => 'mother', # alias columns in accordance with "from"
           from => [
@@ -1230,7 +1222,7 @@ The type of any join can be controlled manually. To search against only people
 with a father in the person table, we could explicitly use C<INNER JOIN>:
 
     $rs = $schema->resultset('Person')->search(
-        {},
+        undef,
         {
             alias => 'child', # alias columns in accordance with "from"
             from => [

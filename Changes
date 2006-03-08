@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
-	- Added has_column_loaded to Row
+        - renamed cols attribute to columns (cols still supported)
+        - added has_column_loaded to Row
         - Storage::DBI connect_info supports coderef returning dbh as 1st arg
         - add_components() doesn't prepend base when comp. prefixed with +
         - $schema->deploy
@@ -70,10 +71,10 @@ Revision history for DBIx::Class
         - count will now work for grouped resultsets
         - added accessor => option to column_info to specify accessor name
         - added $schema->populate to load test data (similar to AR fixtures)
-	- removed cdbi-t dependencies, only run tests if installed
-	- Removed DBIx::Class::Exception
-	- unified throw_exception stuff, using Carp::Clan
-	- report query when sth generation fails.
+        - removed cdbi-t dependencies, only run tests if installed
+        - Removed DBIx::Class::Exception
+        - unified throw_exception stuff, using Carp::Clan
+        - report query when sth generation fails.
         - multi-step prefetch!
         - inheritance fixes
         - test tweaks
@@ -96,7 +97,7 @@ Revision history for DBIx::Class
         - made Storage::DBI use prepare_cached safely (thanks to Tim Bunce)
         - many documentation improvements (thanks guys!)
         - added ->connection, ->connect, ->register_source and ->clone schema methods
-	- Use croak instead of die for user errors.
+        - Use croak instead of die for user errors.
 
 0.04999_02 2006-01-14 07:17:35
         - Schema is now self-contained; no requirement for co-operation
@@ -139,7 +140,7 @@ Revision history for DBIx::Class
 
 0.03004
         - Added an || '' to the CDBICompat stringify to avoid null warnings
-	- Updated name section for manual pods
+        - Updated name section for manual pods
 0.03003 2005-11-03 17:00:00
         - POD fixes.
         - Changed use to require in Relationship/Base to avoid import.
