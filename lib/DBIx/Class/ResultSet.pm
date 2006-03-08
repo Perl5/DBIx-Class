@@ -426,9 +426,7 @@ sub _construct_object {
   my ($self, @row) = @_;
   my @as = @{ $self->{attrs}{as} };
 
-  warn "collapsing";
   my $info = $self->_collapse_result(\@as, \@row);
-  warn "done collapsing";
 
   my $new = $self->result_class->inflate_result($self->result_source, @$info);
 
