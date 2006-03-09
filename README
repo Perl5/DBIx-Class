@@ -110,9 +110,17 @@ CONTRIBUTORS
 
     Brandon Black
 
+    Christopher H. Laco
+
     Scotty Allen <scotty@scottyallen.com>
 
-    Justin Guenther <guentherj@agr.gc.ca>
+    sc_
+
+    Robert Sedlacek <phaylon@dunkelheit.at>
+
+    Justin Guenther <jguenther@agr.gc.ca>
+
+    Daisuke Murase <typester@cpan.org>
 
 LICENSE
     You may distribute this code under the same terms as Perl itself.
