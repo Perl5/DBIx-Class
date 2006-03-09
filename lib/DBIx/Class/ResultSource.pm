@@ -570,7 +570,7 @@ sub resolve_prefetch {
     my $rel_info = $self->relationship_info( $pre );
     $self->throw_exception( $self->name . " has no such relationship '$pre'" )
       unless $rel_info;
-    my $as_prefix = ($alias =~ /^.*?\.(.*)$/ ? $1.'.' : '');
+    my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
     my $rel_source = $self->related_source($pre);
 
     if (exists $rel_info->{attrs}{accessor}
@@ -578,7 +578,7 @@ sub resolve_prefetch {
       $self->throw_exception(
         "Can't prefetch has_many ${pre} (join cond too complex)")
         unless ref($rel_info->{cond}) eq 'HASH';
-      my @key = map { (/^foreign\.(.*)$/ ? ($1) : ()); }
+      my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
                     keys %{$rel_info->{cond}};
       $collapse->{"${as_prefix}${pre}"} = \@key;
       my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
