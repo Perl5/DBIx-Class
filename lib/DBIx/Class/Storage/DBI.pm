@@ -68,6 +68,8 @@ sub _order_by {
     if (defined $_[0]->{order_by}) {
       $ret .= $self->SUPER::_order_by($_[0]->{order_by});
     }
+  } elsif(ref $_[0] eq 'SCALAR') {
+    $ret = $self->_sqlcase(' order by ').${ $_[0] };
   } else {
     $ret = $self->SUPER::_order_by(@_);
   }
