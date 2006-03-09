@@ -96,7 +96,7 @@ my @cd = $schema->source("CD")->columns;
 
 is_deeply( \@cd, [qw/cdid artist title year/], 'column order');
 
-$cd = $schema->resultset("CD")->search({ title => 'Spoonful of bees' }, { cols => ['title'] })->next;
+$cd = $schema->resultset("CD")->search({ title => 'Spoonful of bees' }, { columns => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');
 
 $cd = $schema->resultset("CD")->search(undef, { include_columns => [ 'artist.name' ], join => [ 'artist' ] })->find(1);
@@ -104,20 +104,20 @@ $cd = $schema->resultset("CD")->search(undef, { include_columns => [ 'artist.nam
 is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
 is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
 
-# insert_or_update
+# update_or_insert
 $new = $schema->resultset("Track")->new( {
   trackid => 100,
   cd => 1,
   position => 1,
   title => 'Insert or Update',
 } );
-$new->insert_or_update;
-ok($new->in_storage, 'insert_or_update insert ok');
+$new->update_or_insert;
+ok($new->in_storage, 'update_or_insert insert ok');
 
 # test in update mode
 $new->pos(5);
-$new->insert_or_update;
-is( $schema->resultset("Track")->find(100)->pos, 5, 'insert_or_update update ok');
+$new->update_or_insert;
+is( $schema->resultset("Track")->find(100)->pos, 5, 'update_or_insert update ok');
 
 eval { $schema->class("Track")->load_components('DoesNotExist'); };
 
