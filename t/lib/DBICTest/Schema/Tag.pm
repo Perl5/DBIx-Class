@@ -1,4 +1,5 @@
-package DBICTest::Schema::Tag;
+package # hide from PAUSE 
+    DBICTest::Schema::Tag;
 
 use base qw/DBIx::Class::Core/;
 

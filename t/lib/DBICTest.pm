@@ -1,4 +1,5 @@
-package DBICTest;
+package # hide from PAUSE 
+    DBICTest;
 
 use strict;
 use warnings;

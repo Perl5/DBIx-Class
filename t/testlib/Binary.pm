@@ -1,4 +1,5 @@
-package Binary;
+package # hide from PAUSE
+    Binary;
 
 BEGIN { unshift @INC, './t/testlib'; }
 

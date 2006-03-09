@@ -1,4 +1,5 @@
-package Order;
+package # hide from PAUSE 
+    Order;
 
 BEGIN { unshift @INC, './t/testlib'; }
 

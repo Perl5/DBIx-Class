@@ -1,4 +1,5 @@
-package DBICTest::Schema::TreeLike;
+package # hide from PAUSE 
+    DBICTest::Schema::TreeLike;
 
 use base qw/DBIx::Class/;
 

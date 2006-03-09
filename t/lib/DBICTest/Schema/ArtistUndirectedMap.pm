@@ -1,4 +1,5 @@
-package DBICTest::Schema::ArtistUndirectedMap;
+package # hide from PAUSE 
+    DBICTest::Schema::ArtistUndirectedMap;
 
 use base 'DBIx::Class::Core';
 

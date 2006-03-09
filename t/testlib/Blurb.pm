@@ -1,4 +1,5 @@
-package Blurb;
+package # hide from PAUSE
+    Blurb;
 
 BEGIN { unshift @INC, './t/testlib'; }
 

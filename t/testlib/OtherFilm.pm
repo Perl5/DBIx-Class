@@ -1,4 +1,5 @@
-package OtherFilm;
+package # hide from PAUSE 
+    OtherFilm;
 
 use strict;
 use base 'Film';

@@ -1,4 +1,5 @@
-package ActorAlias;
+package # hide from PAUSE 
+    ActorAlias;
 
 BEGIN { unshift @INC, './t/testlib'; }
 

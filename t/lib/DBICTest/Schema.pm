@@ -1,4 +1,5 @@
-package DBICTest::Schema;
+package # hide from PAUSE 
+    DBICTest::Schema;
 
 use base qw/DBIx::Class::Schema/;
 

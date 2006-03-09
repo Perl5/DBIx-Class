@@ -1,4 +1,5 @@
-package DBICTest::Schema::Track;
+package # hide from PAUSE 
+    DBICTest::Schema::Track;
 
 use base 'DBIx::Class::Core';
 

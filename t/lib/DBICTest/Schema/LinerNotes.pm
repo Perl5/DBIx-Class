@@ -1,4 +1,5 @@
-package DBICTest::Schema::LinerNotes;
+package # hide from PAUSE 
+    DBICTest::Schema::LinerNotes;
 
 use base qw/DBIx::Class::Core/;
 

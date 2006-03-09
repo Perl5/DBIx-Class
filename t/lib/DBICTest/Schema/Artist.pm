@@ -1,4 +1,5 @@
-package DBICTest::Schema::Artist;
+package # hide from PAUSE 
+    DBICTest::Schema::Artist;
 
 use base 'DBIx::Class::Core';
 

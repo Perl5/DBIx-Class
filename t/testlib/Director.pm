@@ -1,4 +1,5 @@
-package Director;
+package # hide from PAUSE 
+    Director;
 
 BEGIN { unshift @INC, './t/testlib'; }
 

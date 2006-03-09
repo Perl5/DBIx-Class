@@ -1,4 +1,5 @@
-package DBICTest::Plain::Test;
+package # hide from PAUSE 
+    DBICTest::Plain::Test;
 
 use base 'DBIx::Class::Core';
 

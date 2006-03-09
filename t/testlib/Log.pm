@@ -1,4 +1,5 @@
-package Log;
+package # hide from PAUSE 
+    Log;
 
 BEGIN { unshift @INC, './t/testlib'; }
 use base 'MyBase';

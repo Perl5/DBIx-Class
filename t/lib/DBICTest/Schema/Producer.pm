@@ -1,4 +1,5 @@
-package DBICTest::Schema::Producer;
+package # hide from PAUSE 
+    DBICTest::Schema::Producer;
 
 use base 'DBIx::Class::Core';
 

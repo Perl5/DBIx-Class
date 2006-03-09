@@ -1,4 +1,5 @@
-package DBICTest::Schema::TwoKeys;
+package # hide from PAUSE
+    DBICTest::Schema::TwoKeys;
 
 use base 'DBIx::Class::Core';
 

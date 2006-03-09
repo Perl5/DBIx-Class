@@ -1,4 +1,5 @@
-package PgBase;
+package # hide from PAUSE 
+    PgBase;
 
 use strict;
 use base 'DBIx::Class';

@@ -1,4 +1,5 @@
-package DBICTest::Schema::CD;
+package # hide from PAUSE 
+    DBICTest::Schema::CD;
 
 use base 'DBIx::Class::Core';
 

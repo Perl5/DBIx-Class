@@ -1,4 +1,5 @@
-package Film;
+package # hide from PAUSE 
+    Film;
 
 BEGIN { unshift @INC, './t/testlib'; }
 use base 'DBIx::Class::Test::SQLite';

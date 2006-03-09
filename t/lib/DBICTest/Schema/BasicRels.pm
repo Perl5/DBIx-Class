@@ -1,4 +1,5 @@
-package DBICTest::Schema::BasicRels;
+package # hide from PAUSE 
+    DBICTest::Schema::BasicRels;
 
 use base 'DBIx::Class::Core';
 

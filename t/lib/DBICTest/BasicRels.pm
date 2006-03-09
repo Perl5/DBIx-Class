@@ -1,4 +1,5 @@
-package DBICTest::BasicRels;
+package # hide from PAUSE
+    DBICTest::BasicRels;
 
 use DBICTest::Schema;
 use DBICTest::Schema::BasicRels;
