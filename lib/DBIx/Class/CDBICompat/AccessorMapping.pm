@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::AccessorMapping;
+package # hide from PAUSE Indexer
+    DBIx::Class::CDBICompat::AccessorMapping;
 
 use strict;
 use warnings;

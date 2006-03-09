@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::Stringify;
+package # hide from PAUSE 
+    DBIx::Class::CDBICompat::Stringify;
 
 use strict;
 use warnings;

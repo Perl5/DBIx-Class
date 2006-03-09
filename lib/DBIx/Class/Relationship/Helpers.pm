@@ -1,4 +1,5 @@
-package DBIx::Class::Relationship::Helpers;
+package # hide from PAUSE
+    DBIx::Class::Relationship::Helpers;
 
 use strict;
 use warnings;

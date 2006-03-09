@@ -1,4 +1,5 @@
-package DBIx::Class::Relationship::ManyToMany;
+package # hide from PAUSE 
+    DBIx::Class::Relationship::ManyToMany;
 
 use strict;
 use warnings;

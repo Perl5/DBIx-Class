@@ -1,4 +1,5 @@
-package DBIx::Class::ResultSetProxy;
+package # hide from PAUSE
+    DBIx::Class::ResultSetProxy;
 
 use base qw/DBIx::Class/;
 

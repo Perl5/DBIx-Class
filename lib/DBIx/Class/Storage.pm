@@ -1,4 +1,5 @@
-package DBIx::Class::Storage;
+package # hide from PAUSE 
+    DBIx::Class::Storage;
 
 use strict;
 use warnings;

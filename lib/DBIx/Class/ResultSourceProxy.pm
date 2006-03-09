@@ -1,4 +1,5 @@
-package DBIx::Class::ResultSourceProxy;
+package # hide from PAUSE 
+    DBIx::Class::ResultSourceProxy;
 
 use strict;
 use warnings;

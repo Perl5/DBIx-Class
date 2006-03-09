@@ -1,4 +1,5 @@
-package DBIx::Class::Relationship::HasOne;
+package # hide from PAUSE
+    DBIx::Class::Relationship::HasOne;
 
 use strict;
 use warnings;

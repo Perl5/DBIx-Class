@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::HasMany;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::HasMany;
 
 use strict;
 use warnings;

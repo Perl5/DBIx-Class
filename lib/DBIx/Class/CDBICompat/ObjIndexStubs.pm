@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::ObjIndexStubs;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::ObjIndexStubs;
 
 use strict;
 use warnings;

@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::TempColumns;
+package # hide from PAUSE 
+    DBIx::Class::CDBICompat::TempColumns;
 
 use strict;
 use warnings;

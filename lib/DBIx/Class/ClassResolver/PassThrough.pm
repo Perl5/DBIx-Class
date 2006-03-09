@@ -1,4 +1,5 @@
-package DBIx::Class::ClassResolver::PassThrough;
+package # hide from PAUSE
+    DBIx::Class::ClassResolver::PassThrough;
 
 sub class {
   shift;

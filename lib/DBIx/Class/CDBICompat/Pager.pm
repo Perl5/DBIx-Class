@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::Pager;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::Pager;
 
 use strict;
 use warnings FATAL => 'all';

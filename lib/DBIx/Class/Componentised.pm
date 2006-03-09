@@ -1,4 +1,5 @@
-package DBIx::Class::Componentised;
+package # hide from PAUSE 
+    DBIx::Class::Componentised;
 
 use Class::C3;
 

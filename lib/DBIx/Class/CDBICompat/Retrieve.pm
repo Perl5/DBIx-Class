@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::Retrieve;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::Retrieve;
 
 use strict;
 use warnings FATAL => 'all';

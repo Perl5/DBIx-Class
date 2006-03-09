@@ -1,4 +1,5 @@
-package DBIx::Class::Relationship::HasMany;
+package # hide from PAUSE 
+    DBIx::Class::Relationship::HasMany;
 
 use strict;
 use warnings;

@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::ReadOnly;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::ReadOnly;
 
 use strict;
 use warnings;

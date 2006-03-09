@@ -1,4 +1,5 @@
-package DBIx::Class::Storage::DBI::Cursor;
+package # hide from PAUSE 
+    DBIx::Class::Storage::DBI::Cursor;
 
 use base qw/DBIx::Class::Cursor/;
 

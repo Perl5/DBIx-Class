@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::LiveObjectIndex;
+package # hide from PAUSE 
+    DBIx::Class::CDBICompat::LiveObjectIndex;
 
 use strict;
 use warnings;

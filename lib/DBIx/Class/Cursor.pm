@@ -1,4 +1,5 @@
-package DBIx::Class::Cursor;
+package # hide from PAUSE 
+    DBIx::Class::Cursor;
 
 use strict;
 use warnings;

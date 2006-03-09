@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::DestroyWarning;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::DestroyWarning;
 
 use strict;
 use warnings;
