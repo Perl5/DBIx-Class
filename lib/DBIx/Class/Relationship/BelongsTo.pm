@@ -9,20 +9,17 @@ sub belongs_to {
   if ($@) {
     $class->throw_exception($@) unless $@ =~ /Can't locate/;
   }
-
-  my %f_primaries;
-  $f_primaries{$_} = 1 for eval { $f_class->primary_columns };
-  my $f_loaded = !$@;
   
-  # single key relationship
+  # no join condition or just a column name
   if (!ref $cond) {
+    my %f_primaries = map { $_ => 1 } eval { $f_class->primary_columns };
     $class->throw_exception("Can't infer join condition for ${rel} on ${class}; unable to load ${f_class}")
-      unless $f_loaded;
+      if $@;
 
     my ($pri, $too_many) = keys %f_primaries;
     $class->throw_exception("Can't infer join condition for ${rel} on ${class}; ${f_class} has no primary keys")
       unless defined $pri;      
-    $class->throw_exception("Can't infer join condition for ${rel} on ${class}; ${f_class} has multiple primary key")
+    $class->throw_exception("Can't infer join condition for ${rel} on ${class}; ${f_class} has multiple primary keys")
       if $too_many;      
 
     my $fk = defined $cond ? $cond : $rel;
@@ -35,7 +32,7 @@ sub belongs_to {
       { accessor => $acc_type, %{$attrs || {}} }
     );
   }
-  # multiple key relationship
+  # explicit join condition
   elsif (ref $cond eq 'HASH') {
     my $cond_rel;
     for (keys %$cond) {

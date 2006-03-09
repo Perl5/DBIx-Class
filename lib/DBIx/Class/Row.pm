@@ -34,10 +34,10 @@ Creates a new row object from column => value mappings passed as a hash ref
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
-  my $new = bless({ _column_data => { } }, $class);
+  my $new = bless { _column_data => {} }, $class;
   if ($attrs) {
-    $new->throw_exception("attrs must be a hashref" ) unless ref($attrs) eq 'HASH';
-    while (my ($k, $v) = each %{$attrs}) {
+    $new->throw_exception("attrs must be a hashref") unless ref($attrs) eq 'HASH';
+    while (my ($k, $v) = each %$attrs) {
       $new->throw_exception("No such column $k on $class") unless $class->has_column($k);
       $new->store_column($k => $v);
     }
@@ -61,7 +61,8 @@ sub insert {
   $self->{result_source} ||= $self->result_source_instance
     if $self->can('result_source_instance');
   my $source = $self->{result_source};
-  $self->throw_exception("No result_source set on this object; can't insert") unless $source;
+  $self->throw_exception("No result_source set on this object; can't insert")
+    unless $source;
   #use Data::Dumper; warn Dumper($self);
   $source->storage->insert($source->from, { $self->get_columns });
   $self->in_storage(1);
@@ -133,8 +134,8 @@ sub delete {
     $self->throw_exception("Cannot safely delete a row in a PK-less table")
       if ! keys %$ident_cond;
     foreach my $column (keys %$ident_cond) {
-	$self->throw_exception("Can't delete the object unless it has loaded the primary keys")
-	unless exists $self->{_column_data}{$column};
+	    $self->throw_exception("Can't delete the object unless it has loaded the primary keys")
+	      unless exists $self->{_column_data}{$column};
     }
     $self->result_source->storage->delete(
       $self->result_source->from, $ident_cond);
@@ -142,11 +143,8 @@ sub delete {
   } else {
     $self->throw_exception("Can't do class delete without a ResultSource instance")
       unless $self->can('result_source_instance');
-    my $attrs = { };
-    if (@_ > 1 && ref $_[$#_] eq 'HASH') {
-      $attrs = { %{ pop(@_) } };
-    }
-    my $query = (ref $_[0] eq 'HASH' ? $_[0] : {@_});
+    my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? { %{pop(@_)} } : {};
+    my $query = ref $_[0] eq 'HASH' ? $_[0] : {@_};
     $self->result_source_instance->resultset->search(@_)->delete;
   }
   return $self;
@@ -165,8 +163,7 @@ the database and stored in the object.
 sub get_column {
   my ($self, $column) = @_;
   $self->throw_exception( "Can't fetch data as class method" ) unless ref $self;
-  return $self->{_column_data}{$column}
-    if exists $self->{_column_data}{$column};
+  return $self->{_column_data}{$column} if exists $self->{_column_data}{$column};
   $self->throw_exception( "No such column '${column}'" ) unless $self->has_column($column);
   return undef;
 }
@@ -174,9 +171,7 @@ sub get_column {
 sub has_column_loaded {
   my ($self, $column) = @_;
   $self->throw_exception( "Can't call has_column data as class method" ) unless ref $self;
-  return 1
-    if exists $self->{_column_data}{$column};
-  return 0;
+  return exists $self->{_column_data}{$column};
 }
 
 =head2 get_columns
@@ -257,7 +252,7 @@ sub copy {
     delete $col_data->{$col}
       if $self->result_source->column_info($col)->{is_auto_increment};
   }
-  my $new = bless({ _column_data => $col_data }, ref $self);
+  my $new = bless { _column_data => $col_data }, ref $self;
   $new->set_columns($changes);
   $new->insert;
   foreach my $rel ($self->result_source->relationships) {
