@@ -341,15 +341,16 @@ sub inflate_result {
   return $new;
 }
 
-=head2 insert_or_update
+=head2 update_or_insert
 
-  $obj->insert_or_update
+  $obj->update_or_insert
 
 Updates the object if it's already in the db, else inserts it.
 
 =cut
 
-sub insert_or_update {
+*insert_or_update = \&update_or_insert;
+sub update_or_insert {
   my $self = shift;
   return ($self->in_storage ? $self->update : $self->insert);
 }

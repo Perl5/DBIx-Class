@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - renamed insert_or_update to update_or_insert (with compat alias)
         - renamed cols attribute to columns (cols still supported)
         - added has_column_loaded to Row
         - Storage::DBI connect_info supports coderef returning dbh as 1st arg
