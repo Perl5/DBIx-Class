@@ -1,6 +1,6 @@
 Revision history for DBIx::Class
 
-0.05990_01 Pending
+0.05990_02 2006-03-10 13:31:37
         - remove test dep on YAML
         - additional speed tweaks for C3
         - allow scalarefs passed to order_by to go straight through to SQL
