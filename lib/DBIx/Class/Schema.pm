@@ -289,14 +289,19 @@ sub compose_namespace {
   my %target;
   my %map;
   my $schema = $self->clone;
-  foreach my $moniker ($schema->sources) {
-    my $source = $schema->source($moniker);
-    my $target_class = "${target}::${moniker}";
-    $self->inject_base(
-      $target_class => $source->result_class, ($base ? $base : ())
-    );
-    $source->result_class($target_class);
+  {
+    no warnings qw/redefine/;
+    local *Class::C3::reinitialize = sub { };
+    foreach my $moniker ($schema->sources) {
+      my $source = $schema->source($moniker);
+      my $target_class = "${target}::${moniker}";
+      $self->inject_base(
+        $target_class => $source->result_class, ($base ? $base : ())
+      );
+      $source->result_class($target_class);
+    }
   }
+  Class::C3->reinitialize();
   {
     no strict 'refs';
     foreach my $meth (qw/class source resultset/) {

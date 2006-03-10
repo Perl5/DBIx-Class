@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
 0.05990_01 Pending
+        - remove test dep on YAML
+        - additional speed tweaks for C3
         - allow scalarefs passed to order_by to go straight through to SQL
         - renamed insert_or_update to update_or_insert (with compat alias)
 	- hidden lots of packages from the PAUSE Indexer
