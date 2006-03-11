@@ -349,7 +349,7 @@ model.
 
 =head1 AUTHOR
 
-  sc_ from IRC.  Please credit yourself properly!
+  sc_ from irc.perl.org#dbix-class
   Kieren Diment <kd@totaldatasolution.com>
 
 =cut
