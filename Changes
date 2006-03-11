@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+0.05990_03
+        - deploy now adds drop statements before creates
+        - deploy outputs debugging statements if DBIX_CLASS_STORAGE_DBI_DEBUG is set
+
 0.05990_02 2006-03-10 13:31:37
         - remove test dep on YAML
         - additional speed tweaks for C3
