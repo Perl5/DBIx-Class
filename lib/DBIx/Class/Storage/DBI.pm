@@ -543,7 +543,7 @@ sub last_insert_id {
 sub sqlt_type { shift->dbh->{Driver}->{Name} }
 
 sub deployment_statements {
-  my ($self, $schema, $type) = @_;
+  my ($self, $schema, $type, $sqltargs) = @_;
   $type ||= $self->sqlt_type;
   eval "use SQL::Translator";
   $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
@@ -551,30 +551,14 @@ sub deployment_statements {
   $self->throw_exception($@) if $@; 
   eval "use SQL::Translator::Producer::${type};";
   $self->throw_exception($@) if $@;
-  my $tr = SQL::Translator->new(
-      # Print debug info
-      debug               => 1,
-      # Print Parse::RecDescent trace
-      trace               => 0,
-      # Don't include comments in output
-      no_comments         => 1,
-      # Print name mutations, conflicts
-      show_warnings       => 0,
-      # Add "drop table" statements
-      add_drop_table      => 1,
-      # Validate schema object
-      validate            => 1,
-      # Make all table names CAPS in producers which support this option
-      format_table_name   => sub {my $tablename = shift; return uc($tablename)},
-  );
-
+  my $tr = SQL::Translator->new(%$sqltargs);
   SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
   return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
 }
 
 sub deploy {
-  my ($self, $schema, $type) = @_;
-  foreach(split(";\n", $self->deployment_statements($schema, $type))) {
+  my ($self, $schema, $type, $sqltargs) = @_;
+  foreach(split(";\n", $self->deployment_statements($schema, $type, $sqltargs))) {
       $self->debugfh->print("$_\n") if $self->debug;
 	  $self->dbh->do($_) or warn "SQL was:\n $_";
   } 

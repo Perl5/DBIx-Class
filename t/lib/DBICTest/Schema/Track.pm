@@ -18,6 +18,7 @@ DBICTest::Schema::Track->add_columns(
   },
   'title' => {
     data_type => 'varchar',
+    size      => 100,
   },
 );
 DBICTest::Schema::Track->set_primary_key('trackid');

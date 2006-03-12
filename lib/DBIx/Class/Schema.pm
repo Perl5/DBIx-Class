@@ -543,9 +543,9 @@ Attempts to deploy the schema to the current storage
 =cut
 
 sub deploy {
-  my ($self) = shift;
+  my ($self, $sqltargs) = @_;
   $self->throw_exception("Can't deploy without storage") unless $self->storage;
-  $self->storage->deploy($self);
+  $self->storage->deploy($self, undef, $sqltargs);
 }
 
 1;

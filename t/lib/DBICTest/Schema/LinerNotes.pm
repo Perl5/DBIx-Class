@@ -10,6 +10,7 @@ DBICTest::Schema::LinerNotes->add_columns(
   },
   'notes' => {
     data_type => 'varchar',
+    size      => 100,
   },
 );
 DBICTest::Schema::LinerNotes->set_primary_key('liner_id');
