@@ -13,6 +13,16 @@ my $artist = $rs->first;
 
 is( scalar @{ $rs->get_cache }, 0, 'cache is not populated without cache attribute' );
 
+my @a = $schema->resultset("Artist")->search(
+  { },
+  {
+    join => [ qw/ cds /],
+    prefetch => [qw/ cds /],
+  }
+);
+
+is(scalar @a, 3, 'artist with cds: count parent objects');
+
 $rs = $schema->resultset("Artist")->search(
   { 'artistid' => 1 },
   {
