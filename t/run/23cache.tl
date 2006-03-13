@@ -3,7 +3,7 @@ my $schema = shift;
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 14;
+plan tests => 15;
 
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
@@ -73,6 +73,14 @@ $rs = $schema->resultset("Artist")->search(
     },
   }
 );
+{
+$schema->resultset("Artist")->create({artistid=>4,name=>qq{Humoungous Hamsters}});
+my $artist = $schema->resultset("Artist")->search(
+  { artistid => 4 },{prefetch=>[qw/cds/]}
+)->first;
+
+is($artist->cds, 0, 'No cds for this artist');
+}
 
 # SELECT count for nested has_many prefetch
 unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';

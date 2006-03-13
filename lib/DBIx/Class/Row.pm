@@ -318,7 +318,7 @@ sub inflate_result {
                              $pre_source, @{$pre_rec}));
       }
       $new->related_resultset($pre)->set_cache(\@pre_objects);
-    } else {
+    } elsif (defined $pre_val->[0]) {
       my $fetched;
       unless ($pre_source->primary_columns == grep { exists $pre_val->[0]{$_} 
          and !defined $pre_val->[0]{$_} } $pre_source->primary_columns)
