@@ -5,9 +5,7 @@ use warnings;
 
 use DBIx::Class::ResultSet;
 use Carp::Clan qw/^DBIx::Class/;
-
 use Storable;
-use Scalar::Util qw/weaken/;
 
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
@@ -634,11 +632,7 @@ sub resultset {
   my $self = shift;
   $self->throw_exception('resultset does not take any arguments. If you want another resultset, call it on the schema instead.') if scalar @_;
   return $self->{_resultset} if ref $self->{_resultset} eq $self->resultset_class;
-  return $self->{_resultset} = do {
-    my $rs = $self->resultset_class->new($self, $self->{resultset_attributes});
-    weaken $rs->result_source;
-    $rs;
-  };
+  return $self->{_resultset} = $self->resultset_class->new($self, $self->{resultset_attributes});
 }
 
 =head2 throw_exception

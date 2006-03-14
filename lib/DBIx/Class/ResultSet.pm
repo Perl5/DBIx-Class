@@ -8,6 +8,7 @@ use overload
         fallback => 1;
 use Data::Page;
 use Storable;
+use Scalar::Util qw/weaken/;
 
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
@@ -71,8 +72,9 @@ sub new {
   return $class->new_result(@_) if ref $class;
   
   my ($source, $attrs) = @_;
-  #use Data::Dumper; warn Dumper($attrs);
+  weaken $source;
   $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
+  #use Data::Dumper; warn Dumper($attrs);
   my $alias = ($attrs->{alias} ||= 'me');
   
   $attrs->{columns} ||= delete $attrs->{cols} if $attrs->{cols};
