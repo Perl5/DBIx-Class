@@ -3,7 +3,7 @@ my $schema = shift;
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 16;
+plan tests => 17;
 
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
