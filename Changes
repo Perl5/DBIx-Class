@@ -27,6 +27,8 @@ Revision history for DBIx::Class
           (sponsored by Airspace Software, http://www.airspace.co.uk/)
         - clean up set_from_related
         - made copy() automatically null out auto-inc columns
+        - added txn_do() method to Schema, which allows a coderef to be
+          executed atomically
 
 0.05007 2006-02-24 00:59:00
         - tweak to Componentised for Class::C3 0.11
