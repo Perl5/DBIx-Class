@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
-0.05999_03
+0.05999_03 2006-03-14 01:58:10
+        - has_many prefetch fixes
         - deploy now adds drop statements before creates
         - deploy outputs debugging statements if DBIX_CLASS_STORAGE_DBI_DEBUG
             is set
