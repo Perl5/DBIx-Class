@@ -566,10 +566,13 @@ sub all {
       # If we're collapsing has_many prefetches it probably makes
       # very little difference, and this is cleaner than hacking
       # _construct_object to survive the approach
-    my @row;
     $self->cursor->reset;
-    while (@row = $self->cursor->next) {
+    my @row = $self->cursor->next;
+    while (@row) {
       push(@obj, $self->_construct_object(@row));
+      @row = (exists $self->{stashed_row}
+               ? @{delete $self->{stashed_row}}
+               : $self->cursor->next);
     }
   } else {
     @obj = map { $self->_construct_object(@$_) } $self->cursor->all;
