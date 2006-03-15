@@ -340,6 +340,7 @@ the schema.
 
 sub connection {
   my ($self, @info) = @_;
+  return $self if !@info && $self->storage;
   my $storage_class = $self->storage_type;
   $storage_class = 'DBIx::Class::Storage'.$storage_class
     if $storage_class =~ m/^::/;
