@@ -527,7 +527,9 @@ sub columns_info_for {
     if ($self->dbh->can('column_info')) {
         my %result;
         my $old_raise_err = $self->dbh->{RaiseError};
+        my $old_print_err = $self->dbh->{PrintError};
         $self->dbh->{RaiseError} = 1;
+        $self->dbh->{PrintError} = 0;
         eval {
             my $sth = $self->dbh->column_info( undef, undef, $table, '%' );
             $sth->execute();
@@ -541,6 +543,7 @@ sub columns_info_for {
             }
         };
         $self->dbh->{RaiseError} = $old_raise_err;
+        $self->dbh->{PrintError} = $old_print_err;
         return \%result if !$@;
     }
 
