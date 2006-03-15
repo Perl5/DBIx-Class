@@ -1,47 +1,50 @@
-use Class::C3;
 use strict;
-use Test::More;
 use warnings;
+use Test::More;
 
-# This test passes no matter what in most cases.  However, prior to the recent
-# fork-related fixes, it would spew lots of warnings.  I have not quite gotten
-# it to where it actually fails in those cases.
+# README: If you set the env var to a number greater than 10,
+#   we will use that many children
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
+my $num_children = $ENV{DBICTEST_FORK_STRESS};
 
 plan skip_all => 'Set $ENV{DBICTEST_FORK_STRESS} to run this test'
-    unless $ENV{DBICTEST_FORK_STRESS};
+    unless $num_children;
 
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
       . ' (note: creates and drops a table named artist!)' unless ($dsn && $user);
 
-plan tests => 15;
+if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
+   $num_children = 10;
+}
+
+plan tests => $num_children + 5;
 
 use lib qw(t/lib);
 
 use_ok('DBICTest::Schema');
 
-DBICTest::Schema->compose_connection('PgTest' => $dsn, $user, $pass, { AutoCommit => 1 });
+my $schema = DBICTest::Schema->connection($dsn, $user, $pass, { AutoCommit => 1 });
 
-my ($first_rs, $joe_record);
+my $parent_rs;
 
 eval {
-    my $dbh = PgTest->schema->storage->dbh;
+    my $dbh = $schema->storage->dbh;
 
-    eval {
-        $dbh->do("DROP TABLE cd");
+    {
+        local $SIG{__WARN__} = sub {};
+        eval { $dbh->do("DROP TABLE cd") };
         $dbh->do("CREATE TABLE cd (cdid serial PRIMARY KEY, artist INTEGER NOT NULL UNIQUE, title VARCHAR(255) NOT NULL UNIQUE, year VARCHAR(255));");
-    };
+    }
 
-    PgTest->resultset('CD')->create({ title => 'vacation in antarctica', artist => 123, year => 1901 });
-    PgTest->resultset('CD')->create({ title => 'vacation in antarctica part 2', artist => 456, year => 1901 });
+    $schema->resultset('CD')->create({ title => 'vacation in antarctica', artist => 123, year => 1901 });
+    $schema->resultset('CD')->create({ title => 'vacation in antarctica part 2', artist => 456, year => 1901 });
 
-    $first_rs = PgTest->resultset('CD')->search({ year => 1901 });
-    $joe_record = $first_rs->next;
+    $parent_rs = $schema->resultset('CD')->search({ year => 1901 });
+    $parent_rs->next;
 };
 ok(!$@) or diag "Creation eval failed: $@";
 
-my $num_children = 10;
 my @pids;
 while(@pids < $num_children) {
 
@@ -51,16 +54,15 @@ while(@pids < $num_children) {
     }
     elsif($pid) {
         push(@pids, $pid);
-	next;
+        next;
     }
 
     $pid = $$;
-    my ($forked_rs, $joe_forked);
 
-    $forked_rs = PgTest->resultset('CD')->search({ year => 1901 });
-    $joe_forked = $first_rs->next;
-    if($joe_forked && $joe_forked->get_column('artist') =~ /^(?:123|456)$/) {
-        PgTest->resultset('CD')->create({ title => "test success $pid", artist => $pid, year => scalar(@pids) });
+    my $child_rs = $schema->resultset('CD')->search({ year => 1901 });
+    my $row = $parent_rs->next;
+    if($row && $row->get_column('artist') =~ /^(?:123|456)$/) {
+        $schema->resultset('CD')->create({ title => "test success $pid", artist => $pid, year => scalar(@pids) });
     }
     sleep(3);
     exit;
@@ -74,10 +76,10 @@ ok(1, "past waiting");
 
 while(@pids) {
     my $pid = pop(@pids);
-    my $rs = PgTest->resultset('CD')->search({ title => "test success $pid", artist => $pid, year => scalar(@pids) });
+    my $rs = $schema->resultset('CD')->search({ title => "test success $pid", artist => $pid, year => scalar(@pids) });
     is($rs->next->get_column('artist'), $pid, "Child $pid successful");
 }
 
 ok(1, "Made it to the end");
 
-PgTest->schema->storage->dbh->do("DROP TABLE cd");
+$schema->storage->dbh->do("DROP TABLE cd");

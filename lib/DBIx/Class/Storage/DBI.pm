@@ -210,8 +210,8 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/connect_info _dbh _sql_maker _connection_pid debug debugfh cursor
-     on_connect_do transaction_depth/);
+  qw/connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugfh
+     cursor on_connect_do transaction_depth/);
 
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
@@ -290,8 +290,20 @@ sub disconnect {
 sub connected {
   my ($self) = @_;
 
-  my $dbh;
-  (($dbh = $self->_dbh) && $dbh->FETCH('Active') && $dbh->ping)
+  if(my $dbh = $self->_dbh) {
+      if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
+          $self->_sql_maker(undef);
+          return $self->_dbh(undef);
+      }
+      elsif($self->_conn_pid != $$) {
+          $self->_dbh->{InactiveDestroy} = 1;
+          $self->_sql_maker(undef);
+          return $self->_dbh(undef)
+      }
+      return ($dbh->FETCH('Active') && $dbh->ping);
+  }
+
+  return 0;
 }
 
 sub ensure_connected {
@@ -305,10 +317,6 @@ sub ensure_connected {
 sub dbh {
   my ($self) = @_;
 
-  if($self->_connection_pid && $self->_connection_pid != $$) {
-      $self->_dbh->{InactiveDestroy} = 1;
-      $self->_dbh(undef)
-  }
   $self->ensure_connected;
   return $self->_dbh;
 }
@@ -335,7 +343,8 @@ sub _populate_dbh {
     $self->_dbh->do($sql_statement);
   }
 
-  $self->_connection_pid($$);
+  $self->_conn_pid($$);
+  $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
 }
 
 sub _connect {
@@ -412,7 +421,7 @@ sub txn_rollback {
     else {
       --$self->{transaction_depth} == 0 ?
         $self->dbh->rollback :
-	die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
+        die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
     }
   };
 
@@ -560,7 +569,7 @@ sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
   foreach(split(";\n", $self->deployment_statements($schema, $type, $sqltargs))) {
       $self->debugfh->print("$_\n") if $self->debug;
-	  $self->dbh->do($_) or warn "SQL was:\n $_";
+          $self->dbh->do($_) or warn "SQL was:\n $_";
   } 
 }
 
