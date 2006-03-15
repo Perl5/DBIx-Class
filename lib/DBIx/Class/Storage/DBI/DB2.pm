@@ -7,6 +7,8 @@ use base qw/DBIx::Class::Storage::DBI/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
+sub _column_info_broken { 1 }
+
 sub last_insert_id
 {
     my ($self) = @_;

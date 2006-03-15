@@ -45,17 +45,20 @@ my $test_type_info = {
     'artistid' => {
         'data_type' => 'INT',
         'is_nullable' => 0,
-        'size' => 11
+        'size' => 11,
+        'default_value' => undef,
     },
     'name' => {
         'data_type' => 'VARCHAR',
         'is_nullable' => 1,
-        'size' => 255
+        'size' => 255,
+        'default_value' => undef,
     },
     'charfield' => {
         'data_type' => 'VARCHAR',
         'is_nullable' => 1,
-        'size' => 10 
+        'size' => 10,
+        'default_value' => undef,
     },
 };
 

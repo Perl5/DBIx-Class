@@ -518,25 +518,41 @@ Returns database type info for a given table columns.
 
 =cut
 
+# override this in a subclass if your DBD ->can('column_info'),
+#  but the call itself is horribly broken.
+sub _column_info_broken { 0 }
+
 sub columns_info_for {
     my ($self, $table) = @_;
+
     my %result;
-    if ( $self->dbh->can( 'column_info' ) ){
+    if ( $self->dbh->can( 'column_info' ) && !$self->_column_info_broken){
         my $sth = $self->dbh->column_info( undef, undef, $table, '%' );
         $sth->execute();
         while ( my $info = $sth->fetchrow_hashref() ){
             my %column_info;
             $column_info{data_type} = $info->{TYPE_NAME};
             $column_info{size} = $info->{COLUMN_SIZE};
-            $column_info{is_nullable} = $info->{NULLABLE};
+            $column_info{is_nullable} = $info->{NULLABLE} ? 1 : 0;
+            $column_info{default_value} = $info->{COLUMN_DEF};
             $result{$info->{COLUMN_NAME}} = \%column_info;
         }
     } else {
         my $sth = $self->dbh->prepare("SELECT * FROM $table WHERE 1=0");
         $sth->execute;
-        my @columns = @{$sth->{NAME}};
+        my @columns = @{$sth->{NAME_lc}};
         for my $i ( 0 .. $#columns ){
-            $result{$columns[$i]}{data_type} = $sth->{TYPE}->[$i];
+            my %column_info;
+            my $type_num = $sth->{TYPE}->[$i];
+            my $type_name;
+            if(defined $type_num && $self->dbh->can('type_info')) {
+                my $type_info = $self->dbh->type_info($type_num);
+                $type_name = $type_info->{TYPE_NAME} if $type_info;
+            }
+            $column_info{data_type} = $type_name ? $type_name : $type_num;
+            $column_info{size} = $sth->{PRECISION}->[$i];
+            $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
+            $result{$columns[$i]} = \%column_info;
         }
     }
     return \%result;
