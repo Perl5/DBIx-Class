@@ -350,6 +350,9 @@ sub _populate_dbh {
 sub _connect {
   my ($self, @info) = @_;
 
+  $self->throw_exception("You failed to provide any connection info")
+      if !@info;
+
   my ($old_connect_via, $dbh);
 
   if ($INC{'Apache/DBI.pm'} && $ENV{MOD_PERL}) {
