@@ -1,4 +1,8 @@
 Revision history for DBIx::Class
+        - ->connection does nothing if ->storage defined and no args
+          (and hence ->connect acts like ->clone under the same conditions)
+        - Storage::DBI throws better exception if no connect info
+        - columns_info_for made more robust / informative
         - ithreads compat added, fork compat improved
         - weaken result_source in all resultsets
 
