@@ -164,7 +164,7 @@ Scotty Allen <scotty@scottyallen.com>
 
 sc_
 
-Justin Guenther <jguenther@agr.gc.ca>
+Justin Guenther <guentherj@agr.gc.ca>
 
 =head1 LICENSE
 
