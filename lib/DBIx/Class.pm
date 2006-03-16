@@ -172,6 +172,8 @@ Scotty Allen <scotty@scottyallen.com>
 
 sc_
 
+Robert Sedlacek <phaylon@dunkelheit.at
+
 Justin Guenther <guentherj@agr.gc.ca>
 
 Daisuke Murase <typester@cpan.org>
