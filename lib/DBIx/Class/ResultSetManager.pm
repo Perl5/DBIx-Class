@@ -72,7 +72,7 @@ __END__
 =head1 SYNOPSIS
 
     # in a table class
-    __PACKAGE__->load_components(qw/ResultSetManager/);
+    __PACKAGE__->load_components(qw/ResultSetManager Core/); # note order!
     __PACKAGE__->load_resultset_components(qw/AlwaysRS/);
     
     # will be removed from the table class and inserted into a table-specific resultset class
@@ -84,7 +84,8 @@ This package implements two useful features for customizing resultset classes.
 C<load_resultset_components> loads components in addition to C<DBIx::Class::ResultSet>
 (or whatever you set as C<base_resultset_class>). Any methods tagged with the C<ResultSet>
 attribute will be moved into a table-specific resultset class (by default called
-C<Class::_resultset>).
+C<Class::_resultset>, but configurable via C<table_resultset_class_suffix>). 
+Most of the magic is done when you call C<< __PACKAGE__->table >>.  
 
 =head1 AUTHORS
 
