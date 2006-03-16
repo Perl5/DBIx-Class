@@ -5,6 +5,7 @@ Revision history for DBIx::Class
         - columns_info_for made more robust / informative
         - ithreads compat added, fork compat improved
         - weaken result_source in all resultsets
+	- Make pg seq extractor less sensitive.
 
 0.05999_03 2006-03-14 01:58:10
         - has_many prefetch fixes
