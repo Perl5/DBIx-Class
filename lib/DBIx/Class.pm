@@ -17,13 +17,19 @@ $VERSION = '0.05999_04';
 
 sub MODIFY_CODE_ATTRIBUTES {
     my ($class,$code,@attrs) = @_;
-    unless ($class->can('_attr_cache')) {
-        $class->mk_classdata('_attr_cache');
-        $class->_attr_cache({});
+    unless ($class->can('__attr_cache')) {
+        $class->mk_classdata('__attr_cache');
+        $class->__attr_cache({});
     }
-    my $cache = $class->_attr_cache;
-    $class->_attr_cache->{$code} = [@attrs];
+    $class->__attr_cache->{$code} = [@attrs];
     return ();
+}
+
+sub _attr_cache {
+    my $self = shift;
+    my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
+    my $rest = eval { $self->next::method };
+    return $@ ? $cache : { %$cache, %$rest };
 }
 
 1;

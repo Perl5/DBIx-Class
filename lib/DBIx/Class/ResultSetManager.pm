@@ -25,9 +25,9 @@ sub load_resultset_components {
 
 sub _register_attributes {
     my $self = shift;
-    return unless $self->can('_attr_cache');
-
     my $cache = $self->_attr_cache;
+    return if keys %$cache == 0;
+    
     foreach my $meth (@{Class::Inspector->methods($self) || []}) {
         my $attrs = $cache->{$self->can($meth)};
         next unless $attrs;
