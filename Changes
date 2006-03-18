@@ -59,6 +59,7 @@ Revision history for DBIx::Class
           keys of the related table are not fetched
         - fix count for group_by as scalar
         - add horrific fix to make Oracle's retarded limit syntax work
+        - remove Carp require
         - changed UUIDColumns to use new UUIDMaker classes for uuid creation
         using whatever module may be available
 
