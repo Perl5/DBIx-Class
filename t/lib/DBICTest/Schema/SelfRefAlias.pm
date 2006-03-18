@@ -1,4 +1,5 @@
-package DBICTest::Schema::SelfRefAlias;
+package # hide from PAUSE 
+    DBICTest::Schema::SelfRefAlias;
 
 use base 'DBIx::Class::Core';
 

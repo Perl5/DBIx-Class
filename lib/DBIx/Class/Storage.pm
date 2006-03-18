@@ -1,4 +1,5 @@
-package DBIx::Class::Storage;
+package # hide from PAUSE 
+    DBIx::Class::Storage;
 
 use strict;
 use warnings;
@@ -22,8 +23,6 @@ sub select_single { die "Virtual method!" }
 sub columns_info_for { die "Virtual method!" }
 
 
-
-
 package DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
 
 use overload '"' => sub {
@@ -32,7 +31,6 @@ use overload '"' => sub {
 
 sub new {
   my $class = shift;
-
   return bless {}, $class;
 }
 

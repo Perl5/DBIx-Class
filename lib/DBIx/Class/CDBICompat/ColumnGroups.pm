@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::ColumnGroups;
+package # hide from PAUSE 
+    DBIx::Class::CDBICompat::ColumnGroups;
 
 use strict;
 use warnings;

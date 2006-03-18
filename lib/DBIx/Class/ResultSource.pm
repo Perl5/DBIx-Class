@@ -5,9 +5,7 @@ use warnings;
 
 use DBIx::Class::ResultSet;
 use Carp::Clan qw/^DBIx::Class/;
-
 use Storable;
-use Scalar::Util qw/weaken/;
 
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
@@ -126,18 +124,15 @@ Convenience alias to add_columns
 
 sub add_columns {
   my ($self, @cols) = @_;
-  $self->_ordered_columns( \@cols )
-    if !$self->_ordered_columns;
+  $self->_ordered_columns(\@cols) unless $self->_ordered_columns;
+  
   my @added;
   my $columns = $self->_columns;
   while (my $col = shift @cols) {
-
+    # If next entry is { ... } use that for the column info, if not
+    # use an empty hashref
     my $column_info = ref $cols[0] ? shift(@cols) : {};
-      # If next entry is { ... } use that for the column info, if not
-      # use an empty hashref
-
     push(@added, $col) unless exists $columns->{$col};
-
     $columns->{$col} = $column_info;
   }
   push @{ $self->_ordered_columns }, @added;
@@ -173,22 +168,21 @@ sub column_info {
   $self->throw_exception("No such column $column") 
     unless exists $self->_columns->{$column};
   #warn $self->{_columns_info_loaded}, "\n";
-  if ( ! $self->_columns->{$column}->{data_type} 
-       && ! $self->{_columns_info_loaded} 
-       && $self->schema && $self->storage() ){
-      $self->{_columns_info_loaded}++;
-      my $info;
-############ eval for the case of storage without table 
-      eval{
-          $info = $self->storage->columns_info_for ( $self->from() );
-      };
-      if ( ! $@ ){
-          for my $col ( keys %{$self->_columns} ){
-              for my $i ( keys %{$info->{$col}} ){
-                  $self->_columns()->{$col}->{$i} = $info->{$col}->{$i};
-              }
-          }
+  if ( ! $self->_columns->{$column}{data_type} 
+       and ! $self->{_columns_info_loaded} 
+       and $self->schema and $self->storage )
+  {
+    $self->{_columns_info_loaded}++;
+    my $info;
+    # eval for the case of storage without table 
+    eval { $info = $self->storage->columns_info_for($self->from) };
+    unless ($@) {
+      foreach my $col ( keys %{$self->_columns} ) {
+        foreach my $i ( keys %{$info->{$col}} ) {
+            $self->_columns->{$col}{$i} = $info->{$col}{$i};
+        }
       }
+    }
   }
   return $self->_columns->{$column};
 }
@@ -202,7 +196,7 @@ Returns all column names in the order they were declared to add_columns
 =cut
 
 sub columns {
-  my $self=shift;
+  my $self = shift;
   $self->throw_exception("columns() is a read-only accessor, did you mean add_columns()?") if (@_ > 1);
   return @{$self->{_ordered_columns}||[]};
 }
@@ -224,9 +218,9 @@ retrieve automatically created values from the database.
 sub set_primary_key {
   my ($self, @cols) = @_;
   # check if primary key columns are valid columns
-  for (@cols) {
-    $self->throw_exception("No such column $_ on table ".$self->name)
-      unless $self->has_column($_);
+  foreach my $col (@cols) {
+    $self->throw_exception("No such column $col on table " . $self->name)
+      unless $self->has_column($col);
   }
   $self->_primaries(\@cols);
 
@@ -257,9 +251,9 @@ L<DBIx::Class::ResultSet>, only columns in the constraint are searched,
 sub add_unique_constraint {
   my ($self, $name, $cols) = @_;
 
-  for (@$cols) {
-    $self->throw_exception("No such column $_ on table ".$self->name)
-      unless $self->has_column($_);
+  foreach my $col (@$cols) {
+    $self->throw_exception("No such column $col on table " . $self->name)
+      unless $self->has_column($col);
   }
 
   my %unique_constraints = $self->unique_constraints;
@@ -545,35 +539,56 @@ in the supplied relationships. Examples:
 =cut
 
 sub resolve_prefetch {
-  my ($self, $pre, $alias, $seen) = @_;
+  my ($self, $pre, $alias, $seen, $order, $collapse) = @_;
   $seen ||= {};
-  use Data::Dumper;
   #$alias ||= $self->name;
   #warn $alias, Dumper $pre;
   if( ref $pre eq 'ARRAY' ) {
-    return map { $self->resolve_prefetch( $_, $alias, $seen ) } @$pre;
+    return
+      map { $self->resolve_prefetch( $_, $alias, $seen, $order, $collapse ) }
+        @$pre;
   }
   elsif( ref $pre eq 'HASH' ) {
     my @ret =
     map {
-      $self->resolve_prefetch($_, $alias, $seen),
+      $self->resolve_prefetch($_, $alias, $seen, $order, $collapse),
       $self->related_source($_)->resolve_prefetch(
-                                   $pre->{$_}, "${alias}.$_", $seen)
-        } keys %$pre;
+               $pre->{$_}, "${alias}.$_", $seen, $order, $collapse)
+    } keys %$pre;
     #die Dumper \@ret;
     return @ret;
   }
   elsif( ref $pre ) {
-    $self->throw_exception( "don't know how to resolve prefetch reftype " . ref $pre);
+    $self->throw_exception(
+      "don't know how to resolve prefetch reftype ".ref($pre));
   }
   else {
     my $count = ++$seen->{$pre};
     my $as = ($count > 1 ? "${pre}_${count}" : $pre);
     my $rel_info = $self->relationship_info( $pre );
-    $self->throw_exception( $self->name . " has no such relationship '$pre'" ) unless $rel_info;
-    my $as_prefix = ($alias =~ /^.*?\.(.*)$/ ? $1.'.' : '');
+    $self->throw_exception( $self->name . " has no such relationship '$pre'" )
+      unless $rel_info;
+    my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
+    my $rel_source = $self->related_source($pre);
+
+    if (exists $rel_info->{attrs}{accessor}
+         && $rel_info->{attrs}{accessor} eq 'multi') {
+      $self->throw_exception(
+        "Can't prefetch has_many ${pre} (join cond too complex)")
+        unless ref($rel_info->{cond}) eq 'HASH';
+      my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
+                    keys %{$rel_info->{cond}};
+      $collapse->{"${as_prefix}${pre}"} = \@key;
+      my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
+                   ? @{$rel_info->{attrs}{order_by}}
+                   : (defined $rel_info->{attrs}{order_by}
+                       ? ($rel_info->{attrs}{order_by})
+                       : ()));
+      push(@$order, map { "${as}.$_" } (@key, @ord));
+    }
+
     return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
-      $self->related_source($pre)->columns;
+      $rel_source->columns;
     #warn $alias, Dumper (\@ret);
     #return @ret;
   }
@@ -615,12 +630,9 @@ Specify here any attributes you wish to pass to your specialised resultset.
 
 sub resultset {
   my $self = shift;
+  $self->throw_exception('resultset does not take any arguments. If you want another resultset, call it on the schema instead.') if scalar @_;
   return $self->{_resultset} if ref $self->{_resultset} eq $self->resultset_class;
-  return $self->{_resultset} = do {
-    my $rs = $self->resultset_class->new($self, $self->{resultset_attributes});
-    weaken $rs->result_source;
-    $rs;
-  };
+  return $self->{_resultset} = $self->resultset_class->new($self, $self->{resultset_attributes});
 }
 
 =head2 throw_exception

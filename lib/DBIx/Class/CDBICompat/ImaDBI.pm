@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::ImaDBI;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::ImaDBI;
 
 use strict;
 use warnings;

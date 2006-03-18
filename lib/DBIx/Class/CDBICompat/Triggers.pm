@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::Triggers;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::Triggers;
 
 use strict;
 use warnings;

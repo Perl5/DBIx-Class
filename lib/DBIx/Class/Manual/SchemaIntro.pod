@@ -70,12 +70,16 @@ If you have a multi-column primary key, just pass a list instead:
 
   __PACKAGE__->set_primary_key( qw/ albumid artistid / );
 
+=begin hide
+
 You can define relationships for any of your classes. L<DBIx::Class> will
 automatically fill in the correct namespace, so if you want to say
 "a My::Schema::Album object belongs to a My::Schema::Artist object" you do not
 need to include the namespace when declaring the relationship:
 
   __PACKAGE__->belongs_to('artist' => 'Artist');
+
+=end hide
 
 That's all you need in terms of setup.
 
@@ -147,11 +151,11 @@ Likewise, you can remove it from the database like this:
 
   $new_album->delete;
 
-You can also remove records without or retrieving first.  This
-operation takes the same kind of arguments as a search.
+You can also remove records without retrieving them first, by calling
+delete directly on a ResultSet object.
 
   # Delete all of Falco's albums
-  $schema->resultset('Album')->delete({ artist => 'Falco' });
+  $schema->resultset('Album')->search({ artist => 'Falco' })->delete;
 
 =head2 Finding your objects
 

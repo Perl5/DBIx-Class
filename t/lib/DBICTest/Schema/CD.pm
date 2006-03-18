@@ -1,4 +1,5 @@
-package DBICTest::Schema::CD;
+package # hide from PAUSE 
+    DBICTest::Schema::CD;
 
 use base 'DBIx::Class::Core';
 
@@ -15,9 +16,11 @@ DBICTest::Schema::CD->add_columns(
   },
   'title' => {
     data_type => 'varchar',
+    size      => 100,
   },
   'year' => {
     data_type => 'varchar',
+    size      => 100,
   },
 );
 DBICTest::Schema::CD->set_primary_key('cdid');

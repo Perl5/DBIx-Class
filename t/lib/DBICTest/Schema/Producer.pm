@@ -1,4 +1,5 @@
-package DBICTest::Schema::Producer;
+package # hide from PAUSE 
+    DBICTest::Schema::Producer;
 
 use base 'DBIx::Class::Core';
 
@@ -10,6 +11,7 @@ __PACKAGE__->add_columns(
   },
   'name' => {
     data_type => 'varchar',
+    size      => 100,
   },
 );
 __PACKAGE__->set_primary_key('producerid');

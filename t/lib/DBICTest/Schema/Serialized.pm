@@ -1,4 +1,5 @@
-package DBICTest::Schema::Serialized;
+package # hide from PAUSE 
+    DBICTest::Schema::Serialized;
 
 use base 'DBIx::Class::Core';
 

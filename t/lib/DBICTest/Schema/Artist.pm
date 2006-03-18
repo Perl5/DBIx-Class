@@ -1,4 +1,5 @@
-package DBICTest::Schema::Artist;
+package # hide from PAUSE 
+    DBICTest::Schema::Artist;
 
 use base 'DBIx::Class::Core';
 
@@ -12,6 +13,7 @@ DBICTest::Schema::Artist->add_columns(
   },
   'name' => {
     data_type => 'varchar',
+    size      => 100,
     is_nullable => 1,
   },
 );

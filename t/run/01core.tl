@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 39; 
+plan tests => 41; 
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -96,7 +96,7 @@ my @cd = $schema->source("CD")->columns;
 
 is_deeply( \@cd, [qw/cdid artist title year/], 'column order');
 
-$cd = $schema->resultset("CD")->search({ title => 'Spoonful of bees' }, { cols => ['title'] })->next;
+$cd = $schema->resultset("CD")->search({ title => 'Spoonful of bees' }, { columns => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');
 
 $cd = $schema->resultset("CD")->search(undef, { include_columns => [ 'artist.name' ], join => [ 'artist' ] })->find(1);
@@ -104,20 +104,20 @@ $cd = $schema->resultset("CD")->search(undef, { include_columns => [ 'artist.nam
 is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
 is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
 
-# insert_or_update
+# update_or_insert
 $new = $schema->resultset("Track")->new( {
   trackid => 100,
   cd => 1,
   position => 1,
   title => 'Insert or Update',
 } );
-$new->insert_or_update;
-ok($new->in_storage, 'insert_or_update insert ok');
+$new->update_or_insert;
+ok($new->in_storage, 'update_or_insert insert ok');
 
 # test in update mode
 $new->pos(5);
-$new->insert_or_update;
-is( $schema->resultset("Track")->find(100)->pos, 5, 'insert_or_update update ok');
+$new->update_or_insert;
+is( $schema->resultset("Track")->find(100)->pos, 5, 'update_or_insert update ok');
 
 eval { $schema->class("Track")->load_components('DoesNotExist'); };
 
@@ -145,6 +145,12 @@ cmp_ok($rel_rs->count, '==', 5, 'Related search ok');
 
 cmp_ok($or_rs->next->cdid, '==', $rel_rs->next->cdid, 'Related object ok');
 
+
+my $tag = $schema->resultset('Tag')->search(
+               [ { 'me.tag' => 'Blue' } ], { cols=>[qw/tagid/] } )->next;
+
+cmp_ok($tag->has_column_loaded('tagid'), '==', 1, 'Has tagid loaded');
+cmp_ok($tag->has_column_loaded('tag'), '==', 0, 'Has not tag  loaded');
 
 ok($schema->storage(), 'Storage available');
 

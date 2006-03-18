@@ -1,4 +1,5 @@
-package Lazy;
+package # hide from PAUSE 
+    Lazy;
 
 BEGIN { unshift @INC, './t/testlib'; }
 use base 'DBIx::Class::Test::SQLite';

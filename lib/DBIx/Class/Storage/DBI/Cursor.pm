@@ -1,4 +1,5 @@
-package DBIx::Class::Storage::DBI::Cursor;
+package # hide from PAUSE 
+    DBIx::Class::Storage::DBI::Cursor;
 
 use base qw/DBIx::Class::Cursor/;
 
@@ -13,12 +14,19 @@ sub new {
     storage => $storage,
     args => $args,
     pos => 0,
-    attrs => $attrs };
+    attrs => $attrs,
+    pid => $$,
+  };
+
+  $new->{tid} = threads->tid if $INC{'threads.pm'};
+  
   return bless ($new, $class);
 }
 
 sub next {
   my ($self) = @_;
+
+  $self->_check_forks_threads;
   if ($self->{attrs}{rows} && $self->{pos} >= $self->{attrs}{rows}) {
     $self->{sth}->finish if $self->{sth}->{Active};
     delete $self->{sth};
@@ -45,6 +53,8 @@ sub next {
 
 sub all {
   my ($self) = @_;
+
+  $self->_check_forks_threads;
   return $self->SUPER::all if $self->{attrs}{rows};
   $self->{sth}->finish if $self->{sth}->{Active};
   delete $self->{sth};
@@ -54,15 +64,39 @@ sub all {
 
 sub reset {
   my ($self) = @_;
+
+  $self->_check_forks_threads;
   $self->{sth}->finish if $self->{sth}->{Active};
+  $self->_soft_reset;
+}
+
+sub _soft_reset {
+  my ($self) = @_;
+
   delete $self->{sth};
   $self->{pos} = 0;
   delete $self->{done};
   return $self;
 }
 
+sub _check_forks_threads {
+  my ($self) = @_;
+
+  if($INC{'threads.pm'} && $self->{tid} != threads->tid) {
+      $self->_soft_reset;
+      $self->{tid} = threads->tid;
+  }
+
+  if($self->{pid} != $$) {
+      $self->_soft_reset;
+      $self->{pid} = $$;
+  }
+}
+
 sub DESTROY {
   my ($self) = @_;
+
+  $self->_check_forks_threads;
   $self->{sth}->finish if $self->{sth}->{Active};
 }
 

@@ -1,4 +1,5 @@
-package DBIx::Class::Relationship::CascadeActions;
+package # hide from PAUSE
+    DBIx::Class::Relationship::CascadeActions;
 
 sub delete {
   my ($self, @rest) = @_;

@@ -1,4 +1,5 @@
-package MyStarLinkMCPK;
+package # hide from PAUSE 
+    MyStarLinkMCPK;
 
 BEGIN { unshift @INC, './t/testlib'; }
 use base 'MyBase';

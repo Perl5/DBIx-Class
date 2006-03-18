@@ -1,4 +1,5 @@
-package DBICTest::Schema::Tag;
+package # hide from PAUSE 
+    DBICTest::Schema::Tag;
 
 use base qw/DBIx::Class::Core/;
 
@@ -14,7 +15,8 @@ DBICTest::Schema::Tag->add_columns(
     data_type => 'integer',
   },
   'tag' => {
-    data_type => 'varchar'
+    data_type => 'varchar',
+    size      => 100,
   },
 );
 DBICTest::Schema::Tag->set_primary_key('tagid');

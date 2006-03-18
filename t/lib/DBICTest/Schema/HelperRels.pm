@@ -1,4 +1,5 @@
-package DBICTest::Schema::HelperRels;
+package # hide from PAUSE 
+    DBICTest::Schema::HelperRels;
 
 use base 'DBIx::Class::Core';
 
@@ -10,7 +11,8 @@ DBICTest::Schema::Artist->has_many(onekeys => 'DBICTest::Schema::OneKey');
 DBICTest::Schema::CD->belongs_to('artist', 'DBICTest::Schema::Artist');
 
 DBICTest::Schema::CD->has_many(tracks => 'DBICTest::Schema::Track');
-DBICTest::Schema::CD->has_many(tags => 'DBICTest::Schema::Tag');
+DBICTest::Schema::CD->has_many(tags => 'DBICTest::Schema::Tag', undef,
+                                 { order_by => 'tag' });
 DBICTest::Schema::CD->has_many(cd_to_producer => 'DBICTest::Schema::CD_to_Producer' => 'cd');
 
 DBICTest::Schema::CD->might_have(liner_notes => 'DBICTest::Schema::LinerNotes',

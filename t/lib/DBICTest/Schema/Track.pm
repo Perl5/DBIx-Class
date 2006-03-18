@@ -1,4 +1,5 @@
-package DBICTest::Schema::Track;
+package # hide from PAUSE 
+    DBICTest::Schema::Track;
 
 use base 'DBIx::Class::Core';
 
@@ -17,6 +18,7 @@ DBICTest::Schema::Track->add_columns(
   },
   'title' => {
     data_type => 'varchar',
+    size      => 100,
   },
 );
 DBICTest::Schema::Track->set_primary_key('trackid');

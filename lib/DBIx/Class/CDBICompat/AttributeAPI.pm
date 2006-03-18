@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::AttributeAPI;
+package # hide from PAUSE 
+    DBIx::Class::CDBICompat::AttributeAPI;
 
 sub _attrs {
   my ($self, @atts) = @_;

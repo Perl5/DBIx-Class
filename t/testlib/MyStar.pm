@@ -1,4 +1,5 @@
-package MyStar;
+package # hide from PAUSE 
+    MyStar;
 
 BEGIN { unshift @INC, './t/testlib'; }
 use base 'MyBase';

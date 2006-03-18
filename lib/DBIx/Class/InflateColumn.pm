@@ -130,7 +130,8 @@ sub update {
   foreach my $key (keys %$attrs) {
     if (ref $attrs->{$key}
           && exists $class->column_info($key)->{_inflate_info}) {
-      $attrs->{$key} = $class->_deflated_column($key, $attrs->{$key});
+#      $attrs->{$key} = $class->_deflated_column($key, $attrs->{$key});
+      $class->set_inflated_column ($key, delete $attrs->{$key});
     }
   }
   return $class->next::method($attrs, @rest);

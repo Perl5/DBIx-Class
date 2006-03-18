@@ -1,4 +1,5 @@
-package DBICTest::Schema::OneKey;
+package # hide from PAUSE 
+    DBICTest::Schema::OneKey;
 
 use base 'DBIx::Class::Core';
 

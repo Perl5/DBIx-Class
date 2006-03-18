@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::HasA;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::HasA;
 
 use strict;
 use warnings;

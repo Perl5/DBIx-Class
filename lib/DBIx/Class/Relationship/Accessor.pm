@@ -1,4 +1,5 @@
-package DBIx::Class::Relationship::Accessor;
+package # hide from PAUSE 
+    DBIx::Class::Relationship::Accessor;
 
 use strict;
 use warnings;

@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::AutoUpdate;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::AutoUpdate;
 
 use strict;
 use warnings;

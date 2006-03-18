@@ -144,10 +144,10 @@ $trace->close;
 unlink 't/var/dbic.trace';
 is($selects, 1, 'prefetch ran only 1 select statement');
 
-# test for partial prefetch via cols attr
+# test for partial prefetch via columns attr
 my $cd = $schema->resultset('CD')->find(1,
     {
-      cols => [qw/title artist.name/], 
+      columns => [qw/title artist.name/], 
       join => { 'artist' => {} }
     }
 );

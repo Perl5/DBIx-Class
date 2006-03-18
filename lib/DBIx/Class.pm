@@ -13,17 +13,20 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.05007';
+$VERSION = '0.05999_04';
 
 sub MODIFY_CODE_ATTRIBUTES {
     my ($class,$code,@attrs) = @_;
-    unless ($class->can('_attr_cache')) {
-        $class->mk_classdata('_attr_cache');
-        $class->_attr_cache({});
-    }
-    my $cache = $class->_attr_cache;
-    $class->_attr_cache->{$code} = [@attrs];
+    $class->mk_classdata('__attr_cache' => {}) unless $class->can('__attr_cache');
+    $class->__attr_cache->{$code} = [@attrs];
     return ();
+}
+
+sub _attr_cache {
+    my $self = shift;
+    my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
+    my $rest = eval { $self->next::method };
+    return $@ ? $cache : { %$cache, %$rest };
 }
 
 1;
@@ -122,49 +125,55 @@ Matt S. Trout <mst@shadowcatsystems.co.uk>
 
 =head1 CONTRIBUTORS
 
+Alexander Hartmaier <alex_hartmaier@hotmail.com>
+
 Andy Grundman <andy@hybridized.org>
 
+Andres Kievsky
+
+Brandon Black
+
 Brian Cassidy <bricas@cpan.org>
+
+Christopher H. Laco
+
+CL Kao
+
+Daisuke Murase <typester@cpan.org>
 
 Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
 Dan Sully <daniel@cpan.org>
 
-David Kamholz <dkamholz@cpan.org>
-
-Jules Bean
-
-Marcus Ramberg <mramberg@cpan.org>
-
-Paul Makepeace
-
-CL Kao
-
-Jess Robinson
-
-Marcus Ramberg
-
-Will Hawes
-
-Todd Lipcon
-
 Daniel Westermann-Clark <danieltwc@cpan.org>
 
-Alexander Hartmaier <alex_hartmaier@hotmail.com>
-
-Zbigniew Lukasiak
-
-Nigel Metheringham <nigelm@cpan.org>
+David Kamholz <dkamholz@cpan.org>
 
 Jesper Krogh
 
-Brandon Black
+Jess Robinson
 
-Christopher H. Laco
+Jules Bean
+
+Justin Guenther <guentherj@agr.gc.ca>
+
+Marcus Ramberg <mramberg@cpan.org>
+
+Nigel Metheringham <nigelm@cpan.org>
+
+Paul Makepeace
+
+Robert Sedlacek <phaylon@dunkelheit.at>
+
+sc_ of irc.perl.org#dbix-class
+
+Scott McWhirter (konobi)
 
 Scotty Allen <scotty@scottyallen.com>
 
-sc_
+Todd Lipcon
+
+Will Hawes
 
 =head1 LICENSE
 

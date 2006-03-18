@@ -36,8 +36,8 @@ DBIx::Class::Schema - composable schemas
     $password,
     $attrs
   );
-
-  my $schema2 = My::Schema->connect( ... );
+  
+  my $schema2 = My::Schema->connect($coderef_returning_dbh);
 
   # fetch objects using My::Schema::Foo
   my $resultset = $schema1->resultset('Foo')->search( ... );
@@ -196,16 +196,26 @@ sub load_classes {
     $comps_for{$class} = \@comp;
   }
 
-  foreach my $prefix (keys %comps_for) {
-    foreach my $comp (@{$comps_for{$prefix}||[]}) {
-      my $comp_class = "${prefix}::${comp}";
-      eval "use $comp_class"; # If it fails, assume the user fixed it
-      if ($@) {
-        die $@ unless $@ =~ /Can't locate/;
+  my @to_register;
+  {
+    no warnings qw/redefine/;
+    local *Class::C3::reinitialize = sub { };
+    foreach my $prefix (keys %comps_for) {
+      foreach my $comp (@{$comps_for{$prefix}||[]}) {
+        my $comp_class = "${prefix}::${comp}";
+        eval "use $comp_class"; # If it fails, assume the user fixed it
+        if ($@) {
+          die $@ unless $@ =~ /Can't locate/;
+        }
+        push(@to_register, [ $comp, $comp_class ]);
       }
-      $class->register_class($comp => $comp_class);
-      #  if $class->can('result_source_instance');
     }
+  }
+  Class::C3->reinitialize;
+
+  foreach my $to (@to_register) {
+    $class->register_class(@$to);
+    #  if $class->can('result_source_instance');
   }
 }
 
@@ -279,14 +289,19 @@ sub compose_namespace {
   my %target;
   my %map;
   my $schema = $self->clone;
-  foreach my $moniker ($schema->sources) {
-    my $source = $schema->source($moniker);
-    my $target_class = "${target}::${moniker}";
-    $self->inject_base(
-      $target_class => $source->result_class, ($base ? $base : ())
-    );
-    $source->result_class($target_class);
+  {
+    no warnings qw/redefine/;
+    local *Class::C3::reinitialize = sub { };
+    foreach my $moniker ($schema->sources) {
+      my $source = $schema->source($moniker);
+      my $target_class = "${target}::${moniker}";
+      $self->inject_base(
+        $target_class => $source->result_class, ($base ? $base : ())
+      );
+      $source->result_class($target_class);
+    }
   }
+  Class::C3->reinitialize();
   {
     no strict 'refs';
     foreach my $meth (qw/class source resultset/) {
@@ -325,6 +340,7 @@ the schema.
 
 sub connection {
   my ($self, @info) = @_;
+  return $self if !@info && $self->storage;
   my $storage_class = $self->storage_type;
   $storage_class = 'DBIx::Class::Storage'.$storage_class
     if $storage_class =~ m/^::/;
@@ -502,11 +518,13 @@ sub populate {
   my ($self, $name, $data) = @_;
   my $rs = $self->resultset($name);
   my @names = @{shift(@$data)};
+  my @created;
   foreach my $item (@$data) {
     my %create;
     @create{@names} = @$item;
-    $rs->create(\%create);
+    push(@created, $rs->create(\%create));
   }
+  return @created;
 }
 
 =head2 throw_exception
@@ -527,9 +545,9 @@ Attempts to deploy the schema to the current storage
 =cut
 
 sub deploy {
-  my ($self) = shift;
+  my ($self, $sqltargs) = @_;
   $self->throw_exception("Can't deploy without storage") unless $self->storage;
-  $self->storage->deploy($self);
+  $self->storage->deploy($self, undef, $sqltargs);
 }
 
 1;

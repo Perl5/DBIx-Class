@@ -6,7 +6,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 4 );
+        : ( tests => 6 );
 }
 
 use lib qw(t/lib);
@@ -23,6 +23,26 @@ my $rs = DBICTest::CD->search(
            { join => 'artist' });
 
 cmp_ok( $rs->count, '==', 1, "join with fields quoted");
+
+$rs = DBICTest::CD->search({},
+            { 'order_by' => 'year DESC'});
+{
+       my $warnings;
+       local $SIG{__WARN__} = sub { $warnings .= $_[0] };
+       my $first = eval{ $rs->first() };
+       ok( $warnings =~ /ORDER BY terms/, "Problem with ORDER BY quotes" );
+}
+
+my $order = 'year DESC';
+$rs = DBICTest::CD->search({},
+            { 'order_by' => \$order });
+{
+       my $warnings;
+       local $SIG{__WARN__} = sub { $warnings .= $_[0] };
+       my $first = $rs->first();
+       ok( $warnings !~ /ORDER BY terms/,
+            "No problem handling ORDER by scalaref" );
+}
 
 DBICTest->schema->storage->sql_maker->quote_char([qw/[ ]/]);
 DBICTest->schema->storage->sql_maker->name_sep('.');

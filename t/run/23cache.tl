@@ -3,7 +3,7 @@ my $schema = shift;
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 12;
+plan tests => 17;
 
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
@@ -13,12 +13,21 @@ my $artist = $rs->first;
 
 is( scalar @{ $rs->get_cache }, 0, 'cache is not populated without cache attribute' );
 
+my @a = $schema->resultset("Artist")->search(
+  { },
+  {
+    join => [ qw/ cds /],
+    prefetch => [qw/ cds /],
+  }
+);
+
+is(scalar @a, 3, 'artist with cds: count parent objects');
+
 $rs = $schema->resultset("Artist")->search(
   { 'artistid' => 1 },
   {
     join => [ qw/ cds /],
     prefetch => [qw/ cds /],
-    cache => 1,
   }
 );
 
@@ -56,7 +65,7 @@ while (<$trace>) {
 }
 $trace->close;
 unlink 't/var/dbic.trace';
-is($selects, 2, 'only one SQL statement for each cached table');
+is($selects, 1, 'only one SQL statement executed');
 
 # make sure related_resultset is deleted after object is updated
 $artist->set_column('name', 'New Name');
@@ -72,15 +81,24 @@ $rs = $schema->resultset("Artist")->search(
     prefetch => {
       cds => 'tags'
     },
-    cache => 1
   }
 );
+{
+my $artist_count_before = $schema->resultset('Artist')->count;
+$schema->resultset("Artist")->create({artistid=>4,name=>qq{Humoungous Hamsters}});
+is($schema->resultset('Artist')->count, $artist_count_before + 1, 'count() reflects new artist');
+my $artist = $schema->resultset("Artist")->search(
+  { artistid => 4 },{prefetch=>[qw/cds/]}
+)->first;
+
+is($artist->cds, 0, 'No cds for this artist');
+}
 
 # SELECT count for nested has_many prefetch
 unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
 DBI->trace(1, 't/var/dbic.trace');
 
-$artist = $rs->first;
+$artist = ($rs->all)[0];
 
 # count the SELECTs
 DBI->trace(0, undef);
@@ -92,10 +110,10 @@ while (<$trace>) {
 }
 $trace->close;
 unlink 't/var/dbic.trace';
-is($selects, 3, 'one SQL statement for each cached table with nested prefetch');
+is($selects, 1, 'only one SQL statement executed');
 
 my @objs;
-$artist = $rs->find(1);
+#$artist = $rs->find(1);
 
 unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
 DBI->trace(1, 't/var/dbic.trace');
@@ -103,10 +121,10 @@ DBI->trace(1, 't/var/dbic.trace');
 my $cds = $artist->cds;
 my $tags = $cds->next->tags;
 while( my $tag = $tags->next ) {
-  push @objs, $tag->tagid; #warn "tag:", $tag->ID;
+  push @objs, $tag->tagid; #warn "tag:", $tag->ID, " => ", $tag->tag;
 }
 
-is_deeply( \@objs, [ 1 ], 'first cd has correct tags' );
+is_deeply( \@objs, [ 3 ], 'first cd has correct tags' );
 
 $tags = $cds->next->tags;
 @objs = ();
@@ -128,6 +146,45 @@ $trace->close;
 unlink 't/var/dbic.trace';
 
 is( $selects, 0, 'no additional SQL statements while checking nested data' );
+
+# start test for prefetch SELECT count
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
+
+$artist = $schema->resultset('Artist')->find(1, { prefetch => [qw/cds/] });
+
+# count the SELECTs
+DBI->trace(0, undef);
+$selects = 0;
+$trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT/;
+}
+$trace->close;
+unlink 't/var/dbic.trace';
+
+is( $selects, 1, 'only one select statement on find with inline has_many prefetch' );
+
+# start test for prefetch SELECT count
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
+
+$rs = $schema->resultset('Artist')->search(undef, { prefetch => [qw/cds/] });
+$artist = $rs->find(1);
+
+# count the SELECTs
+DBI->trace(0, undef);
+$selects = 0;
+$trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT/;
+}
+$trace->close;
+unlink 't/var/dbic.trace';
+
+is( $selects, 1, 'only one select statement on find with has_many prefetch on resultset' );
 
 }
 

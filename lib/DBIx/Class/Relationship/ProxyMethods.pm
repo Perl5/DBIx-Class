@@ -1,4 +1,5 @@
-package DBIx::Class::Relationship::ProxyMethods;
+package # hide from PAUSE 
+    DBIx::Class::Relationship::ProxyMethods;
 
 use strict;
 use warnings;

@@ -1,4 +1,5 @@
-package MyFoo;
+package # hide from PAUSE 
+    MyFoo;
 
 BEGIN { unshift @INC, './t/testlib'; }
 use base 'MyBase';

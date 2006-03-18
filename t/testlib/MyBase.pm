@@ -1,4 +1,5 @@
-package MyBase;
+package # hide from PAUSE
+    MyBase;
 
 use strict;
 use base qw(DBIx::Class);

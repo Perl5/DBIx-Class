@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::Constructor;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::Constructor;
 
 use strict;
 use warnings;

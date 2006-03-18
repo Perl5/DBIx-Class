@@ -1,4 +1,5 @@
-package SQL::Translator::Parser::DBIx::Class;
+package # hide from PAUSE 
+    SQL::Translator::Parser::DBIx::Class;
 
 # AUTHOR: Jess Robinson
 

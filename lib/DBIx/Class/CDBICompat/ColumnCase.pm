@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::ColumnCase;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::ColumnCase;
 
 use strict;
 use warnings;

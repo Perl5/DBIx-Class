@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::GetSet;
+package # hide from PAUSE 
+    DBIx::Class::CDBICompat::GetSet;
 
 #use base qw/Class::Accessor/;
 

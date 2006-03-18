@@ -1,4 +1,5 @@
-package DBIx::Class::CDBICompat::LazyLoading;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::LazyLoading;
 
 use strict;
 use warnings;
@@ -6,7 +7,7 @@ use warnings;
 sub resultset_instance {
   my $self = shift;
   my $rs = $self->next::method(@_);
-  $rs = $rs->search(undef, { cols => [ $self->columns('Essential') ] });
+  $rs = $rs->search(undef, { columns => [ $self->columns('Essential') ] });
   return $rs;
 }
 

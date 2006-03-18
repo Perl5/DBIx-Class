@@ -12,7 +12,7 @@ When you expect a large number of results, you can ask L<DBIx::Class> for a
 paged resultset, which will fetch only a small number of records at a time:
 
   my $rs = $schema->resultset('Artist')->search(
-    {},
+    undef,
     {
       page => 1,  # page to return (defaults to 1)
       rows => 10, # number of results per page
@@ -24,7 +24,7 @@ paged resultset, which will fetch only a small number of records at a time:
 The C<page> attribute does not have to be specified in your search:
 
   my $rs = $schema->resultset('Artist')->search(
-    {},
+    undef,
     {
       rows => 10,
     }
@@ -76,9 +76,9 @@ When you only want selected columns from a table, you can use C<cols> to
 specify which ones you need:
 
   my $rs = $schema->resultset('Artist')->search(
-    {},
+    undef,
     {
-      cols => [qw/ name /]
+      columns => [qw/ name /]
     }
   );
 
@@ -94,7 +94,7 @@ stored procedure name). You then use C<as> to set the column name you will use
 to access the returned value:
 
   my $rs = $schema->resultset('Artist')->search(
-    {},
+    undef,
     {
       select => [ 'name', { LENGTH => 'name' } ],
       as     => [qw/ name name_length /],
@@ -129,7 +129,7 @@ any of your aliases using either of these:
 =head3 SELECT DISTINCT with multiple columns
 
   my $rs = $schema->resultset('Foo')->search(
-    {},
+    undef,
     {
       select => [
         { distinct => [ $source->columns ] }
@@ -141,7 +141,7 @@ any of your aliases using either of these:
 =head3 SELECT COUNT(DISTINCT colname)
 
   my $rs = $schema->resultset('Foo')->search(
-    {},
+    undef,
     {
       select => [
         { count => { distinct => 'colname' } }
@@ -155,7 +155,7 @@ any of your aliases using either of these:
 L<DBIx::Class> supports C<GROUP BY> as follows:
 
   my $rs = $schema->resultset('Artist')->search(
-    {},
+    undef,
     {
       join     => [qw/ cds /],
       select   => [ 'name', { count => 'cds.cdid' } ],
@@ -330,7 +330,7 @@ From 0.04999_05 onwards, C<prefetch> can be nested more than one relationship
 deep using the same syntax as a multi-step join:
 
   my $rs = $schema->resultset('Tag')->search(
-    {},
+    undef,
     {
       prefetch => {
         cd => 'artist'

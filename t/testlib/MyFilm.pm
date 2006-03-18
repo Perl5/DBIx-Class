@@ -1,4 +1,5 @@
-package MyFilm;
+package # hide from PAUSE 
+    MyFilm;
 
 BEGIN { unshift @INC, './t/testlib'; }
 use base 'MyBase';

@@ -1,4 +1,5 @@
-package DBICTest::Plain;
+package # hide from PAUSE 
+    DBICTest::Plain;
 
 use strict;
 use warnings;

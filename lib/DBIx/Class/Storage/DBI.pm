@@ -68,6 +68,8 @@ sub _order_by {
     if (defined $_[0]->{order_by}) {
       $ret .= $self->SUPER::_order_by($_[0]->{order_by});
     }
+  } elsif(ref $_[0] eq 'SCALAR') {
+    $ret = $self->_sqlcase(' order by ').${ $_[0] };
   } else {
     $ret = $self->SUPER::_order_by(@_);
   }
@@ -199,8 +201,8 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/connect_info _dbh _sql_maker _connection_pid debug debugfh cursor
-     on_connect_do transaction_depth/);
+  qw/connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugfh
+     cursor on_connect_do transaction_depth/);
 
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
@@ -279,8 +281,20 @@ sub disconnect {
 sub connected {
   my ($self) = @_;
 
-  my $dbh;
-  (($dbh = $self->_dbh) && $dbh->FETCH('Active') && $dbh->ping)
+  if(my $dbh = $self->_dbh) {
+      if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
+          $self->_sql_maker(undef);
+          return $self->_dbh(undef);
+      }
+      elsif($self->_conn_pid != $$) {
+          $self->_dbh->{InactiveDestroy} = 1;
+          $self->_sql_maker(undef);
+          return $self->_dbh(undef)
+      }
+      return ($dbh->FETCH('Active') && $dbh->ping);
+  }
+
+  return 0;
 }
 
 sub ensure_connected {
@@ -294,10 +308,6 @@ sub ensure_connected {
 sub dbh {
   my ($self) = @_;
 
-  if($self->_connection_pid && $self->_connection_pid != $$) {
-      $self->_dbh->{InactiveDestroy} = 1;
-      $self->_dbh(undef)
-  }
   $self->ensure_connected;
   return $self->_dbh;
 }
@@ -324,23 +334,35 @@ sub _populate_dbh {
     $self->_dbh->do($sql_statement);
   }
 
-  $self->_connection_pid($$);
+  $self->_conn_pid($$);
+  $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
 }
 
 sub _connect {
   my ($self, @info) = @_;
 
+  $self->throw_exception("You failed to provide any connection info")
+      if !@info;
+
+  my ($old_connect_via, $dbh);
+
   if ($INC{'Apache/DBI.pm'} && $ENV{MOD_PERL}) {
-      my $old_connect_via = $DBI::connect_via;
+      $old_connect_via = $DBI::connect_via;
       $DBI::connect_via = 'connect';
-      my $dbh = DBI->connect(@info);
-      $DBI::connect_via = $old_connect_via;
-      return $dbh;
   }
 
-  my $dbh = DBI->connect(@info);
+  if(ref $info[0] eq 'CODE') {
+      $dbh = &{$info[0]};
+  }
+  else {
+      $dbh = DBI->connect(@info);
+  }
+
+  $DBI::connect_via = $old_connect_via if $old_connect_via;
+
   $self->throw_exception("DBI Connection failed: $DBI::errstr")
       unless $dbh;
+
   $dbh;
 }
 
@@ -393,7 +415,7 @@ sub txn_rollback {
     else {
       --$self->{transaction_depth} == 0 ?
         $self->dbh->rollback :
-	die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
+        die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
     }
   };
 
@@ -419,7 +441,7 @@ sub _execute {
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {  
-    $rv = $sth->execute(@bind);
+    $rv = $sth->execute(@bind) or $self->throw_exception("Error executing '$sql': " . $sth->errstr);
   } else { 
     $self->throw_exception("'$sql' did not generate a statement.");
   }
@@ -492,25 +514,48 @@ Returns database type info for a given table columns.
 
 sub columns_info_for {
     my ($self, $table) = @_;
-    my %result;
-    if ( $self->dbh->can( 'column_info' ) ){
-        my $sth = $self->dbh->column_info( undef, undef, $table, '%' );
-        $sth->execute();
-        while ( my $info = $sth->fetchrow_hashref() ){
-            my %column_info;
-            $column_info{data_type} = $info->{TYPE_NAME};
-            $column_info{size} = $info->{COLUMN_SIZE};
-            $column_info{is_nullable} = $info->{NULLABLE};
-            $result{$info->{COLUMN_NAME}} = \%column_info;
-        }
-    } else {
-        my $sth = $self->dbh->prepare("SELECT * FROM $table WHERE 1=0");
-        $sth->execute;
-        my @columns = @{$sth->{NAME}};
-        for my $i ( 0 .. $#columns ){
-            $result{$columns[$i]}{data_type} = $sth->{TYPE}->[$i];
-        }
+
+    if ($self->dbh->can('column_info')) {
+        my %result;
+        my $old_raise_err = $self->dbh->{RaiseError};
+        my $old_print_err = $self->dbh->{PrintError};
+        $self->dbh->{RaiseError} = 1;
+        $self->dbh->{PrintError} = 0;
+        eval {
+            my $sth = $self->dbh->column_info( undef, undef, $table, '%' );
+            $sth->execute();
+            while ( my $info = $sth->fetchrow_hashref() ){
+                my %column_info;
+                $column_info{data_type} = $info->{TYPE_NAME};
+                $column_info{size} = $info->{COLUMN_SIZE};
+                $column_info{is_nullable} = $info->{NULLABLE} ? 1 : 0;
+                $column_info{default_value} = $info->{COLUMN_DEF};
+                $result{$info->{COLUMN_NAME}} = \%column_info;
+            }
+        };
+        $self->dbh->{RaiseError} = $old_raise_err;
+        $self->dbh->{PrintError} = $old_print_err;
+        return \%result if !$@;
     }
+
+    my %result;
+    my $sth = $self->dbh->prepare("SELECT * FROM $table WHERE 1=0");
+    $sth->execute;
+    my @columns = @{$sth->{NAME_lc}};
+    for my $i ( 0 .. $#columns ){
+        my %column_info;
+        my $type_num = $sth->{TYPE}->[$i];
+        my $type_name;
+        if(defined $type_num && $self->dbh->can('type_info')) {
+            my $type_info = $self->dbh->type_info($type_num);
+            $type_name = $type_info->{TYPE_NAME} if $type_info;
+        }
+        $column_info{data_type} = $type_name ? $type_name : $type_num;
+        $column_info{size} = $sth->{PRECISION}->[$i];
+        $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
+        $result{$columns[$i]} = \%column_info;
+    }
+
     return \%result;
 }
 
@@ -521,15 +566,10 @@ sub last_insert_id {
 
 }
 
-sub sqlt_type {
-  my ($self) = @_;
-  my $dsn = $self->connect_info->[0];
-  $dsn =~ /^dbi:(.*?)\d*:/;
-  return $1;
-}
+sub sqlt_type { shift->dbh->{Driver}->{Name} }
 
 sub deployment_statements {
-  my ($self, $schema, $type) = @_;
+  my ($self, $schema, $type, $sqltargs) = @_;
   $type ||= $self->sqlt_type;
   eval "use SQL::Translator";
   $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
@@ -537,15 +577,16 @@ sub deployment_statements {
   $self->throw_exception($@) if $@; 
   eval "use SQL::Translator::Producer::${type};";
   $self->throw_exception($@) if $@;
-  my $tr = SQL::Translator->new();
+  my $tr = SQL::Translator->new(%$sqltargs);
   SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
   return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
 }
 
 sub deploy {
-  my ($self, $schema, $type) = @_;
-  foreach(split(";\n", $self->deployment_statements($schema, $type))) {
-	  $self->dbh->do($_) or warn "SQL was:\n $_";
+  my ($self, $schema, $type, $sqltargs) = @_;
+  foreach(split(";\n", $self->deployment_statements($schema, $type, $sqltargs))) {
+      $self->debugfh->print("$_\n") if $self->debug;
+          $self->dbh->do($_) or warn "SQL was:\n $_";
   } 
 }
 

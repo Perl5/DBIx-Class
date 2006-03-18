@@ -1,4 +1,5 @@
-package MyStarLink;
+package # hide from PAUSE 
+    MyStarLink;
 
 BEGIN { unshift @INC, './t/testlib'; }
 use base 'MyBase';

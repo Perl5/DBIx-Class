@@ -1,4 +1,5 @@
-package DBICTest::Schema::FourKeys;
+package # hide from PAUSE 
+    DBICTest::Schema::FourKeys;
 
 use base 'DBIx::Class::Core';
 

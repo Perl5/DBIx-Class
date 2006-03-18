@@ -23,11 +23,15 @@ sub get_autoinc_seq {
   while (my $col = shift @pri) {
     my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_arrayref;
     if (defined $info->[12] and $info->[12] =~ 
-      /^nextval\('"?([^"']+)"?'::(?:text|regclass)\)/)
+      /^nextval\(+'([^']+)'::(?:text|regclass)\)/)
     {
-      return $1;
+      return $1; # may need to strip quotes -- see if this works
     } 
   }
+}
+
+sub sqlt_type {
+  return 'PostgreSQL';
 }
 
 1;
