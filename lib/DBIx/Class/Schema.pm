@@ -519,11 +519,13 @@ sub populate {
   my ($self, $name, $data) = @_;
   my $rs = $self->resultset($name);
   my @names = @{shift(@$data)};
+  my @created;
   foreach my $item (@$data) {
     my %create;
     @create{@names} = @$item;
-    $rs->create(\%create);
+    push(@created, $rs->create(\%create));
   }
+  return @created;
 }
 
 =head2 throw_exception

@@ -125,57 +125,55 @@ Matt S. Trout <mst@shadowcatsystems.co.uk>
 
 =head1 CONTRIBUTORS
 
+Alexander Hartmaier <alex_hartmaier@hotmail.com>
+
 Andy Grundman <andy@hybridized.org>
 
+Andres Kievsky
+
+Brandon Black
+
 Brian Cassidy <bricas@cpan.org>
+
+Christopher H. Laco
+
+CL Kao
+
+Daisuke Murase <typester@cpan.org>
 
 Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
 Dan Sully <daniel@cpan.org>
 
-David Kamholz <dkamholz@cpan.org>
-
-Jules Bean
-
-Marcus Ramberg <mramberg@cpan.org>
-
-Paul Makepeace
-
-CL Kao
-
-Jess Robinson
-
-Marcus Ramberg
-
-Will Hawes
-
-Todd Lipcon
-
 Daniel Westermann-Clark <danieltwc@cpan.org>
 
-Alexander Hartmaier <alex_hartmaier@hotmail.com>
-
-Zbigniew Lukasiak
-
-Nigel Metheringham <nigelm@cpan.org>
+David Kamholz <dkamholz@cpan.org>
 
 Jesper Krogh
 
-Brandon Black
+Jess Robinson
 
-Christopher H. Laco
-
-Scotty Allen <scotty@scottyallen.com>
-
-sc_
-
-Robert Sedlacek <phaylon@dunkelheit.at
+Jules Bean
 
 Justin Guenther <guentherj@agr.gc.ca>
 
-Daisuke Murase <typester@cpan.org>
+Marcus Ramberg <mramberg@cpan.org>
+
+Nigel Metheringham <nigelm@cpan.org>
+
+Paul Makepeace
+
+Robert Sedlacek <phaylon@dunkelheit.at>
+
+sc_ of irc.perl.org#dbix-class
 
 Scott McWhirter (konobi)
+
+Scotty Allen <scotty@scottyallen.com>
+
+Todd Lipcon
+
+Will Hawes
 
 =head1 LICENSE
 

@@ -505,40 +505,46 @@ clause.
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ and defined $_[0];
-  unless (defined $self->{count}) {
-    return scalar @{ $self->get_cache } if @{ $self->get_cache };
-    my $select = { count => '*' };
-    my $attrs = { %{ $self->{attrs} } };
-    if (my $group_by = delete $attrs->{group_by}) {
-      delete $attrs->{having};
-      my @distinct = (ref $group_by ?  @$group_by : ($group_by));
-      # todo: try CONCAT for multi-column pk
-      my @pk = $self->result_source->primary_columns;
-      if (@pk == 1) {
-        foreach my $column (@distinct) {
-          if ($column =~ qr/^(?:\Q$attrs->{alias}.\E)?$pk[0]$/) {
-            @distinct = ($column);
-            last;
-          }
-        } 
-      }
+  return scalar @{ $self->get_cache } if @{ $self->get_cache };
 
-      $select = { count => { distinct => \@distinct } };
-      #use Data::Dumper; die Dumper $select;
-    }
+  my $count = $self->_count;
+  return 0 unless $count;
 
-    $attrs->{select} = $select;
-    $attrs->{as} = [qw/count/];
-    # offset, order by and page are not needed to count. record_filter is cdbi
-    delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
-        
-    ($self->{count}) = (ref $self)->new($self->result_source, $attrs)->cursor->next;
-  }
-  return 0 unless $self->{count};
-  my $count = $self->{count};
   $count -= $self->{attrs}{offset} if $self->{attrs}{offset};
   $count = $self->{attrs}{rows} if
     $self->{attrs}{rows} and $self->{attrs}{rows} < $count;
+  return $count;
+}
+
+sub _count { # Separated out so pager can get the full count
+  my $self = shift;
+  my $select = { count => '*' };
+  my $attrs = { %{ $self->{attrs} } };
+  if (my $group_by = delete $attrs->{group_by}) {
+    delete $attrs->{having};
+    my @distinct = (ref $group_by ?  @$group_by : ($group_by));
+    # todo: try CONCAT for multi-column pk
+    my @pk = $self->result_source->primary_columns;
+    if (@pk == 1) {
+      foreach my $column (@distinct) {
+        if ($column =~ qr/^(?:\Q$attrs->{alias}.\E)?$pk[0]$/) {
+          @distinct = ($column);
+          last;
+        }
+      } 
+    }
+
+    $select = { count => { distinct => \@distinct } };
+    #use Data::Dumper; die Dumper $select;
+  }
+
+  $attrs->{select} = $select;
+  $attrs->{as} = [qw/count/];
+
+  # offset, order by and page are not needed to count. record_filter is cdbi
+  delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
+        
+  my ($count) = (ref $self)->new($self->result_source, $attrs)->cursor->next;
   return $count;
 }
 
@@ -698,9 +704,8 @@ sub pager {
   my $attrs = $self->{attrs};
   $self->throw_exception("Can't create pager for non-paged rs") unless $self->{page};
   $attrs->{rows} ||= 10;
-  $self->count;
   return $self->{pager} ||= Data::Page->new(
-    $self->{count}, $attrs->{rows}, $self->{page});
+    $self->_count, $attrs->{rows}, $self->{page});
 }
 
 =head2 page
