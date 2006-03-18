@@ -1,6 +1,19 @@
-Added 2006-02-07:
-JR - Extract DBIC::SQL::Abstract into a separate module for CPAN
-   - Chop PK::Auto::Foo up to have PK::Auto refer to an appropriate
+
+2006-01-31 by bluefeet
+ - Create a DBIx::Class::FilterColumn to replace inflate/deflate. This 
+   component would provide a new syntax for filtering column update and 
+   retrieval through a simple syntax. The syntax would be:
+   __PACKAGE__->add_columns(phone => { set=>sub{ ... }, get=>sub{ ... } }); 
+   We should still support the old inflate/deflate syntax, but this new 
+   way should be recommended. 
+
+2006-02-07 by JR
+ - Extract DBIC::SQL::Abstract into a separate module for CPAN
+ - Chop PK::Auto::Foo up to have PK::Auto refer to an appropriate
    DBIx::Storage::DBI::Foo, which will be loaded on connect from Driver info?
-   - Add deploy method to Schema, which will create DB tables from Schema, via
+ - Add deploy method to Schema, which will create DB tables from Schema, via
    SQLT
+
+2006-03-18 by bluefeet
+ - Support table locking.
+
