@@ -1,4 +1,7 @@
 Revision history for DBIx::Class
+
+0.05999_04
+        - Removed caching on count() and added _count for pager()
         - ->connection does nothing if ->storage defined and no args
           (and hence ->connect acts like ->clone under the same conditions)
         - Storage::DBI throws better exception if no connect info
