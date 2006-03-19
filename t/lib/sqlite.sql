@@ -1,8 +1,16 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Fri Feb 24 15:13:57 2006
+-- Created on Sun Mar 19 19:16:50 2006
 -- 
 BEGIN TRANSACTION;
+
+--
+-- Table: serialized
+--
+CREATE TABLE serialized (
+  id INTEGER PRIMARY KEY NOT NULL,
+  serialized text NOT NULL
+);
 
 --
 -- Table: twokeys
@@ -11,6 +19,14 @@ CREATE TABLE twokeys (
   artist integer NOT NULL,
   cd integer NOT NULL,
   PRIMARY KEY (artist, cd)
+);
+
+--
+-- Table: liner_notes
+--
+CREATE TABLE liner_notes (
+  liner_id INTEGER PRIMARY KEY NOT NULL,
+  notes varchar(100) NOT NULL
 );
 
 --
@@ -23,19 +39,11 @@ CREATE TABLE cd_to_producer (
 );
 
 --
--- Table: liner_notes
---
-CREATE TABLE liner_notes (
-  liner_id INTEGER PRIMARY KEY NOT NULL,
-  notes varchar NOT NULL
-);
-
---
 -- Table: artist
 --
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY NOT NULL,
-  name varchar
+  name varchar(100)
 );
 
 --
@@ -64,8 +72,8 @@ CREATE TABLE fourkeys (
 CREATE TABLE cd (
   cdid INTEGER PRIMARY KEY NOT NULL,
   artist integer NOT NULL,
-  title varchar NOT NULL,
-  year varchar NOT NULL
+  title varchar(100) NOT NULL,
+  year varchar(100) NOT NULL
 );
 
 --
@@ -93,7 +101,7 @@ CREATE TABLE track (
   trackid INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL,
   position integer NOT NULL,
-  title varchar NOT NULL
+  title varchar(100) NOT NULL
 );
 
 --
@@ -101,16 +109,7 @@ CREATE TABLE track (
 --
 CREATE TABLE producer (
   producerid INTEGER PRIMARY KEY NOT NULL,
-  name varchar NOT NULL
-);
-
---
--- Table: treelike
---
-CREATE TABLE treelike (
-  id INTEGER PRIMARY KEY NOT NULL,
-  parent integer NOT NULL,
-  name varchar NOT NULL
+  name varchar(100) NOT NULL
 );
 
 --
@@ -119,7 +118,7 @@ CREATE TABLE treelike (
 CREATE TABLE tags (
   tagid INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL,
-  tag varchar NOT NULL
+  tag varchar(100) NOT NULL
 );
 
 --
@@ -127,15 +126,16 @@ CREATE TABLE tags (
 --
 CREATE TABLE self_ref (
   id INTEGER PRIMARY KEY NOT NULL,
-  name varchar NOT NULL
+  name varchar(100) NOT NULL
 );
 
 --
--- Table: serialized
+-- Table: treelike
 --
-CREATE TABLE serialized (
-    id INTEGER PRIMARY KEY NOT NULL,
-    serialized text NOT NULL
+CREATE TABLE treelike (
+  id INTEGER PRIMARY KEY NOT NULL,
+  parent integer NOT NULL,
+  name varchar(100) NOT NULL
 );
 
 COMMIT;

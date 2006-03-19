@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.05999_05
+        - Fixup to columns_info_for when database returns type(size)
+
 0.05999_04
         - Fix for delete on full-table resultsets
         - Removed caching on count() and added _count for pager()
