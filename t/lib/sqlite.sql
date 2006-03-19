@@ -35,7 +35,8 @@ CREATE TABLE liner_notes (
 --
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY NOT NULL,
-  name varchar
+  name varchar,
+  position INTEGER
 );
 
 --
