@@ -205,7 +205,9 @@ sub load_classes {
         my $comp_class = "${prefix}::${comp}";
         eval "use $comp_class"; # If it fails, assume the user fixed it
         if ($@) {
-          die $@ unless $@ =~ /Can't locate/;
+	  $comp_class =~ s/::/\//g;
+          die $@ unless $@ =~ /Can't locate.+$comp_class\.pm\sin\s\@INC/;
+	  warn $@ if $@;
         }
         push(@to_register, [ $comp, $comp_class ]);
       }

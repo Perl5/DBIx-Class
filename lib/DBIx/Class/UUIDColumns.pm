@@ -113,57 +113,30 @@ Takes a list of columns to be filled with uuids during insert.
 
   __PACKAGE__->uuid_columns('id');
 
-sub uuid_class {
-    my ($self, $class) = @_;
+=head2 uuid_class($classname)
 
-    if ($class) {
-        $class = "DBIx::Class::UUIDMaker$class" if $class =~ /^::/;
+Takes the name of a UUIDMaker subclass to be used for uuid value generation.
+This can be a fully qualified class name, or a shortcut name starting with ::
+that matches one of the available DBIx::Class::UUIDMaker subclasses:
 
-        if (!eval "require $class") {
-            $self->throw_exception("$class could not be loaded: $@");
-        } elsif (!$class->isa('DBIx::Class::UUIDMaker')) {
-            $self->throw_exception("$class is not a UUIDMaker subclass");
-        } else {
-            $self->uuid_maker($class->new);
-        };
-    };
+  __PACKAGE__->uuid_class('CustomUUIDGenerator');
+  # loads CustomeUUIDGenerator
 
-    return ref $self->uuid_maker;
-};
+  __PACKAGE->uuid_class('::Data::UUID');
+  # loads DBIx::Class::UUIDMaker::Data::UUID;
 
-sub insert {
-    my $self = shift;
-    for my $column (@{$self->uuid_auto_columns}) {
-	$self->store_column( $column, $self->get_uuid )
-	    unless defined $self->get_column( $column );
-    }
-    $self->next::method(@_);
-}
+Note that C<uuid_class> chacks to see that the specified class isa
+DBIx::Class::UUIDMaker subbclass and throws and exception if it isn't.
 
-sub get_uuid {
-    return shift->uuid_maker->as_string;
-}
+=head2 uuid_maker
 
-sub _find_uuid_module {
-    if ($^O ne 'openbsd' && eval{require APR::UUID}) {
-        # APR::UUID on openbsd causes some as yet unfound nastyness for XS
-        return '::APR::UUID';
-    } elsif (eval{require UUID}) {
-        return '::UUID';
-    } elsif (eval{require Data::UUID}) {
-        return '::Data::UUID';
-    } elsif (eval{
-            # squelch the 'too late for INIT' warning in Win32::API::Type
-            local $^W = 0;
-            require Win32::Guidgen;
-        }) {
-        return '::Win32::Guidgen';
-    } elsif (eval{require Win32API::GUID}) {
-        return '::Win32API::GUID';
-    } else {
-        shift->throw_exception('no suitable uuid module could be found')
-    };
-};
+Returns the current UUIDMaker instance for the given module.
+
+  my $uuid = __PACKAGE__->uuid_maker->as_string;
+
+=head1 SEE ALSO
+
+L<DBIx::Class::UUIDMaker>
 
 =head1 AUTHORS
 
