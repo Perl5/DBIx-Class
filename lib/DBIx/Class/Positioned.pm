@@ -158,16 +158,17 @@ sub next_sibling {
     )->all())[0];
 }
 
-=head2 move_up
+=head2 move_previous
 
-  $employee->move_up();
+  $employee->move_previous();
 
-Swaps position with the sibling on position higher.  1 is returned on 
-success, and 0 is returned if the objects is already the first one.
+Swaps position with the sibling on position previous in the list.  
+1 is returned on success, and 0 is returned if the objects is already 
+the first one.
 
 =cut
 
-sub move_up {
+sub move_previous {
     my( $self ) = @_;
     my $previous = $self->previous_sibling();
     return undef if (!$previous);
@@ -180,16 +181,16 @@ sub move_up {
     return 1;
 }
 
-=head2 move_down
+=head2 move_next
 
-  $employee->move_down();
+  $employee->move_next();
 
-Swaps position with the sibling on position lower.  1 is returned on 
-success, and 0 is returned if the object is already at the last position.
+Swaps position with the sibling in the next position.  1 is returned on 
+success, and 0 is returned if the object is already the last in the list.
 
 =cut
 
-sub move_down {
+sub move_next {
     my( $self ) = @_;
     my $next = $self->next_sibling();
     return undef if (!$next);
