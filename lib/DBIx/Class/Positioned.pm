@@ -83,11 +83,14 @@ sub siblings {
     my( $self ) = @_;
     my $position_column = $self->position_column;
     my $rs = $self->search(
-        { $position_column => { '!=' => $self->get_column($position_column) } },
+        {
+            $position_column => { '!=' => $self->get_column($position_column) },
+            $self->_parent_clause(),
+        },
         { order_by => $self->position_column },
     );
-    if (wantarray()) { return $rs->all(); }
-    else { return $rs; }
+    return $rs->all() if (wantarray());
+    return $rs;
 }
 
 =head2 first_sibling
@@ -101,7 +104,7 @@ Returns the first sibling object.
 sub first_sibling {
     my( $self ) = @_;
     return ($self->search(
-        {},
+        { $self->_parent_clause() },
         { rows=>1, order_by => $self->position_column },
     )->all())[0];
 }
@@ -117,7 +120,7 @@ Return the last sibling.
 sub last_sibling {
     my( $self ) = @_;
     return ($self->search(
-        {},
+        { $self->_parent_clause() },
         { rows=>1, order_by => $self->position_column.' DESC' },
     )->all())[0];
 }
@@ -135,7 +138,10 @@ sub previous_sibling {
     my( $self ) = @_;
     my $position_column = $self->position_column;
     return ($self->search(
-        { $position_column => { '<' => $self->get_column($position_column) } },
+        {
+            $position_column => { '<' => $self->get_column($position_column) },
+            $self->_parent_clause(),
+        },
         { rows=>1, order_by => $position_column.' DESC' },
     )->all())[0];
 }
@@ -153,7 +159,10 @@ sub next_sibling {
     my( $self ) = @_;
     my $position_column = $self->position_column;
     return ($self->search(
-        { $position_column => { '>' => $self->get_column($position_column) } },
+        {
+            $position_column => { '>' => $self->get_column($position_column) },
+            $self->_parent_clause(),
+        },
         { rows=>1, order_by => $position_column },
     )->all())[0];
 }
@@ -228,7 +237,7 @@ success, and 0 is returned if the object is already the last one.
 
 sub move_last {
     my( $self ) = @_;
-    my $count = $self->search()->count();
+    my $count = $self->search({$self->_parent_clause()})->count();
     return $self->move_to( $count );
 }
 
@@ -251,7 +260,8 @@ sub move_to {
         -and => [
             $position_column => { ($from_position>$to_position?'<':'>') => $from_position },
             $position_column => { ($from_position>$to_position?'>=':'<=') => $to_position },
-        ]
+        ],
+        $self->_parent_clause(),
     });
     my $op = ($from_position>$to_position) ? '+' : '-';
     $rs->update({
@@ -273,7 +283,7 @@ the table +1, thus positioning the new record at the last position.
 sub insert {
     my $self = shift;
     my $position_column = $self->position_column;
-    $self->set_column( $position_column => $self->count()+1 ) 
+    $self->set_column( $position_column => $self->search( {$self->_parent_clause()} )->count()+1 ) 
         if (!$self->get_column($position_column));
     $self->next::method( @_ );
 }
@@ -292,13 +302,32 @@ sub delete {
     $self->next::method( @_ );
 }
 
+=head1 PRIVATE METHODS
+
+These methods are used internally.  You should never have the 
+need to use them.
+
+=head2 _parent_clause
+
+  sub _parent_clause {
+    my( $self ) = @_;
+    return ( parent_id => $self->parent_id );
+  }
+
+This method is a placeholder for you, or another component, to 
+provide additional limits for all the various queries in this 
+module.  This allows for more than one positionable list within 
+the same table since any move_* method will adhere to the clause 
+that you specify.
+
+=cut
+
+sub _parent_clause {
+    return ();
+}
+
 1;
 __END__
-
-=head1 TODO
-
-Support foreign keys that cause rows to be members of mini 
-positionable sets.
 
 =head1 BUGS
 
