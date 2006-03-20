@@ -40,10 +40,10 @@ See L<DBIx::Class::Relationship::Base> for a list of valid attributes.
 
 =head2 belongs_to
 
-  # in a Bar class (where Foo has many Bars)
-  __PACKAGE__->belongs_to(foo => Foo);
-  my $f_obj = $obj->foo;
-  $obj->foo($new_f_obj);
+  # in a Book class (where Author has many Books)
+  My::DBIC::Schema::Book->belongs_to(author => 'Author');
+  my $author_obj = $obj->author;
+  $obj->author($new_author_obj);
 
 Creates a relationship where the calling class stores the foreign class's 
 primary key in one (or more) of its columns. If $cond is a column name
@@ -56,13 +56,13 @@ of C<has_a>.
 
 =head2 has_many
 
-  # in a Foo class (where Foo has many Bars)
-  __PACKAGE__->has_many(bar => Bar, 'foo');
-  my $f_resultset = $obj->foo;
-  my $f_resultset = $obj->foo({ name => { LIKE => '%macaroni%' }, { prefetch => [qw/bar/] });
-  my @f_obj = $obj->foo;
+  # in an Author class (where Author has many Books)
+  My::DBIC::Schema::Author->has_many(books => 'Book', 'author');
+  my $booklist = $obj->books;
+  my $booklist = $obj->books({ name => { LIKE => '%macaroni%' }, { prefetch => [qw/book/] });
+  my @book_objs = $obj->books;
 
-  $obj->add_to_foo(\%col_data);
+  $obj->add_to_books(\%col_data);
 
 Creates a one-to-many relationship, where the corresponding elements of the
 foreign class store the calling class's primary key in one (or more) of its
@@ -75,32 +75,33 @@ cascade or restrict will take precedence.
 
 =head2 might_have
 
-  __PACKAGE__->might_have(baz => Baz);
-  my $f_obj = $obj->baz; # to get the baz object
+  My::DBIC::Schema::Author->might_have(psuedonym => 'Psuedonyms');
+  my $pname = $obj->psuedonym; # to get the Psuedonym object
 
-Creates an optional one-to-one relationship with a class, where the foreign class 
-stores our primary key in one of its columns. Defaults to the primary key of the
-foreign class unless $cond specifies a column or join condition.
+Creates an optional one-to-one relationship with a class, where the foreign
+class stores our primary key in one of its columns. Defaults to the primary
+key of the foreign class unless $cond specifies a column or join condition.
 
-If you update or delete an object in a class with a C<might_have> relationship, 
-the related object will be updated or deleted as well. Any database-level update
-or delete constraints will override this behavior.
+If you update or delete an object in a class with a C<might_have>
+relationship, the related object will be updated or deleted as well.
+Any database-level update or delete constraints will override this behaviour.
 
 =head2 has_one
 
-  __PACKAGE__->has_one(gorch => Gorch);
-  my $f_obj = $obj->gorch;
+  My::DBIC::Schema::Book->has_one(isbn => ISBN);
+  my $isbn_obj = $obj->isbn;
 
-Creates a one-to-one relationship with another class. This is just like C<might_have>,
-except the implication is that the other object is always present. The only different
-between C<has_one> and C<might_have> is that C<has_one> uses an (ordinary) inner join,
-whereas C<might_have> uses a left join.
+Creates a one-to-one relationship with another class. This is just like
+C<might_have>, except the implication is that the other object is always
+present. The only difference between C<has_one> and C<might_have> is that
+C<has_one> uses an (ordinary) inner join, whereas C<might_have> uses a
+left join.
 
 
 =head2 many_to_many
 
-  __PACKAGE__->many_to_many( 'accessorname' => 'a_to_b', 'table_b' );
-  my @f_objs = $obj_a->accessorname;
+  My::DBIC::Schema::Actor->many_to_many( roles => 'actor_roles', 'Roles' );
+  my @role_objs = $obj_a->roles;
 
 Creates an accessor bridging two relationships; not strictly a relationship
 in its own right, although the accessor will return a resultset or collection
