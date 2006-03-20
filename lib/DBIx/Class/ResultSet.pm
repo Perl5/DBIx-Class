@@ -252,7 +252,7 @@ sub find {
   my @cols = $self->result_source->primary_columns;
   if (exists $attrs->{key}) {
     my %uniq = $self->result_source->unique_constraints;
-    $self->throw_exception( "Unknown key $attrs->{key} on $self->name" )
+    $self->throw_exception( "Unknown key $attrs->{key} on '" . $self->result_source->name . "'" )
       unless exists $uniq{$attrs->{key}};
     @cols = @{ $uniq{$attrs->{key}} };
   }
