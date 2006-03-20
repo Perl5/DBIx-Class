@@ -451,10 +451,16 @@ sub txn_do {
   eval {
     # Need to differentiate between scalar/list context to allow for returning
     # a list in scalar context to get the size of the list
+
     if ($wantarray) {
+      # list context
       @return_values = $coderef->(@args);
-    } else {
+    } elsif (defined $wantarray) {
+      # scalar context
       $return_value = $coderef->(@args);
+    } else {
+      # void context
+      $coderef->(@args);
     }
     $self->txn_commit;
   };

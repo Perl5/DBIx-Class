@@ -535,10 +535,11 @@ sub columns_info_for {
             $sth->execute();
             while ( my $info = $sth->fetchrow_hashref() ){
                 my %column_info;
-                $column_info{data_type} = $info->{TYPE_NAME};
-                $column_info{size} = $info->{COLUMN_SIZE};
-                $column_info{is_nullable} = $info->{NULLABLE} ? 1 : 0;
+                $column_info{data_type}     = $info->{TYPE_NAME};
+                $column_info{size}          = $info->{COLUMN_SIZE};
+                $column_info{is_nullable}   = $info->{NULLABLE} ? 1 : 0;
                 $column_info{default_value} = $info->{COLUMN_DEF};
+
                 $result{$info->{COLUMN_NAME}} = \%column_info;
             }
         };
@@ -562,6 +563,12 @@ sub columns_info_for {
         $column_info{data_type} = $type_name ? $type_name : $type_num;
         $column_info{size} = $sth->{PRECISION}->[$i];
         $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
+
+        if ($column_info{data_type} =~ m/^(.*?)\((.*?)\)$/) {
+            $column_info{data_type} = $1;
+            $column_info{size}      = $2;
+        }
+
         $result{$columns[$i]} = \%column_info;
     }
 

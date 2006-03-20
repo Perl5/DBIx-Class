@@ -38,7 +38,7 @@ my $test_type_info = {
     'name' => {
         'data_type' => 'varchar',
         'is_nullable' => 0,
-        'size' => undef,
+        'size' => 100,
     },
     'position' => {
         'data_type' => 'INTEGER',
