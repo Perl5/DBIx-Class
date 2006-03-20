@@ -169,6 +169,37 @@ L<DBIx::Class> supports C<GROUP BY> as follows:
   # LEFT JOIN cd cds ON ( cds.artist = me.artistid )
   # GROUP BY name
 
+=head3 Predefined searches
+
+You can write your own DBIx::Class::ResultSet class by inheriting from it
+and define often used searches as methods:
+
+  package My::DBIC::ResultSet::CD;
+  use strict;
+  use warnings;
+  use base 'DBIx::Class::ResultSet';
+
+  sub search_cds_ordered {
+      my ($self) = @_;
+
+      return $self->search(
+          {},
+          { order_by => 'name DESC' },
+      );
+  }
+
+  1;
+
+To use your resultset, first tell DBIx::Class to create an instance of it
+for you, in your My::DBIC::Schema::CD class:
+
+  __PACKAGE__->resultset_class('My::DBIC::ResultSet::CD');
+
+Then call your new method in your code:
+
+   my $ordered_cds = $schema->resultset('CD')->search_cds_ordered();
+
+
 =head2 Using joins and prefetch
 
 You can use the C<join> attribute to allow searching on, or sorting your

@@ -547,9 +547,12 @@ sub throw_exception {
   croak @_;
 }
 
-=head2 deploy
+=head2 deploy (EXPERIMENTAL)
 
-Attempts to deploy the schema to the current storage
+Attempts to deploy the schema to the current storage using SQL::Translator.
+
+Note that this feature is currently EXPERIMENTAL and may not work correctly
+across all databases, or fully handle complex relationships.
 
 =cut
 
