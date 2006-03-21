@@ -26,7 +26,7 @@ DBIx::Class::Schema - composable schemas
 
   package Library::Schema::CD;
   use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/PK::Auto::Pg Core/); # for example
+  __PACKAGE__->load_components(qw/PK::Auto Core/); # for example
   __PACKAGE__->table('cd');
 
   # Elsewhere in your code:
