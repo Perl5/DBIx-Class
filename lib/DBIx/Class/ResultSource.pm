@@ -636,9 +636,12 @@ sub related_class {
 
 =head2 resultset
 
-Returns a resultset for the given source, by calling:
+Returns a resultset for the given source. This will initially be created
+on demand by calling
 
   $self->resultset_class->new($self, $self->resultset_attributes)
+
+but is cached from then on unless resultset_class changes.
 
 =head2 resultset_class
 
