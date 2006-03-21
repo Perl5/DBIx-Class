@@ -11,16 +11,9 @@ from your SQL database.
 
 =head1 SECTIONS
 
-=head2 L<DBIx::Class::Manual::SchemaIntro>
-
-Beginner guide to using DBIx::Class with the schema interface. This is the
-recommended way to use DBIx::Class.
-
 =head2 L<DBIx::Class::Manual::Intro>
 
-Beginner guide to using DBIx::Class with the older class-based interface.
-This is included for the sake of completeness - you are recommended to
-use the schema-based interface instead.
+Beginner guide to using DBIx::Class. 
 
 =head2 L<DBIx::Class::Manual::Cookbook>
 
