@@ -37,11 +37,21 @@ sub columns {
   return shift->result_source_instance->columns(@_);                            
 }                                                                               
                                                                                 
-sub set_primary_key { shift->result_source_instance->set_primary_key(@_); }     
-sub primary_columns { shift->result_source_instance->primary_columns(@_); }
+sub set_primary_key {
+  shift->result_source_instance->set_primary_key(@_);
+}
 
-sub add_unique_constraint { shift->result_source_instance->add_unique_constraint(@_); }     
-sub unique_constraints { shift->result_source_instance->unique_constraints(@_); }
+sub primary_columns {
+  shift->result_source_instance->primary_columns(@_);
+}
+
+sub add_unique_constraint {
+  shift->result_source_instance->add_unique_constraint(@_);
+}
+
+sub unique_constraints {
+  shift->result_source_instance->unique_constraints(@_);
+}
 
 sub add_relationship {
   my ($class, $rel, @rest) = @_;

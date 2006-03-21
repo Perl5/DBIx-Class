@@ -149,7 +149,7 @@ sub resultset {
 
 =head2 load_classes
 
-=head3 Arguments: [<classes>, (<class>, <class>), {<namespace> => [<classes>]}]
+=head3 Arguments: @classes?, { $namespace => [ $class+ ] }+
 
 Uses L<Module::Find> to find all classes under the database class' namespace,
 or uses the classes you select.  Then it loads the component (using L<use>), 
@@ -190,9 +190,11 @@ sub load_classes {
     }
   } else {
     eval "require Module::Find;";
-    $class->throw_exception("No arguments to load_classes and couldn't load".
-      " Module::Find ($@)") if $@;
-    my @comp = map { substr $_, length "${class}::"  } Module::Find::findallmod($class);
+    $class->throw_exception(
+      "No arguments to load_classes and couldn't load Module::Find ($@)"
+    ) if $@;
+    my @comp = map { substr $_, length "${class}::"  }
+                 Module::Find::findallmod($class);
     $comps_for{$class} = \@comp;
   }
 
@@ -240,8 +242,9 @@ sub compose_connection {
   my ($self, $target, @info) = @_;
   my $base = 'DBIx::Class::ResultSetProxy';
   eval "require ${base};";
-  $self->throw_exception("No arguments to load_classes and couldn't load".
-      " ${base} ($@)") if $@;
+  $self->throw_exception
+    ("No arguments to load_classes and couldn't load ${base} ($@)")
+      if $@;
 
   if ($self eq $target) {
     # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
@@ -351,8 +354,9 @@ sub connection {
   $storage_class = 'DBIx::Class::Storage'.$storage_class
     if $storage_class =~ m/^::/;
   eval "require ${storage_class};";
-  $self->throw_exception("No arguments to load_classes and couldn't load".
-      " ${storage_class} ($@)") if $@;
+  $self->throw_exception(
+    "No arguments to load_classes and couldn't load ${storage_class} ($@)"
+  ) if $@;
   my $storage = $storage_class->new;
   $storage->connect_info(\@info);
   $self->storage($storage);
@@ -395,7 +399,7 @@ sub txn_rollback { shift->storage->txn_rollback }
 
 =head2 txn_do
 
-=head3 Arguments: <$coderef>, [@coderef_args]
+=head3 Arguments: $coderef, @coderef_args?
 
 Executes C<$coderef> with (optional) arguments C<@coderef_args>
 transactionally, returning its result (if any). If an exception is
@@ -483,8 +487,9 @@ sub txn_do {
       $self->throw_exception($error)  # propagate nested rollback
 	if $rollback_error =~ /$exception_class/;
 
-      $self->throw_exception("Transaction aborted: $error. Rollback failed: ".
-                             $rollback_error);
+      $self->throw_exception(
+        "Transaction aborted: $error. Rollback failed: ${rollback_error}"
+      );
     } else {
       $self->throw_exception($error); # txn failed but rollback succeeded
     }
