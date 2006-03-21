@@ -44,9 +44,9 @@ Next, create each of the classes you want to load as specified above:
 
 Load any components required by each class with the load_components() method.
 This should consist of "Core" plus any additional components you want to use.
-For example, if you want serial/auto-incrementing primary keys:
+For example, if you use SQLite and want serial/auto-incrementing primary keys:
 
-  __PACKAGE__->load_components(qw/ PK::Auto Core /);
+  __PACKAGE__->load_components(qw/ PK::Auto::SQLite Core /);
 
 C<PK::Auto> classes exist for many databases; see
 L<DBIx::Class::PK::Auto> for more information.

@@ -618,22 +618,6 @@ sub related_source {
   return $self->schema->source($self->relationship_info($rel)->{source});
 }
 
-=head2 related_class
-
-=head3 Arguments: ($relname)
-
-Returns the class object for the given relationship
-
-=cut
-
-sub related_class {
-  my ($self, $rel) = @_;
-  if( !$self->has_relationship( $rel ) ) {
-    $self->throw_exception("No such relationship '$rel'");
-  }
-  return $self->schema->class($self->relationship_info($rel)->{source});
-}
-
 =head2 resultset
 
 Returns a resultset for the given source, by calling:

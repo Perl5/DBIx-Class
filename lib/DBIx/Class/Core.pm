@@ -49,6 +49,10 @@ The core modules currently are:
 
 =back
 
+If you are also using a L<DBIx::Class::PK::Auto> component, please
+make sure you load it correctly. Refer to
+L<DBIx::Class::PK::Auto/DESCRIPTION> for more information.
+
 =head1 AUTHORS
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>
