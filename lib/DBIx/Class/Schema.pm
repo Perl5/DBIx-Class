@@ -225,10 +225,9 @@ sub load_classes {
 
 =head3 Arguments: <target> <@db_info>
 
-This is the most important method in this class. it takes a target namespace,
-as well as dbh connection info, and creates a L<DBIx::Class::DB> class as
-well as subclasses for each of your database classes in this namespace, using
-this connection.
+This method takes a target namespace, as well as dbh connection info, 
+and creates a L<DBIx::Class::DB> class as well as subclasses for each of
+your database classes in this namespace, using this connection.
 
 It will also setup a ->class method on the target class, which lets you
 resolve database classes based on the schema component name, for example
@@ -284,6 +283,19 @@ sub compose_connection {
   }
   return $schema;
 }
+
+=head2 compose_namespace
+
+=head3 Arguments: <target> <base>
+
+Translates <base> namespace into the specified <target> namespace. 
+For example 
+
+	My::Schema->compose_connection('A::B::C', @conn_info);
+
+My::Schema::Tableclasses would become A::B::C::Tableclasses.
+
+=cut
 
 sub compose_namespace {
   my ($self, $target, $base) = @_;
