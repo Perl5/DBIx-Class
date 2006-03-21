@@ -12,76 +12,128 @@ tree.
 
 First we'll see how you can set up your classes yourself.  If you want
 them to be auto-discovered, just skip to the next section, which shows
-you how to use L<DBIx::Class::Loader>.
+you how to use L<DBIx::Class::Schema::Loader>.
 
 =head2 Setting it up manually
 
-First, you'll need a base class.  It should inherit from
-L<DBIx::Class> like this:
+First, you should create your base schema class, which inherits from
+L<DBIx::Class::Schema>:
 
-  package MyApp::DB;
+  package My::Schema;
+  use base qw/DBIx::Class::Schema/;
+
+In this class you load your result_source ("table", "model") classes, which
+we will define later, using the load_classes() method. You can specify which
+classes to load manually: 
+
+  # load My::Schema::Album and My::Schema::Artist
+  __PACKAGE__->load_classes(qw/ Album Artist /);
+
+Or load classes by namespace:
+
+  # load My::Schema::Album, My::Schema::Artist and My::OtherSchema::LinerNotes
+  __PACKAGE__->load_classes(
+    {
+      'My::Schema' => [qw/ Album Artist /],
+      'My::OtherSchema' => [qw/ LinerNotes /]
+    }
+  );
+
+Or let your schema class load all classes in its namespace automatically:
+
+   # load My::Schema::*
+  __PACKAGE__->load_classes();
+
+Next, create each of the classes you want to load as specified above:
+
+  package My::Schema::Album;
   use base qw/DBIx::Class/;
 
-You will also want to load some of the L<DBIx::Class> components.
-L<DBIx::Class::Core> provides a good starter set.  In addition you'll
-have to use either L<DBIx::Class::Schema> or L<DBIx::Class::DB>.
-We'll use C<DB> in this introduction, since it involves less magic.
-C<Schema> is mostly useful if you want to use multiple database
-connections.
+Load any components required by each class with the load_components() method.
+This should consist of "Core" plus any additional components you want to use.
+For example, if you want serial/auto-incrementing primary keys:
 
-  __PACKAGE__->load_components(qw/Core DB/);
+  __PACKAGE__->load_components(qw/ PK::Auto Core /);
 
-If you want serial/auto-incrementing primary keys, you should use the
-L<DBIx::Class::PK::Auto> component. 
-  __PACKAGE__->load_components(qw/PK::Auto Core DB/);
+C<PK::Auto> is supported for many databases; see
+L<DBIx::Class::Storage::DBI> for more information.
 
-C<PK::Auto> classes exist for many databases; see
-L<DBIx::Class::PK::Auto> for more information.
-
-Once you've loaded the components, it's time to set up your
-connection:
-
-  __PACKAGE__->connection('dbi:SQLite:/home/me/myapp/my.db');
-
-This method is similar to the normal L<DBI> C<connect> method, and can
-take username, password, and L<DBI> attribute hash as well as the DSN.
-
-With that out of the way, we can define our first table class:
-
-  package MyApp::DB::Album;
-  use base qw/MyApp::DB/;
-
-Then we specify which table it uses,
+Set the table for your class:
 
   __PACKAGE__->table('album');
 
-and specify which columns it has.
+Add columns to your class:
 
-  __PACKAGE__->add_columns(qw/albumid artist title label year/);
+  __PACKAGE__->add_columns(qw/ albumid artist title /);
 
-This will automatically create accessors for each of the columns, so
-that you can read/update the values in rows you've retrieved.
+Each column can also be set up with its own accessor, data_type and other
+pieces of information that it may be useful to have, just pass C<add_columns>
+a hash such as:
 
-Also, you need to tell it which column is the primary key:
+  __PACKAGE__->add_columns(albumid =>
+                            { accessor  => 'album',
+                              data_type => 'integer',
+                              size      => 16,
+                              is_nullable => 0,
+                              is_auto_increment => 1,
+                              default_value => '',
+                            },
+                          artist =>
+                            { data_type => 'integer',
+                              size      => 16,
+                              is_nullable => 0,
+                              is_auto_increment => 0,
+                              default_value => '',
+                            },
+                          title  => 
+                            { data_type => 'varchar',
+                              size      => 256,
+                              is_nullable => 0,
+                              is_auto_increment => 0,
+                              default_value => '',
+                            }
+                         );
+
+Most of this data isn't yet used directly by DBIx::Class, but various related
+modules such as L<DBIx::Class::WebForm> make use of it. Also it allows you
+to create your database tables from your Schema, instead of the other way
+around. See L<SQL::Translator> for details.
+
+See L<DBIx::Class::ResultSource> for more details of the possible column
+attributes.
+
+Accessors are created for each column automatically, so My::Schema::Album will
+have albumid() (or album(), when using the accessor), artist() and title()
+methods.
+
+Define a primary key for your class:
 
   __PACKAGE__->set_primary_key('albumid');
 
-If you have a primary key composed of multiple columns, just pass a
-list instead.
+If you have a multi-column primary key, just pass a list instead:
 
-That's pretty much all you need for a basic setup.  If you have more
-advanced needs like using more than one database connection for the
-same class, see L<DBIx::Class::Schema>.
+  __PACKAGE__->set_primary_key( qw/ albumid artistid / );
 
-=head2 Using L<DBIx::Class::Loader>
+Define relationships that the class has with any other classes by using
+either C<belongs_to> to describe a column which contains an ID of another
+table, or C<has_many> to make a predefined accessor for fetching objects
+that contain this tables foreign key in one of their columns:
 
-This is an additional class, and not part of the L<DBIx::Class>
+  __PACKAGE__->has_many('albums', 'My::Schema::Artist', 'album_id');
+
+More information about the various types of relationships available, and
+how you can design your own, can be found in L<DBIx::Class::Relationship>.
+
+
+=head2 Using L<DBIx::Class::Schema::Loader>
+
+This is an external module, and not part of the L<DBIx::Class>
 distribution.  Like L<Class::DBI::Loader>, it inspects your database,
 and automatically creates classes for all the tables in your database.
 Here's a simple setup:
 
   package MyApp::DB;
-  use DBIx::Class::Loader;
+  use DBIx::Class::Schema::Loader;
 
   my $loader = DBIx::Class::Loader->new(
     dsn       => 'dbi:SQLite:/home/me/myapp/my.db',
@@ -91,16 +143,45 @@ Here's a simple setup:
   1;
 
 This should be equivalent to the manual setup in the section above.
-L<DBIx::Class::Loader> takes lots of other options.  For more
+L<DBIx::Class::Schema::Loader> takes lots of other options.  For more
 information, consult its documentation.
+
+=head2 Connecting
+
+L<DBIx::Class::Schema::Loader> already contains the connection info for the
+database, so to get started all you need to do is create an instance of your
+class:
+
+  my $schema = MyApp::DB->new();
+
+To connect to your manually created Schema, you also need to provide the
+connection details:
+
+  my $schema = My::Schema->connect('dbi:SQLite:/home/me/myapp/my.db');
+
+You can create as many different schema instances as you need. So if you have
+a second database you want to access:
+
+  my $other_schema = My::Schema->connect( $dsn, $user, $password, $attrs );
+
+Note that L<DBIx::Class::Schema> does not cache connnections for you. If you
+use multiple connections, you need to do this manually.
+
+To execute some sql statements on every connect you can pass them to your schema after the connect:
+
+  $schema->storage->on_connect_do(\@on_connect_sql_statments);
 
 =head2 Basic usage
 
 Once you've defined the basic classes, either manually or using
-L<DBIx::Class::Loader>, you can start interacting with your database.
+L<DBIx::Class::Schema::Loader>, you can start interacting with your database.
+
+To access your database using your $schema object, you can fetch a L<DBIx::Class::Manual::Glossary/"ResultSet">
+representing each of your tables by calling the ->resultset method.
+
 The simplest way to get a record is by primary key:
 
-  my $album = MyApp::DB::Album->find(14);
+  my $album = $schema->resultset('Album')->find(14);
 
 This will run a C<SELECT> with C<albumid = 14> in the C<WHERE> clause,
 and return an instance of C<MyApp::DB::Album> that represents this
@@ -115,7 +196,7 @@ accessors instead:
   $album->set_column('title', 'Presence');
   $title = $album->get_column('title');
 
-Just like with L<Class::DBI>, you do an C<update> to commit your
+Just like with L<Class::DBI>, you call C<update> to commit your
 changes to the database:
 
   $album->update;
@@ -133,7 +214,7 @@ To create a new record in the database, you can use the C<create>
 method.  It returns an instance of C<MyApp::DB::Album> that can be
 used to access the data in the new record:
 
-  my $new_album = MyApp::DB::Album->create({ 
+  my $new_album = $schema->resultset('Album')->create({ 
     title  => 'Wish You Were Here',
     artist => 'Pink Floyd'
   });
@@ -148,11 +229,11 @@ Likewise, you can remove it from the database like this:
 
   $new_album->delete;
 
-You can also remove records without or retrieving first.  This
-operation takes the same kind of arguments as a search.
+You can also remove records without retrieving them first, by calling
+delete directly on a ResultSet object.
 
   # Delete all of Falco's albums
-  MyApp::DB::Album->delete({ artist => 'Falco' });
+  $schema->resultset('Album')->search({ artist => 'Falco' })->delete;
 
 =head2 Finding your objects
 
@@ -160,7 +241,7 @@ L<DBIx::Class> provides a few different ways to retrieve data from
 your database.  Here's one example:
 
   # Find all of Santana's albums
-  my $rs = MyApp::DB::Album->search({ artist => 'Santana' });
+  my $rs = $schema->resultset('Album')->search({ artist => 'Santana' });
 
 In scalar context, as above, C<search> returns a
 L<DBIx::Class::ResultSet> object.  It can be used to peek at the first
@@ -169,13 +250,17 @@ album returned by the database:
   my $album = $rs->first;
   print $album->title;
 
-Or, you can loop over the albums and update each one:
+You can loop over the albums and update each one:
 
   while (my $album = $rs->next) {
     print $album->artist . ' - ' . $album->title;
     $album->year(2001);
     $album->update;
   }
+
+Or, you can update them all at once:
+
+  $rs->update({ year => 2001 });
 
 For more information on what you can do with a
 L<DBIx::Class::ResultSet>, see L<DBIx::Class::ResultSet/METHODS>.
@@ -184,7 +269,9 @@ In list context, the C<search> method returns all of the matching
 rows:
 
   # Fetch immediately all of Carlos Santana's albums
-  my @albums = MyApp::DB::Album->search({ artist => 'Carlos Santana' });
+  my @albums = $schema->resultset('Album')->search(
+    { artist => 'Carlos Santana' }
+  );
   foreach my $album (@albums) {
     print $album->artist . ' - ' . $album->title;
   }
@@ -194,17 +281,17 @@ We also provide a handy shortcut for doing a C<LIKE> search:
   # Find albums whose artist starts with 'Jimi'
   my $rs = MyApp::DB::Album->search_like({ artist => 'Jimi%' });
 
-Or you can provide your own handmade C<WHERE> clause, like:
+Or you can provide your own C<WHERE> clause, like:
 
   # Find Peter Frampton albums from the year 1986
   my $where = 'artist = ? AND year = ?';
   my @bind  = ( 'Peter Frampton', 1986 );
-  my $rs    = MyApp::DB::Album->search_literal( $where, @bind );
+  my $rs    = $schema->resultset('Album')->search_literal( $where, @bind );
 
 The preferred way to generate complex queries is to provide a
 L<SQL::Abstract> construct to C<search>:
 
-  my $rs = MyApp::DB::Album->search({
+  my $rs = $schema->resultset('Album')->search({
     artist  => { '!=', 'Janis Joplin' },
     year    => { '<' => 1980 },
     albumid => [ 1, 14, 15, 65, 43 ]
