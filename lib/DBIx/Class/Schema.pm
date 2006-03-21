@@ -18,30 +18,30 @@ DBIx::Class::Schema - composable schemas
 
 =head1 SYNOPSIS
 
-  package My::Schema;
+  package Library::Schema;
   use base qw/DBIx::Class::Schema/;
   
-  # load My::Schema::Foo, My::Schema::Bar, My::Schema::Baz
-  __PACKAGE__->load_classes(qw/Foo Bar Baz/);
+  # load Library::Schema::CD, Library::Schema::Book, Library::Schema::DVD
+  __PACKAGE__->load_classes(qw/CD Book DVD/);
 
-  package My::Schema::Foo;
+  package Library::Schema::CD;
   use base qw/DBIx::Class/;
   __PACKAGE__->load_components(qw/PK::Auto::Pg Core/); # for example
-  __PACKAGE__->table('foo');
+  __PACKAGE__->table('cd');
 
   # Elsewhere in your code:
-  my $schema1 = My::Schema->connect(
+  my $schema1 = Library::Schema->connect(
     $dsn,
     $user,
     $password,
-    $attrs
+    { AutoCommit => 0 },
   );
   
-  my $schema2 = My::Schema->connect($coderef_returning_dbh);
+  my $schema2 = Library::Schema->connect($coderef_returning_dbh);
 
-  # fetch objects using My::Schema::Foo
-  my $resultset = $schema1->resultset('Foo')->search( ... );
-  my @objects = $schema2->resultset('Foo')->search( ... );
+  # fetch objects using Library::Schema::DVD
+  my $resultset = $schema1->resultset('DVD')->search( ... );
+  my @dvd_objects = $schema2->resultset('DVD')->search( ... );
 
 =head1 DESCRIPTION
 
@@ -93,7 +93,7 @@ sub register_source {
 
 =head2 class
 
-  my $class = $schema->class('Foo');
+  my $class = $schema->class('CD');
 
 Retrieves the result class name for a given result source
 
@@ -106,7 +106,7 @@ sub class {
 
 =head2 source
 
-  my $source = $schema->source('Foo');
+  my $source = $schema->source('Book');
 
 Returns the result source object for the registered name
 
@@ -136,7 +136,7 @@ sub sources { return keys %{shift->source_registrations}; }
 
 =head2 resultset
 
-  my $rs = $schema->resultset('Foo');
+  my $rs = $schema->resultset('DVD');
 
 Returns the resultset for the registered moniker
 
@@ -233,8 +233,8 @@ this connection.
 It will also setup a ->class method on the target class, which lets you
 resolve database classes based on the schema component name, for example
 
-  MyApp::DB->class('Foo') # returns MyApp::DB::Foo, 
-                          # which ISA MyApp::Schema::Foo
+  Library::Model::DB->class('Book') # returns Library::Model::Book, 
+                                    # which ISA Library::Schema::Book
 
 This is the recommended API for accessing Schema generated classes, and 
 using it might give you instant advantages with future versions of DBIC.
@@ -401,22 +401,22 @@ includes a "Rollback failed" message.
 
 For example,
 
-  my $foo = $schema->resultset('foo')->find(1);
+  my $author_rs = $schema->resultset('Author')->find(1);
 
   my $coderef = sub {
-    my ($foo, @bars) = @_;
+    my ($author, @titles) = @_;
 
     # If any one of these fails, the entire transaction fails
-    $foo->create_related('bars', {
-      col => $_
-    }) foreach (@bars);
+    $author->create_related('books', {
+      title => $_
+    }) foreach (@titles);
 
-    return $foo->bars;
+    return $author->books;
   };
 
   my $rs;
   eval {
-    $rs = $schema->txn_do($coderef, $foo, qw/foo bar baz/);
+    $rs = $schema->txn_do($coderef, $author_rs, qw/Night Day It/);
   };
 
   if ($@) {
@@ -425,12 +425,13 @@ For example,
       die "something terrible has happened!";
     } else {
       deal_with_failed_transaction();
-      die $error;
     }
   }
 
 Nested transactions work as expected (i.e. only the outermost
-transaction will issue a txn_commit on the Schema's storage)
+transaction will issue a txn_commit on the Schema's storage), and
+txn_do() can be called in void, scalar and list context and it will
+behave as expected.
 
 =cut
 
@@ -449,8 +450,8 @@ sub txn_do {
   my $wantarray = wantarray; # Need to save this since it's reset in eval{}
 
   eval {
-    # Need to differentiate between scalar/list context to allow for returning
-    # a list in scalar context to get the size of the list
+    # Need to differentiate between scalar/list context to allow for
+    # returning a list in scalar context to get the size of the list
 
     if ($wantarray) {
       # list context
@@ -514,10 +515,10 @@ Populates the source registered with the given moniker with the supplied data.
 @data should be a list of listrefs, the first containing column names, the
 second matching values - i.e.
 
-  $schema->populate('Foo', [
-    [ qw/foo_id foo_string/ ],
-    [ 1, 'One' ],
-    [ 2, 'Two' ],
+  $schema->populate('Artist', [
+    [ qw/artistid name/ ],
+    [ 1, 'Popular Band' ],
+    [ 2, 'Indie Band' ],
     ...
   ]);
 

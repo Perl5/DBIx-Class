@@ -9,23 +9,25 @@ __PACKAGE__->load_components(qw/AccessorGroup/);
 __PACKAGE__->mk_group_accessors('component_class' => 'table_class');
 __PACKAGE__->table_class('DBIx::Class::ResultSource::Table');
 
-__PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do anything yet!
+__PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do
+					  # anything yet!
 
 =head1 NAME 
 
-DBIx::Class::ResultSourceProxy::Table - provides a classdata table object and method proxies
+DBIx::Class::ResultSourceProxy::Table - provides a classdata table
+object and method proxies
 
 =head1 SYNOPSIS
 
-  __PACKAGE__->table('foo');
-  __PACKAGE__->add_columns(qw/id bar baz/);
-  __PACKAGE__->set_primary_key('id');
+  __PACKAGE__->table('cd');
+  __PACKAGE__->add_columns(qw/cdid artist title year/);
+  __PACKAGE__->set_primary_key('cdid');
 
 =head1 METHODS
 
 =head2 add_columns
 
-  __PACKAGE__->add_columns(qw/col1 col2 col3/);
+  __PACKAGE__->add_columns(qw/cdid artist title year/);
 
 Adds columns to the current class and creates accessors for them.
 
@@ -44,7 +46,8 @@ sub table {
   return $class->result_source_instance->name unless $table;
   unless (ref $table) {
     $table = $class->table_class->new({
-        $class->can('result_source_instance') ? %{$class->result_source_instance} : (),
+        $class->can('result_source_instance') ?
+	  %{$class->result_source_instance} : (),
         name => $table,
         result_class => $class,
     });

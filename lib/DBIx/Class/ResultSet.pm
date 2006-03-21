@@ -21,7 +21,7 @@ DBIx::Class::ResultSet - Responsible for fetching and creating resultset.
 =head1 SYNOPSIS
 
   my $rs   = $schema->resultset('User')->search(registered => 1);
-  my @rows = $schema->resultset('Foo')->search(bar => 'baz');
+  my @rows = $schema->resultset('CD')->search(year => 2005);
 
 =head1 DESCRIPTION
 
@@ -151,14 +151,16 @@ sub new {
 
 =head2 search
 
-  my @obj    = $rs->search({ foo => 3 }); # "... WHERE foo = 3"
-  my $new_rs = $rs->search({ foo => 3 });
+  my @cds    = $rs->search({ year => 2001 }); # "... WHERE year = 2001"
+  my $new_rs = $rs->search({ year => 2005 });
 
 If you need to pass in additional attributes but no additional condition,
 call it as C<search(undef, \%attrs);>.
 
-  # "SELECT foo, bar FROM $class_table"
-  my @all = $class->search(undef, { columns => [qw/foo bar/] });
+  # "SELECT name, artistid FROM $artist_table"
+  my @all_artists = $schema->resultset('Artist')->search(undef, {
+    columns => [qw/name artistid/],
+  });
 
 =cut
 
@@ -924,7 +926,7 @@ sub clear_cache {
 
 Returns a related resultset for the supplied relationship name.
 
-  $rs = $rs->related_resultset('foo');
+  $artist_rs = $schema->resultset('CD')->related_resultset('Artist');
 
 =cut
 
@@ -973,8 +975,9 @@ overview of them:
 
 =head2 order_by
 
-Which column(s) to order the results by. This is currently passed through
-directly to SQL, so you can give e.g. C<foo DESC> for a descending order.
+Which column(s) to order the results by. This is currently passed
+through directly to SQL, so you can give e.g. C<year DESC> for a
+descending order on the column `year'.
 
 =head2 columns
 
@@ -991,9 +994,13 @@ use the C<cols> attribute, as in earlier versions of DBIC.)
 
 Shortcut to include additional columns in the returned results - for example
 
-  { include_columns => ['foo.name'], join => ['foo'] }
+  $schema->resultset('CD')->search(undef, {
+    include_columns => ['artist.name'],
+    join => ['artist']
+  });
 
-would add a 'name' column to the information passed to object inflation
+would return all CDs and include a 'name' column to the information
+passed to object inflation
 
 =head2 select
 
@@ -1003,20 +1010,17 @@ Indicates which columns should be selected from the storage. You can use
 column names, or in the case of RDBMS back ends, function or stored procedure
 names:
 
-  $rs = $schema->resultset('Foo')->search(
-    undef,
-    {
-      select => [
-        'column_name',
-        { count => 'column_to_count' },
-        { sum => 'column_to_sum' }
-      ]
-    }
-  );
+  $rs = $schema->resultset('Employee')->search(undef, {
+    select => [
+      'name',
+      { count => 'employeeid' },
+      { sum => 'salary' }
+    ]
+  });
 
 When you use function/stored procedure names and do not supply an C<as>
 attribute, the column names returned are storage-dependent. E.g. MySQL would
-return a column named C<count(column_to_count)> in the above example.
+return a column named C<count(employeeid)> in the above example.
 
 =head2 as
 
@@ -1026,29 +1030,26 @@ Indicates column names for object inflation. This is used in conjunction with
 C<select>, usually when C<select> contains one or more function or stored
 procedure names:
 
-  $rs = $schema->resultset('Foo')->search(
-    undef,
-    {
-      select => [
-        'column1',
-        { count => 'column2' }
-      ],
-      as => [qw/ column1 column2_count /]
-    }
-  );
+  $rs = $schema->resultset('Employee')->search(undef, {
+    select => [
+      'name',
+      { count => 'employeeid' }
+    ],
+    as => ['name', 'employee_count'],
+  });
 
-  my $foo = $rs->first(); # get the first Foo
+  my $employee = $rs->first(); # get the first Employee
 
 If the object against which the search is performed already has an accessor
 matching a column name specified in C<as>, the value can be retrieved using
 the accessor as normal:
 
-  my $column1 = $foo->column1();
+  my $name = $employee->name();
 
 If on the other hand an accessor does not exist in the object, you need to
 use C<get_column> instead:
 
-  my $column2_count = $foo->get_column('column2_count');
+  my $employee_count = $employee->get_column('employee_count');
 
 You can create your own accessors if required - see
 L<DBIx::Class::Manual::Cookbook> for details.
@@ -1087,13 +1088,15 @@ For example:
 If the same join is supplied twice, it will be aliased to <rel>_2 (and
 similarly for a third time). For e.g.
 
-  my $rs = $schema->resultset('Artist')->search(
-    { 'cds.title'   => 'Foo',
-      'cds_2.title' => 'Bar' },
-    { join => [ qw/cds cds/ ] });
+  my $rs = $schema->resultset('Artist')->search({
+    'cds.title'   => 'Down to Earth',
+    'cds_2.title' => 'Popular',
+  }, {
+    join => [ qw/cds cds/ ],
+  });
 
-will return a set of all artists that have both a cd with title Foo and a cd
-with title Bar.
+will return a set of all artists that have both a cd with title 'Down
+to Earth' and a cd with title 'Popular'.
 
 If you want to fetch related objects from other tables as well, see C<prefetch>
 below.
