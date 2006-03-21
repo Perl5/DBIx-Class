@@ -3,7 +3,7 @@ package # hide from PAUSE
 
 use base 'DBIx::Class::Core';
 
-__PACKAGE__->load_components('Positioned','PK::Auto');
+__PACKAGE__->load_components('PK::Auto');
 
 DBICTest::Schema::Artist->table('artist');
 DBICTest::Schema::Artist->add_columns(
@@ -16,17 +16,12 @@ DBICTest::Schema::Artist->add_columns(
     size      => 100,
     is_nullable => 1,
   },
-  position => {
-    data_type => 'integer',
-  },
 );
 DBICTest::Schema::Artist->set_primary_key('artistid');
-__PACKAGE__->position_column('position');
 
 __PACKAGE__->mk_classdata('field_name_for', {
     artistid    => 'primary key',
     name        => 'artist name',
-    position    => 'list position',
 });
 
 1;

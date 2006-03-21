@@ -2,62 +2,92 @@
 
 sub run_tests {
 
+    plan tests => 96;
     my $schema = shift;
-    my $artists = $schema->resultset("Artist");
 
-    $artists->delete();
-    $artists->create({ artistid=>1, name=>"Joe" });
-    $artists->create({ artistid=>2, name=>"Bob" });
-    $artists->create({ artistid=>3, name=>"Ted" });
-    $artists->create({ artistid=>4, name=>"Ned" });
-    $artists->create({ artistid=>5, name=>"Don" });
+    foreach my $class ( 'Positioned', 'PositionedAdjacencyList', 'AdjacencyList' ) {
 
-    $artists = $artists->search(undef,{order_by=>'position'});
+        my $employees = $schema->resultset('Employee::'.$class);
 
-    plan tests => 230;
+        if ($employees->result_class->can('position_column')) {
 
-    check_positions($schema);
+            $employees->delete();
+            foreach (1..5) {
+                $employees->create({ name=>'temp' });
+            }
 
-    my $artist;
+            $employees = $employees->search(undef,{order_by=>'position'});
+            ok( check_positions($employees), "$class: intial positions" );
 
-    foreach my $position (1..5) {
+            my $employee;
 
-        $artist = $artists->find({ position=>$position });
-        $artist->move_previous();
-        check_positions($schema);
+            foreach my $position (1..$employees->count()) {
 
-        $artist = $artists->find({ position=>$position });
-        $artist->move_next();
-        check_positions($schema);
+                $employee = $employees->find({ position=>$position });
+                $employee->move_previous();
+                ok( check_positions($employees), "$class: move_previous( $position )" );
 
-        $artist = $artists->find({ position=>$position });
-        $artist->move_first();
-        check_positions($schema);
+                $employee = $employees->find({ position=>$position });
+                $employee->move_next();
+                ok( check_positions($employees), "$class: move_next( $position )" );
 
-        $artist = $artists->find({ position=>$position });
-        $artist->move_last();
-        check_positions($schema);
+                $employee = $employees->find({ position=>$position });
+                $employee->move_first();
+                ok( check_positions($employees), "$class: move_first( $position )" );
 
-        foreach my $to_position (1..5) {
+                $employee = $employees->find({ position=>$position });
+                $employee->move_last();
+                ok( check_positions($employees), "$class: move_last( $position )" );
 
-            $artist = $artists->find({ position=>$position });
-            $artist->move_to($to_position);
-            check_positions($schema);
+                foreach my $to_position (1..$employees->count()) {
+                    $employee = $employees->find({ position=>$position });
+                    $employee->move_to($to_position);
+                    ok( check_positions($employees), "$class: move_to( $position => $to_position )" );
+                }
 
+            }
         }
+        if ($employees->result_class->can('parent_column')) {
 
+            $employees->delete();
+            my $mom = $employees->create({ name=>'temp' });
+            foreach (1..14) {
+                $employees->create({ name=>'temp', parent_id=>$mom->id() });
+            }
+
+            my $children = $mom->children();
+            ok( ($children->count()==14), 'correct number of children' );
+
+            my $grandma = $mom;
+            my @children = $children->all();
+            $mom = pop(@children);
+            foreach my $child (@children) {
+                $child->parent( $mom );
+            }
+
+            ok( ($mom->children->count() == 13), 'correct number of grandchildren' );
+
+            if ($employees->result_class->can('position_column')) {
+                # TODO: Test positioning within a tree.
+            }
+        }
     }
 
 }
 
 sub check_positions {
-    my $schema = shift;
-    my $artists = $schema->resultset("Artist")->search(undef,{order_by=>'position'});
+    my( $employees ) = @_;
+    $employees->reset();
     my $expected_position = 0;
-    while (my $artist = $artists->next()) {
+    my $is_ok = 1;
+    while (my $employee = $employees->next()) {
         $expected_position ++;
-        ok( ($artist->position()==$expected_position), 'default positions set as expected' );
+        if ($employee->position()!=$expected_position) {
+            $is_ok = 0;
+            last;
+        }
     }
+    return $is_ok;
 }
 
 1;

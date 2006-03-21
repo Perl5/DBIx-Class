@@ -1,8 +1,17 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sun Mar 19 19:16:50 2006
+-- Created on Tue Mar 21 12:11:03 2006
 -- 
 BEGIN TRANSACTION;
+
+--
+-- Table: employees_positioned
+--
+CREATE TABLE employees_positioned (
+  employee_id INTEGER PRIMARY KEY NOT NULL,
+  position integer NOT NULL,
+  name varchar(100)
+);
 
 --
 -- Table: serialized
@@ -10,23 +19,6 @@ BEGIN TRANSACTION;
 CREATE TABLE serialized (
   id INTEGER PRIMARY KEY NOT NULL,
   serialized text NOT NULL
-);
-
---
--- Table: twokeys
---
-CREATE TABLE twokeys (
-  artist integer NOT NULL,
-  cd integer NOT NULL,
-  PRIMARY KEY (artist, cd)
-);
-
---
--- Table: liner_notes
---
-CREATE TABLE liner_notes (
-  liner_id INTEGER PRIMARY KEY NOT NULL,
-  notes varchar(100) NOT NULL
 );
 
 --
@@ -39,12 +31,38 @@ CREATE TABLE cd_to_producer (
 );
 
 --
+-- Table: liner_notes
+--
+CREATE TABLE liner_notes (
+  liner_id INTEGER PRIMARY KEY NOT NULL,
+  notes varchar(100) NOT NULL
+);
+
+--
+-- Table: employees_adjacencylist
+--
+CREATE TABLE employees_adjacencylist (
+  employee_id INTEGER PRIMARY KEY NOT NULL,
+  parent_id integer,
+  name varchar(100)
+);
+
+--
 -- Table: artist
 --
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY NOT NULL,
-  name varchar,
-  position INTEGER
+  name varchar(100)
+);
+
+--
+-- Table: employees_positioned_adjacencylist
+--
+CREATE TABLE employees_positioned_adjacencylist (
+  employee_id INTEGER PRIMARY KEY NOT NULL,
+  parent_id integer,
+  position integer NOT NULL,
+  name varchar(100)
 );
 
 --
@@ -54,17 +72,6 @@ CREATE TABLE self_ref_alias (
   self_ref integer NOT NULL,
   alias integer NOT NULL,
   PRIMARY KEY (self_ref, alias)
-);
-
---
--- Table: fourkeys
---
-CREATE TABLE fourkeys (
-  foo integer NOT NULL,
-  bar integer NOT NULL,
-  hello integer NOT NULL,
-  goodbye integer NOT NULL,
-  PRIMARY KEY (foo, bar, hello, goodbye)
 );
 
 --
@@ -78,24 +85,6 @@ CREATE TABLE cd (
 );
 
 --
--- Table: artist_undirected_map
---
-CREATE TABLE artist_undirected_map (
-  id1 integer NOT NULL,
-  id2 integer NOT NULL,
-  PRIMARY KEY (id1, id2)
-);
-
---
--- Table: onekey
---
-CREATE TABLE onekey (
-  id INTEGER PRIMARY KEY NOT NULL,
-  artist integer NOT NULL,
-  cd integer NOT NULL
-);
-
---
 -- Table: track
 --
 CREATE TABLE track (
@@ -106,10 +95,11 @@ CREATE TABLE track (
 );
 
 --
--- Table: producer
+-- Table: treelike
 --
-CREATE TABLE producer (
-  producerid INTEGER PRIMARY KEY NOT NULL,
+CREATE TABLE treelike (
+  id INTEGER PRIMARY KEY NOT NULL,
+  parent integer NOT NULL,
   name varchar(100) NOT NULL
 );
 
@@ -131,11 +121,48 @@ CREATE TABLE self_ref (
 );
 
 --
--- Table: treelike
+-- Table: twokeys
 --
-CREATE TABLE treelike (
+CREATE TABLE twokeys (
+  artist integer NOT NULL,
+  cd integer NOT NULL,
+  PRIMARY KEY (artist, cd)
+);
+
+--
+-- Table: fourkeys
+--
+CREATE TABLE fourkeys (
+  foo integer NOT NULL,
+  bar integer NOT NULL,
+  hello integer NOT NULL,
+  goodbye integer NOT NULL,
+  PRIMARY KEY (foo, bar, hello, goodbye)
+);
+
+--
+-- Table: artist_undirected_map
+--
+CREATE TABLE artist_undirected_map (
+  id1 integer NOT NULL,
+  id2 integer NOT NULL,
+  PRIMARY KEY (id1, id2)
+);
+
+--
+-- Table: onekey
+--
+CREATE TABLE onekey (
   id INTEGER PRIMARY KEY NOT NULL,
-  parent integer NOT NULL,
+  artist integer NOT NULL,
+  cd integer NOT NULL
+);
+
+--
+-- Table: producer
+--
+CREATE TABLE producer (
+  producerid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100) NOT NULL
 );
 

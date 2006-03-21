@@ -91,9 +91,9 @@ sub parent {
     my $parent_column = $self->parent_column();
     if ($new_parent) {
         if (ref($new_parent)) {
-            $new_parent = $new_parent->id();
+            $new_parent = $new_parent->id() || 0;
         }
-        return 0 if ($new_parent == $self->get_column($parent_column));
+        return 0 if ($new_parent == ($self->get_column($parent_column)||0));
         my $positioned = $self->can('position_column');
         $self->move_last if ($positioned);
         $self->set_column( $parent_column => $new_parent );
@@ -165,7 +165,7 @@ sub _parent_clause {
     my( $self ) = @_;
     return (
         $self->parent_column() =>
-        $self->get_column($self->parent_column()) || 0
+        $self->get_column($self->parent_column())
     );
 }
 
