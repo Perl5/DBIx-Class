@@ -37,70 +37,82 @@ DBIx::Class - Extensible and flexible object <-> relational mapper.
 
 =head1 SYNOPSIS
 
-DB/Main.pm:
+Create a base schema class called DB/Main.pm:
 
- package DB::Main;
- use base qw/DBIx::Class::Schema/;
- __PACKAGE__->load_classes();
+  package DB::Main;
+  use base qw/DBIx::Class::Schema/;
 
- 1;
+  __PACKAGE__->load_classes();
 
+  1;
 
-DB/Main/Artist.pm:
+Create a class the represent artists, who have many
+CDs, in DB/Main/Artist.pm:
 
- package DB::Main::Artist;
- use base qw/DBIx::Class/;
- __PACKAGE__->load_components(qw/PK::Auto Core/);
- __PACKAGE__->table('artist');
- __PACKAGE__->add_columns(qw/ artistid name /);
- __PACKAGE__->set_primary_key('artistid');
- __PACKAGE__->has_many('cds' => 'DB::Main::CD');
+  package DB::Main::Artist;
+  use base qw/DBIx::Class/;
 
- 1;
+  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  __PACKAGE__->table('artist');
+  __PACKAGE__->add_columns(qw/ artistid name /);
+  __PACKAGE__->set_primary_key('artistid');
+  __PACKAGE__->has_many('cds' => 'DB::Main::CD');
 
+  1;
 
-DB/Main/CD.pm:
+A class to represent a CD, which belongs to an
+artist, in DB/Main/CD.pm:
 
- package DB::Main::CD;
- use base qw/DBIx::Class/;
- __PACKAGE__->load_components(qw/PK::Auto Core/);
- __PACKAGE__->table('cd');
- __PACKAGE__->add_columns(qw/ cdid artist title year/);
- __PACKAGE__->set_primary_key('cdid');
- __PACKAGE__->belongs_to('artist' => 'DB::Main::Artist');
+  package DB::Main::CD;
+  use base qw/DBIx::Class/;
 
- 1;
+  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  __PACKAGE__->table('cd');
+  __PACKAGE__->add_columns(qw/ cdid artist title year/);
+  __PACKAGE__->set_primary_key('cdid');
+  __PACKAGE__->belongs_to('artist' => 'DB::Main::Artist');
 
-in application code:
+  1;
 
-  my $ds = DB::Main->connect(@dbi_dsn); # DBI connect will happen on-demand
+Then you can use these classes in your application's code:
 
+  # Connect to your database.
+  my $ds = DB::Main->connect(@dbi_dsn);
+
+  # Query for all artists and put them in an array,
+  # or retrieve them as a result set object.
   my @all_artists = $ds->resultset('Artist')->all;
+  my $all_artists_rs = $ds->resultset('Artist');
 
+  # Create a result set to search for artists.
+  # This does not query the DB, yet.
   my $johns_rs = $ds->resultset('Artist')->search(
-                   { 'name' => { 'like', 'John%' } }); # Doesn't query the db
+    # Build your WHERE using an SQL::Abstract structure:
+    { 'name' => { 'like', 'John%' } }
+  );
 
-  my @all_john_cds = $johns_rs->search_related('cds')->all; # Now it queries
+  # Now the query is executed.
+  my @all_john_cds = $johns_rs->search_related('cds')->all;
 
-  my $first_john = $johns_rs->next; # Queries but only fetches one row so far
+  # Queries but only fetches one row so far.
+  my $first_john = $johns_rs->next;
 
-  my $first_john_cds_by_title_rs = $first_john->cds(undef,
-                                     { order_by => 'title' });
+  my $first_john_cds_by_title_rs = $first_john->cds(
+    undef,
+    { order_by => 'title' }
+  );
 
   my $millenium_cds_rs = $ds->resultset('CD')->search(
-                           { year => 2000 },
-                           { prefetch => 'artist' } );
+    { year => 2000 },
+    { prefetch => 'artist' }
+  );
 
   my $cd = $millenium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
-
   my $cd_artist_name = $cd->artist->name; # Already has the data so no query
 
   my $new_cd = $ds->resultset('CD')->new({ title => 'Spoon' });
-
   $new_cd->artist($cd->artist);
-
   $new_cd->insert; # Auto-increment primary key filled in after INSERT
-
   $new_cd->title('Fork');
 
   $ds->txn_do(sub { $new_cd->update }); # Runs the update in a transaction
@@ -110,10 +122,10 @@ in application code:
 =head1 DESCRIPTION
 
 This is an SQL to OO mapper with an object API inspired by L<Class::DBI>
-(and a compability layer as a springboard for porting) and a resultset API
+(and a compatibility layer as a springboard for porting) and a resultset API
 that allows abstract encapsulation of database operations. It aims to make
 representing queries in your code as perl-ish as possible while still
-providing access to as mant of the capabilities of the database as possible,
+providing access to as many of the capabilities of the database as possible,
 including retrieving related records from multiple tables in a single query,
 JOIN, LEFT JOIN, COUNT, DISTINCT, GROUP BY and HAVING support.
 
@@ -152,7 +164,7 @@ The community can be found via -
 
 =over 4
 
-=item L<DBIx::Class::Manual> - User's manual
+=item L<DBIx::Class::Manual> - user's manual
 
 =item L<DBIx::Class::Core> - DBIC Core Classes
 

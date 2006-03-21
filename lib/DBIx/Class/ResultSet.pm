@@ -1035,7 +1035,7 @@ procedure names:
       'name',
       { count => 'employeeid' }
     ],
-    as => ['Employee Name', 'employee_count'],
+    as => ['name', 'employee_count'],
   });
 
   my $employee = $rs->first(); # get the first Employee
