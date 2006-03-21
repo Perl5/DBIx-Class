@@ -3,7 +3,8 @@ use strict;
 use base 'DBIx::Class';
 use Class::Inspector;
 
-__PACKAGE__->mk_classdata($_) for qw/ base_resultset_class table_resultset_class_suffix /;
+__PACKAGE__->mk_classdata($_)
+  for qw/ base_resultset_class table_resultset_class_suffix /;
 __PACKAGE__->base_resultset_class('DBIx::Class::ResultSet');
 __PACKAGE__->table_resultset_class_suffix('::_resultset');
 
@@ -55,9 +56,10 @@ sub _register_resultset_class {
     my $resultset_class = $self . $self->table_resultset_class_suffix;
     no strict 'refs';
     if (@{"$resultset_class\::ISA"}) {
-        $self->result_source_instance->resultset_class($resultset_class);        
+        $self->result_source_instance->resultset_class($resultset_class);
     } else {
-        $self->result_source_instance->resultset_class($self->base_resultset_class);        
+        $self->result_source_instance->resultset_class
+	  ($self->base_resultset_class);        
     }
 }
 
@@ -67,25 +69,37 @@ __END__
 
 =head1 NAME 
 
-    DBIx::Class::ResultSetManager - helpful methods for managing resultset classes (EXPERIMENTAL)
+    DBIx::Class::ResultSetManager - helpful methods for managing
+    resultset classes (EXPERIMENTAL)
 
 =head1 SYNOPSIS
 
-    # in a table class
-    __PACKAGE__->load_components(qw/ResultSetManager Core/); # note order!
-    __PACKAGE__->load_resultset_components(qw/AlwaysRS/);
+  # in a table class
+  __PACKAGE__->load_components(qw/ResultSetManager Core/); # note order!
+  __PACKAGE__->load_resultset_components(qw/AlwaysRS/);
     
-    # will be removed from the table class and inserted into a table-specific resultset class
-    sub foo : ResultSet { ... }
+  # will be removed from the table class and inserted into a
+  # table-specific resultset class
+  sub search_by_year_desc : ResultSet {
+    my $self = shift;
+    my $cond = shift;
+    my $attrs = shift || {};
+    $attrs->{order_by} = 'year DESC';
+    $self->next::method($cond, $attrs);
+  }
+
+  $rs = $schema->resultset('CD')->search_by_year_desc({ artist => 'Tool' });
 
 =head1 DESCRIPTION
 
-This package implements two useful features for customizing resultset classes.
-C<load_resultset_components> loads components in addition to C<DBIx::Class::ResultSet>
-(or whatever you set as C<base_resultset_class>). Any methods tagged with the C<ResultSet>
-attribute will be moved into a table-specific resultset class (by default called
-C<Class::_resultset>, but configurable via C<table_resultset_class_suffix>). 
-Most of the magic is done when you call C<< __PACKAGE__->table >>.  
+This package implements two useful features for customizing resultset
+classes.  C<load_resultset_components> loads components in addition to
+C<DBIx::Class::ResultSet> (or whatever you set as
+C<base_resultset_class>). Any methods tagged with the C<ResultSet>
+attribute will be moved into a table-specific resultset class (by
+default called C<Class::_resultset>, but configurable via
+C<table_resultset_class_suffix>).  Most of the magic is done when you
+call C<< __PACKAGE__->table >>.
 
 =head1 AUTHORS
 

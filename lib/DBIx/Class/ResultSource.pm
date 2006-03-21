@@ -293,13 +293,18 @@ sub storage { shift->schema->storage; }
 
   $source->add_relationship('relname', 'related_source', $cond, $attrs);
 
-The relation name can be arbitrary, but must be unique for each relationship
-attached to this result source. 'related_source' should be the name with
-which the related result source was registered with the current schema
-(for simple schemas this is usally either Some::Namespace::Foo or just Foo)
+The relationship name can be arbitrary, but must be unique for each
+relationship attached to this result source. 'related_source' should
+be the name with which the related result source was registered with
+the current schema. For example:
 
-The condition needs to be an SQL::Abstract-style representation of the join
-between the tables. For example, if you're creating a rel from Author to Book,
+  $schema->source('Book')->add_relationship('reviews', 'Review', {
+    'foreign.book_id' => 'self.id',
+  });
+
+The condition C<$cond> needs to be an SQL::Abstract-style
+representation of the join between the tables. For example, if you're
+creating a rel from Author to Book,
 
   { 'foreign.author_id' => 'self.id' }
 
@@ -321,15 +326,18 @@ the SQL command immediately before C<JOIN>.
 
 =item proxy
 
-An arrayref containing a list of accessors in the foreign class to
-proxy in the main class. If, for example, you do the following: 
+An arrayref containing a list of accessors in the foreign class to proxy in
+the main class. If, for example, you do the following:
+  
+  CD->might_have(liner_notes => 'LinerNotes', undef, {
+    proxy => [ qw/notes/ ],
+  });
+  
+Then, assuming LinerNotes has an accessor named notes, you can do:
 
-  __PACKAGE__->might_have(bar => 'Bar', undef, { proxy => [ qw/margle/] }); 
-
-Then, assuming Bar has an accessor named margle, you can do:
-
-  my $obj = Foo->find(1);
-  $obj->margle(10); # set margle; Bar object is created if it doesn't exist
+  my $cd = CD->find(1);
+  $cd->notes('Notes go here'); # set notes -- LinerNotes object is
+			       # created if it doesn't exist
 
 =item accessor
 
