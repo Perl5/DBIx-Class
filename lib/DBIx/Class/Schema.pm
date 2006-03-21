@@ -26,7 +26,7 @@ DBIx::Class::Schema - composable schemas
 
   package Library::Schema::CD;
   use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/PK::Auto::Pg Core/); # for example
+  __PACKAGE__->load_components(qw/PK::Auto Core/); # for example
   __PACKAGE__->table('cd');
 
   # Elsewhere in your code:
@@ -223,27 +223,16 @@ sub load_classes {
 
 =head2 compose_connection
 
-=head3 Arguments: <target> <@db_info>
+=head3 Arguments: $target_ns, @db_info
 
-This is the most important method in this class. it takes a target namespace,
-as well as dbh connection info, and creates a L<DBIx::Class::DB> class as
-well as subclasses for each of your database classes in this namespace, using
-this connection.
+=head3 Return value: $new_schema
 
-It will also setup a ->class method on the target class, which lets you
-resolve database classes based on the schema component name, for example
-
-  Library::Model::DB->class('Book') # returns Library::Model::Book, 
-                                    # which ISA Library::Schema::Book
-
-This is the recommended API for accessing Schema generated classes, and 
-using it might give you instant advantages with future versions of DBIC.
-
-WARNING: Loading components into Schema classes after compose_connection
-may not cause them to be seen by the classes in your target namespace due
-to the dispatch table approach used by Class::C3. If you do this you may find
-you need to call Class::C3->reinitialize() afterwards to get the behaviour
-you expect.
+Calls compose_namespace to the $target_ns, calls ->connection(@db_info) on
+the new schema, then injects the ResultSetProxy component and a
+resultset_instance classdata entry on all the new classes in order to support
+$target_ns::Class->search(...) method calls. Primarily useful when you have
+a specific need for classmethod access to a connection - in normal usage
+->connect is preferred.
 
 =cut
 
@@ -284,6 +273,21 @@ sub compose_connection {
   }
   return $schema;
 }
+
+=head2 compose_namespace
+
+=head3 Arguments: $target_ns, $additional_base_class?
+
+=head3 Return value: $new_schema
+
+For each result source in the schema, creates a class in the target
+namespace (e.g. $target_ns::CD, $target_ns::Artist) inheriting from the
+corresponding classes attached to the current schema and a result source
+to match attached to the new $schema object. If an additional base class is
+given, injects this immediately behind the corresponding classes from the
+current schema in the created classes' @ISA.
+
+=cut
 
 sub compose_namespace {
   my ($self, $target, $base) = @_;
