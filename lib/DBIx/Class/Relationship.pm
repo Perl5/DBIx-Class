@@ -59,7 +59,11 @@ returned. Thus, the calls can be chained to produce complex queries.
 Since the database is not actually queried until you attempt to retrieve
 the data for an actual item, no time is wasted producing them.
 
- my $cheapfredbooks = $schema->resultset('Author')->find({ Name => 'Fred' })->books->search_related('prices', { Price => { '<=' => '5.00' } });
+ my $cheapfredbooks = $schema->resultset('Author')->find({
+   Name => 'Fred',
+ })->books->search_related('prices', {
+   Price => { '<=' => '5.00' },
+ });
 
 will produce a query something like:
 
@@ -105,7 +109,10 @@ of C<has_a>.
   # in an Author class (where Author has many Books)
   My::DBIC::Schema::Author->has_many(books => 'Book', 'author');
   my $booklist = $obj->books;
-  my $booklist = $obj->books({ name => { LIKE => '%macaroni%' }, { prefetch => [qw/book/] });
+  my $booklist = $obj->books({
+    name => { LIKE => '%macaroni%' },
+    { prefetch => [qw/book/],
+  });
   my @book_objs = $obj->books;
 
   $obj->add_to_books(\%col_data);
@@ -147,7 +154,10 @@ left join.
 =head2 many_to_many
 
   My::DBIC::Schema::Actor->many_to_many( roles => 'actor_roles', 'Roles' );
-  my @role_objs = $obj_a->roles;
+
+  ...
+
+  my @role_objs = $actor->roles;
 
 Creates an accessor bridging two relationships; not strictly a relationship
 in its own right, although the accessor will return a resultset or collection

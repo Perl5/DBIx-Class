@@ -17,7 +17,8 @@ $VERSION = '0.05999_04';
 
 sub MODIFY_CODE_ATTRIBUTES {
     my ($class,$code,@attrs) = @_;
-    $class->mk_classdata('__attr_cache' => {}) unless $class->can('__attr_cache');
+    $class->mk_classdata('__attr_cache' => {})
+      unless $class->can('__attr_cache');
     $class->__attr_cache->{$code} = [@attrs];
     return ();
 }

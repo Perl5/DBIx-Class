@@ -39,7 +39,8 @@ DBIx::Class::DB - Non-recommended classdata schema component
   package MyDB::MyTable;
 
   use base qw/MyDB/;
-  __PACKAGE__->load_components('Core'); # just load this in MyDB if it will always be there
+  __PACKAGE__->load_components('Core'); # just load this in MyDB if it will
+                                        # always be there
 
   ...
 
@@ -128,7 +129,7 @@ sub txn_rollback { shift->schema_instance->txn_rollback(@_); }
 
 Executes a block of code transactionally. If this code reference
 throws an exception, the transaction is rolled back and the exception
-is rethrown. See txn_do in L<DBIx::Class::Schema> for more details.
+is rethrown. See L<DBIx::Class::Schema/"txn_do"> for more details.
 
 =cut
 

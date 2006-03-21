@@ -106,19 +106,24 @@ Returns a L<DBIx::Class::ResultSet> for the relationship named $name.
 
 sub related_resultset {
   my $self = shift;
-  $self->throw_exception("Can't call *_related as class methods") unless ref $self;
+  $self->throw_exception("Can't call *_related as class methods")
+    unless ref $self;
   my $rel = shift;
   my $rel_obj = $self->relationship_info($rel);
-  $self->throw_exception( "No such relationship ${rel}" ) unless $rel_obj;
+  $self->throw_exception( "No such relationship ${rel}" )
+    unless $rel_obj;
   
   return $self->{related_resultsets}{$rel} ||= do {
     my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
     $attrs = { %{$rel_obj->{attrs} || {}}, %$attrs };
 
-    $self->throw_exception( "Invalid query: @_" ) if (@_ > 1 && (@_ % 2 == 1));
+    $self->throw_exception( "Invalid query: @_" )
+      if (@_ > 1 && (@_ % 2 == 1));
     my $query = ((@_ > 1) ? {@_} : shift);
 
-    my $cond = $self->result_source->resolve_condition($rel_obj->{cond}, $rel, $self);
+    my $cond = $self->result_source->resolve_condition(
+      $rel_obj->{cond}, $rel, $self
+    );
     if (ref $cond eq 'ARRAY') {
       $cond = [ map { my $hash;
         foreach my $key (keys %$_) {
@@ -131,7 +136,9 @@ sub related_resultset {
       }
     }
     $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
-    $self->result_source->related_source($rel)->resultset->search($query, $attrs);
+    $self->result_source->related_source($rel)->resultset->search(
+      $query, $attrs
+    );
   };
 }
 
@@ -153,8 +160,10 @@ sub search_related {
 
   $obj->count_related('relname', $cond, $attrs);
 
-Returns the count of all the items in the related resultset, restricted by
-the current item or where conditions. Can be called on a L<DBIx::Classl::Manual::Glossary/"ResultSet"> or a L<DBIx::Class::Manual::Glossary/"Row"> object.
+Returns the count of all the items in the related resultset, restricted by the
+current item or where conditions. Can be called on a
+L<DBIx::Classl::Manual::Glossary/"ResultSet"> or a
+L<DBIx::Class::Manual::Glossary/"Row"> object.
 
 =cut
 
@@ -246,9 +255,11 @@ sub set_from_related {
   my $rel_obj = $self->relationship_info($rel);
   $self->throw_exception( "No such relationship ${rel}" ) unless $rel_obj;
   my $cond = $rel_obj->{cond};
-  $self->throw_exception( "set_from_related can only handle a hash condition; the "
-    ."condition for $rel is of type ".(ref $cond ? ref $cond : 'plain scalar'))
-      unless ref $cond eq 'HASH';
+  $self->throw_exception(
+    "set_from_related can only handle a hash condition; the ".
+    "condition for $rel is of type ".
+    (ref $cond ? ref $cond : 'plain scalar')
+  ) unless ref $cond eq 'HASH';
   my $f_class = $self->result_source->schema->class($rel_obj->{class});
   $self->throw_exception( "Object $f_obj isn't a ".$f_class )
     unless $f_obj->isa($f_class);

@@ -41,7 +41,8 @@ sub discard_changes {
   my ($self) = @_;
   delete $self->{_dirty_columns};
   return unless $self->in_storage; # Don't reload if we aren't real!
-  my ($reload) = $self->result_source->resultset->find(map { $self->$_ } $self->primary_columns);
+  my ($reload) = $self->result_source->resultset->find
+    (map { $self->$_ } $self->primary_columns);
   unless ($reload) { # If we got deleted in the mean-time
     $self->in_storage(0);
     return $self;
@@ -60,7 +61,8 @@ a class method.
 
 sub id {
   my ($self) = @_;
-  $self->throw_exception( "Can't call id() as a class method" ) unless ref $self;
+  $self->throw_exception( "Can't call id() as a class method" )
+    unless ref $self;
   my @pk = $self->_ident_values;
   return (wantarray ? @pk : $pk[0]);
 }
@@ -75,21 +77,25 @@ L<DBIx::Class::ObjectCache>.
 
 sub ID {
   my ($self) = @_;
-  $self->throw_exception( "Can't call ID() as a class method" ) unless ref $self;
+  $self->throw_exception( "Can't call ID() as a class method" )
+    unless ref $self;
   return undef unless $self->in_storage;
-  return $self->_create_ID(map { $_ => $self->{_column_data}{$_} } $self->primary_columns);
+  return $self->_create_ID(map { $_ => $self->{_column_data}{$_} }
+                             $self->primary_columns);
 }
 
 sub _create_ID {
   my ($self,%vals) = @_;
   return undef unless 0 == grep { !defined } values %vals;
-  return join '|', ref $self || $self, $self->result_source->name, map { $_ . '=' . $vals{$_} } sort keys %vals;    
+  return join '|', ref $self || $self, $self->result_source->name,
+    map { $_ . '=' . $vals{$_} } sort keys %vals;    
 }
 
 sub ident_condition {
   my ($self, $alias) = @_;
   my %cond;
-  $cond{(defined $alias ? "${alias}.$_" : $_)} = $self->get_column($_) for $self->primary_columns;
+  $cond{(defined $alias ? "${alias}.$_" : $_)} = $self->get_column($_)
+    for $self->primary_columns;
   return \%cond;
 }
 

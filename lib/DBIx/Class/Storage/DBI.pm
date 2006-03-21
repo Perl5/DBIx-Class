@@ -20,8 +20,9 @@ sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
   @rest = (-1) unless defined $rest[0];
   local $self->{having_bind} = [];
-  my ($sql, @ret) = $self->SUPER::select($table,
-                      $self->_recurse_fields($fields), $where, $order, @rest);
+  my ($sql, @ret) = $self->SUPER::select(
+    $table, $self->_recurse_fields($fields), $where, $order, @rest
+  );
   return wantarray ? ($sql, @ret, @{$self->{having_bind}}) : $sql;
 }
 
@@ -122,7 +123,7 @@ sub _recurse_from {
 sub _make_as {
   my ($self, $from) = @_;
   return join(' ', map { (ref $_ eq 'SCALAR' ? $$_ : $self->_quote($_)) }
-                           reverse each %{$self->_skip_options($from)});
+                     reverse each %{$self->_skip_options($from)});
 }
 
 sub _skip_options {
@@ -137,7 +138,9 @@ sub _join_condition {
   my ($self, $cond) = @_;
   if (ref $cond eq 'HASH') {
     my %j;
-    for (keys %$cond) { my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x; };
+    for (keys %$cond) {
+      my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x;
+    };
     return $self->_recurse_where(\%j);
   } elsif (ref $cond eq 'ARRAY') {
     return join(' OR ', map { $self->_join_condition($_) } @$cond);
@@ -219,7 +222,8 @@ sub new {
   $new->transaction_depth(0);
   if (defined($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}) &&
      ($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} =~ /=(.+)$/)) {
-    $new->debugfh(IO::File->new($1, 'w')) || $new->throw_exception("Cannot open trace file $1");
+    $new->debugfh(IO::File->new($1, 'w'))
+      or $new->throw_exception("Cannot open trace file $1");
   } else {
     $new->debugfh(IO::File->new('>&STDERR'));
   }
@@ -450,7 +454,8 @@ sub _execute {
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {  
-    $rv = $sth->execute(@bind) or $self->throw_exception("Error executing '$sql': " . $sth->errstr);
+    $rv = $sth->execute(@bind)
+      or $self->throw_exception("Error executing '$sql': " . $sth->errstr);
   } else { 
     $self->throw_exception("'$sql' did not generate a statement.");
   }
@@ -459,8 +464,11 @@ sub _execute {
 
 sub insert {
   my ($self, $ident, $to_insert) = @_;
-  $self->throw_exception( "Couldn't insert ".join(', ', map "$_ => $to_insert->{$_}", keys %$to_insert)." into ${ident}" )
-    unless ($self->_execute('insert' => [], $ident, $to_insert));
+  $self->throw_exception(
+    "Couldn't insert ".join(', ',
+      map "$_ => $to_insert->{$_}", keys %$to_insert
+    )." into ${ident}"
+  ) unless ($self->_execute('insert' => [], $ident, $to_insert));
   return $to_insert;
 }
 
@@ -479,9 +487,11 @@ sub _select {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
   if (exists $attrs->{group_by} || $attrs->{having}) {
-    $order = { group_by => $attrs->{group_by},
-               having => $attrs->{having},
-               ($order ? (order_by => $order) : ()) };
+    $order = {
+      group_by => $attrs->{group_by},
+      having => $attrs->{having},
+      ($order ? (order_by => $order) : ())
+    };
   }
   my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
   if ($attrs->{software_limit} ||
@@ -600,9 +610,10 @@ sub deployment_statements {
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
-  foreach(split(";\n", $self->deployment_statements($schema, $type, $sqltargs))) {
-      $self->debugfh->print("$_\n") if $self->debug;
-          $self->dbh->do($_) or warn "SQL was:\n $_";
+  my @statements = $self->deployment_statements($schema, $type, $sqltargs);
+  foreach(split(";\n", @statements)) {
+    $self->debugfh->print("$_\n") if $self->debug;
+    $self->dbh->do($_) or warn "SQL was:\n $_";
   } 
 }
 
