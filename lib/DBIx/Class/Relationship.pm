@@ -21,8 +21,54 @@ DBIx::Class::Relationship - Inter-table relationships
 
 =head1 DESCRIPTION
 
-This class handles relationships between the tables in your database
-model. It allows you to set up relationships and perform joins on them.
+This class provides methods to set up relationships between the tables
+in your database model. Relationships are the most useful and powerful
+technique that L<DBIx::Class> provides. To create efficient database queries,
+create relationships between any and all tables that have something in
+common, for example if you have a table Authors:
+
+  ID  | Name | Age
+ ------------------
+   1  | Fred | 30
+   2  | Joe  | 32
+
+and a table Books:
+
+  ID  | Author | Name
+ --------------------
+   1  |      1 | Rulers of the universe
+   2  |      1 | Rulers of the galaxy
+
+Then without relationships, the method of getting all books by Fred goes like
+this:
+
+ my $fred = $schema->resultset('Author')->find({ Name => 'Fred' });
+ my $fredsbooks = $schema->resultset('Book')->search({ Author => $fred->ID });
+With a has_many relationship called "books" on Author (see below for details),
+we can do this instead:
+
+ my $fredsbooks = $schema->resultset('Author')->find({ Name => 'Fred' })->books;
+
+Each relationship sets up an accessor method on the 
+L<DBIx::Class::Manual::Glossary/"Row"> objects that represent the items
+of your table. From L<DBIx::Class::Manual::Glossary/"ResultSet"> objects,
+the relationships can be searched using the "search_related" method. 
+In list context, each returns a list of Row objects for the related class,
+in scalar context, a new ResultSet representing the joined tables is
+returned. Thus, the calls can be chained to produce complex queries.
+Since the database is not actually queried until you attempt to retrieve
+the data for an actual item, no time is wasted producing them.
+
+ my $cheapfredbooks = $schema->resultset('Author')->find({ Name => 'Fred' })->books->search_related('prices', { Price => { '<=' => '5.00' } });
+
+will produce a query something like:
+
+ SELECT * FROM Author me 
+ LEFT JOIN Books books ON books.author = me.id
+ LEFT JOIN Prices prices ON prices.book = books.id
+ WHERE prices.Price <= 5.00
+
+all without needing multiple fetches.
 
 Only the helper methods for setting up standard relationship types
 are documented here. For the basic, lower-level methods, see
