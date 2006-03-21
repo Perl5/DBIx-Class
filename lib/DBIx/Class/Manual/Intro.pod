@@ -32,10 +32,8 @@ connections.
   __PACKAGE__->load_components(qw/Core DB/);
 
 If you want serial/auto-incrementing primary keys, you should use the
-L<DBIx::Class::PK::Auto> component for your database.  For example, if
-you're using SQLite add C<PK::Auto::SQLite> to the list:
-
-  __PACKAGE__->load_components(qw/PK::Auto::SQLite Core DB/);
+L<DBIx::Class::PK::Auto> component. 
+  __PACKAGE__->load_components(qw/PK::Auto Core DB/);
 
 C<PK::Auto> classes exist for many databases; see
 L<DBIx::Class::PK::Auto> for more information.
