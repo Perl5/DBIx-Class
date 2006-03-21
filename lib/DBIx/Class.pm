@@ -37,18 +37,106 @@ DBIx::Class - Extensible and flexible object <-> relational mapper.
 
 =head1 SYNOPSIS
 
+DB/Main.pm:
+
+ package DB::Main;
+ use base qw/DBIx::Class::Schema/;
+ __PACKAGE__->load_classes();
+
+ 1;
+
+
+DB/Main/Artist.pm:
+
+ package DB::Main::Artist;
+ use base qw/DBIx::Class/;
+ __PACKAGE__->load_components(qw/PK::Auto Core/);
+ __PACKAGE__->table('artist');
+ __PACKAGE__->add_columns(qw/ artistid name /);
+ __PACKAGE__->set_primary_key('artistid');
+ __PACKAGE__->has_many('cds' => 'DB::Main::CD');
+
+ 1;
+
+
+DB/Main/CD.pm:
+
+ package DB::Main::CD;
+ use base qw/DBIx::Class/;
+ __PACKAGE__->load_components(qw/PK::Auto Core/);
+ __PACKAGE__->table('cd');
+ __PACKAGE__->add_columns(qw/ cdid artist title year/);
+ __PACKAGE__->set_primary_key('cdid');
+ __PACKAGE__->belongs_to('artist' => 'DB::Main::Artist');
+
+ 1;
+
+in application code:
+
+  my $ds = DB::Main->connect(@dbi_dsn); # DBI connect will happen on-demand
+
+  my @all_artists = $ds->resultset('Artist')->all;
+
+  my $johns_rs = $ds->resultset('Artist')->search(
+                   { 'name' => { 'like', 'John%' } }); # Doesn't query the db
+
+  my @all_john_cds = $johns_rs->search_related('cds')->all; # Now it queries
+
+  my $first_john = $johns_rs->next; # Queries but only fetches one row so far
+
+  my $first_john_cds_by_title_rs = $first_john->cds(undef,
+                                     { order_by => 'title' });
+
+  my $millenium_cds_rs = $ds->resultset('CD')->search(
+                           { year => 2000 },
+                           { prefetch => 'artist' } );
+
+  my $cd = $millenium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
+
+  my $cd_artist_name = $cd->artist->name; # Already has the data so no query
+
+  my $new_cd = $ds->resultset('CD')->new({ title => 'Spoon' });
+
+  $new_cd->artist($cd->artist);
+
+  $new_cd->insert; # Auto-increment primary key filled in after INSERT
+
+  $new_cd->title('Fork');
+
+  $ds->txn_do(sub { $new_cd->update }); # Runs the update in a transaction
+
+  $millenium_cds_rs->update({ year => 2002 }); # Single-query bulk update
+
 =head1 DESCRIPTION
 
-This is an SQL to OO mapper, inspired by the L<Class::DBI> framework, 
-and meant to support compability with it, while restructuring the 
-internals and making it possible to support some new features like 
-self-joins, distinct, group bys and more.
+This is an SQL to OO mapper with an object API inspired by L<Class::DBI>
+(and a compability layer as a springboard for porting) and a resultset API
+that allows abstract encapsulation of database operations. It aims to make
+representing queries in your code as perl-ish as possible while still
+providing access to as mant of the capabilities of the database as possible,
+including retrieving related records from multiple tables in a single query,
+JOIN, LEFT JOIN, COUNT, DISTINCT, GROUP BY and HAVING support.
 
-This project is still at an early stage, so the maintainers don't make
-any absolute promise that full backwards-compatibility will be supported;
-however, if we can without compromising the improvements we're trying to
-make, we will, and any non-compatible changes will merit a full justification
-on the mailing list and a CPAN developer release for people to test against.
+DBIx::Class can handle multi-column primary and foreign keys, complex
+queries and database-level paging, and does its best to only query the
+database when it actually needs to in order to return something the user's
+asked for. If a resultset is used as an iterator it only fetches rows off
+the statement handle as requested in order to minimise memory usage. It
+has auto-increment support for SQLite, MySQL, PostgreSQL, Oracle, SQL
+Server and DB2 and is known to be used in production on at least the first
+four, and is fork- and thread-safe out of the box (although your DBD may not
+be). 
+
+This project is still under rapid development, so features added in the
+latest major release may not work 100% yet - check the Changes if you run
+into trouble, and beware of anything explicitly marked EXPERIMENTAL. Failing
+test cases are *always* welcome and point releases are put out rapidly as
+bugs are found and fixed.
+
+Even so, we do your best to maintain full backwards compatibility for published
+APIs since DBIx::Class is used in production in a number of organisations;
+the test suite is now fairly substantial and several developer releases are
+generally made to CPAN before the -current branch is merged back to trunk.
 
 The community can be found via -
 
@@ -60,56 +148,21 @@ The community can be found via -
 
   IRC: irc.perl.org#dbix-class
 
-=head1 QUICKSTART
-
-If you're using L<Class::DBI>, and want an easy and fast way of migrating to
-DBIx::Class, take a look at L<DBIx::Class::CDBICompat>.
-
-There are two ways of using DBIx::Class, the "simple" way and the "schema" way.
-The "simple" way of using DBIx::Class needs less classes than the "schema"
-way but doesn't give you the ability to easily use different database connections.
-
-Some examples where different database connections are useful are:
-
-different users with different rights
-different databases with the same schema.
-
-=head2 Simple
-
-First you need to create a base class which all other classes will inherit from.
-See L<DBIx::Class::DB> for information on how to do this.
-
-Then you need to create a class for every table you want to use with DBIx::Class.
-See L<DBIx::Class::Table> for information on how to do this.
-
-=head2 Schema
-
-With this approach, the table classes inherit directly from DBIx::Class::Core,
-although it might be a good idea to create a "parent" class for all table
-classes that inherits from DBIx::Class::Core and adds additional methods
-needed by all table classes, e.g. reading a config file or loading auto primary
-key support.
-
-Look at L<DBIx::Class::Schema> for information on how to do this.
-
-If you need more help, check out the introduction in the 
-manual below.
-
-=head1 SEE ALSO
+=head1 WHERE TO GO NEXT
 
 =over 4
 
-=item L<DBIx::Class::Core> - DBIC Core Classes
-
 =item L<DBIx::Class::Manual> - User's manual
+
+=item L<DBIx::Class::Core> - DBIC Core Classes
 
 =item L<DBIx::Class::CDBICompat> - L<Class::DBI> Compat layer
 
-=item L<DBIx::Class::Schema>
+=item L<DBIx::Class::Schema> - schema and connection container
 
-=item L<DBIx::Class::ResultSet>
+=item L<DBIx::Class::ResultSource> - tables and table-like things
 
-=item L<DBIx::Class::ResultSource>
+=item L<DBIx::Class::ResultSet> - encapsulates a query and its results
 
 =item L<DBIx::Class::Row> - row-level methods
 
