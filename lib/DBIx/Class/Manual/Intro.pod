@@ -132,12 +132,11 @@ distribution.  Like L<Class::DBI::Loader>, it inspects your database,
 and automatically creates classes for all the tables in your database.
 Here's a simple setup:
 
-  package MyApp::DB;
-  use DBIx::Class::Schema::Loader;
+  package My::Schema;
+  use base qw/DBIx::Class::Schema::Loader/;
 
-  my $loader = DBIx::Class::Loader->new(
-    dsn       => 'dbi:SQLite:/home/me/myapp/my.db',
-    namespace => 'MyApp::DB'
+  __PACKAGE__->load_from_connection(
+    connect_info = [ 'dbi:SQLite:/home/me/myapp/my.db' ]
   );
 
   1;
@@ -152,7 +151,7 @@ L<DBIx::Class::Schema::Loader> already contains the connection info for the
 database, so to get started all you need to do is create an instance of your
 class:
 
-  my $schema = MyApp::DB->new();
+  my $schema = My::Schema->new();
 
 To connect to your manually created Schema, you also need to provide the
 connection details:
@@ -184,7 +183,7 @@ The simplest way to get a record is by primary key:
   my $album = $schema->resultset('Album')->find(14);
 
 This will run a C<SELECT> with C<albumid = 14> in the C<WHERE> clause,
-and return an instance of C<MyApp::DB::Album> that represents this
+and return an instance of C<My::Schema::Album> that represents this
 row.  Once you have that row, you can access and update columns:
 
   $album->title('Physical Graffiti');
@@ -211,7 +210,7 @@ changes to your object.
 =head2 Adding and removing rows
 
 To create a new record in the database, you can use the C<create>
-method.  It returns an instance of C<MyApp::DB::Album> that can be
+method.  It returns an instance of C<My::Schema::Album> that can be
 used to access the data in the new record:
 
   my $new_album = $schema->resultset('Album')->create({ 
@@ -279,7 +278,7 @@ rows:
 We also provide a handy shortcut for doing a C<LIKE> search:
 
   # Find albums whose artist starts with 'Jimi'
-  my $rs = MyApp::DB::Album->search_like({ artist => 'Jimi%' });
+  my $rs = $schema->resultset('Album')->search_like({ artist => 'Jimi%' });
 
 Or you can provide your own C<WHERE> clause, like:
 
@@ -309,7 +308,7 @@ L<DBIx::Class::Manual::Cookbook>.
 The search can also be modified by passing another hash with
 attributes:
 
-  my @albums = MyApp::DB::Album->search(
+  my @albums = My::Schema->resultset('Album')->search(
     { artist => 'Bob Marley' },
     { rows => 2, order_by => 'year DESC' }
   );
