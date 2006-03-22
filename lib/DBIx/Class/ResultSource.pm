@@ -91,7 +91,8 @@ If the column is allowed to contain NULL values, set a true value
 =item is_auto_increment
 
 Set this to a true value if this is a column that is somehow
-automatically filled. This is currently not used by DBIx::Class.
+automatically filled. This is used to determine which columns to empty
+when cloning objects using C<copy>.
 
 =item is_foreign_key
 
