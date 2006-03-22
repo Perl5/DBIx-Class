@@ -455,7 +455,9 @@ sub txn_do {
 
   $self->txn_begin; # If this throws an exception, no rollback is needed
 
-  my $wantarray = wantarray; # Need to save this since it's reset in eval{}
+  my $wantarray = wantarray; # Need to save this since the context
+			     # inside the eval{} block is independent
+			     # of the context that called txn_do()
 
   eval {
     # Need to differentiate between scalar/list context to allow for
