@@ -1252,21 +1252,6 @@ A arrayref of columns to group by. Can include columns of joined tables.
 
 Set to 1 to group by all columns.
 
-=head2 cache
-
-Set to 1 to cache search results. This prevents extra SQL queries if you
-revisit rows in your ResultSet:
-
-  my $resultset = $schema->resultset('Artist')->search( undef, { cache => 1 } );
-  
-  while( my $artist = $resultset->next ) {
-    ... do stuff ...
-  }
-
-  $rs->first; # without cache, this would issue a query 
-
-By default, searches are not cached.
-
 For more examples of using these attributes, see
 L<DBIx::Class::Manual::Cookbook>.
 
