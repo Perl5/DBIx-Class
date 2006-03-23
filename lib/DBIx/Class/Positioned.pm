@@ -115,12 +115,14 @@ sub siblings {
 
   my $sibling = $employee->first_sibling();
 
-Returns the first sibling object.
+Returns the first sibling object, or 0 if the first sibling 
+is this sibliing.
 
 =cut
 
 sub first_sibling {
     my( $self ) = @_;
+    return 0 if ($self->get_column($self->position_column())==1);
     return ($self->result_source->resultset->search(
         {
             $self->position_column => 1,
@@ -133,13 +135,15 @@ sub first_sibling {
 
   my $sibling = $employee->last_sibling();
 
-Return the last sibling.
+Return the last sibling, or 0 if the last sibling is this 
+sibling.
 
 =cut
 
 sub last_sibling {
     my( $self ) = @_;
     my $count = $self->result_source->resultset->search({$self->_collection_clause()})->count();
+    return 0 if ($self->get_column($self->position_column())==$count);
     return ($self->result_source->resultset->search(
         {
             $self->position_column => $count,

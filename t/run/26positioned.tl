@@ -2,7 +2,7 @@
 
 sub run_tests {
 
-    plan tests => 56;
+    plan tests => 66;
     my $schema = shift;
 
     my $employees = $schema->resultset('Employee::Positioned');
@@ -44,14 +44,20 @@ sub run_tests {
         if ($position==1) {
             ok( !$employee->previous_sibling(), 'no previous sibling' );
             ok( $employee->next_sibling(), 'next sibling' );
+            ok( !$employee->first_sibling(), 'no first sibling' );
+            ok( $employee->last_sibling(), 'last sibling' );
         }
         elsif ($position==$employees->count()) {
             ok( $employee->previous_sibling(), 'previous sibling' );
             ok( !$employee->next_sibling(), 'no next sibling' );
+            ok( $employee->first_sibling(), 'first sibling' );
+            ok( !$employee->last_sibling(), 'no last sibling' );
         }
         else {
             ok( $employee->previous_sibling(), 'previous sibling' );
             ok( $employee->next_sibling(), 'next sibling' );
+            ok( $employee->first_sibling(), 'first sibling' );
+            ok( $employee->last_sibling(), 'last sibling' );
         }
 
     }
