@@ -15,6 +15,10 @@ __PACKAGE__->add_columns(
     position => {
         data_type => 'integer',
     },
+    group_id => {
+        data_type => 'integer',
+        is_nullable => 1,
+    },
     name => {
         data_type => 'varchar',
         size      => 100,
@@ -28,6 +32,7 @@ __PACKAGE__->position_column('position');
 __PACKAGE__->mk_classdata('field_name_for', {
     employee_id => 'primary key',
     position    => 'list position',
+    group_id    => 'collection column',
     name        => 'employee name',
 });
 

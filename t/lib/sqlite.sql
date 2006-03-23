@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Tue Mar 21 12:11:03 2006
+-- Created on Thu Mar 23 11:13:18 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -10,6 +10,7 @@ BEGIN TRANSACTION;
 CREATE TABLE employees_positioned (
   employee_id INTEGER PRIMARY KEY NOT NULL,
   position integer NOT NULL,
+  group_id integer,
   name varchar(100)
 );
 

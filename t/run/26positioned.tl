@@ -2,7 +2,7 @@
 
 sub run_tests {
 
-    plan tests => 66;
+    plan tests => 321;
     my $schema = shift;
 
     my $employees = $schema->resultset('Employee::Positioned');
@@ -12,64 +12,87 @@ sub run_tests {
         $employees->create({ name=>'temp' });
     }
     $employees = $employees->search(undef,{order_by=>'position'});
-    ok( check_positions($employees), "$class: intial positions" );
+    ok( check_rs($employees), "intial positions" );
 
+    hammer_rs( $employees );
+
+    DBICTest::Employee::Positioned->collection_column('group_id');
+    $employees->delete();
+    foreach my $group_id (1..3) {
+        foreach (1..6) {
+            $employees->create({ name=>'temp', group_id=>$group_id });
+        }
+    }
+    $employees = $employees->search(undef,{order_by=>'group_id,position'});
+
+    foreach my $group_id (1..3) {
+        my $group_employees = $employees->search({group_id=>$group_id});
+        $group_employees->all();
+        ok( check_rs($group_employees), "group intial positions" );
+        hammer_rs( $group_employees );
+    }
+
+}
+
+sub hammer_rs {
+    my $rs = shift;
     my $employee;
+    my $count = $rs->count();
+    my $position_column = $rs->result_class->position_column();
 
-    foreach my $position (1..$employees->count()) {
+    foreach my $position (1..$count) {
 
-        $employee = $employees->find({ position=>$position });
-        $employee->move_previous();
-        ok( check_positions($employees), "$class: move_previous( $position )" );
+        $row = $rs->find({ $position_column=>$position });
+        $row->move_previous();
+        ok( check_rs($rs), "move_previous( $position )" );
 
-        $employee = $employees->find({ position=>$position });
-        $employee->move_next();
-        ok( check_positions($employees), "$class: move_next( $position )" );
+        $row = $rs->find({ $position_column=>$position });
+        $row->move_next();
+        ok( check_rs($rs), "move_next( $position )" );
 
-        $employee = $employees->find({ position=>$position });
-        $employee->move_first();
-        ok( check_positions($employees), "$class: move_first( $position )" );
+        $row = $rs->find({ $position_column=>$position });
+        $row->move_first();
+        ok( check_rs($rs), "move_first( $position )" );
 
-        $employee = $employees->find({ position=>$position });
-        $employee->move_last();
-        ok( check_positions($employees), "$class: move_last( $position )" );
+        $row = $rs->find({ $position_column=>$position });
+        $row->move_last();
+        ok( check_rs($rs), "move_last( $position )" );
 
-        foreach my $to_position (1..$employees->count()) {
-            $employee = $employees->find({ position=>$position });
-            $employee->move_to($to_position);
-            ok( check_positions($employees), "$class: move_to( $position => $to_position )" );
+        foreach my $to_position (1..$count) {
+            $row = $rs->find({ $position_column=>$position });
+            $row->move_to($to_position);
+            ok( check_rs($rs), "move_to( $position => $to_position )" );
         }
 
-        $employee = $employees->find({ position=>$position });
+        $row = $rs->find({ position=>$position });
         if ($position==1) {
-            ok( !$employee->previous_sibling(), 'no previous sibling' );
-            ok( $employee->next_sibling(), 'next sibling' );
-            ok( !$employee->first_sibling(), 'no first sibling' );
-            ok( $employee->last_sibling(), 'last sibling' );
-        }
-        elsif ($position==$employees->count()) {
-            ok( $employee->previous_sibling(), 'previous sibling' );
-            ok( !$employee->next_sibling(), 'no next sibling' );
-            ok( $employee->first_sibling(), 'first sibling' );
-            ok( !$employee->last_sibling(), 'no last sibling' );
+            ok( !$row->previous_sibling(), 'no previous sibling' );
+            ok( !$row->first_sibling(), 'no first sibling' );
         }
         else {
-            ok( $employee->previous_sibling(), 'previous sibling' );
-            ok( $employee->next_sibling(), 'next sibling' );
-            ok( $employee->first_sibling(), 'first sibling' );
-            ok( $employee->last_sibling(), 'last sibling' );
+            ok( $row->previous_sibling(), 'previous sibling' );
+            ok( $row->first_sibling(), 'first sibling' );
+        }
+        if ($position==$count) {
+            ok( !$row->next_sibling(), 'no next sibling' );
+            ok( !$row->last_sibling(), 'no last sibling' );
+        }
+        else {
+            ok( $row->next_sibling(), 'next sibling' );
+            ok( $row->last_sibling(), 'last sibling' );
         }
 
     }
 }
 
-sub check_positions {
-    my( $employees ) = @_;
-    $employees->reset();
+sub check_rs {
+    my( $rs ) = @_;
+    $rs->reset();
+    my $position_column = $rs->result_class->position_column();
     my $expected_position = 0;
-    while (my $employee = $employees->next()) {
+    while (my $row = $rs->next()) {
         $expected_position ++;
-        if ($employee->position()!=$expected_position) {
+        if ($row->get_column($position_column)!=$expected_position) {
             return 0;
         }
     }

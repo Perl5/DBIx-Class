@@ -17,6 +17,7 @@ Create a table for your positionable data.
     name TEXT NOT NULL,
     position INTEGER NOT NULL
   );
+  # Optional: group_id INTEGER NOT NULL
 
 In your Schema or DB class add Positioned to the top 
 of the component list.
@@ -28,6 +29,7 @@ each row.
 
   package My::Employee;
   __PACKAGE__->position_column('position');
+  __PACKAGE__->collection_column('group_id'); # optional
 
 Thats it, now you can change the position of your objects.
 
@@ -35,6 +37,8 @@ Thats it, now you can change the position of your objects.
   use My::Employee;
   
   my $employee = My::Employee->create({ name=>'Matt S. Trout' });
+  # If using collection_column:
+  my $employee = My::Employee->create({ name=>'Matt S. Trout', group_id=>1 });
   
   my $rs = $employee->siblings();
   my @siblings = $employee->siblings();
@@ -335,7 +339,7 @@ defined then this will return an empty list.
 =cut
 
 sub _collection_clause {
-    my $self = shift;
+    my( $self ) = @_;
     if ($self->collection_column()) {
         return ( $self->collection_column() => $self->get_column($self->collection_column()) );
     }
