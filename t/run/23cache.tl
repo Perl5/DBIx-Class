@@ -3,7 +3,7 @@ my $schema = shift;
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 17;
+plan tests => 23;
 
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
@@ -12,6 +12,54 @@ my $rs = $schema->resultset("Artist")->search(
 my $artist = $rs->first;
 
 is( scalar @{ $rs->get_cache }, 0, 'cache is not populated without cache attribute' );
+
+$rs = $schema->resultset('Artist')->search( undef, { cache => 1 } );
+my $artists = [ $rs->all ];
+
+is( scalar @{$rs->get_cache}, 3, 'all() populates cache for search with cache attribute' );
+
+$rs->clear_cache;
+
+is( scalar @{$rs->get_cache}, 0, 'clear_cache is functional' );
+
+$rs->next;
+
+is( scalar @{$rs->get_cache}, 3, 'next() populates cache for search with cache attribute' );
+
+pop( @$artists );
+$rs->set_cache( $artists );
+
+is( scalar @{$rs->get_cache}, 2, 'set_cache() is functional' );
+
+$cd = $schema->resultset('CD')->find(1);
+
+$rs->clear_cache;
+
+eval {
+  $rs->set_cache( [ $cd ] );
+};
+
+is( scalar @{$rs->get_cache}, 0, 'set_cache() only accepts objects of correct type for the resultset' );
+
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
+
+$rs = $schema->resultset('Artist')->search( undef, { cache => 1 } );
+while( $artist = $rs->next ) {}
+$artist = $rs->first();
+
+# count the SELECTs
+DBI->trace(0, undef);
+my $selects = 0;
+$trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT/;
+}
+$trace->close;
+unlink 't/var/dbic.trace';
+
+is( $selects, 1, 'revisiting a row does not issue a query when cache => 1' );
 
 my @a = $schema->resultset("Artist")->search(
   { },
@@ -57,7 +105,7 @@ is( $artist->count_related('cds'), 3, 'artist->count_related returns correct val
 
 # count the SELECTs
 DBI->trace(0, undef);
-my $selects = 0;
+$selects = 0;
 my $trace = IO::File->new('t/var/dbic.trace', '<') 
     or die "Unable to read trace file";
 while (<$trace>) {
