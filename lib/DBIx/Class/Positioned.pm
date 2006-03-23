@@ -157,7 +157,7 @@ sub previous_sibling {
     my $position_column = $self->position_column;
     my $position = $self->get_column( $position_column );
     return 0 if ($position==1);
-    return ($self->search(
+    return ($self->result_source->resultset->search(
         {
             $position_column => $position - 1,
             $self->_collection_clause(),
