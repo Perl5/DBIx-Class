@@ -91,7 +91,8 @@ If the column is allowed to contain NULL values, set a true value
 =item is_auto_increment
 
 Set this to a true value if this is a column that is somehow
-automatically filled. This is currently not used by DBIx::Class.
+automatically filled. This is used to determine which columns to empty
+when cloning objects using C<copy>.
 
 =item is_foreign_key
 
@@ -106,11 +107,9 @@ currently not used by DBIx::Class.
 
 =item sequence
 
-If your column is using a sequence to create it's values, set the name
-of the sequence here, to allow the values to be retrieved
-automatically by the L<DBIx::Class::PK::Auto> module. PK::Auto will
-attempt to retrieve the sequence name from the database, if this value
-is left unset.
+Sets the name of the sequence to use to generate values.  If not 
+specified, L<DBIx::Class::PK::Auto> will attempt to retrieve the 
+name of the sequence from the database automatically.
 
 =back
 

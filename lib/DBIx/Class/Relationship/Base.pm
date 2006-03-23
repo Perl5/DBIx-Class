@@ -5,8 +5,6 @@ use warnings;
 
 use base qw/DBIx::Class/;
 
-__PACKAGE__->mk_classdata('_relationships', { } );
-
 =head1 NAME 
 
 DBIx::Class::Relationship::Base - Inter-table relationships
