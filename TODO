@@ -17,3 +17,8 @@
 2006-03-18 by bluefeet
  - Support table locking.
 
+2006-03-21 by bluefeet
+ - When subclassing a dbic class make it so you don't have to do 
+   __PACKAGE__->table(__PACKAGE__->table()); for the result set to 
+   return the correct object type.
+

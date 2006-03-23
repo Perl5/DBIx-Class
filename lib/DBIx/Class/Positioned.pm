@@ -56,6 +56,12 @@ Thats it, now you can change the position of your objects.
 This module provides a simple interface for modifying the position 
 of DBIx::Class objects.
 
+=head1 AUTO UPDATE
+
+All of the move_* methods automatically update the rows involved in 
+the query.  This is not configurable and is due to the fact that if you 
+move a record it always causes other records in the list to be updated.
+
 =head1 METHODS
 
 =head2 position_column
@@ -68,6 +74,18 @@ positional value of each record.  Default to "position".
 =cut
 
 __PACKAGE__->mk_classdata( 'position_column' => 'position' );
+
+=head2 collection_column
+
+  __PACKAGE__->collection_column('thing_id');
+
+This method specified a column to limit all queries in 
+this module by.  This effectively allows you to have multiple 
+positioned lists within the same table.
+
+=cut
+
+__PACKAGE__->mk_classdata( 'collection_column' );
 
 =head2 siblings
 
@@ -85,7 +103,7 @@ sub siblings {
     my $rs = $self->search(
         {
             $position_column => { '!=' => $self->get_column($position_column) },
-            $self->_parent_clause(),
+            $self->_collection_clause(),
         },
         { order_by => $self->position_column },
     );
@@ -104,7 +122,7 @@ Returns the first sibling object.
 sub first_sibling {
     my( $self ) = @_;
     return ($self->search(
-        { $self->_parent_clause() },
+        { $self->_collection_clause() },
         { rows=>1, order_by => $self->position_column },
     )->all())[0];
 }
@@ -120,7 +138,7 @@ Return the last sibling.
 sub last_sibling {
     my( $self ) = @_;
     return ($self->search(
-        { $self->_parent_clause() },
+        { $self->_collection_clause() },
         { rows=>1, order_by => $self->position_column.' DESC' },
     )->all())[0];
 }
@@ -140,7 +158,7 @@ sub previous_sibling {
     return ($self->search(
         {
             $position_column => { '<' => $self->get_column($position_column) },
-            $self->_parent_clause(),
+            $self->_collection_clause(),
         },
         { rows=>1, order_by => $position_column.' DESC' },
     )->all())[0];
@@ -158,10 +176,10 @@ is returned if the current object is the last one.
 sub next_sibling {
     my( $self ) = @_;
     my $position_column = $self->position_column;
-    return ($self->search(
+    return ($self->result_source->resultset->search(
         {
             $position_column => { '>' => $self->get_column($position_column) },
-            $self->_parent_clause(),
+            $self->_collection_clause(),
         },
         { rows=>1, order_by => $position_column },
     )->all())[0];
@@ -179,15 +197,8 @@ the first one.
 
 sub move_previous {
     my( $self ) = @_;
-    my $previous = $self->previous_sibling();
-    return undef if (!$previous);
-    my $position_column = $self->position_column;
-    my $self_position = $self->get_column( $position_column );
-    $self->set_column( $position_column, $previous->get_column($position_column) );
-    $previous->set_column( $position_column, $self_position );
-    $self->update();
-    $previous->update();
-    return 1;
+    my $position = $self->get_column( $self->position_column() );
+    return $self->move_to( $position - 1 );
 }
 
 =head2 move_next
@@ -201,15 +212,10 @@ success, and 0 is returned if the object is already the last in the list.
 
 sub move_next {
     my( $self ) = @_;
-    my $next = $self->next_sibling();
-    return undef if (!$next);
-    my $position_column = $self->position_column;
-    my $self_position = $self->get_column( $position_column );
-    $self->set_column( $position_column, $next->get_column($position_column) );
-    $next->set_column( $position_column, $self_position );
-    $self->update();
-    $next->update();
-    return 1;
+    my $position = $self->get_column( $self->position_column() );
+    my $count = $self->result_source->resultset->search({$self->_collection_clause()})->count();
+    return 0 if ($position==$count);
+    return $self->move_to( $position + 1 );
 }
 
 =head2 move_first
@@ -237,7 +243,7 @@ success, and 0 is returned if the object is already the last one.
 
 sub move_last {
     my( $self ) = @_;
-    my $count = $self->search({$self->_parent_clause()})->count();
+    my $count = $self->result_source->resultset->search({$self->_collection_clause()})->count();
     return $self->move_to( $count );
 }
 
@@ -255,13 +261,14 @@ sub move_to {
     my( $self, $to_position ) = @_;
     my $position_column = $self->position_column;
     my $from_position = $self->get_column( $position_column );
-    return undef if ( $from_position==$to_position );
-    my $rs = $self->search({
+    return 0 if ( $to_position < 1 );
+    return 0 if ( $from_position==$to_position );
+    my $rs = $self->result_source->resultset->search({
         -and => [
             $position_column => { ($from_position>$to_position?'<':'>') => $from_position },
             $position_column => { ($from_position>$to_position?'>=':'<=') => $to_position },
         ],
-        $self->_parent_clause(),
+        $self->_collection_clause(),
     });
     my $op = ($from_position>$to_position) ? '+' : '-';
     $rs->update({
@@ -283,7 +290,7 @@ the table +1, thus positioning the new record at the last position.
 sub insert {
     my $self = shift;
     my $position_column = $self->position_column;
-    $self->set_column( $position_column => $self->search( {$self->_parent_clause()} )->count()+1 ) 
+    $self->set_column( $position_column => $self->result_source->resultset->search( {$self->_collection_clause()} )->count()+1 ) 
         if (!$self->get_column($position_column));
     $self->next::method( @_ );
 }
@@ -307,22 +314,19 @@ sub delete {
 These methods are used internally.  You should never have the 
 need to use them.
 
-=head2 _parent_clause
+=head2 _collection_clause
 
-  sub _parent_clause {
-    my( $self ) = @_;
-    return ( parent_id => $self->parent_id );
-  }
-
-This method is a placeholder for you, or another component, to 
-provide additional limits for all the various queries in this 
-module.  This allows for more than one positionable list within 
-the same table since any move_* method will adhere to the clause 
-that you specify.
+This method returns a name=>value pare for limiting a search 
+by the collection column.  If the collection column is not 
+defined then this will return an empty list.
 
 =cut
 
-sub _parent_clause {
+sub _collection_clause {
+    my $self = shift;
+    if ($self->collection_column()) {
+        return ( $self->collection_column() => $self->get_column($self->collection_column()) );
+    }
     return ();
 }
 
@@ -331,12 +335,28 @@ __END__
 
 =head1 BUGS
 
+=head2 Race Condition on Insert
+
 If a position is not specified for an insert than a position 
 will be chosen based on COUNT(*)+1.  But, it first selects the 
 count then inserts the record.  The space of time between select 
 and insert introduces a race condition.  To fix this we need the 
 ability to lock tables in DBIC.  I've added an entry in the TODO 
 about this.
+
+=head2 Multiple Moves
+
+Be careful when issueing move_* methods to multiple objects.  If 
+you've pre-loaded the objects then when you move one of the objects 
+the position of the other object will not reflect their new value 
+until you reload them from the database.
+
+The are times when you will want to move objects as groups, such 
+as changeing the parent of several objects at once - this directly 
+conflicts with this problem.  One solution is for us to write a 
+ResultSet class that supports a parent() method, for example.  Another 
+solution is to somehow automagically modify the objects that exist 
+in the current object's result set to have the new position value.
 
 =head1 AUTHOR
 
