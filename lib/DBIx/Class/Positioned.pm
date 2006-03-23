@@ -155,12 +155,13 @@ is returned if the current object is the first one.
 sub previous_sibling {
     my( $self ) = @_;
     my $position_column = $self->position_column;
+    my $position = $self->get_column( $position_column );
+    return 0 if ($position==1);
     return ($self->search(
         {
-            $position_column => { '<' => $self->get_column($position_column) },
+            $position_column => $position - 1,
             $self->_collection_clause(),
-        },
-        { rows=>1, order_by => $position_column.' DESC' },
+        }
     )->all())[0];
 }
 
@@ -176,12 +177,14 @@ is returned if the current object is the last one.
 sub next_sibling {
     my( $self ) = @_;
     my $position_column = $self->position_column;
+    my $position = $self->get_column( $position_column );
+    my $count = $self->result_source->resultset->search({$self->_collection_clause()})->count();
+    return 0 if ($position==$count);
     return ($self->result_source->resultset->search(
         {
-            $position_column => { '>' => $self->get_column($position_column) },
+            $position_column => $position + 1,
             $self->_collection_clause(),
         },
-        { rows=>1, order_by => $position_column },
     )->all())[0];
 }
 
