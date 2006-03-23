@@ -100,7 +100,7 @@ excluding the one you called it on.
 sub siblings {
     my( $self ) = @_;
     my $position_column = $self->position_column;
-    my $rs = $self->search(
+    my $rs = $self->result_source->resultset->search(
         {
             $position_column => { '!=' => $self->get_column($position_column) },
             $self->_collection_clause(),
@@ -121,9 +121,11 @@ Returns the first sibling object.
 
 sub first_sibling {
     my( $self ) = @_;
-    return ($self->search(
-        { $self->_collection_clause() },
-        { rows=>1, order_by => $self->position_column },
+    return ($self->result_source->resultset->search(
+        {
+            $self->position_column => 1,
+            $self->_collection_clause(),
+        },
     )->all())[0];
 }
 
@@ -137,9 +139,12 @@ Return the last sibling.
 
 sub last_sibling {
     my( $self ) = @_;
-    return ($self->search(
-        { $self->_collection_clause() },
-        { rows=>1, order_by => $self->position_column.' DESC' },
+    my $count = $self->result_source->resultset->search({$self->_collection_clause()})->count();
+    return ($self->result_source->resultset->search(
+        {
+            $self->position_column => $count,
+            $self->_collection_clause(),
+        },
     )->all())[0];
 }
 
