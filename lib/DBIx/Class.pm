@@ -186,59 +186,59 @@ The community can be found via -
 
 =head1 AUTHOR
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+mst: Matt S. Trout <mst@shadowcatsystems.co.uk>
 
 =head1 CONTRIBUTORS
 
-Alexander Hartmaier <alex_hartmaier@hotmail.com>
+abraxxa: Alexander Hartmaier <alex_hartmaier@hotmail.com>
 
-Andy Grundman <andy@hybridized.org>
+andyg: Andy Grundman <andy@hybridized.org>
 
-Andres Kievsky
+ank: Andres Kievsky
 
-Brandon Black
+blblack: Brandon Black
 
-Brian Cassidy <bricas@cpan.org>
+LTJake: Brian Cassidy <bricas@cpan.org>
 
-Christopher H. Laco
+claco: Christopher H. Laco
 
-CL Kao
+clkao: CL Kao
 
-Daisuke Murase <typester@cpan.org>
+typester: Daisuke Murase <typester@cpan.org>
 
-Dan Kubb <dan.kubb-cpan@onautopilot.com>
+dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
-Dan Sully <daniel@cpan.org>
+Numa: Dan Sully <daniel@cpan.org>
 
-Daniel Westermann-Clark <danieltwc@cpan.org>
+dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
-David Kamholz <dkamholz@cpan.org>
+ningu: David Kamholz <dkamholz@cpan.org>
 
-Jesper Krogh
+jesper: Jesper Krogh
 
-Jess Robinson
+castaway: Jess Robinson
 
-Jules Bean
+quicksilver: Jules Bean
 
-Justin Guenther <guentherj@agr.gc.ca>
+jguenther: Justin Guenther <guentherj@agr.gc.ca>
 
-Marcus Ramberg <mramberg@cpan.org>
+draven: Marcus Ramberg <mramberg@cpan.org>
 
-Nigel Metheringham <nigelm@cpan.org>
+nigel: Nigel Metheringham <nigelm@cpan.org>
 
-Paul Makepeace
+paulm: Paul Makepeace
 
-Robert Sedlacek <phaylon@dunkelheit.at>
+phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
-sc_ of irc.perl.org#dbix-class
+sc_: Just Another Perl Hacker
 
-Scott McWhirter (konobi)
+konobi: Scott McWhirter
 
-Scotty Allen <scotty@scottyallen.com>
+scotty: Scotty Allen <scotty@scottyallen.com>
 
 Todd Lipcon
 
-Will Hawes
+wdh: Will Hawes
 
 =head1 LICENSE
 
