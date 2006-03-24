@@ -39,7 +39,7 @@ DBICTest::Schema::CD->add_relationship(
 DBICTest::Schema::CD->add_relationship(
     tags => 'DBICTest::Schema::Tag',
     { 'foreign.cd' => 'self.cdid' },
-    { join_type => 'LEFT', cascade_delete => 1, cascade_copy => 1, accessor => 'multi' }
+    { join_type => 'LEFT', cascade_delete => 1, cascade_copy => 1, accessor => 'multi', order_by => 'tag' }
 );
 #DBICTest::Schema::CD->might_have(liner_notes => 'DBICTest::Schema::LinerNotes' => qw/notes/);
 DBICTest::Schema::CD->add_relationship(
