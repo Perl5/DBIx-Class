@@ -161,8 +161,16 @@ sub new {
 
 =head2 search
 
-  my @cds    = $rs->search({ year => 2001 }); # "... WHERE year = 2001"
-  my $new_rs = $rs->search({ year => 2005 });
+=over 4
+
+=item Arguments: (\%cond?, \%attrs?)
+
+=item Returns: $resultset (scalar context), @row_objs (list context)
+
+=back
+
+  my @cds    = $cd_rs->search({ year => 2001 }); # "... WHERE year = 2001"
+  my $new_rs = $cd_rs->search({ year => 2005 });
 
 If you need to pass in additional attributes but no additional condition,
 call it as C<search(undef, \%attrs);>.
@@ -219,11 +227,19 @@ sub search {
 
 =head2 search_literal
 
-  my @obj    = $rs->search_literal($literal_where_cond, @bind);
-  my $new_rs = $rs->search_literal($literal_where_cond, @bind);
+=over 4
+
+=item Arguments: ($literal_cond, @bind?)
+
+=item Returns: $resultset (scalar context), @row_objs (list context)
+
+=back
+
+  my @cds   = $cd_rs->search_literal('year = ? AND title = ?', qw/2001 Reload/);
+  my $newrs = $artist_rs->search_literal('name = ?', 'Metallica');
 
 Pass a literal chunk of SQL to be added to the conditional part of the
-resultset.
+resultset query.
 
 =cut
 
@@ -239,6 +255,8 @@ sub search_literal {
 =over 4
 
 =item Arguments: (@colvalues) | (\%cols, \%attrs?)
+
+=item Returns: $row_object
 
 =back
 
@@ -304,10 +322,20 @@ sub find {
 
 =head2 search_related
 
-  $rs->search_related('relname', $cond?, $attrs?);
+=over 4
 
-Search the specified relationship. Optionally specify a condition for matching
-records.
+=item Arguments: (\%cond?, \%attrs?)
+
+=item Returns: $new_resultset
+
+=back
+
+  $new_rs = $cd_rs->search_related('artist', {
+    name => 'Emo-R-Us',
+  });
+
+Search the specified relationship, optionally specify a condition and
+attributes for matching records. See L</ATTRIBUTES> for more information.
 
 =cut
 
@@ -317,7 +345,16 @@ sub search_related {
 
 =head2 cursor
 
-Returns a storage-driven cursor to the given resultset.
+=over 4
+
+=item Arguments: (none)
+
+=item Returns: $cursor
+
+=back
+
+Returns a storage-driven cursor to the given resultset. See
+L<DBIx::Class::Cursor> for more information.
 
 =cut
 
@@ -331,7 +368,17 @@ sub cursor {
 
 =head2 single
 
-Inflates the first result without creating a cursor
+=over 4
+
+=item Arguments: (\%cond)
+
+=item Returns: $row_object
+
+=back
+
+  my $cd = $schema->resultset('CD')->single({ year => 2001 });
+
+Inflates the first result without creating a cursor.
 
 =cut
 
@@ -358,8 +405,19 @@ sub single {
 
 =head2 search_like
 
-Perform a search, but use C<LIKE> instead of equality as the condition. Note
-that this is simply a convenience method; you most likely want to use
+=over 4
+
+=item Arguments: (\%cond?, \%attrs?)
+
+=item Returns: $resultset (scalar context), @row_objs (list context)
+
+=back
+
+  # WHERE title LIKE '%blue%'
+  $cd_rs = $rs->search_like({ title => '%blue%'});
+
+Perform a search, but use C<LIKE> instead of C<=> as the condition. Note
+that this is simply a convenience method. You most likely want to use
 L</search> with specific operators.
 
 For more information, see L<DBIx::Class::Manual::Cookbook>.
@@ -379,6 +437,8 @@ sub search_like {
 =over 4
 
 =item Arguments: ($first, $last)
+
+=item Returns: $resultset (scalar context), @row_objs (list context)
 
 =back
 
@@ -580,7 +640,8 @@ sub _count { # Separated out so pager can get the full count
 
 =head2 count_literal
 
-Calls L</search_literal> with the passed arguments, then L</count>.
+Counts the results in a literal query. Equivalent to calling L</search_literal>
+with the passed arguments, then L</count>.
 
 =cut
 
@@ -689,7 +750,8 @@ sub update_all {
 
 =head2 delete
 
-Deletes the contents of the resultset from its result source.
+Deletes the contents of the resultset from its result source. Note that this
+will not run cascade triggers. See L</delete_all> if you need triggers to run.
 
 =cut
 
