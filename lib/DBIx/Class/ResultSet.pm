@@ -467,10 +467,10 @@ sub _collapse_result {
   if (defined $prefix) {
     @collapse = map {
 	m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()
-    } keys %{$self->{collapse}})
+    } keys %{$self->{collapse}}
   } else {
     @collapse = keys %{$self->{collapse}};
-  );
+  };
 
   if (@collapse) {
     my ($c) = sort { length $a <=> length $b } @collapse;
