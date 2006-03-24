@@ -63,6 +63,9 @@ other rows.
 Declares the name of the column that contains the self-referential 
 ID which defines the parent row.  Defaults to "parent_id".
 
+If you are useing the Positioned component then this parent_column 
+will automatically be used as the collection_column.
+
 =cut
 
 __PACKAGE__->mk_classdata( 'parent_column' => 'parent_id' );
@@ -94,12 +97,12 @@ sub parent {
             $new_parent = $new_parent->id() || 0;
         }
         return 0 if ($new_parent == ($self->get_column($parent_column)||0));
-        my $positioned = $self->can('position_column');
-        $self->move_last if ($positioned);
+        my $is_positioned = $self->isa('DBIx::Class::Positioned');
+        $self->move_last() if ($is_positioned);
         $self->set_column( $parent_column => $new_parent );
-        if ($positioned) {
+        if ($is_positioned) {
             $self->set_column(
-                $self->position_column() => $self->search( {$self->_parent_clause()} )->count() + 1
+                $self->position_column() => $self->search( {$self->_collection_clause()} )->count() + 1
             );
         }
         $self->update();
@@ -127,41 +130,28 @@ sub children {
     my( $self ) = @_;
     my $rs = $self->search(
         { $self->parent_column()=>$self->id() },
-        ( $self->can('position_column') ? {order_by=>$self->position_column()} : () )
+        ( $self->isa('DBIx::Class::Position') ? {order_by=>$self->position_column()} : () )
     );
     return $rs->all() if (wantarray());
     return $rs;
 }
-
-=head2 descendents
-
-Same as children.  Declared so that this module is 
-compatible with the Tree::NestedSet module.
-
-=cut
-
-#*descendants = \&children;
 
 =head1 PRIVATE METHODS
 
 These methods are used internally.  You should never have the 
 need to use them.
 
-=head2 _parent_clause
+=head2 _collection_clause
 
 This method is provided as an override of the method in 
-DBIC::Positioned.  This way Positioned and Tree::AdjacencyList 
+DBIx::Class::Positioned.  This way Positioned and Tree::AdjacencyList 
 may be used together without conflict.  Make sure that in 
-you component list that you load Tree::AdjacencyList before you 
+your component list that you load Tree::AdjacencyList before you 
 load Positioned.
-
-This method assumes a parent ID of 0 if none is defined.  This 
-usually comes in to play if you are just createing the object 
-and it has not yet been assigned a parent.
 
 =cut
 
-sub _parent_clause {
+sub _collection_clause {
     my( $self ) = @_;
     return (
         $self->parent_column() =>
@@ -174,7 +164,7 @@ __END__
 
 =head1 AUTHOR
 
-Aran Deltac <bluefeet@cpan.org>
+Aran Clary Deltac <bluefeet@cpan.org>
 
 =head1 LICENSE
 

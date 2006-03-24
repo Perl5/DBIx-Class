@@ -308,7 +308,7 @@ sub insert {
     my $position_column = $self->position_column;
     $self->set_column( $position_column => $self->result_source->resultset->search( {$self->_collection_clause()} )->count()+1 ) 
         if (!$self->get_column($position_column));
-    $self->next::method( @_ );
+    return $self->next::method( @_ );
 }
 
 =head2 delete
@@ -322,7 +322,7 @@ integrity of the positions.
 sub delete {
     my $self = shift;
     $self->move_last;
-    $self->next::method( @_ );
+    return $self->next::method( @_ );
 }
 
 =head1 PRIVATE METHODS
