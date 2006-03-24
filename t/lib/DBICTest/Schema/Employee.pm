@@ -1,26 +1,21 @@
 package # hide from PAUSE 
-    DBICTest::Schema::Employee::AdjacencyList;
+    DBICTest::Schema::Employee;
 
 use base 'DBIx::Class';
 
-__PACKAGE__->load_components(qw(
-    Tree::AdjacencyList
-    Positional
-    PK::Auto
-    Core
-));
+__PACKAGE__->load_components(qw( Positional PK::Auto Core ));
 
-__PACKAGE__->table('employees_adjacencylist');
+__PACKAGE__->table('employees');
 
 __PACKAGE__->add_columns(
     employee_id => {
         data_type => 'integer',
         is_auto_increment => 1
     },
-    parent_id => {
+    position => {
         data_type => 'integer',
     },
-    position => {
+    group_id => {
         data_type => 'integer',
         is_nullable => 1,
     },
@@ -32,13 +27,12 @@ __PACKAGE__->add_columns(
 );
 
 __PACKAGE__->set_primary_key('employee_id');
-__PACKAGE__->parent_column('parent_id');
 __PACKAGE__->position_column('position');
 
 __PACKAGE__->mk_classdata('field_name_for', {
     employee_id => 'primary key',
-    parent_id   => 'parent id',
-    position    => 'list order',
+    position    => 'list position',
+    group_id    => 'collection column',
     name        => 'employee name',
 });
 

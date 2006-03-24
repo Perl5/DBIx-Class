@@ -7,8 +7,7 @@ no warnings qw/qw/;
 
 __PACKAGE__->load_classes(qw/
   Artist
-  Employee::Positional
-  Employee::AdjacencyList
+  Employee
   CD
   #dummy
   Track

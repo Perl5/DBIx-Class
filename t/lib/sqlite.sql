@@ -1,8 +1,18 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Fri Mar 24 07:13:26 2006
+-- Created on Fri Mar 24 15:47:00 2006
 -- 
 BEGIN TRANSACTION;
+
+--
+-- Table: employees
+--
+CREATE TABLE employees (
+  employee_id INTEGER PRIMARY KEY NOT NULL,
+  position integer NOT NULL,
+  group_id integer,
+  name varchar(100)
+);
 
 --
 -- Table: serialized
@@ -13,13 +23,12 @@ CREATE TABLE serialized (
 );
 
 --
--- Table: employees_adjacencylist
+-- Table: cd_to_producer
 --
-CREATE TABLE employees_adjacencylist (
-  employee_id INTEGER PRIMARY KEY NOT NULL,
-  parent_id integer NOT NULL,
-  position integer,
-  name varchar(100)
+CREATE TABLE cd_to_producer (
+  cd integer NOT NULL,
+  producer integer NOT NULL,
+  PRIMARY KEY (cd, producer)
 );
 
 --
@@ -28,15 +37,6 @@ CREATE TABLE employees_adjacencylist (
 CREATE TABLE liner_notes (
   liner_id INTEGER PRIMARY KEY NOT NULL,
   notes varchar(100) NOT NULL
-);
-
---
--- Table: cd_to_producer
---
-CREATE TABLE cd_to_producer (
-  cd integer NOT NULL,
-  producer integer NOT NULL,
-  PRIMARY KEY (cd, producer)
 );
 
 --
@@ -85,15 +85,6 @@ CREATE TABLE self_ref (
 );
 
 --
--- Table: tags
---
-CREATE TABLE tags (
-  tagid INTEGER PRIMARY KEY NOT NULL,
-  cd integer NOT NULL,
-  tag varchar(100) NOT NULL
-);
-
---
 -- Table: treelike
 --
 CREATE TABLE treelike (
@@ -103,22 +94,21 @@ CREATE TABLE treelike (
 );
 
 --
+-- Table: tags
+--
+CREATE TABLE tags (
+  tagid INTEGER PRIMARY KEY NOT NULL,
+  cd integer NOT NULL,
+  tag varchar(100) NOT NULL
+);
+
+--
 -- Table: twokeys
 --
 CREATE TABLE twokeys (
   artist integer NOT NULL,
   cd integer NOT NULL,
   PRIMARY KEY (artist, cd)
-);
-
---
--- Table: employees_positional
---
-CREATE TABLE employees_positional (
-  employee_id INTEGER PRIMARY KEY NOT NULL,
-  position integer NOT NULL,
-  group_id integer,
-  name varchar(100)
 );
 
 --
