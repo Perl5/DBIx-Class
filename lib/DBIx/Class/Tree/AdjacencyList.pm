@@ -3,6 +3,7 @@ package DBIx::Class::Tree::AdjacencyList;
 use strict;
 use warnings;
 use base qw( DBIx::Class );
+use Carp qw( croak );
 
 =head1 NAME
 
@@ -97,10 +98,9 @@ sub parent {
             $new_parent = $new_parent->id() || 0;
         }
         return 0 if ($new_parent == ($self->get_column($parent_column)||0));
-        my $is_positional = $self->isa('DBIx::Class::Positional');
-        $self->move_last() if ($is_positional);
+        $self->move_last() if ($self->positional());
         $self->set_column( $parent_column => $new_parent );
-        if ($is_positional) {
+        if ($self->positional()) {
             $self->set_column(
                 $self->position_column() => $self->search( {$self->_collection_clause()} )->count() + 1
             );
@@ -134,6 +134,116 @@ sub children {
     );
     return $rs->all() if (wantarray());
     return $rs;
+}
+
+=head2 attach_child
+
+  $parent->attach_child( $child );
+
+Sets (or moves) the child to the new parent.
+
+=cut
+
+sub attach_child {
+    my( $self, $child ) = @_;
+    $child->parent( $self );
+}
+
+=head2 attach_sibling
+
+  $this->attach_sibling( $that );
+
+Sets the passed in object to have the same parent 
+as the calling object.
+
+=cut
+
+sub attach_sibling {
+    my( $self, $child ) = @_;
+    $child->parent( $self->parent() );
+}
+
+=head1 POSITIONAL METHODS
+
+If you are useing the L<DBIx::Class::Postional> component 
+in conjunction with this module then you will also have 
+these methods available to you.
+
+=head2 append_child
+
+  $parent->append_child( $child );
+
+Sets the child to have the specified parent and moves the 
+child to the last position.
+
+=cut
+
+sub append_child {
+    my( $self, $child ) = @_;
+    croak('This method may only be used with the Positional component') if (!$self->positional());
+    $child->parent( $self );
+}
+
+=head2 prepend_child
+
+  $parent->prepend_child( $child );
+
+Sets the child to have the specified parent and moves the 
+child to the first position.
+
+=cut
+
+sub prepend_child {
+    my( $self, $child ) = @_;
+    croak('This method may only be used with the Positional component') if (!$self->positional());
+    $child->parent( $self );
+    $child->move_first();
+}
+
+=head2 attach_before
+
+  $this->attach_before( $that );
+
+Attaches the object at the position just before the 
+calling object's position.
+
+=cut
+
+sub attach_before {
+    my( $self, $sibling ) = @_;
+    croak('This method may only be used with the Positional component') if (!$self->positional());
+    $sibling->parent( $self->parent() );
+    $sibling->move_to( $self->get_column($self->position_column()) );
+}
+
+=head2 attach_after
+
+  $this->attach_after( $that );
+
+Attaches the object at the position just after the 
+calling object's position.
+
+=cut
+
+sub attach_after {
+    my( $self, $sibling ) = @_;
+    croak('This method may only be used with the Positional component') if (!$self->positional());
+    $sibling->parent( $self->parent() );
+    $sibling->move_to( $self->get_column($self->position_column()) + 1 );
+}
+
+=head2 positional
+
+  if ($object->positional()) { ... }
+
+Returns true if the object is a DBIx::Class::Positional 
+object.
+
+=cut
+
+sub positional {
+    my( $self ) = @_;
+    return $self->isa('DBIx::Class::Positional');
 }
 
 =head1 PRIVATE METHODS
