@@ -55,9 +55,15 @@ sub new {
 
 =head2 next
 
+=over 4
+
+=item Arguments: (none)
+
+=item Returns: \@row_columns
+
 =back
 
-Advances the cursor to the next row and returns it.
+Advances the cursor to the next row and returns an arrayref of column values.
 
 =cut
 
@@ -91,9 +97,16 @@ sub next {
 
 =head2 all
 
+=over 4
+
+=item Arguments: (none)
+
+=item Returns: \@row_columns+
+
 =back
 
-Returns all rows in the L<DBIx::Class::ResultSet>.
+Returns a list of arrayrefs of column values for all rows in the
+L<DBIx::Class::ResultSet>.
 
 =cut
 
