@@ -5,7 +5,7 @@ sub run_tests {
     plan tests => 321;
     my $schema = shift;
 
-    my $employees = $schema->resultset('Employee::Positioned');
+    my $employees = $schema->resultset('Employee::Positional');
     $employees->delete();
 
     foreach (1..5) {
@@ -16,7 +16,7 @@ sub run_tests {
 
     hammer_rs( $employees );
 
-    DBICTest::Employee::Positioned->collection_column('group_id');
+    DBICTest::Employee::Positional->collection_column('group_id');
     $employees->delete();
     foreach my $group_id (1..3) {
         foreach (1..6) {

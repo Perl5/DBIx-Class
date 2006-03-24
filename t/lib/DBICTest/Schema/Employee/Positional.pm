@@ -1,11 +1,11 @@
 package # hide from PAUSE 
-    DBICTest::Schema::Employee::Positioned;
+    DBICTest::Schema::Employee::Positional;
 
 use base 'DBIx::Class';
 
-__PACKAGE__->load_components(qw( Positioned PK::Auto Core ));
+__PACKAGE__->load_components(qw( Positional PK::Auto Core ));
 
-__PACKAGE__->table('employees_positioned');
+__PACKAGE__->table('employees_positional');
 
 __PACKAGE__->add_columns(
     employee_id => {

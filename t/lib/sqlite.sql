@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Thu Mar 23 19:41:26 2006
+-- Created on Fri Mar 24 07:13:26 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -10,16 +10,6 @@ BEGIN TRANSACTION;
 CREATE TABLE serialized (
   id INTEGER PRIMARY KEY NOT NULL,
   serialized text NOT NULL
-);
-
---
--- Table: employees_positioned
---
-CREATE TABLE employees_positioned (
-  employee_id INTEGER PRIMARY KEY NOT NULL,
-  position integer NOT NULL,
-  group_id integer,
-  name varchar(100)
 );
 
 --
@@ -119,6 +109,16 @@ CREATE TABLE twokeys (
   artist integer NOT NULL,
   cd integer NOT NULL,
   PRIMARY KEY (artist, cd)
+);
+
+--
+-- Table: employees_positional
+--
+CREATE TABLE employees_positional (
+  employee_id INTEGER PRIMARY KEY NOT NULL,
+  position integer NOT NULL,
+  group_id integer,
+  name varchar(100)
 );
 
 --

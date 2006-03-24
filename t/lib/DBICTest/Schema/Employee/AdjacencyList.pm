@@ -5,7 +5,7 @@ use base 'DBIx::Class';
 
 __PACKAGE__->load_components(qw(
     Tree::AdjacencyList
-    Positioned
+    Positional
     PK::Auto
     Core
 ));

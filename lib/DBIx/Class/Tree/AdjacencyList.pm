@@ -24,7 +24,7 @@ of the component list.
   __PACKAGE__->load_components(qw( Tree::AdjacencyList ... ));
   # If you want positionable data make sure this 
   # module comes first, as in:
-  __PACKAGE__->load_components(qw( Tree::AdjacencyList Positioned ... ));
+  __PACKAGE__->load_components(qw( Tree::AdjacencyList Positional ... ));
 
 Specify the column that contains the parent ID each row.
 
@@ -63,8 +63,8 @@ other rows.
 Declares the name of the column that contains the self-referential 
 ID which defines the parent row.  Defaults to "parent_id".
 
-If you are useing the Positioned component then this parent_column 
-will automatically be used as the collection_column.
+If you are useing the L<DBIx::Class::Positional> component then this 
+parent_column will automatically be used as the collection_column.
 
 =cut
 
@@ -81,7 +81,7 @@ parent ID.  If setting the parent ID then 0 will be returned
 if the object already has the specified parent, and 1 on 
 success.
 
-If you are using the Positioned component this 
+If you are using the L<DBIx::Class::Positional> component this 
 module will first move the object to the last position of 
 the list, change the parent ID, then move the object to the 
 last position of the new list.  This ensures the intergrity 
@@ -97,10 +97,10 @@ sub parent {
             $new_parent = $new_parent->id() || 0;
         }
         return 0 if ($new_parent == ($self->get_column($parent_column)||0));
-        my $is_positioned = $self->isa('DBIx::Class::Positioned');
-        $self->move_last() if ($is_positioned);
+        my $is_positional = $self->isa('DBIx::Class::Positional');
+        $self->move_last() if ($is_positional);
         $self->set_column( $parent_column => $new_parent );
-        if ($is_positioned) {
+        if ($is_positional) {
             $self->set_column(
                 $self->position_column() => $self->search( {$self->_collection_clause()} )->count() + 1
             );
@@ -121,7 +121,7 @@ sub parent {
 Returns a list or record set, depending on context, of all 
 the objects one level below the current one.
 
-If you are using the Positioned component then this method 
+If you are using the L<DBIx::Class::Positional> component then this method 
 will return the children sorted by the position column.
 
 =cut
@@ -144,10 +144,10 @@ need to use them.
 =head2 _collection_clause
 
 This method is provided as an override of the method in 
-DBIx::Class::Positioned.  This way Positioned and Tree::AdjacencyList 
+L<DBIx::Class::Positional>.  This way Positional and Tree::AdjacencyList 
 may be used together without conflict.  Make sure that in 
 your component list that you load Tree::AdjacencyList before you 
-load Positioned.
+load Positional.
 
 =cut
 

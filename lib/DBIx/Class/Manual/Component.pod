@@ -68,6 +68,12 @@ L<DBIx::Class::Serialize::Storable> - Hooks for Storable freeze/thaw.
 
 L<DBIx::Class::Validation> - Validate all data before submitting to your database.
 
+L<DBIx::Class::Positional> - Modify the position of objects in an ordered list.
+
+L<DBIx::Class::Tree::AdjacencyList> - Manage a tree of data using the common adjacency list model.
+
+L<DBIx::Class::Tree::NestedSet> - Manage a positional tree of data using the nested set model.
+
 =head2 Core
 
 These are the components that all, or nearly all, people will use 

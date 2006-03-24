@@ -1,12 +1,12 @@
 # vim: ts=8:sw=4:sts=4:et
-package DBIx::Class::Positioned;
+package DBIx::Class::Positional;
 use strict;
 use warnings;
 use base qw( DBIx::Class );
 
 =head1 NAME
 
-DBIx::Class::Positioned - Modify the position of objects in an ordered list.
+DBIx::Class::Positional - Modify the position of objects in an ordered list.
 
 =head1 SYNOPSIS
 
@@ -19,10 +19,10 @@ Create a table for your positionable data.
   );
   # Optional: group_id INTEGER NOT NULL
 
-In your Schema or DB class add Positioned to the top 
+In your Schema or DB class add Positional to the top 
 of the component list.
 
-  __PACKAGE__->load_components(qw( Positioned ... ));
+  __PACKAGE__->load_components(qw( Positional ... ));
 
 Specify the column that stores the position number for 
 each row.
@@ -85,7 +85,7 @@ __PACKAGE__->mk_classdata( 'position_column' => 'position' );
 
 This method specified a column to limit all queries in 
 this module by.  This effectively allows you to have multiple 
-positioned lists within the same table.
+positional lists within the same table.
 
 =cut
 

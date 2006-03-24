@@ -3,5 +3,5 @@ use lib qw(t/lib);
 use DBICTest;
 use DBICTest::HelperRels;
 
-require "t/run/26positioned.tl";
+require "t/run/26positional.tl";
 run_tests(DBICTest->schema);
