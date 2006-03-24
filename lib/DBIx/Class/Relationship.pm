@@ -128,8 +128,8 @@ cascade or restrict will take precedence.
 
 =head2 might_have
 
-  My::DBIC::Schema::Author->might_have(psuedonym => 'Psuedonyms');
-  my $pname = $obj->psuedonym; # to get the Psuedonym object
+  My::DBIC::Schema::Author->might_have(pseudonym => 'Pseudonyms');
+  my $pname = $obj->pseudonym; # to get the Pseudonym object
 
 Creates an optional one-to-one relationship with a class, where the foreign
 class stores our primary key in one of its columns. Defaults to the primary

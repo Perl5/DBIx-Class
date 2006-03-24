@@ -1,6 +1,6 @@
 =head1 NAME
 
-DBIx::Class::Manual::Glossary - Deconfusion of terms used
+DBIx::Class::Manual::Glossary - Clarification of terms used.
 
 =head1 INTRODUCTION
 

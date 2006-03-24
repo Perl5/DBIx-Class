@@ -22,7 +22,7 @@ use base qw(Exporter);
 # -------------------------------------------------------------------
 # parse($tr, $data)
 #
-# Note that $data, in the case of this parser, is unuseful.
+# Note that $data, in the case of this parser, is not useful.
 # We're working with DBIx::Class Schemas, not data streams.
 # -------------------------------------------------------------------
 sub parse {
@@ -80,7 +80,7 @@ sub parse {
             next if(!exists $rel_info->{attrs}{accessor} ||
                     $rel_info->{attrs}{accessor} eq 'multi');
             # Going by the accessor type isn't such a good idea (yes, I know
-            # I suggested it). I think the best way to tell if something's a
+            # I suggested it). I think the best way to tell if something is a
             # foreign key constraint is to assume if it doesn't include our
             # primaries then it is (dumb but it'll do). Ignore any rel cond
             # that isn't a straight hash, but get both sets of keys in full

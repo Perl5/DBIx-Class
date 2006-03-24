@@ -31,8 +31,8 @@ methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
 The condition needs to be an SQL::Abstract-style representation of the
 join between the tables. When resolving the condition for use in a JOIN,
-keys using the psuedo-table I<foreign> are resolved to mean "the Table on the
-other side of the relationship", and values using the psuedo-table I<self>
+keys using the pseudo-table I<foreign> are resolved to mean "the Table on the
+other side of the relationship", and values using the pseudo-table I<self>
 are resolved to mean "the Table this class is representing". Other
 restrictions, such as by value, sub-select and other tables, may also be
 used. Please check your database for JOIN parameter support.

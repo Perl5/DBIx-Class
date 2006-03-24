@@ -588,7 +588,7 @@ sub count_literal { shift->search_literal(@_)->count; }
 
 =head2 all
 
-Returns all elements in the resultset. Called implictly if the resultset
+Returns all elements in the resultset. Called implicitly if the resultset
 is returned in list context.
 
 =cut

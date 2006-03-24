@@ -163,7 +163,7 @@ a second database you want to access:
 
   my $other_schema = My::Schema->connect( $dsn, $user, $password, $attrs );
 
-Note that L<DBIx::Class::Schema> does not cache connnections for you. If you
+Note that L<DBIx::Class::Schema> does not cache connections for you. If you
 use multiple connections, you need to do this manually.
 
 To execute some sql statements on every connect you can pass them to your schema after the connect:

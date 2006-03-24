@@ -25,7 +25,7 @@ DBIx::Class::UUIDMaker - UUID wrapper module
 
   sub as_string {
     my $uuid;
-    ...magic encantations...
+    ...magic incantations...
     return $uuid;
   };
 

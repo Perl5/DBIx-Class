@@ -101,12 +101,12 @@ Then you can use these classes in your application's code:
     { order_by => 'title' }
   );
 
-  my $millenium_cds_rs = $ds->resultset('CD')->search(
+  my $millennium_cds_rs = $ds->resultset('CD')->search(
     { year => 2000 },
     { prefetch => 'artist' }
   );
 
-  my $cd = $millenium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
+  my $cd = $millennium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
   my $cd_artist_name = $cd->artist->name; # Already has the data so no query
 
   my $new_cd = $ds->resultset('CD')->new({ title => 'Spoon' });
@@ -116,7 +116,7 @@ Then you can use these classes in your application's code:
 
   $ds->txn_do(sub { $new_cd->update }); # Runs the update in a transaction
 
-  $millenium_cds_rs->update({ year => 2002 }); # Single-query bulk update
+  $millennium_cds_rs->update({ year => 2002 }); # Single-query bulk update
 
 =head1 DESCRIPTION
 

@@ -39,7 +39,7 @@ __PACKAGE__->load_own_components(qw/
 
 =head1 NAME 
 
-DBIx::Class::CDBICompat - Class::DBI Compatability layer.
+DBIx::Class::CDBICompat - Class::DBI Compatibility layer.
 
 =head1 SYNOPSIS
 
@@ -48,7 +48,7 @@ DBIx::Class::CDBICompat - Class::DBI Compatability layer.
 
 =head1 DESCRIPTION
 
-DBIx::Class features a fully featured compability layer with L<Class::DBI>
+DBIx::Class features a fully featured compatibility layer with L<Class::DBI>
 to ease transition for existing CDBI users. In fact, this class is just a
 receipe containing all the features emulated. If you like, you can choose
 which features to emulate by building your own class and loading it like 
@@ -107,7 +107,7 @@ Responsible for HasMany relationships.
 =item LiveObjectIndex
 
 The live object index tries to ensure there is only one version of a object
-in the perl interprenter.
+in the perl interpreter.
 
 =item MightHave
 

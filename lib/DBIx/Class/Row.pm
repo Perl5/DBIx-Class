@@ -122,9 +122,9 @@ sub update {
 
   $obj->delete
 
-Deletes the object from the database. The object is still perfectly usable
-accessor-wise etc. but ->in_storage will now return 0 and the object must
-be re ->insert'ed before it can be ->update'ed
+Deletes the object from the database. The object is still perfectly usable, 
+but ->in_storage() will now return 0 and the object must re inserted using 
+->insert() before ->update() can be used on it.
 
 =cut
 

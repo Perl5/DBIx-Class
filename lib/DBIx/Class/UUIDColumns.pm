@@ -53,7 +53,7 @@ sub _find_uuid_module {
     if (eval{require Data::UUID}) {
         return '::Data::UUID';
     } elsif ($^O ne 'openbsd' && eval{require APR::UUID}) {
-        # APR::UUID on openbsd causes some as yet unfound nastyness for XS
+        # APR::UUID on openbsd causes some as yet unfound nastiness for XS
         return '::APR::UUID';
     } elsif (eval{require UUID}) {
         return '::UUID';

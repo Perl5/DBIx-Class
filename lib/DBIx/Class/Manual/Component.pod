@@ -38,7 +38,7 @@ them.
 These components provide extra functionality beyond 
 basic functionality that you can't live without.
 
-L<DBIx::Class::CDBICompat> - Class::DBI Compatability layer.
+L<DBIx::Class::CDBICompat> - Class::DBI Compatibility layer.
 
 L<DBIx::Class::FormTools> - Build forms with multiple interconnected objects.
 
@@ -127,7 +127,7 @@ being called try printing out the Class::C3 inheritance stack.
 
   print join ', ' => Class::C3::calculateMRO('YourClass::Name');
 
-Check out the L<Class::C3> docs for more information about inhertance.
+Check out the L<Class::C3> docs for more information about inheritance.
 
 =head1 SEE ALSO
 
