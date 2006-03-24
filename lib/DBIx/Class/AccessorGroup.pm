@@ -20,9 +20,15 @@ getters and setters.
 
 =head2 mk_group_accessors
 
-Creates a set of accessors in a given group.
+=over 4
 
-=head3 Arguments: $group, @fieldspec
+=item Arguments: $group, @fieldspec
+
+Returns: none
+
+=back
+
+Creates a set of accessors in a given group.
 
 $group is the name of the accessor group for the generated accessors; they
 will call get_$group($field) on get and set_$group($field, $value) on set.
@@ -30,8 +36,6 @@ will call get_$group($field) on get and set_$group($field, $value) on set.
 @fieldspec is a list of field/accessor names; if a fieldspec is a scalar
 this is used as both field and accessor name, if a listref it is expected to
 be of the form [ $accessor, $field ].
-
-=head3 Return value: none
 
 =cut
 
@@ -80,13 +84,17 @@ sub mk_group_accessors {
 
 =head2 mk_group_ro_accessors
 
+=over 4
+
+=item Arguments: $group, @fieldspec
+
+Returns: none
+
+=back
+
 Creates a set of read only accessors in a given group. Identical to
 <L:/mk_group_accessors> but accessors will throw an error if passed a value
 rather than setting the value.
-
-=head3 Arguments: $group, @fieldspec
-
-=head3 Return value: none
 
 =cut
 
@@ -98,13 +106,17 @@ sub mk_group_ro_accessors {
 
 =head2 mk_group_wo_accessors
 
+=over 4
+
+=item Arguments: $group, @fieldspec
+
+Returns: none
+
+=back
+
 Creates a set of write only accessors in a given group. Identical to
 <L:/mk_group_accessors> but accessors will throw an error if not passed a
 value rather than getting the value.
-
-=head3 Arguments: $group, @fieldspec
-
-=head3 Return value: none
 
 =cut
 
@@ -116,12 +128,16 @@ sub mk_group_wo_accessors {
 
 =head2 make_group_accessor
 
+=over 4
+
+=item Arguments: $group, $field
+
+Returns: $sub (\CODE)
+
+=back
+
 Returns a single accessor in a given group; called by mk_group_accessors
 for each entry in @fieldspec.
-
-=head3 Arguments: $group, $field
-
-=head3 Return value: $sub (\CODE)
 
 =cut
 
@@ -146,12 +162,16 @@ sub make_group_accessor {
 
 =head2 make_group_ro_accessor
 
+=over 4
+
+=item Arguments: $group, $field
+
+Returns: $sub (\CODE)
+
+=back
+
 Returns a single read-only accessor in a given group; called by
 mk_group_ro_accessors for each entry in @fieldspec.
-
-=head3 Arguments: $group, $field
-
-=head3 Return value: $sub (\CODE)
 
 =cut
 
@@ -176,12 +196,16 @@ sub make_group_ro_accessor {
 
 =head2 make_group_wo_accessor
 
+=over 4
+
+=item Arguments: $group, $field
+
+Returns: $sub (\CODE)
+
+=back
+
 Returns a single write-only accessor in a given group; called by
 mk_group_wo_accessors for each entry in @fieldspec.
-
-=head3 Arguments: $group, $field
-
-=head3 Return value: $sub (\CODE)
 
 =cut
 
@@ -206,12 +230,16 @@ sub make_group_wo_accessor {
 
 =head2 get_simple
 
+=over 4
+
+=item Arguments: $field
+
+Returns: $value
+
+=back
+
 Simple getter for hash-based objects which returns the value for the field
 name passed as an argument.
-
-=head3 Arguments: $field
-
-=head3 Return value: $value
 
 =cut
 
@@ -222,12 +250,16 @@ sub get_simple {
 
 =head2 set_simple
 
+=over 4
+
+=item Arguments: $field, $new_value
+
+Returns: $new_value
+
+=back
+
 Simple setter for hash-based objects which sets and then returns the value
 for the field name passed as an argument.
-
-=head3 Arguments: $field, $new_value
-
-=head3 Return value: $new_value
 
 =cut
 
@@ -238,13 +270,17 @@ sub set_simple {
 
 =head2 get_component_class
 
+=over 4
+
+=item Arguments: $name
+
+Returns: $component_class
+
+=back
+
 Returns the class name for a component; returns an object key if called on
 an object, or attempts to return classdata referenced by _$name if called
 on a class.
-
-=head3 Arguments: $name
-
-=head3 Return value: $component_class
 
 =cut
 
@@ -260,13 +296,17 @@ sub get_component_class {
 
 =head2 set_component_class
 
+=over 4
+
+=item Arguments: $name, $new_component_class
+
+Returns: $new_component_class
+
+=back
+
 Sets a component class name; attempts to require the class before setting
 but does not error if unable to do so. Sets an object key of the given name
 if called or an object or classdata called _$name if called on a class.
-
-=head3 Arguments: $name, $new_component_class
-
-=head3 Return value: $new_component_class
 
 =cut
 
@@ -277,7 +317,9 @@ sub set_component_class {
       return $self->{$set} = $val;
   } else {
       $set = "_$set";
-      return $self->can($set) ? $self->$set($val) : $self->mk_classdata($set => $val);      
+      return $self->can($set) ?
+	$self->$set($val) :
+	$self->mk_classdata($set => $val);      
   }  
 }
 

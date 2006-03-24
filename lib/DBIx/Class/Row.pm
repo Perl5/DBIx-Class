@@ -36,9 +36,11 @@ sub new {
   $class = ref $class if ref $class;
   my $new = bless { _column_data => {} }, $class;
   if ($attrs) {
-    $new->throw_exception("attrs must be a hashref") unless ref($attrs) eq 'HASH';
+    $new->throw_exception("attrs must be a hashref")
+      unless ref($attrs) eq 'HASH';
     while (my ($k, $v) = each %$attrs) {
-      $new->throw_exception("No such column $k on $class") unless $class->has_column($k);
+      $new->throw_exception("No such column $k on $class")
+	unless $class->has_column($k);
       $new->store_column($k => $v);
     }
   }
@@ -120,9 +122,9 @@ sub update {
 
   $obj->delete
 
-Deletes the object from the database. The object is still perfectly usable
-accessor-wise etc. but ->in_storage will now return 0 and the object must
-be re ->insert'ed before it can be ->update'ed
+Deletes the object from the database. The object is still perfectly usable, 
+but ->in_storage() will now return 0 and the object must re inserted using 
+->insert() before ->update() can be used on it.
 
 =cut
 
@@ -371,7 +373,11 @@ sub is_changed {
 
 =head2 register_column
 
-=head3 Arguments: ($column, $column_info)
+=over 4
+
+=item Arguments: ($column, $column_info)
+
+=back
 
   Registers a column on the class. If the column_info has an 'accessor' key,
   creates an accessor named after the value if defined; if there is no such

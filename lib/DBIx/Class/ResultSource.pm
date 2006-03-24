@@ -10,9 +10,12 @@ use Storable;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
-__PACKAGE__->mk_group_accessors('simple' =>
-  qw/_ordered_columns _columns _primaries _unique_constraints name resultset_attributes schema from _relationships/);
-__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class result_class/);
+__PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
+  _columns _primaries _unique_constraints name resultset_attributes
+  schema from _relationships/);
+
+__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
+  result_class/);
 
 =head1 NAME 
 
@@ -196,13 +199,19 @@ Returns all column names in the order they were declared to add_columns
 
 sub columns {
   my $self = shift;
-  $self->throw_exception("columns() is a read-only accessor, did you mean add_columns()?") if (@_ > 1);
+  $self->throw_exception(
+    "columns() is a read-only accessor, did you mean add_columns()?"
+  ) if (@_ > 1);
   return @{$self->{_ordered_columns}||[]};
 }
 
 =head2 set_primary_key
 
-=head3 Arguments: (@cols)
+=over 4
+
+=item Arguments: (@cols)
+
+=back
 
 Defines one or more columns as primary key for this source. Should be
 called after C<add_columns>.
@@ -242,8 +251,12 @@ Declare a unique constraint on this source. Call once for each unique
 constraint. Unique constraints are used when you call C<find> on a
 L<DBIx::Class::ResultSet>, only columns in the constraint are searched,
 
-  # For e.g. UNIQUE (column1, column2)
-  __PACKAGE__->add_unique_constraint(constraint_name => [ qw/column1 column2/ ]);
+e.g.,
+
+  # For UNIQUE (column1, column2)
+  __PACKAGE__->add_unique_constraint(
+    constraint_name => [ qw/column1 column2/ ],
+  );
 
 =cut
 
@@ -354,7 +367,8 @@ relationship.
 
 sub add_relationship {
   my ($self, $rel, $f_source_name, $cond, $attrs) = @_;
-  $self->throw_exception("Can't create relationship without join condition") unless $cond;
+  $self->throw_exception("Can't create relationship without join condition")
+    unless $cond;
   $attrs ||= {};
 
   my %rels = %{ $self->_relationships };
@@ -404,7 +418,11 @@ sub relationships {
 
 =head2 relationship_info
 
-=head3 Arguments: ($relname)
+=over 4
+
+=item Arguments: ($relname)
+
+=back
 
 Returns the relationship information for the specified relationship name
 
@@ -417,7 +435,11 @@ sub relationship_info {
 
 =head2 has_relationship
 
-=head3 Arguments: ($rel)
+=over 4
+
+=item Arguments: ($rel)
+
+=back
 
 Returns 1 if the source has a relationship of this name, 0 otherwise.
 
@@ -430,7 +452,11 @@ sub has_relationship {
 
 =head2 resolve_join
 
-=head3 Arguments: ($relation)
+=over 4
+
+=item Arguments: ($relation)
+
+=back
 
 Returns the join structure required for the related result source
 
@@ -465,7 +491,11 @@ sub resolve_join {
 
 =head2 resolve_condition
 
-=head3 Arguments: ($cond, $as, $alias|$object)
+=over 4
+
+=item Arguments: ($cond, $as, $alias|$object)
+
+=back
 
 Resolves the passed condition to a concrete query fragment. If given an alias,
 returns a join condition; if given an object, inverts that object to produce
@@ -480,8 +510,10 @@ sub resolve_condition {
     my %ret;
     while (my ($k, $v) = each %{$cond}) {
       # XXX should probably check these are valid columns
-      $k =~ s/^foreign\.// || $self->throw_exception("Invalid rel cond key ${k}");
-      $v =~ s/^self\.// || $self->throw_exception("Invalid rel cond val ${v}");
+      $k =~ s/^foreign\.// ||
+	$self->throw_exception("Invalid rel cond key ${k}");
+      $v =~ s/^self\.// ||
+	$self->throw_exception("Invalid rel cond val ${v}");
       if (ref $for) { # Object
         #warn "$self $k $for $v";
         $ret{$k} = $for->get_column($v);
@@ -502,7 +534,11 @@ sub resolve_condition {
 
 =head2 resolve_prefetch
 
-=head3 Arguments: (hashref/arrayref/scalar)
+=over 4
+
+=item Arguments: (hashref/arrayref/scalar)
+
+=back
 
 Accepts one or more relationships for the current source and returns an
 array of column names for each of those relationships. Column names are
@@ -603,7 +639,11 @@ sub resolve_prefetch {
 
 =head2 related_source
 
-=head3 Arguments: ($relname)
+=over 4
+
+=item Arguments: ($relname)
+
+=back
 
 Returns the result source object for the given relationship
 
@@ -619,7 +659,11 @@ sub related_source {
 
 =head2 related_class
 
-=head3 Arguments: ($relname)
+=over 4
+
+=item Arguments: ($relname)
+
+=back
 
 Returns the class object for the given relationship
 
@@ -656,9 +700,15 @@ Specify here any attributes you wish to pass to your specialised resultset.
 
 sub resultset {
   my $self = shift;
-  $self->throw_exception('resultset does not take any arguments. If you want another resultset, call it on the schema instead.') if scalar @_;
-  return $self->{_resultset} if ref $self->{_resultset} eq $self->resultset_class;
-  return $self->{_resultset} = $self->resultset_class->new($self, $self->{resultset_attributes});
+  $self->throw_exception(
+    'resultset does not take any arguments. If you want another resultset, '.
+    'call it on the schema instead.'
+  ) if scalar @_;
+  return $self->{_resultset}
+    if ref $self->{_resultset} eq $self->resultset_class;
+  return $self->{_resultset} = $self->resultset_class->new(
+    $self, $self->{resultset_attributes}
+  );
 }
 
 =head2 throw_exception

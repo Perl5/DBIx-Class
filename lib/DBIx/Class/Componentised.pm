@@ -1,6 +1,9 @@
 package # hide from PAUSE 
     DBIx::Class::Componentised;
 
+use strict;
+use warnings;
+
 use Class::C3;
 
 sub inject_base {

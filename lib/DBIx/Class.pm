@@ -47,8 +47,7 @@ Create a base schema class called DB/Main.pm:
 
   1;
 
-Create a class the represent artists, who have many
-CDs, in DB/Main/Artist.pm:
+Create a class that represent artists, who have many CDs, in DB/Main/Artist.pm:
 
   package DB::Main::Artist;
   use base qw/DBIx::Class/;
@@ -61,8 +60,7 @@ CDs, in DB/Main/Artist.pm:
 
   1;
 
-A class to represent a CD, which belongs to an
-artist, in DB/Main/CD.pm:
+A class to represent a CD, which belongs to an artist, in DB/Main/CD.pm:
 
   package DB::Main::CD;
   use base qw/DBIx::Class/;
@@ -86,13 +84,13 @@ Then you can use these classes in your application's code:
   my $all_artists_rs = $ds->resultset('Artist');
 
   # Create a result set to search for artists.
-  # This does not query the DB, yet.
+  # This does not query the DB.
   my $johns_rs = $ds->resultset('Artist')->search(
     # Build your WHERE using an SQL::Abstract structure:
     { 'name' => { 'like', 'John%' } }
   );
 
-  # Now the query is executed.
+  # This executes a joined query to get the cds
   my @all_john_cds = $johns_rs->search_related('cds')->all;
 
   # Queries but only fetches one row so far.
@@ -103,12 +101,12 @@ Then you can use these classes in your application's code:
     { order_by => 'title' }
   );
 
-  my $millenium_cds_rs = $ds->resultset('CD')->search(
+  my $millennium_cds_rs = $ds->resultset('CD')->search(
     { year => 2000 },
     { prefetch => 'artist' }
   );
 
-  my $cd = $millenium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
+  my $cd = $millennium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
   my $cd_artist_name = $cd->artist->name; # Already has the data so no query
 
   my $new_cd = $ds->resultset('CD')->new({ title => 'Spoon' });
@@ -118,7 +116,7 @@ Then you can use these classes in your application's code:
 
   $ds->txn_do(sub { $new_cd->update }); # Runs the update in a transaction
 
-  $millenium_cds_rs->update({ year => 2002 }); # Single-query bulk update
+  $millennium_cds_rs->update({ year => 2002 }); # Single-query bulk update
 
 =head1 DESCRIPTION
 
@@ -132,7 +130,7 @@ JOIN, LEFT JOIN, COUNT, DISTINCT, GROUP BY and HAVING support.
 
 DBIx::Class can handle multi-column primary and foreign keys, complex
 queries and database-level paging, and does its best to only query the
-database when it actually needs to in order to return something the user's
+database when it actually needs to in order to return something you've directly
 asked for. If a resultset is used as an iterator it only fetches rows off
 the statement handle as requested in order to minimise memory usage. It
 has auto-increment support for SQLite, MySQL, PostgreSQL, Oracle, SQL
@@ -146,10 +144,11 @@ into trouble, and beware of anything explicitly marked EXPERIMENTAL. Failing
 test cases are *always* welcome and point releases are put out rapidly as
 bugs are found and fixed.
 
-Even so, we do your best to maintain full backwards compatibility for published
+Even so, we do our best to maintain full backwards compatibility for published
 APIs since DBIx::Class is used in production in a number of organisations;
 the test suite is now fairly substantial and several developer releases are
-generally made to CPAN before the -current branch is merged back to trunk.
+generally made to CPAN before the -current branch is merged back to trunk for
+a major release.
 
 The community can be found via -
 
@@ -187,59 +186,59 @@ The community can be found via -
 
 =head1 AUTHOR
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+mst: Matt S. Trout <mst@shadowcatsystems.co.uk>
 
 =head1 CONTRIBUTORS
 
-Alexander Hartmaier <alex_hartmaier@hotmail.com>
+abraxxa: Alexander Hartmaier <alex_hartmaier@hotmail.com>
 
-Andy Grundman <andy@hybridized.org>
+andyg: Andy Grundman <andy@hybridized.org>
 
-Andres Kievsky
+ank: Andres Kievsky
 
-Brandon Black
+blblack: Brandon Black
 
-Brian Cassidy <bricas@cpan.org>
+LTJake: Brian Cassidy <bricas@cpan.org>
 
-Christopher H. Laco
+claco: Christopher H. Laco
 
-CL Kao
+clkao: CL Kao
 
-Daisuke Murase <typester@cpan.org>
+typester: Daisuke Murase <typester@cpan.org>
 
-Dan Kubb <dan.kubb-cpan@onautopilot.com>
+dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
-Dan Sully <daniel@cpan.org>
+Numa: Dan Sully <daniel@cpan.org>
 
-Daniel Westermann-Clark <danieltwc@cpan.org>
+dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
-David Kamholz <dkamholz@cpan.org>
+ningu: David Kamholz <dkamholz@cpan.org>
 
-Jesper Krogh
+jesper: Jesper Krogh
 
-Jess Robinson
+castaway: Jess Robinson
 
-Jules Bean
+quicksilver: Jules Bean
 
-Justin Guenther <guentherj@agr.gc.ca>
+jguenther: Justin Guenther <guentherj@agr.gc.ca>
 
-Marcus Ramberg <mramberg@cpan.org>
+draven: Marcus Ramberg <mramberg@cpan.org>
 
-Nigel Metheringham <nigelm@cpan.org>
+nigel: Nigel Metheringham <nigelm@cpan.org>
 
-Paul Makepeace
+paulm: Paul Makepeace
 
-Robert Sedlacek <phaylon@dunkelheit.at>
+phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
-sc_ of irc.perl.org#dbix-class
+sc_: Just Another Perl Hacker
 
-Scott McWhirter (konobi)
+konobi: Scott McWhirter
 
-Scotty Allen <scotty@scottyallen.com>
+scotty: Scotty Allen <scotty@scottyallen.com>
 
 Todd Lipcon
 
-Will Hawes
+wdh: Will Hawes
 
 =head1 LICENSE
 

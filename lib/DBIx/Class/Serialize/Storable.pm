@@ -1,5 +1,6 @@
 package DBIx::Class::Serialize::Storable;
 use strict;
+use warnings;
 use Storable;
 
 sub STORABLE_freeze {

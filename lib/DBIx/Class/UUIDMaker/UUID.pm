@@ -1,4 +1,8 @@
 package DBIx::Class::UUIDMaker::UUID;
+
+use strict;
+use warnings;
+
 use base qw/DBIx::Class::UUIDMaker/;
 use UUID ();
 

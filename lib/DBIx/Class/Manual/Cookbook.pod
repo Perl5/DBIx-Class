@@ -393,7 +393,7 @@ example of the recommended way to use it:
     $genus->add_to_species({ name => 'troglodyte' });
     $genus->wings(2);
     $genus->update;
-    $schema->txn_do($code, $genus); # Can have a nested transation
+    $schema->txn_do($code, $genus); # Can have a nested transaction
     return $genus->species;
   };
 
@@ -542,7 +542,7 @@ instead:
   print $output;
 
 You could use L<Module::Find> to search for all subclasses in the MyDB::*
-namespace, which is currently left as an excercise for the reader.
+namespace, which is currently left as an exercise for the reader.
 
 =head2 Schema versioning
 
@@ -657,7 +657,7 @@ The first sets the quotesymbols. If the quote i "symmetric" as " or '
   
   __PACKAGE__->storage->sql_maker->quote_char('"');
 
-is enough. If the left qoute differs form the right quote, the first 
+is enough. If the left quote differs form the right quote, the first 
 notation should be used. name_sep needs to be set to allow the 
 SQL generator to put the quotes the correct place. 
 

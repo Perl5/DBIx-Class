@@ -21,14 +21,18 @@ methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
 =head2 add_relationship
 
-=head3 Arguments: ('relname', 'Foreign::Class', $cond, $attrs)
+=over 4
+
+=item Arguments: ('relname', 'Foreign::Class', $cond, $attrs)
+
+=back
 
   __PACKAGE__->add_relationship('relname', 'Foreign::Class', $cond, $attrs);
 
 The condition needs to be an SQL::Abstract-style representation of the
 join between the tables. When resolving the condition for use in a JOIN,
-keys using the psuedo-table I<foreign> are resolved to mean "the Table on the
-other side of the relationship", and values using the psuedo-table I<self>
+keys using the pseudo-table I<foreign> are resolved to mean "the Table on the
+other side of the relationship", and values using the pseudo-table I<self>
 are resolved to mean "the Table this class is representing". Other
 restrictions, such as by value, sub-select and other tables, may also be
 used. Please check your database for JOIN parameter support.
@@ -62,9 +66,10 @@ command immediately before C<JOIN>.
 An arrayref containing a list of accessors in the foreign class to create in
 the main class. If, for example, you do the following:
   
-  MyDB::Schema::CD->might_have(liner_notes => 'MyDB::Schema::LinerNotes', undef, {
-    proxy => [ qw/notes/ ],
-  });
+  MyDB::Schema::CD->might_have(liner_notes => 'MyDB::Schema::LinerNotes',
+    undef, {
+      proxy => [ qw/notes/ ],
+    });
   
 Then, assuming MyDB::Schema::LinerNotes has an accessor named notes, you can do:
 
@@ -85,7 +90,11 @@ created, which calls C<create_related> for the relationship.
 
 =head2 register_relationship
 
-=head3 Arguments: ($relname, $rel_info)
+=over 4
+
+=item Arguments: ($relname, $rel_info)
+
+=back
 
 Registers a relationship on the class. This is called internally by
 L<DBIx::Class::ResultSourceProxy> to set up Accessors and Proxies.
@@ -94,11 +103,20 @@ L<DBIx::Class::ResultSourceProxy> to set up Accessors and Proxies.
 
 sub register_relationship { }
 
-=head2 related_resultset($name)
+=head2 related_resultset
 
-  $rs = $obj->related_resultset('related_table');
+=over 4
 
-Returns a L<DBIx::Class::ResultSet> for the relationship named $name.
+=item Arguments: ($relationship_name)
+
+=item Returns: $related_resultset
+
+=back
+
+  $rs = $cd->related_resultset('artist');
+
+Returns a L<DBIx::Class::ResultSet> for the relationship named
+$relationship_name.
 
 =cut
 
@@ -160,7 +178,7 @@ sub search_related {
 
 Returns the count of all the items in the related resultset, restricted by the
 current item or where conditions. Can be called on a
-L<DBIx::Classl::Manual::Glossary/"ResultSet"> or a
+L<DBIx::Class::Manual::Glossary/"ResultSet"> or a
 L<DBIx::Class::Manual::Glossary/"Row"> object.
 
 =cut
@@ -175,9 +193,9 @@ sub count_related {
   my $new_obj = $obj->new_related('relname', \%col_data);
 
 Create a new item of the related foreign class. If called on a
-L<DBIx::Class::Manual::Glossary/"Row"> object, it will magically
-set any primary key values into foreign key columns for you. The newly
-created item will not be saved into your storage until you call C<insert>
+L<DBIx::Class::Manual::Glossary/"Row"> object, it will magically set any
+primary key values into foreign key columns for you. The newly created item
+will not be saved into your storage until you call L<DBIx::Class::Row/insert>
 on it.
 
 =cut
@@ -210,7 +228,7 @@ sub create_related {
   my $found_item = $obj->find_related('relname', @pri_vals | \%pri_vals);
 
 Attempt to find a related object using its primary key or unique constraints.
-See C<find> in L<DBIx::Class::ResultSet> for details.
+See L<DBIx::Class::ResultSet/find> for details.
 
 =cut
 
@@ -224,8 +242,8 @@ sub find_related {
 
   my $new_obj = $obj->find_or_create_related('relname', \%col_data);
 
-Find or create an item of a related class. See C<find_or_create> in
-L<DBIx::Class::ResultSet> for details.
+Find or create an item of a related class. See
+L<DBIx::Class::ResultSet/"find_or_create"> for details.
 
 =cut
 
@@ -243,8 +261,8 @@ related object. This is used to associate previously separate objects, for
 example, to set the correct author for a book, find the Author object, then
 call set_from_related on the book.
 
-The columns are only set in the local copy of the object, call C<update> to set
-them in the storage.
+The columns are only set in the local copy of the object, call L</update> to
+set them in the storage.
 
 =cut
 
@@ -271,8 +289,8 @@ sub set_from_related {
 
   $book->update_from_related('author', $author_obj);
 
-As C<set_from_related>, but the changes are immediately updated onto your
-storage.
+The same as L</"set_from_related">, but the changes are immediately updated
+in storage.
 
 =cut
 

@@ -4,7 +4,7 @@ DBIx::Class::Manual::Example - Simple CD database example
 
 =head1 DESCRIPTION
 
-This tutorial will guide you through the proeccess of setting up and
+This tutorial will guide you through the process of setting up and
 testing a very basic CD database using SQLite, with DBIx::Class::Schema
 as the database frontend.
 
@@ -340,7 +340,7 @@ It should output:
 
 With these scripts we're relying on @INC looking in the current
 working directory.  You may want to add the MyDatabase namespaces to
-@INC in a different way when it comes to deployemnt.
+@INC in a different way when it comes to deployment.
 
 The testdb.pl script is an excellent start for testing your database
 model.

@@ -1,6 +1,9 @@
 package # hide from PAUSE 
     DBIx::Class::CDBICompat::AttributeAPI;
 
+use strict;
+use warnings;
+
 sub _attrs {
   my ($self, @atts) = @_;
   return @{$self->{_column_data}}{@atts};
