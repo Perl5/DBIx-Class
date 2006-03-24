@@ -36,9 +36,11 @@ sub new {
   $class = ref $class if ref $class;
   my $new = bless { _column_data => {} }, $class;
   if ($attrs) {
-    $new->throw_exception("attrs must be a hashref") unless ref($attrs) eq 'HASH';
+    $new->throw_exception("attrs must be a hashref")
+      unless ref($attrs) eq 'HASH';
     while (my ($k, $v) = each %$attrs) {
-      $new->throw_exception("No such column $k on $class") unless $class->has_column($k);
+      $new->throw_exception("No such column $k on $class")
+	unless $class->has_column($k);
       $new->store_column($k => $v);
     }
   }
@@ -371,7 +373,11 @@ sub is_changed {
 
 =head2 register_column
 
-=head3 Arguments: ($column, $column_info)
+=over 4
+
+=item Arguments: ($column, $column_info)
+
+=back
 
   Registers a column on the class. If the column_info has an 'accessor' key,
   creates an accessor named after the value if defined; if there is no such

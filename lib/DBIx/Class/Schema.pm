@@ -57,7 +57,11 @@ particular which module inherits off which.
 
 =head2 register_class
 
-=head3 Arguments: ($moniker, $component_class)
+=over 4
+
+=item Arguments: ($moniker, $component_class)
+
+=back
 
 Registers a class which isa L<DBIx::Class::ResultSourceProxy>. Equivalent to
 calling
@@ -73,7 +77,11 @@ sub register_class {
 
 =head2 register_source
 
-=head3 Arguments: ($moniker, $result_source)
+=over 4
+
+=item Arguments: ($moniker, $result_source)
+
+=back
 
 Registers the L<DBIx::Class::ResultSource> in the schema with the given
 moniker.
@@ -95,9 +103,13 @@ sub register_source {
 
 =head2 class
 
-=head3 Arguments: ($moniker)
+=over 4
 
-=head3 Returns: $classname
+=item Arguments: ($moniker)
+
+=item Returns: $classname
+
+=back
 
 Retrieves the result class name for the given moniker.
 
@@ -114,9 +126,13 @@ sub class {
 
 =head2 source
 
-=head3 Arguments: ($moniker)
+=over 4
 
-=head3 Returns: $result_source
+=item Arguments: ($moniker)
+
+=item Returns: $result_source
+
+=back
 
   my $source = $schema->source('Book');
 
@@ -138,7 +154,11 @@ sub source {
 
 =head2 sources
 
-=head3 Returns: @source_monikers
+=over 4
+
+=item Returns: @source_monikers
+
+=back
 
 Returns the source monikers of all source registrations on this schema.
 
@@ -152,9 +172,13 @@ sub sources { return keys %{shift->source_registrations}; }
 
 =head2 resultset
 
-=head3 Arguments: ($moniker)
+=over 4
 
-=head3 Returns: $result_set
+=item Arguments: ($moniker)
+
+=item Returns: $result_set
+
+=back
 
   my $rs = $schema->resultset('DVD');
 
@@ -169,7 +193,11 @@ sub resultset {
 
 =head2 load_classes
 
-=head3 Arguments: @classes?, { $namespace => [ @classes ] }+
+=over 4
+
+=item Arguments: @classes?, { $namespace => [ @classes ] }+
+
+=back
 
 With no arguments, this method uses L<Module::Find> to find all classes under
 the schema's namespace. Otherwise, this method loads the classes you specify
@@ -256,9 +284,13 @@ sub load_classes {
 
 =head2 compose_connection
 
-=head3 Arguments: ($target_namespace, @db_info)
+=over 4
 
-=head3 Returns: $new_schema
+=item Arguments: ($target_namespace, @db_info)
+
+=item Returns: $new_schema
+
+=back
 
 Calls L<DBIx::Class::schema/"compose_namespace"> to the target namespace,
 calls L<DBIx::Class::Schema/connection>(@db_info) on the new schema, then
@@ -315,9 +347,13 @@ sub compose_connection {
 
 =head2 compose_namespace
 
-=head3 Arguments: $target_namespace, $additional_base_class?
+=over 4
 
-=head3 Returns: $new_schema
+=item Arguments: $target_namespace, $additional_base_class?
+
+=item Returns: $new_schema
+
+=back
 
 For each L<DBIx::Class::ResultSource> in the schema, this method creates a
 class in the target namespace (e.g. $target_namespace::CD,
@@ -373,7 +409,11 @@ sub compose_namespace {
 
 =head2 setup_connection_class
 
-=head3 Arguments: ($target, @info)
+=over 4
+
+=item Arguments: ($target, @info)
+
+=back
 
 Sets up a database connection class to inject between the schema and the
 subclasses that the schema creates.
@@ -389,9 +429,13 @@ sub setup_connection_class {
 
 =head2 connection
 
-=head3 Arguments: (@args)
+=over 4
 
-=head3 Returns: $new_schema
+=item Arguments: (@args)
+
+=item Returns: $new_schema
+
+=back
 
 Instantiates a new Storage object of type
 L<DBIx::Class::Schema/"storage_type"> and passes the arguments to
@@ -418,9 +462,13 @@ sub connection {
 
 =head2 connect
 
-=head3 Arguments: (@info)
+=over 4
 
-=head3 Returns: $new_schema
+=item Arguments: (@info)
+
+=item Returns: $new_schema
+
+=back
 
 This is a convenience method. It is equivalent to calling
 $schema->clone->connection(@info). See L</connection> and L</clone> for more
@@ -462,10 +510,13 @@ sub txn_rollback { shift->storage->txn_rollback }
 
 =head2 txn_do
 
-=head3 Arguments: (C<$coderef>, @coderef_args?)
+=over 4
 
-=head3 Returns: (C<$return_value> | C<@return_values> | C<undef>) for scalar,
-list and void contexts, respectively
+=item Arguments: (C<$coderef>, @coderef_args?)
+
+=item Returns: The return value of $coderef
+
+=back
 
 Executes C<$coderef> with (optional) arguments C<@coderef_args> atomically,
 returning its result (if any). If an exception is caught, a rollback is issued
@@ -566,7 +617,11 @@ sub txn_do {
 
 =head2 clone
 
-=head3 Returns: $new_schema
+=over 4
+
+=item Returns: $new_schema
+
+=back
 
 Clones the schema and its associated result_source objects and returns the
 copy.
@@ -586,7 +641,11 @@ sub clone {
 
 =head2 populate
 
-=head3 Arguments: ($moniker, \@data);
+=over 4
+
+=item Arguments: ($moniker, \@data);
+
+=back
 
 Populates the source registered with the given moniker with the supplied data.
 @data should be a list of listrefs -- the first containing column names, the
