@@ -57,9 +57,10 @@ particular which module inherits off which.
 
 =head2 register_class
 
-=head3 Arguments: <moniker> <component_class>
+=head3 Arguments: ($moniker, $component_class)
 
-Registers a class which isa ResultSourceProxy; equivalent to calling
+Registers a class which isa L<DBIx::Class::ResultSourceProxy>. Equivalent to
+calling
 
   $schema->register_source($moniker, $component_class->result_source_instance);
 
@@ -72,9 +73,10 @@ sub register_class {
 
 =head2 register_source
 
-=head3 Arguments: <moniker> <result source>
+=head3 Arguments: ($moniker, $result_source)
 
-Registers the result source in the schema with the given moniker
+Registers the L<DBIx::Class::ResultSource> in the schema with the given
+moniker.
 
 =cut
 
@@ -93,9 +95,15 @@ sub register_source {
 
 =head2 class
 
-  my $class = $schema->class('CD');
+=head3 Arguments: ($moniker)
 
-Retrieves the result class name for a given result source
+=head3 Returns: $classname
+
+Retrieves the result class name for the given moniker.
+
+e.g.,
+
+  my $class = $schema->class('CD');
 
 =cut
 
@@ -106,9 +114,13 @@ sub class {
 
 =head2 source
 
+=head3 Arguments: ($moniker)
+
+=head3 Returns: $result_source
+
   my $source = $schema->source('Book');
 
-Returns the result source object for the registered name
+Returns the L<DBIx::Class::ResultSource> object for the registered moniker.
 
 =cut
 
@@ -126,9 +138,13 @@ sub source {
 
 =head2 sources
 
-  my @source_monikers = $schema->sources;
+=head3 Returns: @source_monikers
 
-Returns the source monikers of all source registrations on this schema
+Returns the source monikers of all source registrations on this schema.
+
+e.g.,
+
+  my @source_monikers = $schema->sources;
 
 =cut
 
@@ -136,9 +152,13 @@ sub sources { return keys %{shift->source_registrations}; }
 
 =head2 resultset
 
+=head3 Arguments: ($moniker)
+
+=head3 Returns: $result_set
+
   my $rs = $schema->resultset('DVD');
 
-Returns the resultset for the registered moniker
+Returns the L<DBIx::Class::ResultSet> object for the registered moniker.
 
 =cut
 
@@ -149,15 +169,26 @@ sub resultset {
 
 =head2 load_classes
 
-=head3 Arguments: @classes?, { $namespace => [ $class+ ] }+
+=head3 Arguments: @classes?, { $namespace => [ @classes ] }+
 
-Uses L<Module::Find> to find all classes under the database class' namespace,
-or uses the classes you select.  Then it loads the component (using L<use>), 
-and registers them (using B<register_class>);
+With no arguments, this method uses L<Module::Find> to find all classes under
+the schema's namespace. Otherwise, this method loads the classes you specify
+(using L<use>), and registers them (using L</"register_class">).
 
 It is possible to comment out classes with a leading '#', but note that perl
 will think it's a mistake (trying to use a comment in a qw list) so you'll
 need to add "no warnings 'qw';" before your load_classes call.
+
+e.g.,
+
+  My::Schema->load_classes(); # loads My::Schema::CD, My::Schema::Artist,
+			      # etc. (anything under the My::Schema namespace)
+
+  # loads My::Schema::CD, My::Schema::Artist, Other::Namespace::Producer but
+  # not Other::Namespace::LinerNotes nor My::Schema::Track
+  My::Schema->load_classes(qw/ CD Artist #Track /, {
+    Other::Namespace => [qw/ Producer #LinerNotes /],
+  });
 
 =cut
 
@@ -225,16 +256,21 @@ sub load_classes {
 
 =head2 compose_connection
 
-=head3 Arguments: $target_ns, @db_info
+=head3 Arguments: ($target_namespace, @db_info)
 
-=head3 Return value: $new_schema
+=head3 Returns: $new_schema
 
-Calls compose_namespace to the $target_ns, calls ->connection(@db_info) on
-the new schema, then injects the ResultSetProxy component and a
-resultset_instance classdata entry on all the new classes in order to support
-$target_ns::Class->search(...) method calls. Primarily useful when you have
-a specific need for classmethod access to a connection - in normal usage
-->connect is preferred.
+Calls L<DBIx::Class::schema/"compose_namespace"> to the target namespace,
+calls L<DBIx::Class::Schema/connection>(@db_info) on the new schema, then
+injects the L<DBix::Class::ResultSetProxy> component and a resultset_instance
+classdata entry on all the new classes in order to support
+$target_namespaces::$class->search(...) method calls.
+
+This is primarily useful when you have a specific need for class method access
+to a connection. In normal usage it is preferred to call
+L<DBIx::Class::Schema/connect> and use the resulting schema object to operate
+on L<DBIx::Class::ResultSet> objects with L<DBIx::Class::Schema/resultset> for
+more information.
 
 =cut
 
@@ -279,16 +315,30 @@ sub compose_connection {
 
 =head2 compose_namespace
 
-=head3 Arguments: $target_ns, $additional_base_class?
+=head3 Arguments: $target_namespace, $additional_base_class?
 
-=head3 Return value: $new_schema
+=head3 Returns: $new_schema
 
-For each result source in the schema, creates a class in the target
-namespace (e.g. $target_ns::CD, $target_ns::Artist) inheriting from the
-corresponding classes attached to the current schema and a result source
-to match attached to the new $schema object. If an additional base class is
-given, injects this immediately behind the corresponding classes from the
-current schema in the created classes' @ISA.
+For each L<DBIx::Class::ResultSource> in the schema, this method creates a
+class in the target namespace (e.g. $target_namespace::CD,
+$target_namespace::Artist) that inherits from the corresponding classes
+attached to the current schema.
+
+It also attaches a corresponding L<DBIx::Class::ResultSource> object to the
+new $schema object. If C<$additional_base_class> is given, the new composed
+classes will inherit from first the corresponding classe from the current
+schema then the base class.
+
+e.g. (for a schema with My::Schema::CD and My::Schema::Artist classes),
+
+  $schema->compose_namespace('My::DB', 'Base::Class');
+  print join (', ', @My::DB::CD::ISA) . "\n";
+  print join (', ', @My::DB::Artist::ISA) ."\n";
+
+Will produce the output
+
+  My::Schema::CD, Base::Class
+  My::Schema::Artist, Base::Class
 
 =cut
 
@@ -323,10 +373,10 @@ sub compose_namespace {
 
 =head2 setup_connection_class
 
-=head3 Arguments: <$target> <@info>
+=head3 Arguments: ($target, @info)
 
-Sets up a database connection class to inject between the schema
-and the subclasses the schema creates.
+Sets up a database connection class to inject between the schema and the
+subclasses that the schema creates.
 
 =cut
 
@@ -341,9 +391,12 @@ sub setup_connection_class {
 
 =head3 Arguments: (@args)
 
-Instantiates a new Storage object of type storage_type and passes the
-arguments to $storage->connect_info. Sets the connection in-place on
-the schema.
+=head3 Returns: $new_schema
+
+Instantiates a new Storage object of type
+L<DBIx::Class::Schema/"storage_type"> and passes the arguments to
+$storage->connect_info. Sets the connection in-place on the schema. See
+L<DBIx::Class::Storage::DBI/"connect_info"> for more information.
 
 =cut
 
@@ -367,7 +420,11 @@ sub connection {
 
 =head3 Arguments: (@info)
 
-Conveneience method, equivalent to $schema->clone->connection(@info)
+=head3 Returns: $new_schema
+
+This is a convenience method. It is equivalent to calling
+$schema->clone->connection(@info). See L</connection> and L</clone> for more
+information.
 
 =cut
 
@@ -375,7 +432,9 @@ sub connect { shift->clone->connection(@_) }
 
 =head2 txn_begin
 
-Begins a transaction (does nothing if AutoCommit is off).
+Begins a transaction (does nothing if AutoCommit is off). Equivalent to
+calling $schema->storage->txn_begin. See
+L<DBIx::Class::Storage::DBI/"txn_begin"> for more information.
 
 =cut
 
@@ -383,7 +442,9 @@ sub txn_begin { shift->storage->txn_begin }
 
 =head2 txn_commit
 
-Commits the current transaction.
+Commits the current transaction. Equivalent to calling
+$schema->storage->txn_commit. See L<DBIx::Class::Storage::DBI/"txn_commit">
+for more information.
 
 =cut
 
@@ -391,7 +452,9 @@ sub txn_commit { shift->storage->txn_commit }
 
 =head2 txn_rollback
 
-Rolls back the current transaction.
+Rolls back the current transaction. Equivalent to calling
+$schema->storage->txn_rollback. See
+L<DBIx::Class::Storage::DBI/"txn_rollback"> for more information.
 
 =cut
 
@@ -399,13 +462,15 @@ sub txn_rollback { shift->storage->txn_rollback }
 
 =head2 txn_do
 
-=head3 Arguments: $coderef, @coderef_args?
+=head3 Arguments: (C<$coderef>, @coderef_args?)
 
-Executes C<$coderef> with (optional) arguments C<@coderef_args>
-transactionally, returning its result (if any). If an exception is
-caught, a rollback is issued and the exception is rethrown. If the
-rollback fails, (i.e. throws an exception) an exception is thrown that
-includes a "Rollback failed" message.
+=head3 Returns: (C<$return_value> | C<@return_values> | C<undef>) for scalar,
+list and void contexts, respectively
+
+Executes C<$coderef> with (optional) arguments C<@coderef_args> atomically,
+returning its result (if any). If an exception is caught, a rollback is issued
+and the exception is rethrown. If the rollback fails, (i.e. throws an
+exception) an exception is thrown that includes a "Rollback failed" message.
 
 For example,
 
@@ -436,10 +501,10 @@ For example,
     }
   }
 
-Nested transactions work as expected (i.e. only the outermost
-transaction will issue a txn_commit on the Schema's storage), and
-txn_do() can be called in void, scalar and list context and it will
-behave as expected.
+In a nested transaction (calling txn_do() from within a txn_do() coderef) only
+the outermost transaction will issue a L<DBIx::Class::Schema/"txn_commit"> on
+the Schema's storage, and txn_do() can be called in void, scalar and list
+context and it will behave as expected.
 
 =cut
 
@@ -458,11 +523,10 @@ sub txn_do {
   my $wantarray = wantarray; # Need to save this since the context
 			     # inside the eval{} block is independent
 			     # of the context that called txn_do()
-
   eval {
+
     # Need to differentiate between scalar/list context to allow for
     # returning a list in scalar context to get the size of the list
-
     if ($wantarray) {
       # list context
       @return_values = $coderef->(@args);
@@ -502,6 +566,8 @@ sub txn_do {
 
 =head2 clone
 
+=head3 Returns: $new_schema
+
 Clones the schema and its associated result_source objects and returns the
 copy.
 
@@ -523,8 +589,10 @@ sub clone {
 =head3 Arguments: ($moniker, \@data);
 
 Populates the source registered with the given moniker with the supplied data.
-@data should be a list of listrefs, the first containing column names, the
-second matching values - i.e.
+@data should be a list of listrefs -- the first containing column names, the
+second matching values.
+
+i.e.,
 
   $schema->populate('Artist', [
     [ qw/artistid name/ ],
@@ -550,7 +618,14 @@ sub populate {
 
 =head2 throw_exception
 
-Defaults to using Carp::Clan to report errors from user perspective.
+=over 4 
+
+=item Arguments: ($message)
+
+=back
+
+Throws an exception. Defaults to using L<Carp::Clan> to report errors from
+user's perspective.
 
 =cut
 
@@ -561,7 +636,13 @@ sub throw_exception {
 
 =head2 deploy (EXPERIMENTAL)
 
-Attempts to deploy the schema to the current storage using SQL::Translator.
+=over 4
+
+=item Arguments: ($sqlt_args)
+
+=back
+
+Attempts to deploy the schema to the current storage using L<SQL::Translator>.
 
 Note that this feature is currently EXPERIMENTAL and may not work correctly
 across all databases, or fully handle complex relationships.
