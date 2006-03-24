@@ -1305,7 +1305,7 @@ In simple terms, C<from> works as follows:
     [
         { <alias> => <table>, -join-type => 'inner|left|right' }
         [] # nested JOIN (optional)
-        { <table.column> = <foreign_table.foreign_key> }
+        { <table.column> => <foreign_table.foreign_key> }
     ]
 
     JOIN
