@@ -1,4 +1,8 @@
 package DBIx::Class::UUIDMaker::Win32API::GUID;
+
+use strict;
+use warnings;
+
 use base qw/DBIx::Class::UUIDMaker/;
 use Win32API::GUID ();
 

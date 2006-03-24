@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBIx::Class::ResultSetProxy;
 
+use strict;
+use warnings;
+
 use base qw/DBIx::Class/;
 
 sub search           { shift->resultset_instance->search(@_);           }

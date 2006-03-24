@@ -1,6 +1,9 @@
 package # hide from PAUSE
     DBIx::Class::Relationship::CascadeActions;
 
+use strict;
+use warnings;
+
 sub delete {
   my ($self, @rest) = @_;
   return $self->next::method(@rest) unless ref $self;

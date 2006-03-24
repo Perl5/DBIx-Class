@@ -1,4 +1,8 @@
 package DBIx::Class::UUIDMaker::Win32::Guidgen;
+
+use strict;
+use warnings;
+
 use base qw/DBIx::Class::UUIDMaker/;
 use Win32::Guidgen ();
 

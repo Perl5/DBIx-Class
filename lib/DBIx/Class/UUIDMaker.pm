@@ -1,5 +1,8 @@
 package DBIx::Class::UUIDMaker;
 
+use strict;
+use warnings;
+
 sub new {
     return bless {}, shift;
 };

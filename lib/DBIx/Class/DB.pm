@@ -1,5 +1,8 @@
 package DBIx::Class::DB;
 
+use strict;
+use warnings;
+
 use base qw/DBIx::Class/;
 use DBIx::Class::Schema;
 use DBIx::Class::Storage::DBI;
@@ -8,8 +11,11 @@ use DBI;
 
 __PACKAGE__->load_components(qw/ResultSetProxy/);
 
-*dbi_commit = \&txn_commit;
-*dbi_rollback = \&txn_rollback;
+{
+    no warnings 'once';
+    *dbi_commit = \&txn_commit;
+    *dbi_rollback = \&txn_rollback;
+}
 
 sub storage { shift->schema_instance(@_)->storage; }
 

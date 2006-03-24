@@ -1,5 +1,6 @@
 package DBIx::Class::ResultSetManager;
 use strict;
+use warnings;
 use base 'DBIx::Class';
 use Class::Inspector;
 

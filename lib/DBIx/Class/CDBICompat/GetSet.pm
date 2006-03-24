@@ -1,6 +1,9 @@
 package # hide from PAUSE 
     DBIx::Class::CDBICompat::GetSet;
 
+use strict;
+use warnings;
+
 #use base qw/Class::Accessor/;
 
 sub get {

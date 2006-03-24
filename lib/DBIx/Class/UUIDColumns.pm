@@ -1,4 +1,8 @@
 package DBIx::Class::UUIDColumns;
+
+use strict;
+use warnings;
+
 use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata( 'uuid_auto_columns' => [] );
