@@ -10,9 +10,12 @@ use Storable;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
-__PACKAGE__->mk_group_accessors('simple' =>
-  qw/_ordered_columns _columns _primaries _unique_constraints name resultset_attributes schema from _relationships/);
-__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class result_class/);
+__PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
+  _columns _primaries _unique_constraints name resultset_attributes
+  schema from _relationships/);
+
+__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
+  result_class/);
 
 =head1 NAME 
 
@@ -196,7 +199,9 @@ Returns all column names in the order they were declared to add_columns
 
 sub columns {
   my $self = shift;
-  $self->throw_exception("columns() is a read-only accessor, did you mean add_columns()?") if (@_ > 1);
+  $self->throw_exception(
+    "columns() is a read-only accessor, did you mean add_columns()?"
+  ) if (@_ > 1);
   return @{$self->{_ordered_columns}||[]};
 }
 

@@ -277,7 +277,9 @@ sub set_component_class {
       return $self->{$set} = $val;
   } else {
       $set = "_$set";
-      return $self->can($set) ? $self->$set($val) : $self->mk_classdata($set => $val);      
+      return $self->can($set) ?
+	$self->$set($val) :
+	$self->mk_classdata($set => $val);      
   }  
 }
 
