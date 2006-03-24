@@ -40,19 +40,21 @@ shouldn't have to install extra software.
 Save the following into a example.sql
 
   CREATE TABLE artist (
-  artistid INTEGER PRIMARY KEY,
-  name TEXT NOT NULL 
+    artistid INTEGER PRIMARY KEY,
+    name TEXT NOT NULL 
   );
 
   CREATE TABLE cd (
-  cdid INTEGER PRIMARY KEY,
-  artist INTEGER NOT NULL REFERENCES artist(artistid),
-  title TEXT NOT NULL);
+    cdid INTEGER PRIMARY KEY,
+    artist INTEGER NOT NULL REFERENCES artist(artistid),
+    title TEXT NOT NULL
+  );
 
   CREATE TABLE track (
-  trackid INTEGER PRIMARY KEY,
-  cd INTEGER NOT NULL REFERENCES cd(cdid),
-  title TEXT NOT NULL) ;
+    trackid INTEGER PRIMARY KEY,
+    cd INTEGER NOT NULL REFERENCES cd(cdid),
+    title TEXT NOT NULL
+  );
 
 and create the sqlite database file:
 
@@ -133,51 +135,51 @@ insertdb.pl
 
   my @artists = (['Michael Jackson'], ['Eminem']);
   $schema->populate('Artist', [
-      [qw/name/],
-      @artists,
+     [qw/name/],
+     @artists,
   ]);
 
   my %albums = (
-      'Thriller' => 'Michael Jackson',
-      'Bad' => 'Michael Jackson',
-      'The Marshall Mathers LP' => 'Eminem',
-      );
+    'Thriller' => 'Michael Jackson',
+    'Bad' => 'Michael Jackson',
+    'The Marshall Mathers LP' => 'Eminem',
+  );
 
   my @cds;
   foreach my $lp (keys %albums) {
-      my $artist = $schema->resultset('Artist')->search({
-          name => $albums{$lp}
-      });
-      push @cds, [$lp, $artist->first];
+    my $artist = $schema->resultset('Artist')->search({
+      name => $albums{$lp}
+    });
+    push @cds, [$lp, $artist->first];
   }
 
   $schema->populate('Cd', [
-      [qw/title artist/],
-      @cds,
+    [qw/title artist/],
+    @cds,
   ]);
 
 
   my %tracks = (
-      'Beat It'         => 'Thriller',
-      'Billie Jean'     => 'Thriller',
-      'Dirty Diana'     => 'Bad',
-      'Smooth Criminal' => 'Bad',
-      'Leave Me Alone'  => 'Bad',
-      'Stan'            => 'The Marshall Mathers LP',
-      'The Way I Am'    => 'The Marshall Mathers LP',
+    'Beat It'         => 'Thriller',
+    'Billie Jean'     => 'Thriller',
+    'Dirty Diana'     => 'Bad',
+    'Smooth Criminal' => 'Bad',
+    'Leave Me Alone'  => 'Bad',
+    'Stan'            => 'The Marshall Mathers LP',
+    'The Way I Am'    => 'The Marshall Mathers LP',
   );
 
   my @tracks;
   foreach my $track (keys %tracks) {
-      my $cdname = $schema->resultset('Cd')->search({
-          title => $tracks{$track},
-      });
-      push @tracks, [$cdname->first, $track];
+    my $cdname = $schema->resultset('Cd')->search({
+      title => $tracks{$track},
+    });
+    push @tracks, [$cdname->first, $track];
   }
 
   $schema->populate('Track',[
-      [qw/cd title/],
-      @tracks,
+    [qw/cd title/],
+    @tracks,
   ]);
 
 =head3 Create and run the scripts
@@ -202,109 +204,108 @@ testdb.pl:
 
 
   sub get_tracks_by_cd {
-      my $cdtitle = shift;
-      print "get_tracks_by_cd($cdtitle):\n";
-      my $rs = $schema->resultset('Track')->search(
-          {
-              'cd.title' => $cdtitle
-          },
-          {
-              join     => [qw/ cd /],
-              prefetch => [qw/ cd /]
-          }
-      );
-      while (my $track = $rs->next) {
-          print $track->title . "\n";
+    my $cdtitle = shift;
+    print "get_tracks_by_cd($cdtitle):\n";
+    my $rs = $schema->resultset('Track')->search(
+      {
+        'cd.title' => $cdtitle
+      },
+      {
+        join     => [qw/ cd /],
+        prefetch => [qw/ cd /]
       }
-      print "\n";
+    );
+    while (my $track = $rs->next) {
+      print $track->title . "\n";
+    }
+    print "\n";
   }
 
   sub get_tracks_by_artist {
-      my $artistname = shift;
-      print "get_tracks_by_artist($artistname):\n";
-      my $rs = $schema->resultset('Track')->search(
-          {
-              'artist.name' => $artistname
-          },
-          {
-              join => {
-                  'cd' => 'artist'
-              },
-          }
-      );
-      while (my $track = $rs->next) {
-          print $track->title . "\n";
+    my $artistname = shift;
+    print "get_tracks_by_artist($artistname):\n";
+    my $rs = $schema->resultset('Track')->search(
+      {
+        'artist.name' => $artistname
+      },
+      {
+        join => {
+          'cd' => 'artist'
+        },
       }
-      print "\n";
+    );
+    while (my $track = $rs->next) {
+      print $track->title . "\n";
+    }
+    print "\n";
   }
-  
   
   
   sub get_cd_by_track {
-      my $tracktitle = shift;
-      print "get_cd_by_track($tracktitle):\n";
-      my $rs = $schema->resultset('Cd')->search(
-          {
-              'tracks.title' => $tracktitle
-          },
-          {
-              join     => [qw/ tracks /],
-          }
-      );
-      my $cd = $rs->first;
-      print $cd->title . "\n\n";
+    my $tracktitle = shift;
+    print "get_cd_by_track($tracktitle):\n";
+    my $rs = $schema->resultset('Cd')->search(
+      {
+        'tracks.title' => $tracktitle
+      },
+      {
+        join     => [qw/ tracks /],
+      }
+    );
+    my $cd = $rs->first;
+    print $cd->title . "\n\n";
   }
   
   sub get_cds_by_artist {
-      my $artistname = shift;
-      print "get_cds_by_artist($artistname):\n";
-      my $rs = $schema->resultset('Cd')->search(
-          {
-              'artist.name' => $artistname
-          },
-          {
-              join     => [qw/ artist /],
-              prefetch => [qw/ artist /]
-          }
-      );
-      while (my $cd = $rs->next) {
-          print $cd->title . "\n";
+    my $artistname = shift;
+    print "get_cds_by_artist($artistname):\n";
+    my $rs = $schema->resultset('Cd')->search(
+      {
+        'artist.name' => $artistname
+      },
+      {
+        join     => [qw/ artist /],
+        prefetch => [qw/ artist /]
       }
-      print "\n";
+    );
+    while (my $cd = $rs->next) {
+      print $cd->title . "\n";
+    }
+    print "\n";
   }
 
 
 
   sub get_artist_by_track {
-      my $tracktitle = shift;
-      print "get_artist_by_track($tracktitle):\n";
-      my $rs = $schema->resultset('Artist')->search(
-          {
-              'tracks.title' => $tracktitle
-          },
-          {
-	     join => {
-	     'cds' => 'tracks'
-              }
-          }
-      );
-      my $artist = $rs->first;
-      print $artist->name . "\n\n";
+    my $tracktitle = shift;
+    print "get_artist_by_track($tracktitle):\n";
+    my $rs = $schema->resultset('Artist')->search(
+      {
+        'tracks.title' => $tracktitle
+      },
+      {
+        join => {
+          'cds' => 'tracks'
+        }
+      }
+    );
+    my $artist = $rs->first;
+    print $artist->name . "\n\n";
   }
 
   sub get_artist_by_cd {
-      my $cdtitle = shift;
-      print "get_artist_by_cd($cdtitle):\n";
-      my $rs = $schema->resultset('Artist')->search(
-          {
-              'cds.title' => $cdtitle
-          },
-          {
-              join     => [qw/ cds /],
-          }
-      );
-      my $artist = $rs->first;
-      print $artist->name . "\n\n";
+    my $cdtitle = shift;
+    print "get_artist_by_cd($cdtitle):\n";
+    my $rs = $schema->resultset('Artist')->search(
+      {
+        'cds.title' => $cdtitle
+      },
+      {
+        join     => [qw/ cds /],
+      }
+    );
+    my $artist = $rs->first;
+    print $artist->name . "\n\n";
   }
 
 
