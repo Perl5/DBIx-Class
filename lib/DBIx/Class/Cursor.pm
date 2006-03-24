@@ -42,7 +42,7 @@ sub new {
 
 =back
 
-Virtual method. Advances the cursor to the next result.
+Virtual method. Advances the cursor to the next row.
 
 =cut
 
@@ -66,7 +66,7 @@ sub reset {
 
 =back
 
-Virtual method. Returns all results in the L<DBIx::Class::ResultSet>.
+Virtual method. Returns all rows in the L<DBIx::Class::ResultSet>.
 
 =cut
 

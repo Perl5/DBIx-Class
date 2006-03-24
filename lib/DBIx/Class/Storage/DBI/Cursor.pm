@@ -57,7 +57,7 @@ sub new {
 
 =back
 
-Advances the cursor to the next result and returns it.
+Advances the cursor to the next row and returns it.
 
 =cut
 
@@ -93,7 +93,7 @@ sub next {
 
 =back
 
-Returns all results in the L<DBIx::Class::ResultSet>.
+Returns all rows in the L<DBIx::Class::ResultSet>.
 
 =cut
 
