@@ -46,6 +46,8 @@ L<DBIx::Class::HTMLWidget> - Like FromForm but with DBIx::Class and HTML::Widget
 
 L<DBIx::Class::PK::Auto> - Retrieve automatically created primary keys upon insert.
 
+L<DBIx::Class::Positional> - Modify the position of objects in an ordered list.
+
 L<DBIx::Class::QueriesTime> - Display the amount of time it takes to run queries.
 
 L<DBIx::Class::RandomStringColumns> - Declare virtual columns that return random strings.
@@ -68,11 +70,11 @@ L<DBIx::Class::Serialize::Storable> - Hooks for Storable freeze/thaw.
 
 L<DBIx::Class::Validation> - Validate all data before submitting to your database.
 
-L<DBIx::Class::Positional> - Modify the position of objects in an ordered list.
-
 L<DBIx::Class::Tree::AdjacencyList> - Manage a tree of data using the common adjacency list model.
 
 L<DBIx::Class::Tree::NestedSet> - Manage a positional tree of data using the nested set model.
+
+L<DBIx::Class::TokenGroup> - Search for tokens in a tree of groups.
 
 =head2 Core
 
