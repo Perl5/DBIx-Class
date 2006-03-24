@@ -47,8 +47,7 @@ Create a base schema class called DB/Main.pm:
 
   1;
 
-Create a class the represent artists, who have many
-CDs, in DB/Main/Artist.pm:
+Create a class that represent artists, who have many CDs, in DB/Main/Artist.pm:
 
   package DB::Main::Artist;
   use base qw/DBIx::Class/;
@@ -61,8 +60,7 @@ CDs, in DB/Main/Artist.pm:
 
   1;
 
-A class to represent a CD, which belongs to an
-artist, in DB/Main/CD.pm:
+A class to represent a CD, which belongs to an artist, in DB/Main/CD.pm:
 
   package DB::Main::CD;
   use base qw/DBIx::Class/;
@@ -86,13 +84,13 @@ Then you can use these classes in your application's code:
   my $all_artists_rs = $ds->resultset('Artist');
 
   # Create a result set to search for artists.
-  # This does not query the DB, yet.
+  # This does not query the DB.
   my $johns_rs = $ds->resultset('Artist')->search(
     # Build your WHERE using an SQL::Abstract structure:
     { 'name' => { 'like', 'John%' } }
   );
 
-  # Now the query is executed.
+  # This executes a joined query to get the cds
   my @all_john_cds = $johns_rs->search_related('cds')->all;
 
   # Queries but only fetches one row so far.
@@ -132,7 +130,7 @@ JOIN, LEFT JOIN, COUNT, DISTINCT, GROUP BY and HAVING support.
 
 DBIx::Class can handle multi-column primary and foreign keys, complex
 queries and database-level paging, and does its best to only query the
-database when it actually needs to in order to return something the user's
+database when it actually needs to in order to return something you've directly
 asked for. If a resultset is used as an iterator it only fetches rows off
 the statement handle as requested in order to minimise memory usage. It
 has auto-increment support for SQLite, MySQL, PostgreSQL, Oracle, SQL
@@ -146,10 +144,11 @@ into trouble, and beware of anything explicitly marked EXPERIMENTAL. Failing
 test cases are *always* welcome and point releases are put out rapidly as
 bugs are found and fixed.
 
-Even so, we do your best to maintain full backwards compatibility for published
+Even so, we do our best to maintain full backwards compatibility for published
 APIs since DBIx::Class is used in production in a number of organisations;
 the test suite is now fairly substantial and several developer releases are
-generally made to CPAN before the -current branch is merged back to trunk.
+generally made to CPAN before the -current branch is merged back to trunk for
+a major release.
 
 The community can be found via -
 
