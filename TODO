@@ -1,3 +1,14 @@
+2006-03-25 by mst
+  - Refactor ResultSet::new to be less hairy
+    - we should move the setup of select, as, and from out of here
+      - these should be local rs attrs, not main attrs, and extra joins
+        provided on search should be merged
+  - find a way to un-wantarray search without breaking compat
+  - audit logging component
+  - delay relationship setup if done via ->load_classes
+  - double-sided relationships
+  - incremental deploy
+  - make short form of class specifier in relationships work
 
 2006-01-31 by bluefeet
  - Create a DBIx::Class::FilterColumn to replace inflate/deflate. This 
