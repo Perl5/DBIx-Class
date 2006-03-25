@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
-0.05999_05
+0.06000
+        - Lots of documentation improvements
+        - Minor tweak to related_resultset to prevent it storing a searched rs
         - Fixup to columns_info_for when database returns type(size)
         - Made do_txn respect void context (on the off-chance somebody cares)
         - Fix exception text for nonexistent key in ResultSet::find()
@@ -37,6 +39,7 @@ Revision history for DBIx::Class
         - $schema->deploy
         - HAVING support
         - prefetch for has_many
+        - cache attr for resultsets
         - PK::Auto::* no longer required since Storage::DBI::* handle auto-inc
         - minor tweak to tests for join edge case
         - added cascade_copy relationship attribute

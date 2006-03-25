@@ -1261,6 +1261,8 @@ overview of them:
 
 =item Value: ($order_by | \@order_by)
 
+=back
+
 Which column(s) to order the results by. This is currently passed
 through directly to SQL, so you can give e.g. C<year DESC> for a
 descending order on the column `year'.
