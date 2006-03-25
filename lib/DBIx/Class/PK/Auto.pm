@@ -21,7 +21,8 @@ keys.
 
   __PACKAGE__->load_components(qw/PK::Auto Core/);
 
-Note that C<PK::Auto> is specified as the leftmost argument.
+Note that C<PK::Auto> is specified as the left of the Core component.
+See L<DBIx::Class::Manual::Component> for details of component interactions.
 
 =head1 LOGIC
 

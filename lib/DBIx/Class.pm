@@ -47,7 +47,7 @@ Create a base schema class called DB/Main.pm:
 
   1;
 
-Create a class that represent artists, who have many CDs, in DB/Main/Artist.pm:
+Create a class to represent artists, who have many CDs, in DB/Main/Artist.pm:
 
   package DB::Main::Artist;
   use base qw/DBIx::Class/;

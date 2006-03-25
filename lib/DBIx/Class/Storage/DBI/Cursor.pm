@@ -1,10 +1,40 @@
-package # hide from PAUSE 
-    DBIx::Class::Storage::DBI::Cursor;
+package DBIx::Class::Storage::DBI::Cursor;
 
 use base qw/DBIx::Class::Cursor/;
 
 use strict;
 use warnings;
+
+=head1 NAME
+
+DBIx::Class::Storage::DBI::Cursor - Object representing a query cursor on a
+resultset.
+
+=head1 SYNOPSIS
+
+  my $cursor = $schema->resultset('CD')->cursor();
+  my $first_cd = $cursor->next;
+
+=head1 DESCRIPTION
+
+A Cursor represents a query cursor on a L<DBIx::Class::ResultSet> object. It
+allows for traversing the result set with L</next>, retrieving all results with
+L</all> and resetting the cursor with L</reset>.
+
+Usually, you would use the cursor methods built into L<DBIx::Class::ResultSet>
+to traverse it. See L<DBIx::Class::ResultSet/next>,
+L<DBIx::Class::ResultSet/reset> and L<DBIx::Class::ResultSet/all> for more
+information.
+
+=head1 METHODS
+
+=head2 new
+
+=back
+
+Returns a new L<DBIx::Class::Storage::DBI::Cursor> object.
+
+=cut
 
 sub new {
   my ($class, $storage, $args, $attrs) = @_;
@@ -22,6 +52,20 @@ sub new {
   
   return bless ($new, $class);
 }
+
+=head2 next
+
+=over 4
+
+=item Arguments: (none)
+
+=item Returns: \@row_columns
+
+=back
+
+Advances the cursor to the next row and returns an arrayref of column values.
+
+=cut
 
 sub next {
   my ($self) = @_;
@@ -51,6 +95,21 @@ sub next {
   return @row;
 }
 
+=head2 all
+
+=over 4
+
+=item Arguments: (none)
+
+=item Returns: \@row_columns+
+
+=back
+
+Returns a list of arrayrefs of column values for all rows in the
+L<DBIx::Class::ResultSet>.
+
+=cut
+
 sub all {
   my ($self) = @_;
 
@@ -61,6 +120,14 @@ sub all {
   my ($rv, $sth) = $self->{storage}->_select(@{$self->{args}});
   return @{$sth->fetchall_arrayref};
 }
+
+=head2 reset
+
+=back
+
+Resets the cursor to the beginning of the L<DBIx::Class::ResultSet>.
+
+=cut
 
 sub reset {
   my ($self) = @_;

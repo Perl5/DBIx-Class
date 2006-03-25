@@ -51,11 +51,15 @@ In the examples below, the following table classes are used:
 
 =head1 METHODS
 
-=head2 new
+=head2 new 
 
 =over 4
 
-=item Arguments: ($source, \%$attrs)
+=item Arguments: $source, \%$attrs
+
+=item Return Value: $rs
+
+=item 
 
 =back
 
@@ -68,6 +72,12 @@ Generally you won't need to construct a resultset manually.  You'll
 automatically get one from e.g. a L</search> called in scalar context:
 
   my $rs = $schema->resultset('CD')->search({ title => '100th Window' });
+
+IMPORTANT: If called on an object, proxies to new_result instead so
+
+  my $cd = $schema->resultset('CD')->new({ title => 'Spoon' });
+
+will return a CD object, not a ResultSet.
 
 =cut
 
@@ -161,8 +171,19 @@ sub new {
 
 =head2 search
 
-  my @cds    = $rs->search({ year => 2001 }); # "... WHERE year = 2001"
-  my $new_rs = $rs->search({ year => 2005 });
+=over 4
+
+=item Arguments: $cond, \%attrs?
+
+=item Return Value: $resultset (scalar context), @row_objs (list context)
+
+=back
+
+  my @cds    = $cd_rs->search({ year => 2001 }); # "... WHERE year = 2001"
+  my $new_rs = $cd_rs->search({ year => 2005 });
+
+  my $new_rs = $cd_rs->search([ { year => 2005 }, { year => 2004 } ]);
+                 # year = 2005 OR year = 2004
 
 If you need to pass in additional attributes but no additional condition,
 call it as C<search(undef, \%attrs);>.
@@ -219,11 +240,19 @@ sub search {
 
 =head2 search_literal
 
-  my @obj    = $rs->search_literal($literal_where_cond, @bind);
-  my $new_rs = $rs->search_literal($literal_where_cond, @bind);
+=over 4
+
+=item Arguments: $sql_fragment, @bind_values
+
+=item Return Value: $resultset (scalar context), @row_objs (list context)
+
+=back
+
+  my @cds   = $cd_rs->search_literal('year = ? AND title = ?', qw/2001 Reload/);
+  my $newrs = $artist_rs->search_literal('name = ?', 'Metallica');
 
 Pass a literal chunk of SQL to be added to the conditional part of the
-resultset.
+resultset query.
 
 =cut
 
@@ -238,7 +267,9 @@ sub search_literal {
 
 =over 4
 
-=item Arguments: (@colvalues) | (\%cols, \%attrs?)
+=item Arguments: (@values | \%cols), \%attrs?
+
+=item Return Value: $row_object
 
 =back
 
@@ -304,10 +335,20 @@ sub find {
 
 =head2 search_related
 
-  $rs->search_related('relname', $cond?, $attrs?);
+=over 4
 
-Search the specified relationship. Optionally specify a condition for matching
-records.
+=item Arguments: $cond, \%attrs?
+
+=item Return Value: $new_resultset
+
+=back
+
+  $new_rs = $cd_rs->search_related('artist', {
+    name => 'Emo-R-Us',
+  });
+
+Search the specified relationship, optionally specify a condition and
+attributes for matching records. See L</ATTRIBUTES> for more information.
 
 =cut
 
@@ -317,7 +358,16 @@ sub search_related {
 
 =head2 cursor
 
-Returns a storage-driven cursor to the given resultset.
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $cursor
+
+=back
+
+Returns a storage-driven cursor to the given resultset. See
+L<DBIx::Class::Cursor> for more information.
 
 =cut
 
@@ -331,7 +381,18 @@ sub cursor {
 
 =head2 single
 
-Inflates the first result without creating a cursor
+=over 4
+
+=item Arguments: $cond?
+
+=item Return Value: $row_object?
+
+=back
+
+  my $cd = $schema->resultset('CD')->single({ year => 2001 });
+
+Inflates the first result without creating a cursor if the resultset has
+any records in it; if not returns nothing. Used by find() as an optimisation.
 
 =cut
 
@@ -358,8 +419,19 @@ sub single {
 
 =head2 search_like
 
-Perform a search, but use C<LIKE> instead of equality as the condition. Note
-that this is simply a convenience method; you most likely want to use
+=over 4
+
+=item Arguments: $cond, \%attrs?
+
+=item Return Value: $resultset (scalar context), @row_objs (list context)
+
+=back
+
+  # WHERE title LIKE '%blue%'
+  $cd_rs = $rs->search_like({ title => '%blue%'});
+
+Perform a search, but use C<LIKE> instead of C<=> as the condition. Note
+that this is simply a convenience method. You most likely want to use
 L</search> with specific operators.
 
 For more information, see L<DBIx::Class::Manual::Cookbook>.
@@ -378,11 +450,17 @@ sub search_like {
 
 =over 4
 
-=item Arguments: ($first, $last)
+=item Arguments: $first, $last
+
+=item Return Value: $resultset (scalar context), @row_objs (list context)
 
 =back
 
-Returns a subset of elements from the resultset.
+Returns a resultset or object list representing a subset of elements from the
+resultset slice is called on.  Indexes are from 0 - i.e. to get the first
+three records, call
+
+  my ($one, $two, $three) = $rs->slice(0, 2);
 
 =cut
 
@@ -397,6 +475,14 @@ sub slice {
 }
 
 =head2 next
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $result?
+
+=back
 
 Returns the next element in the resultset (C<undef> is there is none).
 
@@ -513,12 +599,29 @@ sub _collapse_result {
 
 =head2 result_source
 
-Returns a reference to the result source for this recordset.
+=over 4
+
+=item Arguments: $result_source?
+
+=item Return Value: $result_source
+
+=back
+
+An accessor for the primary ResultSource object from which this ResultSet
+is derived.
 
 =cut
 
 
 =head2 count
+
+=over 4
+
+=item Arguments: ($cond, \%attrs?)?
+
+=item Return Value: $count
+
+=back
 
 Performs an SQL C<COUNT> with the same query as the resultset was built
 with to find the number of elements. If passed arguments, does a search
@@ -580,13 +683,30 @@ sub _count { # Separated out so pager can get the full count
 
 =head2 count_literal
 
-Calls L</search_literal> with the passed arguments, then L</count>.
+=over 4
+
+=item Arguments: $sql_fragment, @bind_values
+
+=item Return Value: $count
+
+=back
+
+Counts the results in a literal query. Equivalent to calling L</search_literal>
+with the passed arguments, then L</count>.
 
 =cut
 
 sub count_literal { shift->search_literal(@_)->count; }
 
 =head2 all
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: @objects
+
+=back
 
 Returns all elements in the resultset. Called implicitly if the resultset
 is returned in list context.
@@ -622,6 +742,14 @@ sub all {
 
 =head2 reset
 
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $self
+
+=back
+
 Resets the resultset's cursor, so you can iterate through the elements again.
 
 =cut
@@ -635,7 +763,16 @@ sub reset {
 
 =head2 first
 
-Resets the resultset and returns the first element.
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $object?
+
+=back
+
+Resets the resultset and returns an object for the first result (if the
+resultset contains anything).
 
 =cut
 
@@ -647,11 +784,15 @@ sub first {
 
 =over 4
 
-=item Arguments: (\%values)
+=item Arguments: \%values
+
+=item Return Value: $storage_rv
 
 =back
 
-Sets the specified columns in the resultset to the supplied values.
+Sets the specified columns in the resultset to the supplied values in a
+single query. Return value will be true if the update succeeded or false
+if no records were updated; exact type of success value is storage-dependent.
 
 =cut
 
@@ -668,7 +809,9 @@ sub update {
 
 =over 4
 
-=item Arguments: (\%values)
+=item Arguments: \%values
+
+=item Return Value: 1
 
 =back
 
@@ -689,7 +832,16 @@ sub update_all {
 
 =head2 delete
 
-Deletes the contents of the resultset from its result source.
+=over 4
+
+=item Arguments: none
+
+=item Return Value: 1
+
+=back
+
+Deletes the contents of the resultset from its result source. Note that this
+will not run cascade triggers. See L</delete_all> if you need triggers to run.
 
 =cut
 
@@ -739,6 +891,14 @@ sub delete {
 
 =head2 delete_all
 
+=over 4
+
+=item Arguments: none
+
+=item Return Value: 1
+
+=back
+
 Fetches all objects and deletes them one at a time.  Note that C<delete_all>
 will run cascade triggers while L</delete> will not.
 
@@ -752,7 +912,15 @@ sub delete_all {
 
 =head2 pager
 
-Returns a L<Data::Page> object for the current resultset. Only makes
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $pager
+
+=back
+
+Return Value a L<Data::Page> object for the current resultset. Only makes
 sense for queries with a C<page> attribute.
 
 =cut
@@ -771,11 +939,15 @@ sub pager {
 
 =over 4
 
-=item Arguments: ($page_num)
+=item Arguments: $page_number
+
+=item Return Value: $rs
 
 =back
 
-Returns a new resultset for the specified page.
+Returns a resultset for the $page_number page of the resultset on which page
+is called, where each page contains a number of rows equal to the 'rows'
+attribute set on the resultset, or 10 by default
 
 =cut
 
@@ -790,11 +962,13 @@ sub page {
 
 =over 4
 
-=item Arguments: (\%vals)
+=item Arguments: \%vals
+
+=item Return Value: $object
 
 =back
 
-Creates a result in the resultset's result class.
+Creates an object in the resultset's result class and returns it.
 
 =cut
 
@@ -819,11 +993,13 @@ sub new_result {
 
 =over 4
 
-=item Arguments: (\%vals)
+=item Arguments: \%vals
+
+=item Return Value: $object
 
 =back
 
-Inserts a record into the resultset and returns the object.
+Inserts a record into the resultset and returns the object representing it.
 
 Effectively a shortcut for C<< ->new_result(\%vals)->insert >>.
 
@@ -840,7 +1016,9 @@ sub create {
 
 =over 4
 
-=item Arguments: (\%vals, \%attrs?)
+=item Arguments: \%vals, \%attrs?
+
+=item Return Value: $object
 
 =back
 
@@ -881,7 +1059,15 @@ sub find_or_create {
 
 =head2 update_or_create
 
-  $class->update_or_create({ key => $val, ... });
+=over 4
+
+=item Arguments: \%col_values, { key => $unique_constraint }?
+
+=item Return Value: $object
+
+=back
+
+  $class->update_or_create({ col => $val, ... });
 
 First, search for an existing row matching one of the unique constraints
 (including the primary key) on the source of this resultset.  If a row is
@@ -946,7 +1132,15 @@ sub update_or_create {
 
 =head2 get_cache
 
-Gets the contents of the cache for the resultset.
+=over 4
+
+=item Arguments: none
+
+=item Return Value: \@cache_objects?
+
+=back
+
+Gets the contents of the cache for the resultset if the cache is set
 
 =cut
 
@@ -956,8 +1150,18 @@ sub get_cache {
 
 =head2 set_cache
 
+=over 4
+
+=item Arguments: \@cache_objects
+
+=item Return Value: \@cache_objects
+
+=back
+
 Sets the contents of the cache for the resultset. Expects an arrayref
-of objects of the same class as those produced by the resultset.
+of objects of the same class as those produced by the resultset. Note that
+if the cache is set the resultset will return the cached objects rather
+than re-querying the database even if the cache attr is not set.
 
 =cut
 
@@ -976,6 +1180,14 @@ sub set_cache {
 
 =head2 clear_cache
 
+=over 4
+
+=item Arguments: none
+
+=item Return Value: []
+
+=back
+
 Clears the cache for the resultset.
 
 =cut
@@ -986,6 +1198,14 @@ sub clear_cache {
 
 =head2 related_resultset
 
+=over 4
+
+=item Arguments: $relationship_name
+
+=item Return Value: $resultset
+
+=back
+
 Returns a related resultset for the supplied relationship name.
 
   $artist_rs = $schema->resultset('CD')->related_resultset('Artist');
@@ -993,7 +1213,7 @@ Returns a related resultset for the supplied relationship name.
 =cut
 
 sub related_resultset {
-  my ( $self, $rel, @rest ) = @_;
+  my ( $self, $rel ) = @_;
   $self->{related_resultsets} ||= {};
   return $self->{related_resultsets}{$rel} ||= do {
       #warn "fetching related resultset for rel '$rel'";
@@ -1015,13 +1235,13 @@ sub related_resultset {
                alias => $alias,
                select => undef,
                as => undef }
-           )->search(@rest);      
+           );
   };
 }
 
 =head2 throw_exception
 
-See Schema's throw_exception
+See L<DBIx::Class::Schema/throw_exception> for details.
 
 =cut
 
@@ -1030,14 +1250,18 @@ sub throw_exception {
   $self->result_source->schema->throw_exception(@_);
 }
 
-=head1 ATTRIBUTES
+# XXX: FIXME: Attributes docs need clearing up
 
-XXX: FIXME: Attributes docs need clearing up
+=head1 ATTRIBUTES
 
 The resultset takes various attributes that modify its behavior. Here's an
 overview of them:
 
 =head2 order_by
+
+=over 4
+
+=item Value: ($order_by | \@order_by)
 
 Which column(s) to order the results by. This is currently passed
 through directly to SQL, so you can give e.g. C<year DESC> for a
@@ -1047,7 +1271,7 @@ descending order on the column `year'.
 
 =over 4
 
-=item Arguments: (\@columns)
+=item Value: \@columns
 
 =back
 
@@ -1060,7 +1284,7 @@ use the C<cols> attribute, as in earlier versions of DBIC.)
 
 =over 4
 
-=item Arguments: (\@columns)
+=item Value: \@columns
 
 =back
 
@@ -1078,7 +1302,7 @@ passed to object inflation
 
 =over 4
 
-=item Arguments: (\@columns)
+=item Value: \@select_columns
 
 =back
 
@@ -1102,7 +1326,7 @@ return a column named C<count(employeeid)> in the above example.
 
 =over 4
 
-=item Arguments: (\@names)
+=item Value: \@inflation_names
 
 =back
 
@@ -1135,6 +1359,12 @@ You can create your own accessors if required - see
 L<DBIx::Class::Manual::Cookbook> for details.
 
 =head2 join
+
+=over 4
+
+=item Value: ($rel_name | \@rel_names | \%rel_names)
+
+=back
 
 Contains a list of relationships that should be joined for this query.  For
 example:
@@ -1185,7 +1415,7 @@ below.
 
 =over 4
 
-=item Arguments: (\@relationships)
+=item Value: ($rel_name | \@rel_names | \%rel_names)
 
 =back
 
@@ -1226,7 +1456,7 @@ with an accessor type of 'single' or 'filter').
 
 =over 4
 
-=item Arguments: (\@array)
+=item Value: \@from_clause
 
 =back
 
@@ -1243,7 +1473,7 @@ In simple terms, C<from> works as follows:
     [
         { <alias> => <table>, -join-type => 'inner|left|right' }
         [] # nested JOIN (optional)
-        { <table.column> = <foreign_table.foreign_key> }
+        { <table.column> => <foreign_table.foreign_key> }
     ]
 
     JOIN
@@ -1319,32 +1549,30 @@ with a father in the person table, we could explicitly use C<INNER JOIN>:
 
 =over 4
 
-=item Arguments: ($page)
+=item Value: $page
 
 =back
 
-For a paged resultset, specifies which page to retrieve.  Leave unset
-for an unpaged resultset.
+Makes the resultset paged and specifies the page to retrieve. Effectively
+identical to creating a non-pages resultset and then calling ->page($page)
+on it.
 
 =head2 rows
 
 =over 4
 
-=item Arguments: ($rows)
+=item Value: $rows
 
 =back
 
-For a paged resultset, specifies how many rows are in each page:
-
-  rows => 10
-
-Can also be used to simulate an SQL C<LIMIT>.
+Specifes the maximum number of rows for direct retrieval or the number of
+rows per page if the page attribute or method is used.
 
 =head2 group_by
 
 =over 4
 
-=item Arguments: (\@columns)
+=item Value: \@columns
 
 =back
 
@@ -1353,6 +1581,12 @@ A arrayref of columns to group by. Can include columns of joined tables.
   group_by => [qw/ column1 column2 ... /]
 
 =head2 distinct
+
+=over 4
+
+=item Value: (0 | 1)
+
+=back
 
 Set to 1 to group by all columns.
 

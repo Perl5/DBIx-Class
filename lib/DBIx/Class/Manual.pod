@@ -15,6 +15,10 @@ from your SQL database.
 
 Beginner guide to using DBIx::Class. 
 
+=head2 L<DBIx::Class::Manual::Example>
+
+An example of slightly more complex usage.
+
 =head2 L<DBIx::Class::Manual::Cookbook>
 
 Convenient reciepes for DBIC usage.
