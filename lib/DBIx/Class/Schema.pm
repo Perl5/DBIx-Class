@@ -59,7 +59,7 @@ particular which module inherits off which.
 
 =over 4
 
-=item Arguments: ($moniker, $component_class)
+=item Arguments: $moniker, $component_class
 
 =back
 
@@ -79,7 +79,7 @@ sub register_class {
 
 =over 4
 
-=item Arguments: ($moniker, $result_source)
+=item Arguments: $moniker, $result_source
 
 =back
 
@@ -105,7 +105,7 @@ sub register_source {
 
 =over 4
 
-=item Arguments: ($moniker)
+=item Arguments: $moniker
 
 =item Return Value: $classname
 
@@ -128,7 +128,7 @@ sub class {
 
 =over 4
 
-=item Arguments: ($moniker)
+=item Arguments: $moniker
 
 =item Return Value: $result_source
 
@@ -174,7 +174,7 @@ sub sources { return keys %{shift->source_registrations}; }
 
 =over 4
 
-=item Arguments: ($moniker)
+=item Arguments: $moniker
 
 =item Return Value: $result_set
 
@@ -286,7 +286,7 @@ sub load_classes {
 
 =over 4
 
-=item Arguments: ($target_namespace, @db_info)
+=item Arguments: $target_namespace, @db_info
 
 =item Return Value: $new_schema
 
@@ -411,7 +411,7 @@ sub compose_namespace {
 
 =over 4
 
-=item Arguments: ($target, @info)
+=item Arguments: $target, @info
 
 =back
 
@@ -431,7 +431,7 @@ sub setup_connection_class {
 
 =over 4
 
-=item Arguments: (@args)
+=item Arguments: @args
 
 =item Return Value: $new_schema
 
@@ -464,7 +464,7 @@ sub connection {
 
 =over 4
 
-=item Arguments: (@info)
+=item Arguments: @info
 
 =item Return Value: $new_schema
 
@@ -512,7 +512,7 @@ sub txn_rollback { shift->storage->txn_rollback }
 
 =over 4
 
-=item Arguments: (C<$coderef>, @coderef_args?)
+=item Arguments: C<$coderef>, @coderef_args?
 
 =item Return Value: The return value of $coderef
 
@@ -643,7 +643,7 @@ sub clone {
 
 =over 4
 
-=item Arguments: ($moniker, \@data);
+=item Arguments: $moniker, \@data;
 
 =back
 
@@ -679,7 +679,7 @@ sub populate {
 
 =over 4 
 
-=item Arguments: ($message)
+=item Arguments: $message
 
 =back
 
@@ -697,7 +697,7 @@ sub throw_exception {
 
 =over 4
 
-=item Arguments: ($sqlt_args)
+=item Arguments: $sqlt_args
 
 =back
 

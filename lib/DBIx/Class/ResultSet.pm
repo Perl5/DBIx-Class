@@ -265,7 +265,7 @@ sub search_literal {
 
 =over 4
 
-=item Arguments: (@values | \%cols), \%attrs?
+=item Arguments: @values | \%cols, \%attrs?
 
 =item Return Value: $row_object
 
@@ -615,7 +615,7 @@ is derived.
 
 =over 4
 
-=item Arguments: ($cond, \%attrs?)?
+=item Arguments: $cond, \%attrs??
 
 =item Return Value: $count
 

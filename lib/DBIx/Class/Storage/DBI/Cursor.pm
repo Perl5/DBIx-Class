@@ -57,7 +57,7 @@ sub new {
 
 =over 4
 
-=item Arguments: (none)
+=item Arguments: none
 
 =item Return Value: \@row_columns
 
@@ -99,7 +99,7 @@ sub next {
 
 =over 4
 
-=item Arguments: (none)
+=item Arguments: none
 
 =item Return Value: \@row_columns+
 

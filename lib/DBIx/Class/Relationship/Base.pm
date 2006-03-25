@@ -23,7 +23,7 @@ methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
 =over 4
 
-=item Arguments: ('relname', 'Foreign::Class', $cond, $attrs)
+=item Arguments: 'relname', 'Foreign::Class', $cond, $attrs
 
 =back
 
@@ -92,7 +92,7 @@ created, which calls C<create_related> for the relationship.
 
 =over 4
 
-=item Arguments: ($relname, $rel_info)
+=item Arguments: $relname, $rel_info
 
 =back
 
@@ -107,7 +107,7 @@ sub register_relationship { }
 
 =over 4
 
-=item Arguments: ($relationship_name)
+=item Arguments: $relationship_name
 
 =item Return Value: $related_resultset
 

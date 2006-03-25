@@ -209,7 +209,7 @@ sub columns {
 
 =over 4
 
-=item Arguments: (@cols)
+=item Arguments: @cols
 
 =back
 
@@ -420,7 +420,7 @@ sub relationships {
 
 =over 4
 
-=item Arguments: ($relname)
+=item Arguments: $relname
 
 =back
 
@@ -437,7 +437,7 @@ sub relationship_info {
 
 =over 4
 
-=item Arguments: ($rel)
+=item Arguments: $rel
 
 =back
 
@@ -454,7 +454,7 @@ sub has_relationship {
 
 =over 4
 
-=item Arguments: ($relation)
+=item Arguments: $relation
 
 =back
 
@@ -493,7 +493,7 @@ sub resolve_join {
 
 =over 4
 
-=item Arguments: ($cond, $as, $alias|$object)
+=item Arguments: $cond, $as, $alias|$object
 
 =back
 
@@ -536,7 +536,7 @@ sub resolve_condition {
 
 =over 4
 
-=item Arguments: (hashref/arrayref/scalar)
+=item Arguments: hashref/arrayref/scalar
 
 =back
 
@@ -641,7 +641,7 @@ sub resolve_prefetch {
 
 =over 4
 
-=item Arguments: ($relname)
+=item Arguments: $relname
 
 =back
 
@@ -661,7 +661,7 @@ sub related_source {
 
 =over 4
 
-=item Arguments: ($relname)
+=item Arguments: $relname
 
 =back
 

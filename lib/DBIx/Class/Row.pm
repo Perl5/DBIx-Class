@@ -375,7 +375,7 @@ sub is_changed {
 
 =over 4
 
-=item Arguments: ($column, $column_info)
+=item Arguments: $column, $column_info
 
 =back
 
