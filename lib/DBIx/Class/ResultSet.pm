@@ -59,8 +59,6 @@ In the examples below, the following table classes are used:
 
 =item Return Value: $rs
 
-=item 
-
 =back
 
 The resultset constructor. Takes a source object (usually a
