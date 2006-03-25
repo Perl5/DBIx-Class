@@ -59,7 +59,7 @@ sub new {
 
 =item Arguments: (none)
 
-=item Returns: \@row_columns
+=item Return Value: \@row_columns
 
 =back
 
@@ -101,7 +101,7 @@ sub next {
 
 =item Arguments: (none)
 
-=item Returns: \@row_columns+
+=item Return Value: \@row_columns+
 
 =back
 

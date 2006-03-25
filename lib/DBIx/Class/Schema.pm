@@ -107,7 +107,7 @@ sub register_source {
 
 =item Arguments: ($moniker)
 
-=item Returns: $classname
+=item Return Value: $classname
 
 =back
 
@@ -130,7 +130,7 @@ sub class {
 
 =item Arguments: ($moniker)
 
-=item Returns: $result_source
+=item Return Value: $result_source
 
 =back
 
@@ -156,7 +156,7 @@ sub source {
 
 =over 4
 
-=item Returns: @source_monikers
+=item Return Value: @source_monikers
 
 =back
 
@@ -176,7 +176,7 @@ sub sources { return keys %{shift->source_registrations}; }
 
 =item Arguments: ($moniker)
 
-=item Returns: $result_set
+=item Return Value: $result_set
 
 =back
 
@@ -288,7 +288,7 @@ sub load_classes {
 
 =item Arguments: ($target_namespace, @db_info)
 
-=item Returns: $new_schema
+=item Return Value: $new_schema
 
 =back
 
@@ -351,7 +351,7 @@ sub compose_connection {
 
 =item Arguments: $target_namespace, $additional_base_class?
 
-=item Returns: $new_schema
+=item Return Value: $new_schema
 
 =back
 
@@ -433,7 +433,7 @@ sub setup_connection_class {
 
 =item Arguments: (@args)
 
-=item Returns: $new_schema
+=item Return Value: $new_schema
 
 =back
 
@@ -466,7 +466,7 @@ sub connection {
 
 =item Arguments: (@info)
 
-=item Returns: $new_schema
+=item Return Value: $new_schema
 
 =back
 
@@ -514,7 +514,7 @@ sub txn_rollback { shift->storage->txn_rollback }
 
 =item Arguments: (C<$coderef>, @coderef_args?)
 
-=item Returns: The return value of $coderef
+=item Return Value: The return value of $coderef
 
 =back
 
@@ -619,7 +619,7 @@ sub txn_do {
 
 =over 4
 
-=item Returns: $new_schema
+=item Return Value: $new_schema
 
 =back
 

@@ -109,7 +109,7 @@ sub register_relationship { }
 
 =item Arguments: ($relationship_name)
 
-=item Returns: $related_resultset
+=item Return Value: $related_resultset
 
 =back
 
