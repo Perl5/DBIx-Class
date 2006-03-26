@@ -105,7 +105,7 @@ Then you can use these classes in your application's code:
 
   # Create a result set that will fetch the artist relationship
   # at the same time as it fetches CDs, using only one query.
-  my $millennium_cds_rs = $ds->resultset('CD')->search(
+  my $millennium_cds_rs = $schema->resultset('CD')->search(
     { year => 2000 },
     { prefetch => 'artist' }
   );
@@ -113,12 +113,12 @@ Then you can use these classes in your application's code:
   my $cd = $millennium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
   my $cd_artist_name = $cd->artist->name; # Already has the data so no query
 
-  my $new_cd = $ds->resultset('CD')->new({ title => 'Spoon' });
+  my $new_cd = $schema->resultset('CD')->new({ title => 'Spoon' });
   $new_cd->artist($cd->artist);
   $new_cd->insert; # Auto-increment primary key filled in after INSERT
   $new_cd->title('Fork');
 
-  $ds->txn_do(sub { $new_cd->update }); # Runs the update in a transaction
+  $schema->txn_do(sub { $new_cd->update }); # Runs the update in a transaction
 
   $millennium_cds_rs->update({ year => 2002 }); # Single-query bulk update
 
