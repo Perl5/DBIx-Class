@@ -26,8 +26,8 @@ sub has_a {
 
 sub has_many {
   my ($class, $rel, $f_class, $f_key, @rest) = @_;
-  return $class->next::method($rel, $f_class, ( ref($f_key) ? 
-                                                          $f_key : 
+  return $class->next::method($rel, $f_class, ( ref($f_key) ?
+                                                          $f_key :
                                                           lc($f_key) ), @rest);
 }
 

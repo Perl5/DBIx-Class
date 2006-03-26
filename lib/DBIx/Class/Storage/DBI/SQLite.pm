@@ -11,7 +11,7 @@ sub last_insert_id {
 
 1;
 
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::PK::Auto::SQLite - Automatic primary key class for SQLite
 

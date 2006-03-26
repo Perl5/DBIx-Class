@@ -6,20 +6,20 @@ DBIx::Class::Test::SQLite - Base class for running Class::DBI tests against DBIx
 
 =head1 SYNOPSIS
 
-	use base 'DBIx::Class::Test::SQLite';
+  use base 'DBIx::Class::Test::SQLite';
 
-	__PACKAGE__->set_table('test');
-	__PACKAGE__->columns(All => qw/id name film salary/);
+  __PACKAGE__->set_table('test');
+  __PACKAGE__->columns(All => qw/id name film salary/);
 
-	sub create_sql { 
-		return q{
-			id     INTEGER PRIMARY KEY,
-			name   CHAR(40),
-			film   VARCHAR(255),
-			salary INT
-		}
-	}
-	
+  sub create_sql {
+      return q{
+          id     INTEGER PRIMARY KEY,
+          name   CHAR(40),
+          film   VARCHAR(255),
+          salary INT
+      }
+  }
+    
 =head1 DESCRIPTION
 
 This provides a simple base class for DBIx::Class::CDBICompat tests using
@@ -52,7 +52,7 @@ __PACKAGE__->storage->dbh->do("PRAGMA synchronous = OFF");
 
 =head2 set_table
 
-	__PACKAGE__->set_table('test');
+    __PACKAGE__->set_table('test');
 
 This combines creating the table with the normal DBIx::Class table()
 call.
@@ -60,29 +60,29 @@ call.
 =cut
 
 sub set_table {
-	my ($class, $table) = @_;
-	$class->table($table);
-	$class->_create_test_table;
+    my ($class, $table) = @_;
+    $class->table($table);
+    $class->_create_test_table;
 }
 
 sub _create_test_table {
-	my $class = shift;
-        my @vals  = $class->sql__table_pragma->select_row;
-        $class->sql__create_me($class->create_sql)->execute unless @vals;
+    my $class = shift;
+    my @vals  = $class->sql__table_pragma->select_row;
+    $class->sql__create_me($class->create_sql)->execute unless @vals;
 }
 
 =head2 create_sql
 
 This is an abstract method you must override.
 
-	sub create_sql { 
-		return q{
-			id     INTEGER PRIMARY KEY,
-			name   CHAR(40),
-			film   VARCHAR(255),
-			salary INT
-		}
-	}
+  sub create_sql {
+      return q{
+          id     INTEGER PRIMARY KEY,
+          name   CHAR(40),
+          film   VARCHAR(255),
+          salary INT
+      }
+  }
 
 This should return, as a text string, the schema for the table represented
 by this class.

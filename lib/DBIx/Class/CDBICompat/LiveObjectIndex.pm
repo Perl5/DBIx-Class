@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBIx::Class::CDBICompat::LiveObjectIndex;
 
 use strict;

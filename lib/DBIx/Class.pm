@@ -32,7 +32,7 @@ sub _attr_cache {
 
 1;
 
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class - Extensible and flexible object <-> relational mapper.
 
@@ -134,12 +134,12 @@ JOIN, LEFT JOIN, COUNT, DISTINCT, GROUP BY and HAVING support.
 
 DBIx::Class can handle multi-column primary and foreign keys, complex
 queries and database-level paging, and does its best to only query the
-database in order to return something you've directly asked for. If a 
-resultset is used as an iterator it only fetches rows off the statement 
-handle as requested in order to minimise memory usage. It has auto-increment 
+database in order to return something you've directly asked for. If a
+resultset is used as an iterator it only fetches rows off the statement
+handle as requested in order to minimise memory usage. It has auto-increment
 support for SQLite, MySQL, PostgreSQL, Oracle, SQL Server and DB2 and is
 known to be used in production on at least the first four, and is fork-
-and thread-safe out of the box (although your DBD may not be). 
+and thread-safe out of the box (although your DBD may not be).
 
 This project is still under rapid development, so features added in the
 latest major release may not work 100% yet -- check the Changes if you run
