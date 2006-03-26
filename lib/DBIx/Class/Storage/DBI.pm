@@ -236,7 +236,7 @@ sub throw_exception {
   croak($msg);
 }
 
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::Storage::DBI - DBI storage handler
 
@@ -456,7 +456,7 @@ sub txn_commit {
     $self->dbh->commit unless $self->dbh->{AutoCommit};
   }
   else {
-    $self->dbh->commit if --$self->{transaction_depth} == 0;    
+    $self->dbh->commit if --$self->{transaction_depth} == 0;
   }
 }
 
@@ -503,10 +503,10 @@ sub _execute {
   $self->throw_exception("no sth generated via sql: $sql") unless $sth;
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
-  if ($sth) {  
+  if ($sth) {
     $rv = $sth->execute(@bind)
       or $self->throw_exception("Error executing '$sql': " . $sth->errstr);
-  } else { 
+  } else {
     $self->throw_exception("'$sql' did not generate a statement.");
   }
   return (wantarray ? ($rv, $sth, @bind) : $rv);
@@ -650,7 +650,7 @@ sub deployment_statements {
   eval "use SQL::Translator";
   $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
   eval "use SQL::Translator::Parser::DBIx::Class;";
-  $self->throw_exception($@) if $@; 
+  $self->throw_exception($@) if $@;
   eval "use SQL::Translator::Producer::${type};";
   $self->throw_exception($@) if $@;
   my $tr = SQL::Translator->new(%$sqltargs);
@@ -664,7 +664,7 @@ sub deploy {
   foreach(split(";\n", @statements)) {
     $self->debugfh->print("$_\n") if $self->debug;
     $self->dbh->do($_) or warn "SQL was:\n $_";
-  } 
+  }
 }
 
 sub DESTROY { shift->disconnect }

@@ -51,7 +51,7 @@ In the examples below, the following table classes are used:
 
 =head1 METHODS
 
-=head2 new 
+=head2 new
 
 =over 4
 
@@ -328,8 +328,8 @@ sub find {
       return keys %{$rs->{collapse}} ? $rs->next : $rs->single;
   } else {
       return keys %{$self->{collapse}} ?
-	$self->search($query)->next :
-	$self->single($query);
+        $self->search($query)->next :
+        $self->single($query);
   }
 }
 
@@ -402,7 +402,7 @@ sub single {
   if ($where) {
     if (defined $attrs->{where}) {
       $attrs->{where} = {
-        '-and' => 
+        '-and' =>
             [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
                $where, delete $attrs->{where} ]
       };
@@ -506,8 +506,8 @@ sub next {
     return ($self->all)[0];
   }
   my @row = (exists $self->{stashed_row} ?
-	       @{delete $self->{stashed_row}} :
-	       $self->cursor->next
+               @{delete $self->{stashed_row}} :
+               $self->cursor->next
   );
 #  warn Dumper(\@row); use Data::Dumper;
   return unless (@row);
@@ -564,7 +564,7 @@ sub _collapse_result {
   my @collapse;
   if (defined $prefix) {
     @collapse = map {
-	m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()
+        m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()
     } keys %{$self->{collapse}}
   } else {
     @collapse = keys %{$self->{collapse}};
@@ -583,7 +583,7 @@ sub _collapse_result {
     my (@final, @raw);
     while ( !(grep {
                 !defined($tree->[0]->{$_}) ||
-		$co_check{$_} ne $tree->[0]->{$_}
+                $co_check{$_} ne $tree->[0]->{$_}
               } @co_key) ) {
       push(@final, $tree);
       last unless (@raw = $self->cursor->next);
@@ -664,7 +664,7 @@ sub _count { # Separated out so pager can get the full count
           @distinct = ($column);
           last;
         }
-      } 
+      }
     }
 
     $select = { count => { distinct => \@distinct } };
@@ -1419,7 +1419,7 @@ below.
 
 =back
 
-Contains one or more relationships that should be fetched along with the main 
+Contains one or more relationships that should be fetched along with the main
 query (when they are accessed afterwards they will have already been
 "prefetched").  This is useful for when you know you will need the related
 objects, because it saves at least one query:
@@ -1601,7 +1601,7 @@ revisit rows in your ResultSet:
     ... do stuff ...
   }
 
-  $rs->first; # without cache, this would issue a query 
+  $rs->first; # without cache, this would issue a query
 
 By default, searches are not cached.
 

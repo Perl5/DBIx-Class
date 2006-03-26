@@ -21,7 +21,7 @@ sub STORABLE_thaw {
 
 __END__
 
-=head1 NAME 
+=head1 NAME
 
     DBIx::Class::Serialize::Storable - hooks for Storable freeze/thaw
     (EXPERIMENTAL)

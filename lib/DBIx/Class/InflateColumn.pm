@@ -6,7 +6,7 @@ use warnings;
 
 use base qw/DBIx::Class::Row/;
 
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::InflateColumn - Automatically create objects from column data
 
@@ -25,13 +25,13 @@ the column data. It also "deflates" objects into an appropriate format
 for the database.
 
 It can be used, for example, to automatically convert to and from
-L<DateTime> objects for your date and time fields. 
+L<DateTime> objects for your date and time fields.
 
 =head1 METHODS
 
 =head2 inflate_column
 
-Instruct L<DBIx::Class> to inflate the given column. 
+Instruct L<DBIx::Class> to inflate the given column.
 
 In addition to the column name, you must provide C<inflate> and
 C<deflate> methods. The C<inflate> method is called when you access

@@ -17,7 +17,7 @@ __PACKAGE__->load_components(qw/
 
 1;
 
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::Core - Core set of DBIx::Class modules
 

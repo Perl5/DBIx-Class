@@ -8,7 +8,7 @@ SQL::Translator::Producer::DBIx::Class::File - DBIx::Class file producer
 
   use SQL::Translator;
 
-  my $t = SQL::Translator->new( parser => '...', 
+  my $t = SQL::Translator->new( parser => '...',
                                 producer => 'DBIx::Class::File' );
   print $translator->translate( $file );
 
@@ -48,7 +48,7 @@ sub produce
     my $output         = '';
 
     # Steal the XML producers "prefix" arg for our namespace?
-    my $dbixschema     = $translator->producer_args()->{prefix} || 
+    my $dbixschema     = $translator->producer_args()->{prefix} ||
         $schema->name || 'My::Schema';
     my $pkclass = $parser2PK{$translator->parser_type} || '';
 
@@ -81,7 +81,7 @@ __PACKAGE__->table('${tname}');
 
 };
 
-        my @fields = map 
+        my @fields = map
         { { $_->name  => {
             name              => $_->name,
             is_auto_increment => $_->is_auto_increment,
@@ -98,7 +98,7 @@ __PACKAGE__->table('${tname}');
         {
             local $Data::Dumper::Terse = 1;
             $output .= "\n    '" . (keys %$f)[0] . "' => " ;
-            my $colinfo = 
+            my $colinfo =
                 Data::Dumper->Dump([values %$f],
                                    [''] # keys   %$f]
                                    );
@@ -120,11 +120,11 @@ __PACKAGE__->table('${tname}');
 #            print Data::Dumper::Dumper($cont->type);
             if($cont->type =~ /foreign key/i)
             {
-#                 $output .= "\n__PACKAGE__->belongs_to('" . 
+#                 $output .= "\n__PACKAGE__->belongs_to('" .
 #                     $cont->fields->[0]->name . "', '" .
 #                     "${dbixschema}::" . $cont->reference_table . "');\n";
 
-                $tableextras{$table->name} .= "\n__PACKAGE__->belongs_to('" . 
+                $tableextras{$table->name} .= "\n__PACKAGE__->belongs_to('" .
                     $cont->fields->[0]->name . "', '" .
                     "${dbixschema}::" . $cont->reference_table . "');\n";
                 
@@ -142,7 +142,7 @@ __PACKAGE__->table('${tname}');
     foreach my $to (keys %tableoutput)
     {
         $output .= $tableoutput{$to};
-        $schemaoutput .= "\n__PACKAGE__->register_class('${to}', '${dbixschema}::${to}');\n"; 
+        $schemaoutput .= "\n__PACKAGE__->register_class('${to}', '${dbixschema}::${to}');\n";
     }
 
     foreach my $te (keys %tableextras)

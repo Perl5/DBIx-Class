@@ -5,7 +5,7 @@ use warnings;
 
 use base qw/DBIx::Class/;
 
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::Relationship::Base - Inter-table relationships
 
@@ -15,7 +15,7 @@ DBIx::Class::Relationship::Base - Inter-table relationships
 
 This class provides methods to describe the relationships between the
 tables in your database model. These are the "bare bones" relationships
-methods, for predefined ones, look in L<DBIx::Class::Relationship>. 
+methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
 =head1 METHODS
 

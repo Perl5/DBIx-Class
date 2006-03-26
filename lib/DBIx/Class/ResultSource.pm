@@ -17,7 +17,7 @@ __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
   result_class/);
 
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::ResultSource - Result source object
 
@@ -64,7 +64,7 @@ keys are currently recognised/used by DBIx::Class.
 
 =over 4
 
-=item accessor 
+=item accessor
 
 Use this to set the name of the accessor for this column. If unset,
 the name of the column will be used.
@@ -84,7 +84,7 @@ whatever your database(s) support.
 =item size
 
 The length of your column, if it is a column type that can have a size
-restriction. This is currently not used by DBIx::Class. 
+restriction. This is currently not used by DBIx::Class.
 
 =item is_nullable
 
@@ -106,7 +106,7 @@ foreign table. This is currently not used by DBIx::Class.
 
 Set this to the default value which will be inserted into this column
 by the database. Can contain either values or functions. This is
-currently not used by DBIx::Class. 
+currently not used by DBIx::Class.
 
 =item sequence
 
@@ -167,16 +167,16 @@ of add_column for information on the contents of the hashref.
 
 sub column_info {
   my ($self, $column) = @_;
-  $self->throw_exception("No such column $column") 
+  $self->throw_exception("No such column $column")
     unless exists $self->_columns->{$column};
   #warn $self->{_columns_info_loaded}, "\n";
-  if ( ! $self->_columns->{$column}{data_type} 
-       and ! $self->{_columns_info_loaded} 
+  if ( ! $self->_columns->{$column}{data_type}
+       and ! $self->{_columns_info_loaded}
        and $self->schema and $self->storage )
   {
     $self->{_columns_info_loaded}++;
     my $info;
-    # eval for the case of storage without table 
+    # eval for the case of storage without table
     eval { $info = $self->storage->columns_info_for($self->from) };
     unless ($@) {
       foreach my $col ( keys %{$self->_columns} ) {
@@ -219,7 +219,7 @@ called after C<add_columns>.
 Additionally, defines a unique constraint named C<primary>.
 
 The primary key columns are used by L<DBIx::Class::PK::Auto> to
-retrieve automatically created values from the database. 
+retrieve automatically created values from the database.
 
 =cut
 
@@ -293,7 +293,7 @@ contents.
 
 =head2 storage
 
-Returns the storage handle for the current schema. 
+Returns the storage handle for the current schema.
 
 See also: L<DBIx::Class::Storage>
 
@@ -354,11 +354,11 @@ Then, assuming LinerNotes has an accessor named notes, you can do:
 =item accessor
 
 Specifies the type of accessor that should be created for the
-relationship. Valid values are C<single> (for when there is only a single 
-related object), C<multi> (when there can be many), and C<filter> (for 
-when there is a single related object, but you also want the relationship 
-accessor to double as a column accessor). For C<multi> accessors, an 
-add_to_* method is also created, which calls C<create_related> for the 
+relationship. Valid values are C<single> (for when there is only a single
+related object), C<multi> (when there can be many), and C<filter> (for
+when there is a single related object, but you also want the relationship
+accessor to double as a column accessor). For C<multi> accessors, an
+add_to_* method is also created, which calls C<create_related> for the
 relationship.
 
 =back
@@ -399,7 +399,7 @@ sub add_relationship {
   eval { $self->resolve_join($rel, 'me') };
 
   if ($@) { # If the resolve failed, back out and re-throw the error
-    delete $rels{$rel}; # 
+    delete $rels{$rel}; #
     $self->_relationships(\%rels);
     $self->throw_exception("Error creating relationship $rel: $@");
   }
@@ -431,7 +431,7 @@ Returns the relationship information for the specified relationship name
 sub relationship_info {
   my ($self, $rel) = @_;
   return $self->_relationships->{$rel};
-} 
+}
 
 =head2 has_relationship
 
@@ -511,9 +511,9 @@ sub resolve_condition {
     while (my ($k, $v) = each %{$cond}) {
       # XXX should probably check these are valid columns
       $k =~ s/^foreign\.// ||
-	$self->throw_exception("Invalid rel cond key ${k}");
+        $self->throw_exception("Invalid rel cond key ${k}");
       $v =~ s/^self\.// ||
-	$self->throw_exception("Invalid rel cond val ${v}");
+        $self->throw_exception("Invalid rel cond val ${v}");
       if (ref $for) { # Object
         #warn "$self $k $for $v";
         $ret{$k} = $for->get_column($v);
@@ -577,7 +577,7 @@ in the supplied relationships. Examples:
   #  'artist.name',
   #  'producer.producerid',
   #  'producer.name'
-  #)  
+  #)
 
 =cut
 
@@ -719,7 +719,7 @@ See throw_exception in L<DBIx::Class::Schema>.
 
 sub throw_exception {
   my $self = shift;
-  if (defined $self->schema) { 
+  if (defined $self->schema) {
     $self->schema->throw_exception(@_);
   } else {
     croak(@_);

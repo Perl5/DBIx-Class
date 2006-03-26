@@ -13,15 +13,15 @@ __PACKAGE__->load_own_components(qw/
   Base
 /);
 
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::Relationship - Inter-table relationships
 
 =head1 SYNOPSIS
 
-  MyDB::Schema::Actor->has_many('actorroles' => 'MyDB::Schema::ActorRole', 
+  MyDB::Schema::Actor->has_many('actorroles' => 'MyDB::Schema::ActorRole',
                                 'actor');
-  MyDB::Schema::Role->has_many('actorroles' => 'MyDB::Schema::ActorRole', 
+  MyDB::Schema::Role->has_many('actorroles' => 'MyDB::Schema::ActorRole',
                                 'role');
   MyDB::Schema::ActorRole->belongs_to('role' => 'MyDB::Schema::Role');
   MyDB::Schema::ActorRole->belongs_to('actor' => 'MyDB::Schema::Actor');
@@ -65,10 +65,10 @@ we can do this instead:
 
  my $fredsbooks = $schema->resultset('Author')->find({ Name => 'Fred' })->books;
 
-Each relationship sets up an accessor method on the 
+Each relationship sets up an accessor method on the
 L<DBIx::Class::Manual::Glossary/"Row"> objects that represent the items
 of your table. From L<DBIx::Class::Manual::Glossary/"ResultSet"> objects,
-the relationships can be searched using the "search_related" method. 
+the relationships can be searched using the "search_related" method.
 In list context, each returns a list of Row objects for the related class,
 in scalar context, a new ResultSet representing the joined tables is
 returned. Thus, the calls can be chained to produce complex queries.
@@ -83,7 +83,7 @@ the data for an actual item, no time is wasted producing them.
 
 will produce a query something like:
 
- SELECT * FROM Author me 
+ SELECT * FROM Author me
  LEFT JOIN Books books ON books.author = me.id
  LEFT JOIN Prices prices ON prices.book = books.id
  WHERE prices.Price <= 5.00
@@ -112,7 +112,7 @@ See L<DBIx::Class::Relationship::Base> for a list of valid attributes.
   my $author_obj = $obj->author;
   $obj->author($new_author_obj);
 
-Creates a relationship where the calling class stores the foreign class's 
+Creates a relationship where the calling class stores the foreign class's
 primary key in one (or more) of its columns. If $cond is a column name
 instead of a join condition hash, that is used as the name of the column
 holding the foreign key. If $cond is not given, the relname is used as
@@ -149,7 +149,7 @@ cascade or restrict will take precedence.
 
 =head2 might_have
 
-  My::DBIC::Schema::Author->might_have(pseudonym => 
+  My::DBIC::Schema::Author->might_have(pseudonym =>
                                        'My::DBIC::Schema::Pseudonyms');
   my $pname = $obj->pseudonym; # to get the Pseudonym object
 
@@ -175,12 +175,12 @@ left join.
 
 =head2 many_to_many
 
-  My::DBIC::Schema::Actor->has_many( actor_roles => 
+  My::DBIC::Schema::Actor->has_many( actor_roles =>
                                      'My::DBIC::Schema::ActorRoles',
                                      'actor' );
-  My::DBIC::Schema::ActorRoles->belongs_to( role => 
+  My::DBIC::Schema::ActorRoles->belongs_to( role =>
                                             'My::DBIC::Schema::Role' );
-  My::DBIC::Schema::ActorRoles->belongs_to( actor => 
+  My::DBIC::Schema::ActorRoles->belongs_to( actor =>
                                             'My::DBIC::Schema::Actor' );
 
   My::DBIC::Schema::Actor->many_to_many( roles => 'actor_roles',
@@ -194,7 +194,7 @@ Creates an accessor bridging two relationships; not strictly a relationship
 in its own right, although the accessor will return a resultset or collection
 of objects just as a has_many would.
 To use many_to_many, existing relationships from the original table to the link
-table, and from the link table to the end table must already exist, these 
+table, and from the link table to the end table must already exist, these
 relation names are then used in the many_to_many call.
 
 =cut

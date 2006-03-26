@@ -99,7 +99,7 @@ sub register_source {
     $map{$source->result_class} = $moniker;
     $self->class_mappings(\%map);
   }
-} 
+}
 
 =head2 class
 
@@ -210,7 +210,7 @@ need to add "no warnings 'qw';" before your load_classes call.
 e.g.,
 
   My::Schema->load_classes(); # loads My::Schema::CD, My::Schema::Artist,
-			      # etc. (anything under the My::Schema namespace)
+                              # etc. (anything under the My::Schema namespace)
 
   # loads My::Schema::CD, My::Schema::Artist, Other::Namespace::Producer but
   # not Other::Namespace::LinerNotes nor My::Schema::Track
@@ -266,9 +266,9 @@ sub load_classes {
         my $comp_class = "${prefix}::${comp}";
         eval "use $comp_class"; # If it fails, assume the user fixed it
         if ($@) {
-	  $comp_class =~ s/::/\//g;
+          $comp_class =~ s/::/\//g;
           die $@ unless $@ =~ /Can't locate.+$comp_class\.pm\sin\s\@INC/;
-	  warn $@ if $@;
+          warn $@ if $@;
         }
         push(@to_register, [ $comp, $comp_class ]);
       }
@@ -572,8 +572,8 @@ sub txn_do {
   $self->txn_begin; # If this throws an exception, no rollback is needed
 
   my $wantarray = wantarray; # Need to save this since the context
-			     # inside the eval{} block is independent
-			     # of the context that called txn_do()
+                             # inside the eval{} block is independent
+                             # of the context that called txn_do()
   eval {
 
     # Need to differentiate between scalar/list context to allow for
@@ -602,7 +602,7 @@ sub txn_do {
       my $rollback_error = $@;
       my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
       $self->throw_exception($error)  # propagate nested rollback
-	if $rollback_error =~ /$exception_class/;
+        if $rollback_error =~ /$exception_class/;
 
       $self->throw_exception(
         "Transaction aborted: $error. Rollback failed: ${rollback_error}"
@@ -677,7 +677,7 @@ sub populate {
 
 =head2 throw_exception
 
-=over 4 
+=over 4
 
 =item Arguments: ($message)
 

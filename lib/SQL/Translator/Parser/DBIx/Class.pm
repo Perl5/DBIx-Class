@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     SQL::Translator::Parser::DBIx::Class;
 
 # AUTHOR: Jess Robinson
@@ -94,9 +94,9 @@ sub parse {
             my ($refkey) = $cond =~ /^\w+\.(\w+)$/;
             my ($key) = $rel_info->{cond}->{$cond} =~ /^\w+\.(\w+)$/;
             if($rel_table && $refkey)
-            { 
+            {
                 $table->add_constraint(
-                            type             => 'foreign_key', 
+                            type             => 'foreign_key',
                             name             => "fk_${key}",
                             fields           => $key,
                             reference_fields => $refkey,
@@ -106,6 +106,6 @@ sub parse {
         }
     }
 
-}    
+}
 
 1;

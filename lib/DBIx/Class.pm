@@ -32,7 +32,7 @@ sub _attr_cache {
 
 1;
 
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class - Extensible and flexible object <-> relational mapper.
 
