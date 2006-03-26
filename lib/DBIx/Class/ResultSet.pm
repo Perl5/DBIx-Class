@@ -184,7 +184,7 @@ sub new {
                  # year = 2005 OR year = 2004
 
 If you need to pass in additional attributes but no additional condition,
-call it as C<search(undef, \%attrs);>.
+call it as C<search(undef, \%attrs)>.
 
   # "SELECT name, artistid FROM $artist_table"
   my @all_artists = $schema->resultset('Artist')->search(undef, {
@@ -345,7 +345,7 @@ sub find {
     name => 'Emo-R-Us',
   });
 
-Search the specified relationship, optionally specify a condition and
+Searches the specified relationship, optionally specifying a condition and
 attributes for matching records. See L</ATTRIBUTES> for more information.
 
 =cut
@@ -428,7 +428,7 @@ sub single {
   # WHERE title LIKE '%blue%'
   $cd_rs = $rs->search_like({ title => '%blue%'});
 
-Perform a search, but use C<LIKE> instead of C<=> as the condition. Note
+Performs a search, but uses C<LIKE> instead of C<=> as the condition. Note
 that this is simply a convenience method. You most likely want to use
 L</search> with specific operators.
 
@@ -455,8 +455,8 @@ sub search_like {
 =back
 
 Returns a resultset or object list representing a subset of elements from the
-resultset slice is called on.  Indexes are from 0 - i.e. to get the first
-three records, call
+resultset slice is called on. Indexes are from 0, i.e., to get the first
+three records, call:
 
   my ($one, $two, $three) = $rs->slice(0, 2);
 
@@ -770,7 +770,7 @@ sub reset {
 =back
 
 Resets the resultset and returns an object for the first result (if the
-resultset contains anything).
+resultset returns anything).
 
 =cut
 
@@ -813,8 +813,8 @@ sub update {
 
 =back
 
-Fetches all objects and updates them one at a time.  Note that C<update_all>
-will run cascade triggers while L</update> will not.
+Fetches all objects and updates them one at a time. Note that C<update_all>
+will run DBIC cascade triggers, while L</update> will not.
 
 =cut
 
@@ -839,7 +839,8 @@ sub update_all {
 =back
 
 Deletes the contents of the resultset from its result source. Note that this
-will not run cascade triggers. See L</delete_all> if you need triggers to run.
+will not run DBIC cascade triggers. See L</delete_all> if you need triggers
+to run.
 
 =cut
 
@@ -897,8 +898,8 @@ sub delete {
 
 =back
 
-Fetches all objects and deletes them one at a time.  Note that C<delete_all>
-will run cascade triggers while L</delete> will not.
+Fetches all objects and deletes them one at a time. Note that C<delete_all>
+will run DBIC cascade triggers, while L</delete> will not.
 
 =cut
 
@@ -945,7 +946,7 @@ sub pager {
 
 Returns a resultset for the $page_number page of the resultset on which page
 is called, where each page contains a number of rows equal to the 'rows'
-attribute set on the resultset, or 10 by default
+attribute set on the resultset (10 by default).
 
 =cut
 
@@ -1067,9 +1068,9 @@ sub find_or_create {
 
   $class->update_or_create({ col => $val, ... });
 
-First, search for an existing row matching one of the unique constraints
-(including the primary key) on the source of this resultset.  If a row is
-found, update it with the other given column values.  Otherwise, create a new
+First, searches for an existing row matching one of the unique constraints
+(including the primary key) on the source of this resultset. If a row is
+found, updates it with the other given column values. Otherwise, creates a new
 row.
 
 Takes an optional C<key> attribute to search on a specific unique constraint.
@@ -1088,7 +1089,7 @@ For example:
 If no C<key> is specified, it searches on all unique constraints defined on the
 source, including the primary key.
 
-If the C<key> is specified as C<primary>, search only on the primary key.
+If the C<key> is specified as C<primary>, it searches only on the primary key.
 
 See also L</find> and L</find_or_create>.
 
@@ -1138,7 +1139,7 @@ sub update_or_create {
 
 =back
 
-Gets the contents of the cache for the resultset if the cache is set
+Gets the contents of the cache for the resultset, if the cache is set.
 
 =cut
 
