@@ -213,7 +213,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugfh
+  qw/_connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugfh
      cursor on_connect_do transaction_depth/);
 
 sub new {
@@ -249,6 +249,25 @@ This class represents the connection to the database
 =head1 METHODS
 
 =cut
+
+=head2 connect_info
+
+Connection information arrayref.  Can either be the same arguments
+one would pass to DBI->connect, or a code-reference which returns
+a connected database handle.  In either case, there is an optional
+final element in the arrayref, which can hold a hashref of
+connection-specific Storage::DBI options.  These include
+C<on_connect_do>, and the sql_maker options C<limit_dialect>,
+C<quote_char>, and C<name_sep>.  Examples:
+
+  ->connect_info([ 'dbi:SQLite:./foo.db' ]);
+  ->connect_info(sub { DBI->connect(...) });
+  ->connect_info([ 'dbi:Pg:dbname=foo',
+                   'postgres',
+                   '',
+                   { AutoCommit => 0 },
+                   { quote_char => q{`}, name_sep => q{@} },
+                 ]);
 
 =head2 on_connect_do
 
@@ -333,9 +352,40 @@ sub sql_maker {
   return $self->_sql_maker;
 }
 
+sub connect_info {
+    my ($self, $info_arg) = @_;
+
+    if($info_arg) {
+        my $info = [ @$info_arg ]; # copy because we can alter it
+        my $last_info = $info->[-1];
+        if(ref $last_info eq 'HASH') {
+            my $used;
+            if(my $on_connect_do = $last_info->{on_connect_do}) {
+               $used = 1;
+               $self->on_connect_do($self->{on_connect_do});
+            }
+            foreach my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
+                if(my $opt_val = $last_info->{$sql_maker_opt}) {
+                    $used = 1;
+                    $self->sql_maker->$sql_maker_opt($opt_val);
+                }
+            }
+
+            # remove our options hashref if it was there, to avoid confusing
+            #   DBI in the case the user didn't use all 4 DBI options, as in:
+            #   [ 'dbi:SQLite:foo.db', { quote_char => q{`} } ]
+            pop(@$info) if $used;
+        }
+
+        $self->_connect_info($info);
+    }
+
+    $self->_connect_info;
+}
+
 sub _populate_dbh {
   my ($self) = @_;
-  my @info = @{$self->connect_info || []};
+  my @info = @{$self->_connect_info || []};
   $self->_dbh($self->_connect(@info));
   my $driver = $self->_dbh->{Driver}->{Name};
   eval "require DBIx::Class::Storage::DBI::${driver}";
