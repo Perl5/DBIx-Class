@@ -362,9 +362,9 @@ sub connect_info {
             my $used;
             if(my $on_connect_do = $last_info->{on_connect_do}) {
                $used = 1;
-               $self->on_connect_do($self->{on_connect_do});
+               $self->on_connect_do($on_connect_do);
             }
-            foreach my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
+            for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
                 if(my $opt_val = $last_info->{$sql_maker_opt}) {
                     $used = 1;
                     $self->sql_maker->$sql_maker_opt($opt_val);
