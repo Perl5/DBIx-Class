@@ -1472,7 +1472,7 @@ avoid using C<from> unless you cannot achieve the desired result using C<join>.
 In simple terms, C<from> works as follows:
 
     [
-        { <alias> => <table>, -join-type => 'inner|left|right' }
+        { <alias> => <table>, -join_type => 'inner|left|right' }
         [] # nested JOIN (optional)
         { <table.column> => <foreign_table.foreign_key> }
     ]
@@ -1535,7 +1535,7 @@ with a father in the person table, we could explicitly use C<INNER JOIN>:
             from => [
                 { child => 'person' },
                 [
-                    { father => 'person', -join-type => 'inner' },
+                    { father => 'person', -join_type => 'inner' },
                     { 'father.id' => 'child.father_id' }
                 ],
             ]
