@@ -359,12 +359,24 @@ sub update_or_insert {
 
 =head2 is_changed
 
-  my @changed_col_names = $obj->is_changed
+  my @changed_col_names = $obj->is_changed();
+  if ($obj->is_changed()) { ... }
 
 =cut
 
 sub is_changed {
   return keys %{shift->{_dirty_columns} || {}};
+}
+
+=head2 is_column_changed
+
+  if ($obj->is_column_changed('col')) { ... }
+
+=cut
+
+sub is_column_changed {
+  my( $self, $col ) = @_;
+  return exists $self->{_dirty_columns}->{$col};
 }
 
 =head2 result_source
