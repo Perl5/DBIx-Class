@@ -1,3 +1,4 @@
+
 2006-03-25 by mst
   - Refactor ResultSet::new to be less hairy
     - we should move the setup of select, as, and from out of here
@@ -32,4 +33,11 @@
  - When subclassing a dbic class make it so you don't have to do 
    __PACKAGE__->table(__PACKAGE__->table()); for the result set to 
    return the correct object type.
+
+2006-03-27 by mst
+ Add the ability for deploy to be given a directory and grab <dbname>.sql 
+ out of there if available. Try SQL::Translator if not. If none of the above, 
+ cry (and die()).  Then you can have a script that pre-gens for all available 
+ SQLT modules so an app can do its own deploy without SQLT on the target 
+ system
 
