@@ -637,10 +637,11 @@ sub deployment_statements {
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
-  my @statements = $self->deployment_statements($schema, $type, $sqltargs);
-  foreach(split(";\n", @statements)) {
-    $self->debugfh->print("$_\n") if $self->debug;
-    $self->dbh->do($_) or warn "SQL was:\n $_";
+  foreach my $statement ( $self->deployment_statements($schema, $type, $sqltargs) ) {
+    for ( split(";\n", $statement)) {
+      $self->debugfh->print("$_\n") if $self->debug;
+      $self->dbh->do($_) or warn "SQL was:\n $_";
+    }
   }
 }
 
