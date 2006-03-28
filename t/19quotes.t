@@ -6,7 +6,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 6 );
+        : ( tests => 7 );
 }
 
 use lib qw(t/lib);
@@ -52,6 +52,13 @@ $rs = DBICTest::CD->search(
            { join => 'artist' });
 cmp_ok($rs->count,'==', 1,"join quoted with brackets.");
 
+my %data = (
+       name => 'Bill',
+       order => '12'
+);
 
+DBICTest->schema->storage->sql_maker->quote_char('`');
+DBICTest->schema->storage->sql_maker->name_sep('.');
 
+cmp_ok(DBICTest->schema->storage->sql_maker->update('group', \%data), 'eq', 'UPDATE `group` SET `name` = ?, `order` = ?', "quoted table names for UPDATE");
 

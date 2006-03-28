@@ -30,8 +30,6 @@ information.
 
 =head2 new
 
-=back
-
 Returns a new L<DBIx::Class::Storage::DBI::Cursor> object.
 
 =cut
@@ -57,9 +55,9 @@ sub new {
 
 =over 4
 
-=item Arguments: (none)
+=item Arguments: none
 
-=item Returns: \@row_columns
+=item Return Value: \@row_columns
 
 =back
 
@@ -99,9 +97,9 @@ sub next {
 
 =over 4
 
-=item Arguments: (none)
+=item Arguments: none
 
-=item Returns: \@row_columns+
+=item Return Value: \@row_columns+
 
 =back
 
@@ -122,8 +120,6 @@ sub all {
 }
 
 =head2 reset
-
-=back
 
 Resets the cursor to the beginning of the L<DBIx::Class::ResultSet>.
 

@@ -77,35 +77,67 @@ sub parse {
         foreach my $rel (@rels)
         {
             my $rel_info = $source->relationship_info($rel);
-            next if(!exists $rel_info->{attrs}{accessor} ||
-                    $rel_info->{attrs}{accessor} eq 'multi');
-            # Going by the accessor type isn't such a good idea (yes, I know
-            # I suggested it). I think the best way to tell if something is a
-            # foreign key constraint is to assume if it doesn't include our
-            # primaries then it is (dumb but it'll do). Ignore any rel cond
-            # that isn't a straight hash, but get both sets of keys in full
-            # so you don't barf on multi-primaries. Oh, and a dog-simple
-            # deploy method to chuck the results of this exercise at a db
-            # for testing is
-            # $schema->storage->dbh->do($_) for split(";\n", $sql);
-            #         -- mst (03:42 local time, please excuse any mistakes)
+
             my $rel_table = $source->related_source($rel)->name;
-            my $cond = (keys (%{$rel_info->{cond}}))[0];
-            my ($refkey) = $cond =~ /^\w+\.(\w+)$/;
-            my ($key) = $rel_info->{cond}->{$cond} =~ /^\w+\.(\w+)$/;
-            if($rel_table && $refkey)
+
+            # Ignore any rel cond that isn't a straight hash
+            next unless ref $rel_info->{cond} eq 'HASH';
+
+            # Get the key information, mapping off the foreign/self markers
+            my @cond = keys(%{$rel_info->{cond}});
+            my @refkeys = map {/^\w+\.(\w+)$/} @cond;
+            my @keys = map {$rel_info->{cond}->{$_} =~ /^\w+\.(\w+)$/} @cond;
+
+            if($rel_table)
             {
-                $table->add_constraint(
-                            type             => 'foreign_key',
-                            name             => "fk_${key}",
-                            fields           => $key,
-                            reference_fields => $refkey,
-                            reference_table  => $rel_table,
-                );
+
+                #Decide if this is a foreign key based on whether the self
+                #items are our primary columns.
+
+                # Make sure every self key is in the primary key list
+                my $found;
+                foreach my $key (@keys) {
+                    $found = 0;
+                    foreach my $prim ($source->primary_columns) {
+                        if ($prim eq $key) {
+                            $found = 1;
+                            last;
+                        }
+                    }
+                    last unless $found;
+                }
+
+                # Make sure every primary key column is in the self keys
+                if ($found) {
+                    foreach my $prim ($source->primary_columns) {
+                        $found = 0;
+                        foreach my $key (@keys) {
+                            if ($prim eq $key) {
+                                $found = 1;
+                                last;
+                            }
+                        }
+                        last unless $found;
+                    }
+                }
+
+                # if $found then the two sets are equal.
+
+                # If the sets are different, then we assume it's a foreign key from
+                # us to another table.
+                if (!$found) {
+                    $table->add_constraint(
+                                type             => 'foreign_key',
+                                name             => "fk_$keys[0]",
+                                fields           => \@keys,
+                                reference_fields => \@refkeys,
+                                reference_table  => $rel_table,
+                    );
+                }
             }
         }
     }
-
+    return 1;
 }
 
 1;

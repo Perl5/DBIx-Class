@@ -28,8 +28,6 @@ information.
 
 =head2 new
 
-=back
-
 Virtual method. Returns a new L<DBIx::Class::Cursor> object.
 
 =cut
@@ -39,8 +37,6 @@ sub new {
 }
 
 =head2 next
-
-=back
 
 Virtual method. Advances the cursor to the next row.
 
@@ -52,8 +48,6 @@ sub next {
 
 =head2 reset
 
-=back
-
 Virtual method. Resets the cursor to the beginning.
 
 =cut
@@ -63,8 +57,6 @@ sub reset {
 }
 
 =head2 all
-
-=back
 
 Virtual method. Returns all rows in the L<DBIx::Class::ResultSet>.
 

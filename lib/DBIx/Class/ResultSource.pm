@@ -54,13 +54,12 @@ sub new {
 
   $table->add_columns('col1' => \%col1_info, 'col2' => \%col2_info, ...);
 
-Adds columns to the result source. If supplied key => hashref pairs uses
-the hashref as the column_info for that column.
+Adds columns to the result source. If supplied key => hashref pairs, uses
+the hashref as the column_info for that column. Repeated calls of this
+method will add more columns, not replace them.
 
-Repeated calls of this method will add more columns, not replace them.
-
-The contents of the column_info are not set in stone, the following
-keys are currently recognised/used by DBIx::Class. 
+The contents of the column_info are not set in stone. The following
+keys are currently recognised/used by DBIx::Class:
 
 =over 4
 
@@ -71,15 +70,15 @@ the name of the column will be used.
 
 =item data_type
 
-This contains the column type, it is automatically filled by the
+This contains the column type. It is automatically filled by the
 L<SQL::Translator::Producer::DBIx::Class::File> producer, and the
-L<DBIx::Class::Schema::Loader> module. If you do not enter the
+L<DBIx::Class::Schema::Loader> module. If you do not enter a
 data_type, DBIx::Class will attempt to retrieve it from the
-database for you, using L<DBI>s column_info method. The values of this
+database for you, using L<DBI>'s column_info method. The values of this
 key are typically upper-cased.
 
-Currently there is no standard set of values for the data_type, use
-whatever your database(s) support.
+Currently there is no standard set of values for the data_type. Use
+whatever your database supports.
 
 =item size
 
@@ -88,31 +87,32 @@ restriction. This is currently not used by DBIx::Class.
 
 =item is_nullable
 
-If the column is allowed to contain NULL values, set a true value
-(typically 1), here. This is currently not used by DBIx::Class.
+Set this to a true value for a columns that is allowed to contain
+NULL values. This is currently not used by DBIx::Class.
 
 =item is_auto_increment
 
-Set this to a true value if this is a column that is somehow
-automatically filled. This is used to determine which columns to empty
+Set this to a true value for a column whose value is somehow
+automatically set. This is used to determine which columns to empty
 when cloning objects using C<copy>.
 
 =item is_foreign_key
 
-Set this to a true value if this column represents a key from a
+Set this to a true value for a column that contains a key from a
 foreign table. This is currently not used by DBIx::Class.
 
 =item default_value
 
-Set this to the default value which will be inserted into this column
-by the database. Can contain either values or functions. This is
+Set this to the default value which will be inserted into a column
+by the database. Can contain either a value or a function. This is
 currently not used by DBIx::Class.
 
 =item sequence
 
-Sets the name of the sequence to use to generate values.  If not 
-specified, L<DBIx::Class::PK::Auto> will attempt to retrieve the 
-name of the sequence from the database automatically.
+Set this on a primary key column to the name of the sequence used to
+generate a new key value. If not specified, L<DBIx::Class::PK::Auto>
+will attempt to retrieve the name of the sequence from the database
+automatically.
 
 =back
 
@@ -120,7 +120,7 @@ name of the sequence from the database automatically.
 
   $table->add_column('col' => \%info?);
 
-Convenience alias to add_columns
+Convenience alias to add_columns.
 
 =cut
 
@@ -147,7 +147,7 @@ sub add_columns {
 
   if ($obj->has_column($col)) { ... }
 
-Returns 1 if the source has a column of this name, 0 otherwise.
+Returns true if the source has a column of this name, false otherwise.
 
 =cut
 
@@ -193,7 +193,7 @@ sub column_info {
 
   my @column_names = $obj->columns;
 
-Returns all column names in the order they were declared to add_columns
+Returns all column names in the order they were declared to add_columns.
 
 =cut
 
@@ -209,7 +209,7 @@ sub columns {
 
 =over 4
 
-=item Arguments: (@cols)
+=item Arguments: @cols
 
 =back
 
@@ -249,9 +249,8 @@ sub primary_columns {
 
 Declare a unique constraint on this source. Call once for each unique
 constraint. Unique constraints are used when you call C<find> on a
-L<DBIx::Class::ResultSet>, only columns in the constraint are searched,
-
-e.g.,
+L<DBIx::Class::ResultSet>. Only columns in the constraint are searched,
+for example:
 
   # For UNIQUE (column1, column2)
   __PACKAGE__->add_unique_constraint(
@@ -286,8 +285,8 @@ sub unique_constraints {
 =head2 from
 
 Returns an expression of the source to be supplied to storage to specify
-retrieval from this source; in the case of a database the required FROM clause
-contents.
+retrieval from this source. In the case of a database, the required FROM
+clause contents.
 
 =cut
 
@@ -314,7 +313,7 @@ the current schema. For example:
     'foreign.book_id' => 'self.id',
   });
 
-The condition C<$cond> needs to be an SQL::Abstract-style
+The condition C<$cond> needs to be an L<SQL::Abstract>-style
 representation of the join between the tables. For example, if you're
 creating a rel from Author to Book,
 
@@ -348,8 +347,8 @@ the main class. If, for example, you do the following:
 Then, assuming LinerNotes has an accessor named notes, you can do:
 
   my $cd = CD->find(1);
-  $cd->notes('Notes go here'); # set notes -- LinerNotes object is
-			       # created if it doesn't exist
+  # set notes -- LinerNotes object is created if it doesn't exist
+  $cd->notes('Notes go here');
 
 =item accessor
 
@@ -408,7 +407,7 @@ sub add_relationship {
 
 =head2 relationships
 
-Returns all valid relationship names for this source
+Returns all relationship names for this source.
 
 =cut
 
@@ -420,11 +419,12 @@ sub relationships {
 
 =over 4
 
-=item Arguments: ($relname)
+=item Arguments: $relname
 
 =back
 
-Returns the relationship information for the specified relationship name
+Returns a hash of relationship information for the specified relationship
+name.
 
 =cut
 
@@ -437,11 +437,11 @@ sub relationship_info {
 
 =over 4
 
-=item Arguments: ($rel)
+=item Arguments: $rel
 
 =back
 
-Returns 1 if the source has a relationship of this name, 0 otherwise.
+Returns true if the source has a relationship of this name, false otherwise.
 
 =cut
 
@@ -454,11 +454,11 @@ sub has_relationship {
 
 =over 4
 
-=item Arguments: ($relation)
+=item Arguments: $relation
 
 =back
 
-Returns the join structure required for the related result source
+Returns the join structure required for the related result source.
 
 =cut
 
@@ -493,7 +493,7 @@ sub resolve_join {
 
 =over 4
 
-=item Arguments: ($cond, $as, $alias|$object)
+=item Arguments: $cond, $as, $alias|$object
 
 =back
 
@@ -536,7 +536,7 @@ sub resolve_condition {
 
 =over 4
 
-=item Arguments: (hashref/arrayref/scalar)
+=item Arguments: hashref/arrayref/scalar
 
 =back
 
@@ -641,11 +641,11 @@ sub resolve_prefetch {
 
 =over 4
 
-=item Arguments: ($relname)
+=item Arguments: $relname
 
 =back
 
-Returns the result source object for the given relationship
+Returns the result source object for the given relationship.
 
 =cut
 
@@ -661,11 +661,11 @@ sub related_source {
 
 =over 4
 
-=item Arguments: ($relname)
+=item Arguments: $relname
 
 =back
 
-Returns the class object for the given relationship
+Returns the class name for objects in the given relationship.
 
 =cut
 
@@ -713,7 +713,7 @@ sub resultset {
 
 =head2 throw_exception
 
-See throw_exception in L<DBIx::Class::Schema>.
+See L<DBIx::Class::Schema/"throw_exception">.
 
 =cut
 
@@ -725,7 +725,6 @@ sub throw_exception {
     croak(@_);
   }
 }
-
 
 =head1 AUTHORS
 

@@ -35,6 +35,8 @@ The core modules currently are:
 
 =over 4
 
+=item L<DBIx::Class::Serialize::Storable>
+
 =item L<DBIx::Class::InflateColumn>
 
 =item L<DBIx::Class::Relationship>
