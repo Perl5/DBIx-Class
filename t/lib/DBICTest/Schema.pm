@@ -27,7 +27,7 @@ __PACKAGE__->load_classes(qw/
     'Producer',
     'CD_to_Producer',
   ),
-  qw/SelfRefAlias TreeLike/
+  qw/SelfRefAlias TreeLike TwoKeyTreeLike/
 );
 
 1;

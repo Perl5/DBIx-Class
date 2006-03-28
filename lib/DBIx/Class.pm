@@ -239,6 +239,8 @@ konobi: Scott McWhirter
 
 scotty: Scotty Allen <scotty@scottyallen.com>
 
+sszabo: Stephan Szabo <sszabo@bigpanda.com>
+
 Todd Lipcon
 
 wdh: Will Hawes
