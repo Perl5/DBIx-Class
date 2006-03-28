@@ -477,7 +477,7 @@ sub _execute {
       $self->debugfh->print("$sql: " . join(', ', @debug_bind) . "\n");
   }
   my $sth = $self->sth($sql,$op);
-  $self->throw_exception("no sth generated via sql: $sql") unless $sth;
+  $self->throw_exception('no sth generated via sql (' . $self->_dbh->errstr . "): $sql" unless $sth;
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {
