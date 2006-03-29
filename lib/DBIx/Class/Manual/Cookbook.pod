@@ -200,6 +200,26 @@ Then call your new method in your code:
    my $ordered_cds = $schema->resultset('CD')->search_cds_ordered();
 
 
+=head3 Predefined searches without writing a ResultSet class
+
+Alternatively you can automatically generate a DBIx::Class::ResultSet
+class by using the ResultSetManager component and tagging your method
+as ResultSet:
+
+  __PACKAGE__->load_components(qw/ ResultSetManager Core /);
+
+  sub search_cds_ordered : ResultSet {
+      my ($self) = @_;
+      return $self->search(
+          {},
+          { order_by => 'name DESC' },
+      );
+  } 
+
+Then call your method in the same way from your code:
+
+   my $ordered_cds = $schema->resultset('CD')->search_cds_ordered();
+
 =head2 Using joins and prefetch
 
 You can use the C<join> attribute to allow searching on, or sorting your
