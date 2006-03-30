@@ -23,10 +23,6 @@ An example of slightly more complex usage.
 
 Convenient reciepes for DBIC usage.
 
-=head2 L<DBIx::Class::Manual::FAQ>
-
-Frequently asked questions about DBIC.
-
 =head2 L<DBIx::Class::Manual::Troubleshooting>
 
 Got trouble? Let us shoot it for you.

@@ -133,8 +133,6 @@ Check out the L<Class::C3> docs for more information about inheritance.
 
 L<DBIx::Class::Manual::Cookbook>
 
-L<DBIx::Class::Manual::FAQ>
-
 =head1 AUTHOR
 
 Aran Clary Deltac <bluefeet@cpan.org>
