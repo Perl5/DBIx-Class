@@ -16,7 +16,7 @@ sub run_tests {
 
     hammer_rs( $employees );
 
-    DBICTest::Employee->collection_column('group_id');
+    DBICTest::Employee->grouping_column('group_id');
     $employees->delete();
     foreach my $group_id (1..3) {
         foreach (1..6) {

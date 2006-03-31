@@ -3,7 +3,7 @@ package # hide from PAUSE
 
 use base 'DBIx::Class';
 
-__PACKAGE__->load_components(qw( Positional PK::Auto Core ));
+__PACKAGE__->load_components(qw( Ordered PK::Auto Core ));
 
 __PACKAGE__->table('employees');
 

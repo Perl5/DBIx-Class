@@ -1,64 +1,64 @@
 # vim: ts=8:sw=4:sts=4:et
-package DBIx::Class::Positional;
+package DBIx::Class::Ordered;
 use strict;
 use warnings;
 use base qw( DBIx::Class );
 
 =head1 NAME
 
-DBIx::Class::Positional - Modify the position of objects in an ordered list.
+DBIx::Class::Ordered - Modify the position of objects in an ordered list.
 
 =head1 SYNOPSIS
 
-Create a table for your positionable data.
+Create a table for your ordered data.
 
-  CREATE TABLE employees (
-    employee_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  CREATE TABLE items (
+    item_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     position INTEGER NOT NULL
   );
   # Optional: group_id INTEGER NOT NULL
 
-In your Schema or DB class add Positional to the top 
+In your Schema or DB class add Ordered to the top 
 of the component list.
 
-  __PACKAGE__->load_components(qw( Positional ... ));
+  __PACKAGE__->load_components(qw( Ordered ... ));
 
 Specify the column that stores the position number for 
 each row.
 
-  package My::Employee;
+  package My::Item;
   __PACKAGE__->position_column('position');
-  __PACKAGE__->collection_column('group_id'); # optional
+  __PACKAGE__->grouping_column('group_id'); # optional
 
 Thats it, now you can change the position of your objects.
 
   #!/use/bin/perl
-  use My::Employee;
+  use My::Item;
   
-  my $employee = My::Employee->create({ name=>'Matt S. Trout' });
-  # If using collection_column:
-  my $employee = My::Employee->create({ name=>'Matt S. Trout', group_id=>1 });
+  my $item = My::Item->create({ name=>'Matt S. Trout' });
+  # If using grouping_column:
+  my $item = My::Item->create({ name=>'Matt S. Trout', group_id=>1 });
   
-  my $rs = $employee->siblings();
-  my @siblings = $employee->siblings();
+  my $rs = $item->siblings();
+  my @siblings = $item->siblings();
   
   my $sibling;
-  $sibling = $employee->first_sibling();
-  $sibling = $employee->last_sibling();
-  $sibling = $employee->previous_sibling();
-  $sibling = $employee->next_sibling();
+  $sibling = $item->first_sibling();
+  $sibling = $item->last_sibling();
+  $sibling = $item->previous_sibling();
+  $sibling = $item->next_sibling();
   
-  $employee->move_previous();
-  $employee->move_next();
-  $employee->move_first();
-  $employee->move_last();
-  $employee->move_to( $position );
+  $item->move_previous();
+  $item->move_next();
+  $item->move_first();
+  $item->move_last();
+  $item->move_to( $position );
 
 =head1 DESCRIPTION
 
-This module provides a simple interface for modifying the position 
-of DBIx::Class objects.
+This module provides a simple interface for modifying the ordered 
+position of DBIx::Class objects.
 
 =head1 AUTO UPDATE
 
@@ -79,22 +79,22 @@ positional value of each record.  Default to "position".
 
 __PACKAGE__->mk_classdata( 'position_column' => 'position' );
 
-=head2 collection_column
+=head2 grouping_column
 
-  __PACKAGE__->collection_column('thing_id');
+  __PACKAGE__->grouping_column('group_id');
 
 This method specified a column to limit all queries in 
 this module by.  This effectively allows you to have multiple 
-positional lists within the same table.
+ordered lists within the same table.
 
 =cut
 
-__PACKAGE__->mk_classdata( 'collection_column' );
+__PACKAGE__->mk_classdata( 'grouping_column' );
 
 =head2 siblings
 
-  my $rs = $employee->siblings();
-  my @siblings = $employee->siblings();
+  my $rs = $item->siblings();
+  my @siblings = $item->siblings();
 
 Returns either a result set or an array of all other objects 
 excluding the one you called it on.
@@ -107,7 +107,7 @@ sub siblings {
     my $rs = $self->result_source->resultset->search(
         {
             $position_column => { '!=' => $self->get_column($position_column) },
-            $self->_collection_clause(),
+            $self->_grouping_clause(),
         },
         { order_by => $self->position_column },
     );
@@ -117,7 +117,7 @@ sub siblings {
 
 =head2 first_sibling
 
-  my $sibling = $employee->first_sibling();
+  my $sibling = $item->first_sibling();
 
 Returns the first sibling object, or 0 if the first sibling 
 is this sibliing.
@@ -130,14 +130,14 @@ sub first_sibling {
     return ($self->result_source->resultset->search(
         {
             $self->position_column => 1,
-            $self->_collection_clause(),
+            $self->_grouping_clause(),
         },
     )->all())[0];
 }
 
 =head2 last_sibling
 
-  my $sibling = $employee->last_sibling();
+  my $sibling = $item->last_sibling();
 
 Return the last sibling, or 0 if the last sibling is this 
 sibling.
@@ -146,21 +146,21 @@ sibling.
 
 sub last_sibling {
     my( $self ) = @_;
-    my $count = $self->result_source->resultset->search({$self->_collection_clause()})->count();
+    my $count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
     return 0 if ($self->get_column($self->position_column())==$count);
     return ($self->result_source->resultset->search(
         {
             $self->position_column => $count,
-            $self->_collection_clause(),
+            $self->_grouping_clause(),
         },
     )->all())[0];
 }
 
 =head2 previous_sibling
 
-  my $sibling = $employee->previous_sibling();
+  my $sibling = $item->previous_sibling();
 
-Returns the sibling that resides one position higher.  Undef 
+Returns the sibling that resides one position back.  Undef 
 is returned if the current object is the first one.
 
 =cut
@@ -173,16 +173,16 @@ sub previous_sibling {
     return ($self->result_source->resultset->search(
         {
             $position_column => $position - 1,
-            $self->_collection_clause(),
+            $self->_grouping_clause(),
         }
     )->all())[0];
 }
 
 =head2 next_sibling
 
-  my $sibling = $employee->next_sibling();
+  my $sibling = $item->next_sibling();
 
-Returns the sibling that resides one position lower.  Undef 
+Returns the sibling that resides one position foward.  Undef 
 is returned if the current object is the last one.
 
 =cut
@@ -191,19 +191,19 @@ sub next_sibling {
     my( $self ) = @_;
     my $position_column = $self->position_column;
     my $position = $self->get_column( $position_column );
-    my $count = $self->result_source->resultset->search({$self->_collection_clause()})->count();
+    my $count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
     return 0 if ($position==$count);
     return ($self->result_source->resultset->search(
         {
             $position_column => $position + 1,
-            $self->_collection_clause(),
+            $self->_grouping_clause(),
         },
     )->all())[0];
 }
 
 =head2 move_previous
 
-  $employee->move_previous();
+  $item->move_previous();
 
 Swaps position with the sibling on position previous in the list.  
 1 is returned on success, and 0 is returned if the objects is already 
@@ -219,7 +219,7 @@ sub move_previous {
 
 =head2 move_next
 
-  $employee->move_next();
+  $item->move_next();
 
 Swaps position with the sibling in the next position.  1 is returned on 
 success, and 0 is returned if the object is already the last in the list.
@@ -229,14 +229,14 @@ success, and 0 is returned if the object is already the last in the list.
 sub move_next {
     my( $self ) = @_;
     my $position = $self->get_column( $self->position_column() );
-    my $count = $self->result_source->resultset->search({$self->_collection_clause()})->count();
+    my $count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
     return 0 if ($position==$count);
     return $self->move_to( $position + 1 );
 }
 
 =head2 move_first
 
-  $employee->move_first();
+  $item->move_first();
 
 Moves the object to the first position.  1 is returned on 
 success, and 0 is returned if the object is already the first.
@@ -250,7 +250,7 @@ sub move_first {
 
 =head2 move_last
 
-  $employee->move_last();
+  $item->move_last();
 
 Moves the object to the very last position.  1 is returned on 
 success, and 0 is returned if the object is already the last one.
@@ -259,13 +259,13 @@ success, and 0 is returned if the object is already the last one.
 
 sub move_last {
     my( $self ) = @_;
-    my $count = $self->result_source->resultset->search({$self->_collection_clause()})->count();
+    my $count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
     return $self->move_to( $count );
 }
 
 =head2 move_to
 
-  $employee->move_to( $position );
+  $item->move_to( $position );
 
 Moves the object to the specified position.  1 is returned on 
 success, and 0 is returned if the object is already at the 
@@ -284,7 +284,7 @@ sub move_to {
             $position_column => { ($from_position>$to_position?'<':'>') => $from_position },
             $position_column => { ($from_position>$to_position?'>=':'<=') => $to_position },
         ],
-        $self->_collection_clause(),
+        $self->_grouping_clause(),
     });
     my $op = ($from_position>$to_position) ? '+' : '-';
     $rs->update({
@@ -306,7 +306,7 @@ the table +1, thus positioning the new record at the last position.
 sub insert {
     my $self = shift;
     my $position_column = $self->position_column;
-    $self->set_column( $position_column => $self->result_source->resultset->search( {$self->_collection_clause()} )->count()+1 ) 
+    $self->set_column( $position_column => $self->result_source->resultset->search( {$self->_grouping_clause()} )->count()+1 ) 
         if (!$self->get_column($position_column));
     return $self->next::method( @_ );
 }
@@ -330,7 +330,7 @@ sub delete {
 These methods are used internally.  You should never have the 
 need to use them.
 
-=head2 _collection_clause
+=head2 _grouping_clause
 
 This method returns a name=>value pare for limiting a search 
 by the collection column.  If the collection column is not 
@@ -338,10 +338,11 @@ defined then this will return an empty list.
 
 =cut
 
-sub _collection_clause {
+sub _grouping_clause {
     my( $self ) = @_;
-    if ($self->collection_column()) {
-        return ( $self->collection_column() => $self->get_column($self->collection_column()) );
+    my $col = $self->grouping_column();
+    if ($col) {
+        return ( $col => $self->get_column($col) );
     }
     return ();
 }
