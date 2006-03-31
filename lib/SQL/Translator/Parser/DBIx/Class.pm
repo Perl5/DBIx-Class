@@ -73,6 +73,18 @@ sub parse {
         }
         $table->primary_key($source->primary_columns);
 
+        my @primary = $source->primary_columns;
+        my %unique_constraints = $source->unique_constraints;
+        foreach my $uniq (keys %unique_constraints) {
+            if (!equal_keys($unique_constraints{$uniq}, \@primary)) {
+                $table->add_constraint(
+                            type             => 'unique',
+                            name             => "$uniq",
+                            fields           => $unique_constraints{$uniq}
+                );
+            }
+        }
+
         my @rels = $source->relationships();
         foreach my $rel (@rels)
         {
@@ -94,38 +106,9 @@ sub parse {
                 #Decide if this is a foreign key based on whether the self
                 #items are our primary columns.
 
-                # Make sure every self key is in the primary key list
-                my $found;
-                foreach my $key (@keys) {
-                    $found = 0;
-                    foreach my $prim ($source->primary_columns) {
-                        if ($prim eq $key) {
-                            $found = 1;
-                            last;
-                        }
-                    }
-                    last unless $found;
-                }
-
-                # Make sure every primary key column is in the self keys
-                if ($found) {
-                    foreach my $prim ($source->primary_columns) {
-                        $found = 0;
-                        foreach my $key (@keys) {
-                            if ($prim eq $key) {
-                                $found = 1;
-                                last;
-                            }
-                        }
-                        last unless $found;
-                    }
-                }
-
-                # if $found then the two sets are equal.
-
                 # If the sets are different, then we assume it's a foreign key from
                 # us to another table.
-                if (!$found) {
+                if (!equal_keys(\@keys, \@primary)) {
                     $table->add_constraint(
                                 type             => 'foreign_key',
                                 name             => "fk_$keys[0]",
@@ -138,6 +121,44 @@ sub parse {
         }
     }
     return 1;
+}
+
+# -------------------------------------------------------------------
+# equal_keys($key1, $key2)
+#
+# See if the set of keys in $key1 is equal to the set of keys in $key2
+# -------------------------------------------------------------------
+sub equal_keys {
+    my ($key1, $key2) = @_;
+
+    # Make sure every key1 is in key2
+    my $found;
+    foreach my $key (@$key1) {
+        $found = 0;
+        foreach my $prim (@$key2) {
+            if ($prim eq $key) {
+                $found = 1;
+                last;
+            }
+        }
+        last unless $found;
+    }
+
+    # Make sure every key2 is in key1
+    if ($found) {
+        foreach my $prim (@$key2) {
+            $found = 0;
+            foreach my $key (@$key1) {
+                if ($prim eq $key) {
+                    $found = 1;
+                    last;
+                }
+            }
+            last unless $found;
+        }
+    }
+
+    return $found;
 }
 
 1;

@@ -16,6 +16,7 @@ __PACKAGE__->add_columns(
  },
 );
 __PACKAGE__->set_primary_key(qw/id1 id2/);
+__PACKAGE__->add_unique_constraint('tktlnameunique' => ['name']);
 __PACKAGE__->belongs_to('parent', 'TwoKeyTreeLike',
                           { 'foreign.id1' => 'self.parent1', 'foreign.id2' => 'self.parent2'});
 
