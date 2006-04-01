@@ -22,6 +22,8 @@ sub add_columns {
   }
 }
 
+*add_column = \&add_columns;
+
 sub has_column {
   my ($self, $column) = @_;
   return $self->result_source_instance->has_column($column);
@@ -32,11 +34,17 @@ sub column_info {
   return $self->result_source_instance->column_info($column);
 }
 
-                                                                                
+
 sub columns {
   return shift->result_source_instance->columns(@_);
 }
-                                                                                
+
+sub remove_columns {
+  return shift->result_source_instance->remove_columns(@_);
+}
+
+*remove_column = \&remove_columns;
+
 sub set_primary_key {
   shift->result_source_instance->set_primary_key(@_);
 }

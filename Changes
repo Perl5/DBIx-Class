@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - added remove_column(s) to ResultSource/ResultSourceProxy
+        - added add_column alias to ResultSourceProxy
+
 0.06001
         - Added fix for quoting with single table
 
@@ -66,7 +69,7 @@ Revision history for DBIx::Class
         - remove build dependency on version.pm
 
 0.05004 2006-02-13 20:59:00
-        - allow specification of related columns via cols attr when primary 
+        - allow specification of related columns via cols attr when primary
           keys of the related table are not fetched
         - fix count for group_by as scalar
         - add horrific fix to make Oracle's retarded limit syntax work

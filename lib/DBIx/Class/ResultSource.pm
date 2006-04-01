@@ -127,7 +127,7 @@ Convenience alias to add_columns.
 sub add_columns {
   my ($self, @cols) = @_;
   $self->_ordered_columns(\@cols) unless $self->_ordered_columns;
-  
+
   my @added;
   my $columns = $self->_columns;
   while (my $col = shift @cols) {
@@ -204,6 +204,41 @@ sub columns {
   ) if (@_ > 1);
   return @{$self->{_ordered_columns}||[]};
 }
+
+=head2 remove_columns
+
+  $table->remove_columns(qw/col1 col2 col3/);
+
+Removes columns from the result source.
+
+=head2 remove_column
+
+  $table->remove_column('col');
+
+Convenience alias to remove_columns.
+
+=cut
+
+sub remove_columns {
+  my ($self, @cols) = @_;
+
+  return unless $self->_ordered_columns;
+
+  my $columns = $self->_columns;
+  my @remaining;
+
+  foreach my $col (@{$self->_ordered_columns}) {
+    push @remaining, $col unless grep(/$col/, @cols);
+  }
+
+  foreach (@cols) {
+    undef $columns->{$_};
+  };
+
+  $self->_ordered_columns(\@remaining);
+}
+
+*remove_column = \&remove_columns;
 
 =head2 set_primary_key
 
@@ -339,11 +374,11 @@ the SQL command immediately before C<JOIN>.
 
 An arrayref containing a list of accessors in the foreign class to proxy in
 the main class. If, for example, you do the following:
-  
+
   CD->might_have(liner_notes => 'LinerNotes', undef, {
     proxy => [ qw/notes/ ],
   });
-  
+
 Then, assuming LinerNotes has an accessor named notes, you can do:
 
   my $cd = CD->find(1);
