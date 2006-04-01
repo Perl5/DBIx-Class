@@ -491,6 +491,10 @@ Can be used to efficiently iterate over records in the resultset:
     print $cd->title;
   }
 
+Note that you need to store the resultset object, and call C<next> on it. 
+Calling C<< resultset('Table')->next >> repeatedly will always return the
+first record from the resultset.
+
 =cut
 
 sub next {
@@ -1580,6 +1584,20 @@ rows per page if the page attribute or method is used.
 A arrayref of columns to group by. Can include columns of joined tables.
 
   group_by => [qw/ column1 column2 ... /]
+
+=head2 having
+
+=over 4
+
+=item Value: $condition
+
+=back
+
+HAVING is a select statement attribute that is applied between GROUP BY and
+ORDER BY. It is applied to the after the grouping calculations have been
+done. 
+
+  having => { 'count(employee)' => { '>=', 100 } }
 
 =head2 distinct
 
