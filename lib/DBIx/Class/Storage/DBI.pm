@@ -481,8 +481,11 @@ sub _execute {
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {
-    $rv = $sth->execute(@bind)
-      or $self->throw_exception("Error executing '$sql': " . $sth->errstr);
+    $rv = eval { $sth->execute(@bind) };
+
+    if ($@ || !$rv) {
+      $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
+    }
   } else {
     $self->throw_exception("'$sql' did not generate a statement.");
   }
