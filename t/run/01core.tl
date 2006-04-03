@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 41; 
+plan tests => 43; 
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -144,7 +144,8 @@ my $rel_rs = $tag_rs->search_related('cd');
 cmp_ok($rel_rs->count, '==', 5, 'Related search ok');
 
 cmp_ok($or_rs->next->cdid, '==', $rel_rs->next->cdid, 'Related object ok');
-
+$or_rs->reset;
+$rel_rs->reset;
 
 my $tag = $schema->resultset('Tag')->search(
                [ { 'me.tag' => 'Blue' } ], { cols=>[qw/tagid/] } )->next;
@@ -153,6 +154,12 @@ cmp_ok($tag->has_column_loaded('tagid'), '==', 1, 'Has tagid loaded');
 cmp_ok($tag->has_column_loaded('tag'), '==', 0, 'Has not tag  loaded');
 
 ok($schema->storage(), 'Storage available');
+
+#test cascade_delete thru many_many relations
+my $art_del = $schema->resultset("Artist")->find({ artistid => 1 });
+$art_del->delete;
+cmp_ok( $schema->resultset("CD")->search({artist => 1}), '==', 0, 'Cascading through has_many top level.');
+cmp_ok( $schema->resultset("CD_to_Producer")->search({cd => 1}), '==', 0, 'Cascading through has_many children.');
 
 $schema->source("Artist")->{_columns}{'artistid'} = {};
 
