@@ -391,17 +391,20 @@ sub _connect {
       $DBI::connect_via = 'connect';
   }
 
-  if(ref $info[0] eq 'CODE') {
-      $dbh = &{$info[0]};
-  }
-  else {
-      $dbh = DBI->connect(@info);
-  }
+  eval {
+    if(ref $info[0] eq 'CODE') {
+        $dbh = &{$info[0]};
+    }
+    else {
+        $dbh = DBI->connect(@info);
+    }
+  };
 
   $DBI::connect_via = $old_connect_via if $old_connect_via;
 
-  $self->throw_exception("DBI Connection failed: $DBI::errstr")
-      unless $dbh;
+  if (!$dbh || $@) {
+    $self->throw_exception("DBI Connection failed: " . ($@ || $DBI::errstr));
+  }
 
   $dbh;
 }
@@ -476,8 +479,12 @@ sub _execute {
       my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
       $self->debugfh->print("$sql: " . join(', ', @debug_bind) . "\n");
   }
-  my $sth = $self->sth($sql,$op);
-  $self->throw_exception('no sth generated via sql (' . $self->_dbh->errstr . "): $sql") unless $sth;
+  my $sth = eval { $self->sth($sql,$op) };
+
+  if (!$sth || $@) {
+    $self->throw_exception('no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql");
+  }
+
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {
