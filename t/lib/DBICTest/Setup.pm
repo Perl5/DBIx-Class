@@ -118,4 +118,23 @@ $schema->populate('TreeLike', [
   [ 4, 3, 'quux' ],
 ]);
 
+$schema->populate('Track', [
+  [ qw/trackid cd  position title/ ],
+  [ 4, 2, 1, "Stung with Success"],
+  [ 5, 2, 2, "Stripy"],
+  [ 6, 2, 3, "Sticky Honey"],
+  [ 7, 3, 1, "Yowlin"],
+  [ 8, 3, 2, "Howlin"],
+  [ 9, 3, 3, "Fowlin"],
+  [ 10, 4, 1, "Boring Name"],
+  [ 11, 4, 2, "Boring Song"],
+  [ 12, 4, 3, "No More Ideas"],
+  [ 13, 5, 1, "Sad"],
+  [ 14, 5, 2, "Under The Weather"],
+  [ 15, 5, 3, "Suicidal"],
+  [ 16, 1, 1, "The Bees Knees"],
+  [ 17, 1, 2, "Apiary"],
+  [ 18, 1, 3, "Beehind You"],
+]);
+
 1;

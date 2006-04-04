@@ -3,7 +3,7 @@ my $schema = shift;
 
 use strict;
 use warnings;  
-plan tests => 20;
+plan tests => 21;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -131,6 +131,11 @@ my $searched = $mapped_rs->search({'mapped_artists.artistid' => {'!=', undef}});
 
 cmp_ok($searched->count, '==', 2, "Both artist returned from map after adding another condition");
 
+# check join through cascaded has_many relationships
+$artist = $schema->resultset("Artist")->find(1);
+my $trackset = $artist->cds->search_related('tracks');
+# LEFT join means we also see the trackless additional album...
+cmp_ok($trackset->count, '==', 11, "Correct number of tracks for artist");
 
 }
 
