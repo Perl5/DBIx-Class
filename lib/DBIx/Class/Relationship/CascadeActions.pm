@@ -17,7 +17,7 @@ sub delete {
   my %rels = map { $_ => $source->relationship_info($_) } $source->relationships;
   my @cascade = grep { $rels{$_}{attrs}{cascade_delete} } keys %rels;
   foreach my $rel (@cascade) {
-    $self->search_related($rel)->delete;
+    $self->search_related($rel)->delete_all;
   }
   return $ret;
 }
