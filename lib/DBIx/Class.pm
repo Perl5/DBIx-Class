@@ -165,27 +165,8 @@ The community can be found via:
 
 =head1 WHERE TO GO NEXT
 
-=over 4
-
-=item L<DBIx::Class::Manual> - user's manual
-
-=item L<DBIx::Class::Core> - DBIC Core Classes
-
-=item L<DBIx::Class::CDBICompat> - L<Class::DBI> Compat layer
-
-=item L<DBIx::Class::Schema> - schema and connection container
-
-=item L<DBIx::Class::ResultSource> - tables and table-like things
-
-=item L<DBIx::Class::ResultSet> - encapsulates a query and its results
-
-=item L<DBIx::Class::Row> - row-level methods
-
-=item L<DBIx::Class::PK> - primary key methods
-
-=item L<DBIx::Class::Relationship> - relationships between tables
-
-=back
+L<DBIx::Class::Manual::DocMap> lists each task you might want help on, and
+the modules where you will find documentation.
 
 =head1 AUTHOR
 

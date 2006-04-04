@@ -21,7 +21,11 @@ An example of slightly more complex usage.
 
 =head2 L<DBIx::Class::Manual::Cookbook>
 
-Convenient reciepes for DBIC usage.
+Convenient recipes for DBIC usage.
+
+=head2 L<DBIx::Class::Manual::DocMap>
+
+Lists of modules by task to help you find the correct document.
 
 =head2 L<DBIx::Class::Manual::Troubleshooting>
 
