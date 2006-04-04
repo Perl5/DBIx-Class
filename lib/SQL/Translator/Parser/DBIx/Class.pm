@@ -76,7 +76,7 @@ sub parse {
         my @primary = $source->primary_columns;
         my %unique_constraints = $source->unique_constraints;
         foreach my $uniq (keys %unique_constraints) {
-            if (!equal_keys($unique_constraints{$uniq}, \@primary)) {
+            if (!$source->compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
                 $table->add_constraint(
                             type             => 'unique',
                             name             => "$uniq",
@@ -90,10 +90,11 @@ sub parse {
         {
             my $rel_info = $source->relationship_info($rel);
 
-            my $rel_table = $source->related_source($rel)->name;
-
             # Ignore any rel cond that isn't a straight hash
             next unless ref $rel_info->{cond} eq 'HASH';
+
+            my $othertable = $source->related_source($rel);
+            my $rel_table = $othertable->name;
 
             # Get the key information, mapping off the foreign/self markers
             my @cond = keys(%{$rel_info->{cond}});
@@ -103,18 +104,31 @@ sub parse {
             if($rel_table)
             {
 
+                my $reverse_rels = $source->reverse_relationship_info($rel);
+                my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
+
+                my $on_delete = '';
+                my $on_update = '';
+
+                if (defined $otherrelationship) {
+                    $on_delete = $otherrelationship->{'attrs'}->{cascade_delete} ? 'CASCADE' : '';
+                    $on_update = $otherrelationship->{'attrs'}->{cascade_copy} ? 'CASCADE' : '';
+                }
+
                 #Decide if this is a foreign key based on whether the self
                 #items are our primary columns.
 
                 # If the sets are different, then we assume it's a foreign key from
                 # us to another table.
-                if (!equal_keys(\@keys, \@primary)) {
+                if (!$source->compare_relationship_keys(\@keys, \@primary)) {
                     $table->add_constraint(
                                 type             => 'foreign_key',
                                 name             => "fk_$keys[0]",
                                 fields           => \@keys,
                                 reference_fields => \@refkeys,
                                 reference_table  => $rel_table,
+                                on_delete        => $on_delete,
+                                on_update        => $on_update
                     );
                 }
             }
@@ -123,42 +137,5 @@ sub parse {
     return 1;
 }
 
-# -------------------------------------------------------------------
-# equal_keys($key1, $key2)
-#
-# See if the set of keys in $key1 is equal to the set of keys in $key2
-# -------------------------------------------------------------------
-sub equal_keys {
-    my ($key1, $key2) = @_;
-
-    # Make sure every key1 is in key2
-    my $found;
-    foreach my $key (@$key1) {
-        $found = 0;
-        foreach my $prim (@$key2) {
-            if ($prim eq $key) {
-                $found = 1;
-                last;
-            }
-        }
-        last unless $found;
-    }
-
-    # Make sure every key2 is in key1
-    if ($found) {
-        foreach my $prim (@$key2) {
-            $found = 0;
-            foreach my $key (@$key1) {
-                if ($prim eq $key) {
-                    $found = 1;
-                    last;
-                }
-            }
-            last unless $found;
-        }
-    }
-
-    return $found;
-}
-
 1;
+

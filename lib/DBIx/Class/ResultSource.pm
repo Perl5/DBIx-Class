@@ -485,6 +485,113 @@ sub has_relationship {
   return exists $self->_relationships->{$rel};
 }
 
+=head2 reverse_relationship_info
+
+=over 4
+
+=item Arguments: $relname
+
+=back
+
+Returns an array of hash references of relationship information for 
+the other side of the specified relationship name.
+
+=cut
+
+sub reverse_relationship_info {
+  my ($self, $rel) = @_;
+  my $rel_info = $self->relationship_info($rel);
+  my $ret = {};
+
+  return $ret unless ((ref $rel_info->{cond}) eq 'HASH');
+
+  my @cond = keys(%{$rel_info->{cond}});
+  my @refkeys = map {/^\w+\.(\w+)$/} @cond;
+  my @keys = map {$rel_info->{cond}->{$_} =~ /^\w+\.(\w+)$/} @cond;
+  
+  # Get the related result source for this relationship
+  my $othertable = $self->related_source($rel);
+
+  # Get all the relationships for that source that related to this source
+  # whose foreign column set are our self columns on $rel and whose self
+  # columns are our foreign columns on $rel.                
+  my @otherrels = $othertable->relationships();
+  my $otherrelationship;
+  foreach my $otherrel (@otherrels) {
+    my $otherrel_info = $othertable->relationship_info($otherrel);
+
+    my $back = $othertable->related_source($otherrel);
+    next unless $back->name eq $self->name;
+
+    my @othertestconds;
+
+    if (ref $otherrel_info->{cond} eq 'HASH') {
+      @othertestconds = ($otherrel_info->{cond});
+    }
+    elsif (ref $otherrel_info->{cond} eq 'ARRAY') {
+      @othertestconds = @{$otherrel_info->{cond}};
+    }
+    else {
+      next;
+    }
+
+    foreach my $othercond (@othertestconds) {
+      my @other_cond = keys(%$othercond);
+      my @other_refkeys = map {/^\w+\.(\w+)$/} @other_cond;
+      my @other_keys = map {$othercond->{$_} =~ /^\w+\.(\w+)$/} @other_cond;
+      next if (!$self->compare_relationship_keys(\@refkeys, \@other_keys) || 
+               !$self->compare_relationship_keys(\@other_refkeys, \@keys));
+      $ret->{$otherrel} =  $otherrel_info;
+    }
+  }
+  return $ret;
+}
+
+=head2 compare_relationship_keys
+
+=over 4
+
+=item Arguments: $keys1, $keys2
+
+=back
+
+Returns true if both sets of keynames are the same, false otherwise.
+
+=cut
+
+sub compare_relationship_keys {
+  my ($self, $keys1, $keys2) = @_;
+
+  # Make sure every keys1 is in keys2
+  my $found;
+  foreach my $key (@$keys1) {
+    $found = 0;
+    foreach my $prim (@$keys2) {
+      if ($prim eq $key) {
+        $found = 1;
+        last;
+      }
+    }
+    last unless $found;
+  }
+
+  # Make sure every key2 is in key1
+  if ($found) {
+    foreach my $prim (@$keys2) {
+      $found = 0;
+      foreach my $key (@$keys1) {
+        if ($prim eq $key) {
+          $found = 1;
+          last;
+        }
+      }
+      last unless $found;
+    }
+  }
+
+  return $found;
+}
+
 =head2 resolve_join
 
 =over 4
