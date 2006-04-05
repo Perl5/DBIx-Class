@@ -464,12 +464,13 @@ three records, call:
 
 sub slice {
   my ($self, $min, $max) = @_;
-  my $attrs = { %{ $self->{attrs} || {} } };
-  $attrs->{offset} ||= 0;
+  my $attrs = {}; # = { %{ $self->{attrs} || {} } };
+  $attrs->{offset} = $self->{attrs}{offset} || 0;
   $attrs->{offset} += $min;
   $attrs->{rows} = ($max ? ($max - $min + 1) : 1);
-  my $slice = (ref $self)->new($self->result_source, $attrs);
-  return (wantarray ? $slice->all : $slice);
+  return $self->search(undef(), $attrs);
+  #my $slice = (ref $self)->new($self->result_source, $attrs);
+  #return (wantarray ? $slice->all : $slice);
 }
 
 =head2 next
