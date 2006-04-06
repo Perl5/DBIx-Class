@@ -3,7 +3,7 @@ my $schema = shift;
 
 use strict;
 use warnings;  
-plan tests => 21;
+plan tests => 25;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -136,6 +136,15 @@ $artist = $schema->resultset("Artist")->find(1);
 my $trackset = $artist->cds->search_related('tracks');
 # LEFT join means we also see the trackless additional album...
 cmp_ok($trackset->count, '==', 11, "Correct number of tracks for artist");
+
+# now see about updating eveything that belongs to artist 2 to artist 3
+$artist = $schema->resultset("Artist")->find(2);
+my $nartist = $schema->resultset("Artist")->find(3);
+cmp_ok($artist->cds->count, '==', 1, "Correct orig #cds for artist");
+cmp_ok($nartist->cds->count, '==', 1, "Correct orig #cds for artist");
+$artist->cds->update({artist => $nartist->id});
+cmp_ok($artist->cds->count, '==', 0, "Correct new #cds for artist");
+cmp_ok($nartist->cds->count, '==', 2, "Correct new #cds for artist");
 
 }
 
