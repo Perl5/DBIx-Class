@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 43; 
+plan tests => 44; 
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -135,6 +135,15 @@ cmp_ok($or_rs->count, '==', 5, 'Search with OR ok');
 my $distinct_rs = $schema->resultset("CD")->search($search, { join => 'tags', distinct => 1 });
 
 cmp_ok($distinct_rs->all, '==', 4, 'DISTINCT search with OR ok');
+
+my $tcount = $schema->resultset("Track")->search(
+    {},
+    {
+	select => {count => {distinct => ['position', 'title']}},
+	as => ['count']
+    }
+  );
+cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT ok');
 
 my $tag_rs = $schema->resultset('Tag')->search(
                [ { 'me.tag' => 'Cheesy' }, { 'me.tag' => 'Blue' } ]);

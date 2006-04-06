@@ -138,6 +138,8 @@ any of your aliases using either of these:
     }
   );
 
+  my $count = $rs->next->get_column('count');
+
 =head3 SELECT COUNT(DISTINCT colname)
 
   my $rs = $schema->resultset('Foo')->search(
