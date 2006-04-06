@@ -2,7 +2,10 @@ Revision history for DBIx::Class
 
 0.06001
         - Added fix for quoting with single table
-        - Added fix for update on resultset
+        - Substantial fixes and improvements to deploy
+        - slice now uses search directly
+        - fixes for update() on resultset
+        - bugfix to Cursor to avoid error during DESTROY
 
 0.06000
         - Lots of documentation improvements
