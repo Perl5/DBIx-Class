@@ -20,7 +20,7 @@ DBIx::Class::Schema - composable schemas
 
   package Library::Schema;
   use base qw/DBIx::Class::Schema/;
-  
+
   # load Library::Schema::CD, Library::Schema::Book, Library::Schema::DVD
   __PACKAGE__->load_classes(qw/CD Book DVD/);
 
@@ -36,7 +36,7 @@ DBIx::Class::Schema - composable schemas
     $password,
     { AutoCommit => 0 },
   );
-  
+
   my $schema2 = Library::Schema->connect($coderef_returning_dbh);
 
   # fetch objects using Library::Schema::DVD
@@ -219,15 +219,15 @@ Example:
 
 sub load_classes {
   my ($class, @params) = @_;
-  
+
   my %comps_for;
-  
+
   if (@params) {
     foreach my $param (@params) {
       if (ref $param eq 'ARRAY') {
         # filter out commented entries
         my @modules = grep { $_ !~ /^#/ } @$param;
-        
+
         push (@{$comps_for{$class}}, @modules);
       }
       elsif (ref $param eq 'HASH') {
@@ -267,7 +267,10 @@ sub load_classes {
           die $@ unless $@ =~ /Can't locate.+$comp_class\.pm\sin\s\@INC/;
           warn $@ if $@;
         }
-        push(@to_register, [ $comp, $comp_class ]);
+
+        $comp_class->source_name($comp) unless $comp_class->source_name;
+
+        push(@to_register, [ $comp_class->source_name, $comp_class ]);
       }
     }
   }

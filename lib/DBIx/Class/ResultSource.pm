@@ -15,7 +15,7 @@ __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   schema from _relationships/);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
-  result_class/);
+  result_class source_name/);
 
 =head1 NAME
 
@@ -493,7 +493,7 @@ sub has_relationship {
 
 =back
 
-Returns an array of hash references of relationship information for 
+Returns an array of hash references of relationship information for
 the other side of the specified relationship name.
 
 =cut
@@ -508,13 +508,13 @@ sub reverse_relationship_info {
   my @cond = keys(%{$rel_info->{cond}});
   my @refkeys = map {/^\w+\.(\w+)$/} @cond;
   my @keys = map {$rel_info->{cond}->{$_} =~ /^\w+\.(\w+)$/} @cond;
-  
+
   # Get the related result source for this relationship
   my $othertable = $self->related_source($rel);
 
   # Get all the relationships for that source that related to this source
   # whose foreign column set are our self columns on $rel and whose self
-  # columns are our foreign columns on $rel.                
+  # columns are our foreign columns on $rel.
   my @otherrels = $othertable->relationships();
   my $otherrelationship;
   foreach my $otherrel (@otherrels) {
@@ -539,7 +539,7 @@ sub reverse_relationship_info {
       my @other_cond = keys(%$othercond);
       my @other_refkeys = map {/^\w+\.(\w+)$/} @other_cond;
       my @other_keys = map {$othercond->{$_} =~ /^\w+\.(\w+)$/} @other_cond;
-      next if (!$self->compare_relationship_keys(\@refkeys, \@other_keys) || 
+      next if (!$self->compare_relationship_keys(\@refkeys, \@other_keys) ||
                !$self->compare_relationship_keys(\@other_refkeys, \@keys));
       $ret->{$otherrel} =  $otherrel_info;
     }
@@ -852,6 +852,26 @@ sub resultset {
     $self, $self->{resultset_attributes}
   );
 }
+
+=head2 source_name
+
+=over 4
+
+=item Arguments: $source_name
+
+=back
+
+Set the name of the result source when it is loaded into a schema.
+This is usefull if you want to refer to a result source by a name other than
+its class name.
+
+  package ArchivedBooks;
+  use base qw/DBIx::Class/;
+  __PACKAGE__->table('books_archive');
+  __PACKAGE__->source_name('Books');
+
+  # from your schema...
+  $schema->resultset('Books')->find(1);
 
 =head2 throw_exception
 

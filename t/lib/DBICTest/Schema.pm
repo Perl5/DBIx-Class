@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema;
 
 use base qw/DBIx::Class::Schema/;
@@ -25,6 +25,7 @@ __PACKAGE__->load_classes(qw/
     '#dummy',
     'SelfRef',
     'ArtistUndirectedMap',
+    'ArtistSourceName',
     'Producer',
     'CD_to_Producer',
   ),

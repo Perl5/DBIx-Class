@@ -8,6 +8,7 @@ use base qw/DBIx::Class/;
 
 sub iterator_class  { shift->result_source_instance->resultset_class(@_) }
 sub resultset_class { shift->result_source_instance->resultset_class(@_) }
+sub source_name { shift->result_source_instance->source_name(@_) }
 
 sub resultset_attributes {
   shift->result_source_instance->resultset_attributes(@_);

@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 41; 
+plan tests => 46;
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -160,6 +160,21 @@ my $typeinfo = $schema->source("Artist")->column_info('artistid');
 is($typeinfo->{data_type}, 'INTEGER', 'column_info ok');
 $schema->source("Artist")->column_info('artistid');
 ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info flag set');
+
+# source_name should be set for normal modules
+is($schema->source('CD')->source_name, 'CD', 'source_name is set to moniker');
+
+# test the result source that uses source_name
+ok($schema->source('SourceNameArtists'), 'SourceNameArtists result source exists');
+
+my @artsn = $schema->resultset("SourceNameArtists")->search({ }, { order_by => 'name DESC'});
+cmp_ok(@artsn, '==', 4, "Four artists returned");
+
+
+# test removed columns
+is_deeply([$schema->source('CD')->columns], [qw/cdid artist title year/]);
+$schema->source('CD')->remove_columns('year');
+is_deeply([$schema->source('CD')->columns], [qw/cdid artist title/]);
 
 }
 
