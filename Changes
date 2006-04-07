@@ -6,6 +6,7 @@ Revision history for DBIx::Class
         - slice now uses search directly
         - fixes for update() on resultset
         - bugfix to Cursor to avoid error during DESTROY
+        - transaction DBI operations now in debug trace output
 
 0.06000
         - Lots of documentation improvements

@@ -420,8 +420,11 @@ an entire code block to be executed transactionally.
 
 sub txn_begin {
   my $self = shift;
-  $self->dbh->begin_work
-    if $self->{transaction_depth}++ == 0 and $self->dbh->{AutoCommit};
+  if (($self->{transaction_depth}++ == 0) and ($self->dbh->{AutoCommit})) {
+    $self->debugfh->print("BEGIN WORK\n")
+      if ($self->debug);
+    $self->dbh->begin_work;
+  }
 }
 
 =head2 txn_commit
@@ -433,10 +436,18 @@ Issues a commit against the current dbh.
 sub txn_commit {
   my $self = shift;
   if ($self->{transaction_depth} == 0) {
-    $self->dbh->commit unless $self->dbh->{AutoCommit};
+    unless ($self->dbh->{AutoCommit}) {
+      $self->debugfh->print("COMMIT\n")
+        if ($self->debug);
+      $self->dbh->commit;
+    }
   }
   else {
-    $self->dbh->commit if --$self->{transaction_depth} == 0;
+    if (--$self->{transaction_depth} == 0) {
+      $self->debugfh->print("COMMIT\n")
+        if ($self->debug);
+      $self->dbh->commit;
+    }
   }
 }
 
@@ -453,12 +464,21 @@ sub txn_rollback {
 
   eval {
     if ($self->{transaction_depth} == 0) {
-      $self->dbh->rollback unless $self->dbh->{AutoCommit};
+      unless ($self->dbh->{AutoCommit}) {
+        $self->debugfh->print("ROLLBACK\n")
+          if ($self->debug);
+        $self->dbh->rollback;
+      }
     }
     else {
-      --$self->{transaction_depth} == 0 ?
-        $self->dbh->rollback :
+      if (--$self->{transaction_depth} == 0) {
+        $self->debugfh->print("ROLLBACK\n")
+          if ($self->debug);
+        $self->dbh->rollback;
+      }
+      else {
         die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
+      }
     }
   };
 
