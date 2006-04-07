@@ -10,6 +10,7 @@ use Data::Page;
 use Storable;
 use Scalar::Util qw/weaken/;
 
+use DBIx::Class::ResultSetColumn;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 __PACKAGE__->mk_group_accessors('simple' => qw/result_source result_class/);
@@ -414,6 +415,28 @@ sub single {
   return (@data ? $self->_construct_object(@data) : ());
 }
 
+=head2 get_column
+
+=over 4
+
+=item Arguments: $cond?
+
+=item Return Value: $resultsetcolumn
+
+=back
+
+  my $max_length = $rs->get_column('length')->max;
+
+Returns a ResultSetColumn instance for $column based on $self
+
+=cut
+
+sub get_column {
+  my ($self, $column) = @_;
+
+  my $new = DBIx::Class::ResultSetColumn->new($self, $column);
+  return $new;
+}
 
 =head2 search_like
 
