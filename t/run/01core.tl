@@ -3,6 +3,19 @@ my $schema = shift;
 
 plan tests => 44; 
 
+# figure out if we've got a version of sqlite that is older than 3.2.6, in
+# which case COUNT(DISTINCT()) doesn't work
+my $is_broken_sqlite = 0;
+my ($sqlite_major_ver,$sqlite_minor_ver,$sqlite_patch_ver) =
+    split /\./, $schema->storage->dbh->get_info(18);
+if( $schema->storage->dbh->get_info(17) eq 'SQLite' &&
+    ( ($sqlite_major_ver < 3) ||
+      ($sqlite_major_ver == 3 && $sqlite_minor_ver < 2) ||
+      ($sqlite_major_ver == 3 && $sqlite_minor_ver == 2 && $sqlite_patch_ver < 6) ) ) {
+    $is_broken_sqlite = 1;
+}
+
+
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
 cmp_ok(@art, '==', 3, "Three artists returned");
@@ -133,18 +146,22 @@ my $or_rs = $schema->resultset("CD")->search($search, { join => 'tags',
 cmp_ok($or_rs->count, '==', 5, 'Search with OR ok');
 
 my $distinct_rs = $schema->resultset("CD")->search($search, { join => 'tags', distinct => 1 });
-
 cmp_ok($distinct_rs->all, '==', 4, 'DISTINCT search with OR ok');
 
-my $tcount = $schema->resultset("Track")->search(
+SKIP: {
+  skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
+    if $is_broken_sqlite;
+
+  my $tcount = $schema->resultset("Track")->search(
     {},
-    {
-	select => {count => {distinct => ['position', 'title']}},
-	as => ['count']
+    {       
+       select => {count => {distinct => ['position', 'title']}},
+	   as => ['count']
     }
   );
-cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT ok');
+  cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT ok');
 
+}
 my $tag_rs = $schema->resultset('Tag')->search(
                [ { 'me.tag' => 'Cheesy' }, { 'me.tag' => 'Blue' } ]);
 
