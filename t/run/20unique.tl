@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 18;
+plan tests => 26;
 
 my $artistid = 1;
 my $title    = 'UNIQUE Constraint';
@@ -68,6 +68,35 @@ is($cd5->cdid, $cd2->cdid, 'cdid is correct');
 is($cd5->get_column('artist'), $cd2->get_column('artist'), 'artist is correct');
 is($cd5->title, $cd2->title, 'title is correct');
 is($cd5->year, 2005, 'updated year is correct');
+
+my $cd6 = $schema->resultset('CD')->find_or_create(
+  {
+    artist => $artistid,
+    title  => $title,
+    year   => 2010,
+  },
+  { key => 'artist_title' }
+);
+
+is($cd6->cdid, $cd1->cdid, 'find or create by specific key: cdid is correct');
+is($cd6->get_column('artist'), $cd1->get_column('artist'), 'artist is correct');
+is($cd6->title, $cd1->title, 'title is correct');
+is($cd6->year, $cd1->year, 'year is correct');
+
+my $artist = $schema->resultset('Artist')->find($artistid);
+my $cd7 = $artist->find_or_create_related('cds',
+  {
+    artist => $artistid,
+    title  => $title,
+    year   => 2020,
+  },
+  { key => 'artist_title' }
+);
+
+is($cd7->cdid, $cd1->cdid, 'find or create related by specific key: cdid is correct');
+is($cd7->get_column('artist'), $cd1->get_column('artist'), 'artist is correct');
+is($cd7->title, $cd1->title, 'title is correct');
+is($cd7->year, $cd1->year, 'year is correct');
 
 }
 

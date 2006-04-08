@@ -295,40 +295,57 @@ sub find {
   my ($self, @vals) = @_;
   my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
 
-  my @cols = $self->result_source->primary_columns;
-  if (exists $attrs->{key}) {
-    my %uniq = $self->result_source->unique_constraints;
-    $self->throw_exception(
-      "Unknown key $attrs->{key} on '" . $self->result_source->name . "'"
-    ) unless exists $uniq{$attrs->{key}};
-    @cols = @{ $uniq{$attrs->{key}} };
-  }
-  #use Data::Dumper; warn Dumper($attrs, @vals, @cols);
+  my %unique_constraints = $self->result_source->unique_constraints;
   $self->throw_exception(
     "Can't find unless a primary key or unique constraint is defined"
-  ) unless @cols;
+  ) unless %unique_constraints;
 
-  my $query;
-  if (ref $vals[0] eq 'HASH') {
-    $query = { %{$vals[0]} };
-  } elsif (@cols == @vals) {
-    $query = {};
-    @{$query}{@cols} = @vals;
-  } else {
-    $query = {@vals};
+  my @constraint_names = keys %unique_constraints;
+  if (exists $attrs->{key}) {
+    $self->throw_exception(
+      "Unknown key $attrs->{key} on '" . $self->result_source->name . "'"
+    ) unless exists $unique_constraints{$attrs->{key}};
+
+    @constraint_names = ($attrs->{key});
   }
-  foreach my $key (grep { ! m/\./ } keys %$query) {
-    $query->{"$self->{attrs}{alias}.$key"} = delete $query->{$key};
+
+  my @unique_hashes;
+  foreach my $name (@constraint_names) {
+    my @unique_cols = @{ $unique_constraints{$name} };
+    my %unique_hash;
+    if (ref $vals[0] eq 'HASH') {
+      %unique_hash =
+        map  { $_ => $vals[0]->{$_} }
+        grep { exists $vals[0]->{$_} }
+        @unique_cols;
+    }
+    elsif (scalar @unique_cols == scalar @vals) {
+      # Assume the argument order corresponds to the constraint definition
+      @unique_hash{@unique_cols} = @vals;
+    }
+    elsif (scalar @vals % 2 == 0) {
+      # Fix for CDBI calling with a hash
+      %unique_hash = @vals;
+    }
+
+    foreach my $key (grep { ! m/\./ } keys %unique_hash) {
+      $unique_hash{"$self->{attrs}{alias}.$key"} = delete $unique_hash{$key};
+    }
+
+    #use Data::Dumper; warn Dumper \@vals, \@unique_cols, \%unique_hash;
+    push @unique_hashes, \%unique_hash if %unique_hash;
   }
-  #warn Dumper($query);
-  
+
+  # Handle cases where the ResultSet already defines the query
+  my $query = @unique_hashes ? \@unique_hashes : undef;
+
   if (keys %$attrs) {
-      my $rs = $self->search($query,$attrs);
-      return keys %{$rs->{collapse}} ? $rs->next : $rs->single;
+    my $rs = $self->search($query,$attrs);
+    return keys %{$rs->{collapse}} ? $rs->next : $rs->single;
   } else {
-      return keys %{$self->{collapse}} ?
-        $self->search($query)->next :
-        $self->single($query);
+    return keys %{$self->{collapse}}
+      ? $self->search($query)->next
+      : $self->single($query);
   }
 }
 
