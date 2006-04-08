@@ -155,8 +155,8 @@ sub sum {
 =back
 
 Runs a query using the function on the column and returns the value. For example 
-  $rs $schema->resultset("CD")->search({});
-  $rs->get_column('title')->func('LENGTH');
+  $rs = $schema->resultset("CD")->search({});
+  $length = $rs->get_column('title')->func('LENGTH');
 
 Produces the following SQL
   SELECT LENGTH( title ) from cd me
