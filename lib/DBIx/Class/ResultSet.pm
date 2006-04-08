@@ -319,11 +319,11 @@ sub find {
         grep { exists $vals[0]->{$_} }
         @unique_cols;
     }
-    elsif (scalar @unique_cols == scalar @vals) {
+    elsif (@unique_cols == @vals) {
       # Assume the argument order corresponds to the constraint definition
       @unique_hash{@unique_cols} = @vals;
     }
-    elsif (scalar @vals % 2 == 0) {
+    elsif (@vals % 2 == 0) {
       # Fix for CDBI calling with a hash
       %unique_hash = @vals;
     }
@@ -1179,30 +1179,11 @@ sub update_or_create {
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
   my $hash = ref $_[0] eq 'HASH' ? shift : {@_};
 
-  my %unique_constraints = $self->result_source->unique_constraints;
-  my @constraint_names   = (exists $attrs->{key}
-                            ? ($attrs->{key})
-                            : keys %unique_constraints);
-
-  my @unique_hashes;
-  foreach my $name (@constraint_names) {
-    my @unique_cols = @{ $unique_constraints{$name} };
-    my %unique_hash =
-      map  { $_ => $hash->{$_} }
-      grep { exists $hash->{$_} }
-      @unique_cols;
-
-    push @unique_hashes, \%unique_hash
-      if (scalar keys %unique_hash == scalar @unique_cols);
-  }
-
-  if (@unique_hashes) {
-    my $row = $self->single(\@unique_hashes);
-    if (defined $row) {
-      $row->set_columns($hash);
-      $row->update;
-      return $row;
-    }
+  my $row = $self->find($hash, $attrs);
+  if (defined $row) {
+    $row->set_columns($hash);
+    $row->update;
+    return $row;
   }
 
   return $self->create($hash);
