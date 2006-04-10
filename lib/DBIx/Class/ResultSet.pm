@@ -340,9 +340,10 @@ sub find {
   my $query = @unique_hashes ? \@unique_hashes : undef;
 
   if (keys %$attrs) {
-    my $rs = $self->search($query,$attrs);
+    my $rs = $self->search($query, $attrs);
     return keys %{$rs->{collapse}} ? $rs->next : $rs->single;
-  } else {
+  }
+  else {
     return keys %{$self->{collapse}}
       ? $self->search($query)->next
       : $self->single($query);
