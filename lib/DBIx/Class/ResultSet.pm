@@ -314,9 +314,15 @@ sub find {
     my @unique_cols = @{ $unique_constraints{$name} };
     my %unique_hash;
     if (ref $vals[0] eq 'HASH') {
+      # Stupid hack for CDBICompat
+      my %hash = %{ $vals[0] };
+      foreach my $key (keys %hash) {
+        $hash{lc $key} = delete $hash{$key};
+      }
+
       %unique_hash =
-        map  { $_ => $vals[0]->{$_} }
-        grep { exists $vals[0]->{$_} }
+        map  { $_ => $hash{$_} }
+        grep { exists $hash{$_} }
         @unique_cols;
     }
     elsif (@unique_cols == @vals) {
