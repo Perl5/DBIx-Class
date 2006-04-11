@@ -1,7 +1,20 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 46;
+plan tests => 49;
+
+# figure out if we've got a version of sqlite that is older than 3.2.6, in
+# which case COUNT(DISTINCT()) doesn't work
+my $is_broken_sqlite = 0;
+my ($sqlite_major_ver,$sqlite_minor_ver,$sqlite_patch_ver) =
+    split /\./, $schema->storage->dbh->get_info(18);
+if( $schema->storage->dbh->get_info(17) eq 'SQLite' &&
+    ( ($sqlite_major_ver < 3) ||
+      ($sqlite_major_ver == 3 && $sqlite_minor_ver < 2) ||
+      ($sqlite_major_ver == 3 && $sqlite_minor_ver == 2 && $sqlite_patch_ver < 6) ) ) {
+    $is_broken_sqlite = 1;
+}
+
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
@@ -133,9 +146,22 @@ my $or_rs = $schema->resultset("CD")->search($search, { join => 'tags',
 cmp_ok($or_rs->count, '==', 5, 'Search with OR ok');
 
 my $distinct_rs = $schema->resultset("CD")->search($search, { join => 'tags', distinct => 1 });
-
 cmp_ok($distinct_rs->all, '==', 4, 'DISTINCT search with OR ok');
 
+SKIP: {
+  skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
+    if $is_broken_sqlite;
+
+  my $tcount = $schema->resultset("Track")->search(
+    {},
+    {       
+       select => {count => {distinct => ['position', 'title']}},
+	   as => ['count']
+    }
+  );
+  cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT ok');
+
+}
 my $tag_rs = $schema->resultset('Tag')->search(
                [ { 'me.tag' => 'Cheesy' }, { 'me.tag' => 'Blue' } ]);
 
@@ -144,7 +170,8 @@ my $rel_rs = $tag_rs->search_related('cd');
 cmp_ok($rel_rs->count, '==', 5, 'Related search ok');
 
 cmp_ok($or_rs->next->cdid, '==', $rel_rs->next->cdid, 'Related object ok');
-
+$or_rs->reset;
+$rel_rs->reset;
 
 my $tag = $schema->resultset('Tag')->search(
                [ { 'me.tag' => 'Blue' } ], { cols=>[qw/tagid/] } )->next;
@@ -153,6 +180,12 @@ cmp_ok($tag->has_column_loaded('tagid'), '==', 1, 'Has tagid loaded');
 cmp_ok($tag->has_column_loaded('tag'), '==', 0, 'Has not tag  loaded');
 
 ok($schema->storage(), 'Storage available');
+
+#test cascade_delete thru many_many relations
+my $art_del = $schema->resultset("Artist")->find({ artistid => 1 });
+$art_del->delete;
+cmp_ok( $schema->resultset("CD")->search({artist => 1}), '==', 0, 'Cascading through has_many top level.');
+cmp_ok( $schema->resultset("CD_to_Producer")->search({cd => 1}), '==', 0, 'Cascading through has_many children.');
 
 $schema->source("Artist")->{_columns}{'artistid'} = {};
 

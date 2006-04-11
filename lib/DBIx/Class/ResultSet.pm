@@ -487,12 +487,13 @@ three records, call:
 
 sub slice {
   my ($self, $min, $max) = @_;
-  my $attrs = { %{ $self->{attrs} || {} } };
-  $attrs->{offset} ||= 0;
+  my $attrs = {}; # = { %{ $self->{attrs} || {} } };
+  $attrs->{offset} = $self->{attrs}{offset} || 0;
   $attrs->{offset} += $min;
   $attrs->{rows} = ($max ? ($max - $min + 1) : 1);
-  my $slice = (ref $self)->new($self->result_source, $attrs);
-  return (wantarray ? $slice->all : $slice);
+  return $self->search(undef(), $attrs);
+  #my $slice = (ref $self)->new($self->result_source, $attrs);
+  #return (wantarray ? $slice->all : $slice);
 }
 
 =head2 next
@@ -513,6 +514,10 @@ Can be used to efficiently iterate over records in the resultset:
   while (my $cd = $rs->next) {
     print $cd->title;
   }
+
+Note that you need to store the resultset object, and call C<next> on it. 
+Calling C<< resultset('Table')->next >> repeatedly will always return the
+first record from the resultset.
 
 =cut
 
@@ -801,6 +806,59 @@ sub first {
   return $_[0]->reset->next;
 }
 
+# _cond_for_update_delete
+#
+# update/delete require the condition to be modified to handle
+# the differing SQL syntax available.  This transforms the $self->{cond}
+# appropriately, returning the new condition
+
+sub _cond_for_update_delete {
+  my ($self) = @_;
+  my $cond = {};
+
+  if (!ref($self->{cond})) {
+    # No-op. No condition, we're update/deleting everything
+  }
+  elsif (ref $self->{cond} eq 'ARRAY') {
+    $cond = [
+      map {
+        my %hash;
+        foreach my $key (keys %{$_}) {
+          $key =~ /([^.]+)$/;
+          $hash{$1} = $_->{$key};
+        }
+        \%hash;
+        } @{$self->{cond}}
+    ];
+  }
+  elsif (ref $self->{cond} eq 'HASH') {
+    if ((keys %{$self->{cond}})[0] eq '-and') {
+      $cond->{-and} = [
+        map {
+          my %hash;
+          foreach my $key (keys %{$_}) {
+            $key =~ /([^.]+)$/;
+            $hash{$1} = $_->{$key};
+          }
+          \%hash;
+          } @{$self->{cond}{-and}}
+      ];
+    }
+    else {
+      foreach my $key (keys %{$self->{cond}}) {
+        $key =~ /([^.]+)$/;
+        $cond->{$1} = $self->{cond}{$key};
+      }
+    }
+  }
+  else {
+    $self->throw_exception(
+               "Can't update/delete on resultset with condition unless hash or array");
+  }
+  return $cond;
+}
+
+
 =head2 update
 
 =over 4
@@ -821,8 +879,11 @@ sub update {
   my ($self, $values) = @_;
   $self->throw_exception("Values for update must be a hash")
     unless ref $values eq 'HASH';
+
+  my $cond = $self->_cond_for_update_delete;
+
   return $self->result_source->storage->update(
-    $self->result_source->from, $values, $self->{cond}
+    $self->result_source->from, $values, $cond
   );
 }
 
@@ -871,43 +932,9 @@ sub delete {
   my ($self) = @_;
   my $del = {};
 
-  if (!ref($self->{cond})) {
+  my $cond = $self->_cond_for_update_delete;
 
-    # No-op. No condition, we're deleting everything
-
-  } elsif (ref $self->{cond} eq 'ARRAY') {
-
-    $del = [ map { my %hash;
-      foreach my $key (keys %{$_}) {
-        $key =~ /([^.]+)$/;
-        $hash{$1} = $_->{$key};
-      }; \%hash; } @{$self->{cond}} ];
-
-  } elsif (ref $self->{cond} eq 'HASH') {
-
-    if ((keys %{$self->{cond}})[0] eq '-and') {
-
-      $del->{-and} = [ map { my %hash;
-        foreach my $key (keys %{$_}) {
-          $key =~ /([^.]+)$/;
-          $hash{$1} = $_->{$key};
-        }; \%hash; } @{$self->{cond}{-and}} ];
-
-    } else {
-
-      foreach my $key (keys %{$self->{cond}}) {
-        $key =~ /([^.]+)$/;
-        $del->{$1} = $self->{cond}{$key};
-      }
-    }
-
-  } else {
-    $self->throw_exception(
-      "Can't delete on resultset with condition unless hash or array"
-    );
-  }
-
-  $self->result_source->storage->delete($self->result_source->from, $del);
+  $self->result_source->storage->delete($self->result_source->from, $cond);
   return 1;
 }
 
@@ -1603,6 +1630,20 @@ rows per page if the page attribute or method is used.
 A arrayref of columns to group by. Can include columns of joined tables.
 
   group_by => [qw/ column1 column2 ... /]
+
+=head2 having
+
+=over 4
+
+=item Value: $condition
+
+=back
+
+HAVING is a select statement attribute that is applied between GROUP BY and
+ORDER BY. It is applied to the after the grouping calculations have been
+done. 
+
+  having => { 'count(employee)' => { '>=', 100 } }
 
 =head2 distinct
 

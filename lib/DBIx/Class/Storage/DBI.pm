@@ -441,17 +441,20 @@ sub _connect {
       $DBI::connect_via = 'connect';
   }
 
-  if(ref $info[0] eq 'CODE') {
-      $dbh = &{$info[0]};
-  }
-  else {
-      $dbh = DBI->connect(@info);
-  }
+  eval {
+    if(ref $info[0] eq 'CODE') {
+        $dbh = &{$info[0]};
+    }
+    else {
+        $dbh = DBI->connect(@info);
+    }
+  };
 
   $DBI::connect_via = $old_connect_via if $old_connect_via;
 
-  $self->throw_exception("DBI Connection failed: $DBI::errstr")
-      unless $dbh;
+  if (!$dbh || $@) {
+    $self->throw_exception("DBI Connection failed: " . ($@ || $DBI::errstr));
+  }
 
   $dbh;
 }
@@ -467,8 +470,11 @@ an entire code block to be executed transactionally.
 
 sub txn_begin {
   my $self = shift;
-  $self->dbh->begin_work
-    if $self->{transaction_depth}++ == 0 and $self->dbh->{AutoCommit};
+  if (($self->{transaction_depth}++ == 0) and ($self->dbh->{AutoCommit})) {
+    $self->debugfh->print("BEGIN WORK\n")
+      if ($self->debug);
+    $self->dbh->begin_work;
+  }
 }
 
 =head2 txn_commit
@@ -480,10 +486,18 @@ Issues a commit against the current dbh.
 sub txn_commit {
   my $self = shift;
   if ($self->{transaction_depth} == 0) {
-    $self->dbh->commit unless $self->dbh->{AutoCommit};
+    unless ($self->dbh->{AutoCommit}) {
+      $self->debugfh->print("COMMIT\n")
+        if ($self->debug);
+      $self->dbh->commit;
+    }
   }
   else {
-    $self->dbh->commit if --$self->{transaction_depth} == 0;
+    if (--$self->{transaction_depth} == 0) {
+      $self->debugfh->print("COMMIT\n")
+        if ($self->debug);
+      $self->dbh->commit;
+    }
   }
 }
 
@@ -500,12 +514,21 @@ sub txn_rollback {
 
   eval {
     if ($self->{transaction_depth} == 0) {
-      $self->dbh->rollback unless $self->dbh->{AutoCommit};
+      unless ($self->dbh->{AutoCommit}) {
+        $self->debugfh->print("ROLLBACK\n")
+          if ($self->debug);
+        $self->dbh->rollback;
+      }
     }
     else {
-      --$self->{transaction_depth} == 0 ?
-        $self->dbh->rollback :
+      if (--$self->{transaction_depth} == 0) {
+        $self->debugfh->print("ROLLBACK\n")
+          if ($self->debug);
+        $self->dbh->rollback;
+      }
+      else {
         die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
+      }
     }
   };
 
@@ -526,13 +549,20 @@ sub _execute {
       my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
       $self->debugfh->print("$sql: " . join(', ', @debug_bind) . "\n");
   }
-  my $sth = $self->sth($sql,$op);
-  $self->throw_exception('no sth generated via sql (' . $self->_dbh->errstr . "): $sql") unless $sth;
+  my $sth = eval { $self->sth($sql,$op) };
+
+  if (!$sth || $@) {
+    $self->throw_exception('no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql");
+  }
+
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {
-    $rv = $sth->execute(@bind)
-      or $self->throw_exception("Error executing '$sql': " . $sth->errstr);
+    $rv = eval { $sth->execute(@bind) };
+
+    if ($@ || !$rv) {
+      $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
+    }
   } else {
     $self->throw_exception("'$sql' did not generate a statement.");
   }

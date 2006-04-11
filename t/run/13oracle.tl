@@ -7,7 +7,7 @@ plan skip_all, 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. ' 
   'Warning: This test drops and creates tables called \'artist\', \'cd\' and \'track\''
   unless ($dsn && $user && $pass);
 
-plan tests => 5;
+plan tests => 6;
 
 DBICTest::Schema->compose_connection('OraTest' => $dsn, $user, $pass);
 
@@ -56,6 +56,17 @@ my $tjoin = OraTest::Track->search({ 'me.title' => 'Track1'},
 
 is($tjoin->next->title, 'Track1', "ambiguous column ok");
 
+# check count distinct with multiple columns
+my $other_track = OraTest::Track->create({ trackid => 2, cd => 1, position => 1, title => 'Track2' });
+my $tcount = OraTest::Track->search(
+    {},
+    {
+	select => [{count => {distinct => ['position', 'title']}}],
+	as => ['count']
+    }
+  );
+
+is($tcount->next->get_column('count'), 2, "multiple column select distinct ok");
 
 # test LIMIT support
 for (1..6) {
