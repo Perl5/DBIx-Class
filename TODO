@@ -1,3 +1,6 @@
+2006-04-11 by castaway
+ - using PK::Auto should set is_auto_increment for the PK columns, so that copy() "just works"
+ - docs of copy() should say that is_auto_increment is essential for auto_incrementing keys
 
 2006-03-25 by mst
   - Refactor ResultSet::new to be less hairy
@@ -19,12 +22,14 @@
    We should still support the old inflate/deflate syntax, but this new 
    way should be recommended. 
 
-2006-02-07 by JR
+2006-02-07 by castaway
  - Extract DBIC::SQL::Abstract into a separate module for CPAN
  - Chop PK::Auto::Foo up to have PK::Auto refer to an appropriate
    DBIx::Storage::DBI::Foo, which will be loaded on connect from Driver info?
+(done -> 0.06001!)
  - Add deploy method to Schema, which will create DB tables from Schema, via
    SQLT
+(sorta done)
 
 2006-03-18 by bluefeet
  - Support table locking.
