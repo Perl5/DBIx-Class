@@ -181,33 +181,42 @@ cmp_ok($tag->has_column_loaded('tag'), '==', 0, 'Has not tag  loaded');
 
 ok($schema->storage(), 'Storage available');
 
-#test cascade_delete thru many_many relations
-my $art_del = $schema->resultset("Artist")->find({ artistid => 1 });
-$art_del->delete;
-cmp_ok( $schema->resultset("CD")->search({artist => 1}), '==', 0, 'Cascading through has_many top level.');
-cmp_ok( $schema->resultset("CD_to_Producer")->search({cd => 1}), '==', 0, 'Cascading through has_many children.');
+# test source_name
+{
+  # source_name should be set for normal modules
+  is($schema->source('CD')->source_name, 'CD', 'source_name is set to moniker');
 
-$schema->source("Artist")->{_columns}{'artistid'} = {};
+  # test the result source that sets source_name explictly
+  ok($schema->source('SourceNameArtists'), 'SourceNameArtists result source exists');
 
-my $typeinfo = $schema->source("Artist")->column_info('artistid');
-is($typeinfo->{data_type}, 'INTEGER', 'column_info ok');
-$schema->source("Artist")->column_info('artistid');
-ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info flag set');
+  my @artsn = $schema->resultset('SourceNameArtists')->search({}, { order_by => 'name DESC' });
+  cmp_ok(@artsn, '==', 4, "Four artists returned");
+}
 
-# source_name should be set for normal modules
-is($schema->source('CD')->source_name, 'CD', 'source_name is set to moniker');
+# test cascade_delete through many_to_many relations
+{
+  my $art_del = $schema->resultset("Artist")->find({ artistid => 1 });
+  $art_del->delete;
+  cmp_ok( $schema->resultset("CD")->search({artist => 1}), '==', 0, 'Cascading through has_many top level.');
+  cmp_ok( $schema->resultset("CD_to_Producer")->search({cd => 1}), '==', 0, 'Cascading through has_many children.');
+}
 
-# test the result source that uses source_name
-ok($schema->source('SourceNameArtists'), 'SourceNameArtists result source exists');
+# test column_info
+{
+  $schema->source("Artist")->{_columns}{'artistid'} = {};
 
-my @artsn = $schema->resultset("SourceNameArtists")->search({ }, { order_by => 'name DESC'});
-cmp_ok(@artsn, '==', 4, "Four artists returned");
+  my $typeinfo = $schema->source("Artist")->column_info('artistid');
+  is($typeinfo->{data_type}, 'INTEGER', 'column_info ok');
+  $schema->source("Artist")->column_info('artistid');
+  ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info flag set');
+}
 
-
-# test removed columns
-is_deeply([$schema->source('CD')->columns], [qw/cdid artist title year/]);
-$schema->source('CD')->remove_columns('year');
-is_deeply([$schema->source('CD')->columns], [qw/cdid artist title/]);
+# test remove_columns
+{
+  is_deeply([$schema->source('CD')->columns], [qw/cdid artist title year/]);
+  $schema->source('CD')->remove_columns('year');
+  is_deeply([$schema->source('CD')->columns], [qw/cdid artist title/]);
+}
 
 }
 
