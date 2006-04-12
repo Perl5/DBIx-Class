@@ -562,8 +562,8 @@ instead:
                          },
   );
   
-  $translator->parser('DBIx::Class');
-  $translator->producer('DBIx::Class::File');
+  $translator->parser('SQL::Translator::Parser::DBIx::Class');
+  $translator->producer('SQL::Translator::Producer::DBIx::Class::File');
   
   my $output = $translator->translate(@args) or die
           "Error: " . $translator->error;
