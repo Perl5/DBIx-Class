@@ -5,6 +5,9 @@ Revision history for DBIx::Class
         - added source_name to ResultSource
 	- load_classes now uses source_name and sets it if necessary
 
+0.06002
+        - fix for -and conditions when updating or deleting on a ResultSet
+
 0.06001
         - minor fix to update in case of undefined rels
         - fixes for cascade delete
