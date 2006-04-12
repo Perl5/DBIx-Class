@@ -32,7 +32,7 @@ sub replace_distincts {
 
 =head1 NAME 
 
-DBIx::Class::Storage::DBI::Retarded - Some databases can't handle count distincts with multiple cols. They should use base on this.
+DBIx::Class::Storage::DBI::MultiDistinctEmulation - Some databases can't handle count distincts with multiple cols. They should use base on this.
 
 =head1 SYNOPSIS
 
