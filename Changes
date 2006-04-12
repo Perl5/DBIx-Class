@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.06002
+        - fix for -and conditions when updating or deleting on a ResultSet
+
 0.06001
         - minor fix to update in case of undefined rels
         - fixes for cascade delete

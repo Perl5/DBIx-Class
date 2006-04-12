@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 44; 
+plan tests => 46;
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
 # which case COUNT(DISTINCT()) doesn't work
@@ -180,6 +180,25 @@ cmp_ok($tag->has_column_loaded('tagid'), '==', 1, 'Has tagid loaded');
 cmp_ok($tag->has_column_loaded('tag'), '==', 0, 'Has not tag  loaded');
 
 ok($schema->storage(), 'Storage available');
+
+{
+  my $rs = $schema->resultset("Artist")->search({
+    -and => [
+      artistid => { '>=', 1 },
+      artistid => { '<', 3 }
+    ]
+  });
+
+  $rs->update({ name => 'Test _cond_for_update_delete' });
+
+  my $art;
+
+  $art = $schema->resultset("Artist")->find(1);
+  is($art->name, 'Test _cond_for_update_delete', 'updated first artist name');
+
+  $art = $schema->resultset("Artist")->find(2);
+  is($art->name, 'Test _cond_for_update_delete', 'updated second artist name');
+}
 
 #test cascade_delete thru many_many relations
 my $art_del = $schema->resultset("Artist")->find({ artistid => 1 });
