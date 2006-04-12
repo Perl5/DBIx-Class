@@ -8,7 +8,7 @@ Revision history for DBIx::Class
 0.06002
         - fix for -and conditions when updating or deleting on a ResultSet
 
-0.06001
+0.06001 2006-04-08 21:48:43
         - minor fix to update in case of undefined rels
         - fixes for cascade delete
         - substantial improvements and fixes to deploy
@@ -19,14 +19,14 @@ Revision history for DBIx::Class
         - bugfix to Cursor to avoid error during DESTROY
         - transaction DBI operations now in debug trace output
 
-0.06000
+0.06000 2006-03-25 18:03:46
         - Lots of documentation improvements
         - Minor tweak to related_resultset to prevent it storing a searched rs
         - Fixup to columns_info_for when database returns type(size)
         - Made do_txn respect void context (on the off-chance somebody cares)
         - Fix exception text for nonexistent key in ResultSet::find()
 
-0.05999_04
+0.05999_04 2006-03-18 19:20:49
         - Fix for delete on full-table resultsets
         - Removed caching on count() and added _count for pager()
         - ->connection does nothing if ->storage defined and no args
