@@ -1,4 +1,6 @@
-=head1 NAME DBIx::Class::Manual::DocMap - What documentation do we have?
+=head1 NAME
+
+DBIx::Class::Manual::DocMap - What documentation do we have?
 
 =head1 Manuals
 
@@ -45,7 +47,6 @@
 =item L<DBIx::Class::ResultSourceProxy::Table> - Turns the resultsource into a table.
 
 =item L<DBIx::Class::AccessorGroup> - Accessor grouping.
-
 
 =back
 
