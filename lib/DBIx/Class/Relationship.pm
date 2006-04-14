@@ -184,7 +184,7 @@ left join.
                                             'My::DBIC::Schema::Actor' );
 
   My::DBIC::Schema::Actor->many_to_many( roles => 'actor_roles',
-                                         'My::DBIC::Schema::Roles' );
+                                         'role' );
 
   ...
 
