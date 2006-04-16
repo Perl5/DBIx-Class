@@ -6,6 +6,7 @@ Revision history for DBIx::Class
 	- load_classes now uses source_name and sets it if necessary
 
 0.06002
+        - nuke ResultSource caching of ->resultset for consistency reasons
         - fix for -and conditions when updating or deleting on a ResultSet
 
 0.06001 2006-04-08 21:48:43
