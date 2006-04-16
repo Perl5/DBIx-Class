@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 26;
+plan tests => 30;
 
 my $artistid = 1;
 my $title    = 'UNIQUE Constraint';
@@ -97,6 +97,20 @@ is($cd7->cdid, $cd1->cdid, 'find or create related by specific key: cdid is corr
 is($cd7->get_column('artist'), $cd1->get_column('artist'), 'artist is correct');
 is($cd7->title, $cd1->title, 'title is correct');
 is($cd7->year, $cd1->year, 'year is correct');
+
+my $cd8 = $artist->update_or_create_related('cds',
+  {
+    artist => $artistid,
+    title  => $title,
+    year   => 2021,
+  },
+  { key => 'artist_title' }
+);
+
+is($cd8->cdid, $cd1->cdid, 'update or create related by specific key: cdid is correct');
+is($cd8->get_column('artist'), $cd1->get_column('artist'), 'artist is correct');
+is($cd8->title, $cd1->title, 'title is correct');
+is($cd8->year, 2021, 'year is correct');
 
 }
 

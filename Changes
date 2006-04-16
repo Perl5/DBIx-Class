@@ -4,6 +4,7 @@ Revision history for DBIx::Class
         - added add_column alias to ResultSourceProxy
         - added source_name to ResultSource
 	- load_classes now uses source_name and sets it if necessary
+        - add update_or_create_related
 
 0.06002
         - fix for -and conditions when updating or deleting on a ResultSet

@@ -252,6 +252,21 @@ sub find_or_create_related {
   return $self->find_related(@_) || $self->create_related(@_);
 }
 
+=head2 update_or_create_related
+
+  my $updated_item = $obj->update_or_create_related('relname', \%col_data, \%attrs?);
+
+Update or create an item of a related class. See
+L<DBIx::Class::ResultSet/"update_or_create"> for details.
+
+=cut
+
+sub update_or_create_related {
+  my $self = shift;
+  my $rel = shift;
+  return $self->related_resultset($rel)->update_or_create(@_);
+}
+
 =head2 set_from_related
 
   $book->set_from_related('author', $author_obj);
