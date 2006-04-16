@@ -704,9 +704,14 @@ sub resultset {
     'resultset does not take any arguments. If you want another resultset, '.
     'call it on the schema instead.'
   ) if scalar @_;
-  return $self->{_resultset}
-    if ref $self->{_resultset} eq $self->resultset_class;
-  return $self->{_resultset} = $self->resultset_class->new(
+
+  # disabled until we can figure out a way to do it without consistency issues
+  #
+  #return $self->{_resultset}
+  #  if ref $self->{_resultset} eq $self->resultset_class;
+  #return $self->{_resultset} =
+
+  return $self->resultset_class->new(
     $self, $self->{resultset_attributes}
   );
 }
