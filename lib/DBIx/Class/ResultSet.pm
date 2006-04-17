@@ -1079,6 +1079,32 @@ sub new_result {
   return $obj;
 }
 
+=head2 find_or_new
+
+=over 4
+
+=item Arguments: \%vals, \%attrs?
+
+=item Return Value: $object
+
+=back
+
+Find an existing record from this resultset. If none exists, instantiate a new
+result object and return it. The object will not be saved into your storage
+until you call L</DBIx::Class::Row/insert> on it.
+
+If you want objects to be saved immediately, use L</find_or_create> instead.
+
+=cut
+
+sub find_or_new {
+  my $self     = shift;
+  my $attrs    = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $hash     = ref $_[0] eq 'HASH' ? shift : {@_};
+  my $exists   = $self->find($hash, $attrs);
+  return defined $exists ? $exists : $self->new_result($hash);
+}
+
 =head2 create
 
 =over 4

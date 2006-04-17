@@ -5,6 +5,7 @@ Revision history for DBIx::Class
         - added source_name to ResultSource
 	- load_classes now uses source_name and sets it if necessary
         - add update_or_create_related
+        - add find_or_new and find_or_new_related
 
 0.06002
         - fix for -and conditions when updating or deleting on a ResultSet

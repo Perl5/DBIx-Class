@@ -3,7 +3,7 @@ my $schema = shift;
 
 use strict;
 use warnings;  
-plan tests => 25;
+plan tests => 29;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -88,6 +88,19 @@ is( ($artist->search_related('cds'))[4]->title, 'Greatest Hits', 'find_or_create
 
 $artist->delete_related( cds => { title => 'Greatest Hits' });
 cmp_ok( $schema->resultset("CD")->search( title => 'Greatest Hits' ), '==', 0, 'delete_related ok' );
+
+# find_or_new_related with an existing record
+$cd = $artist->find_or_new_related( 'cds', { title => 'Big Flop' } );
+is( $cd->year, 2005, 'find_or_new_related on existing record ok' );
+ok( $cd->in_storage, 'find_or_new_related on existing record: is in_storage' );
+
+# find_or_new_related instantiating a new record
+$cd = $artist->find_or_new_related( 'cds', {
+  title => 'Greatest Hits 2: Louder Than Ever',
+  year => 2007,
+} );
+is( $cd->title, 'Greatest Hits 2: Louder Than Ever', 'find_or_new_related new record ok' );
+ok( ! $cd->in_storage, 'find_or_new_related on a new record: not in_storage' );
 
 SKIP: {
   skip "relationship checking needs fixing", 1;

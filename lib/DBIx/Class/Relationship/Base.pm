@@ -238,12 +238,27 @@ sub find_related {
   return $self->search_related($rel)->find(@_);
 }
 
+=head2 find_or_new_related
+
+  my $new_obj = $obj->find_or_new_related('relname', \%col_data);
+
+Find an item of a related class. If none exists, instantiate a new item of the
+related class. The object will not be saved into your storage until you call
+L<DBIx::Class::Row/insert> on it.
+
+=cut
+
+sub find_or_new_related {
+  my $self = shift;
+  return $self->find_related(@_) || $self->new_related(@_);
+}
+
 =head2 find_or_create_related
 
   my $new_obj = $obj->find_or_create_related('relname', \%col_data);
 
 Find or create an item of a related class. See
-L<DBIx::Class::ResultSet/"find_or_create"> for details.
+L<DBIx::Class::ResultSet/find_or_create> for details.
 
 =cut
 
