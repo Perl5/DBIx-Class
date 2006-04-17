@@ -283,14 +283,15 @@ sub primary_columns {
 =head2 add_unique_constraint
 
 Declare a unique constraint on this source. Call once for each unique
-constraint. Unique constraints are used when you call C<find> on a
-L<DBIx::Class::ResultSet>. Only columns in the constraint are searched,
-for example:
+constraint.
 
   # For UNIQUE (column1, column2)
   __PACKAGE__->add_unique_constraint(
     constraint_name => [ qw/column1 column2/ ],
   );
+
+Unique constraints are used, for example, when you call
+L<DBIx::Class::ResultSet/find>. Only columns in the constraint are searched.
 
 =cut
 

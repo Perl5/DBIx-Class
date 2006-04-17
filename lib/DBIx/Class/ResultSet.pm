@@ -292,7 +292,9 @@ source, including the primary key.
 
 If the C<key> is specified as C<primary>, it searches only on the primary key.
 
-See also L</find_or_create> and L</update_or_create>.
+See also L</find_or_create> and L</update_or_create>. For information on how to
+declare unique constraints, see
+L<DBIx::Class::ResultSource/add_unique_constraint>.
 
 =cut
 
@@ -420,7 +422,7 @@ sub cursor {
   my $cd = $schema->resultset('CD')->single({ year => 2001 });
 
 Inflates the first result without creating a cursor if the resultset has
-any records in it; if not returns nothing. Used by find() as an optimisation.
+any records in it; if not returns nothing. Used by L</find> as an optimisation.
 
 =cut
 
@@ -1091,7 +1093,7 @@ sub new_result {
 
 Find an existing record from this resultset. If none exists, instantiate a new
 result object and return it. The object will not be saved into your storage
-until you call L</DBIx::Class::Row/insert> on it.
+until you call L<DBIx::Class::Row/insert> on it.
 
 If you want objects to be saved immediately, use L</find_or_create> instead.
 
@@ -1161,7 +1163,8 @@ constraint. For example:
     { key => 'artist_title' }
   );
 
-See also L</find> and L</update_or_create>.
+See also L</find> and L</update_or_create>. For information on how to declare
+unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 
 =cut
 
@@ -1208,7 +1211,8 @@ source, including the primary key.
 
 If the C<key> is specified as C<primary>, it searches only on the primary key.
 
-See also L</find> and L</find_or_create>.
+See also L</find> and L</find_or_create>. For information on how to declare
+unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 
 =cut
 
