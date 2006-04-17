@@ -287,6 +287,11 @@ constraint. For example:
     { key => 'artist_title' }
   );
 
+If no C<key> is specified, it searches on all unique constraints defined on the
+source, including the primary key.
+
+If the C<key> is specified as C<primary>, it searches only on the primary key.
+
 See also L</find_or_create> and L</update_or_create>.
 
 =cut
