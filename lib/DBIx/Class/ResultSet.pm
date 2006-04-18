@@ -307,44 +307,39 @@ sub find {
   my ($self, @vals) = @_;
   my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
 
-  # Build a list of queries
-  my @unique_hashes;
+  # Parse out a hash from input
+  my @unique_cols = exists $attrs->{key}
+    ? $self->result_source->unique_constraint_columns($attrs->{key})
+    : $self->result_source->primary_columns;
 
+  my %hash;
   if (ref $vals[0] eq 'HASH') {
-    my @constraint_names = exists $attrs->{key}
-      ? ($attrs->{key})
-      : $self->result_source->unique_constraint_names;
-    $self->throw_exception(
-      "Can't find by explicitly named columns unless a primary key or unique constraint is defined"
-    ) unless @constraint_names;
-
-    foreach my $name (@constraint_names) {
-      my @unique_cols = $self->result_source->unique_constraint_columns($name);
-      my $unique_hash = $self->_unique_hash($vals[0], \@unique_cols);
-
-      # TODO: Check that the ResultSet defines the rest of the query
-      push @unique_hashes, $unique_hash
-        if scalar keys %$unique_hash;# == scalar @unique_cols;
-    }
+    %hash = %{ $vals[0] };
+  }
+  elsif (@vals == @unique_cols) {
+    @hash{@unique_cols} = @vals;
   }
   else {
-    my @unique_cols = exists $attrs->{key}
-      ? $self->result_source->unique_constraint_columns($attrs->{key})
-      : $self->result_source->primary_columns;
-    $self->throw_exception(
-      "Can't find unless a primary key is defined or a unique constraint is specified"
-    ) unless @unique_cols;
+    # Hack for CDBI queries
+    %hash = @vals;
+  }
 
-    if (@vals == @unique_cols) {
-      my %unique_hash;
-      @unique_hash{@unique_cols} = @vals;
-      push @unique_hashes, \%unique_hash;
-    }
-    else {
-      # Hack for CDBI queries
-      my %hash = @vals;
-      push @unique_hashes, \%hash;
-    }
+  # Check the hash we just parsed against our source's unique constraints
+  my @constraint_names = exists $attrs->{key}
+    ? ($attrs->{key})
+    : $self->result_source->unique_constraint_names;
+  $self->throw_exception(
+    "Can't find unless a primary key or unique constraint is defined"
+  ) unless @constraint_names;
+
+  my @unique_hashes;
+  foreach my $name (@constraint_names) {
+    my @unique_cols = $self->result_source->unique_constraint_columns($name);
+    my $unique_hash = $self->_unique_hash(\%hash, \@unique_cols);
+
+    # TODO: Check that the ResultSet defines the rest of the query
+    push @unique_hashes, $unique_hash
+      if scalar keys %$unique_hash;# == scalar @unique_cols;
   }
 
   # Add the ResultSet's alias
@@ -357,6 +352,7 @@ sub find {
   # Handle cases where the ResultSet already defines the query
   my $query = @unique_hashes ? \@unique_hashes : undef;
 
+  # Run the query
   if (keys %$attrs) {
     my $rs = $self->search($query, $attrs);
     return keys %{$rs->{collapse}} ? $rs->next : $rs->single;
