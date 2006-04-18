@@ -31,7 +31,7 @@ DBIx::Class::Relationship - Inter-table relationships
 
   $schema->resultset('Actor')->roles();
   $schema->resultset('Role')->search_related('actors', { Name => 'Fred' });
-  $schema->resultset('ActorRole')->add_to_roles({ Name => 'Sherlock Holmes'});
+  $schema->resultset('ActorRole')->add_to_role({ Name => 'Sherlock Holmes'});
 
 See L<DBIx::Class::Manual::Cookbook> for more.
 
@@ -184,7 +184,7 @@ left join.
                                             'My::DBIC::Schema::Actor' );
 
   My::DBIC::Schema::Actor->many_to_many( roles => 'actor_roles',
-                                         'role' );
+                                         'My::DBIC::Schema::Roles' );
 
   ...
 
