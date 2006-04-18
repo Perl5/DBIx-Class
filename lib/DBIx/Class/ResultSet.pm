@@ -362,7 +362,7 @@ sub find {
 
 # _unique_hash
 #
-# Constrain the specified hash based on the specific column names.
+# Constrain the specified hash based on the specified column names.
 
 sub _unique_hash {
   my ($self, $hash, $unique_cols) = @_;
