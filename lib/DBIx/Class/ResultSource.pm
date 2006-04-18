@@ -318,6 +318,38 @@ sub unique_constraints {
   return %{shift->_unique_constraints||{}};
 }
 
+=head2 unique_constraint_names
+
+Returns the list of unique constraint names defined on this source.
+
+=cut
+
+sub unique_constraint_names {
+  my ($self) = @_;
+
+  my %unique_constraints = $self->unique_constraints;
+
+  return keys %unique_constraints;
+}
+
+=head2 unique_constraint_columns
+
+Returns the list of columns that make up the specified unique constraint.
+
+=cut
+
+sub unique_constraint_columns {
+  my ($self, $constraint_name) = @_;
+
+  my %unique_constraints = $self->unique_constraints;
+
+  $self->throw_exception(
+    "Unknown unique constraint $constraint_name on '" . $self->name . "'"
+  ) unless exists $unique_constraints{$constraint_name};
+
+  return @{ $unique_constraints{$constraint_name} };
+}
+
 =head2 from
 
 Returns an expression of the source to be supplied to storage to specify

@@ -307,25 +307,19 @@ sub find {
   my ($self, @vals) = @_;
   my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
 
-  my %unique_constraints = $self->result_source->unique_constraints;
-  $self->throw_exception(
-    "Can't find unless a primary key or unique constraint is defined"
-  ) unless %unique_constraints;
-
-  $self->throw_exception(
-    "Unknown key $attrs->{key} on '" . $self->result_source->name . "'"
-  ) if (exists $attrs->{key} and not exists $unique_constraints{$attrs->{key}});
-
   # Build a list of queries
   my @unique_hashes;
 
   if (ref $vals[0] eq 'HASH') {
     my @constraint_names = exists $attrs->{key}
       ? ($attrs->{key})
-      : keys %unique_constraints;
+      : $self->result_source->unique_constraint_names;
+    $self->throw_exception(
+      "Can't find by explicitly named columns unless a primary key or unique constraint is defined"
+    ) unless @constraint_names;
 
     foreach my $name (@constraint_names) {
-      my @unique_cols = @{ $unique_constraints{$name} };
+      my @unique_cols = $self->result_source->unique_constraint_columns($name);
       my $unique_hash = $self->_unique_hash($vals[0], \@unique_cols);
 
       # TODO: Check that the ResultSet defines the rest of the query
@@ -335,13 +329,15 @@ sub find {
   }
   else {
     my @unique_cols = exists $attrs->{key}
-      ? @{ $unique_constraints{$attrs->{key}} }
+      ? $self->result_source->unique_constraint_columns($attrs->{key})
       : $self->result_source->primary_columns;
+    $self->throw_exception(
+      "Can't find unless a primary key is defined or a unique constraint is specified"
+    ) unless @unique_cols;
 
     if (@vals == @unique_cols) {
       my %unique_hash;
       @unique_hash{@unique_cols} = @vals;
-
       push @unique_hashes, \%unique_hash;
     }
     else {
