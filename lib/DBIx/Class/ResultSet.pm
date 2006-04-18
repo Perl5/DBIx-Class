@@ -304,8 +304,8 @@ L<DBIx::Class::ResultSource/add_unique_constraint>.
 =cut
 
 sub find {
-  my ($self, @vals) = @_;
-  my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
+  my $self = shift;
+  my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
 
   # Parse out a hash from input
   my @unique_cols = exists $attrs->{key}
@@ -313,15 +313,15 @@ sub find {
     : $self->result_source->primary_columns;
 
   my %hash;
-  if (ref $vals[0] eq 'HASH') {
-    %hash = %{ $vals[0] };
+  if (ref $_[0] eq 'HASH') {
+    %hash = %{ $_[0] };
   }
-  elsif (@vals == @unique_cols) {
-    @hash{@unique_cols} = @vals;
+  elsif (@_ == @unique_cols) {
+    @hash{@unique_cols} = @_;
   }
   else {
     # Hack for CDBI queries
-    %hash = @vals;
+    %hash = @_;
   }
 
   # Check the hash we just parsed against our source's unique constraints
