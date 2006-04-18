@@ -335,11 +335,11 @@ sub find {
   my @unique_hashes;
   foreach my $name (@constraint_names) {
     my @unique_cols = $self->result_source->unique_constraint_columns($name);
-    my $unique_hash = $self->_unique_hash(\%hash, \@unique_cols);
+    my %unique_hash = $self->_unique_hash(\%hash, \@unique_cols);
 
     # TODO: Check that the ResultSet defines the rest of the query
-    push @unique_hashes, $unique_hash
-      if scalar keys %$unique_hash;# == scalar @unique_cols;
+    push @unique_hashes, \%unique_hash
+      if scalar keys %unique_hash;# == scalar @unique_cols;
   }
 
   # Add the ResultSet's alias
@@ -383,7 +383,7 @@ sub _unique_hash {
     grep { exists $hash->{$_} }
     @$unique_cols;
 
-  return \%unique_hash;
+  return %unique_hash;
 }
 
 =head2 search_related
