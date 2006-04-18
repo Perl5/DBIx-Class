@@ -272,12 +272,17 @@ sub search_literal {
 
 =back
 
-Finds a row based on its primary key or unique constraint. For example:
+Finds a row based on its primary key or unique constraint. For example, to find
+a row by its primary key:
 
   my $cd = $schema->resultset('CD')->find(5);
 
-Also takes an optional C<key> attribute, to search by a specific key or unique
-constraint. For example:
+You can also find a row by a specific key or unique constraint by specifying
+the C<key> attribute. For example:
+
+  my $cd = $schema->resultset('CD')->find('Massive Attack', 'Mezzanine', { key => 'artist_title' });
+
+Additionally, you can specify the columns explicitly by name:
 
   my $cd = $schema->resultset('CD')->find(
     {
@@ -287,8 +292,8 @@ constraint. For example:
     { key => 'artist_title' }
   );
 
-If no C<key> is specified, it searches on all unique constraints defined on the
-source, including the primary key.
+If no C<key> is specified and you explicitly name columns, it searches on all
+unique constraints defined on the source, including the primary key.
 
 If the C<key> is specified as C<primary>, it searches only on the primary key.
 
@@ -307,46 +312,50 @@ sub find {
     "Can't find unless a primary key or unique constraint is defined"
   ) unless %unique_constraints;
 
-  my @constraint_names = keys %unique_constraints;
-  if (exists $attrs->{key}) {
-    $self->throw_exception(
-      "Unknown key $attrs->{key} on '" . $self->result_source->name . "'"
-    ) unless exists $unique_constraints{$attrs->{key}};
+  $self->throw_exception(
+    "Unknown key $attrs->{key} on '" . $self->result_source->name . "'"
+  ) if (exists $attrs->{key} and not exists $unique_constraints{$attrs->{key}});
 
-    @constraint_names = ($attrs->{key});
+  # Build a list of queries
+  my @unique_hashes;
+
+  if (ref $vals[0] eq 'HASH') {
+    my @constraint_names = exists $attrs->{key}
+      ? ($attrs->{key})
+      : keys %unique_constraints;
+
+    foreach my $name (@constraint_names) {
+      my @unique_cols = @{ $unique_constraints{$name} };
+      my $unique_hash = $self->_unique_hash($vals[0], \@unique_cols);
+
+      # TODO: Check that the ResultSet defines the rest of the query
+      push @unique_hashes, $unique_hash
+        if scalar keys %$unique_hash;# == scalar @unique_cols;
+    }
+  }
+  else {
+    my @unique_cols = exists $attrs->{key}
+      ? @{ $unique_constraints{$attrs->{key}} }
+      : $self->result_source->primary_columns;
+
+    if (@vals == @unique_cols) {
+      my %unique_hash;
+      @unique_hash{@unique_cols} = @vals;
+
+      push @unique_hashes, \%unique_hash;
+    }
+    else {
+      # Hack for CDBI queries
+      my %hash = @vals;
+      push @unique_hashes, \%hash;
+    }
   }
 
-  my @unique_hashes;
-  foreach my $name (@constraint_names) {
-    my @unique_cols = @{ $unique_constraints{$name} };
-    my %unique_hash;
-    if (ref $vals[0] eq 'HASH') {
-      # Stupid hack for CDBICompat
-      my %hash = %{ $vals[0] };
-      foreach my $key (keys %hash) {
-        $hash{lc $key} = delete $hash{$key};
-      }
-
-      %unique_hash =
-        map  { $_ => $hash{$_} }
-        grep { exists $hash{$_} }
-        @unique_cols;
+  # Add the ResultSet's alias
+  foreach my $unique_hash (@unique_hashes) {
+    foreach my $key (grep { ! m/\./ } keys %$unique_hash) {
+      $unique_hash->{"$self->{attrs}{alias}.$key"} = delete $unique_hash->{$key};
     }
-    elsif (@unique_cols == @vals) {
-      # Assume the argument order corresponds to the constraint definition
-      @unique_hash{@unique_cols} = @vals;
-    }
-    elsif (@vals % 2 == 0) {
-      # Fix for CDBI calling with a hash
-      %unique_hash = @vals;
-    }
-
-    foreach my $key (grep { ! m/\./ } keys %unique_hash) {
-      $unique_hash{"$self->{attrs}{alias}.$key"} = delete $unique_hash{$key};
-    }
-
-    #use Data::Dumper; warn Dumper \@vals, \@unique_cols, \%unique_hash;
-    push @unique_hashes, \%unique_hash if %unique_hash;
   }
 
   # Handle cases where the ResultSet already defines the query
@@ -361,6 +370,28 @@ sub find {
       ? $self->search($query)->next
       : $self->single($query);
   }
+}
+
+# _unique_hash
+#
+# Constrain the specified hash based on the specific column names.
+
+sub _unique_hash {
+  my ($self, $hash, $unique_cols) = @_;
+
+  # Ugh, CDBI lowercases column names
+  if (exists $INC{'DBIx/Class/CDBICompat/ColumnCase.pm'}) {
+    foreach my $key (keys %$hash) {
+      $hash->{lc $key} = delete $hash->{$key};
+    }
+  }
+
+  my %unique_hash =
+    map  { $_ => $hash->{$_} }
+    grep { exists $hash->{$_} }
+    @$unique_cols;
+
+  return \%unique_hash;
 }
 
 =head2 search_related
