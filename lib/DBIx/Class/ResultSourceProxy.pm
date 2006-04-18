@@ -62,6 +62,14 @@ sub unique_constraints {
   shift->result_source_instance->unique_constraints(@_);
 }
 
+sub unique_constraint_names {
+  shift->result_source_instance->unique_constraint_names(@_);
+}
+
+sub unique_constraint_columns {
+  shift->result_source_instance->unique_constraint_columns(@_);
+}
+
 sub add_relationship {
   my ($class, $rel, @rest) = @_;
   my $source = $class->result_source_instance;

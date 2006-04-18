@@ -3,9 +3,13 @@ Revision history for DBIx::Class
         - added remove_column(s) to ResultSource/ResultSourceProxy
         - added add_column alias to ResultSourceProxy
         - added source_name to ResultSource
-	- load_classes now uses source_name and sets it if necessary
-        - add update_or_create_related
-        - add find_or_new and find_or_new_related
+        - load_classes now uses source_name and sets it if necessary
+        - add update_or_create_related to Relationship::Base
+        - add find_or_new to ResultSet/ResultSetProxy and find_or_new_related
+          to Relationship::Base
+        - add accessors for unique constraint names and coulums to
+          ResultSource/ResultSourceProxy
+        - rework ResultSet::find() to search unique constraints
 
 0.06002
         - fix for -and conditions when updating or deleting on a ResultSet
