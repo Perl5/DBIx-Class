@@ -277,8 +277,8 @@ a row by its primary key:
 
   my $cd = $schema->resultset('CD')->find(5);
 
-You can also find a row by a specific key or unique constraint by specifying
-the C<key> attribute. For example:
+You can also find a row by a specific unique constraint using the C<key>
+attribute. For example:
 
   my $cd = $schema->resultset('CD')->find('Massive Attack', 'Mezzanine', { key => 'artist_title' });
 
