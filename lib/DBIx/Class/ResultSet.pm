@@ -337,16 +337,12 @@ sub find {
     my @unique_cols = $self->result_source->unique_constraint_columns($name);
     my %unique_hash = $self->_unique_hash(\%hash, \@unique_cols);
 
-    # TODO: Check that the ResultSet defines the rest of the query
-    push @unique_hashes, \%unique_hash
-      if scalar keys %unique_hash;# == scalar @unique_cols;
-  }
-
-  # Add the ResultSet's alias
-  foreach my $unique_hash (@unique_hashes) {
-    foreach my $key (grep { ! m/\./ } keys %$unique_hash) {
-      $unique_hash->{"$self->{attrs}{alias}.$key"} = delete $unique_hash->{$key};
+    # Add the ResultSet's alias
+    foreach my $key (grep { ! m/\./ } keys %unique_hash) {
+      $unique_hash{"$self->{attrs}{alias}.$key"} = delete $unique_hash{$key};
     }
+
+    push @unique_hashes, \%unique_hash if %unique_hash;
   }
 
   # Handle cases where the ResultSet already defines the query
