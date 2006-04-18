@@ -308,7 +308,7 @@ sub find {
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
 
   # Parse out a hash from input
-  my @unique_cols = exists $attrs->{key}
+  my @cols = exists $attrs->{key}
     ? $self->result_source->unique_constraint_columns($attrs->{key})
     : $self->result_source->primary_columns;
 
@@ -316,8 +316,8 @@ sub find {
   if (ref $_[0] eq 'HASH') {
     %hash = %{ $_[0] };
   }
-  elsif (@_ == @unique_cols) {
-    @hash{@unique_cols} = @_;
+  elsif (@_ == @cols) {
+    @hash{@cols} = @_;
   }
   else {
     # Hack for CDBI queries
