@@ -306,9 +306,11 @@ sub set_from_related {
     "condition for $rel is of type ".
     (ref $cond ? ref $cond : 'plain scalar')
   ) unless ref $cond eq 'HASH';
-  my $f_class = $self->result_source->schema->class($rel_obj->{class});
-  $self->throw_exception( "Object $f_obj isn't a ".$f_class )
-    unless $f_obj->isa($f_class);
+  if (defined $f_obj) {
+    my $f_class = $self->result_source->schema->class($rel_obj->{class});
+    $self->throw_exception( "Object $f_obj isn't a ".$f_class )
+      unless $f_obj->isa($f_class);
+  }
   $self->set_columns(
     $self->result_source->resolve_condition(
        $rel_obj->{cond}, $f_obj, $rel));

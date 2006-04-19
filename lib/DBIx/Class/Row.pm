@@ -38,10 +38,10 @@ sub new {
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
-    while (my ($k, $v) = each %$attrs) {
+    foreach my $k (keys %$attrs) {
       $new->throw_exception("No such column $k on $class")
         unless $class->has_column($k);
-      $new->store_column($k => $v);
+      $new->store_column($k => $attrs->{$k});
     }
   }
   return $new;
@@ -232,8 +232,8 @@ Sets more than one column value at once.
 
 sub set_columns {
   my ($self,$data) = @_;
-  while (my ($col,$val) = each %$data) {
-    $self->set_column($col,$val);
+  foreach my $col (keys %$data) {
+    $self->set_column($col,$data->{$col});
   }
   return $self;
 }
@@ -255,6 +255,7 @@ sub copy {
       if $self->result_source->column_info($col)->{is_auto_increment};
   }
   my $new = bless { _column_data => $col_data }, ref $self;
+  $new->result_source($self->result_source);
   $new->set_columns($changes);
   $new->insert;
   foreach my $rel ($self->result_source->relationships) {

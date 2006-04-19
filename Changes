@@ -16,7 +16,10 @@ Revision history for DBIx::Class
         - CDBICompat: override find_or_create to fix column casing when
           ColumnCase is loaded
 
-0.06002
+0.06002 2006-04-20 00:42:41
+        - fix set_from_related to accept undef
+        - fix to Dumper-induced hash iteration bug
+        - fix to copy() with non-composed resultsource
         - fix to ->search without args to clone rs but maintain cache
         - grab $self->dbh once per function in Storage::DBI
         - nuke ResultSource caching of ->resultset for consistency reasons
