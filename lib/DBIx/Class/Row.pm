@@ -255,6 +255,7 @@ sub copy {
       if $self->result_source->column_info($col)->{is_auto_increment};
   }
   my $new = bless { _column_data => $col_data }, ref $self;
+  $new->result_source($self->result_source);
   $new->set_columns($changes);
   $new->insert;
   foreach my $rel ($self->result_source->relationships) {
