@@ -519,8 +519,12 @@ sub resolve_condition {
         #warn "$self $k $for $v";
         $ret{$k} = $for->get_column($v);
         #warn %ret;
+      } elsif (!defined $for) { # undef, i.e. "no object"
+        $ret{$k} = undef;
       } elsif (ref $as) { # reverse object
         $ret{$v} = $as->get_column($k);
+      } elsif (!defined $as) { # undef, i.e. "no reverse object"
+        $ret{$v} = undef;
       } else {
         $ret{"${as}.${k}"} = "${for}.${v}";
       }

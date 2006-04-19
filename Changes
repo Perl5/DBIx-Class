@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
 0.06002
+        - fix set_from_related to accept undef
         - fix to Dumper-induced hash iteration bug
         - fix to copy() with non-composed resultsource
         - fix to ->search without args to clone rs but maintain cache

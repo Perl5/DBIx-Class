@@ -3,7 +3,7 @@ my $schema = shift;
 
 use strict;
 use warnings;  
-plan tests => 25;
+plan tests => 26;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -50,11 +50,16 @@ my $track = $schema->resultset("Track")->create( {
 } );
 $track->set_from_related( cd => $cd );
 
-if ($INC{'DBICTest/HelperRels.pm'}) { # except inflated object
+if ($INC{'DBICTest/HelperRels.pm'}) { # expect inflated object
   is($track->disc->cdid, 4, 'set_from_related ok, including alternative accessor' );
 } else {
   is( $track->cd, 4, 'set_from_related ok' );
 }
+
+$track->set_from_related( cd => undef );
+
+ok( !defined($track->cd), 'set_from_related with undef ok');
+
 
 # update_from_related, the same as set_from_related, but it calls update afterwards
 $track = $schema->resultset("Track")->create( {
