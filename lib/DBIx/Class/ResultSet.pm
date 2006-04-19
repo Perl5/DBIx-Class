@@ -195,44 +195,42 @@ call it as C<search(undef, \%attrs)>.
 
 sub search {
   my $self = shift;
-
-  my $rs;
-  if( @_ ) {
     
-    my $attrs = { %{$self->{attrs}} };
-    my $having = delete $attrs->{having};
-    $attrs = { %$attrs, %{ pop(@_) } } if @_ > 1 and ref $_[$#_] eq 'HASH';
+  my $attrs = { %{$self->{attrs}} };
+  my $having = delete $attrs->{having};
+  $attrs = { %$attrs, %{ pop(@_) } } if @_ > 1 and ref $_[$#_] eq 'HASH';
 
-    my $where = (@_
-                  ? ((@_ == 1 || ref $_[0] eq "HASH")
-                      ? shift
-                      : ((@_ % 2)
-                          ? $self->throw_exception(
-                              "Odd number of arguments to search")
-                          : {@_}))
-                  : undef());
-    if (defined $where) {
-      $attrs->{where} = (defined $attrs->{where}
-                ? { '-and' =>
-                    [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
-                        $where, $attrs->{where} ] }
-                : $where);
-    }
-
-    if (defined $having) {
-      $attrs->{having} = (defined $attrs->{having}
-                ? { '-and' =>
-                    [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
-                        $having, $attrs->{having} ] }
-                : $having);
-    }
-
-    $rs = (ref $self)->new($self->result_source, $attrs);
+  my $where = (@_
+                ? ((@_ == 1 || ref $_[0] eq "HASH")
+                    ? shift
+                    : ((@_ % 2)
+                        ? $self->throw_exception(
+                            "Odd number of arguments to search")
+                        : {@_}))
+                : undef());
+  if (defined $where) {
+    $attrs->{where} = (defined $attrs->{where}
+              ? { '-and' =>
+                  [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
+                      $where, $attrs->{where} ] }
+              : $where);
   }
-  else {
-    $rs = $self;
-    $rs->reset;
+
+  if (defined $having) {
+    $attrs->{having} = (defined $attrs->{having}
+              ? { '-and' =>
+                  [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
+                      $having, $attrs->{having} ] }
+              : $having);
   }
+
+  my $rs = (ref $self)->new($self->result_source, $attrs);
+
+  my $rows = $self->get_cache;
+  if( @{$rows} ) {
+    $rs->set_cache($rows);
+  }
+  
   return (wantarray ? $rs->all : $rs);
 }
 
