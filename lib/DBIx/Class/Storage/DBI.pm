@@ -470,10 +470,13 @@ an entire code block to be executed transactionally.
 
 sub txn_begin {
   my $self = shift;
-  if (($self->{transaction_depth}++ == 0) and ($self->dbh->{AutoCommit})) {
-    $self->debugfh->print("BEGIN WORK\n")
-      if ($self->debug);
-    $self->dbh->begin_work;
+  if ($self->{transaction_depth}++ == 0) {
+    my $dbh = $self->dbh;
+    if ($dbh->{AutoCommit}) {
+      $self->debugfh->print("BEGIN WORK\n")
+        if ($self->debug);
+      $dbh->begin_work;
+    }
   }
 }
 
@@ -486,10 +489,11 @@ Issues a commit against the current dbh.
 sub txn_commit {
   my $self = shift;
   if ($self->{transaction_depth} == 0) {
-    unless ($self->dbh->{AutoCommit}) {
+    my $dbh = $self->dbh;
+    unless ($dbh->{AutoCommit}) {
       $self->debugfh->print("COMMIT\n")
         if ($self->debug);
-      $self->dbh->commit;
+      $dbh->commit;
     }
   }
   else {
@@ -514,10 +518,11 @@ sub txn_rollback {
 
   eval {
     if ($self->{transaction_depth} == 0) {
-      unless ($self->dbh->{AutoCommit}) {
+      my $dbh = $self->dbh;
+      unless ($dbh->{AutoCommit}) {
         $self->debugfh->print("ROLLBACK\n")
           if ($self->debug);
-        $self->dbh->rollback;
+        $dbh->rollback;
       }
     }
     else {
@@ -641,14 +646,16 @@ Returns database type info for a given table columns.
 sub columns_info_for {
   my ($self, $table) = @_;
 
-  if ($self->dbh->can('column_info')) {
+  my $dbh = $self->dbh;
+
+  if ($dbh->can('column_info')) {
     my %result;
-    my $old_raise_err = $self->dbh->{RaiseError};
-    my $old_print_err = $self->dbh->{PrintError};
-    $self->dbh->{RaiseError} = 1;
-    $self->dbh->{PrintError} = 0;
+    my $old_raise_err = $dbh->{RaiseError};
+    my $old_print_err = $dbh->{PrintError};
+    $dbh->{RaiseError} = 1;
+    $dbh->{PrintError} = 0;
     eval {
-      my $sth = $self->dbh->column_info( undef, undef, $table, '%' );
+      my $sth = $dbh->column_info( undef, undef, $table, '%' );
       $sth->execute();
       while ( my $info = $sth->fetchrow_hashref() ){
         my %column_info;
@@ -660,21 +667,21 @@ sub columns_info_for {
         $result{$info->{COLUMN_NAME}} = \%column_info;
       }
     };
-    $self->dbh->{RaiseError} = $old_raise_err;
-    $self->dbh->{PrintError} = $old_print_err;
+    $dbh->{RaiseError} = $old_raise_err;
+    $dbh->{PrintError} = $old_print_err;
     return \%result if !$@;
   }
 
   my %result;
-  my $sth = $self->dbh->prepare("SELECT * FROM $table WHERE 1=0");
+  my $sth = $dbh->prepare("SELECT * FROM $table WHERE 1=0");
   $sth->execute;
   my @columns = @{$sth->{NAME_lc}};
   for my $i ( 0 .. $#columns ){
     my %column_info;
     my $type_num = $sth->{TYPE}->[$i];
     my $type_name;
-    if(defined $type_num && $self->dbh->can('type_info')) {
-      my $type_info = $self->dbh->type_info($type_num);
+    if(defined $type_num && $dbh->can('type_info')) {
+      my $type_info = $dbh->type_info($type_num);
       $type_name = $type_info->{TYPE_NAME} if $type_info;
     }
     $column_info{data_type} = $type_name ? $type_name : $type_num;
