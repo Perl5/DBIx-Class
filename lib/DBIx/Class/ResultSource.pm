@@ -283,14 +283,15 @@ sub primary_columns {
 =head2 add_unique_constraint
 
 Declare a unique constraint on this source. Call once for each unique
-constraint. Unique constraints are used when you call C<find> on a
-L<DBIx::Class::ResultSet>. Only columns in the constraint are searched,
-for example:
+constraint.
 
   # For UNIQUE (column1, column2)
   __PACKAGE__->add_unique_constraint(
     constraint_name => [ qw/column1 column2/ ],
   );
+
+Unique constraints are used, for example, when you call
+L<DBIx::Class::ResultSet/find>. Only columns in the constraint are searched.
 
 =cut
 
@@ -315,6 +316,38 @@ Read-only accessor which returns the list of unique constraints on this source.
 
 sub unique_constraints {
   return %{shift->_unique_constraints||{}};
+}
+
+=head2 unique_constraint_names
+
+Returns the list of unique constraint names defined on this source.
+
+=cut
+
+sub unique_constraint_names {
+  my ($self) = @_;
+
+  my %unique_constraints = $self->unique_constraints;
+
+  return keys %unique_constraints;
+}
+
+=head2 unique_constraint_columns
+
+Returns the list of columns that make up the specified unique constraint.
+
+=cut
+
+sub unique_constraint_columns {
+  my ($self, $constraint_name) = @_;
+
+  my %unique_constraints = $self->unique_constraints;
+
+  $self->throw_exception(
+    "Unknown unique constraint $constraint_name on '" . $self->name . "'"
+  ) unless exists $unique_constraints{$constraint_name};
+
+  return @{ $unique_constraints{$constraint_name} };
 }
 
 =head2 from

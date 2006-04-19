@@ -270,12 +270,17 @@ sub search_literal {
 
 =back
 
-Finds a row based on its primary key or unique constraint. For example:
+Finds a row based on its primary key or unique constraint. For example, to find
+a row by its primary key:
 
   my $cd = $schema->resultset('CD')->find(5);
 
-Also takes an optional C<key> attribute, to search by a specific key or unique
-constraint. For example:
+You can also find a row by a specific unique constraint using the C<key>
+attribute. For example:
+
+  my $cd = $schema->resultset('CD')->find('Massive Attack', 'Mezzanine', { key => 'artist_title' });
+
+Additionally, you can specify the columns explicitly by name:
 
   my $cd = $schema->resultset('CD')->find(
     {
@@ -285,49 +290,90 @@ constraint. For example:
     { key => 'artist_title' }
   );
 
-See also L</find_or_create> and L</update_or_create>.
+If no C<key> is specified and you explicitly name columns, it searches on all
+unique constraints defined on the source, including the primary key.
+
+If the C<key> is specified as C<primary>, it searches only on the primary key.
+
+See also L</find_or_create> and L</update_or_create>. For information on how to
+declare unique constraints, see
+L<DBIx::Class::ResultSource/add_unique_constraint>.
 
 =cut
 
 sub find {
-  my ($self, @vals) = @_;
-  my $attrs = (@vals > 1 && ref $vals[$#vals] eq 'HASH' ? pop(@vals) : {});
+  my $self = shift;
+  my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
 
-  my @cols = $self->result_source->primary_columns;
-  if (exists $attrs->{key}) {
-    my %uniq = $self->result_source->unique_constraints;
-    $self->throw_exception(
-      "Unknown key $attrs->{key} on '" . $self->result_source->name . "'"
-    ) unless exists $uniq{$attrs->{key}};
-    @cols = @{ $uniq{$attrs->{key}} };
+  # Parse out a hash from input
+  my @cols = exists $attrs->{key}
+    ? $self->result_source->unique_constraint_columns($attrs->{key})
+    : $self->result_source->primary_columns;
+
+  my $hash;
+  if (ref $_[0] eq 'HASH') {
+    $hash = { %{$_[0]} };
   }
-  #use Data::Dumper; warn Dumper($attrs, @vals, @cols);
+  elsif (@_ == @cols) {
+    $hash = {};
+    @{$hash}{@cols} = @_;
+  }
+  else {
+    $self->throw_exception(
+      "Arguments to find must be a hashref or match the number of columns in the "
+        . exists $attrs->{key} ? "$attrs->{key} unique constraint" : "primary key"
+    );
+  }
+
+  # Check the hash we just parsed against our source's unique constraints
+  my @constraint_names = exists $attrs->{key}
+    ? ($attrs->{key})
+    : $self->result_source->unique_constraint_names;
   $self->throw_exception(
     "Can't find unless a primary key or unique constraint is defined"
-  ) unless @cols;
+  ) unless @constraint_names;
 
-  my $query;
-  if (ref $vals[0] eq 'HASH') {
-    $query = { %{$vals[0]} };
-  } elsif (@cols == @vals) {
-    $query = {};
-    @{$query}{@cols} = @vals;
-  } else {
-    $query = {@vals};
+  my @unique_queries;
+  foreach my $name (@constraint_names) {
+    my @unique_cols = $self->result_source->unique_constraint_columns($name);
+    my $unique_query = $self->_build_unique_query($hash, \@unique_cols);
+
+    # Add the ResultSet's alias
+    foreach my $key (grep { ! m/\./ } keys %$unique_query) {
+      $unique_query->{"$self->{attrs}{alias}.$key"} = delete $unique_query->{$key};
+    }
+
+    push @unique_queries, $unique_query if %$unique_query;
   }
-  foreach my $key (grep { ! m/\./ } keys %$query) {
-    $query->{"$self->{attrs}{alias}.$key"} = delete $query->{$key};
-  }
-  #warn Dumper($query);
-  
+
+  # Handle cases where the ResultSet already defines the query
+  my $query = @unique_queries ? \@unique_queries : undef;
+
+  # Run the query
   if (keys %$attrs) {
-      my $rs = $self->search($query,$attrs);
-      return keys %{$rs->{collapse}} ? $rs->next : $rs->single;
-  } else {
-      return keys %{$self->{collapse}} ?
-        $self->search($query)->next :
-        $self->single($query);
+    my $rs = $self->search($query, $attrs);
+    return keys %{$rs->{collapse}} ? $rs->next : $rs->single;
   }
+  else {
+    return keys %{$self->{collapse}}
+      ? $self->search($query)->next
+      : $self->single($query);
+  }
+}
+
+# _build_unique_query
+#
+# Constrain the specified query hash based on the specified column names.
+
+sub _build_unique_query {
+  my ($self, $query, $unique_cols) = @_;
+
+  my %unique_query =
+    map  { $_ => $query->{$_} }
+    grep { exists $query->{$_} }
+    @$unique_cols;
+
+  return \%unique_query;
 }
 
 =head2 search_related
@@ -389,7 +435,7 @@ sub cursor {
   my $cd = $schema->resultset('CD')->single({ year => 2001 });
 
 Inflates the first result without creating a cursor if the resultset has
-any records in it; if not returns nothing. Used by find() as an optimisation.
+any records in it; if not returns nothing. Used by L</find> as an optimisation.
 
 =cut
 
@@ -1048,6 +1094,32 @@ sub new_result {
   return $obj;
 }
 
+=head2 find_or_new
+
+=over 4
+
+=item Arguments: \%vals, \%attrs?
+
+=item Return Value: $object
+
+=back
+
+Find an existing record from this resultset. If none exists, instantiate a new
+result object and return it. The object will not be saved into your storage
+until you call L<DBIx::Class::Row/insert> on it.
+
+If you want objects to be saved immediately, use L</find_or_create> instead.
+
+=cut
+
+sub find_or_new {
+  my $self     = shift;
+  my $attrs    = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
+  my $hash     = ref $_[0] eq 'HASH' ? shift : {@_};
+  my $exists   = $self->find($hash, $attrs);
+  return defined $exists ? $exists : $self->new_result($hash);
+}
+
 =head2 create
 
 =over 4
@@ -1104,7 +1176,8 @@ constraint. For example:
     { key => 'artist_title' }
   );
 
-See also L</find> and L</update_or_create>.
+See also L</find> and L</update_or_create>. For information on how to declare
+unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 
 =cut
 
@@ -1151,7 +1224,8 @@ source, including the primary key.
 
 If the C<key> is specified as C<primary>, it searches only on the primary key.
 
-See also L</find> and L</find_or_create>.
+See also L</find> and L</find_or_create>. For information on how to declare
+unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 
 =cut
 
@@ -1160,30 +1234,11 @@ sub update_or_create {
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
   my $hash = ref $_[0] eq 'HASH' ? shift : {@_};
 
-  my %unique_constraints = $self->result_source->unique_constraints;
-  my @constraint_names   = (exists $attrs->{key}
-                            ? ($attrs->{key})
-                            : keys %unique_constraints);
-
-  my @unique_hashes;
-  foreach my $name (@constraint_names) {
-    my @unique_cols = @{ $unique_constraints{$name} };
-    my %unique_hash =
-      map  { $_ => $hash->{$_} }
-      grep { exists $hash->{$_} }
-      @unique_cols;
-
-    push @unique_hashes, \%unique_hash
-      if (scalar keys %unique_hash == scalar @unique_cols);
-  }
-
-  if (@unique_hashes) {
-    my $row = $self->single(\@unique_hashes);
-    if (defined $row) {
-      $row->set_columns($hash);
-      $row->update;
-      return $row;
-    }
+  my $row = $self->find($hash, $attrs);
+  if (defined $row) {
+    $row->set_columns($hash);
+    $row->update;
+    return $row;
   }
 
   return $self->create($hash);

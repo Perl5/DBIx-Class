@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 51;
+plan tests => 55;
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
 # which case COUNT(DISTINCT()) doesn't work
@@ -87,6 +87,24 @@ is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
 
 is($schema->resultset("Artist")->count, 4, 'count ok');
+
+# test find_or_new
+{
+  my $existing_obj = $schema->resultset('Artist')->find_or_new({
+    artistid => 4,
+  });
+
+  is($existing_obj->name, 'Man With A Spoon', 'find_or_new: found existing artist');
+  ok($existing_obj->in_storage, 'existing artist is in storage');
+
+  my $new_obj = $schema->resultset('Artist')->find_or_new({
+    artistid => 5,
+    name     => 'find_or_new',
+  });
+
+  is($new_obj->name, 'find_or_new', 'find_or_new: instantiated a new artist');
+  ok(! $new_obj->in_storage, 'new artist is not in storage');
+}
 
 my $cd = $schema->resultset("CD")->find(1);
 my %cols = $cd->get_columns;

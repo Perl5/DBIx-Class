@@ -3,7 +3,17 @@ Revision history for DBIx::Class
         - added remove_column(s) to ResultSource/ResultSourceProxy
         - added add_column alias to ResultSourceProxy
         - added source_name to ResultSource
-	- load_classes now uses source_name and sets it if necessary
+        - load_classes now uses source_name and sets it if necessary
+        - add update_or_create_related to Relationship::Base
+        - add find_or_new to ResultSet/ResultSetProxy and find_or_new_related
+          to Relationship::Base
+        - add accessors for unique constraint names and coulums to
+          ResultSource/ResultSourceProxy
+        - rework ResultSet::find() to search unique constraints
+        - CDBICompat: modify retrieve to fix column casing when ColumnCase is
+          loaded
+        - CDBICompat: override find_or_create to fix column casing when
+          ColumnCase is loaded
 
 0.06002
         - grab $self->dbh once per function in Storage::DBI

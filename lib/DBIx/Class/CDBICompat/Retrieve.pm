@@ -5,9 +5,44 @@ use strict;
 use warnings FATAL => 'all';
 
 
-sub retrieve  {
-  die "No args to retrieve" unless @_ > 1;
-  shift->find(@_);
+sub retrieve {
+  my $self = shift;
+  die "No args to retrieve" unless @_ > 0;
+
+  my @cols = $self->primary_columns;
+
+  my $query;
+  if (ref $_[0] eq 'HASH') {
+    $query = { %{$_[0]} };
+  }
+  elsif (@_ == @cols) {
+    $query = {};
+    @{$query}{@cols} = @_;
+  }
+  else {
+    $query = {@_};
+  }
+
+  $query = $self->_build_query($query);
+  $self->find($query);
+}
+
+sub find_or_create {
+  my $self = shift;
+  my $query = ref $_[0] eq 'HASH' ? shift : {@_};
+
+  $query = $self->_build_query($query);
+  $self->next::method($query);
+}
+
+# _build_query
+#
+# Build a query hash. Defaults to a no-op; ColumnCase overrides.
+
+sub _build_query {
+  my ($self, $query) = @_;
+
+  return $query;
 }
 
 sub retrieve_from_sql {
