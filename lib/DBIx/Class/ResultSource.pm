@@ -508,7 +508,8 @@ sub resolve_condition {
   #warn %$cond;
   if (ref $cond eq 'HASH') {
     my %ret;
-    while (my ($k, $v) = each %{$cond}) {
+    foreach my $k (keys %{$cond}) {
+      my $v = $cond->{$k};
       # XXX should probably check these are valid columns
       $k =~ s/^foreign\.// ||
         $self->throw_exception("Invalid rel cond key ${k}");

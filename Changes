@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
 0.06002
+        - fix to Dumper-induced hash iteration bug
         - fix to copy() with non-composed resultsource
         - fix to ->search without args to clone rs but maintain cache
         - grab $self->dbh once per function in Storage::DBI
