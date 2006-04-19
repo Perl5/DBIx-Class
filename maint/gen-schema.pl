@@ -5,7 +5,7 @@ use warnings;
 use lib qw(lib t/lib);
 
 use DBICTest;
-use DBICTest::HelperRels;
+use DBICTest::Schema::HelperRels;
 
 my $schema = DBICTest->initialise;
 

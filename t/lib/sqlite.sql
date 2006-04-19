@@ -1,13 +1,13 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Fri Mar 24 15:47:00 2006
+-- Created on Wed Apr 19 18:32:39 2006
 -- 
 BEGIN TRANSACTION;
 
 --
--- Table: employees
+-- Table: employee
 --
-CREATE TABLE employees (
+CREATE TABLE employee (
   employee_id INTEGER PRIMARY KEY NOT NULL,
   position integer NOT NULL,
   group_id integer,
@@ -23,6 +23,14 @@ CREATE TABLE serialized (
 );
 
 --
+-- Table: liner_notes
+--
+CREATE TABLE liner_notes (
+  liner_id INTEGER PRIMARY KEY NOT NULL,
+  notes varchar(100) NOT NULL
+);
+
+--
 -- Table: cd_to_producer
 --
 CREATE TABLE cd_to_producer (
@@ -32,19 +40,23 @@ CREATE TABLE cd_to_producer (
 );
 
 --
--- Table: liner_notes
---
-CREATE TABLE liner_notes (
-  liner_id INTEGER PRIMARY KEY NOT NULL,
-  notes varchar(100) NOT NULL
-);
-
---
 -- Table: artist
 --
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100)
+);
+
+--
+-- Table: twokeytreelike
+--
+CREATE TABLE twokeytreelike (
+  id1 integer NOT NULL,
+  id2 integer NOT NULL,
+  parent1 integer NOT NULL,
+  parent2 integer NOT NULL,
+  name varchar(100) NOT NULL,
+  PRIMARY KEY (id1, id2)
 );
 
 --
@@ -132,14 +144,6 @@ CREATE TABLE artist_undirected_map (
 );
 
 --
--- Table: producer
---
-CREATE TABLE producer (
-  producerid INTEGER PRIMARY KEY NOT NULL,
-  name varchar(100) NOT NULL
-);
-
---
 -- Table: onekey
 --
 CREATE TABLE onekey (
@@ -148,4 +152,15 @@ CREATE TABLE onekey (
   cd integer NOT NULL
 );
 
+--
+-- Table: producer
+--
+CREATE TABLE producer (
+  producerid INTEGER PRIMARY KEY NOT NULL,
+  name varchar(100) NOT NULL
+);
+
+CREATE UNIQUE INDEX position_group_employee on employee (position, group_id);
+CREATE UNIQUE INDEX tktlnameunique_twokeytreelike on twokeytreelike (name);
+CREATE UNIQUE INDEX artist_title_cd on cd (artist, title);
 COMMIT;

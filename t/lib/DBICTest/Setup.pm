@@ -19,7 +19,7 @@ if ($ENV{"DBICTEST_SQLT_DEPLOY"}) {
 
   close IN;
 
-  $dbh->do($_) for split(/\n\n/, $sql);
+  $dbh->do($_) for split(/;\n/, $sql);
 }
 
 $schema->storage->dbh->do("PRAGMA synchronous = OFF");

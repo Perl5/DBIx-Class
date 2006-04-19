@@ -5,7 +5,7 @@ use base 'DBIx::Class';
 
 __PACKAGE__->load_components(qw( Ordered PK::Auto Core ));
 
-__PACKAGE__->table('employees');
+__PACKAGE__->table('employee');
 
 __PACKAGE__->add_columns(
     employee_id => {

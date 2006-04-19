@@ -1,3 +1,8 @@
+2005-04-16 by mst
+  - set_from_related should take undef
+  - ResultSource objects caching ->resultset causes interesting problems
+  - find why XSUB dumper kills schema in Catalyst (may be Pg only?)
+
 2006-04-11 by castaway
  - using PK::Auto should set is_auto_increment for the PK columns, so that copy() "just works"
  - docs of copy() should say that is_auto_increment is essential for auto_incrementing keys

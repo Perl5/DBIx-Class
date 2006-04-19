@@ -43,11 +43,16 @@ sub parse {
 #    print Dumper($dbixschema->registered_classes);
 
     #foreach my $tableclass ($dbixschema->registered_classes)
+
+    my %seen_tables;
+
     foreach my $moniker ($dbixschema->sources)
     {
         #eval "use $tableclass";
         #print("Can't load $tableclass"), next if($@);
         my $source = $dbixschema->source($moniker);
+
+        next if $seen_tables{$source->name}++;
 
         my $table = $schema->add_table(
                                        name => $source->name,
