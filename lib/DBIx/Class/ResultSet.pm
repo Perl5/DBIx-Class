@@ -226,9 +226,11 @@ sub search {
 
   my $rs = (ref $self)->new($self->result_source, $attrs);
 
-  my $rows = $self->get_cache;
-  if( @{$rows} ) {
-    $rs->set_cache($rows);
+  unless (@_) { # no search, effectively just a clone
+    my $rows = $self->get_cache;
+    if( @{$rows} ) {
+      $rs->set_cache($rows);
+    }
   }
   
   return (wantarray ? $rs->all : $rs);

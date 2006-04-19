@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
 0.06002
+        - fix to ->search without args to clone rs but maintain cache
         - grab $self->dbh once per function in Storage::DBI
         - nuke ResultSource caching of ->resultset for consistency reasons
         - fix for -and conditions when updating or deleting on a ResultSet
