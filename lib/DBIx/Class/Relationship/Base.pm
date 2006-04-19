@@ -272,7 +272,7 @@ sub find_or_create_related {
   my $updated_item = $obj->update_or_create_related('relname', \%col_data, \%attrs?);
 
 Update or create an item of a related class. See
-L<DBIx::Class::ResultSet/"update_or_create"> for details.
+L<DBIx::Class::ResultSet/update_or_create> for details.
 
 =cut
 
