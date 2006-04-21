@@ -63,7 +63,7 @@ particular which module inherits off which.
 
 =back
 
-Registers a class which isa L<DBIx::Class::ResultSourceProxy>. Equivalent to
+Registers a class which isa DBIx::Class::ResultSourceProxy. Equivalent to
 calling:
 
   $schema->register_source($moniker, $component_class->result_source_instance);
