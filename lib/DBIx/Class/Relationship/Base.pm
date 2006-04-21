@@ -97,7 +97,7 @@ created, which calls C<create_related> for the relationship.
 =back
 
 Registers a relationship on the class. This is called internally by
-L<DBIx::Class::ResultSourceProxy> to set up Accessors and Proxies.
+DBIx::Class::ResultSourceProxy to set up Accessors and Proxies.
 
 =cut
 

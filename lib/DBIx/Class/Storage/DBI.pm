@@ -364,6 +364,12 @@ sub ensure_connected {
   }
 }
 
+=head2 dbh
+
+Returns the dbh - a data base handle of class L<DBI>.
+
+=cut
+
 sub dbh {
   my ($self) = @_;
 

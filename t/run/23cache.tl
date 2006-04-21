@@ -1,6 +1,9 @@
 sub run_tests {
 my $schema = shift;
 
+my $queries;
+$schema->storage->debugcb( sub{ $queries++ } );
+
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
 plan tests => 23;
@@ -41,25 +44,16 @@ eval {
 
 is( scalar @{$rs->get_cache}, 0, 'set_cache() only accepts objects of correct type for the resultset' );
 
-unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
-DBI->trace(1, 't/var/dbic.trace');
+$queries = 0;
+$schema->storage->debug(1);
 
 $rs = $schema->resultset('Artist')->search( undef, { cache => 1 } );
 while( $artist = $rs->next ) {}
 $artist = $rs->first();
 
-# count the SELECTs
-DBI->trace(0, undef);
-my $selects = 0;
-$trace = IO::File->new('t/var/dbic.trace', '<') 
-    or die "Unable to read trace file";
-while (<$trace>) {
-    $selects++ if /SELECT/;
-}
-$trace->close;
-unlink 't/var/dbic.trace';
+is( $queries, 1, 'revisiting a row does not issue a query when cache => 1' );
 
-is( $selects, 1, 'revisiting a row does not issue a query when cache => 1' );
+$schema->storage->debug(0);
 
 my @a = $schema->resultset("Artist")->search(
   { },
@@ -82,8 +76,8 @@ $rs = $schema->resultset("Artist")->search(
 use Data::Dumper; $Data::Dumper::Deparse = 1;
 
 # start test for prefetch SELECT count
-unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
-DBI->trace(1, 't/var/dbic.trace');
+$queries = 0;
+$schema->storage->debug(1);
 
 $artist = $rs->first;
 $rs->reset();
@@ -103,17 +97,9 @@ is( $artist->cds->count, 3, 'artist->cds->count returns correct value' );
 # ensure that $artist->count_related('cds') returns correct value
 is( $artist->count_related('cds'), 3, 'artist->count_related returns correct value' );
 
-# count the SELECTs
-DBI->trace(0, undef);
-$selects = 0;
-my $trace = IO::File->new('t/var/dbic.trace', '<') 
-    or die "Unable to read trace file";
-while (<$trace>) {
-    $selects++ if /SELECT/;
-}
-$trace->close;
-unlink 't/var/dbic.trace';
-is($selects, 1, 'only one SQL statement executed');
+is($queries, 1, 'only one SQL statement executed');
+
+$schema->storage->debug(0);
 
 # make sure related_resultset is deleted after object is updated
 $artist->set_column('name', 'New Name');
@@ -143,28 +129,20 @@ is($artist->cds, 0, 'No cds for this artist');
 }
 
 # SELECT count for nested has_many prefetch
-unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
-DBI->trace(1, 't/var/dbic.trace');
+$queries = 0;
+$schema->storage->debug(1);
 
 $artist = ($rs->all)[0];
 
-# count the SELECTs
-DBI->trace(0, undef);
-$selects = 0;
-$trace = IO::File->new('t/var/dbic.trace', '<') 
-    or die "Unable to read trace file";
-while (<$trace>) {
-    $selects++ if /SELECT/;
-}
-$trace->close;
-unlink 't/var/dbic.trace';
-is($selects, 1, 'only one SQL statement executed');
+is($queries, 1, 'only one SQL statement executed');
+
+$schema->storage->debug(0);
 
 my @objs;
 #$artist = $rs->find(1);
 
-unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
-DBI->trace(1, 't/var/dbic.trace');
+$queries = 0;
+$schema->storage->debug(1);
 
 my $cds = $artist->cds;
 my $tags = $cds->next->tags;
@@ -182,57 +160,24 @@ while( my $tag = $tags->next ) {
 
 is_deeply( \@objs, [ 2, 5, 8 ], 'second cd has correct tags' );
 
-# count the SELECTs
-DBI->trace(0, undef);
-$selects = 0;
-$trace = IO::File->new('t/var/dbic.trace', '<') 
-    or die "Unable to read trace file";
-while (<$trace>) {
-    $selects++ if /SELECT/;
-}
-$trace->close;
-unlink 't/var/dbic.trace';
-
-is( $selects, 0, 'no additional SQL statements while checking nested data' );
+is( $queries, 0, 'no additional SQL statements while checking nested data' );
 
 # start test for prefetch SELECT count
-unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
-DBI->trace(1, 't/var/dbic.trace');
+$queries = 0;
 
 $artist = $schema->resultset('Artist')->find(1, { prefetch => [qw/cds/] });
 
-# count the SELECTs
-DBI->trace(0, undef);
-$selects = 0;
-$trace = IO::File->new('t/var/dbic.trace', '<') 
-    or die "Unable to read trace file";
-while (<$trace>) {
-    $selects++ if /SELECT/;
-}
-$trace->close;
-unlink 't/var/dbic.trace';
-
-is( $selects, 1, 'only one select statement on find with inline has_many prefetch' );
+is( $queries, 1, 'only one select statement on find with inline has_many prefetch' );
 
 # start test for prefetch SELECT count
-unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
-DBI->trace(1, 't/var/dbic.trace');
+$queries = 0;
 
 $rs = $schema->resultset('Artist')->search(undef, { prefetch => [qw/cds/] });
 $artist = $rs->find(1);
 
-# count the SELECTs
-DBI->trace(0, undef);
-$selects = 0;
-$trace = IO::File->new('t/var/dbic.trace', '<') 
-    or die "Unable to read trace file";
-while (<$trace>) {
-    $selects++ if /SELECT/;
-}
-$trace->close;
-unlink 't/var/dbic.trace';
+is( $queries, 1, 'only one select statement on find with has_many prefetch on resultset' );
 
-is( $selects, 1, 'only one select statement on find with has_many prefetch on resultset' );
+$schema->storage->debug(0);
 
 }
 

@@ -58,8 +58,6 @@ DBIx::Class::Manual::DocMap - What documentation do we have?
 
 =item L<DBIx::Class::Row> - Dealing with actual data.
 
-=item L<DBIx::Class::Storage> - Virtual methods for all storage types.
-
 =item L<DBIx::Class::Storage::DBI> - Storage using L<DBI> and L<SQL::Abstract>.
 
 =back
