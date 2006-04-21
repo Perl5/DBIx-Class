@@ -281,17 +281,18 @@ sub move_to {
     return 0 if ( $from_position==$to_position );
     my $rs = $self->result_source->resultset->search({
         -and => [
-            $position_column => { ($from_position>$to_position?'<':'>') => $from_position },
-            $position_column => { ($from_position>$to_position?'>=':'<=') => $to_position },
+            $position_column =>
+              { -between => [ $from_position, $to_position ] },
         ],
         $self->_grouping_clause(),
     });
     my $op = ($from_position>$to_position) ? '+' : '-';
-    $rs->update({
-        $position_column => \"$position_column $op 1",
-    });
-    $self->set_column( $position_column => $to_position );
-    $self->update();
+    my $case_stmt = "CASE $position_column \n".
+                    "  WHEN $from_position THEN $to_position\n".
+                    "  ELSE $position_column $op 1\n".
+                    "END";
+    $rs->update({ $position_column => \$case_stmt });
+    $self->store_column( $position_column => $to_position );
     return 1;
 }
 
