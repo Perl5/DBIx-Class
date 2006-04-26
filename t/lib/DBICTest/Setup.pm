@@ -137,4 +137,9 @@ $schema->populate('Track', [
   [ 18, 1, 3, "Beehind You"],
 ]);
 
+$schema->populate('Event', [
+  [ qw/id starts_at/ ],
+  [ 1, '2006-04-25 22:24:33' ],
+]);
+
 1;

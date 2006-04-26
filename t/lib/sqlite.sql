@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Wed Apr 19 18:32:39 2006
+-- Created on Wed Apr 26 03:18:22 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -112,6 +112,14 @@ CREATE TABLE tags (
   tagid INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL,
   tag varchar(100) NOT NULL
+);
+
+--
+-- Table: event
+--
+CREATE TABLE event (
+  id INTEGER PRIMARY KEY NOT NULL,
+  starts_at datetime NOT NULL
 );
 
 --

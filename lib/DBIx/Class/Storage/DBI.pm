@@ -738,6 +738,21 @@ sub deploy {
   }
 }
 
+sub datetime_parser {
+  my $self = shift;
+  return $self->{datetime_parser} ||= $self->build_datetime_parser(@_);
+}
+
+sub datetime_parser_type { "DateTime::Format::MySQL"; }
+
+sub build_datetime_parser {
+  my $self = shift;
+  my $type = $self->datetime_parser_type(@_);
+  eval "use ${type}";
+  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  return $type;
+}
+
 sub DESTROY { shift->disconnect }
 
 1;
