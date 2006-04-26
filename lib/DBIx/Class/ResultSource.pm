@@ -288,7 +288,10 @@ Returns an expression of the source to be supplied to storage to specify
 retrieval from this source. In the case of a database, the required FROM
 clause contents.
 
-=cut
+=head2 schema
+
+Returns the L<DBIx::Class::Schema> object that this result source 
+belongs too.
 
 =head2 storage
 
