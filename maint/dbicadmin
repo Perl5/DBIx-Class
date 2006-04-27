@@ -1,0 +1,141 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use Getopt::Long;
+use Pod::Usage;
+use IO::File;
+
+$ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} = 1;
+
+pod2usage(1) if (@ARGV<3);
+
+my $op = shift(@ARGV);
+die('First argument must be insert, update, or delete') if ($op!~/^insert|update|delete$/s);
+
+my $schema_class = shift(@ARGV);
+eval("require $schema_class");
+die('Unable to load schema module') if ($@);
+my $schema = $schema_class->connect();
+
+my $class = shift(@ARGV);
+my $resultset = eval{ $schema->resultset($class) };
+die('Unable to load the class with the schema') if ($@);
+
+my $where = {};
+my $set = {};
+
+GetOptions(
+    'where=s'   => $where,
+    'set=s'     => $set,
+    'force'     => \my $force,
+    'help'      => \my $help,
+);
+
+pod2usage(1) if ($help);
+
+if ($op eq 'insert') {
+    die('The insert operator and the where option do not mix') if (%$where);
+    my $obj = $resultset->create( $set );
+    print "$schema_class\::$class ID: ".join(',',$obj->id())."\n";
+}
+elsif ($op eq 'update') {
+    $resultset = $resultset->search( $where );
+    my $count = $resultset->count();
+    print "This action will modify $count $schema_class\::$class records.\n";
+    if ( $force || confirm() ) {
+        $resultset->update_all( $set );
+    }
+}
+elsif ($op eq 'delete') {
+    die('The delete operator and the set option do not mix') if (%$set);
+    $resultset = $resultset->search( $where );
+    my $count = $resultset->count();
+    print "This action will delete $count $schema_class\::$class records.\n";
+    if ( $force || confirm() ) {
+        $resultset->delete_all();
+    }
+}
+
+sub confirm {
+    print "Are you sure you want to do this? (type YES to confirm) ";
+    my $response = <STDIN>;
+    return 1 if ($response=~/^YES/);
+    return;
+}
+
+__END__
+
+=head1 NAME
+
+dbicadmin - Execute simple actions upon DBIx::Class objects.
+
+=head1 SYNOPSIS
+
+  dbicadmin insert My::Schema Class --set this=that
+  dbicadmin update My::Schema Class --set this=that --where those=these
+  dbicadmin delete My::Schema Class --where those=these
+
+=head1 DESCRIPTION
+
+This utility provides the ability to run INSERTs, UPDATEs, and 
+DELETEs on any DBIx::Class object.
+
+=head1 ARGUMENTS
+
+Before any options are passed this script expects three arguments.
+
+=head2 operation
+
+The type of operation.  Valid values are insert, update, and delete.
+
+=head2 schema
+
+The name of your schema class.
+
+=head2 class
+
+The name of the class, within your schema, that you want to run 
+the operation on.
+
+=head1 OPTIONS
+
+=head2 help
+
+Display this help page.
+
+=head2 force
+
+Suppresses the confirmation dialogues that are usually displayed 
+when someone runs a DELETE or UPDATE action.
+
+=head2 where
+
+This option uses L<Getopt::Long>'s ability to specify a hash 
+structure with command line options.  Basically, for every 
+clause that you want to include in the WHERE statement you 
+have a --where option specifying the clause.  So, if you wanted 
+to specify two clauses you would do:
+
+  --where this=that --where those=these
+
+And that will become something like:
+
+  WHERE this="that" AND those="these"
+
+The insert does not suppor the where option and will croak if 
+you try to use it.
+
+=head2 set
+
+This works just like the where option except that the insert 
+operation does support it, but the delete operation does not.
+
+=head1 AUTHOR
+
+Aran Deltac <bluefeet@cpan.org>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
