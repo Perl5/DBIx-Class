@@ -4,54 +4,52 @@ use warnings;
 
 use Getopt::Long;
 use Pod::Usage;
-use IO::File;
-
-$ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} = 1;
-
-pod2usage(1) if (@ARGV<3);
-
-my $op = shift(@ARGV);
-die('First argument must be insert, update, or delete') if ($op!~/^insert|update|delete$/s);
-
-my $schema_class = shift(@ARGV);
-eval("require $schema_class");
-die('Unable to load schema module') if ($@);
-my $schema = $schema_class->connect();
-
-my $class = shift(@ARGV);
-my $resultset = eval{ $schema->resultset($class) };
-die('Unable to load the class with the schema') if ($@);
-
-my $where = {};
-my $set = {};
+use JSON qw( jsonToObj );
 
 GetOptions(
-    'where=s'   => $where,
-    'set=s'     => $set,
+    'schema=s'  => \my $schema_class,
+    'class=s'   => \my $resultset_class,
+    'where=s'   => \my $where,
+    'op=s'      => \my $op,
+    'set=s'     => \my $set,
     'force'     => \my $force,
+    'quiet'     => \my $quiet,
     'help'      => \my $help,
 );
 
 pod2usage(1) if ($help);
+$ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} = 1 if (!$quiet);
+
+die('Invalid op') if ($op!~/^insert|update|delete$/s);
+
+eval("require $schema_class");
+die('Unable to load schema') if ($@);
+my $schema = $schema_class->connect();
+
+my $resultset = eval{ $schema->resultset($resultset_class) };
+die('Unable to load the class with the schema') if ($@);
+
+$where = jsonToObj( $where ) if ($where);
+$set = jsonToObj( $set ) if ($set);
 
 if ($op eq 'insert') {
-    die('The insert operator and the where option do not mix') if (%$where);
+    die('The insert operator and the where option do not mix') if ($where);
     my $obj = $resultset->create( $set );
-    print "$schema_class\::$class ID: ".join(',',$obj->id())."\n";
+    print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n";
 }
 elsif ($op eq 'update') {
     $resultset = $resultset->search( $where );
     my $count = $resultset->count();
-    print "This action will modify $count $schema_class\::$class records.\n";
+    print "This action will modify $count ".ref($resultset)." records.\n" if (!$quiet);
     if ( $force || confirm() ) {
         $resultset->update_all( $set );
     }
 }
 elsif ($op eq 'delete') {
-    die('The delete operator and the set option do not mix') if (%$set);
+    die('The delete operator and the set option do not mix') if ($set);
     $resultset = $resultset->search( $where );
     my $count = $resultset->count();
-    print "This action will delete $count $schema_class\::$class records.\n";
+    print "This action will delete $count ".ref($resultset)." records.\n" if (!$quiet);
     if ( $force || confirm() ) {
         $resultset->delete_all();
     }
@@ -108,6 +106,10 @@ Display this help page.
 
 Suppresses the confirmation dialogues that are usually displayed 
 when someone runs a DELETE or UPDATE action.
+
+=head2 quiet
+
+Do not print status messages or SQL statements.
 
 =head2 where
 
