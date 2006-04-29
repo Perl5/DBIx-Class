@@ -6,12 +6,16 @@ use Getopt::Long;
 use Pod::Usage;
 use JSON qw( jsonToObj );
 
+$JSON::BareKey = 1;
+$JSON::QuotApos = 1;
+
 GetOptions(
     'schema=s'  => \my $schema_class,
     'class=s'   => \my $resultset_class,
     'op=s'      => \my $op,
-    'where=s'   => \my $where,
     'set=s'     => \my $set,
+    'where=s'   => \my $where,
+    'attrs=s'   => \my $attrs,
     'format=s'  => \my $format,
     'force'     => \my $force,
     'trace'     => \my $trace,
@@ -46,11 +50,13 @@ die('No class specified') if(!$resultset_class);
 my $resultset = eval{ $schema->resultset($resultset_class) };
 die('Unable to load the class with the schema') if ($@);
 
-$where = jsonToObj( $where ) if ($where);
 $set = jsonToObj( $set ) if ($set);
+$where = jsonToObj( $where ) if ($where);
+$attrs = jsonToObj( $attrs ) if ($attrs);
 
 if ($op eq 'insert') {
     die('Do not use the where option with the insert op') if ($where);
+    die('Do not use the attrs option with the insert op') if ($attrs);
     my $obj = $resultset->create( $set );
     print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n";
 }
@@ -64,7 +70,7 @@ elsif ($op eq 'update') {
 }
 elsif ($op eq 'delete') {
     die('Do not use the set option with the delete op') if ($set);
-    $resultset = $resultset->search( $where );
+    $resultset = $resultset->search( $where, $attrs );
     my $count = $resultset->count();
     print "This action will delete $count ".ref($resultset)." records.\n" if (!$quiet);
     if ( $force || confirm() ) {
@@ -76,7 +82,7 @@ elsif ($op eq 'select') {
     my $csv = $csv_class->new({
         sep_char => ( $format eq 'tsv' ? "\t" : ',' ),
     });
-    $resultset = $resultset->search( $where );
+    $resultset = $resultset->search( $where, $attrs );
     my @columns = $resultset->result_source->columns();
     $csv->combine( @columns );
     print $csv->string()."\n";
@@ -131,13 +137,23 @@ The name of your schema class.
 The name of the class, within your schema, that you want to run 
 the operation on.
 
-=head2 where
-
-A valid JSON data string that is compatible with DBIC.
-
 =head2 set
 
-A valid JSON data stream that is compatible with DBIC.
+This option must be valid JSON data string and is passed in to 
+the DBIC update() method.  Use this option with the update 
+and insert ops.
+
+=head2 where
+
+This option must be valid JSON data string and is passed in as 
+the first argument to the DBIC search() method.  Use this 
+option with the update, delete, and select ops.
+
+=head2 attrs
+
+This option must be valid JSON data string and is passed in as 
+the second argument to the DBIC search() method.  Use this 
+option with the update, delete, and select ops.
 
 =head2 help
 
@@ -156,6 +172,24 @@ Do not display status messages.
 
 Turns on tracing on the DBI storage, thus printing SQL as it is 
 executed.
+
+=head1 JSON
+
+JSON is a lightweight data-interchange format.  It allows you 
+to express complex data structures for use in the where and 
+set options.
+
+This module turns on L<JSON>'s BareKey and QuotApos options so 
+that your data can look a bit more readable.
+
+  --where={"this":"that"} # generic JSON
+  --where={this:'that'}   # with BareKey and QuoteApos
+
+Consider wrapping your JSON in outer quotes so that you don't 
+have to escape your inner quotes.
+
+  --where={this:\"that\"} # no outer quote
+  --where='{this:"that"}' # outer quoted
 
 =head1 AUTHOR
 
