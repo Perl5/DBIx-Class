@@ -4,7 +4,7 @@ use DBICTest;
 
 my $schema = DBICTest->initialise;
 
-$schema->storage->on_connect_do([ "PRAGMA synchronous = OFF" ]);
+# $schema->storage->on_connect_do([ "PRAGMA synchronous = OFF" ]);
 
 my $dbh = $schema->storage->dbh;
 

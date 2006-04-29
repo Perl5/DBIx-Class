@@ -1,4 +1,5 @@
 package DBIx::Class::Storage::DBI;
+# -*- mode: cperl; cperl-indent-level: 2 -*-
 
 use base 'DBIx::Class::Storage';
 
@@ -557,7 +558,7 @@ sub _execute {
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
   unshift(@bind, @$extra_bind) if $extra_bind;
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
+      my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
       $self->debugfh->print("$sql: " . join(', ', @debug_bind) . "\n");
   }
   my $sth = eval { $self->sth($sql,$op) };
@@ -714,24 +715,97 @@ sub last_insert_id {
 
 sub sqlt_type { shift->dbh->{Driver}->{Name} }
 
-sub deployment_statements {
-  my ($self, $schema, $type, $sqltargs) = @_;
-  $type ||= $self->sqlt_type;
+sub create_ddl_dir
+{
+  my ($self, $schema, $databases, $version, $dir, $sqltargs) = @_;
+
+  if(!$dir || !-d $dir)
+  {
+    warn "No directory given, using ./\n";
+    $dir = "./";
+  }
+  $databases ||= ['MySQL', 'SQLite', 'PostgreSQL'];
+  $databases = [ $databases ] if(ref($databases) ne 'ARRAY');
+  $version ||= $schema->VERSION || '1.x';
+
   eval "use SQL::Translator";
   $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
-  eval "use SQL::Translator::Parser::DBIx::Class;";
-  $self->throw_exception($@) if $@;
-  eval "use SQL::Translator::Producer::${type};";
-  $self->throw_exception($@) if $@;
-  my $tr = SQL::Translator->new(%$sqltargs);
-  SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
-  return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
+
+  my $sqlt = SQL::Translator->new({
+#      debug => 1,
+      add_drop_table => 1,
+  });
+  foreach my $db (@$databases)
+  {
+    $sqlt->reset();
+    $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
+#    $sqlt->parser_args({'DBIx::Class' => $schema);
+    $sqlt->data($schema);
+    $sqlt->producer($db);
+
+    my $file;
+    my $filename = $schema->ddl_filename($db, $dir, $version);
+    if(-e $filename)
+    {
+      $self->throw_exception("$filename already exists, skipping $db");
+      next;
+    }
+    open($file, ">$filename") 
+      or $self->throw_exception("Can't open $filename for writing ($!)");
+    my $output = $sqlt->translate;
+#use Data::Dumper;
+#    print join(":", keys %{$schema->source_registrations});
+#    print Dumper($sqlt->schema);
+    if(!$output)
+    {
+      $self->throw_exception("Failed to translate to $db. (" . $sqlt->error . ")");
+      next;
+    }
+    print $file $output;
+    close($file);
+  }
+
+}
+
+sub deployment_statements {
+  my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
+  $type ||= $self->sqlt_type;
+  $version ||= $schema->VERSION || '1.x';
+  $dir ||= './';
+#   eval "use SQL::Translator";
+#   $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
+#   eval "use SQL::Translator::Parser::DBIx::Class;";
+#   $self->throw_exception($@) if $@;
+#   eval "use SQL::Translator::Producer::${type};";
+#   $self->throw_exception($@) if $@;
+#   my $tr = SQL::Translator->new(%$sqltargs);
+#   SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
+#   return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
+
+  my $filename = $schema->ddl_filename($type, $dir, $version);
+  if(!-f $filename)
+  {
+      $schema->create_ddl_dir([ $type ], $version, $dir, $sqltargs);
+  }
+  my $file;
+  open($file, "<$filename") 
+      or $self->throw_exception("Can't open $filename ($!)");
+  my @rows = <$file>;
+  close($file);
+
+  return join('', @rows);
+  
 }
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
-  foreach my $statement ( $self->deployment_statements($schema, $type, $sqltargs) ) {
+  foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, $sqltargs) ) {
     for ( split(";\n", $statement)) {
+      next if($_ =~ /^--/);
+      next if(!$_);
+#      next if($_ =~ /^DROP/m);
+      next if($_ =~ /^BEGIN TRANSACTION/m);
+      next if($_ =~ /^COMMIT/m);
       $self->debugfh->print("$_\n") if $self->debug;
       $self->dbh->do($_) or warn "SQL was:\n $_";
     }

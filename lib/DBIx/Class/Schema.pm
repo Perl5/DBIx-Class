@@ -714,6 +714,25 @@ sub deploy {
   $self->storage->deploy($self, undef, $sqltargs);
 }
 
+sub create_ddl_dir
+{
+  my $self = shift;
+
+  $self->throw_exception("Can't create_ddl_dir without storage") unless $self->storage;
+  $self->storage->create_ddl_dir($self, @_);
+}
+
+sub ddl_filename
+{
+    my ($self, $type, $dir, $version) = @_;
+
+    my $filename = ref($self);
+    $filename =~ s/^.*:://;
+    $filename = "$dir$filename-$version-$type.sql";
+
+    return $filename;
+}
+
 1;
 
 =head1 AUTHORS
