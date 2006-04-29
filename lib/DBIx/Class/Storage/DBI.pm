@@ -772,20 +772,24 @@ sub deployment_statements {
   $type ||= $self->sqlt_type;
   $version ||= $schema->VERSION || '1.x';
   $dir ||= './';
-#   eval "use SQL::Translator";
-#   $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
-#   eval "use SQL::Translator::Parser::DBIx::Class;";
-#   $self->throw_exception($@) if $@;
-#   eval "use SQL::Translator::Producer::${type};";
-#   $self->throw_exception($@) if $@;
-#   my $tr = SQL::Translator->new(%$sqltargs);
-#   SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
-#   return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
+  eval "use SQL::Translator";
+  if(!$@)
+  {
+    eval "use SQL::Translator::Parser::DBIx::Class;";
+    $self->throw_exception($@) if $@;
+    eval "use SQL::Translator::Producer::${type};";
+    $self->throw_exception($@) if $@;
+    my $tr = SQL::Translator->new(%$sqltargs);
+    SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
+    return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
+  }
 
   my $filename = $schema->ddl_filename($type, $dir, $version);
   if(!-f $filename)
   {
-      $schema->create_ddl_dir([ $type ], $version, $dir, $sqltargs);
+#      $schema->create_ddl_dir([ $type ], $version, $dir, $sqltargs);
+      $self->throw_exception("No SQL::Translator, and no Schema file found, aborting deploy");
+      return;
   }
   my $file;
   open($file, "<$filename") 
