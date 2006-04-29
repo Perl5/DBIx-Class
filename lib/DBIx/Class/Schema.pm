@@ -714,6 +714,22 @@ sub deploy {
   $self->storage->deploy($self, undef, $sqltargs);
 }
 
+=head2 create_ddl_dir (EXPERIMENTAL)
+
+=over 4
+
+=item Arguments: \@databases, $version, $directory, $sqlt_args
+
+=back
+
+Creates an SQL file based on the Schema, for each of the specified
+database types, in the given directory.
+
+Note that this feature is currently EXPERIMENTAL and may not work correctly
+across all databases, or fully handle complex relationships.
+
+=cut
+
 sub create_ddl_dir
 {
   my $self = shift;
