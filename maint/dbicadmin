@@ -14,12 +14,13 @@ GetOptions(
     'set=s'     => \my $set,
     'format=s'  => \my $format,
     'force'     => \my $force,
+    'trace'     => \my $trace,
     'quiet'     => \my $quiet,
     'help'      => \my $help,
 );
 
 pod2usage(1) if ($help);
-$ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} = 1 if (!$quiet);
+$ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} = 1 if ($trace);
 
 die('No op specified') if(!$op);
 die('Invalid op') if ($op!~/^insert|update|delete|select$/s);
@@ -78,14 +79,14 @@ elsif ($op eq 'select') {
     $resultset = $resultset->search( $where );
     my @columns = $resultset->result_source->columns();
     $csv->combine( @columns );
-    print $csv->string();
+    print $csv->string()."\n";
     while (my $row = $resultset->next()) {
         my @fields;
         foreach my $column (@columns) {
             push( @fields, $row->get_column($column) );
         }
         $csv->combine( @fields );
-        print $csv->string();
+        print $csv->string()."\n";
     }
 }
 
@@ -100,7 +101,7 @@ __END__
 
 =head1 NAME
 
-dbicadmin - Execute simple actions upon DBIx::Class objects.
+dbicadmin - Execute operations upon DBIx::Class objects.
 
 =head1 SYNOPSIS
 
@@ -149,7 +150,12 @@ when someone runs a DELETE or UPDATE action.
 
 =head2 quiet
 
-Do not print status messages or SQL statements.
+Do not display status messages.
+
+=head2 trace
+
+Turns on tracing on the DBI storage, thus printing SQL as it is 
+executed.
 
 =head1 AUTHOR
 
