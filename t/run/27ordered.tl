@@ -2,7 +2,7 @@
 
 sub run_tests {
 
-    plan tests => 321;
+    plan tests => 66;
     my $schema = shift;
 
     my $employees = $schema->resultset('Employee');
@@ -15,6 +15,8 @@ sub run_tests {
     ok( check_rs($employees), "intial positions" );
 
     hammer_rs( $employees );
+
+    return;
 
     DBICTest::Employee->grouping_column('group_id');
     $employees->delete();

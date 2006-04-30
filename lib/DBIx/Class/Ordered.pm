@@ -277,22 +277,22 @@ sub move_to {
     my( $self, $to_position ) = @_;
     my $position_column = $self->position_column;
     my $from_position = $self->get_column( $position_column );
+#print "# from:$from_position to:$to_position\n";
     return 0 if ( $to_position < 1 );
     return 0 if ( $from_position==$to_position );
+    $self->update({
+        $position_column => 
+            1 + $self->result_source->resultset->search({ $self->_grouping_clause() })->count()
+    });
     my $rs = $self->result_source->resultset->search({
-        -and => [
-            $position_column =>
-              { -between => [ $from_position, $to_position ] },
-        ],
+        $position_column => { -between => [ 
+            ( ($from_position < $to_position) ? ($from_position, $to_position) : ($to_position, $from_position) )
+        ] },
         $self->_grouping_clause(),
     });
     my $op = ($from_position>$to_position) ? '+' : '-';
-    my $case_stmt = "CASE $position_column \n".
-                    "  WHEN $from_position THEN $to_position\n".
-                    "  ELSE $position_column $op 1\n".
-                    "END";
-    $rs->update({ $position_column => \$case_stmt });
-    $self->store_column( $position_column => $to_position );
+    $rs->update({ $position_column => \"$position_column $op 1" });
+    $self->update({ $position_column => $to_position });
     return 1;
 }
 
