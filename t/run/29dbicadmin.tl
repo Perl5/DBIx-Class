@@ -2,12 +2,12 @@
 
 sub run_tests {
 
-    eval{'require JSON'};
+    eval 'require JSON';
     plan skip_all, 'Install JSON to run this test' if ($@);
 
-    eval{'require Text::CSV_XS'};
+    eval 'require Text::CSV_XS';
     if ($@) {
-        eval{'require Text::CSV_PP'};
+        eval 'require Text::CSV_PP';
         plan skip_all, 'Install Text::CSV_XS or Text::CSV_PP to run this test' if ($@);
     }
 
