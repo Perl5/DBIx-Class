@@ -8,7 +8,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest::Schema;
 
-plan tests => 33;
+plan tests => 31;
 
 my $translator           =  SQL::Translator->new( 
     parser_args          => {
@@ -86,9 +86,9 @@ my @unique_constraints = (
   {'display' => 'twokeytreelike name unique',
    'table' => 'twokeytreelike', 'cols'  => ['name'],
    'needed' => 1},
-  {'display' => 'employee position and group_id unique',
-   'table' => 'employee', cols => ['position', 'group_id'],
-   'needed' => 1},
+#  {'display' => 'employee position and group_id unique',
+#   'table' => 'employee', cols => ['position', 'group_id'],
+#   'needed' => 1},
 );
 
 my $tschema = $translator->schema();
