@@ -277,17 +277,15 @@ sub move_to {
     my( $self, $to_position ) = @_;
     my $position_column = $self->position_column;
     my $from_position = $self->get_column( $position_column );
-#print "# from:$from_position to:$to_position\n";
     return 0 if ( $to_position < 1 );
     return 0 if ( $from_position==$to_position );
-    $self->update({
-        $position_column => 
-            1 + $self->result_source->resultset->search({ $self->_grouping_clause() })->count()
-    });
+    my @between = (
+        ( $from_position < $to_position )
+        ? ( $from_position+1, $to_position )
+        : ( $to_position, $from_position-1 )
+    );
     my $rs = $self->result_source->resultset->search({
-        $position_column => { -between => [ 
-            ( ($from_position < $to_position) ? ($from_position, $to_position) : ($to_position, $from_position) )
-        ] },
+        $position_column => { -between => [ @between ] },
         $self->_grouping_clause(),
     });
     my $op = ($from_position>$to_position) ? '+' : '-';
@@ -353,6 +351,15 @@ __END__
 
 =head1 BUGS
 
+=head2 Unique Constraints
+
+Unique indexes and constraints on the position column are not 
+supported at this time.  It would be make sense to support them, 
+but there are some unexpected database issues that make this 
+hard to do.  The main problem from the author's view is that 
+SQLite (the DB engine that we use for testing) does not support 
+ORDER BY on updates.
+
 =head2 Race Condition on Insert
 
 If a position is not specified for an insert than a position 
@@ -369,7 +376,7 @@ you've pre-loaded the objects then when you move one of the objects
 the position of the other object will not reflect their new value 
 until you reload them from the database.
 
-The are times when you will want to move objects as groups, such 
+There are times when you will want to move objects as groups, such 
 as changeing the parent of several objects at once - this directly 
 conflicts with this problem.  One solution is for us to write a 
 ResultSet class that supports a parent() method, for example.  Another 

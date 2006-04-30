@@ -2,7 +2,7 @@
 
 sub run_tests {
 
-    plan tests => 66;
+    plan tests => 321;
     my $schema = shift;
 
     my $employees = $schema->resultset('Employee');
@@ -16,7 +16,7 @@ sub run_tests {
 
     hammer_rs( $employees );
 
-    return;
+    #return;
 
     DBICTest::Employee->grouping_column('group_id');
     $employees->delete();
@@ -44,29 +44,29 @@ sub hammer_rs {
 
     foreach my $position (1..$count) {
 
-        $row = $rs->find({ $position_column=>$position });
+        ($row) = $rs->search({ $position_column=>$position })->all();
         $row->move_previous();
         ok( check_rs($rs), "move_previous( $position )" );
 
-        $row = $rs->find({ $position_column=>$position });
+        ($row) = $rs->search({ $position_column=>$position })->all();
         $row->move_next();
         ok( check_rs($rs), "move_next( $position )" );
 
-        $row = $rs->find({ $position_column=>$position });
+        ($row) = $rs->search({ $position_column=>$position })->all();
         $row->move_first();
         ok( check_rs($rs), "move_first( $position )" );
 
-        $row = $rs->find({ $position_column=>$position });
+        ($row) = $rs->search({ $position_column=>$position })->all();
         $row->move_last();
         ok( check_rs($rs), "move_last( $position )" );
 
         foreach my $to_position (1..$count) {
-            $row = $rs->find({ $position_column=>$position });
+            ($row) = $rs->search({ $position_column=>$position })->all();
             $row->move_to($to_position);
             ok( check_rs($rs), "move_to( $position => $to_position )" );
         }
 
-        $row = $rs->find({ position=>$position });
+        ($row) = $rs->search({ position=>$position })->all();
         if ($position==1) {
             ok( !$row->previous_sibling(), 'no previous sibling' );
             ok( !$row->first_sibling(), 'no first sibling' );
