@@ -53,7 +53,7 @@ relationship from C<Book> to C<Edition>, where the C<Edition> table refers to a
 publisher and a type (e.g. "paperback"):
 
   {
-    'foreign.publisher_id' => 'self.publisher_id'
+    'foreign.publisher_id' => 'self.publisher_id',
     'foreign.type_id'      => 'self.type_id',
   }
 
