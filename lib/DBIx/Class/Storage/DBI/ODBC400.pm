@@ -36,14 +36,6 @@ over ODBC
   __PACKAGE__->load_components(qw/PK::Auto Core/);
   __PACKAGE__->set_primary_key('id');
 
-  # In your Schema class
-  __PACKAGE__->storage_type('::DBI::ODBC400');
-
-=for comment
-$dbh->get_info(17) returns 'DB2/400 SQL' for an active DB2/400 connection over
-ODBC.  This should facility automagically loading this module when
-appropriate instead of manually specifying the storage_type as shown above.
-
 
 =head1 DESCRIPTION
 

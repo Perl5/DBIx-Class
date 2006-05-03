@@ -421,7 +421,11 @@ sub _populate_dbh {
   my ($self) = @_;
   my @info = @{$self->_connect_info || []};
   $self->_dbh($self->_connect(@info));
-  my $driver = $self->_dbh->{Driver}->{Name};
+  my $dbh = $self->_dbh;
+  my $driver = $dbh->{Driver}->{Name};
+  if ( $driver eq 'ODBC' and $dbh->get_info(17) =~ m{^DB2/400} ) {
+    $driver = 'ODBC400';
+  }
   eval "require DBIx::Class::Storage::DBI::${driver}";
   unless ($@) {
     bless $self, "DBIx::Class::Storage::DBI::${driver}";
