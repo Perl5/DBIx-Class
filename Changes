@@ -16,6 +16,9 @@ Revision history for DBIx::Class
         - CDBICompat: override find_or_create to fix column casing when
           ColumnCase is loaded
 
+0.06003
+        - added memory cycle tests and a long-needed weaken call
+
 0.06002 2006-04-20 00:42:41
         - fix set_from_related to accept undef
         - fix to Dumper-induced hash iteration bug

@@ -690,4 +690,45 @@ is enough. If the left quote differs form the right quote, the first
 notation should be used. name_sep needs to be set to allow the 
 SQL generator to put the quotes the correct place. 
 
+=head2 Overloading methods
+
+L<DBIx::Class> uses the L<Class::C3> package, which provides for redispatch of 
+method calls.  You have to use calls to C<next::method> to overload methods.  
+More information on using L<Class::C3> with L<DBIx::Class> can be found in 
+L<DBIx::Class::Manual::Component>.
+
+=head3 Changing one field whenever another changes
+
+For example, say that you have three columns, C<id>, C<number>, and 
+C<squared>.  You would like to make changes to C<number> and have
+C<squared> be automagically set to the value of C<number> squared.
+You can accomplish this by overriding C<store_column>:
+
+  sub store_column {
+    my ( $self, $name, $value ) = @_;
+    if ($name eq 'number') {
+      $self->squared($value * $value);
+    }
+    $self->next::method($name, $value);
+  }
+
+Note that the hard work is done by the call to C<next::method>, which
+redispatches your call to store_column to the superclass(es).
+
+=head3 Automatically creating related objects
+
+You might have a class C<Artist> which has many C<CD>s.  Further, you
+want to create a C<CD> object every time you insert an C<Artist> object.
+You can accomplish this by overriding C<insert>:
+
+  sub insert {
+    my ( $class, $args_ref ) = @_;
+    my $self = $class->next::method($args_ref);
+    $self->cds->new({})->fill_from_artist($self)->insert;
+    return $self;
+  }
+
+where C<fill_from_artist> is a method you specify in C<CD> which sets
+values in C<CD> based on the data in the C<Artist> object you pass in.
+
 =cut
