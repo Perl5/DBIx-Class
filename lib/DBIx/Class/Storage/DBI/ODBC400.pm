@@ -12,7 +12,7 @@ sub last_insert_id
 
     # get the schema/table separator:
     #    '.' when SQL naming is active
-    #    '/' when sytem naming is active
+    #    '/' when system naming is active
     my $sep = $dbh->get_info(41);
     my $sth = $dbh->prepare_cached(
         "SELECT IDENTITY_VAL_LOCAL() FROM SYSIBM${sep}SYSDUMMY1", {}, 3);
@@ -45,6 +45,8 @@ This class implements autoincrements for DB2/400 over ODBC.
 =head1 AUTHORS
 
 Marc Mims C<< <marc@questright.com> >>
+
+Based on DBIx::Class::Storage::DBI::DB2 by Jess Robinson.
 
 =head1 LICENSE
 
