@@ -666,7 +666,8 @@ sub columns_info_for {
     $dbh->{RaiseError} = 1;
     $dbh->{PrintError} = 0;
     eval {
-      my $sth = $dbh->column_info( undef, undef, $table, '%' );
+      my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
+      my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
       $sth->execute();
       while ( my $info = $sth->fetchrow_hashref() ){
         my %column_info;
