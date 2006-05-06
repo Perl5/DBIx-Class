@@ -320,7 +320,7 @@ sub inflate_result {
         push(@pre_objects, $pre_source->result_class->inflate_result(
                              $pre_source, @{$pre_rec}));
       }
-      $new->related_resultset($pre)->set_cache(\@pre_objects);
+      $new->related_resultset($pre)->set_cache('all', \@pre_objects);
     } elsif (defined $pre_val->[0]) {
       my $fetched;
       unless ($pre_source->primary_columns == grep { exists $pre_val->[0]{$_}

@@ -1,3 +1,4 @@
+$|=1;
 sub run_tests {
 my $schema = shift;
 
@@ -6,7 +7,7 @@ $schema->storage->debugcb( sub{ $queries++ } );
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 23;
+plan tests => 25;
 
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
@@ -14,35 +15,35 @@ my $rs = $schema->resultset("Artist")->search(
 
 my $artist = $rs->first;
 
-is( scalar @{ $rs->get_cache }, 0, 'cache is not populated without cache attribute' );
+is( scalar @{ $rs->get_cache('all') }, 0, 'cache is not populated without cache attribute' );
 
 $rs = $schema->resultset('Artist')->search( undef, { cache => 1 } );
 my $artists = [ $rs->all ];
 
-is( scalar @{$rs->get_cache}, 3, 'all() populates cache for search with cache attribute' );
+is( scalar @{$rs->get_cache('all')}, 3, 'all() populates cache for search with cache attribute' );
 
 $rs->clear_cache;
 
-is( scalar @{$rs->get_cache}, 0, 'clear_cache is functional' );
+is( scalar @{$rs->get_cache('all')}, 0, 'clear_cache is functional' );
 
 $rs->next;
 
-is( scalar @{$rs->get_cache}, 3, 'next() populates cache for search with cache attribute' );
+is( scalar @{$rs->get_cache('all')}, 3, 'next() populates cache for search with cache attribute' );
 
 pop( @$artists );
-$rs->set_cache( $artists );
+$rs->set_cache('all', $artists );
 
-is( scalar @{$rs->get_cache}, 2, 'set_cache() is functional' );
+is( scalar @{$rs->get_cache('all')}, 2, 'set_cache() is functional' );
 
 $cd = $schema->resultset('CD')->find(1);
 
 $rs->clear_cache;
 
 eval {
-  $rs->set_cache( [ $cd ] );
+  $rs->set_cache('all', [ $cd ] );
 };
 
-is( scalar @{$rs->get_cache}, 0, 'set_cache() only accepts objects of correct type for the resultset' );
+is( scalar @{$rs->get_cache('all')}, 0, 'set_cache() only accepts objects of correct type for the resultset' );
 
 $queries = 0;
 $schema->storage->debug(1);
@@ -86,7 +87,7 @@ $rs->reset();
 is( ref $artist->{related_resultsets}->{cds}, 'DBIx::Class::ResultSet', 'artist has a related_resultset for cds' );
 
 # check if $artist->cds->get_cache is populated
-is( scalar @{$artist->cds->get_cache}, 3, 'cache for artist->cds contains correct number of records');
+is( scalar @{$artist->cds->get_cache('all')}, 3, 'cache for artist->cds contains correct number of records');
 
 # ensure that $artist->cds returns correct number of objects
 is( scalar ($artist->cds), 3, 'artist->cds returns correct number of objects' );
@@ -179,6 +180,33 @@ is( $queries, 1, 'only one select statement on find with has_many prefetch on re
 
 $schema->storage->debug(0);
 
-}
 
+# start test for prefetch SELECT count
+unlink 't/var/dbic.trace' if -e 't/var/dbic.trace';
+DBI->trace(1, 't/var/dbic.trace');
+
+$rs = $schema->resultset("Artist");
+
+$rs->clear_cache;
+
+$rs->find(1, { cache => 1 });
+
+is (scalar keys %{$rs->get_cache('find')}, 1, 'find created one cached value');
+
+$rs->find(1, {cache => 1});
+
+# count the SELECTs
+DBI->trace(0, undef);
+$selects = 0;
+$trace = IO::File->new('t/var/dbic.trace', '<') 
+    or die "Unable to read trace file";
+while (<$trace>) {
+    $selects++ if /SELECT/;
+}
+$trace->close;
+# unlink 't/var/dbic.trace';
+
+is( $selects, 1, 'only one select statement on find' );
+
+}
 1;

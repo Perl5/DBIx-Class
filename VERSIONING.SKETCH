@@ -4,9 +4,12 @@ Schema versioning/deployment ideas from Jess (with input from theorbtwo and mst)
  - create an SQL file, via SQLT, for the current schema
  - passing prev. version + version will create an sqlt-diff'ed upgrade file, such as
   - $preversion->$currentversion-$dbtype.sql, which contains ALTER foo statements.
+DONE
 2) Make deploy/deploy_statements able to to load from the appropriate file, for the current DB, or on the fly? - Compare against current schema version..
 3) Add an on_connect_cb (callback) thingy to storage.
+DONE
 4) create a component to deploy version/updates:
+ - is injected into the Schemas base classes
  - it hooks itself into on_connect_cb ?
  - when run it:
    - Attempts or prompts a backup of the database. (commands for these per-rdbms can be stored in storage::dbi::<dbtype> ?)

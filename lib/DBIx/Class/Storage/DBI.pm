@@ -9,6 +9,7 @@ use DBI;
 use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 use IO::File;
+use Storable 'dclone';
 use Carp::Clan qw/DBIx::Class/;
 
 BEGIN {
@@ -722,7 +723,7 @@ sub sqlt_type { shift->dbh->{Driver}->{Name} }
 
 sub create_ddl_dir
 {
-  my ($self, $schema, $databases, $version, $dir, $sqltargs) = @_;
+  my ($self, $schema, $databases, $version, $dir, $preversion, $sqltargs) = @_;
 
   if(!$dir || !-d $dir)
   {
@@ -749,25 +750,79 @@ sub create_ddl_dir
     $sqlt->producer($db);
 
     my $file;
-    my $filename = $schema->ddl_filename($db, $dir, $version);
+    my $filename = $schema->ddl_filename($dir, $db, $version);
     if(-e $filename)
     {
-      $self->throw_exception("$filename already exists, skipping $db");
+      warn("$filename already exists, skipping $db");
       next;
     }
     open($file, ">$filename") 
-      or $self->throw_exception("Can't open $filename for writing ($!)");
+      or warn("Can't open $filename for writing ($!)"), next;
     my $output = $sqlt->translate;
-#use Data::Dumper;
-#    print join(":", keys %{$schema->source_registrations});
-#    print Dumper($sqlt->schema);
     if(!$output)
     {
-      $self->throw_exception("Failed to translate to $db. (" . $sqlt->error . ")");
+      warn("Failed to translate to $db, skipping. (" . $sqlt->error . ")");
       next;
     }
     print $file $output;
     close($file);
+
+    if($preversion)
+    {
+      eval "use SQL::Translator::Diff";
+      warn("Can't diff versions without SQL::Translator::Diff: $@"), next if $@;
+
+      my $prefilename = $schema->ddl_filename($dir, $db, $preversion);
+      print "Previous version $prefilename\n";
+      if(!-e $prefilename)
+      {
+        warn("No previous schema file found ($prefilename)");
+        next;
+      }
+      #### We need to reparse the SQLite file we just wrote, so that 
+      ##   Diff doesnt get all confoosed, and Diff is *very* confused.
+      ##   FIXME: rip Diff to pieces!
+#      my $target_schema = $sqlt->schema;
+#      unless ( $target_schema->name ) {
+#        $target_schema->name( $filename );
+#      }
+      my $sqlt = SQL::Translator->new();
+      $sqlt->parser("SQL::Translator::Parser::$db");
+      $sqlt->filename($filename);
+      $sqlt->translate() or warn("Failed to parse $filename as $db, (" .
+                                 $sqlt->error . ")"), next;
+      my $target_schema = $sqlt->schema;
+      unless ( $target_schema->name ) {
+        $target_schema->name( $filename );
+      }
+      ## end FIXME
+
+      my $psqlt = SQL::Translator->new();
+      $psqlt->parser("SQL::Translator::Parser::$db");
+      $psqlt->filename($prefilename);
+      $psqlt->translate() or warn("Failed to parse $filename as $db, (" .
+                                  $sqlt->error . ")"), next ;
+      my $source_schema = $psqlt->schema;
+      unless ( $source_schema->name ) {
+        $source_schema->name( $prefilename );
+      }
+
+      my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
+                                                    $target_schema, $db,
+                                                    {}
+                                                   );
+      my $difffile = $filename;
+      $difffile =~ s/$version/${preversion}-${version}/;
+      if(-e $difffile)
+      {
+        warn("$difffile already exists, skipping");
+        next;
+      }
+      open $file, ">$difffile" or 
+        warn("Can't write to $difffile ($!)"), next;
+      print $file $diff;
+      close($file);
+    }
   }
 
 }
@@ -789,7 +844,7 @@ sub deployment_statements {
     return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
   }
 
-  my $filename = $schema->ddl_filename($type, $dir, $version);
+  my $filename = $schema->ddl_filename($dir, $type, $version);
   if(!-f $filename)
   {
 #      $schema->create_ddl_dir([ $type ], $version, $dir, $sqltargs);
@@ -840,6 +895,8 @@ written to the file C</path/name>.
 Matt S. Trout <mst@shadowcatsystems.co.uk>
 
 Andy Grundman <andy@hybridized.org>
+
+Jess Robinson <castaway@desert-island.demon.co.uk>
 
 =head1 LICENSE
 

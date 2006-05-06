@@ -74,6 +74,8 @@ sub parse {
             if ($colinfo{is_nullable}) {
               $colinfo{default} = '' unless exists $colinfo{default};
             }
+            warn "No length set for char field in " . $colinfo{name}
+            if(!$colinfo{size} && $colinfo{data_type} =~ /char/);
             my $f = $table->add_field(%colinfo) || die $table->error;
         }
         $table->primary_key($source->primary_columns);
