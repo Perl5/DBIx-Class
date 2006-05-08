@@ -20,6 +20,8 @@ sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
   $table = $self->_quote($table) unless ref($table);
   @rest = (-1) unless defined $rest[0];
+  die "LIMIT 0 Does Not Compute" if $rest[0] == 0;
+    # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
   local $self->{having_bind} = [];
   my ($sql, @ret) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $order, @rest
@@ -566,6 +568,8 @@ sub _select {
       $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
         $attrs->{software_limit} = 1;
   } else {
+    $self->throw_exception("rows attribute must be positive if present")
+      if (defined($attrs->{rows}) && !($attrs->{rows} > 0));
     push @args, $attrs->{rows}, $attrs->{offset};
   }
   return $self->_execute(@args);

@@ -6,7 +6,7 @@ $schema->storage->debugcb( sub{ $queries++ } );
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 23;
+plan tests => 22;
 
 my $rs = $schema->resultset("Artist")->search(
   { artistid => 1 }
@@ -14,7 +14,7 @@ my $rs = $schema->resultset("Artist")->search(
 
 my $artist = $rs->first;
 
-is( scalar @{ $rs->get_cache }, 0, 'cache is not populated without cache attribute' );
+ok( !defined($rs->get_cache), 'cache is not populated without cache attribute' );
 
 $rs = $schema->resultset('Artist')->search( undef, { cache => 1 } );
 my $artists = [ $rs->all ];
@@ -23,7 +23,7 @@ is( scalar @{$rs->get_cache}, 3, 'all() populates cache for search with cache at
 
 $rs->clear_cache;
 
-is( scalar @{$rs->get_cache}, 0, 'clear_cache is functional' );
+ok( !defined($rs->get_cache), 'clear_cache is functional' );
 
 $rs->next;
 
@@ -37,12 +37,6 @@ is( scalar @{$rs->get_cache}, 2, 'set_cache() is functional' );
 $cd = $schema->resultset('CD')->find(1);
 
 $rs->clear_cache;
-
-eval {
-  $rs->set_cache( [ $cd ] );
-};
-
-is( scalar @{$rs->get_cache}, 0, 'set_cache() only accepts objects of correct type for the resultset' );
 
 $queries = 0;
 $schema->storage->debug(1);
