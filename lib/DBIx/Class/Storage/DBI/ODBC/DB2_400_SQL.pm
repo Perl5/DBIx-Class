@@ -1,8 +1,8 @@
-package DBIx::Class::Storage::DBI::ODBC400;
+package DBIx::Class::Storage::DBI::ODBC::DB2_400_SQL;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::ODBC/;
 
 sub last_insert_id
 {
@@ -27,7 +27,7 @@ sub last_insert_id
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::ODBC400 - Automatic primary key class for DB2/400
+DBIx::Class::Storage::DBI::ODBC::DB2_400_SQL - Automatic primary key class for DB2/400
 over ODBC
 
 =head1 SYNOPSIS
@@ -44,7 +44,7 @@ This class implements autoincrements for DB2/400 over ODBC.
 
 =head1 AUTHORS
 
-Marc Mims C<< <marc@questright.com> >>
+Marc Mims C<< <marc@sssonline.com> >>
 
 Based on DBIx::Class::Storage::DBI::DB2 by Jess Robinson.
 
