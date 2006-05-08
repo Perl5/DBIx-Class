@@ -86,68 +86,6 @@ sub new {
   
   my ($source, $attrs) = @_;
   weaken $source;
-  $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
-  #use Data::Dumper; warn Dumper($attrs);
-  my $alias = ($attrs->{alias} ||= 'me');
-  
-  $attrs->{columns} ||= delete $attrs->{cols} if $attrs->{cols};
-  delete $attrs->{as} if $attrs->{columns};
-  $attrs->{columns} ||= [ $source->columns ] unless $attrs->{select};
-  $attrs->{select} = [
-    map { m/\./ ? $_ : "${alias}.$_" } @{delete $attrs->{columns}}
-  ] if $attrs->{columns};
-  $attrs->{as} ||= [
-    map { m/^\Q$alias.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}}
-  ];
-  if (my $include = delete $attrs->{include_columns}) {
-    push(@{$attrs->{select}}, @$include);
-    push(@{$attrs->{as}}, map { m/([^.]+)$/; $1; } @$include);
-  }
-  #use Data::Dumper; warn Dumper(@{$attrs}{qw/select as/});
-
-  $attrs->{from} ||= [ { $alias => $source->from } ];
-  $attrs->{seen_join} ||= {};
-  my %seen;
-  if (my $join = delete $attrs->{join}) {
-    foreach my $j (ref $join eq 'ARRAY' ? @$join : ($join)) {
-      if (ref $j eq 'HASH') {
-        $seen{$_} = 1 foreach keys %$j;
-      } else {
-        $seen{$j} = 1;
-      }
-    }
-    push(@{$attrs->{from}}, $source->resolve_join(
-      $join, $attrs->{alias}, $attrs->{seen_join})
-    );
-  }
-  
-  $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
-  $attrs->{order_by} = [ $attrs->{order_by} ] if
-    $attrs->{order_by} and !ref($attrs->{order_by});
-  $attrs->{order_by} ||= [];
-
-  my $collapse = $attrs->{collapse} || {};
-  if (my $prefetch = delete $attrs->{prefetch}) {
-    my @pre_order;
-    foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
-      if ( ref $p eq 'HASH' ) {
-        foreach my $key (keys %$p) {
-          push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
-            unless $seen{$key};
-        }
-      } else {
-        push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
-            unless $seen{$p};
-      }
-      my @prefetch = $source->resolve_prefetch(
-           $p, $attrs->{alias}, {}, \@pre_order, $collapse);
-      push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
-      push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
-    }
-    push(@{$attrs->{order_by}}, @pre_order);
-  }
-  $attrs->{collapse} = $collapse;
-#  use Data::Dumper; warn Dumper($collapse) if keys %{$collapse};
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
@@ -155,12 +93,14 @@ sub new {
     $attrs->{offset} += ($attrs->{rows} * ($attrs->{page} - 1));
   }
 
+  $attrs->{alias} ||= 'me';
+
   bless {
     result_source => $source,
     result_class => $attrs->{result_class} || $source->result_class,
     cond => $attrs->{where},
-    from => $attrs->{from},
-    collapse => $collapse,
+#    from => $attrs->{from},
+#    collapse => $collapse,
     count => undef,
     page => delete $attrs->{page},
     pager => undef,
@@ -226,6 +166,7 @@ sub search {
   }
 
   my $rs = (ref $self)->new($self->result_source, $attrs);
+  $rs->{_parent_rs} = $self->{_parent_rs} if ($self->{_parent_rs});
 
   unless (@_) { # no search, effectively just a clone
     my $rows = $self->get_cache;
@@ -255,6 +196,7 @@ resultset query.
 
 =cut
 
+# TODO: needs fixing
 sub search_literal {
   my ($self, $cond, @vals) = @_;
   my $attrs = (ref $vals[$#vals] eq 'HASH' ? { %{ pop(@vals) } } : {});
@@ -342,7 +284,9 @@ sub find {
 
     # Add the ResultSet's alias
     foreach my $key (grep { ! m/\./ } keys %$unique_query) {
-      $unique_query->{"$self->{attrs}{alias}.$key"} = delete $unique_query->{$key};
+	# TODO: tidy up alias shit
+	my $alias = $self->{attrs}{alias} || 'me';
+      $unique_query->{"$alias.$key"} = delete $unique_query->{$key};
     }
 
     push @unique_queries, $unique_query if %$unique_query;
@@ -354,10 +298,10 @@ sub find {
   # Run the query
   if (keys %$attrs) {
     my $rs = $self->search($query, $attrs);
-    return keys %{$rs->{collapse}} ? $rs->next : $rs->single;
+    return $rs->{attrs}->{prefetch} ? $rs->next : $rs->single;
   }
   else {
-    return keys %{$self->{collapse}}
+    return ($self->{attrs}->{prefetch})
       ? $self->search($query)->next
       : $self->single($query);
   }
@@ -418,9 +362,11 @@ L<DBIx::Class::Cursor> for more information.
 
 sub cursor {
   my ($self) = @_;
-  my $attrs = { %{$self->{attrs}} };
+
+  $self->_resolve;
+  my $attrs = { %{$self->{_attrs}} };
   return $self->{cursor}
-    ||= $self->result_source->storage->select($self->{from}, $attrs->{select},
+    ||= $self->result_source->storage->select($attrs->{from}, $attrs->{select},
           $attrs->{where},$attrs);
 }
 
@@ -443,7 +389,8 @@ any records in it; if not returns nothing. Used by L</find> as an optimisation.
 
 sub single {
   my ($self, $where) = @_;
-  my $attrs = { %{$self->{attrs}} };
+  $self->_resolve;
+  my $attrs = { %{$self->{_attrs}} };
   if ($where) {
     if (defined $attrs->{where}) {
       $attrs->{where} = {
@@ -455,8 +402,9 @@ sub single {
       $attrs->{where} = $where;
     }
   }
+
   my @data = $self->result_source->storage->select_single(
-          $self->{from}, $attrs->{select},
+          $attrs->{from}, $attrs->{select},
           $attrs->{where},$attrs);
   return (@data ? $self->_construct_object(@data) : ());
 }
@@ -581,27 +529,98 @@ sub next {
                @{delete $self->{stashed_row}} :
                $self->cursor->next
   );
-#  warn Dumper(\@row); use Data::Dumper;
   return unless (@row);
   return $self->_construct_object(@row);
 }
 
+# XXX - this is essentially just the old new(). rewrite / tidy up?
+sub _resolve {
+  my $self = shift;
+
+  my $attrs = $self->{attrs};  
+  my $source = ($self->{_parent_rs}) ? $self->{_parent_rs} : $self->{result_source};
+
+  # XXX - this is a hack to prevent dclone dieing because of the code ref, get's put back in $attrs afterwards
+  my $record_filter = delete $attrs->{record_filter} if (defined $attrs->{record_filter});
+  $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
+  my $alias = $attrs->{alias};
+ 
+  $attrs->{columns} ||= delete $attrs->{cols} if $attrs->{cols};
+  delete $attrs->{as} if $attrs->{columns};
+  $attrs->{columns} ||= [ $self->{result_source}->columns ] unless $attrs->{select};
+  my $select_alias = ($self->{_parent_rs}) ? $self->{attrs}->{_live_join} : $alias;
+  $attrs->{select} = [
+		      map { m/\./ ? $_ : "${select_alias}.$_" } @{delete $attrs->{columns}}
+		      ] if $attrs->{columns};
+  $attrs->{as} ||= [
+		    map { m/^\Q$alias.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}}
+		    ];
+  if (my $include = delete $attrs->{include_columns}) {
+      push(@{$attrs->{select}}, @$include);
+      push(@{$attrs->{as}}, map { m/([^.]+)$/; $1; } @$include);
+  }
+  #use Data::Dumper; warn Dumper(@{$attrs}{qw/select as/});
+
+  $attrs->{from} ||= [ { $alias => $source->from } ];
+  $attrs->{seen_join} ||= {};
+  my %seen;
+  if (my $join = delete $attrs->{join}) {
+      foreach my $j (ref $join eq 'ARRAY' ? @$join : ($join)) {
+	  if (ref $j eq 'HASH') {
+	      $seen{$_} = 1 foreach keys %$j;
+	  } else {
+	      $seen{$j} = 1;
+	  }
+      }
+
+      push(@{$attrs->{from}}, $source->resolve_join($join, $attrs->{alias}, $attrs->{seen_join}));
+  }
+  
+  $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
+  $attrs->{order_by} = [ $attrs->{order_by} ] if
+      $attrs->{order_by} and !ref($attrs->{order_by});
+  $attrs->{order_by} ||= [];
+  
+  my $collapse = $attrs->{collapse} || {};
+  if (my $prefetch = delete $attrs->{prefetch}) {
+      my @pre_order;
+      foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
+	  if ( ref $p eq 'HASH' ) {
+	      foreach my $key (keys %$p) {
+		  push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
+		      unless $seen{$key};
+	      }
+	  } else {
+	      push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
+		  unless $seen{$p};
+	  }
+	  my @prefetch = $source->resolve_prefetch(
+						   $p, $attrs->{alias}, {}, \@pre_order, $collapse);
+	  push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
+	  push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
+      }
+      push(@{$attrs->{order_by}}, @pre_order);
+  }
+  $attrs->{collapse} = $collapse;
+  $attrs->{record_filter} = $record_filter if ($record_filter);
+  $self->{_attrs} = $attrs;
+}
+
 sub _construct_object {
   my ($self, @row) = @_;
-  my @as = @{ $self->{attrs}{as} };
-  
+  my @as = @{ $self->{_attrs}{as} };
+
   my $info = $self->_collapse_result(\@as, \@row);
-  
-  my $new = $self->result_class->inflate_result($self->result_source, @$info);
-  
-  $new = $self->{attrs}{record_filter}->($new)
-    if exists $self->{attrs}{record_filter};
+  my $new = $self->result_class->inflate_result($self->result_source, @$info, $self->{_parent_rs});
+  $new = $self->{_attrs}{record_filter}->($new)
+    if exists $self->{_attrs}{record_filter};
   return $new;
 }
 
 sub _collapse_result {
   my ($self, $as, $row, $prefix) = @_;
 
+  my $live_join = $self->{attrs}->{_live_join} ||="";
   my %const;
 
   my @copy = @$row;
@@ -621,7 +640,7 @@ sub _collapse_result {
 
   my $info = [ {}, {} ];
   foreach my $key (keys %const) {
-    if (length $key) {
+    if (length $key && $key ne $live_join) {
       my $target = $info;
       my @parts = split(/\./, $key);
       foreach my $p (@parts) {
@@ -637,9 +656,9 @@ sub _collapse_result {
   if (defined $prefix) {
     @collapse = map {
         m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()
-    } keys %{$self->{collapse}}
+    } keys %{$self->{_attrs}->{collapse}}
   } else {
-    @collapse = keys %{$self->{collapse}};
+    @collapse = keys %{$self->{_attrs}->{collapse}};
   };
 
   if (@collapse) {
@@ -649,7 +668,7 @@ sub _collapse_result {
       $target = $target->[1]->{$p} ||= [];
     }
     my $c_prefix = (defined($prefix) ? "${prefix}.${c}" : $c);
-    my @co_key = @{$self->{collapse}{$c_prefix}};
+    my @co_key = @{$self->{_attrs}->{collapse}{$c_prefix}};
     my %co_check = map { ($_, $target->[0]->{$_}); } @co_key;
     my $tree = $self->_collapse_result($as, $row, $c_prefix);
     my (@final, @raw);
@@ -661,11 +680,9 @@ sub _collapse_result {
       last unless (@raw = $self->cursor->next);
       $row = $self->{stashed_row} = \@raw;
       $tree = $self->_collapse_result($as, $row, $c_prefix);
-      #warn Data::Dumper::Dumper($tree, $row);
     }
     @$target = @final;
   }
-
   return $info;
 }
 
@@ -724,7 +741,9 @@ sub count {
 sub _count { # Separated out so pager can get the full count
   my $self = shift;
   my $select = { count => '*' };
-  my $attrs = { %{ $self->{attrs} } };
+  
+  $self->_resolve;
+  my $attrs = { %{ $self->{_attrs} } };
   if (my $group_by = delete $attrs->{group_by}) {
     delete $attrs->{having};
     my @distinct = (ref $group_by ?  @$group_by : ($group_by));
@@ -748,7 +767,7 @@ sub _count { # Separated out so pager can get the full count
 
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
-        
+       
   my ($count) = (ref $self)->new($self->result_source, $attrs)->cursor->next;
   return $count;
 }
@@ -791,12 +810,14 @@ sub all {
 
   my @obj;
 
-  if (keys %{$self->{collapse}}) {
+  # XXX used to be 'if (keys %{$self->{collapse}})' 
+  # XXX replaced by this as it seemed to do roughly the same thing 
+  # XXX could be bad as never really understood exactly what collapse did
+  if ($self->{attrs}->{prefetch}) {
       # Using $self->cursor->all is really just an optimisation.
       # If we're collapsing has_many prefetches it probably makes
       # very little difference, and this is cleaner than hacking
       # _construct_object to survive the approach
-    $self->cursor->reset;
     my @row = $self->cursor->next;
     while (@row) {
       push(@obj, $self->_construct_object(@row));
@@ -990,6 +1011,7 @@ sub delete {
   my ($self) = @_;
   my $del = {};
 
+  # this is broken now
   my $cond = $self->_cond_for_update_delete;
 
   $self->result_source->storage->delete($self->result_source->from, $cond);
@@ -1330,28 +1352,26 @@ Returns a related resultset for the supplied relationship name.
 
 sub related_resultset {
   my ( $self, $rel ) = @_;
+
   $self->{related_resultsets} ||= {};
   return $self->{related_resultsets}{$rel} ||= do {
-      #warn "fetching related resultset for rel '$rel'";
+#      warn "fetching related resultset for rel '$rel' " . $self->result_source->{name};
       my $rel_obj = $self->result_source->relationship_info($rel);
       $self->throw_exception(
         "search_related: result source '" . $self->result_source->name .
         "' has no such relationship ${rel}")
         unless $rel_obj; #die Dumper $self->{attrs};
 
-      my $rs = $self->search(undef, { join => $rel });
-      my $alias = defined $rs->{attrs}{seen_join}{$rel}
-                    && $rs->{attrs}{seen_join}{$rel} > 1
-                  ? join('_', $rel, $rs->{attrs}{seen_join}{$rel})
-                  : $rel;
-
-      $self->result_source->schema->resultset($rel_obj->{class}
+      my $rs = $self->result_source->schema->resultset($rel_obj->{class}
            )->search( undef,
-             { %{$rs->{attrs}},
-               alias => $alias,
+             { %{$self->{attrs}},
                select => undef,
-               as => undef }
+               as => undef,
+	       join => $rel,
+	       _live_join => $rel }
            );
+      $rs->{_parent_rs} = $self->result_source;
+      return $rs;
   };
 }
 
