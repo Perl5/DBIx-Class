@@ -166,7 +166,7 @@ sub search {
   }
 
   my $rs = (ref $self)->new($self->result_source, $attrs);
-  $rs->{_parent_rs} = $self->{_parent_rs} if ($self->{_parent_rs});
+  $rs->{_parent_rs} = $self->{_parent_rs} if ($self->{_parent_rs}); #XXX - hack to pass through parent of related resultsets
 
   unless (@_) { # no search, effectively just a clone
     my $rows = $self->get_cache;
@@ -284,8 +284,7 @@ sub find {
 
     # Add the ResultSet's alias
     foreach my $key (grep { ! m/\./ } keys %$unique_query) {
-	# TODO: tidy up alias shit
-	my $alias = $self->{attrs}{alias} || 'me';
+      my $alias = $self->{attrs}->{alias};
       $unique_query->{"$alias.$key"} = delete $unique_query->{$key};
     }
 
@@ -536,6 +535,8 @@ sub next {
 # XXX - this is essentially just the old new(). rewrite / tidy up?
 sub _resolve {
   my $self = shift;
+
+  return if(exists $self->{_attrs}); #return if _resolve has already been called
 
   my $attrs = $self->{attrs};  
   my $source = ($self->{_parent_rs}) ? $self->{_parent_rs} : $self->{result_source};
@@ -849,6 +850,8 @@ Resets the resultset's cursor, so you can iterate through the elements again.
 
 sub reset {
   my ($self) = @_;
+  delete $self->{_attrs} if (exists $self->{_attrs});
+
   $self->{all_cache_position} = 0;
   $self->cursor->reset;
   return $self;
@@ -1011,7 +1014,6 @@ sub delete {
   my ($self) = @_;
   my $del = {};
 
-  # this is broken now
   my $cond = $self->_cond_for_update_delete;
 
   $self->result_source->storage->delete($self->result_source->from, $cond);
@@ -1355,7 +1357,7 @@ sub related_resultset {
 
   $self->{related_resultsets} ||= {};
   return $self->{related_resultsets}{$rel} ||= do {
-#      warn "fetching related resultset for rel '$rel' " . $self->result_source->{name};
+      #warn "fetching related resultset for rel '$rel' " . $self->result_source->{name};
       my $rel_obj = $self->result_source->relationship_info($rel);
       $self->throw_exception(
         "search_related: result source '" . $self->result_source->name .
@@ -1370,6 +1372,8 @@ sub related_resultset {
 	       join => $rel,
 	       _live_join => $rel }
            );
+
+      # keep reference of the original resultset
       $rs->{_parent_rs} = $self->result_source;
       return $rs;
   };
