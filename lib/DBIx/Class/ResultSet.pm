@@ -211,7 +211,7 @@ sub search {
 =back
 
 This method does the same exact thing as search() except it will 
-always return a resultset even in list context.
+always return a resultset, even in list context.
 
 =cut
 

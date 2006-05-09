@@ -141,13 +141,13 @@ foreign class store the calling class's primary key in one (or more) of its
 columns. You should pass the name of the column in the foreign class as the
 $cond argument, or specify a complete join condition.
 
-Three methods are created when you create a has_many relationship.  The first 
-method is the expected accessor method.  The second is almost exactly the same 
-as the accessor method but "_rs" is added to the end of the method name.  This 
-method works just like the normal accessor, except that it returns a resultset 
-no matter what, even in list context. The third method, named 
-C<< add_to_<relname> >>, will also be added to your Row items, this allows 
-you to insert new related items, using the same mechanism as in 
+Three methods are created when you create a has_many relationship.  The first
+method is the expected accessor method.  The second is almost exactly the same
+as the accessor method but "_rs" is added to the end of the method name.  This
+method works just like the normal accessor, except that it returns a resultset
+no matter what, even in list context. The third method, named
+C<< add_to_<relname> >>, will also be added to your Row items, this allows
+you to insert new related items, using the same mechanism as in
 L<DBIx::Class::Relationship::Base/"create_related">.
 
 If you delete an object in a class with a C<has_many> relationship, all
