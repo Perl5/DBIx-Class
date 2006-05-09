@@ -196,7 +196,28 @@ call it as C<search(undef, \%attrs)>.
 
 sub search {
   my $self = shift;
-    
+  my $rs = $self->search_rs( @_ );
+  return (wantarray ? $rs->all : $rs);
+}
+
+=head2 search_rs
+
+=over 4
+
+=item Arguments: $cond, \%attrs?
+
+=item Return Value: $resultset
+
+=back
+
+This method does the same exact thing as search() except it will 
+always return a resultset even in list context.
+
+=cut
+
+sub search_rs {
+  my $self = shift;
+
   my $attrs = { %{$self->{attrs}} };
   my $having = delete $attrs->{having};
   $attrs = { %$attrs, %{ pop(@_) } } if @_ > 1 and ref $_[$#_] eq 'HASH';
@@ -234,7 +255,7 @@ sub search {
     }
   }
   
-  return (wantarray ? $rs->all : $rs);
+  return $rs;
 }
 
 =head2 search_literal

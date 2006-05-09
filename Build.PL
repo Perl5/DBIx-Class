@@ -26,7 +26,8 @@ my %arguments = (
     },
     create_makefile_pl => 'passthrough',
     create_readme      => 1,
-    test_files         => [ glob('t/*.t'), glob('t/*/*.t') ]
+    test_files         => [ glob('t/*.t'), glob('t/*/*.t') ],
+    script_files       => [ glob('script/*') ],
 );
 
 Module::Build->new(%arguments)->create_build_script;

@@ -158,7 +158,7 @@ is($schema->class("Artist")->field_name_for->{name}, 'artist name', 'mk_classdat
 
 my $search = [ { 'tags.tag' => 'Cheesy' }, { 'tags.tag' => 'Blue' } ];
 
-my $or_rs = $schema->resultset("CD")->search($search, { join => 'tags',
+my( $or_rs ) = $schema->resultset("CD")->search_rs($search, { join => 'tags',
                                                   order_by => 'cdid' });
 
 cmp_ok($or_rs->count, '==', 5, 'Search with OR ok');
