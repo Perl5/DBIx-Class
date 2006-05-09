@@ -196,7 +196,6 @@ resultset query.
 
 =cut
 
-# TODO: needs fixing
 sub search_literal {
   my ($self, $cond, @vals) = @_;
   my $attrs = (ref $vals[$#vals] eq 'HASH' ? { %{ pop(@vals) } } : {});
@@ -295,12 +294,15 @@ sub find {
   my $query = @unique_queries ? \@unique_queries : undef;
 
   # Run the query
+
   if (keys %$attrs) {
     my $rs = $self->search($query, $attrs);
-    return $rs->{attrs}->{prefetch} ? $rs->next : $rs->single;
+    $rs->_resolve;
+    return keys %{$rs->{_attrs}->{collapse}} ? $rs->next : $rs->single;
   }
   else {
-    return ($self->{attrs}->{prefetch})
+    $self->_resolve;  
+    return (keys %{$self->{_attrs}->{collapse}})
       ? $self->search($query)->next
       : $self->single($query);
   }
@@ -544,6 +546,9 @@ sub _resolve {
   # XXX - this is a hack to prevent dclone dieing because of the code ref, get's put back in $attrs afterwards
   my $record_filter = delete $attrs->{record_filter} if (defined $attrs->{record_filter});
   $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
+  $attrs->{record_filter} = $record_filter if ($record_filter);
+  $self->{attrs}->{record_filter} = $record_filter if ($record_filter);
+
   my $alias = $attrs->{alias};
  
   $attrs->{columns} ||= delete $attrs->{cols} if $attrs->{cols};
@@ -560,7 +565,6 @@ sub _resolve {
       push(@{$attrs->{select}}, @$include);
       push(@{$attrs->{as}}, map { m/([^.]+)$/; $1; } @$include);
   }
-  #use Data::Dumper; warn Dumper(@{$attrs}{qw/select as/});
 
   $attrs->{from} ||= [ { $alias => $source->from } ];
   $attrs->{seen_join} ||= {};
@@ -576,7 +580,6 @@ sub _resolve {
 
       push(@{$attrs->{from}}, $source->resolve_join($join, $attrs->{alias}, $attrs->{seen_join}));
   }
-  
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
   $attrs->{order_by} = [ $attrs->{order_by} ] if
       $attrs->{order_by} and !ref($attrs->{order_by});
@@ -603,7 +606,6 @@ sub _resolve {
       push(@{$attrs->{order_by}}, @pre_order);
   }
   $attrs->{collapse} = $collapse;
-  $attrs->{record_filter} = $record_filter if ($record_filter);
   $self->{_attrs} = $attrs;
 }
 
@@ -745,7 +747,7 @@ sub _count { # Separated out so pager can get the full count
   
   $self->_resolve;
   my $attrs = { %{ $self->{_attrs} } };
-  if (my $group_by = delete $attrs->{group_by}) {
+  if ($attrs->{distinct} && (my $group_by = $attrs->{group_by} || $attrs->{select})) {
     delete $attrs->{having};
     my @distinct = (ref $group_by ?  @$group_by : ($group_by));
     # todo: try CONCAT for multi-column pk
@@ -768,7 +770,6 @@ sub _count { # Separated out so pager can get the full count
 
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
-       
   my ($count) = (ref $self)->new($self->result_source, $attrs)->cursor->next;
   return $count;
 }
@@ -811,10 +812,10 @@ sub all {
 
   my @obj;
 
-  # XXX used to be 'if (keys %{$self->{collapse}})' 
-  # XXX replaced by this as it seemed to do roughly the same thing 
-  # XXX could be bad as never really understood exactly what collapse did
-  if ($self->{attrs}->{prefetch}) {
+  # TODO: don't call resolve here
+  $self->_resolve;
+  if (keys %{$self->{_attrs}->{collapse}}) {
+#  if ($self->{attrs}->{prefetch}) {
       # Using $self->cursor->all is really just an optimisation.
       # If we're collapsing has_many prefetches it probably makes
       # very little difference, and this is cleaner than hacking
