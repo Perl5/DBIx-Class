@@ -23,11 +23,20 @@ sub last_insert_id
     return @res ? $res[0] : undef;
 }
 
+sub _sql_maker_args {
+    my ($self) = @_;
+    
+    return (
+        limit_dialect => 'FetchFirst',
+        name_sep => $self->_dbh->get_info(41)
+    );
+}
+
 1;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::ODBC::DB2_400_SQL - Automatic primary key class for DB2/400
+DBIx::Class::Storage::DBI::ODBC::DB2_400_SQL - Support specific to DB2/400
 over ODBC
 
 =head1 SYNOPSIS
@@ -39,7 +48,9 @@ over ODBC
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for DB2/400 over ODBC.
+This class implements support specific to DB2/400 over ODBC, including
+auto-increment primary keys, SQL::Abstract::Limit dialect, and name separator
+for for connections using either SQL naming or System naming.
 
 
 =head1 AUTHORS

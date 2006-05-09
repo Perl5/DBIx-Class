@@ -378,10 +378,16 @@ sub dbh {
   return $self->_dbh;
 }
 
+sub _sql_maker_args {
+    my ($self) = @_;
+    
+    return ( limit_dialect => $self->dbh );
+}
+
 sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
-    $self->_sql_maker(new DBIC::SQL::Abstract( limit_dialect => $self->dbh ));
+    $self->_sql_maker(new DBIC::SQL::Abstract( $self->_sql_maker_args ));
   }
   return $self->_sql_maker;
 }
