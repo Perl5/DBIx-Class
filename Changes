@@ -17,6 +17,8 @@ Revision history for DBIx::Class
           ColumnCase is loaded
 
 0.06003
+        - fix for has_many prefetch with 0 related rows
+        - make limit error if rows => 0
         - added memory cycle tests and a long-needed weaken call
 
 0.06002 2006-04-20 00:42:41

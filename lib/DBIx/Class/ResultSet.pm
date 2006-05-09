@@ -229,7 +229,7 @@ sub search {
 
   unless (@_) { # no search, effectively just a clone
     my $rows = $self->get_cache;
-    if( @{$rows} ) {
+    if ($rows) {
       $rs->set_cache($rows);
     }
   }
@@ -569,9 +569,9 @@ first record from the resultset.
 
 sub next {
   my ($self) = @_;
-  if (@{$self->{all_cache} || []}) {
+  if (my $cache = $self->get_cache) {
     $self->{all_cache_position} ||= 0;
-    return $self->{all_cache}->[$self->{all_cache_position}++];
+    return $cache->[$self->{all_cache_position}++];
   }
   if ($self->{attrs}{cache}) {
     $self->{all_cache_position} = 1;
@@ -661,9 +661,9 @@ sub _collapse_result {
       last unless (@raw = $self->cursor->next);
       $row = $self->{stashed_row} = \@raw;
       $tree = $self->_collapse_result($as, $row, $c_prefix);
-      #warn Data::Dumper::Dumper($tree, $row);
     }
-    @$target = @final;
+    @$target = (@final ? @final : [ {}, {} ]);
+      # single empty result to indicate an empty prefetched has_many
   }
 
   return $info;
@@ -710,7 +710,7 @@ clause.
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ and defined $_[0];
-  return scalar @{ $self->get_cache } if @{ $self->get_cache };
+  return scalar @{ $self->get_cache } if $self->get_cache;
 
   my $count = $self->_count;
   return 0 unless $count;
@@ -787,7 +787,7 @@ is returned in list context.
 
 sub all {
   my ($self) = @_;
-  return @{ $self->get_cache } if @{ $self->get_cache };
+  return @{ $self->get_cache } if $self->get_cache;
 
   my @obj;
 
@@ -1261,7 +1261,7 @@ Gets the contents of the cache for the resultset, if the cache is set.
 =cut
 
 sub get_cache {
-  shift->{all_cache} || [];
+  shift->{all_cache};
 }
 
 =head2 set_cache
@@ -1284,13 +1284,7 @@ than re-querying the database even if the cache attr is not set.
 sub set_cache {
   my ( $self, $data ) = @_;
   $self->throw_exception("set_cache requires an arrayref")
-    if ref $data ne 'ARRAY';
-  my $result_class = $self->result_class;
-  foreach( @$data ) {
-    $self->throw_exception(
-      "cannot cache object of type '$_', expected '$result_class'"
-    ) if ref $_ ne $result_class;
-  }
+    if defined($data) && (ref $data ne 'ARRAY');
   $self->{all_cache} = $data;
 }
 
@@ -1309,7 +1303,7 @@ Clears the cache for the resultset.
 =cut
 
 sub clear_cache {
-  shift->set_cache([]);
+  shift->set_cache(undef);
 }
 
 =head2 related_resultset
