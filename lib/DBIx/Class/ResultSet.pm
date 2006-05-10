@@ -1159,8 +1159,7 @@ sub update_or_create {
   if (@unique_hashes) {
     my $row = $self->single(\@unique_hashes);
     if (defined $row) {
-      $row->set_columns($hash);
-      $row->update;
+      $row->update($hash);
       return $row;
     }
   }
