@@ -1259,8 +1259,7 @@ sub update_or_create {
 
   my $row = $self->find($hash, $attrs);
   if (defined $row) {
-    $row->set_columns($hash);
-    $row->update;
+    $row->update($hash);
     return $row;
   }
 
