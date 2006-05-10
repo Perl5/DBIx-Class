@@ -341,10 +341,14 @@ sub find {
     $hash = {};
     @{$hash}{@cols} = @_;
   }
+  elsif (@_) {
+    # For backwards compatibility
+    $hash = {@_};
+  }
   else {
     $self->throw_exception(
       "Arguments to find must be a hashref or match the number of columns in the "
-        . exists $attrs->{key} ? "$attrs->{key} unique constraint" : "primary key"
+        . (exists $attrs->{key} ? "$attrs->{key} unique constraint" : "primary key")
     );
   }
 

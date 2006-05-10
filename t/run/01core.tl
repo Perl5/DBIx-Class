@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 55;
+plan tests => 57;
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
 # which case COUNT(DISTINCT()) doesn't work
@@ -85,6 +85,13 @@ $new_again = $schema->resultset("Artist")->find(4);
 is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
+
+# Test backwards compatibility
+{
+  my $artist_by_hash = $schema->resultset('Artist')->find(artistid => 4);
+  is($artist_by_hash->name, 'Man With A Spoon', 'Retrieved correctly');
+  is($artist_by_hash->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
+}
 
 is($schema->resultset("Artist")->count, 4, 'count ok');
 
