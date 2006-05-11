@@ -753,11 +753,10 @@ dumping it. For example,
   package My::DB::CD;
 
   sub _dumper_hook {
-    my $obj = shift;
-    return bless {
-      %{ $obj },
+    $_[0] = bless {
+      %{ $_[0] },
       result_source => undef,
-    }, ref($obj);
+    }, ref($_[0]);
   }
 
   [...]
@@ -775,7 +774,6 @@ all your table classes, simply put a method similar to C<_dumper_hook> in the
 base class and set C<$Data::Dumper::Freezer> to its name and L<Data::Dumper>
 will automagically clean up your data before printing it. See
 L<Data::Dumper/EXAMPLES> for more information.
-
 
 =head2 Retrieving a row object's Schema
 
