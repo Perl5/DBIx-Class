@@ -70,7 +70,7 @@ if ($op eq 'insert') {
     print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n";
 }
 elsif ($op eq 'update') {
-    $resultset = $resultset->search( $where );
+    $resultset = $resultset->search( ($where||{}) );
     my $count = $resultset->count();
     print "This action will modify $count ".ref($resultset)." records.\n" if (!$quiet);
     if ( $force || confirm() ) {
@@ -79,7 +79,7 @@ elsif ($op eq 'update') {
 }
 elsif ($op eq 'delete') {
     die('Do not use the set option with the delete op') if ($set);
-    $resultset = $resultset->search( $where, $attrs );
+    $resultset = $resultset->search( ($where||{}), ($attrs||()) );
     my $count = $resultset->count();
     print "This action will delete $count ".ref($resultset)." records.\n" if (!$quiet);
     if ( $force || confirm() ) {
@@ -91,7 +91,7 @@ elsif ($op eq 'select') {
     my $csv = $csv_class->new({
         sep_char => ( $format eq 'tsv' ? "\t" : ',' ),
     });
-    $resultset = $resultset->search( $where, $attrs );
+    $resultset = $resultset->search( ($where||{}), ($attrs||()) );
     my @columns = $resultset->result_source->columns();
     $csv->combine( @columns );
     print $csv->string()."\n";
