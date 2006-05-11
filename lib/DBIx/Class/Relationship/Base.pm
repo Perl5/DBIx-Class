@@ -175,7 +175,8 @@ sub related_resultset {
 
 =head2 search_related
 
-  $rs->search_related('relname', $cond, $attrs);
+  @objects = $rs->search_related('relname', $cond, $attrs);
+  $objects_rs = $rs->search_related('relname', $cond, $attrs);
 
 Run a search on a related resultset. The search will be restricted to the
 item or items represented by the L<DBIx::Class::ResultSet> it was called
@@ -185,6 +186,19 @@ upon. This method can be called on a ResultSet, a Row or a ResultSource class.
 
 sub search_related {
   return shift->related_resultset(shift)->search(@_);
+}
+
+=head2 search_related_rs
+
+  ( $objects_rs ) = $rs->search_related_rs('relname', $cond, $attrs);
+
+This method works exactly the same as search_related, except that 
+it garauntees a restultset, even in list context.
+
+=cut
+
+sub search_related_rs {
+  return shift->related_resultset(shift)->search_rs(@_);
 }
 
 =head2 count_related

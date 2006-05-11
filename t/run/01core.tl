@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 57;
+plan tests => 59;
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
 # which case COUNT(DISTINCT()) doesn't work
@@ -94,6 +94,13 @@ is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
 
+# Test backwards compatibility
+{
+  my $artist_by_hash = $schema->resultset('Artist')->find(artistid => 4);
+  is($artist_by_hash->name, 'Man With A Spoon', 'Retrieved correctly');
+  is($artist_by_hash->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
+}
+
 is($schema->resultset("Artist")->count, 4, 'count ok');
 
 # test find_or_new
@@ -166,7 +173,7 @@ is($schema->class("Artist")->field_name_for->{name}, 'artist name', 'mk_classdat
 
 my $search = [ { 'tags.tag' => 'Cheesy' }, { 'tags.tag' => 'Blue' } ];
 
-my $or_rs = $schema->resultset("CD")->search($search, { join => 'tags',
+my( $or_rs ) = $schema->resultset("CD")->search_rs($search, { join => 'tags',
                                                   order_by => 'cdid' });
 
 cmp_ok($or_rs->count, '==', 5, 'Search with OR ok');

@@ -835,6 +835,11 @@ is produced (as when the L<debug> method is set).
 If the value is of the form C<1=/path/name> then the trace output is
 written to the file C</path/name>.
 
+This environment variable is checked when the storage object is first
+created (when you call connect on your schema).  So, run-time changes 
+to this environment variable will not take effect unless you also 
+re-connect on your schema.
+
 =head1 AUTHORS
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>
