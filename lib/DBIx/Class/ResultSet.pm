@@ -137,10 +137,25 @@ call it as C<search(undef, \%attrs)>.
 sub search {
   my $self = shift;
     
-  my $attrs = { %{$self->{attrs}} };
-  my $having = delete $attrs->{having};
-  $attrs = { %$attrs, %{ pop(@_) } } if @_ > 1 and ref $_[$#_] eq 'HASH';
+  my $our_attrs = { %{$self->{attrs}} };
+  my $having = delete $our_attrs->{having};
+  my $attrs = {};
+  $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
+  
+  # merge new attrs into old
+  foreach my $key (qw/join prefetch/) {
+      next unless (exists $attrs->{$key});
+      if (exists $our_attrs->{$key}) {
+	  $our_attrs->{$key} = [$our_attrs->{$key}] if (ref $our_attrs->{$key} ne 'ARRAY');
+	  push(@{$our_attrs->{$key}}, (ref $attrs->{$key} eq 'ARRAY') ? @{$attrs->{$key}} : $attrs->{$key});
+      } else {
+	  $our_attrs->{$key} = $attrs->{$key};
+      }
+      delete $attrs->{$key};
+  }
+  $our_attrs = { %{$our_attrs}, %{$attrs} };
 
+  # merge new where and having into old
   my $where = (@_
                 ? ((@_ == 1 || ref $_[0] eq "HASH")
                     ? shift
@@ -150,22 +165,23 @@ sub search {
                         : {@_}))
                 : undef());
   if (defined $where) {
-    $attrs->{where} = (defined $attrs->{where}
+    $our_attrs->{where} = (defined $our_attrs->{where}
               ? { '-and' =>
                   [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
-                      $where, $attrs->{where} ] }
+                      $where, $our_attrs->{where} ] }
               : $where);
   }
 
   if (defined $having) {
-    $attrs->{having} = (defined $attrs->{having}
+    $our_attrs->{having} = (defined $our_attrs->{having}
               ? { '-and' =>
                   [ map { ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_ }
-                      $having, $attrs->{having} ] }
+                      $having, $our_attrs->{having} ] }
               : $having);
   }
+#  use Data::Dumper; warn "attrs: " . Dumper($our_attrs);
 
-  my $rs = (ref $self)->new($self->result_source, $attrs);
+  my $rs = (ref $self)->new($self->result_source, $our_attrs);
   $rs->{_parent_rs} = $self->{_parent_rs} if ($self->{_parent_rs}); #XXX - hack to pass through parent of related resultsets
 
   unless (@_) { # no search, effectively just a clone
@@ -614,7 +630,7 @@ sub _construct_object {
   my @as = @{ $self->{_attrs}{as} };
 
   my $info = $self->_collapse_result(\@as, \@row);
-  my $new = $self->result_class->inflate_result($self->result_source, @$info, $self->{_parent_rs});
+  my $new = $self->result_class->inflate_result($self->result_source, @$info);
   $new = $self->{_attrs}{record_filter}->($new)
     if exists $self->{_attrs}{record_filter};
   return $new;
