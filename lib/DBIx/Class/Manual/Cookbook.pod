@@ -731,4 +731,61 @@ You can accomplish this by overriding C<insert>:
 where C<fill_from_artist> is a method you specify in C<CD> which sets
 values in C<CD> based on the data in the C<Artist> object you pass in.
 
+=head2 Debugging DBIx::Class objects with Data::Dumper
+
+L<Data::Dumper> can be a very useful tool for debugging, but sometimes it can
+be hard to find the pertinent data in all the data it can generate.
+Specifically, if one naively tries to use it like so,
+
+  use Data::Dumper;
+
+  my $cd = $schema->resultset('CD')->find(1);
+  print Dumper($cd);
+
+several pages worth of data from the CD object's schema and result source will
+be dumped to the screen. Since usually one is only interested in a few column
+values of the object, this is not very helpful.
+
+Luckily, it is possible to modify the data before L<Data::Dumper> outputs
+it. Simply define a hook that L<Data::Dumper> will call on the object before
+dumping it. For example,
+
+  package My::DB::CD;
+
+  sub _dumper_hook {
+    my $obj = shift;
+    return bless {
+      %{ $obj },
+      result_source => undef,
+    }, ref($obj);
+  }
+
+  [...]
+
+  use Data::Dumper;
+
+  $Data::Dumper::Freezer = '_dumper_hook';
+
+  my $cd = $schema->resultset('CD')->find(1);
+  print Dumper($cd);
+         # dumps $cd without its ResultSource
+
+If the structure of your schema is such that there is a common base class for
+all your table classes, simply put a method similar to C<_dumper_hook> in the
+base class and set C<$Data::Dumper::Freezer> to its name and L<Data::Dumper>
+will automagically clean up your data before printing it. See
+L<Data::Dumper/EXAMPLES> for more information.
+
+
+=head2 Retrieving a row object's Schema
+
+It is possible to get a Schema object from a row object like so,
+
+  my $schema = $cd->result_source->schema;
+  my $artist_rs = $schema->resultset('Artist');
+           # for example
+
+This can be useful when you don't want to pass around a Schema object to every
+method.
+
 =cut
