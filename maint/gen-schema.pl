@@ -4,9 +4,8 @@ use strict;
 use warnings;
 use lib qw(lib t/lib);
 
-use DBICTest;
-use DBICTest::HelperRels;
+use DBICTest::Schema;
 
-my $schema = DBICTest->initialise;
+my $schema = DBICTest::Schema->connect;
 
-print $schema->storage->deployment_statements($schema);
+print $schema->storage->deployment_statements($schema, 'SQLite');
