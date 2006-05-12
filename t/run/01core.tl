@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 46;
+plan tests => 47;
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
 # which case COUNT(DISTINCT()) doesn't work
@@ -212,6 +212,14 @@ my $typeinfo = $schema->source("Artist")->column_info('artistid');
 is($typeinfo->{data_type}, 'INTEGER', 'column_info ok');
 $schema->source("Artist")->column_info('artistid');
 ok($schema->source("Artist")->{_columns_info_loaded} == 1, 'Columns info flag set');
+
+my $newbook = $schema->resultset( 'Bookmark' )->find(1);
+
+$@ = '';
+eval {
+my $newlink = $newbook->link;
+};
+ok(!$@, "stringify to false value doesn't cause error");
 
 }
 

@@ -264,7 +264,8 @@ L<DBIx::Class::ResultSet/"find_or_create"> for details.
 
 sub find_or_create_related {
   my $self = shift;
-  return $self->find_related(@_) || $self->create_related(@_);
+  my $obj = $self->find_related(@_);
+  return (defined($obj) ? $obj : $self->create_related(@_));
 }
 
 =head2 set_from_related

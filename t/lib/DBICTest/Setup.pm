@@ -137,4 +137,14 @@ $schema->populate('Track', [
   [ 18, 1, 3, "Beehind You"],
 ]);
 
+$schema->populate('Link', [
+  [ qw/id title/ ],
+  [ 1, 'aaa' ]
+]);
+
+$schema->populate('Bookmark', [
+  [ qw/id link/ ],
+  [ 1, 1 ]
+]);
+
 1;

@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
 0.06003
+        - make find_or_create_related check defined() instead of truth
         - don't unnecessarily fetch rels for cascade_update
         - don't set_columns explicitly in update_or_create; instead use
           update($hashref) so InflateColumn works

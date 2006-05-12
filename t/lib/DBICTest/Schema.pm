@@ -8,6 +8,8 @@ no warnings qw/qw/;
 __PACKAGE__->load_classes(qw/
   Artist
   CD
+  Link
+  Bookmark
   #dummy
   Track
   Tag
