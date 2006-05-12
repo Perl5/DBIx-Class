@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => 57;
+plan tests => 58;
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
 # which case COUNT(DISTINCT()) doesn't work
@@ -236,6 +236,14 @@ ok($schema->storage(), 'Storage available');
   my @artsn = $schema->resultset('SourceNameArtists')->search({}, { order_by => 'name DESC' });
   cmp_ok(@artsn, '==', 4, "Four artists returned");
 }
+
+my $newbook = $schema->resultset( 'Bookmark' )->find(1);
+
+$@ = '';
+eval {
+my $newlink = $newbook->link;
+};
+ok(!$@, "stringify to false value doesn't cause error");
 
 # test cascade_delete through many_to_many relations
 {
