@@ -165,14 +165,13 @@ sub search_rs {
   
   # merge new attrs into old
   foreach my $key (qw/join prefetch/) {
-      next unless (exists $attrs->{$key});
-      if (exists $our_attrs->{$key}) {
-	  $our_attrs->{$key} = [$our_attrs->{$key}] if (ref $our_attrs->{$key} ne 'ARRAY');
-	  push(@{$our_attrs->{$key}}, (ref $attrs->{$key} eq 'ARRAY') ? @{$attrs->{$key}} : $attrs->{$key});
-      } else {
-	  $our_attrs->{$key} = $attrs->{$key};
-      }
-      delete $attrs->{$key};
+    next unless (exists $attrs->{$key});
+    if (exists $our_attrs->{$key}) {
+      $our_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
+    } else {
+      $our_attrs->{$key} = $attrs->{$key};
+    }
+    delete $attrs->{$key};
   }
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
@@ -647,6 +646,43 @@ sub _resolve {
   }
   $attrs->{collapse} = $collapse;
   $self->{_attrs} = $attrs;
+}
+
+sub _merge_attr {
+  my ($self, $a, $b) = @_;
+    
+  if (ref $b eq 'HASH' && ref $a eq 'HASH') {
+    return $self->_merge_hash($a, $b);
+  } else {
+    $a = [$a] unless (ref $a eq 'ARRAY');
+    $b = [$b] unless (ref $b eq 'ARRAY');
+    my @new_array = (@{$a}, @{$b});
+    foreach my $a_element (@new_array) {
+      my $i = 0;
+      foreach my $b_element (@new_array) {
+	if ((ref $a_element eq 'HASH') && (ref $b_element eq 'HASH') && ($a_element ne $b_element)) {
+	    $a_element = $self->_merge_hash($a_element, $b_element);
+	    $new_array[$i] = undef;
+	}
+	$i++;
+      }
+    }
+    @new_array = grep($_, @new_array);
+    return \@new_array;
+  }  
+}
+
+sub _merge_hash {
+  my ($self, $a, $b) = @_;
+
+  foreach my $key (keys %{$b}) {
+    if (exists $a->{$key}) {
+      $a->{$key} = $self->_merge_attr($a->{$key}, $b->{$key});
+    } else {
+      $a->{$key} = delete $b->{$key};
+    }
+  }
+  return $a;
 }
 
 sub _construct_object {
