@@ -77,6 +77,10 @@ my @fk_constraints =
    'selftable' => 'tags', 'foreigntable' => 'cd', 
    'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
    'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
+  {'display' => 'bookmark -> link',
+   'selftable' => 'bookmark', 'foreigntable' => 'link', 
+   'selfcols'  => ['link'], 'foreigncols' => ['id'],
+   'needed' => 1, on_delete => '', on_update => ''},
  );
 
 my @unique_constraints = (
