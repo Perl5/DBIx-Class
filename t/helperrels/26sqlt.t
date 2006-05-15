@@ -6,9 +6,11 @@ use DBICTest::HelperRels;
 eval "use SQL::Translator";
 plan skip_all => 'SQL::Translator required' if $@;
 
+# do not taunt happy dave ball
+
 my $schema = DBICTest::Schema;
 
-plan tests => 31;
+plan tests => 32;
 
 my $translator           =  SQL::Translator->new( 
     parser_args          => {
