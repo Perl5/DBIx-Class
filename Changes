@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - removed Data::UUID from deps, made other optionals required
         - modified SQLT parser to skip dupe table names
         - added remove_column(s) to ResultSource/ResultSourceProxy
         - added add_column alias to ResultSourceProxy
