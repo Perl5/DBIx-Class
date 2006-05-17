@@ -1395,6 +1395,10 @@ use C<get_column> instead:
 You can create your own accessors if required - see
 L<DBIx::Class::Manual::Cookbook> for details.
 
+Please note: This will NOT insert an C<AS employee_count> into the SQL statement
+produced, it is used for internal access only. Thus attempting to use the accessor
+in an C<order_by> clause or similar will fail misrably.
+
 =head2 join
 
 =over 4

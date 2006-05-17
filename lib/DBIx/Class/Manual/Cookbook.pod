@@ -786,4 +786,15 @@ It is possible to get a Schema object from a row object like so,
 This can be useful when you don't want to pass around a Schema object to every
 method.
 
+=head2 Getting the value of the primary key for the last database insert
+
+If you are using PK::Auto, this is straightforward:
+
+  my $foo = $rs->create({blah});
+  # do more stuff
+  my $id = $foo->id; # foo->my_primary_key_field will also work.
+
+If you are not using autoincrementing primary keys, this will probably
+not work, but then you already know the value of the last primary key anyway.
+
 =cut
