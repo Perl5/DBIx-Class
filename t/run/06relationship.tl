@@ -3,7 +3,7 @@ my $schema = shift;
 
 use strict;
 use warnings;  
-plan tests => 30;
+plan tests => 32;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -37,6 +37,12 @@ if ($INC{'DBICTest/HelperRels.pm'}) {
 }
 
 is( ($artist->search_related('cds'))[3]->title, 'Big Flop', 'create_related ok' );
+
+my( $rs_from_list ) = $artist->search_related_rs('cds');
+is( ref($rs_from_list), 'DBIx::Class::ResultSet', 'search_related_rs in list context returns rs' );
+
+( $rs_from_list ) = $artist->cds_rs();
+is( ref($rs_from_list), 'DBIx::Class::ResultSet', 'relation_rs in list context returns rs' );
 
 # count_related
 is( $artist->count_related('cds'), 4, 'count_related ok' );

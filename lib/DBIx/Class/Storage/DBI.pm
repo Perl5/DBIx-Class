@@ -1,4 +1,5 @@
 package DBIx::Class::Storage::DBI;
+# -*- mode: cperl; cperl-indent-level: 2 -*-
 
 use base 'DBIx::Class::Storage';
 
@@ -7,9 +8,9 @@ use warnings;
 use DBI;
 use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
+use DBIx::Class::Storage::Statistics;
 use IO::File;
 use Carp::Clan qw/DBIx::Class/;
-
 BEGIN {
 
 package DBIC::SQL::Abstract; # Would merge upstream, but nate doesn't reply :(
@@ -20,6 +21,8 @@ sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
   $table = $self->_quote($table) unless ref($table);
   @rest = (-1) unless defined $rest[0];
+  die "LIMIT 0 Does Not Compute" if $rest[0] == 0;
+    # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
   local $self->{having_bind} = [];
   my ($sql, @ret) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $order, @rest
@@ -222,17 +225,6 @@ sub name_sep {
     return $self->{name_sep};
 }
 
-
-
-
-package DBIx::Class::Storage::DBI::DebugCallback;
-
-sub print {
-  my ($self, $string) = @_;
-  $string =~ m/^(\w+)/;
-  ${$self}->($1, $string);
-}
-
 } # End of BEGIN block
 
 use base qw/DBIx::Class/;
@@ -240,20 +232,25 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugfh
+  qw/_connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugobj
      cursor on_connect_do transaction_depth/);
 
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->transaction_depth(0);
+
+  $new->debugobj(new DBIx::Class::Storage::Statistics());
+
+  my $fh;
   if (defined($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}) &&
      ($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} =~ /=(.+)$/)) {
-    $new->debugfh(IO::File->new($1, 'w'))
+    $fh = IO::File->new($1, 'w')
       or $new->throw_exception("Cannot open trace file $1");
   } else {
-    $new->debugfh(IO::File->new('>&STDERR'));
+    $fh = IO::File->new('>&STDERR');
   }
+  $new->debugobj->debugfh($fh);
   $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
   return $new;
 }
@@ -302,29 +299,38 @@ Executes the sql statements given as a listref on every db connect.
 
 =head2 debug
 
-Causes SQL trace information to be emitted on C<debugfh> filehandle
-(or C<STDERR> if C<debugfh> has not specifically been set).
+Causes SQL trace information to be emitted on the C<debugobj> object.
+(or C<STDERR> if C<debugobj> has not specifically been set).
 
 =head2 debugfh
 
-Sets or retrieves the filehandle used for trace/debug output.  This
-should be an IO::Handle compatible object (only the C<print> method is
-used).  Initially set to be STDERR - although see information on the
+Set or retrieve the filehandle used for trace/debug output.  This should be
+an IO::Handle compatible ojbect (only the C<print> method is used.  Initially
+set to be STDERR - although see information on the
 L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
+
+=head2 debugobj
+
+Sets or retrieves the object used for metric collection. Defaults to an instance
+of L<DBIx::Class::Storage::Statistics> that is campatible with the original
+method of using a coderef as a callback.  See the aforementioned Statistics
+class for more information.
 
 =head2 debugcb
 
 Sets a callback to be executed each time a statement is run; takes a sub
-reference. Overrides debugfh. Callback is executed as $sub->($op, $info)
-where $op is SELECT/INSERT/UPDATE/DELETE and $info is what would normally
-be printed.
+reference.  Callback is executed as $sub->($op, $info) where $op is
+SELECT/INSERT/UPDATE/DELETE and $info is what would normally be printed.
+
+See L<debugobj> for a better way.
 
 =cut
-
 sub debugcb {
-  my ($self, $cb) = @_;
-  my $cb_obj = bless(\$cb, 'DBIx::Class::Storage::DBI::DebugCallback');
-  $self->debugfh($cb_obj);
+    my $self = shift();
+
+    if($self->debugobj()->can('callback')) {
+        $self->debugobj()->callback(shift());
+    }
 }
 
 sub disconnect {
@@ -377,10 +383,16 @@ sub dbh {
   return $self->_dbh;
 }
 
+sub _sql_maker_args {
+    my ($self) = @_;
+    
+    return ( limit_dialect => $self->dbh );
+}
+
 sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
-    $self->_sql_maker(new DBIC::SQL::Abstract( limit_dialect => $self->dbh ));
+    $self->_sql_maker(new DBIC::SQL::Abstract( $self->_sql_maker_args ));
   }
   return $self->_sql_maker;
 }
@@ -424,10 +436,13 @@ sub _populate_dbh {
   eval "require DBIx::Class::Storage::DBI::${driver}";
   unless ($@) {
     bless $self, "DBIx::Class::Storage::DBI::${driver}";
+    $self->_rebless() if $self->can('_rebless');
   }
   # if on-connect sql statements are given execute them
   foreach my $sql_statement (@{$self->on_connect_do || []}) {
+    $self->debugobj->query_start($sql_statement) if $self->debug();
     $self->_dbh->do($sql_statement);
+    $self->debugobj->query_end($sql_statement) if $self->debug();
   }
 
   $self->_conn_pid($$);
@@ -479,7 +494,7 @@ sub txn_begin {
   if ($self->{transaction_depth}++ == 0) {
     my $dbh = $self->dbh;
     if ($dbh->{AutoCommit}) {
-      $self->debugfh->print("BEGIN WORK\n")
+      $self->debugobj->txn_begin()
         if ($self->debug);
       $dbh->begin_work;
     }
@@ -497,14 +512,14 @@ sub txn_commit {
   if ($self->{transaction_depth} == 0) {
     my $dbh = $self->dbh;
     unless ($dbh->{AutoCommit}) {
-      $self->debugfh->print("COMMIT\n")
+      $self->debugobj->txn_commit()
         if ($self->debug);
       $dbh->commit;
     }
   }
   else {
     if (--$self->{transaction_depth} == 0) {
-      $self->debugfh->print("COMMIT\n")
+      $self->debugobj->txn_commit()
         if ($self->debug);
       $self->dbh->commit;
     }
@@ -526,14 +541,14 @@ sub txn_rollback {
     if ($self->{transaction_depth} == 0) {
       my $dbh = $self->dbh;
       unless ($dbh->{AutoCommit}) {
-        $self->debugfh->print("ROLLBACK\n")
+        $self->debugobj->txn_rollback()
           if ($self->debug);
         $dbh->rollback;
       }
     }
     else {
       if (--$self->{transaction_depth} == 0) {
-        $self->debugfh->print("ROLLBACK\n")
+        $self->debugobj->txn_rollback()
           if ($self->debug);
         $self->dbh->rollback;
       }
@@ -557,8 +572,8 @@ sub _execute {
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
   unshift(@bind, @$extra_bind) if $extra_bind;
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
-      $self->debugfh->print("$sql: " . join(', ', @debug_bind) . "\n");
+      my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
+      $self->debugobj->query_start($sql, @debug_bind);
   }
   my $sth = eval { $self->sth($sql,$op) };
 
@@ -569,6 +584,7 @@ sub _execute {
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {
+    my $time = time();
     $rv = eval { $sth->execute(@bind) };
 
     if ($@ || !$rv) {
@@ -576,6 +592,10 @@ sub _execute {
     }
   } else {
     $self->throw_exception("'$sql' did not generate a statement.");
+  }
+  if ($self->debug) {
+      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
+      $self->debugobj->query_end($sql, @debug_bind);
   }
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
@@ -616,6 +636,8 @@ sub _select {
       $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
         $attrs->{software_limit} = 1;
   } else {
+    $self->throw_exception("rows attribute must be positive if present")
+      if (defined($attrs->{rows}) && !($attrs->{rows} > 0));
     push @args, $attrs->{rows}, $attrs->{offset};
   }
   return $self->_execute(@args);
@@ -661,7 +683,8 @@ sub columns_info_for {
     $dbh->{RaiseError} = 1;
     $dbh->{PrintError} = 0;
     eval {
-      my $sth = $dbh->column_info( undef, undef, $table, '%' );
+      my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
+      my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
       $sth->execute();
       while ( my $info = $sth->fetchrow_hashref() ){
         my %column_info;
@@ -714,26 +737,104 @@ sub last_insert_id {
 
 sub sqlt_type { shift->dbh->{Driver}->{Name} }
 
-sub deployment_statements {
-  my ($self, $schema, $type, $sqltargs) = @_;
-  $type ||= $self->sqlt_type;
+sub create_ddl_dir
+{
+  my ($self, $schema, $databases, $version, $dir, $sqltargs) = @_;
+
+  if(!$dir || !-d $dir)
+  {
+    warn "No directory given, using ./\n";
+    $dir = "./";
+  }
+  $databases ||= ['MySQL', 'SQLite', 'PostgreSQL'];
+  $databases = [ $databases ] if(ref($databases) ne 'ARRAY');
+  $version ||= $schema->VERSION || '1.x';
+
   eval "use SQL::Translator";
   $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
-  eval "use SQL::Translator::Parser::DBIx::Class;";
-  $self->throw_exception($@) if $@;
-  eval "use SQL::Translator::Producer::${type};";
-  $self->throw_exception($@) if $@;
-  my $tr = SQL::Translator->new(%$sqltargs);
-  SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
-  return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
+
+  my $sqlt = SQL::Translator->new({
+#      debug => 1,
+      add_drop_table => 1,
+  });
+  foreach my $db (@$databases)
+  {
+    $sqlt->reset();
+    $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
+#    $sqlt->parser_args({'DBIx::Class' => $schema);
+    $sqlt->data($schema);
+    $sqlt->producer($db);
+
+    my $file;
+    my $filename = $schema->ddl_filename($db, $dir, $version);
+    if(-e $filename)
+    {
+      $self->throw_exception("$filename already exists, skipping $db");
+      next;
+    }
+    open($file, ">$filename") 
+      or $self->throw_exception("Can't open $filename for writing ($!)");
+    my $output = $sqlt->translate;
+#use Data::Dumper;
+#    print join(":", keys %{$schema->source_registrations});
+#    print Dumper($sqlt->schema);
+    if(!$output)
+    {
+      $self->throw_exception("Failed to translate to $db. (" . $sqlt->error . ")");
+      next;
+    }
+    print $file $output;
+    close($file);
+  }
+
+}
+
+sub deployment_statements {
+  my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
+  $type ||= $self->sqlt_type;
+  $version ||= $schema->VERSION || '1.x';
+  $dir ||= './';
+  eval "use SQL::Translator";
+  if(!$@)
+  {
+    eval "use SQL::Translator::Parser::DBIx::Class;";
+    $self->throw_exception($@) if $@;
+    eval "use SQL::Translator::Producer::${type};";
+    $self->throw_exception($@) if $@;
+    my $tr = SQL::Translator->new(%$sqltargs);
+    SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
+    return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
+  }
+
+  my $filename = $schema->ddl_filename($type, $dir, $version);
+  if(!-f $filename)
+  {
+#      $schema->create_ddl_dir([ $type ], $version, $dir, $sqltargs);
+      $self->throw_exception("No SQL::Translator, and no Schema file found, aborting deploy");
+      return;
+  }
+  my $file;
+  open($file, "<$filename") 
+      or $self->throw_exception("Can't open $filename ($!)");
+  my @rows = <$file>;
+  close($file);
+
+  return join('', @rows);
+  
 }
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
-  foreach my $statement ( $self->deployment_statements($schema, $type, $sqltargs) ) {
+  foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, $sqltargs) ) {
     for ( split(";\n", $statement)) {
-      $self->debugfh->print("$_\n") if $self->debug;
+      next if($_ =~ /^--/);
+      next if(!$_);
+#      next if($_ =~ /^DROP/m);
+      next if($_ =~ /^BEGIN TRANSACTION/m);
+      next if($_ =~ /^COMMIT/m);
+      $self->debugobj->query_begin($_) if $self->debug;
       $self->dbh->do($_) or warn "SQL was:\n $_";
+      $self->debugobj->query_end($_) if $self->debug;
     }
   }
 }
@@ -766,6 +867,11 @@ is produced (as when the L<debug> method is set).
 
 If the value is of the form C<1=/path/name> then the trace output is
 written to the file C</path/name>.
+
+This environment variable is checked when the storage object is first
+created (when you call connect on your schema).  So, run-time changes 
+to this environment variable will not take effect unless you also 
+re-connect on your schema.
 
 =head1 AUTHORS
 

@@ -6,6 +6,8 @@ use DBICTest::HelperRels;
 eval "use SQL::Translator";
 plan skip_all => 'SQL::Translator required' if $@;
 
+# do not taunt happy dave ball
+
 my $schema = DBICTest::Schema;
 
 plan tests => 33;
@@ -77,6 +79,10 @@ my @fk_constraints =
    'selftable' => 'tags', 'foreigntable' => 'cd', 
    'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
    'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
+  {'display' => 'bookmark -> link',
+   'selftable' => 'bookmark', 'foreigntable' => 'link', 
+   'selfcols'  => ['link'], 'foreigncols' => ['id'],
+   'needed' => 1, on_delete => '', on_update => ''},
  );
 
 my @unique_constraints = (
@@ -86,9 +92,9 @@ my @unique_constraints = (
   {'display' => 'twokeytreelike name unique',
    'table' => 'twokeytreelike', 'cols'  => ['name'],
    'needed' => 1},
-  {'display' => 'employee position and group_id unique',
-   'table' => 'employee', cols => ['position', 'group_id'],
-   'needed' => 1},
+#  {'display' => 'employee position and group_id unique',
+#   'table' => 'employee', cols => ['position', 'group_id'],
+#   'needed' => 1},
 );
 
 my $tschema = $translator->schema();

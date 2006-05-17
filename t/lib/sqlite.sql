@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Wed Apr 26 03:18:22 2006
+-- Created on Sun May 14 18:25:49 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -79,6 +79,14 @@ CREATE TABLE cd (
 );
 
 --
+-- Table: bookmark
+--
+CREATE TABLE bookmark (
+  id INTEGER PRIMARY KEY NOT NULL,
+  link integer NOT NULL
+);
+
+--
 -- Table: track
 --
 CREATE TABLE track (
@@ -97,6 +105,15 @@ CREATE TABLE self_ref (
 );
 
 --
+-- Table: tags
+--
+CREATE TABLE tags (
+  tagid INTEGER PRIMARY KEY NOT NULL,
+  cd integer NOT NULL,
+  tag varchar(100) NOT NULL
+);
+
+--
 -- Table: treelike
 --
 CREATE TABLE treelike (
@@ -106,12 +123,12 @@ CREATE TABLE treelike (
 );
 
 --
--- Table: tags
+-- Table: link
 --
-CREATE TABLE tags (
-  tagid INTEGER PRIMARY KEY NOT NULL,
-  cd integer NOT NULL,
-  tag varchar(100) NOT NULL
+CREATE TABLE link (
+  id INTEGER PRIMARY KEY NOT NULL,
+  url varchar(100),
+  title varchar(100)
 );
 
 --
@@ -168,7 +185,6 @@ CREATE TABLE producer (
   name varchar(100) NOT NULL
 );
 
-CREATE UNIQUE INDEX position_group_employee on employee (position, group_id);
 CREATE UNIQUE INDEX tktlnameunique_twokeytreelike on twokeytreelike (name);
 CREATE UNIQUE INDEX artist_title_cd on cd (artist, title);
 COMMIT;

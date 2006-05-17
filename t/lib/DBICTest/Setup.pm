@@ -4,7 +4,7 @@ use DBICTest;
 
 my $schema = DBICTest->initialise;
 
-$schema->storage->on_connect_do([ "PRAGMA synchronous = OFF" ]);
+# $schema->storage->on_connect_do([ "PRAGMA synchronous = OFF" ]);
 
 my $dbh = $schema->storage->dbh;
 
@@ -140,6 +140,16 @@ $schema->populate('Track', [
 $schema->populate('Event', [
   [ qw/id starts_at/ ],
   [ 1, '2006-04-25 22:24:33' ],
+]);
+
+$schema->populate('Link', [
+  [ qw/id title/ ],
+  [ 1, 'aaa' ]
+]);
+
+$schema->populate('Bookmark', [
+  [ qw/id link/ ],
+  [ 1, 1 ]
 ]);
 
 1;

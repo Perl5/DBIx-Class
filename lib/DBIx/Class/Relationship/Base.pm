@@ -29,27 +29,42 @@ methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
   __PACKAGE__->add_relationship('relname', 'Foreign::Class', $cond, $attrs);
 
-The condition needs to be an SQL::Abstract-style representation of the
-join between the tables. When resolving the condition for use in a JOIN,
-keys using the pseudo-table I<foreign> are resolved to mean "the Table on the
-other side of the relationship", and values using the pseudo-table I<self>
+The condition needs to be an L<SQL::Abstract>-style representation of the
+join between the tables. When resolving the condition for use in a C<JOIN>,
+keys using the pseudo-table C<foreign> are resolved to mean "the Table on the
+other side of the relationship", and values using the pseudo-table C<self>
 are resolved to mean "the Table this class is representing". Other
 restrictions, such as by value, sub-select and other tables, may also be
-used. Please check your database for JOIN parameter support.
+used. Please check your database for C<JOIN> parameter support.
 
-For example, if you're creating a rel from Author to Book, where the Book
-table has a column author_id containing the ID of the Author row:
+For example, if you're creating a relationship from C<Author> to C<Book>, where
+the C<Book> table has a column C<author_id> containing the ID of the C<Author>
+row:
 
   { 'foreign.author_id' => 'self.id' }
 
-will result in the JOIN clause
+will result in the C<JOIN> clause
 
-  author me JOIN book book ON bar.author_id = me.id
+  author me JOIN book book ON book.author_id = me.id
 
-You can specify as many foreign => self mappings as necessary. Each key/value
-pair provided in a hashref will be used as ANDed conditions, to add an ORed
-condition, use an arrayref of hashrefs. See the L<SQL::Abstract> documentation
-for more details.
+For multi-column foreign keys, you will need to specify a C<foreign>-to-C<self>
+mapping for each column in the key. For example, if you're creating a
+relationship from C<Book> to C<Edition>, where the C<Edition> table refers to a
+publisher and a type (e.g. "paperback"):
+
+  {
+    'foreign.publisher_id' => 'self.publisher_id',
+    'foreign.type_id'      => 'self.type_id',
+  }
+
+This will result in the C<JOIN> clause:
+
+  book me JOIN edition edition ON edition.publisher_id = me.publisher_id
+    AND edition.type_id = me.type_id
+
+Each key-value pair provided in a hashref will be used as C<AND>ed conditions.
+To add an C<OR>ed condition, use an arrayref of hashrefs. See the
+L<SQL::Abstract> documentation for more details.
 
 Valid attributes are as follows:
 
@@ -160,7 +175,8 @@ sub related_resultset {
 
 =head2 search_related
 
-  $rs->search_related('relname', $cond, $attrs);
+  @objects = $rs->search_related('relname', $cond, $attrs);
+  $objects_rs = $rs->search_related('relname', $cond, $attrs);
 
 Run a search on a related resultset. The search will be restricted to the
 item or items represented by the L<DBIx::Class::ResultSet> it was called
@@ -170,6 +186,19 @@ upon. This method can be called on a ResultSet, a Row or a ResultSource class.
 
 sub search_related {
   return shift->related_resultset(shift)->search(@_);
+}
+
+=head2 search_related_rs
+
+  ( $objects_rs ) = $rs->search_related_rs('relname', $cond, $attrs);
+
+This method works exactly the same as search_related, except that 
+it garauntees a restultset, even in list context.
+
+=cut
+
+sub search_related_rs {
+  return shift->related_resultset(shift)->search_rs(@_);
 }
 
 =head2 count_related
@@ -264,7 +293,8 @@ L<DBIx::Class::ResultSet/find_or_create> for details.
 
 sub find_or_create_related {
   my $self = shift;
-  return $self->find_related(@_) || $self->create_related(@_);
+  my $obj = $self->find_related(@_);
+  return (defined($obj) ? $obj : $self->create_related(@_));
 }
 
 =head2 update_or_create_related

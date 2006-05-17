@@ -9,6 +9,8 @@ __PACKAGE__->load_classes(qw/
   Artist
   Employee
   CD
+  Link
+  Bookmark
   #dummy
   Track
   Tag
