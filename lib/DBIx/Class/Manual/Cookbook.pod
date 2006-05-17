@@ -788,9 +788,11 @@ method.
 
 =head2 Getting the value of the primary key for the last database insert
 
+AKA getting last_insert_id
+
 If you are using PK::Auto, this is straightforward:
 
-  my $foo = $rs->create({blah});
+  my $foo = $rs->create(\%blah);
   # do more stuff
   my $id = $foo->id; # foo->my_primary_key_field will also work.
 
