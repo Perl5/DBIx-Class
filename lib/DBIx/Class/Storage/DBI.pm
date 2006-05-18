@@ -509,25 +509,27 @@ sub _execute {
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
   unshift(@bind, @$extra_bind) if $extra_bind;
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
-      $self->debugfh->print("$sql: " . join(', ', @debug_bind) . "\n");
+    my $bind_str = join(', ', map {
+      defined $_ ? qq{`$_'} : q{`NULL'}
+    } @bind);
+    $self->debugfh->print("$sql ($bind_str)\n");
   }
   my $sth = eval { $self->sth($sql,$op) };
 
   if (!$sth || $@) {
-    $self->throw_exception('no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql");
+    $self->throw_exception(
+      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
+    );
   }
-
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
-  my $rv;
-  if ($sth) {
-    $rv = eval { $sth->execute(@bind) };
-
-    if ($@ || !$rv) {
-      $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
-    }
-  } else {
-    $self->throw_exception("'$sql' did not generate a statement.");
+  my $rv = eval { $sth->execute(@bind) };
+  if ($@ || !$rv) {
+    my $bind_str = join(', ', map {
+      defined $_ ? qq{`$_'} : q{`NULL'}
+    } @bind);
+    $self->throw_exception(
+      "Error executing '$sql' ($bind_str): ".($@ || $sth->errstr)
+    );
   }
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
