@@ -10,11 +10,10 @@ sub inject_base {
   my ($class, $target, @to_inject) = @_;
   {
     no strict 'refs';
-    my %seen;
-    unshift( @{"${target}::ISA"},
-        grep { !$seen{ $_ }++ && $target ne $_ && !$target->isa($_) }
-            @to_inject
-    );
+    foreach my $to (reverse @to_inject) {
+       unshift( @{"${target}::ISA"}, $to )
+         unless ($target eq $to || $target->isa($to));
+    }
   }
 
   # Yes, this is hack. But it *does* work. Please don't submit tickets about
