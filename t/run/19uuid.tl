@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 eval 'use Data::UUID ; 1'
   or plan skip_all, 'Install Data::UUID run this test';
@@ -12,6 +18,3 @@ Class::C3->reinitialize();
 my $artist = $schema->resultset("Artist")->create( { artistid => 100 } );
 like $artist->name, qr/[\w-]{36}/, 'got something like uuid';
 
-}
-
-1;

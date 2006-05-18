@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 plan tests => 2;
 
@@ -14,6 +20,3 @@ ok($artist->update, 'update on object created without PK ok');
 my $copied = $artist->copy({ name => 'Don\'t tell the RIAA', artistid => undef });
 is($copied->name, 'Don\'t tell the RIAA', "Copied with PKs ok.");
 
-}
-
-1;

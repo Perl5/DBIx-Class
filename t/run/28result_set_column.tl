@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 plan tests => 8; 
 
@@ -34,6 +40,4 @@ $psrs = $schema->resultset('CD')->search({},
 );
 ok(defined($psrs->get_column('count')), '+select/+as arrayref count');
 ok(defined($psrs->get_column('addedtitle')), '+select/+as title');
-}
 
-1;

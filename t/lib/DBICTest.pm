@@ -7,7 +7,6 @@ use DBICTest::Schema;
 use DBICTest::Schema::Relationships;
 
 sub init_schema {
-
   my $db_file = "t/var/DBIxClass.db";
 
   unlink($db_file) if -e $db_file;
@@ -22,7 +21,6 @@ sub init_schema {
   $schema->deploy();
   $schema->auto_populate();
   return $schema;
-
 }
 
 1;

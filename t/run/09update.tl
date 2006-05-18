@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 BEGIN {
         eval "use DBD::SQLite";
@@ -21,6 +27,3 @@ ok($art->name($name) eq $name, 'update');
 
 $art->discard_changes;
 
-}
-
-1;

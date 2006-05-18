@@ -1,7 +1,13 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
 
-plan tests => 60;
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
+
+plan tests => 58;
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
 # which case COUNT(DISTINCT()) doesn't work
@@ -88,7 +94,7 @@ $new->name('Man With A Spoon');
 
 $new->update;
 
-$new_again = $schema->resultset("Artist")->find(4);
+my $new_again = $schema->resultset("Artist")->find(4);
 
 is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
@@ -278,6 +284,3 @@ ok(!$@, "stringify to false value doesn't cause error");
   is_deeply([$schema->source('CD')->columns], [qw/cdid artist title/]);
 }
 
-}
-
-1;

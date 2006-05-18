@@ -1,7 +1,9 @@
+use strict;
+use warnings;
+
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use DBICTest::HelperRels;
 
 eval "use SQL::Translator";
 plan skip_all => 'SQL::Translator required' if $@;

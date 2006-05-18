@@ -1,39 +1,40 @@
 # vim: filetype=perl
+use strict;
+use warnings;  
 
-sub run_tests {
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
 
-    plan tests => 321;
-    my $schema = shift;
+my $schema = DBICTest::init_schema();
 
-    my $employees = $schema->resultset('Employee');
-    $employees->delete();
+plan tests => 321;
 
-    foreach (1..5) {
-        $employees->create({ name=>'temp' });
+my $employees = $schema->resultset('Employee');
+$employees->delete();
+
+foreach (1..5) {
+    $employees->create({ name=>'temp' });
+}
+$employees = $employees->search(undef,{order_by=>'position'});
+ok( check_rs($employees), "intial positions" );
+
+hammer_rs( $employees );
+
+DBICTest::Employee->grouping_column('group_id');
+$employees->delete();
+foreach my $group_id (1..3) {
+    foreach (1..6) {
+        $employees->create({ name=>'temp', group_id=>$group_id });
     }
-    $employees = $employees->search(undef,{order_by=>'position'});
-    ok( check_rs($employees), "intial positions" );
+}
+$employees = $employees->search(undef,{order_by=>'group_id,position'});
 
-    hammer_rs( $employees );
-
-    #return;
-
-    DBICTest::Employee->grouping_column('group_id');
-    $employees->delete();
-    foreach my $group_id (1..3) {
-        foreach (1..6) {
-            $employees->create({ name=>'temp', group_id=>$group_id });
-        }
-    }
-    $employees = $employees->search(undef,{order_by=>'group_id,position'});
-
-    foreach my $group_id (1..3) {
-        my $group_employees = $employees->search({group_id=>$group_id});
-        $group_employees->all();
-        ok( check_rs($group_employees), "group intial positions" );
-        hammer_rs( $group_employees );
-    }
-
+foreach my $group_id (1..3) {
+    my $group_employees = $employees->search({group_id=>$group_id});
+    $group_employees->all();
+    ok( check_rs($group_employees), "group intial positions" );
+    hammer_rs( $group_employees );
 }
 
 sub hammer_rs {
@@ -101,4 +102,3 @@ sub check_rs {
     return 1;
 }
 
-1;

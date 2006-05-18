@@ -1,9 +1,13 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_ORA_${_}" } qw/DSN USER PASS/};
 
-plan skip_all, 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. ' .
+plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. ' .
   'Warning: This test drops and creates tables called \'artist\', \'cd\' and \'track\''
   unless ($dsn && $user && $pass);
 
@@ -61,8 +65,8 @@ my $other_track = OraTest::Track->create({ trackid => 2, cd => 1, position => 1,
 my $tcount = OraTest::Track->search(
     {},
     {
-	select => [{count => {distinct => ['position', 'title']}}],
-	as => ['count']
+        select => [{count => {distinct => ['position', 'title']}}],
+        as => ['count']
     }
   );
 
@@ -89,6 +93,3 @@ $dbh->do("DROP TABLE artist");
 $dbh->do("DROP TABLE cd");
 $dbh->do("DROP TABLE track");
 
-}
-
-1;

@@ -1,11 +1,15 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 
 #warn "$dsn $user $pass";
 
-plan skip_all, 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
+plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
 plan tests => 4;
@@ -43,6 +47,3 @@ $it->next;
 $it->next;
 is( $it->next, undef, "next past end of resultset ok" );
 
-}
-
-1;

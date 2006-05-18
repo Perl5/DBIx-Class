@@ -1,11 +1,12 @@
+use strict;
+use warnings;  
+
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest::init_schema();
 
-use strict;
-use warnings;  
 plan tests => 32;
 
 # has_a test
@@ -59,11 +60,7 @@ my $track = $schema->resultset("Track")->create( {
 } );
 $track->set_from_related( cd => $cd );
 
-if ($INC{'DBICTest/HelperRels.pm'}) { # expect inflated object
-  is($track->disc->cdid, 4, 'set_from_related ok, including alternative accessor' );
-} else {
-  is( $track->cd, 4, 'set_from_related ok' );
-}
+is($track->disc->cdid, 4, 'set_from_related ok, including alternative accessor' );
 
 $track->set_from_related( cd => undef );
 
@@ -81,11 +78,7 @@ $track->update_from_related( cd => $cd );
 
 my $t_cd = ($schema->resultset("Track")->search( cd => 4, position => 99 ))[0]->cd;
 
-if ($INC{'DBICTest/HelperRels.pm'}) { # except inflated object
-  is( $t_cd->cdid, 4, 'update_from_related ok' );
-} else {
-  is( $t_cd, 4, 'update_from_related ok' );
-}
+is( $t_cd->cdid, 4, 'update_from_related ok' );
 
 # find_or_create_related with an existing record
 $cd = $artist->find_or_create_related( 'cds', { title => 'Big Flop' } );

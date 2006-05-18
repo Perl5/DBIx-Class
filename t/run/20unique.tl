@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 plan tests => 34;
 
@@ -119,6 +125,3 @@ is($cd9->get_column('artist'), $cd1->get_column('artist'), 'artist is correct');
 is($cd9->title, $cd1->title, 'title is correct');
 is($cd9->year, 2021, 'year is correct');
 
-}
-
-1;

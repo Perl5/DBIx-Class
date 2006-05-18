@@ -1,11 +1,15 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
 #warn "$dsn $user $pass";
 
-plan skip_all, 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
+plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
 plan tests => 5;
@@ -71,6 +75,3 @@ is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
 # clean up our mess
 $dbh->do("DROP TABLE artist");
 
-}
-
-1;

@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 BEGIN {
     eval "use DBD::SQLite";
@@ -62,6 +68,3 @@ $it = $schema->resultset("CD")->search(
 );
 is( $it->count, 1, "complex abstract count ok" );
 
-}
-
-1;

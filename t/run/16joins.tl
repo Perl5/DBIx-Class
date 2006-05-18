@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 use IO::File;
 
@@ -273,6 +279,3 @@ $schema->storage->debug(0);
 
 cmp_ok($queries, '==', 1, 'Only one query run');
 
-} # end run_tests
-
-1;

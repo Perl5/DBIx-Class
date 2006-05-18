@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 # this test will check to see if you can have 2 columns
 # in the same class pointing at the same other class
@@ -34,6 +40,3 @@ my $alias = $aliases[ 0 ]->alias;
 is( $orig->name, 'First', 'proper original' );
 is( $alias->name, 'Second', 'proper alias' );
 
-}
-
-1;

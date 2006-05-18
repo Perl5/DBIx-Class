@@ -1,8 +1,11 @@
 use strict;
-use warnings;
+use warnings;  
 
-sub run_tests {
-my $schema = shift;
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 plan tests => 4;
 my $artist = $schema->resultset('Artist')->find(1);
@@ -28,5 +31,3 @@ cmp_ok($cover_band->search_related('twokeys')->count, '>', 0, 'duplicated multiP
 cmp_ok($cover_cds->search_related('tags')->count, '==',
    $artist_cds->search_related('tags')->count , 'duplicated count ok');
 
-}
-1;

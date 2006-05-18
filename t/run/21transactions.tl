@@ -1,5 +1,12 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
+
 plan tests => 39;
 
 my $code = sub {
@@ -169,6 +176,4 @@ my $fail_code = sub {
   })->first;
   ok(!defined($cd), q{failed txn_do didn't add failed txn's cd});
 }
-}
 
-1;

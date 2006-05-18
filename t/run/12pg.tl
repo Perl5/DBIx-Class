@@ -1,10 +1,15 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
 #warn "$dsn $user $pass";
 
-plan skip_all, 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
+plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
   . ' (note: creates and drops tables named artist and casecheck!)' unless ($dsn && $user);
 
 plan tests => 8;
@@ -70,6 +75,3 @@ $dbh->do("DROP TABLE testschema.artist;");
 $dbh->do("DROP TABLE testschema.casecheck;");
 $dbh->do("DROP SCHEMA testschema;");
 
-}
-
-1;

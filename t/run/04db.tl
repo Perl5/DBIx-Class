@@ -1,6 +1,12 @@
-sub run_tests {
-my $schema = shift;
-  
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
+
 plan tests => 3;
 
 # add some rows inside a transaction and commit it
@@ -48,6 +54,3 @@ my $test_type_info = {
 };
 is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
 
-}
-
-1;

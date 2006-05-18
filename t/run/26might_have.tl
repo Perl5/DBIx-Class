@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 my $queries;
 #$schema->storage->debugfh(IO::File->new('t/var/temp.trace', 'w'));
@@ -38,6 +44,4 @@ is($queries, 1, 'liner_notes (might_have) prefetched - do not load
 liner_notes on update');
 
 $schema->storage->debug(0);
-}
 
-1;
