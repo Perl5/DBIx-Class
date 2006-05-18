@@ -1,5 +1,8 @@
-sub run_tests {
-my $schema = shift;
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 use strict;
 use warnings;  
@@ -170,6 +173,3 @@ $artist->cds->update({artist => $nartist->id});
 cmp_ok($artist->cds->count, '==', 0, "Correct new #cds for artist");
 cmp_ok($nartist->cds->count, '==', 2, "Correct new #cds for artist");
 
-}
-
-1;

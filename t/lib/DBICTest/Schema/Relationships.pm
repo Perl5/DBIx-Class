@@ -1,5 +1,5 @@
 package # hide from PAUSE 
-    DBICTest::Schema::HelperRels;
+    DBICTest::Schema::Relationships;
 
 use base 'DBIx::Class::Core';
 
