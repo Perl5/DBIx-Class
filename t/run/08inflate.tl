@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 eval { require DateTime };
 plan skip_all => "Need DateTime for inflation tests" if $@;
@@ -27,6 +33,3 @@ $cd->update;
 ($cd) = $schema->resultset("CD")->search( year => $now->year );
 is( $cd->year->year, $now->year, 'deflate ok' );
 
-}
-
-1;

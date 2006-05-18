@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 my $queries;
 $schema->storage->debugcb( sub{ $queries++ } );
@@ -173,6 +179,3 @@ is( $queries, 1, 'only one select statement on find with has_many prefetch on re
 
 $schema->storage->debug(0);
 
-}
-
-1;

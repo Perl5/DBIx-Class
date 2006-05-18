@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 plan tests => 58;
 
@@ -80,7 +86,7 @@ $new->name('Man With A Spoon');
 
 $new->update;
 
-$new_again = $schema->resultset("Artist")->find(4);
+my $new_again = $schema->resultset("Artist")->find(4);
 
 is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
@@ -270,6 +276,3 @@ ok(!$@, "stringify to false value doesn't cause error");
   is_deeply([$schema->source('CD')->columns], [qw/cdid artist title/]);
 }
 
-}
-
-1;

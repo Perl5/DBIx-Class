@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 plan tests => 12;
 
@@ -62,6 +68,3 @@ is( $it->count, 2, "software count on paged rs ok" );
 
 is( $it->next->title, "Generic Manufactured Singles", "software iterator->next ok" );
 
-}
-
-1;

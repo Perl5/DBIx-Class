@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 use Data::Dumper;
 
@@ -67,6 +73,3 @@ ok($entry->update ({ %{$complex2} }), 'arrayref deflation ok');
 ok($inflated = $entry->serialized, 'arrayref inflation ok');
 is_deeply($inflated, $complex2->{serialized}, 'inflated array matches original');
 
-}
-
-1;

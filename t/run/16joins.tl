@@ -1,5 +1,11 @@
-sub run_tests {
-my $schema = shift;
+use strict;
+use warnings;  
+
+use Test::More;
+use lib qw(t/lib);
+use DBICTest;
+
+my $schema = DBICTest::init_schema();
 
 use IO::File;
 
@@ -296,6 +302,3 @@ is($queries, 1, 'prefetch ran only 1 sql statement');
 
 $schema->storage->debug(0);
 
-} # end run_tests
-
-1;
