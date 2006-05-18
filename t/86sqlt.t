@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 # do not taunt happy dave ball
 
-my $schema = DBICTest::Schema;
+my $schema = 'DBICTest::Schema';
 
 plan tests => 33;
 
@@ -174,6 +174,8 @@ sub check_fk {
  }
  return 0;
 }
+
+my( $ondel, $onupd );
 
 sub check_unique {
  my ($selftable, $selfcol) = @_;

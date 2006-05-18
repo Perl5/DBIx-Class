@@ -8,7 +8,7 @@ use DBICTest;
 my $schema = DBICTest::init_schema();
 
 eval 'use Data::UUID ; 1'
-  or plan skip_all, 'Install Data::UUID run this test';
+  or plan skip_all => 'Install Data::UUID run this test';
 
 plan tests => 1;
 DBICTest::Schema::Artist->load_components('UUIDColumns');

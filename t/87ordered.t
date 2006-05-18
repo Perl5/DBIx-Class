@@ -42,6 +42,7 @@ sub hammer_rs {
     my $employee;
     my $count = $rs->count();
     my $position_column = $rs->result_class->position_column();
+    my $row;
 
     foreach my $position (1..$count) {
 

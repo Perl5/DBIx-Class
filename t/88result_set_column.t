@@ -9,6 +9,7 @@ my $schema = DBICTest::init_schema();
 
 plan tests => 5; 
 
+my $cd;
 my $rs = $cd = $schema->resultset("CD")->search({});
 
 my $rs_title = $rs->get_column('title');

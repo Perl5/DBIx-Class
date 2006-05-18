@@ -12,7 +12,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_DB2_400_${_}" } qw/DSN USER PASS/
 # Probably best to pass the DBQ option in the DSN to specify a specific
 # libray.  Something like:
 # DBICTEST_DB2_400_DSN='dbi:ODBC:dsn=MyAS400;DBQ=MYLIB'
-plan skip_all, 'Set $ENV{DBICTEST_DB2_400_DSN}, _USER and _PASS to run this test'
+plan skip_all => 'Set $ENV{DBICTEST_DB2_400_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
 plan tests => 6;

@@ -40,7 +40,7 @@ $rs->set_cache( $artists );
 
 is( scalar @{$rs->get_cache}, 2, 'set_cache() is functional' );
 
-$cd = $schema->resultset('CD')->find(1);
+my $cd = $schema->resultset('CD')->find(1);
 
 $rs->clear_cache;
 
