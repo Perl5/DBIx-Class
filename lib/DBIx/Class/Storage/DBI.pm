@@ -446,8 +446,8 @@ Issues a commit against the current dbh.
 
 sub txn_commit {
   my $self = shift;
+  my $dbh = $self->dbh;
   if ($self->{transaction_depth} == 0) {
-    my $dbh = $self->dbh;
     unless ($dbh->{AutoCommit}) {
       $self->debugfh->print("COMMIT\n")
         if ($self->debug);
@@ -458,7 +458,7 @@ sub txn_commit {
     if (--$self->{transaction_depth} == 0) {
       $self->debugfh->print("COMMIT\n")
         if ($self->debug);
-      $self->dbh->commit;
+      $dbh->commit;
     }
   }
 }
@@ -475,8 +475,8 @@ sub txn_rollback {
   my $self = shift;
 
   eval {
+    my $dbh = $self->dbh;
     if ($self->{transaction_depth} == 0) {
-      my $dbh = $self->dbh;
       unless ($dbh->{AutoCommit}) {
         $self->debugfh->print("ROLLBACK\n")
           if ($self->debug);
@@ -487,7 +487,7 @@ sub txn_rollback {
       if (--$self->{transaction_depth} == 0) {
         $self->debugfh->print("ROLLBACK\n")
           if ($self->debug);
-        $self->dbh->rollback;
+        $dbh->rollback;
       }
       else {
         die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
