@@ -50,6 +50,11 @@ corresponding table class using something like:
 (Replace L<DateTime::Format::Pg> with the appropriate module for your
 database, or consider L<DateTime::Format::DBI>.)
 
+The coderefs you set for inflate and deflate are called with two parameters,
+the first is the value of the column to be inflated/deflated, the second is the
+row object itself. Thus you can call C<< ->result_source->schema->storage->dbh >> on
+it, to feed to L<DateTime::Format::DBI>.
+
 In this example, calls to an event's C<insert_time> accessor return a
 L<DateTime> object. This L<DateTime> object is later "deflated" when
 used in the database layer.
