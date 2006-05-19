@@ -176,13 +176,15 @@ sub column_info {
   {
     $self->{_columns_info_loaded}++;
     my $info;
+    my $lc_info;
     # eval for the case of storage without table
-    eval { $info = $self->storage->columns_info_for($self->from) };
+    eval { $info = $self->storage->columns_info_for( $self->from, keys %{$self->_columns} ) };
     unless ($@) {
+      for my $realcol ( keys %{$info} ) {
+        $lc_info->{lc $realcol} = $info->{$realcol};
+      }
       foreach my $col ( keys %{$self->_columns} ) {
-        foreach my $i ( keys %{$info->{$col}} ) {
-            $self->_columns->{$col}{$i} = $info->{$col}{$i};
-        }
+        $self->_columns->{$col} = $info->{$col} || $lc_info->{lc $col};
       }
     }
   }

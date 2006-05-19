@@ -11,6 +11,7 @@ __PACKAGE__->load_classes(qw/
   CD
   Link
   Bookmark
+  Casecheck
   #dummy
   Track
   Tag
