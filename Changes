@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - refactor debugging to allow for profiling using Storage::Statistics
+        - removed Data::UUID from deps, made other optionals required
         - modified SQLT parser to skip dupe table names
         - added remove_column(s) to ResultSource/ResultSourceProxy
         - added add_column alias to ResultSourceProxy

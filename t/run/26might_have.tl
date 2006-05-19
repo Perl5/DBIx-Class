@@ -26,7 +26,7 @@ $schema->storage->debug(0);
 
 
 my $cd2 = $schema->resultset("CD")->find(2, {prefetch => 'liner_notes'});
-$cd2->title('test');
+$cd2->title('test2');
 
 # SELECT count
 $queries = 0;

@@ -228,6 +228,8 @@ Todd Lipcon
 
 wdh: Will Hawes
 
+gphat: Cory G Watson <gphat@cpan.org>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.

@@ -6,9 +6,11 @@ use DBICTest::HelperRels;
 eval "use SQL::Translator";
 plan skip_all => 'SQL::Translator required' if $@;
 
+# do not taunt happy dave ball
+
 my $schema = DBICTest::Schema;
 
-plan tests => 31;
+plan tests => 33;
 
 my $translator           =  SQL::Translator->new( 
     parser_args          => {
@@ -77,6 +79,10 @@ my @fk_constraints =
    'selftable' => 'tags', 'foreigntable' => 'cd', 
    'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
    'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
+  {'display' => 'bookmark -> link',
+   'selftable' => 'bookmark', 'foreigntable' => 'link', 
+   'selfcols'  => ['link'], 'foreigncols' => ['id'],
+   'needed' => 1, on_delete => '', on_update => ''},
  );
 
 my @unique_constraints = (
