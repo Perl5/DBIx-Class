@@ -8,7 +8,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest::Schema;
 
-plan tests => 27;
+plan tests => 29;
 
 my $translator           =  SQL::Translator->new( 
     parser_args          => {
