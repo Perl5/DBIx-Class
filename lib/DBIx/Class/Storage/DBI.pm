@@ -692,8 +692,10 @@ sub columns_info_for {
         $column_info{size}      = $info->{COLUMN_SIZE};
         $column_info{is_nullable}   = $info->{NULLABLE} ? 1 : 0;
         $column_info{default_value} = $info->{COLUMN_DEF};
+        my $col_name = $info->{COLUMN_NAME};
+        $col_name =~ s/^\"(.*)\"$/$1/;
 
-        $result{$info->{COLUMN_NAME}} = \%column_info;
+        $result{$col_name} = \%column_info;
       }
     };
     $dbh->{RaiseError} = $old_raise_err;

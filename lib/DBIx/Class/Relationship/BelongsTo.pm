@@ -5,11 +5,7 @@ use warnings;
 
 sub belongs_to {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
-  eval "require $f_class";
-  if ($@) {
-    $class->throw_exception($@) unless $@ =~ /Can't locate/;
-  }
-  
+  $class->ensure_class_loaded($f_class);
   # no join condition or just a column name
   if (!ref $cond) {
     my %f_primaries = map { $_ => 1 } eval { $f_class->primary_columns };

@@ -10,6 +10,7 @@ __PACKAGE__->load_components(qw/
   Serialize::Storable
   InflateColumn
   Relationship
+  PK::Auto
   PK
   Row
   ResultSourceProxy::Table

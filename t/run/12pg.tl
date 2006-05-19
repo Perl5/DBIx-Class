@@ -5,16 +5,18 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 #warn "$dsn $user $pass";
 
 plan skip_all, 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
-  . ' (note: creates and drops a table named artist!)' unless ($dsn && $user);
+  . ' (note: creates and drops tables named artist and casecheck!)' unless ($dsn && $user);
 
-plan tests => 4;
+plan tests => 8;
 
 DBICTest::Schema->compose_connection('PgTest' => $dsn, $user, $pass);
 
 my $dbh = PgTest->schema->storage->dbh;
 PgTest->schema->source("Artist")->name("testschema.artist");
 $dbh->do("CREATE SCHEMA testschema;");
-$dbh->do("CREATE TABLE testschema.artist (artistid serial PRIMARY KEY, name VARCHAR(255), charfield CHAR(10));");
+
+$dbh->do("CREATE TABLE testschema.artist (artistid serial PRIMARY KEY, name VARCHAR(100), charfield CHAR(10));");
+ok ( $dbh->do('CREATE TABLE testschema.casecheck (id serial PRIMARY KEY, "name" VARCHAR(1), "NAME" VARCHAR(2), "UC_NAME" VARCHAR(3));'), 'Creation of casecheck table');
 
 PgTest::Artist->load_components('PK::Auto');
 
@@ -35,7 +37,7 @@ my $test_type_info = {
     'name' => {
         'data_type' => 'character varying',
         'is_nullable' => 1,
-        'size' => 255,
+        'size' => 100,
         'default_value' => undef,
     },
     'charfield' => {
@@ -55,7 +57,17 @@ like($artistid_defval,
 is_deeply($type_info, $test_type_info,
           'columns_info_for - column data types');
 
+my $name_info = PgTest::Casecheck->column_info( 'name' );
+is( $name_info->{size}, 1, "Case sensitive matching info for 'name'" );
+
+my $NAME_info = PgTest::Casecheck->column_info( 'NAME' );
+is( $NAME_info->{size}, 2, "Case sensitive matching info for 'NAME'" );
+
+my $uc_name_info = PgTest::Casecheck->column_info( 'uc_name' );
+is( $uc_name_info->{size}, 3, "Case insensitive matching info for 'uc_name'" );
+
 $dbh->do("DROP TABLE testschema.artist;");
+$dbh->do("DROP TABLE testschema.casecheck;");
 $dbh->do("DROP SCHEMA testschema;");
 
 }

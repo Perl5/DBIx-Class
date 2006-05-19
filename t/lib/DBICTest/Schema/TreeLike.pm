@@ -14,7 +14,7 @@ __PACKAGE__->add_columns(
  },
 );
 __PACKAGE__->set_primary_key(qw/id/);
-__PACKAGE__->belongs_to('parent', 'TreeLike',
+__PACKAGE__->belongs_to('parent', 'DBICTest::Schema::TreeLike',
                           { 'foreign.id' => 'self.parent' });
 
 1;

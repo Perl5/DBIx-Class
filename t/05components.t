@@ -15,6 +15,9 @@ ok( DBICTest::ForeignComponent->foreign_test_method, 'foreign component' );
 #   Test for inject_base to filter out duplicates
 {   package DBICTest::_InjectBaseTest;
     use base qw/ DBIx::Class /;
+    package DBICTest::_InjectBaseTest::A;
+    package DBICTest::_InjectBaseTest::B;
+    package DBICTest::_InjectBaseTest::C;
 }
 DBICTest::_InjectBaseTest->inject_base( 'DBICTest::_InjectBaseTest', qw/
     DBICTest::_InjectBaseTest::A
