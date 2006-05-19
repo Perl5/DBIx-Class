@@ -811,8 +811,7 @@ sub create_ddl_dir
                                                     $target_schema, $db,
                                                     {}
                                                    );
-      my $difffile = $filename;
-      $difffile =~ s/$version/${preversion}-${version}/;
+      my $difffile = $schema->ddl_filename($dir, $db, $version, $preversion);
       if(-e $difffile)
       {
         warn("$difffile already exists, skipping");
@@ -874,6 +873,13 @@ sub deploy {
       $self->dbh->do($_) or warn "SQL was:\n $_";
     }
   }
+}
+
+sub backup
+{
+  my ($self) = @_;
+
+  ## Does nothing, override in DBI::XX classes
 }
 
 sub DESTROY { shift->disconnect }

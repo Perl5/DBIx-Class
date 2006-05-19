@@ -5,7 +5,7 @@ use warnings;
 
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
-use File::Spec;
+use Path::Class;
 
 use base qw/DBIx::Class/;
 
@@ -785,11 +785,12 @@ format.
 
 sub ddl_filename
 {
-    my ($self, $dir, $type, $version) = @_;
+    my ($self, $dir, $type, $version, $pversion) = @_;
 
     my $filename = ref($self);
     $filename =~ s/^.*:://;
-    $filename = File::Spec->catpath($dir, "$filename-$version-$type.sql");
+    $filename = file($dir, "$filename-$version-$type.sql")->stringify;
+    $filename =~ s/$version/$pversion-$version/ if($pversion);
 
     return $filename;
 }
