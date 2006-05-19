@@ -456,10 +456,7 @@ sub add_relationship {
 
   my $f_source = $self->schema->source($f_source_name);
   unless ($f_source) {
-    eval "require $f_source_name;";
-    if ($@) {
-      die $@ unless $@ =~ /Can't locate/;
-    }
+    $self->ensure_class_loaded($f_source_name);
     $f_source = $f_source_name->result_source;
     #my $s_class = ref($self->schema);
     #$f_source_name =~ m/^${s_class}::(.*)$/;

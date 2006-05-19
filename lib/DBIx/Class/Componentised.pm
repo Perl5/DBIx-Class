@@ -5,6 +5,7 @@ use strict;
 use warnings;
 
 use Class::C3;
+use Class::Inspector;
 
 sub inject_base {
   my ($class, $target, @to_inject) = @_;
@@ -41,10 +42,20 @@ sub load_own_components {
 sub _load_components {
   my ($class, @comp) = @_;
   foreach my $comp (@comp) {
-    eval "use $comp";
-    die $@ if $@;
+    $class->ensure_class_loaded($comp);
   }
   $class->inject_base($class => @comp);
+}
+
+# TODO: handle ->has_many('rel', 'Class'...) instead of
+#              ->has_many('rel', 'Some::Schema::Class'...)
+sub ensure_class_loaded {
+  my ($class, $f_class) = @_;
+  eval "require $f_class";
+  my $err = $@;
+  Class::Inspector->loaded($f_class)
+      or die $err || "require $f_class was successful but the package".
+                     "is not defined";
 }
 
 1;

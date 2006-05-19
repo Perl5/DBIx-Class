@@ -263,13 +263,7 @@ sub load_classes {
     foreach my $prefix (keys %comps_for) {
       foreach my $comp (@{$comps_for{$prefix}||[]}) {
         my $comp_class = "${prefix}::${comp}";
-        eval "use $comp_class"; # If it fails, assume the user fixed it
-        if ($@) {
-          $comp_class =~ s/::/\//g;
-          die $@ unless $@ =~ /Can't locate.+$comp_class\.pm\sin\s\@INC/;
-          warn $@ if $@;
-        }
-
+        $class->ensure_class_loaded($comp_class);
         $comp_class->source_name($comp) unless $comp_class->source_name;
 
         push(@to_register, [ $comp_class->source_name, $comp_class ]);
