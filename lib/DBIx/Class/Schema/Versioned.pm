@@ -37,7 +37,7 @@ __PACKAGE__->register_class('Table', 'DBIx::Class::Version::Table');
 
 
 # ---------------------------------------------------------------------------
-package DBIx::Class::Versioning;
+package DBIx::Class::Schema::Versioned;
 
 use strict;
 use warnings;
@@ -123,14 +123,8 @@ sub on_connect
     $self->_filedata(\@data);
 
     $self->backup();
-    $self->upgrade();
+    $self->upgrade($pversion, $self->VERSION);
 
-# X Create version table if not exists?
-# Make backup
-# Run create statements
-# Run post-create callback
-# Run alter/drop statement
-# Run post-alter callback
 }
 
 sub exists
@@ -140,7 +134,6 @@ sub exists
     eval {
         $rs->search({ 1, 0 })->count;
     };
-
     return 0 if $@;
 
     return 1;
@@ -150,7 +143,7 @@ sub backup
 {
     my ($self) = @_;
     ## Make each ::DBI::Foo do this
-#    $self->storage->backup();
+    $self->storage->backup();
 }
 
 sub upgrade
@@ -197,7 +190,7 @@ DBIx::Class::Versioning - DBIx::Class::Schema plugin for Schema upgrades
   # load Library::Schema::CD, Library::Schema::Book, Library::Schema::DVD
   __PACKAGE__->load_classes(qw/CD Book DVD/);
 
-  __PACKAGE__->load_components(qw/Versioning/);
+  __PACKAGE__->load_components(qw/+DBIx::Class::Schema::Versioned/);
   __PACKAGE__->upgrade_directory('/path/to/upgrades/');
 
   sub backup
@@ -237,6 +230,9 @@ in L<DBIx::Class::Schema>. Return a false value if there is no upgrade
 path between the two versions supplied. By default, every change in
 your VERSION is regarded as needing an upgrade.
 
+NB: At the moment, SQLite upgrading is rather spotty, as SQL::Translator::Diff
+returns SQL statements that SQLite does not support.
+
 
 =head1 METHODS
 
@@ -246,6 +242,8 @@ This is an overwritable method which is called just before the upgrade, to
 allow you to make a backup of the database. Per default this method attempts
 to call C<< $self->storage->backup >>, to run the standard backup on each
 database type. 
+
+This method should return the name of the backup file, if appropriate.
 
 =head2 upgrade
 
