@@ -152,9 +152,4 @@ $schema->populate('Bookmark', [
   [ 1, 1 ]
 ]);
 
-$schema->populate('Event', [
-  [ qw/id starts_at/ ],
-  [ 1, '2006-04-25 22:24:33' ],
-]);
-
 1;
