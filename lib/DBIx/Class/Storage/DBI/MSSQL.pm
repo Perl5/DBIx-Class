@@ -12,6 +12,14 @@ sub last_insert_id {
   return $id;
 }
 
+sub build_datetime_parser {
+  my $self = shift;
+  my $type = "DateTime::Format::Strptime";
+  eval "use ${type}";
+  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  return $type->new( pattern => '%m/%d/%Y %H:%M:%S' );
+}
+
 1;
 
 =head1 NAME
