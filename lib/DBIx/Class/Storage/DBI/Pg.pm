@@ -35,6 +35,8 @@ sub sqlt_type {
   return 'PostgreSQL';
 }
 
+sub datetime_parser_type { return "DateTime::Format::Pg"; }
+
 1;
 
 =head1 NAME

@@ -32,7 +32,7 @@ __PACKAGE__->load_classes(qw/
     'Producer',
     'CD_to_Producer',
   ),
-  qw/SelfRefAlias TreeLike TwoKeyTreeLike/
+  qw/SelfRefAlias TreeLike TwoKeyTreeLike Event/
 );
 
 1;
