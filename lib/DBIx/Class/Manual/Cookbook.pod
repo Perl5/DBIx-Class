@@ -313,9 +313,8 @@ L<DBIx::Class> has now prefetched all matching data from the C<artist> table,
 so no additional SQL statements are executed. You now have a much more
 efficient query.
 
-Note that as of L<DBIx::Class> 0.04, C<prefetch> cannot be used with
-C<has_many> relationships. You will get an error along the lines of "No
-accessor for prefetched ..." if you try.
+Note that as of L<DBIx::Class> 0.05999_01, C<prefetch> I<can> be used with
+C<has_many> relationships.
 
 Also note that C<prefetch> should only be used when you know you will
 definitely use data from a related table. Pre-fetching related tables when you

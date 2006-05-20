@@ -22,7 +22,7 @@ use Class::Inspector;
     my $cond = shift;
     my $attrs = shift || {};
     $attrs->{order_by} = 'year DESC';
-    $self->next::method($cond, $attrs);
+    $self->search($cond, $attrs);
   }
 
   $rs = $schema->resultset('CD')->search_by_year_desc({ artist => 'Tool' });
