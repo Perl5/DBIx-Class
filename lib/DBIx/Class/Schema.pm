@@ -460,7 +460,7 @@ sub connection {
   my $storage = $storage_class->new;
   $storage->connect_info(\@info);
   $self->storage($storage);
-  $self->on_connect() if($self->can('on_connect'));
+  $self->storage->on_connect(sub { $self->on_connect() } )if($self->can('on_connect'));
   return $self;
 }
 

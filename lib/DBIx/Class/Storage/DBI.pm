@@ -243,7 +243,7 @@ __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugfh
-     cursor on_connect_do transaction_depth/);
+     cursor on_connect_do on_connect transaction_depth/);
 
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
@@ -435,6 +435,7 @@ sub _populate_dbh {
   foreach my $sql_statement (@{$self->on_connect_do || []}) {
     $self->_dbh->do($sql_statement);
   }
+  $self->on_connect->();
 
   $self->_conn_pid($$);
   $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
