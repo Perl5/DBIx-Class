@@ -460,7 +460,7 @@ sub connection {
   my $storage = $storage_class->new;
   $storage->connect_info(\@info);
   $self->storage($storage);
-  $self->storage->on_connect(sub { $self->on_connect() } )if($self->can('on_connect'));
+  $self->on_connect() if($self->can('on_connect'));
   return $self;
 }
 
@@ -715,6 +715,7 @@ across all databases, or fully handle complex relationships.
 sub deploy {
   my ($self, $sqltargs) = @_;
   $self->throw_exception("Can't deploy without storage") unless $self->storage;
+  $self->storage->ensure_connected();
   $self->storage->deploy($self, undef, $sqltargs);
 }
 

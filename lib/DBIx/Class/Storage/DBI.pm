@@ -435,7 +435,6 @@ sub _populate_dbh {
   foreach my $sql_statement (@{$self->on_connect_do || []}) {
     $self->_dbh->do($sql_statement);
   }
-  $self->on_connect->();
 
   $self->_conn_pid($$);
   $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
