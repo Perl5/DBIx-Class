@@ -174,11 +174,10 @@ sub search_rs {
     }
     delete $attrs->{$key};
   }
-#  use Data::Dumper; warn "merge old to new: " . Dumper($our_attrs);
+
   if (exists $our_attrs->{prefetch}) {
       $our_attrs->{join} = $self->_merge_attr($our_attrs->{join}, $our_attrs->{prefetch}, 1);
   }
-#  use Data::Dumper; warn "merge prefetch: " . Dumper($our_attrs); 
 
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
@@ -860,7 +859,6 @@ sub _count { # Separated out so pager can get the full count
     }
 
     $select = { count => { distinct => \@distinct } };
-    #use Data::Dumper; die Dumper $select;
   }
 
   $attrs->{select} = $select;
