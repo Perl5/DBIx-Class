@@ -8,6 +8,7 @@ use overload
         fallback => 1;
 use Data::Page;
 use Storable;
+use Data::Dumper;
 use Scalar::Util qw/weaken/;
 
 use DBIx::Class::ResultSetColumn;
@@ -173,6 +174,12 @@ sub search_rs {
     }
     delete $attrs->{$key};
   }
+#  use Data::Dumper; warn "merge old to new: " . Dumper($our_attrs);
+  if (exists $our_attrs->{prefetch}) {
+      $our_attrs->{join} = $self->_merge_attr($our_attrs->{join}, $our_attrs->{prefetch}, 1);
+  }
+#  use Data::Dumper; warn "merge prefetch: " . Dumper($our_attrs); 
+
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
   # merge new where and having into old
@@ -333,7 +340,6 @@ sub find {
   my $query = @unique_queries ? \@unique_queries : undef;
 
   # Run the query
-
   if (keys %$attrs) {
     my $rs = $self->search($query, $attrs);
     $rs->_resolve;
@@ -573,7 +579,6 @@ sub next {
   return $self->_construct_object(@row);
 }
 
-# XXX - this is essentially just the old new(). rewrite / tidy up?
 sub _resolve {
   my $self = shift;
 
@@ -582,7 +587,7 @@ sub _resolve {
   my $attrs = $self->{attrs};  
   my $source = ($self->{_parent_rs}) ? $self->{_parent_rs} : $self->{result_source};
 
-  # XXX - this is a hack to prevent dclone dieing because of the code ref, get's put back in $attrs afterwards
+  # XXX - lose storable dclone
   my $record_filter = delete $attrs->{record_filter} if (defined $attrs->{record_filter});
   $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
   $attrs->{record_filter} = $record_filter if ($record_filter);
@@ -649,40 +654,56 @@ sub _resolve {
 }
 
 sub _merge_attr {
-  my ($self, $a, $b) = @_;
+  my ($self, $a, $b, $is_prefetch) = @_;
     
+  return $b unless $a;
   if (ref $b eq 'HASH' && ref $a eq 'HASH') {
-    return $self->_merge_hash($a, $b);
+		foreach my $key (keys %{$b}) {
+			if (exists $a->{$key}) {
+	      $a->{$key} = $self->_merge_attr($a->{$key}, $b->{$key}, $is_prefetch);
+			} else {
+	      $a->{$key} = delete $b->{$key};
+			}
+		}
+		return $a;
   } else {
-    $a = [$a] unless (ref $a eq 'ARRAY');
-    $b = [$b] unless (ref $b eq 'ARRAY');
-    my @new_array = (@{$a}, @{$b});
-    foreach my $a_element (@new_array) {
-      my $i = 0;
-      foreach my $b_element (@new_array) {
-	if ((ref $a_element eq 'HASH') && (ref $b_element eq 'HASH') && ($a_element ne $b_element)) {
-	    $a_element = $self->_merge_hash($a_element, $b_element);
-	    $new_array[$i] = undef;
-	}
-	$i++;
-      }
-    }
-    @new_array = grep($_, @new_array);
-    return \@new_array;
-  }  
+		$a = [$a] unless (ref $a eq 'ARRAY');
+		$b = [$b] unless (ref $b eq 'ARRAY');
+
+		my $hash = {};
+		my $array = [];      
+		foreach ($a, $b) {
+			foreach my $element (@{$_}) {
+	      if (ref $element eq 'HASH') {
+					$hash = $self->_merge_attr($hash, $element, $is_prefetch);
+	      } elsif (ref $element eq 'ARRAY') {
+					$array = [@{$array}, @{$element}];
+	      } else {	
+					if (($b == $_) && $is_prefetch) {
+						$self->_merge_array($array, $element, $is_prefetch);
+					} else {
+						push(@{$array}, $element);
+					}
+	      }
+			}
+		}
+
+		if ((keys %{$hash}) && (scalar(@{$array} > 0))) {
+			return [$hash, @{$array}];
+		} else {	
+			return (keys %{$hash}) ? $hash : $array;
+		}
+  }
 }
 
-sub _merge_hash {
-  my ($self, $a, $b) = @_;
-
-  foreach my $key (keys %{$b}) {
-    if (exists $a->{$key}) {
-      $a->{$key} = $self->_merge_attr($a->{$key}, $b->{$key});
-    } else {
-      $a->{$key} = delete $b->{$key};
-    }
-  }
-  return $a;
+sub _merge_array {
+	my ($self, $a, $b) = @_;
+ 
+	$b = [$b] unless (ref $b eq 'ARRAY');
+	# add elements from @{$b} to @{$a} which aren't already in @{$a}
+	foreach my $b_element (@{$b}) {
+		push(@{$a}, $b_element) unless grep {$b_element eq $_} @{$a};
+	}
 }
 
 sub _construct_object {
