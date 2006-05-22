@@ -1,7 +1,7 @@
 sub run_tests {
 my $schema = shift;
 
-plan tests => ;
+plan tests => 4;
 
 my $rs1 = $schema->resultset("Artist")->search({ 'tags.tag' => 'Blue' }, { join => {'cds' => 'tracks'}, prefetch => {'cds' => 'tags'} });
 my @artists = $rs1->all;
@@ -15,7 +15,7 @@ my $rs4 = $schema->resultset("CD")->search({ 'artist.artistid' => '1' }, { join 
 my @rs4_results = $rs4->all;
 
 
-is(@rs4_results[0]->cdid, 1, "correct artist returned");
+is($rs4_results[0]->cdid, 1, "correct artist returned");
 
 my $rs5 = $rs4->search({'tracks.title' => 'Sticky Honey'});
 is($rs5->count, 1, "search without using previous joins okay");
