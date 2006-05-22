@@ -60,6 +60,7 @@ sub on_connect
     {
 #        print "deploying.. \n";
         $vschema->storage->debug(1);
+        $vschema->storage->ensure_connected();
 #        print "Debugging is: ", $vschema->storage->debug, "\n";
         $vschema->deploy();
         $pversion = 0;
