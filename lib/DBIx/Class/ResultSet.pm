@@ -1304,6 +1304,11 @@ Which column(s) to order the results by. This is currently passed
 through directly to SQL, so you can give e.g. C<year DESC> for a
 descending order on the column `year'.
 
+Please note that if you have quoting enabled (see 
+L<DBIx::Class::Storage/quote_char>) you will need to do C<\'year DESC' > to
+specify an order. (The scalar ref causes it to be passed as raw sql to the DB,
+so you will need to manually quote things as appropriate.)
+
 =head2 columns
 
 =over 4
@@ -1503,7 +1508,9 @@ with an accessor type of 'single' or 'filter').
 
 Makes the resultset paged and specifies the page to retrieve. Effectively
 identical to creating a non-pages resultset and then calling ->page($page)
-on it.
+on it. 
+
+If L<rows> attribute is not specified it defualts to 10 rows per page.
 
 =head2 rows
 
@@ -1515,6 +1522,17 @@ on it.
 
 Specifes the maximum number of rows for direct retrieval or the number of
 rows per page if the page attribute or method is used.
+
+=head2 offset
+
+=over 4
+
+=item Value: $offset
+
+=back
+
+Specifies the (zero-based) row number for the  first row to be returned, or the
+of the first row of the first page if paging is used.
 
 =head2 group_by
 

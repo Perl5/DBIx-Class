@@ -283,6 +283,24 @@ This class represents the connection to the database
 
 Executes the sql statements given as a listref on every db connect.
 
+=head2 quote_char
+
+Specifies what characters to use to quote table and column names. If 
+you use this you will want to specify L<name_sep> as well.
+
+quote_char expectes either a single character, in which case is it is placed
+on either side of the table/column, or an array of length 2 in which case the
+table/column name is placed between the elements.
+
+For example under MySQL you'd use C<quote_char('`')>, and user SQL Server you'd 
+use C<quote_char(qw/[ ]/)>.
+
+=head2 name_sep
+
+This only needs to be used in conjunction with L<quote_char>, and is used to 
+specify the charecter that seperates elements (schemas, tables, columns) from 
+each other. In most cases this is simply a C<.>.
+
 =head2 debug
 
 Causes SQL trace information to be emitted on C<debugfh> filehandle
