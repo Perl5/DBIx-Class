@@ -847,7 +847,7 @@ sub _count { # Separated out so pager can get the full count
   
   $self->_resolve;
   my $attrs = { %{ $self->{_attrs} } };
-  if ($attrs->{distinct} && (my $group_by = $attrs->{group_by} || $attrs->{select})) {
+  if (my $group_by = delete $attrs->{group_by}) {
     delete $attrs->{having};
     my @distinct = (ref $group_by ?  @$group_by : ($group_by));
     # todo: try CONCAT for multi-column pk

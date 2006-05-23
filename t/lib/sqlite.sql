@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat May 20 01:05:10 2006
+-- Created on Tue May 23 21:10:54 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -101,15 +101,6 @@ CREATE TABLE track (
 --
 CREATE TABLE self_ref (
   id INTEGER PRIMARY KEY NOT NULL,
-  name varchar(100) NOT NULL
-);
-
---
--- Table: treelike
---
-CREATE TABLE treelike (
-  id INTEGER PRIMARY KEY NOT NULL,
-  parent integer NOT NULL,
   name varchar(100) NOT NULL
 );
 
