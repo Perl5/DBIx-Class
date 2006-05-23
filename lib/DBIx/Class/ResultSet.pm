@@ -631,6 +631,18 @@ sub _resolve {
   $attrs->{order_by} = [ $attrs->{order_by} ] if
       $attrs->{order_by} and !ref($attrs->{order_by});
   $attrs->{order_by} ||= [];
+
+ if(my $seladds = delete($attrs->{'+select'})) {
+   my @seladds = (ref($seladds) eq 'ARRAY' ? @$seladds : ($seladds));
+   $attrs->{select} = [
+     @{ $attrs->{select} },
+     map { (m/\./ || ref($_)) ? $_ : "${alias}.$_" } $seladds
+   ];
+ }
+ if(my $asadds = delete($attrs->{'+as'})) {
+   my @asadds = (ref($asadds) eq 'ARRAY' ? @$asadds : ($asadds));
+   $attrs->{as} = [ @{ $attrs->{as} }, @asadds ];
+ }
   
   my $collapse = $attrs->{collapse} || {};
   if (my $prefetch = delete $attrs->{prefetch}) {
@@ -1557,6 +1569,23 @@ names:
 When you use function/stored procedure names and do not supply an C<as>
 attribute, the column names returned are storage-dependent. E.g. MySQL would
 return a column named C<count(employeeid)> in the above example.
+
+=head2 +select
+
+=over 4
+
+Indicates additional columns to be selected from storage.  Works the same as
+L<select> but adds columns to the selection.
+
+=back
+
+=head2 +as
+
+=over 4
+
+Indicates additional column names for those added via L<+select>.
+
+=back
 
 =head2 as
 
