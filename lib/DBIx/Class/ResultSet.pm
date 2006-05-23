@@ -911,7 +911,7 @@ sub _cond_for_update_delete {
       $cond->{-and} = [];
 
       my @cond = @{$self->{cond}{-and}};
-      for (my $i = 0; $i < @cond - 1; $i++) {
+      for (my $i = 0; $i <= @cond - 1; $i++) {
         my $entry = $cond[$i];
 
         my %hash;
