@@ -923,7 +923,7 @@ sub _cond_for_update_delete {
         }
         else {
           $entry =~ /([^.]+)$/;
-          $hash{$entry} = $cond[++$i];
+          $hash{$1} = $cond[++$i];
         }
 
         push @{$cond->{-and}}, \%hash;
