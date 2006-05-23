@@ -6,11 +6,8 @@ use warnings;
 
 sub has_many {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
-    
-  eval "require $f_class";
-  if ($@) {
-    $class->throw_exception($@) unless $@ =~ /Can't locate/;
-  }
+
+  $class->ensure_class_loaded($f_class);
 
   unless (ref $cond) {
     my ($pri, $too_many) = $class->primary_columns;

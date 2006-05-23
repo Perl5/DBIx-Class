@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sun May 14 18:25:49 2006
+-- Created on Sat May 20 01:05:10 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -129,6 +129,14 @@ CREATE TABLE link (
   id INTEGER PRIMARY KEY NOT NULL,
   url varchar(100),
   title varchar(100)
+);
+
+--
+-- Table: event
+--
+CREATE TABLE event (
+  id INTEGER PRIMARY KEY NOT NULL,
+  starts_at datetime NOT NULL
 );
 
 --

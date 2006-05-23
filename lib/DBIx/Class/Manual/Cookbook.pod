@@ -313,9 +313,8 @@ L<DBIx::Class> has now prefetched all matching data from the C<artist> table,
 so no additional SQL statements are executed. You now have a much more
 efficient query.
 
-Note that as of L<DBIx::Class> 0.04, C<prefetch> cannot be used with
-C<has_many> relationships. You will get an error along the lines of "No
-accessor for prefetched ..." if you try.
+Note that as of L<DBIx::Class> 0.05999_01, C<prefetch> I<can> be used with
+C<has_many> relationships.
 
 Also note that C<prefetch> should only be used when you know you will
 definitely use data from a related table. Pre-fetching related tables when you
@@ -845,5 +844,18 @@ array:
 
 You could then create average, high and low execution times for an SQL
 statement and dig down to see if certain parameters cause aberrant behavior.
+
+=head2 Getting the value of the primary key for the last database insert
+
+AKA getting last_insert_id
+
+If you are using PK::Auto, this is straightforward:
+
+  my $foo = $rs->create(\%blah);
+  # do more stuff
+  my $id = $foo->id; # foo->my_primary_key_field will also work.
+
+If you are not using autoincrementing primary keys, this will probably
+not work, but then you already know the value of the last primary key anyway.
 
 =cut

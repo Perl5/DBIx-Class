@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - added AutoInflate::DateTime component
         - refactor debugging to allow for profiling using Storage::Statistics
         - removed Data::UUID from deps, made other optionals required
         - modified SQLT parser to skip dupe table names

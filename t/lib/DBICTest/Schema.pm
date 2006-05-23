@@ -11,6 +11,7 @@ __PACKAGE__->load_classes(qw/
   CD
   Link
   Bookmark
+  #Casecheck
   #dummy
   Track
   Tag
@@ -31,7 +32,7 @@ __PACKAGE__->load_classes(qw/
     'Producer',
     'CD_to_Producer',
   ),
-  qw/SelfRefAlias TreeLike TwoKeyTreeLike/
+  qw/SelfRefAlias TreeLike TwoKeyTreeLike Event/
 );
 
 sub deploy {

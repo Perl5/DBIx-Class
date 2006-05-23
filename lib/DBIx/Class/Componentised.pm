@@ -5,16 +5,16 @@ use strict;
 use warnings;
 
 use Class::C3;
+use Class::Inspector;
 
 sub inject_base {
   my ($class, $target, @to_inject) = @_;
   {
     no strict 'refs';
-    my %seen;
-    unshift( @{"${target}::ISA"},
-        grep { !$seen{ $_ }++ && $target ne $_ && !$target->isa($_) }
-            @to_inject
-    );
+    foreach my $to (reverse @to_inject) {
+       unshift( @{"${target}::ISA"}, $to )
+         unless ($target eq $to || $target->isa($to));
+    }
   }
 
   # Yes, this is hack. But it *does* work. Please don't submit tickets about
@@ -42,10 +42,20 @@ sub load_own_components {
 sub _load_components {
   my ($class, @comp) = @_;
   foreach my $comp (@comp) {
-    eval "use $comp";
-    die $@ if $@;
+    $class->ensure_class_loaded($comp);
   }
   $class->inject_base($class => @comp);
+}
+
+# TODO: handle ->has_many('rel', 'Class'...) instead of
+#              ->has_many('rel', 'Some::Schema::Class'...)
+sub ensure_class_loaded {
+  my ($class, $f_class) = @_;
+  eval "require $f_class";
+  my $err = $@;
+  Class::Inspector->loaded($f_class)
+      or die $err || "require $f_class was successful but the package".
+                     "is not defined";
 }
 
 1;

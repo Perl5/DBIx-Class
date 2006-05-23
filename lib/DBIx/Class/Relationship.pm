@@ -118,6 +118,9 @@ instead of a join condition hash, that is used as the name of the column
 holding the foreign key. If $cond is not given, the relname is used as
 the column name.
 
+Cascading deletes are off per default on a C<belongs_to> relationship, to turn
+them on, pass C<< cascade_delete => 1 >> in the $attr hashref.
+
 NOTE: If you are used to L<Class::DBI> relationships, this is the equivalent
 of C<has_a>.
 
@@ -151,8 +154,9 @@ you to insert new related items, using the same mechanism as in
 L<DBIx::Class::Relationship::Base/"create_related">.
 
 If you delete an object in a class with a C<has_many> relationship, all
-related objects will be deleted as well. However, any database-level
-cascade or restrict will take precedence.
+the related objects will be deleted as well. However, any database-level
+cascade or restrict will take precedence. To turn this behavior off, pass
+C<< cascade_delete => 0 >> in the $attr hashref.
 
 =head2 might_have
 
@@ -167,6 +171,7 @@ key of the foreign class unless $cond specifies a column or join condition.
 If you update or delete an object in a class with a C<might_have>
 relationship, the related object will be updated or deleted as well.
 Any database-level update or delete constraints will override this behaviour.
+To turn off this behavior, add C<< cascade_delete => 0 >> to the $attr hashref.
 
 =head2 has_one
 

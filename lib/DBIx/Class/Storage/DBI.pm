@@ -509,8 +509,8 @@ Issues a commit against the current dbh.
 
 sub txn_commit {
   my $self = shift;
+  my $dbh = $self->dbh;
   if ($self->{transaction_depth} == 0) {
-    my $dbh = $self->dbh;
     unless ($dbh->{AutoCommit}) {
       $self->debugobj->txn_commit()
         if ($self->debug);
@@ -521,7 +521,7 @@ sub txn_commit {
     if (--$self->{transaction_depth} == 0) {
       $self->debugobj->txn_commit()
         if ($self->debug);
-      $self->dbh->commit;
+      $dbh->commit;
     }
   }
 }
@@ -538,8 +538,8 @@ sub txn_rollback {
   my $self = shift;
 
   eval {
+    my $dbh = $self->dbh;
     if ($self->{transaction_depth} == 0) {
-      my $dbh = $self->dbh;
       unless ($dbh->{AutoCommit}) {
         $self->debugobj->txn_rollback()
           if ($self->debug);
@@ -550,7 +550,7 @@ sub txn_rollback {
       if (--$self->{transaction_depth} == 0) {
         $self->debugobj->txn_rollback()
           if ($self->debug);
-        $self->dbh->rollback;
+        $dbh->rollback;
       }
       else {
         die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
@@ -578,9 +578,10 @@ sub _execute {
   my $sth = eval { $self->sth($sql,$op) };
 
   if (!$sth || $@) {
-    $self->throw_exception('no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql");
+    $self->throw_exception(
+      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
+    );
   }
-
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {
@@ -692,8 +693,10 @@ sub columns_info_for {
         $column_info{size}      = $info->{COLUMN_SIZE};
         $column_info{is_nullable}   = $info->{NULLABLE} ? 1 : 0;
         $column_info{default_value} = $info->{COLUMN_DEF};
+        my $col_name = $info->{COLUMN_NAME};
+        $col_name =~ s/^\"(.*)\"$/$1/;
 
-        $result{$info->{COLUMN_NAME}} = \%column_info;
+        $result{$col_name} = \%column_info;
       }
     };
     $dbh->{RaiseError} = $old_raise_err;
@@ -837,6 +840,21 @@ sub deploy {
       $self->debugobj->query_end($_) if $self->debug;
     }
   }
+}
+
+sub datetime_parser {
+  my $self = shift;
+  return $self->{datetime_parser} ||= $self->build_datetime_parser(@_);
+}
+
+sub datetime_parser_type { "DateTime::Format::MySQL"; }
+
+sub build_datetime_parser {
+  my $self = shift;
+  my $type = $self->datetime_parser_type(@_);
+  eval "use ${type}";
+  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  return $type;
 }
 
 sub DESTROY { shift->disconnect }
