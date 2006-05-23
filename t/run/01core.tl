@@ -245,6 +245,14 @@ ok($schema->storage(), 'Storage available');
   cmp_ok(@artsn, '==', 4, "Four artists returned");
 }
 
+my $newbook = $schema->resultset( 'Bookmark' )->find(1);
+
+$@ = '';
+eval {
+my $newlink = $newbook->link;
+};
+ok(!$@, "stringify to false value doesn't cause error");
+
 # test cascade_delete through many_to_many relations
 {
   my $art_del = $schema->resultset("Artist")->find({ artistid => 1 });

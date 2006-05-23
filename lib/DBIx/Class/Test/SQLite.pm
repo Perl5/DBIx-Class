@@ -35,7 +35,7 @@ use warnings;
 
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/PK::Auto CDBICompat Core DB/);
+__PACKAGE__->load_components(qw/CDBICompat Core DB/);
 
 use File::Temp qw/tempfile/;
 my (undef, $DB) = tempfile();

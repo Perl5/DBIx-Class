@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - added AutoInflate::DateTime component
+        - refactor debugging to allow for profiling using Storage::Statistics
+        - removed Data::UUID from deps, made other optionals required
         - modified SQLT parser to skip dupe table names
         - added remove_column(s) to ResultSource/ResultSourceProxy
         - added add_column alias to ResultSourceProxy
@@ -17,6 +20,12 @@ Revision history for DBIx::Class
           ColumnCase is loaded
 
 0.06003
+        - make find_or_create_related check defined() instead of truth
+        - don't unnecessarily fetch rels for cascade_update
+        - don't set_columns explicitly in update_or_create; instead use
+          update($hashref) so InflateColumn works
+        - fix for has_many prefetch with 0 related rows
+        - make limit error if rows => 0
         - added memory cycle tests and a long-needed weaken call
 
 0.06002 2006-04-20 00:42:41

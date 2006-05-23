@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sun Apr 30 07:37:44 2006
+-- Created on Sat May 20 01:05:10 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -79,6 +79,14 @@ CREATE TABLE cd (
 );
 
 --
+-- Table: bookmark
+--
+CREATE TABLE bookmark (
+  id INTEGER PRIMARY KEY NOT NULL,
+  link integer NOT NULL
+);
+
+--
 -- Table: track
 --
 CREATE TABLE track (
@@ -112,6 +120,32 @@ CREATE TABLE tags (
   tagid INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL,
   tag varchar(100) NOT NULL
+);
+
+--
+-- Table: treelike
+--
+CREATE TABLE treelike (
+  id INTEGER PRIMARY KEY NOT NULL,
+  parent integer NOT NULL,
+  name varchar(100) NOT NULL
+);
+
+--
+-- Table: link
+--
+CREATE TABLE link (
+  id INTEGER PRIMARY KEY NOT NULL,
+  url varchar(100),
+  title varchar(100)
+);
+
+--
+-- Table: event
+--
+CREATE TABLE event (
+  id INTEGER PRIMARY KEY NOT NULL,
+  starts_at datetime NOT NULL
 );
 
 --
