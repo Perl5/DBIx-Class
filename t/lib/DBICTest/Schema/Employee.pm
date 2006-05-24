@@ -1,9 +1,9 @@
 package # hide from PAUSE 
     DBICTest::Schema::Employee;
 
-use base 'DBIx::Class';
+use base 'DBIx::Class::Core';
 
-__PACKAGE__->load_components(qw( Ordered PK::Auto Core ));
+__PACKAGE__->load_components(qw( Ordered ));
 
 __PACKAGE__->table('employee');
 

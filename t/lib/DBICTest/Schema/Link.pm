@@ -6,7 +6,6 @@ use base 'DBIx::Class::Core';
 use strict;
 use warnings;
 
-__PACKAGE__->load_components(qw/PK::Auto Core/);
 __PACKAGE__->table('link');
 __PACKAGE__->add_columns(
     'id' => {
