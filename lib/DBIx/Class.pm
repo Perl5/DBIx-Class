@@ -206,6 +206,8 @@ quicksilver: Jules Bean
 
 jguenther: Justin Guenther <guentherj@agr.gc.ca>
 
+captainL: Luke Saunders <luke.saunders@gmail.com>
+
 draven: Marcus Ramberg <mramberg@cpan.org>
 
 nigel: Nigel Metheringham <nigelm@cpan.org>
@@ -221,8 +223,6 @@ konobi: Scott McWhirter
 scotty: Scotty Allen <scotty@scottyallen.com>
 
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
-
-captainL: Luke Saunders <luke.saunders@gmail.com>
 
 Todd Lipcon
 
