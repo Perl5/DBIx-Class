@@ -6,6 +6,7 @@ use overload
         '0+'     => \&count,
         'bool'   => sub { 1; },
         fallback => 1;
+use Carp::Clan qw/^DBIx::Class/;
 use Data::Page;
 use Storable;
 use Data::Dumper;
@@ -303,7 +304,8 @@ sub find {
     @{$hash}{@cols} = @_;
   }
   elsif (@_) {
-    # For backwards compatibility
+    # Compatibility: Allow e.g. find(id => $value)
+    carp "find by key => value deprecated; please use a hashref instead";
     $hash = {@_};
   }
   else {
@@ -317,9 +319,8 @@ sub find {
   my @constraint_names = exists $attrs->{key}
     ? ($attrs->{key})
     : $self->result_source->unique_constraint_names;
-  $self->throw_exception(
-    "Can't find unless a primary key or unique constraint is defined"
-  ) unless @constraint_names;
+  carp "find now requires a primary key or unique constraint; none is defined on "
+    . $self->result_source->name unless @constraint_names;
 
   my @unique_queries;
   foreach my $name (@constraint_names) {
@@ -333,6 +334,13 @@ sub find {
     }
 
     push @unique_queries, $unique_query if %$unique_query;
+  }
+
+  # Compatibility: if we didn't get a unique query, take what the user provided
+  if (%$hash and not @unique_queries) {
+    carp "find now requires values for the primary key or a unique constraint"
+      . "; please use the search method instead";
+    push @unique_queries, $hash;
   }
 
   # Handle cases where the ResultSet already defines the query
