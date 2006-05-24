@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest::init_schema();
 
-plan tests => 5; 
+plan tests => 8; 
 
 my $cd;
 my $rs = $cd = $schema->resultset("CD")->search({});
@@ -24,4 +24,21 @@ cmp_ok($rs_year->max, '==', 2001, "max okay for year");
 is($rs_title->min, 'Caterwaulin\' Blues', "min okay for title");
 
 cmp_ok($rs_year->sum, '==', 9996, "three artists returned");
+
+my $psrs = $schema->resultset('CD')->search({},
+    {
+        '+select'   => \'COUNT(*)',
+        '+as'       => 'count'
+    }
+);
+ok(defined($psrs->get_column('count')), '+select/+as count');
+
+$psrs = $schema->resultset('CD')->search({},
+    {
+        '+select'   => [ \'COUNT(*)', 'title' ],
+        '+as'       => [ 'count', 'addedtitle' ]
+    }
+);
+ok(defined($psrs->get_column('count')), '+select/+as arrayref count');
+ok(defined($psrs->get_column('addedtitle')), '+select/+as title');
 

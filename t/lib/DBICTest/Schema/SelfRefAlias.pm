@@ -16,6 +16,5 @@ __PACKAGE__->set_primary_key(qw/self_ref alias/);
 
 __PACKAGE__->belongs_to( self_ref => 'DBICTest::Schema::SelfRef' );
 __PACKAGE__->belongs_to( alias => 'DBICTest::Schema::SelfRef' );
-__PACKAGE__->has_many( aliases => 'DBICTest::Schema::SelfRefAlias' => 'self_ref' );
 
 1;

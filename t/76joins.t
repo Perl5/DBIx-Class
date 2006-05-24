@@ -13,7 +13,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 44 );
+        : ( tests => 42 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -106,10 +106,6 @@ $rs = $schema->resultset("CD")->search(
     { join => [qw/artist/], order_by => 'artist.name' }
 );
 cmp_ok( scalar $rs->all, '==', scalar $rs->slice(0, $rs->count - 1), 'slice() with join has same count as all()' );
-
-eval { $rs->search(undef, { rows => 0, offset => 3 })->all; };
-
-ok($@, "rows => 0 errors: $@");
 
 $rs = $schema->resultset("Artist")->search(
         { 'liner_notes.notes' => 'Kill Yourself!' },
@@ -282,23 +278,4 @@ is($tree_like->name, 'foo', 'Third level up ok');
 $schema->storage->debug(0);
 
 cmp_ok($queries, '==', 1, 'Only one query run');
-
-# has_many resulting in an additional select if no records available despite prefetch
-my $track = $schema->resultset("Artist")->create( {
-  artistid  => 4,
-  name      => 'Artist without CDs',
-} );
-
-$queries = 0;
-$schema->storage->debug(1);
-
-my $artist_without_cds = $schema->resultset("Artist")->find(4, {
-    join        => [qw/ cds /],
-    prefetch    => [qw/ cds /],
-});
-my @no_cds = $artist_without_cds->cds;
-
-is($queries, 1, 'prefetch ran only 1 sql statement');
-
-$schema->storage->debug(0);
 
