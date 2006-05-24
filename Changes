@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+	- add ResultSetColumn
+	- refactor ResultSet code to resolve attrs as late as poss
+	- merge prefetch attrs into join attrs
         - add +select and +as attributes to ResultSet
         - added AutoInflate::DateTime component
         - refactor debugging to allow for profiling using Storage::Statistics
