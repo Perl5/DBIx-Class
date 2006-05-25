@@ -525,12 +525,11 @@ exception) an exception is thrown that includes a "Rollback failed" message.
 For example,
 
   my $author_rs = $schema->resultset('Author')->find(1);
+  my @titles = qw/Night Day It/;
 
   my $coderef = sub {
-    my ($author, @titles) = @_;
-
     # If any one of these fails, the entire transaction fails
-    $author->create_related('books', {
+    $author_rs->create_related('books', {
       title => $_
     }) foreach (@titles);
 
@@ -539,16 +538,14 @@ For example,
 
   my $rs;
   eval {
-    $rs = $schema->txn_do($coderef, $author_rs, qw/Night Day It/);
+    $rs = $schema->txn_do($coderef);
   };
 
-  if ($@) {
-    my $error = $@;
-    if ($error =~ /Rollback failed/) {
-      die "something terrible has happened!";
-    } else {
-      deal_with_failed_transaction();
-    }
+  if ($@) {                                  # Transaction failed
+    die "something terrible has happened!"   #
+      if ($@ =~ /Rollback failed/);          # Rollback failed
+
+    deal_with_failed_transaction();
   }
 
 In a nested transaction (calling txn_do() from within a txn_do() coderef) only

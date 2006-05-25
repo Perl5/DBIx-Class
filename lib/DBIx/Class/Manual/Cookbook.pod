@@ -409,24 +409,22 @@ example of the recommended way to use it:
 
   my $genus = $schema->resultset('Genus')->find(12);
 
-  my $coderef1 = sub {
-    my ($schema, $genus, $code) = @_;
-    $genus->add_to_species({ name => 'troglodyte' });
-    $genus->wings(2);
-    $genus->update;
-    $schema->txn_do($code, $genus); # Can have a nested transaction
-    return $genus->species;
-  };
-
   my $coderef2 = sub {
-    my ($genus) = @_;
     $genus->extinct(1);
     $genus->update;
   };
 
+  my $coderef1 = sub {
+    $genus->add_to_species({ name => 'troglodyte' });
+    $genus->wings(2);
+    $genus->update;
+    $schema->txn_do($coderef2); # Can have a nested transaction
+    return $genus->species;
+  };
+
   my $rs;
   eval {
-    $rs = $schema->txn_do($coderef1, $schema, $genus, $coderef2);
+    $rs = $schema->txn_do($coderef1);
   };
 
   if ($@) {                             # Transaction failed
