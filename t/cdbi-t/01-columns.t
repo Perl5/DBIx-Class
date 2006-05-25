@@ -43,8 +43,16 @@ use base 'DBIx::Class::Test::SQLite';
 
 City->table('City');
 City->columns(All => qw/Name State Population/);
-City->has_a(State => 'State');
 
+{
+  # Disable the `no such table' warning
+  local $SIG{__WARN__} = sub {
+    my $warning = shift;
+    warn $warning unless ($warning =~ /\Qno such table: City(1)\E/);
+  };
+
+  City->has_a(State => 'State');
+}
 
 #-------------------------------------------------------------------------
 package CD;
