@@ -14,7 +14,7 @@ my $artist_cds = $artist->search_related('cds');
 my $cover_band;
 
 {
-  no warnings 'redefine';
+  no warnings qw(redefine once);
   local *DBICTest::Artist::result_source_instance = \&DBICTest::Schema::Artist::result_source_instance;
 
   $cover_band = $artist->copy;
