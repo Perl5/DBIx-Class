@@ -1,4 +1,6 @@
 use strict;
+use warnings;
+
 use Test::More;
 use IO::File;
 
@@ -6,14 +8,13 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 7 );
+        : ( tests => 6 );
 }
 
 use lib qw(t/lib);
 
 use_ok('DBICTest');
-
-use_ok('DBICTest::HelperRels');
+DBICTest::init_schema();
 
 DBICTest->schema->storage->sql_maker->quote_char("'");
 DBICTest->schema->storage->sql_maker->name_sep('.');

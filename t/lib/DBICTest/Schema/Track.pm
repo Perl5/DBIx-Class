@@ -3,8 +3,8 @@ package # hide from PAUSE
 
 use base 'DBIx::Class::Core';
 
-DBICTest::Schema::Track->table('track');
-DBICTest::Schema::Track->add_columns(
+__PACKAGE__->table('track');
+__PACKAGE__->add_columns(
   'trackid' => {
     data_type => 'integer',
     is_auto_increment => 1,
@@ -21,6 +21,9 @@ DBICTest::Schema::Track->add_columns(
     size      => 100,
   },
 );
-DBICTest::Schema::Track->set_primary_key('trackid');
+__PACKAGE__->set_primary_key('trackid');
+
+__PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD' );
+__PACKAGE__->belongs_to( disc => 'DBICTest::Schema::CD' => 'cd');
 
 1;

@@ -3,11 +3,10 @@ use strict;
 use warnings;
 use lib qw(t/lib);
 use DBICTest;
-use DBICTest::BasicRels;
 
 plan tests => 7;
 
-my $schema = DBICTest->schema;
+my $schema = DBICTest->init_schema();
 my $total_cds = $schema->resultset('CD')->count;
 cmp_ok($total_cds, '>', 0, 'need cd records');
 
@@ -28,3 +27,4 @@ cmp_ok($artist2_cds, '<', $total_cds, 'need more cds than related cds');
 
 ok($artist2->delete_related('cds', {title => {like => '%'}}));
 cmp_ok($schema->resultset('CD')->count, '==', ($total_cds - $artist2_cds), 'too many cds were deleted');
+

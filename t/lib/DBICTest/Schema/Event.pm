@@ -2,9 +2,9 @@ package DBICTest::Schema::Event;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class/;
+use base qw/DBIx::Class::Core/;
 
-__PACKAGE__->load_components(qw/InflateColumn::DateTime PK::Auto Core/);
+__PACKAGE__->load_components(qw/InflateColumn::DateTime/);
 
 __PACKAGE__->table('event');
 

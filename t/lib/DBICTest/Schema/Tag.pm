@@ -3,10 +3,8 @@ package # hide from PAUSE
 
 use base qw/DBIx::Class::Core/;
 
-__PACKAGE__->load_components('PK::Auto');
-
-DBICTest::Schema::Tag->table('tags');
-DBICTest::Schema::Tag->add_columns(
+__PACKAGE__->table('tags');
+__PACKAGE__->add_columns(
   'tagid' => {
     data_type => 'integer',
     is_auto_increment => 1,
@@ -19,6 +17,8 @@ DBICTest::Schema::Tag->add_columns(
     size      => 100,
   },
 );
-DBICTest::Schema::Tag->set_primary_key('tagid');
+__PACKAGE__->set_primary_key('tagid');
+
+__PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD' );
 
 1;
