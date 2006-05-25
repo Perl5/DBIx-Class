@@ -14,7 +14,7 @@ BEGIN {
 use lib qw(t/lib);
 
 use_ok('DBICTest');
-DBICTest::init_schema();
+DBICTest->init_schema();
 
 my $cbworks = 0;
 

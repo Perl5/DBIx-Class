@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-my $schema = DBICTest::init_schema();
+my $schema = DBICTest->init_schema();
 
 plan tests => 2;
 

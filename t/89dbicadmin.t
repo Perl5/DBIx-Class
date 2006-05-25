@@ -6,7 +6,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-my $schema = DBICTest::init_schema();
+my $schema = DBICTest->init_schema();
 
 eval 'require JSON';
 plan skip_all => 'Install JSON to run this test' if ($@);

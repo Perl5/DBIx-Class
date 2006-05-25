@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-my $schema = DBICTest::init_schema();
+my $schema = DBICTest->init_schema();
 
 # this test will check to see if you can have 2 columns
 # in the same class pointing at the same other class
