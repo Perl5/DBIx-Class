@@ -27,3 +27,4 @@ cmp_ok($artist2_cds, '<', $total_cds, 'need more cds than related cds');
 
 ok($artist2->delete_related('cds', {title => {like => '%'}}));
 cmp_ok($schema->resultset('CD')->count, '==', ($total_cds - $artist2_cds), 'too many cds were deleted');
+
