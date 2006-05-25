@@ -6,7 +6,7 @@ use lib qw(t/lib);
 use DBICTest;
 use Storable;
 
-my $schema = DBICTest::init_schema();
+my $schema = DBICTest->init_schema();
 
 plan tests => 1;
 

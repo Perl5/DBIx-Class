@@ -17,7 +17,7 @@ BEGIN {
 
 use_ok('DBICTest');
 
-my $schema = DBICTest::init_schema();
+my $schema = DBICTest->init_schema();
 my $rs = $schema->resultset('CD')->search({
   'artist.name' => 'We Are Goth',
   'liner_notes.notes' => 'Kill Yourself!',

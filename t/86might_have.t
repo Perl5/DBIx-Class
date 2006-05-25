@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-my $schema = DBICTest::init_schema();
+my $schema = DBICTest->init_schema();
 
 my $queries;
 #$schema->storage->debugfh(IO::File->new('t/var/temp.trace', 'w'));
