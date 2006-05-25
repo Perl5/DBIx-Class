@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+        - marked DB.pm as deprecated and noted it will be removed by 1.0
+	- add ResultSetColumn
+	- refactor ResultSet code to resolve attrs as late as poss
+	- merge prefetch attrs into join attrs
         - add +select and +as attributes to ResultSet
         - added AutoInflate::DateTime component
         - refactor debugging to allow for profiling using Storage::Statistics
