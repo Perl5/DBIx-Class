@@ -1391,34 +1391,15 @@ unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 sub update_or_create {
   my $self = shift;
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
-  my $hash = ref $_[0] eq 'HASH' ? shift : {@_};
+  my $cond = ref $_[0] eq 'HASH' ? shift : {@_};
 
-  my @constraint_names = exists $attrs->{key}
-    ? ($attrs->{key})
-    : $self->result_source->unique_constraint_names;
-  $self->throw_exception(
-    "update_or_create requires a primary key or unique constraint; none is defined on "
-    . $self->result_source->name
-  ) unless @constraint_names;
-
-  my @unique_queries;
-  foreach my $name (@constraint_names) {
-    my @unique_cols = $self->result_source->unique_constraint_columns($name);
-    my $unique_query = $self->_build_unique_query($hash, \@unique_cols);
-
-    push @unique_queries, $unique_query
-      if keys %$unique_query == @unique_cols;
+  my $row = $self->find($cond);
+  if (defined $row) {
+    $row->update($cond);
+    return $row;
   }
 
-  if (@unique_queries) {
-    my $row = $self->single(\@unique_queries);
-    if (defined $row) {
-      $row->update($hash);
-      return $row;
-    }
-  }
-
-  return $self->create($hash);
+  return $self->create($cond);
 }
 
 =head2 get_cache
