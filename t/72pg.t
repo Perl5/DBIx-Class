@@ -5,6 +5,20 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
+{
+  package DBICTest::Schema::Casecheck;
+
+  use strict;
+  use warnings;
+  use base 'DBIx::Class';
+
+  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  __PACKAGE__->table('casecheck');
+  __PACKAGE__->add_columns(qw/id name NAME uc_name/);
+  __PACKAGE__->set_primary_key('id');
+
+}
+
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
 #warn "$dsn $user $pass";
@@ -14,6 +28,7 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
 
 plan tests => 8;
 
+DBICTest::Schema->load_classes( 'Casecheck' );
 DBICTest::Schema->compose_connection('PgTest' => $dsn, $user, $pass);
 
 my $dbh = PgTest->schema->storage->dbh;
