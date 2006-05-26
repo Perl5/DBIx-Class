@@ -310,6 +310,11 @@ sub find {
     $query = {@_};
   }
 
+  if (exists $attrs->{key}) {
+    my @unique_cols = $self->result_source->unique_constraint_columns($attrs->{key});
+    $query = $self->_build_unique_query($query, \@unique_cols);
+  }
+
   # Add the ResultSet's alias
   foreach my $key (grep { ! m/\./ } keys %$query) {
     $query->{"$self->{attrs}{alias}.$key"} = delete $query->{$key};
