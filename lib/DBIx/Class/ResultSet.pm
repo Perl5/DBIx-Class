@@ -299,34 +299,34 @@ sub find {
   ) unless @cols;
 
   # Parse out a hashref from input
-  my $cond;
+  my $input_query;
   if (ref $_[0] eq 'HASH') {
-    $cond = { %{$_[0]} };
+    $input_query = { %{$_[0]} };
   }
   elsif (@_ == @cols) {
-    $cond = {};
-    @{$cond}{@cols} = @_;
+    $input_query = {};
+    @{$input_query}{@cols} = @_;
   }
   else {
     # Compatibility: Allow e.g. find(id => $value)
     carp "find by key => value deprecated; please use a hashref instead";
-    $cond = {@_};
+    $input_query = {@_};
   }
 
-  my @unique_conds = $self->_unique_conds($cond, $attrs);
-#  use Data::Dumper; warn Dumper $self->result_source->name, $cond, \@unique_conds;
+  my @unique_queries = $self->_unique_queries($input_query, $attrs);
+#  use Data::Dumper; warn Dumper $self->result_source->name, $input_query, \@unique_queries;
 
   # Verify the query
-  my $query = \@unique_conds;
-  if (scalar @unique_conds == 0) {
+  my $query = \@unique_queries;
+  if (scalar @unique_queries == 0) {
     if (exists $attrs->{key}) {
       $self->throw_exception("required values for the $attrs->{key} key not provided");
     }
     else {
       # Compatibility: Allow broken find usage for now
       carp "find requires values for the primary key or a unique constraint"
-        . "; please use search instead";
-      $query = $cond;
+        . "; please declare your unique constraints or use search instead";
+      $query = $input_query;
     }
   }
 
@@ -344,49 +344,48 @@ sub find {
   }
 }
 
-# _unique_conds
+# _unique_queries
 #
-# Build a list of conditions which satisfy unique constraints.
+# Build a list of queries which satisfy unique constraints.
 
-sub _unique_conds {
-  my ($self, $cond, $attrs) = @_;
+sub _unique_queries {
+  my ($self, $query, $attrs) = @_;
 
-  # Check the condition against our source's unique constraints
   my @constraint_names = exists $attrs->{key}
     ? ($attrs->{key})
     : $self->result_source->unique_constraint_names;
 
-  my @unique_conds;
+  my @unique_queries;
   foreach my $name (@constraint_names) {
     my @unique_cols = $self->result_source->unique_constraint_columns($name);
-    my $unique_cond = $self->_build_unique_cond($cond, \@unique_cols);
+    my $unique_query = $self->_build_unique_query($query, \@unique_cols);
 
-    next unless scalar keys %$unique_cond == scalar @unique_cols;
+    next unless scalar keys %$unique_query == scalar @unique_cols;
 
     # Add the ResultSet's alias
-    foreach my $key (grep { ! m/\./ } keys %$unique_cond) {
-      $unique_cond->{"$self->{attrs}{alias}.$key"} = delete $unique_cond->{$key};
+    foreach my $key (grep { ! m/\./ } keys %$unique_query) {
+      $unique_query->{"$self->{attrs}{alias}.$key"} = delete $unique_query->{$key};
     }
 
-    push @unique_conds, $unique_cond;
+    push @unique_queries, $unique_query;
   }
 
-  return @unique_conds;
+  return @unique_queries;
 }
 
-# _build_unique_cond
+# _build_unique_query
 #
-# Constrain the specified condition hash based on the specified column names.
+# Constrain the specified query hash based on the specified column names.
 
-sub _build_unique_cond {
-  my ($self, $cond, $unique_cols) = @_;
+sub _build_unique_query {
+  my ($self, $query, $unique_cols) = @_;
 
-  my %unique_cond =
-    map  { $_ => $cond->{$_} }
-    grep { exists $cond->{$_} }
+  my %unique_query =
+    map  { $_ => $query->{$_} }
+    grep { exists $query->{$_} }
     @$unique_cols;
 
-  return \%unique_cond;
+  return \%unique_query;
 }
 
 =head2 search_related
