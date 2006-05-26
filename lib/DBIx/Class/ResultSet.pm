@@ -1314,8 +1314,8 @@ sub create {
 
   $class->find_or_create({ key => $val, ... });
 
-Searches for a record matching the search condition; if it doesn't find one,
-creates one and returns that instead.
+Tries to find a record based on its primary key or unique constraint; if none
+is found, creates one and returns that instead.
 
   my $cd = $schema->resultset('CD')->find_or_create({
     cdid   => 5,
