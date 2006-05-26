@@ -277,6 +277,9 @@ Additionally, you can specify the columns explicitly by name:
 
 If the C<key> is specified as C<primary>, it searches only on the primary key.
 
+If no C<key> is specified, it searches on all unique constraints defined on the
+source, including the primary key.
+
 See also L</find_or_create> and L</update_or_create>. For information on how to
 declare unique constraints, see
 L<DBIx::Class::ResultSource/add_unique_constraint>.
@@ -296,28 +299,63 @@ sub find {
   ) unless @cols;
 
   # Parse out a hashref from input
-  my $query;
+  my $cond;
   if (ref $_[0] eq 'HASH') {
-    $query = { %{$_[0]} };
+    $cond = { %{$_[0]} };
   }
   elsif (@_ == @cols) {
-    $query = {};
-    @{$query}{@cols} = @_;
+    $cond = {};
+    @{$cond}{@cols} = @_;
   }
   else {
     # Compatibility: Allow e.g. find(id => $value)
     carp "find by key => value deprecated; please use a hashref instead";
-    $query = {@_};
+    $cond = {@_};
   }
 
-  if (exists $attrs->{key}) {
-    my @unique_cols = $self->result_source->unique_constraint_columns($attrs->{key});
-    $query = $self->_build_unique_query($query, \@unique_cols);
-  }
+  return $self->_find($cond, $attrs);
+}
 
-  # Add the ResultSet's alias
-  foreach my $key (grep { ! m/\./ } keys %$query) {
-    $query->{"$self->{attrs}{alias}.$key"} = delete $query->{$key};
+# _find
+#
+# Helper method: search against the unique constraints.
+
+sub _find {
+  my ($self, $cond, $attrs) = @_;
+
+  # Check the condition against our source's unique constraints
+  my @constraint_names = exists $attrs->{key}
+    ? ($attrs->{key})
+    : $self->result_source->unique_constraint_names;
+
+  my @unique_conds;
+  foreach my $name (@constraint_names) {
+    my @unique_cols = $self->result_source->unique_constraint_columns($name);
+    my $unique_cond = $self->_build_unique_query($cond, \@unique_cols);
+
+    next unless scalar keys %$unique_cond == scalar @unique_cols;
+
+    # Add the ResultSet's alias
+    foreach my $key (grep { ! m/\./ } keys %$unique_cond) {
+      $unique_cond->{"$self->{attrs}{alias}.$key"} = delete $unique_cond->{$key};
+    }
+
+    push @unique_conds, $unique_cond;
+  }
+#  use Data::Dumper; warn Dumper $self->result_source->name, $cond, \@unique_conds;
+
+  # Verify the query
+  my $query = \@unique_conds;
+  if (scalar @unique_conds == 0) {
+    if (exists $attrs->{key}) {
+      $self->throw_exception("required values for the $attrs->{key} key not provided");
+    }
+    else {
+      # Compatibility: Allow broken find usage for now
+      carp "find requires values for the primary key or a unique constraint"
+        . "; please use search instead";
+      $query = $cond;
+    }
   }
 
   # Run the query
