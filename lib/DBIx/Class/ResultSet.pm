@@ -313,35 +313,7 @@ sub find {
     $cond = {@_};
   }
 
-  return $self->_find($cond, $attrs);
-}
-
-# _find
-#
-# Helper method: search against the unique constraints.
-
-sub _find {
-  my ($self, $cond, $attrs) = @_;
-
-  # Check the condition against our source's unique constraints
-  my @constraint_names = exists $attrs->{key}
-    ? ($attrs->{key})
-    : $self->result_source->unique_constraint_names;
-
-  my @unique_conds;
-  foreach my $name (@constraint_names) {
-    my @unique_cols = $self->result_source->unique_constraint_columns($name);
-    my $unique_cond = $self->_build_unique_query($cond, \@unique_cols);
-
-    next unless scalar keys %$unique_cond == scalar @unique_cols;
-
-    # Add the ResultSet's alias
-    foreach my $key (grep { ! m/\./ } keys %$unique_cond) {
-      $unique_cond->{"$self->{attrs}{alias}.$key"} = delete $unique_cond->{$key};
-    }
-
-    push @unique_conds, $unique_cond;
-  }
+  my @unique_conds = $self->_unique_conds($cond, $attrs);
 #  use Data::Dumper; warn Dumper $self->result_source->name, $cond, \@unique_conds;
 
   # Verify the query
@@ -372,19 +344,49 @@ sub _find {
   }
 }
 
-# _build_unique_query
+# _unique_conds
 #
-# Constrain the specified query hash based on the specified column names.
+# Build a list of conditions which satisfy unique constraints.
 
-sub _build_unique_query {
-  my ($self, $query, $unique_cols) = @_;
+sub _unique_conds {
+  my ($self, $cond, $attrs) = @_;
 
-  my %unique_query =
-    map  { $_ => $query->{$_} }
-    grep { exists $query->{$_} }
+  # Check the condition against our source's unique constraints
+  my @constraint_names = exists $attrs->{key}
+    ? ($attrs->{key})
+    : $self->result_source->unique_constraint_names;
+
+  my @unique_conds;
+  foreach my $name (@constraint_names) {
+    my @unique_cols = $self->result_source->unique_constraint_columns($name);
+    my $unique_cond = $self->_build_unique_cond($cond, \@unique_cols);
+
+    next unless scalar keys %$unique_cond == scalar @unique_cols;
+
+    # Add the ResultSet's alias
+    foreach my $key (grep { ! m/\./ } keys %$unique_cond) {
+      $unique_cond->{"$self->{attrs}{alias}.$key"} = delete $unique_cond->{$key};
+    }
+
+    push @unique_conds, $unique_cond;
+  }
+
+  return @unique_conds;
+}
+
+# _build_unique_cond
+#
+# Constrain the specified condition hash based on the specified column names.
+
+sub _build_unique_cond {
+  my ($self, $cond, $unique_cols) = @_;
+
+  my %unique_cond =
+    map  { $_ => $cond->{$_} }
+    grep { exists $cond->{$_} }
     @$unique_cols;
 
-  return \%unique_query;
+  return \%unique_cond;
 }
 
 =head2 search_related
