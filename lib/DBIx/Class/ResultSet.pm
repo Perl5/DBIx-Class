@@ -275,9 +275,6 @@ Additionally, you can specify the columns explicitly by name:
     { key => 'artist_title' }
   );
 
-If no C<key> is specified and you explicitly name columns, it searches on all
-unique constraints defined on the source, including the primary key.
-
 If the C<key> is specified as C<primary>, it searches only on the primary key.
 
 See also L</find_or_create> and L</update_or_create>. For information on how to
@@ -290,61 +287,33 @@ sub find {
   my $self = shift;
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
 
-  # Parse out a hash from input
+  # Default to the primary key, but allow a specific key
   my @cols = exists $attrs->{key}
     ? $self->result_source->unique_constraint_columns($attrs->{key})
     : $self->result_source->primary_columns;
+  $self->throw_exception(
+    "Can't find unless a primary key or unique constraint is defined"
+  ) unless @cols;
 
-  my $hash;
+  # Parse out a hashref from input
+  my $query;
   if (ref $_[0] eq 'HASH') {
-    $hash = { %{$_[0]} };
+    $query = { %{$_[0]} };
   }
   elsif (@_ == @cols) {
-    $hash = {};
-    @{$hash}{@cols} = @_;
-  }
-  elsif (@_) {
-    # Compatibility: Allow e.g. find(id => $value)
-    carp "find by key => value deprecated; please use a hashref instead";
-    $hash = {@_};
+    $query = {};
+    @{$query}{@cols} = @_;
   }
   else {
-    $self->throw_exception(
-      "Arguments to find must be a hashref or match the number of columns in the "
-        . (exists $attrs->{key} ? "$attrs->{key} unique constraint" : "primary key")
-    );
+    # Compatibility: Allow e.g. find(id => $value)
+    carp "find by key => value deprecated; please use a hashref instead";
+    $query = {@_};
   }
 
-  # Check the hash we just parsed against our source's unique constraints
-  my @constraint_names = exists $attrs->{key}
-    ? ($attrs->{key})
-    : $self->result_source->unique_constraint_names;
-  carp "find now requires a primary key or unique constraint; none is defined on "
-    . $self->result_source->name unless @constraint_names;
-
-  my @unique_queries;
-  foreach my $name (@constraint_names) {
-    my @unique_cols = $self->result_source->unique_constraint_columns($name);
-    my $unique_query = $self->_build_unique_query($hash, \@unique_cols);
-
-    # Add the ResultSet's alias
-    foreach my $key (grep { ! m/\./ } keys %$unique_query) {
-      my $alias = $self->{attrs}->{alias};
-      $unique_query->{"$alias.$key"} = delete $unique_query->{$key};
-    }
-
-    push @unique_queries, $unique_query if %$unique_query;
+  # Add the ResultSet's alias
+  foreach my $key (grep { ! m/\./ } keys %$query) {
+    $query->{"$self->{attrs}{alias}.$key"} = delete $query->{$key};
   }
-
-  # Compatibility: if we didn't get a unique query, take what the user provided
-  if (%$hash and not @unique_queries) {
-    carp "find now requires values for the primary key or a unique constraint"
-      . "; please use the search method instead";
-    push @unique_queries, $hash;
-  }
-
-  # Handle cases where the ResultSet already defines the query
-  my $query = @unique_queries ? \@unique_queries : undef;
 
   # Run the query
   if (keys %$attrs) {
@@ -1381,10 +1350,29 @@ sub update_or_create {
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
   my $hash = ref $_[0] eq 'HASH' ? shift : {@_};
 
-  my $row = $self->find($hash, $attrs);
-  if (defined $row) {
-    $row->update($hash);
-    return $row;
+  my @constraint_names = exists $attrs->{key}
+    ? ($attrs->{key})
+    : $self->result_source->unique_constraint_names;
+  $self->throw_exception(
+    "update_or_create requires a primary key or unique constraint; none is defined on "
+    . $self->result_source->name
+  ) unless @constraint_names;
+
+  my @unique_queries;
+  foreach my $name (@constraint_names) {
+    my @unique_cols = $self->result_source->unique_constraint_columns($name);
+    my $unique_query = $self->_build_unique_query($hash, \@unique_cols);
+
+    push @unique_queries, $unique_query
+      if keys %$unique_query == @unique_cols;
+  }
+
+  if (@unique_queries) {
+    my $row = $self->single(\@unique_queries);
+    if (defined $row) {
+      $row->update($hash);
+      return $row;
+    }
   }
 
   return $self->create($hash);
