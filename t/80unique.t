@@ -98,7 +98,6 @@ is($cd7->year, $cd1->year, 'year is correct');
 my $artist = $schema->resultset('Artist')->find($artistid);
 my $cd8 = $artist->find_or_create_related('cds',
   {
-    artist => $artistid,
     title  => $title,
     year   => 2020,
   },
@@ -112,7 +111,6 @@ is($cd8->year, $cd1->year, 'year is correct');
 
 my $cd9 = $artist->update_or_create_related('cds',
   {
-    artist => $artistid,
     title  => $title,
     year   => 2021,
   },

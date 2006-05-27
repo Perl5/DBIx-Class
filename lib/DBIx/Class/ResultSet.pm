@@ -309,22 +309,22 @@ sub find {
   }
   else {
     # Compatibility: Allow e.g. find(id => $value)
-    carp "find by key => value deprecated; please use a hashref instead";
+    carp "Find by key => value deprecated; please use a hashref instead";
     $input_query = {@_};
   }
 
   my @unique_queries = $self->_unique_queries($input_query, $attrs);
-#  use Data::Dumper; warn Dumper $self->result_source->name, $input_query, \@unique_queries;
+#  use Data::Dumper; warn Dumper $self->result_source->name, $input_query, \@unique_queries, $self->{attrs}->{where};
 
   # Verify the query
   my $query = \@unique_queries;
   if (scalar @unique_queries == 0) {
     if (exists $attrs->{key}) {
-      $self->throw_exception("required values for the $attrs->{key} key not provided");
+      $self->throw_exception("Required values for the $attrs->{key} key not provided");
     }
     else {
       # Compatibility: Allow broken find usage for now
-      carp "find requires values for the primary key or a unique constraint"
+      carp "Query not guarnteed to return a single row"
         . "; please declare your unique constraints or use search instead";
       $query = $input_query;
     }
@@ -360,11 +360,11 @@ sub _unique_queries {
     my @unique_cols = $self->result_source->unique_constraint_columns($name);
     my $unique_query = $self->_build_unique_query($query, \@unique_cols);
 
-    next unless scalar keys %$unique_query == scalar @unique_cols;
+    next unless scalar keys %$unique_query;
 
     # Add the ResultSet's alias
     foreach my $key (grep { ! m/\./ } keys %$unique_query) {
-      $unique_query->{"$self->{attrs}{alias}.$key"} = delete $unique_query->{$key};
+      $unique_query->{"$self->{attrs}->{alias}.$key"} = delete $unique_query->{$key};
     }
 
     push @unique_queries, $unique_query;
