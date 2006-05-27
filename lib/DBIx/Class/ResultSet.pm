@@ -498,8 +498,11 @@ sub _is_unique_query {
     my %seen = map { $_ => 0 } @unique_cols;
 
     foreach my $key (keys %$collapsed) {
-      next unless exists $seen{$key};  # Additional constraints are okay
-      $seen{$key} = scalar @{ $collapsed->{$key} };
+      my $aliased = $key;
+      $aliased = "$self->{attrs}->{alias}.$key" unless $key =~ /\./;
+
+      next unless exists $seen{$aliased};  # Additional constraints are okay
+      $seen{$aliased} = scalar @{ $collapsed->{$key} };
     }
 
     # If we get 0 or more than 1 value for a column, it's not necessarily unique
