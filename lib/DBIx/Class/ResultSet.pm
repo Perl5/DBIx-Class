@@ -319,15 +319,9 @@ sub find {
   # Verify the query
   my $query = \@unique_queries;
   if (scalar @unique_queries == 0) {
-    if (exists $attrs->{key}) {
-      $self->throw_exception("Required values for the $attrs->{key} key not provided");
-    }
-    else {
-      # Compatibility: Allow broken find usage for now
-      carp "Query not guarnteed to return a single row"
-        . "; please declare your unique constraints or use search instead";
-      $query = $input_query;
-    }
+    # Handle cases where the ResultSet defines the query, or where the user is
+    # abusing find
+    $query = $input_query;
   }
 
   # Run the query
@@ -473,10 +467,82 @@ sub single {
     }
   }
 
+#  use Data::Dumper; warn Dumper $attrs->{where};
+  unless ($self->_is_unique_query($attrs->{where})) {
+    carp "Query not guarnteed to return a single row"
+      . "; please declare your unique constraints or use search instead";
+  }
+
   my @data = $self->result_source->storage->select_single(
           $attrs->{from}, $attrs->{select},
           $attrs->{where},$attrs);
   return (@data ? $self->_construct_object(@data) : ());
+}
+
+# _is_unique_query
+#
+# Try to determine if the specified query is guaranteed to be unique, based on
+# the declared unique constraints.
+
+sub _is_unique_query {
+  my ($self, $query) = @_;
+
+  my $collapsed = $self->_collapse_query($query);
+#  use Data::Dumper; warn Dumper $collapsed;
+
+  foreach my $name ($self->result_source->unique_constraint_names) {
+    my @unique_cols = map { "$self->{attrs}->{alias}.$_" }
+      $self->result_source->unique_constraint_columns($name);
+
+    # Count the values for each unique column
+    my %seen = map { $_ => 0 } @unique_cols;
+
+    foreach my $key (keys %$collapsed) {
+      next unless exists $seen{$key};  # Additional constraints are okay
+      $seen{$key} = scalar @{ $collapsed->{$key} };
+    }
+
+    # If we get 0 or more than 1 value for a column, it's not necessarily unique
+    return 1 unless grep { $_ != 1 } values %seen;
+  }
+
+  return 0;
+}
+
+# _collapse_query
+#
+# Recursively collapse the query, accumulating values for each column.
+
+sub _collapse_query {
+  my ($self, $query, $collapsed) = @_;
+
+  # Accumulate fields in the AST
+  $collapsed ||= {};
+
+  if (ref $query eq 'ARRAY') {
+    foreach my $subquery (@$query) {
+      next unless ref $subquery;  # -or
+#      warn "ARRAY: " . Dumper $subquery;
+      $collapsed = $self->_collapse_query($subquery, $collapsed);
+    }
+  }
+  elsif (ref $query eq 'HASH') {
+    if (keys %$query and (keys %$query)[0] eq '-and') {
+      foreach my $subquery (@{$query->{-and}}) {
+#        warn "HASH: " . Dumper $subquery;
+        $collapsed = $self->_collapse_query($subquery, $collapsed);
+      }
+    }
+    else {
+#      warn "LEAF: " . Dumper $query;
+      foreach my $key (keys %$query) {
+        push @{$collapsed->{$key}}, $query->{$key};
+      }
+#      warn Dumper $collapsed;
+    }
+  }
+
+  return $collapsed;
 }
 
 =head2 get_column
