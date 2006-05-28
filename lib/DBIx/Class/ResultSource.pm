@@ -321,7 +321,7 @@ sub add_unique_constraint {
   $self->_unique_constraints(\%unique_constraints);
 }
 
-=head2
+=head2 name_unique_constraint
 
 Return a name for a unique constraint containing the specified columns. These
 names consist of the table name and each column name, separated by underscores.
