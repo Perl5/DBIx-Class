@@ -316,13 +316,9 @@ sub find {
   my @unique_queries = $self->_unique_queries($input_query, $attrs);
 #  use Data::Dumper; warn Dumper $self->result_source->name, $input_query, \@unique_queries, $self->{attrs}->{where};
 
-  # Verify the query
-  my $query = \@unique_queries;
-  if (scalar @unique_queries == 0) {
-    # Handle cases where the ResultSet defines the query, or where the user is
-    # abusing find
-    $query = $input_query;
-  }
+  # Handle cases where the ResultSet defines the query, or where the user is
+  # abusing find
+  my $query = @unique_queries ? \@unique_queries : $input_query;
 
   # Run the query
   if (keys %$attrs) {
