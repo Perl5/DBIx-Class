@@ -6,6 +6,7 @@ use overload
         '0+'     => \&count,
         'bool'   => sub { 1; },
         fallback => 1;
+use Carp::Clan qw/^DBIx::Class/;
 use Data::Page;
 use Storable;
 use Data::Dumper;
@@ -274,10 +275,10 @@ Additionally, you can specify the columns explicitly by name:
     { key => 'cd_artist_title' }
   );
 
-If no C<key> is specified and you explicitly name columns, it searches on all
-unique constraints defined on the source, including the primary key.
-
 If the C<key> is specified as C<primary>, it searches only on the primary key.
+
+If no C<key> is specified, it searches on all unique constraints defined on the
+source, including the primary key.
 
 See also L</find_or_create> and L</update_or_create>. For information on how to
 declare unique constraints, see
@@ -289,54 +290,35 @@ sub find {
   my $self = shift;
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
 
-  # Parse out a hash from input
+  # Default to the primary key, but allow a specific key
   my @cols = exists $attrs->{key}
     ? $self->result_source->unique_constraint_columns($attrs->{key})
     : $self->result_source->primary_columns;
-
-  my $hash;
-  if (ref $_[0] eq 'HASH') {
-    $hash = { %{$_[0]} };
-  }
-  elsif (@_ == @cols) {
-    $hash = {};
-    @{$hash}{@cols} = @_;
-  }
-  elsif (@_) {
-    # For backwards compatibility
-    $hash = {@_};
-  }
-  else {
-    $self->throw_exception(
-      "Arguments to find must be a hashref or match the number of columns in the "
-        . (exists $attrs->{key} ? "$attrs->{key} unique constraint" : "primary key")
-    );
-  }
-
-  # Check the hash we just parsed against our source's unique constraints
-  my @constraint_names = exists $attrs->{key}
-    ? ($attrs->{key})
-    : $self->result_source->unique_constraint_names;
   $self->throw_exception(
     "Can't find unless a primary key or unique constraint is defined"
-  ) unless @constraint_names;
+  ) unless @cols;
 
-  my @unique_queries;
-  foreach my $name (@constraint_names) {
-    my @unique_cols = $self->result_source->unique_constraint_columns($name);
-    my $unique_query = $self->_build_unique_query($hash, \@unique_cols);
-
-    # Add the ResultSet's alias
-    foreach my $key (grep { ! m/\./ } keys %$unique_query) {
-      my $alias = $self->{attrs}->{alias};
-      $unique_query->{"$alias.$key"} = delete $unique_query->{$key};
-    }
-
-    push @unique_queries, $unique_query if %$unique_query;
+  # Parse out a hashref from input
+  my $input_query;
+  if (ref $_[0] eq 'HASH') {
+    $input_query = { %{$_[0]} };
+  }
+  elsif (@_ == @cols) {
+    $input_query = {};
+    @{$input_query}{@cols} = @_;
+  }
+  else {
+    # Compatibility: Allow e.g. find(id => $value)
+    carp "Find by key => value deprecated; please use a hashref instead";
+    $input_query = {@_};
   }
 
-  # Handle cases where the ResultSet already defines the query
-  my $query = @unique_queries ? \@unique_queries : undef;
+  my @unique_queries = $self->_unique_queries($input_query, $attrs);
+#  use Data::Dumper; warn Dumper $self->result_source->name, $input_query, \@unique_queries, $self->{attrs}->{where};
+
+  # Handle cases where the ResultSet defines the query, or where the user is
+  # abusing find
+  my $query = @unique_queries ? \@unique_queries : $input_query;
 
   # Run the query
   if (keys %$attrs) {
@@ -350,6 +332,35 @@ sub find {
       ? $self->search($query)->next
       : $self->single($query);
   }
+}
+
+# _unique_queries
+#
+# Build a list of queries which satisfy unique constraints.
+
+sub _unique_queries {
+  my ($self, $query, $attrs) = @_;
+
+  my @constraint_names = exists $attrs->{key}
+    ? ($attrs->{key})
+    : $self->result_source->unique_constraint_names;
+
+  my @unique_queries;
+  foreach my $name (@constraint_names) {
+    my @unique_cols = $self->result_source->unique_constraint_columns($name);
+    my $unique_query = $self->_build_unique_query($query, \@unique_cols);
+
+    next unless scalar keys %$unique_query;
+
+    # Add the ResultSet's alias
+    foreach my $key (grep { ! m/\./ } keys %$unique_query) {
+      $unique_query->{"$self->{attrs}->{alias}.$key"} = delete $unique_query->{$key};
+    }
+
+    push @unique_queries, $unique_query;
+  }
+
+  return @unique_queries;
 }
 
 # _build_unique_query
@@ -452,10 +463,82 @@ sub single {
     }
   }
 
+  unless ($self->_is_unique_query($attrs->{where})) {
+    carp "Query not guarnteed to return a single row"
+      . "; please declare your unique constraints or use search instead";
+  }
+
   my @data = $self->result_source->storage->select_single(
           $attrs->{from}, $attrs->{select},
           $attrs->{where},$attrs);
   return (@data ? $self->_construct_object(@data) : ());
+}
+
+# _is_unique_query
+#
+# Try to determine if the specified query is guaranteed to be unique, based on
+# the declared unique constraints.
+
+sub _is_unique_query {
+  my ($self, $query) = @_;
+
+  my $collapsed = $self->_collapse_query($query);
+#  use Data::Dumper; warn Dumper $query, $collapsed;
+
+  foreach my $name ($self->result_source->unique_constraint_names) {
+    my @unique_cols = map { "$self->{attrs}->{alias}.$_" }
+      $self->result_source->unique_constraint_columns($name);
+
+    # Count the values for each unique column
+    my %seen = map { $_ => 0 } @unique_cols;
+
+    foreach my $key (keys %$collapsed) {
+      my $aliased = $key;
+      $aliased = "$self->{attrs}->{alias}.$key" unless $key =~ /\./;
+
+      next unless exists $seen{$aliased};  # Additional constraints are okay
+      $seen{$aliased} = scalar @{ $collapsed->{$key} };
+    }
+
+    # If we get 0 or more than 1 value for a column, it's not necessarily unique
+    return 1 unless grep { $_ != 1 } values %seen;
+  }
+
+  return 0;
+}
+
+# _collapse_query
+#
+# Recursively collapse the query, accumulating values for each column.
+
+sub _collapse_query {
+  my ($self, $query, $collapsed) = @_;
+
+  $collapsed ||= {};
+
+  if (ref $query eq 'ARRAY') {
+    foreach my $subquery (@$query) {
+      next unless ref $subquery;  # -or
+#      warn "ARRAY: " . Dumper $subquery;
+      $collapsed = $self->_collapse_query($subquery, $collapsed);
+    }
+  }
+  elsif (ref $query eq 'HASH') {
+    if (keys %$query and (keys %$query)[0] eq '-and') {
+      foreach my $subquery (@{$query->{-and}}) {
+#        warn "HASH: " . Dumper $subquery;
+        $collapsed = $self->_collapse_query($subquery, $collapsed);
+      }
+    }
+    else {
+#      warn "LEAF: " . Dumper $query;
+      foreach my $key (keys %$query) {
+        push @{$collapsed->{$key}}, $query->{$key};
+      }
+    }
+  }
+
+  return $collapsed;
 }
 
 =head2 get_column
@@ -1294,8 +1377,8 @@ sub create {
 
   $class->find_or_create({ key => $val, ... });
 
-Searches for a record matching the search condition; if it doesn't find one,
-creates one and returns that instead.
+Tries to find a record based on its primary key or unique constraint; if none
+is found, creates one and returns that instead.
 
   my $cd = $schema->resultset('CD')->find_or_create({
     cdid   => 5,
@@ -1371,15 +1454,15 @@ unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 sub update_or_create {
   my $self = shift;
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
-  my $hash = ref $_[0] eq 'HASH' ? shift : {@_};
+  my $cond = ref $_[0] eq 'HASH' ? shift : {@_};
 
-  my $row = $self->find($hash, $attrs);
+  my $row = $self->find($cond);
   if (defined $row) {
-    $row->update($hash);
+    $row->update($cond);
     return $row;
   }
 
-  return $self->create($hash);
+  return $self->create($cond);
 }
 
 =head2 get_cache
