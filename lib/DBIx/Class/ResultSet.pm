@@ -467,7 +467,6 @@ sub single {
     }
   }
 
-#  use Data::Dumper; warn Dumper $attrs->{where};
   unless ($self->_is_unique_query($attrs->{where})) {
     carp "Query not guarnteed to return a single row"
       . "; please declare your unique constraints or use search instead";
@@ -488,7 +487,7 @@ sub _is_unique_query {
   my ($self, $query) = @_;
 
   my $collapsed = $self->_collapse_query($query);
-#  use Data::Dumper; warn Dumper $collapsed;
+#  use Data::Dumper; warn Dumper $query, $collapsed;
 
   foreach my $name ($self->result_source->unique_constraint_names) {
     my @unique_cols = map { "$self->{attrs}->{alias}.$_" }
@@ -519,7 +518,6 @@ sub _is_unique_query {
 sub _collapse_query {
   my ($self, $query, $collapsed) = @_;
 
-  # Accumulate fields in the AST
   $collapsed ||= {};
 
   if (ref $query eq 'ARRAY') {
@@ -541,7 +539,6 @@ sub _collapse_query {
       foreach my $key (keys %$query) {
         push @{$collapsed->{$key}}, $query->{$key};
       }
-#      warn Dumper $collapsed;
     }
   }
 
