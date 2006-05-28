@@ -262,7 +262,7 @@ a row by its primary key:
 You can also find a row by a specific unique constraint using the C<key>
 attribute. For example:
 
-  my $cd = $schema->resultset('CD')->find('Massive Attack', 'Mezzanine', { key => 'artist_title' });
+  my $cd = $schema->resultset('CD')->find('Massive Attack', 'Mezzanine', { key => 'cd_artist_title' });
 
 Additionally, you can specify the columns explicitly by name:
 
@@ -271,7 +271,7 @@ Additionally, you can specify the columns explicitly by name:
       artist => 'Massive Attack',
       title  => 'Mezzanine',
     },
-    { key => 'artist_title' }
+    { key => 'cd_artist_title' }
   );
 
 If no C<key> is specified and you explicitly name columns, it searches on all
@@ -1312,7 +1312,7 @@ constraint. For example:
       artist => 'Massive Attack',
       title  => 'Mezzanine',
     },
-    { key => 'artist_title' }
+    { key => 'cd_artist_title' }
   );
 
 See also L</find> and L</update_or_create>. For information on how to declare
@@ -1355,7 +1355,7 @@ For example:
       title  => 'Mezzanine',
       year   => 1998,
     },
-    { key => 'artist_title' }
+    { key => 'cd_artist_title' }
   );
 
 If no C<key> is specified, it searches on all unique constraints defined on the

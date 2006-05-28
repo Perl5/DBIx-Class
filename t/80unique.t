@@ -7,7 +7,10 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 34;
+plan tests => 36;
+
+is_deeply([ sort $schema->source('CD')->unique_constraint_names ], [ qw/cd_artist_title primary/ ], 'CD source has an automatically named unique constraint');
+is_deeply([ sort $schema->source('Producer')->unique_constraint_names ], [ qw/primary prod_name/ ], 'Producer source has a named unique constraint');
 
 my $artistid = 1;
 my $title    = 'UNIQUE Constraint';
@@ -23,14 +26,14 @@ my $cd2 = $schema->resultset('CD')->find(
     artist => $artistid,
     title  => $title,
   },
-  { key => 'artist_title' }
+  { key => 'cd_artist_title' }
 );
 
 is($cd2->get_column('artist'), $cd1->get_column('artist'), 'find by specific key: artist is correct');
 is($cd2->title, $cd1->title, 'title is correct');
 is($cd2->year, $cd1->year, 'year is correct');
 
-my $cd3 = $schema->resultset('CD')->find($artistid, $title, { key => 'artist_title' });
+my $cd3 = $schema->resultset('CD')->find($artistid, $title, { key => 'cd_artist_title' });
 
 is($cd3->get_column('artist'), $cd1->get_column('artist'), 'find by specific key, ordered columns: artist is correct');
 is($cd3->title, $cd1->title, 'title is correct');
@@ -56,7 +59,7 @@ my $cd5 = $schema->resultset('CD')->update_or_create(
     title  => $title,
     year   => 2007,
   },
-  { key => 'artist_title' }
+  { key => 'cd_artist_title' }
 );
 
 ok(! $cd5->is_changed, 'update_or_create by specific key: row is clean');
@@ -87,7 +90,7 @@ my $cd7 = $schema->resultset('CD')->find_or_create(
     title  => $title,
     year   => 2010,
   },
-  { key => 'artist_title' }
+  { key => 'cd_artist_title' }
 );
 
 is($cd7->cdid, $cd1->cdid, 'find_or_create by specific key: cdid is correct');
@@ -102,7 +105,7 @@ my $cd8 = $artist->find_or_create_related('cds',
     title  => $title,
     year   => 2020,
   },
-  { key => 'artist_title' }
+  { key => 'cd_artist_title' }
 );
 
 is($cd8->cdid, $cd1->cdid, 'find_or_create related by specific key: cdid is correct');
@@ -116,7 +119,7 @@ my $cd9 = $artist->update_or_create_related('cds',
     title  => $title,
     year   => 2021,
   },
-  { key => 'artist_title' }
+  { key => 'cd_artist_title' }
 );
 
 ok(! $cd9->is_changed, 'update_or_create by specific key: row is clean');

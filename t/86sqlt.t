@@ -12,7 +12,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = 'DBICTest::Schema';
 
-plan tests => 31;
+plan tests => 33;
 
 my $translator           =  SQL::Translator->new( 
     parser_args          => {
@@ -94,6 +94,9 @@ my @fk_constraints =
 my @unique_constraints = (
   {'display' => 'cd artist and title unique',
    'table' => 'cd', 'cols' => ['artist', 'title'],
+   'needed' => 1},
+  {'display' => 'producer name unique',
+   'table' => 'producer', 'cols' => ['name'],
    'needed' => 1},
   {'display' => 'twokeytreelike name unique',
    'table' => 'twokeytreelike', 'cols'  => ['name'],

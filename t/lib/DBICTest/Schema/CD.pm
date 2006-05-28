@@ -22,7 +22,7 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('cdid');
-__PACKAGE__->add_unique_constraint(artist_title => [ qw/artist title/ ]);
+__PACKAGE__->add_unique_constraint([ qw/artist title/ ]);
 
 __PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist' );
 
