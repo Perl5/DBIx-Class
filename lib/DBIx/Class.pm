@@ -182,6 +182,8 @@ ank: Andres Kievsky
 
 blblack: Brandon Black
 
+bluefeet: Aran Deltac <bluefeet@cpan.org>
+
 LTJake: Brian Cassidy <bricas@cpan.org>
 
 claco: Christopher H. Laco

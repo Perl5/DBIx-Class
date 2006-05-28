@@ -25,10 +25,8 @@ Revision history for DBIx::Class
           loaded
         - CDBICompat: override find_or_create to fix column casing when
           ColumnCase is loaded
-        - Reorganized tests: moved t/run/*.tl to t/run/*.t, removed all 
-          basicrels code and supporting module, moved all relationship 
-          code from helperrels in to the relevant classes for each 
-          relationship, and moved code from DBICTest::Setup to DBICTest.
+        - reorganized and simplified tests
+        - added Ordered
 
 0.06003 2006-05-19 15:37:30
         - make find_or_create_related check defined() instead of truth
