@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sun May 14 18:25:49 2006
+-- Created on Sat May 27 21:28:05 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -132,6 +132,14 @@ CREATE TABLE link (
 );
 
 --
+-- Table: event
+--
+CREATE TABLE event (
+  id INTEGER PRIMARY KEY NOT NULL,
+  starts_at datetime NOT NULL
+);
+
+--
 -- Table: twokeys
 --
 CREATE TABLE twokeys (
@@ -178,5 +186,6 @@ CREATE TABLE producer (
 );
 
 CREATE UNIQUE INDEX tktlnameunique_twokeytreelike on twokeytreelike (name);
-CREATE UNIQUE INDEX artist_title_cd on cd (artist, title);
+CREATE UNIQUE INDEX cd_artist_title_cd on cd (artist, title);
+CREATE UNIQUE INDEX prod_name_producer on producer (name);
 COMMIT;

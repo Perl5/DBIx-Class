@@ -7,6 +7,10 @@ use base qw/DBIx::Class::Storage::DBI/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
+# Warn about problematic versions of DBD::Pg
+warn "DBD::Pg 1.49 is strongly recommended"
+  if ($DBD::Pg::VERSION < 1.49);
+
 sub last_insert_id {
   my ($self,$source,$col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
@@ -34,6 +38,8 @@ sub get_autoinc_seq {
 sub sqlt_type {
   return 'PostgreSQL';
 }
+
+sub datetime_parser_type { return "DateTime::Format::Pg"; }
 
 1;
 

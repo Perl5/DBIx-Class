@@ -8,13 +8,13 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 13 );
+        : ( tests => 12 );
 }
 
 use lib qw(t/lib);
 
 use_ok('DBICTest');
-use_ok('DBICTest::HelperRels');
+DBICTest->init_schema();
 
 my $cbworks = 0;
 

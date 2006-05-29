@@ -297,6 +297,24 @@ C<quote_char>, and C<name_sep>.  Examples:
 
 Executes the sql statements given as a listref on every db connect.
 
+=head2 quote_char
+
+Specifies what characters to use to quote table and column names. If 
+you use this you will want to specify L<name_sep> as well.
+
+quote_char expectes either a single character, in which case is it is placed
+on either side of the table/column, or an array of length 2 in which case the
+table/column name is placed between the elements.
+
+For example under MySQL you'd use C<quote_char('`')>, and user SQL Server you'd 
+use C<quote_char(qw/[ ]/)>.
+
+=head2 name_sep
+
+This only needs to be used in conjunction with L<quote_char>, and is used to 
+specify the charecter that seperates elements (schemas, tables, columns) from 
+each other. In most cases this is simply a C<.>.
+
 =head2 debug
 
 Causes SQL trace information to be emitted on the C<debugobj> object.
@@ -509,8 +527,8 @@ Issues a commit against the current dbh.
 
 sub txn_commit {
   my $self = shift;
+  my $dbh = $self->dbh;
   if ($self->{transaction_depth} == 0) {
-    my $dbh = $self->dbh;
     unless ($dbh->{AutoCommit}) {
       $self->debugobj->txn_commit()
         if ($self->debug);
@@ -521,7 +539,7 @@ sub txn_commit {
     if (--$self->{transaction_depth} == 0) {
       $self->debugobj->txn_commit()
         if ($self->debug);
-      $self->dbh->commit;
+      $dbh->commit;
     }
   }
 }
@@ -538,8 +556,8 @@ sub txn_rollback {
   my $self = shift;
 
   eval {
+    my $dbh = $self->dbh;
     if ($self->{transaction_depth} == 0) {
-      my $dbh = $self->dbh;
       unless ($dbh->{AutoCommit}) {
         $self->debugobj->txn_rollback()
           if ($self->debug);
@@ -550,7 +568,7 @@ sub txn_rollback {
       if (--$self->{transaction_depth} == 0) {
         $self->debugobj->txn_rollback()
           if ($self->debug);
-        $self->dbh->rollback;
+        $dbh->rollback;
       }
       else {
         die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
@@ -578,9 +596,10 @@ sub _execute {
   my $sth = eval { $self->sth($sql,$op) };
 
   if (!$sth || $@) {
-    $self->throw_exception('no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql");
+    $self->throw_exception(
+      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
+    );
   }
-
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
   my $rv;
   if ($sth) {
@@ -839,6 +858,21 @@ sub deploy {
       $self->debugobj->query_end($_) if $self->debug;
     }
   }
+}
+
+sub datetime_parser {
+  my $self = shift;
+  return $self->{datetime_parser} ||= $self->build_datetime_parser(@_);
+}
+
+sub datetime_parser_type { "DateTime::Format::MySQL"; }
+
+sub build_datetime_parser {
+  my $self = shift;
+  my $type = $self->datetime_parser_type(@_);
+  eval "use ${type}";
+  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  return $type;
 }
 
 sub DESTROY { shift->disconnect }

@@ -31,7 +31,7 @@ sub resultset_instance {
 
 =head1 NAME
 
-DBIx::Class::DB - Non-recommended classdata schema component
+DBIx::Class::DB - (DEPRECATED) classdata schema component
 
 =head1 SYNOPSIS
 
@@ -54,8 +54,8 @@ DBIx::Class::DB - Non-recommended classdata schema component
 
 This class is designed to support the Class::DBI connection-as-classdata style
 for DBIx::Class. You are *strongly* recommended to use a DBIx::Class::Schema
-instead; DBIx::Class::DB will continue to be supported but new development
-will be focused on Schema-based DBIx::Class setups.
+instead; DBIx::Class::DB will not undergo new development and will be moved
+to being a CDBICompat-only component before 1.0.
 
 =head1 METHODS
 
