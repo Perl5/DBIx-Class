@@ -184,7 +184,7 @@ sub column_info {
         $lc_info->{lc $realcol} = $info->{$realcol};
       }
       foreach my $col ( keys %{$self->_columns} ) {
-        $self->_columns->{$col} = $info->{$col} || $lc_info->{lc $col};
+        $self->_columns->{$col} = { %{ $self->_columns->{$col}}, %{$info->{$col} || $lc_info->{lc $col}} };
       }
     }
   }
