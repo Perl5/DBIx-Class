@@ -250,7 +250,7 @@ sub new {
   } else {
     $fh = IO::File->new('>&STDERR');
   }
-  $new->debugobj->debugfh($fh);
+  $new->debugfh($fh);
   $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
   return $new;
 }
@@ -327,6 +327,16 @@ an IO::Handle compatible ojbect (only the C<print> method is used.  Initially
 set to be STDERR - although see information on the
 L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
 
+=cut
+
+sub debugfh {
+    my $self = shift;
+
+    if ($self->debugobj->can('debugfh')) {
+        return $self->debugobj->debugfh(@_);
+    }
+}
+
 =head2 debugobj
 
 Sets or retrieves the object used for metric collection. Defaults to an instance
@@ -343,11 +353,12 @@ SELECT/INSERT/UPDATE/DELETE and $info is what would normally be printed.
 See L<debugobj> for a better way.
 
 =cut
-sub debugcb {
-    my $self = shift();
 
-    if($self->debugobj()->can('callback')) {
-        $self->debugobj()->callback(shift());
+sub debugcb {
+    my $self = shift;
+
+    if ($self->debugobj->can('callback')) {
+        return $self->debugobj->callback(@_);
     }
 }
 
