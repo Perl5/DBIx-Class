@@ -5,6 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
+DBICTest::Schema::CD->add_column('year');
 my $schema = DBICTest->init_schema();
 
 eval { require DateTime };
