@@ -731,6 +731,15 @@ sub create_ddl_dir
   $self->storage->create_ddl_dir($self, @_);
 }
 
+=head2 ddl_filename (EXPERIMENTAL)
+
+  my $filename = $table->ddl_filename($type, $dir, $version)
+
+Creates a filename for a SQL file based on the table class name.  Not
+intended for direct end user use.
+
+=cut
+
 sub ddl_filename
 {
     my ($self, $type, $dir, $version) = @_;

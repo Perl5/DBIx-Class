@@ -141,6 +141,18 @@ is for auto-validation to be on.
 
 Defaults to on.
 
+=head1 EXTENDED METHODS
+
+The following methods are extended by this module:-
+
+=over 4
+
+=item insert
+
+=item update
+
+=back
+
 =head1 AUTHOR
 
 Aran C. Deltac <bluefeet@cpan.org>

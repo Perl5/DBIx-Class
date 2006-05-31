@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.06999_02 sometime?
+        - Fixed up POD::Coverage tests, filled in some POD holes
+
 0.06999_01 2006-05-28 17:19:30
         - add automatic naming of unique constraints
         - marked DB.pm as deprecated and noted it will be removed by 1.0

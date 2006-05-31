@@ -235,6 +235,10 @@ __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugobj
      cursor on_connect_do transaction_depth/);
 
+=head2 new
+
+=cut
+
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
@@ -254,6 +258,12 @@ sub new {
   $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
   return $new;
 }
+
+=head2 throw_exception
+
+Throws an exception - croaks.
+
+=cut
 
 sub throw_exception {
   my ($self, $msg) = @_;
@@ -362,6 +372,13 @@ sub debugcb {
     }
 }
 
+=head2 disconnect
+
+Disconnect the L<DBI> handle, performing a rollback first if the
+database is not in C<AutoCommit> mode.
+
+=cut
+
 sub disconnect {
   my ($self) = @_;
 
@@ -372,8 +389,14 @@ sub disconnect {
   }
 }
 
-sub connected {
-  my ($self) = @_;
+=head2 connected
+
+Check if the L<DBI> handle is connected.  Returns true if the handle
+is connected.
+
+=cut
+
+sub connected { my ($self) = @_;
 
   if(my $dbh = $self->_dbh) {
       if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
@@ -390,6 +413,13 @@ sub connected {
 
   return 0;
 }
+
+=head2 ensure_connected
+
+Check whether the database handle is connected - if not then make a
+connection.
+
+=cut
 
 sub ensure_connected {
   my ($self) = @_;
@@ -417,6 +447,13 @@ sub _sql_maker_args {
     
     return ( limit_dialect => $self->dbh );
 }
+
+=head2 sql_maker
+
+Returns a C<sql_maker> object - normally an object of class
+C<DBIC::SQL::Abstract>.
+
+=cut
 
 sub sql_maker {
   my ($self) = @_;
@@ -673,11 +710,24 @@ sub _select {
   return $self->_execute(@args);
 }
 
+=head2 select
+
+Handle a SQL select statement.
+
+=cut
+
 sub select {
   my $self = shift;
   my ($ident, $select, $condition, $attrs) = @_;
   return $self->cursor->new($self, \@_, $attrs);
 }
+
+=head2 select_single
+
+Performs a select, fetch and return of data - handles a single row
+only.
+
+=cut
 
 # Need to call finish() to work round broken DBDs
 
@@ -688,6 +738,12 @@ sub select_single {
   $sth->finish();
   return @row;
 }
+
+=head2 sth
+
+Returns a L<DBI> sth (statement handle) for the supplied SQL.
+
+=cut
 
 sub sth {
   my ($self, $sql) = @_;
@@ -760,6 +816,12 @@ sub columns_info_for {
   return \%result;
 }
 
+=head2 last_insert_id
+
+Return the row id of the last insert.
+
+=cut
+
 sub last_insert_id {
   my ($self, $row) = @_;
     
@@ -767,7 +829,29 @@ sub last_insert_id {
 
 }
 
+=head2 sqlt_type
+
+Returns the database driver name.
+
+=cut
+
 sub sqlt_type { shift->dbh->{Driver}->{Name} }
+
+=head2 create_ddl_dir (EXPERIMENTAL)
+
+=over 4
+
+=item Arguments: $schema \@databases, $version, $directory, $sqlt_args
+
+=back
+
+Creates an SQL file based on the Schema, for each of the specified
+database types, in the given directory.
+
+Note that this feature is currently EXPERIMENTAL and may not work correctly
+across all databases, or fully handle complex relationships.
+
+=cut
 
 sub create_ddl_dir
 {
@@ -821,6 +905,13 @@ sub create_ddl_dir
 
 }
 
+=head2 deployment_statements
+
+Create the statements for L</deploy> and
+L<DBIx::Class::Schema/deploy>.
+
+=cut
+
 sub deployment_statements {
   my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
   $type ||= $self->sqlt_type;
@@ -855,6 +946,14 @@ sub deployment_statements {
   
 }
 
+=head2 deploy
+
+Sends the appropriate statements to create or modify tables to the
+db. This would normally be called through
+L<DBIx::Class::Schema/deploy>.
+
+=cut
+
 sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
   foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, $sqltargs) ) {
@@ -871,12 +970,31 @@ sub deploy {
   }
 }
 
+=head2 datetime_parser
+
+Returns the datetime parser class
+
+=cut
+
 sub datetime_parser {
   my $self = shift;
   return $self->{datetime_parser} ||= $self->build_datetime_parser(@_);
 }
 
+=head2 datetime_parser_type
+
+Defines (returns) the datetime parser class - currently hardwired to
+L<DateTime::Format::MySQL>
+
+=cut
+
 sub datetime_parser_type { "DateTime::Format::MySQL"; }
+
+=head2 build_datetime_parser
+
+See L</datetime_parser>
+
+=cut
 
 sub build_datetime_parser {
   my $self = shift;
@@ -889,6 +1007,32 @@ sub build_datetime_parser {
 sub DESTROY { shift->disconnect }
 
 1;
+
+=head1 SQL METHODS
+
+The module defines a set of methods within the DBIC::SQL::Abstract
+namespace.  These build on L<SQL::Abstract::Limit> to provide the
+SQL query functions.
+
+The following methods are extended:-
+
+=over 4
+
+=item delete
+
+=item insert
+
+=item select
+
+=item update
+
+=item limit_dialect
+
+=item quote_char
+
+=item name_sep
+
+=back
 
 =head1 ENVIRONMENT VARIABLES
 

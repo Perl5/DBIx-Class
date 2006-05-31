@@ -1,4 +1,8 @@
-package DBIx::Class::Relationship::BelongsTo;
+package # hide from PAUSE
+    DBIx::Class::Relationship::BelongsTo;
+
+# Documentation for these methods can be found in
+# DBIx::Class::Relationship
 
 use strict;
 use warnings;
