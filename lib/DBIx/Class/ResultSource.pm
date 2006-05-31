@@ -30,6 +30,16 @@ retrieved, most usually a table (see L<DBIx::Class::ResultSource::Table>)
 
 =head1 METHODS
 
+=pod
+
+=head2 new
+
+  $class->new();
+
+  $class->new({attribute_name => value});
+
+Creates a new ResultSource object.  Not normally called directly by end users.
+
 =cut
 
 sub new {

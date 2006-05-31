@@ -94,6 +94,17 @@ sub _deflated_column {
   return $deflate->($value, $self);
 }
 
+=head2 get_inflated_column
+
+  my $val = $obj->get_inflated_column($col);
+
+Fetch a column value in its inflated state.  This is directly
+analogous to L<DBIx::Class::Row/get_column> in that it only fetches a
+column already retreived from the database, and then inflates it.
+Throws an exception if the column requested is not an inflated column.
+
+=cut
+
 sub get_inflated_column {
   my ($self, $col) = @_;
   $self->throw_exception("$col is not an inflated column")
@@ -105,11 +116,30 @@ sub get_inflated_column {
            $self->_inflated_column($col, $self->get_column($col));
 }
 
+=head2 set_inflated_column
+
+  my $copy = $obj->set_inflated_column($col => $val);
+
+Sets a column value from an inflated value.  This is directly
+analogous to L<DBIx::Class::Row/set_column>.
+
+=cut
+
 sub set_inflated_column {
   my ($self, $col, @rest) = @_;
   my $ret = $self->_inflated_column_op('set', $col, @rest);
   return $ret;
 }
+
+=head2 store_inflated_column
+
+  my $copy = $obj->store_inflated_column($col => $val);
+
+Sets a column value from an inflated value without marking the column
+as dirty.  This is directly analogous to
+L<DBIx::Class::Row/store_column>.
+
+=cut
 
 sub store_inflated_column {
   my ($self, $col, @rest) = @_;
@@ -133,6 +163,13 @@ sub _inflated_column_op {
   return $obj;
 }
 
+=head2 update
+
+Updates a row in the same way as L<DBIx::Class::Row/update>, handling
+inflation and deflation of columns appropriately.
+
+=cut
+
 sub update {
   my ($class, $attrs, @rest) = @_;
   $attrs ||= {};
@@ -145,6 +182,13 @@ sub update {
   }
   return $class->next::method($attrs, @rest);
 }
+
+=head2 new
+
+Creates a row in the same way as L<DBIx::Class::Row/new>, handling
+inflation and deflation of columns appropriately.
+
+=cut
 
 sub new {
   my ($class, $attrs, @rest) = @_;

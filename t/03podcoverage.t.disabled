@@ -4,4 +4,34 @@ eval "use Test::Pod::Coverage 1.04";
 plan skip_all => 'Test::Pod::Coverage 1.04 required' if $@;
 plan skip_all => 'set TEST_POD to enable this test' unless $ENV{TEST_POD};
 
-all_pod_coverage_ok();
+my @modules = sort { $a cmp $b } (all_modules());
+plan tests => scalar(@modules);
+
+my $exceptions = {
+    'DBIx::Class' => {
+        ignore => [
+            qw/MODIFY_CODE_ATTRIBUTES
+              component_base_class
+              mk_classdata/
+        ]
+    },
+    'DBIx::Class::ResultSetProxy'    => { skip => 1 },
+    'DBIx::Class::ResultSourceProxy' => { skip => 1 },
+    'DBIx::Class::Componentised'     => { skip => 1 },
+};
+
+foreach my $module (@modules) {
+  SKIP:
+    {
+        skip "No real methods", 1 if ($exceptions->{$module}{skip});
+
+        # build parms up from ignore list
+        my $parms = {};
+        $parms->{trustme} =
+          [ map { qr/^$_$/ } @{ $exceptions->{$module}{ignore} } ]
+          if exists($exceptions->{$module}{ignore});
+
+        # run the test with the potentially modified parm set
+        pod_coverage_ok($module, $parms, "$module POD coverage");
+    }
+}
