@@ -314,7 +314,6 @@ sub find {
   }
 
   my @unique_queries = $self->_unique_queries($input_query, $attrs);
-#  use Data::Dumper; warn Dumper $self->result_source->name, $input_query, \@unique_queries, $self->{attrs}->{where};
 
   # Handle cases where the ResultSet defines the query, or where the user is
   # abusing find
@@ -483,7 +482,6 @@ sub _is_unique_query {
   my ($self, $query) = @_;
 
   my $collapsed = $self->_collapse_query($query);
-#  use Data::Dumper; warn Dumper $query, $collapsed;
 
   foreach my $name ($self->result_source->unique_constraint_names) {
     my @unique_cols = map { "$self->{attrs}->{alias}.$_" }
@@ -700,15 +698,15 @@ sub _resolve {
   $attrs->{seen_join} ||= {};
   my %seen;
   if (my $join = delete $attrs->{join}) {
-      foreach my $j (ref $join eq 'ARRAY' ? @$join : ($join)) {
-	  if (ref $j eq 'HASH') {
+		foreach my $j (ref $join eq 'ARRAY' ? @$join : ($join)) {
+			if (ref $j eq 'HASH') {
 	      $seen{$_} = 1 foreach keys %$j;
-	  } else {
+			} else {
 	      $seen{$j} = 1;
-	  }
-      }
+			}
+		}
 
-      push(@{$attrs->{from}}, $source->resolve_join($join, $attrs->{alias}, $attrs->{seen_join}));
+		push(@{$attrs->{from}}, $source->resolve_join($join, $attrs->{alias}, $attrs->{seen_join}));
   }
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
   $attrs->{order_by} = [ $attrs->{order_by} ] if
@@ -927,7 +925,6 @@ sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
-
   my $count = $self->_count;
   return 0 unless $count;
 
@@ -965,7 +962,10 @@ sub _count { # Separated out so pager can get the full count
 
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
-  my ($count) = (ref $self)->new($self->result_source, $attrs)->cursor->next;
+	my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
+	$tmp_rs->{_parent_rs} = $self->{_parent_rs} if ($self->{_parent_rs}); #XXX - hack to pass through parent of related resultsets
+
+  my ($count) = $tmp_rs->cursor->next;
   return $count;
 }
 
@@ -1558,8 +1558,8 @@ sub related_resultset {
              { %{$self->{attrs}},
                select => undef,
                as => undef,
-	       join => $rel,
-	       _live_join => $rel }
+							 join => $rel,
+							 _live_join => $rel }
            );
 
       # keep reference of the original resultset
