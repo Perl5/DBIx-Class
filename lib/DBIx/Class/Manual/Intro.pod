@@ -7,6 +7,66 @@ DBIx::Class::Manual::Intro - Introduction to DBIx::Class
 So, you are bored with SQL, and want a native Perl interface for your
 database?  Or you've been doing this for a while with L<Class::DBI>,
 and think there's a better way?  You've come to the right place.
+
+=head1 THE DBIx::Class WAY
+
+Here are a few simple tips that will help you get your bearings 
+with DBIx::Class.  
+
+=head2 Tables become ResultSources
+
+DBIx::Class needs to know what your Table structure looks like.  You do that
+by defining L<DBIx::Class::ResultSource>s.  Each table get's a ResultSource,
+which defines the Columns it has, along with any Relationships it has to
+other tables.  (And oh, so much more besides)  The important thing to 
+understand:
+  
+  A ResultSource == Table
+  
+(most of the time, but just bear with my simplification)
+
+=head2 It's all about the ResultSet
+
+So, we've got some ResultSources defined.  Now, we want to actually use 
+those definitions to help us translate the queries we need into
+handy perl objects!  
+
+Let's say we defined a ResultSource for an "album" table with three 
+columns: "albumid", "artist", and "title".  Any time we want to query
+this table, we'll be creating a L<DBIx::Class::ResultSet> from it's
+ResultSource.  For example, the results of:
+
+    SELECT albumid, artist, title FROM album;
+    
+Would be retrieved by creating a ResultSet object from the album
+table's ResultSource, likely by using the "search" method.  
+
+DBIx::Class doesn't limit you to creating only simple ResultSets --
+if you wanted to do something like:
+
+    SELECT title FROM album GROUP BY title;
+   
+You could easily achieve it. 
+
+The important thing to understand: 
+
+   Any time you would reach for a SQL query in DBI, you are 
+   creating a DBIx::Class::ResultSet.
+
+=head2 Search is like "prepare"
+
+DBIx::Class tends to wait until it absolutely must fetch information
+from the database.  If you are returning a ResultSet, the query won't
+execute until you use a method that wants to access the data. (Such
+as "next", or "first")
+
+The important thing to understand:
+
+   Setting up a ResultSet does not execute the query; retrieving
+   the data does.
+
+=head1 SETTING UP DBIx::Class
+
 Let's look at how you can set and use your first native L<DBIx::Class>
 tree.
 
