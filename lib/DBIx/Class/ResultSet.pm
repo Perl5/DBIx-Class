@@ -314,7 +314,6 @@ sub find {
   }
 
   my @unique_queries = $self->_unique_queries($input_query, $attrs);
-#  use Data::Dumper; warn Dumper $self->result_source->name, $input_query, \@unique_queries, $self->{attrs}->{where};
 
   # Handle cases where the ResultSet defines the query, or where the user is
   # abusing find
@@ -354,7 +353,8 @@ sub _unique_queries {
 
     # Add the ResultSet's alias
     foreach my $key (grep { ! m/\./ } keys %$unique_query) {
-      $unique_query->{"$self->{attrs}->{alias}.$key"} = delete $unique_query->{$key};
+			my $alias = ($self->{attrs}->{_live_join}) ? $self->{attrs}->{_live_join} : $self->{attrs}->{alias};
+      $unique_query->{"$alias.$key"} = delete $unique_query->{$key};
     }
 
     push @unique_queries, $unique_query;
@@ -483,10 +483,10 @@ sub _is_unique_query {
   my ($self, $query) = @_;
 
   my $collapsed = $self->_collapse_query($query);
-#  use Data::Dumper; warn Dumper $query, $collapsed;
 
+	my $alias = ($self->{attrs}->{_live_join}) ? $self->{attrs}->{_live_join} : $self->{attrs}->{alias};
   foreach my $name ($self->result_source->unique_constraint_names) {
-    my @unique_cols = map { "$self->{attrs}->{alias}.$_" }
+    my @unique_cols = map { "$alias.$_" }
       $self->result_source->unique_constraint_columns($name);
 
     # Count the values for each unique column
@@ -494,7 +494,7 @@ sub _is_unique_query {
 
     foreach my $key (keys %$collapsed) {
       my $aliased = $key;
-      $aliased = "$self->{attrs}->{alias}.$key" unless $key =~ /\./;
+      $aliased = "$alias.$key" unless $key =~ /\./;
 
       next unless exists $seen{$aliased};  # Additional constraints are okay
       $seen{$aliased} = scalar @{ $collapsed->{$key} };
@@ -700,32 +700,32 @@ sub _resolve {
   $attrs->{seen_join} ||= {};
   my %seen;
   if (my $join = delete $attrs->{join}) {
-      foreach my $j (ref $join eq 'ARRAY' ? @$join : ($join)) {
-	  if (ref $j eq 'HASH') {
-	      $seen{$_} = 1 foreach keys %$j;
-	  } else {
-	      $seen{$j} = 1;
-	  }
+    foreach my $j (ref $join eq 'ARRAY' ? @$join : ($join)) {
+      if (ref $j eq 'HASH') {
+        $seen{$_} = 1 foreach keys %$j;
+      } else {
+        $seen{$j} = 1;
       }
-
-      push(@{$attrs->{from}}, $source->resolve_join($join, $attrs->{alias}, $attrs->{seen_join}));
+    }
+    
+    push(@{$attrs->{from}}, $source->resolve_join($join, $attrs->{alias}, $attrs->{seen_join}));
   }
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
   $attrs->{order_by} = [ $attrs->{order_by} ] if
       $attrs->{order_by} and !ref($attrs->{order_by});
   $attrs->{order_by} ||= [];
 
- if(my $seladds = delete($attrs->{'+select'})) {
-   my @seladds = (ref($seladds) eq 'ARRAY' ? @$seladds : ($seladds));
-   $attrs->{select} = [
-     @{ $attrs->{select} },
-     map { (m/\./ || ref($_)) ? $_ : "${alias}.$_" } $seladds
-   ];
- }
- if(my $asadds = delete($attrs->{'+as'})) {
-   my @asadds = (ref($asadds) eq 'ARRAY' ? @$asadds : ($asadds));
-   $attrs->{as} = [ @{ $attrs->{as} }, @asadds ];
- }
+  if(my $seladds = delete($attrs->{'+select'})) {
+    my @seladds = (ref($seladds) eq 'ARRAY' ? @$seladds : ($seladds));
+    $attrs->{select} = [
+                        @{ $attrs->{select} },
+                        map { (m/\./ || ref($_)) ? $_ : "${alias}.$_" } $seladds
+                        ];
+  }
+  if(my $asadds = delete($attrs->{'+as'})) {
+    my @asadds = (ref($asadds) eq 'ARRAY' ? @$asadds : ($asadds));
+    $attrs->{as} = [ @{ $attrs->{as} }, @asadds ];
+  }
   
   my $collapse = $attrs->{collapse} || {};
   if (my $prefetch = delete $attrs->{prefetch}) {
@@ -756,58 +756,64 @@ sub _merge_attr {
     
   return $b unless $a;
   if (ref $b eq 'HASH' && ref $a eq 'HASH') {
-		foreach my $key (keys %{$b}) {
-			if (exists $a->{$key}) {
-	      $a->{$key} = $self->_merge_attr($a->{$key}, $b->{$key}, $is_prefetch);
-			} else {
-	      $a->{$key} = delete $b->{$key};
-			}
-		}
-		return $a;
+    foreach my $key (keys %{$b}) {
+      if (exists $a->{$key}) {
+        $a->{$key} = $self->_merge_attr($a->{$key}, $b->{$key}, $is_prefetch);
+      } else {
+        $a->{$key} = delete $b->{$key};
+      }
+    }
+    return $a;
   } else {
-		$a = [$a] unless (ref $a eq 'ARRAY');
-		$b = [$b] unless (ref $b eq 'ARRAY');
-
-		my $hash = {};
-		my $array = [];      
-		foreach ($a, $b) {
-			foreach my $element (@{$_}) {
-	      if (ref $element eq 'HASH') {
-					$hash = $self->_merge_attr($hash, $element, $is_prefetch);
-	      } elsif (ref $element eq 'ARRAY') {
-					$array = [@{$array}, @{$element}];
-	      } else {	
-					if (($b == $_) && $is_prefetch) {
-						$self->_merge_array($array, $element, $is_prefetch);
-					} else {
-						push(@{$array}, $element);
-					}
-	      }
-			}
-		}
-
-		if ((keys %{$hash}) && (scalar(@{$array} > 0))) {
-			return [$hash, @{$array}];
-		} else {	
-			return (keys %{$hash}) ? $hash : $array;
-		}
+    $a = [$a] unless (ref $a eq 'ARRAY');
+    $b = [$b] unless (ref $b eq 'ARRAY');
+    
+    my $hash = {};
+    my $array = [];      
+    foreach ($a, $b) {
+      foreach my $element (@{$_}) {
+        if (ref $element eq 'HASH') {
+          $hash = $self->_merge_attr($hash, $element, $is_prefetch);
+        } elsif (ref $element eq 'ARRAY') {
+          $array = [@{$array}, @{$element}];
+        } else {	
+          if (($b == $_) && $is_prefetch) {
+            $self->_merge_array($array, $element, $is_prefetch);
+          } else {
+            push(@{$array}, $element);
+          }
+        }
+      }
+    }
+    if ($is_prefetch) {
+      my $final_array = [];
+      foreach my $element (@{$array}) {
+        push(@{$final_array}, $element) unless (exists $hash->{$element});
+      }
+      $array = $final_array;
+    }
+    if ((keys %{$hash}) && (scalar(@{$array} > 0))) {
+      return [$hash, @{$array}];
+    } else {	
+      return (keys %{$hash}) ? $hash : $array;
+    }
   }
 }
 
 sub _merge_array {
-	my ($self, $a, $b) = @_;
- 
-	$b = [$b] unless (ref $b eq 'ARRAY');
-	# add elements from @{$b} to @{$a} which aren't already in @{$a}
-	foreach my $b_element (@{$b}) {
-		push(@{$a}, $b_element) unless grep {$b_element eq $_} @{$a};
-	}
+  my ($self, $a, $b) = @_;
+  
+  $b = [$b] unless (ref $b eq 'ARRAY');
+  # add elements from @{$b} to @{$a} which aren't already in @{$a}
+  foreach my $b_element (@{$b}) {
+    push(@{$a}, $b_element) unless grep {$b_element eq $_} @{$a};
+  }
 }
 
 sub _construct_object {
   my ($self, @row) = @_;
   my @as = @{ $self->{_attrs}{as} };
-
+  
   my $info = $self->_collapse_result(\@as, \@row);
   my $new = $self->result_class->inflate_result($self->result_source, @$info);
   $new = $self->{_attrs}{record_filter}->($new)
@@ -927,7 +933,6 @@ sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
-
   my $count = $self->_count;
   return 0 unless $count;
 
@@ -965,7 +970,10 @@ sub _count { # Separated out so pager can get the full count
 
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
-  my ($count) = (ref $self)->new($self->result_source, $attrs)->cursor->next;
+	my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
+	$tmp_rs->{_parent_rs} = $self->{_parent_rs} if ($self->{_parent_rs}); #XXX - hack to pass through parent of related resultsets
+
+  my ($count) = $tmp_rs->cursor->next;
   return $count;
 }
 
@@ -1543,28 +1551,28 @@ Returns a related resultset for the supplied relationship name.
 
 sub related_resultset {
   my ( $self, $rel ) = @_;
-
+  
   $self->{related_resultsets} ||= {};
   return $self->{related_resultsets}{$rel} ||= do {
-      #warn "fetching related resultset for rel '$rel' " . $self->result_source->{name};
-      my $rel_obj = $self->result_source->relationship_info($rel);
-      $self->throw_exception(
+    #warn "fetching related resultset for rel '$rel' " . $self->result_source->{name};
+    my $rel_obj = $self->result_source->relationship_info($rel);
+    $self->throw_exception(
         "search_related: result source '" . $self->result_source->name .
         "' has no such relationship ${rel}")
         unless $rel_obj; #die Dumper $self->{attrs};
 
-      my $rs = $self->result_source->schema->resultset($rel_obj->{class}
+    my $rs = $self->result_source->schema->resultset($rel_obj->{class}
            )->search( undef,
-             { %{$self->{attrs}},
-               select => undef,
-               as => undef,
-	       join => $rel,
-	       _live_join => $rel }
-           );
-
-      # keep reference of the original resultset
-      $rs->{_parent_rs} = $self->result_source;
-      return $rs;
+                      { %{$self->{attrs}},
+                        select => undef,
+                        as => undef,
+                        join => $rel,
+                        _live_join => $rel }
+                      );
+    
+    # keep reference of the original resultset
+    $rs->{_parent_rs} = $self->result_source;
+    return $rs;
   };
 }
 
