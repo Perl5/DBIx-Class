@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 6;
+plan tests => 8;
 
 my @rs1a_results = $schema->resultset("Artist")->search_related('cds', {title => 'Forkful of bees'}, {order_by => 'title'});
 is($rs1a_results[0]->title, 'Forkful of bees', "bare field conditions okay after search related");
@@ -25,7 +25,7 @@ cmp_ok(scalar @cds, '==', 1, "condition based on inherited join okay");
 # this is wrong, should accept me.title really
 my $rs3 = $rs2->search_related('cds')->search({'cds.title' => 'Forkful of bees'});
 
-cmp_ok($rs3->count, '==', 3, "Three artists returned");
+cmp_ok($rs3->count, '==', 1, "Three artists returned");
 
 my $rs4 = $schema->resultset("CD")->search({ 'artist.artistid' => '1' }, { join => ['tracks', 'artist'], prefetch => 'artist' });
 my @rs4_results = $rs4->all;
@@ -35,5 +35,13 @@ is($rs4_results[0]->cdid, 1, "correct artist returned");
 
 my $rs5 = $rs4->search({'tracks.title' => 'Sticky Honey'});
 is($rs5->count, 1, "search without using previous joins okay");
+
+my $record_rs = $schema->resultset("Artist")->search(undef, { join => 'cds' })->search(undef, { prefetch => { 'cds' => 'tracks' }});
+my $record_jp = $record_rs->next;
+ok($record_jp, "prefetch on same rel okay");
+
+my $cd = $schema->resultset("CD")->find(1);
+my $producers = $cd->producers;
+is($producers->find(2)->name, 'Bob The Builder', "find on many to many okay");
 
 1;

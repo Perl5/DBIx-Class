@@ -353,7 +353,8 @@ sub _unique_queries {
 
     # Add the ResultSet's alias
     foreach my $key (grep { ! m/\./ } keys %$unique_query) {
-      $unique_query->{"$self->{attrs}->{alias}.$key"} = delete $unique_query->{$key};
+			my $alias = ($self->{attrs}->{_live_join}) ? $self->{attrs}->{_live_join} : $self->{attrs}->{alias};
+      $unique_query->{"$alias.$key"} = delete $unique_query->{$key};
     }
 
     push @unique_queries, $unique_query;
@@ -483,8 +484,9 @@ sub _is_unique_query {
 
   my $collapsed = $self->_collapse_query($query);
 
+	my $alias = ($self->{attrs}->{_live_join}) ? $self->{attrs}->{_live_join} : $self->{attrs}->{alias};
   foreach my $name ($self->result_source->unique_constraint_names) {
-    my @unique_cols = map { "$self->{attrs}->{alias}.$_" }
+    my @unique_cols = map { "$alias.$_" }
       $self->result_source->unique_constraint_columns($name);
 
     # Count the values for each unique column
@@ -492,7 +494,7 @@ sub _is_unique_query {
 
     foreach my $key (keys %$collapsed) {
       my $aliased = $key;
-      $aliased = "$self->{attrs}->{alias}.$key" unless $key =~ /\./;
+      $aliased = "$alias.$key" unless $key =~ /\./;
 
       next unless exists $seen{$aliased};  # Additional constraints are okay
       $seen{$aliased} = scalar @{ $collapsed->{$key} };
@@ -783,7 +785,13 @@ sub _merge_attr {
 	      }
 			}
 		}
-
+		if ($is_prefetch) {
+			my $final_array = [];
+			foreach my $element (@{$array}) {
+				push(@{$final_array}, $element) unless (exists $hash->{$element});
+			}
+			$array = $final_array;
+		}
 		if ((keys %{$hash}) && (scalar(@{$array} > 0))) {
 			return [$hash, @{$array}];
 		} else {	
