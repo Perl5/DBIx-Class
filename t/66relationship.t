@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 32;
+plan tests => 35;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -133,6 +133,16 @@ my @producers = $cd->producers();
 is( $producers[0]->name, 'Matt S Trout', 'many_to_many ok' );
 is( $cd->producers_sorted->next->name, 'Bob The Builder', 'sorted many_to_many ok' );
 is( $cd->producers_sorted(producerid => 3)->next->name, 'Fred The Phenotype', 'sorted many_to_many with search condition ok' );
+
+# test new many_to_many helpers
+$cd = $schema->resultset('CD')->find(2);
+my $prod = $schema->resultset('Producer')->find(1);
+$cd->add_to_producers($prod);
+my $prod_rs = $cd->producers();
+is( $prod_rs->count(), 1, 'many_to_many add_to_$rel($obj) count ok' );
+is( $prod_rs->first->name, 'Matt S Trout', 'many_to_many add_to_$rel($obj) ok' );
+$cd->remove_from_producers($prod);
+is( $cd->producers->count, 0, 'many_to_many remove_from_$rel($obj) ok' );
 
 # test undirected many-to-many relationship (e.g. "related artists")
 my $undir_maps = $schema->resultset("Artist")->find(1)->artist_undirected_maps;
