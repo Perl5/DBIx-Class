@@ -176,9 +176,6 @@ Alias for L<txn_commit>
 
 Alias for L<txn_rollback>
 
-
-1;
-
 =head1 AUTHORS
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>
@@ -189,3 +186,4 @@ You may distribute this code under the same terms as Perl itself.
 
 =cut
 
+1;
