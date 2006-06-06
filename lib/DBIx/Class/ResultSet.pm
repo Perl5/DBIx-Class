@@ -166,8 +166,8 @@ sub search_rs {
   my $having = delete $our_attrs->{having};
 
 	# XXX this is getting messy
-	if ($attrs->{_live_join_stack} || $our_attrs->{_live_join_stack}) {
-		my $live_join = $attrs->{_live_join_stack} || $our_attrs->{_live_join_stack};
+	if ($attrs->{_live_join_stack}) {
+		my $live_join = $attrs->{_live_join_stack};
 		foreach (reverse @{$live_join}) {
 			$attrs->{_live_join_h} = (defined $attrs->{_live_join_h}) ? { $_ => $attrs->{_live_join_h} } : $_;
 		}
@@ -178,13 +178,11 @@ sub search_rs {
     next unless (exists $attrs->{$key});
     if ($attrs->{_live_join_stack} || $our_attrs->{_live_join_stack}) {
 			my $live_join = $attrs->{_live_join_stack} || $our_attrs->{_live_join_stack};
-			foreach (@{$live_join}) {
+			foreach (reverse @{$live_join}) {
 				$attrs->{$key} = { $_ => $attrs->{$key} };
 			}
     }
-    if ($attrs->{_live_join} || $our_attrs->{_live_join}) {
-      $attrs->{$key} = { ($attrs->{_live_join}) ? $attrs->{_live_join} : $our_attrs->{_live_join} => $attrs->{$key} };
-    }
+
     if (exists $our_attrs->{$key}) {
       $our_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
     } else {
@@ -802,13 +800,13 @@ sub _merge_attr {
         }
       }
     }
-    if ($is_prefetch) {
-      my $final_array = [];
-      foreach my $element (@{$array}) {
-        push(@{$final_array}, $element) unless (exists $hash->{$element});
-      }
-      $array = $final_array;
-    }
+
+		my $final_array = [];
+		foreach my $element (@{$array}) {
+			push(@{$final_array}, $element) unless (exists $hash->{$element});
+		}
+		$array = $final_array;
+
     if ((keys %{$hash}) && (scalar(@{$array} > 0))) {
       return [$hash, @{$array}];
     } else {	
@@ -1585,9 +1583,8 @@ sub related_resultset {
            )->search( undef,
                       { select => undef,
                         as => undef,
-                        #join => $rel,
-                        _live_join => $rel,
-                        _live_join_stack => $live_join_stack,
+                        _live_join => $rel, #the most recent
+                        _live_join_stack => $live_join_stack, #the trail of rels
                         _parent_attrs => $self->{attrs}}
                       );    
 

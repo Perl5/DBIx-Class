@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 10;
+plan tests => 11;
 
 my @rs1a_results = $schema->resultset("Artist")->search_related('cds', {title => 'Forkful of bees'}, {order_by => 'title'});
 is($rs1a_results[0]->title, 'Forkful of bees', "bare field conditions okay after search related");
@@ -49,7 +49,13 @@ is(scalar(@tracks), 3, 'right number of prefetched tracks after has many');
 #my $tracks_rs = $cds->search_related('tracks', { 'tracks.position' => '2', 'disc.title' => 'Forkful of bees' });
 #my $first_tracks_rs = $tracks_rs->first;
 
-my ($track) = $schema->resultset("Artist")->search({ name => 'Caterwauler McCrae' })->search_related('cds', { year => '2001'})->search_related('tracks', { 'position' => '2' })->all;
-is($track->trackid, '5', 'search related on search related okay');
+my $related_rs = $schema->resultset("Artist")->search({ name => 'Caterwauler McCrae' })->search_related('cds', { year => '2001'})->search_related('tracks', { 'position' => '2' });
+is($related_rs->first->trackid, '5', 'search related on search related okay');
+
+# causes ambig col error due to order_by
+#$related_rs->search({'cd.year' => '2001'}, {join => ['cd', 'cd']})->all;
+
+my $title = $schema->resultset("Artist")->search_related('twokeys')->search_related('cd')->search({'tracks.position' => '2'}, {join => 'tracks', order_by => 'tracks.trackid'})->next->title;
+is($title, 'Forkful of bees', 'search relateds with order by okay');
 
 1;
