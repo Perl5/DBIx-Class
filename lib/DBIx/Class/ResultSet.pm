@@ -160,14 +160,17 @@ always return a resultset, even in list context.
 sub search_rs {
   my $self = shift;
 
-  my $our_attrs = { %{$self->{attrs}} };
-  my $having = delete $our_attrs->{having};
   my $attrs = {};
   $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
-  
+  my $our_attrs = ($attrs->{_parent_attrs}) ? { %{$attrs->{_parent_attrs}} } : { %{$self->{attrs}} };
+  my $having = delete $our_attrs->{having};
+
   # merge new attrs into old
   foreach my $key (qw/join prefetch/) {
     next unless (exists $attrs->{$key});
+    if ($attrs->{_live_join} || $our_attrs->{_live_join}) {
+      $attrs->{$key} = { ($attrs->{_live_join}) ? $attrs->{_live_join} : $our_attrs->{_live_join} => $attrs->{$key} };
+    }
     if (exists $our_attrs->{$key}) {
       $our_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
     } else {
@@ -176,13 +179,12 @@ sub search_rs {
     delete $attrs->{$key};
   }
 
+  $our_attrs->{join} = $self->_merge_attr($our_attrs->{join}, $attrs->{_live_join}, 1) if ($attrs->{_live_join});
   if (exists $our_attrs->{prefetch}) {
       $our_attrs->{join} = $self->_merge_attr($our_attrs->{join}, $our_attrs->{prefetch}, 1);
   }
 
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
-
-  # merge new where and having into old
   my $where = (@_
                 ? ((@_ == 1 || ref $_[0] eq "HASH")
                     ? shift
@@ -670,7 +672,7 @@ sub _resolve {
 
   return if(exists $self->{_attrs}); #return if _resolve has already been called
 
-  my $attrs = $self->{attrs};  
+  my $attrs = $self->{attrs};    
   my $source = ($self->{_parent_rs}) ? $self->{_parent_rs} : $self->{result_source};
 
   # XXX - lose storable dclone
@@ -1563,15 +1565,15 @@ sub related_resultset {
 
     my $rs = $self->result_source->schema->resultset($rel_obj->{class}
            )->search( undef,
-                      { %{$self->{attrs}},
-                        select => undef,
+                      { select => undef,
                         as => undef,
-                        join => $rel,
-                        _live_join => $rel }
+                        #join => $rel,
+                        _live_join => $rel,
+                        _parent_attrs => $self->{attrs}}
                       );
     
     # keep reference of the original resultset
-    $rs->{_parent_rs} = $self->result_source;
+    $rs->{_parent_rs} = ($self->{_parent_rs}) ? $self->{_parent_rs} : $self->result_source;
     return $rs;
   };
 }

@@ -102,7 +102,7 @@ is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id gener
 
 # Test backwards compatibility
 {
-  my $artist_by_hash = $schema->resultset('Artist')->find(artistid => 4);
+  my $artist_by_hash = $schema->resultset('Artist')->find({artistid => 4});
   is($artist_by_hash->name, 'Man With A Spoon', 'Retrieved correctly');
   is($artist_by_hash->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
 }
