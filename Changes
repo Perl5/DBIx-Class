@@ -30,6 +30,8 @@ Revision history for DBIx::Class
           ColumnCase is loaded
         - reorganized and simplified tests
         - added Ordered
+        - added the ability to set on_connect_do and the various sql_maker
+          options as part of Storage::DBI's connect_info.
 
 0.06003 2006-05-19 15:37:30
         - make find_or_create_related check defined() instead of truth
