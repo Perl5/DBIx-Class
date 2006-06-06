@@ -7,11 +7,10 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 9;
+plan tests => 10;
 
 my @rs1a_results = $schema->resultset("Artist")->search_related('cds', {title => 'Forkful of bees'}, {order_by => 'title'});
 is($rs1a_results[0]->title, 'Forkful of bees', "bare field conditions okay after search related");
-
 my $rs1 = $schema->resultset("Artist")->search({ 'tags.tag' => 'Blue' }, { join => {'cds' => 'tracks'}, prefetch => {'cds' => 'tags'} });
 my @artists = $rs1->all;
 cmp_ok(@artists, '==', 1, "Two artists returned");
@@ -38,11 +37,19 @@ my $record_rs = $schema->resultset("Artist")->search(undef, { join => 'cds' })->
 my $record_jp = $record_rs->next;
 ok($record_jp, "prefetch on same rel okay");
 
-my $cd = $schema->resultset("CD")->find(1);
-my $producers = $cd->producers;
-is($producers->find(2)->name, 'Bob The Builder', "find on many to many okay");
+my $artist = $schema->resultset("Artist")->find(1);
+my $cds = $artist->cds;
+is($cds->find(2)->title, 'Forkful of bees', "find on has many rs okay");
 
-my @prods = $producers->search({name => 'Bob The Builder'}, { prefetch => 'producer_to_cd' })->all;
-is($prods[0]->name, 'Bob The Builder', 'prefetch after has_many rel okay');
+my $cd = $cds->search({'me.title' => 'Forkful of bees'}, { prefetch => 'tracks' })->first;
+my @tracks = $cd->tracks->all;
+is(scalar(@tracks), 3, 'right number of prefetched tracks after has many');
+
+# causes ambig col error due to order_by
+#my $tracks_rs = $cds->search_related('tracks', { 'tracks.position' => '2', 'disc.title' => 'Forkful of bees' });
+#my $first_tracks_rs = $tracks_rs->first;
+
+my ($track) = $schema->resultset("Artist")->search({ name => 'Caterwauler McCrae' })->search_related('cds', { year => '2001'})->search_related('tracks', { 'position' => '2' })->all;
+is($track->trackid, '5', 'search related on search related okay');
 
 1;
