@@ -203,10 +203,6 @@ sub _RowNum {
    $self->SUPER::_RowNum(@_);
 }
 
-# Accessor for setting limit dialect. This is useful
-# for JDBC-bridge among others where the remote SQL-dialect cannot
-# be determined by the name of the driver alone.
-#
 sub limit_dialect {
     my $self = shift;
     $self->{limit_dialect} = shift if @_;
@@ -286,44 +282,47 @@ This class represents the connection to the database
 
 =head2 connect_info
 
-Connection information arrayref.  Can either be the same arguments
-one would pass to DBI->connect, or a code-reference which returns
-a connected database handle.  In either case, there is an optional
-final element in the arrayref, which can hold a hashref of
-connection-specific Storage::DBI options.  These include
-C<on_connect_do>, and the sql_maker options C<limit_dialect>,
-C<quote_char>, and C<name_sep>.  Examples:
+The arguments of C<connect_info> are always a single array reference.
+
+This is normally accessed via L<DBIx::Class::Schema/connection>, which
+encapsulates its argument list in an arrayref before calling
+C<connect_info> here.
+
+The arrayref can either contain the same set of arguments one would
+normally pass to L<DBI/connect>, or a lone code reference which returns
+a connected database handle.
+
+In either case, there is an optional final element within the arrayref
+which can hold a hashref of connection-specific Storage::DBI options.
+These include C<on_connect_do>, and the sql_maker options
+C<limit_dialect>, C<quote_char>, and C<name_sep>.  Examples:
 
   ->connect_info([ 'dbi:SQLite:./foo.db' ]);
-  ->connect_info(sub { DBI->connect(...) });
-  ->connect_info([ 'dbi:Pg:dbname=foo',
-                   'postgres',
-                   '',
-                   { AutoCommit => 0 },
-                   { quote_char => q{`}, name_sep => q{@} },
-                 ]);
+
+  ->connect_info([ sub { DBI->connect(...) } ]);
+
+  ->connect_info(
+    [
+      'dbi:Pg:dbname=foo',
+      'postgres',
+      'my_pg_password',
+      { AutoCommit => 0 },
+      { quote_char => q{`}, name_sep => q{@} },
+    ]
+  );
+
+  ->connect_info(
+    [
+      sub { DBI->connect(...) },
+      { quote_char => q{`}, name_sep => q{@} },
+    ]
+  );
 
 =head2 on_connect_do
 
 Executes the sql statements given as a listref on every db connect.
 
-=head2 quote_char
-
-Specifies what characters to use to quote table and column names. If 
-you use this you will want to specify L<name_sep> as well.
-
-quote_char expectes either a single character, in which case is it is placed
-on either side of the table/column, or an array of length 2 in which case the
-table/column name is placed between the elements.
-
-For example under MySQL you'd use C<quote_char('`')>, and user SQL Server you'd 
-use C<quote_char(qw/[ ]/)>.
-
-=head2 name_sep
-
-This only needs to be used in conjunction with L<quote_char>, and is used to 
-specify the charecter that seperates elements (schemas, tables, columns) from 
-each other. In most cases this is simply a C<.>.
+This option can also be set via L</connect_info>.
 
 =head2 debug
 
@@ -464,34 +463,34 @@ sub sql_maker {
 }
 
 sub connect_info {
-    my ($self, $info_arg) = @_;
+  my ($self, $info_arg) = @_;
 
-    if($info_arg) {
-        my $info = [ @$info_arg ]; # copy because we can alter it
-        my $last_info = $info->[-1];
-        if(ref $last_info eq 'HASH') {
-            my $used;
-            if(my $on_connect_do = $last_info->{on_connect_do}) {
-               $used = 1;
-               $self->on_connect_do($on_connect_do);
-            }
-            for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
-                if(my $opt_val = $last_info->{$sql_maker_opt}) {
-                    $used = 1;
-                    $self->sql_maker->$sql_maker_opt($opt_val);
-                }
-            }
-
-            # remove our options hashref if it was there, to avoid confusing
-            #   DBI in the case the user didn't use all 4 DBI options, as in:
-            #   [ 'dbi:SQLite:foo.db', { quote_char => q{`} } ]
-            pop(@$info) if $used;
+  if($info_arg) {
+    my $info = [ @$info_arg ]; # copy because we can alter it
+    my $last_info = $info->[-1];
+    if(ref $last_info eq 'HASH') {
+      my $used;
+      if(my $on_connect_do = $last_info->{on_connect_do}) {
+        $used = 1;
+        $self->on_connect_do($on_connect_do);
+      }
+      for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
+        if(my $opt_val = $last_info->{$sql_maker_opt}) {
+          $used = 1;
+          $self->sql_maker->$sql_maker_opt($opt_val);
         }
+      }
 
-        $self->_connect_info($info);
+      # remove our options hashref if it was there, to avoid confusing
+      #   DBI in the case the user didn't use all 4 DBI options, as in:
+      #   [ 'dbi:SQLite:foo.db', { quote_char => q{`} } ]
+      pop(@$info) if $used;
     }
 
-    $self->_connect_info;
+    $self->_connect_info($info);
+  }
+
+  $self->_connect_info;
 }
 
 sub _populate_dbh {
@@ -529,12 +528,9 @@ sub _connect {
   }
 
   eval {
-    if(ref $info[0] eq 'CODE') {
-        $dbh = &{$info[0]};
-    }
-    else {
-        $dbh = DBI->connect(@info);
-    }
+    $dbh = ref $info[0] eq 'CODE'
+         ? &{$info[0]}
+         : DBI->connect(@info);
   };
 
   $DBI::connect_via = $old_connect_via if $old_connect_via;
@@ -1028,9 +1024,33 @@ The following methods are extended:-
 
 =item limit_dialect
 
+Accessor for setting limit dialect. This is useful
+for JDBC-bridge among others where the remote SQL-dialect cannot
+be determined by the name of the driver alone.
+
+This option can also be set via L</connect_info>.
+
 =item quote_char
 
+Specifies what characters to use to quote table and column names. If 
+you use this you will want to specify L<name_sep> as well.
+
+quote_char expectes either a single character, in which case is it is placed
+on either side of the table/column, or an arrayref of length 2 in which case the
+table/column name is placed between the elements.
+
+For example under MySQL you'd use C<quote_char('`')>, and user SQL Server you'd 
+use C<quote_char(qw/[ ]/)>.
+
+This option can also be set via L</connect_info>.
+
 =item name_sep
+
+This only needs to be used in conjunction with L<quote_char>, and is used to 
+specify the charecter that seperates elements (schemas, tables, columns) from 
+each other. In most cases this is simply a C<.>.
+
+This option can also be set via L</connect_info>.
 
 =back
 
