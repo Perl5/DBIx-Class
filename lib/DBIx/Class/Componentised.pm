@@ -12,8 +12,19 @@ sub inject_base {
   {
     no strict 'refs';
     foreach my $to (reverse @to_inject) {
-       unshift( @{"${target}::ISA"}, $to )
-         unless ($target eq $to || $target->isa($to));
+      my @comps = qw(DigestColumns ResultSetManager Ordered UTF8Columns);
+           # Add components here that need to be loaded before Core
+      foreach my $first_comp (@comps) {
+        if ($to eq 'DBIx::Class::Core' &&
+            $target->isa("DBIx::Class::${first_comp}")) {
+          warn "Possible incorrect order of components in ".
+               "${target}::load_components($first_comp) call: Core loaded ".
+               "before $first_comp. See the documentation for ".
+               "DBIx::Class::$first_comp for more information";
+        }
+      }
+      unshift( @{"${target}::ISA"}, $to )
+        unless ($target eq $to || $target->isa($to));
     }
   }
 
@@ -54,8 +65,8 @@ sub ensure_class_loaded {
   eval "require $f_class";
   my $err = $@;
   Class::Inspector->loaded($f_class)
-      or die $err || "require $f_class was successful but the package".
-                     "is not defined";
+    or die $err || "require $f_class was successful but the package".
+                   "is not defined";
 }
 
 1;
