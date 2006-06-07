@@ -11,7 +11,7 @@ use Data::Page;
 use Storable;
 use Data::Dumper;
 use Scalar::Util qw/weaken/;
-
+use Data::Dumper;
 use DBIx::Class::ResultSetColumn;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
@@ -741,7 +741,6 @@ sub _resolve {
     my @asadds = (ref($asadds) eq 'ARRAY' ? @$asadds : ($asadds));
     $attrs->{as} = [ @{ $attrs->{as} }, @asadds ];
   }
-  
   my $collapse = $attrs->{collapse} || {};
   if (my $prefetch = delete $attrs->{prefetch}) {
       my @pre_order;
@@ -755,10 +754,46 @@ sub _resolve {
 	      push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
 		  unless $seen{$p};
 	  }
-	  my @prefetch = $source->resolve_prefetch(
+
+		# we're about to resolve_join on the current class, so we need to bring
+		# the joins (which are from the original class) to the right level
+		# XXX the below alg is ridiculous
+		if ($attrs->{_live_join_stack}) {
+			STACK: foreach (@{$attrs->{_live_join_stack}}) {
+				if (ref $p eq 'HASH') {
+					if (exists $p->{$_}) {
+						$p = $p->{$_};
+					} else {
+						$p = undef;
+						last STACK;
+					}
+				} elsif (ref $p eq 'ARRAY') {
+					foreach my $pe (@{$p}) {
+						if ($pe eq $_) {
+							$p = undef;
+							last STACK;
+						}
+						next unless(ref $pe eq 'HASH');
+						next unless(exists $pe->{$_});
+						$p = $pe->{$_};
+						next STACK;
+					}						
+					$p = undef;
+					last STACK;
+				} else {
+					$p = undef;
+					last STACK;
+				}
+			}
+		}
+		
+		if ($p) {
+			my @prefetch = $self->result_source->resolve_prefetch(
 						   $p, $attrs->{alias}, {}, \@pre_order, $collapse);
-	  push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
-	  push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
+		
+			push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
+			push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
+		}
       }
       push(@{$attrs->{order_by}}, @pre_order);
   }
@@ -775,7 +810,7 @@ sub _merge_attr {
       if (exists $a->{$key}) {
         $a->{$key} = $self->_merge_attr($a->{$key}, $b->{$key}, $is_prefetch);
       } else {
-        $a->{$key} = delete $b->{$key};
+        $a->{$key} = $b->{$key};
       }
     }
     return $a;
@@ -870,8 +905,8 @@ sub _collapse_result {
       $info->[0] = $const{$key};
     }
   }
-
   my @collapse;
+
   if (defined $prefix) {
     @collapse = map {
         m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()
@@ -888,9 +923,10 @@ sub _collapse_result {
     }
     my $c_prefix = (defined($prefix) ? "${prefix}.${c}" : $c);
     my @co_key = @{$self->{_attrs}->{collapse}{$c_prefix}};
-    my %co_check = map { ($_, $target->[0]->{$_}); } @co_key;
     my $tree = $self->_collapse_result($as, $row, $c_prefix);
+    my %co_check = map { ($_, $tree->[0]->{$_}); } @co_key;
     my (@final, @raw);
+
     while ( !(grep {
                 !defined($tree->[0]->{$_}) ||
                 $co_check{$_} ne $tree->[0]->{$_}
@@ -903,6 +939,8 @@ sub _collapse_result {
     @$target = (@final ? @final : [ {}, {} ]); 
       # single empty result to indicate an empty prefetched has_many
   }
+
+  #print "final info: " . Dumper($info);
   return $info;
 }
 
@@ -1571,22 +1609,25 @@ sub related_resultset {
   return $self->{related_resultsets}{$rel} ||= do {
     #warn "fetching related resultset for rel '$rel' " . $self->result_source->{name};
     my $rel_obj = $self->result_source->relationship_info($rel);
+		#print Dumper($self->result_source->_relationships);
     $self->throw_exception(
         "search_related: result source '" . $self->result_source->name .
         "' has no such relationship ${rel}")
         unless $rel_obj; #die Dumper $self->{attrs};
 
-		my $live_join_stack = $self->{attrs}->{_live_join_stack} || [];		
-		push(@{$live_join_stack}, $rel);
+		my @live_join_stack = (exists $self->{attrs}->{_live_join_stack}) ?
+			@{$self->{attrs}->{_live_join_stack}}:
+			();		
+		push(@live_join_stack, $rel);
 		
     my $rs = $self->result_source->schema->resultset($rel_obj->{class}
            )->search( undef,
                       { select => undef,
                         as => undef,
                         _live_join => $rel, #the most recent
-                        _live_join_stack => $live_join_stack, #the trail of rels
+                        _live_join_stack => \@live_join_stack, #the trail of rels
                         _parent_attrs => $self->{attrs}}
-                      );    
+                       );    
 
     # keep reference of the original resultset
     $rs->{_parent_rs} = ($self->{_parent_rs}) ? $self->{_parent_rs} : $self->result_source;

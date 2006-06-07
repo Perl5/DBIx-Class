@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 11;
+plan tests => 14;
 
 my @rs1a_results = $schema->resultset("Artist")->search_related('cds', {title => 'Forkful of bees'}, {order_by => 'title'});
 is($rs1a_results[0]->title, 'Forkful of bees', "bare field conditions okay after search related");
@@ -21,7 +21,7 @@ my @artists2 = $rs2->search({ 'producer.name' => 'Matt S Trout' });
 my @cds = $artists2[0]->cds;
 cmp_ok(scalar @cds, '==', 1, "condition based on inherited join okay");
 
-# this is wrong, should accept me.title really
+#this is wrong, should accept me.title really
 my $rs3 = $rs2->search_related('cds');
 cmp_ok($rs3->count, '==', 9, "Nine artists returned");
 
@@ -45,17 +45,31 @@ my $cd = $cds->search({'me.title' => 'Forkful of bees'}, { prefetch => 'tracks' 
 my @tracks = $cd->tracks->all;
 is(scalar(@tracks), 3, 'right number of prefetched tracks after has many');
 
-# causes ambig col error due to order_by
+#causes ambig col error due to order_by
 #my $tracks_rs = $cds->search_related('tracks', { 'tracks.position' => '2', 'disc.title' => 'Forkful of bees' });
 #my $first_tracks_rs = $tracks_rs->first;
 
 my $related_rs = $schema->resultset("Artist")->search({ name => 'Caterwauler McCrae' })->search_related('cds', { year => '2001'})->search_related('tracks', { 'position' => '2' });
 is($related_rs->first->trackid, '5', 'search related on search related okay');
 
-# causes ambig col error due to order_by
+#causes ambig col error due to order_by
 #$related_rs->search({'cd.year' => '2001'}, {join => ['cd', 'cd']})->all;
 
 my $title = $schema->resultset("Artist")->search_related('twokeys')->search_related('cd')->search({'tracks.position' => '2'}, {join => 'tracks', order_by => 'tracks.trackid'})->next->title;
 is($title, 'Forkful of bees', 'search relateds with order by okay');
+
+my $prod_rs = $schema->resultset("CD")->find(1)->producers_sorted;
+my $prod_rs2 = $prod_rs->search({ name => 'Matt S Trout' });
+my $prod_first = $prod_rs2->first;
+is($prod_first->id, '1', 'somewhat pointless search on rel with order_by on it okay');
+
+my $prod_map_rs = $schema->resultset("Artist")->find(1)->cds->search_related('cd_to_producer', {}, { join => 'producer', prefetch => 'producer' });
+is($prod_map_rs->next->producer->producerid, '1', 'search related with prefetch okay');
+
+my $stupid = $schema->resultset("Artist")->search_related('artist_undirected_maps', {}, { prefetch => 'artist1' })->search_related('mapped_artists')->search_related('cds', {'cds.cdid' => '2'}, { prefetch => 'tracks' });
+#use Data::Dumper; warn Dumper($stupid->{attrs});
+
+my $cd_final = $schema->resultset("Artist")->search_related('artist_undirected_maps', {}, { prefetch => 'artist1' })->search_related('mapped_artists')->search_related('cds', {'cds.cdid' => '2'}, { prefetch => 'tracks' })->first;
+is($cd_final->cdid, '2', 'bonkers search_related-with-join-midway okay');
 
 1;
