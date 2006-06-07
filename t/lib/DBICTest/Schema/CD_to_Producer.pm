@@ -20,9 +20,4 @@ __PACKAGE__->belongs_to(
   { 'foreign.producerid' => 'self.producer' }
 );
 
-__PACKAGE__->belongs_to(
-  'other_producer', 'DBICTest::Schema::Producer',
-  { 'foreign.producerid' => 'self.producer' }
-);
-
 1;

@@ -754,13 +754,46 @@ sub _resolve {
 	      push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
 		  unless $seen{$p};
 	  }
-          #print "res pre: " . Dumper($p, $collapse);
-	  my @prefetch = $source->resolve_prefetch(
+
+		# we're about to resolve_join on the current class, so we need to bring
+		# the joins (which are from the original class) to the right level
+		# XXX the below alg is ridiculous
+		if ($attrs->{_live_join_stack}) {
+			STACK: foreach (@{$attrs->{_live_join_stack}}) {
+				if (ref $p eq 'HASH') {
+					if (exists $p->{$_}) {
+						$p = $p->{$_};
+					} else {
+						$p = undef;
+						last STACK;
+					}
+				} elsif (ref $p eq 'ARRAY') {
+					foreach my $pe (@{$p}) {
+						if ($pe eq $_) {
+							$p = undef;
+							last STACK;
+						}
+						next unless(ref $pe eq 'HASH');
+						next unless(exists $pe->{$_});
+						$p = $pe->{$_};
+						next STACK;
+					}						
+					$p = undef;
+					last STACK;
+				} else {
+					$p = undef;
+					last STACK;
+				}
+			}
+		}
+		
+		if ($p) {
+			my @prefetch = $self->result_source->resolve_prefetch(
 						   $p, $attrs->{alias}, {}, \@pre_order, $collapse);
-            
-          #print "prefetch: " . Dumper(\@prefetch);
-	  push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
-	  push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
+		
+			push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
+			push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
+		}
       }
       push(@{$attrs->{order_by}}, @pre_order);
   }
@@ -831,7 +864,6 @@ sub _construct_object {
   my ($self, @row) = @_;
   my @as = @{ $self->{_attrs}{as} };
   
-  #print "row in: " . Dumper(\@row);
   my $info = $self->_collapse_result(\@as, \@row);
   my $new = $self->result_class->inflate_result($self->result_source, @$info);
   $new = $self->{_attrs}{record_filter}->($new)
@@ -875,7 +907,6 @@ sub _collapse_result {
   }
   my @collapse;
 
-  #print "collapse: " . Dumper($self->{_attrs}->{collapse});
   if (defined $prefix) {
     @collapse = map {
         m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()
@@ -896,7 +927,6 @@ sub _collapse_result {
     my %co_check = map { ($_, $tree->[0]->{$_}); } @co_key;
     my (@final, @raw);
 
-    #print "les free: " . Dumper($tree->[0], \%co_check, \@co_key);
     while ( !(grep {
                 !defined($tree->[0]->{$_}) ||
                 $co_check{$_} ne $tree->[0]->{$_}
@@ -910,13 +940,6 @@ sub _collapse_result {
       # single empty result to indicate an empty prefetched has_many
   }
 
-  # get prefetch tree back to result_source level
-  # $self could be a related resultset
-  #if ($self->{attrs}->{_live_join_stack}) {
-   # foreach (@{$self->{attrs}->{_live_join_stack}}) {
-    #  $info->[1] = $info->[1]->{$_}->[1] if(exists $info->[1]->{$_});
-    #}
-  #}
   #print "final info: " . Dumper($info);
   return $info;
 }
@@ -1586,22 +1609,25 @@ sub related_resultset {
   return $self->{related_resultsets}{$rel} ||= do {
     #warn "fetching related resultset for rel '$rel' " . $self->result_source->{name};
     my $rel_obj = $self->result_source->relationship_info($rel);
+		#print Dumper($self->result_source->_relationships);
     $self->throw_exception(
         "search_related: result source '" . $self->result_source->name .
         "' has no such relationship ${rel}")
         unless $rel_obj; #die Dumper $self->{attrs};
 
-		my $live_join_stack = $self->{attrs}->{_live_join_stack} || [];		
-		push(@{$live_join_stack}, $rel);
+		my @live_join_stack = (exists $self->{attrs}->{_live_join_stack}) ?
+			@{$self->{attrs}->{_live_join_stack}}:
+			();		
+		push(@live_join_stack, $rel);
 		
     my $rs = $self->result_source->schema->resultset($rel_obj->{class}
            )->search( undef,
                       { select => undef,
                         as => undef,
                         _live_join => $rel, #the most recent
-                        _live_join_stack => $live_join_stack, #the trail of rels
+                        _live_join_stack => \@live_join_stack, #the trail of rels
                         _parent_attrs => $self->{attrs}}
-                      );    
+                       );    
 
     # keep reference of the original resultset
     $rs->{_parent_rs} = ($self->{_parent_rs}) ? $self->{_parent_rs} : $self->result_source;
