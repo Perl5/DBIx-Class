@@ -479,7 +479,7 @@ sub single {
   }
 
   unless ($self->_is_unique_query($attrs->{where})) {
-    carp "Query not guarnteed to return a single row"
+    carp "Query not guaranteed to return a single row"
       . "; please declare your unique constraints or use search instead";
   }
 
