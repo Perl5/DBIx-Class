@@ -165,12 +165,24 @@ sub search_rs {
   my $our_attrs = ($attrs->{_parent_attrs}) ? { %{$attrs->{_parent_attrs}} } : { %{$self->{attrs}} };
   my $having = delete $our_attrs->{having};
 
+	# XXX this is getting messy
+	if ($attrs->{_live_join_stack}) {
+		my $live_join = $attrs->{_live_join_stack};
+		foreach (reverse @{$live_join}) {
+			$attrs->{_live_join_h} = (defined $attrs->{_live_join_h}) ? { $_ => $attrs->{_live_join_h} } : $_;
+		}
+	}
+
   # merge new attrs into old
   foreach my $key (qw/join prefetch/) {
     next unless (exists $attrs->{$key});
-    if ($attrs->{_live_join} || $our_attrs->{_live_join}) {
-      $attrs->{$key} = { ($attrs->{_live_join}) ? $attrs->{_live_join} : $our_attrs->{_live_join} => $attrs->{$key} };
+    if ($attrs->{_live_join_stack} || $our_attrs->{_live_join_stack}) {
+			my $live_join = $attrs->{_live_join_stack} || $our_attrs->{_live_join_stack};
+			foreach (reverse @{$live_join}) {
+				$attrs->{$key} = { $_ => $attrs->{$key} };
+			}
     }
+
     if (exists $our_attrs->{$key}) {
       $our_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
     } else {
@@ -179,7 +191,8 @@ sub search_rs {
     delete $attrs->{$key};
   }
 
-  $our_attrs->{join} = $self->_merge_attr($our_attrs->{join}, $attrs->{_live_join}, 1) if ($attrs->{_live_join});
+	$our_attrs->{join} = $self->_merge_attr($our_attrs->{join}, $attrs->{_live_join_h}, 1) if ($attrs->{_live_join_h});
+
   if (exists $our_attrs->{prefetch}) {
       $our_attrs->{join} = $self->_merge_attr($our_attrs->{join}, $our_attrs->{prefetch}, 1);
   }
@@ -787,13 +800,13 @@ sub _merge_attr {
         }
       }
     }
-    if ($is_prefetch) {
-      my $final_array = [];
-      foreach my $element (@{$array}) {
-        push(@{$final_array}, $element) unless (exists $hash->{$element});
-      }
-      $array = $final_array;
-    }
+
+		my $final_array = [];
+		foreach my $element (@{$array}) {
+			push(@{$final_array}, $element) unless (exists $hash->{$element});
+		}
+		$array = $final_array;
+
     if ((keys %{$hash}) && (scalar(@{$array} > 0))) {
       return [$hash, @{$array}];
     } else {	
@@ -1563,15 +1576,18 @@ sub related_resultset {
         "' has no such relationship ${rel}")
         unless $rel_obj; #die Dumper $self->{attrs};
 
+		my $live_join_stack = $self->{attrs}->{_live_join_stack} || [];		
+		push(@{$live_join_stack}, $rel);
+		
     my $rs = $self->result_source->schema->resultset($rel_obj->{class}
            )->search( undef,
                       { select => undef,
                         as => undef,
-                        #join => $rel,
-                        _live_join => $rel,
+                        _live_join => $rel, #the most recent
+                        _live_join_stack => $live_join_stack, #the trail of rels
                         _parent_attrs => $self->{attrs}}
-                      );
-    
+                      );    
+
     # keep reference of the original resultset
     $rs->{_parent_rs} = ($self->{_parent_rs}) ? $self->{_parent_rs} : $self->result_source;
     return $rs;
