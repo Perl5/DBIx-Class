@@ -40,6 +40,7 @@ __PACKAGE__->might_have(
     { proxy => [ qw/notes/ ] },
 );
 __PACKAGE__->many_to_many( producers => cd_to_producer => 'producer' );
+__PACKAGE__->many_to_many( other_producers => cd_to_producer => 'other_producer' );
 __PACKAGE__->many_to_many(
     producers_sorted => cd_to_producer => 'producer',
     { order_by => 'producer.name' },

@@ -11,7 +11,7 @@ use Data::Page;
 use Storable;
 use Data::Dumper;
 use Scalar::Util qw/weaken/;
-
+use Data::Dumper;
 use DBIx::Class::ResultSetColumn;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
@@ -741,7 +741,6 @@ sub _resolve {
     my @asadds = (ref($asadds) eq 'ARRAY' ? @$asadds : ($asadds));
     $attrs->{as} = [ @{ $attrs->{as} }, @asadds ];
   }
-  
   my $collapse = $attrs->{collapse} || {};
   if (my $prefetch = delete $attrs->{prefetch}) {
       my @pre_order;
@@ -755,8 +754,11 @@ sub _resolve {
 	      push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
 		  unless $seen{$p};
 	  }
+          #print "res pre: " . Dumper($p, $collapse);
 	  my @prefetch = $source->resolve_prefetch(
 						   $p, $attrs->{alias}, {}, \@pre_order, $collapse);
+            
+          #print "prefetch: " . Dumper(\@prefetch);
 	  push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
 	  push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
       }
@@ -775,7 +777,7 @@ sub _merge_attr {
       if (exists $a->{$key}) {
         $a->{$key} = $self->_merge_attr($a->{$key}, $b->{$key}, $is_prefetch);
       } else {
-        $a->{$key} = delete $b->{$key};
+        $a->{$key} = $b->{$key};
       }
     }
     return $a;
@@ -829,6 +831,7 @@ sub _construct_object {
   my ($self, @row) = @_;
   my @as = @{ $self->{_attrs}{as} };
   
+  #print "row in: " . Dumper(\@row);
   my $info = $self->_collapse_result(\@as, \@row);
   my $new = $self->result_class->inflate_result($self->result_source, @$info);
   $new = $self->{_attrs}{record_filter}->($new)
@@ -870,8 +873,9 @@ sub _collapse_result {
       $info->[0] = $const{$key};
     }
   }
-
   my @collapse;
+
+  #print "collapse: " . Dumper($self->{_attrs}->{collapse});
   if (defined $prefix) {
     @collapse = map {
         m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()
@@ -888,9 +892,11 @@ sub _collapse_result {
     }
     my $c_prefix = (defined($prefix) ? "${prefix}.${c}" : $c);
     my @co_key = @{$self->{_attrs}->{collapse}{$c_prefix}};
-    my %co_check = map { ($_, $target->[0]->{$_}); } @co_key;
     my $tree = $self->_collapse_result($as, $row, $c_prefix);
+    my %co_check = map { ($_, $tree->[0]->{$_}); } @co_key;
     my (@final, @raw);
+
+    #print "les free: " . Dumper($tree->[0], \%co_check, \@co_key);
     while ( !(grep {
                 !defined($tree->[0]->{$_}) ||
                 $co_check{$_} ne $tree->[0]->{$_}
@@ -903,6 +909,15 @@ sub _collapse_result {
     @$target = (@final ? @final : [ {}, {} ]); 
       # single empty result to indicate an empty prefetched has_many
   }
+
+  # get prefetch tree back to result_source level
+  # $self could be a related resultset
+  #if ($self->{attrs}->{_live_join_stack}) {
+   # foreach (@{$self->{attrs}->{_live_join_stack}}) {
+    #  $info->[1] = $info->[1]->{$_}->[1] if(exists $info->[1]->{$_});
+    #}
+  #}
+  #print "final info: " . Dumper($info);
   return $info;
 }
 

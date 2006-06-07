@@ -58,4 +58,18 @@ is($related_rs->first->trackid, '5', 'search related on search related okay');
 my $title = $schema->resultset("Artist")->search_related('twokeys')->search_related('cd')->search({'tracks.position' => '2'}, {join => 'tracks', order_by => 'tracks.trackid'})->next->title;
 is($title, 'Forkful of bees', 'search relateds with order by okay');
 
+# my $prod_rs = $schema->resultset("CD")->find(1)->other_producers;
+# my $prod_rs2 = $prod_rs->search({ name => 'Matt S Trout' }, { prefetch => 'producer_to_cd', order_by => 'other_producer.name' });
+# my $prod_first = $prod_rs2->first;
+# warn $prod_first->name;
+
+my $prod_map_rs = $schema->resultset("Artist")->find(1)->cds->search_related('cd_to_producer', {}, { join => 'producer', prefetch => 'producer' });
+use Data::Dumper;
+warn $prod_map_rs->count;
+print Dumper($prod_map_rs->{attrs});
+print Dumper($prod_map_rs->{_attrs});
+$prod_map_rs->first;
+
+
+
 1;
