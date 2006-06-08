@@ -64,7 +64,7 @@ my $prod_first = $prod_rs2->first;
 is($prod_first->id, '1', 'somewhat pointless search on rel with order_by on it okay');
 
 my $prod_map_rs = $schema->resultset("Artist")->find(1)->cds->search_related('cd_to_producer', {}, { join => 'producer', prefetch => 'producer' });
-is($prod_map_rs->next->producer->producerid, '1', 'search related with prefetch okay');
+ok($prod_map_rs->next->producer, 'search related with prefetch okay');
 
 my $stupid = $schema->resultset("Artist")->search_related('artist_undirected_maps', {}, { prefetch => 'artist1' })->search_related('mapped_artists')->search_related('cds', {'cds.cdid' => '2'}, { prefetch => 'tracks' });
 #use Data::Dumper; warn Dumper($stupid->{attrs});
