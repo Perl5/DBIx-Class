@@ -716,11 +716,11 @@ redispatches your call to store_column to the superclass(es).
 
 You might have a class C<Artist> which has many C<CD>s.  Further, you
 want to create a C<CD> object every time you insert an C<Artist> object.
-You can accomplish this by overriding C<insert>:
+You can accomplish this by overriding C<insert> on your objects:
 
   sub insert {
-    my ( $class, $args_ref ) = @_;
-    my $self = $class->next::method($args_ref);
+    my ( $self, @args ) = @_;
+    $self->next::method(@args);
     $self->cds->new({})->fill_from_artist($self)->insert;
     return $self;
   }
