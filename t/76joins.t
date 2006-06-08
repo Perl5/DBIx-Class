@@ -13,7 +13,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 42 );
+        : ( tests => 43 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -69,6 +69,22 @@ $match = 'person child INNER JOIN person father ON ( father.person_id = '
           ;
 
 is( $sa->_recurse_from(@j3), $match, 'join 3 (inner join) ok');
+
+my @j4 = (
+    { mother => 'person' },
+    [   [   { child => 'person', -join_type => 'left' },
+            [   { father             => 'person', -join_type => 'right' },
+                { 'father.person_id' => 'child.father_id' }
+            ]
+        ],
+        { 'mother.person_id' => 'child.mother_id' }
+    ],
+);
+$match = 'person mother LEFT JOIN (person child RIGHT JOIN person father ON ('
+       . ' father.person_id = child.father_id )) ON ( mother.person_id = '
+       . 'child.mother_id )'
+       ;
+is( $sa->_recurse_from(@j4), $match, 'join 4 (nested joins + join types) ok');
 
 my $rs = $schema->resultset("CD")->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },

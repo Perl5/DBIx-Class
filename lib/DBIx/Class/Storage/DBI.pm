@@ -133,8 +133,9 @@ sub _recurse_from {
 
     # check whether a join type exists
     my $join_clause = '';
-    if (ref($to) eq 'HASH' and exists($to->{-join_type})) {
-      $join_clause = ' '.uc($to->{-join_type}).' JOIN ';
+    my $to_jt = ref($to) eq 'ARRAY' ? $to->[0] : $to;
+    if (ref($to_jt) eq 'HASH' and exists($to_jt->{-join_type})) {
+      $join_clause = ' '.uc($to_jt->{-join_type}).' JOIN ';
     } else {
       $join_clause = ' JOIN ';
     }
