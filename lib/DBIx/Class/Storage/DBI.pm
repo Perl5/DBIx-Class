@@ -498,12 +498,16 @@ sub _populate_dbh {
   my ($self) = @_;
   my @info = @{$self->_connect_info || []};
   $self->_dbh($self->_connect(@info));
-  my $driver = $self->_dbh->{Driver}->{Name};
-  eval "require DBIx::Class::Storage::DBI::${driver}";
-  unless ($@) {
-    bless $self, "DBIx::Class::Storage::DBI::${driver}";
-    $self->_rebless() if $self->can('_rebless');
+
+  if(ref $self eq 'DBIx::Class::Storage::DBI') {
+    my $driver = $self->_dbh->{Driver}->{Name};
+    eval "require DBIx::Class::Storage::DBI::${driver}";
+    unless ($@) {
+      bless $self, "DBIx::Class::Storage::DBI::${driver}";
+      $self->_rebless() if $self->can('_rebless');
+    }
   }
+
   # if on-connect sql statements are given execute them
   foreach my $sql_statement (@{$self->on_connect_do || []}) {
     $self->debugobj->query_start($sql_statement) if $self->debug();
