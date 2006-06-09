@@ -501,8 +501,7 @@ sub _populate_dbh {
 
   if(ref $self eq 'DBIx::Class::Storage::DBI') {
     my $driver = $self->_dbh->{Driver}->{Name};
-    eval "require DBIx::Class::Storage::DBI::${driver}";
-    unless ($@) {
+    if ($self->load_optional_class("DBIx::Class::Storage::DBI::${driver}")) {
       bless $self, "DBIx::Class::Storage::DBI::${driver}";
       $self->_rebless() if $self->can('_rebless');
     }

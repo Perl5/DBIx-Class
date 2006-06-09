@@ -1,7 +1,8 @@
 #   belongs to t/run/90ensure_class_loaded.tl
 package # hide from PAUSE 
-    DBICTest::FakeComponent;
+    DBICTest::ErrorComponent;
 use warnings;
 use strict;
 
-1;
+# this is missing on purpose
+# 1;
