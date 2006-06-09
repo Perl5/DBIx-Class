@@ -193,7 +193,7 @@ sub search_rs {
 
 	$our_attrs->{join} = $self->_merge_attr($our_attrs->{join}, $attrs->{_live_join_h}, 1) if ($attrs->{_live_join_h});
 
-  if (exists $our_attrs->{prefetch}) {
+  if (defined $our_attrs->{prefetch}) {
       $our_attrs->{join} = $self->_merge_attr($our_attrs->{join}, $our_attrs->{prefetch}, 1);
   }
 
