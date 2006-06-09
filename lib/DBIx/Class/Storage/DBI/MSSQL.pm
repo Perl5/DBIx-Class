@@ -3,9 +3,7 @@ package DBIx::Class::Storage::DBI::MSSQL;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
-
-# __PACKAGE__->load_components(qw/PK::Auto/);
+use base qw/DBIx::Class::Storage::DBI::Sybase/;
 
 sub last_insert_id {
   my( $id ) = $_[0]->_dbh->selectrow_array('SELECT @@IDENTITY' );
@@ -24,17 +22,17 @@ sub build_datetime_parser {
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::MSSQL - Automatic primary key class for MSSQL
+DBIx::Class::Storage::DBI::MSSQL - Storage::DBI subclass for MSSQL
 
 =head1 SYNOPSIS
 
-  # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
-  __PACKAGE__->set_primary_key('id');
+This subclass supports MSSQL.  As MSSQL is usually used via a
+differently-named DBD such as L<DBD::Sybase>, it does not get
+autodetected by DBD-type like the other drivers, and you will need to
+specify this storage driver manually, as in:
 
-=head1 DESCRIPTION
-
-This class implements autoincrements for MSSQL.
+  $schema->storage_type('::DBI::MSSQL');
+  $schema->connect_info('dbi:Sybase:....', ...);
 
 =head1 AUTHORS
 
