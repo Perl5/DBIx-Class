@@ -467,6 +467,7 @@ sub connect_info {
   my ($self, $info_arg) = @_;
 
   if($info_arg) {
+    my %sql_maker_opts;
     my $info = [ @$info_arg ]; # copy because we can alter it
     my $last_info = $info->[-1];
     if(ref $last_info eq 'HASH') {
@@ -478,7 +479,7 @@ sub connect_info {
       for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
         if(my $opt_val = $last_info->{$sql_maker_opt}) {
           $used = 1;
-          $self->sql_maker->$sql_maker_opt($opt_val);
+          $sql_maker_opts{$sql_maker_opt} = $opt_val;
         }
       }
 
@@ -489,6 +490,7 @@ sub connect_info {
     }
 
     $self->_connect_info($info);
+    $self->sql_maker->$_($sql_maker_opts{$_}) for(keys %sql_maker_opts);
   }
 
   $self->_connect_info;
