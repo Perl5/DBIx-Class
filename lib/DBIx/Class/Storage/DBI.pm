@@ -232,6 +232,18 @@ __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugobj
      cursor on_connect_do transaction_depth/);
 
+=head1 NAME
+
+DBIx::Class::Storage::DBI - DBI storage handler
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This class represents the connection to the database
+
+=head1 METHODS
+
 =head2 new
 
 =cut
@@ -266,20 +278,6 @@ sub throw_exception {
   my ($self, $msg) = @_;
   croak($msg);
 }
-
-=head1 NAME
-
-DBIx::Class::Storage::DBI - DBI storage handler
-
-=head1 SYNOPSIS
-
-=head1 DESCRIPTION
-
-This class represents the connection to the database
-
-=head1 METHODS
-
-=cut
 
 =head2 connect_info
 
