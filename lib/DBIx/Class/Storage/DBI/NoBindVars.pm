@@ -62,7 +62,7 @@ well, as is the case with L<DBD::Sybase>
 =head1 AUTHORS
 
 Brandon Black <blblack@gmail.com>
-trym
+Trym Skaar <trym@tryms.no>
 
 =head1 LICENSE
 
