@@ -422,7 +422,7 @@ sub _build_unique_query {
 
 =over 4
 
-=item Arguments: $cond, \%attrs?
+=item Arguments: $rel, $cond, \%attrs?
 
 =item Return Value: $new_resultset
 
