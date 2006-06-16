@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI::MSSQL;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::Sybase/;
+use base qw/DBIx::Class::Storage::DBI/;
 
 sub last_insert_id {
   my( $id ) = $_[0]->_dbh->selectrow_array('SELECT @@IDENTITY' );
@@ -26,13 +26,17 @@ DBIx::Class::Storage::DBI::MSSQL - Storage::DBI subclass for MSSQL
 
 =head1 SYNOPSIS
 
-This subclass supports MSSQL.  As MSSQL is usually used via a
-differently-named DBD such as L<DBD::Sybase>, it does not get
-autodetected by DBD-type like the other drivers, and you will need to
-specify this storage driver manually, as in:
+This subclass supports MSSQL, and can in theory be used directly
+via the C<storage_type> mechanism:
 
   $schema->storage_type('::DBI::MSSQL');
-  $schema->connect_info('dbi:Sybase:....', ...);
+  $schema->connect_info('dbi:....', ...);
+
+However, as there is no L<DBD::MSSQL>, you will probably want to use
+one of the other DBD-specific MSSQL classes, such as
+L<DBIx::Class::Storage::DBI::Sybase::MSSQL>.  These classes will
+merge this class with a DBD-specific class to obtain fully
+correct behavior for your scenario.
 
 =head1 AUTHORS
 
