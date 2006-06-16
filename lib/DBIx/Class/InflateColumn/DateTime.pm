@@ -48,7 +48,7 @@ directly called by end users.
 sub register_column {
   my ($self, $column, $info, @rest) = @_;
   $self->next::method($column, $info, @rest);
-  if ($info->{data_type} =~ /^datetime$/i) {
+  if (defined($info->{data_type}) && $info->{data_type} =~ /^datetime$/i) {
     $self->inflate_column(
       $column =>
         {
