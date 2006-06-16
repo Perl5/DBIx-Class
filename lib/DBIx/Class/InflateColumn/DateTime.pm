@@ -48,17 +48,20 @@ directly called by end users.
 sub register_column {
   my ($self, $column, $info, @rest) = @_;
   $self->next::method($column, $info, @rest);
-  if (defined($info->{data_type}) && $info->{data_type} =~ /^datetime$/i) {
+  return unless defined($info->{data_type});
+  my $type = lc($info->{data_type});
+  if ($type eq 'datetime' || $type eq 'date') {
+    my ($parse, $format) = ("parse_${type}", "format_${type}");
     $self->inflate_column(
       $column =>
         {
           inflate => sub {
             my ($value, $obj) = @_;
-            $obj->_datetime_parser->parse_datetime($value);
+            $obj->_datetime_parser->$parse($value);
           },
           deflate => sub {
             my ($value, $obj) = @_;
-            $obj->_datetime_parser->format_datetime($value);
+            $obj->_datetime_parser->$format($value);
           },
         }
     );
