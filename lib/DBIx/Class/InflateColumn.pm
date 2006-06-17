@@ -144,20 +144,28 @@ sub set_inflated_column {
   my $copy = $obj->store_inflated_column($col => $val);
 
 Sets a column value from an inflated value without marking the column
-as dirty.  This is directly analogous to
-L<DBIx::Class::Row/store_column>.
+as dirty. This is directly analogous to L<DBIx::Class::Row/store_column>.
 
 =cut
 
 sub store_inflated_column {
   my ($self, $col, $obj) = @_;
-  unless (ref $obj) {
+  if (ref $obj) {
+    delete $self->{_column_data}{$col};
+    return $self->{_inflated_column}{$col} = $obj;
+  } else {
     delete $self->{_inflated_column}{$col};
-    return $self->store_column($col, $obj);
+    return $self->store_column($col, $obj);    
   }
-  delete $self->{_column_data}{$col};
-  return $self->{_inflated_column}{$col} = $obj;
 }
+
+=head2 get_column
+
+Gets a column value in the same way as L<DBIx::Class::Row/get_column>. If there
+is an inflated value stored that has not yet been deflated, it is deflated
+when the method is invoked.
+
+=cut
 
 sub get_column {
   my ($self, $col) = @_;
