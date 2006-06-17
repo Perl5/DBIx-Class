@@ -83,15 +83,20 @@ sub _inflated_column {
   return $inflate->($value, $self);
 }
 
-sub _deflated_column {
-  my ($self, $col, $value) = @_;
-  return $value unless ref $value; # If it's not an object, don't touch it
-  my $info = $self->column_info($col) or
-    $self->throw_exception("No column info for $col");
-  return $value unless exists $info->{_inflate_info};
-  my $deflate = $info->{_inflate_info}{deflate};
-  $self->throw_exception("No deflator for $col") unless defined $deflate;
-  return $deflate->($value, $self);
+sub _deflate_column {
+  my ($self, $col) = @_;
+  return if exists $self->{_column_data}{$col};
+  my $value = $self->{_inflated_column}{$col};
+  if (ref $value) {
+    my $info = $self->column_info($col) or
+      $self->throw_exception("No column info for $col");
+    if (exists $info->{_inflate_info}) {
+      my $deflate = $info->{_inflate_info}{deflate};
+      $self->throw_exception("No deflator for $col") unless defined $deflate;
+      $value = $deflate->($value, $self);          
+    }
+  }
+  $self->store_column($col, $value);
 }
 
 =head2 get_inflated_column
@@ -126,8 +131,11 @@ analogous to L<DBIx::Class::Row/set_column>.
 =cut
 
 sub set_inflated_column {
-  my ($self, $col, @rest) = @_;
-  my $ret = $self->_inflated_column_op('set', $col, @rest);
+  my ($self, $col, $obj) = @_;
+  my $old = $self->get_inflated_column($col);
+  my $ret = $self->store_inflated_column($col, $obj);
+  $self->{_dirty_columns}{$col} = 1
+    if (defined $old ^ defined $ret) || (defined $old && $old ne $ret);
   return $ret;
 }
 
@@ -142,25 +150,33 @@ L<DBIx::Class::Row/store_column>.
 =cut
 
 sub store_inflated_column {
-  my ($self, $col, @rest) = @_;
-  my $ret = $self->_inflated_column_op('store', $col, @rest);
-  return $ret;
-}
-
-sub _inflated_column_op {
-  my ($self, $op, $col, $obj) = @_;
-  my $meth = "${op}_column";
+  my ($self, $col, $obj) = @_;
   unless (ref $obj) {
     delete $self->{_inflated_column}{$col};
-    return $self->$meth($col, $obj);
+    return $self->store_column($col, $obj);
   }
+  delete $self->{_column_data}{$col};
+  return $self->{_inflated_column}{$col} = $obj;
+}
 
-  my $deflated = $self->_deflated_column($col, $obj);
-           # Do this now so we don't store if it's invalid
+sub get_column {
+  my ($self, $col) = @_;
+  $self->_deflate_column($col);
+  return $self->next::method($col);
+}
 
-  $self->{_inflated_column}{$col} = $obj;
-  $self->$meth($col, $deflated);
-  return $obj;
+sub get_columns {
+  my $self = shift;
+  if (exists $self->{_inflated_column}) {
+    $self->_deflate_column($_) for keys %{$self->{_inflated_column}};
+  }
+  return $self->next::method;
+}
+
+sub has_column_loaded {
+  my ($self, $col) = @_;
+  return 1 if exists $self->{_inflated_column}{$col};
+  return $self->next::method($col);
 }
 
 =head2 update
@@ -172,12 +188,10 @@ inflation and deflation of columns appropriately.
 
 sub update {
   my ($class, $attrs, @rest) = @_;
-  $attrs ||= {};
-  foreach my $key (keys %$attrs) {
+  foreach my $key (keys %{$attrs||{}}) {
     if (ref $attrs->{$key}
           && exists $class->column_info($key)->{_inflate_info}) {
-#      $attrs->{$key} = $class->_deflated_column($key, $attrs->{$key});
-      $class->set_inflated_column ($key, delete $attrs->{$key});
+      $class->set_inflated_column($key, delete $attrs->{$key});
     }
   }
   return $class->next::method($attrs, @rest);
@@ -192,14 +206,14 @@ inflation and deflation of columns appropriately.
 
 sub new {
   my ($class, $attrs, @rest) = @_;
-  $attrs ||= {};
-  foreach my $key (keys %$attrs) {
-    if (ref $attrs->{$key}
-          && exists $class->column_info($key)->{_inflate_info}) {
-      $attrs->{$key} = $class->_deflated_column($key, $attrs->{$key});
-    }
+  my $inflated;
+  foreach my $key (keys %{$attrs||{}}) {
+    $inflated->{$key} = delete $attrs->{$key} 
+      if ref $attrs->{$key} && exists $class->column_info($key)->{_inflate_info};
   }
-  return $class->next::method($attrs, @rest);
+  my $obj = $class->next::method($attrs, @rest);
+  $obj->{_inflated_column} = $inflated if $inflated;
+  return $obj;
 }
 
 =head1 SEE ALSO
