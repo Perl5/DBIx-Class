@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 35;
+plan tests => 40;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -136,6 +136,7 @@ is( $cd->producers_sorted(producerid => 3)->next->name, 'Fred The Phenotype', 's
 
 # test new many_to_many helpers
 $cd = $schema->resultset('CD')->find(2);
+is( $cd->producers->count, 0, "CD doesn't yet have any producers" );
 my $prod = $schema->resultset('Producer')->find(1);
 $cd->add_to_producers($prod);
 my $prod_rs = $cd->producers();
@@ -143,6 +144,16 @@ is( $prod_rs->count(), 1, 'many_to_many add_to_$rel($obj) count ok' );
 is( $prod_rs->first->name, 'Matt S Trout', 'many_to_many add_to_$rel($obj) ok' );
 $cd->remove_from_producers($prod);
 is( $cd->producers->count, 0, 'many_to_many remove_from_$rel($obj) ok' );
+$cd->add_to_producers({ name => 'Testy McProducer' });
+is( $prod_rs->count(), 1, 'many_to_many add_to_$rel($hash) count ok' );
+is( $prod_rs->first->name, 'Testy McProducer', 'many_to_many add_to_$rel($hash) ok' );
+
+eval { $cd->remove_from_producers({ fake => 'hash' }); };
+like( $@, qr/needs an object/, 'remove_from_$rel($hash) dies correctly' );
+
+eval { $cd->add_to_producers(); };
+like( $@, qr/needs an object or hashref/, 'add_to_$rel(undef) dies correctly' );
+
 
 # test undirected many-to-many relationship (e.g. "related artists")
 my $undir_maps = $schema->resultset("Artist")->find(1)->artist_undirected_maps;

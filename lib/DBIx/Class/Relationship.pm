@@ -187,6 +187,12 @@ left join.
 
 =head2 many_to_many
 
+=over 4
+
+=item Arguments: $accessor_name, $link_rel_name, $foreign_rel_name
+
+=back
+
   My::DBIC::Schema::Actor->has_many( actor_roles =>
                                      'My::DBIC::Schema::ActorRoles',
                                      'actor' );
@@ -198,16 +204,48 @@ left join.
   My::DBIC::Schema::Actor->many_to_many( roles => 'actor_roles',
                                          'role' );
 
-  ...
+Creates a accessors bridging two relationships; not strictly a relationship in
+its own right, although the accessor will return a resultset or collection of
+objects just as a has_many would.
 
-  my @role_objs = $actor->roles;
-
-Creates an accessor bridging two relationships; not strictly a relationship
-in its own right, although the accessor will return a resultset or collection
-of objects just as a has_many would.
 To use many_to_many, existing relationships from the original table to the link
 table, and from the link table to the end table must already exist, these
 relation names are then used in the many_to_many call.
+
+=head3 Created accessors
+
+=head4 $rel
+
+  my $role_rs = $actor->roles;
+
+  my $role1 = $actor->roles({ name => 'role1' })->first;
+
+Returns a resultset for the table on the far-right side of the many-to-many
+relationship. (e.g., in the above example, a CD's producers).
+
+=head4 add_to_$rel
+
+  my $role = $schema->resultset('Role')->find(1);
+  $actor->add_to_roles($role);
+      # creates a My::DBIC::Schema::ActorRoles linking table row object
+
+  $actor->add_to_roles({ name => 'role1' });
+      # creates a new My::DBIC::Schema::Role row object, as well as the
+      # linking table object
+
+Adds a linking table object for the specified object, or if a hash is given
+instead the related object is created before the linking table object is
+created.
+
+=head4 remove_from_$rel
+
+  my $role = $schema->resultset('Role')->find(1);
+  $actor->remove_from_roles($role);
+      # removes $role's My::DBIC::Schema::ActorRoles linking table row object
+
+Removes the link between the current object and the related object. Note that
+the related object itself won't be deleted unless you call ->delete() on
+it. This method just removes the link between the two objects.
 
 =cut
 
