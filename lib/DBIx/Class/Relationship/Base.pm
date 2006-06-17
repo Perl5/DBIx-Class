@@ -3,6 +3,7 @@ package DBIx::Class::Relationship::Base;
 use strict;
 use warnings;
 
+use Scalar::Util ();
 use base qw/DBIx::Class/;
 
 =head1 NAME
@@ -222,9 +223,10 @@ sub count_related {
   my $new_obj = $obj->new_related('relname', \%col_data);
 
 Create a new item of the related foreign class. If called on a
-L<DBIx::Class::Manual::Glossary/"Row"> object, it will magically set any
-primary key values into foreign key columns for you. The newly created item
-will not be saved into your storage until you call L<DBIx::Class::Row/insert>
+L<DBIx::Class::Manual::Glossary/"Row"> object, it will magically 
+set any foreign key columns of the new object to the related primary 
+key columns of the source object for you.  The newly created item will 
+not be saved into your storage until you call L<DBIx::Class::Row/insert>
 on it.
 
 =cut
@@ -339,7 +341,7 @@ sub set_from_related {
   if (defined $f_obj) {
     my $f_class = $self->result_source->schema->class($rel_obj->{class});
     $self->throw_exception( "Object $f_obj isn't a ".$f_class )
-      unless $f_obj->isa($f_class);
+      unless Scalar::Util::blessed($f_obj) and $f_obj->isa($f_class);
   }
   $self->set_columns(
     $self->result_source->resolve_condition(

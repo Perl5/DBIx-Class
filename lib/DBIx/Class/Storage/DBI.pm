@@ -133,8 +133,9 @@ sub _recurse_from {
 
     # check whether a join type exists
     my $join_clause = '';
-    if (ref($to) eq 'HASH' and exists($to->{-join_type})) {
-      $join_clause = ' '.uc($to->{-join_type}).' JOIN ';
+    my $to_jt = ref($to) eq 'ARRAY' ? $to->[0] : $to;
+    if (ref($to_jt) eq 'HASH' and exists($to_jt->{-join_type})) {
+      $join_clause = ' '.uc($to_jt->{-join_type}).' JOIN ';
     } else {
       $join_clause = ' JOIN ';
     }
@@ -203,10 +204,6 @@ sub _RowNum {
    $self->SUPER::_RowNum(@_);
 }
 
-# Accessor for setting limit dialect. This is useful
-# for JDBC-bridge among others where the remote SQL-dialect cannot
-# be determined by the name of the driver alone.
-#
 sub limit_dialect {
     my $self = shift;
     $self->{limit_dialect} = shift if @_;
@@ -235,6 +232,22 @@ __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugobj
      cursor on_connect_do transaction_depth/);
 
+=head1 NAME
+
+DBIx::Class::Storage::DBI - DBI storage handler
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This class represents the connection to the database
+
+=head1 METHODS
+
+=head2 new
+
+=cut
+
 sub new {
   my $new = bless({}, ref $_[0] || $_[0]);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
@@ -250,70 +263,65 @@ sub new {
   } else {
     $fh = IO::File->new('>&STDERR');
   }
-  $new->debugobj->debugfh($fh);
+  $new->debugfh($fh);
   $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
   return $new;
 }
+
+=head2 throw_exception
+
+Throws an exception - croaks.
+
+=cut
 
 sub throw_exception {
   my ($self, $msg) = @_;
   croak($msg);
 }
 
-=head1 NAME
-
-DBIx::Class::Storage::DBI - DBI storage handler
-
-=head1 SYNOPSIS
-
-=head1 DESCRIPTION
-
-This class represents the connection to the database
-
-=head1 METHODS
-
-=cut
-
 =head2 connect_info
 
-Connection information arrayref.  Can either be the same arguments
-one would pass to DBI->connect, or a code-reference which returns
-a connected database handle.  In either case, there is an optional
-final element in the arrayref, which can hold a hashref of
-connection-specific Storage::DBI options.  These include
-C<on_connect_do>, and the sql_maker options C<limit_dialect>,
-C<quote_char>, and C<name_sep>.  Examples:
+The arguments of C<connect_info> are always a single array reference.
+
+This is normally accessed via L<DBIx::Class::Schema/connection>, which
+encapsulates its argument list in an arrayref before calling
+C<connect_info> here.
+
+The arrayref can either contain the same set of arguments one would
+normally pass to L<DBI/connect>, or a lone code reference which returns
+a connected database handle.
+
+In either case, there is an optional final element within the arrayref
+which can hold a hashref of connection-specific Storage::DBI options.
+These include C<on_connect_do>, and the sql_maker options
+C<limit_dialect>, C<quote_char>, and C<name_sep>.  Examples:
 
   ->connect_info([ 'dbi:SQLite:./foo.db' ]);
-  ->connect_info(sub { DBI->connect(...) });
-  ->connect_info([ 'dbi:Pg:dbname=foo',
-                   'postgres',
-                   '',
-                   { AutoCommit => 0 },
-                   { quote_char => q{`}, name_sep => q{@} },
-                 ]);
+
+  ->connect_info([ sub { DBI->connect(...) } ]);
+
+  ->connect_info(
+    [
+      'dbi:Pg:dbname=foo',
+      'postgres',
+      'my_pg_password',
+      { AutoCommit => 0 },
+      { quote_char => q{`}, name_sep => q{@} },
+    ]
+  );
+
+  ->connect_info(
+    [
+      sub { DBI->connect(...) },
+      { quote_char => q{`}, name_sep => q{@} },
+    ]
+  );
 
 =head2 on_connect_do
 
 Executes the sql statements given as a listref on every db connect.
 
-=head2 quote_char
-
-Specifies what characters to use to quote table and column names. If 
-you use this you will want to specify L<name_sep> as well.
-
-quote_char expectes either a single character, in which case is it is placed
-on either side of the table/column, or an array of length 2 in which case the
-table/column name is placed between the elements.
-
-For example under MySQL you'd use C<quote_char('`')>, and user SQL Server you'd 
-use C<quote_char(qw/[ ]/)>.
-
-=head2 name_sep
-
-This only needs to be used in conjunction with L<quote_char>, and is used to 
-specify the charecter that seperates elements (schemas, tables, columns) from 
-each other. In most cases this is simply a C<.>.
+This option can also be set via L</connect_info>.
 
 =head2 debug
 
@@ -326,6 +334,16 @@ Set or retrieve the filehandle used for trace/debug output.  This should be
 an IO::Handle compatible ojbect (only the C<print> method is used.  Initially
 set to be STDERR - although see information on the
 L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
+
+=cut
+
+sub debugfh {
+    my $self = shift;
+
+    if ($self->debugobj->can('debugfh')) {
+        return $self->debugobj->debugfh(@_);
+    }
+}
 
 =head2 debugobj
 
@@ -343,13 +361,21 @@ SELECT/INSERT/UPDATE/DELETE and $info is what would normally be printed.
 See L<debugobj> for a better way.
 
 =cut
-sub debugcb {
-    my $self = shift();
 
-    if($self->debugobj()->can('callback')) {
-        $self->debugobj()->callback(shift());
+sub debugcb {
+    my $self = shift;
+
+    if ($self->debugobj->can('callback')) {
+        return $self->debugobj->callback(@_);
     }
 }
+
+=head2 disconnect
+
+Disconnect the L<DBI> handle, performing a rollback first if the
+database is not in C<AutoCommit> mode.
+
+=cut
 
 sub disconnect {
   my ($self) = @_;
@@ -361,8 +387,14 @@ sub disconnect {
   }
 }
 
-sub connected {
-  my ($self) = @_;
+=head2 connected
+
+Check if the L<DBI> handle is connected.  Returns true if the handle
+is connected.
+
+=cut
+
+sub connected { my ($self) = @_;
 
   if(my $dbh = $self->_dbh) {
       if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
@@ -379,6 +411,13 @@ sub connected {
 
   return 0;
 }
+
+=head2 ensure_connected
+
+Check whether the database handle is connected - if not then make a
+connection.
+
+=cut
 
 sub ensure_connected {
   my ($self) = @_;
@@ -407,6 +446,13 @@ sub _sql_maker_args {
     return ( limit_dialect => $self->dbh );
 }
 
+=head2 sql_maker
+
+Returns a C<sql_maker> object - normally an object of class
+C<DBIC::SQL::Abstract>.
+
+=cut
+
 sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
@@ -416,46 +462,51 @@ sub sql_maker {
 }
 
 sub connect_info {
-    my ($self, $info_arg) = @_;
+  my ($self, $info_arg) = @_;
 
-    if($info_arg) {
-        my $info = [ @$info_arg ]; # copy because we can alter it
-        my $last_info = $info->[-1];
-        if(ref $last_info eq 'HASH') {
-            my $used;
-            if(my $on_connect_do = $last_info->{on_connect_do}) {
-               $used = 1;
-               $self->on_connect_do($on_connect_do);
-            }
-            for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
-                if(my $opt_val = $last_info->{$sql_maker_opt}) {
-                    $used = 1;
-                    $self->sql_maker->$sql_maker_opt($opt_val);
-                }
-            }
-
-            # remove our options hashref if it was there, to avoid confusing
-            #   DBI in the case the user didn't use all 4 DBI options, as in:
-            #   [ 'dbi:SQLite:foo.db', { quote_char => q{`} } ]
-            pop(@$info) if $used;
+  if($info_arg) {
+    my %sql_maker_opts;
+    my $info = [ @$info_arg ]; # copy because we can alter it
+    my $last_info = $info->[-1];
+    if(ref $last_info eq 'HASH') {
+      my $used;
+      if(my $on_connect_do = $last_info->{on_connect_do}) {
+        $used = 1;
+        $self->on_connect_do($on_connect_do);
+      }
+      for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
+        if(my $opt_val = $last_info->{$sql_maker_opt}) {
+          $used = 1;
+          $sql_maker_opts{$sql_maker_opt} = $opt_val;
         }
+      }
 
-        $self->_connect_info($info);
+      # remove our options hashref if it was there, to avoid confusing
+      #   DBI in the case the user didn't use all 4 DBI options, as in:
+      #   [ 'dbi:SQLite:foo.db', { quote_char => q{`} } ]
+      pop(@$info) if $used;
     }
 
-    $self->_connect_info;
+    $self->_connect_info($info);
+    $self->sql_maker->$_($sql_maker_opts{$_}) for(keys %sql_maker_opts);
+  }
+
+  $self->_connect_info;
 }
 
 sub _populate_dbh {
   my ($self) = @_;
   my @info = @{$self->_connect_info || []};
   $self->_dbh($self->_connect(@info));
-  my $driver = $self->_dbh->{Driver}->{Name};
-  eval "require DBIx::Class::Storage::DBI::${driver}";
-  unless ($@) {
-    bless $self, "DBIx::Class::Storage::DBI::${driver}";
-    $self->_rebless() if $self->can('_rebless');
+
+  if(ref $self eq 'DBIx::Class::Storage::DBI') {
+    my $driver = $self->_dbh->{Driver}->{Name};
+    if ($self->load_optional_class("DBIx::Class::Storage::DBI::${driver}")) {
+      bless $self, "DBIx::Class::Storage::DBI::${driver}";
+      $self->_rebless() if $self->can('_rebless');
+    }
   }
+
   # if on-connect sql statements are given execute them
   foreach my $sql_statement (@{$self->on_connect_do || []}) {
     $self->debugobj->query_start($sql_statement) if $self->debug();
@@ -481,12 +532,9 @@ sub _connect {
   }
 
   eval {
-    if(ref $info[0] eq 'CODE') {
-        $dbh = &{$info[0]};
-    }
-    else {
-        $dbh = DBI->connect(@info);
-    }
+    $dbh = ref $info[0] eq 'CODE'
+         ? &{$info[0]}
+         : DBI->connect(@info);
   };
 
   $DBI::connect_via = $old_connect_via if $old_connect_via;
@@ -662,11 +710,24 @@ sub _select {
   return $self->_execute(@args);
 }
 
+=head2 select
+
+Handle a SQL select statement.
+
+=cut
+
 sub select {
   my $self = shift;
   my ($ident, $select, $condition, $attrs) = @_;
   return $self->cursor->new($self, \@_, $attrs);
 }
+
+=head2 select_single
+
+Performs a select, fetch and return of data - handles a single row
+only.
+
+=cut
 
 # Need to call finish() to work round broken DBDs
 
@@ -677,6 +738,12 @@ sub select_single {
   $sth->finish();
   return @row;
 }
+
+=head2 sth
+
+Returns a L<DBI> sth (statement handle) for the supplied SQL.
+
+=cut
 
 sub sth {
   my ($self, $sql) = @_;
@@ -749,6 +816,12 @@ sub columns_info_for {
   return \%result;
 }
 
+=head2 last_insert_id
+
+Return the row id of the last insert.
+
+=cut
+
 sub last_insert_id {
   my ($self, $row) = @_;
     
@@ -756,7 +829,29 @@ sub last_insert_id {
 
 }
 
+=head2 sqlt_type
+
+Returns the database driver name.
+
+=cut
+
 sub sqlt_type { shift->dbh->{Driver}->{Name} }
+
+=head2 create_ddl_dir (EXPERIMENTAL)
+
+=over 4
+
+=item Arguments: $schema \@databases, $version, $directory, $sqlt_args
+
+=back
+
+Creates an SQL file based on the Schema, for each of the specified
+database types, in the given directory.
+
+Note that this feature is currently EXPERIMENTAL and may not work correctly
+across all databases, or fully handle complex relationships.
+
+=cut
 
 sub create_ddl_dir
 {
@@ -810,6 +905,13 @@ sub create_ddl_dir
 
 }
 
+=head2 deployment_statements
+
+Create the statements for L</deploy> and
+L<DBIx::Class::Schema/deploy>.
+
+=cut
+
 sub deployment_statements {
   my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
   $type ||= $self->sqlt_type;
@@ -844,6 +946,14 @@ sub deployment_statements {
   
 }
 
+=head2 deploy
+
+Sends the appropriate statements to create or modify tables to the
+db. This would normally be called through
+L<DBIx::Class::Schema/deploy>.
+
+=cut
+
 sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
   foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, $sqltargs) ) {
@@ -853,19 +963,38 @@ sub deploy {
 #      next if($_ =~ /^DROP/m);
       next if($_ =~ /^BEGIN TRANSACTION/m);
       next if($_ =~ /^COMMIT/m);
-      $self->debugobj->query_begin($_) if $self->debug;
+      $self->debugobj->query_start($_) if $self->debug;
       $self->dbh->do($_) or warn "SQL was:\n $_";
       $self->debugobj->query_end($_) if $self->debug;
     }
   }
 }
 
+=head2 datetime_parser
+
+Returns the datetime parser class
+
+=cut
+
 sub datetime_parser {
   my $self = shift;
   return $self->{datetime_parser} ||= $self->build_datetime_parser(@_);
 }
 
+=head2 datetime_parser_type
+
+Defines (returns) the datetime parser class - currently hardwired to
+L<DateTime::Format::MySQL>
+
+=cut
+
 sub datetime_parser_type { "DateTime::Format::MySQL"; }
+
+=head2 build_datetime_parser
+
+See L</datetime_parser>
+
+=cut
 
 sub build_datetime_parser {
   my $self = shift;
@@ -878,6 +1007,56 @@ sub build_datetime_parser {
 sub DESTROY { shift->disconnect }
 
 1;
+
+=head1 SQL METHODS
+
+The module defines a set of methods within the DBIC::SQL::Abstract
+namespace.  These build on L<SQL::Abstract::Limit> to provide the
+SQL query functions.
+
+The following methods are extended:-
+
+=over 4
+
+=item delete
+
+=item insert
+
+=item select
+
+=item update
+
+=item limit_dialect
+
+Accessor for setting limit dialect. This is useful
+for JDBC-bridge among others where the remote SQL-dialect cannot
+be determined by the name of the driver alone.
+
+This option can also be set via L</connect_info>.
+
+=item quote_char
+
+Specifies what characters to use to quote table and column names. If 
+you use this you will want to specify L<name_sep> as well.
+
+quote_char expectes either a single character, in which case is it is placed
+on either side of the table/column, or an arrayref of length 2 in which case the
+table/column name is placed between the elements.
+
+For example under MySQL you'd use C<quote_char('`')>, and user SQL Server you'd 
+use C<quote_char(qw/[ ]/)>.
+
+This option can also be set via L</connect_info>.
+
+=item name_sep
+
+This only needs to be used in conjunction with L<quote_char>, and is used to 
+specify the charecter that seperates elements (schemas, tables, columns) from 
+each other. In most cases this is simply a C<.>.
+
+This option can also be set via L</connect_info>.
+
+=back
 
 =head1 ENVIRONMENT VARIABLES
 

@@ -37,20 +37,31 @@ __PACKAGE__->load_components(qw/InflateColumn/);
 
 __PACKAGE__->mk_group_accessors('simple' => '__datetime_parser');
 
+=head2 register_column
+
+Chains with the L<DBIx::Class::Row/register_column> method, and sets
+up datetime columns appropriately.  This would not normally be
+directly called by end users.
+
+=cut
+
 sub register_column {
   my ($self, $column, $info, @rest) = @_;
   $self->next::method($column, $info, @rest);
-  if ($info->{data_type} =~ /^datetime$/i) {
+  return unless defined($info->{data_type});
+  my $type = lc($info->{data_type});
+  if ($type eq 'datetime' || $type eq 'date') {
+    my ($parse, $format) = ("parse_${type}", "format_${type}");
     $self->inflate_column(
       $column =>
         {
           inflate => sub {
             my ($value, $obj) = @_;
-            $obj->_datetime_parser->parse_datetime($value);
+            $obj->_datetime_parser->$parse($value);
           },
           deflate => sub {
             my ($value, $obj) = @_;
-            $obj->_datetime_parser->format_datetime($value);
+            $obj->_datetime_parser->$format($value);
           },
         }
     );

@@ -170,6 +170,17 @@ sub get_column {
   return undef;
 }
 
+=head2 has_column_loaded
+
+  if ( $obj->has_column_loaded($col) ) {
+     print "$col has been loaded from db";
+  }
+
+Returns a true value if the column value has been loaded from the
+database (or set locally).
+
+=cut
+
 sub has_column_loaded {
   my ($self, $column) = @_;
   $self->throw_exception( "Can't call has_column data as class method" ) unless ref $self;
@@ -350,6 +361,12 @@ sub inflate_result {
 
 Updates the object if it's already in the db, else inserts it.
 
+=head2 insert_or_update
+
+  $obj->insert_or_update
+
+Alias for L</update_or_insert>
+
 =cut
 
 *insert_or_update = \&update_or_insert;
@@ -363,6 +380,10 @@ sub update_or_insert {
   my @changed_col_names = $obj->is_changed();
   if ($obj->is_changed()) { ... }
 
+In array context returns a list of columns with uncommited changes, or
+in scalar context returns a true value if there are uncommitted
+changes.
+
 =cut
 
 sub is_changed {
@@ -373,6 +394,8 @@ sub is_changed {
 
   if ($obj->is_column_changed('col')) { ... }
 
+Returns a true value if the column has uncommitted changes.
+
 =cut
 
 sub is_column_changed {
@@ -382,19 +405,21 @@ sub is_column_changed {
 
 =head2 result_source
 
-  Accessor to the ResultSource this object was created from
+  my $resultsource = $object->result_source;
+
+Accessor to the ResultSource this object was created from
 
 =head2 register_column
 
-=over 4
+  $column_info = { .... };
+  $class->register_column($column_name, $column_info);
 
-=item Arguments: $column, $column_info
+Registers a column on the class. If the column_info has an 'accessor'
+key, creates an accessor named after the value if defined; if there is
+no such key, creates an accessor with the same name as the column
 
-=back
-
-  Registers a column on the class. If the column_info has an 'accessor' key,
-  creates an accessor named after the value if defined; if there is no such
-  key, creates an accessor with the same name as the column
+The column_info attributes are described in
+L<DBIx::Class::ResultSource/add_columns>
 
 =cut
 

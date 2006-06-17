@@ -3,6 +3,8 @@ package DBIx::Class::Storage::DBI::Pg;
 use strict;
 use warnings;
 
+use DBD::Pg;
+
 use base qw/DBIx::Class::Storage::DBI/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);

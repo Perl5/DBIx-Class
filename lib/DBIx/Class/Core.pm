@@ -42,6 +42,8 @@ The core modules currently are:
 
 =item L<DBIx::Class::Relationship>
 
+=item L<DBIx::Class::PK::Auto>
+
 =item L<DBIx::Class::PK>
 
 =item L<DBIx::Class::Row>

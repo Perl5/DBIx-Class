@@ -13,7 +13,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.06999_01';
+$VERSION = '0.06999_02';
 
 sub MODIFY_CODE_ATTRIBUTES {
     my ($class,$code,@attrs) = @_;
@@ -87,7 +87,7 @@ Then you can use these classes in your application's code:
   # Create a result set to search for artists.
   # This does not query the DB.
   my $johns_rs = $schema->resultset('Artist')->search(
-    # Build your WHERE using an L<SQL::Abstract> structure:
+    # Build your WHERE using an SQL::Abstract structure:
     { name => { like => 'John%' } }
   );
 
