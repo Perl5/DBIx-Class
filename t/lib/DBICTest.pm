@@ -149,9 +149,9 @@ sub populate_schema {
     ]);
 
     $schema->populate('FourKeys', [
-        [ qw/foo bar hello goodbye/ ],
-        [ 1, 2, 3, 4 ],
-        [ 5, 4, 3, 6 ],
+        [ qw/foo bar hello goodbye sensors/ ],
+        [ 1, 2, 3, 4, 'online' ],
+        [ 5, 4, 3, 6, 'offline' ],
     ]);
 
     $schema->populate('OneKey', [

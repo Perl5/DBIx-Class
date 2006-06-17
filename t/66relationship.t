@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 40;
+plan tests => 49;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -154,6 +154,20 @@ like( $@, qr/needs an object/, 'remove_from_$rel($hash) dies correctly' );
 eval { $cd->add_to_producers(); };
 like( $@, qr/needs an object or hashref/, 'add_to_$rel(undef) dies correctly' );
 
+# many_to_many stresstest
+my $twokey = $schema->resultset('TwoKeys')->find(1,1);
+my $fourkey = $schema->resultset('FourKeys')->find(1,2,3,4);
+
+is( $twokey->fourkeys->count, 0, 'twokey has no fourkeys' );
+$twokey->add_to_fourkeys($fourkey, { autopilot => 'engaged' });
+my $got_fourkey = $twokey->fourkeys({ sensors => 'online' })->first;
+is( $twokey->fourkeys->count, 1, 'twokey has one fourkey' );
+is( $got_fourkey->$_, $fourkey->$_,
+    'fourkeys row has the correct value for column '.$_ )
+  for (qw(foo bar hello goodbye sensors));
+$twokey->remove_from_fourkeys($fourkey);
+is( $twokey->fourkeys->count, 0, 'twokey has no fourkeys' );
+is( $twokey->fourkeys_to_twokeys->count, 0, 'twokey has no links to fourkey' );
 
 # test undirected many-to-many relationship (e.g. "related artists")
 my $undir_maps = $schema->resultset("Artist")->find(1)->artist_undirected_maps;

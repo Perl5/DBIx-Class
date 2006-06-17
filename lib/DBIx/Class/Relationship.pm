@@ -216,28 +216,49 @@ relation names are then used in the many_to_many call.
 
 =head4 $rel
 
+=over 4
+
+=item Arguments: $vals?, $attrs
+
+=back
+
   my $role_rs = $actor->roles;
 
   my $role1 = $actor->roles({ name => 'role1' })->first;
 
-Returns a resultset for the table on the far-right side of the many-to-many
-relationship. (e.g., in the above example, a CD's producers).
+Returns a resultset for the foreign table on the right side of the
+many-to-many relationship. (e.g., in the above example, a CD's
+producers). Takes the same arguments as L<DBIx::Class::ResultSet/"search">.
 
 =head4 add_to_$rel
+
+=over 4
+
+=item Arguments: ($foreign_vals | $obj), $link_vals?
+
+=back
 
   my $role = $schema->resultset('Role')->find(1);
   $actor->add_to_roles($role);
       # creates a My::DBIC::Schema::ActorRoles linking table row object
 
-  $actor->add_to_roles({ name => 'role1' });
-      # creates a new My::DBIC::Schema::Role row object, as well as the
-      # linking table object
+  $actor->add_to_roles({ name => 'lead' }, { salary => 15_000_000 });
+      # creates a new My::DBIC::Schema::Role row object and the linking table
+      # object with an extra column in the link
 
-Adds a linking table object for the specified object, or if a hash is given
-instead the related object is created before the linking table object is
-created.
+Adds a linking table object for C<$obj> or C<$foreign_vals>. If the first
+argument is a hash reference, the related object is created first with the
+column values in the hash. If an object reference is given, just the linking
+table object is created. In either case, any additional column values for the
+linking table object can be specified in C<$link_vals>.
 
 =head4 remove_from_$rel
+
+=over 4
+
+=item Arguments: $obj
+
+=back
 
   my $role = $schema->resultset('Role')->find(1);
   $actor->remove_from_roles($role);

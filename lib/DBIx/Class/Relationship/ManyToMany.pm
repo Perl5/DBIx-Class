@@ -35,8 +35,10 @@ sub many_to_many {
       my $obj = ref $_[0]
         ? ( ref $_[0] eq 'HASH' ? $f_rel_rs->create($_[0]) : $_[0] )
         : ( $f_rel_rs->create({@_}) );
+      my $link_vals = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
       my $link = $self->search_related($rel)->new_result({});
       $link->set_from_related($f_rel, $obj);
+      $link->set_columns($link_vals);
       $link->insert();
     };
 
