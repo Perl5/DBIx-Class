@@ -10,16 +10,15 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 # do not taunt happy dave ball
 
-my $schema = 'DBICTest::Schema';
+my $schema = DBICTest->init_schema;
 
 plan tests => 33;
 
-my $translator           =  SQL::Translator->new( 
-    parser_args          => {
-        'DBIx::Schema'   => $schema,
-    },
-    producer_args   => {
-    },
+my $translator = SQL::Translator->new( 
+  parser_args => {
+    'DBIx::Schema' => $schema,
+  },
+  producer_args => {},
 );
 
 $translator->parser('SQL::Translator::Parser::DBIx::Class');
@@ -27,8 +26,9 @@ $translator->producer('SQLite');
 
 my $output = $translator->translate();
 
-my @fk_constraints = 
- (
+my @fk_constraints = (
+
+  # TwoKeys
   {'display' => 'twokeys->cd',
    'selftable' => 'twokeys', 'foreigntable' => 'cd', 
    'selfcols'  => ['cd'], 'foreigncols' => ['cdid'], 
@@ -37,6 +37,19 @@ my @fk_constraints =
    'selftable' => 'twokeys', 'foreigntable' => 'artist', 
    'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
    'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
+
+  # FourKeys_to_TwoKeys
+  {'display' => 'fourkeys_to_twokeys->twokeys',
+   'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'twokeys', 
+   'selfcols'  => ['t_artist', 't_cd'], 'foreigncols' => ['artist', 'cd'], 
+   'needed' => 0, on_delete => '', on_update => ''},
+  {'display' => 'fourkeys_to_twokeys->fourkeys',
+   'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'fourkeys', 
+   'selfcols'  => [qw(f_foo f_bar f_hello f_goodbye)],
+   'foreigncols' => [qw(foo bar hello goodbye)], 
+   'needed' => 0, on_delete => '', on_update => ''},
+
+  # CD_to_Producer
   {'display' => 'cd_to_producer->cd',
    'selftable' => 'cd_to_producer', 'foreigntable' => 'cd', 
    'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
@@ -45,6 +58,8 @@ my @fk_constraints =
    'selftable' => 'cd_to_producer', 'foreigntable' => 'producer', 
    'selfcols'  => ['producer'], 'foreigncols' => ['producerid'],
    'needed' => 1, on_delete => '', on_update => ''},
+
+  # Self_ref_alias
   {'display' => 'self_ref_alias -> self_ref for self_ref',
    'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
    'selfcols'  => ['self_ref'], 'foreigncols' => ['id'],
@@ -53,10 +68,14 @@ my @fk_constraints =
    'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
    'selfcols'  => ['alias'], 'foreigncols' => ['id'],
    'needed' => 1, on_delete => '', on_update => ''},
+
+  # CD
   {'display' => 'cd -> artist',
    'selftable' => 'cd', 'foreigntable' => 'artist', 
    'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
    'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
+
+  # Artist_undirected_map
   {'display' => 'artist_undirected_map -> artist for id1',
    'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
    'selfcols'  => ['id1'], 'foreigncols' => ['artistid'],
@@ -65,10 +84,14 @@ my @fk_constraints =
    'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
    'selfcols'  => ['id2'], 'foreigncols' => ['artistid'],
    'needed' => 1, on_delete => 'CASCADE', on_update => ''},
+
+  # Track
   {'display' => 'track->cd',
    'selftable' => 'track', 'foreigntable' => 'cd', 
    'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
    'needed' => 2, on_delete => 'CASCADE', on_update => 'CASCADE'},
+
+  # TreeLike
   {'display' => 'treelike -> treelike for parent',
    'selftable' => 'treelike', 'foreigntable' => 'treelike', 
    'selfcols'  => ['parent'], 'foreigncols' => ['id'],
@@ -81,10 +104,13 @@ my @fk_constraints =
   # 'selfcols'  => ['parent1', 'parent2'], 'foreigncols' => ['id1','id2'],
   # 'needed' => 1, on_delete => '', on_update => ''},
 
+  # Tags
   {'display' => 'tags -> cd',
    'selftable' => 'tags', 'foreigntable' => 'cd', 
    'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
    'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
+
+  # Bookmark
   {'display' => 'bookmark -> link',
    'selftable' => 'bookmark', 'foreigntable' => 'link', 
    'selfcols'  => ['link'], 'foreigncols' => ['id'],
@@ -108,122 +134,125 @@ my @unique_constraints = (
 
 my $tschema = $translator->schema();
 for my $table ($tschema->get_tables) {
-    my $table_name = $table->name;
-    for my $c ( $table->get_constraints ) {
-        if ($c->type eq 'FOREIGN KEY') {
-            ok(check_fk($table_name, scalar $c->fields, 
-                  $c->reference_table, scalar $c->reference_fields, 
-                  $c->on_delete, $c->on_update), "Foreign key constraint on $table_name matches an expected constraint");
-        }
-        elsif ($c->type eq 'UNIQUE') {
-            ok(check_unique($table_name, scalar $c->fields),
-                  "Unique constraint on $table_name matches an expected constraint");
-        }
+  my $table_name = $table->name;
+  for my $c ( $table->get_constraints ) {
+    if ($c->type eq 'FOREIGN KEY') {
+      ok( check_fk($table_name, scalar $c->fields, 
+                   $c->reference_table, scalar $c->reference_fields, 
+                   $c->on_delete, $c->on_update),
+          "Foreign key constraint on $table_name matches an expected ".
+          "constraint" );
+    } elsif ($c->type eq 'UNIQUE') {
+      ok(check_unique($table_name, scalar $c->fields),
+         "Unique constraint on $table_name matches an expected constraint");
     }
+  }
 }
 
 # Make sure all the foreign keys are done.
 my $i;
 for ($i = 0; $i <= $#fk_constraints; ++$i) {
- ok(!$fk_constraints[$i]->{'needed'}, "Constraint $fk_constraints[$i]->{display}");
+ ok(!$fk_constraints[$i]->{'needed'},
+    "Constraint $fk_constraints[$i]->{display}");
 }
 # Make sure all the uniques are done.
 for ($i = 0; $i <= $#unique_constraints; ++$i) {
- ok(!$unique_constraints[$i]->{'needed'}, "Constraint $unique_constraints[$i]->{display}");
+ ok(!$unique_constraints[$i]->{'needed'},
+    "Constraint $unique_constraints[$i]->{display}");
 }
 
 sub check_fk {
- my ($selftable, $selfcol, $foreigntable, $foreigncol, $ondel, $onupd) = @_;
+  my ($selftable, $selfcol, $foreigntable, $foreigncol, $ondel, $onupd) = @_;
 
- $ondel = '' if (!defined($ondel));
- $onupd = '' if (!defined($onupd));
+  $ondel = '' if (!defined($ondel));
+  $onupd = '' if (!defined($onupd));
 
- my $i;
- for ($i = 0; $i <= $#fk_constraints; ++$i) {
-     if ($selftable eq $fk_constraints[$i]->{'selftable'} &&
-         $foreigntable eq $fk_constraints[$i]->{'foreigntable'} &&
-         ($ondel eq $fk_constraints[$i]->{on_delete}) &&
-         ($onupd eq $fk_constraints[$i]->{on_update})) {
-         # check columns
+  my $i;
+  for ($i = 0; $i <= $#fk_constraints; ++$i) {
+    if ($selftable eq $fk_constraints[$i]->{'selftable'} &&
+        $foreigntable eq $fk_constraints[$i]->{'foreigntable'} &&
+        $ondel eq $fk_constraints[$i]->{on_delete} &&
+        $onupd eq $fk_constraints[$i]->{on_update}) {
+      # check columns
 
-         my $found = 0;
-         for (my $j = 0; $j <= $#$selfcol; ++$j) {
-             $found = 0;
-             for (my $k = 0; $k <= $#{$fk_constraints[$i]->{'selfcols'}}; ++$k) {
-                 if ($selfcol->[$j] eq $fk_constraints[$i]->{'selfcols'}->[$k] &&
-                     $foreigncol->[$j] eq $fk_constraints[$i]->{'foreigncols'}->[$k]) {
-                     $found = 1;
-                     last;
-                 }
-             }
-             last unless $found;
-         }
+      my $found = 0;
+      for (my $j = 0; $j <= $#$selfcol; ++$j) {
+        $found = 0;
+        for (my $k = 0; $k <= $#{$fk_constraints[$i]->{'selfcols'}}; ++$k) {
+          if ($selfcol->[$j] eq $fk_constraints[$i]->{'selfcols'}->[$k] &&
+              $foreigncol->[$j] eq $fk_constraints[$i]->{'foreigncols'}->[$k]) {
+            $found = 1;
+            last;
+          }
+        }
+        last unless $found;
+      }
 
-         if ($found) {
-             for (my $j = 0; $j <= $#{$fk_constraints[$i]->{'selfcols'}}; ++$j) {
-                 $found = 0;
-                 for (my $k = 0; $k <= $#$selfcol; ++$k) {
-                     if ($selfcol->[$k] eq $fk_constraints[$i]->{'selfcols'}->[$j] &&
-                         $foreigncol->[$k] eq $fk_constraints[$i]->{'foreigncols'}->[$j]) {
-                         $found = 1;
-                         last;
-                     }
-                 }
-                 last unless $found;
-             }
-         }
+      if ($found) {
+        for (my $j = 0; $j <= $#{$fk_constraints[$i]->{'selfcols'}}; ++$j) {
+          $found = 0;
+          for (my $k = 0; $k <= $#$selfcol; ++$k) {
+            if ($selfcol->[$k] eq $fk_constraints[$i]->{'selfcols'}->[$j] &&
+                $foreigncol->[$k] eq $fk_constraints[$i]->{'foreigncols'}->[$j]) {
+              $found = 1;
+              last;
+            }
+          }
+          last unless $found;
+        }
+      }
 
-         if ($found) {
-             --$fk_constraints[$i]->{needed};
-             return 1;
-         }
-     }
- }
- return 0;
+      if ($found) {
+        --$fk_constraints[$i]->{needed};
+        return 1;
+      }
+    }
+  }
+  return 0;
 }
 
 my( $ondel, $onupd );
 
 sub check_unique {
- my ($selftable, $selfcol) = @_;
+  my ($selftable, $selfcol) = @_;
 
- $ondel = '' if (!defined($ondel));
- $onupd = '' if (!defined($onupd));
+  $ondel = '' if (!defined($ondel));
+  $onupd = '' if (!defined($onupd));
 
- my $i;
- for ($i = 0; $i <= $#unique_constraints; ++$i) {
-     if ($selftable eq $unique_constraints[$i]->{'table'}) {
+  my $i;
+  for ($i = 0; $i <= $#unique_constraints; ++$i) {
+    if ($selftable eq $unique_constraints[$i]->{'table'}) {
 
-         my $found = 0;
-         for (my $j = 0; $j <= $#$selfcol; ++$j) {
-             $found = 0;
-             for (my $k = 0; $k <= $#{$unique_constraints[$i]->{'cols'}}; ++$k) {
-                 if ($selfcol->[$j] eq $unique_constraints[$i]->{'cols'}->[$k]) {
-                     $found = 1;
-                     last;
-                 }
-             }
-             last unless $found;
-         }
+      my $found = 0;
+      for (my $j = 0; $j <= $#$selfcol; ++$j) {
+        $found = 0;
+        for (my $k = 0; $k <= $#{$unique_constraints[$i]->{'cols'}}; ++$k) {
+          if ($selfcol->[$j] eq $unique_constraints[$i]->{'cols'}->[$k]) {
+            $found = 1;
+            last;
+          }
+        }
+        last unless $found;
+      }
 
-         if ($found) {
-             for (my $j = 0; $j <= $#{$unique_constraints[$i]->{'cols'}}; ++$j) {
-                 $found = 0;
-                 for (my $k = 0; $k <= $#$selfcol; ++$k) {
-                     if ($selfcol->[$k] eq $unique_constraints[$i]->{'cols'}->[$j]) {
-                         $found = 1;
-                         last;
-                     }
-                 }
-                 last unless $found;
-             }
-         }
+      if ($found) {
+        for (my $j = 0; $j <= $#{$unique_constraints[$i]->{'cols'}}; ++$j) {
+          $found = 0;
+          for (my $k = 0; $k <= $#$selfcol; ++$k) {
+            if ($selfcol->[$k] eq $unique_constraints[$i]->{'cols'}->[$j]) {
+              $found = 1;
+              last;
+            }
+          }
+          last unless $found;
+        }
+      }
 
-         if ($found) {
-             --$unique_constraints[$i]->{needed};
-             return 1;
-         }
-     }
- }
- return 0;
+      if ($found) {
+        --$unique_constraints[$i]->{needed};
+        return 1;
+      }
+    }
+  }
+  return 0;
 }
