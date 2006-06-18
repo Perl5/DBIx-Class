@@ -83,20 +83,15 @@ sub _inflated_column {
   return $inflate->($value, $self);
 }
 
-sub _deflate_column {
-  my ($self, $col) = @_;
-  return if exists $self->{_column_data}{$col};
-  my $value = $self->{_inflated_column}{$col};
-  if (ref $value) {
-    my $info = $self->column_info($col) or
-      $self->throw_exception("No column info for $col");
-    if (exists $info->{_inflate_info}) {
-      my $deflate = $info->{_inflate_info}{deflate};
-      $self->throw_exception("No deflator for $col") unless defined $deflate;
-      $value = $deflate->($value, $self);          
-    }
-  }
-  $self->store_column($col, $value);
+sub _deflated_column {
+  my ($self, $col, $value) = @_;
+  return $value unless ref $value; # If it's not an object, don't touch it
+  my $info = $self->column_info($col) or
+    $self->throw_exception("No column info for $col");
+  return $value unless exists $info->{_inflate_info};
+  my $deflate = $info->{_inflate_info}{deflate};
+  $self->throw_exception("No deflator for $col") unless defined $deflate;
+  return $deflate->($value, $self);
 }
 
 =head2 get_inflated_column
@@ -114,7 +109,6 @@ sub get_inflated_column {
   my ($self, $col) = @_;
   $self->throw_exception("$col is not an inflated column")
     unless exists $self->column_info($col)->{_inflate_info};
-
   return $self->{_inflated_column}{$col}
     if exists $self->{_inflated_column}{$col};
   return $self->{_inflated_column}{$col} =
@@ -132,11 +126,8 @@ analogous to L<DBIx::Class::Row/set_column>.
 
 sub set_inflated_column {
   my ($self, $col, $obj) = @_;
-  my $old = $self->get_inflated_column($col);
-  my $ret = $self->store_inflated_column($col, $obj);
-  $self->{_dirty_columns}{$col} = 1
-    if (defined $old ^ defined $ret) || (defined $old && $old ne $ret);
-  return $ret;
+  $self->set_column($col, $self->_deflated_column($col, $obj));
+  return $self->store_inflated_column($col, $obj);
 }
 
 =head2 store_inflated_column
@@ -150,13 +141,7 @@ as dirty. This is directly analogous to L<DBIx::Class::Row/store_column>.
 
 sub store_inflated_column {
   my ($self, $col, $obj) = @_;
-  if (ref $obj) {
-    delete $self->{_column_data}{$col};
-    return $self->{_inflated_column}{$col} = $obj;
-  } else {
-    delete $self->{_inflated_column}{$col};
-    return $self->store_column($col, $obj);    
-  }
+  return $self->{_inflated_column}{$col} = $obj;
 }
 
 =head2 get_column
@@ -169,14 +154,21 @@ when the method is invoked.
 
 sub get_column {
   my ($self, $col) = @_;
-  $self->_deflate_column($col);
+  use Carp; confess unless ref $self;
+  if (exists $self->{_inflated_column}{$col}
+        && !exists $self->{_column_data}{$col}) {
+    $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col})); 
+  }
   return $self->next::method($col);
 }
 
 sub get_columns {
   my $self = shift;
   if (exists $self->{_inflated_column}) {
-    $self->_deflate_column($_) for keys %{$self->{_inflated_column}};
+    foreach my $col (keys %{$self->{_inflated_column}}) {
+      $self->store_column($col, $self->_deflated_column($col))
+       unless exists $self->{_column_data}{$col};
+    }
   }
   return $self->next::method;
 }

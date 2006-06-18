@@ -210,7 +210,7 @@ Identical to get_columns but only returns those that have been changed.
 
 sub get_dirty_columns {
   my $self = shift;
-  return map { $_ => $self->get_column($_) }
+  return map { $_ => $self->{_column_data}{$_} }
            keys %{$self->{_dirty_columns}};
 }
 
