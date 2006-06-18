@@ -66,11 +66,8 @@ sub _load_components {
 #              ->has_many('rel', 'Some::Schema::Class'...)
 sub ensure_class_loaded {
   my ($class, $f_class) = @_;
-  eval "require $f_class";
-  my $err = $@;
-  Class::Inspector->loaded($f_class)
-    or $class->throw_exception($err || "`require $f_class' was successful".
-                                       "but the package is not defined");
+  return if Class::Inspector->loaded($f_class);
+  require $f_class;
 }
 
 # Returns true if the specified class is installed or already loaded, false

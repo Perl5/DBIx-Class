@@ -13,7 +13,7 @@ BEGIN {
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 17;
+plan tests => 19;
 
 # Test ensure_class_found
 ok( $schema->ensure_class_found('DBIx::Class::Schema'),
@@ -37,7 +37,8 @@ $retval = eval { $schema->load_optional_class('DBICTest::OptionalComponent') };
 ok( !$@, 'load_optional_class on an existing class did not throw' );
 ok( $retval, 'DBICTest::OptionalComponent loaded' );
 eval { $schema->load_optional_class('DBICTest::ErrorComponent') };
-like( $@, qr/did not return a true value/, 'DBICTest::ErrorComponent threw ok' );
+like( $@, qr/did not return a true value/,
+      'DBICTest::ErrorComponent threw ok' );
 
 # Test ensure_class_loaded
 ok( Class::Inspector->loaded('TestPackage::A'), 'anonymous package exists' );
@@ -52,5 +53,20 @@ eval { $schema->ensure_class_loaded('DBICTest::FakeComponent'); };
 ok( !$@, 'ensure_class_loaded detected an existing but non-loaded class' );
 ok( Class::Inspector->loaded('DBICTest::FakeComponent'),
    'DBICTest::FakeComponent now loaded' );
+
+{
+  # Squash warnings about syntax errors in SytaxErrorComponent.pm
+  local $SIG{__WARN__} = sub {
+    my $warning = shift;
+    warn $warning unless (
+      $warning =~ /String found where operator expected/ or
+      $warning =~ /Missing operator before/
+    );
+  };
+  eval { $schema->load_optional_class('DBICTest::SyntaxErrorComponent') };
+  like( $@, qr/syntax error/, 'DBICTest::ErrorComponent threw ok' );
+  eval { $schema->ensure_class_loaded('DBICTest::SyntaxErrorComponent') };
+  like( $@, qr/syntax error/, 'DBICTest::ErrorComponent threw ok' );
+}
 
 1;
