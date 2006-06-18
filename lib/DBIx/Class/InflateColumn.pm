@@ -126,8 +126,13 @@ analogous to L<DBIx::Class::Row/set_column>.
 
 sub set_inflated_column {
   my ($self, $col, $obj) = @_;
-  delete $self->{_inflated_column}{$col};
-  return $self->set_column($col, $self->_deflated_column($col, $obj));
+  $self->set_column($col, $self->_deflated_column($col, $obj));
+  if (blessed $obj) {
+    $self->{_inflated_column}{$col} = $obj; 
+  } else {
+    delete $self->{_inflated_column}{$col};      
+  }
+  return $obj;
 }
 
 =head2 store_inflated_column
@@ -141,6 +146,10 @@ as dirty. This is directly analogous to L<DBIx::Class::Row/store_column>.
 
 sub store_inflated_column {
   my ($self, $col, $obj) = @_;
+  unless (blessed $obj) {
+      delete $self->{_inflated_column}{$col};
+      return undef;
+  }
   delete $self->{_column_data}{$col};
   return $self->{_inflated_column}{$col} = $obj;
 }
