@@ -154,7 +154,6 @@ when the method is invoked.
 
 sub get_column {
   my ($self, $col) = @_;
-  use Carp; confess unless ref $self;
   if (exists $self->{_inflated_column}{$col}
         && !exists $self->{_column_data}{$col}) {
     $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col})); 
@@ -166,7 +165,7 @@ sub get_columns {
   my $self = shift;
   if (exists $self->{_inflated_column}) {
     foreach my $col (keys %{$self->{_inflated_column}}) {
-      $self->store_column($col, $self->_deflated_column($col))
+      $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col}))
        unless exists $self->{_column_data}{$col};
     }
   }
