@@ -148,7 +148,8 @@ sub store_inflated_column {
   my ($self, $col, $obj) = @_;
   unless (blessed $obj) {
       delete $self->{_inflated_column}{$col};
-      return undef;
+      $self->store_column($col => $obj);
+      return $obj;
   }
   delete $self->{_column_data}{$col};
   return $self->{_inflated_column}{$col} = $obj;
