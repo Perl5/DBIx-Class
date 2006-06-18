@@ -2,7 +2,7 @@ package DBIx::Class::InflateColumn;
 
 use strict;
 use warnings;
-
+use Scalar::Util qw/blessed/;
 
 use base qw/DBIx::Class::Row/;
 
@@ -141,6 +141,10 @@ as dirty. This is directly analogous to L<DBIx::Class::Row/store_column>.
 
 sub store_inflated_column {
   my ($self, $col, $obj) = @_;
+  unless (blessed($obj)) {
+    delete $self->{_inflated_column}{$col};
+    return undef;
+  }
   return $self->{_inflated_column}{$col} = $obj;
 }
 
