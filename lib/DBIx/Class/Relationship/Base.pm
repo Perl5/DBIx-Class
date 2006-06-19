@@ -422,8 +422,13 @@ B<Currently only available for C<many-to-many> relationships.>
      # Replaces all of $actors previous roles with the two named
 
 Replace all the related objects with the given list of objects. This does a
-C<delete> to remove all related objects, then calls C<add_to_$rel>
-repeatedly to link all the new objects.
+C<delete> B<on the link table resultset> to remove the association between the
+current object and all related objects, then calls C<add_to_$rel> repeatedly to
+link all the new objects.
+
+Note that this means that this method will B<not> delete any objects in the
+table on the right side of the relation, merely that it will delete the link
+between them.
 
 =head2 remove_from_$rel
 
