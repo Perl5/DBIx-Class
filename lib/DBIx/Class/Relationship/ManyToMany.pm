@@ -10,8 +10,9 @@ sub many_to_many {
     no strict 'refs';
     no warnings 'redefine';
 
-    my $remove_link_meth = "remove_from_$rel";
-    my $add_link_meth = "add_to_$rel";
+    my $add_meth = "add_to_${meth}";
+    my $remove_meth = "remove_from_${meth}";
+    my $set_meth = "set_${meth}";
 
     *{"${class}::${meth}"} = sub {
       my $self = shift;
@@ -21,10 +22,10 @@ sub many_to_many {
       );
     };
 
-    *{"${class}::add_to_${meth}"} = sub {
+    *{"${class}::${add_meth}"} = sub {
       my $self = shift;
       @_ > 0 or $self->throw_exception(
-        "$add_link_meth needs an object or hashref"
+        "${add_meth} needs an object or hashref"
       );
       my $source = $self->result_source;
       my $schema = $source->schema;
@@ -42,10 +43,19 @@ sub many_to_many {
       $link->insert();
     };
 
-    *{"${class}::remove_from_${meth}"} = sub {
+    *{"${class}::${set_meth}"} = sub {
+      my $self = shift;
+      @_ > 0 or $self->throw_exception(
+        "{$set_meth} needs a list of objects or hashrefs"
+      );
+      $self->search_related($rel, {})->delete;
+      $self->$add_meth(shift) while (defined $_[0]);
+    };
+
+    *{"${class}::${remove_meth}"} = sub {
       my $self = shift;
       @_ > 0 && ref $_[0] ne 'HASH'
-        or $self->throw_exception("$remove_link_meth needs an object");
+        or $self->throw_exception("${remove_meth} needs an object");
       my $obj = shift;
       my $rel_source = $self->search_related($rel)->result_source;
       my $cond = $rel_source->relationship_info($f_rel)->{cond};

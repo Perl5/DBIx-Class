@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 49;
+plan tests => 54;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -127,32 +127,48 @@ eval {
 };
 like($@, qr/join condition/, 'failed when creating a rel without join condition, ok');
 
-# many_to_many helper test
+# many_to_many helper tests
 $cd = $schema->resultset("CD")->find(1);
 my @producers = $cd->producers();
 is( $producers[0]->name, 'Matt S Trout', 'many_to_many ok' );
-is( $cd->producers_sorted->next->name, 'Bob The Builder', 'sorted many_to_many ok' );
-is( $cd->producers_sorted(producerid => 3)->next->name, 'Fred The Phenotype', 'sorted many_to_many with search condition ok' );
+is( $cd->producers_sorted->next->name, 'Bob The Builder',
+    'sorted many_to_many ok' );
+is( $cd->producers_sorted(producerid => 3)->next->name, 'Fred The Phenotype',
+    'sorted many_to_many with search condition ok' );
 
-# test new many_to_many helpers
 $cd = $schema->resultset('CD')->find(2);
-is( $cd->producers->count, 0, "CD doesn't yet have any producers" );
+my $prod_rs = $cd->producers();
+my $prod_before_count = $schema->resultset('Producer')->count;
+is( $prod_rs->count, 0, "CD doesn't yet have any producers" );
 my $prod = $schema->resultset('Producer')->find(1);
 $cd->add_to_producers($prod);
-my $prod_rs = $cd->producers();
 is( $prod_rs->count(), 1, 'many_to_many add_to_$rel($obj) count ok' );
-is( $prod_rs->first->name, 'Matt S Trout', 'many_to_many add_to_$rel($obj) ok' );
+is( $prod_rs->first->name, 'Matt S Trout',
+    'many_to_many add_to_$rel($obj) ok' );
 $cd->remove_from_producers($prod);
-is( $cd->producers->count, 0, 'many_to_many remove_from_$rel($obj) ok' );
+is( $schema->resultset('Producer')->find(1)->name, 'Matt S Trout',
+    "producer object exists after remove of link" );
+is( $prod_rs->count, 0, 'many_to_many remove_from_$rel($obj) ok' );
 $cd->add_to_producers({ name => 'Testy McProducer' });
+is( $schema->resultset('Producer')->count, $prod_before_count+1,
+    'add_to_$rel($hash) inserted a new producer' );
 is( $prod_rs->count(), 1, 'many_to_many add_to_$rel($hash) count ok' );
-is( $prod_rs->first->name, 'Testy McProducer', 'many_to_many add_to_$rel($hash) ok' );
+is( $prod_rs->first->name, 'Testy McProducer',
+    'many_to_many add_to_$rel($hash) ok' );
+$cd->add_to_producers({ name => 'Jack Black' });
+is( $prod_rs->count(), 2, 'many_to_many add_to_$rel($hash) count ok' );
+$cd->set_producers($schema->resultset('Producer')->all);
+is( $cd->producers->count(), $prod_before_count+2, 
+    'many_to_many set_$rel(@objs) count ok' );
+$cd->set_producers($schema->resultset('Producer')->find(1));
+is( $cd->producers->count(), 1, 'many_to_many set_$rel($obj) count ok' );
 
 eval { $cd->remove_from_producers({ fake => 'hash' }); };
 like( $@, qr/needs an object/, 'remove_from_$rel($hash) dies correctly' );
 
 eval { $cd->add_to_producers(); };
-like( $@, qr/needs an object or hashref/, 'add_to_$rel(undef) dies correctly' );
+like( $@, qr/needs an object or hashref/,
+      'add_to_$rel(undef) dies correctly' );
 
 # many_to_many stresstest
 my $twokey = $schema->resultset('TwoKeys')->find(1,1);
@@ -167,7 +183,9 @@ is( $got_fourkey->$_, $fourkey->$_,
   for (qw(foo bar hello goodbye sensors));
 $twokey->remove_from_fourkeys($fourkey);
 is( $twokey->fourkeys->count, 0, 'twokey has no fourkeys' );
-is( $twokey->fourkeys_to_twokeys->count, 0, 'twokey has no links to fourkey' );
+is( $twokey->fourkeys_to_twokeys->count, 0,
+    'twokey has no links to fourkey' );
+
 
 # test undirected many-to-many relationship (e.g. "related artists")
 my $undir_maps = $schema->resultset("Artist")->find(1)->artist_undirected_maps;
