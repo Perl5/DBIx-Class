@@ -63,10 +63,13 @@ ok( Class::Inspector->loaded('DBICTest::FakeComponent'),
       $warning =~ /Missing operator before/
     );
   };
-  eval { $schema->load_optional_class('DBICTest::SyntaxErrorComponent') };
-  like( $@, qr/syntax error/, 'DBICTest::ErrorComponent threw ok' );
-  eval { $schema->ensure_class_loaded('DBICTest::SyntaxErrorComponent') };
-  like( $@, qr/syntax error/, 'DBICTest::ErrorComponent threw ok' );
+
+  eval { $schema->ensure_class_loaded('DBICTest::SyntaxErrorComponent1') };
+  like( $@, qr/syntax error/,
+        'ensure_class_loaded(DBICTest::SyntaxErrorComponent1) threw ok' );
+  eval { $schema->load_optional_class('DBICTest::SyntaxErrorComponent2') };
+  like( $@, qr/syntax error/,
+        'load_optional_class(DBICTest::SyntaxErrorComponent2) threw ok' );
 }
 
 1;

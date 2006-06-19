@@ -1,6 +1,6 @@
 #   belongs to t/run/90ensure_class_loaded.tl
 package # hide from PAUSE 
-    DBICTest::SyntaxErrorComponent;
+    DBICTest::SyntaxErrorComponent1;
 use warnings;
 use strict;
 
