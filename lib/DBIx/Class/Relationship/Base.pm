@@ -379,6 +379,71 @@ sub delete_related {
   return $obj;
 }
 
+=head2 add_to_$rel
+
+B<Currently only available for C<has_many>, C<many-to-many> and 'multi' type
+relationships.>
+
+=over 4
+
+=item Arguments: ($foreign_vals | $obj), $link_vals?
+
+=back
+
+  my $role = $schema->resultset('Role')->find(1);
+  $actor->add_to_roles($role);
+      # creates a My::DBIC::Schema::ActorRoles linking table row object
+
+  $actor->add_to_roles({ name => 'lead' }, { salary => 15_000_000 });
+      # creates a new My::DBIC::Schema::Role row object and the linking table
+      # object with an extra column in the link
+
+Adds a linking table object for C<$obj> or C<$foreign_vals>. If the first
+argument is a hash reference, the related object is created first with the
+column values in the hash. If an object reference is given, just the linking
+table object is created. In either case, any additional column values for the
+linking table object can be specified in C<$link_vals>.
+
+=head2 set_$rel
+
+B<Currently only available for C<many-to-many> relationships.>
+
+=over 4
+
+=item Arguments: (@hashrefs |  @objs)
+
+=back
+
+  my $actor = $schema->resultset('Actor')->find(1);
+  my @roles = $schema->resultset('Role')->search({ role => 
+     { '-in' -> ['Fred', 'Barney'] } } );
+
+  $actor->set_roles(@roles);
+     # Replaces all of $actors previous roles with the two named
+
+Replace all the related objects with the given list of objects. This does a
+C<delete> to remove all related objects, then calls C<add_to_$rel>
+repeatedly to link all the new objects.
+
+=head2 remove_from_$rel
+
+B<Currently only available for C<many-to-many> relationships.>
+
+=over 4
+
+=item Arguments: $obj
+
+=back
+
+  my $role = $schema->resultset('Role')->find(1);
+  $actor->remove_from_roles($role);
+      # removes $role's My::DBIC::Schema::ActorRoles linking table row object
+
+Removes the link between the current object and the related object. Note that
+the related object itself won't be deleted unless you call ->delete() on
+it. This method just removes the link between the two objects.
+
+
 1;
 
 =head1 AUTHORS
