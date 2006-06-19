@@ -2,7 +2,7 @@ package DBIx::Class::InflateColumn;
 
 use strict;
 use warnings;
-
+use Scalar::Util qw/blessed/;
 
 use base qw/DBIx::Class::Row/;
 
@@ -109,7 +109,6 @@ sub get_inflated_column {
   my ($self, $col) = @_;
   $self->throw_exception("$col is not an inflated column")
     unless exists $self->column_info($col)->{_inflate_info};
-
   return $self->{_inflated_column}{$col}
     if exists $self->{_inflated_column}{$col};
   return $self->{_inflated_column}{$col} =
@@ -126,9 +125,14 @@ analogous to L<DBIx::Class::Row/set_column>.
 =cut
 
 sub set_inflated_column {
-  my ($self, $col, @rest) = @_;
-  my $ret = $self->_inflated_column_op('set', $col, @rest);
-  return $ret;
+  my ($self, $col, $obj) = @_;
+  $self->set_column($col, $self->_deflated_column($col, $obj));
+  if (blessed $obj) {
+    $self->{_inflated_column}{$col} = $obj; 
+  } else {
+    delete $self->{_inflated_column}{$col};      
+  }
+  return $obj;
 }
 
 =head2 store_inflated_column
@@ -136,31 +140,53 @@ sub set_inflated_column {
   my $copy = $obj->store_inflated_column($col => $val);
 
 Sets a column value from an inflated value without marking the column
-as dirty.  This is directly analogous to
-L<DBIx::Class::Row/store_column>.
+as dirty. This is directly analogous to L<DBIx::Class::Row/store_column>.
 
 =cut
 
 sub store_inflated_column {
-  my ($self, $col, @rest) = @_;
-  my $ret = $self->_inflated_column_op('store', $col, @rest);
-  return $ret;
+  my ($self, $col, $obj) = @_;
+  unless (blessed $obj) {
+      delete $self->{_inflated_column}{$col};
+      $self->store_column($col => $obj);
+      return $obj;
+  }
+  delete $self->{_column_data}{$col};
+  return $self->{_inflated_column}{$col} = $obj;
 }
 
-sub _inflated_column_op {
-  my ($self, $op, $col, $obj) = @_;
-  my $meth = "${op}_column";
-  unless (ref $obj) {
-    delete $self->{_inflated_column}{$col};
-    return $self->$meth($col, $obj);
+=head2 get_column
+
+Gets a column value in the same way as L<DBIx::Class::Row/get_column>. If there
+is an inflated value stored that has not yet been deflated, it is deflated
+when the method is invoked.
+
+=cut
+
+sub get_column {
+  my ($self, $col) = @_;
+  if (exists $self->{_inflated_column}{$col}
+        && !exists $self->{_column_data}{$col}) {
+    $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col})); 
   }
+  return $self->next::method($col);
+}
 
-  my $deflated = $self->_deflated_column($col, $obj);
-           # Do this now so we don't store if it's invalid
+sub get_columns {
+  my $self = shift;
+  if (exists $self->{_inflated_column}) {
+    foreach my $col (keys %{$self->{_inflated_column}}) {
+      $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col}))
+       unless exists $self->{_column_data}{$col};
+    }
+  }
+  return $self->next::method;
+}
 
-  $self->{_inflated_column}{$col} = $obj;
-  $self->$meth($col, $deflated);
-  return $obj;
+sub has_column_loaded {
+  my ($self, $col) = @_;
+  return 1 if exists $self->{_inflated_column}{$col};
+  return $self->next::method($col);
 }
 
 =head2 update
@@ -172,12 +198,10 @@ inflation and deflation of columns appropriately.
 
 sub update {
   my ($class, $attrs, @rest) = @_;
-  $attrs ||= {};
-  foreach my $key (keys %$attrs) {
+  foreach my $key (keys %{$attrs||{}}) {
     if (ref $attrs->{$key}
           && exists $class->column_info($key)->{_inflate_info}) {
-#      $attrs->{$key} = $class->_deflated_column($key, $attrs->{$key});
-      $class->set_inflated_column ($key, delete $attrs->{$key});
+      $class->set_inflated_column($key, delete $attrs->{$key});
     }
   }
   return $class->next::method($attrs, @rest);
@@ -192,14 +216,14 @@ inflation and deflation of columns appropriately.
 
 sub new {
   my ($class, $attrs, @rest) = @_;
-  $attrs ||= {};
-  foreach my $key (keys %$attrs) {
-    if (ref $attrs->{$key}
-          && exists $class->column_info($key)->{_inflate_info}) {
-      $attrs->{$key} = $class->_deflated_column($key, $attrs->{$key});
-    }
+  my $inflated;
+  foreach my $key (keys %{$attrs||{}}) {
+    $inflated->{$key} = delete $attrs->{$key} 
+      if ref $attrs->{$key} && exists $class->column_info($key)->{_inflate_info};
   }
-  return $class->next::method($attrs, @rest);
+  my $obj = $class->next::method($attrs, @rest);
+  $obj->{_inflated_column} = $inflated if $inflated;
+  return $obj;
 }
 
 =head1 SEE ALSO
