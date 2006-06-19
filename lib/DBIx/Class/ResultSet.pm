@@ -165,9 +165,10 @@ sub search_rs {
   my $our_attrs = ($attrs->{_parent_attrs})
     ? { %{$attrs->{_parent_attrs}} }
       : { %{$self->{attrs}} };
+  delete($attrs->{_parent_attrs}) if(exists $attrs->{_parent_attrs});  
   my $having = delete $our_attrs->{having};
 
-  # XXX this is getting messy
+  # XXX should only maintain _live_join_stack and generate _live_join_h from that  
   if ($attrs->{_live_join_stack}) {
     my $live_join = $attrs->{_live_join_stack};
     foreach (reverse @{$live_join}) {
@@ -175,7 +176,7 @@ sub search_rs {
     }
   }
 
-  # merge new attrs into old
+  # merge new attrs into inherited
   foreach my $key (qw/join prefetch/) {
     next unless (exists $attrs->{$key});
     if ($attrs->{_live_join_stack} || $our_attrs->{_live_join_stack}) {
@@ -195,12 +196,12 @@ sub search_rs {
   }
 
   $our_attrs->{join} = $self->_merge_attr(
-    $our_attrs->{join}, $attrs->{_live_join_h}, 1
+    $our_attrs->{join}, $attrs->{_live_join_h}
   ) if ($attrs->{_live_join_h});
 
   if (defined $our_attrs->{prefetch}) {
     $our_attrs->{join} = $self->_merge_attr(
-      $our_attrs->{join}, $our_attrs->{prefetch}, 1
+      $our_attrs->{join}, $our_attrs->{prefetch}
     );
   }
 
@@ -244,7 +245,6 @@ sub search_rs {
 
   my $rs = (ref $self)->new($self->result_source, $new_attrs);
   $rs->{_parent_rs} = $self->{_parent_rs} if ($self->{_parent_rs});
-       #XXX - hack to pass through parent of related resultsets
 
   unless (@_) {                 # no search, effectively just a clone
     my $rows = $self->get_cache;
@@ -252,7 +252,6 @@ sub search_rs {
       $rs->set_cache($rows);
     }
   }
-  
   return $rs;
 }
 
@@ -791,45 +790,12 @@ sub _resolve {
         push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
           unless $seen{$p};
       }
-
-      # we're about to resolve_join on the current class, so we need to bring
-      # the joins (which are from the original class) to the right level
-      # XXX the below alg is ridiculous
-      if ($attrs->{_live_join_stack}) {
-      STACK:
-        foreach (@{$attrs->{_live_join_stack}}) {
-          if (ref $p eq 'HASH') {
-            if (exists $p->{$_}) {
-              $p = $p->{$_};
-            } else {
-              $p = undef;
-              last STACK;
-            }
-          } elsif (ref $p eq 'ARRAY') {
-            foreach my $pe (@{$p}) {
-              if ($pe eq $_) {
-                $p = undef;
-                last STACK;
-              }
-              next unless(ref $pe eq 'HASH');
-              next unless(exists $pe->{$_});
-              $p = $pe->{$_};
-              next STACK;
-            }                                           
-            $p = undef;
-            last STACK;
-          } else {
-            $p = undef;
-            last STACK;
-          }
-        }
-      }
-                
+      # bring joins back to level of current class
+      $p = $self->_reduce_joins($p, $attrs) if ($attrs->{_live_join_stack});
       if ($p) {
         my @prefetch = $self->result_source->resolve_prefetch(
           $p, $attrs->{alias}, {}, \@pre_order, $collapse
         );
-                
         push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
         push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
       }
@@ -841,13 +807,13 @@ sub _resolve {
 }
 
 sub _merge_attr {
-  my ($self, $a, $b, $is_prefetch) = @_;
+  my ($self, $a, $b) = @_;
     
   return $b unless $a;
   if (ref $b eq 'HASH' && ref $a eq 'HASH') {
     foreach my $key (keys %{$b}) {
       if (exists $a->{$key}) {
-        $a->{$key} = $self->_merge_attr($a->{$key}, $b->{$key}, $is_prefetch);
+        $a->{$key} = $self->_merge_attr($a->{$key}, $b->{$key});
       } else {
         $a->{$key} = $b->{$key};
       }
@@ -862,12 +828,12 @@ sub _merge_attr {
     foreach ($a, $b) {
       foreach my $element (@{$_}) {
         if (ref $element eq 'HASH') {
-          $hash = $self->_merge_attr($hash, $element, $is_prefetch);
+          $hash = $self->_merge_attr($hash, $element);
         } elsif (ref $element eq 'ARRAY') {
           $array = [@{$array}, @{$element}];
         } else {        
-          if (($b == $_) && $is_prefetch) {
-            $self->_merge_array($array, $element, $is_prefetch);
+          if ($b == $_) {
+            $self->_merge_array($array, $element);
           } else {
             push(@{$array}, $element);
           }
@@ -897,6 +863,37 @@ sub _merge_array {
   foreach my $b_element (@{$b}) {
     push(@{$a}, $b_element) unless grep {$b_element eq $_} @{$a};
   }
+}
+
+# bring the joins (which are from the original class) to the level
+# of the current class so that we can resolve them properly
+sub _reduce_joins {
+  my ($self, $p, $attrs) = @_;
+
+ STACK:
+  foreach (@{$attrs->{_live_join_stack}}) {
+    if (ref $p eq 'HASH') {
+      if (exists $p->{$_}) {
+        $p = $p->{$_};
+      } else {
+        return undef;
+      }
+    } elsif (ref $p eq 'ARRAY') {
+      foreach my $pe (@{$p}) {
+        if ($pe eq $_) {
+          return undef;
+        }
+        if ((ref $pe eq 'HASH') && (exists $pe->{$_})) {
+          $p = $pe->{$_};
+          next STACK;
+        }
+      }                                           
+      return undef;
+    } else {
+      return undef;
+    }
+  }
+  return $p;
 }
 
 sub _construct_object {

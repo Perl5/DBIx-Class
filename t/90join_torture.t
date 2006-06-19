@@ -4,10 +4,10 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-
+use Data::Dumper;
 my $schema = DBICTest->init_schema();
 
-plan tests => 14;
+plan tests => 17;
 
 my @rs1a_results = $schema->resultset("Artist")->search_related('cds', {title => 'Forkful of bees'}, {order_by => 'title'});
 is($rs1a_results[0]->title, 'Forkful of bees', "bare field conditions okay after search related");
@@ -67,9 +67,18 @@ my $prod_map_rs = $schema->resultset("Artist")->find(1)->cds->search_related('cd
 ok($prod_map_rs->next->producer, 'search related with prefetch okay');
 
 my $stupid = $schema->resultset("Artist")->search_related('artist_undirected_maps', {}, { prefetch => 'artist1' })->search_related('mapped_artists')->search_related('cds', {'cds.cdid' => '2'}, { prefetch => 'tracks' });
-#use Data::Dumper; warn Dumper($stupid->{attrs});
 
 my $cd_final = $schema->resultset("Artist")->search_related('artist_undirected_maps', {}, { prefetch => 'artist1' })->search_related('mapped_artists')->search_related('cds', {'cds.cdid' => '2'}, { prefetch => 'tracks' })->first;
 is($cd_final->cdid, '2', 'bonkers search_related-with-join-midway okay');
+
+# should end up with cds and cds_2 joined
+my $merge_rs_1 = $schema->resultset("Artist")->search({ 'cds_2.cdid' => '2' }, { join => ['cds', 'cds'] });
+is(scalar(@{$merge_rs_1->{attrs}->{join}}), 2, 'both joins kept');
+ok($merge_rs_1->next, 'query on double joined rel runs okay');
+
+# should only end up with cds joined
+my $merge_rs_2 = $schema->resultset("Artist")->search({ }, { join => 'cds' })->search({ 'cds.cdid' => '2' }, { join => 'cds' });
+is(scalar(@{$merge_rs_2->{attrs}->{join}}), 1, 'only one join kept when inherited');
+my $merge_rs_2_cd = $merge_rs_2->next;
 
 1;
