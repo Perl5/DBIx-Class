@@ -172,6 +172,14 @@ sub get_column {
   return $self->next::method($col);
 }
 
+=head2 get_columns 
+
+Returns the get_column info for all columns as a hash,
+just like L<DBIx::Class::Row/get_columns>.  Handles inflation just
+like L</get_column>.
+
+=cut
+
 sub get_columns {
   my $self = shift;
   if (exists $self->{_inflated_column}) {
@@ -182,6 +190,13 @@ sub get_columns {
   }
   return $self->next::method;
 }
+
+=head2 has_column_loaded
+
+Like L<DBIx::Class::Row/has_column_loaded>, but also returns true if there
+is an inflated value stored.
+
+=cut
 
 sub has_column_loaded {
   my ($self, $col) = @_;
