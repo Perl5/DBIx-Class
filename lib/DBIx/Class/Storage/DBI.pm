@@ -914,6 +914,8 @@ L<DBIx::Class::Schema/deploy>.
 
 sub deployment_statements {
   my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
+  # Need to be connected to get the correct sqlt_type
+  $self->ensure_connected();
   $type ||= $self->sqlt_type;
   $version ||= $schema->VERSION || '1.x';
   $dir ||= './';

@@ -59,7 +59,7 @@ my $test_type_info = {
         'default_value' => undef,
     },
     'charfield' => {
-        'data_type' => 'VARCHAR',
+        'data_type' => 'CHAR',
         'is_nullable' => 1,
         'size' => 10,
         'default_value' => undef,

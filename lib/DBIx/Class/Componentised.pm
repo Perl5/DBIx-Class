@@ -64,13 +64,14 @@ sub _load_components {
 #
 # TODO: handle ->has_many('rel', 'Class'...) instead of
 #              ->has_many('rel', 'Some::Schema::Class'...)
+#
+# BUG: For some reason, packages with syntax errors are added to %INC on
+#      require
 sub ensure_class_loaded {
   my ($class, $f_class) = @_;
-  eval "require $f_class";
-  my $err = $@;
-  Class::Inspector->loaded($f_class)
-    or $class->throw_exception($err || "`require $f_class' was successful".
-                                       "but the package is not defined");
+  return if Class::Inspector->loaded($f_class);
+  eval "require $f_class"; # require needs a bareword or filename
+  $class->throw_exception($@) if ($@);
 }
 
 # Returns true if the specified class is installed or already loaded, false
