@@ -448,9 +448,6 @@ Removes the link between the current object and the related object. Note that
 the related object itself won't be deleted unless you call ->delete() on
 it. This method just removes the link between the two objects.
 
-
-1;
-
 =head1 AUTHORS
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>
@@ -461,3 +458,4 @@ You may distribute this code under the same terms as Perl itself.
 
 =cut
 
+1;

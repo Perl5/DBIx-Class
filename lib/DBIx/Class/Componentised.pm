@@ -6,6 +6,7 @@ use warnings;
 
 use Class::C3;
 use Class::Inspector;
+use Carp::Clan qw/DBIx::Class/;
 
 sub inject_base {
   my ($class, $target, @to_inject) = @_;
@@ -71,7 +72,13 @@ sub ensure_class_loaded {
   my ($class, $f_class) = @_;
   return if Class::Inspector->loaded($f_class);
   eval "require $f_class"; # require needs a bareword or filename
-  $class->throw_exception($@) if ($@);
+  if ($@) {
+    if ($class->can('throw_exception')) {
+      $class->throw_exception($@);
+    } else {
+      croak $@;
+    }
+  }
 }
 
 # Returns true if the specified class is installed or already loaded, false
