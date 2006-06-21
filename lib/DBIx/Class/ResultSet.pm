@@ -1993,6 +1993,20 @@ done.
 
 Set to 1 to group by all columns.
 
+=head2 where
+
+=over 4
+
+Adds to the WHERE clause.
+
+  # only return rows WHERE deleted IS NULL for all searches
+  __PACKAGE__->resultset_attributes({ where => { deleted => undef } }); )
+
+Can be overridden by passing C<{ where => undef }> as an attribute
+to a resulset.
+
+=back
+
 =head2 cache
 
 Set to 1 to cache search results. This prevents extra SQL queries if you
