@@ -7,13 +7,14 @@ use warnings;
 sub has_many {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
 
-  $class->ensure_class_loaded($f_class);
-
   unless (ref $cond) {
+    $class->ensure_class_loaded($f_class);
     my ($pri, $too_many) = $class->primary_columns;
-    $class->throw_exception( "has_many can only infer join for a single ".
-			     "primary key; ${class} has more" )
-      if $too_many;
+
+    $class->throw_exception(
+      "has_many can only infer join for a single primary key; ".
+      "${class} has more"
+    ) if $too_many;
 
     my ($f_key,$guess);
     if (defined $cond && length $cond) {
