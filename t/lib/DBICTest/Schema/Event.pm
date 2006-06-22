@@ -10,7 +10,8 @@ __PACKAGE__->table('event');
 
 __PACKAGE__->add_columns(
   id => { data_type => 'integer', is_auto_increment => 1 },
-  starts_at => { data_type => 'datetime' }
+  starts_at => { data_type => 'datetime' },
+  created_on => { data_type => 'timestamp' }
 );
 
 __PACKAGE__->set_primary_key('id');
