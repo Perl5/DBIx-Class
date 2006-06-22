@@ -24,6 +24,7 @@ __PACKAGE__->load_classes(qw/
   /]},
   (
     'FourKeys',
+    'FourKeys_to_TwoKeys',
     '#dummy',
     'SelfRef',
     'ArtistUndirectedMap',

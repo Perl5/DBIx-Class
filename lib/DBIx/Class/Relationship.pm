@@ -187,6 +187,12 @@ left join.
 
 =head2 many_to_many
 
+=over 4
+
+=item Arguments: $accessor_name, $link_rel_name, $foreign_rel_name
+
+=back
+
   My::DBIC::Schema::Actor->has_many( actor_roles =>
                                      'My::DBIC::Schema::ActorRoles',
                                      'actor' );
@@ -198,13 +204,10 @@ left join.
   My::DBIC::Schema::Actor->many_to_many( roles => 'actor_roles',
                                          'role' );
 
-  ...
+Creates a accessors bridging two relationships; not strictly a relationship in
+its own right, although the accessor will return a resultset or collection of
+objects just as a has_many would.
 
-  my @role_objs = $actor->roles;
-
-Creates an accessor bridging two relationships; not strictly a relationship
-in its own right, although the accessor will return a resultset or collection
-of objects just as a has_many would.
 To use many_to_many, existing relationships from the original table to the link
 table, and from the link table to the end table must already exist, these
 relation names are then used in the many_to_many call.
