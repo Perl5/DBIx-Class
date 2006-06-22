@@ -52,6 +52,7 @@ sub register_column {
   $self->next::method($column, $info, @rest);
   return unless defined($info->{data_type});
   my $type = lc($info->{data_type});
+  $type = 'datetime' if ($type eq 'timestamp');
   if ($type eq 'datetime' || $type eq 'date') {
     my ($parse, $format) = ("parse_${type}", "format_${type}");
     $self->inflate_column(
