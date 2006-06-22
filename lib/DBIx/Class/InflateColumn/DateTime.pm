@@ -11,7 +11,7 @@ DBIx::Class::InflateColumn::DateTime - Auto-create DateTime objects from date an
 =head1 SYNOPSIS
 
 Load this component and then declare one or more 
-columns to be of the datetime or date datatype.
+columns to be of the datetime, timestamp or date datatype.
 
   package Event;
   __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
