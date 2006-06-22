@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat Jun 17 07:46:56 2006
+-- Created on Thu Jun 22 23:07:04 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -150,7 +150,8 @@ CREATE TABLE tags (
 --
 CREATE TABLE event (
   id INTEGER PRIMARY KEY NOT NULL,
-  starts_at datetime NOT NULL
+  starts_at datetime NOT NULL,
+  created_on timestamp NOT NULL
 );
 
 --
@@ -203,4 +204,9 @@ CREATE TABLE onekey (
 CREATE UNIQUE INDEX tktlnameunique_twokeytreelike on twokeytreelike (name);
 CREATE UNIQUE INDEX cd_artist_title_cd on cd (artist, title);
 CREATE UNIQUE INDEX prod_name_producer on producer (name);
+CREATE TRIGGER ts_event after insert on event
+begin
+  update event set created_on=timestamp() where id=new.id;
+end;
+
 COMMIT;
