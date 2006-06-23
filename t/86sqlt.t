@@ -8,11 +8,9 @@ use DBICTest;
 eval "use SQL::Translator";
 plan skip_all => 'SQL::Translator required' if $@;
 
-# do not taunt happy dave ball
-
 my $schema = DBICTest->init_schema;
 
-plan tests => 33;
+plan tests => 53;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -26,233 +24,276 @@ $translator->producer('SQLite');
 
 my $output = $translator->translate();
 
-my @fk_constraints = (
+# Note that the constraints listed here are the only ones that are tested -- if
+# more exist in the Schema than are listed here and all listed constraints are
+# correct, the test will still pass. If you add a class to DBICTest::Schema,
+# add tests here if you think the existing test coverage is not sufficient
+
+my %fk_constraints = (
 
   # TwoKeys
-  {'display' => 'twokeys->cd',
-   'selftable' => 'twokeys', 'foreigntable' => 'cd', 
-   'selfcols'  => ['cd'], 'foreigncols' => ['cdid'], 
-   'needed' => 1, on_delete => '', on_update => ''},
-  {'display' => 'twokeys->artist',
-   'selftable' => 'twokeys', 'foreigntable' => 'artist', 
-   'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
-   'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
+  twokeys => [
+    {
+      'display' => 'twokeys->cd',
+      'selftable' => 'twokeys', 'foreigntable' => 'cd', 
+      'selfcols'  => ['cd'], 'foreigncols' => ['cdid'], 
+      on_delete => '', on_update => '',
+    },
+    {
+      'display' => 'twokeys->artist',
+      'selftable' => 'twokeys', 'foreigntable' => 'artist', 
+      'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
+      on_delete => 'CASCADE', on_update => 'CASCADE',
+    },
+  ],
 
   # FourKeys_to_TwoKeys
-  {'display' => 'fourkeys_to_twokeys->twokeys',
-   'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'twokeys', 
-   'selfcols'  => ['t_artist', 't_cd'], 'foreigncols' => ['artist', 'cd'], 
-   'needed' => 0, on_delete => '', on_update => ''},
-  {'display' => 'fourkeys_to_twokeys->fourkeys',
-   'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'fourkeys', 
-   'selfcols'  => [qw(f_foo f_bar f_hello f_goodbye)],
-   'foreigncols' => [qw(foo bar hello goodbye)], 
-   'needed' => 0, on_delete => '', on_update => ''},
+  fourkeys_to_twokeys => [
+    {
+      'display' => 'fourkeys_to_twokeys->twokeys',
+      'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'twokeys', 
+      'selfcols'  => ['t_artist', 't_cd'], 'foreigncols' => ['artist', 'cd'], 
+      on_delete => 'CASCADE', on_update => 'CASCADE',
+    },
+    {
+      'display' => 'fourkeys_to_twokeys->fourkeys',
+      'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'fourkeys', 
+      'selfcols'  => [qw(f_foo f_bar f_hello f_goodbye)],
+      'foreigncols' => [qw(foo bar hello goodbye)], 
+      on_delete => 'CASCADE', on_update => 'CASCADE',
+    },
+  ],
 
   # CD_to_Producer
-  {'display' => 'cd_to_producer->cd',
-   'selftable' => 'cd_to_producer', 'foreigntable' => 'cd', 
-   'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
-   'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
-  {'display' => 'cd_to_producer->producer',
-   'selftable' => 'cd_to_producer', 'foreigntable' => 'producer', 
-   'selfcols'  => ['producer'], 'foreigncols' => ['producerid'],
-   'needed' => 1, on_delete => '', on_update => ''},
+  cd_to_producer => [
+    {
+      'display' => 'cd_to_producer->cd',
+      'selftable' => 'cd_to_producer', 'foreigntable' => 'cd', 
+      'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
+      on_delete => 'CASCADE', on_update => 'CASCADE',
+    },
+    {
+      'display' => 'cd_to_producer->producer',
+      'selftable' => 'cd_to_producer', 'foreigntable' => 'producer', 
+      'selfcols'  => ['producer'], 'foreigncols' => ['producerid'],
+      on_delete => '', on_update => '',
+    },
+  ],
 
   # Self_ref_alias
-  {'display' => 'self_ref_alias -> self_ref for self_ref',
-   'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
-   'selfcols'  => ['self_ref'], 'foreigncols' => ['id'],
-   'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
-  {'display' => 'self_ref_alias -> self_ref for alias',
-   'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
-   'selfcols'  => ['alias'], 'foreigncols' => ['id'],
-   'needed' => 1, on_delete => '', on_update => ''},
+  self_ref_alias => [
+    {
+      'display' => 'self_ref_alias->self_ref for self_ref',
+      'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
+      'selfcols'  => ['self_ref'], 'foreigncols' => ['id'],
+      on_delete => 'CASCADE', on_update => 'CASCADE',
+    },
+    {
+      'display' => 'self_ref_alias->self_ref for alias',
+      'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
+      'selfcols'  => ['alias'], 'foreigncols' => ['id'],
+      on_delete => '', on_update => '',
+    },
+  ],
 
   # CD
-  {'display' => 'cd -> artist',
-   'selftable' => 'cd', 'foreigntable' => 'artist', 
-   'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
-   'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
+  cd => [
+    {
+      'display' => 'cd->artist',
+      'selftable' => 'cd', 'foreigntable' => 'artist', 
+      'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
+      on_delete => 'CASCADE', on_update => 'CASCADE',
+    },
+  ],
 
   # Artist_undirected_map
-  {'display' => 'artist_undirected_map -> artist for id1',
-   'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
-   'selfcols'  => ['id1'], 'foreigncols' => ['artistid'],
-   'needed' => 1, on_delete => 'CASCADE', on_update => ''},
-  {'display' => 'artist_undirected_map -> artist for id2',
-   'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
-   'selfcols'  => ['id2'], 'foreigncols' => ['artistid'],
-   'needed' => 1, on_delete => 'CASCADE', on_update => ''},
+  artist_undirected_map => [
+    {
+      'display' => 'artist_undirected_map->artist for id1',
+      'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
+      'selfcols'  => ['id1'], 'foreigncols' => ['artistid'],
+      on_delete => 'CASCADE', on_update => '',
+    },
+    {
+      'display' => 'artist_undirected_map->artist for id2',
+      'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
+      'selfcols'  => ['id2'], 'foreigncols' => ['artistid'],
+      on_delete => 'CASCADE', on_update => '',
+    },
+  ],
 
   # Track
-  {'display' => 'track->cd',
-   'selftable' => 'track', 'foreigntable' => 'cd', 
-   'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
-   'needed' => 2, on_delete => 'CASCADE', on_update => 'CASCADE'},
+  track => [
+    {
+      'display' => 'track->cd',
+      'selftable' => 'track', 'foreigntable' => 'cd', 
+      'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
+      on_delete => 'CASCADE', on_update => 'CASCADE',
+    },
+  ],
 
   # TreeLike
-  {'display' => 'treelike -> treelike for parent',
-   'selftable' => 'treelike', 'foreigntable' => 'treelike', 
-   'selfcols'  => ['parent'], 'foreigncols' => ['id'],
-   'needed' => 1, on_delete => '', on_update => ''},
+  treelike => [
+    {
+      'display' => 'treelike->treelike for parent',
+      'selftable' => 'treelike', 'foreigntable' => 'treelike', 
+      'selfcols'  => ['parent'], 'foreigncols' => ['id'],
+      on_delete => '', on_update => '',
+    },
+  ],
 
-  # shouldn't this be generated?
-  # 
-  #{'display' => 'twokeytreelike -> twokeytreelike for parent1,parent2',
-  # 'selftable' => 'twokeytreelike', 'foreigntable' => 'twokeytreelike', 
-  # 'selfcols'  => ['parent1', 'parent2'], 'foreigncols' => ['id1','id2'],
-  # 'needed' => 1, on_delete => '', on_update => ''},
+  # TwoKeyTreeLike
+  twokeytreelike => [
+    {
+      'display' => 'twokeytreelike->twokeytreelike for parent1,parent2',
+      'selftable' => 'twokeytreelike', 'foreigntable' => 'twokeytreelike', 
+      'selfcols'  => ['parent1', 'parent2'], 'foreigncols' => ['id1','id2'],
+      on_delete => '', on_update => '',
+    },
+  ],
 
   # Tags
-  {'display' => 'tags -> cd',
-   'selftable' => 'tags', 'foreigntable' => 'cd', 
-   'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
-   'needed' => 1, on_delete => 'CASCADE', on_update => 'CASCADE'},
+  tags => [
+    {
+      'display' => 'tags->cd',
+      'selftable' => 'tags', 'foreigntable' => 'cd', 
+      'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
+      on_delete => 'CASCADE', on_update => 'CASCADE',
+    },
+  ],
 
   # Bookmark
-  {'display' => 'bookmark -> link',
-   'selftable' => 'bookmark', 'foreigntable' => 'link', 
-   'selfcols'  => ['link'], 'foreigncols' => ['id'],
-   'needed' => 1, on_delete => '', on_update => ''},
- );
+  bookmark => [
+    {
+      'display' => 'bookmark->link',
+      'selftable' => 'bookmark', 'foreigntable' => 'link', 
+      'selfcols'  => ['link'], 'foreigncols' => ['id'],
+      on_delete => '', on_update => '',
+    },
+  ],
+);
 
-my @unique_constraints = (
-  {'display' => 'cd artist and title unique',
-   'table' => 'cd', 'cols' => ['artist', 'title'],
-   'needed' => 1},
-  {'display' => 'producer name unique',
-   'table' => 'producer', 'cols' => ['name'],
-   'needed' => 1},
-  {'display' => 'twokeytreelike name unique',
-   'table' => 'twokeytreelike', 'cols'  => ['name'],
-   'needed' => 1},
-#  {'display' => 'employee position and group_id unique',
-#   'table' => 'employee', cols => ['position', 'group_id'],
-#   'needed' => 1},
+my %unique_constraints = (
+  # CD
+  cd => [
+    {
+      'display' => 'cd artist and title unique',
+      'table' => 'cd', 'cols' => ['artist', 'title'],
+    },
+  ],
+
+  # Producer
+  producer => [
+    {
+      'display' => 'producer name unique',
+      'table' => 'producer', 'cols' => ['name'],
+    },
+  ],
+
+  # TwoKeyTreeLike
+  twokeytreelike => [
+    {
+      'display' => 'twokeytreelike name unique',
+      'table' => 'twokeytreelike', 'cols'  => ['name'],
+    },
+  ],
+
+  # Employee
+# Constraint is commented out in DBICTest/Schema/Employee.pm
+#  employee => [
+#    {
+#      'display' => 'employee position and group_id unique',
+#      'table' => 'employee', cols => ['position', 'group_id'],
+#    },
+#  ],
 );
 
 my $tschema = $translator->schema();
-for my $table ($tschema->get_tables) {
-  my $table_name = $table->name;
-  for my $c ( $table->get_constraints ) {
-    if ($c->type eq 'FOREIGN KEY') {
-      ok( check_fk($table_name, scalar $c->fields, 
-                   $c->reference_table, scalar $c->reference_fields, 
-                   $c->on_delete, $c->on_update),
-          "Foreign key constraint on $table_name matches an expected ".
-          "constraint" );
-    } elsif ($c->type eq 'UNIQUE') {
-      ok(check_unique($table_name, scalar $c->fields),
-         "Unique constraint on $table_name matches an expected constraint");
-    }
+
+# Test that nonexistent constraints are not found
+my $constraint = get_constraint('FOREIGN KEY', 'cd', ['title'], 'cd', ['year']);
+ok( !defined($constraint), 'nonexistent FOREIGN KEY constraint not found' );
+$constraint = get_constraint('UNIQUE', 'cd', ['artist']);
+ok( !defined($constraint), 'nonexistent UNIQUE constraint not found' );
+
+for my $expected_constraints (keys %fk_constraints) {
+  for my $expected_constraint (@{ $fk_constraints{$expected_constraints} }) {
+    my $desc = $expected_constraint->{display};
+    my $constraint = get_constraint(
+      'FOREIGN KEY',
+      $expected_constraint->{selftable}, $expected_constraint->{selfcols},
+      $expected_constraint->{foreigntable}, $expected_constraint->{foreigncols},
+    );
+    ok( defined($constraint), "FOREIGN KEY constraint matching `$desc' found" );
+    test_fk($expected_constraint, $constraint);
   }
 }
 
-# Make sure all the foreign keys are done.
-my $i;
-for ($i = 0; $i <= $#fk_constraints; ++$i) {
- ok(!$fk_constraints[$i]->{'needed'},
-    "Constraint $fk_constraints[$i]->{display}");
-}
-# Make sure all the uniques are done.
-for ($i = 0; $i <= $#unique_constraints; ++$i) {
- ok(!$unique_constraints[$i]->{'needed'},
-    "Constraint $unique_constraints[$i]->{display}");
+for my $expected_constraints (keys %unique_constraints) {
+  for my $expected_constraint (@{ $unique_constraints{$expected_constraints} }) {
+    my $desc = $expected_constraint->{display};
+    my $constraint = get_constraint(
+      'UNIQUE', $expected_constraint->{table}, $expected_constraint->{cols},
+    );
+    ok( defined($constraint), "UNIQUE constraint matching `$desc' found" );
+  }
 }
 
-sub check_fk {
-  my ($selftable, $selfcol, $foreigntable, $foreigncol, $ondel, $onupd) = @_;
+# Returns the Constraint object for the specified constraint type, table and
+# columns from the SQL::Translator schema, or undef if no matching constraint
+# is found.
+#
+# NB: $type is either 'FOREIGN KEY' or 'UNIQUE'. In UNIQUE constraints the last
+# two parameters are not used.
+sub get_constraint {
+  my ($type, $table_name, $cols, $f_table, $f_cols) = @_;
+  $f_table ||= ''; # For UNIQUE constraints, reference_table is ''
+  $f_cols ||= [];
 
-  $ondel = '' if (!defined($ondel));
-  $onupd = '' if (!defined($onupd));
+  my $table = $tschema->get_table($table_name);
 
-  my $i;
-  for ($i = 0; $i <= $#fk_constraints; ++$i) {
-    if ($selftable eq $fk_constraints[$i]->{'selftable'} &&
-        $foreigntable eq $fk_constraints[$i]->{'foreigntable'} &&
-        $ondel eq $fk_constraints[$i]->{on_delete} &&
-        $onupd eq $fk_constraints[$i]->{on_update}) {
-      # check columns
+  my %fields = map { $_ => 1 } @$cols;
+  my %f_fields = map { $_ => 1 } @$f_cols;
 
-      my $found = 0;
-      for (my $j = 0; $j <= $#$selfcol; ++$j) {
-        $found = 0;
-        for (my $k = 0; $k <= $#{$fk_constraints[$i]->{'selfcols'}}; ++$k) {
-          if ($selfcol->[$j] eq $fk_constraints[$i]->{'selfcols'}->[$k] &&
-              $foreigncol->[$j] eq $fk_constraints[$i]->{'foreigncols'}->[$k]) {
-            $found = 1;
-            last;
-          }
-        }
-        last unless $found;
-      }
+ CONSTRAINT:
+  for my $constraint ( $table->get_constraints ) {
+    next unless $constraint->type eq $type;
+    next unless $constraint->reference_table eq $f_table;
 
-      if ($found) {
-        for (my $j = 0; $j <= $#{$fk_constraints[$i]->{'selfcols'}}; ++$j) {
-          $found = 0;
-          for (my $k = 0; $k <= $#$selfcol; ++$k) {
-            if ($selfcol->[$k] eq $fk_constraints[$i]->{'selfcols'}->[$j] &&
-                $foreigncol->[$k] eq $fk_constraints[$i]->{'foreigncols'}->[$j]) {
-              $found = 1;
-              last;
-            }
-          }
-          last unless $found;
-        }
-      }
+    my %rev_fields = map { $_ => 1 } $constraint->fields;
+    my %rev_f_fields = map { $_ => 1 } $constraint->reference_fields;
 
-      if ($found) {
-        --$fk_constraints[$i]->{needed};
-        return 1;
+    # Check that the given fields are a subset of the constraint's fields
+    for my $field ($constraint->fields) {
+      next CONSTRAINT unless $fields{$field};
+    }
+    if ($type eq 'FOREIGN KEY') {
+      for my $f_field ($constraint->reference_fields) {
+        next CONSTRAINT unless $f_fields{$f_field};
       }
     }
-  }
-  return 0;
-}
 
-my( $ondel, $onupd );
-
-sub check_unique {
-  my ($selftable, $selfcol) = @_;
-
-  $ondel = '' if (!defined($ondel));
-  $onupd = '' if (!defined($onupd));
-
-  my $i;
-  for ($i = 0; $i <= $#unique_constraints; ++$i) {
-    if ($selftable eq $unique_constraints[$i]->{'table'}) {
-
-      my $found = 0;
-      for (my $j = 0; $j <= $#$selfcol; ++$j) {
-        $found = 0;
-        for (my $k = 0; $k <= $#{$unique_constraints[$i]->{'cols'}}; ++$k) {
-          if ($selfcol->[$j] eq $unique_constraints[$i]->{'cols'}->[$k]) {
-            $found = 1;
-            last;
-          }
-        }
-        last unless $found;
-      }
-
-      if ($found) {
-        for (my $j = 0; $j <= $#{$unique_constraints[$i]->{'cols'}}; ++$j) {
-          $found = 0;
-          for (my $k = 0; $k <= $#$selfcol; ++$k) {
-            if ($selfcol->[$k] eq $unique_constraints[$i]->{'cols'}->[$j]) {
-              $found = 1;
-              last;
-            }
-          }
-          last unless $found;
-        }
-      }
-
-      if ($found) {
-        --$unique_constraints[$i]->{needed};
-        return 1;
+    # Check that the constraint's fields are a subset of the given fields
+    for my $field (@$cols) {
+      next CONSTRAINT unless $rev_fields{$field};
+    }
+    if ($type eq 'FOREIGN KEY') {
+      for my $f_field (@$f_cols) {
+        next CONSTRAINT unless $rev_f_fields{$f_field};
       }
     }
+
+    return $constraint; # everything passes, found the constraint
   }
-  return 0;
+  return undef; # didn't find a matching constraint
+}
+
+# Test parameters in a FOREIGN KEY constraint other than columns
+sub test_fk {
+  my ($expected, $got) = @_;
+  my $desc = $expected->{display};
+  is( $got->on_delete, $expected->{on_delete},
+      "on_delete parameter correct for `$desc'" );
+  is( $got->on_update, $expected->{on_update},
+      "on_update parameter correct for `$desc'" );
 }
