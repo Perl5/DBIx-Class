@@ -26,8 +26,9 @@ my $output = $translator->translate();
 
 # Note that the constraints listed here are the only ones that are tested -- if
 # more exist in the Schema than are listed here and all listed constraints are
-# correct, the test will still pass. If you add a class to DBICTest::Schema,
-# add tests here if you think the existing test coverage is not sufficient
+# correct, the test will still pass. If you add a class with UNIQUE or FOREIGN
+# KEY constraints to DBICTest::Schema, add tests here if you think the existing
+# test coverage is not sufficient
 
 my %fk_constraints = (
 
