@@ -10,7 +10,7 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime::Format::MySQL };
 plan skip_all => "Need DateTime::Format::MySQL for inflation tests" if $@;
 
-plan tests => 4;
+plan tests => 8;
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);
