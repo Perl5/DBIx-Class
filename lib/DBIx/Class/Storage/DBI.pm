@@ -319,7 +319,10 @@ C<limit_dialect>, C<quote_char>, and C<name_sep>.  Examples:
 
 =head2 on_connect_do
 
-Executes the sql statements given as a listref on every db connect.
+  $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
+
+Call this after C<< $schema->connect >> to have the sql statements
+given executed on every db connect.
 
 This option can also be set via L</connect_info>.
 
