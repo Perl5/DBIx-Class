@@ -38,3 +38,6 @@
 
 # Skip maint stuff
 ^maint/
+
+# Temporary addition: skip sqlt test
+^t/86sqlt.t$

@@ -20,7 +20,7 @@ if ($@) {
 plan tests => 5;
 
 my $employees = $schema->resultset('Employee');
-my $cmd = qq|script/dbicadmin --schema=DBICTest::Schema --class=Employee --tlibs --connect='["dbi:SQLite:dbname=t/var/DBIxClass.db","",""]' --force --tlibs|;
+my $cmd = qq|perl script/dbicadmin --schema=DBICTest::Schema --class=Employee --tlibs --connect='["dbi:SQLite:dbname=t/var/DBIxClass.db","",""]' --force --tlibs|;
 
 `$cmd --op=insert --set='{name:"Matt"}'`;
 ok( ($employees->count()==1), 'insert count' );
