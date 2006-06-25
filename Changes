@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
 0.06999_03 at some point
+        - reworked InflateColumn implementation to lazily deflate where
+          possible; it's now possible to pass an object to new()
         - Changed join merging to not create a rel_2 alias when adding a join
           that already exists in a parent resultset
         - InflateColumn::DateTime supports date as well as datetime
