@@ -1,11 +1,24 @@
 Revision history for DBIx::Class
 
-0.06999_03 at some point
+0.06999_03 2006-06-26 21:04:44
+        - various documentation improvements
+        - fixes to pass test suite on Windows
+        - rewrote and cleaned up SQL::Translator tests
+        - changed relationship helpers to only call ensure_class_loaded when the
+          join condition is inferred 
+        - rewrote many_to_many implementation, now provides helpers for adding
+          and deleting objects without dealing with the link table
         - reworked InflateColumn implementation to lazily deflate where
-          possible; it's now possible to pass an object to new()
-        - Changed join merging to not create a rel_2 alias when adding a join
+          possible; now handles passing an inflated object to new()
+        - changed join merging to not create a rel_2 alias when adding a join
           that already exists in a parent resultset
+        - Storage::DBI::deployment_statements now calls ensure_connected
+          if it isn't passed a type 
+        - fixed Componentized::ensure_class_loaded
         - InflateColumn::DateTime supports date as well as datetime
+        - split Storage::DBI::MSSQL into MSSQL and Sybase::MSSQL
+        - fixed wrong debugging hook call in Storage::DBI 
+        - set connect_info properly before setting any ->sql_maker things 
 
 0.06999_02 2006-06-09 23:58:33
         - Fixed up POD::Coverage tests, filled in some POD holes
@@ -33,7 +46,7 @@ Revision history for DBIx::Class
         - add automatic naming of unique constraints
         - marked DB.pm as deprecated and noted it will be removed by 1.0
         - add ResultSetColumn
-        - refactor ResultSet code to resolve attrs as late as poss
+        - refactor ResultSet code to resolve attrs as late as possible
         - merge prefetch attrs into join attrs
         - add +select and +as attributes to ResultSet
         - added InflateColumn::DateTime component
