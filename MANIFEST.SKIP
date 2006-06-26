@@ -14,6 +14,7 @@
 
 # for developers only :)
 ^TODO$
+^VERSIONING\.SKETCH$
 
 # Avoid Module::Build generated and utility files.
 \bBuild$
@@ -38,6 +39,3 @@
 
 # Skip maint stuff
 ^maint/
-
-# Temporary addition: skip sqlt test
-^t/86sqlt.t$
