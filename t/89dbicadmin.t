@@ -19,23 +19,26 @@ if ($@) {
 
 plan tests => 5;
 
-my $employees = $schema->resultset('Employee');
-my $cmd = qq|perl script/dbicadmin --schema=DBICTest::Schema --class=Employee --tlibs --connect='["dbi:SQLite:dbname=t/var/DBIxClass.db","",""]' --force --tlibs|;
+# double quotes round the arguments and single-quote within to make sure the
+# tests run on windows as well
 
-`$cmd --op=insert --set='{name:"Matt"}'`;
+my $employees = $schema->resultset('Employee');
+my $cmd = qq|perl script/dbicadmin --schema=DBICTest::Schema --class=Employee --tlibs --connect="['dbi:SQLite:dbname=t/var/DBIxClass.db','','']" --force --tlibs|;
+
+`$cmd --op=insert --set="{name:'Matt'}"`;
 ok( ($employees->count()==1), 'insert count' );
 
 my $employee = $employees->find(1);
 ok( ($employee->name() eq 'Matt'), 'insert valid' );
 
-`$cmd --op=update --set='{name:"Trout"}'`;
+`$cmd --op=update --set="{name:'Trout'}"`;
 $employee = $employees->find(1);
 ok( ($employee->name() eq 'Trout'), 'update' );
 
-`$cmd --op=insert --set='{name:"Aran"}'`;
-my $data = `$cmd --op=select --attrs='{order_by:"name"}'`;
+`$cmd --op=insert --set="{name:'Aran'}"`;
+my $data = `$cmd --op=select --attrs="{order_by:'name'}"`;
 ok( ($data=~/Aran.*Trout/s), 'select with attrs' );
 
-`$cmd --op=delete --where='{name:"Trout"}'`;
+`$cmd --op=delete --where="{name:'Trout'}"`;
 ok( ($employees->count()==1), 'delete' );
 
