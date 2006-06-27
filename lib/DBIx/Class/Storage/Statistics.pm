@@ -49,6 +49,8 @@ Called when a transaction begins.
 =cut
 sub txn_begin {
     my $self = shift();
+
+    $self->debugfh->print("BEGIN WORK\n");
 }
 
 =head2 txn_rollback
@@ -58,6 +60,8 @@ Called when a transaction is rolled back.
 =cut
 sub txn_rollback {
     my $self = shift();
+
+    $self->debugfh->print("ROLLBACK\n");
 }
 
 =head2 txn_commit
@@ -67,6 +71,8 @@ Called when a transaction is committed.
 =cut
 sub txn_commit {
     my $self = shift();
+
+    $self->debugfh->print("COMMIT\n");
 }
 
 =head2 query_start
