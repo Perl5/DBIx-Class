@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DBI::Const::GetInfoType;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
@@ -12,7 +13,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 4;
+plan tests => 5;
 
 DBICTest::Schema->compose_connection('MySQLTest' => $dsn, $user, $pass);
 
@@ -66,17 +67,19 @@ my $test_type_info = {
     },
 };
 
+SKIP: {
+    my $mysql_version = $dbh->get_info( $GetInfoType{SQL_DBMS_VER} );
 
-# mst - disabled because it can't decide whether to report CHAR or VARCHAR
-#
-# should figure out how to tell and make the test DWIM, but for the moment
-# I'm not blocking a release for a single retarded database
+    skip "Cannot determine MySQL server version", 1 if !$mysql_version;
 
-#my $type_info = MySQLTest->schema->storage->columns_info_for('artist');
-#is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
+    my ($v1, $v2, $v3) = split(/\./, $mysql_version);
+    if( ($v1 < 5) || ($v1 == 5 && $v2 == 0 && $v3 <= 3) ) {
+        $test_type_info->{charfield}->{data_type} = 'VARCHAR';
+    }
 
-
+    my $type_info = MySQLTest->schema->storage->columns_info_for('artist');
+    is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
+}
 
 # clean up our mess
 $dbh->do("DROP TABLE artist");
-
