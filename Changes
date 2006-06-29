@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - fixups to MySQL tests (aka "work round mysql being retarded")
+        - compat tweaks for Storage debug logging
+
 0.06999_03 2006-06-26 21:04:44
         - various documentation improvements
         - fixes to pass test suite on Windows
