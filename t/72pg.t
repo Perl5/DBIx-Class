@@ -15,6 +15,7 @@ use DBICTest;
   __PACKAGE__->load_components(qw/PK::Auto Core/);
   __PACKAGE__->table('casecheck');
   __PACKAGE__->add_columns(qw/id name NAME uc_name/);
+  __PACKAGE__->load_column_info_from_storage;
   __PACKAGE__->set_primary_key('id');
 
 }

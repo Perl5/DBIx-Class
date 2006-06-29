@@ -274,6 +274,7 @@ ok(!$@, "stringify to false value doesn't cause error");
 # test column_info
 {
   $schema->source("Artist")->{_columns}{'artistid'} = {};
+  $schema->source("Artist")->load_column_info_from_storage;
 
   my $typeinfo = $schema->source("Artist")->column_info('artistid');
   is($typeinfo->{data_type}, 'INTEGER', 'column_info ok');
