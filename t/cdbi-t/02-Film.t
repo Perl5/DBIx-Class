@@ -234,7 +234,7 @@ is($btaste->Director, $orig_director, 'discard_changes()');
 
 SKIP: {
 	skip "ActiveState perl produces additional warnings", 3
-          if ($^O eq 'Win32');
+          if ($^O eq 'MSWin32');
 
 	Film->autoupdate(1);
 	my $btaste2 = Film->retrieve($btaste->id);
