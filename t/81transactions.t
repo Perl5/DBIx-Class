@@ -25,7 +25,7 @@ my $code = sub {
   eval {
     (ref $schema)->txn_do(sub{});
   };
-  like($@, qr/class method/, '$self parameter check ok');
+  like($@, qr/storage/, "can't call txn_do without storage");
   eval {
     $schema->txn_do('');
   };

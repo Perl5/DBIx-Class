@@ -555,8 +555,6 @@ context and it will behave as expected.
 sub txn_do {
   my ($self, $coderef, @args) = @_;
 
-  ref $self or $self->throw_exception
-    ('Cannot execute txn_do as a class method');
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
 
