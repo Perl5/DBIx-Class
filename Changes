@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - disable cdbi-t/02-Film.t warning tests under AS perl
         - fixups to MySQL tests (aka "work round mysql being retarded")
         - compat tweaks for Storage debug logging
 
