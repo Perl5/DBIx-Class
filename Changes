@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - tweak quotes test to output text on failure
         - fix Schema->txn_do to not fail as a classmethod
 
 0.06999_04 2006-06-29 20:18:47
