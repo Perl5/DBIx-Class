@@ -4,7 +4,7 @@ eval "use Test::Pod::Coverage 1.04";
 plan skip_all => 'Test::Pod::Coverage 1.04 required' if $@;
 plan skip_all => 'set TEST_POD to enable this test' unless $ENV{TEST_POD};
 
-my @modules = sort { $a cmp $b } (all_modules());
+my @modules = sort { $a cmp $b } (Test::Pod::Coverage::all_modules());
 plan tests => scalar(@modules);
 
 # Since this is about checking documentation, a little documentation
