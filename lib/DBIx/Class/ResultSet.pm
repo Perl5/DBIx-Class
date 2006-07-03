@@ -9,9 +9,7 @@ use overload
 use Carp::Clan qw/^DBIx::Class/;
 use Data::Page;
 use Storable;
-use Data::Dumper;
 use Scalar::Util qw/weaken/;
-use Data::Dumper;
 use DBIx::Class::ResultSetColumn;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
@@ -208,7 +206,7 @@ sub search_rs {
                 ? $self->throw_exception("Odd number of arguments to search")
                 : {@_}
              )
-       )
+      )
     : undef
   );
 
@@ -352,12 +350,12 @@ sub find {
   # Run the query
   if (keys %$attrs) {
     my $rs = $self->search($query, $attrs);
-    $rs->_resolve;
+    $rs->_resolve_attr;
     return keys %{$rs->{_attrs}{collapse}} ? $rs->next : $rs->single;
   }
   else {
-    $self->_resolve;
-    return (keys %{$self->{_attrs}{collapse}})
+    $self->_resolve_attr;
+    return keys %{$self->{_attrs}{collapse}}
       ? $self->search($query)->next
       : $self->single($query);
   }
@@ -448,7 +446,7 @@ L<DBIx::Class::Cursor> for more information.
 sub cursor {
   my ($self) = @_;
 
-  $self->_resolve;
+  $self->_resolve_attr;
   my $attrs = { %{$self->{_attrs}} };
   return $self->{cursor}
     ||= $self->result_source->storage->select($attrs->{from}, $attrs->{select},
@@ -478,7 +476,7 @@ method; if you need to add extra joins or similar call ->search and then
 
 sub single {
   my ($self, $where) = @_;
-  $self->_resolve;
+  $self->_resolve_attr;
   my $attrs = { %{$self->{_attrs}} };
   if ($where) {
     if (defined $attrs->{where}) {
@@ -499,7 +497,7 @@ sub single {
 
   my @data = $self->result_source->storage->select_single(
     $attrs->{from}, $attrs->{select},
-    $attrs->{where},$attrs
+    $attrs->{where}, $attrs
   );
 
   return (@data ? $self->_construct_object(@data) : ());
@@ -525,9 +523,7 @@ sub _is_unique_query {
     my %seen = map { $_ => 0 } @unique_cols;
 
     foreach my $key (keys %$collapsed) {
-      my $aliased = $key;
-      $aliased = "$alias.$key" unless $key =~ /\./;
-
+      my $aliased = $key =~ /\./ ? $key : "$alias.$key";
       next unless exists $seen{$aliased};  # Additional constraints are okay
       $seen{$aliased} = scalar @{ $collapsed->{$key} };
     }
@@ -697,41 +693,47 @@ sub next {
   return $self->_construct_object(@row);
 }
 
-sub _resolve {
+sub _resolve_attr {
   my $self = shift;
-
-  return if exists $self->{_attrs}; #return if _resolve has already been called
+  return if exists $self->{_attrs}; #return if _resolve_attr has already been called
 
   my $attrs = $self->{attrs};
-  my $source = $self->{_parent_rs}
-    ? $self->{_parent_rs}
-    : $self->{result_source};
-
-  # XXX - lose storable dclone
-  my $record_filter = delete $attrs->{record_filter}
-    if defined $attrs->{record_filter};
-  $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
-  $attrs->{record_filter} = $record_filter if ($record_filter);
-  $self->{attrs}{record_filter} = $record_filter if ($record_filter);
-
+  my $source = $self->{_parent_rs} || $self->{result_source};
   my $alias = $attrs->{_orig_alias};
 
-  $attrs->{columns} ||= delete $attrs->{cols} if $attrs->{cols};
-  delete $attrs->{as} if $attrs->{columns};
-  $attrs->{columns} ||= [ $self->{result_source}->columns ]
-    unless $attrs->{select};
-  my $select_alias = $self->{_parent_rs}
-    ? $self->{attrs}{alias}
-    : $alias;
-  $attrs->{select} = [
+  # XXX - lose storable dclone
+  my $record_filter = delete $attrs->{record_filter};
+  $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
+  $attrs->{record_filter} = $record_filter if $record_filter;
+
+  $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
+  if ($attrs->{columns}) {
+    delete $attrs->{as};
+  } elsif (!$attrs->{select}) {
+    $attrs->{columns} = [ $self->{result_source}->columns ];
+  }
+  
+  my $select_alias = $self->{attrs}{alias};
+  $attrs->{select} ||= [
     map { m/\./ ? $_ : "${select_alias}.$_" } @{delete $attrs->{columns}}
-  ] if $attrs->{columns};
-  $attrs->{as} ||= [
-    map { m/^\Q$alias.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}}
   ];
-  if (my $include = delete $attrs->{include_columns}) {
-    push(@{$attrs->{select}}, @$include);
-    push(@{$attrs->{as}}, map { m/([^.]+)$/; $1; } @$include);
+  $attrs->{as} ||= [
+    map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}}
+  ];
+  
+  my $adds;
+  if ($adds = delete $attrs->{include_columns}) {
+    $adds = [$adds] unless ref $adds eq 'ARRAY';
+    push(@{$attrs->{select}}, @$adds);
+    push(@{$attrs->{as}}, map { m/([^.]+)$/; $1 } @$adds);
+  }
+  if ($adds = delete $attrs->{'+select'}) {
+    $adds = [$adds] unless ref $adds eq 'ARRAY';
+    push(@{$attrs->{select}}, map { /\./ || ref $_ ? $_ : "${alias}.$_" } @$adds);
+  }
+  if (my $adds = delete $attrs->{'+as'}) {
+    $adds = [$adds] unless ref $adds eq 'ARRAY';
+    push(@{$attrs->{as}}, @$adds);
   }
 
   $attrs->{from} ||= [ { $alias => $source->from } ];
@@ -749,22 +751,14 @@ sub _resolve {
       $source->resolve_join($join, $alias, $attrs->{seen_join})
     );
   }
-  $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
-  $attrs->{order_by} = [ $attrs->{order_by} ] if
-      $attrs->{order_by} and !ref($attrs->{order_by});
-  $attrs->{order_by} ||= [];
 
-  if(my $seladds = delete($attrs->{'+select'})) {
-    my @seladds = (ref($seladds) eq 'ARRAY' ? @$seladds : ($seladds));
-    $attrs->{select} = [
-      @{ $attrs->{select} },
-      map { (m/\./ || ref($_)) ? $_ : "${alias}.$_" } $seladds
-    ];
+  $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
+  if ($attrs->{order_by}) {
+    $attrs->{order_by} = [ $attrs->{order_by} ] unless ref $attrs->{order_by};    
+  } else {
+    $attrs->{order_by} ||= [];    
   }
-  if(my $asadds = delete($attrs->{'+as'})) {
-    my @asadds = (ref($asadds) eq 'ARRAY' ? @$asadds : ($asadds));
-    $attrs->{as} = [ @{ $attrs->{as} }, @asadds ];
-  }
+
   my $collapse = $attrs->{collapse} || {};
   if (my $prefetch = delete $attrs->{prefetch}) {
     my @pre_order;
@@ -779,7 +773,7 @@ sub _resolve {
           unless $seen{$p};
       }
       # bring joins back to level of current class
-      $p = $self->_reduce_joins($p, $attrs) if ($attrs->{_live_join_stack});
+      $p = $self->_reduce_joins($p, $attrs) if $attrs->{_live_join_stack};
       if ($p) {
         my @prefetch = $self->result_source->resolve_prefetch(
           $p, $alias, {}, \@pre_order, $collapse
@@ -796,8 +790,8 @@ sub _resolve {
 
 sub _merge_attr {
   my ($self, $a, $b) = @_;
-
   return $b unless $a;
+  
   if (ref $b eq 'HASH' && ref $a eq 'HASH') {
     foreach my $key (keys %{$b}) {
       if (exists $a->{$key}) {
@@ -808,48 +802,32 @@ sub _merge_attr {
     }
     return $a;
   } else {
-    $a = [$a] unless (ref $a eq 'ARRAY');
-    $b = [$b] unless (ref $b eq 'ARRAY');
+    $a = [$a] unless ref $a eq 'ARRAY';
+    $b = [$b] unless ref $b eq 'ARRAY';
 
     my $hash = {};
-    my $array = [];
-    foreach ($a, $b) {
-      foreach my $element (@{$_}) {
+    my @array;
+    foreach my $x ($a, $b) {
+      foreach my $element (@{$x}) {
         if (ref $element eq 'HASH') {
           $hash = $self->_merge_attr($hash, $element);
         } elsif (ref $element eq 'ARRAY') {
-          $array = [@{$array}, @{$element}];
+          push(@array, @{$element});
         } else {
-          if ($b == $_) {
-            $self->_merge_array($array, $element);
-          } else {
-            push(@{$array}, $element);
-          }
+          push(@array, $element) unless $b == $x
+            && grep { $_ eq $element } @array;
         }
       }
     }
+    
+    @array = grep { !exists $hash->{$_} } @array;
 
-    my $final_array = [];
-    foreach my $element (@{$array}) {
-      push(@{$final_array}, $element) unless (exists $hash->{$element});
-    }
-    $array = $final_array;
-
-    if ((keys %{$hash}) && (scalar(@{$array} > 0))) {
-      return [$hash, @{$array}];
-    } else {
-      return (keys %{$hash}) ? $hash : $array;
-    }
-  }
-}
-
-sub _merge_array {
-  my ($self, $a, $b) = @_;
-
-  $b = [$b] unless (ref $b eq 'ARRAY');
-  # add elements from @{$b} to @{$a} which aren't already in @{$a}
-  foreach my $b_element (@{$b}) {
-    push(@{$a}, $b_element) unless grep {$b_element eq $_} @{$a};
+    return keys %{$hash}
+      ? ( scalar(@array)
+            ? [$hash, @array]
+            : $hash
+        )
+      : \@array;
   }
 }
 
@@ -858,21 +836,16 @@ sub _merge_array {
 sub _reduce_joins {
   my ($self, $p, $attrs) = @_;
 
- STACK:
-  foreach (@{$attrs->{_live_join_stack}}) {
+  STACK:
+  foreach my $join (@{$attrs->{_live_join_stack}}) {
     if (ref $p eq 'HASH') {
-      if (exists $p->{$_}) {
-        $p = $p->{$_};
-      } else {
-        return undef;
-      }
+      return undef unless exists $p->{$join};
+      $p = $p->{$join};
     } elsif (ref $p eq 'ARRAY') {
       foreach my $pe (@{$p}) {
-        if ($pe eq $_) {
-          return undef;
-        }
-        if ((ref $pe eq 'HASH') && (exists $pe->{$_})) {
-          $p = $pe->{$_};
+        return undef if $pe eq $join;
+        if (ref $pe eq 'HASH' && exists $pe->{$join}) {
+          $p = $pe->{$join};
           next STACK;
         }
       }
@@ -886,9 +859,7 @@ sub _reduce_joins {
 
 sub _construct_object {
   my ($self, @row) = @_;
-  my @as = @{ $self->{_attrs}{as} };
-
-  my $info = $self->_collapse_result(\@as, \@row);
+  my $info = $self->_collapse_result($self->{_attrs}{as}, \@row);
   my $new = $self->result_class->inflate_result($self->result_source, @$info);
   $new = $self->{_attrs}{record_filter}->($new)
     if exists $self->{_attrs}{record_filter};
@@ -898,10 +869,9 @@ sub _construct_object {
 sub _collapse_result {
   my ($self, $as, $row, $prefix) = @_;
 
-  my $live_join = $self->{attrs}{alias} ||= '';
   my %const;
-
   my @copy = @$row;
+  
   foreach my $this_as (@$as) {
     my $val = shift @copy;
     if (defined $prefix) {
@@ -916,9 +886,10 @@ sub _collapse_result {
     }
   }
 
+  my $alias = $self->{attrs}{alias};
   my $info = [ {}, {} ];
   foreach my $key (keys %const) {
-    if (length $key && $key ne $live_join) {
+    if (length $key && $key ne $alias) {
       my $target = $info;
       my @parts = split(/\./, $key);
       foreach my $p (@parts) {
@@ -929,8 +900,8 @@ sub _collapse_result {
       $info->[0] = $const{$key};
     }
   }
+  
   my @collapse;
-
   if (defined $prefix) {
     @collapse = map {
         m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()
@@ -1026,7 +997,7 @@ sub _count { # Separated out so pager can get the full count
   my $self = shift;
   my $select = { count => '*' };
 
-  $self->_resolve;
+  $self->_resolve_attr;
   my $attrs = { %{ $self->{_attrs} } };
   if (my $group_by = delete $attrs->{group_by}) {
     delete $attrs->{having};
@@ -1036,7 +1007,7 @@ sub _count { # Separated out so pager can get the full count
     if (@pk == 1) {
       my $alias = $attrs->{_orig_alias};
       foreach my $column (@distinct) {
-        if ($column =~ qr/^(?:\Q$alias.\E)?$pk[0]$/) {
+        if ($column =~ qr/^(?:\Q${alias}.\E)?$pk[0]$/) {
           @distinct = ($column);
           last;
         }
@@ -1098,7 +1069,7 @@ sub all {
   my @obj;
 
   # TODO: don't call resolve here
-  $self->_resolve;
+  $self->_resolve_attr;
   if (keys %{$self->{_attrs}{collapse}}) {
 #  if ($self->{attrs}{prefetch}) {
       # Using $self->cursor->all is really just an optimisation.
@@ -1136,8 +1107,7 @@ Resets the resultset's cursor, so you can iterate through the elements again.
 
 sub reset {
   my ($self) = @_;
-  delete $self->{_attrs} if (exists $self->{_attrs});
-
+  delete $self->{_attrs} if exists $self->{_attrs};
   $self->{all_cache_position} = 0;
   $self->cursor->reset;
   return $self;
@@ -1172,10 +1142,10 @@ sub _cond_for_update_delete {
   my ($self) = @_;
   my $cond = {};
 
-  if (!ref($self->{cond})) {
-    # No-op. No condition, we're updating/deleting everything
-  }
-  elsif (ref $self->{cond} eq 'ARRAY') {
+  # No-op. No condition, we're updating/deleting everything
+  return $cond unless ref $self->{cond};
+
+  if (ref $self->{cond} eq 'ARRAY') {
     $cond = [
       map {
         my %hash;
@@ -1192,7 +1162,7 @@ sub _cond_for_update_delete {
       $cond->{-and} = [];
 
       my @cond = @{$self->{cond}{-and}};
-      for (my $i = 0; $i <= @cond - 1; $i++) {
+      for (my $i = 0; $i < @cond; $i++) {
         my $entry = $cond[$i];
 
         my %hash;
@@ -1298,7 +1268,6 @@ to run.
 
 sub delete {
   my ($self) = @_;
-  my $del = {};
 
   my $cond = $self->_cond_for_update_delete;
 
@@ -1397,7 +1366,7 @@ sub new_result {
   my %new = %$values;
   my $alias = $self->{attrs}{_orig_alias};
   foreach my $key (keys %{$self->{cond}||{}}) {
-    $new{$1} = $self->{cond}{$key} if ($key =~ m/^(?:\Q$alias.\E)?([^.]+)$/);
+    $new{$1} = $self->{cond}{$key} if ($key =~ m/^(?:\Q${alias}.\E)?([^.]+)$/);
   }
   my $obj = $self->result_class->new(\%new);
   $obj->result_source($self->result_source) if $obj->can('result_source');
@@ -1630,20 +1599,18 @@ Returns a related resultset for the supplied relationship name.
 =cut
 
 sub related_resultset {
-  my ( $self, $rel ) = @_;
+  my ($self, $rel) = @_;
 
   $self->{related_resultsets} ||= {};
   return $self->{related_resultsets}{$rel} ||= do {
-    #warn "fetching related resultset for rel '$rel' " . $self->result_source->{name};
     my $rel_obj = $self->result_source->relationship_info($rel);
-                #print Dumper($self->result_source->_relationships);
+
     $self->throw_exception(
       "search_related: result source '" . $self->result_source->name .
-        "' has no such relationship ${rel}")
-      unless $rel_obj; #die Dumper $self->{attrs};
+        "' has no such relationship $rel")
+      unless $rel_obj;
 
-    my @live_join_stack = @{$self->{attrs}{_live_join_stack}||[]};
-    push(@live_join_stack, $rel);
+    my @live_join_stack = (@{$self->{attrs}{_live_join_stack}||[]}, $rel);
 
     my $rs = $self->result_source->schema->resultset($rel_obj->{class})->search(
       undef, {
@@ -1655,9 +1622,7 @@ sub related_resultset {
     );
 
     # keep reference of the original resultset
-    $rs->{_parent_rs} = ($self->{_parent_rs})
-      ? $self->{_parent_rs}
-      : $self->result_source;
+    $rs->{_parent_rs} = $self->{_parent_rs} || $self->result_source;
 
     return $rs;
   };
