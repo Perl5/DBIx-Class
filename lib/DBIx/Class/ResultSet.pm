@@ -85,7 +85,7 @@ will return a CD object, not a ResultSet.
 sub new {
   my $class = shift;
   return $class->new_result(@_) if ref $class;
-  
+
   my ($source, $attrs) = @_;
   weaken $source;
 
@@ -96,6 +96,7 @@ sub new {
   }
 
   $attrs->{alias} ||= 'me';
+  $attrs->{_orig_alias} ||= $attrs->{alias};
 
   bless {
     result_source => $source,
@@ -104,7 +105,6 @@ sub new {
 #    from => $attrs->{from},
 #    collapse => $collapse,
     count => undef,
-    page => delete $attrs->{page},
     pager => undef,
     attrs => $attrs
   }, $class;
@@ -152,7 +152,7 @@ sub search {
 
 =back
 
-This method does the same exact thing as search() except it will 
+This method does the same exact thing as search() except it will
 always return a resultset, even in list context.
 
 =cut
@@ -162,37 +162,30 @@ sub search_rs {
 
   my $attrs = {};
   $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
-  my $our_attrs = ($attrs->{_parent_attrs})
-    ? { %{$attrs->{_parent_attrs}} }
-      : { %{$self->{attrs}} };
-  delete($attrs->{_parent_attrs}) if(exists $attrs->{_parent_attrs});  
+  my $our_attrs = exists $attrs->{_parent_attrs}
+    ? { %{delete $attrs->{_parent_attrs}} }
+    : { %{$self->{attrs}} };
   my $having = delete $our_attrs->{having};
 
-  # XXX should only maintain _live_join_stack and generate _live_join_h from that  
+  # XXX should only maintain _live_join_stack and generate _live_join_h from that
   if ($attrs->{_live_join_stack}) {
-    my $live_join = $attrs->{_live_join_stack};
-    foreach (reverse @{$live_join}) {
-      $attrs->{_live_join_h} = (defined $attrs->{_live_join_h}) ? { $_ => $attrs->{_live_join_h} } : $_;
+    foreach my $join (reverse @{$attrs->{_live_join_stack}}) {
+      $attrs->{_live_join_h} = defined $attrs->{_live_join_h}
+        ? { $join => $attrs->{_live_join_h} }
+        : $join;
     }
   }
 
   # merge new attrs into inherited
   foreach my $key (qw/join prefetch/) {
-    next unless (exists $attrs->{$key});
-    if ($attrs->{_live_join_stack} || $our_attrs->{_live_join_stack}) {
-      my $live_join = $attrs->{_live_join_stack} ||
-                      $our_attrs->{_live_join_stack};
-      foreach (reverse @{$live_join}) {
-        $attrs->{$key} = { $_ => $attrs->{$key} };
+    next unless exists $attrs->{$key};
+    if (my $live_join = $attrs->{_live_join_stack} || $our_attrs->{_live_join_stack}) {
+      foreach my $join (reverse @{$live_join}) {
+        $attrs->{$key} = { $join => $attrs->{$key} };
       }
     }
 
-    if (exists $our_attrs->{$key}) {
-      $our_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
-    } else {
-      $our_attrs->{$key} = $attrs->{$key};
-    }
-    delete $attrs->{$key};
+    $our_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, delete $attrs->{$key});
   }
 
   $our_attrs->{join} = $self->_merge_attr(
@@ -216,7 +209,7 @@ sub search_rs {
                 : {@_}
              )
        )
-    : undef()
+    : undef
   );
 
   if (defined $where) {
@@ -244,7 +237,7 @@ sub search_rs {
   }
 
   my $rs = (ref $self)->new($self->result_source, $new_attrs);
-  $rs->{_parent_rs} = $self->{_parent_rs} if ($self->{_parent_rs});
+  $rs->{_parent_rs} = $self->{_parent_rs} if $self->{_parent_rs};
 
   unless (@_) {                 # no search, effectively just a clone
     my $rows = $self->get_cache;
@@ -360,11 +353,11 @@ sub find {
   if (keys %$attrs) {
     my $rs = $self->search($query, $attrs);
     $rs->_resolve;
-    return keys %{$rs->{_attrs}->{collapse}} ? $rs->next : $rs->single;
+    return keys %{$rs->{_attrs}{collapse}} ? $rs->next : $rs->single;
   }
   else {
-    $self->_resolve;  
-    return (keys %{$self->{_attrs}->{collapse}})
+    $self->_resolve;
+    return (keys %{$self->{_attrs}{collapse}})
       ? $self->search($query)->next
       : $self->single($query);
   }
@@ -389,10 +382,8 @@ sub _unique_queries {
     next unless scalar keys %$unique_query;
 
     # Add the ResultSet's alias
+    my $alias = $self->{attrs}{alias};
     foreach my $key (grep { ! m/\./ } keys %$unique_query) {
-      my $alias = ($self->{attrs}->{_live_join})
-        ? $self->{attrs}->{_live_join}
-        : $self->{attrs}->{alias};
       $unique_query->{"$alias.$key"} = delete $unique_query->{$key};
     }
 
@@ -409,12 +400,11 @@ sub _unique_queries {
 sub _build_unique_query {
   my ($self, $query, $unique_cols) = @_;
 
-  my %unique_query =
+  return {
     map  { $_ => $query->{$_} }
     grep { exists $query->{$_} }
-    @$unique_cols;
-
-  return \%unique_query;
+      @$unique_cols
+  };
 }
 
 =head2 search_related
@@ -524,9 +514,7 @@ sub _is_unique_query {
   my ($self, $query) = @_;
 
   my $collapsed = $self->_collapse_query($query);
-  my $alias = ($self->{attrs}->{_live_join})
-    ? $self->{attrs}->{_live_join}
-    : $self->{attrs}->{alias};
+  my $alias = $self->{attrs}{alias};
 
   foreach my $name ($self->result_source->unique_constraint_names) {
     my @unique_cols = map {
@@ -684,7 +672,7 @@ Can be used to efficiently iterate over records in the resultset:
     print $cd->title;
   }
 
-Note that you need to store the resultset object, and call C<next> on it. 
+Note that you need to store the resultset object, and call C<next> on it.
 Calling C<< resultset('Table')->next >> repeatedly will always return the
 first record from the resultset.
 
@@ -712,28 +700,28 @@ sub next {
 sub _resolve {
   my $self = shift;
 
-  return if(exists $self->{_attrs}); #return if _resolve has already been called
+  return if exists $self->{_attrs}; #return if _resolve has already been called
 
-  my $attrs = $self->{attrs};    
-  my $source = ($self->{_parent_rs})
+  my $attrs = $self->{attrs};
+  my $source = $self->{_parent_rs}
     ? $self->{_parent_rs}
     : $self->{result_source};
 
   # XXX - lose storable dclone
   my $record_filter = delete $attrs->{record_filter}
-    if (defined $attrs->{record_filter});
+    if defined $attrs->{record_filter};
   $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
   $attrs->{record_filter} = $record_filter if ($record_filter);
-  $self->{attrs}->{record_filter} = $record_filter if ($record_filter);
+  $self->{attrs}{record_filter} = $record_filter if ($record_filter);
 
-  my $alias = $attrs->{alias};
- 
+  my $alias = $attrs->{_orig_alias};
+
   $attrs->{columns} ||= delete $attrs->{cols} if $attrs->{cols};
   delete $attrs->{as} if $attrs->{columns};
   $attrs->{columns} ||= [ $self->{result_source}->columns ]
     unless $attrs->{select};
-  my $select_alias = ($self->{_parent_rs})
-    ? $self->{attrs}->{_live_join}
+  my $select_alias = $self->{_parent_rs}
+    ? $self->{attrs}{alias}
     : $alias;
   $attrs->{select} = [
     map { m/\./ ? $_ : "${select_alias}.$_" } @{delete $attrs->{columns}}
@@ -758,7 +746,7 @@ sub _resolve {
       }
     }
     push(@{$attrs->{from}},
-      $source->resolve_join($join, $attrs->{alias}, $attrs->{seen_join})
+      $source->resolve_join($join, $alias, $attrs->{seen_join})
     );
   }
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
@@ -783,18 +771,18 @@ sub _resolve {
     foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
       if ( ref $p eq 'HASH' ) {
         foreach my $key (keys %$p) {
-          push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
+          push(@{$attrs->{from}}, $source->resolve_join($p, $alias))
             unless $seen{$key};
         }
       } else {
-        push(@{$attrs->{from}}, $source->resolve_join($p, $attrs->{alias}))
+        push(@{$attrs->{from}}, $source->resolve_join($p, $alias))
           unless $seen{$p};
       }
       # bring joins back to level of current class
       $p = $self->_reduce_joins($p, $attrs) if ($attrs->{_live_join_stack});
       if ($p) {
         my @prefetch = $self->result_source->resolve_prefetch(
-          $p, $attrs->{alias}, {}, \@pre_order, $collapse
+          $p, $alias, {}, \@pre_order, $collapse
         );
         push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
         push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
@@ -808,7 +796,7 @@ sub _resolve {
 
 sub _merge_attr {
   my ($self, $a, $b) = @_;
-    
+
   return $b unless $a;
   if (ref $b eq 'HASH' && ref $a eq 'HASH') {
     foreach my $key (keys %{$b}) {
@@ -822,16 +810,16 @@ sub _merge_attr {
   } else {
     $a = [$a] unless (ref $a eq 'ARRAY');
     $b = [$b] unless (ref $b eq 'ARRAY');
-    
+
     my $hash = {};
-    my $array = [];      
+    my $array = [];
     foreach ($a, $b) {
       foreach my $element (@{$_}) {
         if (ref $element eq 'HASH') {
           $hash = $self->_merge_attr($hash, $element);
         } elsif (ref $element eq 'ARRAY') {
           $array = [@{$array}, @{$element}];
-        } else {        
+        } else {
           if ($b == $_) {
             $self->_merge_array($array, $element);
           } else {
@@ -849,7 +837,7 @@ sub _merge_attr {
 
     if ((keys %{$hash}) && (scalar(@{$array} > 0))) {
       return [$hash, @{$array}];
-    } else {    
+    } else {
       return (keys %{$hash}) ? $hash : $array;
     }
   }
@@ -857,7 +845,7 @@ sub _merge_attr {
 
 sub _merge_array {
   my ($self, $a, $b) = @_;
-  
+
   $b = [$b] unless (ref $b eq 'ARRAY');
   # add elements from @{$b} to @{$a} which aren't already in @{$a}
   foreach my $b_element (@{$b}) {
@@ -887,7 +875,7 @@ sub _reduce_joins {
           $p = $pe->{$_};
           next STACK;
         }
-      }                                           
+      }
       return undef;
     } else {
       return undef;
@@ -899,7 +887,7 @@ sub _reduce_joins {
 sub _construct_object {
   my ($self, @row) = @_;
   my @as = @{ $self->{_attrs}{as} };
-  
+
   my $info = $self->_collapse_result(\@as, \@row);
   my $new = $self->result_class->inflate_result($self->result_source, @$info);
   $new = $self->{_attrs}{record_filter}->($new)
@@ -910,7 +898,7 @@ sub _construct_object {
 sub _collapse_result {
   my ($self, $as, $row, $prefix) = @_;
 
-  my $live_join = $self->{attrs}->{_live_join} ||="";
+  my $live_join = $self->{attrs}{alias} ||= '';
   my %const;
 
   my @copy = @$row;
@@ -946,9 +934,9 @@ sub _collapse_result {
   if (defined $prefix) {
     @collapse = map {
         m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()
-    } keys %{$self->{_attrs}->{collapse}}
+    } keys %{$self->{_attrs}{collapse}}
   } else {
-    @collapse = keys %{$self->{_attrs}->{collapse}};
+    @collapse = keys %{$self->{_attrs}{collapse}};
   };
 
   if (@collapse) {
@@ -958,7 +946,7 @@ sub _collapse_result {
       $target = $target->[1]->{$p} ||= [];
     }
     my $c_prefix = (defined($prefix) ? "${prefix}.${c}" : $c);
-    my @co_key = @{$self->{_attrs}->{collapse}{$c_prefix}};
+    my @co_key = @{$self->{_attrs}{collapse}{$c_prefix}};
     my $tree = $self->_collapse_result($as, $row, $c_prefix);
     my %co_check = map { ($_, $tree->[0]->{$_}); } @co_key;
     my (@final, @raw);
@@ -975,7 +963,7 @@ sub _collapse_result {
       $row = $self->{stashed_row} = \@raw;
       $tree = $self->_collapse_result($as, $row, $c_prefix);
     }
-    @$target = (@final ? @final : [ {}, {} ]); 
+    @$target = (@final ? @final : [ {}, {} ]);
       # single empty result to indicate an empty prefetched has_many
   }
 
@@ -1037,7 +1025,7 @@ sub count {
 sub _count { # Separated out so pager can get the full count
   my $self = shift;
   my $select = { count => '*' };
-  
+
   $self->_resolve;
   my $attrs = { %{ $self->{_attrs} } };
   if (my $group_by = delete $attrs->{group_by}) {
@@ -1046,8 +1034,9 @@ sub _count { # Separated out so pager can get the full count
     # todo: try CONCAT for multi-column pk
     my @pk = $self->result_source->primary_columns;
     if (@pk == 1) {
+      my $alias = $attrs->{_orig_alias};
       foreach my $column (@distinct) {
-        if ($column =~ qr/^(?:\Q$attrs->{alias}.\E)?$pk[0]$/) {
+        if ($column =~ qr/^(?:\Q$alias.\E)?$pk[0]$/) {
           @distinct = ($column);
           last;
         }
@@ -1062,9 +1051,9 @@ sub _count { # Separated out so pager can get the full count
 
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
-        my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
-        $tmp_rs->{_parent_rs} = $self->{_parent_rs} if ($self->{_parent_rs});
-             #XXX - hack to pass through parent of related resultsets
+  my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
+  $tmp_rs->{_parent_rs} = $self->{_parent_rs} if $self->{_parent_rs};
+       #XXX - hack to pass through parent of related resultsets
 
   my ($count) = $tmp_rs->cursor->next;
   return $count;
@@ -1110,8 +1099,8 @@ sub all {
 
   # TODO: don't call resolve here
   $self->_resolve;
-  if (keys %{$self->{_attrs}->{collapse}}) {
-#  if ($self->{attrs}->{prefetch}) {
+  if (keys %{$self->{_attrs}{collapse}}) {
+#  if ($self->{attrs}{prefetch}) {
       # Using $self->cursor->all is really just an optimisation.
       # If we're collapsing has_many prefetches it probably makes
       # very little difference, and this is cleaner than hacking
@@ -1357,10 +1346,10 @@ sub pager {
   my ($self) = @_;
   my $attrs = $self->{attrs};
   $self->throw_exception("Can't create pager for non-paged rs")
-    unless $self->{page};
+    unless $self->{attrs}{page};
   $attrs->{rows} ||= 10;
   return $self->{pager} ||= Data::Page->new(
-    $self->_count, $attrs->{rows}, $self->{page});
+    $self->_count, $attrs->{rows}, $self->{attrs}{page});
 }
 
 =head2 page
@@ -1381,9 +1370,7 @@ attribute set on the resultset (10 by default).
 
 sub page {
   my ($self, $page) = @_;
-  my $attrs = { %{$self->{attrs}} };
-  $attrs->{page} = $page;
-  return (ref $self)->new($self->result_source, $attrs);
+  return (ref $self)->new($self->result_source, { %{$self->{attrs}}, page => $page });
 }
 
 =head2 new_result
@@ -1408,9 +1395,9 @@ sub new_result {
     "Can't abstract implicit construct, condition not a hash"
   ) if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
   my %new = %$values;
-  my $alias = $self->{attrs}{alias};
+  my $alias = $self->{attrs}{_orig_alias};
   foreach my $key (keys %{$self->{cond}||{}}) {
-    $new{$1} = $self->{cond}{$key} if ($key =~ m/^(?:\Q${alias}.\E)?([^.]+)$/);
+    $new{$1} = $self->{cond}{$key} if ($key =~ m/^(?:\Q$alias.\E)?([^.]+)$/);
   }
   my $obj = $self->result_class->new(\%new);
   $obj->result_source($self->result_source) if $obj->can('result_source');
@@ -1644,7 +1631,7 @@ Returns a related resultset for the supplied relationship name.
 
 sub related_resultset {
   my ( $self, $rel ) = @_;
-  
+
   $self->{related_resultsets} ||= {};
   return $self->{related_resultsets}{$rel} ||= do {
     #warn "fetching related resultset for rel '$rel' " . $self->result_source->{name};
@@ -1655,21 +1642,17 @@ sub related_resultset {
         "' has no such relationship ${rel}")
       unless $rel_obj; #die Dumper $self->{attrs};
 
-    my @live_join_stack = (
-      exists $self->{attrs}->{_live_join_stack})
-      ? @{$self->{attrs}->{_live_join_stack}}
-      : ();             
-
+    my @live_join_stack = @{$self->{attrs}{_live_join_stack}||[]};
     push(@live_join_stack, $rel);
-                
+
     my $rs = $self->result_source->schema->resultset($rel_obj->{class})->search(
       undef, {
         select => undef,
         as => undef,
-        _live_join => $rel, #the most recent
+        alias => $rel, #the most recent
         _live_join_stack => \@live_join_stack, #the trail of rels
         _parent_attrs => $self->{attrs}}
-    );    
+    );
 
     # keep reference of the original resultset
     $rs->{_parent_rs} = ($self->{_parent_rs})
@@ -1710,7 +1693,7 @@ Which column(s) to order the results by. This is currently passed
 through directly to SQL, so you can give e.g. C<year DESC> for a
 descending order on the column `year'.
 
-Please note that if you have quoting enabled (see 
+Please note that if you have quoting enabled (see
 L<DBIx::Class::Storage/quote_char>) you will need to do C<\'year DESC' > to
 specify an order. (The scalar ref causes it to be passed as raw sql to the DB,
 so you will need to manually quote things as appropriate.)
@@ -1931,7 +1914,7 @@ with an accessor type of 'single' or 'filter').
 
 Makes the resultset paged and specifies the page to retrieve. Effectively
 identical to creating a non-pages resultset and then calling ->page($page)
-on it. 
+on it.
 
 If L<rows> attribute is not specified it defualts to 10 rows per page.
 
@@ -1979,7 +1962,7 @@ A arrayref of columns to group by. Can include columns of joined tables.
 
 HAVING is a select statement attribute that is applied between GROUP BY and
 ORDER BY. It is applied to the after the grouping calculations have been
-done. 
+done.
 
   having => { 'count(employee)' => { '>=', 100 } }
 
@@ -2013,7 +1996,7 @@ Set to 1 to cache search results. This prevents extra SQL queries if you
 revisit rows in your ResultSet:
 
   my $resultset = $schema->resultset('Artist')->search( undef, { cache => 1 } );
-  
+
   while( my $artist = $resultset->next ) {
     ... do stuff ...
   }
