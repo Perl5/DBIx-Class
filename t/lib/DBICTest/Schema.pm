@@ -29,6 +29,7 @@ __PACKAGE__->load_classes(qw/
     'SelfRef',
     'ArtistUndirectedMap',
     'ArtistSourceName',
+    'ArtistSubclass',
     'Producer',
     'CD_to_Producer',
   ),
