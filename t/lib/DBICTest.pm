@@ -56,6 +56,7 @@ sub init_schema {
     my $dbpass = $ENV{"DBICTEST_DBPASS"} || '';
 
     my $schema = DBICTest::Schema->compose_connection('DBICTest' => $dsn, $dbuser, $dbpass);
+    $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
     if ( !$args{no_deploy} ) {
         __PACKAGE__->deploy_schema( $schema );
         __PACKAGE__->populate_schema( $schema ) if( !$args{no_populate} );
@@ -102,8 +103,6 @@ the tables with test data.
 sub populate_schema {
     my $self = shift;
     my $schema = shift;
-
-    $schema->storage->dbh->do("PRAGMA synchronous = OFF");
 
     $schema->populate('Artist', [
         [ qw/artistid name/ ],
