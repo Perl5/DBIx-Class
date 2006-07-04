@@ -128,14 +128,17 @@ sub _recurse_from {
   my @sqlf;
   push(@sqlf, $self->_make_as($from));
   foreach my $j (@join) {
+    push @sqlf, ', ' . $self->_quote($j) and next unless ref $j;
+    push @sqlf, ', ' . $$j and next if ref $j eq 'SCALAR';
+    
     my ($to, $on) = @$j;
 
     # check whether a join type exists
     my $join_clause = '';
     if (ref($to) eq 'HASH' and exists($to->{-join_type})) {
-      $join_clause = ' '.uc($to->{-join_type}).' JOIN ';
+      $join_clause = $self->_sqlcase(' ' . $to->{-join_type} . ' JOIN ');
     } else {
-      $join_clause = ' JOIN ';
+      $join_clause = $self->_sqlcase(' JOIN ');
     }
     push(@sqlf, $join_clause);
 
@@ -144,17 +147,18 @@ sub _recurse_from {
     } else {
       push(@sqlf, $self->_make_as($to));
     }
-    push(@sqlf, ' ON ', $self->_join_condition($on));
+    push(@sqlf, $self->_sqlcase(' ON '), $self->_join_condition($on));
   }
   return join('', @sqlf);
 }
 
 sub _make_as {
   my ($self, $from) = @_;
+  return $self->_quote($from) unless ref $from;
+  return $$from if ref $from eq 'SCALAR';
   return join(' ', map { (ref $_ eq 'SCALAR' ? $$_ : $self->_quote($_)) }
                      reverse each %{$self->_skip_options($from)});
 }
-
 sub _skip_options {
   my ($self, $hash) = @_;
   my $clean_hash = {};
