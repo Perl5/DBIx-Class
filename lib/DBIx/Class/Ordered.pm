@@ -290,7 +290,52 @@ sub move_to {
     });
     my $op = ($from_position>$to_position) ? '+' : '-';
     $rs->update({ $position_column => \"$position_column $op 1" });
+    $self->{_ORDERED_INTERNAL_UPDATE} = 1;
     $self->update({ $position_column => $to_position });
+    return 1;
+}
+
+=head2 move_to_group
+
+  $item->move_to_group( $group, $position );
+
+Moves the object to the specified position of the specified
+group, or to the end of the group if $position is undef.
+1 is returned on success, and 0 is returned if the object is
+already at the specified position of the specified group.
+
+=cut
+
+sub move_to_group {
+    my( $self, $to_group, $to_position ) = @_;
+    my $position_column = $self->position_column;
+    my $grouping_column = $self->grouping_column;
+
+    return 0 if ( ! defined($to_group) );
+    return 0 if ( defined($to_position) and $to_position < 1 );
+    return 0 if ( $self->$grouping_column==$to_group and defined($to_position) and $self->$position_column==$to_position );
+
+    # Move to end of current group and adjust siblings
+    $self->move_last;
+
+    $self->$grouping_column($to_group);
+    my $new_group_count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
+    if (!defined($to_position) or $to_position > $new_group_count) {
+        $self->{_ORDERED_INTERNAL_UPDATE} = 1;
+        $self->update({ $position_column => $new_group_count + 1 });
+    }
+    else {
+        my @between = ($to_position, $new_group_count);
+
+        my $rs = $self->result_source->resultset->search({
+            $position_column => { -between => [ @between ] },
+            $self->_grouping_clause(),
+        });
+        $rs->update({ $position_column => \"$position_column + 1" });
+        $self->{_ORDERED_INTERNAL_UPDATE} = 1;
+        $self->update({ $position_column => $to_position });
+    }
+
     return 1;
 }
 
@@ -308,6 +353,42 @@ sub insert {
     $self->set_column( $position_column => $self->result_source->resultset->search( {$self->_grouping_clause()} )->count()+1 ) 
         if (!$self->get_column($position_column));
     return $self->next::method( @_ );
+}
+
+=head2 update
+
+Overrides the DBIC update() method by checking for a change
+to the position and/or group columns.  Movement within a
+group or to another group is handled by repositioning
+the appropriate siblings.  Position defaults to the end
+of a new group if it has been changed to undef.
+
+=cut
+
+sub update {
+    my $self = shift;
+
+    if ($self->{_ORDERED_INTERNAL_UPDATE}) {
+        delete $self->{_ORDERED_INTERNAL_UPDATE};
+        return $self->next::method( @_ );
+    }
+
+    $self->set_columns($_[0]) if @_ > 0;
+    my %changes = $self->get_dirty_columns;
+    $self->discard_changes;
+
+    my $pos_col = $self->position_column;
+    my $grp_col = $self->grouping_column;
+    if (defined($grp_col) and exists $changes{$grp_col}) {
+        $self->move_to_group(
+            delete($changes{$grp_col}),
+            exists($changes{$pos_col}) ? delete($changes{$pos_col}) : $self->$pos_col
+        );
+    }
+    elsif (exists $changes{$pos_col}) {
+        $self->move_to(delete $changes{$pos_col});
+    }
+    return $self->next::method( \%changes );
 }
 
 =head2 delete

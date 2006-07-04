@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 321;
+plan tests => 417;
 
 my $employees = $schema->resultset('Employee');
 $employees->delete();
@@ -23,19 +23,76 @@ hammer_rs( $employees );
 
 DBICTest::Employee->grouping_column('group_id');
 $employees->delete();
-foreach my $group_id (1..3) {
+foreach my $group_id (1..4) {
     foreach (1..6) {
         $employees->create({ name=>'temp', group_id=>$group_id });
     }
 }
 $employees = $employees->search(undef,{order_by=>'group_id,position'});
 
-foreach my $group_id (1..3) {
+foreach my $group_id (1..4) {
     my $group_employees = $employees->search({group_id=>$group_id});
     $group_employees->all();
     ok( check_rs($group_employees), "group intial positions" );
     hammer_rs( $group_employees );
 }
+
+my $group_3 = $employees->search({group_id=>3});
+my $to_group = 1;
+my $to_pos = undef;
+while (my $employee = $group_3->next) {
+	$employee->move_to_group($to_group, $to_pos);
+	$to_pos++;
+	$to_group = $to_group==1 ? 2 : 1;
+}
+foreach my $group_id (1..4) {
+    my $group_employees = $employees->search({group_id=>$group_id});
+    $group_employees->all();
+    ok( check_rs($group_employees), "group positions after move_to_group" );
+}
+
+my $employee = $employees->search({group_id=>4})->first;
+$employee->position(2);
+$employee->update;
+ok( check_rs($employees->search_rs({group_id=>4})), "overloaded update 1" );
+$employee = $employees->search({group_id=>4})->first;
+$employee->update({position=>3});
+ok( check_rs($employees->search_rs({group_id=>4})), "overloaded update 2" );
+$employee = $employees->search({group_id=>4})->first;
+$employee->group_id(1);
+$employee->update;
+ok(
+	check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
+	"overloaded update 3"
+);
+$employee = $employees->search({group_id=>4})->first;
+$employee->update({group_id=>2});
+ok(
+	check_rs($employees->search_rs({group_id=>2})) && check_rs($employees->search_rs({group_id=>4})),
+	"overloaded update 4"
+);
+$employee = $employees->search({group_id=>4})->first;
+$employee->group_id(1);
+$employee->position(3);
+$employee->update;
+ok(
+	check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
+	"overloaded update 5"
+);
+$employee = $employees->search({group_id=>4})->first;
+$employee->group_id(2);
+$employee->position(undef);
+$employee->update;
+ok(
+	check_rs($employees->search_rs({group_id=>2})) && check_rs($employees->search_rs({group_id=>4})),
+	"overloaded update 6"
+);
+$employee = $employees->search({group_id=>4})->first;
+$employee->update({group_id=>1,position=>undef});
+ok(
+	check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
+	"overloaded update 7"
+);
 
 sub hammer_rs {
     my $rs = shift;
