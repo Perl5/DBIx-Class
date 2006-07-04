@@ -13,7 +13,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 43 );
+        : ( tests => 44 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -295,3 +295,6 @@ $schema->storage->debug(0);
 
 cmp_ok($queries, '==', 1, 'Only one query run');
 
+$tree_like = $schema->resultset('TreeLike')->find(1);
+$tree_like = $tree_like->search_related('children')->search_related('children')->search_related('children')->first;
+is($tree_like->name, 'quux', 'Tree search_related ok');

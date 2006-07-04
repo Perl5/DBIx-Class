@@ -350,12 +350,10 @@ sub find {
   # Run the query
   if (keys %$attrs) {
     my $rs = $self->search($query, $attrs);
-    $rs->_resolve_attr;
-    return keys %{$rs->{_attrs}{collapse}} ? $rs->next : $rs->single;
+    return keys %{$rs->_resolved_attrs->{collapse}} ? $rs->next : $rs->single;
   }
   else {
-    $self->_resolve_attr;
-    return keys %{$self->{_attrs}{collapse}}
+    return keys %{$self->_resolved_attrs->{collapse}}
       ? $self->search($query)->next
       : $self->single($query);
   }
@@ -446,8 +444,7 @@ L<DBIx::Class::Cursor> for more information.
 sub cursor {
   my ($self) = @_;
 
-  $self->_resolve_attr;
-  my $attrs = { %{$self->{_attrs}} };
+  my $attrs = { %{$self->_resolved_attrs} };
   return $self->{cursor}
     ||= $self->result_source->storage->select($attrs->{from}, $attrs->{select},
           $attrs->{where},$attrs);
@@ -476,8 +473,7 @@ method; if you need to add extra joins or similar call ->search and then
 
 sub single {
   my ($self, $where) = @_;
-  $self->_resolve_attr;
-  my $attrs = { %{$self->{_attrs}} };
+  my $attrs = { %{$self->_resolved_attrs} };
   if ($where) {
     if (defined $attrs->{where}) {
       $attrs->{where} = {
@@ -693,9 +689,9 @@ sub next {
   return $self->_construct_object(@row);
 }
 
-sub _resolve_attr {
+sub _resolved_attrs {
   my $self = shift;
-  return if exists $self->{_attrs}; #return if _resolve_attr has already been called
+  return $self->{_attrs} if $self->{_attrs};
 
   my $attrs = $self->{attrs};
   my $source = $self->{_parent_rs} || $self->{result_source};
@@ -785,7 +781,8 @@ sub _resolve_attr {
     push(@{$attrs->{order_by}}, @pre_order);
   }
   $attrs->{collapse} = $collapse;
-  $self->{_attrs} = $attrs;
+
+  return $self->{_attrs} = $attrs;
 }
 
 sub _merge_attr {
@@ -997,8 +994,7 @@ sub _count { # Separated out so pager can get the full count
   my $self = shift;
   my $select = { count => '*' };
 
-  $self->_resolve_attr;
-  my $attrs = { %{ $self->{_attrs} } };
+  my $attrs = { %{$self->_resolved_attrs} };
   if (my $group_by = delete $attrs->{group_by}) {
     delete $attrs->{having};
     my @distinct = (ref $group_by ?  @$group_by : ($group_by));
@@ -1069,8 +1065,7 @@ sub all {
   my @obj;
 
   # TODO: don't call resolve here
-  $self->_resolve_attr;
-  if (keys %{$self->{_attrs}{collapse}}) {
+  if (keys %{$self->_resolved_attrs->{collapse}}) {
 #  if ($self->{attrs}{prefetch}) {
       # Using $self->cursor->all is really just an optimisation.
       # If we're collapsing has_many prefetches it probably makes
@@ -1609,6 +1604,10 @@ sub related_resultset {
       "search_related: result source '" . $self->result_source->name .
         "' has no such relationship $rel")
       unless $rel_obj;
+    
+    my $alias = $self->_resolved_attrs->{seen_join}{$rel}
+                ? join('_', $rel, $self->_resolved_attrs->{seen_join}{$rel}+1)
+                : $rel;
 
     my @live_join_stack = (@{$self->{attrs}{_live_join_stack}||[]}, $rel);
 
@@ -1616,8 +1615,8 @@ sub related_resultset {
       undef, {
         select => undef,
         as => undef,
-        alias => $rel, #the most recent
-        _live_join_stack => \@live_join_stack, #the trail of rels
+        alias => $alias,
+        _live_join_stack => \@live_join_stack,
         _parent_attrs => $self->{attrs}}
     );
 
