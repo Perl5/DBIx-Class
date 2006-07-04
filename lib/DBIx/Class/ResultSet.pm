@@ -1605,9 +1605,8 @@ sub related_resultset {
         "' has no such relationship $rel")
       unless $rel_obj;
     
-    my $alias = $self->_resolved_attrs->{seen_join}{$rel}
-                ? join('_', $rel, $self->_resolved_attrs->{seen_join}{$rel}+1)
-                : $rel;
+    my $join_count = $self->_resolved_attrs->{seen_join}{$rel};
+    my $alias = $join_count ? join('_', $rel, $join_count+1) : $rel;
 
     my @live_join_stack = (@{$self->{attrs}{_live_join_stack}||[]}, $rel);
 
