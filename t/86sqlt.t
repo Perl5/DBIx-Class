@@ -139,7 +139,7 @@ my %fk_constraints = (
       'display' => 'treelike->treelike for parent',
       'selftable' => 'treelike', 'foreigntable' => 'treelike', 
       'selfcols'  => ['parent'], 'foreigncols' => ['id'],
-      on_delete => '', on_update => '',
+      on_delete => 'CASCADE', on_update => 'CASCADE',
     },
   ],
 
