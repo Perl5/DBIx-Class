@@ -204,7 +204,7 @@ castaway: Jess Robinson
 
 quicksilver: Jules Bean
 
-jguenther: Justin Guenther <guentherj@agr.gc.ca>
+jguenther: Justin Guenther <jguenther@cpan.org>
 
 draven: Marcus Ramberg <mramberg@cpan.org>
 
