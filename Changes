@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.06999_05 2006-07-04 14:40:01
+        - fix issue with incorrect $rs->{attrs}{$alias}
+        - fix subclassing issue with source_name
         - tweak quotes test to output text on failure
         - fix Schema->txn_do to not fail as a classmethod
 
