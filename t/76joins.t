@@ -328,7 +328,7 @@ eval {
   })->search_related('tracks')->first;
 };
 
-like( $sql, qr/^SELECT tracks.trackid/, "collapsed join didn't add _2 to alias" );
+like( $sql, qr/^SELECT tracks\.trackid/, "collapsed join didn't add _2 to alias" );
 
 $schema->storage->debug($orig_debug);
 $schema->storage->debugobj->callback(undef);
