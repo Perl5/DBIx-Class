@@ -235,7 +235,7 @@ sub search_rs {
   }
 
   my $rs = (ref $self)->new($self->result_source, $new_attrs);
-  $rs->{_parent_rs} = $self->{_parent_rs} if $self->{_parent_rs};
+  $rs->{_parent_source} = $self->{_parent_source} if $self->{_parent_source};
 
   unless (@_) {                 # no search, effectively just a clone
     my $rows = $self->get_cache;
@@ -694,7 +694,7 @@ sub _resolved_attrs {
   return $self->{_attrs} if $self->{_attrs};
 
   my $attrs = $self->{attrs};
-  my $source = $self->{_parent_rs} || $self->{result_source};
+  my $source = $self->{_parent_source} || $self->{result_source};
   my $alias = $attrs->{_orig_alias};
 
   # XXX - lose storable dclone
@@ -1019,7 +1019,7 @@ sub _count { # Separated out so pager can get the full count
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
   my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
-  $tmp_rs->{_parent_rs} = $self->{_parent_rs} if $self->{_parent_rs};
+  $tmp_rs->{_parent_source} = $self->{_parent_source} if $self->{_parent_source};
        #XXX - hack to pass through parent of related resultsets
 
   my ($count) = $tmp_rs->cursor->next;
@@ -1620,7 +1620,7 @@ sub related_resultset {
     );
 
     # keep reference of the original resultset
-    $rs->{_parent_rs} = $self->{_parent_rs} || $self->result_source;
+    $rs->{_parent_source} = $self->{_parent_source} || $self->result_source;
 
     return $rs;
   };

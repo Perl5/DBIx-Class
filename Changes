@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - rename _parent_rs to _parent_source in ResultSet
+
 0.06999_05 2006-07-04 14:40:01
         - fix issue with incorrect $rs->{attrs}{alias}
         - fix subclassing issue with source_name
