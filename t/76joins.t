@@ -295,16 +295,13 @@ $schema->storage->debug(0);
 
 cmp_ok($queries, '==', 1, 'Only one query run');
 
-$schema->storage->debugcb(undef);
-$schema->storage->debug(1);
-
 $tree_like = $schema->resultset('TreeLike')->search({'me.id' => 1});
 $tree_like = $tree_like->search_related('children')->search_related('children')->search_related('children')->first;
 is($tree_like->name, 'quux', 'Tree search_related ok');
 
-$tree_like = $schema->resultset('TreeLike')->search({ 'me.id' => 2 });
+$tree_like = $schema->resultset('TreeLike')->search({ 'children.id' => 2 });
 $tree_like = $tree_like->search_related('children', undef, { prefetch => { children => 'children' } })->first;
-is($tree_like->children->first->name, 'quux', 'Tree search_related with prefetch ok');
+is($tree_like->children->first->name, 'baz', 'Tree search_related with prefetch ok');
 
 $tree_like = $schema->resultset('TreeLike')->search(
     { 'children.id' => 2, 'children_2.id' => 5 }, 
