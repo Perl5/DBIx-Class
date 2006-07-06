@@ -13,7 +13,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 44 );
+        : ( tests => 47 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -295,9 +295,21 @@ $schema->storage->debug(0);
 
 cmp_ok($queries, '==', 1, 'Only one query run');
 
-$tree_like = $schema->resultset('TreeLike')->find(1);
+$schema->storage->debugcb(undef);
+$schema->storage->debug(1);
+
+$tree_like = $schema->resultset('TreeLike')->search({'me.id' => 1});
 $tree_like = $tree_like->search_related('children')->search_related('children')->search_related('children')->first;
 is($tree_like->name, 'quux', 'Tree search_related ok');
+
+$tree_like = $schema->resultset('TreeLike')->search({ 'me.id' => 2 });
+$tree_like = $tree_like->search_related('children', undef, { prefetch => { children => 'children' } })->first;
+is($tree_like->children->first->name, 'quux', 'Tree search_related with prefetch ok');
+
+$tree_like = $schema->resultset('TreeLike')->search(
+    { 'children.id' => 2, 'children_2.id' => 5 }, 
+    { join => [qw/children children/] })->first;
+is($tree_like->name, 'foo', 'Tree with multiple has_many joins ok');
 
 # test that collapsed joins don't get a _2 appended to the alias
 
