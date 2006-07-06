@@ -298,3 +298,20 @@ cmp_ok($queries, '==', 1, 'Only one query run');
 $tree_like = $schema->resultset('TreeLike')->find(1);
 $tree_like = $tree_like->search_related('children')->search_related('children')->search_related('children')->first;
 is($tree_like->name, 'quux', 'Tree search_related ok');
+
+# test that collapsed joins don't get a _2 appended to the alias
+
+my $sql = '';
+$schema->storage->debugcb(sub { $sql = $_[1] });
+$schema->storage->debug(1);
+
+eval {
+  my $row = $schema->resultset('Artist')->search_related('cds', undef, {
+    join => 'tracks',
+    prefetch => 'tracks',
+  })->search_related('tracks')->first;
+};
+
+like( $sql, qr/^SELECT tracks.trackid/, "collapsed join didn't add _2 to alias" );
+
+$schema->storage->debug(0);
