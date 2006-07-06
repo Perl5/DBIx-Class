@@ -1603,11 +1603,17 @@ sub related_resultset {
       "search_related: result source '" . $self->result_source->name .
         "' has no such relationship $rel")
       unless $rel_obj;
-    
-    my $join_count = $self->_resolved_attrs->{seen_join}{$rel};
+
+    my @live_join_stack = @{$self->{attrs}{_live_join_stack}||[]};
+
+    # XXX mst: I'm sure this is wrong, somehow
+    #          something with complex joins early on could die on search_rel
+    #          followed by a prefetch. I think. need a test case.
+
+    my $join_count = scalar(grep { $_ eq $rel } @live_join_stack);
     my $alias = $join_count ? join('_', $rel, $join_count+1) : $rel;
 
-    my @live_join_stack = (@{$self->{attrs}{_live_join_stack}||[]}, $rel);
+    push(@live_join_stack, $rel);
 
     my $rs = $self->result_source->schema->resultset($rel_obj->{class})->search(
       undef, {
