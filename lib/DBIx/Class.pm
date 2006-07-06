@@ -206,7 +206,7 @@ castaway: Jess Robinson
 
 quicksilver: Jules Bean
 
-jguenther: Justin Guenther <guentherj@agr.gc.ca>
+jguenther: Justin Guenther <jguenther@cpan.org>
 
 captainL: Luke Saunders <luke.saunders@gmail.com>
 
