@@ -256,15 +256,18 @@ sub new {
   $new->debugobj(new DBIx::Class::Storage::Statistics());
 
   my $fh;
-  if (defined($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}) &&
-     ($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} =~ /=(.+)$/)) {
+
+  my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
+                  || $ENV{DBIC_TRACE};
+
+  if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
     $fh = IO::File->new($1, 'w')
       or $new->throw_exception("Cannot open trace file $1");
   } else {
     $fh = IO::File->new('>&STDERR');
   }
   $new->debugfh($fh);
-  $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
+  $new->debug(1) if $debug_env;
   return $new;
 }
 
@@ -336,7 +339,7 @@ Causes SQL trace information to be emitted on the C<debugobj> object.
 Set or retrieve the filehandle used for trace/debug output.  This should be
 an IO::Handle compatible ojbect (only the C<print> method is used.  Initially
 set to be STDERR - although see information on the
-L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
+L<DBIC_TRACE> environment variable.
 
 =cut
 
@@ -1065,9 +1068,9 @@ This option can also be set via L</connect_info>.
 
 =head1 ENVIRONMENT VARIABLES
 
-=head2 DBIX_CLASS_STORAGE_DBI_DEBUG
+=head2 DBIC_TRACE
 
-If C<DBIX_CLASS_STORAGE_DBI_DEBUG> is set then SQL trace information
+If C<DBIC_TRACE> is set then SQL trace information
 is produced (as when the L<debug> method is set).
 
 If the value is of the form C<1=/path/name> then the trace output is
@@ -1077,6 +1080,10 @@ This environment variable is checked when the storage object is first
 created (when you call connect on your schema).  So, run-time changes 
 to this environment variable will not take effect unless you also 
 re-connect on your schema.
+
+=head2 DBIX_CLASS_STORAGE_DBI_DEBUG
+
+Old name for DBIC_TRACE
 
 =head1 AUTHORS
 

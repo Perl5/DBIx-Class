@@ -40,7 +40,7 @@ sub new {
 Sets or retrieves the filehandle used for trace/debug output.  This should
 be an IO::Handle compatible object (only the C<print> method is used). Initially
 should be set to STDERR - although see information on the
-L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
+L<DBIC_TRACE> environment variable.
 
 =head2 txn_begin
 
