@@ -142,8 +142,6 @@ See the prefetch examples in the L<DBIx::Class::Manual::Cookbook|"Cookbook">.
 
 =back
 
-=over 4
-
 =head2 Inserting and updating data
 
 =over 4
