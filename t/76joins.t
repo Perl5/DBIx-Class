@@ -7,6 +7,8 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
+my $orig_debug = $schema->storage->debug;
+
 use IO::File;
 
 BEGIN {
@@ -158,7 +160,8 @@ is($cd[2]->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'Prefetch on 
 
 is($queries, 1, 'prefetch ran only 1 select statement');
 
-$schema->storage->debug(0);
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);
 
 # test for partial prefetch via columns attr
 my $cd = $schema->resultset('CD')->find(1,
@@ -198,7 +201,8 @@ is($cd->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'artist prefetch
 
 is($queries, 1, 'find with prefetch ran exactly 1 select statement (excluding column_info)');
 
-$schema->storage->debug(0);
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);
 
 $rs = $schema->resultset('Tag')->search(
   {},
@@ -291,7 +295,8 @@ is($tree_like->name, 'bar', 'Second level up ok');
 $tree_like = $tree_like->parent;
 is($tree_like->name, 'foo', 'Third level up ok');
 
-$schema->storage->debug(0);
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);
 
 cmp_ok($queries, '==', 1, 'Only one query run');
 
@@ -303,8 +308,6 @@ $tree_like = $schema->resultset('TreeLike')->search({ 'children.id' => 2 });
 $tree_like = $tree_like->search_related('children', undef, { prefetch => { children => 'children' } })->first;
 is($tree_like->children->first->children->first->name, 'quux', 'Tree search_related with prefetch ok');
 
-$schema->storage->debugcb(undef);
-$schema->storage->debug(1);
 $tree_like = $schema->resultset('TreeLike')->search(
     { 'children.id' => 2, 'children_2.id' => 5 }, 
     { join => [qw/children children/] }
@@ -327,4 +330,5 @@ eval {
 
 like( $sql, qr/^SELECT tracks.trackid/, "collapsed join didn't add _2 to alias" );
 
-$schema->storage->debug(0);
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);
