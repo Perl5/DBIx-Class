@@ -140,7 +140,7 @@ is($cd9->get_column('artist'), $cd1->get_column('artist'), 'artist is correct');
 is($cd9->title, $cd1->title, 'title is correct');
 is($cd9->year, 2021, 'year is correct');
 
-# KNOWN TO FAIL: Table with two unique constraints, and we're satisying one of them
+# Table with two unique constraints, and we're satisying one of them
 my $track = $schema->resultset('Track')->find(
   {
     cd       => 1,
