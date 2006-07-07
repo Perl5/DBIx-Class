@@ -10,18 +10,19 @@ my $schema = DBICTest->init_schema();
 eval 'use Encode ; 1'
     or plan skip_all => 'Install Encode run this test';
 
-plan tests => 2;
+plan tests => 3;
 
-DBICTest::Schema::Artist->load_components('UTF8Columns');
-DBICTest::Schema::Artist->utf8_columns('name');
+DBICTest::Schema::CD->load_components('UTF8Columns');
+DBICTest::Schema::CD->utf8_columns('title');
 Class::C3->reinitialize();
 
-my $artist = $schema->resultset("Artist")->create( { name => 'uni' } );
-ok( Encode::is_utf8( $artist->name ), 'got name with utf8 flag' );
+my $cd = $schema->resultset('CD')->create( { artist => 1, title => 'uni', year => 'foo' } );
+ok( Encode::is_utf8( $cd->title ), 'got title with utf8 flag' );
+ok( !Encode::is_utf8( $cd->year ), 'got year without utf8 flag' );
 
 my $utf8_char = 'uniuni';
 Encode::_utf8_on($utf8_char);
-$artist->name($utf8_char);
-ok( !Encode::is_utf8( $artist->{_column_data}->{name} ),
-    'store utf8 less chars' );
+$cd->title($utf8_char);
+ok( !Encode::is_utf8( $cd->{_column_data}{title} ),
+    'store utf8-less chars' );
 

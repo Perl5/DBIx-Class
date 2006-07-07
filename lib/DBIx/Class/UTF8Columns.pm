@@ -5,7 +5,7 @@ use base qw/DBIx::Class/;
 
 use Encode;
 
-__PACKAGE__->mk_classdata( force_utf8_columns => [] );
+__PACKAGE__->mk_classdata( 'force_utf8_columns' );
 
 =head1 NAME
 
@@ -37,11 +37,11 @@ L<Template::Stash::ForceUTF8>, L<DBIx::Class::UUIDColumns>.
 
 sub utf8_columns {
     my $self = shift;
-    for (@_) {
-        $self->throw_exception("column $_ doesn't exist")
-            unless $self->has_column($_);
+    foreach my $col (@_) {
+        $self->throw_exception("column $col doesn't exist")
+            unless $self->has_column($col);
     }
-    $self->force_utf8_columns( \@_ );
+    $self->force_utf8_columns({ map { $_ => 1 } @_ });
 }
 
 =head1 EXTENDED METHODS
@@ -54,7 +54,7 @@ sub get_column {
     my ( $self, $column ) = @_;
     my $value = $self->next::method($column);
 
-    if ( { map { $_ => 1 } @{ $self->force_utf8_columns } }->{$column} ) {
+    if ( defined $value and $self->force_utf8_columns->{$column} ) {
         Encode::_utf8_on($value) unless Encode::is_utf8($value);
     }
 
@@ -69,8 +69,8 @@ sub get_columns {
     my $self = shift;
     my %data = $self->next::method(@_);
 
-    for (@{ $self->force_utf8_columns }) {
-        Encode::_utf8_on($data{$_}) if $data{$_} and !Encode::is_utf8($_);
+    foreach my $col (grep { defined $data{$_} } keys %{ $self->force_utf8_columns }) {
+        Encode::_utf8_on($data{$col}) unless Encode::is_utf8($data{$col});
     }
 
     %data;
@@ -83,7 +83,7 @@ sub get_columns {
 sub store_column {
     my ( $self, $column, $value ) = @_;
 
-    if ( { map { $_ => 1 } @{ $self->force_utf8_columns } }->{$column} ) {
+    if ( defined $value and $self->force_utf8_columns->{$column} ) {
         Encode::_utf8_off($value) if Encode::is_utf8($value);
     }
 
