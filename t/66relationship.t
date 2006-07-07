@@ -72,7 +72,7 @@ $track = $schema->resultset("Track")->create( {
   trackid => 2,
   cd => 3,
   position => 99,
-  title => 'Hidden Track'
+  title => 'Hidden Track 2'
 } );
 $track->update_from_related( cd => $cd );
 

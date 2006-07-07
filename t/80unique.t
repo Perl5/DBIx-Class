@@ -7,10 +7,24 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 36;
+plan tests => 39;
 
-is_deeply([ sort $schema->source('CD')->unique_constraint_names ], [ qw/cd_artist_title primary/ ], 'CD source has an automatically named unique constraint');
-is_deeply([ sort $schema->source('Producer')->unique_constraint_names ], [ qw/primary prod_name/ ], 'Producer source has a named unique constraint');
+# Check the defined unique constraints
+is_deeply(
+  [ sort $schema->source('CD')->unique_constraint_names ],
+  [ qw/cd_artist_title primary/ ],
+  'CD source has an automatically named unique constraint'
+);
+is_deeply(
+  [ sort $schema->source('Producer')->unique_constraint_names ],
+  [ qw/primary prod_name/ ],
+  'Producer source has a named unique constraint'
+);
+is_deeply(
+  [ sort $schema->source('Track')->unique_constraint_names ],
+  [ qw/primary track_cd_position track_cd_title/ ],
+  'Track source has three unique constraints'
+);
 
 my $artistid = 1;
 my $title    = 'UNIQUE Constraint';
@@ -126,3 +140,14 @@ is($cd9->get_column('artist'), $cd1->get_column('artist'), 'artist is correct');
 is($cd9->title, $cd1->title, 'title is correct');
 is($cd9->year, 2021, 'year is correct');
 
+# KNOWN TO FAIL: Table with two unique constraints, and we're satisying one of them
+my $track = $schema->resultset('Track')->find(
+  {
+    cd       => 1,
+    position => 3,
+  },
+  { order_by => 'position' }
+);
+
+is($track->get_column('cd'), 1, 'track cd is correct');
+is($track->get_column('position'), 3, 'track position is correct');

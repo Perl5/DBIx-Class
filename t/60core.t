@@ -164,7 +164,7 @@ is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
 $new = $schema->resultset("Track")->new( {
   trackid => 100,
   cd => 1,
-  position => 1,
+  position => 4,
   title => 'Insert or Update',
 } );
 $new->update_or_insert;

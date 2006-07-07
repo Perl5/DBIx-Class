@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Thu Jun 22 22:47:36 2006
+-- Created on Thu Jun  6 23:36:19 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -203,5 +203,7 @@ CREATE TABLE onekey (
 
 CREATE UNIQUE INDEX tktlnameunique_twokeytreelike on twokeytreelike (name);
 CREATE UNIQUE INDEX cd_artist_title_cd on cd (artist, title);
+CREATE UNIQUE INDEX track_cd_position_track on track (cd, position);
+CREATE UNIQUE INDEX track_cd_title_track on track (cd, title);
 CREATE UNIQUE INDEX prod_name_producer on producer (name);
 COMMIT;
