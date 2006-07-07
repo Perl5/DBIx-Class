@@ -142,8 +142,6 @@ cmp_ok($rs + 0, '==', 3, 'Correct number of records returned');
 
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++ });
-
-$queries = 0;
 $schema->storage->debug(1);
 
 my @cd = $rs->all;
@@ -174,6 +172,7 @@ ok(eval { $cd->artist->name eq 'Caterwauler McCrae' }, 'single related column pr
 
 # start test for nested prefetch SELECT count
 $queries = 0;
+$schema->storage->debugcb(sub { $queries++ });
 $schema->storage->debug(1);
 
 $rs = $schema->resultset('Tag')->search(
@@ -280,6 +279,7 @@ SKIP: {
 is($rs->next->name, 'Caterwauler McCrae', "Correct artist returned");
 
 $queries = 0;
+$schema->storage->debugcb(sub { $queries++ });
 $schema->storage->debug(1);
 
 my $tree_like =
