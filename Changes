@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - don't generate partial unique keys in ResultSet::find() when a table
+          has more than one unique constraint which share a column and only one
+          is satisfied
         - cleanup UTF8Columns and make more efficient
         - rename DBIX_CLASS_STORAGE_DBI_DEBUG to DBIC_TRACE
         - rename _parent_rs to _parent_source in ResultSet
