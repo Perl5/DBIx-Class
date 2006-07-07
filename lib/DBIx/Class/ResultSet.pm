@@ -520,7 +520,7 @@ sub _is_unique_query {
     foreach my $key (keys %$collapsed) {
       my $aliased = $key =~ /\./ ? $key : "$alias.$key";
       next unless exists $seen{$aliased};  # Additional constraints are okay
-      $seen{$aliased} = scalar @{ $collapsed->{$key} };
+      $seen{$aliased} = scalar keys %{ $collapsed->{$key} };
     }
 
     # If we get 0 or more than 1 value for a column, it's not necessarily unique
@@ -556,7 +556,8 @@ sub _collapse_query {
     else {
 #      warn "LEAF: " . Dumper $query;
       foreach my $key (keys %$query) {
-        push @{$collapsed->{$key}}, $query->{$key};
+        my $value = $query->{$key};
+        $collapsed->{$key}{$value}++;
       }
     }
   }
