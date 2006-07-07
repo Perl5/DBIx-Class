@@ -365,6 +365,7 @@ sub find {
 sub _unique_queries {
   my ($self, $query, $attrs) = @_;
 
+  my $alias = $self->{attrs}{alias};
   my @constraint_names = exists $attrs->{key}
     ? ($attrs->{key})
     : $self->result_source->unique_constraint_names;
@@ -374,15 +375,21 @@ sub _unique_queries {
     my @unique_cols = $self->result_source->unique_constraint_columns($name);
     my $unique_query = $self->_build_unique_query($query, \@unique_cols);
 
-    next unless scalar keys %$unique_query;
+    my $num_query = scalar keys %$unique_query;
+    next unless $num_query;
 
     # Add the ResultSet's alias
-    my $alias = $self->{attrs}{alias};
-    foreach my $key (grep { ! m/\./ } keys %$unique_query) {
-      $unique_query->{"$alias.$key"} = delete $unique_query->{$key};
+    foreach my $col (grep { ! m/\./ } keys %$unique_query) {
+      $unique_query->{"$alias.$col"} = delete $unique_query->{$col};
     }
 
-    push @unique_queries, $unique_query;
+    # XXX: Assuming quite a bit about $self->{attrs}{where}
+    my $num_cols = scalar @unique_cols;
+    my $num_where = exists $self->{attrs}{where}
+      ? scalar keys %{ $self->{attrs}{where} }
+      : 0;
+    push @unique_queries, $unique_query
+      if $num_query + $num_where == $num_cols;
   }
 
   return @unique_queries;
@@ -555,9 +562,9 @@ sub _collapse_query {
     }
     else {
 #      warn "LEAF: " . Dumper $query;
-      foreach my $key (keys %$query) {
-        my $value = $query->{$key};
-        $collapsed->{$key}{$value}++;
+      foreach my $col (keys %$query) {
+        my $value = $query->{$col};
+        $collapsed->{$col}{$value}++;
       }
     }
   }
