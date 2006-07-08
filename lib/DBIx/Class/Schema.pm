@@ -390,6 +390,8 @@ sub compose_namespace {
         $target_class => $source->result_class, ($base ? $base : ())
       );
       $source->result_class($target_class);
+      $target_class->result_source_instance($source)
+        if $target_class->can('result_source_instance');
     }
   }
   Class::C3->reinitialize();
