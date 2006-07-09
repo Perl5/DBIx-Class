@@ -710,7 +710,7 @@ sub _resolved_attrs {
   # XXX - lose storable dclone
   my $record_filter = delete $attrs->{record_filter};
   #$attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
-  $attrs = { %{ $attrs || {} } };
+
   $attrs->{record_filter} = $record_filter if $record_filter;
 
   $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
