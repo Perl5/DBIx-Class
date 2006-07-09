@@ -157,6 +157,12 @@ always return a resultset, even in list context.
 sub search_rs {
   my $self = shift;
 
+  my $rows;
+
+  unless (@_) {                 # no search, effectively just a clone
+    $rows = $self->get_cache;
+  }
+
   my $attrs = {};
   $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
   my $our_attrs = exists $attrs->{_parent_attrs}
@@ -236,11 +242,8 @@ sub search_rs {
   my $rs = (ref $self)->new($self->result_source, $new_attrs);
   $rs->{_parent_source} = $self->{_parent_source} if $self->{_parent_source};
 
-  unless (@_) {                 # no search, effectively just a clone
-    my $rows = $self->get_cache;
-    if ($rows) {
-      $rs->set_cache($rows);
-    }
+  if ($rows) {
+    $rs->set_cache($rows);
   }
   return $rs;
 }
@@ -700,13 +703,14 @@ sub _resolved_attrs {
   my $self = shift;
   return $self->{_attrs} if $self->{_attrs};
 
-  my $attrs = $self->{attrs};
+  my $attrs = { %{$self->{attrs}||{}} };
   my $source = $self->{_parent_source} || $self->{result_source};
   my $alias = $attrs->{_orig_alias};
 
   # XXX - lose storable dclone
   my $record_filter = delete $attrs->{record_filter};
-  $attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
+  #$attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
+  $attrs = { %{ $attrs || {} } };
   $attrs->{record_filter} = $record_filter if $record_filter;
 
   $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
@@ -741,15 +745,7 @@ sub _resolved_attrs {
 
   $attrs->{from} ||= [ { $alias => $source->from } ];
   $attrs->{seen_join} ||= {};
-  my %seen;
   if (my $join = delete $attrs->{join}) {
-    foreach my $j (ref $join eq 'ARRAY' ? @$join : ($join)) {
-      if (ref $j eq 'HASH') {
-        $seen{$_} = 1 foreach keys %$j;
-      } else {
-        $seen{$j} = 1;
-      }
-    }
     push(@{$attrs->{from}},
       $source->resolve_join($join, $alias, $attrs->{seen_join})
     );
@@ -766,15 +762,6 @@ sub _resolved_attrs {
   if (my $prefetch = delete $attrs->{prefetch}) {
     my @pre_order;
     foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
-      if ( ref $p eq 'HASH' ) {
-        foreach my $key (keys %$p) {
-          push(@{$attrs->{from}}, $source->resolve_join($p, $alias))
-            unless $seen{$key};
-        }
-      } else {
-        push(@{$attrs->{from}}, $source->resolve_join($p, $alias))
-          unless $seen{$p};
-      }
       # bring joins back to level of current class
       $p = $self->_reduce_joins($p, $attrs) if $attrs->{_live_join_stack};
       if ($p) {

@@ -311,9 +311,9 @@ is($tree_like->children->first->children->first->name, 'quux', 'Tree search_rela
 $tree_like = $schema->resultset('TreeLike')->search(
     { 'children.id' => 2, 'children_2.id' => 5 }, 
     { join => [qw/children children/] }
-  )->search_related('children', { 'children_3.id' => 3 }, { prefetch => 'children' }
+  )->search_related('children', { 'children_3.id' => 6 }, { prefetch => 'children' }
   )->first->children->first;
-is($tree_like->name, 'baz', 'Tree with multiple has_many joins ok');
+is($tree_like->name, 'fong', 'Tree with multiple has_many joins ok');
 
 # test that collapsed joins don't get a _2 appended to the alias
 

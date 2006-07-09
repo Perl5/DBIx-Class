@@ -197,6 +197,7 @@ sub populate_schema {
         [ 5, 1, 'blop' ],
         [ 3, 2, 'baz'  ],
         [ 4, 3, 'quux' ],
+        [ 6, 2, 'fong'  ],
     ]);
 
     $schema->populate('Track', [
