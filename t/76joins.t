@@ -304,8 +304,10 @@ $tree_like = $schema->resultset('TreeLike')->search({'me.id' => 1});
 $tree_like = $tree_like->search_related('children')->search_related('children')->search_related('children')->first;
 is($tree_like->name, 'quux', 'Tree search_related ok');
 
-$tree_like = $schema->resultset('TreeLike')->search({ 'children.id' => 2 });
-$tree_like = $tree_like->search_related('children', undef, { prefetch => { children => 'children' } })->first;
+$tree_like = $schema->resultset('TreeLike')->search_related('children',
+    { 'children.id' => 2, 'children_2.id' => 3 },
+    { prefetch => { children => 'children' } }
+  )->first;
 is($tree_like->children->first->children->first->name, 'quux', 'Tree search_related with prefetch ok');
 
 $tree_like = $schema->resultset('TreeLike')->search(
