@@ -195,12 +195,6 @@ sub search_rs {
     $our_attrs->{join}, $attrs->{_live_join_h}
   ) if ($attrs->{_live_join_h});
 
-  if (defined $our_attrs->{prefetch}) {
-    $our_attrs->{join} = $self->_merge_attr(
-      $our_attrs->{join}, $our_attrs->{prefetch}
-    );
-  }
-
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
   my $where = (@_
     ? (
@@ -745,7 +739,16 @@ sub _resolved_attrs {
 
   $attrs->{from} ||= [ { $alias => $source->from } ];
   $attrs->{seen_join} ||= {};
-  if (my $join = delete $attrs->{join}) {
+  if (exists $attrs->{join} || exists $attrs->{prefetch}) {
+
+    my $join = delete $attrs->{join} || {};
+
+    if (defined $attrs->{prefetch}) {
+      $join = $self->_merge_attr(
+        $join, $attrs->{prefetch}
+      );
+    }
+
     push(@{$attrs->{from}},
       $source->resolve_join($join, $alias, $attrs->{seen_join})
     );
