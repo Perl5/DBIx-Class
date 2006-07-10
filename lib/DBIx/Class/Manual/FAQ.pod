@@ -57,6 +57,18 @@ Create your classes manually, as above. Write a script that calls
 L<DBIx::Class::Schema/deploy>. See there for details, or the
 L<DBIx::Class::Manual::Cookbook>.
 
+=item .. connect to my database?
+
+Once you have created all the appropriate table/source classes, and an
+overall L<DBIx::Class::Schema|"Schema"> class, you can start using
+them in an application. To do this, you need to create a central
+Schema object, which is used to access all the data in the various
+tables. See L<DBIx::Class::Schema/connect> for details. The actual
+connection does not happen until you actually request data, so don't
+be alarmed if the error from incorrect connection details happens a
+lot later.
+
+
 =back 
 
 =head2 Relationships
@@ -113,15 +125,59 @@ Use it's name. An accessor is created using the name. See examples in L<DBIx::Cl
 
 =item .. search for data?
 
+Create a C<$schema> object, as mentioned above in ".. connect to my
+database". Find the
+L<DBIx::Class::Manual::Glossary/ResultSet|"ResultSet"> that you want
+to search in, and call C<search> on it. See
+L<DBIx::Class::ResultSet/search>.
+
 =item .. search using database functions?
+
+Supplying something like:
+
+ ->search({'mydatefield' => 'now()'})
+
+to search, will probably not do what you expect. It will quote the
+text "now()", instead of trying to call the function. To provide
+literal, unquoted text you need to pass in a scalar reference, like
+so:
+
+ ->search({'mydatefield' => \'now()'})
 
 =item .. sort the results of my search?
 
+Supply a list of columns you want to sort by, to the C<order_by>
+attribute, see L<DBIx::Class::ResultSet/order_by>.
+
+=item .. sort my results based on fields I've aliased using C<as>?
+
+You don't. You'll need to supply the same functions/expressions to
+C<order_by>, as you did to C<select>.
+
 =item .. group the results of my search?
+
+Supply a list of columns you want to group on, to the C<group_by>
+attribute, see L<DBIx::Class::ResultSet/group_by>.
+
+=item .. group my results based on fields I've aliased using C<as>?
+
+You don't. You'll need to supply the same functions/expressions to
+C<group_by>, as you did to C<select>.
 
 =item .. filter the results of my search?
 
 =item .. search in several tables simultaneously?
+
+=item .. create joins with conditions other than column equality?
+
+=item .. search using greater-than or less-than and database functions?
+NOT 
+ my $interval = "now() - interval '12 hours'";
+ last_attempt => { '<' => \$interval },
+BUT
+08:44 <@castaway> my $interval = "< now() - interval '12 hours'"; .. 
+                  last_attempt => \$interval ,
+
 
 =item .. find more help on constructing searches?
 
