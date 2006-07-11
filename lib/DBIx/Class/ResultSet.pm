@@ -1432,7 +1432,7 @@ sub related_resultset {
         alias => $alias,
         where => $self->{cond},
         seen_join => $seen,
-        _parent_from => $from,
+        from => $from,
     });
   };
 }
@@ -1442,7 +1442,7 @@ sub _resolve_from {
   my $source = $self->result_source;
   my $attrs = $self->{attrs};
   
-  my $from = $attrs->{_parent_from}
+  my $from = $attrs->{from}
     || [ { $attrs->{alias} => $source->from } ];
     
   my $seen = { %{$attrs->{seen_join}||{}} };
@@ -1494,8 +1494,7 @@ sub _resolved_attrs {
     push(@{$attrs->{as}}, @$adds);
   }
 
-  $attrs->{from} ||= delete $attrs->{_parent_from}
-    || [ { 'me' => $source->from } ];
+  $attrs->{from} ||= [ { 'me' => $source->from } ];
 
   if (exists $attrs->{join} || exists $attrs->{prefetch}) {
     my $join = delete $attrs->{join} || {};
