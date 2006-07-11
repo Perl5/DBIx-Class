@@ -1426,6 +1426,9 @@ sub related_resultset {
 
     $self->result_source->schema->resultset($rel_obj->{class})->search_rs(
       undef, {
+        %{$self->{attrs}||{}},
+        join => undef,
+        prefetch => undef,
         select => undef,
         as => undef,
         alias => $alias,
