@@ -1419,10 +1419,10 @@ sub related_resultset {
         "' has no such relationship $rel")
       unless $rel_obj;
     
-    my ($from,$seen) = $self->search(undef, { join => $rel })->_resolve_from;
+    my ($from,$seen) = $self->_resolve_from($rel);
 
-    my $join_count = $self->{attrs}{seen_join}{$rel};
-    my $alias = $join_count ? join('_', $rel, $join_count+1) : $rel;
+    my $join_count = $seen->{$rel};
+    my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
 
     $self->result_source->schema->resultset($rel_obj->{class})->search_rs(
       undef, {
@@ -1440,7 +1440,7 @@ sub related_resultset {
 }
 
 sub _resolve_from {
-  my ($self) = @_;
+  my ($self, $extra_join) = @_;
   my $source = $self->result_source;
   my $attrs = $self->{attrs};
   
@@ -1449,11 +1449,12 @@ sub _resolve_from {
     
   my $seen = { %{$attrs->{seen_join}||{}} };
 
-  if ($attrs->{join}) {
-    push(@{$from}, 
-      $source->resolve_join($attrs->{join}, $attrs->{alias}, $seen)
-    );
-  }
+  my $join = ($attrs->{join}
+               ? [ $attrs->{join}, $extra_join ]
+               : $extra_join);
+  push(@{$from}, 
+    $source->resolve_join($join, $attrs->{alias}, $seen)
+  );
 
   return ($from,$seen);
 }
