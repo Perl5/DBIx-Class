@@ -11,6 +11,9 @@ use Data::Page;
 use Storable;
 use DBIx::Class::ResultSetColumn;
 use base qw/DBIx::Class/;
+
+use Data::Dumper; $Data::Dumper::Indent = 1;
+
 __PACKAGE__->load_components(qw/AccessorGroup/);
 __PACKAGE__->mk_group_accessors('simple' => qw/result_source result_class/);
 
@@ -93,7 +96,6 @@ sub new {
   }
 
   $attrs->{alias} ||= 'me';
-  $attrs->{_orig_alias} ||= $attrs->{alias};
 
   bless {
     result_source => $source,
@@ -165,36 +167,15 @@ sub search_rs {
 
   my $attrs = {};
   $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
-  my $our_attrs = exists $attrs->{_parent_attrs}
-    ? { %{delete $attrs->{_parent_attrs}} }
-    : { %{$self->{attrs}} };
+  my $our_attrs = { %{$self->{attrs}} };
   my $having = delete $our_attrs->{having};
-
-  # XXX should only maintain _live_join_stack and generate _live_join_h from that
-  if ($attrs->{_live_join_stack}) {
-    foreach my $join (reverse @{$attrs->{_live_join_stack}}) {
-      $attrs->{_live_join_h} = defined $attrs->{_live_join_h}
-        ? { $join => $attrs->{_live_join_h} }
-        : $join;
-    }
-  }
 
   # merge new attrs into inherited
   foreach my $key (qw/join prefetch/) {
     next unless exists $attrs->{$key};
-    if (my $live_join = $attrs->{_live_join_stack} || $our_attrs->{_live_join_stack}) {
-      foreach my $join (reverse @{$live_join}) {
-        $attrs->{$key} = { $join => $attrs->{$key} };
-      }
-    }
-
     $our_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, delete $attrs->{$key});
   }
-
-  $our_attrs->{join} = $self->_merge_attr(
-    $our_attrs->{join}, $attrs->{_live_join_h}
-  ) if ($attrs->{_live_join_h});
-
+  
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
   my $where = (@_
     ? (
@@ -234,8 +215,6 @@ sub search_rs {
   }
 
   my $rs = (ref $self)->new($self->result_source, $new_attrs);
-  $rs->{_parent_source} = $self->{_parent_source} if $self->{_parent_source};
-
   if ($rows) {
     $rs->set_cache($rows);
   }
@@ -698,8 +677,8 @@ sub _resolved_attrs {
   return $self->{_attrs} if $self->{_attrs};
 
   my $attrs = { %{$self->{attrs}||{}} };
-  my $source = $self->{_parent_source} || $self->{result_source};
-  my $alias = $attrs->{_orig_alias};
+  my $source = $self->{result_source};
+  my $alias = $attrs->{alias};
 
   # XXX - lose storable dclone
   my $record_filter = delete $attrs->{record_filter};
@@ -714,9 +693,8 @@ sub _resolved_attrs {
     $attrs->{columns} = [ $self->{result_source}->columns ];
   }
   
-  my $select_alias = $self->{attrs}{alias};
   $attrs->{select} ||= [
-    map { m/\./ ? $_ : "${select_alias}.$_" } @{delete $attrs->{columns}}
+    map { m/\./ ? $_ : "${alias}.$_" } @{delete $attrs->{columns}}
   ];
   $attrs->{as} ||= [
     map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}}
@@ -737,8 +715,11 @@ sub _resolved_attrs {
     push(@{$attrs->{as}}, @$adds);
   }
 
-  $attrs->{from} ||= [ { $alias => $source->from } ];
-  $attrs->{seen_join} ||= {};
+  $attrs->{from} ||= [ { 'me' => $source->from } ];
+  if ($attrs->{_parent_from}) {
+    push @{$attrs->{from}}, @{$attrs->{_parent_from}};
+  }
+
   if (exists $attrs->{join} || exists $attrs->{prefetch}) {
 
     my $join = delete $attrs->{join} || {};
@@ -750,7 +731,7 @@ sub _resolved_attrs {
     }
 
     push(@{$attrs->{from}},
-      $source->resolve_join($join, $alias, $attrs->{seen_join})
+      $source->resolve_join($join, $alias, { %{$self->{_parent_seen_join}||{}} })
     );
   }
 
@@ -766,20 +747,36 @@ sub _resolved_attrs {
     my @pre_order;
     foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
       # bring joins back to level of current class
-      $p = $self->_reduce_joins($p, $attrs) if $attrs->{_live_join_stack};
-      if ($p) {
-        my @prefetch = $self->result_source->resolve_prefetch(
-          $p, $alias, {}, \@pre_order, $collapse
-        );
-        push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
-        push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
-      }
+      my @prefetch = $source->resolve_prefetch(
+        $p, $alias, { %{$attrs->{_parent_seen_join}||{}} }, \@pre_order, $collapse
+      );
+      push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
+      push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
     }
     push(@{$attrs->{order_by}}, @pre_order);
   }
   $attrs->{collapse} = $collapse;
 
   return $self->{_attrs} = $attrs;
+}
+
+sub _resolve_from {
+  my ($self) = @_;
+  my $source = $self->result_source;
+  my $attrs = $self->{attrs};
+  
+  my $from = $attrs->{_parent_from} || [];
+#    || [ { $attrs->{alias} => $source->from } ];
+    
+  my $seen = { %{$attrs->{_parent_seen_join}||{}} };
+  
+  if ($attrs->{join}) {
+    push(@{$from}, 
+      $source->resolve_join($attrs->{join}, $attrs->{alias}, $seen)
+    );
+  }
+  
+  return ($from,$seen);
 }
 
 sub _merge_attr {
@@ -823,32 +820,6 @@ sub _merge_attr {
         )
       : \@array;
   }
-}
-
-# bring the joins (which are from the original class) to the level
-# of the current class so that we can resolve them properly
-sub _reduce_joins {
-  my ($self, $p, $attrs) = @_;
-
-  STACK:
-  foreach my $join (@{$attrs->{_live_join_stack}}) {
-    if (ref $p eq 'HASH') {
-      return undef unless exists $p->{$join};
-      $p = $p->{$join};
-    } elsif (ref $p eq 'ARRAY') {
-      foreach my $pe (@{$p}) {
-        return undef if $pe eq $join;
-        if (ref $pe eq 'HASH' && exists $pe->{$join}) {
-          $p = $pe->{$join};
-          next STACK;
-        }
-      }
-      return undef;
-    } else {
-      return undef;
-    }
-  }
-  return $p;
 }
 
 sub _construct_object {
@@ -998,7 +969,7 @@ sub _count { # Separated out so pager can get the full count
     # todo: try CONCAT for multi-column pk
     my @pk = $self->result_source->primary_columns;
     if (@pk == 1) {
-      my $alias = $attrs->{_orig_alias};
+      my $alias = $attrs->{alias};
       foreach my $column (@distinct) {
         if ($column =~ qr/^(?:\Q${alias}.\E)?$pk[0]$/) {
           @distinct = ($column);
@@ -1015,10 +986,8 @@ sub _count { # Separated out so pager can get the full count
 
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
-  my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
-  $tmp_rs->{_parent_source} = $self->{_parent_source} if $self->{_parent_source};
-       #XXX - hack to pass through parent of related resultsets
 
+  my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
   return $count;
 }
@@ -1356,7 +1325,7 @@ sub new_result {
     "Can't abstract implicit construct, condition not a hash"
   ) if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
   my %new = %$values;
-  my $alias = $self->{attrs}{_orig_alias};
+  my $alias = $self->{attrs}{alias};
   foreach my $key (keys %{$self->{cond}||{}}) {
     $new{$1} = $self->{cond}{$key} if ($key =~ m/^(?:\Q${alias}.\E)?([^.]+)$/);
   }
@@ -1602,30 +1571,21 @@ sub related_resultset {
         "' has no such relationship $rel")
       unless $rel_obj;
 
-    my @live_join_stack = @{$self->{attrs}{_live_join_stack}||[]};
-
-    # XXX mst: I'm sure this is wrong, somehow
-    #          something with complex joins early on could die on search_rel
-    #          followed by a prefetch. I think. need a test case.
-
-    my $join_count = scalar(grep { $_ eq $rel } @live_join_stack);
+    my $join_count = $self->{attrs}{_parent_seen_join}{$rel};
     my $alias = $join_count ? join('_', $rel, $join_count+1) : $rel;
-
-    push(@live_join_stack, $rel);
-
-    my $rs = $self->result_source->schema->resultset($rel_obj->{class})->search(
+    
+    my $rs = $self->search(undef, { join => $rel });
+    my ($from,$seen) = $rs->_resolve_from;
+    
+    $self->result_source->schema->resultset($rel_obj->{class})->search_rs(
       undef, {
         select => undef,
         as => undef,
         alias => $alias,
-        _live_join_stack => \@live_join_stack,
-        _parent_attrs => $self->{attrs}}
-    );
-
-    # keep reference of the original resultset
-    $rs->{_parent_source} = $self->{_parent_source} || $self->result_source;
-
-    return $rs;
+        where => $self->{cond},
+        _parent_from => $from,
+        _parent_seen_join => $seen,
+    });
   };
 }
 
