@@ -314,7 +314,7 @@ is(eval { $tree_like->children->first->children->first->name }, 'quux',
 $tree_like = eval { $schema->resultset('TreeLike')->search(
     { 'children.id' => 2, 'children_2.id' => 5 }, 
     { join => [qw/children children/] }
-  )->search_related('children', { 'children_3.id' => 6 }, { prefetch => 'children' }
+  )->search_related('children', { 'children_4.id' => 6 }, { prefetch => 'children' }
   )->first->children->first; };
 is(eval { $tree_like->name }, 'fong', 'Tree with multiple has_many joins ok');
 
@@ -331,7 +331,7 @@ eval {
   })->search_related('tracks')->first;
 };
 
-like( $sql, qr/^SELECT tracks\.trackid/, "collapsed join didn't add _2 to alias" );
+like( $sql, qr/^SELECT tracks_2\.trackid/, "join not collapsed for search_related" );
 
 $schema->storage->debug($orig_debug);
 $schema->storage->debugobj->callback(undef);
