@@ -1420,13 +1420,13 @@ sub related_resultset {
       "search_related: result source '" . $self->result_source->name .
         "' has no such relationship $rel")
       unless $rel_obj;
-
-    my $join_count = $self->{attrs}{_parent_seen_join}{$rel};
-    my $alias = $join_count ? join('_', $rel, $join_count+1) : $rel;
     
     my $rs = $self->search(undef, { join => $rel });
     my ($from,$seen) = $rs->_resolve_from;
-    
+
+    my $join_count = $self->{attrs}{seen_join}{$rel};
+    my $alias = $join_count ? join('_', $rel, $join_count+1) : $rel;
+
     $self->result_source->schema->resultset($rel_obj->{class})->search_rs(
       undef, {
         select => undef,
@@ -1434,7 +1434,7 @@ sub related_resultset {
         alias => $alias,
         where => $self->{cond},
         _parent_from => $from,
-        _parent_seen_join => $seen,
+        seen_join => $seen,
     });
   };
 }
@@ -1484,7 +1484,7 @@ sub _resolved_attrs {
 
   $attrs->{from} ||= [ { 'me' => $source->from } ];
   if ($attrs->{_parent_from}) {
-    push @{$attrs->{from}}, @{$attrs->{_parent_from}};
+    push @{$attrs->{from}}, @{delete $attrs->{_parent_from}};
   }
 
   if (exists $attrs->{join} || exists $attrs->{prefetch}) {
@@ -1498,7 +1498,7 @@ sub _resolved_attrs {
     }
 
     push(@{$attrs->{from}},
-      $source->resolve_join($join, $alias, { %{$self->{_parent_seen_join}||{}} })
+      $source->resolve_join($join, $alias, { %{$attrs->{seen_join}||{}} })
     );
   }
 
@@ -1515,7 +1515,7 @@ sub _resolved_attrs {
     foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
       # bring joins back to level of current class
       my @prefetch = $source->resolve_prefetch(
-        $p, $alias, { %{$attrs->{_parent_seen_join}||{}} }, \@pre_order, $collapse
+        $p, $alias, { %{$attrs->{seen_join}||{}} }, \@pre_order, $collapse
       );
       push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
       push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
@@ -1532,17 +1532,17 @@ sub _resolve_from {
   my $source = $self->result_source;
   my $attrs = $self->{attrs};
   
-  my $from = $attrs->{_parent_from} || [];
+  my $from = [ @{$attrs->{_parent_from}||[]} ];
 #    || [ { $attrs->{alias} => $source->from } ];
     
-  my $seen = { %{$attrs->{_parent_seen_join}||{}} };
-  
+  my $seen = { %{$attrs->{seen_join}||{}} };
+
   if ($attrs->{join}) {
     push(@{$from}, 
       $source->resolve_join($attrs->{join}, $attrs->{alias}, $seen)
     );
   }
-  
+
   return ($from,$seen);
 }
 
