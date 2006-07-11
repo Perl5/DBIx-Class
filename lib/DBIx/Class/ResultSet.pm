@@ -101,8 +101,6 @@ sub new {
     result_source => $source,
     result_class => $attrs->{result_class} || $source->result_class,
     cond => $attrs->{where},
-#    from => $attrs->{from},
-#    collapse => $collapse,
     count => undef,
     pager => undef,
     attrs => $attrs
@@ -1421,8 +1419,7 @@ sub related_resultset {
         "' has no such relationship $rel")
       unless $rel_obj;
     
-    my $rs = $self->search(undef, { join => $rel });
-    my ($from,$seen) = $rs->_resolve_from;
+    my ($from,$seen) = $self->search(undef, { join => $rel })->_resolve_from;
 
     my $join_count = $self->{attrs}{seen_join}{$rel};
     my $alias = $join_count ? join('_', $rel, $join_count+1) : $rel;
@@ -1433,8 +1430,8 @@ sub related_resultset {
         as => undef,
         alias => $alias,
         where => $self->{cond},
-        _parent_from => $from,
         seen_join => $seen,
+        _parent_from => $from,
     });
   };
 }
@@ -1446,8 +1443,6 @@ sub _resolve_from {
   
   my $from = $attrs->{_parent_from}
     || [ { $attrs->{alias} => $source->from } ];
-#    ? [ @{$attrs->{_parent_from}} ]
-#    : undef;
     
   my $seen = { %{$attrs->{seen_join}||{}} };
 
@@ -1468,17 +1463,11 @@ sub _resolved_attrs {
   my $source = $self->{result_source};
   my $alias = $attrs->{alias};
 
-  # XXX - lose storable dclone
-  my $record_filter = delete $attrs->{record_filter};
-  #$attrs = Storable::dclone($attrs || {}); # { %{ $attrs || {} } };
-
-  $attrs->{record_filter} = $record_filter if $record_filter;
-
   $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
   if ($attrs->{columns}) {
     delete $attrs->{as};
   } elsif (!$attrs->{select}) {
-    $attrs->{columns} = [ $self->{result_source}->columns ];
+    $attrs->{columns} = [ $source->columns ];
   }
   
   $attrs->{select} ||= [
@@ -1507,7 +1496,6 @@ sub _resolved_attrs {
     || [ { 'me' => $source->from } ];
 
   if (exists $attrs->{join} || exists $attrs->{prefetch}) {
-
     my $join = delete $attrs->{join} || {};
 
     if (defined $attrs->{prefetch}) {
