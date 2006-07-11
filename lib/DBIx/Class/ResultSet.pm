@@ -167,7 +167,9 @@ sub search_rs {
 
   my $attrs = {};
   $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
-  my $our_attrs = { %{$self->{attrs}} };
+  my $our_attrs = exists $attrs->{_parent_attrs}
+    ? { %{delete $attrs->{_parent_attrs}} }
+    : { %{$self->{attrs}} };
   my $having = delete $our_attrs->{having};
 
   # merge new attrs into inherited
@@ -716,7 +718,10 @@ sub _resolved_attrs {
     push(@{$attrs->{as}}, @$adds);
   }
 
-  $attrs->{from} ||= [ { $alias => $source->from } ];
+
+  $attrs->{from} ||= $attrs->{_parent_from}
+    || [ { $alias => $source->from } ];
+  #$attrs->{from} ||= [ { $alias => $source->from } ];
 
   if (exists $attrs->{join} || exists $attrs->{prefetch}) {
 
@@ -746,7 +751,7 @@ sub _resolved_attrs {
     foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
       # bring joins back to level of current class
       my @prefetch = $source->resolve_prefetch(
-        $p, $alias, { %{$self->{_parent_seen_join}||{}} }, \@pre_order, $collapse
+        $p, $alias, { %{$attrs->{_parent_seen_join}||{}} }, \@pre_order, $collapse
       );
       push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
       push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
@@ -763,18 +768,18 @@ sub _resolve_from {
   my $source = $self->result_source;
   my $attrs = $self->{attrs};
   
-  my $from = $self->{_parent_from}
+  my $from = $attrs->{_parent_from}
     || [ { $attrs->{alias} => $source->from } ];
     
-  my $seen = { %{$self->{_parent_seen_join}||{}} };
+  my $seen = { %{$attrs->{_parent_seen_join}||{}} };
   
   if ($attrs->{join}) {
-    push(@$from, 
+    push(@{$from}, 
       $source->resolve_join($attrs->{join}, $attrs->{alias}, $seen)
     );
   }
   
-  return ($seen,$from);
+  return ($from,$seen);
 }
 
 sub _merge_attr {
@@ -1569,20 +1574,20 @@ sub related_resultset {
         "' has no such relationship $rel")
       unless $rel_obj;
 
-    my ($seen,$from) = $self->_resolve_from;
+    my ($from,$seen) = $self->_resolve_from;
     
     my $join_count = $self->{_parent_seen_join}{$rel};
     my $alias = $join_count ? join('_', $rel, $join_count+1) : $rel;
 
     my $rs = $self->result_source->schema->resultset($rel_obj->{class})->search(
       undef, {
-        %{$self->{attrs}},
         select => undef,
         as => undef,
         alias => $alias,
+        _parent_from => $from,
+        _parent_seen_join => $seen,
+        _parent_attrs => $self->{attrs},
     });
-    $rs->{_parent_from} = $from;
-    $rs->{_parent_seen_join} = $seen;
 
     $rs;
   };
