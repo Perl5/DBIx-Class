@@ -12,8 +12,6 @@ use Storable;
 use DBIx::Class::ResultSetColumn;
 use base qw/DBIx::Class/;
 
-use Data::Dumper; $Data::Dumper::Indent = 1;
-
 __PACKAGE__->load_components(qw/AccessorGroup/);
 __PACKAGE__->mk_group_accessors('simple' => qw/result_source result_class/);
 
