@@ -1439,6 +1439,27 @@ sub related_resultset {
   };
 }
 
+sub _resolve_from {
+  my ($self) = @_;
+  my $source = $self->result_source;
+  my $attrs = $self->{attrs};
+  
+  my $from = $attrs->{_parent_from}
+    || [ { $attrs->{alias} => $source->from } ];
+#    ? [ @{$attrs->{_parent_from}} ]
+#    : undef;
+    
+  my $seen = { %{$attrs->{seen_join}||{}} };
+
+  if ($attrs->{join}) {
+    push(@{$from}, 
+      $source->resolve_join($attrs->{join}, $attrs->{alias}, $seen)
+    );
+  }
+
+  return ($from,$seen);
+}
+
 sub _resolved_attrs {
   my $self = shift;
   return $self->{_attrs} if $self->{_attrs};
@@ -1482,10 +1503,8 @@ sub _resolved_attrs {
     push(@{$attrs->{as}}, @$adds);
   }
 
-  $attrs->{from} ||= [ { 'me' => $source->from } ];
-  if ($attrs->{_parent_from}) {
-    push @{$attrs->{from}}, @{delete $attrs->{_parent_from}};
-  }
+  $attrs->{from} ||= delete $attrs->{_parent_from}
+    || [ { 'me' => $source->from } ];
 
   if (exists $attrs->{join} || exists $attrs->{prefetch}) {
 
@@ -1525,25 +1544,6 @@ sub _resolved_attrs {
   $attrs->{collapse} = $collapse;
 
   return $self->{_attrs} = $attrs;
-}
-
-sub _resolve_from {
-  my ($self) = @_;
-  my $source = $self->result_source;
-  my $attrs = $self->{attrs};
-  
-  my $from = [ @{$attrs->{_parent_from}||[]} ];
-#    || [ { $attrs->{alias} => $source->from } ];
-    
-  my $seen = { %{$attrs->{seen_join}||{}} };
-
-  if ($attrs->{join}) {
-    push(@{$from}, 
-      $source->resolve_join($attrs->{join}, $attrs->{alias}, $seen)
-    );
-  }
-
-  return ($from,$seen);
 }
 
 sub _merge_attr {
