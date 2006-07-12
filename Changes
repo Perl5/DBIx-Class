@@ -1,10 +1,13 @@
 Revision history for DBIx::Class
 
+0.06999_06 2006-07-12 17:16:55
+        - documentation for new storage options, fix S::A::L hanging on to $dbh
+        - substantial refactor of search_related code to fix alias numbering
         - don't generate partial unique keys in ResultSet::find() when a table
           has more than one unique constraint which share a column and only one
           is satisfied
         - cleanup UTF8Columns and make more efficient
-        - rename DBIX_CLASS_STORAGE_DBI_DEBUG to DBIC_TRACE
+        - rename DBIX_CLASS_STORAGE_DBI_DEBUG to DBIC_TRACE (with compat)
         - rename _parent_rs to _parent_source in ResultSet
 
 0.06999_05 2006-07-04 14:40:01
