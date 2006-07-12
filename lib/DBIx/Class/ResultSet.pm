@@ -1505,9 +1505,11 @@ sub _resolved_attrs {
       );
     }
 
-    push(@{$attrs->{from}},
-      $source->resolve_join($join, $alias, { %{$attrs->{seen_join}||{}} })
-    );
+    $attrs->{from} =   # have to copy here to avoid corrupting the original
+      [
+        @{$attrs->{from}}, 
+        $source->resolve_join($join, $alias, { %{$attrs->{seen_join}||{}} })
+      ];
   }
 
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
