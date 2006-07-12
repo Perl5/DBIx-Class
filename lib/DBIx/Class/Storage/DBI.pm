@@ -1036,7 +1036,7 @@ L<DBIx::Class::Schema/deploy>.
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
-  foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, $sqltargs) ) {
+  foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, { no_comments => 1, %$sqltargs }) ) {
     for ( split(";\n", $statement)) {
       next if($_ =~ /^--/);
       next if(!$_);
