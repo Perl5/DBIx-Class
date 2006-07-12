@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.06999_07 2006-07-12 20:58:05
+        - fix issue with from attr copying introduced in last release
+
 0.06999_06 2006-07-12 17:16:55
         - documentation for new storage options, fix S::A::L hanging on to $dbh
         - substantial refactor of search_related code to fix alias numbering
