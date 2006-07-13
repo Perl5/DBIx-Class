@@ -223,7 +223,7 @@ sub count_related {
   my $new_obj = $obj->new_related('relname', \%col_data);
 
 Create a new item of the related foreign class. If called on a
-L<DBIx::Class::Manual::Glossary/"Row"> object, it will magically 
+L<Row|DBIx::Class::Manual::Glossary/"Row"> object, it will magically 
 set any foreign key columns of the new object to the related primary 
 key columns of the source object for you.  The newly created item will 
 not be saved into your storage until you call L<DBIx::Class::Row/insert>
