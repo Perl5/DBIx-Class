@@ -12,6 +12,7 @@ Revision history for DBIx::Class
         - cleanup UTF8Columns and make more efficient
         - rename DBIX_CLASS_STORAGE_DBI_DEBUG to DBIC_TRACE (with compat)
         - rename _parent_rs to _parent_source in ResultSet
+        - new FAQ.pod!
 
 0.06999_05 2006-07-04 14:40:01
         - fix issue with incorrect $rs->{attrs}{alias}
