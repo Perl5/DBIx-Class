@@ -766,6 +766,20 @@ sub _collapse_result {
 An accessor for the primary ResultSource object from which this ResultSet
 is derived.
 
+=head2 result_class
+
+=over 4
+
+=item Arguments: $result_class?
+
+=item Return Value: $result_class
+
+=back
+
+An accessor for the class to use when creating row objects. Defaults to 
+C<< result_source->result_class >> - which in most cases is the name of the 
+L<"table"|DBIx::Class::Manual::Glossary/"ResultSource"> class.
+
 =cut
 
 
