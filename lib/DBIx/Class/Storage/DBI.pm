@@ -39,6 +39,8 @@ sub _find_syntax {
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
   $table = $self->_quote($table) unless ref($table);
+  local $self->{rownum_hack_count} = 1
+    if (defined $rest[0] && $self->{limit_dialect} eq 'RowNum');
   @rest = (-1) unless defined $rest[0];
   die "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
@@ -86,7 +88,12 @@ sub _recurse_fields {
   return $$fields if $ref eq 'SCALAR';
 
   if ($ref eq 'ARRAY') {
-    return join(', ', map { $self->_recurse_fields($_) } @$fields);
+    return join(', ', map {
+      $self->_recurse_fields($_)
+      .(exists $self->{rownum_hack_count}
+         ? ' AS col'.$self->{rownum_hack_count}++
+         : '')
+     } @$fields);
   } elsif ($ref eq 'HASH') {
     foreach my $func (keys %$fields) {
       return $self->_sqlcase($func)
@@ -221,14 +228,6 @@ sub _quote {
        split(/\Q$sep\E/,$label));
   }
   return $self->SUPER::_quote($label);
-}
-
-sub _RowNum {
-   my $self = shift;
-   my $c;
-   $_[0] =~ s/SELECT (.*?) FROM/
-     'SELECT '.join(', ', map { $_.' AS col'.++$c } split(', ', $1)).' FROM'/e;
-   $self->SUPER::_RowNum(@_);
 }
 
 sub limit_dialect {

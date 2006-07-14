@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
         - fixups to ORDER BY, tweaks to deepen some copies in ResultSet
+        - fixup for RowNum limit syntax with functions
 
 0.06999_07 2006-07-12 20:58:05
         - fix issue with from attr copying introduced in last release
