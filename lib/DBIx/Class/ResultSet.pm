@@ -1464,9 +1464,10 @@ sub _resolve_from {
   my $join = ($attrs->{join}
                ? [ $attrs->{join}, $extra_join ]
                : $extra_join);
-  push(@{$from}, 
-    $source->resolve_join($join, $attrs->{alias}, $seen)
-  );
+  $from = [
+    @$from,
+    ($join ? $source->resolve_join($join, $attrs->{alias}, $seen) : ()),
+  ];
 
   return ($from,$seen);
 }
@@ -1485,13 +1486,21 @@ sub _resolved_attrs {
   } elsif (!$attrs->{select}) {
     $attrs->{columns} = [ $source->columns ];
   }
-  
-  $attrs->{select} ||= [
-    map { m/\./ ? $_ : "${alias}.$_" } @{delete $attrs->{columns}}
-  ];
-  $attrs->{as} ||= [
-    map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}}
-  ];
+ 
+  $attrs->{select} = 
+    ($attrs->{select}
+      ? (ref $attrs->{select} eq 'ARRAY'
+          ? [ @{$attrs->{select}} ]
+          : [ $attrs->{select} ])
+      : [ map { m/\./ ? $_ : "${alias}.$_" } @{delete $attrs->{columns}} ]
+    );
+  $attrs->{as} =
+    ($attrs->{as}
+      ? (ref $attrs->{as} eq 'ARRAY'
+          ? [ @{$attrs->{as}} ]
+          : [ $attrs->{as} ])
+      : [ map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}} ]
+    );
   
   my $adds;
   if ($adds = delete $attrs->{include_columns}) {
@@ -1501,7 +1510,8 @@ sub _resolved_attrs {
   }
   if ($adds = delete $attrs->{'+select'}) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push(@{$attrs->{select}}, map { /\./ || ref $_ ? $_ : "${alias}.$_" } @$adds);
+    push(@{$attrs->{select}},
+           map { /\./ || ref $_ ? $_ : "${alias}.$_" } @$adds);
   }
   if (my $adds = delete $attrs->{'+as'}) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
@@ -1528,9 +1538,11 @@ sub _resolved_attrs {
 
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
   if ($attrs->{order_by}) {
-    $attrs->{order_by} = [ $attrs->{order_by} ] unless ref $attrs->{order_by};    
+    $attrs->{order_by} = (ref($attrs->{order_by}) eq 'ARRAY'
+                           ? [ @{$attrs->{order_by}} ]
+                           : [ $attrs->{order_by} ]);
   } else {
-    $attrs->{order_by} ||= [];    
+    $attrs->{order_by} = [];    
   }
 
   my $collapse = $attrs->{collapse} || {};
