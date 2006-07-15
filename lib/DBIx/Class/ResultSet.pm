@@ -464,10 +464,11 @@ sub single {
     }
   }
 
-  unless ($self->_is_unique_query($attrs->{where})) {
-    carp "Query not guaranteed to return a single row"
-      . "; please declare your unique constraints or use search instead";
-  }
+#  XXX: Disabled since it doesn't infer uniqueness in all cases
+#  unless ($self->_is_unique_query($attrs->{where})) {
+#    carp "Query not guaranteed to return a single row"
+#      . "; please declare your unique constraints or use search instead";
+#  }
 
   my @data = $self->result_source->storage->select_single(
     $attrs->{from}, $attrs->{select},

@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - supress warnings for possibly non-unique queries, since
+          _is_unique_query doesn't infer properly in all cases
         - skip empty queries to eliminate spurious warnings on ->deploy
         - fixups to ORDER BY, tweaks to deepen some copies in ResultSet
         - fixup for RowNum limit syntax with functions
