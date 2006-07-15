@@ -1050,6 +1050,7 @@ sub deploy {
 #      next if($_ =~ /^DROP/m);
       next if($_ =~ /^BEGIN TRANSACTION/m);
       next if($_ =~ /^COMMIT/m);
+      next if $_ =~ /^\s+$/; # skip whitespace only
       $self->debugobj->query_start($_) if $self->debug;
       $self->dbh->do($_) or warn "SQL was:\n $_";
       $self->debugobj->query_end($_) if $self->debug;

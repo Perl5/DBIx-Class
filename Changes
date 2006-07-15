@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - skip empty queries to eliminate spurious warnings on ->deploy
         - fixups to ORDER BY, tweaks to deepen some copies in ResultSet
         - fixup for RowNum limit syntax with functions
 
