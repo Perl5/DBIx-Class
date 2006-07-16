@@ -6,7 +6,7 @@ DBIx::Class::Manual::FAQ - Frequently Asked Questions (in theory)
 
 This document is intended as an anti-map of the documentation. If you
 know what you want to do, but not how to do it in L<DBIx::Class>, then
-look here. It does B<not> contain any code or examples, it just gives
+look here. It does B<not> contain much code or examples, it just gives
 explanations and pointers to the correct pieces of documentation to
 read.
 
@@ -60,7 +60,7 @@ L<DBIx::Class::Manual::Cookbook>.
 =item .. connect to my database?
 
 Once you have created all the appropriate table/source classes, and an
-overall L<DBIx::Class::Schema|"Schema"> class, you can start using
+overall L<Schema|DBIx::Class::Schema> class, you can start using
 them in an application. To do this, you need to create a central
 Schema object, which is used to access all the data in the various
 tables. See L<DBIx::Class::Schema/connect> for details. The actual
@@ -127,7 +127,7 @@ Use it's name. An accessor is created using the name. See examples in L<DBIx::Cl
 
 Create a C<$schema> object, as mentioned above in ".. connect to my
 database". Find the
-L<DBIx::Class::Manual::Glossary/ResultSet|"ResultSet"> that you want
+L<ResultSet|DBIx::Class::Manual::Glossary/ResultSet> that you want
 to search in, and call C<search> on it. See
 L<DBIx::Class::ResultSet/search>.
 
@@ -152,7 +152,13 @@ attribute, see L<DBIx::Class::ResultSet/order_by>.
 =item .. sort my results based on fields I've aliased using C<as>?
 
 You don't. You'll need to supply the same functions/expressions to
-C<order_by>, as you did to C<select>.
+C<order_by>, as you did to C<select>. 
+
+To get "fieldname AS alias" in your SQL, you'll need to supply a literal chunk of SQL in your C<select> attribute, such as:
+
+ ->search({}, { select => [ \'now() AS currenttime'] })
+
+Then you can use the alias in your C<order_by> attribute.
 
 =item .. group the results of my search?
 
@@ -164,20 +170,57 @@ attribute, see L<DBIx::Class::ResultSet/group_by>.
 You don't. You'll need to supply the same functions/expressions to
 C<group_by>, as you did to C<select>.
 
+To get "fieldname AS alias" in your SQL, you'll need to supply a
+literal chunk of SQL in your C<select> attribute, such as:
+
+ ->search({}, { select => [ \'now() AS currenttime'] })
+
+Then you can use the alias in your C<group_by> attribute.
+
 =item .. filter the results of my search?
+
+The first argument to C<search> is a hashref of accessor names and
+values to filter them by, for example:
+
+ ->search({'created_time' => { '>=', '2006-06-01 00:00:00'} })
+
+Note that to use a function here you need to make the whole value into
+a scalar reference:
+
+ ->search({'created_time' => \'>= yesterday() })
 
 =item .. search in several tables simultaneously?
 
+To search in two related tables, you first need to set up appropriate
+relationships between their respective classes. When searching you
+then supply the name of the relationship to the C<join> attribute in
+your search, for example when searching in the Books table for all the
+books by the author "Fred Bloggs":
+
+ ->search({'authors.name' => 'Fred Bloggs'}, { join => 'authors'})
+
+The type of join created in your SQL depends on the type of
+relationship between the two tables, see L<DBIx::Class::Relationship>
+for the join used by each relationship.
+
 =item .. create joins with conditions other than column equality?
 
-=item .. search using greater-than or less-than and database functions?
-NOT 
- my $interval = "now() - interval '12 hours'";
- last_attempt => { '<' => \$interval },
-BUT
-08:44 <@castaway> my $interval = "< now() - interval '12 hours'"; .. 
-                  last_attempt => \$interval ,
+Currently, L<DBIx::Class> can only create join conditions using
+equality, so you're probably better off creating a VIEW in your
+database, and using that as your source.
 
+=item .. search using greater-than or less-than and database functions?
+
+To use functions or literal SQL with conditions other than equality
+you need to supply the entire condition, for example:
+
+ my $interval = "< now() - interval '12 hours'";
+ ->search({last_attempt => \$interval})
+
+and not:
+
+ my $interval = "now() - interval '12 hours'";
+ ->search({last_attempt => { '<' => \$interval } })
 
 =item .. find more help on constructing searches?
 
@@ -194,7 +237,7 @@ documentation.
 
 =item .. fetch as much data as possible in as few select calls as possible? (prefetch)
 
-See the prefetch examples in the L<DBIx::Class::Manual::Cookbook|"Cookbook">.
+See the prefetch examples in the L<Cookbook|DBIx::Class::Manual::Cookbook>.
 
 =back
 
@@ -202,13 +245,40 @@ See the prefetch examples in the L<DBIx::Class::Manual::Cookbook|"Cookbook">.
 
 =over 4
 
+=item .. insert a row with an auto incrementing primary key?
+
+In versions of L<DBIx::Class> less than 0.07, you need to ensure your
+table class loads the L<PK::Auto|DBIx::Class::PK::Auto>
+component. This will attempt to fetch the value of your primary key
+from the database after the insert has happened, and store it in the
+created object. In versions 0.07 and above, this component is
+automatically loaded.
+
+=item .. insert a row with a primary key that uses a sequence?
+
+You need to create a trigger in your database that updates your
+primary key field from the sequence. To help PK::Auto find your
+inserted key, you can tell it the name of the sequence in the
+C<column_info> supplied with C<add_columns>.
+
+ ->add_columns({ id => { sequence => 'mysequence' } });
+
 =item .. insert many rows of data efficiently?
 
 =item .. update a collection of rows at the same time?
 
+Create a resultset using a search, to filter the rows of data you
+would like to update, then call update on the resultset to change all
+the rows at once.
+
 =item .. use database functions when updating rows?
 
 =item .. update a column using data from another column?
+
+To stop the column name from being quoted, you'll need to supply a
+scalar reference:
+
+ ->update({ somecolumn => '\othercolumn'})
 
 =back
 
@@ -218,11 +288,25 @@ See the prefetch examples in the L<DBIx::Class::Manual::Cookbook|"Cookbook">.
 
 =item How do I store my own (non-db) data in my DBIx::Class objects?
 
+You can add your own data accessors to your classes.
+
 =item How do I use DBIx::Class objects my TT templates?
+
+Like normal objects, mostly. However you need to watch out for TTs
+calling methods in list context, this means that when calling
+relationship accessors you will not get resultsets, but a list of all
+the related objects.
 
 =item See the SQL statements my code is producing?
 
+Turn on debugging!
+
 =item Why didn't my search run any SQL?
 
+L<DBIx::Class> runs the actual SQL statement as late as possible, thus
+if you create a resultset using C<search> in scalar context, no query
+is executed. You can create further resultset refinements by calling
+search again or relationship accessors. The SQL query is only run when
+you ask the resultset for an actual Row object.
 
 =back
