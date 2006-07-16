@@ -206,8 +206,10 @@ for the join used by each relationship.
 =item .. create joins with conditions other than column equality?
 
 Currently, L<DBIx::Class> can only create join conditions using
-equality, so you're probably better off creating a VIEW in your
-database, and using that as your source.
+equality, so you're probably better off creating a C<view> in your
+database, and using that as your source. A C<view> is a stored SQL query,
+which can be accessed similarly to a table, see your database
+documentation for details.
 
 =item .. search using greater-than or less-than and database functions?
 
@@ -290,7 +292,7 @@ scalar reference:
 
 You can add your own data accessors to your classes.
 
-=item How do I use DBIx::Class objects my TT templates?
+=item How do I use DBIx::Class objects in my TT templates?
 
 Like normal objects, mostly. However you need to watch out for TTs
 calling methods in list context, this means that when calling
@@ -299,7 +301,9 @@ the related objects.
 
 =item See the SQL statements my code is producing?
 
-Turn on debugging!
+Turn on debugging! See L<DBIx::Class::Storage::DBI> for details of how
+to turn on debugging in the environment, pass your own filehandle to
+save debug to, or create your own callback.
 
 =item Why didn't my search run any SQL?
 

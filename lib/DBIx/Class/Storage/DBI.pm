@@ -417,6 +417,9 @@ This method is deprecated in favor of setting via L</connect_info>.
 Causes SQL trace information to be emitted on the C<debugobj> object.
 (or C<STDERR> if C<debugobj> has not specifically been set).
 
+This is the equivalent to setting L</DBIC_TRACE> in your
+shell environment.
+
 =head2 debugfh
 
 Set or retrieve the filehandle used for trace/debug output.  This should be
