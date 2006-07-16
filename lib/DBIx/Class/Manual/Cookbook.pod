@@ -401,6 +401,24 @@ SQL statements:
   my $tag = $rs->first;
   print $tag->cd->artist->name;
 
+=head2 Using relationships
+
+=head3 Create a new row in a related table
+
+  my $book->create_related('author', { name => 'Fred'});
+
+=head3 Search in a related table
+
+Only searches for books named 'Titanic' by the author in $author.
+
+  my $author->search_related('books', { name => 'Titanic' });
+
+=head3 Delete data in a related table
+
+Deletes only the book named Titanic by the author in $author.
+
+  my $author->delete_related('books', { name => 'Titanic' });
+
 =head2 Transactions
 
 As of version 0.04001, there is improved transaction support in
