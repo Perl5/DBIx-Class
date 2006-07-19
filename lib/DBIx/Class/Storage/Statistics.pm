@@ -82,16 +82,17 @@ executed and subsequent arguments are the parameters used for the query.
 
 =cut
 sub query_start {
-    my $self = shift();
-    my $string = shift();
+    my ($self, $string, @bind) = @_;
+
+    my $message = "$string: ".join(', ', @bind)."\n";
 
     if(defined($self->callback())) {
       $string =~ m/^(\w+)/;
-      $self->callback()->($1, $string, @_);
+      $self->callback()->($1, $message);
       return;
     }
 
-    $self->debugfh->print("$string: " . join(', ', @_) . "\n");
+    $self->debugfh->print($message);
 }
 
 =head2 query_end
