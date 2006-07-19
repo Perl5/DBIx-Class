@@ -87,7 +87,7 @@ sub query_start {
 
     if(defined($self->callback())) {
       $string =~ m/^(\w+)/;
-      $self->callback()->($1, $string);
+      $self->callback()->($1, $string, @_);
       return;
     }
 
