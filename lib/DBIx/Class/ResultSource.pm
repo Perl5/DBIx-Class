@@ -12,10 +12,10 @@ __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships/);
+  schema from _relationships source_name/);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
-  result_class source_name/);
+  result_class/);
 
 =head1 NAME
 
