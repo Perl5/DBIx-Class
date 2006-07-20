@@ -1568,7 +1568,8 @@ sub _resolved_attrs {
 
 sub _merge_attr {
   my ($self, $a, $b) = @_;
-  return $b unless $a;
+  return $b unless defined($a);
+  return $a unless defined($b);
   
   if (ref $b eq 'HASH' && ref $a eq 'HASH') {
     foreach my $key (keys %{$b}) {
