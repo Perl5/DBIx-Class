@@ -1,5 +1,36 @@
 Revision history for DBIx::Class
 
+        - supress warnings for possibly non-unique queries, since
+          _is_unique_query doesn't infer properly in all cases
+        - skip empty queries to eliminate spurious warnings on ->deploy
+        - fixups to ORDER BY, tweaks to deepen some copies in ResultSet
+        - fixup for RowNum limit syntax with functions
+
+0.06999_07 2006-07-12 20:58:05
+        - fix issue with from attr copying introduced in last release
+
+0.06999_06 2006-07-12 17:16:55
+        - documentation for new storage options, fix S::A::L hanging on to $dbh
+        - substantial refactor of search_related code to fix alias numbering
+        - don't generate partial unique keys in ResultSet::find() when a table
+          has more than one unique constraint which share a column and only one
+          is satisfied
+        - cleanup UTF8Columns and make more efficient
+        - rename DBIX_CLASS_STORAGE_DBI_DEBUG to DBIC_TRACE (with compat)
+        - rename _parent_rs to _parent_source in ResultSet
+        - new FAQ.pod!
+
+0.06999_05 2006-07-04 14:40:01
+        - fix issue with incorrect $rs->{attrs}{alias}
+        - fix subclassing issue with source_name
+        - tweak quotes test to output text on failure
+        - fix Schema->txn_do to not fail as a classmethod
+
+0.06999_04 2006-06-29 20:18:47
+        - disable cdbi-t/02-Film.t warning tests under AS perl
+        - fixups to MySQL tests (aka "work round mysql being retarded")
+        - compat tweaks for Storage debug logging
+
 0.06999_03 2006-06-26 21:04:44
         - various documentation improvements
         - fixes to pass test suite on Windows

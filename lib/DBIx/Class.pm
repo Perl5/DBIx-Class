@@ -13,7 +13,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.06999_03';
+$VERSION = '0.06999_07';
 
 sub MODIFY_CODE_ATTRIBUTES {
     my ($class,$code,@attrs) = @_;
@@ -180,7 +180,7 @@ andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
 
-blblack: Brandon Black
+blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
 
@@ -206,7 +206,7 @@ castaway: Jess Robinson
 
 quicksilver: Jules Bean
 
-jguenther: Justin Guenther <guentherj@agr.gc.ca>
+jguenther: Justin Guenther <jguenther@cpan.org>
 
 captainL: Luke Saunders <luke.saunders@gmail.com>
 

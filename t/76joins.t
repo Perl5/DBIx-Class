@@ -7,13 +7,15 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
+my $orig_debug = $schema->storage->debug;
+
 use IO::File;
 
 BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 43 );
+        : ( tests => 47 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -140,8 +142,6 @@ cmp_ok($rs + 0, '==', 3, 'Correct number of records returned');
 
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++ });
-
-$queries = 0;
 $schema->storage->debug(1);
 
 my @cd = $rs->all;
@@ -158,7 +158,8 @@ is($cd[2]->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'Prefetch on 
 
 is($queries, 1, 'prefetch ran only 1 select statement');
 
-$schema->storage->debug(0);
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);
 
 # test for partial prefetch via columns attr
 my $cd = $schema->resultset('CD')->find(1,
@@ -171,6 +172,7 @@ ok(eval { $cd->artist->name eq 'Caterwauler McCrae' }, 'single related column pr
 
 # start test for nested prefetch SELECT count
 $queries = 0;
+$schema->storage->debugcb(sub { $queries++ });
 $schema->storage->debug(1);
 
 $rs = $schema->resultset('Tag')->search(
@@ -198,7 +200,8 @@ is($cd->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'artist prefetch
 
 is($queries, 1, 'find with prefetch ran exactly 1 select statement (excluding column_info)');
 
-$schema->storage->debug(0);
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);
 
 $rs = $schema->resultset('Tag')->search(
   {},
@@ -276,6 +279,7 @@ SKIP: {
 is($rs->next->name, 'Caterwauler McCrae', "Correct artist returned");
 
 $queries = 0;
+$schema->storage->debugcb(sub { $queries++ });
 $schema->storage->debug(1);
 
 my $tree_like =
@@ -291,7 +295,43 @@ is($tree_like->name, 'bar', 'Second level up ok');
 $tree_like = $tree_like->parent;
 is($tree_like->name, 'foo', 'Third level up ok');
 
-$schema->storage->debug(0);
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);
 
 cmp_ok($queries, '==', 1, 'Only one query run');
 
+$tree_like = $schema->resultset('TreeLike')->search({'me.id' => 1});
+$tree_like = $tree_like->search_related('children')->search_related('children')->search_related('children')->first;
+is($tree_like->name, 'quux', 'Tree search_related ok');
+
+$tree_like = $schema->resultset('TreeLike')->search_related('children',
+    { 'children.id' => 2, 'children_2.id' => 3 },
+    { prefetch => { children => 'children' } }
+  )->first;
+is(eval { $tree_like->children->first->children->first->name }, 'quux',
+   'Tree search_related with prefetch ok');
+
+$tree_like = eval { $schema->resultset('TreeLike')->search(
+    { 'children.id' => 2, 'children_2.id' => 5 }, 
+    { join => [qw/children children/] }
+  )->search_related('children', { 'children_4.id' => 6 }, { prefetch => 'children' }
+  )->first->children->first; };
+is(eval { $tree_like->name }, 'fong', 'Tree with multiple has_many joins ok');
+
+# test that collapsed joins don't get a _2 appended to the alias
+
+my $sql = '';
+$schema->storage->debugcb(sub { $sql = $_[1] });
+$schema->storage->debug(1);
+
+eval {
+  my $row = $schema->resultset('Artist')->search_related('cds', undef, {
+    join => 'tracks',
+    prefetch => 'tracks',
+  })->search_related('tracks')->first;
+};
+
+like( $sql, qr/^SELECT tracks_2\.trackid/, "join not collapsed for search_related" );
+
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);

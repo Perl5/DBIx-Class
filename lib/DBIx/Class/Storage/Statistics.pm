@@ -40,7 +40,7 @@ sub new {
 Sets or retrieves the filehandle used for trace/debug output.  This should
 be an IO::Handle compatible object (only the C<print> method is used). Initially
 should be set to STDERR - although see information on the
-L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
+L<DBIC_TRACE> environment variable.
 
 =head2 txn_begin
 
@@ -82,16 +82,17 @@ executed and subsequent arguments are the parameters used for the query.
 
 =cut
 sub query_start {
-    my $self = shift();
-    my $string = shift();
+    my ($self, $string, @bind) = @_;
+
+    my $message = "$string: ".join(', ', @bind)."\n";
 
     if(defined($self->callback())) {
       $string =~ m/^(\w+)/;
-      $self->callback()->($1, $string);
+      $self->callback()->($1, $message);
       return;
     }
 
-    $self->debugfh->print("$string: " . join(', ', @_) . "\n");
+    $self->debugfh->print($message);
 }
 
 =head2 query_end

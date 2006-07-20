@@ -390,6 +390,8 @@ sub compose_namespace {
         $target_class => $source->result_class, ($base ? $base : ())
       );
       $source->result_class($target_class);
+      $target_class->result_source_instance($source)
+        if $target_class->can('result_source_instance');
     }
   }
   Class::C3->reinitialize();
@@ -555,8 +557,8 @@ context and it will behave as expected.
 sub txn_do {
   my ($self, $coderef, @args) = @_;
 
-  ref $self or $self->throw_exception
-    ('Cannot execute txn_do as a class method');
+  $self->storage or $self->throw_exception
+    ('txn_do called on $schema without storage');
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
 
@@ -698,6 +700,10 @@ Attempts to deploy the schema to the current storage using L<SQL::Translator>.
 
 Note that this feature is currently EXPERIMENTAL and may not work correctly
 across all databases, or fully handle complex relationships.
+
+See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>. The most
+common value for this would be C<< { add_drop_table => 1, } >> to have the SQL
+produced include a DROP TABLE statement for each table created.
 
 =cut
 

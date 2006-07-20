@@ -184,7 +184,6 @@ that contain this tables foreign key in one of their columns:
 More information about the various types of relationships available, and
 how you can design your own, can be found in L<DBIx::Class::Relationship>.
 
-
 =head2 Using L<DBIx::Class::Schema::Loader>
 
 This is an external module, and not part of the L<DBIx::Class>
@@ -195,26 +194,20 @@ Here's a simple setup:
   package My::Schema;
   use base qw/DBIx::Class::Schema::Loader/;
 
-  __PACKAGE__->load_from_connection(
-    connect_info = [ 'dbi:SQLite:/home/me/myapp/my.db' ]
-  );
+  __PACKAGE__->loader_options( relationships => 1 );
 
   1;
 
-This should be equivalent to the manual setup in the section above.
+The actual autoloading process will occur when you create a connected
+instance of your schema below.
+
 L<DBIx::Class::Schema::Loader> takes lots of other options.  For more
 information, consult its documentation.
 
 =head2 Connecting
 
-L<DBIx::Class::Schema::Loader> already contains the connection info for the
-database, so to get started all you need to do is create an instance of your
-class:
-
-  my $schema = My::Schema->new();
-
-To connect to your manually created Schema, you also need to provide the
-connection details:
+To connect to your Schema, you also need to provide the connection details.
+The arguments are the same as you would use for L<DBI/connect>:
 
   my $schema = My::Schema->connect('dbi:SQLite:/home/me/myapp/my.db');
 
@@ -226,9 +219,19 @@ a second database you want to access:
 Note that L<DBIx::Class::Schema> does not cache connections for you. If you
 use multiple connections, you need to do this manually.
 
-To execute some sql statements on every connect you can pass them to your schema after the connect:
+To execute some sql statements on every connect you can add them as an option
+in a special fifth argument to connect, like so:
 
-  $schema->storage->on_connect_do(\@on_connect_sql_statments);
+  my $another_schema = My::Schema->connect(
+      $dsn,
+      $user,
+      $password,
+      $attrs,
+      { on_connect_do => \@on_connect_sql_statments }
+  );
+
+For more information about this and other special C<connect()>-time options,
+see L<DBIx::Class::Schema::Storage::DBI/connect_info>.
 
 =head2 Basic usage
 

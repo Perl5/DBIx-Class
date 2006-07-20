@@ -23,6 +23,9 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key('trackid');
 
+__PACKAGE__->add_unique_constraint([ qw/cd position/ ]);
+__PACKAGE__->add_unique_constraint([ qw/cd title/ ]);
+
 __PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD' );
 __PACKAGE__->belongs_to( disc => 'DBICTest::Schema::CD' => 'cd');
 

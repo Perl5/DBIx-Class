@@ -16,8 +16,9 @@ use lib qw(t/lib);
 use_ok('DBICTest');
 DBICTest->init_schema();
 
-DBICTest->schema->storage->sql_maker->quote_char("'");
-DBICTest->schema->storage->sql_maker->name_sep('.');
+my $dsn = DBICTest->schema->storage->connect_info->[0];
+
+DBICTest->schema->connection($dsn, { quote_char => "'", name_sep => '.' });
 
 my $rs = DBICTest::CD->search(
            { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
@@ -45,8 +46,7 @@ $rs = DBICTest::CD->search({},
             "No problem handling ORDER by scalaref" );
 }
 
-DBICTest->schema->storage->sql_maker->quote_char([qw/[ ]/]);
-DBICTest->schema->storage->sql_maker->name_sep('.');
+DBICTest->schema->connection($dsn, { quote_char => [qw/[ ]/], name_sep => '.' });
 
 $rs = DBICTest::CD->search(
            { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
@@ -58,8 +58,7 @@ my %data = (
        order => '12'
 );
 
-DBICTest->schema->storage->sql_maker->quote_char('`');
-DBICTest->schema->storage->sql_maker->name_sep('.');
+DBICTest->schema->connection($dsn, { quote_char => '`', name_sep => '.' });
 
 cmp_ok(DBICTest->schema->storage->sql_maker->update('group', \%data), 'eq', 'UPDATE `group` SET `name` = ?, `order` = ?', "quoted table names for UPDATE");
 

@@ -1,5 +1,5 @@
 package # hide from PAUSE 
-    DBICTest::Extra;
+    DBICTest::ResultSetManager;
 use base 'DBIx::Class::Schema';
 
 __PACKAGE__->load_classes("Foo");

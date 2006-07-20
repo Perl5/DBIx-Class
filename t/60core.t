@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 61;
+plan tests => 62;
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
 # which case COUNT(DISTINCT()) doesn't work
@@ -164,7 +164,7 @@ is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
 $new = $schema->resultset("Track")->new( {
   trackid => 100,
   cd => 1,
-  position => 1,
+  position => 4,
   title => 'Insert or Update',
 } );
 $new->update_or_insert;
@@ -253,6 +253,9 @@ ok($schema->storage(), 'Storage available');
 
   my @artsn = $schema->resultset('SourceNameArtists')->search({}, { order_by => 'name DESC' });
   cmp_ok(@artsn, '==', 4, "Four artists returned");
+  
+  # make sure subclasses that don't set source_name are ok
+  ok($schema->source('ArtistSubclass', 'ArtistSubclass exists'));
 }
 
 my $newbook = $schema->resultset( 'Bookmark' )->find(1);

@@ -118,6 +118,19 @@ instead of a join condition hash, that is used as the name of the column
 holding the foreign key. If $cond is not given, the relname is used as
 the column name.
 
+If the relationship is optional - ie the column containing the foreign
+key can be NULL - then the belongs_to relationship does the right
+thing - so in the example above C<$obj->author> would return C<undef>.
+However in this case you would probably want to set the C<join_type>
+attribute so that a C<LEFT JOIN> is done, which makes complex
+resultsets involving C<join> or C<prefetch> operations work correctly.
+The modified declaration is shown below:-
+
+  # in a Book class (where Author has many Books)
+  __PACKAGE__->belongs_to(author => 'My::DBIC::Schema::Author',
+                          'author', {join_type => 'left'});
+
+
 Cascading deletes are off per default on a C<belongs_to> relationship, to turn
 them on, pass C<< cascade_delete => 1 >> in the $attr hashref.
 

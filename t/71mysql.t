@@ -69,10 +69,13 @@ my $test_type_info = {
 
 SKIP: {
     my $mysql_version = $dbh->get_info( $GetInfoType{SQL_DBMS_VER} );
-
     skip "Cannot determine MySQL server version", 1 if !$mysql_version;
 
-    my ($v1, $v2, $v3) = split(/\./, $mysql_version);
+    my ($v1, $v2, $v3) = $mysql_version =~ /^(\d+)\.(\d+)(?:\.(\d+))?/;
+    skip "Cannot determine MySQL server version", 1 if !$v1 || !defined($v2);
+
+    $v3 ||= 0;
+
     if( ($v1 < 5) || ($v1 == 5 && $v2 == 0 && $v3 <= 3) ) {
         $test_type_info->{charfield}->{data_type} = 'VARCHAR';
     }

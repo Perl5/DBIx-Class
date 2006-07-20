@@ -17,9 +17,30 @@ package DBIC::SQL::Abstract; # Would merge upstream, but nate doesn't reply :(
 
 use base qw/SQL::Abstract::Limit/;
 
+# This prevents the caching of $dbh in S::A::L, I believe
+sub new {
+  my $self = shift->SUPER::new(@_);
+
+  # If limit_dialect is a ref (like a $dbh), go ahead and replace
+  #   it with what it resolves to:
+  $self->{limit_dialect} = $self->_find_syntax($self->{limit_dialect})
+    if ref $self->{limit_dialect};
+
+  $self;
+}
+
+# While we're at it, this should make LIMIT queries more efficient,
+#  without digging into things too deeply
+sub _find_syntax {
+  my ($self, $syntax) = @_;
+  $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
+}
+
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
   $table = $self->_quote($table) unless ref($table);
+  local $self->{rownum_hack_count} = 1
+    if (defined $rest[0] && $self->{limit_dialect} eq 'RowNum');
   @rest = (-1) unless defined $rest[0];
   die "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
@@ -67,7 +88,12 @@ sub _recurse_fields {
   return $$fields if $ref eq 'SCALAR';
 
   if ($ref eq 'ARRAY') {
-    return join(', ', map { $self->_recurse_fields($_) } @$fields);
+    return join(', ', map {
+      $self->_recurse_fields($_)
+      .(exists $self->{rownum_hack_count}
+         ? ' AS col'.$self->{rownum_hack_count}++
+         : '')
+     } @$fields);
   } elsif ($ref eq 'HASH') {
     foreach my $func (keys %$fields) {
       return $self->_sqlcase($func)
@@ -92,10 +118,18 @@ sub _order_by {
       $ret .= $self->_sqlcase(' having ').$frag;
     }
     if (defined $_[0]->{order_by}) {
-      $ret .= $self->SUPER::_order_by($_[0]->{order_by});
+      $ret .= $self->_order_by($_[0]->{order_by});
     }
-  } elsif(ref $_[0] eq 'SCALAR') {
+  } elsif (ref $_[0] eq 'SCALAR') {
     $ret = $self->_sqlcase(' order by ').${ $_[0] };
+  } elsif (ref $_[0] eq 'ARRAY' && @{$_[0]}) {
+    my @order = @{+shift};
+    $ret = $self->_sqlcase(' order by ')
+          .join(', ', map {
+                        my $r = $self->_order_by($_, @_);
+                        $r =~ s/^ ?ORDER BY //i;
+                        $r;
+                      } @order);
   } else {
     $ret = $self->SUPER::_order_by(@_);
   }
@@ -196,14 +230,6 @@ sub _quote {
   return $self->SUPER::_quote($label);
 }
 
-sub _RowNum {
-   my $self = shift;
-   my $c;
-   $_[0] =~ s/SELECT (.*?) FROM/
-     'SELECT '.join(', ', map { $_.' AS col'.++$c } split(', ', $1)).' FROM'/e;
-   $self->SUPER::_RowNum(@_);
-}
-
 sub limit_dialect {
     my $self = shift;
     $self->{limit_dialect} = shift if @_;
@@ -229,8 +255,8 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_connect_info _dbh _sql_maker _conn_pid _conn_tid debug debugobj
-     cursor on_connect_do transaction_depth/);
+  qw/_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid _conn_tid
+     debug debugobj cursor on_connect_do transaction_depth/);
 
 =head1 NAME
 
@@ -256,15 +282,19 @@ sub new {
   $new->debugobj(new DBIx::Class::Storage::Statistics());
 
   my $fh;
-  if (defined($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}) &&
-     ($ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} =~ /=(.+)$/)) {
+
+  my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
+                  || $ENV{DBIC_TRACE};
+
+  if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
     $fh = IO::File->new($1, 'w')
       or $new->throw_exception("Cannot open trace file $1");
   } else {
     $fh = IO::File->new('>&STDERR');
   }
   $new->debugfh($fh);
-  $new->debug(1) if $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG};
+  $new->debug(1) if $debug_env;
+  $new->_sql_maker_opts({});
   return $new;
 }
 
@@ -291,52 +321,111 @@ The arrayref can either contain the same set of arguments one would
 normally pass to L<DBI/connect>, or a lone code reference which returns
 a connected database handle.
 
-In either case, there is an optional final element within the arrayref
-which can hold a hashref of connection-specific Storage::DBI options.
-These include C<on_connect_do>, and the sql_maker options
-C<limit_dialect>, C<quote_char>, and C<name_sep>.  Examples:
+In either case, if the final argument in your connect_info happens
+to be a hashref, C<connect_info> will look there for several
+connection-specific options:
 
+=over 4
+
+=item on_connect_do
+
+This can be set to an arrayref of literal sql statements, which will
+be executed immediately after making the connection to the database
+every time we [re-]connect.
+
+=item limit_dialect 
+
+Sets the limit dialect. This is useful for JDBC-bridge among others
+where the remote SQL-dialect cannot be determined by the name of the
+driver alone.
+
+=item quote_char
+
+Specifies what characters to use to quote table and column names. If 
+you use this you will want to specify L<name_sep> as well.
+
+quote_char expects either a single character, in which case is it is placed
+on either side of the table/column, or an arrayref of length 2 in which case the
+table/column name is placed between the elements.
+
+For example under MySQL you'd use C<quote_char =E<gt> '`'>, and user SQL Server you'd 
+use C<quote_char =E<gt> [qw/[ ]/]>.
+
+=item name_sep
+
+This only needs to be used in conjunction with L<quote_char>, and is used to 
+specify the charecter that seperates elements (schemas, tables, columns) from 
+each other. In most cases this is simply a C<.>.
+
+=back
+
+These options can be mixed in with your other L<DBI> connection attributes,
+or placed in a seperate hashref after all other normal L<DBI> connection
+arguments.
+
+Every time C<connect_info> is invoked, any previous settings for
+these options will be cleared before setting the new ones, regardless of
+whether any options are specified in the new C<connect_info>.
+
+Examples:
+
+  # Simple SQLite connection
   ->connect_info([ 'dbi:SQLite:./foo.db' ]);
 
+  # Connect via subref
   ->connect_info([ sub { DBI->connect(...) } ]);
 
+  # A bit more complicated
   ->connect_info(
     [
       'dbi:Pg:dbname=foo',
       'postgres',
       'my_pg_password',
       { AutoCommit => 0 },
-      { quote_char => q{`}, name_sep => q{@} },
+      { quote_char => q{"}, name_sep => q{.} },
     ]
   );
 
+  # Equivalent to the previous example
+  ->connect_info(
+    [
+      'dbi:Pg:dbname=foo',
+      'postgres',
+      'my_pg_password',
+      { AutoCommit => 0, quote_char => q{"}, name_sep => q{.} },
+    ]
+  );
+
+  # Subref + DBIC-specific connection options
   ->connect_info(
     [
       sub { DBI->connect(...) },
-      { quote_char => q{`}, name_sep => q{@} },
+      {
+          quote_char => q{`},
+          name_sep => q{@},
+          on_connect_do => ['SET search_path TO myschema,otherschema,public'],
+      },
     ]
   );
 
 =head2 on_connect_do
 
-  $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
-
-Call this after C<< $schema->connect >> to have the sql statements
-given executed on every db connect.
-
-This option can also be set via L</connect_info>.
+This method is deprecated in favor of setting via L</connect_info>.
 
 =head2 debug
 
 Causes SQL trace information to be emitted on the C<debugobj> object.
 (or C<STDERR> if C<debugobj> has not specifically been set).
 
+This is the equivalent to setting L</DBIC_TRACE> in your
+shell environment.
+
 =head2 debugfh
 
 Set or retrieve the filehandle used for trace/debug output.  This should be
 an IO::Handle compatible ojbect (only the C<print> method is used.  Initially
 set to be STDERR - although see information on the
-L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
+L<DBIC_TRACE> environment variable.
 
 =cut
 
@@ -401,13 +490,11 @@ sub connected { my ($self) = @_;
 
   if(my $dbh = $self->_dbh) {
       if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
-          $self->_sql_maker(undef);
           return $self->_dbh(undef);
       }
       elsif($self->_conn_pid != $$) {
           $self->_dbh->{InactiveDestroy} = 1;
-          $self->_sql_maker(undef);
-          return $self->_dbh(undef)
+          return $self->_dbh(undef);
       }
       return ($dbh->FETCH('Active') && $dbh->ping);
   }
@@ -446,7 +533,7 @@ sub dbh {
 sub _sql_maker_args {
     my ($self) = @_;
     
-    return ( limit_dialect => $self->dbh );
+    return ( limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
 }
 
 =head2 sql_maker
@@ -468,30 +555,28 @@ sub connect_info {
   my ($self, $info_arg) = @_;
 
   if($info_arg) {
-    my %sql_maker_opts;
+    # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
+    #  the new set of options
+    $self->_sql_maker(undef);
+    $self->_sql_maker_opts({});
+
     my $info = [ @$info_arg ]; # copy because we can alter it
     my $last_info = $info->[-1];
     if(ref $last_info eq 'HASH') {
-      my $used;
-      if(my $on_connect_do = $last_info->{on_connect_do}) {
-        $used = 1;
+      if(my $on_connect_do = delete $last_info->{on_connect_do}) {
         $self->on_connect_do($on_connect_do);
       }
       for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
-        if(my $opt_val = $last_info->{$sql_maker_opt}) {
-          $used = 1;
-          $sql_maker_opts{$sql_maker_opt} = $opt_val;
+        if(my $opt_val = delete $last_info->{$sql_maker_opt}) {
+          $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
         }
       }
 
-      # remove our options hashref if it was there, to avoid confusing
-      #   DBI in the case the user didn't use all 4 DBI options, as in:
-      #   [ 'dbi:SQLite:foo.db', { quote_char => q{`} } ]
-      pop(@$info) if $used;
+      # Get rid of any trailing empty hashref
+      pop(@$info) if !keys %$last_info;
     }
 
     $self->_connect_info($info);
-    $self->sql_maker->$_($sql_maker_opts{$_}) for(keys %sql_maker_opts);
   }
 
   $self->_connect_info;
@@ -961,13 +1046,14 @@ L<DBIx::Class::Schema/deploy>.
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
-  foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, $sqltargs) ) {
+  foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, { no_comments => 1, %$sqltargs }) ) {
     for ( split(";\n", $statement)) {
       next if($_ =~ /^--/);
       next if(!$_);
 #      next if($_ =~ /^DROP/m);
       next if($_ =~ /^BEGIN TRANSACTION/m);
       next if($_ =~ /^COMMIT/m);
+      next if $_ =~ /^\s+$/; # skip whitespace only
       $self->debugobj->query_start($_) if $self->debug;
       $self->dbh->do($_) or warn "SQL was:\n $_";
       $self->debugobj->query_end($_) if $self->debug;
@@ -1033,41 +1119,26 @@ The following methods are extended:-
 
 =item limit_dialect
 
-Accessor for setting limit dialect. This is useful
-for JDBC-bridge among others where the remote SQL-dialect cannot
-be determined by the name of the driver alone.
-
-This option can also be set via L</connect_info>.
+See L</connect_info> for details.
+For setting, this method is deprecated in favor of L</connect_info>.
 
 =item quote_char
 
-Specifies what characters to use to quote table and column names. If 
-you use this you will want to specify L<name_sep> as well.
-
-quote_char expectes either a single character, in which case is it is placed
-on either side of the table/column, or an arrayref of length 2 in which case the
-table/column name is placed between the elements.
-
-For example under MySQL you'd use C<quote_char('`')>, and user SQL Server you'd 
-use C<quote_char(qw/[ ]/)>.
-
-This option can also be set via L</connect_info>.
+See L</connect_info> for details.
+For setting, this method is deprecated in favor of L</connect_info>.
 
 =item name_sep
 
-This only needs to be used in conjunction with L<quote_char>, and is used to 
-specify the charecter that seperates elements (schemas, tables, columns) from 
-each other. In most cases this is simply a C<.>.
-
-This option can also be set via L</connect_info>.
+See L</connect_info> for details.
+For setting, this method is deprecated in favor of L</connect_info>.
 
 =back
 
 =head1 ENVIRONMENT VARIABLES
 
-=head2 DBIX_CLASS_STORAGE_DBI_DEBUG
+=head2 DBIC_TRACE
 
-If C<DBIX_CLASS_STORAGE_DBI_DEBUG> is set then SQL trace information
+If C<DBIC_TRACE> is set then SQL trace information
 is produced (as when the L<debug> method is set).
 
 If the value is of the form C<1=/path/name> then the trace output is
@@ -1077,6 +1148,10 @@ This environment variable is checked when the storage object is first
 created (when you call connect on your schema).  So, run-time changes 
 to this environment variable will not take effect unless you also 
 re-connect on your schema.
+
+=head2 DBIX_CLASS_STORAGE_DBI_DEBUG
+
+Old name for DBIC_TRACE
 
 =head1 AUTHORS
 
