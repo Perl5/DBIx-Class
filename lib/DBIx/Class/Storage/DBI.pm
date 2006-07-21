@@ -953,14 +953,12 @@ sub create_ddl_dir
   $databases ||= ['MySQL', 'SQLite', 'PostgreSQL'];
   $databases = [ $databases ] if(ref($databases) ne 'ARRAY');
   $version ||= $schema->VERSION || '1.x';
+  $sqltargs = { ( add_drop_table => 1 ), %{$sqltargs || {}} };
 
   eval "use SQL::Translator";
   $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
 
-  my $sqlt = SQL::Translator->new({
-#      debug => 1,
-      add_drop_table => 1,
-  });
+  my $sqlt = SQL::Translator->new($sqltargs);
   foreach my $db (@$databases)
   {
     $sqlt->reset();
@@ -1046,7 +1044,7 @@ L<DBIx::Class::Schema/deploy>.
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
-  foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, { no_comments => 1, %$sqltargs }) ) {
+  foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, { no_comments => 1, %{ $sqltargs || {} } } ) ) {
     for ( split(";\n", $statement)) {
       next if($_ =~ /^--/);
       next if(!$_);
