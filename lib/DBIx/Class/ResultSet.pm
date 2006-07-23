@@ -95,14 +95,24 @@ sub new {
 
   $attrs->{alias} ||= 'me';
 
-  bless {
+  # XXXX
+  # Use a named hash here and bless afterwards to avoid a huge performance hit
+  # in perl 5.8.8-5+ FC5 and later, and possibly other distributions.
+  #
+  # See https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=196836 for more
+  # information.
+  my $self = {
     result_source => $source,
     result_class => $attrs->{result_class} || $source->result_class,
     cond => $attrs->{where},
     count => undef,
     pager => undef,
     attrs => $attrs
-  }, $class;
+  };
+
+  bless $self, $class;
+
+  return $self;
 }
 
 =head2 search
