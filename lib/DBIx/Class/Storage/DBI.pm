@@ -549,8 +549,8 @@ sub _verify_pid {
 
   return if !$self->_dbh || $self->_conn_pid == $$;
 
-  $self->_dbh(undef);
   $self->_dbh->{InactiveDestroy} = 1;
+  $self->_dbh(undef);
 
   return;
 }
