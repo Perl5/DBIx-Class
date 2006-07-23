@@ -12,7 +12,7 @@ __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships source_name/);
+  schema from _relationships column_info_from_storage source_name/);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
   result_class/);
@@ -181,6 +181,7 @@ sub column_info {
     unless exists $self->_columns->{$column};
   #warn $self->{_columns_info_loaded}, "\n";
   if ( ! $self->_columns->{$column}{data_type}
+       and $self->column_info_from_storage
        and ! $self->{_columns_info_loaded}
        and $self->schema and $self->storage )
   {
@@ -200,6 +201,15 @@ sub column_info {
   }
   return $self->_columns->{$column};
 }
+
+=head2 load_column_info_from_storage
+
+Enables the on-demand automatic loading of the above column
+metadata from storage as neccesary.
+
+=cut
+
+sub load_column_info_from_storage { shift->column_info_from_storage(1) }
 
 =head2 columns
 

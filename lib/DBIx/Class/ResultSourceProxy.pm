@@ -35,6 +35,9 @@ sub column_info {
   return $self->result_source_instance->column_info($column);
 }
 
+sub load_column_info_from_storage {
+  shift->result_source_instance->load_column_info_from_storage;
+}
 
 sub columns {
   return shift->result_source_instance->columns(@_);
