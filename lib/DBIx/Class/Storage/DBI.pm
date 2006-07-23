@@ -464,11 +464,15 @@ sub debugcb {
 
 =head2 dbh_do
 
-Execute the given subref with the underlying
-database handle as its first argument, using our
-normal exception-based connection management.  Example:
+Execute the given subref with the underlying database handle as its
+first argument, using the new exception-based connection management.
+Example:
 
-  $schema->storage->dbh_do(sub { shift->do("blah blah") });
+  my @stuff = $schema->storage->dbh_do(
+    sub {
+      shift->selectrow_array("SELECT * FROM foo")
+    }
+  );
 
 =cut
 
@@ -479,7 +483,7 @@ sub dbh_do {
   my $want_array = wantarray;
 
   eval {
-    $self->_verify_pid;
+    $self->_verify_pid if $self->_dbh;
     $self->_populate_dbh if !$self->_dbh;
     my $dbh = $self->_dbh;
     local $dbh->{RaiseError} = 1;
@@ -487,10 +491,14 @@ sub dbh_do {
     if($want_array) {
         @result = $todo->($dbh);
     }
-    else {
+    elsif(defined $want_array) {
         $result[0] = $todo->($dbh);
     }
+    else {
+        $todo->($dbh);
+    }
   };
+
   if($@) {
     my $exception = $@;
     $self->connected
@@ -500,8 +508,9 @@ sub dbh_do {
     my $dbh = $self->_dbh;
     local $dbh->{RaiseError} = 1;
     local $dbh->{PrintError} = 0;
-    return $todo->($self->_dbh);
+    return $todo->($dbh);
   }
+
   return $want_array ? @result : $result[0];
 }
 
@@ -536,7 +545,9 @@ sub connected {
       if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
           return $self->_dbh(undef);
       }
-      $self->_verify_pid;
+      else {
+          $self->_verify_pid;
+      }
       return ($dbh->FETCH('Active') && $dbh->ping);
   }
 
@@ -544,10 +555,11 @@ sub connected {
 }
 
 # handle pid changes correctly
+#  NOTE: assumes $self->_dbh is a valid $dbh
 sub _verify_pid {
   my ($self) = @_;
 
-  return if !$self->_dbh || $self->_conn_pid == $$;
+  return if $self->_conn_pid == $$;
 
   $self->_dbh->{InactiveDestroy} = 1;
   $self->_dbh(undef);
@@ -905,56 +917,56 @@ Returns database type info for a given table columns.
 sub columns_info_for {
   my ($self, $table) = @_;
 
-  my $dbh = $self->dbh;
+  $self->dbh_do(sub {
+    my $dbh = shift;
 
-  if ($dbh->can('column_info')) {
+    if ($dbh->can('column_info')) {
+      my %result;
+      eval {
+        my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
+        my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
+        $sth->execute();
+        while ( my $info = $sth->fetchrow_hashref() ){
+          my %column_info;
+          $column_info{data_type}   = $info->{TYPE_NAME};
+          $column_info{size}      = $info->{COLUMN_SIZE};
+          $column_info{is_nullable}   = $info->{NULLABLE} ? 1 : 0;
+          $column_info{default_value} = $info->{COLUMN_DEF};
+          my $col_name = $info->{COLUMN_NAME};
+          $col_name =~ s/^\"(.*)\"$/$1/;
+
+          $result{$col_name} = \%column_info;
+        }
+      };
+      return \%result if !$@;
+    }
+
     my %result;
-    local $dbh->{RaiseError} = 1;
-    local $dbh->{PrintError} = 0;
-    eval {
-      my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
-      my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
-      $sth->execute();
-      while ( my $info = $sth->fetchrow_hashref() ){
-        my %column_info;
-        $column_info{data_type}   = $info->{TYPE_NAME};
-        $column_info{size}      = $info->{COLUMN_SIZE};
-        $column_info{is_nullable}   = $info->{NULLABLE} ? 1 : 0;
-        $column_info{default_value} = $info->{COLUMN_DEF};
-        my $col_name = $info->{COLUMN_NAME};
-        $col_name =~ s/^\"(.*)\"$/$1/;
-
-        $result{$col_name} = \%column_info;
+    my $sth = $dbh->prepare("SELECT * FROM $table WHERE 1=0");
+    $sth->execute;
+    my @columns = @{$sth->{NAME_lc}};
+    for my $i ( 0 .. $#columns ){
+      my %column_info;
+      my $type_num = $sth->{TYPE}->[$i];
+      my $type_name;
+      if(defined $type_num && $dbh->can('type_info')) {
+        my $type_info = $dbh->type_info($type_num);
+        $type_name = $type_info->{TYPE_NAME} if $type_info;
       }
-    };
-    return \%result if !$@;
-  }
+      $column_info{data_type} = $type_name ? $type_name : $type_num;
+      $column_info{size} = $sth->{PRECISION}->[$i];
+      $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
 
-  my %result;
-  my $sth = $dbh->prepare("SELECT * FROM $table WHERE 1=0");
-  $sth->execute;
-  my @columns = @{$sth->{NAME_lc}};
-  for my $i ( 0 .. $#columns ){
-    my %column_info;
-    my $type_num = $sth->{TYPE}->[$i];
-    my $type_name;
-    if(defined $type_num && $dbh->can('type_info')) {
-      my $type_info = $dbh->type_info($type_num);
-      $type_name = $type_info->{TYPE_NAME} if $type_info;
-    }
-    $column_info{data_type} = $type_name ? $type_name : $type_num;
-    $column_info{size} = $sth->{PRECISION}->[$i];
-    $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
+      if ($column_info{data_type} =~ m/^(.*?)\((.*?)\)$/) {
+        $column_info{data_type} = $1;
+        $column_info{size}    = $2;
+      }
 
-    if ($column_info{data_type} =~ m/^(.*?)\((.*?)\)$/) {
-      $column_info{data_type} = $1;
-      $column_info{size}    = $2;
+      $result{$columns[$i]} = \%column_info;
     }
 
-    $result{$columns[$i]} = \%column_info;
-  }
-
-  return \%result;
+    return \%result;
+  });
 }
 
 =head2 last_insert_id
