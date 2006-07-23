@@ -1157,7 +1157,13 @@ sub build_datetime_parser {
   return $type;
 }
 
-sub DESTROY { shift->_dbh(undef) }
+sub DESTROY {
+  my $self = shift;
+  return if $self->_dbh;
+
+  $self->_verify_pid;
+  $self->_dbh(undef);
+}
 
 1;
 
