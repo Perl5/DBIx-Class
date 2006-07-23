@@ -462,6 +462,49 @@ sub debugcb {
     }
 }
 
+=head2 dbh_do
+
+Execute the given subref with the underlying
+database handle as its first argument, using our
+normal exception-based connection management.  Example:
+
+  $schema->storage->dbh_do(sub { shift->do("blah blah") });
+
+=cut
+
+sub dbh_do {
+  my ($self, $todo) = @_;
+
+  my @result;
+  my $want_array = wantarray;
+
+  eval {
+    $self->_verify_pid;
+    $self->_populate_dbh if !$self->_dbh;
+    my $dbh = $self->_dbh;
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
+    if($want_array) {
+        @result = $todo->($dbh);
+    }
+    else {
+        $result[0] = $todo->($dbh);
+    }
+  };
+  if($@) {
+    my $exception = $@;
+    $self->connected
+      ? $self->throw_exception($exception)
+      : $self->_populate_dbh;
+
+    my $dbh = $self->_dbh;
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
+    return $todo->($self->_dbh);
+  }
+  return $want_array ? @result : $result[0];
+}
+
 =head2 disconnect
 
 Disconnect the L<DBI> handle, performing a rollback first if the
@@ -486,20 +529,30 @@ is connected.
 
 =cut
 
-sub connected { my ($self) = @_;
+sub connected {
+  my ($self) = @_;
 
   if(my $dbh = $self->_dbh) {
       if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
           return $self->_dbh(undef);
       }
-      elsif($self->_conn_pid != $$) {
-          $self->_dbh->{InactiveDestroy} = 1;
-          return $self->_dbh(undef);
-      }
+      $self->_verify_pid;
       return ($dbh->FETCH('Active') && $dbh->ping);
   }
 
   return 0;
+}
+
+# handle pid changes correctly
+sub _verify_pid {
+  my ($self) = @_;
+
+  return if !$self->_dbh || $self->_conn_pid == $$;
+
+  $self->_dbh(undef);
+  $self->_dbh->{InactiveDestroy} = 1;
+
+  return;
 }
 
 =head2 ensure_connected
@@ -554,32 +607,30 @@ sub sql_maker {
 sub connect_info {
   my ($self, $info_arg) = @_;
 
-  if($info_arg) {
-    # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
-    #  the new set of options
-    $self->_sql_maker(undef);
-    $self->_sql_maker_opts({});
+  return $self->_connect_info if !$info_arg;
 
-    my $info = [ @$info_arg ]; # copy because we can alter it
-    my $last_info = $info->[-1];
-    if(ref $last_info eq 'HASH') {
-      if(my $on_connect_do = delete $last_info->{on_connect_do}) {
-        $self->on_connect_do($on_connect_do);
-      }
-      for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
-        if(my $opt_val = delete $last_info->{$sql_maker_opt}) {
-          $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
-        }
-      }
+  # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
+  #  the new set of options
+  $self->_sql_maker(undef);
+  $self->_sql_maker_opts({});
 
-      # Get rid of any trailing empty hashref
-      pop(@$info) if !keys %$last_info;
+  my $info = [ @$info_arg ]; # copy because we can alter it
+  my $last_info = $info->[-1];
+  if(ref $last_info eq 'HASH') {
+    if(my $on_connect_do = delete $last_info->{on_connect_do}) {
+      $self->on_connect_do($on_connect_do);
+    }
+    for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
+      if(my $opt_val = delete $last_info->{$sql_maker_opt}) {
+        $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
+      }
     }
 
-    $self->_connect_info($info);
+    # Get rid of any trailing empty hashref
+    pop(@$info) if !keys %$last_info;
   }
 
-  $self->_connect_info;
+  $self->_connect_info($info);
 }
 
 sub _populate_dbh {
@@ -646,12 +697,14 @@ an entire code block to be executed transactionally.
 sub txn_begin {
   my $self = shift;
   if ($self->{transaction_depth}++ == 0) {
-    my $dbh = $self->dbh;
-    if ($dbh->{AutoCommit}) {
-      $self->debugobj->txn_begin()
-        if ($self->debug);
-      $dbh->begin_work;
-    }
+    $self->dbh_do(sub {
+      my $dbh = shift;
+      if ($dbh->{AutoCommit}) {
+        $self->debugobj->txn_begin()
+          if ($self->debug);
+        $dbh->begin_work;
+      }
+    });
   }
 }
 
@@ -663,21 +716,23 @@ Issues a commit against the current dbh.
 
 sub txn_commit {
   my $self = shift;
-  my $dbh = $self->dbh;
-  if ($self->{transaction_depth} == 0) {
-    unless ($dbh->{AutoCommit}) {
-      $self->debugobj->txn_commit()
-        if ($self->debug);
-      $dbh->commit;
+  $self->dbh_do(sub {
+    my $dbh = shift;
+    if ($self->{transaction_depth} == 0) {
+      unless ($dbh->{AutoCommit}) {
+        $self->debugobj->txn_commit()
+          if ($self->debug);
+        $dbh->commit;
+      }
     }
-  }
-  else {
-    if (--$self->{transaction_depth} == 0) {
-      $self->debugobj->txn_commit()
-        if ($self->debug);
-      $dbh->commit;
+    else {
+      if (--$self->{transaction_depth} == 0) {
+        $self->debugobj->txn_commit()
+          if ($self->debug);
+        $dbh->commit;
+      }
     }
-  }
+  });
 }
 
 =head2 txn_rollback
@@ -692,24 +747,26 @@ sub txn_rollback {
   my $self = shift;
 
   eval {
-    my $dbh = $self->dbh;
-    if ($self->{transaction_depth} == 0) {
-      unless ($dbh->{AutoCommit}) {
-        $self->debugobj->txn_rollback()
-          if ($self->debug);
-        $dbh->rollback;
-      }
-    }
-    else {
-      if (--$self->{transaction_depth} == 0) {
-        $self->debugobj->txn_rollback()
-          if ($self->debug);
-        $dbh->rollback;
+    $self->dbh_do(sub {
+      my $dbh = shift;
+      if ($self->{transaction_depth} == 0) {
+        unless ($dbh->{AutoCommit}) {
+          $self->debugobj->txn_rollback()
+            if ($self->debug);
+          $dbh->rollback;
+        }
       }
       else {
-        die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
+        if (--$self->{transaction_depth} == 0) {
+          $self->debugobj->txn_rollback()
+            if ($self->debug);
+          $dbh->rollback;
+        }
+        else {
+          die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
+        }
       }
-    }
+    });
   };
 
   if ($@) {
@@ -836,7 +893,7 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 sub sth {
   my ($self, $sql) = @_;
   # 3 is the if_active parameter which avoids active sth re-use
-  return $self->dbh->prepare_cached($sql, {}, 3);
+  return $self->dbh_do(sub { shift->prepare_cached($sql, {}, 3) });
 }
 
 =head2 columns_info_for
@@ -852,10 +909,8 @@ sub columns_info_for {
 
   if ($dbh->can('column_info')) {
     my %result;
-    my $old_raise_err = $dbh->{RaiseError};
-    my $old_print_err = $dbh->{PrintError};
-    $dbh->{RaiseError} = 1;
-    $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
     eval {
       my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
       my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
@@ -872,8 +927,6 @@ sub columns_info_for {
         $result{$col_name} = \%column_info;
       }
     };
-    $dbh->{RaiseError} = $old_raise_err;
-    $dbh->{PrintError} = $old_print_err;
     return \%result if !$@;
   }
 
@@ -913,8 +966,7 @@ Return the row id of the last insert.
 sub last_insert_id {
   my ($self, $row) = @_;
     
-  return $self->dbh->func('last_insert_rowid');
-
+  $self->dbh_do(sub { shift->func('last_insert_rowid') });
 }
 
 =head2 sqlt_type
@@ -923,7 +975,7 @@ Returns the database driver name.
 
 =cut
 
-sub sqlt_type { shift->dbh->{Driver}->{Name} }
+sub sqlt_type { shift->dbh_do(sub { shift->{Driver}->{Name} }) }
 
 =head2 create_ddl_dir (EXPERIMENTAL)
 
@@ -1055,7 +1107,7 @@ sub deploy {
       next if($_ =~ /^COMMIT/m);
       next if $_ =~ /^\s+$/; # skip whitespace only
       $self->debugobj->query_start($_) if $self->debug;
-      $self->dbh->do($_) or warn "SQL was:\n $_";
+      $self->dbh->do($_) or warn "SQL was:\n $_"; # XXX exceptions?
       $self->debugobj->query_end($_) if $self->debug;
     }
   }
