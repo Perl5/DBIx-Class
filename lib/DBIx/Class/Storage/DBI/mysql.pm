@@ -8,7 +8,7 @@ use base qw/DBIx::Class::Storage::DBI/;
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
 sub last_insert_id {
-  return $_[0]->_dbh->{mysql_insertid};
+  return shift->dbh_do(sub { shift->{mysql_insertid} } );
 }
 
 sub sqlt_type {

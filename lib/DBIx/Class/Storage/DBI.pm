@@ -1147,7 +1147,7 @@ sub build_datetime_parser {
   return $type;
 }
 
-sub DESTROY { shift->disconnect }
+sub DESTROY { shift->_dbh(undef) }
 
 1;
 
