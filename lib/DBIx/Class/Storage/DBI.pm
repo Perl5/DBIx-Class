@@ -367,6 +367,12 @@ Every time C<connect_info> is invoked, any previous settings for
 these options will be cleared before setting the new ones, regardless of
 whether any options are specified in the new C<connect_info>.
 
+Important note:  DBIC expects the returned database handle provided by 
+a subref argument to have RaiseError set on it.  If it doesn't, things
+might not work very well, YMMV.  If you don't use a subref, DBIC will
+force this setting for you anyways.  Setting HandleError to anything
+other than simple exception object wrapper might cause problems too.
+
 Examples:
 
   # Simple SQLite connection
@@ -486,8 +492,6 @@ sub dbh_do {
     $self->_verify_pid if $self->_dbh;
     $self->_populate_dbh if !$self->_dbh;
     my $dbh = $self->_dbh;
-    local $dbh->{RaiseError} = 1;
-    local $dbh->{PrintError} = 0;
     if($want_array) {
         @result = $todo->($dbh);
     }
@@ -506,8 +510,6 @@ sub dbh_do {
       : $self->_populate_dbh;
 
     my $dbh = $self->_dbh;
-    local $dbh->{RaiseError} = 1;
-    local $dbh->{PrintError} = 0;
     return $todo->($dbh);
   }
 
@@ -683,9 +685,14 @@ sub _connect {
   }
 
   eval {
-    $dbh = ref $info[0] eq 'CODE'
-         ? &{$info[0]}
-         : DBI->connect(@info);
+    if(ref $info[0] eq 'CODE') {
+       $dbh = &{$info[0]}
+    }
+    else {
+       $dbh = DBI->connect(@info);
+       $dbh->{RaiseError} = 1;
+       $dbh->{PrintError} = 0;
+    }
   };
 
   $DBI::connect_via = $old_connect_via if $old_connect_via;
@@ -1159,7 +1166,7 @@ sub build_datetime_parser {
 
 sub DESTROY {
   my $self = shift;
-  return if $self->_dbh;
+  return if !$self->_dbh;
 
   $self->_verify_pid;
   $self->_dbh(undef);
