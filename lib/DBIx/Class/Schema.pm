@@ -282,21 +282,25 @@ sub load_classes {
 
 =over 4
 
-=item Arguments: None
+=item Arguments: %options?
 
 =back
 
 This is an alternative to L</load_classes> above which assumes an alternative
-layout for automatic class loading.  This variant takes no arguments.  It
-assumes that all ResultSource classes to be loaded are underneath a sub-
-namespace of the schema called "ResultSource", and any corresponding
-ResultSet classes to be underneath a sub-namespace of the schema called
-"ResultSet".
+layout for automatic class loading.  It assumes that all ResultSource classes
+to be loaded are underneath a sub- namespace of the schema called
+"ResultSource", and any corresponding ResultSet classes to be underneath a
+sub-namespace of the schema called "ResultSet".
 
-Any missing ResultSet definitions will be created in memory as basic
-inheritors of L<DBIx::Class::ResultSet>.  You don't need to explicitly
-specify the result_class of the sources unless you wish to override
-the naming convention above.
+You can change the namespaces checked for ResultSources and ResultSets via
+the C<resultsource_namespace> and C<resultset_namespace> options, respectively.
+
+Any source which does not have an explicitly-defined corresponding ResultSet
+will have one created in the appropriate namespace for it, based on
+L<DBIx::Class::ResultSet>.  If you wish to change this default ResultSet
+base class, you can do so via the C<default_resultset_base> option.  (Your
+custom default should, of course, be based on L<DBIx::Class::ResultSet>
+itself).
 
 This method requires L<Module::Find> to be installed on the system.
 
@@ -306,19 +310,33 @@ Example:
   # loads My::Schema::ResultSource::CD, My::Schema::ResultSource::Artist,
   #    My::Schema::ResultSet::CD, etc...
 
+  My::Schema->load_namespaces(
+    resultsource_namespace => 'My::Schema::RSources',
+    resultset_namespace => 'My::Schema::RSets',
+    default_resultset_base => 'My::Schema::RSetBase',
+  );
+  # loads My::Schema::RSources::CD, My::Schema::RSources::Artist,
+  #    My::Schema::RSets::CD, and if no such class exists on disk,
+  #    creates My::Schema::RSets::Artist in memory based on the
+  #    class My::Schema::RSetBase
+
 =cut
 
 sub load_namespaces {
-  my ($class) = @_;
+  my ($class, %args) = @_;
 
-  my $source_namespace = $class . '::ResultSource';
-  my $resultset_namespace = $class . '::ResultSet';
+  my $resultsource_namespace = $args{resultsource_namespace}
+                               || ($class . '::ResultSource');
+  my $resultset_namespace = $args{resultset_namespace}
+                            || ($class . '::ResultSet');
+  my $default_resultset_base = $args{default_resultset_base}
+                               || 'DBIx::Class::ResultSet';
 
   eval "require Module::Find";
   $class->throw_exception("Couldn't load Module::Find ($@)") if $@;
 
-  my %sources = map { (substr($_, length "${source_namespace}::"), $_) }
-      Module::Find::findallmod($source_namespace);
+  my %sources = map { (substr($_, length "${resultsource_namespace}::"), $_) }
+      Module::Find::findallmod($resultsource_namespace);
 
   my %resultsets = map { (substr($_, length "${resultset_namespace}::"), $_) }
       Module::Find::findallmod($resultset_namespace);
@@ -326,20 +344,21 @@ sub load_namespaces {
   my @to_register;
   {
     no warnings qw/redefine/;
+    no strict qw/refs/;
     local *Class::C3::reinitialize = sub { };
     foreach my $source (keys %sources) {
       my $source_class = $sources{$source};
       $class->ensure_class_loaded($source_class);
       $source_class->source_name($source) unless $source_class->source_name;
-      unless($source_class->resultset_class) {
+      if(!$source_class->resultset_class
+         || $source_class->resultset_class eq 'DBIx::Class::ResultSet') {
         if(my $rs_class = delete $resultsets{$source}) {
           $class->ensure_class_loaded($rs_class);
           $source_class->resultset_class($rs_class);
         }
         else {
-          require DBIx::Class::ResultSet;
-          my $rs_class = "${class}::ResultSet::$source";
-          @{"$rs_class::ISA"} = 'DBIx::Class::ResultSet';
+          my $rs_class = "$resultset_namespace\::$source";
+          @{"$rs_class\::ISA"} = ($default_resultset_base);
           $source_class->resultset_class($rs_class);
         }
       }
