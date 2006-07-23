@@ -16,25 +16,29 @@ warn "DBD::Pg 1.49 is strongly recommended"
 sub last_insert_id {
   my ($self,$source,$col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
-  $self->_dbh->last_insert_id(undef,undef,undef,undef, {sequence => $seq});
+  $self->dbh_do(sub { shift->last_insert_id(undef,undef,undef,undef, {sequence => $seq}) } );
 }
 
 sub get_autoinc_seq {
   my ($self,$source,$col) = @_;
     
   my @pri = $source->primary_columns;
-  my $dbh = $self->_dbh;
   my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2)
     : (undef,$source->name);
-  while (my $col = shift @pri) {
-    my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref;
-    if (defined $info->{COLUMN_DEF} and $info->{COLUMN_DEF} =~
-      /^nextval\(+'([^']+)'::(?:text|regclass)\)/)
-    {
-	my $seq = $1;
-      return $seq =~ /\./ ? $seq : $info->{TABLE_SCHEM} . "." . $seq; # may need to strip quotes -- see if this works
+
+  $self->dbh_do(sub {
+    my $dbh = shift;
+    while (my $col = shift @pri) {
+      my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref;
+      if (defined $info->{COLUMN_DEF} and $info->{COLUMN_DEF} =~
+        /^nextval\(+'([^']+)'::(?:text|regclass)\)/)
+      {
+	  my $seq = $1;
+        return $seq =~ /\./ ? $seq : $info->{TABLE_SCHEM} . "." . $seq; # may need to strip quotes -- see if this works
+      }
     }
-  }
+    return;
+  });
 }
 
 sub sqlt_type {
