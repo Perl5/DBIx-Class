@@ -43,11 +43,16 @@ sub parse {
 #    print Dumper($dbixschema->registered_classes);
 
     #foreach my $tableclass ($dbixschema->registered_classes)
+
+    my %seen_tables;
+
     foreach my $moniker ($dbixschema->sources)
     {
         #eval "use $tableclass";
         #print("Can't load $tableclass"), next if($@);
         my $source = $dbixschema->source($moniker);
+
+        next if $seen_tables{$source->name}++;
 
         my $table = $schema->add_table(
                                        name => $source->name,
@@ -73,15 +78,28 @@ sub parse {
         }
         $table->primary_key($source->primary_columns);
 
+        my @primary = $source->primary_columns;
+        my %unique_constraints = $source->unique_constraints;
+        foreach my $uniq (keys %unique_constraints) {
+            if (!$source->compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
+                $table->add_constraint(
+                            type             => 'unique',
+                            name             => "$uniq",
+                            fields           => $unique_constraints{$uniq}
+                );
+            }
+        }
+
         my @rels = $source->relationships();
         foreach my $rel (@rels)
         {
             my $rel_info = $source->relationship_info($rel);
 
-            my $rel_table = $source->related_source($rel)->name;
-
             # Ignore any rel cond that isn't a straight hash
             next unless ref $rel_info->{cond} eq 'HASH';
+
+            my $othertable = $source->related_source($rel);
+            my $rel_table = $othertable->name;
 
             # Get the key information, mapping off the foreign/self markers
             my @cond = keys(%{$rel_info->{cond}});
@@ -91,47 +109,31 @@ sub parse {
             if($rel_table)
             {
 
+                my $reverse_rels = $source->reverse_relationship_info($rel);
+                my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
+
+                my $on_delete = '';
+                my $on_update = '';
+
+                if (defined $otherrelationship) {
+                    $on_delete = $otherrelationship->{'attrs'}->{cascade_delete} ? 'CASCADE' : '';
+                    $on_update = $otherrelationship->{'attrs'}->{cascade_copy} ? 'CASCADE' : '';
+                }
+
                 #Decide if this is a foreign key based on whether the self
                 #items are our primary columns.
 
-                # Make sure every self key is in the primary key list
-                my $found;
-                foreach my $key (@keys) {
-                    $found = 0;
-                    foreach my $prim ($source->primary_columns) {
-                        if ($prim eq $key) {
-                            $found = 1;
-                            last;
-                        }
-                    }
-                    last unless $found;
-                }
-
-                # Make sure every primary key column is in the self keys
-                if ($found) {
-                    foreach my $prim ($source->primary_columns) {
-                        $found = 0;
-                        foreach my $key (@keys) {
-                            if ($prim eq $key) {
-                                $found = 1;
-                                last;
-                            }
-                        }
-                        last unless $found;
-                    }
-                }
-
-                # if $found then the two sets are equal.
-
                 # If the sets are different, then we assume it's a foreign key from
                 # us to another table.
-                if (!$found) {
+                if (!$source->compare_relationship_keys(\@keys, \@primary)) {
                     $table->add_constraint(
                                 type             => 'foreign_key',
                                 name             => "fk_$keys[0]",
                                 fields           => \@keys,
                                 reference_fields => \@refkeys,
                                 reference_table  => $rel_table,
+                                on_delete        => $on_delete,
+                                on_update        => $on_update
                     );
                 }
             }
@@ -141,3 +143,4 @@ sub parse {
 }
 
 1;
+

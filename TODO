@@ -1,3 +1,23 @@
+2005-04-16 by mst
+  - set_from_related should take undef
+  - ResultSource objects caching ->resultset causes interesting problems
+  - find why XSUB dumper kills schema in Catalyst (may be Pg only?)
+
+2006-04-11 by castaway
+ - using PK::Auto should set is_auto_increment for the PK columns, so that copy() "just works"
+ - docs of copy() should say that is_auto_increment is essential for auto_incrementing keys
+
+2006-03-25 by mst
+  - Refactor ResultSet::new to be less hairy
+    - we should move the setup of select, as, and from out of here
+      - these should be local rs attrs, not main attrs, and extra joins
+        provided on search should be merged
+  - find a way to un-wantarray search without breaking compat
+  - audit logging component
+  - delay relationship setup if done via ->load_classes
+  - double-sided relationships
+  - incremental deploy
+  - make short form of class specifier in relationships work
 
 2006-01-31 by bluefeet
  - Create a DBIx::Class::FilterColumn to replace inflate/deflate. This 
@@ -7,13 +27,34 @@
    We should still support the old inflate/deflate syntax, but this new 
    way should be recommended. 
 
-2006-02-07 by JR
+2006-02-07 by castaway
  - Extract DBIC::SQL::Abstract into a separate module for CPAN
  - Chop PK::Auto::Foo up to have PK::Auto refer to an appropriate
    DBIx::Storage::DBI::Foo, which will be loaded on connect from Driver info?
+(done -> 0.06001!)
  - Add deploy method to Schema, which will create DB tables from Schema, via
    SQLT
+(sorta done)
 
 2006-03-18 by bluefeet
  - Support table locking.
+
+2006-03-21 by bluefeet
+ - When subclassing a dbic class make it so you don't have to do 
+   __PACKAGE__->table(__PACKAGE__->table()); for the result set to 
+   return the correct object type.
+
+2006-03-27 by mst
+ Add the ability for deploy to be given a directory and grab <dbname>.sql 
+ out of there if available. Try SQL::Translator if not. If none of the above, 
+ cry (and die()).  Then you can have a script that pre-gens for all available 
+ SQLT modules so an app can do its own deploy without SQLT on the target 
+ system
+
+2006-05-25 by mst (TODOed by bluefeet)
+ Add the search attributes "limit" and "rows_per_page".
+ limit: work as expected just like offset does
+ rows_per_page: only be used if you used the page attr or called $rs->page
+ rows: modify to be an alias that gets used to populate either as appropriate, 
+       if you haven't specified one of the others
 

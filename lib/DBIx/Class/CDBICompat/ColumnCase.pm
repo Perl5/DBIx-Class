@@ -66,6 +66,19 @@ sub find_column {
   return $class->next::method(lc($col));
 }
 
+# _build_query
+#
+# Build a query hash for find, et al. Overrides Retrieve::_build_query.
+
+sub _build_query {
+  my ($self, $query) = @_;
+
+  my %new_query;
+  $new_query{lc $_} = $query->{$_} for keys %$query;
+
+  return \%new_query;
+}
+
 sub _mk_group_accessors {
   my ($class, $type, $group, @fields) = @_;
   #warn join(', ', map { ref $_ ? (@$_) : ($_) } @fields);

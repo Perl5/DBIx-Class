@@ -15,7 +15,8 @@ BEGIN {
 
 use lib 't/lib';
 
-use_ok('DBICTest::HelperRels');
+use_ok('DBICTest');
+DBICTest->init_schema();
 
 DBICTest::CD->load_components(qw/CDBICompat::Pager/);
 

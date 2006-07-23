@@ -10,4 +10,14 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key(qw/cd producer/);
 
+__PACKAGE__->belongs_to(
+  'cd', 'DBICTest::Schema::CD',
+  { 'foreign.cdid' => 'self.cd' }
+);
+
+__PACKAGE__->belongs_to(
+  'producer', 'DBICTest::Schema::Producer',
+  { 'foreign.producerid' => 'self.producer' }
+);
+
 1;

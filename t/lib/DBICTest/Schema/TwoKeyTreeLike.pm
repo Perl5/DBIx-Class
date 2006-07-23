@@ -1,9 +1,7 @@
 package # hide from PAUSE 
     DBICTest::Schema::TwoKeyTreeLike;
 
-use base qw/DBIx::Class/;
-
-__PACKAGE__->load_components(qw/Core/);
+use base qw/DBIx::Class::Core/;
 
 __PACKAGE__->table('twokeytreelike');
 __PACKAGE__->add_columns(
@@ -16,7 +14,8 @@ __PACKAGE__->add_columns(
  },
 );
 __PACKAGE__->set_primary_key(qw/id1 id2/);
-__PACKAGE__->belongs_to('parent', 'TwoKeyTreeLike',
+__PACKAGE__->add_unique_constraint('tktlnameunique' => ['name']);
+__PACKAGE__->belongs_to('parent', 'DBICTest::Schema::TwoKeyTreeLike',
                           { 'foreign.id1' => 'self.parent1', 'foreign.id2' => 'self.parent2'});
 
 1;

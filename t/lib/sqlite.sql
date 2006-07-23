@@ -1,8 +1,18 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Fri May 12 01:09:57 2006
+-- Created on Sun Jul 23 00:23:30 2006
 -- 
 BEGIN TRANSACTION;
+
+--
+-- Table: employee
+--
+CREATE TABLE employee (
+  employee_id INTEGER PRIMARY KEY NOT NULL,
+  position integer NOT NULL,
+  group_id integer,
+  name varchar(100)
+);
 
 --
 -- Table: serialized
@@ -50,6 +60,20 @@ CREATE TABLE twokeytreelike (
 );
 
 --
+-- Table: fourkeys_to_twokeys
+--
+CREATE TABLE fourkeys_to_twokeys (
+  f_foo integer NOT NULL,
+  f_bar integer NOT NULL,
+  f_hello integer NOT NULL,
+  f_goodbye integer NOT NULL,
+  t_artist integer NOT NULL,
+  t_cd integer NOT NULL,
+  autopilot character NOT NULL,
+  PRIMARY KEY (f_foo, f_bar, f_hello, f_goodbye, t_artist, t_cd)
+);
+
+--
 -- Table: self_ref_alias
 --
 CREATE TABLE self_ref_alias (
@@ -87,6 +111,14 @@ CREATE TABLE track (
 );
 
 --
+-- Table: self_ref
+--
+CREATE TABLE self_ref (
+  id INTEGER PRIMARY KEY NOT NULL,
+  name varchar(100) NOT NULL
+);
+
+--
 -- Table: link
 --
 CREATE TABLE link (
@@ -96,11 +128,12 @@ CREATE TABLE link (
 );
 
 --
--- Table: self_ref
+-- Table: tags
 --
-CREATE TABLE self_ref (
-  id INTEGER PRIMARY KEY NOT NULL,
-  name varchar(100) NOT NULL
+CREATE TABLE tags (
+  tagid INTEGER PRIMARY KEY NOT NULL,
+  cd integer NOT NULL,
+  tag varchar(100) NOT NULL
 );
 
 --
@@ -113,12 +146,12 @@ CREATE TABLE treelike (
 );
 
 --
--- Table: tags
+-- Table: event
 --
-CREATE TABLE tags (
-  tagid INTEGER PRIMARY KEY NOT NULL,
-  cd integer NOT NULL,
-  tag varchar(100) NOT NULL
+CREATE TABLE event (
+  id INTEGER PRIMARY KEY NOT NULL,
+  starts_at datetime NOT NULL,
+  created_on timestamp NOT NULL
 );
 
 --
@@ -138,6 +171,7 @@ CREATE TABLE fourkeys (
   bar integer NOT NULL,
   hello integer NOT NULL,
   goodbye integer NOT NULL,
+  sensors character NOT NULL,
   PRIMARY KEY (foo, bar, hello, goodbye)
 );
 
@@ -167,4 +201,9 @@ CREATE TABLE onekey (
   cd integer NOT NULL
 );
 
+CREATE UNIQUE INDEX tktlnameunique_twokeytreelike on twokeytreelike (name);
+CREATE UNIQUE INDEX cd_artist_title_cd on cd (artist, title);
+CREATE UNIQUE INDEX track_cd_position_track on track (cd, position);
+CREATE UNIQUE INDEX track_cd_title_track on track (cd, title);
+CREATE UNIQUE INDEX prod_name_producer on producer (name);
 COMMIT;

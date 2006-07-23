@@ -7,7 +7,6 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-__PACKAGE__->load_components(qw/PK::Auto Core/);
 __PACKAGE__->table('bookmark');
 __PACKAGE__->add_columns(qw/id link/);
 __PACKAGE__->add_columns(

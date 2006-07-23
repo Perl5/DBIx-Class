@@ -1,6 +1,109 @@
 Revision history for DBIx::Class
 
-0.06003
+        - supress warnings for possibly non-unique queries, since
+          _is_unique_query doesn't infer properly in all cases
+        - skip empty queries to eliminate spurious warnings on ->deploy
+        - fixups to ORDER BY, tweaks to deepen some copies in ResultSet
+        - fixup for RowNum limit syntax with functions
+
+0.06999_07 2006-07-12 20:58:05
+        - fix issue with from attr copying introduced in last release
+
+0.06999_06 2006-07-12 17:16:55
+        - documentation for new storage options, fix S::A::L hanging on to $dbh
+        - substantial refactor of search_related code to fix alias numbering
+        - don't generate partial unique keys in ResultSet::find() when a table
+          has more than one unique constraint which share a column and only one
+          is satisfied
+        - cleanup UTF8Columns and make more efficient
+        - rename DBIX_CLASS_STORAGE_DBI_DEBUG to DBIC_TRACE (with compat)
+        - rename _parent_rs to _parent_source in ResultSet
+        - new FAQ.pod!
+
+0.06999_05 2006-07-04 14:40:01
+        - fix issue with incorrect $rs->{attrs}{alias}
+        - fix subclassing issue with source_name
+        - tweak quotes test to output text on failure
+        - fix Schema->txn_do to not fail as a classmethod
+
+0.06999_04 2006-06-29 20:18:47
+        - disable cdbi-t/02-Film.t warning tests under AS perl
+        - fixups to MySQL tests (aka "work round mysql being retarded")
+        - compat tweaks for Storage debug logging
+
+0.06999_03 2006-06-26 21:04:44
+        - various documentation improvements
+        - fixes to pass test suite on Windows
+        - rewrote and cleaned up SQL::Translator tests
+        - changed relationship helpers to only call ensure_class_loaded when the
+          join condition is inferred 
+        - rewrote many_to_many implementation, now provides helpers for adding
+          and deleting objects without dealing with the link table
+        - reworked InflateColumn implementation to lazily deflate where
+          possible; now handles passing an inflated object to new()
+        - changed join merging to not create a rel_2 alias when adding a join
+          that already exists in a parent resultset
+        - Storage::DBI::deployment_statements now calls ensure_connected
+          if it isn't passed a type 
+        - fixed Componentized::ensure_class_loaded
+        - InflateColumn::DateTime supports date as well as datetime
+        - split Storage::DBI::MSSQL into MSSQL and Sybase::MSSQL
+        - fixed wrong debugging hook call in Storage::DBI 
+        - set connect_info properly before setting any ->sql_maker things 
+
+0.06999_02 2006-06-09 23:58:33
+        - Fixed up POD::Coverage tests, filled in some POD holes
+        - Added a warning for incorrect component order in load_components
+        - Fixed resultset bugs to do with related searches
+        - added code and tests for Componentized::ensure_class_found and
+          load_optional_class
+        - NoBindVars + Sybase + MSSQL stuff
+        - only rebless S::DBI if it is still S::DBI and not a subclass
+        - Added `use' statement for DBD::Pg in Storage::DBI::Pg
+        - stopped test relying on order of unordered search
+        - bugfix for join-types in nested joins using the from attribute
+        - obscure prefetch problem fixed
+        - tightened up deep search_related
+        - Fixed 'DBIx/Class/DB.pm did not return a true value' error
+        - Revert change to test for deprecated find usage and swallow warnings
+        - Slight wording change to new_related() POD
+        - new specific test for connect_info coderefs
+        - POD clarification and content bugfixing + a few code formatting fixes
+        - POD::Coverage additions
+        - fixed debugfh
+        - Fix column_info stomping
+
+0.06999_01 2006-05-28 17:19:30
+        - add automatic naming of unique constraints
+        - marked DB.pm as deprecated and noted it will be removed by 1.0
+        - add ResultSetColumn
+        - refactor ResultSet code to resolve attrs as late as possible
+        - merge prefetch attrs into join attrs
+        - add +select and +as attributes to ResultSet
+        - added InflateColumn::DateTime component
+        - refactor debugging to allow for profiling using Storage::Statistics
+        - removed Data::UUID from deps, made other optionals required
+        - modified SQLT parser to skip dupe table names
+        - added remove_column(s) to ResultSource/ResultSourceProxy
+        - added add_column alias to ResultSourceProxy
+        - added source_name to ResultSource
+        - load_classes now uses source_name and sets it if necessary
+        - add update_or_create_related to Relationship::Base
+        - add find_or_new to ResultSet/ResultSetProxy and find_or_new_related
+          to Relationship::Base
+        - add accessors for unique constraint names and coulums to
+          ResultSource/ResultSourceProxy
+        - rework ResultSet::find() to search unique constraints
+        - CDBICompat: modify retrieve to fix column casing when ColumnCase is
+          loaded
+        - CDBICompat: override find_or_create to fix column casing when
+          ColumnCase is loaded
+        - reorganized and simplified tests
+        - added Ordered
+        - added the ability to set on_connect_do and the various sql_maker
+          options as part of Storage::DBI's connect_info.
+
+0.06003 2006-05-19 15:37:30
         - make find_or_create_related check defined() instead of truth
         - don't unnecessarily fetch rels for cascade_update
         - don't set_columns explicitly in update_or_create; instead use
@@ -18,10 +121,7 @@ Revision history for DBIx::Class
         - nuke ResultSource caching of ->resultset for consistency reasons
         - fix for -and conditions when updating or deleting on a ResultSet
 
-0.06001 2006-04-08 21:48:43
-        - minor fix to update in case of undefined rels
-        - fixes for cascade delete
-        - substantial improvements and fixes to deploy
+0.06001
         - Added fix for quoting with single table
         - Substantial fixes and improvements to deploy
         - slice now uses search directly
@@ -45,7 +145,7 @@ Revision history for DBIx::Class
         - columns_info_for made more robust / informative
         - ithreads compat added, fork compat improved
         - weaken result_source in all resultsets
-	- Make pg seq extractor less sensitive.
+        - Make pg seq extractor less sensitive.
 
 0.05999_03 2006-03-14 01:58:10
         - has_many prefetch fixes
@@ -92,7 +192,7 @@ Revision history for DBIx::Class
         - remove build dependency on version.pm
 
 0.05004 2006-02-13 20:59:00
-        - allow specification of related columns via cols attr when primary 
+        - allow specification of related columns via cols attr when primary
           keys of the related table are not fetched
         - fix count for group_by as scalar
         - add horrific fix to make Oracle's retarded limit syntax work
