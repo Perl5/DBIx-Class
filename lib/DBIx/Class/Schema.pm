@@ -278,6 +278,89 @@ sub load_classes {
   }
 }
 
+=head2 load_namespaces
+
+=over 4
+
+=item Arguments: None
+
+=back
+
+This is an alternative to L</load_classes> above which assumes an alternative
+layout for automatic class loading.  This variant takes no arguments.  It
+assumes that all ResultSource classes to be loaded are underneath a sub-
+namespace of the schema called "ResultSource", and any corresponding
+ResultSet classes to be underneath a sub-namespace of the schema called
+"ResultSet".
+
+Any missing ResultSet definitions will be created in memory as basic
+inheritors of L<DBIx::Class::ResultSet>.  You don't need to explicitly
+specify the result_class of the sources unless you wish to override
+the naming convention above.
+
+This method requires L<Module::Find> to be installed on the system.
+
+Example:
+
+  My::Schema->load_namespaces;
+  # loads My::Schema::ResultSource::CD, My::Schema::ResultSource::Artist,
+  #    My::Schema::ResultSet::CD, etc...
+
+=cut
+
+sub load_namespaces {
+  my ($class) = @_;
+
+  my $source_namespace = $class . '::ResultSource';
+  my $resultset_namespace = $class . '::ResultSet';
+
+  eval "require Module::Find";
+  $class->throw_exception("Couldn't load Module::Find ($@)") if $@;
+
+  my %sources = map { (substr($_, length "${source_namespace}::"), $_) }
+      Module::Find::findallmod($source_namespace);
+
+  my %resultsets = map { (substr($_, length "${resultset_namespace}::"), $_) }
+      Module::Find::findallmod($resultset_namespace);
+
+  my @to_register;
+  {
+    no warnings qw/redefine/;
+    local *Class::C3::reinitialize = sub { };
+    foreach my $source (keys %sources) {
+      my $source_class = $sources{$source};
+      $class->ensure_class_loaded($source_class);
+      $source_class->source_name($source) unless $source_class->source_name;
+      unless($source_class->resultset_class) {
+        if(my $rs_class = delete $resultsets{$source}) {
+          $class->ensure_class_loaded($rs_class);
+          $source_class->resultset_class($rs_class);
+        }
+        else {
+          require DBIx::Class::ResultSet;
+          my $rs_class = "${class}::ResultSet::$source";
+          @{"$rs_class::ISA"} = 'DBIx::Class::ResultSet';
+          $source_class->resultset_class($rs_class);
+        }
+      }
+
+      push(@to_register, [ $source_class->source_name, $source_class ]);
+    }
+  }
+
+  foreach (keys %resultsets) {
+    warn "load_namespaces found ResultSet $_ with no "
+      . 'corresponding ResultSource';
+  }
+
+  Class::C3->reinitialize;
+
+  foreach my $to (@to_register) {
+    $class->register_class(@$to);
+    #  if $class->can('result_source_instance');
+  }
+}
+
 =head2 compose_connection
 
 =over 4
