@@ -12,6 +12,7 @@ __PACKAGE__->mk_classdata('class_mappings' => {});
 __PACKAGE__->mk_classdata('source_registrations' => {});
 __PACKAGE__->mk_classdata('storage_type' => '::DBI');
 __PACKAGE__->mk_classdata('storage');
+__PACKAGE__->mk_classdata('exception_action');
 
 =head1 NAME
 
@@ -452,7 +453,7 @@ sub connection {
   $self->throw_exception(
     "No arguments to load_classes and couldn't load ${storage_class} ($@)"
   ) if $@;
-  my $storage = $storage_class->new;
+  my $storage = $storage_class->new($self);
   $storage->connect_info(\@info);
   $self->storage($storage);
   return $self;
@@ -631,6 +632,7 @@ sub clone {
     my $new = $source->new($source);
     $clone->register_source($moniker => $new);
   }
+  $clone->storage->set_schema($clone) if $clone->storage;
   return $clone;
 }
 
@@ -670,6 +672,30 @@ sub populate {
   return @created;
 }
 
+=head2 exception_action
+
+=over 4
+
+=item Arguments: $code_reference
+
+=back
+
+If this accessor is set to a subroutine reference, it will be executed
+to handle exceptions where possible.  Can be set at either the class or
+object level.
+
+Example:
+
+   package My::Schema;
+   use base qw/DBIx::Class::Schema/;
+   use My::ExceptionClass;
+   __PACKAGE__->exception_action(sub { My::ExceptionClass->throw(@_) });
+   __PACKAGE__->load_classes;
+
+   # or
+   my $schema_obj = My::Schema->connect( .... );
+   $schema_obj->exception_action(sub { My::ExceptionClass->throw(@_) });
+
 =head2 throw_exception
 
 =over 4
@@ -679,12 +705,14 @@ sub populate {
 =back
 
 Throws an exception. Defaults to using L<Carp::Clan> to report errors from
-user's perspective.
+user's perspective.  If C<exception_action> is set for this schema class or
+object, the error will be thrown via that subref instead.
 
 =cut
 
 sub throw_exception {
-  my ($self) = shift;
+  my $self = shift;
+  $self->exception_action->(@_) if $self->exception_action;
   croak @_;
 }
 

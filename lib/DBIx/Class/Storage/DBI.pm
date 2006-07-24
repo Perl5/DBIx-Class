@@ -10,6 +10,7 @@ use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use IO::File;
+use Scalar::Util qw/weaken/;
 use Carp::Clan qw/DBIx::Class/;
 BEGIN {
 
@@ -256,7 +257,7 @@ __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid _conn_tid
-     debug debugobj cursor on_connect_do transaction_depth/);
+     debug debugobj cursor on_connect_do transaction_depth schema/);
 
 =head1 NAME
 
@@ -272,10 +273,16 @@ This class represents the connection to the database
 
 =head2 new
 
+Constructor.  Only argument is the schema which instantiated us.
+
 =cut
 
 sub new {
-  my $new = bless({}, ref $_[0] || $_[0]);
+  my ($self, $schema) = @_;
+
+  my $new = bless({}, ref $self || $self);
+
+  $new->set_schema($schema);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->transaction_depth(0);
 
@@ -298,6 +305,20 @@ sub new {
   return $new;
 }
 
+=head2 set_schema
+
+Used to reset the schema class or object which owns this
+storage object, such as after a C<clone()>.
+
+=cut
+
+sub set_schema {
+  my ($self, $schema) = @_;
+  $self->schema($schema);
+  weaken($self->{schema}) if ref $self->{schema};
+}
+
+
 =head2 throw_exception
 
 Throws an exception - croaks.
@@ -305,8 +326,10 @@ Throws an exception - croaks.
 =cut
 
 sub throw_exception {
-  my ($self, $msg) = @_;
-  croak($msg);
+  my $self = shift;
+
+  $self->schema->throw_exception(@_) if $self->schema;
+  croak @_;
 }
 
 =head2 connect_info
