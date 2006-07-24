@@ -860,6 +860,12 @@ sub columns_info_for {
       my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
       my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
       $sth->execute();
+
+      # Some error occured or there is no information:
+      if($sth->rows <1) {
+          die "column_info returned no rows for $schema, $tab";
+      }
+
       while ( my $info = $sth->fetchrow_hashref() ){
         my %column_info;
         $column_info{data_type}   = $info->{TYPE_NAME};
