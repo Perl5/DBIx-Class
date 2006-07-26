@@ -7,7 +7,7 @@ use DBICTest;
 use Data::Dumper;
 my $schema = DBICTest->init_schema();
 
-plan tests => 18;
+plan tests => 19;
 
 my @rs1a_results = $schema->resultset("Artist")->search_related('cds', {title => 'Forkful of bees'}, {order_by => 'title'});
 is($rs1a_results[0]->title, 'Forkful of bees', "bare field conditions okay after search related");
@@ -81,5 +81,18 @@ ok($merge_rs_1->next, 'query on double joined rel runs okay');
 my $merge_rs_2 = $schema->resultset("Artist")->search({ }, { join => 'cds' })->search({ 'cds.cdid' => '2' }, { join => 'cds' });
 is(scalar(@{$merge_rs_2->{attrs}->{join}}), 1, 'only one join kept when inherited');
 my $merge_rs_2_cd = $merge_rs_2->next;
+
+eval {
+
+  my @rs_with_prefetch = $schema->resultset('TreeLike')
+                                ->search(
+    {'me.id' => 1},
+    {
+    prefetch => [ 'parent', { 'children' => 'parent' } ],
+    });
+
+};
+
+ok(!$@, "pathological prefetch ok");
 
 1;

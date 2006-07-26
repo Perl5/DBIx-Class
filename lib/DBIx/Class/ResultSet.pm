@@ -1550,11 +1550,13 @@ sub _resolved_attrs {
 
   my $collapse = $attrs->{collapse} || {};
   if (my $prefetch = delete $attrs->{prefetch}) {
+    $prefetch = $self->_merge_attr({}, $prefetch);
     my @pre_order;
+    my $seen = $attrs->{seen_join} || {};
     foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
       # bring joins back to level of current class
       my @prefetch = $source->resolve_prefetch(
-        $p, $alias, { %{$attrs->{seen_join}||{}} }, \@pre_order, $collapse
+        $p, $alias, $seen, \@pre_order, $collapse
       );
       push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
       push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
