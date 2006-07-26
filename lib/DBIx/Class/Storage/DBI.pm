@@ -852,10 +852,8 @@ sub columns_info_for {
 
   if ($dbh->can('column_info')) {
     my %result;
-    my $old_raise_err = $dbh->{RaiseError};
-    my $old_print_err = $dbh->{PrintError};
-    $dbh->{RaiseError} = 1;
-    $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
     eval {
       my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
       my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
@@ -878,8 +876,6 @@ sub columns_info_for {
         $result{$col_name} = \%column_info;
       }
     };
-    $dbh->{RaiseError} = $old_raise_err;
-    $dbh->{PrintError} = $old_print_err;
     return \%result if !$@;
   }
 
