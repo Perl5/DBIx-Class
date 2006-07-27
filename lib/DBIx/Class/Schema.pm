@@ -12,6 +12,7 @@ __PACKAGE__->mk_classdata('class_mappings' => {});
 __PACKAGE__->mk_classdata('source_registrations' => {});
 __PACKAGE__->mk_classdata('storage_type' => '::DBI');
 __PACKAGE__->mk_classdata('storage');
+__PACKAGE__->mk_classdata('exception_action');
 
 =head1 NAME
 
@@ -452,7 +453,7 @@ sub connection {
   $self->throw_exception(
     "No arguments to load_classes and couldn't load ${storage_class} ($@)"
   ) if $@;
-  my $storage = $storage_class->new;
+  my $storage = $storage_class->new($self);
   $storage->connect_info(\@info);
   $self->storage($storage);
   return $self;
@@ -631,6 +632,7 @@ sub clone {
     my $new = $source->new($source);
     $clone->register_source($moniker => $new);
   }
+  $clone->storage->set_schema($clone) if $clone->storage;
   return $clone;
 }
 
@@ -670,6 +672,38 @@ sub populate {
   return @created;
 }
 
+=head2 exception_action
+
+=over 4
+
+=item Arguments: $code_reference
+
+=back
+
+If C<exception_action> is set for this class/object, L</throw_exception>
+will prefer to call this code reference with the exception as an argument,
+rather than its normal <croak> action.
+
+Your subroutine should probably just wrap the error in the exception
+object/class of your choosing and rethrow.  If, against all sage advice,
+you'd like your C<exception_action> to suppress a particular exception
+completely, simply have it return true.
+
+Example:
+
+   package My::Schema;
+   use base qw/DBIx::Class::Schema/;
+   use My::ExceptionClass;
+   __PACKAGE__->exception_action(sub { My::ExceptionClass->throw(@_) });
+   __PACKAGE__->load_classes;
+
+   # or:
+   my $schema_obj = My::Schema->connect( .... );
+   $schema_obj->exception_action(sub { My::ExceptionClass->throw(@_) });
+
+   # suppress all exceptions, like a moron:
+   $schema_obj->exception_action(sub { 1 });
+
 =head2 throw_exception
 
 =over 4
@@ -679,13 +713,14 @@ sub populate {
 =back
 
 Throws an exception. Defaults to using L<Carp::Clan> to report errors from
-user's perspective.
+user's perspective.  See L</exception_action> for details on overriding
+this method's behavior.
 
 =cut
 
 sub throw_exception {
-  my ($self) = shift;
-  croak @_;
+  my $self = shift;
+  croak @_ if !$self->exception_action || !$self->exception_action->(@_);
 }
 
 =head2 deploy (EXPERIMENTAL)
