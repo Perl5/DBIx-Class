@@ -393,6 +393,19 @@ sub load_namespaces {
            . "that you had already set '$source' to use '$rs_set' instead";
       }
 
+      my $r_class = delete $results{$source};
+      if($r_class) {
+        my $r_set = $source_class->result_class;
+        if(!$r_set || $r_set eq $sources{$source}) {
+          $class->ensure_class_loaded($r_class);
+          $source_class->result_class($r_class);
+        }
+        else {
+          warn "We found Result class '$r_class' for '$source', but it seems "
+             . "that you had already set '$source' to use '$r_set' instead";
+        }
+      }
+
       push(@to_register, [ $source_class->source_name, $source_class ]);
     }
   }
@@ -402,28 +415,13 @@ sub load_namespaces {
       . 'corresponding ResultSource';
   }
 
-  Class::C3->reinitialize;
-  $class->register_class(@$_) for (@to_register);
-
-  foreach my $source (keys %sources) {
-    my $r_class = delete $results{$source};
-    if($r_class) {
-      my $r_set = $class->source($source)->result_class;
-      if(!$r_set || $r_set eq $sources{$source}) {
-        $class->ensure_class_loaded($r_class);
-        $class->source($source)->result_class($r_class);
-      }
-      else {
-        warn "We found Result class '$r_class' for '$source', but it seems "
-           . "that you had already set '$source' to use '$r_set' instead";
-      }
-    }
-  }
-
   foreach (sort keys %results) {
     warn "load_namespaces found Result class $_ with no "
       . 'corresponding ResultSource';
   }
+
+  Class::C3->reinitialize;
+  $class->register_class(@$_) for (@to_register);
 
   return;
 }
