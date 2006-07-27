@@ -15,7 +15,7 @@ sub _execute {
   }
 
   while(my $bvar = shift @bind) {
-    $bvar = $self->dbh->quote($bvar);
+    $bvar = $self->_dbh->quote($bvar);
     $sql =~ s/\?/$bvar/;
   }
 

@@ -5,6 +5,7 @@ use strict;
 use warnings;
 
 sub new { die "Virtual method!" }
+sub set_schema { die "Virtual method!" }
 sub debug { die "Virtual method!" }
 sub debugcb { die "Virtual method!" }
 sub debugfh { die "Virtual method!" }

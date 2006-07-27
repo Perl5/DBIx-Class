@@ -10,6 +10,7 @@ use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use IO::File;
+use Scalar::Util qw/weaken/;
 use Carp::Clan qw/DBIx::Class/;
 BEGIN {
 
@@ -256,7 +257,7 @@ __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid _conn_tid
-     debug debugobj cursor on_connect_do transaction_depth/);
+     debug debugobj cursor on_connect_do transaction_depth schema/);
 
 =head1 NAME
 
@@ -272,10 +273,16 @@ This class represents the connection to the database
 
 =head2 new
 
+Constructor.  Only argument is the schema which instantiated us.
+
 =cut
 
 sub new {
-  my $new = bless({}, ref $_[0] || $_[0]);
+  my ($self, $schema) = @_;
+
+  my $new = bless({}, ref $self || $self);
+
+  $new->set_schema($schema);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->transaction_depth(0);
 
@@ -298,6 +305,20 @@ sub new {
   return $new;
 }
 
+=head2 set_schema
+
+Used to reset the schema class or object which owns this
+storage object, such as after a C<clone()>.
+
+=cut
+
+sub set_schema {
+  my ($self, $schema) = @_;
+  $self->schema($schema);
+  weaken($self->{schema}) if ref $self->{schema};
+}
+
+
 =head2 throw_exception
 
 Throws an exception - croaks.
@@ -305,8 +326,10 @@ Throws an exception - croaks.
 =cut
 
 sub throw_exception {
-  my ($self, $msg) = @_;
-  croak($msg);
+  my $self = shift;
+
+  $self->schema->throw_exception(@_) if $self->schema;
+  croak @_;
 }
 
 =head2 connect_info
@@ -366,6 +389,12 @@ arguments.
 Every time C<connect_info> is invoked, any previous settings for
 these options will be cleared before setting the new ones, regardless of
 whether any options are specified in the new C<connect_info>.
+
+Important note:  DBIC expects the returned database handle provided by 
+a subref argument to have RaiseError set on it.  If it doesn't, things
+might not work very well, YMMV.  If you don't use a subref, DBIC will
+force this setting for you anyways.  Setting HandleError to anything
+other than simple exception object wrapper might cause problems too.
 
 Examples:
 
@@ -462,6 +491,54 @@ sub debugcb {
     }
 }
 
+=head2 dbh_do
+
+Execute the given subref with the underlying database handle as its
+first argument, using the new exception-based connection management.
+Example:
+
+  my @stuff = $schema->storage->dbh_do(
+    sub {
+      shift->selectrow_array("SELECT * FROM foo")
+    }
+  );
+
+=cut
+
+sub dbh_do {
+  my ($self, $todo) = @_;
+
+  my @result;
+  my $want_array = wantarray;
+
+  eval {
+    $self->_verify_pid if $self->_dbh;
+    $self->_populate_dbh if !$self->_dbh;
+    my $dbh = $self->_dbh;
+    if($want_array) {
+        @result = $todo->($dbh);
+    }
+    elsif(defined $want_array) {
+        $result[0] = $todo->($dbh);
+    }
+    else {
+        $todo->($dbh);
+    }
+  };
+
+  if($@) {
+    my $exception = $@;
+    $self->connected
+      ? $self->throw_exception($exception)
+      : $self->_populate_dbh;
+
+    my $dbh = $self->_dbh;
+    return $todo->($dbh);
+  }
+
+  return $want_array ? @result : $result[0];
+}
+
 =head2 disconnect
 
 Disconnect the L<DBI> handle, performing a rollback first if the
@@ -486,20 +563,33 @@ is connected.
 
 =cut
 
-sub connected { my ($self) = @_;
+sub connected {
+  my ($self) = @_;
 
   if(my $dbh = $self->_dbh) {
       if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
           return $self->_dbh(undef);
       }
-      elsif($self->_conn_pid != $$) {
-          $self->_dbh->{InactiveDestroy} = 1;
-          return $self->_dbh(undef);
+      else {
+          $self->_verify_pid;
       }
       return ($dbh->FETCH('Active') && $dbh->ping);
   }
 
   return 0;
+}
+
+# handle pid changes correctly
+#  NOTE: assumes $self->_dbh is a valid $dbh
+sub _verify_pid {
+  my ($self) = @_;
+
+  return if $self->_conn_pid == $$;
+
+  $self->_dbh->{InactiveDestroy} = 1;
+  $self->_dbh(undef);
+
+  return;
 }
 
 =head2 ensure_connected
@@ -554,32 +644,30 @@ sub sql_maker {
 sub connect_info {
   my ($self, $info_arg) = @_;
 
-  if($info_arg) {
-    # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
-    #  the new set of options
-    $self->_sql_maker(undef);
-    $self->_sql_maker_opts({});
+  return $self->_connect_info if !$info_arg;
 
-    my $info = [ @$info_arg ]; # copy because we can alter it
-    my $last_info = $info->[-1];
-    if(ref $last_info eq 'HASH') {
-      if(my $on_connect_do = delete $last_info->{on_connect_do}) {
-        $self->on_connect_do($on_connect_do);
-      }
-      for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
-        if(my $opt_val = delete $last_info->{$sql_maker_opt}) {
-          $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
-        }
-      }
+  # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
+  #  the new set of options
+  $self->_sql_maker(undef);
+  $self->_sql_maker_opts({});
 
-      # Get rid of any trailing empty hashref
-      pop(@$info) if !keys %$last_info;
+  my $info = [ @$info_arg ]; # copy because we can alter it
+  my $last_info = $info->[-1];
+  if(ref $last_info eq 'HASH') {
+    if(my $on_connect_do = delete $last_info->{on_connect_do}) {
+      $self->on_connect_do($on_connect_do);
+    }
+    for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
+      if(my $opt_val = delete $last_info->{$sql_maker_opt}) {
+        $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
+      }
     }
 
-    $self->_connect_info($info);
+    # Get rid of any trailing empty hashref
+    pop(@$info) if !keys %$last_info;
   }
 
-  $self->_connect_info;
+  $self->_connect_info($info);
 }
 
 sub _populate_dbh {
@@ -620,9 +708,14 @@ sub _connect {
   }
 
   eval {
-    $dbh = ref $info[0] eq 'CODE'
-         ? &{$info[0]}
-         : DBI->connect(@info);
+    if(ref $info[0] eq 'CODE') {
+       $dbh = &{$info[0]}
+    }
+    else {
+       $dbh = DBI->connect(@info);
+       $dbh->{RaiseError} = 1;
+       $dbh->{PrintError} = 0;
+    }
   };
 
   $DBI::connect_via = $old_connect_via if $old_connect_via;
@@ -646,12 +739,14 @@ an entire code block to be executed transactionally.
 sub txn_begin {
   my $self = shift;
   if ($self->{transaction_depth}++ == 0) {
-    my $dbh = $self->dbh;
-    if ($dbh->{AutoCommit}) {
-      $self->debugobj->txn_begin()
-        if ($self->debug);
-      $dbh->begin_work;
-    }
+    $self->dbh_do(sub {
+      my $dbh = shift;
+      if ($dbh->{AutoCommit}) {
+        $self->debugobj->txn_begin()
+          if ($self->debug);
+        $dbh->begin_work;
+      }
+    });
   }
 }
 
@@ -663,21 +758,23 @@ Issues a commit against the current dbh.
 
 sub txn_commit {
   my $self = shift;
-  my $dbh = $self->dbh;
-  if ($self->{transaction_depth} == 0) {
-    unless ($dbh->{AutoCommit}) {
-      $self->debugobj->txn_commit()
-        if ($self->debug);
-      $dbh->commit;
+  $self->dbh_do(sub {
+    my $dbh = shift;
+    if ($self->{transaction_depth} == 0) {
+      unless ($dbh->{AutoCommit}) {
+        $self->debugobj->txn_commit()
+          if ($self->debug);
+        $dbh->commit;
+      }
     }
-  }
-  else {
-    if (--$self->{transaction_depth} == 0) {
-      $self->debugobj->txn_commit()
-        if ($self->debug);
-      $dbh->commit;
+    else {
+      if (--$self->{transaction_depth} == 0) {
+        $self->debugobj->txn_commit()
+          if ($self->debug);
+        $dbh->commit;
+      }
     }
-  }
+  });
 }
 
 =head2 txn_rollback
@@ -692,24 +789,26 @@ sub txn_rollback {
   my $self = shift;
 
   eval {
-    my $dbh = $self->dbh;
-    if ($self->{transaction_depth} == 0) {
-      unless ($dbh->{AutoCommit}) {
-        $self->debugobj->txn_rollback()
-          if ($self->debug);
-        $dbh->rollback;
-      }
-    }
-    else {
-      if (--$self->{transaction_depth} == 0) {
-        $self->debugobj->txn_rollback()
-          if ($self->debug);
-        $dbh->rollback;
+    $self->dbh_do(sub {
+      my $dbh = shift;
+      if ($self->{transaction_depth} == 0) {
+        unless ($dbh->{AutoCommit}) {
+          $self->debugobj->txn_rollback()
+            if ($self->debug);
+          $dbh->rollback;
+        }
       }
       else {
-        die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
+        if (--$self->{transaction_depth} == 0) {
+          $self->debugobj->txn_rollback()
+            if ($self->debug);
+          $dbh->rollback;
+        }
+        else {
+          die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
+        }
       }
-    }
+    });
   };
 
   if ($@) {
@@ -836,7 +935,7 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 sub sth {
   my ($self, $sql) = @_;
   # 3 is the if_active parameter which avoids active sth re-use
-  return $self->dbh->prepare_cached($sql, {}, 3);
+  return $self->dbh_do(sub { shift->prepare_cached($sql, {}, 3) });
 }
 
 =head2 columns_info_for
@@ -848,60 +947,56 @@ Returns database type info for a given table columns.
 sub columns_info_for {
   my ($self, $table) = @_;
 
-  my $dbh = $self->dbh;
+  $self->dbh_do(sub {
+    my $dbh = shift;
 
-  if ($dbh->can('column_info')) {
+    if ($dbh->can('column_info')) {
+      my %result;
+      eval {
+        my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
+        my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
+        $sth->execute();
+        while ( my $info = $sth->fetchrow_hashref() ){
+          my %column_info;
+          $column_info{data_type}   = $info->{TYPE_NAME};
+          $column_info{size}      = $info->{COLUMN_SIZE};
+          $column_info{is_nullable}   = $info->{NULLABLE} ? 1 : 0;
+          $column_info{default_value} = $info->{COLUMN_DEF};
+          my $col_name = $info->{COLUMN_NAME};
+          $col_name =~ s/^\"(.*)\"$/$1/;
+
+          $result{$col_name} = \%column_info;
+        }
+      };
+      return \%result if !$@;
+    }
+
     my %result;
-    my $old_raise_err = $dbh->{RaiseError};
-    my $old_print_err = $dbh->{PrintError};
-    $dbh->{RaiseError} = 1;
-    $dbh->{PrintError} = 0;
-    eval {
-      my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
-      my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
-      $sth->execute();
-      while ( my $info = $sth->fetchrow_hashref() ){
-        my %column_info;
-        $column_info{data_type}   = $info->{TYPE_NAME};
-        $column_info{size}      = $info->{COLUMN_SIZE};
-        $column_info{is_nullable}   = $info->{NULLABLE} ? 1 : 0;
-        $column_info{default_value} = $info->{COLUMN_DEF};
-        my $col_name = $info->{COLUMN_NAME};
-        $col_name =~ s/^\"(.*)\"$/$1/;
-
-        $result{$col_name} = \%column_info;
+    my $sth = $dbh->prepare("SELECT * FROM $table WHERE 1=0");
+    $sth->execute;
+    my @columns = @{$sth->{NAME_lc}};
+    for my $i ( 0 .. $#columns ){
+      my %column_info;
+      my $type_num = $sth->{TYPE}->[$i];
+      my $type_name;
+      if(defined $type_num && $dbh->can('type_info')) {
+        my $type_info = $dbh->type_info($type_num);
+        $type_name = $type_info->{TYPE_NAME} if $type_info;
       }
-    };
-    $dbh->{RaiseError} = $old_raise_err;
-    $dbh->{PrintError} = $old_print_err;
-    return \%result if !$@;
-  }
+      $column_info{data_type} = $type_name ? $type_name : $type_num;
+      $column_info{size} = $sth->{PRECISION}->[$i];
+      $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
 
-  my %result;
-  my $sth = $dbh->prepare("SELECT * FROM $table WHERE 1=0");
-  $sth->execute;
-  my @columns = @{$sth->{NAME_lc}};
-  for my $i ( 0 .. $#columns ){
-    my %column_info;
-    my $type_num = $sth->{TYPE}->[$i];
-    my $type_name;
-    if(defined $type_num && $dbh->can('type_info')) {
-      my $type_info = $dbh->type_info($type_num);
-      $type_name = $type_info->{TYPE_NAME} if $type_info;
-    }
-    $column_info{data_type} = $type_name ? $type_name : $type_num;
-    $column_info{size} = $sth->{PRECISION}->[$i];
-    $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
+      if ($column_info{data_type} =~ m/^(.*?)\((.*?)\)$/) {
+        $column_info{data_type} = $1;
+        $column_info{size}    = $2;
+      }
 
-    if ($column_info{data_type} =~ m/^(.*?)\((.*?)\)$/) {
-      $column_info{data_type} = $1;
-      $column_info{size}    = $2;
+      $result{$columns[$i]} = \%column_info;
     }
 
-    $result{$columns[$i]} = \%column_info;
-  }
-
-  return \%result;
+    return \%result;
+  });
 }
 
 =head2 last_insert_id
@@ -913,8 +1008,7 @@ Return the row id of the last insert.
 sub last_insert_id {
   my ($self, $row) = @_;
     
-  return $self->dbh->func('last_insert_rowid');
-
+  $self->dbh_do(sub { shift->func('last_insert_rowid') });
 }
 
 =head2 sqlt_type
@@ -923,7 +1017,7 @@ Returns the database driver name.
 
 =cut
 
-sub sqlt_type { shift->dbh->{Driver}->{Name} }
+sub sqlt_type { shift->dbh_do(sub { shift->{Driver}->{Name} }) }
 
 =head2 create_ddl_dir (EXPERIMENTAL)
 
@@ -1053,7 +1147,7 @@ sub deploy {
       next if($_ =~ /^COMMIT/m);
       next if $_ =~ /^\s+$/; # skip whitespace only
       $self->debugobj->query_start($_) if $self->debug;
-      $self->dbh->do($_) or warn "SQL was:\n $_";
+      $self->dbh->do($_) or warn "SQL was:\n $_"; # XXX exceptions?
       $self->debugobj->query_end($_) if $self->debug;
     }
   }
@@ -1093,7 +1187,13 @@ sub build_datetime_parser {
   return $type;
 }
 
-sub DESTROY { shift->disconnect }
+sub DESTROY {
+  my $self = shift;
+  return if !$self->_dbh;
+
+  $self->_verify_pid;
+  $self->_dbh(undef);
+}
 
 1;
 

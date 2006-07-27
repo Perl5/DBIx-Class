@@ -189,7 +189,7 @@ sub column_info {
     my $info;
     my $lc_info;
     # eval for the case of storage without table
-    eval { $info = $self->storage->columns_info_for( $self->from, keys %{$self->_columns} ) };
+    eval { $info = $self->storage->columns_info_for( $self->from ) };
     unless ($@) {
       for my $realcol ( keys %{$info} ) {
         $lc_info->{lc $realcol} = $info->{$realcol};

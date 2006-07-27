@@ -13,7 +13,7 @@ sub last_insert_id {
   my ($self,$source,$col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
   my $sql = "SELECT " . $seq . ".currval FROM DUAL";
-  my ($id) = $self->_dbh->selectrow_array($sql);
+  my ($id) = $self->dbh_do(sub { shift->selectrow_array($sql) });
   return $id;
 }
 
@@ -21,22 +21,32 @@ sub get_autoinc_seq {
   my ($self,$source,$col) = @_;
     
   # look up the correct sequence automatically
-  my $dbh = $self->_dbh;
   my $sql = q{
     SELECT trigger_body FROM ALL_TRIGGERS t
     WHERE t.table_name = ?
     AND t.triggering_event = 'INSERT'
     AND t.status = 'ENABLED'
   };
-  # trigger_body is a LONG
-  $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
-  my $sth = $dbh->prepare($sql);
-  $sth->execute( uc($source->name) );
-  while (my ($insert_trigger) = $sth->fetchrow_array) {
-    return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
-  }
-  croak "Unable to find a sequence INSERT trigger on table '" . $source->name . "'.";
+
+  $self->dbh_do(sub {
+    my $dbh = shift;
+    # trigger_body is a LONG
+    $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
+    my $sth = $dbh->prepare($sql);
+    $sth->execute( uc($source->name) );
+    while (my ($insert_trigger) = $sth->fetchrow_array) {
+      return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
+    }
+    croak "Unable to find a sequence INSERT trigger on table '" . $source->name . "'.";
+  });
 }
+
+sub columns_info_for {
+  my ($self, $table) = @_;
+
+  $self->next::method($self, uc($table));
+}
+
 
 1;
 

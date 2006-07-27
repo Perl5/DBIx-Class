@@ -6,7 +6,9 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 
 sub last_insert_id {
-  my( $id ) = $_[0]->_dbh->selectrow_array('SELECT @@IDENTITY' );
+  my $self = shift;
+  my ($id) =
+    $self->dbh_do( sub { shift->selectrow_array('SELECT @@IDENTITY' ) } );
   return $id;
 }
 

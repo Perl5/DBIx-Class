@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Thu Jun  6 23:36:19 2006
+-- Created on Sun Jul 23 00:23:30 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -23,6 +23,14 @@ CREATE TABLE serialized (
 );
 
 --
+-- Table: liner_notes
+--
+CREATE TABLE liner_notes (
+  liner_id INTEGER PRIMARY KEY NOT NULL,
+  notes varchar(100) NOT NULL
+);
+
+--
 -- Table: cd_to_producer
 --
 CREATE TABLE cd_to_producer (
@@ -32,19 +40,23 @@ CREATE TABLE cd_to_producer (
 );
 
 --
--- Table: liner_notes
---
-CREATE TABLE liner_notes (
-  liner_id INTEGER PRIMARY KEY NOT NULL,
-  notes varchar(100) NOT NULL
-);
-
---
 -- Table: artist
 --
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100)
+);
+
+--
+-- Table: twokeytreelike
+--
+CREATE TABLE twokeytreelike (
+  id1 integer NOT NULL,
+  id2 integer NOT NULL,
+  parent1 integer NOT NULL,
+  parent2 integer NOT NULL,
+  name varchar(100) NOT NULL,
+  PRIMARY KEY (id1, id2)
 );
 
 --
@@ -59,18 +71,6 @@ CREATE TABLE fourkeys_to_twokeys (
   t_cd integer NOT NULL,
   autopilot character NOT NULL,
   PRIMARY KEY (f_foo, f_bar, f_hello, f_goodbye, t_artist, t_cd)
-);
-
---
--- Table: twokeytreelike
---
-CREATE TABLE twokeytreelike (
-  id1 integer NOT NULL,
-  id2 integer NOT NULL,
-  parent1 integer NOT NULL,
-  parent2 integer NOT NULL,
-  name varchar(100) NOT NULL,
-  PRIMARY KEY (id1, id2)
 );
 
 --
@@ -111,15 +111,6 @@ CREATE TABLE track (
 );
 
 --
--- Table: treelike
---
-CREATE TABLE treelike (
-  id INTEGER PRIMARY KEY NOT NULL,
-  parent integer NOT NULL,
-  name varchar(100) NOT NULL
-);
-
---
 -- Table: self_ref
 --
 CREATE TABLE self_ref (
@@ -143,6 +134,15 @@ CREATE TABLE tags (
   tagid INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL,
   tag varchar(100) NOT NULL
+);
+
+--
+-- Table: treelike
+--
+CREATE TABLE treelike (
+  id INTEGER PRIMARY KEY NOT NULL,
+  parent integer NOT NULL,
+  name varchar(100) NOT NULL
 );
 
 --

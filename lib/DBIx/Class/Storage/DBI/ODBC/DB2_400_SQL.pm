@@ -8,28 +8,29 @@ sub last_insert_id
 {
     my ($self) = @_;
 
-    my $dbh = $self->_dbh;
+    $self->dbh_do(sub {
+        my $dbh = shift;
 
-    # get the schema/table separator:
-    #    '.' when SQL naming is active
-    #    '/' when system naming is active
-    my $sep = $dbh->get_info(41);
-    my $sth = $dbh->prepare_cached(
-        "SELECT IDENTITY_VAL_LOCAL() FROM SYSIBM${sep}SYSDUMMY1", {}, 3);
-    $sth->execute();
+        # get the schema/table separator:
+        #    '.' when SQL naming is active
+        #    '/' when system naming is active
+        my $sep = $dbh->get_info(41);
+        my $sth = $dbh->prepare_cached(
+            "SELECT IDENTITY_VAL_LOCAL() FROM SYSIBM${sep}SYSDUMMY1", {}, 3);
+        $sth->execute();
 
-    my @res = $sth->fetchrow_array();
+        my @res = $sth->fetchrow_array();
 
-    return @res ? $res[0] : undef;
+        return @res ? $res[0] : undef;
+    });
 }
 
 sub _sql_maker_opts {
     my ($self) = @_;
     
-    return {
-        limit_dialect => 'FetchFirst',
-        name_sep => $self->_dbh->get_info(41)
-    };
+    $self->dbh_do(sub {
+        { limit_dialect => 'FetchFirst', name_sep => shift->get_info(41) }
+    });
 }
 
 1;

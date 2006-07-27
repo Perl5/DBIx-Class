@@ -11,8 +11,7 @@ sub last_insert_id
 {
     my ($self) = @_;
 
-    my $dbh = $self->_dbh;
-    my $sth = $dbh->prepare_cached("VALUES(IDENTITY_VAL_LOCAL())", {}, 3);
+    my $sth = $self->dbh_do(sub { shift->prepare_cached("VALUES(IDENTITY_VAL_LOCAL())", {}, 3) });
     $sth->execute();
 
     my @res = $sth->fetchrow_array();

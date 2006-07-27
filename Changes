@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.07000 2006-07-23 02:30:00
         - supress warnings for possibly non-unique queries, since
           _is_unique_query doesn't infer properly in all cases
         - skip empty queries to eliminate spurious warnings on ->deploy
@@ -121,10 +122,7 @@ Revision history for DBIx::Class
         - nuke ResultSource caching of ->resultset for consistency reasons
         - fix for -and conditions when updating or deleting on a ResultSet
 
-0.06001 2006-04-08 21:48:43
-        - minor fix to update in case of undefined rels
-        - fixes for cascade delete
-        - substantial improvements and fixes to deploy
+0.06001
         - Added fix for quoting with single table
         - Substantial fixes and improvements to deploy
         - slice now uses search directly
