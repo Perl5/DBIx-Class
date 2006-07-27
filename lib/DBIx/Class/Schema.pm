@@ -680,9 +680,14 @@ sub populate {
 
 =back
 
-If this accessor is set to a subroutine reference, it will be executed
-to handle exceptions where possible.  Can be set at either the class or
-object level.
+If C<exception_action> is set for this class/object, L</throw_exception>
+will prefer to call this code reference with the exception as an argument,
+rather than its normal <croak> action.
+
+Your subroutine should probably just wrap the error in the exception
+object/class of your choosing and rethrow.  If, against all sage advice,
+you'd like your C<exception_action> to suppress a particular exception
+completely, simply have it return true.
 
 Example:
 
@@ -692,9 +697,12 @@ Example:
    __PACKAGE__->exception_action(sub { My::ExceptionClass->throw(@_) });
    __PACKAGE__->load_classes;
 
-   # or
+   # or:
    my $schema_obj = My::Schema->connect( .... );
    $schema_obj->exception_action(sub { My::ExceptionClass->throw(@_) });
+
+   # suppress all exceptions, like a moron:
+   $schema_obj->exception_action(sub { 1 });
 
 =head2 throw_exception
 
@@ -705,15 +713,14 @@ Example:
 =back
 
 Throws an exception. Defaults to using L<Carp::Clan> to report errors from
-user's perspective.  If C<exception_action> is set for this schema class or
-object, the error will be thrown via that subref instead.
+user's perspective.  See L</exception_action> for details on overriding
+this method's behavior.
 
 =cut
 
 sub throw_exception {
   my $self = shift;
-  $self->exception_action->(@_) if $self->exception_action;
-  croak @_;
+  croak @_ if !$self->exception_action || !$self->exception_action->(@_);
 }
 
 =head2 deploy (EXPERIMENTAL)
