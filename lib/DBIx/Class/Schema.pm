@@ -5,6 +5,7 @@ use warnings;
 
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
+require Module::Find;
 
 use base qw/DBIx::Class/;
 
@@ -248,10 +249,6 @@ sub load_classes {
       }
     }
   } else {
-    eval "require Module::Find;";
-    $class->throw_exception(
-      "No arguments to load_classes and couldn't load Module::Find ($@)"
-    ) if $@;
     my @comp = map { substr $_, length "${class}::"  }
                  Module::Find::findallmod($class);
     $comps_for{$class} = \@comp;
@@ -307,8 +304,6 @@ All of the namespace and classname options to this method are relative to
 the schema classname by default.  To specify a fully-qualified name, prefix
 it with a literal C<+>.
 
-This method requires L<Module::Find> to be installed on the system.
-
 Example:
 
   # load My::Schema::ResultSource::CD, My::Schema::ResultSource::Artist,
@@ -350,9 +345,6 @@ sub load_namespaces {
     next if !$_;
     $_ = $class . '::' . $_ if !s/^\+//;
   }
-
-  eval "require Module::Find";
-  $class->throw_exception("Couldn't load Module::Find ($@)") if $@;
 
   my %sources = map { (substr($_, length "${resultsource_namespace}::"), $_) }
       Module::Find::findallmod($resultsource_namespace);
