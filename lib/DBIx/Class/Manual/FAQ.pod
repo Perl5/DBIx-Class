@@ -288,7 +288,7 @@ the rows at once.
 To stop the column name from being quoted, you'll need to supply a
 scalar reference:
 
- ->update({ somecolumn => '\othercolumn'})
+ ->update({ somecolumn => \'othercolumn' })
 
 =back
 
