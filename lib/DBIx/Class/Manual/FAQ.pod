@@ -190,12 +190,12 @@ Then you can use the alias in your C<group_by> attribute.
 The first argument to C<search> is a hashref of accessor names and
 values to filter them by, for example:
 
- ->search({'created_time' => { '>=', '2006-06-01 00:00:00'} })
+ ->search({'created_time' => { '>=', '2006-06-01 00:00:00' } })
 
 Note that to use a function here you need to make the whole value into
 a scalar reference:
 
- ->search({'created_time' => \'>= yesterday() })
+ ->search({'created_time' => \'>= yesterday()' })
 
 =item .. search in several tables simultaneously?
 
@@ -205,7 +205,7 @@ then supply the name of the relationship to the C<join> attribute in
 your search, for example when searching in the Books table for all the
 books by the author "Fred Bloggs":
 
- ->search({'authors.name' => 'Fred Bloggs'}, { join => 'authors'})
+ ->search({'authors.name' => 'Fred Bloggs'}, { join => 'authors' })
 
 The type of join created in your SQL depends on the type of
 relationship between the two tables, see L<DBIx::Class::Relationship>
