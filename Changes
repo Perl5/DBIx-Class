@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
 0.07001
+        - pass $attrs to find from update_or_create so a specific key can be
+          provided
         - remove anonymous blesses to avoid major speed hit on Fedora Core 5's
           Perl and possibly others; for more information see:
           https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=196836

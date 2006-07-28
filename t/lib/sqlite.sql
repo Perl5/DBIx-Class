@@ -164,6 +164,15 @@ CREATE TABLE twokeys (
 );
 
 --
+-- Table: noprimarykey
+--
+CREATE TABLE noprimarykey (
+  foo integer NOT NULL,
+  bar integer NOT NULL,
+  baz integer NOT NULL
+);
+
+--
 -- Table: fourkeys
 --
 CREATE TABLE fourkeys (
@@ -205,5 +214,6 @@ CREATE UNIQUE INDEX tktlnameunique_twokeytreelike on twokeytreelike (name);
 CREATE UNIQUE INDEX cd_artist_title_cd on cd (artist, title);
 CREATE UNIQUE INDEX track_cd_position_track on track (cd, position);
 CREATE UNIQUE INDEX track_cd_title_track on track (cd, title);
+CREATE UNIQUE INDEX foo_bar_noprimarykey on noprimarykey (foo, bar);
 CREATE UNIQUE INDEX prod_name_producer on producer (name);
 COMMIT;
