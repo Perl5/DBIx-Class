@@ -1,6 +1,9 @@
 Revision history for DBIx::Class
 
 0.07001
+        - remove anonymous blesses to avoid major speed hit on Fedora Core 5's
+          Perl and possibly others; for more information see:
+          https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=196836
         - fix a pathological prefetch case
         - table case fix for Oracle in columns_info_for
 

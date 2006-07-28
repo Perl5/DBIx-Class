@@ -275,7 +275,9 @@ This class represents the connection to the database
 =cut
 
 sub new {
-  my $new = bless({}, ref $_[0] || $_[0]);
+  my $new = {};
+  bless $new, (ref $_[0] || $_[0]);
+
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->transaction_depth(0);
 

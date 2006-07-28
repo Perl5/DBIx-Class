@@ -95,14 +95,18 @@ sub new {
 
   $attrs->{alias} ||= 'me';
 
-  bless {
+  my $self = {
     result_source => $source,
     result_class => $attrs->{result_class} || $source->result_class,
     cond => $attrs->{where},
     count => undef,
     pager => undef,
     attrs => $attrs
-  }, $class;
+  };
+
+  bless $self, $class;
+
+  return $self;
 }
 
 =head2 search
