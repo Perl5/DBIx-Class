@@ -161,7 +161,7 @@ my $row = $schema->resultset('NoPrimaryKey')->update_or_create(
   },
   { key => 'foo_bar' }
 );
-is(! $row->is_changed, 1, 'update_or_create on table without primary key: row is clean');
+ok(! $row->is_changed, 'update_or_create on table without primary key: row is clean');
 is($row->foo, 1, 'foo is correct');
 is($row->bar, 2, 'bar is correct');
 is($row->baz, 3, 'baz is correct');
