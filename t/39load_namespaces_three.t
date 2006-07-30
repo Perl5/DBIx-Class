@@ -14,14 +14,14 @@ eval {
     package DBICNSTestOther;
     use base qw/DBIx::Class::Schema/;
     __PACKAGE__->load_namespaces(
-        resultsource_namespace => '+DBICNSTest::RSrc',
+        source_namespace => '+DBICNSTest::Src',
         resultset_namespace => '+DBICNSTest::RSet',
         result_namespace => '+DBICNSTest::Res'
     );
 };
 ok(!$@) or diag $@;
-like($warnings, qr/load_namespaces found ResultSet class C with no corresponding ResultSource/);
-like($warnings, qr/load_namespaces found Result class C with no corresponding ResultSource/);
+like($warnings, qr/load_namespaces found ResultSet class C with no corresponding source-definition class/);
+like($warnings, qr/load_namespaces found Result class C with no corresponding source-definition class/);
 
 my $source_a = DBICNSTestOther->source('A');
 isa_ok($source_a, 'DBIx::Class::ResultSource::Table');
@@ -35,4 +35,4 @@ isa_ok($source_b, 'DBIx::Class::ResultSource::Table');
 my $rset_b   = DBICNSTestOther->resultset('B');
 isa_ok($rset_b, 'DBIx::Class::ResultSet');
 my $resclass_b    = DBICNSTestOther->resultset('B')->result_class;
-is($resclass_b, 'DBICNSTest::RSrc::B');
+is($resclass_b, 'DBICNSTest::Src::B');

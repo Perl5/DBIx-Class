@@ -285,20 +285,20 @@ sub load_classes {
 =back
 
 This is an alternative to L</load_classes> above which assumes an alternative
-layout for automatic class loading.  It assumes that all ResultSource classes
-to be loaded are underneath a sub-namespace of the schema called
-"ResultSource", any corresponding ResultSet classes to be underneath a
-sub-namespace of the schema called "ResultSet", and any corresponing
-Result classes to be underneath a sub-namespace of the schema called "Result".
+layout for automatic class loading.  It assumes that all source-definition
+classes to be loaded are underneath a sub-namespace of the schema called
+"Source", any corresponding ResultSet classes to be underneath a sub-namespace
+of the schema called "ResultSet", and any corresponing Result classes to be
+underneath a sub-namespace of the schema called "Result".
 
 All of those sub-namespaces are configurable if you don't like the defaults,
-via the options C<resultsource_namespace>, C<resultset_namespace>, and
+via the options C<source_namespace>, C<resultset_namespace>, and
 C<result_namespace>, respectively.
 
-If (and only if) you specify the option C<default_resultset_base>, any found
-ResultSource classes that have no manually-created corresponding ResultSet
-class will have one created for them in memory in the C<resultset_namespace>,
-based on C<default_resultset_base>.
+If (and only if) you specify the option C<default_resultset_class>, any found
+source-definition classes that have no manually-created corresponding
+ResultSet class will have their C<resultset_class> set to
+C<default_resultset_class>.
 
 All of the namespace and classname options to this method are relative to
 the schema classname by default.  To specify a fully-qualified name, prefix
@@ -306,27 +306,27 @@ it with a literal C<+>.
 
 Example:
 
-  # load My::Schema::ResultSource::CD, My::Schema::ResultSource::Artist,
+  # load My::Schema::Source::CD, My::Schema::Source::Artist,
   #    My::Schema::ResultSet::CD, etc...
   My::Schema->load_namespaces;
 
   # Override everything...
   My::Schema->load_namespaces(
-    resultsource_namespace => 'RSources',
+    source_namespace => 'Srcs',
     resultset_namespace => 'RSets',
     result_namespace => 'Results',
-    default_resultset_base => 'RSetBase',
+    default_resultset_class => 'RSetBase',
   );
-  # ... and if there is a My::Schema::RSources::Foo, but no matching
-  #   My::Schema::RSets::Foo, then My::Schema::RSets::Foo will be created
-  #   for you in memory, based on My::Schema::RSetBase
+  # ... and if there is a My::Schema::Srcs::Foo, but no matching
+  #   My::Schema::RSets::Foo, then the Foo source will have its
+  #   resultset_class set to My::Schema::RSetBase
 
   # Put things in other namespaces
   My::Schema->load_namespaces(
-    resultsource_namespace => '+Some::Place::RSources',
+    source_namespace => '+Some::Place::Sources',
     resultset_namespace => '+Another::Place::RSets',
     result_namespace => '+Crazy::Stuff::Results',
-    default_resultset_base => '+You::Never::Know::RSetBase',
+    default_resultset_class => '+You::Never::Know::RSetBase',
   );
 
 
@@ -335,19 +335,23 @@ Example:
 sub load_namespaces {
   my ($class, %args) = @_;
 
-  my $resultsource_namespace = $args{resultsource_namespace} || 'ResultSource';
-  my $resultset_namespace    = $args{resultset_namespace}    || 'ResultSet';
-  my $result_namespace       = $args{result_namespace}       || 'Result';
-  my $default_resultset_base = $args{default_resultset_base};
+  my $source_namespace = delete $args{source_namespace} || 'Source';
+  my $resultset_namespace = delete $args{resultset_namespace} || 'ResultSet';
+  my $result_namespace = delete $args{result_namespace} || 'Result';
+  my $default_resultset_class = delete $args{default_resultset_class};
 
-  foreach ($resultsource_namespace, $resultset_namespace,
-           $result_namespace,       $default_resultset_base) {
+  $class->throw_exception('load_namespaces: unknown option(s): '
+    . join(q{,}, map { qq{'$_'} } keys %args))
+      if scalar keys %args;
+
+  foreach ($source_namespace, $resultset_namespace,
+           $result_namespace, $default_resultset_class) {
     next if !$_;
     $_ = $class . '::' . $_ if !s/^\+//;
   }
 
-  my %sources = map { (substr($_, length "${resultsource_namespace}::"), $_) }
-      Module::Find::findallmod($resultsource_namespace);
+  my %sources = map { (substr($_, length "${source_namespace}::"), $_) }
+      Module::Find::findallmod($source_namespace);
 
   my %resultsets = map { (substr($_, length "${resultset_namespace}::"), $_) }
       Module::Find::findallmod($resultset_namespace);
@@ -357,9 +361,9 @@ sub load_namespaces {
 
   my @to_register;
   {
-    no warnings qw/redefine/;
+    no warnings 'redefine';
     local *Class::C3::reinitialize = sub { };
-    use warnings qw/redefine/;
+    use warnings 'redefine';
 
     foreach my $source (keys %sources) {
       my $source_class = $sources{$source};
@@ -368,21 +372,15 @@ sub load_namespaces {
 
       my $rs_class = delete $resultsets{$source};
       my $rs_set = $source_class->resultset_class;
-      if(!$rs_set || $rs_set eq 'DBIx::Class::ResultSet') {
+      if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
         if($rs_class) {
-          $class->ensure_class_loaded($rs_class);
-          $source_class->resultset_class($rs_class);
-        }
-        elsif($default_resultset_base) {
-          $class->ensure_class_loaded($default_resultset_base);
-          $rs_class = "$resultset_namespace\::$source";
-          { no strict qw/refs/; @{"$rs_class\::ISA"} = ($default_resultset_base); }
-          $source_class->resultset_class($rs_class);
+          warn "We found ResultSet class '$rs_class' for '$source', but it seems "
+             . "that you had already set '$source' to use '$rs_set' instead";
         }
       }
-      elsif($rs_set && $rs_class) {
-        warn "We found ResultSet class '$rs_class' for '$source', but it seems "
-           . "that you had already set '$source' to use '$rs_set' instead";
+      elsif($rs_class ||= $default_resultset_class) {
+        $class->ensure_class_loaded($rs_class);
+        $source_class->resultset_class($rs_class);
       }
 
       my $r_class = delete $results{$source};
@@ -404,12 +402,12 @@ sub load_namespaces {
 
   foreach (sort keys %resultsets) {
     warn "load_namespaces found ResultSet class $_ with no "
-      . 'corresponding ResultSource';
+      . 'corresponding source-definition class';
   }
 
   foreach (sort keys %results) {
     warn "load_namespaces found Result class $_ with no "
-      . 'corresponding ResultSource';
+      . 'corresponding source-definition class';
   }
 
   Class::C3->reinitialize;

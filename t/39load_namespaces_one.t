@@ -16,8 +16,8 @@ eval {
     __PACKAGE__->load_namespaces;
 };
 ok(!$@) or diag $@;
-like($warnings, qr/load_namespaces found ResultSet class C with no corresponding ResultSource/);
-like($warnings, qr/load_namespaces found Result class C with no corresponding ResultSource/);
+like($warnings, qr/load_namespaces found ResultSet class C with no corresponding source-definition class/);
+like($warnings, qr/load_namespaces found Result class C with no corresponding source-definition class/);
 
 my $source_a = DBICNSTest->source('A');
 isa_ok($source_a, 'DBIx::Class::ResultSource::Table');
@@ -31,4 +31,4 @@ isa_ok($source_b, 'DBIx::Class::ResultSource::Table');
 my $rset_b   = DBICNSTest->resultset('B');
 isa_ok($rset_b, 'DBIx::Class::ResultSet');
 my $resclass_b    = DBICNSTest->resultset('B')->result_class;
-is($resclass_b, 'DBICNSTest::ResultSource::B');
+is($resclass_b, 'DBICNSTest::Source::B');
