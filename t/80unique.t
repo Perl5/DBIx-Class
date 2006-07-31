@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 39;
+plan tests => 43;
 
 # Check the defined unique constraints
 is_deeply(
@@ -151,3 +151,17 @@ my $track = $schema->resultset('Track')->find(
 
 is($track->get_column('cd'), 1, 'track cd is correct');
 is($track->get_column('position'), 3, 'track position is correct');
+
+# Test a table with a unique constraint but no primary key
+my $row = $schema->resultset('NoPrimaryKey')->update_or_create(
+  {
+    foo => 1,
+    bar => 2,
+    baz => 3,
+  },
+  { key => 'foo_bar' }
+);
+ok(! $row->is_changed, 'update_or_create on table without primary key: row is clean');
+is($row->foo, 1, 'foo is correct');
+is($row->bar, 2, 'bar is correct');
+is($row->baz, 3, 'baz is correct');

@@ -626,7 +626,9 @@ copy.
 
 sub clone {
   my ($self) = @_;
-  my $clone = bless({ (ref $self ? %$self : ()) }, ref $self || $self);
+  my $clone = { (ref $self ? %$self : ()) };
+  bless $clone, (ref $self || $self);
+
   foreach my $moniker ($self->sources) {
     my $source = $self->source($moniker);
     my $new = $source->new($source);

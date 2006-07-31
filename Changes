@@ -1,5 +1,14 @@
 Revision history for DBIx::Class
 
+0.07001
+        - pass $attrs to find from update_or_create so a specific key can be
+          provided
+        - remove anonymous blesses to avoid major speed hit on Fedora Core 5's
+          Perl and possibly others; for more information see:
+          https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=196836
+        - fix a pathological prefetch case
+        - table case fix for Oracle in columns_info_for
+
 0.07000 2006-07-23 02:30:00
         - supress warnings for possibly non-unique queries, since
           _is_unique_query doesn't infer properly in all cases

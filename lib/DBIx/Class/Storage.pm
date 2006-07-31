@@ -36,7 +36,8 @@ use overload '"' => sub {
 
 sub new {
   my $class = shift;
-  return bless {}, $class;
+  my $self = {};
+  return bless $self, $class;
 }
 
 1;

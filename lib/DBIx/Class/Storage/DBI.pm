@@ -280,8 +280,8 @@ Constructor.  Only argument is the schema which instantiated us.
 sub new {
   my ($self, $schema) = @_;
 
-  my $new = bless({}, ref $self || $self);
-
+  my $new = {};
+  bless $new, (ref $_[0] || $_[0]);
   $new->set_schema($schema);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->transaction_depth(0);

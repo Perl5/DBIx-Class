@@ -45,7 +45,10 @@ Creates a new ResultSource object.  Not normally called directly by end users.
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
-  my $new = bless({ %{$attrs || {}}, _resultset => undef }, $class);
+
+  my $new = { %{$attrs || {}}, _resultset => undef };
+  bless $new, $class;
+
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
   $new->{resultset_attributes} = { %{$new->{resultset_attributes} || {}} };
   $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];

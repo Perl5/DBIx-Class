@@ -95,12 +95,6 @@ sub new {
 
   $attrs->{alias} ||= 'me';
 
-  # XXXX
-  # Use a named hash here and bless afterwards to avoid a huge performance hit
-  # in perl 5.8.8-5+ FC5 and later, and possibly other distributions.
-  #
-  # See https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=196836 for more
-  # information.
   my $self = {
     result_source => $source,
     result_class => $attrs->{result_class} || $source->result_class,
@@ -291,6 +285,9 @@ If the C<key> is specified as C<primary>, it searches only on the primary key.
 If no C<key> is specified, it searches on all unique constraints defined on the
 source, including the primary key.
 
+If your table does not have a primary key, you B<must> provide a value for the
+C<key> attribute matching one of the unique constraints on the source.
+
 See also L</find_or_create> and L</update_or_create>. For information on how to
 declare unique constraints, see
 L<DBIx::Class::ResultSource/add_unique_constraint>.
@@ -306,7 +303,7 @@ sub find {
     ? $self->result_source->unique_constraint_columns($attrs->{key})
     : $self->result_source->primary_columns;
   $self->throw_exception(
-    "Can't find unless a primary key or unique constraint is defined"
+    "Can't find unless a primary key is defined or unique constraint is specified"
   ) unless @cols;
 
   # Parse out a hashref from input
@@ -569,7 +566,7 @@ sub _collapse_query {
 
   my $max_length = $rs->get_column('length')->max;
 
-Returns a ResultSetColumn instance for $column based on $self
+Returns a L<DBIx::Class::ResultSetColumn> instance for a column of the ResultSet.
 
 =cut
 
@@ -1347,7 +1344,7 @@ sub update_or_create {
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
   my $cond = ref $_[0] eq 'HASH' ? shift : {@_};
 
-  my $row = $self->find($cond);
+  my $row = $self->find($cond, $attrs);
   if (defined $row) {
     $row->update($cond);
     return $row;
