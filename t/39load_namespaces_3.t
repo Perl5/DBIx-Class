@@ -6,7 +6,7 @@ use Test::More;
 
 unshift(@INC, './t/lib');
 
-plan tests => 9;
+plan tests => 10;
 
 my $warnings;
 eval {
@@ -14,7 +14,7 @@ eval {
     package DBICNSTestOther;
     use base qw/DBIx::Class::Schema/;
     __PACKAGE__->load_namespaces(
-        source_namespace => '+DBICNSTest::Src',
+        source_namespace => [ '+DBICNSTest::Src', '+DBICNSTest::OtherSrc' ],
         resultset_namespace => '+DBICNSTest::RSet',
         result_namespace => '+DBICNSTest::Res'
     );
@@ -36,3 +36,6 @@ my $rset_b   = DBICNSTestOther->resultset('B');
 isa_ok($rset_b, 'DBIx::Class::ResultSet');
 my $resclass_b    = DBICNSTestOther->resultset('B')->result_class;
 is($resclass_b, 'DBICNSTest::Src::B');
+
+my $source_d = DBICNSTestOther->source('D');
+isa_ok($source_d, 'DBIx::Class::ResultSource::Table');

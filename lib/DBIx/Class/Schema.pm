@@ -300,11 +300,14 @@ source-definition classes that have no manually-created corresponding
 ResultSet class will have their C<resultset_class> set to
 C<default_resultset_class>.
 
+C<load_namespaces> takes care of calling C<resultset_class> and/or
+C<result_class> for you where neccessary if you didn't do it for yourself.
+
 All of the namespace and classname options to this method are relative to
 the schema classname by default.  To specify a fully-qualified name, prefix
 it with a literal C<+>.
 
-Example:
+Examples:
 
   # load My::Schema::Source::CD, My::Schema::Source::Artist,
   #    My::Schema::ResultSet::CD, etc...
@@ -325,12 +328,46 @@ Example:
   My::Schema->load_namespaces(
     source_namespace => '+Some::Place::Sources',
     resultset_namespace => '+Another::Place::RSets',
-    result_namespace => '+Crazy::Stuff::Results',
-    default_resultset_class => '+You::Never::Know::RSetBase',
   );
 
+If you'd like to use multiple namespaces of each type, simply use an arrayref
+of namespaces for that option.  In the case that the same source-definition
+(or resultset, or result) class exists in multiple namespaces, the latter
+entries in your list of namespaces will override earlier ones.
+
+  My::Schema->load_namespaces(
+    source_namespace => [ 'Sources_C', 'Sources_B', 'Sources_A' ],
+    resultset_namespace => [ '+Some::Place::RSets', 'RSets' ],
+  );
 
 =cut
+
+# Pre-pends our classname to the given relative classname or
+#   class namespace, unless there is a '+' prefix, which will
+#   be stripped.  Modifies its argument!
+sub _expand_relative_name {
+  my $class = shift;
+  return if !$_[0];
+  $_[0] = $class . '::' . $_[0] if ! ($_[0] =~ s/^\+//);
+}
+
+# returns a hash of $shortname => $fullname for every package
+#  found in the given namespaces ($shortname is with the $fullname's
+#  namespace stripped off)
+sub _map_namespaces {
+  my ($class, @namespaces) = @_;
+
+  my @results_hash;
+  foreach my $namespace (@namespaces) {
+    push(
+      @results_hash,
+      map { (substr($_, length "${namespace}::"), $_) }
+      Module::Find::findallmod($namespace)
+    );
+  }
+
+  @results_hash;
+}
 
 sub load_namespaces {
   my ($class, %args) = @_;
@@ -344,20 +381,21 @@ sub load_namespaces {
     . join(q{,}, map { qq{'$_'} } keys %args))
       if scalar keys %args;
 
-  foreach ($source_namespace, $resultset_namespace,
-           $result_namespace, $default_resultset_class) {
-    next if !$_;
-    $_ = $class . '::' . $_ if !s/^\+//;
+  $class->_expand_relative_name($default_resultset_class);
+
+  for my $arg ($source_namespace, $resultset_namespace, $result_namespace) {
+    $arg = [ $arg ] if !ref($arg) && $arg;
+
+    $class->throw_exception('load_namespaces: namespace arguments must be '
+      . 'a simple string or an arrayref')
+        if ref($arg) ne 'ARRAY';
+
+    $class->_expand_relative_name($_) for (@$arg);
   }
 
-  my %sources = map { (substr($_, length "${source_namespace}::"), $_) }
-      Module::Find::findallmod($source_namespace);
-
-  my %resultsets = map { (substr($_, length "${resultset_namespace}::"), $_) }
-      Module::Find::findallmod($resultset_namespace);
-
-  my %results = map { (substr($_, length "${result_namespace}::"), $_) }
-      Module::Find::findallmod($result_namespace);
+  my %sources = $class->_map_namespaces(@$source_namespace);
+  my %resultsets = $class->_map_namespaces(@$resultset_namespace);
+  my %results = $class->_map_namespaces(@$result_namespace);
 
   my @to_register;
   {
@@ -373,7 +411,7 @@ sub load_namespaces {
       my $rs_class = delete $resultsets{$source};
       my $rs_set = $source_class->resultset_class;
       if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
-        if($rs_class) {
+        if($rs_class && $rs_class ne $rs_set) {
           warn "We found ResultSet class '$rs_class' for '$source', but it seems "
              . "that you had already set '$source' to use '$rs_set' instead";
         }
@@ -390,7 +428,7 @@ sub load_namespaces {
           $class->ensure_class_loaded($r_class);
           $source_class->result_class($r_class);
         }
-        else {
+        elsif($r_set ne $r_class) {
           warn "We found Result class '$r_class' for '$source', but it seems "
              . "that you had already set '$source' to use '$r_set' instead";
         }
