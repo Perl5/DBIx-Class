@@ -226,6 +226,8 @@ scotty: Scotty Allen <scotty@scottyallen.com>
 
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
+zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
+
 Todd Lipcon
 
 wdh: Will Hawes
