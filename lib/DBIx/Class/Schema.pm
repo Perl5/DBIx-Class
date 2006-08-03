@@ -286,17 +286,17 @@ sub load_classes {
 
 This is an alternative to L</load_classes> above which assumes an alternative
 layout for automatic class loading.  It assumes that all source-definition
-classes to be loaded are underneath a sub-namespace of the schema called
-"Source", any corresponding ResultSet classes to be underneath a sub-namespace
-of the schema called "ResultSet", and any corresponing Result classes to be
-underneath a sub-namespace of the schema called "Result".
+classes are underneath a sub-namespace of the schema called C<Source>, any
+corresponding ResultSet classes are underneath a sub-namespace of the schema
+called C<ResultSet>, and any corresponding Result classes are underneath a
+sub-namespace of the schema called C<Result>.
 
 All of those sub-namespaces are configurable if you don't like the defaults,
 via the options C<source_namespace>, C<resultset_namespace>, and
 C<result_namespace>, respectively.
 
 If (and only if) you specify the option C<default_resultset_class>, any found
-source-definition classes that have no manually-created corresponding
+source-definition classes for which we do not find a corresponding
 ResultSet class will have their C<resultset_class> set to
 C<default_resultset_class>.
 
@@ -320,7 +320,7 @@ Examples:
     result_namespace => 'Results',
     default_resultset_class => 'RSetBase',
   );
-  # ... and if there is a My::Schema::Srcs::Foo, but no matching
+  # In the above, if there is a My::Schema::Srcs::Foo, but no matching
   #   My::Schema::RSets::Foo, then the Foo source will have its
   #   resultset_class set to My::Schema::RSetBase
 
@@ -344,11 +344,12 @@ entries in your list of namespaces will override earlier ones.
 
 # Pre-pends our classname to the given relative classname or
 #   class namespace, unless there is a '+' prefix, which will
-#   be stripped.  Modifies its argument!
+#   be stripped.
 sub _expand_relative_name {
-  my $class = shift;
-  return if !$_[0];
-  $_[0] = $class . '::' . $_[0] if ! ($_[0] =~ s/^\+//);
+  my ($class, $name) = @_;
+  return if !$name;
+  $name = $class . '::' . $name if ! ($name =~ s/^\+//);
+  return $name;
 }
 
 # returns a hash of $shortname => $fullname for every package
@@ -381,7 +382,8 @@ sub load_namespaces {
     . join(q{,}, map { qq{'$_'} } keys %args))
       if scalar keys %args;
 
-  $class->_expand_relative_name($default_resultset_class);
+  $default_resultset_class
+    = $class->_expand_relative_name($default_resultset_class);
 
   for my $arg ($source_namespace, $resultset_namespace, $result_namespace) {
     $arg = [ $arg ] if !ref($arg) && $arg;
@@ -390,7 +392,7 @@ sub load_namespaces {
       . 'a simple string or an arrayref')
         if ref($arg) ne 'ARRAY';
 
-    $class->_expand_relative_name($_) for (@$arg);
+    $_ = $class->_expand_relative_name($_) for (@$arg);
   }
 
   my %sources = $class->_map_namespaces(@$source_namespace);
