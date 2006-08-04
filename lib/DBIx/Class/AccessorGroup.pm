@@ -316,7 +316,7 @@ sub set_component_class {
   if ($@) {
       my $val_path = $val;
       $val_path =~ s{::}{/}g;
-      carp $@ unless $@ =~ /^Can't locate $val_path/;
+      carp $@ unless $@ =~ /^Can't locate $val_path\.pm/;
   }
   if (ref $self) {
       return $self->{$set} = $val;
