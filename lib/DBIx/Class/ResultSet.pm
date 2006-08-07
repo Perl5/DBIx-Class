@@ -323,9 +323,13 @@ sub find {
 
   my @unique_queries = $self->_unique_queries($input_query, $attrs);
 
-  # Handle cases where the ResultSet defines the query, or where the user is
-  # abusing find
-  my $query = @unique_queries ? \@unique_queries : $input_query;
+  # Build the final query: Default to the disjunction of the unique queries,
+  # but allow the input query in case the ResultSet defines the query or the
+  # user is abusing find
+  my $alias = exists $attrs->{alias} ? $attrs->{alias} : $self->{attrs}{alias};
+  my $query = @unique_queries
+    ? [ map { $self->_add_alias($_, $alias) } @unique_queries ]
+    : $self->_add_alias($input_query, $alias);
 
   # Run the query
   if (keys %$attrs) {
@@ -339,6 +343,22 @@ sub find {
   }
 }
 
+# _add_alias
+#
+# Add the specified alias to the specified query hash. A copy is made so the
+# original query is not modified.
+
+sub _add_alias {
+  my ($self, $query, $alias) = @_;
+
+  my %aliased = %$query;
+  foreach my $col (grep { ! m/\./ } keys %aliased) {
+    $aliased{"$alias.$col"} = delete $aliased{$col};
+  }
+
+  return \%aliased;
+}
+
 # _unique_queries
 #
 # Build a list of queries which satisfy unique constraints.
@@ -346,7 +366,6 @@ sub find {
 sub _unique_queries {
   my ($self, $query, $attrs) = @_;
 
-  my $alias = $self->{attrs}{alias};
   my @constraint_names = exists $attrs->{key}
     ? ($attrs->{key})
     : $self->result_source->unique_constraint_names;
@@ -358,11 +377,6 @@ sub _unique_queries {
 
     my $num_query = scalar keys %$unique_query;
     next unless $num_query;
-
-    # Add the ResultSet's alias
-    foreach my $col (grep { ! m/\./ } keys %$unique_query) {
-      $unique_query->{"$alias.$col"} = delete $unique_query->{$col};
-    }
 
     # XXX: Assuming quite a bit about $self->{attrs}{where}
     my $num_cols = scalar @unique_cols;
@@ -1194,14 +1208,33 @@ sub new_result {
   $self->throw_exception(
     "Can't abstract implicit construct, condition not a hash"
   ) if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
-  my %new = %$values;
+
   my $alias = $self->{attrs}{alias};
-  foreach my $key (keys %{$self->{cond}||{}}) {
-    $new{$1} = $self->{cond}{$key} if ($key =~ m/^(?:\Q${alias}.\E)?([^.]+)$/);
-  }
+  my %new = (
+    %{ $self->_remove_alias($values, $alias) },
+    %{ $self->_remove_alias($self->{cond}, $alias) },
+  );
+
   my $obj = $self->result_class->new(\%new);
   $obj->result_source($self->result_source) if $obj->can('result_source');
   return $obj;
+}
+
+# _remove_alias
+#
+# Remove the specified alias from the specified query hash. A copy is made so
+# the original query is not modified.
+
+sub _remove_alias {
+  my ($self, $query, $alias) = @_;
+
+  my %unaliased = %{ $query || {} };
+  foreach my $key (keys %unaliased) {
+    $unaliased{$1} = delete $unaliased{$key}
+      if $key =~ m/^(?:\Q$alias\E\.)?([^.]+)$/;
+  }
+
+  return \%unaliased;
 }
 
 =head2 find_or_new

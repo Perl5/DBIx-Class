@@ -1,6 +1,9 @@
 Revision history for DBIx::Class
 
 0.07001
+        - restore automatic aliasing in ResultSet::find() on nonunique queries
+        - allow aliases in ResultSet::find() queries (in cases of relationships
+          with prefetch)
         - pass $attrs to find from update_or_create so a specific key can be
           provided
         - remove anonymous blesses to avoid major speed hit on Fedora Core 5's

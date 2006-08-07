@@ -9,6 +9,10 @@ __PACKAGE__->add_columns(
     data_type => 'integer',
     is_auto_increment => 1
   },
+  'agent' => {
+    data_type   => 'integer',
+    is_nullable => 1,
+  },
   'name' => {
     data_type => 'varchar',
     size      => 100,
@@ -19,6 +23,7 @@ __PACKAGE__->set_primary_key('artistid');
 
 __PACKAGE__->mk_classdata('field_name_for', {
     artistid    => 'primary key',
+    agent       => 'agent',
     name        => 'artist name',
 });
 
@@ -26,6 +31,8 @@ __PACKAGE__->has_many(
     cds => 'DBICTest::Schema::CD', undef,
     { order_by => 'year' },
 );
+
+__PACKAGE__->belongs_to( agent => 'DBICTest::Schema::Agent' );
 
 __PACKAGE__->has_many( twokeys => 'DBICTest::Schema::TwoKeys' );
 __PACKAGE__->has_many( onekeys => 'DBICTest::Schema::OneKey' );
