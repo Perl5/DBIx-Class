@@ -172,13 +172,14 @@ sub search_rs {
   my $our_attrs = { %{$self->{attrs}} };
   my $having = delete $our_attrs->{having};
 
+  my $new_attrs = { %{$our_attrs}, %{$attrs} };
+
   # merge new attrs into inherited
   foreach my $key (qw/join prefetch/) {
     next unless exists $attrs->{$key};
-    $our_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, delete $attrs->{$key});
+    $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
   
-  my $new_attrs = { %{$our_attrs}, %{$attrs} };
   my $where = (@_
     ? (
         (@_ == 1 || ref $_[0] eq "HASH")
