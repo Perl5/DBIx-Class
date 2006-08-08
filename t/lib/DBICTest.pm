@@ -104,21 +104,11 @@ sub populate_schema {
     my $self = shift;
     my $schema = shift;
 
-    $schema->populate('Label', [
-        [ qw/labelid name/ ],
-        [ 1, 'Acme Records' ],
-    ]);
-
-    $schema->populate('Agent', [
-        [ qw/agentid label name/ ],
-        [ 1, 1, 'Ted' ],
-    ]);
-
     $schema->populate('Artist', [
-        [ qw/artistid agent name/ ],
-        [ 1, 1, 'Caterwauler McCrae' ],
-        [ 2, 1, 'Random Boy Band' ],
-        [ 3, 1, 'We Are Goth' ],
+        [ qw/artistid name/ ],
+        [ 1, 'Caterwauler McCrae' ],
+        [ 2, 'Random Boy Band' ],
+        [ 3, 'We Are Goth' ],
     ]);
 
     $schema->populate('CD', [

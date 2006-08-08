@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Fri Aug  4 19:03:21 2006
+-- Created on Tue Aug  8 01:53:20 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -44,15 +44,6 @@ CREATE TABLE cd_to_producer (
 --
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY NOT NULL,
-  agent integer,
-  name varchar(100)
-);
-
---
--- Table: label
---
-CREATE TABLE label (
-  labelid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100)
 );
 
@@ -128,30 +119,21 @@ CREATE TABLE self_ref (
 );
 
 --
--- Table: tags
---
-CREATE TABLE tags (
-  tagid INTEGER PRIMARY KEY NOT NULL,
-  cd integer NOT NULL,
-  tag varchar(100) NOT NULL
-);
-
---
--- Table: agent
---
-CREATE TABLE agent (
-  agentid INTEGER PRIMARY KEY NOT NULL,
-  label integer NOT NULL,
-  name varchar(100)
-);
-
---
 -- Table: link
 --
 CREATE TABLE link (
   id INTEGER PRIMARY KEY NOT NULL,
   url varchar(100),
   title varchar(100)
+);
+
+--
+-- Table: tags
+--
+CREATE TABLE tags (
+  tagid INTEGER PRIMARY KEY NOT NULL,
+  cd integer NOT NULL,
+  tag varchar(100) NOT NULL
 );
 
 --
