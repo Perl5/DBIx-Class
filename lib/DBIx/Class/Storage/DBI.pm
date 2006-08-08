@@ -861,11 +861,6 @@ sub columns_info_for {
       my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
       $sth->execute();
 
-      # Some error occured or there is no information:
-      if($sth->rows <1) {
-          die "column_info returned no rows for $schema, $tab";
-      }
-
       while ( my $info = $sth->fetchrow_hashref() ){
         my %column_info;
         $column_info{data_type}   = $info->{TYPE_NAME};
@@ -878,7 +873,7 @@ sub columns_info_for {
         $result{$col_name} = \%column_info;
       }
     };
-    return \%result if !$@;
+    return \%result if !$@ && scalar keys %result;
   }
 
   my %result;
