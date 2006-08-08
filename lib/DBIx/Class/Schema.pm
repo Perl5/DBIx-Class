@@ -505,7 +505,6 @@ sub txn_do {
   $self->storage->txn_do(@_);
 }
 
-
 =head2 txn_begin
 
 Begins a transaction (does nothing if AutoCommit is off). Equivalent to

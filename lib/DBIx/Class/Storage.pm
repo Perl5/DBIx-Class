@@ -3,6 +3,14 @@ package DBIx::Class::Storage;
 use strict;
 use warnings;
 
+use base qw/DBIx::Class/;
+
+use Scalar::Util qw/weaken/;
+use Carp::Clan qw/DBIx::Class/;
+
+__PACKAGE__->load_components(qw/AccessorGroup/);
+__PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
+
 package # Hide from PAUSE
     DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
 
@@ -18,29 +26,104 @@ sub new {
 
 package DBIx::Class::Storage;
 
-sub new { die "Virtual method!" }
-sub set_schema { die "Virtual method!" }
-sub debug { die "Virtual method!" }
-sub debugcb { die "Virtual method!" }
-sub debugfh { die "Virtual method!" }
-sub debugobj { die "Virtual method!" }
-sub cursor { die "Virtual method!" }
-sub disconnect { die "Virtual method!" }
+=head1 NAME
+
+DBIx::Class::Storage - Generic Storage Handler
+
+=head1 DESCRIPTION
+
+A base implementation of common Storage methods.  For specific
+information about L<DBI>-based storage, see L<DBIx::Class::Storage::DBI>.
+
+=head1 METHODS
+
+=head2 new
+
+Arguments: $schema
+
+Instantiates the Storage object.
+
+=cut
+
+sub new {
+  my ($self, $schema) = @_;
+
+  $self = ref $self if ref $self;
+
+  my $new = {};
+  bless $new, $self;
+
+  $new->set_schema($schema);
+  $new->debugobj(new DBIx::Class::Storage::Statistics());
+
+  my $fh;
+
+  my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
+                  || $ENV{DBIC_TRACE};
+
+  if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
+    $fh = IO::File->new($1, 'w')
+      or $new->throw_exception("Cannot open trace file $1");
+  } else {
+    $fh = IO::File->new('>&STDERR');
+  }
+
+  $new->debugfh($fh);
+  $new->debug(1) if $debug_env;
+
+  $new;
+}
+
+=head2 set_schema
+
+Used to reset the schema class or object which owns this
+storage object, such as during L<DBIx::Class::Schema/clone>.
+
+=cut
+
+sub set_schema {
+  my ($self, $schema) = @_;
+  $self->schema($schema);
+  weaken($self->{schema}) if ref $self->{schema};
+}
+
+=head2 connected
+
+Returns true if we have an open storage connection, false
+if it is not (yet) open.
+
+=cut
+
 sub connected { die "Virtual method!" }
+
+=head2 disconnect
+
+Closes any open storage connection unconditionally.
+
+=cut
+
+sub disconnect { die "Virtual method!" }
+
+=head2 ensure_connected
+
+Initiate a connection to the storage if one isn't already open.
+
+=cut
+
 sub ensure_connected { die "Virtual method!" }
-sub on_connect_do { die "Virtual method!" }
-sub connect_info { die "Virtual method!" }
-sub sql_maker { die "Virtual method!" }
-sub txn_begin { die "Virtual method!" }
-sub txn_commit { die "Virtual method!" }
-sub txn_rollback { die "Virtual method!" }
-sub insert { die "Virtual method!" }
-sub update { die "Virtual method!" }
-sub delete { die "Virtual method!" }
-sub select { die "Virtual method!" }
-sub select_single { die "Virtual method!" }
-sub columns_info_for { die "Virtual method!" }
-sub throw_exception { die "Virtual method!" }
+
+=head2 throw_exception
+
+Throws an exception - croaks.
+
+=cut
+
+sub throw_exception {
+  my $self = shift;
+
+  $self->schema->throw_exception(@_) if $self->schema;
+  croak @_;
+}
 
 =head2 txn_do
 
@@ -142,5 +225,151 @@ sub txn_do {
 
   return $wantarray ? @return_values : $return_value;
 }
+
+=head2 txn_begin
+
+Starts a transaction.
+
+See the preferred L</txn_do> method, which allows for
+an entire code block to be executed transactionally.
+
+=cut
+
+sub txn_begin { die "Virtual method!" }
+
+=head2 txn_commit
+
+Issues a commit of the current transaction.
+
+=cut
+
+sub txn_commit { die "Virtual method!" }
+
+=head2 txn_rollback
+
+Issues a rollback of the current transaction. A nested rollback will
+throw a L<DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION> exception,
+which allows the rollback to propagate to the outermost transaction.
+
+=cut
+
+sub txn_rollback { die "Virtual method!" }
+
+=head2 sql_maker
+
+Returns a C<sql_maker> object - normally an object of class
+C<DBIC::SQL::Abstract>.
+
+=cut
+
+sub sql_maker { die "Virtual method!" }
+
+=head2 debug
+
+Causes trace information to be emitted on the C<debugobj> object.
+(or C<STDERR> if C<debugobj> has not specifically been set).
+
+This is the equivalent to setting L</DBIC_TRACE> in your
+shell environment.
+
+=head2 debugfh
+
+Set or retrieve the filehandle used for trace/debug output.  This should be
+an IO::Handle compatible ojbect (only the C<print> method is used.  Initially
+set to be STDERR - although see information on the
+L<DBIC_TRACE> environment variable.
+
+=cut
+
+sub debugfh {
+    my $self = shift;
+
+    if ($self->debugobj->can('debugfh')) {
+        return $self->debugobj->debugfh(@_);
+    }
+}
+
+=head2 debugobj
+
+Sets or retrieves the object used for metric collection. Defaults to an instance
+of L<DBIx::Class::Storage::Statistics> that is compatible with the original
+method of using a coderef as a callback.  See the aforementioned Statistics
+class for more information.
+
+=head2 debugcb
+
+Sets a callback to be executed each time a statement is run; takes a sub
+reference.  Callback is executed as $sub->($op, $info) where $op is
+SELECT/INSERT/UPDATE/DELETE and $info is what would normally be printed.
+
+See L<debugobj> for a better way.
+
+=cut
+
+sub debugcb {
+    my $self = shift;
+
+    if ($self->debugobj->can('callback')) {
+        return $self->debugobj->callback(@_);
+    }
+}
+
+=head2 cursor
+
+The cursor class for this Storage object.
+
+=cut
+
+sub cursor { die "Virtual method!" }
+
+=head2 deploy
+
+Deploy the tables to storage (CREATE TABLE and friends in a SQL-based
+Storage class). This would normally be called through
+L<DBIx::Class::Schema/deploy>.
+
+=cut
+
+sub deploy { die "Virtual method!" }
+
+sub on_connect_do { die "Virtual method!" }
+sub connect_info { die "Virtual method!" }
+sub insert { die "Virtual method!" }
+sub update { die "Virtual method!" }
+sub delete { die "Virtual method!" }
+sub select { die "Virtual method!" }
+sub select_single { die "Virtual method!" }
+sub columns_info_for { die "Virtual method!" }
+
+=head1 ENVIRONMENT VARIABLES
+
+=head2 DBIC_TRACE
+
+If C<DBIC_TRACE> is set then trace information
+is produced (as when the L<debug> method is set).
+
+If the value is of the form C<1=/path/name> then the trace output is
+written to the file C</path/name>.
+
+This environment variable is checked when the storage object is first
+created (when you call connect on your schema).  So, run-time changes 
+to this environment variable will not take effect unless you also 
+re-connect on your schema.
+
+=head2 DBIX_CLASS_STORAGE_DBI_DEBUG
+
+Old name for DBIC_TRACE
+
+=head1 AUTHORS
+
+Matt S. Trout <mst@shadowcatsystems.co.uk>
+
+Andy Grundman <andy@hybridized.org>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
 
 1;

@@ -58,7 +58,7 @@ my $exceptions = {
     'DBIx::Class::Relationship::ProxyMethods'           => { skip => 1 },
     'DBIx::Class::ResultSetProxy'                       => { skip => 1 },
     'DBIx::Class::ResultSourceProxy'                    => { skip => 1 },
-    'DBIx::Class::Storage'                              => { skip => 1 },
+    'DBIx::Class::Storage::DBI'                         => { skip => 1 },
     'DBIx::Class::Storage::DBI::DB2'                    => { skip => 1 },
     'DBIx::Class::Storage::DBI::MSSQL'                  => { skip => 1 },
     'DBIx::Class::Storage::DBI::MultiDistinctEmulation' => { skip => 1 },

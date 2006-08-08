@@ -10,8 +10,14 @@ use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use IO::File;
-use Scalar::Util qw/weaken/;
 use Carp::Clan qw/DBIx::Class/;
+
+__PACKAGE__->mk_group_accessors(
+  'simple' =>
+    qw/_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid _conn_tid
+       cursor on_connect_do transaction_depth/
+);
+
 BEGIN {
 
 package DBIC::SQL::Abstract; # Would merge upstream, but nate doesn't reply :(
@@ -251,14 +257,6 @@ sub name_sep {
 
 } # End of BEGIN block
 
-use base qw/DBIx::Class/;
-
-__PACKAGE__->load_components(qw/AccessorGroup/);
-
-__PACKAGE__->mk_group_accessors('simple' =>
-  qw/_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid _conn_tid
-     debug debugobj cursor on_connect_do transaction_depth schema/);
-
 =head1 NAME
 
 DBIx::Class::Storage::DBI - DBI storage handler
@@ -267,69 +265,22 @@ DBIx::Class::Storage::DBI - DBI storage handler
 
 =head1 DESCRIPTION
 
-This class represents the connection to the database
+This class represents the connection to an RDBMS via L<DBI>.  See
+L<DBIx::Class::Storage> for general information.  This pod only
+documents DBI-specific methods and behaviors.
 
 =head1 METHODS
-
-=head2 new
-
-Constructor.  Only argument is the schema which instantiated us.
 
 =cut
 
 sub new {
-  my ($self, $schema) = @_;
+  my $new = shift->next::method(@_);
 
-  my $new = {};
-  bless $new, (ref $_[0] || $_[0]);
-  $new->set_schema($schema);
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->transaction_depth(0);
-
-  $new->debugobj(new DBIx::Class::Storage::Statistics());
-
-  my $fh;
-
-  my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
-                  || $ENV{DBIC_TRACE};
-
-  if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
-    $fh = IO::File->new($1, 'w')
-      or $new->throw_exception("Cannot open trace file $1");
-  } else {
-    $fh = IO::File->new('>&STDERR');
-  }
-  $new->debugfh($fh);
-  $new->debug(1) if $debug_env;
   $new->_sql_maker_opts({});
-  return $new;
-}
 
-=head2 set_schema
-
-Used to reset the schema class or object which owns this
-storage object, such as after a C<clone()>.
-
-=cut
-
-sub set_schema {
-  my ($self, $schema) = @_;
-  $self->schema($schema);
-  weaken($self->{schema}) if ref $self->{schema};
-}
-
-
-=head2 throw_exception
-
-Throws an exception - croaks.
-
-=cut
-
-sub throw_exception {
-  my $self = shift;
-
-  $self->schema->throw_exception(@_) if $self->schema;
-  croak @_;
+  $new;
 }
 
 =head2 connect_info
@@ -437,76 +388,67 @@ Examples:
     ]
   );
 
+=cut
+
+sub connect_info {
+  my ($self, $info_arg) = @_;
+
+  return $self->_connect_info if !$info_arg;
+
+  # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
+  #  the new set of options
+  $self->_sql_maker(undef);
+  $self->_sql_maker_opts({});
+
+  my $info = [ @$info_arg ]; # copy because we can alter it
+  my $last_info = $info->[-1];
+  if(ref $last_info eq 'HASH') {
+    if(my $on_connect_do = delete $last_info->{on_connect_do}) {
+      $self->on_connect_do($on_connect_do);
+    }
+    for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
+      if(my $opt_val = delete $last_info->{$sql_maker_opt}) {
+        $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
+      }
+    }
+
+    # Get rid of any trailing empty hashref
+    pop(@$info) if !keys %$last_info;
+  }
+
+  $self->_connect_info($info);
+}
+
 =head2 on_connect_do
 
 This method is deprecated in favor of setting via L</connect_info>.
 
-=head2 debug
-
-Causes SQL trace information to be emitted on the C<debugobj> object.
-(or C<STDERR> if C<debugobj> has not specifically been set).
-
-This is the equivalent to setting L</DBIC_TRACE> in your
-shell environment.
-
-=head2 debugfh
-
-Set or retrieve the filehandle used for trace/debug output.  This should be
-an IO::Handle compatible ojbect (only the C<print> method is used.  Initially
-set to be STDERR - although see information on the
-L<DBIC_TRACE> environment variable.
-
-=cut
-
-sub debugfh {
-    my $self = shift;
-
-    if ($self->debugobj->can('debugfh')) {
-        return $self->debugobj->debugfh(@_);
-    }
-}
-
-=head2 debugobj
-
-Sets or retrieves the object used for metric collection. Defaults to an instance
-of L<DBIx::Class::Storage::Statistics> that is campatible with the original
-method of using a coderef as a callback.  See the aforementioned Statistics
-class for more information.
-
-=head2 debugcb
-
-Sets a callback to be executed each time a statement is run; takes a sub
-reference.  Callback is executed as $sub->($op, $info) where $op is
-SELECT/INSERT/UPDATE/DELETE and $info is what would normally be printed.
-
-See L<debugobj> for a better way.
-
-=cut
-
-sub debugcb {
-    my $self = shift;
-
-    if ($self->debugobj->can('callback')) {
-        return $self->debugobj->callback(@_);
-    }
-}
-
 =head2 dbh_do
+
+Arguments: $subref, @extra_coderef_args?
 
 Execute the given subref with the underlying database handle as its
 first argument, using the new exception-based connection management.
+
+Any additional arguments will be passed verbatim to the called subref
+as arguments 2 and onwards.
+
 Example:
 
   my @stuff = $schema->storage->dbh_do(
     sub {
-      shift->selectrow_array("SELECT * FROM foo")
-    }
+      my $dbh = shift;
+      my $cols = join(q{, }, @_);
+      shift->selectrow_array("SELECT $cols FROM foo")
+    },
+    @column_list
   );
 
 =cut
 
 sub dbh_do {
-  my ($self, $todo) = @_;
+  my $self = shift;
+  my $todo = shift;
 
   my @result;
   my $want_array = wantarray;
@@ -516,13 +458,13 @@ sub dbh_do {
     $self->_populate_dbh if !$self->_dbh;
     my $dbh = $self->_dbh;
     if($want_array) {
-        @result = $todo->($dbh);
+        @result = $todo->($dbh, @_);
     }
     elsif(defined $want_array) {
-        $result[0] = $todo->($dbh);
+        $result[0] = $todo->($dbh, @_);
     }
     else {
-        $todo->($dbh);
+        $todo->($dbh, @_);
     }
   };
 
@@ -533,7 +475,7 @@ sub dbh_do {
       : $self->_populate_dbh;
 
     my $dbh = $self->_dbh;
-    return $todo->($dbh);
+    return $todo->($dbh, @_);
   }
 
   return $want_array ? @result : $result[0];
@@ -541,7 +483,7 @@ sub dbh_do {
 
 =head2 disconnect
 
-Disconnect the L<DBI> handle, performing a rollback first if the
+Our C<disconnect> method also performs a rollback first if the
 database is not in C<AutoCommit> mode.
 
 =cut
@@ -555,13 +497,6 @@ sub disconnect {
     $self->_dbh(undef);
   }
 }
-
-=head2 connected
-
-Check if the L<DBI> handle is connected.  Returns true if the handle
-is connected.
-
-=cut
 
 sub connected {
   my ($self) = @_;
@@ -592,13 +527,6 @@ sub _verify_pid {
   return;
 }
 
-=head2 ensure_connected
-
-Check whether the database handle is connected - if not then make a
-connection.
-
-=cut
-
 sub ensure_connected {
   my ($self) = @_;
 
@@ -626,48 +554,12 @@ sub _sql_maker_args {
     return ( limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
 }
 
-=head2 sql_maker
-
-Returns a C<sql_maker> object - normally an object of class
-C<DBIC::SQL::Abstract>.
-
-=cut
-
 sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
     $self->_sql_maker(new DBIC::SQL::Abstract( $self->_sql_maker_args ));
   }
   return $self->_sql_maker;
-}
-
-sub connect_info {
-  my ($self, $info_arg) = @_;
-
-  return $self->_connect_info if !$info_arg;
-
-  # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
-  #  the new set of options
-  $self->_sql_maker(undef);
-  $self->_sql_maker_opts({});
-
-  my $info = [ @$info_arg ]; # copy because we can alter it
-  my $last_info = $info->[-1];
-  if(ref $last_info eq 'HASH') {
-    if(my $on_connect_do = delete $last_info->{on_connect_do}) {
-      $self->on_connect_do($on_connect_do);
-    }
-    for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
-      if(my $opt_val = delete $last_info->{$sql_maker_opt}) {
-        $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
-      }
-    }
-
-    # Get rid of any trailing empty hashref
-    pop(@$info) if !keys %$last_info;
-  }
-
-  $self->_connect_info($info);
 }
 
 sub _populate_dbh {
@@ -727,15 +619,6 @@ sub _connect {
   $dbh;
 }
 
-=head2 txn_begin
-
-Calls begin_work on the current dbh.
-
-See L<DBIx::Class::Schema> for the txn_do() method, which allows for
-an entire code block to be executed transactionally.
-
-=cut
-
 sub txn_begin {
   my $self = shift;
   if ($self->{transaction_depth}++ == 0) {
@@ -749,12 +632,6 @@ sub txn_begin {
     });
   }
 }
-
-=head2 txn_commit
-
-Issues a commit against the current dbh.
-
-=cut
 
 sub txn_commit {
   my $self = shift;
@@ -776,14 +653,6 @@ sub txn_commit {
     }
   });
 }
-
-=head2 txn_rollback
-
-Issues a rollback against the current dbh. A nested rollback will
-throw a L<DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION> exception,
-which allows the rollback to propagate to the outermost transaction.
-
-=cut
 
 sub txn_rollback {
   my $self = shift;
@@ -1128,14 +997,6 @@ sub deployment_statements {
   
 }
 
-=head2 deploy
-
-Sends the appropriate statements to create or modify tables to the
-db. This would normally be called through
-L<DBIx::Class::Schema/deploy>.
-
-=cut
-
 sub deploy {
   my ($self, $schema, $type, $sqltargs) = @_;
   foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, { no_comments => 1, %{ $sqltargs || {} } } ) ) {
@@ -1231,25 +1092,6 @@ See L</connect_info> for details.
 For setting, this method is deprecated in favor of L</connect_info>.
 
 =back
-
-=head1 ENVIRONMENT VARIABLES
-
-=head2 DBIC_TRACE
-
-If C<DBIC_TRACE> is set then SQL trace information
-is produced (as when the L<debug> method is set).
-
-If the value is of the form C<1=/path/name> then the trace output is
-written to the file C</path/name>.
-
-This environment variable is checked when the storage object is first
-created (when you call connect on your schema).  So, run-time changes 
-to this environment variable will not take effect unless you also 
-re-connect on your schema.
-
-=head2 DBIX_CLASS_STORAGE_DBI_DEBUG
-
-Old name for DBIC_TRACE
 
 =head1 AUTHORS
 
