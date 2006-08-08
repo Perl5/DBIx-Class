@@ -884,7 +884,7 @@ sub __columns_info_for {
         $result{$col_name} = \%column_info;
       }
     };
-    return \%result if !$@;
+    return \%result if !$@ && scalar keys %result;
   }
 
   my %result;

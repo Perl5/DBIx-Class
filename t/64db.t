@@ -41,7 +41,6 @@ my $type_info = $schema->storage->columns_info_for('artist');
 
 delete $type_info->{artistid}{size};
 delete $type_info->{name}{size};
-delete $type_info->{agent}{size};
 
 my $test_type_info = {
     'artistid' => {
@@ -50,10 +49,6 @@ my $test_type_info = {
     },
     'name' => {
         'data_type' => 'varchar',
-        'is_nullable' => 0,
-    },
-    'agent' => {
-        'data_type' => 'integer',
         'is_nullable' => 0,
     },
 };
