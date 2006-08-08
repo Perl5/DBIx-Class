@@ -9,12 +9,30 @@ use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
+sub _ora_last_insert_id {
+   my ($dbh, $sql) = @_;
+   $dbh->selectrow_array($sql);
+}
 sub last_insert_id {
   my ($self,$source,$col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
-  my $sql = "SELECT " . $seq . ".currval FROM DUAL";
-  my ($id) = $self->dbh_do(sub { shift->selectrow_array($sql) });
+  my $sql = 'SELECT ' . $seq . '.currval FROM DUAL';
+  my ($id) = $self->dbh_do(\&_ora_last_insert_id($sql));
   return $id;
+}
+
+sub _ora_get_autoinc_seq {
+  my ($dbh, $source, $sql) = @_;
+
+  # trigger_body is a LONG
+  $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
+
+  my $sth = $dbh->prepare($sql);
+  $sth->execute( uc($source->name) );
+  while (my ($insert_trigger) = $sth->fetchrow_array) {
+    return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
+  }
+  croak "Unable to find a sequence INSERT trigger on table '" . $source->name . "'.";
 }
 
 sub get_autoinc_seq {
@@ -28,17 +46,7 @@ sub get_autoinc_seq {
     AND t.status = 'ENABLED'
   };
 
-  $self->dbh_do(sub {
-    my $dbh = shift;
-    # trigger_body is a LONG
-    $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
-    my $sth = $dbh->prepare($sql);
-    $sth->execute( uc($source->name) );
-    while (my ($insert_trigger) = $sth->fetchrow_array) {
-      return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
-    }
-    croak "Unable to find a sequence INSERT trigger on table '" . $source->name . "'.";
-  });
+  $self->dbh_do(\&_ora_get_autoinc_seq, $source, $sql);
 }
 
 sub columns_info_for {

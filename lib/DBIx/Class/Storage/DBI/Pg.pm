@@ -13,10 +13,30 @@ use base qw/DBIx::Class::Storage::DBI/;
 warn "DBD::Pg 1.49 is strongly recommended"
   if ($DBD::Pg::VERSION < 1.49);
 
+sub _pg_last_insert_id {
+  my ($dbh, $seq) = @_;
+  $dbh->last_insert_id(undef,undef,undef,undef, {sequence => $seq});
+}
+
 sub last_insert_id {
   my ($self,$source,$col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
-  $self->dbh_do(sub { shift->last_insert_id(undef,undef,undef,undef, {sequence => $seq}) } );
+  $self->dbh_do(\&_pg_last_insert_id, $seq);
+}
+
+sub _pg_get_autoinc_seq {
+  my ($dbh, $schema, $table, @pri) = @_;
+
+  while (my $col = shift @pri) {
+    my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref;
+    if(defined $info->{COLUMN_DEF} and
+       $info->{COLUMN_DEF} =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/) {
+      my $seq = $1;
+      # may need to strip quotes -- see if this works
+      return $seq =~ /\./ ? $seq : $info->{TABLE_SCHEM} . "." . $seq;
+    }
+  }
+  return;
 }
 
 sub get_autoinc_seq {
@@ -26,19 +46,7 @@ sub get_autoinc_seq {
   my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2)
     : (undef,$source->name);
 
-  $self->dbh_do(sub {
-    my $dbh = shift;
-    while (my $col = shift @pri) {
-      my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref;
-      if (defined $info->{COLUMN_DEF} and $info->{COLUMN_DEF} =~
-        /^nextval\(+'([^']+)'::(?:text|regclass)\)/)
-      {
-	  my $seq = $1;
-        return $seq =~ /\./ ? $seq : $info->{TABLE_SCHEM} . "." . $seq; # may need to strip quotes -- see if this works
-      }
-    }
-    return;
-  });
+  $self->dbh_do(\&_pg_get_autoinc_seq, $schema, $table, @pri);
 }
 
 sub sqlt_type {
