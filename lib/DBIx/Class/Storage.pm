@@ -6,7 +6,7 @@ use warnings;
 use base qw/DBIx::Class/;
 
 use Scalar::Util qw/weaken/;
-use Carp::Clan qw/DBIx::Class/;
+use Carp::Clan qw/^DBIx::Class/;
 
 __PACKAGE__->load_components(qw/AccessorGroup/);
 __PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);

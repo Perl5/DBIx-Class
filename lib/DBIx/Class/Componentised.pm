@@ -6,7 +6,7 @@ use warnings;
 
 use Class::C3;
 use Class::Inspector;
-use Carp::Clan qw/DBIx::Class/;
+use Carp::Clan qw/^DBIx::Class/;
 
 sub inject_base {
   my ($class, $target, @to_inject) = @_;

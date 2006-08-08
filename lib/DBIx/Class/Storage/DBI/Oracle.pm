@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI::Oracle;
 use strict;
 use warnings;
 
-use Carp qw/croak/;
+use Carp::Clan qw/^DBIx::Class/;
 
 use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 
