@@ -619,67 +619,69 @@ sub _connect {
   $dbh;
 }
 
+
+sub __txn_begin {
+  my ($dbh, $self) = @_;
+  if ($dbh->{AutoCommit}) {
+    $self->debugobj->txn_begin()
+      if ($self->debug);
+    $dbh->begin_work;
+  }
+}
+
 sub txn_begin {
   my $self = shift;
-  if ($self->{transaction_depth}++ == 0) {
-    $self->dbh_do(sub {
-      my $dbh = shift;
-      if ($dbh->{AutoCommit}) {
-        $self->debugobj->txn_begin()
-          if ($self->debug);
-        $dbh->begin_work;
-      }
-    });
+  $self->dbh_do(\&__txn_begin, $self)
+    if $self->{transaction_depth}++ == 0;
+}
+
+sub __txn_commit {
+  my ($dbh, $self) = @_;
+  if ($self->{transaction_depth} == 0) {
+    unless ($dbh->{AutoCommit}) {
+      $self->debugobj->txn_commit()
+        if ($self->debug);
+      $dbh->commit;
+    }
+  }
+  else {
+    if (--$self->{transaction_depth} == 0) {
+      $self->debugobj->txn_commit()
+        if ($self->debug);
+      $dbh->commit;
+    }
   }
 }
 
 sub txn_commit {
   my $self = shift;
-  $self->dbh_do(sub {
-    my $dbh = shift;
-    if ($self->{transaction_depth} == 0) {
-      unless ($dbh->{AutoCommit}) {
-        $self->debugobj->txn_commit()
-          if ($self->debug);
-        $dbh->commit;
-      }
+  $self->dbh_do(\&__txn_commit, $self);
+}
+
+sub __txn_rollback {
+  my ($dbh, $self) = @_;
+  if ($self->{transaction_depth} == 0) {
+    unless ($dbh->{AutoCommit}) {
+      $self->debugobj->txn_rollback()
+        if ($self->debug);
+      $dbh->rollback;
+    }
+  }
+  else {
+    if (--$self->{transaction_depth} == 0) {
+      $self->debugobj->txn_rollback()
+        if ($self->debug);
+      $dbh->rollback;
     }
     else {
-      if (--$self->{transaction_depth} == 0) {
-        $self->debugobj->txn_commit()
-          if ($self->debug);
-        $dbh->commit;
-      }
+      die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
     }
-  });
+  }
 }
 
 sub txn_rollback {
   my $self = shift;
-
-  eval {
-    $self->dbh_do(sub {
-      my $dbh = shift;
-      if ($self->{transaction_depth} == 0) {
-        unless ($dbh->{AutoCommit}) {
-          $self->debugobj->txn_rollback()
-            if ($self->debug);
-          $dbh->rollback;
-        }
-      }
-      else {
-        if (--$self->{transaction_depth} == 0) {
-          $self->debugobj->txn_rollback()
-            if ($self->debug);
-          $dbh->rollback;
-        }
-        else {
-          die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
-        }
-      }
-    });
-  };
-
+  eval { $self->dbh_do(\&__txn_rollback, $self) };
   if ($@) {
     my $error = $@;
     my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
@@ -787,65 +789,72 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 
 =cut
 
+sub __sth {
+  my ($dbh, $sql) = @_;
+  # 3 is the if_active parameter which avoids active sth re-use
+  $dbh->prepare_cached($sql, {}, 3);
+}
+
 sub sth {
   my ($self, $sql) = @_;
-  # 3 is the if_active parameter which avoids active sth re-use
-  return $self->dbh_do(sub { shift->prepare_cached($sql, {}, 3) });
+  $self->dbh_do(\&__sth, $sql);
+}
+
+
+sub __columns_info_for {
+  my ($dbh, $self, $table) = @_;
+
+  if ($dbh->can('column_info')) {
+    my %result;
+    eval {
+      my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
+      my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
+      $sth->execute();
+      while ( my $info = $sth->fetchrow_hashref() ){
+        my %column_info;
+        $column_info{data_type}   = $info->{TYPE_NAME};
+        $column_info{size}      = $info->{COLUMN_SIZE};
+        $column_info{is_nullable}   = $info->{NULLABLE} ? 1 : 0;
+        $column_info{default_value} = $info->{COLUMN_DEF};
+        my $col_name = $info->{COLUMN_NAME};
+        $col_name =~ s/^\"(.*)\"$/$1/;
+
+        $result{$col_name} = \%column_info;
+      }
+    };
+    return \%result if !$@;
+  }
+
+  my %result;
+  my $sth = $dbh->prepare("SELECT * FROM $table WHERE 1=0");
+  $sth->execute;
+  my @columns = @{$sth->{NAME_lc}};
+  for my $i ( 0 .. $#columns ){
+    my %column_info;
+    my $type_num = $sth->{TYPE}->[$i];
+    my $type_name;
+    if(defined $type_num && $dbh->can('type_info')) {
+      my $type_info = $dbh->type_info($type_num);
+      $type_name = $type_info->{TYPE_NAME} if $type_info;
+    }
+    $column_info{data_type} = $type_name ? $type_name : $type_num;
+    $column_info{size} = $sth->{PRECISION}->[$i];
+    $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
+
+    if ($column_info{data_type} =~ m/^(.*?)\((.*?)\)$/) {
+      $column_info{data_type} = $1;
+      $column_info{size}    = $2;
+    }
+
+    $result{$columns[$i]} = \%column_info;
+  }
+
+  return \%result;
 }
 
 sub columns_info_for {
   my ($self, $table) = @_;
-
-  $self->dbh_do(sub {
-    my $dbh = shift;
-
-    if ($dbh->can('column_info')) {
-      my %result;
-      eval {
-        my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
-        my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
-        $sth->execute();
-        while ( my $info = $sth->fetchrow_hashref() ){
-          my %column_info;
-          $column_info{data_type}   = $info->{TYPE_NAME};
-          $column_info{size}      = $info->{COLUMN_SIZE};
-          $column_info{is_nullable}   = $info->{NULLABLE} ? 1 : 0;
-          $column_info{default_value} = $info->{COLUMN_DEF};
-          my $col_name = $info->{COLUMN_NAME};
-          $col_name =~ s/^\"(.*)\"$/$1/;
-
-          $result{$col_name} = \%column_info;
-        }
-      };
-      return \%result if !$@;
-    }
-
-    my %result;
-    my $sth = $dbh->prepare("SELECT * FROM $table WHERE 1=0");
-    $sth->execute;
-    my @columns = @{$sth->{NAME_lc}};
-    for my $i ( 0 .. $#columns ){
-      my %column_info;
-      my $type_num = $sth->{TYPE}->[$i];
-      my $type_name;
-      if(defined $type_num && $dbh->can('type_info')) {
-        my $type_info = $dbh->type_info($type_num);
-        $type_name = $type_info->{TYPE_NAME} if $type_info;
-      }
-      $column_info{data_type} = $type_name ? $type_name : $type_num;
-      $column_info{size} = $sth->{PRECISION}->[$i];
-      $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
-
-      if ($column_info{data_type} =~ m/^(.*?)\((.*?)\)$/) {
-        $column_info{data_type} = $1;
-        $column_info{size}    = $2;
-      }
-
-      $result{$columns[$i]} = \%column_info;
-    }
-
-    return \%result;
-  });
+  $self->dbh_do(\&__columns_info_for, $self, $table);
 }
 
 =head2 last_insert_id
