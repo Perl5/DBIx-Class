@@ -448,7 +448,12 @@ Example:
 
 sub dbh_do {
   my $self = shift;
-  my $todo = shift;
+  my $coderef = shift;
+
+  return $coderef->($self->_dbh, @_) if $self->{_in_txn_do};
+
+  ref $coderef eq 'CODE' or $self->throw_exception
+    ('$coderef must be a CODE reference');
 
   my @result;
   my $want_array = wantarray;
@@ -456,29 +461,88 @@ sub dbh_do {
   eval {
     $self->_verify_pid if $self->_dbh;
     $self->_populate_dbh if !$self->_dbh;
-    my $dbh = $self->_dbh;
     if($want_array) {
-        @result = $todo->($dbh, @_);
+        @result = $coderef->($self->_dbh, @_);
     }
     elsif(defined $want_array) {
-        $result[0] = $todo->($dbh, @_);
+        $result[0] = $coderef->($self->_dbh, @_);
     }
     else {
-        $todo->($dbh, @_);
+        $coderef->($self->_dbh, @_);
     }
   };
 
-  if($@) {
-    my $exception = $@;
-    $self->connected
-      ? $self->throw_exception($exception)
-      : $self->_populate_dbh;
+  my $exception = $@;
+  if(!$exception) { return $want_array ? @result : $result[0] }
 
-    my $dbh = $self->_dbh;
-    return $todo->($dbh, @_);
+  $self->throw_exception($exception) if $self->connected;
+
+  # We were not connected - reconnect and retry, but let any
+  #  exception fall right through this time
+  $self->_populate_dbh;
+  $coderef->($self->_dbh, @_);
+}
+
+# This is basically a blend of dbh_do above and DBIx::Class::Storage::txn_do.
+# It also informs dbh_do to bypass itself while under the direction of txn_do,
+#  via $self->{_in_txn_do} (this saves some redundant eval and errorcheck, etc)
+sub txn_do {
+  my $self = shift;
+  my $coderef = shift;
+
+  ref $coderef eq 'CODE' or $self->throw_exception
+    ('$coderef must be a CODE reference');
+
+  local $self->{_in_txn_do} = 1;
+
+  my $tried = 0;
+
+  my @result;
+  my $want_array = wantarray;
+
+  START_TXN: eval {
+    $self->_verify_pid if $self->_dbh;
+    $self->_populate_dbh if !$self->_dbh;
+
+    $self->txn_begin;
+    if($want_array) {
+        @result = $coderef->(@_);
+    }
+    elsif(defined $want_array) {
+        $result[0] = $coderef->(@_);
+    }
+    else {
+        $coderef->(@_);
+    }
+    $self->txn_commit;
+  };
+
+  my $exception = $@;
+  if(!$exception) { return $want_array ? @result : $result[0] }
+
+  if($tried++ > 0 || $self->connected) {
+    eval { $self->txn_rollback };
+    my $rollback_exception = $@;
+    if($rollback_exception) {
+      my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
+      $self->throw_exception($exception)  # propagate nested rollback
+        if $rollback_exception =~ /$exception_class/;
+
+      $self->throw_exception(
+        "Transaction aborted: ${exception}. "
+        . "Rollback failed: ${rollback_exception}"
+      );
+    }
+    $self->throw_exception($exception)
   }
 
-  return $want_array ? @result : $result[0];
+  # We were not connected, and was first try - reconnect and retry
+  # XXX I know, gotos are evil.  If you can find a better way
+  #  to write this that doesn't duplicate a lot of code/structure,
+  #  and behaves identically, feel free...
+
+  $self->_populate_dbh;
+  goto START_TXN;
 }
 
 =head2 disconnect
@@ -618,7 +682,6 @@ sub _connect {
 
   $dbh;
 }
-
 
 sub __txn_begin {
   my ($dbh, $self) = @_;
