@@ -438,8 +438,10 @@ sub setup_connection_class {
 
 Instantiates a new Storage object of type
 L<DBIx::Class::Schema/"storage_type"> and passes the arguments to
-$storage->connect_info. Sets the connection in-place on the schema. See
-L<DBIx::Class::Storage::DBI/"connect_info"> for more information.
+$storage->connect_info. Sets the connection in-place on the schema.
+
+See L<DBIx::Class::Storage::DBI/"connect_info"> for DBI-specific syntax,
+or L<DBIx::Class::Storage> in general.
 
 =cut
 

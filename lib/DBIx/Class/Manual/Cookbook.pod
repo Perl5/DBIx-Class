@@ -422,7 +422,7 @@ Deletes only the book named Titanic by the author in $author.
 =head2 Transactions
 
 As of version 0.04001, there is improved transaction support in
-L<DBIx::Class::Storage::DBI> and L<DBIx::Class::Schema>.  Here is an
+L<DBIx::Class::Storage> and L<DBIx::Class::Schema>.  Here is an
 example of the recommended way to use it:
 
   my $genus = $schema->resultset('Genus')->find(12);
@@ -803,7 +803,7 @@ method.
 
 =head2 Profiling
 
-When you enable L<DBIx::Class::Storage::DBI>'s debugging it prints the SQL
+When you enable L<DBIx::Class::Storage>'s debugging it prints the SQL
 executed as well as notifications of query completion and transaction
 begin/commit.  If you'd like to profile the SQL you can subclass the
 L<DBIx::Class::Storage::Statistics> class and write your own profiling
