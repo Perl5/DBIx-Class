@@ -477,36 +477,6 @@ information.
 
 sub connect { shift->clone->connection(@_) }
 
-=head2 txn_begin
-
-Begins a transaction (does nothing if AutoCommit is off). Equivalent to
-calling $schema->storage->txn_begin. See
-L<DBIx::Class::Storage::DBI/"txn_begin"> for more information.
-
-=cut
-
-sub txn_begin { shift->storage->txn_begin }
-
-=head2 txn_commit
-
-Commits the current transaction. Equivalent to calling
-$schema->storage->txn_commit. See L<DBIx::Class::Storage::DBI/"txn_commit">
-for more information.
-
-=cut
-
-sub txn_commit { shift->storage->txn_commit }
-
-=head2 txn_rollback
-
-Rolls back the current transaction. Equivalent to calling
-$schema->storage->txn_rollback. See
-L<DBIx::Class::Storage::DBI/"txn_rollback"> for more information.
-
-=cut
-
-sub txn_rollback { shift->storage->txn_rollback }
-
 =head2 txn_do
 
 =over 4
@@ -518,97 +488,73 @@ sub txn_rollback { shift->storage->txn_rollback }
 =back
 
 Executes C<$coderef> with (optional) arguments C<@coderef_args> atomically,
-returning its result (if any). If an exception is caught, a rollback is issued
-and the exception is rethrown. If the rollback fails, (i.e. throws an
-exception) an exception is thrown that includes a "Rollback failed" message.
+returning its result (if any). Equivalent to calling $schema->storage->txn_do.
+See L<DBIx::Class::Storage/"txn_do"> for more information.
 
-For example,
-
-  my $author_rs = $schema->resultset('Author')->find(1);
-  my @titles = qw/Night Day It/;
-
-  my $coderef = sub {
-    # If any one of these fails, the entire transaction fails
-    $author_rs->create_related('books', {
-      title => $_
-    }) foreach (@titles);
-
-    return $author->books;
-  };
-
-  my $rs;
-  eval {
-    $rs = $schema->txn_do($coderef);
-  };
-
-  if ($@) {                                  # Transaction failed
-    die "something terrible has happened!"   #
-      if ($@ =~ /Rollback failed/);          # Rollback failed
-
-    deal_with_failed_transaction();
-  }
-
-In a nested transaction (calling txn_do() from within a txn_do() coderef) only
-the outermost transaction will issue a L<DBIx::Class::Schema/"txn_commit"> on
-the Schema's storage, and txn_do() can be called in void, scalar and list
-context and it will behave as expected.
+This interface is preferred over using the individual methods L</txn_begin>,
+L</txn_commit>, and L</txn_rollback> below.
 
 =cut
 
 sub txn_do {
-  my ($self, $coderef, @args) = @_;
+  my $self = shift;
 
   $self->storage or $self->throw_exception
     ('txn_do called on $schema without storage');
-  ref $coderef eq 'CODE' or $self->throw_exception
-    ('$coderef must be a CODE reference');
 
-  my (@return_values, $return_value);
+  $self->storage->txn_do(@_);
+}
 
-  $self->txn_begin; # If this throws an exception, no rollback is needed
 
-  my $wantarray = wantarray; # Need to save this since the context
-                             # inside the eval{} block is independent
-                             # of the context that called txn_do()
-  eval {
+=head2 txn_begin
 
-    # Need to differentiate between scalar/list context to allow for
-    # returning a list in scalar context to get the size of the list
-    if ($wantarray) {
-      # list context
-      @return_values = $coderef->(@args);
-    } elsif (defined $wantarray) {
-      # scalar context
-      $return_value = $coderef->(@args);
-    } else {
-      # void context
-      $coderef->(@args);
-    }
-    $self->txn_commit;
-  };
+Begins a transaction (does nothing if AutoCommit is off). Equivalent to
+calling $schema->storage->txn_begin. See
+L<DBIx::Class::Storage::DBI/"txn_begin"> for more information.
 
-  if ($@) {
-    my $error = $@;
+=cut
 
-    eval {
-      $self->txn_rollback;
-    };
+sub txn_begin {
+  my $self = shift;
 
-    if ($@) {
-      my $rollback_error = $@;
-      my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
-      $self->throw_exception($error)  # propagate nested rollback
-        if $rollback_error =~ /$exception_class/;
+  $self->storage or $self->throw_exception
+    ('txn_begin called on $schema without storage');
 
-      $self->throw_exception(
-        "Transaction aborted: $error. Rollback failed: ${rollback_error}"
-      );
-    } else {
-      $self->throw_exception($error); # txn failed but rollback succeeded
-    }
-  }
+  $self->storage->txn_begin;
+}
 
-  return $wantarray ? @return_values : $return_value;
+=head2 txn_commit
+
+Commits the current transaction. Equivalent to calling
+$schema->storage->txn_commit. See L<DBIx::Class::Storage::DBI/"txn_commit">
+for more information.
+
+=cut
+
+sub txn_commit {
+  my $self = shift;
+
+  $self->storage or $self->throw_exception
+    ('txn_commit called on $schema without storage');
+
+  $self->storage->txn_commit;
+}
+
+=head2 txn_rollback
+
+Rolls back the current transaction. Equivalent to calling
+$schema->storage->txn_rollback. See
+L<DBIx::Class::Storage::DBI/"txn_rollback"> for more information.
+
+=cut
+
+sub txn_rollback {
+  my $self = shift;
+
+  $self->storage or $self->throw_exception
+    ('txn_rollback called on $schema without storage');
+
+  $self->storage->txn_rollback;
 }
 
 =head2 clone
