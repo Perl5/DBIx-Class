@@ -766,31 +766,17 @@ sub _select {
   return $self->_execute(@args);
 }
 
-=head2 select
-
-Handle a SQL select statement.
-
-=cut
-
 sub select {
   my $self = shift;
   my ($ident, $select, $condition, $attrs) = @_;
   return $self->cursor->new($self, \@_, $attrs);
 }
 
-=head2 select_single
-
-Performs a select, fetch and return of data - handles a single row
-only.
-
-=cut
-
-# Need to call finish() to work round broken DBDs
-
 sub select_single {
   my $self = shift;
   my ($rv, $sth, @bind) = $self->_select(@_);
   my @row = $sth->fetchrow_array;
+  # Need to call finish() to work round broken DBDs
   $sth->finish();
   return @row;
 }
@@ -806,12 +792,6 @@ sub sth {
   # 3 is the if_active parameter which avoids active sth re-use
   return $self->dbh_do(sub { shift->prepare_cached($sql, {}, 3) });
 }
-
-=head2 columns_info_for
-
-Returns database type info for a given table columns.
-
-=cut
 
 sub columns_info_for {
   my ($self, $table) = @_;

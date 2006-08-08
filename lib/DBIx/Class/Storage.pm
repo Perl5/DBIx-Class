@@ -332,13 +332,66 @@ L<DBIx::Class::Schema/deploy>.
 
 sub deploy { die "Virtual method!" }
 
-sub on_connect_do { die "Virtual method!" }
+=head2 connect_info
+
+The arguments of C<connect_info> are always a single array reference,
+and are Storage-handler specific.
+
+This is normally accessed via L<DBIx::Class::Schema/connection>, which
+encapsulates its argument list in an arrayref before calling
+C<connect_info> here.
+
+=cut
+
 sub connect_info { die "Virtual method!" }
-sub insert { die "Virtual method!" }
-sub update { die "Virtual method!" }
-sub delete { die "Virtual method!" }
+
+=head2 select
+
+Handle a select statement.
+
+=cut
+
 sub select { die "Virtual method!" }
+
+=head2 insert
+
+Handle an insert statement.
+
+=cut
+
+sub insert { die "Virtual method!" }
+
+=head2 update
+
+Handle an update statement.
+
+=cut
+
+sub update { die "Virtual method!" }
+
+=head2 delete
+
+Handle a delete statement.
+
+=cut
+
+sub delete { die "Virtual method!" }
+
+=head2 select_single
+
+Performs a select, fetch and return of data - handles a single row
+only.
+
+=cut
+
 sub select_single { die "Virtual method!" }
+
+=head2 columns_info_for
+
+Returns database type info for the given table's columns.
+
+=cut
+
 sub columns_info_for { die "Virtual method!" }
 
 =head1 ENVIRONMENT VARIABLES
