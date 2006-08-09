@@ -1092,7 +1092,17 @@ sub build_datetime_parser {
   return $type;
 }
 
-sub DESTROY { shift->disconnect }
+sub DESTROY {
+  # NOTE: if there's a merge conflict here when -current is pushed
+  #  back to trunk, take -current's version and ignore this trunk one :)
+  my $self = shift;
+
+  if($self->_dbh && $self->_conn_pid != $$) {
+    $self->_dbh->{InactiveDestroy} = 1;
+  }
+
+  $self->_dbh(undef);
+}
 
 1;
 
