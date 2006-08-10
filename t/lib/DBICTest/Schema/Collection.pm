@@ -21,10 +21,10 @@ __PACKAGE__->has_many( collection_object => "DBICTest::Schema::CollectionObject"
                      );
 __PACKAGE__->many_to_many( objects => collection_object => "object" );
 __PACKAGE__->many_to_many( pointy_objects => collection_object => "object",
-                           { where => { "type" => "pointy" } } 
+                           { where => { "object.type" => "pointy" } }
                          );
 __PACKAGE__->many_to_many( round_objects => collection_object => "object",
-                           { where => { "type" => "round" } } 
+                           { where => { "object.type" => "round" } } 
                          );
 
 1;

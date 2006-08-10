@@ -194,7 +194,7 @@ sub search_rs {
     : undef
   );
 
-  if (defined $where and %$where) {
+  if (defined $where) {
     $new_attrs->{where} = (
       defined $new_attrs->{where}
         ? { '-and' => [
@@ -205,7 +205,7 @@ sub search_rs {
           }
         : $where);
   }
-  if (defined $cond and %$cond) {
+  if (defined $cond) {
     $new_attrs->{where} = (
       defined $new_attrs->{where}
         ? { '-and' => [

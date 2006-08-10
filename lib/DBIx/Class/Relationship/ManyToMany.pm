@@ -14,6 +14,8 @@ sub many_to_many {
     my $remove_meth = "remove_from_${meth}";
     my $set_meth = "set_${meth}";
 
+    $rel_attrs->{alias} ||= $f_rel;
+
     *{"${class}::${meth}"} = sub {
       my $self = shift;
       my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
