@@ -87,7 +87,7 @@ sub deploy_schema {
         my $sql;
         { local $/ = undef; $sql = <IN>; }
         close IN;
-        $schema->storage->dbh->do($_) for split(/;\n/, $sql);
+        ($schema->storage->dbh->do($_) || print "Error on SQL: $_\n") for split(/;\n/, $sql);
     }
 }
 
@@ -232,6 +232,43 @@ sub populate_schema {
     $schema->populate('Bookmark', [
         [ qw/id link/ ],
         [ 1, 1 ]
+    ]);
+
+    $schema->populate('Collection', [
+        [ qw/collectionid name/ ],
+        [ 1, "Tools" ],
+        [ 2, "Body Parts" ],
+    ]);
+
+    $schema->populate('CollectionObject', [
+        [ qw/collection object/ ],
+        [ 1, 1 ],
+        [ 1, 2 ],
+        [ 1, 3 ],
+        [ 2, 4 ],
+        [ 2, 5 ],
+    ]);
+
+    $schema->populate('TypedObject', [
+        [ qw/objectid type value/ ],
+        [ 1, "pointy", "Awl" ],
+        [ 2, "round", "Bearing" ],
+        [ 3, "pointy", "Knife" ],
+        [ 4, "pointy", "Tooth" ],
+        [ 5, "round", "Head" ],
+    ]);
+
+    $schema->populate('Owners', [
+        [ qw/ownerid name/ ],
+        [ 1, "Newton" ],
+        [ 2, "Waltham" ],
+    ]);
+
+    $schema->populate('BooksInLibrary', [
+        [ qw/id owner title source/ ],
+        [ 1, 1, "Programming Perl", "Library" ],
+        [ 2, 1, "Dynamical Systems", "Library" ],
+        [ 3, 2, "Best Recipe Cookbook", "Library" ],
     ]);
 }
 

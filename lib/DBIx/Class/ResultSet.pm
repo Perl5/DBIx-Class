@@ -171,6 +171,7 @@ sub search_rs {
   $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
   my $our_attrs = { %{$self->{attrs}} };
   my $having = delete $our_attrs->{having};
+  my $where = delete $our_attrs->{where};
 
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
@@ -179,8 +180,8 @@ sub search_rs {
     next unless exists $attrs->{$key};
     $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
-  
-  my $where = (@_
+
+  my $cond = (@_
     ? (
         (@_ == 1 || ref $_[0] eq "HASH")
           ? shift
@@ -193,7 +194,7 @@ sub search_rs {
     : undef
   );
 
-  if (defined $where) {
+  if (defined $where and %$where) {
     $new_attrs->{where} = (
       defined $new_attrs->{where}
         ? { '-and' => [
@@ -203,6 +204,17 @@ sub search_rs {
             ]
           }
         : $where);
+  }
+  if (defined $cond and %$cond) {
+    $new_attrs->{where} = (
+      defined $new_attrs->{where}
+        ? { '-and' => [
+              map {
+                ref $_ eq 'ARRAY' ? [ -or => $_ ] : $_
+              } $cond, $new_attrs->{where}
+            ]
+          }
+        : $cond);
   }
 
   if (defined $having) {
@@ -1211,14 +1223,50 @@ sub new_result {
   ) if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
 
   my $alias = $self->{attrs}{alias};
+  my $collapsed_cond = $self->{cond} ? $self->_collapse_cond($self->{cond}) : {};
   my %new = (
     %{ $self->_remove_alias($values, $alias) },
-    %{ $self->_remove_alias($self->{cond}, $alias) },
+    %{ $self->_remove_alias($collapsed_cond, $alias) },
   );
 
   my $obj = $self->result_class->new(\%new);
   $obj->result_source($self->result_source) if $obj->can('result_source');
   return $obj;
+}
+
+# _collapse_cond
+#
+# Recursively collapse the condition.
+
+sub _collapse_cond {
+  my ($self, $cond, $collapsed) = @_;
+
+  $collapsed ||= {};
+
+  if (ref $cond eq 'ARRAY') {
+    foreach my $subcond (@$cond) {
+      next unless ref $subcond;  # -or
+#      warn "ARRAY: " . Dumper $subcond;
+      $collapsed = $self->_collapse_cond($subcond, $collapsed);
+    }
+  }
+  elsif (ref $cond eq 'HASH') {
+    if (keys %$cond and (keys %$cond)[0] eq '-and') {
+      foreach my $subcond (@{$cond->{-and}}) {
+#        warn "HASH: " . Dumper $subcond;
+        $collapsed = $self->_collapse_cond($subcond, $collapsed);
+      }
+    }
+    else {
+#      warn "LEAF: " . Dumper $cond;
+      foreach my $col (keys %$cond) {
+        my $value = $cond->{$col};
+        $collapsed->{$col} = $value;
+      }
+    }
+  }
+
+  return $collapsed;
 }
 
 # _remove_alias

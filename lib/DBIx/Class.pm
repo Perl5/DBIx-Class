@@ -234,6 +234,8 @@ wdh: Will Hawes
 
 gphat: Cory G Watson <gphat@cpan.org>
 
+dyfrgi: Michael Leuchtenmurg <michael@slashhome.org>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
