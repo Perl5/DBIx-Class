@@ -48,7 +48,8 @@ sub insert {
     if defined $too_many;
 
   my $storage = $self->result_source->storage;
-  $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" ) unless $storage->can('last_insert_id');
+  $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" )
+    unless $storage->can('last_insert_id');
   my $id = $storage->last_insert_id($self->result_source,$pri);
   $self->throw_exception( "Can't get last insert id" ) unless $id;
   $self->store_column($pri => $id);
