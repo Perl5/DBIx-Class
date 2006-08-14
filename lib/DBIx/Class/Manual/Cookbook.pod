@@ -419,6 +419,17 @@ Deletes only the book named Titanic by the author in $author.
 
   my $author->delete_related('books', { name => 'Titanic' });
 
+=head3 Ordering a relationship result set
+
+If you always want a relation to be ordered, you can specify this when you 
+create the relationship.
+
+To order C<< $book->pages >> by descending page_number.
+
+  Book->has_many('pages' => 'Page', 'book', { order_by => \'page_number DESC'} );
+
+
+
 =head2 Transactions
 
 As of version 0.04001, there is improved transaction support in
