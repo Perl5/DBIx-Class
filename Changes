@@ -1,6 +1,12 @@
 Revision history for DBIx::Class
 
 0.07001
+        - add directory argument to deploy()
+        - support default aliases in many_to_many accessors.
+        - support for relationship attributes in many_to_many accessors.
+        - stop search_rs being destructive to attrs
+        - better error reporting when loading components
+        - UTF8Columns changed to use "utf8" instead of "Encode"
         - restore automatic aliasing in ResultSet::find() on nonunique queries
         - allow aliases in ResultSet::find() queries (in cases of relationships
           with prefetch)
