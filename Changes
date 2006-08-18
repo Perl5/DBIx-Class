@@ -1,6 +1,6 @@
 Revision history for DBIx::Class
 
-0.07001
+0.07001 2006-08-18 19:55:00
         - add directory argument to deploy()
         - support default aliases in many_to_many accessors.
         - support for relationship attributes in many_to_many accessors.
