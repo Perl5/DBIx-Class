@@ -42,7 +42,8 @@ sub insert {
   my ($self, @rest) = @_;
   my $ret = $self->next::method(@rest);
 
-  my ($pri, $too_many) = grep { !defined $self->get_column($_) } $self->primary_columns;
+  my ($pri, $too_many) = grep { !defined $self->get_column($_) || 
+                                    ref($self->get_column($_)) eq 'SCALAR'} $self->primary_columns;
   return $ret unless defined $pri; # if all primaries are already populated, skip auto-inc
   $self->throw_exception( "More than one possible key found for auto-inc on ".ref $self )
     if defined $too_many;
