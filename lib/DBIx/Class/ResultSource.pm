@@ -247,7 +247,7 @@ sub remove_columns {
   }
 
   foreach (@cols) {
-    undef $columns->{$_};
+    delete $columns->{$_};
   };
 
   $self->_ordered_columns(\@remaining);
