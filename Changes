@@ -1,6 +1,14 @@
 Revision history for DBIx::Class
 
-0.07001
+        - remove_columns now deletes columns from _columns
+
+0.07001 2006-08-18 19:55:00
+        - add directory argument to deploy()
+        - support default aliases in many_to_many accessors.
+        - support for relationship attributes in many_to_many accessors.
+        - stop search_rs being destructive to attrs
+        - better error reporting when loading components
+        - UTF8Columns changed to use "utf8" instead of "Encode"
         - restore automatic aliasing in ResultSet::find() on nonunique queries
         - allow aliases in ResultSet::find() queries (in cases of relationships
           with prefetch)
@@ -11,6 +19,7 @@ Revision history for DBIx::Class
           https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=196836
         - fix a pathological prefetch case
         - table case fix for Oracle in columns_info_for
+        - stopped search_rs deleting attributes from passed hash
 
 0.07000 2006-07-23 02:30:00
         - supress warnings for possibly non-unique queries, since

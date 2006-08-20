@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use Data::Dumper;
 
 my $schema = DBICTest->init_schema();
 
@@ -15,7 +16,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 47 );
+        : ( tests => 49 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -133,11 +134,18 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->name, 'We Are Goth', 'Correct record returned');
 
-$rs = $schema->resultset("CD")->search(
-           { 'artist.name' => 'Caterwauler McCrae' },
-           { prefetch => [ qw/artist liner_notes/ ],
-             order_by => 'me.cdid' });
+# bug in 0.07000 caused attr (join/prefetch) to be modifed by search
+# so we check the search & attr arrays are not modified
+my $search = { 'artist.name' => 'Caterwauler McCrae' };
+my $attr = { prefetch => [ qw/artist liner_notes/ ],
+             order_by => 'me.cdid' };
+my $search_str = Dumper($search);
+my $attr_str = Dumper($attr);
 
+$rs = $schema->resultset("CD")->search($search, $attr);
+
+is(Dumper($search), $search_str, 'Search hash untouched after search()');
+is(Dumper($attr), $attr_str, 'Attribute hash untouched after search()');
 cmp_ok($rs + 0, '==', 3, 'Correct number of records returned');
 
 my $queries = 0;

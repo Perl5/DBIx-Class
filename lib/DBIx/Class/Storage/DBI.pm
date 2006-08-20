@@ -35,10 +35,36 @@ sub new {
   $self;
 }
 
+sub _RowNumberOver {
+  my ($self, $sql, $order, $rows, $offset ) = @_;
+
+  $offset += 1;
+  my $last = $rows + $offset;
+  my ( $order_by ) = $self->_order_by( $order );
+
+  $sql = <<"";
+SELECT * FROM
+(
+   SELECT Q1.*, ROW_NUMBER() OVER( ) AS ROW_NUM FROM (
+      $sql
+      $order_by
+   ) Q1
+) Q2
+WHERE ROW_NUM BETWEEN $offset AND $last
+
+  return $sql;
+}
+
+
 # While we're at it, this should make LIMIT queries more efficient,
 #  without digging into things too deeply
 sub _find_syntax {
   my ($self, $syntax) = @_;
+  my $dbhname = eval { $syntax->{Driver}->{Name}} || '';
+  if(ref($self) && $dbhname && $dbhname eq 'DB2') {
+    return 'RowNumberOver';
+  }
+
   $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
 }
 
@@ -1049,8 +1075,8 @@ sub deployment_statements {
 }
 
 sub deploy {
-  my ($self, $schema, $type, $sqltargs) = @_;
-  foreach my $statement ( $self->deployment_statements($schema, $type, undef, undef, { no_comments => 1, %{ $sqltargs || {} } } ) ) {
+  my ($self, $schema, $type, $sqltargs, $dir) = @_;
+  foreach my $statement ( $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } ) ) {
     for ( split(";\n", $statement)) {
       next if($_ =~ /^--/);
       next if(!$_);
@@ -1102,7 +1128,6 @@ sub build_datetime_parser {
 sub DESTROY {
   my $self = shift;
   return if !$self->_dbh;
-
   $self->_verify_pid;
   $self->_dbh(undef);
 }

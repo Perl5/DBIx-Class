@@ -55,9 +55,11 @@ sub new {
 
   $obj->insert;
 
-Inserts an object into the database if it isn't already in there. Returns
-the object itself. Requires the object's result source to be set, or the
-class to have a result_source_instance method.
+Inserts an object into the database if it isn't already in
+there. Returns the object itself. Requires the object's result source to
+be set, or the class to have a result_source_instance method. To insert
+an entirely new object into the database, use C<create> (see
+L<DBIx::Class::ResultSet/create>).
 
 =cut
 
@@ -126,9 +128,14 @@ sub update {
 
   $obj->delete
 
-Deletes the object from the database. The object is still perfectly usable,
-but ->in_storage() will now return 0 and the object must re inserted using
-->insert() before ->update() can be used on it.
+Deletes the object from the database. The object is still perfectly
+usable, but C<-E<gt>in_storage()> will now return 0 and the object must
+reinserted using C<-E<gt>insert()> before C<-E(<gt>update()> can be used
+on it. If you delete an object in a class with a C<has_many>
+relationship, all the related objects will be deleted as well. To turn
+this behavior off, pass C<cascade_delete => 0> in the C<$attr>
+hashref. Any database-level cascade or restrict will take precedence
+over a DBIx-Class-based cascading delete. See also L<DBIx::Class::ResultSet/delete>.
 
 =cut
 
