@@ -41,7 +41,7 @@ sub get_autoinc_seq {
 sub columns_info_for {
   my ($self, $table) = @_;
 
-  $self->next::method($self, uc($table));
+  $self->next::method(uc($table));
 }
 
 
