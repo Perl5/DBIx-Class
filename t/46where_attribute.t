@@ -7,7 +7,7 @@ use lib qw(t/lib);
 use DBICTest;
 my $schema = DBICTest->init_schema();
 
-plan tests => 14;
+plan tests => 16;
 
 # select from a class with resultset_attributes
 my $resultset = $schema->resultset('BooksInLibrary');
@@ -24,6 +24,12 @@ $see_spot = eval { $owner->books->find_or_create({ title => "See Spot Run" }) };
 if ($@) { print $@ }
 ok(!$@, 'find_or_create on resultset with attribute for non-existent entry did not throw');
 ok(defined $see_spot, 'successfully did insert on resultset with attribute for non-existent entry');
+
+my $see_spot_rs = $owner->books->search({ title => "See Spot Run" });
+eval { $see_spot_rs->delete(); };
+if ($@) { print $@ }
+ok(!$@, 'delete on resultset with attribute did not throw');
+is($see_spot_rs->count(), 0, 'delete on resultset with attributes succeeded');
 
 # many_to_many tests
 my $collection = $schema->resultset('Collection')->search({collectionid => 1});

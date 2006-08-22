@@ -60,7 +60,7 @@ WHERE ROW_NUM BETWEEN $offset AND $last
 #  without digging into things too deeply
 sub _find_syntax {
   my ($self, $syntax) = @_;
-  my $dbhname = eval { $syntax->{Driver}->{Name}} || '';
+  my $dbhname = ref $syntax eq 'HASH' ? $syntax->{Driver}{Name} : '';
   if(ref($self) && $dbhname && $dbhname eq 'DB2') {
     return 'RowNumberOver';
   }

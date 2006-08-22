@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - use ref instead of eval to check limit syntax (to avoid issues with
+          Devel::StackTrace)
         - remove_columns now deletes columns from _columns
 
 0.07001 2006-08-18 19:55:00
