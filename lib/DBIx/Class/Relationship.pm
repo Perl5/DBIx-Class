@@ -103,6 +103,7 @@ All helper methods take the following arguments:
   
 Both C<$cond> and C<$attrs> are optional. Pass C<undef> for C<$cond> if
 you want to use the default value for it, but still want to set C<$attrs>.
+
 See L<DBIx::Class::Relationship::Base> for a list of valid attributes.
 
 =head2 belongs_to
@@ -115,8 +116,11 @@ See L<DBIx::Class::Relationship::Base> for a list of valid attributes.
 
   # in a Book class (where Author has many Books)
   My::DBIC::Schema::Book->belongs_to(author => 'My::DBIC::Schema::Author');
-  my $author_obj = $obj->author;
-  $obj->author($new_author_obj);
+
+  my $author_obj = $obj->author; # get author object
+  $obj->author($new_author_obj); # set author object
+
+  My::DBIC::Schema::Book->belongs_to(publisher => 
 
 Creates a relationship where the calling class stores the foreign class's
 primary key in one (or more) of its columns. If C<$cond> is a column name
@@ -143,16 +147,19 @@ in the $attr hashref.
 NOTE: If you are used to L<Class::DBI> relationships, this is the equivalent
 of C<has_a>.
 
+See L<DBIx::Class::Relationship::Base> for documentation on relationship methods.
+
 =head2 has_many
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $foreign_key_column?, $attr?
+=item Arguments: $accessor_name, $related_class, $foreign_key_column|$cond?, $attr?
 
 =back
 
   # in an Author class (where Author has_many Books)
   My::DBIC::Schema::Author->has_many(books => 'My::DBIC::Schema::Book', 'author');
+
   my $booklist = $obj->books;
   my $booklist = $obj->books({
     name => { LIKE => '%macaroni%' },
@@ -164,6 +171,13 @@ of C<has_a>.
 
   $obj->add_to_books(\%col_data);
 
+The above C<has_many> relationship could also have been specified with an
+explicit join condition:
+
+  My::DBIC::Schema::Author->has_many( books => 'My::DBIC::Schema::Book', {
+    'foreign.author' => 'self.author',
+  });
+
 Creates a one-to-many relationship, where the corresponding elements of the
 foreign class store the calling class's primary key in one (or more) of its
 columns. You should pass the name of the column in the foreign class as the
@@ -174,7 +188,7 @@ method is the expected accessor method, C<$accessor_name()>.  The second is
 almost exactly the same as the accessor method but "_rs" is added to the end of
 the method name.  This method works just like the normal accessor, except that
 it returns a resultset no matter what, even in list context. The third method,
-named C<< add_to_<relname> >>, will also be added to your Row items; this
+named C<< add_to_$relname >>, will also be added to your Row items; this
 allows you to insert new related items, using the same mechanism as in
 L<DBIx::Class::Relationship::Base/"create_related">.
 
@@ -183,6 +197,8 @@ the related objects will be deleted as well.  To turn this behaviour off,
 pass C<< cascade_delete => 0 >> in the C<$attr> hashref. However, any
 database-level cascade or restrict will take precedence over a
 DBIx-Class-based cascading delete.
+
+See L<DBIx::Class::Relationship::Base> for documentation on relationship methods.
 
 =head2 might_have
 
@@ -198,7 +214,7 @@ DBIx-Class-based cascading delete.
   my $pname = $obj->pseudonym; # to get the Pseudonym object
 
 Creates an optional one-to-one relationship with a class. This relationship
-defaults to using the relationship name as the foreign key in C<$related_class>
+defaults to using C<$accessor_name> as the foreign key in C<$related_class>
 to resolve the join, unless C<$join_condition> specifies a column in
 C<$related_class> or a join condition hash reference.
 
@@ -208,7 +224,7 @@ turn off this behavior, add C<< cascade_delete => 0 >> to the C<$attr>
 hashref. Any database-level update or delete constraints will override
 this behavior.
 
-In the above example
+See L<DBIx::Class::Relationship::Base> for more information.
 
 =head2 has_one
 
@@ -235,26 +251,13 @@ table, use the L<DBIx::Class::Relationship/might_have> relationship.
 In the above example, each Book in the database is associated with exactly one
 ISBN object.
 
+See L<DBIx::Class::Relationship::Base> for documentation on relationship methods.
+
 =head2 many_to_many
 
 =over 4
 
-=item Arguments:
-
-=over 4
-
-=item C<$accessor_name>: The name of the new many_to_many accessor,
-
-=item C<$link_rel_name>: The accessor name of the has_many relationship from
-                         the current table to the link table,
-
-=item C<$foreign_rel_name>: The accessor name for the belongs_to relationship
-                            from the link table to the foreign table
-
-=item C<$attr>: A hash of relationship attributes for the created many_to_many
-                relationship accessors to use on the C<$foreign_rel_name>.
-
-=back
+=item Arguments: $accessor_name, $link_rel_name, $foreign_rel_name, $attr?
 
 =back
 
@@ -283,14 +286,22 @@ Creates accessors bridging two relationships; not strictly a relationship in
 its own right, although the accessor will return a resultset or collection of
 objects just as a has_many would.
 
+In the above example, ActorRoles is the link table class, and Role is the
+foreign class. The C<$link_rel_name> parameter is the name of the accessor for
+the has_many relationship from this table to the link table, and the
+C<$foreign_rel_name> parameter is the accessor for the belongs_to relationship
+from the link table to the foreign table.
+
 To use many_to_many, existing relationships from the original table to the link
 table, and from the link table to the end table must already exist, these
 relation names are then used in the many_to_many call.
 
-In the above example, the Role class will have 3 many_to_many accessor methods
+In the above example, the Actor class will have 3 many_to_many accessor methods
 set: C<$roles>, C<$add_to_roles>, C<$set_roles>, and similarly named accessors
-will be created for the Actor class. See L<DBIx::Class::Relationship::Base> for
-more information.
+will be created for the Role class for the C<actors> many_to_many
+relationship.
+
+See L<DBIx::Class::Relationship::Base> for documentation on relationship methods.
 
 =cut
 
