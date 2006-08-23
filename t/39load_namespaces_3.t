@@ -14,12 +14,12 @@ eval {
     package DBICNSTestOther;
     use base qw/DBIx::Class::Schema/;
     __PACKAGE__->load_namespaces(
-        source_namespace => [ '+DBICNSTest::Src', '+DBICNSTest::OtherSrc' ],
+        result_namespace => [ '+DBICNSTest::Rslt', '+DBICNSTest::OtherRslt' ],
         resultset_namespace => '+DBICNSTest::RSet',
     );
 };
 ok(!$@) or diag $@;
-like($warnings, qr/load_namespaces found ResultSet class C with no corresponding source-definition class/);
+like($warnings, qr/load_namespaces found ResultSet class C with no corresponding Result class/);
 
 my $source_a = DBICNSTestOther->source('A');
 isa_ok($source_a, 'DBIx::Class::ResultSource::Table');

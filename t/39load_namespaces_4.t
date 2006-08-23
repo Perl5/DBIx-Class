@@ -16,7 +16,7 @@ eval {
     __PACKAGE__->load_namespaces( default_resultset_class => 'RSBase' );
 };
 ok(!$@) or diag $@;
-like($warnings, qr/load_namespaces found ResultSet class C with no corresponding source-definition class/);
+like($warnings, qr/load_namespaces found ResultSet class C with no corresponding Result class/);
 
 my $source_a = DBICNSTest->source('A');
 isa_ok($source_a, 'DBIx::Class::ResultSource::Table');

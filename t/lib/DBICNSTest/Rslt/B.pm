@@ -1,4 +1,4 @@
-package DBICNSTest::Src::B;
+package DBICNSTest::Rslt::B;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/PK::Auto Core/);
 __PACKAGE__->table('b');
