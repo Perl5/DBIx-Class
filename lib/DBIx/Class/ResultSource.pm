@@ -12,7 +12,8 @@ __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships column_info_from_storage source_name/);
+  schema from _relationships column_info_from_storage source_name
+  source_info/);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
   result_class/);
@@ -60,6 +61,17 @@ sub new {
 }
 
 =pod
+
+=head2 source_info
+
+Stores a hashref of per-source metadata.  No specific key names
+have yet been standardized, the examples below are purely hypothetical
+and don't actually accomplish anything on their own:
+
+  __PACKAGE__->source_info({
+    "_tablespace" => 'fast_disk_array_3',
+    "_engine" => 'InnoDB',
+  });
 
 =head2 add_columns
 

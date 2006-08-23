@@ -10,6 +10,7 @@ sub iterator_class  { shift->result_source_instance->resultset_class(@_) }
 sub resultset_class { shift->result_source_instance->resultset_class(@_) }
 sub result_class { shift->result_source_instance->result_class(@_) }
 sub source_name { shift->result_source_instance->source_name(@_) }
+sub source_info { shift->result_source_instance->source_info(@_) }
 
 sub resultset_attributes {
   shift->result_source_instance->resultset_attributes(@_);
