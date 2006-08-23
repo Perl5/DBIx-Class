@@ -5,6 +5,7 @@ use warnings;
 
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
+require Module::Find;
 
 use base qw/DBIx::Class/;
 
@@ -248,10 +249,6 @@ sub load_classes {
       }
     }
   } else {
-    eval "require Module::Find;";
-    $class->throw_exception(
-      "No arguments to load_classes and couldn't load Module::Find ($@)"
-    ) if $@;
     my @comp = map { substr $_, length "${class}::"  }
                  Module::Find::findallmod($class);
     $comps_for{$class} = \@comp;
@@ -277,6 +274,164 @@ sub load_classes {
     $class->register_class(@$to);
     #  if $class->can('result_source_instance');
   }
+}
+
+=head2 load_namespaces
+
+=over 4
+
+=item Arguments: %options?
+
+=back
+
+This is an alternative to L</load_classes> above which assumes an alternative
+layout for automatic class loading.  It assumes that all result
+classes are underneath a sub-namespace of the schema called C<Result>, any
+corresponding ResultSet classes are underneath a sub-namespace of the schema
+called C<ResultSet>.
+
+Both of the sub-namespaces are configurable if you don't like the defaults,
+via the options C<result_namespace> and C<resultset_namespace>.
+
+If (and only if) you specify the option C<default_resultset_class>, any found
+Result classes for which we do not find a corresponding
+ResultSet class will have their C<resultset_class> set to
+C<default_resultset_class>.
+
+C<load_namespaces> takes care of calling C<resultset_class> for you where
+neccessary if you didn't do it for yourself.
+
+All of the namespace and classname options to this method are relative to
+the schema classname by default.  To specify a fully-qualified name, prefix
+it with a literal C<+>.
+
+Examples:
+
+  # load My::Schema::Result::CD, My::Schema::Result::Artist,
+  #    My::Schema::ResultSet::CD, etc...
+  My::Schema->load_namespaces;
+
+  # Override everything to use ugly names.
+  # In this example, if there is a My::Schema::Res::Foo, but no matching
+  #   My::Schema::RSets::Foo, then Foo will have its
+  #   resultset_class set to My::Schema::RSetBase
+  My::Schema->load_namespaces(
+    result_namespace => 'Res',
+    resultset_namespace => 'RSets',
+    default_resultset_class => 'RSetBase',
+  );
+
+  # Put things in other namespaces
+  My::Schema->load_namespaces(
+    result_namespace => '+Some::Place::Results',
+    resultset_namespace => '+Another::Place::RSets',
+  );
+
+If you'd like to use multiple namespaces of each type, simply use an arrayref
+of namespaces for that option.  In the case that the same result
+(or resultset) class exists in multiple namespaces, the latter entries in
+your list of namespaces will override earlier ones.
+
+  My::Schema->load_namespaces(
+    # My::Schema::Results_C::Foo takes precedence over My::Schema::Results_B::Foo :
+    result_namespace => [ 'Results_A', 'Results_B', 'Results_C' ],
+    resultset_namespace => [ '+Some::Place::RSets', 'RSets' ],
+  );
+
+=cut
+
+# Pre-pends our classname to the given relative classname or
+#   class namespace, unless there is a '+' prefix, which will
+#   be stripped.
+sub _expand_relative_name {
+  my ($class, $name) = @_;
+  return if !$name;
+  $name = $class . '::' . $name if ! ($name =~ s/^\+//);
+  return $name;
+}
+
+# returns a hash of $shortname => $fullname for every package
+#  found in the given namespaces ($shortname is with the $fullname's
+#  namespace stripped off)
+sub _map_namespaces {
+  my ($class, @namespaces) = @_;
+
+  my @results_hash;
+  foreach my $namespace (@namespaces) {
+    push(
+      @results_hash,
+      map { (substr($_, length "${namespace}::"), $_) }
+      Module::Find::findallmod($namespace)
+    );
+  }
+
+  @results_hash;
+}
+
+sub load_namespaces {
+  my ($class, %args) = @_;
+
+  my $result_namespace = delete $args{result_namespace} || 'Result';
+  my $resultset_namespace = delete $args{resultset_namespace} || 'ResultSet';
+  my $default_resultset_class = delete $args{default_resultset_class};
+
+  $class->throw_exception('load_namespaces: unknown option(s): '
+    . join(q{,}, map { qq{'$_'} } keys %args))
+      if scalar keys %args;
+
+  $default_resultset_class
+    = $class->_expand_relative_name($default_resultset_class);
+
+  for my $arg ($result_namespace, $resultset_namespace) {
+    $arg = [ $arg ] if !ref($arg) && $arg;
+
+    $class->throw_exception('load_namespaces: namespace arguments must be '
+      . 'a simple string or an arrayref')
+        if ref($arg) ne 'ARRAY';
+
+    $_ = $class->_expand_relative_name($_) for (@$arg);
+  }
+
+  my %results = $class->_map_namespaces(@$result_namespace);
+  my %resultsets = $class->_map_namespaces(@$resultset_namespace);
+
+  my @to_register;
+  {
+    no warnings 'redefine';
+    local *Class::C3::reinitialize = sub { };
+    use warnings 'redefine';
+
+    foreach my $result (keys %results) {
+      my $result_class = $results{$result};
+      $class->ensure_class_loaded($result_class);
+      $result_class->source_name($result) unless $result_class->source_name;
+
+      my $rs_class = delete $resultsets{$result};
+      my $rs_set = $result_class->resultset_class;
+      if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
+        if($rs_class && $rs_class ne $rs_set) {
+          warn "We found ResultSet class '$rs_class' for '$result', but it seems "
+             . "that you had already set '$result' to use '$rs_set' instead";
+        }
+      }
+      elsif($rs_class ||= $default_resultset_class) {
+        $class->ensure_class_loaded($rs_class);
+        $result_class->resultset_class($rs_class);
+      }
+
+      push(@to_register, [ $result_class->source_name, $result_class ]);
+    }
+  }
+
+  foreach (sort keys %resultsets) {
+    warn "load_namespaces found ResultSet class $_ with no "
+      . 'corresponding Result class';
+  }
+
+  Class::C3->reinitialize;
+  $class->register_class(@$_) for (@to_register);
+
+  return;
 }
 
 =head2 compose_connection
