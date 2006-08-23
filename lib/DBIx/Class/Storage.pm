@@ -388,7 +388,9 @@ sub select_single { die "Virtual method!" }
 
 =head2 columns_info_for
 
-Returns database type info for the given table's columns.
+Returns metadata for the given source's columns.  This
+is *deprecated*, and will be removed before 1.0.  You should
+be specifying the metadata yourself if you need it.
 
 =cut
 

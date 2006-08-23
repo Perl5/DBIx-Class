@@ -220,7 +220,8 @@ sub column_info {
 =head2 load_column_info_from_storage
 
 Enables the on-demand automatic loading of the above column
-metadata from storage as neccesary.
+metadata from storage as neccesary.  This is *deprecated*, and
+should not be used.  It will be removed before 1.0.
 
 =cut
 

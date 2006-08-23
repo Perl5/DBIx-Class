@@ -1,5 +1,18 @@
 Revision history for DBIx::Class
 
+        - added DBIx::Class::Schema::load_namespaces, alternative to
+          load_classes
+        - added source_info method for source-level metadata (kinda like
+          column_info)
+        - Some of ::Storage::DBI's code/docs moved to ::Storage
+        - DBIx::Class::Schema::txn_do code moved to ::Storage
+        - Storage::DBI now uses exceptions instead of ->ping/->{Active} checks
+        - Storage exceptions are thrown via the schema class's throw_exception
+        - DBIx::Class::Schema::throw_exception's behavior can be modified via
+          ->exception_action
+        - columns_info_for is deprecated, and no longer runs automatically.
+          You can make it work like before via
+          __PACKAGE__->load_column_info_from_storage for now
         - use ref instead of eval to check limit syntax (to avoid issues with
           Devel::StackTrace)
         - remove_columns now deletes columns from _columns
