@@ -4,32 +4,32 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::ODBC/;
 
-sub last_insert_id
-{
-    my ($self) = @_;
+sub _dbh_last_insert_id {
+    my ($self, $dbh, $source, $col) = @_;
 
-    $self->dbh_do(sub {
-        my $dbh = shift;
+    # get the schema/table separator:
+    #    '.' when SQL naming is active
+    #    '/' when system naming is active
+    my $sep = $dbh->get_info(41);
+    my $sth = $dbh->prepare_cached(
+        "SELECT IDENTITY_VAL_LOCAL() FROM SYSIBM${sep}SYSDUMMY1", {}, 3);
+    $sth->execute();
 
-        # get the schema/table separator:
-        #    '.' when SQL naming is active
-        #    '/' when system naming is active
-        my $sep = $dbh->get_info(41);
-        my $sth = $dbh->prepare_cached(
-            "SELECT IDENTITY_VAL_LOCAL() FROM SYSIBM${sep}SYSDUMMY1", {}, 3);
-        $sth->execute();
+    my @res = $sth->fetchrow_array();
 
-        my @res = $sth->fetchrow_array();
-
-        return @res ? $res[0] : undef;
-    });
+    return @res ? $res[0] : undef;
 }
 
 sub _sql_maker_opts {
     my ($self) = @_;
     
     $self->dbh_do(sub {
-        { limit_dialect => 'FetchFirst', name_sep => shift->get_info(41) }
+        my ($self, $dbh) = @_;
+
+        return {
+            limit_dialect => 'FetchFirst',
+            name_sep => $dbh->get_info(41)
+        };
     });
 }
 

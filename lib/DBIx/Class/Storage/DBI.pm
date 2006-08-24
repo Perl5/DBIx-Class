@@ -452,19 +452,26 @@ This method is deprecated in favor of setting via L</connect_info>.
 
 Arguments: $subref, @extra_coderef_args?
 
-Execute the given subref with the underlying database handle as its
-first argument, using the new exception-based connection management.
+Execute the given subref using the new exception-based connection management.
 
-Any additional arguments will be passed verbatim to the called subref
-as arguments 2 and onwards.
+The first two arguments will be the storage object that C<dbh_do> was called
+on and a database handle to use.  Any additional arguments will be passed
+verbatim to the called subref as arguments 2 and onwards.
+
+Using this (instead of $self->_dbh or $self->dbh) ensures correct
+exception handling and reconnection (or failover in future subclasses).
+
+Your subref should have no side-effects outside of the database, as
+there is the potential for your subref to be partially double-executed
+if the database connection was stale/dysfunctional.
 
 Example:
 
   my @stuff = $schema->storage->dbh_do(
     sub {
-      my $dbh = shift;
-      my $cols = join(q{, }, @_);
-      shift->selectrow_array("SELECT $cols FROM foo")
+      my ($storage, $dbh, @cols) = @_;
+      my $cols = join(q{, }, @cols);
+      $dbh->selectrow_array("SELECT $cols FROM foo");
     },
     @column_list
   );
@@ -475,7 +482,7 @@ sub dbh_do {
   my $self = shift;
   my $coderef = shift;
 
-  return $coderef->($self->_dbh, @_) if $self->{_in_txn_do};
+  return $coderef->($self, $self->_dbh, @_) if $self->{_in_txn_do};
 
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
@@ -487,13 +494,13 @@ sub dbh_do {
     $self->_verify_pid if $self->_dbh;
     $self->_populate_dbh if !$self->_dbh;
     if($want_array) {
-        @result = $coderef->($self->_dbh, @_);
+        @result = $coderef->($self, $self->_dbh, @_);
     }
     elsif(defined $want_array) {
-        $result[0] = $coderef->($self->_dbh, @_);
+        $result[0] = $coderef->($self, $self->_dbh, @_);
     }
     else {
-        $coderef->($self->_dbh, @_);
+        $coderef->($self, $self->_dbh, @_);
     }
   };
 
@@ -505,7 +512,7 @@ sub dbh_do {
   # We were not connected - reconnect and retry, but let any
   #  exception fall right through this time
   $self->_populate_dbh;
-  $coderef->($self->_dbh, @_);
+  $coderef->($self, $self->_dbh, @_);
 }
 
 # This is basically a blend of dbh_do above and DBIx::Class::Storage::txn_do.
@@ -520,54 +527,51 @@ sub txn_do {
 
   local $self->{_in_txn_do} = 1;
 
-  my $tried = 0;
-
   my @result;
   my $want_array = wantarray;
 
-  START_TXN: eval {
-    $self->_verify_pid if $self->_dbh;
-    $self->_populate_dbh if !$self->_dbh;
+  my $tried = 0;
+  while(1) {
+    eval {
+      $self->_verify_pid if $self->_dbh;
+      $self->_populate_dbh if !$self->_dbh;
 
-    $self->txn_begin;
-    if($want_array) {
-        @result = $coderef->(@_);
-    }
-    elsif(defined $want_array) {
-        $result[0] = $coderef->(@_);
-    }
-    else {
-        $coderef->(@_);
-    }
-    $self->txn_commit;
-  };
+      $self->txn_begin;
+      if($want_array) {
+          @result = $coderef->(@_);
+      }
+      elsif(defined $want_array) {
+          $result[0] = $coderef->(@_);
+      }
+      else {
+          $coderef->(@_);
+      }
+      $self->txn_commit;
+    };
 
-  my $exception = $@;
-  if(!$exception) { return $want_array ? @result : $result[0] }
+    my $exception = $@;
+    if(!$exception) { return $want_array ? @result : $result[0] }
 
-  if($tried++ > 0 || $self->connected) {
-    eval { $self->txn_rollback };
-    my $rollback_exception = $@;
-    if($rollback_exception) {
-      my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
-      $self->throw_exception($exception)  # propagate nested rollback
-        if $rollback_exception =~ /$exception_class/;
+    if($tried++ > 0 || $self->connected) {
+      eval { $self->txn_rollback };
+      my $rollback_exception = $@;
+      if($rollback_exception) {
+        my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
+        $self->throw_exception($exception)  # propagate nested rollback
+          if $rollback_exception =~ /$exception_class/;
 
-      $self->throw_exception(
-        "Transaction aborted: ${exception}. "
-        . "Rollback failed: ${rollback_exception}"
-      );
+        $self->throw_exception(
+          "Transaction aborted: ${exception}. "
+          . "Rollback failed: ${rollback_exception}"
+        );
+      }
+      $self->throw_exception($exception)
     }
-    $self->throw_exception($exception)
+
+    # We were not connected, and was first try - reconnect and retry
+    # via the while loop
+    $self->_populate_dbh;
   }
-
-  # We were not connected, and was first try - reconnect and retry
-  # XXX I know, gotos are evil.  If you can find a better way
-  #  to write this that doesn't duplicate a lot of code/structure,
-  #  and behaves identically, feel free...
-
-  $self->_populate_dbh;
-  goto START_TXN;
 }
 
 =head2 disconnect
@@ -708,8 +712,8 @@ sub _connect {
   $dbh;
 }
 
-sub __txn_begin {
-  my ($dbh, $self) = @_;
+sub _dbh_txn_begin {
+  my ($self, $dbh) = @_;
   if ($dbh->{AutoCommit}) {
     $self->debugobj->txn_begin()
       if ($self->debug);
@@ -719,12 +723,12 @@ sub __txn_begin {
 
 sub txn_begin {
   my $self = shift;
-  $self->dbh_do(\&__txn_begin, $self)
+  $self->dbh_do($self->can('_dbh_txn_begin'))
     if $self->{transaction_depth}++ == 0;
 }
 
-sub __txn_commit {
-  my ($dbh, $self) = @_;
+sub _dbh_txn_commit {
+  my ($self, $dbh) = @_;
   if ($self->{transaction_depth} == 0) {
     unless ($dbh->{AutoCommit}) {
       $self->debugobj->txn_commit()
@@ -743,11 +747,11 @@ sub __txn_commit {
 
 sub txn_commit {
   my $self = shift;
-  $self->dbh_do(\&__txn_commit, $self);
+  $self->dbh_do($self->can('_dbh_txn_commit'));
 }
 
-sub __txn_rollback {
-  my ($dbh, $self) = @_;
+sub _dbh_txn_rollback {
+  my ($self, $dbh) = @_;
   if ($self->{transaction_depth} == 0) {
     unless ($dbh->{AutoCommit}) {
       $self->debugobj->txn_rollback()
@@ -769,7 +773,8 @@ sub __txn_rollback {
 
 sub txn_rollback {
   my $self = shift;
-  eval { $self->dbh_do(\&__txn_rollback, $self) };
+
+  eval { $self->dbh_do($self->can('_dbh_txn_rollback')) };
   if ($@) {
     my $error = $@;
     my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
@@ -895,20 +900,19 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 
 =cut
 
-sub __sth {
-  my ($dbh, $sql) = @_;
+sub _dbh_sth {
+  my ($self, $dbh, $sql) = @_;
   # 3 is the if_active parameter which avoids active sth re-use
   $dbh->prepare_cached($sql, {}, 3);
 }
 
 sub sth {
   my ($self, $sql) = @_;
-  $self->dbh_do(\&__sth, $sql);
+  $self->dbh_do($self->can('_dbh_sth'), $sql);
 }
 
-
-sub __columns_info_for {
-  my ($dbh, $self, $table) = @_;
+sub _dbh_columns_info_for {
+  my ($self, $dbh, $table) = @_;
 
   if ($dbh->can('column_info')) {
     my %result;
@@ -960,7 +964,7 @@ sub __columns_info_for {
 
 sub columns_info_for {
   my ($self, $table) = @_;
-  $self->dbh_do(\&__columns_info_for, $self, $table);
+  $self->dbh_do($self->can('_dbh_columns_info_for'), $table);
 }
 
 =head2 last_insert_id
@@ -969,10 +973,15 @@ Return the row id of the last insert.
 
 =cut
 
+sub _dbh_last_insert_id {
+    my ($self, $dbh, $source, $col) = @_;
+    # XXX This is a SQLite-ism as a default... is there a DBI-generic way?
+    $dbh->func('last_insert_rowid');
+}
+
 sub last_insert_id {
-  my ($self, $row) = @_;
-    
-  $self->dbh_do(sub { shift->func('last_insert_rowid') });
+  my $self = shift;
+  $self->dbh_do($self->can('_dbh_last_insert_id'), @_);
 }
 
 =head2 sqlt_type
@@ -981,7 +990,7 @@ Returns the database driver name.
 
 =cut
 
-sub sqlt_type { shift->dbh_do(sub { shift->{Driver}->{Name} }) }
+sub sqlt_type { shift->dbh->{Driver}->{Name} }
 
 =head2 create_ddl_dir (EXPERIMENTAL)
 

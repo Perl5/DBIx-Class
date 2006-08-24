@@ -13,19 +13,19 @@ use base qw/DBIx::Class::Storage::DBI/;
 warn "DBD::Pg 1.49 is strongly recommended"
   if ($DBD::Pg::VERSION < 1.49);
 
-sub _pg_last_insert_id {
-  my ($dbh, $seq) = @_;
-  $dbh->last_insert_id(undef,undef,undef,undef, {sequence => $seq});
+sub _dbh_last_insert_id {
+  my ($self, $dbh, $seq) = @_;
+  $dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
 }
 
 sub last_insert_id {
   my ($self,$source,$col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
-  $self->dbh_do(\&_pg_last_insert_id, $seq);
+  $self->dbh_do($self->can('_dbh_last_insert_id'), $seq);
 }
 
-sub _pg_get_autoinc_seq {
-  my ($dbh, $schema, $table, @pri) = @_;
+sub _dbh_get_autoinc_seq {
+  my ($self, $dbh, $schema, $table, @pri) = @_;
 
   while (my $col = shift @pri) {
     my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref;
@@ -46,7 +46,7 @@ sub get_autoinc_seq {
   my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2)
     : (undef,$source->name);
 
-  $self->dbh_do(\&_pg_get_autoinc_seq, $schema, $table, @pri);
+  $self->dbh_do($self->can('_dbh_get_autoinc_seq'), $schema, $table, @pri);
 }
 
 sub sqlt_type {

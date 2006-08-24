@@ -5,8 +5,9 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 
-sub last_insert_id {
-  shift->dbh_do(sub { shift->func('last_insert_rowid') });
+sub _dbh_last_insert_id {
+  my ($self, $dbh, $source, $col) = @_;
+  $dbh->func('last_insert_rowid');
 }
 
 1;

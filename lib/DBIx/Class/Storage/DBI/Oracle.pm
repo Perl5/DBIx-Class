@@ -9,20 +9,24 @@ use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
-sub _ora_last_insert_id {
-   my ($dbh, $sql) = @_;
-   $dbh->selectrow_array($sql);
-}
-sub last_insert_id {
-  my ($self,$source,$col) = @_;
+sub _dbh_last_insert_id {
+  my ($self, $dbh, $source, $col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
   my $sql = 'SELECT ' . $seq . '.currval FROM DUAL';
-  my ($id) = $self->dbh_do(\&_ora_last_insert_id($sql));
+  my ($id) = $dbh->selectrow_array($sql);
   return $id;
 }
 
-sub _ora_get_autoinc_seq {
-  my ($dbh, $source, $sql) = @_;
+sub _dbh_get_autoinc_seq {
+  my ($self, $dbh, $source, $col) = @_;
+
+  # look up the correct sequence automatically
+  my $sql = q{
+    SELECT trigger_body FROM ALL_TRIGGERS t
+    WHERE t.table_name = ?
+    AND t.triggering_event = 'INSERT'
+    AND t.status = 'ENABLED'
+  };
 
   # trigger_body is a LONG
   $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
@@ -36,17 +40,9 @@ sub _ora_get_autoinc_seq {
 }
 
 sub get_autoinc_seq {
-  my ($self,$source,$col) = @_;
+  my ($self, $source, $col) = @_;
     
-  # look up the correct sequence automatically
-  my $sql = q{
-    SELECT trigger_body FROM ALL_TRIGGERS t
-    WHERE t.table_name = ?
-    AND t.triggering_event = 'INSERT'
-    AND t.status = 'ENABLED'
-  };
-
-  $self->dbh_do(\&_ora_get_autoinc_seq, $source, $sql);
+  $self->dbh_do($self->can('_dbh_get_autoinc_seq'), $source, $col);
 }
 
 sub columns_info_for {
