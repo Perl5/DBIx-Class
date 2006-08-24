@@ -99,7 +99,8 @@ sub in_storage {
   $obj->update;
 
 Must be run on an object that is already in the database; issues an SQL
-UPDATE query to commit any changes to the object to the db if required.
+UPDATE query to commit any changes to the object to the database if
+required.
 
 =cut
 
@@ -476,4 +477,3 @@ Matt S. Trout <mst@shadowcatsystems.co.uk>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-

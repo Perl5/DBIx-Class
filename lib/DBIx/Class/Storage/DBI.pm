@@ -828,6 +828,12 @@ sub _select {
 
 =head2 select
 
+=over 4
+
+=item Arguments: $ident, $select, $condition, $attrs
+
+=back
+
 Handle a SQL select statement.
 
 =cut
@@ -857,6 +863,12 @@ sub select_single {
 
 =head2 sth
 
+=over 4
+
+=item Arguments: $sql
+
+=back
+
 Returns a L<DBI> sth (statement handle) for the supplied SQL.
 
 =cut
@@ -869,7 +881,7 @@ sub sth {
 
 =head2 columns_info_for
 
-Returns database type info for a given table columns.
+Returns database type info for a given table column.
 
 =cut
 
@@ -958,7 +970,7 @@ sub sqlt_type { shift->dbh->{Driver}->{Name} }
 
 =back
 
-Creates an SQL file based on the Schema, for each of the specified
+Creates a SQL file based on the Schema, for each of the specified
 database types, in the given directory.
 
 Note that this feature is currently EXPERIMENTAL and may not work correctly
@@ -1018,8 +1030,24 @@ sub create_ddl_dir
 
 =head2 deployment_statements
 
-Create the statements for L</deploy> and
-L<DBIx::Class::Schema/deploy>.
+=over 4
+
+=item Arguments: $schema, $type, $version, $directory, $sqlt_args
+
+=back
+
+Returns the statements used by L</deploy> and L<DBIx::Class::Schema/deploy>.
+The database driver name is given by C<$type>, though the value from
+L</sqlt_type> is used if it is not specified.
+
+C<$directory> is used to return statements from files in a previously created
+L</create_ddl_dir> directory and is optional. The filenames are constructed
+from L<DBIx::Class::Schema/ddl_filename>, the schema name and the C<$version>.
+
+If no C<$directory> is specified then the statements are constructed on the
+fly using L<SQL::Translator> and C<$version> is ignored.
+
+See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>.
 
 =cut
 
@@ -1197,4 +1225,3 @@ Andy Grundman <andy@hybridized.org>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
