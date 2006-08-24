@@ -23,55 +23,24 @@ Uses C<prepare> instead of the usual C<prepare_cached>, seeing as we can't cache
 
 =cut
 
-sub sth {
-  my ($self, $sql) = @_;
-  return $self->dbh->prepare($sql);
+sub _dbh_sth {
+  my ($self, $dbh, $sql) = @_;
+  $dbh->prepare($sql);
 }
 
-=head2 _execute
+=head2 _prep_for_execute
 
-Manually subs in the values for the usual C<?> placeholders before calling L</sth> on the generated SQL.
+Manually subs in the values for the usual C<?> placeholders.
 
 =cut
 
-sub _execute {
-  my ($self, $op, $extra_bind, $ident, @args) = @_;
-  my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
-  unshift(@bind, @$extra_bind) if $extra_bind;
-  if ($self->debug) {
-    my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
-    $self->debugobj->query_start($sql, @debug_bind);
-  }
+sub _prep_for_execute {
+  my $self = shift;
+  my ($sql, @bind) = $self->next::method(@_);
 
-  while(my $bvar = shift @bind) {
-    $bvar = $self->_dbh->quote($bvar);
-    $sql =~ s/\?/$bvar/;
-  }
+  $sql =~ s/\?/$self->_dbh->quote($_)/e for (@bind);
 
-  my $sth = eval { $self->sth($sql,$op) };
-
-  if (!$sth || $@) {
-    $self->throw_exception(
-      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
-    );
-  }
-
-  my $rv;
-  if ($sth) {
-    my $time = time();
-    $rv = eval { $sth->execute };
-
-    if ($@ || !$rv) {
-      $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
-    }
-  } else {
-    $self->throw_exception("'$sql' did not generate a statement.");
-  }
-  if ($self->debug) {
-    my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
-    $self->debugobj->query_end($sql, @debug_bind);
-  }
-  return (wantarray ? ($rv, $sth, @bind) : $rv);
+  return ($sql);
 }
 
 =head1 AUTHORS
