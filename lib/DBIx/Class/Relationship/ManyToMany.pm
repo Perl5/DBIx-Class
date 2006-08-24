@@ -60,8 +60,9 @@ sub many_to_many {
       @_ > 0 or $self->throw_exception(
         "{$set_meth} needs a list of objects or hashrefs"
       );
+      my @to_set = (ref($_[0] eq 'ARRAY') ? @{ $_[0] } : @_);
       $self->search_related($rel, {})->delete;
-      $self->$add_meth(shift) while (defined $_[0]);
+      $self->$add_meth(shift) for (@to_set);
     };
 
     *{"${class}::${remove_meth}"} = sub {
