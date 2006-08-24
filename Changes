@@ -13,6 +13,9 @@ Revision history for DBIx::Class
         - columns_info_for is deprecated, and no longer runs automatically.
           You can make it work like before via
           __PACKAGE__->load_column_info_from_storage for now
+
+0.07002
+        - cleared up Relationship docs, and fixed some typos
         - use ref instead of eval to check limit syntax (to avoid issues with
           Devel::StackTrace)
         - remove_columns now deletes columns from _columns

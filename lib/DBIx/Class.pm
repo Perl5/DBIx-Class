@@ -184,61 +184,62 @@ blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
 
-LTJake: Brian Cassidy <bricas@cpan.org>
+captainL: Luke Saunders <luke.saunders@gmail.com>
+
+castaway: Jess Robinson
 
 claco: Christopher H. Laco
 
 clkao: CL Kao
 
-typester: Daisuke Murase <typester@cpan.org>
-
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
-
-Numa: Dan Sully <daniel@cpan.org>
-
-dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
-
-ningu: David Kamholz <dkamholz@cpan.org>
-
-jesper: Jesper Krogh
-
-castaway: Jess Robinson
-
-quicksilver: Jules Bean
-
-jguenther: Justin Guenther <jguenther@cpan.org>
-
-captainL: Luke Saunders <luke.saunders@gmail.com>
 
 draven: Marcus Ramberg <mramberg@cpan.org>
 
+dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
+
+dyfrgi: Michael Leuchtenmurg <michael@slashhome.org>
+
+gphat: Cory G Watson <gphat@cpan.org>
+
+jesper: Jesper Krogh
+
+jguenther: Justin Guenther <jguenther@cpan.org>
+
+konobi: Scott McWhirter
+
+LTJake: Brian Cassidy <bricas@cpan.org>
+
 nigel: Nigel Metheringham <nigelm@cpan.org>
+
+ningu: David Kamholz <dkamholz@cpan.org>
+
+Numa: Dan Sully <daniel@cpan.org>
 
 paulm: Paul Makepeace
 
+penguin: K J Cheetham
+
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
-sc_: Just Another Perl Hacker
+quicksilver: Jules Bean
 
-konobi: Scott McWhirter
+sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>
 
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
-zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
-
 Todd Lipcon
+
+typester: Daisuke Murase <typester@cpan.org>
 
 wdh: Will Hawes
 
-gphat: Cory G Watson <gphat@cpan.org>
-
-dyfrgi: Michael Leuchtenmurg <michael@slashhome.org>
+zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
