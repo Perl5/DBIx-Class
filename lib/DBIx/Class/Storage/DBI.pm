@@ -784,22 +784,37 @@ sub txn_rollback {
   }
 }
 
-sub _execute {
+# This used to be the top-half of _execute.  It was split out to make it
+#  easier to override in NoBindVars without duping the rest.  It takes up
+#  all of _execute's args, and emits $sql, @bind.
+sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, @args) = @_;
+
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
   unshift(@bind, @$extra_bind) if $extra_bind;
+  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+
+  return ($sql, @bind);
+}
+
+sub _execute {
+  my $self = shift;
+
+  my ($sql, @bind) = $self->_prep_for_execute(@_);
+
   if ($self->debug) {
       my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
-  my $sth = eval { $self->sth($sql,$op) };
+
+  my $sth = eval { $self->sth($sql) };
 
   if (!$sth || $@) {
     $self->throw_exception(
       'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
     );
   }
-  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+
   my $rv;
   if ($sth) {
     my $time = time();
