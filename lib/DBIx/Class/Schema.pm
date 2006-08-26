@@ -171,6 +171,12 @@ For example:
 
 sub sources { return keys %{shift->source_registrations}; }
 
+=head2 storage
+
+  my $storage = $schema->storage;
+
+Returns the L<DBIx::Class::Storage> object for this Schema.
+
 =head2 resultset
 
 =over 4
