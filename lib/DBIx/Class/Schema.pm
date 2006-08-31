@@ -431,6 +431,26 @@ sub setup_connection_class {
   $target->connection(@info);
 }
 
+=head2 storage_type
+
+=over 4
+
+=item Arguments: $storage_type
+
+=item Return Value: $storage_type
+
+=back
+
+Set the storage class that will be instantiated when L</connect> is called.
+If the classname starts with C<::>, the prefix C<DBIx::Class::Storage> is
+assumed by L</connect>.  Defaults to C<::DBI>,
+which is L<DBIx::Class::Storage::DBI>.
+
+You want to use this to hardcoded subclasses of L<DBIx::Class::Storage::DBI>
+in cases where the appropriate subclass is not autodetected, such as when
+dealing with MSSQL via L<DBD::Sybase>, in which case you'd set it to
+C<::DBI::Sybase::MSSQL>.
+
 =head2 connection
 
 =over 4
