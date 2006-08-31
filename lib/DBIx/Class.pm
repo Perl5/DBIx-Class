@@ -198,7 +198,7 @@ draven: Marcus Ramberg <mramberg@cpan.org>
 
 dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
-dyfrgi: Michael Leuchtenmurg <michael@slashhome.org>
+dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 
 gphat: Cory G Watson <gphat@cpan.org>
 
