@@ -666,13 +666,17 @@ sub clone {
 
 =over 4
 
-=item Arguments: $moniker, \@data;
+=item Arguments: $source_name, \@data;
 
 =back
 
-Populates the source registered with the given moniker with the supplied data.
-@data should be a list of listrefs -- the first containing column names, the
-second matching values.
+Pass this method a resultsource name, and an arrayref of
+arrayrefs. The arrayrefs should contain a list of column names,
+followed by one or many sets of matching data for the given columns. 
+
+Each set of data is inserted into the database using
+L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
+objects is returned.
 
 i.e.,
 
