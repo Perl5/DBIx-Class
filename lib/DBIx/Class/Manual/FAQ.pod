@@ -324,3 +324,15 @@ search again or relationship accessors. The SQL query is only run when
 you ask the resultset for an actual row object.
 
 =back
+
+=head2 Notes for CDBI users
+
+=over 4
+
+=item Is there a way to make an object auto-stringify itself as a
+particular column or group of columns (a-la cdbi Stringfy column
+group, or stringify_self method) ?
+
+See L<Cookbook/Stringification>
+
+=back
