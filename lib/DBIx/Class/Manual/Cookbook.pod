@@ -562,7 +562,7 @@ method to the class defining the Category table:
       my $self = shift;
 
       return $self->Description;
-  }
+  }, fallback => 1;
 
 =head2 Disconnecting cleanly
 
