@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
 0.07002
+        - fixed inflate_datetime.t tests/stringify under older Test::More
         - cleared up Relationship docs, and fixed some typos
         - use ref instead of eval to check limit syntax (to avoid issues with
           Devel::StackTrace)
