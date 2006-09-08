@@ -30,10 +30,10 @@ Returns a new L<DBIx::Class::Storage::Statistics> object.
 
 =cut
 sub new {
-    my $self = {};
-    bless $self, (ref($_[0]) || $_[0]);
+  my $self = {};
+  bless $self, (ref($_[0]) || $_[0]);
 
-    return $self;
+  return $self;
 }
 
 =head2 debugfh
@@ -49,9 +49,9 @@ Called when a transaction begins.
 
 =cut
 sub txn_begin {
-    my $self = shift();
+  my $self = shift;
 
-    $self->debugfh->print("BEGIN WORK\n");
+  $self->debugfh->print("BEGIN WORK\n");
 }
 
 =head2 txn_rollback
@@ -60,9 +60,9 @@ Called when a transaction is rolled back.
 
 =cut
 sub txn_rollback {
-    my $self = shift();
+  my $self = shift;
 
-    $self->debugfh->print("ROLLBACK\n");
+  $self->debugfh->print("ROLLBACK\n");
 }
 
 =head2 txn_commit
@@ -71,9 +71,9 @@ Called when a transaction is committed.
 
 =cut
 sub txn_commit {
-    my $self = shift();
+  my $self = shift;
 
-    $self->debugfh->print("COMMIT\n");
+  $self->debugfh->print("COMMIT\n");
 }
 
 =head2 query_start
@@ -83,17 +83,17 @@ executed and subsequent arguments are the parameters used for the query.
 
 =cut
 sub query_start {
-    my ($self, $string, @bind) = @_;
+  my ($self, $string, @bind) = @_;
 
-    my $message = "$string: ".join(', ', @bind)."\n";
+  my $message = "$string: ".join(', ', @bind)."\n";
 
-    if(defined($self->callback())) {
-      $string =~ m/^(\w+)/;
-      $self->callback()->($1, $message);
-      return;
-    }
+  if(defined($self->callback)) {
+    $string =~ m/^(\w+)/;
+    $self->callback()->($1, $message);
+    return;
+  }
 
-    $self->debugfh->print($message);
+  $self->debugfh->print($message);
 }
 
 =head2 query_end
@@ -102,8 +102,7 @@ Called when a query finishes executing.  Has the same arguments as query_start.
 
 =cut
 sub query_end {
-    my $self = shift();
-    my $string = shift();
+  my ($self, $string) = @_;
 }
 
 1;
