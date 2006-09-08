@@ -89,7 +89,7 @@ sub query_start {
 
   if(defined($self->callback)) {
     $string =~ m/^(\w+)/;
-    $self->callback()->($1, $message);
+    $self->callback->($1, $message);
     return;
   }
 
