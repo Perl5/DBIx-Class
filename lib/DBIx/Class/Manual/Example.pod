@@ -82,7 +82,7 @@ MyDatabase/Main/Artist.pm:
 
   package MyDatabase::Main::Artist;
   use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->load_components(qw/PK::Auto Core/);
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
@@ -95,7 +95,7 @@ MyDatabase/Main/Cd.pm:
 
   package MyDatabase::Main::Cd;
   use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->load_components(qw/PK::Auto Core/);
   __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/ cdid artist title/);
   __PACKAGE__->set_primary_key('cdid');
@@ -109,7 +109,7 @@ MyDatabase/Main/Track.pm:
 
   package MyDatabase::Main::Track;
   use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->load_components(qw/PK::Auto Core/);
   __PACKAGE__->table('track');
   __PACKAGE__->add_columns(qw/ trackid cd title/);
   __PACKAGE__->set_primary_key('trackid');
@@ -182,7 +182,7 @@ insertdb.pl
     @tracks,
   ]);
 
-=head3 Create and run the scripts
+=head3 Create and run the test scripts
 
 testdb.pl:
 
@@ -192,6 +192,8 @@ testdb.pl:
   use strict;
 
   my $schema = MyDatabase::Main->connect('dbi:SQLite:example.db');
+  # for other DSNs, e.g. MySql, see the perldoc for the relevant dbd
+  # driver, e.g perldoc L<DBD::mysql>.
 
   get_tracks_by_cd('Bad');
   get_tracks_by_artist('Michael Jackson');
