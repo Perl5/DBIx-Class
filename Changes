@@ -12,7 +12,7 @@ Revision history for DBIx::Class
           ->exception_action
         - columns_info_for is deprecated, and no longer runs automatically.
           You can make it work like before via
-          __PACKAGE__->load_column_info_from_storage for now
+          __PACKAGE__->column_info_from_storage(1) for now
 
 0.07002
         - cleared up Relationship docs, and fixed some typos

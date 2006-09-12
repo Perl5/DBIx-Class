@@ -217,15 +217,13 @@ sub column_info {
   return $self->_columns->{$column};
 }
 
-=head2 load_column_info_from_storage
+=head2 column_info_from_storage
 
 Enables the on-demand automatic loading of the above column
 metadata from storage as neccesary.  This is *deprecated*, and
 should not be used.  It will be removed before 1.0.
 
-=cut
-
-sub load_column_info_from_storage { shift->column_info_from_storage(1) }
+  __PACKAGE__->column_info_from_storage(1);
 
 =head2 columns
 
