@@ -12,7 +12,7 @@ __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships source_name/);
+  schema from _relationships column_info_from_storage source_name/);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
   result_class/);
@@ -56,6 +56,9 @@ sub new {
   $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
   $new->{_columns_info_loaded} ||= 0;
+  if(!defined $new->column_info_from_storage) {
+      $new->{column_info_from_storage} = 1
+  }
   return $new;
 }
 
@@ -184,6 +187,7 @@ sub column_info {
     unless exists $self->_columns->{$column};
   #warn $self->{_columns_info_loaded}, "\n";
   if ( ! $self->_columns->{$column}{data_type}
+       and $self->column_info_from_storage
        and ! $self->{_columns_info_loaded}
        and $self->schema and $self->storage )
   {
@@ -203,6 +207,17 @@ sub column_info {
   }
   return $self->_columns->{$column};
 }
+
+=head2 column_info_from_storage
+
+Enables or disables the on-demand automatic loading of the above
+column metadata from storage as neccesary.  Defaults to true in the
+current release, but will default to false in future releases starting
+with 0.08000.  This is *deprecated*, and should not be used.  It will
+be removed before 1.0.
+
+  __PACKAGE__->column_info_from_storage(0);
+  __PACKAGE__->column_info_from_storage(1);
 
 =head2 columns
 

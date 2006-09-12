@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - Backported column_info_from_storage accessor from -current, but
+          defaults true instead of false in 0.07xxx
+
 0.07002
         - fixed inflate_datetime.t tests/stringify under older Test::More
         - cleared up Relationship docs, and fixed some typos

@@ -34,6 +34,10 @@ sub column_info {
   shift->result_source_instance->column_info(@_);
 }
 
+sub column_info_from_storage {
+  shift->result_source_instance->column_info_from_storage(@_);
+}
+
 sub columns {
   shift->result_source_instance->columns(@_);
 }
