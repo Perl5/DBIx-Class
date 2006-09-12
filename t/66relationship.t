@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 54;
+plan tests => 56;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -162,6 +162,11 @@ is( $cd->producers->count(), $prod_before_count+2,
     'many_to_many set_$rel(@objs) count ok' );
 $cd->set_producers($schema->resultset('Producer')->find(1));
 is( $cd->producers->count(), 1, 'many_to_many set_$rel($obj) count ok' );
+$cd->set_producers([$schema->resultset('Producer')->all]);
+is( $cd->producers->count(), $prod_before_count+2, 
+    'many_to_many set_$rel(\@objs) count ok' );
+$cd->set_producers([$schema->resultset('Producer')->find(1)]);
+is( $cd->producers->count(), 1, 'many_to_many set_$rel([$obj]) count ok' );
 
 eval { $cd->remove_from_producers({ fake => 'hash' }); };
 like( $@, qr/needs an object/, 'remove_from_$rel($hash) dies correctly' );

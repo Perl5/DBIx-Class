@@ -527,9 +527,42 @@ just looking for this.
 =head2 Stringification
 
 Employ the standard stringification technique by using the C<overload>
-module.  Replace C<foo> with the column/method of your choice.
+module.
+
+To make an object stringify itself as a single column, use something
+like this (replace C<foo> with the column/method of your choice):
 
   use overload '""' => 'foo', fallback => 1;
+
+For more complex stringification, you can use an anonymous subroutine:
+
+  use overload '""' => sub { $_[0]->name . ", " .
+                             $_[0]->address }, fallback => 1;
+
+=head3 Stringifcation Example
+
+Suppose we have two tables: C<Product> and C<Category>. The table
+specifications are:
+
+  Product(id, Description, category)
+  Category(id, Description)
+
+C<category> is a foreign key into the Category table.
+
+If you have a Product object C<$obj> and write something like
+
+  print $obj->category
+
+things will not work as expected.
+
+To obtain, for example, the category description, you should add this
+method to the class defining the Category table:
+
+  use overload "" => sub {
+      my $self = shift;
+
+      return $self->Description;
+  }, fallback => 1;
 
 =head2 Disconnecting cleanly
 

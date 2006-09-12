@@ -75,7 +75,7 @@ my $exceptions = {
 foreach my $module (@modules) {
   SKIP:
     {
-        skip "No real methods", 1 if ($exceptions->{$module}{skip});
+        skip "$module - No real methods", 1 if ($exceptions->{$module}{skip});
 
         # build parms up from ignore list
         my $parms = {};

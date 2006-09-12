@@ -587,6 +587,26 @@ sub setup_connection_class {
   $target->connection(@info);
 }
 
+=head2 storage_type
+
+=over 4
+
+=item Arguments: $storage_type
+
+=item Return Value: $storage_type
+
+=back
+
+Set the storage class that will be instantiated when L</connect> is called.
+If the classname starts with C<::>, the prefix C<DBIx::Class::Storage> is
+assumed by L</connect>.  Defaults to C<::DBI>,
+which is L<DBIx::Class::Storage::DBI>.
+
+You want to use this to hardcoded subclasses of L<DBIx::Class::Storage::DBI>
+in cases where the appropriate subclass is not autodetected, such as when
+dealing with MSSQL via L<DBD::Sybase>, in which case you'd set it to
+C<::DBI::Sybase::MSSQL>.
+
 =head2 connection
 
 =over 4
@@ -750,13 +770,17 @@ sub clone {
 
 =over 4
 
-=item Arguments: $moniker, \@data;
+=item Arguments: $source_name, \@data;
 
 =back
 
-Populates the source registered with the given moniker with the supplied data.
-@data should be a list of listrefs -- the first containing column names, the
-second matching values.
+Pass this method a resultsource name, and an arrayref of
+arrayrefs. The arrayrefs should contain a list of column names,
+followed by one or many sets of matching data for the given columns. 
+
+Each set of data is inserted into the database using
+L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
+objects is returned.
 
 i.e.,
 

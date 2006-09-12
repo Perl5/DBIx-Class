@@ -184,7 +184,15 @@ sub search_rs {
   my $cond = (@_
     ? (
         (@_ == 1 || ref $_[0] eq "HASH")
-          ? shift
+          ? (
+              (ref $_[0] eq 'HASH')
+                ? (
+                    (keys %{ $_[0] }  > 0)
+                      ? shift
+                      : undef
+                   )
+                :  shift
+             )
           : (
               (@_ % 2)
                 ? $self->throw_exception("Odd number of arguments to search")
@@ -205,6 +213,7 @@ sub search_rs {
           }
         : $where);
   }
+
   if (defined $cond) {
     $new_attrs->{where} = (
       defined $new_attrs->{where}
