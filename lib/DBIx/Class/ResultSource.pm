@@ -57,9 +57,6 @@ sub new {
   $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
   $new->{_columns_info_loaded} ||= 0;
-  if(!defined $new->column_info_from_storage) {
-      $new->{column_info_from_storage} = 1
-  }
   return $new;
 }
 
