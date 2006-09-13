@@ -305,6 +305,7 @@ sub new {
   $new->transaction_depth(0);
   $new->_sql_maker_opts({});
   $new->{_in_dbh_do} = 0;
+  $new->{_dbh_gen} = 0;
 
   $new;
 }
@@ -590,6 +591,7 @@ sub disconnect {
     $self->_dbh->rollback unless $self->_dbh->{AutoCommit};
     $self->_dbh->disconnect;
     $self->_dbh(undef);
+    $self->{_dbh_gen}++;
   }
 }
 
@@ -598,7 +600,9 @@ sub connected {
 
   if(my $dbh = $self->_dbh) {
       if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
-          return $self->_dbh(undef);
+          $self->_dbh(undef);
+          $self->{_dbh_gen}++;
+          return;
       }
       else {
           $self->_verify_pid;
@@ -618,6 +622,7 @@ sub _verify_pid {
 
   $self->_dbh->{InactiveDestroy} = 1;
   $self->_dbh(undef);
+  $self->{_dbh_gen}++;
 
   return;
 }
