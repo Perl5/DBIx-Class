@@ -700,6 +700,7 @@ sub _connect {
        $dbh = DBI->connect(@info);
        $dbh->{RaiseError} = 1;
        $dbh->{PrintError} = 0;
+       $dbh->{PrintWarn} = 0;
     }
   };
 
@@ -807,13 +808,7 @@ sub _execute {
       $self->debugobj->query_start($sql, @debug_bind);
   }
 
-  my $sth = eval { $self->sth($sql) };
-
-  if (!$sth || $@) {
-    $self->throw_exception(
-      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
-    );
-  }
+  my $sth = $self->sth($sql);
 
   my $rv;
   if ($sth) {
@@ -918,7 +913,10 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 sub _dbh_sth {
   my ($self, $dbh, $sql) = @_;
   # 3 is the if_active parameter which avoids active sth re-use
-  $dbh->prepare_cached($sql, {}, 3);
+  $dbh->prepare_cached($sql, {}, 3) or
+    $self->throw_exception(
+      'no sth generated via sql (' . ($@ || $dbh->errstr) . "): $sql"
+    );
 }
 
 sub sth {
