@@ -304,6 +304,7 @@ sub new {
   $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->transaction_depth(0);
   $new->_sql_maker_opts({});
+  $new->{_in_dbh_do} = 0;
 
   $new;
 }
@@ -482,10 +483,11 @@ sub dbh_do {
   my $self = shift;
   my $coderef = shift;
 
-  return $coderef->($self, $self->_dbh, @_) if $self->{_in_txn_do};
-
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
+
+  return $coderef->($self, $self->_dbh, @_) if $self->{_in_dbh_do};
+  local $self->{_in_dbh_do} = 1;
 
   my @result;
   my $want_array = wantarray;
@@ -517,7 +519,7 @@ sub dbh_do {
 
 # This is basically a blend of dbh_do above and DBIx::Class::Storage::txn_do.
 # It also informs dbh_do to bypass itself while under the direction of txn_do,
-#  via $self->{_in_txn_do} (this saves some redundant eval and errorcheck, etc)
+#  via $self->{_in_dbh_do} (this saves some redundant eval and errorcheck, etc)
 sub txn_do {
   my $self = shift;
   my $coderef = shift;
@@ -525,7 +527,7 @@ sub txn_do {
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
 
-  local $self->{_in_txn_do} = 1;
+  local $self->{_in_dbh_do} = 1;
 
   my @result;
   my $want_array = wantarray;
