@@ -18,7 +18,7 @@ DBICTest->init_schema();
 
 my $dsn = DBICTest->schema->storage->connect_info->[0];
 
-DBICTest->schema->connection($dsn, { quote_char => "'", name_sep => '.' });
+DBICTest->schema->connection($dsn, { quote_char => '`', name_sep => '.' });
 
 my $rs = DBICTest::CD->search(
            { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
@@ -32,7 +32,7 @@ $rs = DBICTest::CD->search({},
        my $warnings = '';
        local $SIG{__WARN__} = sub { $warnings .= $_[0] };
        my $first = eval{ $rs->first() };
-       like( $warnings, qr/ORDER BY terms/, "Problem with ORDER BY quotes" );
+       like( $warnings, qr/no such column: year DESC/, "Problem with ORDER BY quotes" );
 }
 
 my $order = 'year DESC';
