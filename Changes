@@ -1,13 +1,18 @@
 Revision history for DBIx::Class
 
-        - Backported column_info_from_storage accessor from -current, but
+0.07002 2006-09-14 21:17:32
+        - fix quote tests for recent versions of SQLite
+        - added reference implementation of Manual::Example
+        - backported column_info_from_storage accessor from -current, but
           defaults true instead of false in 0.07xxx
-
-0.07002
         - fixed inflate_datetime.t tests/stringify under older Test::More
+        - minor fixes for many-to-many relationship helpers
         - cleared up Relationship docs, and fixed some typos
         - use ref instead of eval to check limit syntax (to avoid issues with
           Devel::StackTrace)
+        - update ResultSet::_cond_for_update_delete to handle more complicated
+          queries
+        - bugfix to Oracle columns_info_for
         - remove_columns now deletes columns from _columns
 
 0.07001 2006-08-18 19:55:00
