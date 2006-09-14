@@ -36,11 +36,8 @@ my $order = 'year DESC';
 $rs = DBICTest::CD->search({},
             { 'order_by' => \$order });
 {
-       my $warnings = '';
-       local $SIG{__WARN__} = sub { $warnings .= $_[0] };
-       my $first = $rs->first();
-       ok( $warnings !~ /ORDER BY terms/,
-            "No problem handling ORDER by scalaref" );
+       eval { $rs->first() };
+       ok(!$@, "No problem handling ORDER by scalaref" );
 }
 
 DBICTest->schema->storage->sql_maker->quote_char([qw/[ ]/]);

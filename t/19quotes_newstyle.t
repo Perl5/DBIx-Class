@@ -29,7 +29,7 @@ cmp_ok( $rs->count, '==', 1, "join with fields quoted");
 $rs = DBICTest::CD->search({},
             { 'order_by' => 'year DESC'});
 {
-       eval{ $rs->first() };
+       eval { $rs->first() };
        like( $@, qr/ORDER BY terms/, "Problem with ORDER BY quotes" );
 }
 
@@ -37,11 +37,8 @@ my $order = 'year DESC';
 $rs = DBICTest::CD->search({},
             { 'order_by' => \$order });
 {
-       my $warnings = '';
-       local $SIG{__WARN__} = sub { $warnings .= $_[0] };
-       my $first = $rs->first();
-       ok( $warnings !~ /ORDER BY terms/,
-            "No problem handling ORDER by scalaref" );
+       eval { $rs->first() };
+       ok(!$@, "No problem handling ORDER by scalaref" );
 }
 
 DBICTest->schema->connection($dsn, { quote_char => [qw/[ ]/], name_sep => '.' });
