@@ -16,7 +16,7 @@ use lib qw(t/lib);
 use_ok('DBICTest');
 DBICTest->init_schema();
 
-DBICTest->schema->storage->sql_maker->quote_char("'");
+DBICTest->schema->storage->sql_maker->quote_char('`');
 DBICTest->schema->storage->sql_maker->name_sep('.');
 
 my $rs = DBICTest::CD->search(
@@ -29,7 +29,7 @@ $rs = DBICTest::CD->search({},
             { 'order_by' => 'year DESC'});
 {
        eval{ $rs->first() };
-       like( $@, qr/ORDER BY terms/, "Problem with ORDER BY quotes" );
+       like( $@, qr/no such column: year DESC/, "Problem with ORDER BY quotes" );
 }
 
 my $order = 'year DESC';
