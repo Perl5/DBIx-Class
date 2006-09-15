@@ -39,10 +39,7 @@ randomized), than if all low priority data sources fail, higher ones tried in or
 sub new {
     my $proto = shift;
     my $class = ref( $proto ) || $proto;
-    my $self = {
-	read_sources => [],
-	read_iterator => 0,
-    };
+    my $self = {};
 
     bless( $self, $class );
 
@@ -55,7 +52,7 @@ sub new {
 sub all_sources {
     my $self = shift;
 
-    my @sources = ($self->{read_source}, $self->write_source);
+    my @sources = ($self->read_source, $self->write_source);
 
     return wantarray ? @sources : \@sources;
 }
@@ -70,112 +67,112 @@ sub connect_info {
 }
 
 sub select {
-    return shift->read_source()->select( @_ );
+    shift->read_source->select( @_ );
 }
 sub select_single {
-    return shift->read_source()->select_single( @_ );
+    shift->read_source->select_single( @_ );
 }
 sub throw_exception {
-    return shift->read_source()->throw_exception( @_ );
+    shift->read_source->throw_exception( @_ );
 }
 sub sql_maker {
-    return shift->read_source()->sql_maker( @_ );
+    shift->read_source->sql_maker( @_ );
 }
 sub columns_info_for {
-    return shift->read_source()->columns_info_for( @_ );
+    shift->read_source->columns_info_for( @_ );
 }
 sub sqlt_type {
-    return shift->read_source()->sqlt_type( @_ );
+    shift->read_source->sqlt_type( @_ );
 }
 sub create_ddl_dir {
-    return shift->read_source()->create_ddl_dir( @_ );
+    shift->read_source->create_ddl_dir( @_ );
 }
 sub deployment_statements {
-    return shift->read_source()->deployment_statements( @_ );
+    shift->read_source->deployment_statements( @_ );
 }
 sub datetime_parser {
-    return shift->read_source()->datetime_parser( @_ );
+    shift->read_source->datetime_parser( @_ );
 }
 sub datetime_parser_type {
-    return shift->read_source()->datetime_parser_type( @_ );
+    shift->read_source->datetime_parser_type( @_ );
 }
 sub build_datetime_parser {
-    return shift->read_source()->build_datetime_parser( @_ );
+    shift->read_source->build_datetime_parser( @_ );
 }
 
 sub limit_dialect {
     my $self = shift;
-    $self->$_->limit_dialect( @_ ) for( $self->all_sources() );
+    $self->$_->limit_dialect( @_ ) for( $self->all_sources );
 }
 sub quote_char {
     my $self = shift;
-    $self->$_->quote_char( @_ ) for( $self->all_sources() );
+    $self->$_->quote_char( @_ ) for( $self->all_sources );
 }
 sub name_sep {
     my $self = shift;
-    $self->$_->quote_char( @_ ) for( $self->all_sources() );
+    $self->$_->quote_char( @_ ) for( $self->all_sources );
 }
 sub disconnect {
     my $self = shift;
-    $self->$_->disconnect( @_ ) for( $self->all_sources() );
+    $self->$_->disconnect( @_ ) for( $self->all_sources );
 }
 sub DESTROY {
     my $self = shift;
 
-    $self->{write_source} = undef;
-    $self->{read_sources} = undef;
+    undef $self->{write_source};
+    undef $self->{read_sources};
 }
 
 sub last_insert_id {
-    return shift->write_source()->last_insert_id( @_ );
+    shift->write_source->last_insert_id( @_ );
 }
 sub insert {
-    return shift->write_source()->insert( @_ );
+    shift->write_source->insert( @_ );
 }
 sub update {
-    return shift->write_source()->update( @_ );
+    shift->write_source->update( @_ );
 }
 sub update_all {
-    return shift->write_source()->update_all( @_ );
+    shift->write_source->update_all( @_ );
 }
 sub delete {
-    return shift->write_source()->delete( @_ );
+    shift->write_source->delete( @_ );
 }
 sub delete_all {
-    return shift->write_source()->delete_all( @_ );
+    shift->write_source->delete_all( @_ );
 }
 sub create {
-    return shift->write_source()->create( @_ );
+    shift->write_source->create( @_ );
 }
 sub find_or_create {
-    return shift->write_source()->find_or_create( @_ );
+    shift->write_source->find_or_create( @_ );
 }
 sub update_or_create {
-    return shift->write_source()->update_or_create( @_ );
+    shift->write_source->update_or_create( @_ );
 }
 sub connected {
-    return shift->write_source()->connected( @_ );
+    shift->write_source->connected( @_ );
 }
 sub ensure_connected {
-    return shift->write_source()->ensure_connected( @_ );
+    shift->write_source->ensure_connected( @_ );
 }
 sub dbh {
-    return shift->write_source()->dbh( @_ );
+    shift->write_source->dbh( @_ );
 }
 sub txn_begin {
-    return shift->write_source()->txn_begin( @_ );
+    shift->write_source->txn_begin( @_ );
 }
 sub txn_commit {
-    return shift->write_source()->txn_commit( @_ );
+    shift->write_source->txn_commit( @_ );
 }
 sub txn_rollback {
-    return shift->write_source()->txn_rollback( @_ );
+    shift->write_source->txn_rollback( @_ );
 }
 sub sth {
-    return shift->write_source()->sth( @_ );
+    shift->write_source->sth( @_ );
 }
 sub deploy {
-    return shift->write_source()->deploy( @_ );
+    shift->write_source->deploy( @_ );
 }
 
 
@@ -196,7 +193,7 @@ L<DBI::Class::Storage::DBI>, L<DBD::Multi>, L<DBI>
 
 Norbert Csongrádi <bert@cpan.org>
 
-Peter Siklósi <einon@ahq.hu>
+Peter Siklósi <einon@einon.hu>
 
 =head1 LICENSE
 
