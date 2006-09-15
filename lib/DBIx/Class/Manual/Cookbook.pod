@@ -588,7 +588,9 @@ To create a DBIx::Class schema from an existing database:
 To create a MySQL database from an existing L<DBIx::Class> schema, convert the
 schema to MySQL's dialect of SQL:
 
-  sqlt --from DBIx::Class --to MySQL --DBIx::Class "MySchema.pm" > Schema1.sql
+  sqlt --from SQL::Translator::Parser::DBIx::Class 
+       --to MySQL 
+       --DBIx::Class "MySchema.pm" > Schema1.sql
   
 And import using the mysql client:
 
@@ -671,14 +673,14 @@ described under C<Schema import/export>.
 Use C<sqlt> to transform your schema into an SQL script suitable for your
 customer's database. E.g. for MySQL:
 
-  sqlt --from DBIx::Class
+  sqlt --from SQL::Translator::Parser::DBIx::Class
        --to MySQL
        --DBIx::Class "MySchema.pm" > Schema1.mysql.sql
 
 If you need to target databases from multiple vendors, just generate an SQL
 script suitable for each. To support PostgreSQL too:
 
-  sqlt --from DBIx::Class
+  sqlt --from SQL::Translator::DBIx::Class
        --to PostgreSQL
        --DBIx::Class "MySchema.pm" > Schema1.pgsql.sql
 
@@ -706,7 +708,7 @@ As your application evolves, it may be necessary to modify your schema to
 change functionality. Once the changes are made to your schema in DBIx::Class,
 export the modified schema as before, taking care not to overwrite the original:
 
-  sqlt --from DBIx::Class
+  sqlt --from SQL::Translator::DBIx::Class
        --to MySQL
        --DBIx::Class "Anything.pm" > Schema2.mysql.sql
 
