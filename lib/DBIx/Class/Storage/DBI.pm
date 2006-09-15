@@ -52,9 +52,11 @@ WHERE ROW_NUM BETWEEN $offset AND $last
 
 # While we're at it, this should make LIMIT queries more efficient,
 #  without digging into things too deeply
+use Scalar::Util 'blessed';
 sub _find_syntax {
   my ($self, $syntax) = @_;
-  my $dbhname = ref $syntax eq 'HASH' ? $syntax->{Driver}{Name} : '';
+  my $dbhname = blessed($syntax) ?  $syntax->{Driver}{Name} : $syntax;
+#  print STDERR "Found DBH $syntax >$dbhname< ", $syntax->{Driver}->{Name}, "\n";
   if(ref($self) && $dbhname && $dbhname eq 'DB2') {
     return 'RowNumberOver';
   }
@@ -777,7 +779,7 @@ sub _execute {
     $self->throw_exception("'$sql' did not generate a statement.");
   }
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
+      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind; 
       $self->debugobj->query_end($sql, @debug_bind);
   }
   return (wantarray ? ($rv, $sth, @bind) : $rv);
