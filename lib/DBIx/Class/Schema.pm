@@ -797,13 +797,16 @@ sub populate {
   my ($self, $name, $data) = @_;
   my $rs = $self->resultset($name);
   my @names = @{shift(@$data)};
-  my @created;
-  foreach my $item (@$data) {
-    my %create;
-    @create{@names} = @$item;
-    push(@created, $rs->create(\%create));
+  if(defined wantarray) {
+    my @created;
+    foreach my $item (@$data) {
+      my %create;
+      @create{@names} = @$item;
+      push(@created, $rs->create(\%create));
+    }
+    return @created;
   }
-  return @created;
+  $self->storage->insert_bulk($self->source($name)->from, \@names, $data);
 }
 
 =head2 exception_action

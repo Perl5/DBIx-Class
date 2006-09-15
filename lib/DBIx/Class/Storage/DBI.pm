@@ -847,6 +847,41 @@ sub insert {
   return $to_insert;
 }
 
+sub insert_bulk {
+  my ($self, $table, $cols, $data) = @_;
+  my ($sql, @bind) = $self->sql_maker->insert($table, @$data);
+
+  if ($self->debug) {
+      my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
+      $self->debugobj->query_start($sql, @debug_bind);
+  }
+  my $sth = eval { $self->sth($sql,'insert') };
+
+  if (!$sth || $@) {
+    $self->throw_exception(
+      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
+    );
+  }
+#  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+
+  my $rv;
+  if ($sth) {
+    my $time = time();
+    $rv = eval { $sth->execute_array({ ArrayTupleFetch => sub { return shift @$data; }}) };
+
+    if ($@ || !$rv) {
+      $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
+    }
+  } else {
+    $self->throw_exception("'$sql' did not generate a statement.");
+  }
+  if ($self->debug) {
+      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
+      $self->debugobj->query_end($sql, @debug_bind);
+  }
+  return (wantarray ? ($rv, $sth, @bind) : $rv);
+}
+
 sub update {
   return shift->_execute('update' => [], @_);
 }
