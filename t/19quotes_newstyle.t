@@ -16,42 +16,46 @@ use lib qw(t/lib);
 use_ok('DBICTest');
 DBICTest->init_schema();
 
-my $dsn = DBICTest->schema->storage->connect_info->[0];
+my $orig_debugcb = DBICTest->schema->storage->debugcb;
+my $orig_debug = DBICTest->schema->storage->debug;
 
+diag('Testing against ' . join(' ', map { DBICTest->schema->storage->dbh->get_info($_) } qw/17 18/));
+
+my $dsn = DBICTest->schema->storage->connect_info->[0];
 DBICTest->schema->connection($dsn, { quote_char => '`', name_sep => '.' });
 
-my $rs = DBICTest::CD->search(
-           { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
-           { join => 'artist' });
+my $sql = '';
+DBICTest->schema->storage->debugcb(sub { $sql = $_[1] });
+DBICTest->schema->storage->debug(1);
 
-cmp_ok( $rs->count, '==', 1, "join with fields quoted");
-
-$rs = DBICTest::CD->search({},
-            { 'order_by' => 'year DESC'});
-{
-       my $warnings = '';
-       local $SIG{__WARN__} = sub { $warnings .= $_[0] };
-       my $first = eval{ $rs->first() };
-       like( $warnings, qr/no such column: year DESC/, "Problem with ORDER BY quotes" );
-}
-
-my $order = 'year DESC';
-$rs = DBICTest::CD->search({},
-            { 'order_by' => \$order });
-{
-       my $warnings = '';
-       local $SIG{__WARN__} = sub { $warnings .= $_[0] };
-       my $first = $rs->first();
-       ok( $warnings !~ /ORDER BY terms/,
-            "No problem handling ORDER by scalaref" );
-}
-
-DBICTest->schema->connection($dsn, { quote_char => [qw/[ ]/], name_sep => '.' });
+my $rs;
 
 $rs = DBICTest::CD->search(
            { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { join => 'artist' });
-cmp_ok($rs->count,'==', 1,"join quoted with brackets.");
+eval { $rs->count };
+like($sql, qr/\QSELECT COUNT( * ) FROM `cd` `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )\E/, 'got correct SQL for count query with quoting');
+
+my $order = 'year DESC';
+$rs = DBICTest::CD->search({},
+            { 'order_by' => $order });
+eval { $rs->first };
+like($sql, qr/ORDER BY `\Q${order}\E`/, 'quoted ORDER BY with DESC (should use a scalarref anyway)');
+
+$rs = DBICTest::CD->search({},
+            { 'order_by' => \$order });
+eval { $rs->first };
+like($sql, qr/ORDER BY \Q${order}\E/, 'did not quote ORDER BY with scalarref');
+
+DBICTest->schema->connection($dsn, { quote_char => [qw/[ ]/], name_sep => '.' });
+DBICTest->schema->storage->debugcb(sub { $sql = $_[1] });
+DBICTest->schema->storage->debug(1);
+
+$rs = DBICTest::CD->search(
+           { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
+           { join => 'artist' });
+eval { $rs->count };
+like($sql, qr/\QSELECT COUNT( * ) FROM [cd] [me]  JOIN [artist] [artist] ON ( [artist].[artistid] = [me].[artist] ) WHERE ( [artist].[name] = ? AND [me].[year] = ? )\E/, 'got correct SQL for count query with bracket quoting');
 
 my %data = (
        name => 'Bill',
@@ -60,5 +64,7 @@ my %data = (
 
 DBICTest->schema->connection($dsn, { quote_char => '`', name_sep => '.' });
 
-cmp_ok(DBICTest->schema->storage->sql_maker->update('group', \%data), 'eq', 'UPDATE `group` SET `name` = ?, `order` = ?', "quoted table names for UPDATE");
+is(DBICTest->schema->storage->sql_maker->update('group', \%data), 'UPDATE `group` SET `name` = ?, `order` = ?', 'quoted table names for UPDATE');
 
+DBICTest->schema->storage->debugcb($orig_debugcb);
+DBICTest->schema->storage->debug($orig_debug);
