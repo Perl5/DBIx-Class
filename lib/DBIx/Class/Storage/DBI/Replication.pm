@@ -21,12 +21,9 @@ DBIx::Class::Storage::DBI::Replication - Replicated database support
 		     [ "dbi:mysql:database=test;hostname=master", "username", "password", { AutoCommit => 1 } ], # master
 		     [ "dbi:mysql:database=test;hostname=slave1", "username", "password", { priority => 10 } ],  # slave1
 		     [ "dbi:mysql:database=test;hostname=slave2", "username", "password", { priority => 10 } ],  # slave2
-		     <...>
+		     <...>,
+		     { limit_dialect => 'LimitXY' } # If needed, see below
 		    ] );
-  # If you use LIMIT in your queries (effectively, if you use SQL::Abstract::Limit),
-  # do not forget to set up limit_dialect (see: perldoc SQL::Abstract::Limit)
-  # DBIC can not set it up automatically, since DBD::Multi could not be supported directly
-    $schema->limit_dialect( 'LimitXY' ) # For MySQL
 
 =head1 DESCRIPTION
 
@@ -37,6 +34,13 @@ all read-type queries (SELECTs) go to the slave database.
 For every slave database you can define a priority value, which controls data source usage pattern. It uses
 L<DBD::Multi>, so first the lower priority data sources used (if they have the same priority, the are used
 randomized), than if all low priority data sources fail, higher ones tried in order.
+
+=head1 CONFIGURATION
+
+=head2 Limit dialect
+
+If you use LIMIT in your queries (effectively, if you use SQL::Abstract::Limit), do not forget to set up limit_dialect (perldoc SQL::Abstract::Limit) by passing it as an option in the (optional) hash reference to connect_info.
+DBIC can not set it up automatically, since it can not guess DBD::Multi connection types.
 
 =cut
 
@@ -64,10 +68,12 @@ sub all_sources {
 sub connect_info {
     my( $self, $source_info ) = @_;
 
-    $self->write_source->connect_info( $source_info->[0] );
+    my $last_info = ref $source_info->[-1] eq 'HASH' ? pop( @$source_info ) : undef;
+
+    $self->write_source->connect_info( $source_info->[0], $last_info );
 
     my @dsns = map { ($_->[3]->{priority} || 10) => $_ } @{$source_info}[1..@$source_info-1];
-    $self->read_source->connect_info( [ 'dbi:Multi:', undef, undef, { dsns => \@dsns } ] );
+    $self->read_source->connect_info( [ 'dbi:Multi:', undef, undef, { dsns => \@dsns } ], $last_info );
 }
 
 sub select {
