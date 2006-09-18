@@ -23,6 +23,10 @@ DBIx::Class::Storage::DBI::Replication - Replicated database support
 		     [ "dbi:mysql:database=test;hostname=slave2", "username", "password", { priority => 10 } ],  # slave2
 		     <...>
 		    ] );
+  # If you use LIMIT in your queries (effectively, if you use SQL::Abstract::Limit),
+  # do not forget to set up limit_dialect (see: perldoc SQL::Abstract::Limit)
+  # DBIC can not set it up automatically, since DBD::Multi could not be supported directly
+    $schema->limit_dialect( 'LimitXY' ) # For MySQL
 
 =head1 DESCRIPTION
 
