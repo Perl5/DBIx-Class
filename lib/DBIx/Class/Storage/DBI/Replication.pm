@@ -68,12 +68,24 @@ sub all_sources {
 sub connect_info {
     my( $self, $source_info ) = @_;
 
-    my $last_info = ref $source_info->[-1] eq 'HASH' ? pop( @$source_info ) : undef;
+    my( $info, $global_options, $options, @dsns );
 
-    $self->write_source->connect_info( $source_info->[0], $last_info );
+    $info = [ @$source_info ];
 
-    my @dsns = map { ($_->[3]->{priority} || 10) => $_ } @{$source_info}[1..@$source_info-1];
-    $self->read_source->connect_info( [ 'dbi:Multi:', undef, undef, { dsns => \@dsns } ], $last_info );
+    $global_options = ref $info->[-1] eq 'HASH' ? pop( @$info ) : {};
+    if( ref( $options = $info->[0]->[-1] ) eq 'HASH' ) {
+	# Local options present in dsn, merge them with global options
+	map { $global_options->{$_} = $options->{$_} } keys %$options;
+	pop @{$info->[0]};
+    }
+
+    # We need to copy-pass $global_options, since connect_info clears it while processing options
+    $self->write_source->connect_info( [ @{$info->[0]}, { %$global_options } ] );
+
+    @dsns = map { ($_->[3]->{priority} || 10) => $_ } @{$info}[1..@$info-1];
+    $global_options->{dsns} = \@dsns;
+
+    $self->read_source->connect_info( [ 'dbi:Multi:', undef, undef, { %$global_options } ] );
 }
 
 sub select {
