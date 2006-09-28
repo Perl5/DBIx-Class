@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 1;
+plan tests => 10;
 
 # perl -le'my $letter = 'a'; for my $i (4..10000) { $letter++; print "[ $i, \"$letter\" ]," }' > tests.txt
 
@@ -10010,5 +10010,39 @@ $schema->populate('Artist', [
 [ 9999, "ntm" ],
 [ 10000, "ntn" ],
     ]);
+
+
+## make sure populate -> insert_bulk honors fields/orders
+## schema order
+$schema->populate('Link', [
+[ qw/id url title/ ],
+[ qw/2 burl btitle/ ]
+]);
+my $link2 = $schema->resultset('Link')->find(2);
+is($link2->id, 2, 'Link 2 id');
+is($link2->url, 'burl', 'Link 2 url');
+is($link2->title, 'btitle', 'Link 2 title');
+
+## non-schema order
+$schema->populate('Link', [
+[ qw/id title url/ ],
+[ qw/3 ctitle curl/ ]
+]);
+my $link3 = $schema->resultset('Link')->find(3);
+is($link3->id, 3, 'Link 3 id');
+is($link3->url, 'curl', 'Link 3 url');
+is($link3->title, 'ctitle', 'Link 3 title');
+
+## not all physical columns
+$schema->populate('Link', [
+[ qw/id title/ ],
+[ qw/4 dtitle/ ]
+]);
+my $link4 = $schema->resultset('Link')->find(4);
+is($link4->id, 4, 'Link 4 id');
+is($link4->url, undef, 'Link 4 url');
+is($link4->title, 'dtitle', 'Link 4 title');
+
+
 
 ok(-f "t/var/DBIxClass.db", 'Database created');
