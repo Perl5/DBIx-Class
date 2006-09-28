@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 10;
+plan tests => 22;
 
 # perl -le'my $letter = 'a'; for my $i (4..10000) { $letter++; print "[ $i, \"$letter\" ]," }' > tests.txt
 
@@ -10012,37 +10012,74 @@ $schema->populate('Artist', [
     ]);
 
 
-## make sure populate -> insert_bulk honors fields/orders
+## make sure populate honors fields/orders in list context
 ## schema order
-$schema->populate('Link', [
+my @links = $schema->populate('Link', [
 [ qw/id url title/ ],
 [ qw/2 burl btitle/ ]
 ]);
-my $link2 = $schema->resultset('Link')->find(2);
+is(scalar @links, 1);
+
+my $link2 = shift @links;
 is($link2->id, 2, 'Link 2 id');
 is($link2->url, 'burl', 'Link 2 url');
 is($link2->title, 'btitle', 'Link 2 title');
 
 ## non-schema order
-$schema->populate('Link', [
+@links = $schema->populate('Link', [
 [ qw/id title url/ ],
 [ qw/3 ctitle curl/ ]
 ]);
-my $link3 = $schema->resultset('Link')->find(3);
+is(scalar @links, 1);
+
+my $link3 = shift @links;
 is($link3->id, 3, 'Link 3 id');
 is($link3->url, 'curl', 'Link 3 url');
 is($link3->title, 'ctitle', 'Link 3 title');
 
 ## not all physical columns
-$schema->populate('Link', [
+@links = $schema->populate('Link', [
 [ qw/id title/ ],
 [ qw/4 dtitle/ ]
 ]);
-my $link4 = $schema->resultset('Link')->find(4);
+is(scalar @links, 1);
+
+my $link4 = shift @links;
 is($link4->id, 4, 'Link 4 id');
 is($link4->url, undef, 'Link 4 url');
 is($link4->title, 'dtitle', 'Link 4 title');
 
+
+## make sure populate -> insert_bulk honors fields/orders in void context
+## schema order
+$schema->populate('Link', [
+[ qw/id url title/ ],
+[ qw/5 eurl etitle/ ]
+]);
+my $link5 = $schema->resultset('Link')->find(5);
+is($link5->id, 5, 'Link 5 id');
+is($link5->url, 'eurl', 'Link 5 url');
+is($link5->title, 'etitle', 'Link 5 title');
+
+## non-schema order
+$schema->populate('Link', [
+[ qw/id title url/ ],
+[ qw/6 ftitle furl/ ]
+]);
+my $link6 = $schema->resultset('Link')->find(6);
+is($link6->id, 6, 'Link 6 id');
+is($link6->url, 'furl', 'Link 6 url');
+is($link6->title, 'ftitle', 'Link 6 title');
+
+## not all physical columns
+$schema->populate('Link', [
+[ qw/id title/ ],
+[ qw/7 gtitle/ ]
+]);
+my $link7 = $schema->resultset('Link')->find(7);
+is($link7->id, 7, 'Link 7 id');
+is($link7->url, undef, 'Link 7 url');
+is($link7->title, 'gtitle', 'Link 7 title');
 
 
 ok(-f "t/var/DBIxClass.db", 'Database created');
