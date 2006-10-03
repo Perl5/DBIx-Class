@@ -778,7 +778,12 @@ Pass this method a resultsource name, and an arrayref of
 arrayrefs. The arrayrefs should contain a list of column names,
 followed by one or many sets of matching data for the given columns. 
 
-Each set of data is inserted into the database using
+In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
+to insert the data, as this is a fast method. However, insert_bulk currently
+assumes that your datasets all contain the same type of values, using scalar
+references in a column in one row, and not in another will probably not work.
+
+Otherwise, each set of data is inserted into the database using
 L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
 objects is returned.
 
