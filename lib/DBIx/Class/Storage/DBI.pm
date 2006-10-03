@@ -862,13 +862,8 @@ sub insert_bulk {
       my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
-  my $sth = eval { $self->sth($sql,'insert') };
+  my $sth = $self->sth($sql);
 
-  if (!$sth || $@) {
-    $self->throw_exception(
-      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
-    );
-  }
 #  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
   my $rv;
