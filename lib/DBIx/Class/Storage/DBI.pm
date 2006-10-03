@@ -14,7 +14,7 @@ use IO::File;
 __PACKAGE__->mk_group_accessors(
   'simple' =>
     qw/_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid _conn_tid
-       cursor on_connect_do transaction_depth/
+       disable_sth_caching cursor on_connect_do transaction_depth/
 );
 
 BEGIN {
@@ -336,6 +336,11 @@ This can be set to an arrayref of literal sql statements, which will
 be executed immediately after making the connection to the database
 every time we [re-]connect.
 
+=item disable_sth_caching
+
+If set to a true value, this option will disable the caching of
+statement handles via L<DBI/prepare_cached>.
+
 =item limit_dialect 
 
 Sets the limit dialect. This is useful for JDBC-bridge among others
@@ -413,6 +418,7 @@ Examples:
           quote_char => q{`},
           name_sep => q{@},
           on_connect_do => ['SET search_path TO myschema,otherschema,public'],
+          disable_sth_caching => 1,
       },
     ]
   );
@@ -432,8 +438,10 @@ sub connect_info {
   my $info = [ @$info_arg ]; # copy because we can alter it
   my $last_info = $info->[-1];
   if(ref $last_info eq 'HASH') {
-    if(my $on_connect_do = delete $last_info->{on_connect_do}) {
-      $self->on_connect_do($on_connect_do);
+    for my $storage_opt (qw/on_connect_do disable_sth_caching/) {
+      if(my $value = delete $last_info->{$storage_opt}) {
+        $self->$storage_opt($value);
+      }
     }
     for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
       if(my $opt_val = delete $last_info->{$sql_maker_opt}) {
@@ -969,11 +977,17 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 
 sub _dbh_sth {
   my ($self, $dbh, $sql) = @_;
+
   # 3 is the if_active parameter which avoids active sth re-use
-  $dbh->prepare_cached($sql, {}, 3) or
-    $self->throw_exception(
-      'no sth generated via sql (' . ($@ || $dbh->errstr) . "): $sql"
-    );
+  my $sth = $self->disable_sth_caching
+    ? $dbh->prepare($sql)
+    : $dbh->prepare_cached($sql, {}, 3);
+
+  $self->throw_exception(
+    'no sth generated via sql (' . ($@ || $dbh->errstr) . "): $sql"
+  ) if !$sth;
+
+  $sth;
 }
 
 sub sth {

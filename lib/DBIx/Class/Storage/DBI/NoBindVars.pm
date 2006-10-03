@@ -17,15 +17,17 @@ well, as is the case with L<DBD::Sybase>
 
 =head1 METHODS
 
-=head2 sth
+=head2 connect_info
 
-Uses C<prepare> instead of the usual C<prepare_cached>, seeing as we can't cache very effectively without bind variables.
+We can't cache very effectively without bind variables, so force the C<disable_sth_caching> setting to be turned on when the connect info is set.
 
 =cut
 
-sub _dbh_sth {
-  my ($self, $dbh, $sql) = @_;
-  $dbh->prepare($sql);
+sub connect_info {
+    my $self = shift;
+    my $retval = shift->next::method(@_);
+    $self->disable_sth_caching(1);
+    $retval;
 }
 
 =head2 _prep_for_execute
