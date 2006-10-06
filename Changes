@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.07999_01 2006-10-05 21:00:00
+        - add connect_info option "disable_statement_caching"
+        - create insert_bulk using execute_array, populate uses it
         - added DBIx::Class::Schema::load_namespaces, alternative to
           load_classes
         - added source_info method for source-level metadata (kinda like
