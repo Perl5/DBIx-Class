@@ -5,6 +5,7 @@ use warnings;
 
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
+use File::Spec;
 require Module::Find;
 
 use base qw/DBIx::Class/;
@@ -639,6 +640,7 @@ sub connection {
   my $storage = $storage_class->new($self);
   $storage->connect_info(\@info);
   $self->storage($storage);
+  $self->on_connect() if($self->can('on_connect'));
   return $self;
 }
 
@@ -894,15 +896,40 @@ sub deploy {
 
 =over 4
 
-=item Arguments: \@databases, $version, $directory, $sqlt_args
+=item Arguments: \@databases, $version, $directory, $preversion, $sqlt_args
 
 =back
 
 Creates an SQL file based on the Schema, for each of the specified
-database types, in the given directory.
+database types, in the given directory. Given a previous version number,
+this will also create a file containing the ALTER TABLE statements to
+transform the previous schema into the current one. Note that these
+statements may contain DROP TABLE or DROP COLUMN statements that can
+potentially destroy data.
+
+The file names are created using the C<ddl_filename> method below, please
+override this method in your schema if you would like a different file
+name format. For the ALTER file, the same format is used, replacing
+$version in the name with "$preversion-$version".
+
+If no arguments are passed, then the following default values are used:
+
+=over 4
+
+=item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
+
+=item version    - $schema->VERSION
+
+=item directory  - './'
+
+=item preversion - <none>
+
+=back
 
 Note that this feature is currently EXPERIMENTAL and may not work correctly
 across all databases, or fully handle complex relationships.
+
+WARNING: Please check all SQL files created, before applying them.
 
 =cut
 
@@ -915,19 +942,30 @@ sub create_ddl_dir {
 
 =head2 ddl_filename (EXPERIMENTAL)
 
-  my $filename = $table->ddl_filename($type, $dir, $version)
+=over 4
 
-Creates a filename for a SQL file based on the table class name.  Not
-intended for direct end user use.
+=item Arguments: $directory, $database-type, $version, $preversion
+
+=back
+
+  my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
+
+This method is called by C<create_ddl_dir> to compose a file name out of
+the supplied directory, database type and version number. The default file
+name format is: C<$dir$schema-$version-$type.sql>.
+
+You may override this method in your schema if you wish to use a different
+format.
 
 =cut
 
 sub ddl_filename {
-    my ($self, $type, $dir, $version) = @_;
+    my ($self, $type, $dir, $version, $pversion) = @_;
 
     my $filename = ref($self);
     $filename =~ s/::/-/;
-    $filename = "$dir$filename-$version-$type.sql";
+    $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
+    $filename =~ s/$version/$pversion-$version/ if($pversion);
 
     return $filename;
 }
