@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use POSIX 'strftime';
 use File::Copy;
-use Path::Class;
+use File::Spec;
 
 use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 
@@ -29,9 +29,9 @@ sub backup
     if(!$dbname || !-f $dbname);
 
 #  print "Found database: $dbname\n";
-  my $dbfile = file($dbname);
-#  my ($vol, $dir, $file) = File::Spec->splitpath($dbname);
-  my $file = $dbfile->basename();
+#  my $dbfile = file($dbname);
+  my ($vol, $dir, $file) = File::Spec->splitpath($dbname);
+#  my $file = $dbfile->basename();
   $file = strftime("%y%m%d%h%M%s", localtime()) . $file; 
   $file = "B$file" while(-f $file);
   
