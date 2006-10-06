@@ -12,10 +12,11 @@ __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships/);
+  schema from _relationships column_info_from_storage source_name
+  source_info/);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
-  result_class source_name/);
+  result_class/);
 
 =head1 NAME
 
@@ -30,12 +31,25 @@ retrieved, most usually a table (see L<DBIx::Class::ResultSource::Table>)
 
 =head1 METHODS
 
+=pod
+
+=head2 new
+
+  $class->new();
+
+  $class->new({attribute_name => value});
+
+Creates a new ResultSource object.  Not normally called directly by end users.
+
 =cut
 
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
-  my $new = bless({ %{$attrs || {}}, _resultset => undef }, $class);
+
+  my $new = { %{$attrs || {}}, _resultset => undef };
+  bless $new, $class;
+
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
   $new->{resultset_attributes} = { %{$new->{resultset_attributes} || {}} };
   $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];
@@ -47,6 +61,17 @@ sub new {
 }
 
 =pod
+
+=head2 source_info
+
+Stores a hashref of per-source metadata.  No specific key names
+have yet been standardized, the examples below are purely hypothetical
+and don't actually accomplish anything on their own:
+
+  __PACKAGE__->source_info({
+    "_tablespace" => 'fast_disk_array_3',
+    "_engine" => 'InnoDB',
+  });
 
 =head2 add_columns
 
@@ -171,23 +196,34 @@ sub column_info {
     unless exists $self->_columns->{$column};
   #warn $self->{_columns_info_loaded}, "\n";
   if ( ! $self->_columns->{$column}{data_type}
+       and $self->column_info_from_storage
        and ! $self->{_columns_info_loaded}
        and $self->schema and $self->storage )
   {
     $self->{_columns_info_loaded}++;
     my $info;
+    my $lc_info;
     # eval for the case of storage without table
-    eval { $info = $self->storage->columns_info_for($self->from) };
+    eval { $info = $self->storage->columns_info_for( $self->from ) };
     unless ($@) {
+      for my $realcol ( keys %{$info} ) {
+        $lc_info->{lc $realcol} = $info->{$realcol};
+      }
       foreach my $col ( keys %{$self->_columns} ) {
-        foreach my $i ( keys %{$info->{$col}} ) {
-            $self->_columns->{$col}{$i} = $info->{$col}{$i};
-        }
+        $self->_columns->{$col} = { %{ $self->_columns->{$col}}, %{$info->{$col} || $lc_info->{lc $col}} };
       }
     }
   }
   return $self->_columns->{$column};
 }
+
+=head2 column_info_from_storage
+
+Enables the on-demand automatic loading of the above column
+metadata from storage as neccesary.  This is *deprecated*, and
+should not be used.  It will be removed before 1.0.
+
+  __PACKAGE__->column_info_from_storage(1);
 
 =head2 columns
 
@@ -232,7 +268,7 @@ sub remove_columns {
   }
 
   foreach (@cols) {
-    undef $columns->{$_};
+    delete $columns->{$_};
   };
 
   $self->_ordered_columns(\@remaining);
@@ -290,13 +326,24 @@ constraint.
     constraint_name => [ qw/column1 column2/ ],
   );
 
+Alternatively, you can specify only the columns:
+
+  __PACKAGE__->add_unique_constraint([ qw/column1 column2/ ]);
+
+This will result in a unique constraint named C<table_column1_column2>, where
+C<table> is replaced with the table name.
+
 Unique constraints are used, for example, when you call
 L<DBIx::Class::ResultSet/find>. Only columns in the constraint are searched.
 
 =cut
 
 sub add_unique_constraint {
-  my ($self, $name, $cols) = @_;
+  my $self = shift;
+  my $cols = pop @_;
+  my $name = shift;
+
+  $name ||= $self->name_unique_constraint($cols);
 
   foreach my $col (@$cols) {
     $self->throw_exception("No such column $col on table " . $self->name)
@@ -306,6 +353,22 @@ sub add_unique_constraint {
   my %unique_constraints = $self->unique_constraints;
   $unique_constraints{$name} = $cols;
   $self->_unique_constraints(\%unique_constraints);
+}
+
+=head2 name_unique_constraint
+
+Return a name for a unique constraint containing the specified columns. These
+names consist of the table name and each column name, separated by underscores.
+
+For example, a constraint on a table named C<cd> containing the columns
+C<artist> and C<title> would result in a constraint name of C<cd_artist_title>.
+
+=cut
+
+sub name_unique_constraint {
+  my ($self, $cols) = @_;
+
+  return join '_', $self->name, @$cols;
 }
 
 =head2 unique_constraints
@@ -454,10 +517,7 @@ sub add_relationship {
 
   my $f_source = $self->schema->source($f_source_name);
   unless ($f_source) {
-    eval "require $f_source_name;";
-    if ($@) {
-      die $@ unless $@ =~ /Can't locate/;
-    }
+    $self->ensure_class_loaded($f_source_name);
     $f_source = $f_source_name->result_source;
     #my $s_class = ref($self->schema);
     #$f_source_name =~ m/^${s_class}::(.*)$/;

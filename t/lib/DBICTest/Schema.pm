@@ -9,6 +9,8 @@ __PACKAGE__->load_classes(qw/
   Artist
   Employee
   CD
+  Link
+  Bookmark
   #dummy
   Track
   Tag
@@ -22,14 +24,18 @@ __PACKAGE__->load_classes(qw/
   /]},
   (
     'FourKeys',
+    'FourKeys_to_TwoKeys',
     '#dummy',
     'SelfRef',
     'ArtistUndirectedMap',
     'ArtistSourceName',
+    'ArtistSubclass',
     'Producer',
     'CD_to_Producer',
   ),
-  qw/SelfRefAlias TreeLike TwoKeyTreeLike/
+  qw/SelfRefAlias TreeLike TwoKeyTreeLike Event NoPrimaryKey/,
+  qw/Collection CollectionObject TypedObject/,
+  qw/Owners BooksInLibrary/
 );
 
 1;

@@ -34,7 +34,10 @@ Creates a new row object from column => value mappings passed as a hash ref
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
-  my $new = bless { _column_data => {} }, $class;
+
+  my $new = { _column_data => {} };
+  bless $new, $class;
+
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
@@ -44,6 +47,7 @@ sub new {
       $new->store_column($k => $attrs->{$k});
     }
   }
+
   return $new;
 }
 
@@ -51,9 +55,11 @@ sub new {
 
   $obj->insert;
 
-Inserts an object into the database if it isn't already in there. Returns
-the object itself. Requires the object's result source to be set, or the
-class to have a result_source_instance method.
+Inserts an object into the database if it isn't already in
+there. Returns the object itself. Requires the object's result source to
+be set, or the class to have a result_source_instance method. To insert
+an entirely new object into the database, use C<create> (see
+L<DBIx::Class::ResultSet/create>).
 
 =cut
 
@@ -93,7 +99,8 @@ sub in_storage {
   $obj->update;
 
 Must be run on an object that is already in the database; issues an SQL
-UPDATE query to commit any changes to the object to the db if required.
+UPDATE query to commit any changes to the object to the database if
+required.
 
 =cut
 
@@ -122,9 +129,14 @@ sub update {
 
   $obj->delete
 
-Deletes the object from the database. The object is still perfectly usable,
-but ->in_storage() will now return 0 and the object must re inserted using
-->insert() before ->update() can be used on it.
+Deletes the object from the database. The object is still perfectly
+usable, but C<-E<gt>in_storage()> will now return 0 and the object must
+reinserted using C<-E<gt>insert()> before C<-E(<gt>update()> can be used
+on it. If you delete an object in a class with a C<has_many>
+relationship, all the related objects will be deleted as well. To turn
+this behavior off, pass C<cascade_delete => 0> in the C<$attr>
+hashref. Any database-level cascade or restrict will take precedence
+over a DBIx-Class-based cascading delete. See also L<DBIx::Class::ResultSet/delete>.
 
 =cut
 
@@ -169,6 +181,17 @@ sub get_column {
   $self->throw_exception( "No such column '${column}'" ) unless $self->has_column($column);
   return undef;
 }
+
+=head2 has_column_loaded
+
+  if ( $obj->has_column_loaded($col) ) {
+     print "$col has been loaded from db";
+  }
+
+Returns a true value if the column value has been loaded from the
+database (or set locally).
+
+=cut
 
 sub has_column_loaded {
   my ($self, $column) = @_;
@@ -254,7 +277,10 @@ sub copy {
     delete $col_data->{$col}
       if $self->result_source->column_info($col)->{is_auto_increment};
   }
-  my $new = bless { _column_data => $col_data }, ref $self;
+
+  my $new = { _column_data => $col_data };
+  bless $new, ref $self;
+
   $new->result_source($self->result_source);
   $new->set_columns($changes);
   $new->insert;
@@ -299,11 +325,13 @@ Called by ResultSet to inflate a result from storage
 sub inflate_result {
   my ($class, $source, $me, $prefetch) = @_;
   #use Data::Dumper; print Dumper(@_);
-  my $new = bless({ result_source => $source,
-                    _column_data => $me,
-                    _in_storage => 1
-                  },
-                  ref $class || $class);
+  my $new = {
+    result_source => $source,
+    _column_data => $me,
+    _in_storage => 1
+  };
+  bless $new, (ref $class || $class);
+
   my $schema;
   foreach my $pre (keys %{$prefetch||{}}) {
     my $pre_val = $prefetch->{$pre};
@@ -320,7 +348,7 @@ sub inflate_result {
         push(@pre_objects, $pre_source->result_class->inflate_result(
                              $pre_source, @{$pre_rec}));
       }
-      $new->related_resultset($pre)->set_cache('all', \@pre_objects);
+      $new->related_resultset($pre)->set_cache(\@pre_objects);
     } elsif (defined $pre_val->[0]) {
       my $fetched;
       unless ($pre_source->primary_columns == grep { exists $pre_val->[0]{$_}
@@ -350,6 +378,12 @@ sub inflate_result {
 
 Updates the object if it's already in the db, else inserts it.
 
+=head2 insert_or_update
+
+  $obj->insert_or_update
+
+Alias for L</update_or_insert>
+
 =cut
 
 *insert_or_update = \&update_or_insert;
@@ -363,6 +397,10 @@ sub update_or_insert {
   my @changed_col_names = $obj->is_changed();
   if ($obj->is_changed()) { ... }
 
+In array context returns a list of columns with uncommited changes, or
+in scalar context returns a true value if there are uncommitted
+changes.
+
 =cut
 
 sub is_changed {
@@ -373,6 +411,8 @@ sub is_changed {
 
   if ($obj->is_column_changed('col')) { ... }
 
+Returns a true value if the column has uncommitted changes.
+
 =cut
 
 sub is_column_changed {
@@ -382,19 +422,21 @@ sub is_column_changed {
 
 =head2 result_source
 
-  Accessor to the ResultSource this object was created from
+  my $resultsource = $object->result_source;
+
+Accessor to the ResultSource this object was created from
 
 =head2 register_column
 
-=over 4
+  $column_info = { .... };
+  $class->register_column($column_name, $column_info);
 
-=item Arguments: $column, $column_info
+Registers a column on the class. If the column_info has an 'accessor'
+key, creates an accessor named after the value if defined; if there is
+no such key, creates an accessor with the same name as the column
 
-=back
-
-  Registers a column on the class. If the column_info has an 'accessor' key,
-  creates an accessor named after the value if defined; if there is no such
-  key, creates an accessor with the same name as the column
+The column_info attributes are described in
+L<DBIx::Class::ResultSource/add_columns>
 
 =cut
 
@@ -435,4 +477,3 @@ Matt S. Trout <mst@shadowcatsystems.co.uk>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-

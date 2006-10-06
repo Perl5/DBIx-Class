@@ -13,7 +13,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.06002';
+$VERSION = '0.07999_01';
 
 sub MODIFY_CODE_ATTRIBUTES {
     my ($class,$code,@attrs) = @_;
@@ -87,7 +87,7 @@ Then you can use these classes in your application's code:
   # Create a result set to search for artists.
   # This does not query the DB.
   my $johns_rs = $schema->resultset('Artist')->search(
-    # Build your WHERE using an L<SQL::Abstract> structure:
+    # Build your WHERE using an SQL::Abstract structure:
     { name => { like => 'John%' } }
   );
 
@@ -180,57 +180,66 @@ andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
 
-blblack: Brandon Black
+blblack: Brandon L. Black <blblack@gmail.com>
 
-LTJake: Brian Cassidy <bricas@cpan.org>
+bluefeet: Aran Deltac <bluefeet@cpan.org>
+
+captainL: Luke Saunders <luke.saunders@gmail.com>
+
+castaway: Jess Robinson
 
 claco: Christopher H. Laco
 
 clkao: CL Kao
 
-typester: Daisuke Murase <typester@cpan.org>
-
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
-
-Numa: Dan Sully <daniel@cpan.org>
-
-dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
-
-ningu: David Kamholz <dkamholz@cpan.org>
-
-jesper: Jesper Krogh
-
-castaway: Jess Robinson
-
-quicksilver: Jules Bean
-
-jguenther: Justin Guenther <guentherj@agr.gc.ca>
 
 draven: Marcus Ramberg <mramberg@cpan.org>
 
+dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
+
+dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
+
+gphat: Cory G Watson <gphat@cpan.org>
+
+jesper: Jesper Krogh
+
+jguenther: Justin Guenther <jguenther@cpan.org>
+
+konobi: Scott McWhirter
+
+LTJake: Brian Cassidy <bricas@cpan.org>
+
 nigel: Nigel Metheringham <nigelm@cpan.org>
+
+ningu: David Kamholz <dkamholz@cpan.org>
+
+Numa: Dan Sully <daniel@cpan.org>
 
 paulm: Paul Makepeace
 
+penguin: K J Cheetham
+
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
-sc_: Just Another Perl Hacker
+quicksilver: Jules Bean
 
-konobi: Scott McWhirter
+sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>
 
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
-captainL: Luke Saunders <luke.saunders@gmail.com>
-
 Todd Lipcon
 
+typester: Daisuke Murase <typester@cpan.org>
+
 wdh: Will Hawes
+
+zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-

@@ -20,11 +20,6 @@ depending on them.
 
 =cut
 
-sub _ident_cond {
-  my ($class) = @_;
-  return join(" AND ", map { "$_ = ?" } $class->primary_columns);
-}
-
 sub _ident_values {
   my ($self) = @_;
   return (map { $self->{_column_data}{$_} } $self->primary_columns);
@@ -90,6 +85,16 @@ sub _create_ID {
   return join '|', ref $self || $self, $self->result_source->name,
     map { $_ . '=' . $vals{$_} } sort keys %vals;
 }
+
+=head2 ident_condition
+
+  my $cond = $result_source->ident_condition();
+
+  my $cond = $result_source->ident_condition('alias');
+
+Produces a condition hash to locate a row based on the primary key(s).
+
+=cut
 
 sub ident_condition {
   my ($self, $alias) = @_;

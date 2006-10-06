@@ -14,8 +14,7 @@ sub _attrs {
 sub _attribute_store {
   my $self   = shift;
   my $vals   = @_ == 1 ? shift: {@_};
-  my (@cols) = keys %$vals;
-  @{$self->{_column_data}}{@cols} = @{$vals}{@cols};
+  $self->store_column($_, $vals->{$_}) for keys %{$vals};
 }
 
 sub _attribute_set {
@@ -31,7 +30,7 @@ sub _attribute_delete {
 
 sub _attribute_exists {
   my ($self, $attr) = @_;
-  exists $self->{_column_data}{$attr};
+  $self->has_column_loaded($attr);
 }
 
 1;

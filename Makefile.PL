@@ -17,15 +17,15 @@
       
       # Save this 'cause CPAN will chdir all over the place.
       my $cwd = Cwd::cwd();
-      my $makefile = File::Spec->rel2abs($0);
       
-      CPAN::Shell->install('Module::Build::Compat')
-	or die " *** Cannot install without Module::Build.  Exiting ...\n";
+      CPAN::Shell->install('Module::Build::Compat');
+      CPAN::Shell->expand("Module", "Module::Build::Compat")->uptodate
+	or die "Couldn't install Module::Build, giving up.\n";
       
       chdir $cwd or die "Cannot chdir() back to $cwd: $!";
     }
     eval "use Module::Build::Compat 0.02; 1" or die $@;
-    use lib '_build/lib';
+    
     Module::Build::Compat->run_build_pl(args => \@ARGV);
     require Module::Build;
     Module::Build::Compat->write_makefile(build_class => 'Module::Build');

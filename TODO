@@ -51,3 +51,10 @@
  SQLT modules so an app can do its own deploy without SQLT on the target 
  system
 
+2006-05-25 by mst (TODOed by bluefeet)
+ Add the search attributes "limit" and "rows_per_page".
+ limit: work as expected just like offset does
+ rows_per_page: only be used if you used the page attr or called $rs->page
+ rows: modify to be an alias that gets used to populate either as appropriate, 
+       if you haven't specified one of the others
+

@@ -22,6 +22,11 @@ sub get_column {
   $self->next::method(@_[1..$#_]);
 }
 
+sub _ident_cond {
+  my ($class) = @_;
+  return join(" AND ", map { "$_ = ?" } $class->primary_columns);
+}
+
 sub _flesh {
   my ($self, @groups) = @_;
   @groups = ('All') unless @groups;
