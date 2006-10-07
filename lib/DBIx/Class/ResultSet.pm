@@ -1284,9 +1284,15 @@ sub _collapse_cond {
 sub _remove_alias {
   my ($self, $query, $alias) = @_;
 
-  my %unaliased = %{ $query || {} };
-  foreach my $key (keys %unaliased) {
-    $unaliased{$1} = delete $unaliased{$key}
+  my %orig = %{ $query || {} };
+  my %unaliased;
+
+  foreach my $key (keys %orig) {
+    if ($key !~ /\./) {
+      $unaliased{$key} = $orig{$key};
+      next;
+    }
+    $unaliased{$1} = $orig{$key}
       if $key =~ m/^(?:\Q$alias\E\.)?([^.]+)$/;
   }
 
