@@ -1096,4 +1096,45 @@ B<Test File> test.pl
     ### The statement below will print 
     print "I can do admin stuff\n" if $admin->can('do_admin_stuff'); 
 
+=head2 Skip object creation for faster results
+
+DBIx::Class is not built for speed, it's built for convenience and
+ease of use, but sometimes you just need to get the data, and skip the
+fancy objects. Luckily this is also fairly easy using
+C<inflate_result>:
+
+  # Define a class which just returns the results as a hashref:
+  package My::HashRefInflator;
+
+  ## $me is the hashref of cols/data from the immediate resultsource
+  ## $prefetch is a deep hashref of all the data from the prefetched
+  ##   related sources.
+
+  sub mk_hash {
+     my ($me, $rest) = @_;
+
+     return { %$me, 
+        map { ($_ => mk_hash(@{$rest->{$_}})) } keys %$rest } 
+     };
+  }
+
+  sub inflate_result {
+     my ($self, $source, $me, $prefetch) = @_;
+     return mk_hash($me, $prefetch); 
+  }
+
+  # Change the object inflation to a hashref for just this resultset:
+  $rs->result_class('My::HashRefInflator');
+
+  my $datahashref = $rs->next;
+  foreach my $col (keys $datahashref) {
+     if(!ref($datahashref->{$col}) {
+        # It's a plain value
+     }
+     elsif(ref($datahashref->{$col} eq 'HASH')) {
+        # It's a related value in a hashref
+     }
+  }
+
 =cut
+
