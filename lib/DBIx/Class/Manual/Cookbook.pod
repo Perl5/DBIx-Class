@@ -989,7 +989,7 @@ seperate proxy-class files for this.  We would be copying all the user
 methods into the Admin class.  There is a cleaner way to accomplish
 this.
 
-Overriding the C<inflate_results()> method within the User proxy-class
+Overriding the C<inflate_result> method within the User proxy-class
 gives us the effect we want.  This method is called by
 L<DBIx::Class::ResultSet> when inflating a result from storage.  So we
 grab the object being returned, inspect the values we are looking for,
