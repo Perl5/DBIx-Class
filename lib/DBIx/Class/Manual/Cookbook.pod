@@ -387,7 +387,7 @@ From 0.04999_05 onwards, C<prefetch> can be nested more than one relationship
 deep using the same syntax as a multi-step join:
 
   my $rs = $schema->resultset('Tag')->search(
-    undef,
+    {},
     {
       prefetch => {
         cd => 'artist'
@@ -405,6 +405,44 @@ SQL statements:
 
   my $tag = $rs->first;
   print $tag->cd->artist->name;
+
+=head2 Columns of data
+
+If you want to find the sum of a particular column there are several
+ways, the obvious one is to use search:
+
+  my $rs = $schema->resultset('Items')->search(
+    {},
+    { 
+       select => [ { sum => 'Cost' } ],
+       as     => [ 'total_cost' ],
+    }
+  );
+  my $tc = $rs->first->get_column('total_cost');
+
+Or, you can use the L<DBIx::Class::ResultSetColumn>, which gets
+returned when you ask the C<ResultSet> for a column using
+C<get_column>:
+
+  my $cost = $schema->resultset('Items')->get_column('Cost');
+  my $tc = $cost->sum;
+
+With this you can also do:
+
+  my $minvalue = $cost->min;
+  my $maxvalue = $cost->max;
+
+Or just iterate through the values of this column only:
+
+  while ( my $c = $cost->next ) {
+    print $c;
+  }
+
+  foreach my $c ($cost->all) {
+    print $c;
+  }
+
+See L<DBIx::Class::ResultSetColumn> for more documentation.
 
 =head2 Using relationships
 
