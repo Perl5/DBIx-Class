@@ -1136,5 +1136,14 @@ C<inflate_result>:
      }
   }
 
-=cut
+=head2 Want to know if find_or_create found or created a row?
 
+Just use C<find_or_new> instead, then check C<in_storage>:
+
+  my $obj = $rs->find_or_new({ blah => 'blarg' });
+  unless ($obj->in_storage) {
+    $obj->insert;
+    # do whatever else you wanted if it was a new row
+  }
+
+=cut
