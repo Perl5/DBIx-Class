@@ -442,6 +442,17 @@ Or just iterate through the values of this column only:
     print $c;
   }
 
+C<ResultSetColumn> only has a limited number of built-in functions, if
+you need one that it doesn't have, then you can use the C<func> method
+instead:
+
+  my $avg = $cost->func('AVERAGE');
+
+This will cause the following SQL statement to be run:
+
+  SELECT AVERAGE(Cost) FROM Items me
+
+Which will of course only work if your database supports this function.
 See L<DBIx::Class::ResultSetColumn> for more documentation.
 
 =head2 Using relationships
