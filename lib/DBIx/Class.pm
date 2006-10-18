@@ -236,6 +236,8 @@ typester: Daisuke Murase <typester@cpan.org>
 
 wdh: Will Hawes
 
+willert: Sebastian Willert <willert@cpan.org>
+
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 LICENSE
