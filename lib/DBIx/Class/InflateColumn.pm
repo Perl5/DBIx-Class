@@ -214,7 +214,7 @@ inflation and deflation of columns appropriately.
 sub update {
   my ($class, $attrs, @rest) = @_;
   foreach my $key (keys %{$attrs||{}}) {
-    if (ref $attrs->{$key}
+    if (ref $attrs->{$key} && $class->has_column($key)
           && exists $class->column_info($key)->{_inflate_info}) {
       $class->set_inflated_column($key, delete $attrs->{$key});
     }
@@ -234,7 +234,8 @@ sub new {
   my $inflated;
   foreach my $key (keys %{$attrs||{}}) {
     $inflated->{$key} = delete $attrs->{$key} 
-      if ref $attrs->{$key} && exists $class->column_info($key)->{_inflate_info};
+      if ref $attrs->{$key} && $class->has_column($key)
+         && exists $class->column_info($key)->{_inflate_info};
   }
   my $obj = $class->next::method($attrs, @rest);
   $obj->{_inflated_column} = $inflated if $inflated;
