@@ -3,6 +3,8 @@ Revision history for DBIx::Class
 0.07003 2006-XX-XX XX:XX:XX
         - Fix UTF8Columns to work under Perl <= 5.8.0
         - Fix up new_result in ResultSet to avoid alias-related bugs
+        - Made new/update/find handle 'single' rel accessor correctly
+        - Fix NoBindVars to be safer and handle non-true bind values
 
 0.07002 2006-09-14 21:17:32
         - fix quote tests for recent versions of SQLite

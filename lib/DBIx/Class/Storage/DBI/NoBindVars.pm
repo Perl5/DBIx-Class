@@ -43,7 +43,7 @@ sub _execute {
     $self->debugobj->query_start($sql, @debug_bind);
   }
 
-  $sql =~ s/\?/shift(@bind)/eg;
+  $sql =~ s/\?/$self->_dbh->quote(shift(@bind))/eg;
 
   my $sth = eval { $self->sth($sql,$op) };
 
