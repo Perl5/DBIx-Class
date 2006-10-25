@@ -41,6 +41,9 @@ sub new {
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
+    if (my $source = delete $attrs->{-result_source}) {
+      $new->result_source($source);
+    }
     foreach my $k (keys %$attrs) {
       $new->throw_exception("No such column $k on $class")
         unless $class->has_column($k);

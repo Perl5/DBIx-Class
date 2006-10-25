@@ -8,8 +8,8 @@ use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/
   Serialize::Storable
-  InflateColumn
   Relationship
+  InflateColumn
   PK::Auto
   PK
   Row

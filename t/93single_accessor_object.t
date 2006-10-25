@@ -23,20 +23,20 @@ plan tests => 7;
   is($cd->get_column('artist'), $artist->id, 'artist matches CD');
 
   my $liner_notes = $schema->resultset("LinerNotes")->find_or_create({
-    liner_id => $cd,
-    notes    => "Creating using an object on a might_have is helpful.",
+    cd     => $cd,
+    notes  => "Creating using an object on a might_have is helpful.",
   });
   ok(defined $liner_notes, 'created liner notes');
   is($liner_notes->liner_id, $cd->cdid, 'liner notes matches CD');
   is($liner_notes->notes, "Creating using an object on a might_have is helpful.", 'liner notes are correct');
 
   my $track = $cd->tracks->find_or_create({
-    position => 1,
+    position => 127,
     title    => 'Single Accessor'
   });
   is($track->get_column('cd'), $cd->cdid, 'track matches CD before update');
 
   my $another_cd = $schema->resultset("CD")->find(5);
   $track->update({ disc => $another_cd });
-  is($track->cdid, $another_cd->cdid, 'track matches another CD after update');
+  is($track->get_column('cd'), $another_cd->cdid, 'track matches another CD after update');
 }

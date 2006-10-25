@@ -16,18 +16,18 @@ sub component_base_class { 'DBIx::Class' }
 $VERSION = '0.07999_01';
 
 sub MODIFY_CODE_ATTRIBUTES {
-    my ($class,$code,@attrs) = @_;
-    $class->mk_classdata('__attr_cache' => {})
-      unless $class->can('__attr_cache');
-    $class->__attr_cache->{$code} = [@attrs];
-    return ();
+  my ($class,$code,@attrs) = @_;
+  $class->mk_classdata('__attr_cache' => {})
+    unless $class->can('__attr_cache');
+  $class->__attr_cache->{$code} = [@attrs];
+  return ();
 }
 
 sub _attr_cache {
-    my $self = shift;
-    my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
-    my $rest = eval { $self->next::method };
-    return $@ ? $cache : { %$cache, %$rest };
+  my $self = shift;
+  my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
+  my $rest = eval { $self->next::method };
+  return $@ ? $cache : { %$cache, %$rest };
 }
 
 1;
@@ -235,6 +235,8 @@ Todd Lipcon
 typester: Daisuke Murase <typester@cpan.org>
 
 wdh: Will Hawes
+
+willert: Sebastian Willert <willert@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
