@@ -1128,7 +1128,7 @@ C<inflate_result>:
 
   my $datahashref = $rs->next;
   foreach my $col (keys %$datahashref) {
-     if(!ref($datahashref->{$col}) {
+     if(!ref($datahashref->{$col})) {
         # It's a plain value
      }
      elsif(ref($datahashref->{$col} eq 'HASH')) {
