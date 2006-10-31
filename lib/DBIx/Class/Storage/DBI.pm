@@ -1099,18 +1099,23 @@ L<DBIx::Class::Schema/deploy>.
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs, $dir) = @_;
-  foreach my $statement ( $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } ) ) {
-    for ( split(";\n", $statement)) {
-      next if($_ =~ /^--/);
-      next if(!$_);
-#      next if($_ =~ /^DROP/m);
+  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } );
+
+  if (scalar @statements == 1) {
+    @statements = split(";\n", $statements[0]);
+    $type ||= $self->sqlt_type;
+    # If we got more stmts out from splitting, display a warning
+    carp "SQL::Translator::Producer:${type}->produce only returned a single scalar for multiple statements.\n"
+      if (scalar @statements != 1);
+  }
+
+  foreach (@statements) {
+      next if($_ =~ /^\s*$/s);
       next if($_ =~ /^BEGIN TRANSACTION/m);
       next if($_ =~ /^COMMIT/m);
-      next if $_ =~ /^\s+$/; # skip whitespace only
       $self->debugobj->query_start($_) if $self->debug;
       $self->dbh->do($_) or warn "SQL was:\n $_";
       $self->debugobj->query_end($_) if $self->debug;
-    }
   }
 }
 
