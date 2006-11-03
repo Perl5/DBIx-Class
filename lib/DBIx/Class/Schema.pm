@@ -268,6 +268,13 @@ sub load_classes {
     foreach my $prefix (keys %comps_for) {
       foreach my $comp (@{$comps_for{$prefix}||[]}) {
         my $comp_class = "${prefix}::${comp}";
+        { # try to untaint module name. mods where this fails
+          # are left alone so we don't have to change the old behavior
+          no locale; # localized \w doesn't untaint expression
+          if ( $comp_class =~ m/^( (?:\w+::)* \w+ )$/x ) {
+            $comp_class = $1;
+          }
+        }
         $class->ensure_class_loaded($comp_class);
         $comp_class->source_name($comp) unless $comp_class->source_name;
 

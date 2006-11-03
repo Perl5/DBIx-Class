@@ -40,7 +40,7 @@ sub _prep_for_execute {
   my $self = shift;
   my ($sql, @bind) = $self->next::method(@_);
 
-  $sql =~ s/\?/$self->_dbh->quote($_)/e for (@bind);
+  $sql =~ s/\?/$self->_dbh->quote(shift(@bind))/eg;
 
   return ($sql);
 }
