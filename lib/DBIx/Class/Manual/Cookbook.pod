@@ -1114,7 +1114,7 @@ C<inflate_result>:
      my ($me, $rest) = @_;
 
      return { %$me, 
-        map { ($_ => mk_hash(@{$rest->{$_}})) } keys %$rest } 
+        map { ($_ => mk_hash(@{$rest->{$_}})) } keys %$rest
      };
   }
 
@@ -1127,8 +1127,8 @@ C<inflate_result>:
   $rs->result_class('My::HashRefInflator');
 
   my $datahashref = $rs->next;
-  foreach my $col (keys $datahashref) {
-     if(!ref($datahashref->{$col}) {
+  foreach my $col (keys %$datahashref) {
+     if(!ref($datahashref->{$col})) {
         # It's a plain value
      }
      elsif(ref($datahashref->{$col} eq 'HASH')) {
