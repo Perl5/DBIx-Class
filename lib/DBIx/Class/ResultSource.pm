@@ -99,29 +99,31 @@ whatever your database supports.
 =item size
 
 The length of your column, if it is a column type that can have a size
-restriction. This is currently not used by DBIx::Class.
+restriction. This is currently only used by L<DBIx::Class::Schema/deploy>.
 
 =item is_nullable
 
 Set this to a true value for a columns that is allowed to contain
-NULL values. This is currently not used by DBIx::Class.
+NULL values. This is currently only used by L<DBIx::Class::Schema/deploy>.
 
 =item is_auto_increment
 
 Set this to a true value for a column whose value is somehow
 automatically set. This is used to determine which columns to empty
-when cloning objects using C<copy>.
+when cloning objects using C<copy>. It is also used by
+L<DBIx::Class::Schema/deploy>.
 
 =item is_foreign_key
 
 Set this to a true value for a column that contains a key from a
-foreign table. This is currently not used by DBIx::Class.
+foreign table. This is currently only used by
+L<DBIx::Class::Schema/deploy>.
 
 =item default_value
 
 Set this to the default value which will be inserted into a column
 by the database. Can contain either a value or a function. This is
-currently not used by DBIx::Class.
+currently only used by L<DBIx::Class::Schema/deploy>.
 
 =item sequence
 
@@ -129,6 +131,14 @@ Set this on a primary key column to the name of the sequence used to
 generate a new key value. If not specified, L<DBIx::Class::PK::Auto>
 will attempt to retrieve the name of the sequence from the database
 automatically.
+
+=item extras
+
+This is used by L<DBIx::Class::Schema/deploy> and L<SQL::Translator>
+to add extra non-generic data to the column. For example: C<< extras
+=> { unsigned => 1} >> is used by the MySQL producer to set an integer
+column to unsigned. For more details, see
+L<SQL::Translator::Producer::MySQL>.
 
 =back
 
@@ -925,11 +935,19 @@ but is cached from then on unless resultset_class changes.
 
 =head2 resultset_class
 
+` package My::ResultSetClass;
+  use base 'DBIx::Class::ResultSet';
+  ...
+
+  $source->resultset_class('My::ResultSet::Class');
+
 Set the class of the resultset, this is useful if you want to create your
 own resultset methods. Create your own class derived from
-L<DBIx::Class::ResultSet>, and set it here.
+L<DBIx::Class::ResultSet>, and set it here. 
 
 =head2 resultset_attributes
+
+  $source->resultset_attributes({ order_by => [ 'id' ] });
 
 Specify here any attributes you wish to pass to your specialised resultset.
 
