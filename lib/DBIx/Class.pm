@@ -180,6 +180,8 @@ andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
 
+ash: Ash Berlin <ash@cpan.org>
+
 blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>

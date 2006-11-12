@@ -39,3 +39,6 @@
 
 # Skip maint stuff
 ^maint/
+
+# Dont use Module::Build anymore
+# Build.PL
