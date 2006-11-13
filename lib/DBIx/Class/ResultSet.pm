@@ -724,6 +724,7 @@ sub next {
   if ($self->{stashed_objects}) {
     my $obj = shift(@{$self->{stashed_objects}});
     delete $self->{stashed_objects} unless @{$self->{stashed_objects}};
+    return $obj;
   }
   my @row = (
     exists $self->{stashed_row}
