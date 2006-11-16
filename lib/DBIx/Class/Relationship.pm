@@ -125,7 +125,7 @@ The above belongs_to relationship could also have been specified as,
 
   My::DBIC::Schema::Book->belongs_to( author,
                                       'My::DBIC::Schema::Author',
-                                      { 'self.author' => 'foreign.author' } );
+                                      { 'foreign.author' => 'self.author' } );
 
 Creates a relationship where the calling class stores the foreign class's
 primary key in one (or more) of its columns. This relationship defaults to

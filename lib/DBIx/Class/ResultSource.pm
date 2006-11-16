@@ -211,8 +211,8 @@ sub column_info {
        and $self->schema and $self->storage )
   {
     $self->{_columns_info_loaded}++;
-    my $info;
-    my $lc_info;
+    my $info = {};
+    my $lc_info = {};
     # eval for the case of storage without table
     eval { $info = $self->storage->columns_info_for( $self->from ) };
     unless ($@) {
@@ -220,7 +220,10 @@ sub column_info {
         $lc_info->{lc $realcol} = $info->{$realcol};
       }
       foreach my $col ( keys %{$self->_columns} ) {
-        $self->_columns->{$col} = { %{ $self->_columns->{$col}}, %{$info->{$col} || $lc_info->{lc $col}} };
+        $self->_columns->{$col} = {
+          %{ $self->_columns->{$col} },
+          %{ $info->{$col} || $lc_info->{lc $col} || {} }
+        };
       }
     }
   }
