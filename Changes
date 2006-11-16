@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
 0.07003 2006-11-16 11:52:00
+        - fix for rt.cpan.org #22740 (use $^X instead of hardcoded "perl")
         - Tweaks to resultset to allow inflate_result to return an array
         - Fix UTF8Columns to work under Perl <= 5.8.0
         - Fix up new_result in ResultSet to avoid alias-related bugs
