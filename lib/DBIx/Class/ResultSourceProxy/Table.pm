@@ -4,10 +4,10 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::ResultSourceProxy/;
-__PACKAGE__->load_components(qw/AccessorGroup/);
 
-__PACKAGE__->mk_group_accessors('component_class' => 'table_class');
-__PACKAGE__->table_class('DBIx::Class::ResultSource::Table');
+use DBIx::Class::ResultSource::Table;
+
+__PACKAGE__->mk_classdata(table_class => 'DBIx::Class::ResultSource::Table');
 
 __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do
                                           # anything yet!

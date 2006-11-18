@@ -6,8 +6,6 @@ use warnings;
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
 
-__PACKAGE__->load_components(qw/AccessorGroup/);
-
 __PACKAGE__->mk_group_accessors('simple' => 'result_source');
 
 =head1 NAME

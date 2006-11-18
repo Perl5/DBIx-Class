@@ -4,9 +4,14 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-use base qw/DBIx::Class::Componentised Class::Data::Accessor/;
+use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 
-sub mk_classdata { shift->mk_classaccessor(@_); }
+sub mk_classdata { 
+    my $self = shift;
+    $self->mk_group_accessors('inherited', $_[0]); 
+    $self->set_inherited(@_) if @_ > 1;
+}
+
 sub component_base_class { 'DBIx::Class' }
 
 # Always remember to do all digits for the version even if they're 0

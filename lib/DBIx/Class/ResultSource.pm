@@ -8,14 +8,13 @@ use Carp::Clan qw/^DBIx::Class/;
 use Storable;
 
 use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
   schema from _relationships column_info_from_storage source_name
   source_info/);
 
-__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
+__PACKAGE__->mk_group_accessors('inherited' => qw/resultset_class
   result_class/);
 
 =head1 NAME

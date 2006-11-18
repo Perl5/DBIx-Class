@@ -12,7 +12,6 @@ use Storable;
 use DBIx::Class::ResultSetColumn;
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/AccessorGroup/);
 __PACKAGE__->mk_group_accessors('simple' => qw/result_source result_class/);
 
 =head1 NAME
