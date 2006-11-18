@@ -14,7 +14,7 @@ use IO::File;
 __PACKAGE__->mk_group_accessors(
   'simple' =>
     qw/_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid _conn_tid
-       disable_sth_caching cursor on_connect_do transaction_depth/
+       disable_sth_caching cursor on_connect_do transaction_depth bind_attributes/
 );
 
 BEGIN {
@@ -661,7 +661,7 @@ sub dbh {
 sub _sql_maker_args {
     my ($self) = @_;
     
-    return ( limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
+    return ( bindtype=>'columns', limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
 }
 
 sub sql_maker {
@@ -816,22 +816,49 @@ sub _prep_for_execute {
 }
 
 sub _execute {
-  my $self = shift;
-
-  my ($sql, @bind) = $self->_prep_for_execute(@_);
-
+  my ($self, $op, $extra_bind, $ident, @args) = @_;
+  my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
+  unshift(@bind, @$extra_bind) if $extra_bind;
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
+      my @debug_bind = map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
+  my $sth = eval { $self->sth($sql,$op) };
 
-  my $sth = $self->sth($sql);
+  if (!$sth || $@) {
+    $self->throw_exception(
+      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
+    );
+  }
 
   my $rv;
   if ($sth) {
     my $time = time();
-    $rv = eval { $sth->execute(@bind) };
+	
+    $rv = eval {
+	
+      my $placeholder_index = 1; 
+      my $bind_attributes = $self->bind_attributes;
 
+      foreach my $bound (@bind) {
+
+        my $attributes = {};
+        my($column_name, $data) = @$bound;
+
+        if( $bind_attributes ) {
+          $attributes = $bind_attributes->{$column_name}
+          if defined $bind_attributes->{$column_name};
+        }			
+
+        $data = ref $data ? ''.$data : $data; # stringify args
+
+        $sth->bind_param($placeholder_index, $data, $attributes);
+        $placeholder_index++;
+      }
+      $sth->execute;
+    };
+  $self->bind_attributes({});
+  
     if ($@ || !$rv) {
       $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
     }
@@ -839,7 +866,7 @@ sub _execute {
     $self->throw_exception("'$sql' did not generate a statement.");
   }
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind; 
+     my @debug_bind = map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind; 
       $self->debugobj->query_end($sql, @debug_bind);
   }
   return (wantarray ? ($rv, $sth, @bind) : $rv);

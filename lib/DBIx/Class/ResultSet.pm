@@ -1107,7 +1107,15 @@ sub update {
     unless ref $values eq 'HASH';
 
   my $cond = $self->_cond_for_update_delete;
-
+  
+  my $bind_attributes;
+  foreach my $column ($self->result_source->columns) {
+  
+    $bind_attributes->{$column} = $self->result_source->column_info($column)->{bind_attributes}
+     if defined $self->result_source->column_info($column)->{bind_attributes};
+  }
+  $self->result_source->storage->bind_attributes($bind_attributes);
+  
   return $self->result_source->storage->update(
     $self->result_source->from, $values, $cond
   );
