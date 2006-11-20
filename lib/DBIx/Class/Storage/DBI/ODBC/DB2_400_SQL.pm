@@ -4,11 +4,8 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::ODBC/;
 
-sub last_insert_id
-{
-    my ($self) = @_;
-
-    my $dbh = $self->_dbh;
+sub _dbh_last_insert_id {
+    my ($self, $dbh, $source, $col) = @_;
 
     # get the schema/table separator:
     #    '.' when SQL naming is active
@@ -23,13 +20,17 @@ sub last_insert_id
     return @res ? $res[0] : undef;
 }
 
-sub _sql_maker_args {
+sub _sql_maker_opts {
     my ($self) = @_;
     
-    return (
-        limit_dialect => 'FetchFirst',
-        name_sep => $self->_dbh->get_info(41)
-    );
+    $self->dbh_do(sub {
+        my ($self, $dbh) = @_;
+
+        return {
+            limit_dialect => 'FetchFirst',
+            name_sep => $dbh->get_info(41)
+        };
+    });
 }
 
 1;
@@ -50,7 +51,7 @@ over ODBC
 
 This class implements support specific to DB2/400 over ODBC, including
 auto-increment primary keys, SQL::Abstract::Limit dialect, and name separator
-for for connections using either SQL naming or System naming.
+for connections using either SQL naming or System naming.
 
 
 =head1 AUTHORS

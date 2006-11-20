@@ -1,7 +1,94 @@
 Revision history for DBIx::Class
 
+0.07999_01 2006-10-05 21:00:00
+        - add connect_info option "disable_statement_caching"
+        - create insert_bulk using execute_array, populate uses it
+        - added DBIx::Class::Schema::load_namespaces, alternative to
+          load_classes
+        - added source_info method for source-level metadata (kinda like
+          column_info)
+        - Some of ::Storage::DBI's code/docs moved to ::Storage
+        - DBIx::Class::Schema::txn_do code moved to ::Storage
+        - Storage::DBI now uses exceptions instead of ->ping/->{Active} checks
+        - Storage exceptions are thrown via the schema class's throw_exception
+        - DBIx::Class::Schema::throw_exception's behavior can be modified via
+          ->exception_action
+        - columns_info_for is deprecated, and no longer runs automatically.
+          You can make it work like before via
+          __PACKAGE__->column_info_from_storage(1) for now
+        - Replaced DBIx::Class::AccessorGroup and Class::Data::Accessor with
+          Class::Accessor::Grouped. Only user noticible change is to 
+          table_class on ResultSourceProxy::Table (i.e. table objects in 
+          schemas) and, resultset_class and result_class in ResultSource. 
+          These accessors no longer automatically require the classes when
+          set.
+
+0.07003 2006-11-16 11:52:00
+        - fix for rt.cpan.org #22740 (use $^X instead of hardcoded "perl")
+        - Tweaks to resultset to allow inflate_result to return an array
+        - Fix UTF8Columns to work under Perl <= 5.8.0
+        - Fix up new_result in ResultSet to avoid alias-related bugs
+        - Made new/update/find handle 'single' rel accessor correctly
+        - Fix NoBindVars to be safer and handle non-true bind values
+        - Don't blow up if columns_info_for returns useless results
+        - Documentation updates
+
+0.07002 2006-09-14 21:17:32
+        - fix quote tests for recent versions of SQLite
+        - added reference implementation of Manual::Example
+        - backported column_info_from_storage accessor from -current, but
+        - fixed inflate_datetime.t tests/stringify under older Test::More
+        - minor fixes for many-to-many relationship helpers
+        - cleared up Relationship docs, and fixed some typos
+        - use ref instead of eval to check limit syntax (to avoid issues with
+          Devel::StackTrace)
+        - update ResultSet::_cond_for_update_delete to handle more complicated
+          queries
+        - bugfix to Oracle columns_info_for
+        - remove_columns now deletes columns from _columns
+
+0.07001 2006-08-18 19:55:00
+        - add directory argument to deploy()
+        - support default aliases in many_to_many accessors.
+        - support for relationship attributes in many_to_many accessors.
+        - stop search_rs being destructive to attrs
+        - better error reporting when loading components
+        - UTF8Columns changed to use "utf8" instead of "Encode"
+        - restore automatic aliasing in ResultSet::find() on nonunique queries
+        - allow aliases in ResultSet::find() queries (in cases of relationships
+          with prefetch)
+        - pass $attrs to find from update_or_create so a specific key can be
+          provided
+        - remove anonymous blesses to avoid major speed hit on Fedora Core 5's
+          Perl and possibly others; for more information see:
+          https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=196836
+        - fix a pathological prefetch case
+        - table case fix for Oracle in columns_info_for
+        - stopped search_rs deleting attributes from passed hash
+
+0.07000 2006-07-23 02:30:00
+        - supress warnings for possibly non-unique queries, since
+          _is_unique_query doesn't infer properly in all cases
+        - skip empty queries to eliminate spurious warnings on ->deploy
+        - fixups to ORDER BY, tweaks to deepen some copies in ResultSet
+        - fixup for RowNum limit syntax with functions
+
+0.06999_07 2006-07-12 20:58:05
+        - fix issue with from attr copying introduced in last release
+
+0.06999_06 2006-07-12 17:16:55
+        - documentation for new storage options, fix S::A::L hanging on to $dbh
+        - substantial refactor of search_related code to fix alias numbering
+        - don't generate partial unique keys in ResultSet::find() when a table
+          has more than one unique constraint which share a column and only one
+          is satisfied
+        - cleanup UTF8Columns and make more efficient
+        - rename DBIX_CLASS_STORAGE_DBI_DEBUG to DBIC_TRACE (with compat)
+        - rename _parent_rs to _parent_source in ResultSet
+        - new FAQ.pod!
+
 0.06999_05 2006-07-04 14:40:01
-        - fix issue with incorrect $rs->{attrs}{$alias}
+        - fix issue with incorrect $rs->{attrs}{alias}
         - fix subclassing issue with source_name
         - tweak quotes test to output text on failure
         - fix Schema->txn_do to not fail as a classmethod
@@ -101,10 +188,7 @@ Revision history for DBIx::Class
         - nuke ResultSource caching of ->resultset for consistency reasons
         - fix for -and conditions when updating or deleting on a ResultSet
 
-0.06001 2006-04-08 21:48:43
-        - minor fix to update in case of undefined rels
-        - fixes for cascade delete
-        - substantial improvements and fixes to deploy
+0.06001
         - Added fix for quoting with single table
         - Substantial fixes and improvements to deploy
         - slice now uses search directly

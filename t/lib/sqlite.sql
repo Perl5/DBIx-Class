@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Thu Jun 22 22:47:36 2006
+-- Created on Tue Aug  8 01:53:20 2006
 -- 
 BEGIN TRANSACTION;
 
@@ -23,6 +23,14 @@ CREATE TABLE serialized (
 );
 
 --
+-- Table: liner_notes
+--
+CREATE TABLE liner_notes (
+  liner_id INTEGER PRIMARY KEY NOT NULL,
+  notes varchar(100) NOT NULL
+);
+
+--
 -- Table: cd_to_producer
 --
 CREATE TABLE cd_to_producer (
@@ -32,19 +40,23 @@ CREATE TABLE cd_to_producer (
 );
 
 --
--- Table: liner_notes
---
-CREATE TABLE liner_notes (
-  liner_id INTEGER PRIMARY KEY NOT NULL,
-  notes varchar(100) NOT NULL
-);
-
---
 -- Table: artist
 --
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100)
+);
+
+--
+-- Table: twokeytreelike
+--
+CREATE TABLE twokeytreelike (
+  id1 integer NOT NULL,
+  id2 integer NOT NULL,
+  parent1 integer NOT NULL,
+  parent2 integer NOT NULL,
+  name varchar(100) NOT NULL,
+  PRIMARY KEY (id1, id2)
 );
 
 --
@@ -59,18 +71,6 @@ CREATE TABLE fourkeys_to_twokeys (
   t_cd integer NOT NULL,
   autopilot character NOT NULL,
   PRIMARY KEY (f_foo, f_bar, f_hello, f_goodbye, t_artist, t_cd)
-);
-
---
--- Table: twokeytreelike
---
-CREATE TABLE twokeytreelike (
-  id1 integer NOT NULL,
-  id2 integer NOT NULL,
-  parent1 integer NOT NULL,
-  parent2 integer NOT NULL,
-  name varchar(100) NOT NULL,
-  PRIMARY KEY (id1, id2)
 );
 
 --
@@ -111,15 +111,6 @@ CREATE TABLE track (
 );
 
 --
--- Table: treelike
---
-CREATE TABLE treelike (
-  id INTEGER PRIMARY KEY NOT NULL,
-  parent integer NOT NULL,
-  name varchar(100) NOT NULL
-);
-
---
 -- Table: self_ref
 --
 CREATE TABLE self_ref (
@@ -146,6 +137,15 @@ CREATE TABLE tags (
 );
 
 --
+-- Table: treelike
+--
+CREATE TABLE treelike (
+  id INTEGER PRIMARY KEY NOT NULL,
+  parent integer NOT NULL,
+  name varchar(100) NOT NULL
+);
+
+--
 -- Table: event
 --
 CREATE TABLE event (
@@ -161,6 +161,15 @@ CREATE TABLE twokeys (
   artist integer NOT NULL,
   cd integer NOT NULL,
   PRIMARY KEY (artist, cd)
+);
+
+--
+-- Table: noprimarykey
+--
+CREATE TABLE noprimarykey (
+  foo integer NOT NULL,
+  bar integer NOT NULL,
+  baz integer NOT NULL
 );
 
 --
@@ -201,7 +210,54 @@ CREATE TABLE onekey (
   cd integer NOT NULL
 );
 
+--
+-- Table: typed_object
+--
+CREATE TABLE typed_object (
+  objectid INTEGER PRIMARY KEY NOT NULL,
+  type VARCHAR(100) NOT NULL,
+  value VARCHAR(100)
+);
+
+--
+-- Table: collection
+--
+CREATE TABLE collection (
+  collectionid INTEGER PRIMARY KEY NOT NULL,
+  name VARCHAR(100)
+);
+
+--
+-- Table: collection_object
+--
+CREATE TABLE collection_object (
+  collection INTEGER NOT NULL,
+  object INTEGER NOT NULL
+);
+
+--
+-- Table: owners
+--
+CREATE TABLE owners (
+  ownerid INTEGER PRIMARY KEY NOT NULL,
+  name varchar(100)
+);
+
+--
+-- Table: books
+--
+CREATE TABLE books (
+  id INTEGER PRIMARY KEY NOT NULL,
+  owner INTEGER,
+  source varchar(100),
+  title varchar(100)
+);
+
+
 CREATE UNIQUE INDEX tktlnameunique_twokeytreelike on twokeytreelike (name);
 CREATE UNIQUE INDEX cd_artist_title_cd on cd (artist, title);
+CREATE UNIQUE INDEX track_cd_position_track on track (cd, position);
+CREATE UNIQUE INDEX track_cd_title_track on track (cd, title);
+CREATE UNIQUE INDEX foo_bar_noprimarykey on noprimarykey (foo, bar);
 CREATE UNIQUE INDEX prod_name_producer on producer (name);
 COMMIT;

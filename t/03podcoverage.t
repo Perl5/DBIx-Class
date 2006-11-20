@@ -58,7 +58,7 @@ my $exceptions = {
     'DBIx::Class::Relationship::ProxyMethods'           => { skip => 1 },
     'DBIx::Class::ResultSetProxy'                       => { skip => 1 },
     'DBIx::Class::ResultSourceProxy'                    => { skip => 1 },
-    'DBIx::Class::Storage'                              => { skip => 1 },
+    'DBIx::Class::Storage::DBI'                         => { skip => 1 },
     'DBIx::Class::Storage::DBI::DB2'                    => { skip => 1 },
     'DBIx::Class::Storage::DBI::MSSQL'                  => { skip => 1 },
     'DBIx::Class::Storage::DBI::MultiDistinctEmulation' => { skip => 1 },
@@ -75,7 +75,7 @@ my $exceptions = {
 foreach my $module (@modules) {
   SKIP:
     {
-        skip "No real methods", 1 if ($exceptions->{$module}{skip});
+        skip "$module - No real methods", 1 if ($exceptions->{$module}{skip});
 
         # build parms up from ignore list
         my $parms = {};

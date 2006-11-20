@@ -1,7 +1,9 @@
 package DBIx::Class::Storage::Statistics;
 use strict;
+use warnings;
 
-use base qw/DBIx::Class::AccessorGroup Class::Data::Accessor/;
+use base qw/Class::Accessor::Grouped/;
+
 __PACKAGE__->mk_group_accessors(simple => qw/callback debugfh/);
 
 =head1 NAME
@@ -30,9 +32,10 @@ Returns a new L<DBIx::Class::Storage::Statistics> object.
 
 =cut
 sub new {
-    my $self = bless({}, ref($_[0]) || $_[0]);
+  my $self = {};
+  bless $self, (ref($_[0]) || $_[0]);
 
-    return $self;
+  return $self;
 }
 
 =head2 debugfh
@@ -40,7 +43,7 @@ sub new {
 Sets or retrieves the filehandle used for trace/debug output.  This should
 be an IO::Handle compatible object (only the C<print> method is used). Initially
 should be set to STDERR - although see information on the
-L<DBIX_CLASS_STORAGE_DBI_DEBUG> environment variable.
+L<DBIC_TRACE> environment variable.
 
 =head2 txn_begin
 
@@ -48,9 +51,9 @@ Called when a transaction begins.
 
 =cut
 sub txn_begin {
-    my $self = shift();
+  my $self = shift;
 
-    $self->debugfh->print("BEGIN WORK\n");
+  $self->debugfh->print("BEGIN WORK\n");
 }
 
 =head2 txn_rollback
@@ -59,9 +62,9 @@ Called when a transaction is rolled back.
 
 =cut
 sub txn_rollback {
-    my $self = shift();
+  my $self = shift;
 
-    $self->debugfh->print("ROLLBACK\n");
+  $self->debugfh->print("ROLLBACK\n");
 }
 
 =head2 txn_commit
@@ -70,9 +73,9 @@ Called when a transaction is committed.
 
 =cut
 sub txn_commit {
-    my $self = shift();
+  my $self = shift;
 
-    $self->debugfh->print("COMMIT\n");
+  $self->debugfh->print("COMMIT\n");
 }
 
 =head2 query_start
@@ -82,16 +85,17 @@ executed and subsequent arguments are the parameters used for the query.
 
 =cut
 sub query_start {
-    my $self = shift();
-    my $string = shift();
+  my ($self, $string, @bind) = @_;
 
-    if(defined($self->callback())) {
-      $string =~ m/^(\w+)/;
-      $self->callback()->($1, $string);
-      return;
-    }
+  my $message = "$string: ".join(', ', @bind)."\n";
 
-    $self->debugfh->print("$string: " . join(', ', @_) . "\n");
+  if(defined($self->callback)) {
+    $string =~ m/^(\w+)/;
+    $self->callback->($1, $message);
+    return;
+  }
+
+  $self->debugfh->print($message);
 }
 
 =head2 query_end
@@ -100,8 +104,7 @@ Called when a query finishes executing.  Has the same arguments as query_start.
 
 =cut
 sub query_end {
-    my $self = shift();
-    my $string = shift();
+  my ($self, $string) = @_;
 }
 
 1;

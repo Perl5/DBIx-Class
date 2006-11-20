@@ -6,8 +6,6 @@ use warnings;
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
 
-__PACKAGE__->load_components(qw/AccessorGroup/);
-
 __PACKAGE__->mk_group_accessors('simple' => 'result_source');
 
 =head1 NAME
@@ -34,16 +32,23 @@ Creates a new row object from column => value mappings passed as a hash ref
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
-  my $new = bless { _column_data => {} }, $class;
+
+  my $new = { _column_data => {} };
+  bless $new, $class;
+
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
+    if (my $source = delete $attrs->{-result_source}) {
+      $new->result_source($source);
+    }
     foreach my $k (keys %$attrs) {
       $new->throw_exception("No such column $k on $class")
         unless $class->has_column($k);
       $new->store_column($k => $attrs->{$k});
     }
   }
+
   return $new;
 }
 
@@ -51,9 +56,11 @@ sub new {
 
   $obj->insert;
 
-Inserts an object into the database if it isn't already in there. Returns
-the object itself. Requires the object's result source to be set, or the
-class to have a result_source_instance method.
+Inserts an object into the database if it isn't already in
+there. Returns the object itself. Requires the object's result source to
+be set, or the class to have a result_source_instance method. To insert
+an entirely new object into the database, use C<create> (see
+L<DBIx::Class::ResultSet/create>).
 
 =cut
 
@@ -93,7 +100,8 @@ sub in_storage {
   $obj->update;
 
 Must be run on an object that is already in the database; issues an SQL
-UPDATE query to commit any changes to the object to the db if required.
+UPDATE query to commit any changes to the object to the database if
+required.
 
 =cut
 
@@ -122,9 +130,14 @@ sub update {
 
   $obj->delete
 
-Deletes the object from the database. The object is still perfectly usable,
-but ->in_storage() will now return 0 and the object must re inserted using
-->insert() before ->update() can be used on it.
+Deletes the object from the database. The object is still perfectly
+usable, but C<-E<gt>in_storage()> will now return 0 and the object must
+reinserted using C<-E<gt>insert()> before C<-E(<gt>update()> can be used
+on it. If you delete an object in a class with a C<has_many>
+relationship, all the related objects will be deleted as well. To turn
+this behavior off, pass C<cascade_delete => 0> in the C<$attr>
+hashref. Any database-level cascade or restrict will take precedence
+over a DBIx-Class-based cascading delete. See also L<DBIx::Class::ResultSet/delete>.
 
 =cut
 
@@ -265,7 +278,10 @@ sub copy {
     delete $col_data->{$col}
       if $self->result_source->column_info($col)->{is_auto_increment};
   }
-  my $new = bless { _column_data => $col_data }, ref $self;
+
+  my $new = { _column_data => $col_data };
+  bless $new, ref $self;
+
   $new->result_source($self->result_source);
   $new->set_columns($changes);
   $new->insert;
@@ -310,11 +326,13 @@ Called by ResultSet to inflate a result from storage
 sub inflate_result {
   my ($class, $source, $me, $prefetch) = @_;
   #use Data::Dumper; print Dumper(@_);
-  my $new = bless({ result_source => $source,
-                    _column_data => $me,
-                    _in_storage => 1
-                  },
-                  ref $class || $class);
+  my $new = {
+    result_source => $source,
+    _column_data => $me,
+    _in_storage => 1
+  };
+  bless $new, (ref $class || $class);
+
   my $schema;
   foreach my $pre (keys %{$prefetch||{}}) {
     my $pre_val = $prefetch->{$pre};
@@ -460,4 +478,3 @@ Matt S. Trout <mst@shadowcatsystems.co.uk>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-

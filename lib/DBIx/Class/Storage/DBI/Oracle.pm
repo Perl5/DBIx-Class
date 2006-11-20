@@ -3,33 +3,34 @@ package DBIx::Class::Storage::DBI::Oracle;
 use strict;
 use warnings;
 
-use Carp qw/croak/;
+use Carp::Clan qw/^DBIx::Class/;
 
 use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
-sub last_insert_id {
-  my ($self,$source,$col) = @_;
+sub _dbh_last_insert_id {
+  my ($self, $dbh, $source, $col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
-  my $sql = "SELECT " . $seq . ".currval FROM DUAL";
-  my ($id) = $self->_dbh->selectrow_array($sql);
+  my $sql = 'SELECT ' . $seq . '.currval FROM DUAL';
+  my ($id) = $dbh->selectrow_array($sql);
   return $id;
 }
 
-sub get_autoinc_seq {
-  my ($self,$source,$col) = @_;
-    
+sub _dbh_get_autoinc_seq {
+  my ($self, $dbh, $source, $col) = @_;
+
   # look up the correct sequence automatically
-  my $dbh = $self->_dbh;
   my $sql = q{
     SELECT trigger_body FROM ALL_TRIGGERS t
     WHERE t.table_name = ?
     AND t.triggering_event = 'INSERT'
     AND t.status = 'ENABLED'
   };
+
   # trigger_body is a LONG
   $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
+
   my $sth = $dbh->prepare($sql);
   $sth->execute( uc($source->name) );
   while (my ($insert_trigger) = $sth->fetchrow_array) {
@@ -37,6 +38,19 @@ sub get_autoinc_seq {
   }
   croak "Unable to find a sequence INSERT trigger on table '" . $source->name . "'.";
 }
+
+sub get_autoinc_seq {
+  my ($self, $source, $col) = @_;
+    
+  $self->dbh_do($self->can('_dbh_get_autoinc_seq'), $source, $col);
+}
+
+sub columns_info_for {
+  my ($self, $table) = @_;
+
+  $self->next::method(uc($table));
+}
+
 
 1;
 

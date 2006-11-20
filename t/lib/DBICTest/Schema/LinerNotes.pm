@@ -14,5 +14,8 @@ DBICTest::Schema::LinerNotes->add_columns(
   },
 );
 DBICTest::Schema::LinerNotes->set_primary_key('liner_id');
+DBICTest::Schema::LinerNotes->belongs_to(
+  'cd', 'DBICTest::Schema::CD', 'liner_id'
+);
 
 1;

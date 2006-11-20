@@ -4,30 +4,35 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-use base qw/DBIx::Class::Componentised Class::Data::Accessor/;
+use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 
-sub mk_classdata { shift->mk_classaccessor(@_); }
+sub mk_classdata { 
+    my $self = shift;
+    $self->mk_group_accessors('inherited', $_[0]); 
+    $self->set_inherited(@_) if @_ > 1;
+}
+
 sub component_base_class { 'DBIx::Class' }
 
 # Always remember to do all digits for the version even if they're 0
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.06999_05';
+$VERSION = '0.07999_01';
 
 sub MODIFY_CODE_ATTRIBUTES {
-    my ($class,$code,@attrs) = @_;
-    $class->mk_classdata('__attr_cache' => {})
-      unless $class->can('__attr_cache');
-    $class->__attr_cache->{$code} = [@attrs];
-    return ();
+  my ($class,$code,@attrs) = @_;
+  $class->mk_classdata('__attr_cache' => {})
+    unless $class->can('__attr_cache');
+  $class->__attr_cache->{$code} = [@attrs];
+  return ();
 }
 
 sub _attr_cache {
-    my $self = shift;
-    my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
-    my $rest = eval { $self->next::method };
-    return $@ ? $cache : { %$cache, %$rest };
+  my $self = shift;
+  my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
+  my $rest = eval { $self->next::method };
+  return $@ ? $cache : { %$cache, %$rest };
 }
 
 1;
@@ -180,47 +185,53 @@ andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
 
+ash: Ash Berlin <ash@cpan.org>
+
 blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
 
-LTJake: Brian Cassidy <bricas@cpan.org>
+captainL: Luke Saunders <luke.saunders@gmail.com>
+
+castaway: Jess Robinson
 
 claco: Christopher H. Laco
 
 clkao: CL Kao
 
-typester: Daisuke Murase <typester@cpan.org>
-
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
-
-Numa: Dan Sully <daniel@cpan.org>
-
-dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
-
-ningu: David Kamholz <dkamholz@cpan.org>
-
-jesper: Jesper Krogh
-
-castaway: Jess Robinson
-
-quicksilver: Jules Bean
-
-jguenther: Justin Guenther <guentherj@agr.gc.ca>
-
-captainL: Luke Saunders <luke.saunders@gmail.com>
 
 draven: Marcus Ramberg <mramberg@cpan.org>
 
+dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
+
+dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
+
+gphat: Cory G Watson <gphat@cpan.org>
+
+jesper: Jesper Krogh
+
+jguenther: Justin Guenther <jguenther@cpan.org>
+
+konobi: Scott McWhirter
+
+LTJake: Brian Cassidy <bricas@cpan.org>
+
 nigel: Nigel Metheringham <nigelm@cpan.org>
+
+ningu: David Kamholz <dkamholz@cpan.org>
+
+Numa: Dan Sully <daniel@cpan.org>
 
 paulm: Paul Makepeace
 
+penguin: K J Cheetham
+
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
-sc_: Just Another Perl Hacker
+quicksilver: Jules Bean
 
-konobi: Scott McWhirter
+sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>
 
@@ -228,13 +239,16 @@ sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
 Todd Lipcon
 
+typester: Daisuke Murase <typester@cpan.org>
+
 wdh: Will Hawes
 
-gphat: Cory G Watson <gphat@cpan.org>
+willert: Sebastian Willert <willert@cpan.org>
+
+zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-

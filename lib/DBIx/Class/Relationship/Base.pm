@@ -67,7 +67,7 @@ Each key-value pair provided in a hashref will be used as C<AND>ed conditions.
 To add an C<OR>ed condition, use an arrayref of hashrefs. See the
 L<SQL::Abstract> documentation for more details.
 
-Valid attributes are as follows:
+In addition to standard result set attributes, the following attributes are also valid:
 
 =over 4
 
@@ -223,7 +223,7 @@ sub count_related {
   my $new_obj = $obj->new_related('relname', \%col_data);
 
 Create a new item of the related foreign class. If called on a
-L<DBIx::Class::Manual::Glossary/"Row"> object, it will magically 
+L<Row|DBIx::Class::Manual::Glossary/"Row"> object, it will magically 
 set any foreign key columns of the new object to the related primary 
 key columns of the source object for you.  The newly created item will 
 not be saved into your storage until you call L<DBIx::Class::Row/insert>
@@ -410,7 +410,7 @@ B<Currently only available for C<many-to-many> relationships.>
 
 =over 4
 
-=item Arguments: (@hashrefs |  @objs)
+=item Arguments: (\@hashrefs | \@objs)
 
 =back
 
@@ -418,17 +418,21 @@ B<Currently only available for C<many-to-many> relationships.>
   my @roles = $schema->resultset('Role')->search({ role => 
      { '-in' -> ['Fred', 'Barney'] } } );
 
-  $actor->set_roles(@roles);
-     # Replaces all of $actors previous roles with the two named
+  $actor->set_roles(\@roles);
+     # Replaces all of $actor's previous roles with the two named
 
-Replace all the related objects with the given list of objects. This does a
-C<delete> B<on the link table resultset> to remove the association between the
-current object and all related objects, then calls C<add_to_$rel> repeatedly to
-link all the new objects.
+Replace all the related objects with the given reference to a list of
+objects. This does a C<delete> B<on the link table resultset> to remove the
+association between the current object and all related objects, then calls
+C<add_to_$rel> repeatedly to link all the new objects.
 
 Note that this means that this method will B<not> delete any objects in the
 table on the right side of the relation, merely that it will delete the link
 between them.
+
+Due to a mistake in the original implementation of this method, it will also
+accept a list of objects or hash references. This is B<deprecated> and will be
+removed in a future version.
 
 =head2 remove_from_$rel
 

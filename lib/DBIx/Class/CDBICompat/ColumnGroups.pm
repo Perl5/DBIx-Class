@@ -64,7 +64,8 @@ sub find_column {
 
 sub __grouper {
   my ($class) = @_;
-  return bless({ class => $class}, 'DBIx::Class::CDBICompat::ColumnGroups::GrouperShim');
+  my $grouper = { class => $class };
+  return bless($grouper, 'DBIx::Class::CDBICompat::ColumnGroups::GrouperShim');
 }
 
 sub _find_columns {

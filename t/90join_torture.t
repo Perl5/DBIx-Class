@@ -7,7 +7,7 @@ use DBICTest;
 use Data::Dumper;
 my $schema = DBICTest->init_schema();
 
-plan tests => 17;
+plan tests => 19;
 
 my @rs1a_results = $schema->resultset("Artist")->search_related('cds', {title => 'Forkful of bees'}, {order_by => 'title'});
 is($rs1a_results[0]->title, 'Forkful of bees', "bare field conditions okay after search related");
@@ -23,7 +23,8 @@ cmp_ok(scalar @cds, '==', 1, "condition based on inherited join okay");
 
 #this is wrong, should accept me.title really
 my $rs3 = $rs2->search_related('cds');
-cmp_ok($rs3->count, '==', 9, "Nine artists returned");
+cmp_ok(scalar($rs3->all), '==', 27, "All cds for artist returned");
+cmp_ok($rs3->count, '==', 27, "All cds for artist returned via count");
 
 my $rs4 = $schema->resultset("CD")->search({ 'artist.artistid' => '1' }, { join => ['tracks', 'artist'], prefetch => 'artist' });
 my @rs4_results = $rs4->all;
@@ -80,5 +81,18 @@ ok($merge_rs_1->next, 'query on double joined rel runs okay');
 my $merge_rs_2 = $schema->resultset("Artist")->search({ }, { join => 'cds' })->search({ 'cds.cdid' => '2' }, { join => 'cds' });
 is(scalar(@{$merge_rs_2->{attrs}->{join}}), 1, 'only one join kept when inherited');
 my $merge_rs_2_cd = $merge_rs_2->next;
+
+eval {
+
+  my @rs_with_prefetch = $schema->resultset('TreeLike')
+                                ->search(
+    {'me.id' => 1},
+    {
+    prefetch => [ 'parent', { 'children' => 'parent' } ],
+    });
+
+};
+
+ok(!$@, "pathological prefetch ok");
 
 1;

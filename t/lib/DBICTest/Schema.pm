@@ -33,7 +33,9 @@ __PACKAGE__->load_classes(qw/
     'Producer',
     'CD_to_Producer',
   ),
-  qw/SelfRefAlias TreeLike TwoKeyTreeLike Event/
+  qw/SelfRefAlias TreeLike TwoKeyTreeLike Event NoPrimaryKey/,
+  qw/Collection CollectionObject TypedObject/,
+  qw/Owners BooksInLibrary/
 );
 
 1;
