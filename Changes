@@ -16,12 +16,22 @@ Revision history for DBIx::Class
         - columns_info_for is deprecated, and no longer runs automatically.
           You can make it work like before via
           __PACKAGE__->column_info_from_storage(1) for now
+        - Replaced DBIx::Class::AccessorGroup and Class::Data::Accessor with
+          Class::Accessor::Grouped. Only user noticible change is to 
+          table_class on ResultSourceProxy::Table (i.e. table objects in 
+          schemas) and, resultset_class and result_class in ResultSource. 
+          These accessors no longer automatically require the classes when
+          set.
 
-0.07003 2006-XX-XX XX:XX:XX
+0.07003 2006-11-16 11:52:00
+        - fix for rt.cpan.org #22740 (use $^X instead of hardcoded "perl")
+        - Tweaks to resultset to allow inflate_result to return an array
         - Fix UTF8Columns to work under Perl <= 5.8.0
         - Fix up new_result in ResultSet to avoid alias-related bugs
         - Made new/update/find handle 'single' rel accessor correctly
         - Fix NoBindVars to be safer and handle non-true bind values
+        - Don't blow up if columns_info_for returns useless results
+        - Documentation updates
 
 0.07002 2006-09-14 21:17:32
         - fix quote tests for recent versions of SQLite

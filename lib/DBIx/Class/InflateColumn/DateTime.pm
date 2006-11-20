@@ -33,6 +33,8 @@ one your code should continue to work without modification (though note
 that this feature is new as of 0.07, so it may not be perfect yet - bug
 reports to the list very much welcome).
 
+For more help with components, see L<DBIx::Class::Manual::Component>.
+
 =cut
 
 __PACKAGE__->load_components(qw/InflateColumn/);

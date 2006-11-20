@@ -125,7 +125,7 @@ The above belongs_to relationship could also have been specified as,
 
   My::DBIC::Schema::Book->belongs_to( author,
                                       'My::DBIC::Schema::Author',
-                                      { 'self.author' => 'foreign.author' } );
+                                      { 'foreign.author' => 'self.author' } );
 
 Creates a relationship where the calling class stores the foreign class's
 primary key in one (or more) of its columns. This relationship defaults to
@@ -308,9 +308,11 @@ And, for the reverse relationship, from Role to Actor:
 
   My::DBIC::Schema::Role->many_to_many( actors => 'actor_roles', 'actor' );
 
-Creates accessors bridging two relationships; not strictly a relationship in
-its own right, although the accessor will return a resultset or collection of
-objects just as a has_many would.
+Many_to_many is not strictly a relationship in its own right. Instead, it is
+a bridge between two resultsets which provide the same kind of convenience
+accessors as true relationships provide. Although the accessor will return a 
+resultset or collection of objects just like has_many does, you cannot call 
+C<$related_resultset> and similar methods which operate on true relationships.
 
 In the above example, ActorRoles is the link table class, and Role is the
 foreign class. The C<$link_rel_name> parameter is the name of the accessor for
