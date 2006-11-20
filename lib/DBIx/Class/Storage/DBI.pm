@@ -14,7 +14,7 @@ use IO::File;
 __PACKAGE__->mk_group_accessors(
   'simple' =>
     qw/_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid _conn_tid
-       disable_sth_caching cursor on_connect_do transaction_depth bind_attributes/
+       disable_sth_caching cursor on_connect_do transaction_depth/
 );
 
 BEGIN {
@@ -816,7 +816,8 @@ sub _prep_for_execute {
 }
 
 sub _execute {
-  my ($self, $op, $extra_bind, $ident, @args) = @_;
+  my ($self, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+  
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
   unshift(@bind, @$extra_bind) if $extra_bind;
   if ($self->debug) {
@@ -838,7 +839,6 @@ sub _execute {
     $rv = eval {
 	
       my $placeholder_index = 1; 
-      my $bind_attributes = $self->bind_attributes;
 
       foreach my $bound (@bind) {
 
@@ -857,7 +857,6 @@ sub _execute {
       }
       $sth->execute;
     };
-  $self->bind_attributes({});
   
     if ($@ || !$rv) {
       $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
@@ -873,12 +872,21 @@ sub _execute {
 }
 
 sub insert {
-  my ($self, $ident, $to_insert) = @_;
+  my ($self, $source, $to_insert) = @_;
+  
+  my $ident = $source->from; 
+  my $bind_attributes;
+  foreach my $column ($source->columns) {
+  
+    $bind_attributes->{$column} = $source->column_info($column)->{bind_attributes}
+     if defined $source->column_info($column)->{bind_attributes};
+  } 
+  
   $self->throw_exception(
     "Couldn't insert ".join(', ',
       map "$_ => $to_insert->{$_}", keys %$to_insert
     )." into ${ident}"
-  ) unless ($self->_execute('insert' => [], $ident, $to_insert));
+  ) unless ($self->_execute('insert' => [], $ident, $bind_attributes, $to_insert));
   return $to_insert;
 }
 
@@ -891,7 +899,9 @@ sub insert_bulk {
   my %colvalues;
   @colvalues{@$cols} = (0..$#$cols);
   my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
-# print STDERR "BIND".Dumper(\@bind);
+  
+  ##need this to support using bindtype=>columns for sql abstract
+  @bind = map {$_->[1]} @bind;
 
   if ($self->debug) {
       my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
@@ -931,11 +941,29 @@ sub insert_bulk {
 }
 
 sub update {
-  return shift->_execute('update' => [], @_);
+  my $self = shift @_;
+  my $source = shift @_;
+  
+  my $bind_attributes;
+  foreach my $column ($source->columns) {
+  
+    $bind_attributes->{$column} = $source->column_info($column)->{bind_attributes}
+     if defined $source->column_info($column)->{bind_attributes};
+  }
+
+  my $ident = $source->from;
+  return $self->_execute('update' => [], $ident, $bind_attributes, @_);
 }
 
+
 sub delete {
-  return shift->_execute('delete' => [], @_);
+  my $self = shift @_;
+  my $source = shift @_;
+  
+  my $bind_attrs = {}; ## If ever it's needed...
+  my $ident = $source->from;
+  
+  return $self->_execute('delete' => [], $ident, $bind_attrs, @_);
 }
 
 sub _select {
@@ -951,7 +979,8 @@ sub _select {
       ($order ? (order_by => $order) : ())
     };
   }
-  my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
+  my $bind_attrs = {}; ## Future support
+  my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
   if ($attrs->{software_limit} ||
       $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
         $attrs->{software_limit} = 1;

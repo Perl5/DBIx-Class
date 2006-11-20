@@ -75,15 +75,7 @@ sub insert {
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
 
-  my $bind_attributes;
-  foreach my $column ($self->result_source->columns) {
-  
-    $bind_attributes->{$column} = $self->result_source->column_info($column)->{bind_attributes}
-     if defined $self->result_source->column_info($column)->{bind_attributes};
-  }
-  $self->result_source->storage->bind_attributes($bind_attributes);
-  
-  $source->storage->insert($source->from, { $self->get_columns });
+  $source->storage->insert($source, { $self->get_columns });
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
@@ -125,16 +117,8 @@ sub update {
   $self->throw_exception("Cannot safely update a row in a PK-less table")
     if ! keys %$ident_cond;
 
-  my $bind_attributes;
-  foreach my $column ($self->result_source->columns) {
-  
-    $bind_attributes->{$column} = $self->result_source->column_info($column)->{bind_attributes}
-     if defined $self->result_source->column_info($column)->{bind_attributes};
-  }
-  $self->result_source->storage->bind_attributes($bind_attributes);
-  
   my $rows = $self->result_source->storage->update(
-               $self->result_source->from, \%to_update, $ident_cond);
+               $self->result_source, \%to_update, $ident_cond);
   if ($rows == 0) {
     $self->throw_exception( "Can't update ${self}: row not found" );
   } elsif ($rows > 1) {
@@ -172,7 +156,7 @@ sub delete {
               unless exists $self->{_column_data}{$column};
     }
     $self->result_source->storage->delete(
-      $self->result_source->from, $ident_cond);
+      $self->result_source, $ident_cond);
     $self->in_storage(undef);
   } else {
     $self->throw_exception("Can't do class delete without a ResultSource instance")

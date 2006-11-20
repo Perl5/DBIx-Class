@@ -13,13 +13,11 @@ __PACKAGE__->add_columns(
   'artistid' => {
     data_type => 'integer',
     is_auto_increment => 1,
-	bind_attributes => { testkey1 => 1},
   },
   'name' => {
     data_type => 'varchar',
     size      => 100,
     is_nullable => 1,
-	bind_attributes => {testkey2 =>2},
   },
 );
 __PACKAGE__->set_primary_key('artistid');
