@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use DBIx::Class::ResultSet;
+use DBIx::Class::ResultSourceHandle;
 use Carp::Clan qw/^DBIx::Class/;
 use Storable;
 
@@ -998,6 +999,20 @@ its class name.
 
   # from your schema...
   $schema->resultset('Books')->find(1);
+
+=head2 handle
+
+Obtain a new handle to this source. Returns an instance of a 
+L<DBIx::Class::ResultSourceHandle>.
+
+=cut
+
+sub handle {
+    return new DBIx::Class::ResultSourceHandle({
+        schema         => $_[0]->schema,
+        source_monkier => $_[0]->source_name
+    });
+}
 
 =head2 throw_exception
 

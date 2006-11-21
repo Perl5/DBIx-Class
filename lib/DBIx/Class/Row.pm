@@ -6,7 +6,7 @@ use warnings;
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
 
-__PACKAGE__->mk_group_accessors('simple' => 'result_source');
+__PACKAGE__->mk_group_accessors('simple' => qw/_source_handle/);
 
 =head1 NAME
 
@@ -39,8 +39,8 @@ sub new {
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
-    if (my $source = delete $attrs->{-result_source}) {
-      $new->result_source($source);
+    if (my $source = delete $attrs->{-source_handle}) {
+      $new->_source_handle($source);
     }
     foreach my $k (keys %$attrs) {
       $new->throw_exception("No such column $k on $class")
@@ -325,9 +325,17 @@ Called by ResultSet to inflate a result from storage
 
 sub inflate_result {
   my ($class, $source, $me, $prefetch) = @_;
-  #use Data::Dumper; print Dumper(@_);
+
+  my ($source_handle) = $source;
+
+  if ($source->isa('DBIx::Class::ResultSourceHandle')) {
+      $source = $source_handle->resolve
+  } else {
+      $source_handle = $source->handle
+  }
+
   my $new = {
-    result_source => $source,
+    _source_handle => $source_handle,
     _column_data => $me,
     _in_storage => 1
   };
@@ -426,6 +434,18 @@ sub is_column_changed {
   my $resultsource = $object->result_source;
 
 Accessor to the ResultSource this object was created from
+
+=cut
+
+sub result_source {
+    my $self = shift;
+
+    if (@_) {
+        $self->_source_handle($_[0]->handle);
+    } else {
+        $self->_source_handle->resolve;
+    }
+}
 
 =head2 register_column
 
