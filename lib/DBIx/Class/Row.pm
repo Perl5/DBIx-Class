@@ -67,9 +67,9 @@ L<DBIx::Class::ResultSet/create>).
 sub insert {
   my ($self) = @_;
   return $self if $self->in_storage;
-  $self->{result_source} ||= $self->result_source_instance
+  my $source = $self->result_source;
+  $source ||=  $self->result_source($self->result_source_instance)
     if $self->can('result_source_instance');
-  my $source = $self->{result_source};
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
   #use Data::Dumper; warn Dumper($self);
