@@ -1258,7 +1258,7 @@ sub new_result {
   my %new = (
     %{ $self->_remove_alias($values, $alias) },
     %{ $self->_remove_alias($collapsed_cond, $alias) },
-    -source_handle => $self->_source_handle,
+    _source_handle => $self->_source_handle,
   );
 
   my $obj = $self->result_class->new(\%new);
