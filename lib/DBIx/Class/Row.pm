@@ -30,7 +30,7 @@ Creates a new row object from column => value mappings passed as a hash ref
 =cut
 
 sub new {
-  my ($class, $attrs) = @_;
+  my ($class, $attrs, $source) = @_;
   $class = ref $class if ref $class;
 
   my $new = { _column_data => {} };
@@ -39,15 +39,15 @@ sub new {
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
-    if (my $source = delete $attrs->{-source_handle}) {
-      $new->_source_handle($source);
-    }
+
     foreach my $k (keys %$attrs) {
       $new->throw_exception("No such column $k on $class")
         unless $class->has_column($k);
       $new->store_column($k => $attrs->{$k});
     }
   }
+
+  $new->_source_handle($source) if $source;
 
   return $new;
 }
