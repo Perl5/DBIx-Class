@@ -7,10 +7,10 @@ use Storable;
 use base qw/DBIx::Class/;
 
 use overload
-    q/""/ => sub { __PACKAGE__ . ":" . shift->source_monkier; },
+    q/""/ => sub { __PACKAGE__ . ":" . shift->source_moniker; },
     fallback => 1;
 
-__PACKAGE__->mk_group_accessors('simple' => qw/schema source_monkier/);
+__PACKAGE__->mk_group_accessors('simple' => qw/schema source_moniker/);
 
 =head1 NAME
 
@@ -55,11 +55,11 @@ sub new {
 
 =head2 resolve
 
-Resolve the monkier into the actual ResultSource object
+Resolve the moniker into the actual ResultSource object
 
 =cut
 
-sub resolve { return $_[0]->schema->source($_[0]->source_monkier) }
+sub resolve { return $_[0]->schema->source($_[0]->source_moniker) }
 
 sub STORABLE_freeze {
     my ($self, $cloning) = @_;

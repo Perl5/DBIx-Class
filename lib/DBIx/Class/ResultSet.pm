@@ -1556,7 +1556,7 @@ sub related_resultset {
     my $rel_obj = $self->result_source->relationship_info($rel);
 
     $self->throw_exception(
-      "search_related: result source '" . $self->_source_handle->source_monkier .
+      "search_related: result source '" . $self->_source_handle->source_moniker .
         "' has no such relationship $rel")
       unless $rel_obj;
     

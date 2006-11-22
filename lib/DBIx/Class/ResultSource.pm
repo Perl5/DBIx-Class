@@ -1010,7 +1010,7 @@ L<DBIx::Class::ResultSourceHandle>.
 sub handle {
     return new DBIx::Class::ResultSourceHandle({
         schema         => $_[0]->schema,
-        source_monkier => $_[0]->source_name
+        source_moniker => $_[0]->source_name
     });
 }
 
