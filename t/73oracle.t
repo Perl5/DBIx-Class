@@ -13,7 +13,7 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
 
 plan tests => 6;
 
-DBICTest::Schema->compose_connection('OraTest' => $dsn, $user, $pass);
+DBICTest::Schema->compose_namespace('OraTest' => $dsn, $user, $pass);
 
 my $dbh = OraTest->schema->storage->dbh;
 

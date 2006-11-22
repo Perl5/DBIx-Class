@@ -30,7 +30,7 @@ plan tests => 4;
 
 DBICTest::Schema->storage(undef); # just in case?
 DBICTest::Schema->storage_type('::DBI::MySQLNoBindVars');
-DBICTest::Schema->compose_connection('MySQLTest' => $dsn, $user, $pass);
+DBICTest::Schema->compose_namespace('MySQLTest' => $dsn, $user, $pass);
 
 my $dbh = MySQLTest->schema->storage->dbh;
 

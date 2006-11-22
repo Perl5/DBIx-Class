@@ -17,7 +17,7 @@ plan skip_all => 'Set $ENV{DBICTEST_DB2_400_DSN}, _USER and _PASS to run this te
 
 plan tests => 6;
 
-DBICTest::Schema->compose_connection('DB2Test' => $dsn, $user, $pass);
+DBICTest::Schema->compose_namespace('DB2Test' => $dsn, $user, $pass);
 
 my $dbh = DB2Test->schema->storage->dbh;
 

@@ -447,7 +447,7 @@ sub load_namespaces {
   return;
 }
 
-=head2 compose_connection
+=head2 compose_connection (DEPRECATED)
 
 =over 4
 
@@ -456,6 +456,12 @@ sub load_namespaces {
 =item Return Value: $new_schema
 
 =back
+
+DEPRECATED. You probably wanted compose_namespace.
+
+Actually, you probably just wanted to call connect.
+
+=for hidden due to deprecation
 
 Calls L<DBIx::Class::Schema/"compose_namespace"> to the target namespace,
 calls L<DBIx::Class::Schema/connection> with @db_info on the new schema,
@@ -471,43 +477,50 @@ more information.
 
 =cut
 
-sub compose_connection {
-  my ($self, $target, @info) = @_;
-  my $base = 'DBIx::Class::ResultSetProxy';
-  eval "require ${base};";
-  $self->throw_exception
-    ("No arguments to load_classes and couldn't load ${base} ($@)")
-      if $@;
+{
+  my $warn;
 
-  if ($self eq $target) {
-    # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
-    foreach my $moniker ($self->sources) {
-      my $source = $self->source($moniker);
-      my $class = $source->result_class;
-      $self->inject_base($class, $base);
-      $class->mk_classdata(resultset_instance => $source->resultset);
-      $class->mk_classdata(class_resolver => $self);
+  sub compose_connection {
+    my ($self, $target, @info) = @_;
+
+    warn "compose_connection deprecated as of 0.08000" unless $warn++;
+
+    my $base = 'DBIx::Class::ResultSetProxy';
+    eval "require ${base};";
+    $self->throw_exception
+      ("No arguments to load_classes and couldn't load ${base} ($@)")
+        if $@;
+  
+    if ($self eq $target) {
+      # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
+      foreach my $moniker ($self->sources) {
+        my $source = $self->source($moniker);
+        my $class = $source->result_class;
+        $self->inject_base($class, $base);
+        $class->mk_classdata(resultset_instance => $source->resultset);
+        $class->mk_classdata(class_resolver => $self);
+      }
+      $self->connection(@info);
+      return $self;
     }
-    $self->connection(@info);
-    return $self;
+  
+    my $schema = $self->compose_namespace($target, $base);
+    {
+      no strict 'refs';
+      *{"${target}::schema"} = sub { $schema };
+    }
+  
+    $schema->connection(@info);
+    foreach my $moniker ($schema->sources) {
+      my $source = $schema->source($moniker);
+      my $class = $source->result_class;
+      #warn "$moniker $class $source ".$source->storage;
+      $class->mk_classdata(result_source_instance => $source);
+      $class->mk_classdata(resultset_instance => $source->resultset);
+      $class->mk_classdata(class_resolver => $schema);
+    }
+    return $schema;
   }
-
-  my $schema = $self->compose_namespace($target, $base);
-  {
-    no strict 'refs';
-    *{"${target}::schema"} = sub { $schema };
-  }
-
-  $schema->connection(@info);
-  foreach my $moniker ($schema->sources) {
-    my $source = $schema->source($moniker);
-    my $class = $source->result_class;
-    #warn "$moniker $class $source ".$source->storage;
-    $class->mk_classdata(result_source_instance => $source);
-    $class->mk_classdata(resultset_instance => $source->resultset);
-    $class->mk_classdata(class_resolver => $schema);
-  }
-  return $schema;
 }
 
 =head2 compose_namespace
