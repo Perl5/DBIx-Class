@@ -86,6 +86,7 @@ sub new {
 
   my ($source, $attrs) = @_;
   #weaken $source;
+  $attrs = { %{$attrs||{}} };
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
