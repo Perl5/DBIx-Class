@@ -54,6 +54,7 @@ sub on_connect
     my $vschema = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
     my $vtable = $vschema->resultset('Table');
     my $pversion;
+
     if(!$self->exists($vtable))
     {
 #        $vschema->storage->debug(1);
@@ -192,6 +193,8 @@ sub run_upgrade
 
     return 1;
 }
+
+1;
 
 =head1 NAME
 

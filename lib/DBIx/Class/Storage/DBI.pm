@@ -1153,7 +1153,7 @@ sub create_ddl_dir
       }
 
       my $prefilename = $schema->ddl_filename($db, $dir, $preversion);
-      print "Previous version $prefilename\n";
+#      print "Previous version $prefilename\n";
       if(!-e $prefilename)
       {
         warn("No previous schema file found ($prefilename)");
