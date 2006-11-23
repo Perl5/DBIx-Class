@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - mark DB.pm and compose_connection as deprecated
+        - switch tests to compose_namespace
+
 0.07999_01 2006-10-05 21:00:00
         - add connect_info option "disable_statement_caching"
         - create insert_bulk using execute_array, populate uses it
