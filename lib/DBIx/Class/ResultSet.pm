@@ -87,6 +87,7 @@ sub new {
   my ($source, $attrs) = @_;
   $source = $source->handle 
     unless $source->isa('DBIx::Class::ResultSourceHandle');
+  $attrs = { %{$attrs||{}} };
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;

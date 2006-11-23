@@ -9,7 +9,7 @@ my $schema = DBICTest->init_schema();
 
 BEGIN {
         eval "use DBD::SQLite";
-        plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 3);
+        plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 5);
 }                                                                               
 
 my $art = $schema->resultset("Artist")->find(1);
@@ -27,3 +27,6 @@ ok($art->name($name) eq $name, 'update');
 
 $art->discard_changes;
 
+ok($art->update({ artistid => 100 }), 'update allows pk mutation');
+
+is($art->artistid, 100, 'pk mutation applied');

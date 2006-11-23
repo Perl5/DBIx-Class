@@ -30,7 +30,7 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
 plan tests => 8;
 
 DBICTest::Schema->load_classes( 'Casecheck' );
-DBICTest::Schema->compose_connection('PgTest' => $dsn, $user, $pass);
+DBICTest::Schema->compose_namespace('PgTest' => $dsn, $user, $pass);
 
 my $dbh = PgTest->schema->storage->dbh;
 PgTest->schema->source("Artist")->name("testschema.artist");

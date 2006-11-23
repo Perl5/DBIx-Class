@@ -15,7 +15,7 @@ plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test
 
 plan tests => 5;
 
-DBICTest::Schema->compose_connection('MySQLTest' => $dsn, $user, $pass);
+DBICTest::Schema->compose_namespace('MySQLTest' => $dsn, $user, $pass);
 
 my $dbh = MySQLTest->schema->storage->dbh;
 

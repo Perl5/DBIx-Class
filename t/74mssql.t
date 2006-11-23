@@ -19,7 +19,7 @@ $storage_type = '::DBI::Sybase::MSSQL' if $dsn =~ /^dbi:Sybase:/;
 # Add more for others in the future when they exist (ODBC? ADO? JDBC?)
 
 DBICTest::Schema->storage_type($storage_type);
-DBICTest::Schema->compose_connection( 'MSSQLTest' => $dsn, $user, $pass );
+DBICTest::Schema->compose_namespace( 'MSSQLTest' => $dsn, $user, $pass );
 
 my $dbh = MSSQLTest->schema->storage->dbh;
 

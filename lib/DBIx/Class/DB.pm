@@ -9,6 +9,10 @@ use DBIx::Class::Storage::DBI;
 use DBIx::Class::ClassResolver::PassThrough;
 use DBI;
 
+unless ($INC{"DBIx/Class/CDBICompat.pm"}) {
+  warn "IMPORTANT: DBIx::Class::DB is DEPRECATED AND *WILL* BE REMOVED. DO NOT USE.\n";
+}
+
 __PACKAGE__->load_components(qw/ResultSetProxy/);
 
 {
@@ -23,29 +27,15 @@ sub storage { shift->schema_instance(@_)->storage; }
 
 DBIx::Class::DB - (DEPRECATED) classdata schema component
 
-=head1 SYNOPSIS
-
-  package MyDB;
-
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components('DB');
-
-  __PACKAGE__->connection('dbi:...', 'user', 'pass', \%attrs);
-
-  package MyDB::MyTable;
-
-  use base qw/MyDB/;
-  __PACKAGE__->load_components('Core'); # just load this in MyDB if it will
-                                        # always be there
-
-  ...
-
 =head1 DESCRIPTION
 
 This class is designed to support the Class::DBI connection-as-classdata style
 for DBIx::Class. You are *strongly* recommended to use a DBIx::Class::Schema
 instead; DBIx::Class::DB will not undergo new development and will be moved
-to being a CDBICompat-only component before 1.0.
+to being a CDBICompat-only component before 1.0. In order to discourage further
+use, documentation has been removed as of 0.08000
+
+=begin HIDE_BECAUSE_THIS_CLASS_IS_DEPRECATED
 
 =head1 METHODS
 
@@ -176,6 +166,8 @@ Alias for L<txn_commit>
 ****DEPRECATED****
 
 Alias for L<txn_rollback>
+
+=end HIDE_BECAUSE_THIS_CLASS_IS_DEPRECATED
 
 =head1 AUTHORS
 
