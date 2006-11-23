@@ -48,3 +48,10 @@ my $schema_upgrade = DBICVersion::Schema->connect("dbi:SQLite:$db_file");
 $schema_upgrade->upgrade();
 $tvrs = $schema_upgrade->resultset('Table');
 is($schema_upgrade->exists($tvrs), 1, 'Upgraded schema from DDL file');
+
+unlink($db_file) if -e $db_file;
+unlink($db_file . "-journal") if -e $db_file . "-journal";
+unlink('t/var/DBICVersion-Schema-1.0-SQLite.sql');
+unlink('t/var/DBICVersion-Schema-2.0-SQLite.sql');
+unlink('t/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
+unlink(<t/var/backup/*>);

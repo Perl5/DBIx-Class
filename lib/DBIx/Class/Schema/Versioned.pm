@@ -47,6 +47,7 @@ use Data::Dumper;
 
 __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
+__PACKAGE__->mk_classdata('backup_directory');
 
 sub on_connect
 {
@@ -150,7 +151,7 @@ sub backup
 {
     my ($self) = @_;
     ## Make each ::DBI::Foo do this
-    $self->storage->backup();
+    $self->storage->backup($self->backup_directory());
 }
 
 sub upgrade
@@ -209,6 +210,7 @@ DBIx::Class::Versioning - DBIx::Class::Schema plugin for Schema upgrades
 
   __PACKAGE__->load_components(qw/+DBIx::Class::Schema::Versioned/);
   __PACKAGE__->upgrade_directory('/path/to/upgrades/');
+  __PACKAGE__->backup_directory('/path/to/backups/');
 
   sub backup
   {
@@ -247,6 +249,11 @@ in L<DBIx::Class::Schema>. Return a false value if there is no upgrade
 path between the two versions supplied. By default, every change in
 your VERSION is regarded as needing an upgrade.
 
+The actual upgrade is called manually by calling C<upgrade> on your
+schema object. Code is run at connect time to determine whether an
+upgrade is needed, if so, a warning "Versions out of sync" is
+produced.
+
 NB: At the moment, SQLite upgrading is rather spotty, as SQL::Translator::Diff
 returns SQL statements that SQLite does not support.
 
@@ -282,6 +289,14 @@ Runs a set of SQL statements matching a passed in regular expression. The
 idea is that this method can be called any number of times from your
 C<upgrade> method, running whichever commands you specify via the
 regex in the parameter.
+
+=head2 upgrade_directory
+
+Use this to set the directory your upgrade files are stored in.
+
+=head2 backup_directory
+
+Use this to set the directory you want your backups stored in.
 
 =head1 AUTHOR
 

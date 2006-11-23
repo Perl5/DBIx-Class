@@ -37,10 +37,12 @@ our $VERSION = '2.0';
 
 __PACKAGE__->register_class('Table', 'DBICVersion::Table');
 __PACKAGE__->load_components('+DBIx::Class::Schema::Versioned');
+__PACKAGE__->upgrade_directory('t/var/');
+__PACKAGE__->backup_directory('t/var/backup/');
 
-sub upgrade_directory
-{
-    return 't/var/';
-}
+#sub upgrade_directory
+#{
+#    return 't/var/';
+#}
 
 1;
