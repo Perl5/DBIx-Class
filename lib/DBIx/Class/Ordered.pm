@@ -127,6 +127,7 @@ is this sibliing.
 sub first_sibling {
     my( $self ) = @_;
     return 0 if ($self->get_column($self->position_column())==1);
+
     return ($self->result_source->resultset->search(
         {
             $self->position_column => 1,
@@ -289,11 +290,13 @@ sub move_to {
         $self->_grouping_clause(),
     });
     my $op = ($from_position>$to_position) ? '+' : '-';
-    $rs->update({ $position_column => \"$position_column $op 1" });
+    $rs->update({ $position_column => \"$position_column $op 1" });  #" Sorry, GEdit bug
     $self->{_ORDERED_INTERNAL_UPDATE} = 1;
     $self->update({ $position_column => $to_position });
     return 1;
 }
+
+
 
 =head2 move_to_group
 
@@ -304,21 +307,35 @@ group, or to the end of the group if $position is undef.
 1 is returned on success, and 0 is returned if the object is
 already at the specified position of the specified group.
 
+$group should be supplied as a hashref of column => value pairs,
+e.g. if the grouping columns were 'user' and 'list',
+{ user => 'fred', list => 'work' }.
+
 =cut
 
 sub move_to_group {
     my( $self, $to_group, $to_position ) = @_;
+
+    # if we're given a string, turn it into a hashref
+    unless (ref $to_group eq 'HASH') {
+        $to_group = {($self->_grouping_columns)[0] => $to_group};
+    }
+
     my $position_column = $self->position_column;
-    my $grouping_column = $self->grouping_column;
+    #my @grouping_columns = $self->_grouping_columns;
 
     return 0 if ( ! defined($to_group) );
     return 0 if ( defined($to_position) and $to_position < 1 );
-    return 0 if ( $self->$grouping_column==$to_group and defined($to_position) and $self->$position_column==$to_position );
+    return 0 if ( $self->_is_in_group($to_group) 
+                    and ((not defined($to_position)) 
+                            or (defined($to_position) and $self->$position_column==$to_position)
+                        )
+                    );
 
     # Move to end of current group and adjust siblings
     $self->move_last;
 
-    $self->$grouping_column($to_group);
+    $self->set_columns($to_group);
     my $new_group_count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
     if (!defined($to_position) or $to_position > $new_group_count) {
         $self->{_ORDERED_INTERNAL_UPDATE} = 1;
@@ -331,7 +348,7 @@ sub move_to_group {
             $position_column => { -between => [ @between ] },
             $self->_grouping_clause(),
         });
-        $rs->update({ $position_column => \"$position_column + 1" });
+        $rs->update({ $position_column => \"$position_column + 1" }); #"
         $self->{_ORDERED_INTERNAL_UPDATE} = 1;
         $self->update({ $position_column => $to_position });
     }
@@ -378,10 +395,23 @@ sub update {
     $self->discard_changes;
 
     my $pos_col = $self->position_column;
-    my $grp_col = $self->grouping_column;
-    if (defined($grp_col) and exists $changes{$grp_col}) {
+
+    # is there a chance in hell of this working?
+    # if any of our grouping columns have been changed
+$DB::single=1;
+    if (grep {$_} map {exists $changes{$_}} $self->_grouping_columns ) {
+
+        # create new_group by taking the current group and inserting changes
+        my $new_group = {$self->_grouping_clause};
+        foreach my $col (keys %$new_group) {
+            if (exists $changes{$col}) {
+                $new_group->{$col} = $changes{$col};
+                delete $changes{$col}; # don't want to pass this on to next::method
+            }
+        }
+
         $self->move_to_group(
-            delete($changes{$grp_col}),
+            $new_group,
             exists($changes{$pos_col}) ? delete($changes{$pos_col}) : $self->$pos_col
         );
     }
@@ -412,20 +442,58 @@ need to use them.
 
 =head2 _grouping_clause
 
-This method returns a name=>value pare for limiting a search 
-by the collection column.  If the collection column is not 
+This method returns one or more name=>value pairs for limiting a search 
+by the grouping column(s).  If the grouping column is not 
 defined then this will return an empty list.
 
 =cut
-
 sub _grouping_clause {
     my( $self ) = @_;
-    my $col = $self->grouping_column();
-    if ($col) {
-        return ( $col => $self->get_column($col) );
-    }
-    return ();
+    return map {  $_ => $self->get_column($_)  } $self->_grouping_columns();
 }
+
+
+
+=head2 _get_grouping_columns
+
+Returns a list of the column names used for grouping, regardless of whether
+they were specified as an arrayref or a single string, and even returns ()
+if we're not grouping.
+
+=cut
+sub _grouping_columns {
+    my( $self ) = @_;
+    my $col = $self->grouping_column();
+    if (ref $col eq 'ARRAY') {
+        return @$col;
+    } elsif ($col) {
+        return ( $col );
+    } else {
+        return ();
+    }
+}
+
+
+
+=head2 _is_in_group($other)
+
+    $item->_is_in_group( {user => 'fred', list => 'work'} )
+
+Returns true if the object is in the group represented by hashref $other
+=cut
+sub _is_in_group {
+    my ($self, $other) = @_;
+    my $current = {$self->_grouping_clause};
+    return 0 unless (ref $other eq 'HASH') and (keys %$current == keys %$other);
+    for my $key (keys %$current) {
+        return 0 unless exists $other->{$key};
+        return 0 if $current->{$key} ne $other->{$key};
+    }
+    return 1;
+}
+
+
+
 
 1;
 __END__
