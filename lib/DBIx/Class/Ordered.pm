@@ -17,7 +17,26 @@ Create a table for your ordered data.
     name TEXT NOT NULL,
     position INTEGER NOT NULL
   );
-  # Optional: group_id INTEGER NOT NULL
+
+Optionally, add one or more columns to specify groupings, allowing you 
+to maintain independent ordered lists within one table:
+
+  CREATE TABLE items (
+    item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    group_id INTEGER NOT NULL
+  );
+
+Or even
+
+  CREATE TABLE items (
+    item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    group_id INTEGER NOT NULL,
+    other_group_id INTEGER NOT NULL
+  );
 
 In your Schema or DB class add Ordered to the top 
 of the component list.
@@ -29,7 +48,14 @@ each row.
 
   package My::Item;
   __PACKAGE__->position_column('position');
-  __PACKAGE__->grouping_column('group_id'); # optional
+
+If you are using one grouping column, specify it as follows:
+
+  __PACKAGE__->grouping_column('group_id');
+
+Or if you have multiple grouping columns:
+
+  __PACKAGE__->grouping_column(['group_id', 'other_group_id']);
 
 Thats it, now you can change the position of your objects.
 
@@ -54,6 +80,10 @@ Thats it, now you can change the position of your objects.
   $item->move_first();
   $item->move_last();
   $item->move_to( $position );
+  $item->move_to_group( 'groupname' );
+  $item->move_to_group( 'groupname', $position );
+  $item->move_to_group( {group_id=>'groupname', 'other_group_id=>'othergroupname'} );
+  $item->move_to_group( {group_id=>'groupname', 'other_group_id=>'othergroupname'}, $position );
 
 =head1 DESCRIPTION
 
@@ -307,9 +337,9 @@ group, or to the end of the group if $position is undef.
 1 is returned on success, and 0 is returned if the object is
 already at the specified position of the specified group.
 
-$group should be supplied as a hashref of column => value pairs,
-e.g. if the grouping columns were 'user' and 'list',
-{ user => 'fred', list => 'work' }.
+$group may be specified as a single scalar if only one 
+grouping column is in use, or as a hashref of column => value pairs
+if multiple grouping columns are in use.
 
 =cut
 
@@ -396,9 +426,7 @@ sub update {
 
     my $pos_col = $self->position_column;
 
-    # is there a chance in hell of this working?
     # if any of our grouping columns have been changed
-$DB::single=1;
     if (grep {$_} map {exists $changes{$_}} $self->_grouping_columns ) {
 
         # create new_group by taking the current group and inserting changes
@@ -457,8 +485,8 @@ sub _grouping_clause {
 =head2 _get_grouping_columns
 
 Returns a list of the column names used for grouping, regardless of whether
-they were specified as an arrayref or a single string, and even returns ()
-if we're not grouping.
+they were specified as an arrayref or a single string, and returns ()
+if there is no grouping.
 
 =cut
 sub _grouping_columns {
@@ -491,8 +519,6 @@ sub _is_in_group {
     }
     return 1;
 }
-
-
 
 
 1;

@@ -11,6 +11,7 @@ CREATE TABLE employee (
   employee_id INTEGER PRIMARY KEY NOT NULL,
   position integer NOT NULL,
   group_id integer,
+  group_id_2 integer,  
   name varchar(100)
 );
 
