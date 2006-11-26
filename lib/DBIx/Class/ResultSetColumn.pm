@@ -35,12 +35,8 @@ passed as params. Used internally by L<DBIx::Class::ResultSet/get_column>.
 sub new {
   my ($class, $rs, $column) = @_;
   $class = ref $class if ref $class;
-
-  my $object_ref = { _column => $column,
-		     _parent_resultset => $rs };
-  
-  my $new = bless $object_ref, $class;
-  $new->throw_exception("column must be supplied") unless ($column);
+  my $new = bless { _column => $column, _parent_resultset => $rs }, $class;
+  $new->throw_exception("column must be supplied") unless $column;
   return $new;
 }
 
@@ -64,7 +60,6 @@ one value.
 
 sub next {
   my $self = shift;
-    
   $self->{_resultset} = $self->{_parent_resultset}->search(undef, {select => [$self->{_column}], as => [$self->{_column}]}) unless ($self->{_resultset});
   my ($row) = $self->{_resultset}->cursor->next;
   return $row;
@@ -111,8 +106,7 @@ resultset (or C<undef> if there are none).
 =cut
 
 sub min {
-  my $self = shift;
-  return $self->func('MIN');
+  return shift->func('MIN');
 }
 
 =head2 max
@@ -133,8 +127,7 @@ resultset (or C<undef> if there are none).
 =cut
 
 sub max {
-  my $self = shift;
-  return $self->func('MAX');
+  return shift->func('MAX');
 }
 
 =head2 sum
@@ -155,8 +148,7 @@ the resultset. Use on varchar-like columns at your own risk.
 =cut
 
 sub sum {
-  my $self = shift;
-  return $self->func('SUM');
+  return shift->func('SUM');
 }
 
 =head2 func
@@ -180,9 +172,7 @@ value. Produces the following SQL:
 =cut
 
 sub func {
-  my $self = shift;
-  my $function = shift;
-
+  my ($self,$function) = @_;
   my ($row) = $self->{_parent_resultset}->search(undef, {select => {$function => $self->{_column}}, as => [$self->{_column}]})->cursor->next;
   return $row;
 }

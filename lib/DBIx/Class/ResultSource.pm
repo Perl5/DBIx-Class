@@ -48,9 +48,7 @@ sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
 
-  my $new = { %{$attrs || {}}, _resultset => undef };
-  bless $new, $class;
-
+  my $new = bless { %{$attrs || {}} }, $class;
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
   $new->{resultset_attributes} = { %{$new->{resultset_attributes} || {}} };
   $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];
@@ -969,12 +967,6 @@ sub resultset {
     'resultset does not take any arguments. If you want another resultset, '.
     'call it on the schema instead.'
   ) if scalar @_;
-
-  # disabled until we can figure out a way to do it without consistency issues
-  #
-  #return $self->{_resultset}
-  #  if ref $self->{_resultset} eq $self->resultset_class;
-  #return $self->{_resultset} =
 
   return $self->resultset_class->new(
     $self, $self->{resultset_attributes}
