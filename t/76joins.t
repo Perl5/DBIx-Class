@@ -16,7 +16,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 49 );
+        : ( tests => 50 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -343,3 +343,44 @@ like( $sql, qr/^SELECT tracks_2\.trackid/, "join not collapsed for search_relate
 
 $schema->storage->debug($orig_debug);
 $schema->storage->debugobj->callback(undef);
+
+# -------------
+#
+# Tests for multilevel has_many prefetch
+
+# artist resultsets - with and without prefetch
+my $art_rs = $schema->resultset('Artist');
+my $art_rs_pr = $art_rs->search(
+    {},
+    {
+        join     => [ { cds => ['tracks'] } ],
+        prefetch => [ { cds => ['tracks'] } ]
+    }
+);
+
+# This test does the same operation twice - once on a
+# set of items fetched from the db with no prefetch of has_many rels
+# The second prefetches 2 levels of has_many
+# We check things are the same by comparing the name or title
+# we build everything into a hash structure and compare the one
+# from each rs to see what differs
+
+sub make_hash_struc {
+    my $rs = shift;
+
+    my $struc = {};
+    foreach my $art ( $rs->all ) {
+        foreach my $cd ( $art->cds ) {
+            foreach my $track ( $cd->tracks ) {
+                $struc->{ $art->name }{ $cd->title }{ $track->title }++;
+            }
+        }
+    }
+    return $struc;
+}
+
+my $prefetch_result = make_hash_struc($art_rs_pr);
+my $nonpre_result   = make_hash_struc($art_rs);
+
+is_deeply( $prefetch_result, $nonpre_result,
+    'Compare 2 level prefetch result to non-prefetch result' );
