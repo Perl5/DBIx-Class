@@ -898,11 +898,16 @@ sub throw_exception {
 Attempts to deploy the schema to the current storage using L<SQL::Translator>.
 
 Note that this feature is currently EXPERIMENTAL and may not work correctly
-across all databases, or fully handle complex relationships.
+across all databases, or fully handle complex relationships. Saying that, it
+has been used successfully by many people, including the core dev team.
 
 See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>. The most
 common value for this would be C<< { add_drop_table => 1, } >> to have the SQL
 produced include a DROP TABLE statement for each table created.
+
+Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash 
+ref or an array ref, containing a list of source to deploy. If present, then 
+only the sources listed will get deployed.
 
 =cut
 
