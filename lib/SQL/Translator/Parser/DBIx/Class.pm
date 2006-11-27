@@ -50,7 +50,7 @@ sub parse {
     my @monikers = $dbixschema->sources;
     if ($limit_sources) {
         my $ref = ref $limit_sources || '';
-        die "'source' parameter must be an array or hash ref" unless $ref eq 'ARRAY' || ref eq 'HASH';
+        die "'sources' parameter must be an array or hash ref" unless $ref eq 'ARRAY' || ref eq 'HASH';
 
         # limit monikers to those specified in 
         my $sources;
