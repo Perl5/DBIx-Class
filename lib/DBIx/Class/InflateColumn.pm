@@ -85,7 +85,7 @@ sub _inflated_column {
 
 sub _deflated_column {
   my ($self, $col, $value) = @_;
-  return $value unless ref $value; # If it's not an object, don't touch it
+  return $value unless ref $value && blessed($value); # If it's not an object, don't touch it
   my $info = $self->column_info($col) or
     $self->throw_exception("No column info for $col");
   return $value unless exists $info->{_inflate_info};
