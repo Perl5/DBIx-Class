@@ -878,8 +878,9 @@ sub insert {
   my $bind_attributes;
   foreach my $column ($source->columns) {
   
-    $bind_attributes->{$column} = $source->column_info($column)->{bind_attributes}
-     if defined $source->column_info($column)->{bind_attributes};
+    my $data_type = $source->column_info($column)->{data_type} || '';
+    $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
+	 if $data_type;
   } 
   
   $self->throw_exception(
@@ -947,8 +948,9 @@ sub update {
   my $bind_attributes;
   foreach my $column ($source->columns) {
   
-    $bind_attributes->{$column} = $source->column_info($column)->{bind_attributes}
-     if defined $source->column_info($column)->{bind_attributes};
+    my $data_type = $source->column_info($column)->{data_type} || '';
+    $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
+	 if $data_type;
   }
 
   my $ident = $source->from;
@@ -1131,6 +1133,20 @@ Returns the database driver name.
 =cut
 
 sub sqlt_type { shift->dbh->{Driver}->{Name} }
+
+=head2 bind_attribute_by_data_type
+
+Given a datatype from column info, returns a database specific bind attribute for
+$dbh->bind_param($val,$attribute) or nothing if we will let the database planner
+just handle it.
+
+Generally only needed for special case column types, like bytea in postgres.
+
+=cut
+
+sub bind_attribute_by_data_type {
+    return;
+}
 
 =head2 create_ddl_dir (EXPERIMENTAL)
 
