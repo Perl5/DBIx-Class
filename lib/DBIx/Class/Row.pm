@@ -48,7 +48,7 @@ sub new {
       if (ref $attrs->{$key}) {
         my $info = $class->relationship_info($key);
         if ($info && $info->{attrs}{accessor}
-            && $info->{attrs}{accessor} eq 'single')
+          && $info->{attrs}{accessor} eq 'single')
         {
           $new->set_from_related($key, $attrs->{$key});        
           $related->{$key} = $attrs->{$key};
@@ -234,7 +234,7 @@ sub get_column {
   }
 
 Returns a true value if the column value has been loaded from the
-database (or set locally). 
+database (or set locally).
 
 =cut
 
@@ -258,7 +258,7 @@ sub get_columns {
   if (exists $self->{_inflated_column}) {
     foreach my $col (keys %{$self->{_inflated_column}}) {
       $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col}))
-       unless exists $self->{_column_data}{$col};
+        unless exists $self->{_column_data}{$col};
     }
   }
   return %{$self->{_column_data}};
