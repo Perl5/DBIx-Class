@@ -42,11 +42,31 @@ sub new {
     if (my $source = delete $attrs->{-result_source}) {
       $new->result_source($source);
     }
-    foreach my $k (keys %$attrs) {
-      $new->throw_exception("No such column $k on $class")
-        unless $class->has_column($k);
-      $new->store_column($k => $attrs->{$k});
+    
+    my ($related,$inflated);
+    foreach my $key (keys %$attrs) {
+      if (ref $attrs->{$key}) {
+        my $info = $class->relationship_info($key);
+        if ($info && $info->{attrs}{accessor}
+            && $info->{attrs}{accessor} eq 'single')
+        {
+          $new->set_from_related($key, $attrs->{$key});        
+          $related->{$key} = $attrs->{$key};
+          next;
+        }
+        elsif ($class->has_column($key)
+          && exists $class->column_info($key)->{_inflate_info})
+        {
+          $inflated->{$key} = $attrs->{$key};
+          next;
+        }
+      }
+      $new->throw_exception("No such column $key on $class")
+        unless $class->has_column($key);
+      $new->store_column($key => $attrs->{$key});          
     }
+    $new->{_relationship_data} = $related if $related;
+    $new->{_inflated_column} = $inflated if $inflated;
   }
 
   return $new;
@@ -111,7 +131,26 @@ sub update {
   my $ident_cond = $self->ident_condition;
   $self->throw_exception("Cannot safely update a row in a PK-less table")
     if ! keys %$ident_cond;
-  $self->set_columns($upd) if $upd;
+  if ($upd) {
+    foreach my $key (keys %$upd) {
+      if (ref $upd->{$key}) {
+        my $info = $self->relationship_info($key);
+        if ($info && $info->{attrs}{accessor}
+          && $info->{attrs}{accessor} eq 'single')
+        {
+          my $rel = delete $upd->{$key};
+          $self->set_from_related($key => $rel);
+          $self->{_relationship_data}{$key} = $rel;          
+        } 
+        elsif ($self->has_column($key)
+          && exists $self->column_info($key)->{_inflate_info})
+        {
+          $self->set_inflated_column($key, delete $upd->{$key});          
+        }
+      }
+    }
+    $self->set_columns($upd);    
+  }
   my %to_update = $self->get_dirty_columns;
   return $self unless keys %to_update;
   my $rows = $self->result_source->storage->update(
@@ -131,8 +170,8 @@ sub update {
   $obj->delete
 
 Deletes the object from the database. The object is still perfectly
-usable, but C<-E<gt>in_storage()> will now return 0 and the object must
-reinserted using C<-E<gt>insert()> before C<-E(<gt>update()> can be used
+usable, but C<< ->in_storage() >> will now return 0 and the object must
+reinserted using C<< ->insert() >> before C<< ->update() >> can be used
 on it. If you delete an object in a class with a C<has_many>
 relationship, all the related objects will be deleted as well. To turn
 this behavior off, pass C<cascade_delete => 0> in the C<$attr>
@@ -169,9 +208,10 @@ sub delete {
 
   my $val = $obj->get_column($col);
 
-Gets a column value from a row object. Currently, does not do
-any queries; the column must have already been fetched from
-the database and stored in the object.
+Gets a column value from a row object. Does not do any queries; the column 
+must have already been fetched from the database and stored in the object. If 
+there is an inflated value stored that has not yet been deflated, it is deflated
+when the method is invoked.
 
 =cut
 
@@ -179,6 +219,10 @@ sub get_column {
   my ($self, $column) = @_;
   $self->throw_exception( "Can't fetch data as class method" ) unless ref $self;
   return $self->{_column_data}{$column} if exists $self->{_column_data}{$column};
+  if (exists $self->{_inflated_column}{$column}) {
+    return $self->store_column($column,
+      $self->_deflated_column($column, $self->{_inflated_column}{$column}));   
+  }
   $self->throw_exception( "No such column '${column}'" ) unless $self->has_column($column);
   return undef;
 }
@@ -190,13 +234,14 @@ sub get_column {
   }
 
 Returns a true value if the column value has been loaded from the
-database (or set locally).
+database (or set locally). 
 
 =cut
 
 sub has_column_loaded {
   my ($self, $column) = @_;
   $self->throw_exception( "Can't call has_column data as class method" ) unless ref $self;
+  return 1 if exists $self->{_inflated_column}{$column};
   return exists $self->{_column_data}{$column};
 }
 
@@ -210,6 +255,12 @@ Does C<get_column>, for all column values at once.
 
 sub get_columns {
   my $self = shift;
+  if (exists $self->{_inflated_column}) {
+    foreach my $col (keys %{$self->{_inflated_column}}) {
+      $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col}))
+       unless exists $self->{_column_data}{$col};
+    }
+  }
   return %{$self->{_column_data}};
 }
 
