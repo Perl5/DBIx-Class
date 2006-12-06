@@ -232,9 +232,18 @@ sub _join_condition {
   if (ref $cond eq 'HASH') {
     my %j;
     for (keys %$cond) {
-      my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x;
+      my $v = $cond->{$_};
+      if (ref $v) {
+        # XXX no throw_exception() in this package and croak() fails with strange results
+        Carp::croak(ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
+            if ref($v) ne 'SCALAR';
+        $j{$_} = $v;
+      }
+      else {
+        my $x = '= '.$self->_quote($v); $j{$_} = \$x;
+      }
     };
-    return $self->_recurse_where(\%j);
+    return scalar($self->_recurse_where(\%j));
   } elsif (ref $cond eq 'ARRAY') {
     return join(' OR ', map { $self->_join_condition($_) } @$cond);
   } else {
