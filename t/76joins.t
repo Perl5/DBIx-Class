@@ -16,7 +16,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 50 );
+        : ( tests => 52 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -88,6 +88,26 @@ $match = 'person mother LEFT JOIN (person child RIGHT JOIN person father ON ('
        . 'child.mother_id )'
        ;
 is( $sa->_recurse_from(@j4), $match, 'join 4 (nested joins + join types) ok');
+
+my @j5 = (
+    { child => 'person' },
+    [ { father => 'person' }, { 'father.person_id' => \'!= child.father_id' }, ],
+    [ { mother => 'person' }, { 'mother.person_id' => 'child.mother_id' } ],
+);
+$match = 'person child JOIN person father ON ( father.person_id != '
+          . 'child.father_id ) JOIN person mother ON ( mother.person_id '
+          . '= child.mother_id )'
+          ;
+is( $sa->_recurse_from(@j5), $match, 'join 5 (SCALAR reference for ON statement) ok' );
+
+my @j6 = (
+    { child => 'person' },
+    [ { father => 'person' }, { 'father.person_id' => { '!=', '42' } }, ],
+    [ { mother => 'person' }, { 'mother.person_id' => 'child.mother_id' } ],
+);
+$match = qr/^\QHASH reference arguments are not supported in JOINS - try using \"..." instead\E/;
+eval { $sa->_recurse_from(@j6) };
+like( $@, $match, 'join 6 (HASH reference for ON statement dies) ok' );
 
 my $rs = $schema->resultset("CD")->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
