@@ -16,7 +16,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 52 );
+        : ( tests => 53 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
