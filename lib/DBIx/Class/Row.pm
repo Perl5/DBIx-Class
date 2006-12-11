@@ -117,7 +117,7 @@ sub update {
   my %to_update = $self->get_dirty_columns;
   return $self unless keys %to_update;
   my $rows = $self->result_source->storage->update(
-               $self->result_source->from, \%to_update, $ident_cond);
+               $self->result_source->from, \%to_update, $self->{_orig_ident} || $ident_cond);
   if ($rows == 0) {
     $self->throw_exception( "Can't update ${self}: row not found" );
   } elsif ($rows > 1) {
@@ -242,6 +242,18 @@ sub set_column {
   my $self = shift;
   my ($column) = @_;
   my $old = $self->get_column($column);
+
+  # save our original ident condition if
+  #  they modify any part of the PK
+  if(!$self->{_orig_ident}) {
+    foreach ($self->primary_columns) {
+       if($_ eq $column) {
+           $self->{_orig_ident} = $self->ident_condition;
+           last;
+       }
+    }
+  }
+
   my $ret = $self->store_column(@_);
   $self->{_dirty_columns}{$column} = 1
     if (defined $old ^ defined $ret) || (defined $old && $old ne $ret);
