@@ -97,6 +97,7 @@ sub insert {
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
+  undef $self->{_orig_ident};
   return $self;
 }
 
@@ -154,7 +155,7 @@ sub update {
   my %to_update = $self->get_dirty_columns;
   return $self unless keys %to_update;
   my $rows = $self->result_source->storage->update(
-               $self->result_source->from, \%to_update, $ident_cond);
+               $self->result_source->from, \%to_update, $self->{_orig_ident} || $ident_cond);
   if ($rows == 0) {
     $self->throw_exception( "Can't update ${self}: row not found" );
   } elsif ($rows > 1) {
@@ -162,6 +163,7 @@ sub update {
   }
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
+  undef $self->{_orig_ident};
   return $self;
 }
 
@@ -290,6 +292,7 @@ the column is marked as dirty for when you next call $obj->update.
 sub set_column {
   my $self = shift;
   my ($column) = @_;
+  $self->{_orig_ident} ||= $self->ident_condition;
   my $old = $self->get_column($column);
   my $ret = $self->store_column(@_);
   $self->{_dirty_columns}{$column} = 1

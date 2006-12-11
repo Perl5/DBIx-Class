@@ -16,7 +16,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 52 );
+        : ( tests => 53 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -363,6 +363,12 @@ like( $sql, qr/^SELECT tracks_2\.trackid/, "join not collapsed for search_relate
 
 $schema->storage->debug($orig_debug);
 $schema->storage->debugobj->callback(undef);
+
+$rs = $schema->resultset('Artist');
+$rs->create({ artistid => 4, name => 'Unknown singer-songwriter' });
+$rs->create({ artistid => 5, name => 'Emo 4ever' });
+@artists = $rs->search(undef, { prefetch => 'cds', order_by => 'artistid' });
+is(scalar @artists, 5, 'has_many prefetch with adjacent empty rows ok');
 
 # -------------
 #
