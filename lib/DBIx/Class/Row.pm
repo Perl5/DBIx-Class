@@ -79,6 +79,7 @@ sub insert {
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
+  undef $self->{_orig_ident};
   return $self;
 }
 
@@ -125,6 +126,7 @@ sub update {
   }
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
+  undef $self->{_orig_ident};
   return $self;
 }
 
@@ -241,19 +243,8 @@ the column is marked as dirty for when you next call $obj->update.
 sub set_column {
   my $self = shift;
   my ($column) = @_;
+  $self->{_orig_ident} ||= $self->ident_condition;
   my $old = $self->get_column($column);
-
-  # save our original ident condition if
-  #  they modify any part of the PK
-  if(!$self->{_orig_ident}) {
-    foreach ($self->primary_columns) {
-       if($_ eq $column) {
-           $self->{_orig_ident} = $self->ident_condition;
-           last;
-       }
-    }
-  }
-
   my $ret = $self->store_column(@_);
   $self->{_dirty_columns}{$column} = 1
     if (defined $old ^ defined $ret) || (defined $old && $old ne $ret);
