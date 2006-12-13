@@ -896,16 +896,14 @@ sub insert {
 ## scalar refs, or at least, all the same type as the first set, the statement is
 ## only prepped once.
 sub insert_bulk {
-  my ($self, $table, $cols, $data) = @_;
+  my ($self, $source, $cols, $data) = @_;
   my %colvalues;
+  my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
   my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
   
-  ##need this to support using bindtype=>columns for sql abstract
-  @bind = map {$_->[1]} @bind;
-
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
+      my @debug_bind = map { defined $_->[1] ? qq{$_->[1]} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
   my $sth = $self->sth($sql);
@@ -913,16 +911,72 @@ sub insert_bulk {
 #  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
   my $rv;
+  
   ## This must be an arrayref, else nothing works!
+  
   my $tuple_status = [];
-#  use Data::Dumper;
-#  print STDERR Dumper($data);
+  
+  ##use Data::Dumper;
+  ##print STDERR Dumper( $data, $sql, [@bind] );
+	
   if ($sth) {
+  
     my $time = time();
-    $rv = eval { $sth->execute_array({ ArrayTupleFetch => sub { my $values = shift @$data;  return if !$values; return [ @{$values}[@bind] ]},
-                                       ArrayTupleStatus => $tuple_status }) };
-# print STDERR Dumper($tuple_status);
-# print STDERR "RV: $rv\n";
+	
+    #$rv = eval {
+	#
+	#  $sth->execute_array({
+
+  	#    ArrayTupleFetch => sub {
+
+	#      my $values = shift @$data;  
+    #      return if !$values; 
+    #      return [ @{$values}[@bind] ];
+	#    },
+	  
+	#    ArrayTupleStatus => $tuple_status,
+	#  })
+    #};
+	
+	## Get the bind_attributes, if any exist
+	
+    my $bind_attributes;
+    foreach my $column ($source->columns) {
+  
+      my $data_type = $source->column_info($column)->{data_type} || '';
+	  
+      $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
+  	   if $data_type;
+    } 
+	
+	## Bind the values and execute
+	
+	$rv = eval {
+	
+     my $placeholder_index = 1; 
+
+        foreach my $bound (@bind) {
+
+          my $attributes = {};
+          my ($column_name, $data_index) = @$bound;
+
+          if( $bind_attributes ) {
+            $attributes = $bind_attributes->{$column_name}
+            if defined $bind_attributes->{$column_name};
+          }
+		  
+		  my @data = map { $_->[$data_index] } @$data;
+
+          $sth->bind_param_array( $placeholder_index, [@data], $attributes );
+          $placeholder_index++;
+      }
+	  $sth->execute_array( {ArrayTupleStatus => $tuple_status} );
+
+	};
+   
+#print STDERR Dumper($tuple_status);
+#print STDERR "RV: $rv\n";
+
     if ($@ || !defined $rv) {
       my $errors = '';
       foreach my $tuple (@$tuple_status)

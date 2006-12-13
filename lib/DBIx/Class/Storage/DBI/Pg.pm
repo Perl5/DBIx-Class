@@ -63,7 +63,7 @@ sub bind_attribute_by_data_type {
   };
  
   if( defined $bind_attributes->{$data_type} ) {
-    return $bind_attributes->{$data_type}
+    return $bind_attributes->{$data_type};
   }
   else {
     return;
