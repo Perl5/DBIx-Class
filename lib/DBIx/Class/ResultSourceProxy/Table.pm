@@ -53,7 +53,12 @@ sub table {
         source_name => undef,
     });
   }
-  $class->mk_classdata('result_source_instance' => $table);
+
+  $class->mk_classdata('result_source_instance')
+    unless $class->can('result_source_instance');
+
+  $class->result_source_instance($table);
+
   if ($class->can('schema_instance')) {
     $class =~ m/([^:]+)$/;
     $class->schema_instance->register_class($class, $class);

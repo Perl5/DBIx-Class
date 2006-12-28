@@ -255,7 +255,7 @@ ok($schema->storage(), 'Storage available');
   cmp_ok(@artsn, '==', 4, "Four artists returned");
   
   # make sure subclasses that don't set source_name are ok
-  ok($schema->source('ArtistSubclass', 'ArtistSubclass exists'));
+  ok($schema->source('ArtistSubclass'), 'ArtistSubclass exists');
 }
 
 my $newbook = $schema->resultset( 'Bookmark' )->find(1);

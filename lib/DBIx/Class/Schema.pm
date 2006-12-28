@@ -94,16 +94,34 @@ moniker.
 
 sub register_source {
   my ($self, $moniker, $source) = @_;
+
+  %$source = %{ $source->new( { %$source, source_name => $moniker }) };
+
   my %reg = %{$self->source_registrations};
   $reg{$moniker} = $source;
   $self->source_registrations(\%reg);
+
   $source->schema($self);
+
   weaken($source->{schema}) if ref($self);
   if ($source->result_class) {
     my %map = %{$self->class_mappings};
     $map{$source->result_class} = $moniker;
     $self->class_mappings(\%map);
   }
+}
+
+sub _unregister_source {
+    my ($self, $moniker) = @_;
+    my %reg = %{$self->source_registrations}; 
+
+    my $source = delete $reg{$moniker};
+    $self->source_registrations(\%reg);
+    if ($source->result_class) {
+        my %map = %{$self->class_mappings};
+        delete $map{$source->result_class};
+        $self->class_mappings(\%map);
+    }
 }
 
 =head2 class
@@ -276,9 +294,10 @@ sub load_classes {
           }
         }
         $class->ensure_class_loaded($comp_class);
-        $comp_class->source_name($comp) unless $comp_class->source_name;
 
-        push(@to_register, [ $comp_class->source_name, $comp_class ]);
+        $comp = $comp_class->source_name || $comp;
+#  $DB::single = 1;
+        push(@to_register, [ $comp, $comp_class ]);
       }
     }
   }

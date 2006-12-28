@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use DBIx::Class::ResultSet;
+use DBIx::Class::ResultSourceHandle;
 use Carp::Clan qw/^DBIx::Class/;
 use Storable;
 
@@ -11,11 +12,12 @@ use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships column_info_from_storage source_name
-  source_info/);
+  schema from _relationships column_info_from_storage source_info/);
 
 __PACKAGE__->mk_group_accessors('inherited' => qw/resultset_class
   result_class/);
+
+__PACKAGE__->mk_group_ro_accessors('simple' => qw/source_name/);
 
 =head1 NAME
 
@@ -990,6 +992,20 @@ its class name.
 
   # from your schema...
   $schema->resultset('Books')->find(1);
+
+=head2 handle
+
+Obtain a new handle to this source. Returns an instance of a 
+L<DBIx::Class::ResultSourceHandle>.
+
+=cut
+
+sub handle {
+    return new DBIx::Class::ResultSourceHandle({
+        schema         => $_[0]->schema,
+        source_moniker => $_[0]->source_name
+    });
+}
 
 =head2 throw_exception
 

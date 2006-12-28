@@ -6,7 +6,7 @@ use warnings;
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
 
-__PACKAGE__->mk_group_accessors('simple' => 'result_source');
+__PACKAGE__->mk_group_accessors('simple' => qw/_source_handle/);
 
 =head1 NAME
 
@@ -30,18 +30,17 @@ Creates a new row object from column => value mappings passed as a hash ref
 =cut
 
 sub new {
-  my ($class, $attrs) = @_;
+  my ($class, $attrs, $source) = @_;
   $class = ref $class if ref $class;
 
   my $new = { _column_data => {} };
   bless $new, $class;
 
+  $new->_source_handle($source) if $source;
+
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
-    if (my $source = delete $attrs->{-result_source}) {
-      $new->result_source($source);
-    }
     
     my ($related,$inflated);
     foreach my $key (keys %$attrs) {
@@ -65,6 +64,10 @@ sub new {
         unless $class->has_column($key);
       $new->store_column($key => $attrs->{$key});          
     }
+    if (my $source = delete $attrs->{-result_source}) {
+      $new->result_source($source);
+    }
+
     $new->{_relationship_data} = $related if $related;
     $new->{_inflated_column} = $inflated if $inflated;
   }
@@ -87,9 +90,9 @@ L<DBIx::Class::ResultSet/create>).
 sub insert {
   my ($self) = @_;
   return $self if $self->in_storage;
-  $self->{result_source} ||= $self->result_source_instance
+  my $source = $self->result_source;
+  $source ||=  $self->result_source($self->result_source_instance)
     if $self->can('result_source_instance');
-  my $source = $self->{result_source};
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
   #use Data::Dumper; warn Dumper($self);
@@ -379,9 +382,17 @@ Called by ResultSet to inflate a result from storage
 
 sub inflate_result {
   my ($class, $source, $me, $prefetch) = @_;
-  #use Data::Dumper; print Dumper(@_);
+
+  my ($source_handle) = $source;
+
+  if ($source->isa('DBIx::Class::ResultSourceHandle')) {
+      $source = $source_handle->resolve
+  } else {
+      $source_handle = $source->handle
+  }
+
   my $new = {
-    result_source => $source,
+    _source_handle => $source_handle,
     _column_data => $me,
     _in_storage => 1
   };
@@ -480,6 +491,18 @@ sub is_column_changed {
   my $resultsource = $object->result_source;
 
 Accessor to the ResultSource this object was created from
+
+=cut
+
+sub result_source {
+    my $self = shift;
+
+    if (@_) {
+        $self->_source_handle($_[0]->handle);
+    } else {
+        $self->_source_handle->resolve;
+    }
+}
 
 =head2 register_column
 

@@ -10,9 +10,10 @@ use Carp::Clan qw/^DBIx::Class/;
 use Data::Page;
 use Storable;
 use DBIx::Class::ResultSetColumn;
+use DBIx::Class::ResultSourceHandle;
 use base qw/DBIx::Class/;
 
-__PACKAGE__->mk_group_accessors('simple' => qw/result_source result_class/);
+__PACKAGE__->mk_group_accessors('simple' => qw/result_class _source_handle/);
 
 =head1 NAME
 
@@ -84,7 +85,8 @@ sub new {
   return $class->new_result(@_) if ref $class;
 
   my ($source, $attrs) = @_;
-  #weaken $source;
+  $source = $source->handle 
+    unless $source->isa('DBIx::Class::ResultSourceHandle');
   $attrs = { %{$attrs||{}} };
 
   if ($attrs->{page}) {
@@ -96,8 +98,8 @@ sub new {
   $attrs->{alias} ||= 'me';
 
   my $self = {
-    result_source => $source,
-    result_class => $attrs->{result_class} || $source->result_class,
+    _source_handle => $source,
+    result_class => $attrs->{result_class} || $source->resolve->result_class,
     cond => $attrs->{where},
     count => undef,
     pager => undef,
@@ -238,7 +240,7 @@ sub search_rs {
         : $having);
   }
 
-  my $rs = (ref $self)->new($self->result_source, $new_attrs);
+  my $rs = (ref $self)->new($self->_source_handle, $new_attrs);
   if ($rows) {
     $rs->set_cache($rows);
   }
@@ -742,7 +744,7 @@ sub next {
 sub _construct_object {
   my ($self, @row) = @_;
   my $info = $self->_collapse_result($self->{_attrs}{as}, \@row);
-  my @new = $self->result_class->inflate_result($self->result_source, @$info);
+  my @new = $self->result_class->inflate_result($self->_source_handle, @$info);
   @new = $self->{_attrs}{record_filter}->(@new)
     if exists $self->{_attrs}{record_filter};
   return @new;
@@ -918,7 +920,7 @@ sub _count { # Separated out so pager can get the full count
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
 
-  my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
+  my $tmp_rs = (ref $self)->new($self->_source_handle, $attrs);
   my ($count) = $tmp_rs->cursor->next;
   return $count;
 }
@@ -1229,7 +1231,7 @@ attribute set on the resultset (10 by default).
 
 sub page {
   my ($self, $page) = @_;
-  return (ref $self)->new($self->result_source, { %{$self->{attrs}}, page => $page });
+  return (ref $self)->new($self->_source_handle, { %{$self->{attrs}}, page => $page });
 }
 
 =head2 new_result
@@ -1259,11 +1261,9 @@ sub new_result {
   my %new = (
     %{ $self->_remove_alias($values, $alias) },
     %{ $self->_remove_alias($collapsed_cond, $alias) },
-    -result_source => $self->result_source,
   );
 
-  my $obj = $self->result_class->new(\%new);
-  return $obj;
+  return $self->result_class->new(\%new,$self->_source_handle);
 }
 
 # _collapse_cond
@@ -1557,7 +1557,7 @@ sub related_resultset {
     my $rel_obj = $self->result_source->relationship_info($rel);
 
     $self->throw_exception(
-      "search_related: result source '" . $self->result_source->name .
+      "search_related: result source '" . $self->_source_handle->source_moniker .
         "' has no such relationship $rel")
       unless $rel_obj;
     
@@ -1566,7 +1566,7 @@ sub related_resultset {
     my $join_count = $seen->{$rel};
     my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
 
-    $self->result_source->schema->resultset($rel_obj->{class})->search_rs(
+    $self->_source_handle->schema->resultset($rel_obj->{class})->search_rs(
       undef, {
         %{$self->{attrs}||{}},
         join => undef,
@@ -1607,7 +1607,7 @@ sub _resolved_attrs {
   return $self->{_attrs} if $self->{_attrs};
 
   my $attrs = { %{$self->{attrs}||{}} };
-  my $source = $self->{result_source};
+  my $source = $self->result_source;
   my $alias = $attrs->{alias};
 
   $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
@@ -1739,6 +1739,16 @@ sub _merge_attr {
   }
 }
 
+sub result_source {
+    my $self = shift;
+
+    if (@_) {
+        $self->_source_handle($_[0]->handle);
+    } else {
+        $self->_source_handle->resolve;
+    }
+}
+
 =head2 throw_exception
 
 See L<DBIx::Class::Schema/throw_exception> for details.
@@ -1747,7 +1757,7 @@ See L<DBIx::Class::Schema/throw_exception> for details.
 
 sub throw_exception {
   my $self=shift;
-  $self->result_source->schema->throw_exception(@_);
+  $self->_source_handle->schema->throw_exception(@_);
 }
 
 # XXX: FIXME: Attributes docs need clearing up
