@@ -408,21 +408,23 @@ sub _unique_queries {
     ? ($attrs->{key})
     : $self->result_source->unique_constraint_names;
 
+  my $where = $self->_collapse_cond($self->{attrs}{where} || {});
+  my $num_where = scalar keys %$where;
+
   my @unique_queries;
   foreach my $name (@constraint_names) {
     my @unique_cols = $self->result_source->unique_constraint_columns($name);
     my $unique_query = $self->_build_unique_query($query, \@unique_cols);
 
-    my $num_query = scalar keys %$unique_query;
-    next unless $num_query;
-
-    # XXX: Assuming quite a bit about $self->{attrs}{where}
     my $num_cols = scalar @unique_cols;
-    my $num_where = exists $self->{attrs}{where}
-      ? scalar keys %{ $self->{attrs}{where} }
-      : 0;
-    push @unique_queries, $unique_query
-      if $num_query + $num_where == $num_cols;
+    my $num_query = scalar keys %$unique_query;
+
+    my $total = $num_query + $num_where;
+    if ($num_query && ($num_query == $num_cols || $total == $num_cols)) {
+      # The query is either unique on its own or is unique in combination with
+      # the existing where clause
+      push @unique_queries, $unique_query;
+    }
   }
 
   return @unique_queries;

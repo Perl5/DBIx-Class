@@ -26,6 +26,9 @@ Revision history for DBIx::Class
           These accessors no longer automatically require the classes when
           set.
 
+0.07004
+        - fix find_related-based queries to correctly grep the unique key
+
 0.07003 2006-11-16 11:52:00
         - fix for rt.cpan.org #22740 (use $^X instead of hardcoded "perl")
         - Tweaks to resultset to allow inflate_result to return an array
