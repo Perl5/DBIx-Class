@@ -36,6 +36,8 @@ sub new {
   my $new = { _column_data => {} };
   bless $new, $class;
 
+  $new->_source_handle($source) if $source;
+
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
@@ -46,8 +48,6 @@ sub new {
       $new->store_column($k => $attrs->{$k});
     }
   }
-
-  $new->_source_handle($source) if $source;
 
   return $new;
 }
