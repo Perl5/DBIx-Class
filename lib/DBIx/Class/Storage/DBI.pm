@@ -817,7 +817,9 @@ sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, @args) = @_;
 
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
-  unshift(@bind, @$extra_bind) if $extra_bind;
+  unshift(@bind,
+    map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
+      if $extra_bind;
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
   return ($sql, @bind);
@@ -827,9 +829,12 @@ sub _execute {
   my ($self, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
   
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
-  unshift(@bind, @$extra_bind) if $extra_bind;
+  unshift(@bind,
+    map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
+      if $extra_bind;
   if ($self->debug) {
-      my @debug_bind = map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind;
+      my @debug_bind =
+        map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
   my $sth = eval { $self->sth($sql,$op) };
