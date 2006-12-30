@@ -21,6 +21,9 @@ sub _dbh_last_insert_id {
 sub last_insert_id {
   my ($self,$source,$col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
+  $self->throw_exception("could not fetch primary key for " . $source->name . ", could not "
+    . "get autoinc sequence for $col (check that table and column specifications are correct "
+    . "and in the correct case)") unless defined $seq;
   $self->dbh_do($self->can('_dbh_last_insert_id'), $seq);
 }
 

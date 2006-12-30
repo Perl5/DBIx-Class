@@ -5,6 +5,7 @@ use warnings;
 
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
+use File::Spec;
 require Module::Find;
 
 use base qw/DBIx::Class/;
@@ -93,16 +94,34 @@ moniker.
 
 sub register_source {
   my ($self, $moniker, $source) = @_;
+
+  %$source = %{ $source->new( { %$source, source_name => $moniker }) };
+
   my %reg = %{$self->source_registrations};
   $reg{$moniker} = $source;
   $self->source_registrations(\%reg);
+
   $source->schema($self);
+
   weaken($source->{schema}) if ref($self);
   if ($source->result_class) {
     my %map = %{$self->class_mappings};
     $map{$source->result_class} = $moniker;
     $self->class_mappings(\%map);
   }
+}
+
+sub _unregister_source {
+    my ($self, $moniker) = @_;
+    my %reg = %{$self->source_registrations}; 
+
+    my $source = delete $reg{$moniker};
+    $self->source_registrations(\%reg);
+    if ($source->result_class) {
+        my %map = %{$self->class_mappings};
+        delete $map{$source->result_class};
+        $self->class_mappings(\%map);
+    }
 }
 
 =head2 class
@@ -275,9 +294,10 @@ sub load_classes {
           }
         }
         $class->ensure_class_loaded($comp_class);
-        $comp_class->source_name($comp) unless $comp_class->source_name;
 
-        push(@to_register, [ $comp_class->source_name, $comp_class ]);
+        $comp = $comp_class->source_name || $comp;
+#  $DB::single = 1;
+        push(@to_register, [ $comp, $comp_class ]);
       }
     }
   }
@@ -447,7 +467,7 @@ sub load_namespaces {
   return;
 }
 
-=head2 compose_connection
+=head2 compose_connection (DEPRECATED)
 
 =over 4
 
@@ -456,6 +476,12 @@ sub load_namespaces {
 =item Return Value: $new_schema
 
 =back
+
+DEPRECATED. You probably wanted compose_namespace.
+
+Actually, you probably just wanted to call connect.
+
+=for hidden due to deprecation
 
 Calls L<DBIx::Class::Schema/"compose_namespace"> to the target namespace,
 calls L<DBIx::Class::Schema/connection> with @db_info on the new schema,
@@ -471,43 +497,50 @@ more information.
 
 =cut
 
-sub compose_connection {
-  my ($self, $target, @info) = @_;
-  my $base = 'DBIx::Class::ResultSetProxy';
-  eval "require ${base};";
-  $self->throw_exception
-    ("No arguments to load_classes and couldn't load ${base} ($@)")
-      if $@;
+{
+  my $warn;
 
-  if ($self eq $target) {
-    # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
-    foreach my $moniker ($self->sources) {
-      my $source = $self->source($moniker);
-      my $class = $source->result_class;
-      $self->inject_base($class, $base);
-      $class->mk_classdata(resultset_instance => $source->resultset);
-      $class->mk_classdata(class_resolver => $self);
+  sub compose_connection {
+    my ($self, $target, @info) = @_;
+
+    warn "compose_connection deprecated as of 0.08000" unless $warn++;
+
+    my $base = 'DBIx::Class::ResultSetProxy';
+    eval "require ${base};";
+    $self->throw_exception
+      ("No arguments to load_classes and couldn't load ${base} ($@)")
+        if $@;
+  
+    if ($self eq $target) {
+      # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
+      foreach my $moniker ($self->sources) {
+        my $source = $self->source($moniker);
+        my $class = $source->result_class;
+        $self->inject_base($class, $base);
+        $class->mk_classdata(resultset_instance => $source->resultset);
+        $class->mk_classdata(class_resolver => $self);
+      }
+      $self->connection(@info);
+      return $self;
     }
-    $self->connection(@info);
-    return $self;
+  
+    my $schema = $self->compose_namespace($target, $base);
+    {
+      no strict 'refs';
+      *{"${target}::schema"} = sub { $schema };
+    }
+  
+    $schema->connection(@info);
+    foreach my $moniker ($schema->sources) {
+      my $source = $schema->source($moniker);
+      my $class = $source->result_class;
+      #warn "$moniker $class $source ".$source->storage;
+      $class->mk_classdata(result_source_instance => $source);
+      $class->mk_classdata(resultset_instance => $source->resultset);
+      $class->mk_classdata(class_resolver => $schema);
+    }
+    return $schema;
   }
-
-  my $schema = $self->compose_namespace($target, $base);
-  {
-    no strict 'refs';
-    *{"${target}::schema"} = sub { $schema };
-  }
-
-  $schema->connection(@info);
-  foreach my $moniker ($schema->sources) {
-    my $source = $schema->source($moniker);
-    my $class = $source->result_class;
-    #warn "$moniker $class $source ".$source->storage;
-    $class->mk_classdata(result_source_instance => $source);
-    $class->mk_classdata(resultset_instance => $source->resultset);
-    $class->mk_classdata(class_resolver => $schema);
-  }
-  return $schema;
 }
 
 =head2 compose_namespace
@@ -646,6 +679,7 @@ sub connection {
   my $storage = $storage_class->new($self);
   $storage->connect_info(\@info);
   $self->storage($storage);
+  $self->on_connect() if($self->can('on_connect'));
   return $self;
 }
 
@@ -883,11 +917,16 @@ sub throw_exception {
 Attempts to deploy the schema to the current storage using L<SQL::Translator>.
 
 Note that this feature is currently EXPERIMENTAL and may not work correctly
-across all databases, or fully handle complex relationships.
+across all databases, or fully handle complex relationships. Saying that, it
+has been used successfully by many people, including the core dev team.
 
 See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>. The most
 common value for this would be C<< { add_drop_table => 1, } >> to have the SQL
 produced include a DROP TABLE statement for each table created.
+
+Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash 
+ref or an array ref, containing a list of source to deploy. If present, then 
+only the sources listed will get deployed.
 
 =cut
 
@@ -901,15 +940,40 @@ sub deploy {
 
 =over 4
 
-=item Arguments: \@databases, $version, $directory, $sqlt_args
+=item Arguments: \@databases, $version, $directory, $preversion, $sqlt_args
 
 =back
 
 Creates an SQL file based on the Schema, for each of the specified
-database types, in the given directory.
+database types, in the given directory. Given a previous version number,
+this will also create a file containing the ALTER TABLE statements to
+transform the previous schema into the current one. Note that these
+statements may contain DROP TABLE or DROP COLUMN statements that can
+potentially destroy data.
+
+The file names are created using the C<ddl_filename> method below, please
+override this method in your schema if you would like a different file
+name format. For the ALTER file, the same format is used, replacing
+$version in the name with "$preversion-$version".
+
+If no arguments are passed, then the following default values are used:
+
+=over 4
+
+=item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
+
+=item version    - $schema->VERSION
+
+=item directory  - './'
+
+=item preversion - <none>
+
+=back
 
 Note that this feature is currently EXPERIMENTAL and may not work correctly
 across all databases, or fully handle complex relationships.
+
+WARNING: Please check all SQL files created, before applying them.
 
 =cut
 
@@ -922,19 +986,30 @@ sub create_ddl_dir {
 
 =head2 ddl_filename (EXPERIMENTAL)
 
-  my $filename = $table->ddl_filename($type, $dir, $version)
+=over 4
 
-Creates a filename for a SQL file based on the table class name.  Not
-intended for direct end user use.
+=item Arguments: $directory, $database-type, $version, $preversion
+
+=back
+
+  my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
+
+This method is called by C<create_ddl_dir> to compose a file name out of
+the supplied directory, database type and version number. The default file
+name format is: C<$dir$schema-$version-$type.sql>.
+
+You may override this method in your schema if you wish to use a different
+format.
 
 =cut
 
 sub ddl_filename {
-    my ($self, $type, $dir, $version) = @_;
+    my ($self, $type, $dir, $version, $pversion) = @_;
 
     my $filename = ref($self);
     $filename =~ s/::/-/;
-    $filename = "$dir$filename-$version-$type.sql";
+    $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
+    $filename =~ s/$version/$pversion-$version/ if($pversion);
 
     return $filename;
 }

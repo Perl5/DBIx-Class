@@ -6,9 +6,7 @@ use warnings;
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
 
-__PACKAGE__->load_components(qw/AccessorGroup/);
-
-__PACKAGE__->mk_group_accessors('simple' => 'result_source');
+__PACKAGE__->mk_group_accessors('simple' => qw/_source_handle/);
 
 =head1 NAME
 
@@ -32,23 +30,46 @@ Creates a new row object from column => value mappings passed as a hash ref
 =cut
 
 sub new {
-  my ($class, $attrs) = @_;
+  my ($class, $attrs, $source) = @_;
   $class = ref $class if ref $class;
 
   my $new = { _column_data => {} };
   bless $new, $class;
 
+  $new->_source_handle($source) if $source;
+
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
+    
+    my ($related,$inflated);
+    foreach my $key (keys %$attrs) {
+      if (ref $attrs->{$key}) {
+        my $info = $class->relationship_info($key);
+        if ($info && $info->{attrs}{accessor}
+          && $info->{attrs}{accessor} eq 'single')
+        {
+          $new->set_from_related($key, $attrs->{$key});        
+          $related->{$key} = $attrs->{$key};
+          next;
+        }
+        elsif ($class->has_column($key)
+          && exists $class->column_info($key)->{_inflate_info})
+        {
+          $inflated->{$key} = $attrs->{$key};
+          next;
+        }
+      }
+      $new->throw_exception("No such column $key on $class")
+        unless $class->has_column($key);
+      $new->store_column($key => $attrs->{$key});          
+    }
     if (my $source = delete $attrs->{-result_source}) {
       $new->result_source($source);
     }
-    foreach my $k (keys %$attrs) {
-      $new->throw_exception("No such column $k on $class")
-        unless $class->has_column($k);
-      $new->store_column($k => $attrs->{$k});
-    }
+
+    $new->{_relationship_data} = $related if $related;
+    $new->{_inflated_column} = $inflated if $inflated;
   }
 
   return $new;
@@ -69,9 +90,9 @@ L<DBIx::Class::ResultSet/create>).
 sub insert {
   my ($self) = @_;
   return $self if $self->in_storage;
-  $self->{result_source} ||= $self->result_source_instance
+  my $source = $self->result_source;
+  $source ||=  $self->result_source($self->result_source_instance)
     if $self->can('result_source_instance');
-  my $source = $self->{result_source};
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
 
@@ -79,6 +100,7 @@ sub insert {
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
+  undef $self->{_orig_ident};
   return $self;
 }
 
@@ -110,15 +132,36 @@ required.
 sub update {
   my ($self, $upd) = @_;
   $self->throw_exception( "Not in database" ) unless $self->in_storage;
-  $self->set_columns($upd) if $upd;
-  my %to_update = $self->get_dirty_columns;
-  return $self unless keys %to_update;
   my $ident_cond = $self->ident_condition;
   $self->throw_exception("Cannot safely update a row in a PK-less table")
     if ! keys %$ident_cond;
 
+  if ($upd) {
+    foreach my $key (keys %$upd) {
+      if (ref $upd->{$key}) {
+        my $info = $self->relationship_info($key);
+        if ($info && $info->{attrs}{accessor}
+          && $info->{attrs}{accessor} eq 'single')
+        {
+          my $rel = delete $upd->{$key};
+          $self->set_from_related($key => $rel);
+          $self->{_relationship_data}{$key} = $rel;          
+        } 
+        elsif ($self->has_column($key)
+          && exists $self->column_info($key)->{_inflate_info})
+        {
+          $self->set_inflated_column($key, delete $upd->{$key});          
+        }
+      }
+    }
+    $self->set_columns($upd);    
+  }
+  my %to_update = $self->get_dirty_columns;
+  return $self unless keys %to_update;
   my $rows = $self->result_source->storage->update(
-               $self->result_source, \%to_update, $ident_cond);
+               $self->result_source, \%to_update,
+               $self->{_orig_ident} || $ident_cond
+             );
   if ($rows == 0) {
     $self->throw_exception( "Can't update ${self}: row not found" );
   } elsif ($rows > 1) {
@@ -126,6 +169,7 @@ sub update {
   }
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
+  undef $self->{_orig_ident};
   return $self;
 }
 
@@ -134,8 +178,8 @@ sub update {
   $obj->delete
 
 Deletes the object from the database. The object is still perfectly
-usable, but C<-E<gt>in_storage()> will now return 0 and the object must
-reinserted using C<-E<gt>insert()> before C<-E(<gt>update()> can be used
+usable, but C<< ->in_storage() >> will now return 0 and the object must
+reinserted using C<< ->insert() >> before C<< ->update() >> can be used
 on it. If you delete an object in a class with a C<has_many>
 relationship, all the related objects will be deleted as well. To turn
 this behavior off, pass C<cascade_delete => 0> in the C<$attr>
@@ -172,9 +216,10 @@ sub delete {
 
   my $val = $obj->get_column($col);
 
-Gets a column value from a row object. Currently, does not do
-any queries; the column must have already been fetched from
-the database and stored in the object.
+Gets a column value from a row object. Does not do any queries; the column 
+must have already been fetched from the database and stored in the object. If 
+there is an inflated value stored that has not yet been deflated, it is deflated
+when the method is invoked.
 
 =cut
 
@@ -182,6 +227,10 @@ sub get_column {
   my ($self, $column) = @_;
   $self->throw_exception( "Can't fetch data as class method" ) unless ref $self;
   return $self->{_column_data}{$column} if exists $self->{_column_data}{$column};
+  if (exists $self->{_inflated_column}{$column}) {
+    return $self->store_column($column,
+      $self->_deflated_column($column, $self->{_inflated_column}{$column}));   
+  }
   $self->throw_exception( "No such column '${column}'" ) unless $self->has_column($column);
   return undef;
 }
@@ -200,6 +249,7 @@ database (or set locally).
 sub has_column_loaded {
   my ($self, $column) = @_;
   $self->throw_exception( "Can't call has_column data as class method" ) unless ref $self;
+  return 1 if exists $self->{_inflated_column}{$column};
   return exists $self->{_column_data}{$column};
 }
 
@@ -213,6 +263,12 @@ Does C<get_column>, for all column values at once.
 
 sub get_columns {
   my $self = shift;
+  if (exists $self->{_inflated_column}) {
+    foreach my $col (keys %{$self->{_inflated_column}}) {
+      $self->store_column($col, $self->_deflated_column($col, $self->{_inflated_column}{$col}))
+        unless exists $self->{_column_data}{$col};
+    }
+  }
   return %{$self->{_column_data}};
 }
 
@@ -242,6 +298,7 @@ the column is marked as dirty for when you next call $obj->update.
 sub set_column {
   my $self = shift;
   my ($column) = @_;
+  $self->{_orig_ident} ||= $self->ident_condition;
   my $old = $self->get_column($column);
   my $ret = $self->store_column(@_);
   $self->{_dirty_columns}{$column} = 1
@@ -328,9 +385,17 @@ Called by ResultSet to inflate a result from storage
 
 sub inflate_result {
   my ($class, $source, $me, $prefetch) = @_;
-  #use Data::Dumper; print Dumper(@_);
+
+  my ($source_handle) = $source;
+
+  if ($source->isa('DBIx::Class::ResultSourceHandle')) {
+      $source = $source_handle->resolve
+  } else {
+      $source_handle = $source->handle
+  }
+
   my $new = {
-    result_source => $source,
+    _source_handle => $source_handle,
     _column_data => $me,
     _in_storage => 1
   };
@@ -429,6 +494,18 @@ sub is_column_changed {
   my $resultsource = $object->result_source;
 
 Accessor to the ResultSource this object was created from
+
+=cut
+
+sub result_source {
+    my $self = shift;
+
+    if (@_) {
+        $self->_source_handle($_[0]->handle);
+    } else {
+        $self->_source_handle->resolve;
+    }
+}
 
 =head2 register_column
 

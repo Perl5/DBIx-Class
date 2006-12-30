@@ -15,9 +15,9 @@ use lib qw(t/lib);
 
 use_ok('DBICTest');
 
-DBICTest->init_schema();
+my $schema = DBICTest->init_schema();
 
-my $sql_maker = DBICTest->schema->storage->sql_maker;
+my $sql_maker = $schema->storage->sql_maker;
 
 $sql_maker->quote_char('`');
 $sql_maker->name_sep('.');

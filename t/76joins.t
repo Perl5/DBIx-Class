@@ -16,7 +16,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 49 );
+        : ( tests => 53 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -88,6 +88,26 @@ $match = 'person mother LEFT JOIN (person child RIGHT JOIN person father ON ('
        . 'child.mother_id )'
        ;
 is( $sa->_recurse_from(@j4), $match, 'join 4 (nested joins + join types) ok');
+
+my @j5 = (
+    { child => 'person' },
+    [ { father => 'person' }, { 'father.person_id' => \'!= child.father_id' }, ],
+    [ { mother => 'person' }, { 'mother.person_id' => 'child.mother_id' } ],
+);
+$match = 'person child JOIN person father ON ( father.person_id != '
+          . 'child.father_id ) JOIN person mother ON ( mother.person_id '
+          . '= child.mother_id )'
+          ;
+is( $sa->_recurse_from(@j5), $match, 'join 5 (SCALAR reference for ON statement) ok' );
+
+my @j6 = (
+    { child => 'person' },
+    [ { father => 'person' }, { 'father.person_id' => { '!=', '42' } }, ],
+    [ { mother => 'person' }, { 'mother.person_id' => 'child.mother_id' } ],
+);
+$match = qr/^\QHASH reference arguments are not supported in JOINS - try using \"..." instead\E/;
+eval { $sa->_recurse_from(@j6) };
+like( $@, $match, 'join 6 (HASH reference for ON statement dies) ok' );
 
 my $rs = $schema->resultset("CD")->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
@@ -343,3 +363,50 @@ like( $sql, qr/^SELECT tracks_2\.trackid/, "join not collapsed for search_relate
 
 $schema->storage->debug($orig_debug);
 $schema->storage->debugobj->callback(undef);
+
+$rs = $schema->resultset('Artist');
+$rs->create({ artistid => 4, name => 'Unknown singer-songwriter' });
+$rs->create({ artistid => 5, name => 'Emo 4ever' });
+@artists = $rs->search(undef, { prefetch => 'cds', order_by => 'artistid' });
+is(scalar @artists, 5, 'has_many prefetch with adjacent empty rows ok');
+
+# -------------
+#
+# Tests for multilevel has_many prefetch
+
+# artist resultsets - with and without prefetch
+my $art_rs = $schema->resultset('Artist');
+my $art_rs_pr = $art_rs->search(
+    {},
+    {
+        join     => [ { cds => ['tracks'] } ],
+        prefetch => [ { cds => ['tracks'] } ]
+    }
+);
+
+# This test does the same operation twice - once on a
+# set of items fetched from the db with no prefetch of has_many rels
+# The second prefetches 2 levels of has_many
+# We check things are the same by comparing the name or title
+# we build everything into a hash structure and compare the one
+# from each rs to see what differs
+
+sub make_hash_struc {
+    my $rs = shift;
+
+    my $struc = {};
+    foreach my $art ( $rs->all ) {
+        foreach my $cd ( $art->cds ) {
+            foreach my $track ( $cd->tracks ) {
+                $struc->{ $art->name }{ $cd->title }{ $track->title }++;
+            }
+        }
+    }
+    return $struc;
+}
+
+my $prefetch_result = make_hash_struc($art_rs_pr);
+my $nonpre_result   = make_hash_struc($art_rs);
+
+is_deeply( $prefetch_result, $nonpre_result,
+    'Compare 2 level prefetch result to non-prefetch result' );

@@ -62,7 +62,6 @@ use Scalar::Util 'blessed';
 sub _find_syntax {
   my ($self, $syntax) = @_;
   my $dbhname = blessed($syntax) ?  $syntax->{Driver}{Name} : $syntax;
-#  print STDERR "Found DBH $syntax >$dbhname< ", $syntax->{Driver}->{Name}, "\n";
   if(ref($self) && $dbhname && $dbhname eq 'DB2') {
     return 'RowNumberOver';
   }
@@ -238,9 +237,18 @@ sub _join_condition {
   if (ref $cond eq 'HASH') {
     my %j;
     for (keys %$cond) {
-      my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x;
+      my $v = $cond->{$_};
+      if (ref $v) {
+        # XXX no throw_exception() in this package and croak() fails with strange results
+        Carp::croak(ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
+            if ref($v) ne 'SCALAR';
+        $j{$_} = $v;
+      }
+      else {
+        my $x = '= '.$self->_quote($v); $j{$_} = \$x;
+      }
     };
-    return $self->_recurse_where(\%j);
+    return scalar($self->_recurse_where(\%j));
   } elsif (ref $cond eq 'ARRAY') {
     return join(' OR ', map { $self->_join_condition($_) } @$cond);
   } else {
@@ -865,8 +873,9 @@ sub _execute {
     $self->throw_exception("'$sql' did not generate a statement.");
   }
   if ($self->debug) {
-     my @debug_bind = map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind; 
-      $self->debugobj->query_end($sql, @debug_bind);
+     my @debug_bind =
+       map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind; 
+     $self->debugobj->query_end($sql, @debug_bind);
   }
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
@@ -1206,7 +1215,7 @@ sub bind_attribute_by_data_type {
 
 =over 4
 
-=item Arguments: $schema \@databases, $version, $directory, $sqlt_args
+=item Arguments: $schema \@databases, $version, $directory, $preversion, $sqlt_args
 
 =back
 
@@ -1220,7 +1229,7 @@ across all databases, or fully handle complex relationships.
 
 sub create_ddl_dir
 {
-  my ($self, $schema, $databases, $version, $dir, $sqltargs) = @_;
+  my ($self, $schema, $databases, $version, $dir, $preversion, $sqltargs) = @_;
 
   if(!$dir || !-d $dir)
   {
@@ -1233,14 +1242,18 @@ sub create_ddl_dir
   $sqltargs = { ( add_drop_table => 1 ), %{$sqltargs || {}} };
 
   eval "use SQL::Translator";
-  $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
+  $self->throw_exception("Can't create a ddl file without SQL::Translator: $@") if $@;
 
-  my $sqlt = SQL::Translator->new($sqltargs);
+  my $sqlt = SQL::Translator->new({
+#      debug => 1,
+      add_drop_table => 1,
+  });
   foreach my $db (@$databases)
   {
     $sqlt->reset();
     $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
 #    $sqlt->parser_args({'DBIx::Class' => $schema);
+    $sqlt = $self->configure_sqlt($sqlt, $db);
     $sqlt->data($schema);
     $sqlt->producer($db);
 
@@ -1248,24 +1261,97 @@ sub create_ddl_dir
     my $filename = $schema->ddl_filename($db, $dir, $version);
     if(-e $filename)
     {
-      $self->throw_exception("$filename already exists, skipping $db");
+      warn("$filename already exists, skipping $db");
       next;
     }
-    open($file, ">$filename") 
-      or $self->throw_exception("Can't open $filename for writing ($!)");
+
     my $output = $sqlt->translate;
-#use Data::Dumper;
-#    print join(":", keys %{$schema->source_registrations});
-#    print Dumper($sqlt->schema);
     if(!$output)
     {
-      $self->throw_exception("Failed to translate to $db. (" . $sqlt->error . ")");
+      warn("Failed to translate to $db, skipping. (" . $sqlt->error . ")");
       next;
+    }
+    if(!open($file, ">$filename"))
+    {
+        $self->throw_exception("Can't open $filename for writing ($!)");
+        next;
     }
     print $file $output;
     close($file);
-  }
 
+    if($preversion)
+    {
+      eval "use SQL::Translator::Diff";
+      if($@)
+      {
+        warn("Can't diff versions without SQL::Translator::Diff: $@");
+        next;
+      }
+
+      my $prefilename = $schema->ddl_filename($db, $dir, $preversion);
+#      print "Previous version $prefilename\n";
+      if(!-e $prefilename)
+      {
+        warn("No previous schema file found ($prefilename)");
+        next;
+      }
+      #### We need to reparse the SQLite file we just wrote, so that 
+      ##   Diff doesnt get all confoosed, and Diff is *very* confused.
+      ##   FIXME: rip Diff to pieces!
+#      my $target_schema = $sqlt->schema;
+#      unless ( $target_schema->name ) {
+#        $target_schema->name( $filename );
+#      }
+      my @input;
+      push @input, {file => $prefilename, parser => $db};
+      push @input, {file => $filename, parser => $db};
+      my ( $source_schema, $source_db, $target_schema, $target_db ) = map {
+        my $file   = $_->{'file'};
+        my $parser = $_->{'parser'};
+
+        my $t = SQL::Translator->new;
+        $t->debug( 0 );
+        $t->trace( 0 );
+        $t->parser( $parser )            or die $t->error;
+        my $out = $t->translate( $file ) or die $t->error;
+        my $schema = $t->schema;
+        unless ( $schema->name ) {
+          $schema->name( $file );
+        }
+        ($schema, $parser);
+      } @input;
+
+      my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
+                                                    $target_schema, $db,
+                                                    {}
+                                                   );
+      my $difffile = $schema->ddl_filename($db, $dir, $version, $preversion);
+      print STDERR "Diff: $difffile: $db, $dir, $version, $preversion \n";
+      if(-e $difffile)
+      {
+        warn("$difffile already exists, skipping");
+        next;
+      }
+      if(!open $file, ">$difffile")
+      { 
+        $self->throw_exception("Can't write to $difffile ($!)");
+        next;
+      }
+      print $file $diff;
+      close($file);
+    }
+  }
+}
+
+sub configure_sqlt() {
+  my $self = shift;
+  my $tr = shift;
+  my $db = shift || $self->sqlt_type;
+  if ($db eq 'PostgreSQL') {
+    $tr->quote_table_names(0);
+    $tr->quote_field_names(0);
+  }
+  return $tr;
 }
 
 =head2 deployment_statements
@@ -1298,6 +1384,17 @@ sub deployment_statements {
   $type ||= $self->sqlt_type;
   $version ||= $schema->VERSION || '1.x';
   $dir ||= './';
+  my $filename = $schema->ddl_filename($type, $dir, $version);
+  if(-f $filename)
+  {
+      my $file;
+      open($file, "<$filename") 
+        or $self->throw_exception("Can't open $filename ($!)");
+      my @rows = <$file>;
+      close($file);
+      return join('', @rows);
+  }
+
   eval "use SQL::Translator";
   if(!$@)
   {
@@ -1305,26 +1402,20 @@ sub deployment_statements {
     $self->throw_exception($@) if $@;
     eval "use SQL::Translator::Producer::${type};";
     $self->throw_exception($@) if $@;
+
+    # sources needs to be a parser arg, but for simplicty allow at top level 
+    # coming in
+    $sqltargs->{parser_args}{sources} = delete $sqltargs->{sources}
+        if exists $sqltargs->{sources};
+
     my $tr = SQL::Translator->new(%$sqltargs);
     SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
     return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
   }
 
-  my $filename = $schema->ddl_filename($type, $dir, $version);
-  if(!-f $filename)
-  {
-#      $schema->create_ddl_dir([ $type ], $version, $dir, $sqltargs);
-      $self->throw_exception("No SQL::Translator, and no Schema file found, aborting deploy");
-      return;
-  }
-  my $file;
-  open($file, "<$filename") 
-      or $self->throw_exception("Can't open $filename ($!)");
-  my @rows = <$file>;
-  close($file);
+  $self->throw_exception("No SQL::Translator, and no Schema file found, aborting deploy");
+  return;
 
-  return join('', @rows);
-  
 }
 
 sub deploy {
