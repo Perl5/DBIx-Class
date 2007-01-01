@@ -8,7 +8,7 @@ use base qw/DBIx::Class::Row/;
 
 =head1 NAME
 
-DBIx::Class::InflateColumn - Automatically create objects from column data
+DBIx::Class::InflateColumn - Automatically create references from column data
 
 =head1 SYNOPSIS
 
@@ -20,12 +20,17 @@ DBIx::Class::InflateColumn - Automatically create objects from column data
 
 =head1 DESCRIPTION
 
-This component translates column data into objects, i.e. "inflating"
-the column data. It also "deflates" objects into an appropriate format
+This component translates column data into references, i.e. "inflating"
+the column data. It also "deflates" references into an appropriate format
 for the database.
 
 It can be used, for example, to automatically convert to and from
 L<DateTime> objects for your date and time fields.
+
+It will accept arrayrefs, hashrefs and blessed references (objects),
+but not scalarrefs. Scalar references are passed through to the
+database to deal with, to allow such settings as C< \'year + 1'> and
+C< \'DEFAULT' > to work.
 
 =head1 METHODS
 
@@ -85,7 +90,9 @@ sub _inflated_column {
 
 sub _deflated_column {
   my ($self, $col, $value) = @_;
-  return $value unless ref $value; # If it's not an object, don't touch it
+#  return $value unless ref $value && blessed($value); # If it's not an object, don't touch it
+  ## Leave scalar refs (ala SQL::Abstract literal SQL), untouched, deflate all other refs
+  return $value unless (ref $value && ref($value) ne 'SCALAR');
   my $info = $self->column_info($col) or
     $self->throw_exception("No column info for $col");
   return $value unless exists $info->{_inflate_info};
@@ -259,6 +266,8 @@ Matt S. Trout <mst@shadowcatsystems.co.uk>
 =head1 CONTRIBUTORS
 
 Daniel Westermann-Clark <danieltwc@cpan.org> (documentation)
+
+Jess Robinson <cpan@desert-island.demon.co.uk>
 
 =head1 LICENSE
 
