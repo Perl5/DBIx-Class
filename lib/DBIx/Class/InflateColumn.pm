@@ -132,14 +132,15 @@ analogous to L<DBIx::Class::Row/set_column>.
 =cut
 
 sub set_inflated_column {
-  my ($self, $col, $obj) = @_;
-  $self->set_column($col, $self->_deflated_column($col, $obj));
-  if (blessed $obj) {
-    $self->{_inflated_column}{$col} = $obj; 
+  my ($self, $col, $inflated) = @_;
+  $self->set_column($col, $self->_deflated_column($col, $inflated));
+#  if (blessed $inflated) {
+  if (ref $inflated && ref($inflated) ne 'SCALAR') {
+    $self->{_inflated_column}{$col} = $inflated; 
   } else {
     delete $self->{_inflated_column}{$col};      
   }
-  return $obj;
+  return $inflated;
 }
 
 =head2 store_inflated_column
@@ -152,14 +153,15 @@ as dirty. This is directly analogous to L<DBIx::Class::Row/store_column>.
 =cut
 
 sub store_inflated_column {
-  my ($self, $col, $obj) = @_;
-  unless (blessed $obj) {
+  my ($self, $col, $inflated) = @_;
+#  unless (blessed $inflated) {
+  unless (ref $inflated && ref($inflated) ne 'SCALAR') {
       delete $self->{_inflated_column}{$col};
-      $self->store_column($col => $obj);
-      return $obj;
+      $self->store_column($col => $inflated);
+      return $inflated;
   }
   delete $self->{_column_data}{$col};
-  return $self->{_inflated_column}{$col} = $obj;
+  return $self->{_inflated_column}{$col} = $inflated;
 }
 
 =head2 get_column
