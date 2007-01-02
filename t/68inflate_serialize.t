@@ -32,7 +32,7 @@ foreach my $serializer (@serializers) {
 
 plan (skip_all => "No suitable serializer found") unless $selected;
 
-plan (tests => 6);
+plan (tests => 8);
 DBICTest::Schema::Serialized->inflate_column( 'serialized',
     { inflate => $selected->{inflater},
       deflate => $selected->{deflater},
@@ -68,6 +68,13 @@ my $inflated;
 ok($entry->update ({ %{$complex1} }), 'hashref deflation ok');
 ok($inflated = $entry->serialized, 'hashref inflation ok');
 is_deeply($inflated, $complex1->{serialized}, 'inflated hash matches original');
+
+my $entry2 = $rs->create({ id => 2, serialized => ''});
+
+eval { $entry2->set_inflated_column('serialized', $complex1->{serialized}) };
+ok(!$@, 'set_inflated_column to a hashref');
+$entry2->update;
+is_deeply($entry2->serialized, $complex1->{serialized}, 'inflated hash matches original');
 
 ok($entry->update ({ %{$complex2} }), 'arrayref deflation ok');
 ok($inflated = $entry->serialized, 'arrayref inflation ok');
