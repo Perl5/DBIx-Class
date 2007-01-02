@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - add support to Ordered for multiple ordering columns
         - mark DB.pm and compose_connection as deprecated
         - switch tests to compose_namespace
 
