@@ -3,6 +3,7 @@ Revision history for DBIx::Class
         - add support to Ordered for multiple ordering columns
         - mark DB.pm and compose_connection as deprecated
         - switch tests to compose_namespace
+        - ResltClass::HashRefInflator added
 
 0.07999_01 2006-10-05 21:00:00
         - add connect_info option "disable_statement_caching"
