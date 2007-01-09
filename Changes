@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.07004 2007-01-09 21:52:00
         - fix find_related-based queries to correctly grep the unique key
         - fix InflateColumn to inflate/deflate all refs but scalar refs
 
