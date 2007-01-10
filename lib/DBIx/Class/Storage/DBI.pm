@@ -892,14 +892,8 @@ sub insert {
   my ($self, $source, $to_insert) = @_;
   
   my $ident = $source->from; 
-  my $bind_attributes;
-  foreach my $column ($source->columns) {
-  
-    my $data_type = $source->column_info($column)->{data_type} || '';
-    $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
-	 if $data_type;
-  } 
-  
+  my $bind_attributes = $self->source_bind_attributes($source);
+
   $self->throw_exception(
     "Couldn't insert ".join(', ',
       map "$_ => $to_insert->{$_}", keys %$to_insert
@@ -956,17 +950,9 @@ sub insert_bulk {
     #};
 	
 	## Get the bind_attributes, if any exist
-	
-    my $bind_attributes;
-    foreach my $column ($source->columns) {
-  
-      my $data_type = $source->column_info($column)->{data_type} || '';
-      $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
-  	   if $data_type;
-    } 
-	
+    my $bind_attributes = $self->source_bind_attributes($source);
+
 	## Bind the values and execute
-	
 	$rv = eval {
 	
      my $placeholder_index = 1; 
@@ -990,9 +976,6 @@ sub insert_bulk {
 
 	};
    
-#print STDERR Dumper($tuple_status);
-#print STDERR "RV: $rv\n";
-
     if ($@ || !defined $rv) {
       my $errors = '';
       foreach my $tuple (@$tuple_status)
@@ -1014,16 +997,9 @@ sub insert_bulk {
 sub update {
   my $self = shift @_;
   my $source = shift @_;
-  
-  my $bind_attributes;
-  foreach my $column ($source->columns) {
-  
-    my $data_type = $source->column_info($column)->{data_type} || '';
-    $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
-	 if $data_type;
-  }
-
+  my $bind_attributes = $self->source_bind_attributes($source);
   my $ident = $source->from;
+  
   return $self->_execute('update' => [], $ident, $bind_attributes, @_);
 }
 
@@ -1062,6 +1038,20 @@ sub _select {
     push @args, $attrs->{rows}, $attrs->{offset};
   }
   return $self->_execute(@args);
+}
+
+sub source_bind_attributes {
+  my ($self, $source) = @_;
+  
+  my $bind_attributes;
+  foreach my $column ($source->columns) {
+  
+    my $data_type = $source->column_info($column)->{data_type} || '';
+    $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
+	 if $data_type;
+  }
+
+  return $bind_attributes;
 }
 
 =head2 select
