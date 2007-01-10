@@ -42,7 +42,7 @@ PGTest::Artist->add_columns(
 	"media", { 
 	
 		data_type => "bytea", 
-		is_nullable => 0, 
+		is_nullable => 0,
 	},
 );
 
