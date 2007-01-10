@@ -856,19 +856,22 @@ sub _execute {
       foreach my $bound (@bind) {
 
         my $attributes = {};
-        my($column_name, $data) = @$bound;
+        my($column_name, @data) = @$bound;
 
         if( $bind_attributes ) {
           $attributes = $bind_attributes->{$column_name}
           if defined $bind_attributes->{$column_name};
-        }			
+        }
 
-        $data = ref $data ? ''.$data : $data; # stringify args
+		foreach my $data (@data)
+		{
+          $data = ref $data ? ''.$data : $data; # stringify args
 
-        $sth->bind_param($placeholder_index, $data, $attributes);
-        $placeholder_index++;
+          $sth->bind_param($placeholder_index, $data, $attributes);
+          $placeholder_index++;		  
+		}
       }
-      $sth->execute;
+      $sth->execute();
     };
   
     if ($@ || !$rv) {
@@ -958,7 +961,6 @@ sub insert_bulk {
     foreach my $column ($source->columns) {
   
       my $data_type = $source->column_info($column)->{data_type} || '';
-	  
       $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
   	   if $data_type;
     } 
