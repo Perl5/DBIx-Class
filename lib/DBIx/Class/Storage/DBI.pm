@@ -10,6 +10,7 @@ use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use IO::File;
+use Scalar::Util 'blessed';
 
 __PACKAGE__->mk_group_accessors(
   'simple' =>
@@ -828,6 +829,11 @@ sub _prep_for_execute {
 sub _execute {
   my ($self, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
   
+  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") )
+  {
+    $ident = $ident->from();
+  }
+  
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
   unshift(@bind,
     map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
@@ -898,7 +904,7 @@ sub insert {
     "Couldn't insert ".join(', ',
       map "$_ => $to_insert->{$_}", keys %$to_insert
     )." into ${ident}"
-  ) unless ($self->_execute('insert' => [], $ident, $bind_attributes, $to_insert));
+  ) unless ($self->_execute('insert' => [], $source, $bind_attributes, $to_insert));
   return $to_insert;
 }
 
@@ -998,9 +1004,8 @@ sub update {
   my $self = shift @_;
   my $source = shift @_;
   my $bind_attributes = $self->source_bind_attributes($source);
-  my $ident = $source->from;
   
-  return $self->_execute('update' => [], $ident, $bind_attributes, @_);
+  return $self->_execute('update' => [], $source, $bind_attributes, @_);
 }
 
 
@@ -1009,9 +1014,8 @@ sub delete {
   my $source = shift @_;
   
   my $bind_attrs = {}; ## If ever it's needed...
-  my $ident = $source->from;
   
-  return $self->_execute('delete' => [], $ident, $bind_attrs, @_);
+  return $self->_execute('delete' => [], $source, $bind_attrs, @_);
 }
 
 sub _select {
