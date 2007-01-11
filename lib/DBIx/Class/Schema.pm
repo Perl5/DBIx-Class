@@ -852,7 +852,7 @@ sub populate {
     }
     return @created;
   }
-  $self->storage->insert_bulk($self->source($name)->from, \@names, $data);
+  $self->storage->insert_bulk($self->source($name), \@names, $data);
 }
 
 =head2 exception_action
