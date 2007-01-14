@@ -4,6 +4,8 @@ Revision history for DBIx::Class
         - mark DB.pm and compose_connection as deprecated
         - switch tests to compose_namespace
         - ResltClass::HashRefInflator added
+        - Changed row and rs objects to not have direct handle to a source,
+          instead a (schema,source_name) tuple of type ResultSourceHandle
 
 0.07999_01 2006-10-05 21:00:00
         - add connect_info option "disable_statement_caching"
