@@ -5,6 +5,7 @@ use warnings;
 
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
+use Scalar::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_source_handle/);
 
@@ -27,7 +28,21 @@ derived from L<DBIx::Class::ResultSource> objects.
 
 Creates a new row object from column => value mappings passed as a hash ref
 
+Passing an object, or an arrayref of objects as a value will call
+L<DBIx::Class::Relationship::Base/set_from_related> for you. When
+passed a hashref or an arrayref of hashrefs as the value, these will
+be turned into objects via new_related, and treated as if you had
+passed objects.
+
 =cut
+
+## NB (JER) - this assumes set_from_related can cope with multi-rels
+## It needs to store the new objects somewhere, and call insert on that list later when insert is called on this object. We may need an accessor for these so the user can retrieve them, if just doing ->new().
+## This only works because DBIC doesnt yet care to check whether the new_related objects have been passed all their mandatory columns
+## When doing the later insert, we need to make sure the PKs are set.
+## using _relationship_data in new and funky ways..
+## check Relationship::CascadeActions and Relationship::Accessor for compat
+## tests!
 
 sub new {
   my ($class, $attrs, $source) = @_;
@@ -49,14 +64,39 @@ sub new {
         if ($info && $info->{attrs}{accessor}
           && $info->{attrs}{accessor} eq 'single')
         {
+          my $rel_obj = $attrs->{$key};
+          $new->{_rel_in_storage} = 1;
+          if(!Scalar::Util::blessed($rel_obj)) {
+            $rel_obj = $new->new_related($key, $rel_obj);
+            $new->{_rel_in_storage} = 0;
+          }
           $new->set_from_related($key, $attrs->{$key});        
           $related->{$key} = $attrs->{$key};
           next;
-        }
-        elsif ($class->has_column($key)
+        } elsif ($info && $info->{attrs}{accessor}
+            && $info->{attrs}{accessor} eq 'multi'
+            && ref $attrs->{$key} eq 'ARRAY') {
+            my $others = $attrs->{$key};
+            $new->{_rel_in_storage} = 1;
+            foreach my $rel_obj (@$others) {
+              if(!Scalar::Util::blessed($rel_obj)) {
+                $rel_obj = $new->new_related($key, $rel_obj);
+                $new->{_rel_in_storage} = 0;
+              }
+            }
+            $new->set_from_related($key, $others);
+            $related->{$key} = $attrs->{$key};
+        } elsif ($class->has_column($key)
           && exists $class->column_info($key)->{_inflate_info})
         {
-          $inflated->{$key} = $attrs->{$key};
+          ## 'filter' should disappear and get merged in with 'single' above!
+          my $rel_obj = $attrs->{$key};
+          $new->{_rel_in_storage} = 1;
+          if(!Scalar::Util::blessed($rel_obj)) {
+            $rel_obj = $new->new_related($key, $rel_obj);
+            $new->{_rel_in_storage} = 0;
+          }
+          $inflated->{$key} = $rel_obj;
           next;
         }
       }
@@ -96,7 +136,37 @@ sub insert {
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
   #use Data::Dumper; warn Dumper($self);
+  # Check if we stored uninserted relobjs here in new()
+  $source->storage->txn_begin if(!$self->{_rel_in_storage});
+
+  my %related_stuff = (%{$self->{_relationship_data} || {}}, 
+                       %{$self->{_inflated_column} || {}});
+  ## Should all be in relationship_data, but we need to get rid of the
+  ## 'filter' reltype..
+  foreach my $relname (keys %related_stuff) {
+    my $relobj = $related_stuff{$relname};
+    if(ref $relobj ne 'ARRAY') {
+      $relobj->insert() if(!$relobj->in_storage);
+      $self->set_from_related($relname, $relobj);
+    }
+  }
+
   $source->storage->insert($source->from, { $self->get_columns });
+
+  foreach my $relname (keys %related_stuff) {
+    my $relobj = $related_stuff{$relname};
+    if(ref $relobj eq 'ARRAY') {
+      foreach my $obj (@$relobj) {
+        my $info = $self->relationship_info($relname);
+        ## What about multi-col FKs ?
+        my $key = $1 if($info && (keys %{$info->{cond}})[0] =~ /^foreign\.(\w+)/);
+        $obj->set_from_related($key, $self);
+        $obj->insert() if(!$obj->in_storage);
+      }
+    }
+  }
+  $source->storage->txn_commit if(!$self->{_rel_in_storage});
+
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
