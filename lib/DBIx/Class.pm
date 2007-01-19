@@ -243,6 +243,8 @@ Todd Lipcon
 
 typester: Daisuke Murase <typester@cpan.org>
 
+victori: Victor Igumnov <victori@cpan.org>
+
 wdh: Will Hawes
 
 willert: Sebastian Willert <willert@cpan.org>
