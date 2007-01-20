@@ -6,6 +6,15 @@ use warnings;
 
 sub many_to_many {
   my ($class, $meth, $rel, $f_rel, $rel_attrs) = @_;
+
+  $class->throw_exception(
+    "missing relation in many-to-many"
+  ) unless $rel;
+
+  $class->throw_exception(
+    "missing foreign relation in many-to-many"
+  ) unless $f_rel;
+
   {
     no strict 'refs';
     no warnings 'redefine';

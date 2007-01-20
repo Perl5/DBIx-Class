@@ -10,11 +10,12 @@ use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use IO::File;
+use Scalar::Util 'blessed';
 
 __PACKAGE__->mk_group_accessors(
   'simple' =>
     qw/_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid _conn_tid
-       cursor on_connect_do transaction_depth/
+       disable_sth_caching cursor on_connect_do transaction_depth/
 );
 
 BEGIN {
@@ -58,9 +59,10 @@ WHERE ROW_NUM BETWEEN $offset AND $last
 
 # While we're at it, this should make LIMIT queries more efficient,
 #  without digging into things too deeply
+use Scalar::Util 'blessed';
 sub _find_syntax {
   my ($self, $syntax) = @_;
-  my $dbhname = ref $syntax eq 'HASH' ? $syntax->{Driver}{Name} : '';
+  my $dbhname = blessed($syntax) ?  $syntax->{Driver}{Name} : $syntax;
   if(ref($self) && $dbhname && $dbhname eq 'DB2') {
     return 'RowNumberOver';
   }
@@ -236,9 +238,18 @@ sub _join_condition {
   if (ref $cond eq 'HASH') {
     my %j;
     for (keys %$cond) {
-      my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x;
+      my $v = $cond->{$_};
+      if (ref $v) {
+        # XXX no throw_exception() in this package and croak() fails with strange results
+        Carp::croak(ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
+            if ref($v) ne 'SCALAR';
+        $j{$_} = $v;
+      }
+      else {
+        my $x = '= '.$self->_quote($v); $j{$_} = \$x;
+      }
     };
-    return $self->_recurse_where(\%j);
+    return scalar($self->_recurse_where(\%j));
   } elsif (ref $cond eq 'ARRAY') {
     return join(' OR ', map { $self->_join_condition($_) } @$cond);
   } else {
@@ -334,6 +345,11 @@ This can be set to an arrayref of literal sql statements, which will
 be executed immediately after making the connection to the database
 every time we [re-]connect.
 
+=item disable_sth_caching
+
+If set to a true value, this option will disable the caching of
+statement handles via L<DBI/prepare_cached>.
+
 =item limit_dialect 
 
 Sets the limit dialect. This is useful for JDBC-bridge among others
@@ -411,6 +427,7 @@ Examples:
           quote_char => q{`},
           name_sep => q{@},
           on_connect_do => ['SET search_path TO myschema,otherschema,public'],
+          disable_sth_caching => 1,
       },
     ]
   );
@@ -430,8 +447,10 @@ sub connect_info {
   my $info = [ @$info_arg ]; # copy because we can alter it
   my $last_info = $info->[-1];
   if(ref $last_info eq 'HASH') {
-    if(my $on_connect_do = delete $last_info->{on_connect_do}) {
-      $self->on_connect_do($on_connect_do);
+    for my $storage_opt (qw/on_connect_do disable_sth_caching/) {
+      if(my $value = delete $last_info->{$storage_opt}) {
+        $self->$storage_opt($value);
+      }
     }
     for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
       if(my $opt_val = delete $last_info->{$sql_maker_opt}) {
@@ -651,7 +670,7 @@ sub dbh {
 sub _sql_maker_args {
     my ($self) = @_;
     
-    return ( limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
+    return ( bindtype=>'columns', limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
 }
 
 sub sql_maker {
@@ -799,31 +818,177 @@ sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, @args) = @_;
 
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
-  unshift(@bind, @$extra_bind) if $extra_bind;
+  unshift(@bind,
+    map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
+      if $extra_bind;
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
   return ($sql, @bind);
 }
 
 sub _execute {
-  my $self = shift;
-
-  my ($sql, @bind) = $self->_prep_for_execute(@_);
-
+  my ($self, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+  
+  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") )
+  {
+    $ident = $ident->from();
+  }
+  
+  my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
+  unshift(@bind,
+    map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
+      if $extra_bind;
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
+      my @debug_bind =
+        map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
+  my $sth = eval { $self->sth($sql,$op) };
 
-  my $sth = $self->sth($sql);
+  if (!$sth || $@) {
+    $self->throw_exception(
+      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
+    );
+  }
 
   my $rv;
   if ($sth) {
     my $time = time();
-    $rv = eval { $sth->execute(@bind) };
+	
+    $rv = eval {
+	
+      my $placeholder_index = 1; 
 
+      foreach my $bound (@bind) {
+
+        my $attributes = {};
+        my($column_name, @data) = @$bound;
+
+        if( $bind_attributes ) {
+          $attributes = $bind_attributes->{$column_name}
+          if defined $bind_attributes->{$column_name};
+        }
+
+		foreach my $data (@data)
+		{
+          $data = ref $data ? ''.$data : $data; # stringify args
+
+          $sth->bind_param($placeholder_index, $data, $attributes);
+          $placeholder_index++;		  
+		}
+      }
+      $sth->execute();
+    };
+  
     if ($@ || !$rv) {
       $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
+    }
+  } else {
+    $self->throw_exception("'$sql' did not generate a statement.");
+  }
+  if ($self->debug) {
+     my @debug_bind =
+       map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind; 
+     $self->debugobj->query_end($sql, @debug_bind);
+  }
+  return (wantarray ? ($rv, $sth, @bind) : $rv);
+}
+
+sub insert {
+  my ($self, $source, $to_insert) = @_;
+  
+  my $ident = $source->from; 
+  my $bind_attributes = $self->source_bind_attributes($source);
+
+  $self->throw_exception(
+    "Couldn't insert ".join(', ',
+      map "$_ => $to_insert->{$_}", keys %$to_insert
+    )." into ${ident}"
+  ) unless ($self->_execute('insert' => [], $source, $bind_attributes, $to_insert));
+  return $to_insert;
+}
+
+## Still not quite perfect, and EXPERIMENTAL
+## Currently it is assumed that all values passed will be "normal", i.e. not 
+## scalar refs, or at least, all the same type as the first set, the statement is
+## only prepped once.
+sub insert_bulk {
+  my ($self, $source, $cols, $data) = @_;
+  my %colvalues;
+  my $table = $source->from;
+  @colvalues{@$cols} = (0..$#$cols);
+  my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
+  
+  if ($self->debug) {
+      my @debug_bind = map { defined $_->[1] ? qq{$_->[1]} : q{'NULL'} } @bind;
+      $self->debugobj->query_start($sql, @debug_bind);
+  }
+  my $sth = $self->sth($sql);
+
+#  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+
+  my $rv;
+  
+  ## This must be an arrayref, else nothing works!
+  
+  my $tuple_status = [];
+  
+  ##use Data::Dumper;
+  ##print STDERR Dumper( $data, $sql, [@bind] );
+	
+  if ($sth) {
+  
+    my $time = time();
+	
+    #$rv = eval {
+	#
+	#  $sth->execute_array({
+
+  	#    ArrayTupleFetch => sub {
+
+	#      my $values = shift @$data;  
+    #      return if !$values; 
+    #      return [ @{$values}[@bind] ];
+	#    },
+	  
+	#    ArrayTupleStatus => $tuple_status,
+	#  })
+    #};
+	
+	## Get the bind_attributes, if any exist
+    my $bind_attributes = $self->source_bind_attributes($source);
+
+	## Bind the values and execute
+	$rv = eval {
+	
+     my $placeholder_index = 1; 
+
+        foreach my $bound (@bind) {
+
+          my $attributes = {};
+          my ($column_name, $data_index) = @$bound;
+
+          if( $bind_attributes ) {
+            $attributes = $bind_attributes->{$column_name}
+            if defined $bind_attributes->{$column_name};
+          }
+		  
+		  my @data = map { $_->[$data_index] } @$data;
+
+          $sth->bind_param_array( $placeholder_index, [@data], $attributes );
+          $placeholder_index++;
+      }
+	  $sth->execute_array( {ArrayTupleStatus => $tuple_status} );
+
+	};
+   
+    if ($@ || !defined $rv) {
+      my $errors = '';
+      foreach my $tuple (@$tuple_status)
+      {
+          $errors .= "\n" . $tuple->[1] if(ref $tuple);
+      }
+      $self->throw_exception("Error executing '$sql': ".($@ || $errors));
     }
   } else {
     $self->throw_exception("'$sql' did not generate a statement.");
@@ -835,22 +1000,22 @@ sub _execute {
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
 
-sub insert {
-  my ($self, $ident, $to_insert) = @_;
-  $self->throw_exception(
-    "Couldn't insert ".join(', ',
-      map "$_ => $to_insert->{$_}", keys %$to_insert
-    )." into ${ident}"
-  ) unless ($self->_execute('insert' => [], $ident, $to_insert));
-  return $to_insert;
+sub update {
+  my $self = shift @_;
+  my $source = shift @_;
+  my $bind_attributes = $self->source_bind_attributes($source);
+  
+  return $self->_execute('update' => [], $source, $bind_attributes, @_);
 }
 
-sub update {
-  return shift->_execute('update' => [], @_);
-}
 
 sub delete {
-  return shift->_execute('delete' => [], @_);
+  my $self = shift @_;
+  my $source = shift @_;
+  
+  my $bind_attrs = {}; ## If ever it's needed...
+  
+  return $self->_execute('delete' => [], $source, $bind_attrs, @_);
 }
 
 sub _select {
@@ -866,7 +1031,8 @@ sub _select {
       ($order ? (order_by => $order) : ())
     };
   }
-  my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
+  my $bind_attrs = {}; ## Future support
+  my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
   if ($attrs->{software_limit} ||
       $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
         $attrs->{software_limit} = 1;
@@ -876,6 +1042,20 @@ sub _select {
     push @args, $attrs->{rows}, $attrs->{offset};
   }
   return $self->_execute(@args);
+}
+
+sub source_bind_attributes {
+  my ($self, $source) = @_;
+  
+  my $bind_attributes;
+  foreach my $column ($source->columns) {
+  
+    my $data_type = $source->column_info($column)->{data_type} || '';
+    $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
+	 if $data_type;
+  }
+
+  return $bind_attributes;
 }
 
 =head2 select
@@ -919,11 +1099,17 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 
 sub _dbh_sth {
   my ($self, $dbh, $sql) = @_;
+
   # 3 is the if_active parameter which avoids active sth re-use
-  $dbh->prepare_cached($sql, {}, 3) or
-    $self->throw_exception(
-      'no sth generated via sql (' . ($@ || $dbh->errstr) . "): $sql"
-    );
+  my $sth = $self->disable_sth_caching
+    ? $dbh->prepare($sql)
+    : $dbh->prepare_cached($sql, {}, 3);
+
+  $self->throw_exception(
+    'no sth generated via sql (' . ($@ || $dbh->errstr) . "): $sql"
+  ) if !$sth;
+
+  $sth;
 }
 
 sub sth {
@@ -1012,11 +1198,25 @@ Returns the database driver name.
 
 sub sqlt_type { shift->dbh->{Driver}->{Name} }
 
+=head2 bind_attribute_by_data_type
+
+Given a datatype from column info, returns a database specific bind attribute for
+$dbh->bind_param($val,$attribute) or nothing if we will let the database planner
+just handle it.
+
+Generally only needed for special case column types, like bytea in postgres.
+
+=cut
+
+sub bind_attribute_by_data_type {
+    return;
+}
+
 =head2 create_ddl_dir (EXPERIMENTAL)
 
 =over 4
 
-=item Arguments: $schema \@databases, $version, $directory, $sqlt_args
+=item Arguments: $schema \@databases, $version, $directory, $preversion, $sqlt_args
 
 =back
 
@@ -1030,7 +1230,7 @@ across all databases, or fully handle complex relationships.
 
 sub create_ddl_dir
 {
-  my ($self, $schema, $databases, $version, $dir, $sqltargs) = @_;
+  my ($self, $schema, $databases, $version, $dir, $preversion, $sqltargs) = @_;
 
   if(!$dir || !-d $dir)
   {
@@ -1043,14 +1243,18 @@ sub create_ddl_dir
   $sqltargs = { ( add_drop_table => 1 ), %{$sqltargs || {}} };
 
   eval "use SQL::Translator";
-  $self->throw_exception("Can't deploy without SQL::Translator: $@") if $@;
+  $self->throw_exception("Can't create a ddl file without SQL::Translator: $@") if $@;
 
-  my $sqlt = SQL::Translator->new($sqltargs);
+  my $sqlt = SQL::Translator->new({
+#      debug => 1,
+      add_drop_table => 1,
+  });
   foreach my $db (@$databases)
   {
     $sqlt->reset();
     $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
 #    $sqlt->parser_args({'DBIx::Class' => $schema);
+    $sqlt = $self->configure_sqlt($sqlt, $db);
     $sqlt->data($schema);
     $sqlt->producer($db);
 
@@ -1058,24 +1262,97 @@ sub create_ddl_dir
     my $filename = $schema->ddl_filename($db, $dir, $version);
     if(-e $filename)
     {
-      $self->throw_exception("$filename already exists, skipping $db");
+      warn("$filename already exists, skipping $db");
       next;
     }
-    open($file, ">$filename") 
-      or $self->throw_exception("Can't open $filename for writing ($!)");
+
     my $output = $sqlt->translate;
-#use Data::Dumper;
-#    print join(":", keys %{$schema->source_registrations});
-#    print Dumper($sqlt->schema);
     if(!$output)
     {
-      $self->throw_exception("Failed to translate to $db. (" . $sqlt->error . ")");
+      warn("Failed to translate to $db, skipping. (" . $sqlt->error . ")");
       next;
+    }
+    if(!open($file, ">$filename"))
+    {
+        $self->throw_exception("Can't open $filename for writing ($!)");
+        next;
     }
     print $file $output;
     close($file);
-  }
 
+    if($preversion)
+    {
+      eval "use SQL::Translator::Diff";
+      if($@)
+      {
+        warn("Can't diff versions without SQL::Translator::Diff: $@");
+        next;
+      }
+
+      my $prefilename = $schema->ddl_filename($db, $dir, $preversion);
+#      print "Previous version $prefilename\n";
+      if(!-e $prefilename)
+      {
+        warn("No previous schema file found ($prefilename)");
+        next;
+      }
+      #### We need to reparse the SQLite file we just wrote, so that 
+      ##   Diff doesnt get all confoosed, and Diff is *very* confused.
+      ##   FIXME: rip Diff to pieces!
+#      my $target_schema = $sqlt->schema;
+#      unless ( $target_schema->name ) {
+#        $target_schema->name( $filename );
+#      }
+      my @input;
+      push @input, {file => $prefilename, parser => $db};
+      push @input, {file => $filename, parser => $db};
+      my ( $source_schema, $source_db, $target_schema, $target_db ) = map {
+        my $file   = $_->{'file'};
+        my $parser = $_->{'parser'};
+
+        my $t = SQL::Translator->new;
+        $t->debug( 0 );
+        $t->trace( 0 );
+        $t->parser( $parser )            or die $t->error;
+        my $out = $t->translate( $file ) or die $t->error;
+        my $schema = $t->schema;
+        unless ( $schema->name ) {
+          $schema->name( $file );
+        }
+        ($schema, $parser);
+      } @input;
+
+      my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
+                                                    $target_schema, $db,
+                                                    {}
+                                                   );
+      my $difffile = $schema->ddl_filename($db, $dir, $version, $preversion);
+      print STDERR "Diff: $difffile: $db, $dir, $version, $preversion \n";
+      if(-e $difffile)
+      {
+        warn("$difffile already exists, skipping");
+        next;
+      }
+      if(!open $file, ">$difffile")
+      { 
+        $self->throw_exception("Can't write to $difffile ($!)");
+        next;
+      }
+      print $file $diff;
+      close($file);
+    }
+  }
+}
+
+sub configure_sqlt() {
+  my $self = shift;
+  my $tr = shift;
+  my $db = shift || $self->sqlt_type;
+  if ($db eq 'PostgreSQL') {
+    $tr->quote_table_names(0);
+    $tr->quote_field_names(0);
+  }
+  return $tr;
 }
 
 =head2 deployment_statements
@@ -1108,6 +1385,17 @@ sub deployment_statements {
   $type ||= $self->sqlt_type;
   $version ||= $schema->VERSION || '1.x';
   $dir ||= './';
+  my $filename = $schema->ddl_filename($type, $dir, $version);
+  if(-f $filename)
+  {
+      my $file;
+      open($file, "<$filename") 
+        or $self->throw_exception("Can't open $filename ($!)");
+      my @rows = <$file>;
+      close($file);
+      return join('', @rows);
+  }
+
   eval "use SQL::Translator";
   if(!$@)
   {
@@ -1115,26 +1403,20 @@ sub deployment_statements {
     $self->throw_exception($@) if $@;
     eval "use SQL::Translator::Producer::${type};";
     $self->throw_exception($@) if $@;
+
+    # sources needs to be a parser arg, but for simplicty allow at top level 
+    # coming in
+    $sqltargs->{parser_args}{sources} = delete $sqltargs->{sources}
+        if exists $sqltargs->{sources};
+
     my $tr = SQL::Translator->new(%$sqltargs);
     SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
     return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
   }
 
-  my $filename = $schema->ddl_filename($type, $dir, $version);
-  if(!-f $filename)
-  {
-#      $schema->create_ddl_dir([ $type ], $version, $dir, $sqltargs);
-      $self->throw_exception("No SQL::Translator, and no Schema file found, aborting deploy");
-      return;
-  }
-  my $file;
-  open($file, "<$filename") 
-      or $self->throw_exception("Can't open $filename ($!)");
-  my @rows = <$file>;
-  close($file);
+  $self->throw_exception("No SQL::Translator, and no Schema file found, aborting deploy");
+  return;
 
-  return join('', @rows);
-  
 }
 
 sub deploy {

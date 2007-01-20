@@ -12,7 +12,7 @@ __PACKAGE__->source_info({
 __PACKAGE__->add_columns(
   'artistid' => {
     data_type => 'integer',
-    is_auto_increment => 1
+    is_auto_increment => 1,
   },
   'name' => {
     data_type => 'varchar',

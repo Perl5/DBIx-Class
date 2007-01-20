@@ -245,9 +245,15 @@ documentation.
 
 =over 4
 
-=item .. fetch as much data as possible in as few select calls as possible? (prefetch)
+=item .. fetch as much data as possible in as few select calls as possible?
 
 See the prefetch examples in the L<Cookbook|DBIx::Class::Manual::Cookbook>.
+
+=item .. fetch a whole column of data instead of a row?
+
+Call C<get_column> on a L<DBIx::Class::ResultSet>, this returns a
+L<DBIx::Class::ResultSetColumn>, see it's documentation and the
+L<Cookbook|DBIx::Class::Manual::Cookbook> for details.
 
 =back
 

@@ -55,7 +55,8 @@ sub init_schema {
     my $dbuser = $ENV{"DBICTEST_DBUSER"} || '';
     my $dbpass = $ENV{"DBICTEST_DBPASS"} || '';
 
-    my $schema = DBICTest::Schema->compose_connection('DBICTest' => $dsn, $dbuser, $dbpass);
+    my $schema = DBICTest::Schema->compose_namespace('DBICTest')
+                                 ->connect($dsn, $dbuser, $dbpass);
     $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
     if ( !$args{no_deploy} ) {
         __PACKAGE__->deploy_schema( $schema );
@@ -225,8 +226,8 @@ sub populate_schema {
     ]);
 
     $schema->populate('Link', [
-        [ qw/id title/ ],
-        [ 1, 'aaa' ]
+        [ qw/id url title/ ],
+        [ 1, '', 'aaa' ]
     ]);
 
     $schema->populate('Bookmark', [

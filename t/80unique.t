@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 43;
+plan tests => 45;
 
 # Check the defined unique constraints
 is_deeply(
@@ -126,8 +126,9 @@ is($cd8->get_column('artist'), $cd1->get_column('artist'), 'artist is correct');
 is($cd8->title, $cd1->title, 'title is correct');
 is($cd8->year, $cd1->year, 'year is correct');
 
-my $cd9 = $artist->update_or_create_related('cds',
+my $cd9 = $artist->cds->update_or_create(
   {
+    cdid   => $cd1->cdid,
     title  => $title,
     year   => 2021,
   },
@@ -161,7 +162,24 @@ my $row = $schema->resultset('NoPrimaryKey')->update_or_create(
   },
   { key => 'foo_bar' }
 );
+
 ok(! $row->is_changed, 'update_or_create on table without primary key: row is clean');
 is($row->foo, 1, 'foo is correct');
 is($row->bar, 2, 'bar is correct');
 is($row->baz, 3, 'baz is correct');
+
+# Test a unique condition with extra information in the where attr
+{
+  my $artist = $schema->resultset('Artist')->find({ artistid => 1 });
+  my $cd = $artist->cds->find_or_new(
+    {
+      cdid  => 1,
+      title => 'Not The Real Title',
+      year  => 3000,
+    },
+    { key => 'primary' }
+  );
+
+  ok($cd->in_storage, 'find correctly grepped the key across a relationship');
+  is($cd->cdid, 1, 'cdid is correct');
+}

@@ -11,6 +11,7 @@ CREATE TABLE employee (
   employee_id INTEGER PRIMARY KEY NOT NULL,
   position integer NOT NULL,
   group_id integer,
+  group_id_2 integer,  
   name varchar(100)
 );
 
@@ -125,6 +126,14 @@ CREATE TABLE link (
   id INTEGER PRIMARY KEY NOT NULL,
   url varchar(100),
   title varchar(100)
+);
+
+--
+-- Table: file_columns
+--
+CREATE TABLE file_columns (
+  id INTEGER PRIMARY KEY NOT NULL,
+  file varchar(255)
 );
 
 --

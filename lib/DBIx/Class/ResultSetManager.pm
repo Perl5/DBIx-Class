@@ -13,7 +13,6 @@ classes (EXPERIMENTAL)
 
   # in a table class
   __PACKAGE__->load_components(qw/ResultSetManager Core/); # note order!
-  __PACKAGE__->load_resultset_components(qw/AlwaysRS/);
 
   # will be removed from the table class and inserted into a
   # table-specific resultset class
@@ -67,10 +66,6 @@ sub table {
 }
 
 =head2 load_resultset_components
-
-  # in a table class
-  __PACKAGE__->load_components(qw/ResultSetManager Core/); # note order!
-  __PACKAGE__->load_resultset_components(qw/AlwaysRS/);
 
 C<load_resultset_components> loads components in addition to
 C<DBIx::Class::ResultSet> (or whatever you set as

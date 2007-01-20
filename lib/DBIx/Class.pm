@@ -4,9 +4,14 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-use base qw/DBIx::Class::Componentised Class::Data::Accessor/;
+use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 
-sub mk_classdata { shift->mk_classaccessor(@_); }
+sub mk_classdata { 
+    my $self = shift;
+    $self->mk_group_accessors('inherited', $_[0]); 
+    $self->set_inherited(@_) if @_ > 1;
+}
+
 sub component_base_class { 'DBIx::Class' }
 
 # Always remember to do all digits for the version even if they're 0
@@ -16,18 +21,18 @@ sub component_base_class { 'DBIx::Class' }
 $VERSION = '0.07999_01';
 
 sub MODIFY_CODE_ATTRIBUTES {
-    my ($class,$code,@attrs) = @_;
-    $class->mk_classdata('__attr_cache' => {})
-      unless $class->can('__attr_cache');
-    $class->__attr_cache->{$code} = [@attrs];
-    return ();
+  my ($class,$code,@attrs) = @_;
+  $class->mk_classdata('__attr_cache' => {})
+    unless $class->can('__attr_cache');
+  $class->__attr_cache->{$code} = [@attrs];
+  return ();
 }
 
 sub _attr_cache {
-    my $self = shift;
-    my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
-    my $rest = eval { $self->next::method };
-    return $@ ? $cache : { %$cache, %$rest };
+  my $self = shift;
+  my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
+  my $rest = eval { $self->next::method };
+  return $@ ? $cache : { %$cache, %$rest };
 }
 
 1;
@@ -180,6 +185,8 @@ andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
 
+ash: Ash Berlin <ash@cpan.org>
+
 bert: Norbert Csongradi <bert@cpan.org>
 
 blblack: Brandon L. Black <blblack@gmail.com>
@@ -212,6 +219,8 @@ konobi: Scott McWhirter
 
 LTJake: Brian Cassidy <bricas@cpan.org>
 
+ned: Neil de Carteret
+
 nigel: Nigel Metheringham <nigelm@cpan.org>
 
 ningu: David Kamholz <dkamholz@cpan.org>
@@ -236,7 +245,11 @@ Todd Lipcon
 
 typester: Daisuke Murase <typester@cpan.org>
 
+victori: Victor Igumnov <victori@cpan.org>
+
 wdh: Will Hawes
+
+willert: Sebastian Willert <willert@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 

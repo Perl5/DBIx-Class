@@ -99,8 +99,8 @@ Produces a condition hash to locate a row based on the primary key(s).
 sub ident_condition {
   my ($self, $alias) = @_;
   my %cond;
-  $cond{(defined $alias ? "${alias}.$_" : $_)} = $self->get_column($_)
-    for $self->primary_columns;
+  my $prefix = defined $alias ? $alias.'.' : '';
+  $cond{$prefix.$_} = $self->get_column($_) for $self->primary_columns;
   return \%cond;
 }
 

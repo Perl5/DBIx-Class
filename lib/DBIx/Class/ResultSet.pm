@@ -10,10 +10,10 @@ use Carp::Clan qw/^DBIx::Class/;
 use Data::Page;
 use Storable;
 use DBIx::Class::ResultSetColumn;
+use DBIx::Class::ResultSourceHandle;
 use base qw/DBIx::Class/;
 
-__PACKAGE__->load_components(qw/AccessorGroup/);
-__PACKAGE__->mk_group_accessors('simple' => qw/result_source result_class/);
+__PACKAGE__->mk_group_accessors('simple' => qw/result_class _source_handle/);
 
 =head1 NAME
 
@@ -85,7 +85,9 @@ sub new {
   return $class->new_result(@_) if ref $class;
 
   my ($source, $attrs) = @_;
-  #weaken $source;
+  $source = $source->handle 
+    unless $source->isa('DBIx::Class::ResultSourceHandle');
+  $attrs = { %{$attrs||{}} };
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
@@ -96,8 +98,8 @@ sub new {
   $attrs->{alias} ||= 'me';
 
   my $self = {
-    result_source => $source,
-    result_class => $attrs->{result_class} || $source->result_class,
+    _source_handle => $source,
+    result_class => $attrs->{result_class} || $source->resolve->result_class,
     cond => $attrs->{where},
     count => undef,
     pager => undef,
@@ -238,7 +240,7 @@ sub search_rs {
         : $having);
   }
 
-  my $rs = (ref $self)->new($self->result_source, $new_attrs);
+  my $rs = (ref $self)->new($self->_source_handle, $new_attrs);
   if ($rows) {
     $rs->set_cache($rows);
   }
@@ -343,6 +345,22 @@ sub find {
     $input_query = {@_};
   }
 
+  my (%related, $info);
+
+  foreach my $key (keys %$input_query) {
+    if (ref($input_query->{$key})
+        && ($info = $self->result_source->relationship_info($key))) {
+      my $rel_q = $self->result_source->resolve_condition(
+                    $info->{cond}, delete $input_query->{$key}, $key
+                  );
+      die "Can't handle OR join condition in find" if ref($rel_q) eq 'ARRAY';
+      @related{keys %$rel_q} = values %$rel_q;
+    }
+  }
+  if (my @keys = keys %related) {
+    @{$input_query}{@keys} = values %related;
+  }
+
   my @unique_queries = $self->_unique_queries($input_query, $attrs);
 
   # Build the final query: Default to the disjunction of the unique queries,
@@ -392,21 +410,23 @@ sub _unique_queries {
     ? ($attrs->{key})
     : $self->result_source->unique_constraint_names;
 
+  my $where = $self->_collapse_cond($self->{attrs}{where} || {});
+  my $num_where = scalar keys %$where;
+
   my @unique_queries;
   foreach my $name (@constraint_names) {
     my @unique_cols = $self->result_source->unique_constraint_columns($name);
     my $unique_query = $self->_build_unique_query($query, \@unique_cols);
 
-    my $num_query = scalar keys %$unique_query;
-    next unless $num_query;
-
-    # XXX: Assuming quite a bit about $self->{attrs}{where}
     my $num_cols = scalar @unique_cols;
-    my $num_where = exists $self->{attrs}{where}
-      ? scalar keys %{ $self->{attrs}{where} }
-      : 0;
-    push @unique_queries, $unique_query
-      if $num_query + $num_where == $num_cols;
+    my $num_query = scalar keys %$unique_query;
+
+    my $total = $num_query + $num_where;
+    if ($num_query && ($num_query == $num_cols || $total == $num_cols)) {
+      # The query is either unique on its own or is unique in combination with
+      # the existing where clause
+      push @unique_queries, $unique_query;
+    }
   }
 
   return @unique_queries;
@@ -520,7 +540,7 @@ sub single {
     $attrs->{where}, $attrs
   );
 
-  return (@data ? $self->_construct_object(@data) : ());
+  return (@data ? ($self->_construct_object(@data))[0] : ());
 }
 
 # _is_unique_query
@@ -705,22 +725,29 @@ sub next {
     $self->{all_cache_position} = 1;
     return ($self->all)[0];
   }
+  if ($self->{stashed_objects}) {
+    my $obj = shift(@{$self->{stashed_objects}});
+    delete $self->{stashed_objects} unless @{$self->{stashed_objects}};
+    return $obj;
+  }
   my @row = (
     exists $self->{stashed_row}
       ? @{delete $self->{stashed_row}}
       : $self->cursor->next
   );
   return unless (@row);
-  return $self->_construct_object(@row);
+  my ($row, @more) = $self->_construct_object(@row);
+  $self->{stashed_objects} = \@more if @more;
+  return $row;
 }
 
 sub _construct_object {
   my ($self, @row) = @_;
   my $info = $self->_collapse_result($self->{_attrs}{as}, \@row);
-  my $new = $self->result_class->inflate_result($self->result_source, @$info);
-  $new = $self->{_attrs}{record_filter}->($new)
+  my @new = $self->result_class->inflate_result($self->_source_handle, @$info);
+  @new = $self->{_attrs}{record_filter}->(@new)
     if exists $self->{_attrs}{record_filter};
-  return $new;
+  return @new;
 }
 
 sub _collapse_result {
@@ -893,7 +920,7 @@ sub _count { # Separated out so pager can get the full count
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
 
-  my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
+  my $tmp_rs = (ref $self)->new($self->_source_handle, $attrs);
   my ($count) = $tmp_rs->cursor->next;
   return $count;
 }
@@ -1084,9 +1111,9 @@ sub update {
     unless ref $values eq 'HASH';
 
   my $cond = $self->_cond_for_update_delete;
-
+   
   return $self->result_source->storage->update(
-    $self->result_source->from, $values, $cond
+    $self->result_source, $values, $cond
   );
 }
 
@@ -1136,7 +1163,7 @@ sub delete {
 
   my $cond = $self->_cond_for_update_delete;
 
-  $self->result_source->storage->delete($self->result_source->from, $cond);
+  $self->result_source->storage->delete($self->result_source, $cond);
   return 1;
 }
 
@@ -1204,7 +1231,7 @@ attribute set on the resultset (10 by default).
 
 sub page {
   my ($self, $page) = @_;
-  return (ref $self)->new($self->result_source, { %{$self->{attrs}}, page => $page });
+  return (ref $self)->new($self->_source_handle, { %{$self->{attrs}}, page => $page });
 }
 
 =head2 new_result
@@ -1236,9 +1263,7 @@ sub new_result {
     %{ $self->_remove_alias($collapsed_cond, $alias) },
   );
 
-  my $obj = $self->result_class->new(\%new);
-  $obj->result_source($self->result_source) if $obj->can('result_source');
-  return $obj;
+  return $self->result_class->new(\%new,$self->_source_handle);
 }
 
 # _collapse_cond
@@ -1284,9 +1309,15 @@ sub _collapse_cond {
 sub _remove_alias {
   my ($self, $query, $alias) = @_;
 
-  my %unaliased = %{ $query || {} };
-  foreach my $key (keys %unaliased) {
-    $unaliased{$1} = delete $unaliased{$key}
+  my %orig = %{ $query || {} };
+  my %unaliased;
+
+  foreach my $key (keys %orig) {
+    if ($key !~ /\./) {
+      $unaliased{$key} = $orig{$key};
+      next;
+    }
+    $unaliased{$1} = $orig{$key}
       if $key =~ m/^(?:\Q$alias\E\.)?([^.]+)$/;
   }
 
@@ -1526,7 +1557,7 @@ sub related_resultset {
     my $rel_obj = $self->result_source->relationship_info($rel);
 
     $self->throw_exception(
-      "search_related: result source '" . $self->result_source->name .
+      "search_related: result source '" . $self->_source_handle->source_moniker .
         "' has no such relationship $rel")
       unless $rel_obj;
     
@@ -1535,7 +1566,7 @@ sub related_resultset {
     my $join_count = $seen->{$rel};
     my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
 
-    $self->result_source->schema->resultset($rel_obj->{class})->search_rs(
+    $self->_source_handle->schema->resultset($rel_obj->{class})->search_rs(
       undef, {
         %{$self->{attrs}||{}},
         join => undef,
@@ -1576,7 +1607,7 @@ sub _resolved_attrs {
   return $self->{_attrs} if $self->{_attrs};
 
   my $attrs = { %{$self->{attrs}||{}} };
-  my $source = $self->{result_source};
+  my $source = $self->result_source;
   my $alias = $attrs->{alias};
 
   $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
@@ -1708,6 +1739,16 @@ sub _merge_attr {
   }
 }
 
+sub result_source {
+    my $self = shift;
+
+    if (@_) {
+        $self->_source_handle($_[0]->handle);
+    } else {
+        $self->_source_handle->resolve;
+    }
+}
+
 =head2 throw_exception
 
 See L<DBIx::Class::Schema/throw_exception> for details.
@@ -1716,7 +1757,7 @@ See L<DBIx::Class::Schema/throw_exception> for details.
 
 sub throw_exception {
   my $self=shift;
-  $self->result_source->schema->throw_exception(@_);
+  $self->_source_handle->schema->throw_exception(@_);
 }
 
 # XXX: FIXME: Attributes docs need clearing up

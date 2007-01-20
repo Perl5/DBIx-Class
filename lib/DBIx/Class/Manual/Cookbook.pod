@@ -72,8 +72,10 @@ L<SQL::Abstract/WHERE CLAUSES>.
 
 =head3 Using specific columns
 
-When you only want selected columns from a table, you can use C<cols> to
-specify which ones you need:
+When you only want specific columns from a table, you can use
+C<columns> to specify which ones you need. This is useful to avoid
+loading columns with large amounts of data that you aren't about to
+use anyway:
 
   my $rs = $schema->resultset('Artist')->search(
     undef,
@@ -85,6 +87,9 @@ specify which ones you need:
   # Equivalent SQL:
   # SELECT artist.name FROM artist
 
+This is a shortcut for C<select> and C<as>, see below. C<columns>
+cannot be used together with C<select> and C<as>.
+
 =head3 Using database functions or stored procedures
 
 The combination of C<select> and C<as> can be used to return the result of a
@@ -94,7 +99,7 @@ stored procedure name). You then use C<as> to set the column name you will use
 to access the returned value:
 
   my $rs = $schema->resultset('Artist')->search(
-    undef,
+    {},
     {
       select => [ 'name', { LENGTH => 'name' } ],
       as     => [qw/ name name_length /],
@@ -105,15 +110,15 @@ to access the returned value:
   # SELECT name name, LENGTH( name ) name_length
   # FROM artist
 
-If your alias exists as a column in your base class (i.e. it was added with
-C<add_columns>), you just access it as normal. Our C<Artist> class has a C<name>
-column, so we just use the C<name> accessor:
+If your alias exists as a column in your base class (i.e. it was added
+with C<add_columns>), you just access it as normal. Our C<Artist>
+class has a C<name> column, so we just use the C<name> accessor:
 
   my $artist = $rs->first();
   my $name = $artist->name();
 
 If on the other hand the alias does not correspond to an existing column, you
-can get the value using the C<get_column> accessor:
+have to fetch the value using the C<get_column> accessor:
 
   my $name_length = $artist->get_column('name_length');
 
@@ -129,7 +134,7 @@ any of your aliases using either of these:
 =head3 SELECT DISTINCT with multiple columns
 
   my $rs = $schema->resultset('Foo')->search(
-    undef,
+    {},
     {
       select => [
         { distinct => [ $source->columns ] }
@@ -143,7 +148,7 @@ any of your aliases using either of these:
 =head3 SELECT COUNT(DISTINCT colname)
 
   my $rs = $schema->resultset('Foo')->search(
-    undef,
+    {},
     {
       select => [
         { count => { distinct => 'colname' } }
@@ -157,7 +162,7 @@ any of your aliases using either of these:
 L<DBIx::Class> supports C<GROUP BY> as follows:
 
   my $rs = $schema->resultset('Artist')->search(
-    undef,
+    {},
     {
       join     => [qw/ cds /],
       select   => [ 'name', { count => 'cds.cdid' } ],
@@ -173,7 +178,7 @@ L<DBIx::Class> supports C<GROUP BY> as follows:
 
 =head3 Predefined searches
 
-You can write your own DBIx::Class::ResultSet class by inheriting from it
+You can write your own L<DBIx::Class::ResultSet> class by inheriting from it
 and define often used searches as methods:
 
   package My::DBIC::ResultSet::CD;
@@ -382,7 +387,7 @@ From 0.04999_05 onwards, C<prefetch> can be nested more than one relationship
 deep using the same syntax as a multi-step join:
 
   my $rs = $schema->resultset('Tag')->search(
-    undef,
+    {},
     {
       prefetch => {
         cd => 'artist'
@@ -400,6 +405,55 @@ SQL statements:
 
   my $tag = $rs->first;
   print $tag->cd->artist->name;
+
+=head2 Columns of data
+
+If you want to find the sum of a particular column there are several
+ways, the obvious one is to use search:
+
+  my $rs = $schema->resultset('Items')->search(
+    {},
+    { 
+       select => [ { sum => 'Cost' } ],
+       as     => [ 'total_cost' ],
+    }
+  );
+  my $tc = $rs->first->get_column('total_cost');
+
+Or, you can use the L<DBIx::Class::ResultSetColumn>, which gets
+returned when you ask the C<ResultSet> for a column using
+C<get_column>:
+
+  my $cost = $schema->resultset('Items')->get_column('Cost');
+  my $tc = $cost->sum;
+
+With this you can also do:
+
+  my $minvalue = $cost->min;
+  my $maxvalue = $cost->max;
+
+Or just iterate through the values of this column only:
+
+  while ( my $c = $cost->next ) {
+    print $c;
+  }
+
+  foreach my $c ($cost->all) {
+    print $c;
+  }
+
+C<ResultSetColumn> only has a limited number of built-in functions, if
+you need one that it doesn't have, then you can use the C<func> method
+instead:
+
+  my $avg = $cost->func('AVERAGE');
+
+This will cause the following SQL statement to be run:
+
+  SELECT AVERAGE(Cost) FROM Items me
+
+Which will of course only work if your database supports this function.
+See L<DBIx::Class::ResultSetColumn> for more documentation.
 
 =head2 Using relationships
 
@@ -539,7 +593,7 @@ For more complex stringification, you can use an anonymous subroutine:
   use overload '""' => sub { $_[0]->name . ", " .
                              $_[0]->address }, fallback => 1;
 
-=head3 Stringifcation Example
+=head3 Stringification Example
 
 Suppose we have two tables: C<Product> and C<Category>. The table
 specifications are:
@@ -588,7 +642,9 @@ To create a DBIx::Class schema from an existing database:
 To create a MySQL database from an existing L<DBIx::Class> schema, convert the
 schema to MySQL's dialect of SQL:
 
-  sqlt --from DBIx::Class --to MySQL --DBIx::Class "MySchema.pm" > Schema1.sql
+  sqlt --from SQL::Translator::Parser::DBIx::Class 
+       --to MySQL 
+       --DBIx::Class "MySchema.pm" > Schema1.sql
   
 And import using the mysql client:
 
@@ -671,14 +727,14 @@ described under C<Schema import/export>.
 Use C<sqlt> to transform your schema into an SQL script suitable for your
 customer's database. E.g. for MySQL:
 
-  sqlt --from DBIx::Class
+  sqlt --from SQL::Translator::Parser::DBIx::Class
        --to MySQL
        --DBIx::Class "MySchema.pm" > Schema1.mysql.sql
 
 If you need to target databases from multiple vendors, just generate an SQL
 script suitable for each. To support PostgreSQL too:
 
-  sqlt --from DBIx::Class
+  sqlt --from SQL::Translator::DBIx::Class
        --to PostgreSQL
        --DBIx::Class "MySchema.pm" > Schema1.pgsql.sql
 
@@ -706,7 +762,7 @@ As your application evolves, it may be necessary to modify your schema to
 change functionality. Once the changes are made to your schema in DBIx::Class,
 export the modified schema as before, taking care not to overwrite the original:
 
-  sqlt --from DBIx::Class
+  sqlt --from SQL::Translator::DBIx::Class
        --to MySQL
        --DBIx::Class "Anything.pm" > Schema2.mysql.sql
 
@@ -721,33 +777,35 @@ The schema update can be deployed to customers using the same method as before.
 
 =head2 Setting limit dialect for SQL::Abstract::Limit
 
-In some cases, SQL::Abstract::Limit cannot determine the dialect of the remote
-SQL-server by looking at the database-handle. This is a common problem when
-using the DBD::JDBC, since the DBD-driver only know that in has a Java-driver
-available, not which JDBC-driver the Java component has loaded.
-This specifically sets the limit_dialect to Microsoft SQL-server (Se more names
-in SQL::Abstract::Limit -documentation.
+In some cases, SQL::Abstract::Limit cannot determine the dialect of
+the remote SQL server by looking at the database handle. This is a
+common problem when using the DBD::JDBC, since the DBD-driver only
+know that in has a Java-driver available, not which JDBC driver the
+Java component has loaded.  This specifically sets the limit_dialect
+to Microsoft SQL-server (See more names in SQL::Abstract::Limit
+-documentation.
 
   __PACKAGE__->storage->sql_maker->limit_dialect('mssql');
 
-The JDBC-bridge is one way of getting access to a MSSQL-server from a platform
+The JDBC bridge is one way of getting access to a MSSQL server from a platform
 that Microsoft doesn't deliver native client libraries for. (e.g. Linux)
 
-=head2 Setting quotes for the generated SQL. 
+=head2 Setting quoting for the generated SQL. 
 
-If the database contains columnames with spaces and/or reserved words, the
-SQL-query needs to be quoted. This is done using:
+If the database contains column names with spaces and/or reserved words, they
+need to be quoted in the SQL queries. This is done using:
 
   __PACKAGE__->storage->sql_maker->quote_char([ qw/[ ]/] );
   __PACKAGE__->storage->sql_maker->name_sep('.');
 
-The first sets the quotesymbols. If the quote i "symmetric" as " or '
+The first sets the quote characters. Either a pair of matching
+brackets, or a C<"> or C<'>:
   
   __PACKAGE__->storage->sql_maker->quote_char('"');
 
-is enough. If the left quote differs form the right quote, the first 
-notation should be used. name_sep needs to be set to allow the 
-SQL generator to put the quotes the correct place. 
+Check the documentation of your database for the correct quote
+characters to use. C<name_sep> needs to be set to allow the SQL
+generator to put the quotes the correct place.
 
 =head2 Overloading methods
 
@@ -772,11 +830,11 @@ You can accomplish this by overriding C<store_column>:
   }
 
 Note that the hard work is done by the call to C<next::method>, which
-redispatches your call to store_column to the superclass(es).
+redispatches your call to store_column in the superclass(es).
 
 =head3 Automatically creating related objects
 
-You might have a class C<Artist> which has many C<CD>s.  Further, you
+You might have a class C<Artist> which has many C<CD>s.  Further, if you
 want to create a C<CD> object every time you insert an C<Artist> object.
 You can accomplish this by overriding C<insert> on your objects:
 
@@ -836,11 +894,11 @@ L<Data::Dumper/EXAMPLES> for more information.
 
 =head2 Retrieving a row object's Schema
 
-It is possible to get a Schema object from a row object like so,
+It is possible to get a Schema object from a row object like so:
 
   my $schema = $cd->result_source->schema;
-  my $artist_rs = $schema->resultset('Artist');
-           # for example
+  # use the schema as normal:
+  my $artist_rs = $schema->resultset('Artist'); 
 
 This can be useful when you don't want to pass around a Schema object to every
 method.
@@ -921,19 +979,22 @@ not work, but then you already know the value of the last primary key anyway.
 =head2 Dynamic Sub-classing DBIx::Class proxy classes 
 (AKA multi-class object inflation from one table) 
  
-L<DBIx::Class> classes are proxy classes, therefore some different techniques 
-need to be employed for more than basic subclassing.  In this example we have  
-a single user table that carries a boolean bit for admin.  We would like  
-like to give the admin users objects(L<DBIx::Class::Row>) the same methods as  
-a regular user but also special admin only methods.  It doesn't make sense to  
-create two seperate proxy-class files for this.  We would be copying all the  
-user methods into the Admin class.  There is a cleaner way to accomplish this. 
+L<DBIx::Class> classes are proxy classes, therefore some different
+techniques need to be employed for more than basic subclassing.  In
+this example we have a single user table that carries a boolean bit
+for admin.  We would like like to give the admin users
+objects(L<DBIx::Class::Row>) the same methods as a regular user but
+also special admin only methods.  It doesn't make sense to create two
+seperate proxy-class files for this.  We would be copying all the user
+methods into the Admin class.  There is a cleaner way to accomplish
+this.
 
-Overriding the C<inflate_results()> method within the User proxy-class gives 
-us the effect we want.  This method is called by L<DBIx::Class::ResultSet> when  
-inflating a result from storage.  So we grab the object being returned, inspect 
-the values we are looking for, bless it if it's an admin object, and then  
-return it.  Running the test file below will confirm this works. 
+Overriding the C<inflate_result> method within the User proxy-class
+gives us the effect we want.  This method is called by
+L<DBIx::Class::ResultSet> when inflating a result from storage.  So we
+grab the object being returned, inspect the values we are looking for,
+bless it if it's an admin object, and then return it.  See the example
+below:
  
 B<Schema Definition> 
  
@@ -955,7 +1016,7 @@ B<Proxy-Class definitions>
     ### Defined what our admin class is for ensure_class_loaded 
     my $admin_class = __PACKAGE__ . '::Admin'; 
      
-    __PACKAGE__->load_components(qw/PK::Auto Core/); 
+    __PACKAGE__->load_components(qw/Core/); 
      
     __PACKAGE__->table('users'); 
      
@@ -1034,5 +1095,31 @@ B<Test File> test.pl
     print "I can do admin stuff\n" if $user->can('do_admin_stuff'); 
     ### The statement below will print 
     print "I can do admin stuff\n" if $admin->can('do_admin_stuff'); 
+
+=head2 Skip object creation for faster results
+
+DBIx::Class is not built for speed, it's built for convenience and
+ease of use, but sometimes you just need to get the data, and skip the
+fancy objects.
+  
+To do this simply use L<DBIx::Class::ResultClass::HashRefInflator>.
+  
+ my $rs = $schema->resultset('CD');
+ 
+ $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
+ 
+ my $hash_ref = $rs->find(1);
+  
+Wasn't that easy?
+  
+=head2 Want to know if find_or_create found or created a row?
+
+Just use C<find_or_new> instead, then check C<in_storage>:
+
+  my $obj = $rs->find_or_new({ blah => 'blarg' });
+  unless ($obj->in_storage) {
+    $obj->insert;
+    # do whatever else you wanted if it was a new row
+  }
 
 =cut

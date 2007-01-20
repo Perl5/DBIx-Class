@@ -60,5 +60,5 @@ eval { throwex };
 like($@, qr/DBICTest::Exception is handling this: $ex_regex/);
 
 # While we're at it, lets throw a custom exception through Storage::DBI
-eval { DBICTest->schema->storage->throw_exception('floob') };
+eval { $schema->storage->throw_exception('floob') };
 like($@, qr/DBICTest::Exception is handling this: floob/);

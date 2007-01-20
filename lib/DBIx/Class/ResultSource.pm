@@ -4,19 +4,20 @@ use strict;
 use warnings;
 
 use DBIx::Class::ResultSet;
+use DBIx::Class::ResultSourceHandle;
 use Carp::Clan qw/^DBIx::Class/;
 use Storable;
 
 use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships column_info_from_storage source_name
-  source_info/);
+  schema from _relationships column_info_from_storage source_info/);
 
-__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
+__PACKAGE__->mk_group_accessors('inherited' => qw/resultset_class
   result_class/);
+
+__PACKAGE__->mk_group_ro_accessors('simple' => qw/source_name/);
 
 =head1 NAME
 
@@ -47,9 +48,7 @@ sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
 
-  my $new = { %{$attrs || {}}, _resultset => undef };
-  bless $new, $class;
-
+  my $new = bless { %{$attrs || {}} }, $class;
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
   $new->{resultset_attributes} = { %{$new->{resultset_attributes} || {}} };
   $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];
@@ -108,29 +107,31 @@ whatever your database supports.
 =item size
 
 The length of your column, if it is a column type that can have a size
-restriction. This is currently not used by DBIx::Class.
+restriction. This is currently only used by L<DBIx::Class::Schema/deploy>.
 
 =item is_nullable
 
 Set this to a true value for a columns that is allowed to contain
-NULL values. This is currently not used by DBIx::Class.
+NULL values. This is currently only used by L<DBIx::Class::Schema/deploy>.
 
 =item is_auto_increment
 
 Set this to a true value for a column whose value is somehow
 automatically set. This is used to determine which columns to empty
-when cloning objects using C<copy>.
+when cloning objects using C<copy>. It is also used by
+L<DBIx::Class::Schema/deploy>.
 
 =item is_foreign_key
 
 Set this to a true value for a column that contains a key from a
-foreign table. This is currently not used by DBIx::Class.
+foreign table. This is currently only used by
+L<DBIx::Class::Schema/deploy>.
 
 =item default_value
 
 Set this to the default value which will be inserted into a column
 by the database. Can contain either a value or a function. This is
-currently not used by DBIx::Class.
+currently only used by L<DBIx::Class::Schema/deploy>.
 
 =item sequence
 
@@ -138,6 +139,14 @@ Set this on a primary key column to the name of the sequence used to
 generate a new key value. If not specified, L<DBIx::Class::PK::Auto>
 will attempt to retrieve the name of the sequence from the database
 automatically.
+
+=item extras
+
+This is used by L<DBIx::Class::Schema/deploy> and L<SQL::Translator>
+to add extra non-generic data to the column. For example: C<< extras
+=> { unsigned => 1} >> is used by the MySQL producer to set an integer
+column to unsigned. For more details, see
+L<SQL::Translator::Producer::MySQL>.
 
 =back
 
@@ -201,8 +210,8 @@ sub column_info {
        and $self->schema and $self->storage )
   {
     $self->{_columns_info_loaded}++;
-    my $info;
-    my $lc_info;
+    my $info = {};
+    my $lc_info = {};
     # eval for the case of storage without table
     eval { $info = $self->storage->columns_info_for( $self->from ) };
     unless ($@) {
@@ -210,7 +219,10 @@ sub column_info {
         $lc_info->{lc $realcol} = $info->{$realcol};
       }
       foreach my $col ( keys %{$self->_columns} ) {
-        $self->_columns->{$col} = { %{ $self->_columns->{$col}}, %{$info->{$col} || $lc_info->{lc $col}} };
+        $self->_columns->{$col} = {
+          %{ $self->_columns->{$col} },
+          %{ $info->{$col} || $lc_info->{lc $col} || {} }
+        };
       }
     }
   }
@@ -931,11 +943,19 @@ but is cached from then on unless resultset_class changes.
 
 =head2 resultset_class
 
+` package My::ResultSetClass;
+  use base 'DBIx::Class::ResultSet';
+  ...
+
+  $source->resultset_class('My::ResultSet::Class');
+
 Set the class of the resultset, this is useful if you want to create your
 own resultset methods. Create your own class derived from
-L<DBIx::Class::ResultSet>, and set it here.
+L<DBIx::Class::ResultSet>, and set it here. 
 
 =head2 resultset_attributes
+
+  $source->resultset_attributes({ order_by => [ 'id' ] });
 
 Specify here any attributes you wish to pass to your specialised resultset.
 
@@ -947,12 +967,6 @@ sub resultset {
     'resultset does not take any arguments. If you want another resultset, '.
     'call it on the schema instead.'
   ) if scalar @_;
-
-  # disabled until we can figure out a way to do it without consistency issues
-  #
-  #return $self->{_resultset}
-  #  if ref $self->{_resultset} eq $self->resultset_class;
-  #return $self->{_resultset} =
 
   return $self->resultset_class->new(
     $self, $self->{resultset_attributes}
@@ -978,6 +992,20 @@ its class name.
 
   # from your schema...
   $schema->resultset('Books')->find(1);
+
+=head2 handle
+
+Obtain a new handle to this source. Returns an instance of a 
+L<DBIx::Class::ResultSourceHandle>.
+
+=cut
+
+sub handle {
+    return new DBIx::Class::ResultSourceHandle({
+        schema         => $_[0]->schema,
+        source_moniker => $_[0]->source_name
+    });
+}
 
 =head2 throw_exception
 
