@@ -55,7 +55,11 @@ sub init_schema {
     my $dbuser = $ENV{"DBICTEST_DBUSER"} || '';
     my $dbpass = $ENV{"DBICTEST_DBPASS"} || '';
 
-    my $schema = DBICTest::Schema->compose_namespace('DBICTest')
+    my $compose_method = ($args{compose_connection}
+                           ? 'compose_connection'
+                           : 'compose_namespace');
+
+    my $schema = DBICTest::Schema->$compose_method('DBICTest')
                                  ->connect($dsn, $dbuser, $dbpass);
     $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
     if ( !$args{no_deploy} ) {
