@@ -129,6 +129,14 @@ CREATE TABLE link (
 );
 
 --
+-- Table: file_columns
+--
+CREATE TABLE file_columns (
+  id INTEGER PRIMARY KEY NOT NULL,
+  file varchar(255)
+);
+
+--
 -- Table: tags
 --
 CREATE TABLE tags (

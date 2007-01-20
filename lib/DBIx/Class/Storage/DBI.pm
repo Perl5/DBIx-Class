@@ -10,6 +10,7 @@ use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use IO::File;
+use Scalar::Util 'blessed';
 
 __PACKAGE__->mk_group_accessors(
   'simple' =>
@@ -669,7 +670,7 @@ sub dbh {
 sub _sql_maker_args {
     my ($self) = @_;
     
-    return ( limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
+    return ( bindtype=>'columns', limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
 }
 
 sub sql_maker {
@@ -817,29 +818,68 @@ sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, @args) = @_;
 
   my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
-  unshift(@bind, @$extra_bind) if $extra_bind;
+  unshift(@bind,
+    map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
+      if $extra_bind;
   @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
   return ($sql, @bind);
 }
 
 sub _execute {
-  my $self = shift;
-
-  my ($sql, @bind) = $self->_prep_for_execute(@_);
-
+  my ($self, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+  
+  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") )
+  {
+    $ident = $ident->from();
+  }
+  
+  my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
+  unshift(@bind,
+    map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
+      if $extra_bind;
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
+      my @debug_bind =
+        map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
+  my $sth = eval { $self->sth($sql,$op) };
 
-  my $sth = $self->sth($sql);
+  if (!$sth || $@) {
+    $self->throw_exception(
+      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
+    );
+  }
 
   my $rv;
   if ($sth) {
     my $time = time();
-    $rv = eval { $sth->execute(@bind) };
+	
+    $rv = eval {
+	
+      my $placeholder_index = 1; 
 
+      foreach my $bound (@bind) {
+
+        my $attributes = {};
+        my($column_name, @data) = @$bound;
+
+        if( $bind_attributes ) {
+          $attributes = $bind_attributes->{$column_name}
+          if defined $bind_attributes->{$column_name};
+        }
+
+		foreach my $data (@data)
+		{
+          $data = ref $data ? ''.$data : $data; # stringify args
+
+          $sth->bind_param($placeholder_index, $data, $attributes);
+          $placeholder_index++;		  
+		}
+      }
+      $sth->execute();
+    };
+  
     if ($@ || !$rv) {
       $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
     }
@@ -847,19 +887,24 @@ sub _execute {
     $self->throw_exception("'$sql' did not generate a statement.");
   }
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
-      $self->debugobj->query_end($sql, @debug_bind);
+     my @debug_bind =
+       map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind; 
+     $self->debugobj->query_end($sql, @debug_bind);
   }
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
 
 sub insert {
-  my ($self, $ident, $to_insert) = @_;
+  my ($self, $source, $to_insert) = @_;
+  
+  my $ident = $source->from; 
+  my $bind_attributes = $self->source_bind_attributes($source);
+
   $self->throw_exception(
     "Couldn't insert ".join(', ',
       map "$_ => $to_insert->{$_}", keys %$to_insert
     )." into ${ident}"
-  ) unless ($self->_execute('insert' => [], $ident, $to_insert));
+  ) unless ($self->_execute('insert' => [], $source, $bind_attributes, $to_insert));
   return $to_insert;
 }
 
@@ -868,14 +913,14 @@ sub insert {
 ## scalar refs, or at least, all the same type as the first set, the statement is
 ## only prepped once.
 sub insert_bulk {
-  my ($self, $table, $cols, $data) = @_;
+  my ($self, $source, $cols, $data) = @_;
   my %colvalues;
+  my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
   my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
-# print STDERR "BIND".Dumper(\@bind);
-
+  
   if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{'$_'} : q{'NULL'} } @bind;
+      my @debug_bind = map { defined $_->[1] ? qq{$_->[1]} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
   my $sth = $self->sth($sql);
@@ -883,16 +928,60 @@ sub insert_bulk {
 #  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
   my $rv;
+  
   ## This must be an arrayref, else nothing works!
+  
   my $tuple_status = [];
-#  use Data::Dumper;
-#  print STDERR Dumper($data);
+  
+  ##use Data::Dumper;
+  ##print STDERR Dumper( $data, $sql, [@bind] );
+	
   if ($sth) {
+  
     my $time = time();
-    $rv = eval { $sth->execute_array({ ArrayTupleFetch => sub { my $values = shift @$data;  return if !$values; return [ @{$values}[@bind] ]},
-                                       ArrayTupleStatus => $tuple_status }) };
-# print STDERR Dumper($tuple_status);
-# print STDERR "RV: $rv\n";
+	
+    #$rv = eval {
+	#
+	#  $sth->execute_array({
+
+  	#    ArrayTupleFetch => sub {
+
+	#      my $values = shift @$data;  
+    #      return if !$values; 
+    #      return [ @{$values}[@bind] ];
+	#    },
+	  
+	#    ArrayTupleStatus => $tuple_status,
+	#  })
+    #};
+	
+	## Get the bind_attributes, if any exist
+    my $bind_attributes = $self->source_bind_attributes($source);
+
+	## Bind the values and execute
+	$rv = eval {
+	
+     my $placeholder_index = 1; 
+
+        foreach my $bound (@bind) {
+
+          my $attributes = {};
+          my ($column_name, $data_index) = @$bound;
+
+          if( $bind_attributes ) {
+            $attributes = $bind_attributes->{$column_name}
+            if defined $bind_attributes->{$column_name};
+          }
+		  
+		  my @data = map { $_->[$data_index] } @$data;
+
+          $sth->bind_param_array( $placeholder_index, [@data], $attributes );
+          $placeholder_index++;
+      }
+	  $sth->execute_array( {ArrayTupleStatus => $tuple_status} );
+
+	};
+   
     if ($@ || !defined $rv) {
       my $errors = '';
       foreach my $tuple (@$tuple_status)
@@ -912,11 +1001,21 @@ sub insert_bulk {
 }
 
 sub update {
-  return shift->_execute('update' => [], @_);
+  my $self = shift @_;
+  my $source = shift @_;
+  my $bind_attributes = $self->source_bind_attributes($source);
+  
+  return $self->_execute('update' => [], $source, $bind_attributes, @_);
 }
 
+
 sub delete {
-  return shift->_execute('delete' => [], @_);
+  my $self = shift @_;
+  my $source = shift @_;
+  
+  my $bind_attrs = {}; ## If ever it's needed...
+  
+  return $self->_execute('delete' => [], $source, $bind_attrs, @_);
 }
 
 sub _select {
@@ -932,7 +1031,8 @@ sub _select {
       ($order ? (order_by => $order) : ())
     };
   }
-  my @args = ('select', $attrs->{bind}, $ident, $select, $condition, $order);
+  my $bind_attrs = {}; ## Future support
+  my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
   if ($attrs->{software_limit} ||
       $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
         $attrs->{software_limit} = 1;
@@ -942,6 +1042,20 @@ sub _select {
     push @args, $attrs->{rows}, $attrs->{offset};
   }
   return $self->_execute(@args);
+}
+
+sub source_bind_attributes {
+  my ($self, $source) = @_;
+  
+  my $bind_attributes;
+  foreach my $column ($source->columns) {
+  
+    my $data_type = $source->column_info($column)->{data_type} || '';
+    $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
+	 if $data_type;
+  }
+
+  return $bind_attributes;
 }
 
 =head2 select
@@ -1083,6 +1197,20 @@ Returns the database driver name.
 =cut
 
 sub sqlt_type { shift->dbh->{Driver}->{Name} }
+
+=head2 bind_attribute_by_data_type
+
+Given a datatype from column info, returns a database specific bind attribute for
+$dbh->bind_param($val,$attribute) or nothing if we will let the database planner
+just handle it.
+
+Generally only needed for special case column types, like bytea in postgres.
+
+=cut
+
+sub bind_attribute_by_data_type {
+    return;
+}
 
 =head2 create_ddl_dir (EXPERIMENTAL)
 

@@ -1111,9 +1111,9 @@ sub update {
     unless ref $values eq 'HASH';
 
   my $cond = $self->_cond_for_update_delete;
-
+   
   return $self->result_source->storage->update(
-    $self->result_source->from, $values, $cond
+    $self->result_source, $values, $cond
   );
 }
 
@@ -1163,7 +1163,7 @@ sub delete {
 
   my $cond = $self->_cond_for_update_delete;
 
-  $self->result_source->storage->delete($self->result_source->from, $cond);
+  $self->result_source->storage->delete($self->result_source, $cond);
   return 1;
 }
 

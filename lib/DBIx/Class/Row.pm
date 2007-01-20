@@ -135,7 +135,7 @@ sub insert {
     if $self->can('result_source_instance');
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
-  #use Data::Dumper; warn Dumper($self);
+
   # Check if we stored uninserted relobjs here in new()
   $source->storage->txn_begin if(!$self->{_rel_in_storage});
 
@@ -205,6 +205,7 @@ sub update {
   my $ident_cond = $self->ident_condition;
   $self->throw_exception("Cannot safely update a row in a PK-less table")
     if ! keys %$ident_cond;
+
   if ($upd) {
     foreach my $key (keys %$upd) {
       if (ref $upd->{$key}) {
@@ -228,7 +229,9 @@ sub update {
   my %to_update = $self->get_dirty_columns;
   return $self unless keys %to_update;
   my $rows = $self->result_source->storage->update(
-               $self->result_source->from, \%to_update, $self->{_orig_ident} || $ident_cond);
+               $self->result_source, \%to_update,
+               $self->{_orig_ident} || $ident_cond
+             );
   if ($rows == 0) {
     $self->throw_exception( "Can't update ${self}: row not found" );
   } elsif ($rows > 1) {
@@ -267,7 +270,7 @@ sub delete {
               unless exists $self->{_column_data}{$column};
     }
     $self->result_source->storage->delete(
-      $self->result_source->from, $ident_cond);
+      $self->result_source, $ident_cond);
     $self->in_storage(undef);
   } else {
     $self->throw_exception("Can't do class delete without a ResultSource instance")
