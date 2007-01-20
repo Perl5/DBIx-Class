@@ -110,8 +110,25 @@ sub _save_file_column {
             my $outfile =
               File::Spec->catfile( $file_path, $file->{$_}->{filename} );
             File::Copy::copy( $file->{$_}->{handle}, $outfile );
+        
+            $self->_file_column_callback($file->{$_},$ret,$_);
         }
     }
+}
+
+=head1 METHODS
+
+=cut
+
+
+=head2 _file_column_callback ($file,$ret,$target)
+
+method made to be overridden for callback purposes.
+
+=cut
+
+sub _file_column_callback {
+    my ($self,$file,$ret,$target) = @_;
 }
 
 =head1 NAME
