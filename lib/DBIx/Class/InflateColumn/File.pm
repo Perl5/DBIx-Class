@@ -1,4 +1,4 @@
-package DBIx::Class::FileColumn;
+package DBIx::Class::File;
 
 use strict;
 use warnings;
@@ -7,31 +7,25 @@ use File::Path;
 use File::Copy;
 use IO::File;
 
-sub inflate_result {
-    my $self = shift;
-    my $ret = $self->next::method(@_);
-    
-    $self->_inflate_file_column($ret);
-    return $ret;
+__PACKAGE__->load_components(qw/InflateColumn/);
+
+
+sub register_column {
+  my ($self, $column, $info, @rest) = @_;
+  $self->next::method($column, $info, @rest);
+  return unless defined($info->{is_file_column});
+    $self->inflate_column(
+      $column =>
+        {
+          inflate => $self->_inflate_file_column,
+          deflate => sub {
+              my ( $file, @column_names ) = $self->_load_file_column_information;
+              $self->_save_file_column( $file, $self, @column_names );
+          },
+        }
+    );
 }
 
-sub insert {
-    my ( $self, @rest ) = @_;
-
-    my ( $file, @column_names ) = $self->_load_file_column_information;
-    my $ret = $self->next::method(@rest);
-    $self->_save_file_column( $file, $ret, @column_names );
-    return $ret;
-}
-
-sub update {
-    my ($self, @rest ) = @_;
-    
-    my ( $file, @column_names ) = $self->_load_file_column_information;
-    my $ret = $self->next::method(@rest);
-    $self->_save_file_column( $file, $ret, @column_names );
-    return $ret;  
-}
 
 sub delete {
     my ( $self, @rest ) = @_;
@@ -53,21 +47,20 @@ sub delete {
 
 sub _inflate_file_column {
     my $self = shift;
-    my $ret  = shift;
 
     my @column_names = $self->columns;
     for(@column_names) {
-        if ( $ret->column_info($_)->{is_file_column} ) {
+        if ( $self->column_info($_)->{is_file_column} ) {
             # make sure everything checks out
-            unless (defined $ret->$_) {
+            unless (defined $self->$_) {
                 # if something is wrong set it to undef
-                $ret->$_(undef);
+                $self->$_(undef);
                 next;
             }
             my $fs_file =
-              File::Spec->catfile( $ret->column_info($_)->{file_column_path}, 
-                $ret->id, $ret->$_ );
-            $ret->$_({handle => new IO::File($fs_file, "r"), filename => $ret->$_});
+              File::Spec->catfile( $self->column_info($_)->{file_column_path}, 
+                $self->id, $self->$_ );
+            $self->$_({handle => new IO::File($fs_file, "r"), filename => $self->$_});
         }
     }
 }
@@ -133,17 +126,17 @@ sub _file_column_callback {
 
 =head1 NAME
 
-DBIx::Class::FileColumn - FileColumn map files from the Database to the filesystem.
+DBIx::Class::InflateColumn::File -  map files from the Database to the filesystem.
 
 =head1 DESCRIPTION
 
-FileColumn
+InflateColumn::File
 
 =head1 SYNOPSIS
 
 In your L<DBIx::Class> table class:
 
-    __PACKAGE__->load_components( "PK::Auto", "FileColumn", "Core" );
+    __PACKAGE__->load_components( "PK::Auto", "InflateColumn::File", "Core" );
     
     # define your columns
     __PACKAGE__->add_columns(

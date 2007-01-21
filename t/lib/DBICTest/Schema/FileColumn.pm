@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Core/;
 
-__PACKAGE__->load_components(qw/FileColumn/);
+__PACKAGE__->load_components(qw/InflateColumn::File/);
 
 __PACKAGE__->table('file_columns');
 
