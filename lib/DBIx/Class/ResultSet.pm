@@ -1804,7 +1804,9 @@ Shortcut to include additional columns in the returned results - for example
   });
 
 would return all CDs and include a 'name' column to the information
-passed to object inflation
+passed to object inflation. Note that the 'artist' is the name of the
+column (or relationship) accessor, and 'name' is the name of the column
+accessor in the related table.
 
 =head2 select
 
