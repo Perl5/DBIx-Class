@@ -92,7 +92,7 @@ __END__
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Oracle::8
+DBIx::Class::Storage::DBI::Oracle::8 - Oracle 8 support (EXPERIMENTAL)
 
 =head1 SYNOPSIS
 
