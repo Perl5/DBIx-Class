@@ -701,6 +701,16 @@ sub _populate_dbh {
     $self->debugobj->query_end($sql_statement) if $self->debug();
   }
 
+  # Rebless after we connect to the database, so we can take advantage of
+  # values in get_info
+  if(ref $self eq 'DBIx::Class::Storage::DBI') {
+    my $driver = $self->_dbh->{Driver}->{Name};
+    if ($self->load_optional_class("DBIx::Class::Storage::DBI::${driver}")) {
+      bless $self, "DBIx::Class::Storage::DBI::${driver}";
+      $self->_rebless() if $self->can('_rebless');
+    }
+  }
+
   $self->_conn_pid($$);
   $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
 }

@@ -199,6 +199,8 @@ claco: Christopher H. Laco
 
 clkao: CL Kao
 
+da5id: David Jack Olrik <djoö@cpan.org>
+
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
 draven: Marcus Ramberg <mramberg@cpan.org>
