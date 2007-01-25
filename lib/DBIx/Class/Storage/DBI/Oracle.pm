@@ -1,27 +1,29 @@
 package DBIx::Class::Storage::DBI::Oracle;
+# -*- mode: cperl; cperl-indent-level: 2 -*-
+
 use strict;
 use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
 sub _rebless {
-    my ($self) = @_;
+  my ($self) = @_;
 
-    my $version = eval { $self->_dbh->get_info(18); };
-    unless ( $@ ) {
-        my ($major,$minor,$patchlevel) = split(/\./,$version);
+  my $version = eval { $self->_dbh->get_info(18); };
+  unless ( $@ ) {
+    my ($major,$minor,$patchlevel) = split(/\./,$version);
 
-        # Default driver
-        my $class = "DBIx::Class::Storage::DBI::Oracle::Generic";
+    # Default driver
+    my $class = "DBIx::Class::Storage::DBI::Oracle::Generic";
 
-        # Version specific drivers
-        $class = "DBIx::Class::Storage::DBI::Oracle::8"
-            if $major == 8;
+    # Version specific drivers
+    $class = "DBIx::Class::Storage::DBI::Oracle::8"
+    if $major == 8;
 
-        # Load and rebless
-        eval "require $class";
-        bless $self, $class unless $@;
-    }
+    # Load and rebless
+    eval "require $class";
+    bless $self, $class unless $@;
+  }
 }
 
 

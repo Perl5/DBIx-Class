@@ -1,4 +1,5 @@
 package DBIx::Class::Storage::DBI::Oracle::8;
+# -*- mode: cperl; cperl-indent-level: 2 -*-
 
 use base qw( DBIx::Class::Storage::DBI::Oracle::Generic );
 

@@ -199,7 +199,7 @@ claco: Christopher H. Laco
 
 clkao: CL Kao
 
-da5id: David Jack Olrik <djoö@cpan.org>
+da5id: David Jack Olrik <djo@cpan.org>
 
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 

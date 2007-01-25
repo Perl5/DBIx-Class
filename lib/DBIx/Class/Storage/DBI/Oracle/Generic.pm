@@ -1,4 +1,5 @@
 package DBIx::Class::Storage::DBI::Oracle::Generic;
+# -*- mode: cperl; cperl-indent-level: 2 -*-
 
 use strict;
 use warnings;
