@@ -24,7 +24,7 @@ unlink('t/var/DBICVersion-Schema-1.0-SQLite.sql');
 my $schema_orig = DBICVersion::Schema->connect("dbi:SQLite:$db_file");
 # $schema->storage->ensure_connected();
 
-is($schema_orig->ddl_filename('SQLite', 't/var', '1.0'), File::Spec->catfile('t', 'var', 'DBICVersion-Schema-1.0-SQLite.sql', 'Filename creation working');
+is($schema_orig->ddl_filename('SQLite', 't/var', '1.0'), File::Spec->catfile('t', 'var', 'DBICVersion-Schema-1.0-SQLite.sql'), 'Filename creation working');
 $schema_orig->create_ddl_dir('SQLite', undef, 't/var');
 
 ok(-f 't/var/DBICVersion-Schema-1.0-SQLite.sql', 'Created DDL file');
