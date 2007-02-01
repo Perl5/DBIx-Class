@@ -1,4 +1,4 @@
-package DBIx::Class::File;
+package DBIx::Class::InflateColumn::File;
 
 use strict;
 use warnings;
