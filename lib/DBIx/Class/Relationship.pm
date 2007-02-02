@@ -308,6 +308,11 @@ And, for the reverse relationship, from Role to Actor:
 
   My::DBIC::Schema::Role->many_to_many( actors => 'actor_roles', 'actor' );
 
+To add a role for your actor, and fill in the year of the role in the
+actor_roles table:
+
+  $actor->add_to_roles($role, { year => 1995 });
+
 Many_to_many is not strictly a relationship in its own right. Instead, it is
 a bridge between two resultsets which provide the same kind of convenience
 accessors as true relationships provide. Although the accessor will return a 

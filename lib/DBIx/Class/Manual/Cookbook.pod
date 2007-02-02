@@ -526,7 +526,7 @@ in the future.
 
 =head2 Many-to-many relationships
 
-This is straightforward using L<DBIx::Class::Relationship::ManyToMany>:
+This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_many>:
 
   package My::DB;
   # ... set up connection ...
