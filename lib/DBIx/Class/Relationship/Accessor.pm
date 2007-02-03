@@ -84,6 +84,7 @@ sub new {
 
 sub update {
   my ($obj, $attrs, @rest) = @_;
+  $attrs = { %$attrs} if $attrs; # Take copy so we dont change passed hashref
   my $info;
   foreach my $key (keys %{$attrs||{}}) {
     next unless $info = $obj->relationship_info($key);

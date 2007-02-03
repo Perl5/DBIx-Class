@@ -110,6 +110,9 @@ required.
 
 sub update {
   my ($self, $upd) = @_;
+  # Create a copy so we dont mess with original  
+  $upd = { %$upd } if $upd;
+
   $self->throw_exception( "Not in database" ) unless $self->in_storage;
   my $ident_cond = $self->ident_condition;
   $self->throw_exception("Cannot safely update a row in a PK-less table")
