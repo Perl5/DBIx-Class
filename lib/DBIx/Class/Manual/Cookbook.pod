@@ -1146,4 +1146,43 @@ Just use C<find_or_new> instead, then check C<in_storage>:
     # do whatever else you wanted if it was a new row
   }
 
+=head3 Wrapping/overloading a column accessor
+
+Problem: Say you have a table "Camera" and want to associate a description
+with each camera. For most cameras, you'll be able to generate the description from
+the other columns. However, in a few special cases you may want to associate a
+custom description with a camera.
+
+Solution:
+
+In your database schema, define a description field in the "Camera" table that
+can contain text and null values.
+
+In DBIC, we'll overload the column accessor to provide a sane default if no
+custom description is defined. The accessor will either return or generate the
+description, depending on whether the field is null or not.
+
+First, in your "Camera" schema class, define the description field as follows:
+
+  __PACKAGE__->add_columns(description => { accessor => '_description' });
+
+Next, we'll define the accessor-wrapper subroutine:
+
+  sub description {
+      my $self = shift;
+
+      # If there is an update to the column, we'll let the original accessor
+      # deal with it.
+      return $self->_description(@_) if @_;
+
+      # Fetch the column value.
+      my $description = $self->_description;
+
+      # If there's something in the description field, then just return that.
+      return $description if defined $description && length $descripton;
+
+      # Otherwise, generate a description.
+      return $self->generate_description;
+  }
+
 =cut
