@@ -11,7 +11,7 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime };
 plan skip_all => "Need DateTime for inflation tests" if $@;
 
-plan tests => 22;
+plan tests => 20;
 
 DBICTest::Schema::CD->inflate_column( 'year',
     { inflate => sub { DateTime->new( year => shift ) },
@@ -89,12 +89,6 @@ ok(!$@, 'update using scalarref ok');
 
 $cd = $schema->resultset("CD")->find(3);                 
 is($cd->year->year, $before_year + 1, 'deflate ok');
-
-my $upd = { 'year' => $now->truncate(to => 'month'), title => 'An Updated Title' };
-my $upd_copy = { %$upd };
-eval { $cd->update($upd) };
-ok(!$@, 'update worked okay');
-ok(exists $upd->{year} && $upd->{year} == $upd_copy->{year}, "update doesn't change passed hashref");
 
 # discard_changes test
 $cd = $schema->resultset("CD")->find(3);                 

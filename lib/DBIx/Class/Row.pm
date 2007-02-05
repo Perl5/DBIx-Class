@@ -100,19 +100,20 @@ sub in_storage {
 
 =head2 update
 
-  $obj->update;
+  $obj->update \%columns?;
 
 Must be run on an object that is already in the database; issues an SQL
 UPDATE query to commit any changes to the object to the database if
 required.
 
+Also takes an options hashref of C<< column_name => value> pairs >> to update
+first. But be aware that this hashref might be edited in place, so dont rely on
+it being the same after a call to C<update>.
+
 =cut
 
 sub update {
   my ($self, $upd) = @_;
-  # Create a copy so we dont mess with original  
-  $upd = { %$upd } if $upd;
-
   $self->throw_exception( "Not in database" ) unless $self->in_storage;
   my $ident_cond = $self->ident_condition;
   $self->throw_exception("Cannot safely update a row in a PK-less table")
