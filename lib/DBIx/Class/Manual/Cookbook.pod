@@ -586,7 +586,7 @@ module.
 To make an object stringify itself as a single column, use something
 like this (replace C<foo> with the column/method of your choice):
 
-  use overload '""' => 'foo', fallback => 1;
+  use overload '""' => sub { shift->name}, fallback => 1;
 
 For more complex stringification, you can use an anonymous subroutine:
 
