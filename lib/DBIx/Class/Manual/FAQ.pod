@@ -255,6 +255,17 @@ Call C<get_column> on a L<DBIx::Class::ResultSet>, this returns a
 L<DBIx::Class::ResultSetColumn>, see it's documentation and the
 L<Cookbook|DBIx::Class::Manual::Cookbook> for details.
 
+=item .. fetch a formatted column?
+
+In your table schema class, create a "private" column accessor with:
+
+  __PACKAGE__->add_columns(my_common => { accessor => '_hidden_my_column' });
+
+Then, in the same class, implement a subroutine called "my_column" that
+fetches the real value and does the formatting you want.
+
+See the Cookbook for more details.
+
 =back
 
 =head2 Inserting and updating data
@@ -295,6 +306,18 @@ To stop the column name from being quoted, you'll need to supply a
 scalar reference:
 
  ->update({ somecolumn => \'othercolumn' })
+
+=item .. store JSON in a column and have it deflate/inflate automatically?
+
+In your table schema class, do the following:
+
+ use JSON;
+
+ __PACKAGE__->add_columns(qw/ ... my_column ../)
+ __PACKAGE__->inflate_column('my_column', {
+     inflate => sub { jsonToObj(shift) },
+     deflate => sub { objToJson(shift) },
+ });
 
 =back
 
