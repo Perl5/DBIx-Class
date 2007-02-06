@@ -76,7 +76,7 @@ sub new {
         } elsif ($info && $info->{attrs}{accessor}
             && $info->{attrs}{accessor} eq 'multi'
             && ref $attrs->{$key} eq 'ARRAY') {
-            my $others = $attrs->{$key};
+            my $others = delete $attrs->{$key};
             $new->{_rel_in_storage} = 1;
             foreach my $rel_obj (@$others) {
               if(!Scalar::Util::blessed($rel_obj)) {
@@ -84,8 +84,9 @@ sub new {
                 $new->{_rel_in_storage} = 0;
               }
             }
-            $new->set_from_related($key, $others);
-            $related->{$key} = $attrs->{$key};
+#            $new->set_from_related($key, $others);
+            $related->{$key} = $others;
+            next;
         } elsif ($class->has_column($key)
           && exists $class->column_info($key)->{_inflate_info})
         {
@@ -151,7 +152,22 @@ sub insert {
     }
   }
 
-  $source->storage->insert($source->from, { $self->get_columns });
+  $source->storage->insert($source, { $self->get_columns });
+
+  ## PK::Auto
+  my ($pri, $too_many) = grep { !defined $self->get_column($_) || 
+                                    ref($self->get_column($_)) eq 'SCALAR'} $self->primary_columns;
+  if(defined $pri) {
+    $self->throw_exception( "More than one possible key found for auto-inc on ".ref $self )
+      if defined $too_many;
+
+    my $storage = $self->result_source->storage;
+    $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" )
+      unless $storage->can('last_insert_id');
+    my $id = $storage->last_insert_id($self->result_source,$pri);
+    $self->throw_exception( "Can't get last insert id" ) unless $id;
+    $self->store_column($pri => $id);
+  }
 
   foreach my $relname (keys %related_stuff) {
     my $relobj = $related_stuff{$relname};
