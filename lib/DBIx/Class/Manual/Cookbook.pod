@@ -107,7 +107,7 @@ to access the returned value:
   );
 
   # Equivalent SQL:
-  # SELECT name name, LENGTH( name ) name_length
+  # SELECT name name, LENGTH( name )
   # FROM artist
 
 If your alias exists as a column in your base class (i.e. it was added
