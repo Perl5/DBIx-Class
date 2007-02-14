@@ -307,9 +307,11 @@ scalar reference:
 
  ->update({ somecolumn => \'othercolumn' })
 
-=item .. store JSON in a column and have it deflate/inflate automatically?
+=item .. store JSON/YAML in a column and have it deflate/inflate automatically?
 
-In your table schema class, do the following:
+You can use L<DBIx::Class::InflateColumn> to accomplish YAML/JSON storage transparently.
+
+If you want to use JSON, then in your table schema class, do the following:
 
  use JSON;
 
@@ -318,6 +320,21 @@ In your table schema class, do the following:
      inflate => sub { jsonToObj(shift) },
      deflate => sub { objToJson(shift) },
  });
+
+For YAML, in your table schema class, do the following:
+
+ use YAML;
+
+ __PACKAGE__->add_columns(qw/ ... my_column ../)
+ __PACKAGE__->inflate_column('my_column', {
+     inflate => sub { YAML::Load(shift) },
+     deflate => sub { YAML::Dump(shift) },
+ });
+
+This technique is an easy way to store supplemental unstructured data in a table. Be
+careful not to overuse this capability, however. If you find yourself depending more
+and more on some data within the inflated column, then it may be time to factor that
+data out.
 
 =back
 
