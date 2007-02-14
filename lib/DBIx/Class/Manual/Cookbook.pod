@@ -110,9 +110,12 @@ to access the returned value:
   # SELECT name name, LENGTH( name )
   # FROM artist
 
-If your alias exists as a column in your base class (i.e. it was added
-with C<add_columns>), you just access it as normal. Our C<Artist>
-class has a C<name> column, so we just use the C<name> accessor:
+Note that the C< as > attribute has absolutely nothing to with the sql
+syntax C< SELECT foo AS bar > (see the documentation in
+L<DBIx::Class::ResultSet/ATTRIBUTES>).  If your alias exists as a
+column in your base class (i.e. it was added with C<add_columns>), you
+just access it as normal. Our C<Artist> class has a C<name> column, so
+we just use the C<name> accessor:
 
   my $artist = $rs->first();
   my $name = $artist->name();
@@ -139,7 +142,7 @@ any of your aliases using either of these:
       select => [
         { distinct => [ $source->columns ] }
       ],
-      as => [ $source->columns ]
+      as => [ $source->columns ] # remember 'as' is not the same as SQL AS :-)
     }
   );
 
@@ -175,6 +178,10 @@ L<DBIx::Class> supports C<GROUP BY> as follows:
   # SELECT name, COUNT( cds.cdid ) FROM artist me
   # LEFT JOIN cd cds ON ( cds.artist = me.artistid )
   # GROUP BY name
+
+Please see L<DBIx::Class::ResultSet/ATTRIBUTES> documentation if you
+are in any way unsure about the use of the attributes above (C< join
+>, C< select >, C< as > and C< group_by >).
 
 =head3 Predefined searches
 
@@ -415,7 +422,7 @@ ways, the obvious one is to use search:
     {},
     { 
        select => [ { sum => 'Cost' } ],
-       as     => [ 'total_cost' ],
+       as     => [ 'total_cost' ], # remember this 'as' is for DBIx::Class::ResultSet not SQL
     }
   );
   my $tc = $rs->first->get_column('total_cost');
