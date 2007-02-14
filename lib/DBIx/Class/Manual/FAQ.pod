@@ -266,6 +266,25 @@ fetches the real value and does the formatting you want.
 
 See the Cookbook for more details.
 
+=item .. fetch a single (or topmost) row?
+
+Sometimes you many only want a single record back from a search. A quick
+way to get that single row is to first run your search as usual:
+
+  ->search->(undef, { order_by => "id DESC" })
+
+Then call L<DBIx::Class::ResultSet/slice> and ask it only to return 1 row:
+
+  ->slice(0,1)
+
+These two calls can be combined into a single statement:
+
+  ->search->(undef, { order_by => "id DESC" })->slice(0,1)
+
+Why slice instead of L<DBIx::Class::ResultSet/first> or L<DBIx::Class::ResultSet/single>?
+If supported by the database, slice will use LIMIT/OFFSET to hint to the database that we
+really only need one row. This can result in a significant speed improvement.
+
 =back
 
 =head2 Inserting and updating data
