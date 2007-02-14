@@ -1857,8 +1857,14 @@ Indicates additional column names for those added via L<+select>.
 
 =back
 
-Indicates column names for object inflation. This is used in conjunction with
-C<select>, usually when C<select> contains one or more function or stored
+Indicates column names for object inflation. That is, c< as >
+indicates the name that the column can be accessed as via the
+C<get_column> method (or via the object accessor, B<if one already
+exists>).  It has nothing to do with the SQL code C< SELECT foo AS bar
+>.
+
+The C< as > attribute is used in conjunction with C<select>,
+usually when C<select> contains one or more function or stored
 procedure names:
 
   $rs = $schema->resultset('Employee')->search(undef, {
