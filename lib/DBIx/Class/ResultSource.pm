@@ -957,9 +957,7 @@ L<DBIx::Class::ResultSet>, and set it here.
 
   $source->resultset_attributes({ order_by => [ 'id' ] });
 
-Specify here any attributes you wish to pass to your specialised
-resultset. For a full list of these, please see
-L<DBIx::Class::ResultSet/ATTRIBUTES>.
+Specify here any attributes you wish to pass to your specialised resultset.
 
 =cut
 

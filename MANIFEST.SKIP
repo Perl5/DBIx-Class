@@ -41,5 +41,5 @@
 # Skip maint stuff
 ^maint/
 
-# Avoid copies to .orig
-\.orig$
+# Dont use Module::Build anymore
+# Build.PL

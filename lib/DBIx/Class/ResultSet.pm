@@ -1813,9 +1813,7 @@ Shortcut to include additional columns in the returned results - for example
   });
 
 would return all CDs and include a 'name' column to the information
-passed to object inflation. Note that the 'artist' is the name of the
-column (or relationship) accessor, and 'name' is the name of the column
-accessor in the related table.
+passed to object inflation
 
 =head2 select
 
@@ -1866,14 +1864,8 @@ Indicates additional column names for those added via L<+select>.
 
 =back
 
-Indicates column names for object inflation. That is, c< as >
-indicates the name that the column can be accessed as via the
-C<get_column> method (or via the object accessor, B<if one already
-exists>).  It has nothing to do with the SQL code C< SELECT foo AS bar
->.
-
-The C< as > attribute is used in conjunction with C<select>,
-usually when C<select> contains one or more function or stored
+Indicates column names for object inflation. This is used in conjunction with
+C<select>, usually when C<select> contains one or more function or stored
 procedure names:
 
   $rs = $schema->resultset('Employee')->search(undef, {

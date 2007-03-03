@@ -107,15 +107,12 @@ to access the returned value:
   );
 
   # Equivalent SQL:
-  # SELECT name name, LENGTH( name )
+  # SELECT name name, LENGTH( name ) name_length
   # FROM artist
 
-Note that the C< as > attribute has absolutely nothing to with the sql
-syntax C< SELECT foo AS bar > (see the documentation in
-L<DBIx::Class::ResultSet/ATTRIBUTES>).  If your alias exists as a
-column in your base class (i.e. it was added with C<add_columns>), you
-just access it as normal. Our C<Artist> class has a C<name> column, so
-we just use the C<name> accessor:
+If your alias exists as a column in your base class (i.e. it was added
+with C<add_columns>), you just access it as normal. Our C<Artist>
+class has a C<name> column, so we just use the C<name> accessor:
 
   my $artist = $rs->first();
   my $name = $artist->name();
@@ -142,7 +139,7 @@ any of your aliases using either of these:
       select => [
         { distinct => [ $source->columns ] }
       ],
-      as => [ $source->columns ] # remember 'as' is not the same as SQL AS :-)
+      as => [ $source->columns ]
     }
   );
 
@@ -178,10 +175,6 @@ L<DBIx::Class> supports C<GROUP BY> as follows:
   # SELECT name, COUNT( cds.cdid ) FROM artist me
   # LEFT JOIN cd cds ON ( cds.artist = me.artistid )
   # GROUP BY name
-
-Please see L<DBIx::Class::ResultSet/ATTRIBUTES> documentation if you
-are in any way unsure about the use of the attributes above (C< join
->, C< select >, C< as > and C< group_by >).
 
 =head3 Predefined searches
 
@@ -422,7 +415,7 @@ ways, the obvious one is to use search:
     {},
     { 
        select => [ { sum => 'Cost' } ],
-       as     => [ 'total_cost' ], # remember this 'as' is for DBIx::Class::ResultSet not SQL
+       as     => [ 'total_cost' ],
     }
   );
   my $tc = $rs->first->get_column('total_cost');
@@ -533,7 +526,7 @@ in the future.
 
 =head2 Many-to-many relationships
 
-This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_many>:
+This is straightforward using L<DBIx::Class::Relationship::ManyToMany>:
 
   package My::DB;
   # ... set up connection ...
@@ -593,7 +586,7 @@ module.
 To make an object stringify itself as a single column, use something
 like this (replace C<foo> with the column/method of your choice):
 
-  use overload '""' => sub { shift->name}, fallback => 1;
+  use overload '""' => 'foo', fallback => 1;
 
 For more complex stringification, you can use an anonymous subroutine:
 
@@ -1127,45 +1120,6 @@ Just use C<find_or_new> instead, then check C<in_storage>:
   unless ($obj->in_storage) {
     $obj->insert;
     # do whatever else you wanted if it was a new row
-  }
-
-=head3 Wrapping/overloading a column accessor
-
-Problem: Say you have a table "Camera" and want to associate a description
-with each camera. For most cameras, you'll be able to generate the description from
-the other columns. However, in a few special cases you may want to associate a
-custom description with a camera.
-
-Solution:
-
-In your database schema, define a description field in the "Camera" table that
-can contain text and null values.
-
-In DBIC, we'll overload the column accessor to provide a sane default if no
-custom description is defined. The accessor will either return or generate the
-description, depending on whether the field is null or not.
-
-First, in your "Camera" schema class, define the description field as follows:
-
-  __PACKAGE__->add_columns(description => { accessor => '_description' });
-
-Next, we'll define the accessor-wrapper subroutine:
-
-  sub description {
-      my $self = shift;
-
-      # If there is an update to the column, we'll let the original accessor
-      # deal with it.
-      return $self->_description(@_) if @_;
-
-      # Fetch the column value.
-      my $description = $self->_description;
-
-      # If there's something in the description field, then just return that.
-      return $description if defined $description && length $descripton;
-
-      # Otherwise, generate a description.
-      return $self->generate_description;
   }
 
 =cut

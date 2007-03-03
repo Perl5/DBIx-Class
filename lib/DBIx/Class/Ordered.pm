@@ -18,7 +18,27 @@ Create a table for your ordered data.
     position INTEGER NOT NULL
   );
 
-In your Schema or DB class add "Ordered" to the top 
+Optionally, add one or more columns to specify groupings, allowing you 
+to maintain independent ordered lists within one table:
+
+  CREATE TABLE items (
+    item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    group_id INTEGER NOT NULL
+  );
+
+Or even
+
+  CREATE TABLE items (
+    item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    group_id INTEGER NOT NULL,
+    other_group_id INTEGER NOT NULL
+  );
+
+In your Schema or DB class add Ordered to the top 
 of the component list.
 
   __PACKAGE__->load_components(qw( Ordered ... ));
@@ -29,7 +49,15 @@ each row.
   package My::Item;
   __PACKAGE__->position_column('position');
 
-That's it, now you can change the position of your objects.
+If you are using one grouping column, specify it as follows:
+
+  __PACKAGE__->grouping_column('group_id');
+
+Or if you have multiple grouping columns:
+
+  __PACKAGE__->grouping_column(['group_id', 'other_group_id']);
+
+Thats it, now you can change the position of your objects.
 
   #!/use/bin/perl
   use My::Item;
@@ -75,7 +103,7 @@ move a record it always causes other records in the list to be updated.
   __PACKAGE__->position_column('position');
 
 Sets and retrieves the name of the column that stores the 
-positional value of each record.  Defaults to "position".
+positional value of each record.  Default to "position".
 
 =cut
 
@@ -85,7 +113,7 @@ __PACKAGE__->mk_classdata( 'position_column' => 'position' );
 
   __PACKAGE__->grouping_column('group_id');
 
-This method specifies a column to limit all queries in 
+This method specified a column to limit all queries in 
 this module by.  This effectively allows you to have multiple 
 ordered lists within the same table.
 
@@ -98,7 +126,7 @@ __PACKAGE__->mk_classdata( 'grouping_column' );
   my $rs = $item->siblings();
   my @siblings = $item->siblings();
 
-Returns either a resultset or an array of all other objects 
+Returns either a result set or an array of all other objects 
 excluding the one you called it on.
 
 =cut
@@ -122,7 +150,7 @@ sub siblings {
   my $sibling = $item->first_sibling();
 
 Returns the first sibling object, or 0 if the first sibling 
-is this sibling.
+is this sibliing.
 
 =cut
 
@@ -142,7 +170,7 @@ sub first_sibling {
 
   my $sibling = $item->last_sibling();
 
-Returns the last sibling, or 0 if the last sibling is this 
+Return the last sibling, or 0 if the last sibling is this 
 sibling.
 
 =cut
@@ -163,8 +191,8 @@ sub last_sibling {
 
   my $sibling = $item->previous_sibling();
 
-Returns the sibling that resides one position back.  Returns undef 
-if the current object is the first one.
+Returns the sibling that resides one position back.  Undef 
+is returned if the current object is the first one.
 
 =cut
 
@@ -185,8 +213,8 @@ sub previous_sibling {
 
   my $sibling = $item->next_sibling();
 
-Returns the sibling that resides one position forward. Returns undef 
-if the current object is the last one.
+Returns the sibling that resides one position foward.  Undef 
+is returned if the current object is the last one.
 
 =cut
 
@@ -208,9 +236,9 @@ sub next_sibling {
 
   $item->move_previous();
 
-Swaps position with the sibling in the position previous in
-the list.  Returns 1 on success, and 0 if the object is
-already the first one.
+Swaps position with the sibling on position previous in the list.  
+1 is returned on success, and 0 is returned if the objects is already 
+the first one.
 
 =cut
 
@@ -224,9 +252,8 @@ sub move_previous {
 
   $item->move_next();
 
-Swaps position with the sibling in the next position in the
-list.  Returns 1 on success, and 0 if the object is already
-the last in the list.
+Swaps position with the sibling in the next position.  1 is returned on 
+success, and 0 is returned if the object is already the last in the list.
 
 =cut
 
@@ -242,8 +269,8 @@ sub move_next {
 
   $item->move_first();
 
-Moves the object to the first position in the list.  Returns 1
-on success, and 0 if the object is already the first.
+Moves the object to the first position.  1 is returned on 
+success, and 0 is returned if the object is already the first.
 
 =cut
 
@@ -256,8 +283,8 @@ sub move_first {
 
   $item->move_last();
 
-Moves the object to the last position in the list.  Returns 1
-on success, and 0 if the object is already the last one.
+Moves the object to the very last position.  1 is returned on 
+success, and 0 is returned if the object is already the last one.
 
 =cut
 
@@ -271,9 +298,9 @@ sub move_last {
 
   $item->move_to( $position );
 
-Moves the object to the specified position.  Returns 1 on
-success, and 0 if the object is already at the specified
-position.
+Moves the object to the specified position.  1 is returned on 
+success, and 0 is returned if the object is already at the 
+specified position.
 
 =cut
 
@@ -443,8 +470,8 @@ need to use them.
 
 =head2 _grouping_clause
 
-This method returns a name=>value pair for limiting a search 
-by the collection column.  If the collection column is not 
+This method returns one or more name=>value pairs for limiting a search 
+by the grouping column(s).  If the grouping column is not 
 defined then this will return an empty list.
 
 =cut
@@ -512,7 +539,7 @@ ORDER BY on updates.
 
 If a position is not specified for an insert than a position 
 will be chosen based on COUNT(*)+1.  But, it first selects the 
-count, and then inserts the record.  The space of time between select 
+count then inserts the record.  The space of time between select 
 and insert introduces a race condition.  To fix this we need the 
 ability to lock tables in DBIC.  I've added an entry in the TODO 
 about this.
