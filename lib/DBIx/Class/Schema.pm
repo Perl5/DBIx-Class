@@ -1007,7 +1007,7 @@ sub ddl_filename {
     my ($self, $type, $dir, $version, $pversion) = @_;
 
     my $filename = ref($self);
-    $filename =~ s/::/-/;
+    $filename =~ s/::/-/g;
     $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
     $filename =~ s/$version/$pversion-$version/ if($pversion);
 

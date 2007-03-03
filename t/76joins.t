@@ -413,4 +413,3 @@ TODO: {
 is_deeply( $prefetch_result, $nonpre_result,
     'Compare 2 level prefetch result to non-prefetch result' );
 }
-
