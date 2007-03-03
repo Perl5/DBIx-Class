@@ -788,7 +788,7 @@ sub ddl_filename {
     my ($self, $type, $dir, $version) = @_;
 
     my $filename = ref($self);
-    $filename =~ s/::/-/;
+    $filename =~ s/::/-/g;
     $filename = "$dir$filename-$version-$type.sql";
 
     return $filename;
