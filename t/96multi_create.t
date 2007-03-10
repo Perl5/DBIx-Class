@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 4;
+plan tests => 6;
 
 my $cd2 = $schema->resultset('CD')->create({ artist => 
                                    { name => 'Fred Bloggs' },
@@ -27,3 +27,27 @@ my $artist = $schema->resultset('Artist')->create({ name => 'Fred 2',
                                                      });
 is(ref $artist->cds->first, 'DBICTest::CD', 'Created Artist with CDs');
 is($artist->cds->first->title, 'Music to code by', 'CD created correctly');
+
+# Add a new CD
+$artist->update({cds => [ $artist->cds, 
+                          { title => 'Yet another CD',
+                            year => 2006,
+                          },
+                        ],
+                });
+is(($artist->cds->search({}, { order_by => 'year' }))[0]->title, 'Yet another CD', 'Updated and added another CD');
+
+my $newartist = $schema->resultset('Artist')->find_or_create({ name => 'Fred 2'});
+
+is($newartist->name, 'Fred 2', 'Retrieved the artist');
+
+my $newartist2 = $schema->resultset('Artist')->find_or_create({ name => 'Fred 3',
+                                                                cds => [
+                                                                        { title => 'Noah Act',
+                                                                          year => 2007,
+                                                                        },
+                                                                       ],
+
+                                                              });
+
+is($newartist2->name, 'Fred 3', 'Created new artist with cds via find_or_create');

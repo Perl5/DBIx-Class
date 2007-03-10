@@ -36,7 +36,6 @@ passed objects.
 
 =cut
 
-## NB (JER) - this assumes set_from_related can cope with multi-rels
 ## It needs to store the new objects somewhere, and call insert on that list later when insert is called on this object. We may need an accessor for these so the user can retrieve them, if just doing ->new().
 ## This only works because DBIC doesnt yet care to check whether the new_related objects have been passed all their mandatory columns
 ## When doing the later insert, we need to make sure the PKs are set.
@@ -60,6 +59,7 @@ sub new {
     my ($related,$inflated);
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key}) {
+        ## Can we extract this lot to use with update(_or .. ) ?
         my $info = $class->relationship_info($key);
         if ($info && $info->{attrs}{accessor}
           && $info->{attrs}{accessor} eq 'single')
@@ -84,7 +84,6 @@ sub new {
                 $new->{_rel_in_storage} = 0;
               }
             }
-#            $new->set_from_related($key, $others);
             $related->{$key} = $others;
             next;
         } elsif ($class->has_column($key)
@@ -144,6 +143,7 @@ sub insert {
                        %{$self->{_inflated_column} || {}});
   ## Should all be in relationship_data, but we need to get rid of the
   ## 'filter' reltype..
+  ## These are the FK rels, need their IDs for the insert.
   foreach my $relname (keys %related_stuff) {
     my $relobj = $related_stuff{$relname};
     if(ref $relobj ne 'ARRAY') {
@@ -169,6 +169,7 @@ sub insert {
     $self->store_column($pri => $id);
   }
 
+  ## Now do the has_many rels, that need $selfs ID.
   foreach my $relname (keys %related_stuff) {
     my $relobj = $related_stuff{$relname};
     if(ref $relobj eq 'ARRAY') {
@@ -232,7 +233,19 @@ sub update {
           my $rel = delete $upd->{$key};
           $self->set_from_related($key => $rel);
           $self->{_relationship_data}{$key} = $rel;          
-        } 
+        } elsif ($info && $info->{attrs}{accessor}
+            && $info->{attrs}{accessor} eq 'multi'
+            && ref $upd->{$key} eq 'ARRAY') {
+            my $others = delete $upd->{$key};
+            foreach my $rel_obj (@$others) {
+              if(!Scalar::Util::blessed($rel_obj)) {
+                $rel_obj = $self->create_related($key, $rel_obj);
+              }
+            }
+            $self->{_relationship_data}{$key} = $others; 
+#            $related->{$key} = $others;
+            next;
+        }
         elsif ($self->has_column($key)
           && exists $self->column_info($key)->{_inflate_info})
         {
