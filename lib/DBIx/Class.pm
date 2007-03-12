@@ -206,6 +206,8 @@ jesper: Jesper Krogh
 
 jguenther: Justin Guenther <jguenther@cpan.org>
 
+jshirley: J. Shirley <jshirley@gmail.com>
+
 konobi: Scott McWhirter
 
 LTJake: Brian Cassidy <bricas@cpan.org>
