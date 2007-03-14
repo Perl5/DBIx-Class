@@ -62,7 +62,7 @@ sub bind_attribute_by_data_type {
   my ($self,$data_type) = @_;
 
   my $bind_attributes = {
-	bytea => { pg_type => DBD::Pg::PG_BYTEA },
+    bytea => { pg_type => DBD::Pg::PG_BYTEA },
   };
  
   if( defined $bind_attributes->{$data_type} ) {

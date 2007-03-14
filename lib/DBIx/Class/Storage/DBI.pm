@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI;
 
 use base 'DBIx::Class::Storage';
 
-use strict;
+use strict;    
 use warnings;
 use DBI;
 use SQL::Abstract::Limit;
@@ -839,8 +839,7 @@ sub _prep_for_execute {
 sub _execute {
   my ($self, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
   
-  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") )
-  {
+  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
     $ident = $ident->from();
   }
   
@@ -864,9 +863,7 @@ sub _execute {
   my $rv;
   if ($sth) {
     my $time = time();
-	
     $rv = eval {
-	
       my $placeholder_index = 1; 
 
       foreach my $bound (@bind) {
@@ -879,13 +876,13 @@ sub _execute {
           if defined $bind_attributes->{$column_name};
         }
 
-		foreach my $data (@data)
-		{
+        foreach my $data (@data)
+        {
           $data = ref $data ? ''.$data : $data; # stringify args
 
           $sth->bind_param($placeholder_index, $data, $attributes);
-          $placeholder_index++;		  
-		}
+          $placeholder_index++;
+        }
       }
       $sth->execute();
     };
@@ -945,32 +942,17 @@ sub insert_bulk {
   
   ##use Data::Dumper;
   ##print STDERR Dumper( $data, $sql, [@bind] );
-	
+
   if ($sth) {
   
     my $time = time();
-	
-    #$rv = eval {
-	#
-	#  $sth->execute_array({
 
-  	#    ArrayTupleFetch => sub {
-
-	#      my $values = shift @$data;  
-    #      return if !$values; 
-    #      return [ @{$values}[@bind] ];
-	#    },
-	  
-	#    ArrayTupleStatus => $tuple_status,
-	#  })
-    #};
-	
-	## Get the bind_attributes, if any exist
+    ## Get the bind_attributes, if any exist
     my $bind_attributes = $self->source_bind_attributes($source);
 
-	## Bind the values and execute
-	$rv = eval {
-	
+    ## Bind the values and execute
+    $rv = eval {
+
      my $placeholder_index = 1; 
 
         foreach my $bound (@bind) {
@@ -982,20 +964,19 @@ sub insert_bulk {
             $attributes = $bind_attributes->{$column_name}
             if defined $bind_attributes->{$column_name};
           }
-		  
-		  my @data = map { $_->[$data_index] } @$data;
+
+          my @data = map { $_->[$data_index] } @$data;
 
           $sth->bind_param_array( $placeholder_index, [@data], $attributes );
           $placeholder_index++;
       }
-	  $sth->execute_array( {ArrayTupleStatus => $tuple_status} );
+      $sth->execute_array( {ArrayTupleStatus => $tuple_status} );
 
-	};
+    };
    
     if ($@ || !defined $rv) {
       my $errors = '';
-      foreach my $tuple (@$tuple_status)
-      {
+      foreach my $tuple (@$tuple_status) {
           $errors .= "\n" . $tuple->[1] if(ref $tuple);
       }
       $self->throw_exception("Error executing '$sql': ".($@ || $errors));
@@ -1062,7 +1043,7 @@ sub source_bind_attributes {
   
     my $data_type = $source->column_info($column)->{data_type} || '';
     $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
-	 if $data_type;
+     if $data_type;
   }
 
   return $bind_attributes;

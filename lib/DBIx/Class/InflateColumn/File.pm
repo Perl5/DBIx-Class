@@ -1,4 +1,4 @@
-package DBIx::Class::File;
+package DBIx::Class::InflateColumn::File;
 
 use strict;
 use warnings;
@@ -17,10 +17,14 @@ sub register_column {
     $self->inflate_column(
       $column =>
         {
-          inflate => $self->_inflate_file_column,
+          inflate => sub { 
+            my ($value, $obj) = @_;
+            #$self->_inflate_file_column;
+          },
           deflate => sub {
-              my ( $file, @column_names ) = $self->_load_file_column_information;
-              $self->_save_file_column( $file, $self, @column_names );
+            my ($value, $obj) = @_;
+            #my ( $file, @column_names ) = $self->_load_file_column_information;
+            #$self->_save_file_column( $file, $self, @column_names );
           },
         }
     );
