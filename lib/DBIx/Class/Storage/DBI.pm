@@ -842,47 +842,55 @@ sub _execute {
         map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
-  my $sth = eval { $self->sth($sql,$op) };
 
-  if (!$sth || $@) {
-    $self->throw_exception(
-      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
-    );
-  }
+  my ($rv, $sth);
+  RETRY: while (1) {
+    $sth = eval { $self->sth($sql,$op) };
 
-  my $rv;
-  if ($sth) {
-    my $time = time();
-    $rv = eval {
-      my $placeholder_index = 1; 
-
-      foreach my $bound (@bind) {
-
-        my $attributes = {};
-        my($column_name, @data) = @$bound;
-
-        if( $bind_attributes ) {
-          $attributes = $bind_attributes->{$column_name}
-          if defined $bind_attributes->{$column_name};
-        }
-
-        foreach my $data (@data)
-        {
-          $data = ref $data ? ''.$data : $data; # stringify args
-
-          $sth->bind_param($placeholder_index, $data, $attributes);
-          $placeholder_index++;
-        }
-      }
-      $sth->execute();
-    };
-  
-    if ($@ || !$rv) {
-      $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
+    if (!$sth || $@) {
+      $self->throw_exception(
+        'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
+      );
     }
-  } else {
-    $self->throw_exception("'$sql' did not generate a statement.");
-  }
+
+    if ($sth) {
+      my $time = time();
+      $rv = eval {
+        my $placeholder_index = 1; 
+
+        foreach my $bound (@bind) {
+
+          my $attributes = {};
+          my($column_name, @data) = @$bound;
+
+          if( $bind_attributes ) {
+            $attributes = $bind_attributes->{$column_name}
+            if defined $bind_attributes->{$column_name};
+          }
+
+          foreach my $data (@data)
+          {
+            $data = ref $data ? ''.$data : $data; # stringify args
+
+            $sth->bind_param($placeholder_index, $data, $attributes);
+            $placeholder_index++;
+          }
+        }
+        $sth->execute();
+      };
+    
+      if ($@ || !$rv) {
+        $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr))
+          if $self->connected;
+        $self->_populate_dbh;
+      } else {
+        last RETRY;
+      }
+    } else {
+      $self->throw_exception("'$sql' did not generate a statement.");
+    }
+  } # While(1) to retry if disconencted
+
   if ($self->debug) {
      my @debug_bind =
        map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind; 

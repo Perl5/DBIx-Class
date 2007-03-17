@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - select et al weren't properly detecing when the server connection
+          had timed out when not in a transaction
+
 0.07999_02 2007-01-25 20:11:00
         - add support for binding BYTEA and similar parameters (w/Pg impl)
         - add support to Ordered for multiple ordering columns
