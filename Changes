@@ -2,6 +2,9 @@ Revision history for DBIx::Class
 
         - select et al weren't properly detecing when the server connection
           had timed out when not in a transaction
+        - The SQL::T parser class now respects a relationship attribute of
+          is_foreign_key_constrain to allow explicit control over wether or not
+          a foreign constraint is needed
 
 0.07999_02 2007-01-25 20:11:00
         - add support for binding BYTEA and similar parameters (w/Pg impl)
