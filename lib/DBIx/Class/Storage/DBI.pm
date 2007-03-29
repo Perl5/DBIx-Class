@@ -926,7 +926,7 @@ sub columns_info_for {
   }
 
   my %result;
-  my $sth = $dbh->prepare("SELECT * FROM $table WHERE 1=0");
+  my $sth = $dbh->prepare($self->sql_maker->select($table, undef, \'1 = 0'));
   $sth->execute;
   my @columns = @{$sth->{NAME_lc}};
   for my $i ( 0 .. $#columns ){
