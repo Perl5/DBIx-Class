@@ -744,6 +744,10 @@ See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>. The most
 common value for this would be C<< { add_drop_table => 1, } >> to have the SQL
 produced include a DROP TABLE statement for each table created.
 
+C<source_names> can also be added to C<$sqlt_args> containing an array
+reference of L<source> names of tables to be deployed. Per default,
+all tables are deployed.
+
 =cut
 
 sub deploy {
