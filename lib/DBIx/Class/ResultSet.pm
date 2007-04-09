@@ -134,7 +134,10 @@ call it as C<search(undef, \%attrs)>.
     columns => [qw/name artistid/],
   });
 
-For a list of attributes that can be passed to C<search>, see L</ATTRIBUTES>. For more examples of using this function, see L<Searching|DBIx::Class::Manual::Cookbook/Searching>.
+For a list of attributes that can be passed to C<search>, see
+L</ATTRIBUTES>. For more examples of using this function, see
+L<Searching|DBIx::Class::Manual::Cookbook/Searching>. For a complete
+documentation for the first argument, see L<SQL::Abstract>.
 
 =cut
 
