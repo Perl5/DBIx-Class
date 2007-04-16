@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+		- Update cookbook example for overriding new
+
 0.07005 2007-01-10 18:36:00
         - fixup changes file
         - remove erroneous .orig files - oops
