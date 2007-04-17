@@ -5,7 +5,7 @@ Revision history for DBIx::Class
         - Quoting for for columns_info_for
         - RT#25683 fixed (multiple open sths on DBD::Sybase)
         - CDBI compat infers has_many from has_a (Schwern)
-        - Fix to $filename from Carl Vincent
+        - Fix ddl_filename transformation (Carl Vincent)
 
 0.07005 2007-01-10 18:36:00
         - fixup changes file
