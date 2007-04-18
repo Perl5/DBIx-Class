@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.07006 2007-04-17 23:18:00
         - Lots of documentation updates
         - deploy now takes an optional 'source_names' parameter (dec)
         - Quoting for for columns_info_for
