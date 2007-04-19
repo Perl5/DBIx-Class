@@ -42,10 +42,11 @@ sub parse {
 
 #    print Dumper($dbixschema->registered_classes);
 
+    #foreach my $tableclass ($dbixschema->registered_classes)
+
     my %seen_tables;
 
-    my @sources = exists $args->{'source_names'} ? @{ $args->{'source_names'} } : $dbixschema->sources;
-    foreach my $moniker (@sources)
+    foreach my $moniker ($dbixschema->sources)
     {
         #eval "use $tableclass";
         #print("Can't load $tableclass"), next if($@);
