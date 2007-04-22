@@ -32,9 +32,9 @@ Revision history for DBIx::Class
           You can make it work like before via
           __PACKAGE__->column_info_from_storage(1) for now
         - Replaced DBIx::Class::AccessorGroup and Class::Data::Accessor with
-          Class::Accessor::Grouped. Only user noticible change is to 
-          table_class on ResultSourceProxy::Table (i.e. table objects in 
-          schemas) and, resultset_class and result_class in ResultSource. 
+          Class::Accessor::Grouped. Only user noticible change is to
+          table_class on ResultSourceProxy::Table (i.e. table objects in
+          schemas) and, resultset_class and result_class in ResultSource.
           These accessors no longer automatically require the classes when
           set.
 
@@ -121,7 +121,7 @@ Revision history for DBIx::Class
         - fixes to pass test suite on Windows
         - rewrote and cleaned up SQL::Translator tests
         - changed relationship helpers to only call ensure_class_loaded when the
-          join condition is inferred 
+          join condition is inferred
         - rewrote many_to_many implementation, now provides helpers for adding
           and deleting objects without dealing with the link table
         - reworked InflateColumn implementation to lazily deflate where
@@ -129,12 +129,12 @@ Revision history for DBIx::Class
         - changed join merging to not create a rel_2 alias when adding a join
           that already exists in a parent resultset
         - Storage::DBI::deployment_statements now calls ensure_connected
-          if it isn't passed a type 
+          if it isn't passed a type
         - fixed Componentized::ensure_class_loaded
         - InflateColumn::DateTime supports date as well as datetime
         - split Storage::DBI::MSSQL into MSSQL and Sybase::MSSQL
-        - fixed wrong debugging hook call in Storage::DBI 
-        - set connect_info properly before setting any ->sql_maker things 
+        - fixed wrong debugging hook call in Storage::DBI
+        - set connect_info properly before setting any ->sql_maker things
 
 0.06999_02 2006-06-09 23:58:33
         - Fixed up POD::Coverage tests, filled in some POD holes
