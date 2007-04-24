@@ -571,13 +571,13 @@ It's as simple as overriding the C<new> method.  Note the use of
 C<next::method>.
 
   sub new {
-    my ( $self, $attrs ) = @_;
+    my ( $class, $attrs ) = @_;
 
     $attrs->{foo} = 'bar' unless defined $attrs->{foo};
 
-    $self->next::method($attrs);
+    my $new = $class->next::method($attrs);
 
-    return $self;
+    return $new;
   }
 
 For more information about C<next::method>, look in the L<Class::C3> 
