@@ -5,12 +5,8 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
-print STDERR "Oracle.pm got called.\n";
-
 sub _rebless {
     my ($self) = @_;
-
-    print STDERR "Rebless got called.\n";
 
     my $version = eval { $self->_dbh->get_info(18); };
 
@@ -22,12 +18,9 @@ sub _rebless {
           ? 'DBIx::Class::Storage::DBI::Oracle::WhereJoins'
           : 'DBIx::Class::Storage::DBI::Oracle::Generic';
 
-        print STDERR "Class: $class\n";
-
         # Load and rebless
         eval "require $class";
 
-        print STDERR "\$@: $@\n";
         bless $self, $class unless $@;
     }
 }
