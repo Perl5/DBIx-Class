@@ -9,6 +9,14 @@ Revision history for DBIx::Class
           is_foreign_key_constrain to allow explicit control over wether or
           not a foreign constraint is needed
 
+0.07006 2007-04-17 23:18:00
+        - Lots of documentation updates
+        - deploy now takes an optional 'source_names' parameter (dec)
+        - Quoting for for columns_info_for
+        - RT#25683 fixed (multiple open sths on DBD::Sybase)
+        - CDBI compat infers has_many from has_a (Schwern)
+        - Fix ddl_filename transformation (Carl Vincent)
+
 0.07999_02 2007-01-25 20:11:00
         - add support for binding BYTEA and similar parameters (w/Pg impl)
         - add support to Ordered for multiple ordering columns
@@ -17,6 +25,24 @@ Revision history for DBIx::Class
         - ResltClass::HashRefInflator added
         - Changed row and rs objects to not have direct handle to a source,
           instead a (schema,source_name) tuple of type ResultSourceHandle
+
+0.07005 2007-01-10 18:36:00
+        - fixup changes file
+        - remove erroneous .orig files - oops
+
+0.07004 2007-01-09 21:52:00
+        - fix find_related-based queries to correctly grep the unique key
+        - fix InflateColumn to inflate/deflate all refs but scalar refs
+
+0.07003 2006-11-16 11:52:00
+        - fix for rt.cpan.org #22740 (use $^X instead of hardcoded "perl")
+        - Tweaks to resultset to allow inflate_result to return an array
+        - Fix UTF8Columns to work under Perl <= 5.8.0
+        - Fix up new_result in ResultSet to avoid alias-related bugs
+        - Made new/update/find handle 'single' rel accessor correctly
+        - Fix NoBindVars to be safer and handle non-true bind values
+        - Don't blow up if columns_info_for returns useless results
+        - Documentation updates
 
 0.07999_01 2006-10-05 21:00:00
         - add connect_info option "disable_statement_caching"
@@ -40,19 +66,6 @@ Revision history for DBIx::Class
           schemas) and, resultset_class and result_class in ResultSource.
           These accessors no longer automatically require the classes when
           set.
-
-0.07004
-        - fix find_related-based queries to correctly grep the unique key
-
-0.07003 2006-11-16 11:52:00
-        - fix for rt.cpan.org #22740 (use $^X instead of hardcoded "perl")
-        - Tweaks to resultset to allow inflate_result to return an array
-        - Fix UTF8Columns to work under Perl <= 5.8.0
-        - Fix up new_result in ResultSet to avoid alias-related bugs
-        - Made new/update/find handle 'single' rel accessor correctly
-        - Fix NoBindVars to be safer and handle non-true bind values
-        - Don't blow up if columns_info_for returns useless results
-        - Documentation updates
 
 0.07002 2006-09-14 21:17:32
         - fix quote tests for recent versions of SQLite

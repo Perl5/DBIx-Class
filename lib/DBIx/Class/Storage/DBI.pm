@@ -1131,18 +1131,12 @@ sub _dbh_columns_info_for {
   }
 
   my %result;
-  my $sth = $dbh->prepare("SELECT * FROM $table WHERE 1=0");
+  my $sth = $dbh->prepare($self->sql_maker->select($table, undef, \'1 = 0'));
   $sth->execute;
   my @columns = @{$sth->{NAME_lc}};
   for my $i ( 0 .. $#columns ){
     my %column_info;
-    my $type_num = $sth->{TYPE}->[$i];
-    my $type_name;
-    if(defined $type_num && $dbh->can('type_info')) {
-      my $type_info = $dbh->type_info($type_num);
-      $type_name = $type_info->{TYPE_NAME} if $type_info;
-    }
-    $column_info{data_type} = $type_name ? $type_name : $type_num;
+    $column_info{data_type} = $sth->{TYPE}->[$i];
     $column_info{size} = $sth->{PRECISION}->[$i];
     $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
 
@@ -1152,6 +1146,18 @@ sub _dbh_columns_info_for {
     }
 
     $result{$columns[$i]} = \%column_info;
+  }
+  $sth->finish;
+
+  foreach my $col (keys %result) {
+    my $colinfo = $result{$col};
+    my $type_num = $colinfo->{data_type};
+    my $type_name;
+    if(defined $type_num && $dbh->can('type_info')) {
+      my $type_info = $dbh->type_info($type_num);
+      $type_name = $type_info->{TYPE_NAME} if $type_info;
+      $colinfo->{data_type} = $type_name if $type_name;
+    }
   }
 
   return \%result;
