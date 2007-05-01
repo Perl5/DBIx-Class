@@ -91,15 +91,11 @@ moniker.
 
 sub register_source {
   my ($self, $moniker, $source) = @_;
-  my %reg = %{$self->source_registrations};
-  $reg{$moniker} = $source;
-  $self->source_registrations(\%reg);
+  $self->source_registrations->{$moniker} = $source;
   $source->schema($self);
   weaken($source->{schema}) if ref($self);
   if ($source->result_class) {
-    my %map = %{$self->class_mappings};
-    $map{$source->result_class} = $moniker;
-    $self->class_mappings(\%map);
+    $self->class_mappings->{$source->result_class} = $moniker;
   }
 }
 
@@ -389,9 +385,6 @@ will produce the output
 
 sub compose_namespace {
   my ($self, $target, $base) = @_;
-  my %reg = %{ $self->source_registrations };
-  my %target;
-  my %map;
   my $schema = $self->clone;
   {
     no warnings qw/redefine/;
