@@ -1121,6 +1121,22 @@ To do this simply use L<DBIx::Class::ResultClass::HashRefInflator>.
   
 Wasn't that easy?
   
+=head2 Get raw data for blindingly fast results
+
+If the C<inflate_result> solution above is not fast enough for you, you
+can use a DBIx::Class to return values exactly as they come out of the
+data base with none of the convenience methods wrapped round them.
+
+This is used like so:-
+
+  my $cursor = $rs->cursor
+  while (my @vals = $cursor->next) {
+      # use $val[0..n] here
+  }
+
+You will need to map the array offsets to particular columns (you can
+use the I<select> attribute of C<search()> to force ordering).
+
 =head2 Want to know if find_or_create found or created a row?
 
 Just use C<find_or_new> instead, then check C<in_storage>:
