@@ -91,11 +91,15 @@ moniker.
 
 sub register_source {
   my ($self, $moniker, $source) = @_;
-  $self->source_registrations->{$moniker} = $source;
+  my %reg = %{$self->source_registrations};
+  $reg{$moniker} = $source;
+  $self->source_registrations(\%reg);
   $source->schema($self);
   weaken($source->{schema}) if ref($self);
   if ($source->result_class) {
-    $self->class_mappings->{$source->result_class} = $moniker;
+    my %map = %{$self->class_mappings};
+    $map{$source->result_class} = $moniker;
+    $self->class_mappings(\%map);
   }
 }
 
