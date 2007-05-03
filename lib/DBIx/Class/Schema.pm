@@ -578,9 +578,6 @@ will produce the output
 
 sub compose_namespace {
   my ($self, $target, $base) = @_;
-  my %reg = %{ $self->source_registrations };
-  my %target;
-  my %map;
   my $schema = $self->clone;
   {
     no warnings qw/redefine/;
@@ -1007,7 +1004,7 @@ sub ddl_filename {
     my ($self, $type, $dir, $version, $pversion) = @_;
 
     my $filename = ref($self);
-    $filename =~ s/::/-/;
+    $filename =~ s/::/-/g;
     $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
     $filename =~ s/$version/$pversion-$version/ if($pversion);
 

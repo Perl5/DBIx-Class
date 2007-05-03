@@ -145,16 +145,18 @@ sub parse {
 
                 #Decide if this is a foreign key based on whether the self
                 #items are our primary columns.
+                $DB::single = 1 if $moniker eq 'Tests::MBTI::Result';
 
                 # If the sets are different, then we assume it's a foreign key from
                 # us to another table.
-                # OR: If is_foreign_key attr is explicity set on one the local columns
-                if ( ! exists $created_FK_rels{$rel_table}->{$key_test} 
-                    && 
-                    ( !$source->compare_relationship_keys(\@keys, \@primary) ||
-                      grep { $source->column_info($_)->{is_foreign_key} } @keys 
-                    )
-                   ) {
+                # OR: If is_foreign_key_constraint attr is explicity set (or set to false) on the relation
+                if ( ! exists $created_FK_rels{$rel_table}->{$key_test} &&
+                     ( exists $rel_info->{attrs}{is_foreign_key_constraint} && 
+                       $rel_info->{attrs}{is_foreign_key_constraint} ||
+                       !$source->compare_relationship_keys(\@keys, \@primary)
+                     )
+                   )
+                {
                     $created_FK_rels{$rel_table}->{$key_test} = 1;
                     $table->add_constraint(
                                 type             => 'foreign_key',

@@ -199,7 +199,11 @@ claco: Christopher H. Laco
 
 clkao: CL Kao
 
+da5id: David Jack Olrik <djo@cpan.org>
+
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
+
+dnm: Justin Wheeler <jwheeler@datademons.com>
 
 draven: Marcus Ramberg <mramberg@cpan.org>
 
@@ -212,6 +216,8 @@ gphat: Cory G Watson <gphat@cpan.org>
 jesper: Jesper Krogh
 
 jguenther: Justin Guenther <jguenther@cpan.org>
+
+jshirley: J. Shirley <jshirley@gmail.com>
 
 konobi: Scott McWhirter
 

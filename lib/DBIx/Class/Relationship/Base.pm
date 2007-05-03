@@ -102,6 +102,13 @@ related object, but you also want the relationship accessor to double as
 a column accessor). For C<multi> accessors, an add_to_* method is also
 created, which calls C<create_related> for the relationship.
 
+=item is_foreign_key_constraint
+
+If you are using L<SQL::Translator> to create SQL for you and you find that it
+is creating constraints where it shouldn't, or not creating them where it 
+should, set this attribute to a true or false value to override the detection
+of when to create constraints.
+
 =back
 
 =head2 register_relationship
