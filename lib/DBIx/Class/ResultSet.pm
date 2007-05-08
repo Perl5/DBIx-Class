@@ -1264,9 +1264,10 @@ sub new_result {
   my %new = (
     %{ $self->_remove_alias($values, $alias) },
     %{ $self->_remove_alias($collapsed_cond, $alias) },
+    -source_handle => $self->_source_handle
   );
 
-  return $self->result_class->new(\%new,$self->_source_handle);
+  return $self->result_class->new(\%new);
 }
 
 # _collapse_cond

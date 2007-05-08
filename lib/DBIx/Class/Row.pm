@@ -44,13 +44,18 @@ passed objects.
 ## tests!
 
 sub new {
-  my ($class, $attrs, $source) = @_;
+  my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
 
   my $new = { _column_data => {} };
   bless $new, $class;
 
-  $new->_source_handle($source) if $source;
+  if (my $handle = delete $attrs->{-source_handle}) {
+    $new->_source_handle($handle);
+  }
+  if (my $source = delete $attrs->{-result_source}) {
+    $new->result_source($source);
+  }
 
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
@@ -107,9 +112,6 @@ sub new {
       $new->throw_exception("No such column $key on $class")
         unless $class->has_column($key);
       $new->store_column($key => $attrs->{$key});          
-    }
-    if (my $source = delete $attrs->{-result_source}) {
-      $new->result_source($source);
     }
 
     $new->{_relationship_data} = $related if $related;
