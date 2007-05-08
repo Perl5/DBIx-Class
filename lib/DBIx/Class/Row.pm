@@ -30,13 +30,15 @@ Creates a new row object from column => value mappings passed as a hash ref
 =cut
 
 sub new {
-  my ($class, $attrs, $source) = @_;
+  my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
 
   my $new = { _column_data => {} };
   bless $new, $class;
 
-  $new->_source_handle($source) if $source;
+  if (my $handle = delete $attrs->{-source_handle}) {
+    $new->_source_handle($handle);
+  }
 
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
