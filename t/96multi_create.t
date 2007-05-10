@@ -4,10 +4,11 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DateTime;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 11;
+plan tests => 12;
 
 my $cd2 = $schema->resultset('CD')->create({ artist => 
                                    { name => 'Fred Bloggs' },
@@ -118,3 +119,9 @@ CREATE_RELATED2 :{
 		ok( $track && ref $track eq 'DBICTest::Track', 'Got Expected Track Class');
 	}
 }
+
+my $now = DateTime->now;
+
+ok( $schema->resultset('Event')
+           ->create( { starts_at => $now, created_on => $now } ),
+  'object with inflated non-rels ok');
