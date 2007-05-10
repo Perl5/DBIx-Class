@@ -45,14 +45,6 @@ sub backup
   return $backupfile;
 }
 
-sub txn_begin
-{
-  my $self = shift;
-  return if(!$self->{transaction_depth});
-
-  $self->next::method(@_);
-}
-
 
 1;
 
