@@ -506,7 +506,9 @@ sub dbh_do {
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
 
-  return $coderef->($self, $self->_dbh, @_) if $self->{_in_dbh_do};
+  return $coderef->($self, $self->_dbh, @_) if $self->{_in_dbh_do}
+      || $self->{transaction_depth};
+
   local $self->{_in_dbh_do} = 1;
 
   my @result;
