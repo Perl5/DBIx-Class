@@ -22,7 +22,13 @@ my $orig_debug = $schema->storage->debug;
 diag('Testing against ' . join(' ', map { $schema->storage->dbh->get_info($_) } qw/17 18/));
 
 my $dsn = $schema->storage->connect_info->[0];
-$schema->connection($dsn, { quote_char => '`', name_sep => '.' });
+$schema->connection(
+  $dsn,
+  undef,
+  undef,
+  { AutoCommit => 1 },
+  { quote_char => '`', name_sep => '.' },
+);
 
 my $sql = '';
 $schema->storage->debugcb(sub { $sql = $_[1] });
@@ -47,7 +53,12 @@ $rs = $schema->resultset('CD')->search({},
 eval { $rs->first };
 like($sql, qr/ORDER BY \Q${order}\E/, 'did not quote ORDER BY with scalarref');
 
-$schema->connection($dsn, { quote_char => [qw/[ ]/], name_sep => '.' });
+$schema->connection(
+  $dsn,
+  undef,
+  undef,
+  { AutoCommit => 1, quote_char => [qw/[ ]/], name_sep => '.' }
+);
 $schema->storage->debugcb(sub { $sql = $_[1] });
 $schema->storage->debug(1);
 
@@ -62,7 +73,12 @@ my %data = (
        order => '12'
 );
 
-$schema->connection($dsn, { quote_char => '`', name_sep => '.' });
+$schema->connection(
+  $dsn,
+  undef,
+  undef,
+  { AutoCommit => 1, quote_char => '`', name_sep => '.' }
+);
 
 is($schema->storage->sql_maker->update('group', \%data), 'UPDATE `group` SET `name` = ?, `order` = ?', 'quoted table names for UPDATE');
 
