@@ -14,7 +14,7 @@ __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
   schema from _relationships column_info_from_storage source_info/);
 
-__PACKAGE__->mk_group_accessors('inherited' => qw/resultset_class
+__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
   result_class/);
 
 __PACKAGE__->mk_group_ro_accessors('simple' => qw/source_name/);

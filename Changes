@@ -8,6 +8,8 @@ Revision history for DBIx::Class
         - The SQL::T parser class now respects a relationship attribute of
           is_foreign_key_constrain to allow explicit control over wether or
           not a foreign constraint is needed
+        - resultset_class/result_class now (again) auto loads the specified
+          class; requires Class::Accessor::Grouped 0.05000+
 
 0.07006 2007-04-17 23:18:00
         - Lots of documentation updates
@@ -308,7 +310,8 @@ Revision history for DBIx::Class
 
 0.05002 2006-02-06 12:12:03
         - Added recommends for Class::Inspector
-        - Added skip_all to t/40resultsetmanager.t if no Class::Inspector available
+        - Added skip_all to t/40resultsetmanager.t if no Class::Inspector
+        available
 
 0.05001 2006-02-05 15:28:10
         - debug output now prints NULL for undef params
@@ -348,8 +351,10 @@ Revision history for DBIx::Class
 
 0.04999_04 2006-01-24 21:48:21
         - more documentation improvements
-        - add columns_info_for for vendor-specific column info (Zbigniew Lukasiak)
-        - add SQL::Translator::Producer for DBIx::Class table classes (Jess Robinson)
+        - add columns_info_for for vendor-specific column info (Zbigniew
+        Lukasiak)
+        - add SQL::Translator::Producer for DBIx::Class table classes (Jess
+        Robinson)
         - add unique constraint declaration (Daniel Westermann-Clark)
         - add new update_or_create method (Daniel Westermann-Clark)
         - rename ResultSetInstance class to ResultSetProxy, ResultSourceInstance
@@ -359,11 +364,13 @@ Revision history for DBIx::Class
 
 0.04999_03 2006-01-20 06:05:27
         - imported Jess Robinson's SQL::Translator::Parser::DBIx::Class
-        - lots of internals cleanup to eliminate result_source_instance requirement
+        - lots of internals cleanup to eliminate result_source_instance
+        requirement
         - added register_column and register_relationship class APIs
         - made Storage::DBI use prepare_cached safely (thanks to Tim Bunce)
         - many documentation improvements (thanks guys!)
-        - added ->connection, ->connect, ->register_source and ->clone schema methods
+        - added ->connection, ->connect, ->register_source and ->clone schema
+        methods
         - Use croak instead of die for user errors.
 
 0.04999_02 2006-01-14 07:17:35
@@ -436,3 +443,4 @@ Revision history for DBIx::Class
 
 0.01    2005-08-08 17:10:00
         - initial release
+
