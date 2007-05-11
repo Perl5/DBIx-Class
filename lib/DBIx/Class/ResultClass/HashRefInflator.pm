@@ -63,6 +63,16 @@ sub mk_hash {
     # to avoid emtpy has_many rels contain one empty hashref
     return if (not keys %$me);
 
+    my $def;
+
+    foreach (values %$me) {
+        if (defined $_) {
+            $def = 1;
+            last;
+        }
+    }
+    return unless $def;
+
     return { %$me,
         map {
           ( $_ =>

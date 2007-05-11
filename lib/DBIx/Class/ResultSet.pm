@@ -782,7 +782,8 @@ sub _collapse_result {
   if (keys %collapse) {
     my %pri = map { ($_ => 1) } $self->result_source->primary_columns;
     foreach my $i (0 .. $#construct_as) {
-      if (delete $pri{$construct_as[$i]}) {
+      next if defined($construct_as[$i][0]); # only self table
+      if (delete $pri{$construct_as[$i][1]}) {
         push(@pri_index, $i);
       }
       last unless keys %pri; # short circuit (Johnny Five Is Alive!)
@@ -793,13 +794,17 @@ sub _collapse_result {
 
   my %pri_vals = map { ($_ => $copy[$_]) } @pri_index;
 
-  my %const;
+  my @const_rows;
 
   do { # no need to check anything at the front, we always want the first row
+
+    my %const;
   
     foreach my $this_as (@construct_as) {
       $const{$this_as->[0]||''}{$this_as->[1]} = shift(@copy);
     }
+
+    push(@const_rows, \%const);
 
   } until ( # no pri_index => no collapse => drop straight out
       !@pri_index
@@ -824,17 +829,49 @@ sub _collapse_result {
   # THIS BIT STILL NEEDS TO DO THE COLLAPSE
 
   my $alias = $self->{attrs}{alias};
-  my $info = [ {}, {} ];
-  foreach my $key (keys %const) {
-    if (length $key && $key ne $alias) {
-      my $target = $info;
-      my @parts = split(/\./, $key);
-      foreach my $p (@parts) {
-        $target = $target->[1]->{$p} ||= [];
+  my $info = [];
+
+  my %collapse_pos;
+
+  my @const_keys;
+
+  use Data::Dumper;
+
+  foreach my $const (@const_rows) {
+    scalar @const_keys or do {
+      @const_keys = sort { length($a) <=> length($b) } keys %$const;
+    };
+    foreach my $key (@const_keys) {
+      if (length $key) {
+        my $target = $info;
+        my @parts = split(/\./, $key);
+        my $cur = '';
+        my $data = $const->{$key};
+        foreach my $p (@parts) {
+          $target = $target->[1]->{$p} ||= [];
+          $cur .= ".${p}";
+          if ($cur eq ".${key}" && (my @ckey = @{$collapse{$cur}||[]})) { 
+            # collapsing at this point and on final part
+            my $pos = $collapse_pos{$cur};
+            CK: foreach my $ck (@ckey) {
+              if (!defined $pos->{$ck} || $pos->{$ck} ne $data->{$ck}) {
+                $collapse_pos{$cur} = $data;
+                delete @collapse_pos{ # clear all positioning for sub-entries
+                  grep { m/^\Q${cur}.\E/ } keys %collapse_pos
+                };
+                push(@$target, []);
+                last CK;
+              }
+            }
+          }
+          if (exists $collapse{$cur}) {
+            $target = $target->[-1];
+          }
+        }
+        $target->[0] = $data;
+      } else {
+        $info->[0] = $const->{$key};
       }
-      $target->[0] = $const{$key};
-    } else {
-      $info->[0] = $const{$key};
     }
   }
 
