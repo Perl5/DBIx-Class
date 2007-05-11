@@ -97,8 +97,8 @@ sub new {
           ## 'filter' should disappear and get merged in with 'single' above!
           my $rel_obj = delete $attrs->{$key};
           if(!Scalar::Util::blessed($rel_obj)) {
-            $rel_obj = $new->new_related($key, $rel_obj);
-            $new->{_rel_in_storage} = 0;
+            $rel_obj = $new->find_or_new_related($key, $rel_obj);
+            $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
           }
           $inflated->{$key} = $rel_obj;
           next;
