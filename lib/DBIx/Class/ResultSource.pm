@@ -771,6 +771,8 @@ sub resolve_condition {
         #warn %ret;
       } elsif (!defined $for) { # undef, i.e. "no object"
         $ret{$k} = undef;
+      } elsif (ref $as eq 'HASH') { # reverse hashref
+        $ret{$v} = $as->{$k};
       } elsif (ref $as) { # reverse object
         $ret{$v} = $as->get_column($k);
       } elsif (!defined $as) { # undef, i.e. "no reverse object"

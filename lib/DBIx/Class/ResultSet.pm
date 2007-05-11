@@ -350,11 +350,13 @@ sub find {
 
   my (%related, $info);
 
-  foreach my $key (keys %$input_query) {
+  KEY: foreach my $key (keys %$input_query) {
     if (ref($input_query->{$key})
         && ($info = $self->result_source->relationship_info($key))) {
+      my $val = delete $input_query->{$key};
+      next KEY if (ref($val) eq 'ARRAY'); # has_many for multi_create
       my $rel_q = $self->result_source->resolve_condition(
-                    $info->{cond}, delete $input_query->{$key}, $key
+                    $info->{cond}, $val, $key
                   );
       die "Can't handle OR join condition in find" if ref($rel_q) eq 'ARRAY';
       @related{keys %$rel_q} = values %$rel_q;

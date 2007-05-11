@@ -8,7 +8,7 @@ use DateTime;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 12;
+plan tests => 17;
 
 my $cd2 = $schema->resultset('CD')->create({ artist => 
                                    { name => 'Fred Bloggs' },
@@ -90,10 +90,11 @@ CREATE_RELATED1 :{
 
 CREATE_RELATED2 :{
 
+	my $artist = $schema->resultset('Artist')->first;
 	
-	my $cd_result = $schema->resultset('Artist')->first->create_related('cds', {
+	my $cd_result = $artist->create_related('cds', {
 	
-		title => 'TestOneCD1',
+		title => 'TestOneCD2',
 		year => 2007,
 		tracks => [
 		
@@ -108,7 +109,7 @@ CREATE_RELATED2 :{
 	});
 	
 	ok( $cd_result && ref $cd_result eq 'DBICTest::CD', "Got Good CD Class");
-	ok( $cd_result->title eq "TestOneCD1", "Got Expected Title");
+	ok( $cd_result->title eq "TestOneCD2", "Got Expected Title");
 	
 	my $tracks = $cd_result->tracks;
 	
@@ -119,9 +120,3 @@ CREATE_RELATED2 :{
 		ok( $track && ref $track eq 'DBICTest::Track', 'Got Expected Track Class');
 	}
 }
-
-my $now = DateTime->now;
-
-ok( $schema->resultset('Event')
-           ->create( { starts_at => $now, created_on => $now } ),
-  'object with inflated non-rels ok');
