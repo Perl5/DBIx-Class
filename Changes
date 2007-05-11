@@ -9,7 +9,7 @@ Revision history for DBIx::Class
           is_foreign_key_constrain to allow explicit control over wether or
           not a foreign constraint is needed
         - resultset_class/result_class now (again) auto loads the specified
-          class; requires Class::Accessor::Grouped 0.05000+
+          class; requires Class::Accessor::Grouped 0.05001+
 
 0.07006 2007-04-17 23:18:00
         - Lots of documentation updates

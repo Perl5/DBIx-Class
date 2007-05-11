@@ -175,7 +175,7 @@ sub add_columns {
   return $self;
 }
 
-*add_column = \&add_columns;
+sub add_column { shift->add_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =head2 has_column
 
@@ -286,7 +286,7 @@ sub remove_columns {
   $self->_ordered_columns(\@remaining);
 }
 
-*remove_column = \&remove_columns;
+sub remove_column { shift->remove_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =head2 set_primary_key
 
@@ -874,9 +874,13 @@ sub resolve_prefetch {
       $self->throw_exception(
         "Can't prefetch has_many ${pre} (join cond too complex)")
         unless ref($rel_info->{cond}) eq 'HASH';
+      #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
+      #              values %{$rel_info->{cond}};
+      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->primary_columns ];
+        # action at a distance. prepending the '.' allows simpler code
+        # in ResultSet->_collapse_result
       my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
                     keys %{$rel_info->{cond}};
-      $collapse->{"${as_prefix}${pre}"} = \@key;
       my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
                    ? @{$rel_info->{attrs}{order_by}}
                    : (defined $rel_info->{attrs}{order_by}
@@ -1034,3 +1038,4 @@ You may distribute this code under the same terms as Perl itself.
 
 =cut
 
+1;

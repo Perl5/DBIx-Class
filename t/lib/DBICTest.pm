@@ -60,7 +60,7 @@ sub init_schema {
                            : 'compose_namespace');
 
     my $schema = DBICTest::Schema->$compose_method('DBICTest')
-                                 ->connect($dsn, $dbuser, $dbpass);
+                     ->connect($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
     $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
     if ( !$args{no_deploy} ) {
         __PACKAGE__->deploy_schema( $schema );

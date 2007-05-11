@@ -21,7 +21,12 @@ unlink($db_file . "-journal") if -e $db_file . "-journal";
 mkdir("t/var") unless -d "t/var";
 unlink('t/var/DBICVersion-Schema-1.0-SQLite.sql');
 
-my $schema_orig = DBICVersion::Schema->connect("dbi:SQLite:$db_file");
+my $schema_orig = DBICVersion::Schema->connect(
+  "dbi:SQLite:$db_file",
+  undef,
+  undef,
+  { AutoCommit => 1 },
+);
 # $schema->storage->ensure_connected();
 
 is($schema_orig->ddl_filename('SQLite', 't/var', '1.0'), File::Spec->catfile('t', 'var', 'DBICVersion-Schema-1.0-SQLite.sql'), 'Filename creation working');
@@ -35,7 +40,12 @@ my $tvrs = $schema_orig->resultset('Table');
 is($schema_orig->exists($tvrs), 1, 'Created schema from DDL file');
 
 eval "use DBICVersionNew";
-my $schema_new = DBICVersion::Schema->connect("dbi:SQLite:$db_file");
+my $schema_new = DBICVersion::Schema->connect(
+  "dbi:SQLite:$db_file",
+  undef,
+  undef,
+  { AutoCommit => 1 },
+);
 
 unlink('t/var/DBICVersion-Schema-2.0-SQLite.sql');
 unlink('t/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
@@ -43,7 +53,12 @@ $schema_new->create_ddl_dir('SQLite', undef, 't/var', '1.0');
 ok(-f 't/var/DBICVersion-Schema-1.0-2.0-SQLite.sql', 'Created DDL upgrade file');
 
 ## create new to pick up filedata for upgrade files we just made (on_connect)
-my $schema_upgrade = DBICVersion::Schema->connect("dbi:SQLite:$db_file");
+my $schema_upgrade = DBICVersion::Schema->connect(
+  "dbi:SQLite:$db_file",
+  undef,
+  undef,
+  { AutoCommit => 1 },
+);
 
 ## do this here or let Versioned.pm do it?
 $schema_upgrade->upgrade();

@@ -408,9 +408,5 @@ sub make_hash_struc {
 my $prefetch_result = make_hash_struc($art_rs_pr);
 my $nonpre_result   = make_hash_struc($art_rs);
 
-TODO: {
-  local $TODO = 'fixing collapse in -current';
 is_deeply( $prefetch_result, $nonpre_result,
     'Compare 2 level prefetch result to non-prefetch result' );
-}
-

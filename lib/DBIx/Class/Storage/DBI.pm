@@ -331,7 +331,12 @@ C<connect_info> here.
 
 The arrayref can either contain the same set of arguments one would
 normally pass to L<DBI/connect>, or a lone code reference which returns
-a connected database handle.
+a connected database handle.  Please note that the L<DBI> docs
+recommend that you always explicitly set C<AutoCommit> to either
+C<0> or C<1>.   L<DBIx::Class> further recommends that it be set
+to C<1>, and that you perform transactions via our L</txn_do>
+method.  L<DBIx::Class> will emit a warning if you fail to explicitly
+set C<AutoCommit> one way or the other.  See below for more details.
 
 In either case, if the final argument in your connect_info happens
 to be a hashref, C<connect_info> will look there for several
@@ -390,6 +395,21 @@ might not work very well, YMMV.  If you don't use a subref, DBIC will
 force this setting for you anyways.  Setting HandleError to anything
 other than simple exception object wrapper might cause problems too.
 
+Another Important Note:
+
+DBIC can do some wonderful magic with handling exceptions,
+disconnections, and transactions when you use C<AutoCommit =&gt; 1>
+combined with C<txn_do> for transaction support.
+
+If you set C<AutoCommit =&gt; 0> in your connect info, then you are always
+in an assumed transaction between commits, and you're telling us you'd
+like to manage that manually.  A lot of DBIC's magic protections
+go away.  We can't protect you from exceptions due to database
+disconnects because we don't know anything about how to restart your
+transactions.  You're on your own for handling all sorts of exceptional
+cases if you choose the C<AutoCommit =&gt 0> path, just as you would
+be with raw DBI.
+
 Examples:
 
   # Simple SQLite connection
@@ -404,7 +424,7 @@ Examples:
       'dbi:Pg:dbname=foo',
       'postgres',
       'my_pg_password',
-      { AutoCommit => 0 },
+      { AutoCommit => 1 },
       { quote_char => q{"}, name_sep => q{.} },
     ]
   );
@@ -415,7 +435,7 @@ Examples:
       'dbi:Pg:dbname=foo',
       'postgres',
       'my_pg_password',
-      { AutoCommit => 0, quote_char => q{"}, name_sep => q{.} },
+      { AutoCommit => 1, quote_char => q{"}, name_sep => q{.} },
     ]
   );
 
@@ -460,6 +480,18 @@ sub connect_info {
 
     # Get rid of any trailing empty hashref
     pop(@$info) if !keys %$last_info;
+  }
+
+  # Now check the (possibly new) final argument for AutoCommit,
+  #  but not in the coderef case, obviously.
+  if(ref $info->[0] ne 'CODE') {
+      $last_info = $info->[3];
+
+      warn "You *really* should explicitly set AutoCommit "
+         . "(preferably to 1) in your db connect info"
+           if !$last_info
+              || ref $last_info ne 'HASH'
+              || !defined $last_info->{AutoCommit};
   }
 
   $self->_connect_info($info);
@@ -688,6 +720,10 @@ sub _populate_dbh {
   my @info = @{$self->_connect_info || []};
   $self->_dbh($self->_connect(@info));
 
+  # Always set the transaction depth on connect, since
+  #  there is no transaction in progress by definition
+  $self->{transaction_depth} = $self->_dbh->{AutoCommit} ? 0 : 1;
+
   if(ref $self eq 'DBIx::Class::Storage::DBI') {
     my $driver = $self->_dbh->{Driver}->{Name};
     if ($self->load_optional_class("DBIx::Class::Storage::DBI::${driver}")) {
@@ -741,75 +777,61 @@ sub _connect {
   $dbh;
 }
 
-sub _dbh_txn_begin {
-  my ($self, $dbh) = @_;
-  if ($dbh->{AutoCommit}) {
-    $self->debugobj->txn_begin()
-      if ($self->debug);
-    $dbh->begin_work;
-  }
-}
 
 sub txn_begin {
   my $self = shift;
-  $self->dbh_do($self->can('_dbh_txn_begin'))
-    if $self->{transaction_depth}++ == 0;
-}
-
-sub _dbh_txn_commit {
-  my ($self, $dbh) = @_;
-  if ($self->{transaction_depth} == 0) {
-    unless ($dbh->{AutoCommit}) {
-      $self->debugobj->txn_commit()
-        if ($self->debug);
-      $dbh->commit;
-    }
-  }
-  else {
-    if (--$self->{transaction_depth} == 0) {
-      $self->debugobj->txn_commit()
-        if ($self->debug);
-      $dbh->commit;
-    }
+  if($self->{transaction_depth}++ == 0) {
+    $self->debugobj->txn_begin()
+      if $self->debug;
+    # this isn't ->_dbh-> because
+    #  we should reconnect on begin_work
+    #  for AutoCommit users
+    $self->dbh->begin_work;
   }
 }
 
 sub txn_commit {
   my $self = shift;
-  $self->dbh_do($self->can('_dbh_txn_commit'));
-}
-
-sub _dbh_txn_rollback {
-  my ($self, $dbh) = @_;
-  if ($self->{transaction_depth} == 0) {
-    unless ($dbh->{AutoCommit}) {
-      $self->debugobj->txn_rollback()
-        if ($self->debug);
-      $dbh->rollback;
-    }
+  if ($self->{transaction_depth} == 1) {
+    my $dbh = $self->_dbh;
+    $self->debugobj->txn_commit()
+      if ($self->debug);
+    $dbh->commit;
+    $self->{transaction_depth} = 0
+      if $dbh->{AutoCommit};
   }
-  else {
-    if (--$self->{transaction_depth} == 0) {
-      $self->debugobj->txn_rollback()
-        if ($self->debug);
-      $dbh->rollback;
-    }
-    else {
-      die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
-    }
+  elsif($self->{transaction_depth} > 1) {
+    $self->{transaction_depth}--
   }
 }
 
 sub txn_rollback {
   my $self = shift;
-
-  eval { $self->dbh_do($self->can('_dbh_txn_rollback')) };
+  my $dbh = $self->_dbh;
+  my $autocommit;
+  eval {
+    $autocommit = $dbh->{AutoCommit};
+    if ($self->{transaction_depth} == 1) {
+      $self->debugobj->txn_rollback()
+        if ($self->debug);
+      $dbh->rollback;
+      $self->{transaction_depth} = 0
+        if $autocommit;
+    }
+    elsif($self->{transaction_depth} > 1) {
+      $self->{transaction_depth}--;
+    }
+    else {
+      die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
+    }
+  };
   if ($@) {
     my $error = $@;
     my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
     $error =~ /$exception_class/ and $self->throw_exception($error);
-    $self->{transaction_depth} = 0;          # ensure that a failed rollback
-    $self->throw_exception($error);          # resets the transaction depth
+    # ensure that a failed rollback resets the transaction depth
+    $self->{transaction_depth} = $autocommit ? 0 : 1;
+    $self->throw_exception($error);
   }
 }
 

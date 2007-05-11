@@ -13,7 +13,7 @@ my @rs1a_results = $schema->resultset("Artist")->search_related('cds', {title =>
 is($rs1a_results[0]->title, 'Forkful of bees', "bare field conditions okay after search related");
 my $rs1 = $schema->resultset("Artist")->search({ 'tags.tag' => 'Blue' }, { join => {'cds' => 'tracks'}, prefetch => {'cds' => 'tags'} });
 my @artists = $rs1->all;
-cmp_ok(@artists, '==', 1, "Two artists returned");
+cmp_ok(@artists, '==', 2, "Two artists returned");
 
 my $rs2 = $rs1->search({ artistid => '1' }, { join => {'cds' => {'cd_to_producer' => 'producer'} } });
 

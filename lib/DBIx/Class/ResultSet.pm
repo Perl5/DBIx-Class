@@ -243,7 +243,7 @@ sub search_rs {
         : $having);
   }
 
-  my $rs = (ref $self)->new($self->_source_handle, $new_attrs);
+  my $rs = (ref $self)->new($self->result_source, $new_attrs);
   if ($rows) {
     $rs->set_cache($rows);
   }
@@ -747,85 +747,132 @@ sub next {
 sub _construct_object {
   my ($self, @row) = @_;
   my $info = $self->_collapse_result($self->{_attrs}{as}, \@row);
-  my @new = $self->result_class->inflate_result($self->_source_handle, @$info);
+  my @new = $self->result_class->inflate_result($self->result_source, @$info);
   @new = $self->{_attrs}{record_filter}->(@new)
     if exists $self->{_attrs}{record_filter};
   return @new;
 }
 
 sub _collapse_result {
-  my ($self, $as, $row, $prefix) = @_;
+  my ($self, $as_proto, $row) = @_;
 
-  my %const;
   my @copy = @$row;
-  
-  foreach my $this_as (@$as) {
-    my $val = shift @copy;
-    if (defined $prefix) {
-      if ($this_as =~ m/^\Q${prefix}.\E(.+)$/) {
-        my $remain = $1;
-        $remain =~ /^(?:(.*)\.)?([^.]+)$/;
-        $const{$1||''}{$2} = $val;
+
+  # 'foo'         => [ undef, 'foo' ]
+  # 'foo.bar'     => [ 'foo', 'bar' ]
+  # 'foo.bar.baz' => [ 'foo.bar', 'baz' ]
+
+  my @construct_as = map { [ (/^(?:(.*)\.)?([^.]+)$/) ] } @$as_proto;
+
+  my %collapse = %{$self->{_attrs}{collapse}||{}};
+
+  my @pri_index;
+
+  # if we're doing collapsing (has_many prefetch) we need to grab records
+  # until the PK changes, so fill @pri_index. if not, we leave it empty so
+  # we know we don't have to bother.
+
+  # the reason for not using the collapse stuff directly is because if you
+  # had for e.g. two artists in a row with no cds, the collapse info for
+  # both would be NULL (undef) so you'd lose the second artist
+
+  # store just the index so we can check the array positions from the row
+  # without having to contruct the full hash
+
+  if (keys %collapse) {
+    my %pri = map { ($_ => 1) } $self->result_source->primary_columns;
+    foreach my $i (0 .. $#construct_as) {
+      next if defined($construct_as[$i][0]); # only self table
+      if (delete $pri{$construct_as[$i][1]}) {
+        push(@pri_index, $i);
       }
-    } else {
-      $this_as =~ /^(?:(.*)\.)?([^.]+)$/;
-      $const{$1||''}{$2} = $val;
+      last unless keys %pri; # short circuit (Johnny Five Is Alive!)
     }
   }
+
+  # no need to do an if, it'll be empty if @pri_index is empty anyway
+
+  my %pri_vals = map { ($_ => $copy[$_]) } @pri_index;
+
+  my @const_rows;
+
+  do { # no need to check anything at the front, we always want the first row
+
+    my %const;
+  
+    foreach my $this_as (@construct_as) {
+      $const{$this_as->[0]||''}{$this_as->[1]} = shift(@copy);
+    }
+
+    push(@const_rows, \%const);
+
+  } until ( # no pri_index => no collapse => drop straight out
+      !@pri_index
+    or
+      do { # get another row, stash it, drop out if different PK
+
+        @copy = $self->cursor->next;
+        $self->{stashed_row} = \@copy;
+
+        # last thing in do block, counts as true if anything doesn't match
+
+        # check xor defined first for NULL vs. NOT NULL then if one is
+        # defined the other must be so check string equality
+
+        grep {
+          (defined $pri_vals{$_} ^ defined $copy[$_])
+          || (defined $pri_vals{$_} && ($pri_vals{$_} ne $copy[$_]))
+        } @pri_index;
+      }
+  );
 
   my $alias = $self->{attrs}{alias};
-  my $info = [ {}, {} ];
-  foreach my $key (keys %const) {
-    if (length $key && $key ne $alias) {
-      my $target = $info;
-      my @parts = split(/\./, $key);
-      foreach my $p (@parts) {
-        $target = $target->[1]->{$p} ||= [];
+  my $info = [];
+
+  my %collapse_pos;
+
+  my @const_keys;
+
+  use Data::Dumper;
+
+  foreach my $const (@const_rows) {
+    scalar @const_keys or do {
+      @const_keys = sort { length($a) <=> length($b) } keys %$const;
+    };
+    foreach my $key (@const_keys) {
+      if (length $key) {
+        my $target = $info;
+        my @parts = split(/\./, $key);
+        my $cur = '';
+        my $data = $const->{$key};
+        foreach my $p (@parts) {
+          $target = $target->[1]->{$p} ||= [];
+          $cur .= ".${p}";
+          if ($cur eq ".${key}" && (my @ckey = @{$collapse{$cur}||[]})) { 
+            # collapsing at this point and on final part
+            my $pos = $collapse_pos{$cur};
+            CK: foreach my $ck (@ckey) {
+              if (!defined $pos->{$ck} || $pos->{$ck} ne $data->{$ck}) {
+                $collapse_pos{$cur} = $data;
+                delete @collapse_pos{ # clear all positioning for sub-entries
+                  grep { m/^\Q${cur}.\E/ } keys %collapse_pos
+                };
+                push(@$target, []);
+                last CK;
+              }
+            }
+          }
+          if (exists $collapse{$cur}) {
+            $target = $target->[-1];
+          }
+        }
+        $target->[0] = $data;
+      } else {
+        $info->[0] = $const->{$key};
       }
-      $target->[0] = $const{$key};
-    } else {
-      $info->[0] = $const{$key};
     }
   }
-  
-  my @collapse;
-  if (defined $prefix) {
-    @collapse = map {
-        m/^\Q${prefix}.\E(.+)$/ ? ($1) : ()
-    } keys %{$self->{_attrs}{collapse}}
-  } else {
-    @collapse = keys %{$self->{_attrs}{collapse}};
-  };
 
-  if (@collapse) {
-    my ($c) = sort { length $a <=> length $b } @collapse;
-    my $target = $info;
-    foreach my $p (split(/\./, $c)) {
-      $target = $target->[1]->{$p} ||= [];
-    }
-    my $c_prefix = (defined($prefix) ? "${prefix}.${c}" : $c);
-    my @co_key = @{$self->{_attrs}{collapse}{$c_prefix}};
-    my $tree = $self->_collapse_result($as, $row, $c_prefix);
-    my %co_check = map { ($_, $tree->[0]->{$_}); } @co_key;
-    my (@final, @raw);
-
-    while (
-      !(
-        grep {
-          !defined($tree->[0]->{$_}) || $co_check{$_} ne $tree->[0]->{$_}
-        } @co_key
-        )
-    ) {
-      push(@final, $tree);
-      last unless (@raw = $self->cursor->next);
-      $row = $self->{stashed_row} = \@raw;
-      $tree = $self->_collapse_result($as, $row, $c_prefix);
-    }
-    @$target = (@final ? @final : [ {}, {} ]);
-      # single empty result to indicate an empty prefetched has_many
-  }
-
-  #print "final info: " . Dumper($info);
   return $info;
 }
 
