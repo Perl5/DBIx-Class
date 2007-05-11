@@ -18,7 +18,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.07999_01';
+$VERSION = '0.07999_02';
 
 sub MODIFY_CODE_ATTRIBUTES {
   my ($class,$code,@attrs) = @_;
@@ -199,7 +199,11 @@ claco: Christopher H. Laco
 
 clkao: CL Kao
 
+da5id: David Jack Olrik <djo@cpan.org>
+
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
+
+dnm: Justin Wheeler <jwheeler@datademons.com>
 
 draven: Marcus Ramberg <mramberg@cpan.org>
 
@@ -212,6 +216,8 @@ gphat: Cory G Watson <gphat@cpan.org>
 jesper: Jesper Krogh
 
 jguenther: Justin Guenther <jguenther@cpan.org>
+
+jshirley: J. Shirley <jshirley@gmail.com>
 
 konobi: Scott McWhirter
 

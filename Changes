@@ -1,5 +1,25 @@
 Revision history for DBIx::Class
 
+        - Added Oracle/WhereJoins.pm for Oracle >= 8 to support
+          Oracle <= 9i, and provide Oracle with a better join method for
+          later versions.  (I use the term better loosely.)
+        - select et al weren't properly detecing when the server connection
+          had timed out when not in a transaction
+        - The SQL::T parser class now respects a relationship attribute of
+          is_foreign_key_constrain to allow explicit control over wether or
+          not a foreign constraint is needed
+        - resultset_class/result_class now (again) auto loads the specified
+          class; requires Class::Accessor::Grouped 0.05000+
+
+0.07006 2007-04-17 23:18:00
+        - Lots of documentation updates
+        - deploy now takes an optional 'source_names' parameter (dec)
+        - Quoting for for columns_info_for
+        - RT#25683 fixed (multiple open sths on DBD::Sybase)
+        - CDBI compat infers has_many from has_a (Schwern)
+        - Fix ddl_filename transformation (Carl Vincent)
+
+0.07999_02 2007-01-25 20:11:00
         - add support for binding BYTEA and similar parameters (w/Pg impl)
         - add support to Ordered for multiple ordering columns
         - mark DB.pm and compose_connection as deprecated
@@ -7,6 +27,24 @@ Revision history for DBIx::Class
         - ResltClass::HashRefInflator added
         - Changed row and rs objects to not have direct handle to a source,
           instead a (schema,source_name) tuple of type ResultSourceHandle
+
+0.07005 2007-01-10 18:36:00
+        - fixup changes file
+        - remove erroneous .orig files - oops
+
+0.07004 2007-01-09 21:52:00
+        - fix find_related-based queries to correctly grep the unique key
+        - fix InflateColumn to inflate/deflate all refs but scalar refs
+
+0.07003 2006-11-16 11:52:00
+        - fix for rt.cpan.org #22740 (use $^X instead of hardcoded "perl")
+        - Tweaks to resultset to allow inflate_result to return an array
+        - Fix UTF8Columns to work under Perl <= 5.8.0
+        - Fix up new_result in ResultSet to avoid alias-related bugs
+        - Made new/update/find handle 'single' rel accessor correctly
+        - Fix NoBindVars to be safer and handle non-true bind values
+        - Don't blow up if columns_info_for returns useless results
+        - Documentation updates
 
 0.07999_01 2006-10-05 21:00:00
         - add connect_info option "disable_statement_caching"
@@ -25,24 +63,11 @@ Revision history for DBIx::Class
           You can make it work like before via
           __PACKAGE__->column_info_from_storage(1) for now
         - Replaced DBIx::Class::AccessorGroup and Class::Data::Accessor with
-          Class::Accessor::Grouped. Only user noticible change is to 
-          table_class on ResultSourceProxy::Table (i.e. table objects in 
-          schemas) and, resultset_class and result_class in ResultSource. 
+          Class::Accessor::Grouped. Only user noticible change is to
+          table_class on ResultSourceProxy::Table (i.e. table objects in
+          schemas) and, resultset_class and result_class in ResultSource.
           These accessors no longer automatically require the classes when
           set.
-
-0.07004
-        - fix find_related-based queries to correctly grep the unique key
-
-0.07003 2006-11-16 11:52:00
-        - fix for rt.cpan.org #22740 (use $^X instead of hardcoded "perl")
-        - Tweaks to resultset to allow inflate_result to return an array
-        - Fix UTF8Columns to work under Perl <= 5.8.0
-        - Fix up new_result in ResultSet to avoid alias-related bugs
-        - Made new/update/find handle 'single' rel accessor correctly
-        - Fix NoBindVars to be safer and handle non-true bind values
-        - Don't blow up if columns_info_for returns useless results
-        - Documentation updates
 
 0.07002 2006-09-14 21:17:32
         - fix quote tests for recent versions of SQLite
@@ -114,7 +139,7 @@ Revision history for DBIx::Class
         - fixes to pass test suite on Windows
         - rewrote and cleaned up SQL::Translator tests
         - changed relationship helpers to only call ensure_class_loaded when the
-          join condition is inferred 
+          join condition is inferred
         - rewrote many_to_many implementation, now provides helpers for adding
           and deleting objects without dealing with the link table
         - reworked InflateColumn implementation to lazily deflate where
@@ -122,12 +147,12 @@ Revision history for DBIx::Class
         - changed join merging to not create a rel_2 alias when adding a join
           that already exists in a parent resultset
         - Storage::DBI::deployment_statements now calls ensure_connected
-          if it isn't passed a type 
+          if it isn't passed a type
         - fixed Componentized::ensure_class_loaded
         - InflateColumn::DateTime supports date as well as datetime
         - split Storage::DBI::MSSQL into MSSQL and Sybase::MSSQL
-        - fixed wrong debugging hook call in Storage::DBI 
-        - set connect_info properly before setting any ->sql_maker things 
+        - fixed wrong debugging hook call in Storage::DBI
+        - set connect_info properly before setting any ->sql_maker things
 
 0.06999_02 2006-06-09 23:58:33
         - Fixed up POD::Coverage tests, filled in some POD holes
@@ -285,7 +310,8 @@ Revision history for DBIx::Class
 
 0.05002 2006-02-06 12:12:03
         - Added recommends for Class::Inspector
-        - Added skip_all to t/40resultsetmanager.t if no Class::Inspector available
+        - Added skip_all to t/40resultsetmanager.t if no Class::Inspector
+        available
 
 0.05001 2006-02-05 15:28:10
         - debug output now prints NULL for undef params
@@ -325,8 +351,10 @@ Revision history for DBIx::Class
 
 0.04999_04 2006-01-24 21:48:21
         - more documentation improvements
-        - add columns_info_for for vendor-specific column info (Zbigniew Lukasiak)
-        - add SQL::Translator::Producer for DBIx::Class table classes (Jess Robinson)
+        - add columns_info_for for vendor-specific column info (Zbigniew
+        Lukasiak)
+        - add SQL::Translator::Producer for DBIx::Class table classes (Jess
+        Robinson)
         - add unique constraint declaration (Daniel Westermann-Clark)
         - add new update_or_create method (Daniel Westermann-Clark)
         - rename ResultSetInstance class to ResultSetProxy, ResultSourceInstance
@@ -336,11 +364,13 @@ Revision history for DBIx::Class
 
 0.04999_03 2006-01-20 06:05:27
         - imported Jess Robinson's SQL::Translator::Parser::DBIx::Class
-        - lots of internals cleanup to eliminate result_source_instance requirement
+        - lots of internals cleanup to eliminate result_source_instance
+        requirement
         - added register_column and register_relationship class APIs
         - made Storage::DBI use prepare_cached safely (thanks to Tim Bunce)
         - many documentation improvements (thanks guys!)
-        - added ->connection, ->connect, ->register_source and ->clone schema methods
+        - added ->connection, ->connect, ->register_source and ->clone schema
+        methods
         - Use croak instead of die for user errors.
 
 0.04999_02 2006-01-14 07:17:35
@@ -413,3 +443,4 @@ Revision history for DBIx::Class
 
 0.01    2005-08-08 17:10:00
         - initial release
+

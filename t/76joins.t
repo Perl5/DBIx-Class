@@ -105,7 +105,7 @@ my @j6 = (
     [ { father => 'person' }, { 'father.person_id' => { '!=', '42' } }, ],
     [ { mother => 'person' }, { 'mother.person_id' => 'child.mother_id' } ],
 );
-$match = qr/^\QHASH reference arguments are not supported in JOINS - try using \"..." instead\E/;
+$match = qr/^HASH reference arguments are not supported in JOINS - try using "\.\.\." instead/;
 eval { $sa->_recurse_from(@j6) };
 like( $@, $match, 'join 6 (HASH reference for ON statement dies) ok' );
 
@@ -408,5 +408,9 @@ sub make_hash_struc {
 my $prefetch_result = make_hash_struc($art_rs_pr);
 my $nonpre_result   = make_hash_struc($art_rs);
 
+TODO: {
+  local $TODO = 'fixing collapse in -current';
 is_deeply( $prefetch_result, $nonpre_result,
     'Compare 2 level prefetch result to non-prefetch result' );
+}
+

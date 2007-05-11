@@ -14,7 +14,7 @@ Load this component and then declare one or more
 columns to be of the datetime, timestamp or date datatype.
 
   package Event;
-  __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
+  __PACKAGE__->load_components(qw/Core InflateColumn::DateTime/);
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'datetime' }
   );
@@ -33,7 +33,7 @@ one your code should continue to work without modification (though note
 that this feature is new as of 0.07, so it may not be perfect yet - bug
 reports to the list very much welcome).
 
-For more help with components, see L<DBIx::Class::Manual::Component>.
+For more help with using components, see L<DBIx::Class::Manual::Component/USING>.
 
 =cut
 

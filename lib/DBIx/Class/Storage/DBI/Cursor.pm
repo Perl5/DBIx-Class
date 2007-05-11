@@ -59,7 +59,8 @@ sub new {
 
 =back
 
-Advances the cursor to the next row and returns an arrayref of column values.
+Advances the cursor to the next row and returns an array of column
+values (the result of L<DBI/fetchrow_array> method).
 
 =cut
 

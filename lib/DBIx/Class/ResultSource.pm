@@ -14,7 +14,7 @@ __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
   schema from _relationships column_info_from_storage source_info/);
 
-__PACKAGE__->mk_group_accessors('inherited' => qw/resultset_class
+__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
   result_class/);
 
 __PACKAGE__->mk_group_ro_accessors('simple' => qw/source_name/);
@@ -957,7 +957,9 @@ L<DBIx::Class::ResultSet>, and set it here.
 
   $source->resultset_attributes({ order_by => [ 'id' ] });
 
-Specify here any attributes you wish to pass to your specialised resultset.
+Specify here any attributes you wish to pass to your specialised
+resultset. For a full list of these, please see
+L<DBIx::Class::ResultSet/ATTRIBUTES>.
 
 =cut
 

@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI;
 
 use base 'DBIx::Class::Storage';
 
-use strict;
+use strict;    
 use warnings;
 use DBI;
 use SQL::Abstract::Limit;
@@ -506,7 +506,9 @@ sub dbh_do {
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
 
-  return $coderef->($self, $self->_dbh, @_) if $self->{_in_dbh_do};
+  return $coderef->($self, $self->_dbh, @_) if $self->{_in_dbh_do}
+      || $self->{transaction_depth};
+
   local $self->{_in_dbh_do} = 1;
 
   my @result;
@@ -829,8 +831,7 @@ sub _prep_for_execute {
 sub _execute {
   my ($self, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
   
-  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") )
-  {
+  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
     $ident = $ident->from();
   }
   
@@ -843,49 +844,55 @@ sub _execute {
         map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
-  my $sth = eval { $self->sth($sql,$op) };
 
-  if (!$sth || $@) {
-    $self->throw_exception(
-      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
-    );
-  }
+  my ($rv, $sth);
+  RETRY: while (1) {
+    $sth = eval { $self->sth($sql,$op) };
 
-  my $rv;
-  if ($sth) {
-    my $time = time();
-	
-    $rv = eval {
-	
-      my $placeholder_index = 1; 
-
-      foreach my $bound (@bind) {
-
-        my $attributes = {};
-        my($column_name, @data) = @$bound;
-
-        if( $bind_attributes ) {
-          $attributes = $bind_attributes->{$column_name}
-          if defined $bind_attributes->{$column_name};
-        }
-
-		foreach my $data (@data)
-		{
-          $data = ref $data ? ''.$data : $data; # stringify args
-
-          $sth->bind_param($placeholder_index, $data, $attributes);
-          $placeholder_index++;		  
-		}
-      }
-      $sth->execute();
-    };
-  
-    if ($@ || !$rv) {
-      $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
+    if (!$sth || $@) {
+      $self->throw_exception(
+        'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
+      );
     }
-  } else {
-    $self->throw_exception("'$sql' did not generate a statement.");
-  }
+
+    if ($sth) {
+      my $time = time();
+      $rv = eval {
+        my $placeholder_index = 1; 
+
+        foreach my $bound (@bind) {
+
+          my $attributes = {};
+          my($column_name, @data) = @$bound;
+
+          if( $bind_attributes ) {
+            $attributes = $bind_attributes->{$column_name}
+            if defined $bind_attributes->{$column_name};
+          }
+
+          foreach my $data (@data)
+          {
+            $data = ref $data ? ''.$data : $data; # stringify args
+
+            $sth->bind_param($placeholder_index, $data, $attributes);
+            $placeholder_index++;
+          }
+        }
+        $sth->execute();
+      };
+    
+      if ($@ || !$rv) {
+        $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr))
+          if $self->connected;
+        $self->_populate_dbh;
+      } else {
+        last RETRY;
+      }
+    } else {
+      $self->throw_exception("'$sql' did not generate a statement.");
+    }
+  } # While(1) to retry if disconencted
+
   if ($self->debug) {
      my @debug_bind =
        map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind; 
@@ -935,32 +942,17 @@ sub insert_bulk {
   
   ##use Data::Dumper;
   ##print STDERR Dumper( $data, $sql, [@bind] );
-	
+
   if ($sth) {
   
     my $time = time();
-	
-    #$rv = eval {
-	#
-	#  $sth->execute_array({
 
-  	#    ArrayTupleFetch => sub {
-
-	#      my $values = shift @$data;  
-    #      return if !$values; 
-    #      return [ @{$values}[@bind] ];
-	#    },
-	  
-	#    ArrayTupleStatus => $tuple_status,
-	#  })
-    #};
-	
-	## Get the bind_attributes, if any exist
+    ## Get the bind_attributes, if any exist
     my $bind_attributes = $self->source_bind_attributes($source);
 
-	## Bind the values and execute
-	$rv = eval {
-	
+    ## Bind the values and execute
+    $rv = eval {
+
      my $placeholder_index = 1; 
 
         foreach my $bound (@bind) {
@@ -972,20 +964,19 @@ sub insert_bulk {
             $attributes = $bind_attributes->{$column_name}
             if defined $bind_attributes->{$column_name};
           }
-		  
-		  my @data = map { $_->[$data_index] } @$data;
+
+          my @data = map { $_->[$data_index] } @$data;
 
           $sth->bind_param_array( $placeholder_index, [@data], $attributes );
           $placeholder_index++;
       }
-	  $sth->execute_array( {ArrayTupleStatus => $tuple_status} );
+      $sth->execute_array( {ArrayTupleStatus => $tuple_status} );
 
-	};
+    };
    
     if ($@ || !defined $rv) {
       my $errors = '';
-      foreach my $tuple (@$tuple_status)
-      {
+      foreach my $tuple (@$tuple_status) {
           $errors .= "\n" . $tuple->[1] if(ref $tuple);
       }
       $self->throw_exception("Error executing '$sql': ".($@ || $errors));
@@ -1052,7 +1043,7 @@ sub source_bind_attributes {
   
     my $data_type = $source->column_info($column)->{data_type} || '';
     $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
-	 if $data_type;
+     if $data_type;
   }
 
   return $bind_attributes;
@@ -1142,18 +1133,12 @@ sub _dbh_columns_info_for {
   }
 
   my %result;
-  my $sth = $dbh->prepare("SELECT * FROM $table WHERE 1=0");
+  my $sth = $dbh->prepare($self->sql_maker->select($table, undef, \'1 = 0'));
   $sth->execute;
   my @columns = @{$sth->{NAME_lc}};
   for my $i ( 0 .. $#columns ){
     my %column_info;
-    my $type_num = $sth->{TYPE}->[$i];
-    my $type_name;
-    if(defined $type_num && $dbh->can('type_info')) {
-      my $type_info = $dbh->type_info($type_num);
-      $type_name = $type_info->{TYPE_NAME} if $type_info;
-    }
-    $column_info{data_type} = $type_name ? $type_name : $type_num;
+    $column_info{data_type} = $sth->{TYPE}->[$i];
     $column_info{size} = $sth->{PRECISION}->[$i];
     $column_info{is_nullable} = $sth->{NULLABLE}->[$i] ? 1 : 0;
 
@@ -1163,6 +1148,18 @@ sub _dbh_columns_info_for {
     }
 
     $result{$columns[$i]} = \%column_info;
+  }
+  $sth->finish;
+
+  foreach my $col (keys %result) {
+    my $colinfo = $result{$col};
+    my $type_num = $colinfo->{data_type};
+    my $type_name;
+    if(defined $type_num && $dbh->can('type_info')) {
+      my $type_info = $dbh->type_info($type_num);
+      $type_name = $type_info->{TYPE_NAME} if $type_info;
+      $colinfo->{data_type} = $type_name if $type_name;
+    }
   }
 
   return \%result;

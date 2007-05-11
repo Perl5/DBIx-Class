@@ -356,7 +356,7 @@ L<SQL::Abstract> construct to C<search>:
   my $rs = $schema->resultset('Album')->search({
     artist  => { '!=', 'Janis Joplin' },
     year    => { '<' => 1980 },
-    albumid => [ 1, 14, 15, 65, 43 ]
+    albumid => { '-in' => [ 1, 14, 15, 65, 43 ] }
   });
 
 This results in something like the following C<WHERE> clause:
