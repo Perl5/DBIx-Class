@@ -64,6 +64,7 @@ sub new {
     my ($related,$inflated);
     ## Pretend all the rels are actual objects, unset below if not, for insert() to fix
     $new->{_rel_in_storage} = 1;
+
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key}) {
         ## Can we extract this lot to use with update(_or .. ) ?
@@ -143,18 +144,21 @@ sub insert {
     unless $source;
 
   # Check if we stored uninserted relobjs here in new()
-  $source->storage->txn_begin if(!$self->{_rel_in_storage});
-
   my %related_stuff = (%{$self->{_relationship_data} || {}}, 
                        %{$self->{_inflated_column} || {}});
-  ## Should all be in relationship_data, but we need to get rid of the
-  ## 'filter' reltype..
-  ## These are the FK rels, need their IDs for the insert.
-  foreach my $relname (keys %related_stuff) {
-    my $rel_obj = $related_stuff{$relname};
-    if(Scalar::Util::blessed($rel_obj) && $rel_obj->isa('DBIx::Class::Row')) {
-      $rel_obj->insert();
-      $self->set_from_related($relname, $rel_obj);
+  if(!$self->{_rel_in_storage})
+  {
+    $source->storage->txn_begin;
+
+    ## Should all be in relationship_data, but we need to get rid of the
+    ## 'filter' reltype..
+    ## These are the FK rels, need their IDs for the insert.
+    foreach my $relname (keys %related_stuff) {
+      my $rel_obj = $related_stuff{$relname};
+      if(Scalar::Util::blessed($rel_obj) && $rel_obj->isa('DBIx::Class::Row')) {
+        $rel_obj->insert();
+        $self->set_from_related($relname, $rel_obj);
+      }
     }
   }
 
@@ -175,20 +179,23 @@ sub insert {
     $self->store_column($pri => $id);
   }
 
-  ## Now do the has_many rels, that need $selfs ID.
-  foreach my $relname (keys %related_stuff) {
-    my $relobj = $related_stuff{$relname};
-    if(ref $relobj eq 'ARRAY') {
-      foreach my $obj (@$relobj) {
-        my $info = $self->relationship_info($relname);
-        ## What about multi-col FKs ?
-        my $key = $1 if($info && (keys %{$info->{cond}})[0] =~ /^foreign\.(\w+)/);
-        $obj->set_from_related($key, $self);
-        $obj->insert() if(!$obj->in_storage);
+  if(!$self->{_rel_in_storage})
+  {
+    ## Now do the has_many rels, that need $selfs ID.
+    foreach my $relname (keys %related_stuff) {
+      my $relobj = $related_stuff{$relname};
+      if(ref $relobj eq 'ARRAY') {
+        foreach my $obj (@$relobj) {
+          my $info = $self->relationship_info($relname);
+          ## What about multi-col FKs ?
+          my $key = $1 if($info && (keys %{$info->{cond}})[0] =~ /^foreign\.(\w+)/);
+          $obj->set_from_related($key, $self);
+          $obj->insert() if(!$obj->in_storage);
+        }
       }
     }
+    $source->storage->txn_commit;
   }
-  $source->storage->txn_commit if(!$self->{_rel_in_storage});
 
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
