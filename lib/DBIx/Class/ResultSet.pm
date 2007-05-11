@@ -98,8 +98,8 @@ sub new {
   $attrs->{alias} ||= 'me';
 
   my $self = {
-    result_source => $source,
-    result_class => $attrs->{result_class} || $source->result_class,
+    _source_handle => $source,
+    result_class => $attrs->{result_class} || $source->resolve->result_class,
     cond => $attrs->{where},
     count => undef,
     pager => undef,
@@ -825,8 +825,6 @@ sub _collapse_result {
         } @pri_index;
       }
   );
-
-  # THIS BIT STILL NEEDS TO DO THE COLLAPSE
 
   my $alias = $self->{attrs}{alias};
   my $info = [];
