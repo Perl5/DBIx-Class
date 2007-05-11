@@ -486,7 +486,6 @@ sub connect_info {
   #  but not in the coderef case, obviously.
   if(ref $info->[0] ne 'CODE') {
       $last_info = $info->[3];
-
       warn "You *really* should explicitly set AutoCommit "
          . "(preferably to 1) in your db connect info"
            if !$last_info

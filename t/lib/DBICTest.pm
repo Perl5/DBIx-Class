@@ -55,12 +55,18 @@ sub init_schema {
     my $dbuser = $ENV{"DBICTEST_DBUSER"} || '';
     my $dbpass = $ENV{"DBICTEST_DBPASS"} || '';
 
-    my $compose_method = ($args{compose_connection}
-                           ? 'compose_connection'
-                           : 'compose_namespace');
+    my $schema;
 
-    my $schema = DBICTest::Schema->$compose_method('DBICTest')
-                     ->connect($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
+    my @connect_info = ($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
+
+    if ($args{compose_connection}) {
+      $schema = DBICTest::Schema->compose_connection(
+                  'DBICTest', @connect_info
+                );
+    } else {
+      $schema = DBICTest::Schema->compose_namespace('DBICTest')
+                                ->connect(@connect_info);
+    }
     $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
     if ( !$args{no_deploy} ) {
         __PACKAGE__->deploy_schema( $schema );
