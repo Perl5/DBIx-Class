@@ -1240,6 +1240,70 @@ sub delete_all {
   return 1;
 }
 
+=head2 populate
+
+=over 4
+
+=item Arguments: $source_name, \@data;
+
+=back
+
+Pass an arrayref of hashrefs. Each hashref should be a structure suitable for
+submitting to a $resultset->create(...) method.
+
+In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
+to insert the data, as this is a fast method.
+
+Otherwise, each set of data is inserted into the database using
+L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
+objects is returned.
+
+i.e.,
+
+  $rs->populate( [
+	  { artistid => 4, name => 'Manufactured Crap', cds => [ 
+		  { title => 'My First CD', year => 2006 },
+		  { title => 'Yet More Tweeny-Pop crap', year => 2007 },
+		] 
+	  },
+	  { artistid => 5, name => 'Angsty-Whiny Girl', cds => [
+		  { title => 'My parents sold me to a record company' ,year => 2005 },
+		  { title => 'Why Am I So Ugly?', year => 2006 },
+		  { title => 'I Got Surgery and am now Popular', year => 2007 }
+		]
+	  },
+	  { name => 'Like I Give a Damn' }
+
+	] );
+
+=cut
+use Data::Dump qw/dump/;
+
+sub populate {
+  my ($self, $data) = @_;
+  
+  if(defined wantarray) {
+    my @created;
+    foreach my $item (@$data) {
+      push(@created, $self->create($item));
+    }
+    return @created;
+  } 
+  else
+  {
+    my ($first, @rest) = @$data;
+    my @names = keys %$first;
+	
+	warn dump keys %$_ for @$data;
+	
+	#@$data = map { my %unit = %$_; warn dump @unit{qw/cds artistid/}; warn dump %unit; } @$data;
+	
+	die "Void mode not supported yet :)";
+	
+    #$self->result_source->storage->insert_bulk($self->result_source, \@names, $data);
+  }
+}
+
 =head2 pager
 
 =over 4
