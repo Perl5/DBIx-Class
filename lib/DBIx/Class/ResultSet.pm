@@ -1280,7 +1280,7 @@ i.e.,
 use Data::Dump qw/dump/;
 
 sub populate {
-  my ($self, $data) = @_;
+  my ($self, $data) = @_;  #warn dump $self->result_source->primary_columns;
   
   if(defined wantarray) {
     my @created;
@@ -1292,15 +1292,39 @@ sub populate {
   else
   {
     my ($first, @rest) = @$data;
-    my @names = keys %$first;
 	
-	warn dump keys %$_ for @$data;
+	## We assume for now that the first item is required to name all the columns
+	## and relationships similarly to how schema->populate requires a first item
+	## of all the column names.
 	
-	#@$data = map { my %unit = %$_; warn dump @unit{qw/cds artistid/}; warn dump %unit; } @$data;
+    my @names = grep { !$self->result_source->has_relationship($_) } keys %$first;
 	
-	die "Void mode not supported yet :)";
+    $self->result_source->storage->insert_bulk(
+		$self->result_source, 
+		\@names, 
+		[map { [ map {defined $_ ? $_ : $self->throw_exception("Undefined value for column!")} @$_{@names} ] } @$data]
+	);
 	
-    #$self->result_source->storage->insert_bulk($self->result_source, \@names, $data);
+	## Again we assume the first row has to define all the related resultsets
+	my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
+	my @pks = $self->result_source->primary_columns;
+	
+	## Must have PKs to use this!!!
+	
+	foreach my $item (@$data)
+	{
+		## First we need to get a result for each
+		## We need to call populate for each relationship.
+		
+		foreach my $rel (@rels)
+		{
+			my $result = $self->find(map {{$_=>$item->{$_}} } @pks);
+			
+			my @discard = $result->$rel->populate($item->{$rel});
+			#$result->$rel->populate($item->{$rel});
+		}
+	}
+	
   }
 }
 
