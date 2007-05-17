@@ -14,7 +14,7 @@ Load this component and then declare one or more
 columns to be of the datetime, timestamp or date datatype.
 
   package Event;
-  __PACKAGE__->load_components(qw/Core InflateColumn::DateTime/);
+  __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'datetime' }
   );
