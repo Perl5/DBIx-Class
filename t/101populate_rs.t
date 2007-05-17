@@ -25,7 +25,12 @@ RETURN_RESULTSETS: {
 
 		]
 	  },
-	  { artistid=>6, name => 'Like I Give a Damn' }
+	  { artistid=>6, name => 'Like I Give a Damn' },
+	  
+	  { artistid => 7, name => 'bbbb', cds => [
+		  { title => 'xxxaaa' ,year => 2005 },
+		]
+	  },
 
 	] );
 	
@@ -45,23 +50,23 @@ RETURN_RESULTSETS: {
 RETURN_VOID: {
 
 	$rs->populate( [
-	  { artistid => 7, name => 'Manufactured CrapB', cds => [ 
+	  { artistid => 8, name => 'Manufactured CrapB', cds => [ 
 		  { title => 'My First CDB', year => 2006 },
 		  { title => 'Yet More Tweeny-Pop crapB', year => 2007 },
 		] 
 	  },
-	  { artistid => 8, name => 'Angsty-Whiny GirlB', cds => [
+	  { artistid => 9, name => 'Angsty-Whiny GirlB', cds => [
 		  { title => 'My parents sold me to a record companyB' ,year => 2005 },
 		  { title => 'Why Am I So Ugly?B', year => 2006 },
 		  { title => 'I Got Surgery and am now PopularB', year => 2007 }
 
 		]
 	  },
-	  {artistid=>9,  name => 'XXXX' }
+	  {artistid=>10,  name => 'XXXX' }
 
 	] );
 	
-	my $artist = $rs->find(7);
+	my $artist = $rs->find(8);
 
 	ok($artist, 'Found artist');
 	is($artist->name, 'Manufactured CrapB');
@@ -75,7 +80,7 @@ RETURN_VOID: {
 	is($cds[1]->title, 'Yet More Tweeny-Pop crapB', 'Another crap CD');
 	is($cds[1]->year,  2007, 'Published in 2007');
 
-	$artist = $rs->find(8);
+	$artist = $rs->find(9);
 	ok($artist, 'Found artist');
 	is($artist->name, 'Angsty-Whiny GirlB');
 	is($artist->cds->count, 3, 'Has CDs');

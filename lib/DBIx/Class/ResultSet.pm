@@ -1280,7 +1280,7 @@ i.e.,
 use Data::Dump qw/dump/;
 
 sub populate {
-  my ($self, $data) = @_;  #warn dump $self->result_source->primary_columns;
+  my ($self, $data) = @_;
   
   if(defined wantarray) {
     my @created;
@@ -1297,12 +1297,13 @@ sub populate {
 	## and relationships similarly to how schema->populate requires a first item
 	## of all the column names.
 	
-    my @names = grep { !$self->result_source->has_relationship($_) } keys %$first;
-	
+    my @names = grep { !ref $first->{$_} } keys %$first;
+	my @values = map { [ map {defined $_ ? $_ : $self->throw_exception("Undefined value for column!")} @$_{@names} ] } @$data;
+		
     $self->result_source->storage->insert_bulk(
 		$self->result_source, 
 		\@names, 
-		[map { [ map {defined $_ ? $_ : $self->throw_exception("Undefined value for column!")} @$_{@names} ] } @$data]
+		\@values,
 	);
 	
 	## Again we assume the first row has to define all the related resultsets
@@ -1310,18 +1311,31 @@ sub populate {
 	my @pks = $self->result_source->primary_columns;
 	
 	## Must have PKs to use this!!!
-	
+
 	foreach my $item (@$data)
 	{
 		## First we need to get a result for each
 		## We need to call populate for each relationship.
-		
+
 		foreach my $rel (@rels)
 		{
-			my $result = $self->find(map {{$_=>$item->{$_}} } @pks);
+			next unless $item->{$rel};
+			my $parent	= $self->find(map {{$_=>$item->{$_}} } @pks)
+			 || next;
 			
-			my @discard = $result->$rel->populate($item->{$rel});
-			#$result->$rel->populate($item->{$rel});
+			my $child	= $parent->$rel;
+
+			my $related = $child->result_source->resolve_condition(
+				
+				$parent->result_source->relationship_info($rel)->{cond},
+				$child,
+				$parent,
+				
+			);
+			
+			my $populate = [map {  {%$_, %$related} } @{$item->{$rel}}];
+
+			$child->populate( $populate );
 		}
 	}
 	
