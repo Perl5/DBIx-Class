@@ -58,10 +58,10 @@ BEGIN {
         die "Can't handle full outer joins in Oracle 8 yet!\n"
           if $to_jt->{-join_type} =~ /full/i;
 
-        $left_join  = q{(+)} if $to_jt->{-join_type} =~ /right/i
+        $left_join  = q{(+)} if $to_jt->{-join_type} =~ /left/i
                              && $to_jt->{-join_type} !~ /inner/i;
 
-        $right_join = q{(+)} if $to_jt->{-join_type} =~ /left/i
+        $right_join = q{(+)} if $to_jt->{-join_type} =~ /right/i
                              && $to_jt->{-join_type} !~ /inner/i;
       }
 

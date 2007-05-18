@@ -335,8 +335,9 @@ a connected database handle.  Please note that the L<DBI> docs
 recommend that you always explicitly set C<AutoCommit> to either
 C<0> or C<1>.   L<DBIx::Class> further recommends that it be set
 to C<1>, and that you perform transactions via our L</txn_do>
-method.  L<DBIx::Class> will emit a warning if you fail to explicitly
-set C<AutoCommit> one way or the other.  See below for more details.
+method.  L<DBIx::Class> will set it to C<1> if you do not do explicitly
+set it to zero.  This is the default for most DBDs.  See below for more
+details.
 
 In either case, if the final argument in your connect_info happens
 to be a hashref, C<connect_info> will look there for several
@@ -482,16 +483,23 @@ sub connect_info {
     pop(@$info) if !keys %$last_info;
   }
 
-  # Now check the (possibly new) final argument for AutoCommit,
-  #  but not in the coderef case, obviously.
   if(ref $info->[0] ne 'CODE') {
-      $last_info = $info->[3];
+      # Extend to 3 arguments with undefs, if necessary
+      while(scalar(@$info) < 3) { push(@$info, undef) }
 
-      warn "You *really* should explicitly set AutoCommit "
-         . "(preferably to 1) in your db connect info"
-           if !$last_info
-              || ref $last_info ne 'HASH'
-              || !defined $last_info->{AutoCommit};
+      # Complain if 4th argument is defined and is not a HASH
+      if(defined $info->[3] && ref $info->[3] ne 'HASH') {
+          warn "4th argument of DBI connect info is defined "
+               . " but is not a hashref!";
+      }
+
+      # Set AutoCommit to 1 if not specified manually
+      else {
+          $info->[3] ||= {};
+          if(!defined $info->[3]->{AutoCommit}) {
+              $info->[3]->{AutoCommit} = 1;
+          }
+      }
   }
 
   $self->_connect_info($info);

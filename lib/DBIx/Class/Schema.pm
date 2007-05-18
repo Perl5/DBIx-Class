@@ -503,7 +503,8 @@ more information.
   sub compose_connection {
     my ($self, $target, @info) = @_;
 
-    warn "compose_connection deprecated as of 0.08000" unless $warn++;
+    warn "compose_connection deprecated as of 0.08000"
+      unless ($INC{"DBIx/Class/CDBICompat.pm"} || $warn++);
 
     my $base = 'DBIx::Class::ResultSetProxy';
     eval "require ${base};";
