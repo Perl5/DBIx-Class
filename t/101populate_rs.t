@@ -5,14 +5,14 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 25;
+plan tests => 31;
 
 my $schema = DBICTest->init_schema();
 my $rs = $schema->resultset('Artist');
 
 RETURN_RESULTSETS: {
 
-	my ($crap, $girl, $damn) = $rs->populate( [
+	my ($crap, $girl, $damn, $xxxaaa) = $rs->populate( [
 	  { artistid => 4, name => 'Manufactured Crap', cds => [ 
 		  { title => 'My First CD', year => 2006 },
 		  { title => 'Yet More Tweeny-Pop crap', year => 2007 },
@@ -37,9 +37,11 @@ RETURN_RESULTSETS: {
 	isa_ok( $crap, 'DBICTest::Artist', "Got 'Artist'");
 	isa_ok( $damn, 'DBICTest::Artist', "Got 'Artist'");
 	isa_ok( $girl, 'DBICTest::Artist', "Got 'Artist'");	
+	isa_ok( $xxxaaa, 'DBICTest::Artist', "Got 'Artist'");	
 	
 	ok( $crap->name eq 'Manufactured Crap', "Got Correct name for result object");
 	ok( $girl->name eq 'Angsty-Whiny Girl', "Got Correct name for result object");
+	ok( $xxxaaa->name eq 'bbbb', "Got Correct name for result object");
 	
 	use Data::Dump qw/dump/;
 	
@@ -62,14 +64,14 @@ RETURN_VOID: {
 
 		]
 	  },
-	  {artistid=>10,  name => 'XXXX' }
-
+	  { artistid =>10,  name => 'XXXX' },
+	  { artistid =>11, name => 'wart', cds =>{ title => 'xxxaaa' ,year => 2005 }, },
 	] );
 	
 	my $artist = $rs->find(8);
 
 	ok($artist, 'Found artist');
-	is($artist->name, 'Manufactured CrapB');
+	is($artist->name, 'Manufactured CrapB', "Got Correct Name");
 	is($artist->cds->count, 2, 'Has CDs');
 
 	my @cds = $artist->cds;
@@ -82,9 +84,9 @@ RETURN_VOID: {
 
 	$artist = $rs->find(9);
 	ok($artist, 'Found artist');
-	is($artist->name, 'Angsty-Whiny GirlB');
+	is($artist->name, 'Angsty-Whiny GirlB', "Another correct name");
 	is($artist->cds->count, 3, 'Has CDs');
-
+	
 	@cds = $artist->cds;
 
 
@@ -101,6 +103,13 @@ RETURN_VOID: {
 	ok($artist, "Got Expected Artist Result");
 
 	is($artist->cds->count, 0, 'No CDs');
-
+	
+	$artist = $rs->find(10);
+	is($artist->name, 'XXXX', "Got Correct Name");
+	is($artist->cds->count, 0, 'Has NO CDs');
+	
+	$artist = $rs->find(11);
+	is($artist->name, 'wart', "Got Correct Name");
+	is($artist->cds->count, 1, 'Has One CD');
 }
 

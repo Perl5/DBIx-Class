@@ -1288,41 +1288,32 @@ sub populate {
       push(@created, $self->create($item));
     }
     return @created;
-  } 
-  else
-  {
+  } else {
     my ($first, @rest) = @$data;
 	
-	## We assume for now that the first item is required to name all the columns
-	## and relationships similarly to how schema->populate requires a first item
-	## of all the column names.
-	
     my @names = grep { !ref $first->{$_} } keys %$first;
-	my @values = map { [ map {defined $_ ? $_ : $self->throw_exception("Undefined value for column!")} @$_{@names} ] } @$data;
+	
+	my @values = map {
+		[ map {
+			defined $_ ? $_ : $self->throw_exception("Undefined value for column!")
+		} @$_{@names} ]
+	} @$data;
 		
     $self->result_source->storage->insert_bulk(
 		$self->result_source, 
 		\@names, 
 		\@values,
 	);
-	
-	## Again we assume the first row has to define all the related resultsets
+
 	my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
 	my @pks = $self->result_source->primary_columns;
-	
-	## Must have PKs to use this!!!
 
-	foreach my $item (@$data)
-	{
-		## First we need to get a result for each
-		## We need to call populate for each relationship.
+	foreach my $item (@$data) {
 
-		foreach my $rel (@rels)
-		{
+		foreach my $rel (@rels) {
 			next unless $item->{$rel};
-			my $parent	= $self->find(map {{$_=>$item->{$_}} } @pks)
-			 || next;
 			
+			my $parent	= $self->find(map {{$_=>$item->{$_}} } @pks) || next;
 			my $child	= $parent->$rel;
 
 			my $related = $child->result_source->resolve_condition(
@@ -1330,12 +1321,12 @@ sub populate {
 				$parent->result_source->relationship_info($rel)->{cond},
 				$child,
 				$parent,
-				
 			);
 			
-			my $populate = [map {  {%$_, %$related} } @{$item->{$rel}}];
+			my @rows_to_add = ref $item->{$rel} eq 'ARRAY' ? @{$item->{$rel}} : ($item->{$rel});
+			my @populate = map { {%$_, %$related} } @rows_to_add;
 
-			$child->populate( $populate );
+			$child->populate( \@populate );
 		}
 	}
 	
