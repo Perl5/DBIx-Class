@@ -1252,32 +1252,45 @@ Pass an arrayref of hashrefs. Each hashref should be a structure suitable for
 submitting to a $resultset->create(...) method.
 
 In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
-to insert the data, as this is a fast method.
+to insert the data, as this is a faster method.
 
 Otherwise, each set of data is inserted into the database using
 L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
 objects is returned.
 
-i.e.,
+Example:  Assuming an Artist Class that has many CDs Classes relating:
 
-  $rs->populate( [
-	  { artistid => 4, name => 'Manufactured Crap', cds => [ 
-		  { title => 'My First CD', year => 2006 },
-		  { title => 'Yet More Tweeny-Pop crap', year => 2007 },
-		] 
-	  },
-	  { artistid => 5, name => 'Angsty-Whiny Girl', cds => [
-		  { title => 'My parents sold me to a record company' ,year => 2005 },
-		  { title => 'Why Am I So Ugly?', year => 2006 },
-		  { title => 'I Got Surgery and am now Popular', year => 2007 }
-		]
-	  },
-	  { name => 'Like I Give a Damn' }
-
-	] );
+  my $Artist_rs = $schema->resultset("Artist");
+  
+  ## Void Context Example 
+  $Artist_rs->populate([
+     { artistid => 4, name => 'Manufactured Crap', cds => [ 
+        { title => 'My First CD', year => 2006 },
+        { title => 'Yet More Tweeny-Pop crap', year => 2007 },
+      ],
+     },
+     { artistid => 5, name => 'Angsty-Whiny Girl', cds => [
+        { title => 'My parents sold me to a record company' ,year => 2005 },
+        { title => 'Why Am I So Ugly?', year => 2006 },
+        { title => 'I Got Surgery and am now Popular', year => 2007 }
+      ],
+     },
+  ]);
+  
+  ## Array Context Example
+  my ($ArtistOne, $ArtistTwo, $ArtistThree) = $Artist_rs->populate([
+    { name => "Artist One"},
+	{ name => "Artist Two"},
+	{ name => "Artist Three", cds=> [
+	  { title => "First CD", year => 2007},
+	  { title => "Second CD", year => 2008},
+	]}
+  ]);
+  
+  print $ArtistOne->name; ## response is 'Artist One'
+  print $ArtistThree->cds->count ## reponse is '2'
 
 =cut
-use Data::Dump qw/dump/;
 
 sub populate {
   my ($self, $data) = @_;
@@ -1290,46 +1303,44 @@ sub populate {
     return @created;
   } else {
     my ($first, @rest) = @$data;
-	
+
     my @names = grep { !ref $first->{$_} } keys %$first;
-	
-	my @values = map {
-		[ map {
-			defined $_ ? $_ : $self->throw_exception("Undefined value for column!")
-		} @$_{@names} ]
-	} @$data;
-		
+
+    my @values = map {
+      [ map {
+         defined $_ ? $_ : $self->throw_exception("Undefined value for column!")
+      } @$_{@names} ]
+    } @$data;
+
     $self->result_source->storage->insert_bulk(
-		$self->result_source, 
-		\@names, 
-		\@values,
-	);
+      $self->result_source, 
+      \@names, 
+      \@values,
+    );
 
-	my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
-	my @pks = $self->result_source->primary_columns;
+    my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
+    my @pks = $self->result_source->primary_columns;
 
-	foreach my $item (@$data) {
+    foreach my $item (@$data) {
 
-		foreach my $rel (@rels) {
-			next unless $item->{$rel};
-			
-			my $parent	= $self->find(map {{$_=>$item->{$_}} } @pks) || next;
-			my $child	= $parent->$rel;
+      foreach my $rel (@rels) {
+        next unless $item->{$rel};
 
-			my $related = $child->result_source->resolve_condition(
-				
-				$parent->result_source->relationship_info($rel)->{cond},
-				$child,
-				$parent,
-			);
-			
-			my @rows_to_add = ref $item->{$rel} eq 'ARRAY' ? @{$item->{$rel}} : ($item->{$rel});
-			my @populate = map { {%$_, %$related} } @rows_to_add;
+        my $parent = $self->find(map {{$_=>$item->{$_}} } @pks) || next;
+        my $child = $parent->$rel;
+		
+        my $related = $child->result_source->resolve_condition(
+          $parent->result_source->relationship_info($rel)->{cond},
+          $child,
+          $parent,
+        );
 
-			$child->populate( \@populate );
-		}
-	}
-	
+        my @rows_to_add = ref $item->{$rel} eq 'ARRAY' ? @{$item->{$rel}} : ($item->{$rel});
+        my @populate = map { {%$_, %$related} } @rows_to_add;
+
+        $child->populate( \@populate );
+      }
+    }
   }
 }
 
