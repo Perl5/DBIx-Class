@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 40;
+plan tests => 43;
 
 my $schema = DBICTest->init_schema();
 my $rs = $schema->resultset('Artist');
@@ -148,3 +148,15 @@ RETURN_RESULTSETS_AUTOPK: {
 	ok( $girl->cds->count == 3, "got Expected Number of Cds");
 }
 
+## Test from a belongs_to perspective, should create artist first, then CD with artistid in:
+my $cd_rs = $schema->resultset('CD');
+$cd_rs->populate([ 
+                   { title => 'Some CD',
+                     year => 1997,
+                     artist => { name => 'Fred Bloggs'},
+                 }] );
+my $cd = $schema->resultset('CD')->find({title => 'Some CD'});
+
+isa_ok($cd, 'DBICTest::CD', 'Created CD');
+isa_ok($cd->artist, 'DBICTest::Artist', 'Set Artist');
+is($cd->artist->name, 'Fred Bloggs', 'Set Artist to Fred');
