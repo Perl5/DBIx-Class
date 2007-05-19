@@ -1311,7 +1311,8 @@ sub new_result {
   my %new = (
     %{ $self->_remove_alias($values, $alias) },
     %{ $self->_remove_alias($collapsed_cond, $alias) },
-    -source_handle => $self->_source_handle
+    -source_handle => $self->_source_handle,
+    -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
   );
 
   return $self->result_class->new(\%new);
