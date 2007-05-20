@@ -543,7 +543,7 @@ sub single {
     $attrs->{where}, $attrs
   );
 
-  return (@data ? ($self->_construct_object(@data))[0] : ());
+  return (@data ? ($self->_construct_object(@data))[0] : undef);
 }
 
 # _is_unique_query
@@ -738,7 +738,7 @@ sub next {
       ? @{delete $self->{stashed_row}}
       : $self->cursor->next
   );
-  return unless (@row);
+  return undef unless (@row);
   my ($row, @more) = $self->_construct_object(@row);
   $self->{stashed_objects} = \@more if @more;
   return $row;
