@@ -10,7 +10,7 @@ plan tests => 43;
 my $schema = DBICTest->init_schema();
 my $rs = $schema->resultset('Artist');
 
-RETURN_RESULTSETS: {
+RETURN_RESULTSETS_HAS_MANY: {
 
 	my ($crap, $girl, $damn, $xxxaaa) = $rs->populate( [
 	  { artistid => 4, name => 'Manufactured Crap', cds => [ 
@@ -47,7 +47,7 @@ RETURN_RESULTSETS: {
 	ok( $girl->cds->count == 3, "got Expected Number of Cds");
 }
 
-RETURN_VOID: {
+RETURN_VOID_HAS_MANY: {
 
 	$rs->populate( [
 	  { artistid => 8, name => 'Manufactured CrapB', cds => [ 
@@ -148,15 +148,42 @@ RETURN_RESULTSETS_AUTOPK: {
 	ok( $girl->cds->count == 3, "got Expected Number of Cds");
 }
 
-## Test from a belongs_to perspective, should create artist first, then CD with artistid in:
-my $cd_rs = $schema->resultset('CD');
-$cd_rs->populate([ 
-                   { title => 'Some CD',
-                     year => 1997,
-                     artist => { name => 'Fred Bloggs'},
-                 }] );
-my $cd = $schema->resultset('CD')->find({title => 'Some CD'});
+RETURN_RESULTSETS_BELONGS_TO: {
 
-isa_ok($cd, 'DBICTest::CD', 'Created CD');
-isa_ok($cd->artist, 'DBICTest::Artist', 'Set Artist');
-is($cd->artist->name, 'Fred Bloggs', 'Set Artist to Fred');
+	## Test from a belongs_to perspective, should create artist first, then CD with artistid in:
+	
+	my $cds = [
+		{
+			title => 'Some CD1',
+			year => '1997',
+			artist => { name => 'Fred BloggsA'},
+		},
+		{
+			title => 'Some CD2',
+			year => '1997',
+			artist => { name => 'Fred BloggsB'},
+		},		
+	];
+	
+	my $cd_rs = $schema->resultset('CD');
+	
+	my @ret = $cd_rs->populate($cds);
+	
+	my $cdA = $schema->resultset('CD')->find({title => 'Some CD1'});
+
+	isa_ok($cdA, 'DBICTest::CD', 'Created CD');
+	isa_ok($cdA->artist, 'DBICTest::Artist', 'Set Artist');
+	is($cdA->artist->name, 'Fred BloggsA', 'Set Artist to FredA');
+
+	my $cdB = $schema->resultset('CD')->find({title => 'Some CD2'});
+	
+	isa_ok($cdB, 'DBICTest::CD', 'Created CD');
+	isa_ok($cdB->artist, 'DBICTest::Artist', 'Set Artist');
+	is($cdB->artist->name, 'Fred BloggsB', 'Set Artist to FredB');
+}
+
+
+
+
+
+
