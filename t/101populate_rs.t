@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 43;
+plan tests => 53;
 
 my $schema = DBICTest->init_schema();
 my $rs = $schema->resultset('Artist');
@@ -63,7 +63,7 @@ RETURN_VOID_HAS_MANY: {
 		]
 	  },
 	  { artistid =>10,  name => 'XXXX' },
-	  { artistid =>11, name => 'wart', cds =>{ title => 'xxxaaa' ,year => 2005 }, },
+	  { artistid =>11, name => 'wart', cds =>[{ title => 'xxxaaa' ,year => 2005 }], },
 	] );
 	
 	my $artist = $rs->find(8);
@@ -182,7 +182,41 @@ RETURN_RESULTSETS_BELONGS_TO: {
 	is($cdB->artist->name, 'Fred BloggsB', 'Set Artist to FredB');
 }
 
+RETURN_VOID_BELONGS_TO: {
 
+	## Test from a belongs_to perspective, should create artist first, then CD with artistid in:
+	
+	my $cds = [
+		{
+			title => 'Some CD3',
+			year => '1997',
+			artist => { name => 'Fred BloggsC'},
+		},
+		{
+			title => 'Some CD4',
+			year => '1997',
+			artist => { name => 'Fred BloggsD'},
+		},		
+	];
+	
+	my $cd_rs = $schema->resultset('CD');
+	
+	ok( $cd_rs, 'Got Good CD Resultset');
+	
+	$cd_rs->populate($cds);
+	
+	my $cdA = $schema->resultset('CD')->find({title => 'Some CD3'});
+
+	isa_ok($cdA, 'DBICTest::CD', 'Created CD');
+	isa_ok($cdA->artist, 'DBICTest::Artist', 'Set Artist');
+	is($cdA->artist->name, 'Fred BloggsC', 'Set Artist to FredC');
+
+	my $cdB = $schema->resultset('CD')->find({title => 'Some CD4'});
+	
+	isa_ok($cdB, 'DBICTest::CD', 'Created CD');
+	isa_ok($cdB->artist, 'DBICTest::Artist', 'Set Artist');
+	is($cdB->artist->name, 'Fred BloggsD', 'Set Artist to FredD');
+}
 
 
 
