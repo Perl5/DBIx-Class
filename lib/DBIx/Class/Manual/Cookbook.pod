@@ -1172,8 +1172,26 @@ C<inflate_result>:
   sub mk_hash {
      my ($me, $rest) = @_;
 
-     return { %$me, 
-        map { ($_ => mk_hash(@{$rest->{$_}})) } keys %$rest
+     # to avoid emtpy has_many rels contain one empty hashref
+     return if (not keys %$me);
+
+     my $def;
+
+     foreach (values %$me) {
+         if (defined $_) {
+             $def = 1;
+             last;
+         }
+     }
+     return unless $def;
+
+     return { %$me,
+         map {
+           ( $_ =>
+              ref($rest->{$_}[0]) eq 'ARRAY' ? [ map { mk_hash(@$_) } @{$rest->{$_}} ]
+                                             : mk_hash( @{$rest->{$_}} )
+           )
+         } keys %$rest
      };
   }
 
