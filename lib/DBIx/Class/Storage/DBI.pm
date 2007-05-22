@@ -467,6 +467,8 @@ sub connect_info {
   $self->_connect_info($info_arg);
 
   my $dbi_info = [@$info_arg]; # copy for DBI
+  $self->_dbi_connect_info($dbi_info);
+
   my $last_info = $dbi_info->[-1];
   if(ref $last_info eq 'HASH') {
     for my $storage_opt (qw/on_connect_do disable_sth_caching/) {
@@ -484,28 +486,7 @@ sub connect_info {
     pop(@$dbi_info) if !keys %$last_info;
   }
 
-  $self->_dbi_connect_info($dbi_info);
-
-  if(ref $dbi_info->[0] ne 'CODE') {
-      # Extend to 3 arguments with undefs, if necessary
-      while(scalar(@$dbi_info) < 3) { push(@$dbi_info, undef) }
-
-      # Complain if 4th argument is defined and is not a HASH
-      if(defined $dbi_info->[3] && ref $dbi_info->[3] ne 'HASH') {
-          warn "4th argument of DBI connect info is defined "
-               . " but is not a hashref!";
-      }
-
-      # Set AutoCommit to 1 if not specified manually
-      else {
-          $dbi_info->[3] ||= {};
-          if(!defined $dbi_info->[3]->{AutoCommit}) {
-              $dbi_info->[3]->{AutoCommit} = 1;
-          }
-      }
-  }
-
-  $self->_connect_info;
+  $info_arg;
 }
 
 =head2 on_connect_do
