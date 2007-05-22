@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 64;
+plan tests => 74;
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
 # which case COUNT(DISTINCT()) doesn't work
@@ -175,6 +175,14 @@ $new->pos(5);
 $new->update_or_insert;
 is( $schema->resultset("Track")->find(100)->pos, 5, 'update_or_insert update ok');
 
+# get_inflated_columns w/relation and accessor alias
+my %tdata = $new->get_inflated_columns;
+is($tdata{'trackid'}, 100, 'got id');
+isa_ok($tdata{'cd'}, 'DBICTest::CD', 'cd is CD object');
+is($tdata{'cd'}->id, 1, 'cd object is id 1');
+is($tdata{'position'}, 5, 'got position from pos');
+is($tdata{'title'}, 'Insert or Update');
+
 eval { $schema->class("Track")->load_components('DoesNotExist'); };
 
 ok $@, $@;
@@ -304,5 +312,16 @@ ok(!$@, "stringify to false value doesn't cause error");
   $schema->source('CD')->remove_columns('year');
   is_deeply([$schema->source('CD')->columns], [qw/cdid artist title/]);
   ok(! exists $schema->source('CD')->_columns->{'year'}, 'year still exists in _columns');
+}
+
+# test get_inflated_columns with objects
+{
+    my $event = $schema->resultset('Event')->search->first;
+    my %edata = $event->get_inflated_columns;
+    is($edata{'id'}, $event->id, 'got id');
+    isa_ok($edata{'starts_at'}, 'DateTime', 'start_at is DateTime object');
+    isa_ok($edata{'created_on'}, 'DateTime', 'create_on DateTime object');
+    is($edata{'starts_at'}, $event->starts_at, 'got start date');
+    is($edata{'created_on'}, $event->created_on, 'got created date');
 }
 

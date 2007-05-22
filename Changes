@@ -11,6 +11,7 @@ Revision history for DBIx::Class
         - resultset_class/result_class now (again) auto loads the specified
           class; requires Class::Accessor::Grouped 0.05002+
         - added 97result_class.t test, failing ATM
+        - added get_inflated_columns to Row
 
 0.07006 2007-04-17 23:18:00
         - Lots of documentation updates
