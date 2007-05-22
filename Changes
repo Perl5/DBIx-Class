@@ -12,6 +12,7 @@ Revision history for DBIx::Class
           class; requires Class::Accessor::Grouped 0.05002+
         - added 97result_class.t test, failing ATM
         - added get_inflated_columns to Row
+        - %colinfo accessor and inflate_column now work together
 
 0.07006 2007-04-17 23:18:00
         - Lots of documentation updates
