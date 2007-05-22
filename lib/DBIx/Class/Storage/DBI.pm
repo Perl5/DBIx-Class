@@ -292,8 +292,9 @@ use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid _conn_tid
-     debug debugobj cursor on_connect_do transaction_depth/);
+  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
+     _conn_pid _conn_tid debug debugobj cursor on_connect_do
+     transaction_depth/);
 
 =head1 NAME
 
@@ -598,9 +599,10 @@ sub connect_info {
     #  the new set of options
     $self->_sql_maker(undef);
     $self->_sql_maker_opts({});
+    $self->_connect_info($info_arg);
 
-    my $info = [ @$info_arg ]; # copy because we can alter it
-    my $last_info = $info->[-1];
+    my $dbi_info = [@$info_arg]; # copy for DBI
+    my $last_info = $dbi_info->[-1];
     if(ref $last_info eq 'HASH') {
       if(my $on_connect_do = delete $last_info->{on_connect_do}) {
         $self->on_connect_do($on_connect_do);
@@ -612,10 +614,10 @@ sub connect_info {
       }
 
       # Get rid of any trailing empty hashref
-      pop(@$info) if !keys %$last_info;
+      pop(@$dbi_info) if !keys %$last_info;
     }
 
-    $self->_connect_info($info);
+    $self->_dbi_connect_info($dbi_info);
   }
 
   $self->_connect_info;
@@ -623,7 +625,7 @@ sub connect_info {
 
 sub _populate_dbh {
   my ($self) = @_;
-  my @info = @{$self->_connect_info || []};
+  my @info = @{$self->_dbi_connect_info || []};
   $self->_dbh($self->_connect(@info));
 
   if(ref $self eq 'DBIx::Class::Storage::DBI') {
