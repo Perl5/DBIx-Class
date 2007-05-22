@@ -1618,9 +1618,13 @@ sub related_resultset {
     my $join_count = $seen->{$rel};
     my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
 
+    #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
+    my %attrs = %{$self->{attrs}||{}};
+    delete $attrs{result_class};
+
     $self->_source_handle->schema->resultset($rel_obj->{class})->search_rs(
       undef, {
-        %{$self->{attrs}||{}},
+        %attrs,
         join => undef,
         prefetch => undef,
         select => undef,
