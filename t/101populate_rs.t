@@ -8,7 +8,6 @@
 ## Also need to test some stuff that should generate errors.
 ## ----------------------------------------------------------------------------
 
-
 use strict;
 use warnings;
 
@@ -16,7 +15,8 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 53;
+plan tests => 98;
+
 
 ## ----------------------------------------------------------------------------
 ## Get a Schema and some ResultSets we can play with.
@@ -320,7 +320,10 @@ VOID_CONTEXT: {
 		ok( $formerly->name eq 'VOID_PK_Formerly Named', "Got Correct name for result object");
 		
 		## Create the expected children sub objects?
-		use Data::Dump qw/dump/;
+		ok( $crap->can('cds'), "Has cds relationship");
+		ok( $girl->can('cds'), "Has cds relationship");
+		ok( $damn->can('cds'), "Has cds relationship");
+		ok( $formerly->can('cds'), "Has cds relationship");
 		
 		ok( $crap->cds->count == 0, "got Expected Number of Cds");
 		ok( $girl->cds->count == 2, "got Expected Number of Cds");	
@@ -470,9 +473,10 @@ VOID_CONTEXT: {
 		ok( $formerly->name eq 'VOID_Formerly Named', "Got Correct name for result object");
 		
 		## Create the expected children sub objects?
-		use Data::Dump qw/dump/;
-		
-		warn dump map { $_->get_columns } $damn->cds;
+		ok( $crap->can('cds'), "Has cds relationship");
+		ok( $girl->can('cds'), "Has cds relationship");
+		ok( $damn->can('cds'), "Has cds relationship");
+		ok( $formerly->can('cds'), "Has cds relationship");
 		
 		ok( $crap->cds->count == 0, "got Expected Number of Cds");
 		ok( $girl->cds->count == 2, "got Expected Number of Cds");	
@@ -482,9 +486,21 @@ VOID_CONTEXT: {
 		## Did the cds get expected information?
 		
 		my ($cd1, $cd2) = $girl->cds->search({},{order_by=>'year ASC'});
+
+		ok($cd1, "Got a got CD");
+		ok($cd2, "Got a got CD");
 		
-		ok( $cd1->title eq "VOID_My First CD", "Got Expected CD Title");
-		ok( $cd2->title eq "VOID_Yet More Tweeny-Pop crap", "Got Expected CD Title");
+		SKIP:{
+		
+			skip "Can't Test CD because we failed to create it", 1 unless $cd1;
+			ok( $cd1->title eq "VOID_My First CD", "Got Expected CD Title");
+		}
+		
+		SKIP:{
+		
+			skip "Can't Test CD because we failed to create it", 1 unless $cd2;
+			ok( $cd2->title eq "VOID_Yet More Tweeny-Pop crap", "Got Expected CD Title");
+		}
 	}
 
 }
