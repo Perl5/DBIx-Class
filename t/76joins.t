@@ -169,7 +169,7 @@ is(Dumper($attr), $attr_str, 'Attribute hash untouched after search()');
 cmp_ok($rs + 0, '==', 3, 'Correct number of records returned');
 
 my $queries = 0;
-$schema->storage->debugcb(sub { $queries++ });
+$schema->storage->debugcb(sub { $queries++; });
 $schema->storage->debug(1);
 
 my @cd = $rs->all;
@@ -226,11 +226,7 @@ is($tag->search_related('cd')->search_related('artist')->first->name,
    'Caterwauler McCrae',
    'chained belongs_to->belongs_to search_related ok');
 
-TODO: {
-  local $TODO = 'use prefetched values for nested search_related';
-
-  is($queries, 0, 'chained search_related after belontgs_to->belongs_to prefetch ran no queries');
-}
+is($queries, 0, 'chained search_related after belontgs_to->belongs_to prefetch ran no queries');
 
 $queries = 0;
 
@@ -241,6 +237,8 @@ is($cd->{_inflated_column}{artist}->name, 'Caterwauler McCrae', 'artist prefetch
 is($queries, 1, 'find with prefetch ran exactly 1 select statement (excluding column_info)');
 
 $queries = 0;
+
+$schema->storage->debugcb(sub { $queries++; warn "Q: @_"; });
 
 $cd = $schema->resultset('CD')->find(1, { prefetch => { cd_to_producer => 'producer' } });
 
@@ -258,11 +256,7 @@ my $producers = $cd->search_related('cd_to_producer')->search_related('producer'
 
 is($producers->first->name, 'Matt S Trout', 'chained many_to_many search_related ok');
 
-TODO: {
-  local $TODO = 'use prefetched values for search_related';
-
-  is($queries, 0, 'chained search_related after many_to_many prefetch ran no queries');
-}
+is($queries, 0, 'chained search_related after many_to_many prefetch ran no queries');
 
 $schema->storage->debug($orig_debug);
 $schema->storage->debugobj->callback(undef);
@@ -416,7 +410,8 @@ my $art_rs_pr = $art_rs->search(
     {},
     {
         join     => [ { cds => ['tracks'] } ],
-        prefetch => [ { cds => ['tracks'] } ]
+        prefetch => [ { cds => ['tracks'] } ],
+        cache    => 1 # last test needs this
     }
 );
 
@@ -461,8 +456,4 @@ is($art_rs_pr->search_related('cds')->search_related('tracks')->first->title,
    'chained has_many->has_many search_related ok'
   );
 
-TODO: {
-  local $TODO ='use prefetched values for chained search_related';
-
-  is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
-}
+is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');

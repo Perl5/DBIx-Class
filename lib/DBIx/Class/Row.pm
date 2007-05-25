@@ -448,6 +448,7 @@ sub inflate_result {
         $fetched = $pre_source->result_class->inflate_result(
                       $pre_source, @{$pre_val});
       }
+      $new->related_resultset($pre)->set_cache([ $fetched ]);
       my $accessor = $source->relationship_info($pre)->{attrs}{accessor};
       $class->throw_exception("No accessor for prefetched $pre")
        unless defined $accessor;

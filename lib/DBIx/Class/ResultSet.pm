@@ -1622,18 +1622,32 @@ sub related_resultset {
     my %attrs = %{$self->{attrs}||{}};
     delete $attrs{result_class};
 
-    $self->_source_handle->schema->resultset($rel_obj->{class})->search_rs(
-      undef, {
-        %attrs,
-        join => undef,
-        prefetch => undef,
-        select => undef,
-        as => undef,
-        alias => $alias,
-        where => $self->{cond},
-        seen_join => $seen,
-        from => $from,
-    });
+    my $new_cache;
+
+    if (my $cache = $self->get_cache) {
+      if ($cache->[0] && $cache->[0]->related_resultset($rel)->get_cache) {
+        $new_cache = [ map { @{$_->related_resultset($rel)->get_cache} }
+                        @$cache ];
+      }
+    }
+
+    my $new = $self->_source_handle
+                   ->schema
+                   ->resultset($rel_obj->{class})
+                   ->search_rs(
+                       undef, {
+                         %attrs,
+                         join => undef,
+                         prefetch => undef,
+                         select => undef,
+                         as => undef,
+                         alias => $alias,
+                         where => $self->{cond},
+                         seen_join => $seen,
+                         from => $from,
+                     });
+    $new->set_cache($new_cache) if $new_cache;
+    $new;
   };
 }
 
