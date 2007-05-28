@@ -238,7 +238,7 @@ is($queries, 1, 'find with prefetch ran exactly 1 select statement (excluding co
 
 $queries = 0;
 
-$schema->storage->debugcb(sub { $queries++; warn "Q: @_"; });
+$schema->storage->debugcb(sub { $queries++; });
 
 $cd = $schema->resultset('CD')->find(1, { prefetch => { cd_to_producer => 'producer' } });
 
