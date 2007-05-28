@@ -13,7 +13,9 @@ BEGIN {
   sub select {
     my ($self, $table, $fields, $where, $order, @rest) = @_;
 
-    $self->_oracle_joins($where, @{ $table });
+    if (ref($table) eq 'ARRAY') {
+      $where = $self->_oracle_joins($where, @{ $table });
+    }
 
     return $self->SUPER::select($table, $fields, $where, $order, @rest);
   }
@@ -39,12 +41,29 @@ BEGIN {
 
   sub _oracle_joins {
     my ($self, $where, $from, @join) = @_;
+    my $join_where = {};
+    $self->_recurse_oracle_joins($join_where, $from, @join);
+    if (keys %$join_where) {
+      if (!defined($where)) {
+        $where = $join_where;
+      } else {
+        if (ref($where) eq 'ARRAY') {
+          $where = { -or => $where };
+        }
+        $where = { -and => [ $join_where, $where ] };
+      }
+    }
+    return $where;
+  }
+
+  sub _recurse_oracle_joins {
+    my ($self, $where, $from, @join) = @_;
 
     foreach my $j (@join) {
       my ($to, $on) = @{ $j };
 
       if (ref $to eq 'ARRAY') {
-        $self->_oracle_joins($where, @{ $to });
+        $self->_recurse_oracle_joins($where, @{ $to });
       }
 
       my $to_jt      = ref $to eq 'ARRAY' ? $to->[0] : $to;
@@ -66,7 +85,7 @@ BEGIN {
       }
 
       foreach my $lhs (keys %{ $on }) {
-        $where->{$lhs . $left_join} = \" = $on->{ $lhs }$right_join";
+        $where->{$lhs . $left_join} = \"= $on->{ $lhs }$right_join";
       }
     }
   }

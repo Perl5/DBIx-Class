@@ -108,7 +108,8 @@ CREATE TABLE track (
   trackid INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL,
   position integer NOT NULL,
-  title varchar(100) NOT NULL
+  title varchar(100) NOT NULL,
+  last_updated_on datetime NULL
 );
 
 --

@@ -70,6 +70,56 @@ This results in the following C<WHERE> clause:
 For more information on generating complex queries, see
 L<SQL::Abstract/WHERE CLAUSES>.
 
+=head3 Arbitrary SQL through a custom ResultSource
+
+Sometimes you have to run arbitrary SQL because your query is too complex
+(e.g. it contains Unions, Sub-Selects, Stored Procedures, etc.) or has to
+be optimized for your database in a special way, but you still want to 
+get the results as a L<DBIx::Class::ResultSet>. 
+The recommended way to accomplish this is by defining a separate ResultSource 
+for your query. You can then inject complete SQL statements using a scalar 
+reference (this is a feature of L<SQL::Abstract>).
+
+Say you want to run a complex custom query on your user data, here's what
+you have to add to your User class:
+
+  package My::Schema::User;
+  
+  use base qw/DBIx::Class/;
+  
+  # ->load_components, ->table, ->add_columns, etc.
+
+  # Make a new ResultSource based on the User class
+  my $source = __PACKAGE__->result_source_instance();
+  my $new_source = $source->new( $source );
+  $new_source->source_name( 'UserFriendsComplex' );
+  
+  # Hand in your query as a scalar reference
+  # It will be added as a sub-select after FROM,
+  # so pay attention to the surrounding brackets!
+  $new_source->name( \<<SQL );
+  ( SELECT u.* FROM user u 
+  INNER JOIN user_friends f ON u.id = f.user_id 
+  WHERE f.friend_user_id = ?
+  UNION 
+  SELECT u.* FROM user u 
+  INNER JOIN user_friends f ON u.id = f.friend_user_id 
+  WHERE f.user_id = ? )
+  SQL 
+
+  # Finally, register your new ResultSource with your Schema
+  My::Schema->register_source( 'UserFriendsComplex' => $new_source );
+
+Next, you can execute your complex query using bind parameters like this:
+
+  my $friends = [ $schema->resultset( 'UserFriendsComplex' )->search( {}, 
+    {
+      bind  => [ 12345, 12345 ]
+    }
+  ) ];
+  
+... and you'll get back a perfect L<DBIx::Class::ResultSet>.
+
 =head3 Using specific columns
 
 When you only want specific columns from a table, you can use

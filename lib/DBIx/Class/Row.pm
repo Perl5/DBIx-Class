@@ -402,6 +402,22 @@ sub get_dirty_columns {
            keys %{$self->{_dirty_columns}};
 }
 
+=head2 get_inflated_columns
+
+  my $inflated_data = $obj->get_inflated_columns;
+
+Similar to get_columns but objects are returned for inflated columns instead of their raw non-inflated values.
+
+=cut
+
+sub get_inflated_columns {
+  my $self = shift;
+  return map {
+    my $accessor = $self->column_info($_)->{'accessor'} || $_;
+    ($_ => $self->$accessor);
+  } $self->columns;
+}
+
 =head2 set_column
 
   $obj->set_column($col => $val);
@@ -542,6 +558,7 @@ sub inflate_result {
         $fetched = $pre_source->result_class->inflate_result(
                       $pre_source, @{$pre_val});
       }
+      $new->related_resultset($pre)->set_cache([ $fetched ]);
       my $accessor = $source->relationship_info($pre)->{attrs}{accessor};
       $class->throw_exception("No accessor for prefetched $pre")
        unless defined $accessor;
