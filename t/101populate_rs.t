@@ -516,8 +516,6 @@ SHOULD_CAUSE_ERRORS: {
 	## changing columns
 	## basically errors for non well formed data
 	## check for the first incomplete problem
-	## can we solve the problem of void context and no PKs?
-
 }
 
 
