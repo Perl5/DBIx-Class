@@ -28,29 +28,27 @@ plan tests => 4;
     $INC{'DBIx/Class/Storage/DBI/MySQLNoBindVars.pm'} = 1;
 }
 
-DBICTest::Schema->storage(undef); # just in case?
-DBICTest::Schema->storage_type('::DBI::MySQLNoBindVars');
-DBICTest::Schema->compose_namespace('MySQLTest' => $dsn, $user, $pass);
+my $schema = DBICTest::Schema->clone;
+$schema->storage_type('::DBI::MySQLNoBindVars');
+$schema->connection($dsn, $user, $pass);
 
-my $dbh = MySQLTest->schema->storage->dbh;
+my $dbh = $schema->storage->dbh;
 
 $dbh->do("DROP TABLE IF EXISTS artist;");
 
 $dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), charfield CHAR(10));");
 
-#'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
-
-MySQLTest::Artist->load_components('PK::Auto');
+$schema->class('Artist')->load_components('PK::Auto');
 
 # test primary key handling
-my $new = MySQLTest::Artist->create({ name => 'foo' });
+my $new = $schema->resultset('Artist')->create({ name => 'foo' });
 ok($new->artistid, "Auto-PK worked");
 
 # test LIMIT support
 for (1..6) {
-    MySQLTest::Artist->create({ name => 'Artist ' . $_ });
+    $schema->resultset('Artist')->create({ name => 'Artist ' . $_ });
 }
-my $it = MySQLTest::Artist->search( {},
+my $it = $schema->resultset('Artist')->search( {},
     { rows => 3,
       offset => 2,
       order_by => 'artistid' }
@@ -62,4 +60,6 @@ $it->next;
 is( $it->next, undef, "next past end of resultset ok" );
 
 # clean up our mess
-$dbh->do("DROP TABLE artist");
+END {
+    $dbh->do("DROP TABLE artist");
+}
