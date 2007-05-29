@@ -464,10 +464,9 @@ sub connect_info {
   #  the new set of options
   $self->_sql_maker(undef);
   $self->_sql_maker_opts({});
-  $self->_connect_info($info_arg);
+  $self->_connect_info([@$info_arg]); # copy for _connect_info
 
-  my $dbi_info = [@$info_arg]; # copy for DBI
-  $self->_dbi_connect_info($dbi_info);
+  my $dbi_info = [@$info_arg]; # copy for _dbi_connect_info
 
   my $last_info = $dbi_info->[-1];
   if(ref $last_info eq 'HASH') {
@@ -485,8 +484,9 @@ sub connect_info {
     # Get rid of any trailing empty hashref
     pop(@$dbi_info) if !keys %$last_info;
   }
+  $self->_dbi_connect_info($dbi_info);
 
-  $info_arg;
+  $self->_connect_info;
 }
 
 =head2 on_connect_do
