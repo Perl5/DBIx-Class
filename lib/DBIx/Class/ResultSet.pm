@@ -34,7 +34,7 @@ In the examples below, the following table classes are used:
 
   package MyApp::Schema::Artist;
   use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->load_components(qw/Core/)
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/artistid name/);
   __PACKAGE__->set_primary_key('artistid');
@@ -1244,7 +1244,7 @@ sub delete_all {
 
 =over 4
 
-=item Arguments: $source_name, \@data;
+=item Arguments: \@data;
 
 =back
 
@@ -1280,11 +1280,11 @@ Example:  Assuming an Artist Class that has many CDs Classes relating:
   ## Array Context Example
   my ($ArtistOne, $ArtistTwo, $ArtistThree) = $Artist_rs->populate([
     { name => "Artist One"},
-	{ name => "Artist Two"},
-	{ name => "Artist Three", cds=> [
-	  { title => "First CD", year => 2007},
-	  { title => "Second CD", year => 2008},
-	]}
+    { name => "Artist Two"},
+    { name => "Artist Three", cds=> [
+    { title => "First CD", year => 2007},
+    { title => "Second CD", year => 2008},
+  ]}
   ]);
   
   print $ArtistOne->name; ## response is 'Artist One'
@@ -1304,8 +1304,35 @@ sub populate {
   } else {
     my ($first, @rest) = @$data;
 
-    my @names = grep { !ref $first->{$_} } keys %$first;
+    my @names = grep {!ref $first->{$_}} keys %$first;
+    my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
+    my @pks = $self->result_source->primary_columns;  
 
+    ## do the belongs_to relationships  
+    foreach my $index (0..$#{@$data}) {
+      if( grep { !defined $data->[$index]->{$_} } @pks ) {
+        my @ret = $self->populate($data);
+        return;
+      }
+    
+      foreach my $rel (@rels) {
+        next unless $data->[$index]->{$rel} && ref $data->[$index]->{$rel} eq "HASH";
+        my $result = $self->related_resultset($rel)->create($data->[$index]->{$rel});
+        my ($reverse) = keys %{$self->result_source->reverse_relationship_info($rel)};
+        my $related = $result->result_source->resolve_condition(
+          $result->result_source->relationship_info($reverse)->{cond},
+          $self,        
+          $result,        
+        );
+
+        delete $data->[$index]->{$rel};
+        $data->[$index] = {%{$data->[$index]}, %$related};
+      
+        push @names, keys %$related if $index == 0;
+      }
+    }
+
+    ## do bulk insert on current row
     my @values = map {
       [ map {
          defined $_ ? $_ : $self->throw_exception("Undefined value for column!")
@@ -1318,17 +1345,17 @@ sub populate {
       \@values,
     );
 
-    my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
-    my @pks = $self->result_source->primary_columns;
-
+    ## do the has_many relationships
     foreach my $item (@$data) {
 
       foreach my $rel (@rels) {
-        next unless $item->{$rel};
+        next unless $item->{$rel} && ref $item->{$rel} eq "ARRAY";
 
-        my $parent = $self->find(map {{$_=>$item->{$_}} } @pks) || next;
+        my $parent = $self->find(map {{$_=>$item->{$_}} } @pks) 
+     || $self->throw_exception('Cannot find the relating object.');
+     
         my $child = $parent->$rel;
-		
+    
         my $related = $child->result_source->resolve_condition(
           $parent->result_source->relationship_info($rel)->{cond},
           $child,
