@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - rewritten collapse_result to fix prefetch
+        - moved populate to resultset
+        - added support for creation of related rows via insert and populate
         - Added Oracle/WhereJoins.pm for Oracle >= 8 to support
           Oracle <= 9i, and provide Oracle with a better join method for
           later versions.  (I use the term better loosely.)
