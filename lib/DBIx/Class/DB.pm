@@ -144,6 +144,12 @@ sub resultset_instance {
   $_[0]->result_source_instance->resultset
 }
 
+=head2 result_source_instance
+
+Returns an instance of the result source for this class
+
+=cut
+
 sub result_source_instance {
   my $class = shift;
   $class = ref $class || $class;

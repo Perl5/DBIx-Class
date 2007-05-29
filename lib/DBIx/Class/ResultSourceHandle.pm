@@ -35,7 +35,7 @@ stringify to almost nothing
 
 =item *
 
-Closer to being aboe to do a Serialize::Storable that doesn't require class-based connections
+Closer to being able to do a Serialize::Storable that doesn't require class-based connections
 
 =back
 
@@ -61,12 +61,24 @@ Resolve the moniker into the actual ResultSource object
 
 sub resolve { return $_[0]->schema->source($_[0]->source_moniker) }
 
+=head2 STORABLE_freeze
+
+Freezes a handle.
+
+=cut
+
 sub STORABLE_freeze {
     my ($self, $cloning) = @_;
     my $to_serialize = { %$self };
     delete $to_serialize->{schema};
     return (Storable::freeze($to_serialize));
 }
+
+=head2 STORABLE_thaw
+
+Thaws frozen handle.
+
+=cut
 
 sub STORABLE_thaw {
     my ($self, $cloning,$ice) = @_;

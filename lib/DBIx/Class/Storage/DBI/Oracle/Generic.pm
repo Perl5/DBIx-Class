@@ -4,6 +4,25 @@ package DBIx::Class::Storage::DBI::Oracle::Generic;
 use strict;
 use warnings;
 
+=head1 NAME
+
+DBIx::Class::Storage::DBI::Oracle - Automatic primary key class for Oracle
+
+=head1 SYNOPSIS
+
+  # In your table classes
+  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  __PACKAGE__->set_primary_key('id');
+  __PACKAGE__->sequence('mysequence');
+
+=head1 DESCRIPTION
+
+This class implements autoincrements for Oracle.
+
+=head1 METHODS
+
+=cut
+
 use Carp::Clan qw/^DBIx::Class/;
 
 use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
@@ -40,35 +59,30 @@ sub _dbh_get_autoinc_seq {
   croak "Unable to find a sequence INSERT trigger on table '" . $source->name . "'.";
 }
 
+=head2 get_autoinc_seq
+
+Returns the sequence name for an autoincrement column
+
+=cut
+
 sub get_autoinc_seq {
   my ($self, $source, $col) = @_;
     
   $self->dbh_do($self->can('_dbh_get_autoinc_seq'), $source, $col);
 }
 
+=head2 columns_info_for
+
+This wraps the superclass version of this method to force table
+names to uppercase
+
+=cut
+
 sub columns_info_for {
   my ($self, $table) = @_;
 
   $self->next::method(uc($table));
 }
-
-
-1;
-
-=head1 NAME
-
-DBIx::Class::Storage::DBI::Oracle - Automatic primary key class for Oracle
-
-=head1 SYNOPSIS
-
-  # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
-  __PACKAGE__->set_primary_key('id');
-  __PACKAGE__->sequence('mysequence');
-
-=head1 DESCRIPTION
-
-This class implements autoincrements for Oracle.
 
 =head1 AUTHORS
 
@@ -81,3 +95,5 @@ Scott Connelly <scottsweep@yahoo.com>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+
+1;
