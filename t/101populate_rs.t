@@ -380,9 +380,7 @@ VOID_CONTEXT: {
 
 		## Test from a belongs_to perspective, should create artist first, 
 		## then CD with artistid.
-		
-		diag("Starting Void Context BelongsTO with No PKs");
-		
+				
 		my $cds = [
 			{
 				title => 'Some CD3BB',
@@ -419,8 +417,6 @@ VOID_CONTEXT: {
 	
 		## This first group of tests checks to make sure we can call populate
 		## with the parent having many children and let the keys be automatic
-		
-		diag("Starting Void Context Has Many with No PKs");
 
 		my $artists = [
 			{	
@@ -489,37 +485,8 @@ VOID_CONTEXT: {
 
 		ok($cd1, "Got a got CD");
 		ok($cd2, "Got a got CD");
-		
-		SKIP:{
-		
-			skip "Can't Test CD because we failed to create it", 1 unless $cd1;
-			ok( $cd1->title eq "VOID_My First CD", "Got Expected CD Title");
-		}
-		
-		SKIP:{
-		
-			skip "Can't Test CD because we failed to create it", 1 unless $cd2;
-			ok( $cd2->title eq "VOID_Yet More Tweeny-Pop crap", "Got Expected CD Title");
-		}
+		ok( $cd1->title eq "VOID_My First CD", "Got Expected CD Title");
+		ok( $cd2->title eq "VOID_Yet More Tweeny-Pop crap", "Got Expected CD Title");
 	}
 
 }
-
-__END__
-## ----------------------------------------------------------------------------
-## Error cases
-## ----------------------------------------------------------------------------
-
-SHOULD_CAUSE_ERRORS: {
-
-	## bad or missing PKs
-	## changing columns
-	## basically errors for non well formed data
-	## check for the first incomplete problem
-}
-
-
-
-
-
-
