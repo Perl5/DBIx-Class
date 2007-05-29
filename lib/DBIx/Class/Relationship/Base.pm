@@ -324,11 +324,15 @@ sub update_or_create_related {
 =head2 set_from_related
 
   $book->set_from_related('author', $author_obj);
+  $book->author($author_obj);                      ## same thing
 
 Set column values on the current object, using related values from the given
 related object. This is used to associate previously separate objects, for
 example, to set the correct author for a book, find the Author object, then
 call set_from_related on the book.
+
+This is called internally when you pass existing objects as values to
+L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to acessor.
 
 The columns are only set in the local copy of the object, call L</update> to
 set them in the storage.

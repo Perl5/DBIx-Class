@@ -5,6 +5,7 @@ use warnings;
 
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
+use Scalar::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_source_handle/);
 
@@ -27,7 +28,20 @@ derived from L<DBIx::Class::ResultSource> objects.
 
 Creates a new row object from column => value mappings passed as a hash ref
 
+Passing an object, or an arrayref of objects as a value will call
+L<DBIx::Class::Relationship::Base/set_from_related> for you. When
+passed a hashref or an arrayref of hashrefs as the value, these will
+be turned into objects via new_related, and treated as if you had
+passed objects.
+
 =cut
+
+## It needs to store the new objects somewhere, and call insert on that list later when insert is called on this object. We may need an accessor for these so the user can retrieve them, if just doing ->new().
+## This only works because DBIC doesnt yet care to check whether the new_related objects have been passed all their mandatory columns
+## When doing the later insert, we need to make sure the PKs are set.
+## using _relationship_data in new and funky ways..
+## check Relationship::CascadeActions and Relationship::Accessor for compat
+## tests!
 
 sub new {
   my ($class, $attrs) = @_;
@@ -48,23 +62,54 @@ sub new {
       unless ref($attrs) eq 'HASH';
     
     my ($related,$inflated);
+    ## Pretend all the rels are actual objects, unset below if not, for insert() to fix
+    $new->{_rel_in_storage} = 1;
+
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key}) {
+        ## Can we extract this lot to use with update(_or .. ) ?
         my $info = $class->relationship_info($key);
         if ($info && $info->{attrs}{accessor}
           && $info->{attrs}{accessor} eq 'single')
         {
-          $new->set_from_related($key, $attrs->{$key});        
-          $related->{$key} = $attrs->{$key};
+          my $rel_obj = delete $attrs->{$key};
+          if(!Scalar::Util::blessed($rel_obj)) {
+            $rel_obj = $new->find_or_new_related($key, $rel_obj);
+            $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
+          }
+          $new->set_from_related($key, $rel_obj);        
+          $related->{$key} = $rel_obj;
           next;
-        }
-        elsif ($class->has_column($key)
-          && exists $class->column_info($key)->{_inflate_info})
+        } elsif ($info && $info->{attrs}{accessor}
+            && $info->{attrs}{accessor} eq 'multi'
+            && ref $attrs->{$key} eq 'ARRAY') {
+          my $others = delete $attrs->{$key};
+          foreach my $rel_obj (@$others) {
+            if(!Scalar::Util::blessed($rel_obj)) {
+              $rel_obj = $new->new_related($key, $rel_obj);
+              $new->{_rel_in_storage} = 0;
+            }
+          }
+          $related->{$key} = $others;
+          next;
+        } elsif ($info && $info->{attrs}{accessor}
+          && $info->{attrs}{accessor} eq 'filter')
         {
+          ## 'filter' should disappear and get merged in with 'single' above!
+          my $rel_obj = delete $attrs->{$key};
+          if(!Scalar::Util::blessed($rel_obj)) {
+            $rel_obj = $new->find_or_new_related($key, $rel_obj);
+            $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
+          }
+          $inflated->{$key} = $rel_obj;
+          next;
+        } elsif ($class->has_column($key)
+            && $class->column_info($key)->{_inflate_info}) {
           $inflated->{$key} = $attrs->{$key};
           next;
         }
       }
+      use Data::Dumper;
       $new->throw_exception("No such column $key on $class")
         unless $class->has_column($key);
       $new->store_column($key => $attrs->{$key});          
@@ -97,8 +142,64 @@ sub insert {
     if $self->can('result_source_instance');
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
+  #use Data::Dumper; warn Dumper($self);
+  # Check if we stored uninserted relobjs here in new()
+  $source->storage->txn_begin if(!$self->{_rel_in_storage});
+
+  # Check if we stored uninserted relobjs here in new()
+  my %related_stuff = (%{$self->{_relationship_data} || {}}, 
+                       %{$self->{_inflated_column} || {}});
+  if(!$self->{_rel_in_storage})
+  {
+    $source->storage->txn_begin;
+
+    ## Should all be in relationship_data, but we need to get rid of the
+    ## 'filter' reltype..
+    ## These are the FK rels, need their IDs for the insert.
+    foreach my $relname (keys %related_stuff) {
+      my $rel_obj = $related_stuff{$relname};
+      if(Scalar::Util::blessed($rel_obj) && $rel_obj->isa('DBIx::Class::Row')) {
+        $rel_obj->insert();
+        $self->set_from_related($relname, $rel_obj);
+      }
+    }
+  }
 
   $source->storage->insert($source, { $self->get_columns });
+
+  ## PK::Auto
+  my ($pri, $too_many) = grep { !defined $self->get_column($_) || 
+                                    ref($self->get_column($_)) eq 'SCALAR'} $self->primary_columns;
+  if(defined $pri) {
+    $self->throw_exception( "More than one possible key found for auto-inc on ".ref $self )
+      if defined $too_many;
+
+    my $storage = $self->result_source->storage;
+    $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" )
+      unless $storage->can('last_insert_id');
+    my $id = $storage->last_insert_id($self->result_source,$pri);
+    $self->throw_exception( "Can't get last insert id" ) unless $id;
+    $self->store_column($pri => $id);
+  }
+
+  if(!$self->{_rel_in_storage})
+  {
+    ## Now do the has_many rels, that need $selfs ID.
+    foreach my $relname (keys %related_stuff) {
+      my $relobj = $related_stuff{$relname};
+      if(ref $relobj eq 'ARRAY') {
+        foreach my $obj (@$relobj) {
+          my $info = $self->relationship_info($relname);
+          ## What about multi-col FKs ?
+          my $key = $1 if($info && (keys %{$info->{cond}})[0] =~ /^foreign\.(\w+)/);
+          $obj->set_from_related($key, $self);
+          $obj->insert() if(!$obj->in_storage);
+        }
+      }
+    }
+    $source->storage->txn_commit;
+  }
+
   $self->in_storage(1);
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
@@ -152,7 +253,19 @@ sub update {
           my $rel = delete $upd->{$key};
           $self->set_from_related($key => $rel);
           $self->{_relationship_data}{$key} = $rel;          
-        } 
+        } elsif ($info && $info->{attrs}{accessor}
+            && $info->{attrs}{accessor} eq 'multi'
+            && ref $upd->{$key} eq 'ARRAY') {
+            my $others = delete $upd->{$key};
+            foreach my $rel_obj (@$others) {
+              if(!Scalar::Util::blessed($rel_obj)) {
+                $rel_obj = $self->create_related($key, $rel_obj);
+              }
+            }
+            $self->{_relationship_data}{$key} = $others; 
+#            $related->{$key} = $others;
+            next;
+        }
         elsif ($self->has_column($key)
           && exists $self->column_info($key)->{_inflate_info})
         {

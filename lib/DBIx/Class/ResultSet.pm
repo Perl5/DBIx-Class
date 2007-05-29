@@ -350,11 +350,13 @@ sub find {
 
   my (%related, $info);
 
-  foreach my $key (keys %$input_query) {
+  KEY: foreach my $key (keys %$input_query) {
     if (ref($input_query->{$key})
         && ($info = $self->result_source->relationship_info($key))) {
+      my $val = delete $input_query->{$key};
+      next KEY if (ref($val) eq 'ARRAY'); # has_many for multi_create
       my $rel_q = $self->result_source->resolve_condition(
-                    $info->{cond}, delete $input_query->{$key}, $key
+                    $info->{cond}, $val, $key
                   );
       die "Can't handle OR join condition in find" if ref($rel_q) eq 'ARRAY';
       @related{keys %$rel_q} = values %$rel_q;
@@ -1236,6 +1238,110 @@ sub delete_all {
   my ($self) = @_;
   $_->delete for $self->all;
   return 1;
+}
+
+=head2 populate
+
+=over 4
+
+=item Arguments: $source_name, \@data;
+
+=back
+
+Pass an arrayref of hashrefs. Each hashref should be a structure suitable for
+submitting to a $resultset->create(...) method.
+
+In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
+to insert the data, as this is a faster method.
+
+Otherwise, each set of data is inserted into the database using
+L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
+objects is returned.
+
+Example:  Assuming an Artist Class that has many CDs Classes relating:
+
+  my $Artist_rs = $schema->resultset("Artist");
+  
+  ## Void Context Example 
+  $Artist_rs->populate([
+     { artistid => 4, name => 'Manufactured Crap', cds => [ 
+        { title => 'My First CD', year => 2006 },
+        { title => 'Yet More Tweeny-Pop crap', year => 2007 },
+      ],
+     },
+     { artistid => 5, name => 'Angsty-Whiny Girl', cds => [
+        { title => 'My parents sold me to a record company' ,year => 2005 },
+        { title => 'Why Am I So Ugly?', year => 2006 },
+        { title => 'I Got Surgery and am now Popular', year => 2007 }
+      ],
+     },
+  ]);
+  
+  ## Array Context Example
+  my ($ArtistOne, $ArtistTwo, $ArtistThree) = $Artist_rs->populate([
+    { name => "Artist One"},
+	{ name => "Artist Two"},
+	{ name => "Artist Three", cds=> [
+	  { title => "First CD", year => 2007},
+	  { title => "Second CD", year => 2008},
+	]}
+  ]);
+  
+  print $ArtistOne->name; ## response is 'Artist One'
+  print $ArtistThree->cds->count ## reponse is '2'
+
+=cut
+
+sub populate {
+  my ($self, $data) = @_;
+  
+  if(defined wantarray) {
+    my @created;
+    foreach my $item (@$data) {
+      push(@created, $self->create($item));
+    }
+    return @created;
+  } else {
+    my ($first, @rest) = @$data;
+
+    my @names = grep { !ref $first->{$_} } keys %$first;
+
+    my @values = map {
+      [ map {
+         defined $_ ? $_ : $self->throw_exception("Undefined value for column!")
+      } @$_{@names} ]
+    } @$data;
+
+    $self->result_source->storage->insert_bulk(
+      $self->result_source, 
+      \@names, 
+      \@values,
+    );
+
+    my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
+    my @pks = $self->result_source->primary_columns;
+
+    foreach my $item (@$data) {
+
+      foreach my $rel (@rels) {
+        next unless $item->{$rel};
+
+        my $parent = $self->find(map {{$_=>$item->{$_}} } @pks) || next;
+        my $child = $parent->$rel;
+		
+        my $related = $child->result_source->resolve_condition(
+          $parent->result_source->relationship_info($rel)->{cond},
+          $child,
+          $parent,
+        );
+
+        my @rows_to_add = ref $item->{$rel} eq 'ARRAY' ? @{$item->{$rel}} : ($item->{$rel});
+        my @populate = map { {%$_, %$related} } @rows_to_add;
+
+        $child->populate( \@populate );
+      }
+    }
+  }
 }
 
 =head2 pager
