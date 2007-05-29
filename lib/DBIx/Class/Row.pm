@@ -142,9 +142,6 @@ sub insert {
     if $self->can('result_source_instance');
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
-  #use Data::Dumper; warn Dumper($self);
-  # Check if we stored uninserted relobjs here in new()
-  $source->storage->txn_begin if(!$self->{_rel_in_storage});
 
   # Check if we stored uninserted relobjs here in new()
   my %related_stuff = (%{$self->{_relationship_data} || {}}, 
