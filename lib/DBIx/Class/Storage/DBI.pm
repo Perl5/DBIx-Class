@@ -1441,7 +1441,7 @@ sub deploy {
       next if($_ =~ /^COMMIT/m);
       next if $_ =~ /^\s+$/; # skip whitespace only
       $self->debugobj->query_start($_) if $self->debug;
-      $self->dbh->do($_) or warn "SQL was:\n $_"; # XXX exceptions?
+      $self->dbh->do($_) or warn $self->dbh->errstr, "\nSQL was:\n $_"; # XXX throw_exception?
       $self->debugobj->query_end($_) if $self->debug;
     }
   }
