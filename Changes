@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - versioning support via DBIx::Class::Schema::Versioned
         - rewritten collapse_result to fix prefetch
         - moved populate to resultset
         - added support for creation of related rows via insert and populate

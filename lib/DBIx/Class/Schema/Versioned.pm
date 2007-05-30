@@ -49,6 +49,17 @@ __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
 __PACKAGE__->mk_classdata('backup_directory');
 
+sub schema_version {
+  my ($self) = @_;
+  my $class = ref($self)||$self;
+  my $version;
+  {
+    no strict 'refs';
+    $version = ${"${class}::VERSION"};
+  }
+  return $version;
+}
+
 sub on_connect
 {
     my ($self) = @_;
@@ -76,7 +87,7 @@ sub on_connect
         $pversion = $pversion->Version if($pversion);
     }
 #    warn("Previous version: $pversion\n");
-    if($pversion eq $self->VERSION)
+    if($pversion eq $self->schema_version)
     {
         warn "This version is already installed\n";
         return 1;
@@ -86,7 +97,7 @@ sub on_connect
 
     if(!$pversion)
     {
-        $vtable->create({ Version => $self->VERSION,
+        $vtable->create({ Version => $self->schema_version,
                           Installed => strftime("%Y-%m-%d %H:%M:%S", gmtime())
                           });
         ## If we let the user do this, where does the Version table get updated?
@@ -98,7 +109,7 @@ sub on_connect
     my $file = $self->ddl_filename(
                                    $self->storage->sqlt_type,
                                    $self->upgrade_directory,
-                                   $self->VERSION
+                                   $self->schema_version
                                    );
     if(!$file)
     {
@@ -109,10 +120,10 @@ sub on_connect
      $file = $self->ddl_filename(
                                  $self->storage->sqlt_type,
                                  $self->upgrade_directory,
-                                 $self->VERSION,
+                                 $self->schema_version,
                                  $pversion,
                                  );
-#    $file =~ s/@{[ $self->VERSION ]}/"${pversion}-" . $self->VERSION/e;
+#    $file =~ s/@{[ $self->schema_version ]}/"${pversion}-" . $self->schema_version/e;
     if(!-f $file)
     {
         warn "Upgrade not possible, no upgrade file found ($file)\n";
@@ -130,9 +141,9 @@ sub on_connect
 
     ## Don't do this yet, do only on command?
     ## If we do this later, where does the Version table get updated??
-    warn "Versions out of sync. This is " . $self->VERSION . 
+    warn "Versions out of sync. This is " . $self->schema_version . 
         ", your database contains version $pversion, please call upgrade on your Schema.\n";
-#    $self->upgrade($pversion, $self->VERSION);
+#    $self->upgrade($pversion, $self->schema_version);
 }
 
 sub exists
@@ -171,7 +182,7 @@ sub upgrade
 
     my $vschema = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
     my $vtable = $vschema->resultset('Table');
-    $vtable->create({ Version => $self->VERSION,
+    $vtable->create({ Version => $self->schema_version,
                       Installed => strftime("%Y-%m-%d %H:%M:%S", gmtime())
                       });
 }
@@ -297,6 +308,13 @@ Use this to set the directory your upgrade files are stored in.
 =head2 backup_directory
 
 Use this to set the directory you want your backups stored in.
+
+=head2 schema_version
+
+Returns the current schema class' $VERSION; does -not- use $schema->VERSION
+since that varies in results depending on if version.pm is installed, and if
+so the perl or XS versions. If you want this to change, bug the version.pm
+author to make vpp and vxs behave the same.
 
 =head1 AUTHOR
 
