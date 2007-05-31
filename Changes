@@ -1,9 +1,16 @@
 Revision history for DBIx::Class
 
+        - converted the vendor tests to use schema objects intead of schema
+          classes, made cleaned more reliable with END blocks
         - versioning support via DBIx::Class::Schema::Versioned
+        - added get_inflated_columns to Row
+        - find/next now return undef rather than () on fail from Bernhard Graf
         - rewritten collapse_result to fix prefetch
         - moved populate to resultset
         - added support for creation of related rows via insert and populate
+        - transaction support more robust now in the face of varying AutoCommit
+          and manual txn_begin usage
+        - unbreak back-compat for Row/ResultSet->new_result
         - Added Oracle/WhereJoins.pm for Oracle >= 8 to support
           Oracle <= 9i, and provide Oracle with a better join method for
           later versions.  (I use the term better loosely.)
