@@ -913,11 +913,13 @@ sub insert {
   my $ident = $source->from; 
   my $bind_attributes = $self->source_bind_attributes($source);
 
+  eval { $self->_execute('insert' => [], $source, $bind_attributes, $to_insert) };
   $self->throw_exception(
     "Couldn't insert ".join(', ',
       map "$_ => $to_insert->{$_}", keys %$to_insert
-    )." into ${ident}"
-  ) unless ($self->_execute('insert' => [], $source, $bind_attributes, $to_insert));
+    )." into ${ident}: $@"
+  ) if $@;
+
   return $to_insert;
 }
 
