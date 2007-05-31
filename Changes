@@ -1,5 +1,12 @@
 Revision history for DBIx::Class
 
+        - More documentation updates
+        - Error messages from ->deploy made more informative
+        - connect_info will now always return the arguments it was
+          originally given
+        - A few small efficiency improvements for load_classes
+          and compose_namespace
+
 0.07006 2007-04-17 23:18:00
         - Lots of documentation updates
         - deploy now takes an optional 'source_names' parameter (dec)
