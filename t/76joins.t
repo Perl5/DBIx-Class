@@ -16,7 +16,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 62 );
+        : ( tests => 63 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -335,6 +335,22 @@ SKIP: {
 }
 
 is($rs->next->name, 'Caterwauler McCrae', "Correct artist returned");
+
+TODO:  {
+    local $TODO = 'left join on prefetch to return valid rows';
+    my $cd = $schema->resultset('Artist')->first->create_related('cds',
+        {
+        title   => 'Unproduced Single',
+        year    => 2007
+    });
+
+    my $left_join = $schema->resultset('CD')->search(
+        { 'me.cdid' => $cd->cdid },
+        { prefetch => { cd_to_producer => 'producer' } }
+    );
+
+    cmp_ok($left_join, '==', 1, 'prefetch with no join record present');
+}
 
 $queries = 0;
 $schema->storage->debugcb(sub { $queries++ });
