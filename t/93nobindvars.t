@@ -21,12 +21,16 @@ plan tests => 4;
 
 { # Fake storage driver for mysql + no bind variables
     package DBIx::Class::Storage::DBI::MySQLNoBindVars;
+    use Class::C3;
     use base qw/
-        DBIx::Class::Storage::DBI::mysql
         DBIx::Class::Storage::DBI::NoBindVars
+        DBIx::Class::Storage::DBI::mysql
     /;
     $INC{'DBIx/Class/Storage/DBI/MySQLNoBindVars.pm'} = 1;
 }
+
+# XXX Class::C3 doesn't like some of the Storage stuff happening late...
+Class::C3::reinitialize();
 
 my $schema = DBICTest::Schema->clone;
 $schema->storage_type('::DBI::MySQLNoBindVars');

@@ -830,15 +830,14 @@ sub txn_rollback {
 #  easier to override in NoBindVars without duping the rest.  It takes up
 #  all of _execute's args, and emits $sql, @bind.
 sub _prep_for_execute {
-  my ($self, $op, $extra_bind, $ident, @args) = @_;
+  my ($self, $op, $extra_bind, $ident, $args) = @_;
 
-  my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
+  my ($sql, @bind) = $self->sql_maker->$op($ident, @$args);
   unshift(@bind,
     map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
       if $extra_bind;
-  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
-  return ($sql, @bind);
+  return ($sql, \@bind);
 }
 
 sub _execute {
@@ -847,15 +846,12 @@ sub _execute {
   if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
     $ident = $ident->from();
   }
-  
-  my ($sql, @bind) = $self->sql_maker->$op($ident, @args);
-  unshift(@bind,
-    map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
-      if $extra_bind;
+
+  my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
 
   if ($self->debug) {
       my @debug_bind =
-        map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind;
+        map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @$bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
 
@@ -865,7 +861,7 @@ sub _execute {
   my $rv = eval {
     my $placeholder_index = 1; 
 
-    foreach my $bound (@bind) {
+    foreach my $bound (@$bind) {
       my $attributes = {};
       my($column_name, @data) = @$bound;
 
@@ -889,10 +885,10 @@ sub _execute {
 
   if ($self->debug) {
      my @debug_bind =
-       map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind; 
+       map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @$bind; 
      $self->debugobj->query_end($sql, @debug_bind);
   }
-  return (wantarray ? ($rv, $sth, @bind) : $rv);
+  return (wantarray ? ($rv, $sth, @$bind) : $rv);
 }
 
 sub insert {
