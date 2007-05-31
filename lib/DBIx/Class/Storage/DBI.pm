@@ -762,9 +762,8 @@ sub _connect {
 
   $DBI::connect_via = $old_connect_via if $old_connect_via;
 
-  if (!$dbh || $@) {
-    $self->throw_exception("DBI Connection failed: " . ($@ || $DBI::errstr));
-  }
+  $self->throw_exception("DBI Connection failed: " . ($@||$DBI::errstr))
+    if !$dbh || $@;
 
   $dbh;
 }
@@ -853,52 +852,41 @@ sub _execute {
   unshift(@bind,
     map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
       if $extra_bind;
+
   if ($self->debug) {
       my @debug_bind =
         map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind;
       $self->debugobj->query_start($sql, @debug_bind);
   }
+
   my $sth = eval { $self->sth($sql,$op) };
+  $self->throw_exception("no sth generated via sql ($@): $sql") if $@;
 
-  if (!$sth || $@) {
-    $self->throw_exception(
-      'no sth generated via sql (' . ($@ || $self->_dbh->errstr) . "): $sql"
-    );
-  }
+  my $rv = eval {
+    my $placeholder_index = 1; 
 
-  my $rv;
-  if ($sth) {
-    my $time = time();
-    $rv = eval {
-      my $placeholder_index = 1; 
+    foreach my $bound (@bind) {
+      my $attributes = {};
+      my($column_name, @data) = @$bound;
 
-      foreach my $bound (@bind) {
-
-        my $attributes = {};
-        my($column_name, @data) = @$bound;
-
-        if( $bind_attributes ) {
-          $attributes = $bind_attributes->{$column_name}
-          if defined $bind_attributes->{$column_name};
-        }
-
-        foreach my $data (@data)
-        {
-          $data = ref $data ? ''.$data : $data; # stringify args
-
-          $sth->bind_param($placeholder_index, $data, $attributes);
-          $placeholder_index++;
-        }
+      if ($bind_attributes) {
+        $attributes = $bind_attributes->{$column_name}
+        if defined $bind_attributes->{$column_name};
       }
-      $sth->execute();
-    };
-  
-    if ($@ || !$rv) {
-      $self->throw_exception("Error executing '$sql': ".($@ || $sth->errstr));
+
+      foreach my $data (@data) {
+        $data = ref $data ? ''.$data : $data; # stringify args
+
+        $sth->bind_param($placeholder_index, $data, $attributes);
+        $placeholder_index++;
+      }
     }
-  } else {
-    $self->throw_exception("'$sql' did not generate a statement.");
-  }
+    $sth->execute();
+  };
+
+  $self->throw_exception("Error executing '$sql': " . ($@ || $sth->errstr))
+    if $@ || !$rv;
+
   if ($self->debug) {
      my @debug_bind =
        map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @bind; 
@@ -1104,9 +1092,9 @@ sub _dbh_sth {
     ? $dbh->prepare($sql)
     : $dbh->prepare_cached($sql, {}, 3);
 
-  $self->throw_exception(
-    'no sth generated via sql (' . ($@ || $dbh->errstr) . "): $sql"
-  ) if !$sth;
+  # XXX You would think RaiseError would make this impossible,
+  #  but apparently that's not true :(
+  die $dbh->errstr if !$sth;
 
   $sth;
 }
@@ -1435,7 +1423,7 @@ sub deploy {
       next if($_ =~ /^COMMIT/m);
       next if $_ =~ /^\s+$/; # skip whitespace only
       $self->debugobj->query_start($_) if $self->debug;
-      $self->dbh->do($_) or warn $self->dbh->errstr, "\nSQL was:\n $_"; # XXX throw_exception?
+      $self->dbh->do($_); # shouldn't be using ->dbh ?
       $self->debugobj->query_end($_) if $self->debug;
     }
   }
