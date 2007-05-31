@@ -23,8 +23,8 @@ cmp_ok(scalar @cds, '==', 1, "condition based on inherited join okay");
 
 #this is wrong, should accept me.title really
 my $rs3 = $rs2->search_related('cds');
-cmp_ok(scalar($rs3->all), '==', 27, "All cds for artist returned");
-cmp_ok($rs3->count, '==', 27, "All cds for artist returned via count");
+cmp_ok(scalar($rs3->all), '==', 45, "All cds for artist returned");
+cmp_ok($rs3->count, '==', 45, "All cds for artist returned via count");
 
 my $rs4 = $schema->resultset("CD")->search({ 'artist.artistid' => '1' }, { join => ['tracks', 'artist'], prefetch => 'artist' });
 my @rs4_results = $rs4->all;

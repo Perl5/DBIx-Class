@@ -713,16 +713,22 @@ Returns the join structure required for the related result source.
 =cut
 
 sub resolve_join {
-  my ($self, $join, $alias, $seen) = @_;
+  my ($self, $join, $alias, $seen, $force_left) = @_;
   $seen ||= {};
+  $force_left ||= { force => 0 };
   if (ref $join eq 'ARRAY') {
     return map { $self->resolve_join($_, $alias, $seen) } @$join;
   } elsif (ref $join eq 'HASH') {
     return
       map {
         my $as = ($seen->{$_} ? $_.'_'.($seen->{$_}+1) : $_);
-        ($self->resolve_join($_, $alias, $seen),
-          $self->related_source($_)->resolve_join($join->{$_}, $as, $seen));
+        local $force_left->{force};
+        (
+          $self->resolve_join($_, $alias, $seen, $force_left),
+          $self->related_source($_)->resolve_join(
+            $join->{$_}, $as, $seen, $force_left
+          )
+        );
       } keys %$join;
   } elsif (ref $join) {
     $self->throw_exception("No idea how to resolve join reftype ".ref $join);
@@ -732,7 +738,13 @@ sub resolve_join {
     my $as = ($count > 1 ? "${join}_${count}" : $join);
     my $rel_info = $self->relationship_info($join);
     $self->throw_exception("No such relationship ${join}") unless $rel_info;
-    my $type = $rel_info->{attrs}{join_type} || '';
+    my $type;
+    if ($force_left->{force}) {
+      $type = 'left';
+    } else {
+      $type = $rel_info->{attrs}{join_type} || '';
+      $force_left->{force} = 1 if lc($type) eq 'left';
+    }
     return [ { $as => $self->related_source($join)->from,
                -join_type => $type },
              $self->resolve_condition($rel_info->{cond}, $as, $alias) ];

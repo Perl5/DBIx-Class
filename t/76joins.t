@@ -336,21 +336,18 @@ SKIP: {
 
 is($rs->next->name, 'Caterwauler McCrae', "Correct artist returned");
 
-TODO:  {
-    local $TODO = 'left join on prefetch to return valid rows';
-    my $cd = $schema->resultset('Artist')->first->create_related('cds',
-        {
-        title   => 'Unproduced Single',
-        year    => 2007
-    });
+my $cd = $schema->resultset('Artist')->first->create_related('cds',
+    {
+    title   => 'Unproduced Single',
+    year    => 2007
+});
 
-    my $left_join = $schema->resultset('CD')->search(
-        { 'me.cdid' => $cd->cdid },
-        { prefetch => { cd_to_producer => 'producer' } }
-    );
+my $left_join = $schema->resultset('CD')->search(
+    { 'me.cdid' => $cd->cdid },
+    { prefetch => { cd_to_producer => 'producer' } }
+);
 
-    cmp_ok($left_join, '==', 1, 'prefetch with no join record present');
-}
+cmp_ok($left_join, '==', 1, 'prefetch with no join record present');
 
 $queries = 0;
 $schema->storage->debugcb(sub { $queries++ });
