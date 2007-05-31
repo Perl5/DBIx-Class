@@ -17,6 +17,12 @@ Revision history for DBIx::Class
         - added 97result_class.t test, failing ATM
         - added get_inflated_columns to Row
         - %colinfo accessor and inflate_column now work together
+        - More documentation updates
+        - Error messages from ->deploy made more informative
+        - connect_info will now always return the arguments it was
+          originally given
+        - A few small efficiency improvements for load_classes
+          and compose_namespace
 
 0.07006 2007-04-17 23:18:00
         - Lots of documentation updates
