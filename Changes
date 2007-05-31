@@ -7,8 +7,6 @@ Revision history for DBIx::Class
         - Added Oracle/WhereJoins.pm for Oracle >= 8 to support
           Oracle <= 9i, and provide Oracle with a better join method for
           later versions.  (I use the term better loosely.)
-        - select et al weren't properly detecing when the server connection
-          had timed out when not in a transaction
         - The SQL::T parser class now respects a relationship attribute of
           is_foreign_key_constrain to allow explicit control over wether or
           not a foreign constraint is needed
