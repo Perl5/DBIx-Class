@@ -30,20 +30,25 @@ DBIx::Class::Storage::DBI::Replication - EXPERIMENTAL Replicated database suppor
 Warning: This class is marked EXPERIMENTAL. It works for the authors but does
 not currently have automated tests so your mileage may vary.
 
-This class implements replicated data store for DBI. Currently you can define one master and numerous slave database
-connections. All write-type queries (INSERT, UPDATE, DELETE and even LAST_INSERT_ID) are routed to master database,
-all read-type queries (SELECTs) go to the slave database.
+This class implements replicated data store for DBI. Currently you can define
+one master and numerous slave database connections. All write-type queries
+(INSERT, UPDATE, DELETE and even LAST_INSERT_ID) are routed to master
+database, all read-type queries (SELECTs) go to the slave database.
 
-For every slave database you can define a priority value, which controls data source usage pattern. It uses
-L<DBD::Multi>, so first the lower priority data sources used (if they have the same priority, the are used
-randomized), than if all low priority data sources fail, higher ones tried in order.
+For every slave database you can define a priority value, which controls data
+source usage pattern. It uses L<DBD::Multi>, so first the lower priority data
+sources used (if they have the same priority, the are used randomized), than
+if all low priority data sources fail, higher ones tried in order.
 
 =head1 CONFIGURATION
 
 =head2 Limit dialect
 
-If you use LIMIT in your queries (effectively, if you use SQL::Abstract::Limit), do not forget to set up limit_dialect (perldoc SQL::Abstract::Limit) by passing it as an option in the (optional) hash reference to connect_info.
-DBIC can not set it up automatically, since it can not guess DBD::Multi connection types.
+If you use LIMIT in your queries (effectively, if you use
+SQL::Abstract::Limit), do not forget to set up limit_dialect (perldoc
+SQL::Abstract::Limit) by passing it as an option in the (optional) hash
+reference to connect_info.  DBIC can not set it up automatically, since it can
+not guess DBD::Multi connection types.
 
 =cut
 
@@ -82,7 +87,8 @@ sub connect_info {
 	pop @{$info->[0]};
     }
 
-    # We need to copy-pass $global_options, since connect_info clears it while processing options
+    # We need to copy-pass $global_options, since connect_info clears it while
+    # processing options
     $self->write_source->connect_info( [ @{$info->[0]}, { %$global_options } ] );
 
     @dsns = map { ($_->[3]->{priority} || 10) => $_ } @{$info}[1..@$info-1];
