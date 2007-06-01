@@ -19,7 +19,6 @@ Revision history for DBIx::Class
           not a foreign constraint is needed
         - resultset_class/result_class now (again) auto loads the specified
           class; requires Class::Accessor::Grouped 0.05002+
-        - added 97result_class.t test, failing ATM
         - added get_inflated_columns to Row
         - %colinfo accessor and inflate_column now work together
         - More documentation updates
