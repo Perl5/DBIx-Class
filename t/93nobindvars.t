@@ -65,5 +65,5 @@ is( $it->next, undef, "next past end of resultset ok" );
 
 # clean up our mess
 END {
-    $dbh->do("DROP TABLE artist");
+    $dbh->do("DROP TABLE artist") if $dbh;
 }
