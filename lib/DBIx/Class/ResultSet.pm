@@ -1309,7 +1309,7 @@ sub populate {
     my @pks = $self->result_source->primary_columns;  
 
     ## do the belongs_to relationships  
-    foreach my $index (0..$#{@$data}) {
+    foreach my $index (0..$#$data) {
       if( grep { !defined $data->[$index]->{$_} } @pks ) {
         my @ret = $self->populate($data);
         return;
