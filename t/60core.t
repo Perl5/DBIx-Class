@@ -9,6 +9,9 @@ my $schema = DBICTest->init_schema();
 
 plan tests => 77;
 
+eval { require DateTime::Format::MySQL };
+my $NO_DTFM = $@ ? 1 : 0;
+
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
 # which case COUNT(DISTINCT()) doesn't work
 my $is_broken_sqlite = 0;
@@ -177,15 +180,19 @@ $new->update_or_insert;
 is( $schema->resultset("Track")->find(100)->pos, 5, 'update_or_insert update ok');
 
 # get_inflated_columns w/relation and accessor alias
-isa_ok($new->updated_date, 'DateTime', 'have inflated object via accessor');
-my %tdata = $new->get_inflated_columns;
-is($tdata{'trackid'}, 100, 'got id');
-isa_ok($tdata{'cd'}, 'DBICTest::CD', 'cd is CD object');
-is($tdata{'cd'}->id, 1, 'cd object is id 1');
-is($tdata{'position'}, 5, 'got position from pos');
-is($tdata{'title'}, 'Insert or Update');
-is($tdata{'last_updated_on'}, '1973-07-19T12:01:02');
-isa_ok($tdata{'last_updated_on'}, 'DateTime', 'inflated accessored column');
+SKIP: {
+    skip "This test requires DateTime::Format::MySQL", 8 if $NO_DTFM;
+
+    isa_ok($new->updated_date, 'DateTime', 'have inflated object via accessor');
+    my %tdata = $new->get_inflated_columns;
+    is($tdata{'trackid'}, 100, 'got id');
+    isa_ok($tdata{'cd'}, 'DBICTest::CD', 'cd is CD object');
+    is($tdata{'cd'}->id, 1, 'cd object is id 1');
+    is($tdata{'position'}, 5, 'got position from pos');
+    is($tdata{'title'}, 'Insert or Update');
+    is($tdata{'last_updated_on'}, '1973-07-19T12:01:02');
+    isa_ok($tdata{'last_updated_on'}, 'DateTime', 'inflated accessored column');
+}
 
 eval { $schema->class("Track")->load_components('DoesNotExist'); };
 
@@ -319,7 +326,8 @@ ok(!$@, "stringify to false value doesn't cause error");
 }
 
 # test get_inflated_columns with objects
-{
+SKIP: {
+    skip "This test requires DateTime::Format::MySQL", 5 if $NO_DTFM;
     my $event = $schema->resultset('Event')->search->first;
     my %edata = $event->get_inflated_columns;
     is($edata{'id'}, $event->id, 'got id');
