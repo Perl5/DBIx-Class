@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - Fixed t/60core.t in the absence of DateTime::Format::MySQL
+
 0.07999_04 2007-06-01 14:04:00
         - pulled in Replication storage from branch and marked EXPERIMENTAL
         - fixup to ensure join always LEFT after first LEFT join depthwise
