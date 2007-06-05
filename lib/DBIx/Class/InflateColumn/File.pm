@@ -113,28 +113,9 @@ sub _save_file_column {
     }
 }
 
-=head1 METHODS
-
-=cut
-
-
-=head2 _file_column_callback ($file,$ret,$target)
-
-method made to be overridden for callback purposes.
-
-=cut
-
-sub _file_column_callback {
-    my ($self,$file,$ret,$target) = @_;
-}
-
 =head1 NAME
 
 DBIx::Class::InflateColumn::File -  map files from the Database to the filesystem.
-
-=head1 DESCRIPTION
-
-InflateColumn::File
 
 =head1 SYNOPSIS
 
@@ -167,7 +148,8 @@ In your L<DBIx::Class> table class:
 
 In your L<Catalyst::Controller> class:
 
-FileColumn requires a hash that contains L<IO::File> as handle and the file's name as name.
+FileColumn requires a hash that contains L<IO::File> as handle and the file's
+name as name.
 
     my $entry = $c->model('MyAppDB::Articles')->create({ 
         subject => 'blah',
@@ -187,9 +169,26 @@ And Place the following in your TT template
     <a href="/static/files/[% entry.id %]/[% entry.filename.filename %]">File</a>
     Body: [% entry.body %]
     
-The file will be stored on the filesystem for later retrieval.
-Calling delete on your resultset will delete the file from the filesystem.
-Retrevial of the record automatically inflates the column back to the set hash with the IO::File handle and filename.
+The file will be stored on the filesystem for later retrieval.  Calling delete
+on your resultset will delete the file from the filesystem.  Retrevial of the
+record automatically inflates the column back to the set hash with the
+IO::File handle and filename.
+
+=head1 DESCRIPTION
+
+InflateColumn::File
+
+=head1 METHODS
+
+=head2 _file_column_callback ($file,$ret,$target)
+
+method made to be overridden for callback purposes.
+
+=cut
+
+sub _file_column_callback {
+    my ($self,$file,$ret,$target) = @_;
+}
 
 =head1 AUTHOR
 
