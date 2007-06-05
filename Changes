@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - Fixed up SQL::Translator test/runtime dependencies
         - Fixed t/60core.t in the absence of DateTime::Format::MySQL
 
 0.07999_04 2007-06-01 14:04:00

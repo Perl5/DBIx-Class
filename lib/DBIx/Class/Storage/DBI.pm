@@ -1231,8 +1231,9 @@ sub create_ddl_dir
   $version ||= $schema->VERSION || '1.x';
   $sqltargs = { ( add_drop_table => 1 ), %{$sqltargs || {}} };
 
-  eval "use SQL::Translator";
-  $self->throw_exception("Can't create a ddl file without SQL::Translator: $@") if $@;
+  $self->throw_exception(q{Can't create a ddl file without SQL::Translator 0.08: '}
+      . $self->_check_sqlt_message . q{'})
+          if !$self->_check_sqlt_version;
 
   my $sqlt = SQL::Translator->new({
 #      debug => 1,
@@ -1271,12 +1272,7 @@ sub create_ddl_dir
 
     if($preversion)
     {
-      eval "use SQL::Translator::Diff";
-      if($@)
-      {
-        warn("Can't diff versions without SQL::Translator::Diff: $@");
-        next;
-      }
+      require SQL::Translator::Diff;
 
       my $prefilename = $schema->ddl_filename($db, $dir, $preversion);
 #      print "Previous version $prefilename\n";
@@ -1385,25 +1381,23 @@ sub deployment_statements {
       return join('', @rows);
   }
 
-  eval "use SQL::Translator";
-  if(!$@)
-  {
-    eval "use SQL::Translator::Parser::DBIx::Class;";
-    $self->throw_exception($@) if $@;
-    eval "use SQL::Translator::Producer::${type};";
-    $self->throw_exception($@) if $@;
+  $self->throw_exception(q{Can't deploy without SQL::Translator 0.08: '}
+      . $self->_check_sqlt_message . q{'})
+          if !$self->_check_sqlt_version;
 
-    # sources needs to be a parser arg, but for simplicty allow at top level 
-    # coming in
-    $sqltargs->{parser_args}{sources} = delete $sqltargs->{sources}
-        if exists $sqltargs->{sources};
+  require SQL::Translator::Parser::DBIx::Class;
+  eval qq{use SQL::Translator::Producer::${type}};
+  $self->throw_exception($@) if $@;
 
-    my $tr = SQL::Translator->new(%$sqltargs);
-    SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
-    return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
-  }
+  # sources needs to be a parser arg, but for simplicty allow at top level 
+  # coming in
+  $sqltargs->{parser_args}{sources} = delete $sqltargs->{sources}
+      if exists $sqltargs->{sources};
 
-  $self->throw_exception("No SQL::Translator, and no Schema file found, aborting deploy");
+  my $tr = SQL::Translator->new(%$sqltargs);
+  SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
+  return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
+
   return;
 
 }
@@ -1457,6 +1451,22 @@ sub build_datetime_parser {
   eval "use ${type}";
   $self->throw_exception("Couldn't load ${type}: $@") if $@;
   return $type;
+}
+
+{
+    my $_check_sqlt_version; # private
+    my $_check_sqlt_message; # private
+    sub _check_sqlt_version {
+        return $_check_sqlt_version if defined $_check_sqlt_version;
+        eval 'use SQL::Translator 0.08';
+        $_check_sqlt_message = $@ ? $@ : '';
+        $_check_sqlt_version = $@ ? 0 : 1;
+    }
+
+    sub _check_sqlt_message {
+        _check_sqlt_version if !defined $_check_sqlt_message;
+        $_check_sqlt_message;
+    }
 }
 
 sub DESTROY {
