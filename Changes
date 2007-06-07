@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - Test cleanup and doc note (ribasushi)
         - More documentation updates
         - Error messages from ->deploy made more informative
         - connect_info will now always return the arguments it was

@@ -108,7 +108,8 @@ required.
 
 Also takes an options hashref of C<< column_name => value> pairs >> to update
 first. But be aware that this hashref might be edited in place, so dont rely on
-it being the same after a call to C<update>.
+it being the same after a call to C<update>. If you need to preserve the hashref,
+it is sufficient to pass a shallow copy to C<update>, e.g. ( { %{ $href } } )
 
 =cut
 
