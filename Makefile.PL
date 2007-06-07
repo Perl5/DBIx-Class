@@ -27,6 +27,13 @@ install_script 'script/dbicadmin';
 
 tests "t/*.t t/*/*.t";
 
+# re-build README if we're in an svk checkout
+if( -e 'MANIFEST.SKIP' ) {
+    system('pod2text lib/DBIx/Class.pm > README');
+}
+
+auto_provides;
+
 auto_install;
 
 WriteAll;
