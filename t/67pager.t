@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 12;
+plan tests => 13;
 
 # first page
 my $it = $schema->resultset("CD")->search(
@@ -68,3 +68,11 @@ is( $it->count, 2, "software count on paged rs ok" );
 
 is( $it->next->title, "Generic Manufactured Singles", "software iterator->next ok" );
 
+# test paging with chained searches
+$it = $schema->resultset("CD")->search(
+    {},
+    { rows => 2,
+      page => 2 }
+)->search( undef, { order_by => 'title' } );
+
+is( $it->count, 2, "chained searches paging ok" );

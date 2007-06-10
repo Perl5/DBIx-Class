@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - fixed page-within-page bug (reported by nilsonsfj)
+
 0.07999_05 2007-06-07 23:00:00
         - Made source_name rw in ResultSource
         - Fixed up SQL::Translator test/runtime dependencies

@@ -91,8 +91,7 @@ sub new {
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
-    $attrs->{offset} ||= 0;
-    $attrs->{offset} += ($attrs->{rows} * ($attrs->{page} - 1));
+    $attrs->{offset} ||= ($attrs->{rows} * ($attrs->{page} - 1));
   }
 
   $attrs->{alias} ||= 'me';
