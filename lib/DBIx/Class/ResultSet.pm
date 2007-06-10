@@ -91,7 +91,6 @@ sub new {
 
   if ($attrs->{page}) {
     $attrs->{rows} ||= 10;
-    $attrs->{offset} ||= ($attrs->{rows} * ($attrs->{page} - 1));
   }
 
   $attrs->{alias} ||= 'me';
@@ -936,7 +935,9 @@ sub count {
   my $count = $self->_count;
   return 0 unless $count;
 
-  $count -= $self->{attrs}{offset} if $self->{attrs}{offset};
+  # need to take offset from resolved attrs
+
+  $count -= $self->{_attrs}{offset} if $self->{_attrs}{offset};
   $count = $self->{attrs}{rows} if
     $self->{attrs}{rows} and $self->{attrs}{rows} < $count;
   return $count;
@@ -1893,6 +1894,11 @@ sub _resolved_attrs {
     push(@{$attrs->{order_by}}, @pre_order);
   }
   $attrs->{collapse} = $collapse;
+
+  if ($attrs->{page}) {
+    $attrs->{offset} ||= 0;
+    $attrs->{offset} += ($attrs->{rows} * ($attrs->{page} - 1));
+  }
 
   return $self->{_attrs} = $attrs;
 }
