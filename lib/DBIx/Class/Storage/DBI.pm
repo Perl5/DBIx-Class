@@ -840,8 +840,8 @@ sub _prep_for_execute {
   return ($sql, \@bind);
 }
 
-sub _execute {
-  my ($self, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+sub _dbh_execute {
+  my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
   
   if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
     $ident = $ident->from();
@@ -888,7 +888,13 @@ sub _execute {
        map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @$bind; 
      $self->debugobj->query_end($sql, @debug_bind);
   }
+
   return (wantarray ? ($rv, $sth, @$bind) : $rv);
+}
+
+sub _execute {
+    my $self = shift;
+    $self->dbh_do($self->can('_dbh_execute'), @_)
 }
 
 sub insert {
