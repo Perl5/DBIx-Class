@@ -1,6 +1,17 @@
 Revision history for DBIx::Class
 
+        - added stacktrace option to Schema, makes throw_exception
+          use "confess"
+        - make database handles use throw_exception by default
+        - make database handles supplied by a coderef use our
+          standard HandleError/RaiseError/PrintError
+        - add "unsafe" connect_info option to suppress our setting
+          of HandleError/RaiseError/PrintError
+        - removed several redundant evals whose sole purpose was to
+          provide extra debugging info
         - fixed page-within-page bug (reported by nilsonsfj)
+        - fixed rare bug when database is disconnected inbetween
+          "$dbh->prepare_cached" and "$sth->execute"
 
 0.07999_05 2007-06-07 23:00:00
         - Made source_name rw in ResultSource
