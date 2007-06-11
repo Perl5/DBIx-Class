@@ -15,7 +15,7 @@ use Scalar::Util 'blessed';
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
        _conn_pid _conn_tid disable_sth_caching cursor on_connect_do
-       transaction_depth/
+       transaction_depth unsafe/
 );
 
 BEGIN {
@@ -380,6 +380,23 @@ This only needs to be used in conjunction with L<quote_char>, and is used to
 specify the charecter that seperates elements (schemas, tables, columns) from 
 each other. In most cases this is simply a C<.>.
 
+=item unsafe
+
+This Storage driver normally installs its own C<HandleError>, sets
+C<RaiseError> on, and sets C<PrintError> off on all database handles,
+including those supplied by a coderef.  It does this so that it can
+have consistent and useful error behavior.
+
+If you set this option to a true value, Storage will not do its usual
+modifications to the database handle's C<RaiseError>, C<PrintError>, and
+C<HandleError> attributes, and instead relies on the settings in your
+connect_info DBI options (or the values you set in your connection
+coderef, in the case that you are connecting via coderef).
+
+Note that your custom settings can cause Storage to malfunction,
+especially if you set a C<HandleError> handler that suppresses exceptions
+and/or disable C<RaiseError>.
+
 =back
 
 These options can be mixed in with your other L<DBI> connection attributes,
@@ -389,12 +406,6 @@ arguments.
 Every time C<connect_info> is invoked, any previous settings for
 these options will be cleared before setting the new ones, regardless of
 whether any options are specified in the new C<connect_info>.
-
-Important note:  DBIC expects the returned database handle provided by 
-a subref argument to have RaiseError set on it.  If it doesn't, things
-might not work very well, YMMV.  If you don't use a subref, DBIC will
-force this setting for you anyways.  Setting HandleError to anything
-other than simple exception object wrapper might cause problems too.
 
 Another Important Note:
 
@@ -470,7 +481,7 @@ sub connect_info {
 
   my $last_info = $dbi_info->[-1];
   if(ref $last_info eq 'HASH') {
-    for my $storage_opt (qw/on_connect_do disable_sth_caching/) {
+    for my $storage_opt (qw/on_connect_do disable_sth_caching unsafe/) {
       if(my $value = delete $last_info->{$storage_opt}) {
         $self->$storage_opt($value);
       }
@@ -739,13 +750,13 @@ sub _connect {
   my ($self, @info) = @_;
 
   $self->throw_exception("You failed to provide any connection info")
-      if !@info;
+    if !@info;
 
   my ($old_connect_via, $dbh);
 
   if ($INC{'Apache/DBI.pm'} && $ENV{MOD_PERL}) {
-      $old_connect_via = $DBI::connect_via;
-      $DBI::connect_via = 'connect';
+    $old_connect_via = $DBI::connect_via;
+    $DBI::connect_via = 'connect';
   }
 
   eval {
@@ -754,9 +765,14 @@ sub _connect {
     }
     else {
        $dbh = DBI->connect(@info);
-       $dbh->{RaiseError} = 1;
-       $dbh->{PrintError} = 0;
-       $dbh->{PrintWarn} = 0;
+    }
+
+    if(!$self->unsafe) {
+      $dbh->{HandleError} = sub {
+          $self->throw_exception("DBI Exception: $_[0]")
+      };
+      $dbh->{RaiseError} = 1;
+      $dbh->{PrintError} = 0;
     }
   };
 
@@ -855,33 +871,30 @@ sub _dbh_execute {
       $self->debugobj->query_start($sql, @debug_bind);
   }
 
-  my $sth = eval { $self->sth($sql,$op) };
-  $self->throw_exception("no sth generated via sql ($@): $sql") if $@;
+  my $sth = $self->sth($sql,$op);
 
-  my $rv = eval {
-    my $placeholder_index = 1; 
+  my $placeholder_index = 1; 
 
-    foreach my $bound (@$bind) {
-      my $attributes = {};
-      my($column_name, @data) = @$bound;
+  foreach my $bound (@$bind) {
+    my $attributes = {};
+    my($column_name, @data) = @$bound;
 
-      if ($bind_attributes) {
-        $attributes = $bind_attributes->{$column_name}
-        if defined $bind_attributes->{$column_name};
-      }
-
-      foreach my $data (@data) {
-        $data = ref $data ? ''.$data : $data; # stringify args
-
-        $sth->bind_param($placeholder_index, $data, $attributes);
-        $placeholder_index++;
-      }
+    if ($bind_attributes) {
+      $attributes = $bind_attributes->{$column_name}
+      if defined $bind_attributes->{$column_name};
     }
-    $sth->execute();
-  };
 
-  $self->throw_exception("Error executing '$sql': " . ($@ || $sth->errstr))
-    if $@ || !$rv;
+    foreach my $data (@data) {
+      $data = ref $data ? ''.$data : $data; # stringify args
+
+      $sth->bind_param($placeholder_index, $data, $attributes);
+      $placeholder_index++;
+    }
+  }
+
+  # Can this fail without throwing an exception anyways???
+  my $rv = $sth->execute();
+  $self->throw_exception($sth->errstr) if !$rv;
 
   if ($self->debug) {
      my @debug_bind =
@@ -903,12 +916,7 @@ sub insert {
   my $ident = $source->from; 
   my $bind_attributes = $self->source_bind_attributes($source);
 
-  eval { $self->_execute('insert' => [], $source, $bind_attributes, $to_insert) };
-  $self->throw_exception(
-    "Couldn't insert ".join(', ',
-      map "$_ => $to_insert->{$_}", keys %$to_insert
-    )." into ${ident}: $@"
-  ) if $@;
+  $self->_execute('insert' => [], $source, $bind_attributes, $to_insert);
 
   return $to_insert;
 }
@@ -932,8 +940,6 @@ sub insert_bulk {
 
 #  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
-  my $rv;
-  
   ## This must be an arrayref, else nothing works!
   
   my $tuple_status = [];
@@ -941,47 +947,32 @@ sub insert_bulk {
   ##use Data::Dumper;
   ##print STDERR Dumper( $data, $sql, [@bind] );
 
-  if ($sth) {
-  
-    my $time = time();
+  my $time = time();
 
-    ## Get the bind_attributes, if any exist
-    my $bind_attributes = $self->source_bind_attributes($source);
+  ## Get the bind_attributes, if any exist
+  my $bind_attributes = $self->source_bind_attributes($source);
 
-    ## Bind the values and execute
-    $rv = eval {
+  ## Bind the values and execute
+  my $placeholder_index = 1; 
 
-     my $placeholder_index = 1; 
+  foreach my $bound (@bind) {
 
-        foreach my $bound (@bind) {
+    my $attributes = {};
+    my ($column_name, $data_index) = @$bound;
 
-          my $attributes = {};
-          my ($column_name, $data_index) = @$bound;
-
-          if( $bind_attributes ) {
-            $attributes = $bind_attributes->{$column_name}
-            if defined $bind_attributes->{$column_name};
-          }
-
-          my @data = map { $_->[$data_index] } @$data;
-
-          $sth->bind_param_array( $placeholder_index, [@data], $attributes );
-          $placeholder_index++;
-      }
-      $sth->execute_array( {ArrayTupleStatus => $tuple_status} );
-
-    };
-   
-    if ($@ || !defined $rv) {
-      my $errors = '';
-      foreach my $tuple (@$tuple_status) {
-          $errors .= "\n" . $tuple->[1] if(ref $tuple);
-      }
-      $self->throw_exception("Error executing '$sql': ".($@ || $errors));
+    if( $bind_attributes ) {
+      $attributes = $bind_attributes->{$column_name}
+      if defined $bind_attributes->{$column_name};
     }
-  } else {
-    $self->throw_exception("'$sql' did not generate a statement.");
+
+    my @data = map { $_->[$data_index] } @$data;
+
+    $sth->bind_param_array( $placeholder_index, [@data], $attributes );
+    $placeholder_index++;
   }
+  my $rv = $sth->execute_array({ArrayTupleStatus => $tuple_status});
+  $self->throw_exception($sth->errstr) if !$rv;
+
   if ($self->debug) {
       my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
       $self->debugobj->query_end($sql, @debug_bind);
@@ -1096,7 +1087,7 @@ sub _dbh_sth {
 
   # XXX You would think RaiseError would make this impossible,
   #  but apparently that's not true :(
-  die $dbh->errstr if !$sth;
+  $self->throw_exception($dbh->errstr) if !$sth;
 
   $sth;
 }
