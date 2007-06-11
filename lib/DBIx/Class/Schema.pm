@@ -15,6 +15,7 @@ __PACKAGE__->mk_classdata('source_registrations' => {});
 __PACKAGE__->mk_classdata('storage_type' => '::DBI');
 __PACKAGE__->mk_classdata('storage');
 __PACKAGE__->mk_classdata('exception_action');
+__PACKAGE__->mk_classdata('stacktrace' => 0);
 
 =head1 NAME
 
@@ -863,7 +864,7 @@ sub populate {
 
 If C<exception_action> is set for this class/object, L</throw_exception>
 will prefer to call this code reference with the exception as an argument,
-rather than its normal <croak> action.
+rather than its normal C<croak> or C<confess> action.
 
 Your subroutine should probably just wrap the error in the exception
 object/class of your choosing and rethrow.  If, against all sage advice,
@@ -885,6 +886,18 @@ Example:
    # suppress all exceptions, like a moron:
    $schema_obj->exception_action(sub { 1 });
 
+=head2 stacktrace
+
+=over4
+
+=item Arguments: boolean
+
+=back
+
+This alters the behavior of the default L</throw_exception> action.  It
+uses C<croak> if C<stacktrace> is false, or C<confess> if C<stacktrace>
+is true.  The default is false.
+
 =head2 throw_exception
 
 =over 4
@@ -895,13 +908,16 @@ Example:
 
 Throws an exception. Defaults to using L<Carp::Clan> to report errors from
 user's perspective.  See L</exception_action> for details on overriding
-this method's behavior.
+this method's behavior.  If L</stacktrace> is turned on, C<throw_exception>
+will use C<confess> instead of C<croak>.
 
 =cut
 
 sub throw_exception {
   my $self = shift;
-  croak @_ if !$self->exception_action || !$self->exception_action->(@_);
+  if(!$self->exception_action || !$self->exception_action->(@_)) {
+    $self->stacktrace ? confess @_ : croak @_;
+  }
 }
 
 =head2 deploy (EXPERIMENTAL)
