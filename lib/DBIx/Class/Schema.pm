@@ -888,7 +888,7 @@ Example:
 
 =head2 stacktrace
 
-=over4
+=over 4
 
 =item Arguments: boolean
 
