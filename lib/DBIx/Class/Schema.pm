@@ -16,7 +16,7 @@ __PACKAGE__->mk_classdata('source_registrations' => {});
 __PACKAGE__->mk_classdata('storage_type' => '::DBI');
 __PACKAGE__->mk_classdata('storage');
 __PACKAGE__->mk_classdata('exception_action');
-__PACKAGE__->mk_classdata('stacktrace' => 0);
+__PACKAGE__->mk_classdata('stacktrace' => $ENV{DBIC_TRACE} || 0);
 
 =head1 NAME
 
@@ -896,7 +896,8 @@ Example:
 =back
 
 Whether L</throw_exception> should include stack trace information.
-Defaults to false.
+Defaults to false normally, but defaults to true if C<$ENV{DBIC_TRACE}>
+is true.
 
 =head2 throw_exception
 
@@ -908,8 +909,8 @@ Defaults to false.
 
 Throws an exception. Defaults to using L<Carp::Clan> to report errors from
 user's perspective.  See L</exception_action> for details on overriding
-this method's behavior.  If L</stacktrace> is turned on, C<throw_exception>
-will provide a detailed stack trace.
+this method's behavior.  If L</stacktrace> is turned on, C<throw_exception>'s
+default behavior will provide a detailed stack trace.
 
 =cut
 
