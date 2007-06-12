@@ -3,6 +3,7 @@ package DBIx::Class::Schema;
 use strict;
 use warnings;
 
+use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
 use File::Spec;
@@ -894,9 +895,8 @@ Example:
 
 =back
 
-This alters the behavior of the default L</throw_exception> action.  It
-uses C<croak> if C<stacktrace> is false, or C<confess> if C<stacktrace>
-is true.  The default is false.
+Whether L</throw_exception> should include stack trace information.
+Defaults to false.
 
 =head2 throw_exception
 
@@ -909,15 +909,15 @@ is true.  The default is false.
 Throws an exception. Defaults to using L<Carp::Clan> to report errors from
 user's perspective.  See L</exception_action> for details on overriding
 this method's behavior.  If L</stacktrace> is turned on, C<throw_exception>
-will use C<confess> instead of C<croak>.
+will provide a detailed stack trace.
 
 =cut
 
 sub throw_exception {
   my $self = shift;
-  if(!$self->exception_action || !$self->exception_action->(@_)) {
-    $self->stacktrace ? confess @_ : croak @_;
-  }
+
+  DBIx::Class::Exception->throw($_[0], $self->stacktrace)
+    if !$self->exception_action || !$self->exception_action->(@_);
 }
 
 =head2 deploy (EXPERIMENTAL)
