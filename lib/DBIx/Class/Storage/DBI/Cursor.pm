@@ -164,6 +164,7 @@ sub DESTROY {
   my ($self) = @_;
 
   # None of the reasons this would die matter if we're in DESTROY anyways
+  local $@;
   eval { $self->{sth}->finish if $self->{sth} && $self->{sth}->{Active} };
 }
 

@@ -32,22 +32,31 @@ use DBICTest;
     }
 }
 
-plan tests => 3;
+plan tests => 5;
 
 my $schema = DBICTest->init_schema();
 
 is( ref($schema->storage), 'DBIx::Class::Storage::DBI::SQLite',
     'Storage reblessed correctly into DBIx::Class::Storage::DBI::SQLite' );
 
-
 my $storage = $schema->storage;
 $storage->ensure_connected;
+
+eval {
+    $schema->storage->throw_exception('test_exception_42');
+};
+like($@, qr/\btest_exception_42\b/, 'basic exception');
+
+eval {
+    $schema->resultset('CD')->search_literal('broken +%$#$1')->all;
+};
+like($@, qr/prepare_cached failed/, 'exception via DBI->HandleError, etc');
 
 bless $storage, "DBICTest::ExplodingStorage";
 $schema->storage($storage);
 
 eval { 
-    $schema->resultset('Artist')->create({ name => "Exploding Sheep" }) 
+    $schema->resultset('Artist')->create({ name => "Exploding Sheep" });
 };
 
 is($@, "", "Exploding \$sth->execute was caught");
