@@ -674,7 +674,7 @@ See Schema's throw_exception.
 
 sub throw_exception {
   my $self=shift;
-  if (ref $self && ref $self->result_source) {
+  if (ref $self && ref $self->result_source && $self->result_source->schema) {
     $self->result_source->schema->throw_exception(@_);
   } else {
     croak(@_);
