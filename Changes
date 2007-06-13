@@ -1,6 +1,12 @@
 Revision history for DBIx::Class
 
+0.07999_06 2007-06-13 04:45:00
         - tweaked Row.pm to make last_insert_id take multiple column names
+        - Fixed DBIC::Storage::DBI::Cursor::DESTROY bug that was
+          messing up exception handling
+        - added exception objects to eliminate stacktrace/Carp::Clan
+          output redundancy
+        - setting $ENV{DBIC_TRACE} defaults stacktrace on.
         - added stacktrace option to Schema, makes throw_exception
           use "confess"
         - make database handles use throw_exception by default
