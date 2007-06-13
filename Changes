@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - tweaked Row.pm to make last_insert_id take multiple column names
         - added stacktrace option to Schema, makes throw_exception
           use "confess"
         - make database handles use throw_exception by default
