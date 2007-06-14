@@ -10,7 +10,7 @@ use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use IO::File;
-use Scalar::Util 'blessed';
+use Scalar::Util qw/blessed weaken/;
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
@@ -768,8 +768,10 @@ sub _connect {
     }
 
     if(!$self->unsafe) {
+      my $weak_self = $self;
+      weaken($weak_self);
       $dbh->{HandleError} = sub {
-          $self->throw_exception("DBI Exception: $_[0]")
+          $weak_self->throw_exception("DBI Exception: $_[0]")
       };
       $dbh->{RaiseError} = 1;
       $dbh->{PrintError} = 0;
