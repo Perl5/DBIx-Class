@@ -7,6 +7,7 @@ use base qw/DBIx::Class/;
 
 use Scalar::Util qw/weaken/;
 use Carp::Clan qw/^DBIx::Class/;
+use IO::File;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
 
@@ -67,6 +68,7 @@ sub new {
     $fh = IO::File->new('>&STDERR');
   }
 
+  $fh->autoflush(1);
   $new->debugfh($fh);
   $new->debug(1) if $debug_env;
 
