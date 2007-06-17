@@ -58,7 +58,7 @@ my $exceptions = {
     'DBIx::Class::Relationship::ProxyMethods'           => { skip => 1 },
     'DBIx::Class::ResultSetProxy'                       => { skip => 1 },
     'DBIx::Class::ResultSourceProxy'                    => { skip => 1 },
-    'DBIx::Class::Storage'                              => { skip => 1 },
+    'DBIx::Class::Storage::DBI'                         => { skip => 1 },
     'DBIx::Class::Storage::DBI::DB2'                    => { skip => 1 },
     'DBIx::Class::Storage::DBI::MSSQL'                  => { skip => 1 },
     'DBIx::Class::Storage::DBI::MultiDistinctEmulation' => { skip => 1 },
@@ -70,6 +70,18 @@ my $exceptions = {
     'DBIx::Class::Storage::DBI::mysql'                  => { skip => 1 },
     'SQL::Translator::Parser::DBIx::Class'              => { skip => 1 },
     'SQL::Translator::Producer::DBIx::Class::File'      => { skip => 1 },
+
+# skipped because the synopsis covers it clearly
+
+    'DBIx::Class::InflateColumn::File'                  => { skip => 1 },
+
+# skipped because two methods may not need to be public
+
+    'DBIx::Class::Schema::Versioned' => { ignore => [ qw(on_connect exists) ] },
+
+# must kill authors.
+
+    'DBIx::Class::Storage::DBI::Replication' => { skip => 1 },
 };
 
 foreach my $module (@modules) {

@@ -13,7 +13,7 @@ my @rs1a_results = $schema->resultset("Artist")->search_related('cds', {title =>
 is($rs1a_results[0]->title, 'Forkful of bees', "bare field conditions okay after search related");
 my $rs1 = $schema->resultset("Artist")->search({ 'tags.tag' => 'Blue' }, { join => {'cds' => 'tracks'}, prefetch => {'cds' => 'tags'} });
 my @artists = $rs1->all;
-cmp_ok(@artists, '==', 1, "Two artists returned");
+cmp_ok(@artists, '==', 2, "Two artists returned");
 
 my $rs2 = $rs1->search({ artistid => '1' }, { join => {'cds' => {'cd_to_producer' => 'producer'} } });
 
@@ -23,8 +23,8 @@ cmp_ok(scalar @cds, '==', 1, "condition based on inherited join okay");
 
 #this is wrong, should accept me.title really
 my $rs3 = $rs2->search_related('cds');
-cmp_ok(scalar($rs3->all), '==', 27, "All cds for artist returned");
-cmp_ok($rs3->count, '==', 27, "All cds for artist returned via count");
+cmp_ok(scalar($rs3->all), '==', 45, "All cds for artist returned");
+cmp_ok($rs3->count, '==', 45, "All cds for artist returned via count");
 
 my $rs4 = $schema->resultset("CD")->search({ 'artist.artistid' => '1' }, { join => ['tracks', 'artist'], prefetch => 'artist' });
 my @rs4_results = $rs4->all;

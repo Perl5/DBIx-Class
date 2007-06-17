@@ -4,15 +4,16 @@ use strict;
 use warnings;
 
 use DBIx::Class::ResultSet;
+use DBIx::Class::ResultSourceHandle;
 use Carp::Clan qw/^DBIx::Class/;
 use Storable;
 
 use base qw/DBIx::Class/;
-__PACKAGE__->load_components(qw/AccessorGroup/);
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships column_info_from_storage source_name/);
+  schema from _relationships column_info_from_storage source_info
+  source_name/);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
   result_class/);
@@ -46,9 +47,7 @@ sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
 
-  my $new = { %{$attrs || {}}, _resultset => undef };
-  bless $new, $class;
-
+  my $new = bless { %{$attrs || {}} }, $class;
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
   $new->{resultset_attributes} = { %{$new->{resultset_attributes} || {}} };
   $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];
@@ -56,13 +55,21 @@ sub new {
   $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
   $new->{_columns_info_loaded} ||= 0;
-  if(!defined $new->column_info_from_storage) {
-      $new->{column_info_from_storage} = 1
-  }
   return $new;
 }
 
 =pod
+
+=head2 source_info
+
+Stores a hashref of per-source metadata.  No specific key names
+have yet been standardized, the examples below are purely hypothetical
+and don't actually accomplish anything on their own:
+
+  __PACKAGE__->source_info({
+    "_tablespace" => 'fast_disk_array_3',
+    "_engine" => 'InnoDB',
+  });
 
 =head2 add_columns
 
@@ -167,7 +174,7 @@ sub add_columns {
   return $self;
 }
 
-*add_column = \&add_columns;
+sub add_column { shift->add_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =head2 has_column
 
@@ -223,13 +230,10 @@ sub column_info {
 
 =head2 column_info_from_storage
 
-Enables or disables the on-demand automatic loading of the above
-column metadata from storage as neccesary.  Defaults to true in the
-current release, but will default to false in future releases starting
-with 0.08000.  This is *deprecated*, and should not be used.  It will
-be removed before 1.0.
+Enables the on-demand automatic loading of the above column
+metadata from storage as neccesary.  This is *deprecated*, and
+should not be used.  It will be removed before 1.0.
 
-  __PACKAGE__->column_info_from_storage(0);
   __PACKAGE__->column_info_from_storage(1);
 
 =head2 columns
@@ -281,7 +285,7 @@ sub remove_columns {
   $self->_ordered_columns(\@remaining);
 }
 
-*remove_column = \&remove_columns;
+sub remove_column { shift->remove_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =head2 set_primary_key
 
@@ -708,16 +712,22 @@ Returns the join structure required for the related result source.
 =cut
 
 sub resolve_join {
-  my ($self, $join, $alias, $seen) = @_;
+  my ($self, $join, $alias, $seen, $force_left) = @_;
   $seen ||= {};
+  $force_left ||= { force => 0 };
   if (ref $join eq 'ARRAY') {
     return map { $self->resolve_join($_, $alias, $seen) } @$join;
   } elsif (ref $join eq 'HASH') {
     return
       map {
         my $as = ($seen->{$_} ? $_.'_'.($seen->{$_}+1) : $_);
-        ($self->resolve_join($_, $alias, $seen),
-          $self->related_source($_)->resolve_join($join->{$_}, $as, $seen));
+        local $force_left->{force};
+        (
+          $self->resolve_join($_, $alias, $seen, $force_left),
+          $self->related_source($_)->resolve_join(
+            $join->{$_}, $as, $seen, $force_left
+          )
+        );
       } keys %$join;
   } elsif (ref $join) {
     $self->throw_exception("No idea how to resolve join reftype ".ref $join);
@@ -727,7 +737,13 @@ sub resolve_join {
     my $as = ($count > 1 ? "${join}_${count}" : $join);
     my $rel_info = $self->relationship_info($join);
     $self->throw_exception("No such relationship ${join}") unless $rel_info;
-    my $type = $rel_info->{attrs}{join_type} || '';
+    my $type;
+    if ($force_left->{force}) {
+      $type = 'left';
+    } else {
+      $type = $rel_info->{attrs}{join_type} || '';
+      $force_left->{force} = 1 if lc($type) eq 'left';
+    }
     return [ { $as => $self->related_source($join)->from,
                -join_type => $type },
              $self->resolve_condition($rel_info->{cond}, $as, $alias) ];
@@ -766,6 +782,8 @@ sub resolve_condition {
         #warn %ret;
       } elsif (!defined $for) { # undef, i.e. "no object"
         $ret{$k} = undef;
+      } elsif (ref $as eq 'HASH') { # reverse hashref
+        $ret{$v} = $as->{$k};
       } elsif (ref $as) { # reverse object
         $ret{$v} = $as->get_column($k);
       } elsif (!defined $as) { # undef, i.e. "no reverse object"
@@ -869,9 +887,13 @@ sub resolve_prefetch {
       $self->throw_exception(
         "Can't prefetch has_many ${pre} (join cond too complex)")
         unless ref($rel_info->{cond}) eq 'HASH';
+      #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
+      #              values %{$rel_info->{cond}};
+      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->primary_columns ];
+        # action at a distance. prepending the '.' allows simpler code
+        # in ResultSet->_collapse_result
       my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
                     keys %{$rel_info->{cond}};
-      $collapse->{"${as_prefix}${pre}"} = \@key;
       my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
                    ? @{$rel_info->{attrs}{order_by}}
                    : (defined $rel_info->{attrs}{order_by}
@@ -965,12 +987,6 @@ sub resultset {
     'call it on the schema instead.'
   ) if scalar @_;
 
-  # disabled until we can figure out a way to do it without consistency issues
-  #
-  #return $self->{_resultset}
-  #  if ref $self->{_resultset} eq $self->resultset_class;
-  #return $self->{_resultset} =
-
   return $self->resultset_class->new(
     $self, $self->{resultset_attributes}
   );
@@ -995,6 +1011,20 @@ its class name.
 
   # from your schema...
   $schema->resultset('Books')->find(1);
+
+=head2 handle
+
+Obtain a new handle to this source. Returns an instance of a 
+L<DBIx::Class::ResultSourceHandle>.
+
+=cut
+
+sub handle {
+    return new DBIx::Class::ResultSourceHandle({
+        schema         => $_[0]->schema,
+        source_moniker => $_[0]->source_name
+    });
+}
 
 =head2 throw_exception
 
@@ -1021,3 +1051,4 @@ You may distribute this code under the same terms as Perl itself.
 
 =cut
 
+1;

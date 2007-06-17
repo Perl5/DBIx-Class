@@ -26,10 +26,11 @@ use base qw(Exporter);
 # We're working with DBIx::Class Schemas, not data streams.
 # -------------------------------------------------------------------
 sub parse {
-    my ($tr, $data) = @_;
-    my $args        = $tr->parser_args;
-    my $dbixschema  = $args->{'DBIx::Schema'} || $data;
-    $dbixschema   ||= $args->{'package'};
+    my ($tr, $data)   = @_;
+    my $args          = $tr->parser_args;
+    my $dbixschema    = $args->{'DBIx::Schema'} || $data;
+    $dbixschema     ||= $args->{'package'};
+    my $limit_sources = $args->{'sources'};
     
     die 'No DBIx::Schema' unless ($dbixschema);
     if (!ref $dbixschema) {
@@ -46,7 +47,23 @@ sub parse {
 
     my %seen_tables;
 
-    foreach my $moniker ($dbixschema->sources)
+    my @monikers = $dbixschema->sources;
+    if ($limit_sources) {
+        my $ref = ref $limit_sources || '';
+        die "'sources' parameter must be an array or hash ref" unless $ref eq 'ARRAY' || ref eq 'HASH';
+
+        # limit monikers to those specified in 
+        my $sources;
+        if ($ref eq 'ARRAY') {
+            $sources->{$_} = 1 for (@$limit_sources);
+        } else {
+            $sources = $limit_sources;
+        }
+        @monikers = grep { $sources->{$_} } @monikers;
+    }
+
+
+    foreach my $moniker (@monikers)
     {
         #eval "use $tableclass";
         #print("Can't load $tableclass"), next if($@);
@@ -91,6 +108,9 @@ sub parse {
         }
 
         my @rels = $source->relationships();
+
+        my %created_FK_rels;
+
         foreach my $rel (@rels)
         {
             my $rel_info = $source->relationship_info($rel);
@@ -120,12 +140,24 @@ sub parse {
                     $on_update = $otherrelationship->{'attrs'}->{cascade_copy} ? 'CASCADE' : '';
                 }
 
+                # Make sure we dont create the same foreign key constraint twice
+                my $key_test = join("\x00", @keys);
+
                 #Decide if this is a foreign key based on whether the self
                 #items are our primary columns.
+                $DB::single = 1 if $moniker eq 'Tests::MBTI::Result';
 
                 # If the sets are different, then we assume it's a foreign key from
                 # us to another table.
-                if (!$source->compare_relationship_keys(\@keys, \@primary)) {
+                # OR: If is_foreign_key_constraint attr is explicity set (or set to false) on the relation
+                if ( ! exists $created_FK_rels{$rel_table}->{$key_test} &&
+                     ( exists $rel_info->{attrs}{is_foreign_key_constraint} && 
+                       $rel_info->{attrs}{is_foreign_key_constraint} ||
+                       !$source->compare_relationship_keys(\@keys, \@primary)
+                     )
+                   )
+                {
+                    $created_FK_rels{$rel_table}->{$key_test} = 1;
                     $table->add_constraint(
                                 type             => 'foreign_key',
                                 name             => "fk_$keys[0]",

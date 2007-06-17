@@ -118,7 +118,7 @@ my $fail_code = sub {
   # Force txn_rollback() to throw an exception
   no warnings 'redefine';
   no strict 'refs';
-  local *{"DBIx::Class::Schema::txn_rollback"} = sub{die 'FAILED'};
+  local *{"DBIx::Class::Storage::DBI::SQLite::txn_rollback"} = sub{die 'FAILED'};
 
   eval {
     $schema->txn_do($fail_code, $artist);

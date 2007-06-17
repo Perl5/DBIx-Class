@@ -4,10 +4,15 @@ package # hide from PAUSE
 use base 'DBIx::Class::Core';
 
 __PACKAGE__->table('artist');
+__PACKAGE__->source_info({
+    "source_info_key_A" => "source_info_value_A",
+    "source_info_key_B" => "source_info_value_B",
+    "source_info_key_C" => "source_info_value_C",
+});
 __PACKAGE__->add_columns(
   'artistid' => {
     data_type => 'integer',
-    is_auto_increment => 1
+    is_auto_increment => 1,
   },
   'name' => {
     data_type => 'varchar',

@@ -1,6 +1,58 @@
 Revision history for DBIx::Class
 
+0.08000 2007-06-17 18:06:12
+        - Fixed DBIC_TRACE debug filehandles to set ->autoflush(1)
+        - Fixed circular dbh<->storage in HandleError with weakref
+
+0.07999_06 2007-06-13 04:45:00
+        - tweaked Row.pm to make last_insert_id take multiple column names
+        - Fixed DBIC::Storage::DBI::Cursor::DESTROY bug that was
+          messing up exception handling
+        - added exception objects to eliminate stacktrace/Carp::Clan
+          output redundancy
+        - setting $ENV{DBIC_TRACE} defaults stacktrace on.
+        - added stacktrace option to Schema, makes throw_exception
+          use "confess"
+        - make database handles use throw_exception by default
+        - make database handles supplied by a coderef use our
+          standard HandleError/RaiseError/PrintError
+        - add "unsafe" connect_info option to suppress our setting
+          of HandleError/RaiseError/PrintError
+        - removed several redundant evals whose sole purpose was to
+          provide extra debugging info
+        - fixed page-within-page bug (reported by nilsonsfj)
+        - fixed rare bug when database is disconnected inbetween
+          "$dbh->prepare_cached" and "$sth->execute"
+
+0.07999_05 2007-06-07 23:00:00
+        - Made source_name rw in ResultSource
+        - Fixed up SQL::Translator test/runtime dependencies
+        - Fixed t/60core.t in the absence of DateTime::Format::MySQL
         - Test cleanup and doc note (ribasushi)
+
+0.07999_04 2007-06-01 14:04:00
+        - pulled in Replication storage from branch and marked EXPERIMENTAL
+        - fixup to ensure join always LEFT after first LEFT join depthwise
+        - converted the vendor tests to use schema objects intead of schema
+          classes, made cleaned more reliable with END blocks
+        - versioning support via DBIx::Class::Schema::Versioned
+        - find/next now return undef rather than () on fail from Bernhard Graf
+        - rewritten collapse_result to fix prefetch
+        - moved populate to resultset
+        - added support for creation of related rows via insert and populate
+        - transaction support more robust now in the face of varying AutoCommit
+          and manual txn_begin usage
+        - unbreak back-compat for Row/ResultSet->new_result
+        - Added Oracle/WhereJoins.pm for Oracle >= 8 to support
+          Oracle <= 9i, and provide Oracle with a better join method for
+          later versions.  (I use the term better loosely.)
+        - The SQL::T parser class now respects a relationship attribute of
+          is_foreign_key_constrain to allow explicit control over wether or
+          not a foreign constraint is needed
+        - resultset_class/result_class now (again) auto loads the specified
+          class; requires Class::Accessor::Grouped 0.05002+
+        - added get_inflated_columns to Row
+        - %colinfo accessor and inflate_column now work together
         - More documentation updates
         - Error messages from ->deploy made more informative
         - connect_info will now always return the arguments it was
@@ -15,6 +67,15 @@ Revision history for DBIx::Class
         - RT#25683 fixed (multiple open sths on DBD::Sybase)
         - CDBI compat infers has_many from has_a (Schwern)
         - Fix ddl_filename transformation (Carl Vincent)
+
+0.07999_02 2007-01-25 20:11:00
+        - add support for binding BYTEA and similar parameters (w/Pg impl)
+        - add support to Ordered for multiple ordering columns
+        - mark DB.pm and compose_connection as deprecated
+        - switch tests to compose_namespace
+        - ResultClass::HashRefInflator added
+        - Changed row and rs objects to not have direct handle to a source,
+          instead a (schema,source_name) tuple of type ResultSourceHandle
 
 0.07005 2007-01-10 18:36:00
         - fixup changes file
@@ -34,11 +95,33 @@ Revision history for DBIx::Class
         - Don't blow up if columns_info_for returns useless results
         - Documentation updates
 
+0.07999_01 2006-10-05 21:00:00
+        - add connect_info option "disable_statement_caching"
+        - create insert_bulk using execute_array, populate uses it
+        - added DBIx::Class::Schema::load_namespaces, alternative to
+          load_classes
+        - added source_info method for source-level metadata (kinda like
+          column_info)
+        - Some of ::Storage::DBI's code/docs moved to ::Storage
+        - DBIx::Class::Schema::txn_do code moved to ::Storage
+        - Storage::DBI now uses exceptions instead of ->ping/->{Active} checks
+        - Storage exceptions are thrown via the schema class's throw_exception
+        - DBIx::Class::Schema::throw_exception's behavior can be modified via
+          ->exception_action
+        - columns_info_for is deprecated, and no longer runs automatically.
+          You can make it work like before via
+          __PACKAGE__->column_info_from_storage(1) for now
+        - Replaced DBIx::Class::AccessorGroup and Class::Data::Accessor with
+          Class::Accessor::Grouped. Only user noticible change is to
+          table_class on ResultSourceProxy::Table (i.e. table objects in
+          schemas) and, resultset_class and result_class in ResultSource.
+          These accessors no longer automatically require the classes when
+          set.
+
 0.07002 2006-09-14 21:17:32
         - fix quote tests for recent versions of SQLite
         - added reference implementation of Manual::Example
         - backported column_info_from_storage accessor from -current, but
-          defaults true instead of false in 0.07xxx
         - fixed inflate_datetime.t tests/stringify under older Test::More
         - minor fixes for many-to-many relationship helpers
         - cleared up Relationship docs, and fixed some typos
@@ -105,7 +188,7 @@ Revision history for DBIx::Class
         - fixes to pass test suite on Windows
         - rewrote and cleaned up SQL::Translator tests
         - changed relationship helpers to only call ensure_class_loaded when the
-          join condition is inferred 
+          join condition is inferred
         - rewrote many_to_many implementation, now provides helpers for adding
           and deleting objects without dealing with the link table
         - reworked InflateColumn implementation to lazily deflate where
@@ -113,12 +196,12 @@ Revision history for DBIx::Class
         - changed join merging to not create a rel_2 alias when adding a join
           that already exists in a parent resultset
         - Storage::DBI::deployment_statements now calls ensure_connected
-          if it isn't passed a type 
+          if it isn't passed a type
         - fixed Componentized::ensure_class_loaded
         - InflateColumn::DateTime supports date as well as datetime
         - split Storage::DBI::MSSQL into MSSQL and Sybase::MSSQL
-        - fixed wrong debugging hook call in Storage::DBI 
-        - set connect_info properly before setting any ->sql_maker things 
+        - fixed wrong debugging hook call in Storage::DBI
+        - set connect_info properly before setting any ->sql_maker things
 
 0.06999_02 2006-06-09 23:58:33
         - Fixed up POD::Coverage tests, filled in some POD holes
@@ -276,7 +359,8 @@ Revision history for DBIx::Class
 
 0.05002 2006-02-06 12:12:03
         - Added recommends for Class::Inspector
-        - Added skip_all to t/40resultsetmanager.t if no Class::Inspector available
+        - Added skip_all to t/40resultsetmanager.t if no Class::Inspector
+        available
 
 0.05001 2006-02-05 15:28:10
         - debug output now prints NULL for undef params
@@ -316,8 +400,10 @@ Revision history for DBIx::Class
 
 0.04999_04 2006-01-24 21:48:21
         - more documentation improvements
-        - add columns_info_for for vendor-specific column info (Zbigniew Lukasiak)
-        - add SQL::Translator::Producer for DBIx::Class table classes (Jess Robinson)
+        - add columns_info_for for vendor-specific column info (Zbigniew
+        Lukasiak)
+        - add SQL::Translator::Producer for DBIx::Class table classes (Jess
+        Robinson)
         - add unique constraint declaration (Daniel Westermann-Clark)
         - add new update_or_create method (Daniel Westermann-Clark)
         - rename ResultSetInstance class to ResultSetProxy, ResultSourceInstance
@@ -327,11 +413,13 @@ Revision history for DBIx::Class
 
 0.04999_03 2006-01-20 06:05:27
         - imported Jess Robinson's SQL::Translator::Parser::DBIx::Class
-        - lots of internals cleanup to eliminate result_source_instance requirement
+        - lots of internals cleanup to eliminate result_source_instance
+        requirement
         - added register_column and register_relationship class APIs
         - made Storage::DBI use prepare_cached safely (thanks to Tim Bunce)
         - many documentation improvements (thanks guys!)
-        - added ->connection, ->connect, ->register_source and ->clone schema methods
+        - added ->connection, ->connect, ->register_source and ->clone schema
+        methods
         - Use croak instead of die for user errors.
 
 0.04999_02 2006-01-14 07:17:35
@@ -404,3 +492,4 @@ Revision history for DBIx::Class
 
 0.01    2005-08-08 17:10:00
         - initial release
+

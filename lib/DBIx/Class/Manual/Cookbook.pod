@@ -544,7 +544,7 @@ To order C<< $book->pages >> by descending page_number.
 =head2 Transactions
 
 As of version 0.04001, there is improved transaction support in
-L<DBIx::Class::Storage::DBI> and L<DBIx::Class::Schema>.  Here is an
+L<DBIx::Class::Storage> and L<DBIx::Class::Schema>.  Here is an
 example of the recommended way to use it:
 
   my $genus = $schema->resultset('Genus')->find(12);
@@ -964,7 +964,7 @@ method.
 
 =head2 Profiling
 
-When you enable L<DBIx::Class::Storage::DBI>'s debugging it prints the SQL
+When you enable L<DBIx::Class::Storage>'s debugging it prints the SQL
 executed as well as notifications of query completion and transaction
 begin/commit.  If you'd like to profile the SQL you can subclass the
 L<DBIx::Class::Storage::Statistics> class and write your own profiling
@@ -1159,60 +1159,18 @@ B<Test File> test.pl
 
 DBIx::Class is not built for speed, it's built for convenience and
 ease of use, but sometimes you just need to get the data, and skip the
-fancy objects. Luckily this is also fairly easy using
-C<inflate_result>:
-
-  # Define a class which just returns the results as a hashref:
-  package My::HashRefInflator;
-
-  ## $me is the hashref of cols/data from the immediate resultsource
-  ## $prefetch is a deep hashref of all the data from the prefetched
-  ##   related sources.
-
-  sub mk_hash {
-     my ($me, $rest) = @_;
-
-     # to avoid emtpy has_many rels contain one empty hashref
-     return if (not keys %$me);
-
-     my $def;
-
-     foreach (values %$me) {
-         if (defined $_) {
-             $def = 1;
-             last;
-         }
-     }
-     return unless $def;
-
-     return { %$me,
-         map {
-           ( $_ =>
-              ref($rest->{$_}[0]) eq 'ARRAY' ? [ map { mk_hash(@$_) } @{$rest->{$_}} ]
-                                             : mk_hash( @{$rest->{$_}} )
-           )
-         } keys %$rest
-     };
-  }
-
-  sub inflate_result {
-     my ($self, $source, $me, $prefetch) = @_;
-     return mk_hash($me, $prefetch); 
-  }
-
-  # Change the object inflation to a hashref for just this resultset:
-  $rs->result_class('My::HashRefInflator');
-
-  my $datahashref = $rs->next;
-  foreach my $col (keys %$datahashref) {
-     if(!ref($datahashref->{$col})) {
-        # It's a plain value
-     }
-     elsif(ref($datahashref->{$col} eq 'HASH')) {
-        # It's a related value in a hashref
-     }
-  }
-
+fancy objects.
+  
+To do this simply use L<DBIx::Class::ResultClass::HashRefInflator>.
+  
+ my $rs = $schema->resultset('CD');
+ 
+ $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
+ 
+ my $hash_ref = $rs->find(1);
+  
+Wasn't that easy?
+  
 =head2 Get raw data for blindingly fast results
 
 If the C<inflate_result> solution above is not fast enough for you, you

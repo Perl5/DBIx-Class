@@ -376,7 +376,7 @@ to work around this issue.
 
 =item See the SQL statements my code is producing?
 
-Turn on debugging! See L<DBIx::Class::Storage::DBI> for details of how
+Turn on debugging! See L<DBIx::Class::Storage> for details of how
 to turn on debugging in the environment, pass your own filehandle to
 save debug to, or create your own callback.
 

@@ -13,9 +13,9 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
 
 plan tests => 6;
 
-DBICTest::Schema->compose_connection('OraTest' => $dsn, $user, $pass);
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
-my $dbh = OraTest->schema->storage->dbh;
+my $dbh = $schema->storage->dbh;
 
 eval {
   $dbh->do("DROP SEQUENCE artist_seq");
@@ -42,18 +42,20 @@ $dbh->do(qq{
   END;
 });
 
-OraTest::Artist->load_components('PK::Auto');
-OraTest::CD->load_components('PK::Auto::Oracle');
-OraTest::Track->load_components('PK::Auto::Oracle');
+# This is in Core now, but it's here just to test that it doesn't break
+$schema->class('Artist')->load_components('PK::Auto');
+# These are compat shims for PK::Auto...
+$schema->class('CD')->load_components('PK::Auto::Oracle');
+$schema->class('Track')->load_components('PK::Auto::Oracle');
 
 # test primary key handling
-my $new = OraTest::Artist->create({ name => 'foo' });
+my $new = $schema->resultset('Artist')->create({ name => 'foo' });
 is($new->artistid, 1, "Oracle Auto-PK worked");
 
 # test join with row count ambiguity
-my $cd = OraTest::CD->create({ cdid => 1, artist => 1, title => 'EP C', year => '2003' });
-my $track = OraTest::Track->create({ trackid => 1, cd => 1, position => 1, title => 'Track1' });
-my $tjoin = OraTest::Track->search({ 'me.title' => 'Track1'},
+my $cd = $schema->resultset('CD')->create({ cdid => 1, artist => 1, title => 'EP C', year => '2003' });
+my $track = $schema->resultset('Track')->create({ trackid => 1, cd => 1, position => 1, title => 'Track1' });
+my $tjoin = $schema->resultset('Track')->search({ 'me.title' => 'Track1'},
         { join => 'cd',
           rows => 2 }
 );
@@ -61,8 +63,8 @@ my $tjoin = OraTest::Track->search({ 'me.title' => 'Track1'},
 is($tjoin->next->title, 'Track1', "ambiguous column ok");
 
 # check count distinct with multiple columns
-my $other_track = OraTest::Track->create({ trackid => 2, cd => 1, position => 1, title => 'Track2' });
-my $tcount = OraTest::Track->search(
+my $other_track = $schema->resultset('Track')->create({ trackid => 2, cd => 1, position => 1, title => 'Track2' });
+my $tcount = $schema->resultset('Track')->search(
     {},
     {
         select => [{count => {distinct => ['position', 'title']}}],
@@ -74,9 +76,9 @@ is($tcount->next->get_column('count'), 2, "multiple column select distinct ok");
 
 # test LIMIT support
 for (1..6) {
-    OraTest::Artist->create({ name => 'Artist ' . $_ });
+    $schema->resultset('Artist')->create({ name => 'Artist ' . $_ });
 }
-my $it = OraTest::Artist->search( {},
+my $it = $schema->resultset('Artist')->search( {},
     { rows => 3,
       offset => 2,
       order_by => 'artistid' }
@@ -88,8 +90,12 @@ $it->next;
 is( $it->next, undef, "next past end of resultset ok" );
 
 # clean up our mess
-$dbh->do("DROP SEQUENCE artist_seq");
-$dbh->do("DROP TABLE artist");
-$dbh->do("DROP TABLE cd");
-$dbh->do("DROP TABLE track");
+END {
+    if($dbh) {
+        $dbh->do("DROP SEQUENCE artist_seq");
+        $dbh->do("DROP TABLE artist");
+        $dbh->do("DROP TABLE cd");
+        $dbh->do("DROP TABLE track");
+    }
+}
 

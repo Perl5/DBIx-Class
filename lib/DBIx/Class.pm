@@ -4,16 +4,21 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-use base qw/DBIx::Class::Componentised Class::Data::Accessor/;
+use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 
-sub mk_classdata { shift->mk_classaccessor(@_); }
+sub mk_classdata { 
+    my $self = shift;
+    $self->mk_group_accessors('inherited', $_[0]); 
+    $self->set_inherited(@_) if @_ > 1;
+}
+
 sub component_base_class { 'DBIx::Class' }
 
 # Always remember to do all digits for the version even if they're 0
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.07006';
+$VERSION = '0.08000';
 
 sub MODIFY_CODE_ATTRIBUTES {
   my ($class,$code,@attrs) = @_;
@@ -180,6 +185,8 @@ andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
 
+ash: Ash Berlin <ash@cpan.org>
+
 blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
@@ -192,7 +199,11 @@ claco: Christopher H. Laco
 
 clkao: CL Kao
 
+da5id: David Jack Olrik <djo@cpan.org>
+
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
+
+dnm: Justin Wheeler <jwheeler@datademons.com>
 
 draven: Marcus Ramberg <mramberg@cpan.org>
 
@@ -211,6 +222,8 @@ jshirley: J. Shirley <jshirley@gmail.com>
 konobi: Scott McWhirter
 
 LTJake: Brian Cassidy <bricas@cpan.org>
+
+ned: Neil de Carteret
 
 nigel: Nigel Metheringham <nigelm@cpan.org>
 
@@ -235,6 +248,8 @@ sszabo: Stephan Szabo <sszabo@bigpanda.com>
 Todd Lipcon
 
 typester: Daisuke Murase <typester@cpan.org>
+
+victori: Victor Igumnov <victori@cpan.org>
 
 wdh: Will Hawes
 

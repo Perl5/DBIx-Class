@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 53;
+plan tests => 54;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -23,6 +23,10 @@ $translator->parser('SQL::Translator::Parser::DBIx::Class');
 $translator->producer('SQLite');
 
 my $output = $translator->translate();
+
+
+ok($output, "SQLT produced someoutput")
+  or diag($translator->error);
 
 # Note that the constraints listed here are the only ones that are tested -- if
 # more exist in the Schema than are listed here and all listed constraints are

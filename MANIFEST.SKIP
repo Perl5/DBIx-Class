@@ -25,6 +25,7 @@
 \.tmp$
 \.old$
 \.bak$
+\..*?\.sw[po]$
 \#$
 \b\.#
 
@@ -42,3 +43,6 @@
 
 # Avoid copies to .orig
 \.orig$
+
+# Dont use Module::Build anymore
+# Build.PL
