@@ -37,7 +37,7 @@ ok(-f 't/var/DBICVersion-Schema-1.0-SQLite.sql', 'Created DDL file');
 # $schema->deploy();
 
 my $tvrs = $schema_orig->resultset('Table');
-is($schema_orig->exists($tvrs), 1, 'Created schema from DDL file');
+is($schema_orig->_source_exists($tvrs), 1, 'Created schema from DDL file');
 
 eval "use DBICVersionNew";
 my $schema_new = DBICVersion::Schema->connect(
@@ -63,7 +63,7 @@ my $schema_upgrade = DBICVersion::Schema->connect(
 ## do this here or let Versioned.pm do it?
 $schema_upgrade->upgrade();
 $tvrs = $schema_upgrade->resultset('Table');
-is($schema_upgrade->exists($tvrs), 1, 'Upgraded schema from DDL file');
+is($schema_upgrade->_source_exists($tvrs), 1, 'Upgraded schema from DDL file');
 
 unlink($db_file) if -e $db_file;
 unlink($db_file . "-journal") if -e $db_file . "-journal";

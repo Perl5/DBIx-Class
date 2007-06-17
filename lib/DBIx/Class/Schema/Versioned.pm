@@ -60,6 +60,13 @@ sub schema_version {
   return $version;
 }
 
+sub connection {
+  my $self = shift;
+  $self->next::method(@_);
+  $self->_on_connect;
+  return $self;
+}
+
 sub _on_connect
 {
     my ($self) = @_;
@@ -67,7 +74,7 @@ sub _on_connect
     my $vtable = $vschema->resultset('Table');
     my $pversion;
 
-    if(!$self->exists($vtable))
+    if(!$self->_source_exists($vtable))
     {
 #        $vschema->storage->debug(1);
         $vschema->storage->ensure_connected();
@@ -146,7 +153,7 @@ sub _on_connect
 #    $self->upgrade($pversion, $self->schema_version);
 }
 
-sub exists
+sub _source_exists
 {
     my ($self, $rs) = @_;
 

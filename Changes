@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+0.08001 2007-06-17 21:21:02
+        - Cleaned up on_connect handling for versioned
+        - removed DateTime use line from multi_create test
+        - hid DBIx::ContextualFetch::st override in CDBICompat
+
 0.08000 2007-06-17 18:06:12
         - Fixed DBIC_TRACE debug filehandles to set ->autoflush(1)
         - Fixed circular dbh<->storage in HandleError with weakref

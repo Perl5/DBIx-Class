@@ -4,7 +4,6 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use DateTime;
 
 my $schema = DBICTest->init_schema();
 

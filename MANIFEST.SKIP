@@ -45,4 +45,4 @@
 \.orig$
 
 # Dont use Module::Build anymore
-# Build.PL
+^Build.PL$

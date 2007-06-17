@@ -75,9 +75,9 @@ my $exceptions = {
 
     'DBIx::Class::InflateColumn::File'                  => { skip => 1 },
 
-# skipped because two methods may not need to be public
+# skip connection since it's just an override
 
-    'DBIx::Class::Schema::Versioned' => { ignore => [ qw(on_connect exists) ] },
+    'DBIx::Class::Schema::Versioned' => { ignore => [ qw(connection) ] },
 
 # must kill authors.
 
