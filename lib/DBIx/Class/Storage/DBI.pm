@@ -1403,16 +1403,21 @@ sub deployment_statements {
 sub deploy {
   my ($self, $schema, $type, $sqltargs, $dir) = @_;
   foreach my $statement ( $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } ) ) {
-    for ( split(";\n", $statement)) {
-      next if($_ =~ /^--/);
-      next if(!$_);
-#      next if($_ =~ /^DROP/m);
-      next if($_ =~ /^BEGIN TRANSACTION/m);
-      next if($_ =~ /^COMMIT/m);
-      next if $_ =~ /^\s+$/; # skip whitespace only
-      $self->debugobj->query_start($_) if $self->debug;
-      $self->dbh->do($_); # shouldn't be using ->dbh ?
-      $self->debugobj->query_end($_) if $self->debug;
+    foreach my $line ( split(";\n", $statement)) {
+      next if($line =~ /^--/);
+      next if(!$line);
+#      next if($line =~ /^DROP/m);
+      next if($line =~ /^BEGIN TRANSACTION/m);
+      next if($line =~ /^COMMIT/m);
+      next if $line =~ /^\s+$/; # skip whitespace only
+      $self->debugobj->query_start($line) if $self->debug;
+      eval {
+        $self->dbh->do($line); # shouldn't be using ->dbh ?
+      };
+      if ($@) {
+        warn qq{$@ (running "${line}")};
+      }
+      $self->debugobj->query_end($line) if $self->debug;
     }
   }
 }
