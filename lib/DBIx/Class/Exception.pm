@@ -68,6 +68,17 @@ sub throw {
     die $self;
 }
 
+=head2 rethrow
+
+This method provides some syntactic sugar in order to
+re-throw exceptions.
+
+=cut
+
+sub rethrow {
+    die shift;
+}
+
 =head1 AUTHORS
 
 Brandon L. Black <blblack@gmail.com>

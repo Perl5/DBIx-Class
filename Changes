@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - new method "rethrow" for our exception objects
+
 0.08001 2007-06-17 21:21:02
         - Cleaned up on_connect handling for versioned
         - removed DateTime use line from multi_create test
