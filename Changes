@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - ensure_connected before txn_begin to catch stomping on transaction
+          depth
         - new method "rethrow" for our exception objects
 
 0.08001 2007-06-17 21:21:02

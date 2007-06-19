@@ -788,6 +788,7 @@ sub _connect {
 
 sub txn_begin {
   my $self = shift;
+  $self->ensure_connected();
   if($self->{transaction_depth}++ == 0) {
     $self->debugobj->txn_begin()
       if $self->debug;

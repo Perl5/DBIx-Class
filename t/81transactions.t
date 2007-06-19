@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 39;
+plan tests => 40;
 
 my $code = sub {
   my ($artist, @cd_titles) = @_;
@@ -178,3 +178,13 @@ my $fail_code = sub {
   ok(!defined($cd), q{failed txn_do didn't add failed txn's cd});
 }
 
+# Grab a new schema to test txn before connect
+{
+    my $schema2 = DBICTest->init_schema(no_deploy => 1);
+    eval {
+        $schema2->txn_begin();
+        $schema2->txn_begin();
+    };
+    my $err = $@;
+    ok(($err eq ''), 'Pre-connection nested transactions.');
+}
