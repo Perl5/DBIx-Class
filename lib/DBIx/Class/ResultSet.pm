@@ -833,8 +833,6 @@ sub _collapse_result {
 
   my @const_keys;
 
-  use Data::Dumper;
-
   foreach my $const (@const_rows) {
     scalar @const_keys or do {
       @const_keys = sort { length($a) <=> length($b) } keys %$const;
