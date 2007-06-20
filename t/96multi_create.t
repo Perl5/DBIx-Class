@@ -1,13 +1,11 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More qw(no_plan);
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
-
-plan tests => 17;
 
 my $cd2 = $schema->resultset('CD')->create({ artist => 
                                    { name => 'Fred Bloggs' },
@@ -105,10 +103,13 @@ CREATE_RELATED2 :{
 			}
 		],
 
+    liner_notes => { notes => 'I can haz liner notes?' },
+
 	});
 	
 	ok( $cd_result && ref $cd_result eq 'DBICTest::CD', "Got Good CD Class");
 	ok( $cd_result->title eq "TestOneCD2", "Got Expected Title");
+  ok( $cd_result->notes eq 'I can haz liner notes?', 'Liner notes');
 	
 	my $tracks = $cd_result->tracks;
 	

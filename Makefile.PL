@@ -17,6 +17,7 @@ requires 'Module::Find'              => 0;
 requires 'Class::Inspector'          => 0;
 requires 'Class::Accessor::Grouped'  => 0.05002;
 requires 'JSON'                      => 1.00; 
+requires 'Scope::Guard'              => 0.03;
 
 # Perl 5.8.0 doesn't have utf8::is_utf8()
 requires 'Encode'                    => 0 if ($] <= 5.008000);  

@@ -6,6 +6,7 @@ use warnings;
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util ();
+use Scope::Guard;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_source_handle/);
 
@@ -143,21 +144,45 @@ sub insert {
   $self->throw_exception("No result_source set on this object; can't insert")
     unless $source;
 
+  my $rollback_guard;
+
   # Check if we stored uninserted relobjs here in new()
   my %related_stuff = (%{$self->{_relationship_data} || {}}, 
                        %{$self->{_inflated_column} || {}});
+
   if(!$self->{_rel_in_storage})
   {
+
     $source->storage->txn_begin;
+
+    # The guard will save us if we blow out of this scope via die
+
+    $rollback_guard = Scope::Guard->new(sub { $source->storage->txn_rollback });
 
     ## Should all be in relationship_data, but we need to get rid of the
     ## 'filter' reltype..
     ## These are the FK rels, need their IDs for the insert.
-    foreach my $relname (keys %related_stuff) {
+
+    my @pri = $self->primary_columns;
+
+    REL: foreach my $relname (keys %related_stuff) {
+      my $keyhash = $source->resolve_condition(
+                      $source->relationship_info($relname)->{cond},
+                      undef, 1
+                    ); # the above argset gives me the dependent cols on self
+
+      # assume anything that references our PK probably is dependent on us
+      # rather than vice versa
+
+      foreach my $p (@pri) {
+        next REL if exists $keyhash->{$p};
+      }
+
       my $rel_obj = $related_stuff{$relname};
       if(Scalar::Util::blessed($rel_obj) && $rel_obj->isa('DBIx::Class::Row')) {
         $rel_obj->insert();
         $self->set_from_related($relname, $rel_obj);
+        delete $related_stuff{$relname};
       }
     }
   }
@@ -187,18 +212,24 @@ sub insert {
   {
     ## Now do the has_many rels, that need $selfs ID.
     foreach my $relname (keys %related_stuff) {
-      my $relobj = $related_stuff{$relname};
-      if(ref $relobj eq 'ARRAY') {
-        foreach my $obj (@$relobj) {
-          my $info = $self->relationship_info($relname);
-          ## What about multi-col FKs ?
-          my $key = $1 if($info && (keys %{$info->{cond}})[0] =~ /^foreign\.(\w+)/);
-          $obj->set_from_related($key, $self);
+      my $rel_obj = $related_stuff{$relname};
+      my @cands;
+      if (Scalar::Util::blessed($rel_obj)
+          && $rel_obj->isa('DBIx::Class::Row')) {
+        @cands = ($rel_obj);
+      } elsif (ref $rel_obj eq 'ARRAY') {
+        @cands = @$rel_obj;
+      }
+      if (@cands) {
+        my $reverse = $source->reverse_relationship_info($relname);
+        foreach my $obj (@cands) {
+          $obj->set_from_related($_, $self) for keys %$reverse;
           $obj->insert() if(!$obj->in_storage);
         }
       }
     }
     $source->storage->txn_commit;
+    $rollback_guard->dismiss;
   }
 
   $self->in_storage(1);
