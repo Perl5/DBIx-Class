@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - more expressive DBI errors
+        - soften errors during deploy
         - ensure_connected before txn_begin to catch stomping on transaction
           depth
         - new method "rethrow" for our exception objects

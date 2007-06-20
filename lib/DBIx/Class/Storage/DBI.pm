@@ -382,15 +382,14 @@ each other. In most cases this is simply a C<.>.
 =item unsafe
 
 This Storage driver normally installs its own C<HandleError>, sets
-C<RaiseError> on, and sets C<PrintError> off on all database handles,
-including those supplied by a coderef.  It does this so that it can
-have consistent and useful error behavior.
+C<RaiseError> and C<ShowErrorStatement> on, and sets C<PrintError> off on
+all database handles, including those supplied by a coderef.  It does this
+so that it can have consistent and useful error behavior.
 
 If you set this option to a true value, Storage will not do its usual
-modifications to the database handle's C<RaiseError>, C<PrintError>, and
-C<HandleError> attributes, and instead relies on the settings in your
-connect_info DBI options (or the values you set in your connection
-coderef, in the case that you are connecting via coderef).
+modifications to the database handle's attributes, and instead relies on
+the settings in your connect_info DBI options (or the values you set in
+your connection coderef, in the case that you are connecting via coderef).
 
 Note that your custom settings can cause Storage to malfunction,
 especially if you set a C<HandleError> handler that suppresses exceptions
@@ -772,6 +771,7 @@ sub _connect {
       $dbh->{HandleError} = sub {
           $weak_self->throw_exception("DBI Exception: $_[0]")
       };
+      $dbh->{ShowErrorStatement} = 1;
       $dbh->{RaiseError} = 1;
       $dbh->{PrintError} = 0;
     }
