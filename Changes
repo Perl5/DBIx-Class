@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08002 2007-06-20 06:10:00
         - add scope guard to Row::insert to ensure rollback gets called
         - more heuristics in Row::insert to try and get insert order right
         - eliminate vestigial code in PK::Auto
