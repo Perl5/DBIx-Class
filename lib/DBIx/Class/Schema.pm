@@ -851,7 +851,15 @@ sub populate {
     }
     return @created;
   }
-  $self->storage->insert_bulk($self->source($name), \@names, $data);
+  my @results_to_create;
+  foreach my $datum (@$data) {
+    my %result_to_create;
+    foreach my $index (0..$#names) {
+      $result_to_create{$names[$index]} = $$datum[$index];
+    }
+    push @results_to_create, \%result_to_create;
+  }
+  $rs->populate(\@results_to_create);
 }
 
 =head2 exception_action

@@ -15,7 +15,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 98;
+plan tests => 120;
 
 
 ## ----------------------------------------------------------------------------
@@ -29,6 +29,76 @@ my $cd_rs	= $schema->resultset('CD');
 ok( $schema, 'Got a Schema object');
 ok( $art_rs, 'Got Good Artist Resultset');
 ok( $cd_rs, 'Got Good CD Resultset');
+
+
+## ----------------------------------------------------------------------------
+## Schema populate Tests
+## ----------------------------------------------------------------------------
+
+SCHEMA: {
+
+	## Test to make sure that the old $schema->populate is using the new method
+	## for $resultset->populate when in void context and with sub objects.
+	
+	$schema->populate('Artist', [
+	
+		[qw/name cds/],
+		["001First Artist", [
+			{title=>"001Title1", year=>2000},
+			{title=>"001Title2", year=>2001},
+			{title=>"001Title3", year=>2002},
+		]],
+		["002Second Artist", []],
+		["003Third Artist", [
+			{title=>"003Title1", year=>2005},
+		]],
+	]);
+	
+	isa_ok $schema, 'DBIx::Class::Schema';
+	
+	my ($artist1, $artist2, $artist3) = $schema->resultset('Artist')->search({
+		name=>["001First Artist","002Second Artist","003Third Artist"]},
+		{order_by=>'name ASC'})->all;
+	
+	isa_ok  $artist1, 'DBICTest::Artist';
+	isa_ok  $artist2, 'DBICTest::Artist';
+	isa_ok  $artist3, 'DBICTest::Artist';
+	
+	ok $artist1->name eq '001First Artist', "Got Expected Artist Name for Artist001";
+	ok $artist2->name eq '002Second Artist', "Got Expected Artist Name for Artist002";
+	ok $artist3->name eq '003Third Artist', "Got Expected Artist Name for Artist003";
+	
+	ok $artist1->cds->count eq 3, "Got Right number of CDs for Artist1";
+	ok $artist2->cds->count eq 0, "Got Right number of CDs for Artist2";
+	ok $artist3->cds->count eq 1, "Got Right number of CDs for Artist3";
+	
+	ARTIST1CDS: {
+	
+		my ($cd1, $cd2, $cd3) = $artist1->cds->search(undef, {order_by=>'year ASC'});
+		
+		isa_ok $cd1, 'DBICTest::CD';
+		isa_ok $cd2, 'DBICTest::CD';
+		isa_ok $cd3, 'DBICTest::CD';
+		
+		ok $cd1->year == 2000;
+		ok $cd2->year == 2001;
+		ok $cd3->year == 2002;
+		
+		ok $cd1->title eq '001Title1';
+		ok $cd2->title eq '001Title2';
+		ok $cd3->title eq '001Title3';
+	}
+	
+	ARTIST3CDS: {
+	
+		my ($cd1) = $artist3->cds->search(undef, {order_by=>'year ASC'});
+		
+		isa_ok $cd1, 'DBICTest::CD';
+
+		ok $cd1->year == 2005;
+		ok $cd1->title eq '003Title1';
+	}	
+}
 
 
 ## ----------------------------------------------------------------------------

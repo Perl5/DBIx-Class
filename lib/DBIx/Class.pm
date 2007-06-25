@@ -222,6 +222,8 @@ jesper: Jesper Krogh
 
 jguenther: Justin Guenther <jguenther@cpan.org>
 
+jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
+
 jshirley: J. Shirley <jshirley@gmail.com>
 
 konobi: Scott McWhirter
