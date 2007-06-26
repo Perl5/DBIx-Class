@@ -49,8 +49,8 @@ L<Carp::Clan/croak>.
 sub throw {
     my ($class, $msg, $stacktrace) = @_;
 
-    # Don't re-encapsulate multiple times
-    die $msg if blessed($msg) && $msg->isa('DBIx::Class::Exception');
+    # Don't re-encapsulate exception objects of any kind
+    die $msg if blessed($msg);
 
     # use Carp::Clan's croak if we're not stack tracing
     if(!$stacktrace) {
