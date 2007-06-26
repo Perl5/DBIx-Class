@@ -22,17 +22,25 @@ sub many_to_many {
     my $add_meth = "add_to_${meth}";
     my $remove_meth = "remove_from_${meth}";
     my $set_meth = "set_${meth}";
+    my $rs_meth = "${meth}_rs";
 
     $rel_attrs->{alias} ||= $f_rel;
 
-    *{"${class}::${meth}"} = sub {
+    *{"${class}::${meth}_rs"} = sub {
       my $self = shift;
       my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
       my @args = ($f_rel, @_ > 0 ? @_ : undef, { %{$rel_attrs||{}}, %$attrs });
-      $self->search_related($rel)->search_related(
+      my $rs = $self->search_related($rel)->search_related(
         $f_rel, @_ > 0 ? @_ : undef, { %{$rel_attrs||{}}, %$attrs }
       );
+	  return $rs;
     };
+
+	*{"${class}::${meth}"} = sub {
+		my $self = shift;
+		my $rs = $self->$rs_meth( @_ );
+  		return (wantarray ? $rs->all : $rs);
+	};
 
     *{"${class}::${add_meth}"} = sub {
       my $self = shift;
