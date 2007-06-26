@@ -62,6 +62,7 @@ sub many_to_many {
       $link->set_from_related($f_rel, $obj);
       $link->set_columns($link_vals);
       $link->insert();
+	  return $obj;
     };
 
     *{"${class}::${set_meth}"} = sub {
