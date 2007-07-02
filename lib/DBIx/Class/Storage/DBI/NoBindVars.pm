@@ -42,17 +42,21 @@ sub _prep_for_execute {
 
   # stringify args, quote via $dbh, and manually insert
 
+  my @sql_part = split /\?/, $sql;
+  my $new_sql;
+
   foreach my $bound (@$bind) {
     shift @$bound;
     foreach my $data (@$bound) {
         if(ref $data) {
             $data = ''.$data;
         }
-        $sql =~ s/\?/$self->_dbh->quote($data)/e;
+        $new_sql .= shift(@sql_part) . $self->_dbh->quote($data);
     }
   }
+  $new_sql .= join '', @sql_part;
 
-  return ($sql);
+  return ($new_sql);
 }
 
 =head1 AUTHORS

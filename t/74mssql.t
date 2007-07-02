@@ -12,7 +12,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-plan tests => 4;
+plan tests => 5;
 
 my $storage_type = '::DBI::MSSQL';
 $storage_type = '::DBI::Sybase::MSSQL' if $dsn =~ /^dbi:Sybase:/;
@@ -28,6 +28,7 @@ $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
     DROP TABLE artist");
 
 $dbh->do("CREATE TABLE artist (artistid INT IDENTITY PRIMARY KEY, name VARCHAR(255));");
+$dbh->do("CREATE TABLE cd (cdid INT IDENTITY PRIMARY KEY, artist INT,  title VARCHAR(100), year VARCHAR(100));");
 
 # Just to test compat shim, Auto is in Core
 $schema->class('Artist')->load_components('PK::Auto::MSSQL');
@@ -48,6 +49,14 @@ my $it = $schema->resultset('Artist')->search( { },
     }
 );
 
+# Test ? in data don't get treated as placeholders
+my $cd = $schema->resultset('CD')->create( {
+    artist      => 1,
+    title       => 'Does this break things?',
+    year        => 2007,
+} );
+ok($cd->id, 'Not treating ? in data as placeholders');
+
 is( $it->count, 3, "LIMIT count ok" );
 ok( $it->next->name, "iterator->next ok" );
 $it->next;
@@ -57,5 +66,7 @@ is( $it->next, undef, "next past end of resultset ok" );
 # clean up our mess
 END {
     $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL DROP TABLE artist")
+        if $dbh;
+    $dbh->do("IF OBJECT_ID('cd', 'U') IS NOT NULL DROP TABLE cd")
         if $dbh;
 }
