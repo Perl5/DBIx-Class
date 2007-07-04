@@ -121,11 +121,11 @@ sub _recurse_fields {
   return $$fields if $ref eq 'SCALAR';
 
   if ($ref eq 'ARRAY') {
-		return join(', ', map {
+    return join(', ', map {
       $self->_recurse_fields($_)
-				.(exists $self->{rownum_hack_count} && !($params && $params->{no_rownum_hack})
-					? ' AS col'.$self->{rownum_hack_count}++
-					: '')
+        .(exists $self->{rownum_hack_count} && !($params && $params->{no_rownum_hack})
+          ? ' AS col'.$self->{rownum_hack_count}++
+          : '')
       } @$fields);
   } elsif ($ref eq 'HASH') {
     foreach my $func (keys %$fields) {
@@ -142,7 +142,7 @@ sub _order_by {
   if (ref $_[0] eq 'HASH') {
     if (defined $_[0]->{group_by}) {
       $ret = $self->_sqlcase(' group by ')
-               .$self->_recurse_fields($_[0]->{group_by}, { no_rownum_hack => 1 });
+        .$self->_recurse_fields($_[0]->{group_by}, { no_rownum_hack => 1 });
     }
     if (defined $_[0]->{having}) {
       my $frag;

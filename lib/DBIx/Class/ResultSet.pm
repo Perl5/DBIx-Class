@@ -1795,9 +1795,14 @@ sub _resolve_from {
   my $join = ($attrs->{join}
                ? [ $attrs->{join}, $extra_join ]
                : $extra_join);
+
+  # we need to take the prefetch the attrs into account before we 
+  # ->resolve_join as otherwise they get lost - captainL
+  my $merged = $self->_merge_attr( $join, $attrs->{prefetch} );
+
   $from = [
     @$from,
-    ($join ? $source->resolve_join($join, $attrs->{alias}, $seen) : ()),
+    ($join ? $source->resolve_join($merged, $attrs->{alias}, $seen) : ()),
   ];
 
   return ($from,$seen);
@@ -1858,6 +1863,7 @@ sub _resolved_attrs {
       $join = $self->_merge_attr(
         $join, $attrs->{prefetch}
       );
+      
     }
 
     $attrs->{from} =   # have to copy here to avoid corrupting the original
@@ -1865,6 +1871,7 @@ sub _resolved_attrs {
         @{$attrs->{from}}, 
         $source->resolve_join($join, $alias, { %{$attrs->{seen_join}||{}} })
       ];
+
   }
 
   $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
@@ -1901,48 +1908,108 @@ sub _resolved_attrs {
   return $self->{_attrs} = $attrs;
 }
 
+sub _rollout_attr {
+  my ($self, $attr) = @_;
+  
+  if (ref $attr eq 'HASH') {
+    return $self->_rollout_hash($attr);
+  } elsif (ref $attr eq 'ARRAY') {
+    return $self->_rollout_array($attr);
+  } else {
+    return [$attr];
+  }
+}
+
+sub _rollout_array {
+  my ($self, $attr) = @_;
+
+  my @rolled_array;
+  foreach my $element (@{$attr}) {
+    if (ref $element eq 'HASH') {
+      push( @rolled_array, @{ $self->_rollout_hash( $element ) } );
+    } elsif (ref $element eq 'ARRAY') {
+      #  XXX - should probably recurse here
+      push( @rolled_array, @{$self->_rollout_array($element)} );
+    } else {
+      push( @rolled_array, $element );
+    }
+  }
+  return \@rolled_array;
+}
+
+sub _rollout_hash {
+  my ($self, $attr) = @_;
+
+  my @rolled_array;
+  foreach my $key (keys %{$attr}) {
+    push( @rolled_array, { $key => $attr->{$key} } );
+  }
+  return \@rolled_array;
+}
+
+sub _calculate_score {
+  my ($self, $a, $b) = @_;
+
+  if (ref $b eq 'HASH') {
+    my ($b_key) = keys %{$b};
+    if (ref $a eq 'HASH') {
+      my ($a_key) = keys %{$a};
+      if ($a_key eq $b_key) {
+        return (1 + $self->_calculate_score( $a->{$a_key}, $b->{$b_key} ));
+      } else {
+        return 0;
+      }
+    } else {
+      return ($a eq $b_key) ? 1 : 0;
+    }       
+  } else {
+    if (ref $a eq 'HASH') {
+      my ($a_key) = keys %{$a};
+      return ($b eq $a_key) ? 1 : 0;
+    } else {
+      return ($b eq $a) ? 1 : 0;
+    }
+  }
+}
+
 sub _merge_attr {
   my ($self, $a, $b) = @_;
+
   return $b unless defined($a);
   return $a unless defined($b);
   
-  if (ref $b eq 'HASH' && ref $a eq 'HASH') {
-    foreach my $key (keys %{$b}) {
-      if (exists $a->{$key}) {
-        $a->{$key} = $self->_merge_attr($a->{$key}, $b->{$key});
-      } else {
-        $a->{$key} = $b->{$key};
+  $a = $self->_rollout_attr($a);
+  $b = $self->_rollout_attr($b);
+
+  my $seen_keys;
+  foreach my $b_element ( @{$b} ) {
+    # find best candidate from $a to merge $b_element into
+    my $best_candidate = { position => undef, score => 0 }; my $position = 0;
+    foreach my $a_element ( @{$a} ) {
+      my $score = $self->_calculate_score( $a_element, $b_element );
+      if ($score > $best_candidate->{score}) {
+        $best_candidate->{position} = $position;
+        $best_candidate->{score} = $score;
+      }
+      $position++;
+    }
+    my ($b_key) = ( ref $b_element eq 'HASH' ) ? keys %{$b_element} : ($b_element);
+    if ($best_candidate->{score} == 0 || exists $seen_keys->{$b_key}) {
+      push( @{$a}, $b_element );
+    } else {
+      $seen_keys->{$b_key} = 1; # don't merge the same key twice
+      my $a_best = $a->[$best_candidate->{position}];
+      # merge a_best and b_element together and replace original with merged
+      if (ref $a_best ne 'HASH') {
+        $a->[$best_candidate->{position}] = $b_element;
+      } elsif (ref $b_element eq 'HASH') {
+        my ($key) = keys %{$a_best};
+        $a->[$best_candidate->{position}] = { $key => $self->_merge_attr($a_best->{$key}, $b_element->{$key}) };
       }
     }
-    return $a;
-  } else {
-    $a = [$a] unless ref $a eq 'ARRAY';
-    $b = [$b] unless ref $b eq 'ARRAY';
-
-    my $hash = {};
-    my @array;
-    foreach my $x ($a, $b) {
-      foreach my $element (@{$x}) {
-        if (ref $element eq 'HASH') {
-          $hash = $self->_merge_attr($hash, $element);
-        } elsif (ref $element eq 'ARRAY') {
-          push(@array, @{$element});
-        } else {
-          push(@array, $element) unless $b == $x
-            && grep { $_ eq $element } @array;
-        }
-      }
-    }
-    
-    @array = grep { !exists $hash->{$_} } @array;
-
-    return keys %{$hash}
-      ? ( scalar(@array)
-            ? [$hash, @array]
-            : $hash
-        )
-      : \@array;
   }
+
+  return $a;
 }
 
 sub result_source {
