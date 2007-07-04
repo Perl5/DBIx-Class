@@ -150,9 +150,7 @@ sub insert {
   my %related_stuff = (%{$self->{_relationship_data} || {}}, 
                        %{$self->{_inflated_column} || {}});
 
-  if(!$self->{_rel_in_storage})
-  {
-
+  if(!$self->{_rel_in_storage}) {
     $source->storage->txn_begin;
 
     # The guard will save us if we blow out of this scope via die
@@ -208,8 +206,7 @@ sub insert {
     $self->store_column($auto_pri[$_] => $ids[$_]) for 0 .. $#ids;
   }
 
-  if(!$self->{_rel_in_storage})
-  {
+  if(!$self->{_rel_in_storage}) {
     ## Now do the has_many rels, that need $selfs ID.
     foreach my $relname (keys %related_stuff) {
       my $rel_obj = $related_stuff{$relname};
