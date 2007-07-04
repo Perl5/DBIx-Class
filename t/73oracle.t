@@ -11,7 +11,7 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   'Warning: This test drops and creates tables called \'artist\', \'cd\' and \'track\''
   unless ($dsn && $user && $pass);
 
-plan tests => 6;
+plan tests => 7;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -26,7 +26,7 @@ eval {
 $dbh->do("CREATE SEQUENCE artist_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE TABLE artist (artistid NUMBER(12), name VARCHAR(255))");
 $dbh->do("CREATE TABLE cd (cdid NUMBER(12), artist NUMBER(12), title VARCHAR(255), year VARCHAR(4))");
-$dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255))");
+$dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255), last_updated_on DATE)");
 
 $dbh->do("ALTER TABLE artist ADD (CONSTRAINT artist_pk PRIMARY KEY (artistid))");
 $dbh->do(qq{
@@ -88,6 +88,12 @@ is( $it->next->name, "Artist 2", "iterator->next ok" );
 $it->next;
 $it->next;
 is( $it->next, undef, "next past end of resultset ok" );
+
+{
+  my $rs = $schema->resultset('Track')->search( undef, { columns=>[qw/trackid position/], group_by=> [ qw/trackid position/ ] , rows => 2, offset=>1 });
+  my @results = $rs->all;
+  is( scalar @results, 1, "Group by with limit OK" );
+}
 
 # clean up our mess
 END {

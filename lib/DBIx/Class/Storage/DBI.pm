@@ -115,18 +115,18 @@ sub _emulate_limit {
 }
 
 sub _recurse_fields {
-  my ($self, $fields) = @_;
+  my ($self, $fields, $params) = @_;
   my $ref = ref $fields;
   return $self->_quote($fields) unless $ref;
   return $$fields if $ref eq 'SCALAR';
 
   if ($ref eq 'ARRAY') {
-    return join(', ', map {
+		return join(', ', map {
       $self->_recurse_fields($_)
-      .(exists $self->{rownum_hack_count}
-         ? ' AS col'.$self->{rownum_hack_count}++
-         : '')
-     } @$fields);
+				.(exists $self->{rownum_hack_count} && !($params && $params->{no_rownum_hack})
+					? ' AS col'.$self->{rownum_hack_count}++
+					: '')
+      } @$fields);
   } elsif ($ref eq 'HASH') {
     foreach my $func (keys %$fields) {
       return $self->_sqlcase($func)
@@ -142,7 +142,7 @@ sub _order_by {
   if (ref $_[0] eq 'HASH') {
     if (defined $_[0]->{group_by}) {
       $ret = $self->_sqlcase(' group by ')
-               .$self->_recurse_fields($_[0]->{group_by});
+               .$self->_recurse_fields($_[0]->{group_by}, { no_rownum_hack => 1 });
     }
     if (defined $_[0]->{having}) {
       my $frag;
