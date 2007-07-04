@@ -4,7 +4,6 @@ name     'DBIx-Class';
 perl_version '5.006001';
 all_from 'lib/DBIx/Class.pm';
 
-requires 'Cwd'                       => 3.19; 
 requires 'Data::Page'                => 2.00;
 requires 'Scalar::Util'              => 0;
 requires 'SQL::Abstract'             => 1.20;

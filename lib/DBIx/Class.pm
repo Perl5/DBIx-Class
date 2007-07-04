@@ -151,14 +151,16 @@ support for SQLite, MySQL, PostgreSQL, Oracle, SQL Server and DB2 and is
 known to be used in production on at least the first four, and is fork-
 and thread-safe out of the box (although your DBD may not be).
 
-This project is still under rapid development, so features added in the
-latest major release may not work 100% yet -- check the Changes if you run
-into trouble, and beware of anything explicitly marked EXPERIMENTAL. Failing
-test cases are *always* welcome and point releases are put out rapidly as
-bugs are found and fixed.
+This project is still under rapid development, so large new features may be
+marked EXPERIMENTAL - such APIs are still usable but may have edge bugs.
+Failing test cases are *always* welcome and point releases are put out rapidly
+as bugs are found and fixed.
 
-Even so, we do our best to maintain full backwards compatibility for published
-APIs, since DBIx::Class is used in production in a number of organisations.
+We do our best to maintain full backwards compatibility for published
+APIs, since DBIx::Class is used in production in many organisations,
+and even backwards incompatible changes to non-published APIs will be fixed
+if they're reported and doing so doesn't cost the codebase anything.
+
 The test suite is quite substantial, and several developer releases are
 generally made to CPAN before the -current branch is merged back to trunk for
 a major release.
@@ -168,8 +170,6 @@ The community can be found via:
   Mailing list: http://lists.rawmode.org/mailman/listinfo/dbix-class/
 
   SVN: http://dev.catalyst.perl.org/repos/bast/trunk/DBIx-Class/
-
-  Wiki: http://dbix-class.shadowcatsystems.co.uk/
 
   IRC: irc.perl.org#dbix-class
 
@@ -181,6 +181,9 @@ the modules where you will find documentation.
 =head1 AUTHOR
 
 mst: Matt S. Trout <mst@shadowcatsystems.co.uk>
+
+(I mostly consider myself "project founder" these days but the AUTHOR heading
+is traditional :)
 
 =head1 CONTRIBUTORS
 

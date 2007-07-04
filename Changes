@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - Unmarked deploy as experimental since it isn't anymore
+        - Removed Cwd dep since it's not required and causes problems
+          with debian packaging
         - Patch to fix ? in data for NoBindVars (from Tom Hukins)
         - Restored mk_classaccessor method for compatibility
 

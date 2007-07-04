@@ -928,7 +928,7 @@ sub throw_exception {
     if !$self->exception_action || !$self->exception_action->(@_);
 }
 
-=head2 deploy (EXPERIMENTAL)
+=head2 deploy
 
 =over 4
 
@@ -937,10 +937,6 @@ sub throw_exception {
 =back
 
 Attempts to deploy the schema to the current storage using L<SQL::Translator>.
-
-Note that this feature is currently EXPERIMENTAL and may not work correctly
-across all databases, or fully handle complex relationships. Saying that, it
-has been used successfully by many people, including the core dev team.
 
 See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>. The most
 common value for this would be C<< { add_drop_table => 1, } >> to have the SQL
