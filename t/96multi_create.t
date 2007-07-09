@@ -120,3 +120,10 @@ CREATE_RELATED2 :{
 		ok( $track && ref $track eq 'DBICTest::Track', 'Got Expected Track Class');
 	}
 }
+
+my $cdp = $schema->resultset('CD_to_Producer')->create({
+            cd => { artist => 1, title => 'foo', year => 2000 },
+            producer => { name => 'jorge' }
+          });
+
+ok($cdp, 'join table record created ok');
