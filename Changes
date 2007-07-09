@@ -5,6 +5,9 @@ Revision history for DBIx::Class
           with debian packaging
         - Patch to fix ? in data for NoBindVars (from Tom Hukins)
         - Restored mk_classaccessor method for compatibility
+        - Fixed group_by problem with oracle limit syntax
+        - Fixed attr merging problem
+        - Fixed $rs->get_column w/prefetch  problem
 
 0.08002 2007-06-20 06:10:00
         - add scope guard to Row::insert to ensure rollback gets called

@@ -35,7 +35,9 @@ passed as params. Used internally by L<DBIx::Class::ResultSet/get_column>.
 sub new {
   my ($class, $rs, $column) = @_;
   $class = ref $class if ref $class;
-  my $new = bless { _column => $column, _parent_resultset => $rs }, $class;
+  my $new_parent_rs = $rs->search_rs; # we don't want to mess up the original, so clone it
+  $new_parent_rs->{attrs}->{prefetch} = undef; # prefetch causes additional columns to be fetched
+  my $new = bless { _column => $column, _parent_resultset => $new_parent_rs }, $class;
   $new->throw_exception("column must be supplied") unless $column;
   return $new;
 }

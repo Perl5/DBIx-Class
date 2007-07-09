@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 8; 
+plan tests => 9; 
 
 my $cd;
 my $rs = $cd = $schema->resultset("CD")->search({});
@@ -42,3 +42,8 @@ $psrs = $schema->resultset('CD')->search({},
 ok(defined($psrs->get_column('count')), '+select/+as arrayref count');
 ok(defined($psrs->get_column('addedtitle')), '+select/+as title');
 
+{
+  my $rs = $schema->resultset("CD")->search({}, { prefetch => 'artist' });
+  my $rsc = $rs->get_column('year');
+  is( $rsc->{_parent_resultset}->{attrs}->{prefetch}, undef, 'prefetch wiped' );
+}
