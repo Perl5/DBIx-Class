@@ -5,7 +5,6 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 use Test::More;
-use Data::Dumper;
 
 plan tests => 14;
 

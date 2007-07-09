@@ -4,7 +4,6 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use Data::Dumper;
 my $schema = DBICTest->init_schema();
 
 plan tests => 20;
@@ -41,16 +40,11 @@ my @artists = $rs1->all;
 cmp_ok(@artists, '==', 2, "Two artists returned");
 
 my $rs2 = $rs1->search({ artistid => '1' }, { join => {'cds' => {'cd_to_producer' => 'producer'} } });
-use Data::Dumper; print "attrs: " . Dumper($rs1->{attrs}) ;
-use Data::Dumper; print "attrs: " . Dumper($rs2->{attrs}) ;
-
 my @artists2 = $rs2->search({ 'producer.name' => 'Matt S Trout' });
 my @cds = $artists2[0]->cds;
 cmp_ok(scalar @cds, '==', 1, "condition based on inherited join okay");
 
 my $rs3 = $rs2->search_related('cds');
-use Data::Dumper; print "attrs: " . Dumper($rs2->{attrs}) ;
-use Data::Dumper; print "attrs: " . Dumper($rs3->{attrs}) ;
 cmp_ok(scalar($rs3->all), '==', 45, "All cds for artist returned");
 
 
