@@ -66,9 +66,8 @@ sub many_to_many {
       }
 
       my $link_vals = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
-      my $link = $self->search_related($rel)->new_result({});
+      my $link = $self->search_related($rel)->new_result($link_vals);
       $link->set_from_related($f_rel, $obj);
-      $link->set_columns($link_vals);
       $link->insert();
 	  return $obj;
     };
