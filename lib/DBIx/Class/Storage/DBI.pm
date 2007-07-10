@@ -1200,7 +1200,7 @@ sub bind_attribute_by_data_type {
     return;
 }
 
-=head2 create_ddl_dir (EXPERIMENTAL)
+=head2 create_ddl_dir
 
 =over 4
 
@@ -1210,9 +1210,6 @@ sub bind_attribute_by_data_type {
 
 Creates a SQL file based on the Schema, for each of the specified
 database types, in the given directory.
-
-Note that this feature is currently EXPERIMENTAL and may not work correctly
-across all databases, or fully handle complex relationships.
 
 =cut
 
