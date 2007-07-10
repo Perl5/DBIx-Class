@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - fixed up multi_create to be more intelligent about PK<->PK rels
         - fix many-many rels to not use set_columns
         - Unmarked deploy as experimental since it isn't anymore
         - Removed Cwd dep since it's not required and causes problems
