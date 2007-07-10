@@ -1331,11 +1331,7 @@ sub populate {
     }
 
     ## do bulk insert on current row
-    my @values = map {
-      [ map {
-         defined $_ ? $_ : $self->throw_exception("Undefined value for column!")
-      } @$_{@names} ]
-    } @$data;
+    my @values = map { [ @$_{@names} ] } @$data;
 
     $self->result_source->storage->insert_bulk(
       $self->result_source, 
