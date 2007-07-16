@@ -1428,7 +1428,10 @@ Returns the datetime parser class
 
 sub datetime_parser {
   my $self = shift;
-  return $self->{datetime_parser} ||= $self->build_datetime_parser(@_);
+  return $self->{datetime_parser} ||= do {
+    $self->ensure_connected;
+    $self->build_datetime_parser(@_);
+  };
 }
 
 =head2 datetime_parser_type

@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - rebless before building datetime_parser
+          (patch from mattlaw / Matt Lawrence)
+
 0.08003 2007-07-14 18:01:00
         - improved populate bulk_insert mode
         - fixed up multi_create to be more intelligent about PK<->PK rels

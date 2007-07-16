@@ -233,6 +233,8 @@ konobi: Scott McWhirter
 
 LTJake: Brian Cassidy <bricas@cpan.org>
 
+mattlaw: Matt Lawrence
+
 ned: Neil de Carteret
 
 nigel: Nigel Metheringham <nigelm@cpan.org>

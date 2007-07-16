@@ -27,10 +27,22 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
  . ' (note: creates and drops tables named artist and casecheck!)' unless ($dsn && $user);
 
-plan tests => 8;
+plan tests => 10;
 
 DBICTest::Schema->load_classes( 'Casecheck' );
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+
+# Check that datetime_parser returns correctly before we explicitly connect.
+SKIP: {
+    eval { require DateTime::Format::Pg };
+    skip "DateTime::Format::Pg required", 2 if $@;
+
+    my $store = ref $schema->storage;
+    is($store, 'DBIx::Class::Storage::DBI', 'Started with generic storage');
+
+    my $parser = $schema->storage->datetime_parser;
+    is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
+}
 
 my $dbh = $schema->storage->dbh;
 $schema->source("Artist")->name("testschema.artist");
