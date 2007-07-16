@@ -22,7 +22,7 @@ requires 'Scope::Guard'              => 0.03;
 requires 'Encode'                    => 0 if ($] <= 5.008000);  
 
 build_requires 'DBD::SQLite'         => 1.11;
-build_requires 'Test::Builder'         => 0.70;
+build_requires 'Test::Builder'       => 0.33;
 
 install_script 'script/dbicadmin';
 

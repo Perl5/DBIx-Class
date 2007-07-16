@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+0.08003 2007-07-14 18:01:00
+        - improved populate bulk_insert mode
         - fixed up multi_create to be more intelligent about PK<->PK rels
         - fix many-many rels to not use set_columns
         - Unmarked deploy as experimental since it isn't anymore
