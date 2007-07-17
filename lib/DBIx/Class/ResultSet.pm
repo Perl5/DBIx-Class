@@ -938,6 +938,7 @@ sub count {
   $count -= $self->{_attrs}{offset} if $self->{_attrs}{offset};
   $count = $self->{attrs}{rows} if
     $self->{attrs}{rows} and $self->{attrs}{rows} < $count;
+  $count = 0 if ($count < 0);
   return $count;
 }
 

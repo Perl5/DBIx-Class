@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - count no longer returns negative values after slice
+          (report and test from JOHANL)
         - rebless before building datetime_parser
           (patch from mattlaw / Matt Lawrence)
 

@@ -16,7 +16,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 63 );
+        : ( tests => 64 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -145,6 +145,9 @@ $rs = $schema->resultset("CD")->search(
     { join => [qw/artist/], order_by => 'artist.name' }
 );
 cmp_ok( scalar $rs->all, '==', scalar $rs->slice(0, $rs->count - 1), 'slice() with join has same count as all()' );
+
+ok(!$rs->slice($rs->count+1000, $rs->count+1002)->count,
+  'Slicing beyond end of rs returns a zero count');
 
 $rs = $schema->resultset("Artist")->search(
         { 'liner_notes.notes' => 'Kill Yourself!' },
