@@ -32,7 +32,7 @@ use DBICTest;
     }
 }
 
-plan tests => 5;
+plan tests => 6;
 
 my $schema = DBICTest->init_schema();
 
@@ -64,5 +64,10 @@ is($@, "", "Exploding \$sth->execute was caught");
 is(1, $schema->resultset('Artist')->search({name => "Exploding Sheep" })->count,
   "And the STH was retired");
 
+my $info = { on_connect_do => [] };
+
+$storage->connect_info(['foo','bar','baz',$info]);
+
+ok(exists($info->{on_connect_do}), q{Didn't kill key passed to storage});
 
 1;
