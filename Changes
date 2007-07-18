@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+	- ensure_class_loaded handles non-classnames better.
         - non-destructive hashref handling for connect_info options
         - count no longer returns negative values after slice
           (report and test from JOHANL)

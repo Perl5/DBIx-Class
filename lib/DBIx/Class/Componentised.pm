@@ -69,6 +69,9 @@ sub _load_components {
 #      require
 sub ensure_class_loaded {
   my ($class, $f_class) = @_;
+
+  croak "Invalid class name $f_class"
+      if ($f_class=~m/(?:\b:\b|\:{3,})/);
   return if Class::Inspector->loaded($f_class);
   eval "require $f_class"; # require needs a bareword or filename
   if ($@) {
