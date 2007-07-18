@@ -614,7 +614,7 @@ documentation. See also L<DBIx::Class::Manual::Component> for more
 ways to write your own base classes to do this.
 
 People looking for ways to do "triggers" with DBIx::Class are probably
-just looking for this.
+just looking for this. 
 
 =head2 Stringification
 
@@ -847,9 +847,10 @@ generator to put the quotes the correct place.
 
 =head2 Overloading methods
 
-L<DBIx::Class> uses the L<Class::C3> package, which provides for redispatch of 
-method calls.  You have to use calls to C<next::method> to overload methods.  
-More information on using L<Class::C3> with L<DBIx::Class> can be found in 
+L<DBIx::Class> uses the L<Class::C3> package, which provides for redispatch of
+method calls, useful for things like default values and triggers. You have to
+use calls to C<next::method> to overload methods. More information on using
+L<Class::C3> with L<DBIx::Class> can be found in
 L<DBIx::Class::Manual::Component>.
 
 =head3 Changing one field whenever another changes
