@@ -2,6 +2,7 @@ Revision history for DBIx::Class
 
         - DBIx::Class::AccessorGroup made empty subclass of
           Class::Accessor::Grouped
+        - fixed an ugly bug regarding $dbh->{AutoCommit} and transactions
         - ensure_class_loaded handles non-classnames better.
         - non-destructive hashref handling for connect_info options
         - count no longer returns negative values after slice
