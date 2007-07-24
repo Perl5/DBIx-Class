@@ -139,10 +139,10 @@ generate a new key value. If not specified, L<DBIx::Class::PK::Auto>
 will attempt to retrieve the name of the sequence from the database
 automatically.
 
-=item extras
+=item extra
 
 This is used by L<DBIx::Class::Schema/deploy> and L<SQL::Translator>
-to add extra non-generic data to the column. For example: C<< extras
+to add extra non-generic data to the column. For example: C<< extra
 => { unsigned => 1} >> is used by the MySQL producer to set an integer
 column to unsigned. For more details, see
 L<SQL::Translator::Producer::MySQL>.
