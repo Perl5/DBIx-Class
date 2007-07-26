@@ -76,8 +76,10 @@ sub new {
           my $rel_obj = delete $attrs->{$key};
           if(!Scalar::Util::blessed($rel_obj)) {
             $rel_obj = $new->find_or_new_related($key, $rel_obj);
-            $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
           }
+
+          $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
+
           $new->set_from_related($key, $rel_obj);        
           $related->{$key} = $rel_obj;
           next;
@@ -90,6 +92,8 @@ sub new {
               $rel_obj = $new->new_related($key, $rel_obj);
               $new->{_rel_in_storage} = 0;
             }
+
+            $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
           }
           $related->{$key} = $others;
           next;

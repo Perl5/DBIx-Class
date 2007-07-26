@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
-
+        - fix bug with create_multi not inserting non-storage objects
+          (test and fix from davinchi)
         - DBIx::Class::AccessorGroup made empty subclass of
           Class::Accessor::Grouped
         - fixed an ugly bug regarding $dbh->{AutoCommit} and transactions

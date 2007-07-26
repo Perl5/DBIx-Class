@@ -127,3 +127,37 @@ my $cdp = $schema->resultset('CD_to_Producer')->create({
           });
 
 ok($cdp, 'join table record created ok');
+
+SPECIAL_CASE: {
+  my $kurt_cobain = { name => 'Kurt Cobain' };
+
+  my $in_utero = $schema->resultset('CD')->new({
+      title => 'In Utero',
+      year  => 1993
+    });
+
+  $kurt_cobain->{cds} = [ $in_utero ];
+
+
+  $schema->resultset('Artist')->populate([ $kurt_cobain ]); # %)
+  $a = $schema->resultset('Artist')->find({name => 'Kurt Cobain'});
+
+  is($a->name, 'Kurt Cobain', 'Artist insertion ok');
+  is($a->cds && $a->cds->first && $a->cds->first->title, 
+		  'In Utero', 'CD insertion ok');
+}
+
+SPECIAL_CASE2: {
+  my $pink_floyd = { name => 'Pink Floyd' };
+
+  my $the_wall = { title => 'The Wall', year  => 1979 };
+
+  $pink_floyd->{cds} = [ $the_wall ];
+
+
+  $schema->resultset('Artist')->populate([ $pink_floyd ]); # %)
+  $a = $schema->resultset('Artist')->find({name => 'Pink Floyd'});
+
+  is($a->name, 'Pink Floyd', 'Artist insertion ok');
+  is($a->cds && $a->cds->first->title, 'The Wall', 'CD insertion ok');
+}
