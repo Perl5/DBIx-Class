@@ -67,16 +67,4 @@ sub inflate_result {
   return $new;
 }
 
-sub discard_changes {
-  my ($self) = @_;
-  if (my $key = $self->ID) {
-    $self->remove_from_object_index;
-    my $ret = $self->next::method;
-    $self->live_object_index->{$key} = $self if $self->in_storage;
-    return $ret;
-  } else {
-    return $self->next::method;
-  }
-}
-
 1;

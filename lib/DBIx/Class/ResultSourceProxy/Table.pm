@@ -12,6 +12,42 @@ __PACKAGE__->mk_classdata(table_class => 'DBIx::Class::ResultSource::Table');
 __PACKAGE__->mk_classdata('table_alias'); # FIXME: Doesn't actually do
                                           # anything yet!
 
+sub _init_result_source_instance {
+    my $class = shift;
+
+    $class->mk_classdata('result_source_instance')
+        unless $class->can('result_source_instance');
+
+    my $table = $class->result_source_instance;
+    my $class_has_table_instance = ($table and $table->result_class eq $class);
+    return $table if $class_has_table_instance;
+
+    if( $table ) {
+        $table = $class->table_class->new({
+            %$table,
+            result_class => $class,
+            source_name => undef,
+            schema => undef
+        });
+    }
+    else {
+        $table = $class->table_class->new({
+            name            => undef,
+            result_class    => $class,
+            source_name     => undef,
+        });
+    }
+
+    $class->result_source_instance($table);
+
+    if ($class->can('schema_instance')) {
+        $class =~ m/([^:]+)$/;
+        $class->schema_instance->register_class($class, $class);
+    }
+
+    return $table;
+}
+
 =head1 NAME
 
 DBIx::Class::ResultSourceProxy::Table - provides a classdata table
@@ -47,7 +83,7 @@ sub table {
   unless (ref $table) {
     $table = $class->table_class->new({
         $class->can('result_source_instance') ?
-          %{$class->result_source_instance} : (),
+          %{$class->result_source_instance||{}} : (),
         name => $table,
         result_class => $class,
         source_name => undef,

@@ -288,7 +288,8 @@ L<DBIx::Class::Row/insert> on it.
 
 sub find_or_new_related {
   my $self = shift;
-  return $self->find_related(@_) || $self->new_related(@_);
+  my $obj = $self->find_related(@_);
+  return defined $obj ? $obj : $self->new_related(@_);
 }
 
 =head2 find_or_create_related

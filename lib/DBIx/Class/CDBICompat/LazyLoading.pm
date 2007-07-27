@@ -22,6 +22,28 @@ sub get_column {
   $self->next::method(@_[1..$#_]);
 }
 
+# CDBI does not explicitly declare auto increment columns, so
+# we just clear out our primary columns before copying.
+sub copy {
+  my($self, $changes) = @_;
+
+  for my $col ($self->primary_columns) {
+    $changes->{$col} = undef unless exists $changes->{$col};
+  }
+  
+  return $self->next::method($changes);
+}
+
+sub discard_changes {
+  my($self) = shift;
+
+  delete $self->{_column_data}{$_} for $self->is_changed;
+  delete $self->{_dirty_columns};
+  delete $self->{_relationship_data};
+
+  return $self;
+}
+
 sub _ident_cond {
   my ($class) = @_;
   return join(" AND ", map { "$_ = ?" } $class->primary_columns);

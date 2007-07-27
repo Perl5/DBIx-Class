@@ -48,7 +48,9 @@ sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
 
-  my $new = { _column_data => {} };
+  my $new = {
+      _column_data          => {},
+  };
   bless $new, $class;
 
   if (my $handle = delete $attrs->{-source_handle}) {
@@ -486,6 +488,10 @@ sub set_column {
   my $ret = $self->store_column(@_);
   $self->{_dirty_columns}{$column} = 1
     if (defined $old ^ defined $ret) || (defined $old && $old ne $ret);
+
+  # XXX clear out the relation cache for this column
+  delete $self->{related_resultsets}{$column};
+
   return $ret;
 }
 

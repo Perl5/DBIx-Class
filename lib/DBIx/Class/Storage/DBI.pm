@@ -1027,6 +1027,9 @@ sub _select {
   } else {
     $self->throw_exception("rows attribute must be positive if present")
       if (defined($attrs->{rows}) && !($attrs->{rows} > 0));
+
+    # MySQL actually recommends this approach.  I cringe.
+    $attrs->{rows} = 2**48 if not defined $attrs->{rows} and defined $attrs->{offset};
     push @args, $attrs->{rows}, $attrs->{offset};
   }
   return $self->_execute(@args);

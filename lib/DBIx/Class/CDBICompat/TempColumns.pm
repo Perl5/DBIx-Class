@@ -22,22 +22,41 @@ sub _add_column_group {
 
 sub new {
   my ($class, $attrs, @rest) = @_;
-  my %temp;
-  foreach my $key (keys %$attrs) {
-    $temp{$key} = delete $attrs->{$key} if $class->_temp_columns->{$key};
-  }
+
+  my $temp = $class->_extract_temp_data($attrs);
+
   my $new = $class->next::method($attrs, @rest);
-  foreach my $key (keys %temp) {
-    $new->set_temp($key, $temp{$key});
-  }
+
+  $new->set_temp($_, $temp->{$_}) for keys %$temp;
+
   return $new;
 }
 
+sub _extract_temp_data {
+  my($self, $data) = @_;
+
+  my %temp;
+  foreach my $key (keys %$data) {
+    $temp{$key} = delete $data->{$key} if $self->_temp_columns->{$key};
+  }
+
+  return \%temp;
+}
 
 sub find_column {
   my ($class, $col, @rest) = @_;
   return $col if $class->_temp_columns->{$col};
   return $class->next::method($col, @rest);
+}
+
+sub set {
+  my($self, %data) = @_;
+  
+  my $temp_data = $self->_extract_temp_data(\%data);
+  
+  $self->set_temp($_, $temp_data->{$_}) for keys %$temp_data;
+  
+  return $self->next::method(%data);
 }
 
 sub get_temp {

@@ -8,7 +8,7 @@ BEGIN {
     next;
   }
   eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 17);
+  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 20);
 }
 
 use lib 't/testlib';
@@ -19,6 +19,11 @@ use Actor;
 	my @cols = Film->columns('Essential');
 	is_deeply \@cols, ['title'], "1 Column in essential";
 	is +Film->transform_sql('__ESSENTIAL__'), 'title', '__ESSENTIAL__ expansion';
+	
+	# This provides a more interesting test
+	Film->columns(Essential => qw(title rating));
+	is +Film->transform_sql('__ESSENTIAL__'), 'title, rating',
+	    'multi-col __ESSENTIAL__ expansion';
 }
 
 my $f1 = Film->create({ title => 'A', director => 'AA', rating => 'PG' });
@@ -68,6 +73,22 @@ Film->set_sql(
 };
 
 {
+    Film->set_sql(
+        by_id => qq{
+            SELECT  __ESSENTIAL__
+            FROM    __TABLE__
+            WHERE   __IDENTIFIER__
+        }
+    );
+    
+    my $film = Film->retrieve_all->first;
+    my @found = Film->search_by_id($film->id);
+    is @found, 1;
+    is $found[0]->id, $film->id;
+}
+
+
+{
 	Actor->has_a(film => "Film");
 	Film->set_sql(
 		namerate => qq{
@@ -109,4 +130,3 @@ Film->set_sql(
 	is $apg[1]->title, "B", "and B";
 }
 
-#} # end SKIP block

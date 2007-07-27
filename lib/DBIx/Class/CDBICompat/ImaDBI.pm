@@ -8,7 +8,7 @@ use DBIx::ContextualFetch;
 use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_classdata('_transform_sql_handler_order'
-                            => [ qw/TABLE ESSENTIAL JOIN/ ] );
+                            => [ qw/TABLE ESSENTIAL JOIN IDENTIFIER/ ] );
 
 __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
   {
@@ -24,8 +24,14 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
     'ESSENTIAL' =>
       sub {
         my ($self, $class, $data) = @_;
-        return join(' ', $class->columns('Essential')) unless $data;
-        return join(' ', $self->{_classes}{$data}->columns('Essential'));
+        $class = $data ? $self->{_classes}{$data} : $class;
+        return join(', ', $class->columns('Essential'));
+      },
+    'IDENTIFIER' =>
+      sub {
+        my ($self, $class, $data) = @_;
+        $class = $data ? $self->{_classes}{$data} : $class;
+        return join ' AND ', map  "$_ = ?", $class->primary_columns;
       },
     'JOIN' =>
       sub {

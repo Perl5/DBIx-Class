@@ -43,8 +43,6 @@ sub parse {
 
 #    print Dumper($dbixschema->registered_classes);
 
-    #foreach my $tableclass ($dbixschema->registered_classes)
-
     my %seen_tables;
 
     my @monikers = $dbixschema->sources;

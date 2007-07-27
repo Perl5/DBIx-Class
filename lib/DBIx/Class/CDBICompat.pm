@@ -15,7 +15,6 @@ __PACKAGE__->load_own_components(qw/
   Constraints
   Triggers
   ReadOnly
-  GetSet
   LiveObjectIndex
   AttributeAPI
   Stringify
@@ -26,13 +25,18 @@ __PACKAGE__->load_own_components(qw/
   HasA
   HasMany
   MightHave
+  Copy
   LazyLoading
   AutoUpdate
   TempColumns
+  GetSet
   Retrieve
   Pager
   ColumnGroups
-  ImaDBI/);
+  AbstractSearch
+  ImaDBI
+  Iterator
+/);
 
             #DBIx::Class::ObjIndexStubs
 1;
@@ -73,6 +77,10 @@ provided it looks something like this:
 =over 4
 
 =item AccessorMapping
+
+=item AbstractSearch
+
+Compatibility with Class::DBI::AbstractSearch.
 
 =item AttributeAPI
 

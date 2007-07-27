@@ -4,15 +4,20 @@ use warnings;
 use Storable;
 
 sub STORABLE_freeze {
-    my ($self,$cloning) = @_;
+    my ($self, $cloning) = @_;
     my $to_serialize = { %$self };
+
     delete $to_serialize->{result_source};
-    return (Storable::freeze($to_serialize));
+    delete $to_serialize->{related_resultsets};
+    delete $to_serialize->{_inflated_column};
+
+    return('', $to_serialize);
 }
 
 sub STORABLE_thaw {
-    my ($self,$cloning,$serialized) = @_;
-    %$self = %{ Storable::thaw($serialized) };
+    my ($self, $cloning, $junk, $obj) = @_;
+
+    %$self = %{ $obj };
     $self->result_source($self->result_source_instance)
       if $self->can('result_source_instance');
 }

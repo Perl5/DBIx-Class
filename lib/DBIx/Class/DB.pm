@@ -161,7 +161,7 @@ sub result_source_instance {
   return $class->_result_source_instance(@_) if @_;
 
   my $source = $class->_result_source_instance;
-  return {} unless Scalar::Util::blessed($source);
+  return unless Scalar::Util::blessed($source);
 
   if ($source->result_class ne $class) {
     # Remove old source instance so we dont get deep recursion

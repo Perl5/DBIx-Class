@@ -12,6 +12,8 @@ sub columns {
   my $proto = shift;
   my $class = ref $proto || $proto;
   my $group = shift || "All";
+  $class->_init_result_source_instance();
+
   $class->_add_column_group($group => @_) if @_;
   return $class->all_columns    if $group eq "All";
   return $class->primary_column if $group eq "Primary";
