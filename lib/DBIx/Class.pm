@@ -167,9 +167,9 @@ a major release.
 
 The community can be found via:
 
-  Mailing list: http://lists.rawmode.org/mailman/listinfo/dbix-class/
+  Mailing list: http://lists.scsys.co.uk/mailman/listinfo/dbix-class/
 
-  SVN: http://dev.catalyst.perl.org/repos/bast/trunk/DBIx-Class/
+  SVN: http://dev.catalyst.perl.org/repos/bast/DBIx-Class/
 
   IRC: irc.perl.org#dbix-class
 
