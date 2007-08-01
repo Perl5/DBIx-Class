@@ -42,9 +42,8 @@ default, unless the no_deploy or no_populate flags are set.
 
 =cut
 
-sub init_schema {
+sub _database {
     my $self = shift;
-    my %args = @_;
     my $db_file = "t/var/DBIxClass.db";
 
     unlink($db_file) if -e $db_file;
@@ -55,19 +54,22 @@ sub init_schema {
     my $dbuser = $ENV{"DBICTEST_DBUSER"} || '';
     my $dbpass = $ENV{"DBICTEST_DBPASS"} || '';
 
-    my $schema;
-
     my @connect_info = ($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
 
-    if ($args{compose_connection}) {
-      $schema = DBICTest::Schema->compose_connection(
-                  'DBICTest', @connect_info
-                );
-    } else {
-      $schema = DBICTest::Schema->compose_namespace('DBICTest')
-                                ->connect(@connect_info);
+    return @connect_info;
+}
+
+sub init_schema {
+    my $self = shift;
+    my %args = @_;
+
+    my $schema;
+
+    $schema = DBICTest::Schema->compose_namespace('DBICTest');
+    if ( !$args{no_connect} ) {
+      $schema = $schema->connect($self->_database);
+      $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
     }
-    $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
     if ( !$args{no_deploy} ) {
         __PACKAGE__->deploy_schema( $schema );
         __PACKAGE__->populate_schema( $schema ) if( !$args{no_populate} );

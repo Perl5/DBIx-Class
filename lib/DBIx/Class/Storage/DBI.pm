@@ -14,7 +14,7 @@ use Scalar::Util qw/blessed weaken/;
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
        _conn_pid _conn_tid disable_sth_caching cursor on_connect_do
-       transaction_depth unsafe _dbh_autocommit/
+       on_disconnect_do transaction_depth unsafe _dbh_autocommit/
 );
 
 BEGIN {
@@ -346,9 +346,18 @@ connection-specific options:
 
 =item on_connect_do
 
-This can be set to an arrayref of literal sql statements, which will
-be executed immediately after making the connection to the database
-every time we [re-]connect.
+This can be set to an arrayref containing literal sql statements and
+code references, which will be executed immediately after making the
+connection to the database every time we [re-]connect.
+
+=item on_disconnect_do
+
+As with L<on_connect_do>, this takes an arrayref of literal sql
+statements and code references, but these statements execute immediately
+before disconnecting from the database.
+
+Note, this only runs if you explicitly call L<disconnect> on the
+storage object.
 
 =item disable_sth_caching
 
@@ -480,7 +489,9 @@ sub connect_info {
   my $last_info = $dbi_info->[-1];
   if(ref $last_info eq 'HASH') {
     $last_info = { %$last_info }; # so delete is non-destructive
-    for my $storage_opt (qw/on_connect_do disable_sth_caching unsafe/) {
+    my @storage_option =
+       qw/on_connect_do on_disconnect_do disable_sth_caching unsafe/;
+    for my $storage_opt (@storage_option) {
       if(my $value = delete $last_info->{$storage_opt}) {
         $self->$storage_opt($value);
       }
@@ -647,6 +658,9 @@ sub disconnect {
   my ($self) = @_;
 
   if( $self->connected ) {
+    foreach (@{$self->on_disconnect_do || []}) {
+      $self->_do_query($_);
+    }
     $self->_dbh->rollback unless $self->_dbh_autocommit;
     $self->_dbh->disconnect;
     $self->_dbh(undef);
@@ -738,15 +752,28 @@ sub _populate_dbh {
     }
   }
 
-  # if on-connect sql statements are given execute them
-  foreach my $sql_statement (@{$self->on_connect_do || []}) {
-    $self->debugobj->query_start($sql_statement) if $self->debug();
-    $self->_dbh->do($sql_statement);
-    $self->debugobj->query_end($sql_statement) if $self->debug();
+  foreach (@{$self->on_connect_do || []}) {
+    $self->_do_query($_);
   }
 
   $self->_conn_pid($$);
   $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
+}
+
+sub _do_query {
+  my ($self, $action) = @_;
+
+  # $action contains either an SQL string or a code ref
+  if (ref $action) {
+    $action->($self);
+  }
+  else {
+    $self->debugobj->query_start($action) if $self->debug();
+    $self->_dbh->do($action);
+    $self->debugobj->query_end($action) if $self->debug();
+  }
+
+  return $self;
 }
 
 sub _connect {
