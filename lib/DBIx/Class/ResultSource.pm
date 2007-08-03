@@ -988,7 +988,11 @@ sub resultset {
   ) if scalar @_;
 
   return $self->resultset_class->new(
-    $self, $self->{resultset_attributes}
+    $self,
+    {
+      %{$self->{resultset_attributes}},
+      %{$self->schema->default_resultset_attributes}
+    },
   );
 }
 

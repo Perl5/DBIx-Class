@@ -17,6 +17,7 @@ __PACKAGE__->mk_classdata('storage_type' => '::DBI');
 __PACKAGE__->mk_classdata('storage');
 __PACKAGE__->mk_classdata('exception_action');
 __PACKAGE__->mk_classdata('stacktrace' => $ENV{DBIC_TRACE} || 0);
+__PACKAGE__->mk_classdata('default_resultset_attributes' => {});
 
 =head1 NAME
 
