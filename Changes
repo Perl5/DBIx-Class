@@ -1,4 +1,7 @@
 Revision history for DBIx::Class
+
+        - optimisation in DBI::Cursor to check software_limit before falling
+          back to base Cursor->all
         - fix bug with create_multi not inserting non-storage objects
           (test and fix from davinchi)
         - DBIx::Class::AccessorGroup made empty subclass of
