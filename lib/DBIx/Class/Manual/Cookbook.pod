@@ -294,7 +294,7 @@ it in your C<order_by> attribute:
       join     => [qw/ artist /],
       order_by => [qw/ artist.name /]
     }
-  };
+  );
 
   # Equivalent SQL:
   # SELECT cd.* FROM cd
