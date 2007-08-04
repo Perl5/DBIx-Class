@@ -13,9 +13,11 @@ use Scalar::Util qw/blessed weaken/;
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
-       _conn_pid _conn_tid disable_sth_caching cursor on_connect_do
+       _conn_pid _conn_tid disable_sth_caching on_connect_do
        transaction_depth unsafe _dbh_autocommit/
 );
+
+__PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
 BEGIN {
 
@@ -311,7 +313,6 @@ documents DBI-specific methods and behaviors.
 sub new {
   my $new = shift->next::method(@_);
 
-  $new->cursor("DBIx::Class::Storage::DBI::Cursor");
   $new->transaction_depth(0);
   $new->_sql_maker_opts({});
   $new->{_in_dbh_do} = 0;
@@ -1061,7 +1062,7 @@ Handle a SQL select statement.
 sub select {
   my $self = shift;
   my ($ident, $select, $condition, $attrs) = @_;
-  return $self->cursor->new($self, \@_, $attrs);
+  return $self->cursor_class->new($self, \@_, $attrs);
 }
 
 sub select_single {

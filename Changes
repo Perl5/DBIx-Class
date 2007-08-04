@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - fixup cursor_class to be an 'inherited' attr for per-package defaults
         - add default_resultset_attributes entry to Schema
         - optimisation in DBI::Cursor to check software_limit before falling
           back to base Cursor->all

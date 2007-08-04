@@ -10,6 +10,11 @@ use Carp::Clan qw/^DBIx::Class/;
 use IO::File;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
+__PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
+
+__PACKAGE__->cursor_class('DBIx::Class::Cursor');
+
+sub cursor { shift->cursor_class(@_); }
 
 package # Hide from PAUSE
     DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
@@ -324,13 +329,11 @@ sub debugcb {
     }
 }
 
-=head2 cursor
+=head2 cursor_class
 
 The cursor class for this Storage object.
 
 =cut
-
-sub cursor { die "Virtual method!" }
 
 =head2 deploy
 
