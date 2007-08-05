@@ -481,7 +481,9 @@ sub connect_info {
   my $last_info = $dbi_info->[-1];
   if(ref $last_info eq 'HASH') {
     $last_info = { %$last_info }; # so delete is non-destructive
-    for my $storage_opt (qw/on_connect_do disable_sth_caching unsafe/) {
+    for my $storage_opt (
+        qw/on_connect_do disable_sth_caching unsafe cursor_class/
+      ) {
       if(my $value = delete $last_info->{$storage_opt}) {
         $self->$storage_opt($value);
       }
