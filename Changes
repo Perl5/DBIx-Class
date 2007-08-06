@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.08004 2007-08-06 19:00:00
+        - fix storage connect code to not trigger bug via auto-viv 
+          (test from aherzog)
         - fixup cursor_class to be an 'inherited' attr for per-package defaults
         - add default_resultset_attributes entry to Schema
         - optimisation in DBI::Cursor to check software_limit before falling

@@ -773,7 +773,7 @@ sub _connect {
        $dbh = DBI->connect(@info);
     }
 
-    if(!$self->unsafe) {
+    if($dbh && !$self->unsafe) {
       my $weak_self = $self;
       weaken($weak_self);
       $dbh->{HandleError} = sub {

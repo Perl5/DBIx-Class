@@ -1,11 +1,16 @@
 use strict;
 use warnings;  
 
+use FindBin;
+use File::Copy;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 2;
+plan tests => 5;
+
+my $db_orig = "$FindBin::Bin/var/DBIxClass.db";
+my $db_tmp  = "$db_orig.tmp";
 
 # Set up the "usual" sqlite for DBICTest
 my $schema = DBICTest->init_schema;
@@ -24,3 +29,31 @@ $schema->storage->_dbh->disconnect;
 #   4. Success!
 my @art_two = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 cmp_ok(@art_two, '==', 3, "Three artists returned");
+
+### Now, disconnect the dbh, and move the db file;
+# create a new one and chmod 000 to prevent SQLite from connecting.
+$schema->storage->_dbh->disconnect;
+move( $db_orig, $db_tmp );
+open DBFILE, '>', $db_orig;
+print DBFILE 'THIS IS NOT A REAL DATABASE';
+close DBFILE;
+chmod 0000, $db_orig;
+
+### Try the operation again... it should fail, since there's no db
+eval {
+    my @art_three = $schema->resultset("Artist")->search( {}, { order_by => 'name DESC' } );
+};
+ok( $@, 'The operation failed' );
+
+### Now, move the db file back to the correct name
+unlink($db_orig);
+move( $db_tmp, $db_orig );
+
+### Try the operation again... this time, it should succeed
+my @art_four;
+eval {
+    @art_four = $schema->resultset("Artist")->search( {}, { order_by => 'name DESC' } );
+};
+ok( !$@, 'The operation succedded' );
+cmp_ok( @art_four, '==', 3, "Three artists returned" );
+
