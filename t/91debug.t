@@ -18,6 +18,7 @@ ok ( defined(
      'debugfh'
    );
 
+$schema->storage->debugfh->autoflush(1);
 my $rs = $schema->resultset('CD')->search({});
 $rs->count();
 
@@ -34,7 +35,6 @@ $log = new IO::File('t/var/foo.log', 'r') or die($!);
 $line = <$log>;
 $log->close();
 ok($line =~ /^SELECT COUNT/, 'Log success');
-
 $schema->storage->debugobj->debugfh(undef);
 delete($ENV{'DBIC_TRACE'});
 open(STDERRCOPY, '>&STDERR');
