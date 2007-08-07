@@ -964,7 +964,7 @@ mechanism:
     my $sql = shift();
     my $params = @_;
 
-    print "Executing $sql: ".join(', ', @params)."\n";
+    $self->print("Executing $sql: ".join(', ', @params)."\n");
     $start = time();
   }
 
@@ -973,7 +973,8 @@ mechanism:
     my $sql = shift();
     my @params = @_;
 
-    printf("Execution took %0.4f seconds.\n", time() - $start);
+    my $elapsed = sprintf("%0.4f", time() - $start);
+    $self->print("Execution took $elapsed seconds.\n");
     $start = undef;
   }
 
@@ -981,8 +982,8 @@ mechanism:
 
 You can then install that class as the debugging object:
 
-  __PACKAGE__->storage()->debugobj(new My::Profiler());
-  __PACKAGE__->storage()->debug(1);
+  __PACKAGE__->storage->debugobj(new My::Profiler());
+  __PACKAGE__->storage->debug(1);
 
 A more complicated example might involve storing each execution of SQL in an
 array:
@@ -1001,6 +1002,7 @@ array:
 
 You could then create average, high and low execution times for an SQL
 statement and dig down to see if certain parameters cause aberrant behavior.
+You might want to check out L<DBIx::Class::QueryLog> as well.
 
 =head2 Getting the value of the primary key for the last database insert
 

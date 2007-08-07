@@ -61,20 +61,11 @@ sub new {
   $new->set_schema($schema);
   $new->debugobj(new DBIx::Class::Storage::Statistics());
 
-  my $fh;
+  #my $fh;
 
   my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
                   || $ENV{DBIC_TRACE};
 
-  if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
-    $fh = IO::File->new($1, 'w')
-      or $new->throw_exception("Cannot open trace file $1");
-  } else {
-    $fh = IO::File->new('>&STDERR');
-  }
-
-  $fh->autoflush(1);
-  $new->debugfh($fh);
   $new->debug(1) if $debug_env;
 
   $new;
