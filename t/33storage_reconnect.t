@@ -49,11 +49,15 @@ ok( $@, 'The operation failed' );
 unlink($db_orig);
 move( $db_tmp, $db_orig );
 
-### Try the operation again... this time, it should succeed
-my @art_four;
-eval {
-    @art_four = $schema->resultset("Artist")->search( {}, { order_by => 'name DESC' } );
-};
-ok( !$@, 'The operation succedded' );
-cmp_ok( @art_four, '==', 3, "Three artists returned" );
+SKIP: {
+    skip "Cannot reconnect if original connection didn't fail", 2
+        if ( $@ =~ /encrypted or is not a database/ );
 
+    ### Try the operation again... this time, it should succeed
+    my @art_four;
+    eval {
+        @art_four = $schema->resultset("Artist")->search( {}, { order_by => 'name DESC' } );
+    };
+    ok( !$@, 'The operation succeeded' );
+    cmp_ok( @art_four, '==', 3, "Three artists returned" );
+}
