@@ -668,6 +668,7 @@ sub connected {
       }
       else {
           $self->_verify_pid;
+          return 0 if !$self->_dbh;
       }
       return ($dbh->FETCH('Active') && $dbh->ping);
   }
