@@ -744,9 +744,9 @@ sub _populate_dbh {
 
   # if on-connect sql statements are given execute them
   foreach my $sql_statement (@{$self->on_connect_do || []}) {
-    $self->debugobj->query_start($sql_statement) if $self->debug();
+    $self->_query_start($sql_statement);
     $self->_dbh->do($sql_statement);
-    $self->debugobj->query_end($sql_statement) if $self->debug();
+    $self->_query_end($sql_statement);
   }
 
   $self->_conn_pid($$);
@@ -868,6 +868,40 @@ sub _prep_for_execute {
   return ($sql, \@bind);
 }
 
+sub _fix_bind_params {
+    my ($self, @bind) = @_;
+
+    ### Turn @bind from something like this:
+    ###   ( [ "artist", 1 ], [ "cdid", 1, 3 ] )
+    ### to this:
+    ###   ( "'1'", "'1'", "'3'" )
+    return
+        map {
+            if ( defined( $_ && $_->[1] ) ) {
+                map { qq{'$_'}; } @{$_}[ 1 .. $#$_ ];
+            }
+            else { q{'NULL'}; }
+        } @bind;
+}
+
+sub _query_start {
+    my ( $self, $sql, @bind ) = @_;
+
+    if ( $self->debug ) {
+        @bind = $self->_fix_bind_params(@bind);
+        $self->debugobj->query_start( $sql, @bind );
+    }
+}
+
+sub _query_end {
+    my ( $self, $sql, @bind ) = @_;
+
+    if ( $self->debug ) {
+        @bind = $self->_fix_bind_params(@bind);
+        $self->debugobj->query_end( $sql, @bind );
+    }
+}
+
 sub _dbh_execute {
   my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
   
@@ -877,11 +911,7 @@ sub _dbh_execute {
 
   my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
 
-  if ($self->debug) {
-      my @debug_bind =
-        map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @$bind;
-      $self->debugobj->query_start($sql, @debug_bind);
-  }
+  $self->_query_start( $sql, @$bind );
 
   my $sth = $self->sth($sql,$op);
 
@@ -908,11 +938,7 @@ sub _dbh_execute {
   my $rv = $sth->execute();
   $self->throw_exception($sth->errstr) if !$rv;
 
-  if ($self->debug) {
-     my @debug_bind =
-       map { defined ($_ && $_->[1]) ? qq{'$_->[1]'} : q{'NULL'} } @$bind; 
-     $self->debugobj->query_end($sql, @debug_bind);
-  }
+  $self->_query_end( $sql, @$bind );
 
   return (wantarray ? ($rv, $sth, @$bind) : $rv);
 }
@@ -944,10 +970,7 @@ sub insert_bulk {
   @colvalues{@$cols} = (0..$#$cols);
   my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
   
-  if ($self->debug) {
-      my @debug_bind = map { defined $_->[1] ? qq{$_->[1]} : q{'NULL'} } @bind;
-      $self->debugobj->query_start($sql, @debug_bind);
-  }
+  $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql);
 
 #  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
@@ -985,10 +1008,7 @@ sub insert_bulk {
   my $rv = $sth->execute_array({ArrayTupleStatus => $tuple_status});
   $self->throw_exception($sth->errstr) if !$rv;
 
-  if ($self->debug) {
-      my @debug_bind = map { defined $_ ? qq{`$_'} : q{`NULL'} } @bind;
-      $self->debugobj->query_end($sql, @debug_bind);
-  }
+  $self->_query_end( $sql, @bind );
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
 
@@ -1418,14 +1438,14 @@ sub deploy {
       next if($line =~ /^BEGIN TRANSACTION/m);
       next if($line =~ /^COMMIT/m);
       next if $line =~ /^\s+$/; # skip whitespace only
-      $self->debugobj->query_start($line) if $self->debug;
+      $self->_query_start($line);
       eval {
         $self->dbh->do($line); # shouldn't be using ->dbh ?
       };
       if ($@) {
         warn qq{$@ (running "${line}")};
       }
-      $self->debugobj->query_end($line) if $self->debug;
+      $self->_query_end($line);
     }
   }
 }

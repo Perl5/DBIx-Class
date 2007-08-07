@@ -1,4 +1,6 @@
 Revision history for DBIx::Class
+        - fixes bind params in debug statements
+          (original test from abraxxa)
         - fixed storage->connected fork bug
           (test and fix from Radu Greab)
         - add 1; to AccessorGroup.pm for stuff that still uses it

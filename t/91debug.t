@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 5;
+plan tests => 6;
 
 ok ( $schema->storage->debug(1), 'debug' );
 ok ( defined(
@@ -46,5 +46,18 @@ eval {
 };
 ok($@, 'Died on closed FH');
 open(STDERR, '>&STDERRCOPY');
+
+# test trace output correctness for bind params
+{
+    my $sql = '';
+    $schema->storage->debugcb( sub { $sql = $_[1] } );
+
+    my @cds = $schema->resultset('CD')->search( { artist => 1, cdid => { -between => [ 1, 3 ] }, } );
+    like(
+        $sql,
+        qr/\QSELECT me.cdid, me.artist, me.title, me.year FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? ): '1', '1', '3'\E/,
+        'got correct SQL with all bind parameters'
+    );
+}
 
 1;
