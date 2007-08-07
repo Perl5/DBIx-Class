@@ -5,6 +5,8 @@ use warnings;
 
 use base qw/Class::Accessor::Grouped/;
 
+1;
+
 =head1 NAME
 
 DBIx::Class::AccessorGroup - See Class::Accessor::Grouped

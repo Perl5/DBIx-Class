@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
         - fixed storage->connected fork bug
           (test and fix from Radu Greab)
+        - add 1; to AccessorGroup.pm for stuff that still uses it
         - refactor Statistics to create debugging filehandle to fix bug with
           closed STDERR, update docs and modify Versioned to use Statistics
           (original fix from diz)
