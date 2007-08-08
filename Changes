@@ -1,4 +1,7 @@
 Revision history for DBIx::Class
+
+        - provide alias for related_resultset via local() so it's set
+          correctly at resultset construction time (fixes RestrictWithObject)
         - fixes bind params in debug statements
           (original test from abraxxa)
         - fixed storage->connected fork bug

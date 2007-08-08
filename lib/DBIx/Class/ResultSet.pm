@@ -971,7 +971,7 @@ sub _count { # Separated out so pager can get the full count
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
 
-  my $tmp_rs = (ref $self)->new($self->_source_handle, $attrs);
+  my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
   return $count;
 }
@@ -1409,7 +1409,7 @@ attribute set on the resultset (10 by default).
 
 sub page {
   my ($self, $page) = @_;
-  return (ref $self)->new($self->_source_handle, { %{$self->{attrs}}, page => $page });
+  return (ref $self)->new($self->result_source, { %{$self->{attrs}}, page => $page });
 }
 
 =head2 new_result
@@ -1737,7 +1737,7 @@ sub related_resultset {
     my $rel_obj = $self->result_source->relationship_info($rel);
 
     $self->throw_exception(
-      "search_related: result source '" . $self->_source_handle->source_moniker .
+      "search_related: result source '" . $self->result_source->source_name .
         "' has no such relationship $rel")
       unless $rel_obj;
     
@@ -1748,7 +1748,7 @@ sub related_resultset {
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     my %attrs = %{$self->{attrs}||{}};
-    delete $attrs{result_class};
+    delete @attrs{qw(result_class alias)};
 
     my $new_cache;
 
@@ -1759,21 +1759,32 @@ sub related_resultset {
       }
     }
 
-    my $new = $self->_source_handle
-                   ->schema
-                   ->resultset($rel_obj->{class})
-                   ->search_rs(
-                       undef, {
-                         %attrs,
-                         join => undef,
-                         prefetch => undef,
-                         select => undef,
-                         as => undef,
-                         alias => $alias,
-                         where => $self->{cond},
-                         seen_join => $seen,
-                         from => $from,
-                     });
+    my $rel_source = $self->result_source->related_source($rel);
+
+    my $new = do {
+
+      # The reason we do this now instead of passing the alias to the
+      # search_rs below is that if you wrap/overload resultset on the
+      # source you need to know what alias it's -going- to have for things
+      # to work sanely (e.g. RestrictWithObject wants to be able to add
+      # extra query restrictions, and these may need to be $alias.)
+
+      my $attrs = $rel_source->resultset_attributes;
+      local $attrs->{alias} = $alias;
+
+      $rel_source->resultset
+                 ->search_rs(
+                     undef, {
+                       %attrs,
+                       join => undef,
+                       prefetch => undef,
+                       select => undef,
+                       as => undef,
+                       where => $self->{cond},
+                       seen_join => $seen,
+                       from => $from,
+                   });
+    };
     $new->set_cache($new_cache) if $new_cache;
     $new;
   };
