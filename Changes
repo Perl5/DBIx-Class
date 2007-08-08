@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - add timestamp fix re rt.cpan 26978 - no test yet but change
+          clearly should cause no regressions
         - provide alias for related_resultset via local() so it's set
           correctly at resultset construction time (fixes RestrictWithObject)
         - fixes bind params in debug statements
