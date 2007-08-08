@@ -2,7 +2,8 @@ use Test::More;
 
 eval "use Test::Pod::Coverage 1.04";
 plan skip_all => 'Test::Pod::Coverage 1.04 required' if $@;
-plan skip_all => 'set TEST_POD to enable this test' unless $ENV{TEST_POD};
+plan skip_all => 'set TEST_POD to enable this test'
+  unless ($ENV{TEST_POD} || -e 'MANIFEST.SKIP');
 
 my @modules = sort { $a cmp $b } (Test::Pod::Coverage::all_modules());
 plan tests => scalar(@modules);
@@ -21,7 +22,13 @@ my $exceptions = {
         ignore => [
             qw/MODIFY_CODE_ATTRIBUTES
               component_base_class
-              mk_classdata/
+              mk_classdata
+              mk_classaccessor/
+        ]
+    },
+    'DBIx::Class::Storage' => {
+        ignore => [
+            qw(cursor)
         ]
     },
     'DBIx::Class::CDBICompat::AccessorMapping'          => { skip => 1 },
