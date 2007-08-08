@@ -171,6 +171,8 @@ The community can be found via:
 
   SVN: http://dev.catalyst.perl.org/repos/bast/DBIx-Class/
 
+  SVNWeb: http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/
+
   IRC: irc.perl.org#dbix-class
 
 =head1 WHERE TO GO NEXT
