@@ -2,7 +2,9 @@ package # hide from PAUSE
     MyBase;
 
 use strict;
-use base qw(DBIx::Class);
+use base qw(DBIx::Class::CDBICompat);
+
+use DBI;
 
 use vars qw/$dbh/;
 
