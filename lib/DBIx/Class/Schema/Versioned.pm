@@ -217,7 +217,7 @@ sub run_upgrade
 
 =head1 NAME
 
-DBIx::Class::Versioning - DBIx::Class::Schema plugin for Schema upgrades
+DBIx::Class::Schema::Versioned - DBIx::Class::Schema plugin for Schema upgrades
 
 =head1 SYNOPSIS
 
