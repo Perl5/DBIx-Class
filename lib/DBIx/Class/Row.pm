@@ -188,7 +188,6 @@ sub insert {
 
       foreach my $p (@pri) {
         if (exists $keyhash->{$p}) {
-          warn $keyhash->{$p};
           unless (defined($rel_obj->get_column($keyhash->{$p}))
                   || $rel_obj->column_info($keyhash->{$p})
                              ->{is_auto_increment}) {
