@@ -12,6 +12,7 @@ Revision history for DBIx::Class
         - refactor Statistics to create debugging filehandle to fix bug with
           closed STDERR, update docs and modify Versioned to use Statistics
           (original fix from diz)
+        - Move to using Class::C3::Componentised
 
 0.08004 2007-08-06 19:00:00
         - fix storage connect code to not trigger bug via auto-viv 

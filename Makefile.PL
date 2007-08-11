@@ -9,6 +9,7 @@ requires 'Scalar::Util'              => 0;
 requires 'SQL::Abstract'             => 1.20;
 requires 'SQL::Abstract::Limit'      => 0.101;
 requires 'Class::C3'                 => 0.13;
+requires 'Class::C3::Componentised'  => 0;
 requires 'Storable'                  => 0;
 requires 'Carp::Clan'                => 0;
 requires 'DBI'                       => 1.40;
