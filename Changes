@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+0.08006 2007-08-12 15:12:00
+        - Move to using Class::C3::Componentised
+        - Remove warn statement from DBIx::Class::Row
+
+0.08005 2007-08-06 
         - add timestamp fix re rt.cpan 26978 - no test yet but change
           clearly should cause no regressions
         - provide alias for related_resultset via local() so it's set
@@ -12,7 +17,6 @@ Revision history for DBIx::Class
         - refactor Statistics to create debugging filehandle to fix bug with
           closed STDERR, update docs and modify Versioned to use Statistics
           (original fix from diz)
-        - Move to using Class::C3::Componentised
 
 0.08004 2007-08-06 19:00:00
         - fix storage connect code to not trigger bug via auto-viv 
