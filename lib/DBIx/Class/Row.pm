@@ -35,6 +35,8 @@ passed a hashref or an arrayref of hashrefs as the value, these will
 be turned into objects via new_related, and treated as if you had
 passed objects.
 
+For a more involved explanation, see L<DBIx::Class::ResultSet/create>.
+
 =cut
 
 ## It needs to store the new objects somewhere, and call insert on that list later when insert is called on this object. We may need an accessor for these so the user can retrieve them, if just doing ->new().
@@ -136,6 +138,9 @@ there. Returns the object itself. Requires the object's result source to
 be set, or the class to have a result_source_instance method. To insert
 an entirely new object into the database, use C<create> (see
 L<DBIx::Class::ResultSet/create>).
+
+This will also insert any uninserted, related objects held inside this
+one, see L<DBIx::Class::ResultSet/create> for more details.
 
 =cut
 
@@ -258,7 +263,7 @@ sub insert {
   $obj->in_storage; # Get value
   $obj->in_storage(1); # Set value
 
-Indicated whether the object exists as a row in the database or not
+Indicates whether the object exists as a row in the database or not
 
 =cut
 

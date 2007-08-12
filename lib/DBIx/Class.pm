@@ -123,6 +123,8 @@ Then you can use these classes in your application's code:
   my $cd = $millennium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
   my $cd_artist_name = $cd->artist->name; # Already has the data so no query
 
+  # new() makes a DBIx::Class::Row object but doesnt insert it into the DB.
+  # create() is the same as new() then insert().
   my $new_cd = $schema->resultset('CD')->new({ title => 'Spoon' });
   $new_cd->artist($cd->artist);
   $new_cd->insert; # Auto-increment primary key filled in after INSERT
@@ -161,9 +163,9 @@ APIs, since DBIx::Class is used in production in many organisations,
 and even backwards incompatible changes to non-published APIs will be fixed
 if they're reported and doing so doesn't cost the codebase anything.
 
-The test suite is quite substantial, and several developer releases are
-generally made to CPAN before the -current branch is merged back to trunk for
-a major release.
+The test suite is quite substantial, and several developer releases
+are generally made to CPAN before the branch for the next release is
+merged back to trunk for a major release.
 
 The community can be found via:
 

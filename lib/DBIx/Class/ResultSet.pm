@@ -1422,7 +1422,12 @@ sub page {
 
 =back
 
-Creates an object in the resultset's result class and returns it.
+Creates a new row object in the resultset's result class and returns
+it. The row is not inserted into the database at this point, call
+L<DBIx::Class::Row/insert> to do that. Calling L<DBIx::Class::Row/in_storage>
+will tell you whether the row object has been inserted or not.
+
+Passes the hashref of input on to L<DBIx::Class::Row/new>.
 
 =cut
 
@@ -1540,9 +1545,37 @@ sub find_or_new {
 
 =back
 
-Inserts a record into the resultset and returns the object representing it.
+Attempt to create a single new row or a row with multiple related rows
+in the table represented by the resultset (and related tables). This
+will not check for duplicate rows before inserting, use
+L</find_or_create> to do that.
+
+To create one row for this resultset, pass a hashref of key/value
+pairs representing the columns of the table and the values you wish to
+store. If the appropriate relationships are set up, foreign key fields
+can also be passed an object representing the foreign row, and the
+value will be set to it's primary key.
+
+To create related objects, pass a hashref for the value if the related
+item is a foreign key relationship (L<DBIx::Class::Relationship/belongs_to>),
+and use the name of the relationship as the key. (NOT the name of the field,
+necessarily). For C<has_many> and C<has_one> relationships, pass an arrayref
+of hashrefs containing the data for each of the rows to create in the foreign
+tables, again using the relationship name as the key.
+
+Instead of hashrefs of plain related data (key/value pairs), you may
+also pass new or inserted objects. New objects (not inserted yet, see
+L</new>), will be inserted into their appropriate tables.
 
 Effectively a shortcut for C<< ->new_result(\%vals)->insert >>.
+
+  $artist_rs->create(
+     { artistid => 4, name => 'Manufactured Crap', cds => [ 
+        { title => 'My First CD', year => 2006 },
+        { title => 'Yet More Tweeny-Pop crap', year => 2007 },
+      ],
+     },
+  );
 
 =cut
 
@@ -2153,7 +2186,7 @@ C<get_column> method (or via the object accessor, B<if one already
 exists>).  It has nothing to do with the SQL code C< SELECT foo AS bar
 >.
 
-The C< as > attribute is used in conjunction with C<select>,
+The C<as> attribute is used in conjunction with C<select>,
 usually when C<select> contains one or more function or stored
 procedure names:
 
@@ -2265,10 +2298,11 @@ below.
 
 =back
 
-Contains one or more relationships that should be fetched along with the main
-query (when they are accessed afterwards they will have already been
-"prefetched").  This is useful for when you know you will need the related
-objects, because it saves at least one query:
+Contains one or more relationships that should be fetched along with
+the main query (when they are accessed afterwards the data will
+already be available, without extra queries to the database).  This is
+useful for when you know you will need the related objects, because it
+saves at least one query:
 
   my $rs = $schema->resultset('Tag')->search(
     undef,
