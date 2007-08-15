@@ -346,15 +346,27 @@ connection-specific options:
 
 =item on_connect_do
 
-This can be set to an arrayref containing literal sql statements and
-code references, which will be executed immediately after making the
-connection to the database every time we [re-]connect.
+Specifies things to do immediately after connecting or re-connecting to
+the database.  Its value may contain:
+
+=over
+
+=item an array reference
+
+This contains SQL statements to execute in order.  Each element contains
+a string or a code reference that returns a string.
+
+=item a code reference
+
+This contains some code to execute.  Unlike code references within an
+array reference, its return value is ignored.
+
+=back
 
 =item on_disconnect_do
 
-As with L<on_connect_do>, this takes an arrayref of literal sql
-statements and code references, but these statements execute immediately
-before disconnecting from the database.
+Takes arguments in the same for as L<on_connect_do> and executes them
+immediately before disconnecting from the database.
 
 Note, this only runs if you explicitly call L<disconnect> on the
 storage object.
@@ -658,9 +670,9 @@ sub disconnect {
   my ($self) = @_;
 
   if( $self->connected ) {
-    foreach (@{$self->on_disconnect_do || []}) {
-      $self->_do_query($_);
-    }
+    my $connection_do = $self->on_disconnect_do;
+    $self->_do_connection_actions($connection_do) if ref($connection_do);
+
     $self->_dbh->rollback unless $self->_dbh_autocommit;
     $self->_dbh->disconnect;
     $self->_dbh(undef);
@@ -752,19 +764,31 @@ sub _populate_dbh {
     }
   }
 
-  foreach (@{$self->on_connect_do || []}) {
-    $self->_do_query($_);
-  }
+  my $connection_do = $self->on_connect_do;
+  $self->_do_connection_actions($connection_do) if ref($connection_do);
 
   $self->_conn_pid($$);
   $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
 }
 
+sub _do_connection_actions {
+  my $self = shift;
+  my $connection_do = shift;
+
+  if (ref $connection_do eq 'ARRAY') {
+    $self->_do_query($_) foreach @$connection_do;
+  }
+  elsif (ref $connection_do eq 'CODE') {
+    $connection_do->();
+  }
+
+  return $self;
+}
+
 sub _do_query {
   my ($self, $action) = @_;
 
-  # $action contains either an SQL string or a code ref
-  if (ref $action) {
+  if (ref $action eq 'CODE') {
     $action->($self);
   }
   else {
