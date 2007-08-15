@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use Test::More;
 use File::Spec;
+use File::Copy;
 
 BEGIN {
     eval "use DBD::SQLite; use SQL::Translator 0.08;";
@@ -47,24 +48,67 @@ my $schema_new = DBICVersion::Schema->connect(
   { AutoCommit => 1 },
 );
 
-unlink('t/var/DBICVersion-Schema-2.0-SQLite.sql');
-unlink('t/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
-$schema_new->create_ddl_dir('SQLite', undef, 't/var', '1.0');
-ok(-f 't/var/DBICVersion-Schema-1.0-2.0-SQLite.sql', 'Created DDL upgrade file');
-
 ## create new to pick up filedata for upgrade files we just made (on_connect)
-my $schema_upgrade = DBICVersion::Schema->connect(
-  "dbi:SQLite:$db_file",
-  undef,
-  undef,
-  { AutoCommit => 1 },
-);
 
-## do this here or let Versioned.pm do it?
-$schema_upgrade->upgrade();
-$tvrs = $schema_upgrade->resultset('Table');
-is($schema_upgrade->_source_exists($tvrs), 1, 'Upgraded schema from DDL file');
+# {
+#   unlink('t/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
+#   copy('t/var/DBICVersion-Schema-1.0-2.0-SQLite-erroneous.sql', 't/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
 
+#   my $schema_upgrade = DBICVersion::Schema->connect(
+#                                                     "dbi:SQLite:$db_file",
+#                                                     undef,
+#                                                     undef,
+#                                                     { AutoCommit => 1 },
+#                                                     );
+  
+    
+#   is($schema_upgrade->get_db_version(), '1.0', 'get_db_version ok');
+
+#   eval {
+#     # this will die with errors
+#     $schema_upgrade->upgrade();
+#   };
+#   isnt($@, '', 'dodgy upgrade dies');
+  
+#   eval {
+#     my @results = $schema_upgrade->storage->dbh->do('select VersionName from TestVersion');
+#   };
+#   is($@, '', 'partial upgrade properly rolledback');
+#   is($schema_upgrade->get_db_version(), '1.0', 'db version number not upgraded');
+# }
+
+{
+  unlink('t/var/DBICVersion-Schema-2.0-SQLite.sql');
+  unlink('t/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
+
+#   $schema_new->create_ddl_dir('SQLite', undef, 't/var', '1.0');
+#   ok(-f 't/var/DBICVersion-Schema-1.0-2.0-SQLite.sql', 'Created DDL upgrade file');
+
+  copy('t/var/DBICVersion-Schema-1.0-2.0-SQLite-proper.sql', 't/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
+
+  my $schema_upgrade = DBICVersion::Schema->connect(
+                                                    "dbi:SQLite:$db_file",
+                                                    undef,
+                                                    undef,
+                                                    { AutoCommit => 1 },
+                                                    );
+  
+    
+  is($schema_upgrade->get_db_version(), '1.0', 'get_db_version ok');
+
+  eval {
+    # this should be okay
+    $schema_upgrade->upgrade();
+  };
+  is($@, '', 'proper upgrade okay');
+  eval {
+    $schema_upgrade->storage->dbh->do('select NewVersionName from TestVersion');
+  };
+  is($@, '', 'new column created');
+  is($schema_upgrade->get_db_version(), '2.0', 'db version number successfully upgraded');
+}
+
+exit;
 unlink($db_file) if -e $db_file;
 unlink($db_file . "-journal") if -e $db_file . "-journal";
 unlink('t/var/DBICVersion-Schema-1.0-SQLite.sql');

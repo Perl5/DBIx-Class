@@ -48,6 +48,7 @@ use Data::Dumper;
 __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
 __PACKAGE__->mk_classdata('backup_directory');
+__PACKAGE__->mk_classdata('do_backup');
 
 sub schema_version {
   my ($self) = @_;
@@ -131,7 +132,7 @@ sub _on_connect
 
     my $fh;
     open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
-    my @data = split(/;\n/, join('', <$fh>));
+    my @data = split(/[;\n]/, join('', <$fh>));
     close($fh);
     @data = grep { $_ && $_ !~ /^-- / } @data;
     @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
@@ -156,7 +157,7 @@ sub get_db_version
                                                  ],
                                           as => ['maxinstall'],
                                       })->first;
-    $pversion = $vtable->search({ Installed => $psearch->get_column('maxinstall'),
+    my $pversion = $vtable->search({ Installed => $psearch->get_column('maxinstall'),
                                 })->first;
     $pversion = $pversion->Version if($pversion);
     return $pversion;
@@ -185,13 +186,17 @@ sub upgrade
 {
     my ($self) = @_;
 
-    $self->backup();
-    $self->do_upgrade();
+    $self->backup() if($self->do_backup);
+
+    $self->txn_do(sub {
+      $self->do_upgrade();
+    });
 
     my $vtable = $self->{vschema}->resultset('Table');
     $vtable->create({ Version => $self->schema_version,
                       Installed => strftime("%Y-%m-%d %H:%M:%S", gmtime())
                       });
+
 }
 
 sub do_upgrade
