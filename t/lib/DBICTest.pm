@@ -65,7 +65,13 @@ sub init_schema {
 
     my $schema;
 
-    $schema = DBICTest::Schema->compose_namespace('DBICTest');
+    if ($args{compose_connection}) {
+      $schema = DBICTest::Schema->compose_connection(
+                  'DBICTest', $self->_database
+                );
+    } else {
+      $schema = DBICTest::Schema->compose_namespace('DBICTest');
+    }
     if ( !$args{no_connect} ) {
       $schema = $schema->connect($self->_database);
       $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
