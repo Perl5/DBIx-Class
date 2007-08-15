@@ -70,28 +70,20 @@ sub connection {
 sub _on_connect
 {
     my ($self) = @_;
-    my $vschema = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
-    my $vtable = $vschema->resultset('Table');
+    $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
+    my $vtable = $self->{vschema}->resultset('Table');
     my $pversion;
 
     if(!$self->_source_exists($vtable))
     {
-#        $vschema->storage->debug(1);
-        $vschema->storage->ensure_connected();
-        $vschema->deploy();
+#        $self->{vschema}->storage->debug(1);
+        $self->{vschema}->storage->ensure_connected();
+        $self->{vschema}->deploy();
         $pversion = 0;
     }
     else
     {
-        my $psearch = $vtable->search(undef, 
-                                      { select => [
-                                                   { 'max' => 'Installed' },
-                                                   ],
-                                            as => ['maxinstall'],
-                                        })->first;
-        $pversion = $vtable->search({ Installed => $psearch->get_column('maxinstall'),
-                                  })->first;
-        $pversion = $pversion->Version if($pversion);
+      $pversion = $self->get_db_version();
     }
 #    warn("Previous version: $pversion\n");
     if($pversion eq $self->schema_version)
@@ -153,6 +145,23 @@ sub _on_connect
 #    $self->upgrade($pversion, $self->schema_version);
 }
 
+sub get_db_version
+{
+    my ($self, $rs) = @_;
+
+    my $vtable = $self->{vschema}->resultset('Table');
+    my $psearch = $vtable->search(undef, 
+                                    { select => [
+                                                 { 'max' => 'Installed' },
+                                                 ],
+                                          as => ['maxinstall'],
+                                      })->first;
+    $pversion = $vtable->search({ Installed => $psearch->get_column('maxinstall'),
+                                })->first;
+    $pversion = $pversion->Version if($pversion);
+    return $pversion;
+}
+
 sub _source_exists
 {
     my ($self, $rs) = @_;
@@ -176,24 +185,26 @@ sub upgrade
 {
     my ($self) = @_;
 
-    ## overridable sub, per default just run all the commands.
-
     $self->backup();
+    $self->do_upgrade();
 
-    $self->run_upgrade(qr/create/i);
-    $self->run_upgrade(qr/alter table .*? add/i);
-    $self->run_upgrade(qr/alter table .*? (?!drop)/i);
-    $self->run_upgrade(qr/alter table .*? drop/i);
-    $self->run_upgrade(qr/drop/i);
-#    $self->run_upgrade(qr//i);
-
-    my $vschema = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
-    my $vtable = $vschema->resultset('Table');
+    my $vtable = $self->{vschema}->resultset('Table');
     $vtable->create({ Version => $self->schema_version,
                       Installed => strftime("%Y-%m-%d %H:%M:%S", gmtime())
                       });
 }
 
+sub do_upgrade
+{
+    my ($self) = @_;
+
+    ## overridable sub, per default just run all the commands.
+    $self->run_upgrade(qr/create/i);
+    $self->run_upgrade(qr/alter table .*? add/i);
+    $self->run_upgrade(qr/alter table .*? (?!drop)/i);
+    $self->run_upgrade(qr/alter table .*? drop/i);
+    $self->run_upgrade(qr/drop/i);
+}
 
 sub run_upgrade
 {
@@ -285,12 +296,14 @@ allow you to make a backup of the database. Per default this method attempts
 to call C<< $self->storage->backup >>, to run the standard backup on each
 database type. 
 
-This method should return the name of the backup file, if appropriate.
-
-C<backup> is called from C<upgrade>, make sure you call it, if you write your
-own <upgrade> method.
+This method should return the name of the backup file, if appropriate..
 
 =head2 upgrade
+
+This is the main upgrade method which calls the overridable do_upgrade and
+also handles the backups and updating of the SchemaVersion table.
+
+=head2 do_upgrade
 
 This is an overwritable method used to run your upgrade. The freeform method
 allows you to run your upgrade any way you please, you can call C<run_upgrade>
