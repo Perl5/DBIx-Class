@@ -117,33 +117,11 @@ sub _on_connect
         return 1;
     }
 
-     $file = $self->ddl_filename(
-                                 $self->storage->sqlt_type,
-                                 $self->upgrade_directory,
-                                 $self->schema_version,
-                                 $pversion,
-                                 );
-#    $file =~ s/@{[ $self->schema_version ]}/"${pversion}-" . $self->schema_version/e;
-    if(!-f $file)
-    {
-        warn "Upgrade not possible, no upgrade file found ($file)\n";
-        return;
-    }
-
-    my $fh;
-    open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
-    my @data = split(/[;\n]/, join('', <$fh>));
-    close($fh);
-    @data = grep { $_ && $_ !~ /^-- / } @data;
-    @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
-
-    $self->_filedata(\@data);
 
     ## Don't do this yet, do only on command?
     ## If we do this later, where does the Version table get updated??
     warn "Versions out of sync. This is " . $self->schema_version . 
         ", your database contains version $pversion, please call upgrade on your Schema.\n";
-#    $self->upgrade($pversion, $self->schema_version);
 }
 
 sub get_db_version
@@ -186,6 +164,28 @@ sub upgrade
 {
     my ($self) = @_;
 
+    my $file = $self->ddl_filename(
+                                 $self->storage->sqlt_type,
+                                 $self->upgrade_directory,
+                                 $self->schema_version,
+                                 $self->get_db_version,
+                                 );
+
+#    $file =~ s/@{[ $self->schema_version ]}/"${pversion}-" . $self->schema_version/e;
+    if(!-f $file)
+    {
+        warn "Upgrade not possible, no upgrade file found ($file)\n";
+        return;
+    }
+
+    my $fh;
+    open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
+    my @data = split(/[;\n]/, join('', <$fh>));
+    close($fh);
+    @data = grep { $_ && $_ !~ /^-- / } @data;
+    @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
+
+    $self->_filedata(\@data);
     $self->backup() if($self->do_backup);
 
     $self->txn_do(sub {

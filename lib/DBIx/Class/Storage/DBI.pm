@@ -1279,23 +1279,22 @@ sub create_ddl_dir
     if(-e $filename)
     {
       warn("$filename already exists, skipping $db");
-      next;
-    }
-
-    my $output = $sqlt->translate;
-    if(!$output)
-    {
-      warn("Failed to translate to $db, skipping. (" . $sqlt->error . ")");
-      next;
-    }
-    if(!open($file, ">$filename"))
-    {
-        $self->throw_exception("Can't open $filename for writing ($!)");
+      next unless ($preversion);
+    } else {
+      my $output = $sqlt->translate;
+      if(!$output)
+      {
+        warn("Failed to translate to $db, skipping. (" . $sqlt->error . ")");
         next;
-    }
-    print $file $output;
-    close($file);
-
+      }
+      if(!open($file, ">$filename"))
+      {
+          $self->throw_exception("Can't open $filename for writing ($!)");
+          next;
+      }
+      print $file $output;
+      close($file);
+    } 
     if($preversion)
     {
       require SQL::Translator::Diff;
