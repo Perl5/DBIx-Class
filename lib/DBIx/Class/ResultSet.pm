@@ -1251,7 +1251,7 @@ Pass an arrayref of hashrefs. Each hashref should be a structure suitable for
 submitting to a $resultset->create(...) method.
 
 In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
-to insert the data, as this is a faster method.
+to insert the data, as this is a faster method.  
 
 Otherwise, each set of data is inserted into the database using
 L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
@@ -1288,6 +1288,14 @@ Example:  Assuming an Artist Class that has many CDs Classes relating:
   
   print $ArtistOne->name; ## response is 'Artist One'
   print $ArtistThree->cds->count ## reponse is '2'
+  
+Please note an important effect on your data when choosing between void and
+wantarray context. Since void context goes straight to C<insert_bulk> in 
+L<DBIx::Class::Storage::DBI> this will skip any component that is overriding
+c<insert>.  So if you are using something like L<DBIx-Class-UUIDColumns> to 
+create primary keys for you, you will find that your PKs are empty.  In this 
+case you will have to use the wantarray context in order to create those 
+values.
 
 =cut
 
@@ -1569,6 +1577,16 @@ L</new>), will be inserted into their appropriate tables.
 
 Effectively a shortcut for C<< ->new_result(\%vals)->insert >>.
 
+Example of creating a new row.
+
+  $person_rs->create({
+    name=>"Some Person",
+	email=>"somebody@someplace.com"
+  });
+  
+Example of creating a new row and also creating rows in a related C<has_many>
+or C<has_one> resultset.  Note Arrayref.
+
   $artist_rs->create(
      { artistid => 4, name => 'Manufactured Crap', cds => [ 
         { title => 'My First CD', year => 2006 },
@@ -1576,6 +1594,17 @@ Effectively a shortcut for C<< ->new_result(\%vals)->insert >>.
       ],
      },
   );
+
+Example of creating a new row and also creating a row in a related
+C<belongs_to>resultset. Note Hashref.
+
+  $cd_rs->create({
+    title=>"Music for Silly Walks",
+	year=>2000,
+	artist => {
+	  name=>"Silly Musician",
+	}
+  });
 
 =cut
 
