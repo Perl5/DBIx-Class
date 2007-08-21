@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - patch for Oracle datetime inflation (abram@arin.net)
         - added on_disconnect_do
         - on_connect_do and on_disconnect_do take coderefs and arrayrefs
 

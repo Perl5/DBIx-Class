@@ -84,6 +84,15 @@ sub columns_info_for {
   $self->next::method(uc($table));
 }
 
+=head2 datetime_parser_type
+
+This sets the proper DateTime::Format module for use with
+L<DBIx::Class::InflateColumn::DateTime>.
+
+=cut
+
+sub datetime_parser_type { return "DateTime::Format::Oracle"; }
+
 =head1 AUTHORS
 
 Andy Grundman <andy@hybridized.org>
