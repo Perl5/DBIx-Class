@@ -259,7 +259,7 @@ L<Cookbook|DBIx::Class::Manual::Cookbook> for details.
 
 In your table schema class, create a "private" column accessor with:
 
-  __PACKAGE__->add_columns(my_common => { accessor => '_hidden_my_column' });
+  __PACKAGE__->add_columns(my_column => { accessor => '_hidden_my_column' });
 
 Then, in the same class, implement a subroutine called "my_column" that
 fetches the real value and does the formatting you want.

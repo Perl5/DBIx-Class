@@ -205,9 +205,9 @@ sub run_upgrade
 
     for (@statements)
     {
-        $self->storage->debugfh->print("$_\n") if $self->storage->debug;
-#        print "Running \n>>$_<<\n";
+        $self->storage->debugobj->query_start($_) if $self->storage->debug;
         $self->storage->dbh->do($_) or warn "SQL was:\n $_";
+        $self->storage->debugobj->query_end($_) if $self->storage->debug;
     }
 
     return 1;
@@ -217,7 +217,7 @@ sub run_upgrade
 
 =head1 NAME
 
-DBIx::Class::Versioning - DBIx::Class::Schema plugin for Schema upgrades
+DBIx::Class::Schema::Versioned - DBIx::Class::Schema plugin for Schema upgrades
 
 =head1 SYNOPSIS
 

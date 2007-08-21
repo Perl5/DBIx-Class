@@ -975,7 +975,7 @@ sub _count { # Separated out so pager can get the full count
   # offset, order by and page are not needed to count. record_filter is cdbi
   delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
 
-  my $tmp_rs = (ref $self)->new($self->_source_handle, $attrs);
+  my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
   return $count;
 }
@@ -1259,7 +1259,7 @@ Pass an arrayref of hashrefs. Each hashref should be a structure suitable for
 submitting to a $resultset->create(...) method.
 
 In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
-to insert the data, as this is a faster method.
+to insert the data, as this is a faster method.  
 
 Otherwise, each set of data is inserted into the database using
 L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
@@ -1296,6 +1296,14 @@ Example:  Assuming an Artist Class that has many CDs Classes relating:
   
   print $ArtistOne->name; ## response is 'Artist One'
   print $ArtistThree->cds->count ## reponse is '2'
+  
+Please note an important effect on your data when choosing between void and
+wantarray context. Since void context goes straight to C<insert_bulk> in 
+L<DBIx::Class::Storage::DBI> this will skip any component that is overriding
+c<insert>.  So if you are using something like L<DBIx-Class-UUIDColumns> to 
+create primary keys for you, you will find that your PKs are empty.  In this 
+case you will have to use the wantarray context in order to create those 
+values.
 
 =cut
 
@@ -1417,7 +1425,7 @@ attribute set on the resultset (10 by default).
 
 sub page {
   my ($self, $page) = @_;
-  return (ref $self)->new($self->_source_handle, { %{$self->{attrs}}, page => $page });
+  return (ref $self)->new($self->result_source, { %{$self->{attrs}}, page => $page });
 }
 
 =head2 new_result
@@ -1430,7 +1438,12 @@ sub page {
 
 =back
 
-Creates an object in the resultset's result class and returns it.
+Creates a new row object in the resultset's result class and returns
+it. The row is not inserted into the database at this point, call
+L<DBIx::Class::Row/insert> to do that. Calling L<DBIx::Class::Row/in_storage>
+will tell you whether the row object has been inserted or not.
+
+Passes the hashref of input on to L<DBIx::Class::Row/new>.
 
 =cut
 
@@ -1548,9 +1561,58 @@ sub find_or_new {
 
 =back
 
-Inserts a record into the resultset and returns the object representing it.
+Attempt to create a single new row or a row with multiple related rows
+in the table represented by the resultset (and related tables). This
+will not check for duplicate rows before inserting, use
+L</find_or_create> to do that.
+
+To create one row for this resultset, pass a hashref of key/value
+pairs representing the columns of the table and the values you wish to
+store. If the appropriate relationships are set up, foreign key fields
+can also be passed an object representing the foreign row, and the
+value will be set to it's primary key.
+
+To create related objects, pass a hashref for the value if the related
+item is a foreign key relationship (L<DBIx::Class::Relationship/belongs_to>),
+and use the name of the relationship as the key. (NOT the name of the field,
+necessarily). For C<has_many> and C<has_one> relationships, pass an arrayref
+of hashrefs containing the data for each of the rows to create in the foreign
+tables, again using the relationship name as the key.
+
+Instead of hashrefs of plain related data (key/value pairs), you may
+also pass new or inserted objects. New objects (not inserted yet, see
+L</new>), will be inserted into their appropriate tables.
 
 Effectively a shortcut for C<< ->new_result(\%vals)->insert >>.
+
+Example of creating a new row.
+
+  $person_rs->create({
+    name=>"Some Person",
+	email=>"somebody@someplace.com"
+  });
+  
+Example of creating a new row and also creating rows in a related C<has_many>
+or C<has_one> resultset.  Note Arrayref.
+
+  $artist_rs->create(
+     { artistid => 4, name => 'Manufactured Crap', cds => [ 
+        { title => 'My First CD', year => 2006 },
+        { title => 'Yet More Tweeny-Pop crap', year => 2007 },
+      ],
+     },
+  );
+
+Example of creating a new row and also creating a row in a related
+C<belongs_to>resultset. Note Hashref.
+
+  $cd_rs->create({
+    title=>"Music for Silly Walks",
+	year=>2000,
+	artist => {
+	  name=>"Silly Musician",
+	}
+  });
 
 =cut
 
@@ -1745,7 +1807,7 @@ sub related_resultset {
     my $rel_obj = $self->result_source->relationship_info($rel);
 
     $self->throw_exception(
-      "search_related: result source '" . $self->_source_handle->source_moniker .
+      "search_related: result source '" . $self->result_source->source_name .
         "' has no such relationship $rel")
       unless $rel_obj;
     
@@ -1756,7 +1818,7 @@ sub related_resultset {
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     my %attrs = %{$self->{attrs}||{}};
-    delete $attrs{result_class};
+    delete @attrs{qw(result_class alias)};
 
     my $new_cache;
 
@@ -1767,21 +1829,32 @@ sub related_resultset {
       }
     }
 
-    my $new = $self->_source_handle
-                   ->schema
-                   ->resultset($rel_obj->{class})
-                   ->search_rs(
-                       undef, {
-                         %attrs,
-                         join => undef,
-                         prefetch => undef,
-                         select => undef,
-                         as => undef,
-                         alias => $alias,
-                         where => $self->{cond},
-                         seen_join => $seen,
-                         from => $from,
-                     });
+    my $rel_source = $self->result_source->related_source($rel);
+
+    my $new = do {
+
+      # The reason we do this now instead of passing the alias to the
+      # search_rs below is that if you wrap/overload resultset on the
+      # source you need to know what alias it's -going- to have for things
+      # to work sanely (e.g. RestrictWithObject wants to be able to add
+      # extra query restrictions, and these may need to be $alias.)
+
+      my $attrs = $rel_source->resultset_attributes;
+      local $attrs->{alias} = $alias;
+
+      $rel_source->resultset
+                 ->search_rs(
+                     undef, {
+                       %attrs,
+                       join => undef,
+                       prefetch => undef,
+                       select => undef,
+                       as => undef,
+                       where => $self->{cond},
+                       seen_join => $seen,
+                       from => $from,
+                   });
+    };
     $new->set_cache($new_cache) if $new_cache;
     $new;
   };
@@ -2150,7 +2223,7 @@ C<get_column> method (or via the object accessor, B<if one already
 exists>).  It has nothing to do with the SQL code C< SELECT foo AS bar
 >.
 
-The C< as > attribute is used in conjunction with C<select>,
+The C<as> attribute is used in conjunction with C<select>,
 usually when C<select> contains one or more function or stored
 procedure names:
 
@@ -2262,10 +2335,11 @@ below.
 
 =back
 
-Contains one or more relationships that should be fetched along with the main
-query (when they are accessed afterwards they will have already been
-"prefetched").  This is useful for when you know you will need the related
-objects, because it saves at least one query:
+Contains one or more relationships that should be fetched along with
+the main query (when they are accessed afterwards the data will
+already be available, without extra queries to the database).  This is
+useful for when you know you will need the related objects, because it
+saves at least one query:
 
   my $rs = $schema->resultset('Tag')->search(
     undef,

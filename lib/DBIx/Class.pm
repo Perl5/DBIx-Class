@@ -23,7 +23,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.08003';
+$VERSION = '0.08006';
 
 sub MODIFY_CODE_ATTRIBUTES {
   my ($class,$code,@attrs) = @_;
@@ -123,6 +123,8 @@ Then you can use these classes in your application's code:
   my $cd = $millennium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
   my $cd_artist_name = $cd->artist->name; # Already has the data so no query
 
+  # new() makes a DBIx::Class::Row object but doesnt insert it into the DB.
+  # create() is the same as new() then insert().
   my $new_cd = $schema->resultset('CD')->new({ title => 'Spoon' });
   $new_cd->artist($cd->artist);
   $new_cd->insert; # Auto-increment primary key filled in after INSERT
@@ -161,15 +163,17 @@ APIs, since DBIx::Class is used in production in many organisations,
 and even backwards incompatible changes to non-published APIs will be fixed
 if they're reported and doing so doesn't cost the codebase anything.
 
-The test suite is quite substantial, and several developer releases are
-generally made to CPAN before the -current branch is merged back to trunk for
-a major release.
+The test suite is quite substantial, and several developer releases
+are generally made to CPAN before the branch for the next release is
+merged back to trunk for a major release.
 
 The community can be found via:
 
-  Mailing list: http://lists.rawmode.org/mailman/listinfo/dbix-class/
+  Mailing list: http://lists.scsys.co.uk/mailman/listinfo/dbix-class/
 
-  SVN: http://dev.catalyst.perl.org/repos/bast/trunk/DBIx-Class/
+  SVN: http://dev.catalyst.perl.org/repos/bast/DBIx-Class/
+
+  SVNWeb: http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/
 
   IRC: irc.perl.org#dbix-class
 
@@ -188,6 +192,8 @@ is traditional :)
 =head1 CONTRIBUTORS
 
 abraxxa: Alexander Hartmaier <alex_hartmaier@hotmail.com>
+
+aherzog: Adam Herzog <adam@herzogdesigns.com>
 
 andyg: Andy Grundman <andy@hybridized.org>
 

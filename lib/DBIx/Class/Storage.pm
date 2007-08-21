@@ -10,6 +10,11 @@ use Carp::Clan qw/^DBIx::Class/;
 use IO::File;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
+__PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
+
+__PACKAGE__->cursor_class('DBIx::Class::Cursor');
+
+sub cursor { shift->cursor_class(@_); }
 
 package # Hide from PAUSE
     DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
@@ -56,20 +61,11 @@ sub new {
   $new->set_schema($schema);
   $new->debugobj(new DBIx::Class::Storage::Statistics());
 
-  my $fh;
+  #my $fh;
 
   my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
                   || $ENV{DBIC_TRACE};
 
-  if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
-    $fh = IO::File->new($1, 'w')
-      or $new->throw_exception("Cannot open trace file $1");
-  } else {
-    $fh = IO::File->new('>&STDERR');
-  }
-
-  $fh->autoflush(1);
-  $new->debugfh($fh);
   $new->debug(1) if $debug_env;
 
   $new;
@@ -324,13 +320,11 @@ sub debugcb {
     }
 }
 
-=head2 cursor
+=head2 cursor_class
 
 The cursor class for this Storage object.
 
 =cut
-
-sub cursor { die "Virtual method!" }
 
 =head2 deploy
 

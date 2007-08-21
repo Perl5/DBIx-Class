@@ -50,7 +50,7 @@ sub backup
 
 =head1 NAME
 
-DBIx::Class::PK::Auto::SQLite - Automatic primary key class for SQLite
+DBIx::Class::Storage::DBI::SQLite - Automatic primary key class for SQLite
 
 =head1 SYNOPSIS
 

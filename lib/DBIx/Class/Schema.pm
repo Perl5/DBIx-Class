@@ -17,6 +17,7 @@ __PACKAGE__->mk_classdata('storage_type' => '::DBI');
 __PACKAGE__->mk_classdata('storage');
 __PACKAGE__->mk_classdata('exception_action');
 __PACKAGE__->mk_classdata('stacktrace' => $ENV{DBIC_TRACE} || 0);
+__PACKAGE__->mk_classdata('default_resultset_attributes' => {});
 
 =head1 NAME
 
@@ -835,6 +836,18 @@ i.e.,
     [ 2, 'Indie Band' ],
     ...
   ]);
+  
+Since wantarray context is basically the same as looping over $rs->create(...) 
+you won't see any performance benefits and in this case the method is more for
+convenience. Void context sends the column information directly to storage
+using <DBI>s bulk insert method. So the performance will be much better for 
+storages that support this method.
+
+Because of this difference in the way void context inserts rows into your 
+database you need to note how this will effect any loaded components that
+override or augment insert.  For example if you are using a component such 
+as L<DBIx::Class::UUIDColumns> to populate your primary keys you MUST use 
+wantarray context if you want the PKs automatically created.
 
 =cut
 

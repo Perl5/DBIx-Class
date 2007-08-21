@@ -124,7 +124,10 @@ sub _dbh_all {
 
 sub all {
   my ($self) = @_;
-  return $self->SUPER::all if $self->{attrs}{rows};
+  if ($self->{attrs}{software_limit}
+        && ($self->{attrs}{offset} || $self->{attrs}{rows})) {
+    return $self->SUPER::all;
+  }
   $self->{storage}->dbh_do($self->can('_dbh_all'), $self);
 }
 
