@@ -14,13 +14,19 @@ my $schema = DBICTest->init_schema(
 ok $schema->connection(
     DBICTest->_database,
     {
-        on_connect_do       => ['CREATE TABLE TEST_empty (id INTEGER)'],
+        on_connect_do       => [
+            'CREATE TABLE TEST_empty (id INTEGER)',
+            [ 'INSERT INTO TEST_empty VALUES (?)', {}, 2 ],
+        ],
         on_disconnect_do    =>
             [\&check_exists, 'DROP TABLE TEST_empty', \&check_dropped],
     },
 ), 'connection()';
 
-ok $schema->storage->dbh->do('SELECT 1 FROM TEST_empty'), 'on_connect_do() worked';
+is_deeply
+  $schema->storage->dbh->selectall_arrayref('SELECT * FROM TEST_empty'),
+  [ [ 2 ] ],
+  'on_connect_do() worked';
 eval { $schema->storage->dbh->do('SELECT 1 FROM TEST_nonexistent'); };
 ok $@, 'Searching for nonexistent table dies';
 

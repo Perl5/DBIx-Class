@@ -795,9 +795,10 @@ sub _do_query {
     $action->($self);
   }
   else {
-    $self->debugobj->query_start($action) if $self->debug();
-    $self->_dbh->do($action);
-    $self->debugobj->query_end($action) if $self->debug();
+    my @to_run = (ref $action eq 'ARRAY') ? (@$action) : ($action);
+    $self->_query_start(@to_run);
+    $self->_dbh->do(@to_run);
+    $self->_query_end(@to_run);
   }
 
   return $self;
