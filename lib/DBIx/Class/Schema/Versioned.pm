@@ -72,37 +72,18 @@ sub _on_connect
 {
     my ($self) = @_;
     $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
-    my $vtable = $self->{vschema}->resultset('Table');
-    my $pversion;
 
-    if(!$self->_source_exists($vtable))
-    {
-#        $self->{vschema}->storage->debug(1);
-        $self->{vschema}->storage->ensure_connected();
-        $self->{vschema}->deploy();
-        $pversion = 0;
-    }
-    else
-    {
-      $pversion = $self->get_db_version();
-    }
-#    warn("Previous version: $pversion\n");
+    my $pversion = $self->get_db_version();
+
     if($pversion eq $self->schema_version)
     {
         warn "This version is already installed\n";
         return 1;
     }
 
-## use IC::DT?    
-
     if(!$pversion)
     {
-        $vtable->create({ Version => $self->schema_version,
-                          Installed => strftime("%Y-%m-%d %H:%M:%S", gmtime())
-                          });
-        ## If we let the user do this, where does the Version table get updated?
-        warn "No previous version found, calling deploy to install this version.\n";
-        $self->deploy();
+        warn "Your DB is currently unversioned. Please call upgrade on your schema to sync the DB.\n";
         return 1;
     }
 
@@ -129,6 +110,8 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
+    return 0 unless ($self->_source_exists($vtable));
+
     my $psearch = $vtable->search(undef, 
                                     { select => [
                                                  { 'max' => 'Installed' },
@@ -160,37 +143,111 @@ sub backup
     $self->storage->backup($self->backup_directory());
 }
 
-sub upgrade
+sub _generate_db_schema
 {
     my ($self) = @_;
 
-    my $file = $self->ddl_filename(
+
+    
+
+
+
+}
+sub upgrade
+{
+    my ($self) = @_;
+    my $db_version = $self->get_db_version();
+
+    if (!$db_version) {
+      my %driver_to_db_map = (
+        'mysql' => 'MySQL',
+        'Pg' => 'PostgreSQL',
+        'Oracle' => 'Oracle'
+      );
+      my $db = $driver_to_db_map{$self->storage->dbh->{Driver}->{Name}};
+      unless ($db) {
+        print "Sorry, this is an unsupported DB\n";
+        return;
+      }
+
+      require SQL::Translator;
+      require SQL::Translator::Diff;
+
+      my $db_tr = SQL::Translator->new({ 
+        add_drop_table => 1, 
+        parser => 'DBI',
+        parser_args => { 
+          dsn => 'dbi:mysql:dbname=takkle_test', 
+          db_user => 'newtakkle', 
+          db_password => 'takkle123' 
+          } 
+      });
+
+      $db_tr->producer($db);      
+      my $dbic_tr = SQL::Translator->new;
+      $dbic_tr->parser('SQL::Translator::Parser::DBIx::Class');
+      $dbic_tr = $self->storage->configure_sqlt($dbic_tr, $db);
+      $dbic_tr->data($self);
+      $dbic_tr->producer($db);
+
+      $db_tr->schema->name('1');
+      $dbic_tr->schema->name('2');
+
+
+      # is this really necessary?
+      foreach my $tr ($db_tr, $dbic_tr) {
+        my $data = $tr->data;
+        $tr->parser->($tr, $$data);
+      }
+      
+      my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db, 
+                                                    $dbic_tr->schema, $db,
+                                                    { ignore_constraint_names => 1, ignore_index_names => 1, caseopt => 1 });
+
+      my $filename = $self->ddl_filename(
                                  $self->storage->sqlt_type,
                                  $self->upgrade_directory,
                                  $self->schema_version,
-                                 $self->get_db_version,
+                                 'PRE',
+                                 );
+      my $file;
+      if(!open($file, ">$filename"))
+      {
+          $self->throw_exception("Can't open $filename for writing ($!)");
+          next;
+      }
+      print $file $diff;
+      close($file);
+
+      print "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL $filename to sync your DB.\n";
+    } else {
+      my $file = $self->ddl_filename(
+                                 $self->storage->sqlt_type,
+                                 $self->upgrade_directory,
+                                 $self->schema_version,
+                                 $db_version,
                                  );
 
-#    $file =~ s/@{[ $self->schema_version ]}/"${pversion}-" . $self->schema_version/e;
-    if(!-f $file)
-    {
-        warn "Upgrade not possible, no upgrade file found ($file)\n";
-        return;
+      if(!-f $file)
+      {
+         warn "Upgrade not possible, no upgrade file found ($file)\n";
+         return;
+      }
+
+      my $fh;
+      open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
+      my @data = split(/[;\n]/, join('', <$fh>));
+      close($fh);
+      @data = grep { $_ && $_ !~ /^-- / } @data;
+      @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
+      
+      $self->_filedata(\@data);
+      $self->backup() if($self->do_backup);
+
+      $self->txn_do(sub {
+        $self->do_upgrade();
+      });
     }
-
-    my $fh;
-    open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
-    my @data = split(/[;\n]/, join('', <$fh>));
-    close($fh);
-    @data = grep { $_ && $_ !~ /^-- / } @data;
-    @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
-
-    $self->_filedata(\@data);
-    $self->backup() if($self->do_backup);
-
-    $self->txn_do(sub {
-      $self->do_upgrade();
-    });
 
     my $vtable = $self->{vschema}->resultset('Table');
     $vtable->create({ Version => $self->schema_version,

@@ -158,15 +158,24 @@ sub parse {
                    )
                 {
                     $created_FK_rels{$rel_table}->{$key_test} = 1;
-                    $table->add_constraint(
-                                type             => 'foreign_key',
-                                name             => "fk_$keys[0]",
-                                fields           => \@keys,
-                                reference_fields => \@refkeys,
-                                reference_table  => $rel_table,
-                                on_delete        => $on_delete,
-                                on_update        => $on_update
-                    );
+                    if (scalar(@keys)) {
+                        $table->add_constraint(
+                                    type             => 'foreign_key',
+                                    name             => "fk_$keys[0]",
+                                    fields           => \@keys,
+                                    reference_fields => \@refkeys,
+                                    reference_table  => $rel_table,
+                                    on_delete        => $on_delete,
+                                    on_update        => $on_update
+                        );
+                    
+                        my $index = $table->add_index(
+                                    name   => $table->name . "_fk_$keys[0]",
+                                    fields => \@keys,
+                                    type   => 'NORMAL',
+                        );
+                    }
+
                 }
             }
         }
