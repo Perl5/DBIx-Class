@@ -14,7 +14,7 @@ use Scalar::Util qw/blessed weaken/;
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
        _conn_pid _conn_tid disable_sth_caching on_connect_do
-       transaction_depth unsafe _dbh_autocommit/
+       on_disconnect_do transaction_depth unsafe _dbh_autocommit/
 );
 
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
@@ -347,9 +347,30 @@ connection-specific options:
 
 =item on_connect_do
 
-This can be set to an arrayref of literal sql statements, which will
-be executed immediately after making the connection to the database
-every time we [re-]connect.
+Specifies things to do immediately after connecting or re-connecting to
+the database.  Its value may contain:
+
+=over
+
+=item an array reference
+
+This contains SQL statements to execute in order.  Each element contains
+a string or a code reference that returns a string.
+
+=item a code reference
+
+This contains some code to execute.  Unlike code references within an
+array reference, its return value is ignored.
+
+=back
+
+=item on_disconnect_do
+
+Takes arguments in the same for as L<on_connect_do> and executes them
+immediately before disconnecting from the database.
+
+Note, this only runs if you explicitly call L<disconnect> on the
+storage object.
 
 =item disable_sth_caching
 
@@ -481,9 +502,10 @@ sub connect_info {
   my $last_info = $dbi_info->[-1];
   if(ref $last_info eq 'HASH') {
     $last_info = { %$last_info }; # so delete is non-destructive
-    for my $storage_opt (
-        qw/on_connect_do disable_sth_caching unsafe cursor_class/
-      ) {
+    my @storage_option = qw(
+      on_connect_do on_disconnect_do disable_sth_caching unsafe cursor_class
+    );
+    for my $storage_opt (@storage_option) {
       if(my $value = delete $last_info->{$storage_opt}) {
         $self->$storage_opt($value);
       }
@@ -650,6 +672,9 @@ sub disconnect {
   my ($self) = @_;
 
   if( $self->connected ) {
+    my $connection_do = $self->on_disconnect_do;
+    $self->_do_connection_actions($connection_do) if ref($connection_do);
+
     $self->_dbh->rollback unless $self->_dbh_autocommit;
     $self->_dbh->disconnect;
     $self->_dbh(undef);
@@ -742,15 +767,40 @@ sub _populate_dbh {
     }
   }
 
-  # if on-connect sql statements are given execute them
-  foreach my $sql_statement (@{$self->on_connect_do || []}) {
-    $self->_query_start($sql_statement);
-    $self->_dbh->do($sql_statement);
-    $self->_query_end($sql_statement);
-  }
+  my $connection_do = $self->on_connect_do;
+  $self->_do_connection_actions($connection_do) if ref($connection_do);
 
   $self->_conn_pid($$);
   $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
+}
+
+sub _do_connection_actions {
+  my $self = shift;
+  my $connection_do = shift;
+
+  if (ref $connection_do eq 'ARRAY') {
+    $self->_do_query($_) foreach @$connection_do;
+  }
+  elsif (ref $connection_do eq 'CODE') {
+    $connection_do->();
+  }
+
+  return $self;
+}
+
+sub _do_query {
+  my ($self, $action) = @_;
+
+  if (ref $action eq 'CODE') {
+    $action->($self);
+  }
+  else {
+    $self->debugobj->query_start($action) if $self->debug();
+    $self->_dbh->do($action);
+    $self->debugobj->query_end($action) if $self->debug();
+  }
+
+  return $self;
 }
 
 sub _connect {
