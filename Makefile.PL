@@ -29,9 +29,11 @@ install_script 'script/dbicadmin';
 
 tests "t/*.t t/*/*.t";
 
-# re-build README if we're in an svk checkout
-if( -e 'MANIFEST.SKIP' ) {
-    system('pod2text lib/DBIx/Class.pm > README');
+# re-build README and require CDBI modules for testing if we're in a checkout
+if( -e 'inc/.author' ) {
+  build_requires 'DBIx::ContextualFetch';
+  build_requires 'Class::Trigger';
+  system('pod2text lib/DBIx/Class.pm > README');
 }
 
 auto_provides;
