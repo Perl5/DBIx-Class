@@ -143,16 +143,6 @@ sub backup
     $self->storage->backup($self->backup_directory());
 }
 
-sub _generate_db_schema
-{
-    my ($self) = @_;
-
-
-    
-
-
-
-}
 sub upgrade
 {
     my ($self) = @_;
@@ -172,15 +162,10 @@ sub upgrade
 
       require SQL::Translator;
       require SQL::Translator::Diff;
-
       my $db_tr = SQL::Translator->new({ 
         add_drop_table => 1, 
         parser => 'DBI',
-        parser_args => { 
-          dsn => 'dbi:mysql:dbname=takkle_test', 
-          db_user => 'newtakkle', 
-          db_password => 'takkle123' 
-          } 
+        parser_args => { dbh => $self->storage->dbh }
       });
 
       $db_tr->producer($db);      
@@ -190,9 +175,8 @@ sub upgrade
       $dbic_tr->data($self);
       $dbic_tr->producer($db);
 
-      $db_tr->schema->name('1');
-      $dbic_tr->schema->name('2');
-
+      $db_tr->schema->name('db_schema');
+      $dbic_tr->schema->name('dbic_schema');
 
       # is this really necessary?
       foreach my $tr ($db_tr, $dbic_tr) {
@@ -219,7 +203,10 @@ sub upgrade
       print $file $diff;
       close($file);
 
-      print "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL $filename to sync your DB.\n";
+      # create versions table
+      $self->{vschema}->deploy;
+
+      print "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.\n";
     } else {
       my $file = $self->ddl_filename(
                                  $self->storage->sqlt_type,
