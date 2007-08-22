@@ -265,6 +265,8 @@ sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
 Todd Lipcon
 
+Tom Hukins
+
 typester: Daisuke Murase <typester@cpan.org>
 
 victori: Victor Igumnov <victori@cpan.org>
