@@ -23,13 +23,13 @@ There are two ways of using this class.
 =item *
 
 Specify C<< $rs->result_class >> on a specific resultset to affect only that
-resultser (and any chained off of it); or
+resultset (and any chained off of it); or
 
 =item *
 
 Specify C<< __PACKAGE__->result_class >> on your source object to force all
 uses of that result source to be inflated to hash-refs - this approach is not
-recomended
+recommended.
 
 =back
 
