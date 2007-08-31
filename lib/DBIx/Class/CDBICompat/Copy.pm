@@ -6,6 +6,21 @@ use warnings;
 
 use Carp;
 
+=head1 NAME
+
+DBIx::Class::CDBICompat::Copy
+
+=head1 SYNOPSIS
+
+See DBIx::Class::CDBICompat for directions for use.
+
+=head1 DESCRIPTION
+
+Emulates C<<Class::DBI->copy($new_id)>>.
+
+=cut
+
+
 # CDBI's copy will take an id in addition to a hash ref.
 sub copy {
     my($self, $arg) = @_;

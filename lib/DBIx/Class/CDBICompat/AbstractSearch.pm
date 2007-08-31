@@ -4,6 +4,20 @@ package # hide form PAUSE
 use strict;
 use warnings;
 
+=head1 NAME
+
+DBIx::Class::CDBICompat::AbstractSearch
+
+=head1 SYNOPSIS
+
+See DBIx::Class::CDBICompat for directions for use.
+
+=head1 DESCRIPTION
+
+Emulates L<Class::DBI::AbstractSearch>.
+
+=cut
+
 # The keys are mostly the same.
 my %cdbi2dbix = (
     limit               => 'rows',

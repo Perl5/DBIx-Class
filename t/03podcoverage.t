@@ -32,12 +32,18 @@ my $exceptions = {
         ]
     },
     'DBIx::Class::CDBICompat::AccessorMapping'          => { skip => 1 },
+    'DBIx::Class::CDBICompat::AbstractSearch' => {
+        ignore => [qw(search_where)]
+    },
     'DBIx::Class::CDBICompat::AttributeAPI'             => { skip => 1 },
     'DBIx::Class::CDBICompat::AutoUpdate'               => { skip => 1 },
     'DBIx::Class::CDBICompat::ColumnCase'               => { skip => 1 },
     'DBIx::Class::CDBICompat::ColumnGroups'             => { skip => 1 },
     'DBIx::Class::CDBICompat::Constraints'              => { skip => 1 },
     'DBIx::Class::CDBICompat::Constructor'              => { skip => 1 },
+    'DBIx::Class::CDBICompat::Copy' => {
+        ignore => [qw(copy)]
+    },
     'DBIx::Class::CDBICompat::DestroyWarning'           => { skip => 1 },
     'DBIx::Class::CDBICompat::GetSet'                   => { skip => 1 },
     'DBIx::Class::CDBICompat::HasA'                     => { skip => 1 },

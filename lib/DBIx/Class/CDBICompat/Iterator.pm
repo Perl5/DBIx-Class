@@ -3,6 +3,25 @@ package DBIx::Class::CDBICompat::Iterator;
 use strict;
 use warnings;
 
+=head1 NAME
+
+DBIx::Class::CDBICompat::Iterator
+
+=head1 SYNOPSIS
+
+See DBIx::Class::CDBICompat for directions for use.
+
+=head1 DESCRIPTION
+
+Emulates the extra behaviors of the Class::DBI search iterator.
+
+=head2 Differences from DBIx::Class result set
+
+The CDBI iterator returns true if there were any results, false otherwise.  The DBIC result set always returns true.
+
+=cut
+
+
 sub _init_result_source_instance {
   my $class = shift;
   
