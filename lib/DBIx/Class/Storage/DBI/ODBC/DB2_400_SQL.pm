@@ -56,7 +56,7 @@ for connections using either SQL naming or System naming.
 
 =head1 AUTHORS
 
-Marc Mims C<< <marc@sssonline.com> >>
+Marc Mims C<< <marc@questright.com> >>
 
 Based on DBIx::Class::Storage::DBI::DB2 by Jess Robinson.
 
