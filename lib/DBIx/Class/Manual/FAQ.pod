@@ -398,6 +398,6 @@ you ask the resultset for an actual row object.
 particular column or group of columns (a-la cdbi Stringfy column
 group, or stringify_self method) ?
 
-See L<Cookbook/Stringification>
+See L<DBIx::Class::Manual::Cookbook/Stringification>
 
 =back
