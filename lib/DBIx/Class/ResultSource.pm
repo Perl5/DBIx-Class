@@ -81,6 +81,10 @@ Adds columns to the result source. If supplied key => hashref pairs, uses
 the hashref as the column_info for that column. Repeated calls of this
 method will add more columns, not replace them.
 
+The column names given will be created as accessor methods on your
+L<DBIx::Class::Row> objects, you can change the name of the accessor
+by supplying an L</accessor> in the column_info hash.
+
 The contents of the column_info are not set in stone. The following
 keys are currently recognised/used by DBIx::Class:
 
@@ -88,7 +92,7 @@ keys are currently recognised/used by DBIx::Class:
 
 =item accessor
 
-Use this to set the name of the accessor for this column. If unset,
+Use this to set the name of the accessor method for this column. If unset,
 the name of the column will be used.
 
 =item data_type

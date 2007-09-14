@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+0.08007 2007-09-04 19:36:00
+        - patch for Oracle datetime inflation (abram@arin.net)
+        - added on_disconnect_do
+        - on_connect_do and on_disconnect_do take coderefs and arrayrefs
+
 0.08006 2007-08-12 15:12:00
         - Move to using Class::C3::Componentised
         - Remove warn statement from DBIx::Class::Row
