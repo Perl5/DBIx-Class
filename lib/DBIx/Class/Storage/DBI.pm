@@ -366,7 +366,7 @@ array reference, its return value is ignored.
 
 =item on_disconnect_do
 
-Takes arguments in the same for as L<on_connect_do> and executes them
+Takes arguments in the same form as L<on_connect_do> and executes them
 immediately before disconnecting from the database.
 
 Note, this only runs if you explicitly call L<disconnect> on the
@@ -792,7 +792,8 @@ sub _do_query {
   my ($self, $action) = @_;
 
   if (ref $action eq 'CODE') {
-    $action->($self);
+    $action = $action->($self);
+    $self->_do_query($_) foreach @$action;
   }
   else {
     my @to_run = (ref $action eq 'ARRAY') ? (@$action) : ($action);

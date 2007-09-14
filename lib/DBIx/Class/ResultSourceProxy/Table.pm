@@ -99,6 +99,7 @@ sub table {
     $class =~ m/([^:]+)$/;
     $class->schema_instance->register_class($class, $class);
   }
+  return $class->result_source_instance->name;
 }
 
 =head2 has_column

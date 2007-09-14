@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 77;
+plan tests => 78;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -337,3 +337,10 @@ SKIP: {
     is($edata{'created_on'}, $event->created_on, 'got created date');
 }
 
+# test resultsource->table return value when setting
+{
+    my $class = $schema->class('Event');
+    diag $class;
+    my $table = $class->table($class->table);
+    is($table, $class->table, '->table($table) returns $table');
+}
