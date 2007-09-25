@@ -128,7 +128,6 @@ sub parse {
 
             if($rel_table)
             {
-
                 my $reverse_rels = $source->reverse_relationship_info($rel);
                 my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
 
@@ -145,7 +144,6 @@ sub parse {
 
                 #Decide if this is a foreign key based on whether the self
                 #items are our primary columns.
-                $DB::single = 1 if $moniker eq 'Tests::MBTI::Result';
 
                 # If the sets are different, then we assume it's a foreign key from
                 # us to another table.

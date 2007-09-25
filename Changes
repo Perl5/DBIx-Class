@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - When adding relationships, it will throw an exception if you get the
+          foreign and self parts the wrong way round in the condition
+
 0.08007 2007-09-04 19:36:00
         - patch for Oracle datetime inflation (abram@arin.net)
         - added on_disconnect_do

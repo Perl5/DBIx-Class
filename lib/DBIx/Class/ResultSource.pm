@@ -519,6 +519,14 @@ sub add_relationship {
     unless $cond;
   $attrs ||= {};
 
+  # Check foreign and self are right in cond
+  if ( (ref $cond ||'') eq 'HASH') {
+    for (keys %$cond) {
+      $self->throw_exception("Keys of condition should be of form 'foreign.col', not '$_'")
+        if /\./ && !/^foreign\./;
+    }
+  }
+
   my %rels = %{ $self->_relationships };
   $rels{$rel} = { class => $f_source_name,
                   source => $f_source_name,
