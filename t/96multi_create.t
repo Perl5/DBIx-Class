@@ -161,3 +161,20 @@ SPECIAL_CASE2: {
   is($a->name, 'Pink Floyd', 'Artist insertion ok');
   is($a->cds && $a->cds->first->title, 'The Wall', 'CD insertion ok');
 }
+
+## Create foreign key col obj including PK
+## See test 20 in 66relationships.t
+my $new_cd_hashref = { 
+              cdid => 27, 
+               title => 'Boogie Woogie', 
+              year => '2007', 
+              artist => { artistid => 17, name => 'king luke' }
+             };
+
+my $cd = $schema->resultset("CD")->find(1);
+
+print $cd->artist->id;
+is($cd->artist->id, 1, 'rel okay');
+
+my $new_cd = $schema->resultset("CD")->create($new_cd_hashref);
+is($new_cd->artist->id, 17, 'new id retained okay');
