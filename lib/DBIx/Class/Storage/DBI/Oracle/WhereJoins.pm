@@ -5,6 +5,8 @@ use base qw( DBIx::Class::Storage::DBI::Oracle::Generic );
 use strict;
 use warnings;
 
+__PACKAGE__->sql_maker_class('DBIC::SQL::Abstract::Oracle');
+
 BEGIN {
   package DBIC::SQL::Abstract::Oracle;
 
@@ -89,18 +91,6 @@ BEGIN {
       }
     }
   }
-}
-
-sub sql_maker {
-  my ($self) = @_;
-
-  unless ($self->_sql_maker) {
-    $self->_sql_maker(
-      new DBIC::SQL::Abstract::Oracle( $self->_sql_maker_args )
-    );
-  }
-
-  return $self->_sql_maker;
 }
 
 1;
