@@ -600,6 +600,7 @@ sub compose_namespace {
   Class::C3->reinitialize();
   {
     no strict 'refs';
+    no warnings 'redefine';
     foreach my $meth (qw/class source resultset/) {
       *{"${target}::${meth}"} =
         sub { shift->schema->$meth(@_) };
