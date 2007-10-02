@@ -122,7 +122,6 @@ $cd->result_source->schema->storage->debug(0);
 is($newartist->name, 'Random Boy Band Two', 'find_or_new_related new artist record with id');
 is($newartist->id, 200, 'find_or_new_related new artist id set');
 
-
 SKIP: {
   skip "relationship checking needs fixing", 1;
   # try to add a bogus relationship using the wrong cols

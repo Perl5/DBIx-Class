@@ -173,7 +173,6 @@ my $new_cd_hashref = {
 
 my $cd = $schema->resultset("CD")->find(1);
 
-print $cd->artist->id;
 is($cd->artist->id, 1, 'rel okay');
 
 my $new_cd = $schema->resultset("CD")->create($new_cd_hashref);

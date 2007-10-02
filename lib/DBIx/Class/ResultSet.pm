@@ -1450,8 +1450,8 @@ sub new_result {
   my $alias = $self->{attrs}{alias};
   my $collapsed_cond = $self->{cond} ? $self->_collapse_cond($self->{cond}) : {};
   my %new = (
-    %{ $self->_remove_alias($values, $alias) },
     %{ $self->_remove_alias($collapsed_cond, $alias) },
+    %{ $self->_remove_alias($values, $alias) },
     -source_handle => $self->_source_handle,
     -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
   );
