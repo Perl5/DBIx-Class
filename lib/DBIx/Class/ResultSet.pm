@@ -1449,6 +1449,9 @@ sub new_result {
 
   my $alias = $self->{attrs}{alias};
   my $collapsed_cond = $self->{cond} ? $self->_collapse_cond($self->{cond}) : {};
+
+  # precendence must be given to passed values over values inherited from the cond, 
+  # so the order here is important.
   my %new = (
     %{ $self->_remove_alias($collapsed_cond, $alias) },
     %{ $self->_remove_alias($values, $alias) },
