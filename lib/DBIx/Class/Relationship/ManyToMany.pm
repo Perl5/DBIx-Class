@@ -24,6 +24,13 @@ sub many_to_many {
     my $set_meth = "set_${meth}";
     my $rs_meth = "${meth}_rs";
 
+    for ($add_meth, $remove_meth, $set_meth, $rs_meth) {
+      warn "***************************************************************************\n".
+           "The many-to-many relationship $meth is trying to create a utility method called $_. This will overwrite the existing method on $class. You almost certainly want to rename your method or the many-to-many relationship, as your method will not be callable (it will use the one from the relationship instead.) YOU HAVE BEEN WARNED\n".
+           "***************************************************************************\n"
+        if $class->can($_);
+    }
+
     $rel_attrs->{alias} ||= $f_rel;
 
     *{"${class}::${meth}_rs"} = sub {
