@@ -790,7 +790,7 @@ sub resolve_condition {
         $self->throw_exception("Invalid rel cond val ${v}");
       if (ref $for) { # Object
         #warn "$self $k $for $v";
-        $ret{$k} = $for->get_column($v);
+        $ret{$k} = $for->get_column($v) if $for->has_column_loaded($v);
         #warn %ret;
       } elsif (!defined $for) { # undef, i.e. "no object"
         $ret{$k} = undef;

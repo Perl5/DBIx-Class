@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 58;
+plan tests => 62;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -117,8 +117,7 @@ my $newartist = $cd->find_or_new_related( 'artist', {
   name => 'Random Boy Band Two',
   artistid => 200,
 } );
-$cd->result_source->schema->storage->debug(0);
-
+# $cd->result_source->schema->storage->debug(0);
 is($newartist->name, 'Random Boy Band Two', 'find_or_new_related new artist record with id');
 is($newartist->id, 200, 'find_or_new_related new artist id set');
 
@@ -204,6 +203,13 @@ is( $twokey->fourkeys->count, 0, 'twokey has no fourkeys' );
 is( $twokey->fourkeys_to_twokeys->count, 0,
     'twokey has no links to fourkey' );
 
+my $undef_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007 });
+is($undef_artist_cd->has_column_loaded('artist'), '', 'FK not loaded');
+is($undef_artist_cd->search_related('artist')->count, 3, 'open search on undef FK');
+
+my $def_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007, artist => undef });
+is($def_artist_cd->has_column_loaded('artist'), 1, 'FK loaded');
+is($def_artist_cd->search_related('artist')->count, 0, 'closed search on null FK');
 
 # test undirected many-to-many relationship (e.g. "related artists")
 my $undir_maps = $schema->resultset("Artist")->find(1)->artist_undirected_maps;
