@@ -264,6 +264,13 @@ sub search_rs {
 Pass a literal chunk of SQL to be added to the conditional part of the
 resultset query.
 
+CAVEAT: C<search_literal> is provided for Class::DBI compatibility and should
+only be used in that context. There are known problems using C<search_literal>
+in chained queries; it can result in bind values in the wrong order.  See
+L<DBIx::Class::Manual::Cookbook/Searching> and
+L<DBIx::Class::Manual::FAQ/Searching> for seaching techniques that do not
+require C<search_literal>.
+
 =cut
 
 sub search_literal {

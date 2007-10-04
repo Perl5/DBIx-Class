@@ -232,6 +232,25 @@ and not:
  my $interval = "now() - interval '12 hours'";
  ->search({last_attempt => { '<' => \$interval } })
 
+=item .. search with an SQL function on the left hand side?
+
+To use an SQL function on the left hand side of a comparison:
+
+ ->search({}, { where => \'YEAR(date_of_birth)=1979' });
+
+=begin hidden
+
+(When the bind arg ordering bug is fixed, the previous example can be
+replaced with the following.)
+
+ ->search({}, { where => \'YEAR(date_of_birth)=?', bind => [ 1979 ] });
+
+=end hidden
+
+Or, if you have quoting off:
+
+ ->search({ 'YEAR(date_of_birth' => 1979 });
+
 =item .. find more help on constructing searches?
 
 Behind the scenes, DBIx::Class uses L<SQL::Abstract> to help construct

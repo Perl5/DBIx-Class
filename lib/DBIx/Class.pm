@@ -261,6 +261,8 @@ sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>
 
+semifor: Marc Mims <marc@questright.com>
+
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
 Todd Lipcon

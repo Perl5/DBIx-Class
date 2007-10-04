@@ -484,7 +484,9 @@ DEPRECATED. You probably wanted compose_namespace.
 
 Actually, you probably just wanted to call connect.
 
-=for hidden due to deprecation
+=begin hidden
+
+(hidden due to deprecation)
 
 Calls L<DBIx::Class::Schema/"compose_namespace"> to the target namespace,
 calls L<DBIx::Class::Schema/connection> with @db_info on the new schema,
@@ -497,6 +499,8 @@ to a connection. In normal usage it is preferred to call
 L<DBIx::Class::Schema/connect> and use the resulting schema object to operate
 on L<DBIx::Class::ResultSet> objects with L<DBIx::Class::Schema/resultset> for
 more information.
+
+=end hidden
 
 =cut
 
