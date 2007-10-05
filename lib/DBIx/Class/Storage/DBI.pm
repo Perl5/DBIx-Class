@@ -718,7 +718,7 @@ sub connected {
 sub _verify_pid {
   my ($self) = @_;
 
-  return if $self->_conn_pid == $$;
+  return if defined $self->_conn_pid && $self->_conn_pid == $$;
 
   $self->_dbh->{InactiveDestroy} = 1;
   $self->_dbh(undef);
