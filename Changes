@@ -6,6 +6,8 @@ Revision history for DBIx::Class
           context; this makes things like func('DISTINCT') work as expected
         - Many-to-many relationships now warn if the utility methods would 
           clash
+        - InflateColumn::DateTime now accepts an extra parameter of timezone
+          to set timezone on the DT object (thanks Sergio Salvi)
 
 0.08007 2007-09-04 19:36:00
         - patch for Oracle datetime inflation (abram@arin.net)
