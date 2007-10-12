@@ -13,7 +13,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
   schema from _relationships column_info_from_storage source_info
-  source_name _indexes/);
+  source_name/);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
   result_class/);
@@ -55,7 +55,6 @@ sub new {
   $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
   $new->{_columns_info_loaded} ||= 0;
-  $new->_indexes([]) unless $new->_indexes;
   return $new;
 }
 
@@ -449,30 +448,6 @@ See also: L<DBIx::Class::Storage>
 =cut
 
 sub storage { shift->schema->storage; }
-
-=head2 add_index
-
-Add an index to the result source. This has no effect for DBIx::Class - it is
-just used for creating SQL with L<SQL::Translator>. Takes the same arguments
-as L<SQL::Translator::Schema::Table::add_index>.
-
-=cut
-
-sub add_index {
-  my ($self, $idx) = @_;
-
-  push @{ $self->_indexes }, $idx;
-}
-
-=head2 indexes
-
-Returns list of secondary (i.e. non unique) indexes created on this table.
-
-=cut
-
-sub indexes {
-  return @{ shift->_indexes };
-}
 
 =head2 add_relationship
 

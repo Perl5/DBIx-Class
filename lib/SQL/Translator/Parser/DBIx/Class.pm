@@ -109,11 +109,6 @@ sub parse {
             }
         }
 
-        foreach my $idx ( $source->indexes ) {
-            my $ret = $table->add_index(%$idx)
-              or die $table->error;
-        }
-
         my @rels = $source->relationships();
 
         my %created_FK_rels;
@@ -174,6 +169,10 @@ sub parse {
                     );
                 }
             }
+        }
+
+        if ($source->result_class->can('sqlt_deploy_hook')) {
+          $source->result_class->sqlt_deploy_hook($table);
         }
     }
     return 1;

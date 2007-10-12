@@ -104,12 +104,4 @@ sub relationship_info {
   shift->result_source_instance->relationship_info(@_);
 }
 
-sub add_index {
-  shift->result_source_instance->add_index(@_);
-}
-
-sub indexes {
-  shift->result_source_instance->indexes(@_);
-}
-
 1;

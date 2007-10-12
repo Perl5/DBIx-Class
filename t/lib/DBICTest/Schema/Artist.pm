@@ -41,6 +41,11 @@ __PACKAGE__->has_many(
   { cascade_copy => 0 } # this would *so* not make sense
 );
 
-__PACKAGE__->add_index({ name => 'artist_name', fields => ['name'],});
+sub sqlt_deploy_hook {
+  my ($self, $sqlt_table) = @_;
+
+  $sqlt_table->add_index( name => 'artist_name', fields => ['name'] )
+    or die $sqlt_table->error;
+}
 
 1;
