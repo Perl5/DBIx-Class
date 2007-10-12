@@ -41,4 +41,6 @@ __PACKAGE__->has_many(
   { cascade_copy => 0 } # this would *so* not make sense
 );
 
+__PACKAGE__->add_index({ name => 'artist_name', fields => ['name'],});
+
 1;

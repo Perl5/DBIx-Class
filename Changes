@@ -8,6 +8,8 @@ Revision history for DBIx::Class
           clash
         - InflateColumn::DateTime now accepts an extra parameter of timezone
           to set timezone on the DT object (thanks Sergio Salvi)
+        - ResultSource now has an add_index method to add indices for when
+          using SQL::Translator to create tables/SQL.
 
 0.08007 2007-09-04 19:36:00
         - patch for Oracle datetime inflation (abram@arin.net)

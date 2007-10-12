@@ -5,6 +5,8 @@ package # hide from PAUSE
 
 # Some mistakes the fault of Matt S Trout
 
+# Others the fault of Ash Berlin
+
 use strict;
 use warnings;
 use vars qw($DEBUG $VERSION @EXPORT_OK);
@@ -105,6 +107,11 @@ sub parse {
                             fields           => $unique_constraints{$uniq}
                 );
             }
+        }
+
+        foreach my $idx ( $source->indices ) {
+            my $ret = $table->add_index(%$idx)
+              or die $table->error;
         }
 
         my @rels = $source->relationships();

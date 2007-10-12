@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 54;
+plan tests => 55;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -27,6 +27,7 @@ my $output = $translator->translate();
 
 ok($output, "SQLT produced someoutput")
   or diag($translator->error);
+
 
 # Note that the constraints listed here are the only ones that are tested -- if
 # more exist in the Schema than are listed here and all listed constraints are
@@ -213,6 +214,14 @@ my %unique_constraints = (
 #  ],
 );
 
+my %indices = (
+  artist => [
+    {
+      'fields' => ['name']
+    },
+  ]
+);
+
 my $tschema = $translator->schema();
 
 # Test that nonexistent constraints are not found
@@ -241,6 +250,13 @@ for my $expected_constraints (keys %unique_constraints) {
       'UNIQUE', $expected_constraint->{table}, $expected_constraint->{cols},
     );
     ok( defined($constraint), "UNIQUE constraint matching `$desc' found" );
+  }
+}
+
+for my $table_index (keys %indices) {
+  for my $expected_index ( @{ $indices{$table_index} } ) {
+
+    ok ( get_index($table_index, $expected_index), "Got a matching index on $table_index table");
   }
 }
 
@@ -291,6 +307,34 @@ sub get_constraint {
     return $constraint; # everything passes, found the constraint
   }
   return undef; # didn't find a matching constraint
+}
+
+sub get_index {
+  my ($table_name, $index) = @_;
+
+  my $table = $tschema->get_table($table_name);
+
+ CAND_INDEX:
+  for my $cand_index ( $table->get_indices ) {
+   
+    next CAND_INDEX if $index->{name} && $cand_index->name ne $index->{name}
+                    || $index->{type} && $cand_index->type ne $index->{type};
+
+    my %idx_fields = map { $_ => 1 } $cand_index->fields;
+
+    for my $field ( @{ $index->{fields} } ) {
+      next CAND_INDEX unless $idx_fields{$field};
+    }
+
+    %idx_fields = map { $_ => 1 } @{$index->{fields}};
+    for my $field ( $cand_index->fields) {
+      next CAND_INDEX unless $idx_fields{$field};
+    }
+
+    return $cand_index;
+  }
+
+  return undef; # No matching idx
 }
 
 # Test parameters in a FOREIGN KEY constraint other than columns
