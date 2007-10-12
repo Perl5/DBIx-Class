@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 55;
+plan tests => 56;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -27,7 +27,6 @@ my $output = $translator->translate();
 
 ok($output, "SQLT produced someoutput")
   or diag($translator->error);
-
 
 # Note that the constraints listed here are the only ones that are tested -- if
 # more exist in the Schema than are listed here and all listed constraints are
@@ -223,6 +222,10 @@ my %indexes = (
 );
 
 my $tschema = $translator->schema();
+
+# Test that the $schema->sqlt_deploy_hook was called okay and that it removed
+# the 'link' table
+ok( !defined($tschema->get_table('link')), "Link table was removed by hook");
 
 # Test that nonexistent constraints are not found
 my $constraint = get_constraint('FOREIGN KEY', 'cd', ['title'], 'cd', ['year']);

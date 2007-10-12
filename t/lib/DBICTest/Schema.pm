@@ -39,4 +39,10 @@ __PACKAGE__->load_classes(qw/
   qw/Owners BooksInLibrary/
 );
 
+sub sqlt_deploy_hook {
+  my ($self, $sqlt_schema) = @_;
+
+  $sqlt_schema->drop_table('link');
+}
+
 1;

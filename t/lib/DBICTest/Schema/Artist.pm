@@ -44,8 +44,11 @@ __PACKAGE__->has_many(
 sub sqlt_deploy_hook {
   my ($self, $sqlt_table) = @_;
 
-  $sqlt_table->add_index( name => 'artist_name', fields => ['name'] )
-    or die $sqlt_table->error;
+
+  if ($sqlt_table->schema->translator->producer_type =~ /SQLite$/ ) {
+    $sqlt_table->add_index( name => 'artist_name', fields => ['name'] )
+      or die $sqlt_table->error;
+  }
 }
 
 1;

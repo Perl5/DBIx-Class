@@ -67,8 +67,6 @@ sub parse {
 
     foreach my $moniker (@monikers)
     {
-        #eval "use $tableclass";
-        #print("Can't load $tableclass"), next if($@);
         my $source = $dbixschema->source($moniker);
 
         next if $seen_tables{$source->name}++;
@@ -80,7 +78,7 @@ sub parse {
         my $colcount = 0;
         foreach my $col ($source->columns)
         {
-            # assuming column_info in dbix is the same as DBI (?)
+            # assuming column_info in dbic is the same as DBI (?)
             # data_type is a number, column_type is text?
             my %colinfo = (
               name => $col,
@@ -175,6 +173,11 @@ sub parse {
           $source->result_class->sqlt_deploy_hook($table);
         }
     }
+
+    if ($dbixschema->can('sqlt_deploy_hook')) {
+      $dbixschema->sqlt_deploy_hook($schema);
+    }
+
     return 1;
 }
 
