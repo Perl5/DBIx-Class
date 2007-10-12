@@ -109,7 +109,7 @@ sub parse {
             }
         }
 
-        foreach my $idx ( $source->indices ) {
+        foreach my $idx ( $source->indexes ) {
             my $ret = $table->add_index(%$idx)
               or die $table->error;
         }

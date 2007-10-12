@@ -108,8 +108,8 @@ sub add_index {
   shift->result_source_instance->add_index(@_);
 }
 
-sub indices {
-  shift->result_source_instance->indices(@_);
+sub indexes {
+  shift->result_source_instance->indexes(@_);
 }
 
 1;

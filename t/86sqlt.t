@@ -214,7 +214,7 @@ my %unique_constraints = (
 #  ],
 );
 
-my %indices = (
+my %indexes = (
   artist => [
     {
       'fields' => ['name']
@@ -253,8 +253,8 @@ for my $expected_constraints (keys %unique_constraints) {
   }
 }
 
-for my $table_index (keys %indices) {
-  for my $expected_index ( @{ $indices{$table_index} } ) {
+for my $table_index (keys %indexes) {
+  for my $expected_index ( @{ $indexes{$table_index} } ) {
 
     ok ( get_index($table_index, $expected_index), "Got a matching index on $table_index table");
   }
