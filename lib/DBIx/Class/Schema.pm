@@ -1050,6 +1050,17 @@ sub ddl_filename {
     return $filename;
 }
 
+=head2 sqlt_deploy_hook($sqlt_schema)
+
+An optional sub which you can declare in your own Schema class that will get 
+passed the L<SQL::Translator::Schema> object when you deploy the schema via
+L</create_ddl_dir> or L</deploy>.
+
+For an example of what you can do with this, see 
+L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
+
+=cut
+
 1;
 
 =head1 AUTHORS

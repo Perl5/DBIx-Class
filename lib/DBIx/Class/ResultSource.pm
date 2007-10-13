@@ -1057,6 +1057,15 @@ sub throw_exception {
   }
 }
 
+=head2 sqlt_deploy_hook($sqlt_table)
+
+An optional sub which you can declare in your own Schema class that will get 
+passed the L<SQL::Translator::Schema::Table> object when you deploy the schema
+via L</create_ddl_dir> or L</deploy>.
+
+For an example of what you can do with this, see 
+L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
+
 =head1 AUTHORS
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>
