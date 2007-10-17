@@ -95,6 +95,8 @@ sub new {
 
   $attrs->{alias} ||= 'me';
 
+  # Creation of {} and bless separated to mitigate RH perl bug
+  # see https://bugzilla.redhat.com/show_bug.cgi?id=196836
   my $self = {
     _source_handle => $source,
     result_class => $attrs->{result_class} || $source->resolve->result_class,
