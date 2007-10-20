@@ -10,6 +10,10 @@ Revision history for DBIx::Class
           to set timezone on the DT object (thanks Sergio Salvi)
         - Added sqlt_deploy_hook to result classes so that indexes can be 
           added.
+        - Added startup checks to warn loudly if we appear to be running on 
+          RedHat systems from perl-5.8.8-10 and up that have the bless/overload
+          patch applied (badly) which causes 2x -> 100x performance penalty.
+          (Jon Schutz)
 
 0.08007 2007-09-04 19:36:00
         - patch for Oracle datetime inflation (abram@arin.net)

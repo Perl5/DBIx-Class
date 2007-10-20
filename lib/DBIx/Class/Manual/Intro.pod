@@ -373,6 +373,16 @@ L<DBIx::Class::ResultSet/METHODS>.
 For a complete overview of the available attributes, see
 L<DBIx::Class::ResultSet/ATTRIBUTES>.
 
+=head1 NOTES
+
+=head2 Problems on RHEL5/CentOS5
+
+There is a problem with slow performance of certain DBIx::Class operations in
+perl-5.8.8-10 and later on RedHat and related systems, due to a bad backport of
+a "use overload" related bug.  The problem is in the Perl binary itself, not in
+DBIx::Class.  If your system has this problem, you will see a warning on
+startup, with some options as to what to do about it.
+
 =head1 SEE ALSO
 
 =over 4
