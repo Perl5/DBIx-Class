@@ -140,6 +140,8 @@ L</ATTRIBUTES>. For more examples of using this function, see
 L<Searching|DBIx::Class::Manual::Cookbook/Searching>. For a complete
 documentation for the first argument, see L<SQL::Abstract>.
 
+For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
+
 =cut
 
 sub search {
@@ -270,7 +272,7 @@ CAVEAT: C<search_literal> is provided for Class::DBI compatibility and should
 only be used in that context. There are known problems using C<search_literal>
 in chained queries; it can result in bind values in the wrong order.  See
 L<DBIx::Class::Manual::Cookbook/Searching> and
-L<DBIx::Class::Manual::FAQ/Searching> for seaching techniques that do not
+L<DBIx::Class::Manual::FAQ/Searching> for searching techniques that do not
 require C<search_literal>.
 
 =cut
@@ -2330,6 +2332,7 @@ to Earth' and a cd with title 'Popular'.
 If you want to fetch related objects from other tables as well, see C<prefetch>
 below.
 
+For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 =head2 prefetch
 
 =over 4
