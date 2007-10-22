@@ -5,6 +5,8 @@ package # hide from PAUSE
 
 # Some mistakes the fault of Matt S Trout
 
+# Others the fault of Ash Berlin
+
 use strict;
 use warnings;
 use vars qw($DEBUG $VERSION @EXPORT_OK);
@@ -65,8 +67,6 @@ sub parse {
 
     foreach my $moniker (@monikers)
     {
-        #eval "use $tableclass";
-        #print("Can't load $tableclass"), next if($@);
         my $source = $dbixschema->source($moniker);
 
         next if $seen_tables{$source->name}++;
@@ -78,7 +78,7 @@ sub parse {
         my $colcount = 0;
         foreach my $col ($source->columns)
         {
-            # assuming column_info in dbix is the same as DBI (?)
+            # assuming column_info in dbic is the same as DBI (?)
             # data_type is a number, column_type is text?
             my %colinfo = (
               name => $col,
@@ -128,7 +128,6 @@ sub parse {
 
             if($rel_table)
             {
-
                 my $reverse_rels = $source->reverse_relationship_info($rel);
                 my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
 
@@ -145,7 +144,6 @@ sub parse {
 
                 #Decide if this is a foreign key based on whether the self
                 #items are our primary columns.
-                $DB::single = 1 if $moniker eq 'Tests::MBTI::Result';
 
                 # If the sets are different, then we assume it's a foreign key from
                 # us to another table.
@@ -179,7 +177,16 @@ sub parse {
                 }
             }
         }
+
+        if ($source->result_class->can('sqlt_deploy_hook')) {
+          $source->result_class->sqlt_deploy_hook($table);
+        }
     }
+
+    if ($dbixschema->can('sqlt_deploy_hook')) {
+      $dbixschema->sqlt_deploy_hook($schema);
+    }
+
     return 1;
 }
 

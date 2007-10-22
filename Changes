@@ -1,4 +1,19 @@
 Revision history for DBIx::Class
+        - Row::insert will now not fall over if passed duplicate related objects
+        - When adding relationships, it will throw an exception if you get the
+          foreign and self parts the wrong way round in the condition
+        - ResultSetColumn::func() now returns all results if called in list
+          context; this makes things like func('DISTINCT') work as expected
+        - Many-to-many relationships now warn if the utility methods would 
+          clash
+        - InflateColumn::DateTime now accepts an extra parameter of timezone
+          to set timezone on the DT object (thanks Sergio Salvi)
+        - Added sqlt_deploy_hook to result classes so that indexes can be 
+          added.
+        - Added startup checks to warn loudly if we appear to be running on 
+          RedHat systems from perl-5.8.8-10 and up that have the bless/overload
+          patch applied (badly) which causes 2x -> 100x performance penalty.
+          (Jon Schutz)
 
 0.08007 2007-09-04 19:36:00
         - patch for Oracle datetime inflation (abram@arin.net)

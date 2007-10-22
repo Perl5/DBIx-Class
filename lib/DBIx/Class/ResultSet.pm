@@ -95,6 +95,8 @@ sub new {
 
   $attrs->{alias} ||= 'me';
 
+  # Creation of {} and bless separated to mitigate RH perl bug
+  # see https://bugzilla.redhat.com/show_bug.cgi?id=196836
   my $self = {
     _source_handle => $source,
     result_class => $attrs->{result_class} || $source->resolve->result_class,
@@ -137,6 +139,8 @@ For a list of attributes that can be passed to C<search>, see
 L</ATTRIBUTES>. For more examples of using this function, see
 L<Searching|DBIx::Class::Manual::Cookbook/Searching>. For a complete
 documentation for the first argument, see L<SQL::Abstract>.
+
+For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 
 =cut
 
@@ -263,6 +267,13 @@ sub search_rs {
 
 Pass a literal chunk of SQL to be added to the conditional part of the
 resultset query.
+
+CAVEAT: C<search_literal> is provided for Class::DBI compatibility and should
+only be used in that context. There are known problems using C<search_literal>
+in chained queries; it can result in bind values in the wrong order.  See
+L<DBIx::Class::Manual::Cookbook/Searching> and
+L<DBIx::Class::Manual::FAQ/Searching> for searching techniques that do not
+require C<search_literal>.
 
 =cut
 
@@ -1449,9 +1460,12 @@ sub new_result {
 
   my $alias = $self->{attrs}{alias};
   my $collapsed_cond = $self->{cond} ? $self->_collapse_cond($self->{cond}) : {};
+
+  # precendence must be given to passed values over values inherited from the cond, 
+  # so the order here is important.
   my %new = (
-    %{ $self->_remove_alias($values, $alias) },
     %{ $self->_remove_alias($collapsed_cond, $alias) },
+    %{ $self->_remove_alias($values, $alias) },
     -source_handle => $self->_source_handle,
     -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
   );
@@ -2318,6 +2332,7 @@ to Earth' and a cd with title 'Popular'.
 If you want to fetch related objects from other tables as well, see C<prefetch>
 below.
 
+For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
 =head2 prefetch
 
 =over 4

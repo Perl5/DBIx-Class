@@ -5,6 +5,7 @@ use warnings;
 
 use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
+use DBIx::Class::StartupCheck;
 
 
 sub mk_classdata { 
@@ -233,6 +234,8 @@ jguenther: Justin Guenther <jguenther@cpan.org>
 
 jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
 
+jon: Jon Schutz <jjschutz@cpan.org>
+
 jshirley: J. Shirley <jshirley@gmail.com>
 
 konobi: Scott McWhirter
@@ -260,6 +263,8 @@ quicksilver: Jules Bean
 sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>
+
+semifor: Marc Mims <marc@questright.com>
 
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 

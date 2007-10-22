@@ -243,7 +243,7 @@ sub insert {
         my $reverse = $source->reverse_relationship_info($relname);
         foreach my $obj (@cands) {
           $obj->set_from_related($_, $self) for keys %$reverse;
-          $obj->insert() if(!$obj->in_storage);
+          $obj->insert() unless ($obj->in_storage || $obj->result_source->resultset->search({$obj->get_columns})->count);
         }
       }
     }

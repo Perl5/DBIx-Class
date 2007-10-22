@@ -175,8 +175,13 @@ value. Produces the following SQL:
 
 sub func {
   my ($self,$function) = @_;
-  my ($row) = $self->{_parent_resultset}->search(undef, {select => {$function => $self->{_column}}, as => [$self->{_column}]})->cursor->next;
-  return $row;
+  my $cursor = $self->{_parent_resultset}->search(undef, {select => {$function => $self->{_column}}, as => [$self->{_column}]})->cursor;
+  
+  if( wantarray ) {
+    return map { $_->[ 0 ] } $cursor->all;
+  }
+
+  return ( $cursor->next )[ 0 ];
 }
 
 1;

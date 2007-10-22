@@ -484,7 +484,9 @@ DEPRECATED. You probably wanted compose_namespace.
 
 Actually, you probably just wanted to call connect.
 
-=for hidden due to deprecation
+=begin hidden
+
+(hidden due to deprecation)
 
 Calls L<DBIx::Class::Schema/"compose_namespace"> to the target namespace,
 calls L<DBIx::Class::Schema/connection> with @db_info on the new schema,
@@ -497,6 +499,8 @@ to a connection. In normal usage it is preferred to call
 L<DBIx::Class::Schema/connect> and use the resulting schema object to operate
 on L<DBIx::Class::ResultSet> objects with L<DBIx::Class::Schema/resultset> for
 more information.
+
+=end hidden
 
 =cut
 
@@ -600,6 +604,7 @@ sub compose_namespace {
   Class::C3->reinitialize();
   {
     no strict 'refs';
+    no warnings 'redefine';
     foreach my $meth (qw/class source resultset/) {
       *{"${target}::${meth}"} =
         sub { shift->schema->$meth(@_) };
@@ -1044,6 +1049,17 @@ sub ddl_filename {
 
     return $filename;
 }
+
+=head2 sqlt_deploy_hook($sqlt_schema)
+
+An optional sub which you can declare in your own Schema class that will get 
+passed the L<SQL::Translator::Schema> object when you deploy the schema via
+L</create_ddl_dir> or L</deploy>.
+
+For an example of what you can do with this, see 
+L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
+
+=cut
 
 1;
 

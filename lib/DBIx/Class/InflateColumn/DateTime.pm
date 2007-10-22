@@ -24,6 +24,12 @@ Then you can treat the specified column as a L<DateTime> object.
   print "This event starts the month of ".
     $event->starts_when->month_name();
 
+If you want to set a specific timezone for that field, use:
+
+  __PACKAGE__->add_columns(
+    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago" } }
+  );
+
 =head1 DESCRIPTION
 
 This module figures out the type of DateTime::Format::* class to 
@@ -55,6 +61,11 @@ sub register_column {
   return unless defined($info->{data_type});
   my $type = lc($info->{data_type});
   $type = 'datetime' if ($type =~ /^timestamp/);
+  my $timezone;
+  if ( exists $info->{extra} and exists $info->{extra}{timezone} and defined $info->{extra}{timezone} ) {
+    $timezone = $info->{extra}{timezone};
+  }
+
   if ($type eq 'datetime' || $type eq 'date') {
     my ($parse, $format) = ("parse_${type}", "format_${type}");
     $self->inflate_column(
@@ -62,10 +73,13 @@ sub register_column {
         {
           inflate => sub {
             my ($value, $obj) = @_;
-            $obj->_datetime_parser->$parse($value);
+            my $dt = $obj->_datetime_parser->$parse($value);
+            $dt->set_time_zone($timezone) if $timezone;
+            return $dt;
           },
           deflate => sub {
             my ($value, $obj) = @_;
+            $value->set_time_zone($timezone) if $timezone;
             $obj->_datetime_parser->$format($value);
           },
         }
