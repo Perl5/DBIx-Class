@@ -51,6 +51,23 @@ my $newartist2 = $schema->resultset('Artist')->find_or_create({ name => 'Fred 3'
 
 is($newartist2->name, 'Fred 3', 'Created new artist with cds via find_or_create');
 
+my $artist2 = $schema->resultset('Artist')->create({ artistid => 1000,
+                                                    name => 'Fred 3',
+                                                     cds => [
+                                                             { artist => 1000,
+                                                               title => 'Music to code by',
+                                                               year => 2007,
+                                                             },
+                                                             ],
+                                                    cds_unordered => [
+                                                             { artist => 1000,
+                                                               title => 'Music to code by',
+                                                               year => 2007,
+                                                             },
+                                                             ]
+                                                     });
+
+is($artist2->in_storage, 1, 'artist with duplicate rels inserted okay');
 
 CREATE_RELATED1 :{
 

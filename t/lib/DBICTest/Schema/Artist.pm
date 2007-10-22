@@ -31,6 +31,9 @@ __PACKAGE__->has_many(
     cds => 'DBICTest::Schema::CD', undef,
     { order_by => 'year' },
 );
+__PACKAGE__->has_many(
+    cds_unordered => 'DBICTest::Schema::CD'
+);
 
 __PACKAGE__->has_many( twokeys => 'DBICTest::Schema::TwoKeys' );
 __PACKAGE__->has_many( onekeys => 'DBICTest::Schema::OneKey' );
