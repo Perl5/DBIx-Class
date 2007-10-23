@@ -22,7 +22,7 @@ requires 'Scope::Guard'              => 0.03;
 # Perl 5.8.0 doesn't have utf8::is_utf8()
 requires 'Encode'                    => 0 if ($] <= 5.008000);  
 
-build_requires 'DBD::SQLite'         => 1.13;
+build_requires 'DBD::SQLite'         => 1.14;
 build_requires 'Test::Builder'       => 0.33;
 
 install_script 'script/dbicadmin';

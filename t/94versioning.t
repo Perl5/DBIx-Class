@@ -5,113 +5,55 @@ use Test::More;
 use File::Spec;
 use File::Copy;
 
+#warn "$dsn $user $pass";
+my ($dsn, $user, $pass);
+
 BEGIN {
-    eval "use DBD::SQLite; use SQL::Translator 0.08;";
+  ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
+
+  plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
+    unless ($dsn && $user);
+
+
+    eval "use DBD::mysql; use SQL::Translator 0.08;";
     plan $@
-        ? ( skip_all => 'needs DBD::SQLite and SQL::Translator 0.08 for testing' )
-        : ( tests => 6 );
+        ? ( skip_all => 'needs DBD::mysql and SQL::Translator 0.08 for testing' )
+        : ( tests => 9 );
 }
 
 use lib qw(t/lib);
 
 use_ok('DBICVersionOrig');
 
-my $db_file = "t/var/versioning.db";
-unlink($db_file) if -e $db_file;
-unlink($db_file . "-journal") if -e $db_file . "-journal";
-mkdir("t/var") unless -d "t/var";
-unlink('t/var/DBICVersion-Schema-1.0-SQLite.sql');
+my $schema_orig = DBICVersion::Schema->connect($dsn, $user, $pass);
+eval { $schema_orig->storage->dbh->do('drop table SchemaVersions') };
 
-my $schema_orig = DBICVersion::Schema->connect(
-  "dbi:SQLite:$db_file",
-  undef,
-  undef,
-  { AutoCommit => 1 },
-);
-# $schema->storage->ensure_connected();
+is($schema_orig->ddl_filename('MySQL', 't/var', '1.0'), File::Spec->catfile('t', 'var', 'DBICVersion-Schema-1.0-MySQL.sql'), 'Filename creation working');
+unlink('t/var/DBICVersion-Schema-1.0-MySQL.sql') if (-e 't/var/DBICVersion-Schema-1.0-MySQL.sql');
+$schema_orig->create_ddl_dir('MySQL', undef, 't/var');
 
-is($schema_orig->ddl_filename('SQLite', 't/var', '1.0'), File::Spec->catfile('t', 'var', 'DBICVersion-Schema-1.0-SQLite.sql'), 'Filename creation working');
-$schema_orig->create_ddl_dir('SQLite', undef, 't/var');
+ok(-f 't/var/DBICVersion-Schema-1.0-MySQL.sql', 'Created DDL file');
+$schema_orig->deploy({ add_drop_table => 1 });
+$schema_orig->upgrade();
 
-ok(-f 't/var/DBICVersion-Schema-1.0-SQLite.sql', 'Created DDL file');
-## do this here or let Versioned.pm do it?
-# $schema->deploy();
-
-my $tvrs = $schema_orig->resultset('Table');
+my $tvrs = $schema_orig->{vschema}->resultset('Table');
 is($schema_orig->_source_exists($tvrs), 1, 'Created schema from DDL file');
 
 eval "use DBICVersionNew";
-my $schema_new = DBICVersion::Schema->connect(
-  "dbi:SQLite:$db_file",
-  undef,
-  undef,
-  { AutoCommit => 1 },
-);
-
-## create new to pick up filedata for upgrade files we just made (on_connect)
-
-# {
-#   unlink('t/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
-#   copy('t/var/DBICVersion-Schema-1.0-2.0-SQLite-erroneous.sql', 't/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
-
-#   my $schema_upgrade = DBICVersion::Schema->connect(
-#                                                     "dbi:SQLite:$db_file",
-#                                                     undef,
-#                                                     undef,
-#                                                     { AutoCommit => 1 },
-#                                                     );
-  
-    
-#   is($schema_upgrade->get_db_version(), '1.0', 'get_db_version ok');
-
-#   eval {
-#     # this will die with errors
-#     $schema_upgrade->upgrade();
-#   };
-#   isnt($@, '', 'dodgy upgrade dies');
-  
-#   eval {
-#     my @results = $schema_upgrade->storage->dbh->do('select VersionName from TestVersion');
-#   };
-#   is($@, '', 'partial upgrade properly rolledback');
-#   is($schema_upgrade->get_db_version(), '1.0', 'db version number not upgraded');
-# }
-
 {
-  unlink('t/var/DBICVersion-Schema-2.0-SQLite.sql');
-  unlink('t/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
+  unlink('t/var/DBICVersion-Schema-2.0-MySQL.sql');
+  unlink('t/var/DBICVersion-Schema-1.0-2.0-MySQL.sql');
 
-#   $schema_new->create_ddl_dir('SQLite', undef, 't/var', '1.0');
-#   ok(-f 't/var/DBICVersion-Schema-1.0-2.0-SQLite.sql', 'Created DDL upgrade file');
-
-  copy('t/var/DBICVersion-Schema-1.0-2.0-SQLite-proper.sql', 't/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
-
-  my $schema_upgrade = DBICVersion::Schema->connect(
-                                                    "dbi:SQLite:$db_file",
-                                                    undef,
-                                                    undef,
-                                                    { AutoCommit => 1 },
-                                                    );
-  
-    
+  my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass);
   is($schema_upgrade->get_db_version(), '1.0', 'get_db_version ok');
+  is($schema_upgrade->schema_version, '2.0', 'schema version ok');
+  $schema_upgrade->create_ddl_dir('MySQL', '2.0', 't/var', '1.0');
+  ok(-f 't/var/DBICVersion-Schema-1.0-2.0-MySQL.sql', 'Created DDL file');
+  $schema_upgrade->upgrade();
+  is($schema_upgrade->get_db_version(), '2.0', 'db version number upgraded');
 
-  eval {
-    # this should be okay
-    $schema_upgrade->upgrade();
-  };
-  is($@, '', 'proper upgrade okay');
   eval {
     $schema_upgrade->storage->dbh->do('select NewVersionName from TestVersion');
   };
   is($@, '', 'new column created');
-  is($schema_upgrade->get_db_version(), '2.0', 'db version number successfully upgraded');
 }
-
-exit;
-unlink($db_file) if -e $db_file;
-unlink($db_file . "-journal") if -e $db_file . "-journal";
-unlink('t/var/DBICVersion-Schema-1.0-SQLite.sql');
-unlink('t/var/DBICVersion-Schema-2.0-SQLite.sql');
-unlink('t/var/DBICVersion-Schema-1.0-2.0-SQLite.sql');
-unlink(<t/var/backup/*>);

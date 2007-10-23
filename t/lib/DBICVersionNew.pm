@@ -24,7 +24,7 @@ __PACKAGE__->add_columns
         'is_nullable' => 0,
         'size' => '10'
         },
-      'NewsVersionName' => {
+      'NewVersionName' => {
         'data_type' => 'VARCHAR',
         'is_auto_increment' => 0,
         'default_value' => undef,

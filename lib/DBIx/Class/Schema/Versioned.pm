@@ -148,12 +148,10 @@ sub upgrade
     my ($self) = @_;
     my $db_version = $self->get_db_version();
 
+    my %driver_to_db_map = (
+                            'mysql' => 'MySQL'
+                           );
     if (!$db_version) {
-      my %driver_to_db_map = (
-        'mysql' => 'MySQL',
-        'Pg' => 'PostgreSQL',
-        'Oracle' => 'Oracle'
-      );
       my $db = $driver_to_db_map{$self->storage->dbh->{Driver}->{Name}};
       unless ($db) {
         print "Sorry, this is an unsupported DB\n";
@@ -168,7 +166,7 @@ sub upgrade
         parser_args => { dbh => $self->storage->dbh }
       });
 
-      $db_tr->producer($db);      
+      $db_tr->producer($db);
       my $dbic_tr = SQL::Translator->new;
       $dbic_tr->parser('SQL::Translator::Parser::DBIx::Class');
       $dbic_tr = $self->storage->configure_sqlt($dbic_tr, $db);
@@ -183,13 +181,13 @@ sub upgrade
         my $data = $tr->data;
         $tr->parser->($tr, $$data);
       }
-      
+
       my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db, 
                                                     $dbic_tr->schema, $db,
                                                     { ignore_constraint_names => 1, ignore_index_names => 1, caseopt => 1 });
 
       my $filename = $self->ddl_filename(
-                                 $self->storage->sqlt_type,
+                                 $db,
                                  $self->upgrade_directory,
                                  $self->schema_version,
                                  'PRE',
@@ -208,6 +206,11 @@ sub upgrade
 
       print "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.\n";
     } else {
+      if ($db_version eq $self->schema_version) {
+        print "Upgrade not necessary\n";
+        return;
+      }
+
       my $file = $self->ddl_filename(
                                  $self->storage->sqlt_type,
                                  $self->upgrade_directory,
