@@ -96,6 +96,13 @@ sub parse {
         $table->primary_key($source->primary_columns);
 
         my @primary = $source->primary_columns;
+        foreach my $field (@primary) {
+          my $index = $table->add_index(
+                                        name   => $field,
+                                        fields => [$field],
+                                        type   => 'NORMAL',
+                                       );
+        }
         my %unique_constraints = $source->unique_constraints;
         foreach my $uniq (keys %unique_constraints) {
             if (!$source->compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
@@ -104,6 +111,13 @@ sub parse {
                             name             => "$uniq",
                             fields           => $unique_constraints{$uniq}
                 );
+
+               my $index = $table->add_index(
+                            name   => $unique_constraints{$uniq}->[0],
+                            fields => $unique_constraints{$uniq},
+                            type   => 'NORMAL',
+               );
+
             }
         }
 
@@ -159,7 +173,7 @@ sub parse {
                     if (scalar(@keys)) {
                         $table->add_constraint(
                                     type             => 'foreign_key',
-                                    name             => "fk_$keys[0]",
+                                    name             => $table->name . "_fk_$keys[0]",
                                     fields           => \@keys,
                                     reference_fields => \@refkeys,
                                     reference_table  => $rel_table,
@@ -168,7 +182,7 @@ sub parse {
                         );
                     
                         my $index = $table->add_index(
-                                    name   => $table->name . "_fk_$keys[0]",
+                                    name   => $keys[0],
                                     fields => \@keys,
                                     type   => 'NORMAL',
                         );
