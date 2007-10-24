@@ -184,7 +184,7 @@ sub upgrade
 
       my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db, 
                                                     $dbic_tr->schema, $db,
-                                                    { ignore_constraint_names => 1, ignore_index_names => 1, caseopt => 1 });
+                                                    { caseopt => 1 });
 
       my $filename = $self->ddl_filename(
                                  $db,
@@ -226,7 +226,9 @@ sub upgrade
 
       my $fh;
       open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
-      my @data = split(/[;\n]/, join('', <$fh>));
+      my @data = split(/\n/, join('', <$fh>));
+      @data = grep(!/^--/, @data);
+      @data = split(/;/, join('', @data));
       close($fh);
       @data = grep { $_ && $_ !~ /^-- / } @data;
       @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
