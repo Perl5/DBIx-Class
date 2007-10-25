@@ -202,6 +202,8 @@ ank: Andres Kievsky
 
 ash: Ash Berlin <ash@cpan.org>
 
+bert: Norbert Csongradi <bert@cpan.org>
+
 blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
