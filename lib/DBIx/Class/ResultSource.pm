@@ -640,7 +640,7 @@ sub reverse_relationship_info {
     my $otherrel_info = $othertable->relationship_info($otherrel);
 
     my $back = $othertable->related_source($otherrel);
-    next unless $back->name eq $self->name;
+    next unless $back->source_name eq $self->source_name;
 
     my @othertestconds;
 

@@ -1,4 +1,6 @@
 Revision history for DBIx::Class
+        - ResultSource::reverse_relationship_info can distinguish between 
+          sources using the same table
         - Row::insert will now not fall over if passed duplicate related objects
         - When adding relationships, it will throw an exception if you get the
           foreign and self parts the wrong way round in the condition
