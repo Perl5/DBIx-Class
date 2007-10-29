@@ -1563,7 +1563,7 @@ sub find_or_new {
 
 =item Arguments: \%vals
 
-=item Return Value: $object
+=item Return Value: a L<DBIx::Class::Row> $object
 
 =back
 

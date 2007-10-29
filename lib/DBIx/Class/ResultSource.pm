@@ -980,7 +980,9 @@ but is cached from then on unless resultset_class changes.
 
 Set the class of the resultset, this is useful if you want to create your
 own resultset methods. Create your own class derived from
-L<DBIx::Class::ResultSet>, and set it here. 
+L<DBIx::Class::ResultSet>, and set it here. If called with no arguments,
+this method returns the name of the existing resultset class, if one
+exists.
 
 =head2 resultset_attributes
 

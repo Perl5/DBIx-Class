@@ -419,6 +419,17 @@ is executed. You can create further resultset refinements by calling
 search again or relationship accessors. The SQL query is only run when
 you ask the resultset for an actual row object.
 
+=item How do I deal with tables that lack a primary key?
+
+If your table lacks a primary key, DBIx::Class can't work out which row
+it should operate on, for example to delete or update.  However, a
+UNIQUE constraint on one or more columns allows DBIx::Class to uniquely
+identify the row, so you can tell L<DBIx::Class::ResultSource> these
+columns act as a primary key, even if they don't from the database's
+point of view:
+
+ $resultset->set_primary_key(@column);
+
 =back
 
 =head2 Notes for CDBI users
