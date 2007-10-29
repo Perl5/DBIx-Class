@@ -1,5 +1,5 @@
 Revision history for DBIx::Class
-        - Fixed join merging bug (test from Zbi)
+        - Fixed join merging bug (test from Zby)
         - When adding relationships, it will throw an exception if you get the
           foreign and self parts the wrong way round in the condition
         - ResultSetColumn::func() now returns all results if called in list
