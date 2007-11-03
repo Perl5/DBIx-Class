@@ -25,12 +25,19 @@ the column data. It also "deflates" references into an appropriate format
 for the database.
 
 It can be used, for example, to automatically convert to and from
-L<DateTime> objects for your date and time fields.
+L<DateTime> objects for your date and time fields. There's a
+conveniece component to actually do that though, try
+L<DBIx::Class::InflateColumn::DateTime>.
 
-It will accept arrayrefs, hashrefs and blessed references (objects),
-but not scalarrefs. Scalar references are passed through to the
-database to deal with, to allow such settings as C< \'year + 1'> and
-C< \'DEFAULT' > to work.
+It will handle all types of references except scalar references. It
+will not handle scalar values, these are ignored and thus passed
+through to L<SQL::Abstract>. This is to allow setting raw values to
+"just work". Scalar references are passed through to the database to
+deal with, to allow such settings as C< \'year + 1'> and C< \'DEFAULT' >
+to work.
+
+If you want to filter plain scalar values and replace them with
+something else, contribute a filtering component.
 
 =head1 METHODS
 
@@ -57,8 +64,7 @@ database, or consider L<DateTime::Format::DBI>.)
 
 The coderefs you set for inflate and deflate are called with two parameters,
 the first is the value of the column to be inflated/deflated, the second is the
-row object itself. Thus you can call C<< ->result_source->schema->storage->dbh >> on
-it, to feed to L<DateTime::Format::DBI>.
+row object itself. Thus you can call C<< ->result_source->schema->storage->dbh >> in your inflate/defalte subs, to feed to L<DateTime::Format::DBI>.
 
 In this example, calls to an event's C<insert_time> accessor return a
 L<DateTime> object. This L<DateTime> object is later "deflated" when
