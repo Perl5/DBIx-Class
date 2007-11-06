@@ -11,7 +11,7 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   'Warning: This test drops and creates tables called \'artist\', \'cd\' and \'track\''
   unless ($dsn && $user && $pass);
 
-plan tests => 7;
+plan tests => 10;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -19,16 +19,25 @@ my $dbh = $schema->storage->dbh;
 
 eval {
   $dbh->do("DROP SEQUENCE artist_seq");
+  $dbh->do("DROP SEQUENCE artist_oracle_seq");
+  $dbh->do("DROP SEQUENCE artist_oracle_otherid_seq");
+  $dbh->do("DROP SEQUENCE artist_oracle_nonpriid_seq");
   $dbh->do("DROP TABLE artist");
+  $dbh->do("DROP TABLE artist_oracle");
   $dbh->do("DROP TABLE cd");
   $dbh->do("DROP TABLE track");
 };
 $dbh->do("CREATE SEQUENCE artist_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
+$dbh->do("CREATE SEQUENCE artist_oracle_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
+$dbh->do("CREATE SEQUENCE artist_oracle_otherid_seq START WITH 10 MAXVALUE 999999 MINVALUE 0");
+$dbh->do("CREATE SEQUENCE artist_oracle_nonpriid_seq START WITH 20 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE TABLE artist (artistid NUMBER(12), name VARCHAR(255))");
+$dbh->do("CREATE TABLE artist_oracle (artistid NUMBER(12), otherid NUMBER(12), nonpriid NUMBER(12), name VARCHAR(255))");
 $dbh->do("CREATE TABLE cd (cdid NUMBER(12), artist NUMBER(12), title VARCHAR(255), year VARCHAR(4))");
 $dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255), last_updated_on DATE)");
 
 $dbh->do("ALTER TABLE artist ADD (CONSTRAINT artist_pk PRIMARY KEY (artistid))");
+$dbh->do("ALTER TABLE artist_oracle ADD (CONSTRAINT artist_oracle_pk PRIMARY KEY (artistid))");
 $dbh->do(qq{
   CREATE OR REPLACE TRIGGER artist_insert_trg
   BEFORE INSERT ON artist
@@ -95,11 +104,22 @@ is( $it->next, undef, "next past end of resultset ok" );
   is( scalar @results, 1, "Group by with limit OK" );
 }
 
+# test auto increment using sequences WITHOUT triggers
+$new = $schema->resultset('ArtistOracle')->create({ name => 'foo' });
+is($new->artistid, 1, "Oracle Auto-PK without trigger: First primary key");
+is($new->otherid, 10, "Oracle Auto-PK without trigger: Second primary key");
+is($new->nonpriid, 20, "Oracle Auto-PK without trigger: Non-primary key");
+
+
 # clean up our mess
 END {
     if($dbh) {
         $dbh->do("DROP SEQUENCE artist_seq");
+        $dbh->do("DROP SEQUENCE artist_oracle_seq");
+        $dbh->do("DROP SEQUENCE artist_oracle_otherid_seq");
+        $dbh->do("DROP SEQUENCE artist_oracle_nonpriid_seq");
         $dbh->do("DROP TABLE artist");
+        $dbh->do("DROP TABLE artist_oracle");
         $dbh->do("DROP TABLE cd");
         $dbh->do("DROP TABLE track");
     }
