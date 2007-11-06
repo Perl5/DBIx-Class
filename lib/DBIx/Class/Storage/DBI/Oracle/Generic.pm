@@ -12,6 +12,7 @@ DBIx::Class::Storage::DBI::Oracle - Automatic primary key class for Oracle
 
   # In your table classes
   __PACKAGE__->load_components(qw/PK::Auto Core/);
+  __PACKAGE__->add_columns({ id => { sequence => 'mysequence', auto_nextval => 1 } });
   __PACKAGE__->set_primary_key('id');
   __PACKAGE__->sequence('mysequence');
 
@@ -30,11 +31,14 @@ use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
 sub _dbh_last_insert_id {
-  my ($self, $dbh, $source, $col) = @_;
-  my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
-  my $sql = 'SELECT ' . $seq . '.currval FROM DUAL';
-  my ($id) = $dbh->selectrow_array($sql);
-  return $id;
+  my ($self, $dbh, $source, @columns) = @_;
+  my @ids = ();
+  foreach my $col (@columns) {
+    my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
+    my $id = $self->_sequence_fetch( 'currval', $seq );
+    push @ids, $id;
+  }
+  return @ids;
 }
 
 sub _dbh_get_autoinc_seq {
@@ -57,6 +61,32 @@ sub _dbh_get_autoinc_seq {
     return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
   }
   $self->throw_exception("Unable to find a sequence INSERT trigger on table '" . $source->name . "'.");
+}
+
+=head2 insert
+
+Fetch nextval from sequence and handle insert statement.
+
+=cut
+
+sub insert {
+  my ( $self, $source, $to_insert ) = @_;
+  foreach my $col ( $source->columns ) {
+    if ( !defined $to_insert->{$col} ) {
+      my $col_info = $source->column_info($col);
+
+      if ( $col_info->{auto_nextval} ) {
+        $to_insert->{$col} = $self->_sequence_fetch( 'nextval', $col_info->{sequence} || $self->_dbh_get_autoinc_seq($self->dbh, $source) );
+      }
+    }
+  }
+  $self->next::method( $source, $to_insert );
+}
+
+sub _sequence_fetch {
+  my ( $self, $type, $seq ) = @_;
+  my ($id) = $self->dbh->selectrow_array("SELECT ${seq}.${type} FROM DUAL");
+  return $id;
 }
 
 =head2 get_autoinc_seq
