@@ -7,7 +7,7 @@ no warnings qw/qw/;
 
 __PACKAGE__->load_classes(qw/
   Artist
-  ArtistOracle
+  SequenceTest
   Employee
   CD
   FileColumn

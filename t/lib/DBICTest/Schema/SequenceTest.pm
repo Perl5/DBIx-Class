@@ -1,29 +1,30 @@
 package # hide from PAUSE 
-    DBICTest::Schema::ArtistOracle;
+    DBICTest::Schema::SequenceTest;
 
 use base 'DBIx::Class::Core';
 
-__PACKAGE__->table('artist_oracle');
+__PACKAGE__->table('sequence_test');
 __PACKAGE__->source_info({
     "source_info_key_A" => "source_info_value_A",
     "source_info_key_B" => "source_info_value_B",
     "source_info_key_C" => "source_info_value_C",
+    "source_info_key_D" => "source_info_value_D",
 });
 __PACKAGE__->add_columns(
-  'artistid' => {
+  'pkid1' => {
     data_type => 'integer',
     auto_nextval => 1,
-    sequence => 'artist_oracle_seq',
+    sequence => 'pkid1_seq',
   },
-  'otherid' => {
+  'pkid2' => {
     data_type => 'integer',
     auto_nextval => 1,
-    sequence => 'artist_oracle_otherid_seq',
+    sequence => 'pkid2_seq',
   },
-  'nonpriid' => {
+  'nonpkid' => {
     data_type => 'integer',
     auto_nextval => 1,
-    sequence => 'artist_oracle_nonpriid_seq',
+    sequence => 'nonpkid_seq',
   },
   'name' => {
     data_type => 'varchar',
@@ -31,6 +32,6 @@ __PACKAGE__->add_columns(
     is_nullable => 1,
   },
 );
-__PACKAGE__->set_primary_key('artistid', 'otherid');
+__PACKAGE__->set_primary_key('pkid1', 'pkid2');
 
 1;
