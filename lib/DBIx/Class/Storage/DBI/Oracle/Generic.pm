@@ -63,26 +63,6 @@ sub _dbh_get_autoinc_seq {
   $self->throw_exception("Unable to find a sequence INSERT trigger on table '" . $source->name . "'.");
 }
 
-=head2 insert
-
-Fetch nextval from sequence and handle insert statement.
-
-=cut
-
-sub insert {
-  my ( $self, $source, $to_insert ) = @_;
-  foreach my $col ( $source->columns ) {
-    if ( !defined $to_insert->{$col} ) {
-      my $col_info = $source->column_info($col);
-
-      if ( $col_info->{auto_nextval} ) {
-        $to_insert->{$col} = $self->_sequence_fetch( 'nextval', $col_info->{sequence} || $self->_dbh_get_autoinc_seq($self->dbh, $source) );
-      }
-    }
-  }
-  $self->next::method( $source, $to_insert );
-}
-
 sub _sequence_fetch {
   my ( $self, $type, $seq ) = @_;
   my ($id) = $self->dbh->selectrow_array("SELECT ${seq}.${type} FROM DUAL");
