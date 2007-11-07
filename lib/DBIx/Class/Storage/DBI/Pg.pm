@@ -73,6 +73,12 @@ sub bind_attribute_by_data_type {
   }
 }
 
+sub _sequence_fetch {
+  my ( $self, $type, $seq ) = @_;
+  my ($id) = $self->dbh->selectrow_array("SELECT nextval('${seq}')");
+  return $id;
+}
+
 1;
 
 =head1 NAME
