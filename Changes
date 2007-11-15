@@ -17,6 +17,8 @@ Revision history for DBIx::Class
         - ResultSource::reverse_relationship_info can distinguish between 
           sources using the same table
         - Row::insert will now not fall over if passed duplicate related objects
+        - Row::copy will not fall over if you have two relationships to the 
+          same source with a unique constraint on it
 
 0.08007 2007-09-04 19:36:00
         - patch for Oracle datetime inflation (abram@arin.net)

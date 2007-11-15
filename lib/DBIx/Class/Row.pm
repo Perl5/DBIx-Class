@@ -532,15 +532,29 @@ sub copy {
   $new->result_source($self->result_source);
   $new->set_columns($changes);
   $new->insert;
+
+  # Its possible we'll have 2 relations to the same Source. We need to make 
+  # sure we don't try to insert the same row twice esle we'll violate unique
+  # constraints
+  my $rels_copied = {};
+
   foreach my $rel ($self->result_source->relationships) {
     my $rel_info = $self->result_source->relationship_info($rel);
-    if ($rel_info->{attrs}{cascade_copy}) {
-      my $resolved = $self->result_source->resolve_condition(
-       $rel_info->{cond}, $rel, $new);
-      foreach my $related ($self->search_related($rel)) {
-        $related->copy($resolved);
-      }
+
+    next unless $rel_info->{attrs}{cascade_copy};
+  
+    my $resolved = $self->result_source->resolve_condition(
+      $rel_info->{cond}, $rel, $new
+    );
+
+    my $copied = $rels_copied->{ $rel_info->{source} } ||= {};
+    foreach my $related ($self->search_related($rel)) {
+      my $id_str = join("\0", $related->id);
+      next if $copied->{$id_str};
+      $copied->{$id_str} = 1;
+      my $rel_copy = $related->copy($resolved);
     }
+ 
   }
   return $new;
 }
