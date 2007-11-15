@@ -3,6 +3,7 @@ use strict;
 use warnings;
 
 use base qw/Class::Accessor::Grouped/;
+use IO::File;
 
 __PACKAGE__->mk_group_accessors(simple => qw/callback debugfh/);
 

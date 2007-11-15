@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 56;
+plan tests => 60;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -176,6 +176,16 @@ my %fk_constraints = (
       on_delete => '', on_update => '',
     },
   ],
+  # ForceForeign
+  forceforeign => [
+    {
+      'display' => 'forceforeign->artist',
+      'selftable' => 'forceforeign', 'foreigntable' => 'artist', 
+      'selfcols'  => ['artist'], 'foreigncols' => ['artist_id'], 
+      on_delete => '', on_update => '',
+    },
+  ],
+
 );
 
 my %unique_constraints = (
@@ -222,7 +232,6 @@ my %indexes = (
 );
 
 my $tschema = $translator->schema();
-
 # Test that the $schema->sqlt_deploy_hook was called okay and that it removed
 # the 'link' table
 ok( !defined($tschema->get_table('link')), "Link table was removed by hook");
@@ -232,6 +241,8 @@ my $constraint = get_constraint('FOREIGN KEY', 'cd', ['title'], 'cd', ['year']);
 ok( !defined($constraint), 'nonexistent FOREIGN KEY constraint not found' );
 $constraint = get_constraint('UNIQUE', 'cd', ['artist']);
 ok( !defined($constraint), 'nonexistent UNIQUE constraint not found' );
+$constraint = get_constraint('FOREIGN KEY', 'forceforeign', ['cd'], 'cd', ['cdid']);
+ok( !defined($constraint), 'forced nonexistent FOREIGN KEY constraint not found' );
 
 for my $expected_constraints (keys %fk_constraints) {
   for my $expected_constraint (@{ $fk_constraints{$expected_constraints} }) {
