@@ -1,4 +1,6 @@
 Revision history for DBIx::Class
+
+0.08008 2007-11-16 14:30:00
         - Fixed join merging bug (test from Zby)
         - When adding relationships, it will throw an exception if you get the
           foreign and self parts the wrong way round in the condition
