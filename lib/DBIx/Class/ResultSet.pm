@@ -2204,7 +2204,7 @@ return a column named C<count(employeeid)> in the above example.
 =over 4
 
 Indicates additional columns to be selected from storage.  Works the same as
-L<select> but adds columns to the selection.
+L</select> but adds columns to the selection.
 
 =back
 
@@ -2212,7 +2212,7 @@ L<select> but adds columns to the selection.
 
 =over 4
 
-Indicates additional column names for those added via L<+select>.
+Indicates additional column names for those added via L</+select>.
 
 =back
 
@@ -2334,6 +2334,7 @@ If you want to fetch related objects from other tables as well, see C<prefetch>
 below.
 
 For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
+
 =head2 prefetch
 
 =over 4
