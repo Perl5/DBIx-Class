@@ -767,38 +767,37 @@ See L<DBIx::Class::ResultSetColumn> for more documentation.
 
 =head2 Create a new row in a related table
 
-  my $book->create_related('author', { name => 'Fred'});
+  my $author = $book->create_related('author', { name => 'Fred'});
 
 =head2 Search in a related table
 
 Only searches for books named 'Titanic' by the author in $author.
 
-  my $author->search_related('books', { name => 'Titanic' });
+  my $books_rs = $author->search_related('books', { name => 'Titanic' });
 
 =head2 Delete data in a related table
 
 Deletes only the book named Titanic by the author in $author.
 
-  my $author->delete_related('books', { name => 'Titanic' });
+  $author->delete_related('books', { name => 'Titanic' });
 
 =head2 Ordering a relationship result set
 
 If you always want a relation to be ordered, you can specify this when you 
 create the relationship.
 
-To order C<< $book->pages >> by descending page_number.
+To order C<< $book->pages >> by descending page_number, create the relation
+as follows:
 
-  Book->has_many('pages' => 'Page', 'book', { order_by => \'page_number DESC'} );
+  __PACKAGE__->has_many('pages' => 'Page', 'book', { order_by => \'page_number DESC'} );
 
 =head2 Many-to-many relationships
 
 This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_many>:
 
-  package My::DB;
-  # ... set up connection ...
-
   package My::User;
-  use base 'My::DB';
+  use base 'DBIx::Class';
+  __PACKAGE__->load_components('Core');
   __PACKAGE__->table('user');
   __PACKAGE__->add_columns(qw/id name/);
   __PACKAGE__->set_primary_key('id');
@@ -806,7 +805,8 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->many_to_many('addresses' => 'user_address', 'address');
 
   package My::UserAddress;
-  use base 'My::DB';
+  use base 'DBIx::Class';
+  __PACKAGE__->load_components('Core');
   __PACKAGE__->table('user_address');
   __PACKAGE__->add_columns(qw/user address/);
   __PACKAGE__->set_primary_key(qw/user address/);
@@ -814,7 +814,8 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->belongs_to('address' => 'My::Address');
 
   package My::Address;
-  use base 'My::DB';
+  use base 'DBIx::Class';
+  __PACKAGE__->load_components('Core');
   __PACKAGE__->table('address');
   __PACKAGE__->add_columns(qw/id street town area_code country/);
   __PACKAGE__->set_primary_key('id');
@@ -841,7 +842,7 @@ example of the recommended way to use it:
     $genus->add_to_species({ name => 'troglodyte' });
     $genus->wings(2);
     $genus->update;
-    $schema->txn_do($coderef2); # Can have a nested transaction
+    $schema->txn_do($coderef2); # Can have a nested transaction. Only the outer will actualy commit
     return $genus->species;
   };
 
@@ -874,7 +875,8 @@ L<DBIx::Class::Schema> and associated sources by examining the database.
 The recommend way of achieving this is to use the 
 L<make_schema_at|DBIx::Class::Schema::Loader/make_schema_at> method:
 
-  perl -MDBIx::Class::Schema::Loader=make_schema_at,dump_to_dir:./lib -e 'make_schema_at("My::Schema", { debug => 1 }, [ "dbi:Pg:dbname=foo","postgres" ])'
+  perl -MDBIx::Class::Schema::Loader=make_schema_at,dump_to_dir:./lib \
+    -e 'make_schema_at("My::Schema", { debug => 1 }, [ "dbi:Pg:dbname=foo","postgres" ])'
 
 This will create a tree of files rooted at C<./lib/My/Schema/> containing
 source definitions for all the tables found in the C<foo> database.
@@ -920,7 +922,7 @@ of the schema, plus scripts to convert from version 0.1 to 0.2. This
 requires that the files for 0.1 as created above are available in the
 given directory to diff against.
 
-=head2 select from dual
+=head2 Select from dual
 
 Dummy tables are needed by some databases to allow calling functions
 or expressions that aren't based on table content, for examples of how
@@ -959,8 +961,7 @@ will not work because there is no column called 'now' in the Dual table class
   while (my $dual = $rs->next) {
     print $dual->now."\n";
   }
-  Can't locate object method "now" via package "MyAppDB::Dual" at headshot.pl
-line 23.
+  # Can't locate object method "now" via package "MyAppDB::Dual" at headshot.pl line 23.
  
 You could of course use 'dummy' in C<as> instead of 'now', or C<add_columns> to
 your Dual class for whatever you wanted to select from dual, but that's just
@@ -1004,8 +1005,7 @@ C<oracles.heavily(nested(functions_can('take', 'lots'), OF), 'args')>
   select => [ {'round' => [{'cos' => [ \'180 * 3.14159265359/180' ]}]}],
  
   # which day of the week were you born on?
-  select => [{'to_char' => [{'to_date' => [ "'25-DEC-1980'", "'dd-mon-yyyy'"
-]}, "'day'"]}],
+  select => [{'to_char' => [{'to_date' => [ "'25-DEC-1980'", "'dd-mon-yyyy'" ]}, "'day'"]}],
  
   # select 16 rows from dual
   select   => [ "'hello'" ],
