@@ -65,7 +65,7 @@ sub parse {
     }
 
 
-    foreach my $moniker (@monikers)
+    foreach my $moniker (sort @monikers)
     {
         my $source = $dbixschema->source($moniker);
 
@@ -111,7 +111,7 @@ sub parse {
 
         my %created_FK_rels;
 
-        foreach my $rel (@rels)
+        foreach my $rel (sort @rels)
         {
             my $rel_info = $source->relationship_info($rel);
 
