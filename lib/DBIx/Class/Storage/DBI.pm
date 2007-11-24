@@ -1334,16 +1334,17 @@ sub create_ddl_dir
           if !$self->_check_sqlt_version;
 
   my $sqlt = SQL::Translator->new({
-#      debug => 1,
       add_drop_table => 1,
   });
+
+  $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
+  my $sqlt_schema = $sqlt->translate({ data => $schema }) or die $sqlt->error;
+
   foreach my $db (@$databases)
   {
     $sqlt->reset();
-    $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
-#    $sqlt->parser_args({'DBIx::Class' => $schema);
     $sqlt = $self->configure_sqlt($sqlt, $db);
-    $sqlt->data($schema);
+    $sqlt->{schema} = $sqlt_schema;
     $sqlt->producer($db);
 
     my $file;
@@ -1378,34 +1379,23 @@ sub create_ddl_dir
         warn("No previous schema file found ($prefilename)");
         next;
       }
-      #### We need to reparse the SQLite file we just wrote, so that 
-      ##   Diff doesnt get all confoosed, and Diff is *very* confused.
-      ##   FIXME: rip Diff to pieces!
-#      my $target_schema = $sqlt->schema;
-#      unless ( $target_schema->name ) {
-#        $target_schema->name( $filename );
-#      }
-      my @input;
-      push @input, {file => $prefilename, parser => $db};
-      push @input, {file => $filename, parser => $db};
-      my ( $source_schema, $source_db, $target_schema, $target_db ) = map {
-        my $file   = $_->{'file'};
-        my $parser = $_->{'parser'};
 
+      my $source_schema;
+      {
         my $t = SQL::Translator->new;
+        $t->parser_args(no_default_sizes => 1);
         $t->debug( 0 );
         $t->trace( 0 );
-        $t->parser( $parser )            or die $t->error;
-        my $out = $t->translate( $file ) or die $t->error;
-        my $schema = $t->schema;
-        unless ( $schema->name ) {
-          $schema->name( $file );
+        $t->parser( $db )                       or die $t->error;
+        my $out = $t->translate( $prefilename ) or die $t->error;
+        $source_schema = $t->schema;
+        unless ( $source_schema->name ) {
+          $source_schema->name( $prefilename );
         }
-        ($schema, $parser);
-      } @input;
+      }
 
       my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
-                                                    $target_schema, $db,
+                                                    $sqlt_schema,   $db,
                                                     {}
                                                    );
       my $difffile = $schema->ddl_filename($db, $dir, $version, $preversion);
@@ -1563,9 +1553,9 @@ sub build_datetime_parser {
     my $_check_sqlt_message; # private
     sub _check_sqlt_version {
         return $_check_sqlt_version if defined $_check_sqlt_version;
-        eval 'use SQL::Translator 0.08';
-        $_check_sqlt_message = $@ ? $@ : '';
-        $_check_sqlt_version = $@ ? 0 : 1;
+        eval 'use SQL::Translator "0.08"';
+        $_check_sqlt_message = $@ || '';
+        $_check_sqlt_version = !$@;
     }
 
     sub _check_sqlt_message {

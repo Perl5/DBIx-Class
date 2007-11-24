@@ -6,16 +6,16 @@ use warnings;
 __PACKAGE__->load_components(qw/ Core/);
 __PACKAGE__->table('SchemaVersions');
 
-__PACKAGE__->add_columns
-    ( 'Version' => {
-        'data_type' => 'VARCHAR',
-        'is_auto_increment' => 0,
-        'default_value' => undef,
-        'is_foreign_key' => 0,
-        'name' => 'Version',
-        'is_nullable' => 0,
-        'size' => '10'
-        },
+__PACKAGE__->add_columns(
+      'Version' => {
+          'data_type' => 'VARCHAR',
+          'is_auto_increment' => 0,
+          'default_value' => undef,
+          'is_foreign_key' => 0,
+          'name' => 'Version',
+          'is_nullable' => 0,
+          'size' => '10'
+      },
       'Installed' => {
           'data_type' => 'VARCHAR',
           'is_auto_increment' => 0,
@@ -24,8 +24,8 @@ __PACKAGE__->add_columns
           'name' => 'Installed',
           'is_nullable' => 0,
           'size' => '20'
-          },
-      );
+      },
+);
 __PACKAGE__->set_primary_key('Version');
 
 package DBIx::Class::Version;
@@ -143,6 +143,7 @@ sub backup
     $self->storage->backup($self->backup_directory());
 }
 
+# TODO: some of this needs to be merged with ->create_ddl_dir
 sub upgrade
 {
     my ($self) = @_;
