@@ -1563,7 +1563,7 @@ sub find_or_new {
 
 =item Arguments: \%vals
 
-=item Return Value: $object
+=item Return Value: a L<DBIx::Class::Row> $object
 
 =back
 
@@ -2078,10 +2078,10 @@ sub _merge_attr {
       $position++;
     }
     my ($b_key) = ( ref $b_element eq 'HASH' ) ? keys %{$b_element} : ($b_element);
+
     if ($best_candidate->{score} == 0 || exists $seen_keys->{$b_key}) {
       push( @{$a}, $b_element );
     } else {
-      $seen_keys->{$b_key} = 1; # don't merge the same key twice
       my $a_best = $a->[$best_candidate->{position}];
       # merge a_best and b_element together and replace original with merged
       if (ref $a_best ne 'HASH') {
@@ -2091,6 +2091,7 @@ sub _merge_attr {
         $a->[$best_candidate->{position}] = { $key => $self->_merge_attr($a_best->{$key}, $b_element->{$key}) };
       }
     }
+    $seen_keys->{$b_key} = 1; # don't merge the same key twice
   }
 
   return $a;
@@ -2203,7 +2204,7 @@ return a column named C<count(employeeid)> in the above example.
 =over 4
 
 Indicates additional columns to be selected from storage.  Works the same as
-L<select> but adds columns to the selection.
+L</select> but adds columns to the selection.
 
 =back
 
@@ -2211,7 +2212,7 @@ L<select> but adds columns to the selection.
 
 =over 4
 
-Indicates additional column names for those added via L<+select>.
+Indicates additional column names for those added via L</+select>.
 
 =back
 
@@ -2333,6 +2334,7 @@ If you want to fetch related objects from other tables as well, see C<prefetch>
 below.
 
 For more help on using joins with search, see L<DBIx::Class::Manual::Joining>.
+
 =head2 prefetch
 
 =over 4

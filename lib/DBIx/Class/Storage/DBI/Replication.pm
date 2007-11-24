@@ -131,22 +131,12 @@ sub build_datetime_parser {
     shift->read_source->build_datetime_parser( @_ );
 }
 
-sub limit_dialect {
-    my $self = shift;
-    $self->$_->limit_dialect( @_ ) for( $self->all_sources );
-}
-sub quote_char {
-    my $self = shift;
-    $self->$_->quote_char( @_ ) for( $self->all_sources );
-}
-sub name_sep {
-    my $self = shift;
-    $self->$_->quote_char( @_ ) for( $self->all_sources );
-}
-sub disconnect {
-    my $self = shift;
-    $self->$_->disconnect( @_ ) for( $self->all_sources );
-}
+sub limit_dialect { $_->limit_dialect( @_ ) for( shift->all_sources ) }
+sub quote_char { $_->quote_char( @_ ) for( shift->all_sources ) }
+sub name_sep { $_->quote_char( @_ ) for( shift->all_sources ) }
+sub disconnect { $_->disconnect( @_ ) for( shift->all_sources ) }
+sub set_schema { $_->set_schema( @_ ) for( shift->all_sources ) }
+
 sub DESTROY {
     my $self = shift;
 

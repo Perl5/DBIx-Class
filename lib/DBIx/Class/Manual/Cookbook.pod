@@ -767,38 +767,37 @@ See L<DBIx::Class::ResultSetColumn> for more documentation.
 
 =head2 Create a new row in a related table
 
-  my $book->create_related('author', { name => 'Fred'});
+  my $author = $book->create_related('author', { name => 'Fred'});
 
 =head2 Search in a related table
 
 Only searches for books named 'Titanic' by the author in $author.
 
-  my $author->search_related('books', { name => 'Titanic' });
+  my $books_rs = $author->search_related('books', { name => 'Titanic' });
 
 =head2 Delete data in a related table
 
 Deletes only the book named Titanic by the author in $author.
 
-  my $author->delete_related('books', { name => 'Titanic' });
+  $author->delete_related('books', { name => 'Titanic' });
 
 =head2 Ordering a relationship result set
 
 If you always want a relation to be ordered, you can specify this when you 
 create the relationship.
 
-To order C<< $book->pages >> by descending page_number.
+To order C<< $book->pages >> by descending page_number, create the relation
+as follows:
 
-  Book->has_many('pages' => 'Page', 'book', { order_by => \'page_number DESC'} );
+  __PACKAGE__->has_many('pages' => 'Page', 'book', { order_by => \'page_number DESC'} );
 
 =head2 Many-to-many relationships
 
 This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_many>:
 
-  package My::DB;
-  # ... set up connection ...
-
   package My::User;
-  use base 'My::DB';
+  use base 'DBIx::Class';
+  __PACKAGE__->load_components('Core');
   __PACKAGE__->table('user');
   __PACKAGE__->add_columns(qw/id name/);
   __PACKAGE__->set_primary_key('id');
@@ -806,7 +805,8 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->many_to_many('addresses' => 'user_address', 'address');
 
   package My::UserAddress;
-  use base 'My::DB';
+  use base 'DBIx::Class';
+  __PACKAGE__->load_components('Core');
   __PACKAGE__->table('user_address');
   __PACKAGE__->add_columns(qw/user address/);
   __PACKAGE__->set_primary_key(qw/user address/);
@@ -814,7 +814,8 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->belongs_to('address' => 'My::Address');
 
   package My::Address;
-  use base 'My::DB';
+  use base 'DBIx::Class';
+  __PACKAGE__->load_components('Core');
   __PACKAGE__->table('address');
   __PACKAGE__->add_columns(qw/id street town area_code country/);
   __PACKAGE__->set_primary_key('id');
@@ -841,7 +842,7 @@ example of the recommended way to use it:
     $genus->add_to_species({ name => 'troglodyte' });
     $genus->wings(2);
     $genus->update;
-    $schema->txn_do($coderef2); # Can have a nested transaction
+    $schema->txn_do($coderef2); # Can have a nested transaction. Only the outer will actualy commit
     return $genus->species;
   };
 
@@ -874,7 +875,8 @@ L<DBIx::Class::Schema> and associated sources by examining the database.
 The recommend way of achieving this is to use the 
 L<make_schema_at|DBIx::Class::Schema::Loader/make_schema_at> method:
 
-  perl -MDBIx::Class::Schema::Loader=make_schema_at,dump_to_dir:./lib -e 'make_schema_at("My::Schema", { debug => 1 }, [ "dbi:Pg:dbname=foo","postgres" ])'
+  perl -MDBIx::Class::Schema::Loader=make_schema_at,dump_to_dir:./lib \
+    -e 'make_schema_at("My::Schema", { debug => 1 }, [ "dbi:Pg:dbname=foo","postgres" ])'
 
 This will create a tree of files rooted at C<./lib/My/Schema/> containing
 source definitions for all the tables found in the C<foo> database.
@@ -919,6 +921,98 @@ This will produce new database-specific .sql files for the new version
 of the schema, plus scripts to convert from version 0.1 to 0.2. This
 requires that the files for 0.1 as created above are available in the
 given directory to diff against.
+
+=head2 Select from dual
+
+Dummy tables are needed by some databases to allow calling functions
+or expressions that aren't based on table content, for examples of how
+this applies to various database types, see:
+L<http://troels.arvin.dk/db/rdbms/#other-dummy_table>.
+
+Note: If you're using Oracles dual table don't B<ever> do anything
+other than a select, if you CRUD on your dual table you *will* break
+your database.
+
+Make a table class as you would for any other table
+                                                                               
+  package MyAppDB::Dual;
+  use strict;
+  use warnings;
+  use base 'DBIx::Class';
+  __PACKAGE__->load_components("Core");
+  __PACKAGE__->table("Dual");
+  __PACKAGE__->add_columns(
+    "dummy",
+    { data_type => "VARCHAR2", is_nullable => 0, size => 1 },
+  );
+ 
+Once you've loaded your table class select from it using C<select>
+and C<as> instead of C<columns>
+ 
+  my $rs = $schema->resultset('Dual')->search(undef,
+    { select => [ 'sydate' ],
+      as     => [ 'now' ]
+    },
+  );
+ 
+All you have to do now is be careful how you access your resultset, the below
+will not work because there is no column called 'now' in the Dual table class
+ 
+  while (my $dual = $rs->next) {
+    print $dual->now."\n";
+  }
+  # Can't locate object method "now" via package "MyAppDB::Dual" at headshot.pl line 23.
+ 
+You could of course use 'dummy' in C<as> instead of 'now', or C<add_columns> to
+your Dual class for whatever you wanted to select from dual, but that's just
+silly, instead use C<get_column>
+ 
+  while (my $dual = $rs->next) {
+    print $dual->get_column('now')."\n";
+  }
+ 
+Or use C<cursor>
+ 
+  my $cursor = $rs->cursor;
+  while (my @vals = $cursor->next) {
+    print $vals[0]."\n";
+  }
+ 
+Or use L<DBIx::Class::ResultClass::HashRefInflator>
+ 
+  $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
+  while ( my $dual = $rs->next ) {
+    print $dual->{now}."\n";
+  }
+ 
+Here are some example C<select> conditions to illustrate the different syntax
+you could use for doing stuff like 
+C<oracles.heavily(nested(functions_can('take', 'lots'), OF), 'args')>
+ 
+  # get a sequence value
+  select => [ 'A_SEQ.nextval' ],
+ 
+  # get create table sql
+  select => [ { 'dbms_metadata.get_ddl' => [ "'TABLE'", "'ARTIST'" ]} ],
+ 
+  # get a random num between 0 and 100
+  select => [ { "trunc" => [ { "dbms_random.value" => [0,100] } ]} ],
+ 
+  # what year is it?
+  select => [ { 'extract' => [ \'year from sysdate' ] } ],
+ 
+  # do some math
+  select => [ {'round' => [{'cos' => [ \'180 * 3.14159265359/180' ]}]}],
+ 
+  # which day of the week were you born on?
+  select => [{'to_char' => [{'to_date' => [ "'25-DEC-1980'", "'dd-mon-yyyy'" ]}, "'day'"]}],
+ 
+  # select 16 rows from dual
+  select   => [ "'hello'" ],
+  as       => [ 'world' ],
+  group_by => [ 'cube( 1, 2, 3, 4 )' ],
+ 
+ 
 
 =head2 Adding Indexes And Functions To Your SQL
 

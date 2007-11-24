@@ -1,6 +1,10 @@
 Revision history for DBIx::Class
+
         - Versioning refactored
         - Row::insert will now not fall over if passed duplicate related objects
+
+0.08008 2007-11-16 14:30:00
+        - Fixed join merging bug (test from Zby)
         - When adding relationships, it will throw an exception if you get the
           foreign and self parts the wrong way round in the condition
         - ResultSetColumn::func() now returns all results if called in list
@@ -15,6 +19,11 @@ Revision history for DBIx::Class
           RedHat systems from perl-5.8.8-10 and up that have the bless/overload
           patch applied (badly) which causes 2x -> 100x performance penalty.
           (Jon Schutz)
+        - ResultSource::reverse_relationship_info can distinguish between 
+          sources using the same table
+        - Row::insert will now not fall over if passed duplicate related objects
+        - Row::copy will not fall over if you have two relationships to the 
+          same source with a unique constraint on it
 
 0.08007 2007-09-04 19:36:00
         - patch for Oracle datetime inflation (abram@arin.net)

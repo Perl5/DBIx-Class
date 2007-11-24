@@ -65,7 +65,7 @@ sub parse {
     }
 
 
-    foreach my $moniker (@monikers)
+    foreach my $moniker (sort @monikers)
     {
         my $source = $dbixschema->source($moniker);
 
@@ -125,7 +125,7 @@ sub parse {
 
         my %created_FK_rels;
 
-        foreach my $rel (@rels)
+        foreach my $rel (sort @rels)
         {
             my $rel_info = $source->relationship_info($rel);
 
@@ -163,10 +163,10 @@ sub parse {
                 # us to another table.
                 # OR: If is_foreign_key_constraint attr is explicity set (or set to false) on the relation
                 if ( ! exists $created_FK_rels{$rel_table}->{$key_test} &&
-                     ( exists $rel_info->{attrs}{is_foreign_key_constraint} && 
-                       $rel_info->{attrs}{is_foreign_key_constraint} ||
+                     ( exists $rel_info->{attrs}{is_foreign_key_constraint} ?
+                       $rel_info->{attrs}{is_foreign_key_constraint} :
                        !$source->compare_relationship_keys(\@keys, \@primary)
-                     )
+		     )
                    )
                 {
                     $created_FK_rels{$rel_table}->{$key_test} = 1;

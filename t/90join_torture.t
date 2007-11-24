@@ -6,7 +6,7 @@ use lib qw(t/lib);
 use DBICTest;
 my $schema = DBICTest->init_schema();
 
-plan tests => 20;
+plan tests => 22;
 
  {
    my $rs = $schema->resultset( 'CD' )->search(
@@ -118,5 +118,11 @@ eval {
 };
 
 ok(!$@, "pathological prefetch ok");
+
+my $rs = $schema->resultset("Artist")->search({}, { join => 'twokeys' });
+my $second_search_rs = $rs->search({ 'cds_2.cdid' => '2' }, { join =>
+['cds', 'cds'] });
+is(scalar(@{$second_search_rs->{attrs}->{join}}), 3, 'both joins kept');
+ok($second_search_rs->next, 'query on double joined rel runs okay');
 
 1;
