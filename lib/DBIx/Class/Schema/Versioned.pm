@@ -6,16 +6,16 @@ use warnings;
 __PACKAGE__->load_components(qw/ Core/);
 __PACKAGE__->table('SchemaVersions');
 
-__PACKAGE__->add_columns(
-      'Version' => {
-          'data_type' => 'VARCHAR',
-          'is_auto_increment' => 0,
-          'default_value' => undef,
-          'is_foreign_key' => 0,
-          'name' => 'Version',
-          'is_nullable' => 0,
-          'size' => '10'
-      },
+__PACKAGE__->add_columns
+    ( 'Version' => {
+        'data_type' => 'VARCHAR',
+        'is_auto_increment' => 0,
+        'default_value' => undef,
+        'is_foreign_key' => 0,
+        'name' => 'Version',
+        'is_nullable' => 0,
+        'size' => '10'
+        },
       'Installed' => {
           'data_type' => 'VARCHAR',
           'is_auto_increment' => 0,
@@ -24,8 +24,8 @@ __PACKAGE__->add_columns(
           'name' => 'Installed',
           'is_nullable' => 0,
           'size' => '20'
-      },
-);
+          },
+      );
 __PACKAGE__->set_primary_key('Version');
 
 package DBIx::Class::Version;
@@ -143,10 +143,10 @@ sub backup
     $self->storage->backup($self->backup_directory());
 }
 
-# TODO: some of this needs to be merged with ->create_ddl_dir
 sub upgrade
 {
-    my ($self) = @_;
+    my ($self, $params) = @_;
+    $params ||= {};
     my $db_version = $self->get_db_version();
 
     my %driver_to_db_map = (
@@ -159,53 +159,54 @@ sub upgrade
         return;
       }
 
-      require SQL::Translator;
-      require SQL::Translator::Diff;
-      my $db_tr = SQL::Translator->new({ 
-        add_drop_table => 1, 
-        parser => 'DBI',
-        parser_args => { dbh => $self->storage->dbh }
-      });
-
-      $db_tr->producer($db);
-      my $dbic_tr = SQL::Translator->new;
-      $dbic_tr->parser('SQL::Translator::Parser::DBIx::Class');
-      $dbic_tr = $self->storage->configure_sqlt($dbic_tr, $db);
-      $dbic_tr->data($self);
-      $dbic_tr->producer($db);
-
-      $db_tr->schema->name('db_schema');
-      $dbic_tr->schema->name('dbic_schema');
-
-      # is this really necessary?
-      foreach my $tr ($db_tr, $dbic_tr) {
-        my $data = $tr->data;
-        $tr->parser->($tr, $$data);
-      }
-
-      my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db, 
-                                                    $dbic_tr->schema, $db,
-                                                    { caseopt => 1 });
-
-      my $filename = $self->ddl_filename(
-                                 $db,
-                                 $self->upgrade_directory,
-                                 $self->schema_version,
-                                 'PRE',
-                                 );
-      my $file;
-      if(!open($file, ">$filename"))
-      {
+      if ($params->{create_diff}) {
+        require SQL::Translator;
+        require SQL::Translator::Diff;
+        my $db_tr = SQL::Translator->new({ 
+          add_drop_table => 1, 
+          parser => 'DBI',
+          parser_args => { dbh => $self->storage->dbh }
+        });
+        
+        $db_tr->producer($db);
+        my $dbic_tr = SQL::Translator->new;
+        $dbic_tr->parser('SQL::Translator::Parser::DBIx::Class');
+        $dbic_tr = $self->storage->configure_sqlt($dbic_tr, $db);
+        $dbic_tr->data($self);
+        $dbic_tr->producer($db);
+        
+        $db_tr->schema->name('db_schema');
+        $dbic_tr->schema->name('dbic_schema');
+        
+        # is this really necessary?
+        foreach my $tr ($db_tr, $dbic_tr) {
+          my $data = $tr->data;
+          $tr->parser->($tr, $$data);
+        }
+        
+        my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db, 
+                                                      $dbic_tr->schema, $db,
+                                                      { caseopt => 1 });
+        
+        my $filename = $self->ddl_filename(
+                                           $db,
+                                           $self->upgrade_directory,
+                                           $self->schema_version,
+                                           'PRE',
+                                           );
+        my $file;
+        if(!open($file, ">$filename")) {
           $self->throw_exception("Can't open $filename for writing ($!)");
           next;
+        }
+        print $file $diff;
+        close($file);
+        
+        print "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.\n";
       }
-      print $file $diff;
-      close($file);
 
       # create versions table
       $self->{vschema}->deploy;
-
-      print "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.\n";
     } else {
       if ($db_version eq $self->schema_version) {
         print "Upgrade not necessary\n";
@@ -270,7 +271,7 @@ sub run_upgrade
     $self->_filedata([ grep { $_ !~ /$stm/i } @{$self->_filedata} ]);
 
     for (@statements)
-    {
+    {      
         $self->storage->debugobj->query_start($_) if $self->storage->debug;
         $self->storage->dbh->do($_) or warn "SQL was:\n $_";
         $self->storage->debugobj->query_end($_) if $self->storage->debug;
