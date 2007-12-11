@@ -352,7 +352,7 @@ usable, but C<< ->in_storage() >> will now return 0 and the object must
 reinserted using C<< ->insert() >> before C<< ->update() >> can be used
 on it. If you delete an object in a class with a C<has_many>
 relationship, all the related objects will be deleted as well. To turn
-this behavior off, pass C<cascade_delete => 0> in the C<$attr>
+this behavior off, pass C<< cascade_delete => 0 >> in the C<$attr>
 hashref. Any database-level cascade or restrict will take precedence
 over a DBIx-Class-based cascading delete. See also L<DBIx::Class::ResultSet/delete>.
 
