@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - Added freeze, thaw and dclone methods to Schema so that thawed
+          objects will get re-attached to the schema.
+
 0.08008 2007-11-16 14:30:00
         - Fixed join merging bug (test from Zby)
         - When adding relationships, it will throw an exception if you get the
