@@ -67,7 +67,7 @@ if ($op eq 'insert') {
     die('Do not use the where option with the insert op') if ($where);
     die('Do not use the attrs option with the insert op') if ($attrs);
     my $obj = $resultset->create( $set );
-    print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n";
+    print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n" if (!$quiet);
 }
 elsif ($op eq 'update') {
     $resultset = $resultset->search( ($where||{}) );
