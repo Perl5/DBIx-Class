@@ -1024,6 +1024,7 @@ sub insert {
       my $col_info = $source->column_info($col);
 
       if ( $col_info->{auto_nextval} ) {
+        $self->ensure_connected; 
         $to_insert->{$col} = $self->_sequence_fetch( 'nextval', $col_info->{sequence} || $self->_dbh_get_autoinc_seq($self->dbh, $source) );
       }
     }
