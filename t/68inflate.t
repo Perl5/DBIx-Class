@@ -10,7 +10,7 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime };
 plan skip_all => "Need DateTime for inflation tests" if $@;
 
-plan tests => 20;
+plan tests => 21;
 
 $schema->class('CD')
 #DBICTest::Schema::CD
