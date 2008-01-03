@@ -99,6 +99,10 @@ $cd->update({ year => \'year + 1'});
 $cd->discard_changes;
 
 is($cd->year->year, $before_year + 1, 'discard_changes clears the inflated value');
+
+my $copy = $cd->copy({ year => $now, title => "zemoose" });
+
+isnt( $copy->year->year, $before_year, "copy" );
  
 # eval { $cd->store_inflated_column('year', \'year + 1') };
 # print STDERR "ERROR: $@" if($@);
