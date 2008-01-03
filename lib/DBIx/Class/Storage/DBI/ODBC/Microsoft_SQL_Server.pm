@@ -64,6 +64,13 @@ be called is the same execute statement, not just the same connection.
 So, this implementation appends a SELECT SCOPE_IDENTITY() statement
 onto each INSERT to accommodate that requirement.
 
+=head1 METHODS
+
+=head2 insert
+
+=head2 last_insert_id
+
+=head2 sqlt_type
 
 =head1 AUTHORS
 
