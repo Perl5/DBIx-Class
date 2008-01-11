@@ -764,6 +764,22 @@ sub throw_exception {
   }
 }
 
+=head2 id
+
+Returns the primary key(s) for a row. Can't be called as a class method.
+Actually implemented in L<DBIx::Class::Pk>
+
+=head2 discard_changes
+
+Re-selects the row from the database, losing any changes that had
+been made.
+
+This method can also be used to refresh from storage, retrieving any
+changes made since the row was last read from storage. Actually
+implemented in L<DBIx::Class::Pk>
+
+=cut
+
 1;
 
 =head1 AUTHORS
