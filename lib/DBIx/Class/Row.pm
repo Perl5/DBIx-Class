@@ -281,9 +281,10 @@ UPDATE query to commit any changes to the object to the database if
 required.
 
 Also takes an options hashref of C<< column_name => value> pairs >> to update
-first. But be aware that this hashref might be edited in place, so dont rely on
-it being the same after a call to C<update>. If you need to preserve the hashref,
-it is sufficient to pass a shallow copy to C<update>, e.g. ( { %{ $href } } )
+first. But be awawre that the hashref will be passed to
+C<set_inflated_columns>, which might edit it in place, so dont rely on it being
+the same after a call to C<update>.  If you need to preserve the hashref, it is
+sufficient to pass a shallow copy to C<update>, e.g. ( { %{ $href } } )
 
 =cut
 
@@ -294,38 +295,7 @@ sub update {
   $self->throw_exception("Cannot safely update a row in a PK-less table")
     if ! keys %$ident_cond;
 
-  if ($upd) {
-    foreach my $key (keys %$upd) {
-      if (ref $upd->{$key}) {
-        my $info = $self->relationship_info($key);
-        if ($info && $info->{attrs}{accessor}
-          && $info->{attrs}{accessor} eq 'single')
-        {
-          my $rel = delete $upd->{$key};
-          $self->set_from_related($key => $rel);
-          $self->{_relationship_data}{$key} = $rel;          
-        } elsif ($info && $info->{attrs}{accessor}
-            && $info->{attrs}{accessor} eq 'multi'
-            && ref $upd->{$key} eq 'ARRAY') {
-            my $others = delete $upd->{$key};
-            foreach my $rel_obj (@$others) {
-              if(!Scalar::Util::blessed($rel_obj)) {
-                $rel_obj = $self->create_related($key, $rel_obj);
-              }
-            }
-            $self->{_relationship_data}{$key} = $others; 
-#            $related->{$key} = $others;
-            next;
-        }
-        elsif ($self->has_column($key)
-          && exists $self->column_info($key)->{_inflate_info})
-        {
-          $self->set_inflated_column($key, delete $upd->{$key});          
-        }
-      }
-    }
-    $self->set_columns($upd);    
-  }
+  $self->set_inflated_columns($upd) if $upd;
   my %to_update = $self->get_dirty_columns;
   return $self unless keys %to_update;
   my $rows = $self->result_source->storage->update(
@@ -352,7 +322,7 @@ usable, but C<< ->in_storage() >> will now return 0 and the object must
 reinserted using C<< ->insert() >> before C<< ->update() >> can be used
 on it. If you delete an object in a class with a C<has_many>
 relationship, all the related objects will be deleted as well. To turn
-this behavior off, pass C<cascade_delete => 0> in the C<$attr>
+this behavior off, pass C<< cascade_delete => 0 >> in the C<$attr>
 hashref. Any database-level cascade or restrict will take precedence
 over a DBIx-Class-based cascading delete. See also L<DBIx::Class::ResultSet/delete>.
 
@@ -508,6 +478,52 @@ sub set_columns {
   return $self;
 }
 
+=head2 set_inflated_columns
+
+  my $copy = $orig->set_inflated_columns({ $col => $val, $rel => $obj, ... });
+
+Sets more than one column value at once, taking care to respect inflations and
+relationships if relevant. Be aware that this hashref might be edited in place,
+so dont rely on it being the same after a call to C<set_inflated_columns>. If
+you need to preserve the hashref, it is sufficient to pass a shallow copy to
+C<set_inflated_columns>, e.g. ( { %{ $href } } )
+
+=cut
+
+sub set_inflated_columns {
+  my ( $self, $upd ) = @_;
+  foreach my $key (keys %$upd) {
+    if (ref $upd->{$key}) {
+      my $info = $self->relationship_info($key);
+      if ($info && $info->{attrs}{accessor}
+        && $info->{attrs}{accessor} eq 'single')
+      {
+        my $rel = delete $upd->{$key};
+        $self->set_from_related($key => $rel);
+        $self->{_relationship_data}{$key} = $rel;          
+      } elsif ($info && $info->{attrs}{accessor}
+        && $info->{attrs}{accessor} eq 'multi'
+        && ref $upd->{$key} eq 'ARRAY') {
+        my $others = delete $upd->{$key};
+        foreach my $rel_obj (@$others) {
+          if(!Scalar::Util::blessed($rel_obj)) {
+            $rel_obj = $self->create_related($key, $rel_obj);
+          }
+        }
+        $self->{_relationship_data}{$key} = $others; 
+#            $related->{$key} = $others;
+        next;
+      }
+      elsif ($self->has_column($key)
+        && exists $self->column_info($key)->{_inflate_info})
+      {
+        $self->set_inflated_column($key, delete $upd->{$key});          
+      }
+    }
+  }
+  $self->set_columns($upd);    
+}
+
 =head2 copy
 
   my $copy = $orig->copy({ change => $to, ... });
@@ -529,7 +545,7 @@ sub copy {
   bless $new, ref $self;
 
   $new->result_source($self->result_source);
-  $new->set_columns($changes);
+  $new->set_inflated_columns($changes);
   $new->insert;
 
   # Its possible we'll have 2 relations to the same Source. We need to make 
@@ -747,6 +763,22 @@ sub throw_exception {
     croak(@_);
   }
 }
+
+=head2 id
+
+Returns the primary key(s) for a row. Can't be called as a class method.
+Actually implemented in L<DBIx::Class::Pk>
+
+=head2 discard_changes
+
+Re-selects the row from the database, losing any changes that had
+been made.
+
+This method can also be used to refresh from storage, retrieving any
+changes made since the row was last read from storage. Actually
+implemented in L<DBIx::Class::Pk>
+
+=cut
 
 1;
 

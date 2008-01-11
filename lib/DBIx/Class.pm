@@ -258,6 +258,8 @@ paulm: Paul Makepeace
 
 penguin: K J Cheetham
 
+perigrin: Chris Prather <chris@prather.org>
+
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
 quicksilver: Jules Bean

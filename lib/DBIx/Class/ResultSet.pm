@@ -929,7 +929,7 @@ Performs an SQL C<COUNT> with the same query as the resultset was built
 with to find the number of elements. If passed arguments, does a search
 on the resultset and counts the results of that.
 
-Note: When using C<count> with C<group_by>, L<DBIX::Class> emulates C<GROUP BY>
+Note: When using C<count> with C<group_by>, L<DBIx::Class> emulates C<GROUP BY>
 using C<COUNT( DISTINCT( columns ) )>. Some databases (notably SQLite) do
 not support C<DISTINCT> with multiple columns. If you are using such a
 database, you should only use columns from the main table in your C<group_by>

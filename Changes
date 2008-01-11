@@ -1,7 +1,13 @@
 Revision history for DBIx::Class
 
+
+        - Added Storage::DBI subclass for MSSQL over ODBC. 
+        - Added freeze, thaw and dclone methods to Schema so that thawed
+          objects will get re-attached to the schema.
+        - Moved dbicadmin to JSON::Any wrapped JSON.pm for a sane API
+        - introduced DBIx::Class::set_inflated_columns
+        - DBIx::Class::Row::copy uses set_inflated_columns
         - Versioning refactored
-        - Row::insert will now not fall over if passed duplicate related objects
 
 0.08008 2007-11-16 14:30:00
         - Fixed join merging bug (test from Zby)

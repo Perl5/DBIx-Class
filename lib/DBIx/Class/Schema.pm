@@ -1059,7 +1059,43 @@ L</create_ddl_dir> or L</deploy>.
 For an example of what you can do with this, see 
 L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
 
+=head2 thaw
+
+Provided as the recommened way of thawing schema objects. You can call 
+C<Storable::thaw> directly if you wish, but the thawed objects will not have a
+reference to any schema, so are rather useless
+
 =cut
+
+sub thaw {
+  my ($self, $obj) = @_;
+  local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
+  return Storable::thaw($obj);
+}
+
+=head2 freeze
+
+This doesn't actualy do anything more than call L<Storable/freeze>, it is just
+provided here for symetry.
+
+=cut
+
+sub freeze {
+  return Storable::freeze($_[1]);
+}
+
+=head2 dclone
+
+Recommeneded way of dcloning objects. This is needed to properly maintain
+references to the schema object (which itself is B<not> cloned.)
+
+=cut
+
+sub dclone {
+  my ($self, $obj) = @_;
+  local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
+  return Storable::dclone($obj);
+}
 
 1;
 
