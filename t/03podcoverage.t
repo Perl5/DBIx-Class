@@ -37,6 +37,9 @@ my $exceptions = {
     },
     'DBIx::Class::CDBICompat::AttributeAPI'             => { skip => 1 },
     'DBIx::Class::CDBICompat::AutoUpdate'               => { skip => 1 },
+    'DBIx::Class::CDBICompat::ColumnsAsHash' => {
+        ignore => [qw(inflate_result new update)]
+    },
     'DBIx::Class::CDBICompat::ColumnCase'               => { skip => 1 },
     'DBIx::Class::CDBICompat::ColumnGroups'             => { skip => 1 },
     'DBIx::Class::CDBICompat::Constraints'              => { skip => 1 },

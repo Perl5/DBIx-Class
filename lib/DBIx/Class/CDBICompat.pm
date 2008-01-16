@@ -33,6 +33,7 @@ __PACKAGE__->load_own_components(qw/
   Retrieve
   Pager
   ColumnGroups
+  ColumnsAsHash
   AbstractSearch
   ImaDBI
   Iterator
