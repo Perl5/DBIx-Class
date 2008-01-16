@@ -7,7 +7,7 @@ use Test::Warn;
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@")
-          : (tests=> 6);
+          : (tests=> 8);
 }
 
 use lib 't/testlib';
@@ -20,20 +20,26 @@ my $waves = Film->insert({
 });
 
 warnings_like {
+    my $rating = $waves->{rating};
+    $waves->Rating("PG");
+    is $rating, "R", 'evaluation of column value is not deferred';
+} qr{^Column 'rating' of 'Film/$waves' was fetched as a hash at \Q$0};
+
+warnings_like {
     is $waves->{title}, $waves->Title, "columns can be accessed as hashes";
-} qr{^Column 'title' of 'Film/$waves' was accessed as a hash at .*$};
+} qr{^Column 'title' of 'Film/$waves' was fetched as a hash at\b};
 
 $waves->Rating("G");
 
 warnings_like {
     is $waves->{rating}, "G", "updating via the accessor updates the hash";
-} qr{^Column 'rating' of 'Film/$waves' was accessed as a hash .*$};
+} qr{^Column 'rating' of 'Film/$waves' was fetched as a hash at\b};
 
-$waves->{rating} = "PG";
 
 warnings_like {
-    $waves->update;
-} qr{^Column 'rating' of 'Film/$waves' was updated as a hash .*$};
+    $waves->{rating} = "PG";
+} qr{^Column 'rating' of 'Film/$waves' was stored as a hash at\b};
 
+$waves->update;
 my @films = Film->search( Rating => "PG", Title => "Breaking the Waves" );
 is @films, 1, "column updated as hash was saved";

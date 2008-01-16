@@ -4,10 +4,6 @@ package
 use strict;
 use warnings;
 
-use Scalar::Defer;
-use Scalar::Util qw(weaken);
-use Carp;
-
 
 =head1 NAME
 
@@ -53,56 +49,52 @@ sub inflate_result {
 sub _make_columns_as_hash {
     my $self = shift;
     
-    weaken $self;
     for my $col ($self->columns) {
         if( exists $self->{$col} ) {
             warn "Skipping mapping $col to a hash key because it exists";
         }
 
         next unless $self->can($col);
-        $self->{$col} = defer {
-            my $class = ref $self;
-            carp "Column '$col' of '$class/$self' was accessed as a hash";
-            $self->$col();
-        };
+        tie $self->{$col}, 'DBIx::Class::CDBICompat::Tied::ColumnValue',
+            $self, $col;
     }
 }
 
-sub update {
+
+package DBIx::Class::CDBICompat::Tied::ColumnValue;
+
+use Carp;
+use Scalar::Util qw(weaken isweak);
+
+
+sub TIESCALAR {
+    my($class, $obj, $col) = @_;
+    my $self = [$obj, $col];
+    weaken $self->[0];
+
+    return bless $self, $_[0];
+}
+
+sub FETCH {
     my $self = shift;
-    
-    for my $col ($self->columns) {
-        if( $self->_hash_changed($col) ) {
-            my $class = ref $self;
-            carp "Column '$col' of '$class/$self' was updated as a hash";
-            $self->$col($self->_get_column_from_hash($col));
-            $self->{$col} = defer { $self->$col() };
-        }
-    }
-    
-    return $self->next::method(@_);
+    my($obj, $col) = @$self;
+
+    my $class = ref $obj;
+    my $id    = $obj->id;
+    carp "Column '$col' of '$class/$id' was fetched as a hash";
+
+    return $obj->$col();
 }
 
-sub _hash_changed {
-    my($self, $col) = @_;
-    
-    return 0 unless exists $self->{$col};
-    
-    my $hash = $self->_get_column_from_hash($col);
-    my $obj  = $self->$col();
+sub STORE {
+    my $self = shift;
+    my($obj, $col) = @$self;
 
-    return 1 if defined $hash xor defined $obj;
-    return 0 if !defined $hash and !defined $obj;
-    return 1 if $hash ne $obj;
-    return 0;
-}
+    my $class = ref $obj;
+    my $id    = $obj->id;
+    carp "Column '$col' of '$class/$id' was stored as a hash";
 
-# get the column value without a warning
-sub _get_column_from_hash {
-    my($self, $col) = @_;
-    
-    local $SIG{__WARN__} = sub {};
-    return force $self->{$col};
+    $obj->$col(shift);
 }
 
 1;
