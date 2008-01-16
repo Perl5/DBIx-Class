@@ -4,7 +4,7 @@ use warnings;
 
 use Getopt::Long;
 use Pod::Usage;
-use JSON::Any qw(JSON);
+use JSON::Any;
 
 
 my $json = JSON::Any->new(allow_barekey => 1, allow_singlequote => 1);
