@@ -1,5 +1,34 @@
 Revision history for DBIx::Class
 
+        - Added Storage::DBI subclass for MSSQL over ODBC. 
+        - Added freeze, thaw and dclone methods to Schema so that thawed
+          objects will get re-attached to the schema.
+        - Moved dbicadmin to JSON::Any wrapped JSON.pm for a sane API
+        - introduced DBIx::Class::set_inflated_columns
+        - DBIx::Class::Row::copy uses set_inflated_columns
+
+0.08008 2007-11-16 14:30:00
+        - Fixed join merging bug (test from Zby)
+        - When adding relationships, it will throw an exception if you get the
+          foreign and self parts the wrong way round in the condition
+        - ResultSetColumn::func() now returns all results if called in list
+          context; this makes things like func('DISTINCT') work as expected
+        - Many-to-many relationships now warn if the utility methods would 
+          clash
+        - InflateColumn::DateTime now accepts an extra parameter of timezone
+          to set timezone on the DT object (thanks Sergio Salvi)
+        - Added sqlt_deploy_hook to result classes so that indexes can be 
+          added.
+        - Added startup checks to warn loudly if we appear to be running on 
+          RedHat systems from perl-5.8.8-10 and up that have the bless/overload
+          patch applied (badly) which causes 2x -> 100x performance penalty.
+          (Jon Schutz)
+        - ResultSource::reverse_relationship_info can distinguish between 
+          sources using the same table
+        - Row::insert will now not fall over if passed duplicate related objects
+        - Row::copy will not fall over if you have two relationships to the 
+          same source with a unique constraint on it
+
 0.08007 2007-09-04 19:36:00
         - patch for Oracle datetime inflation (abram@arin.net)
         - added on_disconnect_do

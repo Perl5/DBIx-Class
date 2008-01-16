@@ -519,6 +519,14 @@ sub add_relationship {
     unless $cond;
   $attrs ||= {};
 
+  # Check foreign and self are right in cond
+  if ( (ref $cond ||'') eq 'HASH') {
+    for (keys %$cond) {
+      $self->throw_exception("Keys of condition should be of form 'foreign.col', not '$_'")
+        if /\./ && !/^foreign\./;
+    }
+  }
+
   my %rels = %{ $self->_relationships };
   $rels{$rel} = { class => $f_source_name,
                   source => $f_source_name,
@@ -632,7 +640,7 @@ sub reverse_relationship_info {
     my $otherrel_info = $othertable->relationship_info($otherrel);
 
     my $back = $othertable->related_source($otherrel);
-    next unless $back->name eq $self->name;
+    next unless $back->source_name eq $self->source_name;
 
     my @othertestconds;
 
@@ -782,7 +790,7 @@ sub resolve_condition {
         $self->throw_exception("Invalid rel cond val ${v}");
       if (ref $for) { # Object
         #warn "$self $k $for $v";
-        $ret{$k} = $for->get_column($v);
+        $ret{$k} = $for->get_column($v) if $for->has_column_loaded($v);
         #warn %ret;
       } elsif (!defined $for) { # undef, i.e. "no object"
         $ret{$k} = undef;
@@ -972,7 +980,9 @@ but is cached from then on unless resultset_class changes.
 
 Set the class of the resultset, this is useful if you want to create your
 own resultset methods. Create your own class derived from
-L<DBIx::Class::ResultSet>, and set it here. 
+L<DBIx::Class::ResultSet>, and set it here. If called with no arguments,
+this method returns the name of the existing resultset class, if one
+exists.
 
 =head2 resultset_attributes
 
@@ -1048,6 +1058,15 @@ sub throw_exception {
     croak(@_);
   }
 }
+
+=head2 sqlt_deploy_hook($sqlt_table)
+
+An optional sub which you can declare in your own Schema class that will get 
+passed the L<SQL::Translator::Schema::Table> object when you deploy the schema
+via L</create_ddl_dir> or L</deploy>.
+
+For an example of what you can do with this, see 
+L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
 
 =head1 AUTHORS
 

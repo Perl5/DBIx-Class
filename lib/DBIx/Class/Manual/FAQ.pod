@@ -232,6 +232,25 @@ and not:
  my $interval = "now() - interval '12 hours'";
  ->search({last_attempt => { '<' => \$interval } })
 
+=item .. search with an SQL function on the left hand side?
+
+To use an SQL function on the left hand side of a comparison:
+
+ ->search({}, { where => \'YEAR(date_of_birth)=1979' });
+
+=begin hidden
+
+(When the bind arg ordering bug is fixed, the previous example can be
+replaced with the following.)
+
+ ->search({}, { where => \'YEAR(date_of_birth)=?', bind => [ 1979 ] });
+
+=end hidden
+
+Or, if you have quoting off:
+
+ ->search({ 'YEAR(date_of_birth' => 1979 });
+
 =item .. find more help on constructing searches?
 
 Behind the scenes, DBIx::Class uses L<SQL::Abstract> to help construct
@@ -399,6 +418,17 @@ if you create a resultset using C<search> in scalar context, no query
 is executed. You can create further resultset refinements by calling
 search again or relationship accessors. The SQL query is only run when
 you ask the resultset for an actual row object.
+
+=item How do I deal with tables that lack a primary key?
+
+If your table lacks a primary key, DBIx::Class can't work out which row
+it should operate on, for example to delete or update.  However, a
+UNIQUE constraint on one or more columns allows DBIx::Class to uniquely
+identify the row, so you can tell L<DBIx::Class::ResultSource> these
+columns act as a primary key, even if they don't from the database's
+point of view:
+
+ $resultset->set_primary_key(@column);
 
 =back
 

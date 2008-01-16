@@ -19,6 +19,9 @@ __PACKAGE__->mk_group_accessors('simple' =>
 
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
+__PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class/);
+__PACKAGE__->sql_maker_class('DBIC::SQL::Abstract');
+
 BEGIN {
 
 package DBIC::SQL::Abstract; # Would merge upstream, but nate doesn't reply :(
@@ -83,6 +86,15 @@ sub select {
   my ($sql, @ret) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $order, @rest
   );
+  $sql .= 
+    $self->{for} ?
+    (
+      $self->{for} eq 'update' ? ' FOR UPDATE' :
+      $self->{for} eq 'shared' ? ' FOR SHARE'  :
+      ''
+    ) :
+    ''
+  ;
   return wantarray ? ($sql, @ret, @{$self->{having_bind}}) : $sql;
 }
 
@@ -706,7 +718,7 @@ sub connected {
 sub _verify_pid {
   my ($self) = @_;
 
-  return if $self->_conn_pid == $$;
+  return if defined $self->_conn_pid && $self->_conn_pid == $$;
 
   $self->_dbh->{InactiveDestroy} = 1;
   $self->_dbh(undef);
@@ -745,7 +757,8 @@ sub _sql_maker_args {
 sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
-    $self->_sql_maker(new DBIC::SQL::Abstract( $self->_sql_maker_args ));
+    my $sql_maker_class = $self->sql_maker_class;
+    $self->_sql_maker($sql_maker_class->new( $self->_sql_maker_args ));
   }
   return $self->_sql_maker;
 }
@@ -1085,9 +1098,15 @@ sub delete {
 sub _select {
   my ($self, $ident, $select, $condition, $attrs) = @_;
   my $order = $attrs->{order_by};
+
   if (ref $condition eq 'SCALAR') {
     $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
   }
+
+  my $for = delete $attrs->{for};
+  my $sql_maker = $self->sql_maker;
+  local $sql_maker->{for} = $for;
+
   if (exists $attrs->{group_by} || $attrs->{having}) {
     $order = {
       group_by => $attrs->{group_by},
@@ -1108,6 +1127,7 @@ sub _select {
     $attrs->{rows} = 2**48 if not defined $attrs->{rows} and defined $attrs->{offset};
     push @args, $attrs->{rows}, $attrs->{offset};
   }
+
   return $self->_execute(@args);
 }
 

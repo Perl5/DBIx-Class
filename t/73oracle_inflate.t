@@ -54,12 +54,6 @@ is( $track->last_updated_on->month, $dt->month, "deflate ok");
 
 # clean up our mess
 END {
-    # Set the metadata back for the last_updated_on column
-    if( $schema ) {
-        $schema->class('Track')
-               ->add_column( 'last_updated_on' => $col_metadata );
-    }
-
     if($dbh) {
         $dbh->do("DROP TABLE track");
     }

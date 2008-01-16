@@ -5,6 +5,8 @@ package # hide from PAUSE
 
 # Some mistakes the fault of Matt S Trout
 
+# Others the fault of Ash Berlin
+
 use strict;
 use warnings;
 use vars qw($DEBUG $VERSION @EXPORT_OK);
@@ -61,10 +63,8 @@ sub parse {
     }
 
 
-    foreach my $moniker (@monikers)
+    foreach my $moniker (sort @monikers)
     {
-        #eval "use $tableclass";
-        #print("Can't load $tableclass"), next if($@);
         my $source = $dbixschema->source($moniker);
 
         next if $seen_tables{$source->name}++;
@@ -76,7 +76,7 @@ sub parse {
         my $colcount = 0;
         foreach my $col ($source->columns)
         {
-            # assuming column_info in dbix is the same as DBI (?)
+            # assuming column_info in dbic is the same as DBI (?)
             # data_type is a number, column_type is text?
             my %colinfo = (
               name => $col,
@@ -109,7 +109,7 @@ sub parse {
 
         my %created_FK_rels;
 
-        foreach my $rel (@rels)
+        foreach my $rel (sort @rels)
         {
             my $rel_info = $source->relationship_info($rel);
 
@@ -126,7 +126,6 @@ sub parse {
 
             if($rel_table)
             {
-
                 my $reverse_rels = $source->reverse_relationship_info($rel);
                 my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
 
@@ -143,16 +142,15 @@ sub parse {
 
                 #Decide if this is a foreign key based on whether the self
                 #items are our primary columns.
-                $DB::single = 1 if $moniker eq 'Tests::MBTI::Result';
 
                 # If the sets are different, then we assume it's a foreign key from
                 # us to another table.
                 # OR: If is_foreign_key_constraint attr is explicity set (or set to false) on the relation
                 if ( ! exists $created_FK_rels{$rel_table}->{$key_test} &&
-                     ( exists $rel_info->{attrs}{is_foreign_key_constraint} && 
-                       $rel_info->{attrs}{is_foreign_key_constraint} ||
+                     ( exists $rel_info->{attrs}{is_foreign_key_constraint} ?
+                       $rel_info->{attrs}{is_foreign_key_constraint} :
                        !$source->compare_relationship_keys(\@keys, \@primary)
-                     )
+		     )
                    )
                 {
                     $created_FK_rels{$rel_table}->{$key_test} = 1;
@@ -168,7 +166,16 @@ sub parse {
                 }
             }
         }
+
+        if ($source->result_class->can('sqlt_deploy_hook')) {
+          $source->result_class->sqlt_deploy_hook($table);
+        }
     }
+
+    if ($dbixschema->can('sqlt_deploy_hook')) {
+      $dbixschema->sqlt_deploy_hook($schema);
+    }
+
     return 1;
 }
 

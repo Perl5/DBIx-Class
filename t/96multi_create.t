@@ -51,6 +51,23 @@ my $newartist2 = $schema->resultset('Artist')->find_or_create({ name => 'Fred 3'
 
 is($newartist2->name, 'Fred 3', 'Created new artist with cds via find_or_create');
 
+my $artist2 = $schema->resultset('Artist')->create({ artistid => 1000,
+                                                    name => 'Fred 3',
+                                                     cds => [
+                                                             { artist => 1000,
+                                                               title => 'Music to code by',
+                                                               year => 2007,
+                                                             },
+                                                             ],
+                                                    cds_unordered => [
+                                                             { artist => 1000,
+                                                               title => 'Music to code by',
+                                                               year => 2007,
+                                                             },
+                                                             ]
+                                                     });
+
+is($artist2->in_storage, 1, 'artist with duplicate rels inserted okay');
 
 CREATE_RELATED1 :{
 
@@ -161,3 +178,19 @@ SPECIAL_CASE2: {
   is($a->name, 'Pink Floyd', 'Artist insertion ok');
   is($a->cds && $a->cds->first->title, 'The Wall', 'CD insertion ok');
 }
+
+## Create foreign key col obj including PK
+## See test 20 in 66relationships.t
+my $new_cd_hashref = { 
+              cdid => 27, 
+               title => 'Boogie Woogie', 
+              year => '2007', 
+              artist => { artistid => 17, name => 'king luke' }
+             };
+
+my $cd = $schema->resultset("CD")->find(1);
+
+is($cd->artist->id, 1, 'rel okay');
+
+my $new_cd = $schema->resultset("CD")->create($new_cd_hashref);
+is($new_cd->artist->id, 17, 'new id retained okay');

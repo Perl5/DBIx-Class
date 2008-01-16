@@ -5,6 +5,7 @@ use warnings;
 
 use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
+use DBIx::Class::StartupCheck;
 
 
 sub mk_classdata { 
@@ -23,7 +24,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.08007';
+$VERSION = '0.08008';
 
 sub MODIFY_CODE_ATTRIBUTES {
   my ($class,$code,@attrs) = @_;
@@ -201,6 +202,8 @@ ank: Andres Kievsky
 
 ash: Ash Berlin <ash@cpan.org>
 
+bert: Norbert Csongradi <bert@cpan.org>
+
 blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
@@ -233,6 +236,8 @@ jguenther: Justin Guenther <jguenther@cpan.org>
 
 jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
 
+jon: Jon Schutz <jjschutz@cpan.org>
+
 jshirley: J. Shirley <jshirley@gmail.com>
 
 konobi: Scott McWhirter
@@ -253,6 +258,8 @@ paulm: Paul Makepeace
 
 penguin: K J Cheetham
 
+perigrin: Chris Prather <chris@prather.org>
+
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
 quicksilver: Jules Bean
@@ -260,6 +267,8 @@ quicksilver: Jules Bean
 sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>
+
+semifor: Marc Mims <marc@questright.com>
 
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 

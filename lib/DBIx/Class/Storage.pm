@@ -419,6 +419,10 @@ re-connect on your schema.
 
 Old name for DBIC_TRACE
 
+=head1 SEE ALSO
+
+L<DBIx::Class::Storage::DBI> - reference storage inplementation using SQL::Abstract and DBI.
+
 =head1 AUTHORS
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>

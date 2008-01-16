@@ -7,10 +7,15 @@ use Storable;
 use base qw/DBIx::Class/;
 
 use overload
+    # on some RH perls the following line causes serious performance problem
+    # see https://bugzilla.redhat.com/show_bug.cgi?id=196836
     q/""/ => sub { __PACKAGE__ . ":" . shift->source_moniker; },
     fallback => 1;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/schema source_moniker/);
+
+# Schema to use when thawing.
+our $thaw_schema;
 
 =head1 NAME
 
@@ -69,20 +74,32 @@ Freezes a handle.
 
 sub STORABLE_freeze {
     my ($self, $cloning) = @_;
+
     my $to_serialize = { %$self };
+    
     delete $to_serialize->{schema};
     return (Storable::freeze($to_serialize));
 }
 
 =head2 STORABLE_thaw
 
-Thaws frozen handle.
+Thaws frozen handle. Resets the internal schema reference to the package
+variable C<$thaw_schema>. The recomened way of setting this is to use 
+C<$schema->thaw($ice)> which handles this for you.
 
 =cut
+
 
 sub STORABLE_thaw {
     my ($self, $cloning,$ice) = @_;
     %$self = %{ Storable::thaw($ice) };
+    $self->{schema} = $thaw_schema;
 }
+
+=head1 AUTHOR
+
+Ash Berlin C<< <ash@cpan.org> >>
+
+=cut
 
 1;

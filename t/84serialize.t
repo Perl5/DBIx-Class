@@ -13,7 +13,7 @@ my %stores = (
     "freeze/thaw"   => sub { return thaw(freeze($_[0])) },
 );
 
-plan tests => (5 * keys %stores);
+plan tests => (7 * keys %stores);
 
 for my $name (keys %stores) {
     my $store = $stores{$name};
@@ -33,4 +33,7 @@ for my $name (keys %stores) {
         is_deeply($copy->{$key}, $artist->{$key},
                   qq[serialize with related_resultset "$key"]);
     }
+  
+    ok eval { $copy->discard_changes; 1 };
+    is($copy->id, $artist->id, "IDs still match ");
 }
