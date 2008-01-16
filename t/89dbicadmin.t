@@ -8,8 +8,8 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-eval 'require JSON';
-plan skip_all => 'Install JSON to run this test' if ($@);
+eval 'require JSON::Any';
+plan skip_all => 'Install JSON::Any to run this test' if ($@);
 
 eval 'require Text::CSV_XS';
 if ($@) {
