@@ -11,13 +11,13 @@ sub STORABLE_freeze {
     delete $to_serialize->{related_resultsets};
     delete $to_serialize->{_inflated_column};
 
-    return('', $to_serialize);
+    return (Storable::freeze($to_serialize));
 }
 
 sub STORABLE_thaw {
-    my ($self, $cloning, $junk, $obj) = @_;
+    my ($self, $cloning, $serialized) = @_;
 
-    %$self = %{ $obj };
+    %$self = %{ Storable::thaw($serialized) };
     $self->result_source($self->result_source_instance)
       if $self->can('result_source_instance');
 }

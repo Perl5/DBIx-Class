@@ -9,8 +9,11 @@ use Storable qw(dclone freeze thaw);
 my $schema = DBICTest->init_schema();
 
 my %stores = (
-    dclone          => sub { return dclone($_[0]) },
-    "freeze/thaw"   => sub { return thaw(freeze($_[0])) },
+    dclone_method          => sub { return $schema->dclone($_[0]) },
+    "freeze/thaw_method"   => sub {
+        my $ice = $schema->freeze($_[0]);
+        return $schema->thaw($ice);
+    },
 );
 
 plan tests => (7 * keys %stores);
@@ -34,6 +37,6 @@ for my $name (keys %stores) {
                   qq[serialize with related_resultset "$key"]);
     }
   
-    ok eval { $copy->discard_changes; 1 };
+    ok eval { $copy->discard_changes; 1 } or diag $@;
     is($copy->id, $artist->id, "IDs still match ");
 }
