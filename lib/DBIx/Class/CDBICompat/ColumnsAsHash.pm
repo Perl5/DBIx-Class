@@ -21,7 +21,7 @@ Emulates the I<undocumnted> behavior of Class::DBI where the object can be acces
 
 =head2 Differences from Class::DBI
 
-This will warn when a column is accessed as a hash key.
+If C<DBIC_CDBICOMPAT_HASH_WARN> is true it will warn when a column is accessed as a hash key.
 
 =cut
 
@@ -81,7 +81,8 @@ sub FETCH {
 
     my $class = ref $obj;
     my $id    = $obj->id;
-    carp "Column '$col' of '$class/$id' was fetched as a hash";
+    carp "Column '$col' of '$class/$id' was fetched as a hash"
+        if $ENV{DBIC_CDBICOMPAT_HASH_WARN};
 
     return $obj->$col();
 }
@@ -92,7 +93,8 @@ sub STORE {
 
     my $class = ref $obj;
     my $id    = $obj->id;
-    carp "Column '$col' of '$class/$id' was stored as a hash";
+    carp "Column '$col' of '$class/$id' was stored as a hash"
+        if $ENV{DBIC_CDBICOMPAT_HASH_WARN};
 
     $obj->$col(shift);
 }

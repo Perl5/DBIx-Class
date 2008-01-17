@@ -7,7 +7,7 @@ use Test::Warn;
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@")
-          : (tests=> 8);
+          : (tests=> 9);
 }
 
 use lib 't/testlib';
@@ -18,6 +18,8 @@ my $waves = Film->insert({
     Director  => 'Lars von Trier',
     Rating    => 'R'
 });
+
+local $ENV{DBIC_CDBICOMPAT_HASH_WARN} = 1;
 
 warnings_like {
     my $rating = $waves->{rating};
@@ -43,3 +45,9 @@ warnings_like {
 $waves->update;
 my @films = Film->search( Rating => "PG", Title => "Breaking the Waves" );
 is @films, 1, "column updated as hash was saved";
+
+
+warning_is {
+    local $ENV{DBIC_CDBICOMPAT_HASH_WARN} = 0;
+    $waves->{rating}
+} '', 'DBIC_CDBICOMPAT_HASH_WARN controls warnings';
