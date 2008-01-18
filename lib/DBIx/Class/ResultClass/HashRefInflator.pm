@@ -1,5 +1,8 @@
 package DBIx::Class::ResultClass::HashRefInflator;
 
+use strict;
+use warnings;
+
 =head1 NAME
 
 DBIx::Class::ResultClass::HashRefInflator
@@ -61,7 +64,7 @@ sub mk_hash {
     # related sources.
 
     # to avoid emtpy has_many rels contain one empty hashref
-    return if (not keys %$me);
+    return undef if (not keys %$me);
 
     my $def;
 
@@ -71,13 +74,14 @@ sub mk_hash {
             last;
         }
     }
-    return unless $def;
+    return undef unless $def;
 
     return { %$me,
         map {
           ( $_ =>
-             ref($rest->{$_}[0]) eq 'ARRAY' ? [ map { mk_hash(@$_) } @{$rest->{$_}} ]
-                                            : mk_hash( @{$rest->{$_}} )
+             ref($rest->{$_}[0]) eq 'ARRAY'
+                 ? [ grep defined, map mk_hash(@$_), @{$rest->{$_}} ]
+                 : mk_hash( @{$rest->{$_}} )
           )
         } keys %$rest
     };
