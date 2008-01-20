@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - Made search_rs smarter about when to preserve the cache to fix
+          mm prefetch usage
         - Added Storage::DBI subclass for MSSQL over ODBC. 
         - Added freeze, thaw and dclone methods to Schema so that thawed
           objects will get re-attached to the schema.

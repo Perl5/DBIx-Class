@@ -247,11 +247,7 @@ $cd = $schema->resultset('CD')->find(1, { prefetch => { cd_to_producer => 'produ
 
 is($cd->producers->first->name, 'Matt S Trout', 'many_to_many accessor ok');
 
-TODO: {
-  local $TODO = 'use prefetched values for many_to_many accessor';
-
-  is($queries, 1, 'many_to_many accessor with nested prefetch ran exactly 1 query');
-}
+is($queries, 1, 'many_to_many accessor with nested prefetch ran exactly 1 query');
 
 $queries = 0;
 
