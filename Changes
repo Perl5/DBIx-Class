@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08009 2008-01-20 13:30
         - Made search_rs smarter about when to preserve the cache to fix
           mm prefetch usage
         - Added Storage::DBI subclass for MSSQL over ODBC. 
