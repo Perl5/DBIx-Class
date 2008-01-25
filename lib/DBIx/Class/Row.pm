@@ -281,7 +281,7 @@ UPDATE query to commit any changes to the object to the database if
 required.
 
 Also takes an options hashref of C<< column_name => value> pairs >> to update
-first. But be awawre that the hashref will be passed to
+first. But be aware that the hashref will be passed to
 C<set_inflated_columns>, which might edit it in place, so dont rely on it being
 the same after a call to C<update>.  If you need to preserve the hashref, it is
 sufficient to pass a shallow copy to C<update>, e.g. ( { %{ $href } } )
@@ -767,7 +767,7 @@ sub throw_exception {
 =head2 id
 
 Returns the primary key(s) for a row. Can't be called as a class method.
-Actually implemented in L<DBIx::Class::Pk>
+Actually implemented in L<DBIx::Class::PK>
 
 =head2 discard_changes
 
@@ -776,7 +776,7 @@ been made.
 
 This method can also be used to refresh from storage, retrieving any
 changes made since the row was last read from storage. Actually
-implemented in L<DBIx::Class::Pk>
+implemented in L<DBIx::Class::PK>
 
 =cut
 
