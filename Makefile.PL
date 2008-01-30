@@ -16,7 +16,7 @@ requires 'DBI'                       => 1.40;
 requires 'Module::Find'              => 0;
 requires 'Class::Inspector'          => 0;
 requires 'Class::Accessor::Grouped'  => 0.05002;
-requires 'JSON'                      => 1.00; 
+requires 'JSON::Any'                 => 1.00; 
 requires 'Scope::Guard'              => 0.03;
 
 # Perl 5.8.0 doesn't have utf8::is_utf8()

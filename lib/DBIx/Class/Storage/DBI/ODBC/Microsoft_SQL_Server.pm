@@ -38,6 +38,14 @@ sub _sql_maker_opts {
     return { limit_dialect => 'Top', %{$self->{_sql_maker_opts}||{}} };
 }
 
+sub build_datetime_parser {
+  my $self = shift;
+  my $type = "DateTime::Format::Strptime";
+  eval "use ${type}";
+  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  return $type->new( pattern => '%F %T' );
+}
+
 1;
 
 __END__
@@ -71,6 +79,11 @@ onto each INSERT to accommodate that requirement.
 =head2 last_insert_id
 
 =head2 sqlt_type
+
+=head2 build_datetime_parser
+
+The resulting parser handles the MSSQL C<DATETIME> type, but is almost
+certainly not sufficient for the other MSSQL 2008 date/time types.
 
 =head1 AUTHORS
 
