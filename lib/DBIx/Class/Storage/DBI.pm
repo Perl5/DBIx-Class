@@ -1380,10 +1380,17 @@ sub create_ddl_dir
         next;
       }
 
+      my $difffile = $schema->ddl_filename($db, $dir, $version, $preversion);
+      print STDERR "Diff: $difffile: $db, $dir, $version, $preversion \n";
+      if(-e $difffile)
+      {
+        warn("$difffile already exists, skipping");
+        next;
+      }
+
       my $source_schema;
       {
         my $t = SQL::Translator->new;
-        $t->parser_args(no_default_sizes => 1);
         $t->debug( 0 );
         $t->trace( 0 );
         $t->parser( $db )                       or die $t->error;
@@ -1394,17 +1401,26 @@ sub create_ddl_dir
         }
       }
 
+      # The "new" style of producers have sane normalization and can support 
+      # diffing a SQL file against a DBIC->SQLT schema. Old style ones don't
+      # And we have to diff parsed SQL against parsed SQL.
+      my $dest_schema = $sqlt_schema;
+
+      unless ( "SQL::Translator::Producers::$db"->can('preprocess_schema') ) {
+        my $t = SQL::Translator->new;
+        $t->debug( 0 );
+        $t->trace( 0 );
+        $t->parser( $db )                    or die $t->error;
+        my $out = $t->translate( $filename ) or die $t->error;
+        $dest_schema = $t->schema;
+        $dest_schema->name( $filename )
+          unless $dest_schema->name;
+      }
+
       my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
-                                                    $sqlt_schema,   $db,
+                                                    $dest_schema,   $db,
                                                     {}
                                                    );
-      my $difffile = $schema->ddl_filename($db, $dir, $version, $preversion);
-      print STDERR "Diff: $difffile: $db, $dir, $version, $preversion \n";
-      if(-e $difffile)
-      {
-        warn("$difffile already exists, skipping");
-        next;
-      }
       if(!open $file, ">$difffile")
       { 
         $self->throw_exception("Can't write to $difffile ($!)");
