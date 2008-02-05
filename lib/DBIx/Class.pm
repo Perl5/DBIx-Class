@@ -254,6 +254,8 @@ ningu: David Kamholz <dkamholz@cpan.org>
 
 Numa: Dan Sully <daniel@cpan.org>
 
+oyse: Øystein Torget <oystein.torget@dnv.com>
+
 paulm: Paul Makepeace
 
 penguin: K J Cheetham
