@@ -37,6 +37,58 @@ __PACKAGE__->register_class('Table', 'DBIx::Class::Version::Table');
 
 
 # ---------------------------------------------------------------------------
+
+=head1 NAME
+
+DBIx::Class::Schema::Versioned - DBIx::Class::Schema plugin for Schema upgrades
+
+=head1 SYNOPSIS
+
+  package Library::Schema;
+  use base qw/DBIx::Class::Schema/;   
+  # load Library::Schema::CD, Library::Schema::Book, Library::Schema::DVD
+  __PACKAGE__->load_classes(qw/CD Book DVD/);
+
+  __PACKAGE__->load_components(qw/+DBIx::Class::Schema::Versioned/);
+  __PACKAGE__->upgrade_directory('/path/to/upgrades/');
+  __PACKAGE__->backup_directory('/path/to/backups/');
+
+
+=head1 DESCRIPTION
+
+This module is a component designed to extend L<DBIx::Class::Schema>
+classes, to enable them to upgrade to newer schema layouts. To use this
+module, you need to have called C<create_ddl_dir> on your Schema to
+create your upgrade files to include with your delivery.
+
+A table called I<SchemaVersions> is created and maintained by the
+module. This contains two fields, 'Version' and 'Installed', which
+contain each VERSION of your Schema, and the date+time it was installed.
+
+The actual upgrade is called manually by calling C<upgrade> on your
+schema object. Code is run at connect time to determine whether an
+upgrade is needed, if so, a warning "Versions out of sync" is
+produced.
+
+So you'll probably want to write a script which generates your DDLs and diffs
+and another which executes the upgrade.
+
+NB: At the moment, only SQLite and MySQL are supported. This is due to
+spotty behaviour in the SQL::Translator producers, please help us by
+them.
+
+=head1 METHODS
+
+=head2 upgrade_directory
+
+Use this to set the directory your upgrade files are stored in.
+
+=head2 backup_directory
+
+Use this to set the directory you want your backups stored in.
+
+=cut
+
 package DBIx::Class::Schema::Versioned;
 
 use strict;
@@ -49,6 +101,16 @@ __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
 __PACKAGE__->mk_classdata('backup_directory');
 __PACKAGE__->mk_classdata('do_backup');
+__PACKAGE__->mk_classdata('do_diff_on_init');
+
+=head2 schema_version
+
+Returns the current schema class' $VERSION; does -not- use $schema->VERSION
+since that varies in results depending on if version.pm is installed, and if
+so the perl or XS versions. If you want this to change, bug the version.pm
+author to make vpp and vxs behave the same.
+
+=cut
 
 sub schema_version {
   my ($self) = @_;
@@ -61,49 +123,12 @@ sub schema_version {
   return $version;
 }
 
-sub connection {
-  my $self = shift;
-  $self->next::method(@_);
-  $self->_on_connect;
-  return $self;
-}
+=head2 get_db_version
 
-sub _on_connect
-{
-    my ($self) = @_;
-    $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
+Returns the version that your database is currently at. This is determined by the values in the
+SchemaVersions table that $self->upgrade writes to.
 
-    my $pversion = $self->get_db_version();
-
-    if($pversion eq $self->schema_version)
-    {
-        warn "This version is already installed\n";
-        return 1;
-    }
-
-    if(!$pversion)
-    {
-        warn "Your DB is currently unversioned. Please call upgrade on your schema to sync the DB.\n";
-        return 1;
-    }
-
-    my $file = $self->ddl_filename(
-                                   $self->storage->sqlt_type,
-                                   $self->upgrade_directory,
-                                   $self->schema_version
-                                   );
-    if(!$file)
-    {
-        # No upgrade path between these two versions
-        return 1;
-    }
-
-
-    ## Don't do this yet, do only on command?
-    ## If we do this later, where does the Version table get updated??
-    warn "Versions out of sync. This is " . $self->schema_version . 
-        ", your database contains version $pversion, please call upgrade on your Schema.\n";
-}
+=cut
 
 sub get_db_version
 {
@@ -136,6 +161,17 @@ sub _source_exists
     return 1;
 }
 
+=head2 backup
+
+This is an overwritable method which is called just before the upgrade, to
+allow you to make a backup of the database. Per default this method attempts
+to call C<< $self->storage->backup >>, to run the standard backup on each
+database type. 
+
+This method should return the name of the backup file, if appropriate..
+
+=cut
+
 sub backup
 {
     my ($self) = @_;
@@ -143,112 +179,155 @@ sub backup
     $self->storage->backup($self->backup_directory());
 }
 
+# is this just a waste of time?
+sub _create_db_to_schema_diff {
+  my $self = shift;
+
+  my %driver_to_db_map = (
+                          'mysql' => 'MySQL'
+                         );
+
+  my $db = $driver_to_db_map{$self->storage->dbh->{Driver}->{Name}};
+  unless ($db) {
+    print "Sorry, this is an unsupported DB\n";
+    return;
+  }
+
+  require SQL::Translator;
+  require SQL::Translator::Diff;
+
+  my $db_tr = SQL::Translator->new({ 
+                                    add_drop_table => 1, 
+                                    parser => 'DBI',
+                                    parser_args => { dbh => $self->storage->dbh }
+                                   });
+
+  $db_tr->producer($db);
+  my $dbic_tr = SQL::Translator->new;
+  $dbic_tr->parser('SQL::Translator::Parser::DBIx::Class');
+  $dbic_tr = $self->storage->configure_sqlt($dbic_tr, $db);
+  $dbic_tr->data($self);
+  $dbic_tr->producer($db);
+
+  $db_tr->schema->name('db_schema');
+  $dbic_tr->schema->name('dbic_schema');
+
+  # is this really necessary?
+  foreach my $tr ($db_tr, $dbic_tr) {
+    my $data = $tr->data;
+    $tr->parser->($tr, $$data);
+  }
+
+  my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db, 
+                                                $dbic_tr->schema, $db,
+                                                { ignore_constraint_names => 1, ignore_index_names => 1, caseopt => 1 });
+
+  my $filename = $self->ddl_filename(
+                                         $db,
+                                         $self->upgrade_directory,
+                                         $self->schema_version,
+                                         'PRE',
+                                    );
+  my $file;
+  if(!open($file, ">$filename"))
+    {
+      $self->throw_exception("Can't open $filename for writing ($!)");
+      next;
+    }
+  print $file $diff;
+  close($file);
+
+  print "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.\n";
+}
+
+=head2 upgrade
+
+Call this to attempt to upgrade your database from the version it is at to the version
+this DBIC schema is at. 
+
+It requires an SQL diff file to exist in $schema->upgrade_directory, normally you will
+have created this using $schema->create_ddl_dir.
+
+=cut
+
 sub upgrade
 {
-    my ($self, $params) = @_;
-    $params ||= {};
-    my $db_version = $self->get_db_version();
+  my ($self) = @_;
+  my $db_version = $self->get_db_version();
 
-    my %driver_to_db_map = (
-                            'mysql' => 'MySQL'
-                           );
-    if (!$db_version) {
-      my $db = $driver_to_db_map{$self->storage->dbh->{Driver}->{Name}};
-      unless ($db) {
-        print "Sorry, this is an unsupported DB\n";
-        return;
-      }
+  # db unversioned
+  unless ($db_version) {
+    # set version in SchemaVersions table, can't actually upgrade as we don 't know what version the DB is at
+    $self->_create_db_to_schema_diff() if ($self->do_diff_on_init);
 
-      if ($params->{create_diff}) {
-        require SQL::Translator;
-        require SQL::Translator::Diff;
-        my $db_tr = SQL::Translator->new({ 
-          add_drop_table => 1, 
-          parser => 'DBI',
-          parser_args => { dbh => $self->storage->dbh }
-        });
-        
-        $db_tr->producer($db);
-        my $dbic_tr = SQL::Translator->new;
-        $dbic_tr->parser('SQL::Translator::Parser::DBIx::Class');
-        $dbic_tr = $self->storage->configure_sqlt($dbic_tr, $db);
-        $dbic_tr->data($self);
-        $dbic_tr->producer($db);
-        
-        $db_tr->schema->name('db_schema');
-        $dbic_tr->schema->name('dbic_schema');
-        
-        # is this really necessary?
-        foreach my $tr ($db_tr, $dbic_tr) {
-          my $data = $tr->data;
-          $tr->parser->($tr, $$data);
-        }
-        
-        my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db, 
-                                                      $dbic_tr->schema, $db,
-                                                      { caseopt => 1 });
-        
-        my $filename = $self->ddl_filename(
-                                           $db,
-                                           $self->upgrade_directory,
-                                           $self->schema_version,
-                                           'PRE',
-                                           );
-        my $file;
-        if(!open($file, ">$filename")) {
-          $self->throw_exception("Can't open $filename for writing ($!)");
-          next;
-        }
-        print $file $diff;
-        close($file);
-        
-        print "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.\n";
-      }
+    # create versions table and version row
+    $self->{vschema}->deploy;
+    $self->_set_db_version;
+    return;
+  }
 
-      # create versions table
-      $self->{vschema}->deploy;
-    } else {
-      if ($db_version eq $self->schema_version) {
-        print "Upgrade not necessary\n";
-        return;
-      }
+  # db and schema at same version. do nothing
+  if ($db_version eq $self->schema_version) {
+    print "Upgrade not necessary\n";
+    return;
+  }
 
-      my $file = $self->ddl_filename(
-                                 $self->storage->sqlt_type,
-                                 $self->upgrade_directory,
-                                 $self->schema_version,
-                                 $db_version,
-                                 );
+  my $upgrade_file = $self->ddl_filename(
+                                         $self->storage->sqlt_type,
+                                         $self->upgrade_directory,
+                                         $self->schema_version,
+                                         $db_version,
+                                        );
 
-      if(!-f $file)
-      {
-         warn "Upgrade not possible, no upgrade file found ($file)\n";
-         return;
-      }
+  unless (-f $upgrade_file) {
+    warn "Upgrade not possible, no upgrade file found ($upgrade_file), please create one\n";
+    return;
+  }
 
-      my $fh;
-      open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
-      my @data = split(/\n/, join('', <$fh>));
-      @data = grep(!/^--/, @data);
-      @data = split(/;/, join('', @data));
-      close($fh);
-      @data = grep { $_ && $_ !~ /^-- / } @data;
-      @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
-      
-      $self->_filedata(\@data);
-      $self->backup() if($self->do_backup);
+  # backup if necessary then apply upgrade
+  $self->_filedata($self->_read_sql_file($upgrade_file));
+  $self->backup() if($self->do_backup);
+  $self->txn_do(sub { $self->do_upgrade() });
 
-      $self->txn_do(sub {
-        $self->do_upgrade();
-      });
-    }
+  # set row in SchemaVersions table
+  $self->_set_db_version;
+}
 
-    my $vtable = $self->{vschema}->resultset('Table');
-    $vtable->create({ Version => $self->schema_version,
+sub _set_db_version {
+  my $self = shift;
+
+  my $vtable = $self->{vschema}->resultset('Table');
+  $vtable->create({ Version => $self->schema_version,
                       Installed => strftime("%Y-%m-%d %H:%M:%S", gmtime())
                       });
 
 }
+
+sub _read_sql_file {
+  my $self = shift;
+  my $file = shift || return;
+
+  my $fh;
+  open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
+  my @data = split(/[;\n]/, join('', <$fh>));
+  close($fh);
+  @data = grep { $_ && $_ !~ /^-- / } @data;
+  @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
+  return \@data;
+}
+
+=head2 do_upgrade
+
+This is an overwritable method used to run your upgrade. The freeform method
+allows you to run your upgrade any way you please, you can call C<run_upgrade>
+any number of times to run the actual SQL commands, and in between you can
+sandwich your data upgrading. For example, first run all the B<CREATE>
+commands, then migrate your data from old to new tables/formats, then 
+issue the DROP commands when you are finished.
+
+Will run the whole file as it is by default.
+
+=cut
 
 sub do_upgrade
 {
@@ -262,12 +341,24 @@ sub do_upgrade
     $self->run_upgrade(qr/drop/i);
 }
 
+=head2 run_upgrade
+
+ $self->run_upgrade(qr/create/i);
+
+Runs a set of SQL statements matching a passed in regular expression. The
+idea is that this method can be called any number of times from your
+C<upgrade> method, running whichever commands you specify via the
+regex in the parameter. Probably won't work unless called from the overridable
+do_upgrade method.
+
+=cut
+
 sub run_upgrade
 {
     my ($self, $stm) = @_;
-#    print "Reg: $stm\n";
+
+    return unless ($self->_filedata);
     my @statements = grep { $_ =~ $stm } @{$self->_filedata};
-#    print "Statements: ", join("\n", @statements), "\n";
     $self->_filedata([ grep { $_ !~ /$stm/i } @{$self->_filedata} ]);
 
     for (@statements)
@@ -280,118 +371,44 @@ sub run_upgrade
     return 1;
 }
 
+sub connection {
+  my $self = shift;
+  $self->next::method(@_);
+  $self->_on_connect;
+  return $self;
+}
+
+sub _on_connect
+{
+  my ($self) = @_;
+  $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
+
+  my $pversion = $self->get_db_version();
+
+  if($pversion eq $self->schema_version)
+    {
+        warn "This version is already installed\n";
+        return 1;
+    }
+
+  if(!$pversion)
+    {
+        warn "Your DB is currently unversioned. Please call upgrade on your schema to sync the DB.\n";
+        return 1;
+    }
+
+  warn "Versions out of sync. This is " . $self->schema_version . 
+    ", your database contains version $pversion, please call upgrade on your Schema.\n";
+}
+
 1;
 
-=head1 NAME
 
-DBIx::Class::Schema::Versioned - DBIx::Class::Schema plugin for Schema upgrades
-
-=head1 SYNOPSIS
-
-  package Library::Schema;
-  use base qw/DBIx::Class::Schema/;   
-  # load Library::Schema::CD, Library::Schema::Book, Library::Schema::DVD
-  __PACKAGE__->load_classes(qw/CD Book DVD/);
-
-  __PACKAGE__->load_components(qw/+DBIx::Class::Schema::Versioned/);
-  __PACKAGE__->upgrade_directory('/path/to/upgrades/');
-  __PACKAGE__->backup_directory('/path/to/backups/');
-
-  sub backup
-  {
-    my ($self) = @_;
-    # my special backup process
-  }
-
-  sub upgrade
-  {
-    my ($self) = @_;
-
-    ## overridable sub, per default just runs all the commands.
-
-    $self->run_upgrade(qr/create/i);
-    $self->run_upgrade(qr/alter table .*? add/i);
-    $self->run_upgrade(qr/alter table .*? (?!drop)/i);
-    $self->run_upgrade(qr/alter table .*? drop/i);
-    $self->run_upgrade(qr/drop/i);
-    $self->run_upgrade(qr//i);   
-  }
-
-=head1 DESCRIPTION
-
-This module is a component designed to extend L<DBIx::Class::Schema>
-classes, to enable them to upgrade to newer schema layouts. To use this
-module, you need to have called C<create_ddl_dir> on your Schema to
-create your upgrade files to include with your delivery.
-
-A table called I<SchemaVersions> is created and maintained by the
-module. This contains two fields, 'Version' and 'Installed', which
-contain each VERSION of your Schema, and the date+time it was installed.
-
-If you would like to influence which levels of version change need
-upgrades in your Schema, you can override the method C<ddl_filename>
-in L<DBIx::Class::Schema>. Return a false value if there is no upgrade
-path between the two versions supplied. By default, every change in
-your VERSION is regarded as needing an upgrade.
-
-The actual upgrade is called manually by calling C<upgrade> on your
-schema object. Code is run at connect time to determine whether an
-upgrade is needed, if so, a warning "Versions out of sync" is
-produced.
-
-NB: At the moment, SQLite upgrading is rather spotty, as SQL::Translator::Diff
-returns SQL statements that SQLite does not support.
-
-
-=head1 METHODS
-
-=head2 backup
-
-This is an overwritable method which is called just before the upgrade, to
-allow you to make a backup of the database. Per default this method attempts
-to call C<< $self->storage->backup >>, to run the standard backup on each
-database type. 
-
-This method should return the name of the backup file, if appropriate..
-
-=head2 upgrade
-
-This is the main upgrade method which calls the overridable do_upgrade and
-also handles the backups and updating of the SchemaVersion table.
-
-=head2 do_upgrade
-
-This is an overwritable method used to run your upgrade. The freeform method
-allows you to run your upgrade any way you please, you can call C<run_upgrade>
-any number of times to run the actual SQL commands, and in between you can
-sandwich your data upgrading. For example, first run all the B<CREATE>
-commands, then migrate your data from old to new tables/formats, then 
-issue the DROP commands when you are finished.
-
-=head2 run_upgrade
-
- $self->run_upgrade(qr/create/i);
-
-Runs a set of SQL statements matching a passed in regular expression. The
-idea is that this method can be called any number of times from your
-C<upgrade> method, running whichever commands you specify via the
-regex in the parameter.
-
-=head2 upgrade_directory
-
-Use this to set the directory your upgrade files are stored in.
-
-=head2 backup_directory
-
-Use this to set the directory you want your backups stored in.
-
-=head2 schema_version
-
-Returns the current schema class' $VERSION; does -not- use $schema->VERSION
-since that varies in results depending on if version.pm is installed, and if
-so the perl or XS versions. If you want this to change, bug the version.pm
-author to make vpp and vxs behave the same.
-
-=head1 AUTHOR
+=head1 AUTHORS
 
 Jess Robinson <castaway@desert-island.demon.co.uk>
+Luke Saunders <luke@shadowcatsystems.co.uk>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.

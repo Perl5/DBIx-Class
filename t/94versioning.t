@@ -12,7 +12,7 @@ BEGIN {
   ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
   plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
-    unless ($dsn && $user);
+    unless ($dsn);
 
 
     eval "use DBD::mysql; use SQL::Translator 0.08;";
@@ -22,7 +22,6 @@ BEGIN {
 }
 
 use lib qw(t/lib);
-
 use_ok('DBICVersionOrig');
 
 my $schema_orig = DBICVersion::Schema->connect($dsn, $user, $pass);
