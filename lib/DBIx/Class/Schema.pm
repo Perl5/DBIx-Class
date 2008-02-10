@@ -734,6 +734,15 @@ sub txn_do {
   $self->storage->txn_do(@_);
 }
 
+sub txn_scope_guard {
+  my $self = shift;
+
+  $self->storage or $self->throw_exception
+    ('txn_scope_guard called on $schema without storage');
+
+  $self->storage->txn_scope_guard(@_);
+}
+
 =head2 txn_begin
 
 Begins a transaction (does nothing if AutoCommit is off). Equivalent to

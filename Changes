@@ -1,8 +1,8 @@
 Revision history for DBIx::Class
 
         - Versioning refactored
-
-0.08009 2008-01-20 13:30
+        - Created Storage::TxnScopeGuard object and txn_scope_guard methods
+          on Schema and Storage as an alternative way of doing transactions
         - Made search_rs smarter about when to preserve the cache to fix
           mm prefetch usage
         - Added Storage::DBI subclass for MSSQL over ODBC. 

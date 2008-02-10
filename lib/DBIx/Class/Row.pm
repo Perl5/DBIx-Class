@@ -159,11 +159,9 @@ sub insert {
                        %{$self->{_inflated_column} || {}});
 
   if(!$self->{_rel_in_storage}) {
-    $source->storage->txn_begin;
 
     # The guard will save us if we blow out of this scope via die
-
-    $rollback_guard = Scope::Guard->new(sub { $source->storage->txn_rollback });
+    $rollback_guard = $source->storage->txn_scope_guard;
 
     ## Should all be in relationship_data, but we need to get rid of the
     ## 'filter' reltype..
@@ -246,8 +244,7 @@ sub insert {
         }
       }
     }
-    $source->storage->txn_commit;
-    $rollback_guard->dismiss;
+    $rollback_guard->commit;
   }
 
   $self->in_storage(1);
