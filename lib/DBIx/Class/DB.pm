@@ -172,7 +172,6 @@ sub result_source_instance {
     #$class->table($class);
     #$source = $class->_result_source_instance;
 
-    $DB::single = 1;
     $source = $source->new({ 
         %$source, 
         source_name  => $class,
