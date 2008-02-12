@@ -12,7 +12,7 @@ BEGIN {
     next;
   }
   eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 9);
+  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 10);
 }
 
 INIT {
@@ -27,6 +27,13 @@ Film->create({ Title => "Batman", Rating => "PG13" });
 my $superman = Film->search_where( Title => "Superman" );
 is $superman->next->Title, "Superman", "search_where() as iterator";
 is $superman->next, undef;
+
+{
+    my @supers = Film->search_where({ title => { 'like' => 'Super%' } });
+    is_deeply [sort map $_->Title, @supers],
+              [sort ("Super Fuzz", "Superman")], 'like';
+}
+    
 
 my @all = Film->search_where({}, { order_by => "Title ASC" });
 is_deeply ["Batman", "Super Fuzz", "Superman"],
