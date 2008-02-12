@@ -22,9 +22,7 @@ __PACKAGE__->load_own_components(qw/
   Constructor
   AccessorMapping
   ColumnCase
-  HasA
-  HasMany
-  MightHave
+  Relationships
   Copy
   LazyLoading
   AutoUpdate
