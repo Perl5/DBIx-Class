@@ -72,7 +72,6 @@ provided it looks something like this:
     CDBICompat::MightHave
   /);
 
-=back
 
 =head1 LIMITATIONS
 
