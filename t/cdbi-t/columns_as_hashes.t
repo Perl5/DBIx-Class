@@ -7,7 +7,7 @@ use Test::Warn;
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@")
-          : (tests=> 9);
+          : (tests=> 10);
 }
 
 use lib 't/testlib';
@@ -51,3 +51,18 @@ warning_is {
     local $ENV{DBIC_CDBICOMPAT_HASH_WARN} = 0;
     $waves->{rating}
 } '', 'DBIC_CDBICOMPAT_HASH_WARN controls warnings';
+
+
+{
+    local $ENV{DBIC_CDBICOMPAT_HASH_WARN} = 0;
+    
+    $waves->rating("R");
+    $waves->update;
+    
+    no warnings 'redefine';
+    local *Film::rating = sub {
+        return "wibble";
+    };
+    
+    is $waves->{rating}, "R";
+}
