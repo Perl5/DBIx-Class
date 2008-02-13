@@ -21,7 +21,8 @@ sub update {
     
     my $ret = $self->next::method(@_);
     
-    delete $self->{_column_data}{$_} for @dirty_columns;
+    delete $self->{_column_data}{$_}     for @dirty_columns;
+    delete $self->{_inflated_column}{$_} for @dirty_columns;
     
     return $ret;
 }
