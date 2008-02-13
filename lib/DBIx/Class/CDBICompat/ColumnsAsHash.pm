@@ -54,7 +54,6 @@ sub _make_columns_as_hash {
             warn "Skipping mapping $col to a hash key because it exists";
         }
 
-        next unless $self->can($col);
         tie $self->{$col}, 'DBIx::Class::CDBICompat::Tied::ColumnValue',
             $self, $col;
     }

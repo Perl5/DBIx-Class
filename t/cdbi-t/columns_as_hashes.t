@@ -7,7 +7,7 @@ use Test::Warn;
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@")
-          : (tests=> 10);
+          : ('no_plan');
 }
 
 use lib 't/testlib';
@@ -66,4 +66,25 @@ warning_is {
     
     is $waves->{rating}, "R";
 }
+
+
+{
+    no warnings 'redefine';
+    no warnings 'once';
+    local *Actor::accessor_name_for = sub {
+        my($class, $col) = @_;
+        return "movie" if lc $col eq "film";
+        return $col;
+    };
     
+    require Actor;
+    
+    my $actor = Actor->insert({
+        name    => 'Emily Watson',
+        film    => $waves,
+    });
+    
+    ok !eval { $actor->film };
+    is $actor->{film}->id, $waves->id,
+       'hash access still works despite lack of accessor';
+}
