@@ -135,6 +135,7 @@ sub _extend_meta {
     $class->__meta_info(\%hash);
 }
 
+
 sub meta_info {
     my ($class, $type, $rel) = @_;
     my $meta = $class->__meta_info;

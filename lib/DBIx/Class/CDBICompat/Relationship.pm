@@ -13,6 +13,8 @@ DBIx::Class::CDBICompat::Relationship
 
 Emulate the Class::DBI::Relationship object returned from C<meta_info()>.
 
+The C<args()> method does not return any useful result as it's not clear what it should contain nor if any of the information is applicable to DBIx::Class.
+
 =cut
 
 my %method2key = (

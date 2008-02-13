@@ -58,6 +58,8 @@ my $exceptions = {
     'DBIx::Class::CDBICompat::ObjIndexStubs'            => { skip => 1 },
     'DBIx::Class::CDBICompat::Pager'                    => { skip => 1 },
     'DBIx::Class::CDBICompat::ReadOnly'                 => { skip => 1 },
+    'DBIx::Class::CDBICompat::Relationship'             => { skip => 1 },
+    'DBIx::Class::CDBICompat::Relationships'            => { skip => 1 },
     'DBIx::Class::CDBICompat::Retrieve'                 => { skip => 1 },
     'DBIx::Class::CDBICompat::Stringify'                => { skip => 1 },
     'DBIx::Class::CDBICompat::TempColumns'              => { skip => 1 },
