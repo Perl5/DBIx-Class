@@ -1406,7 +1406,7 @@ sub create_ddl_dir
       # And we have to diff parsed SQL against parsed SQL.
       my $dest_schema = $sqlt_schema;
 
-      unless ( "SQL::Translator::Producers::$db"->can('preprocess_schema') ) {
+      unless ( "SQL::Translator::Producer::$db"->can('preprocess_schema') ) {
         my $t = SQL::Translator->new;
         $t->debug( 0 );
         $t->trace( 0 );
