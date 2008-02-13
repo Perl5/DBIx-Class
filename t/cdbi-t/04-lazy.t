@@ -108,7 +108,7 @@ ok($@, $@);
 {
     Lazy->has_a(
         orp     => 'Date::Simple',
-        inflate => sub { Date::Simple->new(shift . '-01-01') },
+        inflate => sub { Date::Simple->new($_[0] . '-01-01') },
         deflate => 'format'
     );
     
