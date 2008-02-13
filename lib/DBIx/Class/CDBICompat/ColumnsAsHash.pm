@@ -83,7 +83,9 @@ sub FETCH {
     carp "Column '$col' of '$class/$id' was fetched as a hash"
         if $ENV{DBIC_CDBICOMPAT_HASH_WARN};
 
-    return $obj->get_column($col);
+    return $obj->column_info($col)->{_inflate_info}
+                ? $obj->get_inflated_column($col)
+                : $obj->get_column($col);
 }
 
 sub STORE {
@@ -95,7 +97,9 @@ sub STORE {
     carp "Column '$col' of '$class/$id' was stored as a hash"
         if $ENV{DBIC_CDBICOMPAT_HASH_WARN};
 
-    $obj->set_column($col => shift);
+    return $obj->column_info($col)->{_inflate_info}
+                ? $obj->set_inflated_column($col => shift)
+                : $obj->set_column($col => shift);
 }
 
 1;

@@ -88,3 +88,18 @@ warning_is {
     is $actor->{film}->id, $waves->id,
        'hash access still works despite lack of accessor';
 }
+
+
+# Emulate that Class::DBI inflates immediately
+{
+    require_ok 'MyFoo';
+    
+    my $foo = MyFoo->insert({
+        name    => 'Whatever',
+        tdate   => '1949-02-01',
+    });
+    isa_ok $foo, 'MyFoo';
+    
+    isa_ok $foo->{tdate}, 'Date::Simple';
+    is $foo->{tdate}->year, 1949;
+}
