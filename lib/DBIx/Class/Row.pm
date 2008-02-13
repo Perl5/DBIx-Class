@@ -460,7 +460,7 @@ sub set_column {
   my $old = $self->get_column($column);
   my $ret = $self->store_column(@_);
   $self->{_dirty_columns}{$column} = 1
-    if (defined $old ^ defined $ret) || (defined $old && $old ne $ret);
+    if (defined $old xor defined $ret) || (defined $old && $old ne $ret);
 
   # XXX clear out the relation cache for this column
   delete $self->{related_resultsets}{$column};

@@ -2,7 +2,7 @@
 
 use strict;
 use Test::More;
-use Test::Exception;
+use Test::NoWarnings;
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
@@ -20,13 +20,6 @@ BEGIN {
     Thing->columns(All  => qw[thing_id this that date]);
 }
 
-my $thing = Thing->construct({ thing_id => 23, date => "01-02-1994" });
-my $date = DateTime->now;
-lives_ok {
-  $thing->set( date => $date );
-  $thing->set( date => $date );
-};
-
-
-
+my $thing = Thing->construct({ thing_id => 23, this => 42 });
+$thing->set( this => undef );
 $thing->discard_changes;
