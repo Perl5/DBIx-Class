@@ -76,6 +76,8 @@ provided it looks something like this:
 
 =head1 LIMITATIONS
 
+=head2 Unimplemented
+
 The following methods and classes are not emulated, maybe in the future.
 
 =over 4
@@ -92,9 +94,38 @@ Not documented in Class::DBI.  CDBICompat's columns() returns a plain string, no
 
 Undocumented CDBI method.
 
+=back
+
+=head2 Limited Support
+
+The following elements of Class::DBI have limited support.
+
+=over 4
+
 =item Class::DBI::Relationship
 
 The semi-documented Class::DBI::Relationship objects returned by C<meta_info($type, $col)> are mostly emulated except for their C<args> method.
+
+=item Relationships
+
+Relationships between tables (has_a, has_many...) must be delcared after all tables in the relationship have been declared.  Thus the usual CDBI idiom of declaring columns and relationships for each class together will not work.  They must instead be done like so:
+
+    package Foo;
+    use base qw(Class::DBI);
+    
+    Foo->table("foo");
+    Foo->columns( All => qw(this that bar) );
+
+    package Bar;
+    use base qw(Class::DBI);
+    
+    Bar->table("bar");
+    Bar->columns( All => qw(up down) );
+
+    # Now that Foo and Bar are declared it is safe to declare a
+    # relationship between them
+    Foo->has_a( bar => "Bar" );
+
 
 =back
 
