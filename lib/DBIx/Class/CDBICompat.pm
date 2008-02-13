@@ -72,63 +72,6 @@ provided it looks something like this:
     CDBICompat::MightHave
   /);
 
-=head1 COMPONENTS
-
-=over 4
-
-=item AccessorMapping
-
-=item AbstractSearch
-
-Compatibility with Class::DBI::AbstractSearch.
-
-=item AttributeAPI
-
-=item AutoUpdate
-
-Allows you to turn on automatic updates for column values.
-
-=item ColumnCase
-
-=item ColumnGroups
-
-=item Constraints
-
-=item Constructor
-
-=item DestroyWarning
-
-=item GetSet
-
-=item HasA
-
-=item HasMany
-
-=item ImaDBI
-
-=item LazyLoading
-
-=item LiveObjectIndex
-
-The live object index tries to ensure there is only one version of a object
-in the perl interpreter.
-
-=item MightHave
-
-=item ObjIndexStubs
-
-=item ReadOnly
-
-=item Retrieve
-
-=item Stringify
-
-=item TempColumns
-
-=item Triggers
-
-=item PassThrough
-
 =back
 
 =head1 LIMITATIONS
@@ -149,9 +92,9 @@ Not documented in Class::DBI.  CDBICompat's columns() returns a plain string, no
 
 Undocumented CDBI method.
 
-=item meta_info()
+=item Class::DBI::Relationship
 
-Undocumented CDBI method.
+The semi-documented Class::DBI::Relationship objects returned by C<meta_info($type, $col)> are mostly emulated except for their C<args> method.
 
 =back
 
