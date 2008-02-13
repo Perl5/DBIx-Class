@@ -13,7 +13,7 @@ BEGIN {
     next;
   }
 	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 30);
+	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 34);
 }
 
 INIT {
@@ -80,7 +80,7 @@ eval {    # Multiple false columns
 ok($@, $@);
 
 
-# Test that update() throws out columns that changed
+# Test that create() and update() throws out columns that changed
 {
     my $l = Lazy->create({
         this => 99,
@@ -88,7 +88,15 @@ ok($@, $@);
         oop  => 3,
         opop => 4,
     });
-    
+
+    ok $l->db_Main->do(qq{
+        UPDATE @{[ $l->table ]}
+        SET    oop  = ?
+        WHERE  this = ?
+    }, undef, 87, $l->this);
+
+    is $l->oop, 87;
+
     $l->oop(32);
     $l->update;
 
@@ -117,7 +125,15 @@ ok($@, $@);
         that => 2,
         orp  => 1998,
     });
+
+    ok $l->db_Main->do(qq{
+        UPDATE @{[ $l->table ]}
+        SET    orp  = ?
+        WHERE  this = ?
+    }, undef, 1987, $l->this);
     
+    is $l->orp, '1987-01-01';
+
     $l->orp(2007);
     is $l->orp, '2007-01-01';   # make sure it's inflated
     $l->update;

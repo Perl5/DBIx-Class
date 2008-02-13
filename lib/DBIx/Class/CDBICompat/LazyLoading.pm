@@ -20,11 +20,35 @@ sub update {
     my @dirty_columns = keys %{$self->{_dirty_columns}};
     
     my $ret = $self->next::method(@_);
-    
-    delete $self->{_column_data}{$_}     for @dirty_columns;
-    delete $self->{_inflated_column}{$_} for @dirty_columns;
+    $self->_clear_column_data(@dirty_columns);
     
     return $ret;
+}
+
+
+# And again for create
+sub create {
+    my $class = shift;
+    my($data) = @_;
+    
+    my @columns = keys %$data;
+    
+    my $obj = $class->next::method(@_);
+    return $obj unless defined $obj;
+    
+    my %primary_cols = map { $_ => 1 } $class->primary_columns;
+    my @data_cols = grep !$primary_cols{$_}, @columns;
+    $obj->_clear_column_data(@data_cols);
+
+    return $obj;
+}
+
+
+sub _clear_column_data {
+    my $self = shift;
+    
+    delete $self->{_column_data}{$_}     for @_;
+    delete $self->{_inflated_column}{$_} for @_;
 }
 
 
