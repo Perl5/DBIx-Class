@@ -78,7 +78,8 @@ warning_is {
     };
     
     require Actor;
-    
+    Actor->has_a( film => "Film" );
+
     my $actor = Actor->insert({
         name    => 'Emily Watson',
         film    => $waves,
