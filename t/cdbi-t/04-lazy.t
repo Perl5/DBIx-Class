@@ -13,7 +13,7 @@ BEGIN {
     next;
   }
 	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 25);
+	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 27);
 }
 
 INIT {
@@ -79,3 +79,24 @@ eval {    # Multiple false columns
 };
 ok($@, $@);
 
+
+# Test that update() throws out columns that changed
+{
+    my $l = Lazy->create({
+        this => 99,
+        that => 2,
+        oop  => 3,
+        opop => 4,
+    });
+    
+    $l->oop(32);
+    $l->update;
+
+    ok $l->db_Main->do(qq{
+        UPDATE @{[ $l->table ]}
+        SET    oop  = ?
+        WHERE  this = ?
+    }, undef, 23, $l->this);
+
+    is $l->oop, 23;
+}

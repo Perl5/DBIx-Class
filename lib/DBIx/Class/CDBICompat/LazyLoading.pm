@@ -11,6 +11,22 @@ sub resultset_instance {
   return $rs;
 }
 
+
+# Emulate that CDBI throws out all changed columns and reloads them on 
+# request in case the database modifies the new value (say, via a trigger)
+sub update {
+    my $self = shift;
+    
+    my @dirty_columns = keys %{$self->{_dirty_columns}};
+    
+    my $ret = $self->next::method(@_);
+    
+    delete $self->{_column_data}{$_} for @dirty_columns;
+    
+    return $ret;
+}
+
+
 sub get_column {
   my ($self, $col) = @_;
   if ((ref $self) && (!exists $self->{'_column_data'}{$col})
