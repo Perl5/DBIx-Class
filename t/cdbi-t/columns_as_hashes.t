@@ -91,8 +91,8 @@ warning_is {
 
 
 # Emulate that Class::DBI inflates immediately
-{
-    require_ok 'MyFoo';
+SKIP: {
+    skip "Need MySQL to run this test", 3 unless eval { require MyFoo };
     
     my $foo = MyFoo->insert({
         name    => 'Whatever',
