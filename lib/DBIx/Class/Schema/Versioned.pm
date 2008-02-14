@@ -309,7 +309,9 @@ sub _read_sql_file {
 
   my $fh;
   open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
-  my @data = split(/[;\n]/, join('', <$fh>));
+  my @data = split(/\n/, join('', <$fh>));
+  @data = grep(!/^--/, @data);
+  @data = split(/;/, join('', @data));
   close($fh);
   @data = grep { $_ && $_ !~ /^-- / } @data;
   @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
