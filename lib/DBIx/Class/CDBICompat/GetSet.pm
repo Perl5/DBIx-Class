@@ -17,6 +17,15 @@ sub get {
 
 sub set {
   my($self, %data) = @_;
+
+  # set_columns() is going to do a string comparison before setting.
+  # This breaks on DateTime objects (whose comparison is arguably broken)
+  # so we stringify anything first.
+  for my $key (keys %data) {
+    next unless ref $data{$key};
+    $data{$key} = "$data{$key}";
+  }
+
   return shift->set_columns(\%data);
 }
 
