@@ -70,8 +70,15 @@ sub has_many {
   if (ref $f_key eq 'HASH' && !$args) { $args = $f_key; undef $f_key; };
 
   $args ||= {};
-  if (delete $args->{no_cascade_delete}) {
+  my $cascade = delete $args->{cascade} || '';
+  if (delete $args->{no_cascade_delete} || $cascade eq 'None') {
     $args->{cascade_delete} = 0;
+  }
+  elsif( $cascade eq 'Delete' ) {
+    $args->{cascade_delete} = 1;
+  }
+  elsif( length $cascade ) {
+    warn "Unemulated cascade option '$cascade' in $class->has_many($rel => $f_class)";
   }
 
   if( !$f_key and !@f_method ) {
