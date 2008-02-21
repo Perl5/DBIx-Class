@@ -1,6 +1,8 @@
+#!/usr/bin/perl -w
+
 use strict;
 use Test::More;
-
+use Test::Warn;
 
 #----------------------------------------------------------------------
 # Test lazy loading
@@ -13,7 +15,7 @@ BEGIN {
     next;
   }
 	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 34);
+	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 35);
 }
 
 INIT {
@@ -79,6 +81,10 @@ eval {    # Multiple false columns
 };
 ok($@, $@);
 
+
+warning_is {
+    Lazy->columns( TEMP => qw(that) );
+} "Declaring column that as TEMP but it already exists";
 
 # Test that create() and update() throws out columns that changed
 {

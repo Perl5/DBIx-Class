@@ -5,19 +5,29 @@ use strict;
 use warnings;
 use base qw/DBIx::Class/;
 
+use Carp;
+
 __PACKAGE__->mk_classdata('_temp_columns' => { });
 
 sub _add_column_group {
   my ($class, $group, @cols) = @_;
-  if ($group eq 'TEMP') {
-    $class->_register_column_group($group => @cols);
-    $class->mk_group_accessors('temp' => @cols);
-    my %tmp = %{$class->_temp_columns};
-    $tmp{$_} = 1 for @cols;
-    $class->_temp_columns(\%tmp);
-  } else {
-    return $class->next::method($group, @cols);
+  
+  return $class->next::method($group, @cols) unless $group eq 'TEMP';
+
+  my %new_cols = map { $_ => 1 } @cols;
+  my %tmp_cols = %{$class->_temp_columns};
+
+  for my $existing_col ( grep $new_cols{$_}, $class->columns ) {
+      # Already been declared TEMP
+      next if $tmp_cols{$existing_col};
+
+      carp "Declaring column $existing_col as TEMP but it already exists";
   }
+
+  $class->_register_column_group($group => @cols);
+  $class->mk_group_accessors('temp' => @cols);
+
+  $class->_temp_columns({ %tmp_cols, %new_cols });
 }
 
 sub new {
