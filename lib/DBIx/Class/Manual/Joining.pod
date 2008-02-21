@@ -165,7 +165,7 @@ automatically be numbered:
 
   join => [ 'room', 'room' ]
 
-The aliases are: C<room_1> and C<room_2>.
+The aliases are: C<room> and C<room_2>.
 
 =cut
 

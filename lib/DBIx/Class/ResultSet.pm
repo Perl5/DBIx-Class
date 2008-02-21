@@ -11,6 +11,7 @@ use Data::Page;
 use Storable;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultSourceHandle;
+use List::Util ();
 use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/result_class _source_handle/);
@@ -172,17 +173,25 @@ always return a resultset, even in list context.
 sub search_rs {
   my $self = shift;
 
-  my $rows;
-
-  unless (@_) {                 # no search, effectively just a clone
-    $rows = $self->get_cache;
-  }
-
   my $attrs = {};
   $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
   my $our_attrs = { %{$self->{attrs}} };
   my $having = delete $our_attrs->{having};
   my $where = delete $our_attrs->{where};
+
+  my $rows;
+
+  my %safe = (alias => 1, cache => 1);
+
+  unless (
+    (@_ && defined($_[0])) # @_ == () or (undef)
+    || 
+    (keys %$attrs # empty attrs or only 'safe' attrs
+    && List::Util::first { !$safe{$_} } keys %$attrs)
+  ) {
+    # no search, effectively just a clone
+    $rows = $self->get_cache;
+  }
 
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 

@@ -8,6 +8,7 @@ use base qw/DBIx::Class/;
 use Scalar::Util qw/weaken/;
 use Carp::Clan qw/^DBIx::Class/;
 use IO::File;
+use DBIx::Class::Storage::TxnScopeGuard;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
 __PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
@@ -260,6 +261,16 @@ which allows the rollback to propagate to the outermost transaction.
 =cut
 
 sub txn_rollback { die "Virtual method!" }
+
+=head2 txn_scope_guard
+
+Return an object that does stuff.
+
+=cut
+
+sub txn_scope_guard {
+  return DBIx::Class::Storage::TxnScopeGuard->new($_[0]);
+}
 
 =head2 sql_maker
 
