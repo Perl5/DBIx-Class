@@ -734,6 +734,10 @@ sub txn_do {
   $self->storage->txn_do(@_);
 }
 
+=head2 txn_scope_guard
+
+Runs C<txn_scope_guard> on the schema's storage.
+
 sub txn_scope_guard {
   my $self = shift;
 
