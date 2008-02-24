@@ -55,7 +55,7 @@ my $exceptions = {
     'DBIx::Class::CDBICompat::LazyLoading'              => { skip => 1 },
     'DBIx::Class::CDBICompat::LiveObjectIndex'          => { skip => 1 },
     'DBIx::Class::CDBICompat::MightHave'                => { skip => 1 },
-    'DBIx::Class::CDBICompat::ObjIndexStubs'            => { skip => 1 },
+    'DBIx::Class::CDBICompat::NoObjectIndex'            => { skip => 1 },
     'DBIx::Class::CDBICompat::Pager'                    => { skip => 1 },
     'DBIx::Class::CDBICompat::ReadOnly'                 => { skip => 1 },
     'DBIx::Class::CDBICompat::Relationship'             => { skip => 1 },
