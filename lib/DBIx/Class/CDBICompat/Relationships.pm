@@ -82,6 +82,7 @@ sub has_many {
   }
 
   if( !$f_key and !@f_method ) {
+      $class->ensure_class_loaded($f_class);
       my $f_source = $f_class->result_source_instance;
       ($f_key) = grep { $f_source->relationship_info($_)->{class} eq $class }
                       $f_source->relationships;
