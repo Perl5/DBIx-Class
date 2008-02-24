@@ -7,9 +7,14 @@ use Test::Warn;
 package Temp::DBI;
 use base qw(DBIx::Class::CDBICompat);
 Temp::DBI->columns(All => qw(id date));
-Temp::DBI->has_a( date => 'Time::Piece', inflate => sub { 
-	Time::Piece->strptime(shift, "%Y-%m-%d") 
-});
+
+my $strptime_inflate = sub { 
+    Time::Piece->strptime(shift, "%Y-%m-%d") 
+};
+Temp::DBI->has_a(
+    date => 'Time::Piece',
+    inflate => $strptime_inflate
+);
 
 
 package Temp::Person;
@@ -47,15 +52,11 @@ package main;
 
 {
     my $owners = Temp::Pet->meta_info( has_many => 'owners' );
-    warning_like {
-        local $TODO = 'args is unlikely to ever work';
 
-        is_deeply $owners->args, {
-            foreign_key     => 'pet',
-            mapping         => [],
-            order_by        => undef
-        };
-    } qr/^\Qargs() is unlikely to ever work/;
+    is_deeply $owners->args, {
+        foreign_key     => 'pet',
+        mapping         => [],
+    };
 }
 
 {
@@ -63,4 +64,5 @@ package main;
     is $date->class,            'Temp::DBI';
     is $date->foreign_class,    'Time::Piece';
     is $date->accessor,         'date';
+    is $date->args->{inflate},  $strptime_inflate;
 }

@@ -13,8 +13,6 @@ DBIx::Class::CDBICompat::Relationship
 
 Emulate the Class::DBI::Relationship object returned from C<meta_info()>.
 
-The C<args()> method does not return any useful result as it's not clear what it should contain nor if any of the information is applicable to DBIx::Class.
-
 =cut
 
 my %method2key = (
@@ -22,6 +20,7 @@ my %method2key = (
     class           => 'self_class',
     accessor        => 'accessor',
     foreign_class   => 'class',
+    args            => 'args',
 );
 
 sub new {
@@ -39,11 +38,5 @@ for my $method (keys %method2key) {
     no strict 'refs';
     *{$method} = $code;
 }
-
-sub args {
-    warn "args() is unlikely to ever work";
-    return undef;
-}
-
 
 1;

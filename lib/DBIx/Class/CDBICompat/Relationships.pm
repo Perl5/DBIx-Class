@@ -27,7 +27,7 @@ sub has_a {
   $self->throw_exception( "No such column ${col}" ) unless $self->has_column($col);
   $self->ensure_class_loaded($f_class);
   
-  my $rel;
+  my $rel_info;
 
   if ($args{'inflate'} || $args{'deflate'}) { # Non-database has_a
     if (!ref $args{'inflate'}) {
@@ -40,18 +40,20 @@ sub has_a {
     }
     $self->inflate_column($col, \%args);
     
-    $rel = {
+    $rel_info = {
         class => $f_class
     };
   }
   else {
     $self->belongs_to($col, $f_class);
-    $rel = $self->result_source_instance->relationship_info($col);
+    $rel_info = $self->result_source_instance->relationship_info($col);
   }
+  
+  $rel_info->{args} = \%args;
   
   $self->_extend_meta(
     has_a => $col,
-    $rel
+    $rel_info
   );
   
   return 1;
@@ -90,9 +92,14 @@ sub has_many {
 
   $class->next::method($rel, $f_class, $f_key, $args);
 
+  my $rel_info = $class->result_source_instance->relationship_info($rel);
+  $args->{mapping}      = \@f_method;
+  $args->{foreign_key}  = $f_key;
+  $rel_info->{args} = $args;
+
   $class->_extend_meta(
     has_many => $rel,
-    $class->result_source_instance->relationship_info($rel)
+    $rel_info
   );
 
   if (@f_method) {
@@ -121,10 +128,13 @@ sub might_have {
     $ret = $class->next::method($rel, $f_class, undef,
                                 { proxy => \@columns });
   }
-  
+
+  my $rel_info = $class->result_source_instance->relationship_info($rel);
+  $rel_info->{args}{import} = \@columns;
+
   $class->_extend_meta(
     might_have => $rel,
-    $class->result_source_instance->relationship_info($rel)
+    $rel_info
   );
   
   return $ret;
