@@ -39,14 +39,21 @@ sub discard_changes {
   my ($self) = @_;
   delete $self->{_dirty_columns};
   return unless $self->in_storage; # Don't reload if we aren't real!
-  my ($reload) = $self->result_source->resultset->find
-    (map { $self->$_ } $self->primary_columns);
+
+  my $reload = $self->result_source->resultset->find(
+    map { $self->$_ } $self->primary_columns
+  );
   unless ($reload) { # If we got deleted in the mean-time
     $self->in_storage(0);
     return $self;
   }
-  delete @{$self}{keys %$self};
-  @{$self}{keys %$reload} = values %$reload;
+
+  %$self = %$reload;
+  
+  # Avoid a possible infinite loop with
+  # sub DESTROY { $_[0]->discard_changes }
+  bless $reload, 'Do::Not::Exist';
+
   return $self;
 }
 
