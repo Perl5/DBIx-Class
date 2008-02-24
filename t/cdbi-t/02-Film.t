@@ -362,9 +362,8 @@ if (0) {
 }
 
 SKIP: {
-        #skip "DBIx::Class doesn't yet have a live objects index", 3;
-	#skip "Scalar::Util::weaken not available", 3
-		#if !$Class::DBI::Weaken_Is_Available;
+    skip "Caching has been removed", 5
+        if Film->isa("DBIx::Class::CDBICompat::NoObjectIndex");
 
 	# my bad taste is your bad taste
 	my $btaste  = Film->retrieve('Bad Taste');

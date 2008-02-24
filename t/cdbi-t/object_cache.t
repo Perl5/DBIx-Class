@@ -6,16 +6,22 @@ BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   if ($@) {
     plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
   }
+  
   eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 5);
+  plan skip_all => 'needs DBD::SQLite for testing' if $@;
 }
 
 INIT {
     use lib 't/testlib';
     use Film;
 }
+
+plan skip_all => "Object cache is turned off"
+    if Film->isa("DBIx::Class::CDBICompat::NoObjectIndex");
+
+plan tests => 5;
+
 
 ok +Film->create({
     Title       => 'This Is Spinal Tap',
