@@ -179,7 +179,7 @@ sub backup
     $self->storage->backup($self->backup_directory());
 }
 
-# is this just a waste of time?
+# is this just a waste of time? if not then merge with DBI.pm
 sub _create_db_to_schema_diff {
   my $self = shift;
 
@@ -193,8 +193,10 @@ sub _create_db_to_schema_diff {
     return;
   }
 
-  require SQL::Translator;
-  require SQL::Translator::Diff;
+  eval 'require SQL::Translator "0.09"';
+  if ($@) {
+    $self->throw_exception("SQL::Translator 0.09 required");
+  }
 
   my $db_tr = SQL::Translator->new({ 
                                     add_drop_table => 1, 

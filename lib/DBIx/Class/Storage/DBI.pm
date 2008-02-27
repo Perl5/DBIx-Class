@@ -1329,7 +1329,7 @@ sub create_ddl_dir
   $version ||= $schema->VERSION || '1.x';
   $sqltargs = { ( add_drop_table => 1 ), %{$sqltargs || {}} };
 
-  $self->throw_exception(q{Can't create a ddl file without SQL::Translator 0.08: '}
+  $self->throw_exception(q{Can't create a ddl file without SQL::Translator 0.09: '}
       . $self->_check_sqlt_message . q{'})
           if !$self->_check_sqlt_version;
 
@@ -1484,7 +1484,7 @@ sub deployment_statements {
       return join('', @rows);
   }
 
-  $self->throw_exception(q{Can't deploy without SQL::Translator 0.08: '}
+  $self->throw_exception(q{Can't deploy without SQL::Translator 0.09: '}
       . $self->_check_sqlt_message . q{'})
           if !$self->_check_sqlt_version;
 
@@ -1569,7 +1569,7 @@ sub build_datetime_parser {
     my $_check_sqlt_message; # private
     sub _check_sqlt_version {
         return $_check_sqlt_version if defined $_check_sqlt_version;
-        eval 'use SQL::Translator "0.08"';
+        eval 'use SQL::Translator "0.09"';
         $_check_sqlt_message = $@ || '';
         $_check_sqlt_version = !$@;
     }
