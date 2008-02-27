@@ -162,16 +162,20 @@ sub parse {
                 # If the sets are different, then we assume it's a foreign key from
                 # us to another table.
                 # OR: If is_foreign_key_constraint attr is explicity set (or set to false) on the relation
-                if ( ! exists $created_FK_rels{$rel_table}->{$key_test} &&
-                     ( exists $rel_info->{attrs}{is_foreign_key_constraint} ?
-                       $rel_info->{attrs}{is_foreign_key_constraint} :
-                       !$source->compare_relationship_keys(\@keys, \@primary)
-		     )
-                   )
-                {
-                    $created_FK_rels{$rel_table}->{$key_test} = 1;
-                    if (scalar(@keys)) {
-                        $table->add_constraint(
+                next if ( exists $created_FK_rels{$rel_table}->{$key_test} );
+                if ( exists $rel_info->{attrs}{is_foreign_key_constraint}) {
+                  # not is this attr set to 0 but definitely if set to 1
+                  next unless ($rel_info->{attrs}{is_foreign_key_constraint});
+                } else {
+                  # not if might have
+                  # next if ($rel_info->{attrs}{accessor} eq 'single' && exists $rel_info->{attrs}{join_type} && uc($rel_info->{attrs}{join_type}) eq 'LEFT');
+                  # not sure about this one
+                  next if $source->compare_relationship_keys(\@keys, \@primary);
+                }
+
+                $created_FK_rels{$rel_table}->{$key_test} = 1;
+                if (scalar(@keys)) {
+                  $table->add_constraint(
                                     type             => 'foreign_key',
                                     name             => $table->name . "_fk_$keys[0]",
                                     fields           => \@keys,
@@ -179,15 +183,13 @@ sub parse {
                                     reference_table  => $rel_table,
                                     on_delete        => $on_delete,
                                     on_update        => $on_update
-                        );
+                  );
                     
-                        my $index = $table->add_index(
-                                    name   => $keys[0],
+                  my $index = $table->add_index(
+                                    name   => join('_', @keys),
                                     fields => \@keys,
                                     type   => 'NORMAL',
-                        );
-                    }
-
+                  );
                 }
             }
         }
