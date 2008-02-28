@@ -1,8 +1,5 @@
 Revision history for DBIx::Class
 
-        - Created Storage::TxnScopeGuard object and txn_scope_guard methods
-          on Schema and Storage as an alternative way of doing transactions
-
 0.08009 2008-01-20 13:30
         - Made search_rs smarter about when to preserve the cache to fix
           mm prefetch usage

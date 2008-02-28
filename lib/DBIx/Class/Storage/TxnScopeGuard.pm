@@ -20,7 +20,23 @@ sub commit {
 sub DESTROY {
   my ($dismiss, $storage) = @{$_[0]};
 
-  $storage->txn_rollback unless $dismiss;
+  return if $dismiss;
+
+  my $exception = $@;
+
+  $DB::single = 1;
+
+  local $@;
+  eval { $storage->txn_rollback };
+  my $rollback_exception = $@;
+  if($rollback_exception) {
+    my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
+
+    $storage->throw_exception(
+      "Transaction aborted: ${exception}. "
+      . "Rollback failed: ${rollback_exception}"
+    ) unless $rollback_exception =~ /$exception_class/;
+  }
 }
 
 1;
