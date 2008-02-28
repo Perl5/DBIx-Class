@@ -7,31 +7,41 @@ __PACKAGE__->load_components(qw/ Core/);
 __PACKAGE__->table('dbix_class_schema_versions');
 
 __PACKAGE__->add_columns
-    ( 'Version' => {
+    ( 'version' => {
         'data_type' => 'VARCHAR',
         'is_auto_increment' => 0,
         'default_value' => undef,
         'is_foreign_key' => 0,
-        'name' => 'Version',
+        'name' => 'version',
         'is_nullable' => 0,
         'size' => '10'
         },
-      'Installed' => {
+      'installed' => {
           'data_type' => 'VARCHAR',
           'is_auto_increment' => 0,
           'default_value' => undef,
           'is_foreign_key' => 0,
-          'name' => 'Installed',
+          'name' => 'installed',
           'is_nullable' => 0,
           'size' => '20'
           },
       );
-__PACKAGE__->set_primary_key('Version');
+__PACKAGE__->set_primary_key('version');
 
 package DBIx::Class::Version::TableCompat;
-use base 'DBIx::Class::Version::Table';
-
+use base 'DBIx::Class';
+__PACKAGE__->load_components(qw/ Core/);
 __PACKAGE__->table('SchemaVersions');
+
+__PACKAGE__->add_columns
+    ( 'Version' => {
+        'data_type' => 'VARCHAR',
+        },
+      'Installed' => {
+          'data_type' => 'VARCHAR',
+          },
+      );
+__PACKAGE__->set_primary_key('Version');
 
 package DBIx::Class::Version;
 use base 'DBIx::Class::Schema';
@@ -149,8 +159,8 @@ sub get_db_version
     my $vtable = $self->{vschema}->resultset('Table');
     my $version;
     eval {
-      my $stamp = $vtable->get_column('Installed')->max;
-      $version = $vtable->search({ Installed => $stamp })->first->Version;
+      my $stamp = $vtable->get_column('installed')->max;
+      $version = $vtable->search({ installed => $stamp })->first->version;
     };
     return $version;
 }
@@ -311,8 +321,8 @@ sub _set_db_version {
   my $self = shift;
 
   my $vtable = $self->{vschema}->resultset('Table');
-  $vtable->create({ Version => $self->schema_version,
-                      Installed => strftime("%Y-%m-%d %H:%M:%S", gmtime())
+  $vtable->create({ version => $self->schema_version,
+                      installed => strftime("%Y-%m-%d %H:%M:%S", gmtime())
                       });
 
 }
@@ -406,7 +416,7 @@ sub _on_connect
     my $vtable_compat = $vschema_compat->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
-      map { $vtable->create({$_->get_columns}) } $vtable_compat->all;
+      map { $vtable->create({ installed => $_->Installed, version => $_->Version }) } $vtable_compat->all;
       $self->storage->dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
     }
   }
