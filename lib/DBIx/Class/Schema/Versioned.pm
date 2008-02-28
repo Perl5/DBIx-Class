@@ -425,7 +425,7 @@ sub _on_connect
 
   if($pversion eq $self->schema_version)
     {
-        warn "This version is already installed\n";
+#         warn "This version is already installed\n";
         return 1;
     }
 
