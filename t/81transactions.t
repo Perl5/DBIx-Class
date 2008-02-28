@@ -2,12 +2,13 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 54;
+plan tests => 67;
 
 my $code = sub {
   my ($artist, @cd_titles) = @_;
@@ -235,4 +236,100 @@ my $fail_code = sub {
     };
     my $err = $@;
     ok(($err eq ''), 'Pre-connection nested transactions.');
+}
+
+# Test txn_rollback with nested
+{
+  local $TODO = "Work out how this should work";
+  my $local_schema = DBICTest->init_schema();
+
+  my $artist_rs = $local_schema->resultset('Artist');
+  throws_ok {
+   
+    $local_schema->txn_begin;
+    $artist_rs->create({ name => 'Test artist rollback 1'});
+    $local_schema->txn_begin;
+    is($local_schema->storage->transaction_depth, 2, "Correct transaction depth");
+    $artist_rs->create({ name => 'Test artist rollback 2'});
+    $local_schema->txn_rollback;
+  } qr/Not sure what this should be.... something tho/, "Rolled back okay";
+  is($local_schema->storage->transaction_depth, 0, "Correct transaction depth");
+
+  ok(!$artist_rs->find({ name => 'Test artist rollback 1'}), "Test Artist not created")
+    || $artist_rs->find({ name => 'Test artist rollback 1'})->delete;
+}
+
+# Test txn_scope_guard
+{
+  local $TODO = "Work out how this should work";
+  my $schema = DBICTest->init_schema();
+
+  is($schema->storage->transaction_depth, 0, "Correct transaction depth");
+  my $artist_rs = $schema->resultset('Artist');
+  throws_ok {
+   my $guard = $schema->txn_scope_guard;
+
+
+    $artist_rs->create({
+      name => 'Death Cab for Cutie',
+      made_up_column => 1,
+    });
+    
+   $guard->commit;
+  } qr/No such column made_up_column.*?line 16/, "Error propogated okay";
+
+  ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
+
+  my $inner_exception;
+  eval {
+    outer($schema, 1);
+  };
+  is($@, $inner_exception, "Nested exceptions propogated");
+
+  ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
+
+
+  eval {
+    # The 0 arg says done die, just let the scope guard go out of scope 
+    # forcing a txn_rollback to happen
+    outer($schema, 0);
+  };
+  is($@, "Not sure what we want here, but something", "Rollback okay");
+
+  ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
+
+  sub outer {
+    my ($schema) = @_;
+   
+    my $guard = $schema->txn_scope_guard;
+    $schema->resultset('Artist')->create({
+      name => 'Death Cab for Cutie',
+    });
+    inner(@_);
+    $guard->commit;
+  }
+
+  sub inner {
+    my ($schema, $fatal) = @_;
+    my $guard = $schema->txn_scope_guard;
+
+    my $artist = $artist_rs->find({ name => 'Death Cab for Cutie' });
+
+    is($schema->storage->transaction_depth, 2, "Correct transaction depth");
+    undef $@;
+    eval {
+      $artist->cds->create({ 
+        title => 'Plans',
+        year => 2005, 
+        $fatal ? ( foo => 'bar' ) : ()
+      });
+    };
+    if ($@) {
+      # Record what got thrown so we can test it propgates out properly.
+      $inner_exception = $@;
+      die $@;
+    }
+
+    # See what happens if we dont $guard->commit;
+  }
 }
