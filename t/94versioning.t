@@ -18,14 +18,18 @@ BEGIN {
     eval "use DBD::mysql; use SQL::Translator 0.08;";
     plan $@
         ? ( skip_all => 'needs DBD::mysql and SQL::Translator 0.08 for testing' )
-        : ( tests => 9 );
+        : ( tests => 13 );
 }
+
+my $version_table_name = 'dbix_class_schema_versions';
+my $old_table_name = 'SchemaVersions';
 
 use lib qw(t/lib);
 use_ok('DBICVersionOrig');
 
 my $schema_orig = DBICVersion::Schema->connect($dsn, $user, $pass);
-eval { $schema_orig->storage->dbh->do('drop table SchemaVersions') };
+eval { $schema_orig->storage->dbh->do('drop table ' . $version_table_name) };
+eval { $schema_orig->storage->dbh->do('drop table ' . $old_table_name) };
 
 is($schema_orig->ddl_filename('MySQL', 't/var', '1.0'), File::Spec->catfile('t', 'var', 'DBICVersion-Schema-1.0-MySQL.sql'), 'Filename creation working');
 unlink('t/var/DBICVersion-Schema-1.0-MySQL.sql') if (-e 't/var/DBICVersion-Schema-1.0-MySQL.sql');
@@ -55,4 +59,27 @@ eval "use DBICVersionNew";
     $schema_upgrade->storage->dbh->do('select NewVersionName from TestVersion');
   };
   is($@, '', 'new column created');
+}
+
+{
+  my $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  eval {
+    $schema_version->storage->dbh->do('select * from ' . $version_table_name);
+  };
+  is($@, '', 'version table exists');
+
+  eval {
+    $schema_version->storage->dbh->do("DROP TABLE IF EXISTS $old_table_name");
+    $schema_version->storage->dbh->do("RENAME TABLE $version_table_name TO $old_table_name");
+  };
+  is($@, '', 'versions table renamed to old style table');
+
+  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  is($schema_version->get_db_version, '2.0', 'transition from old table name to new okay');
+
+  eval {
+    $schema_version->storage->dbh->do('select * from ' . $old_table_name);
+  };
+  ok($@, 'old version table gone');
+
 }

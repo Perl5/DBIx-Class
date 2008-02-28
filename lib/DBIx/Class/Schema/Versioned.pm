@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 __PACKAGE__->load_components(qw/ Core/);
-__PACKAGE__->table('SchemaVersions');
+__PACKAGE__->table('dbix_class_schema_versions');
 
 __PACKAGE__->add_columns
     ( 'Version' => {
@@ -28,12 +28,24 @@ __PACKAGE__->add_columns
       );
 __PACKAGE__->set_primary_key('Version');
 
+package DBIx::Class::Version::TableCompat;
+use base 'DBIx::Class::Version::Table';
+
+__PACKAGE__->table('SchemaVersions');
+
 package DBIx::Class::Version;
 use base 'DBIx::Class::Schema';
 use strict;
 use warnings;
 
 __PACKAGE__->register_class('Table', 'DBIx::Class::Version::Table');
+
+package DBIx::Class::VersionCompat;
+use base 'DBIx::Class::Schema';
+use strict;
+use warnings;
+
+__PACKAGE__->register_class('TableCompat', 'DBIx::Class::Version::TableCompat');
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +73,7 @@ classes, to enable them to upgrade to newer schema layouts. To use this
 module, you need to have called C<create_ddl_dir> on your Schema to
 create your upgrade files to include with your delivery.
 
-A table called I<SchemaVersions> is created and maintained by the
+A table called I<dbix_class_schema_versions> is created and maintained by the
 module. This contains two fields, 'Version' and 'Installed', which
 contain each VERSION of your Schema, and the date+time it was installed.
 
@@ -126,7 +138,7 @@ sub schema_version {
 =head2 get_db_version
 
 Returns the version that your database is currently at. This is determined by the values in the
-SchemaVersions table that $self->upgrade writes to.
+dbix_class_schema_versions table that $self->upgrade writes to.
 
 =cut
 
@@ -259,7 +271,7 @@ sub upgrade
 
   # db unversioned
   unless ($db_version) {
-    # set version in SchemaVersions table, can't actually upgrade as we don 't know what version the DB is at
+    # set version in dbix_class_schema_versions table, can't actually upgrade as we don 't know what version the DB is at
     $self->_create_db_to_schema_diff() if ($self->do_diff_on_init);
 
     # create versions table and version row
@@ -291,7 +303,7 @@ sub upgrade
   $self->backup() if($self->do_backup);
   $self->txn_do(sub { $self->do_upgrade() });
 
-  # set row in SchemaVersions table
+  # set row in dbix_class_schema_versions table
   $self->_set_db_version;
 }
 
@@ -386,6 +398,18 @@ sub _on_connect
 {
   my ($self) = @_;
   $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
+  my $vtable = $self->{vschema}->resultset('Table');
+
+  # check for legacy versions table and move to new if exists
+  my $vschema_compat = DBIx::Class::VersionCompat->connect(@{$self->storage->connect_info()});
+  unless ($self->_source_exists($vtable)) {
+    my $vtable_compat = $vschema_compat->resultset('TableCompat');
+    if ($self->_source_exists($vtable_compat)) {
+      $self->{vschema}->deploy;
+      map { $vtable->create({$_->get_columns}) } $vtable_compat->all;
+      $self->storage->dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
+    }
+  }
 
   my $pversion = $self->get_db_version();
 
