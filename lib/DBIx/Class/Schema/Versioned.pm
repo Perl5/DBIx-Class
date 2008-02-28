@@ -147,18 +147,12 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    return 0 unless ($self->_source_exists($vtable));
-
-    my $psearch = $vtable->search(undef, 
-                                    { select => [
-                                                 { 'max' => 'Installed' },
-                                                 ],
-                                          as => ['maxinstall'],
-                                      })->first;
-    my $pversion = $vtable->search({ Installed => $psearch->get_column('maxinstall'),
-                                })->first;
-    $pversion = $pversion->Version if($pversion);
-    return $pversion;
+    my $version;
+    eval {
+      my $stamp = $vtable->get_column('Installed')->max;
+      $version = $vtable->search({ Installed => $stamp })->first->Version;
+    };
+    return $version;
 }
 
 sub _source_exists
