@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.08010 2008-03-01 10:30
+        - Fix t/94versioning.t so it passes with latest SQL::Translator
+
 0.08009 2008-01-20 13:30
         - Made search_rs smarter about when to preserve the cache to fix
           mm prefetch usage

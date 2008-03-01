@@ -1,4 +1,5 @@
-package DBIx::Class::Storage::TxnScopeGuard;
+package # Hide from pause for now - till we get it working
+  DBIx::Class::Storage::TxnScopeGuard;
 
 use strict;
 use warnings;

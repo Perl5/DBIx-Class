@@ -262,7 +262,7 @@ which allows the rollback to propagate to the outermost transaction.
 
 sub txn_rollback { die "Virtual method!" }
 
-=for 
+=for comment
 
 =head2 txn_scope_guard
 

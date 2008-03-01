@@ -180,12 +180,7 @@ sub upgrade
 
     $self->backup();
 
-    $self->run_upgrade(qr/create/i);
-    $self->run_upgrade(qr/alter table .*? add/i);
-    $self->run_upgrade(qr/alter table .*? (?!drop)/i);
-    $self->run_upgrade(qr/alter table .*? drop/i);
-    $self->run_upgrade(qr/drop/i);
-#    $self->run_upgrade(qr//i);
+    $self->run_upgrade();
 
     my $vschema = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
     my $vtable = $vschema->resultset('Table');
@@ -198,6 +193,7 @@ sub upgrade
 sub run_upgrade
 {
     my ($self, $stm) = @_;
+    $stm ||= qr//;
 #    print "Reg: $stm\n";
     my @statements = grep { $_ =~ $stm } @{$self->_filedata};
 #    print "Statements: ", join("\n", @statements), "\n";
@@ -234,20 +230,6 @@ DBIx::Class::Schema::Versioned - DBIx::Class::Schema plugin for Schema upgrades
   {
     my ($self) = @_;
     # my special backup process
-  }
-
-  sub upgrade
-  {
-    my ($self) = @_;
-
-    ## overridable sub, per default just runs all the commands.
-
-    $self->run_upgrade(qr/create/i);
-    $self->run_upgrade(qr/alter table .*? add/i);
-    $self->run_upgrade(qr/alter table .*? (?!drop)/i);
-    $self->run_upgrade(qr/alter table .*? drop/i);
-    $self->run_upgrade(qr/drop/i);
-    $self->run_upgrade(qr//i);   
   }
 
 =head1 DESCRIPTION
@@ -307,6 +289,9 @@ Runs a set of SQL statements matching a passed in regular expression. The
 idea is that this method can be called any number of times from your
 C<upgrade> method, running whichever commands you specify via the
 regex in the parameter.
+
+B<NOTE:> Since SQL::Translator 0.09000 it is better to just run all statmets
+in the order given, since the SQL produced is of better quality.
 
 =head2 upgrade_directory
 

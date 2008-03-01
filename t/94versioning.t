@@ -5,9 +5,9 @@ use Test::More;
 use File::Spec;
 
 BEGIN {
-    eval "use DBD::SQLite; use SQL::Translator 0.08;";
+    eval "use DBD::SQLite; use SQL::Translator 0.09;";
     plan $@
-        ? ( skip_all => 'needs DBD::SQLite and SQL::Translator 0.08 for testing' )
+        ? ( skip_all => 'needs DBD::SQLite and SQL::Translator 0.09 for testing' )
         : ( tests => 6 );
 }
 
