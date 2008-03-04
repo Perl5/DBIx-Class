@@ -7,7 +7,10 @@ use File::Copy;
 use DBICTest;
 
 use Test::More;
-plan tests => 1;
+eval {use DBD::Multi};
+plan skip_all => 'No DBD::Multi' if ($@);
+
+plan tests => 3;
 
 my $schema = DBICTest->init_schema();
 
@@ -33,14 +36,31 @@ $schema->populate('Artist', [
 			     [ 4, 'Ozric Tentacles']
 			    ]);
 
-# try and read (should fail)
-my $new_artist = $schema->resultset('Artist')->find(4);
+my $new_artist1 = $schema->resultset('Artist')->find(4);
 
-warn "artist : $new_artist\n";
+isa_ok ($new_artist1, 'DBICTest::Artist');
+
+# reconnect
+my $schema2 = $schema->connect( [
+				 [ $dsn1, '', '', { AutoCommit => 1 } ],
+				 [ $dsn2, '', '', { priority => 10 } ],
+				 [ $dsn3, '', '', { priority => 10 } ]
+				]
+			      );
+
+# try and read (should fail)
+eval { my $new_artist2 = $schema2->resultset('Artist')->find(4); };
+ok($@, 'read after disconnect fails because it uses slave 1 which we have neglected to "replicate" yet');
 
 # try and read (should succede after faked synchronisation)
 copy($db_file1, $db_file2);
+$schema2 = $schema->connect( [
+			      [ $dsn1, '', '', { AutoCommit => 1 } ],
+			      [ $dsn2, '', '', { priority => 10 } ],
+			      [ $dsn3, '', '', { priority => 10 } ]
+			     ]
+			   );
+my $new_artist3 = $schema2->resultset('Artist')->find(4);
+isa_ok ($new_artist3, 'DBICTest::Artist');
 
 unlink $db_file2;
-
-ok(1,"These aren't the tests you're looking for");
