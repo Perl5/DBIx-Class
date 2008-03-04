@@ -184,7 +184,8 @@ sub parse {
                                     reference_fields => \@refkeys,
                                     reference_table  => $rel_table,
                                     on_delete        => $on_delete,
-                                    on_update        => $on_update
+                                    on_update        => $on_update,
+                                    deferrable       => $is_deferrable,
                   );
                     
                   my $index = $table->add_index(
