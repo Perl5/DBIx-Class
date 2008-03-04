@@ -176,8 +176,8 @@ eval {
 
 {
 	is_deeply(
-		Actor->columns('Essential'),
-		Actor->columns('Primary'),
+		[Actor->columns('Essential')],
+		[Actor->columns('Primary')],
 		"Actor has no specific essential columns"
 	);
 	ok(Actor->find_column('nonpersistent'), "nonpersistent is a column");
