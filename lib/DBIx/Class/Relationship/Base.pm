@@ -109,6 +109,13 @@ is creating constraints where it shouldn't, or not creating them where it
 should, set this attribute to a true or false value to override the detection
 of when to create constraints.
 
+=item is_deferrable
+
+Tells L<SQL::Translator> that the foreign key constraint it creates should be
+deferrable. In other words, the user may request that the constraint be ignored
+until the end of the transaction. Currently, only the PostgreSQL producer
+actually supports this.
+
 =back
 
 =head2 register_relationship

@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 60;
+plan tests => 77;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -42,13 +42,13 @@ my %fk_constraints = (
       'display' => 'twokeys->cd',
       'selftable' => 'twokeys', 'foreigntable' => 'cd', 
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'], 
-      on_delete => '', on_update => '',
+      on_delete => '', on_update => '', deferrable => 0,
     },
     {
       'display' => 'twokeys->artist',
       'selftable' => 'twokeys', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
-      on_delete => 'CASCADE', on_update => 'CASCADE',
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 0,
     },
   ],
 
@@ -58,14 +58,14 @@ my %fk_constraints = (
       'display' => 'fourkeys_to_twokeys->twokeys',
       'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'twokeys', 
       'selfcols'  => ['t_artist', 't_cd'], 'foreigncols' => ['artist', 'cd'], 
-      on_delete => 'CASCADE', on_update => 'CASCADE',
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 0,
     },
     {
       'display' => 'fourkeys_to_twokeys->fourkeys',
       'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'fourkeys', 
       'selfcols'  => [qw(f_foo f_bar f_hello f_goodbye)],
       'foreigncols' => [qw(foo bar hello goodbye)], 
-      on_delete => 'CASCADE', on_update => 'CASCADE',
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 0,
     },
   ],
 
@@ -75,13 +75,13 @@ my %fk_constraints = (
       'display' => 'cd_to_producer->cd',
       'selftable' => 'cd_to_producer', 'foreigntable' => 'cd', 
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
-      on_delete => 'CASCADE', on_update => 'CASCADE',
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 0,
     },
     {
       'display' => 'cd_to_producer->producer',
       'selftable' => 'cd_to_producer', 'foreigntable' => 'producer', 
       'selfcols'  => ['producer'], 'foreigncols' => ['producerid'],
-      on_delete => '', on_update => '',
+      on_delete => '', on_update => '', deferrable => 0,
     },
   ],
 
@@ -91,13 +91,13 @@ my %fk_constraints = (
       'display' => 'self_ref_alias->self_ref for self_ref',
       'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
       'selfcols'  => ['self_ref'], 'foreigncols' => ['id'],
-      on_delete => 'CASCADE', on_update => 'CASCADE',
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 0,
     },
     {
       'display' => 'self_ref_alias->self_ref for alias',
       'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
       'selfcols'  => ['alias'], 'foreigncols' => ['id'],
-      on_delete => '', on_update => '',
+      on_delete => '', on_update => '', deferrable => 0,
     },
   ],
 
@@ -107,7 +107,7 @@ my %fk_constraints = (
       'display' => 'cd->artist',
       'selftable' => 'cd', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
-      on_delete => 'CASCADE', on_update => 'CASCADE',
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
   ],
 
@@ -117,13 +117,13 @@ my %fk_constraints = (
       'display' => 'artist_undirected_map->artist for id1',
       'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
       'selfcols'  => ['id1'], 'foreigncols' => ['artistid'],
-      on_delete => 'CASCADE', on_update => '',
+      on_delete => 'CASCADE', on_update => '', deferrable => 0,
     },
     {
       'display' => 'artist_undirected_map->artist for id2',
       'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
       'selfcols'  => ['id2'], 'foreigncols' => ['artistid'],
-      on_delete => 'CASCADE', on_update => '',
+      on_delete => 'CASCADE', on_update => '', deferrable => 0,
     },
   ],
 
@@ -133,7 +133,7 @@ my %fk_constraints = (
       'display' => 'track->cd',
       'selftable' => 'track', 'foreigntable' => 'cd', 
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
-      on_delete => 'CASCADE', on_update => 'CASCADE',
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 0,
     },
   ],
 
@@ -143,7 +143,7 @@ my %fk_constraints = (
       'display' => 'treelike->treelike for parent',
       'selftable' => 'treelike', 'foreigntable' => 'treelike', 
       'selfcols'  => ['parent'], 'foreigncols' => ['id'],
-      on_delete => 'CASCADE', on_update => 'CASCADE',
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 0,
     },
   ],
 
@@ -153,7 +153,7 @@ my %fk_constraints = (
       'display' => 'twokeytreelike->twokeytreelike for parent1,parent2',
       'selftable' => 'twokeytreelike', 'foreigntable' => 'twokeytreelike', 
       'selfcols'  => ['parent1', 'parent2'], 'foreigncols' => ['id1','id2'],
-      on_delete => '', on_update => '',
+      on_delete => '', on_update => '', deferrable => 0,
     },
   ],
 
@@ -163,7 +163,7 @@ my %fk_constraints = (
       'display' => 'tags->cd',
       'selftable' => 'tags', 'foreigntable' => 'cd', 
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
-      on_delete => 'CASCADE', on_update => 'CASCADE',
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 0,
     },
   ],
 
@@ -173,7 +173,7 @@ my %fk_constraints = (
       'display' => 'bookmark->link',
       'selftable' => 'bookmark', 'foreigntable' => 'link', 
       'selfcols'  => ['link'], 'foreigncols' => ['id'],
-      on_delete => '', on_update => '',
+      on_delete => '', on_update => '', deferrable => 0,
     },
   ],
   # ForceForeign
@@ -182,7 +182,7 @@ my %fk_constraints = (
       'display' => 'forceforeign->artist',
       'selftable' => 'forceforeign', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artist_id'], 
-      on_delete => '', on_update => '',
+      on_delete => '', on_update => '', deferrable => 0,
     },
   ],
 
@@ -359,4 +359,6 @@ sub test_fk {
       "on_delete parameter correct for `$desc'" );
   is( $got->on_update, $expected->{on_update},
       "on_update parameter correct for `$desc'" );
+  is( $got->deferrable, $expected->{deferrable},
+      "is_deferrable parameter correct for `$desc'" );
 }

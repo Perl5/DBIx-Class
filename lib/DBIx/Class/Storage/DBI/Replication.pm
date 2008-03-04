@@ -89,9 +89,9 @@ sub connect_info {
 
     # We need to copy-pass $global_options, since connect_info clears it while
     # processing options
-    $self->write_source->connect_info( [ @{$info->[0]}, { %$global_options } ] );
+    $self->write_source->connect_info( @{$info->[0]}, { %$global_options } );
 
-    @dsns = map { ($_->[3]->{priority} || 10) => $_ } @{$info}[1..@$info-1];
+    @dsns = map { ($_->[3]->{priority} || 10) => $_ } @{$info->[0]}[1..@{$info->[0]}-1];
     $global_options->{dsns} = \@dsns;
 
     $self->read_source->connect_info( [ 'dbi:Multi:', undef, undef, { %$global_options } ] );

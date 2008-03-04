@@ -153,6 +153,8 @@ sub parse {
                     $on_update = $otherrelationship->{'attrs'}->{cascade_copy} ? 'CASCADE' : '';
                 }
 
+                my $is_deferrable = $rel_info->{attrs}{is_deferrable} || 0;
+
                 # Make sure we dont create the same foreign key constraint twice
                 my $key_test = join("\x00", @keys);
 
