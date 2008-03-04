@@ -1123,7 +1123,7 @@ B<Deploy update to customers>
 
 Add the L<DBIx::Class::Schema::Versioned> schema component to your
 Schema class. This will add a new table to your database called
-C<SchemaVersions> which will keep track of which version is installed
+C<dbix_class_schema_vesion> which will keep track of which version is installed
 and warn if the user trys to run a newer schema version than the
 database thinks it has.
 

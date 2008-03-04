@@ -157,7 +157,7 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version;
+    my $version = 0;
     eval {
       my $stamp = $vtable->get_column('installed')->max;
       $version = $vtable->search({ installed => $stamp })->first->version;
@@ -397,6 +397,18 @@ sub run_upgrade
     return 1;
 }
 
+=head2 connection
+
+Overloaded method. This checks the DBIC schema version against the DB version and
+warns if they are not the same or if the DB is unversioned. It also provides
+compatibility between the old versions table (SchemaVersions) and the new one
+(dbix_class_schema_versions).
+
+To avoid the checks on connect, set the env var DBIC_NO_VERSION_CHECK. This can be
+useful for scripts.
+
+=cut
+
 sub connection {
   my $self = shift;
   $self->next::method(@_);
@@ -420,7 +432,10 @@ sub _on_connect
       $self->storage->dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
     }
   }
-
+  
+  # useful when connecting from scripts etc
+  return if ($ENV{DBIC_NO_VERSION_CHECK});
+  
   my $pversion = $self->get_db_version();
 
   if($pversion eq $self->schema_version)
