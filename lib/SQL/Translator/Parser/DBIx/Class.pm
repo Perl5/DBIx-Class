@@ -9,9 +9,8 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use vars qw($DEBUG $VERSION @EXPORT_OK);
+use vars qw($DEBUG @EXPORT_OK);
 $DEBUG = 0 unless defined $DEBUG;
-$VERSION = sprintf "%d.%02d", q$Revision 1.0$ =~ /(\d+)\.(\d+)/;
 
 use Exporter;
 use Data::Dumper;
@@ -30,26 +29,25 @@ use base qw(Exporter);
 sub parse {
     my ($tr, $data)   = @_;
     my $args          = $tr->parser_args;
-    my $dbixschema    = $args->{'DBIx::Schema'} || $data;
-    $dbixschema     ||= $args->{'package'};
+    my $dbicschema    = $args->{'DBIx::Class::Schema'} ||  $args->{"DBIx::Schema"} ||$data;
+    $dbicschema     ||= $args->{'package'};
     my $limit_sources = $args->{'sources'};
     
-    die 'No DBIx::Schema' unless ($dbixschema);
-    if (!ref $dbixschema) {
-      eval "use $dbixschema;";
-      die "Can't load $dbixschema ($@)" if($@);
+    die 'No DBIx::Class::Schema' unless ($dbicschema);
+    if (!ref $dbicschema) {
+      eval "use $dbicschema;";
+      die "Can't load $dbicschema ($@)" if($@);
     }
 
     my $schema      = $tr->schema;
     my $table_no    = 0;
 
-#    print Dumper($dbixschema->registered_classes);
-
-    #foreach my $tableclass ($dbixschema->registered_classes)
+    $schema->name( ref($dbicschema) . " v" . ($dbicschema->VERSION || '1.x'))
+      unless ($schema->name);
 
     my %seen_tables;
 
-    my @monikers = $dbixschema->sources;
+    my @monikers = sort $dbicschema->sources;
     if ($limit_sources) {
         my $ref = ref $limit_sources || '';
         die "'sources' parameter must be an array or hash ref" unless $ref eq 'ARRAY' || ref eq 'HASH';
@@ -67,8 +65,9 @@ sub parse {
 
     foreach my $moniker (sort @monikers)
     {
-        my $source = $dbixschema->source($moniker);
+        my $source = $dbicschema->source($moniker);
 
+        # Its possible to have multiple DBIC source using same table
         next if $seen_tables{$source->name}++;
 
         my $table = $schema->add_table(
@@ -96,14 +95,29 @@ sub parse {
         $table->primary_key($source->primary_columns);
 
         my @primary = $source->primary_columns;
+        foreach my $field (@primary) {
+          my $index = $table->add_index(
+                                        name   => $field,
+                                        fields => [$field],
+                                        type   => 'NORMAL',
+                                       );
+        }
         my %unique_constraints = $source->unique_constraints;
-        foreach my $uniq (keys %unique_constraints) {
+        foreach my $uniq (sort keys %unique_constraints) {
             if (!$source->compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
                 $table->add_constraint(
                             type             => 'unique',
                             name             => "$uniq",
                             fields           => $unique_constraints{$uniq}
                 );
+
+               my $index = $table->add_index(
+                            # TODO: Pick a better than that wont conflict
+                            name   => $unique_constraints{$uniq}->[0],
+                            fields => $unique_constraints{$uniq},
+                            type   => 'NORMAL',
+               );
+
             }
         }
 
@@ -150,24 +164,35 @@ sub parse {
                 # If the sets are different, then we assume it's a foreign key from
                 # us to another table.
                 # OR: If is_foreign_key_constraint attr is explicity set (or set to false) on the relation
-                if ( ! exists $created_FK_rels{$rel_table}->{$key_test} &&
-                     ( exists $rel_info->{attrs}{is_foreign_key_constraint} ?
-                       $rel_info->{attrs}{is_foreign_key_constraint} :
-                       !$source->compare_relationship_keys(\@keys, \@primary)
-		     )
-                   )
-                {
-                    $created_FK_rels{$rel_table}->{$key_test} = 1;
-                    $table->add_constraint(
-                                type             => 'foreign_key',
-                                name             => "fk_$keys[0]",
-                                fields           => \@keys,
-                                reference_fields => \@refkeys,
-                                reference_table  => $rel_table,
-                                on_delete        => $on_delete,
-                                on_update        => $on_update,
-                                deferrable       => $is_deferrable,
-                    );
+                next if ( exists $created_FK_rels{$rel_table}->{$key_test} );
+                if ( exists $rel_info->{attrs}{is_foreign_key_constraint}) {
+                  # not is this attr set to 0 but definitely if set to 1
+                  next unless ($rel_info->{attrs}{is_foreign_key_constraint});
+                } else {
+                  # not if might have
+                  # next if ($rel_info->{attrs}{accessor} eq 'single' && exists $rel_info->{attrs}{join_type} && uc($rel_info->{attrs}{join_type}) eq 'LEFT');
+                  # not sure about this one
+                  next if $source->compare_relationship_keys(\@keys, \@primary);
+                }
+
+                $created_FK_rels{$rel_table}->{$key_test} = 1;
+                if (scalar(@keys)) {
+                  $table->add_constraint(
+                                    type             => 'foreign_key',
+                                    name             => $table->name . "_fk_$keys[0]",
+                                    fields           => \@keys,
+                                    reference_fields => \@refkeys,
+                                    reference_table  => $rel_table,
+                                    on_delete        => $on_delete,
+                                    on_update        => $on_update,
+                                    deferrable       => $is_deferrable,
+                  );
+                    
+                  my $index = $table->add_index(
+                                    name   => join('_', @keys),
+                                    fields => \@keys,
+                                    type   => 'NORMAL',
+                  );
                 }
             }
         }
@@ -177,8 +202,8 @@ sub parse {
         }
     }
 
-    if ($dbixschema->can('sqlt_deploy_hook')) {
-      $dbixschema->sqlt_deploy_hook($schema);
+    if ($dbicschema->can('sqlt_deploy_hook')) {
+      $dbicschema->sqlt_deploy_hook($schema);
     }
 
     return 1;
