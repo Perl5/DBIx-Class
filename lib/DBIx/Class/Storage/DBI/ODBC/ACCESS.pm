@@ -4,6 +4,7 @@ use warnings;
 
 use Data::Dump qw( dump );
 
+use DBI;
 use base qw/DBIx::Class::Storage::DBI/;
 
 my $ERR_MSG_START = __PACKAGE__ . ' failed: ';
@@ -37,6 +38,16 @@ sub last_insert_id {
     return @{ $self->{ last_pk }->{ $result_source->name() } };
 }
 
+sub bind_attribute_by_data_type {
+    my $self = shift;
+    
+    my ( $data_type ) = @_;
+    
+    return { TYPE => $data_type } if $data_type == DBI::SQL_LONGVARCHAR;
+    
+    return;
+}
+
 sub sqlt_type { 'ACCESS' }
 
 1;
@@ -54,8 +65,7 @@ This module is currently considered alpha software and can change without notice
 
 =head1 DESCRIPTION
 
-This class implements support specific to Microsoft Access over ODBC. It currently only
-implements functions necessary for working with auto-incremented primary keys.
+This class implements support specific to Microsoft Access over ODBC.
 
 It is loaded automatically by by DBIx::Class::Storage::DBI::ODBC when it
 detects a MS Access back-end.
@@ -74,7 +84,24 @@ MS Access supports the @@IDENTITY function for retriving the id of the latest in
 id for different tables, the insert() function stores the inserted id on a per table basis.
 last_insert_id() then just returns the stored value.
 
+=head1 KNOWN ACCESS PROBLEMS
+
+=over
+
+=item Invalid precision value
+
+This error message is received when trying to store more than 255 characters in a MEMO field.
+The problem is (to my knowledge) an error in the MS Access ODBC driver. The problem is fixed
+by setting the C<data_type> of the column to C<SQL_LONGVARCHAR> in C<add_columns>. 
+C<SQL_LONGVARCHAR> is a constant in the C<DBI> module.
+
+=back
+
 =head1 IMPLEMENTED FUNCTIONS
+
+=head2 bind_attributes_by_data_type
+
+This function currently supports the SQL_LONGVARCHAR column type.
 
 =head2 insert
 
@@ -97,8 +124,6 @@ You may distribute this code under the same terms as Perl itself.
 Det Norske Veritas AS (DNV)
 
 http://www.dnv.com
-
-
 
 =cut
 
