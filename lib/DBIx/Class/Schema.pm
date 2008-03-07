@@ -738,6 +738,8 @@ sub txn_do {
 
 Runs C<txn_scope_guard> on the schema's storage.
 
+=cut
+
 sub txn_scope_guard {
   my $self = shift;
 
