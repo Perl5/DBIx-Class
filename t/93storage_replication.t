@@ -7,8 +7,7 @@ use File::Copy;
 use DBICTest;
 
 use Test::More;
-eval {use DBD::Multi};
-plan skip_all => 'No DBD::Multi' if ($@);
+plan skip_all => 'No DBD::Multi' unless eval { require DBD::Multi };
 
 plan tests => 3;
 
