@@ -33,7 +33,7 @@ sub backup
 #  my $dbfile = file($dbname);
   my ($vol, $dbdir, $file) = File::Spec->splitpath($dbname);
 #  my $file = $dbfile->basename();
-  $file = strftime("%y%m%d%h%M%s", localtime()) . $file; 
+  $file = strftime("%Y-%m-%d-%H_%M_%S", localtime()) . $file; 
   $file = "B$file" while(-f $file);
 
   mkdir($dir) unless -f $dir;
