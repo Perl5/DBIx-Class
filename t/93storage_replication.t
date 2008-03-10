@@ -7,10 +7,13 @@ use File::Copy;
 use DBICTest;
 
 use Test::More;
-eval {use DBD::Multi};
-plan skip_all => 'No DBD::Multi' if ($@);
 
-plan tests => 3;
+BEGIN {
+    eval "use DBD::Multi";
+    plan $@
+        ? ( skip_all => 'needs DBD::Multi for testing' )
+        : ( tests => 3 );
+}
 
 my $schema = DBICTest->init_schema();
 
