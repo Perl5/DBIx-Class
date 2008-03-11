@@ -4,6 +4,8 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+use Storable 'dclone';
+
 use base qw/DBIx::Class::Row/;
 
 __PACKAGE__->mk_classdata('_column_groups' => { });
@@ -29,7 +31,9 @@ sub _add_column_group {
 sub _register_column_group {
   my ($class, $group, @cols) = @_;
 
-  my $groups = { %{$class->_column_groups} };
+  # Must do a complete deep copy else column groups
+  # might accidentally be shared.
+  my $groups = dclone $class->_column_groups;
 
   if ($group eq 'Primary') {
     $class->set_primary_key(@cols);
