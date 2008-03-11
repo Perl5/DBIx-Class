@@ -1,6 +1,11 @@
 #!/usr/bin/perl -w
 
 use strict;
+BEGIN {
+  eval "require Time::Piece";
+  use Test::More skip_all => "Time::Piece required for this test";
+}
+
 use Test::More tests => 12;
 use Test::Warn;
 

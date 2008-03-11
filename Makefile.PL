@@ -33,6 +33,8 @@ tests "t/*.t t/*/*.t";
 if( -e 'inc/.author' ) {
   build_requires 'DBIx::ContextualFetch';
   build_requires 'Class::Trigger';
+  build_requires 'Time::Piece';
+
   system('pod2text lib/DBIx/Class.pm > README');
 }
 
@@ -41,3 +43,28 @@ auto_provides;
 auto_install;
 
 WriteAll;
+
+
+if ($Module::Install::AUTHOR) {
+  # Need to do this _after_ WriteAll else it looses track of them
+  Meta->{values}{build_requires} = [ grep {
+    $_->[0] !~ /
+      DBIx::ContextualFetch |
+      Class::Trigger |
+      Time::Piece
+    /x;
+  } @{Meta->{values}{build_requires}} ];
+
+  my @scalar_keys = Module::Install::Metadata::Meta_TupleKeys();
+  sub Module::Install::Metadata::Meta_TupleKeys {
+    return @scalar_keys, 'resources';
+  }
+  Meta->{values}{resources} = [ 
+    [ 'MailingList', 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class' ],
+    [ 'IRC', 'irc://irc.perl.org/#dbix-class' ],
+  ];
+  Meta->write;
+}
+
+
+
