@@ -33,20 +33,20 @@ sub _register_column_group {
 
   if ($group eq 'Primary') {
     $class->set_primary_key(@cols);
-    $groups->{'Essential'}{$_} ||= {} for @cols;
+    $groups->{'Essential'}{$_} ||= 1 for @cols;
   }
 
   if ($group eq 'All') {
     unless (exists $class->_column_groups->{'Primary'}) {
-      $groups->{'Primary'}{$cols[0]} = {};
+      $groups->{'Primary'}{$cols[0]} = 1;
       $class->set_primary_key($cols[0]);
     }
     unless (exists $class->_column_groups->{'Essential'}) {
-      $groups->{'Essential'}{$cols[0]} = {};
+      $groups->{'Essential'}{$cols[0]} = 1;
     }
   }
 
-  $groups->{$group}{$_} ||= {} for @cols;
+  $groups->{$group}{$_} ||= 1 for @cols;
 
   $class->_column_groups($groups);
 }
