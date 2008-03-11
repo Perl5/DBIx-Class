@@ -3,8 +3,8 @@ package DBIx::Class::ResultSet;
 use strict;
 use warnings;
 use overload
-        '0+'     => \&count,
-        'bool'   => sub { 1; },
+        '0+'     => "count",
+        'bool'   => "_bool",
         fallback => 1;
 use Carp::Clan qw/^DBIx::Class/;
 use Data::Page;
@@ -50,6 +50,10 @@ In the examples below, the following table classes are used:
   __PACKAGE__->set_primary_key('cdid');
   __PACKAGE__->belongs_to(artist => 'MyApp::Schema::Artist');
   1;
+
+=head1 OVERLOADING
+
+If a resultset is used as a number it returns the C<count()>.  However, if it is used as a boolean it is always true.  So if you want to check if a result set has any results use C<if $rs != 0>.  C<if $rs> will always be true.
 
 =head1 METHODS
 
@@ -994,6 +998,10 @@ sub _count { # Separated out so pager can get the full count
   my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
   return $count;
+}
+
+sub _bool {
+  return 1;
 }
 
 =head2 count_literal

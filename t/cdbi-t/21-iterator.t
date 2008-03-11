@@ -4,11 +4,11 @@ use Test::More;
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
+    plan (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@");
     next;
   }
   eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 33);
+  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 37);
 }
 
 use lib 't/testlib';
@@ -49,8 +49,6 @@ my @film  = (
 	is $it->next->title, "Film 2", "And 2 is still next";
 }
 
-SKIP: {
-  #skip "Iterator doesn't yet have slice support", 19;
 
 {
 	my $it = Film->retrieve_all;
@@ -85,4 +83,14 @@ SKIP: {
 	is $it->next->title, "Film 2", "And 2 is still next";
 }
 
-} # End SKIP
+{
+  my $it = Film->retrieve_all;
+  is $it, $it->count, "iterator returns count as a scalar";
+  ok $it, "iterator returns true when there are results";
+}
+
+{
+  my $it = Film->search( Title => "something which does not exist" );
+  is $it, 0;
+  ok !$it, "iterator returns false when no results";
+}

@@ -36,7 +36,7 @@ sub add_relationship_accessor {
     $class->inflate_column($rel,
       { inflate => sub {
           my ($val, $self) = @_;
-          return $self->find_or_create_related($rel, {}, {});
+          return $self->find_or_new_related($rel, {}, {});
         },
         deflate => sub {
           my ($val, $self) = @_;

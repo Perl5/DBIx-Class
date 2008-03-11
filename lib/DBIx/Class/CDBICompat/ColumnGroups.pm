@@ -4,6 +4,8 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+use Storable 'dclone';
+
 use base qw/DBIx::Class::Row/;
 
 __PACKAGE__->mk_classdata('_column_groups' => { });
@@ -12,6 +14,8 @@ sub columns {
   my $proto = shift;
   my $class = ref $proto || $proto;
   my $group = shift || "All";
+  $class->_init_result_source_instance();
+
   $class->_add_column_group($group => @_) if @_;
   return $class->all_columns    if $group eq "All";
   return $class->primary_column if $group eq "Primary";
@@ -27,24 +31,26 @@ sub _add_column_group {
 sub _register_column_group {
   my ($class, $group, @cols) = @_;
 
-  my $groups = { %{$class->_column_groups} };
+  # Must do a complete deep copy else column groups
+  # might accidentally be shared.
+  my $groups = dclone $class->_column_groups;
 
   if ($group eq 'Primary') {
     $class->set_primary_key(@cols);
-    $groups->{'Essential'}{$_} ||= {} for @cols;
+    $groups->{'Essential'}{$_} ||= 1 for @cols;
   }
 
   if ($group eq 'All') {
     unless (exists $class->_column_groups->{'Primary'}) {
-      $groups->{'Primary'}{$cols[0]} = {};
+      $groups->{'Primary'}{$cols[0]} = 1;
       $class->set_primary_key($cols[0]);
     }
     unless (exists $class->_column_groups->{'Essential'}) {
-      $groups->{'Essential'}{$cols[0]} = {};
+      $groups->{'Essential'}{$cols[0]} = 1;
     }
   }
 
-  $groups->{$group}{$_} ||= {} for @cols;
+  $groups->{$group}{$_} ||= 1 for @cols;
 
   $class->_column_groups($groups);
 }

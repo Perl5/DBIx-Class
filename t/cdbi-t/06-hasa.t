@@ -4,7 +4,7 @@ use Test::More;
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
+    plan (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@");
     next;
   }
   eval "use DBD::SQLite";

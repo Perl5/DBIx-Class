@@ -150,35 +150,26 @@ Returns an instance of the result source for this class
 
 =cut
 
+__PACKAGE__->mk_classdata('_result_source_instance' => []);
+
 sub result_source_instance {
   my $class = shift;
   $class = ref $class || $class;
- 
-  __PACKAGE__->mk_classdata(qw/_result_source_instance/)
-    unless __PACKAGE__->can('_result_source_instance');
-
   
-  return $class->_result_source_instance(@_) if @_;
+  return $class->_result_source_instance([$_[0], $class]) if @_;
 
-  my $source = $class->_result_source_instance;
-  return {} unless Scalar::Util::blessed($source);
+  my($source, $result_class) = @{$class->_result_source_instance};
+  return unless Scalar::Util::blessed($source);
 
-  if ($source->result_class ne $class) {
-    # Remove old source instance so we dont get deep recursion
-    #$DB::single = 1;
-    # Need to set it to a non-undef value so that it doesn't just fallback to
-    # a parent class's _result_source_instance
-    #$class->_result_source_instance({});
-    #$class->table($class);
-    #$source = $class->_result_source_instance;
+  if ($result_class ne $class) {  # new class
+    # Give this new class it's own source and register it.
 
-    $DB::single = 1;
     $source = $source->new({ 
         %$source, 
         source_name  => $class,
         result_class => $class
     } );
-    $class->_result_source_instance($source);
+    $class->_result_source_instance([$source, $class]);
     if (my $coderef = $class->can('schema_instance')) {
         $coderef->($class)->register_class($class, $class);
     }

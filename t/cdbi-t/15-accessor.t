@@ -4,11 +4,12 @@ use Test::More;
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   if ($@) {
+      diag $@;
     plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
     next;
   }
   eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 53);
+  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 54);
 }
 
 INIT {
@@ -17,7 +18,9 @@ INIT {
 	use lib 't/testlib';
 	require Film;
 	require Actor;
+        require Director;
 	Actor->has_a(film => 'Film');
+        Film->has_a(director => 'Director');
 	sub Class::DBI::sheep { ok 0; }
 }
 
@@ -33,10 +36,17 @@ sub Film::accessor_name {
 	return $col;
 }
 
-sub Actor::accessor_name {
+sub Actor::accessor_name_for {
 	my ($class, $col) = @_;
 	return "movie" if lc $col eq "film";
 	return $col;
+}
+
+# This is a class with accessor_name_for() but no corresponding mutatori_name_for()
+sub Director::accessor_name_for {
+    my($class, $col) = @_;
+    return "nutty_as_a_fruitcake" if lc $col eq "isinsane";
+    return $col;
 }
 
 my $data = {
@@ -131,8 +141,20 @@ eval {
 
 }
 
-SKIP: {    # have non persistent accessor?
-        #skip "Compat layer doesn't handle TEMP columns yet", 11;
+
+# Make sure a class with an accessor_name() method has a similar mutator.
+{
+    my $aki = Director->create({
+        name     => "Aki Kaurismaki",
+    });
+
+    $aki->nutty_as_a_fruitcake(1);
+    is $aki->nutty_as_a_fruitcake, 1,
+        "a custom accessor without a custom mutator is setable";
+    $aki->update;
+}
+
+{
 	Film->columns(TEMP => qw/nonpersistent/);
 	ok(Film->find_column('nonpersistent'), "nonpersistent is a column");
 	ok(!Film->has_real_column('nonpersistent'), " - but it's not real");
@@ -152,11 +174,10 @@ SKIP: {    # have non persistent accessor?
 	}
 }
 
-SKIP: {    # was bug with TEMP and no Essential
-        #skip "Compat layer doesn't have TEMP columns yet", 5;
+{
 	is_deeply(
-		Actor->columns('Essential'),
-		Actor->columns('Primary'),
+		[Actor->columns('Essential')],
+		[Actor->columns('Primary')],
 		"Actor has no specific essential columns"
 	);
 	ok(Actor->find_column('nonpersistent'), "nonpersistent is a column");
@@ -166,8 +187,7 @@ SKIP: {    # was bug with TEMP and no Essential
 	isa_ok $pj => "Actor";
 }
 
-SKIP: {
-        #skip "Compat layer doesn't handle read-only objects yet", 10;
+{
 	Film->autoupdate(1);
 	my $naked = Film->create({ title => 'Naked' });
 	my $sandl = Film->create({ title => 'Secrets and Lies' });

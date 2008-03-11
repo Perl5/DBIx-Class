@@ -47,12 +47,35 @@ sub _build_query {
 
 sub retrieve_from_sql {
   my ($class, $cond, @rest) = @_;
+
   $cond =~ s/^\s*WHERE//i;
-  $class->search_literal($cond, @rest);
+
+  if( $cond =~ s/\bLIMIT (\d+)\s*$//i ) {
+      push @rest, { rows => $1 };
+  }
+
+  return $class->search_literal($cond, @rest);
+}
+
+sub construct {
+    my $class = shift;
+    my $obj = $class->resultset_instance->new_result(@_);
+    $obj->in_storage(1);
+    
+    return $obj;
 }
 
 sub retrieve_all      { shift->search              }
 sub count_all         { shift->count               }
-  # Contributed by Numa. No test for this though.
+
+sub maximum_value_of  {
+    my($class, $col) = @_;
+    return $class->resultset_instance->get_column($col)->max;
+}
+
+sub minimum_value_of  {
+    my($class, $col) = @_;
+    return $class->resultset_instance->get_column($col)->min;
+}
 
 1;

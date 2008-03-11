@@ -32,12 +32,21 @@ my $exceptions = {
         ]
     },
     'DBIx::Class::CDBICompat::AccessorMapping'          => { skip => 1 },
+    'DBIx::Class::CDBICompat::AbstractSearch' => {
+        ignore => [qw(search_where)]
+    },
     'DBIx::Class::CDBICompat::AttributeAPI'             => { skip => 1 },
     'DBIx::Class::CDBICompat::AutoUpdate'               => { skip => 1 },
+    'DBIx::Class::CDBICompat::ColumnsAsHash' => {
+        ignore => [qw(inflate_result new update)]
+    },
     'DBIx::Class::CDBICompat::ColumnCase'               => { skip => 1 },
     'DBIx::Class::CDBICompat::ColumnGroups'             => { skip => 1 },
     'DBIx::Class::CDBICompat::Constraints'              => { skip => 1 },
     'DBIx::Class::CDBICompat::Constructor'              => { skip => 1 },
+    'DBIx::Class::CDBICompat::Copy' => {
+        ignore => [qw(copy)]
+    },
     'DBIx::Class::CDBICompat::DestroyWarning'           => { skip => 1 },
     'DBIx::Class::CDBICompat::GetSet'                   => { skip => 1 },
     'DBIx::Class::CDBICompat::HasA'                     => { skip => 1 },
@@ -46,9 +55,11 @@ my $exceptions = {
     'DBIx::Class::CDBICompat::LazyLoading'              => { skip => 1 },
     'DBIx::Class::CDBICompat::LiveObjectIndex'          => { skip => 1 },
     'DBIx::Class::CDBICompat::MightHave'                => { skip => 1 },
-    'DBIx::Class::CDBICompat::ObjIndexStubs'            => { skip => 1 },
+    'DBIx::Class::CDBICompat::NoObjectIndex'            => { skip => 1 },
     'DBIx::Class::CDBICompat::Pager'                    => { skip => 1 },
     'DBIx::Class::CDBICompat::ReadOnly'                 => { skip => 1 },
+    'DBIx::Class::CDBICompat::Relationship'             => { skip => 1 },
+    'DBIx::Class::CDBICompat::Relationships'            => { skip => 1 },
     'DBIx::Class::CDBICompat::Retrieve'                 => { skip => 1 },
     'DBIx::Class::CDBICompat::Stringify'                => { skip => 1 },
     'DBIx::Class::CDBICompat::TempColumns'              => { skip => 1 },

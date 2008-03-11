@@ -37,7 +37,7 @@ is(Film->__driver, "SQLite", "Driver set correctly");
 	ok $@, "Can't get title with no object";
 } 
 
-eval { my $duh = Film->create; };
+eval { my $duh = Film->insert; };
 like $@, qr/create needs a hashref/, "needs a hashref";
 
 ok +Film->create_test_film;
@@ -163,11 +163,11 @@ is($blrunner_dc->NumExplodingSheep, undef, 'Sheep correct');
 }
 
 eval {
-	my $ishtar = Film->create({ Title => 'Ishtar', Director => 'Elaine May' });
+	my $ishtar = Film->insert({ Title => 'Ishtar', Director => 'Elaine May' });
 	my $mandn =
-		Film->create({ Title => 'Mikey and Nicky', Director => 'Elaine May' });
+		Film->insert({ Title => 'Mikey and Nicky', Director => 'Elaine May' });
 	my $new_leaf =
-		Film->create({ Title => 'A New Leaf', Director => 'Elaine May' });
+		Film->insert({ Title => 'A New Leaf', Director => 'Elaine May' });
 
 #use Data::Dumper; die Dumper(Film->search( Director => 'Elaine May' ));
 	cmp_ok(Film->search(Director => 'Elaine May'), '==', 3,
@@ -263,7 +263,7 @@ SKIP: {
 
 {                               # update deleted object
 	my $rt = "Royal Tenenbaums";
-	my $ten = Film->create({ title => $rt, Rating => "R" });
+	my $ten = Film->insert({ title => $rt, Rating => "R" });
 	$ten->rating(18);
 	Film->set_sql(drt => "DELETE FROM __TABLE__ WHERE title = ?");
 	Film->sql_drt->execute($rt);
@@ -284,7 +284,7 @@ SKIP: {
 
 # Primary key of 0
 {
-	my $zero = Film->create({ Title => 0, Rating => "U" });
+	my $zero = Film->insert({ Title => 0, Rating => "U" });
 	ok defined $zero, "Create 0";
 	ok my $ret = Film->retrieve(0), "Retrieve 0";
 	is $ret->Title,  0,   "Title OK";
@@ -344,7 +344,7 @@ if (0) {
 
 {
 	{
-		ok my $byebye = DeletingFilm->create(
+		ok my $byebye = DeletingFilm->insert(
 			{
 				Title  => 'Goodbye Norma Jean',
 				Rating => 'PG',
@@ -362,9 +362,8 @@ if (0) {
 }
 
 SKIP: {
-        #skip "DBIx::Class doesn't yet have a live objects index", 3;
-	#skip "Scalar::Util::weaken not available", 3
-		#if !$Class::DBI::Weaken_Is_Available;
+    skip "Caching has been removed", 5
+        if Film->isa("DBIx::Class::CDBICompat::NoObjectIndex");
 
 	# my bad taste is your bad taste
 	my $btaste  = Film->retrieve('Bad Taste');
@@ -386,7 +385,7 @@ SKIP: {
 	isnt Scalar::Util::refaddr($btaste2), Scalar::Util::refaddr($btaste4),
 		"Clearing cache and retrieving again gives new object";
  
-  $btaste=Film->create({
+  $btaste=Film->insert({
 		Title             => 'Bad Taste 2',
 		Director          => 'Peter Jackson',
 		Rating            => 'R',

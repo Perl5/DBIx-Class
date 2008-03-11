@@ -13,7 +13,7 @@ __PACKAGE__->has_a(
 	inflate => sub { Date::Simple->new(shift) },
 	deflate => 'format',
 );
-__PACKAGE__->find_column('tdate')->placeholder("IF(1, CURDATE(), ?)");
+#__PACKAGE__->find_column('tdate')->placeholder("IF(1, CURDATE(), ?)");
 
 sub create_sql {
 	return qq{

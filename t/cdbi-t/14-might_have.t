@@ -8,7 +8,7 @@ BEGIN {
     next;
   }
   eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 18);
+  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 22);
 }
 
 use lib 't/testlib';
@@ -67,4 +67,17 @@ Film->create_test_film;
 		
 }
 
-	
+{
+    my $host = Film->create({ title => "Gwoemul" });
+    $host->blurb("Monsters are real.");
+    my $info = $host->info;
+    is $info->blurb, "Monsters are real.";
+
+    $host->discard_changes;
+    is $host->info->id, $info->id,
+        'relationships still valid after discard_changes';
+
+    ok $host->info->delete;
+    $host->discard_changes;
+    ok !$host->info, 'relationships rechecked after discard_changes';
+}
