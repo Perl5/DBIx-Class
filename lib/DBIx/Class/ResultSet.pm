@@ -2132,7 +2132,7 @@ See L<DBIx::Class::Schema/throw_exception> for details.
 
 sub throw_exception {
   my $self=shift;
-  if (ref $self) {
+  if (ref $self && $self->_source_handle->schema) {
     $self->_source_handle->schema->throw_exception(@_)
   } else {
     croak(@_);
