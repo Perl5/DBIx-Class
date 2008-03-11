@@ -119,7 +119,8 @@ warning_is {
 
 
 # Now again for inflated values
-{
+SKIP: {
+    skip "Requires Date::Simple", 5 unless eval "use Date::Simple; 1; ";
     Lazy->has_a(
         orp     => 'Date::Simple',
         inflate => sub { Date::Simple->new($_[0] . '-01-01') },
