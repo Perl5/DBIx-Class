@@ -2132,7 +2132,12 @@ See L<DBIx::Class::Schema/throw_exception> for details.
 
 sub throw_exception {
   my $self=shift;
-  $self->_source_handle->schema->throw_exception(@_);
+  if (ref $self) {
+    $self->_source_handle->schema->throw_exception(@_)
+  } else {
+    croak(@_);
+  }
+
 }
 
 # XXX: FIXME: Attributes docs need clearing up
