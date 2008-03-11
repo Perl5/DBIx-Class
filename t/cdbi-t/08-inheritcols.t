@@ -1,12 +1,16 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Test::More tests => 3;
+use Test::More;
 
-use Class::DBI;
+BEGIN {
+  eval "use DBIx::Class::CDBICompat;";
+  plan $@ ? (skip_all => 'Class::Trigger and DBIx::ContextualFetch required')
+          : (tests=> 3);
+}
 
 package A;
-@A::ISA = qw(Class::DBI);
+@A::ISA = qw(DBIx::Class::CDBICompat);
 __PACKAGE__->columns(Primary => 'id');
 
 package A::B;
