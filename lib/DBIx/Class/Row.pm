@@ -209,7 +209,8 @@ sub insert {
     }
   }
 
-  $source->storage->insert($source, { $self->get_columns });
+  my $updated_cols = $source->storage->insert($source, { $self->get_columns });
+  $self->set_columns($updated_cols);
 
   ## PK::Auto
   my @auto_pri = grep {

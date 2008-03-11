@@ -338,7 +338,7 @@ primary key field from the sequence. To help PK::Auto find your
 inserted key, you can tell it the name of the sequence in the
 C<column_info> supplied with C<add_columns>.
 
- ->add_columns({ id => { sequence => 'mysequence' } });
+ ->add_columns({ id => { sequence => 'mysequence', auto_nextval => 1 } });
 
 =item .. insert many rows of data efficiently?
 

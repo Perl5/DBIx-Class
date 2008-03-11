@@ -143,6 +143,12 @@ generate a new key value. If not specified, L<DBIx::Class::PK::Auto>
 will attempt to retrieve the name of the sequence from the database
 automatically.
 
+=item auto_nextval
+
+Set this to a true value for a column whose value is retrieved
+automatically from an oracle sequence. If you do not use an oracle
+trigger to get the nextval, you have to set sequence as well.
+
 =item extra
 
 This is used by L<DBIx::Class::Schema/deploy> and L<SQL::Translator>

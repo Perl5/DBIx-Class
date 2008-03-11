@@ -27,7 +27,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
  . ' (note: creates and drops tables named artist and casecheck!)' unless ($dsn && $user);
 
-plan tests => 16;
+plan tests => 32;
 
 DBICTest::Schema->load_classes( 'Casecheck' );
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
@@ -46,8 +46,13 @@ SKIP: {
 
 my $dbh = $schema->storage->dbh;
 $schema->source("Artist")->name("testschema.artist");
+$schema->source("SequenceTest")->name("testschema.sequence_test");
 $dbh->do("CREATE SCHEMA testschema;");
 $dbh->do("CREATE TABLE testschema.artist (artistid serial PRIMARY KEY, name VARCHAR(100), charfield CHAR(10));");
+$dbh->do("CREATE TABLE testschema.sequence_test (pkid1 integer, pkid2 integer, nonpkid integer, name VARCHAR(100), CONSTRAINT pk PRIMARY KEY(pkid1, pkid2));");
+$dbh->do("CREATE SEQUENCE pkid1_seq START 1 MAXVALUE 999999 MINVALUE 0");
+$dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
+$dbh->do("CREATE SEQUENCE nonpkid_seq START 20 MAXVALUE 999999 MINVALUE 0");
 ok ( $dbh->do('CREATE TABLE testschema.casecheck (id serial PRIMARY KEY, "name" VARCHAR(1), "NAME" VARCHAR(2), "UC_NAME" VARCHAR(3));'), 'Creation of casecheck table');
 
 # This is in Core now, but it's here just to test that it doesn't break
@@ -176,10 +181,24 @@ SKIP: {
     });
 }
 
+# test auto increment using sequences WITHOUT triggers
+for (1..5) {
+    my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
+    is($st->pkid1, $_, "Oracle Auto-PK without trigger: First primary key");
+    is($st->pkid2, $_ + 9, "Oracle Auto-PK without trigger: Second primary key");
+    is($st->nonpkid, $_ + 19, "Oracle Auto-PK without trigger: Non-primary key");
+}
+my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
+is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
+
 END {
     if($dbh) {
         $dbh->do("DROP TABLE testschema.artist;");
         $dbh->do("DROP TABLE testschema.casecheck;");
+        $dbh->do("DROP TABLE testschema.sequence_test;");
+        $dbh->do("DROP SEQUENCE pkid1_seq");
+        $dbh->do("DROP SEQUENCE pkid2_seq");
+        $dbh->do("DROP SEQUENCE nonpkid_seq");
         $dbh->do("DROP SCHEMA testschema;");
     }
 }

@@ -8,10 +8,11 @@ use DBICTest;
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_ORA_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. ' .
-  'Warning: This test drops and creates tables called \'artist\', \'cd\' and \'track\''
+  'Warning: This test drops and creates tables called \'artist\', \'cd\', \'track\' and \'sequence_test\''.
+  ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
   unless ($dsn && $user && $pass);
 
-plan tests => 7;
+plan tests => 23;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -19,16 +20,25 @@ my $dbh = $schema->storage->dbh;
 
 eval {
   $dbh->do("DROP SEQUENCE artist_seq");
+  $dbh->do("DROP SEQUENCE pkid1_seq");
+  $dbh->do("DROP SEQUENCE pkid2_seq");
+  $dbh->do("DROP SEQUENCE nonpkid_seq");
   $dbh->do("DROP TABLE artist");
+  $dbh->do("DROP TABLE sequence_test");
   $dbh->do("DROP TABLE cd");
   $dbh->do("DROP TABLE track");
 };
 $dbh->do("CREATE SEQUENCE artist_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
+$dbh->do("CREATE SEQUENCE pkid1_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
+$dbh->do("CREATE SEQUENCE pkid2_seq START WITH 10 MAXVALUE 999999 MINVALUE 0");
+$dbh->do("CREATE SEQUENCE nonpkid_seq START WITH 20 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE TABLE artist (artistid NUMBER(12), name VARCHAR(255))");
+$dbh->do("CREATE TABLE sequence_test (pkid1 NUMBER(12), pkid2 NUMBER(12), nonpkid NUMBER(12), name VARCHAR(255))");
 $dbh->do("CREATE TABLE cd (cdid NUMBER(12), artist NUMBER(12), title VARCHAR(255), year VARCHAR(4))");
 $dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255), last_updated_on DATE)");
 
 $dbh->do("ALTER TABLE artist ADD (CONSTRAINT artist_pk PRIMARY KEY (artistid))");
+$dbh->do("ALTER TABLE sequence_test ADD (CONSTRAINT sequence_test_constraint PRIMARY KEY (pkid1, pkid2))");
 $dbh->do(qq{
   CREATE OR REPLACE TRIGGER artist_insert_trg
   BEFORE INSERT ON artist
@@ -95,11 +105,25 @@ is( $it->next, undef, "next past end of resultset ok" );
   is( scalar @results, 1, "Group by with limit OK" );
 }
 
+# test auto increment using sequences WITHOUT triggers
+for (1..5) {
+    my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
+    is($st->pkid1, $_, "Oracle Auto-PK without trigger: First primary key");
+    is($st->pkid2, $_ + 9, "Oracle Auto-PK without trigger: Second primary key");
+    is($st->nonpkid, $_ + 19, "Oracle Auto-PK without trigger: Non-primary key");
+}
+my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
+is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
+
 # clean up our mess
 END {
     if($dbh) {
         $dbh->do("DROP SEQUENCE artist_seq");
+        $dbh->do("DROP SEQUENCE pkid1_seq");
+        $dbh->do("DROP SEQUENCE pkid2_seq");
+        $dbh->do("DROP SEQUENCE nonpkid_seq");
         $dbh->do("DROP TABLE artist");
+        $dbh->do("DROP TABLE sequence_test");
         $dbh->do("DROP TABLE cd");
         $dbh->do("DROP TABLE track");
     }
