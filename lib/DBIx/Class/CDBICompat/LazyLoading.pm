@@ -103,7 +103,9 @@ sub _flesh {
     #                                   $self->ident_condition);
     # Not sure why the first one works and this doesn't :(
     my @val = $cursor->next;
-#warn "Flesh: ".join(', ', @want, '=>', @val);
+
+    return unless @val; # object must have been deleted from the database
+
     foreach my $w (@want) {
       $self->{'_column_data'}{$w} = shift @val;
     }
