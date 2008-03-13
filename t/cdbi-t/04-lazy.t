@@ -15,7 +15,7 @@ BEGIN {
     next;
   }
 	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 35);
+	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 36);
 }
 
 INIT {
@@ -154,4 +154,31 @@ SKIP: {
     is $l->orp, '1942-01-01';
     
     $l->delete;
+}
+
+
+# Test that a deleted object works
+{
+    Lazy->search()->delete_all;
+    my $l = Lazy->create({
+        this => 99,
+        that => 2,
+        oop  => 3,
+        opop => 4,
+    });
+    
+    # Delete the object without it knowing.
+    Lazy->db_Main->do(qq[
+        DELETE
+        FROM   @{[ Lazy->table ]}
+        WHERE  this = 99
+    ]);
+    
+    $l->eep;
+    
+    # The problem was when an object had an inflated object
+    # loaded.  _flesh() would set _column_data to undef and
+    # get_column() would think nothing was there.
+    # I'm too lazy to set up the proper inflation test.
+    ok !exists $l->{_column_data}{orp};
 }
