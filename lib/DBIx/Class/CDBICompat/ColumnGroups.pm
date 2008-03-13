@@ -63,6 +63,10 @@ sub primary_column {
   return wantarray ? @pri : $pri[0];
 }
 
+sub _essential {
+    return shift->columns("Essential");
+}
+
 sub find_column {
   my ($class, $col) = @_;
   return $col if $class->has_column($col);
