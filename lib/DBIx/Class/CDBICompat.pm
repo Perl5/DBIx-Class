@@ -77,7 +77,7 @@ The features of CDBI::Sweet are better done using DBIC methods which are almost 
 
 =head3 Class::DBI::Plugin::DeepAbstractSearch
 
-This is better done using DBIC's native search facilities.  The major difference is that DBIC will not infer the join for you, you have to tell it the join tables.
+This plugin will work, but it is more efficiently done using DBIC's native search facilities.  The major difference is that DBIC will not infer the join for you, you have to tell it the join tables.
 
 
 =head2 Choosing Features
