@@ -2,9 +2,13 @@ use strict;
 use Test::More;
 
 BEGIN {
-    eval "use DBD::SQLite";
-    plan $@ ? (skip_all => 'needs DBD::SQLite for testing')
-    : (tests => 19);
+    plan skip_all => 'needs DBD::SQLite for testing'
+        unless eval { require DBD::SQLite };
+    
+    plan skip_all => 'needs Class::DBI::Plugin::DeepAbstractSearch'
+        unless eval { require Class::DBI::Plugin::DeepAbstractSearch };
+    
+    plan tests => 19;
 }
 
 my $DB  = "t/testdb";
