@@ -30,12 +30,12 @@ sub mk_group_accessors {
 # that we should support both.  CDBI does.
 sub _can_accessor_name_for {
     my $class = shift;
-    return $class->can("accessor_name") || $class->can("accessor_name_for");
+    return $class->can("accessor_name_for") || $class->can("accessor_name");
 }
 
 sub _can_mutator_name_for {
     my $class = shift;
-    return $class->can("mutator_name") || $class->can("mutator_name_for");
+    return $class->can("mutator_name_for") || $class->can("mutator_name");
 }
 
 sub _try_accessor_name_for {
