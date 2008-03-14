@@ -17,10 +17,12 @@ sub add_columns {
 }
 
 sub has_a {
-  my ($class, $col, @rest) = @_;
-  $class->next::method(lc($col), @rest);
-  $class->mk_group_accessors('inflated_column' => $col);
-  return 1;
+    my($self, $col, @rest) = @_;
+    
+    $self->_declare_has_a(lc $col, @rest);
+    $self->_mk_inflated_column_accessor($col);
+    
+    return 1;
 }
 
 sub has_many {

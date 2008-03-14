@@ -23,8 +23,19 @@ Emulate C<has_a>, C<has_many>, C<might_have> and C<meta_info>.
 =cut
 
 sub has_a {
+    my($self, $col, @rest) = @_;
+    
+    $self->_declare_has_a($col, @rest);
+    $self->_mk_inflated_column_accessor($col);
+    
+    return 1;
+}
+
+
+sub _declare_has_a {
   my ($self, $col, $f_class, %args) = @_;
-  $self->throw_exception( "No such column ${col}" ) unless $self->has_column($col);
+  $self->throw_exception( "No such column ${col}" )
+   unless $self->has_column($col);
   $self->ensure_class_loaded($f_class);
   
   my $rel_info;
@@ -55,10 +66,15 @@ sub has_a {
     has_a => $col,
     $rel_info
   );
-  
+
   return 1;
 }
 
+sub _mk_inflated_column_accessor {
+    my($class, $col) = @_;
+    
+    return $class->mk_group_accessors('inflated_column' => $col);
+}
 
 sub has_many {
   my ($class, $rel, $f_class, $f_key, $args) = @_;
