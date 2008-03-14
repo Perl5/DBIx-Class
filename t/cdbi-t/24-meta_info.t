@@ -1,12 +1,15 @@
 #!/usr/bin/perl -w
 
 use strict;
+use Test::More;
+
 BEGIN {
-  eval "require Time::Piece";
-  use Test::More skip_all => "Time::Piece required for this test";
+    plan skip_all => "Time::Piece required for this test"
+        unless eval { require Time::Piece };
+
+    plan tests => 12;
 }
 
-use Test::More tests => 12;
 use Test::Warn;
 
 package Temp::DBI;
