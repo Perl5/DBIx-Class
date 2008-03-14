@@ -24,8 +24,14 @@ sub columns {
 
 sub _add_column_group {
   my ($class, $group, @cols) = @_;
+  $class->mk_group_accessors(column => @cols);
   $class->add_columns(@cols);
   $class->_register_column_group($group => @cols);
+}
+
+sub add_columns {
+  my ($class, @cols) = @_;
+  $class->result_source_instance->add_columns(@cols);
 }
 
 sub _register_column_group {
