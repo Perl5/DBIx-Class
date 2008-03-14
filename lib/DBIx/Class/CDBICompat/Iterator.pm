@@ -3,6 +3,7 @@ package DBIx::Class::CDBICompat::Iterator;
 use strict;
 use warnings;
 
+
 =head1 NAME
 
 DBIx::Class::CDBICompat::Iterator
@@ -41,7 +42,11 @@ use warnings;
 use base qw(DBIx::Class::ResultSet);
 
 sub _bool {
-  return $_[0]->count;
+    # Performance hack so internal checks whether the result set
+    # exists won't do a SQL COUNT.
+    return 1 if caller =~ /^DBIx::Class::/;
+
+    return $_[0]->count;
 }
 
 1;
