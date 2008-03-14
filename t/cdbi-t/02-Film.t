@@ -9,7 +9,7 @@ BEGIN {
     next;
   }
   eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 96);
+  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 98);
 }
 
 INIT {
@@ -126,6 +126,11 @@ is($blrunner_dc->NumExplodingSheep, undef, 'Sheep correct');
 {
 	Film->add_constructor(title_asc  => "title LIKE ? ORDER BY title");
 	Film->add_constructor(title_desc => "title LIKE ? ORDER BY title DESC");
+    Film->add_constructor(title_asc_nl => q{
+        title LIKE ?
+        ORDER BY title
+        LIMIT 1
+    });
 
 	{
 		my @films = Film->title_asc("Bladerunner%");
@@ -136,6 +141,11 @@ is($blrunner_dc->NumExplodingSheep, undef, 'Sheep correct');
 		my @films = Film->title_desc("Bladerunner%");
 		is @films, 2, "We have 2 Bladerunners";
 		is $films[0]->Title, $blrunner_dc->Title, "Ordered correctly";
+	}
+	{
+		my @films = Film->title_asc_nl("Bladerunner%");
+		is @films, 1, "We have 2 Bladerunners";
+		is $films[0]->Title, $blrunner->Title, "Ordered correctly";
 	}
 }
 
