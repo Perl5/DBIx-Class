@@ -78,7 +78,7 @@ Returns the sequence name for an autoincrement column
 sub get_autoinc_seq {
   my ($self, $source, $col) = @_;
     
-  $self->dbh_do($self->can('_dbh_get_autoinc_seq'), $source, $col);
+  $self->dbh_do('_dbh_get_autoinc_seq', $source, $col);
 }
 
 =head2 columns_info_for

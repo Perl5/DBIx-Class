@@ -24,7 +24,7 @@ sub last_insert_id {
   $self->throw_exception("could not fetch primary key for " . $source->name . ", could not "
     . "get autoinc sequence for $col (check that table and column specifications are correct "
     . "and in the correct case)") unless defined $seq;
-  $self->dbh_do($self->can('_dbh_last_insert_id'), $seq);
+  $self->dbh_do('_dbh_last_insert_id', $seq);
 }
 
 sub _dbh_get_autoinc_seq {
@@ -49,7 +49,7 @@ sub get_autoinc_seq {
   my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2)
     : (undef,$source->name);
 
-  $self->dbh_do($self->can('_dbh_get_autoinc_seq'), $schema, $table, @pri);
+  $self->dbh_do('_dbh_get_autoinc_seq', $schema, $table, @pri);
 }
 
 sub sqlt_type {
