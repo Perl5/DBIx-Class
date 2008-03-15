@@ -544,9 +544,10 @@ This method is deprecated in favor of setting via L</connect_info>.
 
 =head2 dbh_do
 
-Arguments: $subref, @extra_coderef_args?
+Arguments: ($subref | $method_name), @extra_coderef_args?
 
-Execute the given subref using the new exception-based connection management.
+Execute the given $subref or $method_name using the new exception-based
+connection management.
 
 The first two arguments will be the storage object that C<dbh_do> was called
 on and a database handle to use.  Any additional arguments will be passed
@@ -574,12 +575,9 @@ Example:
 
 sub dbh_do {
   my $self = shift;
-  my $coderef = shift;
+  my $code = shift;
 
-  ref $coderef eq 'CODE' or $self->throw_exception
-    ('$coderef must be a CODE reference');
-
-  return $coderef->($self, $self->_dbh, @_) if $self->{_in_dbh_do}
+  return $self->$code($self->_dbh, @_) if $self->{_in_dbh_do}
       || $self->{transaction_depth};
 
   local $self->{_in_dbh_do} = 1;
@@ -591,13 +589,13 @@ sub dbh_do {
     $self->_verify_pid if $self->_dbh;
     $self->_populate_dbh if !$self->_dbh;
     if($want_array) {
-        @result = $coderef->($self, $self->_dbh, @_);
+        @result = $self->$code($self->_dbh, @_);
     }
     elsif(defined $want_array) {
-        $result[0] = $coderef->($self, $self->_dbh, @_);
+        $result[0] = $self->$code($self->_dbh, @_);
     }
     else {
-        $coderef->($self, $self->_dbh, @_);
+        $self->$code($self->_dbh, @_);
     }
   };
 
@@ -609,7 +607,7 @@ sub dbh_do {
   # We were not connected - reconnect and retry, but let any
   #  exception fall right through this time
   $self->_populate_dbh;
-  $coderef->($self, $self->_dbh, @_);
+  $self->$code($self->_dbh, @_);
 }
 
 # This is basically a blend of dbh_do above and DBIx::Class::Storage::txn_do.
@@ -763,6 +761,8 @@ sub sql_maker {
   return $self->_sql_maker;
 }
 
+sub _rebless {}
+
 sub _populate_dbh {
   my ($self) = @_;
   my @info = @{$self->_dbi_connect_info || []};
@@ -776,7 +776,7 @@ sub _populate_dbh {
     my $driver = $self->_dbh->{Driver}->{Name};
     if ($self->load_optional_class("DBIx::Class::Storage::DBI::${driver}")) {
       bless $self, "DBIx::Class::Storage::DBI::${driver}";
-      $self->_rebless() if $self->can('_rebless');
+      $self->_rebless();
     }
   }
 
@@ -1010,7 +1010,7 @@ sub _dbh_execute {
 
 sub _execute {
     my $self = shift;
-    $self->dbh_do($self->can('_dbh_execute'), @_)
+    $self->dbh_do('_dbh_execute', @_)
 }
 
 sub insert {
@@ -1212,7 +1212,7 @@ sub _dbh_sth {
 
 sub sth {
   my ($self, $sql) = @_;
-  $self->dbh_do($self->can('_dbh_sth'), $sql);
+  $self->dbh_do('_dbh_sth', $sql);
 }
 
 sub _dbh_columns_info_for {
@@ -1274,7 +1274,7 @@ sub _dbh_columns_info_for {
 
 sub columns_info_for {
   my ($self, $table) = @_;
-  $self->dbh_do($self->can('_dbh_columns_info_for'), $table);
+  $self->dbh_do('_dbh_columns_info_for', $table);
 }
 
 =head2 last_insert_id
@@ -1291,7 +1291,7 @@ sub _dbh_last_insert_id {
 
 sub last_insert_id {
   my $self = shift;
-  $self->dbh_do($self->can('_dbh_last_insert_id'), @_);
+  $self->dbh_do('_dbh_last_insert_id', @_);
 }
 
 =head2 sqlt_type
