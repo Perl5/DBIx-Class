@@ -23,6 +23,8 @@ faster because it removes code from the object insert and retrieve chains.
 
 sub nocache { return 1 }
 
+sub purge_object_index_every {}
+
 sub purge_dead_from_object_index {}
 
 sub remove_from_object_index {}
