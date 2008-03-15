@@ -577,7 +577,9 @@ sub dbh_do {
   my $self = shift;
   my $code = shift;
 
-  return $self->$code($self->_dbh, @_) if $self->{_in_dbh_do}
+  my $dbh = $self->_dbh;
+
+  return $self->$code($dbh, @_) if $self->{_in_dbh_do}
       || $self->{transaction_depth};
 
   local $self->{_in_dbh_do} = 1;
@@ -586,16 +588,20 @@ sub dbh_do {
   my $want_array = wantarray;
 
   eval {
-    $self->_verify_pid if $self->_dbh;
-    $self->_populate_dbh if !$self->_dbh;
+    $self->_verify_pid if $dbh;
+    if( !$dbh ) {
+        $self->_populate_dbh;
+        $dbh = $self->_dbh;
+    }
+
     if($want_array) {
-        @result = $self->$code($self->_dbh, @_);
+        @result = $self->$code($dbh, @_);
     }
     elsif(defined $want_array) {
-        $result[0] = $self->$code($self->_dbh, @_);
+        $result[0] = $self->$code($dbh, @_);
     }
     else {
-        $self->$code($self->_dbh, @_);
+        $self->$code($dbh, @_);
     }
   };
 
