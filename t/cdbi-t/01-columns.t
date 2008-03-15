@@ -22,13 +22,13 @@ State->columns(Weather =>   qw/Rain Snowfall/);
 State->columns(Other =>     qw/Capital Population/);
 #State->has_many(cities => "City");
 
-sub accessor_name {
+sub accessor_name_for {
 	my ($class, $column) = @_;
 	my $return = $column eq "Rain" ? "Rainfall" : $column;
 	return $return;
 }
 
-sub mutator_name {
+sub mutator_name_for {
 	my ($class, $column) = @_;
 	my $return = $column eq "Rain" ? "set_Rainfall" : "set_$column";
 	return $return;
