@@ -25,6 +25,7 @@ requires 'Encode'                    => 0 if ($] <= 5.008000);
 build_requires 'DBD::SQLite'         => 1.13;
 build_requires 'Test::Builder'       => 0.33;
 build_requires 'Test::Warn'          => 0.08;
+build_requires 'Test::NoWarnings'    => 0.08;
 
 install_script 'script/dbicadmin';
 
