@@ -1353,9 +1353,7 @@ sub create_ddl_dir
       . $self->_check_sqlt_message . q{'})
           if !$self->_check_sqlt_version;
 
-  my $sqlt = SQL::Translator->new({
-      add_drop_table => 1,
-  });
+  my $sqlt = SQL::Translator->new( $sqltargs );
 
   $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
   my $sqlt_schema = $sqlt->translate({ data => $schema }) or die $sqlt->error;
@@ -1410,10 +1408,11 @@ sub create_ddl_dir
 
       my $source_schema;
       {
-        my $t = SQL::Translator->new;
+        my $t = SQL::Translator->new($sqltargs);
         $t->debug( 0 );
         $t->trace( 0 );
         $t->parser( $db )                       or die $t->error;
+        $t = $self->configure_sqlt($t, $db);
         my $out = $t->translate( $prefilename ) or die $t->error;
         $source_schema = $t->schema;
         unless ( $source_schema->name ) {
@@ -1427,10 +1426,11 @@ sub create_ddl_dir
       my $dest_schema = $sqlt_schema;
 
       unless ( "SQL::Translator::Producer::$db"->can('preprocess_schema') ) {
-        my $t = SQL::Translator->new;
+        my $t = SQL::Translator->new($sqltargs);
         $t->debug( 0 );
         $t->trace( 0 );
         $t->parser( $db )                    or die $t->error;
+        $t = $self->configure_sqlt($t, $db);
         my $out = $t->translate( $filename ) or die $t->error;
         $dest_schema = $t->schema;
         $dest_schema->name( $filename )
@@ -1439,7 +1439,7 @@ sub create_ddl_dir
 
       my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
                                                     $dest_schema,   $db,
-                                                    {}
+                                                    $sqltargs
                                                    );
       if(!open $file, ">$difffile")
       { 
