@@ -185,7 +185,7 @@ sub parse {
                                     reference_table  => $rel_table,
                                     on_delete        => $on_delete,
                                     on_update        => $on_update,
-                                    defined $is_deferrable ? ( deferrable => $is_deferrable ) : (),
+                                    (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
                   );
                     
                   my $index = $table->add_index(
