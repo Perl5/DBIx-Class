@@ -194,3 +194,13 @@ is($cd->artist->id, 1, 'rel okay');
 
 my $new_cd = $schema->resultset("CD")->create($new_cd_hashref);
 is($new_cd->artist->id, 17, 'new id retained okay');
+
+
+# Make sure exceptions from errors in created rels propogate
+eval {
+    my $t = $schema->resultset("Track")->new({});
+    $t->cd($t->new_related('cd', { artist => undef } ) );
+    $t->{_rel_in_storage} = 0;
+    $t->insert;
+};
+like($@, qr/cd.artist may not be NULL/, "Exception propogated properly");
