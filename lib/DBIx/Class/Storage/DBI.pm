@@ -442,16 +442,16 @@ whether any options are specified in the new C<connect_info>.
 Another Important Note:
 
 DBIC can do some wonderful magic with handling exceptions,
-disconnections, and transactions when you use C<AutoCommit =&gt; 1>
+disconnections, and transactions when you use C<< AutoCommit => 1 >>
 combined with C<txn_do> for transaction support.
 
-If you set C<AutoCommit =&gt; 0> in your connect info, then you are always
+If you set C<< AutoCommit => 0 >> in your connect info, then you are always
 in an assumed transaction between commits, and you're telling us you'd
 like to manage that manually.  A lot of DBIC's magic protections
 go away.  We can't protect you from exceptions due to database
 disconnects because we don't know anything about how to restart your
 transactions.  You're on your own for handling all sorts of exceptional
-cases if you choose the C<AutoCommit =&gt 0> path, just as you would
+cases if you choose the C<< AutoCommit => 0 >> path, just as you would
 be with raw DBI.
 
 Examples:
