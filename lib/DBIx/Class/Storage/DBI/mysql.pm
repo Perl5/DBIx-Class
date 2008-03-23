@@ -17,21 +17,21 @@ sub sqlt_type {
 }
 
 sub _svp_begin {
-    my ($self, $dbh, $name) = @_;
+    my ($self, $name) = @_;
 
-    $dbh->do("SAVEPOINT $name");
+    $self->dbh->do("SAVEPOINT $name");
 }
 
 sub _svp_release {
-    my ($self, $dbh, $name) = @_;
+    my ($self, $name) = @_;
 
-    $dbh->do("RELEASE SAVEPOINT $name");
+    $self->dbh->do("RELEASE SAVEPOINT $name");
 }
 
 sub _svp_rollback {
-    my ($self, $dbh, $name) = @_;
+    my ($self, $name) = @_;
 
-    $dbh->do("ROLLBACK TO SAVEPOINT $name")
+    $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 1;

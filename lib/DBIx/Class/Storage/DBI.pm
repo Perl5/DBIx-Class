@@ -882,7 +882,7 @@ sub svp_begin {
     return 0;
   }
   $self->debugobj->svp_begin($name) if $self->debug;
-  $self->_svp_begin($self->dbh(), $name);
+  $self->_svp_begin($name);
 }
 
 sub svp_release {
@@ -900,7 +900,7 @@ sub svp_release {
       return 0;
   }
   $self->debugobj->svp_release($name) if $self->debug;
-  $self->_svp_release($self->dbh(), $name);
+  $self->_svp_release($name);
 }
 
 sub svp_rollback {
@@ -918,7 +918,7 @@ sub svp_rollback {
       return 0;
   }
   $self->debugobj->svp_rollback($name) if $self->debug;
-  $self->_svp_rollback($self->dbh(), $name);
+  $self->_svp_rollback($name);
 }
 
 sub txn_begin {
