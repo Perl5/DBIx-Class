@@ -867,6 +867,59 @@ sub _connect {
   $dbh;
 }
 
+sub svp_begin {
+  my ($self, $name) = @_;
+ 
+  $self->throw_exception("You failed to provide a savepoint name!") if !$name;
+
+  if($self->{transaction_depth} == 0) {
+    warn("Can't use savepoints without a transaction.");
+    return 0;
+  }
+
+  if(!$self->can('_svp_begin')) {
+    warn("Your Storage implementation doesn't support savepoints!");
+    return 0;
+  }
+  $self->debugobj->svp_begin($name) if $self->debug;
+  $self->_svp_begin($self->dbh(), $name);
+}
+
+sub svp_release {
+  my ($self, $name) = @_;
+
+  $self->throw_exception("You failed to provide a savepoint name!") if !$name;
+
+  if($self->{transaction_depth} == 0) {
+    warn("Can't use savepoints without a transaction.");
+    return 0;
+  }
+
+  if(!$self->can('_svp_release')) {
+      warn("Your Storage implementation doesn't support savepoint releasing!");
+      return 0;
+  }
+  $self->debugobj->svp_release($name) if $self->debug;
+  $self->_svp_release($self->dbh(), $name);
+}
+
+sub svp_rollback {
+  my ($self, $name) = @_;
+
+  $self->throw_exception("You failed to provide a savepoint name!") if !$name;
+
+  if($self->{transaction_depth} == 0) {
+    warn("Can't use savepoints without a transaction.");
+    return 0;
+  }
+
+  if(!$self->can('_svp_rollback')) {
+      warn("Your Storage implementation doesn't support savepoints!");
+      return 0;
+  }
+  $self->debugobj->svp_rollback($name) if $self->debug;
+  $self->_svp_rollback($self->dbh(), $name);
+}
 
 sub txn_begin {
   my $self = shift;
