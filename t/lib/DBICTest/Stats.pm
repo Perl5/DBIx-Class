@@ -32,7 +32,7 @@ sub svp_begin {
   return $self->{'SVP_BEGIN'};
 }
 
-sub svn_release {
+sub svp_release {
   my ($self, $name) = @_;
 
   $self->{'SVP_RELEASE'}++;

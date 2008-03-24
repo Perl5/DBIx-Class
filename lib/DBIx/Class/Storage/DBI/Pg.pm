@@ -88,7 +88,7 @@ sub _svp_begin {
 sub _svp_release {
     my ($self, $name) = @_;
 
-    $self->dbh->pg_release($name;)
+    $self->dbh->pg_release($name);
 }
 
 sub _svp_rollback {

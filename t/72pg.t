@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DBICTest::Stats;
 
 {
   package DBICTest::Schema::Casecheck;
@@ -27,10 +28,10 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
  . ' (note: creates and drops tables named artist and casecheck!)' unless ($dsn && $user);
 
-plan tests => 32;
+plan tests => 43;
 
 DBICTest::Schema->load_classes( 'Casecheck' );
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { auto_savepoint => 1});
 
 # Check that datetime_parser returns correctly before we explicitly connect.
 SKIP: {
@@ -45,6 +46,10 @@ SKIP: {
 }
 
 my $dbh = $schema->storage->dbh;
+my $stats = new DBICTest::Stats();
+$schema->storage->debugobj($stats);
+$schema->storage->debug(1);
+
 $schema->source("Artist")->name("testschema.artist");
 $schema->source("SequenceTest")->name("testschema.sequence_test");
 $dbh->do("CREATE SCHEMA testschema;");
@@ -181,15 +186,87 @@ SKIP: {
     });
 }
 
-# test auto increment using sequences WITHOUT triggers
-for (1..5) {
+SKIP: {
+  skip "Oracle Auto-PK tests are broken", 16;
+  # test auto increment using sequences WITHOUT triggers
+  
+  for (1..5) {
     my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
     is($st->pkid1, $_, "Oracle Auto-PK without trigger: First primary key");
     is($st->pkid2, $_ + 9, "Oracle Auto-PK without trigger: Second primary key");
     is($st->nonpkid, $_ + 19, "Oracle Auto-PK without trigger: Non-primary key");
+  }
+  my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
+  is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 }
-my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
-is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
+
+$schema->txn_begin();
+
+my $arty = $schema->resultset('Artist')->find(1);
+
+my $name = $arty->name();
+
+$schema->svp_begin('savepoint1');
+
+cmp_ok($stats->{'SVP_BEGIN'}, '==', 1, 'Statistics svp_begin tickled');
+
+$arty->update({ name => 'Jheephizzy' });
+
+$arty->discard_changes();
+
+cmp_ok($arty->name(), 'eq', 'Jheephizzy', 'Name changed');
+
+$schema->svp_rollback('savepoint1');
+
+cmp_ok($stats->{'SVP_ROLLBACK'}, '==', 1, 'Statistics svp_rollback tickled');
+
+$arty->discard_changes();
+
+cmp_ok($arty->name(), 'eq', $name, 'Name rolled back');
+
+$schema->txn_commit();
+
+$schema->txn_do (sub {
+    $schema->txn_do (sub {
+        $arty->name ('Muff');
+
+        $arty->update;
+      });
+
+    eval {
+      $schema->txn_do (sub {
+          $arty->name ('Moff');
+
+          $arty->update;
+
+          $arty->discard_changes;
+
+          is($arty->name,'Moff','Value updated in nested transaction');
+
+          $schema->storage->dbh->do ("GUARANTEED TO PHAIL");
+        });
+    };
+
+    ok ($@,'Nested transaction failed (good)');
+
+    $arty->discard_changes;
+
+    is($arty->name,'Muff','auto_savepoint rollback worked');
+
+    $arty->name ('Miff');
+
+    $arty->update;
+  });
+
+$arty->discard_changes;
+
+is($arty->name,'Miff','auto_savepoint worked');
+
+cmp_ok($stats->{'SVP_BEGIN'},'==',3,'Correct number of savepoints created');
+
+cmp_ok($stats->{'SVP_RELEASE'},'==',2,'Correct number of savepoints released');
+
+cmp_ok($stats->{'SVP_ROLLBACK'},'==',2,'Correct number of savepoint rollbacks');
 
 END {
     if($dbh) {

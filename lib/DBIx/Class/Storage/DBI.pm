@@ -14,7 +14,8 @@ use Scalar::Util qw/blessed weaken/;
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
        _conn_pid _conn_tid disable_sth_caching on_connect_do
-       on_disconnect_do transaction_depth unsafe _dbh_autocommit/
+       on_disconnect_do transaction_depth unsafe _dbh_autocommit
+       auto_savepoint/
 );
 
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
@@ -516,6 +517,7 @@ sub connect_info {
     $last_info = { %$last_info }; # so delete is non-destructive
     my @storage_option = qw(
       on_connect_do on_disconnect_do disable_sth_caching unsafe cursor_class
+      auto_savepoint
     );
     for my $storage_opt (@storage_option) {
       if(my $value = delete $last_info->{$storage_opt}) {
@@ -626,7 +628,7 @@ sub txn_do {
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
 
-  return $coderef->(@_) if $self->{transaction_depth};
+  return $coderef->(@_) if $self->{transaction_depth} && ! $self->auto_savepoint;
 
   local $self->{_in_dbh_do} = 1;
 
@@ -931,6 +933,8 @@ sub txn_begin {
     #  we should reconnect on begin_work
     #  for AutoCommit users
     $self->dbh->begin_work;
+  } elsif ($self->auto_savepoint) {
+    $self->svp_begin ("savepoint_$self->{transaction_depth}");
   }
   $self->{transaction_depth}++;
 }
@@ -946,7 +950,9 @@ sub txn_commit {
       if $self->_dbh_autocommit;
   }
   elsif($self->{transaction_depth} > 1) {
-    $self->{transaction_depth}--
+    $self->{transaction_depth}--;
+    $self->svp_release ("savepoint_$self->{transaction_depth}")
+      if $self->auto_savepoint;
   }
 }
 
@@ -963,6 +969,10 @@ sub txn_rollback {
     }
     elsif($self->{transaction_depth} > 1) {
       $self->{transaction_depth}--;
+      if ($self->auto_savepoint) {
+        $self->svp_rollback ("savepoint_$self->{transaction_depth}");
+        $self->svp_release ("savepoint_$self->{transaction_depth}");
+      }
     }
     else {
       die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
