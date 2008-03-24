@@ -14,7 +14,8 @@ use Scalar::Util qw/blessed weaken/;
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
        _conn_pid _conn_tid disable_sth_caching on_connect_do
-       on_disconnect_do transaction_depth unsafe _dbh_autocommit/
+       on_disconnect_do transaction_depth unsafe _dbh_autocommit
+       auto_savepoint/
 );
 
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
@@ -429,6 +430,12 @@ Note that your custom settings can cause Storage to malfunction,
 especially if you set a C<HandleError> handler that suppresses exceptions
 and/or disable C<RaiseError>.
 
+=item auto_savepoint
+
+If this option is true, L<DBIx::Class> will use savepoints when nesting
+transactions, making it possible to recover from failure in the inner
+transaction without having to abort all outer transactions.
+
 =back
 
 These options can be mixed in with your other L<DBI> connection attributes,
@@ -516,6 +523,7 @@ sub connect_info {
     $last_info = { %$last_info }; # so delete is non-destructive
     my @storage_option = qw(
       on_connect_do on_disconnect_do disable_sth_caching unsafe cursor_class
+      auto_savepoint
     );
     for my $storage_opt (@storage_option) {
       if(my $value = delete $last_info->{$storage_opt}) {
@@ -626,7 +634,7 @@ sub txn_do {
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
 
-  return $coderef->(@_) if $self->{transaction_depth};
+  return $coderef->(@_) if $self->{transaction_depth} && ! $self->auto_savepoint;
 
   local $self->{_in_dbh_do} = 1;
 
@@ -867,6 +875,59 @@ sub _connect {
   $dbh;
 }
 
+sub svp_begin {
+  my ($self, $name) = @_;
+ 
+  $self->throw_exception("You failed to provide a savepoint name!") if !$name;
+
+  if($self->{transaction_depth} == 0) {
+    warn("Can't use savepoints without a transaction.");
+    return 0;
+  }
+
+  if(!$self->can('_svp_begin')) {
+    warn("Your Storage implementation doesn't support savepoints!");
+    return 0;
+  }
+  $self->debugobj->svp_begin($name) if $self->debug;
+  $self->_svp_begin($name);
+}
+
+sub svp_release {
+  my ($self, $name) = @_;
+
+  $self->throw_exception("You failed to provide a savepoint name!") if !$name;
+
+  if($self->{transaction_depth} == 0) {
+    warn("Can't use savepoints without a transaction.");
+    return 0;
+  }
+
+  if(!$self->can('_svp_release')) {
+      warn("Your Storage implementation doesn't support savepoint releasing!");
+      return 0;
+  }
+  $self->debugobj->svp_release($name) if $self->debug;
+  $self->_svp_release($name);
+}
+
+sub svp_rollback {
+  my ($self, $name) = @_;
+
+  $self->throw_exception("You failed to provide a savepoint name!") if !$name;
+
+  if($self->{transaction_depth} == 0) {
+    warn("Can't use savepoints without a transaction.");
+    return 0;
+  }
+
+  if(!$self->can('_svp_rollback')) {
+      warn("Your Storage implementation doesn't support savepoints!");
+      return 0;
+  }
+  $self->debugobj->svp_rollback($name) if $self->debug;
+  $self->_svp_rollback($name);
+}
 
 sub txn_begin {
   my $self = shift;
@@ -878,6 +939,8 @@ sub txn_begin {
     #  we should reconnect on begin_work
     #  for AutoCommit users
     $self->dbh->begin_work;
+  } elsif ($self->auto_savepoint) {
+    $self->svp_begin ("savepoint_$self->{transaction_depth}");
   }
   $self->{transaction_depth}++;
 }
@@ -893,7 +956,9 @@ sub txn_commit {
       if $self->_dbh_autocommit;
   }
   elsif($self->{transaction_depth} > 1) {
-    $self->{transaction_depth}--
+    $self->{transaction_depth}--;
+    $self->svp_release ("savepoint_$self->{transaction_depth}")
+      if $self->auto_savepoint;
   }
 }
 
@@ -910,6 +975,10 @@ sub txn_rollback {
     }
     elsif($self->{transaction_depth} > 1) {
       $self->{transaction_depth}--;
+      if ($self->auto_savepoint) {
+        $self->svp_rollback ("savepoint_$self->{transaction_depth}");
+        $self->svp_release ("savepoint_$self->{transaction_depth}");
+      }
     }
     else {
       die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;

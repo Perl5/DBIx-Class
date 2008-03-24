@@ -108,6 +108,39 @@ sub txn_commit {
   $self->print("COMMIT\n");
 }
 
+=head2 svp_begin
+
+Called when a savepoint is created.
+
+=cut
+sub svp_begin {
+  my ($self, $name) = @_;
+
+  $self->print("SAVEPOINT $name\n");
+}
+
+=head2 svp_release
+
+Called when a savepoint is released.
+
+=cut
+sub svp_release {
+  my ($self, $name) = @_;
+
+ $self->print("RELEASE SAVEPOINT $name\n");
+}
+
+=head2 svp_rollback
+
+Called when rolling back to a savepoint.
+
+=cut
+sub svp_rollback {
+  my ($self, $name) = @_;
+
+ $self->print("ROLLBACK TO SAVEPOINT $name\n");
+}
+
 =head2 query_start
 
 Called before a query is executed.  The first argument is the SQL string being

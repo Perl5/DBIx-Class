@@ -79,6 +79,24 @@ sub _sequence_fetch {
   return $id;
 }
 
+sub _svp_begin {
+    my ($self, $name) = @_;
+
+    $self->dbh->pg_savepoint($name);
+}
+
+sub _svp_release {
+    my ($self, $name) = @_;
+
+    $self->dbh->pg_release($name);
+}
+
+sub _svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->dbh->pg_rollback_to($name);
+}
+
 1;
 
 =head1 NAME

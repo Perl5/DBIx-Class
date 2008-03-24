@@ -262,6 +262,38 @@ which allows the rollback to propagate to the outermost transaction.
 
 sub txn_rollback { die "Virtual method!" }
 
+=head2 svp_begin
+
+Arguments: $savepoint_name
+
+Establishes a new savepoint of the specified name within the current
+transaction.
+
+=cut
+
+sub svp_begin { die "Virtual method!" }
+
+=head2 svp_release
+
+Arguments: $savepoint_name
+
+Destroy a savepoint, but keep the effects of the commands executed since
+it's creation.
+
+=cut
+
+sub svp_release { die "Virtual method!" }
+
+=head2 svp_rollback
+
+Arguments: $savepoint_name
+
+Rollback to the savepoint of the specified name.
+
+=cut
+
+sub svp_rollback { die "Virtual method!" }
+
 =for comment
 
 =head2 txn_scope_guard

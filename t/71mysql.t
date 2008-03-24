@@ -5,6 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 use DBI::Const::GetInfoType;
+use DBICTest::Stats;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
@@ -13,15 +14,18 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 5;
+plan tests => 9;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 my $dbh = $schema->storage->dbh;
+my $stats = new DBICTest::Stats();
+$schema->storage->debugobj($stats);
+$schema->storage->debug(1);
 
 $dbh->do("DROP TABLE IF EXISTS artist;");
 
-$dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), charfield CHAR(10));");
+$dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), charfield CHAR(10)) ENGINE=InnoDB;");
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
@@ -67,6 +71,32 @@ my $test_type_info = {
         'default_value' => undef,
     },
 };
+
+$schema->txn_begin();
+
+my $arty = $schema->resultset('Artist')->find(1);
+
+my $name = $arty->name();
+
+$schema->svp_begin('savepoint1');
+
+cmp_ok($stats->{'SVP_BEGIN'}, '==', 1, 'Statistics svp_begin tickled');
+
+$arty->update({ name => 'Jheephizzy' });
+
+$arty->discard_changes();
+
+cmp_ok($arty->name(), 'eq', 'Jheephizzy', 'Name changed');
+
+$schema->svp_rollback('savepoint1');
+
+cmp_ok($stats->{'SVP_ROLLBACK'}, '==', 1, 'Statistics svp_rollback tickled');
+
+$arty->discard_changes();
+
+cmp_ok($arty->name(), 'eq', $name, 'Name rolled back');
+
+$schema->txn_commit();
 
 SKIP: {
     my $mysql_version = $dbh->get_info( $GetInfoType{SQL_DBMS_VER} );

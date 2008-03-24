@@ -800,6 +800,57 @@ sub txn_rollback {
   $self->storage->txn_rollback;
 }
 
+=head2 svp_begin
+
+Creates a new savepoint (does nothing outside a transaction). 
+Equivalent to calling $schema->storage->svp_begin.  See
+L<DBIx::Class::Storage::DBI/"svp_begin"> for more information.
+
+=cut
+
+sub svp_begin {
+  my ($self, $name) = @_;
+
+  $self->storage or $self->throw_exception
+    ('svp_begin called on $schema without storage');
+
+  $self->storage->svp_begin($name);
+}
+
+=head2 svp_release
+
+Releases a savepoint (does nothing outside a transaction). 
+Equivalent to calling $schema->storage->svp_release.  See
+L<DBIx::Class::Storage::DBI/"svp_release"> for more information.
+
+=cut
+
+sub svp_release {
+  my ($self, $name) = @_;
+
+  $self->storage or $self->throw_exception
+    ('svp_release called on $schema without storage');
+
+  $self->storage->svp_release($name);
+}
+
+=head2 svp_rollback
+
+Rollback to a savepoint (does nothing outside a transaction). 
+Equivalent to calling $schema->storage->svp_rollback.  See
+L<DBIx::Class::Storage::DBI/"svp_rollback"> for more information.
+
+=cut
+
+sub svp_rollback {
+  my ($self, $name) = @_;
+
+  $self->storage or $self->throw_exception
+    ('svp_rollback called on $schema without storage');
+
+  $self->storage->svp_rollback($name);
+}
+
 =head2 clone
 
 =over 4
