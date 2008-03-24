@@ -124,7 +124,7 @@ sub svp_begin {
 Called when a savepoint is released.
 
 =cut
-sub svn_release {
+sub svp_release {
   my ($self, $name) = @_;
 
  $self->print("RELEASE SAVEPOINT $name\n");
