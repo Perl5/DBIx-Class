@@ -5,6 +5,8 @@ Revision history for DBIx::Class
         - Refactored DBIx::Class::Schema::Versioned
         - Syntax errors from resultset components are now reported correctly
         - sqltargs respected correctly in deploy et al.
+        - Added support for savepoints, and using them automatically in
+          nested transactions if auto_savepoint is set in connect_info.
 
 0.08010 2008-03-01 10:30
         - Fix t/94versioning.t so it passes with latest SQL::Translator
