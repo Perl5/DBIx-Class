@@ -430,6 +430,12 @@ Note that your custom settings can cause Storage to malfunction,
 especially if you set a C<HandleError> handler that suppresses exceptions
 and/or disable C<RaiseError>.
 
+=item auto_savepoint
+
+If this option is true, L<DBIx::Class> will use savepoints when nesting
+transactions, making it possible to recover from failure in the inner
+transaction without having to abort all outer transactions.
+
 =back
 
 These options can be mixed in with your other L<DBI> connection attributes,
