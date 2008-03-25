@@ -15,7 +15,7 @@ __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
        _conn_pid _conn_tid disable_sth_caching on_connect_do
        on_disconnect_do transaction_depth unsafe _dbh_autocommit
-       auto_savepoint/
+       auto_savepoint savepoints/
 );
 
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
@@ -328,6 +328,7 @@ sub new {
 
   $new->transaction_depth(0);
   $new->_sql_maker_opts({});
+  $new->{savepoints} = [];
   $new->{_in_dbh_do} = 0;
   $new->{_dbh_gen} = 0;
 
@@ -877,56 +878,87 @@ sub _connect {
 
 sub svp_begin {
   my ($self, $name) = @_;
- 
-  $self->throw_exception("You failed to provide a savepoint name!") if !$name;
 
-  if($self->{transaction_depth} == 0) {
-    warn("Can't use savepoints without a transaction.");
-    return 0;
-  }
+  $name = $self->_svp_generate_name
+    unless defined $name;
 
-  if(!$self->can('_svp_begin')) {
-    warn("Your Storage implementation doesn't support savepoints!");
-    return 0;
-  }
+  $self->throw_exception ("You can't use savepoints outside a transaction")
+    if $self->{transaction_depth} == 0;
+
+  $self->throw_exception ("Your Storage implementation doesn't support savepoints")
+    unless $self->can('_svp_begin');
+  
+  push @{ $self->{savepoints} }, $name;
+
   $self->debugobj->svp_begin($name) if $self->debug;
-  $self->_svp_begin($name);
+  
+  return $self->_svp_begin($name);
 }
 
 sub svp_release {
   my ($self, $name) = @_;
 
-  $self->throw_exception("You failed to provide a savepoint name!") if !$name;
+  $self->throw_exception ("You can't use savepoints outside a transaction")
+    if $self->{transaction_depth} == 0;
 
-  if($self->{transaction_depth} == 0) {
-    warn("Can't use savepoints without a transaction.");
-    return 0;
+  $self->throw_exception ("Your Storage implementation doesn't support savepoints")
+    unless $self->can('_svp_release');
+
+  if (defined $name) {
+    $self->throw_exception ("Savepoint '$name' does not exist")
+      unless grep { $_ eq $name } @{ $self->{savepoints} };
+
+    # Dig through the stack until we find the one we are releasing.  This keeps
+    # the stack up to date.
+    my $svp;
+
+    do { $svp = pop @{ $self->{savepoints} } } while $svp ne $name;
+  } else {
+    $name = pop @{ $self->{savepoints} };
   }
 
-  if(!$self->can('_svp_release')) {
-      warn("Your Storage implementation doesn't support savepoint releasing!");
-      return 0;
-  }
   $self->debugobj->svp_release($name) if $self->debug;
-  $self->_svp_release($name);
+
+  return $self->_svp_release($name);
 }
 
 sub svp_rollback {
   my ($self, $name) = @_;
 
-  $self->throw_exception("You failed to provide a savepoint name!") if !$name;
+  $self->throw_exception ("You can't use savepoints outside a transaction")
+    if $self->{transaction_depth} == 0;
 
-  if($self->{transaction_depth} == 0) {
-    warn("Can't use savepoints without a transaction.");
-    return 0;
+  $self->throw_exception ("Your Storage implementation doesn't support savepoints")
+    unless $self->can('_svp_rollback');
+
+  if (defined $name) {
+      # If they passed us a name, verify that it exists in the stack
+      unless(grep({ $_ eq $name } @{ $self->{savepoints} })) {
+          $self->throw_exception("Savepoint '$name' does not exist!");
+      }
+
+      # Dig through the stack until we find the one we are releasing.  This keeps
+      # the stack up to date.
+      while(my $s = pop(@{ $self->{savepoints} })) {
+          last if($s eq $name);
+      }
+      # Add the savepoint back to the stack, as a rollback doesn't remove the
+      # named savepoint, only everything after it.
+      push(@{ $self->{savepoints} }, $name);
+  } else {
+      # We'll assume they want to rollback to the last savepoint
+      $name = $self->{savepoints}->[-1];
   }
 
-  if(!$self->can('_svp_rollback')) {
-      warn("Your Storage implementation doesn't support savepoints!");
-      return 0;
-  }
   $self->debugobj->svp_rollback($name) if $self->debug;
-  $self->_svp_rollback($name);
+  
+  return $self->_svp_rollback($name);
+}
+
+sub _svp_generate_name {
+    my ($self) = @_;
+
+    return 'savepoint_'.scalar(@{ $self->{'savepoints'} });
 }
 
 sub txn_begin {
@@ -940,7 +972,7 @@ sub txn_begin {
     #  for AutoCommit users
     $self->dbh->begin_work;
   } elsif ($self->auto_savepoint) {
-    $self->svp_begin ("savepoint_$self->{transaction_depth}");
+    $self->svp_begin;
   }
   $self->{transaction_depth}++;
 }
@@ -957,7 +989,7 @@ sub txn_commit {
   }
   elsif($self->{transaction_depth} > 1) {
     $self->{transaction_depth}--;
-    $self->svp_release ("savepoint_$self->{transaction_depth}")
+    $self->svp_release
       if $self->auto_savepoint;
   }
 }
@@ -976,8 +1008,8 @@ sub txn_rollback {
     elsif($self->{transaction_depth} > 1) {
       $self->{transaction_depth}--;
       if ($self->auto_savepoint) {
-        $self->svp_rollback ("savepoint_$self->{transaction_depth}");
-        $self->svp_release ("savepoint_$self->{transaction_depth}");
+        $self->svp_rollback;
+        $self->svp_release;
       }
     }
     else {

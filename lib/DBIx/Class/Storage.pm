@@ -294,6 +294,15 @@ Rollback to the savepoint of the specified name.
 
 sub svp_rollback { die "Virtual method!" }
 
+=head2 svp_generate_name
+
+Generates a name for the next savepoint.  Defaults to 'savepoint_$count',
+where count is the number of current savepoints + 1.
+
+=cut
+
+sub svp_generate_name { die "Virtual method!" }
+
 =for comment
 
 =head2 txn_scope_guard

@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -14,7 +14,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 9;
+plan tests => 7;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -72,31 +72,27 @@ my $test_type_info = {
     },
 };
 
-$schema->txn_begin();
+$schema->txn_begin;
 
 my $arty = $schema->resultset('Artist')->find(1);
 
-my $name = $arty->name();
+my $name = $arty->name;
 
-$schema->svp_begin('savepoint1');
-
-cmp_ok($stats->{'SVP_BEGIN'}, '==', 1, 'Statistics svp_begin tickled');
+$schema->storage->_svp_begin ("mysavepoint");
 
 $arty->update({ name => 'Jheephizzy' });
 
-$arty->discard_changes();
+$arty->discard_changes;
 
-cmp_ok($arty->name(), 'eq', 'Jheephizzy', 'Name changed');
+cmp_ok($arty->name, 'eq', 'Jheephizzy', 'Name changed');
 
-$schema->svp_rollback('savepoint1');
+$schema->storage->_svp_rollback ("mysavepoint");
 
-cmp_ok($stats->{'SVP_ROLLBACK'}, '==', 1, 'Statistics svp_rollback tickled');
+$arty->discard_changes;
 
-$arty->discard_changes();
+cmp_ok($arty->name, 'eq', $name, 'Name rolled back');
 
-cmp_ok($arty->name(), 'eq', $name, 'Name rolled back');
-
-$schema->txn_commit();
+$schema->txn_commit;
 
 SKIP: {
     my $mysql_version = $dbh->get_info( $GetInfoType{SQL_DBMS_VER} );
