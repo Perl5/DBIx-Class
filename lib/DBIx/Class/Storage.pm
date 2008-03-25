@@ -264,10 +264,10 @@ sub txn_rollback { die "Virtual method!" }
 
 =head2 svp_begin
 
-Arguments: $savepoint_name
+Arguments: $savepoint_name?
 
-Establishes a new savepoint of the specified name within the current
-transaction.
+Created a new savepoint using the name provided as argument. If no name
+is provided, a random name will be used.
 
 =cut
 
@@ -275,10 +275,11 @@ sub svp_begin { die "Virtual method!" }
 
 =head2 svp_release
 
-Arguments: $savepoint_name
+Arguments: $savepoint_name?
 
-Destroy a savepoint, but keep the effects of the commands executed since
-it's creation.
+Release the savepoint provided as argument. If none is provided,
+release the savepoint created most recently. This will implicitly
+release all savepoints created after the one explicitly released as well.
 
 =cut
 
@@ -286,22 +287,15 @@ sub svp_release { die "Virtual method!" }
 
 =head2 svp_rollback
 
-Arguments: $savepoint_name
+Arguments: $savepoint_name?
 
-Rollback to the savepoint of the specified name.
+Rollback to the savepoint provided as argument. If none is provided,
+rollback to the savepoint created most recently. This will implicitly
+release all savepoints created after the savepoint we rollback to.
 
 =cut
 
 sub svp_rollback { die "Virtual method!" }
-
-=head2 svp_generate_name
-
-Generates a name for the next savepoint.  Defaults to 'savepoint_$count',
-where count is the number of current savepoints + 1.
-
-=cut
-
-sub svp_generate_name { die "Virtual method!" }
 
 =for comment
 
