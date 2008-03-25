@@ -4,7 +4,6 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use DBICTest::Stats;
 
 {
   package DBICTest::Schema::Casecheck;
@@ -28,10 +27,10 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
  . ' (note: creates and drops tables named artist and casecheck!)' unless ($dsn && $user);
 
-plan tests => 34;
+plan tests => 32;
 
 DBICTest::Schema->load_classes( 'Casecheck' );
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass, { auto_savepoint => 1});
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 # Check that datetime_parser returns correctly before we explicitly connect.
 SKIP: {
@@ -46,10 +45,6 @@ SKIP: {
 }
 
 my $dbh = $schema->storage->dbh;
-my $stats = new DBICTest::Stats();
-$schema->storage->debugobj($stats);
-$schema->storage->debug(1);
-
 $schema->source("Artist")->name("testschema.artist");
 $schema->source("SequenceTest")->name("testschema.sequence_test");
 $dbh->do("CREATE SCHEMA testschema;");
@@ -188,8 +183,8 @@ SKIP: {
 
 SKIP: {
   skip "Oracle Auto-PK tests are broken", 16;
+
   # test auto increment using sequences WITHOUT triggers
-  
   for (1..5) {
     my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
     is($st->pkid1, $_, "Oracle Auto-PK without trigger: First primary key");
@@ -199,28 +194,6 @@ SKIP: {
   my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
   is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 }
-
-$schema->txn_begin;
-
-my $arty = $schema->resultset('Artist')->find(1);
-
-my $name = $arty->name;
-
-$schema->storage->_svp_begin ("mysavepoint");
-
-$arty->update({ name => 'Jheephizzy' });
-
-$arty->discard_changes;
-
-cmp_ok($arty->name, 'eq', 'Jheephizzy', 'Name changed');
-
-$schema->storage->_svp_rollback ("mysavepoint");
-
-$arty->discard_changes;
-
-cmp_ok($arty->name, 'eq', $name, 'Name rolled back');
-
-$schema->txn_commit;
 
 END {
     if($dbh) {
