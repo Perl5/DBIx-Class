@@ -99,7 +99,7 @@ C<SQL_LONGVARCHAR> is a constant in the C<DBI> module.
 
 =head1 IMPLEMENTED FUNCTIONS
 
-=head2 bind_attributes_by_data_type
+=head2 bind_attribute_by_data_type
 
 This function currently supports the SQL_LONGVARCHAR column type.
 
