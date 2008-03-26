@@ -5,11 +5,20 @@ use warnings;
 use base qw/DBIx::Class::Core DBIx::Class::DB/;
 use Carp::Clan qw/^DBIx::Class/;
 
-eval {
-  require Class::Trigger;
-  require DBIx::ContextualFetch;
-};
-croak "Class::Trigger and DBIx::ContextualFetch is required for CDBICompat" if $@;
+# Modules CDBICompat needs that DBIx::Class does not.
+my @Extra_Modules = qw(
+    Class::Trigger
+    DBIx::ContextualFetch
+    Clone
+);
+                
+my @didnt_load;
+for my $module (@Extra_Modules) {
+    push @didnt_load, $module unless eval qq{require $module};
+}
+croak("@{[ join ', ', @didnt_load ]} are missing and are required for CDBICompat")
+    if @didnt_load;
+
 
 __PACKAGE__->load_own_components(qw/
   Constraints
