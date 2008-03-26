@@ -496,6 +496,17 @@ sub search_related {
   return shift->related_resultset(shift)->search(@_);
 }
 
+=head2 search_related_rs
+
+This method works exactly the same as search_related, except that
+it garauntees a restultset, even in list context.
+
+=cut
+
+sub search_related_rs {
+  return shift->related_resultset(shift)->search_rs(@_);
+}
+
 =head2 cursor
 
 =over 4
