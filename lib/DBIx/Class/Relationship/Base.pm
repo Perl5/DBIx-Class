@@ -208,7 +208,7 @@ sub search_related {
   ( $objects_rs ) = $rs->search_related_rs('relname', $cond, $attrs);
 
 This method works exactly the same as search_related, except that 
-it garauntees a restultset, even in list context.
+it guarantees a restultset, even in list context.
 
 =cut
 

@@ -499,7 +499,7 @@ sub search_related {
 =head2 search_related_rs
 
 This method works exactly the same as search_related, except that
-it garauntees a restultset, even in list context.
+it guarantees a restultset, even in list context.
 
 =cut
 
