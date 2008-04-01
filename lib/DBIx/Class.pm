@@ -268,6 +268,8 @@ phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
 quicksilver: Jules Bean
 
+rdj: Ryan D Johnson <ryan@innerfence.com>
+
 sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>

@@ -38,7 +38,8 @@ __PACKAGE__->load_classes(qw/
   qw/SelfRefAlias TreeLike TwoKeyTreeLike Event EventTZ NoPrimaryKey/,
   qw/Collection CollectionObject TypedObject/,
   qw/Owners BooksInLibrary/,
-  qw/ForceForeign/  
+  qw/ForceForeign/,
+  qw/LongColumns/,
 );
 
 sub sqlt_deploy_hook {

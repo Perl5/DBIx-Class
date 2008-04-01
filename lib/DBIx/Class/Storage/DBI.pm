@@ -1538,6 +1538,7 @@ sub create_ddl_dir
           unless $dest_schema->name;
       }
 
+      $DB::single = 1;
       my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
                                                     $dest_schema,   $db,
                                                     $sqltargs
