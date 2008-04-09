@@ -101,7 +101,7 @@ L</WHAT ARE JOINS> above.
 =head2 Across multiple relations
 
 For simplicity in the example above, the C<Artist> was shown as a
-simple text firld in the C<Tracks> table, in reality, you'll want to
+simple text field in the C<Tracks> table, in reality, you'll want to
 have the artists in their own table as well, thus to fetch the
 complete set of data we'll need to join to the Artist table too.
 
