@@ -5,6 +5,7 @@ use base 'DBIx::Class::Storage';
 
 use strict;    
 use warnings;
+use Carp::Clan qw/^DBIx::Class/;
 use DBI;
 use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
@@ -1285,6 +1286,7 @@ sub select_single {
   my $self = shift;
   my ($rv, $sth, @bind) = $self->_select(@_);
   my @row = $sth->fetchrow_array;
+  carp "Query returned more than one row" if $sth->fetchrow_array;
   # Need to call finish() to work round broken DBDs
   $sth->finish();
   return @row;

@@ -332,10 +332,14 @@ Additionally, you can specify the columns explicitly by name:
 If the C<key> is specified as C<primary>, it searches only on the primary key.
 
 If no C<key> is specified, it searches on all unique constraints defined on the
-source, including the primary key.
+source for which column data is provided, including the primary key.
 
 If your table does not have a primary key, you B<must> provide a value for the
 C<key> attribute matching one of the unique constraints on the source.
+
+Note: If your query does not return only one row, a warning is generated:
+
+  Query returned more than one row
 
 See also L</find_or_create> and L</update_or_create>. For information on how to
 declare unique constraints, see
@@ -388,25 +392,46 @@ sub find {
     @{$input_query}{@keys} = values %related;
   }
 
-  my @unique_queries = $self->_unique_queries($input_query, $attrs);
 
   # Build the final query: Default to the disjunction of the unique queries,
   # but allow the input query in case the ResultSet defines the query or the
   # user is abusing find
   my $alias = exists $attrs->{alias} ? $attrs->{alias} : $self->{attrs}{alias};
-  my $query = @unique_queries
-    ? [ map { $self->_add_alias($_, $alias) } @unique_queries ]
-    : $self->_add_alias($input_query, $alias);
+  my $query;
+  if (exists $attrs->{key}) {
+    my @unique_cols = $self->result_source->unique_constraint_columns($attrs->{key});
+    my $unique_query = $self->_build_unique_query($input_query, \@unique_cols);
+    $query = $self->_add_alias($unique_query, $alias);
+  }
+  else {
+    my @unique_queries = $self->_unique_queries($input_query, $attrs);
+    $query = @unique_queries
+      ? [ map { $self->_add_alias($_, $alias) } @unique_queries ]
+      : $self->_add_alias($input_query, $alias);
+  }
 
   # Run the query
   if (keys %$attrs) {
     my $rs = $self->search($query, $attrs);
-    return keys %{$rs->_resolved_attrs->{collapse}} ? $rs->next : $rs->single;
+    if (keys %{$rs->_resolved_attrs->{collapse}}) {
+      my $row = $rs->next;
+      carp "Query returned more than one row" if $rs->next;
+      return $row;
+    }
+    else {
+      return $rs->single;
+    }
   }
   else {
-    return keys %{$self->_resolved_attrs->{collapse}}
-      ? $self->search($query)->next
-      : $self->single($query);
+    if (keys %{$self->_resolved_attrs->{collapse}}) {
+      my $rs = $self->search($query);
+      my $row = $rs->next;
+      carp "Query returned more than one row" if $rs->next;
+      return $row;
+    }
+    else {
+      return $self->single($query);
+    }
   }
 }
 
