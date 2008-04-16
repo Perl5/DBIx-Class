@@ -60,6 +60,7 @@ this:
 
  my $fred = $schema->resultset('Author')->find({ Name => 'Fred' });
  my $fredsbooks = $schema->resultset('Book')->search({ Author => $fred->ID });
+
 With a has_many relationship called "books" on Author (see below for details),
 we can do this instead:
 

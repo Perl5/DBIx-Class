@@ -13,14 +13,16 @@ better way?  You've come to the right place.
 Here are a few simple tips that will help you get your bearings with
 DBIx::Class.  
 
-=head2 Tables become ResultSources
+=head2 Tables become Result classes
 
-DBIx::Class needs to know what your Table structure looks like.  You do that by
-defining L<DBIx::Class::ResultSource>s.  Each table gets a ResultSource, which
-defines the Columns it has, along with any Relationships it has to other tables.
-(And oh, so much more besides)  The important thing to understand:
+DBIx::Class needs to know what your Table structure looks like.  You
+do that by defining Result classes. Result classes are defined by
+calling methods proxied to L<DBIx::Class::ResultSource>.  Each Result
+class defines one Table, which defines the Columns it has, along with
+any Relationships it has to other tables.  (And oh, so much more
+besides) The important thing to understand:
 
-  A ResultSource == Table
+  A Result class == Table
 
 (most of the time, but just bear with my simplification)
 
@@ -61,6 +63,11 @@ The important thing to understand:
 
   Setting up a ResultSet does not execute the query; retrieving
   the data does.
+
+=head2 Search results are returned as Rows
+
+Rows of the search from the database are blessed into
+L<DBIx::Class::Row> objects.
 
 =head1 SETTING UP DBIx::Class
 
