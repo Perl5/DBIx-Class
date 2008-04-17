@@ -2,7 +2,6 @@ use strict;
 use warnings;
 use lib qw(t/lib);
 use Test::More;
-use Data::Dump qw/dump/;
 
 BEGIN {
     eval "use DBD::Multi";
