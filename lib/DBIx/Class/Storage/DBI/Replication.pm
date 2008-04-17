@@ -21,6 +21,8 @@ DBIx::Class::Storage::DBI::Replication - EXPERIMENTAL Replicated database suppor
 		     [ "dbi:mysql:database=test;hostname=master", "username", "password", { AutoCommit => 1 } ], # master
 		     [ "dbi:mysql:database=test;hostname=slave1", "username", "password", { priority => 10 } ],  # slave1
 		     [ "dbi:mysql:database=test;hostname=slave2", "username", "password", { priority => 10 } ],  # slave2
+		     [ $dbh, '','', {priority=>10}], # add in a preexisting database handle
+		     [ sub {  DBI->connect }, '', '', {priority=>10}], # DBD::Multi will call this coderef for connects
 		     <...>,
 		     { limit_dialect => 'LimitXY' } # If needed, see below
 		    ] );
@@ -83,15 +85,24 @@ sub connect_info {
     $global_options = ref $info->[-1] eq 'HASH' ? pop( @$info ) : {};
     if( ref( $options = $info->[0]->[-1] ) eq 'HASH' ) {
 	# Local options present in dsn, merge them with global options
-	map { $global_options->{$_} = $options->{$_} } keys %$options;
-	pop @{$info->[0]};
+        map { $global_options->{$_} = $options->{$_} } keys %$options;
+        pop @{$info->[0]};
     }
 
     # We need to copy-pass $global_options, since connect_info clears it while
     # processing options
     $self->write_source->connect_info( @{$info->[0]}, { %$global_options } );
 
-    @dsns = map { ($_->[3]->{priority} || 10) => $_ } @{$info->[0]}[1..@{$info->[0]}-1];
+	## allow either a DSN string or an already connect $dbh.  Just remember if
+	## you use the $dbh option then DBD::Multi has no idea how to reconnect in
+	## the event of a failure.
+	
+    @dsns = map {
+        ## if the first element in the arrayhash is a ref, make that the value
+        my $db = ref $_->[0] ? $_->[0] : $_;
+        ($_->[3]->{priority} || 10) => $db;
+    } @{$info->[0]}[1..@{$info->[0]}-1];
+    
     $global_options->{dsns} = \@dsns;
 
     $self->read_source->connect_info( [ 'dbi:Multi:', undef, undef, { %$global_options } ] );
