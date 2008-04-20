@@ -16,7 +16,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 48 );
+        : ( tests => 56 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -343,3 +343,69 @@ is($art_rs_pr->search_related('cds')->search_related('tracks')->first->title,
   );
 
 is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
+
+
+TODO: {
+    local $TODO = 'Prefetch of multiple has_many rels at the same level (currently must die to protect the clueless git)';
+    use DBIx::Class::ResultClass::HashRefInflator;
+
+    #( 1 -> M + M )
+    my $cd_rs = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' });
+    my $pr_cd_rs = $cd_rs->search ({}, {
+        prefetch => [qw/tracks tags/],
+    });
+
+    my $tracks_rs = $cd_rs->first->tracks;
+    my $tracks_count = $tracks_rs->count;
+
+    my ($pr_tracks_rs, $pr_tracks_count);
+
+    $queries = 0;
+    $schema->storage->debugcb(sub { $queries++ });
+    $schema->storage->debug(1);
+    eval {
+        $pr_tracks_rs = $pr_cd_rs->first->tracks;
+        $pr_tracks_count = $pr_tracks_rs->count;
+    };
+    ok(! $@, 'exception on attempt to prefetch several same level has_many\'s (1 -> M + M)');
+    is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
+
+    is($pr_tracks_count, $tracks_count, 'equal count of prefetched relations over several same level has_many\'s (1 -> M + M)');
+
+    for ($pr_tracks_rs, $tracks_rs) {
+        $_->result_class ('DBIx::Class::ResultClass::HashRefInflator');
+    }
+
+    is_deeply ([$pr_tracks_rs->all], [$tracks_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (1 -> M + M)');
+
+    #( M -> 1 -> M + M )
+    my $note_rs = $schema->resultset('LinerNotes')->search ({ notes => 'Buy Whiskey!' });
+    my $pr_note_rs = $note_rs->search ({}, {
+        prefetch => {
+            cd => [qw/tags tracks/]
+        },
+    });
+
+    my $tags_rs = $note_rs->first->cd->tags;
+    my $tags_count = $tags_rs->count;
+
+    my ($pr_tags_rs, $pr_tags_count);
+
+    $queries = 0;
+    $schema->storage->debugcb(sub { $queries++ });
+    $schema->storage->debug(1);
+    eval {
+        $pr_tags_rs = $pr_note_rs->first->cd->tags;
+        $pr_tags_count = $pr_tags_rs->count;
+    };
+    ok(! $@, 'exception on attempt to prefetch several same level has_many\'s (M -> 1 -> M + M)');
+    is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
+
+    is($pr_tags_count, $tags_count, 'equal count of prefetched relations over several same level has_many\'s (M -> 1 -> M + M)');
+
+    for ($pr_tags_rs, $tags_rs) {
+        $_->result_class ('DBIx::Class::ResultClass::HashRefInflator');
+    }
+
+    is_deeply ([$pr_tags_rs->all], [$tags_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (M -> 1 -> M + M)');
+};
