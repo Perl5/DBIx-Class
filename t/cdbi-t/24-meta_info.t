@@ -4,10 +4,14 @@ use strict;
 use Test::More;
 
 BEGIN {
-    plan skip_all => "Time::Piece required for this test"
-        unless eval { require Time::Piece };
+  eval "use DBIx::Class::CDBICompat;";
+  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@"
+    if $@;
 
-    plan tests => 12;
+  plan skip_all => "Time::Piece required for this test"
+    unless eval { require Time::Piece };
+
+  plan tests => 12;
 }
 
 use Test::Warn;
