@@ -136,6 +136,18 @@ sub initial_populate {
 }
 
 
+=head2 job_handler_echo
+
+This is a method to test the job handler role.
+
+=cut
+
+sub job_handler_echo {
+	my ($schema, $job, $alert) = @_;
+	return $alert;
+}
+
+
 =head1 AUTHORS
 
 See L<DBIx::Class> for more information regarding authors.
