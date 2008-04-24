@@ -52,8 +52,8 @@ __END__
 
 =head1 NAME
 
-DBIx::Class::Storage::ODBC::Microsoft_SQL_Server - Support specific to
-Microsoft SQL Server over ODBC
+DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server - Support specific
+to Microsoft SQL Server over ODBC
 
 =head1 DESCRIPTION
 
