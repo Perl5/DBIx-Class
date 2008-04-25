@@ -7,7 +7,7 @@ BEGIN {
     eval "use DBD::Multi";
     plan $@
         ? ( skip_all => 'needs DBD::Multi for testing' )
-        : ( tests => 18 );
+        : ( tests => 20 );
 }	
 
 ## ----------------------------------------------------------------------------
@@ -16,7 +16,7 @@ BEGIN {
 
 TESTSCHEMACLASS: {
 	
-	package DBIx::Class::DBI::Replication::TestReplication;
+	package DBIx::Class::DBI::Replicated::TestReplication;
 
 	use DBI;	
 	use DBICTest;
@@ -57,7 +57,7 @@ TESTSCHEMACLASS: {
 	sub init_schema {
 		my $class = shift @_;
 		my $schema = DBICTest->init_schema();
-		$schema->storage_type( '::DBI::Replication' );
+		$schema->storage_type( '::DBI::Replicated' );
 		
 		return $schema;
 	}
@@ -67,15 +67,15 @@ TESTSCHEMACLASS: {
 	sub connect {
 		my $self = shift @_;
 		my ($master, @slaves) = @{$self->{dsns}};
-		my @connections = ([$master, '','', {AutoCommit=>1, PrintError=>0}]);
-		my @slavesob;
+		my $master_connect_info = [$master, '','', {AutoCommit=>1, PrintError=>0}];
 		
+		my @slavesob;
 		foreach my $slave (@slaves)
 		{
 			my $dbh = shift @{$self->{slaves}}
 			 || DBI->connect($slave,"","",{PrintError=>0, PrintWarn=>0});
 			
-			push @connections,
+			push @{$master_connect_info->[-1]->{slaves_connect_info}},
 			 [$dbh, '','',{priority=>10}];
 			 
 			push @slavesob,
@@ -87,10 +87,7 @@ TESTSCHEMACLASS: {
 		
 		$self
 			->{schema}
-			->connect([
-				@connections,
-				{limit_dialect => 'LimitXY'}
-			]);
+			->connect(@$master_connect_info);
 	}
 	
 	## replication
@@ -137,7 +134,7 @@ my %params = (
 	],
 );
 
-ok my $replicate = DBIx::Class::DBI::Replication::TestReplication->new(%params)
+ok my $replicate = DBIx::Class::DBI::Replicated::TestReplication->new(%params)
 	=> 'Created a replication object';
 	
 isa_ok $replicate->{schema}
@@ -170,13 +167,6 @@ is $artist1->name, 'Ozric Tentacles'
 ## Add some new rows that only the master will have  This is because
 ## we overload any type of write operation so that is must hit the master
 ## database.
-
-use Fcntl qw (:flock);
-
-my $master_path = $replicate->{db_paths}->[0];
-open LOCKFILE, ">>$master_path"
- or die "Cannot open $master_path";
-flock(LOCKFILE, LOCK_EX);
 
 $replicate
 	->{schema}
@@ -254,6 +244,20 @@ eval {
 };
 
 ok $@ => 'Got read errors after everything failed';
+
+## make sure ->connect_info returns something sane
+
+ok $replicate->{schema}->storage->connect_info
+    => 'got something out of ->connect_info';
+
+## Force a connection to the write source for testing.
+
+$replicate->{schema}->storage($replicate->{schema}->storage->write_source);
+
+## What happens when we do a find for something that doesn't exist?
+
+ok ! $replicate->{schema}->resultset('Artist')->find(666)
+    => 'Correctly did not find a bad artist id';
 
 ## Delete the old database files
 $replicate->cleanup;

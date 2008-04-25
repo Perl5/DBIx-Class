@@ -1,36 +1,63 @@
-package DBIx::Class::Storage::DBI::Replication;
+package DBIx::Class::Storage::DBI::Replicated;
 
 use strict;
 use warnings;
 
 use DBIx::Class::Storage::DBI;
 use DBD::Multi;
+
 use base qw/Class::Accessor::Fast/;
 
 __PACKAGE__->mk_accessors( qw/read_source write_source/ );
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Replication - EXPERIMENTAL Replicated database support
+DBIx::Class::Storage::DBI::Replicated - ALPHA Replicated database support
 
 =head1 SYNOPSIS
 
-  # change storage_type in your schema class
-    $schema->storage_type( '::DBI::Replication' );
-    $schema->connect_info( [
-		     [ "dbi:mysql:database=test;hostname=master", "username", "password", { AutoCommit => 1 } ], # master
-		     [ "dbi:mysql:database=test;hostname=slave1", "username", "password", { priority => 10 } ],  # slave1
-		     [ "dbi:mysql:database=test;hostname=slave2", "username", "password", { priority => 10 } ],  # slave2
-		     [ $dbh, '','', {priority=>10}], # add in a preexisting database handle
-		     [ sub {  DBI->connect }, '', '', {priority=>10}], # DBD::Multi will call this coderef for connects
-		     <...>,
-		     { limit_dialect => 'LimitXY' } # If needed, see below
-		    ] );
+The Following example shows how to change an existing $schema to a replicated
+storage type and update it's connection information to contain a master DSN and
+an array of slaves.
+
+    ## Change storage_type in your schema class
+    $schema->storage_type( '::DBI::Replicated' );
+    
+    ## Set your connection.
+    $schema->connect(
+        $dsn, $user, $password, {
+        	AutoCommit => 1,
+        	## Other standard DBI connection or DBD custom attributes added as
+        	## usual.  Additionally, we have two custom attributes for defining
+        	## slave information and controlling how the underlying DBD::Multi
+        	slaves_connect_info => [
+        	   ## Define each slave like a 'normal' DBI connection, but you add
+        	   ## in a DBD::Multi custom attribute to define how the slave is
+        	   ## prioritized.  Please see DBD::Multi for more.
+        	   [$slave1dsn, $user, $password, {%slave1opts, priority=>10}],
+               [$slave2dsn, $user, $password, {%slave2opts, priority=>10}],
+               [$slave3dsn, $user, $password, {%slave3opts, priority=>20}],
+               ## add in a preexisting database handle
+               [$dbh, '','', {priority=>30}], 
+               ## DBD::Multi will call this coderef for connects 
+               [sub {  DBI->connect(< DSN info >) }, '', '', {priority=>40}],  
+               ## If the last item is hashref, we use that for DBD::Multi's 
+               ## configuration information.  Again, see DBD::Multi for more.
+               {timeout=>25, failed_max=>2},      	   
+        	],
+        },
+    );
+    
+    ## Now, just use the schema as normal
+    $schema->resultset('Table')->find(< unique >); ## Reads will use slaves
+    $schema->resultset('Table')->create(\%info); ## Writes will use master
 
 =head1 DESCRIPTION
 
-Warning: This class is marked EXPERIMENTAL. It works for the authors but does
-not currently have automated tests so your mileage may vary.
+Warning: This class is marked ALPHA.  We are using this in development and have
+some basic test coverage but the code hasn't yet been stressed by a variety
+of databases.  Individual DB's may have quirks we are not aware of.  Please
+use this in development and pass along your experiences/bug fixes.
 
 This class implements replicated data store for DBI. Currently you can define
 one master and numerous slave database connections. All write-type queries
@@ -44,13 +71,7 @@ if all low priority data sources fail, higher ones tried in order.
 
 =head1 CONFIGURATION
 
-=head2 Limit dialect
-
-If you use LIMIT in your queries (effectively, if you use
-SQL::Abstract::Limit), do not forget to set up limit_dialect (perldoc
-SQL::Abstract::Limit) by passing it as an option in the (optional) hash
-reference to connect_info.  DBIC can not set it up automatically, since it can
-not guess DBD::Multi connection types.
+Please see L<DBD::Multi> for most configuration information.
 
 =cut
 
@@ -75,37 +96,48 @@ sub all_sources {
     return wantarray ? @sources : \@sources;
 }
 
+sub _connect_info {
+	my $self = shift;
+    my $master = $self->write_source->_connect_info;
+    $master->[-1]->{slave_connect_info} = $self->read_source->_connect_info;
+    return $master;
+}
+
 sub connect_info {
-    my( $self, $source_info ) = @_;
+	my ($self, $source_info) = @_;
 
-    my( $info, $global_options, $options, @dsns );
+    ## if there is no $source_info, treat this sub like an accessor
+    return $self->_connect_info
+     if !$source_info;
+    
+    ## Alright, let's conect the master 
+    $self->write_source->connect_info($source_info);
+  
+    ## Now, build and then connect the Slaves
+    my @slaves_connect_info = @{$source_info->[-1]->{slaves_connect_info}};   
+    my $dbd_multi_config = ref $slaves_connect_info[-1] eq 'HASH' 
+        ? pop @slaves_connect_info : {};
 
-    $info = [ @$source_info ];
+    ## We need to do this since SQL::Abstract::Limit can't guess what DBD::Multi is
+    $dbd_multi_config->{limit_dialect} = $self->write_source->sql_maker->limit_dialect
+        unless defined $dbd_multi_config->{limit_dialect};
 
-    $global_options = ref $info->[-1] eq 'HASH' ? pop( @$info ) : {};
-    if( ref( $options = $info->[0]->[-1] ) eq 'HASH' ) {
-	# Local options present in dsn, merge them with global options
-        map { $global_options->{$_} = $options->{$_} } keys %$options;
-        pop @{$info->[0]};
-    }
-
-    # We need to copy-pass $global_options, since connect_info clears it while
-    # processing options
-    $self->write_source->connect_info( @{$info->[0]}, { %$global_options } );
-
-	## allow either a DSN string or an already connect $dbh.  Just remember if
-	## you use the $dbh option then DBD::Multi has no idea how to reconnect in
-	## the event of a failure.
-	
-    @dsns = map {
+    @slaves_connect_info = map {
         ## if the first element in the arrayhash is a ref, make that the value
         my $db = ref $_->[0] ? $_->[0] : $_;
-        ($_->[3]->{priority} || 10) => $db;
-    } @{$info->[0]}[1..@{$info->[0]}-1];
+    	my $priority = $_->[-1]->{priority} || 10; ## default priority is 10
+    	$priority => $db;
+    } @slaves_connect_info;
     
-    $global_options->{dsns} = \@dsns;
-
-    $self->read_source->connect_info( [ 'dbi:Multi:', undef, undef, { %$global_options } ] );
+    $self->read_source->connect_info([ 
+        'dbi:Multi:', undef, undef, { 
+        	dsns => [@slaves_connect_info],
+        	%$dbd_multi_config,
+        },
+    ]);
+    
+    ## Return the formated connection information
+    return $self->_connect_info;
 }
 
 sub select {
@@ -191,8 +223,8 @@ sub ensure_connected {
 sub dbh {
     shift->write_source->dbh( @_ );
 }
-sub txn_begin {
-    shift->write_source->txn_begin( @_ );
+sub txn_do {
+    shift->write_source->txn_do( @_ );
 }
 sub txn_commit {
     shift->write_source->txn_commit( @_ );
@@ -206,7 +238,16 @@ sub sth {
 sub deploy {
     shift->write_source->deploy( @_ );
 }
+sub _prep_for_execute {
+	shift->write_source->_prep_for_execute(@_);
+}
 
+sub debugobj {
+	shift->write_source->debugobj(@_);
+}
+sub debug {
+    shift->write_source->debug(@_);
+}
 
 sub debugfh { shift->_not_supported( 'debugfh' ) };
 sub debugcb { shift->_not_supported( 'debugcb' ) };
@@ -226,6 +267,8 @@ L<DBI::Class::Storage::DBI>, L<DBD::Multi>, L<DBI>
 Norbert Csongrádi <bert@cpan.org>
 
 Peter Siklósi <einon@einon.hu>
+
+John Napiorkowski <john.napiorkowski@takkle.com>
 
 =head1 LICENSE
 
