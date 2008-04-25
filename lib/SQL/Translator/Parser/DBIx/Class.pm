@@ -96,13 +96,6 @@ sub parse {
         $table->primary_key($source->primary_columns);
 
         my @primary = $source->primary_columns;
-        foreach my $field (@primary) {
-          my $index = $table->add_index(
-                                        name   => $field,
-                                        fields => [$field],
-                                        type   => 'NORMAL',
-                                       );
-        }
         my %unique_constraints = $source->unique_constraints;
         foreach my $uniq (sort keys %unique_constraints) {
             if (!$source->compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
@@ -111,13 +104,6 @@ sub parse {
                             name             => _create_unique_symbol($uniq),
                             fields           => $unique_constraints{$uniq}
                 );
-
-               my $index = $table->add_index(
-                            name   => _create_unique_symbol(join('_', @{$unique_constraints{$uniq}})),
-                            fields => $unique_constraints{$uniq},
-                            type   => 'NORMAL',
-               );
-
             }
         }
 
