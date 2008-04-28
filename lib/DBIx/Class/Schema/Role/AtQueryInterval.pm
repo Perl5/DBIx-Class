@@ -208,7 +208,7 @@ sub create_and_add_at_query_intervals {
     }		
   }
 }
-
+ 
 
 =head2 normalize_query_interval ($hash||$obj)
 
@@ -225,6 +225,7 @@ sub normalize_query_interval {
   	return $self->create_query_interval($arg);
   }
 }
+
 
 =head2 normalize_to_jobs ($hash||$obj||$arrayref)
 

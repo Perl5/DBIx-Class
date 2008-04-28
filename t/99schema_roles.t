@@ -65,7 +65,7 @@ is $schema->resultset('Person')->find(2)->name, 'dan'
     => 'Found Dan!';
 
 is $schema->storage->query_count, 2
-    => 'Query Count is two';
+    => 'Query Count is two'; 
 
 
 =head2 check at query interval 
@@ -90,7 +90,7 @@ is $job2->execute($schema, 'hello1'), 'hello1',
     => 'Got expected information from the job';
 
 ok my $interval1 = $schema->create_query_interval(every=>10)
-    => 'Created a interval';
+    => 'Created an interval';
 
 ok $interval1->matches(10)
     => 'correctly matched 10';
@@ -102,7 +102,7 @@ ok !$interval1->matches(22)
     => 'correctly didnt matched 22';
 
 ok my $interval2 = $schema->create_query_interval(every=>10, offset=>2)
-    => 'Created a interval';
+    => 'Created an interval';
 
 ok $interval2->matches(12)
     => 'correctly matched 12';
@@ -167,8 +167,11 @@ is_deeply [$schema->execute_jobs_at_query_interval(60)], [10,20,30]
      
 is_deeply [$schema->execute_jobs_at_query_interval(101)], [101.1,101.2]
     => 'Got Expected return for 101';
-    
-    
+   
+   
+
+
+
 =head2 cleanup
 
 Cleanup after ourselves
