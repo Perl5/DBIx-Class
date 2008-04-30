@@ -8,7 +8,7 @@ BEGIN {
     eval "use Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 33 );
+        : ( tests => 34 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -225,6 +225,11 @@ is $artist3->name, "Dead On Arrival"
 
 is $replicated->schema->storage->pool->connected_replicants => 1
     => "One replicant reconnected to handle the job";
+    
+## What happens when we try to select something that doesn't exist?
+
+ok ! $replicated->schema->resultset('Artist')->find(666)
+    => 'Correctly failed to find something.';
 
 ## Delete the old database files
 $replicated->cleanup;
