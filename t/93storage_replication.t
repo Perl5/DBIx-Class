@@ -2,13 +2,76 @@ use strict;
 use warnings;
 use lib qw(t/lib);
 use Test::More;
+use Data::Dump qw/dump/;
 
 BEGIN {
-    eval "use DBD::Multi";
+    eval "use Moose";
     plan $@
-        ? ( skip_all => 'needs DBD::Multi for testing' )
-        : ( tests => 20 );
+        ? ( skip_all => 'needs Moose for testing' )
+        : ( tests => 2 );
 }	
+
+## ----------------------------------------------------------------------------
+## Build a class to hold all our required testing data and methods.
+## ----------------------------------------------------------------------------
+
+TESTSCHEMACLASS: {
+
+    package DBIx::Class::DBI::Replicated::TestReplication;
+   
+    use DBICTest;
+    use base qw/Class::Accessor::Fast/;
+    
+    __PACKAGE__->mk_accessors( qw/schema/ );
+
+    ## Initialize the object
+    
+	sub new {
+	    my $proto = shift;
+	    my $class = ref( $proto ) || $proto;
+	    my $self = {};
+	
+	    bless( $self, $class );
+	
+	    $self->schema( $self->init_schema );
+	
+	    return $self;
+	}
+    
+    ## get the Schema and set the replication storage type
+    
+    sub init_schema {
+        my $class = shift @_;
+        my $schema = DBICTest->init_schema(storage_type=>'::DBI::Replicated');
+        return $schema;
+    }
+}
+
+## ----------------------------------------------------------------------------
+## Create an object and run some tests
+## ----------------------------------------------------------------------------
+
+my %params = (
+    db_paths => [
+        "t/var/DBIxClass.db",
+        "t/var/DBIxClass_slave1.db",
+        "t/var/DBIxClass_slave2.db",
+    ],
+);
+
+ok my $replicate = DBIx::Class::DBI::Replicated::TestReplication->new()
+    => 'Created a replication object';
+    
+isa_ok $replicate->schema
+    => 'DBIx::Class::Schema';
+    
+    
+    warn dump $replicate->schema->storage->meta;
+    
+    warn dump $replicate->schema->storage->master;
+
+
+__END__
 
 ## ----------------------------------------------------------------------------
 ## Build a class to hold all our required testing data and methods.

@@ -29,6 +29,7 @@ DBIx::Class.
   my $schema = DBICTest->init_schema(
     no_deploy=>1,
     no_populate=>1,
+    storage_type=>'::DBI::Replicated',
   );
 
 This method removes the test SQLite database in t/var/DBIxClass.db 
@@ -71,6 +72,9 @@ sub init_schema {
                 );
     } else {
       $schema = DBICTest::Schema->compose_namespace('DBICTest');
+    }
+    if( $args{storage_type}) {
+    	$schema->storage_type($args{storage_type});
     }
     if ( !$args{no_connect} ) {
       $schema = $schema->connect($self->_database);
