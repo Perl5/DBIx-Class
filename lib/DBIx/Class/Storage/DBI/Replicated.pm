@@ -1,9 +1,12 @@
 package DBIx::Class::Storage::DBI::Replicated;
 
 use Moose;
+use DBIx::Class::Storage::DBI;
 use DBIx::Class::Storage::DBI::Replicated::Pool;
+use DBIx::Class::Storage::DBI::Replicated::Balancer;
+use Scalar::Util qw(blessed);
 
-#extends 'DBIx::Class::Storage::DBI', 'Moose::Object';
+extends 'DBIx::Class::Storage::DBI', 'Moose::Object';
 
 =head1 NAME
 
@@ -83,7 +86,6 @@ has 'master' => (
     handles=>[qw/   
         on_connect_do
         on_disconnect_do       
-        columns_info_for
         connect_info
         throw_exception
         sql_maker
@@ -151,121 +153,127 @@ has 'current_replicant' => (
 );
 
 
-=head2 replicant_storage_pool_type
+=head2 pool_type
 
-Contains the classname which will instantiate the L</replicant_storage_pool>
-object.  Defaults to: L<DBIx::Class::Storage::DBI::Replicated::Pool>.
+Contains the classname which will instantiate the L</pool> object.  Defaults 
+to: L<DBIx::Class::Storage::DBI::Replicated::Pool>.
 
 =cut
 
-has 'replicant_storage_pool_type' => (
+has 'pool_type' => (
     is=>'ro',
     isa=>'ClassName',
     required=>1,
+    lazy=>1,
     default=>'DBIx::Class::Storage::DBI::Replicated::Pool',
-    handles=> {
-    	'create_replicant_storage_pool' => 'new',
+    handles=>{
+    	'create_pool' => 'new',
     },
 );
 
 
-=head2 pool_balancer_type
+=head2 balancer_type
 
 The replication pool requires a balance class to provider the methods for
 choose how to spread the query load across each replicant in the pool.
 
 =cut
 
-has 'pool_balancer_type' => (
+has 'balancer_type' => (
     is=>'ro',
     isa=>'ClassName',
     required=>1,
-    default=>'DBIx::Class::Storage::DBI::Replicated::Pool::Balancer',
-    handles=> {
-    	'create_replicant_storage_pool' => 'new',
+    lazy=>1,
+    default=>'DBIx::Class::Storage::DBI::Replicated::Balancer',
+    handles=>{
+    	'create_balancer' => 'new',
     },
 );
 
 
-=head2 replicant_storage_pool
+=head2 pool
 
-Holds the list of connected replicants, their status and other housekeeping or
-reporting methods.
+Is a <DBIx::Class::Storage::DBI::Replicated::Pool> or derived class.  This is a
+container class for one or more replicated databases.
 
 =cut
 
-has 'replicant_storage_pool' => (
+has 'pool' => (
     is=>'ro',
     isa=>'DBIx::Class::Storage::DBI::Replicated::Pool',
     lazy_build=>1,
-    handles=>[qw/replicant_storages/],
+    handles=>[qw/
+        replicants
+        has_replicants
+        create_replicants
+        num_replicants
+        delete_replicant
+    /],
 );
 
 
+=head2 balancer
+
+Is a <DBIx::Class::Storage::DBI::Replicated::Balancer> or derived class.  This 
+is a class that takes a pool (<DBIx::Class::Storage::DBI::Replicated::Pool>)
+
+=cut
+
+has 'balancer' => (
+    is=>'ro',
+    isa=>'DBIx::Class::Storage::DBI::Replicated::Balancer',
+    lazy_build=>1,
+    handles=>[qw/next_storage/],
+);
 
 =head1 METHODS
 
 This class defines the following methods.
 
-=head2 new
+=head2 _build_master
 
-Make sure we properly inherit from L<Moose>.
-
-=cut
-
-sub new {
-    my $class = shift @_;
-    my $obj = $class->SUPER::new(@_);
-  
-    return $class->meta->new_object(
-        __INSTANCE__ => $obj, @_
-    );
-}
-
-=head2 _build_master_storage
-
-Lazy builder for the L</master_storage> attribute.
+Lazy builder for the L</master> attribute.
 
 =cut
 
-sub _build_next_replicant_storage {
+sub _build_master {
 	DBIx::Class::Storage::DBI->new;
 }
 
 
-=head2 _build_current_replicant_storage
+=head2 _build_current_replicant
 
 Lazy builder for the L</current_replicant_storage> attribute.
 
 =cut
 
-sub _build_current_replicant_storage {
-    shift->replicant_storage_pool->first;
+sub _build_current_replicant {
+	my $self = shift @_;
+	$self->next_storage($self->pool);
 }
 
 
-=head2 _build_replicant_storage_pool
+=head2 _build_pool
 
-Lazy builder for the L</replicant_storage_pool> attribute.
+Lazy builder for the L</pool> attribute.
 
 =cut
 
-sub _build_replicant_storage_pool {
+sub _build_pool {
     my $self = shift @_;
-    $self->create_replicant_storage_pool;
+    $self->create_pool;
 }
 
 
-=head2 around: create_replicant_storage_pool
+=head2 _build_balancer
 
-Make sure all calles to the method set a default balancer type to our current
-balancer type.
+Lazy builder for the L</balancer> attribute.
 
 =cut
 
-around 'create_replicant_storage_pool' => sub {
-    my ($method, $self, @args) = @_;
-    return $self->$method(balancer_type=>$self->pool_balancer_type, @args);
+sub _build_balancer {
+    my $self = shift @_;
+    $self->create_balancer;
 }
 
 
@@ -277,23 +285,13 @@ the load evenly (hopefully) across existing capacity.
 
 =cut
 
-after 'get_current_replicant_storage' => sub {
+after 'get_current_replicant' => sub {
     my $self = shift @_;
-    my $next_replicant = $self->replicant_storage_pool->next;
-    $self->next_replicant_storage($next_replicant);
+    my $next_replicant = $self->next_storage($self->pool);
+    
+    $self->set_current_replicant($next_replicant);
 };
 
-
-=head2 find_or_create
-
-First do a find on the replicant.  If no rows are found, pass it on to the
-L</master_storage>
-
-=cut
-
-sub find_or_create {
-	my $self = shift @_;
-}
 
 =head2 all_storages
 
@@ -306,9 +304,9 @@ replicants.
 sub all_storages {
 	my $self = shift @_;
 	
-	return (
-	   $self->master_storage,
-	   $self->replicant_storages,
+	return grep {defined $_ && blessed $_} (
+	   $self->master,
+	   $self->replicants,
 	);
 }
 
@@ -323,8 +321,8 @@ sub connected {
 	my $self = shift @_;
 	
 	return
-	   $self->master_storage->connected &&
-	   $self->replicant_storage_pool->has_connected_slaves;
+	   $self->master->connected &&
+	   $self->pool->connected_replicants;
 }
 
 
@@ -336,7 +334,7 @@ Make sure all the storages are connected.
 
 sub ensure_connected {
     my $self = shift @_;
-    foreach $source (shift->all_sources) {
+    foreach my $source ($self->all_storages) {
         $source->ensure_connected(@_);
     }
 }
@@ -350,8 +348,8 @@ Set the limit_dialect for all existing storages
 
 sub limit_dialect {
     my $self = shift @_;
-    foreach $source (shift->all_sources) {
-        $source->name_sep(@_);
+    foreach my $source ($self->all_storages) {
+        $source->limit_dialect(@_);
     }
 }
 
@@ -364,8 +362,8 @@ Set the quote_char for all existing storages
 
 sub quote_char {
     my $self = shift @_;
-    foreach $source (shift->all_sources) {
-        $source->name_sep(@_);
+    foreach my $source ($self->all_storages) {
+        $source->quote_char(@_);
     }
 }
 
@@ -378,7 +376,7 @@ Set the name_sep for all existing storages
 
 sub name_sep {
     my $self = shift @_;
-    foreach $source (shift->all_sources) {
+    foreach my $source ($self->all_storages) {
         $source->name_sep(@_);
     }
 }
@@ -392,7 +390,7 @@ Set the schema object for all existing storages
 
 sub set_schema {
 	my $self = shift @_;
-	foreach $source (shift->all_sources) {
+	foreach my $source ($self->all_storages) {
 		$source->set_schema(@_);
 	}
 }
@@ -406,7 +404,7 @@ set a debug flag across all storages
 
 sub debug {
     my $self = shift @_;
-    foreach $source (shift->all_sources) {
+    foreach my $source ($self->all_storages) {
         $source->debug(@_);
     }
 }
@@ -420,7 +418,7 @@ set a debug object across all storages
 
 sub debugobj {
     my $self = shift @_;
-    foreach $source (shift->all_sources) {
+    foreach my $source ($self->all_storages) {
         $source->debugobj(@_);
     }
 }
@@ -434,7 +432,7 @@ set a debugfh object across all storages
 
 sub debugfh {
     my $self = shift @_;
-    foreach $source (shift->all_sources) {
+    foreach my $source ($self->all_storages) {
         $source->debugfh(@_);
     }
 }
@@ -448,7 +446,7 @@ set a debug callback across all storages
 
 sub debugcb {
     my $self = shift @_;
-    foreach $source (shift->all_sources) {
+    foreach my $source ($self->all_storages) {
         $source->debugcb(@_);
     }
 }
@@ -462,7 +460,7 @@ disconnect everything
 
 sub disconnect {
     my $self = shift @_;
-    foreach $source (shift->all_sources) {
+    foreach my $source ($self->all_storages) {
         $source->disconnect(@_);
     }
 }
