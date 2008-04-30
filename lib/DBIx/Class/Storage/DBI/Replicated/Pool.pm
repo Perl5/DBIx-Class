@@ -101,7 +101,7 @@ has 'replicants' => (
 
 This class defines the following methods.
 
-=head2 create_replicants ($schema, Array[$connect_info])
+=head2 connect_replicants ($schema, Array[$connect_info])
 
 Given an array of $dsn suitable for connected to a database, create an
 L<DBIx::Class::Storage::DBI::Replicated::Replicant> object and store it in the
@@ -109,7 +109,7 @@ L</replicants> attribute.
 
 =cut
 
-sub create_replicants {
+sub connect_replicants {
 	my $self = shift @_;
 	my $schema = shift @_;
 	

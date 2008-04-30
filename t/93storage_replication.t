@@ -120,7 +120,7 @@ isa_ok $replicated->schema->storage->balancer
 ok my @replicant_connects = $replicated->generate_replicant_connect_info
     => 'got replication connect information';
 
-ok my @replicated_storages = $replicated->schema->storage->create_replicants(@replicant_connects)
+ok my @replicated_storages = $replicated->schema->storage->connect_replicants(@replicant_connects)
     => 'Created some storages suitable for replicants';
     
 isa_ok $replicated->schema->storage->current_replicant

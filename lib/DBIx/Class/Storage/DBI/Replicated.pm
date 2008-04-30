@@ -16,7 +16,7 @@ DBIx::Class::Storage::DBI::Replicated - ALPHA Replicated database support
 
 The Following example shows how to change an existing $schema to a replicated
 storage type, add some replicated (readonly) databases, and perform reporting
-tasks
+tasks.
 
     ## Change storage_type in your schema class
     $schema->storage_type( '::DBI::Replicated' );
@@ -24,16 +24,11 @@ tasks
     ## Add some slaves.  Basically this is an array of arrayrefs, where each
     ## arrayref is database connect information
     
-    $schema->storage->create_replicants(
+    $schema->storage->connect_replicants(
         [$dsn1, $user, $pass, \%opts],
         [$dsn1, $user, $pass, \%opts],
         [$dsn1, $user, $pass, \%opts],
-        ## This is just going to use the standard DBIC connect method, so it
-        ## supports everything that method supports, such as connecting to an
-        ## existing database handle.
-        [$dbh],
     );
-
     
 =head1 DESCRIPTION
 
@@ -114,20 +109,6 @@ This attribute returns the next slave to handle a read request.  Your L</pool>
 attribute has methods to help you shuffle through all the available replicants
 via it's balancer object.
 
-This attribute defines the following reader/writer methods
-
-=over 4
-
-=item get_current_replicant
-
-Returns the contained L<DBIx::Class::Storage::DBI> replicant
-
-=item set_current_replicant
-
-Set the attribute to a given L<DBIx::Class::Storage::DBI> (or subclass) object.
-
-=back
-
 We split the reader/writer to make it easier to selectively override how the
 replicant is altered.
 
@@ -135,8 +116,6 @@ replicant is altered.
 
 has 'current_replicant' => (
     is=> 'rw',
-    reader=>'get_current_replicant',
-    writer=>'set_current_replicant',
     isa=>'DBIx::Class::Storage::DBI',
     lazy_build=>1,
     handles=>[qw/
@@ -199,7 +178,7 @@ has 'pool' => (
     handles=>[qw/
         replicants
         has_replicants
-        create_replicants
+        connect_replicants
         num_replicants
         delete_replicant
     /],
@@ -278,13 +257,13 @@ top of the args
 
 =cut
 
-around 'create_replicants' => sub {
+around 'connect_replicants' => sub {
 	my ($method, $self, @args) = @_;
 	$self->$method($self->schema, @args);
 };
 
 
-=head2 after: get_current_replicant_storage
+=head2 after: select, select_single, columns_info_for
 
 Advice on the current_replicant_storage attribute.  Each time we use a replicant
 we need to change it via the storage pool algorithm.  That way we are spreading
@@ -292,14 +271,26 @@ the load evenly (hopefully) across existing capacity.
 
 =cut
 
-after 'current_replicant' => sub {
+after 'select' => sub {
     my $self = shift @_;
     my $next_replicant = $self->next_storage($self->pool);
 
-warn '......................';
-    $self->set_current_replicant($next_replicant);
+    $self->current_replicant($next_replicant);
 };
 
+after 'select_single' => sub {
+    my $self = shift @_;
+    my $next_replicant = $self->next_storage($self->pool);
+
+    $self->current_replicant($next_replicant);
+};
+
+after 'columns_info_for' => sub {
+    my $self = shift @_;
+    my $next_replicant = $self->next_storage($self->pool);
+
+    $self->current_replicant($next_replicant);
+};
 
 =head2 all_storages
 
@@ -534,20 +525,13 @@ an array of slaves.
         	## Other standard DBI connection or DBD custom attributes added as
         	## usual.  Additionally, we have two custom attributes for defining
         	## slave information and controlling how the underlying DBD::Multi
-        	slaves_connect_info => [
+        	connect_replicants => [
         	   ## Define each slave like a 'normal' DBI connection, but you add
         	   ## in a DBD::Multi custom attribute to define how the slave is
         	   ## prioritized.  Please see DBD::Multi for more.
-        	   [$slave1dsn, $user, $password, {%slave1opts, priority=>10}],
-               [$slave2dsn, $user, $password, {%slave2opts, priority=>10}],
-               [$slave3dsn, $user, $password, {%slave3opts, priority=>20}],
-               ## add in a preexisting database handle
-               [$dbh, '','', {priority=>30}], 
-               ## DBD::Multi will call this coderef for connects 
-               [sub {  DBI->connect(< DSN info >) }, '', '', {priority=>40}],  
-               ## If the last item is hashref, we use that for DBD::Multi's 
-               ## configuration information.  Again, see DBD::Multi for more.
-               {timeout=>25, failed_max=>2},      	   
+        	   [$slave1dsn, $user, $password, {%slave1opts}],
+               [$slave2dsn, $user, $password, {%slave2opts}],
+               [$slave3dsn, $user, $password, {%slave3opts}],
         	],
         },
     );
