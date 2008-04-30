@@ -144,7 +144,6 @@ has 'current_replicant' => (
         select_single
         columns_info_for
     /],
-    trigger=>sub {'xxxxxxxxxxxxxxxxxxxxxxxxxxx'},
 );
 
 
