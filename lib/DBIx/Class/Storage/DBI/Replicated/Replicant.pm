@@ -26,9 +26,39 @@ given master database.
 
 This class defines the following attributes.
 
+=head2 active
+
+This is a boolean which allows you to programmatically activate or deactivate a
+replicant from the pool.  This way to you do stuff like disallow a replicant
+when it get's too far behind the master, if it stops replicating, etc.
+
+=cut
+
+has 'active' => (
+    is=>'rw',
+    isa=>'Bool',
+    lazy=>1,
+    required=>1,
+    default=>1,
+);
+
+
 =head1 METHODS
 
 This class defines the following methods.
+
+=head2 after: _query_start
+
+advice iof the _query_start method to add more debuggin
+
+=cut
+
+around '_query_start' => sub {
+	my ($method, $self, $sql, @bind) = @_;
+	my $dsn = $self->connect_info->[0];
+	$self->$method("DSN: $dsn SQL: $sql", @bind);
+};
+
 
 =head1 AUTHOR
 
@@ -39,3 +69,5 @@ John Napiorkowski <john.napiorkowski@takkle.com>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+
+1;

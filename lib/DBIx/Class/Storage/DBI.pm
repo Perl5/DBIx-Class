@@ -1063,6 +1063,7 @@ sub _query_start {
 
     if ( $self->debug ) {
         @bind = $self->_fix_bind_params(@bind);
+        
         $self->debugobj->query_start( $sql, @bind );
     }
 }

@@ -32,15 +32,8 @@ tasks
         ## supports everything that method supports, such as connecting to an
         ## existing database handle.
         [$dbh],
-        \%global_opts
     );
-    
-    ## a hash of replicants, keyed by their DSN
-    my %replicants = $schema->storage->replicants;
-    my $replicant = $schema->storage->get_replicant($dsn);
-    $replicant->status;
-    $replicant->is_active;
-    $replicant->active;
+
     
 =head1 DESCRIPTION
 
@@ -105,6 +98,7 @@ has 'master' => (
         txn_rollback
         sth
         deploy
+        schema
     /],
 );
 
@@ -150,6 +144,7 @@ has 'current_replicant' => (
         select_single
         columns_info_for
     /],
+    trigger=>sub {'xxxxxxxxxxxxxxxxxxxxxxxxxxx'},
 );
 
 
@@ -277,6 +272,19 @@ sub _build_balancer {
 }
 
 
+=head2 around: create_replicants
+
+All calls to create_replicants needs to have an existing $schema tacked onto
+top of the args
+
+=cut
+
+around 'create_replicants' => sub {
+	my ($method, $self, @args) = @_;
+	$self->$method($self->schema, @args);
+};
+
+
 =head2 after: get_current_replicant_storage
 
 Advice on the current_replicant_storage attribute.  Each time we use a replicant
@@ -285,10 +293,11 @@ the load evenly (hopefully) across existing capacity.
 
 =cut
 
-after 'get_current_replicant' => sub {
+after 'current_replicant' => sub {
     my $self = shift @_;
     my $next_replicant = $self->next_storage($self->pool);
-    
+
+warn '......................';
     $self->set_current_replicant($next_replicant);
 };
 

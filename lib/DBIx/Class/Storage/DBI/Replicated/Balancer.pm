@@ -39,7 +39,7 @@ sub next_storage {
 	my $self = shift @_;
 	my $pool = shift @_;
 	
-	return (shuffle($pool->all_replicants))[0];
+	return (shuffle($pool->active_replicants))[0];
 }
 
 

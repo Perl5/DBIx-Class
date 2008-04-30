@@ -101,7 +101,7 @@ has 'replicants' => (
 
 This class defines the following methods.
 
-=head2 create_replicants (Array[$connect_info])
+=head2 create_replicants ($schema, Array[$connect_info])
 
 Given an array of $dsn suitable for connected to a database, create an
 L<DBIx::Class::Storage::DBI::Replicated::Replicant> object and store it in the
@@ -111,10 +111,11 @@ L</replicants> attribute.
 
 sub create_replicants {
 	my $self = shift @_;
+	my $schema = shift @_;
 	
 	my @newly_created = ();
 	foreach my $connect_info (@_) {
-		my $replicant = $self->create_replicant;
+		my $replicant = $self->create_replicant($schema);
 		$replicant->connect_info($connect_info);
 		$replicant->ensure_connected;
 		my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);
@@ -147,6 +148,21 @@ sub connected_replicants {
 	return sum( map {
 		$_->connected ? 1:0
 	} $self->all_replicants );
+}
+
+=head2 active_replicants
+
+This is an array of replicants that are considered to be active in the pool.
+This does not check to see if they are connected, but if they are not, DBIC
+should automatically reconnect them for us when we hit them with a query.
+
+=cut
+
+sub active_replicants {
+    my $self = shift @_;
+    return ( grep {$_} map {
+        $_->active ? $_:0
+    } $self->all_replicants );
 }
 
 =head2 all_replicants
