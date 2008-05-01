@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use lib qw(t/lib);
 use Test::More;
-use Data::Dump qw/dump/;
+use DBICTest;
 
 BEGIN {
     eval "use Moose";
@@ -20,17 +20,18 @@ use_ok 'DBIx::Class::Storage::DBI::Replicated';
 ## Build a class to hold all our required testing data and methods.
 ## ----------------------------------------------------------------------------
 
-TESTSCHEMACLASS: {
+TESTSCHEMACLASSES: {
 
+    ## --------------------------------------------------------------------- ##
+    ## Create an object to contain your replicated stuff.
+    ## --------------------------------------------------------------------- ##
+    
     package DBIx::Class::DBI::Replicated::TestReplication;
    
     use DBICTest;
-    use File::Copy;
-    use Data::Dump qw/dump/;
-    
     use base qw/Class::Accessor::Fast/;
     
-    __PACKAGE__->mk_accessors( qw/schema master_path slave_paths/ );
+    __PACKAGE__->mk_accessors( qw/schema/ );
 
     ## Initialize the object
     
@@ -39,8 +40,6 @@ TESTSCHEMACLASS: {
 	    my $self = $class->SUPER::new(@_);
 	
 	    $self->schema( $self->init_schema );
-	    $self->master_path("t/var/DBIxClass.db");
-	
 	    return $self;
 	}
     
@@ -52,16 +51,49 @@ TESTSCHEMACLASS: {
         return $schema;
     }
     
+    sub generate_replicant_connect_info {}
+    sub replicate {}
+    sub cleanup {}
+
+  
+    ## --------------------------------------------------------------------- ##
+    ## Subclass for when you are using SQLite for testing, this provides a fake
+    ## replication support.
+    ## --------------------------------------------------------------------- ##
+        
+    package DBIx::Class::DBI::Replicated::TestReplication::SQLite;
+
+    use DBICTest;
+    use File::Copy;    
+    use base 'DBIx::Class::DBI::Replicated::TestReplication';
+    
+    __PACKAGE__->mk_accessors( qw/master_path slave_paths/ );
+    
+    ## Set the mastep path from DBICTest
+    
+	sub new {
+	    my $class = shift @_;
+	    my $self = $class->SUPER::new(@_);
+	
+	    $self->master_path( DBICTest->_sqlite_dbfilename );
+	    $self->slave_paths([
+            "t/var/DBIxClass_slave1.db",
+            "t/var/DBIxClass_slave2.db",    
+        ]);
+        
+	    return $self;
+	}    
+	
     ## Return an Array of ArrayRefs where each ArrayRef is suitable to use for
     ## $storage->connect_info to be used for connecting replicants.
     
     sub generate_replicant_connect_info {
-    	my $self = shift @_;
+        my $self = shift @_;
         my @dsn = map {
             "dbi:SQLite:${_}";
         } @{$self->slave_paths};
         
-        return map { [$_,'','',{}] } @dsn;
+        return map { [$_,'','',{AutoCommit=>1}] } @dsn;
     }
     
     ## Do a 'good enough' replication by copying the master dbfile over each of
@@ -83,6 +115,33 @@ TESTSCHEMACLASS: {
             unlink $slave;
         }     
     }
+    
+    ## --------------------------------------------------------------------- ##
+    ## Subclass for when you are setting the databases via custom export vars
+    ## This is for when you have a replicating database setup that you are
+    ## going to test against.  You'll need to define the correct $ENV and have
+    ## two slave databases to test against, as well as a replication system
+    ## that will replicate in less than 1 second.
+    ## --------------------------------------------------------------------- ##
+        
+    package DBIx::Class::DBI::Replicated::TestReplication::Custom; 
+    use base 'DBIx::Class::DBI::Replicated::TestReplication';
+    
+    ## Return an Array of ArrayRefs where each ArrayRef is suitable to use for
+    ## $storage->connect_info to be used for connecting replicants.
+    
+    sub generate_replicant_connect_info { 
+        return (
+            [$ENV{"DBICTEST_SLAVE0_DSN"}, $ENV{"DBICTEST_SLAVE0_DBUSER"}, $ENV{"DBICTEST_SLAVE0_DBPASS"}, {AutoCommit => 1}],
+            [$ENV{"DBICTEST_SLAVE1_DSN"}, $ENV{"DBICTEST_SLAVE1_DBUSER"}, $ENV{"DBICTEST_SLAVE1_DBPASS"}, {AutoCommit => 1}],           
+        );
+    }
+    
+    ## pause a bit to let the replication catch up 
+    
+    sub replicate {
+    	sleep 1;
+    } 
 }
 
 ## ----------------------------------------------------------------------------
@@ -91,13 +150,12 @@ TESTSCHEMACLASS: {
 
 ## Thi first bunch of tests are basic, just make sure all the bits are behaving
 
-ok my $replicated = DBIx::Class::DBI::Replicated::TestReplication
-    ->new({
-        slave_paths=>[
-	        "t/var/DBIxClass_slave1.db",
-	        "t/var/DBIxClass_slave2.db",    
-        ],
-    }) => 'Created a replication object';
+my $replicated_class = DBICTest->has_custom_dsn ?
+    'DBIx::Class::DBI::Replicated::TestReplication::Custom' :
+    'DBIx::Class::DBI::Replicated::TestReplication::SQLite';
+
+ok my $replicated = $replicated_class->new
+    => 'Created a replication object';
     
 isa_ok $replicated->schema
     => 'DBIx::Class::Schema';

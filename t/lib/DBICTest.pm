@@ -43,9 +43,17 @@ default, unless the no_deploy or no_populate flags are set.
 
 =cut
 
+sub has_custom_dsn {
+	return $ENV{"DBICTEST_DSN"} ? 1:0;
+}
+
+sub _sqlite_dbfilename {
+	return "t/var/DBIxClass.db";
+}
+
 sub _database {
     my $self = shift;
-    my $db_file = "t/var/DBIxClass.db";
+    my $db_file = $self->_sqlite_dbfilename;
 
     unlink($db_file) if -e $db_file;
     unlink($db_file . "-journal") if -e $db_file . "-journal";
