@@ -13,7 +13,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 5;
+plan tests => 10;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -85,7 +85,34 @@ SKIP: {
     is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
 }
 
+## Can we properly deal with the null search problem?
+
+use Data::Dump qw/dump/;
+
+NULLINSEARCH: {
+    
+    ok my $artist1_rs = $schema->resultset('Artist')->search({artistid=>6666})
+    => 'Created an artist resultset of 6666';
+    
+    is $artist1_rs->count, 0
+    => 'Got no returned rows';
+    
+    ok my $artist2_rs = $schema->resultset('Artist')->search({artistid=>undef})
+    => 'Created an artist resultset of undef';
+    
+    is $artist2_rs->count, 0
+    => 'got no rows';
+    
+    my $artist = $artist2_rs->single;
+    
+    is $artist => undef
+    => 'Nothing Found!';
+    
+    warn dump $artist->get_columns if $artist;
+}
+    
+
 # clean up our mess
 END {
-    $dbh->do("DROP TABLE artist") if $dbh;
+    #$dbh->do("DROP TABLE artist") if $dbh;
 }
