@@ -2,7 +2,8 @@ package DBIx::Class::StartupCheck;
 
 BEGIN {
 
-    { package TestRHBug; use overload bool => sub { 0 } }
+    { package # don't want this in PAUSE
+        TestRHBug; use overload bool => sub { 0 } }
 
     sub _has_bug_34925 {
 	my %thing;
