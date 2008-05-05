@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - make ash's build_requires/META.yml fixes work better
         - is_deferable support on relations used by the SQL::Translator
           parser (Anders Nor Berle)
         - Refactored DBIx::Class::Schema::Versioned
