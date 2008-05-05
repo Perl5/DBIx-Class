@@ -8,8 +8,7 @@ use warnings;
 __PACKAGE__->sql_maker_class('DBIC::SQL::Abstract::Oracle');
 
 BEGIN {
-  package # Hide from PAUSE
-    DBIC::SQL::Abstract::Oracle;
+  package DBIC::SQL::Abstract::Oracle;
 
   use base qw( DBIC::SQL::Abstract );
 
