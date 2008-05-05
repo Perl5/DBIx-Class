@@ -1288,7 +1288,9 @@ sub select_single {
   my $self = shift;
   my ($rv, $sth, @bind) = $self->_select(@_);
   my @row = $sth->fetchrow_array;
-  carp "Query returned more than one row" if $sth->fetchrow_array;
+  ## TODO, we need to decide if we should throw an error when select_single
+  ## returns more than one row
+  #carp "Query returned more than one row" if $sth->fetchrow_array;
   # Need to call finish() to work round broken DBDs
   $sth->finish();
   return @row;
