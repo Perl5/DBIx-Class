@@ -100,7 +100,7 @@ my $exceptions = {
 
 # must kill authors.
 
-    'DBIx::Class::Storage::DBI::Replication' => { skip => 1 },
+    'DBIx::Class::Storage::DBI::Replicated' => { skip => 1 },
 };
 
 foreach my $module (@modules) {

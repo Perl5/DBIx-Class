@@ -1,7 +1,8 @@
 Revision history for DBIx::Class
 
+        - make ash's build_requires/META.yml fixes work better
         - is_deferable support on relations used by the SQL::Translator
-          parser (Anders Nor Berle)
+          parser
         - Refactored DBIx::Class::Schema::Versioned
         - Syntax errors from resultset components are now reported correctly
         - sqltargs respected correctly in deploy et al.
@@ -9,8 +10,8 @@ Revision history for DBIx::Class
           nested transactions if auto_savepoint is set in connect_info.
         - Changed naming scheme for constraints and keys in the sqlt parser;
           names should now be consistent and collision-free.
-        - Improve handling of explicit key attr in ResultSet::find (zby)
-        - Add warnings for non-unique ResultSet::find queries (zby)
+        - Improve handling of explicit key attr in ResultSet::find
+        - Add warnings for non-unique ResultSet::find queries
 
 0.08010 2008-03-01 10:30
         - Fix t/94versioning.t so it passes with latest SQL::Translator

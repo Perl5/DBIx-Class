@@ -1,4 +1,8 @@
 use inc::Module::Install 0.67;
+use strict;
+use warnings;
+
+use 5.006001; # delete this line if you want to send patches for earlier.
 
 name     'DBIx-Class';
 perl_version '5.006001';
@@ -35,10 +39,18 @@ install_script 'script/dbicadmin';
 tests "t/*.t t/*/*.t";
 
 # re-build README and require CDBI modules for testing if we're in a checkout
-if( -e 'inc/.author' ) {
-  build_requires 'DBIx::ContextualFetch';
-  build_requires 'Class::Trigger';
-  build_requires 'Time::Piece';
+
+my @force_build_requires_if_author = qw(
+  DBIx::ContextualFetch
+  Class::Trigger
+  Time::Piece
+);
+
+if ($Module::Install::AUTHOR) {
+
+  foreach my $module (@force_build_requires_if_author) {
+    build_requires $module;
+  }
 
   system('pod2text lib/DBIx/Class.pm > README');
 }
@@ -53,16 +65,23 @@ WriteAll;
 if ($Module::Install::AUTHOR) {
   # Need to do this _after_ WriteAll else it looses track of them
   Meta->{values}{build_requires} = [ grep {
-    $_->[0] !~ /
-      DBIx::ContextualFetch |
-      Class::Trigger |
-      Time::Piece
-    /x;
+    my $ok = 1;
+    foreach my $module (@force_build_requires_if_author) {
+      if ($_->[0] =~ /$module/) {
+        $ok = 0;
+        last;
+      }
+    }
+    $ok;
   } @{Meta->{values}{build_requires}} ];
 
   my @scalar_keys = Module::Install::Metadata::Meta_TupleKeys();
-  sub Module::Install::Metadata::Meta_TupleKeys {
-    return @scalar_keys, 'resources';
+  my $cr = Module::Install::Metadata->can("Meta_TupleKeys");
+  {
+    no warnings 'redefine';
+    *Module::Install::Metadata::Meta_TupleKeys = sub {
+      return $cr->(@_), 'resources';
+    };
   }
   Meta->{values}{resources} = [ 
     [ 'MailingList', 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class' ],
