@@ -1,4 +1,5 @@
-package DBIx::Class::Version::Table;
+package # Hide from PAUSE
+  DBIx::Class::Version::Table;
 use base 'DBIx::Class';
 use strict;
 use warnings;
@@ -28,7 +29,8 @@ __PACKAGE__->add_columns
       );
 __PACKAGE__->set_primary_key('version');
 
-package DBIx::Class::Version::TableCompat;
+package # Hide from PAUSE
+  DBIx::Class::Version::TableCompat;
 use base 'DBIx::Class';
 __PACKAGE__->load_components(qw/ Core/);
 __PACKAGE__->table('SchemaVersions');
@@ -43,14 +45,16 @@ __PACKAGE__->add_columns
       );
 __PACKAGE__->set_primary_key('Version');
 
-package DBIx::Class::Version;
+package # Hide from PAUSE
+  DBIx::Class::Version;
 use base 'DBIx::Class::Schema';
 use strict;
 use warnings;
 
 __PACKAGE__->register_class('Table', 'DBIx::Class::Version::Table');
 
-package DBIx::Class::VersionCompat;
+package # Hide from PAUSE
+  DBIx::Class::VersionCompat;
 use base 'DBIx::Class::Schema';
 use strict;
 use warnings;

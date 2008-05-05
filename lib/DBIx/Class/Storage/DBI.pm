@@ -26,7 +26,8 @@ __PACKAGE__->sql_maker_class('DBIC::SQL::Abstract');
 
 BEGIN {
 
-package DBIC::SQL::Abstract; # Would merge upstream, but nate doesn't reply :(
+package # Hide from PAUSE
+  DBIC::SQL::Abstract; # Would merge upstream, but nate doesn't reply :(
 
 use base qw/SQL::Abstract::Limit/;
 
