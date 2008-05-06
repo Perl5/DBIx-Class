@@ -571,9 +571,17 @@ sub cursor {
 Inflates the first result without creating a cursor if the resultset has
 any records in it; if not returns nothing. Used by L</find> as an optimisation.
 
-Can optionally take an additional condition *only* - this is a fast-code-path
-method; if you need to add extra joins or similar call ->search and then
-->single without a condition on the $rs returned from that.
+Can optionally take an additional condition B<only> - this is a fast-code-path
+method; if you need to add extra joins or similar call L</search> and then
+L</single> without a condition on the L<DBIx::Class::ResultSet> returned from
+that.
+
+B<Note>: As of 0.08100, this method assumes that the query returns only one
+row. If more than one row is returned, you will receive a warning:
+
+  Query returned more than one row
+
+In this case, you should be using L</first> or L</find> instead.
 
 =cut
 

@@ -110,8 +110,6 @@ NULLINSEARCH: {
     
     is $artist => undef
     => 'Nothing Found!';
-    
-    warn dump $artist->get_columns if $artist;
 }
     
 

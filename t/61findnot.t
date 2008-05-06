@@ -54,7 +54,8 @@ ok($art, 'Artist found by key in the resultset');
 $artist_rs = $schema->resultset("Artist");
 warning_is {
   $artist_rs->find({}, { key => 'primary' })
-} "DBIx::Class::ResultSet::find(): Query returned more than one row", "Non-unique find generated a cursor inexhaustion warning";
+} "DBIx::Class::ResultSet::find(): Query returned more than one row.  SQL that returns multiple rows is DEPRECATED for ->find and ->single"
+    =>  "Non-unique find generated a cursor inexhaustion warning";
 
 $artist_rs = $schema->resultset("Artist")->search({}, { prefetch => 'cds' });
 warning_is {
