@@ -310,10 +310,10 @@ TESTRELIABLE: {
     $replicated->schema->storage->set_balanced_storage;	    
 	    
 	ok $replicated->schema->resultset('Artist')->find(3)
-        => 'Read from replicant';	
+        => 'Read from replicant';
 }
 
-## Make sure when $reliable goes out of scope, we are using replicants again
+## Make sure when reliable goes out of scope, we are using replicants again
 
 ok $replicated->schema->resultset('Artist')->find(1)
     => 'back to replicant 1.';
