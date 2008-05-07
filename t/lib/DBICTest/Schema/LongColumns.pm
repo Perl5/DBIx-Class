@@ -1,4 +1,4 @@
-package # hide from PAUSE
+package # hide from PAUSE  
     DBICTest::Schema::LongColumns;
 
 use base qw/DBIx::Class::Core/;
@@ -9,38 +9,38 @@ __PACKAGE__->add_columns(
         data_type => 'int',
         is_auto_increment => 1,
     },
-    '64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' => {
+    '_64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' => {
         data_type => 'int',
     },
-    '32_character_column_aaaaaaaaaaaa' => {
+    '_32_character_column_aaaaaaaaaaa' => {
         data_type => 'int',
     },
-    '32_character_column_bbbbbbbbbbbb' => {
+    '_32_character_column_bbbbbbbbbbb' => {
         data_type => 'int',
     },
-    '16_character_col' => {
+    '_16_chars_column' => {
         data_type => 'int',
     },
-    '8_char_c' => {
+    '_8_chr_c' => {
         data_type => 'int',
     },
 );
 
 __PACKAGE__->set_primary_key('lcid');
 
-__PACKAGE__->add_unique_constraint([qw( 16_character_col 32_character_column_aaaaaaaaaaaa )]);
+__PACKAGE__->add_unique_constraint([qw( _16_chars_column _32_character_column_aaaaaaaaaaa )]);
 
-__PACKAGE__->add_unique_constraint([qw( 8_char_c 16_character_col 32_character_column_aaaaaaaaaaaa )]);
+__PACKAGE__->add_unique_constraint([qw( _8_chr_c _16_chars_column _32_character_column_aaaaaaaaaaa )]);
 
-__PACKAGE__->add_unique_constraint([qw( 8_char_c 16_character_col 32_character_column_bbbbbbbbbbbb )]);
+__PACKAGE__->add_unique_constraint([qw( _8_chr_c _16_chars_column _32_character_column_bbbbbbbbbbb )]);
 
-__PACKAGE__->add_unique_constraint([qw( 64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa )]);
+__PACKAGE__->add_unique_constraint([qw( _64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa )]);
 
 __PACKAGE__->belongs_to(
     'owner',
     'DBICTest::Schema::LongColumns',
     {
-        'foreign.lcid' => 'self.64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'foreign.lcid' => 'self._64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     },
 );
 
@@ -48,8 +48,8 @@ __PACKAGE__->belongs_to(
     'owner2',
     'DBICTest::Schema::LongColumns',
     {
-        'foreign.32_character_column_aaaaaaaaaaaa' => 'self.32_character_column_bbbbbbbbbbbb',
-        'foreign.32_character_column_bbbbbbbbbbbb' => 'self.32_character_column_aaaaaaaaaaaa',
+        'foreign._32_character_column_aaaaaaaaaaa' => 'self._32_character_column_bbbbbbbbbbb',
+        'foreign._32_character_column_bbbbbbbbbbb' => 'self._32_character_column_aaaaaaaaaaa',
     },
 );
 
@@ -57,7 +57,7 @@ __PACKAGE__->belongs_to(
     'owner3',
     'DBICTest::Schema::LongColumns',
     {
-        'foreign.8_char_c' => 'self.16_character_col',
+        'foreign._8_chr_c' => 'self._16_chars_column',
     },
 );
 
