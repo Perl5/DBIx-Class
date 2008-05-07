@@ -84,9 +84,6 @@ sub init_schema {
     } else {
       $schema = DBICTest::Schema->compose_namespace('DBICTest');
     }
-    if( $args{storage_type_args}) {
-    	$schema->storage_type_args($args{storage_type_args});
-    } 
     if( $args{storage_type}) {
     	$schema->storage_type($args{storage_type});
     }    
@@ -115,9 +112,9 @@ of tables for testing.
 
 sub deploy_schema {
     my $self = shift;
-    my $schema = shift;
+    my $schema = shift; 
 
-    if ($ENV{"DBICTEST_SQLT_DEPLOY"}) {
+    if ($ENV{"DBICTEST_SQLT_DEPLOY"}) { 
         return $schema->deploy();
     } else {
         open IN, "t/lib/sqlite.sql";

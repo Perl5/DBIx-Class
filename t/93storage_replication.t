@@ -13,7 +13,6 @@ BEGIN {
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Balancer';
-use_ok 'DBIx::Class::Storage::DBI::Replicated::Balancer::Random';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 use_ok 'DBIx::Class::Storage::DBI::Replicated';
 
@@ -49,10 +48,11 @@ TESTSCHEMACLASSES: {
     sub init_schema {
         my $class = shift @_;
         my $schema = DBICTest->init_schema(
-            storage_type=>'::DBI::Replicated', 
-            storage_type_args=>{
-            	balancer_type=>'DBIx::Class::Storage::DBI::Replicated::Balancer::Random',
-            });
+            storage_type=>[
+            	'::DBI::Replicated' => {
+            		balancer_type=>'::Random',
+            	}],
+            );
 
         return $schema;
     }
@@ -320,8 +320,16 @@ ok $replicated->schema->resultset('Artist')->find(1)
     
 ok $replicated->schema->resultset('Artist')->find(2)
     => 'back to replicant 2.';
-    
 
+## set all the replicants to inactive, and make sure the balancer falls back to
+## the master.
+
+$replicated->schema->storage->replicants->{"t/var/DBIxClass_slave1.db"}->active(0);
+$replicated->schema->storage->replicants->{"t/var/DBIxClass_slave2.db"}->active(0);
+    
+ok $replicated->schema->resultset('Artist')->find(2)
+    => 'Fallback to master'; 
+       
 ## Delete the old database files
 $replicated->cleanup;
 

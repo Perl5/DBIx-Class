@@ -14,7 +14,6 @@ use base qw/DBIx::Class/;
 __PACKAGE__->mk_classdata('class_mappings' => {});
 __PACKAGE__->mk_classdata('source_registrations' => {});
 __PACKAGE__->mk_classdata('storage_type' => '::DBI');
-__PACKAGE__->mk_classdata('storage_type_args' => {});
 __PACKAGE__->mk_classdata('storage');
 __PACKAGE__->mk_classdata('exception_action');
 __PACKAGE__->mk_classdata('stacktrace' => $ENV{DBIC_TRACE} || 0);
@@ -638,9 +637,9 @@ sub setup_connection_class {
 
 =over 4
 
-=item Arguments: $storage_type
+=item Arguments: $storage_type|[$storage_type, \%args]
 
-=item Return Value: $storage_type
+=item Return Value: $storage_type|[$storage_type, \%args]
 
 =back
 
@@ -653,6 +652,11 @@ You want to use this to hardcoded subclasses of L<DBIx::Class::Storage::DBI>
 in cases where the appropriate subclass is not autodetected, such as when
 dealing with MSSQL via L<DBD::Sybase>, in which case you'd set it to
 C<::DBI::Sybase::MSSQL>.
+
+If your storage type requires instantiation arguments, those are defined as a 
+second argument in the form of a hashref and the entire value needs to be
+wrapped into an arrayref.  See L<DBIx::Class::Storage::DBI::Replicated> for an
+example of this.
 
 =head2 connection
 
@@ -676,14 +680,17 @@ or L<DBIx::Class::Storage> in general.
 sub connection {
   my ($self, @info) = @_;
   return $self if !@info && $self->storage;
-  my $storage_class = $self->storage_type;
+  
+  my ($storage_class, $args) = ref $self->storage_type ? 
+    (@{$self->storage_type},{}) : ($self->storage_type, {});
+    
   $storage_class = 'DBIx::Class::Storage'.$storage_class
     if $storage_class =~ m/^::/;
   eval "require ${storage_class};";
   $self->throw_exception(
     "No arguments to load_classes and couldn't load ${storage_class} ($@)"
   ) if $@;
-  my $storage = $storage_class->new($self, $self->storage_type_args);
+  my $storage = $storage_class->new($self=>$args);
   $storage->connect_info(\@info);
   $self->storage($storage);
   return $self;

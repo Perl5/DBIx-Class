@@ -40,11 +40,10 @@ be requested several times in a row.
 =cut
 
 sub next_storage {
-	my $self = shift @_;
-	return (shuffle($self->pool->active_replicants))[0]
-	  if $self->pool->active_replicants;
+    my $self = shift @_;
+    my $next = (shuffle($self->pool->active_replicants))[0];
+    return $next ? $next : $self->master;
 }
-
 
 =head1 AUTHOR
 

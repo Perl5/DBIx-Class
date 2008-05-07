@@ -1708,6 +1708,31 @@ sub build_datetime_parser {
     }
 }
 
+=head2 is_replicating
+
+A boolean that reports if a particular L<DBIx::Class::Storage::DBI> is set to
+replicate from a master database.  Default is undef, which is the result
+returned by databases that don't support replication.
+
+=cut
+
+sub is_replicating {
+    return;
+    
+}
+
+=head2 lag_behind_master
+
+Returns a number that represents a certain amount of lag behind a master db
+when a given storage is replicating.  The number is database dependent, but
+starts at zero and increases with the amount of lag. Default in undef
+
+=cut
+
+sub lag_behind_master {
+    return;
+}
+
 sub DESTROY {
   my $self = shift;
   return if !$self->_dbh;

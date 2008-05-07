@@ -34,6 +34,14 @@ sub _svp_rollback {
     $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
+sub is_replicating {
+    my $self = shift @_;
+}
+
+sub lag_behind_master {
+    my $self = shift @_;
+}
+
 1;
 
 =head1 NAME

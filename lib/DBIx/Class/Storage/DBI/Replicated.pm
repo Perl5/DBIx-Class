@@ -19,7 +19,7 @@ storage type, add some replicated (readonly) databases, and perform reporting
 tasks.
 
     ## Change storage_type in your schema class
-    $schema->storage_type( '::DBI::Replicated' );
+    $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
     
     ## Add some slaves.  Basically this is an array of arrayrefs, where each
     ## arrayref is database connect information
@@ -67,14 +67,11 @@ to: L<DBIx::Class::Storage::DBI::Replicated::Pool>.
 has 'pool_type' => (
     is=>'ro',
     isa=>'ClassName',
-    required=>1,
-    lazy=>1,
-    default=>'DBIx::Class::Storage::DBI::Replicated::Pool',
+    lazy_build=>1,
     handles=>{
     	'create_pool' => 'new',
     },
 );
-
 
 =head2 balancer_type
 
@@ -86,14 +83,11 @@ choose how to spread the query load across each replicant in the pool.
 has 'balancer_type' => (
     is=>'ro',
     isa=>'ClassName',
-    required=>1,
-    lazy=>1,
-    default=>'DBIx::Class::Storage::DBI::Replicated::Balancer',
+    lazy_build=>1,
     handles=>{
     	'create_balancer' => 'new',
     },
 );
-
 
 =head2 pool
 
@@ -115,7 +109,6 @@ has 'pool' => (
     /],
 );
 
-
 =head2 balancer
 
 Is a <DBIx::Class::Storage::DBI::Replicated::Balancer> or derived class.  This 
@@ -128,7 +121,6 @@ has 'balancer' => (
     isa=>'DBIx::Class::Storage::DBI::Replicated::Balancer',
     lazy_build=>1,
 );
-
 
 =head2 master
 
@@ -145,7 +137,6 @@ has 'master' => (
     isa=>'DBIx::Class::Storage::DBI',
     lazy_build=>1,
 );
-
 
 =head1 ATTRIBUTES IMPLEMENTING THE DBIx::Storage::DBI INTERFACE
 
@@ -168,7 +159,6 @@ has 'read_handler' => (
         columns_info_for
     /],    
 );
-
 
 =head2 write_handler
 
@@ -207,7 +197,6 @@ has 'write_handler' => (
     /],
 );
 
-
 =head1 METHODS
 
 This class defines the following methods.
@@ -227,7 +216,14 @@ sub new {
     my $schema = shift @_;
     my $storage_type_args = shift @_;
     my $obj = $class->SUPER::new($schema, $storage_type_args, @_);
-  
+    
+    ## Hate to do it this way, but can't seem to get advice on the attribute working right
+    ## maybe we can do a type and coercion for it. 
+    if( $storage_type_args->{balancer_type} && $storage_type_args->{balancer_type}=~m/^::/) {
+    	$storage_type_args->{balancer_type} = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$storage_type_args->{balancer_type};
+    	eval "require $storage_type_args->{balancer_type}";
+    }
+    
     return $class->meta->new_object(
         __INSTANCE__ => $obj,
         %$storage_type_args,
@@ -245,6 +241,16 @@ sub _build_master {
 	DBIx::Class::Storage::DBI->new;
 }
 
+=head2 _build_pool_type
+
+Lazy builder for the L</pool_type> attribute.
+
+=cut
+
+sub _build_pool_type {
+    return 'DBIx::Class::Storage::DBI::Replicated::Pool';
+}
+
 =head2 _build_pool
 
 Lazy builder for the L</pool> attribute.
@@ -253,6 +259,16 @@ Lazy builder for the L</pool> attribute.
 
 sub _build_pool {
     shift->create_pool;
+}
+
+=head2 _build_balancer_type
+
+Lazy builder for the L</balancer_type> attribute.
+
+=cut
+
+sub _build_balancer_type {
+    return 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 }
 
 =head2 _build_balancer
@@ -264,7 +280,9 @@ the balancer knows which pool it's balancing.
 
 sub _build_balancer {
     my $self = shift @_;
-    $self->create_balancer(pool=>$self->pool);
+    $self->create_balancer(
+        pool=>$self->pool, 
+        master=>$self->master);
 }
 
 =head2 _build_write_handler
