@@ -12,7 +12,7 @@ plan skip_all => "Need DateTime for inflation tests" if $@;
 
 plan tests => 6;
 
-DBICTest::Schema::CD->load_components(qw/CDBICompat::HasA/);
+DBICTest::Schema::CD->load_components(qw/CDBICompat::Relationships/);
 
 DBICTest::Schema::CD->has_a( 'year', 'DateTime',
       inflate => sub { DateTime->new( year => shift ) },
