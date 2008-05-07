@@ -2,7 +2,6 @@
 
 use strict;
 use Test::More;
-use Test::NoWarnings;
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
@@ -11,6 +10,8 @@ BEGIN {
   plan skip_all => "DateTime required" unless eval { require DateTime };
   plan tests => 1;
 }
+
+use Test::NoWarnings;
 
 {
     package Thing;
