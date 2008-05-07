@@ -57,75 +57,6 @@ TODO more details about the algorithm.
 
 This class defines the following attributes.
 
-=head2 master
-
-The master defines the canonical state for a pool of connected databases.  All
-the replicants are expected to match this databases state.  Thus, in a classic
-Master / Slaves distributed system, all the slaves are expected to replicate
-the Master's state as quick as possible.  This is the only database in the
-pool of databases that is allowed to handle write traffic.
-
-=cut
-
-has 'master' => (
-    is=> 'ro',
-    isa=>'DBIx::Class::Storage::DBI',
-    lazy_build=>1,
-    handles=>[qw/   
-        on_connect_do
-        on_disconnect_do       
-        connect_info
-        throw_exception
-        sql_maker
-        sqlt_type
-        create_ddl_dir
-        deployment_statements
-        datetime_parser
-        datetime_parser_type        
-        last_insert_id
-        insert
-        insert_bulk
-        update
-        delete
-        dbh
-        txn_do
-        txn_commit
-        txn_rollback
-        sth
-        deploy
-        schema
-    /],
-);
-
-
-=head2 current_replicant
-
-Replicant storages (slaves) handle all read only traffic.  The assumption is
-that your database will become readbound well before it becomes write bound
-and that being able to spread your read only traffic around to multiple 
-databases is going to help you to scale traffic.
-
-This attribute returns the next slave to handle a read request.  Your L</pool>
-attribute has methods to help you shuffle through all the available replicants
-via it's balancer object.
-
-We split the reader/writer to make it easier to selectively override how the
-replicant is altered.
-
-=cut
-
-has 'current_replicant' => (
-    is=> 'rw',
-    isa=>'DBIx::Class::Storage::DBI',
-    lazy_build=>1,
-    handles=>[qw/
-        select
-        select_single
-        columns_info_for
-    /],
-);
-
-
 =head2 pool_type
 
 Contains the classname which will instantiate the L</pool> object.  Defaults 
@@ -176,9 +107,9 @@ has 'pool' => (
     isa=>'DBIx::Class::Storage::DBI::Replicated::Pool',
     lazy_build=>1,
     handles=>[qw/
+        connect_replicants    
         replicants
         has_replicants
-        connect_replicants
         num_replicants
         delete_replicant
     /],
@@ -196,12 +127,113 @@ has 'balancer' => (
     is=>'ro',
     isa=>'DBIx::Class::Storage::DBI::Replicated::Balancer',
     lazy_build=>1,
-    handles=>[qw/next_storage/],
 );
+
+
+=head2 master
+
+The master defines the canonical state for a pool of connected databases.  All
+the replicants are expected to match this databases state.  Thus, in a classic
+Master / Slaves distributed system, all the slaves are expected to replicate
+the Master's state as quick as possible.  This is the only database in the
+pool of databases that is allowed to handle write traffic.
+
+=cut
+
+has 'master' => (
+    is=> 'ro',
+    isa=>'DBIx::Class::Storage::DBI',
+    lazy_build=>1,
+);
+
+
+=head1 ATTRIBUTES IMPLEMENTING THE DBIx::Storage::DBI INTERFACE
+
+The following methods are delegated all the methods required for the 
+L<DBIx::Class::Storage::DBI> interface.
+
+=head2 read_handler
+
+Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
+
+=cut
+
+has 'read_handler' => (
+    is=>'rw',
+    isa=>'Object',
+    lazy_build=>1,
+    handles=>[qw/
+        select
+        select_single
+        columns_info_for
+    /],    
+);
+
+
+=head2 write_handler
+
+Defines an object that implements the write side of L<BIx::Class::Storage::DBI>.
+
+=cut
+
+has 'write_handler' => (
+    is=>'ro',
+    isa=>'Object',
+    lazy_build=>1,
+    lazy_build=>1,
+    handles=>[qw/   
+        on_connect_do
+        on_disconnect_do       
+        connect_info
+        throw_exception
+        sql_maker
+        sqlt_type
+        create_ddl_dir
+        deployment_statements
+        datetime_parser
+        datetime_parser_type        
+        last_insert_id
+        insert
+        insert_bulk
+        update
+        delete
+        dbh
+        txn_do
+        txn_commit
+        txn_rollback
+        sth
+        deploy
+        schema
+    /],
+);
+
 
 =head1 METHODS
 
 This class defines the following methods.
+
+=head2 new
+
+L<DBIx::Class::Schema> when instantiating it's storage passed itself as the
+first argument.  We need to invoke L</new> on the underlying parent class, make
+sure we properly give it a L<Moose> meta class, and then correctly instantiate
+our attributes.  Basically we pass on whatever the schema has in it's class
+data for 'storage_type_args' to our replicated storage type.
+
+=cut
+
+sub new {
+    my $class = shift @_;
+    my $schema = shift @_;
+    my $storage_type_args = shift @_;
+    my $obj = $class->SUPER::new($schema, $storage_type_args, @_);
+  
+    return $class->meta->new_object(
+        __INSTANCE__ => $obj,
+        %$storage_type_args,
+        @_,
+    );
+}
 
 =head2 _build_master
 
@@ -213,19 +245,6 @@ sub _build_master {
 	DBIx::Class::Storage::DBI->new;
 }
 
-
-=head2 _build_current_replicant
-
-Lazy builder for the L</current_replicant_storage> attribute.
-
-=cut
-
-sub _build_current_replicant {
-	my $self = shift @_;
-	$self->next_storage($self->pool);
-}
-
-
 =head2 _build_pool
 
 Lazy builder for the L</pool> attribute.
@@ -233,63 +252,53 @@ Lazy builder for the L</pool> attribute.
 =cut
 
 sub _build_pool {
-    my $self = shift @_;
-    $self->create_pool;
+    shift->create_pool;
 }
-
 
 =head2 _build_balancer
 
-Lazy builder for the L</balancer> attribute.
+Lazy builder for the L</balancer> attribute.  This takes a Pool object so that
+the balancer knows which pool it's balancing.
 
 =cut
 
 sub _build_balancer {
     my $self = shift @_;
-    $self->create_balancer;
+    $self->create_balancer(pool=>$self->pool);
 }
 
+=head2 _build_write_handler
 
-=head2 around: create_replicants
+Lazy builder for the L</write_handler> attribute.  The default is to set this to
+the L</master>.
 
-All calls to create_replicants needs to have an existing $schema tacked onto
-top of the args
+=cut
+
+sub _build_write_handler {
+    return shift->master;
+}
+
+=head2 _build_read_handler
+
+Lazy builder for the L</read_handler> attribute.  The default is to set this to
+the L</balancer>.
+
+=cut
+
+sub _build_read_handler {
+    return shift->balancer;
+}
+
+=head2 around: connect_replicants
+
+All calls to connect_replicants needs to have an existing $schema tacked onto
+top of the args, since L<DBIx::Storage::DBI> needs it.
 
 =cut
 
 around 'connect_replicants' => sub {
 	my ($method, $self, @args) = @_;
 	$self->$method($self->schema, @args);
-};
-
-
-=head2 after: select, select_single, columns_info_for
-
-Advice on the current_replicant_storage attribute.  Each time we use a replicant
-we need to change it via the storage pool algorithm.  That way we are spreading
-the load evenly (hopefully) across existing capacity.
-
-=cut
-
-after 'select' => sub {
-    my $self = shift @_;
-    my $next_replicant = $self->next_storage($self->pool);
-
-    $self->current_replicant($next_replicant);
-};
-
-after 'select_single' => sub {
-    my $self = shift @_;
-    my $next_replicant = $self->next_storage($self->pool);
-
-    $self->current_replicant($next_replicant);
-};
-
-after 'columns_info_for' => sub {
-    my $self = shift @_;
-    my $next_replicant = $self->next_storage($self->pool);
-
-    $self->current_replicant($next_replicant);
 };
 
 =head2 all_storages
@@ -309,6 +318,35 @@ sub all_storages {
 	);
 }
 
+=head2 set_reliable_storage
+
+Sets the current $schema to be 'reliable', that is all queries, both read and
+write are sent to the master
+    
+=cut
+
+sub set_reliable_storage {
+	my $self = shift @_;
+	my $schema = $self->schema;
+	my $write_handler = $self->schema->storage->write_handler;
+	
+	$schema->storage->read_handler($write_handler);
+}
+
+=head2 set_balanced_storage
+
+Sets the current $schema to be use the </balancer> for all reads, while all
+writea are sent to the master only
+    
+=cut
+
+sub set_balanced_storage {
+    my $self = shift @_;
+    my $schema = $self->schema;
+    my $write_handler = $self->schema->storage->balancer;
+    
+    $schema->storage->read_handler($write_handler);
+}
 
 =head2 connected
 
@@ -324,7 +362,6 @@ sub connected {
 	   $self->pool->connected_replicants;
 }
 
-
 =head2 ensure_connected
 
 Make sure all the storages are connected.
@@ -337,7 +374,6 @@ sub ensure_connected {
         $source->ensure_connected(@_);
     }
 }
-
 
 =head2 limit_dialect
 
@@ -352,7 +388,6 @@ sub limit_dialect {
     }
 }
 
-
 =head2 quote_char
 
 Set the quote_char for all existing storages
@@ -365,7 +400,6 @@ sub quote_char {
         $source->quote_char(@_);
     }
 }
-
 
 =head2 name_sep
 
@@ -380,7 +414,6 @@ sub name_sep {
     }
 }
 
-
 =head2 set_schema
 
 Set the schema object for all existing storages
@@ -393,7 +426,6 @@ sub set_schema {
 		$source->set_schema(@_);
 	}
 }
-
 
 =head2 debug
 
@@ -408,7 +440,6 @@ sub debug {
     }
 }
 
-
 =head2 debugobj
 
 set a debug object across all storages
@@ -421,7 +452,6 @@ sub debugobj {
         $source->debugobj(@_);
     }
 }
-
 
 =head2 debugfh
 
@@ -436,7 +466,6 @@ sub debugfh {
     }
 }
 
-
 =head2 debugcb
 
 set a debug callback across all storages
@@ -450,7 +479,6 @@ sub debugcb {
     }
 }
 
-
 =head2 disconnect
 
 disconnect everything
@@ -463,292 +491,6 @@ sub disconnect {
         $source->disconnect(@_);
     }
 }
-
-
-=head2 DESTROY
-
-Make sure we pass destroy events down to the storage handlers
-
-=cut
-
-sub DESTROY {
-    my $self = shift;
-    ## TODO, maybe we can just leave this alone ???
-}
-
-
-=head1 AUTHOR
-
-Norbert Csongrádi <bert@cpan.org>
-
-Peter Siklósi <einon@einon.hu>
-
-John Napiorkowski <john.napiorkowski@takkle.com>
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
-
-=cut
-
-1;
-
-__END__
-
-use strict;
-use warnings;
-
-use DBIx::Class::Storage::DBI;
-use DBD::Multi;
-
-use base qw/Class::Accessor::Fast/;
-
-__PACKAGE__->mk_accessors( qw/read_source write_source/ );
-
-=head1 NAME
-
-DBIx::Class::Storage::DBI::Replicated - ALPHA Replicated database support
-
-=head1 SYNOPSIS
-
-The Following example shows how to change an existing $schema to a replicated
-storage type and update it's connection information to contain a master DSN and
-an array of slaves.
-
-    ## Change storage_type in your schema class
-    $schema->storage_type( '::DBI::Replicated' );
-    
-    ## Set your connection.
-    $schema->connect(
-        $dsn, $user, $password, {
-        	AutoCommit => 1,
-        	## Other standard DBI connection or DBD custom attributes added as
-        	## usual.  Additionally, we have two custom attributes for defining
-        	## slave information and controlling how the underlying DBD::Multi
-        	connect_replicants => [
-        	   ## Define each slave like a 'normal' DBI connection, but you add
-        	   ## in a DBD::Multi custom attribute to define how the slave is
-        	   ## prioritized.  Please see DBD::Multi for more.
-        	   [$slave1dsn, $user, $password, {%slave1opts}],
-               [$slave2dsn, $user, $password, {%slave2opts}],
-               [$slave3dsn, $user, $password, {%slave3opts}],
-        	],
-        },
-    );
-    
-    ## Now, just use the schema as normal
-    $schema->resultset('Table')->find(< unique >); ## Reads will use slaves
-    $schema->resultset('Table')->create(\%info); ## Writes will use master
-
-=head1 DESCRIPTION
-
-Warning: This class is marked ALPHA.  We are using this in development and have
-some basic test coverage but the code hasn't yet been stressed by a variety
-of databases.  Individual DB's may have quirks we are not aware of.  Please
-use this in development and pass along your experiences/bug fixes.
-
-This class implements replicated data store for DBI. Currently you can define
-one master and numerous slave database connections. All write-type queries
-(INSERT, UPDATE, DELETE and even LAST_INSERT_ID) are routed to master
-database, all read-type queries (SELECTs) go to the slave database.
-
-For every slave database you can define a priority value, which controls data
-source usage pattern. It uses L<DBD::Multi>, so first the lower priority data
-sources used (if they have the same priority, the are used randomized), than
-if all low priority data sources fail, higher ones tried in order.
-
-=head1 CONFIGURATION
-
-Please see L<DBD::Multi> for most configuration information.
-
-=cut
-
-sub new {
-    my $proto = shift;
-    my $class = ref( $proto ) || $proto;
-    my $self = {};
-
-    bless( $self, $class );
-
-    $self->write_source( DBIx::Class::Storage::DBI->new );
-    $self->read_source( DBIx::Class::Storage::DBI->new );
-
-    return $self;
-}
-
-sub all_sources {
-    my $self = shift;
-
-    my @sources = ($self->read_source, $self->write_source);
-
-    return wantarray ? @sources : \@sources;
-}
-
-sub _connect_info {
-	my $self = shift;
-    my $master = $self->write_source->_connect_info;
-    $master->[-1]->{slave_connect_info} = $self->read_source->_connect_info;
-    return $master;
-}
-
-sub connect_info {
-	my ($self, $source_info) = @_;
-
-    ## if there is no $source_info, treat this sub like an accessor
-    return $self->_connect_info
-     if !$source_info;
-    
-    ## Alright, let's conect the master 
-    $self->write_source->connect_info($source_info);
-  
-    ## Now, build and then connect the Slaves
-    my @slaves_connect_info = @{$source_info->[-1]->{slaves_connect_info}};   
-    my $dbd_multi_config = ref $slaves_connect_info[-1] eq 'HASH' 
-        ? pop @slaves_connect_info : {};
-
-    ## We need to do this since SQL::Abstract::Limit can't guess what DBD::Multi is
-    $dbd_multi_config->{limit_dialect} = $self->write_source->sql_maker->limit_dialect
-        unless defined $dbd_multi_config->{limit_dialect};
-
-    @slaves_connect_info = map {
-        ## if the first element in the arrayhash is a ref, make that the value
-        my $db = ref $_->[0] ? $_->[0] : $_;
-    	my $priority = $_->[-1]->{priority} || 10; ## default priority is 10
-    	$priority => $db;
-    } @slaves_connect_info;
-    
-    $self->read_source->connect_info([ 
-        'dbi:Multi:', undef, undef, { 
-        	dsns => [@slaves_connect_info],
-        	%$dbd_multi_config,
-        },
-    ]);
-    
-    ## Return the formated connection information
-    return $self->_connect_info;
-}
-
-sub select {
-    shift->read_source->select( @_ );
-}
-sub select_single {
-    shift->read_source->select_single( @_ );
-}
-sub throw_exception {
-    shift->read_source->throw_exception( @_ );
-}
-sub sql_maker {
-    shift->read_source->sql_maker( @_ );
-}
-sub columns_info_for {
-    shift->read_source->columns_info_for( @_ );
-}
-sub sqlt_type {
-    shift->read_source->sqlt_type( @_ );
-}
-sub create_ddl_dir {
-    shift->read_source->create_ddl_dir( @_ );
-}
-sub deployment_statements {
-    shift->read_source->deployment_statements( @_ );
-}
-sub datetime_parser {
-    shift->read_source->datetime_parser( @_ );
-}
-sub datetime_parser_type {
-    shift->read_source->datetime_parser_type( @_ );
-}
-sub build_datetime_parser {
-    shift->read_source->build_datetime_parser( @_ );
-}
-
-sub limit_dialect { $_->limit_dialect( @_ ) for( shift->all_sources ) }
-sub quote_char { $_->quote_char( @_ ) for( shift->all_sources ) }
-sub name_sep { $_->quote_char( @_ ) for( shift->all_sources ) }
-sub disconnect { $_->disconnect( @_ ) for( shift->all_sources ) }
-sub set_schema { $_->set_schema( @_ ) for( shift->all_sources ) }
-
-sub DESTROY {
-    my $self = shift;
-
-    undef $self->{write_source};
-    undef $self->{read_sources};
-}
-
-sub last_insert_id {
-    shift->write_source->last_insert_id( @_ );
-}
-sub insert {
-    shift->write_source->insert( @_ );
-}
-sub update {
-    shift->write_source->update( @_ );
-}
-sub update_all {
-    shift->write_source->update_all( @_ );
-}
-sub delete {
-    shift->write_source->delete( @_ );
-}
-sub delete_all {
-    shift->write_source->delete_all( @_ );
-}
-sub create {
-    shift->write_source->create( @_ );
-}
-sub find_or_create {
-    shift->write_source->find_or_create( @_ );
-}
-sub update_or_create {
-    shift->write_source->update_or_create( @_ );
-}
-sub connected {
-    shift->write_source->connected( @_ );
-}
-sub ensure_connected {
-    shift->write_source->ensure_connected( @_ );
-}
-sub dbh {
-    shift->write_source->dbh( @_ );
-}
-sub txn_do {
-    shift->write_source->txn_do( @_ );
-}
-sub txn_commit {
-    shift->write_source->txn_commit( @_ );
-}
-sub txn_rollback {
-    shift->write_source->txn_rollback( @_ );
-}
-sub sth {
-    shift->write_source->sth( @_ );
-}
-sub deploy {
-    shift->write_source->deploy( @_ );
-}
-sub _prep_for_execute {
-	shift->write_source->_prep_for_execute(@_);
-}
-
-sub debugobj {
-	shift->write_source->debugobj(@_);
-}
-sub debug {
-    shift->write_source->debug(@_);
-}
-
-sub debugfh { shift->_not_supported( 'debugfh' ) };
-sub debugcb { shift->_not_supported( 'debugcb' ) };
-
-sub _not_supported {
-    my( $self, $method ) = @_;
-
-    die "This Storage does not support $method method.";
-}
-
-=head1 SEE ALSO
-
-L<DBI::Class::Storage::DBI>, L<DBD::Multi>, L<DBI>
 
 =head1 AUTHOR
 

@@ -42,7 +42,6 @@ has 'replicant_type' => (
     },	
 );
 
-
 =head2 replicants
 
 A hashref of replicant, with the key being the dsn and the value returning the
@@ -96,7 +95,6 @@ has 'replicants' => (
 	},
 );
 
-
 =head1 METHODS
 
 This class defines the following methods.
@@ -125,7 +123,6 @@ sub connect_replicants {
 	
 	return @newly_created;
 }
-
 
 =head2 connected_replicants
 
@@ -177,7 +174,6 @@ sub all_replicants {
 	return values %{$self->replicants};
 }
 
-
 =head1 AUTHOR
 
 John Napiorkowski <john.napiorkowski@takkle.com>
@@ -187,6 +183,5 @@ John Napiorkowski <john.napiorkowski@takkle.com>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
-
 
 1;

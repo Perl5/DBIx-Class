@@ -8,11 +8,12 @@ BEGIN {
     eval "use Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 34 );
+        : ( tests => 40 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Balancer';
+use_ok 'DBIx::Class::Storage::DBI::Replicated::Balancer::Random';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 use_ok 'DBIx::Class::Storage::DBI::Replicated';
 
@@ -47,7 +48,12 @@ TESTSCHEMACLASSES: {
     
     sub init_schema {
         my $class = shift @_;
-        my $schema = DBICTest->init_schema(storage_type=>'::DBI::Replicated');
+        my $schema = DBICTest->init_schema(
+            storage_type=>'::DBI::Replicated', 
+            storage_type_args=>{
+            	balancer_type=>'DBIx::Class::Storage::DBI::Replicated::Balancer::Random',
+            });
+
         return $schema;
     }
     
@@ -181,7 +187,7 @@ ok my @replicant_connects = $replicated->generate_replicant_connect_info
 ok my @replicated_storages = $replicated->schema->storage->connect_replicants(@replicant_connects)
     => 'Created some storages suitable for replicants';
     
-isa_ok $replicated->schema->storage->current_replicant
+isa_ok $replicated->schema->storage->balancer->current_replicant
     => 'DBIx::Class::Storage::DBI';
     
 ok $replicated->schema->storage->pool->has_replicants
@@ -288,6 +294,33 @@ is $replicated->schema->storage->pool->connected_replicants => 1
 
 ok ! $replicated->schema->resultset('Artist')->find(666)
     => 'Correctly failed to find something.';
+    
+## test the reliable option
+
+TESTRELIABLE: {
+	
+	$replicated->schema->storage->set_reliable_storage;
+	
+	ok $replicated->schema->resultset('Artist')->find(2)
+	    => 'Read from master 1';
+	
+	ok $replicated->schema->resultset('Artist')->find(5)
+	    => 'Read from master 2';
+	    
+    $replicated->schema->storage->set_balanced_storage;	    
+	    
+	ok $replicated->schema->resultset('Artist')->find(3)
+        => 'Read from replicant';	
+}
+
+## Make sure when $reliable goes out of scope, we are using replicants again
+
+ok $replicated->schema->resultset('Artist')->find(1)
+    => 'back to replicant 1.';
+    
+ok $replicated->schema->resultset('Artist')->find(2)
+    => 'back to replicant 2.';
+    
 
 ## Delete the old database files
 $replicated->cleanup;

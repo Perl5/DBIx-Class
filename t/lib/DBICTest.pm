@@ -30,6 +30,9 @@ DBIx::Class.
     no_deploy=>1,
     no_populate=>1,
     storage_type=>'::DBI::Replicated',
+    storage_type_args=>{
+    	balancer_type=>'DBIx::Class::Storage::DBI::Replicated::Balancer::Random'
+    },
   );
 
 This method removes the test SQLite database in t/var/DBIxClass.db 
@@ -81,9 +84,12 @@ sub init_schema {
     } else {
       $schema = DBICTest::Schema->compose_namespace('DBICTest');
     }
+    if( $args{storage_type_args}) {
+    	$schema->storage_type_args($args{storage_type_args});
+    } 
     if( $args{storage_type}) {
     	$schema->storage_type($args{storage_type});
-    }
+    }    
     if ( !$args{no_connect} ) {
       $schema = $schema->connect($self->_database);
       $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);

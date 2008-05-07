@@ -14,6 +14,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->mk_classdata('class_mappings' => {});
 __PACKAGE__->mk_classdata('source_registrations' => {});
 __PACKAGE__->mk_classdata('storage_type' => '::DBI');
+__PACKAGE__->mk_classdata('storage_type_args' => {});
 __PACKAGE__->mk_classdata('storage');
 __PACKAGE__->mk_classdata('exception_action');
 __PACKAGE__->mk_classdata('stacktrace' => $ENV{DBIC_TRACE} || 0);
@@ -682,7 +683,7 @@ sub connection {
   $self->throw_exception(
     "No arguments to load_classes and couldn't load ${storage_class} ($@)"
   ) if $@;
-  my $storage = $storage_class->new($self);
+  my $storage = $storage_class->new($self, $self->storage_type_args);
   $storage->connect_info(\@info);
   $self->storage($storage);
   return $self;
