@@ -207,28 +207,28 @@ my %fk_constraints = (
   long_columns => [
     {
       'display' => 'long_columns->owner',
-      'name' => 'long_columns_fk_64_character_column_aaaaaaaaaaaaaaaaaaa_1ca973e2',
-      'index_name' => '64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      'name' => 'long_columns_fk__64_character_column_aaaaaaaaaaaaaaaaaa_cfc8d5b0',
+      'index_name' => '_64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       'selftable' => 'long_columns', 'foreigntable' => 'long_columns',
-      'selfcols' => ['64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+      'selfcols' => ['_64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
       'foreigncols' => ['lcid'],
       on_delete => '', on_update => '', deferrable => 1,
     },
     {
       'display' => 'long_columns->owner2',
-      'name' => 'long_columns_fk_32_character_column_aaaaaaaaaaaa_32_cha_6060a8f3',
-      'index_name' => '32_character_column_aaaaaaaaaaaa_32_character_column_bb_30f7a7fe',
+      'name' => 'long_columns_fk__32_character_column_aaaaaaaaaaa__32_ch_12bdb9cf',
+      'index_name' => '_32_character_column_aaaaaaaaaaa__32_character_column_b_6fa7ff05',
       'selftable' => 'long_columns', 'foreigntable' => 'long_columns',
-      'selfcols' => ['32_character_column_bbbbbbbbbbbb', '32_character_column_aaaaaaaaaaaa'],
-      'foreigncols' => ['32_character_column_aaaaaaaaaaaa', '32_character_column_bbbbbbbbbbbb'],
+      'selfcols' => ['_32_character_column_bbbbbbbbbbb', '_32_character_column_aaaaaaaaaaa'],
+      'foreigncols' => ['_32_character_column_aaaaaaaaaaa', '_32_character_column_bbbbbbbbbbb'],
       on_delete => '', on_update => '', deferrable => 1,
     },
     {
       'display' => 'long_columns->owner3',
-      'name' => 'long_columns_fk_16_character_col',
-      'index_name' => '16_character_col',
+      'name' => 'long_columns_fk__16_chars_column',
+      'index_name' => '_16_chars_column',
       'selftable' => 'long_columns', 'foreigntable' => 'long_columns',
-      'selfcols' => ['16_character_col'], 'foreigncols' => ['8_char_c'],
+      'selfcols' => ['_16_chars_column'], 'foreigncols' => ['_8_chr_c'],
       on_delete => '', on_update => '', deferrable => 1,
     },
   ],
@@ -256,23 +256,23 @@ my %unique_constraints = (
   long_columns => [
     {
       'display' => 'long but not quite truncated unique',
-      'name' => 'long_columns_16_character_col_32_character_column_aaaaaaaaaaaa',
-      'table' => 'long_columns', 'cols' => [qw( 32_character_column_aaaaaaaaaaaa 16_character_col )],
+      'name' => 'long_columns__16_chars_column__32_character_column_aaaaaaaaaaa',
+      'table' => 'long_columns', 'cols' => [qw( _32_character_column_aaaaaaaaaaa _16_chars_column )],
     },
     {
       'display' => 'multi column truncated unique',
-      'name' => 'long_columns_8_char_c_16_character_col_32_character_col_ee4a438c',
-      'table' => 'long_columns', 'cols' => [qw( 32_character_column_aaaaaaaaaaaa 16_character_col 8_char_c )],
+      'name' => 'long_columns__8_chr_c__16_chars_column__32_character_co_004ce318',
+      'table' => 'long_columns', 'cols' => [qw( _32_character_column_aaaaaaaaaaa _16_chars_column _8_chr_c )],
     },
     {
       'display' => 'different multi column truncated unique with same base',
-      'name' => 'long_columns_8_char_c_16_character_col_32_character_col_c5dbc7a7',
-      'table' => 'long_columns', 'cols' => [qw( 32_character_column_bbbbbbbbbbbb 16_character_col 8_char_c )],
+      'name' => 'long_columns__8_chr_c__16_chars_column__32_character_co_25773323',
+      'table' => 'long_columns', 'cols' => [qw( _32_character_column_bbbbbbbbbbb _16_chars_column _8_chr_c )],
     },
     {
       'display' => 'single column truncated unique',
-      'name' => 'long_columns_64_character_column_aaaaaaaaaaaaaaaaaaaaaa_095dc664',
-      'table' => 'long_columns', 'cols' => ['64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+      'name' => 'long_columns__64_character_column_aaaaaaaaaaaaaaaaaaaaa_0acf5172',
+      'table' => 'long_columns', 'cols' => ['_64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
     },
   ],
 
@@ -306,8 +306,8 @@ my %indexes = (
 
 my $tschema = $translator->schema();
 # Test that the $schema->sqlt_deploy_hook was called okay and that it removed
-# the 'link' table
-ok( !defined($tschema->get_table('link')), "Link table was removed by hook");
+# the 'dummy' table
+ok( !defined($tschema->get_table('dummy')), "Dummy table was removed by hook");
 
 # Test that nonexistent constraints are not found
 my $constraint = get_constraint('FOREIGN KEY', 'cd', ['title'], 'cd', ['year']);
