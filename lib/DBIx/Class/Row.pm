@@ -547,7 +547,9 @@ sub set_inflated_columns {
 
   my $copy = $orig->copy({ change => $to, ... });
 
-Inserts a new row with the specified changes.
+Inserts a new row with the specified changes. If the row has related
+objects in a C<has_many> then those objects may be copied too depending
+on the C<cascade_copy> relationship attribute.
 
 =cut
 
