@@ -273,8 +273,8 @@ DBIx-Class-based cascading delete.
 
 If you copy an object in a class with a C<has_many> relationship, all
 the related objects will be copied as well. To turn this behaviour off,
-pass C<cascade_copy => 0 > in the C<$attr> hashref. The behaviour
-defaults to C<cascade_copy => 1>.
+pass C<< cascade_copy => 0 >> in the C<$attr> hashref. The behaviour
+defaults to C<< cascade_copy => 1 >>.
 
 See L<DBIx::Class::Relationship::Base> for documentation on relationship
 methods and valid relationship attributes.
