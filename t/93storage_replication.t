@@ -5,10 +5,10 @@ use Test::More;
 use DBICTest;
 
 BEGIN {
-    eval "use Moose";
+    eval "use Moose; use Test::Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 40 );
+        : ( tests => 41 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -213,18 +213,18 @@ ok $replicated->schema->storage->pool->has_replicants
 is $replicated->schema->storage->num_replicants => 2
     => 'has two replicants';
        
-isa_ok $replicated_storages[0]
+does_ok $replicated_storages[0]
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 
-isa_ok $replicated_storages[1]
+does_ok $replicated_storages[1]
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
     
 my @replicant_names = keys %{$replicated->schema->storage->replicants};
-    
-isa_ok $replicated->schema->storage->replicants->{$replicant_names[0]}
+
+does_ok $replicated->schema->storage->replicants->{$replicant_names[0]}
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 
-isa_ok $replicated->schema->storage->replicants->{$replicant_names[1]}
+does_ok $replicated->schema->storage->replicants->{$replicant_names[1]}
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';  
 
 ## Add some info to the database
@@ -355,7 +355,19 @@ $replicated->schema->storage->replicants->{$replicant_names[0]}->active(0);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(0);
     
 ok $replicated->schema->resultset('Artist')->find(2)
-    => 'Fallback to master'; 
+    => 'Fallback to master';
+
+$replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
+$replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
+
+ok $replicated->schema->resultset('Artist')->find(2)
+    => 'Returned to replicates';
+    
+## Getting slave status tests
+
+use Data::Dump qw/dump/;
+my $lag1 = $replicated->schema->storage->replicants->{$replicant_names[0]}->lag_behind_master;
+warn dump $lag1;
        
 ## Delete the old database files
 $replicated->cleanup;

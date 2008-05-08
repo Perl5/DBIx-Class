@@ -36,7 +36,7 @@ has 'replicant_type' => (
     is=>'ro',
     isa=>'ClassName',
     required=>1,
-    default=>'DBIx::Class::Storage::DBI::Replicated::Replicant',
+    default=>'DBIx::Class::Storage::DBI',
     handles=>{
     	'create_replicant' => 'new',
     },	
@@ -84,7 +84,7 @@ removes the replicant under $key from the pool
 has 'replicants' => (
     is=>'rw',
     metaclass => 'Collection::Hash',
-    isa=>'HashRef[DBIx::Class::Storage::DBI::Replicated::Replicant]',
+    isa=>'HashRef[DBIx::Class::Storage::DBI]',
     default=>sub {{}},
     provides  => {
 		'set' => 'set_replicant',
@@ -107,15 +107,21 @@ L</replicants> attribute.
 
 =cut
 
+use Data::Dump qw/dump/; 
+
 sub connect_replicants {
 	my $self = shift @_;
 	my $schema = shift @_;
 	
 	my @newly_created = ();
 	foreach my $connect_info (@_) {
+		
 		my $replicant = $self->create_replicant($schema);
-		$replicant->connect_info($connect_info);
+		$replicant->connect_info($connect_info);	
 		$replicant->ensure_connected;
+		
+		DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
+		
 		my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);
 		$self->set_replicant( $key => $replicant);	
 		push @newly_created, $replicant;

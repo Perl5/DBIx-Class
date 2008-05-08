@@ -1,16 +1,14 @@
 package DBIx::Class::Storage::DBI::Replicated::Replicant;
 
-use Moose;
-extends 'DBIx::Class::Storage::DBI', 'Moose::Object';
+use Moose::Role;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Replicated::Replicant; A replicated DBI Storage
+DBIx::Class::Storage::DBI::Replicated::Replicant; A replicated DBI Storage Role
 
 =head1 SYNOPSIS
 
-This class is used internally by L<DBIx::Class::Storage::DBI::Replicated>.  You
-shouldn't need to create instances of this class.
+This class is used internally by L<DBIx::Class::Storage::DBI::Replicated>.
     
 =head1 DESCRIPTION
 
@@ -65,29 +63,6 @@ around '_query_start' => sub {
 	$self->$method("DSN: $dsn SQL: $sql", @bind);
 };
 
-=head2 is_replicating
-
-A boolean that reports if a particular L<DBIx::Class::Storage::DBI> is set to
-replicate from a master database.  Default is false, which is the result
-returned by databases that don't support replication.
-
-=cut
-
-sub is_replicating {
-	my $self = shift @_;
-}
-
-=head2 lag_behind_master
-
-Returns a number that represents a certain amount of lag behind a master db
-when a given storage is replicating.  The number is database dependent, but
-starts at zero, which is the default, and increases with the amount of lag.
-
-=cut
-
-sub lag_behind_master {
-    my $self = shift @_;
-}
 
 =head1 AUTHOR
 

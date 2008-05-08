@@ -40,6 +40,7 @@ sub is_replicating {
 
 sub lag_behind_master {
     my $self = shift @_;
+    return $self->dbh->selectrow_hashref('show slave status');
 }
 
 1;
