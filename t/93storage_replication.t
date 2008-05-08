@@ -16,6 +16,18 @@ use_ok 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 use_ok 'DBIx::Class::Storage::DBI::Replicated';
 
+=head1 HOW TO USE
+
+    This is a test of the replicated storage system.  This will work in one of
+    two ways, either it was try to fake replication with a couple of SQLite DBs
+    and creative use of copy, or if you define a couple of %ENV vars correctly
+    will try to test those.  If you do that, it will assume the setup is properly
+    replicating.  Your results may vary, but I have demonstrated this to work with
+    mysql native replication.
+    
+=cut
+
+
 ## ----------------------------------------------------------------------------
 ## Build a class to hold all our required testing data and methods.
 ## ----------------------------------------------------------------------------
@@ -47,12 +59,17 @@ TESTSCHEMACLASSES: {
     
     sub init_schema {
         my $class = shift @_;
+        
         my $schema = DBICTest->init_schema(
             storage_type=>[
             	'::DBI::Replicated' => {
             		balancer_type=>'::Random',
-            	}],
-            );
+            	}
+            ],
+            deploy_args=>{
+                   add_drop_table => 1,
+            },
+        );
 
         return $schema;
     }
@@ -202,10 +219,12 @@ isa_ok $replicated_storages[0]
 isa_ok $replicated_storages[1]
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
     
-isa_ok $replicated->schema->storage->replicants->{"t/var/DBIxClass_slave1.db"}
+my @replicant_names = keys %{$replicated->schema->storage->replicants};
+    
+isa_ok $replicated->schema->storage->replicants->{$replicant_names[0]}
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 
-isa_ok $replicated->schema->storage->replicants->{"t/var/DBIxClass_slave2.db"}
+isa_ok $replicated->schema->storage->replicants->{$replicant_names[1]}
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';  
 
 ## Add some info to the database
@@ -245,11 +264,19 @@ $replicated
         [ 7, "Watergate"],
     ]);
 
-## Alright, the database 'cluster' is not in a consistent state.  When we do
-## a read now we expect bad news
-
-is $replicated->schema->resultset('Artist')->find(5), undef
-    => 'read after disconnect fails because it uses a replicant which we have neglected to "replicate" yet';
+SKIP: {
+    ## We can't do this test if we have a custom replicants, since we assume
+    ## if there are custom one that you are trying to test a real replicating
+    ## system.  See docs above for more.
+    
+    skip 'Cannot test inconsistent replication since you have a real replication system', 1
+     if DBICTest->has_custom_dsn && $ENV{"DBICTEST_SLAVE0_DSN"};
+    
+	## Alright, the database 'cluster' is not in a consistent state.  When we do
+	## a read now we expect bad news    
+    is $replicated->schema->resultset('Artist')->find(5), undef
+    => 'read after disconnect fails because it uses a replicant which we have neglected to "replicate" yet'; 
+}
 
 ## Make sure all the slaves have the table definitions
 $replicated->replicate;
@@ -270,8 +297,8 @@ is $artist2->name, "Doom's Children"
 is $replicated->schema->storage->pool->connected_replicants => 2
     => "both replicants are connected";
     
-$replicated->schema->storage->replicants->{"t/var/DBIxClass_slave1.db"}->disconnect;
-$replicated->schema->storage->replicants->{"t/var/DBIxClass_slave2.db"}->disconnect;
+$replicated->schema->storage->replicants->{$replicant_names[0]}->disconnect;
+$replicated->schema->storage->replicants->{$replicant_names[1]}->disconnect;
 
 is $replicated->schema->storage->pool->connected_replicants => 0
     => "both replicants are now disconnected";
@@ -324,8 +351,8 @@ ok $replicated->schema->resultset('Artist')->find(2)
 ## set all the replicants to inactive, and make sure the balancer falls back to
 ## the master.
 
-$replicated->schema->storage->replicants->{"t/var/DBIxClass_slave1.db"}->active(0);
-$replicated->schema->storage->replicants->{"t/var/DBIxClass_slave2.db"}->active(0);
+$replicated->schema->storage->replicants->{$replicant_names[0]}->active(0);
+$replicated->schema->storage->replicants->{$replicant_names[1]}->active(0);
     
 ok $replicated->schema->resultset('Artist')->find(2)
     => 'Fallback to master'; 

@@ -89,11 +89,13 @@ sub init_schema {
     }    
     if ( !$args{no_connect} ) {
       $schema = $schema->connect($self->_database);
-      $schema->storage->on_connect_do(['PRAGMA synchronous = OFF']);
+      $schema->storage->on_connect_do(['PRAGMA synchronous = OFF'])
+       unless $self->has_custom_dsn;
     }
     if ( !$args{no_deploy} ) {
-        __PACKAGE__->deploy_schema( $schema );
-        __PACKAGE__->populate_schema( $schema ) if( !$args{no_populate} );
+        __PACKAGE__->deploy_schema( $schema, $args{deploy_args} );
+        __PACKAGE__->populate_schema( $schema )
+         if( !$args{no_populate} );
     }
     return $schema;
 }
@@ -112,10 +114,14 @@ of tables for testing.
 
 sub deploy_schema {
     my $self = shift;
-    my $schema = shift; 
+    my $schema = shift;
+    my $args = shift || {};
 
     if ($ENV{"DBICTEST_SQLT_DEPLOY"}) { 
-        return $schema->deploy();
+    	
+#$schema->create_ddl_dir([qw/MySQL/], $schema->VERSION, '.', undef, $args);
+$schema->deploy($args);    
+
     } else {
         open IN, "t/lib/sqlite.sql";
         my $sql;
@@ -123,6 +129,7 @@ sub deploy_schema {
         close IN;
         ($schema->storage->dbh->do($_) || print "Error on SQL: $_\n") for split(/;\n/, $sql);
     }
+    return;
 }
 
 =head2 populate_schema
@@ -224,15 +231,16 @@ sub populate_schema {
         [ 1, 3 ],
     ]);
 
-    $schema->populate('TreeLike', [
-        [ qw/id parent name/ ],
-        [ 1, 0, 'foo'  ],
-        [ 2, 1, 'bar'  ],
-        [ 5, 1, 'blop' ],
-        [ 3, 2, 'baz'  ],
-        [ 4, 3, 'quux' ],
-        [ 6, 2, 'fong'  ],
-    ]);
+ #   $schema->populate('TreeLike', [
+ #       [ qw/id parent name/ ],
+ #       [ 0, 0, 'root' ],
+ #       [ 1, 0, 'foo'  ],
+ #       [ 2, 1, 'bar'  ],
+ #       [ 5, 1, 'blop' ],
+ #       [ 3, 2, 'baz'  ],
+ #       [ 4, 3, 'quux' ],
+ #       [ 6, 2, 'fong'  ],
+ #   ]);
 
     $schema->populate('Track', [
         [ qw/trackid cd  position title/ ],
@@ -273,16 +281,7 @@ sub populate_schema {
         [ 1, "Tools" ],
         [ 2, "Body Parts" ],
     ]);
-
-    $schema->populate('CollectionObject', [
-        [ qw/collection object/ ],
-        [ 1, 1 ],
-        [ 1, 2 ],
-        [ 1, 3 ],
-        [ 2, 4 ],
-        [ 2, 5 ],
-    ]);
-
+    
     $schema->populate('TypedObject', [
         [ qw/objectid type value/ ],
         [ 1, "pointy", "Awl" ],
@@ -290,6 +289,14 @@ sub populate_schema {
         [ 3, "pointy", "Knife" ],
         [ 4, "pointy", "Tooth" ],
         [ 5, "round", "Head" ],
+    ]);
+    $schema->populate('CollectionObject', [
+        [ qw/collection object/ ],
+        [ 1, 1 ],
+        [ 1, 2 ],
+        [ 1, 3 ],
+        [ 2, 4 ],
+        [ 2, 5 ],
     ]);
 
     $schema->populate('Owners', [
