@@ -118,10 +118,7 @@ sub deploy_schema {
     my $args = shift || {};
 
     if ($ENV{"DBICTEST_SQLT_DEPLOY"}) { 
-    	
-#$schema->create_ddl_dir([qw/MySQL/], $schema->VERSION, '.', undef, $args);
-$schema->deploy($args);    
-
+        $schema->deploy($args);    
     } else {
         open IN, "t/lib/sqlite.sql";
         my $sql;
@@ -230,17 +227,17 @@ sub populate_schema {
         [ 1, 2 ],
         [ 1, 3 ],
     ]);
-
- #   $schema->populate('TreeLike', [
- #       [ qw/id parent name/ ],
- #       [ 0, 0, 'root' ],
- #       [ 1, 0, 'foo'  ],
- #       [ 2, 1, 'bar'  ],
- #       [ 5, 1, 'blop' ],
- #       [ 3, 2, 'baz'  ],
- #       [ 4, 3, 'quux' ],
- #       [ 6, 2, 'fong'  ],
- #   ]);
+    
+    $schema->populate('TreeLike', [
+        [ qw/id parent_fk name/ ],
+        [ 1, undef, 'root' ],        
+        [ 2, 1, 'foo'  ],
+        [ 3, 2, 'bar'  ],
+        [ 6, 2, 'blop' ],
+        [ 4, 3, 'baz'  ],
+        [ 5, 4, 'quux' ],
+        [ 7, 3, 'fong'  ],
+    ]);
 
     $schema->populate('Track', [
         [ qw/trackid cd  position title/ ],

@@ -128,7 +128,7 @@ sub parse {
             # Force the order of the referenced fields to be the same as
             # ->add_columns method.
             my $idx;
-            my %other_columns_idx = map {$_ => $idx++} $othertable->columns;
+            my %other_columns_idx = map {$_ => ++$idx } $othertable->columns;
             @refkeys = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } @refkeys; 
             
             my @keys = map {$rel_info->{cond}->{$_} =~ /^\w+\.(\w+)$/} @cond;

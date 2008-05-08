@@ -153,9 +153,9 @@ my %fk_constraints = (
   treelike => [
     {
       'display' => 'treelike->treelike for parent',
-      'name' => 'treelike_fk_parent', 'index_name' => 'parent',
+      'name' => 'treelike_fk_parent_fk', 'index_name' => 'parent_fk',
       'selftable' => 'treelike', 'foreigntable' => 'treelike', 
-      'selfcols'  => ['parent'], 'foreigncols' => ['id'],
+      'selfcols'  => ['parent_fk'], 'foreigncols' => ['id'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
   ],
@@ -198,7 +198,7 @@ my %fk_constraints = (
       'display' => 'forceforeign->artist',
       'name' => 'forceforeign_fk_artist', 'index_name' => 'artist',
       'selftable' => 'forceforeign', 'foreigntable' => 'artist', 
-      'selfcols'  => ['artist'], 'foreigncols' => ['artist_id'], 
+      'selfcols'  => ['artist'], 'foreigncols' => ['artistid'], 
       on_delete => '', on_update => '', deferrable => 1,
     },
   ],

@@ -227,7 +227,7 @@ $schema->storage->debugcb(sub { $queries++ });
 $schema->storage->debug(1);
 
 my $tree_like =
-     $schema->resultset('TreeLike')->find(4,
+     $schema->resultset('TreeLike')->find(5,
        { join     => { parent => { parent => 'parent' } },
          prefetch => { parent => { parent => 'parent' } } });
 
@@ -244,21 +244,21 @@ $schema->storage->debugobj->callback(undef);
 
 cmp_ok($queries, '==', 1, 'Only one query run');
 
-$tree_like = $schema->resultset('TreeLike')->search({'me.id' => 1});
+$tree_like = $schema->resultset('TreeLike')->search({'me.id' => 2});
 $tree_like = $tree_like->search_related('children')->search_related('children')->search_related('children')->first;
 is($tree_like->name, 'quux', 'Tree search_related ok');
 
 $tree_like = $schema->resultset('TreeLike')->search_related('children',
-    { 'children.id' => 2, 'children_2.id' => 3 },
+    { 'children.id' => 3, 'children_2.id' => 4 },
     { prefetch => { children => 'children' } }
   )->first;
 is(eval { $tree_like->children->first->children->first->name }, 'quux',
    'Tree search_related with prefetch ok');
 
 $tree_like = eval { $schema->resultset('TreeLike')->search(
-    { 'children.id' => 2, 'children_2.id' => 5 }, 
+    { 'children.id' => 3, 'children_2.id' => 6 }, 
     { join => [qw/children children/] }
-  )->search_related('children', { 'children_4.id' => 6 }, { prefetch => 'children' }
+  )->search_related('children', { 'children_4.id' => 7 }, { prefetch => 'children' }
   )->first->children->first; };
 is(eval { $tree_like->name }, 'fong', 'Tree with multiple has_many joins ok');
 

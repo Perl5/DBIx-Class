@@ -151,7 +151,7 @@ CREATE TABLE tags (
 --
 CREATE TABLE treelike (
   id INTEGER PRIMARY KEY NOT NULL,
-  parent integer NOT NULL,
+  parent_fk integer NULL,
   name varchar(100) NOT NULL
 );
 
