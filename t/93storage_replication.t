@@ -61,14 +61,14 @@ TESTSCHEMACLASSES: {
         my $class = shift @_;
         
         my $schema = DBICTest->init_schema(
-            storage_type=>[
+            storage_type=>{
             	'::DBI::Replicated' => {
             		balancer_type=>'::Random',
                     balancer_args=>{
                     	auto_validate_every=>100,
                     },
             	}
-            ],
+            },
             deploy_args=>{
                    add_drop_table => 1,
             },

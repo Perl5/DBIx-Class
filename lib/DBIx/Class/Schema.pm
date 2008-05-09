@@ -637,9 +637,9 @@ sub setup_connection_class {
 
 =over 4
 
-=item Arguments: $storage_type|[$storage_type, \%args]
+=item Arguments: $storage_type|{$storage_type, \%args}
 
-=item Return Value: $storage_type|[$storage_type, \%args]
+=item Return Value: $storage_type|{$storage_type, \%args}
 
 =back
 
@@ -655,8 +655,10 @@ C<::DBI::Sybase::MSSQL>.
 
 If your storage type requires instantiation arguments, those are defined as a 
 second argument in the form of a hashref and the entire value needs to be
-wrapped into an arrayref.  See L<DBIx::Class::Storage::DBI::Replicated> for an
-example of this.
+wrapped into an arrayref or a hashref.  We support both types of refs here in
+order to play nice with your Config::[class] or your choice.
+
+See L<DBIx::Class::Storage::DBI::Replicated> for an example of this.
 
 =head2 connection
 
@@ -682,7 +684,7 @@ sub connection {
   return $self if !@info && $self->storage;
   
   my ($storage_class, $args) = ref $self->storage_type ? 
-    (@{$self->storage_type},{}) : ($self->storage_type, {});
+    ($self->_normalize_storage_type($self->storage_type),{}) : ($self->storage_type, {});
     
   $storage_class = 'DBIx::Class::Storage'.$storage_class
     if $storage_class =~ m/^::/;
@@ -694,6 +696,17 @@ sub connection {
   $storage->connect_info(\@info);
   $self->storage($storage);
   return $self;
+}
+
+sub _normalize_storage_type {
+	my ($self, $storage_type) = @_;
+	if(ref $storage_type eq 'ARRAY') {
+		return @$storage_type;
+	} elsif(ref $storage_type eq 'HASH') {
+		return %$storage_type;
+	} else {
+		$self->throw_exception('Unsupported REFTYPE given: '. ref $storage_type);
+	}
 }
 
 =head2 connect
