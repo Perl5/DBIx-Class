@@ -248,8 +248,8 @@ sub validate_replicants {
             $replicant->active(0);
         }
     }
-    
-    ## Mark that we completed this validation.
+
+    ## Mark that we completed this validation.  
     $self->_last_validated(time);
 }
 
