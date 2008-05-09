@@ -119,7 +119,6 @@ sub connect_replicants {
 		my $replicant = $self->create_replicant($schema);
 		$replicant->connect_info($connect_info);	
 		$replicant->ensure_connected;
-		
 		DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
 		
 		my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);

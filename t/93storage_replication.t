@@ -8,7 +8,7 @@ BEGIN {
     eval "use Moose; use Test::Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 41 );
+        : ( tests => 43 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -365,10 +365,22 @@ ok $replicated->schema->resultset('Artist')->find(2)
     
 ## Getting slave status tests
 
-use Data::Dump qw/dump/;
-my $lag1 = $replicated->schema->storage->replicants->{$replicant_names[0]}->lag_behind_master;
-warn dump $lag1;
-       
+SKIP: {
+    ## We skip this tests unless you have a custom replicants, since the default
+    ## sqlite based replication tests don't support these functions.
+    
+    skip 'Cannot Test Replicant Status on Non Replicating Database', 2
+     unless DBICTest->has_custom_dsn && $ENV{"DBICTEST_SLAVE0_DSN"};
+
+    $replicated->replicate; ## Give the slaves a chance to catchup.
+
+	ok $replicated->schema->storage->replicants->{$replicant_names[0]}->is_replicating
+	    => 'Replicants are replicating';
+	    
+	is $replicated->schema->storage->replicants->{$replicant_names[0]}->lag_behind_master, 0
+	    => 'Replicant is zero seconds behind master';
+}
+
 ## Delete the old database files
 $replicated->cleanup;
 
