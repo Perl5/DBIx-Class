@@ -435,7 +435,7 @@ B<Currently only available for C<many-to-many> relationships.>
 
   my $actor = $schema->resultset('Actor')->find(1);
   my @roles = $schema->resultset('Role')->search({ role => 
-     { '-in' -> ['Fred', 'Barney'] } } );
+     { '-in' => ['Fred', 'Barney'] } } );
 
   $actor->set_roles(\@roles);
      # Replaces all of $actor's previous roles with the two named
