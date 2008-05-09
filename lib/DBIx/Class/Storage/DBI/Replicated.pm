@@ -73,6 +73,22 @@ has 'pool_type' => (
     },
 );
 
+=head2 pool_args
+
+Contains a hashref of initialized information to pass to the Balancer object.
+See L<DBIx::Class::Storage::Replicated::Pool> for available arguments.
+
+=cut
+
+has 'pool_args' => (
+    is=>'ro',
+    isa=>'HashRef',
+    lazy=>1,
+    required=>1,
+    default=>sub { {} },
+);
+
+
 =head2 balancer_type
 
 The replication pool requires a balance class to provider the methods for
@@ -92,13 +108,16 @@ has 'balancer_type' => (
 =head2 balancer_args
 
 Contains a hashref of initialized information to pass to the Balancer object.
-See L<DBIx::Class::Storage::Replicated::Pool> for available arguments.
+See L<DBIx::Class::Storage::Replicated::Balancer> for available arguments.
 
 =cut
 
 has 'balancer_args' => (
     is=>'ro',
     isa=>'HashRef',
+    lazy=>1,
+    required=>1,
+    default=>sub { {} },
 );
 
 =head2 pool
@@ -270,7 +289,7 @@ Lazy builder for the L</pool> attribute.
 
 sub _build_pool {
 	my $self = shift @_;
-    $self->create_pool;
+    $self->create_pool(%{$self->pool_args});
 }
 
 =head2 _build_balancer_type
