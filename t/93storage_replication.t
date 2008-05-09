@@ -8,7 +8,7 @@ BEGIN {
     eval "use Moose; use Test::Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 43 );
+        : ( tests => 46 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -369,7 +369,7 @@ SKIP: {
     ## We skip this tests unless you have a custom replicants, since the default
     ## sqlite based replication tests don't support these functions.
     
-    skip 'Cannot Test Replicant Status on Non Replicating Database', 2
+    skip 'Cannot Test Replicant Status on Non Replicating Database', 3
      unless DBICTest->has_custom_dsn && $ENV{"DBICTEST_SLAVE0_DSN"};
 
     $replicated->replicate; ## Give the slaves a chance to catchup.
@@ -379,6 +379,30 @@ SKIP: {
 	    
 	is $replicated->schema->storage->replicants->{$replicant_names[0]}->lag_behind_master, 0
 	    => 'Replicant is zero seconds behind master';
+	    
+	## Test the validate replicants
+	
+	$replicated->schema->storage->pool->validate_replicants;
+	
+	is $replicated->schema->storage->pool->active_replicants, 2
+	    => 'Still have 2 replicants after validation';
+	    
+	## Force the replicants to fail the validate test by required their lag to
+	## be negative (ie ahead of the master!)
+	
+    $replicated->schema->storage->pool->maximum_lag(-10);
+    $replicated->schema->storage->pool->validate_replicants;
+    
+    is $replicated->schema->storage->pool->active_replicants, 0
+        => 'No way a replicant be be ahead of the master';
+        
+    ## Let's be fair to the replicants again.  Let them lag up to 5
+	
+    $replicated->schema->storage->pool->maximum_lag(5);
+    $replicated->schema->storage->pool->validate_replicants;
+    
+    is $replicated->schema->storage->pool->active_replicants, 2
+        => 'Both replicants in good standing again';	
 }
 
 ## Delete the old database files

@@ -36,7 +36,7 @@ return a number of seconds that the replicating database is lagging.
 =cut
 
 has 'maximum_lag' => (
-    is=>'ro',
+    is=>'rw',
     isa=>'Num',
     required=>1,
     lazy=>1,
@@ -192,8 +192,8 @@ array is given, nor should any meaning be derived.
 =cut
 
 sub all_replicants {
-	my $self = shift @_;
-	return values %{$self->replicants};
+    my $self = shift @_;
+    return values %{$self->replicants};
 }
 
 =head2 validate_replicants
@@ -215,10 +215,20 @@ not recommended that you run them very often.
 =cut
 
 sub validate_replicants {
-	my $self = shift @_;
-	foreach my $replicant($self->all_replicants) {
-		
-	}
+    my $self = shift @_;
+    foreach my $replicant($self->all_replicants) {
+        if(
+            $replicant->is_replicating &&
+            $replicant->lag_behind_master <= $self->maximum_lag &&
+            $replicant->ensure_connected
+        ) {
+        	## TODO:: Hook debug for this
+            $replicant->active(1)
+        } else {
+        	## TODO:: Hook debug for this
+            $replicant->active(0);
+        }
+    }
 }
 
 =head1 AUTHOR

@@ -118,6 +118,7 @@ has 'pool' => (
         has_replicants
         num_replicants
         delete_replicant
+        validate_replicants
     /],
 );
 

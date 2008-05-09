@@ -21,6 +21,39 @@ method by which query load can be spread out across each replicant in the pool.
 
 This class defines the following attributes.
 
+=head2 auto_validate_every ($seconds)
+
+If auto_validate has some sort of value, run the L<validate_replicants> every
+$seconds.  Be careful with this, because if you set it to 0 you will end up
+validating every query.
+
+=cut
+
+has 'auto_validate_every' => (
+    is=>'rw',
+    isa=>'Int',
+    predicate=>'had_auto_validate_every',
+);
+
+=head2 last_validated
+
+This is an integer representing a time since the last time the replicants were
+validated. It's nothing fancy, just an integer provided via the perl time 
+builtin.
+
+=cut
+
+has 'last_validated' => (
+    is=>'rw',
+    isa=>'Int',
+    reader=>'last_validated',
+    writer=>'_last_validated',
+    lazy=>1,
+    default=>sub {
+    	time;
+    },
+);
+
 =head2 master
 
 The L<DBIx::Class::Storage::DBI> object that is the master database all the
@@ -97,10 +130,23 @@ support other balance systems.
 This returns from the pool of active replicants.  If there are no active
 replicants, then you should have it return the master as an ultimate fallback.
 
+TODO this needs to wrap for the subclasses better. Maybe good use of INNER?
+
 =cut
 
 sub next_storage {
 	my $self = shift @_;
+	
+	## Do we need to validate the replicants?
+	if(
+	   $self->had_auto_validate_every && 
+	   ($self->auto_validate_every + $self->last_validated) > time
+	) {
+		$self->pool->validate_replicants;
+		$self->_last_validated(time);
+	}
+	
+	## Get a replicant, or the master if none
 	my $next = ($self->pool->active_replicants)[0];
 	return $next ? $next:$self->master;
 }
