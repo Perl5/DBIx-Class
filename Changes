@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - pod fix (RT #32988)
+        - add Test::Exception to test requirements (RT #34256)
         - make ash's build_requires/META.yml fixes work better
         - is_deferable support on relations used by the SQL::Translator
           parser
@@ -25,6 +27,7 @@ Revision history for DBIx::Class
         - Added freeze, thaw and dclone methods to Schema so that thawed
           objects will get re-attached to the schema.
         - Moved dbicadmin to JSON::Any wrapped JSON.pm for a sane API
+          (also fixes RT #32393)
         - introduced DBIx::Class::set_inflated_columns
         - DBIx::Class::Row::copy uses set_inflated_columns
 
