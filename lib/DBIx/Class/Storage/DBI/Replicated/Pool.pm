@@ -24,7 +24,26 @@ replicants, and gives some methods for querying information about their status.
 
 This class defines the following attributes.
 
-=head2 replicant_type
+=head2 maximum_lag ($num)
+
+This is a number which defines the maximum allowed lag returned by the
+L<DBIx::Class::Storage::DBI/lag_behind_master> method.  The default is 0.  In
+general, this should return a larger number when the replicant is lagging
+behind it's master, however the implementation of this is database specific, so
+don't count on this number having a fixed meaning.  For example, MySQL will
+return a number of seconds that the replicating database is lagging.
+
+=cut
+
+has 'maximum_lag' => (
+    is=>'ro',
+    isa=>'Num',
+    required=>1,
+    lazy=>1,
+    default=>0,
+);
+
+=head2 replicant_type ($classname)
 
 Base class used to instantiate replicants that are in the pool.  Unless you
 need to subclass L<DBIx::Class::Storage::DBI::Replicated::Replicant> you should
@@ -107,8 +126,6 @@ L</replicants> attribute.
 
 =cut
 
-use Data::Dump qw/dump/; 
-
 sub connect_replicants {
 	my $self = shift @_;
 	my $schema = shift @_;
@@ -177,6 +194,31 @@ array is given, nor should any meaning be derived.
 sub all_replicants {
 	my $self = shift @_;
 	return values %{$self->replicants};
+}
+
+=head2 validate_replicants
+
+This does a check to see if 1) each replicate is connected (or reconnectable),
+2) that is ->is_replicating, and 3) that it is not exceeding the lag amount
+defined by L</maximum_lag>.  Replicants that fail any of these tests are set to
+inactive, and thus removed from the replication pool.
+
+This tests L<all_replicants>, since a replicant that has been previous marked
+as inactive can be reactived should it start to pass the validation tests again.
+
+See L<DBIx::Class::Storage::DBI> for more about checking if a replicating
+connection is not following a master or is lagging.
+
+Calling this method will generate queries on the replicant databases so it is
+not recommended that you run them very often.
+
+=cut
+
+sub validate_replicants {
+	my $self = shift @_;
+	foreach my $replicant($self->all_replicants) {
+		
+	}
 }
 
 =head1 AUTHOR

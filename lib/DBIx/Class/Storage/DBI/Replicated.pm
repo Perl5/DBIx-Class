@@ -73,6 +73,18 @@ has 'pool_type' => (
     },
 );
 
+=head2 pool_args
+
+Contains a hashref of initialized information to pass to the Pool object.  See
+L<DBIx::Class::Storage::Replicated::Pool> for available arguments.
+
+=cut
+
+has 'pool_args' => (
+    is=>'ro',
+    isa=>'HashRef',
+);
+
 =head2 balancer_type
 
 The replication pool requires a balance class to provider the methods for
@@ -258,7 +270,8 @@ Lazy builder for the L</pool> attribute.
 =cut
 
 sub _build_pool {
-    shift->create_pool;
+	my $self = shift @_;
+    $self->create_pool($self->pool_args);
 }
 
 =head2 _build_balancer_type
