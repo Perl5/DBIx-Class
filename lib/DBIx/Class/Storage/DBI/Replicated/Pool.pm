@@ -43,6 +43,25 @@ has 'maximum_lag' => (
     default=>0,
 );
 
+=head2 last_validated
+
+This is an integer representing a time since the last time the replicants were
+validated. It's nothing fancy, just an integer provided via the perl time 
+builtin.
+
+=cut
+
+has 'last_validated' => (
+    is=>'rw',
+    isa=>'Int',
+    reader=>'last_validated',
+    writer=>'_last_validated',
+    lazy=>1,
+    default=>sub {
+        time;
+    },
+);
+
 =head2 replicant_type ($classname)
 
 Base class used to instantiate replicants that are in the pool.  Unless you
@@ -229,6 +248,9 @@ sub validate_replicants {
             $replicant->active(0);
         }
     }
+    
+    ## Mark that we completed this validation.
+    $self->_last_validated(time);
 }
 
 =head1 AUTHOR

@@ -1,6 +1,7 @@
 package DBIx::Class::Storage::DBI::Replicated::Balancer;
 
-use Moose;
+use Moose::Role;
+requires 'next_storage';
 
 =head1 NAME
 
@@ -8,8 +9,7 @@ DBIx::Class::Storage::DBI::Replicated::Balancer; A Software Load Balancer
 
 =head1 SYNOPSIS
 
-This class is used internally by L<DBIx::Class::Storage::DBI::Replicated>.  You
-shouldn't need to create instances of this class.
+This role is used internally by L<DBIx::Class::Storage::DBI::Replicated>.
     
 =head1 DESCRIPTION
 
@@ -32,26 +32,7 @@ validating every query.
 has 'auto_validate_every' => (
     is=>'rw',
     isa=>'Int',
-    predicate=>'had_auto_validate_every',
-);
-
-=head2 last_validated
-
-This is an integer representing a time since the last time the replicants were
-validated. It's nothing fancy, just an integer provided via the perl time 
-builtin.
-
-=cut
-
-has 'last_validated' => (
-    is=>'rw',
-    isa=>'Int',
-    reader=>'last_validated',
-    writer=>'_last_validated',
-    lazy=>1,
-    default=>sub {
-    	time;
-    },
+    predicate=>'has_auto_validate_every',
 );
 
 =head2 master
@@ -122,6 +103,8 @@ sub _build_current_replicant {
 
 =head2 next_storage
 
+This method should be defined in the class which consumes this role.
+
 Given a pool object, return the next replicant that will serve queries.  The
 default behavior is to grap the first replicant it finds but you can write 
 your own subclasses of L<DBIx::Class::Storage::DBI::Replicated::Balancer> to 
@@ -130,26 +113,32 @@ support other balance systems.
 This returns from the pool of active replicants.  If there are no active
 replicants, then you should have it return the master as an ultimate fallback.
 
-TODO this needs to wrap for the subclasses better. Maybe good use of INNER?
+=head2 around: next_storage
+
+Advice on next storage to add the autovalidation.  We have this broken out so
+that it's easier to break out the auto validation into a role.
+
+This also returns the master in the case that none of the replicants are active
+or just just forgot to create them :)
 
 =cut
 
-sub next_storage {
-	my $self = shift @_;
+around 'next_storage' => sub {
+	my ($next_storage, $self, @args) = @_;
+	my $now = time;
 	
-	## Do we need to validate the replicants?
-	if(
-	   $self->had_auto_validate_every && 
-	   ($self->auto_validate_every + $self->last_validated) > time
-	) {
-		$self->pool->validate_replicants;
-		$self->_last_validated(time);
-	}
-	
-	## Get a replicant, or the master if none
-	my $next = ($self->pool->active_replicants)[0];
-	return $next ? $next:$self->master;
-}
+    ## Do we need to validate the replicants?
+    if(
+       $self->has_auto_validate_every && 
+       ($self->auto_validate_every + $self->pool->last_validated) <= $now
+    ) {
+        $self->pool->validate_replicants;
+    }
+    
+    ## Get a replicant, or the master if none
+    my $next = $self->$next_storage(@args);
+    return $next ? $next:$self->master;	
+};
 
 =head2 before: select
 

@@ -8,7 +8,7 @@ BEGIN {
     eval "use Moose; use Test::Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 46 );
+        : ( tests => 50 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -64,6 +64,9 @@ TESTSCHEMACLASSES: {
             storage_type=>[
             	'::DBI::Replicated' => {
             		balancer_type=>'::Random',
+                    balancer_args=>{
+                    	auto_validate_every=>100,
+                    },
             	}
             ],
             deploy_args=>{
@@ -195,7 +198,7 @@ isa_ok $replicated->schema->storage->master
 isa_ok $replicated->schema->storage->pool
     => 'DBIx::Class::Storage::DBI::Replicated::Pool';
     
-isa_ok $replicated->schema->storage->balancer
+does_ok $replicated->schema->storage->balancer
     => 'DBIx::Class::Storage::DBI::Replicated::Balancer'; 
 
 ok my @replicant_connects = $replicated->generate_replicant_connect_info
@@ -210,7 +213,7 @@ isa_ok $replicated->schema->storage->balancer->current_replicant
 ok $replicated->schema->storage->pool->has_replicants
     => 'does have replicants';     
 
-is $replicated->schema->storage->num_replicants => 2
+is $replicated->schema->storage->pool->num_replicants => 2
     => 'has two replicants';
        
 does_ok $replicated_storages[0]
@@ -369,7 +372,7 @@ SKIP: {
     ## We skip this tests unless you have a custom replicants, since the default
     ## sqlite based replication tests don't support these functions.
     
-    skip 'Cannot Test Replicant Status on Non Replicating Database', 3
+    skip 'Cannot Test Replicant Status on Non Replicating Database', 9
      unless DBICTest->has_custom_dsn && $ENV{"DBICTEST_SLAVE0_DSN"};
 
     $replicated->replicate; ## Give the slaves a chance to catchup.
@@ -403,6 +406,31 @@ SKIP: {
     
     is $replicated->schema->storage->pool->active_replicants, 2
         => 'Both replicants in good standing again';	
+        
+	## Check auto validate
+	
+	is $replicated->schema->storage->balancer->auto_validate_every, 100
+	    => "Got the expected value for auto validate";
+	    
+		## This will make sure we auto validatge everytime
+		$replicated->schema->storage->balancer->auto_validate_every(0);
+		
+		## set all the replicants to inactive, and make sure the balancer falls back to
+		## the master.
+		
+		$replicated->schema->storage->replicants->{$replicant_names[0]}->active(0);
+		$replicated->schema->storage->replicants->{$replicant_names[1]}->active(0);
+		
+		## Ok, now when we go to run a query, autovalidate SHOULD reconnect
+	
+	is $replicated->schema->storage->pool->active_replicants => 0
+	    => "both replicants turned off";
+	    	
+	ok $replicated->schema->resultset('Artist')->find(5)
+	    => 'replicant reactivated';
+	    
+	is $replicated->schema->storage->pool->active_replicants => 2
+	    => "both replicants reactivated";        
 }
 
 ## Delete the old database files

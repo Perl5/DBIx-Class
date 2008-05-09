@@ -1,4 +1,4 @@
-package DBIx::Class::Storage::DBI::Replicated::Balancer::Random;
+package DBIx::Class::Storage::DBI::Replicated::Balancer::First;
 
 use List::Util qw(shuffle);
 use Moose;
@@ -6,7 +6,7 @@ with 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Replicated::Balancer::Random; A 'random' Balancer
+DBIx::Class::Storage::DBI::Replicated::Balancer::First; Just get the First Balancer
 
 =head1 SYNOPSIS
 
@@ -19,9 +19,7 @@ Given a pool (L<DBIx::Class::Storage::DBI::Replicated::Pool>) of replicated
 database's (L<DBIx::Class::Storage::DBI::Replicated::Replicant>), defines a
 method by which query load can be spread out across each replicant in the pool.
 
-This Balancer uses L<List::Util> keyword 'shuffle' to randomly pick an active
-replicant from the associated pool.  This may or may not be random enough for
-you, patches welcome.
+This Balancer just get's whatever is the first replicant in the pool
 
 =head1 ATTRIBUTES
 
@@ -33,14 +31,12 @@ This class defines the following methods.
 
 =head2 next_storage
 
-Returns an active replicant at random.  Please note that due to the nature of
-the word 'random' this means it's possible for a particular active replicant to
-be requested several times in a row.
+Just get the first storage.  Probably only good when you have one replicant.
 
 =cut
 
 sub next_storage {
-    return  (shuffle(shift->pool->active_replicants))[0];
+    return  (shift->pool->active_replicants)[0];
 }
 
 =head1 AUTHOR
