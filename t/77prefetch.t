@@ -16,7 +16,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 56 );
+        : ( tests => 58 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -344,7 +344,8 @@ is($art_rs_pr->search_related('cds')->search_related('tracks')->first->title,
 
 is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
 
-
+# once the following TODO is complete, remove the 2 stop-gap tests immediately after the TODO block
+# (the TODO block itself contains tests ensuring that the stop-gaps are removed)
 TODO: {
     local $TODO = 'Prefetch of multiple has_many rels at the same level (currently must die to protect the clueless git)';
     use DBIx::Class::ResultClass::HashRefInflator;
@@ -409,3 +410,8 @@ TODO: {
 
     is_deeply ([$pr_tags_rs->all], [$tags_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (M -> 1 -> M + M)');
 };
+
+eval { my $track = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' }, { prefetch => [qw/tracks tags/] })->first->tracks->first };
+ok ($@, 'exception on attempt to prefetch several same level has_many\'s (1 -> M + M)');
+eval { my $tag = $schema->resultset('LinerNotes')->search ({ notes => 'Buy Whiskey!' }, { prefetch => { cd => [qw/tags tracks/] } })->first->cd->tags->first };
+ok ($@, 'exception on attempt to prefetch several same level has_many\'s (M -> 1 -> M + M)');
