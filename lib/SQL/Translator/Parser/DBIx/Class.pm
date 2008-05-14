@@ -121,16 +121,13 @@ sub parse {
             my $othertable = $source->related_source($rel);
             my $rel_table = $othertable->name;
 
-            # Get the key information, mapping off the foreign/self markers
-            my @cond = keys(%{$rel_info->{cond}}); 
-            my @refkeys = map {/^\w+\.(\w+)$/} @cond;
-            
-            # Force the order of the referenced fields to be the same as
-            # ->add_columns method.
+            # Force the order of @cond to match the order of ->add_columns
             my $idx;
-            my %other_columns_idx = map {$_ => ++$idx } $othertable->columns;
-            @refkeys = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } @refkeys; 
-            
+            my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $othertable->columns;            
+            my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}}); 
+      
+            # Get the key information, mapping off the foreign/self markers
+            my @refkeys = map {/^\w+\.(\w+)$/} @cond;
             my @keys = map {$rel_info->{cond}->{$_} =~ /^\w+\.(\w+)$/} @cond;
 
             if($rel_table)
