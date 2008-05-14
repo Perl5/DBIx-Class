@@ -196,6 +196,19 @@ my $new_cd = $schema->resultset("CD")->create($new_cd_hashref);
 is($new_cd->artist->id, 17, 'new id retained okay');
 
 
+# Test find or create related functionality
+my $new_artist = $schema->resultset("Artist")->create({ artistid => 18, name => 'larry' });
+
+eval {
+	$schema->resultset("CD")->create({ 
+              cdid => 28, 
+               title => 'Boogie Wiggle', 
+              year => '2007', 
+              artist => { artistid => 18, name => 'larry' }
+             });
+};
+is($@, '', 'new cd created without clash on related artist');
+
 # Make sure exceptions from errors in created rels propogate
 eval {
     my $t = $schema->resultset("Track")->new({});
