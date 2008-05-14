@@ -43,15 +43,21 @@ one master and numerous slave database connections. All write-type queries
 database, all read-type queries (SELECTs) go to the slave database.
 
 Basically, any method request that L<DBIx::Class::Storage::DBI> would normally
-handle gets delegated to one of the two attributes: L</master_storage> or to
-L</current_replicant_storage>.  Additionally, some methods need to be distributed
+handle gets delegated to one of the two attributes: L</read_handler> or to
+L</write_handler>.  Additionally, some methods need to be distributed
 to all existing storages.  This way our storage class is a drop in replacement
 for L<DBIx::Class::Storage::DBI>.
 
 Read traffic is spread across the replicants (slaves) occuring to a user
 selected algorithm.  The default algorithm is random weighted.
 
-TODO more details about the algorithm.
+=head1 NOTES
+
+The consistancy betweeen master and replicants is database specific.  The Pool
+gives you a method to validate it's replicants, removing and replacing them
+when they fail/pass predefined criteria.  It is recommened that your application
+define two schemas, one using the replicated storage and another that just 
+connects to the master.
 
 =head1 ATTRIBUTES
 
