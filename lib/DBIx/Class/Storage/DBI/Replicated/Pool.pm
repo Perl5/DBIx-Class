@@ -58,7 +58,7 @@ has 'last_validated' => (
     writer=>'_last_validated',
     lazy=>1,
     default=>sub {
-        time;
+        0;
     },
 );
 
