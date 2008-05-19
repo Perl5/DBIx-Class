@@ -2654,8 +2654,6 @@ with a father in the person table, we could explicitly use C<INNER JOIN>:
     # SELECT child.* FROM person child
     # INNER JOIN person father ON child.father_id = father.id
 
-=cut
-
 =head2 for
 
 =over 4
@@ -2666,5 +2664,7 @@ with a father in the person table, we could explicitly use C<INNER JOIN>:
 
 Set to 'update' for a SELECT ... FOR UPDATE or 'shared' for a SELECT
 ... FOR SHARED.
+
+=cut
 
 1;
