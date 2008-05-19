@@ -2656,4 +2656,15 @@ with a father in the person table, we could explicitly use C<INNER JOIN>:
 
 =cut
 
+=head2 for
+
+=over 4
+
+=item Value: ( 'update' | 'shared' )
+
+=back
+
+Set to 'update' for a SELECT ... FOR UPDATE or 'shared' for a SELECT
+... FOR SHARED.
+
 1;
