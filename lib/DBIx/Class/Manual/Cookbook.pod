@@ -769,7 +769,7 @@ Sometimes you have a (set of) row objects that you want to put into a
 resultset without the need to hit the DB again. You can do that by using the
 L<set_cache|DBIx::Class::Resultset/set_cache> method:
 
- my @rows;
+ my @uploadable_groups;
  while (my $group = $groups->next) {
    if ($group->can_upload($self)) {
      push @uploadable_groups, $group;
