@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - mark ResultSetManager as deprecated and undocument it
         - pod fix (RT #32988)
         - add Test::Exception to test requirements (RT #34256)
         - make ash's build_requires/META.yml fixes work better
