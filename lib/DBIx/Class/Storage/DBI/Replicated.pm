@@ -224,7 +224,6 @@ has 'write_handler' => (
         update
         delete
         dbh
-        txn_do
         txn_commit
         txn_rollback
         sth
@@ -374,6 +373,56 @@ sub all_storages {
 	);
 }
 
+=head2 execute_reliably ($coderef, ?@args)
+
+Given a coderef, saves the current state of the L</read_handler>, forces it to
+use reliable storage (ie sets it to the master), executes a coderef and then
+restores the original state.
+
+Example:
+
+    my $reliably = sub {
+        my $name = shift @_;
+        $schema->resultset('User')->create({name=>$name});
+        my $user_rs = $schema->resultset('User')->find({name=>$name}); 
+    };
+
+    $schema->storage->execute_reliably($reliably, 'John');
+
+Use this when you must be certain of your database state, such as when you just
+inserted something and need to get a resultset including it, etc.
+
+=cut
+
+sub execute_reliably {
+    my ($self, $coderef, @args) = @_;
+	
+    unless( ref $coderef eq 'CODE') {
+        $self->throw_exception('Second argument must be a coderef');
+    }
+
+    ##Get copy of master storage
+    my $master = $self->master;
+    
+    ##Get whatever the current read hander is
+    my $current = $self->read_handler;
+    
+    ##Set the read handler to master
+    $self->read_handler($master);
+    
+    ## do whatever the caller needs
+    eval {
+        $coderef->(@args);
+    };
+    
+    if($@) {
+        $self->throw_exception("coderef returned an error: $@");
+    }
+  
+    ##Reset to the original state
+    $self->schema->storage->read_handler($current);	
+}
+
 =head2 set_reliable_storage
 
 Sets the current $schema to be 'reliable', that is all queries, both read and
@@ -402,6 +451,19 @@ sub set_balanced_storage {
     my $write_handler = $self->schema->storage->balancer;
     
     $schema->storage->read_handler($write_handler);
+}
+
+=head2 txn_do ($coderef)
+
+Overload to the txn_do method, which is delegated to whatever the
+L<write_handler> is set to.  We overload this in order to wrap in inside a
+L</execute_reliably> method.
+
+=cut
+
+sub txn_do {
+	my($self, $coderef, @args) = @_;
+	$self->execute_reliably($coderef, @args);
 }
 
 =head2 connected
@@ -550,11 +612,12 @@ sub disconnect {
 
 =head1 AUTHOR
 
-Norbert Csongrádi <bert@cpan.org>
+    John Napiorkowski <john.napiorkowski@takkle.com>
 
-Peter Siklósi <einon@einon.hu>
+Based on code originated by:
 
-John Napiorkowski <john.napiorkowski@takkle.com>
+    Norbert Csongrádi <bert@cpan.org>
+    Peter Siklósi <einon@einon.hu>
 
 =head1 LICENSE
 

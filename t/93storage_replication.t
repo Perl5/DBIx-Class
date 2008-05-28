@@ -2,13 +2,14 @@ use strict;
 use warnings;
 use lib qw(t/lib);
 use Test::More;
+use Test::Exception;
 use DBICTest;
 
 BEGIN {
     eval "use Moose; use Test::Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 50 );
+        : ( tests => 57 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -433,6 +434,52 @@ SKIP: {
 	    => "both replicants reactivated";        
 }
 
+## Test the reliably callback
+
+ok my $reliably = sub {
+	
+    ok $replicated->schema->resultset('Artist')->find(5)
+        => 'replicant reactivated';	
+	
+} => 'created coderef properly';
+
+$replicated->schema->storage->execute_reliably($reliably);
+
+## Try something with an error
+
+ok my $unreliably = sub {
+    
+    ok $replicated->schema->resultset('ArtistXX')->find(5)
+        => 'replicant reactivated'; 
+    
+} => 'created coderef properly';
+
+throws_ok {$replicated->schema->storage->execute_reliably($unreliably)} 
+    qr/coderef returned an error: Can't find source for ArtistXX/
+    => 'Bad coderef throws proper error';
+    
+## make sure transactions are set to execute_reliably
+
+ok my $transaction = sub {
+	
+	$replicated
+	    ->schema
+	    ->populate('Artist', [
+	        [ qw/artistid name/ ],
+	        [ 666, "Children of the Grave"],
+	    ]);
+	    
+   ok my $result = $replicated->schema->resultset('Artist')->find(666);
+   
+};
+
+$replicated->schema->txn_do($transaction);
+
+## Make sure replication came back
+
+ok $replicated->schema->resultset('Artist')->find(5)
+    => 'replicant reactivated';
+        
 ## Delete the old database files
 $replicated->cleanup;
 
