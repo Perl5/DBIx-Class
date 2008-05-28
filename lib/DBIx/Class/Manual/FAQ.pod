@@ -357,6 +357,19 @@ scalar reference:
 
  ->update({ somecolumn => \'othercolumn' })
 
+But note that when using a scalar reference the column in the database
+will be updated but when you read the value from the object with e.g.
+ 
+ ->somecolumn()
+ 
+you still get back the scalar reference to the string, B<not> the new
+value in the database. To get that you must refresh the row from storage
+using C<discard_changes()>. Or chain your function calls like this:
+
+  ->update->discard_changes
+ 
+ to update the database and refresh the object in one step.
+ 
 =item .. store JSON/YAML in a column and have it deflate/inflate automatically?
 
 You can use L<DBIx::Class::InflateColumn> to accomplish YAML/JSON storage transparently.

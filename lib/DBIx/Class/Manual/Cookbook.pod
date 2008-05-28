@@ -763,6 +763,23 @@ This will cause the following SQL statement to be run:
 Which will of course only work if your database supports this function.
 See L<DBIx::Class::ResultSetColumn> for more documentation.
 
+=head2 Creating a result set from a set of rows
+
+Sometimes you have a (set of) row objects that you want to put into a 
+resultset without the need to hit the DB again. You can do that by using the
+L<set_cache|DBIx::Class::Resultset/set_cache> method:
+
+ my @uploadable_groups;
+ while (my $group = $groups->next) {
+   if ($group->can_upload($self)) {
+     push @uploadable_groups, $group;
+   }
+ }
+ my $new_rs = $self->result_source->resultset;
+ $new_rs->set_cache(\@uploadable_groups);
+ return $new_rs;
+
+
 =head1 USING RELATIONSHIPS
 
 =head2 Create a new row in a related table
