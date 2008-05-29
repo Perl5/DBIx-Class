@@ -438,6 +438,15 @@ only.
 
 sub select_single { die "Virtual method!" }
 
+=head2 reload_row ($row)
+
+given a L<DBIx::Class::Row> object, 'reloads' it from the storage.  This will
+destroy any existing changes you have not yet saved.
+
+=cut
+
+sub reload_row { die "Virtual method!" }
+
 =head2 columns_info_for
 
 Returns metadata for the given source's columns.  This

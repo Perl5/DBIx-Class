@@ -9,7 +9,7 @@ BEGIN {
     eval "use Moose; use Test::Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 57 );
+        : ( tests => 71 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -455,30 +455,81 @@ ok my $unreliably = sub {
 } => 'created coderef properly';
 
 throws_ok {$replicated->schema->storage->execute_reliably($unreliably)} 
-    qr/coderef returned an error: Can't find source for ArtistXX/
+    qr/Can't find source for ArtistXX/
     => 'Bad coderef throws proper error';
+    
+## Make sure replication came back
+
+ok $replicated->schema->resultset('Artist')->find(3)
+    => 'replicant reactivated';
     
 ## make sure transactions are set to execute_reliably
 
 ok my $transaction = sub {
 	
+	my $id = shift @_;
+	
 	$replicated
 	    ->schema
 	    ->populate('Artist', [
 	        [ qw/artistid name/ ],
-	        [ 666, "Children of the Grave"],
+	        [ $id, "Children of the Grave"],
 	    ]);
 	    
-   ok my $result = $replicated->schema->resultset('Artist')->find(666);
+   ok my $result = $replicated->schema->resultset('Artist')->find($id);
+   ok my $more = $replicated->schema->resultset('Artist')->find(1);
+   
+   return ($result, $more);
    
 };
 
-$replicated->schema->txn_do($transaction);
+## Test the transaction with multi return
+{
+	ok my @return = $replicated->schema->txn_do($transaction, 666)
+	    => 'did transaction';
+	    
+	    is $return[0]->id, 666
+	        => 'first returned value is correct';
+	        
+	    is $return[1]->id, 1
+	        => 'second returned value is correct';
+}
+
+## Test that asking for single return works
+{
+	ok my $return = $replicated->schema->txn_do($transaction, 777)
+	    => 'did transaction';
+	    
+	    is $return->id, 777
+	        => 'first returned value is correct';
+}
+
+## Test transaction returning a single value
+
+{
+	ok my $result = $replicated->schema->txn_do(sub {
+		ok my $more = $replicated->schema->resultset('Artist')->find(1);
+		return $more;
+	}) => 'successfully processed transaction';
+	
+	is $result->id, 1
+	   => 'Got expected single result from transaction';
+}
 
 ## Make sure replication came back
 
-ok $replicated->schema->resultset('Artist')->find(5)
+ok $replicated->schema->resultset('Artist')->find(1)
     => 'replicant reactivated';
+    
+## Test Discard changes
+
+{
+	ok my $artist = $replicated->schema->resultset('Artist')->find(2)
+	    => 'got an artist to test discard changes';
+	    
+	ok $artist->discard_changes
+	   => 'properly discard changes';
+}
         
 ## Delete the old database files
 $replicated->cleanup;

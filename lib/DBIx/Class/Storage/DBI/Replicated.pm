@@ -229,6 +229,7 @@ has 'write_handler' => (
         sth
         deploy
         schema
+        reload_row
     /],
 );
 
@@ -385,9 +386,10 @@ Example:
         my $name = shift @_;
         $schema->resultset('User')->create({name=>$name});
         my $user_rs = $schema->resultset('User')->find({name=>$name}); 
+        return $user_rs;
     };
 
-    $schema->storage->execute_reliably($reliably, 'John');
+    my $user_rs = $schema->storage->execute_reliably($reliably, 'John');
 
 Use this when you must be certain of your database state, such as when you just
 inserted something and need to get a resultset including it, etc.
@@ -411,16 +413,31 @@ sub execute_reliably {
     $self->read_handler($master);
     
     ## do whatever the caller needs
+    my @result;
+    my $want_array = wantarray;
+    
     eval {
-        $coderef->(@args);
+	    if($want_array) {
+	        @result = $coderef->(@args);
+	    }
+	    elsif(defined $want_array) {
+	        ($result[0]) = ($coderef->(@args));
+	    } else {
+	        $coderef->(@args);
+	    }    	
     };
+    
+    ##Reset to the original state
+    $self->schema->storage->read_handler($current); 
+    
+    ##Exception testing has to come last, otherwise you might leave the 
+    ##read_handler set to master.
     
     if($@) {
         $self->throw_exception("coderef returned an error: $@");
+    } else {
+    	return $want_array ? @result : $result[0];
     }
-  
-    ##Reset to the original state
-    $self->schema->storage->read_handler($current);	
 }
 
 =head2 set_reliable_storage
@@ -465,6 +482,20 @@ sub txn_do {
 	my($self, $coderef, @args) = @_;
 	$self->execute_reliably($coderef, @args);
 }
+
+=head2 reload_row ($row)
+
+Overload to the reload_row method so that the reloading is always directed to
+the master storage.
+
+=cut
+
+around 'reload_row' => sub {
+	my ($reload_row, $self, $row) = @_;
+	$self->execute_reliably(sub {
+		$self->$reload_row(shift);
+	}, $row);
+};
 
 =head2 connected
 

@@ -1296,6 +1296,28 @@ sub select_single {
   return @row;
 }
 
+sub reload_row { 
+  my ($self, $row) = @_;
+  delete $row->{_dirty_columns};
+  return unless $row->in_storage; # Don't reload if we aren't real!
+
+  my $reload = $row->result_source->resultset->find(
+    map { $row->$_ } $row->primary_columns
+  );
+  unless ($reload) { # If we got deleted in the mean-time
+    $row->in_storage(0);
+    return $row;
+  }
+
+  $row = %$reload;
+  
+  # Avoid a possible infinite loop with
+  # sub DESTROY { $_[0]->discard_changes }
+  bless $reload, 'Do::Not::Exist';
+
+  return $row;
+}
+
 =head2 sth
 
 =over 4
