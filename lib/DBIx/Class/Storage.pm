@@ -440,8 +440,8 @@ sub select_single { die "Virtual method!" }
 
 =head2 reload_row ($row)
 
-given a L<DBIx::Class::Row> object, 'reloads' it from the storage.  This will
-destroy any existing changes you have not yet saved.
+given a L<DBIx::Class::Row> object, loads and returns the matching version from
+storage.  Does not effect the existing row object.
 
 =cut
 

@@ -37,8 +37,22 @@ changes made since the row was last read from storage.
 
 sub discard_changes {
   my ($self) = @_;
-  my $storage = $self->result_source->schema->storage;
-  $storage->reload_row($self);
+  delete $self->{_dirty_columns};
+  return unless $self->in_storage; # Don't reload if we aren't real!
+
+  my $reload = $self->result_source->schema->storage->reload_row($self);
+  
+  unless ($reload) { # If we got deleted in the mean-time
+    $self->in_storage(0);
+    return $self;
+  }
+
+  %$self = %$reload;
+  
+  # Avoid a possible infinite loop with
+  # sub DESTROY { $_[0]->discard_changes }
+  bless $reload, 'Do::Not::Exist';
+
   return $self;
 }
 

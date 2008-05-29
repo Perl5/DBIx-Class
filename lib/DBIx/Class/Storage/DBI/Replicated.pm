@@ -492,8 +492,8 @@ the master storage.
 
 around 'reload_row' => sub {
 	my ($reload_row, $self, $row) = @_;
-	$self->execute_reliably(sub {
-		$self->$reload_row(shift);
+	return $self->execute_reliably(sub {
+		return $self->$reload_row(shift);
 	}, $row);
 };
 
