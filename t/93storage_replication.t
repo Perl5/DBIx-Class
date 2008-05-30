@@ -243,6 +243,8 @@ $replicated
 ## Make sure all the slaves have the table definitions
 
 $replicated->replicate;
+$replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
+$replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
 
 ## Make sure we can read the data.
 

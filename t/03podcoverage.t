@@ -98,9 +98,8 @@ my $exceptions = {
 
     'DBIx::Class::Schema::Versioned' => { ignore => [ qw(connection) ] },
 
-# must kill authors.
-
-    'DBIx::Class::Storage::DBI::Replicated' => { skip => 1 },
+# don't bother since it's heavily deprecated
+    'DBIx::Class::ResultSetManager' => { skip => 1 },
 };
 
 foreach my $module (@modules) {
