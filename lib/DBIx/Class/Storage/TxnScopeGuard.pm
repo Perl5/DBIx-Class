@@ -18,25 +18,32 @@ sub commit {
   $self->[0] = 1;
 }
 
+sub dismiss {
+  my $self = shift;
+  
+  $self->[0] = 1;
+}
+
 sub DESTROY {
   my ($dismiss, $storage) = @{$_[0]};
 
   return if $dismiss;
 
   my $exception = $@;
+  Carp::cluck("A DBIx::Class:: went out of scope without explicit commit/dismiss")
+    unless $exception; 
+  {
+    local $@;
+    eval { $storage->txn_rollback };
+    my $rollback_exception = $@;
+    if($rollback_exception) {
+      my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
 
-  $DB::single = 1;
-
-  local $@;
-  eval { $storage->txn_rollback };
-  my $rollback_exception = $@;
-  if($rollback_exception) {
-    my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
-
-    $storage->throw_exception(
-      "Transaction aborted: ${exception}. "
-      . "Rollback failed: ${rollback_exception}"
-    ) unless $rollback_exception =~ /$exception_class/;
+      $storage->throw_exception(
+        "Transaction aborted: ${exception}. "
+        . "Rollback failed: ${rollback_exception}"
+      ) unless $rollback_exception =~ /$exception_class/;
+    }
   }
 }
 
