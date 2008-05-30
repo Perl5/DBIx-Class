@@ -19,6 +19,7 @@ DBIx::Class::Relationship - Inter-table relationships
 
 =head1 SYNOPSIS
 
+  ## Creating relationships
   MyDB::Schema::Actor->has_many('actorroles' => 'MyDB::Schema::ActorRole',
                                 'actor');
   MyDB::Schema::Role->has_many('actorroles' => 'MyDB::Schema::ActorRole',
@@ -29,6 +30,7 @@ DBIx::Class::Relationship - Inter-table relationships
   MyDB::Schema::Role->many_to_many('actors' => 'actorroles', 'actor');
   MyDB::Schema::Actor->many_to_many('roles' => 'actorroles', 'role');
 
+  ## Using relationships
   $schema->resultset('Actor')->roles();
   $schema->resultset('Role')->search_related('actors', { Name => 'Fred' });
   $schema->resultset('ActorRole')->add_to_roles({ Name => 'Sherlock Holmes'});
@@ -113,15 +115,16 @@ attrubutes that are allowed in the C<$attrs> argument.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $fk_column|$cond?, $attr?
+=item Arguments: $accessor_name, $related_class, $fk_column|\%cond|\@cond?, \%attr?
 
 =back
 
-Creates a relationship where the calling class stores the foreign class's
-primary key in one (or more) of its columns. This relationship defaults to
-using C<$accessor_name> as the foreign key in C<$related_class> to resolve the
-join, unless C<$fk_column> specifies the foreign key column in
-this class or C<$cond> specifies a reference to a join condition hash.
+Creates a relationship where the calling class stores the foreign
+class's primary key in one (or more) of its columns. This relationship
+defaults to using C<$accessor_name> as the column in this class
+to resolve the join against the primary key from C<$related_class>,
+unless C<$fk_column> specifies the foreign key column in this class or
+C<cond> specifies a reference to a join condition hash.
 
 =over
 
@@ -157,16 +160,33 @@ relations that are across multiple columns.
 
 
   # in a Book class (where Author has many Books)
-  My::DBIC::Schema::Book->belongs_to( author => 'My::DBIC::Schema::Author' );
+  My::DBIC::Schema::Book->belongs_to( 
+    author => 
+    'My::DBIC::Schema::Author', 
+    'author_id'
+  );
 
-  my $author_obj = $obj->author; # get author object
-  $obj->author( $new_author_obj ); # set author object
+  # OR (same result)
+  My::DBIC::Schema::Book->belongs_to(
+    author =>
+    'My::DBIC::Schema::Author',
+    { 'foreign.author_id' => 'self.author_id' } 
+  );
 
-The above belongs_to relationship could also have been specified as,
+  # OR (similar result but uglier accessor name)
+  My::DBIC::Schema::Book->belongs_to( 
+    author_id =>
+    'My::DBIC::Schema::Author'
+  );
 
-  My::DBIC::Schema::Book->belongs_to( author,
-                                      'My::DBIC::Schema::Author',
-                                      { 'foreign.author' => 'self.author' } );
+  # Usage
+  my $author_obj = $book->author; # get author object
+  $book->author( $new_author_obj ); # set author object
+  $book->author_id(); # get the plain id
+
+  # To retrieve the plain id if you used the ugly version:
+  $book->get_column('author_id');
+
 
 If the relationship is optional -- i.e. the column containing the foreign key
 can be NULL -- then the belongs_to relationship does the right thing. Thus, in
@@ -176,8 +196,12 @@ JOIN> is done, which makes complex resultsets involving C<join> or C<prefetch>
 operations work correctly.  The modified declaration is shown below:
 
   # in a Book class (where Author has_many Books)
-  __PACKAGE__->belongs_to(author => 'My::DBIC::Schema::Author',
-                          'author', {join_type => 'left'});
+  __PACKAGE__->belongs_to(
+    author => 
+    'My::DBIC::Schema::Author',
+    'author', 
+    { join_type => 'left' }
+  );
 
 
 Cascading deletes are off by default on a C<belongs_to>
@@ -194,7 +218,7 @@ methods and valid relationship attributes.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $foreign_key_column|$cond?, $attr?
+=item Arguments: $accessor_name, $related_class, $foreign_key_column|\%cond|\@cond?, \%attr?
 
 =back
 
@@ -202,7 +226,7 @@ Creates a one-to-many relationship, where the corresponding elements of the
 foreign class store the calling class's primary key in one (or more) of its
 columns. This relationship defaults to using C<$accessor_name> as the foreign
 key in C<$related_class> to resolve the join, unless C<$foreign_key_column>
-specifies the foreign key column in C<$related_class> or C<$cond> specifies a
+specifies the foreign key column in C<$related_class> or C<cond> specifies a
 reference to a join condition hash.
 
 =over
@@ -212,9 +236,10 @@ reference to a join condition hash.
 This argument is the name of the method you can call on a
 L<DBIx::Class::Row> object to retrieve a resultset of the related
 class restricted to the ones related to the row object. In list
-context it returns the row objects.
+context it returns the row objects. This is often called the
+C<relation(ship) name>.
 
-Use this accessor_name (relation name) in L<DBIx::Class::ResultSet/join>
+Use this accessor_name in L<DBIx::Class::ResultSet/join>
 or L<DBIx::Class::ResultSet/prefetch> to join to the foreign table
 indicated by this relationship.
 
@@ -231,45 +256,77 @@ OR
 
 =item cond
 
-A hashref where the keys are C<foreign.$column_on_related_table> and
-the values are C<self.$foreign_key_column>. This is useful for
+A hashref where the keys are C<foreign.$foreign_key_column> and
+the values are C<self.$matching_column>. This is useful for
 relations that are across multiple columns.
 
+OR
+
+An arrayref containing an SQL::Abstract-like condition. For example a
+link table where two columns link back to the same table. This is an
+OR condition.
+
+  My::Schema::Item->has_many('rels', 'My::Schema::Relationships',
+                             [ { 'foreign.LItemID' => 'self.ID' },
+                               { 'foreign.RItemID' => 'self.ID'} ]);
 =back
 
   # in an Author class (where Author has_many Books)
-  My::DBIC::Schema::Author->has_many(books => 'My::DBIC::Schema::Book', 'author');
+  My::DBIC::Schema::Author->has_many(
+    books => 
+    'My::DBIC::Schema::Book', 
+    'author_id'
+  );
 
-  my $booklist = $obj->books;
-  my $booklist = $obj->books({
+  # OR (same result, assuming related_class is storing our PK)
+  My::DBIC::Schema::Author->has_many(
+    books => 
+    'My::DBIC::Schema::Book', 
+  );
+
+  # OR (same result)
+  My::DBIC::Schema::Author->has_many(
+    books => 
+    'My::DBIC::Schema::Book', 
+    { 'foreign.author_id' => 'self.id' },
+  );
+  
+
+  # Usage
+  # resultset of Books belonging to author 
+  my $booklist = $author->books;
+
+  # resultset of Books belonging to author, restricted by author name
+  my $booklist = $author->books({
     name => { LIKE => '%macaroni%' },
     { prefetch => [qw/book/],
   });
-  my @book_objs = $obj->books;
-  my $books_rs = $obj->books;
+
+  # array of Book objects belonging to author
+  my @book_objs = $author->books;
+
+  # force resultset even in list context
+  my $books_rs = $author->books;
   ( $books_rs ) = $obj->books_rs;
 
-  $obj->add_to_books(\%col_data);
+  # create a new book for this author, the relation fields are auto-filled
+  $author->create_related('books', \%col_data);
+  # alternative method for the above
+  $author->add_to_books(\%col_data);
 
-The above C<has_many> relationship could also have been specified with an
-explicit join condition:
-
-  My::DBIC::Schema::Author->has_many( books => 'My::DBIC::Schema::Book', {
-    'foreign.author' => 'self.author',
-  });
 
 Three methods are created when you create a has_many relationship.  The first
 method is the expected accessor method, C<$accessor_name()>.  The second is
 almost exactly the same as the accessor method but "_rs" is added to the end of
 the method name.  This method works just like the normal accessor, except that
-it returns a resultset no matter what, even in list context. The third method,
+it always returns a resultset, even in list context. The third method,
 named C<< add_to_$relname >>, will also be added to your Row items; this
 allows you to insert new related items, using the same mechanism as in
 L<DBIx::Class::Relationship::Base/"create_related">.
 
 If you delete an object in a class with a C<has_many> relationship, all
 the related objects will be deleted as well.  To turn this behaviour off,
-pass C<< cascade_delete => 0 >> in the C<$attr> hashref. However, any
+pass C<< cascade_delete => 0 >> in the C<attr> hashref. However, any
 database-level cascade or restrict will take precedence over a
 DBIx-Class-based cascading delete.
 
@@ -285,14 +342,14 @@ methods and valid relationship attributes.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $foreign_key_column|$cond?, $attr?
+=item Arguments: $accessor_name, $related_class, $foreign_key_column|\%cond|\@cond?, \%attr?
 
 =back
 
 Creates an optional one-to-one relationship with a class. This relationship
 defaults to using C<$accessor_name> as the foreign key in C<$related_class> to
 resolve the join, unless C<$foreign_key_column> specifies the foreign key
-column in C<$related_class> or C<$cond> specifies a reference to a join
+column in C<$related_class> or C<cond> specifies a reference to a join
 condition hash.
 
 =over
@@ -301,9 +358,10 @@ condition hash.
 
 This argument is the name of the method you can call on a
 L<DBIx::Class::Row> object to retrieve the instance of the foreign
-class matching this relationship.
+class matching this relationship. This is often called the
+C<relation(ship) name>.
 
-Use this accessor_name (relation name) in L<DBIx::Class::ResultSet/join>
+Use this accessor_name in L<DBIx::Class::ResultSet/join>
 or L<DBIx::Class::ResultSet/prefetch> to join to the foreign table
 indicated by this relationship.
 
@@ -326,22 +384,28 @@ relations that are across multiple columns.
 
 =back
 
-  My::DBIC::Schema::Author->might_have( pseudonym =>
-                                        'My::DBIC::Schema::Pseudonym' );
+  # Author may have an entry in the pseudonym table
+  My::DBIC::Schema::Author->might_have(
+    pseudonym =>
+    'My::DBIC::Schema::Pseudonym',
+    'author_id',
+  );
 
-  my $pname = $obj->pseudonym; # to get the Pseudonym object
+  # OR (same result, assuming the related_class stores our PK)
+  My::DBIC::Schema::Author->might_have(
+    pseudonym =>
+    'My::DBIC::Schema::Pseudonym',
+  );
 
-The above might_have relationship could have been specified as:
+  # OR (same result)
+  My::DBIC::Schema::Author->might_have(
+    pseudonym =>
+    'My::DBIC::Schema::Pseudonym',
+    { 'foreign.author_id' => 'self.id' },
+  );
 
-  My::DBIC::Schema::Author->might_have( pseudonym =>
-                                        'My::DBIC::Schema::Pseudonym',
-                                        'author' );
-
-Or even:
-
-  My::DBIC::Schema::Author->might_have( pseudonym =>
-                                        'My::DBIC::Schema::Pseudonym',
-                                        { 'foreign.author' => 'self.author' } );
+  # Usage
+  my $pname = $author->pseudonym; # to get the Pseudonym object
 
 If you update or delete an object in a class with a C<might_have>
 relationship, the related object will be updated or deleted as well. To
@@ -356,19 +420,76 @@ methods and valid relationship attributes.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class_name, $join_condition?, $attr?
+=item Arguments: $accessor_name, $related_class, $foreign_key_column|\%cond|\@cond?, \%attr?
 
 =back
 
-  My::DBIC::Schema::Book->has_one(isbn => 'My::DBIC::Schema::ISBN');
+Creates a one-to-one relationship with a class. This relationship
+defaults to using C<$accessor_name> as the foreign key in C<$related_class> to
+resolve the join, unless C<$foreign_key_column> specifies the foreign key
+column in C<$related_class> or C<cond> specifies a reference to a join
+condition hash.
 
-  my $isbn_obj = $obj->isbn; # to get the ISBN object
+=over
 
-Creates a one-to-one relationship with another class. This is just like
-C<might_have>, except the implication is that the other object is always
-present. The only difference between C<has_one> and C<might_have> is that
-C<has_one> uses an (ordinary) inner join, whereas C<might_have> uses a
-left join.
+=item accessor_name
+
+This argument is the name of the method you can call on a
+L<DBIx::Class::Row> object to retrieve the instance of the foreign
+class matching this relationship. This is often called the
+C<relation(ship) name>.
+
+Use this accessor_name in L<DBIx::Class::ResultSet/join>
+or L<DBIx::Class::ResultSet/prefetch> to join to the foreign table
+indicated by this relationship.
+
+=item related_class
+
+This is the class name of the table which contains a foreign key
+column containing PK values of this class.
+
+=item foreign_key_column
+
+The column name on the related class that contains the foreign key.
+
+OR
+
+=item cond
+
+A hashref where the keys are C<foreign.$column_on_related_table> and
+the values are C<self.$foreign_key_column>. This is useful for
+relations that are across multiple columns.
+
+=back
+
+  # Every book has exactly one ISBN
+  My::DBIC::Schema::Book->has_one(
+    isbn => 
+    'My::DBIC::Schema::ISBN',
+    'book_id',
+  );
+
+  # OR (same result, assuming related_class stores our PK)
+  My::DBIC::Schema::Book->has_one(
+    isbn => 
+    'My::DBIC::Schema::ISBN',
+  );
+
+  # OR (same result)
+  My::DBIC::Schema::Book->has_one(
+    isbn => 
+    'My::DBIC::Schema::ISBN',
+    { 'foreign.book_id' => 'self.id' },
+  );
+
+  # Usage
+  my $isbn_obj = $book->isbn; # to get the ISBN object
+
+Creates a one-to-one relationship with another class. This is just
+like C<might_have>, except the implication is that the other object is
+always present. The only difference between C<has_one> and
+C<might_have> is that C<has_one> uses an (ordinary) inner join,
+whereas C<might_have> defaults to a left join.
 
 The has_one relationship should be used when a row in the table has exactly one
 related row in another table. If the related row might not exist in the foreign
@@ -384,7 +505,7 @@ methods and valid relationship attributes.
 
 =over 4
 
-=item Arguments: $accessor_name, $link_rel_name, $foreign_rel_name, $attr?
+=item Arguments: $accessor_name, $link_rel_name, $foreign_rel_name, \%attr?
 
 =back
 
@@ -456,7 +577,7 @@ table, and from the link table to the end table must already exist, these
 relation names are then used in the many_to_many call.
 
 In the above example, the Actor class will have 3 many_to_many accessor methods
-set: C<$roles>, C<$add_to_roles>, C<$set_roles>, and similarly named accessors
+set: C<roles>, C<add_to_roles>, C<set_roles>, and similarly named accessors
 will be created for the Role class for the C<actors> many_to_many
 relationship.
 
@@ -469,7 +590,7 @@ methods and valid relationship attributes.
 
 =head1 AUTHORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+see L<DBIx::Class>
 
 =head1 LICENSE
 

@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 67;
+plan tests => 63;
 
 my $code = sub {
   my ($artist, @cd_titles) = @_;
@@ -238,30 +238,8 @@ my $fail_code = sub {
     ok(($err eq ''), 'Pre-connection nested transactions.');
 }
 
-# Test txn_rollback with nested
-{
-  local $TODO = "Work out how this should work";
-  my $local_schema = DBICTest->init_schema();
-
-  my $artist_rs = $local_schema->resultset('Artist');
-  throws_ok {
-   
-    $local_schema->txn_begin;
-    $artist_rs->create({ name => 'Test artist rollback 1'});
-    $local_schema->txn_begin;
-    is($local_schema->storage->transaction_depth, 2, "Correct transaction depth");
-    $artist_rs->create({ name => 'Test artist rollback 2'});
-    $local_schema->txn_rollback;
-  } qr/Not sure what this should be.... something tho/, "Rolled back okay";
-  is($local_schema->storage->transaction_depth, 0, "Correct transaction depth");
-
-  ok(!$artist_rs->find({ name => 'Test artist rollback 1'}), "Test Artist not created")
-    || $artist_rs->find({ name => 'Test artist rollback 1'})->delete;
-}
-
 # Test txn_scope_guard
 {
-  local $TODO = "Work out how this should work";
   my $schema = DBICTest->init_schema();
 
   is($schema->storage->transaction_depth, 0, "Correct transaction depth");
@@ -276,7 +254,7 @@ my $fail_code = sub {
     });
     
    $guard->commit;
-  } qr/No such column made_up_column.*?line 16/, "Error propogated okay";
+  } qr/No such column made_up_column .*? at .*?81transactions.t line \d+/, "Error propogated okay";
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
@@ -294,6 +272,7 @@ my $fail_code = sub {
     # forcing a txn_rollback to happen
     outer($schema, 0);
   };
+  local $TODO = "Work out how this should work";
   is($@, "Not sure what we want here, but something", "Rollback okay");
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");

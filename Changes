@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - throw a clear exception when user tries multi-has_many prefetch
+        - SQLT parser prefixes index names with ${table}_idx_ to avoid clashes
         - mark ResultSetManager as deprecated and undocument it
         - pod fix (RT #32988)
         - add Test::Exception to test requirements (RT #34256)

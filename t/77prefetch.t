@@ -368,16 +368,22 @@ TODO: {
         $pr_tracks_rs = $pr_cd_rs->first->tracks;
         $pr_tracks_count = $pr_tracks_rs->count;
     };
-    ok(! $@, 'exception on attempt to prefetch several same level has_many\'s (1 -> M + M)');
-    is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
 
-    is($pr_tracks_count, $tracks_count, 'equal count of prefetched relations over several same level has_many\'s (1 -> M + M)');
+    my $o_mm_exc = $@;
+    ok(! $o_mm_exc, 'exception on attempt to prefetch several same level has_many\'s (1 -> M + M)');
 
-    for ($pr_tracks_rs, $tracks_rs) {
-        $_->result_class ('DBIx::Class::ResultClass::HashRefInflator');
-    }
+    SKIP: {
+        skip "1 -> M + M prefetch died", 3 if $o_mm_exc;
+    
+        is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
+        is($pr_tracks_count, $tracks_count, 'equal count of prefetched relations over several same level has_many\'s (1 -> M + M)');
 
-    is_deeply ([$pr_tracks_rs->all], [$tracks_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (1 -> M + M)');
+        for ($pr_tracks_rs, $tracks_rs) {
+            $_->result_class ('DBIx::Class::ResultClass::HashRefInflator');
+        }
+
+        is_deeply ([$pr_tracks_rs->all], [$tracks_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (1 -> M + M)');
+    };
 
     #( M -> 1 -> M + M )
     my $note_rs = $schema->resultset('LinerNotes')->search ({ notes => 'Buy Whiskey!' });
@@ -399,16 +405,23 @@ TODO: {
         $pr_tags_rs = $pr_note_rs->first->cd->tags;
         $pr_tags_count = $pr_tags_rs->count;
     };
-    ok(! $@, 'exception on attempt to prefetch several same level has_many\'s (M -> 1 -> M + M)');
-    is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
 
-    is($pr_tags_count, $tags_count, 'equal count of prefetched relations over several same level has_many\'s (M -> 1 -> M + M)');
+    my $m_o_mm_exc = $@;
+    ok(! $m_o_mm_exc, 'exception on attempt to prefetch several same level has_many\'s (M -> 1 -> M + M)');
 
-    for ($pr_tags_rs, $tags_rs) {
-        $_->result_class ('DBIx::Class::ResultClass::HashRefInflator');
-    }
+    SKIP: {
+        skip "M -> 1 -> M + M prefetch died", 3 if $m_o_mm_exc;
+    
+        is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
 
-    is_deeply ([$pr_tags_rs->all], [$tags_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (M -> 1 -> M + M)');
+        is($pr_tags_count, $tags_count, 'equal count of prefetched relations over several same level has_many\'s (M -> 1 -> M + M)');
+
+        for ($pr_tags_rs, $tags_rs) {
+            $_->result_class ('DBIx::Class::ResultClass::HashRefInflator');
+        }
+
+        is_deeply ([$pr_tags_rs->all], [$tags_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (M -> 1 -> M + M)');
+    };
 };
 
 eval { my $track = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' }, { prefetch => [qw/tracks tags/] })->first->tracks->first };
