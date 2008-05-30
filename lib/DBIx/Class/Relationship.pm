@@ -98,29 +98,30 @@ L<DBIx::Class::Relationship::Base>.
 
 =head1 METHODS
 
-All helper methods take the following arguments:
+All helper methods are called similar to the following template:
 
-  __PACKAGE__>$method_name('relname', 'Foreign::Class', $cond, $attrs);
+  __PACKAGE__->$method_name('relname', 'Foreign::Class', $cond, $attrs);
   
 Both C<$cond> and C<$attrs> are optional. Pass C<undef> for C<$cond> if
 you want to use the default value for it, but still want to set C<$attrs>.
 
-See L<DBIx::Class::Relationship::Base> for a list of valid attributes and valid
-relationship attributes.
+See L<DBIx::Class::Relationship::Base> for documentation on the
+attrubutes that are allowed in the C<$attrs> argument.
+
 
 =head2 belongs_to
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $foreign_key_column|$cond?, $attr?
+=item Arguments: $accessor_name, $related_class, $fk_column|$cond?, $attr?
 
 =back
 
 Creates a relationship where the calling class stores the foreign class's
 primary key in one (or more) of its columns. This relationship defaults to
 using C<$accessor_name> as the foreign key in C<$related_class> to resolve the
-join, unless C<$foreign_key_column> specifies the foreign key column in
-C<$related_class> or C<$cond> specifies a reference to a join condition hash.
+join, unless C<$fk_column> specifies the foreign key column in
+this class or C<$cond> specifies a reference to a join condition hash.
 
 =over
 
@@ -128,9 +129,10 @@ C<$related_class> or C<$cond> specifies a reference to a join condition hash.
 
 This argument is the name of the method you can call on a
 L<DBIx::Class::Row> object to retrieve the instance of the foreign
-class matching this relationship.
+class matching this relationship. This is often called the
+C<relation(ship) name>.
 
-Use this accessor_name (relation name) in L<DBIx::Class::ResultSet/join>
+Use this accessor_name in L<DBIx::Class::ResultSet/join>
 or L<DBIx::Class::ResultSet/prefetch> to join to the foreign table
 indicated by this relationship.
 
@@ -139,7 +141,7 @@ indicated by this relationship.
 This is the class name of the table referenced by the foreign key in
 this class.
 
-=item foreign_key_column
+=item fk_column
 
 The column name on this class that contains the foreign key.
 
