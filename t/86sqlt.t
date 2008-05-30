@@ -58,13 +58,13 @@ my %fk_constraints = (
   fourkeys_to_twokeys => [
     {
       'display' => 'fourkeys_to_twokeys->twokeys',
-      'name' => 'fourkeys_to_twokeys_fk_t_artist_t_cd', 'index_name' => 't_artist_t_cd',
+      'name' => 'fourkeys_to_twokeys_fk_t_artist_t_cd', 'index_name' => 'fourkeys_to_twokeys_idx_t_artist_t_cd',
       'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'twokeys', 
       'selfcols'  => ['t_artist', 't_cd'], 'foreigncols' => ['artist', 'cd'], 
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
     {
-      'display' => 'fourkeys_to_twokeys->fourkeys', 'index_name' => 'f_foo_f_bar_f_hello_f_goodbye',
+      'display' => 'fourkeys_to_twokeys->fourkeys', 'index_name' => 'fourkeys_to_twokeys_idx_f_foo_f_bar_f_hello_f_goodbye',
       'name' => 'fourkeys_to_twokeys_fk_f_foo_f_bar_f_hello_f_goodbye',
       'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'fourkeys', 
       'selfcols'  => [qw(f_foo f_bar f_hello f_goodbye)],
@@ -153,7 +153,7 @@ my %fk_constraints = (
   treelike => [
     {
       'display' => 'treelike->treelike for parent',
-      'name' => 'treelike_fk_parent_fk', 'index_name' => 'parent_fk',
+      'name' => 'treelike_fk_parent_fk', 'index_name' => 'treelike_idx_parent_fk',
       'selftable' => 'treelike', 'foreigntable' => 'treelike', 
       'selfcols'  => ['parent_fk'], 'foreigncols' => ['id'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
@@ -217,7 +217,7 @@ my %fk_constraints = (
     {
       'display' => 'long_columns->owner2',
       'name' => 'long_columns_fk__32_character_column_bbbbbbbbbbb__32_ch_b7ee284e',
-      'index_name' => '_32_character_column_bbbbbbbbbbb__32_character_column_a_76863ce2',
+      'index_name' => 'long_columns_idx__32_character_column_bbbbbbbbbbb__32_c_82bf6e69',
       'selftable' => 'long_columns', 'foreigntable' => 'long_columns',
       'selfcols' => ['_32_character_column_bbbbbbbbbbb', '_32_character_column_aaaaaaaaaaa'],
       'foreigncols' => ['_32_character_column_aaaaaaaaaaa', '_32_character_column_bbbbbbbbbbb'],
