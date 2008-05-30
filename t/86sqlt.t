@@ -153,9 +153,9 @@ my %fk_constraints = (
   treelike => [
     {
       'display' => 'treelike->treelike for parent',
-      'name' => 'treelike_fk_parent_fk', 'index_name' => 'treelike_idx_parent_fk',
+      'name' => 'treelike_fk_parent', 'index_name' => 'treelike_idx_parent',
       'selftable' => 'treelike', 'foreigntable' => 'treelike', 
-      'selfcols'  => ['parent_fk'], 'foreigncols' => ['id'],
+      'selfcols'  => ['parent'], 'foreigncols' => ['id'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
   ],

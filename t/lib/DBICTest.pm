@@ -229,7 +229,7 @@ sub populate_schema {
     ]);
     
     $schema->populate('TreeLike', [
-        [ qw/id parent_fk name/ ],
+        [ qw/id parent name/ ],
         [ 1, undef, 'root' ],        
         [ 2, 1, 'foo'  ],
         [ 3, 2, 'bar'  ],
