@@ -49,6 +49,18 @@ sub _attr_cache {
 
 DBIx::Class - Extensible and flexible object <-> relational mapper.
 
+=head1 GETTING HELP/SUPPORT
+
+The community can be found via:
+
+  Mailing list: http://lists.scsys.co.uk/mailman/listinfo/dbix-class/
+
+  SVN: http://dev.catalyst.perl.org/repos/bast/DBIx-Class/
+
+  SVNWeb: http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/
+
+  IRC: irc.perl.org#dbix-class
+
 =head1 SYNOPSIS
 
 Create a schema class called DB/Main.pm:
@@ -169,16 +181,6 @@ if they're reported and doing so doesn't cost the codebase anything.
 The test suite is quite substantial, and several developer releases
 are generally made to CPAN before the branch for the next release is
 merged back to trunk for a major release.
-
-The community can be found via:
-
-  Mailing list: http://lists.scsys.co.uk/mailman/listinfo/dbix-class/
-
-  SVN: http://dev.catalyst.perl.org/repos/bast/DBIx-Class/
-
-  SVNWeb: http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/
-
-  IRC: irc.perl.org#dbix-class
 
 =head1 WHERE TO GO NEXT
 
