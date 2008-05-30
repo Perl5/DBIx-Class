@@ -40,14 +40,14 @@ my %fk_constraints = (
   twokeys => [
     {
       'display' => 'twokeys->cd',
-      'name' => 'twokeys_fk_cd', 'index_name' => 'cd',
+      'name' => 'twokeys_fk_cd', 'index_name' => 'twokeys_idx_cd',
       'selftable' => 'twokeys', 'foreigntable' => 'cd', 
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'], 
       on_delete => '', on_update => '', deferrable => 0,
     },
     {
       'display' => 'twokeys->artist',
-      'name' => 'twokeys_fk_artist', 'index_name' => 'artist',
+      'name' => 'twokeys_fk_artist', 'index_name' => 'twokeys_idx_artist',
       'selftable' => 'twokeys', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
@@ -58,13 +58,13 @@ my %fk_constraints = (
   fourkeys_to_twokeys => [
     {
       'display' => 'fourkeys_to_twokeys->twokeys',
-      'name' => 'fourkeys_to_twokeys_fk_t_cd_t_artist', 'index_name' => 't_cd_t_artist',
+      'name' => 'fourkeys_to_twokeys_fk_t_cd_t_artist', 'index_name' => 'fourkeys_to_twokeys_idx_t_cd_t_artist',
       'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'twokeys', 
       'selfcols'  => ['t_artist', 't_cd'], 'foreigncols' => ['artist', 'cd'], 
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
     {
-      'display' => 'fourkeys_to_twokeys->fourkeys', 'index_name' => 'f_foo_f_goodbye_f_hello_f_bar',
+      'display' => 'fourkeys_to_twokeys->fourkeys', 'index_name' => 'fourkeys_to_twokeys_idx_f_foo_f_goodbye_f_hello_f_bar',
       'name' => 'fourkeys_to_twokeys_fk_f_foo_f_goodbye_f_hello_f_bar',
       'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'fourkeys', 
       'selfcols'  => [qw(f_foo f_bar f_hello f_goodbye)],
@@ -77,14 +77,14 @@ my %fk_constraints = (
   cd_to_producer => [
     {
       'display' => 'cd_to_producer->cd',
-      'name' => 'cd_to_producer_fk_cd', 'index_name' => 'cd',
+      'name' => 'cd_to_producer_fk_cd', 'index_name' => 'cd_to_producer_idx_cd',
       'selftable' => 'cd_to_producer', 'foreigntable' => 'cd', 
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
     {
       'display' => 'cd_to_producer->producer',
-      'name' => 'cd_to_producer_fk_producer', 'index_name' => 'producer',
+      'name' => 'cd_to_producer_fk_producer', 'index_name' => 'cd_to_producer_idx_producer',
       'selftable' => 'cd_to_producer', 'foreigntable' => 'producer', 
       'selfcols'  => ['producer'], 'foreigncols' => ['producerid'],
       on_delete => '', on_update => '', deferrable => 1,
@@ -95,14 +95,14 @@ my %fk_constraints = (
   self_ref_alias => [
     {
       'display' => 'self_ref_alias->self_ref for self_ref',
-      'name' => 'self_ref_alias_fk_self_ref', 'index_name' => 'self_ref',
+      'name' => 'self_ref_alias_fk_self_ref', 'index_name' => 'self_ref_alias_idx_self_ref',
       'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
       'selfcols'  => ['self_ref'], 'foreigncols' => ['id'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
     {
       'display' => 'self_ref_alias->self_ref for alias',
-      'name' => 'self_ref_alias_fk_alias', 'index_name' => 'alias',
+      'name' => 'self_ref_alias_fk_alias', 'index_name' => 'self_ref_alias_idx_alias',
       'selftable' => 'self_ref_alias', 'foreigntable' => 'self_ref', 
       'selfcols'  => ['alias'], 'foreigncols' => ['id'],
       on_delete => '', on_update => '', deferrable => 1,
@@ -113,7 +113,7 @@ my %fk_constraints = (
   cd => [
     {
       'display' => 'cd->artist',
-      'name' => 'cd_fk_artist', 'index_name' => 'artist',
+      'name' => 'cd_fk_artist', 'index_name' => 'cd_idx_artist',
       'selftable' => 'cd', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
@@ -124,14 +124,14 @@ my %fk_constraints = (
   artist_undirected_map => [
     {
       'display' => 'artist_undirected_map->artist for id1',
-      'name' => 'artist_undirected_map_fk_id1', 'index_name' => 'id1',
+      'name' => 'artist_undirected_map_fk_id1', 'index_name' => 'artist_undirected_map_idx_id1',
       'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
       'selfcols'  => ['id1'], 'foreigncols' => ['artistid'],
       on_delete => 'CASCADE', on_update => '', deferrable => 1,
     },
     {
       'display' => 'artist_undirected_map->artist for id2',
-      'name' => 'artist_undirected_map_fk_id2', 'index_name' => 'id2',
+      'name' => 'artist_undirected_map_fk_id2', 'index_name' => 'artist_undirected_map_idx_id2',
       'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
       'selfcols'  => ['id2'], 'foreigncols' => ['artistid'],
       on_delete => 'CASCADE', on_update => '', deferrable => 1,
@@ -142,7 +142,7 @@ my %fk_constraints = (
   track => [
     {
       'display' => 'track->cd',
-      'name' => 'track_fk_cd', 'index_name' => 'cd',
+      'name' => 'track_fk_cd', 'index_name' => 'track_idx_cd',
       'selftable' => 'track', 'foreigntable' => 'cd', 
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
@@ -153,7 +153,7 @@ my %fk_constraints = (
   treelike => [
     {
       'display' => 'treelike->treelike for parent',
-      'name' => 'treelike_fk_parent', 'index_name' => 'parent',
+      'name' => 'treelike_fk_parent', 'index_name' => 'treelike_idx_parent',
       'selftable' => 'treelike', 'foreigntable' => 'treelike', 
       'selfcols'  => ['parent'], 'foreigncols' => ['id'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
@@ -164,7 +164,7 @@ my %fk_constraints = (
   twokeytreelike => [
     {
       'display' => 'twokeytreelike->twokeytreelike for parent1,parent2',
-      'name' => 'twokeytreelike_fk_parent1_parent2', 'index_name' => 'parent1_parent2',
+      'name' => 'twokeytreelike_fk_parent1_parent2', 'index_name' => 'twokeytreelike_idx_parent1_parent2',
       'selftable' => 'twokeytreelike', 'foreigntable' => 'twokeytreelike', 
       'selfcols'  => ['parent1', 'parent2'], 'foreigncols' => ['id1','id2'],
       on_delete => '', on_update => '', deferrable => 1,
@@ -175,7 +175,7 @@ my %fk_constraints = (
   tags => [
     {
       'display' => 'tags->cd',
-      'name' => 'tags_fk_cd', 'index_name' => 'cd',
+      'name' => 'tags_fk_cd', 'index_name' => 'tags_idx_cd',
       'selftable' => 'tags', 'foreigntable' => 'cd', 
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'],
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
@@ -186,7 +186,7 @@ my %fk_constraints = (
   bookmark => [
     {
       'display' => 'bookmark->link',
-      'name' => 'bookmark_fk_link', 'index_name' => 'link',
+      'name' => 'bookmark_fk_link', 'index_name' => 'bookmark_idx_link',
       'selftable' => 'bookmark', 'foreigntable' => 'link', 
       'selfcols'  => ['link'], 'foreigncols' => ['id'],
       on_delete => '', on_update => '', deferrable => 1,
@@ -196,7 +196,7 @@ my %fk_constraints = (
   forceforeign => [
     {
       'display' => 'forceforeign->artist',
-      'name' => 'forceforeign_fk_artist', 'index_name' => 'artist',
+      'name' => 'forceforeign_fk_artist', 'index_name' => 'forceforeign_idx_artist',
       'selftable' => 'forceforeign', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artist_id'], 
       on_delete => '', on_update => '', deferrable => 1,
@@ -208,7 +208,7 @@ my %fk_constraints = (
     {
       'display' => 'long_columns->owner',
       'name' => 'long_columns_fk__64_character_column_aaaaaaaaaaaaaaaaaa_cfc8d5b0',
-      'index_name' => '_64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      'index_name' => 'long_columns_idx__64_character_column_aaaaaaaaaaaaaaaaa_5050aa42',
       'selftable' => 'long_columns', 'foreigntable' => 'long_columns',
       'selfcols' => ['_64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
       'foreigncols' => ['lcid'],
@@ -217,7 +217,7 @@ my %fk_constraints = (
     {
       'display' => 'long_columns->owner2',
       'name' => 'long_columns_fk__32_character_column_aaaaaaaaaaa__32_ch_12bdb9cf',
-      'index_name' => '_32_character_column_aaaaaaaaaaa__32_character_column_b_6fa7ff05',
+      'index_name' => 'long_columns_idx__32_character_column_aaaaaaaaaaa__32_c_18636e21',
       'selftable' => 'long_columns', 'foreigntable' => 'long_columns',
       'selfcols' => ['_32_character_column_bbbbbbbbbbb', '_32_character_column_aaaaaaaaaaa'],
       'foreigncols' => ['_32_character_column_aaaaaaaaaaa', '_32_character_column_bbbbbbbbbbb'],
@@ -226,7 +226,7 @@ my %fk_constraints = (
     {
       'display' => 'long_columns->owner3',
       'name' => 'long_columns_fk__16_chars_column',
-      'index_name' => '_16_chars_column',
+      'index_name' => 'long_columns_idx__16_chars_column',
       'selftable' => 'long_columns', 'foreigntable' => 'long_columns',
       'selfcols' => ['_16_chars_column'], 'foreigncols' => ['_8_chr_c'],
       on_delete => '', on_update => '', deferrable => 1,

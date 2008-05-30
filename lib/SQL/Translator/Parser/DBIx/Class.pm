@@ -177,7 +177,7 @@ sub parse {
                   );
                     
                   my $index = $table->add_index(
-                                    name   => _create_unique_symbol(join('_', @keys)),
+                                    name   => _create_unique_symbol(join('_', $table->name, 'idx', @keys)),
                                     fields => \@keys,
                                     type   => 'NORMAL',
                   );
