@@ -1453,7 +1453,12 @@ sub create_ddl_dir
   $databases ||= ['MySQL', 'SQLite', 'PostgreSQL'];
   $databases = [ $databases ] if(ref($databases) ne 'ARRAY');
   $version ||= $schema->VERSION || '1.x';
-  $sqltargs = { ( add_drop_table => 1 ), %{$sqltargs || {}} };
+  $sqltargs = {
+    add_drop_table => 1, 
+    ignore_constraint_names => 1,
+    ignore_index_names => 1,
+    %{$sqltargs || {}}
+  };
 
   $self->throw_exception(q{Can't create a ddl file without SQL::Translator 0.09: '}
       . $self->_check_sqlt_message . q{'})
@@ -1543,7 +1548,6 @@ sub create_ddl_dir
           unless $dest_schema->name;
       }
 
-      $DB::single = 1;
       my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
                                                     $dest_schema,   $db,
                                                     $sqltargs
