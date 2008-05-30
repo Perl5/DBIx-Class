@@ -905,6 +905,16 @@ sub resolve_prefetch {
       $self->throw_exception(
         "Can't prefetch has_many ${pre} (join cond too complex)")
         unless ref($rel_info->{cond}) eq 'HASH';
+      my $dots = @{[$as_prefix =~ m/\./g]} + 1; # +1 to match the ".${as_prefix}"
+      if (my ($fail) = grep { @{[$_ =~ m/\./g]} == $dots }
+                         keys %{$collapse}) {
+        my ($last) = ($fail =~ /([^\.]+)$/);
+        $self->throw_exception(
+          "Can't prefetch multiple has_many rels ${last} and ${pre}"
+          .(length($as_prefix) ? "at the same level (${as_prefix})"
+                               : "at top level"
+        ));
+      }
       #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
       #              values %{$rel_info->{cond}};
       $collapse->{".${as_prefix}${pre}"} = [ $rel_source->primary_columns ];

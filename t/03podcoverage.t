@@ -76,6 +76,7 @@ my $exceptions = {
     'DBIx::Class::Relationship::ManyToMany'             => { skip => 1 },
     'DBIx::Class::Relationship::ProxyMethods'           => { skip => 1 },
     'DBIx::Class::ResultSetProxy'                       => { skip => 1 },
+    'DBIx::Class::ResultSetManager'                     => { skip => 1 },
     'DBIx::Class::ResultSourceProxy'                    => { skip => 1 },
     'DBIx::Class::Storage::DBI'                         => { skip => 1 },
     'DBIx::Class::Storage::DBI::DB2'                    => { skip => 1 },
