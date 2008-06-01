@@ -18,19 +18,13 @@ sub commit {
   $self->[0] = 1;
 }
 
-sub dismiss {
-  my $self = shift;
-  
-  $self->[0] = 1;
-}
-
 sub DESTROY {
   my ($dismiss, $storage) = @{$_[0]};
 
   return if $dismiss;
 
   my $exception = $@;
-  Carp::cluck("A DBIx::Class:: went out of scope without explicit commit/dismiss")
+  Carp::cluck("A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or an error - bad")
     unless $exception; 
   {
     local $@;
@@ -53,7 +47,7 @@ __END__
 
 =head1 NAME
 
-DBIx::Class::Storage::TxnScopeGuard
+DBIx::Class::Storage::TxnScopeGuard - Experimental
 
 =head1 SYNOPSIS
 
