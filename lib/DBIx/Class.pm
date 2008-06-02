@@ -24,7 +24,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.08099_01';
+$VERSION = '0.08099_02';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -63,46 +63,48 @@ The community can be found via:
 
 =head1 SYNOPSIS
 
-Create a schema class called DB/Main.pm:
+Create a schema class called MyDB/Schema.pm:
 
-  package DB::Main;
+  package MyDB::Schema;
   use base qw/DBIx::Class::Schema/;
 
   __PACKAGE__->load_classes();
 
   1;
 
-Create a table class to represent artists, who have many CDs, in DB/Main/Artist.pm:
+Create a table class to represent artists, who have many CDs, in
+MyDB/Schema/Artist.pm:
 
-  package DB::Main::Artist;
+  package MyDB::Schema::Artist;
   use base qw/DBIx::Class/;
 
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many(cds => 'DB::Main::CD');
+  __PACKAGE__->has_many(cds => 'MyDB::Schema::CD');
 
   1;
 
-A table class to represent a CD, which belongs to an artist, in DB/Main/CD.pm:
+A table class to represent a CD, which belongs to an artist, in
+MyDB/Schema/CD.pm:
 
-  package DB::Main::CD;
+  package MyDB::Schema::CD;
   use base qw/DBIx::Class/;
 
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('cd');
-  __PACKAGE__->add_columns(qw/ cdid artist title year /);
+  __PACKAGE__->add_columns(qw/ cdid artistid title year /);
   __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->belongs_to(artist => 'DB::Main::Artist');
+  __PACKAGE__->belongs_to(artist => 'MyDB::Schema::Artist', 'artistid');
 
   1;
 
 Then you can use these classes in your application's code:
 
   # Connect to your database.
-  use DB::Main;
-  my $schema = DB::Main->connect($dbi_dsn, $user, $pass, \%dbi_params);
+  use MyDB::Schema;
+  my $schema = MyDB::Schema->connect($dbi_dsn, $user, $pass, \%dbi_params);
 
   # Query for all artists and put them in an array,
   # or retrieve them as a result set object.
@@ -128,7 +130,7 @@ Then you can use these classes in your application's code:
     { order_by => 'title' }
   );
 
-  # Create a result set that will fetch the artist relationship
+  # Create a result set that will fetch the artist data
   # at the same time as it fetches CDs, using only one query.
   my $millennium_cds_rs = $schema->resultset('CD')->search(
     { year => 2000 },
@@ -136,7 +138,7 @@ Then you can use these classes in your application's code:
   );
 
   my $cd = $millennium_cds_rs->next; # SELECT ... FROM cds JOIN artists ...
-  my $cd_artist_name = $cd->artist->name; # Already has the data so no query
+  my $cd_artist_name = $cd->artist->name; # Already has the data so no 2nd query
 
   # new() makes a DBIx::Class::Row object but doesnt insert it into the DB.
   # create() is the same as new() then insert().
@@ -147,17 +149,18 @@ Then you can use these classes in your application's code:
 
   $schema->txn_do(sub { $new_cd->update }); # Runs the update in a transaction
 
-  $millennium_cds_rs->update({ year => 2002 }); # Single-query bulk update
+  # change the year of all the millennium CDs at once
+  $millennium_cds_rs->update({ year => 2002 });
 
 =head1 DESCRIPTION
 
 This is an SQL to OO mapper with an object API inspired by L<Class::DBI>
-(and a compatibility layer as a springboard for porting) and a resultset API
+(with a compatibility layer as a springboard for porting) and a resultset API
 that allows abstract encapsulation of database operations. It aims to make
 representing queries in your code as perl-ish as possible while still
 providing access to as many of the capabilities of the database as possible,
 including retrieving related records from multiple tables in a single query,
-JOIN, LEFT JOIN, COUNT, DISTINCT, GROUP BY and HAVING support.
+JOIN, LEFT JOIN, COUNT, DISTINCT, GROUP BY, ORDER BY and HAVING support.
 
 DBIx::Class can handle multi-column primary and foreign keys, complex
 queries and database-level paging, and does its best to only query the

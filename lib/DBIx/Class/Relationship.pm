@@ -269,6 +269,7 @@ OR condition.
   My::Schema::Item->has_many('rels', 'My::Schema::Relationships',
                              [ { 'foreign.LItemID' => 'self.ID' },
                                { 'foreign.RItemID' => 'self.ID'} ]);
+
 =back
 
   # in an Author class (where Author has_many Books)

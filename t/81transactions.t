@@ -236,7 +236,9 @@ my $fail_code = sub {
     };
     my $err = $@;
     ok(($err eq ''), 'Pre-connection nested transactions.');
+    $schema2->storage->disconnect;
 }
+$schema->storage->disconnect;
 
 # Test txn_scope_guard
 {
