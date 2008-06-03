@@ -14,7 +14,6 @@ $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
 use Data::Dumper;
-use Digest::SHA1 qw( sha1_hex );
 use SQL::Translator::Utils qw(debug normalize_name);
 
 use base qw(Exporter);
