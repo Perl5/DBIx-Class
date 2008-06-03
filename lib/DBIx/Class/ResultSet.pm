@@ -2435,13 +2435,27 @@ C<cd> or C<artist> relationships, which saves us two SQL statements in this
 case.
 
 Simple prefetches will be joined automatically, so there is no need
-for a C<join> attribute in the above search. If you're prefetching to
-depth (e.g. { cd => { artist => 'label' } or similar), you'll need to
-specify the join as well.
+for a C<join> attribute in the above search. 
 
 C<prefetch> can be used with the following relationship types: C<belongs_to>,
 C<has_one> (or if you're using C<add_relationship>, any relationship declared
-with an accessor type of 'single' or 'filter').
+with an accessor type of 'single' or 'filter'). A more complex example that
+prefetches an artists cds, the tracks on those cds, and the tags associted 
+with that artist is given below (assuming many-to-many from artists to tags):
+
+ my $rs = $schema->resultset('Artist')->search(
+   undef,
+   {
+     prefetch => [
+       { cds => 'tracks' },
+       { artist_tags => 'tags' }
+     ]
+   }
+ );
+ 
+
+B<NOTE:> If you specify a C<prefetch> attribute, the C<join> and C<select>
+attributes will be ignored.
 
 =head2 page
 

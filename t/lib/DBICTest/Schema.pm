@@ -36,10 +36,8 @@ __PACKAGE__->load_classes(qw/
     'CD_to_Producer',
   ),
   qw/SelfRefAlias TreeLike TwoKeyTreeLike Event EventTZ NoPrimaryKey/,
-  qw/Collection CollectionObject TypedObject/,
-  qw/Owners BooksInLibrary/,
+  qw/Collection CollectionObject TypedObject Owners BooksInLibrary/,
   qw/ForceForeign/,
-  qw/LongColumns/,
 );
 
 sub sqlt_deploy_hook {
