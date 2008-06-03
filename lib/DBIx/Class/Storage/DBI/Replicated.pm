@@ -428,7 +428,7 @@ sub execute_reliably {
     };
     
     ##Reset to the original state
-    $self->schema->storage->read_handler($current); 
+    $self->read_handler($current); 
     
     ##Exception testing has to come last, otherwise you might leave the 
     ##read_handler set to master.
