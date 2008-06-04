@@ -222,12 +222,13 @@ methods and valid relationship attributes.
 
 =back
 
-Creates a one-to-many relationship, where the corresponding elements of the
-foreign class store the calling class's primary key in one (or more) of its
-columns. This relationship defaults to using C<$accessor_name> as the foreign
-key in C<$related_class> to resolve the join, unless C<$foreign_key_column>
-specifies the foreign key column in C<$related_class> or C<cond> specifies a
-reference to a join condition hash.
+Creates a one-to-many relationship, where the corresponding elements
+of the foreign class store the calling class's primary key in one (or
+more) of its columns. This relationship defaults to using the end of
+this classes namespace as the foreign key in C<$related_class> to
+resolve the join, unless C<$foreign_key_column> specifies the foreign
+key column in C<$related_class> or C<cond> specifies a reference to a
+join condition hash.
 
 =over
 
@@ -273,16 +274,11 @@ OR condition.
 =back
 
   # in an Author class (where Author has_many Books)
+  # assuming related class is storing our PK in "author_id"
   My::DBIC::Schema::Author->has_many(
     books => 
     'My::DBIC::Schema::Book', 
     'author_id'
-  );
-
-  # OR (same result, assuming related_class is storing our PK)
-  My::DBIC::Schema::Author->has_many(
-    books => 
-    'My::DBIC::Schema::Book', 
   );
 
   # OR (same result)
@@ -292,6 +288,13 @@ OR condition.
     { 'foreign.author_id' => 'self.id' },
   );
   
+  # OR (similar result, assuming related_class is storing our PK, in "author")
+  # (the "author" is guessed at from "Author" in the class namespace)
+  My::DBIC::Schema::Author->has_many(
+    books => 
+    'My::DBIC::Schema::Book', 
+  );
+
 
   # Usage
   # resultset of Books belonging to author 

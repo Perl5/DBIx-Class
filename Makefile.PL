@@ -22,7 +22,6 @@ requires 'Class::Inspector'          => 0;
 requires 'Class::Accessor::Grouped'  => 0.05002;
 requires 'JSON::Any'                 => 1.00; 
 requires 'Scope::Guard'              => 0.03;
-requires 'Digest::SHA1'              => 2.00;
 requires 'Path::Class'               => 0;
 requires 'List::Util'                => 1.19;
 

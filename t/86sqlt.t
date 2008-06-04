@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 160;
+plan tests => 131;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -203,35 +203,6 @@ my %fk_constraints = (
     },
   ],
 
-  # LongColumns
-  long_columns => [
-    {
-      'display' => 'long_columns->owner',
-      'name' => 'long_columns_fk__64_character_column_aaaaaaaaaaaaaaaaaa_cfc8d5b0',
-      'index_name' => 'long_columns_idx__64_character_column_aaaaaaaaaaaaaaaaa_5050aa42',
-      'selftable' => 'long_columns', 'foreigntable' => 'long_columns',
-      'selfcols' => ['_64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
-      'foreigncols' => ['lcid'],
-      on_delete => '', on_update => '', deferrable => 1,
-    },
-    {
-      'display' => 'long_columns->owner2',
-      'name' => 'long_columns_fk__32_character_column_bbbbbbbbbbb__32_ch_b7ee284e',
-      'index_name' => 'long_columns_idx__32_character_column_bbbbbbbbbbb__32_c_82bf6e69',
-      'selftable' => 'long_columns', 'foreigntable' => 'long_columns',
-      'selfcols' => ['_32_character_column_bbbbbbbbbbb', '_32_character_column_aaaaaaaaaaa'],
-      'foreigncols' => ['_32_character_column_aaaaaaaaaaa', '_32_character_column_bbbbbbbbbbb'],
-      on_delete => '', on_update => '', deferrable => 1,
-    },
-    {
-      'display' => 'long_columns->owner3',
-      'name' => 'long_columns_fk__16_chars_column',
-      'index_name' => 'long_columns_idx__16_chars_column',
-      'selftable' => 'long_columns', 'foreigntable' => 'long_columns',
-      'selfcols' => ['_16_chars_column'], 'foreigncols' => ['_8_chr_c'],
-      on_delete => '', on_update => '', deferrable => 1,
-    },
-  ],
 );
 
 my %unique_constraints = (
@@ -250,29 +221,6 @@ my %unique_constraints = (
       'display' => 'producer name unique',
       'name' => 'prod_name', # explicit name
       'table' => 'producer', 'cols' => ['name'],
-    },
-  ],
-
-  long_columns => [
-    {
-      'display' => 'long but not quite truncated unique',
-      'name' => 'long_columns__16_chars_column__32_character_column_aaaaaaaaaaa',
-      'table' => 'long_columns', 'cols' => [qw( _32_character_column_aaaaaaaaaaa _16_chars_column )],
-    },
-    {
-      'display' => 'multi column truncated unique',
-      'name' => 'long_columns__8_chr_c__16_chars_column__32_character_co_004ce318',
-      'table' => 'long_columns', 'cols' => [qw( _32_character_column_aaaaaaaaaaa _16_chars_column _8_chr_c )],
-    },
-    {
-      'display' => 'different multi column truncated unique with same base',
-      'name' => 'long_columns__8_chr_c__16_chars_column__32_character_co_25773323',
-      'table' => 'long_columns', 'cols' => [qw( _32_character_column_bbbbbbbbbbb _16_chars_column _8_chr_c )],
-    },
-    {
-      'display' => 'single column truncated unique',
-      'name' => 'long_columns__64_character_column_aaaaaaaaaaaaaaaaaaaaa_0acf5172',
-      'table' => 'long_columns', 'cols' => ['_64_character_column_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
     },
   ],
 
@@ -364,6 +312,7 @@ sub get_constraint {
   my %fields = map { $_ => 1 } @$cols;
   my %f_fields = map { $_ => 1 } @$f_cols;
 
+  die "No $table_name" unless $table;
  CONSTRAINT:
   for my $constraint ( $table->get_constraints ) {
     next unless $constraint->type eq $type;

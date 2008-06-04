@@ -14,7 +14,6 @@ $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
 use Data::Dumper;
-use Digest::SHA1 qw( sha1_hex );
 use SQL::Translator::Utils qw(debug normalize_name);
 
 use base qw(Exporter);
@@ -101,7 +100,7 @@ sub parse {
             if (!$source->compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
                 $table->add_constraint(
                             type             => 'unique',
-                            name             => _create_unique_symbol($uniq),
+                            name             => $uniq,
                             fields           => $unique_constraints{$uniq}
                 );
             }
@@ -169,9 +168,7 @@ sub parse {
                 if (scalar(@keys)) {
                   $table->add_constraint(
                                     type             => 'foreign_key',
-                                    name             => _create_unique_symbol($table->name
-                                                                            . '_fk_'
-                                                                            . join('_', @keys)),
+                                    name             => join('_', $table->name, 'fk', @keys),
                                     fields           => \@keys,
                                     reference_fields => \@refkeys,
                                     reference_table  => $rel_table,
@@ -181,7 +178,7 @@ sub parse {
                   );
                     
                   my $index = $table->add_index(
-                                    name   => _create_unique_symbol(join('_', $table->name, 'idx', @keys)),
+                                    name   => join('_', $table->name, 'idx', @keys),
                                     fields => \@keys,
                                     type   => 'NORMAL',
                   );
@@ -199,33 +196,6 @@ sub parse {
     }
 
     return 1;
-}
-
-# TODO - is there a reasonable way to pass configuration?
-# Default of 64 comes from mysql's limit.
-our $MAX_SYMBOL_LENGTH    ||= 64;
-our $COLLISION_TAG_LENGTH ||= 8;
-
-# -------------------------------------------------------------------
-# $resolved_name = _create_unique_symbol($desired_name)
-#
-# If desired_name is really long, it will be truncated in a way that
-# has a high probability of leaving it unique.
-# -------------------------------------------------------------------
-sub _create_unique_symbol {
-    my $desired_name = shift;
-    return $desired_name if length $desired_name <= $MAX_SYMBOL_LENGTH;
-
-    my $truncated_name = substr $desired_name, 0, $MAX_SYMBOL_LENGTH - $COLLISION_TAG_LENGTH - 1;
-
-    # Hex isn't the most space-efficient, but it skirts around allowed
-    # charset issues
-    my $digest = sha1_hex($desired_name);
-    my $collision_tag = substr $digest, 0, $COLLISION_TAG_LENGTH;
-
-    return $truncated_name
-         . '_'
-         . $collision_tag;
 }
 
 1;

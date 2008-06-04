@@ -86,8 +86,9 @@ SKIP: {
 }
 
 ## Can we properly deal with the null search problem?
-
-use Data::Dump qw/dump/;
+##
+## Only way is to do a SET SQL_AUTO_IS_NULL = 0; on connect
+## But I'm not sure if we should do this or not (Ash, 2008/06/03)
 
 NULLINSEARCH: {
     
