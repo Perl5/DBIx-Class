@@ -224,6 +224,7 @@ has 'write_handler' => (
         update
         delete
         dbh
+        txn_do
         txn_commit
         txn_rollback
         sth
@@ -470,7 +471,7 @@ sub set_balanced_storage {
     $schema->storage->read_handler($write_handler);
 }
 
-=head2 txn_do ($coderef)
+=head2 around: txn_do ($coderef)
 
 Overload to the txn_do method, which is delegated to whatever the
 L<write_handler> is set to.  We overload this in order to wrap in inside a
@@ -478,10 +479,10 @@ L</execute_reliably> method.
 
 =cut
 
-sub txn_do {
-	my($self, $coderef, @args) = @_;
-	$self->execute_reliably($coderef, @args);
-}
+around 'txn_do' => sub {
+    my($txn_do, $self, $coderef, @args) = @_;
+    $self->execute_reliably(sub {$self->$txn_do($coderef, @args)});	
+};
 
 =head2 reload_row ($row)
 
