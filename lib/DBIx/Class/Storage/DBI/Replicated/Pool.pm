@@ -76,8 +76,8 @@ has 'replicant_type' => (
     required=>1,
     default=>'DBIx::Class::Storage::DBI',
     handles=>{
-    	'create_replicant' => 'new',
-    },	
+        'create_replicant' => 'new',
+    },  
 );
 
 =head2 replicants
@@ -125,12 +125,12 @@ has 'replicants' => (
     isa=>'HashRef[DBIx::Class::Storage::DBI]',
     default=>sub {{}},
     provides  => {
-		'set' => 'set_replicant',
-		'get' => 'get_replicant',            
-		'empty' => 'has_replicants',
-		'count' => 'num_replicants',
-		'delete' => 'delete_replicant',
-	},
+        'set' => 'set_replicant',
+        'get' => 'get_replicant',            
+        'empty' => 'has_replicants',
+        'count' => 'num_replicants',
+        'delete' => 'delete_replicant',
+    },
 );
 
 =head1 METHODS
@@ -146,23 +146,23 @@ L</replicants> attribute.
 =cut
 
 sub connect_replicants {
-	my $self = shift @_;
-	my $schema = shift @_;
-	
-	my @newly_created = ();
-	foreach my $connect_info (@_) {
-		
-		my $replicant = $self->create_replicant($schema);
-		$replicant->connect_info($connect_info);	
-		$replicant->ensure_connected;
-		DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
-		
-		my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);
-		$self->set_replicant( $key => $replicant);	
-		push @newly_created, $replicant;
-	}
-	
-	return @newly_created;
+    my $self = shift @_;
+    my $schema = shift @_;
+    
+    my @newly_created = ();
+    foreach my $connect_info (@_) {
+        
+        my $replicant = $self->create_replicant($schema);
+        $replicant->connect_info($connect_info);    
+        $replicant->ensure_connected;
+        DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
+        
+        my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);
+        $self->set_replicant( $key => $replicant);  
+        push @newly_created, $replicant;
+    }
+    
+    return @newly_created;
 }
 
 =head2 connected_replicants
@@ -171,9 +171,9 @@ Returns true if there are connected replicants.  Actually is overloaded to
 return the number of replicants.  So you can do stuff like:
 
     if( my $num_connected = $storage->has_connected_replicants ) {
-    	print "I have $num_connected connected replicants";
+        print "I have $num_connected connected replicants";
     } else {
-    	print "Sorry, no replicants.";
+        print "Sorry, no replicants.";
     }
 
 This method will actually test that each replicant in the L</replicants> hashref
@@ -182,10 +182,10 @@ is actually connected, try not to hit this 10 times a second.
 =cut
 
 sub connected_replicants {
-	my $self = shift @_;
-	return sum( map {
-		$_->connected ? 1:0
-	} $self->all_replicants );
+    my $self = shift @_;
+    return sum( map {
+        $_->connected ? 1:0
+    } $self->all_replicants );
 }
 
 =head2 active_replicants
@@ -241,10 +241,10 @@ sub validate_replicants {
             $replicant->lag_behind_master <= $self->maximum_lag &&
             $replicant->ensure_connected
         ) {
-        	## TODO:: Hook debug for this
+            ## TODO:: Hook debug for this
             $replicant->active(1)
         } else {
-        	## TODO:: Hook debug for this
+            ## TODO:: Hook debug for this
             $replicant->active(0);
         }
     }

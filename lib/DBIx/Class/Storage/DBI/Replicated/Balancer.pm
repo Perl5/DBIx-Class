@@ -124,9 +124,9 @@ or just just forgot to create them :)
 =cut
 
 around 'next_storage' => sub {
-	my ($next_storage, $self, @args) = @_;
-	my $now = time;
-	
+    my ($next_storage, $self, @args) = @_;
+    my $now = time;
+    
     ## Do we need to validate the replicants?
     if(
        $self->has_auto_validate_every && 
@@ -137,7 +137,7 @@ around 'next_storage' => sub {
     
     ## Get a replicant, or the master if none
     my $next = $self->$next_storage(@args);
-    return $next ? $next:$self->master;	
+    return $next ? $next:$self->master; 
 };
 
 =head2 before: select

@@ -75,7 +75,7 @@ has 'pool_type' => (
     isa=>'ClassName',
     lazy_build=>1,
     handles=>{
-    	'create_pool' => 'new',
+        'create_pool' => 'new',
     },
 );
 
@@ -107,7 +107,7 @@ has 'balancer_type' => (
     isa=>'ClassName',
     lazy_build=>1,
     handles=>{
-    	'create_balancer' => 'new',
+        'create_balancer' => 'new',
     },
 );
 
@@ -257,8 +257,8 @@ sub new {
     ## Hate to do it this way, but can't seem to get advice on the attribute working right
     ## maybe we can do a type and coercion for it. 
     if( $storage_type_args->{balancer_type} && $storage_type_args->{balancer_type}=~m/^::/) {
-    	$storage_type_args->{balancer_type} = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$storage_type_args->{balancer_type};
-    	eval "require $storage_type_args->{balancer_type}";
+        $storage_type_args->{balancer_type} = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$storage_type_args->{balancer_type};
+        eval "require $storage_type_args->{balancer_type}";
     }
     
     return $class->meta->new_object(
@@ -275,7 +275,7 @@ Lazy builder for the L</master> attribute.
 =cut
 
 sub _build_master {
-	DBIx::Class::Storage::DBI->new;
+    DBIx::Class::Storage::DBI->new;
 }
 
 =head2 _build_pool_type
@@ -295,7 +295,7 @@ Lazy builder for the L</pool> attribute.
 =cut
 
 sub _build_pool {
-	my $self = shift @_;
+    my $self = shift @_;
     $self->create_pool(%{$self->pool_args});
 }
 
@@ -321,7 +321,8 @@ sub _build_balancer {
     $self->create_balancer(
         pool=>$self->pool, 
         master=>$self->master,
-        %{$self->balancer_args},);
+        %{$self->balancer_args},
+    );
 }
 
 =head2 _build_write_handler
@@ -354,8 +355,8 @@ top of the args, since L<DBIx::Storage::DBI> needs it.
 =cut
 
 around 'connect_replicants' => sub {
-	my ($method, $self, @args) = @_;
-	$self->$method($self->schema, @args);
+    my ($method, $self, @args) = @_;
+    $self->$method($self->schema, @args);
 };
 
 =head2 all_storages
@@ -367,12 +368,12 @@ replicants.
 =cut
 
 sub all_storages {
-	my $self = shift @_;
-	
-	return grep {defined $_ && blessed $_} (
-	   $self->master,
-	   $self->replicants,
-	);
+    my $self = shift @_;
+    
+    return grep {defined $_ && blessed $_} (
+       $self->master,
+       $self->replicants,
+    );
 }
 
 =head2 execute_reliably ($coderef, ?@args)
@@ -399,7 +400,7 @@ inserted something and need to get a resultset including it, etc.
 
 sub execute_reliably {
     my ($self, $coderef, @args) = @_;
-	
+    
     unless( ref $coderef eq 'CODE') {
         $self->throw_exception('Second argument must be a coderef');
     }
@@ -418,14 +419,14 @@ sub execute_reliably {
     my $want_array = wantarray;
     
     eval {
-	    if($want_array) {
-	        @result = $coderef->(@args);
-	    }
-	    elsif(defined $want_array) {
-	        ($result[0]) = ($coderef->(@args));
-	    } else {
-	        $coderef->(@args);
-	    }    	
+        if($want_array) {
+            @result = $coderef->(@args);
+        }
+        elsif(defined $want_array) {
+            ($result[0]) = ($coderef->(@args));
+        } else {
+            $coderef->(@args);
+        }       
     };
     
     ##Reset to the original state
@@ -437,7 +438,7 @@ sub execute_reliably {
     if($@) {
         $self->throw_exception("coderef returned an error: $@");
     } else {
-    	return $want_array ? @result : $result[0];
+        return $want_array ? @result : $result[0];
     }
 }
 
@@ -449,11 +450,11 @@ write are sent to the master
 =cut
 
 sub set_reliable_storage {
-	my $self = shift @_;
-	my $schema = $self->schema;
-	my $write_handler = $self->schema->storage->write_handler;
-	
-	$schema->storage->read_handler($write_handler);
+    my $self = shift @_;
+    my $schema = $self->schema;
+    my $write_handler = $self->schema->storage->write_handler;
+    
+    $schema->storage->read_handler($write_handler);
 }
 
 =head2 set_balanced_storage
@@ -481,7 +482,7 @@ L</execute_reliably> method.
 
 around 'txn_do' => sub {
     my($txn_do, $self, $coderef, @args) = @_;
-    $self->execute_reliably(sub {$self->$txn_do($coderef, @args)});	
+    $self->execute_reliably(sub {$self->$txn_do($coderef, @args)}); 
 };
 
 =head2 reload_row ($row)
@@ -492,10 +493,10 @@ the master storage.
 =cut
 
 around 'reload_row' => sub {
-	my ($reload_row, $self, $row) = @_;
-	return $self->execute_reliably(sub {
-		return $self->$reload_row(shift);
-	}, $row);
+    my ($reload_row, $self, $row) = @_;
+    return $self->execute_reliably(sub {
+        return $self->$reload_row(shift);
+    }, $row);
 };
 
 =head2 connected
@@ -505,11 +506,11 @@ Check that the master and at least one of the replicants is connected.
 =cut
 
 sub connected {
-	my $self = shift @_;
-	
-	return
-	   $self->master->connected &&
-	   $self->pool->connected_replicants;
+    my $self = shift @_;
+    
+    return
+       $self->master->connected &&
+       $self->pool->connected_replicants;
 }
 
 =head2 ensure_connected
@@ -571,10 +572,10 @@ Set the schema object for all existing storages
 =cut
 
 sub set_schema {
-	my $self = shift @_;
-	foreach my $source ($self->all_storages) {
-		$source->set_schema(@_);
-	}
+    my $self = shift @_;
+    foreach my $source ($self->all_storages) {
+        $source->set_schema(@_);
+    }
 }
 
 =head2 debug
