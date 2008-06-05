@@ -60,12 +60,15 @@ while(@children < $num_children) {
 
     my $newthread = async {
         my $tid = threads->tid;
+        # my $dbh = $schema->storage->dbh;
 
-        my $child_rs = $schema->resultset('CD')->search({ year => 1901 });
-        my $row = $parent_rs->next;
-        if($row && $row->get_column('artist') =~ /^(?:123|456)$/) {
-            $schema->resultset('CD')->create({ title => "test success $tid", artist => $tid, year => scalar(@children) });
-        }
+        $schema->txn_do(sub {
+            my $child_rs = $schema->resultset('CD')->search({ year => 1901 });
+            my $row = $parent_rs->next;
+            if($row && $row->get_column('artist') =~ /^(?:123|456)$/) {
+                $schema->resultset('CD')->create({ title => "test success $tid", artist => $tid, year => scalar(@children) });
+            }
+        });
         sleep(3);
     };
     die "Thread creation failed: $! $@" if !defined $newthread;
