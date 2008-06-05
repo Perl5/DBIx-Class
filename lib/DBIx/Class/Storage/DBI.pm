@@ -600,7 +600,7 @@ sub dbh_do {
 
   eval {
     $self->_verify_pid if $dbh;
-    if( !$dbh ) {
+    if(!$self->_dbh) {
         $self->_populate_dbh;
         $dbh = $self->_dbh;
     }
