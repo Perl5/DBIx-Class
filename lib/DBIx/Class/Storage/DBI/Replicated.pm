@@ -26,8 +26,8 @@ tasks.
     
     $schema->storage->connect_replicants(
         [$dsn1, $user, $pass, \%opts],
-        [$dsn1, $user, $pass, \%opts],
-        [$dsn1, $user, $pass, \%opts],
+        [$dsn2, $user, $pass, \%opts],
+        [$dsn3, $user, $pass, \%opts],
     );
     
 =head1 DESCRIPTION
