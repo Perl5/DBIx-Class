@@ -23,6 +23,7 @@ my $schema = DBICTest->init_schema();
 		my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
 		my @indices = $table->get_indices;
 		my $index_count = scalar(@indices);
+    $index_count++ if ($source eq 'TwoKeys'); # TwoKeys has the index turned off on the rel def
 		is($index_count, $fk_count, "correct number of indices for $source with no args");
 	}
 }
@@ -36,6 +37,7 @@ my $schema = DBICTest->init_schema();
 		my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
 		my @indices = $table->get_indices;
 		my $index_count = scalar(@indices);
+    $index_count++ if ($source eq 'TwoKeys'); # TwoKeys has the index turned off on the rel def
 		is($index_count, $fk_count, "correct number of indices for $source with add_fk_index => 1");
 	}
 }

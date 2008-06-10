@@ -112,6 +112,9 @@ sub parse {
         my @rels = $source->relationships();
 
         my %created_FK_rels;
+        
+        # global add_fk_index set in parser_args
+        my $add_fk_index = (exists $args->{add_fk_index} && ($args->{add_fk_index} == 0)) ? 0 : 1;
 
         foreach my $rel (sort @rels)
         {
@@ -142,6 +145,9 @@ sub parse {
                 }
 
                 my $is_deferrable = $rel_info->{attrs}{is_deferrable};
+                
+                # global parser_args add_fk_index param can be overridden on the rel def
+                my $add_fk_index_rel = (exists $rel_info->{attrs}{add_fk_index}) ? $rel_info->{attrs}{add_fk_index} : $add_fk_index;
 
                 # Make sure we dont create the same foreign key constraint twice
                 my $key_test = join("\x00", @keys);
@@ -176,7 +182,7 @@ sub parse {
                                     (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
                   );
                     
-                  unless (exists $args->{add_fk_index} && ($args->{add_fk_index} == 0)) {
+                  if ($add_fk_index_rel) {
                       my $index = $table->add_index(
                                                     name   => join('_', $table->name, 'idx', @keys),
                                                     fields => \@keys,
