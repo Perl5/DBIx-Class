@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 131;
+plan tests => 130;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -43,6 +43,7 @@ my %fk_constraints = (
       'name' => 'twokeys_fk_cd', 'index_name' => 'twokeys_idx_cd',
       'selftable' => 'twokeys', 'foreigntable' => 'cd', 
       'selfcols'  => ['cd'], 'foreigncols' => ['cdid'], 
+      'noindex'  => 1,
       on_delete => '', on_update => '', deferrable => 0,
     },
     {
@@ -388,8 +389,13 @@ sub test_fk {
       "is_deferrable parameter correct for `$desc'" );
 
   my $index = get_index( $got->table, { fields => $expected->{selfcols} } );
-  ok( defined $index, "index exists for `$desc'" );
-  is( $index->name, $expected->{index_name}, "index has correct name for `$desc'" );
+
+  if ($expected->{noindex}) {
+      ok( !defined $index, "index doesn't for `$desc'" );
+  } else {
+      ok( defined $index, "index exists for `$desc'" );
+      is( $index->name, $expected->{index_name}, "index has correct name for `$desc'" );
+  }
 }
 
 sub test_unique {
