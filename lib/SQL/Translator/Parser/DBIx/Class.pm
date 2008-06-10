@@ -23,6 +23,9 @@ use base qw(Exporter);
 # -------------------------------------------------------------------
 # parse($tr, $data)
 #
+# setting parser_args => { add_fk_index => 0 } will prevent
+# the auto-generation of an index for each FK.
+#
 # Note that $data, in the case of this parser, is not useful.
 # We're working with DBIx::Class Schemas, not data streams.
 # -------------------------------------------------------------------
@@ -173,15 +176,17 @@ sub parse {
                                     (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
                   );
                     
-                  my $index = $table->add_index(
-                                    name   => join('_', $table->name, 'idx', @keys),
-                                    fields => \@keys,
-                                    type   => 'NORMAL',
-                  );
-                }
+                  unless (exists $args->{add_fk_index} && ($args->{add_fk_index} == 0)) {
+                      my $index = $table->add_index(
+                                                    name   => join('_', $table->name, 'idx', @keys),
+                                                    fields => \@keys,
+                                                    type   => 'NORMAL',
+                                                    );
+                  }
+              }
             }
         }
-
+		
         if ($source->result_class->can('sqlt_deploy_hook')) {
           $source->result_class->sqlt_deploy_hook($table);
         }

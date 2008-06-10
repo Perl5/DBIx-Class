@@ -1028,7 +1028,9 @@ produced include a DROP TABLE statement for each table created.
 
 Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash 
 ref or an array ref, containing a list of source to deploy. If present, then 
-only the sources listed will get deployed.
+only the sources listed will get deployed. Furthermore, you can use the
+C<add_fk_index> parser parameter to prevent the parser from creating an index for each
+FK.
 
 =cut
 
@@ -1081,6 +1083,8 @@ The file names are created using the C<ddl_filename> method below, please
 override this method in your schema if you would like a different file
 name format. For the ALTER file, the same format is used, replacing
 $version in the name with "$preversion-$version".
+
+See L<DBIx::Class::Schema/deploy> for details of $sqlt_args.
 
 If no arguments are passed, then the following default values are used:
 
