@@ -22,8 +22,8 @@ DBIx::Class::ResultSet - Responsible for fetching and creating resultset.
 
 =head1 SYNOPSIS
 
-  my $rs   = $schema->resultset('User')->search(registered => 1);
-  my @rows = $schema->resultset('CD')->search(year => 2005);
+  my $rs   = $schema->resultset('User')->search({ registered => 1 });
+  my @rows = $schema->resultset('CD')->search({ year => 2005 })->all();
 
 =head1 DESCRIPTION
 
@@ -53,7 +53,10 @@ In the examples below, the following table classes are used:
 
 =head1 OVERLOADING
 
-If a resultset is used as a number it returns the C<count()>.  However, if it is used as a boolean it is always true.  So if you want to check if a result set has any results use C<if $rs != 0>.  C<if $rs> will always be true.
+If a resultset is used in a numeric context it returns the L</count>.
+However, if it is used in a booleand context it is always true.  So if
+you want to check if a resultset has any results use C<if $rs != 0>.
+C<if $rs> will always be true.
 
 =head1 METHODS
 
@@ -1802,6 +1805,9 @@ sub update_or_create {
 
 Gets the contents of the cache for the resultset, if the cache is set.
 
+The cache is populated either by using the L</prefetch> attribute to
+L</search> or by calling L</set_cache>.
+
 =cut
 
 sub get_cache {
@@ -1822,6 +1828,9 @@ Sets the contents of the cache for the resultset. Expects an arrayref
 of objects of the same class as those produced by the resultset. Note that
 if the cache is set the resultset will return the cached objects rather
 than re-querying the database even if the cache attr is not set.
+
+The contents of the cache can also be populated by using the
+L</prefetch> attribute to L</search>.
 
 =cut
 
