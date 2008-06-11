@@ -22,6 +22,7 @@ __PACKAGE__->has_many('children', 'TreeLike', { 'foreign.parent' => 'self.id' })
  sub sqlt_deploy_hook {
    my ($self, $sqlt_table) = @_;
 
-   $sqlt_table->add_index(name => 'idx_name', fields => ['name']);
+   ## We don't seem to need this anymore, but keeping it for the moment
+   ## $sqlt_table->add_index(name => 'idx_name', fields => ['name']);
  }
 1;

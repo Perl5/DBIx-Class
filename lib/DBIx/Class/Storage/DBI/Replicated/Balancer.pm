@@ -30,9 +30,9 @@ validating every query.
 =cut
 
 has 'auto_validate_every' => (
-    is=>'rw',
-    isa=>'Int',
-    predicate=>'has_auto_validate_every',
+  is=>'rw',
+  isa=>'Int',
+  predicate=>'has_auto_validate_every',
 );
 
 =head2 master
@@ -44,9 +44,9 @@ ultimate fallback.
 =cut
 
 has 'master' => (
-    is=>'ro',
-    isa=>'DBIx::Class::Storage::DBI',
-    required=>1,
+  is=>'ro',
+  isa=>'DBIx::Class::Storage::DBI',
+  required=>1,
 );
 
 =head2 pool
@@ -57,9 +57,9 @@ balance.
 =cut
 
 has 'pool' => (
-    is=>'ro',
-    isa=>'DBIx::Class::Storage::DBI::Replicated::Pool',
-    required=>1,
+  is=>'ro',
+  isa=>'DBIx::Class::Storage::DBI::Replicated::Pool',
+  required=>1,
 );
 
 =head2 current_replicant
@@ -76,14 +76,14 @@ via it's balancer object.
 =cut
 
 has 'current_replicant' => (
-    is=> 'rw',
-    isa=>'DBIx::Class::Storage::DBI',
-    lazy_build=>1,
-    handles=>[qw/
-        select
-        select_single
-        columns_info_for
-    /],
+  is=> 'rw',
+  isa=>'DBIx::Class::Storage::DBI',
+  lazy_build=>1,
+  handles=>[qw/
+    select
+    select_single
+    columns_info_for
+  /],
 );
 
 =head1 METHODS
@@ -97,8 +97,8 @@ Lazy builder for the L</current_replicant_storage> attribute.
 =cut
 
 sub _build_current_replicant {
-    my $self = shift @_;
-    $self->next_storage;
+  my $self = shift @_;
+  $self->next_storage;
 }
 
 =head2 next_storage
@@ -124,20 +124,20 @@ or just just forgot to create them :)
 =cut
 
 around 'next_storage' => sub {
-    my ($next_storage, $self, @args) = @_;
-    my $now = time;
+  my ($next_storage, $self, @args) = @_;
+  my $now = time;
     
-    ## Do we need to validate the replicants?
-    if(
-       $self->has_auto_validate_every && 
-       ($self->auto_validate_every + $self->pool->last_validated) <= $now
-    ) {
-        $self->pool->validate_replicants;
-    }
+  ## Do we need to validate the replicants?
+  if(
+     $self->has_auto_validate_every && 
+     ($self->auto_validate_every + $self->pool->last_validated) <= $now
+  ) {
+      $self->pool->validate_replicants;
+  }
     
-    ## Get a replicant, or the master if none
-    my $next = $self->$next_storage(@args);
-    return $next ? $next:$self->master; 
+  ## Get a replicant, or the master if none
+  my $next = $self->$next_storage(@args);
+  return $next ? $next:$self->master; 
 };
 
 =head2 before: select
@@ -149,9 +149,9 @@ the load evenly (hopefully) across existing capacity.
 =cut
 
 before 'select' => sub {
-    my $self = shift @_;
-    my $next_replicant = $self->next_storage;
-    $self->current_replicant($next_replicant);
+  my $self = shift @_;
+  my $next_replicant = $self->next_storage;
+  $self->current_replicant($next_replicant);
 };
 
 =head2 before: select_single
@@ -163,9 +163,9 @@ the load evenly (hopefully) across existing capacity.
 =cut
 
 before 'select_single' => sub {
-    my $self = shift @_;
-    my $next_replicant = $self->next_storage;
-    $self->current_replicant($next_replicant);
+  my $self = shift @_;
+  my $next_replicant = $self->next_storage;
+  $self->current_replicant($next_replicant);
 };
 
 =head2 before: columns_info_for
@@ -177,9 +177,9 @@ the load evenly (hopefully) across existing capacity.
 =cut
 
 before 'columns_info_for' => sub {
-    my $self = shift @_;
-    my $next_replicant = $self->next_storage;
-    $self->current_replicant($next_replicant);
+  my $self = shift @_;
+  my $next_replicant = $self->next_storage;
+  $self->current_replicant($next_replicant);
 };
 
 =head1 AUTHOR

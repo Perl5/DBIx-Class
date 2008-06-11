@@ -699,14 +699,14 @@ sub connection {
 }
 
 sub _normalize_storage_type {
-    my ($self, $storage_type) = @_;
-    if(ref $storage_type eq 'ARRAY') {
-        return @$storage_type;
-    } elsif(ref $storage_type eq 'HASH') {
-        return %$storage_type;
-    } else {
-        $self->throw_exception('Unsupported REFTYPE given: '. ref $storage_type);
-    }
+  my ($self, $storage_type) = @_;
+  if(ref $storage_type eq 'ARRAY') {
+    return @$storage_type;
+  } elsif(ref $storage_type eq 'HASH') {
+    return %$storage_type;
+  } else {
+    $self->throw_exception('Unsupported REFTYPE given: '. ref $storage_type);
+  }
 }
 
 =head2 connect

@@ -18,18 +18,18 @@ The Following example shows how to change an existing $schema to a replicated
 storage type, add some replicated (readonly) databases, and perform reporting
 tasks.
 
-    ## Change storage_type in your schema class
-    $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
-    
-    ## Add some slaves.  Basically this is an array of arrayrefs, where each
-    ## arrayref is database connect information
-    
-    $schema->storage->connect_replicants(
-        [$dsn1, $user, $pass, \%opts],
-        [$dsn2, $user, $pass, \%opts],
-        [$dsn3, $user, $pass, \%opts],
-    );
-    
+  ## Change storage_type in your schema class
+  $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
+  
+  ## Add some slaves.  Basically this is an array of arrayrefs, where each
+  ## arrayref is database connect information
+  
+  $schema->storage->connect_replicants(
+    [$dsn1, $user, $pass, \%opts],
+    [$dsn2, $user, $pass, \%opts],
+    [$dsn3, $user, $pass, \%opts],
+  );
+  
 =head1 DESCRIPTION
 
 Warning: This class is marked ALPHA.  We are using this in development and have
@@ -71,12 +71,12 @@ to: L<DBIx::Class::Storage::DBI::Replicated::Pool>.
 =cut
 
 has 'pool_type' => (
-    is=>'ro',
-    isa=>'ClassName',
-    lazy_build=>1,
-    handles=>{
-        'create_pool' => 'new',
-    },
+  is=>'ro',
+  isa=>'ClassName',
+  lazy_build=>1,
+  handles=>{
+    'create_pool' => 'new',
+  },
 );
 
 =head2 pool_args
@@ -87,11 +87,11 @@ See L<DBIx::Class::Storage::Replicated::Pool> for available arguments.
 =cut
 
 has 'pool_args' => (
-    is=>'ro',
-    isa=>'HashRef',
-    lazy=>1,
-    required=>1,
-    default=>sub { {} },
+  is=>'ro',
+  isa=>'HashRef',
+  lazy=>1,
+  required=>1,
+  default=>sub { {} },
 );
 
 
@@ -103,12 +103,12 @@ choose how to spread the query load across each replicant in the pool.
 =cut
 
 has 'balancer_type' => (
-    is=>'ro',
-    isa=>'ClassName',
-    lazy_build=>1,
-    handles=>{
-        'create_balancer' => 'new',
-    },
+  is=>'ro',
+  isa=>'ClassName',
+  lazy_build=>1,
+  handles=>{
+    'create_balancer' => 'new',
+  },
 );
 
 =head2 balancer_args
@@ -119,11 +119,11 @@ See L<DBIx::Class::Storage::Replicated::Balancer> for available arguments.
 =cut
 
 has 'balancer_args' => (
-    is=>'ro',
-    isa=>'HashRef',
-    lazy=>1,
-    required=>1,
-    default=>sub { {} },
+  is=>'ro',
+  isa=>'HashRef',
+  lazy=>1,
+  required=>1,
+  default=>sub { {} },
 );
 
 =head2 pool
@@ -134,14 +134,14 @@ container class for one or more replicated databases.
 =cut
 
 has 'pool' => (
-    is=>'ro',
-    isa=>'DBIx::Class::Storage::DBI::Replicated::Pool',
-    lazy_build=>1,
-    handles=>[qw/
-        connect_replicants    
-        replicants
-        has_replicants
-    /],
+  is=>'ro',
+  isa=>'DBIx::Class::Storage::DBI::Replicated::Pool',
+  lazy_build=>1,
+  handles=>[qw/
+    connect_replicants    
+    replicants
+    has_replicants
+  /],
 );
 
 =head2 balancer
@@ -152,10 +152,10 @@ is a class that takes a pool (<DBIx::Class::Storage::DBI::Replicated::Pool>)
 =cut
 
 has 'balancer' => (
-    is=>'ro',
-    isa=>'DBIx::Class::Storage::DBI::Replicated::Balancer',
-    lazy_build=>1,
-    handles=>[qw/auto_validate_every/],
+  is=>'ro',
+  isa=>'DBIx::Class::Storage::DBI::Replicated::Balancer',
+  lazy_build=>1,
+  handles=>[qw/auto_validate_every/],
 );
 
 =head2 master
@@ -169,9 +169,9 @@ pool of databases that is allowed to handle write traffic.
 =cut
 
 has 'master' => (
-    is=> 'ro',
-    isa=>'DBIx::Class::Storage::DBI',
-    lazy_build=>1,
+  is=> 'ro',
+  isa=>'DBIx::Class::Storage::DBI',
+  lazy_build=>1,
 );
 
 =head1 ATTRIBUTES IMPLEMENTING THE DBIx::Storage::DBI INTERFACE
@@ -186,14 +186,14 @@ Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
 =cut
 
 has 'read_handler' => (
-    is=>'rw',
-    isa=>'Object',
-    lazy_build=>1,
-    handles=>[qw/
-        select
-        select_single
-        columns_info_for
-    /],    
+  is=>'rw',
+  isa=>'Object',
+  lazy_build=>1,
+  handles=>[qw/
+    select
+    select_single
+    columns_info_for
+  /],    
 );
 
 =head2 write_handler
@@ -203,35 +203,35 @@ Defines an object that implements the write side of L<BIx::Class::Storage::DBI>.
 =cut
 
 has 'write_handler' => (
-    is=>'ro',
-    isa=>'Object',
-    lazy_build=>1,
-    lazy_build=>1,
-    handles=>[qw/   
-        on_connect_do
-        on_disconnect_do       
-        connect_info
-        throw_exception
-        sql_maker
-        sqlt_type
-        create_ddl_dir
-        deployment_statements
-        datetime_parser
-        datetime_parser_type        
-        last_insert_id
-        insert
-        insert_bulk
-        update
-        delete
-        dbh
-        txn_do
-        txn_commit
-        txn_rollback
-        sth
-        deploy
-        schema
-        reload_row
-    /],
+  is=>'ro',
+  isa=>'Object',
+  lazy_build=>1,
+  lazy_build=>1,
+  handles=>[qw/   
+    on_connect_do
+    on_disconnect_do       
+    connect_info
+    throw_exception
+    sql_maker
+    sqlt_type
+    create_ddl_dir
+    deployment_statements
+    datetime_parser
+    datetime_parser_type        
+    last_insert_id
+    insert
+    insert_bulk
+    update
+    delete
+    dbh
+    txn_do
+    txn_commit
+    txn_rollback
+    sth
+    deploy
+    schema
+    reload_row
+  /],
 );
 
 =head1 METHODS
@@ -249,23 +249,23 @@ data for 'storage_type_args' to our replicated storage type.
 =cut
 
 sub new {
-    my $class = shift @_;
-    my $schema = shift @_;
-    my $storage_type_args = shift @_;
-    my $obj = $class->SUPER::new($schema, $storage_type_args, @_);
-    
-    ## Hate to do it this way, but can't seem to get advice on the attribute working right
-    ## maybe we can do a type and coercion for it. 
-    if( $storage_type_args->{balancer_type} && $storage_type_args->{balancer_type}=~m/^::/) {
-        $storage_type_args->{balancer_type} = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$storage_type_args->{balancer_type};
-        eval "require $storage_type_args->{balancer_type}";
-    }
-    
-    return $class->meta->new_object(
-        __INSTANCE__ => $obj,
-        %$storage_type_args,
-        @_,
-    );
+  my $class = shift @_;
+  my $schema = shift @_;
+  my $storage_type_args = shift @_;
+  my $obj = $class->SUPER::new($schema, $storage_type_args, @_);
+  
+  ## Hate to do it this way, but can't seem to get advice on the attribute working right
+  ## maybe we can do a type and coercion for it. 
+  if( $storage_type_args->{balancer_type} && $storage_type_args->{balancer_type}=~m/^::/) {
+    $storage_type_args->{balancer_type} = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$storage_type_args->{balancer_type};
+    eval "require $storage_type_args->{balancer_type}";
+  }
+  
+  return $class->meta->new_object(
+    __INSTANCE__ => $obj,
+    %$storage_type_args,
+    @_,
+  );
 }
 
 =head2 _build_master
@@ -275,7 +275,7 @@ Lazy builder for the L</master> attribute.
 =cut
 
 sub _build_master {
-    DBIx::Class::Storage::DBI->new;
+  DBIx::Class::Storage::DBI->new;
 }
 
 =head2 _build_pool_type
@@ -285,7 +285,7 @@ Lazy builder for the L</pool_type> attribute.
 =cut
 
 sub _build_pool_type {
-    return 'DBIx::Class::Storage::DBI::Replicated::Pool';
+  return 'DBIx::Class::Storage::DBI::Replicated::Pool';
 }
 
 =head2 _build_pool
@@ -295,8 +295,8 @@ Lazy builder for the L</pool> attribute.
 =cut
 
 sub _build_pool {
-    my $self = shift @_;
-    $self->create_pool(%{$self->pool_args});
+  my $self = shift @_;
+  $self->create_pool(%{$self->pool_args});
 }
 
 =head2 _build_balancer_type
@@ -306,7 +306,7 @@ Lazy builder for the L</balancer_type> attribute.
 =cut
 
 sub _build_balancer_type {
-    return 'DBIx::Class::Storage::DBI::Replicated::Balancer::First';
+  return 'DBIx::Class::Storage::DBI::Replicated::Balancer::First';
 }
 
 =head2 _build_balancer
@@ -317,12 +317,12 @@ the balancer knows which pool it's balancing.
 =cut
 
 sub _build_balancer {
-    my $self = shift @_;
-    $self->create_balancer(
-        pool=>$self->pool, 
-        master=>$self->master,
-        %{$self->balancer_args},
-    );
+  my $self = shift @_;
+  $self->create_balancer(
+    pool=>$self->pool, 
+    master=>$self->master,
+    %{$self->balancer_args},
+  );
 }
 
 =head2 _build_write_handler
@@ -333,7 +333,7 @@ the L</master>.
 =cut
 
 sub _build_write_handler {
-    return shift->master;
+  return shift->master;
 }
 
 =head2 _build_read_handler
@@ -344,7 +344,7 @@ the L</balancer>.
 =cut
 
 sub _build_read_handler {
-    return shift->balancer;
+  return shift->balancer;
 }
 
 =head2 around: connect_replicants
@@ -355,8 +355,8 @@ top of the args, since L<DBIx::Storage::DBI> needs it.
 =cut
 
 around 'connect_replicants' => sub {
-    my ($method, $self, @args) = @_;
-    $self->$method($self->schema, @args);
+  my ($method, $self, @args) = @_;
+  $self->$method($self->schema, @args);
 };
 
 =head2 all_storages
@@ -368,12 +368,11 @@ replicants.
 =cut
 
 sub all_storages {
-    my $self = shift @_;
-    
-    return grep {defined $_ && blessed $_} (
-       $self->master,
-       $self->replicants,
-    );
+  my $self = shift @_;
+  return grep {defined $_ && blessed $_} (
+     $self->master,
+     $self->replicants,
+  );
 }
 
 =head2 execute_reliably ($coderef, ?@args)
@@ -384,14 +383,14 @@ restores the original state.
 
 Example:
 
-    my $reliably = sub {
-        my $name = shift @_;
-        $schema->resultset('User')->create({name=>$name});
-        my $user_rs = $schema->resultset('User')->find({name=>$name}); 
-        return $user_rs;
-    };
+  my $reliably = sub {
+    my $name = shift @_;
+    $schema->resultset('User')->create({name=>$name});
+    my $user_rs = $schema->resultset('User')->find({name=>$name}); 
+    return $user_rs;
+  };
 
-    my $user_rs = $schema->storage->execute_reliably($reliably, 'John');
+  my $user_rs = $schema->storage->execute_reliably($reliably, 'John');
 
 Use this when you must be certain of your database state, such as when you just
 inserted something and need to get a resultset including it, etc.
@@ -399,77 +398,76 @@ inserted something and need to get a resultset including it, etc.
 =cut
 
 sub execute_reliably {
-    my ($self, $coderef, @args) = @_;
-    
-    unless( ref $coderef eq 'CODE') {
-        $self->throw_exception('Second argument must be a coderef');
-    }
-
-    ##Get copy of master storage
-    my $master = $self->master;
-    
-    ##Get whatever the current read hander is
-    my $current = $self->read_handler;
-    
-    ##Set the read handler to master
-    $self->read_handler($master);
-    
-    ## do whatever the caller needs
-    my @result;
-    my $want_array = wantarray;
-    
-    eval {
-        if($want_array) {
-            @result = $coderef->(@args);
-        }
-        elsif(defined $want_array) {
-            ($result[0]) = ($coderef->(@args));
-        } else {
-            $coderef->(@args);
-        }       
-    };
-    
-    ##Reset to the original state
-    $self->read_handler($current); 
-    
-    ##Exception testing has to come last, otherwise you might leave the 
-    ##read_handler set to master.
-    
-    if($@) {
-        $self->throw_exception("coderef returned an error: $@");
+  my ($self, $coderef, @args) = @_;
+  
+  unless( ref $coderef eq 'CODE') {
+    $self->throw_exception('Second argument must be a coderef');
+  }
+  
+  ##Get copy of master storage
+  my $master = $self->master;
+  
+  ##Get whatever the current read hander is
+  my $current = $self->read_handler;
+  
+  ##Set the read handler to master
+  $self->read_handler($master);
+  
+  ## do whatever the caller needs
+  my @result;
+  my $want_array = wantarray;
+  
+  eval {
+    if($want_array) {
+      @result = $coderef->(@args);
+    } elsif(defined $want_array) {
+      ($result[0]) = ($coderef->(@args));
     } else {
-        return $want_array ? @result : $result[0];
-    }
+      $coderef->(@args);
+    }       
+  };
+  
+  ##Reset to the original state
+  $self->read_handler($current); 
+  
+  ##Exception testing has to come last, otherwise you might leave the 
+  ##read_handler set to master.
+  
+  if($@) {
+    $self->throw_exception("coderef returned an error: $@");
+  } else {
+    return $want_array ? @result : $result[0];
+  }
 }
 
 =head2 set_reliable_storage
 
 Sets the current $schema to be 'reliable', that is all queries, both read and
 write are sent to the master
-    
+  
 =cut
 
 sub set_reliable_storage {
-    my $self = shift @_;
-    my $schema = $self->schema;
-    my $write_handler = $self->schema->storage->write_handler;
-    
-    $schema->storage->read_handler($write_handler);
+  my $self = shift @_;
+  my $schema = $self->schema;
+  my $write_handler = $self->schema->storage->write_handler;
+  
+  $schema->storage->read_handler($write_handler);
 }
 
 =head2 set_balanced_storage
 
 Sets the current $schema to be use the </balancer> for all reads, while all
 writea are sent to the master only
-    
+  
 =cut
 
 sub set_balanced_storage {
-    my $self = shift @_;
-    my $schema = $self->schema;
-    my $write_handler = $self->schema->storage->balancer;
-    
-    $schema->storage->read_handler($write_handler);
+  my $self = shift @_;
+  my $schema = $self->schema;
+  my $write_handler = $self->schema->storage->balancer;
+  
+  $schema->storage->read_handler($write_handler);
 }
 
 =head2 around: txn_do ($coderef)
@@ -481,8 +479,8 @@ L</execute_reliably> method.
 =cut
 
 around 'txn_do' => sub {
-    my($txn_do, $self, $coderef, @args) = @_;
-    $self->execute_reliably(sub {$self->$txn_do($coderef, @args)}); 
+  my($txn_do, $self, $coderef, @args) = @_;
+  $self->execute_reliably(sub {$self->$txn_do($coderef, @args)}); 
 };
 
 =head2 reload_row ($row)
@@ -493,10 +491,10 @@ the master storage.
 =cut
 
 around 'reload_row' => sub {
-    my ($reload_row, $self, $row) = @_;
-    return $self->execute_reliably(sub {
-        return $self->$reload_row(shift);
-    }, $row);
+  my ($reload_row, $self, $row) = @_;
+  return $self->execute_reliably(sub {
+    return $self->$reload_row(shift);
+  }, $row);
 };
 
 =head2 connected
@@ -506,11 +504,10 @@ Check that the master and at least one of the replicants is connected.
 =cut
 
 sub connected {
-    my $self = shift @_;
-    
-    return
-       $self->master->connected &&
-       $self->pool->connected_replicants;
+  my $self = shift @_;
+  return
+    $self->master->connected &&
+    $self->pool->connected_replicants;
 }
 
 =head2 ensure_connected
@@ -520,10 +517,10 @@ Make sure all the storages are connected.
 =cut
 
 sub ensure_connected {
-    my $self = shift @_;
-    foreach my $source ($self->all_storages) {
-        $source->ensure_connected(@_);
-    }
+  my $self = shift @_;
+  foreach my $source ($self->all_storages) {
+    $source->ensure_connected(@_);
+  }
 }
 
 =head2 limit_dialect
@@ -533,10 +530,10 @@ Set the limit_dialect for all existing storages
 =cut
 
 sub limit_dialect {
-    my $self = shift @_;
-    foreach my $source ($self->all_storages) {
-        $source->limit_dialect(@_);
-    }
+  my $self = shift @_;
+  foreach my $source ($self->all_storages) {
+    $source->limit_dialect(@_);
+  }
 }
 
 =head2 quote_char
@@ -546,10 +543,10 @@ Set the quote_char for all existing storages
 =cut
 
 sub quote_char {
-    my $self = shift @_;
-    foreach my $source ($self->all_storages) {
-        $source->quote_char(@_);
-    }
+  my $self = shift @_;
+  foreach my $source ($self->all_storages) {
+    $source->quote_char(@_);
+  }
 }
 
 =head2 name_sep
@@ -559,10 +556,10 @@ Set the name_sep for all existing storages
 =cut
 
 sub name_sep {
-    my $self = shift @_;
-    foreach my $source ($self->all_storages) {
-        $source->name_sep(@_);
-    }
+  my $self = shift @_;
+  foreach my $source ($self->all_storages) {
+    $source->name_sep(@_);
+  }
 }
 
 =head2 set_schema
@@ -572,10 +569,10 @@ Set the schema object for all existing storages
 =cut
 
 sub set_schema {
-    my $self = shift @_;
-    foreach my $source ($self->all_storages) {
-        $source->set_schema(@_);
-    }
+  my $self = shift @_;
+  foreach my $source ($self->all_storages) {
+    $source->set_schema(@_);
+  }
 }
 
 =head2 debug
@@ -585,10 +582,10 @@ set a debug flag across all storages
 =cut
 
 sub debug {
-    my $self = shift @_;
-    foreach my $source ($self->all_storages) {
-        $source->debug(@_);
-    }
+  my $self = shift @_;
+  foreach my $source ($self->all_storages) {
+    $source->debug(@_);
+  }
 }
 
 =head2 debugobj
@@ -598,10 +595,10 @@ set a debug object across all storages
 =cut
 
 sub debugobj {
-    my $self = shift @_;
-    foreach my $source ($self->all_storages) {
-        $source->debugobj(@_);
-    }
+  my $self = shift @_;
+  foreach my $source ($self->all_storages) {
+    $source->debugobj(@_);
+  }
 }
 
 =head2 debugfh
@@ -611,10 +608,10 @@ set a debugfh object across all storages
 =cut
 
 sub debugfh {
-    my $self = shift @_;
-    foreach my $source ($self->all_storages) {
-        $source->debugfh(@_);
-    }
+  my $self = shift @_;
+  foreach my $source ($self->all_storages) {
+    $source->debugfh(@_);
+  }
 }
 
 =head2 debugcb
@@ -624,10 +621,10 @@ set a debug callback across all storages
 =cut
 
 sub debugcb {
-    my $self = shift @_;
-    foreach my $source ($self->all_storages) {
-        $source->debugcb(@_);
-    }
+  my $self = shift @_;
+  foreach my $source ($self->all_storages) {
+    $source->debugcb(@_);
+  }
 }
 
 =head2 disconnect
@@ -637,20 +634,20 @@ disconnect everything
 =cut
 
 sub disconnect {
-    my $self = shift @_;
-    foreach my $source ($self->all_storages) {
-        $source->disconnect(@_);
-    }
+  my $self = shift @_;
+  foreach my $source ($self->all_storages) {
+    $source->disconnect(@_);
+  }
 }
 
 =head1 AUTHOR
 
-    John Napiorkowski <john.napiorkowski@takkle.com>
+  John Napiorkowski <john.napiorkowski@takkle.com>
 
 Based on code originated by:
 
-    Norbert Csongrádi <bert@cpan.org>
-    Peter Siklósi <einon@einon.hu>
+  Norbert Csongrádi <bert@cpan.org>
+  Peter Siklósi <einon@einon.hu>
 
 =head1 LICENSE
 

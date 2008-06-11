@@ -9,7 +9,7 @@ BEGIN {
     eval "use Moose; use Test::Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 71 );
+        : ( tests => 77 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -478,12 +478,15 @@ ok my $transaction = sub {
 	        [ $id, "Children of the Grave"],
 	    ]);
 	    
-   ok my $result = $replicated->schema->resultset('Artist')->find($id);
-   ok my $more = $replicated->schema->resultset('Artist')->find(1);
-   
+    ok my $result = $replicated->schema->resultset('Artist')->find($id)
+        => 'Found expected artist';
+        
+    ok my $more = $replicated->schema->resultset('Artist')->find(1)
+        => 'Found expected artist again';
+        
    return ($result, $more);
    
-};
+} => 'Created a coderef properly';
 
 ## Test the transaction with multi return
 {
@@ -510,7 +513,8 @@ ok my $transaction = sub {
 
 {
 	ok my $result = $replicated->schema->txn_do(sub {
-		ok my $more = $replicated->schema->resultset('Artist')->find(1);
+		ok my $more = $replicated->schema->resultset('Artist')->find(1)
+		=> 'found inside a transaction';
 		return $more;
 	}) => 'successfully processed transaction';
 	
@@ -532,7 +536,39 @@ ok $replicated->schema->resultset('Artist')->find(1)
 	ok $artist->discard_changes
 	   => 'properly discard changes';
 }
-        
+
+## Test some edge cases, like trying to do a transaction inside a transaction, etc
+
+{
+    ok my $result = $replicated->schema->txn_do(sub {
+    	return $replicated->schema->txn_do(sub {
+	        ok my $more = $replicated->schema->resultset('Artist')->find(1)
+	        => 'found inside a transaction inside a transaction';
+	        return $more;    		
+    	});
+    }) => 'successfully processed transaction';
+    
+    is $result->id, 1
+       => 'Got expected single result from transaction';	  
+}
+
+{
+    ok my $result = $replicated->schema->txn_do(sub {
+    	return $replicated->schema->storage->execute_reliably(sub {
+	    	return $replicated->schema->txn_do(sub {
+	    		return $replicated->schema->storage->execute_reliably(sub {
+			        ok my $more = $replicated->schema->resultset('Artist')->find(1)
+			        => 'found inside crazy deep transactions and execute_reliably';
+			        return $more; 	    			
+	    		});
+	    	});    	
+    	});
+    }) => 'successfully processed transaction';
+    
+    is $result->id, 1
+       => 'Got expected single result from transaction';	  
+}     
+   
 ## Delete the old database files
 $replicated->cleanup;
 

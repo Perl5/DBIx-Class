@@ -36,7 +36,7 @@ Just get the first storage.  Probably only good when you have one replicant.
 =cut
 
 sub next_storage {
-    return  (shift->pool->active_replicants)[0];
+  return  (shift->pool->active_replicants)[0];
 }
 
 =head1 AUTHOR

@@ -13,7 +13,7 @@ DBIx::Class::Storage::DBI::Replicated::Pool; Manage a pool of replicants
 
 This class is used internally by L<DBIx::Class::Storage::DBI::Replicated>.  You
 shouldn't need to create instances of this class.
-    
+  
 =head1 DESCRIPTION
 
 In a replicated storage type, there is at least one replicant to handle the
@@ -36,11 +36,11 @@ return a number of seconds that the replicating database is lagging.
 =cut
 
 has 'maximum_lag' => (
-    is=>'rw',
-    isa=>'Num',
-    required=>1,
-    lazy=>1,
-    default=>0,
+  is=>'rw',
+  isa=>'Num',
+  required=>1,
+  lazy=>1,
+  default=>0,
 );
 
 =head2 last_validated
@@ -52,14 +52,12 @@ builtin.
 =cut
 
 has 'last_validated' => (
-    is=>'rw',
-    isa=>'Int',
-    reader=>'last_validated',
-    writer=>'_last_validated',
-    lazy=>1,
-    default=>sub {
-        0;
-    },
+  is=>'rw',
+  isa=>'Int',
+  reader=>'last_validated',
+  writer=>'_last_validated',
+  lazy=>1,
+  default=>0,
 );
 
 =head2 replicant_type ($classname)
@@ -71,13 +69,13 @@ just leave this alone.
 =cut
 
 has 'replicant_type' => (
-    is=>'ro',
-    isa=>'ClassName',
-    required=>1,
-    default=>'DBIx::Class::Storage::DBI',
-    handles=>{
-        'create_replicant' => 'new',
-    },  
+  is=>'ro',
+  isa=>'ClassName',
+  required=>1,
+  default=>'DBIx::Class::Storage::DBI',
+  handles=>{
+    'create_replicant' => 'new',
+  },  
 );
 
 =head2 replicants
@@ -85,13 +83,13 @@ has 'replicant_type' => (
 A hashref of replicant, with the key being the dsn and the value returning the
 actual replicant storage.  For example if the $dsn element is something like:
 
-    "dbi:SQLite:dbname=dbfile"
-    
+  "dbi:SQLite:dbname=dbfile"
+  
 You could access the specific replicant via:
 
-    $schema->storage->replicants->{'dbname=dbfile'}
-    
-This attributes also supports the following helper methods
+  $schema->storage->replicants->{'dbname=dbfile'}
+  
+This attributes also supports the following helper methods:
 
 =over 4
 
@@ -120,17 +118,17 @@ removes the replicant under $key from the pool
 =cut
 
 has 'replicants' => (
-    is=>'rw',
-    metaclass => 'Collection::Hash',
-    isa=>'HashRef[DBIx::Class::Storage::DBI]',
-    default=>sub {{}},
-    provides  => {
-        'set' => 'set_replicant',
-        'get' => 'get_replicant',            
-        'empty' => 'has_replicants',
-        'count' => 'num_replicants',
-        'delete' => 'delete_replicant',
-    },
+  is=>'rw',
+  metaclass => 'Collection::Hash',
+  isa=>'HashRef[DBIx::Class::Storage::DBI]',
+  default=>sub {{}},
+  provides  => {
+    'set' => 'set_replicant',
+    'get' => 'get_replicant',            
+    'empty' => 'has_replicants',
+    'count' => 'num_replicants',
+    'delete' => 'delete_replicant',
+  },
 );
 
 =head1 METHODS
@@ -146,23 +144,21 @@ L</replicants> attribute.
 =cut
 
 sub connect_replicants {
-    my $self = shift @_;
-    my $schema = shift @_;
-    
-    my @newly_created = ();
-    foreach my $connect_info (@_) {
-        
-        my $replicant = $self->create_replicant($schema);
-        $replicant->connect_info($connect_info);    
-        $replicant->ensure_connected;
-        DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
-        
-        my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);
-        $self->set_replicant( $key => $replicant);  
-        push @newly_created, $replicant;
-    }
-    
-    return @newly_created;
+  my $self = shift @_;
+  my $schema = shift @_;
+  
+  my @newly_created = ();
+  foreach my $connect_info (@_) {
+    my $replicant = $self->create_replicant($schema);
+    $replicant->connect_info($connect_info);    
+    $replicant->ensure_connected;
+    DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
+    my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);
+    $self->set_replicant( $key => $replicant);  
+    push @newly_created, $replicant;
+  }
+  
+  return @newly_created;
 }
 
 =head2 connected_replicants
@@ -170,11 +166,11 @@ sub connect_replicants {
 Returns true if there are connected replicants.  Actually is overloaded to
 return the number of replicants.  So you can do stuff like:
 
-    if( my $num_connected = $storage->has_connected_replicants ) {
-        print "I have $num_connected connected replicants";
-    } else {
-        print "Sorry, no replicants.";
-    }
+  if( my $num_connected = $storage->has_connected_replicants ) {
+    print "I have $num_connected connected replicants";
+  } else {
+    print "Sorry, no replicants.";
+  }
 
 This method will actually test that each replicant in the L</replicants> hashref
 is actually connected, try not to hit this 10 times a second.
@@ -182,10 +178,10 @@ is actually connected, try not to hit this 10 times a second.
 =cut
 
 sub connected_replicants {
-    my $self = shift @_;
-    return sum( map {
-        $_->connected ? 1:0
-    } $self->all_replicants );
+  my $self = shift @_;
+  return sum( map {
+    $_->connected ? 1:0
+  } $self->all_replicants );
 }
 
 =head2 active_replicants
@@ -197,10 +193,10 @@ should automatically reconnect them for us when we hit them with a query.
 =cut
 
 sub active_replicants {
-    my $self = shift @_;
-    return ( grep {$_} map {
-        $_->active ? $_:0
-    } $self->all_replicants );
+  my $self = shift @_;
+  return ( grep {$_} map {
+    $_->active ? $_:0
+  } $self->all_replicants );
 }
 
 =head2 all_replicants
@@ -211,8 +207,8 @@ array is given, nor should any meaning be derived.
 =cut
 
 sub all_replicants {
-    my $self = shift @_;
-    return values %{$self->replicants};
+  my $self = shift @_;
+  return values %{$self->replicants};
 }
 
 =head2 validate_replicants
@@ -234,23 +230,22 @@ not recommended that you run them very often.
 =cut
 
 sub validate_replicants {
-    my $self = shift @_;
-    foreach my $replicant($self->all_replicants) {
-        if(
-            $replicant->is_replicating &&
-            $replicant->lag_behind_master <= $self->maximum_lag &&
-            $replicant->ensure_connected
-        ) {
-            ## TODO:: Hook debug for this
-            $replicant->active(1)
-        } else {
-            ## TODO:: Hook debug for this
-            $replicant->active(0);
-        }
+  my $self = shift @_;
+  foreach my $replicant($self->all_replicants) {
+    if(
+      $replicant->is_replicating &&
+      $replicant->lag_behind_master <= $self->maximum_lag &&
+      $replicant->ensure_connected
+    ) {
+      ## TODO:: Hook debug for this
+      $replicant->active(1)
+    } else {
+      ## TODO:: Hook debug for this
+      $replicant->active(0);
     }
-
-    ## Mark that we completed this validation.  
-    $self->_last_validated(time);
+  }
+  ## Mark that we completed this validation.  
+  $self->_last_validated(time);
 }
 
 =head1 AUTHOR

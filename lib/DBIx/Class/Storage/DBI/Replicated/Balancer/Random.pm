@@ -40,7 +40,7 @@ be requested several times in a row.
 =cut
 
 sub next_storage {
-    return  (shuffle(shift->pool->active_replicants))[0];
+  return  (shuffle(shift->pool->active_replicants))[0];
 }
 
 =head1 AUTHOR

@@ -40,11 +40,11 @@ storage driver for more information.
 =cut
 
 has 'active' => (
-    is=>'rw',
-    isa=>'Bool',
-    lazy=>1,
-    required=>1,
-    default=>1,
+  is=>'rw',
+  isa=>'Bool',
+  lazy=>1,
+  required=>1,
+  default=>1,
 );
 
 =head1 METHODS
@@ -58,9 +58,9 @@ advice iof the _query_start method to add more debuggin
 =cut
 
 around '_query_start' => sub {
-    my ($method, $self, $sql, @bind) = @_;
-    my $dsn = $self->connect_info->[0];
-    $self->$method("DSN: $dsn SQL: $sql", @bind);
+  my ($method, $self, $sql, @bind) = @_;
+  my $dsn = $self->connect_info->[0];
+  $self->$method("DSN: $dsn SQL: $sql", @bind);
 };
 
 =head1 AUTHOR
