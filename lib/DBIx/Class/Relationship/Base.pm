@@ -116,6 +116,12 @@ deferrable. In other words, the user may request that the constraint be ignored
 until the end of the transaction. Currently, only the PostgreSQL producer
 actually supports this.
 
+=item add_fk_index
+
+Tells L<SQL::Translator> to add an index for this constraint. Can also be
+specified globally in the args to L<DBIx::Class::Schema/deploy> or
+L<DBIx::Class::Schema/create_ddl_dir>. Default is on, set to 0 to disable.
+
 =back
 
 =head2 register_relationship

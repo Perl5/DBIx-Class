@@ -295,6 +295,21 @@ C<set_inflated_columns>, which might edit it in place, so dont rely on it being
 the same after a call to C<update>.  If you need to preserve the hashref, it is
 sufficient to pass a shallow copy to C<update>, e.g. ( { %{ $href } } )
 
+If the values passed or any of the column values set on the object
+contain scalar references, eg:
+
+  $obj->last_modified(\'NOW()');
+  # OR
+  $obj->update({ last_modified => \'NOW()' });
+
+The update will pass the values verbatim into SQL. (See
+L<SQL::Abstract> docs).  The values in your Row object will NOT change
+as a result of the update call, if you want the object to be updated
+with the actual values from the database, call L</discard_changes>
+after the update.
+
+  $obj->update()->discard_changes();
+
 =cut
 
 sub update {
