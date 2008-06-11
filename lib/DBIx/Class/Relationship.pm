@@ -383,7 +383,7 @@ OR
 =item cond
 
 A hashref where the keys are C<foreign.$column_on_related_table> and
-the values are C<self.$foreign_key_column>. This is useful for
+the values are C<self.$matching_column>. This is useful for
 relations that are across multiple columns.
 
 =back
@@ -461,7 +461,7 @@ OR
 =item cond
 
 A hashref where the keys are C<foreign.$column_on_related_table> and
-the values are C<self.$foreign_key_column>. This is useful for
+the values are C<self.$matching_column>. This is useful for
 relations that are across multiple columns.
 
 =back
