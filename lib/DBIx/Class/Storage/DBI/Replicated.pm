@@ -1,12 +1,11 @@
 package DBIx::Class::Storage::DBI::Replicated;
 
 use Moose;
+use Class::MOP;
+use Moose::Util::TypeConstraints;
 use DBIx::Class::Storage::DBI;
 use DBIx::Class::Storage::DBI::Replicated::Pool;
 use DBIx::Class::Storage::DBI::Replicated::Balancer;
-use Scalar::Util qw(blessed);
-
-extends 'DBIx::Class::Storage::DBI', 'Moose::Object';
 
 =head1 NAME
 
@@ -63,6 +62,19 @@ connects to the master.
 
 This class defines the following attributes.
 
+=head2 schema
+
+The underlying L<DBIx::Class::Schema> object this storage is attaching
+
+=cut
+
+has 'schema' => (
+    is=>'rw',
+    isa=>'DBIx::Class::Schema',
+    weak_ref=>1,
+    required=>1,
+);
+
 =head2 pool_type
 
 Contains the classname which will instantiate the L</pool> object.  Defaults 
@@ -73,7 +85,8 @@ to: L<DBIx::Class::Storage::DBI::Replicated::Pool>.
 has 'pool_type' => (
   is=>'ro',
   isa=>'ClassName',
-  lazy_build=>1,
+  required=>1,
+  default=>'DBIx::Class::Storage::DBI::Replicated::Pool',
   handles=>{
     'create_pool' => 'new',
   },
@@ -102,10 +115,26 @@ choose how to spread the query load across each replicant in the pool.
 
 =cut
 
+subtype 'DBIx::Class::Storage::DBI::Replicated::BalancerClassNamePart',
+  as 'ClassName';
+    
+coerce 'DBIx::Class::Storage::DBI::Replicated::BalancerClassNamePart',
+  from 'Str',
+  via {
+  	my $type = $_;
+    if($type=~m/^::/) {
+      $type = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$type;
+    }  
+    Class::MOP::load_class($type);  
+    $type;  	
+  };
+
 has 'balancer_type' => (
   is=>'ro',
-  isa=>'ClassName',
-  lazy_build=>1,
+  isa=>'DBIx::Class::Storage::DBI::Replicated::BalancerClassNamePart',
+  coerce=>1,
+  required=>1,
+  default=> 'DBIx::Class::Storage::DBI::Replicated::Balancer::First',
   handles=>{
     'create_balancer' => 'new',
   },
@@ -224,13 +253,18 @@ has 'write_handler' => (
     update
     delete
     dbh
+    txn_begin
     txn_do
     txn_commit
     txn_rollback
+    txn_scope_guard
     sth
     deploy
-    schema
+
     reload_row
+    _prep_for_execute
+    configure_sqlt
+    
   /],
 );
 
@@ -241,32 +275,15 @@ This class defines the following methods.
 =head2 new
 
 L<DBIx::Class::Schema> when instantiating it's storage passed itself as the
-first argument.  We need to invoke L</new> on the underlying parent class, make
-sure we properly give it a L<Moose> meta class, and then correctly instantiate
-our attributes.  Basically we pass on whatever the schema has in it's class
-data for 'storage_type_args' to our replicated storage type.
+first argument.  So we need to massage the arguments a bit so that all the
+bits get put into the correct places.
 
 =cut
 
-sub new {
-  my $class = shift @_;
-  my $schema = shift @_;
-  my $storage_type_args = shift @_;
-  my $obj = $class->SUPER::new($schema, $storage_type_args, @_);
-  
-  ## Hate to do it this way, but can't seem to get advice on the attribute working right
-  ## maybe we can do a type and coercion for it. 
-  if( $storage_type_args->{balancer_type} && $storage_type_args->{balancer_type}=~m/^::/) {
-    $storage_type_args->{balancer_type} = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$storage_type_args->{balancer_type};
-    eval "require $storage_type_args->{balancer_type}";
-  }
-  
-  return $class->meta->new_object(
-    __INSTANCE__ => $obj,
-    %$storage_type_args,
-    @_,
-  );
-}
+around 'new' => sub {
+  my ($new, $self, $schema, $storage_type_args, @args) = @_;
+  return $self->$new(schema=>$schema, %$storage_type_args, @args);
+};
 
 =head2 _build_master
 
@@ -275,17 +292,8 @@ Lazy builder for the L</master> attribute.
 =cut
 
 sub _build_master {
-  DBIx::Class::Storage::DBI->new;
-}
-
-=head2 _build_pool_type
-
-Lazy builder for the L</pool_type> attribute.
-
-=cut
-
-sub _build_pool_type {
-  return 'DBIx::Class::Storage::DBI::Replicated::Pool';
+  my $self = shift @_;
+  DBIx::Class::Storage::DBI->new($self->schema);
 }
 
 =head2 _build_pool
@@ -297,16 +305,6 @@ Lazy builder for the L</pool> attribute.
 sub _build_pool {
   my $self = shift @_;
   $self->create_pool(%{$self->pool_args});
-}
-
-=head2 _build_balancer_type
-
-Lazy builder for the L</balancer_type> attribute.
-
-=cut
-
-sub _build_balancer_type {
-  return 'DBIx::Class::Storage::DBI::Replicated::Balancer::First';
 }
 
 =head2 _build_balancer

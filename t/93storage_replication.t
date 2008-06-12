@@ -568,7 +568,7 @@ ok $replicated->schema->resultset('Artist')->find(1)
     is $result->id, 1
        => 'Got expected single result from transaction';	  
 }     
-   
+
 ## Delete the old database files
 $replicated->cleanup;
 
