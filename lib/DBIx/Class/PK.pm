@@ -40,7 +40,7 @@ sub discard_changes {
   delete $self->{_dirty_columns};
   return unless $self->in_storage; # Don't reload if we aren't real!
   
-  if( my $current_storage = $self->get_current_storage) {
+  if( my $current_storage = $self->get_from_storage) {
   	
     # Set $self to the current.
   	%$self = %$current_storage;
