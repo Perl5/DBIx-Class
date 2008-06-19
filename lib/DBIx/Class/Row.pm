@@ -451,6 +451,20 @@ sub get_dirty_columns {
            keys %{$self->{_dirty_columns}};
 }
 
+=head2 make_column_dirty
+
+Marks a column dirty regardless if it has really changed.  Throws an
+exception if the column does not exist.
+
+=cut
+sub make_column_dirty {
+  my ($self, $column) = @_;
+
+  $self->throw_exception( "No such column '${column}'" )
+    unless exists $self->{_column_data}{$column} || $self->has_column($column);
+  $self->{_dirty_columns}{$column} = 1;
+}
+
 =head2 get_inflated_columns
 
   my %inflated_data = $obj->get_inflated_columns;
