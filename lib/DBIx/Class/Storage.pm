@@ -438,15 +438,6 @@ only.
 
 sub select_single { die "Virtual method!" }
 
-=head2 reload_row ($row)
-
-given a L<DBIx::Class::Row> object, loads and returns the matching version from
-storage.  Does not effect the existing row object.
-
-=cut
-
-sub reload_row { die "Virtual method!" }
-
 =head2 columns_info_for
 
 Returns metadata for the given source's columns.  This

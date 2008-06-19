@@ -39,21 +39,21 @@ sub discard_changes {
   my ($self) = @_;
   delete $self->{_dirty_columns};
   return unless $self->in_storage; # Don't reload if we aren't real!
-
-  my $reload = $self->result_source->schema->storage->reload_row($self);
   
-  unless ($reload) { # If we got deleted in the mean-time
+  if( my $current_storage = $self->get_current_storage) {
+  	
+    # Set $self to the current.
+  	%$self = %$current_storage;
+  	
+    # Avoid a possible infinite loop with
+    # sub DESTROY { $_[0]->discard_changes }
+    bless $current_storage, 'Do::Not::Exist';
+    
+    return $self;  	
+  } else {
     $self->in_storage(0);
-    return $self;
+    return $self;  	
   }
-
-  %$self = %$reload;
-  
-  # Avoid a possible infinite loop with
-  # sub DESTROY { $_[0]->discard_changes }
-  bless $reload, 'Do::Not::Exist';
-
-  return $self;
 }
 
 =head2 id

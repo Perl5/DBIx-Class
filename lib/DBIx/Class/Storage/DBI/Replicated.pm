@@ -481,20 +481,6 @@ around 'txn_do' => sub {
   $self->execute_reliably(sub {$self->$txn_do($coderef, @args)}); 
 };
 
-=head2 reload_row ($row)
-
-Overload to the reload_row method so that the reloading is always directed to
-the master storage.
-
-=cut
-
-around 'reload_row' => sub {
-  my ($reload_row, $self, $row) = @_;
-  return $self->execute_reliably(sub {
-    return $self->$reload_row(shift);
-  }, $row);
-};
-
 =head2 connected
 
 Check that the master and at least one of the replicants is connected.

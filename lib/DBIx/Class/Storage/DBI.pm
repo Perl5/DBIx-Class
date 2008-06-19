@@ -1296,16 +1296,6 @@ sub select_single {
   return @row;
 }
 
-sub reload_row {
-	my ($self, $row) = @_;
-	
-    my $reload = $row->result_source->resultset->find(
-        map { $row->$_ } $row->primary_columns
-    );
-    
-    return $reload;
-}
-
 =head2 sth
 
 =over 4

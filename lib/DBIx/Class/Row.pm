@@ -785,6 +785,21 @@ sub register_column {
   $class->mk_group_accessors('column' => $acc);
 }
 
+=head2 get_current_storage
+
+Returns a new Row which is whatever the Storage has for the currently created
+Row object.  You ca use this to see if the storage has become inconsistent with
+whatever your Row object is.
+
+=cut
+
+sub get_current_storage {
+    my $self = shift @_;
+    my @primary_columns = map { $self->$_ } $self->primary_columns;
+    return $self->result_source->schema->txn_do(sub {
+      return $self->result_source->resultset->find(@primary_columns); 	
+    });
+}
 
 =head2 throw_exception
 
