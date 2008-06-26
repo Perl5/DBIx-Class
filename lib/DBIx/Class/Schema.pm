@@ -613,19 +613,6 @@ sub compose_namespace {
   return $schema;
 }
 
-=head2 setup_connection_class
-
-=over 4
-
-=item Arguments: $target, @info
-
-=back
-
-Sets up a database connection class to inject between the schema and the
-subclasses that the schema creates.
-
-=cut
-
 sub setup_connection_class {
   my ($class, $target, @info) = @_;
   $class->inject_base($target => 'DBIx::Class::DB');
