@@ -353,22 +353,16 @@ allows you to run your upgrade any way you please, you can call C<run_upgrade>
 any number of times to run the actual SQL commands, and in between you can
 sandwich your data upgrading. For example, first run all the B<CREATE>
 commands, then migrate your data from old to new tables/formats, then 
-issue the DROP commands when you are finished.
-
-Will run the whole file as it is by default.
+issue the DROP commands when you are finished. Will run the whole file as it is by default.
 
 =cut
 
 sub do_upgrade
 {
-    my ($self) = @_;
+  my ($self) = @_;
 
-    ## overridable sub, per default just run all the commands.
-    $self->run_upgrade(qr/create/i);
-    $self->run_upgrade(qr/alter table .*? add/i);
-    $self->run_upgrade(qr/alter table .*? (?!drop)/i);
-    $self->run_upgrade(qr/alter table .*? drop/i);
-    $self->run_upgrade(qr/drop/i);
+  # just run all the commands (including inserts) in order                                                        
+  $self->run_upgrade(qr/.*?/);
 }
 
 =head2 run_upgrade
