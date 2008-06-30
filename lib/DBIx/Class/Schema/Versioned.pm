@@ -190,6 +190,8 @@ database type.
 
 This method should return the name of the backup file, if appropriate..
 
+This method is disabled by default. Set $schema->do_backup(1) to enable it.
+
 =cut
 
 sub backup
@@ -402,21 +404,29 @@ warns if they are not the same or if the DB is unversioned. It also provides
 compatibility between the old versions table (SchemaVersions) and the new one
 (dbix_class_schema_versions).
 
-To avoid the checks on connect, set the env var DBIC_NO_VERSION_CHECK. This can be
-useful for scripts.
+To avoid the checks on connect, set the env var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth arg like so:
+
+  my $schema = MyApp::Schema->connect(
+    $dsn,
+    $user,
+    $password,
+    { ignore_version => 1 },
+  );
 
 =cut
 
 sub connection {
   my $self = shift;
   $self->next::method(@_);
-  $self->_on_connect;
+  $self->_on_connect($_[3]);
   return $self;
 }
 
 sub _on_connect
 {
-  my ($self) = @_;
+  my ($self, $args) = @_;
+
+  $args = {} unless $args;
   $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
   my $vtable = $self->{vschema}->resultset('Table');
 
@@ -430,9 +440,9 @@ sub _on_connect
       $self->storage->dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
     }
   }
-  
+
   # useful when connecting from scripts etc
-  return if ($ENV{DBIC_NO_VERSION_CHECK});
+  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
   
   my $pversion = $self->get_db_version();
 

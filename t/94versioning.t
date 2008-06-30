@@ -83,3 +83,24 @@ eval "use DBICVersionNew";
   ok($@, 'old version table gone');
 
 }
+
+# check behaviour of DBIC_NO_VERSION_CHECK env var and ignore_version connect attr
+{
+  my $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  eval {
+    $schema_version->storage->dbh->do("DROP TABLE IF EXISTS $version_table_name");
+  };
+
+  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  # should warn
+
+  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
+  # should not warn
+
+  $ENV{DBIC_NO_VERSION_CHECK} = 1;
+  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  # should not warn
+
+  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 0 });
+  # should warn
+}
