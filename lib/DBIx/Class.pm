@@ -215,6 +215,8 @@ blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
 
+bricas: Brian Cassidy <bricas@cpan.org>
+
 captainL: Luke Saunders <luke.saunders@gmail.com>
 
 castaway: Jess Robinson
@@ -250,8 +252,6 @@ jon: Jon Schutz <jjschutz@cpan.org>
 jshirley: J. Shirley <jshirley@gmail.com>
 
 konobi: Scott McWhirter
-
-LTJake: Brian Cassidy <bricas@cpan.org>
 
 mattlaw: Matt Lawrence
 
