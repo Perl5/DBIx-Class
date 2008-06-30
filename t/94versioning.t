@@ -18,7 +18,7 @@ BEGIN {
     eval "use DBD::mysql; use SQL::Translator 0.09;";
     plan $@
         ? ( skip_all => 'needs DBD::mysql and SQL::Translator 0.09 for testing' )
-        : ( tests => 13 );
+        : ( tests => 17 );
 }
 
 my $version_table_name = 'dbix_class_schema_versions';
@@ -88,19 +88,30 @@ eval "use DBICVersionNew";
 {
   my $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
   eval {
-    $schema_version->storage->dbh->do("DROP TABLE IF EXISTS $version_table_name");
+    $schema_version->storage->dbh->do("DELETE from $version_table_name");
   };
 
-  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
-  # should warn
 
+  my $warn = '';
+  $SIG{__WARN__} = sub { $warn = shift };
+  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  like($warn, qr/Your DB is currently unversioned/, 'warning detected without env var or attr');
+
+
+  # should warn
+  $warn = '';
   $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
+  is($warn, '', 'warning not detected with attr set');
   # should not warn
 
   $ENV{DBIC_NO_VERSION_CHECK} = 1;
+  $warn = '';
   $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  is($warn, '', 'warning not detected with env var set');
   # should not warn
 
+  $warn = '';
   $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 0 });
+  like($warn, qr/Your DB is currently unversioned/, 'warning detected without env var or attr');
   # should warn
 }
