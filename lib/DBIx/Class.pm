@@ -233,8 +233,6 @@ dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
 dnm: Justin Wheeler <jwheeler@datademons.com>
 
-draven: Marcus Ramberg <mramberg@cpan.org>
-
 dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
 dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
@@ -252,6 +250,8 @@ jon: Jon Schutz <jjschutz@cpan.org>
 jshirley: J. Shirley <jshirley@gmail.com>
 
 konobi: Scott McWhirter
+
+marcus: Marcus Ramberg <mramberg@cpan.org>
 
 mattlaw: Matt Lawrence
 
