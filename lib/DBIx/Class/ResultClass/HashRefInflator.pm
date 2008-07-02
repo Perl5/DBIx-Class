@@ -87,4 +87,21 @@ sub mk_hash {
     };
 }
 
+=head1 CAVEAT
+
+This will not work for relationships that have been prefetched. Consider the
+following:
+
+ my $artist = $artitsts_rs->search({}, {prefetch => 'cds' })->first;
+
+ my $cds = $artist->cds;
+ $cds->result_class('DBIx::Class::ResultClass::HashRefInflator');
+ my $first = $cds->first; 
+
+C<$first> will B<not> be a hashref, it will be a normal CD row since 
+HashRefInflator only affects resultsets at inflation time, and prefetch causes
+relations to be inflated when the master C<$artist> row is inflated.
+
+=cut
+
 1;
