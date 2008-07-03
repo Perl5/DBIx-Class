@@ -194,8 +194,6 @@ any of your aliases using either of these:
     }
   );
 
-  my $count = $rs->next->get_column('count');
-
 =head2 SELECT COUNT(DISTINCT colname)
 
   my $rs = $schema->resultset('Foo')->search(
@@ -207,6 +205,8 @@ any of your aliases using either of these:
       as => [ 'count' ]
     }
   );
+
+  my $count = $rs->next->get_column('count');
 
 =head2 Grouping results
 
