@@ -1105,11 +1105,11 @@ sub create_ddl_dir {
 
 =over 4
 
-=item Arguments: $directory, $database-type, $version, $preversion
+=item Arguments: $database-type, $version, $directory, $preversion
 
 =back
 
-  my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
+  my $filename = $table->ddl_filename($type, $version, $dir, $preversion)
 
 This method is called by C<create_ddl_dir> to compose a file name out of
 the supplied directory, database type and version number. The default file
@@ -1121,14 +1121,14 @@ format.
 =cut
 
 sub ddl_filename {
-    my ($self, $type, $dir, $version, $pversion) = @_;
+  my ($self, $type, $version, $dir, $preversion) = @_;
 
-    my $filename = ref($self);
-    $filename =~ s/::/-/g;
-    $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
-    $filename =~ s/$version/$pversion-$version/ if($pversion);
-
-    return $filename;
+  my $filename = ref($self);
+  $filename =~ s/::/-/g;
+  $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
+  $filename =~ s/$version/$preversion-$version/ if($preversion);
+  
+  return $filename;
 }
 
 =head2 sqlt_deploy_hook($sqlt_schema)

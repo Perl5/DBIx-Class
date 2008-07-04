@@ -248,8 +248,8 @@ sub _create_db_to_schema_diff {
 
   my $filename = $self->ddl_filename(
                                          $db,
-                                         $self->upgrade_directory,
                                          $self->schema_version,
+                                         $self->upgrade_directory,
                                          'PRE',
                                     );
   my $file;
@@ -304,8 +304,8 @@ sub upgrade
   
   my $upgrade_file = $self->ddl_filename(
                                          $self->storage->sqlt_type,
-                                         $self->upgrade_directory,
                                          $self->schema_version,
+                                         $self->upgrade_directory,
                                          $db_version,
                                         );
 

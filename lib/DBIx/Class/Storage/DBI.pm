@@ -1450,12 +1450,10 @@ hashref like the following
 
 =cut
 
-sub create_ddl_dir
-{
+sub create_ddl_dir {
   my ($self, $schema, $databases, $version, $dir, $preversion, $sqltargs) = @_;
 
-  if(!$dir || !-d $dir)
-  {
+  if(!$dir || !-d $dir) {
     warn "No directory given, using ./\n";
     $dir = "./";
   }
@@ -1478,97 +1476,89 @@ sub create_ddl_dir
   $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
   my $sqlt_schema = $sqlt->translate({ data => $schema }) or die $sqlt->error;
 
-  foreach my $db (@$databases)
-  {
+  foreach my $db (@$databases) {
     $sqlt->reset();
     $sqlt = $self->configure_sqlt($sqlt, $db);
     $sqlt->{schema} = $sqlt_schema;
     $sqlt->producer($db);
 
     my $file;
-    my $filename = $schema->ddl_filename($db, $dir, $version);
-    if(-e $filename)
-    {
-      warn("$filename already exists, skipping $db");
-      next unless ($preversion);
-    } else {
-      my $output = $sqlt->translate;
-      if(!$output)
-      {
-        warn("Failed to translate to $db, skipping. (" . $sqlt->error . ")");
-        next;
-      }
-      if(!open($file, ">$filename"))
-      {
-          $self->throw_exception("Can't open $filename for writing ($!)");
-          next;
-      }
-      print $file $output;
-      close($file);
-    } 
-    if($preversion)
-    {
-      require SQL::Translator::Diff;
-
-      my $prefilename = $schema->ddl_filename($db, $dir, $preversion);
-#      print "Previous version $prefilename\n";
-      if(!-e $prefilename)
-      {
-        warn("No previous schema file found ($prefilename)");
-        next;
-      }
-
-      my $difffile = $schema->ddl_filename($db, $dir, $version, $preversion);
-      print STDERR "Diff: $difffile: $db, $dir, $version, $preversion \n";
-      if(-e $difffile)
-      {
-        warn("$difffile already exists, skipping");
-        next;
-      }
-
-      my $source_schema;
-      {
-        my $t = SQL::Translator->new($sqltargs);
-        $t->debug( 0 );
-        $t->trace( 0 );
-        $t->parser( $db )                       or die $t->error;
-        $t = $self->configure_sqlt($t, $db);
-        my $out = $t->translate( $prefilename ) or die $t->error;
-        $source_schema = $t->schema;
-        unless ( $source_schema->name ) {
-          $source_schema->name( $prefilename );
-        }
-      }
-
-      # The "new" style of producers have sane normalization and can support 
-      # diffing a SQL file against a DBIC->SQLT schema. Old style ones don't
-      # And we have to diff parsed SQL against parsed SQL.
-      my $dest_schema = $sqlt_schema;
-
-      unless ( "SQL::Translator::Producer::$db"->can('preprocess_schema') ) {
-        my $t = SQL::Translator->new($sqltargs);
-        $t->debug( 0 );
-        $t->trace( 0 );
-        $t->parser( $db )                    or die $t->error;
-        $t = $self->configure_sqlt($t, $db);
-        my $out = $t->translate( $filename ) or die $t->error;
-        $dest_schema = $t->schema;
-        $dest_schema->name( $filename )
-          unless $dest_schema->name;
-      }
-
-      my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
-                                                    $dest_schema,   $db,
-                                                    $sqltargs
-                                                   );
-      if(!open $file, ">$difffile")
-      { 
-        $self->throw_exception("Can't write to $difffile ($!)");
-        next;
-      }
-      print $file $diff;
-      close($file);
+    my $filename = $schema->ddl_filename($db, $version, $dir);
+    if (-e $filename && (!$version || ($version == $schema->schema_version()))) {
+      # if we are dumping the current version, overwrite the DDL
+      warn "Overwriting existing DDL file - $filename";
+      unlink($filename);
     }
+
+    my $output = $sqlt->translate;
+    if(!$output) {
+      warn("Failed to translate to $db, skipping. (" . $sqlt->error . ")");
+      next;
+    }
+    if(!open($file, ">$filename")) {
+      $self->throw_exception("Can't open $filename for writing ($!)");
+      next;
+    }
+    print $file $output;
+    close($file);
+  
+    next unless ($preversion);
+
+    require SQL::Translator::Diff;
+
+    my $prefilename = $schema->ddl_filename($db, $preversion, $dir);
+    if(!-e $prefilename) {
+      warn("No previous schema file found ($prefilename)");
+      next;
+    }
+
+    my $difffile = $schema->ddl_filename($db, $version, $dir, $preversion);
+    if(-e $difffile) {
+      warn("Overwriting existing diff file - $difffile");
+      unlink($difffile);
+    }
+    
+    my $source_schema;
+    {
+      my $t = SQL::Translator->new($sqltargs);
+      $t->debug( 0 );
+      $t->trace( 0 );
+      $t->parser( $db )                       or die $t->error;
+      $t = $self->configure_sqlt($t, $db);
+      my $out = $t->translate( $prefilename ) or die $t->error;
+      $source_schema = $t->schema;
+      unless ( $source_schema->name ) {
+        $source_schema->name( $prefilename );
+      }
+    }
+
+    # The "new" style of producers have sane normalization and can support 
+    # diffing a SQL file against a DBIC->SQLT schema. Old style ones don't
+    # And we have to diff parsed SQL against parsed SQL.
+    my $dest_schema = $sqlt_schema;
+    
+    unless ( "SQL::Translator::Producer::$db"->can('preprocess_schema') ) {
+      my $t = SQL::Translator->new($sqltargs);
+      $t->debug( 0 );
+      $t->trace( 0 );
+      $t->parser( $db )                    or die $t->error;
+      $t = $self->configure_sqlt($t, $db);
+      my $out = $t->translate( $filename ) or die $t->error;
+      $dest_schema = $t->schema;
+      $dest_schema->name( $filename )
+        unless $dest_schema->name;
+    }
+    
+    my $diff = SQL::Translator::Diff::schema_diff($source_schema, $db,
+                                                  $dest_schema,   $db,
+                                                  $sqltargs
+                                                 );
+    if(!open $file, ">$difffile") { 
+      $self->throw_exception("Can't write to $difffile ($!)");
+      next;
+    }
+    print $file $diff;
+    close($file);
   }
 }
 

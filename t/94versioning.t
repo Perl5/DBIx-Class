@@ -27,11 +27,11 @@ my $old_table_name = 'SchemaVersions';
 use lib qw(t/lib);
 use_ok('DBICVersionOrig');
 
-my $schema_orig = DBICVersion::Schema->connect($dsn, $user, $pass);
+my $schema_orig = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
 eval { $schema_orig->storage->dbh->do('drop table ' . $version_table_name) };
 eval { $schema_orig->storage->dbh->do('drop table ' . $old_table_name) };
 
-is($schema_orig->ddl_filename('MySQL', 't/var', '1.0'), File::Spec->catfile('t', 'var', 'DBICVersion-Schema-1.0-MySQL.sql'), 'Filename creation working');
+is($schema_orig->ddl_filename('MySQL', '1.0', 't/var'), File::Spec->catfile('t', 'var', 'DBICVersion-Schema-1.0-MySQL.sql'), 'Filename creation working');
 unlink('t/var/DBICVersion-Schema-1.0-MySQL.sql') if (-e 't/var/DBICVersion-Schema-1.0-MySQL.sql');
 $schema_orig->create_ddl_dir('MySQL', undef, 't/var');
 
@@ -47,7 +47,7 @@ eval "use DBICVersionNew";
   unlink('t/var/DBICVersion-Schema-2.0-MySQL.sql');
   unlink('t/var/DBICVersion-Schema-1.0-2.0-MySQL.sql');
 
-  my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass);
+  my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
   is($schema_upgrade->get_db_version(), '1.0', 'get_db_version ok');
   is($schema_upgrade->schema_version, '2.0', 'schema version ok');
   $schema_upgrade->create_ddl_dir('MySQL', '2.0', 't/var', '1.0');
@@ -59,6 +59,9 @@ eval "use DBICVersionNew";
     $schema_upgrade->storage->dbh->do('select NewVersionName from TestVersion');
   };
   is($@, '', 'new column created');
+
+  # should overwrite files
+  $schema_upgrade->create_ddl_dir('MySQL', '2.0', 't/var', '1.0');
 }
 
 {
