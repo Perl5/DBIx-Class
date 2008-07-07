@@ -810,7 +810,7 @@ whatever your Row object is.
 sub get_from_storage {
     my $self = shift @_;
     my @primary_columns = map { $self->$_ } $self->primary_columns;
-    return $self->result_source->resultset->find(@primary_columns); 	
+    return $self->result_source->resultset->search(undef, {execute_reliably=>1})->find(@primary_columns); 	
 }
 
 =head2 throw_exception

@@ -569,7 +569,7 @@ ok $replicated->schema->resultset('Artist')->find(1)
        => 'Got expected single result from transaction';	  
 }     
 
-## Private attribute tests
+## Test the reliable_storage resultset attribute.
 
 {
 	ok my $artist_rs = $replicated->schema->resultset('Artist')
@@ -580,7 +580,7 @@ ok $replicated->schema->resultset('Artist')->find(1)
         => 'Created a resultset using reliable storage';
 	   
     ok my $artist = $reliable_artist_rs->find(2) 
-        => 'got an artist to test see the attributes';
+        => 'got an artist result via reliable storage';
 }
 
 ## Delete the old database files
