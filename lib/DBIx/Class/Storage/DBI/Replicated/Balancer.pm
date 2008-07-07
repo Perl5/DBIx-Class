@@ -140,7 +140,19 @@ around 'next_storage' => sub {
   return $next ? $next:$self->master; 
 };
 
-=head2 before: select
+=head2 increment_storage
+
+Rolls the Storage to whatever is next in the queue, as defined by the Balancer.
+
+=cut
+
+sub increment_storage {
+  my $self = shift @_;
+  my $next_replicant = $self->next_storage;
+  $self->current_replicant($next_replicant);
+}
+
+=head2 around: select
 
 Advice on the select attribute.  Each time we use a replicant
 we need to change it via the storage pool algorithm.  That way we are spreading
@@ -148,13 +160,18 @@ the load evenly (hopefully) across existing capacity.
 
 =cut
 
-before 'select' => sub {
-  my $self = shift @_;
-  my $next_replicant = $self->next_storage;
-  $self->current_replicant($next_replicant);
+around 'select' => sub {
+  my ($select, $self, @args) = @_;
+  
+  if ($args[-1]->{execute_reliably}) {
+    return $self->master->select(@args);
+  } else {
+    $self->increment_storage;
+    return $self->$select(@args);
+  }
 };
 
-=head2 before: select_single
+=head2 around: select_single
 
 Advice on the select_single attribute.  Each time we use a replicant
 we need to change it via the storage pool algorithm.  That way we are spreading
@@ -162,10 +179,15 @@ the load evenly (hopefully) across existing capacity.
 
 =cut
 
-before 'select_single' => sub {
-  my $self = shift @_;
-  my $next_replicant = $self->next_storage;
-  $self->current_replicant($next_replicant);
+around 'select_single' => sub {
+  my ($select_single, $self, @args) = @_;
+  
+  if ($args[-1]->{execute_reliably}) {
+    return $self->master->select_single(@args);
+  } else {
+  	$self->increment_storage;
+    return $self->$select_single(@args);
+  }
 };
 
 =head2 before: columns_info_for
@@ -178,8 +200,7 @@ the load evenly (hopefully) across existing capacity.
 
 before 'columns_info_for' => sub {
   my $self = shift @_;
-  my $next_replicant = $self->next_storage;
-  $self->current_replicant($next_replicant);
+  $self->increment_storage;
 };
 
 =head1 AUTHOR

@@ -802,7 +802,7 @@ sub register_column {
 =head2 get_from_storage
 
 Returns a new Row which is whatever the Storage has for the currently created
-Row object.  You ca use this to see if the storage has become inconsistent with
+Row object.  You can use this to see if the storage has become inconsistent with
 whatever your Row object is.
 
 =cut
@@ -810,9 +810,7 @@ whatever your Row object is.
 sub get_from_storage {
     my $self = shift @_;
     my @primary_columns = map { $self->$_ } $self->primary_columns;
-    return $self->result_source->schema->txn_do(sub {
-      return $self->result_source->resultset->find(@primary_columns); 	
-    });
+    return $self->result_source->resultset->find(@primary_columns); 	
 }
 
 =head2 throw_exception

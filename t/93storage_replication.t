@@ -9,7 +9,7 @@ BEGIN {
     eval "use Moose; use Test::Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 77 );
+        : ( tests => 80 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -568,6 +568,20 @@ ok $replicated->schema->resultset('Artist')->find(1)
     is $result->id, 1
        => 'Got expected single result from transaction';	  
 }     
+
+## Private attribute tests
+
+{
+	ok my $artist_rs = $replicated->schema->resultset('Artist')
+        => 'got artist resultset';
+	   
+	## Turn on Reliable Storage
+	ok my $reliable_artist_rs = $artist_rs->search(undef, {execute_reliably=>1})
+        => 'Created a resultset using reliable storage';
+	   
+    ok my $artist = $reliable_artist_rs->find(2) 
+        => 'got an artist to test see the attributes';
+}
 
 ## Delete the old database files
 $replicated->cleanup;

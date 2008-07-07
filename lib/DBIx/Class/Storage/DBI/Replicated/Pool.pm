@@ -149,16 +149,31 @@ sub connect_replicants {
   
   my @newly_created = ();
   foreach my $connect_info (@_) {
-    my $replicant = $self->create_replicant($schema);
-    $replicant->connect_info($connect_info);    
-    $replicant->ensure_connected;
-    DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
+    my $replicant = $self->connect_replicant($schema, $connect_info);
     my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);
     $self->set_replicant( $key => $replicant);  
     push @newly_created, $replicant;
   }
   
   return @newly_created;
+}
+
+=head2 connect_replicant ($schema, $connect_info)
+
+Given a schema object and a hashref of $connect_info, connect the replicant
+and return it.
+
+=cut
+
+sub connect_replicant {
+  my ($self, $schema, $connect_info) = @_;
+  my $replicant = $self->create_replicant($schema);
+    
+  $replicant->connect_info($connect_info);    
+  $replicant->ensure_connected;
+  DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
+    
+  return $replicant;
 }
 
 =head2 connected_replicants
@@ -237,10 +252,8 @@ sub validate_replicants {
       $replicant->lag_behind_master <= $self->maximum_lag &&
       $replicant->ensure_connected
     ) {
-      ## TODO:: Hook debug for this
       $replicant->active(1)
     } else {
-      ## TODO:: Hook debug for this
       $replicant->active(0);
     }
   }
