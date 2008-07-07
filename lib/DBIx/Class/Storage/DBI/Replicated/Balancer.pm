@@ -163,8 +163,9 @@ the load evenly (hopefully) across existing capacity.
 around 'select' => sub {
   my ($select, $self, @args) = @_;
   
-  if ($args[-1]->{execute_reliably}) {
-    return $self->master->select(@args);
+  if (my $forced_pool = $args[-1]->{force_pool}) {
+    delete $args[-1]->{force_pool};
+    return $self->_get_forced_pool($forced_pool)->select(@args); 
   } else {
     $self->increment_storage;
     return $self->$select(@args);
@@ -182,8 +183,9 @@ the load evenly (hopefully) across existing capacity.
 around 'select_single' => sub {
   my ($select_single, $self, @args) = @_;
   
-  if ($args[-1]->{execute_reliably}) {
-    return $self->master->select_single(@args);
+  if (my $forced_pool = $args[-1]->{force_pool}) {
+  	delete $args[-1]->{force_pool};
+  	return $self->_get_forced_pool($forced_pool)->select_single(@args); 
   } else {
   	$self->increment_storage;
     return $self->$select_single(@args);
@@ -202,6 +204,25 @@ before 'columns_info_for' => sub {
   my $self = shift @_;
   $self->increment_storage;
 };
+
+=head2 _get_forced_pool ($name)
+
+Given an identifier, find the most correct storage object to handle the query.
+
+=cut
+
+sub _get_forced_pool {
+  my ($self, $forced_pool) = @_;
+  if(blessed $forced_pool) {
+    return $forced_pool;
+  } elsif($forced_pool eq 'master') {
+    return $self->master;
+  } elsif(my $replicant = $self->pool->replicants($forced_pool)) {
+    return $replicant;
+  } else {
+    $self->master->throw_exception("$forced_pool is not a named replicant.");
+  }   
+}
 
 =head1 AUTHOR
 

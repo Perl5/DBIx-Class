@@ -569,18 +569,18 @@ ok $replicated->schema->resultset('Artist')->find(1)
        => 'Got expected single result from transaction';	  
 }     
 
-## Test the reliable_storage resultset attribute.
+## Test the force_pool resultset attribute.
 
 {
 	ok my $artist_rs = $replicated->schema->resultset('Artist')
         => 'got artist resultset';
 	   
-	## Turn on Reliable Storage
-	ok my $reliable_artist_rs = $artist_rs->search(undef, {execute_reliably=>1})
-        => 'Created a resultset using reliable storage';
+	## Turn on Forced Pool Storage
+	ok my $reliable_artist_rs = $artist_rs->search(undef, {force_pool=>'master'})
+        => 'Created a resultset using force_pool storage';
 	   
     ok my $artist = $reliable_artist_rs->find(2) 
-        => 'got an artist result via reliable storage';
+        => 'got an artist result via force_pool storage';
 }
 
 ## Delete the old database files

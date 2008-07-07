@@ -799,18 +799,28 @@ sub register_column {
   $class->mk_group_accessors('column' => $acc);
 }
 
-=head2 get_from_storage
+=head2 get_from_storage ($attrs)
 
 Returns a new Row which is whatever the Storage has for the currently created
 Row object.  You can use this to see if the storage has become inconsistent with
 whatever your Row object is.
 
+$attrs is expected to be a hashref of attributes suitable for passing as the
+second argument to $resultset->search($cond, $attrs);
+
 =cut
 
 sub get_from_storage {
     my $self = shift @_;
+    my $attrs = shift @_;
     my @primary_columns = map { $self->$_ } $self->primary_columns;
-    return $self->result_source->resultset->search(undef, {execute_reliably=>1})->find(@primary_columns); 	
+    my $resultset = $self->result_source->resultset;
+    
+    if(defined $attrs) {
+    	$resultset = $resultset->search(undef, $attrs);
+    }
+    
+    return $resultset->find(@primary_columns);	
 }
 
 =head2 throw_exception

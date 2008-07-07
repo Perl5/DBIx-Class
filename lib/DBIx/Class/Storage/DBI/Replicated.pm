@@ -29,12 +29,28 @@ tasks.
     [$dsn3, $user, $pass, \%opts],
   );
   
+  ## Now, just use the $schema as normal
+  $schema->resultset('Source')->search({name=>'etc'});
+  
+  ## You can force a given query to use a particular storage using the search
+  ### attribute 'force_pool'.  For example:
+  
+  my $RS = $schema->resultset('Source')->search(undef, {force_pool=>'master'});
+  
+  ## Now $RS will force everything (both reads and writes) to use whatever was
+  ## setup as the master storage.  'master' is hardcoded to always point to the
+  ## Master, but you can also use any Replicant name.  Please see:
+  ## L<DBIx::Class::Storage::Replicated::Pool> and the replicants attribute for
+  ## More. Also see transactions and L</execute_reliably> for alternative ways
+  ## to force read traffic to the master.
+  
 =head1 DESCRIPTION
 
-Warning: This class is marked ALPHA.  We are using this in development and have
-some basic test coverage but the code hasn't yet been stressed by a variety
-of databases.  Individual DB's may have quirks we are not aware of.  Please
-use this in development and pass along your experiences/bug fixes.
+Warning: This class is marked BETA.  This has been running a production
+website using MySQL native replication as it's backend and we have some decent
+test coverage but the code hasn't yet been stressed by a variety of databases.
+Individual DB's may have quirks we are not aware of.  Please use this in first
+development and pass along your experiences/bug fixes.
 
 This class implements replicated data store for DBI. Currently you can define
 one master and numerous slave database connections. All write-type queries
@@ -54,9 +70,8 @@ selected algorithm.  The default algorithm is random weighted.
 
 The consistancy betweeen master and replicants is database specific.  The Pool
 gives you a method to validate it's replicants, removing and replacing them
-when they fail/pass predefined criteria.  It is recommened that your application
-define two schemas, one using the replicated storage and another that just 
-connects to the master.
+when they fail/pass predefined criteria.  Please make careful use of the ways
+to force a query to run against Master when needed.  
 
 =head1 ATTRIBUTES
 
@@ -623,6 +638,43 @@ sub disconnect {
     $source->disconnect(@_);
   }
 }
+
+=head1 GOTCHAS
+
+Due to the fact that replicants can lag behind a master, you must take care to
+make sure you use one of the methods to force read queries to a master should
+you need realtime data integrity.  For example, if you insert a row, and then
+immediately re-read it from the database (say, by doing $row->discard_changes)
+or you insert a row and then immediately build a query that expects that row
+to be an item, you should force the master to handle reads.  Otherwise, due to
+the lag, there is no certainty your data will be in the expected state.
+
+For data integrity, all transactions automatically use the master storage for
+all read and write queries.  Using a transaction is the preferred and recommended
+method to force the master to handle all read queries.
+
+Otherwise, you can force a single query to use the master with the 'force_pool'
+attribute:
+
+  my $row = $resultset->search(undef, {force_pool=>'master'})->find($pk);
+
+This attribute will safely be ignore by non replicated storages, so you can use
+the same code for both types of systems.
+
+Lastly, you can use the L</execute_reliably> method, which works very much like
+a transaction.
+
+For debugging, you can turn replication on/off with the methods L</set_reliable_storage>
+and L</set_balanced_storage>, however this operates at a global level and is not
+suitable if you have a shared Schema object being used by multiple processes,
+such as on a web application server.  You can get around this limitation by
+using the Schema clone method.
+
+  my $new_schema = $schema->clone;
+  $new_schema->set_reliable_storage;
+  
+  ## $new_schema will use only the Master storage for all reads/writes while
+  ## the $schema object will use replicated storage.
 
 =head1 AUTHOR
 
