@@ -129,26 +129,6 @@ __PACKAGE__->mk_classdata('backup_directory');
 __PACKAGE__->mk_classdata('do_backup');
 __PACKAGE__->mk_classdata('do_diff_on_init');
 
-=head2 schema_version
-
-Returns the current schema class' $VERSION; does -not- use $schema->VERSION
-since that varies in results depending on if version.pm is installed, and if
-so the perl or XS versions. If you want this to change, bug the version.pm
-author to make vpp and vxs behave the same.
-
-=cut
-
-sub schema_version {
-  my ($self) = @_;
-  my $class = ref($self)||$self;
-  my $version;
-  {
-    no strict 'refs';
-    $version = ${"${class}::VERSION"};
-  }
-  return $version;
-}
-
 =head2 get_db_version
 
 Returns the version that your database is currently at. This is determined by the values in the

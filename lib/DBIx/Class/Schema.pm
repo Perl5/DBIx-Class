@@ -62,6 +62,29 @@ particular which module inherits off which.
 
 =head1 METHODS
 
+=head2 schema_version
+
+Returns the current schema class' $VERSION
+
+=cut
+
+sub schema_version {
+  my ($self) = @_;
+  my $class = ref($self)||$self;
+
+  # does -not- use $schema->VERSION
+  # since that varies in results depending on if version.pm is installed, and if
+  # so the perl or XS versions. If you want this to change, bug the version.pm
+  # author to make vpp and vxs behave the same.
+
+  my $version;
+  {
+    no strict 'refs';
+    $version = ${"${class}::VERSION"};
+  }
+  return $version;
+}
+
 =head2 register_class
 
 =over 4
