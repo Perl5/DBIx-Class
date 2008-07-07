@@ -194,8 +194,6 @@ any of your aliases using either of these:
     }
   );
 
-  my $count = $rs->next->get_column('count');
-
 =head2 SELECT COUNT(DISTINCT colname)
 
   my $rs = $schema->resultset('Foo')->search(
@@ -207,6 +205,8 @@ any of your aliases using either of these:
       as => [ 'count' ]
     }
   );
+
+  my $count = $rs->next->get_column('count');
 
 =head2 Grouping results
 
@@ -255,7 +255,14 @@ and define often used searches as methods:
 To use your resultset, first tell DBIx::Class to create an instance of it
 for you, in your My::DBIC::Schema::CD class:
 
+  # class definition as normal
+  __PACKAGE__->load_components(qw/ Core /);
+  __PACKAGE__->table('cd');
+
+  # tell DBIC to use the custom ResultSet class
   __PACKAGE__->resultset_class('My::DBIC::ResultSet::CD');
+
+Note that C<resultset_class> must be called after C<load_components> and C<table>, or you will get errors about missing methods.
 
 Then call your new method in your code:
 

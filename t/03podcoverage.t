@@ -31,6 +31,11 @@ my $exceptions = {
             qw(cursor)
         ]
     },
+    'DBIx::Class::Schema' => {
+        ignore => [
+            qw(setup_connection_class)
+        ]
+    },
     'DBIx::Class::CDBICompat::AccessorMapping'          => { skip => 1 },
     'DBIx::Class::CDBICompat::AbstractSearch' => {
         ignore => [qw(search_where)]

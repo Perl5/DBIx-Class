@@ -129,26 +129,6 @@ __PACKAGE__->mk_classdata('backup_directory');
 __PACKAGE__->mk_classdata('do_backup');
 __PACKAGE__->mk_classdata('do_diff_on_init');
 
-=head2 schema_version
-
-Returns the current schema class' $VERSION; does -not- use $schema->VERSION
-since that varies in results depending on if version.pm is installed, and if
-so the perl or XS versions. If you want this to change, bug the version.pm
-author to make vpp and vxs behave the same.
-
-=cut
-
-sub schema_version {
-  my ($self) = @_;
-  my $class = ref($self)||$self;
-  my $version;
-  {
-    no strict 'refs';
-    $version = ${"${class}::VERSION"};
-  }
-  return $version;
-}
-
 =head2 get_db_version
 
 Returns the version that your database is currently at. This is determined by the values in the
@@ -189,6 +169,8 @@ to call C<< $self->storage->backup >>, to run the standard backup on each
 database type. 
 
 This method should return the name of the backup file, if appropriate..
+
+This method is disabled by default. Set $schema->do_backup(1) to enable it.
 
 =cut
 
@@ -246,8 +228,8 @@ sub _create_db_to_schema_diff {
 
   my $filename = $self->ddl_filename(
                                          $db,
-                                         $self->upgrade_directory,
                                          $self->schema_version,
+                                         $self->upgrade_directory,
                                          'PRE',
                                     );
   my $file;
@@ -302,8 +284,8 @@ sub upgrade
   
   my $upgrade_file = $self->ddl_filename(
                                          $self->storage->sqlt_type,
-                                         $self->upgrade_directory,
                                          $self->schema_version,
+                                         $self->upgrade_directory,
                                          $db_version,
                                         );
 
@@ -342,7 +324,7 @@ sub _read_sql_file {
   @data = split(/;/, join('', @data));
   close($fh);
   @data = grep { $_ && $_ !~ /^-- / } @data;
-  @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
+  @data = grep { $_ !~ /^(BEGIN TRANSACTION|COMMIT)/m } @data;
   return \@data;
 }
 
@@ -353,22 +335,16 @@ allows you to run your upgrade any way you please, you can call C<run_upgrade>
 any number of times to run the actual SQL commands, and in between you can
 sandwich your data upgrading. For example, first run all the B<CREATE>
 commands, then migrate your data from old to new tables/formats, then 
-issue the DROP commands when you are finished.
-
-Will run the whole file as it is by default.
+issue the DROP commands when you are finished. Will run the whole file as it is by default.
 
 =cut
 
 sub do_upgrade
 {
-    my ($self) = @_;
+  my ($self) = @_;
 
-    ## overridable sub, per default just run all the commands.
-    $self->run_upgrade(qr/create/i);
-    $self->run_upgrade(qr/alter table .*? add/i);
-    $self->run_upgrade(qr/alter table .*? (?!drop)/i);
-    $self->run_upgrade(qr/alter table .*? drop/i);
-    $self->run_upgrade(qr/drop/i);
+  # just run all the commands (including inserts) in order                                                        
+  $self->run_upgrade(qr/.*?/);
 }
 
 =head2 run_upgrade
@@ -408,21 +384,29 @@ warns if they are not the same or if the DB is unversioned. It also provides
 compatibility between the old versions table (SchemaVersions) and the new one
 (dbix_class_schema_versions).
 
-To avoid the checks on connect, set the env var DBIC_NO_VERSION_CHECK. This can be
-useful for scripts.
+To avoid the checks on connect, set the env var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth arg like so:
+
+  my $schema = MyApp::Schema->connect(
+    $dsn,
+    $user,
+    $password,
+    { ignore_version => 1 },
+  );
 
 =cut
 
 sub connection {
   my $self = shift;
   $self->next::method(@_);
-  $self->_on_connect;
+  $self->_on_connect($_[3]);
   return $self;
 }
 
 sub _on_connect
 {
-  my ($self) = @_;
+  my ($self, $args) = @_;
+
+  $args = {} unless $args;
   $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
   my $vtable = $self->{vschema}->resultset('Table');
 
@@ -436,10 +420,9 @@ sub _on_connect
       $self->storage->dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
     }
   }
-  
+
   # useful when connecting from scripts etc
-  return if ($ENV{DBIC_NO_VERSION_CHECK});
-  
+  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
   my $pversion = $self->get_db_version();
 
   if($pversion eq $self->schema_version)

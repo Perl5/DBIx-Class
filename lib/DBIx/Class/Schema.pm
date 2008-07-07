@@ -62,6 +62,29 @@ particular which module inherits off which.
 
 =head1 METHODS
 
+=head2 schema_version
+
+Returns the current schema class' $VERSION
+
+=cut
+
+sub schema_version {
+  my ($self) = @_;
+  my $class = ref($self)||$self;
+
+  # does -not- use $schema->VERSION
+  # since that varies in results depending on if version.pm is installed, and if
+  # so the perl or XS versions. If you want this to change, bug the version.pm
+  # author to make vpp and vxs behave the same.
+
+  my $version;
+  {
+    no strict 'refs';
+    $version = ${"${class}::VERSION"};
+  }
+  return $version;
+}
+
 =head2 register_class
 
 =over 4
@@ -613,19 +636,6 @@ sub compose_namespace {
   return $schema;
 }
 
-=head2 setup_connection_class
-
-=over 4
-
-=item Arguments: $target, @info
-
-=back
-
-Sets up a database connection class to inject between the schema and the
-subclasses that the schema creates.
-
-=cut
-
 sub setup_connection_class {
   my ($class, $target, @info) = @_;
   $class->inject_base($target => 'DBIx::Class::DB');
@@ -1139,11 +1149,11 @@ sub create_ddl_dir {
 
 =over 4
 
-=item Arguments: $directory, $database-type, $version, $preversion
+=item Arguments: $database-type, $version, $directory, $preversion
 
 =back
 
-  my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
+  my $filename = $table->ddl_filename($type, $version, $dir, $preversion)
 
 This method is called by C<create_ddl_dir> to compose a file name out of
 the supplied directory, database type and version number. The default file
@@ -1155,14 +1165,14 @@ format.
 =cut
 
 sub ddl_filename {
-    my ($self, $type, $dir, $version, $pversion) = @_;
+  my ($self, $type, $version, $dir, $preversion) = @_;
 
-    my $filename = ref($self);
-    $filename =~ s/::/-/g;
-    $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
-    $filename =~ s/$version/$pversion-$version/ if($pversion);
-
-    return $filename;
+  my $filename = ref($self);
+  $filename =~ s/::/-/g;
+  $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
+  $filename =~ s/$version/$preversion-$version/ if($preversion);
+  
+  return $filename;
 }
 
 =head2 sqlt_deploy_hook($sqlt_schema)

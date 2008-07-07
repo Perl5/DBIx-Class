@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 78;
+plan tests => 84;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -37,9 +37,25 @@ $art->name('We Are In Rehab');
 
 is($art->name, 'We Are In Rehab', "Accessor update ok");
 
+my %dirty = $art->get_dirty_columns();
+cmp_ok(scalar(keys(%dirty)), '==', 1, '1 dirty column');
+ok(grep($_ eq 'name', keys(%dirty)), 'name is dirty');
+
 is($art->get_column("name"), 'We Are In Rehab', 'And via get_column');
 
 ok($art->update, 'Update run');
+
+my %not_dirty = $art->get_dirty_columns();
+cmp_ok(scalar(keys(%not_dirty)), '==', 0, 'Nothing is dirty');
+
+eval {
+  my $ret = $art->make_column_dirty('name2');
+};
+ok(defined($@), 'Failed to make non-existent column dirty');
+$art->make_column_dirty('name');
+my %fake_dirty = $art->get_dirty_columns();
+cmp_ok(scalar(keys(%fake_dirty)), '==', 1, '1 fake dirty column');
+ok(grep($_ eq 'name', keys(%fake_dirty)), 'name is fake dirty');
 
 my $record_jp = $schema->resultset("Artist")->search(undef, { join => 'cds' })->search(undef, { prefetch => 'cds' })->next;
 

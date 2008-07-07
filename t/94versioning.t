@@ -18,7 +18,7 @@ BEGIN {
     eval "use DBD::mysql; use SQL::Translator 0.09;";
     plan $@
         ? ( skip_all => 'needs DBD::mysql and SQL::Translator 0.09 for testing' )
-        : ( tests => 13 );
+        : ( tests => 17 );
 }
 
 my $version_table_name = 'dbix_class_schema_versions';
@@ -27,11 +27,11 @@ my $old_table_name = 'SchemaVersions';
 use lib qw(t/lib);
 use_ok('DBICVersionOrig');
 
-my $schema_orig = DBICVersion::Schema->connect($dsn, $user, $pass);
+my $schema_orig = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
 eval { $schema_orig->storage->dbh->do('drop table ' . $version_table_name) };
 eval { $schema_orig->storage->dbh->do('drop table ' . $old_table_name) };
 
-is($schema_orig->ddl_filename('MySQL', 't/var', '1.0'), File::Spec->catfile('t', 'var', 'DBICVersion-Schema-1.0-MySQL.sql'), 'Filename creation working');
+is($schema_orig->ddl_filename('MySQL', '1.0', 't/var'), File::Spec->catfile('t', 'var', 'DBICVersion-Schema-1.0-MySQL.sql'), 'Filename creation working');
 unlink('t/var/DBICVersion-Schema-1.0-MySQL.sql') if (-e 't/var/DBICVersion-Schema-1.0-MySQL.sql');
 $schema_orig->create_ddl_dir('MySQL', undef, 't/var');
 
@@ -47,7 +47,7 @@ eval "use DBICVersionNew";
   unlink('t/var/DBICVersion-Schema-2.0-MySQL.sql');
   unlink('t/var/DBICVersion-Schema-1.0-2.0-MySQL.sql');
 
-  my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass);
+  my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
   is($schema_upgrade->get_db_version(), '1.0', 'get_db_version ok');
   is($schema_upgrade->schema_version, '2.0', 'schema version ok');
   $schema_upgrade->create_ddl_dir('MySQL', '2.0', 't/var', '1.0');
@@ -59,6 +59,9 @@ eval "use DBICVersionNew";
     $schema_upgrade->storage->dbh->do('select NewVersionName from TestVersion');
   };
   is($@, '', 'new column created');
+
+  # should overwrite files
+  $schema_upgrade->create_ddl_dir('MySQL', '2.0', 't/var', '1.0');
 }
 
 {
@@ -82,4 +85,36 @@ eval "use DBICVersionNew";
   };
   ok($@, 'old version table gone');
 
+}
+
+# check behaviour of DBIC_NO_VERSION_CHECK env var and ignore_version connect attr
+{
+  my $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  eval {
+    $schema_version->storage->dbh->do("DELETE from $version_table_name");
+  };
+
+
+  my $warn = '';
+  $SIG{__WARN__} = sub { $warn = shift };
+  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  like($warn, qr/Your DB is currently unversioned/, 'warning detected without env var or attr');
+
+
+  # should warn
+  $warn = '';
+  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
+  is($warn, '', 'warning not detected with attr set');
+  # should not warn
+
+  $ENV{DBIC_NO_VERSION_CHECK} = 1;
+  $warn = '';
+  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  is($warn, '', 'warning not detected with env var set');
+  # should not warn
+
+  $warn = '';
+  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 0 });
+  like($warn, qr/Your DB is currently unversioned/, 'warning detected without env var or attr');
+  # should warn
 }

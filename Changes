@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - Added search_related_rs method to ResultSet
+        - add a make_column_dirty method to Row to force updates
         - throw a clear exception when user tries multi-has_many prefetch
         - SQLT parser prefixes index names with ${table}_idx_ to avoid clashes
         - mark ResultSetManager as deprecated and undocument it

@@ -215,6 +215,8 @@ blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
 
+bricas: Brian Cassidy <bricas@cpan.org>
+
 captainL: Luke Saunders <luke.saunders@gmail.com>
 
 castaway: Jess Robinson
@@ -230,8 +232,6 @@ debolaz: Anders Nor Berle <berle@cpan.org>
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
 dnm: Justin Wheeler <jwheeler@datademons.com>
-
-draven: Marcus Ramberg <mramberg@cpan.org>
 
 dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
@@ -251,7 +251,7 @@ jshirley: J. Shirley <jshirley@gmail.com>
 
 konobi: Scott McWhirter
 
-LTJake: Brian Cassidy <bricas@cpan.org>
+marcus: Marcus Ramberg <mramberg@cpan.org>
 
 mattlaw: Matt Lawrence
 
