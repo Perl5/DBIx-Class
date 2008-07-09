@@ -9,7 +9,7 @@ BEGIN {
     eval "use Moose; use Test::Moose";
     plan $@
         ? ( skip_all => 'needs Moose for testing' )
-        : ( tests => 80 );
+        : ( tests => 79 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -269,20 +269,6 @@ $replicated
         [ 6, "Dead On Arrival"],
         [ 7, "Watergate"],
     ]);
-
-SKIP: {
-    ## We can't do this test if we have a custom replicants, since we assume
-    ## if there are custom one that you are trying to test a real replicating
-    ## system.  See docs above for more.
-    
-    skip 'Cannot test inconsistent replication since you have a real replication system', 1
-     if DBICTest->has_custom_dsn && $ENV{"DBICTEST_SLAVE0_DSN"};
-    
-	## Alright, the database 'cluster' is not in a consistent state.  When we do
-	## a read now we expect bad news    
-    is $replicated->schema->resultset('Artist')->find(5), undef
-    => 'read after disconnect fails because it uses a replicant which we have neglected to "replicate" yet'; 
-}
 
 ## Make sure all the slaves have the table definitions
 $replicated->replicate;

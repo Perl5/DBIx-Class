@@ -40,7 +40,11 @@ be requested several times in a row.
 =cut
 
 sub next_storage {
-  return  (shuffle(shift->pool->active_replicants))[0];
+  my $self = shift @_;
+  my @active_replicants = $self->pool->active_replicants;
+  my $count_active_replicants = $#active_replicants +1;
+  
+  return $active_replicants[int(rand($count_active_replicants +1))];
 }
 
 =head1 AUTHOR
@@ -52,5 +56,7 @@ John Napiorkowski <john.napiorkowski@takkle.com>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+
+__PACKAGE__->meta->make_immutable;
 
 1;

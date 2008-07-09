@@ -287,7 +287,7 @@ has 'write_handler' => (
 
 This class defines the following methods.
 
-=head2 new
+=head2 BUILDARGS
 
 L<DBIx::Class::Schema> when instantiating it's storage passed itself as the
 first argument.  So we need to massage the arguments a bit so that all the
@@ -295,10 +295,15 @@ bits get put into the correct places.
 
 =cut
 
-around 'new' => sub {
-  my ($new, $self, $schema, $storage_type_args, @args) = @_;
-  return $self->$new(schema=>$schema, %$storage_type_args, @args);
-};
+sub BUILDARGS {
+  my ($class, $schema, $storage_type_args, @args) = @_;	
+  
+  return {
+  	schema=>$schema, 
+  	%$storage_type_args,
+  	@args
+  }
+}
 
 =head2 _build_master
 
@@ -690,5 +695,7 @@ Based on code originated by:
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+
+__PACKAGE__->meta->make_immutable;
 
 1;
