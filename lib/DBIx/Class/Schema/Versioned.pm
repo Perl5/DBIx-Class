@@ -324,7 +324,7 @@ sub _read_sql_file {
   @data = split(/;/, join('', @data));
   close($fh);
   @data = grep { $_ && $_ !~ /^-- / } @data;
-  @data = grep { $_ !~ /^(BEGIN TRANSACTION|COMMIT)/m } @data;
+  @data = grep { $_ !~ /^(BEGIN|BEGIN TRANSACTION|COMMIT)/m } @data;
   return \@data;
 }
 
