@@ -415,12 +415,22 @@ inserted something and need to get a resultset including it, etc.
 
 =cut
 
+use Benchmark;
+
 sub execute_reliably {
   my ($self, $coderef, @args) = @_;
   
   unless( ref $coderef eq 'CODE') {
     $self->throw_exception('Second argument must be a coderef');
   }
+  
+    my $t0 = new Benchmark;
+    my $clone = $self->clone;
+    my $t1 = new Benchmark;
+    my $td = timediff($t1, $t0);
+    warn "----------------- the code took:",timestr($td),"\n";
+      
+
   
   ##Get copy of master storage
   my $master = $self->master;
