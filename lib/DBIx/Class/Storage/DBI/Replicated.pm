@@ -540,6 +540,7 @@ sub limit_dialect {
   foreach my $source ($self->all_storages) {
     $source->limit_dialect(@_);
   }
+  return $self->master->quote_char;
 }
 
 =head2 quote_char
@@ -553,6 +554,7 @@ sub quote_char {
   foreach my $source ($self->all_storages) {
     $source->quote_char(@_);
   }
+  return $self->master->quote_char;
 }
 
 =head2 name_sep
@@ -566,6 +568,7 @@ sub name_sep {
   foreach my $source ($self->all_storages) {
     $source->name_sep(@_);
   }
+  return $self->master->name_sep;
 }
 
 =head2 set_schema
@@ -589,9 +592,12 @@ set a debug flag across all storages
 
 sub debug {
   my $self = shift @_;
-  foreach my $source ($self->all_storages) {
-    $source->debug(@_);
+  if(@_) {
+    foreach my $source ($self->all_storages) {
+      $source->debug(@_);
+    }   
   }
+  return $self->master->debug;
 }
 
 =head2 debugobj
@@ -602,9 +608,12 @@ set a debug object across all storages
 
 sub debugobj {
   my $self = shift @_;
-  foreach my $source ($self->all_storages) {
-    $source->debugobj(@_);
+  if(@_) {
+    foreach my $source ($self->all_storages) {
+      $source->debugobj(@_);
+    } 	
   }
+  return $self->master->debugobj;
 }
 
 =head2 debugfh
@@ -615,9 +624,12 @@ set a debugfh object across all storages
 
 sub debugfh {
   my $self = shift @_;
-  foreach my $source ($self->all_storages) {
-    $source->debugfh(@_);
+  if(@_) {
+    foreach my $source ($self->all_storages) {
+      $source->debugfh(@_);
+    }   
   }
+  return $self->master->debugfh;
 }
 
 =head2 debugcb
@@ -628,9 +640,12 @@ set a debug callback across all storages
 
 sub debugcb {
   my $self = shift @_;
-  foreach my $source ($self->all_storages) {
-    $source->debugcb(@_);
+  if(@_) {
+    foreach my $source ($self->all_storages) {
+      $source->debugcb(@_);
+    }   
   }
+  return $self->master->debugcb;
 }
 
 =head2 disconnect
