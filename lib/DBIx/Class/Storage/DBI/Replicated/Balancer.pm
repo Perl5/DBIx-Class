@@ -136,8 +136,11 @@ around 'next_storage' => sub {
   }
     
   ## Get a replicant, or the master if none
-  my $next = $self->$next_storage(@args);
-  return $next ? $next:$self->master; 
+  if(my $next = $self->$next_storage(@args)) {
+    return $next;
+  } else {
+    return $self->master;
+  }
 };
 
 =head2 increment_storage
@@ -184,10 +187,10 @@ around 'select_single' => sub {
   my ($select_single, $self, @args) = @_;
   
   if (my $forced_pool = $args[-1]->{force_pool}) {
-  	delete $args[-1]->{force_pool};
-  	return $self->_get_forced_pool($forced_pool)->select_single(@args); 
+    delete $args[-1]->{force_pool};
+    return $self->_get_forced_pool($forced_pool)->select_single(@args); 
   } else {
-  	$self->increment_storage;
+    $self->increment_storage;
     return $self->$select_single(@args);
   }
 };

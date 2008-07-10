@@ -1,6 +1,5 @@
 package DBIx::Class::Storage::DBI::Replicated::Balancer::Random;
 
-use List::Util qw(shuffle);
 use Moose;
 with 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 
@@ -43,8 +42,9 @@ sub next_storage {
   my $self = shift @_;
   my @active_replicants = $self->pool->active_replicants;
   my $count_active_replicants = $#active_replicants +1;
+  my $random_replicant = int(rand($count_active_replicants));
   
-  return $active_replicants[int(rand($count_active_replicants +1))];
+  return $active_replicants[$random_replicant];
 }
 
 =head1 AUTHOR
