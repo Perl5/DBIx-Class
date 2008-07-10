@@ -1,6 +1,7 @@
 package DBIx::Class::Storage::DBI::Replicated::Replicant;
 
 use Moose::Role;
+requires qw/_query_start/;
 
 =head1 NAME
 
@@ -62,6 +63,16 @@ around '_query_start' => sub {
   my $dsn = $self->connect_info->[0];
   $self->$method("DSN: $dsn SQL: $sql", @bind);
 };
+
+=head2 debugobj
+
+Override the debugobj method to redirect this method call back to the master.
+
+=cut
+
+sub debugobj {
+    return shift->schema->storage->debugobj;
+}
 
 =head1 AUTHOR
 
