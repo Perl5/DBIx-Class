@@ -1,15 +1,37 @@
 package DBIx::Class::Storage::DBI::Replicated;
 
-use Moose;
-use Class::MOP;
-use Moose::Util::TypeConstraints;
+BEGIN {
+  use Carp::Clan qw/^DBIx::Class/;
+	
+  ## Modules required for Replication support not required for general DBIC
+  ## use, so we explicitly test for these.
+	
+  my %replication_required = (
+    Moose => '0.54',
+    MooseX::AttributeHelpers => '0.12',
+    Moose::Util::TypeConstraints => '0.54',
+    Class::MOP => '0.63',
+  );
+	
+  my @didnt_load;
+  
+  for my $module (keys %replication_required) {
+	eval "use $module $replication_required{$module}";
+	push @didnt_load, "$module $replication_required{$module}"
+	 if $@;
+  }
+	
+  croak("@{[ join ', ', @didnt_load ]} are missing and are required for Replication")
+    if @didnt_load;  	
+}
+
 use DBIx::Class::Storage::DBI;
 use DBIx::Class::Storage::DBI::Replicated::Pool;
 use DBIx::Class::Storage::DBI::Replicated::Balancer;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Replicated - ALPHA Replicated database support
+DBIx::Class::Storage::DBI::Replicated - BETA Replicated database support
 
 =head1 SYNOPSIS
 
@@ -71,7 +93,19 @@ selected algorithm.  The default algorithm is random weighted.
 The consistancy betweeen master and replicants is database specific.  The Pool
 gives you a method to validate it's replicants, removing and replacing them
 when they fail/pass predefined criteria.  Please make careful use of the ways
-to force a query to run against Master when needed.  
+to force a query to run against Master when needed.
+
+=head1 REQUIREMENTS
+
+Replicated Storage has additional requirements not currently part of L<DBIx::Class>
+
+  Moose => 1.54
+  MooseX::AttributeHelpers => 0.12 
+  Moose::Util::TypeConstraints => 0.54
+  Class::MOP => 0.63
+  
+You will need to install these modules manually via CPAN or make them part of the
+Makefile for your distribution.
 
 =head1 ATTRIBUTES
 
