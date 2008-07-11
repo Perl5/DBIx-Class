@@ -69,7 +69,7 @@ tasks.
 =head1 DESCRIPTION
 
 Warning: This class is marked BETA.  This has been running a production
-website using MySQL native replication as it's backend and we have some decent
+website using MySQL native replication as its backend and we have some decent
 test coverage but the code hasn't yet been stressed by a variety of databases.
 Individual DB's may have quirks we are not aware of.  Please use this in first
 development and pass along your experiences/bug fixes.
