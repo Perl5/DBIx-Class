@@ -13,7 +13,7 @@ BEGIN {
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 19;
+plan tests => 20;
 
 # Test ensure_class_found
 ok( $schema->ensure_class_found('DBIx::Class::Schema'),
@@ -71,5 +71,17 @@ ok( Class::Inspector->loaded('DBICTest::FakeComponent'),
   like( $@, qr/syntax error/,
         'load_optional_class(DBICTest::SyntaxErrorComponent2) threw ok' );
 }
+
+
+eval {
+  package Fake::ResultSet;
+
+  use base 'DBIx::Class::ResultSet';
+
+  __PACKAGE__->load_components('+DBICTest::SyntaxErrorComponent3');
+};
+
+# Make sure the errors in components of resultset classes are reported right.
+like($@, qr!\Qsyntax error at t/lib/DBICTest/SyntaxErrorComponent3.pm!, "Errors from RS components reported right");
 
 1;

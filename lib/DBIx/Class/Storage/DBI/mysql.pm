@@ -16,6 +16,24 @@ sub sqlt_type {
   return 'MySQL';
 }
 
+sub _svp_begin {
+    my ($self, $name) = @_;
+
+    $self->dbh->do("SAVEPOINT $name");
+}
+
+sub _svp_release {
+    my ($self, $name) = @_;
+
+    $self->dbh->do("RELEASE SAVEPOINT $name");
+}
+
+sub _svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
+}
+
 1;
 
 =head1 NAME

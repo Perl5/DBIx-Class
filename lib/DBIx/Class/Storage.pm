@@ -7,8 +7,15 @@ use base qw/DBIx::Class/;
 
 use Scalar::Util qw/weaken/;
 use Carp::Clan qw/^DBIx::Class/;
+use IO::File;
+use DBIx::Class::Storage::TxnScopeGuard;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
+__PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
+
+__PACKAGE__->cursor_class('DBIx::Class::Cursor');
+
+sub cursor { shift->cursor_class(@_); }
 
 package # Hide from PAUSE
     DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION;
@@ -55,19 +62,11 @@ sub new {
   $new->set_schema($schema);
   $new->debugobj(new DBIx::Class::Storage::Statistics());
 
-  my $fh;
+  #my $fh;
 
   my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
                   || $ENV{DBIC_TRACE};
 
-  if (defined($debug_env) && ($debug_env =~ /=(.+)$/)) {
-    $fh = IO::File->new($1, 'w')
-      or $new->throw_exception("Cannot open trace file $1");
-  } else {
-    $fh = IO::File->new('>&STDERR');
-  }
-
-  $new->debugfh($fh);
   $new->debug(1) if $debug_env;
 
   $new;
@@ -169,6 +168,15 @@ In a nested transaction (calling txn_do() from within a txn_do() coderef) only
 the outermost transaction will issue a L</txn_commit>, and txn_do() can be
 called in void, scalar and list context and it will behave as expected.
 
+Please note that all of the code in your coderef, including non-DBIx::Class
+code, is part of a transaction.  This transaction may fail out halfway, or
+it may get partially double-executed (in the case that our DB connection
+failed halfway through the transaction, in which case we reconnect and
+restart the txn).  Therefore it is best that any side-effects in your coderef
+are idempotent (that is, can be re-executed multiple times and get the
+same result), and that you check up on your side-effects in the case of
+transaction failure.
+
 =cut
 
 sub txn_do {
@@ -254,6 +262,53 @@ which allows the rollback to propagate to the outermost transaction.
 
 sub txn_rollback { die "Virtual method!" }
 
+=head2 svp_begin
+
+Arguments: $savepoint_name?
+
+Created a new savepoint using the name provided as argument. If no name
+is provided, a random name will be used.
+
+=cut
+
+sub svp_begin { die "Virtual method!" }
+
+=head2 svp_release
+
+Arguments: $savepoint_name?
+
+Release the savepoint provided as argument. If none is provided,
+release the savepoint created most recently. This will implicitly
+release all savepoints created after the one explicitly released as well.
+
+=cut
+
+sub svp_release { die "Virtual method!" }
+
+=head2 svp_rollback
+
+Arguments: $savepoint_name?
+
+Rollback to the savepoint provided as argument. If none is provided,
+rollback to the savepoint created most recently. This will implicitly
+release all savepoints created after the savepoint we rollback to.
+
+=cut
+
+sub svp_rollback { die "Virtual method!" }
+
+=for comment
+
+=head2 txn_scope_guard
+
+Return an object that does stuff.
+
+=cut
+
+sub txn_scope_guard {
+  return DBIx::Class::Storage::TxnScopeGuard->new($_[0]);
+}
+
 =head2 sql_maker
 
 Returns a C<sql_maker> object - normally an object of class
@@ -313,13 +368,11 @@ sub debugcb {
     }
 }
 
-=head2 cursor
+=head2 cursor_class
 
 The cursor class for this Storage object.
 
 =cut
-
-sub cursor { die "Virtual method!" }
 
 =head2 deploy
 
@@ -413,6 +466,11 @@ re-connect on your schema.
 =head2 DBIX_CLASS_STORAGE_DBI_DEBUG
 
 Old name for DBIC_TRACE
+
+=head1 SEE ALSO
+
+L<DBIx::Class::Storage::DBI> - reference storage implementation using
+SQL::Abstract and DBI.
 
 =head1 AUTHORS
 

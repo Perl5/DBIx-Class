@@ -3,6 +3,7 @@ package DBIx::Class::Schema;
 use strict;
 use warnings;
 
+use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
 use File::Spec;
@@ -15,6 +16,8 @@ __PACKAGE__->mk_classdata('source_registrations' => {});
 __PACKAGE__->mk_classdata('storage_type' => '::DBI');
 __PACKAGE__->mk_classdata('storage');
 __PACKAGE__->mk_classdata('exception_action');
+__PACKAGE__->mk_classdata('stacktrace' => $ENV{DBIC_TRACE} || 0);
+__PACKAGE__->mk_classdata('default_resultset_attributes' => {});
 
 =head1 NAME
 
@@ -59,6 +62,29 @@ particular which module inherits off which.
 
 =head1 METHODS
 
+=head2 schema_version
+
+Returns the current schema class' $VERSION
+
+=cut
+
+sub schema_version {
+  my ($self) = @_;
+  my $class = ref($self)||$self;
+
+  # does -not- use $schema->VERSION
+  # since that varies in results depending on if version.pm is installed, and if
+  # so the perl or XS versions. If you want this to change, bug the version.pm
+  # author to make vpp and vxs behave the same.
+
+  my $version;
+  {
+    no strict 'refs';
+    $version = ${"${class}::VERSION"};
+  }
+  return $version;
+}
+
 =head2 register_class
 
 =over 4
@@ -94,16 +120,34 @@ moniker.
 
 sub register_source {
   my ($self, $moniker, $source) = @_;
+
+  %$source = %{ $source->new( { %$source, source_name => $moniker }) };
+
   my %reg = %{$self->source_registrations};
   $reg{$moniker} = $source;
   $self->source_registrations(\%reg);
+
   $source->schema($self);
+
   weaken($source->{schema}) if ref($self);
   if ($source->result_class) {
     my %map = %{$self->class_mappings};
     $map{$source->result_class} = $moniker;
     $self->class_mappings(\%map);
   }
+}
+
+sub _unregister_source {
+    my ($self, $moniker) = @_;
+    my %reg = %{$self->source_registrations}; 
+
+    my $source = delete $reg{$moniker};
+    $self->source_registrations(\%reg);
+    if ($source->result_class) {
+        my %map = %{$self->class_mappings};
+        delete $map{$source->result_class};
+        $self->class_mappings(\%map);
+    }
 }
 
 =head2 class
@@ -276,9 +320,10 @@ sub load_classes {
           }
         }
         $class->ensure_class_loaded($comp_class);
-        $comp_class->source_name($comp) unless $comp_class->source_name;
 
-        push(@to_register, [ $comp_class->source_name, $comp_class ]);
+        $comp = $comp_class->source_name || $comp;
+#  $DB::single = 1;
+        push(@to_register, [ $comp, $comp_class ]);
       }
     }
   }
@@ -462,7 +507,9 @@ DEPRECATED. You probably wanted compose_namespace.
 
 Actually, you probably just wanted to call connect.
 
-=for hidden due to deprecation
+=begin hidden
+
+(hidden due to deprecation)
 
 Calls L<DBIx::Class::Schema/"compose_namespace"> to the target namespace,
 calls L<DBIx::Class::Schema/connection> with @db_info on the new schema,
@@ -476,6 +523,8 @@ L<DBIx::Class::Schema/connect> and use the resulting schema object to operate
 on L<DBIx::Class::ResultSet> objects with L<DBIx::Class::Schema/resultset> for
 more information.
 
+=end hidden
+
 =cut
 
 {
@@ -484,7 +533,8 @@ more information.
   sub compose_connection {
     my ($self, $target, @info) = @_;
 
-    warn "compose_connection deprecated as of 0.08000" unless $warn++;
+    warn "compose_connection deprecated as of 0.08000"
+      unless ($INC{"DBIx/Class/CDBICompat.pm"} || $warn++);
 
     my $base = 'DBIx::Class::ResultSetProxy';
     eval "require ${base};";
@@ -559,9 +609,6 @@ will produce the output
 
 sub compose_namespace {
   my ($self, $target, $base) = @_;
-  my %reg = %{ $self->source_registrations };
-  my %target;
-  my %map;
   my $schema = $self->clone;
   {
     no warnings qw/redefine/;
@@ -580,6 +627,7 @@ sub compose_namespace {
   Class::C3->reinitialize();
   {
     no strict 'refs';
+    no warnings 'redefine';
     foreach my $meth (qw/class source resultset/) {
       *{"${target}::${meth}"} =
         sub { shift->schema->$meth(@_) };
@@ -587,19 +635,6 @@ sub compose_namespace {
   }
   return $schema;
 }
-
-=head2 setup_connection_class
-
-=over 4
-
-=item Arguments: $target, @info
-
-=back
-
-Sets up a database connection class to inject between the schema and the
-subclasses that the schema creates.
-
-=cut
 
 sub setup_connection_class {
   my ($class, $target, @info) = @_;
@@ -660,7 +695,6 @@ sub connection {
   my $storage = $storage_class->new($self);
   $storage->connect_info(\@info);
   $self->storage($storage);
-  $self->on_connect() if($self->can('on_connect'));
   return $self;
 }
 
@@ -708,6 +742,21 @@ sub txn_do {
     ('txn_do called on $schema without storage');
 
   $self->storage->txn_do(@_);
+}
+
+=head2 txn_scope_guard
+
+Runs C<txn_scope_guard> on the schema's storage.
+
+=cut
+
+sub txn_scope_guard {
+  my $self = shift;
+
+  $self->storage or $self->throw_exception
+    ('txn_scope_guard called on $schema without storage');
+
+  $self->storage->txn_scope_guard(@_);
 }
 
 =head2 txn_begin
@@ -759,6 +808,57 @@ sub txn_rollback {
     ('txn_rollback called on $schema without storage');
 
   $self->storage->txn_rollback;
+}
+
+=head2 svp_begin
+
+Creates a new savepoint (does nothing outside a transaction). 
+Equivalent to calling $schema->storage->svp_begin.  See
+L<DBIx::Class::Storage::DBI/"svp_begin"> for more information.
+
+=cut
+
+sub svp_begin {
+  my ($self, $name) = @_;
+
+  $self->storage or $self->throw_exception
+    ('svp_begin called on $schema without storage');
+
+  $self->storage->svp_begin($name);
+}
+
+=head2 svp_release
+
+Releases a savepoint (does nothing outside a transaction). 
+Equivalent to calling $schema->storage->svp_release.  See
+L<DBIx::Class::Storage::DBI/"svp_release"> for more information.
+
+=cut
+
+sub svp_release {
+  my ($self, $name) = @_;
+
+  $self->storage or $self->throw_exception
+    ('svp_release called on $schema without storage');
+
+  $self->storage->svp_release($name);
+}
+
+=head2 svp_rollback
+
+Rollback to a savepoint (does nothing outside a transaction). 
+Equivalent to calling $schema->storage->svp_rollback.  See
+L<DBIx::Class::Storage::DBI/"svp_rollback"> for more information.
+
+=cut
+
+sub svp_rollback {
+  my ($self, $name) = @_;
+
+  $self->storage or $self->throw_exception
+    ('svp_rollback called on $schema without storage');
+
+  $self->storage->svp_rollback($name);
 }
 
 =head2 clone
@@ -817,6 +917,18 @@ i.e.,
     [ 2, 'Indie Band' ],
     ...
   ]);
+  
+Since wantarray context is basically the same as looping over $rs->create(...) 
+you won't see any performance benefits and in this case the method is more for
+convenience. Void context sends the column information directly to storage
+using <DBI>s bulk insert method. So the performance will be much better for 
+storages that support this method.
+
+Because of this difference in the way void context inserts rows into your 
+database you need to note how this will effect any loaded components that
+override or augment insert.  For example if you are using a component such 
+as L<DBIx::Class::UUIDColumns> to populate your primary keys you MUST use 
+wantarray context if you want the PKs automatically created.
 
 =cut
 
@@ -833,7 +945,15 @@ sub populate {
     }
     return @created;
   }
-  $self->storage->insert_bulk($self->source($name)->from, \@names, $data);
+  my @results_to_create;
+  foreach my $datum (@$data) {
+    my %result_to_create;
+    foreach my $index (0..$#names) {
+      $result_to_create{$names[$index]} = $$datum[$index];
+    }
+    push @results_to_create, \%result_to_create;
+  }
+  $rs->populate(\@results_to_create);
 }
 
 =head2 exception_action
@@ -846,7 +966,7 @@ sub populate {
 
 If C<exception_action> is set for this class/object, L</throw_exception>
 will prefer to call this code reference with the exception as an argument,
-rather than its normal <croak> action.
+rather than its normal C<croak> or C<confess> action.
 
 Your subroutine should probably just wrap the error in the exception
 object/class of your choosing and rethrow.  If, against all sage advice,
@@ -868,6 +988,18 @@ Example:
    # suppress all exceptions, like a moron:
    $schema_obj->exception_action(sub { 1 });
 
+=head2 stacktrace
+
+=over 4
+
+=item Arguments: boolean
+
+=back
+
+Whether L</throw_exception> should include stack trace information.
+Defaults to false normally, but defaults to true if C<$ENV{DBIC_TRACE}>
+is true.
+
 =head2 throw_exception
 
 =over 4
@@ -878,16 +1010,19 @@ Example:
 
 Throws an exception. Defaults to using L<Carp::Clan> to report errors from
 user's perspective.  See L</exception_action> for details on overriding
-this method's behavior.
+this method's behavior.  If L</stacktrace> is turned on, C<throw_exception>'s
+default behavior will provide a detailed stack trace.
 
 =cut
 
 sub throw_exception {
   my $self = shift;
-  croak @_ if !$self->exception_action || !$self->exception_action->(@_);
+
+  DBIx::Class::Exception->throw($_[0], $self->stacktrace)
+    if !$self->exception_action || !$self->exception_action->(@_);
 }
 
-=head2 deploy (EXPERIMENTAL)
+=head2 deploy
 
 =over 4
 
@@ -897,12 +1032,15 @@ sub throw_exception {
 
 Attempts to deploy the schema to the current storage using L<SQL::Translator>.
 
-Note that this feature is currently EXPERIMENTAL and may not work correctly
-across all databases, or fully handle complex relationships.
-
 See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>. The most
 common value for this would be C<< { add_drop_table => 1, } >> to have the SQL
 produced include a DROP TABLE statement for each table created.
+
+Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash 
+ref or an array ref, containing a list of source to deploy. If present, then 
+only the sources listed will get deployed. Furthermore, you can use the
+C<add_fk_index> parser parameter to prevent the parser from creating an index for each
+FK.
 
 =cut
 
@@ -910,6 +1048,30 @@ sub deploy {
   my ($self, $sqltargs, $dir) = @_;
   $self->throw_exception("Can't deploy without storage") unless $self->storage;
   $self->storage->deploy($self, undef, $sqltargs, $dir);
+}
+
+=head2 deployment_statements
+
+=over 4
+
+=item Arguments: $rdbms_type
+
+=back
+
+Returns the SQL statements used by L</deploy> and L<DBIx::Class::Schema/deploy>.
+C<$rdbms_type> provides the DBI database driver name for which the SQL
+statements are produced. If not supplied, the type of the current schema storage
+will be used.
+
+=cut
+
+sub deployment_statements {
+  my ($self, $rdbms_type) = @_;
+
+  $self->throw_exception("Can't generate deployment statements without a storage")
+    if not $self->storage;
+
+  $self->storage->deployment_statements($self, $rdbms_type);
 }
 
 =head2 create_ddl_dir (EXPERIMENTAL)
@@ -931,6 +1093,8 @@ The file names are created using the C<ddl_filename> method below, please
 override this method in your schema if you would like a different file
 name format. For the ALTER file, the same format is used, replacing
 $version in the name with "$preversion-$version".
+
+See L<DBIx::Class::Schema/deploy> for details of $sqlt_args.
 
 If no arguments are passed, then the following default values are used:
 
@@ -964,11 +1128,11 @@ sub create_ddl_dir {
 
 =over 4
 
-=item Arguments: $directory, $database-type, $version, $preversion
+=item Arguments: $database-type, $version, $directory, $preversion
 
 =back
 
-  my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
+  my $filename = $table->ddl_filename($type, $version, $dir, $preversion)
 
 This method is called by C<create_ddl_dir> to compose a file name out of
 the supplied directory, database type and version number. The default file
@@ -980,14 +1144,61 @@ format.
 =cut
 
 sub ddl_filename {
-    my ($self, $type, $dir, $version, $pversion) = @_;
+  my ($self, $type, $version, $dir, $preversion) = @_;
 
-    my $filename = ref($self);
-    $filename =~ s/::/-/;
-    $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
-    $filename =~ s/$version/$pversion-$version/ if($pversion);
+  my $filename = ref($self);
+  $filename =~ s/::/-/g;
+  $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
+  $filename =~ s/$version/$preversion-$version/ if($preversion);
+  
+  return $filename;
+}
 
-    return $filename;
+=head2 sqlt_deploy_hook($sqlt_schema)
+
+An optional sub which you can declare in your own Schema class that will get 
+passed the L<SQL::Translator::Schema> object when you deploy the schema via
+L</create_ddl_dir> or L</deploy>.
+
+For an example of what you can do with this, see 
+L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
+
+=head2 thaw
+
+Provided as the recommened way of thawing schema objects. You can call 
+C<Storable::thaw> directly if you wish, but the thawed objects will not have a
+reference to any schema, so are rather useless
+
+=cut
+
+sub thaw {
+  my ($self, $obj) = @_;
+  local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
+  return Storable::thaw($obj);
+}
+
+=head2 freeze
+
+This doesn't actualy do anything more than call L<Storable/freeze>, it is just
+provided here for symetry.
+
+=cut
+
+sub freeze {
+  return Storable::freeze($_[1]);
+}
+
+=head2 dclone
+
+Recommeneded way of dcloning objects. This is needed to properly maintain
+references to the schema object (which itself is B<not> cloned.)
+
+=cut
+
+sub dclone {
+  my ($self, $obj) = @_;
+  local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
+  return Storable::dclone($obj);
 }
 
 1;

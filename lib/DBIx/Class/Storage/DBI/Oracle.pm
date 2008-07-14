@@ -3,77 +3,70 @@ package DBIx::Class::Storage::DBI::Oracle;
 use strict;
 use warnings;
 
-use Carp::Clan qw/^DBIx::Class/;
+use base qw/DBIx::Class::Storage::DBI/;
 
-use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
+sub _rebless {
+    my ($self) = @_;
 
-# __PACKAGE__->load_components(qw/PK::Auto/);
+    my $version = eval { $self->_dbh->get_info(18); };
 
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $source, $col) = @_;
-  my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
-  my $sql = 'SELECT ' . $seq . '.currval FROM DUAL';
-  my ($id) = $dbh->selectrow_array($sql);
-  return $id;
+    if ( !$@ ) {
+        my ($major, $minor, $patchlevel) = split(/\./, $version);
+
+        # Default driver
+        my $class = $major <= 8
+          ? 'DBIx::Class::Storage::DBI::Oracle::WhereJoins'
+          : 'DBIx::Class::Storage::DBI::Oracle::Generic';
+
+        # Load and rebless
+        eval "require $class";
+
+        bless $self, $class unless $@;
+    }
 }
 
-sub _dbh_get_autoinc_seq {
-  my ($self, $dbh, $source, $col) = @_;
-
-  # look up the correct sequence automatically
-  my $sql = q{
-    SELECT trigger_body FROM ALL_TRIGGERS t
-    WHERE t.table_name = ?
-    AND t.triggering_event = 'INSERT'
-    AND t.status = 'ENABLED'
-  };
-
-  # trigger_body is a LONG
-  $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
-
-  my $sth = $dbh->prepare($sql);
-  $sth->execute( uc($source->name) );
-  while (my ($insert_trigger) = $sth->fetchrow_array) {
-    return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
-  }
-  croak "Unable to find a sequence INSERT trigger on table '" . $source->name . "'.";
+sub _svp_begin {
+    my ($self, $name) = @_;
+ 
+    $self->dbh->do("SAVEPOINT $name");
 }
 
-sub get_autoinc_seq {
-  my ($self, $source, $col) = @_;
-    
-  $self->dbh_do($self->can('_dbh_get_autoinc_seq'), $source, $col);
+# Would've implemented _svp_release here, but Oracle doesn't support it.
+
+sub _svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
-
-sub columns_info_for {
-  my ($self, $table) = @_;
-
-  $self->next::method(uc($table));
-}
-
 
 1;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Oracle - Automatic primary key class for Oracle
+DBIx::Class::Storage::DBI::Oracle - Base class for Oracle driver
 
 =head1 SYNOPSIS
 
   # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
-  __PACKAGE__->set_primary_key('id');
-  __PACKAGE__->sequence('mysequence');
+  __PACKAGE__->load_components(qw/Core/);
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for Oracle.
+This class simply provides a mechanism for discovering and loading a sub-class
+for a specific version Oracle backend. It should be transparent to the user.
+
+For Oracle major versions <= 8 it loads the ::Oracle::WhereJoins subclass,
+which unrolls the ANSI join style DBIC normally generates into entries in
+the WHERE clause for compatibility purposes. To force usage of this version
+no matter the database version, add
+
+  __PACKAGE__->storage_type('::DBI::Oracle::WhereJoins');
+
+to your Schema class.
 
 =head1 AUTHORS
 
-Andy Grundman <andy@hybridized.org>
-
-Scott Connelly <scottsweep@yahoo.com>
+David Jack Olrik C<< <djo@cpan.org> >>
 
 =head1 LICENSE
 

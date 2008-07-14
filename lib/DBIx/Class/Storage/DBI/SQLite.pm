@@ -15,7 +15,8 @@ sub _dbh_last_insert_id {
 
 sub backup
 {
-  my ($self) = @_;
+  my ($self, $dir) = @_;
+  $dir ||= './';
 
   ## Where is the db file?
   my $dsn = $self->connect_info()->[0];
@@ -30,22 +31,26 @@ sub backup
 
 #  print "Found database: $dbname\n";
 #  my $dbfile = file($dbname);
-  my ($vol, $dir, $file) = File::Spec->splitpath($dbname);
+  my ($vol, $dbdir, $file) = File::Spec->splitpath($dbname);
 #  my $file = $dbfile->basename();
-  $file = strftime("%y%m%d%h%M%s", localtime()) . $file; 
+  $file = strftime("%Y-%m-%d-%H_%M_%S", localtime()) . $file; 
   $file = "B$file" while(-f $file);
-  
-  my $res = copy($dbname, $file);
+
+  mkdir($dir) unless -f $dir;
+  my $backupfile = File::Spec->catfile($dir, $file);
+
+  my $res = copy($dbname, $backupfile);
   $self->throw_exception("Backup failed! ($!)") if(!$res);
 
-  return $file;
+  return $backupfile;
 }
+
 
 1;
 
 =head1 NAME
 
-DBIx::Class::PK::Auto::SQLite - Automatic primary key class for SQLite
+DBIx::Class::Storage::DBI::SQLite - Automatic primary key class for SQLite
 
 =head1 SYNOPSIS
 

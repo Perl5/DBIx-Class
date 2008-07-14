@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 56;
+plan tests => 63;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -66,6 +66,13 @@ $track->set_from_related( cd => undef );
 
 ok( !defined($track->cd), 'set_from_related with undef ok');
 
+TODO: {
+    local $TODO = 'accessing $object->rel and set_from_related';
+    my $track = $schema->resultset("Track")->new( {} );
+    $track->cd;
+    $track->set_from_related( cd => $cd ); 
+    ok ($track->cd, 'set_from_related ok after using the accessor' );
+};
 
 # update_from_related, the same as set_from_related, but it calls update afterwards
 $track = $schema->resultset("Track")->create( {
@@ -90,6 +97,7 @@ $cd = $artist->find_or_create_related( 'cds', {
   year => 2006,
 } );
 is( $cd->title, 'Greatest Hits', 'find_or_create_related new record ok' );
+
 @cds = $artist->search_related('cds');
 is( ($artist->search_related('cds'))[4]->title, 'Greatest Hits', 'find_or_create_related new record search ok' );
 
@@ -108,6 +116,17 @@ $cd = $artist->find_or_new_related( 'cds', {
 } );
 is( $cd->title, 'Greatest Hits 2: Louder Than Ever', 'find_or_new_related new record ok' );
 ok( ! $cd->in_storage, 'find_or_new_related on a new record: not in_storage' );
+
+# print STDERR Data::Dumper::Dumper($cd->get_columns);
+# $cd->result_source->schema->storage->debug(1);
+$cd->artist(undef);
+my $newartist = $cd->find_or_new_related( 'artist', {
+  name => 'Random Boy Band Two',
+  artistid => 200,
+} );
+# $cd->result_source->schema->storage->debug(0);
+is($newartist->name, 'Random Boy Band Two', 'find_or_new_related new artist record with id');
+is($newartist->id, 200, 'find_or_new_related new artist id set');
 
 SKIP: {
   skip "relationship checking needs fixing", 1;
@@ -191,6 +210,13 @@ is( $twokey->fourkeys->count, 0, 'twokey has no fourkeys' );
 is( $twokey->fourkeys_to_twokeys->count, 0,
     'twokey has no links to fourkey' );
 
+my $undef_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007 });
+is($undef_artist_cd->has_column_loaded('artist'), '', 'FK not loaded');
+is($undef_artist_cd->search_related('artist')->count, 3, 'open search on undef FK');
+
+my $def_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007, artist => undef });
+is($def_artist_cd->has_column_loaded('artist'), 1, 'FK loaded');
+is($def_artist_cd->search_related('artist')->count, 0, 'closed search on null FK');
 
 # test undirected many-to-many relationship (e.g. "related artists")
 my $undir_maps = $schema->resultset("Artist")->find(1)->artist_undirected_maps;

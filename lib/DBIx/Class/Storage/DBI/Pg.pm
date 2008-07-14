@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI::Pg;
 use strict;
 use warnings;
 
-use DBD::Pg;
+use DBD::Pg qw(:pg_types);
 
 use base qw/DBIx::Class::Storage::DBI/;
 
@@ -21,7 +21,10 @@ sub _dbh_last_insert_id {
 sub last_insert_id {
   my ($self,$source,$col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
-  $self->dbh_do($self->can('_dbh_last_insert_id'), $seq);
+  $self->throw_exception("could not fetch primary key for " . $source->name . ", could not "
+    . "get autoinc sequence for $col (check that table and column specifications are correct "
+    . "and in the correct case)") unless defined $seq;
+  $self->dbh_do('_dbh_last_insert_id', $seq);
 }
 
 sub _dbh_get_autoinc_seq {
@@ -46,7 +49,7 @@ sub get_autoinc_seq {
   my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2)
     : (undef,$source->name);
 
-  $self->dbh_do($self->can('_dbh_get_autoinc_seq'), $schema, $table, @pri);
+  $self->dbh_do('_dbh_get_autoinc_seq', $schema, $table, @pri);
 }
 
 sub sqlt_type {
@@ -54,6 +57,45 @@ sub sqlt_type {
 }
 
 sub datetime_parser_type { return "DateTime::Format::Pg"; }
+
+sub bind_attribute_by_data_type {
+  my ($self,$data_type) = @_;
+
+  my $bind_attributes = {
+    bytea => { pg_type => DBD::Pg::PG_BYTEA },
+  };
+ 
+  if( defined $bind_attributes->{$data_type} ) {
+    return $bind_attributes->{$data_type};
+  }
+  else {
+    return;
+  }
+}
+
+sub _sequence_fetch {
+  my ( $self, $type, $seq ) = @_;
+  my ($id) = $self->dbh->selectrow_array("SELECT nextval('${seq}')");
+  return $id;
+}
+
+sub _svp_begin {
+    my ($self, $name) = @_;
+
+    $self->dbh->pg_savepoint($name);
+}
+
+sub _svp_release {
+    my ($self, $name) = @_;
+
+    $self->dbh->pg_release($name);
+}
+
+sub _svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->dbh->pg_rollback_to($name);
+}
 
 1;
 

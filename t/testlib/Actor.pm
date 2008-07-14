@@ -15,7 +15,7 @@ __PACKAGE__->columns(All     => qw/ Name Film Salary /);
 __PACKAGE__->columns(TEMP    => qw/ nonpersistent /);
 __PACKAGE__->add_constructor(salary_between => 'salary >= ? AND salary <= ?');
 
-sub mutator_name { "set_$_[1]" }
+sub mutator_name_for { "set_$_[1]" }
 
 sub create_sql {
 	return qq{

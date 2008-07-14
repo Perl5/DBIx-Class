@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 6;
+plan tests => 8;
 
 # Set up the "usual" sqlite for DBICTest
 my $schema = DBICTest->init_schema;
@@ -19,6 +19,12 @@ my $ex_regex = qr/Odd number of arguments to search/;
 
 # Basic check, normal exception
 eval { throwex };
+my $e = $@; # like() seems to stringify $@
+like($@, $ex_regex);
+
+# Re-throw the exception with rethrow()
+eval { $e->rethrow };
+isa_ok( $@, 'DBIx::Class::Exception' );
 like($@, $ex_regex);
 
 # Now lets rethrow via exception_action

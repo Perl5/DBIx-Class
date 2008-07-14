@@ -25,7 +25,7 @@ We can't cache very effectively without bind variables, so force the C<disable_s
 
 sub connect_info {
     my $self = shift;
-    my $retval = shift->next::method(@_);
+    my $retval = $self->next::method(@_);
     $self->disable_sth_caching(1);
     $retval;
 }
@@ -38,11 +38,25 @@ Manually subs in the values for the usual C<?> placeholders.
 
 sub _prep_for_execute {
   my $self = shift;
-  my ($sql, @bind) = $self->next::method(@_);
+  my ($sql, $bind) = $self->next::method(@_);
 
-  $sql =~ s/\?/$self->_dbh->quote(shift(@bind))/eg;
+  # stringify args, quote via $dbh, and manually insert
 
-  return ($sql);
+  my @sql_part = split /\?/, $sql;
+  my $new_sql;
+
+  foreach my $bound (@$bind) {
+    shift @$bound;
+    foreach my $data (@$bound) {
+        if(ref $data) {
+            $data = ''.$data;
+        }
+        $new_sql .= shift(@sql_part) . $self->_dbh->quote($data);
+    }
+  }
+  $new_sql .= join '', @sql_part;
+
+  return ($new_sql);
 }
 
 =head1 AUTHORS

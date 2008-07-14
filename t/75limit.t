@@ -9,8 +9,8 @@ my $schema = DBICTest->init_schema();
 
 BEGIN {
     eval "use DBD::SQLite";
-    plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 9);
-}                                                                               
+    plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 10);
+}
 
 # test LIMIT
 my $it = $schema->resultset("CD")->search( {},
@@ -50,6 +50,15 @@ is( $it->next, undef, "software next past end of resultset ok" );
       order_by => 'year' }
 );
 is( $cds[0]->title, "Spoonful of bees", "software offset ok" );
+
+
+@cds = $schema->resultset("CD")->search( {},
+    {
+      offset => 2,
+      order_by => 'year' }
+);
+is( $cds[0]->title, "Spoonful of bees", "offset with no limit" );
+
 
 # based on a failing criteria submitted by waswas
 # requires SQL::Abstract >= 1.20

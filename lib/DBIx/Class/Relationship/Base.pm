@@ -102,6 +102,26 @@ related object, but you also want the relationship accessor to double as
 a column accessor). For C<multi> accessors, an add_to_* method is also
 created, which calls C<create_related> for the relationship.
 
+=item is_foreign_key_constraint
+
+If you are using L<SQL::Translator> to create SQL for you and you find that it
+is creating constraints where it shouldn't, or not creating them where it 
+should, set this attribute to a true or false value to override the detection
+of when to create constraints.
+
+=item is_deferrable
+
+Tells L<SQL::Translator> that the foreign key constraint it creates should be
+deferrable. In other words, the user may request that the constraint be ignored
+until the end of the transaction. Currently, only the PostgreSQL producer
+actually supports this.
+
+=item add_fk_index
+
+Tells L<SQL::Translator> to add an index for this constraint. Can also be
+specified globally in the args to L<DBIx::Class::Schema/deploy> or
+L<DBIx::Class::Schema/create_ddl_dir>. Default is on, set to 0 to disable.
+
 =back
 
 =head2 register_relationship
@@ -194,7 +214,7 @@ sub search_related {
   ( $objects_rs ) = $rs->search_related_rs('relname', $cond, $attrs);
 
 This method works exactly the same as search_related, except that 
-it garauntees a restultset, even in list context.
+it guarantees a restultset, even in list context.
 
 =cut
 
@@ -281,7 +301,8 @@ L<DBIx::Class::Row/insert> on it.
 
 sub find_or_new_related {
   my $self = shift;
-  return $self->find_related(@_) || $self->new_related(@_);
+  my $obj = $self->find_related(@_);
+  return defined $obj ? $obj : $self->new_related(@_);
 }
 
 =head2 find_or_create_related
@@ -317,11 +338,15 @@ sub update_or_create_related {
 =head2 set_from_related
 
   $book->set_from_related('author', $author_obj);
+  $book->author($author_obj);                      ## same thing
 
 Set column values on the current object, using related values from the given
 related object. This is used to associate previously separate objects, for
 example, to set the correct author for a book, find the Author object, then
 call set_from_related on the book.
+
+This is called internally when you pass existing objects as values to
+L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to acessor.
 
 The columns are only set in the local copy of the object, call L</update> to
 set them in the storage.
@@ -416,7 +441,7 @@ B<Currently only available for C<many-to-many> relationships.>
 
   my $actor = $schema->resultset('Actor')->find(1);
   my @roles = $schema->resultset('Role')->search({ role => 
-     { '-in' -> ['Fred', 'Barney'] } } );
+     { '-in' => ['Fred', 'Barney'] } } );
 
   $actor->set_roles(\@roles);
      # Replaces all of $actor's previous roles with the two named

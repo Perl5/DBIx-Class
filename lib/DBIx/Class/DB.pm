@@ -8,6 +8,7 @@ use DBIx::Class::Schema;
 use DBIx::Class::Storage::DBI;
 use DBIx::Class::ClassResolver::PassThrough;
 use DBI;
+use Scalar::Util;
 
 unless ($INC{"DBIx/Class/CDBICompat.pm"}) {
   warn "IMPORTANT: DBIx::Class::DB is DEPRECATED AND *WILL* BE REMOVED. DO NOT USE.\n";
@@ -140,13 +141,40 @@ native L<DBIx::Class::ResultSet> system.
 =cut
 
 sub resultset_instance {
-  my $class = ref $_[0] || $_[0];
-  my $source = $class->result_source_instance;
-  if ($source->result_class ne $class) {
-    $source = $source->new($source);
-    $source->result_class($class);
+  $_[0]->result_source_instance->resultset
+}
+
+=head2 result_source_instance
+
+Returns an instance of the result source for this class
+
+=cut
+
+__PACKAGE__->mk_classdata('_result_source_instance' => []);
+
+sub result_source_instance {
+  my $class = shift;
+  $class = ref $class || $class;
+  
+  return $class->_result_source_instance([$_[0], $class]) if @_;
+
+  my($source, $result_class) = @{$class->_result_source_instance};
+  return unless Scalar::Util::blessed($source);
+
+  if ($result_class ne $class) {  # new class
+    # Give this new class it's own source and register it.
+
+    $source = $source->new({ 
+        %$source, 
+        source_name  => $class,
+        result_class => $class
+    } );
+    $class->_result_source_instance([$source, $class]);
+    if (my $coderef = $class->can('schema_instance')) {
+        $coderef->($class)->register_class($class, $class);
+    }
   }
-  return $source->resultset;
+  return $source;
 }
 
 =head2 resolve_class

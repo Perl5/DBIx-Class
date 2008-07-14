@@ -60,7 +60,6 @@ while(@children < $num_children) {
 
     my $newthread = async {
         my $tid = threads->tid;
-        my $dbh = $schema->storage->dbh;
 
         my $child_rs = $schema->resultset('CD')->search({ year => 1901 });
         my $row = $parent_rs->next;

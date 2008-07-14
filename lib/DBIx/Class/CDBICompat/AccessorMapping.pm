@@ -6,18 +6,15 @@ use warnings;
 
 sub mk_group_accessors {
   my ($class, $group, @cols) = @_;
-  unless ($class->can('accessor_name') || $class->can('mutator_name')) {
-    return $class->next::method($group => @cols);
-  }
+
   foreach my $col (@cols) {
-    my $ro_meth = ($class->can('accessor_name')
-                    ? $class->accessor_name($col)
-                    : $col);
-    my $wo_meth = ($class->can('mutator_name')
-                    ? $class->mutator_name($col)
-                    : $col);
-    #warn "$col $ro_meth $wo_meth";
-    if ($ro_meth eq $wo_meth) {
+    my $ro_meth = $class->accessor_name_for($col);
+    my $wo_meth = $class->mutator_name_for($col);
+
+    # warn "class: $class / col: $col / ro: $ro_meth / wo: $wo_meth\n";
+    if ($ro_meth eq $wo_meth or     # they're the same
+        $wo_meth eq $col)           # or only the accessor is custom
+    {
       $class->next::method($group => [ $ro_meth => $col ]);
     } else {
       $class->mk_group_ro_accessors($group => [ $ro_meth => $col ]);
@@ -26,18 +23,35 @@ sub mk_group_accessors {
   }
 }
 
+
+sub accessor_name_for {
+    my ($class, $column) = @_;
+    if ($class->can('accessor_name')) { 
+        return $class->accessor_name($column) 
+    }
+
+    return $column;
+}
+
+sub mutator_name_for {
+    my ($class, $column) = @_;
+    if ($class->can('mutator_name')) { 
+        return $class->mutator_name($column) 
+    }
+
+    return $column;
+}
+
+
 sub new {
   my ($class, $attrs, @rest) = @_;
   $class->throw_exception( "create needs a hashref" ) unless ref $attrs eq 'HASH';
   foreach my $col ($class->columns) {
-    if ($class->can('accessor_name')) {
-      my $acc = $class->accessor_name($col);
+      my $acc = $class->accessor_name_for($col);
       $attrs->{$col} = delete $attrs->{$acc} if exists $attrs->{$acc};
-    }
-    if ($class->can('mutator_name')) {
-      my $mut = $class->mutator_name($col);
+
+      my $mut = $class->mutator_name_for($col);
       $attrs->{$col} = delete $attrs->{$mut} if exists $attrs->{$mut};
-    }
   }
   return $class->next::method($attrs, @rest);
 }

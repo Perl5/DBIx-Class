@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use DBIx::Class::ResultSet;
+use DBIx::Class::ResultSourceHandle;
 use Carp::Clan qw/^DBIx::Class/;
 use Storable;
 
@@ -11,10 +12,10 @@ use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships column_info_from_storage source_name
-  source_info/);
+  schema from _relationships column_info_from_storage source_info
+  source_name/);
 
-__PACKAGE__->mk_group_accessors('inherited' => qw/resultset_class
+__PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
   result_class/);
 
 =head1 NAME
@@ -46,9 +47,7 @@ sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
 
-  my $new = { %{$attrs || {}}, _resultset => undef };
-  bless $new, $class;
-
+  my $new = bless { %{$attrs || {}} }, $class;
   $new->{resultset_class} ||= 'DBIx::Class::ResultSet';
   $new->{resultset_attributes} = { %{$new->{resultset_attributes} || {}} };
   $new->{_ordered_columns} = [ @{$new->{_ordered_columns}||[]}];
@@ -82,6 +81,10 @@ Adds columns to the result source. If supplied key => hashref pairs, uses
 the hashref as the column_info for that column. Repeated calls of this
 method will add more columns, not replace them.
 
+The column names given will be created as accessor methods on your
+L<DBIx::Class::Row> objects, you can change the name of the accessor
+by supplying an L</accessor> in the column_info hash.
+
 The contents of the column_info are not set in stone. The following
 keys are currently recognised/used by DBIx::Class:
 
@@ -89,7 +92,7 @@ keys are currently recognised/used by DBIx::Class:
 
 =item accessor
 
-Use this to set the name of the accessor for this column. If unset,
+Use this to set the name of the accessor method for this column. If unset,
 the name of the column will be used.
 
 =item data_type
@@ -140,10 +143,16 @@ generate a new key value. If not specified, L<DBIx::Class::PK::Auto>
 will attempt to retrieve the name of the sequence from the database
 automatically.
 
-=item extras
+=item auto_nextval
+
+Set this to a true value for a column whose value is retrieved
+automatically from an oracle sequence. If you do not use an oracle
+trigger to get the nextval, you have to set sequence as well.
+
+=item extra
 
 This is used by L<DBIx::Class::Schema/deploy> and L<SQL::Translator>
-to add extra non-generic data to the column. For example: C<< extras
+to add extra non-generic data to the column. For example: C<< extra
 => { unsigned => 1} >> is used by the MySQL producer to set an integer
 column to unsigned. For more details, see
 L<SQL::Translator::Producer::MySQL>.
@@ -175,7 +184,7 @@ sub add_columns {
   return $self;
 }
 
-*add_column = \&add_columns;
+sub add_column { shift->add_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =head2 has_column
 
@@ -286,7 +295,7 @@ sub remove_columns {
   $self->_ordered_columns(\@remaining);
 }
 
-*remove_column = \&remove_columns;
+sub remove_column { shift->remove_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =head2 set_primary_key
 
@@ -516,6 +525,14 @@ sub add_relationship {
     unless $cond;
   $attrs ||= {};
 
+  # Check foreign and self are right in cond
+  if ( (ref $cond ||'') eq 'HASH') {
+    for (keys %$cond) {
+      $self->throw_exception("Keys of condition should be of form 'foreign.col', not '$_'")
+        if /\./ && !/^foreign\./;
+    }
+  }
+
   my %rels = %{ $self->_relationships };
   $rels{$rel} = { class => $f_source_name,
                   source => $f_source_name,
@@ -629,7 +646,7 @@ sub reverse_relationship_info {
     my $otherrel_info = $othertable->relationship_info($otherrel);
 
     my $back = $othertable->related_source($otherrel);
-    next unless $back->name eq $self->name;
+    next unless $back->source_name eq $self->source_name;
 
     my @othertestconds;
 
@@ -713,16 +730,22 @@ Returns the join structure required for the related result source.
 =cut
 
 sub resolve_join {
-  my ($self, $join, $alias, $seen) = @_;
+  my ($self, $join, $alias, $seen, $force_left) = @_;
   $seen ||= {};
+  $force_left ||= { force => 0 };
   if (ref $join eq 'ARRAY') {
     return map { $self->resolve_join($_, $alias, $seen) } @$join;
   } elsif (ref $join eq 'HASH') {
     return
       map {
         my $as = ($seen->{$_} ? $_.'_'.($seen->{$_}+1) : $_);
-        ($self->resolve_join($_, $alias, $seen),
-          $self->related_source($_)->resolve_join($join->{$_}, $as, $seen));
+        local $force_left->{force};
+        (
+          $self->resolve_join($_, $alias, $seen, $force_left),
+          $self->related_source($_)->resolve_join(
+            $join->{$_}, $as, $seen, $force_left
+          )
+        );
       } keys %$join;
   } elsif (ref $join) {
     $self->throw_exception("No idea how to resolve join reftype ".ref $join);
@@ -732,7 +755,13 @@ sub resolve_join {
     my $as = ($count > 1 ? "${join}_${count}" : $join);
     my $rel_info = $self->relationship_info($join);
     $self->throw_exception("No such relationship ${join}") unless $rel_info;
-    my $type = $rel_info->{attrs}{join_type} || '';
+    my $type;
+    if ($force_left->{force}) {
+      $type = 'left';
+    } else {
+      $type = $rel_info->{attrs}{join_type} || '';
+      $force_left->{force} = 1 if lc($type) eq 'left';
+    }
     return [ { $as => $self->related_source($join)->from,
                -join_type => $type },
              $self->resolve_condition($rel_info->{cond}, $as, $alias) ];
@@ -767,10 +796,12 @@ sub resolve_condition {
         $self->throw_exception("Invalid rel cond val ${v}");
       if (ref $for) { # Object
         #warn "$self $k $for $v";
-        $ret{$k} = $for->get_column($v);
+        $ret{$k} = $for->get_column($v) if $for->has_column_loaded($v);
         #warn %ret;
       } elsif (!defined $for) { # undef, i.e. "no object"
         $ret{$k} = undef;
+      } elsif (ref $as eq 'HASH') { # reverse hashref
+        $ret{$v} = $as->{$k};
       } elsif (ref $as) { # reverse object
         $ret{$v} = $as->get_column($k);
       } elsif (!defined $as) { # undef, i.e. "no reverse object"
@@ -874,9 +905,23 @@ sub resolve_prefetch {
       $self->throw_exception(
         "Can't prefetch has_many ${pre} (join cond too complex)")
         unless ref($rel_info->{cond}) eq 'HASH';
+      my $dots = @{[$as_prefix =~ m/\./g]} + 1; # +1 to match the ".${as_prefix}"
+      if (my ($fail) = grep { @{[$_ =~ m/\./g]} == $dots }
+                         keys %{$collapse}) {
+        my ($last) = ($fail =~ /([^\.]+)$/);
+        $self->throw_exception(
+          "Can't prefetch multiple has_many rels ${last} and ${pre}"
+          .(length($as_prefix) ? "at the same level (${as_prefix})"
+                               : "at top level"
+        ));
+      }
+      #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
+      #              values %{$rel_info->{cond}};
+      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->primary_columns ];
+        # action at a distance. prepending the '.' allows simpler code
+        # in ResultSet->_collapse_result
       my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
                     keys %{$rel_info->{cond}};
-      $collapse->{"${as_prefix}${pre}"} = \@key;
       my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
                    ? @{$rel_info->{attrs}{order_by}}
                    : (defined $rel_info->{attrs}{order_by}
@@ -951,13 +996,17 @@ but is cached from then on unless resultset_class changes.
 
 Set the class of the resultset, this is useful if you want to create your
 own resultset methods. Create your own class derived from
-L<DBIx::Class::ResultSet>, and set it here. 
+L<DBIx::Class::ResultSet>, and set it here. If called with no arguments,
+this method returns the name of the existing resultset class, if one
+exists.
 
 =head2 resultset_attributes
 
   $source->resultset_attributes({ order_by => [ 'id' ] });
 
-Specify here any attributes you wish to pass to your specialised resultset.
+Specify here any attributes you wish to pass to your specialised
+resultset. For a full list of these, please see
+L<DBIx::Class::ResultSet/ATTRIBUTES>.
 
 =cut
 
@@ -968,14 +1017,12 @@ sub resultset {
     'call it on the schema instead.'
   ) if scalar @_;
 
-  # disabled until we can figure out a way to do it without consistency issues
-  #
-  #return $self->{_resultset}
-  #  if ref $self->{_resultset} eq $self->resultset_class;
-  #return $self->{_resultset} =
-
   return $self->resultset_class->new(
-    $self, $self->{resultset_attributes}
+    $self,
+    {
+      %{$self->{resultset_attributes}},
+      %{$self->schema->default_resultset_attributes}
+    },
   );
 }
 
@@ -999,6 +1046,20 @@ its class name.
   # from your schema...
   $schema->resultset('Books')->find(1);
 
+=head2 handle
+
+Obtain a new handle to this source. Returns an instance of a 
+L<DBIx::Class::ResultSourceHandle>.
+
+=cut
+
+sub handle {
+    return new DBIx::Class::ResultSourceHandle({
+        schema         => $_[0]->schema,
+        source_moniker => $_[0]->source_name
+    });
+}
+
 =head2 throw_exception
 
 See L<DBIx::Class::Schema/"throw_exception">.
@@ -1014,6 +1075,15 @@ sub throw_exception {
   }
 }
 
+=head2 sqlt_deploy_hook($sqlt_table)
+
+An optional sub which you can declare in your own Schema class that will get 
+passed the L<SQL::Translator::Schema::Table> object when you deploy the schema
+via L</create_ddl_dir> or L</deploy>.
+
+For an example of what you can do with this, see 
+L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
+
 =head1 AUTHORS
 
 Matt S. Trout <mst@shadowcatsystems.co.uk>
@@ -1024,3 +1094,4 @@ You may distribute this code under the same terms as Perl itself.
 
 =cut
 
+1;

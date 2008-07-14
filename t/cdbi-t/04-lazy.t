@@ -1,6 +1,8 @@
+#!/usr/bin/perl -w
+
 use strict;
 use Test::More;
-
+use Test::Warn;
 
 #----------------------------------------------------------------------
 # Test lazy loading
@@ -13,7 +15,7 @@ BEGIN {
     next;
   }
 	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 25);
+	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 36);
 }
 
 INIT {
@@ -79,3 +81,104 @@ eval {    # Multiple false columns
 };
 ok($@, $@);
 
+
+warning_is {
+    Lazy->columns( TEMP => qw(that) );
+} "Declaring column that as TEMP but it already exists";
+
+# Test that create() and update() throws out columns that changed
+{
+    my $l = Lazy->create({
+        this => 99,
+        that => 2,
+        oop  => 3,
+        opop => 4,
+    });
+
+    ok $l->db_Main->do(qq{
+        UPDATE @{[ $l->table ]}
+        SET    oop  = ?
+        WHERE  this = ?
+    }, undef, 87, $l->this);
+
+    is $l->oop, 87;
+
+    $l->oop(32);
+    $l->update;
+
+    ok $l->db_Main->do(qq{
+        UPDATE @{[ $l->table ]}
+        SET    oop  = ?
+        WHERE  this = ?
+    }, undef, 23, $l->this);
+
+    is $l->oop, 23;
+    
+    $l->delete;
+}
+
+
+# Now again for inflated values
+SKIP: {
+    skip "Requires Date::Simple", 5 unless eval "use Date::Simple; 1; ";
+    Lazy->has_a(
+        orp     => 'Date::Simple',
+        inflate => sub { Date::Simple->new($_[0] . '-01-01') },
+        deflate => 'format'
+    );
+    
+    my $l = Lazy->create({
+        this => 89,
+        that => 2,
+        orp  => 1998,
+    });
+
+    ok $l->db_Main->do(qq{
+        UPDATE @{[ $l->table ]}
+        SET    orp  = ?
+        WHERE  this = ?
+    }, undef, 1987, $l->this);
+    
+    is $l->orp, '1987-01-01';
+
+    $l->orp(2007);
+    is $l->orp, '2007-01-01';   # make sure it's inflated
+    $l->update;
+    
+    ok $l->db_Main->do(qq{
+        UPDATE @{[ $l->table ]}
+        SET    orp  = ?
+        WHERE  this = ?
+    }, undef, 1942, $l->this);
+
+    is $l->orp, '1942-01-01';
+    
+    $l->delete;
+}
+
+
+# Test that a deleted object works
+{
+    Lazy->search()->delete_all;
+    my $l = Lazy->create({
+        this => 99,
+        that => 2,
+        oop  => 3,
+        opop => 4,
+    });
+    
+    # Delete the object without it knowing.
+    Lazy->db_Main->do(qq[
+        DELETE
+        FROM   @{[ Lazy->table ]}
+        WHERE  this = 99
+    ]);
+    
+    $l->eep;
+    
+    # The problem was when an object had an inflated object
+    # loaded.  _flesh() would set _column_data to undef and
+    # get_column() would think nothing was there.
+    # I'm too lazy to set up the proper inflation test.
+    ok !exists $l->{_column_data}{orp};
+}

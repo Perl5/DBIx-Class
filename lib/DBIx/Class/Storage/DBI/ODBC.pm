@@ -39,7 +39,7 @@ for a specific ODBC backend.  It should be transparent to the user.
 
 =head1 AUTHORS
 
-Marc Mims C<< <marc@sssonline.com> >>
+Marc Mims C<< <marc@questright.com> >>
 
 =head1 LICENSE
 

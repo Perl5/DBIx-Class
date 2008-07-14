@@ -1,0 +1,133 @@
+
+=head1 NAME
+
+DBIx::Class::Manual::Reading - How to read and write DBIx::Class POD.
+
+=head1 DESCRIPTION
+
+This doc should help users to understand how the examples and
+documentation found in the L<DBIx::Class> distribution can be
+interpreted.
+
+Writers of DBIx::Class POD should also check here to make sure their
+additions are consistent with the rest of the documentation.
+
+=head1 METHODS
+
+Methods should be documented in the files which also contain the code
+for the method, or that file should be hidden from PAUSE completely,
+in which case the methods are documented in the file which loads
+it. Methods may also be documented and refered to in files
+representing the major objects or components on which they can be
+called.
+
+For example, L<DBIx::Class::Relationship> documents the methods
+actually coded in the helper relationship classes like
+DBIx::Class::Relationship::BelongsTo. The BelongsTo file itself is
+hidden from pause as it has no documentation. The accessors created by
+relationships should be mentioned in L<DBIx::Class::Row>, the major
+object that they will be called on.
+
+=head2 Method documentation
+
+=over
+
+=item *
+
+Each method starts with a "head2" statement of it's name.
+
+=item *
+
+The header is followed by a one-item list.
+
+The single item provides a list of all possible values for the
+arguments of the method in order, separated by C<, >, preceeded by the
+text "Arguments: "
+
+Example (for the belongs_to relationship):
+
+  =item Arguments: $accessor_name, $related_class, $fk_column|\%cond|\@cond?, \%attr?
+
+The following possible argument sigils can be shown:
+
+=over
+
+=item *
+
+$var - A scalar (string or numeric) variable.
+
+=item *
+
+\%var - A variable containing reference to a hash.
+
+=item *
+
+\@var - A variable containing a reference to an array.
+
+=item *
+
+\$var - A variable containing a reference to a scalar variable.
+
+=item *
+
+? - Optional, should be placed after the argument type and name.
+
+=item *
+
+| - Alternate argument types.
+
+=back
+
+NOTES:
+
+If several arguments are optional, it is always possible to pass
+C<undef> as one optional argument in order to skip it and provide a
+value for the following ones. This does not need to be indicated in
+the Arguments line, it is assumed.
+
+The C<?> for optional arguments always applies to the entire argument
+value, not a particular type or argument.
+
+=item *
+
+The argument list is followed by a single paragraph describing what
+the method does.
+
+=item *
+
+The description paragraph is followed by another list. Each item in
+the list explains one of the possible argument/type combinations.
+
+=item *
+
+The argument list is followed by some examples of how to use the
+method, using it's various types of arguments.
+
+The examples can also include ways to use the results if
+applicable. For instance if the documentation is for a relationship
+type, the examples can include how to call the resulting relation
+accessor, how to use the relation name in a search and so on.
+
+If some of the examples assume default values, these should be shown
+with and without the actual arguments, with hints about the equivalent
+calls.
+
+The example should be followed by one or more paragraphs explaining
+what it does.
+
+Examples and explaining paragraphs can be repeated as necessary.
+
+=back
+
+=head1 AUTHORS
+
+see L<DBIx::Class>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
+
+
+

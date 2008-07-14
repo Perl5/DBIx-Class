@@ -13,11 +13,11 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 5;
+plan tests => 10;
 
-DBICTest::Schema->compose_namespace('MySQLTest' => $dsn, $user, $pass);
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
-my $dbh = MySQLTest->schema->storage->dbh;
+my $dbh = $schema->storage->dbh;
 
 $dbh->do("DROP TABLE IF EXISTS artist;");
 
@@ -25,17 +25,18 @@ $dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY 
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
-MySQLTest::Artist->load_components('PK::Auto');
+# This is in Core now, but it's here just to test that it doesn't break
+$schema->class('Artist')->load_components('PK::Auto');
 
 # test primary key handling
-my $new = MySQLTest::Artist->create({ name => 'foo' });
+my $new = $schema->resultset('Artist')->create({ name => 'foo' });
 ok($new->artistid, "Auto-PK worked");
 
 # test LIMIT support
 for (1..6) {
-    MySQLTest::Artist->create({ name => 'Artist ' . $_ });
+    $schema->resultset('Artist')->create({ name => 'Artist ' . $_ });
 }
-my $it = MySQLTest::Artist->search( {},
+my $it = $schema->resultset('Artist')->search( {},
     { rows => 3,
       offset => 2,
       order_by => 'artistid' }
@@ -80,9 +81,40 @@ SKIP: {
         $test_type_info->{charfield}->{data_type} = 'VARCHAR';
     }
 
-    my $type_info = MySQLTest->schema->storage->columns_info_for('artist');
+    my $type_info = $schema->storage->columns_info_for('artist');
     is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
 }
 
+## Can we properly deal with the null search problem?
+##
+## Only way is to do a SET SQL_AUTO_IS_NULL = 0; on connect
+## But I'm not sure if we should do this or not (Ash, 2008/06/03)
+
+NULLINSEARCH: {
+    
+    ok my $artist1_rs = $schema->resultset('Artist')->search({artistid=>6666})
+    => 'Created an artist resultset of 6666';
+    
+    is $artist1_rs->count, 0
+    => 'Got no returned rows';
+    
+    ok my $artist2_rs = $schema->resultset('Artist')->search({artistid=>undef})
+    => 'Created an artist resultset of undef';
+    
+    TODO: {
+    	$TODO = "need to fix the row count =1 when select * from table where pk IS NULL problem";
+	    is $artist2_rs->count, 0
+	    => 'got no rows';    	
+    }
+
+    my $artist = $artist2_rs->single;
+    
+    is $artist => undef
+    => 'Nothing Found!';
+}
+    
+
 # clean up our mess
-$dbh->do("DROP TABLE artist");
+END {
+    $dbh->do("DROP TABLE artist") if $dbh;
+}

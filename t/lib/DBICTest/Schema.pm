@@ -7,8 +7,10 @@ no warnings qw/qw/;
 
 __PACKAGE__->load_classes(qw/
   Artist
+  SequenceTest
   Employee
   CD
+  FileColumn
   Link
   Bookmark
   #dummy
@@ -33,9 +35,15 @@ __PACKAGE__->load_classes(qw/
     'Producer',
     'CD_to_Producer',
   ),
-  qw/SelfRefAlias TreeLike TwoKeyTreeLike Event NoPrimaryKey/,
-  qw/Collection CollectionObject TypedObject/,
-  qw/Owners BooksInLibrary/
+  qw/SelfRefAlias TreeLike TwoKeyTreeLike Event EventTZ NoPrimaryKey/,
+  qw/Collection CollectionObject TypedObject Owners BooksInLibrary/,
+  qw/ForceForeign/,
 );
+
+sub sqlt_deploy_hook {
+  my ($self, $sqlt_schema) = @_;
+
+  $sqlt_schema->drop_table('dummy');
+}
 
 1;

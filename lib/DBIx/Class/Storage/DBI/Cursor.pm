@@ -59,7 +59,8 @@ sub new {
 
 =back
 
-Advances the cursor to the next row and returns an arrayref of column values.
+Advances the cursor to the next row and returns an array of column
+values (the result of L<DBI/fetchrow_array> method).
 
 =cut
 
@@ -123,7 +124,10 @@ sub _dbh_all {
 
 sub all {
   my ($self) = @_;
-  return $self->SUPER::all if $self->{attrs}{rows};
+  if ($self->{attrs}{software_limit}
+        && ($self->{attrs}{offset} || $self->{attrs}{rows})) {
+    return $self->SUPER::all;
+  }
   $self->{storage}->dbh_do($self->can('_dbh_all'), $self);
 }
 
@@ -163,6 +167,7 @@ sub DESTROY {
   my ($self) = @_;
 
   # None of the reasons this would die matter if we're in DESTROY anyways
+  local $@;
   eval { $self->{sth}->finish if $self->{sth} && $self->{sth}->{Active} };
 }
 

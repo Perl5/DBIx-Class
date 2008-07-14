@@ -14,7 +14,7 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key(qw/foo bar hello goodbye/);
 
 __PACKAGE__->has_many(
-  'fourkeys_to_twokeys', '__PACKAGE___to_TwoKeys', {
+  'fourkeys_to_twokeys', 'DBICTest::Schema::FourKeys_to_TwoKeys', {
     'foreign.f_foo' => 'self.foo',
     'foreign.f_bar' => 'self.bar',
     'foreign.f_hello' => 'self.hello',

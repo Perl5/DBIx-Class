@@ -7,8 +7,11 @@ use DBIx::ContextualFetch;
 
 use base qw/DBIx::Class/;
 
+__PACKAGE__->mk_classdata('sql_transformer_class' =>
+                          'DBIx::Class::CDBICompat::SQLTransformer');
+
 __PACKAGE__->mk_classdata('_transform_sql_handler_order'
-                            => [ qw/TABLE ESSENTIAL JOIN/ ] );
+                            => [ qw/TABLE ESSENTIAL JOIN IDENTIFIER/ ] );
 
 __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
   {
@@ -24,8 +27,14 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
     'ESSENTIAL' =>
       sub {
         my ($self, $class, $data) = @_;
-        return join(' ', $class->columns('Essential')) unless $data;
-        return join(' ', $self->{_classes}{$data}->columns('Essential'));
+        $class = $data ? $self->{_classes}{$data} : $class;
+        return join(', ', $class->columns('Essential'));
+      },
+    'IDENTIFIER' =>
+      sub {
+        my ($self, $class, $data) = @_;
+        $class = $data ? $self->{_classes}{$data} : $class;
+        return join ' AND ', map  "$_ = ?", $class->primary_columns;
       },
     'JOIN' =>
       sub {
@@ -82,33 +91,36 @@ sub set_sql {
       sub {
         my ($class, @args) = @_;
         my $sth = $class->$meth;
-        $sth->execute(@args);
-        return $class->sth_to_objects($sth);
+        return $class->sth_to_objects($sth, \@args);
       };
   }
 }
 
 sub sth_to_objects {
-  my ($class, $sth) = @_;
+  my ($class, $sth, $execute_args) = @_;
+
+  $sth->execute(@$execute_args);
+
   my @ret;
   while (my $row = $sth->fetchrow_hashref) {
     push(@ret, $class->inflate_result($class->result_source_instance, $row));
   }
+
   return @ret;
 }
 
 sub transform_sql {
   my ($class, $sql, @args) = @_;
-  my $attrs = { };
-  foreach my $key (@{$class->_transform_sql_handler_order}) {
-    my $h = $class->_transform_sql_handlers->{$key};
-    $sql =~ s/__$key(?:\(([^\)]+)\))?__/$h->($attrs, $class, $1)/eg;
-  }
-  #warn $sql;
-  return sprintf($sql, @args);
+  
+  my $tclass = $class->sql_transformer_class;
+  $class->ensure_class_loaded($tclass);
+  my $t = $tclass->new($class, $sql, @args);
+
+  return sprintf($t->sql, $t->args);
 }
 
-package DBIx::ContextualFetch::st;
+package
+  DBIx::ContextualFetch::st; # HIDE FROM PAUSE THIS IS NOT OUR CLASS
 
 no warnings 'redefine';
 

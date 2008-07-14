@@ -47,5 +47,81 @@ correctly.
 
 L<DBI> version 1.50 and L<DBD::Pg> 1.43 are known to work.
 
+=head2 ... Can't locate object method "source_name" via package ...
+
+There's likely a syntax error in the table class referred to elsewhere
+in this error message.  In particular make sure that the package
+declaration is correct, so for a schema C< MySchema > you need to
+specify a fully qualified namespace: C< package MySchema::MyTable; >
+for example.
+
+=head2 syntax error at or near "<something>" ...
+
+This can happen if you have a relation whose name is a word reserved by your
+database, e.g. "user":
+
+  package My::Schema::User;
+  ...
+  __PACKAGE__->table('users');
+  __PACKAGE__->add_columns(qw/ id name /);
+  __PACKAGE__->set_primary_key('id');
+  ...
+  1;
+
+  package My::Schema::ACL;
+  ...
+  __PACKAGE__->table('acl');
+  __PACKAGE__->add_columns(qw/ user_id /);
+  __PACKAGE__->belongs_to( 'user' => 'My::Schema::User', 'user_id' );
+  ...
+  1;
+
+  $schema->resultset('ACL')->search(
+    {},
+    {
+      join => [qw/ user /],
+      '+select' => [ 'user.name' ]
+    }
+  );
+
+The SQL generated would resemble something like:
+
+  SELECT me.user_id, user.name FROM acl me
+  JOIN users user ON me.user_id = user.id
+
+If, as is likely, your database treats "user" as a reserved word, you'd end
+up with the following errors:
+
+1) syntax error at or near "." - due to "user.name" in the SELECT clause
+
+2) syntax error at or near "user" - due to "user" in the JOIN clause
+
+The solution is to enable quoting - see
+L<DBIx::Class::Manual::Cookbook/Setting_quoting_for_the_generated_SQL> for
+details.
+
+Note that quoting may lead to problems with C<order_by> clauses, see
+L<... column "foo DESC" does not exist ...> for info on avoiding those.
+
+=head2 column "foo DESC" does not exist ...
+
+This can happen if you've turned on quoting and then done something like
+this:
+
+  $rs->search( {}, { order_by => [ 'name DESC' ] } );
+
+This results in SQL like this:
+
+  ... ORDER BY "name DESC"
+
+The solution is to pass your order_by items as scalar references to avoid
+quoting:
+
+  $rs->search( {}, { order_by => [ \'name DESC' ] } );
+
+Now you'll get SQL like this:
+
+  ... ORDER BY name DESC
+
 =cut
 
