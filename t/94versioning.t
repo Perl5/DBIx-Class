@@ -37,7 +37,6 @@ $schema_orig->create_ddl_dir('MySQL', undef, 't/var');
 
 ok(-f 't/var/DBICVersion-Schema-1.0-MySQL.sql', 'Created DDL file');
 $schema_orig->deploy({ add_drop_table => 1 });
-$schema_orig->upgrade();
 
 my $tvrs = $schema_orig->{vschema}->resultset('Table');
 is($schema_orig->_source_exists($tvrs), 1, 'Created schema from DDL file');
