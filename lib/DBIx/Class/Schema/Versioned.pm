@@ -71,53 +71,108 @@ DBIx::Class::Schema::Versioned - DBIx::Class::Schema plugin for Schema upgrades
 =head1 SYNOPSIS
 
   package Library::Schema;
-  use base qw/DBIx::Class::Schema/;   
+  use base qw/DBIx::Class::Schema/;
+
+  our $VERSION = 0.001;
+
   # load Library::Schema::CD, Library::Schema::Book, Library::Schema::DVD
   __PACKAGE__->load_classes(qw/CD Book DVD/);
 
-  __PACKAGE__->load_components(qw/+DBIx::Class::Schema::Versioned/);
+  __PACKAGE__->load_components(qw/Schema::Versioned/);
   __PACKAGE__->upgrade_directory('/path/to/upgrades/');
-  __PACKAGE__->backup_directory('/path/to/backups/');
 
 
 =head1 DESCRIPTION
 
-This module is a component designed to extend L<DBIx::Class::Schema>
-classes, to enable them to upgrade to newer schema layouts. To use this
-module, you need to have called C<create_ddl_dir> on your Schema to
-create your upgrade files to include with your delivery.
+This module provides methods to apply DDL changes to your database using SQL
+diff files. Normally these diff files would be created using
+L<DBIx::Class::Schema/create_ddl_dir>.
 
 A table called I<dbix_class_schema_versions> is created and maintained by the
-module. This contains two fields, 'Version' and 'Installed', which
-contain each VERSION of your Schema, and the date+time it was installed.
+module. This is used to determine which version your database is currently at.
+Similarly the $VERSION in your DBIC schema class is used to determine the
+current DBIC schema version.
 
-The actual upgrade is called manually by calling C<upgrade> on your
-schema object. Code is run at connect time to determine whether an
-upgrade is needed, if so, a warning "Versions out of sync" is
-produced.
-
-So you'll probably want to write a script which generates your DDLs and diffs
-and another which executes the upgrade.
+The upgrade is initiated manually by calling C<upgrade> on your schema object,
+this will attempt to upgrade the database from its current version to the current
+schema version using a diff from your I<upgrade_directory>. If a suitable diff is
+not found then no upgrade is possible.
 
 NB: At the moment, only SQLite and MySQL are supported. This is due to
 spotty behaviour in the SQL::Translator producers, please help us by
-them.
-
+enhancing them. Ask on the mailing list or IRC channel for details (details
+in L<DBIx::Class>).
 
 =head1 GETTING STARTED
 
+Firstly you need to setup your schema class as per the L</SYNOPSIS>, make sure
+you have specified an upgrade_directory and an initial $VERSION.
 
-=cut
+Then you'll need two scripts, one to create DDL files and diffs and another to perform
+upgrades. Your creation script might look like a bit like this:
 
-=head1 METHODS
+  use strict;
+  use Pod::Usage;
+  use Getopt::Long;
+  use MyApp::Schema;
 
-=head2 upgrade_directory
+  my ( $preversion, $help ); 
+  GetOptions(
+    'p|preversion:s'  => \$preversion,
+  ) or die pod2usage;
 
-Use this to set the directory your upgrade files are stored in.
+  my $schema = MyApp::Schema->connect(
+    $dsn,
+    $user,
+    $password,
+  );
+  my $sql_dir = './sql';
+  my $version = $schema->schema_version();
+  $schema->create_ddl_dir( 'MySQL', $version, $sql_dir, $preversion );
 
-=head2 backup_directory
+Then your upgrade script might look like so:
 
-Use this to set the directory you want your backups stored in.
+  use strict;
+  use MyApp::Schema;
+
+  my $schema = MyApp::Schema->connect(
+    $dsn,
+    $user,
+    $password,
+  );
+
+  if (!$schema->get_db_version()) {
+    # schema is unversioned
+    $schema->deploy();
+  } else {
+    $schema->upgrade();
+  }
+
+The script above assumes that if the database is unversioned then it is empty
+and we can safely deploy the DDL to it. However things are not always so simple.
+
+if you want to initialise a pre-existing database where the DDL is not the same
+as the DDL for your current schema version then you will need a diff which 
+converts the database's DDL to the current DDL. The best way to do this is
+to get a dump of the database schema (without data) and save that in your
+SQL directory as version 0.000 (the filename must be as with
+L<DBIx::Class::Schema/ddl_filename>) then create a diff using your create DDL 
+script given above from version 0.000 to the current version. Then hand check
+and if necessary edit the resulting diff to ensure that it will apply. Once you have 
+done all that you can do this:
+
+  if (!$schema->get_db_version()) {
+    # schema is unversioned
+    $schema->install("0.000");
+  }
+
+  # this will now apply the 0.000 to current version diff
+  $schema->upgrade();
+
+In the case of an unversioned database the above code will create the
+dbix_class_schema_versions table and write version 0.000 to it, then 
+upgrade will then apply the diff we talked about creating in the previous paragraph
+and then you're good to go.
 
 =cut
 
@@ -134,6 +189,20 @@ __PACKAGE__->mk_classdata('upgrade_directory');
 __PACKAGE__->mk_classdata('backup_directory');
 __PACKAGE__->mk_classdata('do_backup');
 __PACKAGE__->mk_classdata('do_diff_on_init');
+
+
+=head1 METHODS
+
+=head2 upgrade_directory
+
+Use this to set the directory your upgrade files are stored in.
+
+=head2 backup_directory
+
+Use this to set the directory you want your backups stored in (note that backups
+are disabled by default).
+
+=cut
 
 =head2 install
 
@@ -163,20 +232,35 @@ sub install
   # default to current version if none passed
   $new_version ||= $self->schema_version();
 
-  unless ($new_version) {
+  if ($new_version) {
     # create versions table and version row
     $self->{vschema}->deploy;
     $self->_set_db_version;
   }
 }
 
+=head2 deploy
+
+Same as L<DBIx::Class::Schema/deploy> but also calls C<install>.
+
+=cut
+
+sub deploy {
+  my $self = shift;
+  $self->next::method(@_);
+  $self->install();
+}
+
 =head2 upgrade
 
 Call this to attempt to upgrade your database from the version it is at to the version
-this DBIC schema is at. 
+this DBIC schema is at. If they are the same it does nothing.
 
-It requires an SQL diff file to exist in $schema->upgrade_directory, normally you will
-have created this using $schema->create_ddl_dir.
+It requires an SQL diff file to exist in you I<upgrade_directory>, normally you will
+have created this using L<DBIx::Class::Schema/create_ddl_dir>.
+
+If successful the dbix_class_schema_versions table is updated with the current
+DBIC schema version.
 
 =cut
 
@@ -249,7 +333,7 @@ sub do_upgrade
 
 Runs a set of SQL statements matching a passed in regular expression. The
 idea is that this method can be called any number of times from your
-C<upgrade> method, running whichever commands you specify via the
+C<do_upgrade> method, running whichever commands you specify via the
 regex in the parameter. Probably won't work unless called from the overridable
 do_upgrade method.
 
@@ -276,7 +360,7 @@ sub run_upgrade
 =head2 get_db_version
 
 Returns the version that your database is currently at. This is determined by the values in the
-dbix_class_schema_versions table that $self->upgrade writes to.
+dbix_class_schema_versions table that C<upgrade> and C<install> write to.
 
 =cut
 
@@ -326,7 +410,7 @@ warns if they are not the same or if the DB is unversioned. It also provides
 compatibility between the old versions table (SchemaVersions) and the new one
 (dbix_class_schema_versions).
 
-To avoid the checks on connect, set the env var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth arg like so:
+To avoid the checks on connect, set the env var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth argument like so:
 
   my $schema = MyApp::Schema->connect(
     $dsn,
