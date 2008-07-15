@@ -69,6 +69,9 @@ sub parse {
     foreach my $moniker (sort @monikers)
     {
         my $source = $dbicschema->source($moniker);
+        
+        # Skip custom query sources
+        next if ref($source->name);
 
         # Its possible to have multiple DBIC source using same table
         next if $seen_tables{$source->name}++;
