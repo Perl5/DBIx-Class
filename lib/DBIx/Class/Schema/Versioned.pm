@@ -100,7 +100,7 @@ not found then no upgrade is possible.
 
 NB: At the moment, only SQLite and MySQL are supported. This is due to
 spotty behaviour in the SQL::Translator producers, please help us by
-enhancing them. Ask on the mailing list or IRC channel for details (details
+enhancing them. Ask on the mailing list or IRC channel for details (community details
 in L<DBIx::Class>).
 
 =head1 GETTING STARTED

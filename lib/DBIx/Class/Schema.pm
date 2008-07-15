@@ -1101,7 +1101,7 @@ sub create_ddl_dir {
   $self->storage->create_ddl_dir($self, @_);
 }
 
-=head2 ddl_filename (EXPERIMENTAL)
+=head2 ddl_filename
 
 =over 4
 
