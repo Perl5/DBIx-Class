@@ -62,29 +62,6 @@ particular which module inherits off which.
 
 =head1 METHODS
 
-=head2 schema_version
-
-Returns the current schema class' $VERSION
-
-=cut
-
-sub schema_version {
-  my ($self) = @_;
-  my $class = ref($self)||$self;
-
-  # does -not- use $schema->VERSION
-  # since that varies in results depending on if version.pm is installed, and if
-  # so the perl or XS versions. If you want this to change, bug the version.pm
-  # author to make vpp and vxs behave the same.
-
-  my $version;
-  {
-    no strict 'refs';
-    $version = ${"${class}::VERSION"};
-  }
-  return $version;
-}
-
 =head2 register_class
 
 =over 4
@@ -744,9 +721,10 @@ sub txn_do {
   $self->storage->txn_do(@_);
 }
 
-=head2 txn_scope_guard
+=head2 txn_scope_guard (EXPERIMENTAL)
 
-Runs C<txn_scope_guard> on the schema's storage.
+Runs C<txn_scope_guard> on the schema's storage. See 
+L<DBIx::Class::Storage/txn_scope_guard>.
 
 =cut
 
@@ -1124,7 +1102,7 @@ sub create_ddl_dir {
   $self->storage->create_ddl_dir($self, @_);
 }
 
-=head2 ddl_filename (EXPERIMENTAL)
+=head2 ddl_filename
 
 =over 4
 
@@ -1199,6 +1177,29 @@ sub dclone {
   my ($self, $obj) = @_;
   local $DBIx::Class::ResultSourceHandle::thaw_schema = $self;
   return Storable::dclone($obj);
+}
+
+=head2 schema_version
+
+Returns the current schema class' $VERSION
+
+=cut
+
+sub schema_version {
+  my ($self) = @_;
+  my $class = ref($self)||$self;
+
+  # does -not- use $schema->VERSION
+  # since that varies in results depending on if version.pm is installed, and if
+  # so the perl or XS versions. If you want this to change, bug the version.pm
+  # author to make vpp and vxs behave the same.
+
+  my $version;
+  {
+    no strict 'refs';
+    $version = ${"${class}::VERSION"};
+  }
+  return $version;
 }
 
 1;
