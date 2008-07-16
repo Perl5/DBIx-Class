@@ -721,9 +721,10 @@ sub txn_do {
   $self->storage->txn_do(@_);
 }
 
-=head2 txn_scope_guard
+=head2 txn_scope_guard (EXPERIMENTAL)
 
-Runs C<txn_scope_guard> on the schema's storage.
+Runs C<txn_scope_guard> on the schema's storage. See 
+L<DBIx::Class::Storage/txn_scope_guard>.
 
 =cut
 

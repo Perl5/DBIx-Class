@@ -299,9 +299,21 @@ sub svp_rollback { die "Virtual method!" }
 
 =for comment
 
-=head2 txn_scope_guard
+=head2 txn_scope_guard (EXPERIMENTAL)
 
-Return an object that does stuff.
+An alternative way of using transactions to C<txn_do>:
+
+ my $txn = $storage->txn_scope_guard;
+
+ $row->col1("val1");
+ $row->update;
+
+ $txn->commit;
+
+If a exception occurs, the transaction will be rolled back. This is still very
+experiemental, and we are not 100% sure it is working right when nested. The
+onus is on you as the user to make sure you dont forget to call
+$C<$txn->commit>.
 
 =cut
 
