@@ -239,6 +239,8 @@ dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 
 gphat: Cory G Watson <gphat@cpan.org>
 
+groditi: Guillermo Roditi <groditi@cpan.org>
+
 jesper: Jesper Krogh
 
 jguenther: Justin Guenther <jguenther@cpan.org>
