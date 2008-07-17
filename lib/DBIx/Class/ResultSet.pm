@@ -12,6 +12,7 @@ use Storable;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultSourceHandle;
 use List::Util ();
+use Scalar::Util ();
 use base qw/DBIx::Class/;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/result_class _source_handle/);
@@ -1527,14 +1528,38 @@ sub new_result {
 
   # precendence must be given to passed values over values inherited from the cond, 
   # so the order here is important.
-  my %new = (
-    %{ $self->_remove_alias($collapsed_cond, $alias) },
+  my %new;
+  my %implied =  %{$self->_remove_alias($collapsed_cond, $alias)};
+  while( my($col,$value) = each %implied ){
+    if(ref($value) eq 'HASH' && keys(%$value) && (keys %$value)[0] eq '='){
+      $new{$col} = $value->{'='};
+      next;
+    }
+    $new{$col} = $value if $self->_is_deterministic_value($value);
+  }
+
+  %new = (
+    %new,
     %{ $self->_remove_alias($values, $alias) },
     -source_handle => $self->_source_handle,
     -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
   );
 
   return $self->result_class->new(\%new);
+}
+
+# _is_deterministic_value
+#
+# Make an effor to strip non-deterministic values from the condition, 
+# to make sure new_result chokes less
+
+sub _is_deterministic_value {
+  my $self = shift;
+  my $value = shift;
+  my $ref_type = ref $value;
+  return 1 if $ref_type eq '' || $ref_type eq 'SCALAR';
+  return 1 if Scalar::Util::blessed($value);
+  return 0;
 }
 
 # _collapse_cond
