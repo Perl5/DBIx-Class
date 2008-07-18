@@ -10,7 +10,7 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime::Format::MySQL };
 plan skip_all => "Need DateTime::Format::MySQL for inflation tests" if $@;
 
-plan tests => 17;
+plan tests => 21;
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);
@@ -69,4 +69,26 @@ isa_ok($loaded_event->created_on, 'DateTime', 'DateTime returned');
 $created_on = $loaded_event->created_on;
 is("$created_on", '2006-01-31T12:34:56', 'Loaded correct timestamp using timezone');
 is($created_on->time_zone->name, 'America/Chicago', 'Correct timezone');
+
+# This should fail to set
+my $prev_str = "$created_on";
+$loaded_event->update({ created_on => '0000-00-00' });
+is("$created_on", $prev_str, "Don't update invalid dates");
+
+my $invalid = $schema->resultset('Event')->create({
+    starts_at  => '0000-00-00',
+    created_on => $created_on
+});
+
+is( $invalid->get_column('starts_at'), '0000-00-00', "Invalid date stored" );
+is( $invalid->starts_at, undef, "Inflate to undef" );
+
+$invalid->created_on('0000-00-00');
+$invalid->update;
+
+{
+    local $@;
+    eval { $invalid->created_on };
+    like( $@, qr/invalid date format/i, "Invalid date format exception");
+}
 

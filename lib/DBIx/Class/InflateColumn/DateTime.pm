@@ -53,6 +53,18 @@ Chains with the L<DBIx::Class::Row/register_column> method, and sets
 up datetime columns appropriately.  This would not normally be
 directly called by end users.
 
+In the case of an invalid date, L<DateTime> will throw an exception.  To
+bypass these exceptions and just have the inflation return undef, use
+the C<datetime_undef_if_invalid> option in the column info:
+  
+    "broken_date",
+    {
+        data_type => "datetime",
+        default_value => '0000-00-00',
+        is_nullable => 1,
+        datetime_undef_if_invalid => 1
+    }
+
 =cut
 
 sub register_column {
@@ -73,7 +85,8 @@ sub register_column {
         {
           inflate => sub {
             my ($value, $obj) = @_;
-            my $dt = $obj->_datetime_parser->$parse($value);
+            my $dt = eval { $obj->_datetime_parser->$parse($value); };
+            die "Error while inflating ${value} for ${column} on ${self}: $@" if $@ and not $info->{datetime_undef_if_invalid};
             $dt->set_time_zone($timezone) if $timezone;
             return $dt;
           },
