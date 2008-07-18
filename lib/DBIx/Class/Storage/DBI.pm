@@ -1631,9 +1631,6 @@ sub deployment_statements {
   my $tr = SQL::Translator->new(%$sqltargs);
   SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
   return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
-
-  return;
-
 }
 
 sub deploy {
