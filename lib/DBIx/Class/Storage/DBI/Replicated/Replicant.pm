@@ -74,6 +74,10 @@ sub debugobj {
     return shift->schema->storage->debugobj;
 }
 
+=head1 ALSO SEE
+
+L<<a href="http://en.wikipedia.org/wiki/Replicant">http://en.wikipedia.org/wiki/Replicant</a>>
+
 =head1 AUTHOR
 
 John Napiorkowski <john.napiorkowski@takkle.com>

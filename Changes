@@ -19,8 +19,8 @@ Revision history for DBIx::Class
           names should now be consistent and collision-free.
         - Improve handling of explicit key attr in ResultSet::find
         - Add warnings for non-unique ResultSet::find queries
-        - Changed Storage::DBI::Replication to Storage::DBI::Replicated, fixed
-          some problems using this with versioned databases, added some docs
+        - Changed Storage::DBI::Replication to Storage::DBI::Replicated and
+          refactored support.
         - By default now deploy/diff et al. will ignore constraint and index 
           names
         - Add ResultSet::_is_deterministic_value, make new_result filter the

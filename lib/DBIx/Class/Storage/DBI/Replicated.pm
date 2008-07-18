@@ -449,8 +449,6 @@ inserted something and need to get a resultset including it, etc.
 
 =cut
 
-use Benchmark;
-
 sub execute_reliably {
   my ($self, $coderef, @args) = @_;
   
