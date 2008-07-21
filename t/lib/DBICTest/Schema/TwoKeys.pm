@@ -10,7 +10,11 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key(qw/artist cd/);
 
-__PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist' );
+__PACKAGE__->belongs_to(
+    artist => 'DBICTest::Schema::Artist',
+    {'foreign.artistid'=>'self.artist'},
+);
+
 __PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD', undef, { is_deferrable => 0, add_fk_index => 0 } );
 
 __PACKAGE__->has_many(

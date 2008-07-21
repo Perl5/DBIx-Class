@@ -59,14 +59,14 @@ my %fk_constraints = (
   fourkeys_to_twokeys => [
     {
       'display' => 'fourkeys_to_twokeys->twokeys',
-      'name' => 'fourkeys_to_twokeys_fk_t_cd_t_artist', 'index_name' => 'fourkeys_to_twokeys_idx_t_cd_t_artist',
+      'name' => 'fourkeys_to_twokeys_fk_t_artist_t_cd', 'index_name' => 'fourkeys_to_twokeys_idx_t_artist_t_cd',
       'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'twokeys', 
       'selfcols'  => ['t_artist', 't_cd'], 'foreigncols' => ['artist', 'cd'], 
       on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
     {
-      'display' => 'fourkeys_to_twokeys->fourkeys', 'index_name' => 'fourkeys_to_twokeys_idx_f_foo_f_goodbye_f_hello_f_bar',
-      'name' => 'fourkeys_to_twokeys_fk_f_foo_f_goodbye_f_hello_f_bar',
+      'display' => 'fourkeys_to_twokeys->fourkeys', 'index_name' => 'fourkeys_to_twokeys_idx_f_foo_f_bar_f_hello_f_goodbye',
+      'name' => 'fourkeys_to_twokeys_fk_f_foo_f_bar_f_hello_f_goodbye',
       'selftable' => 'fourkeys_to_twokeys', 'foreigntable' => 'fourkeys', 
       'selfcols'  => [qw(f_foo f_bar f_hello f_goodbye)],
       'foreigncols' => [qw(foo bar hello goodbye)], 
@@ -199,7 +199,7 @@ my %fk_constraints = (
       'display' => 'forceforeign->artist',
       'name' => 'forceforeign_fk_artist', 'index_name' => 'forceforeign_idx_artist',
       'selftable' => 'forceforeign', 'foreigntable' => 'artist', 
-      'selfcols'  => ['artist'], 'foreigncols' => ['artist_id'], 
+      'selfcols'  => ['artist'], 'foreigncols' => ['artistid'], 
       on_delete => '', on_update => '', deferrable => 1,
     },
   ],

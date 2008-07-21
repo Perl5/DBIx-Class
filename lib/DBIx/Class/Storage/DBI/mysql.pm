@@ -33,6 +33,15 @@ sub _svp_rollback {
 
     $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
+ 
+sub is_replicating {
+    my $status = shift->dbh->selectrow_hashref('show slave status');
+    return ($status->{Slave_IO_Running} eq 'Yes') && ($status->{Slave_SQL_Running} eq 'Yes');
+}
+
+sub lag_behind_master {
+    return shift->dbh->selectrow_hashref('show slave status')->{Seconds_Behind_Master};
+}
 
 1;
 

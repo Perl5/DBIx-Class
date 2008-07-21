@@ -14,7 +14,7 @@ __PACKAGE__->set_primary_key(qw/artist/);
 # since it uses the PK
 __PACKAGE__->might_have(
 			'artist_1', 'DBICTest::Schema::Artist', {
-			    'foreign.artist_id' => 'self.artist',
+			    'foreign.artistid' => 'self.artist',
 			}, {
 			    is_foreign_key_constraint => 1,
 			},

@@ -116,5 +116,5 @@ NULLINSEARCH: {
 
 # clean up our mess
 END {
-    $dbh->do("DROP TABLE artist") if $dbh;
+    #$dbh->do("DROP TABLE artist") if $dbh;
 }

@@ -1063,6 +1063,7 @@ sub _query_start {
 
     if ( $self->debug ) {
         @bind = $self->_fix_bind_params(@bind);
+        
         $self->debugobj->query_start( $sql, @bind );
     }
 }
@@ -1705,6 +1706,31 @@ sub build_datetime_parser {
         _check_sqlt_version if !defined $_check_sqlt_message;
         $_check_sqlt_message;
     }
+}
+
+=head2 is_replicating
+
+A boolean that reports if a particular L<DBIx::Class::Storage::DBI> is set to
+replicate from a master database.  Default is undef, which is the result
+returned by databases that don't support replication.
+
+=cut
+
+sub is_replicating {
+    return;
+    
+}
+
+=head2 lag_behind_master
+
+Returns a number that represents a certain amount of lag behind a master db
+when a given storage is replicating.  The number is database dependent, but
+starts at zero and increases with the amount of lag. Default in undef
+
+=cut
+
+sub lag_behind_master {
+    return;
 }
 
 sub DESTROY {
