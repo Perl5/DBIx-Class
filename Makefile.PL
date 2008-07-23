@@ -44,6 +44,9 @@ my @force_build_requires_if_author = qw(
   DBIx::ContextualFetch
   Class::Trigger
   Time::Piece
+  Clone
+  Test::Pod::Coverage
+  Test::Memory::Cycle
 );
 
 if ($Module::Install::AUTHOR) {
