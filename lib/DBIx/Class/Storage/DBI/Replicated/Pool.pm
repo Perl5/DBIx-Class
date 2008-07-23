@@ -7,7 +7,7 @@ use List::Util qw(sum);
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Replicated::Pool; Manage a pool of replicants
+DBIx::Class::Storage::DBI::Replicated::Pool - Manage a pool of replicants
 
 =head1 SYNOPSIS
 

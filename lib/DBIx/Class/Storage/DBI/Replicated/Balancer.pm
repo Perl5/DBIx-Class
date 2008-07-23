@@ -5,7 +5,7 @@ requires 'next_storage';
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Replicated::Balancer; A Software Load Balancer 
+DBIx::Class::Storage::DBI::Replicated::Balancer - A Software Load Balancer 
 
 =head1 SYNOPSIS
 

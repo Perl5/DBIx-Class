@@ -5,7 +5,7 @@ requires qw/_query_start/;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Replicated::Replicant; A replicated DBI Storage Role
+DBIx::Class::Storage::DBI::Replicated::Replicant - A replicated DBI Storage Role
 
 =head1 SYNOPSIS
 

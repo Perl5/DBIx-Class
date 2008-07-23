@@ -5,7 +5,7 @@ with 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Replicated::Balancer::First; Just get the First Balancer
+DBIx::Class::Storage::DBI::Replicated::Balancer::First - Just get the First Balancer
 
 =head1 SYNOPSIS
 
