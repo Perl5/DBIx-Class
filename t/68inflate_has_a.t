@@ -10,6 +10,9 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime };
 plan skip_all => "Need DateTime for inflation tests" if $@;
 
+eval { require Clone };
+plan skip_all => "Need Clone for CDBICompat inflation tests" if $@;
+
 plan tests => 6;
 
 DBICTest::Schema::CD->load_components(qw/CDBICompat::Relationships/);
