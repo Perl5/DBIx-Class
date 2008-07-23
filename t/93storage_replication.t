@@ -6,7 +6,7 @@ use Test::Exception;
 use DBICTest;
 
 BEGIN {
-    eval "use DBIx::Class::Storage::DBI::Replicated";
+    eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
         : ( tests => 79 );
