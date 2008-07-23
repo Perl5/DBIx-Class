@@ -78,6 +78,8 @@ sub register_column {
     $timezone = $info->{extra}{timezone};
   }
 
+  my $undef_if_invalid = $info->{datetime_undef_if_invalid};
+
   if ($type eq 'datetime' || $type eq 'date') {
     my ($parse, $format) = ("parse_${type}", "format_${type}");
     $self->inflate_column(
@@ -86,7 +88,8 @@ sub register_column {
           inflate => sub {
             my ($value, $obj) = @_;
             my $dt = eval { $obj->_datetime_parser->$parse($value); };
-            die "Error while inflating ${value} for ${column} on ${self}: $@" if $@ and not $info->{datetime_undef_if_invalid};
+            die "Error while inflating ${value} for ${column} on ${self}: $@"
+              if $@ and not $undef_if_invalid;
             $dt->set_time_zone($timezone) if $timezone;
             return $dt;
           },
