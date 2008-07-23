@@ -5,7 +5,7 @@ with 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Replicated::Balancer::Random; A 'random' Balancer
+DBIx::Class::Storage::DBI::Replicated::Balancer::Random - A 'random' Balancer
 
 =head1 SYNOPSIS
 
