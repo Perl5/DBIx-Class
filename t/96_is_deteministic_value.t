@@ -3,11 +3,13 @@ use warnings;
 
 # 6 tests
 
-use Test::More qw(no_plan);
+use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 use DateTime;
-use DateTime::Format::Strptime;
+eval "use DateTime::Format::Strptime";
+plan skip_all => 'DateTime::Format::Strptime required' if $@;
+plan 'no_plan';
 use Test::Exception;
 
 my $schema = DBICTest->init_schema();
