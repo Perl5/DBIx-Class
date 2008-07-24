@@ -1751,6 +1751,12 @@ constraint. For example:
     { key => 'cd_artist_title' }
   );
 
+Note: Because find_or_create() reads from the database and then
+possibly inserts based on the result, this method is subject to a race
+condition. Another process could create a record in the table after
+the find has completed and before the create has started. To avoid
+this problem, use find_or_create() inside a transaction.
+
 See also L</find> and L</update_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 
