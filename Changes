@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08099_04 2008-07-24 01:00:00
         - Added datetime_undef_if_invalid for InflateColumn::DateTime to
           return undef on invalid date/time values
         - Added search_related_rs method to ResultSet
