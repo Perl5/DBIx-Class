@@ -3,6 +3,8 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use Sub::Name ();
+use Class::Inspector ();
 
 sub register_relationship {
   my ($class, $rel, $info) = @_;
@@ -57,7 +59,8 @@ sub add_relationship_accessor {
     no strict 'refs';
     no warnings 'redefine';
     foreach my $meth (keys %meth) {
-      *{"${class}::${meth}"} = $meth{$meth};
+      my $name = join '::', $class, $meth;
+      *$name = Sub::Name::subname($name, $meth{$meth});
     }
   }
 }

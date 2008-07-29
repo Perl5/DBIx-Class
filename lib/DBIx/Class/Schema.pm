@@ -7,6 +7,7 @@ use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
 use File::Spec;
+use Sub::Name ();
 require Module::Find;
 
 use base qw/DBIx::Class/;
@@ -535,7 +536,8 @@ more information.
     my $schema = $self->compose_namespace($target, $base);
     {
       no strict 'refs';
-      *{"${target}::schema"} = sub { $schema };
+      my $name = join '::', $target, 'schema';
+      *$name = Sub::Name::subname $name, sub { $schema };
     }
   
     $schema->connection(@info);
@@ -606,8 +608,8 @@ sub compose_namespace {
     no strict 'refs';
     no warnings 'redefine';
     foreach my $meth (qw/class source resultset/) {
-      *{"${target}::${meth}"} =
-        sub { shift->schema->$meth(@_) };
+      my $name = join '::', $target, $meth;
+      *$name = Sub::Name::subname $name, sub { shift->schema->$meth(@_) };
     }
   }
   return $schema;

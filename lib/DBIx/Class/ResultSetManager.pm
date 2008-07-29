@@ -2,6 +2,7 @@ package DBIx::Class::ResultSetManager;
 use strict;
 use warnings;
 use base 'DBIx::Class';
+use Sub::Name ();
 use Class::Inspector;
 
 warn "DBIx::Class::ResultSetManager never left experimental status and
@@ -58,7 +59,8 @@ sub _register_attributes {
         if ($attrs->[0] eq 'ResultSet') {
             no strict 'refs';
             my $resultset_class = $self->_setup_resultset_class;
-            *{"$resultset_class\::$meth"} = $self->can($meth);
+            my $name = join '::',$resultset_class, $meth;
+            *$name = Sub::Name::subname $name, $self->can($meth);
             delete ${"${self}::"}{$meth};
         }
     }

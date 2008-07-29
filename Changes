@@ -28,6 +28,8 @@ Revision history for DBIx::Class
           names
         - Add ResultSet::_is_deterministic_value, make new_result filter the
           values passed to new to drop values that would generate invalid SQL.
+        - Use Sub::Name to name closures before installing them. Fixes 
+          incompatibility with Moose method modifiers on generated methods.
 
 0.08010 2008-03-01 10:30
         - Fix t/94versioning.t so it passes with latest SQL::Translator

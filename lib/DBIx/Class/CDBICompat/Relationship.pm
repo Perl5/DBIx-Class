@@ -3,7 +3,7 @@ package
 
 use strict;
 use warnings;
-
+use Sub::Name ();
 
 =head1 NAME
 
@@ -36,7 +36,7 @@ for my $method (keys %method2key) {
     };
     
     no strict 'refs';
-    *{$method} = $code;
+    *{$method} = Sub::Name::subname $method, $code;
 }
 
 1;

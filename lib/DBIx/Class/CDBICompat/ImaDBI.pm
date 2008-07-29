@@ -4,6 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use DBIx::ContextualFetch;
+use Sub::Name ();
 
 use base qw/DBIx::Class/;
 
@@ -79,18 +80,21 @@ sub __driver {
 sub set_sql {
   my ($class, $name, $sql) = @_;
   no strict 'refs';
-  *{"${class}::sql_${name}"} =
+  my $sql_name = "sql_${name}";
+  my $full_sql_name = join '::', $class, $sql_name;
+  *$full_sql_name = Sub::Name::subname $full_sql_name,
     sub {
       my $sql = $sql;
       my $class = shift;
       return $class->storage->sth($class->transform_sql($sql, @_));
     };
   if ($sql =~ /select/i) {
-    my $meth = "sql_${name}";
-    *{"${class}::search_${name}"} =
+    my $search_name = "search_${name}";
+    my $full_search_name = join '::', $class, $search_name;
+    *$full_search_name = Sub::Name::subname $full_search_name,
       sub {
         my ($class, @args) = @_;
-        my $sth = $class->$meth;
+        my $sth = $class->$sql_name;
         return $class->sth_to_objects($sth, \@args);
       };
   }

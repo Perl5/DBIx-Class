@@ -3,7 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-
+use Sub::Name ();
 use Storable 'dclone';
 
 use base qw/DBIx::Class::Row/;
@@ -87,7 +87,8 @@ sub _register_column_group {
     {
       no strict 'refs';
       no warnings 'redefine';
-      *{$class .'::'. $name} = $accessor;
+      my $fullname = join '::', $class, $name;
+      *$fullname = Sub::Name::subname $fullname, $accessor;
     }
     
     $our_accessors{$accessor}++;

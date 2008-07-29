@@ -3,6 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use Sub::Name ();
 
 sub many_to_many {
   my ($class, $meth, $rel, $f_rel, $rel_attrs) = @_;
@@ -33,7 +34,8 @@ sub many_to_many {
 
     $rel_attrs->{alias} ||= $f_rel;
 
-    *{"${class}::${meth}_rs"} = sub {
+    my $rs_meth_name = join '::', $class, $rs_meth;
+    *$rs_meth_name = Sub::Name::subname $rs_meth_name, sub {
       my $self = shift;
       my $attrs = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
       my @args = ($f_rel, @_ > 0 ? @_ : undef, { %{$rel_attrs||{}}, %$attrs });
@@ -43,13 +45,15 @@ sub many_to_many {
 	  return $rs;
     };
 
-	*{"${class}::${meth}"} = sub {
+    my $meth_name = join '::', $class, $meth;
+    *$meth_name = Sub::Name::subname $meth_name, sub {
 		my $self = shift;
 		my $rs = $self->$rs_meth( @_ );
   		return (wantarray ? $rs->all : $rs);
 	};
 
-    *{"${class}::${add_meth}"} = sub {
+    my $add_meth_name = join '::', $class, $add_meth;
+    *$add_meth_name = Sub::Name::subname $add_meth_name, sub {
       my $self = shift;
       @_ > 0 or $self->throw_exception(
         "${add_meth} needs an object or hashref"
@@ -79,7 +83,8 @@ sub many_to_many {
 	  return $obj;
     };
 
-    *{"${class}::${set_meth}"} = sub {
+    my $set_meth_name = join '::', $class, $set_meth;
+    *$set_meth_name = Sub::Name::subname $set_meth_name, sub {
       my $self = shift;
       @_ > 0 or $self->throw_exception(
         "{$set_meth} needs a list of objects or hashrefs"
@@ -89,7 +94,8 @@ sub many_to_many {
       $self->$add_meth($_) for (@to_set);
     };
 
-    *{"${class}::${remove_meth}"} = sub {
+    my $remove_meth_name = join '::', $class, $remove_meth;
+    *$remove_meth_name = Sub::Name::subname $remove_meth_name, sub {
       my $self = shift;
       @_ > 0 && ref $_[0] ne 'HASH'
         or $self->throw_exception("${remove_meth} needs an object");

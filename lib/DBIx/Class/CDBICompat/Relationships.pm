@@ -3,7 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-
+use Sub::Name ();
 use base qw/Class::Data::Inheritable/;
 
 use Clone;
@@ -122,7 +122,8 @@ sub has_many {
     no strict 'refs';
     no warnings 'redefine';
     my $post_proc = sub { my $o = shift; $o = $o->$_ for @f_method; $o; };
-    *{"${class}::${rel}"} =
+    my $name = join '::', $class, $rel;
+    *$name = Sub::Name::subname $name,
       sub {
         my $rs = shift->search_related($rel => @_);
         $rs->{attrs}{record_filter} = $post_proc;
