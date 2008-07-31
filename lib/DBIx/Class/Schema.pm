@@ -97,7 +97,32 @@ moniker.
 =cut
 
 sub register_source {
-  my ($self, $moniker, $source) = @_;
+  my $self = shift;
+
+  $self->_register_source(@_);
+}
+
+=head2 register_extra_source
+
+=over 4
+
+=item Arguments: $moniker, $result_source
+
+=back
+
+As L</register_source> but should be used if the result class already 
+has a source and you want to register an extra one.
+
+=cut
+
+sub register_extra_source {
+  my $self = shift;
+
+  $self->_register_source(@_, { extra => 1 });
+}
+
+sub _register_source {
+  my ($self, $moniker, $source, $params) = @_;
 
   %$source = %{ $source->new( { %$source, source_name => $moniker }) };
 
@@ -107,9 +132,14 @@ sub register_source {
 
   $source->schema($self);
 
+  return if ($params->{extra});
+
   weaken($source->{schema}) if ref($self);
   if ($source->result_class) {
     my %map = %{$self->class_mappings};
+    if (exists $map{$source->result_class}) {
+      warn $source->result_class . ' already has a source, use register_extra_source for additional sources';
+    }
     $map{$source->result_class} = $moniker;
     $self->class_mappings(\%map);
   }
@@ -883,6 +913,7 @@ sub clone {
   foreach my $moniker ($self->sources) {
     my $source = $self->source($moniker);
     my $new = $source->new($source);
+    $clone->_unregister_source($moniker);
     $clone->register_source($moniker => $new);
   }
   $clone->storage->set_schema($clone) if $clone->storage;
