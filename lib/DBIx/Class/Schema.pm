@@ -913,8 +913,9 @@ sub clone {
   foreach my $moniker ($self->sources) {
     my $source = $self->source($moniker);
     my $new = $source->new($source);
-    $clone->_unregister_source($moniker);
-    $clone->register_source($moniker => $new);
+    # we use extra here as we want to leave the class_mappings as they are
+    # but overwrite the source_registrations entry with the new source
+    $clone->register_extra_source($moniker => $new);
   }
   $clone->storage->set_schema($clone) if $clone->storage;
   return $clone;
