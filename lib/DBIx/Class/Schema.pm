@@ -910,6 +910,8 @@ sub clone {
   my $clone = { (ref $self ? %$self : ()) };
   bless $clone, (ref $self || $self);
 
+  $clone->class_mappings({ %{$clone->class_mappings} });
+  $clone->source_registrations({ %{$clone->source_registrations} });
   foreach my $moniker ($self->sources) {
     my $source = $self->source($moniker);
     my $new = $source->new($source);

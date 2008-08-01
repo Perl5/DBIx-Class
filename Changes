@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
 0.08099_04 2008-07-24 01:00:00
+        - Fixed $schema->clone bug which caused clone and source to share 
+          internal hash refs
         - Added register_extra_source methods for additional sources
         - Added datetime_undef_if_invalid for InflateColumn::DateTime to
           return undef on invalid date/time values
