@@ -7,6 +7,14 @@ use base qw/DBIx::Class::Storage::DBI/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
+sub with_deferred_fk_checks {
+  my ($self, $sub) = @_;
+
+  $self->dbh->do('SET foreign_key_checks=0');
+  $sub->();
+  $self->dbh->do('SET foreign_key_checks=1');
+}
+
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
   $dbh->{mysql_insertid};

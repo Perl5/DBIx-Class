@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
 0.08099_04 2008-07-24 01:00:00
+        - Functionality to storage to enable a sub to be run without FK checks
         - Fixed $schema->clone bug which caused clone and source to share 
           internal hash refs
         - Added register_extra_source methods for additional sources

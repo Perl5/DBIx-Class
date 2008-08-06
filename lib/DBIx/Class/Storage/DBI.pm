@@ -709,6 +709,28 @@ sub disconnect {
   }
 }
 
+=head2 with_deferred_fk_checks
+
+=over 4
+
+=item Arguments: C<$coderef>
+
+=item Return Value: The return value of $coderef
+
+=back
+
+Storage specific method to run the code ref with FK checks deferred or
+in MySQL's case disabled entirely.
+
+=cut
+
+# Storage subclasses should override this
+sub with_deferred_fk_checks {
+  my ($self, $sub) = @_;
+
+  $sub->();
+}
+
 sub connected {
   my ($self) = @_;
 

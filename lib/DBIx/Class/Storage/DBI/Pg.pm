@@ -13,6 +13,13 @@ use base qw/DBIx::Class::Storage::DBI/;
 warn "DBD::Pg 1.49 is strongly recommended"
   if ($DBD::Pg::VERSION < 1.49);
 
+sub with_deferred_fk_checks {
+  my ($self, $sub) = @_;
+
+  $self->dbh->do('SET CONSTRAINTS ALL DEFERRED');
+  $sub->();
+}
+
 sub _dbh_last_insert_id {
   my ($self, $dbh, $seq) = @_;
   $dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
