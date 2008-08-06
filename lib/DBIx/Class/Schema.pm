@@ -132,12 +132,11 @@ sub _register_source {
 
   $source->schema($self);
 
-  return if ($params->{extra});
-
   weaken($source->{schema}) if ref($self);
   if ($source->result_class) {
     my %map = %{$self->class_mappings};
     if (exists $map{$source->result_class}) {
+      return if ($params->{extra});
       warn $source->result_class . ' already has a source, use register_extra_source for additional sources';
     }
     $map{$source->result_class} = $moniker;
