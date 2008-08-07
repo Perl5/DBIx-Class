@@ -309,6 +309,7 @@ has 'write_handler' => (
     txn_scope_guard
     sth
     deploy
+    with_deferred_fk_checks
 
     reload_row
     _prep_for_execute
