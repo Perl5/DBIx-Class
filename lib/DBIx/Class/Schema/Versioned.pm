@@ -350,11 +350,24 @@ sub run_upgrade
     for (@statements)
     {      
         $self->storage->debugobj->query_start($_) if $self->storage->debug;
-        $self->storage->dbh->do($_) or warn "SQL was:\n $_";
+        $self->apply_statement($_);
         $self->storage->debugobj->query_end($_) if $self->storage->debug;
     }
 
     return 1;
+}
+
+=head2 apply_statement
+
+Takes an SQL statement and runs it. Override this if you want to handle errors
+differently.
+
+=cut
+
+sub apply_statement {
+    my ($self, $statement) = @_;
+
+    $self->storage->dbh->do($_) or warn "SQL was:\n $_";
 }
 
 =head2 get_db_version
