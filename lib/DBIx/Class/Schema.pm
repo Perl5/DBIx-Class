@@ -616,20 +616,50 @@ will produce the output
 =cut
 
 # this might be oversimplified
+# sub compose_namespace {
+#   my ($self, $target, $base) = @_;
+
+#   my $schema = $self->clone;
+#   foreach my $moniker ($schema->sources) {
+#     my $source = $schema->source($moniker);
+#     my $target_class = "${target}::${moniker}";
+#     $self->inject_base(
+#       $target_class => $source->result_class, ($base ? $base : ())
+#     );
+#     $source->result_class($target_class);
+#     $target_class->result_source_instance($source)
+#       if $target_class->can('result_source_instance');
+#     $schema->register_source($moniker, $source);
+#   }
+#   return $schema;
+# }
+
 sub compose_namespace {
   my ($self, $target, $base) = @_;
-
   my $schema = $self->clone;
-  foreach my $moniker ($schema->sources) {
-    my $source = $schema->source($moniker);
-    my $target_class = "${target}::${moniker}";
-    $self->inject_base(
-      $target_class => $source->result_class, ($base ? $base : ())
-    );
-    $source->result_class($target_class);
-    $target_class->result_source_instance($source)
-      if $target_class->can('result_source_instance');
-    $schema->register_source($moniker, $source);
+  {
+    no warnings qw/redefine/;
+#    local *Class::C3::reinitialize = sub { };
+    foreach my $moniker ($schema->sources) {
+      my $source = $schema->source($moniker);
+      my $target_class = "${target}::${moniker}";
+      $self->inject_base(
+        $target_class => $source->result_class, ($base ? $base : ())
+      );
+      $source->result_class($target_class);
+      $target_class->result_source_instance($source)
+        if $target_class->can('result_source_instance');
+     $schema->register_source($moniker, $source);
+    }
+  }
+#  Class::C3->reinitialize();
+  {
+    no strict 'refs';
+    no warnings 'redefine';
+    foreach my $meth (qw/class source resultset/) {
+      *{"${target}::${meth}"} =
+        sub { shift->schema->$meth(@_) };
+    }
   }
   return $schema;
 }
