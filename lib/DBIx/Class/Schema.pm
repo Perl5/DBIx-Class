@@ -615,26 +615,23 @@ will produce the output
 
 =cut
 
+# this might be oversimplified
 sub compose_namespace {
   my ($self, $target, $base) = @_;
 
-  $self = $self->clone;
-  foreach my $moniker ($self->sources) {
-   my $source = $self->source($moniker);
-   my $source_class = ref $source;
-   my $source_copy = $source_class->new({
-     %$source,
-     _relationships => Storable::dclone( $source->_relationships ),
-   });
-
-   my $target_class = "${target}::${moniker}";
-   $self->inject_base(
-     $target_class => $source_copy->result_class, ($base ? $base : ())
-   );
-   $source_copy->result_class($target_class);
-   $self->register_source($moniker, $source_copy);
+  my $schema = $self->clone;
+  foreach my $moniker ($schema->sources) {
+    my $source = $schema->source($moniker);
+    my $target_class = "${target}::${moniker}";
+    $self->inject_base(
+      $target_class => $source->result_class, ($base ? $base : ())
+    );
+    $source->result_class($target_class);
+    $target_class->result_source_instance($source)
+      if $target_class->can('result_source_instance');
+    $schema->register_source($moniker, $source);
   }
-  return $self;
+  return $schema;
 }
 
 sub setup_connection_class {
