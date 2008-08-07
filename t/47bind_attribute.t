@@ -60,7 +60,7 @@ $new_source->name(\<<'');
   join cd on cd.artist=a.artistid
   where cd.year=?)
 
-$schema->register_source('Complex' => $new_source);
+$schema->register_extra_source('Complex' => $new_source);
 
 $rs = $schema->resultset('Complex')->search({}, { bind => [ 1999 ] });
 is ( $rs->count, 1, 'cookbook arbitrary sql example' );
