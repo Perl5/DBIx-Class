@@ -328,8 +328,13 @@ sub load_classes {
         }
         $class->ensure_class_loaded($comp_class);
 
-        $comp = $comp_class->source_name || $comp;
-#  $DB::single = 1;
+        my $snsub = $comp_class->can('source_name');
+        if(! $snsub ) {
+          warn "Failed to load $comp_class. Can't find source_name method. Is $comp_class really a full DBIC result class? Fix it, move it elsewhere, or make your load_classes call more specific.";
+          next;
+        }
+        $comp = $snsub->($comp_class) || $comp;
+
         push(@to_register, [ $comp, $comp_class ]);
       }
     }
