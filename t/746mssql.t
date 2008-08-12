@@ -17,7 +17,7 @@ my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
 $schema->storage->ensure_connected;
 isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server' );
 
-my $dbh = $schema->storage->dbh;
+my $dbh = $schema->storage->_dbh;
 
 eval { $dbh->do("DROP TABLE artist") };
 
@@ -25,11 +25,14 @@ eval { $dbh->do("DROP TABLE artist") };
 CREATE TABLE artist (
    artistid INT IDENTITY NOT NULL,
    name VARCHAR(255),
-   charfield CHAR(10),
+   charfield CHAR(10) NULL,
    primary key(artistid)
 )
 
 my %seen_id;
+
+# fresh $schema so we start unconnected
+$schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
 
 # test primary key handling
 my $new = $schema->resultset('Artist')->create({ name => 'foo' });
@@ -58,6 +61,7 @@ is( $it->next, undef, "next past end of resultset ok" );
 
 # clean up our mess
 END {
+    $dbh = eval { $schema->storage->_dbh };
     $dbh->do('DROP TABLE artist') if $dbh;
 }
 

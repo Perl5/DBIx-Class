@@ -1,4 +1,6 @@
 Revision history for DBIx::Class
+        - Fixed superfluous connection in ODBC::_rebless
+        - Fixed undef PK for first insert in ODBC::Microsoft_SQL_Server
 
 0.08099_04 2008-07-24 01:00:00
         - Functionality to storage to enable a sub to be run without FK checks

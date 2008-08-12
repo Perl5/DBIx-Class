@@ -14,14 +14,14 @@ sub _prep_for_execute {
     return ($sql, $bind);
 }
 
-sub insert {
-    my ($self, $source, $to_insert) = @_;
+sub _execute {
+    my $self = shift;
+    my ($op) = @_;
 
-    my $bind_attributes = $self->source_bind_attributes($source);
-    my (undef, $sth) = $self->_execute( 'insert' => [], $source, $bind_attributes, $to_insert);
-    $self->{_scope_identity} = $sth->fetchrow_array;
+    my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
+    $self->{_scope_identity} = $sth->fetchrow_array if $op eq 'insert';
 
-    return $to_insert;
+    return wantarray ? ($rv, $sth, @bind) : $rv;
 }
 
 sub last_insert_id { shift->{_scope_identity} }
@@ -73,8 +73,6 @@ So, this implementation appends a SELECT SCOPE_IDENTITY() statement
 onto each INSERT to accommodate that requirement.
 
 =head1 METHODS
-
-=head2 insert
 
 =head2 last_insert_id
 

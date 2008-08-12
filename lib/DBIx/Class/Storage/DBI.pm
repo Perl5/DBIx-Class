@@ -1151,12 +1151,12 @@ sub insert {
   my $ident = $source->from; 
   my $bind_attributes = $self->source_bind_attributes($source);
 
+  $self->ensure_connected;
   foreach my $col ( $source->columns ) {
     if ( !defined $to_insert->{$col} ) {
       my $col_info = $source->column_info($col);
 
       if ( $col_info->{auto_nextval} ) {
-        $self->ensure_connected; 
         $to_insert->{$col} = $self->_sequence_fetch( 'nextval', $col_info->{sequence} || $self->_dbh_get_autoinc_seq($self->dbh, $source) );
       }
     }
