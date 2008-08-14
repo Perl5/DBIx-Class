@@ -90,6 +90,8 @@ if ($Module::Install::AUTHOR) {
   Meta->{values}{resources} = [ 
     [ 'MailingList', 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class' ],
     [ 'IRC', 'irc://irc.perl.org/#dbix-class' ],
+    [ 'license', 'http://dev.perl.org/licenses/' ],
+    [ 'repository', 'http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/' ],
   ];
   Meta->write;
 }
