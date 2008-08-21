@@ -95,7 +95,7 @@ eval "use DBICVersionNew";
 
 
   my $warn = '';
-  $SIG{__WARN__} = sub { $warn = shift };
+  local $SIG{__WARN__} = sub { $warn = shift };
   $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
   like($warn, qr/Your DB is currently unversioned/, 'warning detected without env var or attr');
 

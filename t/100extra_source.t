@@ -26,7 +26,7 @@ my $new_source = DBICTest::ResultSource::OtherSource->new({
 $new_source->add_column('other_col' => { data_type => 'integer', default_value => 1 });
 
 my $warn = '';
-$SIG{__WARN__} = sub { $warn = shift };
+local $SIG{__WARN__} = sub { $warn = shift };
 
 {
   $schema->register_extra_source( 'artist->extra' => $new_source );

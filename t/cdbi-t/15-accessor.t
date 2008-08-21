@@ -213,5 +213,4 @@ eval {
 	like $@, qr/read only/, "And can't delete 4 Days in July";
 	my $abigail = eval { Film->create({ title => "Abigail's Party" }) };
 	like $@, qr/read only/, "Or create new films";
-	$SIG{__WARN__} = sub { };
 }
