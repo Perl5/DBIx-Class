@@ -1113,24 +1113,25 @@ sub deploy {
 
 =over 4
 
-=item Arguments: $rdbms_type
+=item Arguments: $rdbms_type, $sqlt_args, $dir
 
 =back
 
-Returns the SQL statements used by L</deploy> and L<DBIx::Class::Schema/deploy>.
-C<$rdbms_type> provides the DBI database driver name for which the SQL
-statements are produced. If not supplied, the type of the current schema storage
-will be used.
+A convenient shortcut to storage->deployment_statements(). Returns the SQL statements 
+used by L</deploy> and L<DBIx::Class::Schema::Storage/deploy>. C<$rdbms_type> provides
+the (optional) SQLT (not DBI) database driver name for which the SQL statements are produced.
+If not supplied, the type is determined by interrogating the current connection.
+The other two arguments are identical to those of L</deploy>.
 
 =cut
 
 sub deployment_statements {
-  my ($self, $rdbms_type) = @_;
+  my $self = shift;
 
   $self->throw_exception("Can't generate deployment statements without a storage")
     if not $self->storage;
 
-  $self->storage->deployment_statements($self, $rdbms_type);
+  $self->storage->deployment_statements($self, @_);
 }
 
 =head2 create_ddl_dir (EXPERIMENTAL)
