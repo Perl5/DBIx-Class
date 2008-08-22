@@ -129,6 +129,9 @@ sub parse {
             my $othertable = $source->related_source($rel);
             my $rel_table = $othertable->name;
 
+            my $reverse_rels = $source->reverse_relationship_info($rel);
+            my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
+
             # Force the order of @cond to match the order of ->add_columns
             my $idx;
             my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $othertable->columns;            
@@ -138,43 +141,54 @@ sub parse {
             my @refkeys = map {/^\w+\.(\w+)$/} @cond;
             my @keys = map {$rel_info->{cond}->{$_} =~ /^\w+\.(\w+)$/} @cond;
 
+            # determine if this relationship is a self.fk => foreign.pk (i.e. belongs_to)
+            my $fk_constraint;
+
+            #first it can be specified explicitly
+            if ( exists $rel_info->{attrs}{is_foreign_key_constraint} ) {
+                $fk_constraint = $rel_info->{attrs}{is_foreign_key_constraint};
+            }
+            # it can not be multi
+            elsif ( $rel_info->{attrs}{accessor} eq 'multi' ) {
+                $fk_constraint = 0;
+            }
+            # if indeed single, check if all self.columns are our primary keys.
+            # this is supposed to indicate a has_one/might_have...
+            # where's the introspection!!?? :)
+            else {
+                $fk_constraint = not $source->compare_relationship_keys(\@keys, \@primary);
+            }
+
+            my $cascade;
+            for my $c (qw/delete update/) {
+                if (exists $rel_info->{attrs}{"on_$c"}) {
+                    if ($fk_constraint) {
+                        $cascade->{$c} = $rel_info->{attrs}{"on_$c"};
+                    }
+                    else {
+                        warn "SQLT attribute 'on_$c' was supplied for relationship '$moniker/$rel', which does not appear to be a foreign constraint. "
+                            . "If you are sure that SQLT must generate a constraint for this relationship, add 'is_foreign_key_constraint => 1' to the attributes.\n";
+                    }
+                }
+                elsif (defined $otherrelationship and $otherrelationship->{attrs}{$c eq 'update' ? 'cascade_copy' : 'cascade_delete'}) {
+                    $cascade->{$c} = 'CASCADE';
+                }
+            }
+
             if($rel_table)
             {
-                my $reverse_rels = $source->reverse_relationship_info($rel);
-                my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
+                # Constraints are added only if applicable
+                next unless $fk_constraint;
 
-                my $on_delete = '';
-                my $on_update = '';
-
-                if (defined $otherrelationship) {
-                    $on_delete = $otherrelationship->{'attrs'}->{cascade_delete} ? 'CASCADE' : '';
-                    $on_update = $otherrelationship->{'attrs'}->{cascade_copy} ? 'CASCADE' : '';
-                }
+                # Make sure we dont create the same foreign key constraint twice
+                my $key_test = join("\x00", @keys);
+                next if $created_FK_rels{$rel_table}->{$key_test};
 
                 my $is_deferrable = $rel_info->{attrs}{is_deferrable};
                 
                 # global parser_args add_fk_index param can be overridden on the rel def
                 my $add_fk_index_rel = (exists $rel_info->{attrs}{add_fk_index}) ? $rel_info->{attrs}{add_fk_index} : $add_fk_index;
 
-                # Make sure we dont create the same foreign key constraint twice
-                my $key_test = join("\x00", @keys);
-
-                #Decide if this is a foreign key based on whether the self
-                #items are our primary columns.
-
-                # If the sets are different, then we assume it's a foreign key from
-                # us to another table.
-                # OR: If is_foreign_key_constraint attr is explicity set (or set to false) on the relation
-                next if ( exists $created_FK_rels{$rel_table}->{$key_test} );
-                if ( exists $rel_info->{attrs}{is_foreign_key_constraint}) {
-                  # not is this attr set to 0 but definitely if set to 1
-                  next unless ($rel_info->{attrs}{is_foreign_key_constraint});
-                } else {
-                  # not if might have
-                  # next if ($rel_info->{attrs}{accessor} eq 'single' && exists $rel_info->{attrs}{join_type} && uc($rel_info->{attrs}{join_type}) eq 'LEFT');
-                  # not sure about this one
-                  next if $source->compare_relationship_keys(\@keys, \@primary);
-                }
 
                 $created_FK_rels{$rel_table}->{$key_test} = 1;
                 if (scalar(@keys)) {
@@ -184,8 +198,8 @@ sub parse {
                                     fields           => \@keys,
                                     reference_fields => \@refkeys,
                                     reference_table  => $rel_table,
-                                    on_delete        => $on_delete,
-                                    on_update        => $on_update,
+                                    on_delete        => $cascade->{delete},
+                                    on_update        => $cascade->{update},
                                     (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
                   );
                     

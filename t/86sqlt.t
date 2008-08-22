@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 130;
+plan tests => 131;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -19,14 +19,23 @@ my $translator = SQL::Translator->new(
   producer_args => {},
 );
 
-$translator->parser('SQL::Translator::Parser::DBIx::Class');
-$translator->producer('SQLite');
+{
+    my $warn = '';
+    local $SIG{__WARN__} = sub { $warn = shift };
 
-my $output = $translator->translate();
+    my $relinfo = $schema->source('Artist')->relationship_info ('cds');
+    local $relinfo->{attrs}{on_delete} = 'restrict';
 
+    $translator->parser('SQL::Translator::Parser::DBIx::Class');
+    $translator->producer('SQLite');
 
-ok($output, "SQLT produced someoutput")
-  or diag($translator->error);
+    my $output = $translator->translate();
+
+    ok($output, "SQLT produced someoutput")
+      or diag($translator->error);
+
+    like ($warn, qr/^SQLT attribute .+? was supplied for relationship/, 'Warn about dubious on_delete/on_update attributes');
+}
 
 # Note that the constraints listed here are the only ones that are tested -- if
 # more exist in the Schema than are listed here and all listed constraints are
@@ -117,7 +126,7 @@ my %fk_constraints = (
       'name' => 'cd_fk_artist', 'index_name' => 'cd_idx_artist',
       'selftable' => 'cd', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
-      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
+      on_delete => '', on_update => 'SET NULL', deferrable => 1,
     },
   ],
 
@@ -128,14 +137,14 @@ my %fk_constraints = (
       'name' => 'artist_undirected_map_fk_id1', 'index_name' => 'artist_undirected_map_idx_id1',
       'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
       'selfcols'  => ['id1'], 'foreigncols' => ['artistid'],
-      on_delete => 'CASCADE', on_update => '', deferrable => 1,
+      on_delete => 'RESTRICT', on_update => 'CASCADE', deferrable => 1,
     },
     {
       'display' => 'artist_undirected_map->artist for id2',
       'name' => 'artist_undirected_map_fk_id2', 'index_name' => 'artist_undirected_map_idx_id2',
       'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
       'selfcols'  => ['id2'], 'foreigncols' => ['artistid'],
-      on_delete => 'CASCADE', on_update => '', deferrable => 1,
+      on_delete => '', on_update => 'CASCADE', deferrable => 1,
     },
   ],
 
@@ -203,7 +212,6 @@ my %fk_constraints = (
       on_delete => '', on_update => '', deferrable => 1,
     },
   ],
-
 );
 
 my %unique_constraints = (

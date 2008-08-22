@@ -24,7 +24,11 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('cdid');
 __PACKAGE__->add_unique_constraint([ qw/artist title/ ]);
 
-__PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist', undef, { is_deferrable => 1 } );
+__PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist', undef, { 
+    is_deferrable => 1, 
+    on_delete => undef,
+    on_update => 'SET NULL',
+});
 
 __PACKAGE__->has_many( tracks => 'DBICTest::Schema::Track' );
 __PACKAGE__->has_many(
