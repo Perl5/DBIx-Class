@@ -239,13 +239,13 @@ sub parse {
         # Its possible to have multiple DBIC source using same table
         next if $seen_tables{$source->name}++;
 
-        my $view = $sqlt->add_view(
+        my $view = $schema->add_view(
           name => $source->name,
           fields => [ $source->columns ],
           ($source->view_definition ? $source->view_definition : ())
         );
         if ($source->result_class->can('sqlt_deploy_hook')) {
-          $source->result_class->sqlt_deploy_hook($table);
+          $source->result_class->sqlt_deploy_hook($view);
         }
     }
 
