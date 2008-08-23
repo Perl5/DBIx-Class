@@ -65,8 +65,19 @@ sub parse {
         @monikers = grep { $sources->{$_} } @monikers;
     }
 
+    my(@table_monikers, @view_monikers);
+    for my $moniker (@monikers){
+      my $source = $dbicschema->source($moniker);
+       if ( $source->isa('DBIx::Class::ResultSource::Table') ||
+              $source->isa('DBIx::Class::ResultSourceProxy::Table') ) {
+         push(@table_monikers, $moniker);
+      } elsif( $source->isa('DBIx::Class::ResultSource::View') ||
+            $source->isa('DBIx::Class::ResultSourceProxy::View') ){
+         push(@view_monikers, $moniker);
+      }
+    }
 
-    foreach my $moniker (sort @monikers)
+    foreach my $moniker (sort @table_monikers)
     {
         my $source = $dbicschema->source($moniker);
         
@@ -218,6 +229,26 @@ sub parse {
           $source->result_class->sqlt_deploy_hook($table);
         }
     }
+
+    foreach my $moniker (sort @view_monikers)
+    {
+        my $source = $dbicschema->source($moniker);
+        # Skip custom query sources
+        next if ref($source->name);
+
+        # Its possible to have multiple DBIC source using same table
+        next if $seen_tables{$source->name}++;
+
+        my $view = $sqlt->add_view(
+          name => $source->name,
+          fields => [ $source->columns ],
+          ($source->view_definition ? $source->view_definition : ())
+        );
+        if ($source->result_class->can('sqlt_deploy_hook')) {
+          $source->result_class->sqlt_deploy_hook($table);
+        }
+    }
+
 
     if ($dbicschema->can('sqlt_deploy_hook')) {
       $dbicschema->sqlt_deploy_hook($schema);
