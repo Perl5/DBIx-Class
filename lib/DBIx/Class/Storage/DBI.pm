@@ -1055,6 +1055,10 @@ sub txn_rollback {
 #  all of _execute's args, and emits $sql, @bind.
 sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, $args) = @_;
+  
+  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+    $ident = $ident->from();
+  }
 
   my ($sql, @bind) = $self->sql_maker->$op($ident, @$args);
   unshift(@bind,
@@ -1101,10 +1105,6 @@ sub _query_end {
 
 sub _dbh_execute {
   my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
-  
-  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
-    $ident = $ident->from();
-  }
 
   my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
 
