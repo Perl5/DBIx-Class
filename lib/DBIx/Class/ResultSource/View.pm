@@ -7,7 +7,9 @@ use DBIx::Class::ResultSet;
 
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/ResultSource/);
-__PACKAGE__->mk_group_accessors('simple' => ' is_virtual');
+__PACKAGE__->mk_group_accessors(
+  'simple' => qw(is_virtual view_definition)
+);
 
 =head1 NAME
 

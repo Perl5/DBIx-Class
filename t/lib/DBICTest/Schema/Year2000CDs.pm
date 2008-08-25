@@ -1,10 +1,15 @@
 package # hide from PAUSE 
     DBICTest::Schema::Year2000CDs;
 
-use base 'DBIx::Class::Core::View';
+use base 'DBIx::Class::Core';
+use DBIx::Class::ResultSource::View;
 
-__PACKAGE__->view('cd');
-__PACKAGE__->view_definition("SELECT cdid, artist, title FROM cd WHERE year ='2000'");
+__PACKAGE__->table_class('DBIx::Class::ResultSource::View');
+
+__PACKAGE__->table('cd');
+__PACKAGE__->result_source_instance->view_definition(
+  "SELECT cdid, artist, title FROM cd WHERE year ='2000'"
+);
 __PACKAGE__->add_columns(
   'cdid' => {
     data_type => 'integer',
