@@ -9,7 +9,7 @@ BEGIN {
     eval "use DBD::mysql; use SQL::Translator 0.09;";
     plan $@
         ? ( skip_all => 'needs SQL::Translator 0.09 for testing' )
-        : ( tests => 99 );
+        : ( tests => 102 );
 }
 
 my $schema = DBICTest->init_schema();
