@@ -71,6 +71,18 @@ and don't actually accomplish anything on their own:
     "_engine" => 'InnoDB',
   });
 
+=cut
+
+sub is_virtual { 0 }
+
+=pod
+
+=head2 is_virtual
+
+Returns true if the resultsource is a virtual result source. This stub
+method returns false by default, see L<DBIx::Class::ResultSource::View>
+for more information.
+
 =head2 add_columns
 
   $table->add_columns(qw/col1 col2 col3/);

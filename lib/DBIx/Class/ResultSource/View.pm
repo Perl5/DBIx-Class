@@ -7,6 +7,7 @@ use DBIx::Class::ResultSet;
 
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/ResultSource/);
+__PACKAGE__->mk_group_accessors('simple' => ' is_virtual');
 
 =head1 NAME
 
@@ -20,13 +21,22 @@ Table object that inherits from L<DBIx::Class::ResultSource>
 
 =head1 METHODS
 
+=head2 is_virtual
+
+Attribute to declare a view as virtual.
+
 =head2 from
 
 Returns the FROM entry for the table (i.e. the view name)
+or the definition if this is a virtual view.
 
 =cut
 
-sub from { shift->name; }
+sub from {
+  my $self = shift;
+  return \"(${\$self->view_definition})" if $self->is_virtual;
+  return $self->name;
+}
 
 1;
 

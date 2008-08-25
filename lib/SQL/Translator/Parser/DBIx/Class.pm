@@ -68,6 +68,7 @@ sub parse {
     my(@table_monikers, @view_monikers);
     for my $moniker (@monikers){
       my $source = $dbicschema->source($moniker);
+      next if $source->is_virtual;
        if ( $source->isa('DBIx::Class::ResultSource::Table') ||
               $source->isa('DBIx::Class::ResultSourceProxy::Table') ) {
          push(@table_monikers, $moniker);
