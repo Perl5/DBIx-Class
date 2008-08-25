@@ -198,8 +198,8 @@ sub parse {
                                     fields           => \@keys,
                                     reference_fields => \@refkeys,
                                     reference_table  => $rel_table,
-                                    on_delete        => $cascade->{delete},
-                                    on_update        => $cascade->{update},
+                                    on_delete        => uc ($cascade->{delete} || ''),
+                                    on_update        => uc ($cascade->{update} || ''),
                                     (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
                   );
                     
