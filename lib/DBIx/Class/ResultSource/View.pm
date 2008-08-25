@@ -8,12 +8,6 @@ use DBIx::Class::ResultSet;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/ResultSource/);
 
-
-  _columns _primaries _unique_constraints name resultset_attributes
-  schema from _relationships column_info_from_storage source_info
-  source_name/);
-
-
 =head1 NAME
 
 DBIx::Class::ResultSource::Table - Table object
