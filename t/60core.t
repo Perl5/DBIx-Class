@@ -153,7 +153,7 @@ is($schema->resultset("Artist")->count, 4, 'count ok');
 my $cd = $schema->resultset("CD")->find(1);
 my %cols = $cd->get_columns;
 
-cmp_ok(keys %cols, '==', 4, 'get_columns number of columns ok');
+cmp_ok(keys %cols, '==', 5, 'get_columns number of columns ok');
 
 is($cols{title}, 'Spoonful of bees', 'get_columns values ok');
 
@@ -169,7 +169,7 @@ $cd->discard_changes;
 # check whether ResultSource->columns returns columns in order originally supplied
 my @cd = $schema->source("CD")->columns;
 
-is_deeply( \@cd, [qw/cdid artist title year/], 'column order');
+is_deeply( \@cd, [qw/cdid artist title year genreid/], 'column order');
 
 $cd = $schema->resultset("CD")->search({ title => 'Spoonful of bees' }, { columns => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');
@@ -335,9 +335,9 @@ ok(!$@, "stringify to false value doesn't cause error");
 
 # test remove_columns
 {
-  is_deeply([$schema->source('CD')->columns], [qw/cdid artist title year/]);
+  is_deeply([$schema->source('CD')->columns], [qw/cdid artist title year genreid/]);
   $schema->source('CD')->remove_columns('year');
-  is_deeply([$schema->source('CD')->columns], [qw/cdid artist title/]);
+  is_deeply([$schema->source('CD')->columns], [qw/cdid artist title genreid/]);
   ok(! exists $schema->source('CD')->_columns->{'year'}, 'year still exists in _columns');
 }
 

@@ -190,11 +190,18 @@ sub related_resultset {
       $rel_obj->{cond}, $rel, $self
     );
     if (ref $cond eq 'ARRAY') {
-      $cond = [ map { my $hash;
-        foreach my $key (keys %$_) {
-          my $newkey = $key =~ /\./ ? "me.$key" : $key;
-          $hash->{$newkey} = $_->{$key};
-        }; $hash } @$cond ];
+      $cond = [ map {
+        if (ref $_ eq 'HASH') {
+          my $hash;
+          foreach my $key (keys %$_) {
+            my $newkey = $key =~ /\./ ? "me.$key" : $key;
+            $hash->{$newkey} = $_->{$key};
+          }
+          $hash;
+        } else {
+          $_;
+        }
+      } @$cond ];
     } else {
       foreach my $key (grep { ! /\./ } keys %$cond) {
         $cond->{"me.$key"} = delete $cond->{$key};

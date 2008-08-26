@@ -69,7 +69,7 @@ $schema->storage->debugobj->callback(undef);
 # test for partial prefetch via columns attr
 my $cd = $schema->resultset('CD')->find(1,
     {
-      columns => [qw/title artist.name/], 
+      columns => [qw/title artist artist.name/], 
       join => { 'artist' => {} }
     }
 );

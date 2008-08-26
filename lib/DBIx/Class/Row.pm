@@ -46,6 +46,37 @@ For a more involved explanation, see L<DBIx::Class::ResultSet/create>.
 ## check Relationship::CascadeActions and Relationship::Accessor for compat
 ## tests!
 
+sub __new_related_find_or_new_helper {
+  my ($self, $relname, $data) = @_;
+  if ($self->__their_pk_needs_us($relname, $data)) {
+    return $self->result_source
+                ->related_source($relname)
+                ->resultset
+                ->new_result($data);
+  }
+  if ($self->result_source->pk_depends_on($relname, $data)) {
+    return $self->result_source
+                ->related_source($relname)
+                ->resultset
+                ->find_or_new($data);
+  }
+  return $self->find_or_new_related($relname, $data);
+}
+
+sub __their_pk_needs_us { # this should maybe be in resultsource.
+  my ($self, $relname, $data) = @_;
+  my $source = $self->result_source;
+  my $reverse = $source->reverse_relationship_info($relname);
+  my $rel_source = $source->related_source($relname);
+  my $us = { $self->get_columns };
+  foreach my $key (keys %$reverse) {
+    # if their primary key depends on us, then we have to
+    # just create a result and we'll fill it out afterwards
+    return 1 if $rel_source->pk_depends_on($key, $us);
+  }
+  return 0;
+}
+
 sub new {
   my ($class, $attrs) = @_;
   $class = ref $class if ref $class;
@@ -58,7 +89,9 @@ sub new {
   if (my $handle = delete $attrs->{-source_handle}) {
     $new->_source_handle($handle);
   }
-  if (my $source = delete $attrs->{-result_source}) {
+
+  my $source;
+  if ($source = delete $attrs->{-result_source}) {
     $new->result_source($source);
   }
 
@@ -73,18 +106,19 @@ sub new {
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key}) {
         ## Can we extract this lot to use with update(_or .. ) ?
-        my $info = $class->relationship_info($key);
+        confess "Can't do multi-create without result source" unless $source;
+        my $info = $source->relationship_info($key);
         if ($info && $info->{attrs}{accessor}
           && $info->{attrs}{accessor} eq 'single')
         {
           my $rel_obj = delete $attrs->{$key};
           if(!Scalar::Util::blessed($rel_obj)) {
-            $rel_obj = $new->find_or_new_related($key, $rel_obj);
+            $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
           }
 
           $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
 
-          $new->set_from_related($key, $rel_obj);        
+          $new->set_from_related($key, $rel_obj) if $rel_obj->in_storage;
           $related->{$key} = $rel_obj;
           next;
         } elsif ($info && $info->{attrs}{accessor}
@@ -93,11 +127,11 @@ sub new {
           my $others = delete $attrs->{$key};
           foreach my $rel_obj (@$others) {
             if(!Scalar::Util::blessed($rel_obj)) {
-              $rel_obj = $new->new_related($key, $rel_obj);
-              $new->{_rel_in_storage} = 0;
+              $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
             }
 
             $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
+            $new->set_from_related($key, $rel_obj) if $rel_obj->in_storage;
           }
           $related->{$key} = $others;
           next;
@@ -107,9 +141,9 @@ sub new {
           ## 'filter' should disappear and get merged in with 'single' above!
           my $rel_obj = delete $attrs->{$key};
           if(!Scalar::Util::blessed($rel_obj)) {
-            $rel_obj = $new->find_or_new_related($key, $rel_obj);
-            $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
+            $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
           }
+          $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
           $inflated->{$key} = $rel_obj;
           next;
         } elsif ($class->has_column($key)
@@ -181,27 +215,9 @@ sub insert {
       next REL unless (Scalar::Util::blessed($rel_obj)
                        && $rel_obj->isa('DBIx::Class::Row'));
 
-      my $cond = $source->relationship_info($relname)->{cond};
-
-      next REL unless ref($cond) eq 'HASH';
-
-      # map { foreign.foo => 'self.bar' } to { bar => 'foo' }
-
-      my $keyhash = { map { my $x = $_; $x =~ s/.*\.//; $x; } reverse %$cond };
-
-      # assume anything that references our PK probably is dependent on us
-      # rather than vice versa, unless the far side is (a) defined or (b)
-      # auto-increment
-
-      foreach my $p (@pri) {
-        if (exists $keyhash->{$p}) {
-          unless (defined($rel_obj->get_column($keyhash->{$p}))
-                  || $rel_obj->column_info($keyhash->{$p})
-                             ->{is_auto_increment}) {
-            next REL;
-          }
-        }
-      }
+      next REL unless $source->pk_depends_on(
+                        $relname, { $rel_obj->get_columns }
+                      );
 
       $rel_obj->insert();
       $self->set_from_related($relname, $rel_obj);
@@ -231,6 +247,9 @@ sub insert {
     $self->store_column($auto_pri[$_] => $ids[$_]) for 0 .. $#ids;
   }
 
+  $self->{_dirty_columns} = {};
+  $self->{related_resultsets} = {};
+
   if(!$self->{_rel_in_storage}) {
     ## Now do the has_many rels, that need $selfs ID.
     foreach my $relname (keys %related_stuff) {
@@ -246,7 +265,12 @@ sub insert {
         my $reverse = $source->reverse_relationship_info($relname);
         foreach my $obj (@cands) {
           $obj->set_from_related($_, $self) for keys %$reverse;
-          $obj->insert() unless ($obj->in_storage || $obj->result_source->resultset->search({$obj->get_columns})->count);
+          my $them = { $obj->get_columns };
+          if ($self->__their_pk_needs_us($relname, $them)) {
+            $obj = $self->find_or_create_related($relname, $them);
+          } else {
+            $obj->insert();
+          }
         }
       }
     }
@@ -254,8 +278,6 @@ sub insert {
   }
 
   $self->in_storage(1);
-  $self->{_dirty_columns} = {};
-  $self->{related_resultsets} = {};
   undef $self->{_orig_ident};
   return $self;
 }
@@ -723,7 +745,8 @@ Alias for L</update_or_insert>
 
 =cut
 
-*insert_or_update = \&update_or_insert;
+sub insert_or_update { shift->update_or_insert(@_) }
+
 sub update_or_insert {
   my $self = shift;
   return ($self->in_storage ? $self->update : $self->insert);

@@ -11,6 +11,7 @@ __PACKAGE__->load_classes(qw/
   Employee
   CD
   FileColumn
+  Genre
   Link
   Bookmark
   #dummy

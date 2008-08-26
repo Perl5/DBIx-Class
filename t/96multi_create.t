@@ -51,16 +51,16 @@ my $newartist2 = $schema->resultset('Artist')->find_or_create({ name => 'Fred 3'
 
 is($newartist2->name, 'Fred 3', 'Created new artist with cds via find_or_create');
 
-my $artist2 = $schema->resultset('Artist')->create({ artistid => 1000,
+my $artist2 = $schema->resultset('Artist')->create({
                                                     name => 'Fred 3',
                                                      cds => [
-                                                             { artist => 1000,
+                                                             {
                                                                title => 'Music to code by',
                                                                year => 2007,
                                                              },
                                                              ],
                                                     cds_unordered => [
-                                                             { artist => 1000,
+                                                             {
                                                                title => 'Music to code by',
                                                                year => 2007,
                                                              },
@@ -202,7 +202,7 @@ my $new_artist = $schema->resultset("Artist")->create({ artistid => 18, name => 
 eval {
 	$schema->resultset("CD")->create({ 
               cdid => 28, 
-               title => 'Boogie Wiggle', 
+              title => 'Boogie Wiggle', 
               year => '2007', 
               artist => { artistid => 18, name => 'larry' }
              });
@@ -211,9 +211,9 @@ is($@, '', 'new cd created without clash on related artist');
 
 # Make sure exceptions from errors in created rels propogate
 eval {
-    my $t = $schema->resultset("Track")->new({});
-    $t->cd($t->new_related('cd', { artist => undef } ) );
-    $t->{_rel_in_storage} = 0;
+    my $t = $schema->resultset("Track")->new({ cd => { artist => undef } });
+    #$t->cd($t->new_related('cd', { artist => undef } ) );
+    #$t->{_rel_in_storage} = 0;
     $t->insert;
 };
 like($@, qr/cd.artist may not be NULL/, "Exception propogated properly");

@@ -1,4 +1,6 @@
 Revision history for DBIx::Class
+
+        - Fixed up related resultsets and multi-create
         - Fixed superfluous connection in ODBC::_rebless
         - Fixed undef PK for first insert in ODBC::Microsoft_SQL_Server
 

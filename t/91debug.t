@@ -55,7 +55,7 @@ open(STDERR, '>&STDERRCOPY');
     my @cds = $schema->resultset('CD')->search( { artist => 1, cdid => { -between => [ 1, 3 ] }, } );
     like(
         $sql,
-        qr/\QSELECT me.cdid, me.artist, me.title, me.year FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? ): '1', '1', '3'\E/,
+        qr/\QSELECT me.cdid, me.artist, me.title, me.year, me.genreid FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? ): '1', '1', '3'\E/,
         'got correct SQL with all bind parameters'
     );
 }

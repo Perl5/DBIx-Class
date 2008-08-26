@@ -90,7 +90,16 @@ CREATE TABLE cd (
   cdid INTEGER PRIMARY KEY NOT NULL,
   artist integer NOT NULL,
   title varchar(100) NOT NULL,
-  year varchar(100) NOT NULL
+  year varchar(100) NOT NULL,
+  genreid integer
+);
+
+--
+-- Table: genre
+--
+CREATE TABLE genre (
+  genreid INTEGER PRIMARY KEY NOT NULL,
+  name varchar(100) NOT NULL
 );
 
 --

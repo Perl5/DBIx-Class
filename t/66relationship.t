@@ -212,7 +212,7 @@ is( $twokey->fourkeys_to_twokeys->count, 0,
 
 my $undef_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007 });
 is($undef_artist_cd->has_column_loaded('artist'), '', 'FK not loaded');
-is($undef_artist_cd->search_related('artist')->count, 3, 'open search on undef FK');
+is($undef_artist_cd->search_related('artist')->count, 0, '0=1 search when FK does not exist and object not yet in db');
 
 my $def_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007, artist => undef });
 is($def_artist_cd->has_column_loaded('artist'), 1, 'FK loaded');
