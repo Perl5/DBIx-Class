@@ -235,7 +235,7 @@ sub install
   if ($new_version) {
     # create versions table and version row
     $self->{vschema}->deploy;
-    $self->_set_db_version;
+    $self->_set_db_version({ version => $new_version });
   }
 }
 
@@ -249,6 +249,24 @@ sub deploy {
   my $self = shift;
   $self->next::method(@_);
   $self->install();
+}
+
+=head2 create_upgrade_path
+
+=over 4
+
+=item Arguments: { upgrade_file => $file }
+
+=back
+
+Virtual method that should be overriden to create an upgrade file. 
+This is useful in the case of upgrading across multiple versions 
+to concatenate several files to create one upgrade file.
+
+=cut
+
+sub create_upgrade_path {
+	## override this method
 }
 
 =head2 upgrade
@@ -294,10 +312,14 @@ sub upgrade
                                          $db_version,
                                         );
 
+  $self->create_upgrade_path({ upgrade_file => $upgrade_file });
+
   unless (-f $upgrade_file) {
     warn "Upgrade not possible, no upgrade file found ($upgrade_file), please create one\n";
     return;
   }
+
+  warn "\nDB version ($db_version) is lower than the schema version (".$self->schema_version."). Attempting upgrade.\n";
 
   # backup if necessary then apply upgrade
   $self->_filedata($self->_read_sql_file($upgrade_file));
@@ -546,9 +568,12 @@ sub _create_db_to_schema_diff {
 
 sub _set_db_version {
   my $self = shift;
+  my ($params) = @_;
+  $params ||= {};
 
+  my $version = $params->{version} ? $params->{version} : $self->schema_version;
   my $vtable = $self->{vschema}->resultset('Table');
-  $vtable->create({ version => $self->schema_version,
+  $vtable->create({ version => $version,
                       installed => strftime("%Y-%m-%d %H:%M:%S", gmtime())
                       });
 
