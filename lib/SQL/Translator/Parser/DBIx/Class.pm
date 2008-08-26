@@ -241,7 +241,7 @@ sub parse {
         my $view = $schema->add_view(
           name => $source->name,
           fields => [ $source->columns ],
-          ($source->view_definition ? $source->view_definition : ())
+          $source->view_definition ? ( 'sql' => $source->view_definition ) : ()
         );
         if ($source->result_class->can('sqlt_deploy_hook')) {
           $source->result_class->sqlt_deploy_hook($view);
