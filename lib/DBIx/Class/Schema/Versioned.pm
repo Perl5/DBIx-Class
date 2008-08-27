@@ -263,6 +263,9 @@ Virtual method that should be overriden to create an upgrade file.
 This is useful in the case of upgrading across multiple versions 
 to concatenate several files to create one upgrade file.
 
+You'll probably want the db_version retrieved via $self->get_db_version
+and the schema_version which is retrieved via $self->schema_version 
+
 =cut
 
 sub create_upgrade_path {

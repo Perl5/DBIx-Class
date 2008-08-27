@@ -243,6 +243,8 @@ groditi: Guillermo Roditi <groditi@cpan.org>
 
 jesper: Jesper Krogh
 
+jgoulah: John Goulah <jgoulah@cpan.org>
+
 jguenther: Justin Guenther <jguenther@cpan.org>
 
 jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
