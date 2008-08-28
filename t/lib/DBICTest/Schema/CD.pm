@@ -21,7 +21,8 @@ __PACKAGE__->add_columns(
     size      => 100,
   },
   'genreid' => { 
-    data_type => 'integer' 
+    data_type => 'integer',
+    is_nullable => 1,
   }
 );
 __PACKAGE__->set_primary_key('cdid');
