@@ -5,6 +5,12 @@ Revision history for DBIx::Class
         - Fixed undef PK for first insert in ODBC::Microsoft_SQL_Server
         - Added virtual method to Versioned so a user can create upgrade 
           path across multiple versions (jgoulah)
+        - Better (and marginally faster) implementation of the HashRefInflator
+          hash construction algorithm
+        - Added an option for HashRefInflator to inflate any inflatable
+          values in the resulting hashref
+        - Allow explicit specification of ON DELETE/ON UPDATE constraints
+          when using the SQLT parser
 
 0.08099_04 2008-07-24 01:00:00
         - Functionality to storage to enable a sub to be run without FK checks
