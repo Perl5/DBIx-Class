@@ -330,9 +330,12 @@ L<DBIx::Class::Relationship::Base/"create_related">.
 
 If you delete an object in a class with a C<has_many> relationship, all
 the related objects will be deleted as well.  To turn this behaviour off,
-pass C<< cascade_delete => 0 >> in the C<attr> hashref. However, any
-database-level cascade or restrict will take precedence over a
-DBIx-Class-based cascading delete.
+pass C<< cascade_delete => 0 >> in the C<$attr> hashref.
+
+The cascaded operations are performed after the requested delete or
+update, so if your database has a constraint on the relationship, it
+will have deleted/updated the related records or raised an exception
+before DBIx::Class gets to perform the cascaded operation.
 
 If you copy an object in a class with a C<has_many> relationship, all
 the related objects will be copied as well. To turn this behaviour off,
@@ -414,8 +417,12 @@ relations that are across multiple columns.
 If you update or delete an object in a class with a C<might_have>
 relationship, the related object will be updated or deleted as well. To
 turn off this behavior, add C<< cascade_delete => 0 >> to the C<$attr>
-hashref. Any database-level update or delete constraints will override
-this behavior.
+hashref.
+
+The cascaded operations are performed after the requested delete or
+update, so if your database has a constraint on the relationship, it
+will have deleted/updated the related records or raised an exception
+before DBIx::Class gets to perform the cascaded operation.
 
 See L<DBIx::Class::Relationship::Base> for documentation on relationship
 methods and valid relationship attributes.
