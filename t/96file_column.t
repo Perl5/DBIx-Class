@@ -10,7 +10,7 @@ use Path::Class qw/file/;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 9;
+plan tests => 11;
 
 my $rs = $schema->resultset('FileColumn');
 my $fname = '96file_column.t';
@@ -65,3 +65,23 @@ ok ( compare($new_storage, $new_source_file) == 0, 'new content matches' );
 $fc->delete;
 
 ok ( ! -e $storage, 'storage deleted' );
+
+TODO: {
+    local $TODO = 'need resultset delete override to delete_all';
+
+    $fh = $source_file->openr or die "failed to open $source_file: $!\n";
+    $fc = $rs->create({ file => { handle => $fh, filename => $fname } });
+
+    # read it back
+    $fc->discard_changes;
+
+    $storage = file(
+        $fc->column_info('file')->{file_column_path},
+        $fc->id,
+        $fc->file->{filename},
+    );
+    ok ( -e $storage, 'storage exists (2)' );
+
+    $rs->delete;
+    ok ( ! -e $storage, 'storage does not exist after $rs->delete' );
+};
