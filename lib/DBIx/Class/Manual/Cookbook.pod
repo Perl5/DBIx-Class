@@ -216,15 +216,15 @@ L<DBIx::Class> supports C<GROUP BY> as follows:
     {},
     {
       join     => [qw/ cds /],
-      select   => [ 'name', { count => 'cds.cdid' } ],
+      select   => [ 'name', { count => 'cds.id' } ],
       as       => [qw/ name cd_count /],
       group_by => [qw/ name /]
     }
   );
 
   # Equivalent SQL:
-  # SELECT name, COUNT( cds.cdid ) FROM artist me
-  # LEFT JOIN cd cds ON ( cds.artist = me.artistid )
+  # SELECT name, COUNT( cd.id ) FROM artist
+  # LEFT JOIN cd ON artist.id = cd.artist
   # GROUP BY name
 
 Please see L<DBIx::Class::ResultSet/ATTRIBUTES> documentation if you
@@ -312,7 +312,7 @@ a particular artist name:
       'artist.name' => 'Bob Marley'    
     },
     {
-      join => [qw/artist/], # join the artist table
+      join => 'artist', # join the artist table
     }
   );
 
@@ -329,7 +329,7 @@ it in your C<order_by> attribute:
       'artist.name' => 'Bob Marley'
     },
     {
-      join     => [qw/ artist /],
+      join     => 'artist',
       order_by => [qw/ artist.name /]
     }
   );
@@ -370,9 +370,9 @@ This allows you to fetch results from related tables in advance:
       'artist.name' => 'Bob Marley'
     },
     {
-      join     => [qw/ artist /],
+      join     => 'artist',
       order_by => [qw/ artist.name /],
-      prefetch => [qw/ artist /] # return artist data too!
+      prefetch => 'artist' # return artist data too!
     }
   );
 
@@ -399,6 +399,34 @@ Also note that C<prefetch> should only be used when you know you will
 definitely use data from a related table. Pre-fetching related tables when you
 only need columns from the main table will make performance worse!
 
+=head2 Multiple joins
+
+In the examples above, the C<join> attribute was a scalar.  If you
+pass an array reference instead, you can join to multiple tables.  In
+this example, we want to limit the search further, using
+C<LinerNotes>:
+
+  # Relationships defined elsewhere:
+  # CD->belongs_to('artist' => 'Artist');
+  # CD->has_one('liner_notes' => 'LinerNotes', 'cd');
+  my $rs = $schema->resultset('CD')->search(
+    {
+      'artist.name' => 'Bob Marley'
+      'liner_notes.notes' => { 'like', '%some text%' },
+    },
+    {
+      join     => [qw/ artist liner_notes /],
+      order_by => [qw/ artist.name /],
+    }
+  );
+
+  # Equivalent SQL:
+  # SELECT cd.*, artist.*, liner_notes.* FROM cd
+  # JOIN artist ON cd.artist = artist.id
+  # JOIN liner_notes ON cd.id = liner_notes.cd
+  # WHERE artist.name = 'Bob Marley'
+  # ORDER BY artist.name
+
 =head2 Multi-step joins
 
 Sometimes you want to join more than one relationship deep. In this example,
@@ -422,8 +450,8 @@ contain a specific string:
 
   # Equivalent SQL:
   # SELECT artist.* FROM artist
-  # JOIN ( cd ON artist.id = cd.artist )
-  # JOIN ( liner_notes ON cd.id = liner_notes.cd )
+  # LEFT JOIN cd ON artist.id = cd.artist
+  # LEFT JOIN liner_notes ON cd.id = liner_notes.cd
   # WHERE liner_notes.notes LIKE '%some text%'
 
 Joins can be nested to an arbitrary level. So if we decide later that we
@@ -449,11 +477,38 @@ notes:
 
   # Equivalent SQL:
   # SELECT artist.* FROM artist
-  # JOIN ( cd ON artist.id = cd.artist )
-  # JOIN ( liner_notes ON cd.id = liner_notes.cd )
-  # JOIN ( author ON author.id = liner_notes.author )
+  # LEFT JOIN cd ON artist.id = cd.artist
+  # LEFT JOIN liner_notes ON cd.id = liner_notes.cd
+  # LEFT JOIN author ON author.id = liner_notes.author
   # WHERE liner_notes.notes LIKE '%some text%'
   # AND author.name = 'A. Writer'
+
+=head2 Multi-step and multiple joins
+
+With various combinations of array and hash references, you can join
+tables in any combination you desire.  For example, to join Artist to
+CD and Concert, and join CD to LinerNotes:
+
+  # Relationships defined elsewhere:
+  # Artist->has_many('concerts' => 'Concert', 'artist');
+
+  my $rs = $schema->resultset('Artist')->search(
+    { },
+    {
+      join => [
+        {
+          cds => 'liner_notes'
+        },
+        'concerts'
+      ],
+    }
+  );
+
+  # Equivalent SQL:
+  # SELECT artist.* FROM artist
+  # LEFT JOIN cd ON artist.id = cd.artist
+  # LEFT JOIN liner_notes ON cd.id = liner_notes.cd
+  # LEFT JOIN concert ON artist.id = concert.artist
 
 =head2 Multi-step prefetch
 
@@ -471,8 +526,8 @@ deep using the same syntax as a multi-step join:
 
   # Equivalent SQL:
   # SELECT tag.*, cd.*, artist.* FROM tag
-  # JOIN cd ON tag.cd = cd.cdid
-  # JOIN artist ON cd.artist = artist.artistid
+  # JOIN cd ON tag.cd = cd.id
+  # JOIN artist ON cd.artist = artist.id
 
 Now accessing our C<cd> and C<artist> relationships does not need additional
 SQL statements:
