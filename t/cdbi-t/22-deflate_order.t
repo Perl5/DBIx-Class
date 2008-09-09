@@ -3,6 +3,12 @@ use strict;
 
 use Test::More;
 
+eval "use DBIx::Class::CDBICompat;";
+if ($@) {
+    plan (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@");
+    next;
+}
+
 eval { require Time::Piece::MySQL };
 plan skip_all => "Need Time::Piece::MySQL for this test" if $@;
 

@@ -4,7 +4,6 @@ use Test::More;
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   if ($@) {
-      diag $@;
     plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
     next;
   }

@@ -2,6 +2,12 @@ use strict;
 use Test::More;
 
 BEGIN {
+    eval "use DBIx::Class::CDBICompat;";
+    if ($@) {
+        plan (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@");
+        next;
+    }
+
     plan skip_all => 'needs DBD::SQLite for testing'
         unless eval { require DBD::SQLite };
     
