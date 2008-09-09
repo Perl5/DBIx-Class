@@ -26,10 +26,11 @@ my $dbh = $schema->storage->dbh;
 
 $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
     DROP TABLE artist");
+$dbh->do("IF OBJECT_ID('cd', 'U') IS NOT NULL
+    DROP TABLE cd");
 
 $dbh->do("CREATE TABLE artist (artistid INT IDENTITY PRIMARY KEY, name VARCHAR(255));");
-$dbh->do("CREATE TABLE cd (cdid INT IDENTITY PRIMARY KEY, artist INT,  title VARCHAR(100), year VARCHAR(100));");
-
+$dbh->do("CREATE TABLE cd (cdid INT IDENTITY PRIMARY KEY, artist INT,  title VARCHAR(100), year VARCHAR(100), genreid INT NULL);");
 # Just to test compat shim, Auto is in Core
 $schema->class('Artist')->load_components('PK::Auto::MSSQL');
 
