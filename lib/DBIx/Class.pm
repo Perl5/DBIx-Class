@@ -279,6 +279,8 @@ phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
 quicksilver: Jules Bean
 
+rafl: Florian Ragwitz <rafl@debian.org>
+
 rdj: Ryan D Johnson <ryan@innerfence.com>
 
 ribasushi: Peter Rabbitson <rabbit@rabbit.us>
