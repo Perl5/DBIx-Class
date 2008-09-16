@@ -149,7 +149,8 @@ sub parse {
                 $fk_constraint = $rel_info->{attrs}{is_foreign_key_constraint};
             }
             # it can not be multi
-            elsif ( $rel_info->{attrs}{accessor} eq 'multi' ) {
+            elsif ( $rel_info->{attrs}{accessor}
+                    && $rel_info->{attrs}{accessor} eq 'multi' ) {
                 $fk_constraint = 0;
             }
             # if indeed single, check if all self.columns are our primary keys.
