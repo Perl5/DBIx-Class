@@ -378,7 +378,7 @@ sub delete {
   my $self = shift;
   if (ref $self) {
     $self->throw_exception( "Not in database" ) unless $self->in_storage;
-    my $ident_cond = $self->ident_condition;
+    my $ident_cond = $self->{_orig_ident} || $self->ident_condition;
     $self->throw_exception("Cannot safely delete a row in a PK-less table")
       if ! keys %$ident_cond;
     foreach my $column (keys %$ident_cond) {
@@ -836,14 +836,13 @@ second argument to $resultset->search($cond, $attrs);
 sub get_from_storage {
     my $self = shift @_;
     my $attrs = shift @_;
-    my @primary_columns = map { $self->$_ } $self->primary_columns;
     my $resultset = $self->result_source->resultset;
     
     if(defined $attrs) {
     	$resultset = $resultset->search(undef, $attrs);
     }
     
-    return $resultset->find(@primary_columns);	
+    return $resultset->find($self->{_orig_ident} || $self->ident_condition);
 }
 
 =head2 throw_exception
