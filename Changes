@@ -7,8 +7,6 @@ Revision history for DBIx::Class
           path across multiple versions (jgoulah)
         - Better (and marginally faster) implementation of the HashRefInflator
           hash construction algorithm
-        - Added an option for HashRefInflator to inflate any inflatable
-          values in the resulting hashref
         - Allow explicit specification of ON DELETE/ON UPDATE constraints
           when using the SQLT parser
 
