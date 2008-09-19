@@ -3,9 +3,6 @@ package DBIx::Class::ResultClass::HashRefInflator;
 use strict;
 use warnings;
 
-our %inflator_cache;
-our $inflate_data;
-
 =head1 NAME
 
 DBIx::Class::ResultClass::HashRefInflator
@@ -64,7 +61,6 @@ sub inflate_result {
     my ($self, $source, $me, $prefetch) = @_;
 
     my $hashref = mk_hash($me, $prefetch);
-    inflate_hash ($source->schema, $source->result_class, $hashref) if $inflate_data;
     return $hashref;
 }
 
@@ -105,45 +101,6 @@ sub mk_hash {
         }
 
         return undef;
-    }
-}
-
-=head2 inflate_hash
-
-This walks through a hashref produced by L<mk_hash> and inflates any data 
-for which there is a registered inflator in the C<column_info>
-
-=cut
-
-sub inflate_hash {
-    my ($schema, $rc, $data) = @_;
-
-    foreach my $column (keys %{$data}) {
-
-        if (ref $data->{$column} eq 'HASH') {
-            inflate_hash ($schema, $schema->source ($rc)->related_class ($column), $data->{$column});
-        } 
-        elsif (ref $data->{$column} eq 'ARRAY') {
-            foreach my $rel (@{$data->{$column}}) {
-                inflate_hash ($schema, $schema->source ($rc)->related_class ($column), $rel);
-            }
-        }
-        else {
-            # "null is null is null"
-            next if not defined $data->{$column};
-
-            # cache the inflator coderef
-            unless (exists $inflator_cache{$rc}{$column}) {
-                $inflator_cache{$rc}{$column} = exists $schema->source ($rc)->_relationships->{$column}
-                    ? undef     # currently no way to inflate a column sharing a name with a rel 
-                    : $rc->column_info($column)->{_inflate_info}{inflate}
-                ;
-            }
-
-            if ($inflator_cache{$rc}{$column}) {
-                $data->{$column} = $inflator_cache{$rc}{$column}->($data->{$column});
-            }
-        }
     }
 }
 
