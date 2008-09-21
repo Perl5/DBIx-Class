@@ -13,11 +13,11 @@ BEGIN {
     : ( tests => 2 );
 }
 
-package DBICTest::Schema;
+package DBICTest::Plain;
 
-# Use the default test class namespace to avoid the need for a
+# Use the Plain test class namespace to avoid the need for a
 # new test infrastructure. If invalid classes will be introduced to
-# 't/lib/DBICTest/Schema/' someday, this has to be reworked.
+# 't/lib/DBICTest/Plain/' someday, this has to be reworked.
 
 use lib qw(t/lib);
 
@@ -28,6 +28,6 @@ use base qw/DBIx::Class::Schema/;
 eval{ __PACKAGE__->load_classes() };
 cmp_ok( $@, 'eq', '',
         'Loading classes with Module::Find worked in taint mode' );
-ok( __PACKAGE__->sources(), 'At least on source has been registered' );
+ok( __PACKAGE__->source('Test'), 'The Plain::Test source has been registered' );
 
 1;
