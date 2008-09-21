@@ -41,7 +41,10 @@ $schema_orig->deploy({ add_drop_table => 1 });
 my $tvrs = $schema_orig->{vschema}->resultset('Table');
 is($schema_orig->_source_exists($tvrs), 1, 'Created schema from DDL file');
 
+# loading a new module defining a new version of the same table
+DBICVersion::Schema->_unregister_source ('Table');
 eval "use DBICVersionNew";
+
 {
   unlink('t/var/DBICVersion-Schema-2.0-MySQL.sql');
   unlink('t/var/DBICVersion-Schema-1.0-2.0-MySQL.sql');
@@ -51,6 +54,7 @@ eval "use DBICVersionNew";
   is($schema_upgrade->schema_version, '2.0', 'schema version ok');
   $schema_upgrade->create_ddl_dir('MySQL', '2.0', 't/var', '1.0');
   ok(-f 't/var/DBICVersion-Schema-1.0-2.0-MySQL.sql', 'Created DDL file');
+
   $schema_upgrade->upgrade();
   is($schema_upgrade->get_db_version(), '2.0', 'db version number upgraded');
 
