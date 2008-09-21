@@ -703,7 +703,10 @@ sub disconnect {
     $self->_do_connection_actions($connection_do) if ref($connection_do);
 
     $self->_dbh->rollback unless $self->_dbh_autocommit;
-    $self->_dbh->disconnect;
+
+    # SQLite is evil/brainded and must be DESTROYed without disconnecting: http://www.perlmonks.org/?node_id=666210
+    $self->_dbh->disconnect if $self->_dbh->get_info(17) ne 'SQLite';
+
     $self->_dbh(undef);
     $self->{_dbh_gen}++;
   }
