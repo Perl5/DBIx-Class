@@ -733,7 +733,7 @@ B<Test File> test.pl
     ### The statement below will print 
     print "I can do admin stuff\n" if $admin->can('do_admin_stuff'); 
 
-=head2 Skip object creation for faster results
+=head2 Skip row object creation for faster results
 
 DBIx::Class is not built for speed, it's built for convenience and
 ease of use, but sometimes you just need to get the data, and skip the
@@ -746,8 +746,19 @@ To do this simply use L<DBIx::Class::ResultClass::HashRefInflator>.
  $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
  
  my $hash_ref = $rs->find(1);
-  
+
 Wasn't that easy?
+  
+=head2 Skip row object creation for faster results, but still inflate
+column values to the corresponding objects
+
+ my $rs = $schema->resultset('CD');
+ 
+ $rs->result_class(DBIx::Class::ResultClass::HashRefInflator->new (
+    inflate_columns => 1
+ ));
+ 
+ my $hash_ref = $rs->find(1);
   
 =head2 Get raw data for blindingly fast results
 
