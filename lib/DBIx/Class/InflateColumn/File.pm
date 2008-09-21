@@ -96,7 +96,7 @@ sub _save_file_column {
     my $fs_file = $self->_file_column_file($column, $value->{filename});
     mkpath [$fs_file->dir];
     
-    File::Copy::copy($value->{handle}, $fs_file);
+    File::Copy::copy($value->{handle}, $fs_file->stringify);    # File::Copy doesn't like Path::Class (or any for that matter) objects
 
     $self->_file_column_callback($value, $self, $column);
 
