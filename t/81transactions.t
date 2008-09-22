@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 63;
+plan tests => 64;
 
 my $code = sub {
   my ($artist, @cd_titles) = @_;
@@ -235,7 +235,11 @@ my $fail_code = sub {
         $schema2->txn_begin();
     };
     my $err = $@;
-    ok(($err eq ''), 'Pre-connection nested transactions.');
+    ok(! $err, 'Pre-connection nested transactions.');
+
+    # although not connected DBI would still warn about rolling back at disconnect
+    $schema2->txn_rollback;
+    $schema2->txn_rollback;
     $schema2->storage->disconnect;
 }
 $schema->storage->disconnect;
@@ -268,12 +272,17 @@ $schema->storage->disconnect;
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
-
   eval {
-    # The 0 arg says done die, just let the scope guard go out of scope 
+    my $w;
+    local $SIG{__WARN__} = sub { $w = shift };
+
+    # The 0 arg says don't die, just let the scope guard go out of scope 
     # forcing a txn_rollback to happen
     outer($schema, 0);
+
+    like ($w, qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or an error/, 'Out of scope warning detected');
   };
+
   local $TODO = "Work out how this should work";
   is($@, "Not sure what we want here, but something", "Rollback okay");
 
