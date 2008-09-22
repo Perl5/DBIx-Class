@@ -265,6 +265,18 @@ its SQL searches. So if you fail to find help in the
 L<DBIx::Class::Manual::Cookbook>, try looking in the SQL::Abstract
 documentation.
 
+=item .. make searches in Oracle (10gR2 and newer) case-insensitive?
+
+To make Oracle behave like most RDBMS use on_connect_do to issue
+alter session statements on database connection establishment:
+
+ ->on_connect_do("ALTER SESSION SET NLS_COMP = 'LINGUISTIC'");
+ ->on_connect_do("ALTER SESSION SET NLS_SORT = '<NLS>_CI'");
+ e.g.
+ ->on_connect_do("ALTER SESSION SET NLS_SORT = 'BINARY_CI'");
+ ->on_connect_do("ALTER SESSION SET NLS_SORT = 'GERMAN_CI'");
+
+
 =back
 
 =head2 Fetching data
