@@ -825,6 +825,8 @@ a related conditional from that object.
 
 =cut
 
+our $UNRESOLVABLE_CONDITION = \'1 = 0';
+
 sub resolve_condition {
   my ($self, $cond, $as, $for) = @_;
   #warn %$cond;
@@ -843,7 +845,7 @@ sub resolve_condition {
           if ($for->in_storage) {
             $self->throw_exception("Column ${v} not loaded on ${for} trying to reolve relationship");
           }
-          return [ \'1 = 0' ];
+          return [ $UNRESOLVABLE_CONDITION ];
         }
         $ret{$k} = $for->get_column($v);
         #$ret{$k} = $for->get_column($v) if $for->has_column_loaded($v);

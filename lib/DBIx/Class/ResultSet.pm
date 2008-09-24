@@ -1520,6 +1520,11 @@ sub new_result {
   $self->throw_exception( "new_result needs a hash" )
     unless (ref $values eq 'HASH');
   $self->throw_exception(
+    "Implicit construct invalid, condition was not resolveable on parent "
+    ."object"
+  ) if (defined $self->{cond}
+        && $self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION);
+  $self->throw_exception(
     "Can't abstract implicit construct, condition not a hash"
   ) if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
 

@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 63;
+plan tests => 64;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -250,3 +250,13 @@ $artist->cds->update({artist => $nartist->id});
 cmp_ok($artist->cds->count, '==', 0, "Correct new #cds for artist");
 cmp_ok($nartist->cds->count, '==', 2, "Correct new #cds for artist");
 
+my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode' });
+# why must i tell him: make a new related from me and me is me? that works!
+# my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave in Silence', 'year' => 1982, 'artist' => $new_artist });
+my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave in Silence', 'year' => 1982});
+eval {
+       $new_artist->insert;
+       $new_related_cd->insert;
+};
+$@ && diag($@);
+ok($new_related_cd->in_storage, 'new_related_cd insert ok');
