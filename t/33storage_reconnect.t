@@ -13,7 +13,7 @@ my $db_orig = "$FindBin::Bin/var/DBIxClass.db";
 my $db_tmp  = "$db_orig.tmp";
 
 # Set up the "usual" sqlite for DBICTest
-my $schema = DBICTest->init_schema;
+my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
 # Make sure we're connected by doing something
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});

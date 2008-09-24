@@ -34,7 +34,7 @@ use DBICTest;
 
 plan tests => 6;
 
-my $schema = DBICTest->init_schema();
+my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
 is( ref($schema->storage), 'DBIx::Class::Storage::DBI::SQLite',
     'Storage reblessed correctly into DBIx::Class::Storage::DBI::SQLite' );
