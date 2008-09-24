@@ -51,16 +51,20 @@ sub has_custom_dsn {
 }
 
 sub _sqlite_dbfilename {
+    return "t/var/DBIxClass.db";
+}
+
+sub _sqlite_dbname {
     my $self = shift;
     my %args = @_;
-    return "t/var/DBIxClass.db" if $args{sqlite_use_file} or $ENV{"DBICTEST_SQLITE_USE_FILE"};
+    return $self->_sqlite_dbfilename if $args{sqlite_use_file} or $ENV{"DBICTEST_SQLITE_USE_FILE"};
 	return ":memory:";
 }
 
 sub _database {
     my $self = shift;
     my %args = @_;
-    my $db_file = $self->_sqlite_dbfilename(%args);
+    my $db_file = $self->_sqlite_dbname(%args);
 
     unlink($db_file) if -e $db_file;
     unlink($db_file . "-journal") if -e $db_file . "-journal";

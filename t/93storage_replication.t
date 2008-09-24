@@ -62,6 +62,7 @@ TESTSCHEMACLASSES: {
         my $class = shift @_;
         
         my $schema = DBICTest->init_schema(
+            sqlite_use_file => 1,
             storage_type=>{
             	'::DBI::Replicated' => {
             		balancer_type=>'::Random',
