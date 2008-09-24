@@ -51,12 +51,16 @@ sub has_custom_dsn {
 }
 
 sub _sqlite_dbfilename {
-	return "t/var/DBIxClass.db";
+    my $self = shift;
+    my %args = @_;
+    return "t/var/DBIxClass.db" if $args{sqlite_use_file} or $ENV{"DBICTEST_SQLITE_USE_FILE"};
+	return ":memory:";
 }
 
 sub _database {
     my $self = shift;
-    my $db_file = $self->_sqlite_dbfilename;
+    my %args = @_;
+    my $db_file = $self->_sqlite_dbfilename(%args);
 
     unlink($db_file) if -e $db_file;
     unlink($db_file . "-journal") if -e $db_file . "-journal";
@@ -76,10 +80,10 @@ sub init_schema {
     my %args = @_;
 
     my $schema;
-
+    
     if ($args{compose_connection}) {
       $schema = DBICTest::Schema->compose_connection(
-                  'DBICTest', $self->_database
+                  'DBICTest', $self->_database(%args)
                 );
     } else {
       $schema = DBICTest::Schema->compose_namespace('DBICTest');
@@ -88,7 +92,7 @@ sub init_schema {
     	$schema->storage_type($args{storage_type});
     }    
     if ( !$args{no_connect} ) {
-      $schema = $schema->connect($self->_database);
+      $schema = $schema->connect($self->_database(%args));
       $schema->storage->on_connect_do(['PRAGMA synchronous = OFF'])
        unless $self->has_custom_dsn;
     }
