@@ -1243,7 +1243,11 @@ sub _select {
   my $order = $attrs->{order_by};
 
   if (ref $condition eq 'SCALAR') {
-    $order = $1 if $$condition =~ s/ORDER BY (.*)$//i;
+    my $unwrap = ${$condition};
+    if ($unwrap =~ s/ORDER BY (.*)$//i) {
+      $order = $1;
+      $condition = \$unwrap;
+    }
   }
 
   my $for = delete $attrs->{for};

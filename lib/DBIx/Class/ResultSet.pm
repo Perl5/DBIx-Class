@@ -1519,28 +1519,36 @@ sub new_result {
   my ($self, $values) = @_;
   $self->throw_exception( "new_result needs a hash" )
     unless (ref $values eq 'HASH');
-  $self->throw_exception(
-    "Implicit construct invalid, condition was not resolveable on parent "
-    ."object"
-  ) if (defined $self->{cond}
-        && $self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION);
-  $self->throw_exception(
-    "Can't abstract implicit construct, condition not a hash"
-  ) if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
 
-  my $alias = $self->{attrs}{alias};
-  my $collapsed_cond = $self->{cond} ? $self->_collapse_cond($self->{cond}) : {};
-
-  # precendence must be given to passed values over values inherited from the cond, 
-  # so the order here is important.
   my %new;
-  my %implied =  %{$self->_remove_alias($collapsed_cond, $alias)};
-  while( my($col,$value) = each %implied ){
-    if(ref($value) eq 'HASH' && keys(%$value) && (keys %$value)[0] eq '='){
-      $new{$col} = $value->{'='};
-      next;
+  my $alias = $self->{attrs}{alias};
+
+  if (
+    defined $self->{cond}
+    && $self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
+  ) {
+    %new = %{$self->{attrs}{related_objects}};
+  } else {
+    $self->throw_exception(
+      "Can't abstract implicit construct, condition not a hash"
+    ) if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
+  
+    my $collapsed_cond = (
+      $self->{cond}
+        ? $self->_collapse_cond($self->{cond})
+        : {}
+    );
+  
+    # precendence must be given to passed values over values inherited from
+    # the cond, so the order here is important.
+    my %implied =  %{$self->_remove_alias($collapsed_cond, $alias)};
+    while( my($col,$value) = each %implied ){
+      if(ref($value) eq 'HASH' && keys(%$value) && (keys %$value)[0] eq '='){
+        $new{$col} = $value->{'='};
+        next;
+      }
+      $new{$col} = $value if $self->_is_deterministic_value($value);
     }
-    $new{$col} = $value if $self->_is_deterministic_value($value);
   }
 
   %new = (

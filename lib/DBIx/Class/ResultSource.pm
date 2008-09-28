@@ -845,7 +845,7 @@ sub resolve_condition {
           if ($for->in_storage) {
             $self->throw_exception("Column ${v} not loaded on ${for} trying to reolve relationship");
           }
-          return [ $UNRESOLVABLE_CONDITION ];
+          return $UNRESOLVABLE_CONDITION;
         }
         $ret{$k} = $for->get_column($v);
         #$ret{$k} = $for->get_column($v) if $for->has_column_loaded($v);

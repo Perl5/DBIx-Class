@@ -186,9 +186,17 @@ sub related_resultset {
       if (@_ > 1 && (@_ % 2 == 1));
     my $query = ((@_ > 1) ? {@_} : shift);
 
-    my $cond = $self->result_source->resolve_condition(
+    my $source = $self->result_source;
+    my $cond = $source->resolve_condition(
       $rel_obj->{cond}, $rel, $self
     );
+    if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
+      my $reverse = $source->reverse_relationship_info($rel);
+      foreach my $rev_rel (keys %$reverse) {
+        $attrs->{related_objects}{$rev_rel} = $self;
+        Scalar::Util::weaken($attrs->{related_object}{$rev_rel});
+      }
+    }
     if (ref $cond eq 'ARRAY') {
       $cond = [ map {
         if (ref $_ eq 'HASH') {
@@ -202,7 +210,7 @@ sub related_resultset {
           $_;
         }
       } @$cond ];
-    } else {
+    } elsif (ref $cond eq 'HASH') {
       foreach my $key (grep { ! /\./ } keys %$cond) {
         $cond->{"me.$key"} = delete $cond->{$key};
       }

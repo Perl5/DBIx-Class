@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - Fix storage to copy scalar conds before regexping to avoid
+          trying to modify a constant in odd edge cases
+        - Related resultsets on uninserted objects are now empty
         - Fixed up related resultsets and multi-create
         - Fixed superfluous connection in ODBC::_rebless
         - Fixed undef PK for first insert in ODBC::Microsoft_SQL_Server
