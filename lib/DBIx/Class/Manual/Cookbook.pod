@@ -749,17 +749,6 @@ To do this simply use L<DBIx::Class::ResultClass::HashRefInflator>.
 
 Wasn't that easy?
   
-=head2 Skip row object creation for faster results, but still inflate
-column values to the corresponding objects
-
- my $rs = $schema->resultset('CD');
- 
- $rs->result_class(DBIx::Class::ResultClass::HashRefInflator->new (
-    inflate_columns => 1
- ));
- 
- my $hash_ref = $rs->find(1);
-  
 =head2 Get raw data for blindingly fast results
 
 If the L<HashRefInflator|DBIx::Class::ResultClass::HashRefInflator> solution
