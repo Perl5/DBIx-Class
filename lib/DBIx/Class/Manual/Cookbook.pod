@@ -68,6 +68,41 @@ This results in the following C<WHERE> clause:
 For more information on generating complex queries, see
 L<SQL::Abstract/WHERE CLAUSES>.
 
+=head2 Retrieve one and only one row from a resultset
+
+Sometimes you need only the first "top" row of a resultset. While this can be
+easily done with L<< $rs->first|DBIx::Class::ResultSet/first >>, it is suboptimal,
+as a full blown cursor for the resultset will be created and then immediately
+destroyed after fetching the first row object. 
+L<< $rs->single|DBIx::Class::ResultSet/single >> is
+designed specifically for this case - it will grab the first returned result
+without even instantiating a cursor. 
+
+Before replacing all your calls to C<first()> with C<single()> please observe the 
+following CAVEATS:
+
+=over
+
+=item *
+While single() takes a search condition just like search() does, it does
+_not_ accept search attributes. However one can always chain a single() to
+a search():
+
+  my $top_cd = $cd_rs -> search({}, { order_by => 'rating' }) -> single;
+
+
+=item *
+Since single() is the engine behind find(), it is designed to fetch a
+single row per database query. Thus a warning will be issued when the
+underlying SELECT returns more than one row. Sometimes however this usage
+is valid: i.e. we have an arbitrary number of cd's but only one of them is
+at the top of the charts at any given time. If you know what you are doing,
+you can silence the warning by explicitly limiting the resultset size:
+
+  my $top_cd = $cd_rs -> search ({}, { order_by => 'rating', rows => 1 }) -> single;
+
+=back
+
 =head2 Arbitrary SQL through a custom ResultSource
 
 Sometimes you have to run arbitrary SQL because your query is too complex
