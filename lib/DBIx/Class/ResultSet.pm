@@ -573,19 +573,29 @@ sub cursor {
   my $cd = $schema->resultset('CD')->single({ year => 2001 });
 
 Inflates the first result without creating a cursor if the resultset has
-any records in it; if not returns nothing. Used by L</find> as an optimisation.
+any records in it; if not returns nothing. Used by L</find> as a lean version of
+L</search>.
 
-Can optionally take an additional condition B<only> - this is a fast-code-path
-method; if you need to add extra joins or similar call L</search> and then
-L</single> without a condition on the L<DBIx::Class::ResultSet> returned from
-that.
+While this method can take an optional search condition (just like L</search>)
+being a fast-code-path it does not recognize search attributes. If you need to
+add extra joins or similar, call L</search> and then chain-call L</single> on the
+L<DBIx::Class::ResultSet> returned.
 
-B<Note>: As of 0.08100, this method assumes that the query returns only one
-row. If more than one row is returned, you will receive a warning:
+=over
+
+=item B<Note>
+
+As of 0.08100, this method enforces the assumption that the preceeding
+query returns only one row. If more than one row is returned, you will receive
+a warning:
 
   Query returned more than one row
 
-In this case, you should be using L</first> or L</find> instead.
+In this case, you should be using L</first> or L</find> instead, or if you really
+know what you are doing, use the L</rows> attribute to explicitly limit the size 
+of the resultset.
+
+=back
 
 =cut
 
