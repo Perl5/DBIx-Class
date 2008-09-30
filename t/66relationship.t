@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 64;
+plan tests => 65;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -213,7 +213,11 @@ is( $twokey->fourkeys_to_twokeys->count, 0,
 my $undef_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007 });
 is($undef_artist_cd->has_column_loaded('artist'), '', 'FK not loaded');
 is($undef_artist_cd->search_related('artist')->count, 0, '0=1 search when FK does not exist and object not yet in db');
-
+eval{ 
+     $undef_artist_cd->related_resultset('artist')->new({name => 'foo'});
+};
+is( $@, '', "Object created on a resultset related to not yet inserted object");
+ 
 my $def_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007, artist => undef });
 is($def_artist_cd->has_column_loaded('artist'), 1, 'FK loaded');
 is($def_artist_cd->search_related('artist')->count, 0, 'closed search on null FK');

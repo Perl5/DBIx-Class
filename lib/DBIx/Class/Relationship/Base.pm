@@ -193,8 +193,13 @@ sub related_resultset {
     if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
       my $reverse = $source->reverse_relationship_info($rel);
       foreach my $rev_rel (keys %$reverse) {
-        $attrs->{related_objects}{$rev_rel} = $self;
-        Scalar::Util::weaken($attrs->{related_object}{$rev_rel});
+        if ($reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
+          $attrs->{related_objects}{$rev_rel} = [ $self ];
+          Scalar::Util::weaken($attrs->{related_object}{$rev_rel}[0]);
+        } else {
+          $attrs->{related_objects}{$rev_rel} = $self;
+          Scalar::Util::weaken($attrs->{related_object}{$rev_rel});
+        }
       }
     }
     if (ref $cond eq 'ARRAY') {
