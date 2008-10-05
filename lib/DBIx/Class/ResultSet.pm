@@ -2181,44 +2181,44 @@ sub _calculate_score {
 }
 
 sub _merge_attr {
-  my ($self, $a, $b) = @_;
+  my ($self, $orig, $import) = @_;
 
-  return $b unless defined($a);
-  return $a unless defined($b);
+  return $import unless defined($orig);
+  return $orig unless defined($import);
   
-  $a = $self->_rollout_attr($a);
-  $b = $self->_rollout_attr($b);
+  $orig = $self->_rollout_attr($orig);
+  $import = $self->_rollout_attr($import);
 
   my $seen_keys;
-  foreach my $b_element ( @{$b} ) {
-    # find best candidate from $a to merge $b_element into
+  foreach my $import_element ( @{$import} ) {
+    # find best candidate from $orig to merge $b_element into
     my $best_candidate = { position => undef, score => 0 }; my $position = 0;
-    foreach my $a_element ( @{$a} ) {
-      my $score = $self->_calculate_score( $a_element, $b_element );
+    foreach my $orig_element ( @{$orig} ) {
+      my $score = $self->_calculate_score( $orig_element, $import_element );
       if ($score > $best_candidate->{score}) {
         $best_candidate->{position} = $position;
         $best_candidate->{score} = $score;
       }
       $position++;
     }
-    my ($b_key) = ( ref $b_element eq 'HASH' ) ? keys %{$b_element} : ($b_element);
+    my ($import_key) = ( ref $import_element eq 'HASH' ) ? keys %{$import_element} : ($import_element);
 
-    if ($best_candidate->{score} == 0 || exists $seen_keys->{$b_key}) {
-      push( @{$a}, $b_element );
+    if ($best_candidate->{score} == 0 || exists $seen_keys->{$import_key}) {
+      push( @{$orig}, $import_element );
     } else {
-      my $a_best = $a->[$best_candidate->{position}];
-      # merge a_best and b_element together and replace original with merged
-      if (ref $a_best ne 'HASH') {
-        $a->[$best_candidate->{position}] = $b_element;
-      } elsif (ref $b_element eq 'HASH') {
-        my ($key) = keys %{$a_best};
-        $a->[$best_candidate->{position}] = { $key => $self->_merge_attr($a_best->{$key}, $b_element->{$key}) };
+      my $orig_best = $orig->[$best_candidate->{position}];
+      # merge orig_best and b_element together and replace original with merged
+      if (ref $orig_best ne 'HASH') {
+        $orig->[$best_candidate->{position}] = $import_element;
+      } elsif (ref $import_element eq 'HASH') {
+        my ($key) = keys %{$orig_best};
+        $orig->[$best_candidate->{position}] = { $key => $self->_merge_attr($orig_best->{$key}, $import_element->{$key}) };
       }
     }
-    $seen_keys->{$b_key} = 1; # don't merge the same key twice
+    $seen_keys->{$import_key} = 1; # don't merge the same key twice
   }
 
-  return $a;
+  return $orig;
 }
 
 sub result_source {
