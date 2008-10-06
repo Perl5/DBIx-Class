@@ -905,6 +905,12 @@ as follows:
 
   __PACKAGE__->has_many('pages' => 'Page', 'book', { order_by => \'page_number DESC'} );
 
+=head2 Filtering a relationship result set
+
+If you want to get a filtered result set, you can just add add to $attr as follows:
+
+ __PACKAGE__->has_many('pages' => 'Page', 'book', { where => { scrap => 0 } } );
+
 =head2 Many-to-many relationships
 
 This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_many>:
