@@ -157,7 +157,6 @@ my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_v
     local $DBICVersion::Schema::VERSION = '1.0';
     $schema_orig->deploy;
   }
-sleep 1;
 
   my $w;
   local $SIG{__WARN__} = sub { $w = shift };
