@@ -16,16 +16,18 @@ my $schema = DBICTest::Schema->connection($dsn, $dbuser, $dbpass, { AutoCommit =
 
 my $dbh = $schema->storage->dbh;
 
-$dbh->do(qq[
-
-	CREATE TABLE artist
-	(
-		artistid		serial	NOT NULL	PRIMARY KEY,
-		media			bytea	NOT NULL,
-		name			varchar NULL
-	);
-],{ RaiseError => 1, PrintError => 1 });
-
+{
+    local $SIG{__WARN__} = sub {};
+    $dbh->do('DROP TABLE IF EXISTS artist');
+    $dbh->do(qq[
+        CREATE TABLE artist
+        (
+            artistid        serial  NOT NULL    PRIMARY KEY,
+            media           bytea   NOT NULL,
+            name            varchar NULL
+        );
+    ],{ RaiseError => 1, PrintError => 1 });
+}
 
 $schema->class('Artist')->load_components(qw/ 
 

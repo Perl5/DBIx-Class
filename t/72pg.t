@@ -47,13 +47,16 @@ SKIP: {
 my $dbh = $schema->storage->dbh;
 $schema->source("Artist")->name("testschema.artist");
 $schema->source("SequenceTest")->name("testschema.sequence_test");
-$dbh->do("CREATE SCHEMA testschema;");
-$dbh->do("CREATE TABLE testschema.artist (artistid serial PRIMARY KEY, name VARCHAR(100), charfield CHAR(10));");
-$dbh->do("CREATE TABLE testschema.sequence_test (pkid1 integer, pkid2 integer, nonpkid integer, name VARCHAR(100), CONSTRAINT pk PRIMARY KEY(pkid1, pkid2));");
-$dbh->do("CREATE SEQUENCE pkid1_seq START 1 MAXVALUE 999999 MINVALUE 0");
-$dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
-$dbh->do("CREATE SEQUENCE nonpkid_seq START 20 MAXVALUE 999999 MINVALUE 0");
-ok ( $dbh->do('CREATE TABLE testschema.casecheck (id serial PRIMARY KEY, "name" VARCHAR(1), "NAME" VARCHAR(2), "UC_NAME" VARCHAR(3));'), 'Creation of casecheck table');
+{
+    local $SIG{__WARN__} = sub {};
+    $dbh->do("CREATE SCHEMA testschema;");
+    $dbh->do("CREATE TABLE testschema.artist (artistid serial PRIMARY KEY, name VARCHAR(100), charfield CHAR(10));");
+    $dbh->do("CREATE TABLE testschema.sequence_test (pkid1 integer, pkid2 integer, nonpkid integer, name VARCHAR(100), CONSTRAINT pk PRIMARY KEY(pkid1, pkid2));");
+    $dbh->do("CREATE SEQUENCE pkid1_seq START 1 MAXVALUE 999999 MINVALUE 0");
+    $dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
+    $dbh->do("CREATE SEQUENCE nonpkid_seq START 20 MAXVALUE 999999 MINVALUE 0");
+    ok ( $dbh->do('CREATE TABLE testschema.casecheck (id serial PRIMARY KEY, "name" VARCHAR(1), "NAME" VARCHAR(2), "UC_NAME" VARCHAR(3));'), 'Creation of casecheck table');
+}
 
 # This is in Core now, but it's here just to test that it doesn't break
 $schema->class('Artist')->load_components('PK::Auto');

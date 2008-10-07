@@ -59,8 +59,11 @@ TESTSCHEMACLASSES: {
     ## Get the Schema and set the replication storage type
     
     sub init_schema {
+        # current SQLT SQLite producer does not handle DROP TABLE IF EXISTS, trap warnings here
+        local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /no such table.+DROP TABLE/ };
+
         my $class = shift @_;
-        
+
         my $schema = DBICTest->init_schema(
             sqlite_use_file => 1,
             storage_type=>{

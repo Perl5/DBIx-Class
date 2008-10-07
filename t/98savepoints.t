@@ -30,7 +30,11 @@ $schema->storage->debugobj($stats);
 
 $schema->storage->debug(1);
 
-$schema->storage->dbh->do ($create_sql);
+{
+    local $SIG{__WARN__} = sub {};
+    $schema->storage->dbh->do ('DROP TABLE IF EXISTS artist');
+    $schema->storage->dbh->do ($create_sql);
+}
 
 $schema->resultset('Artist')->create({ name => 'foo' });
 
