@@ -31,7 +31,7 @@ requires 'Encode'                    => 0 if ($] <= 5.008000);
 
 test_requires 'DBD::SQLite'         => 1.13;
 test_requires 'Test::Builder'       => 0.33;
-test_requires 'Test::Warn'          => 0.08;
+test_requires 'Test::Warn'          => 0.11;
 test_requires 'Test::NoWarnings'    => 0.08;
 test_requires 'Test::Exception'     => 0;
 
