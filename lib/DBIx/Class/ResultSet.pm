@@ -307,7 +307,7 @@ sub search_literal {
 
 =item Arguments: @values | \%cols, \%attrs?
 
-=item Return Value: $row_object
+=item Return Value: $row_object | undef
 
 =back
 
@@ -1512,7 +1512,7 @@ sub page {
 
 =item Arguments: \%vals
 
-=item Return Value: $object
+=item Return Value: $rowobject
 
 =back
 
@@ -1649,15 +1649,32 @@ sub _remove_alias {
 
 =item Arguments: \%vals, \%attrs?
 
-=item Return Value: $object
+=item Return Value: $rowobject
 
 =back
 
-Find an existing record from this resultset. If none exists, instantiate a new
-result object and return it. The object will not be saved into your storage
+  my $artist = $schema->resultset('Artist')->find_or_new(
+    { artist => 'fred' }, { key => 'artists' });
+
+  $cd->cd_to_producer->find_or_new({ producer => $producer },
+                                   { key => 'primary });
+
+Find an existing record from this resultset, based on it's primary
+key, or a unique constraint. If none exists, instantiate a new result
+object and return it. The object will not be saved into your storage
 until you call L<DBIx::Class::Row/insert> on it.
 
+You most likely want this method when looking for existing rows using
+a unique constraint that is not the primary key, or looking for
+related rows.
+
 If you want objects to be saved immediately, use L</find_or_create> instead.
+
+B<Note>: C<find_or_new> is probably not what you want when creating a
+new row in a table that uses primary keys supplied by the
+database. Passing in a primary key column with a value of I<undef>
+will cause L</find> to attempt to search for a row with a value of
+I<NULL>.
 
 =cut
 
@@ -1747,13 +1764,14 @@ sub create {
 
 =item Arguments: \%vals, \%attrs?
 
-=item Return Value: $object
+=item Return Value: $rowobject
 
 =back
 
-  $class->find_or_create({ key => $val, ... });
+  $cd->cd_to_producer->find_or_create({ producer => $producer },
+                                      { key => 'primary });
 
-Tries to find a record based on its primary key or unique constraint; if none
+Tries to find a record based on its primary key or unique constraints; if none
 is found, creates one and returns that instead.
 
   my $cd = $schema->resultset('CD')->find_or_create({
@@ -1774,11 +1792,17 @@ constraint. For example:
     { key => 'cd_artist_title' }
   );
 
-Note: Because find_or_create() reads from the database and then
+B<Note>: Because find_or_create() reads from the database and then
 possibly inserts based on the result, this method is subject to a race
 condition. Another process could create a record in the table after
 the find has completed and before the create has started. To avoid
 this problem, use find_or_create() inside a transaction.
+
+B<Note>: C<find_or_create> is probably not what you want when creating
+a new row in a table that uses primary keys supplied by the
+database. Passing in a primary key column with a value of I<undef>
+will cause L</find> to attempt to search for a row with a value of
+I<NULL>.
 
 See also L</find> and L</update_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
@@ -1799,11 +1823,11 @@ sub find_or_create {
 
 =item Arguments: \%col_values, { key => $unique_constraint }?
 
-=item Return Value: $object
+=item Return Value: $rowobject
 
 =back
 
-  $class->update_or_create({ col => $val, ... });
+  $resultset->update_or_create({ col => $val, ... });
 
 First, searches for an existing row matching one of the unique constraints
 (including the primary key) on the source of this resultset. If a row is
@@ -1823,6 +1847,14 @@ For example:
     { key => 'cd_artist_title' }
   );
 
+  $cd->cd_to_producer->update_or_create({ 
+    producer => $producer, 
+    name => 'harry',
+  }, { 
+    key => 'primary,
+  });
+
+
 If no C<key> is specified, it searches on all unique constraints defined on the
 source, including the primary key.
 
@@ -1830,6 +1862,12 @@ If the C<key> is specified as C<primary>, it searches only on the primary key.
 
 See also L</find> and L</find_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
+
+B<Note>: C<update_or_create> is probably not what you want when
+looking for a row in a table that uses primary keys supplied by the
+database, unless you actually have a key value. Passing in a primary
+key column with a value of I<undef> will cause L</find> to attempt to
+search for a row with a value of I<NULL>.
 
 =cut
 
