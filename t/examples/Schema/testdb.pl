@@ -26,7 +26,6 @@ sub get_tracks_by_cd {
         },
         {
             join     => [qw/ cd /],
-            prefetch => [qw/ cd /]
         }
     );
     while (my $track = $rs->next) {
@@ -79,7 +78,6 @@ sub get_cds_by_artist {
         },
         {
             join     => [qw/ artist /],
-            prefetch => [qw/ artist /]
         }
     );
     while (my $cd = $rs->next) {

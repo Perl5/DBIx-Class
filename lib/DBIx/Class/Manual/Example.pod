@@ -220,7 +220,6 @@ testdb.pl:
       },
       {
         join     => [qw/ cd /],
-        prefetch => [qw/ cd /]
       }
     );
     while (my $track = $rs->next) {
@@ -273,7 +272,6 @@ testdb.pl:
       },
       {
         join     => [qw/ artist /],
-        prefetch => [qw/ artist /]
       }
     );
     while (my $cd = $rs->next) {
