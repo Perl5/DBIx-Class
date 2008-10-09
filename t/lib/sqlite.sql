@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Thu Oct  9 13:12:46 2008
+-- Created on Thu Oct  9 13:44:56 2008
 -- 
 BEGIN TRANSACTION;
 
@@ -10,7 +10,8 @@ BEGIN TRANSACTION;
 --
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY NOT NULL,
-  name varchar(100)
+  name varchar(100),
+  rank integer NOT NULL DEFAULT '13'
 );
 
 

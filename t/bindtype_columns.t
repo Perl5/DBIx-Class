@@ -24,7 +24,8 @@ my $dbh = $schema->storage->dbh;
         (
             artistid        serial  NOT NULL    PRIMARY KEY,
             media           bytea   NOT NULL,
-            name            varchar NULL
+            name            varchar NULL,
+            rank            integer NOT NULL    DEFAULT '13'
         );
     ],{ RaiseError => 1, PrintError => 1 });
 }

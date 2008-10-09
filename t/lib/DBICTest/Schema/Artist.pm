@@ -19,6 +19,10 @@ __PACKAGE__->add_columns(
     size      => 100,
     is_nullable => 1,
   },
+  rank => {
+    data_type => 'integer',
+    default_value => 13,
+  },
 );
 __PACKAGE__->set_primary_key('artistid');
 
