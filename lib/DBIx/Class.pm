@@ -68,28 +68,28 @@ Create a schema class called MyDB/Schema.pm:
   package MyDB::Schema;
   use base qw/DBIx::Class::Schema/;
 
-  __PACKAGE__->load_classes();
+  __PACKAGE__->load_namespaces();
 
   1;
 
 Create a table class to represent artists, who have many CDs, in
-MyDB/Schema/Artist.pm:
+MyDB/Schema/Result/Artist.pm:
 
-  package MyDB::Schema::Artist;
+  package MyDB::Schema::Result::Artist;
   use base qw/DBIx::Class/;
 
   __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many(cds => 'MyDB::Schema::CD');
+  __PACKAGE__->has_many(cds => 'MyDB::Schema::Result::CD');
 
   1;
 
 A table class to represent a CD, which belongs to an artist, in
-MyDB/Schema/CD.pm:
+MyDB/Schema/Result/CD.pm:
 
-  package MyDB::Schema::CD;
+  package MyDB::Schema::Result::CD;
   use base qw/DBIx::Class/;
 
   __PACKAGE__->load_components(qw/Core/);
@@ -121,7 +121,7 @@ Then you can use these classes in your application's code:
   # Execute a joined query to get the cds.
   my @all_john_cds = $johns_rs->search_related('cds')->all;
 
-  # Fetch only the next row.
+  # Fetch the next available row.
   my $first_john = $johns_rs->next;
 
   # Specify ORDER BY on the query.
