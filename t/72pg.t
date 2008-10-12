@@ -50,7 +50,7 @@ $schema->source("SequenceTest")->name("testschema.sequence_test");
 {
     local $SIG{__WARN__} = sub {};
     $dbh->do("CREATE SCHEMA testschema;");
-    $dbh->do("CREATE TABLE testschema.artist (artistid serial PRIMARY KEY, name VARCHAR(100), charfield CHAR(10));");
+    $dbh->do("CREATE TABLE testschema.artist (artistid serial PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10));");
     $dbh->do("CREATE TABLE testschema.sequence_test (pkid1 integer, pkid2 integer, nonpkid integer, name VARCHAR(100), CONSTRAINT pk PRIMARY KEY(pkid1, pkid2));");
     $dbh->do("CREATE SEQUENCE pkid1_seq START 1 MAXVALUE 999999 MINVALUE 0");
     $dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
@@ -80,6 +80,13 @@ my $test_type_info = {
         'is_nullable' => 1,
         'size' => 100,
         'default_value' => undef,
+    },
+    'rank' => {
+        'data_type' => 'integer',
+        'is_nullable' => 0,
+        'size' => 4,
+        'default_value' => 13,
+
     },
     'charfield' => {
         'data_type' => 'character',
