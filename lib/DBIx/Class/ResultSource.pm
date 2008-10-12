@@ -961,11 +961,16 @@ sub resolve_prefetch {
       if (my ($fail) = grep { @{[$_ =~ m/\./g]} == $dots }
                          keys %{$collapse}) {
         my ($last) = ($fail =~ /([^\.]+)$/);
-        $self->throw_exception(
-          "Can't prefetch multiple has_many rels ${last} and ${pre}"
-          .(length($as_prefix) ? "at the same level (${as_prefix})"
-                               : "at top level"
-        ));
+        carp (
+          "Prefetching multiple has_many rels ${last} and ${pre} "
+          .(length($as_prefix)
+            ? "at the same level (${as_prefix}) "
+            : "at top level "
+          )
+          . 'will currently disrupt both the functionality of $rs->count(), '
+          . 'and the amount of objects retrievable via $rs->next(). '
+          . 'Use at your own risk.'
+        );
       }
       #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
       #              values %{$rel_info->{cond}};
