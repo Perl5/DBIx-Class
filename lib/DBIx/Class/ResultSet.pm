@@ -1297,7 +1297,8 @@ to run. See also L<DBIx::Class::Row/delete>.
 
 sub delete {
   my ($self) = @_;
-
+  $self->throw_exception("Delete should not be passed any arguments")
+    if $_[1];
   my $cond = $self->_cond_for_update_delete;
 
   $self->result_source->storage->delete($self->result_source, $cond);

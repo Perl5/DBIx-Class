@@ -1,5 +1,5 @@
 Revision history for DBIx::Class
-
+				- delete throws exception if passed arguments to prevent drunken mishaps. (purge)
         - Fix storage to copy scalar conds before regexping to avoid
           trying to modify a constant in odd edge cases
         - Related resultsets on uninserted objects are now empty
