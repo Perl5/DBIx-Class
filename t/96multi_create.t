@@ -217,3 +217,21 @@ eval {
     $t->insert;
 };
 like($@, qr/cd.artist may not be NULL/, "Exception propogated properly");
+
+# Test multi create over many_to_many
+eval {
+    $schema->resultset('CD')->create ({
+        artist => $new_artist,
+        title => 'Warble Marble',
+        year => '2009',
+        cd_to_producer => [
+            { producer => { name => 'Cowboy Neal' } },
+        ],
+    });
+
+    my $m2m_cd = $schema->resultset('CD')->search ({ title => 'Warble Marble'});
+    is ($m2m_cd->count, 1, 'One CD object created via M2M create');
+    is ($m2m_cd->first->producers->count, 1, 'CD object created with one producer');
+    is ($m2m_cd->first->producers->first->name, 'Cowboy Neal', 'Correct producer object created');
+};
+ok (! $@, 'No exceptions on m2m create');
