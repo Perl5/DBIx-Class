@@ -16,7 +16,7 @@ my $artist_cds = $artist->cds->count;
 cmp_ok($artist_cds, '<', $total_cds, 'need more cds than just related cds');
 
 ok($artist->delete_related('cds'));
-cmp_ok($schema->resultset('CD')->count, '==', ($total_cds - $artist_cds), 'too many cds were deleted');
+cmp_ok($schema->resultset('CD')->count, '==', ($total_cds - $artist_cds), 'wrong number of cds were deleted');
 
 $total_cds -= $artist_cds;
 
@@ -26,5 +26,5 @@ my $artist2_cds = $artist2->search_related('cds')->count;
 cmp_ok($artist2_cds, '<', $total_cds, 'need more cds than related cds');
 
 ok($artist2->delete_related('cds', {title => {like => '%'}}));
-cmp_ok($schema->resultset('CD')->count, '==', ($total_cds - $artist2_cds), 'too many cds were deleted');
+cmp_ok($schema->resultset('CD')->count, '==', ($total_cds - $artist2_cds), 'wrong number of cds were deleted');
 
