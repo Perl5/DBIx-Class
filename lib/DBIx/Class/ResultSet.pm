@@ -1293,12 +1293,26 @@ Deletes the contents of the resultset from its result source. Note that this
 will not run DBIC cascade triggers. See L</delete_all> if you need triggers
 to run. See also L<DBIx::Class::Row/delete>.
 
+delete may not generate correct SQL for a query with joins or a resultset
+chained from a related resultset.  In this case it will generate a warning:-
+
+  WARNING! Currently $rs->delete() does not generate proper SQL on
+  joined resultsets, and may delete rows well outside of the contents
+  of $rs. Use at your own risk
+
+In these cases you may find that delete_all is more appropriate, or you
+need to respecify your query in a way that can be expressed without a join.
+
 =cut
 
 sub delete {
   my ($self) = @_;
   $self->throw_exception("Delete should not be passed any arguments")
     if $_[1];
+  carp(   'WARNING! Currently $rs->delete() does not generate proper SQL'
+        . ' on joined resultsets, and may delete rows well outside of the'
+        . ' contents of $rs. Use at your own risk' )
+    if ( $self->{attrs}{seen_join} );
   my $cond = $self->_cond_for_update_delete;
 
   $self->result_source->storage->delete($self->result_source, $cond);
