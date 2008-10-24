@@ -41,7 +41,7 @@ sub Actor::accessor_name_for {
 	return $col;
 }
 
-# This is a class with accessor_name_for() but no corresponding mutatori_name_for()
+# This is a class with accessor_name_for() but no corresponding mutator_name_for()
 sub Director::accessor_name_for {
     my($class, $col) = @_;
     return "nutty_as_a_fruitcake" if lc $col eq "isinsane";
