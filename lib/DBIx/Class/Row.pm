@@ -58,7 +58,7 @@ sub __new_related_find_or_new_helper {
     return $self->result_source
                 ->related_source($relname)
                 ->resultset
-                ->find_or_new($data);
+                ->find_or_create($data);
   }
   return $self->find_or_new_related($relname, $data);
 }
@@ -265,7 +265,7 @@ sub insert {
         my $reverse = $source->reverse_relationship_info($relname);
         foreach my $obj (@cands) {
           $obj->set_from_related($_, $self) for keys %$reverse;
-          my $them = { $obj->get_columns };
+          my $them = { $obj->get_inflated_columns };
           if ($self->__their_pk_needs_us($relname, $them)) {
             $obj = $self->find_or_create_related($relname, $them);
           } else {
