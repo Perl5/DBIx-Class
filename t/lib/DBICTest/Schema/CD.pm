@@ -53,7 +53,10 @@ __PACKAGE__->many_to_many(
     { order_by => 'producer.name' },
 );
 
-__PACKAGE__->belongs_to('genre', 'DBICTest::Schema::Genre', { 'foreign.genreid' => 'self.genreid' });
+__PACKAGE__->belongs_to('genre', 'DBICTest::Schema::Genre',
+    { 'foreign.genreid' => 'self.genreid' },
+    { join_type => 'left' },
+);
 
 #__PACKAGE__->add_relationship('genre', 'DBICTest::Schema::Genre',
 #    { 'foreign.genreid' => 'self.genreid' },

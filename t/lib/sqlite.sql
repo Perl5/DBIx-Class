@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Thu Oct  9 13:44:56 2008
+-- Created on Fri Oct 24 14:20:32 2008
 -- 
 BEGIN TRANSACTION;
 
@@ -171,11 +171,11 @@ CREATE INDEX fourkeys_to_twokeys_idx_t_artist_t_cd_fourkeys_to ON fourkeys_to_tw
 -- Table: genre
 --
 CREATE TABLE genre (
-  genreid  NOT NULL,
-  name  NOT NULL,
-  PRIMARY KEY (genreid)
+  genreid INTEGER PRIMARY KEY NOT NULL,
+  name varchar(100) NOT NULL
 );
 
+CREATE UNIQUE INDEX genre_name_genre ON genre (name);
 
 --
 -- Table: liner_notes

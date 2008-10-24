@@ -17,7 +17,8 @@ __PACKAGE__->belongs_to(
 
 __PACKAGE__->belongs_to(
   'producer', 'DBICTest::Schema::Producer',
-  { 'foreign.producerid' => 'self.producer' }
+  { 'foreign.producerid' => 'self.producer' },
+  { on_delete => undef, on_update => undef },
 );
 
 1;
