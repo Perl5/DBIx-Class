@@ -277,6 +277,8 @@ perigrin: Chris Prather <chris@prather.org>
 
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
+plu: Johannes Plunien <plu@cpan.org>
+
 quicksilver: Jules Bean
 
 rafl: Florian Ragwitz <rafl@debian.org>
