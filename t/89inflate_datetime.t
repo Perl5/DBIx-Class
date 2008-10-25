@@ -10,7 +10,7 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime::Format::MySQL };
 plan skip_all => "Need DateTime::Format::MySQL for inflation tests" if $@;
 
-plan tests => 25;
+plan tests => 27;
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);
@@ -37,6 +37,9 @@ isa_ok($event->created_on, 'DateTime', 'DateTime returned');
 ## varchar fields
 isa_ok($event->varchar_date, 'DateTime', 'DateTime returned');
 isa_ok($event->varchar_datetime, 'DateTime', 'DateTime returned');
+
+## skip inflation field
+isnt(ref($event->skip_inflation), 'DateTime', 'No DateTime returned for skip inflation column');
 
 # klunky, but makes older Test::More installs happy
 my $createo = $event->created_on;
@@ -103,3 +106,7 @@ is("$varchar_date", '2006-07-23T00:00:00', 'Correct date/time');
 ## varchar field using inflate_datetime => 1
 my $varchar_datetime = $event->varchar_datetime;
 is("$varchar_datetime", '2006-05-22T19:05:07', 'Correct date/time');
+
+## skip inflation field
+my $skip_inflation = $event->skip_inflation;
+is ("$skip_inflation", '2006-04-21 18:04:06', 'Correct date/time');

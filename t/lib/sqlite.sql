@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Fri Oct 24 21:02:41 2008
+-- Created on Fri Oct 24 21:31:55 2008
 -- 
 BEGIN TRANSACTION;
 
@@ -116,7 +116,8 @@ CREATE TABLE event (
   starts_at datetime NOT NULL,
   created_on timestamp NOT NULL,
   varchar_date varchar(20),
-  varchar_datetime varchar(20)
+  varchar_datetime varchar(20),
+  skip_inflation datetime(20)
 );
 
 

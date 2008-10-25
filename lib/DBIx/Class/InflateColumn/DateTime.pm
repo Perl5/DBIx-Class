@@ -41,6 +41,12 @@ use inflate_datetime or inflate_date:
     starts_when => { data_type => 'varchar', inflate_date => 1 }
   );
 
+It's also possible to explicitly skip inflation:
+  
+  __PACKAGE__->add_columns(
+    starts_when => { data_type => 'datetime', inflate_datetime => 0 }
+  );
+
 =head1 DESCRIPTION
 
 This module figures out the type of DateTime::Format::* class to 
@@ -84,8 +90,8 @@ sub register_column {
   return unless defined($info->{data_type});
   my $type = lc($info->{data_type});
   $type = 'datetime' if ($type =~ /^timestamp/);
-  $type = 'datetime' if exists $info->{inflate_datetime} and $info->{inflate_datetime};
-  $type = 'date' if exists $info->{inflate_date} and $info->{inflate_date};
+  $type = 'datetime' if $info->{inflate_datetime};
+  $type = 'date' if $info->{inflate_date};
   my $timezone;
   if ( exists $info->{extra} and exists $info->{extra}{timezone} and defined $info->{extra}{timezone} ) {
     $timezone = $info->{extra}{timezone};
@@ -93,7 +99,11 @@ sub register_column {
 
   my $undef_if_invalid = $info->{datetime_undef_if_invalid};
 
-  if ($type eq 'datetime' || $type eq 'date') {
+  my $do_inflate = 1;
+  $do_inflate = 0 if exists $info->{inflate_datetime} and $info->{inflate_datetime} == 0;
+  $do_inflate = 0 if exists $info->{inflate_date} and $info->{inflate_date} == 0;
+
+  if ($do_inflate and ($type eq 'datetime' || $type eq 'date')) {
     my ($parse, $format) = ("parse_${type}", "format_${type}");
     $self->inflate_column(
       $column =>
