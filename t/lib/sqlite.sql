@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Fri Oct 24 14:20:32 2008
+-- Created on Fri Oct 24 21:02:41 2008
 -- 
 BEGIN TRANSACTION;
 
@@ -114,7 +114,9 @@ CREATE TABLE employee (
 CREATE TABLE event (
   id INTEGER PRIMARY KEY NOT NULL,
   starts_at datetime NOT NULL,
-  created_on timestamp NOT NULL
+  created_on timestamp NOT NULL,
+  varchar_date varchar(20),
+  varchar_datetime varchar(20)
 );
 
 

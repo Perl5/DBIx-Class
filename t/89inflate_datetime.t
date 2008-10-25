@@ -10,7 +10,7 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime::Format::MySQL };
 plan skip_all => "Need DateTime::Format::MySQL for inflation tests" if $@;
 
-plan tests => 21;
+plan tests => 25;
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);
@@ -33,6 +33,10 @@ is("$created_start", '2006-06-18T00:00:00', 'Correct date/time');
 
 ## timestamp field
 isa_ok($event->created_on, 'DateTime', 'DateTime returned');
+
+## varchar fields
+isa_ok($event->varchar_date, 'DateTime', 'DateTime returned');
+isa_ok($event->varchar_datetime, 'DateTime', 'DateTime returned');
 
 # klunky, but makes older Test::More installs happy
 my $createo = $event->created_on;
@@ -92,3 +96,10 @@ $invalid->update;
     like( $@, qr/invalid date format/i, "Invalid date format exception");
 }
 
+## varchar field using inflate_date => 1
+my $varchar_date = $event->varchar_date;
+is("$varchar_date", '2006-07-23T00:00:00', 'Correct date/time');
+
+## varchar field using inflate_datetime => 1
+my $varchar_datetime = $event->varchar_datetime;
+is("$varchar_datetime", '2006-05-22T19:05:07', 'Correct date/time');

@@ -271,8 +271,8 @@ sub populate_schema {
     ]);
 
     $schema->populate('Event', [
-        [ qw/id starts_at created_on/ ],
-        [ 1, '2006-04-25 22:24:33', '2006-06-22 21:00:05'],
+        [ qw/id starts_at created_on varchar_date varchar_datetime/ ],
+        [ 1, '2006-04-25 22:24:33', '2006-06-22 21:00:05', '2006-07-23', '2006-05-22 19:05:07'],
     ]);
 
     $schema->populate('Link', [

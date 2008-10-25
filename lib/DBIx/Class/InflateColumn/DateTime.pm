@@ -30,6 +30,17 @@ If you want to set a specific timezone for that field, use:
     starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago" } }
   );
 
+If you want to inflate no matter what data_type your column is,
+use inflate_datetime or inflate_date:
+
+  __PACKAGE__->add_columns(
+    starts_when => { data_type => 'varchar', inflate_datetime => 1 }
+  );
+  
+  __PACKAGE__->add_columns(
+    starts_when => { data_type => 'varchar', inflate_date => 1 }
+  );
+
 =head1 DESCRIPTION
 
 This module figures out the type of DateTime::Format::* class to 
@@ -73,6 +84,8 @@ sub register_column {
   return unless defined($info->{data_type});
   my $type = lc($info->{data_type});
   $type = 'datetime' if ($type =~ /^timestamp/);
+  $type = 'datetime' if exists $info->{inflate_datetime} and $info->{inflate_datetime};
+  $type = 'date' if exists $info->{inflate_date} and $info->{inflate_date};
   my $timezone;
   if ( exists $info->{extra} and exists $info->{extra}{timezone} and defined $info->{extra}{timezone} ) {
     $timezone = $info->{extra}{timezone};
