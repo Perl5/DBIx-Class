@@ -81,7 +81,7 @@ is($created_on->time_zone->name, 'America/Chicago', 'Correct timezone');
 # We expect one warning
 SKIP: {
     skip "ENV{DBIC_FLOATING_TZ_OK} was set, skipping", 1 if $ENV{DBIC_FLOATING_TZ_OK};
-    $SIG{__WARN__} = sub {
+    local $SIG{__WARN__} = sub {
         like(
             shift,
             qr/You're using a floating timezone, please see the documentation of DBIx::Class::InflateColumn::DateTime for an explanation/,
