@@ -47,44 +47,6 @@ It's also possible to explicitly skip inflation:
     starts_when => { data_type => 'datetime', inflate_datetime => 0 }
   );
 
-=head1 WARNING
-
-You'll notice some warning about floating timezone if you set timezone in your schema but
-didn't set it when creating/updating a row:
-
-  __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago" } }
-  );
-
-  my $event = $schema->resultset('EventTZ')->create({
-    starts_at => DateTime->new(year=>2007, month=>12, day=>31, ),
-  });
-
-To avoid this, you have three options:
-
-=over
-
-=item Fix your broken code
-
-  my $event = $schema->resultset('EventTZ')->create({
-    starts_at => DateTime->new(year=>2007, month=>12, day=>31, time_zone => "America/Chicago" ),
-  });
-
-=item Suppress the warning by doing either ...
-
-  __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago", floating_tz_ok => 1 } }
-  );
-
-=item ... or ...
-
-Set environment variable DBIC_FLOATING_TZ_OK to some true value.
-
-=back
-
-Please take a look at L<DateTime/Floating_DateTimes> for further information about floating
-timezone.
-
 =head1 DESCRIPTION
 
 This module figures out the type of DateTime::Format::* class to 
@@ -149,11 +111,26 @@ sub register_column {
     $timezone = $info->{extra}{timezone};
   }
 
-  my $floating_tz_ok   = $info->{extra}{floating_tz_ok} ? 1 : 0;
   my $undef_if_invalid = $info->{datetime_undef_if_invalid};
 
   if ($type eq 'datetime' || $type eq 'date') {
     my ($parse, $format) = ("parse_${type}", "format_${type}");
+
+    # This assignment must happen here, otherwise Devel::Cycle treats
+    # the resulting deflator as a circular reference (go figure):
+    #
+    # Cycle #1
+    #     DBICTest::Schema A->{source_registrations} => %B
+    #     %B->{Event} => DBIx::Class::ResultSource::Table C
+    #     DBIx::Class::ResultSource::Table C->{_columns} => %D
+    #     %D->{created_on} => %E
+    #     %E->{_inflate_info} => %F
+    #     %F->{deflate} => &G
+    #     closure &G, $info => $H
+    #     $H => %E
+    #
+    my $floating_tz_ok = $info->{extra}{floating_tz_ok};
+
     $self->inflate_column(
       $column =>
         {
@@ -194,12 +171,59 @@ sub _datetime_parser {
 1;
 __END__
 
+=head1 USAGE NOTES
+
+If you have a datetime column with the C<timezone> extra setting, and subsenquently 
+create/update this column with a DateTime object in the L<DateTime::TimeZone::Floating>
+timezone, you will get a warning (as there is a very good chance this will not have the
+result you expect). For example:
+
+  __PACKAGE__->add_columns(
+    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago" } }
+  );
+
+  my $event = $schema->resultset('EventTZ')->create({
+    starts_at => DateTime->new(year=>2007, month=>12, day=>31, ),
+  });
+
+The warning can be avoided in several ways:
+
+=over
+
+=item Fix your broken code
+
+When calling C<set_time_zone> on a Floating DateTime object, the timezone is simply
+set to the requested value, and B<no time conversion takes place>. It is always a good idea
+to be supply explicit times to the database:
+
+  my $event = $schema->resultset('EventTZ')->create({
+    starts_at => DateTime->new(year=>2007, month=>12, day=>31, time_zone => "America/Chicago" ),
+  });
+
+=item Suppress the check on per-column basis
+
+  __PACKAGE__->add_columns(
+    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago", floating_tz_ok => 1 } }
+  );
+
+=item Suppress the check globally
+
+Set the environment variable DBIC_FLOATING_TZ_OK to some true value.
+
+=back
+
+
+
 =head1 SEE ALSO
 
 =over 4
 
 =item More information about the add_columns method, and column metadata, 
       can be found in the documentation for L<DBIx::Class::ResultSource>.
+
+=item Further discussion of problems inherent to the Floating timezone:
+      L<Floating DateTimes|DateTime/Floating_DateTimes> 
+      and L<< $dt->set_time_zone|DateTime/"Set" Methods >>
 
 =back
 
