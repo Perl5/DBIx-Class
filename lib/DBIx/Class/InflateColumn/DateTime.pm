@@ -82,7 +82,7 @@ Set environment variable DBIC_FLOATING_TZ_OK to some true value.
 
 =back
 
-Please take  look at L<DateTime/Floating_DateTimes> for further information abour floating
+Please take a look at L<DateTime/Floating_DateTimes> for further information about floating
 timezone.
 
 =head1 DESCRIPTION
