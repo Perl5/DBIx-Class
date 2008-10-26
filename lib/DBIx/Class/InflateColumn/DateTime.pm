@@ -47,6 +47,42 @@ It's also possible to explicitly skip inflation:
     starts_when => { data_type => 'datetime', inflate_datetime => 0 }
   );
 
+=head1 WARNING
+
+You'll notice some warning about floating timezone if you set timezone in your schema but
+didn't set it when creating/updating a row:
+
+  __PACKAGE__->add_columns(
+    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago" } }
+  );
+
+  my $event = $schema->resultset('EventTZ')->create({
+    starts_at => DateTime->new(year=>2007, month=>12, day=>31, ),
+  });
+
+To avoid this, you have three options:
+
+=over
+
+=item Fix your broken code
+
+  my $event = $schema->resultset('EventTZ')->create({
+    starts_at => DateTime->new(year=>2007, month=>12, day=>31, time_zone => "America/Chicago" ),
+  });
+
+=item Suppress the warning by doing either ...
+
+  __PACKAGE__->add_columns(
+    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago", floating_tz_ok => 1 } }
+  );
+
+=item ... or ...
+
+Set environment variable DBIC_FLOATING_TZ_OK to some true value.
+
+=back
+
+
 =head1 DESCRIPTION
 
 This module figures out the type of DateTime::Format::* class to 
@@ -111,6 +147,7 @@ sub register_column {
     $timezone = $info->{extra}{timezone};
   }
 
+  my $floating_tz_ok   = $info->{extra}{floating_tz_ok} ? 1 : 0;
   my $undef_if_invalid = $info->{datetime_undef_if_invalid};
 
   if ($type eq 'datetime' || $type eq 'date') {
@@ -128,7 +165,14 @@ sub register_column {
           },
           deflate => sub {
             my ($value, $obj) = @_;
-            $value->set_time_zone($timezone) if $timezone;
+            if ($timezone) {
+                warn "You're using a floating timezone, please see the documentation of"
+                  . " DBIx::Class::InflateColumn::DateTime for an explanation"
+                  if ref( $value->time_zone ) eq 'DateTime::TimeZone::Floating'
+                      and not $floating_tz_ok
+                      and not $ENV{DBIC_FLOATING_TZ_OK};
+                $value->set_time_zone($timezone);
+            }
             $obj->_datetime_parser->$format($value);
           },
         }

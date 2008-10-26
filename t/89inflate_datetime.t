@@ -10,7 +10,7 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime::Format::MySQL };
 plan skip_all => "Need DateTime::Format::MySQL for inflation tests" if $@;
 
-plan tests => 27;
+plan tests => 28;
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);
@@ -76,6 +76,25 @@ isa_ok($loaded_event->created_on, 'DateTime', 'DateTime returned');
 $created_on = $loaded_event->created_on;
 is("$created_on", '2006-01-31T12:34:56', 'Loaded correct timestamp using timezone');
 is($created_on->time_zone->name, 'America/Chicago', 'Correct timezone');
+
+# Test floating timezone warning
+# We expect one warning
+SKIP: {
+    skip "ENV{DBIC_FLOATING_TZ_OK} was set, skipping", 1 if $ENV{DBIC_FLOATING_TZ_OK};
+    $SIG{__WARN__} = sub {
+        like(
+            shift,
+            qr/You're using a floating timezone, please see the documentation of DBIx::Class::InflateColumn::DateTime for an explanation/,
+            'Floating timezone warning'
+        );
+    };
+    my $event_tz_floating = $schema->resultset('EventTZ')->create({
+        starts_at => DateTime->new(year=>2007, month=>12, day=>31, ),
+        created_on => DateTime->new(year=>2006, month=>1, day=>31,
+            hour => 13, minute => 34, second => 56, ),
+    });
+    delete $SIG{__WARN__};
+};
 
 # This should fail to set
 my $prev_str = "$created_on";
