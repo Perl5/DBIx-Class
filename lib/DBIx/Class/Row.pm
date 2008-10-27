@@ -518,18 +518,19 @@ appropriate.
 =cut
 
 sub set_column {
-  my $self = shift;
-  my ($column) = @_;
+  my ($self, $column, $new_value) = @_;
+
   $self->{_orig_ident} ||= $self->ident_condition;
-  my $old = $self->get_column($column);
-  my $ret = $self->store_column(@_);
+  my $old_value = $self->get_column($column);
+
+  $self->store_column($column, $new_value);
   $self->{_dirty_columns}{$column} = 1
-    if (defined $old xor defined $ret) || (defined $old && $old ne $ret);
+    if (defined $old_value xor defined $new_value) || (defined $old_value && $old_value ne $new_value);
 
   # XXX clear out the relation cache for this column
   delete $self->{related_resultsets}{$column};
 
-  return $ret;
+  return $new_value;
 }
 
 =head2 set_columns
