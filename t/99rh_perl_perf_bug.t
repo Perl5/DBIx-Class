@@ -16,7 +16,7 @@ use DBICTest;
 # variable
 #
 # If these tests fail then please read the section titled
-# Perl Performance Issues on Red Hat Systems in 
+# Perl Performance Issues on Red Hat Systems in
 # L<DBIx::Class::Manual::Troubleshooting>
 
 plan skip_all =>
@@ -50,7 +50,7 @@ ok( !_possibly_has_bad_overload_performance(),
     'Checking not susceptable to bless/overload performance problem' );
 
 my $results = timethese(
-    0,
+    -1,    # run for 1 CPU second each
     {
         overload => sub {
             use overload q(<) => sub { };
@@ -68,5 +68,9 @@ my $results = timethese(
     }
 );
 
+# we are OK if there is less than a factor of 2 difference here
 ok( ( ( $results->{nooverload}->iters / $results->{overload}->iters ) < 2 ),
     'Overload/bless performance acceptable' )
+# if the test above failed, look at the section titled
+# Perl Performance Issues on Red Hat Systems in
+# L<DBIx::Class::Manual::Troubleshooting>

@@ -128,7 +128,7 @@ Now you'll get SQL like this:
 There is a problem with slow performance of certain DBIx::Class
 operations using the system perl on some Fedora and Red Hat Enterprise
 Linux system (as well as their derivative distributions such as Centos,
-White Box and Scientific Linix).
+White Box and Scientific Linux).
 
 Distributions affected include Fedora 5 through to Fedora 8 and RHEL5
 upto and including RHEL5 Update 2. Fedora 9 (which uses perl 5.10) has
