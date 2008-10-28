@@ -379,13 +379,9 @@ L<DBIx::Class::ResultSet/ATTRIBUTES>.
 
 =head2 Problems on RHEL5/CentOS5
 
-There is a problem with slow performance of certain DBIx::Class
-operations in perl-5.8.8-10 and later on RedHat and related systems, due
-to a bad backport of a "use overload" related bug. The problem is in the
-Perl binary itself, not in DBIx::Class. If your system might suffer this
-problem, you will see a warning on startup, with some options as to what
-to do about it. This problem was eliminated in the perl-5.8.8-15.el5_2.1
-package which was issued in September 2008.
+There used to be an issue with the system perl on Red Hat Enterprise
+Linux 5, some versions of Fedora and derived systems. Further
+information on this can be found in L<DBIx::Class::Manual::Troubleshooting>
 
 =head1 SEE ALSO
 
