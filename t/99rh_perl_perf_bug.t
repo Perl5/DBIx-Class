@@ -76,7 +76,7 @@ my $results = timethese(
 
 # we are OK if there is less than a factor of 2 difference here
 ok( ( ( $results->{nooverload}->iters / $results->{overload}->iters ) < 2 ),
-    'Overload/bless performance acceptable' )
+    'Overload/bless performance acceptable' );
 # if the test above failed, look at the section titled
 # Perl Performance Issues on Red Hat Systems in
 # L<DBIx::Class::Manual::Troubleshooting>
