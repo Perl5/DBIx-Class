@@ -22,12 +22,15 @@ plan skip_all =>
   'Skipping RH perl performance bug tests as DBIC_NO_WARN_BAD_PERL set'
   if ( $ENV{DBIC_NO_WARN_BAD_PERL} );
 
+plan skip_all => 'Skipping as AUTOMATED_TESTING is set'
+  if ( $ENV{AUTOMATED_TESTING} );
+
 eval "use Benchmark ':all'";
 plan skip_all => 'needs Benchmark for testing' if $@;
 
 plan tests => 3;
 
-ok(1, 'Dummy - prevents next test timing out');
+ok( 1, 'Dummy - prevents next test timing out' );
 
 # we do a benchmark test filling an array with blessed/overloaded references,
 # against an array filled with array refs.
@@ -56,7 +59,14 @@ my $results = timethese(
 
 my $ratio = $results->{no_bless}->iters / $results->{bless_overload}->iters;
 
-ok( ( $ratio < 2 ), 'Overload/bless performance acceptable' );
+ok( ( $ratio < 2 ), 'Overload/bless performance acceptable' )
+  || diag(
+    "This perl has a substantial slow down when handling large numbers\n",
+    "of blessed/overloaded objects.  This can severely adversely affect\n",
+    "the performance of DBIx::Class programs.  Please read the section\n",
+    "in the Troubleshooting POD documentation entitled\n",
+    "'Perl Performance Issues on Red Hat Systems'\n",
+  );
 
 # We will only check for the difference in bless handling (whether the
 # bless applies to the reference or the referent) if we have seen a
@@ -94,5 +104,10 @@ SKIP: {
     # version of the perl interpreter for your system.
     #
     ok( !_possibly_has_bad_overload_performance(),
-        'Checking whether bless applies to reference not object' );
+        'Checking whether bless applies to reference not object' )
+      || diag(
+        "This perl is probably derived from a buggy Red Hat perl build\n",
+        "Please read the section in the Troubleshooting POD documentation\n",
+        "entitled 'Perl Performance Issues on Red Hat Systems'\n",
+      );
 }
