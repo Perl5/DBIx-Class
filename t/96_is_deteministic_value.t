@@ -6,7 +6,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use DateTime;
+plan skip_all => "DateTime required" unless eval { require DateTime };
 eval "use DateTime::Format::Strptime";
 plan skip_all => 'DateTime::Format::Strptime required' if $@;
 plan 'no_plan';
