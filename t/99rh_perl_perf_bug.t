@@ -22,64 +22,77 @@ plan skip_all =>
   'Skipping RH perl performance bug tests as DBIC_NO_WARN_BAD_PERL set'
   if ( $ENV{DBIC_NO_WARN_BAD_PERL} );
 
-eval "use Benchmark";
+eval "use Benchmark ':all'";
 plan skip_all => 'needs Benchmark for testing' if $@;
 
-plan tests => 2;
+plan tests => 3;
 
-{
-    package    # don't want this in PAUSE
-      TestRHBug;
-    use overload bool => sub { 0 }
-}
+ok(1, 'Dummy - prevents next test timing out');
 
-sub _has_bug_34925 {
-    my %thing;
-    my $r1 = \%thing;
-    my $r2 = \%thing;
-    bless $r1 => 'TestRHBug';
-    return !!$r2;
-}
-
-sub _possibly_has_bad_overload_performance {
-    return $] < 5.008009 && !_has_bug_34925();
-}
-
-# If the test here fails, you are running a 5.88 or older perl which 
-# has been patched to correct for an issue with bless/overload, but
-# which *might* be susceptable to a severe performance issue caused
-# by a partial fix.  The performance issue is tested for in the second
-# test.
-# If *this* test fails, but the other test is OK, then you have a fixed
-# perl and no need to worry.
-ok( !_possibly_has_bad_overload_performance(),
-    'Checking not susceptable to bless/overload performance problem' );
+# we do a benchmark test filling an array with blessed/overloaded references,
+# against an array filled with array refs.
+# On a sane system the ratio between these operation sets is 1 - 1.5,
+# whereas a bugged system gives a ratio of around 8
+# we therefore consider there to be a problem if the ratio is >= 2
 
 my $results = timethese(
     -1,    # run for 1 CPU second each
     {
-        overload => sub {
+        no_bless => sub {
+            my %h;
+            for ( my $i = 0 ; $i < 10000 ; $i++ ) {
+                $h{$i} = [];
+            }
+        },
+        bless_overload => sub {
             use overload q(<) => sub { };
             my %h;
-            for ( my $i = 0 ; $i < 5000 ; $i++ ) {
+            for ( my $i = 0 ; $i < 10000 ; $i++ ) {
                 $h{$i} = bless [] => 'main';
             }
         },
-        nooverload => sub {
-            my %h;
-            for ( my $i = 0 ; $i < 5000 ; $i++ ) {
-                $h{$i} = bless [] => 'main';
-            }
-          }
-    }
+    },
 );
 
-# we are OK if there is less than a factor of 2 difference here
-ok( ( ( $results->{nooverload}->iters / $results->{overload}->iters ) < 2 ),
-    'Overload/bless performance acceptable' );
-# if the test above failed, look at the section titled
-# Perl Performance Issues on Red Hat Systems in
-# L<DBIx::Class::Manual::Troubleshooting>
-# Basically you may suffer severe performance issues when running
-# DBIx::Class (and many other) modules.  Look at getting a fixed
-# version of the perl interpreter for your system.
+my $ratio = $results->{no_bless}->iters / $results->{bless_overload}->iters;
+
+ok( ( $ratio < 2 ), 'Overload/bless performance acceptable' );
+
+# We will only check for the difference in bless handling (whether the
+# bless applies to the reference or the referent) if we have seen a
+# performance issue...
+
+SKIP: {
+    skip "Not checking for bless handling as performance is OK", 1
+      if ( $ratio < 2 );
+
+    {
+        package    # don't want this in PAUSE
+          TestRHBug;
+        use overload bool => sub { 0 }
+    }
+
+    sub _has_bug_34925 {
+        my %thing;
+        my $r1 = \%thing;
+        my $r2 = \%thing;
+        bless $r1 => 'TestRHBug';
+        return !!$r2;
+    }
+
+    sub _possibly_has_bad_overload_performance {
+        return $] < 5.008009 && !_has_bug_34925();
+    }
+
+    # If this next one fails then you almost certainly have a RH derived
+    # perl with the performance bug
+    # if this test fails, look at the section titled
+    # "Perl Performance Issues on Red Hat Systems" in
+    # L<DBIx::Class::Manual::Troubleshooting>
+    # Basically you may suffer severe performance issues when running
+    # DBIx::Class (and many other) modules.  Look at getting a fixed
+    # version of the perl interpreter for your system.
+    #
+    ok( !_possibly_has_bad_overload_performance(),
+        'Checking whether bless applies to reference not object' );
+}
