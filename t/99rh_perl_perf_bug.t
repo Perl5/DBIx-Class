@@ -3,7 +3,6 @@ use strict;
 use warnings;
 use Test::More;
 use lib qw(t/lib);
-use DBICTest;
 
 # This is a rather unusual test.
 # It does not test any aspect of DBIx::Class, but instead tests the
@@ -46,6 +45,13 @@ sub _possibly_has_bad_overload_performance {
     return $] < 5.008009 && !_has_bug_34925();
 }
 
+# If the test here fails, you are running a 5.88 or older perl which 
+# has been patched to correct for an issue with bless/overload, but
+# which *might* be susceptable to a severe performance issue caused
+# by a partial fix.  The performance issue is tested for in the second
+# test.
+# If *this* test fails, but the other test is OK, then you have a fixed
+# perl and no need to worry.
 ok( !_possibly_has_bad_overload_performance(),
     'Checking not susceptable to bless/overload performance problem' );
 
@@ -74,3 +80,6 @@ ok( ( ( $results->{nooverload}->iters / $results->{overload}->iters ) < 2 ),
 # if the test above failed, look at the section titled
 # Perl Performance Issues on Red Hat Systems in
 # L<DBIx::Class::Manual::Troubleshooting>
+# Basically you may suffer severe performance issues when running
+# DBIx::Class (and many other) modules.  Look at getting a fixed
+# version of the perl interpreter for your system.
