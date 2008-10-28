@@ -882,7 +882,12 @@ sub _connect {
       my $weak_self = $self;
       weaken($weak_self);
       $dbh->{HandleError} = sub {
-          $weak_self->throw_exception("DBI Exception: $_[0]")
+          if ($weak_self) {
+            $weak_self->throw_exception("DBI Exception: $_[0]");
+          }
+          else {
+            croak ("DBI Exception: $_[0]");
+          }
       };
       $dbh->{ShowErrorStatement} = 1;
       $dbh->{RaiseError} = 1;
