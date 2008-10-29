@@ -200,7 +200,7 @@ sub search_rs {
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
   # merge new attrs into inherited
-  foreach my $key (qw/join prefetch/) {
+  foreach my $key (qw/join prefetch +select +as/) {
     next unless exists $attrs->{$key};
     $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
