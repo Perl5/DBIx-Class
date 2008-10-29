@@ -21,13 +21,37 @@ DBIx::Class::Row - Basic row methods
 This class is responsible for defining and doing basic operations on rows
 derived from L<DBIx::Class::ResultSource> objects.
 
+Row objects are returned from L<DBIx::Class::ResultSet>s using the
+L<DBIx::Class::ResultSet/create>, L<DBIx::Class::ResultSet/find>,
+L<DBIx::Class::ResultSet/next> and L<DBIx::Class::ResultSet/all> methods.
+
 =head1 METHODS
 
 =head2 new
 
-  my $obj = My::Class->new($attrs);
+  my $row = My::Class->new(\%attrs);
 
-Creates a new row object from column => value mappings passed as a hash ref
+  my $row = $schema->resultset('MySource')->new(\%colsandvalues);
+
+=over
+
+=item Arguments: \%attrs or \%colsandvalues
+
+=item Returns: A Row object
+
+=back
+
+While you can create a new row object by calling C<new> directly on
+this class, you are better off calling it on a
+L<DBIx::Class::ResultSet> object.
+
+When calling it directly, you will not get a complete, usable row
+object until you pass or set the C<source_handle> attribute, to a
+L<DBIx::Class::ResultSource> instance that is attached to a
+L<DBIx::Class::Schema> with a valid connection.
+
+C<$attrs> is a hashref of column name, value data. It can also contain
+some other attributes such as the C<source_handle>.
 
 Passing an object, or an arrayref of objects as a value will call
 L<DBIx::Class::Relationship::Base/set_from_related> for you. When
@@ -166,13 +190,21 @@ sub new {
 
 =head2 insert
 
-  $obj->insert;
+  $row->insert;
 
-Inserts an object into the database if it isn't already in
-there. Returns the object itself. Requires the object's result source to
-be set, or the class to have a result_source_instance method. To insert
-an entirely new object into the database, use C<create> (see
-L<DBIx::Class::ResultSet/create>).
+=over
+
+=item Arguments: none
+
+=item Returns: The Row object
+
+=back
+
+Inserts an object previously created by L</new> into the database if
+it isn't already in there. Returns the object itself. Requires the
+object's result source to be set, or the class to have a
+result_source_instance method. To insert an entirely new row into
+the database, use C<create> (see L<DBIx::Class::ResultSet/create>).
 
 To fetch an uninserted row object, call
 L<new|DBIx::Class::ResultSet/new> on a resultset.
@@ -284,8 +316,16 @@ sub insert {
 
 =head2 in_storage
 
-  $obj->in_storage; # Get value
-  $obj->in_storage(1); # Set value
+  $row->in_storage; # Get value
+  $row->in_storage(1); # Set value
+
+=over
+
+=item Arguments: none or 1|0
+
+=item Returns: 1|0
+
+=back
 
 Indicates whether the object exists as a row in the database or
 not. This is set to true when L<DBIx::Class::ResultSet/find>,
@@ -305,24 +345,35 @@ sub in_storage {
 
 =head2 update
 
-  $obj->update \%columns?;
+  $row->update(\%columns?)
 
-Must be run on an object that is already in the database; issues an SQL
-UPDATE query to commit any changes to the object to the database if
-required.
+=over
 
-Also takes an options hashref of C<< column_name => value> pairs >> to update
-first. But be aware that the hashref will be passed to
-C<set_inflated_columns>, which might edit it in place, so dont rely on it being
-the same after a call to C<update>.  If you need to preserve the hashref, it is
-sufficient to pass a shallow copy to C<update>, e.g. ( { %{ $href } } )
+=item Arguments: none or a hashref
+
+=item Returns: The Row object
+
+=back
+
+Throws an exception if the row object is not yet in the database,
+according to L</in_storage>.
+
+This method issues an SQL UPDATE query to commit any changes to the
+object to the database if required.
+
+Also takes an optional hashref of C<< column_name => value> >> pairs
+to update on the object first. Be aware that the hashref will be
+passed to C<set_inflated_columns>, which might edit it in place, so
+don't rely on it being the same after a call to C<update>.  If you
+need to preserve the hashref, it is sufficient to pass a shallow copy
+to C<update>, e.g. ( { %{ $href } } )
 
 If the values passed or any of the column values set on the object
 contain scalar references, eg:
 
-  $obj->last_modified(\'NOW()');
+  $row->last_modified(\'NOW()');
   # OR
-  $obj->update({ last_modified => \'NOW()' });
+  $row->update({ last_modified => \'NOW()' });
 
 The update will pass the values verbatim into SQL. (See
 L<SQL::Abstract> docs).  The values in your Row object will NOT change
@@ -330,7 +381,15 @@ as a result of the update call, if you want the object to be updated
 with the actual values from the database, call L</discard_changes>
 after the update.
 
-  $obj->update()->discard_changes();
+  $row->update()->discard_changes();
+
+To determine before calling this method, which column values have
+changed and will be updated, call L</get_dirty_columns>.
+
+To check if any columns will be updated, call L</is_changed>.
+
+To force a column to be updated, call L</make_column_dirty> before
+this method.
 
 =cut
 
@@ -361,16 +420,32 @@ sub update {
 
 =head2 delete
 
-  $obj->delete
+  $row->delete
 
-Deletes the object from the database. The object is still perfectly
-usable, but C<< ->in_storage() >> will now return 0 and the object must
-reinserted using C<< ->insert() >> before C<< ->update() >> can be used
-on it. If you delete an object in a class with a C<has_many>
-relationship, all the related objects will be deleted as well. To turn
-this behavior off, pass C<< cascade_delete => 0 >> in the C<$attr>
-hashref. Any database-level cascade or restrict will take precedence
-over a DBIx-Class-based cascading delete. See also L<DBIx::Class::ResultSet/delete>.
+=over
+
+=item Arguments: none
+
+=item Returns: The Row object
+
+=back
+
+Throws an exception if the object is not in the database according to
+L</in_storage>. Runs an SQL DELETE statement using the primary key
+values to locate the row.
+
+The object is still perfectly usable, but L</in_storage> will
+now return 0 and the object must reinserted using L</insert>
+before it can be used to L</update> the row again. 
+
+If you delete an object in a class with a C<has_many> relationship, an
+attempt is made to delete all the related objects as well. To turn
+this behaviour off, pass C<< cascade_delete => 0 >> in the C<$attr>
+hashref of the relationship, see L<DBIx::Class::Relationship>. Any
+database-level cascade or restrict will take precedence over a
+DBIx-Class-based cascading delete. 
+
+See also L<DBIx::Class::ResultSet/delete>.
 
 =cut
 
@@ -400,13 +475,26 @@ sub delete {
 
 =head2 get_column
 
-  my $val = $obj->get_column($col);
+  my $val = $row->get_column($col);
+
+=over
+
+=item Arguments: $columnname
+
+=item Returns: The value of the column
+
+=back
+
+Throws an exception if the column name given doesn't exist according
+to L</has_column>.
 
 Returns a raw column value from the row object, if it has already
 been fetched from the database or set by an accessor.
 
 If an L<inflated value|DBIx::Class::InflateColumn> has been set, it
 will be deflated and returned.
+
+To retrieve all loaded column values as a hash, use L</get_columns>.
 
 =cut
 
@@ -424,9 +512,17 @@ sub get_column {
 
 =head2 has_column_loaded
 
-  if ( $obj->has_column_loaded($col) ) {
+  if ( $row->has_column_loaded($col) ) {
      print "$col has been loaded from db";
   }
+
+=over
+
+=item Arguments: $columnname
+
+=item Returns: 0|1
+
+=back
 
 Returns a true value if the column value has been loaded from the
 database (or set locally).
@@ -442,9 +538,18 @@ sub has_column_loaded {
 
 =head2 get_columns
 
-  my %data = $obj->get_columns;
+  my %data = $row->get_columns;
 
-Does C<get_column>, for all loaded column values at once.
+=over
+
+=item Arguments: none
+
+=item Returns: A hash of columnname, value pairs.
+
+=back
+
+Returns all loaded column data as a hash, containing raw values. To
+get just one value for a particular column, use L</get_column>.
 
 =cut
 
@@ -461,9 +566,20 @@ sub get_columns {
 
 =head2 get_dirty_columns
 
-  my %data = $obj->get_dirty_columns;
+  my %data = $row->get_dirty_columns;
 
-Identical to get_columns but only returns those that have been changed.
+=over
+
+=item Arguments: none
+
+=item Returns: A hash of column, value pairs
+
+=back
+
+Only returns the column, value pairs for those columns that have been
+changed on this object since the last L</update> or L</insert> call.
+
+See L</get_columns> to fetch all column/value pairs.
 
 =cut
 
@@ -475,8 +591,20 @@ sub get_dirty_columns {
 
 =head2 make_column_dirty
 
-Marks a column dirty regardless if it has really changed.  Throws an
-exception if the column does not exist.
+  $row->make_column_dirty($col)
+
+=over
+
+=item Arguments: $columnname
+
+=item Returns: undefined
+
+=back
+
+Throws an exception if the column does not exist.
+
+Marks a column as having been changed regardless of whether it has
+really changed.  
 
 =cut
 sub make_column_dirty {
@@ -491,8 +619,20 @@ sub make_column_dirty {
 
   my %inflated_data = $obj->get_inflated_columns;
 
-Similar to get_columns but objects are returned for inflated columns
-instead of their raw non-inflated values.
+=over
+
+=item Arguments: none
+
+=item Returns: A hash of column, object|value pairs
+
+=back
+
+Returns a hash of all column keys and associated values. Values for any
+columns set to use inflation will be inflated and returns as objects.
+
+See L</get_columns> to get the uninflated values.
+
+See L<DBIx::Class::InflateColumn> for how to setup inflation.
 
 =cut
 
@@ -506,14 +646,23 @@ sub get_inflated_columns {
 
 =head2 set_column
 
-  $obj->set_column($col => $val);
+  $row->set_column($col => $val);
+
+=over
+
+=item Arguments: $columnname, $value
+
+=item Returns: $value
+
+=back
 
 Sets a raw column value. If the new value is different from the old one,
-the column is marked as dirty for when you next call $obj->update.
+the column is marked as dirty for when you next call L</update>.
 
-If passed an object or reference, this will happily attempt store the
-value, and a later insert/update will try and stringify/numify as
-appropriate.
+If passed an object or reference as a value, this will happily attempt
+store it, and a later L</insert> or L</update> will try and
+stringify/numify as appropriate. To set an object to be deflated
+instead, see L</set_inflated_columns>.
 
 =cut
 
@@ -535,9 +684,19 @@ sub set_column {
 
 =head2 set_columns
 
-  my $copy = $orig->set_columns({ $col => $val, ... });
+  $row->set_columns({ $col => $val, ... });
 
-Sets more than one column value at once.
+=over 
+
+=item Arguments: \%columndata
+
+=item Returns: The Row object
+
+=back
+
+Sets multiple column, raw value pairs at once.
+
+Works as L</set_column>.
 
 =cut
 
@@ -551,13 +710,34 @@ sub set_columns {
 
 =head2 set_inflated_columns
 
-  my $copy = $orig->set_inflated_columns({ $col => $val, $rel => $obj, ... });
+  $row->set_inflated_columns({ $col => $val, $relname => $obj, ... });
 
-Sets more than one column value at once, taking care to respect inflations and
-relationships if relevant. Be aware that this hashref might be edited in place,
-so dont rely on it being the same after a call to C<set_inflated_columns>. If
-you need to preserve the hashref, it is sufficient to pass a shallow copy to
-C<set_inflated_columns>, e.g. ( { %{ $href } } )
+=over
+
+=item Arguments: \%columndata
+
+=item Returns: The Row object
+
+=back
+
+Sets more than one column value at once. Any inflated values are
+deflated and the raw values stored. 
+
+Any related values passed as Row objects, using the relation name as a
+key, are reduced to the appropriate foreign key values and stored. If
+instead of related row objects, a hashref of column, value data is
+passed, will create the related object first then store.
+
+Will even accept arrayrefs of data as a value to a
+L<DBIx::Class::Relationship/has_many> key, and create the related
+objects if necessary.
+
+Be aware that the input hashref might be edited in place, so dont rely
+on it being the same after a call to C<set_inflated_columns>. If you
+need to preserve the hashref, it is sufficient to pass a shallow copy
+to C<set_inflated_columns>, e.g. ( { %{ $href } } )
+
+See also L<DBIx::Class::Relationship::Base/set_from_related>.
 
 =cut
 
@@ -599,9 +779,22 @@ sub set_inflated_columns {
 
   my $copy = $orig->copy({ change => $to, ... });
 
-Inserts a new row with the specified changes. If the row has related
-objects in a C<has_many> then those objects may be copied too depending
-on the C<cascade_copy> relationship attribute.
+=over
+
+=item Arguments: \%replacementdata
+
+=item Returns: The Row object copy
+
+=back
+
+Inserts a new row into the database, as a copy of the original
+object. If a hashref of replacement data is supplied, these will take
+precedence over data in the original.
+
+If the row has related objects in a
+L<DBIx::Class::Relationship/has_many> then those objects may be copied
+too depending on the L<cascade_copy|DBIx::Class::Relationship>
+relationship attribute.
 
 =cut
 
@@ -649,9 +842,22 @@ sub copy {
 
 =head2 store_column
 
-  $obj->store_column($col => $val);
+  $row->store_column($col => $val);
 
-Sets a column value without marking it as dirty.
+=over
+
+=item Arguments: $columnname, $value
+
+=item Returns: The value set
+
+=back
+
+Set a raw value for a column without marking it as changed. This
+method is used internally by L</set_column> which you should probably
+be using.
+
+This is the lowest level at which data is set on a row object,
+extend this method to catch all data setting methods.
 
 =cut
 
@@ -668,7 +874,22 @@ sub store_column {
 
   Class->inflate_result($result_source, \%me, \%prefetch?)
 
-Called by ResultSet to inflate a result from storage
+=over
+
+=item Arguments: $result_source, \%columndata, \%prefetcheddata
+
+=item Returns: A Row object
+
+=back
+
+All L<DBIx::Class::ResultSet> methods that retrieve data from the
+database and turn it into row objects call this method.
+
+Extend this method in your Result classes to hook into this process,
+for example to rebless the result into a different class.
+
+Reblessing can also be done more easily by setting C<result_class> in
+your Result class. See L<DBIx::Class::ResultSource/result_class>.
 
 =cut
 
@@ -733,10 +954,18 @@ sub inflate_result {
 
 =head2 update_or_insert
 
-  $obj->update_or_insert
+  $row->update_or_insert
 
-Updates the object if it's already in the database, according to
-L</in_storage>, else inserts it.
+=over
+
+=item Arguments: none
+
+=item Returns: Result of update or insert operation
+
+=back
+
+L</Update>s the object if it's already in the database, according to
+L</in_storage>, else L</insert>s it.
 
 =head2 insert_or_update
 
@@ -755,10 +984,18 @@ sub update_or_insert {
 
 =head2 is_changed
 
-  my @changed_col_names = $obj->is_changed();
-  if ($obj->is_changed()) { ... }
+  my @changed_col_names = $row->is_changed();
+  if ($row->is_changed()) { ... }
 
-In array context returns a list of columns with uncommited changes, or
+=over
+
+=item Arguments: none
+
+=item Returns: 0|1 or @columnnames
+
+=back
+
+In list context returns a list of columns with uncommited changes, or
 in scalar context returns a true value if there are uncommitted
 changes.
 
@@ -770,7 +1007,15 @@ sub is_changed {
 
 =head2 is_column_changed
 
-  if ($obj->is_column_changed('col')) { ... }
+  if ($row->is_column_changed('col')) { ... }
+
+=over
+
+=item Arguments: $columname
+
+=item Returns: 0|1
+
+=back
 
 Returns a true value if the column has uncommitted changes.
 
@@ -783,9 +1028,17 @@ sub is_column_changed {
 
 =head2 result_source
 
-  my $resultsource = $object->result_source;
+  my $resultsource = $row->result_source;
 
-Accessor to the ResultSource this object was created from
+=over
+
+=item Arguments: none
+
+=item Returns: a ResultSource instance
+
+=back
+
+Accessor to the L<DBIx::Class::ResultSource> this object was created from.
 
 =cut
 
@@ -803,6 +1056,14 @@ sub result_source {
 
   $column_info = { .... };
   $class->register_column($column_name, $column_info);
+
+=over
+
+=item Arguments: $columnname, \%columninfo
+
+=item Returns: undefined
+
+=back
 
 Registers a column on the class. If the column_info has an 'accessor'
 key, creates an accessor named after the value if defined; if there is
@@ -823,14 +1084,32 @@ sub register_column {
   $class->mk_group_accessors('column' => $acc);
 }
 
-=head2 get_from_storage ($attrs)
+=head2 get_from_storage
 
-Returns a new Row which is whatever the Storage has for the currently created
-Row object.  You can use this to see if the storage has become inconsistent with
-whatever your Row object is.
+  my $copy = $row->get_from_storage($attrs)
 
-$attrs is expected to be a hashref of attributes suitable for passing as the
-second argument to $resultset->search($cond, $attrs);
+=over
+
+=item Arguments: \%attrs
+
+=item Returns: A Row object
+
+=back
+
+Fetches a fresh copy of the Row object from the database and returns it.
+
+If passed the \%attrs argument, will first apply these attributes to
+the resultset used to find the row.
+
+This copy can then be used to compare to an existing row object, to
+determine if any changes have been made in the database since it was
+created.
+
+To just update your Row object with any latest changes from the
+database, use L</discard_changes> instead.
+
+The \%attrs argument should be compatible with
+L<DBIx::Class::ResultSet/ATTRIBUTES>.
 
 =cut
 
@@ -848,7 +1127,7 @@ sub get_from_storage {
 
 =head2 throw_exception
 
-See Schema's throw_exception.
+See L<DBIx::Class::Schema/throw_exception>.
 
 =cut
 
@@ -863,13 +1142,33 @@ sub throw_exception {
 
 =head2 id
 
+  my @pk = $row->id;
+
+=over
+
+=item Arguments: none
+
+=item Returns: A list of primary key values
+
+=back
+
 Returns the primary key(s) for a row. Can't be called as a class method.
 Actually implemented in L<DBIx::Class::PK>
 
 =head2 discard_changes
 
-Re-selects the row from the database, losing any changes that had
-been made.
+  $row->discard_changes
+
+=over
+
+=item Arguments: none
+
+=item Returns: nothing (updates object in-place)
+
+=back
+
+Retrieves and sets the row object data from the database, losing any
+local changes made.
 
 This method can also be used to refresh from storage, retrieving any
 changes made since the row was last read from storage. Actually
