@@ -365,17 +365,18 @@ The argument list may contain:
 =item *
 
 The same 4-element argument set one would normally pass to
-L<DBI/connect>, optionally followed by L<extra attributes|/DBIx::Class
-specific connection attributes> recognized by DBIx::Class:
+L<DBI/connect>, optionally followed by
+L<extra attributes|/DBIx::Class specific connection attributes>
+recognized by DBIx::Class:
 
   $connect_info_args = [ $dsn, $user, $password, \%dbi_attributes?, \%extra_attributes? ];
 
 =item *
 
-A single code reference which returns a connected L<DBI database
-handle|DBI/connect> optionally followed by L<extra
-attributes|/DBIx::Class specific connection attributes> recognized by
-DBIx::Class:
+A single code reference which returns a connected 
+L<DBI database handle|DBI/connect> optionally followed by 
+L<extra attributes|/DBIx::Class specific connection attributes> recognized
+by DBIx::Class:
 
   $connect_info_args = [ sub { DBI->connect (...) }, \%extra_attributes? ];
 
@@ -393,7 +394,7 @@ mixed together:
   }];
 
 This is particularly useful for L<Catalyst> based applications, allowing the 
-following config (in L<Config::General> style):
+following config (L<Config::General> style):
 
   <Model::DB>
     schema_class   App::DB
@@ -410,9 +411,9 @@ following config (in L<Config::General> style):
 Please note that the L<DBI> docs recommend that you always explicitly
 set C<AutoCommit> to either I<0> or I<1>.  L<DBIx::Class> further
 recommends that it be set to I<1>, and that you perform transactions
-via our L</txn_do> method.  L<DBIx::Class> will set it to I<1> if you
-do not do explicitly set it to zero.  This is the default for most
-DBDs. See L</DBIx::Class and AutoCommit> for details.
+via our L<DBIx::Class::Schema/txn_do> method.  L<DBIx::Class> will set it
+to I<1> if you do not do explicitly set it to zero.  This is the default 
+for most DBDs. See L</DBIx::Class and AutoCommit> for details.
 
 =head3 DBIx::Class specific connection attributes
 
@@ -481,7 +482,7 @@ SQL Server you should use C<< quote_char => [qw/[ ]/] >>.
 
 =item name_sep
 
-This only needs to be used in conjunction with L<quote_char>, and is used to 
+This only needs to be used in conjunction with C<quote_char>, and is used to 
 specify the charecter that seperates elements (schemas, tables, columns) from 
 each other. In most cases this is simply a C<.>.
 
@@ -1535,7 +1536,7 @@ sub sqlt_type { shift->dbh->{Driver}->{Name} }
 =head2 bind_attribute_by_data_type
 
 Given a datatype from column info, returns a database specific bind
-attribute for $dbh->bind_param($val,$attribute) or nothing if we will
+attribute for C<< $dbh->bind_param($val,$attribute) >> or nothing if we will
 let the database planner just handle it.
 
 Generally only needed for special case column types, like bytea in postgres.
@@ -1898,17 +1899,14 @@ The following methods are extended:-
 =item limit_dialect
 
 See L</connect_info> for details.
-For setting, this method is deprecated in favor of L</connect_info>.
 
 =item quote_char
 
 See L</connect_info> for details.
-For setting, this method is deprecated in favor of L</connect_info>.
 
 =item name_sep
 
 See L</connect_info> for details.
-For setting, this method is deprecated in favor of L</connect_info>.
 
 =back
 
