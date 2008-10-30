@@ -22,8 +22,13 @@ This class is responsible for defining and doing basic operations on rows
 derived from L<DBIx::Class::ResultSource> objects.
 
 Row objects are returned from L<DBIx::Class::ResultSet>s using the
-L<DBIx::Class::ResultSet/create>, L<DBIx::Class::ResultSet/find>,
-L<DBIx::Class::ResultSet/next> and L<DBIx::Class::ResultSet/all> methods.
+L<create|DBIx::Class::ResultSet/create>, L<find|DBIx::Class::ResultSet/find>,
+L<next|DBIx::Class::ResultSet/next> and L<all|DBIx::Class::ResultSet/all> methods,
+as well as invocations of 'single' (
+L<belongs_to|DBIx::Class::Relationship/belongs_to>,
+L<has_one|DBIx::Class::Relationship/has_one> or
+L<might_have|DBIx::Class::Relationship/might_have>)
+relationship accessors of L<DBIx::Class::Row> objects.
 
 =head1 METHODS
 
@@ -435,7 +440,7 @@ L</in_storage>. Runs an SQL DELETE statement using the primary key
 values to locate the row.
 
 The object is still perfectly usable, but L</in_storage> will
-now return 0 and the object must reinserted using L</insert>
+now return 0 and the object must be reinserted using L</insert>
 before it can be used to L</update> the row again. 
 
 If you delete an object in a class with a C<has_many> relationship, an
@@ -493,6 +498,11 @@ been fetched from the database or set by an accessor.
 
 If an L<inflated value|DBIx::Class::InflateColumn> has been set, it
 will be deflated and returned.
+
+Note that if you used the C<columns> or the C<select/as>
+L<search attributes|DBIx::Class::ResultSet/ATTRIBUTES> on the resultset from
+which C<$row> was derived, and B<did not include> C<$columnname> in the list,
+this method will return C<undef> even if the database contains some value.
 
 To retrieve all loaded column values as a hash, use L</get_columns>.
 
@@ -659,8 +669,8 @@ sub get_inflated_columns {
 Sets a raw column value. If the new value is different from the old one,
 the column is marked as dirty for when you next call L</update>.
 
-If passed an object or reference as a value, this will happily attempt
-store it, and a later L</insert> or L</update> will try and
+If passed an object or reference as a value, this method will happily
+attempt to store it, and a later L</insert> or L</update> will try and
 stringify/numify as appropriate. To set an object to be deflated
 instead, see L</set_inflated_columns>.
 
@@ -848,7 +858,7 @@ sub copy {
 
 =item Arguments: $columnname, $value
 
-=item Returns: The value set
+=item Returns: The value sent to storage
 
 =back
 
