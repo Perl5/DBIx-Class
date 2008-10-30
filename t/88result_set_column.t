@@ -7,17 +7,18 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 10; 
+plan tests => 11; 
 
 my $cd;
 my $rs = $cd = $schema->resultset("CD")->search({});
 
 my $rs_title = $rs->get_column('title');
 my $rs_year = $rs->get_column('year');
+my $max_year = $rs->get_column(\'MAX (year)');
 
 is($rs_title->next, 'Spoonful of bees', "next okay");
-
 is_deeply( [ sort $rs_year->func('DISTINCT') ], [ 1997, 1998, 1999, 2001 ],  "wantarray context okay");
+ok ($max_year->next == $rs_year->max, q/get_column (\'FUNC') ok/);
 
 my @all = $rs_title->all;
 cmp_ok(scalar @all, '==', 5, "five titles returned");
