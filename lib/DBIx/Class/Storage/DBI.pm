@@ -359,11 +359,11 @@ The same 4-element argument set one would normally pass to L<DBI/connect>,
 optionally followed by L<extra attributes|/DBIx::Class specific connection attributes>
 recognized by DBIx::Class:
 
-  $connect_info_args = [ $dsn, $user, $pass, \%dbi_attributes, \%extra_attributes ];
+  $connect_info_args = [ $dsn, $user, $password, \%dbi_attributes, \%extra_attributes ];
 
 =item *
 
-A lone code reference which returns a connected L<DBI database handle|DBI/connect>
+A single code reference which returns a connected L<DBI database handle|DBI/connect>
 optinally followed by L<extra attributes|/DBIx::Class specific connection attributes>
 recognized by DBIx::Class:
 
@@ -371,12 +371,12 @@ recognized by DBIx::Class:
 
 =item *
 
-A lone hashref with all the attributes and the dsn/user/pass mixed together:
+A single hashref with all the attributes and the dsn/user/password mixed together:
 
   $connect_info_args = [{
     dsn => $dsn,
     user => $user,
-    pass => $pass,
+    password => $pass,
     %dbi_attributes,
     %extra_attributes,
   }];
@@ -497,6 +497,11 @@ If this option is true, L<DBIx::Class> will use savepoints when nesting
 transactions, making it possible to recover from failure in the inner
 transaction without having to abort all outer transactions.
 
+=item cursor_class
+
+Use this argument to supply a cursor class other than the default
+L<DBIx::Class::Storage::DBI::Cursor>.
+
 =back
 
 Some real-life examples of arguments to L</connect_info> and L<DBIx::Class::Schema/connect>
@@ -581,7 +586,7 @@ sub connect_info {
       unshift @args, delete $attrs{$_};
     }
   }
-  else {                # otherwise assume dsn/user/pass + \%attrs + \%extra_attrs
+  else {                # otherwise assume dsn/user/password + \%attrs + \%extra_attrs
     %attrs = (
       % { $args[3] || {} },
       % { $args[4] || {} },
