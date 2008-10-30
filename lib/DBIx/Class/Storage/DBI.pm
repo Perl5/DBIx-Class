@@ -14,11 +14,18 @@ use Scalar::Util qw/blessed weaken/;
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
-       _conn_pid _conn_tid disable_sth_caching on_connect_do
-       on_disconnect_do transaction_depth unsafe _dbh_autocommit
-       auto_savepoint savepoints/
+       _conn_pid _conn_tid transaction_depth _dbh_autocommit savepoints/
 );
 
+# the values for these accessors are picked out (and deleted) from
+# the attribute hashref passed to connect_info
+my @storage_options = qw/
+  on_connect_do on_disconnect_do disable_sth_caching unsafe auto_savepoint
+/;
+__PACKAGE__->mk_group_accessors('simple' => @storage_options);
+
+
+# default cursor class, overridable in connect_info attributes
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
 __PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class/);
@@ -339,25 +346,76 @@ sub new {
 
 =head2 connect_info
 
-The arguments of C<connect_info> are always a single array reference.
+This method is normally called by L<DBIx::Class::Schema/connection>, which
+encapsulates its argument list in an arrayref before passing them here.
 
-This is normally accessed via L<DBIx::Class::Schema/connection>, which
-encapsulates its argument list in an arrayref before calling
-C<connect_info> here.
+The argument list may contain:
 
-The arrayref can either contain the same set of arguments one would
-normally pass to L<DBI/connect>, or a lone code reference which returns
-a connected database handle.  Please note that the L<DBI> docs
+=over
+
+=item *
+
+The same 4-element argument set one would normally pass to L<DBI/connect>,
+optionally followed by L<extra attributes|/DBIx::Class specific connection attributes>
+recognized by DBIx::Class:
+
+  $connect_info_args = [ $dsn, $user, $pass, \%dbi_attributes, \%extra_attributes ];
+
+=item *
+
+A lone code reference which returns a connected L<DBI database handle|DBI/connect>
+optinally followed by L<extra attributes|/DBIx::Class specific connection attributes>
+recognized by DBIx::Class:
+
+  $connect_info_args = [ sub { DBI->connect (...) }, \%extra_attributes ];
+
+=item *
+
+A lone hashref with all the attributes and the dsn/user/pass mixed together:
+
+  $connect_info_args = [{
+    dsn => $dsn,
+    user => $user,
+    pass => $pass,
+    %dbi_attributes,
+    %extra_attributes,
+  }];
+
+This is particularly useful for L<Catalyst> based applications, allowing the 
+following config:
+
+  <Model::DB>
+    schema_class   App::DB
+    <connect_info>
+      dsn          dbi:mysql:database=test
+      user         testuser
+      password     TestPass
+      AutoCommit   1
+    </connect_info>
+  </Model::DB>
+
+=back
+
+Please note that the L<DBI> docs
 recommend that you always explicitly set C<AutoCommit> to either
 C<0> or C<1>.   L<DBIx::Class> further recommends that it be set
 to C<1>, and that you perform transactions via our L</txn_do>
 method.  L<DBIx::Class> will set it to C<1> if you do not do explicitly
-set it to zero.  This is the default for most DBDs.  See below for more
-details.
+set it to zero.  This is the default for most DBDs. See
+L</DBIx::Class and AutoCommit> for details.
 
-In either case, if the final argument in your connect_info happens
-to be a hashref, C<connect_info> will look there for several
-connection-specific options:
+=head3 DBIx::Class specific connection attributes
+
+In addition to the standard L<DBI|DBI/ATTRIBUTES_COMMON_TO_ALL_HANDLES>
+L<connection|DBI/Database_Handle_Attributes> attributes, DBIx::Class recognizes
+the following connection options. These options can be mixed in with your other
+L<DBI> connection attributes, or placed in a seperate hashref
+(C<\%extra_attributes>) as shown above.
+
+Every time C<connect_info> is invoked, any previous settings for
+these options will be cleared before setting the new ones, regardless of
+whether any options are specified in the new C<connect_info>.
+
 
 =over 4
 
@@ -441,30 +499,7 @@ transaction without having to abort all outer transactions.
 
 =back
 
-These options can be mixed in with your other L<DBI> connection attributes,
-or placed in a seperate hashref after all other normal L<DBI> connection
-arguments.
-
-Every time C<connect_info> is invoked, any previous settings for
-these options will be cleared before setting the new ones, regardless of
-whether any options are specified in the new C<connect_info>.
-
-Another Important Note:
-
-DBIC can do some wonderful magic with handling exceptions,
-disconnections, and transactions when you use C<< AutoCommit => 1 >>
-combined with C<txn_do> for transaction support.
-
-If you set C<< AutoCommit => 0 >> in your connect info, then you are always
-in an assumed transaction between commits, and you're telling us you'd
-like to manage that manually.  A lot of DBIC's magic protections
-go away.  We can't protect you from exceptions due to database
-disconnects because we don't know anything about how to restart your
-transactions.  You're on your own for handling all sorts of exceptional
-cases if you choose the C<< AutoCommit => 0 >> path, just as you would
-be with raw DBI.
-
-Examples:
+Some real-life examples of arguments to L</connect_info> and L<DBIx::Class::Schema/connect>
 
   # Simple SQLite connection
   ->connect_info([ 'dbi:SQLite:./foo.db' ]);
@@ -493,7 +528,20 @@ Examples:
     ]
   );
 
-  # Subref + DBIC-specific connection options
+  # Same, but with hashref as argument
+  # See C<parse_connect_info> for explanation
+  ->connect_info(
+    [{
+      dsn         => 'dbi:Pg:dbname=foo',
+      user        => 'postgres',
+      password    => 'my_pg_password',
+      AutoCommit  => 1,
+      quote_char  => q{"},
+      name_sep    => q{.},
+    }]
+  );
+
+  # Subref + DBIx::Class-specific connection options
   ->connect_info(
     [
       sub { DBI->connect(...) },
@@ -506,6 +554,8 @@ Examples:
     ]
   );
 
+
+
 =cut
 
 sub connect_info {
@@ -513,45 +563,60 @@ sub connect_info {
 
   return $self->_connect_info if !$info_arg;
 
+  my @args = @$info_arg;  # take a shallow copy for further mutilation
+  $self->_connect_info([@args]); # copy for _connect_info
+
+
+  # combine/pre-parse arguments depending on invocation style
+
+  my %attrs;
+  if (ref $args[0] eq 'CODE') {     # coderef with optional \%extra_attributes
+    %attrs = %{ $args[1] || {} };
+    @args = $args[0];
+  }
+  elsif (ref $args[0] eq 'HASH') { # single hashref (i.e. Catalyst config)
+    %attrs = %{$args[0]};
+    @args = ();
+    for (qw/password user dsn/) {
+      unshift @args, delete $attrs{$_};
+    }
+  }
+  else {                # otherwise assume dsn/user/pass + \%attrs + \%extra_attrs
+    %attrs = (
+      % { $args[3] || {} },
+      % { $args[4] || {} },
+    );
+    @args = @args[0,1,2];
+  }
+
   # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
   #  the new set of options
   $self->_sql_maker(undef);
   $self->_sql_maker_opts({});
-  $self->_connect_info([@$info_arg]); # copy for _connect_info
 
-  my $dbi_info = [@$info_arg]; # copy for _dbi_connect_info
-
-  my $last_info = $dbi_info->[-1];
-  if(ref $last_info eq 'HASH') {
-    $last_info = { %$last_info }; # so delete is non-destructive
-    my @storage_option = qw(
-      on_connect_do on_disconnect_do disable_sth_caching unsafe cursor_class
-      auto_savepoint
-    );
-    for my $storage_opt (@storage_option) {
-      if(my $value = delete $last_info->{$storage_opt}) {
+  if(keys %attrs) {
+    for my $storage_opt (@storage_options, 'cursor_class') {    # @storage_options is declared at the top of the module
+      if(my $value = delete $attrs{$storage_opt}) {
         $self->$storage_opt($value);
       }
     }
     for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
-      if(my $opt_val = delete $last_info->{$sql_maker_opt}) {
+      if(my $opt_val = delete $attrs{$sql_maker_opt}) {
         $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
       }
     }
-    # re-insert modified hashref
-    $dbi_info->[-1] = $last_info;
-
-    # Get rid of any trailing empty hashref
-    pop(@$dbi_info) if !keys %$last_info;
   }
-  $self->_dbi_connect_info($dbi_info);
 
+  %attrs = () if (ref $args[0] eq 'CODE');  # _connect() never looks past $args[0] in this case
+
+  $self->_dbi_connect_info([@args, keys %attrs ? \%attrs : ()]);
   $self->_connect_info;
 }
 
 =head2 on_connect_do
 
 This method is deprecated in favor of setting via L</connect_info>.
+
 
 =head2 dbh_do
 
@@ -1772,6 +1837,24 @@ sub DESTROY {
 }
 
 1;
+
+=head1 USAGE NOTES
+
+=head2 DBIx::Class and AutoCommit
+
+DBIx::Class can do some wonderful magic with handling exceptions,
+disconnections, and transactions when you use C<< AutoCommit => 1 >>
+combined with C<txn_do> for transaction support.
+
+If you set C<< AutoCommit => 0 >> in your connect info, then you are always
+in an assumed transaction between commits, and you're telling us you'd
+like to manage that manually.  A lot of the magic protections offered by
+this module will go away.  We can't protect you from exceptions due to database
+disconnects because we don't know anything about how to restart your
+transactions.  You're on your own for handling all sorts of exceptional
+cases if you choose the C<< AutoCommit => 0 >> path, just as you would
+be with raw DBI.
+
 
 =head1 SQL METHODS
 
