@@ -1,4 +1,8 @@
 Revision history for DBIx::Class
+
+0.08099_05 2008-10-30 21:30:00 (UTC)
+        - Rewritte of Storage::DBI::connect_info(), extended with an
+          additional argument format type
         - InflateColumn::DateTime: add warning about floating timezone
         - InflateColumn::DateTime: possible to enforce/skip inflation
         - delete throws exception if passed arguments to prevent drunken mishaps. (purge)
