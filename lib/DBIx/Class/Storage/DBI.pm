@@ -322,6 +322,15 @@ DBIx::Class::Storage::DBI - DBI storage handler
 
 =head1 SYNOPSIS
 
+  my $schema = MySchema->connect('dbi:SQLite:my.db');
+
+  $schema->storage->debug(1);
+  $schema->dbh_do("DROP TABLE authors");
+
+  $schema->resultset('Book')->search({
+     written_on => $schema->storage->datetime_parser(DateTime->now)
+  });
+
 =head1 DESCRIPTION
 
 This class represents the connection to an RDBMS via L<DBI>.  See
@@ -355,23 +364,25 @@ The argument list may contain:
 
 =item *
 
-The same 4-element argument set one would normally pass to L<DBI/connect>,
-optionally followed by L<extra attributes|/DBIx::Class specific connection attributes>
-recognized by DBIx::Class:
+The same 4-element argument set one would normally pass to
+L<DBI/connect>, optionally followed by L<extra attributes|/DBIx::Class
+specific connection attributes> recognized by DBIx::Class:
 
-  $connect_info_args = [ $dsn, $user, $password, \%dbi_attributes, \%extra_attributes ];
-
-=item *
-
-A single code reference which returns a connected L<DBI database handle|DBI/connect>
-optinally followed by L<extra attributes|/DBIx::Class specific connection attributes>
-recognized by DBIx::Class:
-
-  $connect_info_args = [ sub { DBI->connect (...) }, \%extra_attributes ];
+  $connect_info_args = [ $dsn, $user, $password, \%dbi_attributes?, \%extra_attributes? ];
 
 =item *
 
-A single hashref with all the attributes and the dsn/user/password mixed together:
+A single code reference which returns a connected L<DBI database
+handle|DBI/connect> optionally followed by L<extra
+attributes|/DBIx::Class specific connection attributes> recognized by
+DBIx::Class:
+
+  $connect_info_args = [ sub { DBI->connect (...) }, \%extra_attributes? ];
+
+=item *
+
+A single hashref with all the attributes and the dsn/user/password
+mixed together:
 
   $connect_info_args = [{
     dsn => $dsn,
@@ -382,7 +393,7 @@ A single hashref with all the attributes and the dsn/user/password mixed togethe
   }];
 
 This is particularly useful for L<Catalyst> based applications, allowing the 
-following config:
+following config (in L<Config::General> style):
 
   <Model::DB>
     schema_class   App::DB
@@ -396,13 +407,12 @@ following config:
 
 =back
 
-Please note that the L<DBI> docs
-recommend that you always explicitly set C<AutoCommit> to either
-C<0> or C<1>.   L<DBIx::Class> further recommends that it be set
-to C<1>, and that you perform transactions via our L</txn_do>
-method.  L<DBIx::Class> will set it to C<1> if you do not do explicitly
-set it to zero.  This is the default for most DBDs. See
-L</DBIx::Class and AutoCommit> for details.
+Please note that the L<DBI> docs recommend that you always explicitly
+set C<AutoCommit> to either I<0> or I<1>.  L<DBIx::Class> further
+recommends that it be set to I<1>, and that you perform transactions
+via our L</txn_do> method.  L<DBIx::Class> will set it to I<1> if you
+do not do explicitly set it to zero.  This is the default for most
+DBDs. See L</DBIx::Class and AutoCommit> for details.
 
 =head3 DBIx::Class specific connection attributes
 
@@ -417,7 +427,7 @@ these options will be cleared before setting the new ones, regardless of
 whether any options are specified in the new C<connect_info>.
 
 
-=over 4
+=over
 
 =item on_connect_do
 
@@ -440,10 +450,10 @@ array reference, its return value is ignored.
 
 =item on_disconnect_do
 
-Takes arguments in the same form as L<on_connect_do> and executes them
+Takes arguments in the same form as L</on_connect_do> and executes them
 immediately before disconnecting from the database.
 
-Note, this only runs if you explicitly call L<disconnect> on the
+Note, this only runs if you explicitly call L</disconnect> on the
 storage object.
 
 =item disable_sth_caching
@@ -455,25 +465,30 @@ statement handles via L<DBI/prepare_cached>.
 
 Sets the limit dialect. This is useful for JDBC-bridge among others
 where the remote SQL-dialect cannot be determined by the name of the
-driver alone.
+driver alone. See also L<SQL::Abstract::Limit>.
 
 =item quote_char
 
 Specifies what characters to use to quote table and column names. If 
-you use this you will want to specify L<name_sep> as well.
+you use this you will want to specify L</name_sep> as well.
 
-quote_char expects either a single character, in which case is it is placed
-on either side of the table/column, or an arrayref of length 2 in which case the
-table/column name is placed between the elements.
+C<quote_char> expects either a single character, in which case is it
+is placed on either side of the table/column name, or an arrayref of length
+2 in which case the table/column name is placed between the elements.
 
-For example under MySQL you'd use C<quote_char =E<gt> '`'>, and user SQL Server you'd 
-use C<quote_char =E<gt> [qw/[ ]/]>.
+For example under MySQL you should use C<< quote_char => '`' >>, and for
+SQL Server you should use C<< quote_char => [qw/[ ]/] >>.
 
 =item name_sep
 
 This only needs to be used in conjunction with L<quote_char>, and is used to 
 specify the charecter that seperates elements (schemas, tables, columns) from 
 each other. In most cases this is simply a C<.>.
+
+The consequences of not supplying this value is that L<SQL::Abstract>
+will assume DBIx::Class' uses of aliases to be complete column
+names. The output will look like I<"me.name"> when it should actually
+be I<"me"."name">.
 
 =item unsafe
 
@@ -504,7 +519,8 @@ L<DBIx::Class::Storage::DBI::Cursor>.
 
 =back
 
-Some real-life examples of arguments to L</connect_info> and L<DBIx::Class::Schema/connect>
+Some real-life examples of arguments to L</connect_info> and
+L<DBIx::Class::Schema/connect>
 
   # Simple SQLite connection
   ->connect_info([ 'dbi:SQLite:./foo.db' ]);
@@ -534,7 +550,7 @@ Some real-life examples of arguments to L</connect_info> and L<DBIx::Class::Sche
   );
 
   # Same, but with hashref as argument
-  # See C<parse_connect_info> for explanation
+  # See parse_connect_info for explanation
   ->connect_info(
     [{
       dsn         => 'dbi:Pg:dbname=foo',
@@ -620,7 +636,7 @@ sub connect_info {
 
 =head2 on_connect_do
 
-This method is deprecated in favor of setting via L</connect_info>.
+This method is deprecated in favour of setting via L</connect_info>.
 
 
 =head2 dbh_do
@@ -1518,9 +1534,9 @@ sub sqlt_type { shift->dbh->{Driver}->{Name} }
 
 =head2 bind_attribute_by_data_type
 
-Given a datatype from column info, returns a database specific bind attribute for
-$dbh->bind_param($val,$attribute) or nothing if we will let the database planner
-just handle it.
+Given a datatype from column info, returns a database specific bind
+attribute for $dbh->bind_param($val,$attribute) or nothing if we will
+let the database planner just handle it.
 
 Generally only needed for special case column types, like bytea in postgres.
 

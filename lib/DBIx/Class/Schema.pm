@@ -456,8 +456,12 @@ is used to create a new instance of the storage backend and set it on
 the Schema object.
 
 See L<DBIx::Class::Storage::DBI/"connect_info"> for DBI-specific
-syntax on the C>@connectinfo> argument, or L<DBIx::Class::Storage> in
+syntax on the C<@connectinfo> argument, or L<DBIx::Class::Storage> in
 general.
+
+Note that C<connect_info> expects an arrayref of arguments, but
+C<connect> does not. C<connect> wraps it's arguments in an arrayref
+before passing them to C<connect_info>.
 
 =cut
 
