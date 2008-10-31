@@ -38,9 +38,15 @@ my $type_info = $schema->storage->columns_info_for('artist');
 
 # I know this is gross but SQLite reports the size differently from release
 # to release. At least this way the test still passes.
-
-delete $type_info->{$_}{size} for keys %$type_info;
-
+# Also it seems that some SQLite releases report stuff that isn't there as
+# undef. So strip them out.
+for my $col (keys %$type_info) {
+  for my $type (keys %{$type_info->{$col}}) {
+    if ($type eq 'size' or not defined $type_info->{$col}{$type} ) {
+      delete $type_info->{$col}{$type};
+    }
+  }
+}
 
 my $test_type_info = {
     'artistid' => {
