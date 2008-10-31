@@ -14,7 +14,6 @@
 
 # for developers only :)
 ^TODO$
-^VERSIONING\.SKETCH$
 
 # Avoid Module::Build generated and utility files.
 \bBuild$
