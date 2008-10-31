@@ -1,19 +1,25 @@
 use strict;
-use warnings;  
-
+use warnings;
 use Test::More;
+
+BEGIN {
+  eval "use DBIx::Class::CDBICompat;";
+  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required"
+    if $@;
+
+  eval { require DateTime };
+  plan skip_all => "Need DateTime for inflation tests" if $@;
+
+  eval { require Clone };
+  plan skip_all => "Need Clone for CDBICompat inflation tests" if $@;
+}
+
+plan tests => 6;
+
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
-
-eval { require DateTime };
-plan skip_all => "Need DateTime for inflation tests" if $@;
-
-eval { require Clone };
-plan skip_all => "Need Clone for CDBICompat inflation tests" if $@;
-
-plan tests => 6;
 
 DBICTest::Schema::CD->load_components(qw/CDBICompat::Relationships/);
 
