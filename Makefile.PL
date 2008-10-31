@@ -62,6 +62,56 @@ auto_provides;
 
 auto_install;
 
+# Have all prerequisites, check DBD::SQLite sanity
+{
+  my $pid = fork();
+  if (not defined $pid) {
+      die "Unable to fork(): $!";
+  }
+  elsif (! $pid) {
+      require DBI;
+      for (1 .. 10) {
+          my $dbh;
+          $dbh = DBI->connect ('dbi:SQLite::memory:', undef, undef, {
+              AutoCommit => 1,
+              RaiseError => 0,
+              PrintError => 0,
+          })
+              or die "Unable to connect to database: $@";
+          $dbh->do ('CREATE TABLE name_with_no_columns');   # a subtle syntax error
+          $dbh->do ('COMMIT');                              # followed by commit
+          $dbh->disconnect;
+      }
+
+      exit 0;
+  }
+  else {
+      wait();
+      my $sig = $? & 127;
+      if ($sig == 11) {
+          warn (<<EOE);
+
+############################### WARNING ###################################
+#                                                                         #
+# You are running a buggy version of DBD::SQLite known to randomly        #
+# segfault on errors. Even if you have the latest CPAN module version,    #
+# the actual sqlite3.so might have been compiled against an older buggy   #
+# sqlite3 dev library. You are strongly advised to update DBD::SQLite.    #
+#                                                                         #
+###########################################################################
+
+EOE
+          my $ans = prompt (
+            "The test suite of this module is almost certain to fail.\n"
+            . 'Do you really want to continue?',
+            'no',
+          );
+          exit 0 unless ($ans =~ /^y(es)?$/i);
+      }
+  }
+}
+
+
 WriteAll;
 
 
