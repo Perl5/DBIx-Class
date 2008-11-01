@@ -20,11 +20,16 @@ my $artist = $schema->resultset('Artist')->create({ name => 'Fred 2',
                                                      cds => [
                                                              { title => 'Music to code by',
                                                                year => 2007,
+                                                               tags => [
+                                                                 { 'tag' => 'rock' },
+                                                                 { 'tag' => 'pop' },
+                                                               ],
                                                              },
                                                              ],
                                                      });
 is(ref $artist->cds->first, 'DBICTest::CD', 'Created Artist with CDs');
 is($artist->cds->first->title, 'Music to code by', 'CD created correctly');
+is($artist->cds->first->tags->count, 2, 'Correct tags count');
 
 # Add a new CD
 $artist->update({cds => [ $artist->cds, 
