@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 3;
+plan tests => 4;
 
 # add some rows inside a transaction and commit it
 # XXX: Is storage->dbh the only way to get a dbh?
@@ -34,33 +34,61 @@ $schema->storage->txn_rollback;
 ($artist) = $schema->resultset("Artist")->search( artistid => 25 );
 is($artist, undef, "Rollback ok");
 
-my $type_info = $schema->storage->columns_info_for('artist');
+is_deeply (
+  get_storage_column_info ($schema->storage, 'collection'),
+  {
+    collectionid => {
+      data_type => 'INTEGER',
+      is_nullable => 0,
+    },
+    name => {
+      data_type => 'varchar',
+      is_nullable => 0,
+    },
+  },
+  'Correctly retrieve column info (all columns non-nullable)'
+);
 
-# I know this is gross but SQLite reports the size differently from release
-# to release. At least this way the test still passes.
-# Also it seems that some SQLite releases report stuff that isn't there as
-# undef. So strip them out.
-for my $col (keys %$type_info) {
-  for my $type (keys %{$type_info->{$col}}) {
-    if ($type eq 'size' or not defined $type_info->{$col}{$type} ) {
-      delete $type_info->{$col}{$type};
+TODO: {
+  local $TODO = 'All current versions of SQLite seem to mis-report is_nullable';
+
+  is_deeply (
+    get_storage_column_info ($schema->storage, 'artist'),
+    {
+      'artistid' => {
+          'data_type' => 'INTEGER',
+          'is_nullable' => 0,
+      },
+      'name' => {
+          'data_type' => 'varchar',
+          'is_nullable' => 1,
+      },
+      'rank' => {
+          'data_type' => 'integer',
+          'is_nullable' => 0,
+      },
+    },
+    'Correctly retrieve column info (mixed null and non-null columns)'
+  );
+};
+
+
+sub get_storage_column_info {
+  my ($storage, $table) = @_;
+
+  my $type_info = $storage->columns_info_for($table);
+
+  # I know this is gross but SQLite reports the size differently from release
+  # to release. At least this way the test still passes.
+  # Also it seems that some SQLite releases report stuff that isn't there as
+  # undef. So strip them out.
+  for my $col (keys %$type_info) {
+    for my $type (keys %{$type_info->{$col}}) {
+      if ($type eq 'size' or not defined $type_info->{$col}{$type} ) {
+        delete $type_info->{$col}{$type};
+      }
     }
   }
+
+  return $type_info;
 }
-
-my $test_type_info = {
-    'artistid' => {
-        'data_type' => 'INTEGER',
-        'is_nullable' => 0,
-    },
-    'name' => {
-        'data_type' => 'varchar',
-        'is_nullable' => 0,
-    },
-    'rank' => {
-        'data_type' => 'integer',
-        'is_nullable' => 0,
-    },
-};
-is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
-
