@@ -35,25 +35,23 @@ $schema->storage->txn_rollback;
 is($artist, undef, "Rollback ok");
 
 is_deeply (
-  get_storage_column_info ($schema->storage, 'collection'),
+  get_storage_column_info ($schema->storage, 'collection', qw/size is_nullable/),
   {
     collectionid => {
       data_type => 'INTEGER',
-      is_nullable => 0,
     },
     name => {
       data_type => 'varchar',
-      is_nullable => 0,
     },
   },
-  'Correctly retrieve column info (all columns non-nullable)'
+  'Correctly retrieve column info (no size or is_nullable)'
 );
 
 TODO: {
   local $TODO = 'All current versions of SQLite seem to mis-report is_nullable';
 
   is_deeply (
-    get_storage_column_info ($schema->storage, 'artist'),
+    get_storage_column_info ($schema->storage, 'artist', qw/size/),
     {
       'artistid' => {
           'data_type' => 'INTEGER',
@@ -73,18 +71,23 @@ TODO: {
 };
 
 
+# Depending on test we need to strip away certain column info.
+#  - SQLite is known to report the size differently from release to release
+#  - Current DBD::SQLite versions do not implement NULLABLE
+#  - Some SQLite releases report stuff that isn't there as undef
+
 sub get_storage_column_info {
-  my ($storage, $table) = @_;
+  my ($storage, $table, @ignore) = @_;
 
   my $type_info = $storage->columns_info_for($table);
 
-  # I know this is gross but SQLite reports the size differently from release
-  # to release. At least this way the test still passes.
-  # Also it seems that some SQLite releases report stuff that isn't there as
-  # undef. So strip them out.
   for my $col (keys %$type_info) {
     for my $type (keys %{$type_info->{$col}}) {
-      if ($type eq 'size' or not defined $type_info->{$col}{$type} ) {
+      if (
+        grep { $type eq $_ } (@ignore)
+          or
+        not defined $type_info->{$col}{$type}
+      ) {
         delete $type_info->{$col}{$type};
       }
     }
