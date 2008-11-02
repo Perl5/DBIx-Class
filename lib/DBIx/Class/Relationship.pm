@@ -115,16 +115,16 @@ attrubutes that are allowed in the C<$attrs> argument.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $fk_column|\%cond|\@cond?, \%attr?
+=item Arguments: $accessor_name, $related_class, $our_fk_column|\%cond|\@cond?, \%attr?
 
 =back
 
 Creates a relationship where the calling class stores the foreign
-class's primary key in one (or more) of its columns. This relationship
-defaults to using C<$accessor_name> as the column in this class
-to resolve the join against the primary key from C<$related_class>,
-unless C<$fk_column> specifies the foreign key column in this class or
-C<cond> specifies a reference to a join condition hash.
+class's primary key in one (or more) of the calling class columns.
+This relationship defaults to using C<$accessor_name> as the column
+name in this class to resolve the join against the primary key from
+C<$related_class>, unless C<$our_fk_column> specifies the foreign key column
+in this class or C<cond> specifies a reference to a join condition hash.
 
 =over
 
@@ -144,7 +144,7 @@ indicated by this relationship.
 This is the class name of the table referenced by the foreign key in
 this class.
 
-=item fk_column
+=item our_fk_column
 
 The column name on this class that contains the foreign key.
 
@@ -153,7 +153,7 @@ OR
 =item cond
 
 A hashref where the keys are C<foreign.$column_on_related_table> and
-the values are C<self.$foreign_key_column>. This is useful for
+the values are C<self.$our_fk_column>. This is useful for
 relations that are across multiple columns.
 
 =back
@@ -218,15 +218,15 @@ methods and valid relationship attributes.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $foreign_key_column|\%cond|\@cond?, \%attr?
+=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond?, \%attr?
 
 =back
 
 Creates a one-to-many relationship, where the corresponding elements
 of the foreign class store the calling class's primary key in one (or
-more) of its columns. This relationship defaults to using the end of
-this classes namespace as the foreign key in C<$related_class> to
-resolve the join, unless C<$foreign_key_column> specifies the foreign
+more) of the foreign class columns. This relationship defaults to using
+the end of this classes namespace as the foreign key in C<$related_class>
+to resolve the join, unless C<$their_fk_column> specifies the foreign
 key column in C<$related_class> or C<cond> specifies a reference to a
 join condition hash.
 
@@ -249,7 +249,7 @@ indicated by this relationship.
 This is the class name of the table which contains a foreign key
 column containing PK values of this class.
 
-=item foreign_key_column
+=item their_fk_column
 
 The column name on the related class that contains the foreign key.
 
@@ -257,7 +257,7 @@ OR
 
 =item cond
 
-A hashref where the keys are C<foreign.$foreign_key_column> and
+A hashref where the keys are C<foreign.$their_fk_column> and
 the values are C<self.$matching_column>. This is useful for
 relations that are across multiple columns.
 
@@ -349,13 +349,13 @@ methods and valid relationship attributes.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $foreign_key_column|\%cond|\@cond?, \%attr?
+=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond?, \%attr?
 
 =back
 
 Creates an optional one-to-one relationship with a class. This relationship
 defaults to using C<$accessor_name> as the foreign key in C<$related_class> to
-resolve the join, unless C<$foreign_key_column> specifies the foreign key
+resolve the join, unless C<$their_fk_column> specifies the foreign key
 column in C<$related_class> or C<cond> specifies a reference to a join
 condition hash.
 
@@ -377,7 +377,7 @@ indicated by this relationship.
 This is the class name of the table which contains a foreign key
 column containing PK values of this class.
 
-=item foreign_key_column
+=item their_fk_column
 
 The column name on the related class that contains the foreign key.
 
@@ -385,7 +385,7 @@ OR
 
 =item cond
 
-A hashref where the keys are C<foreign.$column_on_related_table> and
+A hashref where the keys are C<foreign.$their_fk_column> and
 the values are C<self.$matching_column>. This is useful for
 relations that are across multiple columns.
 
@@ -431,13 +431,13 @@ methods and valid relationship attributes.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $foreign_key_column|\%cond|\@cond?, \%attr?
+=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond?, \%attr?
 
 =back
 
 Creates a one-to-one relationship with a class. This relationship
 defaults to using C<$accessor_name> as the foreign key in C<$related_class> to
-resolve the join, unless C<$foreign_key_column> specifies the foreign key
+resolve the join, unless C<$their_fk_column> specifies the foreign key
 column in C<$related_class> or C<cond> specifies a reference to a join
 condition hash.
 
@@ -459,7 +459,7 @@ indicated by this relationship.
 This is the class name of the table which contains a foreign key
 column containing PK values of this class.
 
-=item foreign_key_column
+=item their_fk_column
 
 The column name on the related class that contains the foreign key.
 
@@ -467,7 +467,7 @@ OR
 
 =item cond
 
-A hashref where the keys are C<foreign.$column_on_related_table> and
+A hashref where the keys are C<foreign.$their_fk_column> and
 the values are C<self.$matching_column>. This is useful for
 relations that are across multiple columns.
 
