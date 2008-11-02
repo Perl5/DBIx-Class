@@ -1753,8 +1753,10 @@ sub deployment_statements {
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs, $dir) = @_;
-  foreach my $statement ( $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } ) ) {
-    foreach my $line ( split(";\n", $statement)) {
+  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } );
+  foreach my $statement ( @statements ) {
+    my $deploy = sub {
+      my $line = shift;
       next if($line =~ /^--/);
       next if(!$line);
 #      next if($line =~ /^DROP/m);
@@ -1769,6 +1771,14 @@ sub deploy {
         warn qq{$@ (running "${line}")};
       }
       $self->_query_end($line);
+    };
+    if (@statements > 1) {
+        $deploy->( $statement );
+    }
+    else {
+        foreach my $line ( split(";\n", $statement)) {
+            $deploy->( $line );
+        }
     }
   }
 }
