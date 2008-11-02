@@ -212,7 +212,9 @@ NOTE: If you are used to L<Class::DBI> relationships, this is the equivalent
 of C<has_a>.
 
 See L<DBIx::Class::Relationship::Base> for documentation on relationship
-methods and valid relationship attributes.
+methods and valid relationship attributes. Also see L<DBIx::Class::ResultSet>
+for a L<list of standard resultset attributes|DBIx::Class::ResultSet/ATTRIBUTES>
+which can be assigned to relationships as well.
 
 =head2 has_many
 
@@ -343,7 +345,9 @@ pass C<< cascade_copy => 0 >> in the C<$attr> hashref. The behaviour
 defaults to C<< cascade_copy => 1 >>.
 
 See L<DBIx::Class::Relationship::Base> for documentation on relationship
-methods and valid relationship attributes.
+methods and valid relationship attributes. Also see L<DBIx::Class::ResultSet>
+for a L<list of standard resultset attributes|DBIx::Class::ResultSet/ATTRIBUTES>
+which can be assigned to relationships as well.
 
 =head2 might_have
 
@@ -425,7 +429,9 @@ will have deleted/updated the related records or raised an exception
 before DBIx::Class gets to perform the cascaded operation.
 
 See L<DBIx::Class::Relationship::Base> for documentation on relationship
-methods and valid relationship attributes.
+methods and valid relationship attributes. Also see L<DBIx::Class::ResultSet>
+for a L<list of standard resultset attributes|DBIx::Class::ResultSet/ATTRIBUTES>
+which can be assigned to relationships as well.
 
 =head2 has_one
 
@@ -510,7 +516,9 @@ In the above example, each Book in the database is associated with exactly one
 ISBN object.
 
 See L<DBIx::Class::Relationship::Base> for documentation on relationship
-methods and valid relationship attributes.
+methods and valid relationship attributes. Also see L<DBIx::Class::ResultSet>
+for a L<list of standard resultset attributes|DBIx::Class::ResultSet/ATTRIBUTES>
+which can be assigned to relationships as well.
 
 =head2 many_to_many
 
@@ -593,7 +601,9 @@ will be created for the Role class for the C<actors> many_to_many
 relationship.
 
 See L<DBIx::Class::Relationship::Base> for documentation on relationship
-methods and valid relationship attributes.
+methods and valid relationship attributes. Also see L<DBIx::Class::ResultSet>
+for a L<list of standard resultset attributes|DBIx::Class::ResultSet/ATTRIBUTES>
+which can be assigned to relationships as well.
 
 =cut
 

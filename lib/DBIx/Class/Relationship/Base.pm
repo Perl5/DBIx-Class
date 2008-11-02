@@ -67,7 +67,9 @@ Each key-value pair provided in a hashref will be used as C<AND>ed conditions.
 To add an C<OR>ed condition, use an arrayref of hashrefs. See the
 L<SQL::Abstract> documentation for more details.
 
-In addition to standard result set attributes, the following attributes are also valid:
+In addition to the
+L<standard ResultSet attributes|DBIx::Class::ResultSet/ATTRIBUTES>,
+the following attributes are also valid:
 
 =over 4
 
