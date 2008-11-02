@@ -315,10 +315,10 @@ sub populate_schema {
     ]);
 
     $schema->populate('BooksInLibrary', [
-        [ qw/id owner title source/ ],
-        [ 1, 1, "Programming Perl", "Library" ],
-        [ 2, 1, "Dynamical Systems", "Library" ],
-        [ 3, 2, "Best Recipe Cookbook", "Library" ],
+        [ qw/id owner title source price/ ],
+        [ 1, 1, "Programming Perl", "Library", 23 ],
+        [ 2, 1, "Dynamical Systems", "Library",  37 ],
+        [ 3, 2, "Best Recipe Cookbook", "Library", 65 ],
     ]);
 }
 

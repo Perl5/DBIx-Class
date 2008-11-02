@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Fri Oct 24 21:31:55 2008
+-- Created on Sun Nov  2 15:27:04 2008
 -- 
 BEGIN TRANSACTION;
 
@@ -44,7 +44,8 @@ CREATE TABLE books (
   id INTEGER PRIMARY KEY NOT NULL,
   source varchar(100) NOT NULL,
   owner integer NOT NULL,
-  title varchar(100) NOT NULL
+  title varchar(100) NOT NULL,
+  price integer
 );
 
 

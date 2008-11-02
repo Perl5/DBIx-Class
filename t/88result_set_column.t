@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 11; 
+plan tests => 14;
 
 my $cd;
 my $rs = $cd = $schema->resultset("CD")->search({});
@@ -50,3 +50,11 @@ ok(defined($psrs->get_column('addedtitle')), '+select/+as title');
   my $rsc = $rs->get_column('year');
   is( $rsc->{_parent_resultset}->{attrs}->{prefetch}, undef, 'prefetch wiped' );
 }
+
+# test sum()
+is ($schema->resultset('BooksInLibrary')->get_column ('price')->sum, 125, 'Sum of a resultset works correctly');
+
+# test sum over search_related
+my $owner = $schema->resultset('Owners')->find ({ name => 'Newton' });
+ok ($owner->books->count > 1, 'Owner Newton has multiple books');
+is ($owner->search_related ('books')->get_column ('price')->sum, 60, 'Correctly calculated price of all owned books');
