@@ -1753,16 +1753,14 @@ sub deployment_statements {
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs, $dir) = @_;
-  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } );
-  foreach my $statement ( @statements ) {
-    my $deploy = sub {
-      my $line = shift;
-      return if($line =~ /^--/);
-      return if(!$line);
+  foreach my $statement ( $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } ) ) {
+    foreach my $line ( split(";\n", $statement)) {
+      next if($line =~ /^--/);
+      next if(!$line);
 #      next if($line =~ /^DROP/m);
-      return if($line =~ /^BEGIN TRANSACTION/m);
-      return if($line =~ /^COMMIT/m);
-      return if $line =~ /^\s+$/; # skip whitespace only
+      next if($line =~ /^BEGIN TRANSACTION/m);
+      next if($line =~ /^COMMIT/m);
+      next if $line =~ /^\s+$/; # skip whitespace only
       $self->_query_start($line);
       eval {
         $self->dbh->do($line); # shouldn't be using ->dbh ?
@@ -1771,14 +1769,6 @@ sub deploy {
         warn qq{$@ (running "${line}")};
       }
       $self->_query_end($line);
-    };
-    if (@statements > 1) {
-        $deploy->( $statement );
-    }
-    else {
-        foreach my $line ( split(";\n", $statement)) {
-            $deploy->( $line );
-        }
     }
   }
 }
