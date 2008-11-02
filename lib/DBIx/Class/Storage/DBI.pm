@@ -1757,12 +1757,12 @@ sub deploy {
   foreach my $statement ( @statements ) {
     my $deploy = sub {
       my $line = shift;
-      next if($line =~ /^--/);
-      next if(!$line);
+      return if($line =~ /^--/);
+      return if(!$line);
 #      next if($line =~ /^DROP/m);
-      next if($line =~ /^BEGIN TRANSACTION/m);
-      next if($line =~ /^COMMIT/m);
-      next if $line =~ /^\s+$/; # skip whitespace only
+      return if($line =~ /^BEGIN TRANSACTION/m);
+      return if($line =~ /^COMMIT/m);
+      return if $line =~ /^\s+$/; # skip whitespace only
       $self->_query_start($line);
       eval {
         $self->dbh->do($line); # shouldn't be using ->dbh ?
