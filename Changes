@@ -1,4 +1,6 @@
 Revision history for DBIx::Class
+        - Split sql statements for deploy only if SQLT::Producer returned a scalar
+          containing all statements to be executed
 
 0.08099_05 2008-10-30 21:30:00 (UTC)
         - Rewritte of Storage::DBI::connect_info(), extended with an
