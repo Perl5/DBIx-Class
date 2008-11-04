@@ -1,26 +1,26 @@
 package # hide from PAUSE Indexer
-    DBIx::Class::CDBICompat::AccessorMapping;
+  DBIx::Class::CDBICompat::AccessorMapping;
 
 use strict;
 use warnings;
 
 sub mk_group_accessors {
-  my ($class, $group, @cols) = @_;
+    my ($class, $group, @cols) = @_;
 
-  foreach my $col (@cols) {
-    my $ro_meth = $class->accessor_name_for($col);
-    my $wo_meth = $class->mutator_name_for($col);
+    foreach my $col (@cols) {
+        my $ro_meth = $class->accessor_name_for($col);
+        my $wo_meth = $class->mutator_name_for($col);
 
-    # warn "class: $class / col: $col / ro: $ro_meth / wo: $wo_meth\n";
-    if ($ro_meth eq $wo_meth or     # they're the same
-        $wo_meth eq $col)           # or only the accessor is custom
-    {
-      $class->next::method($group => [ $ro_meth => $col ]);
-    } else {
-      $class->mk_group_ro_accessors($group => [ $ro_meth => $col ]);
-      $class->mk_group_wo_accessors($group => [ $wo_meth => $col ]);
+        # warn "class: $class / col: $col / ro: $ro_meth / wo: $wo_meth\n";
+        if ($ro_meth eq $wo_meth or # they're the same
+              $wo_meth eq $col)     # or only the accessor is custom
+          {
+              $class->next::method($group => [ $ro_meth => $col ]);
+          } else {
+              $class->mk_group_ro_accessors($group => [ $ro_meth => $col ]);
+              $class->mk_group_wo_accessors($group => [ $wo_meth => $col ]);
+          }
     }
-  }
 }
 
 
@@ -44,16 +44,16 @@ sub mutator_name_for {
 
 
 sub new {
-  my ($class, $attrs, @rest) = @_;
-  $class->throw_exception( "create needs a hashref" ) unless ref $attrs eq 'HASH';
-  foreach my $col ($class->columns) {
-      my $acc = $class->accessor_name_for($col);
-      $attrs->{$col} = delete $attrs->{$acc} if exists $attrs->{$acc};
+    my ($class, $attrs, @rest) = @_;
+    $class->throw_exception( "create needs a hashref" ) unless ref $attrs eq 'HASH';
+    foreach my $col ($class->columns) {
+        my $acc = $class->accessor_name_for($col);
+        $attrs->{$col} = delete $attrs->{$acc} if exists $attrs->{$acc};
 
-      my $mut = $class->mutator_name_for($col);
-      $attrs->{$col} = delete $attrs->{$mut} if exists $attrs->{$mut};
-  }
-  return $class->next::method($attrs, @rest);
+        my $mut = $class->mutator_name_for($col);
+        $attrs->{$col} = delete $attrs->{$mut} if exists $attrs->{$mut};
+    }
+    return $class->next::method($attrs, @rest);
 }
 
 1;
