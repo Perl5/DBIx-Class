@@ -8,8 +8,16 @@ sub mk_group_accessors {
     my ($class, $group, @cols) = @_;
 
     foreach my $col (@cols) {
-        my $ro_meth = $class->accessor_name_for($col);
-        my $wo_meth = $class->mutator_name_for($col);
+        my($accessor, $col) = ref $col ? @$col : (undef, $col);
+
+        my($ro_meth, $wo_meth);
+        if( defined $accessor ) {
+            $ro_meth = $wo_meth = $accessor;
+        }
+        else {
+            $ro_meth = $class->accessor_name_for($col);
+            $wo_meth = $class->mutator_name_for($col);
+        }
 
         # warn "class: $class / col: $col / ro: $ro_meth / wo: $wo_meth\n";
         if ($ro_meth eq $wo_meth or # they're the same
