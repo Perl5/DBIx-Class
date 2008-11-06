@@ -228,3 +228,38 @@ sub parse {
 }
 
 1;
+
+=head1 NAME
+
+SQL::Translator::Parser::DBIx::Class - Create a SQL::Translator schema
+from a DBIx::Class::Schema instance
+
+=head1 SYNOPSIS
+
+ use MyApp::Schema;
+ use SQL::Translator;
+ 
+ my $schema = MyApp::Schema->connect;
+ my $trans  = SQL::Translator->new (
+      parser      => 'SQL::Translator::Parser::DBIx::Class',
+      parser_args => { package => $schema },
+      producer    => 'SQLite',
+     ) or die SQL::Translator->error;
+ my $out = $trans->translate() or die $trans->error;
+
+=head1 DESCRIPTION
+
+C<SQL::Translator::Parser::DBIx::Class> reads a DBIx::Class schema,
+interrogates the columns, and stuffs it all in an $sqlt_schema object.
+
+=head1 SEE ALSO
+
+SQL::Translator.
+
+=head1 AUTHORS
+
+Jess Robinson
+
+Matt S Trout
+
+Ash Berlin
