@@ -8,7 +8,7 @@ BEGIN {
         next;
     }
     eval "use DBD::SQLite";
-    plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 54);
+    plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 55);
 }
 
 INIT {
@@ -17,9 +17,11 @@ INIT {
     use lib 't/testlib';
     require Film;
     require Actor;
-        require Director;
+    require Director;
+
     Actor->has_a(film => 'Film');
-        Film->has_a(director => 'Director');
+    Film->has_a(director => 'Director');
+
     sub Class::DBI::sheep { ok 0; }
 }
 
@@ -108,7 +110,7 @@ eval {
     my $bt = Film->create($data);
     my $ac = Actor->create($p_data);
 
-    eval { my $f = $ac->film };
+    ok !eval { my $f = $ac->film; 1 };
     like $@, qr/film/, "no hasa film";
 
     eval {
@@ -212,4 +214,6 @@ eval {
     like $@, qr/read only/, "And can't delete 4 Days in July";
     my $abigail = eval { Film->create({ title => "Abigail's Party" }) };
     like $@, qr/read only/, "Or create new films";
+
+    $sandl->discard_changes;
 }
