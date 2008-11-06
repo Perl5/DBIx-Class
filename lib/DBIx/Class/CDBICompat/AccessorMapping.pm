@@ -11,7 +11,7 @@ sub mk_group_accessors {
         my($accessor, $col) = ref $col ? @$col : (undef, $col);
 
         my($ro_meth, $wo_meth);
-        if( defined $accessor ) {
+        if( defined $accessor and ($accessor ne $col)) {
             $ro_meth = $wo_meth = $accessor;
         }
         else {
@@ -21,13 +21,14 @@ sub mk_group_accessors {
 
         # warn "class: $class / col: $col / ro: $ro_meth / wo: $wo_meth\n";
         if ($ro_meth eq $wo_meth or # they're the same
-              $wo_meth eq $col)     # or only the accessor is custom
-          {
-              $class->next::method($group => [ $ro_meth => $col ]);
-          } else {
-              $class->mk_group_ro_accessors($group => [ $ro_meth => $col ]);
-              $class->mk_group_wo_accessors($group => [ $wo_meth => $col ]);
-          }
+            $wo_meth eq $col)     # or only the accessor is custom
+        {
+            $class->next::method($group => [ $ro_meth => $col ]);
+        }
+        else {
+            $class->mk_group_ro_accessors($group => [ $ro_meth => $col ]);
+            $class->mk_group_wo_accessors($group => [ $wo_meth => $col ]);
+        }
     }
 }
 
