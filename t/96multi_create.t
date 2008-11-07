@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 51;
+plan tests => 55;
 
 my $schema = DBICTest->init_schema();
 
@@ -279,7 +279,6 @@ eval {
 # (should work, despite the fact that no one will probably use it this way)
 
 # first count how many rows do we initially have
-
 my $counts;
 $counts->{$_} = $schema->resultset($_)->count for qw/Artist CD Genre Producer Tag/;
 
@@ -287,7 +286,7 @@ $counts->{$_} = $schema->resultset($_)->count for qw/Artist CD Genre Producer Ta
 eval {
   $schema->resultset('CD')->create ({
     artist => {
-      name => 'larry',
+      name => 'james',
     },
     title => 'Greatest hits 1',
     year => '2012',
@@ -301,15 +300,15 @@ eval {
     cd_to_producer => [
       {
         producer => {
-          name => 'Dirty Harry',
+          name => 'bob',
           producer_to_cd => [
             {
               cd => { 
                 artist => {
-                  name => 'Dirty Harry himself',
+                  name => 'lars',
                   cds => [
                     {
-                      title => 'Greatest hits 3',
+                      title => 'Greatest hits 2',
                       year => 2012,
                       genre => {
                         name => '"Greatest" collections',
@@ -318,10 +317,60 @@ eval {
                         { tag => 'A' },
                         { tag => 'B' },
                       ],
+                      # This cd is created via artist so it doesn't know about producers
+                      cd_to_producer => [
+                        # if we specify 'bob' here things bomb
+                        # as the producer attached to Greatest Hits 1 is
+                        # already created, but not yet inserted.
+                        # Maybe this can be fixed, but things are hairy
+                        # enough already.
+                        #
+                        #{ producer => { name => 'bob' } },
+                        { producer => { name => 'paul' } },
+                        { producer => {
+                          name => 'flemming',
+                          producer_to_cd => [
+                            { cd => {
+                              artist => {
+                                name => 'kirk',
+                                cds => [
+                                  {
+                                    title => 'Greatest hits 3',
+                                    year => 2012,
+                                    genre => {
+                                      name => '"Greatest" collections',
+                                    },
+                                    tags => [
+                                      { tag => 'A' },
+                                      { tag => 'B' },
+                                    ],
+                                  },
+                                  {
+                                    title => 'Greatest hits 4',
+                                    year => 2012,
+                                    genre => {
+                                      name => '"Greatest" collections2',
+                                    },
+                                    tags => [
+                                      { tag => 'A' },
+                                      { tag => 'B' },
+                                    ],
+                                  },
+                                ],
+                              },
+                              title => 'Greatest hits 5',
+                              year => 2013,
+                              genre => {
+                                name => '"Greatest" collections2',
+                              },
+                            }},
+                          ],
+                        }},
+                      ],
                     },
                   ],
                 },
-                title => 'Greatest hits 2',
+                title => 'Greatest hits 6',
                 year => 2012,
                 genre => {
                   name => '"Greatest" collections',
@@ -335,10 +384,12 @@ eval {
             {
               cd => { 
                 artist => {
-                  name => 'larry',    # should already exist
+                  name => 'lars',    # should already exist
+                  # even though the artist 'name' is not uniquely constrained
+                  # find_or_create will arguably DWIM 
                 },
-                title => 'Greatest hits 4',
-                year => 2012,
+                title => 'Greatest hits 7',
+                year => 2013,
               },
             },
           ],
@@ -347,33 +398,92 @@ eval {
     ],
   });
 
-  is ($schema->resultset ('Artist')->count, $counts->{Artist} + 1, 'One new artists created');  # even though the 'name' is not uniquely constrained find_or_create will arguably DWIM
-  is ($schema->resultset ('Genre')->count, $counts->{Genre} + 1, 'One additional genre created');
-  is ($schema->resultset ('Producer')->count, $counts->{Producer} + 1, 'One new producer');
-  is ($schema->resultset ('CD')->count, $counts->{CD} + 4, '4 new CDs');
-  is ($schema->resultset ('Tag')->count, $counts->{Tag} + 6, '6 new Tags');
+  is ($schema->resultset ('Artist')->count, $counts->{Artist} + 3, '3 new artists created');
+  is ($schema->resultset ('Genre')->count, $counts->{Genre} + 2, '2 additional genres created');
+  is ($schema->resultset ('Producer')->count, $counts->{Producer} + 3, '3 new producer');
+  is ($schema->resultset ('CD')->count, $counts->{CD} + 7, '7 new CDs');
+  is ($schema->resultset ('Tag')->count, $counts->{Tag} + 10, '10 new Tags');
 
-  my $harry_cds = $schema->resultset ('Artist')->single ({name => 'Dirty Harry himself'})->cds;
-  is ($harry_cds->count, 2, 'Two CDs created by Harry');
-  ok ($harry_cds->single ({title => 'Greatest hits 2'}), 'First CD name correct');
-  ok ($harry_cds->single ({title => 'Greatest hits 3'}), 'Second CD name correct');
+  my $cd_rs = $schema->resultset ('CD')
+    ->search ({ title => { -like => 'Greatest hits %' }}, { order_by => 'title'} );
+  is ($cd_rs->count, 7, '7 greatest hits created');
 
-  my $harry_productions = $schema->resultset ('Producer')->single ({name => 'Dirty Harry'})
-    ->search_related ('producer_to_cd', {})->search_related ('cd', {});
-  is ($harry_productions->count, 4, 'All 4 CDs are produced by Harry');
-  is ($harry_productions->search ({ year => 2012 })->count, 4, 'All 4 CDs have the correct year');
+  my $cds_2012 = $cd_rs->search ({ year => 2012});
+  is ($cds_2012->count, 5, '5 CDs created in 2012');
 
-  my $hits_genre = $schema->resultset ('Genre')->single ({name => '"Greatest" collections'});
-  ok ($hits_genre, 'New genre row found');
-  is ($hits_genre->cds->count, 3, 'Three of the new CDs fall into the new genre');
+  is (
+    $cds_2012->search(
+      { 'tags.tag' => { -in => [qw/A B/] } },
+      { join => 'tags', group_by => 'me.cdid' }
+    ),
+    5,
+    '10 tags were pairwise distributed between 5 CDs'
+  );
 
-  my $a_tags = $schema->resultset('Tag')->search({ tag => 'A'});
-  my $b_tags = $schema->resultset('Tag')->search({ tag => 'A'});
-  is ($a_tags->count, 3, '3 A tags');
-  is ($a_tags->count, 3, '3 B tags');
+  my $paul_prod = $cd_rs->search (
+    { 'producer.name' => 'paul'},
+    { join => { cd_to_producer => 'producer' } }
+  );
+  is ($paul_prod->count, 1, 'Paul had 1 production');
+  my $pauls_cd = $paul_prod->single;
+  is ($pauls_cd->cd_to_producer->count, 2, 'Paul had one co-producer');
+  is (
+    $pauls_cd->search_related ('cd_to_producer',
+      { 'producer.name' => 'flemming'},
+      { join => 'producer' }
+    )->count,
+    1,
+    'The second producer is flemming',
+  );
 
-  my $cds_with_ab = $schema->resultset('CD')
-    ->search({ 'tags.tag' => { -in => [qw/A B/] } }, { join => 'tags', group_by => 'me.cdid' } );
-  is ($cds_with_ab->count, 3, '6 tags were pairwise distributed between 3 CDs');
+  my $kirk_cds = $cd_rs->search ({ 'artist.name' => 'kirk' }, { join => 'artist' });
+  is ($kirk_cds, 3, 'Kirk had 3 CDs');
+  is (
+    $kirk_cds->search (
+      { 'cd_to_producer.cd' => { '!=', undef } },
+      { join => 'cd_to_producer' },
+    ),
+    1,
+    'Kirk had a producer only on one cd',
+  );
+
+  my $lars_cds = $cd_rs->search ({ 'artist.name' => 'lars' }, { join => 'artist' });
+  is ($lars_cds->count, 3, 'Lars had 3 CDs');
+  is (
+    $lars_cds->search (
+      { 'cd_to_producer.cd' => undef },
+      { join => 'cd_to_producer' },
+    ),
+    0,
+    'Lars always had a producer',
+  );
+  is (
+    $lars_cds->search_related ('cd_to_producer',
+      { 'producer.name' => 'flemming'},
+      { join => 'producer' }
+    )->count,
+    1,
+    'Lars produced 1 CD with flemming',
+  );
+  is (
+    $lars_cds->search_related ('cd_to_producer',
+      { 'producer.name' => 'bob'},
+      { join => 'producer' }
+    )->count,
+    2,
+    'Lars produced 2 CDs with bob',
+  );
+
+  my $bob_prod = $cd_rs->search (
+    { 'producer.name' => 'bob'},
+    { join => { cd_to_producer => 'producer' } }
+  );
+  is ($bob_prod->count, 3, 'Bob produced a total of 3 CDs');
+
+  is (
+    $bob_prod->search ({ 'artist.name' => 'james' }, { join => 'artist' })->count,
+    1,
+    "Bob prpdoced james' only CD",
+  );
 };
 diag $@ if $@;
