@@ -2070,103 +2070,147 @@ sub _resolve_from {
 }
 
 sub _resolved_attrs {
-  my $self = shift;
-  return $self->{_attrs} if $self->{_attrs};
+    my $self = shift;
+    return $self->{_attrs} if $self->{_attrs};
 
-  my $attrs = { %{$self->{attrs}||{}} };
-  my $source = $self->result_source;
-  my $alias = $attrs->{alias};
+    my $attrs  = { %{ $self->{attrs} || {} } };
+    my $source = $self->result_source;
+    my $alias  = $attrs->{alias};
 
-  $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
-  if ($attrs->{columns}) {
-    delete $attrs->{as};
-  } elsif (!$attrs->{select}) {
-    $attrs->{columns} = [ $source->columns ];
-  }
- 
-  $attrs->{select} = 
-    ($attrs->{select}
-      ? (ref $attrs->{select} eq 'ARRAY'
-          ? [ @{$attrs->{select}} ]
-          : [ $attrs->{select} ])
-      : [ map { m/\./ ? $_ : "${alias}.$_" } @{delete $attrs->{columns}} ]
-    );
-  $attrs->{as} =
-    ($attrs->{as}
-      ? (ref $attrs->{as} eq 'ARRAY'
-          ? [ @{$attrs->{as}} ]
-          : [ $attrs->{as} ])
-      : [ map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}} ]
-    );
-  
-  my $adds;
-  if ($adds = delete $attrs->{include_columns}) {
-    $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push(@{$attrs->{select}}, @$adds);
-    push(@{$attrs->{as}}, map { m/([^.]+)$/; $1 } @$adds);
-  }
-  if ($adds = delete $attrs->{'+select'}) {
-    $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push(@{$attrs->{select}},
-           map { /\./ || ref $_ ? $_ : "${alias}.$_" } @$adds);
-  }
-  if (my $adds = delete $attrs->{'+as'}) {
-    $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push(@{$attrs->{as}}, @$adds);
-  }
+    $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
+    $attrs->{columns} ||= [ $source->columns ] unless ( $attrs->{select} );
+    if ( $attrs->{columns} ) {
 
-  $attrs->{from} ||= [ { 'me' => $source->from } ];
-
-  if (exists $attrs->{join} || exists $attrs->{prefetch}) {
-    my $join = delete $attrs->{join} || {};
-
-    if (defined $attrs->{prefetch}) {
-      $join = $self->_merge_attr(
-        $join, $attrs->{prefetch}
-      );
-      
+        # if columns is set we overwrite select & as
+        $attrs->{select} = [];
+        $attrs->{as}     = [];
+        foreach my $colbit ( @{ $attrs->{columns} } ) {
+            if ( ref($_) eq 'HASH' ) {
+                push(
+                    @{ $attrs->{select} },
+                    map { ref($_) ? $_ : m/\./ ? $_ : "${alias}.$_" }
+                      values( %{$colbit} )
+                );
+                push(
+                    @{ $attrs->{as} },
+                    map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } keys( %{$colbit} )
+                );
+            }
+            else {
+                push(
+                    @{ $attrs->{select} },
+                    ( $colbit =~ m/\./ ) ? $colbit : "${alias}.${colbit}"
+                );
+                push(
+                    @{ $attrs->{as} },
+                    ( $colbit =~ m/^\Q${alias}.\E(.+)$/ ) ? $1 : $colbit
+                );
+            }
+        }
+        delete $attrs->{columns};
+    }
+    else {
+        $attrs->{select} =
+            ( ref $attrs->{select} eq 'ARRAY' )
+          ? [ @{ $attrs->{select} } ]
+          : [ $attrs->{select} ];
+        $attrs->{as} = (
+            $attrs->{as}
+            ? (
+                ref $attrs->{as} eq 'ARRAY'
+                ? [ @{ $attrs->{as} } ]
+                : [ $attrs->{as} ]
+              )
+            : [
+                map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{ $attrs->{select} }
+            ]
+        );
+    }
+    my $adds;
+    if ( $adds = delete $attrs->{include_columns} ) {
+        $adds = [$adds] unless ref $adds eq 'ARRAY';
+        push( @{ $attrs->{select} }, @$adds );
+        push( @{ $attrs->{as} }, map { m/([^.]+)$/; $1 } @$adds );
+    }
+    if ( $adds = delete $attrs->{'+columns'} ) {
+        $adds = [$adds] unless ref $adds eq 'ARRAY';
+        push(
+            @{ $attrs->{select} },
+            map { ref($_) eq 'HASH' ? values( %{$_} ) : $_ } @$adds
+        );
+        push(
+            @{ $attrs->{as} },
+            map { ref($_) eq 'HASH' ? keys( %{$_} ) : $_ } @$adds
+        );
+    }
+    if ( $adds = delete $attrs->{'+select'} ) {
+        $adds = [$adds] unless ref $adds eq 'ARRAY';
+        push(
+            @{ $attrs->{select} },
+            map { /\./ || ref $_ ? $_ : "${alias}.$_" } @$adds
+        );
+    }
+    if ( $adds = delete $attrs->{'+as'} ) {
+        $adds = [$adds] unless ref $adds eq 'ARRAY';
+        push( @{ $attrs->{as} }, @$adds );
     }
 
-    $attrs->{from} =   # have to copy here to avoid corrupting the original
-      [
-        @{$attrs->{from}}, 
-        $source->resolve_join($join, $alias, { %{$attrs->{seen_join}||{}} })
-      ];
+    $attrs->{from} ||= [ { 'me' => $source->from } ];
 
-  }
+    if ( exists $attrs->{join} || exists $attrs->{prefetch} ) {
+        my $join = delete $attrs->{join} || {};
 
-  $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
-  if ($attrs->{order_by}) {
-    $attrs->{order_by} = (ref($attrs->{order_by}) eq 'ARRAY'
-                           ? [ @{$attrs->{order_by}} ]
-                           : [ $attrs->{order_by} ]);
-  } else {
-    $attrs->{order_by} = [];    
-  }
+        if ( defined $attrs->{prefetch} ) {
+            $join = $self->_merge_attr( $join, $attrs->{prefetch} );
 
-  my $collapse = $attrs->{collapse} || {};
-  if (my $prefetch = delete $attrs->{prefetch}) {
-    $prefetch = $self->_merge_attr({}, $prefetch);
-    my @pre_order;
-    my $seen = $attrs->{seen_join} || {};
-    foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
-      # bring joins back to level of current class
-      my @prefetch = $source->resolve_prefetch(
-        $p, $alias, $seen, \@pre_order, $collapse
-      );
-      push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
-      push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
+        }
+
+        $attrs->{from} =    # have to copy here to avoid corrupting the original
+          [
+            @{ $attrs->{from} },
+            $source->resolve_join(
+                $join, $alias, { %{ $attrs->{seen_join} || {} } }
+            )
+          ];
+
     }
-    push(@{$attrs->{order_by}}, @pre_order);
-  }
-  $attrs->{collapse} = $collapse;
 
-  if ($attrs->{page}) {
-    $attrs->{offset} ||= 0;
-    $attrs->{offset} += ($attrs->{rows} * ($attrs->{page} - 1));
-  }
+    $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
+    if ( $attrs->{order_by} ) {
+        $attrs->{order_by} = (
+            ref( $attrs->{order_by} ) eq 'ARRAY'
+            ? [ @{ $attrs->{order_by} } ]
+            : [ $attrs->{order_by} ]
+        );
+    }
+    else {
+        $attrs->{order_by} = [];
+    }
 
-  return $self->{_attrs} = $attrs;
+    my $collapse = $attrs->{collapse} || {};
+    if ( my $prefetch = delete $attrs->{prefetch} ) {
+        $prefetch = $self->_merge_attr( {}, $prefetch );
+        my @pre_order;
+        my $seen = $attrs->{seen_join} || {};
+        foreach my $p ( ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch) ) {
+
+            # bring joins back to level of current class
+            my @prefetch =
+              $source->resolve_prefetch( $p, $alias, $seen, \@pre_order,
+                $collapse );
+            push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
+            push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
+        }
+        push( @{ $attrs->{order_by} }, @pre_order );
+    }
+    $attrs->{collapse} = $collapse;
+
+    if ( $attrs->{page} ) {
+        $attrs->{offset} ||= 0;
+        $attrs->{offset} += ( $attrs->{rows} * ( $attrs->{page} - 1 ) );
+    }
+
+    return $self->{_attrs} = $attrs;
 }
 
 sub _rollout_attr {
