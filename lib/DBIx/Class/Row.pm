@@ -302,7 +302,7 @@ sub insert {
         my $reverse = $source->reverse_relationship_info($relname);
         foreach my $obj (@cands) {
           $obj->set_from_related($_, $self) for keys %$reverse;
-          my $them = { $obj->get_inflated_columns };
+          my $them = { %{$obj->{_relationship_data} || {} }, $obj->get_inflated_columns };
           if ($self->__their_pk_needs_us($relname, $them)) {
             $obj = $self->find_or_create_related($relname, $them);
           } else {
