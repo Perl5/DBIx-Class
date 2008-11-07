@@ -5,13 +5,13 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 55;
+plan tests => 58;
 
 my $schema = DBICTest->init_schema();
 
-# simple create + belongs_to
+# simple create + parent (the stuff $rs belongs_to)
 eval {
-  my $cd2 = $schema->resultset('CD')->create({
+  my $cd = $schema->resultset('CD')->create({
     artist => { 
       name => 'Fred Bloggs' 
     },
@@ -19,9 +19,32 @@ eval {
     year => 1996
   });
 
-  isa_ok($cd2, 'DBICTest::CD', 'Created CD object');
-  isa_ok($cd2->artist, 'DBICTest::Artist', 'Created related Artist');
-  is($cd2->artist->name, 'Fred Bloggs', 'Artist created correctly');
+  isa_ok($cd, 'DBICTest::CD', 'Created CD object');
+  isa_ok($cd->artist, 'DBICTest::Artist', 'Created related Artist');
+  is($cd->artist->name, 'Fred Bloggs', 'Artist created correctly');
+};
+diag $@ if $@;
+
+# same as above but the child and parent have no values, 
+# except for an explicit parent pk
+eval {
+  my $bm_rs = $schema->resultset('Bookmark');
+  my $bookmark = $bm_rs->create({
+    link => {
+      id => 66,
+    },
+  });
+
+  isa_ok($bookmark, 'DBICTest::Bookmark', 'Created Bookrmark object');
+  isa_ok($bookmark->link, 'DBICTest::Link', 'Created related Link');
+  is (
+    $bm_rs->search (
+      { 'link.title' => $bookmark->link->title },
+      { join => 'link' },
+    )->count,
+    1,
+    'Bookmark and link made it to the DB',
+  );
 };
 diag $@ if $@;
 
@@ -417,7 +440,7 @@ eval {
       { join => 'tags', group_by => 'me.cdid' }
     ),
     5,
-    '10 tags were pairwise distributed between 5 CDs'
+    'All 10 tags were pairwise distributed between 5 year-2012 CDs'
   );
 
   my $paul_prod = $cd_rs->search (
@@ -483,7 +506,7 @@ eval {
   is (
     $bob_prod->search ({ 'artist.name' => 'james' }, { join => 'artist' })->count,
     1,
-    "Bob prpdoced james' only CD",
+    "Bob produced james' only CD",
   );
 };
 diag $@ if $@;
