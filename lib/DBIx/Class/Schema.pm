@@ -1054,7 +1054,7 @@ If no arguments are passed, then the following default values are used:
 
 =item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
 
-=item version    - $schema->VERSION
+=item version    - $schema->schema_version
 
 =item directory  - './'
 

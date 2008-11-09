@@ -1579,7 +1579,10 @@ sub create_ddl_dir {
   }
   $databases ||= ['MySQL', 'SQLite', 'PostgreSQL'];
   $databases = [ $databases ] if(ref($databases) ne 'ARRAY');
-  $version ||= $schema->VERSION || '1.x';
+
+  my $schema_version = $schema->schema_version || '1.x';
+  $version ||= $schema_version;
+
   $sqltargs = {
     add_drop_table => 1, 
     ignore_constraint_names => 1,
@@ -1604,7 +1607,7 @@ sub create_ddl_dir {
 
     my $file;
     my $filename = $schema->ddl_filename($db, $version, $dir);
-    if (-e $filename && (!$version || ($version == $schema->schema_version()))) {
+    if (-e $filename && ($version eq $schema_version )) {
       # if we are dumping the current version, overwrite the DDL
       warn "Overwriting existing DDL file - $filename";
       unlink($filename);
@@ -1721,7 +1724,7 @@ sub deployment_statements {
   # Need to be connected to get the correct sqlt_type
   $self->ensure_connected() unless $type;
   $type ||= $self->sqlt_type;
-  $version ||= $schema->VERSION || '1.x';
+  $version ||= $schema->schema_version || '1.x';
   $dir ||= './';
   my $filename = $schema->ddl_filename($type, $dir, $version);
   if(-f $filename)

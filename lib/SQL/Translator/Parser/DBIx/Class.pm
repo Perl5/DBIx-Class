@@ -44,7 +44,7 @@ sub parse {
     my $schema      = $tr->schema;
     my $table_no    = 0;
 
-    $schema->name( ref($dbicschema) . " v" . ($dbicschema->VERSION || '1.x'))
+    $schema->name( ref($dbicschema) . " v" . ($dbicschema->schema_version || '1.x'))
       unless ($schema->name);
 
     my %seen_tables;
