@@ -2078,8 +2078,25 @@ sub _resolved_attrs {
     my $alias  = $attrs->{alias};
 
     $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
-    $attrs->{columns} ||= [ $source->columns ] unless ( $attrs->{select} );
-    if ( $attrs->{columns} ) {
+    if ( $attrs->{select} ) {
+        $attrs->{select} =
+            ( ref $attrs->{select} eq 'ARRAY' )
+          ? [ @{ $attrs->{select} } ]
+          : [ $attrs->{select} ];
+        $attrs->{as} = (
+            $attrs->{as}
+            ? (
+                ref $attrs->{as} eq 'ARRAY'
+                ? [ @{ $attrs->{as} } ]
+                : [ $attrs->{as} ]
+              )
+            : [
+                map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{ $attrs->{select} }
+            ]
+        );
+    }
+    else {
+        $attrs->{columns} ||= [ $source->columns ];
 
         # if columns is set we overwrite select & as
         $attrs->{select} = [];
@@ -2109,23 +2126,7 @@ sub _resolved_attrs {
         }
         delete $attrs->{columns};
     }
-    else {
-        $attrs->{select} =
-            ( ref $attrs->{select} eq 'ARRAY' )
-          ? [ @{ $attrs->{select} } ]
-          : [ $attrs->{select} ];
-        $attrs->{as} = (
-            $attrs->{as}
-            ? (
-                ref $attrs->{as} eq 'ARRAY'
-                ? [ @{ $attrs->{as} } ]
-                : [ $attrs->{as} ]
-              )
-            : [
-                map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{ $attrs->{select} }
-            ]
-        );
-    }
+
     my $adds;
     if ( $adds = delete $attrs->{include_columns} ) {
         $adds = [$adds] unless ref $adds eq 'ARRAY';
@@ -2376,12 +2377,15 @@ so you will need to manually quote things as appropriate.)
 
 =back
 
-Shortcut to request a particular set of columns to be retrieved.  Adds
-C<me.> onto the start of any column without a C<.> in it and sets C<select>
-from that, then auto-populates C<as> from C<select> as normal. (You may also
-use the C<cols> attribute, as in earlier versions of DBIC.)
+Shortcut to request a particular set of columns to be retrieved. Each
+column spec may be a string (a table column name), or a hash (in which
+case the key is the C<as> value, and the value is used as the C<select>
+expression). Adds C<me.> onto the start of any column without a C<.> in
+it and sets C<select> from that, then auto-populates C<as> from
+C<select> as normal. (You may also use the C<cols> attribute, as in
+earlier versions of DBIC.)
 
-=head2 include_columns
+=head2 +columns
 
 =over 4
 
@@ -2389,10 +2393,13 @@ use the C<cols> attribute, as in earlier versions of DBIC.)
 
 =back
 
-Shortcut to include additional columns in the returned results - for example
+Indicates additional columns to be selected from storage. Works the same
+as L</columns> but adds columns to the selection. (You may also use the
+C<include_columns> attribute, as in earlier versions of DBIC). For
+example:-
 
   $schema->resultset('CD')->search(undef, {
-    include_columns => ['artist.name'],
+    '+columns' => ['artist.name'],
     join => ['artist']
   });
 
