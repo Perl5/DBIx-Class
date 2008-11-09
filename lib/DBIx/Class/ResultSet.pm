@@ -2078,6 +2078,42 @@ sub _resolved_attrs {
     my $alias  = $attrs->{alias};
 
     $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
+    my @colbits;
+
+    # build columns (as long as select isn't set), include_columns and +columns
+    # into a set of as/select hashes
+    foreach my $col (
+        (
+            $attrs->{select} ? ()
+            : @{ delete $attrs->{columns} || [ $source->columns ] }
+        ),
+        (
+            $attrs->{include_columns} ? @{ delete $attrs->{include_columns} }
+            : ()
+          ),
+        ( $attrs->{'+colums'} ? @{ delete $attrs->{'+colums'} } : () )
+      )
+    {
+        if ( ref($col) eq 'HASH' ) {
+            push( @colbits, $col );
+        }
+        else {
+            push(
+                @colbits,
+                {
+                    (
+                        ( $col =~ m/^\Q${alias}.\E(.+)$/ ) ? $1
+                        : $col
+                      ) => (
+                        ( $col =~ m/\./ ) ? $col
+                        : "${alias}.${col}"
+                      )
+                }
+            );
+        }
+    }
+
+    # start with initial select items
     if ( $attrs->{select} ) {
         $attrs->{select} =
             ( ref $attrs->{select} eq 'ARRAY' )
@@ -2096,54 +2132,17 @@ sub _resolved_attrs {
         );
     }
     else {
-        $attrs->{columns} ||= [ $source->columns ];
 
-        # if columns is set we overwrite select & as
+        # otherwise we intialise select & as
         $attrs->{select} = [];
         $attrs->{as}     = [];
-        foreach my $colbit ( @{ $attrs->{columns} } ) {
-            if ( ref($_) eq 'HASH' ) {
-                push(
-                    @{ $attrs->{select} },
-                    map { ref($_) ? $_ : m/\./ ? $_ : "${alias}.$_" }
-                      values( %{$colbit} )
-                );
-                push(
-                    @{ $attrs->{as} },
-                    map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } keys( %{$colbit} )
-                );
-            }
-            else {
-                push(
-                    @{ $attrs->{select} },
-                    ( $colbit =~ m/\./ ) ? $colbit : "${alias}.${colbit}"
-                );
-                push(
-                    @{ $attrs->{as} },
-                    ( $colbit =~ m/^\Q${alias}.\E(.+)$/ ) ? $1 : $colbit
-                );
-            }
-        }
-        delete $attrs->{columns};
     }
 
+    # now add colbits to select/as
+    push( @{ $attrs->{select} }, map { values( %{$_} ) } @colbits );
+    push( @{ $attrs->{as} }, map { keys( %{$_} ) } @colbits );
+
     my $adds;
-    if ( $adds = delete $attrs->{include_columns} ) {
-        $adds = [$adds] unless ref $adds eq 'ARRAY';
-        push( @{ $attrs->{select} }, @$adds );
-        push( @{ $attrs->{as} }, map { m/([^.]+)$/; $1 } @$adds );
-    }
-    if ( $adds = delete $attrs->{'+columns'} ) {
-        $adds = [$adds] unless ref $adds eq 'ARRAY';
-        push(
-            @{ $attrs->{select} },
-            map { ref($_) eq 'HASH' ? values( %{$_} ) : $_ } @$adds
-        );
-        push(
-            @{ $attrs->{as} },
-            map { ref($_) eq 'HASH' ? keys( %{$_} ) : $_ } @$adds
-        );
-    }
     if ( $adds = delete $attrs->{'+select'} ) {
         $adds = [$adds] unless ref $adds eq 'ARRAY';
         push(
@@ -2176,7 +2175,8 @@ sub _resolved_attrs {
 
     }
 
-    $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
+    $attrs->{group_by} ||= $attrs->{select}
+      if delete $attrs->{distinct};
     if ( $attrs->{order_by} ) {
         $attrs->{order_by} = (
             ref( $attrs->{order_by} ) eq 'ARRAY'
