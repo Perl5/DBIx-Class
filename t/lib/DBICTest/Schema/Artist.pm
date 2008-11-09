@@ -23,6 +23,11 @@ __PACKAGE__->add_columns(
     data_type => 'integer',
     default_value => 13,
   },
+  charfield => {
+    data_type => 'char',
+    size => 10,
+    is_nullable => 1,
+  },
 );
 __PACKAGE__->set_primary_key('artistid');
 

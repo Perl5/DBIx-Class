@@ -22,10 +22,11 @@ my $dbh = $schema->storage->dbh;
     $dbh->do(qq[
         CREATE TABLE artist
         (
-            artistid        serial  NOT NULL    PRIMARY KEY,
-            media           bytea   NOT NULL,
-            name            varchar NULL,
-            rank            integer NOT NULL    DEFAULT '13'
+            artistid        serial       NOT NULL   PRIMARY KEY,
+            media           bytea        NOT NULL,
+            name            varchar(100) NULL,
+            rank            integer NOT  NULL       DEFAULT '13',
+            charfield       char(10)     NULL
         );
     ],{ RaiseError => 1, PrintError => 1 });
 }

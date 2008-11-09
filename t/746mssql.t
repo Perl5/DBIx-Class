@@ -24,7 +24,7 @@ eval { $dbh->do("DROP TABLE artist") };
     $dbh->do(<<'');
 CREATE TABLE artist (
    artistid INT IDENTITY NOT NULL,
-   name VARCHAR(255),
+   name VARCHAR(100),
    rank INT NOT NULL DEFAULT '13',
    charfield CHAR(10) NULL,
    primary key(artistid)

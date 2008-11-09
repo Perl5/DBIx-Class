@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sun Nov  2 15:27:04 2008
+-- Created on Sun Nov  9 16:28:17 2008
 -- 
 BEGIN TRANSACTION;
 
@@ -11,7 +11,8 @@ BEGIN TRANSACTION;
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100),
-  rank integer NOT NULL DEFAULT '13'
+  rank integer NOT NULL DEFAULT '13',
+  charfield char(10)
 );
 
 
@@ -118,7 +119,7 @@ CREATE TABLE event (
   created_on timestamp NOT NULL,
   varchar_date varchar(20),
   varchar_datetime varchar(20),
-  skip_inflation datetime(20)
+  skip_inflation datetime
 );
 
 

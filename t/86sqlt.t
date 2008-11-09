@@ -126,7 +126,7 @@ my %fk_constraints = (
       'name' => 'cd_fk_artist', 'index_name' => 'cd_idx_artist',
       'selftable' => 'cd', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
-      on_delete => '', on_update => 'SET NULL', deferrable => 1,
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
   ],
 

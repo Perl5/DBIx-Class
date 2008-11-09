@@ -128,8 +128,8 @@ my $newartist = $cd->find_or_new_related( 'artist', {
 is($newartist->name, 'Random Boy Band Two', 'find_or_new_related new artist record with id');
 is($newartist->id, 200, 'find_or_new_related new artist id set');
 
-SKIP: {
-  skip "relationship checking needs fixing", 1;
+TODO: {
+  local $TODO = "relationship checking needs fixing";
   # try to add a bogus relationship using the wrong cols
   eval {
       DBICTest::Schema::Artist->add_relationship(
