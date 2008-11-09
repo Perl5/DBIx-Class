@@ -1406,7 +1406,8 @@ sub select_single {
   my $self = shift;
   my ($rv, $sth, @bind) = $self->_select(@_);
   my @row = $sth->fetchrow_array;
-  if(@row && $sth->fetchrow_array) {
+  my @nextrow = $sth->fetchrow_array if @row;
+  if(@row && @nextrow) {
     carp "Query returned more than one row.  SQL that returns multiple rows is DEPRECATED for ->find and ->single";
   }
   # Need to call finish() to work round broken DBDs
