@@ -55,3 +55,10 @@
   - Automatically infer quote_char/name_sep from $schema->storage
   - Finally incorporate View support (needs real tests)
   - Fix and properly test chained search attribute merging
+
+2008-11-07 by ribasushi
+  - Be loud when a relationship resolution fails because we did not select/as
+    a neccessary pk
+  - Recursive update() (all code seems to be already available)
+  - $rs->populate changes its syntax depending on wantarray context (BAD)
+    Also the interface differs from $schema->populate (not so good)
