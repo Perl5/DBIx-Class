@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sun Nov  9 16:28:17 2008
+-- Created on Mon Nov 10 23:52:55 2008
 -- 
 BEGIN TRANSACTION;
 
@@ -190,6 +190,7 @@ CREATE TABLE liner_notes (
   notes varchar(100) NOT NULL
 );
 
+CREATE INDEX liner_notes_idx_liner_id_liner ON liner_notes (liner_id);
 
 --
 -- Table: link

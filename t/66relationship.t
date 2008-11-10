@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 67;
+plan tests => 69;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -117,14 +117,11 @@ $cd = $artist->find_or_new_related( 'cds', {
 is( $cd->title, 'Greatest Hits 2: Louder Than Ever', 'find_or_new_related new record ok' );
 ok( ! $cd->in_storage, 'find_or_new_related on a new record: not in_storage' );
 
-# print STDERR Data::Dumper::Dumper($cd->get_columns);
-# $cd->result_source->schema->storage->debug(1);
 $cd->artist(undef);
 my $newartist = $cd->find_or_new_related( 'artist', {
   name => 'Random Boy Band Two',
   artistid => 200,
 } );
-# $cd->result_source->schema->storage->debug(0);
 is($newartist->name, 'Random Boy Band Two', 'find_or_new_related new artist record with id');
 is($newartist->id, 200, 'find_or_new_related new artist id set');
 
@@ -263,3 +260,12 @@ eval {
 is ($@, '', 'Staged insertion successful');
 ok($new_artist->in_storage, 'artist inserted');
 ok($new_related_cd->in_storage, 'new_related_cd inserted');
+
+# check if is_foreign_key_constraint attr is set
+my $rs_normal = $schema->source('Track');
+my $relinfo = $rs_normal->relationship_info ('cd');
+cmp_ok($relinfo->{attrs}{is_foreign_key_constraint}, '==', 1, "is_foreign_key_constraint defined for belongs_to relationships.");
+
+my $rs_overridden = $schema->source('ForceForeign');
+my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
+cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");
