@@ -60,7 +60,7 @@ advice iof the _query_start method to add more debuggin
 
 around '_query_start' => sub {
   my ($method, $self, $sql, @bind) = @_;
-  my $dsn = $self->connect_info->[0];
+  my $dsn = $self->_dbi_connect_info->[0];
   $self->$method("DSN: $dsn SQL: $sql", @bind);
 };
 
