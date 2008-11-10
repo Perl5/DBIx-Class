@@ -341,6 +341,9 @@ source for which column data is provided, including the primary key.
 If your table does not have a primary key, you B<must> provide a value for the
 C<key> attribute matching one of the unique constraints on the source.
 
+In addition to C<key>, L</find> recognizes and applies standard
+L<resultset attributes|/ATTRIBUTES> in the same way as L</search> does.
+
 Note: If your query does not return only one row, a warning is generated:
 
   Query returned more than one row
