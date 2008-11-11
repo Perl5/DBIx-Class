@@ -50,27 +50,6 @@ sub new {
   $self;
 }
 
-sub _RowNumberOver {
-  my ($self, $sql, $order, $rows, $offset ) = @_;
-
-  $offset += 1;
-  my $last = $rows + $offset;
-  my ( $order_by ) = $self->_order_by( $order );
-
-  $sql = <<"";
-SELECT * FROM
-(
-   SELECT Q1.*, ROW_NUMBER() OVER( ) AS ROW_NUM FROM (
-      $sql
-      $order_by
-   ) Q1
-) Q2
-WHERE ROW_NUM BETWEEN $offset AND $last
-
-  return $sql;
-}
-
-
 # While we're at it, this should make LIMIT queries more efficient,
 #  without digging into things too deeply
 use Scalar::Util 'blessed';
