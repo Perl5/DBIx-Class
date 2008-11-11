@@ -237,7 +237,7 @@ sub _recurse_from {
     } else {
       push(@sqlf, $self->_make_as($to));
     }
-    push(@sqlf, ' ON ', $self->_join_condition($on));
+    push(@sqlf, ' ON (', $self->_join_condition($on), ')');
   }
   return join('', @sqlf);
 }

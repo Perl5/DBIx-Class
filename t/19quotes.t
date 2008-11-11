@@ -3,30 +3,28 @@ use warnings;
 
 use Test::More;
 use IO::File;
+use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
 BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 6 );
+        : ( tests => 7 );
 }
 
 use lib qw(t/lib);
 
 use_ok('DBICTest');
+use_ok('DBICTest::DBICDebugObj');
 my $schema = DBICTest->init_schema();
-
-my $orig_debugcb = $schema->storage->debugcb;
-my $orig_debug = $schema->storage->debug;
 
 diag('Testing against ' . join(' ', map { $schema->storage->dbh->get_info($_) } qw/17 18/));
 
 $schema->storage->sql_maker->quote_char('`');
 $schema->storage->sql_maker->name_sep('.');
 
-my $sql = '';
-
-$schema->storage->debugcb(sub { $sql = $_[1] });
+my ($sql, @bind) = ('');
+$schema->storage->debugobj(DBICTest::DBICDebugObj->new(\$sql, \@bind));
 $schema->storage->debug(1);
 
 my $rs;
@@ -35,7 +33,11 @@ $rs = $schema->resultset('CD')->search(
            { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { join => 'artist' });
 eval { $rs->count };
-like($sql, qr/\QSELECT COUNT( * ) FROM `cd` `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )\E/, 'got correct SQL for count query with quoting');
+is_same_sql_bind(
+  $sql, \@bind,
+  "SELECT COUNT( * ) FROM `cd` `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )", ["'Caterwauler McCrae'", "'2001'"],
+  'got correct SQL for count query with quoting'
+);
 
 my $order = 'year DESC';
 $rs = $schema->resultset('CD')->search({},
@@ -55,7 +57,11 @@ $rs = $schema->resultset('CD')->search(
            { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { join => 'artist' });
 eval { $rs->count };
-like($sql, qr/\QSELECT COUNT( * ) FROM [cd] [me]  JOIN [artist] [artist] ON ( [artist].[artistid] = [me].[artist] ) WHERE ( [artist].[name] = ? AND [me].[year] = ? )\E/, 'got correct SQL for count query with bracket quoting');
+is_same_sql_bind(
+  $sql, \@bind,
+  "SELECT COUNT( * ) FROM [cd] [me]  JOIN [artist] [artist] ON ( [artist].[artistid] = [me].[artist] ) WHERE ( [artist].[name] = ? AND [me].[year] = ? )", ["'Caterwauler McCrae'", "'2001'"],
+  'got correct SQL for count query with bracket quoting'
+);
 
 my %data = (
        name => 'Bill',
@@ -66,6 +72,3 @@ $schema->storage->sql_maker->quote_char('`');
 $schema->storage->sql_maker->name_sep('.');
 
 is($schema->storage->sql_maker->update('group', \%data), 'UPDATE `group` SET `name` = ?, `order` = ?', 'quoted table names for UPDATE');
-
-$schema->storage->debugcb($orig_debugcb);
-$schema->storage->debug($orig_debug);
