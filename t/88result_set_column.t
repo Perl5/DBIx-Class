@@ -2,12 +2,13 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 14;
+plan tests => 16;
 
 my $cd;
 my $rs = $cd = $schema->resultset("CD")->search({});
@@ -28,22 +29,34 @@ is($rs_title->min, 'Caterwaulin\' Blues', "min okay for title");
 
 cmp_ok($rs_year->sum, '==', 9996, "three artists returned");
 
+# test +select/+as for single column
 my $psrs = $schema->resultset('CD')->search({},
     {
         '+select'   => \'COUNT(*)',
         '+as'       => 'count'
     }
 );
-ok(defined($psrs->get_column('count')), '+select/+as count');
+lives_ok(sub { $psrs->get_column('count')->next }, '+select/+as additional column "count" present (scalar)');
+dies_ok(sub { $psrs->get_column('noSuchColumn')->next }, '+select/+as nonexistent column throws exception');
 
+# test +select/+as for multiple columns
 $psrs = $schema->resultset('CD')->search({},
     {
         '+select'   => [ \'COUNT(*)', 'title' ],
         '+as'       => [ 'count', 'addedtitle' ]
     }
 );
-ok(defined($psrs->get_column('count')), '+select/+as arrayref count');
-ok(defined($psrs->get_column('addedtitle')), '+select/+as title');
+lives_ok(sub { $psrs->get_column('count')->next }, '+select/+as multiple additional columns, "count" column present');
+lives_ok(sub { $psrs->get_column('addedtitle')->next }, '+select/+as multiple additional columns, "addedtitle" column present');
+
+# test +select/+as for overriding a column
+$psrs = $schema->resultset('CD')->search({},
+    {
+        'select'   => \"'The Final Countdown'",
+        'as'       => 'title'
+    }
+);
+is($psrs->get_column('title')->next, 'The Final Countdown', '+select/+as overridden column "title"');
 
 {
   my $rs = $schema->resultset("CD")->search({}, { prefetch => 'artist' });

@@ -2,6 +2,7 @@ package DBIx::Class::ResultSetColumn;
 use strict;
 use warnings;
 use base 'DBIx::Class';
+use List::Util qw(first);
 
 =head1 NAME
 
@@ -36,8 +37,13 @@ sub new {
   my ($class, $rs, $column) = @_;
   $class = ref $class if ref $class;
   my $new_parent_rs = $rs->search_rs; # we don't want to mess up the original, so clone it
-  $new_parent_rs->{attrs}->{prefetch} = undef; # prefetch causes additional columns to be fetched
-  my $new = bless { _column => $column, _parent_resultset => $new_parent_rs }, $class;
+  my $attrs = $new_parent_rs->_resolved_attrs;
+  $new_parent_rs->{attrs}->{$_} = undef for qw(prefetch include_columns +select +as); # prefetch, include_columns, +select, +as cause additional columns to be fetched
+  my ($select, $as) =
+    map { defined $_ ? ($attrs->{select}->[$_], $attrs->{as}->[$_]) : ($column, $column) }
+      first { ($attrs->{as} || [])->[$_] eq $column }
+        0..$#{$attrs->{as} || []};
+  my $new = bless { _select => $select, _as => $as, _parent_resultset => $new_parent_rs }, $class;
   $new->throw_exception("column must be supplied") unless $column;
   return $new;
 }
@@ -62,7 +68,7 @@ one value.
 
 sub next {
   my $self = shift;
-  $self->{_resultset} = $self->{_parent_resultset}->search(undef, {select => [$self->{_column}], as => [$self->{_column}]}) unless ($self->{_resultset});
+  $self->{_resultset} = $self->{_parent_resultset}->search(undef, {select => [$self->{_select}], as => [$self->{_as}]}) unless ($self->{_resultset});
   my ($row) = $self->{_resultset}->cursor->next;
   return $row;
 }
@@ -87,7 +93,7 @@ than row objects.
 
 sub all {
   my $self = shift;
-  return map {$_->[0]} $self->{_parent_resultset}->search(undef, {select => [$self->{_column}], as => [$self->{_column}]})->cursor->all;
+  return map {$_->[0]} $self->{_parent_resultset}->search(undef, {select => [$self->{_select}], as => [$self->{_as}]})->cursor->all;
 }
 
 =head2 min
@@ -175,7 +181,7 @@ value. Produces the following SQL:
 
 sub func {
   my ($self,$function) = @_;
-  my $cursor = $self->{_parent_resultset}->search(undef, {select => {$function => $self->{_column}}, as => [$self->{_column}]})->cursor;
+  my $cursor = $self->{_parent_resultset}->search(undef, {select => {$function => $self->{_select}}, as => [$self->{_as}]})->cursor;
   
   if( wantarray ) {
     return map { $_->[ 0 ] } $cursor->all;
@@ -183,6 +189,22 @@ sub func {
 
   return ( $cursor->next )[ 0 ];
 }
+
+=head2 throw_exception
+
+See L<DBIx::Class::Schema/throw_exception> for details.
+  
+=cut 
+    
+sub throw_exception {
+  my $self=shift;
+  if (ref $self && $self->{_parent_resultset}) {
+    $self->{_parent_resultset}->throw_exception(@_)
+  } else {
+    croak(@_);
+  }
+}
+
 
 1;
 
