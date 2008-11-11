@@ -9,7 +9,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 8 );
+        : ( tests => 7 );
 }
 
 use lib qw(t/lib);
@@ -78,38 +78,26 @@ is_same_sql_bind(
           undef
 );
 
-TODO: {
-    local $TODO = "order_by with quoting needs fixing (ash/castaway)";
+($sql, @bind) = $sql_maker->select(
+      [
+        {
+          'me' => 'cd'
+        }
+      ],
+      [
+        'me.*'
+      ],
+      undef,
+      [],
+      undef,
+      undef    
+);
 
-    is($sql, 
-       q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC/, 
-       'quoted ORDER BY with DESC okay');
-}
-
-TODO: {
-    local $TODO = "select attr with star needs fixing (mst/nate)";
-
-    ($sql, @bind) = $sql_maker->select(
-          [
-            {
-              'me' => 'cd'
-            }
-          ],
-          [
-            'me.*'
-          ],
-          undef,
-          [],
-          undef,
-          undef    
-    );
-
-    is_same_sql_bind(
-      $sql, \@bind,
-      q/SELECT `me`.* FROM `cd` `me`/, [],
-      'select attr with me.* is right'
-    );
-}
+is_same_sql_bind(
+  $sql, \@bind,
+  q/SELECT `me`.* FROM `cd` `me`/, [],
+  'select attr with me.* is right'
+);
 
 ($sql, @bind) = $sql_maker->select(
           [
