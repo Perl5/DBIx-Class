@@ -29,4 +29,13 @@ __PACKAGE__->might_have(
 			},
 );
 
+# Normally this would appear as a FK constraint
+__PACKAGE__->belongs_to(
+			'cd_3', 'DBICTest::Schema::CD', {
+			    'foreign.cdid' => 'self.cd',
+			}, {
+			    is_foreign_key_constraint => 0,
+			},
+);
+
 1;

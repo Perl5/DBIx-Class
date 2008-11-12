@@ -19,7 +19,7 @@ sub backup
   $dir ||= './';
 
   ## Where is the db file?
-  my $dsn = $self->connect_info()->[0];
+  my $dsn = $self->_dbi_connect_info()->[0];
 
   my $dbname = $1 if($dsn =~ /dbname=([^;]+)/);
   if(!$dbname)

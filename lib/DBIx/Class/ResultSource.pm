@@ -843,7 +843,7 @@ sub resolve_condition {
         #warn "$self $k $for $v";
         unless ($for->has_column_loaded($v)) {
           if ($for->in_storage) {
-            $self->throw_exception("Column ${v} not loaded on ${for} trying to reolve relationship");
+            $self->throw_exception("Column ${v} not loaded on ${for} trying to resolve relationship");
           }
           return $UNRESOLVABLE_CONDITION;
         }
