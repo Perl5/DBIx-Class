@@ -2080,37 +2080,25 @@ sub _resolved_attrs {
   $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
   my @colbits;
 
-  # build columns (as long as select isn't set), include_columns and +columns
-  # into a set of as/select hashes
-  foreach my $col (
-    (
-      $attrs->{select} ? ()
-      : @{ delete $attrs->{columns} || [ $source->columns ] }
-    ),
-    (
-      $attrs->{include_columns} ? @{ delete $attrs->{include_columns} }
-      : ()
-      ),
-    ( $attrs->{'+columns'} ? @{ delete $attrs->{'+columns'} } : () )
-    )
-  {
-    if ( ref($col) eq 'HASH' ) {
-      push( @colbits, $col );
-    }
-    else {
-      push(
-        @colbits,
-        {
-          (
-            ( $col =~ m/^\Q${alias}.\E(.+)$/ ) ? $1
-            : $col
-            ) => (
-            ( $col =~ m/\./ ) ? $col
-            : "${alias}.${col}"
-            )
-        }
-      );
-    }
+  # build columns (as long as select isn't set) into a set of as/select hashes
+  unless ( $attrs->{select} ) {
+      @colbits = map {
+          ( ref($_) eq 'HASH' ) ? $_
+            : {
+              (
+                  /^\Q${alias}.\E(.+)$/ ? $1
+                  : $_
+                ) => ( /\./ ? $_ : "${alias}.$_" )
+            }
+      } @{ delete $attrs->{columns} || [ $source->columns ] };
+  }
+  # add the additional columns on
+  foreach ( 'include_columns', '+columns' ) {
+      push @colbits, map {
+          ( ref($_) eq 'HASH' )
+            ? $_
+            : { ( split( /\./, $_ ) )[-1] => ( /\./ ? $_ : "${alias}.$_" ) }
+      } @{ delete $attrs->{$_} } if ( $attrs->{$_} );
   }
 
   # start with initial select items
@@ -2131,7 +2119,7 @@ sub _resolved_attrs {
   }
   else {
 
-    # otherwise we intialise select & as
+    # otherwise we intialise select & as to empty
     $attrs->{select} = [];
     $attrs->{as}     = [];
   }

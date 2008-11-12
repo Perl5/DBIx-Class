@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 84;
+plan tests => 88;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -178,6 +178,18 @@ $cd = $schema->resultset("CD")->search(undef, { include_columns => [ 'artist.nam
 
 is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
 is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
+
+# check if new syntax +columns also works for this
+$cd = $schema->resultset("CD")->search(undef, { '+columns' => [ 'artist.name' ], join => [ 'artist' ] })->find(1);
+
+is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
+is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
+
+# check if new syntax for +columns select specifiers works for this
+$cd = $schema->resultset("CD")->search(undef, { '+columns' => [ {artist_name => 'artist.name'} ], join => [ 'artist' ] })->find(1);
+
+is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
+is($cd->get_column('artist_name'), 'Caterwauler McCrae', 'Additional column returned');
 
 # update_or_insert
 $new = $schema->resultset("Track")->new( {
