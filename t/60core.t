@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 88;
+plan tests => 89;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -238,9 +238,9 @@ cmp_ok($or_rs->count, '==', 5, 'Search with OR ok');
 my $distinct_rs = $schema->resultset("CD")->search($search, { join => 'tags', distinct => 1 });
 cmp_ok($distinct_rs->all, '==', 4, 'DISTINCT search with OR ok');
 
-SKIP: {
-  skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-    if $is_broken_sqlite;
+#SKIP: {
+#  skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 2
+#    if $is_broken_sqlite;
 
   my $tcount = $schema->resultset("Track")->search(
     {},
@@ -251,7 +251,15 @@ SKIP: {
   );
   cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT ok');
 
-}
+  $tcount = $schema->resultset("Track")->search(
+    {},
+    {       
+       columns => {count => {count => {distinct => ['position', 'title']}}},
+    }
+  );
+  cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT using column syntax ok');
+
+#}
 my $tag_rs = $schema->resultset('Tag')->search(
                [ { 'me.tag' => 'Cheesy' }, { 'me.tag' => 'Blue' } ]);
 

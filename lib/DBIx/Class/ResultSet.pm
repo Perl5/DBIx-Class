@@ -2090,7 +2090,7 @@ sub _resolved_attrs {
                   : $_
                 ) => ( /\./ ? $_ : "${alias}.$_" )
             }
-      } @{ delete $attrs->{columns} || [ $source->columns ] };
+      } ( ref($attrs->{columns}) eq 'ARRAY' ) ? @{ delete $attrs->{columns}} : (delete $attrs->{columns} || $source->columns );
   }
   # add the additional columns on
   foreach ( 'include_columns', '+columns' ) {
@@ -2098,7 +2098,7 @@ sub _resolved_attrs {
           ( ref($_) eq 'HASH' )
             ? $_
             : { ( split( /\./, $_ ) )[-1] => ( /\./ ? $_ : "${alias}.$_" ) }
-      } @{ delete $attrs->{$_} } if ( $attrs->{$_} );
+      } ( ref($attrs->{$_}) eq 'ARRAY' ) ? @{ delete $attrs->{$_} } : delete $attrs->{$_} if ( $attrs->{$_} );
   }
 
   # start with initial select items
