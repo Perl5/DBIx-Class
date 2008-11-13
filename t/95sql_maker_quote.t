@@ -9,7 +9,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 7 );
+        : ( tests => 8 );
 }
 
 use lib qw(t/lib);
@@ -72,11 +72,18 @@ is_same_sql_bind(
           ],
           undef,
           [
-            'year DESC'
+            { -desc => 'year' }
           ],
           undef,
           undef
 );
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC/, [],
+  'hashref ORDER BY okay'
+);
+
 
 ($sql, @bind) = $sql_maker->select(
       [

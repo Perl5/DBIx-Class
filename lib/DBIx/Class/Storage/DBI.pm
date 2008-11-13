@@ -156,6 +156,9 @@ sub _order_by {
     if (defined $_[0]->{order_by}) {
       $ret .= $self->_order_by($_[0]->{order_by});
     }
+    if (grep { $_ =~ /^-(desc|asc)/i } keys %{$_[0]}) {
+      return $self->SUPER::_order_by($_[0]);
+    }
   } elsif (ref $_[0] eq 'SCALAR') {
     $ret = $self->_sqlcase(' order by ').${ $_[0] };
   } elsif (ref $_[0] eq 'ARRAY' && @{$_[0]}) {
