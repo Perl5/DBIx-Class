@@ -15,7 +15,7 @@ use List::Util ();
 use Scalar::Util ();
 use base qw/DBIx::Class/;
 
-__PACKAGE__->mk_group_accessors('simple' => qw/result_class _source_handle/);
+__PACKAGE__->mk_group_accessors('simple' => qw/_result_class _source_handle/);
 
 =head1 NAME
 
@@ -108,7 +108,6 @@ sub new {
   # see https://bugzilla.redhat.com/show_bug.cgi?id=196836
   my $self = {
     _source_handle => $source,
-    result_class => $attrs->{result_class} || $source->resolve->result_class,
     cond => $attrs->{where},
     count => undef,
     pager => undef,
@@ -116,6 +115,10 @@ sub new {
   };
 
   bless $self, $class;
+
+  $self->result_class(
+    $attrs->{result_class} || $source->resolve->result_class
+  );
 
   return $self;
 }
@@ -988,6 +991,14 @@ L<"table"|DBIx::Class::Manual::Glossary/"ResultSource"> class.
 
 =cut
 
+sub result_class {
+  my ($self, $result_class) = @_;
+  if ($result_class) {
+    $self->ensure_class_loaded($result_class);
+    $self->_result_class($result_class);
+  }
+  $self->_result_class;
+}
 
 =head2 count
 

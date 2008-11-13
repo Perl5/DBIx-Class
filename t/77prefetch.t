@@ -348,7 +348,6 @@ is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no
 # (the TODO block itself contains tests ensuring that the warns are removed)
 TODO: {
     local $TODO = 'Prefetch of multiple has_many rels at the same level (currently warn to protect the clueless git)';
-    use DBIx::Class::ResultClass::HashRefInflator;
 
     #( 1 -> M + M )
     my $cd_rs = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' });
