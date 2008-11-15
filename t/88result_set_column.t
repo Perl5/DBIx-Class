@@ -8,10 +8,10 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 16;
+plan tests => 18;
 
 my $cd;
-my $rs = $cd = $schema->resultset("CD")->search({});
+my $rs = $cd = $schema->resultset("CD")->search({}, { order_by => 'cdid' });
 
 my $rs_title = $rs->get_column('title');
 my $rs_year = $rs->get_column('year');
@@ -28,6 +28,11 @@ cmp_ok($rs_year->max, '==', 2001, "max okay for year");
 is($rs_title->min, 'Caterwaulin\' Blues', "min okay for title");
 
 cmp_ok($rs_year->sum, '==', 9996, "three artists returned");
+
+$rs_year->reset;
+is($rs_year->next, 1999, "reset okay");
+
+is($rs_year->first, 1999, "first okay");
 
 # test +select/+as for single column
 my $psrs = $schema->resultset('CD')->search({},

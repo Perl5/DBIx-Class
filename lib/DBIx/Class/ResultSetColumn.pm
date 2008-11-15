@@ -2,7 +2,7 @@ package DBIx::Class::ResultSetColumn;
 use strict;
 use warnings;
 use base 'DBIx::Class';
-use List::Util qw(first);
+use List::Util;
 
 =head1 NAME
 
@@ -41,7 +41,7 @@ sub new {
   $new_parent_rs->{attrs}->{$_} = undef for qw(prefetch include_columns +select +as); # prefetch, include_columns, +select, +as cause additional columns to be fetched
   my ($select, $as) =
     map { defined $_ ? ($attrs->{select}->[$_], $attrs->{as}->[$_]) : ($column, $column) }
-      first { ($attrs->{as} || [])->[$_] eq $column }
+      List::Util::first { ($attrs->{as} || [])->[$_] eq $column }
         0..$#{$attrs->{as} || []};
   my $new = bless { _select => $select, _as => $as, _parent_resultset => $new_parent_rs }, $class;
   $new->throw_exception("column must be supplied") unless $column;
@@ -68,8 +68,7 @@ one value.
 
 sub next {
   my $self = shift;
-  $self->{_resultset} = $self->{_parent_resultset}->search(undef, {select => [$self->{_select}], as => [$self->{_as}]}) unless ($self->{_resultset});
-  my ($row) = $self->{_resultset}->cursor->next;
+  my ($row) = $self->_resultset->cursor->next;
   return $row;
 }
 
@@ -93,7 +92,53 @@ than row objects.
 
 sub all {
   my $self = shift;
-  return map {$_->[0]} $self->{_parent_resultset}->search(undef, {select => [$self->{_select}], as => [$self->{_as}]})->cursor->all;
+  return map { $_->[0] } $self->_resultset->cursor->all;
+}
+
+=head2 reset
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $self
+
+=back
+
+Resets the underlying resultset's cursor, so you can iterate through the
+elements of the column again.
+
+Much like L<DBIx::Class::ResultSet/reset>.
+
+=cut
+
+sub reset {
+  my $self = shift;
+  $self->_resultset->cursor->reset;
+  return $self;
+}
+
+=head2 first
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $value
+
+=back
+
+Resets the underlying resultset and returns the next value of the column in the
+resultset (or C<undef> if there is none).
+
+Much like L<DBIx::Class::ResultSet/first> but just returning the one value.
+
+=cut
+
+sub first {
+  my $self = shift;
+  my ($row) = $self->{_resultset}->cursor->reset->next;
+  return $row;
 }
 
 =head2 min
@@ -203,6 +248,34 @@ sub throw_exception {
   } else {
     croak(@_);
   }
+}
+
+=head2 _resultset
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $resultset
+
+=back
+
+  $year_col->_resultset->next
+
+Returns the underlying resultset. Creates it from the parent resultset if
+necessary.
+
+=cut
+
+sub _resultset {
+  my $self = shift;
+
+  return $self->{_resultset} ||= $self->{_parent_resultset}->search(undef,
+    {
+      select => [$self->{_select}],
+      as => [$self->{_as}]
+    }
+  );
 }
 
 
