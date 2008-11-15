@@ -137,7 +137,7 @@ Much like L<DBIx::Class::ResultSet/first> but just returning the one value.
 
 sub first {
   my $self = shift;
-  my ($row) = $self->{_resultset}->cursor->reset->next;
+  my ($row) = $self->_resultset->cursor->reset->next;
   return $row;
 }
 
