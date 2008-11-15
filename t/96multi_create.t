@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 58;
+plan tests => 62;
 
 my $schema = DBICTest->init_schema();
 
@@ -510,3 +510,44 @@ eval {
   );
 };
 diag $@ if $@;
+
+## test might_have/has_many interactions
+my $ff = $schema->resultset('ForceForeign');
+
+my $thing = $ff->create(
+    {
+        artist_1 => 
+        { 
+            name => 'Crazy Frog',
+            cds => 
+                [
+                 {
+                     title => 'CD1',
+                     year => 2007,
+                     artist => {
+                         name => 'Artist 1',
+                     }
+                 },
+                 {
+                     title => 'CD2',
+                     year => 2007,
+                     artist => {
+                         name => 'Artist 2',
+                     }
+                 },
+                ],
+        },
+        cd_1 => {
+            title => 'CD3',
+            year => 2008,
+            artist => {
+                name => 'Artist 3',
+            }
+        }
+    }
+    );
+
+isa_ok($thing->artist_1, 'DBICTest::Schema::Artist', 'created might_have artist');
+is($thing->artist_1->name, 'Crazy Frog');
+isa_ok($thing->artist_1->cds, 'DBIx::Class::ResultSet', 'created artists cds');
+is($thing->artist_1->cds->count, 2, 'created two cds for artist');
