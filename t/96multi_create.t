@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 58;
+plan tests => 70;
 
 my $schema = DBICTest->init_schema();
 
@@ -59,8 +59,9 @@ eval {
             { 'tag' => 'rock' },
           ],
         },
-    ],
-  });
+      ],
+    }
+  );
 
   isa_ok($artist, 'DBICTest::Artist', 'Created Artist');
   is($artist->name, 'Fred 2', 'Artist created correctly');
@@ -85,6 +86,61 @@ eval {
 };
 diag $@ if $@;
 
+# create over > 1 levels of might_have (A => { might_have => { B => has_many => C } } )
+eval {
+  my $artist = $schema->resultset('Artist')->first;
+  my $cd = $schema->resultset('CD')->create ({
+    artist => $artist,
+    title => 'Music to code by at night',
+    year => 2008,
+    tracks => [
+      {
+        position => 1,
+        title => 'Off by one again',
+      },
+      {
+        position => 2,
+        title => 'The dereferencer',
+        cd_single => {
+          artist => $artist,
+          year => 2008,
+          title => 'Was that a null (Single)',
+          tracks => [
+            { title => 'The dereferencer', position => 1 },
+            { title => 'The dereferencer II', position => 2 },
+          ],
+          cd_to_producer => [
+            {
+              producer => {
+                name => 'K&R',
+              }
+            }
+          ]
+        },
+      },
+    ],
+  });
+
+  isa_ok ($cd, 'DBICTest::CD', 'Main CD object created');
+  is ($cd->title, 'Music to code by at night', 'Correct CD title');
+  is ($cd->tracks->count, 2, 'Two tracks on main CD');
+
+  my ($t1, $t2) = $cd->tracks->all;
+  is ($t1->title, 'Off by one again', 'Correct 1st track name');
+  is ($t1->cd_single, undef, 'No single for 1st track');
+  is ($t2->title, 'The dereferencer', 'Correct 2nd track name');
+  isa_ok ($t2->cd_single, 'DBICTest::CD', 'Created a single for 2nd track');
+
+  my $single = $t2->cd_single;
+  is ($single->tracks->count, 2, 'Two tracks on single CD');
+  is ($single->tracks->find ({ position => 1})->title, 'The dereferencer', 'Correct 1st track title');
+  is ($single->tracks->find ({ position => 2})->title, 'The dereferencer II', 'Correct 2nd track title');
+
+  is ($single->cd_to_producer->count, 1, 'One producer created with the single cd');
+  is ($single->cd_to_producer->first->producer->name, 'K&R', 'Producer name correct');
+};
+diag $@ if $@;
+
 # nested find_or_create
 eval {
   my $newartist2 = $schema->resultset('Artist')->find_or_create({ 
@@ -103,7 +159,7 @@ diag $@ if $@;
 # multiple same level has_many create
 eval {
   my $artist2 = $schema->resultset('Artist')->create({
-    name => 'Fred 3',
+    name => 'Fred 4',
     cds => [
       {
         title => 'Music to code by',
