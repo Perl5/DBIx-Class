@@ -49,7 +49,6 @@ lives_ok(sub { $rs->first->get_column('addedtitle2') }, '+select/+as chained sea
 #
 # from doesn't seem to be useful without using a scalarref - there were no initial tests >:(
 #
-$schema->storage->debug (1);
 my $cds = $schema->resultset ('CD')->search ({}, { order_by => 'me.cdid'}); # make sure order is consistent
 cmp_ok ($cds->count, '>', 2, 'Initially populated with more than 2 CDs');
 
