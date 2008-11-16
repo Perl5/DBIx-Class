@@ -39,11 +39,14 @@ sub new {
   my $new_parent_rs = $rs->search_rs; # we don't want to mess up the original, so clone it
   my $attrs = $new_parent_rs->_resolved_attrs;
   $new_parent_rs->{attrs}->{$_} = undef for qw(prefetch include_columns +select +as); # prefetch, include_columns, +select, +as cause additional columns to be fetched
-  my ($select, $as) =
-    map { defined $_ ? ($attrs->{select}->[$_], $attrs->{as}->[$_]) : ($column, $column) }
-      List::Util::first { ($attrs->{as} || [])->[$_] eq $column }
-        0..$#{$attrs->{as} || []};
-  my $new = bless { _select => $select, _as => $as, _parent_resultset => $new_parent_rs }, $class;
+
+  my $as_list = $attrs->{as} || [];
+  my $select_list = $attrs->{select} || [];
+  my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
+
+  my $select = defined $as_index ? $select_list->[$as_index] : $column;
+
+  my $new = bless { _select => $select, _as => $column, _parent_resultset => $new_parent_rs }, $class;
   $new->throw_exception("column must be supplied") unless $column;
   return $new;
 }
@@ -250,23 +253,17 @@ sub throw_exception {
   }
 }
 
-=head2 _resultset
-
-=over 4
-
-=item Arguments: none
-
-=item Return Value: $resultset
-
-=back
-
-  $year_col->_resultset->next
-
-Returns the underlying resultset. Creates it from the parent resultset if
-necessary.
-
-=cut
-
+# _resultset
+#
+# Arguments: none
+#
+# Return Value: $resultset
+#
+#  $year_col->_resultset->next
+#
+# Returns the underlying resultset. Creates it from the parent resultset if
+# necessary.
+# 
 sub _resultset {
   my $self = shift;
 
