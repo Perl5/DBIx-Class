@@ -23,6 +23,11 @@ __PACKAGE__->add_columns(
   'genreid' => { 
     data_type => 'integer',
     is_nullable => 1,
+  },
+  'single_track' => {
+    data_type => 'integer',
+    is_nullable => 1,
+    is_foreign_key => 1,
   }
 );
 __PACKAGE__->set_primary_key('cdid');
@@ -31,6 +36,9 @@ __PACKAGE__->add_unique_constraint([ qw/artist title/ ]);
 __PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist', undef, { 
     is_deferrable => 1, 
 });
+
+# in case this is a single-cd it promotes a track from another cd
+__PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track' );
 
 __PACKAGE__->has_many( tracks => 'DBICTest::Schema::Track' );
 __PACKAGE__->has_many(

@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Mon Nov 10 23:52:55 2008
+-- Created on Sun Nov 16 10:43:11 2008
 -- 
 BEGIN TRANSACTION;
 
@@ -58,11 +58,13 @@ CREATE TABLE cd (
   artist integer NOT NULL,
   title varchar(100) NOT NULL,
   year varchar(100) NOT NULL,
-  genreid integer
+  genreid integer,
+  single_track integer
 );
 
 CREATE INDEX cd_idx_artist_cd ON cd (artist);
 CREATE INDEX cd_idx_genreid_cd ON cd (genreid);
+CREATE INDEX cd_idx_single_track_cd ON cd (single_track);
 CREATE UNIQUE INDEX cd_artist_title_cd ON cd (artist, title);
 
 --
