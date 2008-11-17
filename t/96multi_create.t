@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 86;
+plan tests => 89;
 
 my $schema = DBICTest->init_schema();
 
@@ -188,9 +188,11 @@ eval {
   isa_ok ($cd->artwork, 'DBICTest::Artwork', 'Artwork created');
 
   # this test might look weird, but it failed at one point, keep it there
-  is ($cd->artwork->images->count, 2, 'Correct artwork image count via the new object');
+  my $art_obj = $cd->artwork;
+  ok ($art_obj->has_column_loaded ('cd_id'), 'PK/FK present on artwork object');
+  is ($art_obj->images->count, 2, 'Correct artwork image count via the new object');
   is_deeply (
-    [ sort $cd->artwork->images->get_column ('name')->all ],
+    [ sort $art_obj->images->get_column ('name')->all ],
     [ 'recursive descent', 'tail packing' ],
     'Images named correctly in objects',
   );
@@ -231,10 +233,12 @@ eval {
   isa_ok ($track->lyrics, 'DBICTest::Lyrics', 'Lyrics created');
 
   # this test might look weird, but it was failing at one point, keep it there
-  is ($track->lyrics->lyric_versions->count, 2, 'Correct lyric versions count via the new object');
-
+  my $lyric_obj = $track->lyrics;
+  ok ($lyric_obj->has_column_loaded ('lyric_id'), 'PK present on lyric object');
+  ok ($lyric_obj->has_column_loaded ('track_id'), 'FK present on lyric object');
+  is ($lyric_obj->lyric_versions->count, 2, 'Correct lyric versions count via the new object');
   is_deeply (
-    [ sort $track->lyrics->lyric_versions->get_column ('text')->all ],
+    [ sort $lyric_obj->lyric_versions->get_column ('text')->all ],
     [ 'The color black', 'The colour black' ],
     'Lyrics text in objects matches',
   );
