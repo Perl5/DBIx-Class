@@ -53,6 +53,8 @@ __PACKAGE__->might_have(
     liner_notes => 'DBICTest::Schema::LinerNotes', undef,
     { proxy => [ qw/notes/ ] },
 );
+__PACKAGE__->might_have(artwork => 'DBICTest::Schema::Artwork', 'cd_id');
+
 __PACKAGE__->many_to_many( producers => cd_to_producer => 'producer' );
 __PACKAGE__->many_to_many(
     producers_sorted => cd_to_producer => 'producer',

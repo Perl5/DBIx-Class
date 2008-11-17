@@ -36,5 +36,6 @@ __PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD' );
 __PACKAGE__->belongs_to( disc => 'DBICTest::Schema::CD' => 'cd');
 
 __PACKAGE__->might_have( cd_single => 'DBICTest::Schema::CD', 'single_track' );
+__PACKAGE__->might_have( lyrics => 'DBICTest::Schema::Lyrics', 'track_id' );
 
 1;
