@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 72;
+plan tests => 86;
 
 my $schema = DBICTest->init_schema();
 
@@ -165,6 +165,93 @@ eval {
 
   is ($single->cd_to_producer->count, 1, 'One producer created with the single cd');
   is ($single->cd_to_producer->first->producer->name, 'K&R', 'Producer name correct');
+};
+diag $@ if $@;
+
+# test might_have again but with a PK == FK in the middle (obviously not specified)
+eval {
+  my $artist = $schema->resultset('Artist')->first;
+  my $cd = $schema->resultset('CD')->create ({
+    artist => $artist,
+    title => 'Music to code by at twilight',
+    year => 2008,
+    artwork => {
+      images => [
+        { name => 'recursive descent' },
+        { name => 'tail packing' },
+      ],
+    },
+  });
+
+  isa_ok ($cd, 'DBICTest::CD', 'Main CD object created');
+  is ($cd->title, 'Music to code by at twilight', 'Correct CD title');
+  isa_ok ($cd->artwork, 'DBICTest::Artwork', 'Artwork created');
+
+  # this test might look weird, but it failed at one point, keep it there
+  is ($cd->artwork->images->count, 2, 'Correct artwork image count via the new object');
+  is_deeply (
+    [ sort $cd->artwork->images->get_column ('name')->all ],
+    [ 'recursive descent', 'tail packing' ],
+    'Images named correctly in objects',
+  );
+
+
+  my $artwork = $schema->resultset('Artwork')->search (
+    { 'cd.title' => 'Music to code by at twilight' },
+    { join => 'cd' },
+  )->single;
+
+  is ($artwork->images->count, 2, 'Correct artwork image count via a new search');
+
+  is_deeply (
+    [ sort $artwork->images->get_column ('name')->all ],
+    [ 'recursive descent', 'tail packing' ],
+    'Images named correctly after search',
+  );
+};
+diag $@ if $@;
+
+# test might_have again but with just a PK and FK (neither specified) in the mid-table
+eval {
+  my $cd = $schema->resultset('CD')->first;
+  my $track = $schema->resultset ('Track')->create ({
+    cd => $cd,
+    position => 66,
+    title => 'Black',
+    lyrics => {
+      lyric_versions => [
+        { text => 'The color black' },
+        { text => 'The colour black' },
+      ],
+    },
+  });
+
+  isa_ok ($track, 'DBICTest::Track', 'Main track object created');
+  is ($track->title, 'Black', 'Correct track title');
+  isa_ok ($track->lyrics, 'DBICTest::Lyrics', 'Lyrics created');
+
+  # this test might look weird, but it was failing at one point, keep it there
+  is ($track->lyrics->lyric_versions->count, 2, 'Correct lyric versions count via the new object');
+
+  is_deeply (
+    [ sort $track->lyrics->lyric_versions->get_column ('text')->all ],
+    [ 'The color black', 'The colour black' ],
+    'Lyrics text in objects matches',
+  );
+
+
+  my $lyric = $schema->resultset('Lyrics')->search (
+    { 'track.title' => 'Black' },
+    { join => 'track' },
+  )->single;
+
+  is ($lyric->lyric_versions->count, 2, 'Correct lyric versions count via a new search');
+
+  is_deeply (
+    [ sort $lyric->lyric_versions->get_column ('text')->all ],
+    [ 'The color black', 'The colour black' ],
+    'Lyrics text via search matches',
+  );
 };
 diag $@ if $@;
 
