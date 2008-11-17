@@ -1,13 +1,14 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 69;
+plan tests => 72;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -260,6 +261,21 @@ eval {
 is ($@, '', 'Staged insertion successful');
 ok($new_artist->in_storage, 'artist inserted');
 ok($new_related_cd->in_storage, 'new_related_cd inserted');
+
+my $new_cd = $schema->resultset("CD")->new_result({});
+my $new_related_artist = $new_cd->new_related('artist', { 'name' => 'Marillion',});
+lives_ok (
+    sub {
+       $new_related_artist->insert;
+       $new_cd->title( 'Misplaced Childhood' );
+       $new_cd->year ( 1985 );
+#       $new_cd->artist( $new_related_artist );  # For exact backward compatibility     # not sure what this means
+       $new_cd->insert;
+    },
+    'Reversed staged insertion successful'
+);
+ok($new_related_artist->in_storage, 'related artist inserted');
+ok($new_cd->in_storage, 'cd inserted');
 
 # check if is_foreign_key_constraint attr is set
 my $rs_normal = $schema->source('Track');
