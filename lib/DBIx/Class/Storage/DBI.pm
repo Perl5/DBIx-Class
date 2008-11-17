@@ -857,7 +857,7 @@ sub dbh {
 sub _sql_maker_args {
     my ($self) = @_;
     
-    return ( bindtype=>'columns', limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
+    return ( bindtype=>'columns', array_datatypes => 1, limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
 }
 
 sub sql_maker {
