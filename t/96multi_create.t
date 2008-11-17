@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 69;
+plan tests => 72;
 
 my $schema = DBICTest->init_schema();
 
@@ -26,7 +26,7 @@ eval {
 };
 diag $@ if $@;
 
-# same as above but the child and parent have no values, 
+# same as above but the child and parent have no values,
 # except for an explicit parent pk
 eval {
   my $bm_rs = $schema->resultset('Bookmark');
@@ -51,25 +51,19 @@ diag $@ if $@;
 
 # create over > 1 levels of has_many create (A => { has_many => { B => has_many => C } } )
 eval {
-  my $artist = $schema->resultset('Artist')->create(
-    { name => 'Fred 2',
-      cds => [
-        { title => 'Music to code by',
-          year => 2007,
-          tags => [
-            { 'tag' => 'rock' },
-          ],
-        },
-      ],
-    }
-  );
+  my $artist = $schema->resultset('Artist')->first;
+  my $cd = $artist->create_related (cds => {
+    title => 'Music to code by',
+    year => 2007,
+    tags => [
+      { 'tag' => 'rock' },
+    ],
+  });
 
-  isa_ok($artist, 'DBICTest::Artist', 'Created Artist');
-  is($artist->name, 'Fred 2', 'Artist created correctly');
-  is($artist->cds->count, 1, 'One CD created for artist');
-  is($artist->cds->first->title, 'Music to code by', 'CD created correctly');
-  is($artist->cds->first->tags->count, 1, 'One tag created for CD');
-  is($artist->cds->first->tags->first->tag, 'rock', 'Tag created correctly');
+  isa_ok($cd, 'DBICTest::CD', 'Created CD');
+  is($cd->title, 'Music to code by', 'CD created correctly');
+  is($cd->tags->count, 1, 'One tag created for CD');
+  is($cd->tags->first->tag, 'rock', 'Tag created correctly');
 
 };
 diag $@ if $@;
@@ -88,6 +82,36 @@ throws_ok (
   qr/Recursive update is not supported over relationships of type multi/,
   'create via update of multi relationships throws an exception'
 );
+
+# Create m2m while originating in the linker table
+eval {
+  my $artist = $schema->resultset('Artist')->first;
+  my $c2p = $schema->resultset('CD_to_Producer')->create ({
+    cd => {
+      artist => $artist,
+      title => 'Bad investment',
+      year => 2008,
+      tracks => [
+        { position => 1, title => 'Just buy' },
+        { position => 2, title => 'Why did we do it' },
+        { position => 3, title => 'Burn baby burn' },
+      ],
+    },
+    producer => {
+      name => 'Lehman Bros.',
+    },
+  });
+
+  isa_ok ($c2p, 'DBICTest::CD_to_Producer', 'Linker object created');
+  my $prod = $schema->resultset ('Producer')->find ({ name => 'Lehman Bros.' });
+  isa_ok ($prod, 'DBICTest::Producer', 'Producer row found');
+  is ($prod->cds->count, 1, 'Producer has one production');
+  my $cd = $prod->cds->first;
+  is ($cd->title, 'Bad investment', 'CD created correctly');
+  is ($cd->tracks->count, 3, 'CD has 3 tracks');
+
+};
+diag $@ if $@;
 
 # create over > 1 levels of might_have (A => { might_have => { B => has_many => C } } )
 eval {
@@ -569,3 +593,5 @@ eval {
   );
 };
 diag $@ if $@;
+
+1;
