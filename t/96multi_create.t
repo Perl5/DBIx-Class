@@ -2,10 +2,11 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 70;
+plan tests => 69;
 
 my $schema = DBICTest->init_schema();
 
@@ -70,21 +71,23 @@ eval {
   is($artist->cds->first->tags->count, 1, 'One tag created for CD');
   is($artist->cds->first->tags->first->tag, 'rock', 'Tag created correctly');
 
-  # Create via update - add a new CD
-  $artist->update({
-    cds => [ $artist->cds,
-      { title => 'Yet another CD',
-        year => 2006,
-      },
-    ],
-  });
-  is(($artist->cds->search({}, { order_by => 'year' }))[0]->title, 'Yet another CD', 'Updated and added another CD');
-
-  my $newartist = $schema->resultset('Artist')->find_or_create({ name => 'Fred 2'});
-
-  is($newartist->name, 'Fred 2', 'Retrieved the artist');
 };
 diag $@ if $@;
+
+throws_ok (
+  sub {
+    # Create via update - add a new CD <--- THIS SHOULD HAVE NEVER WORKED!
+    $schema->resultset('Artist')->first->update({
+      cds => [
+        { title => 'Yet another CD',
+          year => 2006,
+        },
+      ],
+    });
+  },
+  qr/Recursive update is not supported over relationships of type multi/,
+  'create via update of multi relationships throws an exception'
+);
 
 # create over > 1 levels of might_have (A => { might_have => { B => has_many => C } } )
 eval {
