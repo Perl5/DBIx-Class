@@ -231,16 +231,25 @@ ok(
 );
 
 # Test that a disconnect doesnt harm anything.
-Film->db_Main->disconnect;
-@films = Film->search({ Rating => 'NC-17' });
-ok(@films == 1 && $films[0]->id eq $gone->id, 'auto reconnection');
+{
+    # SQLite is loud on disconnect/reconnect. 
+    # This is solved in DBIC but not in ContextualFetch
+    local $SIG{__WARN__} = sub {
+      warn @_ unless $_[0] =~
+        /active statement handles|inactive database handle/;
+    };
 
-# Test discard_changes().
-my $orig_director = $btaste->Director;
-$btaste->Director('Lenny Bruce');
-is($btaste->Director, 'Lenny Bruce', 'set new Director');
-$btaste->discard_changes;
-is($btaste->Director, $orig_director, 'discard_changes()');
+    Film->db_Main->disconnect;
+    @films = Film->search({ Rating => 'NC-17' });
+    ok(@films == 1 && $films[0]->id eq $gone->id, 'auto reconnection');
+
+    # Test discard_changes().
+    my $orig_director = $btaste->Director;
+    $btaste->Director('Lenny Bruce');
+    is($btaste->Director, 'Lenny Bruce', 'set new Director');
+    $btaste->discard_changes;
+    is($btaste->Director, $orig_director, 'discard_changes()');
+}
 
 SKIP: {
 	skip "ActiveState perl produces additional warnings", 3

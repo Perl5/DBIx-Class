@@ -1,5 +1,6 @@
 use strict;
 use Test::More;
+use Data::Dumper;
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
@@ -48,7 +49,8 @@ for my $args ({ no_cascade_delete => 1 }, { cascade => "None" }) {
     is $dir->nasties, 1, "We have one nasty";
 
     ok $dir->delete;
-    ok +Film->retrieve("Alligator"), "has_many with @{[ keys %$args ]} => @{[ values %$args ]}";
+    local $Data::Dumper::Terse = 1;
+    ok +Film->retrieve("Alligator"), 'has_many with ' . Dumper ($args);;
     $kk->delete;
 }
 

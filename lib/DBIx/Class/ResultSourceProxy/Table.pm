@@ -40,7 +40,7 @@ sub _init_result_source_instance {
 
     $class->result_source_instance($table);
 
-    if ($class->can('schema_instance')) {
+    if ($class->can('schema_instance') && $class->schema_instance) {
         $class =~ m/([^:]+)$/;
         $class->schema_instance->register_class($class, $class);
     }

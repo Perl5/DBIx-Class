@@ -114,6 +114,9 @@ eval {
     like $@, qr/film/, "no hasa film";
 
     eval {
+        local $SIG{__WARN__} = sub {
+            warn @_ unless $_[0] =~ /Query returned more than one row/;
+        };
         ok my $f = $ac->movie, "hasa movie";
         isa_ok $f, "Film";
         is $f->id, $bt->id, " - Bad Taste";
