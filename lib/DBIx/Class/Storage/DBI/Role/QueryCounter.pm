@@ -5,7 +5,7 @@ requires '_query_start';
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Role::QueryCounter; Role to add a query counter
+DBIx::Class::Storage::DBI::Role::QueryCounter - Role to add a query counter
 
 =head1 SYNOPSIS
 
