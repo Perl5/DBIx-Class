@@ -168,8 +168,6 @@ eval {
 };
 diag $@ if $@;
 
-TODO: {
-local $TODO = "Todoify for multicreate branch";
 # test might_have again but with a PK == FK in the middle (obviously not specified)
 eval {
   my $artist = $schema->resultset('Artist')->first;
@@ -260,7 +258,6 @@ eval {
   );
 };
 diag $@ if $@;
-}
 
 # nested find_or_create
 eval {
