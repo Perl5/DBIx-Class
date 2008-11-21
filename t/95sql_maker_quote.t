@@ -9,7 +9,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 8 );
+        : ( tests => 12 );
 }
 
 use lib qw(t/lib);
@@ -58,6 +58,32 @@ is_same_sql_bind(
   'got correct SQL and bind parameters for count query with quoting'
 );
 
+
+($sql, @bind) = $sql_maker->select(
+          [
+            {
+              'me' => 'cd'
+            }
+          ],
+          [
+            'me.cdid',
+            'me.artist',
+            'me.title',
+            'me.year'
+          ],
+          undef,
+          'year DESC',
+          undef,
+          undef
+);
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year DESC`/, [],
+  'scalar ORDER BY okay (single value)'
+);
+
+
 ($sql, @bind) = $sql_maker->select(
           [
             {
@@ -72,7 +98,8 @@ is_same_sql_bind(
           ],
           undef,
           [
-            { -desc => 'year' }
+            'year DESC',
+            'title ASC'
           ],
           undef,
           undef
@@ -80,8 +107,129 @@ is_same_sql_bind(
 
 is_same_sql_bind(
   $sql, \@bind,
+  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year DESC`, `title ASC`/, [],
+  'scalar ORDER BY okay (multiple values)'
+);
+
+
+($sql, @bind) = $sql_maker->select(
+          [
+            {
+              'me' => 'cd'
+            }
+          ],
+          [
+            'me.cdid',
+            'me.artist',
+            'me.title',
+            'me.year'
+          ],
+          undef,
+          { -desc => 'year' },
+          undef,
+          undef
+);
+
+is_same_sql_bind(
+  $sql, \@bind,
   q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC/, [],
-  'hashref ORDER BY okay'
+  'hashref ORDER BY okay (single value)'
+);
+
+
+($sql, @bind) = $sql_maker->select(
+          [
+            {
+              'me' => 'cd'
+            }
+          ],
+          [
+            'me.cdid',
+            'me.artist',
+            'me.title',
+            'me.year'
+          ],
+          undef,
+          [
+            { -desc => 'year' },
+            { -asc => 'title' }
+          ],
+          undef,
+          undef
+);
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC, `title` ASC/, [],
+  'hashref ORDER BY okay (multiple values)'
+);
+
+
+($sql, @bind) = $sql_maker->select(
+          [
+            {
+              'me' => 'cd'
+            }
+          ],
+          [
+            'me.cdid',
+            'me.artist',
+            'me.title',
+            'me.year'
+          ],
+          undef,
+          \'year DESC',
+          undef,
+          undef
+);
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY year DESC/, [],
+  'did not quote ORDER BY with scalarref (single value)'
+);
+
+
+($sql, @bind) = $sql_maker->select(
+          [
+            {
+              'me' => 'cd'
+            }
+          ],
+          [
+            'me.cdid',
+            'me.artist',
+            'me.title',
+            'me.year'
+          ],
+          undef,
+          [
+            \'year DESC',
+            \'title ASC'
+          ],
+          undef,
+          undef
+);
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY year DESC, title ASC/, [],
+  'did not quote ORDER BY with scalarref (multiple values)'
+);
+
+
+($sql, @bind) = $sql_maker->update(
+          'group',
+          {
+            'order' => '12',
+            'name' => 'Bill'
+          }
+);
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q/UPDATE `group` SET `name` = ?, `order` = ?/, [ ['name' => 'Bill'], ['order' => '12'] ],
+  'quoted table names for UPDATE'
 );
 
 
@@ -106,45 +254,6 @@ is_same_sql_bind(
   'select attr with me.* is right'
 );
 
-($sql, @bind) = $sql_maker->select(
-          [
-            {
-              'me' => 'cd'
-            }
-          ],
-          [
-            'me.cdid',
-            'me.artist',
-            'me.title',
-            'me.year'
-          ],
-          undef,
-          [
-            \'year DESC'
-          ],
-          undef,
-          undef
-);
-
-is_same_sql_bind(
-  $sql, \@bind,
-  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY year DESC/, [],
-  'did not quote ORDER BY with scalarref'
-);
-
-($sql, @bind) = $sql_maker->update(
-          'group',
-          {
-            'order' => '12',
-            'name' => 'Bill'
-          }
-);
-
-is_same_sql_bind(
-  $sql, \@bind,
-  q/UPDATE `group` SET `name` = ?, `order` = ?/, [ ['name' => 'Bill'], ['order' => '12'] ],
-  'quoted table names for UPDATE'
-);
 
 $sql_maker->quote_char([qw/[ ]/]);
 
