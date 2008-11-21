@@ -1,0 +1,33 @@
+NOTE: do not merge this file
+
+New in this branch:
+
+ * Converted test cases to use SQL::Abstract::Test.
+ 	* that way the number of extra parens does not matter).
+
+ * Removed a wrong TODO test: 95sql_maker_quote.t/"order_by with quoting needs fixing (ash/castaway)"
+ 	* it never passed and never will (SQLA should not parse the strings in order_by)
+ 	* asked by mst
+
+ * Made a TODO test non-TODO: 95sql_maker_quote.t/"select attr with star needs fixing (mst/nate)"
+ 	* this works with SQLA 1.50
+
+ * Removed dead code from DBI::Class::Storage::DBI (sub _RowNumberOver).
+ 	* neither DBIC, nor SQLA, nor SQLA::Limit uses this (at least not the current versions)
+
+ * Added test cases for every supported order_by syntax.
+ * Made DBIC::SQL::Abstract pass on order_by hashref ({-desc => 'colname'}) to SQL::Abstract.
+ 	* this is the blessed way of doing order by
+	* new SQLA supports it
+	* formerly DBIC considered this as an error
+
+ * Bumped SQL::Abstract version dependency.
+ 	* the testcase changes broke compatibility with old SQLA
+
+ * Added test cases to test if arrayref bind values in insert/update are passed through sql_maker intact.
+ * Added 'array_datatypes' parameter to the sql_maker constructor.
+	* formerly SQLA considered these as literal SQL with bind values, now that is \['literal SQL', @bind]
+		* the new syntax is consistent (works the same in insert/update and where conditions)
+	* fortunately 'array_datatypes' is simply ignored by old SQLA (at least with current version..)
+ 	* mst told me that DBD::Pg can use arrayref bind values for PostgreSQL array types
+		* did not work for me, not sure if it is really so
