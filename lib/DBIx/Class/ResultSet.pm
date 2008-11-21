@@ -2327,6 +2327,10 @@ L<DBIx::Class::Storage::DBI/connect_info>) you will need to do C<\'year DESC' > 
 specify an order. (The scalar ref causes it to be passed as raw sql to the DB,
 so you will need to manually quote things as appropriate.)
 
+If your L<SQL::Abstract> version supports it (>=1.50), you can also use
+C<{-desc => 'year'}>, which takes care of the quoting for you. This is the
+recommended syntax.
+
 =head2 columns
 
 =over 4
