@@ -403,9 +403,11 @@ sub set_from_related {
     $self->throw_exception( "Object $f_obj isn't a ".$f_class )
       unless Scalar::Util::blessed($f_obj) and $f_obj->isa($f_class);
   }
+#  print STDERR "set_from_related: ", $rel, Data::Dumper::Dumper({$f_obj->get_columns});
   $self->set_columns(
     $self->result_source->resolve_condition(
        $rel_obj->{cond}, $f_obj, $rel));
+#  print STDERR "set_: ", Data::Dumper::Dumper({$self->get_columns});
   return 1;
 }
 

@@ -778,12 +778,16 @@ sub resolve_join {
 
 Determines whether a relation is dependent on an object from this source
 having already been inserted. Takes the name of the relationship and a
-hashref of columns of the related object.
+hashref of already known columns of the related object.
 
 =cut
 
+## true if: our PK depends on the data from the given rel
+## AND its not yet in the rel_data passed
+## pk_still_unsolved? pk_has_unmet_deps?
 sub pk_depends_on {
-  my ($self, $relname, $rel_data) = @_;
+  my ($self, $relname, $rel_data, $existing_data) = @_;
+#  print STDERR "Rel $relname on ", $self->source_name, " ", Data::Dumper::Dumper($self->relationship_info($relname));
   my $cond = $self->relationship_info($relname)->{cond};
 
   return 0 unless ref($cond) eq 'HASH';
@@ -799,16 +803,81 @@ sub pk_depends_on {
   my $rel_source = $self->related_source($relname);
 
   foreach my $p ($self->primary_columns) {
-    if (exists $keyhash->{$p}) {
-      unless (defined($rel_data->{$keyhash->{$p}})
-              || $rel_source->column_info($keyhash->{$p})
-                            ->{is_auto_increment}) {
-        return 0;
+#      print "Checking if $p is still needed\n";
+      
+      if (exists $keyhash->{$p}) {
+          my $rel_val = $keyhash->{$p};
+#          print STDERR "PK col $p, val=$rel_val\n";
+          # This column of self is autoinc.  It is never needed.
+          if ($self->column_info($p)->{is_auto_increment}) {
+#              print STDERR "$p is autoinc, already resolved\n";
+              next;
+          }
+
+          # This column already has data provided.  (Existing_data should
+          # be hard data only, not refs to things not yet there!)
+          if (defined $existing_data->{$p}) {
+#              print STDERR "$p is in existing data, already resolved\n";
+              next;
+          }
+
+          # Already is provided for by this relationship.
+          if (defined $rel_data->{$rel_val}) {
+#              print STDERR "$p is already resolved by this relationship (to $relname.$rel_val)\n";
+              next;
+          }
+
+          # Can be provided by the relationship that we are currently
+          # looking at.  Money-shot.
+          if ($rel_source->column_info($rel_val)->{is_auto_increment}) {
+#              print STDERR "$p *WOULD BE* resolved by this relationship (but isn't yet).\n";
+              return 1;
+          }
+
+          # Can this be provided by the relationship that we are
+          # currently looking at?  Well, first the thing this is
+          # related to needs to be able to provide it for
+          # itself... which is what the function we are now writing is
+          # supposed to find out.  Recurse.
+          for ($rel_source->relationships) {
+              # We need to skip the reverse relationship, or we will
+              # often recurse infinitely.
+              next if $_ eq (keys %{$self->reverse_relationship_info($relname)})[0];
+              # Do we need to skip the entire call stack's worth of
+              # backrelationships?  If so, we need a skiplist argument
+              # to this function -- easy to do, since we don't have
+              # any final arguments.
+              if ($rel_source->pk_depends_on($_, {}, $rel_data)) {
+                  # If this relationship can resolve it, then this pk field
+                  # can be resolved by $relname.
+#                  print "$p *WOULD BE* resolved by this relationship (but isn't yet).\n";
+                  return 1;
+              }
+          }
+
+          # Bad, we are dependent.
+#          print "Unresolved PK column $p, but it cannot be resolved by this relationship\n";
+          return 0;
+#       unless (defined($rel_data->{$keyhash->{$p}})
+# # foreign col might be an fk itself, and not auto-inc!
+#               || $rel_source->column_info($keyhash->{$p})
+#                   ->{is_auto_increment}
+# # but only if its not an fk to the one we were asking about!
+#               || ( $rel_source->column_info($keyhash->{$p})
+#                   ->{is_foreign_key} 
+#                    && $self->relationship_info($relname)->{attrs}{accessor} eq 'single'
+#               )) {
+# # This needs to be true if this col is an fk on rel_source
+# #              || !$rel_source->relationship_info($p) ) {
+#         print STDERR "not dependant\n";
+#         return 0;
+# #        return $p;
+#      }
       }
-    }
   }
 
-  return 1;
+#  print STDERR "not dependant\n";
+  return 0;
 }
 
 =head2 resolve_condition

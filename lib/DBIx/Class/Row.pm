@@ -78,17 +78,21 @@ For a more involved explanation, see L<DBIx::Class::ResultSet/create>.
 sub __new_related_find_or_new_helper {
   my ($self, $relname, $data) = @_;
   if ($self->__their_pk_needs_us($relname, $data)) {
+#    print STDERR "PK needs us\n";
+#    print STDERR "Data: ", Data::Dumper::Dumper($data);
     return $self->result_source
                 ->related_source($relname)
                 ->resultset
                 ->new_result($data);
   }
   if ($self->result_source->pk_depends_on($relname, $data)) {
+#      print STDERR "PK depends on\n";
     return $self->result_source
                 ->related_source($relname)
                 ->resultset
                 ->find_or_create($data);
   }
+#  print STDERR "Neither, find_or_new\n";
   return $self->find_or_new_related($relname, $data);
 }
 
@@ -96,12 +100,20 @@ sub __their_pk_needs_us { # this should maybe be in resultsource.
   my ($self, $relname, $data) = @_;
   my $source = $self->result_source;
   my $reverse = $source->reverse_relationship_info($relname);
+#  print STDERR "Found reverse rel info: ", Data::Dumper::Dumper($reverse);
   my $rel_source = $source->related_source($relname);
   my $us = { $self->get_columns };
+#  print STDERR "Test on self cols: ", Data::Dumper::Dumper($us);
   foreach my $key (keys %$reverse) {
     # if their primary key depends on us, then we have to
     # just create a result and we'll fill it out afterwards
-    return 1 if $rel_source->pk_depends_on($key, $us);
+    my $dep = $rel_source->pk_depends_on($key, $us);
+    if($dep) {
+#        print STDERR "Assigning $self to $key\n";
+        $data->{$key} = $self;
+        return 1;
+    }
+#    return 1 if $rel_source->pk_depends_on($key, $us);
   }
   return 0;
 }
@@ -124,6 +136,7 @@ sub new {
     $new->result_source($source);
   }
 
+#  print "Source ", $source->source_name, " is $new\n";
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
@@ -140,6 +153,8 @@ sub new {
         if ($info && $info->{attrs}{accessor}
           && $info->{attrs}{accessor} eq 'single')
         {
+#          print STDERR "Single $key ", Data::Dumper::Dumper($attrs);
+#          print STDERR "from $class to: $info->{class}\n";
           my $rel_obj = delete $attrs->{$key};
           if(!Scalar::Util::blessed($rel_obj)) {
             $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
@@ -149,10 +164,13 @@ sub new {
 
           $new->set_from_related($key, $rel_obj) if $rel_obj->in_storage;
           $related->{$key} = $rel_obj;
+#          print STDERR "Related :", join(", ", keys %$related), "\n";
           next;
         } elsif ($info && $info->{attrs}{accessor}
             && $info->{attrs}{accessor} eq 'multi'
             && ref $attrs->{$key} eq 'ARRAY') {
+#          print STDERR "Multi $key ", Data::Dumper::Dumper($attrs);
+#          print STDERR "from $class to: $info->{class}\n";
           my $others = delete $attrs->{$key};
           foreach my $rel_obj (@$others) {
             if(!Scalar::Util::blessed($rel_obj)) {
@@ -163,6 +181,7 @@ sub new {
             $new->set_from_related($key, $rel_obj) if $rel_obj->in_storage;
           }
           $related->{$key} = $others;
+#          print STDERR "Related :", join(", ", keys %$related), "\n";
           next;
         } elsif ($info && $info->{attrs}{accessor}
           && $info->{attrs}{accessor} eq 'filter')
@@ -180,6 +199,7 @@ sub new {
           $inflated->{$key} = $attrs->{$key};
           next;
         }
+#          print STDERR "Done :", join(", ", keys %$related), "\n";
       }
       $new->throw_exception("No such column $key on $class")
         unless $class->has_column($key);
@@ -246,24 +266,33 @@ sub insert {
     my @pri = $self->primary_columns;
 
     REL: foreach my $relname (keys %related_stuff) {
-
+#        print STDERR "Looking at: $relname\n";
       my $rel_obj = $related_stuff{$relname};
 
       next REL unless (Scalar::Util::blessed($rel_obj)
                        && $rel_obj->isa('DBIx::Class::Row'));
 
+#        print STDERR "Check pk: from ", $source->source_name, " to $relname\n";
+#        print STDERR "With ", Data::Dumper::Dumper({ $rel_obj->get_columns });
       next REL unless $source->pk_depends_on(
                         $relname, { $rel_obj->get_columns }
                       );
-
+#        print STDERR "$rel_obj\n";
+#        print STDERR "in_storage: ", $rel_obj->in_storage, "\n";
+#        print STDERR "Inserting $relname\n";
       $rel_obj->insert();
       $self->set_from_related($relname, $rel_obj);
       delete $related_stuff{$relname};
     }
   }
 
+#  print STDERR "self $self\n";
+#  print STDERR "self in_storage ", $self->in_storage, "\n";
+#  print STDERR "Ran out of rels, insert ", $source->source_name, "\n";
   my $updated_cols = $source->storage->insert($source, { $self->get_columns });
   $self->set_columns($updated_cols);
+  $self->in_storage(1);
+#  print STDERR "$self\n";
 
   ## PK::Auto
   my @auto_pri = grep {
@@ -302,10 +331,15 @@ sub insert {
         my $reverse = $source->reverse_relationship_info($relname);
         foreach my $obj (@cands) {
           $obj->set_from_related($_, $self) for keys %$reverse;
-          my $them = { %{$obj->{_relationship_data} || {} }, $obj->get_inflated_columns };
+#          my $them = { %{$obj->{_relationship_data} || {} }, $obj->get_inflated_columns };
+          my $them = { $obj->get_inflated_columns };
+#          print STDERR "Does $relname need our PK?\n";
           if ($self->__their_pk_needs_us($relname, $them)) {
-            $obj = $self->find_or_create_related($relname, $them);
+#              print STDERR "Yes\n";
+            # $obj = $self->find_or_create_related($relname, $them);
+            $obj->insert();
           } else {
+#              print STDERR "No\n";
             $obj->insert();
           }
         }
@@ -314,7 +348,7 @@ sub insert {
     $rollback_guard->commit;
   }
 
-  $self->in_storage(1);
+#  $self->in_storage(1);
   undef $self->{_orig_ident};
   return $self;
 }
