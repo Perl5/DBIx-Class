@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 89;
+plan tests => 97;
 
 my $schema = DBICTest->init_schema();
 
@@ -113,7 +113,16 @@ eval {
 };
 diag $@ if $@;
 
-# create over > 1 levels of might_have (A => { might_have => { B => has_many => C } } )
+# create over > 1 levels of might_have with multiple has_many and multiple m2m
+# but starting at a has_many level
+# (A => { might_have => { B => has_many => C <= has_many D} } ) or
+# CD -> has_many -> Tracks -> might have -> Single -> has_many -> Tracks
+#                                                \
+#                                                 \-> has_many \
+#                                                               --> CD2Producer
+#                                                 /-> has_many /
+#                                                /
+#                                           Producer
 eval {
   my $artist = $schema->resultset('Artist')->first;
   my $cd = $schema->resultset('CD')->create ({
@@ -122,7 +131,7 @@ eval {
     year => 2008,
     tracks => [
       {
-        position => 1,
+        position => 1, # some day me might test this with Ordered
         title => 'Off by one again',
       },
       {
@@ -141,7 +150,12 @@ eval {
               producer => {
                 name => 'K&R',
               }
-            }
+            },
+            {
+              producer => {
+                name => 'Don Knuth',
+              }
+            },
           ]
         },
       },
@@ -163,8 +177,74 @@ eval {
   is ($single->tracks->find ({ position => 1})->title, 'The dereferencer', 'Correct 1st track title');
   is ($single->tracks->find ({ position => 2})->title, 'The dereferencer II', 'Correct 2nd track title');
 
-  is ($single->cd_to_producer->count, 1, 'One producer created with the single cd');
-  is ($single->cd_to_producer->first->producer->name, 'K&R', 'Producer name correct');
+  is ($single->cd_to_producer->count, 2, 'Two producers created for the single cd');
+  is_deeply (
+    [ sort map { $_->producer->name } ($single->cd_to_producer->all) ],
+    ['Don Knuth', 'K&R'],
+    'Producers named correctly',
+  );
+};
+diag $@ if $@;
+
+# Same as above but starting at the might_have directly
+# Track -> might have -> Single -> has_many -> Tracks
+#                           \
+#                            \-> has_many \
+#                                          --> CD2Producer
+#                            /-> has_many /
+#                           /
+#                       Producer
+eval {
+  my $cd = $schema->resultset('CD')->first;
+  my $track = $schema->resultset('Track')->create ({
+    cd => $cd,
+    position => 77,  # some day me might test this with Ordered
+    title => 'Multicreate rocks',
+    cd_single => {
+      artist => $cd->artist,
+      year => 2008,
+      title => 'Disemboweling MultiCreate',
+      tracks => [
+        { title => 'Why does mst write this way', position => 1 },
+        { title => 'Chainsaw celebration', position => 2 },
+        { title => 'Purl cleans up', position => 3 },
+      ],
+      cd_to_producer => [
+        {
+          producer => {
+            name => 'mst',
+          }
+        },
+        {
+          producer => {
+            name => 'castaway',
+          }
+        },
+        {
+          producer => {
+            name => 'theorbtwo',
+          }
+        },
+      ]
+    },
+  });
+
+  isa_ok ($track, 'DBICTest::Track', 'Main Track object created');
+  is ($track->title, 'Multicreate rocks', 'Correct Track title');
+
+  my $single = $track->cd_single;
+  isa_ok ($single, 'DBICTest::CD', 'Created a single with the track');
+  is ($single->tracks->count, 3, '3 tracks on single CD');
+  is ($single->tracks->find ({ position => 1})->title, 'Why does mst write this way', 'Correct 1st track title');
+  is ($single->tracks->find ({ position => 2})->title, 'Chainsaw celebration', 'Correct 2nd track title');
+  is ($single->tracks->find ({ position => 3})->title, 'Purl cleans up', 'Correct 3rd track title');
+
+  is ($single->cd_to_producer->count, 3, '3 producers created for the single cd');
+  is_deeply (
+    [ sort map { $_->producer->name } ($single->cd_to_producer->all) ],
+    ['castaway', 'mst', 'theorbtwo'],
+    'Producers named correctly',
+  );
 };
 diag $@ if $@;
 
