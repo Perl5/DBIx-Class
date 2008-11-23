@@ -10,7 +10,7 @@ plan tests => 104;
 
 my $schema = DBICTest->init_schema();
 
-# simple create + parent (the stuff $rs belongs_to)
+diag '* simple create + parent (the stuff $rs belongs_to)';
 eval {
   my $cd = $schema->resultset('CD')->create({
     artist => { 
@@ -26,8 +26,7 @@ eval {
 };
 diag $@ if $@;
 
-# same as above but the child and parent have no values,
-# except for an explicit parent pk
+diag '* same as above but the child and parent have no values, except for an explicit parent pk';
 eval {
   my $bm_rs = $schema->resultset('Bookmark');
   my $bookmark = $bm_rs->create({
@@ -49,7 +48,7 @@ eval {
 };
 diag $@ if $@;
 
-# create over > 1 levels of has_many create (A => { has_many => { B => has_many => C } } )
+diag '* create over > 1 levels of has_many create (A => { has_many => { B => has_many => C } } )';
 eval {
   my $artist = $schema->resultset('Artist')->first;
   my $cd = $artist->create_related (cds => {
@@ -83,7 +82,7 @@ throws_ok (
   'create via update of multi relationships throws an exception'
 );
 
-# Create m2m while originating in the linker table
+diag '* Create m2m while originating in the linker table';
 eval {
   my $artist = $schema->resultset('Artist')->first;
   my $c2p = $schema->resultset('CD_to_Producer')->create ({
@@ -113,16 +112,19 @@ eval {
 };
 diag $@ if $@;
 
-# create over > 1 levels of might_have with multiple has_many and multiple m2m
-# but starting at a has_many level
-# (A => { might_have => { B => has_many => C <= has_many D} } ) or
-# CD -> has_many -> Tracks -> might have -> Single -> has_many -> Tracks
-#                                                \
-#                                                 \-> has_many \
-#                                                               --> CD2Producer
-#                                                 /-> has_many /
-#                                                /
-#                                           Producer
+diag (<<'DG');
+* Create over > 1 levels of might_have with multiple has_many and multiple m2m
+but starting at a has_many level
+
+CD -> has_many -> Tracks -> might have -> Single -> has_many -> Tracks
+                                               \
+                                                \-> has_many \
+                                                              --> CD2Producer
+                                                /-> has_many /
+                                               /
+                                          Producer
+DG
+
 eval {
   my $artist = $schema->resultset('Artist')->first;
   my $cd = $schema->resultset('CD')->create ({
@@ -186,14 +188,18 @@ eval {
 };
 diag $@ if $@;
 
-# Same as above but starting at the might_have directly
-# Track -> might have -> Single -> has_many -> Tracks
-#                           \
-#                            \-> has_many \
-#                                          --> CD2Producer
-#                            /-> has_many /
-#                           /
-#                       Producer
+diag (<<'DG');
+* Same as above but starting at the might_have directly
+
+Track -> might have -> Single -> has_many -> Tracks
+                           \
+                            \-> has_many \
+                                          --> CD2Producer
+                            /-> has_many /
+                           /
+                       Producer
+DG
+
 eval {
   my $cd = $schema->resultset('CD')->first;
   my $track = $schema->resultset('Track')->create ({
@@ -248,7 +254,7 @@ eval {
 };
 diag $@ if $@;
 
-# test might_have again but with a PK == FK in the middle (obviously not specified)
+diag '* Test might_have again but with a PK == FK in the middle (obviously not specified)';
 eval {
   my $artist = $schema->resultset('Artist')->first;
   my $cd = $schema->resultset('CD')->create ({
@@ -292,7 +298,7 @@ eval {
 };
 diag $@ if $@;
 
-# test might_have again but with just a PK and FK (neither specified) in the mid-table
+diag '* Test might_have again but with just a PK and FK (neither specified) in the mid-table';
 eval {
   my $cd = $schema->resultset('CD')->first;
   my $track = $schema->resultset ('Track')->create ({
@@ -338,15 +344,18 @@ eval {
 };
 diag $@ if $@;
 
-# test a multilevel might-have with a PK == FK in the might_have/has_many table
-#
-# CD -> might have -> Artwork
-#                        \
-#                         \-> has_many \
-#                                       --> Artwork_to_Artist
-#                         /-> has_many /
-#                        /
-#                     Artist
+diag (<<'DG');
+* Test a multilevel might-have with a PK == FK in the might_have/has_many table
+
+CD -> might have -> Artwork
+                       \
+                        \-> has_many \
+                                      --> Artwork_to_Artist
+                        /-> has_many /
+                       /
+                     Artist
+DG
+
 eval {
   my $someartist = $schema->resultset('Artist')->first;
   my $cd = $schema->resultset('CD')->create ({
@@ -386,8 +395,7 @@ eval {
 };
 diag $@ if $@;
 
-
-# nested find_or_create
+diag '* Nested find_or_create';
 eval {
   my $newartist2 = $schema->resultset('Artist')->find_or_create({ 
     name => 'Fred 3',
@@ -402,7 +410,7 @@ eval {
 };
 diag $@ if $@;
 
-# multiple same level has_many create
+diag '* Multiple same level has_many create';
 eval {
   my $artist2 = $schema->resultset('Artist')->create({
     name => 'Fred 4',
@@ -424,7 +432,7 @@ eval {
 };
 diag $@ if $@;
 
-# first create_related pass
+diag '* First create_related pass';
 eval {
 	my $artist = $schema->resultset('Artist')->first;
 	
@@ -458,7 +466,7 @@ eval {
 };
 diag $@ if $@;
 
-# second create_related with same arguments
+diag '* second create_related with same arguments';
 eval {
 	my $artist = $schema->resultset('Artist')->first;
 	
@@ -495,7 +503,7 @@ eval {
 };
 diag $@ if $@;
 
-# create of parents of a record linker table
+diag '* create of parents of a record linker table';
 eval {
   my $cdp = $schema->resultset('CD_to_Producer')->create({
     cd => { artist => 1, title => 'foo', year => 2000 },
@@ -547,8 +555,7 @@ diag $@ if $@;
 }
 
 
-## Create foreign key col obj including PK
-## See test 20 in 66relationships.t
+diag '* Create foreign key col obj including PK (See test 20 in 66relationships.t)';
 eval {
   my $new_cd_hashref = { 
     cdid => 27, 
@@ -576,7 +583,7 @@ eval {
 };
 is($@, '', 'new cd created without clash on related artist');
 
-# Make sure exceptions from errors in created rels propogate
+diag '* Make sure exceptions from errors in created rels propogate';
 eval {
     my $t = $schema->resultset("Track")->new({ cd => { artist => undef } });
     #$t->cd($t->new_related('cd', { artist => undef } ) );
@@ -585,7 +592,7 @@ eval {
 };
 like($@, qr/cd.artist may not be NULL/, "Exception propogated properly");
 
-# Test multi create over many_to_many
+diag '* Test multi create over many_to_many';
 eval {
   $schema->resultset('CD')->create ({
     artist => {
@@ -604,7 +611,7 @@ eval {
   is ($m2m_cd->first->producers->first->name, 'Cowboy Neal', 'Correct producer row created');
 };
 
-# and some insane multicreate 
+diag '* And the insane multicreate';
 # (should work, despite the fact that no one will probably use it this way)
 
 # first count how many rows do we initially have
