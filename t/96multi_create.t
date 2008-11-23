@@ -457,7 +457,7 @@ eval {
 };
 diag $@ if $@;
 
-TODO {
+TODO: {
 local $TODO = 'Next 2 evals are NOT supposed to work, jnaps code will be torn to bits in another branch';
 #SPECIAL_CASE
 eval {
