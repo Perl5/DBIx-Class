@@ -53,6 +53,12 @@ __PACKAGE__->has_many(
   { cascade_copy => 0 } # this would *so* not make sense
 );
 
+__PACKAGE__->has_many(
+    artist_to_artwork => 'DBICTest::Schema::Artwork_to_Artist' => 'artist_id'
+);
+__PACKAGE__->many_to_many('artworks', 'artist_to_artwork', 'artwork');
+
+
 sub sqlt_deploy_hook {
   my ($self, $sqlt_table) = @_;
 

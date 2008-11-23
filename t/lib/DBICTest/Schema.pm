@@ -21,6 +21,7 @@ __PACKAGE__->load_classes(qw/
   { 'DBICTest::Schema' => [qw/
     LinerNotes
     Artwork
+    Artwork_to_Artist
     Image
     Lyrics
     LyricVersion
