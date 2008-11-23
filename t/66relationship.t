@@ -2,13 +2,12 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 72;
+plan tests => 66;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -251,31 +250,6 @@ cmp_ok($nartist->cds->count, '==', 1, "Correct orig #cds for artist");
 $artist->cds->update({artist => $nartist->id});
 cmp_ok($artist->cds->count, '==', 0, "Correct new #cds for artist");
 cmp_ok($nartist->cds->count, '==', 2, "Correct new #cds for artist");
-
-my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode' });
-my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave in Silence', 'year' => 1982});
-eval {
-       $new_artist->insert;
-       $new_related_cd->insert;
-};
-is ($@, '', 'Staged insertion successful');
-ok($new_artist->in_storage, 'artist inserted');
-ok($new_related_cd->in_storage, 'new_related_cd inserted');
-
-my $new_cd = $schema->resultset("CD")->new_result({});
-my $new_related_artist = $new_cd->new_related('artist', { 'name' => 'Marillion',});
-lives_ok (
-    sub {
-       $new_related_artist->insert;
-       $new_cd->title( 'Misplaced Childhood' );
-       $new_cd->year ( 1985 );
-#       $new_cd->artist( $new_related_artist );  # For exact backward compatibility     # not sure what this means
-       $new_cd->insert;
-    },
-    'Reversed staged insertion successful'
-);
-ok($new_related_artist->in_storage, 'related artist inserted');
-ok($new_cd->in_storage, 'cd inserted');
 
 # check if is_foreign_key_constraint attr is set
 my $rs_normal = $schema->source('Track');
