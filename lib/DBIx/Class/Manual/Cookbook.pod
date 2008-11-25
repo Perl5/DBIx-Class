@@ -1298,6 +1298,40 @@ that Microsoft doesn't deliver native client libraries for. (e.g. Linux)
 The limit dialect can also be set at connect time by specifying a 
 C<limit_dialect> key in the final hash as shown above.
 
+=head2 Working with PostgreSQL array types
+
+If your SQL::Abstract version (>= 1.50) supports it, you can assign to
+PostgreSQL array values by passing array references in the C<\%columns>
+(C<\%vals>) hashref of the L<DBIx::Class::ResultSet/create> and
+L<DBIx::Class::Row/update> family of methods:
+
+  $resultset->create({
+    numbers => [1, 2, 3]
+  });
+
+  $row->update(
+    {
+      numbers => [1, 2, 3]
+    },
+    {
+      day => '2008-11-24'
+    }
+  );
+
+In conditions (eg. C<\%cond> in the L<DBIx::Class::ResultSet/search> family of
+methods) you cannot directly use array references (since this is interpreted as
+a list of values to be C<OR>ed), but you can use the following syntax to force
+passing them as bind values:
+
+  $resultset->search(
+    {
+      numbers => \[ '= ?', [1, 2, 3] ]
+    }
+  );
+
+See L<SQL::Abstract/array_datatypes> and L<SQL::Abstract/Literal SQL with
+placeholders and bind values (subqueries)> for more explanation.
+
 =head1 BOOTSTRAPPING/MIGRATING 
 
 =head2 Easy migration from class-based to schema-based setup
