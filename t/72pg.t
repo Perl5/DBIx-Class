@@ -47,7 +47,7 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
     unless ($dsn && $user && $pass);
 
 
-plan tests => 35;
+plan tests => 36;
 
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
@@ -133,7 +133,8 @@ is_deeply($type_info, $test_type_info,
           'columns_info_for - column data types');
 
 SKIP: {
-  skip "SQL::Abstract < 1.50 does not pass through arrayrefs", 2 if $SQL::Abstract::VERSION < 1.50;
+  skip "SQL::Abstract < 1.50 does not pass through arrayrefs", 3
+    if $SQL::Abstract::VERSION < 1.50;
 
   lives_ok {
     $schema->resultset('ArrayTest')->create({
@@ -146,6 +147,18 @@ SKIP: {
       arrayfield => [3, 4],
     });
   } 'updating arrayref as pg array data';
+
+  $schema->resultset('ArrayTest')->create({
+    arrayfield => [5, 6],
+  });
+
+  my $count;
+  lives_ok {
+    $count = $schema->resultset('ArrayTest')->search({
+      arrayfield => \[ '= ?' => [3, 4] ],   #TODO anything less ugly than this?
+    })->count;
+  } 'comparing arrayref to pg array data does not blow up';
+  is($count, 1, 'comparing arrayref to pg array data gives correct result');
 }
 
 
