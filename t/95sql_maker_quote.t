@@ -111,58 +111,62 @@ is_same_sql_bind(
   'scalar ORDER BY okay (multiple values)'
 );
 
+SKIP: {
+  skip "SQL::Abstract < 1.50 does not support hashrefs in order_by", 2 if $SQL::Abstract::VERSION < 1.50;
 
-($sql, @bind) = $sql_maker->select(
-          [
-            {
-              'me' => 'cd'
-            }
-          ],
-          [
-            'me.cdid',
-            'me.artist',
-            'me.title',
-            'me.year'
-          ],
-          undef,
-          { -desc => 'year' },
-          undef,
-          undef
-);
-
-is_same_sql_bind(
-  $sql, \@bind,
-  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC/, [],
-  'hashref ORDER BY okay (single value)'
-);
-
-
-($sql, @bind) = $sql_maker->select(
-          [
-            {
-              'me' => 'cd'
-            }
-          ],
-          [
-            'me.cdid',
-            'me.artist',
-            'me.title',
-            'me.year'
-          ],
-          undef,
-          [
+  ($sql, @bind) = $sql_maker->select(
+            [
+              {
+                'me' => 'cd'
+              }
+            ],
+            [
+              'me.cdid',
+              'me.artist',
+              'me.title',
+              'me.year'
+            ],
+            undef,
             { -desc => 'year' },
-            { -asc => 'title' }
-          ],
-          undef,
-          undef
-);
+            undef,
+            undef
+  );
 
-is_same_sql_bind(
-  $sql, \@bind,
-  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC, `title` ASC/, [],
-  'hashref ORDER BY okay (multiple values)'
-);
+  is_same_sql_bind(
+    $sql, \@bind,
+    q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC/, [],
+    'hashref ORDER BY okay (single value)'
+  );
+
+
+  ($sql, @bind) = $sql_maker->select(
+            [
+              {
+                'me' => 'cd'
+              }
+            ],
+            [
+              'me.cdid',
+              'me.artist',
+              'me.title',
+              'me.year'
+            ],
+            undef,
+            [
+              { -desc => 'year' },
+              { -asc => 'title' }
+            ],
+            undef,
+            undef
+  );
+
+  is_same_sql_bind(
+    $sql, \@bind,
+    q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC, `title` ASC/, [],
+    'hashref ORDER BY okay (multiple values)'
+  );
+
+}
 
 
 ($sql, @bind) = $sql_maker->select(

@@ -1,4 +1,4 @@
-NOTE: do not merge this file
+NOTE: do not merge this file but DELETE IT on merge
 
 New in this branch:
 
@@ -25,9 +25,9 @@ New in this branch:
  	* the testcase changes broke compatibility with old SQLA
 
  * Added test cases to test if arrayref bind values in insert/update are passed through sql_maker intact.
+ * Added test cases to test if arrayref bind values work with a PostgreSQL array type.
  * Added 'array_datatypes' parameter to the sql_maker constructor.
 	* formerly SQLA considered these as literal SQL with bind values, now that is \['literal SQL', @bind]
 		* the new syntax is consistent (works the same in insert/update and where conditions)
 	* fortunately 'array_datatypes' is simply ignored by old SQLA (at least with current version..)
- 	* mst told me that DBD::Pg can use arrayref bind values for PostgreSQL array types
-		* did not work for me, not sure if it is really so
+ 	* DBD::Pg can use arrayref bind values for PostgreSQL array types
