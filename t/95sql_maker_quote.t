@@ -238,7 +238,7 @@ is_same_sql_bind(
 );
 
 SKIP: {
-  skip 1, "select attr with star does not work in SQL::Abstract < 1.49"
+  skip "select attr with star does not work in SQL::Abstract < 1.49", 1
     if $SQL::Abstract::VERSION < 1.49;
 
   ($sql, @bind) = $sql_maker->select(
