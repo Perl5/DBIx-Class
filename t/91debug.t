@@ -4,7 +4,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use DBICTest::DBICDebugObj;
+use DBIC::DebugObj;
 use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
@@ -62,7 +62,7 @@ open(STDERR, '>&STDERRCOPY');
     );
 
     $schema->storage->debugcb(undef);
-    $schema->storage->debugobj(DBICTest::DBICDebugObj->new(\$sql, \@bind));
+    $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
     @cds = $schema->resultset('CD')->search( { artist => 1, cdid => { -between => [ 1, 3 ] }, } );
     is_same_sql_bind(
         $sql, \@bind,

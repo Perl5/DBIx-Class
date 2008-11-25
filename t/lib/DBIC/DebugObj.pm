@@ -1,4 +1,5 @@
-package DBICTest::DBICDebugObj;
+package # hide from PAUSE
+  DBIC::DebugObj;
 
 use strict;
 use warnings;

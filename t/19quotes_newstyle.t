@@ -15,7 +15,7 @@ BEGIN {
 use lib qw(t/lib);
 
 use_ok('DBICTest');
-use_ok('DBICTest::DBICDebugObj');
+use_ok('DBIC::DebugObj');
 
 my $schema = DBICTest->init_schema();
 
@@ -31,7 +31,7 @@ $schema->connection(
 );
 
 my ($sql, @bind) = ('');
-$schema->storage->debugobj(DBICTest::DBICDebugObj->new(\$sql, \@bind)),
+$schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind)),
 $schema->storage->debug(1);
 
 my $rs;
@@ -64,7 +64,7 @@ $schema->connection(
   { AutoCommit => 1, quote_char => [qw/[ ]/], name_sep => '.' }
 );
 
-$schema->storage->debugobj(DBICTest::DBICDebugObj->new(\$sql, \@bind)),
+$schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind)),
 $schema->storage->debug(1);
 
 $rs = $schema->resultset('CD')->search(
