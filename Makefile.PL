@@ -10,7 +10,7 @@ all_from 'lib/DBIx/Class.pm';
 
 requires 'Data::Page'                => 2.00;
 requires 'Scalar::Util'              => 0;
-requires 'SQL::Abstract'             => 1.49;
+requires 'SQL::Abstract'             => 1.20;
 requires 'SQL::Abstract::Limit'      => 0.101;
 requires 'Class::C3'                 => 0.13;
 requires 'Class::C3::Componentised'  => 0;
