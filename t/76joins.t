@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 

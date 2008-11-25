@@ -3,7 +3,7 @@ use warnings;
 
 use Test::More;
 #use DBIx::Class::Storage::DBI;
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use DBIC::SqlMakerTest;
 use DBIx::Class::Storage::DBI::Oracle::WhereJoins;
 
 plan tests => 4;

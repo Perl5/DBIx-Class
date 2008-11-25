@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use DBIC::SqlMakerTest;
 
 
 BEGIN {
@@ -237,27 +237,31 @@ is_same_sql_bind(
   'quoted table names for UPDATE'
 );
 
+SKIP: {
+  skip 1, "select attr with star does not work in SQL::Abstract < 1.49"
+    if $SQL::Abstract::VERSION < 1.49;
 
-($sql, @bind) = $sql_maker->select(
-      [
-        {
-          'me' => 'cd'
-        }
-      ],
-      [
-        'me.*'
-      ],
-      undef,
-      [],
-      undef,
-      undef    
-);
+  ($sql, @bind) = $sql_maker->select(
+        [
+          {
+            'me' => 'cd'
+          }
+        ],
+        [
+          'me.*'
+        ],
+        undef,
+        [],
+        undef,
+        undef    
+  );
 
-is_same_sql_bind(
-  $sql, \@bind,
-  q/SELECT `me`.* FROM `cd` `me`/, [],
-  'select attr with me.* is right'
-);
+  is_same_sql_bind(
+    $sql, \@bind,
+    q/SELECT `me`.* FROM `cd` `me`/, [],
+    'select attr with me.* is right'
+  );
+}
 
 
 $sql_maker->quote_char([qw/[ ]/]);

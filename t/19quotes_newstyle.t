@@ -3,7 +3,7 @@ use warnings;
 
 use Test::More;
 use IO::File;
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use DBIC::SqlMakerTest;
 
 BEGIN {
     eval "use DBD::SQLite";
