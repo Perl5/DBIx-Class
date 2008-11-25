@@ -132,8 +132,8 @@ like($artistid_defval,
 is_deeply($type_info, $test_type_info,
           'columns_info_for - column data types');
 
-TODO: {
-  local $TODO = "it seems that DBI/DBD::Pg does not accept arrayrefs as bind values for pg arrays";
+SKIP: {
+  skip "SQL::Abstract < 1.50 does not pass through arrayrefs", 2 if $SQL::Abstract::VERSION < 1.50;
 
   lives_ok {
     $schema->resultset('ArrayTest')->create({
