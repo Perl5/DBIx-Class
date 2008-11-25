@@ -1198,7 +1198,8 @@ sub _dbh_execute {
     }
 
     foreach my $data (@data) {
-      $data = ref $data ? ''.$data : $data; # stringify args
+      my $ref = ref $data;
+      $data = $ref && $ref ne 'ARRAY' ? ''.$data : $data; # stringify args (except arrayrefs)
 
       $sth->bind_param($placeholder_index, $data, $attributes);
       $placeholder_index++;
