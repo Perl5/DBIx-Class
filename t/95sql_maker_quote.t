@@ -112,7 +112,8 @@ is_same_sql_bind(
 );
 
 SKIP: {
-  skip "SQL::Abstract < 1.50 does not support hashrefs in order_by", 2 if $SQL::Abstract::VERSION < 1.50;
+  skip "SQL::Abstract < 1.49 does not support hashrefs in order_by", 2
+    if $SQL::Abstract::VERSION < 1.49;
 
   ($sql, @bind) = $sql_maker->select(
             [

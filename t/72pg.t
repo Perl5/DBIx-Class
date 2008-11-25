@@ -47,7 +47,7 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
     unless ($dsn && $user && $pass);
 
 
-plan tests => 36;
+plan tests => 37;
 
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
@@ -133,8 +133,8 @@ is_deeply($type_info, $test_type_info,
           'columns_info_for - column data types');
 
 SKIP: {
-  skip "SQL::Abstract < 1.50 does not pass through arrayrefs", 3
-    if $SQL::Abstract::VERSION < 1.50;
+  skip "SQL::Abstract < 1.49 does not pass through arrayrefs", 3
+    if $SQL::Abstract::VERSION < 1.49;
 
   lives_ok {
     $schema->resultset('ArrayTest')->create({
