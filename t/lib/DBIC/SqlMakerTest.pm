@@ -7,7 +7,6 @@ use warnings;
 use base qw/Test::Builder::Module Exporter/;
 
 use Exporter;
-use Data::Dumper;
 
 our @EXPORT = qw/
   &is_same_sql_bind
@@ -27,6 +26,7 @@ our @EXPORT = qw/
 
   use base qw/Test::Builder::Module Exporter/;
 
+  use Scalar::Util qw(looks_like_number blessed reftype);
   use Data::Dumper;
 
   our $tb = __PACKAGE__->builder;
@@ -64,25 +64,62 @@ our @EXPORT = qw/
     return $left eq $right;
   }
 
+  # lifted from SQL::Abstract::Test
   sub eq_bind
   {
     my ($bind_ref1, $bind_ref2) = @_;
 
-    return stringify_bind($bind_ref1) eq stringify_bind($bind_ref2);
-  }
+    my $ref1 = ref $bind_ref1;
+    my $ref2 = ref $bind_ref2;
 
-  sub stringify_bind
-  {
-    my ($bind) = @_;
+    return 0 if $ref1 ne $ref2;
 
-    foreach (ref $bind) {
-      /^$/ and return $bind;
-      /^ARRAY$/ and return join("\n", map { stringify_bind($_) } @$bind);
-      /^HASH$/ and return join(
-        "\n", map { $_ . " => " . stringify_bind($bind->{$_}) } keys %$bind
-      );
-      /^SCALAR$/ and return "\\" . stringify_bind($$bind);
-      return '' . $bind;
+    if ($ref1 eq 'SCALAR' || $ref1 eq 'REF') {
+      return eq_bind($$bind_ref1, $$bind_ref2);
+    } elsif ($ref1 eq 'ARRAY') {
+      return 0 if scalar @$bind_ref1 != scalar @$bind_ref2;
+      for (my $i = 0; $i < @$bind_ref1; $i++) {
+        return 0 if !eq_bind($bind_ref1->[$i], $bind_ref2->[$i]);
+      }
+      return 1;
+    } elsif ($ref1 eq 'HASH') {
+        return
+          eq_bind(
+            [sort keys %$bind_ref1],
+            [sort keys %$bind_ref2]
+          )
+          && eq_bind(
+            [map { $bind_ref1->{$_} } sort keys %$bind_ref1],
+            [map { $bind_ref2->{$_} } sort keys %$bind_ref2]
+          );
+    } else {
+      if (!defined $bind_ref1 || !defined $bind_ref2) {
+        return !(defined $bind_ref1 ^ defined $bind_ref2);
+      } elsif (blessed($bind_ref1) || blessed($bind_ref2)) {
+        return 0 if (blessed($bind_ref1) || "") ne (blessed($bind_ref2) || "");
+        return 1 if $bind_ref1 == $bind_ref2;  # uses overloaded '=='
+        # fallback: compare the guts of the object
+        my $reftype1 = reftype $bind_ref1;
+        my $reftype2 = reftype $bind_ref2;
+        return 0 if $reftype1 ne $reftype2;
+        if ($reftype1 eq 'SCALAR' || $reftype1 eq 'REF') {
+          $bind_ref1 = $$bind_ref1;
+          $bind_ref2 = $$bind_ref2;
+        } elsif ($reftype1 eq 'ARRAY') {
+          $bind_ref1 = [@$bind_ref1];
+          $bind_ref2 = [@$bind_ref2]; 
+        } elsif ($reftype1 eq 'HASH') {
+          $bind_ref1 = {%$bind_ref1};
+          $bind_ref2 = {%$bind_ref2};
+        } else { 
+          return 0;
+        }
+        return eq_bind($bind_ref1, $bind_ref2); 
+      } elsif (looks_like_number($bind_ref1) && looks_like_number($bind_ref2)) {
+        return $bind_ref1 == $bind_ref2;
+      } else { 
+        return $bind_ref1 eq $bind_ref2;
+      }
     }
   }
 }
