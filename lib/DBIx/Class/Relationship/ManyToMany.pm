@@ -3,6 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use warnings::register;
 use Sub::Name ();
 
 sub many_to_many {
@@ -26,10 +27,18 @@ sub many_to_many {
     my $rs_meth = "${meth}_rs";
 
     for ($add_meth, $remove_meth, $set_meth, $rs_meth) {
-      warn "***************************************************************************\n".
-           "The many-to-many relationship $meth is trying to create a utility method called $_. This will overwrite the existing method on $class. You almost certainly want to rename your method or the many-to-many relationship, as your method will not be callable (it will use the one from the relationship instead.) YOU HAVE BEEN WARNED\n".
-           "***************************************************************************\n"
-        if $class->can($_);
+      warnings::warn(<<"EOW")
+***************************************************************************
+The many-to-many relationship $meth is trying to create a utility method called
+$_. This will overwrite the existing method on $class. You almost certainly
+want to rename your method or the many-to-many relationship, as your method
+will not be callable (it will use the one from the relationship instead.) 
+
+no warnings 'DBIx::Class::Relationship::ManyToMany'; in 
+$class to disable.
+***************************************************************************
+EOW
+        if warnings::enabled() && $class->can($_);
     }
 
     $rel_attrs->{alias} ||= $f_rel;
