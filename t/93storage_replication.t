@@ -249,6 +249,7 @@ $replicated
 $replicated->replicate;
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
+$replicated->schema->storage->pool->validate_replicants;
 
 ## Make sure we can read the data.
 
@@ -355,6 +356,7 @@ ok $replicated->schema->resultset('Artist')->find(2)
 
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
+$replicated->schema->storage->pool->validate_replicants;
 
 ok $replicated->schema->resultset('Artist')->find(2)
     => 'Returned to replicates';
