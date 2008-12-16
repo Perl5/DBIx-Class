@@ -18,7 +18,7 @@ sub add_relationship_accessor {
   my ($class, $rel, $acc_type) = @_;
   my %meth;
   if ($acc_type eq 'single') {
-    my $rel_cond = $class->relationship_info($rel)->{cond};
+    my $rel_info = $class->relationship_info($rel);
     $meth{$rel} = sub {
       my $self = shift;
       if (@_) {
@@ -28,9 +28,12 @@ sub add_relationship_accessor {
         return $self->{_relationship_data}{$rel};
       } else {
         my $cond = $self->result_source->resolve_condition(
-          $rel_cond, $rel, $self
+          $rel_info->{cond}, $rel, $self
         );
-        return if grep { not defined } values %$cond;
+        if( exists $rel_info->{attrs}->{any_null_means_no_value}
+              && $rel_info->{attrs}->{any_null_means_no_value} ){
+          return if grep { not defined } values %$cond;
+        }
         my $val = $self->find_related($rel, {}, {});
         return unless $val;
         return $self->{_relationship_data}{$rel} = $val;

@@ -67,7 +67,7 @@ __PACKAGE__->belongs_to('genre', 'DBICTest::Schema::Genre',
         join_type => 'left',
         on_delete => 'SET NULL',
         on_update => 'CASCADE',
-
+        any_null_means_no_value => 1,
     },
 );
 
