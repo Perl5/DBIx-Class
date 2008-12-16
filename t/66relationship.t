@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 73;
+plan tests => 74;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -49,7 +49,9 @@ is( $big_flop_cd->title, 'Big Flop', 'create_related ok' );
   $schema->storage->debugcb(sub { $queries++; });
   $schema->storage->debug(1);
   $big_flop_cd->genre; #should not trigger a select query
-  is($queries, 0, 'No Select made for belongs_to if key IS NULL');
+  is($queries, 0, 'No SELECT made for belongs_to if key IS NULL');
+  $big_flop_cd->genre_inefficient; #should trigger a select query
+  is($queries, 1, 'SELECT made for belongs_to if key IS NULL when undef_on_null_fk disabled');
   $schema->storage->debug(0);
   $schema->storage->debugcb(undef);
 }

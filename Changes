@@ -3,9 +3,10 @@ Revision history for DBIx::Class
         - Classes submitted as result_class for a resultsource are now
           automatically loaded via ensure_loaded()
         - 'result_class' resultset attribute, identical to result_class()
-        - add 'any_null_means_no_value' option for relationship accessors of
-          type 'single'. This will prevent DBIC from querying the database
-          if one or more of the key columns IS NULL. Tests + docs (groditi)
+        - add 'null_on_fk' option for relationship accessors of type 'single'. 
+          This will prevent DBIC from querying the database if one or more of
+          the key columns IS NULL. Tests + docs (groditi)
+           - for 'belongs_to' rels, 'null_on_fk' defaults to true.
 
 0.08099_05 2008-10-30 21:30:00 (UTC)
         - Rewritte of Storage::DBI::connect_info(), extended with an
