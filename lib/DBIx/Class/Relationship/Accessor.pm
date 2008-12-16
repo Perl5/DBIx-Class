@@ -30,8 +30,7 @@ sub add_relationship_accessor {
         my $cond = $self->result_source->resolve_condition(
           $rel_info->{cond}, $rel, $self
         );
-        if( exists $rel_info->{attrs}->{undef_on_null_fk}
-              && $rel_info->{attrs}->{undef_on_null_fk} ){
+        if ($rel_info->{attrs}->{undef_on_null_fk}){
           return if grep { not defined } values %$cond;
         }
         my $val = $self->find_related($rel, {}, {});
