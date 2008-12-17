@@ -208,6 +208,7 @@ sub load_namespaces {
     local *Class::C3::reinitialize = sub { };
     use warnings 'redefine';
 
+    my %done;
     foreach my $result (keys %results) {
       my $result_class = $results{$result};
       $class->ensure_class_loaded($result_class);
@@ -215,8 +216,9 @@ sub load_namespaces {
 
       my $rs_class = delete $resultsets{$result};
       my $rs_set = $result_class->resultset_class;
+      $done{$rs_set} = $rs_set unless exists $done{$rs_set};
       if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
-        if($rs_class && $rs_class ne $rs_set) {
+        if($rs_class && !exists($done{$rs_set}) && $rs_class ne $rs_set) {
           warn "We found ResultSet class '$rs_class' for '$result', but it seems "
              . "that you had already set '$result' to use '$rs_set' instead";
         }

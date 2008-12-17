@@ -6,7 +6,7 @@ use Test::More;
 
 use lib 't/lib';
 
-plan tests => 2;
+plan tests => 4;
 
 sub _chk_warning {
 	defined $_[0]? 
@@ -26,7 +26,7 @@ eval {
     );
 };
 ok(!$@) or diag $@;
-ok(_chk_warning($warnings), 'Works here');
+ok(_chk_warning($warnings), 'expected no complaint');
 
 eval {
     local $SIG{__WARN__} = sub { $warnings .= shift };
@@ -39,4 +39,4 @@ eval {
     );
 };
 ok(!$@) or diag $@;
-ok(_chk_warning($warnings), 'Fails here');
+ok(_chk_warning($warnings), 'expected no complaint') or diag $warnings;
