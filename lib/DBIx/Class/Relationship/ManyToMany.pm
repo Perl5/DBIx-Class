@@ -27,18 +27,21 @@ sub many_to_many {
     my $rs_meth = "${meth}_rs";
 
     for ($add_meth, $remove_meth, $set_meth, $rs_meth) {
-      warnings::warn(<<"EOW")
+      if ( $class->can ($_) ) {
+        warnings::warnif(<<"EOW")
 ***************************************************************************
 The many-to-many relationship $meth is trying to create a utility method called
 $_. This will overwrite the existing method on $class. You almost certainly
 want to rename your method or the many-to-many relationship, as your method
-will not be callable (it will use the one from the relationship instead.) 
+will not be callable (it will use the one from the relationship instead.)
 
-no warnings 'DBIx::Class::Relationship::ManyToMany'; in 
-$class to disable.
+To disable this warning add the following to $class
+
+  no warnings 'DBIx::Class::Relationship::ManyToMany';
+
 ***************************************************************************
 EOW
-        if warnings::enabled() && $class->can($_);
+      }
     }
 
     $rel_attrs->{alias} ||= $f_rel;
