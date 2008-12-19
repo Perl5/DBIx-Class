@@ -707,26 +707,15 @@ wantarray context if you want the PKs automatically created.
 
 sub populate {
   my ($self, $name, $data) = @_;
-  my $rs = $self->resultset($name);
-  my @names = @{shift(@$data)};
-  if(defined wantarray) {
-    my @created;
-    foreach my $item (@$data) {
-      my %create;
-      @create{@names} = @$item;
-      push(@created, $rs->create(\%create));
+  if(my $rs = $self->resultset($name)) {
+    if(defined wantarray) {
+        return $rs->populate($data);
+    } else {
+        $rs->populate($data);
     }
-    return @created;
+  } else {
+      $self->throw_exception("$name is not a resultset"); 
   }
-  my @results_to_create;
-  foreach my $datum (@$data) {
-    my %result_to_create;
-    foreach my $index (0..$#names) {
-      $result_to_create{$names[$index]} = $$datum[$index];
-    }
-    push @results_to_create, \%result_to_create;
-  }
-  $rs->populate(\@results_to_create);
 }
 
 =head2 connection

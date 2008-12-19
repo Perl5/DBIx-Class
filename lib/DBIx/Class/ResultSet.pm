@@ -1362,8 +1362,9 @@ sub delete_all {
 
 =back
 
-Pass an arrayref of hashrefs. Each hashref should be a structure suitable for
-submitting to a $resultset->create(...) method.
+Accepts either an arrayref of hashrefs or alternatively an arrayref of arrayrefs.
+For the arrayref of hashrefs style each hashref should be a structure suitable
+forsubmitting to a $resultset->create(...) method.
 
 In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
 to insert the data, as this is a faster method.  
@@ -1403,7 +1404,18 @@ Example:  Assuming an Artist Class that has many CDs Classes relating:
   
   print $ArtistOne->name; ## response is 'Artist One'
   print $ArtistThree->cds->count ## reponse is '2'
-  
+
+For the arrayref of arrayrefs style,  the first element should be a list of the
+fieldsnames to which the remaining elements are rows being inserted.  For
+example:
+
+  $Arstist_rs->populate([
+    [qw/artistid name/],
+    [100, 'A Formally Unknown Singer'],
+    [101, 'A singer that jumped the shark two albums ago'],
+    [102, 'An actually cool singer.'],
+  ]);
+
 Please note an important effect on your data when choosing between void and
 wantarray context. Since void context goes straight to C<insert_bulk> in 
 L<DBIx::Class::Storage::DBI> this will skip any component that is overriding
@@ -1415,7 +1427,10 @@ values.
 =cut
 
 sub populate {
-  my ($self, $data) = @_;
+  my $self = shift @_;
+  my $data = ref $_[0][0] eq 'HASH'
+    ? $_[0] : ref $_[0][0] eq 'ARRAY' ? $self->_normalize_populate_args($_[0]) :
+    $self->throw_exception('Populate expects an arrayref of hashes or arrayref of arrayrefs');
   
   if(defined wantarray) {
     my @created;
@@ -1487,6 +1502,28 @@ sub populate {
       }
     }
   }
+}
+
+=head2 _normalize_populate_args ($args)
+
+Private method used by L</populate> to normalize it's incoming arguments.  Factored
+out in case you want to subclass and accept new argument structures to the
+L</populate> method.
+
+=cut
+
+sub _normalize_populate_args {
+  my ($self, $data) = @_;
+  my @names = @{shift(@$data)};
+  my @results_to_create;
+  foreach my $datum (@$data) {
+    my %result_to_create;
+    foreach my $index (0..$#names) {
+      $result_to_create{$names[$index]} = $$datum[$index];
+    }
+    push @results_to_create, \%result_to_create;    
+  }
+  return \@results_to_create;
 }
 
 =head2 pager
