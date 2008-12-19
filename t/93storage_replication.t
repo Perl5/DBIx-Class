@@ -312,7 +312,7 @@ is $artist3->name, "Dead On Arrival"
     => 'Found expected name for first result';
 
 is $replicated->schema->storage->pool->connected_replicants => 1
-    => "One replicant reconnected to handle the job";
+    => "At Least One replicant reconnected to handle the job";
     
 ## What happens when we try to select something that doesn't exist?
 
@@ -577,6 +577,9 @@ ok $replicated->schema->resultset('Artist')->find(1)
 
 ## Delete the old database files
 $replicated->cleanup;
+
+use Data::Dump qw/dump/;
+#warn dump $replicated->schema->storage->read_handler;
 
 
 

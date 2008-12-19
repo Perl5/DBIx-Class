@@ -126,19 +126,20 @@ or just just forgot to create them :)
 around 'next_storage' => sub {
   my ($next_storage, $self, @args) = @_;
   my $now = time;
-    
+
   ## Do we need to validate the replicants?
   if(
      $self->has_auto_validate_every && 
      ($self->auto_validate_every + $self->pool->last_validated) <= $now
-  ) {
+  ) {   
       $self->pool->validate_replicants;
   }
-    
+
   ## Get a replicant, or the master if none
   if(my $next = $self->$next_storage(@args)) {
     return $next;
   } else {
+    $self->master->debugobj->print("No Replicants validate, falling back to master reads. ");
     return $self->master;
   }
 };

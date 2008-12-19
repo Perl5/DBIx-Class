@@ -189,7 +189,14 @@ sub _safely_ensure_connected {
   my ($self, $replicant, @args) = @_;
   my $return; eval {
     $return = $replicant->ensure_connected(@args);
-  };  
+  }; if ($@) {
+    $replicant
+        ->debugobj
+        ->print(
+            sprintf( "Exception trying to ->ensure_connected for replicant %s, error is %s",
+                $self->_dbi_connect_info->[0], $@)
+        );
+  }
   return $return;
 }
 
@@ -259,23 +266,43 @@ connection is not following a master or is lagging.
 Calling this method will generate queries on the replicant databases so it is
 not recommended that you run them very often.
 
+This method requires that your underlying storage engine supports some sort of
+native replication mechanism.  Currently only MySQL native replication is
+supported.  Your patches to make other replication types work are welcomed.
+
 =cut
 
 sub validate_replicants {
   my $self = shift @_;
   foreach my $replicant($self->all_replicants) {
-    if(
-      $self->_safely_ensure_connected($replicant) &&  
-      $replicant->is_replicating &&
-      $replicant->lag_behind_master <= $self->maximum_lag
-    ) {
-      $replicant->active(1)
+    if($self->_safely_ensure_connected($replicant)) {
+      my $is_replicating = $replicant->is_replicating;
+      unless(defined $is_replicating) {
+        $replicant->debugobj->print("Storage Driver ".ref $self." Does not support the 'is_replicating' method.  Assuming you are manually managing.");
+        next;
+      } else {
+        if($is_replicating) {
+          my $lag_behind_master = $replicant->lag_behind_master;
+          unless(defined $lag_behind_master) {
+            $replicant->debugobj->print("Storage Driver ".ref $self." Does not support the 'lag_behind_master' method.  Assuming you are manually managing.");
+            next;
+          } else {
+            if($lag_behind_master <= $self->maximum_lag) {
+              $replicant->active(1);
+            } else {
+              $replicant->active(0);  
+            }
+          }    
+        } else {
+          $replicant->active(0);
+        }
+      }
     } else {
       $replicant->active(0);
     }
   }
   ## Mark that we completed this validation.  
-  $self->_last_validated(time);
+  $self->_last_validated(time);  
 }
 
 =head1 AUTHOR
