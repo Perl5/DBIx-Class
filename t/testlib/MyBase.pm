@@ -8,7 +8,8 @@ use DBI;
 
 use vars qw/$dbh/;
 
-my @connect = ("dbi:mysql:test", "", "");
+# temporary, might get switched to the new test framework someday
+my @connect = ("dbi:mysql:test", "", "", { PrintError => 0});
 
 $dbh = DBI->connect(@connect) or die DBI->errstr;
 my @table;

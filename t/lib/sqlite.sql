@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Mon Nov 10 23:52:55 2008
+-- Created on Mon Nov 17 02:53:11 2008
 -- 
 BEGIN TRANSACTION;
 
@@ -27,6 +27,15 @@ CREATE TABLE artist_undirected_map (
 
 CREATE INDEX artist_undirected_map_idx_id1_ ON artist_undirected_map (id1);
 CREATE INDEX artist_undirected_map_idx_id2_ ON artist_undirected_map (id2);
+
+--
+-- Table: cd_artwork
+--
+CREATE TABLE cd_artwork (
+  cd_id INTEGER PRIMARY KEY NOT NULL
+);
+
+CREATE INDEX cd_artwork_idx_cd_id_cd_artwor ON cd_artwork (cd_id);
 
 --
 -- Table: bookmark
@@ -58,11 +67,13 @@ CREATE TABLE cd (
   artist integer NOT NULL,
   title varchar(100) NOT NULL,
   year varchar(100) NOT NULL,
-  genreid integer
+  genreid integer,
+  single_track integer
 );
 
 CREATE INDEX cd_idx_artist_cd ON cd (artist);
 CREATE INDEX cd_idx_genreid_cd ON cd (genreid);
+CREATE INDEX cd_idx_single_track_cd ON cd (single_track);
 CREATE UNIQUE INDEX cd_artist_title_cd ON cd (artist, title);
 
 --
@@ -183,6 +194,18 @@ CREATE TABLE genre (
 CREATE UNIQUE INDEX genre_name_genre ON genre (name);
 
 --
+-- Table: images
+--
+CREATE TABLE images (
+  id INTEGER PRIMARY KEY NOT NULL,
+  artwork_id integer NOT NULL,
+  name varchar(100) NOT NULL,
+  data blob
+);
+
+CREATE INDEX images_idx_artwork_id_images ON images (artwork_id);
+
+--
 -- Table: liner_notes
 --
 CREATE TABLE liner_notes (
@@ -201,6 +224,27 @@ CREATE TABLE link (
   title varchar(100)
 );
 
+
+--
+-- Table: lyric_versions
+--
+CREATE TABLE lyric_versions (
+  id INTEGER PRIMARY KEY NOT NULL,
+  lyric_id integer NOT NULL,
+  text varchar(100) NOT NULL
+);
+
+CREATE INDEX lyric_versions_idx_lyric_id_ly ON lyric_versions (lyric_id);
+
+--
+-- Table: lyrics
+--
+CREATE TABLE lyrics (
+  lyric_id INTEGER PRIMARY KEY NOT NULL,
+  track_id integer NOT NULL
+);
+
+CREATE INDEX lyrics_idx_track_id_lyrics ON lyrics (track_id);
 
 --
 -- Table: noprimarykey

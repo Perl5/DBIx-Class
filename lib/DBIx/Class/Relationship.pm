@@ -208,6 +208,11 @@ Cascading deletes are off by default on a C<belongs_to>
 relationship. To turn them on, pass C<< cascade_delete => 1 >>
 in the $attr hashref.
 
+By default, DBIC will return undef and avoid querying the database if a
+C<belongs_to> accessor is called when any part of the foreign key IS NULL. To
+disable this behavior, pass C<< undef_on_null_fk => 0 >> in the C<$attr>
+hashref.
+
 NOTE: If you are used to L<Class::DBI> relationships, this is the equivalent
 of C<has_a>.
 

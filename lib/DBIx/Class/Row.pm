@@ -761,24 +761,17 @@ sub set_inflated_columns {
       {
         my $rel = delete $upd->{$key};
         $self->set_from_related($key => $rel);
-        $self->{_relationship_data}{$key} = $rel;          
+        $self->{_relationship_data}{$key} = $rel;
       } elsif ($info && $info->{attrs}{accessor}
-        && $info->{attrs}{accessor} eq 'multi'
-        && ref $upd->{$key} eq 'ARRAY') {
-        my $others = delete $upd->{$key};
-        foreach my $rel_obj (@$others) {
-          if(!Scalar::Util::blessed($rel_obj)) {
-            $rel_obj = $self->create_related($key, $rel_obj);
-          }
-        }
-        $self->{_relationship_data}{$key} = $others; 
-#            $related->{$key} = $others;
-        next;
+        && $info->{attrs}{accessor} eq 'multi') {
+          $self->throw_exception(
+            "Recursive update is not supported over relationships of type multi ($key)"
+          );
       }
       elsif ($self->has_column($key)
         && exists $self->column_info($key)->{_inflate_info})
       {
-        $self->set_inflated_column($key, delete $upd->{$key});          
+        $self->set_inflated_column($key, delete $upd->{$key});
       }
     }
   }

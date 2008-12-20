@@ -141,7 +141,7 @@ you have to add to your User class:
   SQL 
 
   # Finally, register your new ResultSource with your Schema
-  My::Schema->register_source( 'UserFriendsComplex' => $new_source );
+  My::Schema->register_extra_source( 'UserFriendsComplex' => $new_source );
 
 Next, you can execute your complex query using bind parameters like this:
 

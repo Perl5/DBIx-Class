@@ -15,7 +15,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 134;
+plan tests => 142;
 
 
 ## ----------------------------------------------------------------------------
@@ -601,4 +601,30 @@ VOID_CONTEXT: {
 		ok( $cd2->title eq "VOID_Yet More Tweeny-Pop crap", "Got Expected CD Title");
 	}
 
+}
+
+ARRAYREF_OF_ARRAYREF_STYLE: {
+  $art_rs->populate([
+    [qw/artistid name/],
+    [1000, 'A Formally Unknown Singer'],
+    [1001, 'A singer that jumped the shark two albums ago'],
+    [1002, 'An actually cool singer.'],
+  ]);
+  
+  ok my $unknown = $art_rs->find(1000), "got Unknown";
+  ok my $jumped = $art_rs->find(1001), "got Jumped";
+  ok my $cool = $art_rs->find(1002), "got Cool";
+  
+  is $unknown->name, 'A Formally Unknown Singer', 'Correct Name';
+  is $jumped->name, 'A singer that jumped the shark two albums ago', 'Correct Name';
+  is $cool->name, 'An actually cool singer.', 'Correct Name';
+  
+  my ($cooler, $lamer) = $art_rs->populate([
+    [qw/artistid name/],
+    [1003, 'Cooler'],
+    [1004, 'Lamer'],	
+  ]);
+  
+  is $cooler->name, 'Cooler', 'Correct Name';
+  is $lamer->name, 'Lamer', 'Correct Name';  
 }

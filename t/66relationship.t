@@ -1,13 +1,14 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 69;
+plan tests => 74;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -40,7 +41,20 @@ if ($INC{'DBICTest/HelperRels.pm'}) {
   } );
 }
 
-is( ($artist->search_related('cds'))[3]->title, 'Big Flop', 'create_related ok' );
+my $big_flop_cd = ($artist->search_related('cds'))[3];
+is( $big_flop_cd->title, 'Big Flop', 'create_related ok' );
+
+{ # make sure we are not making pointless select queries when a FK IS NULL
+  my $queries = 0;
+  $schema->storage->debugcb(sub { $queries++; });
+  $schema->storage->debug(1);
+  $big_flop_cd->genre; #should not trigger a select query
+  is($queries, 0, 'No SELECT made for belongs_to if key IS NULL');
+  $big_flop_cd->genre_inefficient; #should trigger a select query
+  is($queries, 1, 'SELECT made for belongs_to if key IS NULL when undef_on_null_fk disabled');
+  $schema->storage->debug(0);
+  $schema->storage->debugcb(undef);
+}
 
 my( $rs_from_list ) = $artist->search_related_rs('cds');
 is( ref($rs_from_list), 'DBIx::Class::ResultSet', 'search_related_rs in list context returns rs' );
@@ -261,6 +275,23 @@ is ($@, '', 'Staged insertion successful');
 ok($new_artist->in_storage, 'artist inserted');
 ok($new_related_cd->in_storage, 'new_related_cd inserted');
 
+TODO: {
+local $TODO = "TODOify for multicreate branch";
+my $new_cd = $schema->resultset("CD")->new_result({});
+my $new_related_artist = $new_cd->new_related('artist', { 'name' => 'Marillion',});
+lives_ok (
+    sub {
+       $new_related_artist->insert;
+       $new_cd->title( 'Misplaced Childhood' );
+       $new_cd->year ( 1985 );
+#       $new_cd->artist( $new_related_artist );  # For exact backward compatibility     # not sure what this means
+       $new_cd->insert;
+    },
+    'Reversed staged insertion successful'
+);
+ok($new_related_artist->in_storage, 'related artist inserted');
+ok($new_cd->in_storage, 'cd inserted');
+
 # check if is_foreign_key_constraint attr is set
 my $rs_normal = $schema->source('Track');
 my $relinfo = $rs_normal->relationship_info ('cd');
@@ -269,3 +300,4 @@ cmp_ok($relinfo->{attrs}{is_foreign_key_constraint}, '==', 1, "is_foreign_key_co
 my $rs_overridden = $schema->source('ForceForeign');
 my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
 cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");
+}

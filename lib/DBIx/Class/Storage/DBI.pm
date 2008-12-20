@@ -65,7 +65,12 @@ sub _find_syntax {
 
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
-  $table = $self->_quote($table) unless ref($table);
+  if (ref $table eq 'SCALAR') {
+    $table = $$table;
+  }
+  elsif (not ref $table) {
+    $table = $self->_quote($table);
+  }
   local $self->{rownum_hack_count} = 1
     if (defined $rest[0] && $self->{limit_dialect} eq 'RowNum');
   @rest = (-1) unless defined $rest[0];

@@ -57,7 +57,7 @@ open(STDERR, '>&STDERRCOPY');
     my @cds = $schema->resultset('CD')->search( { artist => 1, cdid => { -between => [ 1, 3 ] }, } );
     is_same_sql_bind(
         $sql, [],
-        "SELECT me.cdid, me.artist, me.title, me.year, me.genreid FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? ): '1', '1', '3'", [],
+        "SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? ): '1', '1', '3'", [],
         'got correct SQL with all bind parameters (debugcb)'
     );
 
@@ -66,7 +66,7 @@ open(STDERR, '>&STDERRCOPY');
     @cds = $schema->resultset('CD')->search( { artist => 1, cdid => { -between => [ 1, 3 ] }, } );
     is_same_sql_bind(
         $sql, \@bind,
-        "SELECT me.cdid, me.artist, me.title, me.year, me.genreid FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? )", ["'1'", "'1'", "'3'"],
+        "SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? )", ["'1'", "'1'", "'3'"],
         'got correct SQL with all bind parameters (debugobj)'
     );
 }

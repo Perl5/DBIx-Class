@@ -2,10 +2,11 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 58;
+plan tests => 89;
 
 my $schema = DBICTest->init_schema();
 
@@ -25,7 +26,7 @@ eval {
 };
 diag $@ if $@;
 
-# same as above but the child and parent have no values, 
+# same as above but the child and parent have no values,
 # except for an explicit parent pk
 eval {
   my $bm_rs = $schema->resultset('Bookmark');
@@ -50,40 +51,216 @@ diag $@ if $@;
 
 # create over > 1 levels of has_many create (A => { has_many => { B => has_many => C } } )
 eval {
-  my $artist = $schema->resultset('Artist')->create(
-    { name => 'Fred 2',
-      cds => [
-        { title => 'Music to code by',
-          year => 2007,
-          tags => [
-            { 'tag' => 'rock' },
-          ],
-        },
+  my $artist = $schema->resultset('Artist')->first;
+  my $cd = $artist->create_related (cds => {
+    title => 'Music to code by',
+    year => 2007,
+    tags => [
+      { 'tag' => 'rock' },
     ],
   });
 
-  isa_ok($artist, 'DBICTest::Artist', 'Created Artist');
-  is($artist->name, 'Fred 2', 'Artist created correctly');
-  is($artist->cds->count, 1, 'One CD created for artist');
-  is($artist->cds->first->title, 'Music to code by', 'CD created correctly');
-  is($artist->cds->first->tags->count, 1, 'One tag created for CD');
-  is($artist->cds->first->tags->first->tag, 'rock', 'Tag created correctly');
+  isa_ok($cd, 'DBICTest::CD', 'Created CD');
+  is($cd->title, 'Music to code by', 'CD created correctly');
+  is($cd->tags->count, 1, 'One tag created for CD');
+  is($cd->tags->first->tag, 'rock', 'Tag created correctly');
 
-  # Create via update - add a new CD
-  $artist->update({
-    cds => [ $artist->cds,
-      { title => 'Yet another CD',
-        year => 2006,
+};
+diag $@ if $@;
+
+throws_ok (
+  sub {
+    # Create via update - add a new CD <--- THIS SHOULD HAVE NEVER WORKED!
+    $schema->resultset('Artist')->first->update({
+      cds => [
+        { title => 'Yet another CD',
+          year => 2006,
+        },
+      ],
+    });
+  },
+  qr/Recursive update is not supported over relationships of type multi/,
+  'create via update of multi relationships throws an exception'
+);
+
+# Create m2m while originating in the linker table
+eval {
+  my $artist = $schema->resultset('Artist')->first;
+  my $c2p = $schema->resultset('CD_to_Producer')->create ({
+    cd => {
+      artist => $artist,
+      title => 'Bad investment',
+      year => 2008,
+      tracks => [
+        { position => 1, title => 'Just buy' },
+        { position => 2, title => 'Why did we do it' },
+        { position => 3, title => 'Burn baby burn' },
+      ],
+    },
+    producer => {
+      name => 'Lehman Bros.',
+    },
+  });
+
+  isa_ok ($c2p, 'DBICTest::CD_to_Producer', 'Linker object created');
+  my $prod = $schema->resultset ('Producer')->find ({ name => 'Lehman Bros.' });
+  isa_ok ($prod, 'DBICTest::Producer', 'Producer row found');
+  is ($prod->cds->count, 1, 'Producer has one production');
+  my $cd = $prod->cds->first;
+  is ($cd->title, 'Bad investment', 'CD created correctly');
+  is ($cd->tracks->count, 3, 'CD has 3 tracks');
+
+};
+diag $@ if $@;
+
+# create over > 1 levels of might_have (A => { might_have => { B => has_many => C } } )
+eval {
+  my $artist = $schema->resultset('Artist')->first;
+  my $cd = $schema->resultset('CD')->create ({
+    artist => $artist,
+    title => 'Music to code by at night',
+    year => 2008,
+    tracks => [
+      {
+        position => 1,
+        title => 'Off by one again',
+      },
+      {
+        position => 2,
+        title => 'The dereferencer',
+        cd_single => {
+          artist => $artist,
+          year => 2008,
+          title => 'Was that a null (Single)',
+          tracks => [
+            { title => 'The dereferencer', position => 1 },
+            { title => 'The dereferencer II', position => 2 },
+          ],
+          cd_to_producer => [
+            {
+              producer => {
+                name => 'K&R',
+              }
+            }
+          ]
+        },
       },
     ],
   });
-  is(($artist->cds->search({}, { order_by => 'year' }))[0]->title, 'Yet another CD', 'Updated and added another CD');
 
-  my $newartist = $schema->resultset('Artist')->find_or_create({ name => 'Fred 2'});
+  isa_ok ($cd, 'DBICTest::CD', 'Main CD object created');
+  is ($cd->title, 'Music to code by at night', 'Correct CD title');
+  is ($cd->tracks->count, 2, 'Two tracks on main CD');
 
-  is($newartist->name, 'Fred 2', 'Retrieved the artist');
+  my ($t1, $t2) = $cd->tracks->all;
+  is ($t1->title, 'Off by one again', 'Correct 1st track name');
+  is ($t1->cd_single, undef, 'No single for 1st track');
+  is ($t2->title, 'The dereferencer', 'Correct 2nd track name');
+  isa_ok ($t2->cd_single, 'DBICTest::CD', 'Created a single for 2nd track');
+
+  my $single = $t2->cd_single;
+  is ($single->tracks->count, 2, 'Two tracks on single CD');
+  is ($single->tracks->find ({ position => 1})->title, 'The dereferencer', 'Correct 1st track title');
+  is ($single->tracks->find ({ position => 2})->title, 'The dereferencer II', 'Correct 2nd track title');
+
+  is ($single->cd_to_producer->count, 1, 'One producer created with the single cd');
+  is ($single->cd_to_producer->first->producer->name, 'K&R', 'Producer name correct');
 };
 diag $@ if $@;
+
+TODO: {
+local $TODO = "Todoify for multicreate branch";
+# test might_have again but with a PK == FK in the middle (obviously not specified)
+eval {
+  my $artist = $schema->resultset('Artist')->first;
+  my $cd = $schema->resultset('CD')->create ({
+    artist => $artist,
+    title => 'Music to code by at twilight',
+    year => 2008,
+    artwork => {
+      images => [
+        { name => 'recursive descent' },
+        { name => 'tail packing' },
+      ],
+    },
+  });
+
+  isa_ok ($cd, 'DBICTest::CD', 'Main CD object created');
+  is ($cd->title, 'Music to code by at twilight', 'Correct CD title');
+  isa_ok ($cd->artwork, 'DBICTest::Artwork', 'Artwork created');
+
+  # this test might look weird, but it failed at one point, keep it there
+  my $art_obj = $cd->artwork;
+  ok ($art_obj->has_column_loaded ('cd_id'), 'PK/FK present on artwork object');
+  is ($art_obj->images->count, 2, 'Correct artwork image count via the new object');
+  is_deeply (
+    [ sort $art_obj->images->get_column ('name')->all ],
+    [ 'recursive descent', 'tail packing' ],
+    'Images named correctly in objects',
+  );
+
+
+  my $artwork = $schema->resultset('Artwork')->search (
+    { 'cd.title' => 'Music to code by at twilight' },
+    { join => 'cd' },
+  )->single;
+
+  is ($artwork->images->count, 2, 'Correct artwork image count via a new search');
+
+  is_deeply (
+    [ sort $artwork->images->get_column ('name')->all ],
+    [ 'recursive descent', 'tail packing' ],
+    'Images named correctly after search',
+  );
+};
+diag $@ if $@;
+
+# test might_have again but with just a PK and FK (neither specified) in the mid-table
+eval {
+  my $cd = $schema->resultset('CD')->first;
+  my $track = $schema->resultset ('Track')->create ({
+    cd => $cd,
+    position => 66,
+    title => 'Black',
+    lyrics => {
+      lyric_versions => [
+        { text => 'The color black' },
+        { text => 'The colour black' },
+      ],
+    },
+  });
+
+  isa_ok ($track, 'DBICTest::Track', 'Main track object created');
+  is ($track->title, 'Black', 'Correct track title');
+  isa_ok ($track->lyrics, 'DBICTest::Lyrics', 'Lyrics created');
+
+  # this test might look weird, but it was failing at one point, keep it there
+  my $lyric_obj = $track->lyrics;
+  ok ($lyric_obj->has_column_loaded ('lyric_id'), 'PK present on lyric object');
+  ok ($lyric_obj->has_column_loaded ('track_id'), 'FK present on lyric object');
+  is ($lyric_obj->lyric_versions->count, 2, 'Correct lyric versions count via the new object');
+  is_deeply (
+    [ sort $lyric_obj->lyric_versions->get_column ('text')->all ],
+    [ 'The color black', 'The colour black' ],
+    'Lyrics text in objects matches',
+  );
+
+
+  my $lyric = $schema->resultset('Lyrics')->search (
+    { 'track.title' => 'Black' },
+    { join => 'track' },
+  )->single;
+
+  is ($lyric->lyric_versions->count, 2, 'Correct lyric versions count via a new search');
+
+  is_deeply (
+    [ sort $lyric->lyric_versions->get_column ('text')->all ],
+    [ 'The color black', 'The colour black' ],
+    'Lyrics text via search matches',
+  );
+};
+diag $@ if $@;
+}
 
 # nested find_or_create
 eval {
@@ -103,7 +280,7 @@ diag $@ if $@;
 # multiple same level has_many create
 eval {
   my $artist2 = $schema->resultset('Artist')->create({
-    name => 'Fred 3',
+    name => 'Fred 4',
     cds => [
       {
         title => 'Music to code by',
@@ -510,3 +687,5 @@ eval {
   );
 };
 diag $@ if $@;
+
+1;

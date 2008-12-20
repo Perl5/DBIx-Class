@@ -19,6 +19,9 @@ columns to be of the datetime, timestamp or date datatype.
     starts_when => { data_type => 'datetime' }
   );
 
+NOTE: You B<must> load C<InflateColumn::DateTime> B<before> C<Core>. See
+L<DBIx::Class::Manual::Component> for details.
+
 Then you can treat the specified column as a L<DateTime> object.
 
   print "This event starts the month of ".
