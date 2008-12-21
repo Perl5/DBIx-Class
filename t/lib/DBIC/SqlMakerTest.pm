@@ -15,8 +15,7 @@ our @EXPORT = qw/
 
 
 {
-  package # hide from PAUSE
-    DBIC::SqlMakerTest::SQLATest;
+  package DBIC::SqlMakerTest::SQLATest;
 
   # replacement for SQL::Abstract::Test if not available
 
