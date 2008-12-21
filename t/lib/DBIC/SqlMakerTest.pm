@@ -64,7 +64,6 @@ our @EXPORT = qw/
     return $left eq $right;
   }
 
-  # lifted from SQL::Abstract::Test
   sub eq_bind
   {
     my ($bind_ref1, $bind_ref2) = @_;
