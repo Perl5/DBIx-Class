@@ -311,6 +311,8 @@ willert: Sebastian Willert <willert@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
+norbi: Norbert Buchmuller <norbi@nix.hu>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
