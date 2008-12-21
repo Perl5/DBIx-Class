@@ -17,8 +17,9 @@ my $schema = DBICTest->init_schema();
 # gets inserted. Then we add some more objects to the mix either via
 # new_related() or by setting an accessor directly (or both) - again
 # expecting no inserts. Then after calling insert() on the starter object
-# we expect everything to get inserted _except_ the externally set
-# objects - those should be insert()able afterwards
+# we expect everything supplied to new() to get inserted, as well as any
+# relations whose PK's are necessary to complete the objects supplied
+# to new(). All other objects should be insert()able afterwards too.
 
 
 my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode' });
