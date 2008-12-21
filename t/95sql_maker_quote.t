@@ -13,8 +13,6 @@ BEGIN {
         : ( tests => 12 );
 }
 
-use lib qw(t/lib);
-
 use_ok('DBICTest');
 
 my $schema = DBICTest->init_schema();
