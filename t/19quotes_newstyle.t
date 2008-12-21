@@ -3,6 +3,8 @@ use warnings;
 
 use Test::More;
 use IO::File;
+
+use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 
 BEGIN {
@@ -11,8 +13,6 @@ BEGIN {
         ? ( skip_all => 'needs DBD::SQLite for testing' )
         : ( tests => 7 );
 }
-
-use lib qw(t/lib);
 
 use_ok('DBICTest');
 use_ok('DBIC::DebugObj');

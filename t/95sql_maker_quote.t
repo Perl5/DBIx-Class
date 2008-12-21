@@ -2,8 +2,9 @@ use strict;
 use warnings;
 
 use Test::More;
-use DBIC::SqlMakerTest;
 
+use lib qw(t/lib);
+use DBIC::SqlMakerTest;
 
 BEGIN {
     eval "use DBD::SQLite";

@@ -2,9 +2,10 @@ use strict;
 use warnings;
 
 use Test::More;
-#use DBIx::Class::Storage::DBI;
-use DBIC::SqlMakerTest;
 use DBIx::Class::Storage::DBI::Oracle::WhereJoins;
+
+use lib qw(t/lib);
+use DBIC::SqlMakerTest;
 
 plan tests => 4;
 
