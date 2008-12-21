@@ -1,5 +1,4 @@
-package # hide from PAUSE
-  DBIC::SqlMakerTest;
+package DBIC::SqlMakerTest;
 
 use strict;
 use warnings;
