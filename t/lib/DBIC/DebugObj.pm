@@ -3,12 +3,9 @@ package DBIC::DebugObj;
 use strict;
 use warnings;
 
-use Exporter;
 use Class::C3;
 
-use base qw/DBIx::Class::Storage::Statistics/;
-use base qw/Exporter/;
-use base qw/Class::Accessor::Fast/;
+use base qw/DBIx::Class::Storage::Statistics Exporter Class::Accessor::Fast/;
 
 __PACKAGE__->mk_accessors( qw/dbictest_sql_ref dbictest_bind_ref/ );
 

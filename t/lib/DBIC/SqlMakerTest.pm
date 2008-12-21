@@ -5,8 +5,6 @@ use warnings;
 
 use base qw/Test::Builder::Module Exporter/;
 
-use Exporter;
-
 our @EXPORT = qw/
   &is_same_sql_bind
   &eq_sql
