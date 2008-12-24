@@ -737,8 +737,8 @@ sub get_column {
   $cd_rs = $rs->search_like({ title => '%blue%'});
 
 Performs a search, but uses C<LIKE> instead of C<=> as the condition. Note
-that this is simply a convenience method. You most likely want to use
-L</search> with specific operators.
+that this is simply a convenience method retained for ex Class::DBI users.
+You most likely want to use L</search> with specific operators.
 
 For more information, see L<DBIx::Class::Manual::Cookbook>.
 
