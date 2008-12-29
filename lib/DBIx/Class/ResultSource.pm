@@ -33,14 +33,6 @@ retrieved, most usually a table (see L<DBIx::Class::ResultSource::Table>)
 
 =pod
 
-=head2 new
-
-  $class->new();
-
-  $class->new({attribute_name => value});
-
-Creates a new ResultSource object.  Not normally called directly by end users.
-
 =cut
 
 sub new {
@@ -60,17 +52,6 @@ sub new {
 
 =pod
 
-=head2 source_info
-
-Stores a hashref of per-source metadata.  No specific key names
-have yet been standardized, the examples below are purely hypothetical
-and don't actually accomplish anything on their own:
-
-  __PACKAGE__->source_info({
-    "_tablespace" => 'fast_disk_array_3',
-    "_engine" => 'InnoDB',
-  });
-
 =head2 add_columns
 
 =over
@@ -81,9 +62,9 @@ and don't actually accomplish anything on their own:
 
 =back
 
-  $table->add_columns(qw/col1 col2 col3/);
+  $source->add_columns(qw/col1 col2 col3/);
 
-  $table->add_columns('col1' => \%col1_info, 'col2' => \%col2_info, ...);
+  $source->add_columns('col1' => \%col1_info, 'col2' => \%col2_info, ...);
 
 Adds columns to the result source. If supplied key => hashref pairs, uses
 the hashref as the column_info for that column. Repeated calls of this
@@ -177,7 +158,7 @@ L<SQL::Translator::Producer::MySQL>.
 
 =back
 
-  $table->add_column('col' => \%info?);
+  $source->add_column('col' => \%info?);
 
 Add a single column and optional column info. Uses the same column
 info keys as L</add_columns>.
@@ -213,7 +194,7 @@ sub add_column { shift->add_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =back
 
-  if ($obj->has_column($colname)) { ... }
+  if ($source->has_column($colname)) { ... }
 
 Returns true if the source has a column of this name, false otherwise.
 
@@ -234,7 +215,7 @@ sub has_column {
 
 =back
 
-  my $info = $obj->column_info($col);
+  my $info = $source->column_info($col);
 
 Returns the column metadata hashref for a column, as originally passed
 to L</add_columns>. See the description of L</add_columns> for information
@@ -271,22 +252,6 @@ sub column_info {
   }
   return $self->_columns->{$column};
 }
-
-=head2 column_info_from_storage
-
-=over
-
-=item Arguments: 1/0 (default: 0)
-
-=item Return value: 1/0
-
-=back
-
-Enables the on-demand automatic loading of the above column
-metadata from storage as neccesary.  This is *deprecated*, and
-should not be used.  It will be removed before 1.0.
-
-  __PACKAGE__->column_info_from_storage(1);
 
 =head2 columns
 
@@ -581,6 +546,101 @@ sub unique_constraint_columns {
 
   return @{ $unique_constraints{$constraint_name} };
 }
+
+=head2 resultset
+
+=over 4
+
+=item Arguments: None
+
+=item Return value: $resultset
+
+=back
+
+Returns a resultset for the given source. This will initially be created
+on demand by calling
+
+  $self->resultset_class->new($self, $self->resultset_attributes)
+
+but is cached from then on unless resultset_class changes.
+
+=head2 resultset_class
+
+=over 4
+
+=item Arguments: $classname
+
+=item Return value: $classname
+
+=back
+
+  package My::ResultSetClass;
+  use base 'DBIx::Class::ResultSet';
+  ...
+
+  $source->resultset_class('My::ResultSet::Class');
+
+Set the class of the resultset, this is useful if you want to create your
+own resultset methods. Create your own class derived from
+L<DBIx::Class::ResultSet>, and set it here. If called with no arguments,
+this method returns the name of the existing resultset class, if one
+exists.
+
+=head2 resultset_attributes
+
+=over 4
+
+=item Arguments: \%attrs
+
+=item Return value: \%attrs
+
+=back
+
+  $source->resultset_attributes({ order_by => [ 'id' ] });
+
+Store a collection of resultset attributes, that will be set on every
+L<DBIx::Class::ResultSet> produced from this result source. For a full
+list see L<DBIx::Class::ResultSet/ATTRIBUTES>.
+
+=cut
+
+sub resultset {
+  my $self = shift;
+  $self->throw_exception(
+    'resultset does not take any arguments. If you want another resultset, '.
+    'call it on the schema instead.'
+  ) if scalar @_;
+
+  return $self->resultset_class->new(
+    $self,
+    {
+      %{$self->{resultset_attributes}},
+      %{$self->schema->default_resultset_attributes}
+    },
+  );
+}
+
+=head2 source_name
+
+=over 4
+
+=item Arguments: $source_name
+
+=item Result value: $source_name
+
+=back
+
+Set an alternate name for the result source when it is loaded into a schema.
+This is useful if you want to refer to a result source by a name other than
+its class name.
+
+  package ArchivedBooks;
+  use base qw/DBIx::Class/;
+  __PACKAGE__->table('books_archive');
+  __PACKAGE__->source_name('Books');
+
+  # from your schema...
+  $schema->resultset('Books')->find(1);
 
 =head2 from
 
@@ -937,6 +997,28 @@ sub compare_relationship_keys {
   return $found;
 }
 
+=head2 sqlt_deploy_hook
+
+=over 4
+
+=item Arguments: $source, $sqlt_table
+
+=item Return value: undefined
+
+=back
+
+This is NOT a method of C<ResultSource>.
+
+An optional sub which you can declare in your own Result class that will get 
+passed the L<SQL::Translator::Schema::Table> object when you deploy the schema
+via L</create_ddl_dir> or L</deploy>.
+
+This is useful to make L<SQL::Translator> create non-unique indexes,
+or set table options such as C<Engine=INNOFB>.
+
+For an example of what you can do with this, see 
+L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
+
 =head2 resolve_join
 
 =over 4
@@ -1262,101 +1344,6 @@ sub related_class {
   return $self->schema->class($self->relationship_info($rel)->{source});
 }
 
-=head2 resultset
-
-=over 4
-
-=item Arguments: None
-
-=item Return value: $resultset
-
-=back
-
-Returns a resultset for the given source. This will initially be created
-on demand by calling
-
-  $self->resultset_class->new($self, $self->resultset_attributes)
-
-but is cached from then on unless resultset_class changes.
-
-=head2 resultset_class
-
-=over 4
-
-=item Arguments: $classname
-
-=item Return value: $classname
-
-=back
-
-  package My::ResultSetClass;
-  use base 'DBIx::Class::ResultSet';
-  ...
-
-  $source->resultset_class('My::ResultSet::Class');
-
-Set the class of the resultset, this is useful if you want to create your
-own resultset methods. Create your own class derived from
-L<DBIx::Class::ResultSet>, and set it here. If called with no arguments,
-this method returns the name of the existing resultset class, if one
-exists.
-
-=head2 resultset_attributes
-
-=over 4
-
-=item Arguments: \%attrs
-
-=item Return value: \%attrs
-
-=back
-
-  $source->resultset_attributes({ order_by => [ 'id' ] });
-
-Store a collection of resultset attributes, that will be set on every
-L<DBIx::Class::ResultSet> produced from this result source. For a full
-list see L<DBIx::Class::ResultSet/ATTRIBUTES>.
-
-=cut
-
-sub resultset {
-  my $self = shift;
-  $self->throw_exception(
-    'resultset does not take any arguments. If you want another resultset, '.
-    'call it on the schema instead.'
-  ) if scalar @_;
-
-  return $self->resultset_class->new(
-    $self,
-    {
-      %{$self->{resultset_attributes}},
-      %{$self->schema->default_resultset_attributes}
-    },
-  );
-}
-
-=head2 source_name
-
-=over 4
-
-=item Arguments: $source_name
-
-=item Result value: $source_name
-
-=back
-
-Set an alternate name for the result source when it is loaded into a schema.
-This is useful if you want to refer to a result source by a name other than
-its class name.
-
-  package ArchivedBooks;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->table('books_archive');
-  __PACKAGE__->source_name('Books');
-
-  # from your schema...
-  $schema->resultset('Books')->find(1);
-
 =head2 handle
 
 Obtain a new handle to this source. Returns an instance of a 
@@ -1386,25 +1373,42 @@ sub throw_exception {
   }
 }
 
-=head2 sqlt_deploy_hook($sqlt_table)
+=head2 source_info
 
-=over 4
+Stores a hashref of per-source metadata.  No specific key names
+have yet been standardized, the examples below are purely hypothetical
+and don't actually accomplish anything on their own:
 
-=item Arguments: $source, $sqlt_table
+  __PACKAGE__->source_info({
+    "_tablespace" => 'fast_disk_array_3',
+    "_engine" => 'InnoDB',
+  });
 
-=item Return value: undefined
+=head2 new
+
+  $class->new();
+
+  $class->new({attribute_name => value});
+
+Creates a new ResultSource object.  Not normally called directly by end users.
+
+=cut
+
+=head2 column_info_from_storage
+
+=over
+
+=item Arguments: 1/0 (default: 0)
+
+=item Return value: 1/0
 
 =back
 
-An optional sub which you can declare in your own Result class that will get 
-passed the L<SQL::Translator::Schema::Table> object when you deploy the schema
-via L</create_ddl_dir> or L</deploy>.
+Enables the on-demand automatic loading of the above column
+metadata from storage as neccesary.  This is *deprecated*, and
+should not be used.  It will be removed before 1.0.
 
-This is useful to make L<SQL::Translator> create non-unique indexes,
-or set table options such as C<Engine=INNOFB>.
-
-For an example of what you can do with this, see 
-L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
+  __PACKAGE__->column_info_from_storage(1);
 
 =head1 AUTHORS
 
