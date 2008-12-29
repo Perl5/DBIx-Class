@@ -73,6 +73,14 @@ and don't actually accomplish anything on their own:
 
 =head2 add_columns
 
+=over
+
+=item Arguments: @columns
+
+=item Return value: The ResultSource object
+
+=back
+
   $table->add_columns(qw/col1 col2 col3/);
 
   $table->add_columns('col1' => \%col1_info, 'col2' => \%col2_info, ...);
@@ -161,9 +169,18 @@ L<SQL::Translator::Producer::MySQL>.
 
 =head2 add_column
 
+=over
+
+=item Arguments: $colname, [ \%columninfo ]
+
+=item Return value: 1/0 (true/false)
+
+=back
+
   $table->add_column('col' => \%info?);
 
-Convenience alias to add_columns.
+Add a single column and optional column info. Uses the same column
+info keys as L</add_columns>.
 
 =cut
 
@@ -188,7 +205,15 @@ sub add_column { shift->add_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =head2 has_column
 
-  if ($obj->has_column($col)) { ... }
+=over
+
+=item Arguments: $colname
+
+=item Return value: 1/0 (true/false)
+
+=back
+
+  if ($obj->has_column($colname)) { ... }
 
 Returns true if the source has a column of this name, false otherwise.
 
@@ -201,10 +226,19 @@ sub has_column {
 
 =head2 column_info
 
+=over
+
+=item Arguments: $colname
+
+=item Return value: Hashref of info
+
+=back
+
   my $info = $obj->column_info($col);
 
-Returns the column metadata hashref for a column. See the description
-of add_column for information on the contents of the hashref.
+Returns the column metadata hashref for a column, as originally passed
+to L</add_columns>. See the description of L</add_columns> for information
+on the contents of the hashref.
 
 =cut
 
@@ -240,6 +274,14 @@ sub column_info {
 
 =head2 column_info_from_storage
 
+=over
+
+=item Arguments: 1/0 (default: 0)
+
+=item Return value: 1/0
+
+=back
+
 Enables the on-demand automatic loading of the above column
 metadata from storage as neccesary.  This is *deprecated*, and
 should not be used.  It will be removed before 1.0.
@@ -248,9 +290,17 @@ should not be used.  It will be removed before 1.0.
 
 =head2 columns
 
-  my @column_names = $obj->columns;
+=over
 
-Returns all column names in the order they were declared to add_columns.
+=item Arguments: None
+
+=item Return value: Ordered list of column names
+
+=back
+
+  my @column_names = $source->columns;
+
+Returns all column names in the order they were declared to L</add_columns>.
 
 =cut
 
@@ -264,15 +314,40 @@ sub columns {
 
 =head2 remove_columns
 
-  $table->remove_columns(qw/col1 col2 col3/);
+=over
 
-Removes columns from the result source.
+=item Arguments: @colnames
+
+=item Return value: undefined
+
+=back
+
+  $source->remove_columns(qw/col1 col2 col3/);
+
+Removes the given list of columns by name, from the result source.
+
+B<Warning>: Removing a column that is also used in the sources primary
+key, or in one of the sources unique constraints, B<will> result in a
+broken result source.
 
 =head2 remove_column
 
-  $table->remove_column('col');
+=over
 
-Convenience alias to remove_columns.
+=item Arguments: $colname
+
+=item Return value: undefined
+
+=back
+
+  $source->remove_column('col');
+
+Remove a single column by name from the result source, similar to
+L</remove_columns>.
+
+B<Warning>: Removing a column that is also used in the sources primary
+key, or in one of the sources unique constraints, B<will> result in a
+broken result source.
 
 =cut
 
@@ -303,12 +378,15 @@ sub remove_column { shift->remove_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =item Arguments: @cols
 
+=item Return value: undefined
+
 =back
 
 Defines one or more columns as primary key for this source. Should be
-called after C<add_columns>.
+called after L</add_columns>.
 
-Additionally, defines a unique constraint named C<primary>.
+Additionally, defines a L<unique constraint|add_unique_constraint>
+named C<primary>.
 
 The primary key columns are used by L<DBIx::Class::PK::Auto> to
 retrieve automatically created values from the database.
@@ -329,7 +407,16 @@ sub set_primary_key {
 
 =head2 primary_columns
 
-Read-only accessor which returns the list of primary keys.
+=over 4
+
+=item Arguments: None
+
+=item Return value: Ordered list of primary column names
+
+=back
+
+Read-only accessor which returns the list of primary keys, supplied by
+L</set_primary_key>.
 
 =cut
 
@@ -338,6 +425,14 @@ sub primary_columns {
 }
 
 =head2 add_unique_constraint
+
+=over 4
+
+=item Arguments: [ $name ], \@colnames
+
+=item Return value: undefined
+
+=back
 
 Declare a unique constraint on this source. Call once for each unique
 constraint.
@@ -356,6 +451,9 @@ C<table> is replaced with the table name.
 
 Unique constraints are used, for example, when you call
 L<DBIx::Class::ResultSet/find>. Only columns in the constraint are searched.
+
+Throws an error if any of the given column names do not yet exist on
+the result source.
 
 =cut
 
@@ -378,11 +476,28 @@ sub add_unique_constraint {
 
 =head2 name_unique_constraint
 
-Return a name for a unique constraint containing the specified columns. These
-names consist of the table name and each column name, separated by underscores.
+=over 4
+
+=item Arguments: @colnames
+
+=item Return value: Constraint name
+
+=back
+
+  $source->table('mytable');
+  $source->name_unique_constraint('col1', 'col2');
+  # returns
+  'mytable_col1_col2'
+
+Return a name for a unique constraint containing the specified
+columns. The name is created by joining the table name and each column
+name, using an underscore character.
 
 For example, a constraint on a table named C<cd> containing the columns
 C<artist> and C<title> would result in a constraint name of C<cd_artist_title>.
+
+This is used by L</add_unique_constraint> if you do not specify the
+optional constraint name.
 
 =cut
 
@@ -394,7 +509,20 @@ sub name_unique_constraint {
 
 =head2 unique_constraints
 
-Read-only accessor which returns the list of unique constraints on this source.
+=over 4
+
+=item Arguments: None
+
+=item Return value: Hash of unique constraint data
+
+=back
+
+  $source->unique_constraints();
+
+Read-only accessor which returns a hash of unique constraints on this source.
+
+The hash is keyed by constraint name, and contains an arrayref of
+column names as values.
 
 =cut
 
@@ -403,6 +531,16 @@ sub unique_constraints {
 }
 
 =head2 unique_constraint_names
+
+=over 4
+
+=item Arguments: None
+
+=item Return value: Unique constraint names
+
+=back
+
+  $source->unique_constraint_names();
 
 Returns the list of unique constraint names defined on this source.
 
@@ -417,6 +555,16 @@ sub unique_constraint_names {
 }
 
 =head2 unique_constraint_columns
+
+=over 4
+
+=item Arguments: $constraintname
+
+=item Return value: List of constraint columns
+
+=back
+
+  $source->unique_constraint_columns('myconstraint');
 
 Returns the list of columns that make up the specified unique constraint.
 
@@ -436,16 +584,46 @@ sub unique_constraint_columns {
 
 =head2 from
 
+=over 4
+
+=item Arguments: None
+
+=item Return value: FROM clause
+
+=back
+
+  my $from_clause = $source->from();
+
 Returns an expression of the source to be supplied to storage to specify
 retrieval from this source. In the case of a database, the required FROM
 clause contents.
 
 =head2 schema
 
+=over 4
+
+=item Arguments: None
+
+=item Return value: A schema object
+
+=back
+
+  my $schema = $source->schema();
+
 Returns the L<DBIx::Class::Schema> object that this result source 
-belongs too.
+belongs to.
 
 =head2 storage
+
+=over 4
+
+=item Arguments: None
+
+=item Return value: A Storage object
+
+=back
+
+  $source->storage->debug(1);
 
 Returns the storage handle for the current schema.
 
@@ -457,7 +635,19 @@ sub storage { shift->schema->storage; }
 
 =head2 add_relationship
 
+=over 4
+
+=item Arguments: $relname, $related_source_name, \%cond, [ \%attrs ]
+
+=item Return value: 1/true if it succeeded
+
+=back
+
   $source->add_relationship('relname', 'related_source', $cond, $attrs);
+
+L<DBIx::Class::Relationship> describes a series of methods which
+create pre-defined useful types of relationships. Look there first
+before using this method directly.
 
 The relationship name can be arbitrary, but must be unique for each
 relationship attached to this result source. 'related_source' should
@@ -470,7 +660,7 @@ the current schema. For example:
 
 The condition C<$cond> needs to be an L<SQL::Abstract>-style
 representation of the join between the tables. For example, if you're
-creating a rel from Author to Book,
+creating a relation from Author to Book,
 
   { 'foreign.author_id' => 'self.id' }
 
@@ -516,6 +706,9 @@ add_to_* method is also created, which calls C<create_related> for the
 relationship.
 
 =back
+
+Throws an exception if the condition is improperly supplied, or cannot
+be resolved using L</resolve_join>.
 
 =cut
 
@@ -567,6 +760,16 @@ sub add_relationship {
 
 =head2 relationships
 
+=over 4
+
+=item Arguments: None
+
+=item Return value: List of relationship names
+
+=back
+
+  my @relnames = $source->relationships();
+
 Returns all relationship names for this source.
 
 =cut
@@ -581,10 +784,12 @@ sub relationships {
 
 =item Arguments: $relname
 
+=item Return value: Hashref of relation data,
+
 =back
 
 Returns a hash of relationship information for the specified relationship
-name.
+name. The keys/values are as specified for L</add_relationship>.
 
 =cut
 
@@ -598,6 +803,8 @@ sub relationship_info {
 =over 4
 
 =item Arguments: $rel
+
+=item Return value: 1/0 (true/false)
 
 =back
 
@@ -616,10 +823,21 @@ sub has_relationship {
 
 =item Arguments: $relname
 
+=item Return value: Hashref of relationship data
+
 =back
 
-Returns an array of hash references of relationship information for
-the other side of the specified relationship name.
+Looks through all the relationships on the source this relationship
+points to, looking for one whose condition is the reverse of the
+condition on this relationship.
+
+A common use of this is to find the name of the C<belongs_to> relation
+opposing a C<has_many> relation. For definition of these look in
+L<DBIx::Class::Relationship>.
+
+The returned hashref is keyed by the name of the opposing
+relationship, and contains it's data in the same manner as
+L</relationship_info>.
 
 =cut
 
@@ -676,7 +894,9 @@ sub reverse_relationship_info {
 
 =over 4
 
-=item Arguments: $keys1, $keys2
+=item Arguments: \@keys1, \@keys2
+
+=item Return value: 1/0 (true/false)
 
 =back
 
@@ -722,6 +942,8 @@ sub compare_relationship_keys {
 =over 4
 
 =item Arguments: $relation
+
+=item Return value: Join condition arrayref
 
 =back
 
@@ -773,6 +995,8 @@ sub resolve_join {
 =over 4
 
 =item Arguments: $relname, $rel_data
+
+=item Return value: 1/0 (true/false)
 
 =back
 
@@ -1000,6 +1224,8 @@ sub resolve_prefetch {
 
 =item Arguments: $relname
 
+=item Return value: $source
+
 =back
 
 Returns the result source object for the given relationship.
@@ -1020,6 +1246,8 @@ sub related_source {
 
 =item Arguments: $relname
 
+=item Return value: $classname
+
 =back
 
 Returns the class name for objects in the given relationship.
@@ -1036,6 +1264,14 @@ sub related_class {
 
 =head2 resultset
 
+=over 4
+
+=item Arguments: None
+
+=item Return value: $resultset
+
+=back
+
 Returns a resultset for the given source. This will initially be created
 on demand by calling
 
@@ -1045,7 +1281,15 @@ but is cached from then on unless resultset_class changes.
 
 =head2 resultset_class
 
-` package My::ResultSetClass;
+=over 4
+
+=item Arguments: $classname
+
+=item Return value: $classname
+
+=back
+
+  package My::ResultSetClass;
   use base 'DBIx::Class::ResultSet';
   ...
 
@@ -1059,11 +1303,19 @@ exists.
 
 =head2 resultset_attributes
 
+=over 4
+
+=item Arguments: \%attrs
+
+=item Return value: \%attrs
+
+=back
+
   $source->resultset_attributes({ order_by => [ 'id' ] });
 
-Specify here any attributes you wish to pass to your specialised
-resultset. For a full list of these, please see
-L<DBIx::Class::ResultSet/ATTRIBUTES>.
+Store a collection of resultset attributes, that will be set on every
+L<DBIx::Class::ResultSet> produced from this result source. For a full
+list see L<DBIx::Class::ResultSet/ATTRIBUTES>.
 
 =cut
 
@@ -1089,10 +1341,12 @@ sub resultset {
 
 =item Arguments: $source_name
 
+=item Result value: $source_name
+
 =back
 
-Set the name of the result source when it is loaded into a schema.
-This is usefull if you want to refer to a result source by a name other than
+Set an alternate name for the result source when it is loaded into a schema.
+This is useful if you want to refer to a result source by a name other than
 its class name.
 
   package ArchivedBooks;
@@ -1134,9 +1388,20 @@ sub throw_exception {
 
 =head2 sqlt_deploy_hook($sqlt_table)
 
-An optional sub which you can declare in your own Schema class that will get 
+=over 4
+
+=item Arguments: $source, $sqlt_table
+
+=item Return value: undefined
+
+=back
+
+An optional sub which you can declare in your own Result class that will get 
 passed the L<SQL::Translator::Schema::Table> object when you deploy the schema
 via L</create_ddl_dir> or L</deploy>.
+
+This is useful to make L<SQL::Translator> create non-unique indexes,
+or set table options such as C<Engine=INNOFB>.
 
 For an example of what you can do with this, see 
 L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
