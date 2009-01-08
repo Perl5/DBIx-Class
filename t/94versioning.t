@@ -16,10 +16,10 @@ BEGIN {
     unless ($dsn);
 
 
-    eval "use DBD::Pg; use SQL::Translator 0.09;";
+    eval "use DBD::mysql; use SQL::Translator 0.09;";
     plan $@
         ? ( skip_all => 'needs DBD::mysql and SQL::Translator 0.09 for testing' )
-        : ( tests => 21 );
+        : ( tests => 22 );
 }
 
 my $version_table_name = 'dbix_class_schema_versions';
@@ -27,21 +27,21 @@ my $old_table_name = 'SchemaVersions';
 
 my $ddl_dir = File::Spec->catdir ('t', 'var');
 my $fn = {
-    v1 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-1.0-PostgreSQL.sql'),
-    v2 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-2.0-PostgreSQL.sql'),
-    trans => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-1.0-2.0-PostgreSQL.sql'),
+    v1 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-1.0-MySQL.sql'),
+    v2 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-2.0-MySQL.sql'),
+    trans => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-1.0-2.0-MySQL.sql'),
 };
 
 use lib qw(t/lib);
-use_ok('DBICVersionNew');
+use_ok('DBICVersionOrig');
 
 my $schema_orig = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
 eval { $schema_orig->storage->dbh->do('drop table ' . $version_table_name) };
 eval { $schema_orig->storage->dbh->do('drop table ' . $old_table_name) };
 
-is($schema_orig->ddl_filename('PostgreSQL', '1.0', $ddl_dir), $fn->{v1}, 'Filename creation working');
+is($schema_orig->ddl_filename('MySQL', '1.0', $ddl_dir), $fn->{v1}, 'Filename creation working');
 unlink( $fn->{v1} ) if ( -e $fn->{v1} );
-$schema_orig->create_ddl_dir('PostgreSQL', undef, $ddl_dir);
+$schema_orig->create_ddl_dir('MySQL', undef, $ddl_dir);
 
 ok(-f $fn->{v1}, 'Created DDL file');
 $schema_orig->deploy({ add_drop_table => 1 });
@@ -60,7 +60,7 @@ my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_v
 
   is($schema_upgrade->get_db_version(), '1.0', 'get_db_version ok');
   is($schema_upgrade->schema_version, '2.0', 'schema version ok');
-  $schema_upgrade->create_ddl_dir('PostgreSQL', '2.0', $ddl_dir, '1.0');
+  $schema_upgrade->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0');
   ok(-f $fn->{trans}, 'Created DDL file');
 
   {
@@ -70,7 +70,7 @@ my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_v
     sleep 1;    # remove this when TODO below is completed
 
     $schema_upgrade->upgrade();
-#     like ($w, qr/CREATE TABLE\.$/, 'Warn before upgrade');
+    like ($w, qr/Attempting upgrade\.$/, 'Warn before upgrade');
   }
 
   is($schema_upgrade->get_db_version(), '2.0', 'db version number upgraded');
@@ -90,7 +90,7 @@ my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_v
       warn @_;
     }
   };
-  $schema_upgrade->create_ddl_dir('PostgreSQL', '2.0', $ddl_dir, '1.0');
+  $schema_upgrade->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0');
 
   is (2, @w, 'A warning generated for both the DDL and the diff');
   like ($w[0], qr/^Overwriting existing DDL file - $fn->{v2}/, 'New version DDL overwrite warning');
@@ -106,7 +106,7 @@ my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_v
 
   eval {
     $schema_version->storage->dbh->do("DROP TABLE IF EXISTS $old_table_name");
-    $schema_version->storage->dbh->do("ALTER TABLE $version_table_name RENAME TO $old_table_name");
+    $schema_version->storage->dbh->do("RENAME TABLE $version_table_name TO $old_table_name");
   };
   is($@, '', 'versions table renamed to old style table');
 
