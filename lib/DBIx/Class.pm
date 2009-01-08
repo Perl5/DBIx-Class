@@ -287,6 +287,8 @@ rdj: Ryan D Johnson <ryan@innerfence.com>
 
 ribasushi: Peter Rabbitson <rabbit@rabbit.us>
 
+rjbs: Ricardo Signes <rjbs@cpan.org>
+
 sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>
