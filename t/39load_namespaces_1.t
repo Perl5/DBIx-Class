@@ -7,7 +7,7 @@ use FindBin;
 use lib "$FindBin::Bin/../t/lib";
 use DBICNSTest::Result::A;
 
-plan tests => 7;
+plan tests => 8;
 
 my $warnings;
 eval {
@@ -28,7 +28,8 @@ my $source_b = DBICNSTest->source('B');
 isa_ok($source_b, 'DBIx::Class::ResultSource::Table');
 my $rset_b   = DBICNSTest->resultset('B');
 isa_ok($rset_b, 'DBIx::Class::ResultSet');
-ok(
-   $source_b->source_name
-   eq DBICNSTest::Result::B->result_source_instance->source_name
-);
+
+for my $moniker (qw/A B/) {
+  my $class = "DBICNSTest::Result::$moniker";
+  ok(!defined($class->result_source_instance->source_name));
+}
