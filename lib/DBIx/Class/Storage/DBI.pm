@@ -926,7 +926,7 @@ sub _do_connection_actions {
     $self->_do_query($_) foreach @$connection_do;
   }
   elsif (ref $connection_do eq 'CODE') {
-    $connection_do->();
+    $connection_do->($self);
   }
 
   return $self;
