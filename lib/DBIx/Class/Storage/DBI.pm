@@ -911,11 +911,11 @@ sub _populate_dbh {
     }
   }
 
-  my $connection_do = $self->on_connect_do;
-  $self->_do_connection_actions($connection_do) if ref($connection_do);
-
   $self->_conn_pid($$);
   $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
+
+  my $connection_do = $self->on_connect_do;
+  $self->_do_connection_actions($connection_do) if ref($connection_do);
 }
 
 sub _do_connection_actions {
