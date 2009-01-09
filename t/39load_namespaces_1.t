@@ -3,9 +3,8 @@
 use strict;
 use warnings;
 use Test::More;
-use FindBin;
-use lib "$FindBin::Bin/../t/lib";
-use DBICNSTest::Result::A;
+
+unshift(@INC, './t/lib');
 
 plan tests => 8;
 
