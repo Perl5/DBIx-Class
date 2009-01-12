@@ -2104,9 +2104,8 @@ sub related_resultset {
 
 =back
 
-Returns the current alias of the result source that corrensponds to the result
-set (this alias will eventually be used as the SQL table alias in the SQL
-query). Usually it is C<me>.
+Returns the current table alias for the result source this resultset is built
+on, that will be used in the SQL query. Usually it is C<me>.
 
 Currently the source alias that refers to the result set returned by a
 L</search>/L</find> family method depends on how you got to the resultset: it's
