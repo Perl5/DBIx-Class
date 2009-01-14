@@ -217,6 +217,8 @@ bluefeet: Aran Deltac <bluefeet@cpan.org>
 
 bricas: Brian Cassidy <bricas@cpan.org>
 
+caelum: Rafael Kitover <rkitover@cpan.org>
+
 captainL: Luke Saunders <luke.saunders@gmail.com>
 
 castaway: Jess Robinson
