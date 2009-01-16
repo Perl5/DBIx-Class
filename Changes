@@ -5,8 +5,10 @@ Revision history for DBIx::Class
         - 'result_class' resultset attribute, identical to result_class()
         - add 'undef_on_null_fk' option for relationship accessors of type 'single'. 
           This will prevent DBIC from querying the database if one or more of
-          the key columns IS NULL. Tests + docs (groditi)
-           - for 'belongs_to' rels, 'null_on_fk' defaults to true.
+          the key columns IS NULL
+        - for 'belongs_to' rels, 'undef_on_null_fk' defaults to true.
+        - fixed scope unaware last_insert_id fetching for MSSQL
+          (http://msdn.microsoft.com/en-us/library/ms190315.aspx)
 
 0.08099_05 2008-10-30 21:30:00 (UTC)
         - Rewritte of Storage::DBI::connect_info(), extended with an
