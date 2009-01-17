@@ -8,6 +8,7 @@ no warnings qw/qw/;
 __PACKAGE__->load_classes(qw/
   Artist
   SequenceTest
+  BindType
   Employee
   CD
   FileColumn
