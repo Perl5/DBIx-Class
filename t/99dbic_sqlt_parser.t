@@ -5,14 +5,16 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
+
 BEGIN {
     eval "use DBD::mysql; use SQL::Translator 0.09;";
-    plan $@
-        ? ( skip_all => 'needs SQL::Translator 0.09 for testing' )
-        : ( tests => 114 );
+    if ($@) {
+        plan skip_all => 'needs SQL::Translator 0.09 for testing';
+    }
 }
 
 my $schema = DBICTest->init_schema();
+plan tests => ($schema->sources * 3);
 
 { 
 	my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { } } });
