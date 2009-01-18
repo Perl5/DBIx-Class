@@ -50,27 +50,6 @@ sub new {
   $self;
 }
 
-sub _RowNumberOver {
-  my ($self, $sql, $order, $rows, $offset ) = @_;
-
-  $offset += 1;
-  my $last = $rows + $offset;
-  my ( $order_by ) = $self->_order_by( $order );
-
-  $sql = <<"";
-SELECT * FROM
-(
-   SELECT Q1.*, ROW_NUMBER() OVER( ) AS ROW_NUM FROM (
-      $sql
-      $order_by
-   ) Q1
-) Q2
-WHERE ROW_NUM BETWEEN $offset AND $last
-
-  return $sql;
-}
-
-
 # While we're at it, this should make LIMIT queries more efficient,
 #  without digging into things too deeply
 use Scalar::Util 'blessed';
@@ -181,6 +160,9 @@ sub _order_by {
     }
     if (defined $_[0]->{order_by}) {
       $ret .= $self->_order_by($_[0]->{order_by});
+    }
+    if (grep { $_ =~ /^-(desc|asc)/i } keys %{$_[0]}) {
+      return $self->SUPER::_order_by($_[0]);
     }
   } elsif (ref $_[0] eq 'SCALAR') {
     $ret = $self->_sqlcase(' order by ').${ $_[0] };
@@ -880,7 +862,7 @@ sub dbh {
 sub _sql_maker_args {
     my ($self) = @_;
     
-    return ( bindtype=>'columns', limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
+    return ( bindtype=>'columns', array_datatypes => 1, limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
 }
 
 sub sql_maker {
@@ -1221,7 +1203,8 @@ sub _dbh_execute {
     }
 
     foreach my $data (@data) {
-      $data = ref $data ? ''.$data : $data; # stringify args
+      my $ref = ref $data;
+      $data = $ref && $ref ne 'ARRAY' ? ''.$data : $data; # stringify args (except arrayrefs)
 
       $sth->bind_param($placeholder_index, $data, $attributes);
       $placeholder_index++;

@@ -9,7 +9,7 @@ use DBICTest;
 BEGIN {
     eval "use DBD::mysql; use SQL::Translator 0.09;";
     if ($@) {
-        plan skip_all => 'needs SQL::Translator 0.09 for testing';
+        plan skip_all => 'needs DBD::mysql and SQL::Translator 0.09 for testing';
     }
 }
 

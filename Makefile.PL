@@ -33,6 +33,7 @@ test_requires 'DBD::SQLite'         => 1.14;
 test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Warn'          => 0.11;
 test_requires 'Test::Exception'     => 0;
+test_requires 'Test::Deep'          => 0;
 
 install_script 'script/dbicadmin';
 
