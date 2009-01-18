@@ -6,7 +6,7 @@ use Test::More;
 
 unshift(@INC, './t/lib');
 
-plan tests => 6;
+plan tests => 8;
 
 my $warnings;
 eval {
@@ -27,3 +27,8 @@ my $source_b = DBICNSTest->source('B');
 isa_ok($source_b, 'DBIx::Class::ResultSource::Table');
 my $rset_b   = DBICNSTest->resultset('B');
 isa_ok($rset_b, 'DBIx::Class::ResultSet');
+
+for my $moniker (qw/A B/) {
+  my $class = "DBICNSTest::Result::$moniker";
+  ok(!defined($class->result_source_instance->source_name));
+}

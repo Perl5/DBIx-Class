@@ -39,6 +39,9 @@ See L<DBIx::Class::Manual::Cookbook> for more.
 
 =head1 DESCRIPTION
 
+The word I<Relationship> has a specific meaning in DBIx::Class, see
+the definition in the L<Glossary|DBIx::Class::Manual::Glossary/Relationship>.
+
 This class provides methods to set up relationships between the tables
 in your database model. Relationships are the most useful and powerful
 technique that L<DBIx::Class> provides. To create efficient database queries,
@@ -102,20 +105,20 @@ L<DBIx::Class::Relationship::Base>.
 
 All helper methods are called similar to the following template:
 
-  __PACKAGE__->$method_name('relname', 'Foreign::Class', $cond, $attrs);
+  __PACKAGE__->$method_name('relname', 'Foreign::Class', \%cond | \@cond, \%attrs);
   
 Both C<$cond> and C<$attrs> are optional. Pass C<undef> for C<$cond> if
-you want to use the default value for it, but still want to set C<$attrs>.
+you want to use the default value for it, but still want to set C<\%attrs>.
 
 See L<DBIx::Class::Relationship::Base> for documentation on the
-attrubutes that are allowed in the C<$attrs> argument.
+attrubutes that are allowed in the C<\%attrs> argument.
 
 
 =head2 belongs_to
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $our_fk_column|\%cond|\@cond?, \%attr?
+=item Arguments: $accessor_name, $related_class, $our_fk_column|\%cond|\@cond?, \%attrs?
 
 =back
 
@@ -225,7 +228,7 @@ which can be assigned to relationships as well.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond?, \%attr?
+=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond?, \%attrs?
 
 =back
 
@@ -358,7 +361,7 @@ which can be assigned to relationships as well.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond?, \%attr?
+=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond?, \%attrs?
 
 =back
 
@@ -442,7 +445,7 @@ which can be assigned to relationships as well.
 
 =over 4
 
-=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond?, \%attr?
+=item Arguments: $accessor_name, $related_class, $their_fk_column|\%cond|\@cond?, \%attrs?
 
 =back
 
@@ -529,9 +532,13 @@ which can be assigned to relationships as well.
 
 =over 4
 
-=item Arguments: $accessor_name, $link_rel_name, $foreign_rel_name, \%attr?
+=item Arguments: $accessor_name, $link_rel_name, $foreign_rel_name, \%attrs?
 
 =back
+
+C<many_to_many> is a I<Relationship bridge> which has a specific
+meaning in DBIx::Class, see the definition in the
+L<Glossary|DBIx::Class::Manual::Glossary/Relationship bridge>.
 
 C<many_to_many> is not strictly a relationship in its own right. Instead, it is
 a bridge between two resultsets which provide the same kind of convenience

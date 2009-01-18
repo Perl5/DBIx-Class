@@ -211,7 +211,6 @@ sub load_namespaces {
     foreach my $result (keys %results) {
       my $result_class = $results{$result};
       $class->ensure_class_loaded($result_class);
-      $result_class->source_name($result) unless $result_class->source_name;
 
       my $rs_class = delete $resultsets{$result};
       my $rs_set = $result_class->resultset_class;
@@ -226,7 +225,9 @@ sub load_namespaces {
         $result_class->resultset_class($rs_class);
       }
 
-      push(@to_register, [ $result_class->source_name, $result_class ]);
+      my $source_name = $result_class->source_name || $result;
+
+      push(@to_register, [ $source_name, $result_class ]);
     }
   }
 
@@ -1228,7 +1229,7 @@ sub register_extra_source {
 sub _register_source {
   my ($self, $moniker, $source, $params) = @_;
 
-  %$source = %{ $source->new( { %$source, source_name => $moniker }) };
+  $source = $source->new({ %$source, source_name => $moniker });
 
   my %reg = %{$self->source_registrations};
   $reg{$moniker} = $source;

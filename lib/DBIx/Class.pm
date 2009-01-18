@@ -287,6 +287,8 @@ rdj: Ryan D Johnson <ryan@innerfence.com>
 
 ribasushi: Peter Rabbitson <rabbit@rabbit.us>
 
+rjbs: Ricardo Signes <rjbs@cpan.org>
+
 sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>
@@ -310,6 +312,8 @@ wdh: Will Hawes
 willert: Sebastian Willert <willert@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
+
+norbi: Norbert Buchmuller <norbi@nix.hu>
 
 =head1 LICENSE
 

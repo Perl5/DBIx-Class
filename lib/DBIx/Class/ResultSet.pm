@@ -737,8 +737,8 @@ sub get_column {
   $cd_rs = $rs->search_like({ title => '%blue%'});
 
 Performs a search, but uses C<LIKE> instead of C<=> as the condition. Note
-that this is simply a convenience method. You most likely want to use
-L</search> with specific operators.
+that this is simply a convenience method retained for ex Class::DBI users.
+You most likely want to use L</search> with specific operators.
 
 For more information, see L<DBIx::Class::Manual::Cookbook>.
 
@@ -2092,6 +2092,50 @@ sub related_resultset {
     $new->set_cache($new_cache) if $new_cache;
     $new;
   };
+}
+
+=head2 current_source_alias
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $source_alias
+
+=back
+
+Returns the current alias of the result source that corrensponds to the result
+set (this alias will eventually be used as the SQL table alias in the SQL
+query). Usually it is C<me>.
+
+Currently the source alias that refers to the result set returned by a
+L</search>/L</find> family method depends on how you got to the resultset: it's
+C<me> by default, but eg. L</search_related> aliases it to the related result
+source name (and keeps C<me> referring to the original result set). The long
+term goal is to make L<DBIx::Class> always alias the current resultset as C<me>
+(and make this method unnecessary).
+
+Thus it's currently necessary to use this method in predefined queries (see
+L<DBIx::Class::Manual::Cookbook/Predefined searches>) when referring to the
+source alias of the current result set:
+
+  # in a result set class
+  sub modified_by {
+    my ($self, $user) = @_;
+
+    my $me = $self->current_source_alias;
+
+    return $self->search(
+      "$me.modified" => $user->id,
+    );
+  }
+
+=cut
+
+sub current_source_alias {
+  my ($self) = @_;
+
+  return ($self->{attrs} || {})->{alias} || 'me';
 }
 
 sub _resolve_from {
