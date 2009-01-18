@@ -25,20 +25,6 @@ sub _rebless {
     }
 }
 
-sub _svp_begin {
-    my ($self, $name) = @_;
- 
-    $self->dbh->do("SAVEPOINT $name");
-}
-
-# Would've implemented _svp_release here, but Oracle doesn't support it.
-
-sub _svp_rollback {
-    my ($self, $name) = @_;
-
-    $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
-}
-
 1;
 
 =head1 NAME

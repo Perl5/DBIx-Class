@@ -1268,7 +1268,7 @@ characters to use. C<name_sep> needs to be set to allow the SQL
 generator to put the quotes the correct place.
 
 In most cases you should set these as part of the arguments passed to 
-L<DBIx::Class::Schema/conect>:
+L<DBIx::Class::Schema/connect>:
 
  my $schema = My::Schema->connect(
   'dbi:mysql:my_db',
