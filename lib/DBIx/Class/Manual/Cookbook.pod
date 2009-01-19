@@ -151,7 +151,36 @@ Next, you can execute your complex query using bind parameters like this:
     }
   ) ];
   
-... and you'll get back a perfect L<DBIx::Class::ResultSet>.
+... and you'll get back a perfect L<DBIx::Class::ResultSet> (except, of course,
+that you cannot modify the rows it contains, ie. cannot call L</update>,
+L</delete>, ...  on it).
+
+If you prefer to have the definitions of these custom ResultSources in separate
+files (instead of stuffing all of them into the same resultset class), you can
+achieve the same with subclassing the resultset class and defining the
+ResultSource there:
+
+  package My::Schema::UserFriendsComplex;
+
+  use My::Schema::User;
+  use base qw/My::Schema::User/;
+
+  __PACKAGE__->table('dummy');  # currently must be called before anything else
+
+  # Hand in your query as a scalar reference
+  # It will be added as a sub-select after FROM,
+  # so pay attention to the surrounding brackets!
+  __PACKAGE__->name( \<<SQL );
+  ( SELECT u.* FROM user u
+  INNER JOIN user_friends f ON u.id = f.user_id
+  WHERE f.friend_user_id = ?
+  UNION
+  SELECT u.* FROM user u
+  INNER JOIN user_friends f ON u.id = f.friend_user_id
+  WHERE f.user_id = ? )
+  SQL
+
+TIMTOWDI.
 
 =head2 Using specific columns
 
