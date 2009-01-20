@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 84;
+plan tests => 86;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -335,10 +335,29 @@ ok(!$@, "stringify to false value doesn't cause error");
 
 # test remove_columns
 {
-  is_deeply([$schema->source('CD')->columns], [qw/cdid artist title year genreid single_track/]);
-  $schema->source('CD')->remove_columns('year');
-  is_deeply([$schema->source('CD')->columns], [qw/cdid artist title genreid single_track/]);
-  ok(! exists $schema->source('CD')->_columns->{'year'}, 'year still exists in _columns');
+  is_deeply(
+    [$schema->source('CD')->columns],
+    [qw/cdid artist title year genreid single_track/],
+    'initial columns',
+  );
+
+  $schema->source('CD')->remove_columns('coolyear'); #should not delete year
+  is_deeply(
+    [$schema->source('CD')->columns],
+    [qw/cdid artist title year genreid single_track/],
+    'nothing removed when removing a non-existent column',
+  );
+
+  $schema->source('CD')->remove_columns('genreid', 'year');
+  is_deeply(
+    [$schema->source('CD')->columns],
+    [qw/cdid artist title single_track/],
+    'removed two columns',
+  );
+
+  my $priv_columns = $schema->source('CD')->_columns;
+  ok(! exists $priv_columns->{'year'}, 'year purged from _columns');
+  ok(! exists $priv_columns->{'genreid'}, 'genreid purged from _columns');
 }
 
 # test get_inflated_columns with objects

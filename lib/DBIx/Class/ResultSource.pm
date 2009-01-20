@@ -318,22 +318,18 @@ broken result source.
 =cut
 
 sub remove_columns {
-  my ($self, @cols) = @_;
+  my ($self, @to_remove) = @_;
 
-  return unless $self->_ordered_columns;
+  my $columns = $self->_columns
+    or return;
 
-  my $columns = $self->_columns;
-  my @remaining;
-
-  foreach my $col (@{$self->_ordered_columns}) {
-    push @remaining, $col unless grep(/$col/, @cols);
+  my %to_remove;
+  for (@to_remove) {
+    delete $columns->{$_};
+    ++$to_remove{$_};
   }
 
-  foreach (@cols) {
-    delete $columns->{$_};
-  };
-
-  $self->_ordered_columns(\@remaining);
+  $self->_ordered_columns([ grep { not $to_remove{$_} } @{$self->_ordered_columns} ]);
 }
 
 sub remove_column { shift->remove_columns(@_); } # DO NOT CHANGE THIS TO GLOB
