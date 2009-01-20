@@ -5,7 +5,10 @@ use Test::More;
 use lib qw(t/lib);
 use Data::Dumper;
 
-plan tests => 2;
+plan ( ($] >= 5.009000 and $] < 5.010001)
+  ? (skip_all => 'warnings::register broken under 5.10: http://rt.perl.org/rt3/Public/Bug/Display.html?id=62522')
+  : (tests => 2)
+);
 
 {
   my @w; 
