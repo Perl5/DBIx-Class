@@ -13,7 +13,7 @@ use base qw/DBIx::Class/;
 __PACKAGE__->mk_group_accessors('simple' => qw/_ordered_columns
   _columns _primaries _unique_constraints name resultset_attributes
   schema from _relationships column_info_from_storage source_info
-  source_name/);
+  source_name sqlt_deploy_callback/);
 
 __PACKAGE__->mk_group_accessors('component_class' => qw/resultset_class
   result_class/);
@@ -47,6 +47,7 @@ sub new {
   $new->{_relationships} = { %{$new->{_relationships}||{}} };
   $new->{name} ||= "!!NAME NOT SET!!";
   $new->{_columns_info_loaded} ||= 0;
+  $new->{sqlt_deploy_callback} ||= "default_sqlt_deploy_hook";
   return $new;
 }
 
@@ -1409,6 +1410,49 @@ metadata from storage as neccesary.  This is *deprecated*, and
 should not be used.  It will be removed before 1.0.
 
   __PACKAGE__->column_info_from_storage(1);
+
+=cut
+
+=head2 sqlt_deploy_hook($sqlt_table)
+
+Triggers C<sqlt_deploy_callback>.
+
+=cut
+
+sub sqlt_deploy_hook {
+  my $self = shift;
+  if ( my $hook = $self->sqlt_deploy_callback) {
+    $self->$hook(@_);
+  }
+}
+
+=head2 default_sqlt_deploy_hook($table)
+
+Delegates to a an optional C<sqlt_deploy_hook> method on the C<result_class>.
+
+This will get passed the L<SQL::Translator::Schema::Table> object when you
+deploy the schema via L</create_ddl_dir> or L</deploy>.
+
+For an example of what you can do with this, see 
+L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
+
+=cut
+
+sub default_sqlt_deploy_hook {
+  my $self = shift;
+
+  my $class = $self->result_class;
+
+  if ($class and $class->can('sqlt_deploy_hook')) {
+    $class->sqlt_deploy_hook(@_);
+  }
+}
+
+=head2 sqlt_deploy_callback
+
+An attribute which contains the callback to trigger on C<sqlt_deploy_hook>.
+Defaults to C<default_sqlt_deploy_hook>. Can be a code reference or a method
+name.
 
 =head1 AUTHORS
 

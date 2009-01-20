@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 131;
+plan tests => 132;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -25,6 +25,17 @@ my $translator = SQL::Translator->new(
 
     my $relinfo = $schema->source('Artist')->relationship_info ('cds');
     local $relinfo->{attrs}{on_delete} = 'restrict';
+
+    $schema->source('Track')->sqlt_deploy_callback(sub {
+      my ($self, $sqlt_table) = @_;
+
+      if ($sqlt_table->schema->translator->producer_type =~ /SQLite$/ ) {
+        $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
+          or die $sqlt_table->error;
+      }
+
+      $self->default_sqlt_deploy_hook($sqlt_table);
+    });
 
     $translator->parser('SQL::Translator::Parser::DBIx::Class');
     $translator->producer('SQLite');
@@ -258,7 +269,12 @@ my %indexes = (
     {
       'fields' => ['name']
     },
-  ]
+  ],
+  track => [
+    {
+      'fields' => ['title']
+    }
+  ],
 );
 
 my $tschema = $translator->schema();
@@ -300,7 +316,6 @@ for my $expected_constraints (keys %unique_constraints) {
 
 for my $table_index (keys %indexes) {
   for my $expected_index ( @{ $indexes{$table_index} } ) {
-
     ok ( get_index($table_index, $expected_index), "Got a matching index on $table_index table");
   }
 }
