@@ -287,7 +287,7 @@ rafl: Florian Ragwitz <rafl@debian.org>
 
 rdj: Ryan D Johnson <ryan@innerfence.com>
 
-ribasushi: Peter Rabbitson <rabbit@rabbit.us>
+ribasushi: Peter Rabbitson <rabbit+dbic@rabbit.us>
 
 rjbs: Ricardo Signes <rjbs@cpan.org>
 
