@@ -27,8 +27,6 @@ plan ( ($] >= 5.009000 and $] < 5.010001)
   my $code = gen_code ( suffix => 2, no_warn => 1 );
   eval "$code";
 
-diag Dumper \@w;
-
   ok ( (not grep { $_ =~ /The many-to-many relationship bars is trying to create/ } @w), "No warning triggered with relevant 'no warnings'");
 }
 
