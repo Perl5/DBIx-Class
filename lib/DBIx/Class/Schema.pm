@@ -440,6 +440,13 @@ L</create_ddl_dir> or L</deploy>.
 For an example of what you can do with this, see 
 L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
 
+Note that sqlt_deploy_hook is called by L</deployment_statements>, which in turn
+is called before L</deploy>. Therefore the hook can be used only to manipulate
+the L<SQL::Translator::Schema> object before it is turned into SQL fed to the
+database. If you want to execute post-deploy statements which can not be generated
+by L<SQL::Translator>, the currently suggested method is to overload L</deploy>
+and use L<dbh_do|DBIx::Class::Storage::DBI/dbh_do>.
+
 =head1 METHODS
 
 =head2 connect

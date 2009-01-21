@@ -994,28 +994,6 @@ sub compare_relationship_keys {
   return $found;
 }
 
-=head2 sqlt_deploy_hook
-
-=over 4
-
-=item Arguments: $source, $sqlt_table
-
-=item Return value: undefined
-
-=back
-
-This is NOT a method of C<ResultSource>.
-
-An optional sub which you can declare in your own Result class that will get 
-passed the L<SQL::Translator::Schema::Table> object when you deploy the schema
-via L</create_ddl_dir> or L</deploy>.
-
-This is useful to make L<SQL::Translator> create non-unique indexes,
-or set table options such as C<Engine=INNOFB>.
-
-For an example of what you can do with this, see 
-L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
-
 =head2 resolve_join
 
 =over 4
@@ -1409,9 +1387,36 @@ should not be used.  It will be removed before 1.0.
 
 =cut
 
-=head2 sqlt_deploy_hook($sqlt_table)
+=head2 sqlt_deploy_hook
 
-Triggers C<sqlt_deploy_callback>.
+=over 4
+
+=item Arguments: $source, $sqlt_table
+
+=item Return value: undefined
+
+=back
+
+An optional sub which you can declare in your own Result class that will get 
+passed the L<SQL::Translator::Schema::Table> object when you deploy the schema
+via L</create_ddl_dir> or L</deploy>.
+
+This is useful to make L<SQL::Translator> create non-unique indexes, or set
+table options such as C<Engine=INNODB>. For an example of what you can do with
+this, see
+L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
+
+Note that sqlt_deploy_hook is called by 
+L<DBIx::Class::Schema/deployment_statements>, which in turn is called before
+L<DBIx::Class::Schema/deploy>. Therefore the hook can be used only to manipulate
+the L<SQL::Translator::Table> object before it is turned into SQL fed to the
+database. If you want to execute post-deploy statements which can not be generated
+by L<SQL::Translator>, the currently suggested method is to overload
+L<DBIx::Class::Storage/deploy> and use L<dbh_do|DBIx::Class::Storage::DBI/dbh_do>.
+
+Starting from DBIC 0.08100 a simple hook is inherited by all result sources, which
+invokes the method or coderef specified in L</sqlt_deploy_callback>. You can still
+overload this method like in older DBIC versions without any compatibility issues.
 
 =cut
 
@@ -1421,6 +1426,14 @@ sub sqlt_deploy_hook {
     $self->$hook(@_);
   }
 }
+
+=head2 sqlt_deploy_callback
+
+An attribute which contains the callback to trigger on C<sqlt_deploy_hook>.
+Defaults to C<default_sqlt_deploy_hook>. Can be a code reference or the name
+of a method in a result class. You would change the default value in case you
+want to share a hook between several result sources, or if you want to use a
+result source without a declared result class.
 
 =head2 default_sqlt_deploy_hook($table)
 
@@ -1444,11 +1457,6 @@ sub default_sqlt_deploy_hook {
   }
 }
 
-=head2 sqlt_deploy_callback
-
-An attribute which contains the callback to trigger on C<sqlt_deploy_hook>.
-Defaults to C<default_sqlt_deploy_hook>. Can be a code reference or a method
-name.
 
 =head1 AUTHORS
 

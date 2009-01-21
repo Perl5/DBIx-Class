@@ -820,7 +820,7 @@ above is not fast enough for you, you can use a DBIx::Class to return values
 exactly as they come out of the data base with none of the convenience methods
 wrapped round them.
 
-This is used like so:-
+This is used like so:
 
   my $cursor = $rs->cursor
   while (my @vals = $cursor->next) {
@@ -1167,7 +1167,9 @@ C<oracles.heavily(nested(functions_can('take', 'lots'), OF), 'args')>
 
 Often you will want indexes on columns on your table to speed up searching. To
 do this, create a method called C<sqlt_deploy_hook> in the relevant source 
-class:
+class (refer to the advanced 
+L<callback system|DBIx::Class::ResultSource/sqlt_deploy_callback> if you wish
+to share a hook between multiple sources):
 
  package My::Schema::Artist;
 
@@ -1201,9 +1203,11 @@ created:
    $sqlt_schema->drop_table('table_name');
  }
 
-You could also add views or procedures to the output using 
-L<SQL::Translator::Schema/add_view> or 
-L<SQL::Translator::Schema/add_procedure>.
+You could also add views, procedures or triggers to the output using
+L<SQL::Translator::Schema/add_view>,
+L<SQL::Translator::Schema/add_procedure> or
+L<SQL::Translator::Schema/add_trigger>.
+
 
 =head2 Schema versioning
 
