@@ -1506,7 +1506,7 @@ sub populate {
 
 =head2 _normalize_populate_args ($args)
 
-Private method used by L</populate> to normalize it's incoming arguments.  Factored
+Private method used by L</populate> to normalize its incoming arguments.  Factored
 out in case you want to subclass and accept new argument structures to the
 L</populate> method.
 
@@ -1725,7 +1725,7 @@ sub _remove_alias {
   $cd->cd_to_producer->find_or_new({ producer => $producer },
                                    { key => 'primary });
 
-Find an existing record from this resultset, based on it's primary
+Find an existing record from this resultset, based on its primary
 key, or a unique constraint. If none exists, instantiate a new result
 object and return it. The object will not be saved into your storage
 until you call L<DBIx::Class::Row/insert> on it.
@@ -1771,7 +1771,7 @@ To create one row for this resultset, pass a hashref of key/value
 pairs representing the columns of the table and the values you wish to
 store. If the appropriate relationships are set up, foreign key fields
 can also be passed an object representing the foreign row, and the
-value will be set to it's primary key.
+value will be set to its primary key.
 
 To create related objects, pass a hashref for the value if the related
 item is a foreign key relationship (L<DBIx::Class::Relationship/belongs_to>),
