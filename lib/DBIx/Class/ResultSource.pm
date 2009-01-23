@@ -72,7 +72,7 @@ the hashref as the column_info for that column. Repeated calls of this
 method will add more columns, not replace them.
 
 The column names given will be created as accessor methods on your
-L<DBIx::Class::Row> objects, you can change the name of the accessor
+L<DBIx::Class::Row> objects. You can change the name of the accessor
 by supplying an L</accessor> in the column_info hash.
 
 The contents of the column_info are not set in stone. The following
@@ -136,7 +136,7 @@ automatically.
 =item auto_nextval
 
 Set this to a true value for a column whose value is retrieved
-automatically from an oracle sequence. If you do not use an oracle
+automatically from an oracle sequence. If you do not use an Oracle
 trigger to get the nextval, you have to set sequence as well.
 
 =item extra
@@ -647,7 +647,7 @@ but is cached from then on unless resultset_class changes.
 
   $source->resultset_class('My::ResultSet::Class');
 
-Set the class of the resultset, this is useful if you want to create your
+Set the class of the resultset. This is useful if you want to create your
 own resultset methods. Create your own class derived from
 L<DBIx::Class::ResultSet>, and set it here. If called with no arguments,
 this method returns the name of the existing resultset class, if one
