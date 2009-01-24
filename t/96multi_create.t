@@ -10,7 +10,7 @@ plan tests => 85;
 
 my $schema = DBICTest->init_schema();
 
-diag '* simple create + parent (the stuff $rs belongs_to)'
+diag '* simple create + parent (the stuff $rs belongs_to)';
 eval {
   my $cd = $schema->resultset('CD')->create({
     artist => { 
