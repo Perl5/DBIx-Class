@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 74;
+plan tests => 68;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -265,33 +265,6 @@ $artist->cds->update({artist => $nartist->id});
 cmp_ok($artist->cds->count, '==', 0, "Correct new #cds for artist");
 cmp_ok($nartist->cds->count, '==', 2, "Correct new #cds for artist");
 
-my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode' });
-my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave in Silence', 'year' => 1982});
-eval {
-       $new_artist->insert;
-       $new_related_cd->insert;
-};
-is ($@, '', 'Staged insertion successful');
-ok($new_artist->in_storage, 'artist inserted');
-ok($new_related_cd->in_storage, 'new_related_cd inserted');
-
-TODO: {
-local $TODO = "TODOify for multicreate branch";
-my $new_cd = $schema->resultset("CD")->new_result({});
-my $new_related_artist = $new_cd->new_related('artist', { 'name' => 'Marillion',});
-lives_ok (
-    sub {
-       $new_related_artist->insert;
-       $new_cd->title( 'Misplaced Childhood' );
-       $new_cd->year ( 1985 );
-#       $new_cd->artist( $new_related_artist );  # For exact backward compatibility     # not sure what this means
-       $new_cd->insert;
-    },
-    'Reversed staged insertion successful'
-);
-ok($new_related_artist->in_storage, 'related artist inserted');
-ok($new_cd->in_storage, 'cd inserted');
-
 # check if is_foreign_key_constraint attr is set
 my $rs_normal = $schema->source('Track');
 my $relinfo = $rs_normal->relationship_info ('cd');
@@ -300,4 +273,3 @@ cmp_ok($relinfo->{attrs}{is_foreign_key_constraint}, '==', 1, "is_foreign_key_co
 my $rs_overridden = $schema->source('ForceForeign');
 my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
 cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");
-}
