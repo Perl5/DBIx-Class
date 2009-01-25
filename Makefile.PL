@@ -37,7 +37,7 @@ test_requires 'Test::Deep'          => 0;
 
 install_script 'script/dbicadmin';
 
-tests "t/*.t t/*/*.t";
+tests_recursive 't';
 
 # re-build README and require CDBI modules for testing if we're in a checkout
 
