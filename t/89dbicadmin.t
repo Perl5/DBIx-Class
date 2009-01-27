@@ -6,7 +6,6 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
 eval 'require JSON::Any';
 plan skip_all => 'Install JSON::Any to run this test' if ($@);
@@ -17,33 +16,47 @@ if ($@) {
     plan skip_all => 'Install Text::CSV_XS or Text::CSV_PP to run this test' if ($@);
 }
 
-plan tests => 5;
+my @json_backends = qw/XS JSON DWIW Syck/;
+my $tests_per_run = 5;
 
-# the script supports double quotes round the arguments and single-quote within
-# to make sure it runs on windows as well, but only if JSON::Any picks the right module
+plan tests => $tests_per_run * @json_backends;
 
+use JSON::Any;
+for my $js (@json_backends) {
 
+    eval {JSON::Any->import ($js) };
+    SKIP: {
+        skip ("Json module $js is not available, skip testing", $tests_per_run) if $@;
 
-my $employees = $schema->resultset('Employee');
-my @cmd = ($^X, qw|script/dbicadmin --quiet --schema=DBICTest::Schema --class=Employee --tlibs|, q|--connect=["dbi:SQLite:dbname=t/var/DBIxClass.db","","",{"AutoCommit":1}]|, qw|--force --tlibs|);
+        $ENV{JSON_ANY_ORDER} = $js;
+        eval { test_dbicadmin () };
+        diag $@ if $@;
+    }
+}
 
-system(@cmd, qw|--op=insert --set={"name":"Matt"}|);
-ok( ($employees->count()==1), 'insert count' );
+sub test_dbicadmin {
+    my $schema = DBICTest->init_schema( sqlite_use_file => 1 );  # reinit a fresh db for every run
 
-my $employee = $employees->find(1);
-ok( ($employee->name() eq 'Matt'), 'insert valid' );
+    my $employees = $schema->resultset('Employee');
+    my @cmd = ($^X, qw|script/dbicadmin --quiet --schema=DBICTest::Schema --class=Employee --tlibs|, q|--connect=["dbi:SQLite:dbname=t/var/DBIxClass.db","","",{"AutoCommit":1}]|, qw|--force --tlibs|);
 
-system(@cmd, qw|--op=update --set={"name":"Trout"}|);
-$employee = $employees->find(1);
-ok( ($employee->name() eq 'Trout'), 'update' );
+    system(@cmd, qw|--op=insert --set={"name":"Matt"}|);
+    ok( ($employees->count()==1), 'insert count' );
 
-system(@cmd, qw|--op=insert --set={"name":"Aran"}|);
+    my $employee = $employees->find(1);
+    ok( ($employee->name() eq 'Matt'), 'insert valid' );
 
-open(my $fh, "-|", @cmd, qw|--op=select --attrs={"order_by":"name"}|) or die $!;
-my $data = do { local $/; <$fh> };
-close($fh);
-ok( ($data=~/Aran.*Trout/s), 'select with attrs' );
+    system(@cmd, qw|--op=update --set={"name":"Trout"}|);
+    $employee = $employees->find(1);
+    ok( ($employee->name() eq 'Trout'), 'update' );
 
-system(@cmd, qw|--op=delete --where={"name":"Trout"}|);
-ok( ($employees->count()==1), 'delete' );
+    system(@cmd, qw|--op=insert --set={"name":"Aran"}|);
 
+    open(my $fh, "-|", @cmd, qw|--op=select --attrs={"order_by":"name"}|) or die $!;
+    my $data = do { local $/; <$fh> };
+    close($fh);
+    ok( ($data=~/Aran.*Trout/s), 'select with attrs' );
+
+    system(@cmd, qw|--op=delete --where={"name":"Trout"}|);
+    ok( ($employees->count()==1), 'delete' );
+}
