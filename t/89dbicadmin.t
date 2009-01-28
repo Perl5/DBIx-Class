@@ -26,7 +26,7 @@ for my $js (@json_backends) {
 
     eval {JSON::Any->import ($js) };
     SKIP: {
-        skip ("Json module $js is not available, skip testing", $tests_per_run) if $@;
+        skip ("Json backend $js is not available, skip testing", $tests_per_run) if $@;
 
         $ENV{JSON_ANY_ORDER} = $js;
         eval { test_dbicadmin () };
