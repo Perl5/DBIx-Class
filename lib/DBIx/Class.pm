@@ -45,6 +45,8 @@ sub _attr_cache {
 
 1;
 
+my $dhoss_has_commit_bit = 1;
+
 =head1 NAME
 
 DBIx::Class - Extensible and flexible object <-> relational mapper.
