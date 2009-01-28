@@ -64,14 +64,42 @@ auto_provides;
 auto_install;
 
 # Have all prerequisites, check DBD::SQLite sanity
-{
+if (! $ENV{DBICTEST_NO_SQLITE_CHECK} ) {
+
   my $pid = fork();
   if (not defined $pid) {
       die "Unable to fork(): $!";
   }
   elsif (! $pid) {
+
+      # Win32 does not have real fork()s so a segfault will bring
+      # everything down. Warn about it.
+      if ($^O eq 'MSWin32') {
+        print <<'EOW';
+
+######################################################################
+#                                                                    #
+# A short stress-testing of DBD::SQLite will follow. If you have a   #
+# buggy library this might very well be the last text you will see   #
+# before the installation silently terminates. If this happens it    #
+# would mean that you are running a buggy version of DBD::SQLite     #
+# known to randomly segfault on errors. Even if you have the latest  #
+# CPAN module version, the actual sqlite3 dynamic library might have #
+# been compiled against an older buggy sqlite3 dev library. You are  #
+# strongly advised to update DBD::SQLite.                            #
+#                                                                    #
+# If this happens to you (this text is the last thing you see), and  #
+# you just want to install this module without worrying about the    #
+# tests (which will almost certainly fail) - set the environment     #
+# variable DBICTEST_NO_SQLITE_CHECK to a true value and try again.   #
+#                                                                    #
+######################################################################
+
+EOW
+      }
+
       require DBI;
-      for (1 .. 10) {
+      for (1 .. 100) {
           my $dbh;
           $dbh = DBI->connect ('dbi:SQLite::memory:', undef, undef, {
               AutoCommit => 1,
@@ -145,6 +173,3 @@ if ($Module::Install::AUTHOR) {
   ];
   Meta->write;
 }
-
-
-
