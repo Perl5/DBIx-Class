@@ -84,9 +84,11 @@ if (! $ENV{DBICTEST_NO_SQLITE_CHECK} ) {
 # before the installation silently terminates. If this happens it    #
 # would mean that you are running a buggy version of DBD::SQLite     #
 # known to randomly segfault on errors. Even if you have the latest  #
-# CPAN module version, the actual sqlite3 dynamic library might have #
-# been compiled against an older buggy sqlite3 dev library. You are  #
-# strongly advised to update DBD::SQLite.                            #
+# CPAN module version, the system sqlite3 dynamic library might have #
+# been compiled against an older buggy sqlite3 dev library (oddly    #
+# DBD::SQLite will prefer the system library against the one bundled #
+# with it). You are strongly advised to resolve this issue before    #
+# proceeding.                                                        #
 #                                                                    #
 # If this happens to you (this text is the last thing you see), and  #
 # you just want to install this module without worrying about the    #
@@ -120,14 +122,16 @@ EOW
       if ($sig == 11) {
           warn (<<EOE);
 
-############################### WARNING ###################################
-#                                                                         #
-# You are running a buggy version of DBD::SQLite known to randomly        #
-# segfault on errors. Even if you have the latest CPAN module version,    #
-# the actual sqlite3.so might have been compiled against an older buggy   #
-# sqlite3 dev library. You are strongly advised to update DBD::SQLite.    #
-#                                                                         #
-###########################################################################
+############################### WARNING #################################
+#                                                                       #
+# You are running a buggy version of DBD::SQLite known to randomly      #
+# segfault on errors.  Even if you have the latest CPAN module version, #
+# the sqlite3 dynamic library on this system might have been compiled   #
+# against an older buggy sqlite3 dev library (oddly DBD::SQLite will    #
+# prefer the system library against the one bundled with it). You are   #
+# strongly advised to resolve this issue before proceeding.             #
+#                                                                       #
+#########################################################################
 
 EOE
           my $ans = prompt (
