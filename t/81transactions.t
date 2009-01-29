@@ -276,7 +276,7 @@ my $fail_code = sub {
     });
     
    $guard->commit;
-  } qr/No such column made_up_column.*?line 16/, "Error propogated okay";
+  } qr/No such column made_up_column .*? at .*?81transactions.t line \d+/, "Error propogated okay";
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
