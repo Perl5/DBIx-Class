@@ -6,6 +6,7 @@ use base 'DBIx::Class::Storage';
 use strict;    
 use warnings;
 use DBI;
+use Carp;
 use SQL::Abstract::Limit;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
@@ -843,7 +844,12 @@ sub _connect {
       my $weak_self = $self;
       weaken($weak_self);
       $dbh->{HandleError} = sub {
-          $weak_self->throw_exception("DBI Exception: $_[0]")
+          if ($weak_self) {
+            $weak_self->throw_exception("DBI Exception: $_[0]");
+          }
+          else {
+            croak ("DBI Exception: $_[0]");
+          }
       };
       $dbh->{ShowErrorStatement} = 1;
       $dbh->{RaiseError} = 1;
