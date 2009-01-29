@@ -17,17 +17,21 @@ my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
 $schema->storage->ensure_connected;
 isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server' );
 
-my $dbh = $schema->storage->dbh;
+$schema->storage->dbh_do (sub {
+    my ($storage, $dbh) = @_;
+    eval { $dbh->do("DROP TABLE artist") };
+    $dbh->do(<<'SQL');
 
-eval { $dbh->do("DROP TABLE artist") };
-
-    $dbh->do(<<'');
 CREATE TABLE artist (
    artistid INT IDENTITY NOT NULL,
    name VARCHAR(255),
    charfield CHAR(10),
    primary key(artistid)
 )
+
+SQL
+
+});
 
 my %seen_id;
 
@@ -58,6 +62,7 @@ is( $it->next, undef, "next past end of resultset ok" );
 
 # clean up our mess
 END {
+    my $dbh = eval { $schema->storage->_dbh };
     $dbh->do('DROP TABLE artist') if $dbh;
 }
 
