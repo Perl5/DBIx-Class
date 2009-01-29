@@ -28,7 +28,7 @@ sub new {
   $self->debugfh(undef);
 
   $self->dbictest_sql_ref($sql_ref);
-  $self->dbictest_bind_ref($bind_ref);
+  $self->dbictest_bind_ref($bind_ref || []);
 
   return $self;
 }
