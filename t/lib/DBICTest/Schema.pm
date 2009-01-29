@@ -33,6 +33,7 @@ __PACKAGE__->load_classes(qw/
     'ArtistSubclass',
     'Producer',
     'CD_to_Producer',
+    'Dummy',
   ),
   qw/SelfRefAlias TreeLike TwoKeyTreeLike Event EventTZ NoPrimaryKey/,
   qw/Collection CollectionObject TypedObject/,
@@ -43,7 +44,7 @@ __PACKAGE__->load_classes(qw/
 sub sqlt_deploy_hook {
   my ($self, $sqlt_schema) = @_;
 
-  $sqlt_schema->drop_table('link');
+  $sqlt_schema->drop_table('dummy');
 }
 
 1;

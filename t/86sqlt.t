@@ -234,7 +234,7 @@ my %indexes = (
 my $tschema = $translator->schema();
 # Test that the $schema->sqlt_deploy_hook was called okay and that it removed
 # the 'link' table
-ok( !defined($tschema->get_table('link')), "Link table was removed by hook");
+ok( !defined($tschema->get_table('dummy')), "Dummy table was removed by hook");
 
 # Test that nonexistent constraints are not found
 my $constraint = get_constraint('FOREIGN KEY', 'cd', ['title'], 'cd', ['year']);
