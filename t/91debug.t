@@ -4,6 +4,8 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
+use DBIC::DebugObj;
 
 my $schema = DBICTest->init_schema();
 
@@ -49,13 +51,15 @@ open(STDERR, '>&STDERRCOPY');
 
 # test trace output correctness for bind params
 {
-    my $sql = '';
-    $schema->storage->debugcb( sub { $sql = $_[1] } );
+    my ($sql, @bind);
+    $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
+    $schema->storage->debug(1);
 
     my @cds = $schema->resultset('CD')->search( { artist => 1, cdid => { -between => [ 1, 3 ] }, } );
-    like(
-        $sql,
-        qr/\QSELECT me.cdid, me.artist, me.title, me.year FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? ): '1', '1', '3'\E/,
+    is_same_sql_bind (
+        $sql, \@bind,
+        q/SELECT me.cdid, me.artist, me.title, me.year FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? )/,
+        [qw/'1' '1' '3'/],
         'got correct SQL with all bind parameters'
     );
 }
