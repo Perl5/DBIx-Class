@@ -60,6 +60,11 @@ my $test_type_info = {
         'is_nullable' => 1,
         'size' => 10 
     },
+    'rank' => {
+        'data_type' => 'INTEGER',
+        'is_nullable' => 1,
+        'size' => 10 
+    },
 };
 
 
