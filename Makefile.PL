@@ -6,16 +6,16 @@ all_from 'lib/DBIx/Class.pm';
 
 requires 'Data::Page'                => 2.00;
 requires 'Scalar::Util'              => 0;
-requires 'SQL::Abstract'             => 1.20;
-requires 'SQL::Abstract::Limit'      => 0.101;
-requires 'Class::C3'                 => 0.13;
+requires 'SQL::Abstract'             => 1.24;
+requires 'SQL::Abstract::Limit'      => 0.13;
+requires 'Class::C3'                 => 0.20;
 requires 'Class::C3::Componentised'  => 0;
 requires 'Storable'                  => 0;
 requires 'Carp::Clan'                => 0;
 requires 'DBI'                       => 1.40;
 requires 'Module::Find'              => 0;
 requires 'Class::Inspector'          => 0;
-requires 'Class::Accessor::Grouped'  => 0.05002;
+requires 'Class::Accessor::Grouped'  => 0.08002;
 requires 'JSON::Any'                 => 1.17;
 requires 'Scope::Guard'              => 0.03;
 
