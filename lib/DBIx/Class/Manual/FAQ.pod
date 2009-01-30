@@ -454,7 +454,7 @@ With either of these methods the resulting use of the accesssor would be
 
 	my $row;
 
-	# assume that some where in her $row will get assigned to a MyTable row
+	# assume that some where in here $row will get assigned to a MyTable row
 
 	$row->non_column_data('some string'); # would set the non_column_data accessor
 
