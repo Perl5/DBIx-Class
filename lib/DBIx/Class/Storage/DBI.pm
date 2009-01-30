@@ -50,10 +50,13 @@ sub new {
   $self;
 }
 
-
 # While we're at it, this should make LIMIT queries more efficient,
 #  without digging into things too deeply
 use Scalar::Util 'blessed';
+sub _find_syntax {
+  my ($self, $syntax) = @_;
+  $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
+}
 
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
