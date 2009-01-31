@@ -1790,7 +1790,7 @@ Example of creating a new row.
 
   $person_rs->create({
     name=>"Some Person",
-	email=>"somebody@someplace.com"
+    email=>"somebody@someplace.com"
   });
   
 Example of creating a new row and also creating rows in a related C<has_many>
@@ -1809,10 +1809,10 @@ C<belongs_to>resultset. Note Hashref.
 
   $cd_rs->create({
     title=>"Music for Silly Walks",
-	year=>2000,
-	artist => {
-	  name=>"Silly Musician",
-	}
+    year=>2000,
+    artist => {
+      name=>"Silly Musician",
+    }
   });
 
 =cut
