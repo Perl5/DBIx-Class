@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 67;
+plan tests => 63;
 
 my $code = sub {
   my ($artist, @cd_titles) = @_;
@@ -238,31 +238,12 @@ my $fail_code = sub {
     ok(($err eq ''), 'Pre-connection nested transactions.');
 }
 
-# Test txn_rollback with nested
-{
-  local $TODO = "Work out how this should work";
-  my $local_schema = DBICTest->init_schema();
-
-  my $artist_rs = $local_schema->resultset('Artist');
-  throws_ok {
-   
-    $local_schema->txn_begin;
-    $artist_rs->create({ name => 'Test artist rollback 1'});
-    $local_schema->txn_begin;
-    is($local_schema->storage->transaction_depth, 2, "Correct transaction depth");
-    $artist_rs->create({ name => 'Test artist rollback 2'});
-    $local_schema->txn_rollback;
-  } qr/Not sure what this should be.... something tho/, "Rolled back okay";
-  is($local_schema->storage->transaction_depth, 0, "Correct transaction depth");
-
-  ok(!$artist_rs->find({ name => 'Test artist rollback 1'}), "Test Artist not created")
-    || $artist_rs->find({ name => 'Test artist rollback 1'})->delete;
-}
-
 # Test txn_scope_guard
 {
   local $TODO = "Work out how this should work";
-  my $schema = DBICTest->init_schema();
+
+  # reset schema
+  $schema = DBICTest->init_schema();
 
   is($schema->storage->transaction_depth, 0, "Correct transaction depth");
   my $artist_rs = $schema->resultset('Artist');
