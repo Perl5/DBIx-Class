@@ -51,10 +51,14 @@ sub test_dbicadmin {
 
     system( _prepare_system_args( qw|--op=insert --set={"name":"Aran"}| ) );
 
-    open(my $fh, "-|",  _prepare_system_args( qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
-    my $data = do { local $/; <$fh> };
-    close($fh);
-    ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" );
+    SKIP: {
+        skip ("MSWin32 doesn't support -| either", 1) if $^O eq 'MSWin32';
+
+        open(my $fh, "-|",  _prepare_system_args( qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
+        my $data = do { local $/; <$fh> };
+        close($fh);
+        ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" );
+    }
 
     system( _prepare_system_args( qw|--op=delete --where={"name":"Trout"}| ) );
     ok( ($employees->count()==1), "$ENV{JSON_ANY_ORDER}: delete" );
