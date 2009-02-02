@@ -50,6 +50,9 @@ sub new {
   $self;
 }
 
+# DB2 is the only remaining DB using this. Even though we are not sure if
+# RowNumberOver is still needed here (should be part of SQLA) leave the 
+# code in place
 sub _RowNumberOver {
   my ($self, $sql, $order, $rows, $offset ) = @_;
 
@@ -57,7 +60,7 @@ sub _RowNumberOver {
   my $last = $rows + $offset;
   my ( $order_by ) = $self->_order_by( $order );
 
-  $sql = <<'SQL';
+  $sql = <<"SQL";
 SELECT * FROM
 (
    SELECT Q1.*, ROW_NUMBER() OVER( ) AS ROW_NUM FROM (
@@ -78,6 +81,15 @@ SQL
 use Scalar::Util 'blessed';
 sub _find_syntax {
   my ($self, $syntax) = @_;
+  
+  # DB2 is the only remaining DB using this. Even though we are not sure if
+  # RowNumberOver is still needed here (should be part of SQLA) leave the 
+  # code in place
+  my $dbhname = blessed($syntax) ? $syntax->{Driver}{Name} : $syntax;
+  if(ref($self) && $dbhname && $dbhname eq 'DB2') {
+    return 'RowNumberOver';
+  }
+  
   $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
 }
 
