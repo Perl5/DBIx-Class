@@ -7,15 +7,16 @@ use Data::Dumper;
 
 plan ( ($] >= 5.009000 and $] < 5.010001)
   ? (skip_all => 'warnings::register broken under 5.10: http://rt.perl.org/rt3/Public/Bug/Display.html?id=62522')
-  : (tests => 2)
+  : (tests => 4)
 );
 
 {
   my @w; 
   local $SIG{__WARN__} = sub { push @w, @_ };
-
   my $code = gen_code ( suffix => 1 );
   eval "$code";
+  ok (! $@, 'Eval code without warnings suppression')
+    || diag $@;
 
   ok ( (grep { $_ =~ /The many-to-many relationship bars is trying to create/ } @w), "Warning triggered without relevant 'no warnings'");
 }
@@ -26,6 +27,8 @@ plan ( ($] >= 5.009000 and $] < 5.010001)
 
   my $code = gen_code ( suffix => 2, no_warn => 1 );
   eval "$code";
+  ok (! $@, 'Eval code with warnings suppression')
+    || diag $@;
 
   ok ( (not grep { $_ =~ /The many-to-many relationship bars is trying to create/ } @w), "No warning triggered with relevant 'no warnings'");
 }
@@ -47,6 +50,7 @@ use warnings;
   package #
     DBICTest::Schema::Foo${suffix};
   use base 'DBIx::Class::Core';
+
   __PACKAGE__->table('foo');
   __PACKAGE__->add_columns(
     'fooid' => {
@@ -82,6 +86,7 @@ use warnings;
     DBICTest::Schema::Bar${suffix};
 
   use base 'DBIx::Class::Core';
+
   __PACKAGE__->table('bar');
   __PACKAGE__->add_columns(
     'barid' => {
