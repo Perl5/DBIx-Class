@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 88;
+plan tests => 89;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -386,4 +386,11 @@ SKIP: {
   is($en_row->encoded, 'amliw', 'new encodes');
   $en_row->insert;
   is($en_row->encoded, 'amliw', 'insert does not encode again');
+}
+
+#make sure result sources can resolve their own names
+{
+  my $source_class = 'DBICTest::Schema::Artist';
+  my $source = $source_class->result_source_instance;
+  is($source->source_name, 'Artist', 'source_name is correct');
 }
