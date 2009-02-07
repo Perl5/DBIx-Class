@@ -1,4 +1,5 @@
 Revision history for DBIx::Class
+        - Possible to set locale in IC::DateTime extra => {} config
 
 0.08099_06 2009-01-23 07:30:00 (UTC)
         - Allow a scalarref to be supplied to the 'from' resultset attribute
