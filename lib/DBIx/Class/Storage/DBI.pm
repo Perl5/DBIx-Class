@@ -1513,8 +1513,8 @@ sub deploy {
       next if($line =~ /^--/);
       next if(!$line);
 #      next if($line =~ /^DROP/m);
-      next if($line =~ /^BEGIN TRANSACTION/m);
-      next if($line =~ /^COMMIT/m);
+      next if($line =~ /^BEGIN(?: TRANSACTION)?/im);
+      next if($line =~ /^COMMIT/mi);
       next if $line =~ /^\s+$/; # skip whitespace only
       $self->_query_start($line);
       eval {

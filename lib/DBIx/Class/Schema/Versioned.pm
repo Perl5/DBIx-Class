@@ -141,8 +141,7 @@ sub _on_connect
     open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
     my @data = split(/;\n/, join('', <$fh>));
     close($fh);
-    @data = grep { $_ && $_ !~ /^-- / } @data;
-    @data = grep { $_ !~ /^(BEGIN TRANACTION|COMMIT)/m } @data;
+    @data = grep { $_ && $_ !~ /^\s*$/s &&  $_ !~ /^-- / } @data;
 
     $self->_filedata(\@data);
 
