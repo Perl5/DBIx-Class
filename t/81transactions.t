@@ -226,6 +226,7 @@ my $fail_code = sub {
   })->first;
   ok(!defined($cd), q{failed txn_do didn't add failed txn's cd});
 }
+undef $schema;
 
 # Grab a new schema to test txn before connect
 {
