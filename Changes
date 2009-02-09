@@ -17,6 +17,8 @@ Revision history for DBIx::Class
         - new order_by => { -desc => 'colname' } syntax supported with
           SQLA >= 1.50
         - PG array datatype supported with SQLA >= 1.50
+        - insert should use store_column, not set_column to avoid marking
+          clean just-stored values as dirty. New test for this (groditi)
 
 0.08099_05 2008-10-30 21:30:00 (UTC)
         - Rewritte of Storage::DBI::connect_info(), extended with an

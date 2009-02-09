@@ -411,5 +411,12 @@ CREATE TABLE typed_object (
   value varchar(100) NOT NULL
 );
 
+--
+-- Table: encoded
+--
+CREATE TABLE encoded (
+  id INTEGER PRIMARY KEY NOT NULL,
+  encoded varchar(100) NOT NULL
+);
 
 COMMIT;

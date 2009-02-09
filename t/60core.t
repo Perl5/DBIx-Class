@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 86;
+plan tests => 88;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -378,4 +378,12 @@ SKIP: {
     diag $class;
     my $table = $class->table($class->table);
     is($table, $class->table, '->table($table) returns $table');
+}
+
+#make sure insert doesn't use set_column
+{
+  my $en_row = $schema->resultset('Encoded')->new_result({encoded => 'wilma'});
+  is($en_row->encoded, 'amliw', 'new encodes');
+  $en_row->insert;
+  is($en_row->encoded, 'amliw', 'insert does not encode again');
 }

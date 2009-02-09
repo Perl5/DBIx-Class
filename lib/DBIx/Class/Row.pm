@@ -263,7 +263,9 @@ sub insert {
   }
 
   my $updated_cols = $source->storage->insert($source, { $self->get_columns });
-  $self->set_columns($updated_cols);
+  foreach my $col (keys %$updated_cols) {
+    $self->store_column($col, $updated_cols->{$col});
+  }
 
   ## PK::Auto
   my @auto_pri = grep {
