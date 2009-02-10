@@ -8,7 +8,8 @@ package SQL::Translator::Parser::DBIx::Class;
 
 use strict;
 use warnings;
-use vars qw($DEBUG @EXPORT_OK);
+use vars qw($DEBUG $VERSION @EXPORT_OK);
+$VERSION = '1.10';
 $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
