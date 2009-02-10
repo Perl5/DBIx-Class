@@ -1709,6 +1709,14 @@ sub _remove_alias {
   return \%unaliased;
 }
 
+=head2 as_query
+
+Returns the SQL query and bind vars associated with the invocant.
+
+=cut
+
+sub as_query { return shift->cursor->as_query }
+
 =head2 find_or_new
 
 =over 4

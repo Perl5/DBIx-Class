@@ -1135,11 +1135,15 @@ sub txn_rollback {
 sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, $args) = @_;
 
+  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+    $ident = $ident->from();
+  }
+
   my ($sql, @bind) = $self->sql_maker->$op($ident, @$args);
+
   unshift(@bind,
     map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
       if $extra_bind;
-
   return ($sql, \@bind);
 }
 
@@ -1181,10 +1185,6 @@ sub _query_end {
 sub _dbh_execute {
   my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
   
-  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
-    $ident = $ident->from();
-  }
-
   my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
 
   $self->_query_start( $sql, @$bind );
@@ -1319,6 +1319,13 @@ sub delete {
 }
 
 sub _select {
+  my $self = shift;
+  my $sql_maker = $self->sql_maker;
+  local $sql_maker->{for};
+  return $self->_execute($self->_select_args(@_));
+}
+
+sub _select_args {
   my ($self, $ident, $select, $condition, $attrs) = @_;
   my $order = $attrs->{order_by};
 
@@ -1355,7 +1362,7 @@ sub _select {
     push @args, $attrs->{rows}, $attrs->{offset};
   }
 
-  return $self->_execute(@args);
+  return @args;
 }
 
 sub source_bind_attributes {

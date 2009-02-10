@@ -49,6 +49,24 @@ sub new {
   return bless ($new, $class);
 }
 
+=head2 as_query
+
+Returns the SQL statement and bind vars associated with the invocant.
+
+=cut
+
+sub as_query {
+  my $self = shift;
+
+  my $storage = $self->{storage};
+  my $sql_maker = $storage->sql_maker;
+  local $sql_maker->{for};
+
+  my @args = $storage->_select_args(@{$self->{args}});
+  my ($sql, $bind)  = $storage->_prep_for_execute(@args[0 .. 2], [@args[4 .. $#args]]);
+  return [ $sql, @$bind ];
+}
+
 =head2 next
 
 =over 4
