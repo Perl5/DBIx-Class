@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 11;
+plan tests => 12;
 
 my $rs = $schema->resultset('CD')->search({},
     {
@@ -61,3 +61,5 @@ my $subsel = $cds->search ({}, {
 is ($subsel->count, 2, 'Subselect correctly limited the rs to 2 cds');
 is ($subsel->next->title, $cds->next->title, 'First CD title match');
 is ($subsel->next->title, $cds->next->title, 'Second CD title match');
+
+is($schema->resultset('CD')->current_source_alias, "me", '$rs->current_source_alias returns "me"');

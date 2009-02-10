@@ -1,0 +1,66 @@
+(Potential) Features for 0.09
+=============================
+
+Subselects - everyone wants these
+ - Will require new/improved SQL::Abstract
+ - The API will involve passing ResultSets to searches as conditions/values/whatever.
+
+Row/find caching - would be pretty useful
+ - Need to have good definitions of when the cache should be queried and when invalidated
+ - Be able to supply own expiry?
+ - Be able to invalidate manually? Single item / entire cache / single table
+
+Deprecate compose_connection / DB.pm
+ - Everyone has probably forgotten what this is anyway..
+
+Syntax improvements?
+ - "as" to "alias" ?
+ - "belongs_to" to "contains/refers/something"
+ - order_by to take a arrayref/hashref so it also just works with quoting
+ - ??
+
+Using inflated objects/references as values in searches
+ - Goes together with subselects above
+ - should deflate then run search
+
+FilterColumn - like Inflate, only for changing scalar values
+ - This seems to be vaporware atm..
+
+SQL/API feature complete?
+ - UNION
+ - proper join conditions!
+ - function calls on the LHS of conditions..
+
+Moosification - ouch
+
+Prefetch improvements
+ - slow on mysql, speedup?
+ - multi has_many prefetch
+ - paging working with prefetch
+
+Magically "discover" needed joins/prefetches and add them
+ - eg $books->search({ 'author.name' => 'Fred'}), autoadds: join => 'author'
+ - also guess aliases when supplying column names that are on joined/related tables
+
+Metamodel stuff - introspection
+
+Storage API/restructure
+ - call update/insert etc on the ResultSource, which then calls to storage
+ - handle different storages/db-specific code better
+ - better cross-db code .. eg LIKE/ILIKE
+
+Relationships
+ - single vs filter, discrepancies.. remove one of them and make behave the same?
+
+SQL::Abstract et al
+ - be able to extract/view/dump what the SQL is *going to* be before running it
+ - bind params sanity? (order of bind params broken when using a resultsource based on a select statement)
+ - etc
+ 
+Joining/searching weird attribute tables?
+ - Support legacy/badly designed junk better..
+
+Documentation - improvements
+ - better indexing for finding of stuff in general
+ - more cross-referencing of docs
+ 

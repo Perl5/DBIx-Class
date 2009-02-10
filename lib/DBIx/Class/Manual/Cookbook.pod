@@ -151,7 +151,36 @@ Next, you can execute your complex query using bind parameters like this:
     }
   ) ];
   
-... and you'll get back a perfect L<DBIx::Class::ResultSet>.
+... and you'll get back a perfect L<DBIx::Class::ResultSet> (except, of course,
+that you cannot modify the rows it contains, ie. cannot call L</update>,
+L</delete>, ...  on it).
+
+If you prefer to have the definitions of these custom ResultSources in separate
+files (instead of stuffing all of them into the same resultset class), you can
+achieve the same with subclassing the resultset class and defining the
+ResultSource there:
+
+  package My::Schema::UserFriendsComplex;
+
+  use My::Schema::User;
+  use base qw/My::Schema::User/;
+
+  __PACKAGE__->table('dummy');  # currently must be called before anything else
+
+  # Hand in your query as a scalar reference
+  # It will be added as a sub-select after FROM,
+  # so pay attention to the surrounding brackets!
+  __PACKAGE__->name( \<<SQL );
+  ( SELECT u.* FROM user u
+  INNER JOIN user_friends f ON u.id = f.user_id
+  WHERE f.friend_user_id = ?
+  UNION
+  SELECT u.* FROM user u
+  INNER JOIN user_friends f ON u.id = f.friend_user_id
+  WHERE f.user_id = ? )
+  SQL
+
+TIMTOWDI.
 
 =head2 Using specific columns
 
@@ -791,7 +820,7 @@ above is not fast enough for you, you can use a DBIx::Class to return values
 exactly as they come out of the data base with none of the convenience methods
 wrapped round them.
 
-This is used like so:-
+This is used like so:
 
   my $cursor = $rs->cursor
   while (my @vals = $cursor->next) {
@@ -1138,7 +1167,9 @@ C<oracles.heavily(nested(functions_can('take', 'lots'), OF), 'args')>
 
 Often you will want indexes on columns on your table to speed up searching. To
 do this, create a method called C<sqlt_deploy_hook> in the relevant source 
-class:
+class (refer to the advanced 
+L<callback system|DBIx::Class::ResultSource/sqlt_deploy_callback> if you wish
+to share a hook between multiple sources):
 
  package My::Schema::Artist;
 
@@ -1172,9 +1203,11 @@ created:
    $sqlt_schema->drop_table('table_name');
  }
 
-You could also add views or procedures to the output using 
-L<SQL::Translator::Schema/add_view> or 
-L<SQL::Translator::Schema/add_procedure>.
+You could also add views, procedures or triggers to the output using
+L<SQL::Translator::Schema/add_view>,
+L<SQL::Translator::Schema/add_procedure> or
+L<SQL::Translator::Schema/add_trigger>.
+
 
 =head2 Schema versioning
 
@@ -1268,7 +1301,7 @@ characters to use. C<name_sep> needs to be set to allow the SQL
 generator to put the quotes the correct place.
 
 In most cases you should set these as part of the arguments passed to 
-L<DBIx::Class::Schema/conect>:
+L<DBIx::Class::Schema/connect>:
 
  my $schema = My::Schema->connect(
   'dbi:mysql:my_db',
@@ -1297,6 +1330,40 @@ that Microsoft doesn't deliver native client libraries for. (e.g. Linux)
 
 The limit dialect can also be set at connect time by specifying a 
 C<limit_dialect> key in the final hash as shown above.
+
+=head2 Working with PostgreSQL array types
+
+If your SQL::Abstract version (>= 1.50) supports it, you can assign to
+PostgreSQL array values by passing array references in the C<\%columns>
+(C<\%vals>) hashref of the L<DBIx::Class::ResultSet/create> and
+L<DBIx::Class::Row/update> family of methods:
+
+  $resultset->create({
+    numbers => [1, 2, 3]
+  });
+
+  $row->update(
+    {
+      numbers => [1, 2, 3]
+    },
+    {
+      day => '2008-11-24'
+    }
+  );
+
+In conditions (eg. C<\%cond> in the L<DBIx::Class::ResultSet/search> family of
+methods) you cannot directly use array references (since this is interpreted as
+a list of values to be C<OR>ed), but you can use the following syntax to force
+passing them as bind values:
+
+  $resultset->search(
+    {
+      numbers => \[ '= ?', [1, 2, 3] ]
+    }
+  );
+
+See L<SQL::Abstract/array_datatypes> and L<SQL::Abstract/Literal SQL with
+placeholders and bind values (subqueries)> for more explanation.
 
 =head1 BOOTSTRAPPING/MIGRATING 
 

@@ -214,9 +214,7 @@ sub parse {
             }
         }
 		
-        if ($source->result_class->can('sqlt_deploy_hook')) {
-          $source->result_class->sqlt_deploy_hook($table);
-        }
+        $source->_invoke_sqlt_deploy_hook($table);
     }
 
     if ($dbicschema->can('sqlt_deploy_hook')) {

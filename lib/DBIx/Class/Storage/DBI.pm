@@ -50,6 +50,9 @@ sub new {
   $self;
 }
 
+# DB2 is the only remaining DB using this. Even though we are not sure if
+# RowNumberOver is still needed here (should be part of SQLA) leave the 
+# code in place
 sub _RowNumberOver {
   my ($self, $sql, $order, $rows, $offset ) = @_;
 
@@ -57,7 +60,7 @@ sub _RowNumberOver {
   my $last = $rows + $offset;
   my ( $order_by ) = $self->_order_by( $order );
 
-  $sql = <<"";
+  $sql = <<"SQL";
 SELECT * FROM
 (
    SELECT Q1.*, ROW_NUMBER() OVER( ) AS ROW_NUM FROM (
@@ -66,6 +69,8 @@ SELECT * FROM
    ) Q1
 ) Q2
 WHERE ROW_NUM BETWEEN $offset AND $last
+
+SQL
 
   return $sql;
 }
@@ -76,11 +81,15 @@ WHERE ROW_NUM BETWEEN $offset AND $last
 use Scalar::Util 'blessed';
 sub _find_syntax {
   my ($self, $syntax) = @_;
-  my $dbhname = blessed($syntax) ?  $syntax->{Driver}{Name} : $syntax;
+  
+  # DB2 is the only remaining DB using this. Even though we are not sure if
+  # RowNumberOver is still needed here (should be part of SQLA) leave the 
+  # code in place
+  my $dbhname = blessed($syntax) ? $syntax->{Driver}{Name} : $syntax;
   if(ref($self) && $dbhname && $dbhname eq 'DB2') {
     return 'RowNumberOver';
   }
-
+  
   $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
 }
 
@@ -181,6 +190,9 @@ sub _order_by {
     }
     if (defined $_[0]->{order_by}) {
       $ret .= $self->_order_by($_[0]->{order_by});
+    }
+    if (grep { $_ =~ /^-(desc|asc)/i } keys %{$_[0]}) {
+      return $self->SUPER::_order_by($_[0]);
     }
   } elsif (ref $_[0] eq 'SCALAR') {
     $ret = $self->_sqlcase(' order by ').${ $_[0] };
@@ -880,7 +892,7 @@ sub dbh {
 sub _sql_maker_args {
     my ($self) = @_;
     
-    return ( bindtype=>'columns', limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
+    return ( bindtype=>'columns', array_datatypes => 1, limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
 }
 
 sub sql_maker {
@@ -911,11 +923,11 @@ sub _populate_dbh {
     }
   }
 
-  my $connection_do = $self->on_connect_do;
-  $self->_do_connection_actions($connection_do) if ref($connection_do);
-
   $self->_conn_pid($$);
   $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
+
+  my $connection_do = $self->on_connect_do;
+  $self->_do_connection_actions($connection_do) if ref($connection_do);
 }
 
 sub _do_connection_actions {
@@ -926,7 +938,7 @@ sub _do_connection_actions {
     $self->_do_query($_) foreach @$connection_do;
   }
   elsif (ref $connection_do eq 'CODE') {
-    $connection_do->();
+    $connection_do->($self);
   }
 
   return $self;
@@ -1221,7 +1233,8 @@ sub _dbh_execute {
     }
 
     foreach my $data (@data) {
-      $data = ref $data ? ''.$data : $data; # stringify args
+      my $ref = ref $data;
+      $data = $ref && $ref ne 'ARRAY' ? ''.$data : $data; # stringify args (except arrayrefs)
 
       $sth->bind_param($placeholder_index, $data, $attributes);
       $placeholder_index++;
@@ -1595,7 +1608,7 @@ sub create_ddl_dir {
     %{$sqltargs || {}}
   };
 
-  $self->throw_exception(q{Can't create a ddl file without SQL::Translator 0.09: '}
+  $self->throw_exception(q{Can't create a ddl file without SQL::Translator 0.09003: '}
       . $self->_check_sqlt_message . q{'})
           if !$self->_check_sqlt_version;
 
@@ -1742,7 +1755,7 @@ sub deployment_statements {
       return join('', @rows);
   }
 
-  $self->throw_exception(q{Can't deploy without SQL::Translator 0.09: '}
+  $self->throw_exception(q{Can't deploy without SQL::Translator 0.09003: '}
       . $self->_check_sqlt_message . q{'})
           if !$self->_check_sqlt_version;
 
@@ -1824,7 +1837,7 @@ sub build_datetime_parser {
     my $_check_sqlt_message; # private
     sub _check_sqlt_version {
         return $_check_sqlt_version if defined $_check_sqlt_version;
-        eval 'use SQL::Translator "0.09"';
+        eval 'use SQL::Translator "0.09003"';
         $_check_sqlt_message = $@ || '';
         $_check_sqlt_version = !$@;
     }

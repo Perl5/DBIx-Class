@@ -40,11 +40,6 @@ sub _init_result_source_instance {
 
     $class->result_source_instance($table);
 
-    if ($class->can('schema_instance') && $class->schema_instance) {
-        $class =~ m/([^:]+)$/;
-        $class->schema_instance->register_class($class, $class);
-    }
-
     return $table;
 }
 
@@ -95,10 +90,6 @@ sub table {
 
   $class->result_source_instance($table);
 
-  if ($class->can('schema_instance')) {
-    $class =~ m/([^:]+)$/;
-    $class->schema_instance->register_class($class, $class);
-  }
   return $class->result_source_instance->name;
 }
 

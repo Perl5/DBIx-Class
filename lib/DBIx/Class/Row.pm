@@ -263,7 +263,9 @@ sub insert {
   }
 
   my $updated_cols = $source->storage->insert($source, { $self->get_columns });
-  $self->set_columns($updated_cols);
+  foreach my $col (keys %$updated_cols) {
+    $self->store_column($col, $updated_cols->{$col});
+  }
 
   ## PK::Auto
   my @auto_pri = grep {
@@ -449,6 +451,14 @@ this behaviour off, pass C<< cascade_delete => 0 >> in the C<$attr>
 hashref of the relationship, see L<DBIx::Class::Relationship>. Any
 database-level cascade or restrict will take precedence over a
 DBIx-Class-based cascading delete. 
+
+If you delete an object within a txn_do() (see L<DBIx::Class::Storage/txn_do>)
+and the transaction subsequently fails, the row object will remain marked as
+not being in storage. If you know for a fact that the object is still in
+storage (i.e. by inspecting the cause of the transaction's failure), you can
+use C<< $obj->in_storage(1) >> to restore consistency between the object and
+the database. This would allow a subsequent C<< $obj->delete >> to work
+as expected.
 
 See also L<DBIx::Class::ResultSet/delete>.
 

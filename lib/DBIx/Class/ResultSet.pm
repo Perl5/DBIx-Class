@@ -737,8 +737,8 @@ sub get_column {
   $cd_rs = $rs->search_like({ title => '%blue%'});
 
 Performs a search, but uses C<LIKE> instead of C<=> as the condition. Note
-that this is simply a convenience method. You most likely want to use
-L</search> with specific operators.
+that this is simply a convenience method retained for ex Class::DBI users.
+You most likely want to use L</search> with specific operators.
 
 For more information, see L<DBIx::Class::Manual::Cookbook>.
 
@@ -1362,8 +1362,9 @@ sub delete_all {
 
 =back
 
-Pass an arrayref of hashrefs. Each hashref should be a structure suitable for
-submitting to a $resultset->create(...) method.
+Accepts either an arrayref of hashrefs or alternatively an arrayref of arrayrefs.
+For the arrayref of hashrefs style each hashref should be a structure suitable
+forsubmitting to a $resultset->create(...) method.
 
 In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
 to insert the data, as this is a faster method.  
@@ -1403,7 +1404,18 @@ Example:  Assuming an Artist Class that has many CDs Classes relating:
   
   print $ArtistOne->name; ## response is 'Artist One'
   print $ArtistThree->cds->count ## reponse is '2'
-  
+
+For the arrayref of arrayrefs style,  the first element should be a list of the
+fieldsnames to which the remaining elements are rows being inserted.  For
+example:
+
+  $Arstist_rs->populate([
+    [qw/artistid name/],
+    [100, 'A Formally Unknown Singer'],
+    [101, 'A singer that jumped the shark two albums ago'],
+    [102, 'An actually cool singer.'],
+  ]);
+
 Please note an important effect on your data when choosing between void and
 wantarray context. Since void context goes straight to C<insert_bulk> in 
 L<DBIx::Class::Storage::DBI> this will skip any component that is overriding
@@ -1415,7 +1427,10 @@ values.
 =cut
 
 sub populate {
-  my ($self, $data) = @_;
+  my $self = shift @_;
+  my $data = ref $_[0][0] eq 'HASH'
+    ? $_[0] : ref $_[0][0] eq 'ARRAY' ? $self->_normalize_populate_args($_[0]) :
+    $self->throw_exception('Populate expects an arrayref of hashes or arrayref of arrayrefs');
   
   if(defined wantarray) {
     my @created;
@@ -1487,6 +1502,28 @@ sub populate {
       }
     }
   }
+}
+
+=head2 _normalize_populate_args ($args)
+
+Private method used by L</populate> to normalize its incoming arguments.  Factored
+out in case you want to subclass and accept new argument structures to the
+L</populate> method.
+
+=cut
+
+sub _normalize_populate_args {
+  my ($self, $data) = @_;
+  my @names = @{shift(@$data)};
+  my @results_to_create;
+  foreach my $datum (@$data) {
+    my %result_to_create;
+    foreach my $index (0..$#names) {
+      $result_to_create{$names[$index]} = $$datum[$index];
+    }
+    push @results_to_create, \%result_to_create;    
+  }
+  return \@results_to_create;
 }
 
 =head2 pager
@@ -1688,7 +1725,7 @@ sub _remove_alias {
   $cd->cd_to_producer->find_or_new({ producer => $producer },
                                    { key => 'primary });
 
-Find an existing record from this resultset, based on it's primary
+Find an existing record from this resultset, based on its primary
 key, or a unique constraint. If none exists, instantiate a new result
 object and return it. The object will not be saved into your storage
 until you call L<DBIx::Class::Row/insert> on it.
@@ -1734,7 +1771,7 @@ To create one row for this resultset, pass a hashref of key/value
 pairs representing the columns of the table and the values you wish to
 store. If the appropriate relationships are set up, foreign key fields
 can also be passed an object representing the foreign row, and the
-value will be set to it's primary key.
+value will be set to its primary key.
 
 To create related objects, pass a hashref for the value if the related
 item is a foreign key relationship (L<DBIx::Class::Relationship/belongs_to>),
@@ -1753,7 +1790,7 @@ Example of creating a new row.
 
   $person_rs->create({
     name=>"Some Person",
-	email=>"somebody@someplace.com"
+    email=>"somebody@someplace.com"
   });
   
 Example of creating a new row and also creating rows in a related C<has_many>
@@ -1772,10 +1809,10 @@ C<belongs_to>resultset. Note Hashref.
 
   $cd_rs->create({
     title=>"Music for Silly Walks",
-	year=>2000,
-	artist => {
-	  name=>"Silly Musician",
-	}
+    year=>2000,
+    artist => {
+      name=>"Silly Musician",
+    }
   });
 
 =cut
@@ -2055,6 +2092,49 @@ sub related_resultset {
     $new->set_cache($new_cache) if $new_cache;
     $new;
   };
+}
+
+=head2 current_source_alias
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $source_alias
+
+=back
+
+Returns the current table alias for the result source this resultset is built
+on, that will be used in the SQL query. Usually it is C<me>.
+
+Currently the source alias that refers to the result set returned by a
+L</search>/L</find> family method depends on how you got to the resultset: it's
+C<me> by default, but eg. L</search_related> aliases it to the related result
+source name (and keeps C<me> referring to the original result set). The long
+term goal is to make L<DBIx::Class> always alias the current resultset as C<me>
+(and make this method unnecessary).
+
+Thus it's currently necessary to use this method in predefined queries (see
+L<DBIx::Class::Manual::Cookbook/Predefined searches>) when referring to the
+source alias of the current result set:
+
+  # in a result set class
+  sub modified_by {
+    my ($self, $user) = @_;
+
+    my $me = $self->current_source_alias;
+
+    return $self->search(
+      "$me.modified" => $user->id,
+    );
+  }
+
+=cut
+
+sub current_source_alias {
+  my ($self) = @_;
+
+  return ($self->{attrs} || {})->{alias} || 'me';
 }
 
 sub _resolve_from {
@@ -2337,6 +2417,10 @@ Please note that if you have C<quote_char> enabled (see
 L<DBIx::Class::Storage::DBI/connect_info>) you will need to do C<\'year DESC' > to
 specify an order. (The scalar ref causes it to be passed as raw sql to the DB,
 so you will need to manually quote things as appropriate.)
+
+If your L<SQL::Abstract> version supports it (>=1.50), you can also use
+C<{-desc => 'year'}>, which takes care of the quoting for you. This is the
+recommended syntax.
 
 =head2 columns
 

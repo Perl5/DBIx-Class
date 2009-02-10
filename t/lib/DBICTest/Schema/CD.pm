@@ -67,9 +67,21 @@ __PACKAGE__->belongs_to('genre', 'DBICTest::Schema::Genre',
         join_type => 'left',
         on_delete => 'SET NULL',
         on_update => 'CASCADE',
-
     },
 );
+
+#This second relationship was added to test the short-circuiting of pointless
+#queries provided by undef_on_null_fk. the relevant test in 66relationship.t
+__PACKAGE__->belongs_to('genre_inefficient', 'DBICTest::Schema::Genre',
+    { 'foreign.genreid' => 'self.genreid' },
+    {
+        join_type => 'left',
+        on_delete => 'SET NULL',
+        on_update => 'CASCADE',
+        undef_on_null_fk => 0,
+    },
+);
+
 
 #__PACKAGE__->add_relationship('genre', 'DBICTest::Schema::Genre',
 #    { 'foreign.genreid' => 'self.genreid' },

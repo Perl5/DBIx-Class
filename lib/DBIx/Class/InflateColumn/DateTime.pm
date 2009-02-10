@@ -24,10 +24,10 @@ Then you can treat the specified column as a L<DateTime> object.
   print "This event starts the month of ".
     $event->starts_when->month_name();
 
-If you want to set a specific timezone for that field, use:
+If you want to set a specific timezone and locale for that field, use:
 
   __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago" } }
+    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago", locale => "de_DE" } }
   );
 
 If you want to inflate no matter what data_type your column is,
@@ -107,8 +107,13 @@ sub register_column {
   }
 
   my $timezone;
-  if ( exists $info->{extra} and exists $info->{extra}{timezone} and defined $info->{extra}{timezone} ) {
+  if ( defined $info->{extra}{timezone} ) {
     $timezone = $info->{extra}{timezone};
+  }
+
+  my $locale;
+  if ( defined $info->{extra}{locale} ) {
+    $locale = $info->{extra}{locale};
   }
 
   my $undef_if_invalid = $info->{datetime_undef_if_invalid};
@@ -140,6 +145,7 @@ sub register_column {
             die "Error while inflating ${value} for ${column} on ${self}: $@"
               if $@ and not $undef_if_invalid;
             $dt->set_time_zone($timezone) if $timezone;
+            $dt->set_locale($locale) if $locale;
             return $dt;
           },
           deflate => sub {
@@ -151,6 +157,7 @@ sub register_column {
                       and not $floating_tz_ok
                       and not $ENV{DBIC_FLOATING_TZ_OK};
                 $value->set_time_zone($timezone);
+                $value->set_locale($locale) if $locale;
             }
             $obj->_datetime_parser->$format($value);
           },

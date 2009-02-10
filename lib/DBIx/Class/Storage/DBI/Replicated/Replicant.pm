@@ -52,7 +52,7 @@ has 'active' => (
 
 This class defines the following methods.
 
-=head2 after: _query_start
+=head2 around: _query_start
 
 advice iof the _query_start method to add more debuggin
 

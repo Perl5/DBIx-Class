@@ -54,7 +54,7 @@ sub sqlt_type { 'ACCESS' }
 
 =head1 NAME
 
-DBIx::Class::Storage::ODBC::ACCESS - Support specific to MS Access over ODBC
+DBIx::Class::Storage::DBI::ODBC::ACCESS - Support specific to MS Access over ODBC
 
 =head1 WARNING
 

@@ -24,7 +24,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.08099_05';
+$VERSION = '0.08099_06';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -217,6 +217,8 @@ bluefeet: Aran Deltac <bluefeet@cpan.org>
 
 bricas: Brian Cassidy <bricas@cpan.org>
 
+caelum: Rafael Kitover <rkitover@cpan.org>
+
 captainL: Luke Saunders <luke.saunders@gmail.com>
 
 castaway: Jess Robinson
@@ -285,7 +287,9 @@ rafl: Florian Ragwitz <rafl@debian.org>
 
 rdj: Ryan D Johnson <ryan@innerfence.com>
 
-ribasushi: Peter Rabbitson <rabbit@rabbit.us>
+ribasushi: Peter Rabbitson <rabbit+dbic@rabbit.us>
+
+rjbs: Ricardo Signes <rjbs@cpan.org>
 
 sc_: Just Another Perl Hacker
 
@@ -310,6 +314,8 @@ wdh: Will Hawes
 willert: Sebastian Willert <willert@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
+
+norbi: Norbert Buchmuller <norbi@nix.hu>
 
 =head1 LICENSE
 

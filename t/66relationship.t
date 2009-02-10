@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 72;
+plan tests => 74;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -41,7 +41,20 @@ if ($INC{'DBICTest/HelperRels.pm'}) {
   } );
 }
 
-is( ($artist->search_related('cds'))[3]->title, 'Big Flop', 'create_related ok' );
+my $big_flop_cd = ($artist->search_related('cds'))[3];
+is( $big_flop_cd->title, 'Big Flop', 'create_related ok' );
+
+{ # make sure we are not making pointless select queries when a FK IS NULL
+  my $queries = 0;
+  $schema->storage->debugcb(sub { $queries++; });
+  $schema->storage->debug(1);
+  $big_flop_cd->genre; #should not trigger a select query
+  is($queries, 0, 'No SELECT made for belongs_to if key IS NULL');
+  $big_flop_cd->genre_inefficient; #should trigger a select query
+  is($queries, 1, 'SELECT made for belongs_to if key IS NULL when undef_on_null_fk disabled');
+  $schema->storage->debug(0);
+  $schema->storage->debugcb(undef);
+}
 
 my( $rs_from_list ) = $artist->search_related_rs('cds');
 is( ref($rs_from_list), 'DBIx::Class::ResultSet', 'search_related_rs in list context returns rs' );

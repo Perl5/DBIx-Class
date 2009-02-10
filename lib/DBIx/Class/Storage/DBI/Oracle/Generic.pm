@@ -6,7 +6,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Oracle - Automatic primary key class for Oracle
+DBIx::Class::Storage::DBI::Oracle::Generic - Automatic primary key class for Oracle
 
 =head1 SYNOPSIS
 
@@ -102,6 +102,22 @@ L<DBIx::Class::InflateColumn::DateTime>.
 =cut
 
 sub datetime_parser_type { return "DateTime::Format::Oracle"; }
+
+sub _svp_begin {
+    my ($self, $name) = @_;
+ 
+    $self->dbh->do("SAVEPOINT $name");
+}
+
+# Oracle automatically releases a savepoint when you start another one with the
+# same name.
+sub _svp_release { 1 }
+
+sub _svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
+}
 
 =head1 AUTHORS
 

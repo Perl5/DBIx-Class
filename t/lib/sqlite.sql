@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Mon Nov 17 02:53:11 2008
+-- Created on Sat Jan 17 19:40:47 2009
 -- 
 BEGIN TRANSACTION;
 
@@ -36,6 +36,17 @@ CREATE TABLE cd_artwork (
 );
 
 CREATE INDEX cd_artwork_idx_cd_id_cd_artwor ON cd_artwork (cd_id);
+
+--
+-- Table: bindtype_test
+--
+CREATE TABLE bindtype_test (
+  id INTEGER PRIMARY KEY NOT NULL,
+  bytea blob,
+  blob blob,
+  clob clob
+);
+
 
 --
 -- Table: bookmark
@@ -400,5 +411,12 @@ CREATE TABLE typed_object (
   value varchar(100) NOT NULL
 );
 
+--
+-- Table: encoded
+--
+CREATE TABLE encoded (
+  id INTEGER PRIMARY KEY NOT NULL,
+  encoded varchar(100) NOT NULL
+);
 
 COMMIT;
