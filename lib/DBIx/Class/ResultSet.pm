@@ -1109,7 +1109,11 @@ is returned in list context.
 =cut
 
 sub all {
-  my ($self) = @_;
+  my $self = shift;
+  if(@_) {
+      $self->throw_exception("all() doesn't take any arguments, you probably wanted ->search(...)->all()");
+  }
+
   return @{ $self->get_cache } if $self->get_cache;
 
   my @obj;
@@ -2398,8 +2402,12 @@ sub throw_exception {
 
 =head1 ATTRIBUTES
 
-The resultset takes various attributes that modify its behavior. Here's an
-overview of them:
+Attributes are used to refine a ResultSet in various ways when
+searching for data. They can be passed to any method which takes an
+C<\%attrs> argument. See L</search>, L</search_rs>, L</find>,
+L</count>.
+
+These are in no particular order:
 
 =head2 order_by
 
@@ -2492,7 +2500,7 @@ L</select> but adds columns to the selection.
 
 =over 4
 
-Indicates additional column names for those added via L</+select>.
+Indicates additional column names for those added via L</+select>. See L</as>.
 
 =back
 
