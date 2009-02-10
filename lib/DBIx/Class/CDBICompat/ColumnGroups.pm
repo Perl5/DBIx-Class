@@ -73,7 +73,8 @@ sub _find_columns {
   return map { $class->find_column($_) } @col;
 }
 
-package DBIx::Class::CDBICompat::ColumnGroups::GrouperShim;
+package # hide from PAUSE
+    DBIx::Class::CDBICompat::ColumnGroups::GrouperShim;
 
 sub groups_for {
   my ($self, @cols) = @_;
