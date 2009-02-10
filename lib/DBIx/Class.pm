@@ -291,8 +291,6 @@ ribasushi: Peter Rabbitson <rabbit+dbic@rabbit.us>
 
 rjbs: Ricardo Signes <rjbs@cpan.org>
 
-robkinyon: Rob Kinyon <rkinyon@cpan.org>
-
 sc_: Just Another Perl Hacker
 
 scotty: Scotty Allen <scotty@scottyallen.com>

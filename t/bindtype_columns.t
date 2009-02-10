@@ -21,6 +21,8 @@ my $dbh = $schema->storage->dbh;
     $dbh->do('DROP TABLE IF EXISTS bindtype_test');
 
     # the blob/clob are for reference only, will be useful when we switch to SQLT and can test Oracle along the way
+
+    # the blob/clob are for reference only, will be useful when we switch to SQLT and can test Oracle along the way
     $dbh->do(qq[
         CREATE TABLE bindtype_test 
         (
@@ -32,57 +34,21 @@ my $dbh = $schema->storage->dbh;
     ],{ RaiseError => 1, PrintError => 1 });
 }
 
-my $big_long_string	= "\x00\x01\x02 abcd" x 125000;
-
-my $new;
-# test inserting a row
-{
-  $new = $schema->resultset('BindType')->create({ bytea => $big_long_string });
-
-  ok($new->id, "Created a bytea row");
-  is($new->bytea, 	$big_long_string, "Set the blob correctly.");
-}
-
 # test retrieval of the bytea column
 {
   my $row = $schema->resultset('BindType')->find({ id => $new->id });
   is($row->get_column('bytea'), $big_long_string, "Created the blob correctly.");
 }
 
-TODO: {
-  local $TODO =
-    'Passing bind attributes to $sth->bind_param() should be implemented (it only works in $storage->insert ATM)';
+my $new = $schema->resultset('BindType')->create({ bytea => $big_long_string });
 
-  my $rs = $schema->resultset('BindType')->search({ bytea => $big_long_string });
+ok($new->id, "Created a bytea row");
+is($new->bytea, 	$big_long_string, "Set the blob correctly.");
 
-  # search on the bytea column (select)
-  {
-    my $row = $rs->first;
-    is($row ? $row->id : undef, $new->id, "Found the row searching on the bytea column.");
-  }
+my $rs = $schema->resultset('BindType')->find({ id => $new->id });
 
-  # search on the bytea column (update)
-  {
-    my $new_big_long_string = $big_long_string . "2";
-    $schema->txn_do(sub {
-      $rs->update({ bytea => $new_big_long_string });
-      my $row = $schema->resultset('BindType')->find({ id => $new->id });
-      is($row ? $row->get_column('bytea') : undef, $new_big_long_string,
-        "Updated the row correctly (searching on the bytea column)."
-      );
-      $schema->txn_rollback;
-    });
-  }
+is($rs->get_column('bytea'), $big_long_string, "Created the blob correctly.");
 
-  # search on the bytea column (delete)
-  {
-    $schema->txn_do(sub {
-      $rs->delete;
-      my $row = $schema->resultset('BindType')->find({ id => $new->id });
-      is($row, undef, "Deleted the row correctly (searching on the bytea column).");
-      $schema->txn_rollback;
-    });
-  }
-}
+$dbh->do("DROP TABLE bindtype_test");
 
 $dbh->do("DROP TABLE bindtype_test");

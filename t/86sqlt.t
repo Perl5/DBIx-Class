@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 133;
+plan tests => 132;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -29,7 +29,7 @@ my $translator = SQL::Translator->new(
     $schema->source('Track')->sqlt_deploy_callback(sub {
       my ($self, $sqlt_table) = @_;
 
-      if ($schema->storage->sqlt_type eq 'SQLite' ) {
+      if ($sqlt_table->schema->translator->producer_type =~ /SQLite$/ ) {
         $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
           or die $sqlt_table->error;
       }

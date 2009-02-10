@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat Jan 24 19:42:15 2009
+-- Created on Sat Jan 17 19:40:47 2009
 -- 
 BEGIN TRANSACTION;
 
@@ -36,18 +36,6 @@ CREATE TABLE cd_artwork (
 );
 
 CREATE INDEX cd_artwork_idx_cd_id_cd_artwor ON cd_artwork (cd_id);
-
---
--- Table: artwork_to_artist
---
-CREATE TABLE artwork_to_artist (
-  artwork_cd_id integer NOT NULL,
-  artist_id integer NOT NULL,
-  PRIMARY KEY (artwork_cd_id, artist_id)
-);
-
-CREATE INDEX artwork_to_artist_idx_artist_id_artwork_to_arti ON artwork_to_artist (artist_id);
-CREATE INDEX artwork_to_artist_idx_artwork_cd_id_artwork_to_ ON artwork_to_artist (artwork_cd_id);
 
 --
 -- Table: bindtype_test

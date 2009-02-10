@@ -187,19 +187,17 @@ bringing down your entire pool of databases.
 
 sub _safely_ensure_connected {
   my ($self, $replicant, @args) = @_;
-  eval {
-    $replicant->ensure_connected(@args);
-  }; 
-  if ($@) {
+  my $return; eval {
+    $return = $replicant->ensure_connected(@args);
+  }; if ($@) {
     $replicant
-      ->debugobj
-      ->print(
-        sprintf( "Exception trying to ->ensure_connected for replicant %s, error is %s",
-          $replicant->_dbi_connect_info->[0], $@)
+        ->debugobj
+        ->print(
+            sprintf( "Exception trying to ->ensure_connected for replicant %s, error is %s",
+                $self->_dbi_connect_info->[0], $@)
         );
-  	return;
   }
-  return 1;
+  return $return;
 }
 
 =head2 connected_replicants

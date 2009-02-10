@@ -31,7 +31,6 @@ sub add_relationship_accessor {
           $rel_info->{cond}, $rel, $self
         );
         if ($rel_info->{attrs}->{undef_on_null_fk}){
-          return unless ref($cond) eq 'HASH';
           return if grep { not defined } values %$cond;
         }
         my $val = $self->find_related($rel, {}, {});
