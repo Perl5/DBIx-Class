@@ -54,6 +54,22 @@ sub new {
   return $new;
 }
 
+=head2 as_query
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: [ $sql, @bind ]
+
+=back
+
+Returns the SQL query and bind vars associated with the invocant.
+
+=cut
+
+sub as_query { return shift->_resultset->as_query }
+
 =head2 next
 
 =over 4
@@ -277,7 +293,6 @@ sub _resultset {
     }
   );
 }
-
 
 1;
 

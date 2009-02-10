@@ -1711,6 +1711,14 @@ sub _remove_alias {
 
 =head2 as_query
 
+=over 4
+
+=item Arguments: none
+
+=item Return Value: [ $sql, @bind ]
+
+=back
+
 Returns the SQL query and bind vars associated with the invocant.
 
 =cut

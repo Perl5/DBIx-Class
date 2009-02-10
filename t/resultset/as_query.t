@@ -7,7 +7,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 6;
+plan tests => 8;
 
 my $schema	= DBICTest->init_schema();
 my $art_rs	= $schema->resultset('Artist');
@@ -37,6 +37,16 @@ $art_rs = $art_rs->search({ rank => 2 });
   my ($query, @bind) = @$arr;
 
   is( $query, "SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) )" );
+  is_deeply( \@bind, [ [ rank => 2 ], [ name => 'Billy Joel' ] ] );
+}
+
+my $rscol = $art_rs->get_column( 'charfield' );
+
+{
+  my $arr = $rscol->as_query;
+  my ($query, @bind) = @$arr;
+
+  is( $query, "SELECT me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) )" );
   is_deeply( \@bind, [ [ rank => 2 ], [ name => 'Billy Joel' ] ] );
 }
 
