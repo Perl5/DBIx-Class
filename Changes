@@ -1,6 +1,6 @@
 Revision history for DBIx::Class
 
-0.08011 2009-02-09 12:00:00 (UTC)
+0.08011 2009-02-11 16:30:00 (UTC)
         - Maintenance release introducing compatibilty with upcoming
           versions of SQL::Translator and SQL::Abstract
 
