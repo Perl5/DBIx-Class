@@ -2246,7 +2246,7 @@ sub _resolved_attrs {
   if (my $prefetch = delete $attrs->{prefetch}) {
     $prefetch = $self->_merge_attr({}, $prefetch);
     my @pre_order;
-    my $seen = $attrs->{seen_join} || {};
+    my $seen = { %{ $attrs->{seen_join} || {} } };
     foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
       # bring joins back to level of current class
       my @prefetch = $source->resolve_prefetch(
