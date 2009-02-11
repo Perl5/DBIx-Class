@@ -42,16 +42,10 @@ auto_install;
 # Have all prerequisites, check DBD::SQLite sanity
 if (! $ENV{DBICTEST_NO_SQLITE_CHECK} ) {
 
-  my $pid = fork();
-  if (not defined $pid) {
-      die "Unable to fork(): $!";
-  }
-  elsif (! $pid) {
-
-      # Win32 does not have real fork()s so a segfault will bring
-      # everything down. Warn about it.
-      if ($^O eq 'MSWin32') {
-        print <<'EOW';
+  # Win32 does not have real fork()s so a segfault will bring
+  # everything down. Warn about it.
+  if ($^O eq 'MSWin32') {
+    print <<'EOW';
 
 ######################################################################
 #                                                                    #
@@ -74,7 +68,13 @@ if (! $ENV{DBICTEST_NO_SQLITE_CHECK} ) {
 ######################################################################
 
 EOW
-      }
+  }
+
+  my $pid = fork();
+  if (not defined $pid) {
+      die "Unable to fork(): $!";
+  }
+  elsif (! $pid) {
 
       require DBI;
       for (1 .. 100) {
