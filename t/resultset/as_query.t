@@ -3,6 +3,8 @@
 use strict;
 use warnings FATAL => 'all';
 
+use Data::Dumper;
+
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
@@ -68,10 +70,11 @@ my $cdrs2 = $cdrs->search({
     -in => $art_rs->get_column( 'id' )->as_query,
   },
 });
-
-my @x = $cdrs2->all;
-use Data::Dumper; warn Dumper \@x;
+warn Dumper $cdrs2->as_query;
 __END__
+my @x = $cdrs2->all;
+warn Dumper \@x;
+
 {
   my $arr = $cdrs2->as_query;
   my ($query, @bind) = @{$$arr};
