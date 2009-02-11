@@ -607,6 +607,10 @@ of the resultset.
 
 sub single {
   my ($self, $where) = @_;
+  if(@_ > 2) {
+      $self->throw_exception('single() only takes search conditions, no attributes. You want ->search( $cond, $attrs )->single()');
+  }
+
   my $attrs = { %{$self->_resolved_attrs} };
   if ($where) {
     if (defined $attrs->{where}) {
