@@ -60,7 +60,7 @@ sub new {
 
 =item Arguments: none
 
-=item Return Value: [ $sql, @bind ]
+=item Return Value: \[ $sql, @bind ]
 
 =back
 

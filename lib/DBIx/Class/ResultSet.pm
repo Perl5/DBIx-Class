@@ -1715,7 +1715,7 @@ sub _remove_alias {
 
 =item Arguments: none
 
-=item Return Value: [ $sql, @bind ]
+=item Return Value: \[ $sql, @bind ]
 
 =back
 
