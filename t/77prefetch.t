@@ -2,6 +2,7 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
@@ -16,7 +17,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 58 );
+        : ( tests => 63 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -44,6 +45,27 @@ my $rs = $schema->resultset("CD")->search($search, $attr);
 is(Dumper($search), $search_str, 'Search hash untouched after search()');
 is(Dumper($attr), $attr_str, 'Attribute hash untouched after search()');
 cmp_ok($rs + 0, '==', 3, 'Correct number of records returned');
+
+# A search() with prefetch seems to pollute an already joined resultset
+# in a way that offsets future joins (adapted from a test case by Debolaz)
+{
+  my $cd_rs = $schema->resultset ('Producer')->first->cds;
+  my $attrs = Dumper $cd_rs->{attrs};
+
+  $cd_rs->search ({})->all;
+  is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
+
+  lives_ok (sub {
+    $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
+    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
+  }, 'first prefetching search ok');
+
+  lives_ok (sub {
+    $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
+    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
+  }, 'second prefetching search ok');
+}
+
 
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
