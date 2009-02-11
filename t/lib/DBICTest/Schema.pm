@@ -18,6 +18,7 @@ __PACKAGE__->load_classes(qw/
   #dummy
   Track
   Tag
+  Year2000CDs
   /,
   { 'DBICTest::Schema' => [qw/
     LinerNotes
