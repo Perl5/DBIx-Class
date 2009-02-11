@@ -497,6 +497,16 @@ point of view:
 
  $resultset->set_primary_key(@column);
 
+=item How do I make my program start faster?
+
+Look at the tips in L<DBIx::Class::Manual::Cookbook/"STARTUP SPEED">
+
+=item How do I reduce the overhead of database queries?
+
+You can reduce the overhead of object creation within L<DBIx::Class>
+using the tips in L<DBIx::Class::Manual::Cookbook/"Skip row object creation for faster results"> 
+and L<DBIx::Class::Manual::Cookbook/"Get raw data for blindingly fast results">
+
 =back
 
 =head2 Notes for CDBI users

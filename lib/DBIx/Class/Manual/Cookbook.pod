@@ -812,7 +812,7 @@ To do this simply use L<DBIx::Class::ResultClass::HashRefInflator>.
  my $hash_ref = $rs->find(1);
 
 Wasn't that easy?
-  
+
 =head2 Get raw data for blindingly fast results
 
 If the L<HashRefInflator|DBIx::Class::ResultClass::HashRefInflator> solution
@@ -1618,5 +1618,67 @@ You could then create average, high and low execution times for an SQL
 statement and dig down to see if certain parameters cause aberrant behavior.
 You might want to check out L<DBIx::Class::QueryLog> as well.
 
+=head1 STARTUP SPEED
+
+L<DBIx::Class|DBIx::Class> programs can have a significant startup delay
+as the ORM loads all the relevant classes. This section examines
+techniques for reducing the startup delay.
+
+These tips are are listed in order of decreasing effectiveness - so the
+first tip, if applicable, should have the greatest effect on your
+application.
+
+=head2 Statically Define Your Schema
+
+If you are using
+L<DBIx::Class::Schema::Loader|DBIx::Class::Schema::Loader> to build the
+classes dynamically based on the database schema then there will be a
+significant startup delay.
+
+For production use a statically defined schema (which can be generated
+using L<DBIx::Class::Schema::Loader|DBIx::Class::Schema::Loader> to dump
+the database schema once - see
+L<make_schema_at|DBIx::Class::Schema::Loader/make_schema_at> and
+L<dump_directory|DBIx::Class::Schema::Loader/dump_directory> for more
+details on creating static schemas from a database).
+
+=head2 Move Common Startup into a Base Class
+
+Typically L<DBIx::Class> result classes start off with
+
+    use base qw/DBIx::Class/;
+    __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
+
+If this preamble is moved into a common base class:-
+
+    package MyDBICbase;
+    
+    use base qw/DBIx::Class/;
+    __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
+    1;
+
+and each result class then uses this as a base:-
+
+    use base qw/MyDBICbase/;
+
+then the load_components is only performed once, which can result in a
+considerable startup speedup for schemas with many classes.
+
+=head2 Explicitly List Schema Result Classes
+
+The schema class will normally contain
+
+    __PACKAGE__->load_classes();
+
+to load the result classes. This will use L<Module::Find|Module::Find>
+to find and load the appropriate modules. Explicitly defining the
+classes you wish to load will remove the overhead of
+L<Module::Find|Module::Find> and the related directory operations:-
+
+    __PACKAGE__->load_classes(qw/ CD Artist Track /);
+
+If you are instead using the L<load_namespaces|DBIx::Class::Schema/load_namespaces>
+syntax to load the appropriate classes there is not a direct alternative
+avoiding L<Module::Find|Module::Find>.
 
 =cut
