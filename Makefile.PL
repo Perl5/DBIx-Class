@@ -18,12 +18,15 @@ requires 'Class::Inspector'          => 0;
 requires 'Class::Accessor::Grouped'  => 0.08002;
 requires 'JSON::Any'                 => 1.17;
 requires 'Scope::Guard'              => 0.03;
+requires 'List::Util'                => 1.19;
 
 # Perl 5.8.0 doesn't have utf8::is_utf8()
 requires 'Encode'                    => 0 if ($] <= 5.008000);  
 
 test_requires 'DBD::SQLite'         => 1.14;
 test_requires 'Test::Builder'       => 0.33;
+test_requires 'Test::Exception'     => 0;
+test_requires 'Test::Deep'          => 0;
 
 install_script 'script/dbicadmin';
 
