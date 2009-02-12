@@ -1269,6 +1269,11 @@ sub update {
   $self->throw_exception("Values for update must be a hash")
     unless ref $values eq 'HASH';
 
+  carp(   'WARNING! Currently $rs->update() does not generate proper SQL'
+        . ' on joined resultsets, and may affect rows well outside of the'
+        . ' contents of $rs. Use at your own risk' )
+    if ( $self->{attrs}{seen_join} );
+
   my $cond = $self->_cond_for_update_delete;
    
   return $self->result_source->storage->update(

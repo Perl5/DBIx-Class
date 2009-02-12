@@ -17,7 +17,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 16 );
+        : ( tests => 18 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -179,3 +179,28 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->name, 'We Are Goth', 'Correct record returned');
 
+# test for warnings on delete of joined resultset
+$rs = $schema->resultset("CD")->search(
+    { 'artist.name' => 'Caterwauler McCrae' },
+    { join => [qw/artist/]}
+);
+my $tst_delete_warning;
+eval {
+    local $SIG{__WARN__} = sub { $tst_delete_warning = shift };
+    $rs->delete();
+};
+
+ok( ($@ || $tst_delete_warning), 'fail/warning on attempt to delete a join-ed resultset');
+
+# test for warnings on update of joined resultset
+$rs = $schema->resultset("CD")->search(
+    { 'artist.name' => 'Random Boy Band' },
+    { join => [qw/artist/]}
+);
+my $tst_update_warning;
+eval {
+    local $SIG{__WARN__} = sub { $tst_update_warning = shift };
+    $rs->update({ 'artist' => 1 });
+};
+
+ok( ($@ || $tst_update_warning), 'fail/warning on attempt to update a join-ed resultset');
