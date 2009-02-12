@@ -6,7 +6,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Oracle - Automatic primary key class for Oracle
+DBIx::Class::Storage::DBI::Oracle::Generic - Automatic primary key class for Oracle
 
 =head1 SYNOPSIS
 
