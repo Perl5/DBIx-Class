@@ -94,6 +94,7 @@ sub _dbh_execute {
       $self->disconnect;
 
       $self->throw_exception($exception) if $self->{_in_dbh_do};
+      $self->throw_exception($exception) if $self->transaction_depth;
 
       $self->ensure_connected;
     } elsif ($exception =~ /ORA-01003/) { # invalid cursor
