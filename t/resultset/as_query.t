@@ -52,23 +52,24 @@ $art_rs = $art_rs->search({ rank => 2 });
   );
 }
 
+{my $sql = $art_rs->as_sql; warn "$sql\n";}
+
 my $rscol = $art_rs->get_column( 'charfield' );
 
 {
-  my $arr = $rscol->as_query;
+  my $arr = $rscol->as_subselect;
   my ($query, @bind) = @{$$arr};
 
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) )",
+    "( SELECT me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) ) )",
     [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
   );
 }
+{my $sql = $rscol->as_sql; warn "$sql\n";}
 
 my $cdrs2 = $cdrs->search({
-  artist_id => {
-    -in => $art_rs->get_column( 'id' )->as_query,
-  },
+  artist_id => $art_rs->get_column( 'id' )->as_query,
 });
 warn Dumper $cdrs2->as_query;
 __END__
