@@ -1775,22 +1775,32 @@ sub deployment_statements {
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs, $dir) = @_;
-  foreach my $statement ( $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } ) ) {
-    foreach my $line ( split(";\n", $statement)) {
-      next if($line =~ /^--/);
-      next if(!$line);
-#      next if($line =~ /^DROP/m);
-      next if($line =~ /^BEGIN TRANSACTION/m);
-      next if($line =~ /^COMMIT/m);
-      next if $line =~ /^\s+$/; # skip whitespace only
-      $self->_query_start($line);
-      eval {
-        $self->dbh->do($line); # shouldn't be using ->dbh ?
-      };
-      if ($@) {
-        warn qq{$@ (running "${line}")};
-      }
-      $self->_query_end($line);
+  my $deploy = sub {
+    my $line = shift;
+    return if($line =~ /^--/);
+    return if(!$line);
+    # next if($line =~ /^DROP/m);
+    return if($line =~ /^BEGIN TRANSACTION/m);
+    return if($line =~ /^COMMIT/m);
+    return if $line =~ /^\s+$/; # skip whitespace only
+    $self->_query_start($line);
+    eval {
+      $self->dbh->do($line); # shouldn't be using ->dbh ?
+    };
+    if ($@) {
+      warn qq{$@ (running "${line}")};
+    }
+    $self->_query_end($line);
+  };
+  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } );
+  if (@statements > 1) {
+    foreach my $statement (@statements) {
+      $deploy->( $statement );
+    }
+  }
+  elsif (@statements == 1) {
+    foreach my $line ( split(";\n", $statements[0])) {
+      $deploy->( $line );
     }
   }
 }
