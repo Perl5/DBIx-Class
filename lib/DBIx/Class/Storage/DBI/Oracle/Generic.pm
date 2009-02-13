@@ -69,6 +69,48 @@ sub _sequence_fetch {
   return $id;
 }
 
+sub _dbh_execute {
+  my $self = shift;
+  my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+
+  my $wantarray = wantarray;
+  my @res;
+  my $exception;
+
+  my $try = 2;
+  
+  while ($try--) {
+    eval {
+      if ($wantarray) {
+        @res    = $self->SUPER::_dbh_execute(@_);
+      } else {
+        $res[0] = $self->SUPER::_dbh_execute(@_);
+      }
+    };
+    $exception = $@;
+    if ($exception =~ /ORA-(?:00028|01012)/) {
+# ORA-00028: your session has been killed
+# ORA-01012: not logged on
+      $self->disconnect;
+
+      $self->throw_exception($exception) if $self->{_in_dbh_do};
+
+      $self->ensure_connected;
+    } elsif ($exception =~ /ORA-01003/) { # invalid cursor
+# ORA-01003: no statement parsed (someone renamed a column or something,
+# invalidating your cursor.)
+      my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
+      delete $dbh->{CachedKids}{$sql};
+    } else {
+      last;
+    }
+  }
+
+  $self->throw_exception($exception) if $exception;
+
+  wantarray ? @res : $res[0]
+}
+
 =head2 get_autoinc_seq
 
 Returns the sequence name for an autoincrement column
