@@ -149,7 +149,7 @@ is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manual
 
 # clean up our mess
 END {
-    if($dbh) {
+    if($dbh = $schema->storage->dbh) {
         $dbh->do("DROP SEQUENCE artist_seq");
         $dbh->do("DROP SEQUENCE pkid1_seq");
         $dbh->do("DROP SEQUENCE pkid2_seq");

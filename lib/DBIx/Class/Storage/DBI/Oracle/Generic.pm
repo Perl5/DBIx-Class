@@ -25,6 +25,7 @@ This class implements autoincrements for Oracle.
 =cut
 
 use Carp::Clan qw/^DBIx::Class/;
+use Scalar::Util ();
 
 use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 
@@ -84,6 +85,30 @@ sub _sequence_fetch {
   return $id;
 }
 
+sub connected {
+  my $self = shift;
+  
+  if ($self->SUPER::connected(@_)) {
+      my $dbh = $self->_dbh;
+  
+      my $ping_sth = $dbh->prepare_cached("select 1 from dual");
+  
+      local $dbh->{RaiseError} = 1;
+      eval {
+          $ping_sth->execute;
+          $ping_sth->finish;
+      };
+  
+      if ($@) {
+          return 0;
+      } else {
+          return 1;
+      }
+  }
+  
+  return 0;
+}
+
 sub _dbh_execute {
   my $self = shift;
   my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
@@ -103,17 +128,8 @@ sub _dbh_execute {
       }
     };
     $exception = $@;
-    if ($exception =~ /ORA-(?:00028|01012)/) {
-# ORA-00028: your session has been killed
-# ORA-01012: not logged on
-      $self->disconnect;
-
-      $self->throw_exception($exception) if $self->{_in_dbh_do};
-      $self->throw_exception($exception) if $self->transaction_depth;
-
-      $self->ensure_connected;
-    } elsif ($exception =~ /ORA-01003/) { # invalid cursor
-# ORA-01003: no statement parsed (someone renamed a column or something,
+    if ($exception =~ /ORA-01003/) {
+# ORA-01003: no statement parsed (someone changed the table somehow,
 # invalidating your cursor.)
       my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
       delete $dbh->{CachedKids}{$sql};
