@@ -42,12 +42,12 @@ $art_rs = $art_rs->search({ name => 'Billy Joel' });
 $art_rs = $art_rs->search({ rank => 2 });
 
 {
-  my $arr = $art_rs->as_subselect;
+  my $arr = $art_rs->as_query;
   my ($query, @bind) = @{$$arr};
 
   is_same_sql_bind(
     $query, \@bind,
-    "( SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( ( rank = ? ) AND ( name = ? ) ) )",
+    "SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( ( rank = ? ) AND ( name = ? ) )",
     [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
   );
 }
@@ -55,29 +55,29 @@ $art_rs = $art_rs->search({ rank => 2 });
 my $rscol = $art_rs->get_column( 'charfield' );
 
 {
-  my $arr = $rscol->as_subselect;
+  my $arr = $rscol->as_query;
   my ($query, @bind) = @{$$arr};
 
   is_same_sql_bind(
     $query, \@bind,
-    "( SELECT me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) ) )",
+    "SELECT me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) )",
     [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
   );
 }
 
+# This is an actual subquery.
 {
   my $cdrs2 = $cdrs->search({
-    artist_id => { '=' => $art_rs->search({}, { rows => 1 })->get_column( 'id' )->as_subselect },
+    artist_id => { 'in' => $art_rs->search({}, { rows => 1 })->get_column( 'id' )->as_query },
   });
 
   my $arr = $cdrs2->as_query;
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE artist_id = ( SELECT id FROM artist me WHERE ( rank = ? ) AND ( name = ? ) LIMIT 1 )",
+    "SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE artist_id IN ( SELECT id FROM artist me WHERE ( rank = ? ) AND ( name = ? ) LIMIT 1 )",
     [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
   );
-warn Dumper $cdrs2->as_sql;
 }
 
 __END__

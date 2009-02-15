@@ -1721,56 +1721,11 @@ sub _remove_alias {
 
 Returns the SQL query and bind vars associated with the invocant.
 
+This is generally used as the RHS for a subquery.
+
 =cut
 
 sub as_query { return shift->cursor->as_query(@_) }
-
-=head2 as_subselect
-
-=over 4
-
-=item Arguments: none
-
-=item Return Value: \[ $sql, @bind ]
-
-=back
-
-Returns the SQL query and bind vars associated with the invocant.
-
-The SQL will be wrapped in parentheses, ready for use as a subselect.
-
-=cut
-
-sub as_subselect {
-  my $self = shift;
-  my $arr = ${$self->as_query(@_)};
-  $arr->[0] = '( ' . $arr->[0] . ' )';
-  return \$arr;
-}
-
-=head2 as_query
-
-=over 4
-
-=item Arguments: none
-
-=item Return Value: $sql
-
-=back
-
-Returns the SQL query associated with the invocant. All bind vars
-will have been bound using C<< DBI->quote() >>.
-
-=cut
-
-sub as_sql {
-  my $self = shift;
-  my $arr = ${$self->as_query(@_)};
-  my $sql = shift @$arr;
-  my $dbh = $self->result_source->schema->storage->dbh;
-  $sql =~ s/\?/$dbh->quote((shift @$arr)->[1])/eg;
-  return $sql
-}
 
 =head2 find_or_new
 
