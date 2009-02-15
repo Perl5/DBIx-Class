@@ -952,10 +952,18 @@ sub _do_query {
     $self->_do_query($_) foreach @$action;
   }
   else {
-    my @to_run = (ref $action eq 'ARRAY') ? (@$action) : ($action);
-    $self->_query_start(@to_run);
-    $self->_dbh->do(@to_run);
-    $self->_query_end(@to_run);
+    # Most debuggers expect ($sql, @bind), so we need to exclude
+    # the attribute hash which is the second argument to $dbh->do
+    # furthermore the bind values are usually to be presented
+    # as named arrayref pairs, so wrap those here too
+    my @do_args = (ref $action eq 'ARRAY') ? (@$action) : ($action);
+    my $sql = shift @do_args;
+    my $attrs = shift @do_args;
+    my @bind = map { [ undef, $_ ] } @do_args;
+
+    $self->_query_start($sql, @bind);
+    $self->_dbh->do($sql, $attrs, @do_args);
+    $self->_query_end($sql, @bind);
   }
 
   return $self;
