@@ -55,8 +55,23 @@ sub _dbh_get_autoinc_seq {
   # trigger_body is a LONG
   $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
 
-  my $sth = $dbh->prepare($sql);
-  $sth->execute( uc($source->name) );
+  my $sth;
+
+  # check for fully-qualified name (eg. SCHEMA.TABLENAME)
+  if ( my ( $schema, $table ) = $source->name =~ /(\w+)\.(\w+)/ ) {
+    $sql = q{
+      SELECT trigger_body FROM ALL_TRIGGERS t
+      WHERE t.owner = ? AND t.table_name = ?
+      AND t.triggering_event = 'INSERT'
+      AND t.status = 'ENABLED'
+    };
+    $sth = $dbh->prepare($sql);
+    $sth->execute( uc($schema), uc($table) );
+  }
+  else {
+    $sth = $dbh->prepare($sql);
+    $sth->execute( uc( $source->name ) );
+  }
   while (my ($insert_trigger) = $sth->fetchrow_array) {
     return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
   }
