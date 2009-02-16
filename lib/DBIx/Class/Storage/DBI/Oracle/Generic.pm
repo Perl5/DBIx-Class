@@ -87,25 +87,25 @@ sub _sequence_fetch {
 
 sub connected {
   my $self = shift;
-  
+
   if ($self->SUPER::connected(@_)) {
-      my $dbh = $self->_dbh;
-  
-      my $ping_sth = $dbh->prepare_cached("select 1 from dual");
-  
-      local $dbh->{RaiseError} = 1;
-      eval {
-          $ping_sth->execute;
-          $ping_sth->finish;
-      };
-  
-      if ($@) {
-          return 0;
-      } else {
-          return 1;
-      }
+    my $dbh = $self->_dbh;
+
+    my $ping_sth = $dbh->prepare_cached("select 1 from dual");
+
+    local $dbh->{RaiseError} = 1;
+    eval {
+      $ping_sth->execute;
+      $ping_sth->finish;
+    };
+
+    if ($@) {
+      return 0;
+    } else {
+      return 1;
+    }
   }
-  
+
   return 0;
 }
 
