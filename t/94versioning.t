@@ -16,9 +16,9 @@ BEGIN {
     unless ($dsn);
 
 
-    eval "use DBD::mysql; use SQL::Translator 0.09;";
+    eval "use DBD::mysql; use SQL::Translator 0.09003;";
     plan $@
-        ? ( skip_all => 'needs DBD::mysql and SQL::Translator 0.09 for testing' )
+        ? ( skip_all => 'needs DBD::mysql and SQL::Translator 0.09003 for testing' )
         : ( tests => 22 );
 }
 

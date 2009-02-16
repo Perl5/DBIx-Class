@@ -55,8 +55,23 @@ sub _dbh_get_autoinc_seq {
   # trigger_body is a LONG
   $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
 
-  my $sth = $dbh->prepare($sql);
-  $sth->execute( uc($source->name) );
+  my $sth;
+
+  # check for fully-qualified name (eg. SCHEMA.TABLENAME)
+  if ( my ( $schema, $table ) = $source->name =~ /(\w+)\.(\w+)/ ) {
+    $sql = q{
+      SELECT trigger_body FROM ALL_TRIGGERS t
+      WHERE t.owner = ? AND t.table_name = ?
+      AND t.triggering_event = 'INSERT'
+      AND t.status = 'ENABLED'
+    };
+    $sth = $dbh->prepare($sql);
+    $sth->execute( uc($schema), uc($table) );
+  }
+  else {
+    $sth = $dbh->prepare($sql);
+    $sth->execute( uc( $source->name ) );
+  }
   while (my ($insert_trigger) = $sth->fetchrow_array) {
     return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
   }
@@ -67,6 +82,59 @@ sub _sequence_fetch {
   my ( $self, $type, $seq ) = @_;
   my ($id) = $self->dbh->selectrow_array("SELECT ${seq}.${type} FROM DUAL");
   return $id;
+}
+
+sub connected {
+  my $self = shift;
+
+  if (not $self->SUPER::connected(@_)) {
+    return 0;
+  }
+  else {
+    my $dbh = $self->_dbh;
+
+    local $dbh->{RaiseError} = 1;
+
+    eval {
+      my $ping_sth = $dbh->prepare_cached("select 1 from dual");
+      $ping_sth->execute;
+      $ping_sth->finish;
+    };
+
+    return $@ ? 0 : 1;
+  }
+}
+
+sub _dbh_execute {
+  my $self = shift;
+  my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+
+  my $wantarray = wantarray;
+
+  my (@res, $exception, $retried);
+
+  do {
+    eval {
+      if ($wantarray) {
+        @res    = $self->SUPER::_dbh_execute(@_);
+      } else {
+        $res[0] = $self->SUPER::_dbh_execute(@_);
+      }
+    };
+    $exception = $@;
+    if ($exception =~ /ORA-01003/) {
+      # ORA-01003: no statement parsed (someone changed the table somehow,
+      # invalidating your cursor.)
+      my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
+      delete $dbh->{CachedKids}{$sql};
+    } else {
+      last;
+    }
+  } while (not $retried++);
+
+  $self->throw_exception($exception) if $exception;
+
+  wantarray ? @res : $res[0]
 }
 
 =head2 get_autoinc_seq

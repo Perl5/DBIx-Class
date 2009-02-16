@@ -52,6 +52,86 @@ In the examples below, the following table classes are used:
   __PACKAGE__->belongs_to(artist => 'MyApp::Schema::Artist');
   1;
 
+=head1 DISCUSSION
+
+When you create a resultset (usually as a result of calling search()), DBIx::Class
+B<doesn't> make a DB call. Not yet. A resultset is (in simplistic terms) a set of
+where conditions, join conditions, and other metadata that would be needed to execute
+a SELECT statement. This has several big implications:
+
+=over 4
+
+=item * You can chain resultsets
+
+=item * You can run multiple queries using the same resultset
+
+=back
+
+=head2 Chaining resultsets
+
+Let's say you've got a query that needs to be run to return some data to the user. But,
+you have an authorization system in place that prevents certain users from seeing certain
+information. So, you want to construct the query in one method, but add constraints to it
+in another.
+
+  sub get_data {
+    my $self = shift;
+    my $request = $self->get_request; # Get a request object somehow.
+    my $schema = $self->get_schema;   # Get the DBIC schema object somehow.
+
+    my $rs = $schema->resultset('some_data')->search({
+      foo => $request->param('foo'),
+      bar => $request->param('bar'),
+    });
+
+    $self->apply_security_policy( $rs );
+
+    return $rs->all;
+  }
+
+  sub apply_security_policy {
+    my $self = shift;
+    my ($rs) = @_;
+
+    return $rs->search({
+      hidden_data => 0,
+    });
+  }
+
+=head2 Multiple queries
+
+Since a resultset hasn't hit the database yet, you can do all sorts of things with it.
+
+  # Don't hit the DB yet.
+  my $rs = $schema->resultset('some_table')->search({
+    foo => 1,
+    bar => 2,
+  });
+
+  # Each of these hits the DB individually.
+  my $count = $rs->count;
+  my $max_baz = $rs->get_column('baz')->max;
+  my @records = $rs->all;
+
+And it's not just limited to SELECT statements.
+
+  $rs->delete;
+
+This is even cooler
+
+  $rs->create({ baz => 20 });
+
+That is equivalent to
+
+  $schema->resultset('some_table')->create({
+    foo => 1,
+    bar => 2,
+    baz => 20,
+  });
+
+Note that C<get_column()> returns a ResultSetColumn object. This will behave almost
+exactly like a resultset, except it has methods tuned for working with columns.
+
 =head1 OVERLOADING
 
 If a resultset is used in a numeric context it returns the L</count>.
@@ -607,6 +687,10 @@ of the resultset.
 
 sub single {
   my ($self, $where) = @_;
+  if(@_ > 2) {
+      $self->throw_exception('single() only takes search conditions, no attributes. You want ->search( $cond, $attrs )->single()');
+  }
+
   my $attrs = { %{$self->_resolved_attrs} };
   if ($where) {
     if (defined $attrs->{where}) {
@@ -1109,7 +1193,11 @@ is returned in list context.
 =cut
 
 sub all {
-  my ($self) = @_;
+  my $self = shift;
+  if(@_) {
+      $self->throw_exception("all() doesn't take any arguments, you probably wanted ->search(...)->all()");
+  }
+
   return @{ $self->get_cache } if $self->get_cache;
 
   my @obj;
@@ -1260,6 +1348,11 @@ sub update {
   my ($self, $values) = @_;
   $self->throw_exception("Values for update must be a hash")
     unless ref $values eq 'HASH';
+
+  carp(   'WARNING! Currently $rs->update() does not generate proper SQL'
+        . ' on joined resultsets, and may affect rows well outside of the'
+        . ' contents of $rs. Use at your own risk' )
+    if ( $self->{attrs}{seen_join} );
 
   my $cond = $self->_cond_for_update_delete;
    
@@ -1808,7 +1901,7 @@ Example of creating a new row.
 
   $person_rs->create({
     name=>"Some Person",
-	email=>"somebody@someplace.com"
+    email=>"somebody@someplace.com"
   });
   
 Example of creating a new row and also creating rows in a related C<has_many>
@@ -1827,10 +1920,10 @@ C<belongs_to>resultset. Note Hashref.
 
   $cd_rs->create({
     title=>"Music for Silly Walks",
-	year=>2000,
-	artist => {
-	  name=>"Silly Musician",
-	}
+    year=>2000,
+    artist => {
+      name=>"Silly Musician",
+    }
   });
 
 =cut
@@ -2260,7 +2353,7 @@ sub _resolved_attrs {
   if (my $prefetch = delete $attrs->{prefetch}) {
     $prefetch = $self->_merge_attr({}, $prefetch);
     my @pre_order;
-    my $seen = $attrs->{seen_join} || {};
+    my $seen = { %{ $attrs->{seen_join} || {} } };
     foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
       # bring joins back to level of current class
       my @prefetch = $source->resolve_prefetch(
@@ -2416,8 +2509,12 @@ sub throw_exception {
 
 =head1 ATTRIBUTES
 
-The resultset takes various attributes that modify its behavior. Here's an
-overview of them:
+Attributes are used to refine a ResultSet in various ways when
+searching for data. They can be passed to any method which takes an
+C<\%attrs> argument. See L</search>, L</search_rs>, L</find>,
+L</count>.
+
+These are in no particular order:
 
 =head2 order_by
 
@@ -2510,7 +2607,7 @@ L</select> but adds columns to the selection.
 
 =over 4
 
-Indicates additional column names for those added via L</+select>.
+Indicates additional column names for those added via L</+select>. See L</as>.
 
 =back
 

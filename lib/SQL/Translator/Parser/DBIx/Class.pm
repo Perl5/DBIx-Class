@@ -8,7 +8,8 @@ package SQL::Translator::Parser::DBIx::Class;
 
 use strict;
 use warnings;
-use vars qw($DEBUG @EXPORT_OK);
+use vars qw($DEBUG $VERSION @EXPORT_OK);
+$VERSION = '1.10';
 $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
@@ -233,6 +234,14 @@ from a DBIx::Class::Schema instance
 
 =head1 SYNOPSIS
 
+ ## Via DBIx::Class
+ use MyApp::Schema;
+ my $schema = MyApp::Schema->connect("dbi:SQLite:something.db");
+ $schema->create_ddl_dir();
+ ## or
+ $schema->deploy();
+
+ ## Standalone
  use MyApp::Schema;
  use SQL::Translator;
  
@@ -246,12 +255,24 @@ from a DBIx::Class::Schema instance
 
 =head1 DESCRIPTION
 
+This class requires L<SQL::Translator> installed to work.
+
 C<SQL::Translator::Parser::DBIx::Class> reads a DBIx::Class schema,
 interrogates the columns, and stuffs it all in an $sqlt_schema object.
 
+It's primary use is in deploying database layouts described as a set
+of L<DBIx::Class> classes, to a database. To do this, see the
+L<DBIx::Class::Schema/deploy> method.
+
+This can also be achieved by having DBIx::Class export the schema as a
+set of SQL files ready for import into your database, or passed to
+other machines that need to have your application installed but don't
+have SQL::Translator installed. To do this see the
+L<DBIx::Class::Schema/create_ddl_dir> method.
+
 =head1 SEE ALSO
 
-SQL::Translator.
+L<SQL::Translator>, L<DBIx::Class::Schema>
 
 =head1 AUTHORS
 

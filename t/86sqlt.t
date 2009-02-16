@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 132;
+plan tests => 133;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -29,7 +29,7 @@ my $translator = SQL::Translator->new(
     $schema->source('Track')->sqlt_deploy_callback(sub {
       my ($self, $sqlt_table) = @_;
 
-      if ($sqlt_table->schema->translator->producer_type =~ /SQLite$/ ) {
+      if ($schema->storage->sqlt_type eq 'SQLite' ) {
         $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
           or die $sqlt_table->error;
       }
@@ -281,6 +281,18 @@ my $tschema = $translator->schema();
 # Test that the $schema->sqlt_deploy_hook was called okay and that it removed
 # the 'dummy' table
 ok( !defined($tschema->get_table('dummy')), "Dummy table was removed by hook");
+
+# Test that the Artist resultsource sqlt_deploy_hook was called okay and added
+# an index
+SKIP: {
+    skip ('Artist sqlt_deploy_hook is only called with an SQLite backend', 1)
+        if $schema->storage->sqlt_type ne 'SQLite';
+
+    ok( ( grep 
+        { $_->name eq 'artist_name_hookidx' }
+        $tschema->get_table('artist')->get_indices
+    ), 'sqlt_deploy_hook fired within a resultsource');
+}
 
 # Test that nonexistent constraints are not found
 my $constraint = get_constraint('FOREIGN KEY', 'cd', ['title'], 'cd', ['year']);
