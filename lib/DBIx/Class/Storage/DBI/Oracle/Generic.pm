@@ -25,7 +25,6 @@ This class implements autoincrements for Oracle.
 =cut
 
 use Carp::Clan qw/^DBIx::Class/;
-use Scalar::Util ();
 
 use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 
@@ -88,25 +87,22 @@ sub _sequence_fetch {
 sub connected {
   my $self = shift;
 
-  if ($self->SUPER::connected(@_)) {
+  if (not $self->SUPER::connected(@_)) {
+    return 0;
+  }
+  else {
     my $dbh = $self->_dbh;
 
-    my $ping_sth = $dbh->prepare_cached("select 1 from dual");
-
     local $dbh->{RaiseError} = 1;
+
     eval {
+      my $ping_sth = $dbh->prepare_cached("select 1 from dual");
       $ping_sth->execute;
       $ping_sth->finish;
     };
 
-    if ($@) {
-      return 0;
-    } else {
-      return 1;
-    }
+    return $@ ? 0 : 1;
   }
-
-  return 0;
 }
 
 sub _dbh_execute {
@@ -114,12 +110,10 @@ sub _dbh_execute {
   my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
 
   my $wantarray = wantarray;
-  my @res;
-  my $exception;
 
-  my $try = 2;
-  
-  while ($try--) {
+  my (@res, $exception, $retried);
+
+  do {
     eval {
       if ($wantarray) {
         @res    = $self->SUPER::_dbh_execute(@_);
@@ -129,14 +123,14 @@ sub _dbh_execute {
     };
     $exception = $@;
     if ($exception =~ /ORA-01003/) {
-# ORA-01003: no statement parsed (someone changed the table somehow,
-# invalidating your cursor.)
+      # ORA-01003: no statement parsed (someone changed the table somehow,
+      # invalidating your cursor.)
       my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
       delete $dbh->{CachedKids}{$sql};
     } else {
       last;
     }
-  }
+  } while (not $retried++);
 
   $self->throw_exception($exception) if $exception;
 
