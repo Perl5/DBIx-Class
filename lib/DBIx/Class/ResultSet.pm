@@ -1802,6 +1802,24 @@ sub _remove_alias {
   return \%unaliased;
 }
 
+=head2 as_query
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: \[ $sql, @bind ]
+
+=back
+
+Returns the SQL query and bind vars associated with the invocant.
+
+This is generally used as the RHS for a subquery.
+
+=cut
+
+sub as_query { return shift->cursor->as_query(@_) }
+
 =head2 find_or_new
 
 =over 4

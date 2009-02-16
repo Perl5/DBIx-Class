@@ -295,6 +295,27 @@ Please see L<DBIx::Class::ResultSet/ATTRIBUTES> documentation if you
 are in any way unsure about the use of the attributes above (C< join
 >, C< select >, C< as > and C< group_by >).
 
+=head2 Subqueries
+
+You can write subqueries relatively easily in DBIC.
+
+  my $inside_rs = $schema->resultset('Artist')->search({
+    name => [ 'Billy Joel', 'Brittany Spears' ],
+  });
+
+  my $rs = $schema->resulset('CD')->search({
+    artist_id => { 'IN' => $inside_rs->get_column('id')->as_query },
+  });
+
+The usual operators ( =, !=, IN, NOT IN, etc) are supported.
+
+B<NOTE>: You have to explicitly use '=' when doing an equality comparison.
+The following will B<not> work:
+
+  my $rs = $schema->resulset('CD')->search({
+    artist_id => $inside_rs->get_column('id')->as_query,
+  });
+
 =head2 Predefined searches
 
 You can write your own L<DBIx::Class::ResultSet> class by inheriting from it
