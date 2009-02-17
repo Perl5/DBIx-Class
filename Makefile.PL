@@ -145,7 +145,7 @@ EOE
 }
 
 
-WriteAll;
+WriteAll();
 
 
 if ($Module::Install::AUTHOR) {
