@@ -1377,7 +1377,7 @@ sub _select_args {
 
   my $for = delete $attrs->{for};
   my $sql_maker = $self->sql_maker;
-  local $sql_maker->{for} = $for;
+  $sql_maker->{for} = $for;
 
   if (exists $attrs->{group_by} || $attrs->{having}) {
     $order = {
