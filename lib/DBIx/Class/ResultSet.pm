@@ -19,74 +19,78 @@ __PACKAGE__->mk_group_accessors('simple' => qw/_result_class _source_handle/);
 
 =head1 NAME
 
-DBIx::Class::ResultSet - Responsible for fetching and creating resultset.
+DBIx::Class::ResultSet - Represents a query used for fetching a set of results.
 
 =head1 SYNOPSIS
 
-  my $rs   = $schema->resultset('User')->search({ registered => 1 });
-  my @rows = $schema->resultset('CD')->search({ year => 2005 })->all();
+  my $users_rs   = $schema->resultset('User');
+  my $registered_users_rs   = $schema->resultset('User')->search({ registered => 1 });
+  my @cds_in_2005 = $schema->resultset('CD')->search({ year => 2005 })->all();
 
 =head1 DESCRIPTION
 
-The resultset is also known as an iterator. It is responsible for handling
-queries that may return an arbitrary number of rows, e.g. via L</search>
-or a C<has_many> relationship.
+A ResultSet is an object which stores a set of conditions representing
+a query. It is the backbone of DBIx::Class (i.e. the really
+important/useful bit).
 
-In the examples below, the following table classes are used:
+No SQL is executed on the database when a ResultSet is created, it
+just stores all the conditions needed to create the query.
 
-  package MyApp::Schema::Artist;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
-  __PACKAGE__->table('artist');
-  __PACKAGE__->add_columns(qw/artistid name/);
-  __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many(cds => 'MyApp::Schema::CD');
-  1;
+A basic ResultSet representing the data of an entire table is returned
+by calling C<resultset> on a L<DBIx::Class::Schema> and passing in a
+L<Source|DBIx::Class::Manual::Glossary/Source> name.
 
-  package MyApp::Schema::CD;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
-  __PACKAGE__->table('cd');
-  __PACKAGE__->add_columns(qw/cdid artist title year/);
-  __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->belongs_to(artist => 'MyApp::Schema::Artist');
-  1;
+  my $users_rs = $schema->resultset('User');
 
-=head1 DISCUSSION
+A new ResultSet is returned from calling L</search> on an existing
+ResultSet. The new one will contain all the conditions of the
+original, plus any new conditions added in the C<search> call.
 
-When you create a resultset (usually as a result of calling search()), DBIx::Class
-B<doesn't> make a DB call. Not yet. A resultset is (in simplistic terms) a set of
-where conditions, join conditions, and other metadata that would be needed to execute
-a SELECT statement. This has several big implications:
+A ResultSet is also an iterator. L</next> is used to return all the
+L<DBIx::Class::Row>s the ResultSet represents.
 
-=over 4
+The query that the ResultSet represents is B<only> executed against
+the database when these methods are called:
 
-=item * You can chain resultsets
+=over
 
-=item * You can run multiple queries using the same resultset
+=item L</find>
+
+=item L</next>
+
+=item L</all>
+
+=item L</count>
+
+=item L</single>
+
+=item L</first>
 
 =back
 
+=head1 EXAMPLES 
+
 =head2 Chaining resultsets
 
-Let's say you've got a query that needs to be run to return some data to the user. But,
-you have an authorization system in place that prevents certain users from seeing certain
-information. So, you want to construct the query in one method, but add constraints to it
-in another.
+Let's say you've got a query that needs to be run to return some data
+to the user. But, you have an authorization system in place that
+prevents certain users from seeing certain information. So, you want
+to construct the basic query in one method, but add constraints to it in
+another.
 
   sub get_data {
     my $self = shift;
     my $request = $self->get_request; # Get a request object somehow.
     my $schema = $self->get_schema;   # Get the DBIC schema object somehow.
 
-    my $rs = $schema->resultset('some_data')->search({
-      foo => $request->param('foo'),
-      bar => $request->param('bar'),
+    my $cd_rs = $schema->resultset('CD')->search({
+      title => $request->param('title'),
+      year => $request->param('year'),
     });
 
-    $self->apply_security_policy( $rs );
+    $self->apply_security_policy( $cd_rs );
 
-    return $rs->all;
+    return $cd_rs->all();
   }
 
   sub apply_security_policy {
@@ -94,43 +98,43 @@ in another.
     my ($rs) = @_;
 
     return $rs->search({
-      hidden_data => 0,
+      subversive => 0,
     });
   }
 
 =head2 Multiple queries
 
-Since a resultset hasn't hit the database yet, you can do all sorts of things with it.
+Since a resultset just defines a query, you can do all sorts of
+things with it with the same object.
 
   # Don't hit the DB yet.
-  my $rs = $schema->resultset('some_table')->search({
-    foo => 1,
-    bar => 2,
+  my $cd_rs = $schema->resultset('CD')->search({
+    title => 'something',
+    year => 2009,
   });
 
   # Each of these hits the DB individually.
-  my $count = $rs->count;
-  my $max_baz = $rs->get_column('baz')->max;
-  my @records = $rs->all;
+  my $count = $cd_rs->count;
+  my $most_recent = $cd_rs->get_column('date_released')->max();
+  my @records = $cd_rs->all;
 
 And it's not just limited to SELECT statements.
 
-  $rs->delete;
+  $cd_rs->delete();
 
-This is even cooler
+This is even cooler:
 
-  $rs->create({ baz => 20 });
+  $cd_rs->create({ artist => 'Fred' });
 
-That is equivalent to
+Which is the same as:
 
-  $schema->resultset('some_table')->create({
-    foo => 1,
-    bar => 2,
-    baz => 20,
+  $schema->resultset('CD')->create({
+    title => 'something',
+    year => 2009,
+    artist => 'Fred'
   });
 
-Note that C<get_column()> returns a ResultSetColumn object. This will behave almost
-exactly like a resultset, except it has methods tuned for working with columns.
+See: L</search>, L</count>, L</get_column>, L</all>, L</create>.
 
 =head1 OVERLOADING
 
