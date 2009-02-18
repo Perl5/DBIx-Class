@@ -84,6 +84,13 @@ sub _sequence_fetch {
   return $id;
 }
 
+=head2 connected
+
+Returns true if we have an open (and working) database connection, false if it is not (yet)
+open (or does not work). (Executes a simple SELECT to make sure it works.)
+
+=cut
+
 sub connected {
   my $self = shift;
 
