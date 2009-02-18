@@ -68,6 +68,24 @@ connection does not happen until you actually request data, so don't
 be alarmed if the error from incorrect connection details happens a
 lot later.
 
+=item .. use DBIx::Class across multiple databases?
+
+If your database server allows you to run querys across multiple
+databases at once, then so can DBIx::Class. All you need to do is make
+sure you write the database name as part of the
+L<DBIx::Class::ResultSource/table> call. Eg:
+
+  __PACKAGE__->table('mydb.mytablename');
+
+And load all the Result classes for both / all databases using one
+L<DBIx::Class::Schema/load_namespaces> call.
+
+=item .. use DBIx::Class across PostgreSQL/DB2/Oracle schemas?
+
+Add the name of the schema to the L<DBIx::Class::ResultSource/table>
+as part of the name, and make sure you give the one user you are going
+to connect with rights to read/write all the schemas/tables as
+necessary.
 
 =back 
 

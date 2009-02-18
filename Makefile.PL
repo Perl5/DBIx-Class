@@ -29,7 +29,8 @@ requires 'Sub::Name'                 => 0.04;
 # Perl 5.8.0 doesn't have utf8::is_utf8()
 requires 'Encode'                    => 0 if ($] <= 5.008000);  
 
-test_requires 'DBD::SQLite'         => 1.14;
+configure_requires 'DBD::SQLite'         => 1.14;
+
 test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Warn'          => 0.11;
 test_requires 'Test::Exception'     => 0;
@@ -145,7 +146,7 @@ EOE
 }
 
 
-WriteAll;
+WriteAll();
 
 
 if ($Module::Install::AUTHOR) {

@@ -84,6 +84,17 @@ sub _sequence_fetch {
   return $id;
 }
 
+=head2 connected
+
+Returns true if we have an open (and working) database connection, false if it is not (yet)
+open (or does not work). (Executes a simple SELECT to make sure it works.)
+
+The reason this is needed is that L<DBD::Oracle>'s ping() does not do a real
+OCIPing but just gets the server version, which doesn't help if someone killed
+your session.
+
+=cut
+
 sub connected {
   my $self = shift;
 
@@ -113,24 +124,26 @@ sub _dbh_execute {
 
   my (@res, $exception, $retried);
 
-  do {
-    eval {
-      if ($wantarray) {
-        @res    = $self->SUPER::_dbh_execute(@_);
+  RETRY: {
+    do {
+      eval {
+        if ($wantarray) {
+          @res    = $self->SUPER::_dbh_execute(@_);
+        } else {
+          $res[0] = $self->SUPER::_dbh_execute(@_);
+        }
+      };
+      $exception = $@;
+      if ($exception =~ /ORA-01003/) {
+        # ORA-01003: no statement parsed (someone changed the table somehow,
+        # invalidating your cursor.)
+        my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
+        delete $dbh->{CachedKids}{$sql};
       } else {
-        $res[0] = $self->SUPER::_dbh_execute(@_);
+        last RETRY;
       }
-    };
-    $exception = $@;
-    if ($exception =~ /ORA-01003/) {
-      # ORA-01003: no statement parsed (someone changed the table somehow,
-      # invalidating your cursor.)
-      my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
-      delete $dbh->{CachedKids}{$sql};
-    } else {
-      last;
-    }
-  } while (not $retried++);
+    } while (not $retried++);
+  }
 
   $self->throw_exception($exception) if $exception;
 
