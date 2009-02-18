@@ -186,6 +186,24 @@ sub min {
   return shift->func('MIN');
 }
 
+=head2 min_rs
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $resultset
+
+=back
+
+  my $rs = $year_col->min_rs();
+
+Wrapper for ->func_rs for function MIN().
+
+=cut
+
+sub min_rs { return shift->func_rs('MIN') }
+
 =head2 max
 
 =over 4
@@ -207,6 +225,24 @@ sub max {
   return shift->func('MAX');
 }
 
+=head2 max_rs
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $resultset
+
+=back
+
+  my $rs = $year_col->max_rs();
+
+Wrapper for ->func_rs for function MAX().
+
+=cut
+
+sub max_rs { return shift->func_rs('MAX') }
+
 =head2 sum
 
 =over 4
@@ -227,6 +263,24 @@ the resultset. Use on varchar-like columns at your own risk.
 sub sum {
   return shift->func('SUM');
 }
+
+=head2 sum_rs
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $resultset
+
+=back
+
+  my $rs = $year_col->sum_rs();
+
+Wrapper for ->func_rs for function SUM().
+
+=cut
+
+sub sum_rs { return shift->func_rs('SUM') }
 
 =head2 func
 
@@ -250,13 +304,37 @@ value. Produces the following SQL:
 
 sub func {
   my ($self,$function) = @_;
-  my $cursor = $self->{_parent_resultset}->search(undef, {select => {$function => $self->{_select}}, as => [$self->{_as}]})->cursor;
+  my $cursor = $self->func_rs($function)->cursor;
   
   if( wantarray ) {
     return map { $_->[ 0 ] } $cursor->all;
   }
 
   return ( $cursor->next )[ 0 ];
+}
+
+=head2 func_rs
+
+=over 4
+
+=item Arguments: $function
+
+=item Return Value: $resultset
+
+=back
+
+Creates the resultset that C<func()> uses to run its query.
+
+=cut
+
+sub func_rs {
+  my ($self,$function) = @_;
+  return $self->{_parent_resultset}->search(
+    undef, {
+      select => {$function => $self->{_select}},
+      as => [$self->{_as}],
+    },
+  );
 }
 
 =head2 throw_exception

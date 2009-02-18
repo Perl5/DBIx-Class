@@ -303,7 +303,7 @@ You can write subqueries relatively easily in DBIC.
     name => [ 'Billy Joel', 'Brittany Spears' ],
   });
 
-  my $rs = $schema->resulset('CD')->search({
+  my $rs = $schema->resultset('CD')->search({
     artist_id => { 'IN' => $inside_rs->get_column('id')->as_query },
   });
 
@@ -312,9 +312,31 @@ The usual operators ( =, !=, IN, NOT IN, etc) are supported.
 B<NOTE>: You have to explicitly use '=' when doing an equality comparison.
 The following will B<not> work:
 
-  my $rs = $schema->resulset('CD')->search({
+  my $rs = $schema->resultset('CD')->search({
     artist_id => $inside_rs->get_column('id')->as_query,
   });
+
+=head3 Correlated subqueries
+
+  my $cdrs = $schema->resultset('CD');
+  my $rs = $cdrs->search({
+    year => {
+      '=' => $cdrs->search(
+        { artistid => { '=' => \'me.artistid' } },
+        { alias => 'inner' }
+      )->get_column('year')->max_rs->as_query,
+    },
+  });
+
+That creates the following SQL:
+
+  SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+    FROM cd me
+   WHERE year = (
+      SELECT MAX(inner.year)
+        FROM cd inner
+       WHERE artistid = me.artistid
+      )
 
 =head2 Predefined searches
 
