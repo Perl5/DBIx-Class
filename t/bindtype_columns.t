@@ -18,7 +18,7 @@ my $dbh = $schema->storage->dbh;
 
 {
     local $SIG{__WARN__} = sub {};
-    $dbh->do('DROP TABLE IF EXISTS artist');
+    $dbh->do('DROP TABLE IF EXISTS bindtype_test');
 
     # the blob/clob are for reference only, will be useful when we switch to SQLT and can test Oracle along the way
     $dbh->do(qq[
