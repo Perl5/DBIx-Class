@@ -69,7 +69,7 @@ TODO: {
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT me.artistid, me.name, me.rank, me.charfield FROM cds me WHERE id > 20) cd2",
+    "SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track FROM (SELECT me.artistid, me.name, me.rank, me.charfield FROM cds me WHERE id > 20) cd2",
     [],
   );
 }
