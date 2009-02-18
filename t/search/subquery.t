@@ -10,7 +10,7 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
 
-plan tests => 3;
+plan tests => 4;
 
 my $schema = DBICTest->init_schema();
 my $art_rs = $schema->resultset('Artist');
@@ -31,7 +31,7 @@ my $cdrs = $schema->resultset('CD');
 }
 
 TODO: {
-  local $TODO = "'+select' doesn't work with as_query yet.";
+#  local $TODO = "'+select' doesn't work with as_query yet.";
   my $rs = $art_rs->search(
     {},
     {
@@ -55,7 +55,7 @@ warn "$query\n";
 }
 
 TODO: {
-  local $TODO = "'from' doesn't work with as_query yet.";
+#  local $TODO = "'from' doesn't work with as_query yet.";
   my $rs = $cdrs->search(
     {},
     {
@@ -71,6 +71,25 @@ TODO: {
   is_same_sql_bind(
     $query, \@bind,
     "SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT me.artistid, me.name, me.rank, me.charfield FROM cds me WHERE id > 20) cd2",
+    [],
+  );
+}
+
+TODO: {
+#  local $TODO = "The subquery isn't being wrapped in parens for some reason.";
+  my $rs = $cdrs->search({
+    year => {
+      '=' => $cdrs->search(
+        { artistid => { '=' => \'me.artistid' } },
+        { alias => 'inner' }
+      )->get_column('year')->max_rs->as_query,
+    },
+  });
+  my $arr = $rs->as_query;
+  my ($query, @bind) = @{$$arr};
+  is_same_sql_bind(
+    $query, \@bind,
+    "SELECT me.cdid, me.artistid, me.rank, me.charfield FROM cd me WHERE year = (SELECT MAX(inner.year) FROM cd inner WHERE artistid = me.artistid)",
     [],
   );
 }
