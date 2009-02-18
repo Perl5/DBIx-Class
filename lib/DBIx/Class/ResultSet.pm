@@ -2320,7 +2320,7 @@ sub _resolved_attrs {
     push(@{$attrs->{as}}, @$adds);
   }
 
-  $attrs->{from} ||= [ { 'me' => $source->from } ];
+  $attrs->{from} ||= [ { $self->{attrs}{alias} => $source->from } ];
 
   if (exists $attrs->{join} || exists $attrs->{prefetch}) {
     my $join = delete $attrs->{join} || {};

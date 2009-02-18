@@ -93,4 +93,6 @@ TODO: {
   );
 }
 
+my $rs = $cdrs->search( undef, { alias => 'foo' } );
+warn ${$rs->as_query}->[0], $/;
 __END__
