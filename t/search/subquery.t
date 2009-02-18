@@ -46,7 +46,6 @@ TODO: {
 
   my $arr = $rs->as_query;
   my ($query, @bind) = @{$$arr};
-warn "$query\n";
   is_same_sql_bind(
     $query, \@bind,
     "SELECT me.artistid, me.name, me.rank, me.charfield, (SELECT id FROM cds LIMIT 1) AS cdid FROM artist me",
@@ -89,7 +88,7 @@ TODO: {
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.cdid, me.artistid, me.rank, me.charfield FROM cd me WHERE year = (SELECT MAX(inner.year) FROM cd inner WHERE artistid = me.artistid)",
+    "SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE year = (SELECT MAX(inner.year) FROM cd inner WHERE artistid = me.artistid)",
     [],
   );
 }
