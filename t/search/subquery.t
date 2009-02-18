@@ -31,7 +31,7 @@ my $cdrs = $schema->resultset('CD');
 }
 
 TODO: {
-#  local $TODO = "'+select' doesn't work with as_query yet.";
+  local $TODO = "'+select' doesn't work with as_query yet.";
   my $rs = $art_rs->search(
     {},
     {
@@ -54,7 +54,7 @@ TODO: {
 }
 
 TODO: {
-#  local $TODO = "'from' doesn't work with as_query yet.";
+  local $TODO = "'from' doesn't work with as_query yet.";
   my $rs = $cdrs->search(
     {},
     {
@@ -74,8 +74,7 @@ TODO: {
   );
 }
 
-TODO: {
-#  local $TODO = "The subquery isn't being wrapped in parens for some reason.";
+{
   my $rs = $cdrs->search({
     year => {
       '=' => $cdrs->search(
@@ -93,6 +92,4 @@ TODO: {
   );
 }
 
-my $rs = $cdrs->search( undef, { alias => 'foo' } );
-warn ${$rs->as_query}->[0], $/;
 __END__
