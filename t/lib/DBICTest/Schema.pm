@@ -19,6 +19,7 @@ __PACKAGE__->load_classes(qw/
   Track
   Tag
   Year2000CDs
+  Year1999CDs
   /,
   { 'DBICTest::Schema' => [qw/
     LinerNotes
