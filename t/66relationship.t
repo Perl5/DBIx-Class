@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 68;
+plan tests => 75;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -228,7 +228,10 @@ eval{
      $undef_artist_cd->related_resultset('artist')->new({name => 'foo'});
 };
 is( $@, '', "Object created on a resultset related to not yet inserted object");
- 
+lives_ok{
+  $schema->resultset('Artwork')->new_result({})->cd;
+} 'undef_on_null_fk does not choke on empty conds';
+
 my $def_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007, artist => undef });
 is($def_artist_cd->has_column_loaded('artist'), 1, 'FK loaded');
 is($def_artist_cd->search_related('artist')->count, 0, 'closed search on null FK');

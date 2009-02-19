@@ -38,13 +38,11 @@ use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
-#warn "$dsn $user $pass";
-
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
   '(note: This test drops and creates tables called \'artist\', \'casecheck\', \'array_test\' and \'sequence_test\''.
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''.
   ' as well as following schemas: \'testschema\'!)'
-    unless ($dsn && $user && $pass);
+    unless ($dsn && $user);
 
 
 plan tests => 37;
@@ -155,7 +153,7 @@ SKIP: {
   my $count;
   lives_ok {
     $count = $schema->resultset('ArrayTest')->search({
-      arrayfield => \[ '= ?' => [3, 4] ],   #TODO anything less ugly than this?
+      arrayfield => \[ '= ?' => [arrayfield => [3, 4]] ],   #TODO anything less ugly than this?
     })->count;
   } 'comparing arrayref to pg array data does not blow up';
   is($count, 1, 'comparing arrayref to pg array data gives correct result');

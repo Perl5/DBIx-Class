@@ -89,7 +89,7 @@ loads them into the appropriate Result classes using for you. The
 matching is done by assuming the package name of the ResultSet class
 is the same as that of the Result class.
 
-You will be warned if ResulSet classes are discovered for which there
+You will be warned if ResultSet classes are discovered for which there
 are no matching Result classes like this:
 
   load_namespaces found ResultSet class $classname with no corresponding Result class

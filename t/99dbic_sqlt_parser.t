@@ -7,19 +7,20 @@ use DBICTest;
 
 
 BEGIN {
-    eval "use DBD::mysql; use SQL::Translator 0.09;";
+    eval "use DBD::mysql; use SQL::Translator 0.09003;";
     if ($@) {
-        plan skip_all => 'needs DBD::mysql and SQL::Translator 0.09 for testing';
+        plan skip_all => 'needs DBD::mysql and SQL::Translator 0.09003 for testing';
     }
 }
 
 my $schema = DBICTest->init_schema();
-plan tests => ($schema->sources * 3);
+my @sources = grep { $_ ne 'Dummy' } ($schema->sources); # Dummy was yanked out by the sqlt hook test
+plan tests => ( @sources * 3);
 
 { 
 	my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { } } });
 
-	foreach my $source ($schema->sources) {
+	foreach my $source (@sources) {
 		my $table = $sqlt_schema->get_table($schema->source($source)->from);
 
 		my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
@@ -33,7 +34,7 @@ plan tests => ($schema->sources * 3);
 { 
 	my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { add_fk_index => 1 } } });
 
-	foreach my $source ($schema->sources) {
+	foreach my $source (@sources) {
 		my $table = $sqlt_schema->get_table($schema->source($source)->from);
 
 		my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
@@ -47,7 +48,7 @@ plan tests => ($schema->sources * 3);
 { 
 	my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { add_fk_index => 0 } } });
 
-	foreach my $source ($schema->sources) {
+	foreach my $source (@sources) {
 		my $table = $sqlt_schema->get_table($schema->source($source)->from);
 
 		my @indices = $table->get_indices;

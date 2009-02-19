@@ -62,9 +62,8 @@ __PACKAGE__->many_to_many('artworks', 'artist_to_artwork', 'artwork');
 sub sqlt_deploy_hook {
   my ($self, $sqlt_table) = @_;
 
-
   if ($sqlt_table->schema->translator->producer_type =~ /SQLite$/ ) {
-    $sqlt_table->add_index( name => 'artist_name', fields => ['name'] )
+    $sqlt_table->add_index( name => 'artist_name_hookidx', fields => ['name'] )
       or die $sqlt_table->error;
   }
 }

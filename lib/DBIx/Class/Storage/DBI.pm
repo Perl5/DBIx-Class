@@ -50,16 +50,46 @@ sub new {
   $self;
 }
 
+# DB2 is the only remaining DB using this. Even though we are not sure if
+# RowNumberOver is still needed here (should be part of SQLA) leave the 
+# code in place
+sub _RowNumberOver {
+  my ($self, $sql, $order, $rows, $offset ) = @_;
+
+  $offset += 1;
+  my $last = $rows + $offset;
+  my ( $order_by ) = $self->_order_by( $order );
+
+  $sql = <<"SQL";
+SELECT * FROM
+(
+   SELECT Q1.*, ROW_NUMBER() OVER( ) AS ROW_NUM FROM (
+      $sql
+      $order_by
+   ) Q1
+) Q2
+WHERE ROW_NUM BETWEEN $offset AND $last
+
+SQL
+
+  return $sql;
+}
+
+
 # While we're at it, this should make LIMIT queries more efficient,
 #  without digging into things too deeply
 use Scalar::Util 'blessed';
 sub _find_syntax {
   my ($self, $syntax) = @_;
-  my $dbhname = blessed($syntax) ?  $syntax->{Driver}{Name} : $syntax;
+  
+  # DB2 is the only remaining DB using this. Even though we are not sure if
+  # RowNumberOver is still needed here (should be part of SQLA) leave the 
+  # code in place
+  my $dbhname = blessed($syntax) ? $syntax->{Driver}{Name} : $syntax;
   if(ref($self) && $dbhname && $dbhname eq 'DB2') {
     return 'RowNumberOver';
   }
-
+  
   $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
 }
 
@@ -922,10 +952,18 @@ sub _do_query {
     $self->_do_query($_) foreach @$action;
   }
   else {
-    my @to_run = (ref $action eq 'ARRAY') ? (@$action) : ($action);
-    $self->_query_start(@to_run);
-    $self->_dbh->do(@to_run);
-    $self->_query_end(@to_run);
+    # Most debuggers expect ($sql, @bind), so we need to exclude
+    # the attribute hash which is the second argument to $dbh->do
+    # furthermore the bind values are usually to be presented
+    # as named arrayref pairs, so wrap those here too
+    my @do_args = (ref $action eq 'ARRAY') ? (@$action) : ($action);
+    my $sql = shift @do_args;
+    my $attrs = shift @do_args;
+    my @bind = map { [ undef, $_ ] } @do_args;
+
+    $self->_query_start($sql, @bind);
+    $self->_dbh->do($sql, $attrs, @do_args);
+    $self->_query_end($sql, @bind);
   }
 
   return $self;
@@ -1135,11 +1173,15 @@ sub txn_rollback {
 sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, $args) = @_;
 
+  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+    $ident = $ident->from();
+  }
+
   my ($sql, @bind) = $self->sql_maker->$op($ident, @$args);
+
   unshift(@bind,
     map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
       if $extra_bind;
-
   return ($sql, \@bind);
 }
 
@@ -1181,10 +1223,6 @@ sub _query_end {
 sub _dbh_execute {
   my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
   
-  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
-    $ident = $ident->from();
-  }
-
   my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
 
   $self->_query_start( $sql, @$bind );
@@ -1319,6 +1357,13 @@ sub delete {
 }
 
 sub _select {
+  my $self = shift;
+  my $sql_maker = $self->sql_maker;
+  local $sql_maker->{for};
+  return $self->_execute($self->_select_args(@_));
+}
+
+sub _select_args {
   my ($self, $ident, $select, $condition, $attrs) = @_;
   my $order = $attrs->{order_by};
 
@@ -1332,7 +1377,7 @@ sub _select {
 
   my $for = delete $attrs->{for};
   my $sql_maker = $self->sql_maker;
-  local $sql_maker->{for} = $for;
+  $sql_maker->{for} = $for;
 
   if (exists $attrs->{group_by} || $attrs->{having}) {
     $order = {
@@ -1355,7 +1400,7 @@ sub _select {
     push @args, $attrs->{rows}, $attrs->{offset};
   }
 
-  return $self->_execute(@args);
+  return @args;
 }
 
 sub source_bind_attributes {
@@ -1578,7 +1623,7 @@ sub create_ddl_dir {
     %{$sqltargs || {}}
   };
 
-  $self->throw_exception(q{Can't create a ddl file without SQL::Translator 0.09: '}
+  $self->throw_exception(q{Can't create a ddl file without SQL::Translator 0.09003: '}
       . $self->_check_sqlt_message . q{'})
           if !$self->_check_sqlt_version;
 
@@ -1725,7 +1770,7 @@ sub deployment_statements {
       return join('', @rows);
   }
 
-  $self->throw_exception(q{Can't deploy without SQL::Translator 0.09: '}
+  $self->throw_exception(q{Can't deploy without SQL::Translator 0.09003: '}
       . $self->_check_sqlt_message . q{'})
           if !$self->_check_sqlt_version;
 
@@ -1745,22 +1790,32 @@ sub deployment_statements {
 
 sub deploy {
   my ($self, $schema, $type, $sqltargs, $dir) = @_;
-  foreach my $statement ( $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } ) ) {
-    foreach my $line ( split(";\n", $statement)) {
-      next if($line =~ /^--/);
-      next if(!$line);
-#      next if($line =~ /^DROP/m);
-      next if($line =~ /^BEGIN TRANSACTION/m);
-      next if($line =~ /^COMMIT/m);
-      next if $line =~ /^\s+$/; # skip whitespace only
-      $self->_query_start($line);
-      eval {
-        $self->dbh->do($line); # shouldn't be using ->dbh ?
-      };
-      if ($@) {
-        warn qq{$@ (running "${line}")};
-      }
-      $self->_query_end($line);
+  my $deploy = sub {
+    my $line = shift;
+    return if($line =~ /^--/);
+    return if(!$line);
+    # next if($line =~ /^DROP/m);
+    return if($line =~ /^BEGIN TRANSACTION/m);
+    return if($line =~ /^COMMIT/m);
+    return if $line =~ /^\s+$/; # skip whitespace only
+    $self->_query_start($line);
+    eval {
+      $self->dbh->do($line); # shouldn't be using ->dbh ?
+    };
+    if ($@) {
+      warn qq{$@ (running "${line}")};
+    }
+    $self->_query_end($line);
+  };
+  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } );
+  if (@statements > 1) {
+    foreach my $statement (@statements) {
+      $deploy->( $statement );
+    }
+  }
+  elsif (@statements == 1) {
+    foreach my $line ( split(";\n", $statements[0])) {
+      $deploy->( $line );
     }
   }
 }
@@ -1807,7 +1862,7 @@ sub build_datetime_parser {
     my $_check_sqlt_message; # private
     sub _check_sqlt_version {
         return $_check_sqlt_version if defined $_check_sqlt_version;
-        eval 'use SQL::Translator "0.09"';
+        eval 'use SQL::Translator "0.09003"';
         $_check_sqlt_message = $@ || '';
         $_check_sqlt_version = !$@;
     }

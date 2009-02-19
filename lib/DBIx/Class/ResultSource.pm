@@ -72,7 +72,7 @@ the hashref as the column_info for that column. Repeated calls of this
 method will add more columns, not replace them.
 
 The column names given will be created as accessor methods on your
-L<DBIx::Class::Row> objects, you can change the name of the accessor
+L<DBIx::Class::Row> objects. You can change the name of the accessor
 by supplying an L</accessor> in the column_info hash.
 
 The contents of the column_info are not set in stone. The following
@@ -136,7 +136,7 @@ automatically.
 =item auto_nextval
 
 Set this to a true value for a column whose value is retrieved
-automatically from an oracle sequence. If you do not use an oracle
+automatically from an oracle sequence. If you do not use an Oracle
 trigger to get the nextval, you have to set sequence as well.
 
 =item extra
@@ -544,6 +544,76 @@ sub unique_constraint_columns {
   return @{ $unique_constraints{$constraint_name} };
 }
 
+=head2 sqlt_deploy_callback
+
+=over
+
+=item Arguments: $callback
+
+=back
+
+  __PACKAGE__->sqlt_deploy_callback('mycallbackmethod');
+
+An accessor to set a callback to be called during deployment of
+the schema via L<DBIx::Class::Schema/create_ddl_dir> or
+L<DBIx::Class::Schema/deploy>.
+
+The callback can be set as either a code reference or the name of a
+method in the current result class.
+
+If not set, the L</default_sqlt_deploy_hook> is called.
+
+Your callback will be passed the $source object representing the
+ResultSource instance being deployed, and the
+L<SQL::Translator::Schema::Table> object being created from it. The
+callback can be used to manipulate the table object or add your own
+customised indexes. If you need to manipulate a non-table object, use
+the L<DBIx::Class::Schema/sqlt_deploy_hook>.
+
+See L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To
+Your SQL> for examples.
+
+This sqlt deployment callback can only be used to manipulate
+SQL::Translator objects as they get turned into SQL. To execute
+post-deploy statements which SQL::Translator does not currently
+handle, override L<DBIx::Class::Schema/deploy> in your Schema class
+and call L<dbh_do|DBIx::Class::Storage::DBI/dbh_do>.
+
+=head2 default_sqlt_deploy_hook
+
+=over
+
+=item Arguments: $source, $sqlt_table
+
+=item Return value: undefined
+
+=back
+
+This is the sensible default for L</sqlt_deploy_callback>.
+
+If a method named C<sqlt_deploy_hook> exists in your Result class, it
+will be called and passed the current C<$source> and the
+C<$sqlt_table> being deployed.
+
+=cut
+
+sub default_sqlt_deploy_hook {
+  my $self = shift;
+
+  my $class = $self->result_class;
+
+  if ($class and $class->can('sqlt_deploy_hook')) {
+    $class->sqlt_deploy_hook(@_);
+  }
+}
+
+sub _invoke_sqlt_deploy_hook {
+  my $self = shift;
+  if ( my $hook = $self->sqlt_deploy_callback) {
+    $self->$hook(@_);
+  }
+}
+
 =head2 resultset
 
 =over 4
@@ -577,7 +647,7 @@ but is cached from then on unless resultset_class changes.
 
   $source->resultset_class('My::ResultSet::Class');
 
-Set the class of the resultset, this is useful if you want to create your
+Set the class of the resultset. This is useful if you want to create your
 own resultset methods. Create your own class derived from
 L<DBIx::Class::ResultSet>, and set it here. If called with no arguments,
 this method returns the name of the existing resultset class, if one
@@ -1367,8 +1437,6 @@ and don't actually accomplish anything on their own:
 
 Creates a new ResultSource object.  Not normally called directly by end users.
 
-=cut
-
 =head2 column_info_from_storage
 
 =over
@@ -1379,81 +1447,12 @@ Creates a new ResultSource object.  Not normally called directly by end users.
 
 =back
 
+  __PACKAGE__->column_info_from_storage(1);
+
 Enables the on-demand automatic loading of the above column
 metadata from storage as neccesary.  This is *deprecated*, and
 should not be used.  It will be removed before 1.0.
 
-  __PACKAGE__->column_info_from_storage(1);
-
-=head2 sqlt_deploy_callback
-
-An attribute which contains the callback to trigger on L</sqlt_deploy_hook>.
-Defaults to L</default_sqlt_deploy_hook>. Can be a code reference or the name
-of a method in the current result class. You would change the default value
-in case you want to share a hook between several result sources, or if you 
-want to use a result source without a declared result class.
-
-=head2 default_sqlt_deploy_hook
-
-=over
-
-=item Arguments: $source, $sqlt_table
-
-=item Return value: undefined
-
-=back
-
-Proxies its arguments to a C<sqlt_deploy_hook> method on the C<result_class>
-if such a method exists. This is useful to make L<SQL::Translator> create
-non-unique indexes, or set table options such as C<Engine=INNODB>. For 
-examples of what you can do with this, see
-L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
-
-=cut
-
-sub default_sqlt_deploy_hook {
-  my $self = shift;
-
-  my $class = $self->result_class;
-
-  if ($class and $class->can('sqlt_deploy_hook')) {
-    $class->sqlt_deploy_hook(@_);
-  }
-}
-
-
-=head2 sqlt_deploy_hook
-
-=over 4
-
-=item Arguments: $source, $sqlt_table
-
-=item Return value: undefined
-
-=back
-
-This is the entry point invoked by L<SQL::Translator::Parser::DBIx::Class>
-during the execution of L<DBIx::Class::Storage::DBI/deployment_statements>.
-Delegates to the method name or code reference specified in
-L</sqlt_deploy_callback>.
-
-Note that the code is called by 
-L<DBIx::Class::Storage::DBI/deployment_statements>, which in turn is called
-before L<DBIx::Class::Schema/deploy>. Therefore the hook can be used only
-to manipulate the L<SQL::Translator::Table> object before it is turned into
-SQL fed to the database. If you want to execute post-deploy statements which
-currently can can not be generated by L<SQL::Translator>, the suggested
-method is to overload L<DBIx::Class::Storage/deploy> and use
-L<dbh_do|DBIx::Class::Storage::DBI/dbh_do>.
-
-=cut
-
-sub sqlt_deploy_hook {
-  my $self = shift;
-  if ( my $hook = $self->sqlt_deploy_callback) {
-    $self->$hook(@_);
-  }
-}
 
 =head1 AUTHORS
 

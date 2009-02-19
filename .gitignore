@@ -1,5 +1,6 @@
 Build
 Build.bat
+MANIFEST
 META.yml
 Makefile
 Makefile.old
