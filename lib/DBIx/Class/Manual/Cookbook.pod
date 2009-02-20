@@ -338,6 +338,12 @@ That creates the following SQL:
        WHERE artistid = me.artistid
       )
 
+=head2 Where subqueries will work
+
+Currently, subqueries will B<only> work in the where-clause of a search. In
+other words, in the first hashref of a search() method. Work is being done
+to make them work as part of the second hashref (from, select, +select, etc).
+
 =head2 Predefined searches
 
 You can write your own L<DBIx::Class::ResultSet> class by inheriting from it
