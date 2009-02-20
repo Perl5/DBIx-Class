@@ -8,6 +8,8 @@ Revision history for DBIx::Class
           was NULL and the row was not stored would unexpectedly fail (groditi)
         - Split sql statements for deploy only if SQLT::Producer returned a scalar
           containing all statements to be executed
+        - Add as_query() for ResultSet and ResultSetColumn. This makes subqueries
+          possible. See the Cookbook for details. (robkinyon, michaelr)
 
 0.08099_06 2009-01-23 07:30:00 (UTC)
         - Allow a scalarref to be supplied to the 'from' resultset attribute

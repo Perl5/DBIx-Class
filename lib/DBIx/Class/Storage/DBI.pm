@@ -259,10 +259,20 @@ sub _recurse_from {
   return join('', @sqlf);
 }
 
+sub _bind_to_sql {
+  my $self = shift;
+  my $arr  = shift;
+  my $sql = shift @$$arr;
+  $sql =~ s/\?/$self->_quote((shift @$$arr)->[1])/eg;
+  return $sql
+}
+
 sub _make_as {
   my ($self, $from) = @_;
-  return join(' ', map { (ref $_ eq 'SCALAR' ? $$_ : $self->_quote($_)) }
-                     reverse each %{$self->_skip_options($from)});
+  return join(' ', map { (ref $_ eq 'SCALAR' ? $$_ 
+                        : ref $_ eq 'REF'    ? $self->_bind_to_sql($_) 
+                        : $self->_quote($_)) 
+                       } reverse each %{$self->_skip_options($from)});
 }
 
 sub _skip_options {

@@ -6,11 +6,17 @@ use warnings FATAL => 'all';
 use Data::Dumper;
 
 use Test::More;
+
+BEGIN {
+    eval "use SQL::Abstract 1.49";
+    plan $@
+        ? ( skip_all => "Needs SQLA 1.49+" )
+        : ( tests => 6 );
+}
+
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
-
-plan tests => 5;
 
 my $schema = DBICTest->init_schema();
 my $art_rs = $schema->resultset('Artist');
@@ -53,8 +59,8 @@ TODO: {
   );
 }
 
-TODO: {
-  local $TODO = "'from' doesn't work with as_query yet.";
+# simple from
+{
   my $rs = $cdrs->search(
     {},
     {
@@ -69,14 +75,13 @@ TODO: {
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track FROM (SELECT me.artistid, me.name, me.rank, me.charfield FROM cds me WHERE id > 20) cd2",
+    "SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track FROM (SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE id > 20) cd2",
     [],
   );
 }
 
 # nested from
-TODO: {
-  local $TODO = "'from' doesn't work with as_query yet.";
+{
   my $art_rs2 = $schema->resultset('Artist')->search({}, 
   {
     from => [ { 'me' => 'artist' }, 
@@ -91,6 +96,41 @@ TODO: {
     "SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me JOIN (SELECT me.artist as cds_artist FROM cd me) cds ON me.artistid = cds_artist", []
   );
 
+
+}
+
+# nested subquery in from
+{
+  my $rs = $cdrs->search(
+    {},
+    {
+      alias => 'cd2',
+      from => [
+        { cd2 => $cdrs->search(
+            { id => { '>' => 20 } }, 
+            { 
+                alias => 'cd3',
+                from => [ 
+                { cd3 => $cdrs->search( { id => { '<' => 40 } } )->as_query }
+                ],
+            }, )->as_query },
+      ],
+    },
+  );
+
+  my $arr = $rs->as_query;
+  my ($query, @bind) = @{$$arr};
+  is_same_sql_bind(
+    $query, \@bind,
+    "SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track 
+      FROM 
+        (SELECT cd3.cdid,cd3.artist,cd3.title,cd3.year,cd3.genreid,cd3.single_track 
+          FROM 
+            (SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track 
+              FROM cd me WHERE id < 40) cd3
+          WHERE id > 20) cd2",
+    [],
+  );
 
 }
 
