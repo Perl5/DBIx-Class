@@ -421,7 +421,7 @@ sub update {
         return $self->next::method( @_ );
     }
 
-    $self->set_columns($_[0]) if @_ > 0;
+    $self->set_inflated_columns($_[0]) if @_ > 0;
     my %changes = $self->get_dirty_columns;
     $self->discard_changes;
 
@@ -441,7 +441,7 @@ sub update {
 
         $self->move_to_group(
             $new_group,
-            exists($changes{$pos_col}) ? delete($changes{$pos_col}) : $self->$pos_col
+            exists($changes{$pos_col}) ? delete($changes{$pos_col}) : $self->get_column ($pos_col)
         );
     }
     elsif (exists $changes{$pos_col}) {
