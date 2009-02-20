@@ -290,7 +290,10 @@ sub insert {
       MULTICREATE_DEBUG and warn "MC $self pre-reconstructing $relname $rel_obj\n";
 
       my $them = { %{$rel_obj->{_relationship_data} || {} }, $rel_obj->get_inflated_columns };
-      my $re = $self->find_or_create_related($relname, $them);
+      my $re = $self->result_source
+                    ->related_source($relname)
+                    ->resultset
+                    ->find_or_create($them);
       %{$rel_obj} = %{$re};
       $self->set_from_related($relname, $rel_obj);
       delete $related_stuff{$relname};
