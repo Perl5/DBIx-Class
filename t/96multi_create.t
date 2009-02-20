@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 85;
+plan tests => 79;
 
 my $schema = DBICTest->init_schema();
 
