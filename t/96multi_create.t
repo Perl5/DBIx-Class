@@ -6,14 +6,11 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-sub mc_diag { diag (@_) if $ENV{DBIC_MULTICREATE_DEBUG} };
-
-plan tests => 77;
+plan tests => 93;
 
 my $schema = DBICTest->init_schema();
 
-mc_diag '* simple create + parent (the stuff $rs belongs_to)';
-eval {
+lives_ok ( sub {
   my $cd = $schema->resultset('CD')->create({
     artist => { 
       name => 'Fred Bloggs' 
@@ -25,11 +22,9 @@ eval {
   isa_ok($cd, 'DBICTest::CD', 'Created CD object');
   isa_ok($cd->artist, 'DBICTest::Artist', 'Created related Artist');
   is($cd->artist->name, 'Fred Bloggs', 'Artist created correctly');
-};
-diag $@ if $@;
+}, 'simple create + parent (the stuff $rs belongs_to) ok');
 
-mc_diag '* same as above but the child and parent have no values, except for an explicit parent pk';
-eval {
+lives_ok ( sub {
   my $bm_rs = $schema->resultset('Bookmark');
   my $bookmark = $bm_rs->create({
     link => {
@@ -47,11 +42,9 @@ eval {
     1,
     'Bookmark and link made it to the DB',
   );
-};
-diag $@ if $@;
+}, 'simple create where the child and parent have no values, except for an explicit parent pk ok');
 
-mc_diag '* create over > 1 levels of has_many create (A => { has_many => { B => has_many => C } } )';
-eval {
+lives_ok ( sub {
   my $artist = $schema->resultset('Artist')->first;
   my $cd = $artist->create_related (cds => {
     title => 'Music to code by',
@@ -66,8 +59,7 @@ eval {
   is($cd->tags->count, 1, 'One tag created for CD');
   is($cd->tags->first->tag, 'rock', 'Tag created correctly');
 
-};
-diag $@ if $@;
+}, 'create over > 1 levels of has_many create (A => { has_many => { B => has_many => C } } )');
 
 throws_ok (
   sub {
@@ -84,8 +76,7 @@ throws_ok (
   'create via update of multi relationships throws an exception'
 );
 
-mc_diag '* Create m2m while originating in the linker table';
-eval {
+lives_ok ( sub {
   my $artist = $schema->resultset('Artist')->first;
   my $c2p = $schema->resultset('CD_to_Producer')->create ({
     cd => {
@@ -110,24 +101,17 @@ eval {
   my $cd = $prod->cds->first;
   is ($cd->title, 'Bad investment', 'CD created correctly');
   is ($cd->tracks->count, 3, 'CD has 3 tracks');
+}, 'Create m2m while originating in the linker table');
 
-};
-diag $@ if $@;
 
-mc_diag (<<'DG');
-* Create over > 1 levels of might_have with multiple has_many and multiple m2m
-but starting at a has_many level
-
-CD -> has_many -> Tracks -> might have -> Single -> has_many -> Tracks
-                                               \
-                                                \-> has_many \
-                                                              --> CD2Producer
-                                                /-> has_many /
-                                               /
-                                          Producer
-DG
-
-eval {
+#CD -> has_many -> Tracks -> might have -> Single -> has_many -> Tracks
+#                                               \
+#                                                \-> has_many \
+#                                                              --> CD2Producer
+#                                                /-> has_many /
+#                                               /
+#                                          Producer
+lives_ok ( sub {
   my $artist = $schema->resultset('Artist')->first;
   my $cd = $schema->resultset('CD')->create ({
     artist => $artist,
@@ -185,22 +169,16 @@ eval {
     ['Don Knuth', 'K&R'],
     'Producers named correctly',
   );
-};
-diag $@ if $@;
+}, 'Create over > 1 levels of might_have with multiple has_many and multiple m2m but starting at a has_many level');
 
-mc_diag (<<'DG');
-* Same as above but starting at the might_have directly
-
-Track -> might have -> Single -> has_many -> Tracks
-                           \
-                            \-> has_many \
-                                          --> CD2Producer
-                            /-> has_many /
-                           /
-                       Producer
-DG
-
-eval {
+#Track -> might have -> Single -> has_many -> Tracks
+#                           \
+#                            \-> has_many \
+#                                          --> CD2Producer
+#                            /-> has_many /
+#                           /
+#                       Producer
+lives_ok ( sub {
   my $cd = $schema->resultset('CD')->first;
   my $track = $schema->resultset('Track')->create ({
     cd => $cd,
@@ -250,11 +228,9 @@ eval {
     ['castaway', 'mst', 'theorbtwo'],
     'Producers named correctly',
   );
-};
-diag $@ if $@;
+}, 'Create over > 1 levels of might_have with multiple has_many and multiple m2m but starting at the might_have directly');
 
-mc_diag '* Test might_have again but with a PK == FK in the middle (obviously not specified)';
-eval {
+lives_ok ( sub {
   my $artist = $schema->resultset('Artist')->first;
   my $cd = $schema->resultset('CD')->create ({
     artist => $artist,
@@ -294,11 +270,9 @@ eval {
     [ 'recursive descent', 'tail packing' ],
     'Images named correctly after search',
   );
-};
-diag $@ if $@;
+}, 'Test might_have again but with a PK == FK in the middle (obviously not specified)');
 
-mc_diag '* Test might_have again but with just a PK and FK (neither specified) in the mid-table';
-eval {
+lives_ok ( sub {
   my $cd = $schema->resultset('CD')->first;
   my $track = $schema->resultset ('Track')->create ({
     cd => $cd,
@@ -339,11 +313,9 @@ eval {
     [ 'The color black', 'The colour black' ],
     'Lyrics text via search matches',
   );
-};
-diag $@ if $@;
+}, 'Test might_have again but with just a PK and FK (neither specified) in the mid-table');
 
-mc_diag '* Nested find_or_create';
-eval {
+lives_ok ( sub {
   my $newartist2 = $schema->resultset('Artist')->find_or_create({ 
     name => 'Fred 3',
     cds => [
@@ -354,11 +326,9 @@ eval {
     ],
   });
   is($newartist2->name, 'Fred 3', 'Created new artist with cds via find_or_create');
-};
-diag $@ if $@;
+}, 'Nested find_or_create');
 
-mc_diag '* Multiple same level has_many create';
-eval {
+lives_ok ( sub {
   my $artist2 = $schema->resultset('Artist')->create({
     name => 'Fred 4',
     cds => [
@@ -376,11 +346,9 @@ eval {
   });
 
   is($artist2->in_storage, 1, 'artist with duplicate rels inserted okay');
-};
-diag $@ if $@;
+}, 'Multiple same level has_many create');
 
-mc_diag '* First create_related pass';
-eval {
+lives_ok ( sub {
 	my $artist = $schema->resultset('Artist')->first;
 	
 	my $cd_result = $artist->create_related('cds', {
@@ -405,11 +373,9 @@ eval {
 	{
 		ok( $track && ref $track eq 'DBICTest::Track', 'Got Expected Track Class');
 	}
-};
-diag $@ if $@;
+}, 'First create_related pass');
 
-mc_diag '* second create_related with same arguments';
-eval {
+lives_ok ( sub {
 	my $artist = $schema->resultset('Artist')->first;
 	
 	my $cd_result = $artist->create_related('cds', {
@@ -437,20 +403,17 @@ eval {
 	{
 		ok( $track && ref $track eq 'DBICTest::Track', 'Got Expected Track Class');
 	}
-};
-diag $@ if $@;
+}, 'second create_related with same arguments');
 
-mc_diag '* create of parents of a record linker table';
-eval {
+lives_ok ( sub {
   my $cdp = $schema->resultset('CD_to_Producer')->create({
     cd => { artist => 1, title => 'foo', year => 2000 },
     producer => { name => 'jorge' }
   });
   ok($cdp, 'join table record created ok');
-};
-diag $@ if $@;
+}, 'create of parents of a record linker table');
 
-eval {
+lives_ok ( sub {
   my $kurt_cobain = { name => 'Kurt Cobain' };
 
   my $in_utero = $schema->resultset('CD')->new({
@@ -467,32 +430,11 @@ eval {
   is($a->name, 'Kurt Cobain', 'Artist insertion ok');
   is($a->cds && $a->cds->first && $a->cds->first->title, 
 		  'In Utero', 'CD insertion ok');
-};
-diag $@ if $@;
+}, 'populate');
 
-=pod
-# This test case has been moved to t/96multi_create/cd_single.t
-eval {
-  my $pink_floyd = { name => 'Pink Floyd' };
-
-  my $the_wall = { title => 'The Wall', year  => 1979 };
-
-  $pink_floyd->{cds} = [ $the_wall ];
-
-
-  $schema->resultset('Artist')->populate([ $pink_floyd ]); # %)
-  $a = $schema->resultset('Artist')->find({name => 'Pink Floyd'});
-
-  is($a->name, 'Pink Floyd', 'Artist insertion ok');
-  is($a->cds && $a->cds->first->title, 'The Wall', 'CD insertion ok');
-};
-diag $@ if $@;
-=cut
-
-mc_diag '* Create foreign key col obj including PK (See test 20 in 66relationships.t)';
 ## Create foreign key col obj including PK
 ## See test 20 in 66relationships.t
-eval {
+lives_ok ( sub {
   my $new_cd_hashref = { 
     cdid => 27, 
     title => 'Boogie Woogie', 
@@ -506,30 +448,25 @@ eval {
 
   my $new_cd = $schema->resultset("CD")->create($new_cd_hashref);
   is($new_cd->artist->id, 17, 'new id retained okay');
-};
-diag $@ if $@;
+}, 'Create foreign key col obj including PK');
 
-eval {
+lives_ok ( sub {
 	$schema->resultset("CD")->create({ 
               cdid => 28, 
               title => 'Boogie Wiggle', 
               year => '2007', 
               artist => { artistid => 18, name => 'larry' }
              });
-};
-is($@, '', 'new cd created without clash on related artist');
+}, 'new cd created without clash on related artist');
 
-mc_diag '* Make sure exceptions from errors in created rels propogate';
-eval {
+throws_ok ( sub {
     my $t = $schema->resultset("Track")->new({ cd => { artist => undef } });
     #$t->cd($t->new_related('cd', { artist => undef } ) );
     #$t->{_rel_in_storage} = 0;
     $t->insert;
-};
-like($@, qr/cd.artist may not be NULL/, "Exception propogated properly");
+}, qr/cd.artist may not be NULL/, "Exception propogated properly");
 
-mc_diag '* Test multi create over many_to_many';
-eval {
+lives_ok ( sub {
   $schema->resultset('CD')->create ({
     artist => {
       name => 'larry', # should already exist
@@ -545,6 +482,6 @@ eval {
   is ($m2m_cd->count, 1, 'One CD row created via M2M create');
   is ($m2m_cd->first->producers->count, 1, 'CD row created with one producer');
   is ($m2m_cd->first->producers->first->name, 'Cowboy Neal', 'Correct producer row created');
-};
+}, 'Test multi create over many_to_many');
 
 1;
