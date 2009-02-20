@@ -1,4 +1,6 @@
 Revision history for DBIx::Class
+        - multi-create using find_or_create rather than _related for post-insert
+        - fix get_inflated_columns to check has_column_loaded
         - Add DBIC_MULTICREATE_DEBUG env var (undocumented, quasi-internal)
         - Fix up multi-create to:
           - correctly propagate columns loaded during multi-insert of rels

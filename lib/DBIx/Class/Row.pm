@@ -85,17 +85,20 @@ For a more involved explanation, see L<DBIx::Class::ResultSet/create>.
 sub __new_related_find_or_new_helper {
   my ($self, $relname, $data) = @_;
   if ($self->__their_pk_needs_us($relname, $data)) {
+    MULTICREATE_DEBUG and warn "MC $self constructing $relname via new_result";
     return $self->result_source
                 ->related_source($relname)
                 ->resultset
                 ->new_result($data);
   }
   if ($self->result_source->pk_depends_on($relname, $data)) {
+    MULTICREATE_DEBUG and warn "MC $self constructing $relname via find_or_new";
     return $self->result_source
                 ->related_source($relname)
                 ->resultset
-                ->find_or_create($data);
+                ->find_or_new($data);
   }
+  MULTICREATE_DEBUG and warn "MC $self constructing $relname via find_or_new_related";
   return $self->find_or_new_related($relname, $data);
 }
 
@@ -284,9 +287,11 @@ sub insert {
                         $relname, { $rel_obj->get_columns }
                       );
 
-      MULTICREATE_DEBUG and warn "MC $self pre-inserting $relname $rel_obj\n";
+      MULTICREATE_DEBUG and warn "MC $self pre-reconstructing $relname $rel_obj\n";
 
-      $rel_obj->insert();
+      my $them = { %{$rel_obj->{_relationship_data} || {} }, $rel_obj->get_inflated_columns };
+      my $re = $self->find_or_create_related($relname, $them);
+      %{$rel_obj} = %{$re};
       $self->set_from_related($relname, $rel_obj);
       delete $related_stuff{$relname};
     }
@@ -346,7 +351,10 @@ sub insert {
               MULTICREATE_DEBUG and warn "MC $self skipping post-insert on $relname";
             } else {
               MULTICREATE_DEBUG and warn "MC $self re-creating $relname $obj";
-              my $re = $self->find_or_create_related($relname, $them);
+              my $re = $self->result_source
+                            ->related_source($relname)
+                            ->resultset
+                            ->find_or_create($them);
               %{$obj} = %{$re};
               MULTICREATE_DEBUG and warn "MC $self new $relname $obj";
             }
@@ -706,7 +714,7 @@ sub get_inflated_columns {
   return map {
     my $accessor = $self->column_info($_)->{'accessor'} || $_;
     ($_ => $self->$accessor);
-  } $self->columns;
+  } grep $self->has_column_loaded($_), $self->columns;
 }
 
 =head2 set_column
