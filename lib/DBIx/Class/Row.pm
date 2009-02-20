@@ -8,6 +8,13 @@ use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util ();
 use Scope::Guard;
 
+BEGIN {
+  *MULTICREATE_DEBUG =
+    $ENV{DBIC_MULTICREATE_DEBUG}
+      ? sub () { 1 }
+      : sub () { 0 };
+}
+
 __PACKAGE__->mk_group_accessors('simple' => qw/_source_handle/);
 
 =head1 NAME
@@ -145,24 +152,38 @@ sub new {
             $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
           }
 
-          $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
+          if ($rel_obj->in_storage) {
+            $new->set_from_related($key, $rel_obj);
+          } else {
+            $new->{_rel_in_storage} = 0;
+            MULTICREATE_DEBUG and warn "MC $new: uninserted $key $rel_obj\n";
+          }
 
-          $new->set_from_related($key, $rel_obj) if $rel_obj->in_storage;
           $related->{$key} = $rel_obj;
           next;
         } elsif ($info && $info->{attrs}{accessor}
             && $info->{attrs}{accessor} eq 'multi'
             && ref $attrs->{$key} eq 'ARRAY') {
           my $others = delete $attrs->{$key};
-          foreach my $rel_obj (@$others) {
+          my $total = @$others;
+          my @objects;
+          foreach my $idx (0 .. $#$others) {
+            my $rel_obj = $others->[$idx];
             if(!Scalar::Util::blessed($rel_obj)) {
               $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
             }
 
-            $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
+            if ($rel_obj->in_storage) {
+              $new->set_from_related($key, $rel_obj);
+            } else {
+              $new->{_rel_in_storage} = 0;
+              MULTICREATE_DEBUG and
+                warn "MC $new: uninserted $key $rel_obj ($idx of $total)\n";
+            }
             $new->set_from_related($key, $rel_obj) if $rel_obj->in_storage;
+            push(@objects, $rel_obj);
           }
-          $related->{$key} = $others;
+          $related->{$key} = \@objects;
           next;
         } elsif ($info && $info->{attrs}{accessor}
           && $info->{attrs}{accessor} eq 'filter')
@@ -172,7 +193,10 @@ sub new {
           if(!Scalar::Util::blessed($rel_obj)) {
             $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
           }
-          $new->{_rel_in_storage} = 0 unless ($rel_obj->in_storage);
+          unless ($rel_obj->in_storage) {
+            $new->{_rel_in_storage} = 0;
+            MULTICREATE_DEBUG and warn "MC $new: uninserted $key $rel_obj";
+          }
           $inflated->{$key} = $rel_obj;
           next;
         } elsif ($class->has_column($key)
@@ -256,12 +280,15 @@ sub insert {
                         $relname, { $rel_obj->get_columns }
                       );
 
+      MULTICREATE_DEBUG and warn "MC $self pre-inserting $relname $rel_obj\n";
+
       $rel_obj->insert();
       $self->set_from_related($relname, $rel_obj);
       delete $related_stuff{$relname};
     }
   }
 
+  MULTICREATE_DEBUG and warn "MC $self inserting self\n";
   my $updated_cols = $source->storage->insert($source, { $self->get_columns });
   foreach my $col (keys %$updated_cols) {
     $self->store_column($col, $updated_cols->{$col});
@@ -276,7 +303,7 @@ sub insert {
   if (@auto_pri) {
     #$self->throw_exception( "More than one possible key found for auto-inc on ".ref $self )
     #  if defined $too_many;
-
+    MULTICREATE_DEBUG and warn "MC $self fetching missing PKs ".join(', ', @auto_pri)."\n";
     my $storage = $self->result_source->storage;
     $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" )
       unless $storage->can('last_insert_id');
@@ -284,7 +311,9 @@ sub insert {
     $self->throw_exception( "Can't get last insert id" )
       unless (@ids == @auto_pri);
     $self->store_column($auto_pri[$_] => $ids[$_]) for 0 .. $#ids;
+#use Data::Dumper; warn Dumper($self);
   }
+
 
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
@@ -306,8 +335,12 @@ sub insert {
           $obj->set_from_related($_, $self) for keys %$reverse;
           my $them = { %{$obj->{_relationship_data} || {} }, $obj->get_inflated_columns };
           if ($self->__their_pk_needs_us($relname, $them)) {
-            $obj = $self->find_or_create_related($relname, $them);
+            MULTICREATE_DEBUG and warn "MC $self re-creating $relname $obj";
+            my $re = $self->find_or_create_related($relname, $them);
+            $obj->{_column_data} = $re->{_column_data};
+            MULTICREATE_DEBUG and warn "MC $self new $relname $obj";
           } else {
+            MULTICREATE_DEBUG and warn "MC $self post-inserting $obj";
             $obj->insert();
           }
         }
