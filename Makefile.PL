@@ -1,6 +1,7 @@
 use inc::Module::Install 0.67;
 use strict;
 use warnings;
+use POSIX ();
 
 use 5.006001; # delete this line if you want to send patches for earlier.
 
@@ -119,9 +120,14 @@ EOW
       exit 0;
   }
   else {
-      wait();
+      eval {
+          local $SIG{ALRM} = sub { die "timeout\n" };
+          alarm 5;
+          wait();
+          alarm 0;
+      };
       my $sig = $? & 127;
-      if ($sig == 11) {
+      if ($@ || $sig == POSIX::SIGSEGV) {
           warn (<<EOE);
 
 ############################### WARNING #################################
