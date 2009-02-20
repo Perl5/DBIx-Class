@@ -2,7 +2,7 @@ package # hide from PAUSE
     DBICTest::Schema::Track;
 
 use base 'DBIx::Class::Core';
-__PACKAGE__->load_components(qw/InflateColumn::DateTime/);
+__PACKAGE__->load_components(qw/InflateColumn::DateTime Ordered/);
 
 __PACKAGE__->table('track');
 __PACKAGE__->add_columns(
@@ -31,6 +31,10 @@ __PACKAGE__->set_primary_key('trackid');
 
 __PACKAGE__->add_unique_constraint([ qw/cd position/ ]);
 __PACKAGE__->add_unique_constraint([ qw/cd title/ ]);
+
+__PACKAGE__->position_column ('position');
+__PACKAGE__->grouping_column ('cd');
+
 
 __PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD' );
 __PACKAGE__->belongs_to( disc => 'DBICTest::Schema::CD' => 'cd');

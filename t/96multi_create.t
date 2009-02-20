@@ -91,9 +91,9 @@ eval {
       title => 'Bad investment',
       year => 2008,
       tracks => [
-        { position => 1, title => 'Just buy' },
-        { position => 2, title => 'Why did we do it' },
-        { position => 3, title => 'Burn baby burn' },
+        { title => 'Just buy' },
+        { title => 'Why did we do it' },
+        { title => 'Burn baby burn' },
       ],
     },
     producer => {
@@ -133,19 +133,17 @@ eval {
     year => 2008,
     tracks => [
       {
-        position => 1, # some day me might test this with Ordered
         title => 'Off by one again',
       },
       {
-        position => 2,
         title => 'The dereferencer',
         cd_single => {
           artist => $artist,
           year => 2008,
           title => 'Was that a null (Single)',
           tracks => [
-            { title => 'The dereferencer', position => 1 },
-            { title => 'The dereferencer II', position => 2 },
+            { title => 'The dereferencer' },
+            { title => 'The dereferencer II' },
           ],
           cd_to_producer => [
             {
@@ -204,16 +202,15 @@ eval {
   my $cd = $schema->resultset('CD')->first;
   my $track = $schema->resultset('Track')->create ({
     cd => $cd,
-    position => 77,  # some day me might test this with Ordered
     title => 'Multicreate rocks',
     cd_single => {
       artist => $cd->artist,
       year => 2008,
       title => 'Disemboweling MultiCreate',
       tracks => [
-        { title => 'Why does mst write this way', position => 1 },
-        { title => 'Chainsaw celebration', position => 2 },
-        { title => 'Purl cleans up', position => 3 },
+        { title => 'Why does mst write this way' },
+        { title => 'Chainsaw celebration' },
+        { title => 'Purl cleans up' },
       ],
       cd_to_producer => [
         {
@@ -303,7 +300,6 @@ eval {
   my $cd = $schema->resultset('CD')->first;
   my $track = $schema->resultset ('Track')->create ({
     cd => $cd,
-    position => 66,
     title => 'Black',
     lyrics => {
       lyric_versions => [
@@ -441,13 +437,8 @@ eval {
 		title => 'TestOneCD1',
 		year => 2007,
 		tracks => [
-		
-			{ position=>111,
-			  title => 'TrackOne',
-			},
-			{ position=>112,
-			  title => 'TrackTwo',
-			}
+			{ title => 'TrackOne' },
+			{ title => 'TrackTwo' },
 		],
 
 	});
@@ -475,13 +466,8 @@ eval {
 		title => 'TestOneCD2',
 		year => 2007,
 		tracks => [
-		
-			{ position=>111,
-			  title => 'TrackOne',
-			},
-			{ position=>112,
-			  title => 'TrackTwo',
-			}
+			{ title => 'TrackOne' },
+			{ title => 'TrackTwo' },
 		],
 
     liner_notes => { notes => 'I can haz liner notes?' },
