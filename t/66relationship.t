@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 74;
+plan tests => 69;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);

@@ -7,8 +7,11 @@ use base qw/Test::Builder::Module Exporter/;
 
 our @EXPORT = qw/
   &is_same_sql_bind
+  &is_same_sql
+  &is_same_bind
   &eq_sql
   &eq_bind
+  &eq_sql_bind
 /;
 
 
@@ -39,17 +42,57 @@ our @EXPORT = qw/
     $tb->ok($same_sql && $same_bind, $msg);
 
     if (!$same_sql) {
-      $tb->diag("SQL expressions differ\n"
-        . "     got: $sql1\n"
-        . "expected: $sql2\n"
-      );
+      _sql_differ_diag($sql1, $sql2);
     }
     if (!$same_bind) {
-      $tb->diag("BIND values differ\n"
-        . "     got: " . Dumper($bind_ref1)
-        . "expected: " . Dumper($bind_ref2)
-      );
+      _bind_differ_diag($bind_ref1, $bind_ref2);
     }
+  }
+
+  sub is_same_sql
+  {
+    my ($sql1, $sql2, $msg) = @_;
+
+    my $same_sql = eq_sql($sql1, $sql2);
+
+    $tb->ok($same_sql, $msg);
+
+    if (!$same_sql) {
+      _sql_differ_diag($sql1, $sql2);
+    }
+  }
+
+  sub is_same_bind
+  {
+    my ($bind_ref1, $bind_ref2, $msg) = @_;
+
+    my $same_bind = eq_bind($bind_ref1, $bind_ref2);
+
+    $tb->ok($same_bind, $msg);
+
+    if (!$same_bind) {
+      _bind_differ_diag($bind_ref1, $bind_ref2);
+    }
+  }
+
+  sub _sql_differ_diag
+  {
+    my ($sql1, $sql2) = @_;
+
+    $tb->diag("SQL expressions differ\n"
+      . "     got: $sql1\n"
+      . "expected: $sql2\n"
+    );
+  }
+
+  sub _bind_differ_diag
+  {
+    my ($bind_ref1, $bind_ref2) = @_;
+
+    $tb->diag("BIND values differ\n"
+      . "     got: " . Dumper($bind_ref1)
+      . "expected: " . Dumper($bind_ref2)
+    );
   }
 
   sub eq_sql
@@ -68,6 +111,13 @@ our @EXPORT = qw/
 
     return eq_deeply($bind_ref1, $bind_ref2);
   }
+
+  sub eq_sql_bind
+  {
+    my ($sql1, $bind_ref1, $sql2, $bind_ref2) = @_;
+
+    return eq_sql($sql1, $sql2) && eq_bind($bind_ref1, $bind_ref2);
+  }
 }
 
 eval "use SQL::Abstract::Test;";
@@ -75,14 +125,20 @@ if ($@ eq '') {
   # SQL::Abstract::Test available
 
   *is_same_sql_bind = \&SQL::Abstract::Test::is_same_sql_bind;
+  *is_same_sql = \&SQL::Abstract::Test::is_same_sql;
+  *is_same_bind = \&SQL::Abstract::Test::is_same_bind;
   *eq_sql = \&SQL::Abstract::Test::eq_sql;
   *eq_bind = \&SQL::Abstract::Test::eq_bind;
+  *eq_sql_bind = \&SQL::Abstract::Test::eq_sql_bind;
 } else {
   # old SQL::Abstract
 
   *is_same_sql_bind = \&DBIC::SqlMakerTest::SQLATest::is_same_sql_bind;
+  *is_same_sql = \&DBIC::SqlMakerTest::SQLATest::is_same_sql;
+  *is_same_bind = \&DBIC::SqlMakerTest::SQLATest::is_same_bind;
   *eq_sql = \&DBIC::SqlMakerTest::SQLATest::eq_sql;
   *eq_bind = \&DBIC::SqlMakerTest::SQLATest::eq_bind;
+  *eq_sql_bind = \&DBIC::SqlMakerTest::SQLATest::eq_sql_bind;
 }
 
 
@@ -131,6 +187,28 @@ comparison of bind values.
 Compares given and expected pairs of C<($sql, \@bind)>, and calls
 L<Test::Builder/ok> on the result, with C<$test_msg> as message.
 
+=head2 is_same_sql
+
+  is_same_sql(
+    $given_sql,
+    $expected_sql,
+    $test_msg
+  );
+
+Compares given and expected SQL statement, and calls L<Test::Builder/ok> on the
+result, with C<$test_msg> as message.
+
+=head2 is_same_bind
+
+  is_same_bind(
+    \@given_bind, 
+    \@expected_bind,
+    $test_msg
+  );
+
+Compares given and expected bind value lists, and calls L<Test::Builder/ok> on
+the result, with C<$test_msg> as message.
+
 =head2 eq_sql
 
   my $is_same = eq_sql($given_sql, $expected_sql);
@@ -142,6 +220,16 @@ Compares the two SQL statements. Returns true IFF they are equivalent.
   my $is_same = eq_sql(\@given_bind, \@expected_bind);
 
 Compares two lists of bind values. Returns true IFF their values are the same.
+
+=head2 eq_sql_bind
+
+  my $is_same = eq_sql_bind(
+    $given_sql, \@given_bind,
+    $expected_sql, \@expected_bind
+  );
+
+Compares the two SQL statements and the two lists of bind values. Returns true
+IFF they are equivalent and the bind values are the same.
 
 
 =head1 SEE ALSO

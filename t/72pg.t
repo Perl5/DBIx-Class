@@ -153,7 +153,7 @@ SKIP: {
   my $count;
   lives_ok {
     $count = $schema->resultset('ArrayTest')->search({
-      arrayfield => \[ '= ?' => [3, 4] ],   #TODO anything less ugly than this?
+      arrayfield => \[ '= ?' => [arrayfield => [3, 4]] ],   #TODO anything less ugly than this?
     })->count;
   } 'comparing arrayref to pg array data does not blow up';
   is($count, 1, 'comparing arrayref to pg array data gives correct result');
