@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 85;
+plan tests => 77;
 
 my $schema = DBICTest->init_schema();
 
@@ -513,9 +513,6 @@ eval {
 };
 diag $@ if $@;
 
-TODO: {
-local $TODO = 'Next 2 evals are NOT supposed to work, jnaps code will be torn to bits in another branch';
-#SPECIAL_CASE
 eval {
   my $kurt_cobain = { name => 'Kurt Cobain' };
 
@@ -536,7 +533,8 @@ eval {
 };
 diag $@ if $@;
 
-#SPECIAL_CASE2
+=pod
+# This test case has been moved to t/96multi_create/cd_single.t
 eval {
   my $pink_floyd = { name => 'Pink Floyd' };
 
@@ -552,10 +550,11 @@ eval {
   is($a->cds && $a->cds->first->title, 'The Wall', 'CD insertion ok');
 };
 diag $@ if $@;
-}
-
+=cut
 
 diag '* Create foreign key col obj including PK (See test 20 in 66relationships.t)';
+## Create foreign key col obj including PK
+## See test 20 in 66relationships.t
 eval {
   my $new_cd_hashref = { 
     cdid => 27, 

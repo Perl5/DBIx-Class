@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan 'no_plan';
+plan tests => 9;
 
 my $schema = DBICTest->init_schema();
 
@@ -22,28 +22,42 @@ my $schema = DBICTest->init_schema();
 # to new(). All other objects should be insert()able afterwards too.
 
 
-my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode' });
-my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave in Silence', 'year' => 1982});
-eval {
-       $new_artist->insert;
-       $new_related_cd->insert;
-};
-is ($@, '', 'Staged insertion successful');
-ok($new_artist->in_storage, 'artist inserted');
-ok($new_related_cd->in_storage, 'new_related_cd inserted');
+{
+    my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode' });
+    my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave in Silence', 'year' => 1982});
+    eval {
+        $new_artist->insert;
+        $new_related_cd->insert;
+    };
+    is ($@, '', 'Staged insertion successful');
+    ok($new_artist->in_storage, 'artist inserted');
+    ok($new_related_cd->in_storage, 'new_related_cd inserted');
+}
 
+{
+    my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode' });
+    my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave in Silence', 'year' => 1982});
+    eval {
+        $new_related_cd->insert;
+    };
+    is ($@, '', 'CD insertion survives by inserting artist');
+    ok($new_artist->in_storage, 'artist inserted');
+    ok($new_related_cd->in_storage, 'new_related_cd inserted');
+}
 
-my $new_cd = $schema->resultset("CD")->new_result({});
-my $new_related_artist = $new_cd->new_related('artist', { 'name' => 'Marillion',});
-lives_ok (
-    sub {
-       $new_related_artist->insert;
-       $new_cd->title( 'Misplaced Childhood' );
-       $new_cd->year ( 1985 );
-       $new_cd->artist( $new_related_artist );  # For exact backward compatibility
-       $new_cd->insert;
-    },
-    'Reversed staged insertion successful'
-);
-ok($new_related_artist->in_storage, 'related artist inserted');
-ok($new_cd->in_storage, 'cd inserted');
+{
+    my $new_cd = $schema->resultset("CD")->new_result({});
+    my $new_related_artist = $new_cd->new_related('artist', { 'name' => 'Marillion',});
+    lives_ok (
+        sub {
+            $new_related_artist->insert;
+            $new_cd->title( 'Misplaced Childhood' );
+            $new_cd->year ( 1985 );
+            $new_cd->artist( $new_related_artist );  # For exact backward compatibility
+            $new_cd->insert;
+        },
+        'Reversed staged insertion successful'
+    );
+    ok($new_related_artist->in_storage, 'related artist inserted');
+    ok($new_cd->in_storage, 'cd inserted');
+}

@@ -1701,6 +1701,7 @@ sub new_result {
     && $self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
   ) {
     %new = %{$self->{attrs}{related_objects}};
+    $new{-from_resultset} = [ keys %new ] if keys %new;
   } else {
     $self->throw_exception(
       "Can't abstract implicit construct, condition not a hash"

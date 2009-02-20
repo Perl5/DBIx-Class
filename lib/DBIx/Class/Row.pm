@@ -131,6 +131,10 @@ sub new {
     $new->result_source($source);
   }
 
+  if (my $related = delete $attrs->{-from_resultset}) {
+    @{$new->{_ignore_at_insert}={}}{@$related} = ();
+  }
+
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
@@ -156,7 +160,7 @@ sub new {
             $new->set_from_related($key, $rel_obj);
           } else {
             $new->{_rel_in_storage} = 0;
-            MULTICREATE_DEBUG and warn "MC $new: uninserted $key $rel_obj\n";
+            MULTICREATE_DEBUG and warn "MC $new uninserted $key $rel_obj\n";
           }
 
           $related->{$key} = $rel_obj;
@@ -178,7 +182,7 @@ sub new {
             } else {
               $new->{_rel_in_storage} = 0;
               MULTICREATE_DEBUG and
-                warn "MC $new: uninserted $key $rel_obj ($idx of $total)\n";
+                warn "MC $new uninserted $key $rel_obj (${\($idx+1)} of $total)\n";
             }
             $new->set_from_related($key, $rel_obj) if $rel_obj->in_storage;
             push(@objects, $rel_obj);
@@ -195,7 +199,7 @@ sub new {
           }
           unless ($rel_obj->in_storage) {
             $new->{_rel_in_storage} = 0;
-            MULTICREATE_DEBUG and warn "MC $new: uninserted $key $rel_obj";
+            MULTICREATE_DEBUG and warn "MC $new uninserted $key $rel_obj";
           }
           $inflated->{$key} = $rel_obj;
           next;
@@ -288,7 +292,10 @@ sub insert {
     }
   }
 
-  MULTICREATE_DEBUG and warn "MC $self inserting self\n";
+  MULTICREATE_DEBUG and do {
+    no warnings 'uninitialized';
+    warn "MC $self inserting (".join(', ', $self->get_columns).")\n";
+  };
   my $updated_cols = $source->storage->insert($source, { $self->get_columns });
   foreach my $col (keys %$updated_cols) {
     $self->store_column($col, $updated_cols->{$col});
@@ -319,7 +326,7 @@ sub insert {
   $self->{related_resultsets} = {};
 
   if(!$self->{_rel_in_storage}) {
-    ## Now do the has_many rels, that need $selfs ID.
+    ## Now do the relationships that need our ID (has_many etc.)
     foreach my $relname (keys %related_stuff) {
       my $rel_obj = $related_stuff{$relname};
       my @cands;
@@ -335,10 +342,14 @@ sub insert {
           $obj->set_from_related($_, $self) for keys %$reverse;
           my $them = { %{$obj->{_relationship_data} || {} }, $obj->get_inflated_columns };
           if ($self->__their_pk_needs_us($relname, $them)) {
-            MULTICREATE_DEBUG and warn "MC $self re-creating $relname $obj";
-            my $re = $self->find_or_create_related($relname, $them);
-            $obj->{_column_data} = $re->{_column_data};
-            MULTICREATE_DEBUG and warn "MC $self new $relname $obj";
+            if (exists $self->{_ignore_at_insert}{$relname}) {
+              MULTICREATE_DEBUG and warn "MC $self skipping post-insert on $relname";
+            } else {
+              MULTICREATE_DEBUG and warn "MC $self re-creating $relname $obj";
+              my $re = $self->find_or_create_related($relname, $them);
+              %{$obj} = %{$re};
+              MULTICREATE_DEBUG and warn "MC $self new $relname $obj";
+            }
           } else {
             MULTICREATE_DEBUG and warn "MC $self post-inserting $obj";
             $obj->insert();
@@ -346,6 +357,7 @@ sub insert {
         }
       }
     }
+    delete $self->{_ignore_at_insert};
     $rollback_guard->commit;
   }
 
