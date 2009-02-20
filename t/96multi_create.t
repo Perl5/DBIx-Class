@@ -8,7 +8,7 @@ use DBICTest;
 
 sub mc_diag { diag (@_) if $ENV{DBIC_MULTICREATE_DEBUG} };
 
-plan tests => 77;
+plan tests => 84;
 
 my $schema = DBICTest->init_schema();
 
@@ -26,7 +26,7 @@ eval {
   isa_ok($cd->artist, 'DBICTest::Artist', 'Created related Artist');
   is($cd->artist->name, 'Fred Bloggs', 'Artist created correctly');
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag '* same as above but the child and parent have no values, except for an explicit parent pk';
 eval {
@@ -48,7 +48,7 @@ eval {
     'Bookmark and link made it to the DB',
   );
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag '* create over > 1 levels of has_many create (A => { has_many => { B => has_many => C } } )';
 eval {
@@ -67,7 +67,7 @@ eval {
   is($cd->tags->first->tag, 'rock', 'Tag created correctly');
 
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 throws_ok (
   sub {
@@ -112,7 +112,7 @@ eval {
   is ($cd->tracks->count, 3, 'CD has 3 tracks');
 
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag (<<'DG');
 * Create over > 1 levels of might_have with multiple has_many and multiple m2m
@@ -186,7 +186,7 @@ eval {
     'Producers named correctly',
   );
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag (<<'DG');
 * Same as above but starting at the might_have directly
@@ -251,7 +251,7 @@ eval {
     'Producers named correctly',
   );
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag '* Test might_have again but with a PK == FK in the middle (obviously not specified)';
 eval {
@@ -295,7 +295,7 @@ eval {
     'Images named correctly after search',
   );
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag '* Test might_have again but with just a PK and FK (neither specified) in the mid-table';
 eval {
@@ -340,7 +340,7 @@ eval {
     'Lyrics text via search matches',
   );
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag (<<'DG');
 * Test a multilevel might-have with a PK == FK in the might_have/has_many table
@@ -391,7 +391,7 @@ eval {
     'Artists named correctly queried via a new search',
   );
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag '* Nested find_or_create';
 eval {
@@ -406,7 +406,7 @@ eval {
   });
   is($newartist2->name, 'Fred 3', 'Created new artist with cds via find_or_create');
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag '* Multiple same level has_many create';
 eval {
@@ -428,7 +428,7 @@ eval {
 
   is($artist2->in_storage, 1, 'artist with duplicate rels inserted okay');
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag '* First create_related pass';
 eval {
@@ -457,7 +457,7 @@ eval {
 		ok( $track && ref $track eq 'DBICTest::Track', 'Got Expected Track Class');
 	}
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag '* second create_related with same arguments';
 eval {
@@ -489,7 +489,7 @@ eval {
 		ok( $track && ref $track eq 'DBICTest::Track', 'Got Expected Track Class');
 	}
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 mc_diag '* create of parents of a record linker table';
 eval {
@@ -499,7 +499,7 @@ eval {
   });
   ok($cdp, 'join table record created ok');
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 eval {
   my $kurt_cobain = { name => 'Kurt Cobain' };
@@ -519,7 +519,7 @@ eval {
   is($a->cds && $a->cds->first && $a->cds->first->title, 
 		  'In Utero', 'CD insertion ok');
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 =pod
 # This test case has been moved to t/96multi_create/cd_single.t
@@ -537,7 +537,7 @@ eval {
   is($a->name, 'Pink Floyd', 'Artist insertion ok');
   is($a->cds && $a->cds->first->title, 'The Wall', 'CD insertion ok');
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 =cut
 
 mc_diag '* Create foreign key col obj including PK (See test 20 in 66relationships.t)';
@@ -558,7 +558,7 @@ eval {
   my $new_cd = $schema->resultset("CD")->create($new_cd_hashref);
   is($new_cd->artist->id, 17, 'new id retained okay');
 };
-mc_diag $@ if $@;
+diag $@ if $@;
 
 eval {
 	$schema->resultset("CD")->create({ 
