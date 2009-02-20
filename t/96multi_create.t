@@ -553,6 +553,8 @@ diag $@ if $@;
 =cut
 
 diag '* Create foreign key col obj including PK (See test 20 in 66relationships.t)';
+## Create foreign key col obj including PK
+## See test 20 in 66relationships.t
 eval {
   my $new_cd_hashref = { 
     cdid => 27, 

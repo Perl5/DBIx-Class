@@ -1014,6 +1014,9 @@ sub reverse_relationship_info {
       $ret->{$otherrel} =  $otherrel_info;
     }
   }
+use Data::Dumper;
+#warn "return for reverse_relationship_info called on ".$self->name." for $rel:\n";
+#warn Dumper($ret);
   return $ret;
 }
 
