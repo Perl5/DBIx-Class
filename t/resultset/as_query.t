@@ -22,7 +22,7 @@ my $cdrs = $schema->resultset('CD');
 
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me", [],
+    "(SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me)", [],
   );
 }
 
@@ -34,7 +34,7 @@ $art_rs = $art_rs->search({ name => 'Billy Joel' });
 
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( name = ? )",
+    "(SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( name = ? ))",
     [ [ name => 'Billy Joel' ] ],
   );
 }
@@ -47,7 +47,7 @@ $art_rs = $art_rs->search({ rank => 2 });
 
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( ( rank = ? ) AND ( name = ? ) )",
+    "(SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) ) )",
     [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
   );
 }
@@ -60,7 +60,7 @@ my $rscol = $art_rs->get_column( 'charfield' );
 
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) )",
+    "(SELECT me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) ) )",
     [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
   );
 }
