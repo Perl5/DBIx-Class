@@ -127,7 +127,8 @@ EOW
           alarm 0;
       };
       my $sig = $? & 127;
-      if ($@ || $sig == POSIX::SIGSEGV()) {
+      if ($@ || $sig == POSIX::SIGSEGV() || $sig == POSIX::SIGABRT()
+        || $sig == 7) {
           warn (<<EOE);
 
 ############################### WARNING #################################
