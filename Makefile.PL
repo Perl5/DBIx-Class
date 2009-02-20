@@ -128,7 +128,7 @@ EOW
       };
       my $sig = $? & 127;
       if ($@ || $sig == POSIX::SIGSEGV() || $sig == POSIX::SIGABRT()
-        || $sig == 7) {
+        || $sig == 7) { # 7 == SIGBUS, haven't seen it but just in case
           warn (<<EOE);
 
 ############################### WARNING #################################
