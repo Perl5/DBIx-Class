@@ -126,8 +126,14 @@ EOW
           wait();
           alarm 0;
       };
+      my $exception = $@;
+
       my $sig = $? & 127;
-      if ($@ || $sig == POSIX::SIGSEGV() || $sig == POSIX::SIGABRT()
+
+# make sure process actually dies
+      $exception && kill POSIX::SIGKILL(), $pid;
+
+      if ($exception || $sig == POSIX::SIGSEGV() || $sig == POSIX::SIGABRT()
         || $sig == 7) { # 7 == SIGBUS, haven't seen it but just in case
           warn (<<EOE);
 
