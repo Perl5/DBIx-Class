@@ -1,4 +1,8 @@
 Revision history for DBIx::Class
+        - Add DBIC_MULTICREATE_DEBUG env var (undocumented, quasi-internal)
+        - Fix up multi-create to:
+          - correctly propagate columns loaded during multi-insert of rels
+          - not try and insert things tagged on via new_related unless required
         - Possible to set locale in IC::DateTime extra => {} config
         - Calling the accessor of a belongs_to when the foreign_key
           was NULL and the row was not stored would unexpectedly fail (groditi)
