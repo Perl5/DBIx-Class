@@ -10,7 +10,7 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
 
-plan tests => 4;
+plan tests => 5;
 
 my $schema = DBICTest->init_schema();
 my $art_rs = $schema->resultset('Artist');
@@ -72,6 +72,26 @@ TODO: {
     "SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track FROM (SELECT me.artistid, me.name, me.rank, me.charfield FROM cds me WHERE id > 20) cd2",
     [],
   );
+}
+
+# nested from
+TODO: {
+  local $TODO = "'from' doesn't work with as_query yet.";
+  my $art_rs2 = $schema->resultset('Artist')->search({}, 
+  {
+    from => [ { 'me' => 'artist' }, 
+      [ { 'cds' => $cdrs->search({},{ 'select' => [\'me.artist as cds_artist' ]})->as_query },
+      { 'me.artistid' => 'cds_artist' } ] ]
+  });
+
+  my $arr = $art_rs2->as_query;
+  my ($query, @bind) = @{$$arr};
+  is_same_sql_bind(
+    $query, \@bind,
+    "SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me JOIN (SELECT me.artist as cds_artist FROM cd me) cds ON me.artistid = cds_artist", []
+  );
+
+
 }
 
 {
