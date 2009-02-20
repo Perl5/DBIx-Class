@@ -399,7 +399,7 @@ sub set_from_related {
     (ref $cond ? ref $cond : 'plain scalar')
   ) unless ref $cond eq 'HASH';
   if (defined $f_obj) {
-    my $f_class = $self->result_source->schema->class($rel_obj->{class});
+    my $f_class = $rel_obj->{class};
     $self->throw_exception( "Object $f_obj isn't a ".$f_class )
       unless Scalar::Util::blessed($f_obj) and $f_obj->isa($f_class);
   }
