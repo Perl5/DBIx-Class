@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Thu Feb 19 22:09:32 2009
+-- Created on Sun Feb 22 00:15:06 2009
 -- 
 
 
@@ -48,6 +48,7 @@ CREATE TABLE artwork_to_artist (
 );
 
 CREATE INDEX artwork_to_artist_idx_artist_id_artwork_to_arti ON artwork_to_artist (artist_id);
+
 CREATE INDEX artwork_to_artist_idx_artwork_cd_id_artwork_to_ ON artwork_to_artist (artwork_cd_id);
 
 --
@@ -143,6 +144,7 @@ CREATE TABLE employee (
   position integer NOT NULL,
   group_id integer,
   group_id_2 integer,
+  group_id_3 integer,
   name varchar(100)
 );
 
