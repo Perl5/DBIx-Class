@@ -13,9 +13,7 @@ my $schema = DBICTest->init_schema();
 plan tests => 1;
 
 {
-  my $artist = $schema->resultset ('Artist')->search ({}, { rows => 1})->single, # braindead sqlite
-
-  $schema->storage->debug (1);
+  my $artist = $schema->resultset ('Artist')->search ({}, { rows => 1})->single; # braindead sqlite
   my $cd = $schema->resultset ('CD')->create ({
     artist => $artist,
     title => 'Get in order',
