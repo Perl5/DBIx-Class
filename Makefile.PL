@@ -9,34 +9,36 @@ name     'DBIx-Class';
 perl_version '5.006001';
 all_from 'lib/DBIx/Class.pm';
 
-requires 'Data::Page'                => 2.00;
-requires 'Scalar::Util'              => 0;
-requires 'SQL::Abstract'             => 1.24;
-requires 'SQL::Abstract::Limit'      => 0.13;
-requires 'Class::C3'                 => 0.20;
-requires 'Class::C3::Componentised'  => 0;
-requires 'Storable'                  => 0;
-requires 'Carp::Clan'                => 0;
-requires 'DBI'                       => 1.40;
-requires 'Module::Find'              => 0;
-requires 'Class::Inspector'          => 0;
-requires 'Class::Accessor::Grouped'  => 0.08002;
-requires 'JSON::Any'                 => 1.17;
-requires 'Scope::Guard'              => 0.03;
-requires 'Path::Class'               => 0;
-requires 'List::Util'                => 1.19;
-requires 'Sub::Name'                 => 0.04;
-requires 'namespace::clean'          => 0.09;
+requires 'Data::Page'               => 2.00;
+requires 'Scalar::Util'             => 0;
+requires 'SQL::Abstract'            => 1.49;
+requires 'SQL::Abstract::Limit'     => 0.13;
+requires 'Class::C3'                => 0.20;
+requires 'Class::C3::Componentised' => 0;
+requires 'Storable'                 => 0;
+requires 'Carp::Clan'               => 0;
+requires 'DBI'                      => 1.40;
+requires 'Module::Find'             => 0;
+requires 'Class::Inspector'         => 0;
+requires 'Class::Accessor::Grouped' => 0.08002;
+requires 'JSON::Any'                => 1.17;
+requires 'Scope::Guard'             => 0.03;
+requires 'Path::Class'              => 0;
+requires 'List::Util'               => 1.19;
+requires 'Sub::Name'                => 0.04;
+requires 'namespace::clean'         => 0.09;
 
 # Perl 5.8.0 doesn't have utf8::is_utf8()
-requires 'Encode'                    => 0 if ($] <= 5.008000);  
+requires 'Encode'                   => 0 if ($] <= 5.008000);  
 
-configure_requires 'DBD::SQLite'         => 1.14;
+configure_requires 'DBD::SQLite'    => 1.14;
 
 test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Warn'          => 0.11;
 test_requires 'Test::Exception'     => 0;
 test_requires 'Test::Deep'          => 0;
+
+recommends 'SQL::Translator'        => 0.09004;
 
 install_script 'script/dbicadmin';
 
@@ -44,19 +46,20 @@ tests_recursive 't';
 
 # re-build README and require CDBI modules for testing if we're in a checkout
 
-my @force_build_requires_if_author = qw(
-  DBIx::ContextualFetch
-  Class::Trigger
-  Time::Piece
-  Clone
-  Test::Pod::Coverage
-  Test::Memory::Cycle
+my %force_requires_if_author = (
+  'DBIx::ContextualFetch'     => 0,
+  'Class::Trigger'            => 0,
+  'Time::Piece'               => 0,
+  'Clone'                     => 0,
+  'Test::Pod::Coverage'       => 0,
+  'Test::Memory::Cycle'       => 0,
+  'SQL::Translator'           => 0.09004,
 );
 
 if ($Module::Install::AUTHOR) {
 
-  foreach my $module (@force_build_requires_if_author) {
-    build_requires $module;
+  foreach my $module (keys %force_requires_if_author) {
+    requires ($module => $force_requires_if_author{$module});
   }
 
   system('pod2text lib/DBIx/Class.pm > README');
@@ -167,7 +170,7 @@ if ($Module::Install::AUTHOR) {
   # Need to do this _after_ WriteAll else it looses track of them
   Meta->{values}{build_requires} = [ grep {
     my $ok = 1;
-    foreach my $module (@force_build_requires_if_author) {
+    foreach my $module (keys %force_requires_if_author) {
       if ($_->[0] =~ /$module/) {
         $ok = 0;
         last;
