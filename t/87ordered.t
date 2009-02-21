@@ -10,7 +10,7 @@ use POSIX qw(ceil);
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 879;
+plan tests => 1269;
 
 my $employees = $schema->resultset('Employee');
 $employees->delete();
@@ -218,22 +218,34 @@ sub hammer_rs {
             ok( check_rs($rs), "move_to( $position => $to_position )" );
         }
 
-        ($row) = $rs->search({ position=>$position })->all();
+        $row = $rs->find({ position => $position });
         if ($position==1) {
             ok( !$row->previous_sibling(), 'no previous sibling' );
             ok( !$row->first_sibling(), 'no first sibling' );
+            ok( $row->next_sibling->position > $position, 'next sibling position > than us');
+            is( $row->next_sibling->previous_sibling->position, $position, 'next-prev sibling is us');
+            ok( $row->last_sibling->position > $position, 'last sibling position > than us');
         }
         else {
             ok( $row->previous_sibling(), 'previous sibling' );
             ok( $row->first_sibling(), 'first sibling' );
+            ok( $row->previous_sibling->position < $position, 'prev sibling position < than us');
+            is( $row->previous_sibling->next_sibling->position, $position, 'prev-next sibling is us');
+            ok( $row->first_sibling->position < $position, 'first sibling position < than us');
         }
         if ($position==$count) {
             ok( !$row->next_sibling(), 'no next sibling' );
             ok( !$row->last_sibling(), 'no last sibling' );
+            ok( $row->previous_sibling->position < $position, 'prev sibling position < than us');
+            is( $row->previous_sibling->next_sibling->position, $position, 'prev-next sibling is us');
+            ok( $row->first_sibling->position < $position, 'first sibling position < than us');
         }
         else {
             ok( $row->next_sibling(), 'next sibling' );
             ok( $row->last_sibling(), 'last sibling' );
+            ok( $row->next_sibling->position > $row->position, 'next sibling position > than us');
+            is( $row->next_sibling->previous_sibling->position, $position, 'next-prev sibling is us');
+            ok( $row->last_sibling->position > $row->position, 'last sibling position > than us');
         }
 
     }
