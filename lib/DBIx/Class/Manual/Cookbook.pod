@@ -316,6 +316,11 @@ The following will B<not> work:
     artist_id => $inside_rs->get_column('id')->as_query,
   });
 
+=head3 Support
+
+Subqueries are supported in the where clause (first hashref), and in the
+from, select, and +select attributes.
+
 =head3 Correlated subqueries
 
   my $cdrs = $schema->resultset('CD');
@@ -337,12 +342,6 @@ That creates the following SQL:
         FROM cd inner
        WHERE artistid = me.artistid
       )
-
-=head2 Where subqueries will work
-
-Currently, subqueries will B<only> work in the where-clause of a search. In
-other words, in the first hashref of a search() method. Work is being done
-to make them work as part of the second hashref (from, select, +select, etc).
 
 =head2 Predefined searches
 
