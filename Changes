@@ -12,6 +12,8 @@ Revision history for DBIx::Class
           containing all statements to be executed
         - Add as_query() for ResultSet and ResultSetColumn. This makes subqueries
           possible. See the Cookbook for details. (robkinyon, michaelr)
+        - Massive rewrite of Ordered to properly handle position constraints and
+          to make it more matpath-friendly
 
 0.08099_06 2009-01-23 07:30:00 (UTC)
         - Allow a scalarref to be supplied to the 'from' resultset attribute

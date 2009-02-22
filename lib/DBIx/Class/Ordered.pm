@@ -1,4 +1,3 @@
-# vim: ts=8:sw=4:sts=4:et
 package DBIx::Class::Ordered;
 use strict;
 use warnings;
@@ -121,28 +120,95 @@ ordered lists within the same table.
 
 __PACKAGE__->mk_classdata( 'grouping_column' );
 
+=head2 null_position_value
+
+  __PACKAGE__->null_position_value(undef);
+
+This method specifies a value of L</position_column> which B<would
+never be assigned to a row> during normal operation. When
+a row is moved, its position is set to this value temporarily, so
+that any unique constrainst can not be violated. This value defaults
+to 0, which should work for all cases except when your positions do
+indeed start from 0.
+
+=cut
+
+__PACKAGE__->mk_classdata( 'null_position_value' => 0 );
+
 =head2 siblings
 
   my $rs = $item->siblings();
   my @siblings = $item->siblings();
 
-Returns either a resultset or an array of all other objects 
-excluding the one you called it on.
+Returns an B<ordered> resultset of all other objects in the same
+group excluding the one you called it on.
+
+The ordering is a backwards-compatibility artifact - if you need
+a resultset with no ordering applied use L</_siblings>
+
+=cut
+sub siblings {
+    my $self = shift;
+    return $self->_siblings->search ({}, { order_by => $self->position_column } );
+}
+
+=head2 previous_siblings
+
+  my $prev_rs = $item->previous_siblings();
+  my @prev_siblings = $item->previous_siblings();
+
+Returns a resultset of all objects in the same group
+positioned before the object on which this method was called.
+
+=cut
+sub previous_siblings {
+    my $self = shift;
+    my $position_column = $self->position_column;
+    my $position = $self->get_column ($position_column);
+    return ( defined $position
+        ? $self->_siblings->search ({ $position_column => { '<', $position } })
+        : $self->_siblings
+    );
+}
+
+=head2 next_siblings
+
+  my $next_rs = $item->next_siblings();
+  my @next_siblings = $item->next_siblings();
+
+Returns a resultset of all objects in the same group
+positioned after the object on which this method was called.
+
+=cut
+sub next_siblings {
+    my $self = shift;
+    my $position_column = $self->position_column;
+    my $position = $self->get_column ($position_column);
+    return ( defined $position
+        ? $self->_siblings->search ({ $position_column => { '>', $position } })
+        : $self->_siblings
+    );
+}
+
+=head2 previous_sibling
+
+  my $sibling = $item->previous_sibling();
+
+Returns the sibling that resides one position back.  Returns 0
+if the current object is the first one.
 
 =cut
 
-sub siblings {
-    my( $self ) = @_;
+sub previous_sibling {
+    my $self = shift;
     my $position_column = $self->position_column;
-    my $rs = $self->result_source->resultset->search(
-        {
-            $position_column => { '!=' => $self->get_column($position_column) },
-            $self->_grouping_clause(),
-        },
-        { order_by => $self->position_column },
-    );
-    return $rs->all() if (wantarray());
-    return $rs;
+
+    my $psib = $self->previous_siblings->search(
+        {},
+        { rows => 1, order_by => { '-desc' => $position_column } },
+    )->single;
+
+    return defined $psib ? $psib : 0;
 }
 
 =head2 first_sibling
@@ -155,15 +221,35 @@ is this sibling.
 =cut
 
 sub first_sibling {
-    my( $self ) = @_;
-    return 0 if ($self->get_column($self->position_column())==1);
+    my $self = shift;
+    my $position_column = $self->position_column;
 
-    return ($self->result_source->resultset->search(
-        {
-            $self->position_column => 1,
-            $self->_grouping_clause(),
-        },
-    )->all())[0];
+    my $fsib = $self->previous_siblings->search(
+        {},
+        { rows => 1, order_by => { '-asc' => $position_column } },
+    )->single;
+
+    return defined $fsib ? $fsib : 0;
+}
+
+=head2 next_sibling
+
+  my $sibling = $item->next_sibling();
+
+Returns the sibling that resides one position forward. Returns 0
+if the current object is the last one.
+
+=cut
+
+sub next_sibling {
+    my $self = shift;
+    my $position_column = $self->position_column;
+    my $nsib = $self->next_siblings->search(
+        {},
+        { rows => 1, order_by => { '-asc' => $position_column } },
+    )->single;
+
+    return defined $nsib ? $nsib : 0;
 }
 
 =head2 last_sibling
@@ -176,60 +262,14 @@ sibling.
 =cut
 
 sub last_sibling {
-    my( $self ) = @_;
-    my $count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
-    return 0 if ($self->get_column($self->position_column())==$count);
-    return ($self->result_source->resultset->search(
-        {
-            $self->position_column => $count,
-            $self->_grouping_clause(),
-        },
-    )->all())[0];
-}
-
-=head2 previous_sibling
-
-  my $sibling = $item->previous_sibling();
-
-Returns the sibling that resides one position back.  Returns undef 
-if the current object is the first one.
-
-=cut
-
-sub previous_sibling {
-    my( $self ) = @_;
+    my $self = shift;
     my $position_column = $self->position_column;
-    my $position = $self->get_column( $position_column );
-    return 0 if ($position==1);
-    return ($self->result_source->resultset->search(
-        {
-            $position_column => $position - 1,
-            $self->_grouping_clause(),
-        }
-    )->all())[0];
-}
+    my $lsib = $self->next_siblings->search(
+        {},
+        { rows => 1, order_by => { '-desc' => $position_column } },
+    )->single;
 
-=head2 next_sibling
-
-  my $sibling = $item->next_sibling();
-
-Returns the sibling that resides one position forward. Returns undef 
-if the current object is the last one.
-
-=cut
-
-sub next_sibling {
-    my( $self ) = @_;
-    my $position_column = $self->position_column;
-    my $position = $self->get_column( $position_column );
-    my $count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
-    return 0 if ($position==$count);
-    return ($self->result_source->resultset->search(
-        {
-            $position_column => $position + 1,
-            $self->_grouping_clause(),
-        },
-    )->all())[0];
+    return defined $lsib ? $lsib : 0;
 }
 
 =head2 move_previous
@@ -243,9 +283,8 @@ already the first one.
 =cut
 
 sub move_previous {
-    my( $self ) = @_;
-    my $position = $self->get_column( $self->position_column() );
-    return $self->move_to( $position - 1 );
+    my $self = shift;
+    return $self->move_to ($self->_position - 1);
 }
 
 =head2 move_next
@@ -259,11 +298,9 @@ the last in the list.
 =cut
 
 sub move_next {
-    my( $self ) = @_;
-    my $position = $self->get_column( $self->position_column() );
-    my $count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
-    return 0 if ($position==$count);
-    return $self->move_to( $position + 1 );
+    my $self = shift;
+    return 0 unless $self->next_siblings->count;
+    return $self->move_to ($self->_position + 1);
 }
 
 =head2 move_first
@@ -276,8 +313,7 @@ on success, and 0 if the object is already the first.
 =cut
 
 sub move_first {
-    my( $self ) = @_;
-    return $self->move_to( 1 );
+    return shift->move_to( 1 );
 }
 
 =head2 move_last
@@ -290,9 +326,8 @@ on success, and 0 if the object is already the last one.
 =cut
 
 sub move_last {
-    my( $self ) = @_;
-    my $count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
-    return $self->move_to( $count );
+    my $self = shift;
+    return $self->move_to( $self->_group_rs->count );
 }
 
 =head2 move_to
@@ -307,27 +342,33 @@ position.
 
 sub move_to {
     my( $self, $to_position ) = @_;
-    my $position_column = $self->position_column;
-    my $from_position = $self->get_column( $position_column );
     return 0 if ( $to_position < 1 );
-    return 0 if ( $from_position==$to_position );
-    my @between = (
-        ( $from_position < $to_position )
-        ? ( $from_position+1, $to_position )
-        : ( $to_position, $from_position-1 )
-    );
-    my $rs = $self->result_source->resultset->search({
-        $position_column => { -between => [ @between ] },
-        $self->_grouping_clause(),
-    });
-    my $op = ($from_position>$to_position) ? '+' : '-';
-    $rs->update({ $position_column => \"$position_column $op 1" });  #" Sorry, GEdit bug
-    $self->{_ORDERED_INTERNAL_UPDATE} = 1;
-    $self->update({ $position_column => $to_position });
-    return 1;
+
+    my $from_position = $self->_position;
+    return 0 if ( $from_position == $to_position );
+
+    my $position_column = $self->position_column;
+
+    # FIXME this needs to be wrapped in a transaction
+    {
+        my ($direction, @between);
+        if ( $from_position < $to_position ) {
+            $direction = -1;
+            @between = map { $self->_position_value ($_) } ( $from_position + 1, $to_position );
+        }
+        else {
+            $direction = 1;
+            @between = map { $self->_position_value ($_) } ( $to_position, $from_position - 1 );
+        }
+
+        my $new_pos_val = $self->_position_value ($to_position);                              # record this before the shift
+        $self->_ordered_internal_update({ $position_column => $self->null_position_value });  # take the row out of the picture for a bit
+        $self->_shift_siblings ($direction, @between);
+        $self->_ordered_internal_update({ $position_column => $new_pos_val });
+
+        return 1;
+    }
 }
-
-
 
 =head2 move_to_group
 
@@ -347,44 +388,51 @@ if multiple grouping columns are in use.
 sub move_to_group {
     my( $self, $to_group, $to_position ) = @_;
 
+    $self->throw_exception ('move_to_group() expects a group specification')
+        unless defined $to_group;
+
     # if we're given a string, turn it into a hashref
     unless (ref $to_group eq 'HASH') {
-        $to_group = {($self->_grouping_columns)[0] => $to_group};
+        my @gcols = $self->_grouping_columns;
+
+        $self->throw_exception ('Single group supplied for a multi-column group identifier') if @gcols > 1;
+        $to_group = {$gcols[0] => $to_group};
     }
 
     my $position_column = $self->position_column;
-    #my @grouping_columns = $self->_grouping_columns;
 
-    return 0 if ( ! defined($to_group) );
     return 0 if ( defined($to_position) and $to_position < 1 );
-    return 0 if ( $self->_is_in_group($to_group) 
-                    and ((not defined($to_position)) 
-                            or (defined($to_position) and $self->$position_column==$to_position)
-                        )
-                    );
-
-    # Move to end of current group and adjust siblings
-    $self->move_last;
-
-    $self->set_columns($to_group);
-    my $new_group_count = $self->result_source->resultset->search({$self->_grouping_clause()})->count();
-    if (!defined($to_position) or $to_position > $new_group_count) {
-        $self->{_ORDERED_INTERNAL_UPDATE} = 1;
-        $self->update({ $position_column => $new_group_count + 1 });
-    }
-    else {
-        my @between = ($to_position, $new_group_count);
-
-        my $rs = $self->result_source->resultset->search({
-            $position_column => { -between => [ @between ] },
-            $self->_grouping_clause(),
-        });
-        $rs->update({ $position_column => \"$position_column + 1" }); #"
-        $self->{_ORDERED_INTERNAL_UPDATE} = 1;
-        $self->update({ $position_column => $to_position });
+    if ($self->_is_in_group ($to_group) ) {
+        return 0 if not defined $to_position;
+        return $self->move_to ($to_position);
     }
 
-    return 1;
+    # FIXME this needs to be wrapped in a transaction
+    {
+        # Move to end of current group to adjust siblings
+        $self->move_last;
+
+        $self->set_inflated_columns({ %$to_group, $position_column => undef });
+        my $new_group_count = $self->_group_rs->count;
+
+        if ( not defined($to_position) or $to_position > $new_group_count) {
+            $self->set_column(
+                $position_column => $new_group_count
+                    ? $self->_next_position_value ( $self->last_sibling->get_column ($position_column) )    # FIXME - no need to inflate last_sibling
+                    : $self->_initial_position_value
+            );
+        }
+        else {
+            my $bumped_pos_val = $self->_position_value ($to_position);
+            my @between = ($to_position, $new_group_count);
+            $self->_shift_siblings (1, @between);   #shift right
+            $self->set_column( $position_column => $bumped_pos_val );
+        }
+
+        $self->_ordered_internal_update;
+
+        return 1;
+    }
 }
 
 =head2 insert
@@ -398,8 +446,17 @@ the table +1, thus positioning the new record at the last position.
 sub insert {
     my $self = shift;
     my $position_column = $self->position_column;
-    $self->set_column( $position_column => $self->result_source->resultset->search( {$self->_grouping_clause()} )->count()+1 ) 
-        if (!$self->get_column($position_column));
+
+    unless ($self->get_column($position_column)) {
+        my $lsib = $self->last_sibling;     # FIXME - no need to inflate last_sibling
+        $self->set_column(
+            $position_column => ($lsib
+                ? $self->_next_position_value ( $lsib->get_column ($position_column) )
+                : $self->_initial_position_value
+            )
+        );
+    }
+
     return $self->next::method( @_ );
 }
 
@@ -416,52 +473,192 @@ of a new group if it has been changed to undef.
 sub update {
     my $self = shift;
 
-    if ($self->{_ORDERED_INTERNAL_UPDATE}) {
-        delete $self->{_ORDERED_INTERNAL_UPDATE};
-        return $self->next::method( @_ );
-    }
+    # this is set by _ordered_internal_update()
+    return $self->next::method(@_) if $self->{_ORDERED_INTERNAL_UPDATE};
 
-    $self->set_inflated_columns($_[0]) if @_ > 0;
+    my $upd = shift;
+    $self->set_inflated_columns($upd) if $upd;
     my %changes = $self->get_dirty_columns;
     $self->discard_changes;
 
-    my $pos_col = $self->position_column;
+    my $position_column = $self->position_column;
 
-    # if any of our grouping columns have been changed
-    if (grep {$_} map {exists $changes{$_}} $self->_grouping_columns ) {
+    # if nothing group/position related changed - short circuit
+    if (not grep { exists $changes{$_} } ($self->_grouping_columns, $position_column) ) {
+        return $self->next::method( \%changes, @_ );
+    }
 
-        # create new_group by taking the current group and inserting changes
-        my $new_group = {$self->_grouping_clause};
-        foreach my $col (keys %$new_group) {
-            if (exists $changes{$col}) {
-                $new_group->{$col} = $changes{$col};
-                delete $changes{$col}; # don't want to pass this on to next::method
+    # FIXME this needs to be wrapped in a transaction
+    {
+        # if any of our grouping columns have been changed
+        if (grep { exists $changes{$_} } ($self->_grouping_columns) ) {
+
+            # create new_group by taking the current group and inserting changes
+            my $new_group = {$self->_grouping_clause};
+            foreach my $col (keys %$new_group) {
+                if (exists $changes{$col}) {
+                    $new_group->{$col} = delete $changes{$col}; # don't want to pass this on to next::method
+                }
             }
+
+            $self->move_to_group(
+                $new_group,
+                (exists $changes{$position_column}
+                    # The FIXME bit contradicts the documentation: when changing groups without supplying explicit
+                    # positions in move_to_group(), we push the item to the end of the group.
+                    # However when I was rewriting this, the position from the old group was clearly passed to the new one
+                    # Probably needs to go away (by ribasushi)
+                    ? delete $changes{$position_column}     # means there was a position change supplied with the update too
+                    : $self->_position                      # FIXME!
+                ),
+            );
+        }
+        elsif (exists $changes{$position_column}) {
+            $self->move_to(delete $changes{$position_column});
         }
 
-        $self->move_to_group(
-            $new_group,
-            exists($changes{$pos_col}) ? delete($changes{$pos_col}) : $self->get_column ($pos_col)
-        );
+        return $self->next::method( \%changes, @_ );
     }
-    elsif (exists $changes{$pos_col}) {
-        $self->move_to(delete $changes{$pos_col});
-    }
-    return $self->next::method( \%changes );
 }
 
 =head2 delete
 
 Overrides the DBIC delete() method by first moving the object 
-to the last position, then deleting it, thus ensuring the 
+to the last position, then deleting it, thus ensuring the
 integrity of the positions.
 
 =cut
 
 sub delete {
     my $self = shift;
-    $self->move_last;
-    return $self->next::method( @_ );
+    # FIXME this needs to be wrapped in a transaction
+    {
+        $self->move_last;
+        return $self->next::method( @_ );
+    }
+}
+
+=head1 Methods for extending Ordered
+
+You would want to override the methods below if you use sparse
+(non-linear) or non-numeric position values. This can be useful
+if you are working with preexisting non-normalised position data,
+or if you need to work with materialized path columns.
+
+=head2 _position
+
+  my $num_pos = $item->_position;
+
+Returns the absolute numeric position of the current object, with the
+first object being at position 1, its sibling at position 2 and so on.
+By default simply returns the value of L</position_column>.
+
+=cut
+sub _position {
+    my $self = shift;
+
+#    #the right way to do this
+#    return $self->previous_siblings->count + 1;
+
+    return $self->get_column ($self->position_column);
+}
+
+=head2 _position_value
+
+  my $pos_value = $item->_position_value ( $pos )
+
+Returns the value of L</position_column> of the object at numeric
+position C<$pos>. By default simply returns C<$pos>.
+
+=cut
+sub _position_value {
+    my ($self, $pos) = @_;
+
+#    #the right way to do this (not optimized)
+#    my $position_column = $self->position_column;
+#    return $self -> _group_rs
+#                 -> search({}, { order_by => $position_column })
+#                 -> slice ( $pos - 1)
+#                 -> single
+#                 -> get_column ($position_column);
+
+    return $pos;
+}
+
+=head2 _initial_position_value
+
+  __PACKAGE__->_initial_position_value(0);
+
+This method specifies a value of L</position_column> which is assigned
+to the first inserted element of a group, if no value was supplied at
+insertion time. All subsequent values are derived from this one by
+L</_next_position_value> below. Defaults to 1.
+
+=cut
+
+__PACKAGE__->mk_classdata( '_initial_position_value' => 1 );
+
+=head2 _next_position_value
+
+  my $new_value = $item->_next_position_value ( $position_value )
+
+Returns a position value that would be considered C<next> with
+regards to C<$position_value>. Can be pretty much anything, given
+that C<< $position_value < $new_value >> where C<< < >> is the
+SQL comparison operator (usually works fine on strings). The
+default method expects C<$position_value> to be numeric, and
+returns C<$position_value + 1>
+
+=cut
+sub _next_position_value {
+    return $_[1] + 1;
+}
+
+=head2 _shift_siblings
+
+  $item->_shift_siblings ($direction, @between)
+
+Shifts all siblings with position in the range @between (inclusive)
+by one position as specified by $direction (left if < 0, right if > 0).
+By default simply increments/decrements each L<position_column> value
+by 1.
+
+=cut
+sub _shift_siblings {
+    my ($self, $direction, @between) = @_;
+    return 0 unless $direction;
+
+    my $position_column = $self->position_column;
+
+    my ($op, $ord);
+    if ($direction < 0) {
+        $op = '-';
+        $ord = 'asc';
+    }
+    else {
+        $op = '+';
+        $ord = 'desc';
+    }
+
+    my $shift_rs = $self->_group_rs-> search ({ $position_column => { -between => \@between } });
+
+    # some databases (sqlite) are dumb and can not do a blanket
+    # increment/decrement. So what we do here is check if the
+    # position column is part of a unique constraint, and do a
+    # one-by-one update if this is the case
+
+    my %uc = $self->result_source->unique_constraints;
+    if (grep { $_ eq $position_column } ( map { @$_ } (values %uc) ) ) {
+
+        my $rs = $shift_rs->search ({}, { order_by => { "-$ord", $position_column } } );
+        # FIXME - no need to inflate each row
+        while (my $r = $rs->next) {
+            $r->_ordered_internal_update ({ $position_column => \ "$position_column $op 1" } );
+        }
+    }
+    else {
+        $shift_rs->update ({ $position_column => \ "$position_column $op 1" } );
+    }
 }
 
 =head1 PRIVATE METHODS
@@ -469,10 +666,35 @@ sub delete {
 These methods are used internally.  You should never have the 
 need to use them.
 
+=head2 _group_rs
+
+This method returns a resultset containing all memebers of the row
+group (including the row itself).
+
+=cut
+sub _group_rs {
+    my $self = shift;
+    return $self->result_source->resultset->search({$self->_grouping_clause()});
+}
+
+=head2 _siblings
+
+Returns an unordered resultset of all objects in the same group
+excluding the object you called this method on.
+
+=cut
+sub _siblings {
+    my $self = shift;
+    my $position_column = $self->position_column;
+    return $self->_group_rs->search(
+        { $position_column => { '!=' => $self->get_column($position_column) } },
+    );
+}
+
 =head2 _grouping_clause
 
-This method returns one or more name=>value pairs for limiting a search 
-by the grouping column(s).  If the grouping column is not 
+This method returns one or more name=>value pairs for limiting a search
+by the grouping column(s).  If the grouping column is not
 defined then this will return an empty list.
 
 =cut
@@ -480,8 +702,6 @@ sub _grouping_clause {
     my( $self ) = @_;
     return map {  $_ => $self->get_column($_)  } $self->_grouping_columns();
 }
-
-
 
 =head2 _get_grouping_columns
 
@@ -502,55 +722,60 @@ sub _grouping_columns {
     }
 }
 
-
-
-=head2 _is_in_group($other)
+=head2 _is_in_group
 
     $item->_is_in_group( {user => 'fred', list => 'work'} )
 
 Returns true if the object is in the group represented by hashref $other
+
 =cut
 sub _is_in_group {
     my ($self, $other) = @_;
     my $current = {$self->_grouping_clause};
-    return 0 unless (ref $other eq 'HASH') and (keys %$current == keys %$other);
+
+    no warnings qw/uninitialized/;
+
+    return 0 if (
+        join ("\x00", sort keys %$current)
+            ne
+        join ("\x00", sort keys %$other)
+    );
     for my $key (keys %$current) {
-        return 0 unless exists $other->{$key};
         return 0 if $current->{$key} ne $other->{$key};
     }
     return 1;
 }
 
+sub _ordered_internal_update {
+    my $self = shift;
+    local $self->{_ORDERED_INTERNAL_UPDATE} = 1;
+    return $self->update (@_);
+}
 
 1;
+
 __END__
 
-=head1 BUGS
-
-=head2 Unique Constraints
-
-Unique indexes and constraints on the position column are not 
-supported at this time.  It would be make sense to support them, 
-but there are some unexpected database issues that make this 
-hard to do.  The main problem from the author's view is that 
-SQLite (the DB engine that we use for testing) does not support 
-ORDER BY on updates.
+=head1 CAVEATS
 
 =head2 Race Condition on Insert
 
 If a position is not specified for an insert than a position 
-will be chosen based on COUNT(*)+1.  But, it first selects the 
-count, and then inserts the record.  The space of time between select 
-and insert introduces a race condition.  To fix this we need the 
-ability to lock tables in DBIC.  I've added an entry in the TODO 
-about this.
+will be chosen based either on L</_initial_position_value> or
+L</_next_position_value>, depending if there are already some
+items in the current group. The space of time between the
+necessary selects and insert introduces a race condition.
+Having unique constraints on your position/group columns,
+and using transactions (see L<DBIx::Class::Storage/txn_do>)
+will prevent such race conditions going undetected.
 
 =head2 Multiple Moves
 
 Be careful when issueing move_* methods to multiple objects.  If 
 you've pre-loaded the objects then when you move one of the objects 
 the position of the other object will not reflect their new value 
-until you reload them from the database.
+until you reload them from the database - see
+L<DBIx::Class::Row/discard_changes>.
 
 There are times when you will want to move objects as groups, such 
 as changeing the parent of several objects at once - this directly 
