@@ -261,6 +261,8 @@ marcus: Marcus Ramberg <mramberg@cpan.org>
 
 mattlaw: Matt Lawrence
 
+michaelr: Michael Reddick <michael.reddick@gmail.com>
+
 ned: Neil de Carteret
 
 nigel: Nigel Metheringham <nigelm@cpan.org>

@@ -784,6 +784,11 @@ ResultSet class that supports a parent() method, for example.  Another
 solution is to somehow automagically modify the objects that exist 
 in the current object's result set to have the new position value.
 
+=head2 Default Values
+
+Using a database defined default_value on one of your group columns
+could result in the position not being assigned correctly.
+
 =head1 AUTHOR
 
 Aran Deltac <bluefeet@cpan.org>
