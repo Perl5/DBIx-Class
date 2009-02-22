@@ -362,7 +362,12 @@ sub move_to {
         }
 
         my $new_pos_val = $self->_position_value ($to_position);                              # record this before the shift
-        $self->_ordered_internal_update({ $position_column => $self->null_position_value });  # take the row out of the picture for a bit
+
+        # we need to null-position the moved row if the position column is part of a constraint
+        if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $self->result_source->unique_constraints }} ) ) ) {
+            $self->_ordered_internal_update({ $position_column => $self->null_position_value });
+        }
+
         $self->_shift_siblings ($direction, @between);
         $self->_ordered_internal_update({ $position_column => $new_pos_val });
 
@@ -538,7 +543,7 @@ sub delete {
     }
 }
 
-=head1 Methods for extending Ordered
+=head1 METHODS FOR EXTENDING ORDERED
 
 You would want to override the methods below if you use sparse
 (non-linear) or non-numeric position values. This can be useful
@@ -549,7 +554,7 @@ or if you need to work with materialized path columns.
 
   my $num_pos = $item->_position;
 
-Returns the absolute numeric position of the current object, with the
+Returns the B<absolute numeric position> of the current object, with the
 first object being at position 1, its sibling at position 2 and so on.
 By default simply returns the value of L</position_column>.
 
@@ -567,7 +572,7 @@ sub _position {
 
   my $pos_value = $item->_position_value ( $pos )
 
-Returns the value of L</position_column> of the object at numeric
+Returns the B<value> of L</position_column> of the object at numeric
 position C<$pos>. By default simply returns C<$pos>.
 
 =cut
@@ -589,7 +594,7 @@ sub _position_value {
 
   __PACKAGE__->_initial_position_value(0);
 
-This method specifies a value of L</position_column> which is assigned
+This method specifies a B<value> of L</position_column> which is assigned
 to the first inserted element of a group, if no value was supplied at
 insertion time. All subsequent values are derived from this one by
 L</_next_position_value> below. Defaults to 1.
@@ -602,7 +607,7 @@ __PACKAGE__->mk_classdata( '_initial_position_value' => 1 );
 
   my $new_value = $item->_next_position_value ( $position_value )
 
-Returns a position value that would be considered C<next> with
+Returns a position B<value> that would be considered C<next> with
 regards to C<$position_value>. Can be pretty much anything, given
 that C<< $position_value < $new_value >> where C<< < >> is the
 SQL comparison operator (usually works fine on strings). The
@@ -618,10 +623,16 @@ sub _next_position_value {
 
   $item->_shift_siblings ($direction, @between)
 
-Shifts all siblings with position in the range @between (inclusive)
-by one position as specified by $direction (left if < 0, right if > 0).
-By default simply increments/decrements each L<position_column> value
-by 1.
+Shifts all siblings with B<positions values> in the range @between
+(inclusive) by one position as specified by $direction (left if < 0,
+ right if > 0). By default simply increments/decrements each
+L<position_column> value by 1, doing so in a way as to not violate
+any existing constraints.
+
+Note that if you override this method and have unique constraints
+including the L<position_column> the shift is not a trivial task.
+Refer to the implementation source of the default method for more
+information.
 
 =cut
 sub _shift_siblings {
@@ -647,8 +658,7 @@ sub _shift_siblings {
     # position column is part of a unique constraint, and do a
     # one-by-one update if this is the case
 
-    my %uc = $self->result_source->unique_constraints;
-    if (grep { $_ eq $position_column } ( map { @$_ } (values %uc) ) ) {
+    if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $self->result_source->unique_constraints }} ) ) ) {
 
         my $rs = $shift_rs->search ({}, { order_by => { "-$ord", $position_column } } );
         # FIXME - no need to inflate each row
@@ -668,7 +678,7 @@ need to use them.
 
 =head2 _group_rs
 
-This method returns a resultset containing all memebers of the row
+This method returns a resultset containing all members of the row
 group (including the row itself).
 
 =cut
@@ -745,6 +755,23 @@ sub _is_in_group {
     }
     return 1;
 }
+
+=head2 _ordered_internal_update
+
+This is a short-circuited method, that is used internally by this
+module to update positioning values in isolation (i.e. without
+triggering any of the positioning integrity code).
+
+Some day you might get confronted by datasets that have ambiguos
+pogitioning data (i.e. duplicate position value within the same group,
+in a table without unique constraints). When manually fixing such data
+keep in mind that you can not invoke L<DBIx::Class::Row/update> like
+you normally would, as it will get confused by the data before
+having a chance to update the ill-defined row. If you really know what
+you are doing use this method which bypases any hooks introduced by
+this module.
+
+=cut
 
 sub _ordered_internal_update {
     my $self = shift;
