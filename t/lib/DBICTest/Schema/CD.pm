@@ -82,10 +82,4 @@ __PACKAGE__->belongs_to('genre_inefficient', 'DBICTest::Schema::Genre',
     },
 );
 
-
-#__PACKAGE__->add_relationship('genre', 'DBICTest::Schema::Genre',
-#    { 'foreign.genreid' => 'self.genreid' },
-#    { 'accessor' => 'single' }
-#);
-
 1;

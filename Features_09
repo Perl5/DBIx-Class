@@ -1,23 +1,17 @@
 (Potential) Features for 0.09
 =============================
 
-Subselects - everyone wants these
- - Will require new/improved SQL::Abstract
- - The API will involve passing ResultSets to searches as conditions/values/whatever.
-
 Row/find caching - would be pretty useful
  - Need to have good definitions of when the cache should be queried and when invalidated
  - Be able to supply own expiry?
  - Be able to invalidate manually? Single item / entire cache / single table
 
-Deprecate compose_connection / DB.pm
+Remove compose_connection / DB.pm
  - Everyone has probably forgotten what this is anyway..
 
 Syntax improvements?
  - "as" to "alias" ?
  - "belongs_to" to "contains/refers/something"
- - order_by to take a arrayref/hashref so it also just works with quoting
- - ??
 
 Using inflated objects/references as values in searches
  - Goes together with subselects above
@@ -52,15 +46,10 @@ Storage API/restructure
 Relationships
  - single vs filter, discrepancies.. remove one of them and make behave the same?
 
-SQL::Abstract et al
- - be able to extract/view/dump what the SQL is *going to* be before running it
- - bind params sanity? (order of bind params broken when using a resultsource based on a select statement)
- - etc
- 
 Joining/searching weird attribute tables?
  - Support legacy/badly designed junk better..
 
 Documentation - improvements
  - better indexing for finding of stuff in general
  - more cross-referencing of docs
- 
+
