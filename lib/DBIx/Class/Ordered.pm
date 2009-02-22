@@ -762,13 +762,13 @@ This is a short-circuited method, that is used internally by this
 module to update positioning values in isolation (i.e. without
 triggering any of the positioning integrity code).
 
-Some day you might get confronted by datasets that have ambiguos
-pogitioning data (i.e. duplicate position value within the same group,
+Some day you might get confronted by datasets that have ambiguous
+positioning data (i.e. duplicate position values within the same group,
 in a table without unique constraints). When manually fixing such data
 keep in mind that you can not invoke L<DBIx::Class::Row/update> like
-you normally would, as it will get confused by the data before
+you normally would, as it will get confused by the wrong data before
 having a chance to update the ill-defined row. If you really know what
-you are doing use this method which bypases any hooks introduced by
+you are doing use this method which bypasses any hooks introduced by
 this module.
 
 =cut
