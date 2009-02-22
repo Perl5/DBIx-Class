@@ -171,6 +171,13 @@ sub _recurse_fields {
         .'( '.$self->_recurse_fields($fields->{$func}).' )';
     }
   }
+  # Is the second check absolutely necessary?
+  elsif ( $ref eq 'REF' and ref($$fields) eq 'ARRAY' ) {
+    return $self->_bind_to_sql( $fields );
+  }
+  else {
+    Carp::croak($ref . qq{ unexpected in _recurse_fields()})
+  }
 }
 
 sub _order_by {
@@ -1409,7 +1416,6 @@ sub _select_args {
     $attrs->{rows} = 2**48 if not defined $attrs->{rows} and defined $attrs->{offset};
     push @args, $attrs->{rows}, $attrs->{offset};
   }
-
   return @args;
 }
 

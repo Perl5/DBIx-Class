@@ -11,7 +11,7 @@ BEGIN {
     eval "use SQL::Abstract 1.49";
     plan $@
         ? ( skip_all => "Needs SQLA 1.49+" )
-        : ( tests => 6 );
+        : ( tests => 7 );
 }
 
 use lib qw(t/lib);
@@ -36,16 +36,12 @@ my $cdrs = $schema->resultset('CD');
   );
 }
 
-TODO: {
-  local $TODO = "'+select' doesn't work with as_query yet.";
+{
   my $rs = $art_rs->search(
     {},
     {
-      '+select' => [
+      'select' => [
         $cdrs->search({}, { rows => 1 })->get_column('id')->as_query,
-      ],
-      '+as' => [
-        'cdid',
       ],
     },
   );
@@ -54,7 +50,26 @@ TODO: {
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.artistid, me.name, me.rank, me.charfield, (SELECT id FROM cds LIMIT 1) AS cdid FROM artist me",
+    "SELECT (SELECT id FROM cd me LIMIT 1) FROM artist me",
+    [],
+  );
+}
+
+{
+  my $rs = $art_rs->search(
+    {},
+    {
+      '+select' => [
+        $cdrs->search({}, { rows => 1 })->get_column('id')->as_query,
+      ],
+    },
+  );
+
+  my $arr = $rs->as_query;
+  my ($query, @bind) = @{$$arr};
+  is_same_sql_bind(
+    $query, \@bind,
+    "SELECT me.artistid, me.name, me.rank, me.charfield, (SELECT id FROM cd me LIMIT 1) FROM artist me",
     [],
   );
 }
