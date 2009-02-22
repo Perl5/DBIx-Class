@@ -2,12 +2,13 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 88;
+plan tests => 90;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -71,7 +72,7 @@ cmp_ok(@art, '==', 1, "Changed artist returned by search");
 
 cmp_ok($art[0]->artistid, '==', 3,'Correct artist too');
 
-$art->delete;
+lives_ok (sub { $art->delete }, 'Cascading delete on Ordered has_many works' );  # real test in ordered.t
 
 @art = $schema->resultset("Artist")->search({ });
 
@@ -79,9 +80,7 @@ cmp_ok(@art, '==', 2, 'And then there were two');
 
 ok(!$art->in_storage, "It knows it's dead");
 
-eval { $art->delete; };
-
-ok($@, "Can't delete twice: $@");
+dies_ok ( sub { $art->delete }, "Can't delete twice");
 
 is($art->name, 'We Are In Rehab', 'But the object is still live');
 
@@ -183,7 +182,6 @@ is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
 $new = $schema->resultset("Track")->new( {
   trackid => 100,
   cd => 1,
-  position => 4,
   title => 'Insert or Update',
   last_updated_on => '1973-07-19 12:01:02'
 } );
@@ -191,9 +189,9 @@ $new->update_or_insert;
 ok($new->in_storage, 'update_or_insert insert ok');
 
 # test in update mode
-$new->pos(5);
+$new->title('Insert or Update - updated');
 $new->update_or_insert;
-is( $schema->resultset("Track")->find(100)->pos, 5, 'update_or_insert update ok');
+is( $schema->resultset("Track")->find(100)->title, 'Insert or Update - updated', 'update_or_insert update ok');
 
 # get_inflated_columns w/relation and accessor alias
 SKIP: {
@@ -204,8 +202,12 @@ SKIP: {
     is($tdata{'trackid'}, 100, 'got id');
     isa_ok($tdata{'cd'}, 'DBICTest::CD', 'cd is CD object');
     is($tdata{'cd'}->id, 1, 'cd object is id 1');
-    is($tdata{'position'}, 5, 'got position from pos');
-    is($tdata{'title'}, 'Insert or Update');
+    is(
+        $tdata{'position'},
+        $schema->resultset ('Track')->search ({cd => 1})->count,
+        'Ordered assigned proper position',
+    );
+    is($tdata{'title'}, 'Insert or Update - updated');
     is($tdata{'last_updated_on'}, '1973-07-19T12:01:02');
     isa_ok($tdata{'last_updated_on'}, 'DateTime', 'inflated accessored column');
 }
@@ -295,16 +297,12 @@ ok($schema->storage(), 'Storage available');
 
 my $newbook = $schema->resultset( 'Bookmark' )->find(1);
 
-$@ = '';
-eval {
-my $newlink = $newbook->link;
-};
-ok(!$@, "stringify to false value doesn't cause error");
+lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't cause error");
 
 # test cascade_delete through many_to_many relations
 {
   my $art_del = $schema->resultset("Artist")->find({ artistid => 1 });
-  $art_del->delete;
+  lives_ok (sub { $art_del->delete }, 'Cascading delete on Ordered has_many works' );  # real test in ordered.t
   cmp_ok( $schema->resultset("CD")->search({artist => 1}), '==', 0, 'Cascading through has_many top level.');
   cmp_ok( $schema->resultset("CD_to_Producer")->search({cd => 1}), '==', 0, 'Cascading through has_many children.');
 }
@@ -375,7 +373,6 @@ SKIP: {
 # test resultsource->table return value when setting
 {
     my $class = $schema->class('Event');
-    diag $class;
     my $table = $class->table($class->table);
     is($table, $class->table, '->table($table) returns $table');
 }

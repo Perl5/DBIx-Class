@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 19;
+plan tests => 23;
 
 # an insane multicreate 
 # (should work, despite the fact that no one will probably use it this way)
@@ -54,13 +54,7 @@ eval {
                       ],
                       # This cd is created via artist so it doesn't know about producers
                       cd_to_producer => [
-                        # if we specify 'bob' here things bomb
-                        # as the producer attached to Greatest Hits 1 is
-                        # already created, but not yet inserted.
-                        # Maybe this can be fixed, but things are hairy
-                        # enough already.
-                        #
-                        #{ producer => { name => 'bob' } },
+                        { producer => { name => 'bob' } },
                         { producer => { name => 'paul' } },
                         { producer => {
                           name => 'flemming',
@@ -161,7 +155,7 @@ eval {
   );
   is ($paul_prod->count, 1, 'Paul had 1 production');
   my $pauls_cd = $paul_prod->single;
-  is ($pauls_cd->cd_to_producer->count, 2, 'Paul had one co-producer');
+  is ($pauls_cd->cd_to_producer->count, 3, 'Paul had two co-producers');
   is (
     $pauls_cd->search_related ('cd_to_producer',
       { 'producer.name' => 'flemming'},
@@ -205,15 +199,19 @@ eval {
       { 'producer.name' => 'bob'},
       { join => 'producer' }
     )->count,
-    2,
-    'Lars produced 2 CDs with bob',
+    3,
+    'Lars produced 3 CDs with bob',
   );
 
   my $bob_prod = $cd_rs->search (
     { 'producer.name' => 'bob'},
     { join => { cd_to_producer => 'producer' } }
   );
-  is ($bob_prod->count, 3, 'Bob produced a total of 3 CDs');
+  is ($bob_prod->count, 4, 'Bob produced a total of 4 CDs');
+  ok ($bob_prod->find ({ title => 'Greatest hits 1'}), '1st Bob production name correct');
+  ok ($bob_prod->find ({ title => 'Greatest hits 6'}), '2nd Bob production name correct');
+  ok ($bob_prod->find ({ title => 'Greatest hits 2'}), '3rd Bob production name correct');
+  ok ($bob_prod->find ({ title => 'Greatest hits 7'}), '4th Bob production name correct');
 
   is (
     $bob_prod->search ({ 'artist.name' => 'james' }, { join => 'artist' })->count,

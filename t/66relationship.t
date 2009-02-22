@@ -92,12 +92,11 @@ TODO: {
 $track = $schema->resultset("Track")->create( {
   trackid => 2,
   cd => 3,
-  position => 99,
   title => 'Hidden Track 2'
 } );
 $track->update_from_related( cd => $cd );
 
-my $t_cd = ($schema->resultset("Track")->search( cd => 4, position => 99 ))[0]->cd;
+my $t_cd = ($schema->resultset("Track")->search( cd => 4, title => 'Hidden Track 2' ))[0]->cd;
 
 is( $t_cd->cdid, 4, 'update_from_related ok' );
 

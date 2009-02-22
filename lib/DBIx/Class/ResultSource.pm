@@ -29,6 +29,8 @@ DBIx::Class::ResultSource - Result source object
 A ResultSource is a component of a schema from which results can be directly
 retrieved, most usually a table (see L<DBIx::Class::ResultSource::Table>)
 
+Basic view support also exists, see L<<DBIx::Class::ResultSource::View>.
+
 =head1 METHODS
 
 =pod

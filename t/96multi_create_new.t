@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 9;
+plan tests => 12;
 
 my $schema = DBICTest->init_schema();
 
@@ -36,7 +36,18 @@ my $schema = DBICTest->init_schema();
 
 {
     my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode' });
-    my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave in Silence', 'year' => 1982});
+    my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave Slightly Noisily', 'year' => 1982});
+    eval {
+        $new_related_cd->insert;
+    };
+    is ($@, '', 'CD insertion survives by finding artist');
+    ok($new_artist->in_storage, 'artist inserted');
+    ok($new_related_cd->in_storage, 'new_related_cd inserted');
+}
+
+{
+    my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode 2: Insertion Boogaloo' });
+    my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave Loudly While Singing Off Key', 'year' => 1982});
     eval {
         $new_related_cd->insert;
     };

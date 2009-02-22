@@ -12,7 +12,6 @@ eval {
   my $cd = $schema->resultset('CD')->first;
   my $track = $schema->resultset('Track')->new_result({
     cd => $cd,
-    position => 77,  # some day me might test this with Ordered
     title => 'Multicreate rocks',
     cd_single => {
       artist => $cd->artist,

@@ -1,9 +1,10 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat Jan 24 19:42:15 2009
+-- Created on Sun Feb 22 00:15:06 2009
 -- 
-BEGIN TRANSACTION;
 
+
+BEGIN TRANSACTION;
 
 --
 -- Table: artist
@@ -15,7 +16,6 @@ CREATE TABLE artist (
   charfield char(10)
 );
 
-
 --
 -- Table: artist_undirected_map
 --
@@ -26,6 +26,7 @@ CREATE TABLE artist_undirected_map (
 );
 
 CREATE INDEX artist_undirected_map_idx_id1_ ON artist_undirected_map (id1);
+
 CREATE INDEX artist_undirected_map_idx_id2_ ON artist_undirected_map (id2);
 
 --
@@ -47,6 +48,7 @@ CREATE TABLE artwork_to_artist (
 );
 
 CREATE INDEX artwork_to_artist_idx_artist_id_artwork_to_arti ON artwork_to_artist (artist_id);
+
 CREATE INDEX artwork_to_artist_idx_artwork_cd_id_artwork_to_ ON artwork_to_artist (artwork_cd_id);
 
 --
@@ -58,7 +60,6 @@ CREATE TABLE bindtype_test (
   blob blob,
   clob clob
 );
-
 
 --
 -- Table: bookmark
@@ -81,7 +82,6 @@ CREATE TABLE books (
   price integer
 );
 
-
 --
 -- Table: cd
 --
@@ -95,8 +95,11 @@ CREATE TABLE cd (
 );
 
 CREATE INDEX cd_idx_artist_cd ON cd (artist);
+
 CREATE INDEX cd_idx_genreid_cd ON cd (genreid);
+
 CREATE INDEX cd_idx_single_track_cd ON cd (single_track);
+
 CREATE UNIQUE INDEX cd_artist_title_cd ON cd (artist, title);
 
 --
@@ -109,6 +112,7 @@ CREATE TABLE cd_to_producer (
 );
 
 CREATE INDEX cd_to_producer_idx_cd_cd_to_pr ON cd_to_producer (cd);
+
 CREATE INDEX cd_to_producer_idx_producer_cd ON cd_to_producer (producer);
 
 --
@@ -118,7 +122,6 @@ CREATE TABLE collection (
   collectionid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100) NOT NULL
 );
-
 
 --
 -- Table: collection_object
@@ -130,6 +133,7 @@ CREATE TABLE collection_object (
 );
 
 CREATE INDEX collection_object_idx_collection_collection_obj ON collection_object (collection);
+
 CREATE INDEX collection_object_idx_object_c ON collection_object (object);
 
 --
@@ -140,9 +144,17 @@ CREATE TABLE employee (
   position integer NOT NULL,
   group_id integer,
   group_id_2 integer,
+  group_id_3 integer,
   name varchar(100)
 );
 
+--
+-- Table: encoded
+--
+CREATE TABLE encoded (
+  id INTEGER PRIMARY KEY NOT NULL,
+  encoded varchar(100)
+);
 
 --
 -- Table: event
@@ -156,7 +168,6 @@ CREATE TABLE event (
   skip_inflation datetime
 );
 
-
 --
 -- Table: file_columns
 --
@@ -164,7 +175,6 @@ CREATE TABLE file_columns (
   id INTEGER PRIMARY KEY NOT NULL,
   file varchar(255) NOT NULL
 );
-
 
 --
 -- Table: forceforeign
@@ -188,7 +198,6 @@ CREATE TABLE fourkeys (
   PRIMARY KEY (foo, bar, hello, goodbye)
 );
 
-
 --
 -- Table: fourkeys_to_twokeys
 --
@@ -204,6 +213,7 @@ CREATE TABLE fourkeys_to_twokeys (
 );
 
 CREATE INDEX fourkeys_to_twokeys_idx_f_foo_f_bar_f_hello_f_goodbye_ ON fourkeys_to_twokeys (f_foo, f_bar, f_hello, f_goodbye);
+
 CREATE INDEX fourkeys_to_twokeys_idx_t_artist_t_cd_fourkeys_to ON fourkeys_to_twokeys (t_artist, t_cd);
 
 --
@@ -247,7 +257,6 @@ CREATE TABLE link (
   title varchar(100)
 );
 
-
 --
 -- Table: lyric_versions
 --
@@ -289,7 +298,6 @@ CREATE TABLE onekey (
   cd integer NOT NULL
 );
 
-
 --
 -- Table: owners
 --
@@ -297,7 +305,6 @@ CREATE TABLE owners (
   ownerid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100) NOT NULL
 );
-
 
 --
 -- Table: producer
@@ -317,7 +324,6 @@ CREATE TABLE self_ref (
   name varchar(100) NOT NULL
 );
 
-
 --
 -- Table: self_ref_alias
 --
@@ -328,6 +334,7 @@ CREATE TABLE self_ref_alias (
 );
 
 CREATE INDEX self_ref_alias_idx_alias_self_ ON self_ref_alias (alias);
+
 CREATE INDEX self_ref_alias_idx_self_ref_se ON self_ref_alias (self_ref);
 
 --
@@ -341,7 +348,6 @@ CREATE TABLE sequence_test (
   PRIMARY KEY (pkid1, pkid2)
 );
 
-
 --
 -- Table: serialized
 --
@@ -349,7 +355,6 @@ CREATE TABLE serialized (
   id INTEGER PRIMARY KEY NOT NULL,
   serialized text NOT NULL
 );
-
 
 --
 -- Table: tags
@@ -374,7 +379,9 @@ CREATE TABLE track (
 );
 
 CREATE INDEX track_idx_cd_track ON track (cd);
+
 CREATE UNIQUE INDEX track_cd_position_track ON track (cd, position);
+
 CREATE UNIQUE INDEX track_cd_title_track ON track (cd, title);
 
 --
@@ -401,6 +408,7 @@ CREATE TABLE twokeytreelike (
 );
 
 CREATE INDEX twokeytreelike_idx_parent1_parent2_twokeytre ON twokeytreelike (parent1, parent2);
+
 CREATE UNIQUE INDEX tktlnameunique_twokeytreelike ON twokeytreelike (name);
 
 --
@@ -424,11 +432,9 @@ CREATE TABLE typed_object (
 );
 
 --
--- Table: encoded
+-- View: year2000cds
 --
-CREATE TABLE encoded (
-  id INTEGER PRIMARY KEY NOT NULL,
-  encoded varchar(100) NOT NULL
-);
+CREATE VIEW year2000cds AS
+    SELECT cdid, artist, title FROM cd WHERE year ='2000';
 
 COMMIT;

@@ -14,7 +14,11 @@ BEGIN {
 }
 
 my $schema = DBICTest->init_schema();
-my @sources = grep { $_ ne 'Dummy' } ($schema->sources); # Dummy was yanked out by the sqlt hook test
+# Dummy was yanked out by the sqlt hook test
+# YearXXXXCDs are views
+my @sources = grep { $_ ne 'Dummy' && $_ !~ /^Year\d{4}CDs$/ } 
+                $schema->sources;
+
 plan tests => ( @sources * 3);
 
 { 
