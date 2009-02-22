@@ -31,6 +31,7 @@ requires 'namespace::clean'         => 0.09;
 # Perl 5.8.0 doesn't have utf8::is_utf8()
 requires 'Encode'                   => 0 if ($] <= 5.008000);  
 
+# configure_requires so the sanity check below can run
 configure_requires 'DBD::SQLite'    => 1.14;
 
 test_requires 'Test::Builder'       => 0.33;
@@ -47,13 +48,21 @@ tests_recursive 't';
 # re-build README and require CDBI modules for testing if we're in a checkout
 
 my %force_requires_if_author = (
+  'Test::Pod::Coverage'       => 0,
+  'SQL::Translator'           => 0.09004,
+
+  # CDBI-compat related
   'DBIx::ContextualFetch'     => 0,
   'Class::Trigger'            => 0,
   'Time::Piece'               => 0,
   'Clone'                     => 0,
-  'Test::Pod::Coverage'       => 0,
+
+  # t/52cycle.t
   'Test::Memory::Cycle'       => 0,
-  'SQL::Translator'           => 0.09004,
+
+  # t/93storage_replication.t
+  'Moose',                    => 0,
+  'MooseX::AttributeHelpers'  => 0.12,
 );
 
 if ($Module::Install::AUTHOR) {
