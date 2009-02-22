@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 69;
+plan tests => 70;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -137,6 +137,15 @@ my $newartist = $cd->find_or_new_related( 'artist', {
 } );
 is($newartist->name, 'Random Boy Band Two', 'find_or_new_related new artist record with id');
 is($newartist->id, 200, 'find_or_new_related new artist id set');
+
+lives_ok( 
+    sub { 
+        my $new_bookmark = $schema->resultset("Bookmark")->new_result( {} );
+        my $new_related_link = $new_bookmark->new_related( 'link', {} );
+    },
+    'No back rel'
+);
+
 
 TODO: {
   local $TODO = "relationship checking needs fixing";

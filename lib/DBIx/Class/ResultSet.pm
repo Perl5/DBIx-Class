@@ -1700,7 +1700,7 @@ sub new_result {
     defined $self->{cond}
     && $self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
   ) {
-    %new = %{$self->{attrs}{related_objects}};
+    %new = %{ $self->{attrs}{related_objects} || {} };  # nothing might have been inserted yet
     $new{-from_resultset} = [ keys %new ] if keys %new;
   } else {
     $self->throw_exception(
