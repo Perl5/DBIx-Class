@@ -2611,6 +2611,16 @@ passed to object inflation. Note that the 'artist' is the name of the
 column (or relationship) accessor, and 'name' is the name of the column
 accessor in the related table.
 
+=head2 include_columns
+
+=over 4
+
+=item Value: \@columns
+
+=back
+
+Deprecated.  Acts as a synonym for L</+columns> for backward compatibility.
+
 =head2 select
 
 =over 4
