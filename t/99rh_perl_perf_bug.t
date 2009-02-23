@@ -61,11 +61,15 @@ my $ratio = $results->{no_bless}->iters / $results->{bless_overload}->iters;
 
 ok( ( $ratio < 2 ), 'Overload/bless performance acceptable' )
   || diag(
+    "\n",
     "This perl has a substantial slow down when handling large numbers\n",
     "of blessed/overloaded objects.  This can severely adversely affect\n",
     "the performance of DBIx::Class programs.  Please read the section\n",
     "in the Troubleshooting POD documentation entitled\n",
     "'Perl Performance Issues on Red Hat Systems'\n",
+    "As this is an extremely serious condition, the only way to skip\n",
+    "over this test is to --force the installation, or to edit the test\n",
+    "file " . __FILE__ . "\n",
   );
 
 # We will only check for the difference in bless handling (whether the
@@ -106,8 +110,12 @@ SKIP: {
     ok( !_possibly_has_bad_overload_performance(),
         'Checking whether bless applies to reference not object' )
       || diag(
+        "\n",
         "This perl is probably derived from a buggy Red Hat perl build\n",
         "Please read the section in the Troubleshooting POD documentation\n",
         "entitled 'Perl Performance Issues on Red Hat Systems'\n",
+        "As this is an extremely serious condition, the only way to skip\n",
+        "over this test is to --force the installation, or to edit the test\n",
+        "file " . __FILE__ . "\n",
       );
 }

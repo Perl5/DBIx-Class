@@ -1,4 +1,39 @@
 Revision history for DBIx::Class
+        - multi-create using find_or_create rather than _related for post-insert
+        - fix get_inflated_columns to check has_column_loaded
+        - Add DBIC_MULTICREATE_DEBUG env var (undocumented, quasi-internal)
+        - Fix up multi-create to:
+          - correctly propagate columns loaded during multi-insert of rels
+          - not try and insert things tagged on via new_related unless required
+        - Possible to set locale in IC::DateTime extra => {} config
+        - Calling the accessor of a belongs_to when the foreign_key
+          was NULL and the row was not stored would unexpectedly fail (groditi)
+        - Split sql statements for deploy only if SQLT::Producer returned a scalar
+          containing all statements to be executed
+        - Add as_query() for ResultSet and ResultSetColumn. This makes subqueries
+          possible. See the Cookbook for details. (robkinyon, michaelr)
+        - Massive rewrite of Ordered to properly handle position constraints and
+          to make it more matpath-friendly
+
+0.08099_06 2009-01-23 07:30:00 (UTC)
+        - Allow a scalarref to be supplied to the 'from' resultset attribute
+        - Classes submitted as result_class for a resultsource are now
+          automatically loaded via ensure_loaded()
+        - 'result_class' resultset attribute, identical to result_class()
+        - add 'undef_on_null_fk' option for relationship accessors of type 'single'.
+          This will prevent DBIC from querying the database if one or more of
+          the key columns IS NULL
+        - for 'belongs_to' rels, 'undef_on_null_fk' defaults to true.
+        - fixed scope unaware last_insert_id fetching for MSSQL
+          (http://msdn.microsoft.com/en-us/library/ms190315.aspx)
+        - an sqlt_deploy_hook can now be shared between result sources using
+          a configurable callback trigger
+        - new order_by => { -desc => 'colname' } syntax supported with
+          SQLA >= 1.50
+        - PG array datatype supported with SQLA >= 1.50
+        - insert should use store_column, not set_column to avoid marking
+          clean just-stored values as dirty. New test for this (groditi)
+        - regression test for source_name (groditi)
 
 0.08099_05 2008-10-30 21:30:00 (UTC)
         - Rewritte of Storage::DBI::connect_info(), extended with an

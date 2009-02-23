@@ -1,13 +1,14 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 67;
+plan tests => 70;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -40,7 +41,20 @@ if ($INC{'DBICTest/HelperRels.pm'}) {
   } );
 }
 
-is( ($artist->search_related('cds'))[3]->title, 'Big Flop', 'create_related ok' );
+my $big_flop_cd = ($artist->search_related('cds'))[3];
+is( $big_flop_cd->title, 'Big Flop', 'create_related ok' );
+
+{ # make sure we are not making pointless select queries when a FK IS NULL
+  my $queries = 0;
+  $schema->storage->debugcb(sub { $queries++; });
+  $schema->storage->debug(1);
+  $big_flop_cd->genre; #should not trigger a select query
+  is($queries, 0, 'No SELECT made for belongs_to if key IS NULL');
+  $big_flop_cd->genre_inefficient; #should trigger a select query
+  is($queries, 1, 'SELECT made for belongs_to if key IS NULL when undef_on_null_fk disabled');
+  $schema->storage->debug(0);
+  $schema->storage->debugcb(undef);
+}
 
 my( $rs_from_list ) = $artist->search_related_rs('cds');
 is( ref($rs_from_list), 'DBIx::Class::ResultSet', 'search_related_rs in list context returns rs' );
@@ -78,12 +92,11 @@ TODO: {
 $track = $schema->resultset("Track")->create( {
   trackid => 2,
   cd => 3,
-  position => 99,
   title => 'Hidden Track 2'
 } );
 $track->update_from_related( cd => $cd );
 
-my $t_cd = ($schema->resultset("Track")->search( cd => 4, position => 99 ))[0]->cd;
+my $t_cd = ($schema->resultset("Track")->search( cd => 4, title => 'Hidden Track 2' ))[0]->cd;
 
 is( $t_cd->cdid, 4, 'update_from_related ok' );
 
@@ -117,19 +130,25 @@ $cd = $artist->find_or_new_related( 'cds', {
 is( $cd->title, 'Greatest Hits 2: Louder Than Ever', 'find_or_new_related new record ok' );
 ok( ! $cd->in_storage, 'find_or_new_related on a new record: not in_storage' );
 
-# print STDERR Data::Dumper::Dumper($cd->get_columns);
-# $cd->result_source->schema->storage->debug(1);
 $cd->artist(undef);
 my $newartist = $cd->find_or_new_related( 'artist', {
   name => 'Random Boy Band Two',
   artistid => 200,
 } );
-# $cd->result_source->schema->storage->debug(0);
 is($newartist->name, 'Random Boy Band Two', 'find_or_new_related new artist record with id');
 is($newartist->id, 200, 'find_or_new_related new artist id set');
 
-SKIP: {
-  skip "relationship checking needs fixing", 1;
+lives_ok( 
+    sub { 
+        my $new_bookmark = $schema->resultset("Bookmark")->new_result( {} );
+        my $new_related_link = $new_bookmark->new_related( 'link', {} );
+    },
+    'No back rel'
+);
+
+
+TODO: {
+  local $TODO = "relationship checking needs fixing";
   # try to add a bogus relationship using the wrong cols
   eval {
       DBICTest::Schema::Artist->add_relationship(
@@ -217,7 +236,10 @@ eval{
      $undef_artist_cd->related_resultset('artist')->new({name => 'foo'});
 };
 is( $@, '', "Object created on a resultset related to not yet inserted object");
- 
+lives_ok{
+  $schema->resultset('Artwork')->new_result({})->cd;
+} 'undef_on_null_fk does not choke on empty conds';
+
 my $def_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007, artist => undef });
 is($def_artist_cd->has_column_loaded('artist'), 1, 'FK loaded');
 is($def_artist_cd->search_related('artist')->count, 0, 'closed search on null FK');
@@ -254,12 +276,11 @@ $artist->cds->update({artist => $nartist->id});
 cmp_ok($artist->cds->count, '==', 0, "Correct new #cds for artist");
 cmp_ok($nartist->cds->count, '==', 2, "Correct new #cds for artist");
 
-my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode' });
-my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave in Silence', 'year' => 1982});
-eval {
-       $new_artist->insert;
-       $new_related_cd->insert;
-};
-is ($@, '', 'Staged insertion successful');
-ok($new_artist->in_storage, 'artist inserted');
-ok($new_related_cd->in_storage, 'new_related_cd inserted');
+# check if is_foreign_key_constraint attr is set
+my $rs_normal = $schema->source('Track');
+my $relinfo = $rs_normal->relationship_info ('cd');
+cmp_ok($relinfo->{attrs}{is_foreign_key_constraint}, '==', 1, "is_foreign_key_constraint defined for belongs_to relationships.");
+
+my $rs_overridden = $schema->source('ForceForeign');
+my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
+cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");

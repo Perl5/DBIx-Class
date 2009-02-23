@@ -11,7 +11,7 @@ plan tests => 1;
 my $normal_schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
 # Steal the dsn, which should be like 'dbi:SQLite:t/var/DBIxClass.db'
-my $normal_dsn = $normal_schema->storage->connect_info->[0];
+my $normal_dsn = $normal_schema->storage->_dbi_connect_info->[0];
 
 # Make sure we have no active connection
 $normal_schema->storage->disconnect;

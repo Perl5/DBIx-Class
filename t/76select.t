@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 7;
+plan tests => 12;
 
 my $rs = $schema->resultset('CD')->search({},
     {
@@ -42,3 +42,24 @@ $rs = $schema->resultset('CD')->search({},
 lives_ok(sub { $rs->first->get_column('count') }, '+select/+as chained search 1st rscolumn present');
 lives_ok(sub { $rs->first->get_column('addedtitle') }, '+select/+as chained search 1st rscolumn present');
 lives_ok(sub { $rs->first->get_column('addedtitle2') }, '+select/+as chained search 3rd rscolumn present');
+
+
+# test the from search attribute (gets between the FROM and WHERE keywords, allows arbitrary subselects)
+# also shows that outer select attributes are ok (i.e. order_by)
+#
+# from doesn't seem to be useful without using a scalarref - there were no initial tests >:(
+#
+my $cds = $schema->resultset ('CD')->search ({}, { order_by => 'me.cdid'}); # make sure order is consistent
+cmp_ok ($cds->count, '>', 2, 'Initially populated with more than 2 CDs');
+
+my $table = $cds->result_source->name;
+my $subsel = $cds->search ({}, {
+    columns => [qw/cdid title/],
+    from => \ "(SELECT cdid, title FROM $table LIMIT 2) me",
+});
+
+is ($subsel->count, 2, 'Subselect correctly limited the rs to 2 cds');
+is ($subsel->next->title, $cds->next->title, 'First CD title match');
+is ($subsel->next->title, $cds->next->title, 'Second CD title match');
+
+is($schema->resultset('CD')->current_source_alias, "me", '$rs->current_source_alias returns "me"');

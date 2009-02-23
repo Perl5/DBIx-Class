@@ -9,6 +9,13 @@ use warnings;
 
 sub belongs_to {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
+
+  # assume a foreign key contraint unless defined otherwise
+  $attrs->{is_foreign_key_constraint} = 1 
+    if not exists $attrs->{is_foreign_key_constraint};
+  $attrs->{undef_on_null_fk} = 1
+    if not exists $attrs->{undef_on_null_fk};
+
   # no join condition or just a column name
   if (!ref $cond) {
     $class->ensure_class_loaded($f_class);

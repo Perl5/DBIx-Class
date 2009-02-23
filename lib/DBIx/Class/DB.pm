@@ -152,27 +152,47 @@ Returns an instance of the result source for this class
 
 __PACKAGE__->mk_classdata('_result_source_instance' => []);
 
+# Yep. this is horrific. Basically what's happening here is that
+# (with good reason) DBIx::Class::Schema copies the result source for
+# registration. Because we have a retarded setup order forced on us we need
+# to actually make our ->result_source_instance -be- the source used, and we
+# need to get the source name and schema into ourselves. So this makes it
+# happen.
+
+sub _maybe_attach_source_to_schema {
+  my ($class, $source) = @_;
+  if (my $meth = $class->can('schema_instance')) {
+    my $schema = $class->$meth;
+    $schema->register_class($class, $class);
+    my $new_source = $schema->source($class);
+    %$source = %$new_source;
+    $schema->source_registrations->{$class} = $source;
+  }
+}
+
 sub result_source_instance {
   my $class = shift;
   $class = ref $class || $class;
   
-  return $class->_result_source_instance([$_[0], $class]) if @_;
+  if (@_) {
+    my $source = $_[0];
+    $class->_result_source_instance([$source, $class]);
+    $class->_maybe_attach_source_to_schema($source);
+    return $source;
+  }
 
   my($source, $result_class) = @{$class->_result_source_instance};
   return unless Scalar::Util::blessed($source);
 
   if ($result_class ne $class) {  # new class
     # Give this new class it's own source and register it.
-
     $source = $source->new({ 
         %$source, 
         source_name  => $class,
         result_class => $class
     } );
     $class->_result_source_instance([$source, $class]);
-    if (my $coderef = $class->can('schema_instance')) {
-        $coderef->($class)->register_class($class, $class);
-    }
+    $class->_maybe_attach_source_to_schema($source);
   }
   return $source;
 }

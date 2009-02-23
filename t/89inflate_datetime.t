@@ -10,7 +10,7 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime::Format::MySQL };
 plan skip_all => "Need DateTime::Format::MySQL for inflation tests" if $@;
 
-plan tests => 28;
+plan tests => 32;
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);
@@ -57,6 +57,11 @@ my $event_tz = $schema->resultset('EventTZ')->create({
     created_on => DateTime->new(year=>2006, month=>1, day=>31,
         hour => 13, minute => 34, second => 56, time_zone => "America/New_York" ),
 });
+
+is ($event_tz->starts_at->day_name, "Montag", 'Locale de_DE loaded: day_name');
+is ($event_tz->starts_at->month_name, "Dezember", 'Locale de_DE loaded: month_name');
+is ($event_tz->created_on->day_name, "Tuesday", 'Default locale loaded: day_name');
+is ($event_tz->created_on->month_name, "January", 'Default locale loaded: month_name');
 
 my $starts_at = $event_tz->starts_at;
 is("$starts_at", '2007-12-31T00:00:00', 'Correct date/time using timezone');

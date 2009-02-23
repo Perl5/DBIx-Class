@@ -36,11 +36,19 @@ sub inject_base {
 # successfully, and false if the class is not installed
 sub load_optional_class {
   my ($class, $f_class) = @_;
-  if ($class->ensure_class_found($f_class)) {
-    $class->ensure_class_loaded($f_class);
+  eval { $class->ensure_class_loaded($f_class) };
+  my $err = $@;   # so we don't lose it
+  if (! $err) {
     return 1;
-  } else {
-    return 0;
+  }
+  else {
+    my $fn = (join ('/', split ('::', $f_class) ) ) . '.pm';
+    if ($err =~ /Can't locate ${fn} in \@INC/ ) {
+      return 0;
+    }
+    else {
+      die $err;
+    }
   }
 }
 

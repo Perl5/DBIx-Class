@@ -2,6 +2,7 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
@@ -16,7 +17,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 58 );
+        : ( tests => 68 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -44,6 +45,49 @@ my $rs = $schema->resultset("CD")->search($search, $attr);
 is(Dumper($search), $search_str, 'Search hash untouched after search()');
 is(Dumper($attr), $attr_str, 'Attribute hash untouched after search()');
 cmp_ok($rs + 0, '==', 3, 'Correct number of records returned');
+
+# A search() with prefetch seems to pollute an already joined resultset
+# in a way that offsets future joins (adapted from a test case by Debolaz)
+{
+  my ($cd_rs, $attrs);
+
+  # test a real-life case - rs is obtained by an implicit m2m join
+  $cd_rs = $schema->resultset ('Producer')->first->cds;
+  $attrs = Dumper $cd_rs->{attrs};
+
+  $cd_rs->search ({})->all;
+  is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
+
+  lives_ok (sub {
+    $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
+    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
+  }, 'first prefetching search ok');
+
+  lives_ok (sub {
+    $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
+    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
+  }, 'second prefetching search ok');
+
+
+  # test a regular rs with an empty seen_join injected - it should still work!
+  $cd_rs = $schema->resultset ('CD');
+  $cd_rs->{attrs}{seen_join}  = {};
+  $attrs = Dumper $cd_rs->{attrs};
+
+  $cd_rs->search ({})->all;
+  is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
+
+  lives_ok (sub {
+    $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
+    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
+  }, 'first prefetching search ok');
+
+  lives_ok (sub {
+    $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
+    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
+  }, 'second prefetching search ok');
+}
+
 
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
@@ -348,7 +392,6 @@ is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no
 # (the TODO block itself contains tests ensuring that the warns are removed)
 TODO: {
     local $TODO = 'Prefetch of multiple has_many rels at the same level (currently warn to protect the clueless git)';
-    use DBIx::Class::ResultClass::HashRefInflator;
 
     #( 1 -> M + M )
     my $cd_rs = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' });

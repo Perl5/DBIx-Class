@@ -40,7 +40,7 @@ my $dbh = $schema->storage->dbh;
 
 $dbh->do("DROP TABLE IF EXISTS artist;");
 
-$dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10));");
+$dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10));");
 
 $schema->class('Artist')->load_components('PK::Auto');
 

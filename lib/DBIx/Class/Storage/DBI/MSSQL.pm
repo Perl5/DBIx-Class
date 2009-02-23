@@ -7,7 +7,7 @@ use base qw/DBIx::Class::Storage::DBI/;
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
-  my ($id) = $dbh->selectrow_array('SELECT @@IDENTITY');
+  my ($id) = $dbh->selectrow_array('SELECT SCOPE_IDENTITY()');
   return $id;
 }
 

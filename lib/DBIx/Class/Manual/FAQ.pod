@@ -68,6 +68,24 @@ connection does not happen until you actually request data, so don't
 be alarmed if the error from incorrect connection details happens a
 lot later.
 
+=item .. use DBIx::Class across multiple databases?
+
+If your database server allows you to run querys across multiple
+databases at once, then so can DBIx::Class. All you need to do is make
+sure you write the database name as part of the
+L<DBIx::Class::ResultSource/table> call. Eg:
+
+  __PACKAGE__->table('mydb.mytablename');
+
+And load all the Result classes for both / all databases using one
+L<DBIx::Class::Schema/load_namespaces> call.
+
+=item .. use DBIx::Class across PostgreSQL/DB2/Oracle schemas?
+
+Add the name of the schema to the L<DBIx::Class::ResultSource/table>
+as part of the name, and make sure you give the one user you are going
+to connect with rights to read/write all the schemas/tables as
+necessary.
 
 =back 
 
@@ -428,6 +446,41 @@ data out.
 
 You can add your own data accessors to your classes.
 
+One method is to use the built in mk_group_accessors (via L<Class::Accessor::Grouped>)
+
+	package MyTable;
+
+	use parent 'DBIx::Class';
+
+	__PACKAGE__->table('foo'); #etc
+	__PACKAGE__->mk_group_accessors('simple' => qw/non_column_data/); # must use simple group
+
+An another method is to use L<Moose> with your L<DBIx::Class> package.
+
+	package MyTable;
+
+	use Moose; # import Moose
+	use Moose::Util::TypeConstraint; # import Moose accessor type constraints 
+
+	extends 'DBIx::Class'; # Moose changes the way we define our parent (base) package
+
+	has 'non_column_data' => ( is => 'rw', isa => 'Str' ); # define a simple attribute
+
+	__PACKAGE__->table('foo'); # etc
+
+With either of these methods the resulting use of the accesssor would be
+
+	my $row;
+
+	# assume that some where in here $row will get assigned to a MyTable row
+
+	$row->non_column_data('some string'); # would set the non_column_data accessor
+
+	# some other stuff happens here
+
+	$row->update(); # would not inline the non_column_data accessor into the update
+
+	
 =item How do I use DBIx::Class objects in my TT templates?
 
 Like normal objects, mostly. However you need to watch out for TT
@@ -461,6 +514,16 @@ columns act as a primary key, even if they don't from the database's
 point of view:
 
  $resultset->set_primary_key(@column);
+
+=item How do I make my program start faster?
+
+Look at the tips in L<DBIx::Class::Manual::Cookbook/"STARTUP SPEED">
+
+=item How do I reduce the overhead of database queries?
+
+You can reduce the overhead of object creation within L<DBIx::Class>
+using the tips in L<DBIx::Class::Manual::Cookbook/"Skip row object creation for faster results"> 
+and L<DBIx::Class::Manual::Cookbook/"Get raw data for blindingly fast results">
 
 =back
 

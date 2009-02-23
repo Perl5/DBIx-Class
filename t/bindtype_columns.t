@@ -10,7 +10,7 @@ my ($dsn, $dbuser, $dbpass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/}
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $dbuser);
   
-plan tests => 3;
+plan tests => 6;
 
 my $schema = DBICTest::Schema->connection($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
 
@@ -18,46 +18,71 @@ my $dbh = $schema->storage->dbh;
 
 {
     local $SIG{__WARN__} = sub {};
-    $dbh->do('DROP TABLE IF EXISTS artist');
+    $dbh->do('DROP TABLE IF EXISTS bindtype_test');
+
+    # the blob/clob are for reference only, will be useful when we switch to SQLT and can test Oracle along the way
     $dbh->do(qq[
-        CREATE TABLE artist
+        CREATE TABLE bindtype_test 
         (
-            artistid        serial  NOT NULL    PRIMARY KEY,
-            media           bytea   NOT NULL,
-            name            varchar NULL,
-            rank            integer NOT NULL    DEFAULT '13'
+            id              serial       NOT NULL   PRIMARY KEY,
+            bytea           bytea        NULL,
+            blob            bytea        NULL,
+            clob            text         NULL
         );
     ],{ RaiseError => 1, PrintError => 1 });
 }
 
-$schema->class('Artist')->load_components(qw/ 
+my $big_long_string	= "\x00\x01\x02 abcd" x 125000;
 
-	PK::Auto 
-	Core 
-/);
+my $new;
+# test inserting a row
+{
+  $new = $schema->resultset('BindType')->create({ bytea => $big_long_string });
 
-$schema->class('Artist')->add_columns(
-	
-	"media", { 
-	
-		data_type => "bytea", 
-		is_nullable => 0,
-	},
-);
+  ok($new->id, "Created a bytea row");
+  is($new->bytea, 	$big_long_string, "Set the blob correctly.");
+}
 
-# test primary key handling
-my $big_long_string	= 'abcd' x 250000;
+# test retrieval of the bytea column
+{
+  my $row = $schema->resultset('BindType')->find({ id => $new->id });
+  is($row->get_column('bytea'), $big_long_string, "Created the blob correctly.");
+}
 
-my $new = $schema->resultset('Artist')->create({ media => $big_long_string });
+TODO: {
+  local $TODO =
+    'Passing bind attributes to $sth->bind_param() should be implemented (it only works in $storage->insert ATM)';
 
-ok($new->artistid, "Created a blob row");
-is($new->media, 	$big_long_string, "Set the blob correctly.");
+  my $rs = $schema->resultset('BindType')->search({ bytea => $big_long_string });
 
-my $rs = $schema->resultset('Artist')->find({artistid=>$new->artistid});
+  # search on the bytea column (select)
+  {
+    my $row = $rs->first;
+    is($row ? $row->id : undef, $new->id, "Found the row searching on the bytea column.");
+  }
 
-is($rs->get_column('media'), $big_long_string, "Created the blob correctly.");
+  # search on the bytea column (update)
+  {
+    my $new_big_long_string = $big_long_string . "2";
+    $schema->txn_do(sub {
+      $rs->update({ bytea => $new_big_long_string });
+      my $row = $schema->resultset('BindType')->find({ id => $new->id });
+      is($row ? $row->get_column('bytea') : undef, $new_big_long_string,
+        "Updated the row correctly (searching on the bytea column)."
+      );
+      $schema->txn_rollback;
+    });
+  }
 
-$dbh->do("DROP TABLE artist");
+  # search on the bytea column (delete)
+  {
+    $schema->txn_do(sub {
+      $rs->delete;
+      my $row = $schema->resultset('BindType')->find({ id => $new->id });
+      is($row, undef, "Deleted the row correctly (searching on the bytea column).");
+      $schema->txn_rollback;
+    });
+  }
+}
 
-
-
+$dbh->do("DROP TABLE bindtype_test");

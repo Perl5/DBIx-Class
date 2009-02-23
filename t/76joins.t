@@ -5,6 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
@@ -16,7 +17,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 16 );
+        : ( tests => 18 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -43,7 +44,11 @@ my $match = 'person child JOIN person father ON ( father.person_id = '
           . 'child.father_id ) JOIN person mother ON ( mother.person_id '
           . '= child.mother_id )'
           ;
-is( $sa->_recurse_from(@j), $match, 'join 1 ok' );
+is_same_sql_bind(
+  $sa->_recurse_from(@j), [],
+  $match, [],
+  'join 1 ok'
+);
 
 my @j2 = (
     { mother => 'person' },
@@ -59,7 +64,12 @@ $match = 'person mother JOIN (person child JOIN person father ON ('
        . ' father.person_id = child.father_id )) ON ( mother.person_id = '
        . 'child.mother_id )'
        ;
-is( $sa->_recurse_from(@j2), $match, 'join 2 ok' );
+is_same_sql_bind(
+  $sa->_recurse_from(@j2), [],
+  $match, [],
+  'join 2 ok'
+);
+
 
 my @j3 = (
     { child => 'person' },
@@ -71,7 +81,11 @@ $match = 'person child INNER JOIN person father ON ( father.person_id = '
           . '= child.mother_id )'
           ;
 
-is( $sa->_recurse_from(@j3), $match, 'join 3 (inner join) ok');
+is_same_sql_bind(
+  $sa->_recurse_from(@j3), [],
+  $match, [],
+  'join 3 (inner join) ok'
+);
 
 my @j4 = (
     { mother => 'person' },
@@ -87,7 +101,11 @@ $match = 'person mother LEFT JOIN (person child RIGHT JOIN person father ON ('
        . ' father.person_id = child.father_id )) ON ( mother.person_id = '
        . 'child.mother_id )'
        ;
-is( $sa->_recurse_from(@j4), $match, 'join 4 (nested joins + join types) ok');
+is_same_sql_bind(
+  $sa->_recurse_from(@j4), [],
+  $match, [],
+  'join 4 (nested joins + join types) ok'
+);
 
 my @j5 = (
     { child => 'person' },
@@ -98,7 +116,11 @@ $match = 'person child JOIN person father ON ( father.person_id != '
           . 'child.father_id ) JOIN person mother ON ( mother.person_id '
           . '= child.mother_id )'
           ;
-is( $sa->_recurse_from(@j5), $match, 'join 5 (SCALAR reference for ON statement) ok' );
+is_same_sql_bind(
+  $sa->_recurse_from(@j5), [],
+  $match, [],
+  'join 5 (SCALAR reference for ON statement) ok'
+);
 
 my @j6 = (
     { child => 'person' },
@@ -157,3 +179,28 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->name, 'We Are Goth', 'Correct record returned');
 
+# test for warnings on delete of joined resultset
+$rs = $schema->resultset("CD")->search(
+    { 'artist.name' => 'Caterwauler McCrae' },
+    { join => [qw/artist/]}
+);
+my $tst_delete_warning;
+eval {
+    local $SIG{__WARN__} = sub { $tst_delete_warning = shift };
+    $rs->delete();
+};
+
+ok( ($@ || $tst_delete_warning), 'fail/warning on attempt to delete a join-ed resultset');
+
+# test for warnings on update of joined resultset
+$rs = $schema->resultset("CD")->search(
+    { 'artist.name' => 'Random Boy Band' },
+    { join => [qw/artist/]}
+);
+my $tst_update_warning;
+eval {
+    local $SIG{__WARN__} = sub { $tst_update_warning = shift };
+    $rs->update({ 'artist' => 1 });
+};
+
+ok( ($@ || $tst_update_warning), 'fail/warning on attempt to update a join-ed resultset');

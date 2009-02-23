@@ -4,7 +4,6 @@ use warnings;
 use Test::More qw(no_plan);
 use lib qw(t/lib);
 use DBICTest;
-use DBIx::Class::ResultClass::HashRefInflator;
 my $schema = DBICTest->init_schema();
 
 
@@ -62,6 +61,7 @@ sub check_cols_of {
 $schema->resultset('CD')->create({ title => 'Silence is golden', artist => 3, year => 2006 });
 
 # order_by to ensure both resultsets have the rows in the same order
+# also check result_class-as-an-attribute syntax
 my $rs_dbic = $schema->resultset('CD')->search(undef,
     {
         prefetch    => [ qw/ artist tracks / ],
@@ -72,9 +72,9 @@ my $rs_hashrefinf = $schema->resultset('CD')->search(undef,
     {
         prefetch    => [ qw/ artist tracks / ],
         order_by    => [ 'me.cdid', 'tracks.position' ],
+        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
     }
 );
-$rs_hashrefinf->result_class('DBIx::Class::ResultClass::HashRefInflator');
 
 my @dbic        = $rs_dbic->all;
 my @hashrefinf  = $rs_hashrefinf->all;
@@ -98,8 +98,8 @@ $rs_hashrefinf = $schema->resultset ('Artist')->search ({ 'me.artistid' => 1}, {
     select   => [qw/name   tracks.title      tracks.cd       /],
     as       => [qw/name   cds.tracks.title  cds.tracks.cd   /],
     order_by => [qw/cds.cdid tracks.trackid/],
+    result_class => 'DBIx::Class::ResultClass::HashRefInflator',
 });
-$rs_hashrefinf->result_class('DBIx::Class::ResultClass::HashRefInflator');
 
 @dbic = map { $_->tracks->all } ($rs_dbic->first->cds->all);
 @hashrefinf  = $rs_hashrefinf->all;

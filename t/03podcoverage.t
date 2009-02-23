@@ -29,6 +29,11 @@ my $exceptions = {
               mk_classaccessor/
         ]
     },
+    'DBIx::Class::Row' => {
+        ignore => [
+           qw( MULTICREATE_DEBUG )
+        ],
+    },
     'DBIx::Class::Storage' => {
         ignore => [
             qw(cursor)

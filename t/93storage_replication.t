@@ -249,6 +249,7 @@ $replicated
 $replicated->replicate;
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
+$replicated->schema->storage->pool->validate_replicants;
 
 ## Make sure we can read the data.
 
@@ -311,7 +312,7 @@ is $artist3->name, "Dead On Arrival"
     => 'Found expected name for first result';
 
 is $replicated->schema->storage->pool->connected_replicants => 1
-    => "One replicant reconnected to handle the job";
+    => "At Least One replicant reconnected to handle the job";
     
 ## What happens when we try to select something that doesn't exist?
 
@@ -355,6 +356,7 @@ ok $replicated->schema->resultset('Artist')->find(2)
 
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
+$replicated->schema->storage->pool->validate_replicants;
 
 ok $replicated->schema->resultset('Artist')->find(2)
     => 'Returned to replicates';
@@ -575,6 +577,9 @@ ok $replicated->schema->resultset('Artist')->find(1)
 
 ## Delete the old database files
 $replicated->cleanup;
+
+use Data::Dump qw/dump/;
+#warn dump $replicated->schema->storage->read_handler;
 
 
 

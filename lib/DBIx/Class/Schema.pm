@@ -89,7 +89,7 @@ loads them into the appropriate Result classes using for you. The
 matching is done by assuming the package name of the ResultSet class
 is the same as that of the Result class.
 
-You will be warned if ResulSet classes are discovered for which there
+You will be warned if ResultSet classes are discovered for which there
 are no matching Result classes like this:
 
   load_namespaces found ResultSet class $classname with no corresponding Result class
@@ -208,13 +208,16 @@ sub load_namespaces {
     local *Class::C3::reinitialize = sub { };
     use warnings 'redefine';
 
-    foreach my $result (keys %results) {
+    # ensure classes are loaded and fetch properly sorted classes
+    $class->ensure_class_loaded($_) foreach(values %results);
+    my @subclass_last = sort { $results{$a}->isa($results{$b}) } keys(%results);
+    
+    foreach my $result (@subclass_last) {
       my $result_class = $results{$result};
-      $class->ensure_class_loaded($result_class);
-      $result_class->source_name($result) unless $result_class->source_name;
 
       my $rs_class = delete $resultsets{$result};
       my $rs_set = $result_class->resultset_class;
+      
       if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
         if($rs_class && $rs_class ne $rs_set) {
           warn "We found ResultSet class '$rs_class' for '$result', but it seems "
@@ -226,7 +229,9 @@ sub load_namespaces {
         $result_class->resultset_class($rs_class);
       }
 
-      push(@to_register, [ $result_class->source_name, $result_class ]);
+      my $source_name = $result_class->source_name || $result;
+
+      push(@to_register, [ $source_name, $result_class ]);
     }
   }
 
@@ -439,6 +444,13 @@ L</create_ddl_dir> or L</deploy>.
 For an example of what you can do with this, see 
 L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
 
+Note that sqlt_deploy_hook is called by L</deployment_statements>, which in turn
+is called before L</deploy>. Therefore the hook can be used only to manipulate
+the L<SQL::Translator::Schema> object before it is turned into SQL fed to the
+database. If you want to execute post-deploy statements which can not be generated
+by L<SQL::Translator>, the currently suggested method is to overload L</deploy>
+and use L<dbh_do|DBIx::Class::Storage::DBI/dbh_do>.
+
 =head1 METHODS
 
 =head2 connect
@@ -571,6 +583,14 @@ See L<DBIx::Class::Storage/"txn_do"> for more information.
 
 This interface is preferred over using the individual methods L</txn_begin>,
 L</txn_commit>, and L</txn_rollback> below.
+
+WARNING: If you are connected with C<AutoCommit => 0> the transaction is
+considered nested, and you will still need to call L</txn_commit> to write your
+changes when appropriate. You will also want to connect with C<auto_savepoint =>
+1> to get partial rollback to work, if the storage driver for your database
+supports it.
+
+Connecting with C<AutoCommit => 1> is recommended.
 
 =cut
 
@@ -707,26 +727,15 @@ wantarray context if you want the PKs automatically created.
 
 sub populate {
   my ($self, $name, $data) = @_;
-  my $rs = $self->resultset($name);
-  my @names = @{shift(@$data)};
-  if(defined wantarray) {
-    my @created;
-    foreach my $item (@$data) {
-      my %create;
-      @create{@names} = @$item;
-      push(@created, $rs->create(\%create));
+  if(my $rs = $self->resultset($name)) {
+    if(defined wantarray) {
+        return $rs->populate($data);
+    } else {
+        $rs->populate($data);
     }
-    return @created;
+  } else {
+      $self->throw_exception("$name is not a resultset"); 
   }
-  my @results_to_create;
-  foreach my $datum (@$data) {
-    my %result_to_create;
-    foreach my $index (0..$#names) {
-      $result_to_create{$names[$index]} = $$datum[$index];
-    }
-    push @results_to_create, \%result_to_create;
-  }
-  $rs->populate(\@results_to_create);
 }
 
 =head2 connection
@@ -1054,7 +1063,7 @@ If no arguments are passed, then the following default values are used:
 
 =item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
 
-=item version    - $schema->VERSION
+=item version    - $schema->schema_version
 
 =item directory  - './'
 
@@ -1239,7 +1248,7 @@ sub register_extra_source {
 sub _register_source {
   my ($self, $moniker, $source, $params) = @_;
 
-  %$source = %{ $source->new( { %$source, source_name => $moniker }) };
+  $source = $source->new({ %$source, source_name => $moniker });
 
   my %reg = %{$self->source_registrations};
   $reg{$moniker} = $source;

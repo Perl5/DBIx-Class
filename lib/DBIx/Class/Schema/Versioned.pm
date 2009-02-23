@@ -519,9 +519,9 @@ sub _create_db_to_schema_diff {
     return;
   }
 
-  eval 'require SQL::Translator "0.09"';
+  eval 'require SQL::Translator "0.09003"';
   if ($@) {
-    $self->throw_exception("SQL::Translator 0.09 required");
+    $self->throw_exception("SQL::Translator 0.09003 required");
   }
 
   my $db_tr = SQL::Translator->new({ 
