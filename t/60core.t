@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 90;
+plan tests => 95;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -178,6 +178,18 @@ $cd = $schema->resultset("CD")->search(undef, { include_columns => [ 'artist.nam
 is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
 is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
 
+# check if new syntax +columns also works for this
+$cd = $schema->resultset("CD")->search(undef, { '+columns' => [ 'artist.name' ], join => [ 'artist' ] })->find(1);
+
+is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
+is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
+
+# check if new syntax for +columns select specifiers works for this
+$cd = $schema->resultset("CD")->search(undef, { '+columns' => [ {artist_name => 'artist.name'} ], join => [ 'artist' ] })->find(1);
+
+is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
+is($cd->get_column('artist_name'), 'Caterwauler McCrae', 'Additional column returned');
+
 # update_or_insert
 $new = $schema->resultset("Track")->new( {
   trackid => 100,
@@ -229,7 +241,7 @@ my $distinct_rs = $schema->resultset("CD")->search($search, { join => 'tags', di
 cmp_ok($distinct_rs->all, '==', 4, 'DISTINCT search with OR ok');
 
 SKIP: {
-  skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
+  skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 2
     if $is_broken_sqlite;
 
   my $tcount = $schema->resultset("Track")->search(
@@ -241,7 +253,15 @@ SKIP: {
   );
   cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT ok');
 
+  $tcount = $schema->resultset("Track")->search(
+    {},
+    {       
+       columns => {count => {count => {distinct => ['position', 'title']}}},
+    }
+  );
+  cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT using column syntax ok');
 }
+
 my $tag_rs = $schema->resultset('Tag')->search(
                [ { 'me.tag' => 'Cheesy' }, { 'me.tag' => 'Blue' } ]);
 

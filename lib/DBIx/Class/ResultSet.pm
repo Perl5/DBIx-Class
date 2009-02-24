@@ -2283,97 +2283,127 @@ sub _resolved_attrs {
   my $self = shift;
   return $self->{_attrs} if $self->{_attrs};
 
-  my $attrs = { %{$self->{attrs}||{}} };
+  my $attrs  = { %{ $self->{attrs} || {} } };
   my $source = $self->result_source;
-  my $alias = $attrs->{alias};
+  my $alias  = $attrs->{alias};
 
   $attrs->{columns} ||= delete $attrs->{cols} if exists $attrs->{cols};
-  if ($attrs->{columns}) {
-    delete $attrs->{as};
-  } elsif (!$attrs->{select}) {
-    $attrs->{columns} = [ $source->columns ];
+  my @colbits;
+
+  # build columns (as long as select isn't set) into a set of as/select hashes
+  unless ( $attrs->{select} ) {
+      @colbits = map {
+          ( ref($_) eq 'HASH' ) ? $_
+            : {
+              (
+                  /^\Q${alias}.\E(.+)$/ ? $1
+                  : $_
+                ) => ( /\./ ? $_ : "${alias}.$_" )
+            }
+      } ( ref($attrs->{columns}) eq 'ARRAY' ) ? @{ delete $attrs->{columns}} : (delete $attrs->{columns} || $source->columns );
   }
- 
-  $attrs->{select} = 
-    ($attrs->{select}
-      ? (ref $attrs->{select} eq 'ARRAY'
-          ? [ @{$attrs->{select}} ]
-          : [ $attrs->{select} ])
-      : [ map { m/\./ ? $_ : "${alias}.$_" } @{delete $attrs->{columns}} ]
+  # add the additional columns on
+  foreach ( 'include_columns', '+columns' ) {
+      push @colbits, map {
+          ( ref($_) eq 'HASH' )
+            ? $_
+            : { ( split( /\./, $_ ) )[-1] => ( /\./ ? $_ : "${alias}.$_" ) }
+      } ( ref($attrs->{$_}) eq 'ARRAY' ) ? @{ delete $attrs->{$_} } : delete $attrs->{$_} if ( $attrs->{$_} );
+  }
+
+  # start with initial select items
+  if ( $attrs->{select} ) {
+    $attrs->{select} =
+        ( ref $attrs->{select} eq 'ARRAY' )
+      ? [ @{ $attrs->{select} } ]
+      : [ $attrs->{select} ];
+    $attrs->{as} = (
+      $attrs->{as}
+      ? (
+        ref $attrs->{as} eq 'ARRAY'
+        ? [ @{ $attrs->{as} } ]
+        : [ $attrs->{as} ]
+        )
+      : [ map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{ $attrs->{select} } ]
     );
-  $attrs->{as} =
-    ($attrs->{as}
-      ? (ref $attrs->{as} eq 'ARRAY'
-          ? [ @{$attrs->{as}} ]
-          : [ $attrs->{as} ])
-      : [ map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{$attrs->{select}} ]
-    );
-  
+  }
+  else {
+
+    # otherwise we intialise select & as to empty
+    $attrs->{select} = [];
+    $attrs->{as}     = [];
+  }
+
+  # now add colbits to select/as
+  push( @{ $attrs->{select} }, map { values( %{$_} ) } @colbits );
+  push( @{ $attrs->{as} },     map { keys( %{$_} ) } @colbits );
+
   my $adds;
-  if ($adds = delete $attrs->{include_columns}) {
+  if ( $adds = delete $attrs->{'+select'} ) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push(@{$attrs->{select}}, @$adds);
-    push(@{$attrs->{as}}, map { m/([^.]+)$/; $1 } @$adds);
+    push(
+      @{ $attrs->{select} },
+      map { /\./ || ref $_ ? $_ : "${alias}.$_" } @$adds
+    );
   }
-  if ($adds = delete $attrs->{'+select'}) {
+  if ( $adds = delete $attrs->{'+as'} ) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push(@{$attrs->{select}},
-           map { /\./ || ref $_ ? $_ : "${alias}.$_" } @$adds);
-  }
-  if (my $adds = delete $attrs->{'+as'}) {
-    $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push(@{$attrs->{as}}, @$adds);
+    push( @{ $attrs->{as} }, @$adds );
   }
 
   $attrs->{from} ||= [ { $self->{attrs}{alias} => $source->from } ];
 
-  if (exists $attrs->{join} || exists $attrs->{prefetch}) {
+  if ( exists $attrs->{join} || exists $attrs->{prefetch} ) {
     my $join = delete $attrs->{join} || {};
 
-    if (defined $attrs->{prefetch}) {
-      $join = $self->_merge_attr(
-        $join, $attrs->{prefetch}
-      );
-      
+    if ( defined $attrs->{prefetch} ) {
+      $join = $self->_merge_attr( $join, $attrs->{prefetch} );
+
     }
 
-    $attrs->{from} =   # have to copy here to avoid corrupting the original
+    $attrs->{from} =    # have to copy here to avoid corrupting the original
       [
-        @{$attrs->{from}}, 
-        $source->resolve_join($join, $alias, { %{$attrs->{seen_join}||{}} })
+      @{ $attrs->{from} },
+      $source->resolve_join(
+        $join, $alias, { %{ $attrs->{seen_join} || {} } }
+      )
       ];
 
   }
 
-  $attrs->{group_by} ||= $attrs->{select} if delete $attrs->{distinct};
-  if ($attrs->{order_by}) {
-    $attrs->{order_by} = (ref($attrs->{order_by}) eq 'ARRAY'
-                           ? [ @{$attrs->{order_by}} ]
-                           : [ $attrs->{order_by} ]);
-  } else {
-    $attrs->{order_by} = [];    
+  $attrs->{group_by} ||= $attrs->{select}
+    if delete $attrs->{distinct};
+  if ( $attrs->{order_by} ) {
+    $attrs->{order_by} = (
+      ref( $attrs->{order_by} ) eq 'ARRAY'
+      ? [ @{ $attrs->{order_by} } ]
+      : [ $attrs->{order_by} ]
+    );
+  }
+  else {
+    $attrs->{order_by} = [];
   }
 
   my $collapse = $attrs->{collapse} || {};
-  if (my $prefetch = delete $attrs->{prefetch}) {
-    $prefetch = $self->_merge_attr({}, $prefetch);
+  if ( my $prefetch = delete $attrs->{prefetch} ) {
+    $prefetch = $self->_merge_attr( {}, $prefetch );
     my @pre_order;
     my $seen = { %{ $attrs->{seen_join} || {} } };
-    foreach my $p (ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch)) {
+    foreach my $p ( ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch) ) {
+
       # bring joins back to level of current class
-      my @prefetch = $source->resolve_prefetch(
-        $p, $alias, $seen, \@pre_order, $collapse
-      );
-      push(@{$attrs->{select}}, map { $_->[0] } @prefetch);
-      push(@{$attrs->{as}}, map { $_->[1] } @prefetch);
+      my @prefetch =
+        $source->resolve_prefetch( $p, $alias, $seen, \@pre_order, $collapse );
+      push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
+      push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
     }
-    push(@{$attrs->{order_by}}, @pre_order);
+    push( @{ $attrs->{order_by} }, @pre_order );
   }
   $attrs->{collapse} = $collapse;
 
-  if ($attrs->{page}) {
+  if ( $attrs->{page} ) {
     $attrs->{offset} ||= 0;
-    $attrs->{offset} += ($attrs->{rows} * ($attrs->{page} - 1));
+    $attrs->{offset} += ( $attrs->{rows} * ( $attrs->{page} - 1 ) );
   }
 
   return $self->{_attrs} = $attrs;
@@ -2550,10 +2580,36 @@ recommended syntax.
 
 =back
 
-Shortcut to request a particular set of columns to be retrieved.  Adds
-C<me.> onto the start of any column without a C<.> in it and sets C<select>
-from that, then auto-populates C<as> from C<select> as normal. (You may also
-use the C<cols> attribute, as in earlier versions of DBIC.)
+Shortcut to request a particular set of columns to be retrieved. Each
+column spec may be a string (a table column name), or a hash (in which
+case the key is the C<as> value, and the value is used as the C<select>
+expression). Adds C<me.> onto the start of any column without a C<.> in
+it and sets C<select> from that, then auto-populates C<as> from
+C<select> as normal. (You may also use the C<cols> attribute, as in
+earlier versions of DBIC.)
+
+=head2 +columns
+
+=over 4
+
+=item Value: \@columns
+
+=back
+
+Indicates additional columns to be selected from storage. Works the same
+as L</columns> but adds columns to the selection. (You may also use the
+C<include_columns> attribute, as in earlier versions of DBIC). For
+example:-
+
+  $schema->resultset('CD')->search(undef, {
+    '+columns' => ['artist.name'],
+    join => ['artist']
+  });
+
+would return all CDs and include a 'name' column to the information
+passed to object inflation. Note that the 'artist' is the name of the
+column (or relationship) accessor, and 'name' is the name of the column
+accessor in the related table.
 
 =head2 include_columns
 
@@ -2563,17 +2619,7 @@ use the C<cols> attribute, as in earlier versions of DBIC.)
 
 =back
 
-Shortcut to include additional columns in the returned results - for example
-
-  $schema->resultset('CD')->search(undef, {
-    include_columns => ['artist.name'],
-    join => ['artist']
-  });
-
-would return all CDs and include a 'name' column to the information
-passed to object inflation. Note that the 'artist' is the name of the
-column (or relationship) accessor, and 'name' is the name of the column
-accessor in the related table.
+Deprecated.  Acts as a synonym for L</+columns> for backward compatibility.
 
 =head2 select
 

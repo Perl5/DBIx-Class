@@ -115,3 +115,12 @@ for my $index (0 .. $#hashrefinf) {
         is ($track->get_column ($col), $datahashref->{cds}{tracks}{$col}, "Correct track '$col'");
     }
 }
+
+# check for same query as above but using extended columns syntax
+$rs_hashrefinf = $schema->resultset ('Artist')->search ({ 'me.artistid' => 1}, {
+    join     => { cds => 'tracks' },
+    columns  => {name => 'name', 'cds.tracks.title' => 'tracks.title', 'cds.tracks.cd' => 'tracks.cd'},
+    order_by => [qw/cds.cdid tracks.trackid/],
+});
+$rs_hashrefinf->result_class('DBIx::Class::ResultClass::HashRefInflator');
+is_deeply [$rs_hashrefinf->all], \@hashrefinf, 'Check query using extended columns syntax';
