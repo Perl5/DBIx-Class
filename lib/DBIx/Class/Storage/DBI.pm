@@ -1775,7 +1775,7 @@ sub deployment_statements {
   $type ||= $self->sqlt_type;
   $version ||= $schema->schema_version || '1.x';
   $dir ||= './';
-  my $filename = $schema->ddl_filename($type, $dir, $version);
+  my $filename = $schema->ddl_filename($type, $version, $dir);
   if(-f $filename)
   {
       my $file;
