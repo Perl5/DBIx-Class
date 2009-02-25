@@ -209,7 +209,7 @@ sub related_resultset {
         if (ref $_ eq 'HASH') {
           my $hash;
           foreach my $key (keys %$_) {
-            my $newkey = $key =~ /\./ ? "me.$key" : $key;
+            my $newkey = $key !~ /\./ ? "me.$key" : $key;
             $hash->{$newkey} = $_->{$key};
           }
           $hash;
