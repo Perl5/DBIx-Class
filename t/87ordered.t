@@ -42,11 +42,15 @@ foreach my $group_id (1..4) {
 my $group_3 = $employees->search({group_id=>3});
 my $to_group = 1;
 my $to_pos = undef;
-while (my $employee = $group_3->next) {
-	$employee->discard_changes;     # since we are effective shift()ing the $rs
-	$employee->move_to_group($to_group, $to_pos);
-	$to_pos++;
-	$to_group = $to_group==1 ? 2 : 1;
+# now that we have transactions we need to work around stupid sqlite
+{
+  my @empl = $group_3->all;
+  while (my $employee = shift @empl) {
+    $employee->discard_changes;     # since we are effective shift()ing the $rs while doing this
+    $employee->move_to_group($to_group, $to_pos);
+    $to_pos++;
+    $to_group = $to_group==1 ? 2 : 1;
+  }
 }
 foreach my $group_id (1..4) {
     my $group_employees = $employees->search({group_id=>$group_id});
@@ -124,12 +128,17 @@ $to_group = 1;
 my $to_group_2_base = 7;
 my $to_group_2 = 1;
 $to_pos = undef;
-while (my $employee = $group_4->next) {
-	$employee->move_to_group({group_id_2=>$to_group, group_id_3=>$to_group_2}, $to_pos);
-	$to_pos++;
+
+# now that we have transactions we need to work around stupid sqlite
+{
+  my @empl = $group_3->all;
+  while (my $employee = shift @empl) {
+    $employee->move_to_group({group_id_2=>$to_group, group_id_3=>$to_group_2}, $to_pos);
+    $to_pos++;
     $to_group = ($to_group % 3) + 1;
     $to_group_2_base++;
     $to_group_2 = (ceil($to_group_2_base/3.0) %3) +1
+  }
 }
 foreach my $group_id_2 (1..4) {
     foreach my $group_id_3 (1..4) {

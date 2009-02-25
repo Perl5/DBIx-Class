@@ -349,8 +349,9 @@ sub move_to {
 
     my $position_column = $self->position_column;
 
-    # FIXME this needs to be wrapped in a transaction
     {
+        my $guard = $self->result_source->schema->txn_scope_guard;
+
         my ($direction, @between);
         if ( $from_position < $to_position ) {
             $direction = -1;
@@ -370,6 +371,8 @@ sub move_to {
 
         $self->_shift_siblings ($direction, @between);
         $self->_ordered_internal_update({ $position_column => $new_pos_val });
+
+        $guard->commit;
 
         return 1;
     }
@@ -412,8 +415,9 @@ sub move_to_group {
         return $self->move_to ($to_position);
     }
 
-    # FIXME this needs to be wrapped in a transaction
     {
+        my $guard = $self->result_source->schema->txn_scope_guard;
+
         # Move to end of current group to adjust siblings
         $self->move_last;
 
@@ -435,6 +439,8 @@ sub move_to_group {
         }
 
         $self->_ordered_internal_update;
+
+        $guard->commit;
 
         return 1;
     }
@@ -493,8 +499,9 @@ sub update {
         return $self->next::method( \%changes, @_ );
     }
 
-    # FIXME this needs to be wrapped in a transaction
     {
+        my $guard = $self->result_source->schema->txn_scope_guard;
+
         # if any of our grouping columns have been changed
         if (grep { exists $changes{$_} } ($self->_grouping_columns) ) {
 
@@ -522,7 +529,20 @@ sub update {
             $self->move_to(delete $changes{$position_column});
         }
 
-        return $self->next::method( \%changes, @_ );
+        my @res;
+        my $want = wantarray();
+        if (not defined $want) {
+            $self->next::method( \%changes, @_ );
+        }
+        elsif ($want) {
+            @res = $self->next::method( \%changes, @_ );
+        }
+        else {
+            $res[0] = $self->next::method( \%changes, @_ );
+        }
+
+        $guard->commit;
+        return $want ? @res : $res[0];
     }
 }
 
@@ -536,11 +556,25 @@ integrity of the positions.
 
 sub delete {
     my $self = shift;
-    # FIXME this needs to be wrapped in a transaction
-    {
-        $self->move_last;
-        return $self->next::method( @_ );
+
+    my $guard = $self->result_source->schema->txn_scope_guard;
+
+    $self->move_last;
+
+    my @res;
+    my $want = wantarray();
+    if (not defined $want) {
+        $self->next::method( @_ );
     }
+    elsif ($want) {
+        @res = $self->next::method( @_ );
+    }
+    else {
+        $res[0] = $self->next::method( @_ );
+    }
+
+    $guard->commit;
+    return $want ? @res : $res[0];
 }
 
 =head1 METHODS FOR EXTENDING ORDERED
@@ -818,7 +852,11 @@ could result in the position not being assigned correctly.
 
 =head1 AUTHOR
 
-Aran Deltac <bluefeet@cpan.org>
+ Original code framework
+   Aran Deltac <bluefeet@cpan.org>
+
+ Constraints support and code generalisation
+   Peter Rabbitson <ribasushi@cpan.org>
 
 =head1 LICENSE
 
