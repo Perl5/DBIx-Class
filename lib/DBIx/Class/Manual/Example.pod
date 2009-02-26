@@ -72,6 +72,8 @@ Now create some more directories:
 
   mkdir MyDatabase
   mkdir MyDatabase/Main
+  mkdir MyDatabase/Main/Result
+  mkdir MyDatabase/Main/ResultSet
 
 Then, create the following DBIx::Class::Schema classes:
 
@@ -79,47 +81,47 @@ MyDatabase/Main.pm:
     
   package MyDatabase::Main;
   use base qw/DBIx::Class::Schema/;
-  __PACKAGE__->load_classes(qw/Artist Cd Track/);
+  __PACKAGE__->load_namespaces;
 
   1;
 
 
-MyDatabase/Main/Artist.pm:
+MyDatabase/Main/Result/Artist.pm:
 
-  package MyDatabase::Main::Artist;
+  package MyDatabase::Main::Result::Artist;
   use base qw/DBIx::Class/;
   __PACKAGE__->load_components(qw/PK::Auto Core/);
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many('cds' => 'MyDatabase::Main::Cd');
+  __PACKAGE__->has_many('cds' => 'MyDatabase::Main::Result::Cd');
 
   1;
 
 
-MyDatabase/Main/Cd.pm:
+MyDatabase/Main/Result/Cd.pm:
 
-  package MyDatabase::Main::Cd;
+  package MyDatabase::Main::Result::Cd;
   use base qw/DBIx::Class/;
   __PACKAGE__->load_components(qw/PK::Auto Core/);
   __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/ cdid artist title/);
   __PACKAGE__->set_primary_key('cdid');
-  __PACKAGE__->belongs_to('artist' => 'MyDatabase::Main::Artist');
-  __PACKAGE__->has_many('tracks' => 'MyDatabase::Main::Track');
+  __PACKAGE__->belongs_to('artist' => 'MyDatabase::Main::Result::Artist');
+  __PACKAGE__->has_many('tracks' => 'MyDatabase::Main::Result::Track');
 
   1;
 
 
-MyDatabase/Main/Track.pm:
+MyDatabase/Main/Result/Track.pm:
 
-  package MyDatabase::Main::Track;
+  package MyDatabase::Main::Result::Track;
   use base qw/DBIx::Class/;
   __PACKAGE__->load_components(qw/PK::Auto Core/);
   __PACKAGE__->table('track');
   __PACKAGE__->add_columns(qw/ trackid cd title/);
   __PACKAGE__->set_primary_key('trackid');
-  __PACKAGE__->belongs_to('cd' => 'MyDatabase::Main::Cd');
+  __PACKAGE__->belongs_to('cd' => 'MyDatabase::Main::Result::Cd');
 
   1;
 
@@ -220,7 +222,6 @@ testdb.pl:
       },
       {
         join     => [qw/ cd /],
-        prefetch => [qw/ cd /]
       }
     );
     while (my $track = $rs->next) {
@@ -273,7 +274,6 @@ testdb.pl:
       },
       {
         join     => [qw/ artist /],
-        prefetch => [qw/ artist /]
       }
     );
     while (my $cd = $rs->next) {
@@ -358,11 +358,18 @@ working directory.  You may want to add the MyDatabase namespaces to
 The testdb.pl script is an excellent start for testing your database
 model.
 
+This example uses load_namespaces to load in the appropriate Row classes
+from the MyDatabase::Main::Result namespace, and any required resultset
+classes from the MyDatabase::Main::ResultSet namespace (although we
+created the directory in the directions above we did not add, or need to
+add, any resultset classes).
+
 =head1 TODO
 
 =head1 AUTHOR
 
   sc_ from irc.perl.org#dbix-class
   Kieren Diment <kd@totaldatasolution.com>
+  Nigel Metheringham <nigelm@cpan.org>
 
 =cut

@@ -51,12 +51,20 @@ sub has_custom_dsn {
 }
 
 sub _sqlite_dbfilename {
-	return "t/var/DBIxClass.db";
+    return "t/var/DBIxClass.db";
+}
+
+sub _sqlite_dbname {
+    my $self = shift;
+    my %args = @_;
+    return $self->_sqlite_dbfilename if $args{sqlite_use_file} or $ENV{"DBICTEST_SQLITE_USE_FILE"};
+	return ":memory:";
 }
 
 sub _database {
     my $self = shift;
-    my $db_file = $self->_sqlite_dbfilename;
+    my %args = @_;
+    my $db_file = $self->_sqlite_dbname(%args);
 
     unlink($db_file) if -e $db_file;
     unlink($db_file . "-journal") if -e $db_file . "-journal";
@@ -76,10 +84,10 @@ sub init_schema {
     my %args = @_;
 
     my $schema;
-
+    
     if ($args{compose_connection}) {
       $schema = DBICTest::Schema->compose_connection(
-                  'DBICTest', $self->_database
+                  'DBICTest', $self->_database(%args)
                 );
     } else {
       $schema = DBICTest::Schema->compose_namespace('DBICTest');
@@ -88,7 +96,7 @@ sub init_schema {
     	$schema->storage_type($args{storage_type});
     }    
     if ( !$args{no_connect} ) {
-      $schema = $schema->connect($self->_database);
+      $schema = $schema->connect($self->_database(%args));
       $schema->storage->on_connect_do(['PRAGMA synchronous = OFF'])
        unless $self->has_custom_dsn;
     }
@@ -124,7 +132,11 @@ sub deploy_schema {
         my $sql;
         { local $/ = undef; $sql = <IN>; }
         close IN;
-        ($schema->storage->dbh->do($_) || print "Error on SQL: $_\n") for split(/;\n/, $sql);
+        for my $chunk ( split (/;\s*\n+/, $sql) ) {
+          if ( $chunk =~ / ^ (?! --\s* ) \S /xm ) {  # there is some real sql in the chunk - a non-space at the start of the string which is not a comment
+            $schema->storage->dbh->do($chunk) or print "Error on SQL: $chunk\n";
+          }
+        }
     }
     return;
 }
@@ -259,8 +271,8 @@ sub populate_schema {
     ]);
 
     $schema->populate('Event', [
-        [ qw/id starts_at created_on/ ],
-        [ 1, '2006-04-25 22:24:33', '2006-06-22 21:00:05'],
+        [ qw/id starts_at created_on varchar_date varchar_datetime skip_inflation/ ],
+        [ 1, '2006-04-25 22:24:33', '2006-06-22 21:00:05', '2006-07-23', '2006-05-22 19:05:07', '2006-04-21 18:04:06'],
     ]);
 
     $schema->populate('Link', [
@@ -303,10 +315,10 @@ sub populate_schema {
     ]);
 
     $schema->populate('BooksInLibrary', [
-        [ qw/id owner title source/ ],
-        [ 1, 1, "Programming Perl", "Library" ],
-        [ 2, 1, "Dynamical Systems", "Library" ],
-        [ 3, 2, "Best Recipe Cookbook", "Library" ],
+        [ qw/id owner title source price/ ],
+        [ 1, 1, "Programming Perl", "Library", 23 ],
+        [ 2, 1, "Dynamical Systems", "Library",  37 ],
+        [ 3, 2, "Best Recipe Cookbook", "Library", 65 ],
     ]);
 }
 

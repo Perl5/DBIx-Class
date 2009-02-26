@@ -19,6 +19,15 @@ __PACKAGE__->add_columns(
     size      => 100,
     is_nullable => 1,
   },
+  rank => {
+    data_type => 'integer',
+    default_value => 13,
+  },
+  charfield => {
+    data_type => 'char',
+    size => 10,
+    is_nullable => 1,
+  },
 );
 __PACKAGE__->set_primary_key('artistid');
 
@@ -44,12 +53,17 @@ __PACKAGE__->has_many(
   { cascade_copy => 0 } # this would *so* not make sense
 );
 
+__PACKAGE__->has_many(
+    artist_to_artwork => 'DBICTest::Schema::Artwork_to_Artist' => 'artist_id'
+);
+__PACKAGE__->many_to_many('artworks', 'artist_to_artwork', 'artwork');
+
+
 sub sqlt_deploy_hook {
   my ($self, $sqlt_table) = @_;
 
-
   if ($sqlt_table->schema->translator->producer_type =~ /SQLite$/ ) {
-    $sqlt_table->add_index( name => 'artist_name', fields => ['name'] )
+    $sqlt_table->add_index( name => 'artist_name_hookidx', fields => ['name'] )
       or die $sqlt_table->error;
   }
 }

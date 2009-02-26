@@ -1,5 +1,4 @@
-package # hide from PAUSE
-    SQL::Translator::Parser::DBIx::Class;
+package SQL::Translator::Parser::DBIx::Class;
 
 # AUTHOR: Jess Robinson
 
@@ -9,7 +8,8 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use vars qw($DEBUG @EXPORT_OK);
+use vars qw($DEBUG $VERSION @EXPORT_OK);
+$VERSION = '1.10';
 $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
@@ -45,7 +45,7 @@ sub parse {
     my $schema      = $tr->schema;
     my $table_no    = 0;
 
-    $schema->name( ref($dbicschema) . " v" . ($dbicschema->VERSION || '1.x'))
+    $schema->name( ref($dbicschema) . " v" . ($dbicschema->schema_version || '1.x'))
       unless ($schema->name);
 
     my %seen_tables;
@@ -66,7 +66,18 @@ sub parse {
     }
 
 
-    foreach my $moniker (sort @monikers)
+    my(@table_monikers, @view_monikers);
+    for my $moniker (@monikers){
+      my $source = $dbicschema->source($moniker);
+       if ( $source->isa('DBIx::Class::ResultSource::Table') ) {
+         push(@table_monikers, $moniker);
+      } elsif( $source->isa('DBIx::Class::ResultSource::View') ){
+          next if $source->is_virtual;
+         push(@view_monikers, $moniker);
+      }
+    }
+
+    foreach my $moniker (sort @table_monikers)
     {
         my $source = $dbicschema->source($moniker);
         
@@ -149,7 +160,8 @@ sub parse {
                 $fk_constraint = $rel_info->{attrs}{is_foreign_key_constraint};
             }
             # it can not be multi
-            elsif ( $rel_info->{attrs}{accessor} eq 'multi' ) {
+            elsif ( $rel_info->{attrs}{accessor}
+                    && $rel_info->{attrs}{accessor} eq 'multi' ) {
                 $fk_constraint = 0;
             }
             # if indeed single, check if all self.columns are our primary keys.
@@ -198,8 +210,8 @@ sub parse {
                                     fields           => \@keys,
                                     reference_fields => \@refkeys,
                                     reference_table  => $rel_table,
-                                    on_delete        => $cascade->{delete},
-                                    on_update        => $cascade->{update},
+                                    on_delete        => uc ($cascade->{delete} || ''),
+                                    on_update        => uc ($cascade->{update} || ''),
                                     (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
                   );
                     
@@ -214,8 +226,25 @@ sub parse {
             }
         }
 		
+        $source->_invoke_sqlt_deploy_hook($table);
+    }
+
+    foreach my $moniker (sort @view_monikers)
+    {
+        my $source = $dbicschema->source($moniker);
+        # Skip custom query sources
+        next if ref($source->name);
+
+        # Its possible to have multiple DBIC source using same table
+        next if $seen_tables{$source->name}++;
+
+        my $view = $schema->add_view(
+          name => $source->name,
+          fields => [ $source->columns ],
+          $source->view_definition ? ( 'sql' => $source->view_definition ) : ()
+        );
         if ($source->result_class->can('sqlt_deploy_hook')) {
-          $source->result_class->sqlt_deploy_hook($table);
+          $source->result_class->sqlt_deploy_hook($view);
         }
     }
 
@@ -227,3 +256,58 @@ sub parse {
 }
 
 1;
+
+=head1 NAME
+
+SQL::Translator::Parser::DBIx::Class - Create a SQL::Translator schema
+from a DBIx::Class::Schema instance
+
+=head1 SYNOPSIS
+
+ ## Via DBIx::Class
+ use MyApp::Schema;
+ my $schema = MyApp::Schema->connect("dbi:SQLite:something.db");
+ $schema->create_ddl_dir();
+ ## or
+ $schema->deploy();
+
+ ## Standalone
+ use MyApp::Schema;
+ use SQL::Translator;
+ 
+ my $schema = MyApp::Schema->connect;
+ my $trans  = SQL::Translator->new (
+      parser      => 'SQL::Translator::Parser::DBIx::Class',
+      parser_args => { package => $schema },
+      producer    => 'SQLite',
+     ) or die SQL::Translator->error;
+ my $out = $trans->translate() or die $trans->error;
+
+=head1 DESCRIPTION
+
+This class requires L<SQL::Translator> installed to work.
+
+C<SQL::Translator::Parser::DBIx::Class> reads a DBIx::Class schema,
+interrogates the columns, and stuffs it all in an $sqlt_schema object.
+
+It's primary use is in deploying database layouts described as a set
+of L<DBIx::Class> classes, to a database. To do this, see the
+L<DBIx::Class::Schema/deploy> method.
+
+This can also be achieved by having DBIx::Class export the schema as a
+set of SQL files ready for import into your database, or passed to
+other machines that need to have your application installed but don't
+have SQL::Translator installed. To do this see the
+L<DBIx::Class::Schema/create_ddl_dir> method.
+
+=head1 SEE ALSO
+
+L<SQL::Translator>, L<DBIx::Class::Schema>
+
+=head1 AUTHORS
+
+Jess Robinson
+
+Matt S Trout
+
+Ash Berlin

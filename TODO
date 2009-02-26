@@ -4,19 +4,13 @@
   - find why XSUB dumper kills schema in Catalyst (may be Pg only?)
 
 2006-04-11 by castaway
- - using PK::Auto should set is_auto_increment for the PK columns, so that copy() "just works"
  - docs of copy() should say that is_auto_increment is essential for auto_incrementing keys
 
 2006-03-25 by mst
-  - Refactor ResultSet::new to be less hairy
-    - we should move the setup of select, as, and from out of here
-      - these should be local rs attrs, not main attrs, and extra joins
-        provided on search should be merged
   - find a way to un-wantarray search without breaking compat
   - audit logging component
   - delay relationship setup if done via ->load_classes
   - double-sided relationships
-  - incremental deploy
   - make short form of class specifier in relationships work
 
 2006-01-31 by bluefeet
@@ -29,12 +23,6 @@
 
 2006-02-07 by castaway
  - Extract DBIC::SQL::Abstract into a separate module for CPAN
- - Chop PK::Auto::Foo up to have PK::Auto refer to an appropriate
-   DBIx::Storage::DBI::Foo, which will be loaded on connect from Driver info?
-(done -> 0.06001!)
- - Add deploy method to Schema, which will create DB tables from Schema, via
-   SQLT
-(sorta done)
 
 2006-03-18 by bluefeet
  - Support table locking.
@@ -58,3 +46,19 @@
  rows: modify to be an alias that gets used to populate either as appropriate, 
        if you haven't specified one of the others
 
+2008-10-30 by ribasushi
+ Leftovers for next dev-release
+  - Rewrite the test suite to rely on $schema->deploy, allowing for seamless
+    testing of various RDBMS using the same tests
+  - Proper support of default create (i.e. create({}) ), with proper workarounds
+    for different Storage's
+  - Automatically infer quote_char/name_sep from $schema->storage
+  - Finally incorporate View support (needs real tests)
+  - Fix and properly test chained search attribute merging
+
+2008-11-07 by ribasushi
+  - Be loud when a relationship resolution fails because we did not select/as
+    a neccessary pk
+  - Recursive update() (all code seems to be already available)
+  - $rs->populate changes its syntax depending on wantarray context (BAD)
+    Also the interface differs from $schema->populate (not so good)

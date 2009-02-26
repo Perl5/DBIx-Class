@@ -14,7 +14,7 @@
 
 # for developers only :)
 ^TODO$
-^VERSIONING\.SKETCH$
+^Features_09$
 
 # Avoid Module::Build generated and utility files.
 \bBuild$
@@ -41,8 +41,9 @@
 # Skip maint stuff
 ^maint/
 
-# Avoid copies to .orig
+# Avoid patch remnants
 \.orig$
+\.rej$
 
 # Dont use Module::Build anymore
 ^Build.PL$

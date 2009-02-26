@@ -11,11 +11,11 @@ my ($create_sql, $dsn, $user, $pass);
 if (exists $ENV{DBICTEST_PG_DSN}) {
   ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
-  $create_sql = "CREATE TABLE artist (artistid serial PRIMARY KEY, name VARCHAR(100), charfield CHAR(10))";
+  $create_sql = "CREATE TABLE artist (artistid serial PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10))";
 } elsif (exists $ENV{DBICTEST_MYSQL_DSN}) {
   ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
-  $create_sql = "CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), charfield CHAR(10)) ENGINE=InnoDB";
+  $create_sql = "CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10)) ENGINE=InnoDB";
 } else {
   plan skip_all => 'Set DBICTEST_(PG|MYSQL)_DSN _USER and _PASS if you want to run savepoint tests';
 }
@@ -30,7 +30,11 @@ $schema->storage->debugobj($stats);
 
 $schema->storage->debug(1);
 
-$schema->storage->dbh->do ($create_sql);
+{
+    local $SIG{__WARN__} = sub {};
+    $schema->storage->dbh->do ('DROP TABLE IF EXISTS artist');
+    $schema->storage->dbh->do ($create_sql);
+}
 
 $schema->resultset('Artist')->create({ name => 'foo' });
 

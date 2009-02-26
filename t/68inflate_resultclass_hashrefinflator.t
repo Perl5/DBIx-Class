@@ -3,10 +3,7 @@ use warnings;
 
 use Test::More qw(no_plan);
 use lib qw(t/lib);
-use Scalar::Util qw/blessed/;
-use DateTime;
 use DBICTest;
-use DBIx::Class::ResultClass::HashRefInflator;
 my $schema = DBICTest->init_schema();
 
 
@@ -64,6 +61,7 @@ sub check_cols_of {
 $schema->resultset('CD')->create({ title => 'Silence is golden', artist => 3, year => 2006 });
 
 # order_by to ensure both resultsets have the rows in the same order
+# also check result_class-as-an-attribute syntax
 my $rs_dbic = $schema->resultset('CD')->search(undef,
     {
         prefetch    => [ qw/ artist tracks / ],
@@ -74,9 +72,9 @@ my $rs_hashrefinf = $schema->resultset('CD')->search(undef,
     {
         prefetch    => [ qw/ artist tracks / ],
         order_by    => [ 'me.cdid', 'tracks.position' ],
+        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
     }
 );
-$rs_hashrefinf->result_class('DBIx::Class::ResultClass::HashRefInflator');
 
 my @dbic        = $rs_dbic->all;
 my @hashrefinf  = $rs_hashrefinf->all;
@@ -100,8 +98,8 @@ $rs_hashrefinf = $schema->resultset ('Artist')->search ({ 'me.artistid' => 1}, {
     select   => [qw/name   tracks.title      tracks.cd       /],
     as       => [qw/name   cds.tracks.title  cds.tracks.cd   /],
     order_by => [qw/cds.cdid tracks.trackid/],
+    result_class => 'DBIx::Class::ResultClass::HashRefInflator',
 });
-$rs_hashrefinf->result_class('DBIx::Class::ResultClass::HashRefInflator');
 
 @dbic = map { $_->tracks->all } ($rs_dbic->first->cds->all);
 @hashrefinf  = $rs_hashrefinf->all;
@@ -118,22 +116,11 @@ for my $index (0 .. $#hashrefinf) {
     }
 }
 
-# Test the data inflator
-
-$schema->class('CD')->inflate_column( 'year',
-    { inflate => sub { DateTime->new( year => shift ) },
-      deflate => sub { shift->year } }
-);
-
-my $cd_rs = $schema->resultset("CD")->search ({cdid => 3});
-$cd_rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
-
-my $cd = $cd_rs->first;
-ok ( (not blessed $cd->{year}), "Plain string returned for year");
-is ( $cd->{year}, '1997', "We are looking at the right year");
-
-# try it again with inflation requested
-local $DBIx::Class::ResultClass::HashRefInflator::inflate_data = 1;
-my $cd2 = $cd_rs->first;
-isa_ok ($cd2->{year}, 'DateTime', "Inflated object");
-is ($cd2->{year}, DateTime->new ( year => 1997 ), "Correct year was inflated");
+# check for same query as above but using extended columns syntax
+$rs_hashrefinf = $schema->resultset ('Artist')->search ({ 'me.artistid' => 1}, {
+    join     => { cds => 'tracks' },
+    columns  => {name => 'name', 'cds.tracks.title' => 'tracks.title', 'cds.tracks.cd' => 'tracks.cd'},
+    order_by => [qw/cds.cdid tracks.trackid/],
+});
+$rs_hashrefinf->result_class('DBIx::Class::ResultClass::HashRefInflator');
+is_deeply [$rs_hashrefinf->all], \@hashrefinf, 'Check query using extended columns syntax';

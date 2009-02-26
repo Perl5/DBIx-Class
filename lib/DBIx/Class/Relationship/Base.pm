@@ -67,7 +67,9 @@ Each key-value pair provided in a hashref will be used as C<AND>ed conditions.
 To add an C<OR>ed condition, use an arrayref of hashrefs. See the
 L<SQL::Abstract> documentation for more details.
 
-In addition to standard result set attributes, the following attributes are also valid:
+In addition to the
+L<standard ResultSet attributes|DBIx::Class::ResultSet/ATTRIBUTES>,
+the following attributes are also valid:
 
 =over 4
 
@@ -186,16 +188,36 @@ sub related_resultset {
       if (@_ > 1 && (@_ % 2 == 1));
     my $query = ((@_ > 1) ? {@_} : shift);
 
-    my $cond = $self->result_source->resolve_condition(
+    my $source = $self->result_source;
+    my $cond = $source->resolve_condition(
       $rel_obj->{cond}, $rel, $self
     );
+    if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
+      my $reverse = $source->reverse_relationship_info($rel);
+      foreach my $rev_rel (keys %$reverse) {
+        if ($reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
+          $attrs->{related_objects}{$rev_rel} = [ $self ];
+          Scalar::Util::weaken($attrs->{related_object}{$rev_rel}[0]);
+        } else {
+          $attrs->{related_objects}{$rev_rel} = $self;
+          Scalar::Util::weaken($attrs->{related_object}{$rev_rel});
+        }
+      }
+    }
     if (ref $cond eq 'ARRAY') {
-      $cond = [ map { my $hash;
-        foreach my $key (keys %$_) {
-          my $newkey = $key =~ /\./ ? "me.$key" : $key;
-          $hash->{$newkey} = $_->{$key};
-        }; $hash } @$cond ];
-    } else {
+      $cond = [ map {
+        if (ref $_ eq 'HASH') {
+          my $hash;
+          foreach my $key (keys %$_) {
+            my $newkey = $key !~ /\./ ? "me.$key" : $key;
+            $hash->{$newkey} = $_->{$key};
+          }
+          $hash;
+        } else {
+          $_;
+        }
+      } @$cond ];
+    } elsif (ref $cond eq 'HASH') {
       foreach my $key (grep { ! /\./ } keys %$cond) {
         $cond->{"me.$key"} = delete $cond->{$key};
       }
@@ -377,7 +399,7 @@ sub set_from_related {
     (ref $cond ? ref $cond : 'plain scalar')
   ) unless ref $cond eq 'HASH';
   if (defined $f_obj) {
-    my $f_class = $self->result_source->schema->class($rel_obj->{class});
+    my $f_class = $rel_obj->{class};
     $self->throw_exception( "Object $f_obj isn't a ".$f_class )
       unless Scalar::Util::blessed($f_obj) and $f_obj->isa($f_class);
   }

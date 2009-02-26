@@ -4,8 +4,6 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-use base qw/DBIx::Class/;
-
 sub _register_column_group {
   my ($class, $group, @cols) = @_;
   return $class->next::method($group => map lc, @cols);

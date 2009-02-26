@@ -1,6 +1,12 @@
 Build
 Build.bat
+MANIFEST
+META.yml
 Makefile
+Makefile.old
+README
 _build/
 blib/
+inc/
+pm_to_blib
 t/var/

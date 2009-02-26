@@ -86,30 +86,25 @@ L<DBIx::Class::Schema>:
   use base qw/DBIx::Class::Schema/;
 
 In this class you load your result_source ("table", "model") classes, which we
-will define later, using the load_classes() method. You can specify which
-classes to load manually: 
+will define later, using the load_namespaces() method:
 
-  # load My::Schema::Album and My::Schema::Artist
-  __PACKAGE__->load_classes(qw/ Album Artist /);
+  # load My::Schema::Result::* and their resultset classes
+  __PACKAGE__->load_namespaces();
 
-Or load classes by namespace:
+By default this loads all the Result (Row) classes in the
+My::Schema::Result:: namespace, and also any resultset classes in the
+My::Schema::ResultSet:: namespace (if missing, the resultsets are
+defaulted to be DBIx::Class::ResultSet objects). You can change the
+result and resultset namespaces by using options to the
+L<DBIx::Class::Schema/load_namespaces> call.
 
-  # load My::Schema::Album, My::Schema::Artist and My::OtherSchema::LinerNotes
-  __PACKAGE__->load_classes(
-    {
-      'My::Schema' => [qw/ Album Artist /],
-      'My::OtherSchema' => [qw/ LinerNotes /]
-    }
-  );
-
-Or let your schema class load all classes in its namespace automatically:
-
-   # load My::Schema::*
-  __PACKAGE__->load_classes();
+It is also possible to do the same things manually by calling
+C<load_classes> for the Row classes and defining in those classes any
+required resultset classes.
 
 Next, create each of the classes you want to load as specified above:
 
-  package My::Schema::Album;
+  package My::Schema::Result::Album;
   use base qw/DBIx::Class/;
 
 Load any components required by each class with the load_components() method.
@@ -164,7 +159,7 @@ See L<SQL::Translator> for details.
 See L<DBIx::Class::ResultSource> for more details of the possible column
 attributes.
 
-Accessors are created for each column automatically, so My::Schema::Album will
+Accessors are created for each column automatically, so My::Schema::Result::Album will
 have albumid() (or album(), when using the accessor), artist() and title()
 methods.
 
@@ -181,7 +176,7 @@ to describe a column which contains an ID of another Table, or C<has_many> to
 make a predefined accessor for fetching objects that contain this Table's
 foreign key:
 
-  __PACKAGE__->has_many('albums', 'My::Schema::Artist', 'album_id');
+  __PACKAGE__->has_many('albums', 'My::Schema::Result::Artist', 'album_id');
 
 See L<DBIx::Class::Relationship> for more information about the various types of
 available relationships and how you can design your own.
@@ -248,7 +243,7 @@ The simplest way to get a record is by primary key:
   my $album = $schema->resultset('Album')->find(14);
 
 This will run a C<SELECT> with C<albumid = 14> in the C<WHERE> clause, and
-return an instance of C<My::Schema::Album> that represents this row.  Once you
+return an instance of C<My::Schema::Result::Album> that represents this row.  Once you
 have that row, you can access and update columns:
 
   $album->title('Physical Graffiti');
@@ -275,7 +270,7 @@ your object.
 =head2 Adding and removing rows
 
 To create a new record in the database, you can use the C<create> method.  It
-returns an instance of C<My::Schema::Album> that can be used to access the data
+returns an instance of C<My::Schema::Result::Album> that can be used to access the data
 in the new record:
 
   my $new_album = $schema->resultset('Album')->create({ 
@@ -384,11 +379,9 @@ L<DBIx::Class::ResultSet/ATTRIBUTES>.
 
 =head2 Problems on RHEL5/CentOS5
 
-There is a problem with slow performance of certain DBIx::Class operations in
-perl-5.8.8-10 and later on RedHat and related systems, due to a bad backport of
-a "use overload" related bug.  The problem is in the Perl binary itself, not in
-DBIx::Class.  If your system has this problem, you will see a warning on
-startup, with some options as to what to do about it.
+There used to be an issue with the system perl on Red Hat Enterprise
+Linux 5, some versions of Fedora and derived systems. Further
+information on this can be found in L<DBIx::Class::Manual::Troubleshooting>
 
 =head1 SEE ALSO
 

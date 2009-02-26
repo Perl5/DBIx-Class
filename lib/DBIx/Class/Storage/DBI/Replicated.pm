@@ -99,7 +99,7 @@ to force a query to run against Master when needed.
 
 Replicated Storage has additional requirements not currently part of L<DBIx::Class>
 
-  Moose => 1.54
+  Moose => 0.54
   MooseX::AttributeHelpers => 0.12 
   Moose::Util::TypeConstraints => 0.54
   Class::MOP => 0.63

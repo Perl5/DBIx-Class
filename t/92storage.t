@@ -4,6 +4,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use Data::Dumper;
 
 {
     package DBICTest::ExplodingStorage::Sth;
@@ -32,9 +33,9 @@ use DBICTest;
     }
 }
 
-plan tests => 6;
+plan tests => 17;
 
-my $schema = DBICTest->init_schema();
+my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
 is( ref($schema->storage), 'DBIx::Class::Storage::DBI::SQLite',
     'Storage reblessed correctly into DBIx::Class::Storage::DBI::SQLite' );
@@ -64,10 +65,106 @@ is($@, "", "Exploding \$sth->execute was caught");
 is(1, $schema->resultset('Artist')->search({name => "Exploding Sheep" })->count,
   "And the STH was retired");
 
-my $info = { on_connect_do => [] };
 
-$storage->connect_info(['foo','bar','baz',$info]);
+# testing various invocations of connect_info ([ ... ])
 
-ok(exists($info->{on_connect_do}), q{Didn't kill key passed to storage});
+my $coderef = sub { 42 };
+my $invocations = {
+  'connect_info ([ $d, $u, $p, \%attr, \%extra_attr])' => {
+      args => [
+          'foo',
+          'bar',
+          undef,
+          {
+            on_connect_do => [qw/a b c/],
+            PrintError => 0,
+          },
+          {
+            AutoCommit => 1,
+            on_disconnect_do => [qw/d e f/],
+          },
+          {
+            unsafe => 1,
+            auto_savepoint => 1,
+          },
+        ],
+      dbi_connect_info => [
+          'foo',
+          'bar',
+          undef,
+          {
+            PrintError => 0,
+            AutoCommit => 1,
+          },
+      ],
+  },
+
+  'connect_info ([ \%code, \%extra_attr ])' => {
+      args => [
+          $coderef,
+          {
+            on_connect_do => [qw/a b c/],
+            PrintError => 0,
+            AutoCommit => 1,
+            on_disconnect_do => [qw/d e f/],
+          },
+          {
+            unsafe => 1,
+            auto_savepoint => 1,
+          },
+        ],
+      dbi_connect_info => [
+          $coderef,
+      ],
+  },
+
+  'connect_info ([ \%attr ])' => {
+      args => [
+          {
+            on_connect_do => [qw/a b c/],
+            PrintError => 0,
+            AutoCommit => 1,
+            on_disconnect_do => [qw/d e f/],
+            user => 'bar',
+            dsn => 'foo',
+          },
+          {
+            unsafe => 1,
+            auto_savepoint => 1,
+          },
+      ],
+      dbi_connect_info => [
+          'foo',
+          'bar',
+          undef,
+          {
+            PrintError => 0,
+            AutoCommit => 1,
+          },
+      ],
+  },
+};
+
+for my $type (keys %$invocations) {
+
+  # we can not use a cloner portably because of the coderef
+  # so compare dumps instead
+  local $Data::Dumper::Sortkeys = 1;
+  my $arg_dump = Dumper ($invocations->{$type}{args});
+
+  $storage->connect_info ($invocations->{$type}{args});
+
+  is ($arg_dump, Dumper ($invocations->{$type}{args}), "$type didn't modify passed arguments");
+
+
+  is_deeply ($storage->_dbi_connect_info, $invocations->{$type}{dbi_connect_info}, "$type produced correct _dbi_connect_info");
+  ok ( (not $storage->auto_savepoint and not $storage->unsafe), "$type correctly ignored extra hashref");
+
+  is_deeply (
+    [$storage->on_connect_do, $storage->on_disconnect_do ],
+    [ [qw/a b c/], [qw/d e f/] ],
+    "$type correctly parsed DBIC specific on_[dis]connect_do",
+  );
+}
 
 1;

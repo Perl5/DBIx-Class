@@ -24,7 +24,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.08099_04';
+$VERSION = '0.08099_06';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -68,28 +68,28 @@ Create a schema class called MyDB/Schema.pm:
   package MyDB::Schema;
   use base qw/DBIx::Class::Schema/;
 
-  __PACKAGE__->load_classes();
+  __PACKAGE__->load_namespaces();
 
   1;
 
 Create a table class to represent artists, who have many CDs, in
-MyDB/Schema/Artist.pm:
+MyDB/Schema/Result/Artist.pm:
 
-  package MyDB::Schema::Artist;
+  package MyDB::Schema::Result::Artist;
   use base qw/DBIx::Class/;
 
   __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
-  __PACKAGE__->has_many(cds => 'MyDB::Schema::CD');
+  __PACKAGE__->has_many(cds => 'MyDB::Schema::Result::CD');
 
   1;
 
 A table class to represent a CD, which belongs to an artist, in
-MyDB/Schema/CD.pm:
+MyDB/Schema/Result/CD.pm:
 
-  package MyDB::Schema::CD;
+  package MyDB::Schema::Result::CD;
   use base qw/DBIx::Class/;
 
   __PACKAGE__->load_components(qw/Core/);
@@ -121,7 +121,7 @@ Then you can use these classes in your application's code:
   # Execute a joined query to get the cds.
   my @all_john_cds = $johns_rs->search_related('cds')->all;
 
-  # Fetch only the next row.
+  # Fetch the next available row.
   my $first_john = $johns_rs->next;
 
   # Specify ORDER BY on the query.
@@ -217,6 +217,8 @@ bluefeet: Aran Deltac <bluefeet@cpan.org>
 
 bricas: Brian Cassidy <bricas@cpan.org>
 
+caelum: Rafael Kitover <rkitover@cpan.org>
+
 captainL: Luke Saunders <luke.saunders@gmail.com>
 
 castaway: Jess Robinson
@@ -243,6 +245,8 @@ groditi: Guillermo Roditi <groditi@cpan.org>
 
 jesper: Jesper Krogh
 
+jgoulah: John Goulah <jgoulah@cpan.org>
+
 jguenther: Justin Guenther <jguenther@cpan.org>
 
 jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
@@ -256,6 +260,8 @@ konobi: Scott McWhirter
 marcus: Marcus Ramberg <mramberg@cpan.org>
 
 mattlaw: Matt Lawrence
+
+michaelr: Michael Reddick <michael.reddick@gmail.com>
 
 ned: Neil de Carteret
 
@@ -275,9 +281,19 @@ perigrin: Chris Prather <chris@prather.org>
 
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
+plu: Johannes Plunien <plu@cpan.org>
+
 quicksilver: Jules Bean
 
+rafl: Florian Ragwitz <rafl@debian.org>
+
 rdj: Ryan D Johnson <ryan@innerfence.com>
+
+ribasushi: Peter Rabbitson <rabbit+dbic@rabbit.us>
+
+rjbs: Ricardo Signes <rjbs@cpan.org>
+
+robkinyon: Rob Kinyon <rkinyon@cpan.org>
 
 sc_: Just Another Perl Hacker
 
@@ -302,6 +318,8 @@ wdh: Will Hawes
 willert: Sebastian Willert <willert@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
+
+norbi: Norbert Buchmuller <norbi@nix.hu>
 
 =head1 LICENSE
 

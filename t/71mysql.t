@@ -21,7 +21,7 @@ my $dbh = $schema->storage->dbh;
 
 $dbh->do("DROP TABLE IF EXISTS artist;");
 
-$dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), charfield CHAR(10));");
+$dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10));");
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
@@ -57,8 +57,14 @@ my $test_type_info = {
     'name' => {
         'data_type' => 'VARCHAR',
         'is_nullable' => 1,
-        'size' => 255,
+        'size' => 100,
         'default_value' => undef,
+    },
+    'rank' => {
+        'data_type' => 'INT',
+        'is_nullable' => 0,
+        'size' => 11,
+        'default_value' => 13,
     },
     'charfield' => {
         'data_type' => 'CHAR',

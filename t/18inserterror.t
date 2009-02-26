@@ -24,6 +24,6 @@ my $schema = DBICTest->init_schema;
                 ->create({ title => 'vacation in antarctica' })
        };
        like $@, qr/NULL/;  # as opposed to some other error
-       ok( $warnings !~ /uninitialized value/, "No warning from Storage" );
+       unlike( $warnings, qr/uninitialized value/, "No warning from Storage" );
 }
 

@@ -3,7 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use base qw/DBIx::Class/;
+use base qw/Class::Data::Inheritable/;
 
 use Carp;
 

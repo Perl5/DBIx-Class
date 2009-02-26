@@ -6,7 +6,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Oracle - Automatic primary key class for Oracle
+DBIx::Class::Storage::DBI::Oracle::Generic - Automatic primary key class for Oracle
 
 =head1 SYNOPSIS
 
@@ -55,8 +55,23 @@ sub _dbh_get_autoinc_seq {
   # trigger_body is a LONG
   $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
 
-  my $sth = $dbh->prepare($sql);
-  $sth->execute( uc($source->name) );
+  my $sth;
+
+  # check for fully-qualified name (eg. SCHEMA.TABLENAME)
+  if ( my ( $schema, $table ) = $source->name =~ /(\w+)\.(\w+)/ ) {
+    $sql = q{
+      SELECT trigger_body FROM ALL_TRIGGERS t
+      WHERE t.owner = ? AND t.table_name = ?
+      AND t.triggering_event = 'INSERT'
+      AND t.status = 'ENABLED'
+    };
+    $sth = $dbh->prepare($sql);
+    $sth->execute( uc($schema), uc($table) );
+  }
+  else {
+    $sth = $dbh->prepare($sql);
+    $sth->execute( uc( $source->name ) );
+  }
   while (my ($insert_trigger) = $sth->fetchrow_array) {
     return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
   }
@@ -67,6 +82,72 @@ sub _sequence_fetch {
   my ( $self, $type, $seq ) = @_;
   my ($id) = $self->dbh->selectrow_array("SELECT ${seq}.${type} FROM DUAL");
   return $id;
+}
+
+=head2 connected
+
+Returns true if we have an open (and working) database connection, false if it is not (yet)
+open (or does not work). (Executes a simple SELECT to make sure it works.)
+
+The reason this is needed is that L<DBD::Oracle>'s ping() does not do a real
+OCIPing but just gets the server version, which doesn't help if someone killed
+your session.
+
+=cut
+
+sub connected {
+  my $self = shift;
+
+  if (not $self->SUPER::connected(@_)) {
+    return 0;
+  }
+  else {
+    my $dbh = $self->_dbh;
+
+    local $dbh->{RaiseError} = 1;
+
+    eval {
+      my $ping_sth = $dbh->prepare_cached("select 1 from dual");
+      $ping_sth->execute;
+      $ping_sth->finish;
+    };
+
+    return $@ ? 0 : 1;
+  }
+}
+
+sub _dbh_execute {
+  my $self = shift;
+  my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+
+  my $wantarray = wantarray;
+
+  my (@res, $exception, $retried);
+
+  RETRY: {
+    do {
+      eval {
+        if ($wantarray) {
+          @res    = $self->SUPER::_dbh_execute(@_);
+        } else {
+          $res[0] = $self->SUPER::_dbh_execute(@_);
+        }
+      };
+      $exception = $@;
+      if ($exception =~ /ORA-01003/) {
+        # ORA-01003: no statement parsed (someone changed the table somehow,
+        # invalidating your cursor.)
+        my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
+        delete $dbh->{CachedKids}{$sql};
+      } else {
+        last RETRY;
+      }
+    } while (not $retried++);
+  }
+
+  $self->throw_exception($exception) if $exception;
+
+  wantarray ? @res : $res[0]
 }
 
 =head2 get_autoinc_seq
@@ -102,6 +183,22 @@ L<DBIx::Class::InflateColumn::DateTime>.
 =cut
 
 sub datetime_parser_type { return "DateTime::Format::Oracle"; }
+
+sub _svp_begin {
+    my ($self, $name) = @_;
+ 
+    $self->dbh->do("SAVEPOINT $name");
+}
+
+# Oracle automatically releases a savepoint when you start another one with the
+# same name.
+sub _svp_release { 1 }
+
+sub _svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
+}
 
 =head1 AUTHORS
 

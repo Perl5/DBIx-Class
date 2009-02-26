@@ -10,7 +10,7 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime::Format::MySQL };
 plan skip_all => "Need DateTime::Format::MySQL for inflation tests" if $@;
 
-plan tests => 21;
+plan tests => 32;
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);
@@ -34,6 +34,13 @@ is("$created_start", '2006-06-18T00:00:00', 'Correct date/time');
 ## timestamp field
 isa_ok($event->created_on, 'DateTime', 'DateTime returned');
 
+## varchar fields
+isa_ok($event->varchar_date, 'DateTime', 'DateTime returned');
+isa_ok($event->varchar_datetime, 'DateTime', 'DateTime returned');
+
+## skip inflation field
+isnt(ref($event->skip_inflation), 'DateTime', 'No DateTime returned for skip inflation column');
+
 # klunky, but makes older Test::More installs happy
 my $createo = $event->created_on;
 is("$createo", '2006-06-22T21:00:05', 'Correct date/time');
@@ -50,6 +57,11 @@ my $event_tz = $schema->resultset('EventTZ')->create({
     created_on => DateTime->new(year=>2006, month=>1, day=>31,
         hour => 13, minute => 34, second => 56, time_zone => "America/New_York" ),
 });
+
+is ($event_tz->starts_at->day_name, "Montag", 'Locale de_DE loaded: day_name');
+is ($event_tz->starts_at->month_name, "Dezember", 'Locale de_DE loaded: month_name');
+is ($event_tz->created_on->day_name, "Tuesday", 'Default locale loaded: day_name');
+is ($event_tz->created_on->month_name, "January", 'Default locale loaded: month_name');
 
 my $starts_at = $event_tz->starts_at;
 is("$starts_at", '2007-12-31T00:00:00', 'Correct date/time using timezone');
@@ -69,6 +81,25 @@ isa_ok($loaded_event->created_on, 'DateTime', 'DateTime returned');
 $created_on = $loaded_event->created_on;
 is("$created_on", '2006-01-31T12:34:56', 'Loaded correct timestamp using timezone');
 is($created_on->time_zone->name, 'America/Chicago', 'Correct timezone');
+
+# Test floating timezone warning
+# We expect one warning
+SKIP: {
+    skip "ENV{DBIC_FLOATING_TZ_OK} was set, skipping", 1 if $ENV{DBIC_FLOATING_TZ_OK};
+    local $SIG{__WARN__} = sub {
+        like(
+            shift,
+            qr/You're using a floating timezone, please see the documentation of DBIx::Class::InflateColumn::DateTime for an explanation/,
+            'Floating timezone warning'
+        );
+    };
+    my $event_tz_floating = $schema->resultset('EventTZ')->create({
+        starts_at => DateTime->new(year=>2007, month=>12, day=>31, ),
+        created_on => DateTime->new(year=>2006, month=>1, day=>31,
+            hour => 13, minute => 34, second => 56, ),
+    });
+    delete $SIG{__WARN__};
+};
 
 # This should fail to set
 my $prev_str = "$created_on";
@@ -92,3 +123,14 @@ $invalid->update;
     like( $@, qr/invalid date format/i, "Invalid date format exception");
 }
 
+## varchar field using inflate_date => 1
+my $varchar_date = $event->varchar_date;
+is("$varchar_date", '2006-07-23T00:00:00', 'Correct date/time');
+
+## varchar field using inflate_datetime => 1
+my $varchar_datetime = $event->varchar_datetime;
+is("$varchar_datetime", '2006-05-22T19:05:07', 'Correct date/time');
+
+## skip inflation field
+my $skip_inflation = $event->skip_inflation;
+is ("$skip_inflation", '2006-04-21 18:04:06', 'Correct date/time');

@@ -16,7 +16,7 @@ if ($] <= 5.008000) {
     eval 'use utf8; 1' or plan skip_all => 'Need utf8 run this test';
 }
 
-plan tests => 3;
+plan tests => 5;
 
 DBICTest::Schema::CD->load_components('UTF8Columns');
 DBICTest::Schema::CD->utf8_columns('title');
@@ -43,3 +43,13 @@ if ($] <= 5.008000) {
     $cd->title($utf8_char);
     ok( !utf8::is_utf8( $cd->{_column_data}{title} ), 'store utf8-less chars' );
 }
+
+my $v_utf8 = "\x{219}";
+
+$cd->update ({ title => $v_utf8 });
+$cd->title($v_utf8);
+ok( !$cd->is_column_changed('title'), 'column is not dirty after setting the same unicode value' );
+
+$cd->update ({ title => $v_utf8 });
+$cd->title('something_else');
+ok( $cd->is_column_changed('title'), 'column is dirty after setting to something completely different');

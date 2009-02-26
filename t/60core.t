@@ -2,12 +2,13 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 84;
+plan tests => 95;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -71,7 +72,7 @@ cmp_ok(@art, '==', 1, "Changed artist returned by search");
 
 cmp_ok($art[0]->artistid, '==', 3,'Correct artist too');
 
-$art->delete;
+lives_ok (sub { $art->delete }, 'Cascading delete on Ordered has_many works' );  # real test in ordered.t
 
 @art = $schema->resultset("Artist")->search({ });
 
@@ -79,9 +80,7 @@ cmp_ok(@art, '==', 2, 'And then there were two');
 
 ok(!$art->in_storage, "It knows it's dead");
 
-eval { $art->delete; };
-
-ok($@, "Can't delete twice: $@");
+dies_ok ( sub { $art->delete }, "Can't delete twice");
 
 is($art->name, 'We Are In Rehab', 'But the object is still live');
 
@@ -153,7 +152,7 @@ is($schema->resultset("Artist")->count, 4, 'count ok');
 my $cd = $schema->resultset("CD")->find(1);
 my %cols = $cd->get_columns;
 
-cmp_ok(keys %cols, '==', 4, 'get_columns number of columns ok');
+cmp_ok(keys %cols, '==', 6, 'get_columns number of columns ok');
 
 is($cols{title}, 'Spoonful of bees', 'get_columns values ok');
 
@@ -169,7 +168,7 @@ $cd->discard_changes;
 # check whether ResultSource->columns returns columns in order originally supplied
 my @cd = $schema->source("CD")->columns;
 
-is_deeply( \@cd, [qw/cdid artist title year/], 'column order');
+is_deeply( \@cd, [qw/cdid artist title year genreid single_track/], 'column order');
 
 $cd = $schema->resultset("CD")->search({ title => 'Spoonful of bees' }, { columns => ['title'] })->next;
 is($cd->title, 'Spoonful of bees', 'subset of columns returned correctly');
@@ -179,11 +178,22 @@ $cd = $schema->resultset("CD")->search(undef, { include_columns => [ 'artist.nam
 is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
 is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
 
+# check if new syntax +columns also works for this
+$cd = $schema->resultset("CD")->search(undef, { '+columns' => [ 'artist.name' ], join => [ 'artist' ] })->find(1);
+
+is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
+is($cd->get_column('name'), 'Caterwauler McCrae', 'Additional column returned');
+
+# check if new syntax for +columns select specifiers works for this
+$cd = $schema->resultset("CD")->search(undef, { '+columns' => [ {artist_name => 'artist.name'} ], join => [ 'artist' ] })->find(1);
+
+is($cd->title, 'Spoonful of bees', 'Correct CD returned with include');
+is($cd->get_column('artist_name'), 'Caterwauler McCrae', 'Additional column returned');
+
 # update_or_insert
 $new = $schema->resultset("Track")->new( {
   trackid => 100,
   cd => 1,
-  position => 4,
   title => 'Insert or Update',
   last_updated_on => '1973-07-19 12:01:02'
 } );
@@ -191,9 +201,9 @@ $new->update_or_insert;
 ok($new->in_storage, 'update_or_insert insert ok');
 
 # test in update mode
-$new->pos(5);
+$new->title('Insert or Update - updated');
 $new->update_or_insert;
-is( $schema->resultset("Track")->find(100)->pos, 5, 'update_or_insert update ok');
+is( $schema->resultset("Track")->find(100)->title, 'Insert or Update - updated', 'update_or_insert update ok');
 
 # get_inflated_columns w/relation and accessor alias
 SKIP: {
@@ -204,8 +214,12 @@ SKIP: {
     is($tdata{'trackid'}, 100, 'got id');
     isa_ok($tdata{'cd'}, 'DBICTest::CD', 'cd is CD object');
     is($tdata{'cd'}->id, 1, 'cd object is id 1');
-    is($tdata{'position'}, 5, 'got position from pos');
-    is($tdata{'title'}, 'Insert or Update');
+    is(
+        $tdata{'position'},
+        $schema->resultset ('Track')->search ({cd => 1})->count,
+        'Ordered assigned proper position',
+    );
+    is($tdata{'title'}, 'Insert or Update - updated');
     is($tdata{'last_updated_on'}, '1973-07-19T12:01:02');
     isa_ok($tdata{'last_updated_on'}, 'DateTime', 'inflated accessored column');
 }
@@ -227,7 +241,7 @@ my $distinct_rs = $schema->resultset("CD")->search($search, { join => 'tags', di
 cmp_ok($distinct_rs->all, '==', 4, 'DISTINCT search with OR ok');
 
 SKIP: {
-  skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
+  skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 2
     if $is_broken_sqlite;
 
   my $tcount = $schema->resultset("Track")->search(
@@ -239,7 +253,15 @@ SKIP: {
   );
   cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT ok');
 
+  $tcount = $schema->resultset("Track")->search(
+    {},
+    {       
+       columns => {count => {count => {distinct => ['position', 'title']}}},
+    }
+  );
+  cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT using column syntax ok');
 }
+
 my $tag_rs = $schema->resultset('Tag')->search(
                [ { 'me.tag' => 'Cheesy' }, { 'me.tag' => 'Blue' } ]);
 
@@ -295,16 +317,12 @@ ok($schema->storage(), 'Storage available');
 
 my $newbook = $schema->resultset( 'Bookmark' )->find(1);
 
-$@ = '';
-eval {
-my $newlink = $newbook->link;
-};
-ok(!$@, "stringify to false value doesn't cause error");
+lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't cause error");
 
 # test cascade_delete through many_to_many relations
 {
   my $art_del = $schema->resultset("Artist")->find({ artistid => 1 });
-  $art_del->delete;
+  lives_ok (sub { $art_del->delete }, 'Cascading delete on Ordered has_many works' );  # real test in ordered.t
   cmp_ok( $schema->resultset("CD")->search({artist => 1}), '==', 0, 'Cascading through has_many top level.');
   cmp_ok( $schema->resultset("CD_to_Producer")->search({cd => 1}), '==', 0, 'Cascading through has_many children.');
 }
@@ -335,10 +353,29 @@ ok(!$@, "stringify to false value doesn't cause error");
 
 # test remove_columns
 {
-  is_deeply([$schema->source('CD')->columns], [qw/cdid artist title year/]);
-  $schema->source('CD')->remove_columns('year');
-  is_deeply([$schema->source('CD')->columns], [qw/cdid artist title/]);
-  ok(! exists $schema->source('CD')->_columns->{'year'}, 'year still exists in _columns');
+  is_deeply(
+    [$schema->source('CD')->columns],
+    [qw/cdid artist title year genreid single_track/],
+    'initial columns',
+  );
+
+  $schema->source('CD')->remove_columns('coolyear'); #should not delete year
+  is_deeply(
+    [$schema->source('CD')->columns],
+    [qw/cdid artist title year genreid single_track/],
+    'nothing removed when removing a non-existent column',
+  );
+
+  $schema->source('CD')->remove_columns('genreid', 'year');
+  is_deeply(
+    [$schema->source('CD')->columns],
+    [qw/cdid artist title single_track/],
+    'removed two columns',
+  );
+
+  my $priv_columns = $schema->source('CD')->_columns;
+  ok(! exists $priv_columns->{'year'}, 'year purged from _columns');
+  ok(! exists $priv_columns->{'genreid'}, 'genreid purged from _columns');
 }
 
 # test get_inflated_columns with objects
@@ -356,7 +393,14 @@ SKIP: {
 # test resultsource->table return value when setting
 {
     my $class = $schema->class('Event');
-    diag $class;
     my $table = $class->table($class->table);
     is($table, $class->table, '->table($table) returns $table');
+}
+
+#make sure insert doesn't use set_column
+{
+  my $en_row = $schema->resultset('Encoded')->new_result({encoded => 'wilma'});
+  is($en_row->encoded, 'amliw', 'new encodes');
+  $en_row->insert;
+  is($en_row->encoded, 'amliw', 'insert does not encode again');
 }

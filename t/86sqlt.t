@@ -10,7 +10,7 @@ plan skip_all => 'SQL::Translator required' if $@;
 
 my $schema = DBICTest->init_schema;
 
-plan tests => 131;
+plan tests => 133;
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -25,6 +25,17 @@ my $translator = SQL::Translator->new(
 
     my $relinfo = $schema->source('Artist')->relationship_info ('cds');
     local $relinfo->{attrs}{on_delete} = 'restrict';
+
+    $schema->source('Track')->sqlt_deploy_callback(sub {
+      my ($self, $sqlt_table) = @_;
+
+      if ($schema->storage->sqlt_type eq 'SQLite' ) {
+        $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
+          or die $sqlt_table->error;
+      }
+
+      $self->default_sqlt_deploy_hook($sqlt_table);
+    });
 
     $translator->parser('SQL::Translator::Parser::DBIx::Class');
     $translator->producer('SQLite');
@@ -126,7 +137,7 @@ my %fk_constraints = (
       'name' => 'cd_fk_artist', 'index_name' => 'cd_idx_artist',
       'selftable' => 'cd', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'],
-      on_delete => '', on_update => 'SET NULL', deferrable => 1,
+      on_delete => 'CASCADE', on_update => 'CASCADE', deferrable => 1,
     },
   ],
 
@@ -258,13 +269,30 @@ my %indexes = (
     {
       'fields' => ['name']
     },
-  ]
+  ],
+  track => [
+    {
+      'fields' => ['title']
+    }
+  ],
 );
 
 my $tschema = $translator->schema();
 # Test that the $schema->sqlt_deploy_hook was called okay and that it removed
 # the 'dummy' table
 ok( !defined($tschema->get_table('dummy')), "Dummy table was removed by hook");
+
+# Test that the Artist resultsource sqlt_deploy_hook was called okay and added
+# an index
+SKIP: {
+    skip ('Artist sqlt_deploy_hook is only called with an SQLite backend', 1)
+        if $schema->storage->sqlt_type ne 'SQLite';
+
+    ok( ( grep 
+        { $_->name eq 'artist_name_hookidx' }
+        $tschema->get_table('artist')->get_indices
+    ), 'sqlt_deploy_hook fired within a resultsource');
+}
 
 # Test that nonexistent constraints are not found
 my $constraint = get_constraint('FOREIGN KEY', 'cd', ['title'], 'cd', ['year']);
@@ -300,7 +328,6 @@ for my $expected_constraints (keys %unique_constraints) {
 
 for my $table_index (keys %indexes) {
   for my $expected_index ( @{ $indexes{$table_index} } ) {
-
     ok ( get_index($table_index, $expected_index), "Got a matching index on $table_index table");
   }
 }

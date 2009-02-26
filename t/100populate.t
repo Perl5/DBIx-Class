@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 22;
+plan tests => 21;
 
 # perl -le'my $letter = 'a'; for my $i (4..10000) { $letter++; print "[ $i, \"$letter\" ]," }' > tests.txt
 
@@ -10081,5 +10081,3 @@ is($link7->id, 7, 'Link 7 id');
 is($link7->url, undef, 'Link 7 url');
 is($link7->title, 'gtitle', 'Link 7 title');
 
-
-ok(-f "t/var/DBIxClass.db", 'Database created');
