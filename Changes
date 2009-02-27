@@ -32,9 +32,8 @@ Revision history for DBIx::Class
           (http://msdn.microsoft.com/en-us/library/ms190315.aspx)
         - an sqlt_deploy_hook can now be shared between result sources using
           a configurable callback trigger
-        - new order_by => { -desc => 'colname' } syntax supported with
-          SQLA >= 1.50
-        - PG array datatype supported with SQLA >= 1.50
+        - new order_by => { -desc => 'colname' } syntax supported
+        - PG array datatype supported
         - insert should use store_column, not set_column to avoid marking
           clean just-stored values as dirty. New test for this (groditi)
         - regression test for source_name (groditi)

@@ -7,12 +7,7 @@ use Data::Dumper;
 
 use Test::More;
 
-BEGIN {
-    eval "use SQL::Abstract 1.49";
-    plan $@
-        ? ( skip_all => "Needs SQLA 1.49+" )
-        : ( tests => 7 );
-}
+plan ( tests => 7 );
 
 use lib qw(t/lib);
 use DBICTest;

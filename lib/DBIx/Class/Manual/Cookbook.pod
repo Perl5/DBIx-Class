@@ -1381,10 +1381,10 @@ C<limit_dialect> key in the final hash as shown above.
 
 =head2 Working with PostgreSQL array types
 
-If your SQL::Abstract version (>= 1.50) supports it, you can assign to
-PostgreSQL array values by passing array references in the C<\%columns>
-(C<\%vals>) hashref of the L<DBIx::Class::ResultSet/create> and
-L<DBIx::Class::Row/update> family of methods:
+You can also assign values to PostgreSQL array columns by passing array
+references in the C<\%columns> (C<\%vals>) hashref of the
+L<DBIx::Class::ResultSet/create> and L<DBIx::Class::Row/update> family of
+methods:
 
   $resultset->create({
     numbers => [1, 2, 3]

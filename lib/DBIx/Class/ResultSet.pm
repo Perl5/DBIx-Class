@@ -2555,22 +2555,26 @@ These are in no particular order:
 
 =over 4
 
-=item Value: ($order_by | \@order_by)
+=item Value: ( $order_by | \@order_by | \%order_by )
 
 =back
 
-Which column(s) to order the results by. This is currently passed
-through directly to SQL, so you can give e.g. C<year DESC> for a
-descending order on the column `year'.
+Which column(s) to order the results by. If a single column name, or
+an arrayref of names is supplied, the argument is passed through
+directly to SQL. The hashref syntax allows for connection-agnostic
+specification of ordering direction:
 
-Please note that if you have C<quote_char> enabled (see
-L<DBIx::Class::Storage::DBI/connect_info>) you will need to do C<\'year DESC' > to
-specify an order. (The scalar ref causes it to be passed as raw sql to the DB,
-so you will need to manually quote things as appropriate.)
+ For descending order:
 
-If your L<SQL::Abstract> version supports it (>=1.50), you can also use
-C<{-desc => 'year'}>, which takes care of the quoting for you. This is the
-recommended syntax.
+  order_by => { -desc => [qw/col1 col2 col3/] }
+
+ For explicit ascending order:
+
+  order_by => { -asc => 'col' }
+
+The old scalarref syntax (i.e. order_by => \'year DESC') is still
+supported, although you are strongly encouraged to use the hashref
+syntax as outlined above.
 
 =head2 columns
 
