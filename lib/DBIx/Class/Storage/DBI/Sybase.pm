@@ -5,6 +5,15 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::NoBindVars/;
 
+my %noquote = map ($_ => 1), qw(int integer);
+
+sub should_quote_data_type {
+  my $self = shift;
+  my ($type) = @_;
+  return 0 if $noquote{$type};
+  return $self->next::method(@_);
+}
+
 1;
 
 =head1 NAME

@@ -38,6 +38,9 @@ Manually subs in the values for the usual C<?> placeholders.
 
 sub _prep_for_execute {
   my $self = shift;
+
+  my ($op, $extra_bind, $ident) = @_;
+
   my ($sql, $bind) = $self->next::method(@_);
 
   # stringify args, quote via $dbh, and manually insert
@@ -46,18 +49,22 @@ sub _prep_for_execute {
   my $new_sql;
 
   foreach my $bound (@$bind) {
-    shift @$bound;
+    my $col = shift @$bound;
+    my $do_quote = $self->should_quote_data_type($col);
     foreach my $data (@$bound) {
         if(ref $data) {
             $data = ''.$data;
         }
-        $new_sql .= shift(@sql_part) . $self->_dbh->quote($data);
+        $data = $self->_dbh->quote($data) if $do_quote;
+        $new_sql .= shift(@sql_part) . $data;
     }
   }
   $new_sql .= join '', @sql_part;
 
   return ($new_sql);
 }
+
+sub should_quote_data_type { 1 }
 
 =head1 AUTHORS
 

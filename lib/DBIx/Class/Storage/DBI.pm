@@ -1239,7 +1239,7 @@ sub _query_end {
 
 sub _dbh_execute {
   my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
-  
+
   my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
 
   $self->_query_start( $sql, @$bind );
