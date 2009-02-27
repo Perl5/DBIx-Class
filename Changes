@@ -16,6 +16,8 @@ Revision history for DBIx::Class
           to make it more matpath-friendly
         - deploy_statements called ddl_filename with the $version and $dir arguments
           in the wrong order. (groditi)
+        - columns/+columns attributes now support { as => select } hahsrefs
+
 
 0.08099_06 2009-01-23 07:30:00 (UTC)
         - Allow a scalarref to be supplied to the 'from' resultset attribute

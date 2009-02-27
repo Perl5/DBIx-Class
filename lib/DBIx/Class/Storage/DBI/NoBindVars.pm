@@ -64,6 +64,19 @@ sub _prep_for_execute {
   return ($new_sql);
 }
 
+=head2 should_quote_data_type
+
+This method is called by L</_prep_for_execute> for every column in
+order to determine if its value should be quoted or not. The sole
+argument is the current column data type, and the return value is
+interpreted as: true - do quote, false - do not quote. You should
+override this in you Storage::DBI::<database> subclass, if your
+RDBMS does not like quotes around certain datatypes (e.g. Sybase
+and integer columns). The default method always returns true (do
+quote).
+
+=cut
+
 sub should_quote_data_type { 1 }
 
 =head1 AUTHORS

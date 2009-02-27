@@ -5,7 +5,7 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::NoBindVars/;
 
-my %noquote = map ($_ => 1), qw(int integer);
+my %noquote = map { $_ => 1 } qw(int integer);
 
 sub should_quote_data_type {
   my $self = shift;
