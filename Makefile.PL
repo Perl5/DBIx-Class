@@ -45,10 +45,10 @@ install_script 'script/dbicadmin';
 
 tests_recursive 't';
 
-# re-build README and require CDBI modules for testing if we're in a checkout
+# re-build README and require extra modules for testing if we're in a checkout
 
 my %force_requires_if_author = (
-  'Test::Pod::Coverage'       => 0,
+  'Test::Pod::Coverage'       => 1.04,
   'SQL::Translator'           => 0.09004,
 
   # CDBI-compat related
@@ -60,9 +60,15 @@ my %force_requires_if_author = (
   # t/52cycle.t
   'Test::Memory::Cycle'       => 0,
 
+  # t/60core.t
+  'DateTime::Format::MySQL'   => 0,
+
   # t/93storage_replication.t
   'Moose',                    => 0,
   'MooseX::AttributeHelpers'  => 0.12,
+
+  # t/96_is_deteministic_value.t
+  'DateTime::Format::Strptime' => 0,
 );
 
 if ($Module::Install::AUTHOR) {
