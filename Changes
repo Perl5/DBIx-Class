@@ -1,4 +1,6 @@
 Revision history for DBIx::Class
+
+0.08099_07 2009-02-27 02:00:00 (UTC)
         - multi-create using find_or_create rather than _related for post-insert
         - fix get_inflated_columns to check has_column_loaded
         - Add DBIC_MULTICREATE_DEBUG env var (undocumented, quasi-internal)
@@ -17,7 +19,7 @@ Revision history for DBIx::Class
         - deploy_statements called ddl_filename with the $version and $dir arguments
           in the wrong order. (groditi)
         - columns/+columns attributes now support { as => select } hahsrefs
-
+        - support for views both in DBIC and via deploy() in SQLT
 
 0.08099_06 2009-01-23 07:30:00 (UTC)
         - Allow a scalarref to be supplied to the 'from' resultset attribute
