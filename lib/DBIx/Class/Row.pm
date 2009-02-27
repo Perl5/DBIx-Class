@@ -8,6 +8,10 @@ use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util ();
 use Scope::Guard;
 
+###
+### Internal method
+### Do not use
+###
 BEGIN {
   *MULTICREATE_DEBUG =
     $ENV{DBIC_MULTICREATE_DEBUG}
