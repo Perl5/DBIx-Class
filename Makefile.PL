@@ -26,7 +26,6 @@ requires 'Scope::Guard'             => 0.03;
 requires 'Path::Class'              => 0;
 requires 'List::Util'               => 1.19;
 requires 'Sub::Name'                => 0.04;
-requires 'namespace::clean'         => 0.09;
 
 # Perl 5.8.0 doesn't have utf8::is_utf8()
 requires 'Encode'                   => 0 if ($] <= 5.008000);  
@@ -45,10 +44,10 @@ install_script 'script/dbicadmin';
 
 tests_recursive 't';
 
-# re-build README and require CDBI modules for testing if we're in a checkout
+# re-build README and require extra modules for testing if we're in a checkout
 
 my %force_requires_if_author = (
-  'Test::Pod::Coverage'       => 0,
+  'Test::Pod::Coverage'       => 1.04,
   'SQL::Translator'           => 0.09004,
 
   # CDBI-compat related
@@ -60,9 +59,15 @@ my %force_requires_if_author = (
   # t/52cycle.t
   'Test::Memory::Cycle'       => 0,
 
+  # t/60core.t
+  'DateTime::Format::MySQL'   => 0,
+
   # t/93storage_replication.t
   'Moose',                    => 0,
   'MooseX::AttributeHelpers'  => 0.12,
+
+  # t/96_is_deteministic_value.t
+  'DateTime::Format::Strptime' => 0,
 );
 
 if ($Module::Install::AUTHOR) {

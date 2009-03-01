@@ -17,7 +17,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 68 );
+        : ( tests => 74 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -468,10 +468,18 @@ my $w;
 {
     local $SIG{__WARN__} = sub { $w = shift };
 
-    my $track = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' }, { prefetch => [qw/tracks tags/] })->first->tracks->first;
-    like ($w, qr/will currently disrupt both the functionality of .rs->count\(\), and the amount of objects retrievable via .rs->next\(\)/,
-        'warning on attempt to prefetch several same level has_many\'s (1 -> M + M)');
-    my $tag = $schema->resultset('LinerNotes')->search ({ notes => 'Buy Whiskey!' }, { prefetch => { cd => [qw/tags tracks/] } })->first->cd->tags->first;
-    like ($w, qr/will currently disrupt both the functionality of .rs->count\(\), and the amount of objects retrievable via .rs->next\(\)/,
-        'warning on attempt to prefetch several same level has_many\'s (M -> 1 -> M + M)');
+    my $rs = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' }, { prefetch => [qw/tracks tags/] });
+    for (qw/all count next first/) {
+        undef $w;
+        my @stuff = $rs->search()->$_;
+        like ($w, qr/will currently disrupt both the functionality of .rs->count\(\), and the amount of objects retrievable via .rs->next\(\)/,
+            "warning on ->$_ attempt prefetching several same level has_manys (1 -> M + M)");
+    }
+    my $rs2 = $schema->resultset('LinerNotes')->search ({ notes => 'Buy Whiskey!' }, { prefetch => { cd => [qw/tags tracks/] } });
+    for (qw/all count next first/) {
+        undef $w;
+        my @stuff = $rs2->search()->$_;
+        like ($w, qr/will currently disrupt both the functionality of .rs->count\(\), and the amount of objects retrievable via .rs->next\(\)/,
+            "warning on ->$_ attempt prefetching several same level has_manys (M -> 1 -> M + M)");
+    }
 }

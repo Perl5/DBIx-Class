@@ -38,6 +38,9 @@ Manually subs in the values for the usual C<?> placeholders.
 
 sub _prep_for_execute {
   my $self = shift;
+
+  my ($op, $extra_bind, $ident) = @_;
+
   my ($sql, $bind) = $self->next::method(@_);
 
   # stringify args, quote via $dbh, and manually insert
@@ -46,18 +49,35 @@ sub _prep_for_execute {
   my $new_sql;
 
   foreach my $bound (@$bind) {
-    shift @$bound;
+    my $col = shift @$bound;
+    my $do_quote = $self->should_quote_data_type($col);
     foreach my $data (@$bound) {
         if(ref $data) {
             $data = ''.$data;
         }
-        $new_sql .= shift(@sql_part) . $self->_dbh->quote($data);
+        $data = $self->_dbh->quote($data) if $do_quote;
+        $new_sql .= shift(@sql_part) . $data;
     }
   }
   $new_sql .= join '', @sql_part;
 
   return ($new_sql);
 }
+
+=head2 should_quote_data_type
+
+This method is called by L</_prep_for_execute> for every column in
+order to determine if its value should be quoted or not. The sole
+argument is the current column data type, and the return value is
+interpreted as: true - do quote, false - do not quote. You should
+override this in you Storage::DBI::<database> subclass, if your
+RDBMS does not like quotes around certain datatypes (e.g. Sybase
+and integer columns). The default method always returns true (do
+quote).
+
+=cut
+
+sub should_quote_data_type { 1 }
 
 =head1 AUTHORS
 

@@ -44,6 +44,11 @@ my $exceptions = {
             qw(setup_connection_class)
         ]
     },
+    'DBIx::Class::Storage::DBI::Sybase' => {
+        ignore => [
+            qw/should_quote_data_type/,
+        ]
+    },
     'DBIx::Class::CDBICompat::AccessorMapping'          => { skip => 1 },
     'DBIx::Class::CDBICompat::AbstractSearch' => {
         ignore => [qw(search_where)]

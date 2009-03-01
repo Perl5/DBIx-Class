@@ -110,10 +110,7 @@ is_same_sql_bind(
   'scalar ORDER BY okay (multiple values)'
 );
 
-SKIP: {
-  skip "SQL::Abstract < 1.49 does not support hashrefs in order_by", 2
-    if $SQL::Abstract::VERSION < 1.49;
-
+{
   ($sql, @bind) = $sql_maker->select(
             [
               {
@@ -236,10 +233,7 @@ is_same_sql_bind(
   'quoted table names for UPDATE'
 );
 
-SKIP: {
-  skip "select attr with star does not work in SQL::Abstract < 1.49", 1
-    if $SQL::Abstract::VERSION < 1.49;
-
+{
   ($sql, @bind) = $sql_maker->select(
         [
           {

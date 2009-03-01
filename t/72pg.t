@@ -130,10 +130,7 @@ like($artistid_defval,
 is_deeply($type_info, $test_type_info,
           'columns_info_for - column data types');
 
-SKIP: {
-  skip "SQL::Abstract < 1.49 does not pass through arrayrefs", 4
-    if $SQL::Abstract::VERSION < 1.49;
-
+{
   lives_ok {
     $schema->resultset('ArrayTest')->create({
       arrayfield => [1, 2],
