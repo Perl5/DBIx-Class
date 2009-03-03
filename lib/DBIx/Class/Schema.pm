@@ -157,6 +157,21 @@ sub _expand_relative_name {
   return $name;
 }
 
+# Finds all modules in the supplied namespace, or if omitted in the
+# namespace of $class. Untaints all findings as they can be assumed
+# to be safe
+sub _findallmod {
+  my $proto = shift;
+  my $ns = shift || ref $proto || $proto;
+
+  my @mods = Module::Find::findallmod($ns);
+
+  # try to untaint module names. mods where this fails
+  # are left alone so we don't have to change the old behavior
+  no locale; # localized \w doesn't untaint expression
+  return map { $_ =~ m/^( (?:\w+::)* \w+ )$/x ? $1 : $_ } @mods;
+}
+
 # returns a hash of $shortname => $fullname for every package
 #  found in the given namespaces ($shortname is with the $fullname's
 #  namespace stripped off)
@@ -168,7 +183,7 @@ sub _map_namespaces {
     push(
       @results_hash,
       map { (substr($_, length "${namespace}::"), $_) }
-      Module::Find::findallmod($namespace)
+      $class->_findallmod($namespace)
     );
   }
 
@@ -314,7 +329,7 @@ sub load_classes {
     }
   } else {
     my @comp = map { substr $_, length "${class}::"  }
-                 Module::Find::findallmod($class);
+                 $class->_findallmod;
     $comps_for{$class} = \@comp;
   }
 
@@ -325,13 +340,6 @@ sub load_classes {
     foreach my $prefix (keys %comps_for) {
       foreach my $comp (@{$comps_for{$prefix}||[]}) {
         my $comp_class = "${prefix}::${comp}";
-        { # try to untaint module name. mods where this fails
-          # are left alone so we don't have to change the old behavior
-          no locale; # localized \w doesn't untaint expression
-          if ( $comp_class =~ m/^( (?:\w+::)* \w+ )$/x ) {
-            $comp_class = $1;
-          }
-        }
         $class->ensure_class_loaded($comp_class);
 
         my $snsub = $comp_class->can('source_name');
