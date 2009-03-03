@@ -5,12 +5,23 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::NoBindVars/;
 
-my %noquote = map { $_ => 1 } qw(int integer);
+my $noquote = {
+    int => qr/^ \-? \d+ $/x,
+    integer => qr/^ \-? \d+ $/x,
+
+    # TODO maybe need to add float/real/etc
+};
 
 sub should_quote_data_type {
   my $self = shift;
-  my ($type) = @_;
-  return 0 if $noquote{$type};
+  my ($type, $value) = @_;
+
+  return $self->next::method(@_) if not defined $value;
+
+  if (my $re = $noquote->{$type}) {
+    return 0 if $value =~ $re;
+  }
+
   return $self->next::method(@_);
 }
 

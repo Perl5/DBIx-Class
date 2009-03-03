@@ -50,12 +50,12 @@ sub _prep_for_execute {
 
   foreach my $bound (@$bind) {
     my $col = shift @$bound;
-    my $do_quote = $self->should_quote_data_type($col);
+    my $datatype = 'FIXME!!!';
     foreach my $data (@$bound) {
         if(ref $data) {
             $data = ''.$data;
         }
-        $data = $self->_dbh->quote($data) if $do_quote;
+        $data = $self->_dbh->quote($data) if $self->should_quote_data_type($datatype, $data);
         $new_sql .= shift(@sql_part) . $data;
     }
   }
@@ -67,13 +67,17 @@ sub _prep_for_execute {
 =head2 should_quote_data_type
 
 This method is called by L</_prep_for_execute> for every column in
-order to determine if its value should be quoted or not. The sole
-argument is the current column data type, and the return value is
-interpreted as: true - do quote, false - do not quote. You should
-override this in you Storage::DBI::<database> subclass, if your
-RDBMS does not like quotes around certain datatypes (e.g. Sybase
-and integer columns). The default method always returns true (do
-quote).
+order to determine if its value should be quoted or not. The arguments
+are the current column data type and the actual bind value. The return
+value is interpreted as: true - do quote, false - do not quote. You should
+override this in you Storage::DBI::<database> subclass, if your RDBMS
+does not like quotes around certain datatypes (e.g. Sybase and integer
+columns). The default method always returns true (do quote).
+
+ WARNING!!!
+
+ Always validate that the bind-value is valid for the current datatype.
+ Otherwise you may very well open the door to SQL injection attacks.
 
 =cut
 
