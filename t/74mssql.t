@@ -40,7 +40,7 @@ ok($new->artistid, "Auto-PK worked");
 
 # Test LIMIT
 for (1..6) {
-    $schema->resultset('Artist')->create( { name => 'Artist ' . $_ } );
+    $schema->resultset('Artist')->create( { name => 'Artist ' . $_, rank => $_ } );
 }
 
 my $it = $schema->resultset('Artist')->search( { },
