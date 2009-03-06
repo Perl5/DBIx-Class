@@ -164,7 +164,9 @@ it is massaged to look something like:
     t3 => { col1 => 5, col2 => 6 },
   };
 At this point, find the stuff that's different is easy enough to do and slotting
-things into the right spot is, likewise, pretty straightforward.
+things into the right spot is, likewise, pretty straightforward. Instead of
+storing things in a AoH, store them in a HoH keyed on the PKs of the the table,
+then convert to an AoH after all collapsing is done.
 
 This implies that the collapse attribute can probably disappear or, at the
 least, be turned into a boolean (which is how it's used in every other place).
