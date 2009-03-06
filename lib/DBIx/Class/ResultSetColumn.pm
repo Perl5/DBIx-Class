@@ -68,6 +68,8 @@ Returns the SQL query and bind vars associated with the invocant.
 
 This is generally used as the RHS for a subquery.
 
+B<NOTE>: This feature is still experimental.
+
 =cut
 
 sub as_query { return shift->_resultset->as_query }

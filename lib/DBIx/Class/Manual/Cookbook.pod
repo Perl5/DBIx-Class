@@ -343,6 +343,10 @@ That creates the following SQL:
        WHERE artistid = me.artistid
       )
 
+=head3 EXPERIMENTAL
+
+Please note that subqueries are considered an experimental feature.
+
 =head2 Predefined searches
 
 You can write your own L<DBIx::Class::ResultSet> class by inheriting from it
