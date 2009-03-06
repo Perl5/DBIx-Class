@@ -17,19 +17,8 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 16 );
-}
-
-# figure out if we've got a version of sqlite that is older than 3.2.6, in
-# which case COUNT(DISTINCT()) doesn't work
-my $is_broken_sqlite = 0;
-my ($sqlite_major_ver,$sqlite_minor_ver,$sqlite_patch_ver) =
-    split /\./, $schema->storage->dbh->get_info(18);
-if( $schema->storage->dbh->get_info(17) eq 'SQLite' &&
-    ( ($sqlite_major_ver < 3) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver < 2) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver == 2 && $sqlite_patch_ver < 6) ) ) {
-    $is_broken_sqlite = 1;
+#        : ( tests => 16 );
+        : 'no_plan';
 }
 
 # once the following TODO is complete, remove the 2 warning tests immediately
@@ -128,6 +117,56 @@ my $w;
             "warning on ->$_ attempt prefetching several same level has_manys (M -> 1 -> M + M)");
     }
 }
+
+
+# Illustration purposes only
+
+{
+  package Inf::Dump;
+  sub inflate_result {
+    return [ @_[2,3] ];
+  }
+}
+
+my $cd = $schema->resultset ('CD')->create ({
+  artist => 1,
+  title => 'bad cd',
+  year => 1313,
+  tags => [ map { { tag => "bad tag $_" } } (1 .. 3) ],
+  tracks => [
+    { title => 'bad track 1', cd_single => {
+      artist => 1,
+      title => 'bad_single',
+      year => 1313,
+    }},
+    map { { title => "bad track $_" } } (2 .. 3),
+  ],
+});
+
+my $rs = $schema->resultset ('CD')->search (
+  { 'me.cdid' => $cd->id },
+  { prefetch => [ 'tags', { tracks => 'cd_single' } ], result_class => 'Inf::Dump' },
+);
+
+use Text::Table;
+my $query = ${$rs->as_query}->[0];
+my ($cols) = ( $query =~ /SELECT (.+) FROM/);
+my $tb = Text::Table->new (map { $_ => \ ' | ' } (split /,\s*/, $cols) );
+
+my $c = $rs->cursor;
+while (my @stuff = $c->next) {
+  $tb->add (map { defined $_ ? $_ : 'NULL' } (@stuff) );
+}
+
+$rs->reset;
+note Dumper [
+  "\n$query",
+  "\n$tb",
+  $rs->next
+];
+
+
+
 
 __END__
 The solution is to rewrite ResultSet->_collapse_result() and
