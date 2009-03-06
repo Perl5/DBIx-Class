@@ -17,7 +17,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 74 );
+        : ( tests => 45 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -36,6 +36,13 @@ my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
 $schema->storage->debug(1);
 
+my $search = { 'artist.name' => 'Caterwauler McCrae' };
+my $attr = { prefetch => [ qw/artist liner_notes/ ],
+             order_by => 'me.cdid' };
+my $search_str = Dumper($search);
+my $attr_str = Dumper($attr);
+
+my $rs = $schema->resultset("CD")->search($search, $attr);
 my @cd = $rs->all;
 
 is($cd[0]->title, 'Spoonful of bees', 'First record returned ok');
