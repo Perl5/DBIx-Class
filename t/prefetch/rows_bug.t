@@ -10,7 +10,6 @@ use DBICTest;
 plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 2);
 
 my $schema = DBICTest->init_schema();
-$schema->storage->debug(1);
 my $no_prefetch = $schema->resultset('Artist')->search(
   undef,
   { rows => 3 }
