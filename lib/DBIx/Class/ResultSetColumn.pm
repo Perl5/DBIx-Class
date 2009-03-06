@@ -54,7 +54,7 @@ sub new {
   return $new;
 }
 
-=head2 as_query
+=head2 as_query (EXPERIMENTAL)
 
 =over 4
 

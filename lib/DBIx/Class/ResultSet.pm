@@ -1807,7 +1807,7 @@ sub _remove_alias {
   return \%unaliased;
 }
 
-=head2 as_query
+=head2 as_query (EXPERIMENTAL)
 
 =over 4
 
