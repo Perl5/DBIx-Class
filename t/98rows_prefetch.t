@@ -41,26 +41,6 @@ TODO: {
     . " \$use_prefetch_count == $use_prefetch_count)"
   );
 }
-__END__
-my $rs1 = $schema->resultset('Artist')->search(
-    undef, {
-#        join => 'cds',
-    },
-);
-warn ${$rs1->as_query}->[0], $/;
-{ my @x = $rs1->all; warn "$#x\n"; }
-
-my $rs2 = $schema->resultset('Artist')->search(
-    undef, {
-        from => [{
-            me => $rs1->as_query,
-        }],
-        prefetch => 'cds',
-    },
-);
-
-warn ${$rs2->as_query}->[0], $/;
-{ my @x = $rs2->all; warn "$#x\n"; }
 
 __END__
 The fix is to, when using prefetch, take the query and put it into a subquery
@@ -99,6 +79,3 @@ becomes:
 Problem:
   * The prefetch->join change needs to happen ONLY IF there are conditions
     that depend on bar being joined.
-  * How will this work when the $rs is further searched on? Those clauses
-    need to be added to the subquery, not the outer one. This is particularly
-    true if rows is added in the attribute later per the Pager.
