@@ -1807,7 +1807,7 @@ sub _remove_alias {
   return \%unaliased;
 }
 
-=head2 as_query
+=head2 as_query (EXPERIMENTAL)
 
 =over 4
 
@@ -1820,8 +1820,6 @@ sub _remove_alias {
 Returns the SQL query and bind vars associated with the invocant.
 
 This is generally used as the RHS for a subquery.
-
-B<NOTE>: This feature is still experimental.
 
 =cut
 
