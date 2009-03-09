@@ -7,7 +7,14 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 6;
+{
+  no warnings qw/once/;
+  require inc::Module::Install;
+  plan $Module::Install::AUTHOR 
+    ? (tests => 6) 
+    : (skip_all => 'Test temporarily disabled due to a widespread buggy SQLite version')
+  ;
+}
 
 my $db_orig = "$FindBin::Bin/var/DBIxClass.db";
 my $db_tmp  = "$db_orig.tmp";
