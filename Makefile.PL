@@ -52,6 +52,7 @@ my %force_requires_if_author = (
 
   # CDBI-compat related
   'DBIx::ContextualFetch'     => 0,
+  'Class::DBI::Plugin::DeepAbstractSearch' => 0,
   'Class::Trigger'            => 0,
   'Time::Piece'               => 0,
   'Clone'                     => 0,
