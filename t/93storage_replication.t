@@ -577,12 +577,3 @@ ok $replicated->schema->resultset('Artist')->find(1)
 
 ## Delete the old database files
 $replicated->cleanup;
-
-use Data::Dump qw/dump/;
-#warn dump $replicated->schema->storage->read_handler;
-
-
-
-
-
-
