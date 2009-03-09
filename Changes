@@ -9,7 +9,7 @@ Revision history for DBIx::Class
           - not try and insert things tagged on via new_related unless required
         - Possible to set locale in IC::DateTime extra => {} config
         - Calling the accessor of a belongs_to when the foreign_key
-          was NULL and the row was not stored would unexpectedly fail (groditi)
+          was NULL and the row was not stored would unexpectedly fail 
         - Split sql statements for deploy only if SQLT::Producer returned a scalar
           containing all statements to be executed
         - Add as_query() for ResultSet and ResultSetColumn. This makes subqueries
@@ -17,7 +17,7 @@ Revision history for DBIx::Class
         - Massive rewrite of Ordered to properly handle position constraints and
           to make it more matpath-friendly
         - deploy_statements called ddl_filename with the $version and $dir arguments
-          in the wrong order. (groditi)
+          in the wrong order. 
         - columns/+columns attributes now support { as => select } hahsrefs
         - support for views both in DBIC and via deploy() in SQLT
 
@@ -37,8 +37,8 @@ Revision history for DBIx::Class
         - new order_by => { -desc => 'colname' } syntax supported
         - PG array datatype supported
         - insert should use store_column, not set_column to avoid marking
-          clean just-stored values as dirty. New test for this (groditi)
-        - regression test for source_name (groditi)
+          clean just-stored values as dirty. New test for this 
+        - regression test for source_name 
 
 0.08099_05 2008-10-30 21:30:00 (UTC)
         - Rewritte of Storage::DBI::connect_info(), extended with an
