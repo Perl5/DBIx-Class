@@ -35,7 +35,14 @@ sub add_relationship_accessor {
           return if grep { not defined } values %$cond;
         }
         my $val = $self->find_related($rel, {}, {});
-        return unless $val;
+
+        # this really should have been:
+        # return $val unless $val
+        # however someone might already be relying on return() as in:
+        # my @things = map { $_->might_have_acc } ($rs->all)
+        # thus keeping the quirky behavior
+        return unless defined $val;
+
         return $self->{_relationship_data}{$rel} = $val;
       }
     };
