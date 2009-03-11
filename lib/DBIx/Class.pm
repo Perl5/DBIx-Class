@@ -317,6 +317,8 @@ wdh: Will Hawes
 
 willert: Sebastian Willert <willert@cpan.org>
 
+wreis: Wallace Reis <wreis@cpan.org>
+
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 norbi: Norbert Buchmuller <norbi@nix.hu>
