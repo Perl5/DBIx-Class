@@ -313,7 +313,6 @@ has 'write_handler' => (
 
     reload_row
     _prep_for_execute
-    configure_sqlt
     
   /],
 );

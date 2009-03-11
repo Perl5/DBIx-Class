@@ -998,7 +998,9 @@ Attempts to deploy the schema to the current storage using L<SQL::Translator>.
 
 See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>. The most
 common value for this would be C<< { add_drop_table => 1, } >> to have the SQL
-produced include a DROP TABLE statement for each table created.
+produced include a DROP TABLE statement for each table created. For quoting
+purposes use C<producer_options> value with C<quote_table_names> and
+C<quote_field_names>.
 
 Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash 
 ref or an array ref, containing a list of source to deploy. If present, then 

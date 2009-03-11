@@ -1659,7 +1659,6 @@ sub create_ddl_dir {
 
   foreach my $db (@$databases) {
     $sqlt->reset();
-    $sqlt = $self->configure_sqlt($sqlt, $db);
     $sqlt->{schema} = $sqlt_schema;
     $sqlt->producer($db);
 
@@ -1705,7 +1704,6 @@ sub create_ddl_dir {
       $t->debug( 0 );
       $t->trace( 0 );
       $t->parser( $db )                       or die $t->error;
-      $t = $self->configure_sqlt($t, $db);
       my $out = $t->translate( $prefilename ) or die $t->error;
       $source_schema = $t->schema;
       unless ( $source_schema->name ) {
@@ -1723,7 +1721,6 @@ sub create_ddl_dir {
       $t->debug( 0 );
       $t->trace( 0 );
       $t->parser( $db )                    or die $t->error;
-      $t = $self->configure_sqlt($t, $db);
       my $out = $t->translate( $filename ) or die $t->error;
       $dest_schema = $t->schema;
       $dest_schema->name( $filename )
@@ -1741,17 +1738,6 @@ sub create_ddl_dir {
     print $file $diff;
     close($file);
   }
-}
-
-sub configure_sqlt() {
-  my $self = shift;
-  my $tr = shift;
-  my $db = shift || $self->sqlt_type;
-  if ($db eq 'PostgreSQL') {
-    $tr->quote_table_names(0);
-    $tr->quote_field_names(0);
-  }
-  return $tr;
 }
 
 =head2 deployment_statements
