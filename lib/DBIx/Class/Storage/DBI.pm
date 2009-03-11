@@ -1565,9 +1565,18 @@ Return the row id of the last insert.
 =cut
 
 sub _dbh_last_insert_id {
-    my ($self, $dbh, $source, $col) = @_;
-    # XXX This is a SQLite-ism as a default... is there a DBI-generic way?
-    $dbh->func('last_insert_rowid');
+    # All Storage's need to register their own _dbh_last_insert_id
+    # the old SQLite-based method was highly inappropriate
+
+    my $self = shift;
+    my $class = ref $self;
+    $self->throw_exception (<<EOE);
+
+No _dbh_last_insert_id() method found in $class.
+Since the method of obtaining the autoincrement id of the last insert
+operation varies greatly between different databases, this method must be
+individually implemented for every storage class.
+EOE
 }
 
 sub last_insert_id {
