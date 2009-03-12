@@ -102,6 +102,21 @@ another.
     });
   }
 
+=head3 Resolving conditions and attributes
+
+When a resultset is chained from another resultset, conditions and
+attributes with the same keys need resolving.
+
+L</join>, L</prefetch>, L</+select>, L</+as> attributes are merged
+into the existing ones from the original resultset.
+
+The L</where>, L</having> attribute, and any search conditions are
+merged with an SQL C<AND> to the existing condition from the original
+resultset.
+
+All other attributes are overridden by any new ones supplied in the
+search attributes.
+
 =head2 Multiple queries
 
 Since a resultset just defines a query, you can do all sorts of
