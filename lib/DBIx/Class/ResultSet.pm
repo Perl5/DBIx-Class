@@ -1636,6 +1636,9 @@ sub _normalize_populate_args {
 Return Value a L<Data::Page> object for the current resultset. Only makes
 sense for queries with a C<page> attribute.
 
+To get the full count of entries for a paged resultset, call
+C<total_entries> on the L<Data::Page> object.
+
 =cut
 
 sub pager {
@@ -2856,6 +2859,10 @@ identical to creating a non-pages resultset and then calling ->page($page)
 on it.
 
 If L<rows> attribute is not specified it defualts to 10 rows per page.
+
+When you have a paged resultset, L</count> will only return the number
+of rows in the page. To get the total, use the L</pager> and call
+C<total_entries> on it.
 
 =head2 rows
 
