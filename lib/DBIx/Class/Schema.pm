@@ -483,6 +483,12 @@ Note that C<connect_info> expects an arrayref of arguments, but
 C<connect> does not. C<connect> wraps it's arguments in an arrayref
 before passing them to C<connect_info>.
 
+=head3 Overloading
+
+C<connect> is a convenience method. It is equivalent to calling
+$schema->clone->connection(@connectinfo). To write your own overloaded
+version, overload L</connection> instead.
+
 =cut
 
 sub connect { shift->clone->connection(@_) }
@@ -760,6 +766,9 @@ Similar to L</connect> except sets the storage object and connection
 data in-place on the Schema class. You should probably be calling
 L</connect> to get a proper Schema object instead.
 
+=head3 Overloading
+
+Overload C<connection> to change the behaviour of C<connect>.
 
 =cut
 
