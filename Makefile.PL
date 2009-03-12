@@ -82,6 +82,18 @@ if ($Module::Install::AUTHOR) {
 
 auto_provides;
 
+if ($Module::Install::AUTHOR) {
+  warn <<'EOW';
+******************************************************************************
+******************************************************************************
+***                                                                        ***
+*** AUTHOR MODE: all optional test dependencies converted to hard requires ***
+***                                                                        ***
+******************************************************************************
+******************************************************************************
+
+EOW
+}
 auto_install;
 
 # Have all prerequisites, check DBD::SQLite sanity
@@ -211,6 +223,3 @@ if ($Module::Install::AUTHOR) {
   Meta->write;
 }
 
-if ($Module::Install::AUTHOR) {
-  warn "\nAUTHOR MODE: all optional test dependencies were made hard requires\n";
-}
