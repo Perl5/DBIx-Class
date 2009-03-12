@@ -210,3 +210,7 @@ if ($Module::Install::AUTHOR) {
   ];
   Meta->write;
 }
+
+if ($Module::Install::AUTHOR) {
+  warn "\nAUTHOR MODE: all optional test dependencies were made hard requires\n";
+}
