@@ -6,12 +6,17 @@ use Test::More;
 
 use lib 't/lib';
 
-plan tests => 4;
+plan tests => 6;
 
 sub _chk_warning {
 	defined $_[0]? 
 		$_[0] !~ qr/We found ResultSet class '([^']+)' for '([^']+)', but it seems that you had already set '([^']+)' to use '([^']+)' instead/ :
 		1
+}
+
+sub _chk_extra_sources_warning {
+	my $p = qr/already has a source, use register_extra_source for additional sources/;
+	defined $_[0]? $_[0] !~ /$p/ : 1;
 }
 
 my $warnings;
@@ -26,7 +31,9 @@ eval {
     );
 };
 ok(!$@) or diag $@;
-ok(_chk_warning($warnings), 'expected no complaint');
+ok(_chk_warning($warnings), 'expected no resultset complaint');
+ok(_chk_extra_sources_warning($warnings), 'expected no extra sources complaint');
+undef $warnings;
 
 eval {
     local $SIG{__WARN__} = sub { $warnings .= shift };
@@ -39,4 +46,6 @@ eval {
     );
 };
 ok(!$@) or diag $@;
-ok(_chk_warning($warnings), 'expected no complaint') or diag $warnings;
+ok(_chk_warning($warnings), 'expected no resultset complaint') or diag $warnings;
+ok(_chk_extra_sources_warning($warnings), 'expected no extra sources complaint');
+undef $warnings;
