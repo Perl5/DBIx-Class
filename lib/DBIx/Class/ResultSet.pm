@@ -313,6 +313,11 @@ sub search_rs {
     : undef
   );
 
+  foreach my $key (keys %$cond) {
+    next unless my ($alias) = ($key =~ /^(\w+)\.\w+$/);
+    push @{$new_attrs->{join}}, $alias unless grep(/${alias}/, @{$new_attrs->{join}}) or $alias eq 'me';
+  }
+
   if (defined $where) {
     $new_attrs->{where} = (
       defined $new_attrs->{where}
