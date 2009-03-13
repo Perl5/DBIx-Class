@@ -96,17 +96,19 @@ sub _find_syntax {
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
   local $self->{having_bind} = [];
+
+#  if (ref $table eq 'HASH') {
+#    my $alias;
+#    ($alias, $table) = %$table;
+#  }
+ 
   if (ref $table eq 'SCALAR') {
     $table = $$table;
   }
-  elsif (ref $table eq 'HASH') {
-    ## what if they want to alias a sub query?
-  }
   elsif (ref $table eq 'REF') {
-    #my ($sql, @bind) = @{${$t}}; push(@{$self->{having_bind}}, @bind;);
-    my $t = $table; 
-    $table = shift @$$t;
-    while (my $b = shift @$$t) { push @{$self->{having_bind}}, $b; }
+    my ($sql, @bind) = @{${$table}};
+    push(@{$self->{having_bind}}, @bind);
+    $table = $sql;
   }
   elsif (not ref $table) {
     $table = $self->_quote($table);
