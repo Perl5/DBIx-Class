@@ -95,8 +95,18 @@ sub _find_syntax {
 
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
+  local $self->{having_bind} = [];
   if (ref $table eq 'SCALAR') {
     $table = $$table;
+  }
+  elsif (ref $table eq 'HASH') {
+    ## what if they want to alias a sub query?
+  }
+  elsif (ref $table eq 'REF') {
+    #my ($sql, @bind) = @{${$t}}; push(@{$self->{having_bind}}, @bind;);
+    my $t = $table; 
+    $table = shift @$$t;
+    while (my $b = shift @$$t) { push @{$self->{having_bind}}, $b; }
   }
   elsif (not ref $table) {
     $table = $self->_quote($table);
@@ -106,7 +116,6 @@ sub select {
   @rest = (-1) unless defined $rest[0];
   die "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
-  local $self->{having_bind} = [];
   my ($sql, @ret) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $order, @rest
   );
