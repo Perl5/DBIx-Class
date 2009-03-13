@@ -207,6 +207,8 @@ andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
 
+arcanez: Justin Hunter <justin.d.hunter@gmail.com>
+
 ash: Ash Berlin <ash@cpan.org>
 
 bert: Norbert Csongradi <bert@cpan.org>
@@ -322,8 +324,6 @@ wreis: Wallace Reis <wreis@cpan.org>
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 norbi: Norbert Buchmuller <norbi@nix.hu>
-
-arcanez: Justin Hunter <justin.d.hunter@gmail.com>
 
 =head1 LICENSE
 
