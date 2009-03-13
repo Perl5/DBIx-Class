@@ -96,19 +96,10 @@ sub _find_syntax {
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
   local $self->{having_bind} = [];
+  local $self->{from_bind} = [];
 
-#  if (ref $table eq 'HASH') {
-#    my $alias;
-#    ($alias, $table) = %$table;
-#  }
- 
   if (ref $table eq 'SCALAR') {
     $table = $$table;
-  }
-  elsif (ref $table eq 'REF') {
-    my ($sql, @bind) = @{${$table}};
-    push(@{$self->{having_bind}}, @bind);
-    $table = $sql;
   }
   elsif (not ref $table) {
     $table = $self->_quote($table);
@@ -118,7 +109,7 @@ sub select {
   @rest = (-1) unless defined $rest[0];
   die "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
-  my ($sql, @ret) = $self->SUPER::select(
+  my ($sql, @where_bind) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $order, @rest
   );
   $sql .= 
@@ -130,7 +121,7 @@ sub select {
     ) :
     ''
   ;
-  return wantarray ? ($sql, @ret, @{$self->{having_bind}}) : $sql;
+  return wantarray ? ($sql, @{$self->{from_bind}}, @where_bind, @{$self->{having_bind}}) : $sql;
 }
 
 sub insert {
@@ -278,11 +269,10 @@ sub _recurse_from {
 }
 
 sub _bind_to_sql {
-  my $self = shift;
-  my $arr  = shift;
-  my $sql = shift @$$arr;
-  $sql =~ s/\?/$self->_quote((shift @$$arr)->[1])/eg;
-  return $sql
+  my ($self, $arr) = @_;
+  my ($sql, @bind) = @{${$arr}};
+  push (@{$self->{from_bind}}, @bind);
+  return $sql;
 }
 
 sub _make_as {
