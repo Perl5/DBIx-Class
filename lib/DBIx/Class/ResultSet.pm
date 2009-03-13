@@ -1147,7 +1147,7 @@ sub _count { # Separated out so pager can get the full count
     }
 
     $attrs->{select} = $group_by; 
-    $attrs->{from} = (ref $self)->new($self->result_source, $attrs)->cursor->as_query;
+    $attrs->{from} = [ { 'mesub' => (ref $self)->new($self->result_source, $attrs)->cursor->as_query } ];
   }
 
   $attrs->{select} = { count => '*' };
