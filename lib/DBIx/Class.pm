@@ -207,8 +207,6 @@ andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
 
-arcanez: Justin Hunter <justin.d.hunter@gmail.com>
-
 ash: Ash Berlin <ash@cpan.org>
 
 bert: Norbert Csongradi <bert@cpan.org>

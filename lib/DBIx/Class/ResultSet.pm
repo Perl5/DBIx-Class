@@ -102,6 +102,21 @@ another.
     });
   }
 
+=head3 Resolving conditions and attributes
+
+When a resultset is chained from another resultset, conditions and
+attributes with the same keys need resolving.
+
+L</join>, L</prefetch>, L</+select>, L</+as> attributes are merged
+into the existing ones from the original resultset.
+
+The L</where>, L</having> attribute, and any search conditions are
+merged with an SQL C<AND> to the existing condition from the original
+resultset.
+
+All other attributes are overridden by any new ones supplied in the
+search attributes.
+
 =head2 Multiple queries
 
 Since a resultset just defines a query, you can do all sorts of
@@ -312,11 +327,6 @@ sub search_rs {
       )
     : undef
   );
-
-  foreach my $key (keys %$cond) {
-    next unless my ($alias) = ($key =~ /^(\w+)\.\w+$/);
-    push @{$new_attrs->{join}}, $alias unless grep(/${alias}/, @{$new_attrs->{join}}) or $alias eq 'me';
-  }
 
   if (defined $where) {
     $new_attrs->{where} = (
@@ -1133,11 +1143,11 @@ sub count {
 
 sub _count { # Separated out so pager can get the full count
   my $self = shift;
-  my $attrs = { %{$self->_resolved_attrs} };
+  my $select = { count => '*' };
 
-  if (my $group_by = $attrs->{group_by}) {
+  my $attrs = { %{$self->_resolved_attrs} };
+  if (my $group_by = delete $attrs->{group_by}) {
     delete $attrs->{having};
-    delete $attrs->{order_by};
     my @distinct = (ref $group_by ?  @$group_by : ($group_by));
     # todo: try CONCAT for multi-column pk
     my @pk = $self->result_source->primary_columns;
@@ -1151,15 +1161,14 @@ sub _count { # Separated out so pager can get the full count
       }
     }
 
-    $attrs->{select} = $group_by; 
-    $attrs->{from} = [ { 'mesub' => (ref $self)->new($self->result_source, $attrs)->cursor->as_query } ];
+    $select = { count => { distinct => \@distinct } };
   }
 
-  $attrs->{select} = { count => '*' };
+  $attrs->{select} = $select;
   $attrs->{as} = [qw/count/];
 
-  # offset, order by, group by, where and page are not needed to count. record_filter is cdbi
-  delete $attrs->{$_} for qw/rows offset order_by group_by where page pager record_filter/;
+  # offset, order by and page are not needed to count. record_filter is cdbi
+  delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
 
   my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
@@ -1641,6 +1650,9 @@ sub _normalize_populate_args {
 
 Return Value a L<Data::Page> object for the current resultset. Only makes
 sense for queries with a C<page> attribute.
+
+To get the full count of entries for a paged resultset, call
+C<total_entries> on the L<Data::Page> object.
 
 =cut
 
@@ -2862,6 +2874,10 @@ identical to creating a non-pages resultset and then calling ->page($page)
 on it.
 
 If L<rows> attribute is not specified it defualts to 10 rows per page.
+
+When you have a paged resultset, L</count> will only return the number
+of rows in the page. To get the total, use the L</pager> and call
+C<total_entries> on it.
 
 =head2 rows
 
