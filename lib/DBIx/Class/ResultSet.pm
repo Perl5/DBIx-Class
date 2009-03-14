@@ -1143,11 +1143,11 @@ sub count {
 
 sub _count { # Separated out so pager can get the full count
   my $self = shift;
-  my $select = { count => '*' };
-
   my $attrs = { %{$self->_resolved_attrs} };
-  if (my $group_by = delete $attrs->{group_by}) {
+
+  if (my $group_by = $attrs->{group_by}) {
     delete $attrs->{having};
+    delete $attrs->{order_by};
     my @distinct = (ref $group_by ?  @$group_by : ($group_by));
     # todo: try CONCAT for multi-column pk
     my @pk = $self->result_source->primary_columns;
@@ -1161,14 +1161,15 @@ sub _count { # Separated out so pager can get the full count
       }
     }
 
-    $select = { count => { distinct => \@distinct } };
+    $attrs->{select} = $group_by; 
+    $attrs->{from} = [ { 'mesub' => (ref $self)->new($self->result_source, $attrs)->cursor->as_query } ];
   }
 
-  $attrs->{select} = $select;
+  $attrs->{select} = { count => '*' };
   $attrs->{as} = [qw/count/];
 
-  # offset, order by and page are not needed to count. record_filter is cdbi
-  delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
+  # offset, order by, group by, where and page are not needed to count. record_filter is cdbi
+  delete $attrs->{$_} for qw/rows offset order_by group_by where page pager record_filter/;
 
   my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
