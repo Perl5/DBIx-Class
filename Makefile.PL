@@ -14,7 +14,7 @@ requires 'Scalar::Util'             => 0;
 requires 'SQL::Abstract'            => 1.49;
 requires 'SQL::Abstract::Limit'     => 0.13;
 requires 'Class::C3'                => 0.20;
-requires 'Class::C3::Componentised' => 0;
+requires 'Class::C3::Componentised' => 1.0003;
 requires 'Storable'                 => 0;
 requires 'Carp::Clan'               => 0;
 requires 'DBI'                      => 1.40;
@@ -26,6 +26,7 @@ requires 'Scope::Guard'             => 0.03;
 requires 'Path::Class'              => 0;
 requires 'List::Util'               => 1.19;
 requires 'Sub::Name'                => 0.04;
+requires 'MRO::Compat'              => 0.09;
 
 # Perl 5.8.0 doesn't have utf8::is_utf8()
 requires 'Encode'                   => 0 if ($] <= 5.008000);  
