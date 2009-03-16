@@ -1163,13 +1163,14 @@ sub _count { # Separated out so pager can get the full count
 
     $attrs->{select} = $group_by; 
     $attrs->{from} = [ { 'mesub' => (ref $self)->new($self->result_source, $attrs)->cursor->as_query } ];
+    delete $attrs->{where};
   }
 
   $attrs->{select} = { count => '*' };
   $attrs->{as} = [qw/count/];
 
   # offset, order by, group by, where and page are not needed to count. record_filter is cdbi
-  delete $attrs->{$_} for qw/rows offset order_by group_by where page pager record_filter/;
+  delete $attrs->{$_} for qw/rows offset order_by group_by page pager record_filter/;
 
   my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
