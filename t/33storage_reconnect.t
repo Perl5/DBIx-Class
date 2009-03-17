@@ -8,11 +8,11 @@ use lib qw(t/lib);
 use DBICTest;
 
 # equivalent of $Module::Install::AUTHOR
-my $author =
-  not  -d './inc'
+my $author = (
+  ( not  -d './inc' )
     or
-  -e ($^O eq 'VMS' ? './inc/_author' : './inc/.author')
-;
+  ( -e ($^O eq 'VMS' ? './inc/_author' : './inc/.author') )
+);
 
 plan $author
   ? (tests => 6)
