@@ -1,6 +1,9 @@
 Revision history for DBIx::Class
 
 0.08099_07 2009-02-27 02:00:00 (UTC)
+        - putting IC::DateTime locale, timezone or floating_tz_ok attributes into
+          extra => {} has been deprecated. The new way is to put these things
+          directly into the columns definition
         - multi-create using find_or_create rather than _related for post-insert
         - fix get_inflated_columns to check has_column_loaded
         - Add DBIC_MULTICREATE_DEBUG env var (undocumented, quasi-internal)

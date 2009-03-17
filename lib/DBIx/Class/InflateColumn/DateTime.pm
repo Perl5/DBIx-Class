@@ -30,7 +30,7 @@ Then you can treat the specified column as a L<DateTime> object.
 If you want to set a specific timezone and locale for that field, use:
 
   __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago", locale => "de_DE" } }
+    starts_when => { data_type => 'datetime', timezone => "America/Chicago", locale => "de_DE" }
   );
 
 If you want to inflate no matter what data_type your column is,
@@ -111,13 +111,20 @@ sub register_column {
 
   my $timezone;
   if ( defined $info->{extra}{timezone} ) {
+    warn "Putting timezone into extra => { timezone => '...' } has been deprecated, ".
+         "please put it directly into the columns definition.";
     $timezone = $info->{extra}{timezone};
   }
 
   my $locale;
   if ( defined $info->{extra}{locale} ) {
+    warn "Putting locale into extra => { locale => '...' } has been deprecated, ".
+         "please put it directly into the columns definition.";
     $locale = $info->{extra}{locale};
   }
+  
+  $locale   = $info->{locale}   if defined $info->{locale};
+  $timezone = $info->{timezone} if defined $info->{timezone};
 
   my $undef_if_invalid = $info->{datetime_undef_if_invalid};
 
@@ -137,7 +144,13 @@ sub register_column {
     #     closure &G, $info => $H
     #     $H => %E
     #
-    my $floating_tz_ok = $info->{extra}{floating_tz_ok};
+    my $floating_tz_ok;
+    if (defined $info->{extra}{floating_tz_ok}) {
+      warn "Putting floating_tz_ok into extra => { floating_tz_ok => 1 } has been deprecated, ".
+           "please put it directly into the columns definition.";
+      $floating_tz_ok = $info->{extra}{floating_tz_ok};
+    }
+    $floating_tz_ok = $info->{floating_tz_ok} if defined $info->{floating_tz_ok};
 
     $self->inflate_column(
       $column =>
@@ -189,7 +202,7 @@ timezone, you will get a warning (as there is a very good chance this will not h
 result you expect). For example:
 
   __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago" } }
+    starts_when => { data_type => 'datetime', timezone => "America/Chicago" }
   );
 
   my $event = $schema->resultset('EventTZ')->create({
@@ -213,7 +226,7 @@ to be supply explicit times to the database:
 =item Suppress the check on per-column basis
 
   __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago", floating_tz_ok => 1 } }
+    starts_when => { data_type => 'datetime', timezone => "America/Chicago", floating_tz_ok => 1 }
   );
 
 =item Suppress the check globally
@@ -222,7 +235,10 @@ Set the environment variable DBIC_FLOATING_TZ_OK to some true value.
 
 =back
 
-
+Putting extra attributes like timezone, locale or floating_tz_ok into extra => {} has been
+B<DEPRECATED> because this gets you into trouble using L<DBIx::Class::Schema::Versioned>.
+Instead put it directly into the columns definition like in the examples above. If you still
+use the old way you'll see a warning - please fix your code then!
 
 =head1 SEE ALSO
 
