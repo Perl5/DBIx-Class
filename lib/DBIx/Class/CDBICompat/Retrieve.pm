@@ -67,7 +67,7 @@ sub retrieve_from_sql {
       $attrs{group_by} = $1;
   }
 
-  return $class->search_literal($cond, ( %attrs || () ) );
+  return $class->search_literal($cond, @rest, ( %attrs ? \%attrs : () ) );
 }
 
 sub construct {

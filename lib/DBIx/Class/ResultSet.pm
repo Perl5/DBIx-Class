@@ -411,7 +411,11 @@ require C<search_literal>.
 
 sub search_literal {
   my ($self, $sql, @bind) = @_; 
-  return $self->search(\[ $sql, map [ __DUMMY__ => $_ ], @bind ]);
+  my $attr;
+  if ( @bind && ref($bind[-1]) eq 'HASH' ) {
+    $attr = pop @bind;
+  }
+  return $self->search(\[ $sql, map [ __DUMMY__ => $_ ], @bind ], ($attr || () ));
 }
 
 =head2 find
