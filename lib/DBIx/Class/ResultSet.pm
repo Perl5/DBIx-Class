@@ -279,6 +279,11 @@ always return a resultset, even in list context.
 sub search_rs {
   my $self = shift;
 
+  # Special-case handling for (undef, undef).
+  if ( @_ == 2 && !defined $_[1] && !defined $_[0] ) {
+    pop(@_); pop(@_);
+  }
+
   my $attrs = {};
   $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
   my $our_attrs = { %{$self->{attrs}} };
