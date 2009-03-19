@@ -1384,14 +1384,6 @@ sub _select_args {
   my ($self, $ident, $select, $condition, $attrs) = @_;
   my $order = $attrs->{order_by};
 
-  if (ref $condition eq 'SCALAR') {
-    my $unwrap = ${$condition};
-    if ($unwrap =~ s/ORDER BY (.*)$//i) {
-      $order = $1;
-      $condition = \$unwrap;
-    }
-  }
-
   my $for = delete $attrs->{for};
   my $sql_maker = $self->sql_maker;
   $sql_maker->{for} = $for;

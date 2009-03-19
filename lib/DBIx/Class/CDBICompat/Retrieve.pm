@@ -54,6 +54,10 @@ sub retrieve_from_sql {
       push @rest, { rows => $1 };
   }
 
+  if ( $cond =~ s/\bORDER\s+BY\s+(.*)$//i ) {
+    push @rest, { order_by => $1 };
+  }
+
   return $class->search_literal($cond, @rest);
 }
 
