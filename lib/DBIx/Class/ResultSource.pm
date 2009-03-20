@@ -125,8 +125,9 @@ L<DBIx::Class::Schema/deploy>.
 =item default_value
 
 Set this to the default value which will be inserted into a column
-by the database. Can contain either a value or a function. This is
-currently only used by L<DBIx::Class::Schema/deploy>.
+by the database. Can contain either a value or a function (use a
+reference to a scalar e.g. C<\'now()'> if you want a function). This
+is currently only used by L<DBIx::Class::Schema/deploy>.
 
 =item sequence
 
