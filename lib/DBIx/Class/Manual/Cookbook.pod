@@ -1737,4 +1737,33 @@ If you are instead using the L<load_namespaces|DBIx::Class::Schema/load_namespac
 syntax to load the appropriate classes there is not a direct alternative
 avoiding L<Module::Find|Module::Find>.
 
+=head1 MEMORY USAGE
+
+=head2 Cached statements
+
+L<DBIx::Class> normally caches all statements with L<< prepare_cached()|DBI/prepare_cached >>.
+This is normally a good idea, but if too many statements are cached, the database may use too much
+memory and may eventually run out and fail entirely.  If you suspect this may be the case, you may want
+to examine DBI's L<< CachedKids|DBI/CachedKidsCachedKids_(hash_ref) >> hash:
+
+    # print all currently cached prepared statements
+    print for keys %{$schema->storage->dbh->{CachedKids}};
+    # get a count of currently cached prepared statements
+    my $count = scalar keys %{$schema->storage->dbh->{CachedKids}};
+
+If it's appropriate, you can simply clear these statements, automatically deallocating them in the
+database:
+
+    my $kids = $schema->storage->dbh->{CachedKids};
+    delete @{$kids}{keys %$kids} if scalar keys %$kids > 100;
+
+But what you probably want is to expire unused statements and not those that are used frequently.
+You can accomplish this with L<Tie::Cache> or L<Tie::Cache::LRU>:
+
+    use Tie::Cache;
+    use DB::Main;
+    my $schema = DB::Main->connect($dbi_dsn, $user, $pass, {
+        on_connect_do => sub { tie %{shift->_dbh->{CachedKids}}, 'Tie::Cache', 100 },
+    });
+
 =cut

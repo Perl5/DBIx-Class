@@ -323,6 +323,8 @@ zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 norbi: Norbert Buchmuller <norbi@nix.hu>
 
+solomon: Jared Johnson <jaredj@nmgi.com>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
