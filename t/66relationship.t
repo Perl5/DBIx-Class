@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 70;
+plan tests => 71;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -35,10 +35,11 @@ is( $cds[1]->title, 'Forkful of bees', 'search_related with abstract query ok' )
 if ($INC{'DBICTest/HelperRels.pm'}) {
   $artist->add_to_cds({ title => 'Big Flop', year => 2005 });
 } else {
-  $artist->create_related( 'cds', {
+  my $big_flop = $artist->create_related( 'cds', {
       title => 'Big Flop',
       year => 2005,
   } );
+  lives_ok { $big_flop->genre} "Don't throw exception when col is not loaded after insert";
 }
 
 my $big_flop_cd = ($artist->search_related('cds'))[3];
