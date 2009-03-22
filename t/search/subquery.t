@@ -26,7 +26,7 @@ my $cdrs = $schema->resultset('CD');
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE artist_id IN ( SELECT id FROM artist me LIMIT 1 )",
+    "( SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE artist_id IN ( SELECT id FROM artist me LIMIT 1 ) )",
     [],
   );
 }
@@ -45,7 +45,7 @@ my $cdrs = $schema->resultset('CD');
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT (SELECT id FROM cd me LIMIT 1) FROM artist me",
+    "( SELECT (SELECT id FROM cd me LIMIT 1) FROM artist me )",
     [],
   );
 }
@@ -64,7 +64,7 @@ my $cdrs = $schema->resultset('CD');
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.artistid, me.name, me.rank, me.charfield, (SELECT id FROM cd me LIMIT 1) FROM artist me",
+    "( SELECT me.artistid, me.name, me.rank, me.charfield, (SELECT id FROM cd me LIMIT 1) FROM artist me )",
     [],
   );
 }
@@ -85,7 +85,7 @@ my $cdrs = $schema->resultset('CD');
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track FROM (SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE id > 20) cd2",
+    "( SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track FROM (SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE id > 20) cd2 )",
     [],
   );
 }
@@ -103,7 +103,7 @@ my $cdrs = $schema->resultset('CD');
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me JOIN (SELECT me.artist as cds_artist FROM cd me) cds ON me.artistid = cds_artist", []
+    "( SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me JOIN (SELECT me.artist as cds_artist FROM cd me) cds ON me.artistid = cds_artist )", []
   );
 
 
@@ -132,13 +132,14 @@ my $cdrs = $schema->resultset('CD');
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track 
+    "( SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track 
       FROM 
         (SELECT cd3.cdid,cd3.artist,cd3.title,cd3.year,cd3.genreid,cd3.single_track 
           FROM 
             (SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track 
               FROM cd me WHERE id < 40) cd3
-          WHERE id > 20) cd2",
+          WHERE id > 20) cd2
+    )",
     [],
   );
 
@@ -157,7 +158,7 @@ my $cdrs = $schema->resultset('CD');
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE year = (SELECT MAX(inner.year) FROM cd inner WHERE artistid = me.artistid)",
+    "( SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE year = (SELECT MAX(inner.year) FROM cd inner WHERE artistid = me.artistid) )",
     [],
   );
 }
