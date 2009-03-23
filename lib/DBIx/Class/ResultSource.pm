@@ -129,6 +129,9 @@ by the database. Can contain either a value or a function (use a
 reference to a scalar e.g. C<\'now()'> if you want a function). This
 is currently only used by L<DBIx::Class::Schema/deploy>.
 
+See the note on L<DBIx::Class::Row/new> for more information about possible
+issues related to db-side default values.
+
 =item sequence
 
 Set this on a primary key column to the name of the sequence used to
@@ -1197,7 +1200,11 @@ sub resolve_condition {
         #warn "$self $k $for $v";
         unless ($for->has_column_loaded($v)) {
           if ($for->in_storage) {
-            $self->throw_exception("Column ${v} not loaded on ${for} trying to resolve relationship");
+            $self->throw_exception(
+              "Column ${v} not loaded or not passed to new() prior to insert()"
+                ." on ${for} trying to resolve relationship (maybe you forgot "
+                  ."to call ->reload_from_storage to get defaults from the db)"
+            );
           }
           return $UNRESOLVABLE_CONDITION;
         }

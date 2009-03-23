@@ -75,6 +75,13 @@ passed a hashref or an arrayref of hashrefs as the value, these will
 be turned into objects via new_related, and treated as if you had
 passed objects.
 
+Please note that if a value is not passed to new, DBIC will have no knowledge
+of the value unless the value is reloaded, creating the possibility of the row
+object differing from the database value if column defaults are used. To avoid
+this issue you can either pass an explicit undef for nullable columns with a
+NULL as default, or simply call L</discard_changes> on the row object after
+insertion.
+
 For a more involved explanation, see L<DBIx::Class::ResultSet/create>.
 
 =cut
