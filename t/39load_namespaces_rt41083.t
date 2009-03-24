@@ -32,7 +32,7 @@ eval {
 };
 ok(!$@) or diag $@;
 ok(_chk_warning($warnings), 'expected no resultset complaint');
-ok(_chk_extra_sources_warning($warnings), 'expected no extra sources complaint');
+ok(_chk_extra_sources_warning($warnings), 'expected no extra sources complaint') or diag($warnings);
 undef $warnings;
 
 eval {
@@ -47,5 +47,5 @@ eval {
 };
 ok(!$@) or diag $@;
 ok(_chk_warning($warnings), 'expected no resultset complaint') or diag $warnings;
-ok(_chk_extra_sources_warning($warnings), 'expected no extra sources complaint');
+ok(_chk_extra_sources_warning($warnings), 'expected no extra sources complaint') or diag($warnings);
 undef $warnings;

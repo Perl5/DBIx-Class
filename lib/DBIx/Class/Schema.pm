@@ -1221,7 +1221,9 @@ calling:
 
 sub register_class {
   my ($self, $moniker, $to_register) = @_;
-  $self->register_source($moniker => $to_register->result_source_instance);
+  $self->register_source($moniker => $to_register->result_source_instance, {
+    _to_register => $to_register
+  });
 }
 
 =head2 register_source
@@ -1279,7 +1281,11 @@ sub _register_source {
 
   if ($source->result_class) {
     my %map = %{$self->class_mappings};
-    if (exists $map{$source->result_class}) {
+    my $is_subof = $params->{_to_register} && UNIVERSAL::isa(
+        $params->{_to_register},
+        $source->result_class
+    );
+    if (exists $map{$source->result_class} && !$is_subof) {
       warn $source->result_class . ' already has a source, use register_extra_source for additional sources';
     }
     $map{$source->result_class} = $moniker;
