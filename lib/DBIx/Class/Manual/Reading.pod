@@ -34,13 +34,18 @@ object that they will be called on.
 
 =item *
 
-Each method starts with a "head2" statement of it's name.
+Each method starts with a "head2" statement of its name.
+
+Just the plain method name, not an example of how to call it, or a link.
+This is to ensure easy linking to method documentation from other POD.
 
 =item *
 
-The header is followed by a one-item list.
+The header is followed by a two-item list. This contains a description
+of the arguments the method is expected to take, and an indication of
+what the method returns.
 
-The single item provides a list of all possible values for the
+The first item provides a list of all possible values for the
 arguments of the method in order, separated by C<, >, preceeded by the
 text "Arguments: "
 
@@ -70,23 +75,59 @@ $var - A scalar (string or numeric) variable.
 
 =item *
 
-? - Optional, should be placed after the argument type and name.
+%var - A hashref variable (list of key/value pairs) - rarely used in DBIx::Class.
+
+Reading an argument as a hash variable will consume all subsequent
+method arguments, use with caution.
 
 =item *
 
-| - Alternate argument types.
+@var - An array variable (list of values).
+
+Reading an argument as a array variable will consume all subsequent
+method arguments, use with caution.
+
+=item *
+
+? - Optional, should be placed after the argument type and name.
+
+  ## Correct
+  \%myhashref|\@myarrayref?
+
+  ## Wrong
+  \%myhashref?|\@myarrayref
+
+Applies to the entire argument.
+
+Optional arguments can be left out of method calls, unless the caller
+needs to pass in any of the following arguments. In which case the
+caller should pass C<undef> in place of the missing argument.
+
+=item *
+
+| - Alternate argument content types. 
+
+At least one of these must be supplied unless the argument is also
+marked optional.
 
 =back
 
-NOTES:
+The second item starts with the text "Return value:". The remainder of
+the line is either the text "undefined", a text describing the result of
+the method, or a variable with a descriptive name.
 
-If several arguments are optional, it is always possible to pass
-C<undef> as one optional argument in order to skip it and provide a
-value for the following ones. This does not need to be indicated in
-the Arguments line, it is assumed.
+  ## Good examples
+  =item Return value: undefined
+  =item Return value: A schema object
+  =item Return value: $classname
 
-The C<?> for optional arguments always applies to the entire argument
-value, not a particular type or argument.
+  ## Bad examples
+  =item Return value: The names
+
+"undefined" means the method does not deliberately return a value, and
+the caller should not use or rely on anything it does return. (Perl
+functions always return something, usually the result of the last code
+statement, if there is no explicit return statement.)
 
 =item *
 
@@ -97,6 +138,9 @@ the method does.
 
 The description paragraph is followed by another list. Each item in
 the list explains one of the possible argument/type combinations.
+
+This list may be omitted if the author feels that the variable names are
+self-explanatory enough to not require it. Use best judgement.
 
 =item *
 
