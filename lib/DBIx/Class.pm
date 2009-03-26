@@ -219,8 +219,6 @@ bricas: Brian Cassidy <bricas@cpan.org>
 
 caelum: Rafael Kitover <rkitover@cpan.org>
 
-captainL: Luke Saunders <luke.saunders@gmail.com>
-
 castaway: Jess Robinson
 
 claco: Christopher H. Laco
@@ -256,6 +254,8 @@ jon: Jon Schutz <jjschutz@cpan.org>
 jshirley: J. Shirley <jshirley@gmail.com>
 
 konobi: Scott McWhirter
+
+lukes: Luke Saunders <luke.saunders@gmail.com>
 
 marcus: Marcus Ramberg <mramberg@cpan.org>
 
