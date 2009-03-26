@@ -27,6 +27,7 @@ Revision history for DBIx::Class
           it is called. (eg ->new({ name => 'foo'})->bar if bar uses bar_id)
           - Currently skipped. Changed exception to have a more detailed message
           - Document the known issue and a possible work around.
+        - search_like() now warns to indicate deprecation in 0.09. (robkinyon)
 
 0.08099_06 2009-01-23 07:30:00 (UTC)
         - Allow a scalarref to be supplied to the 'from' resultset attribute
