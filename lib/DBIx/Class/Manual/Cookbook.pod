@@ -19,19 +19,8 @@ paged resultset, which will fetch only a defined number of records at a time:
 
   return $rs->all(); # all records for page 1
 
-The C<page> attribute does not have to be specified in your search:
-
-  my $rs = $schema->resultset('Artist')->search(
-    undef,
-    {
-      rows => 10,
-    }
-  );
-
-  return $rs->page(1); # DBIx::Class::ResultSet containing first 10 records
-
-In either of the above cases, you can get a L<Data::Page> object for the
-resultset (suitable for use in e.g. a template) using the C<pager> method:
+You can get a L<Data::Page> object for the resultset (suitable for use
+in e.g. a template) using the C<pager> method:
 
   return $rs->pager();
 
