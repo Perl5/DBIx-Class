@@ -269,6 +269,8 @@ nigel: Nigel Metheringham <nigelm@cpan.org>
 
 ningu: David Kamholz <dkamholz@cpan.org>
 
+norbi: Norbert Buchmuller <norbi@nix.hu>
+
 Numa: Dan Sully <daniel@cpan.org>
 
 oyse: Øystein Torget <oystein.torget@dnv.com>
@@ -301,6 +303,8 @@ scotty: Scotty Allen <scotty@scottyallen.com>
 
 semifor: Marc Mims <marc@questright.com>
 
+solomon: Jared Johnson <jaredj@nmgi.com>
+
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
 teejay : Aaron Trevena <teejay@cpan.org>
@@ -320,10 +324,6 @@ willert: Sebastian Willert <willert@cpan.org>
 wreis: Wallace Reis <wreis@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
-
-norbi: Norbert Buchmuller <norbi@nix.hu>
-
-solomon: Jared Johnson <jaredj@nmgi.com>
 
 =head1 LICENSE
 
