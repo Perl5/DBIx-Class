@@ -75,14 +75,24 @@ passed a hashref or an arrayref of hashrefs as the value, these will
 be turned into objects via new_related, and treated as if you had
 passed objects.
 
-Please note that if a value is not passed to new, DBIC will have no knowledge
-of the value unless the value is reloaded, creating the possibility of the row
-object differing from the database value if column defaults are used. To avoid
-this issue you can either pass an explicit undef for nullable columns with a
-NULL as default, or simply call L</discard_changes> on the row object after
-insertion.
-
 For a more involved explanation, see L<DBIx::Class::ResultSet/create>.
+
+Please note that if a value is not passed to new, no value will be sent
+in the SQL INSERT call, and the column will therefore assume whatever
+default value was specified in your database. While DBIC will retrieve the
+value of autoincrement columns, it will never make an explicit database
+trip to retrieve default values assigned by the RDBMS. You can explicitly
+request that all values be fetched back from the database by calling
+L</discard_changes>, or you can supply an explicit C<undef> to columns
+with NULL as the default, and save yourself a SELECT.
+
+ CAVEAT:
+
+ The behavior described above will backfire if you use a foreign key column
+ with a database-defined default. If you call the relationship accessor on
+ an object that doesn't have a set value for the FK column, DBIC will throw
+ an exception, as it has no way of knowing the PK of the related object (if
+ there is one).
 
 =cut
 
