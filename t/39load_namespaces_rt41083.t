@@ -26,16 +26,6 @@ sub _verify_sources {
     \@monikers,
     'List of resultsource registrations',
   );
-
-  my %seen_rc;
-  for my $m (@monikers) {
-    my $src = DBICNSTest::RtBug41083->source ($m);
-    my $rc = $src->result_class;
-
-    ok ( (++$seen_rc{$rc} == 1), "result_class of $m is unique")
-      || diag "Source: $m, result_class: $rc";
-    like ($rc, qr/:: $m $/x, 'result_class matches moniker');
-  }
 }
 
 {
