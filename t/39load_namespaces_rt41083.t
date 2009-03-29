@@ -6,7 +6,7 @@ use Test::More;
 
 use lib 't/lib';
 
-plan tests => 6;
+plan tests => 8;
 
 sub _chk_warning {
   defined $_[0]?
@@ -19,33 +19,48 @@ sub _chk_extra_sources_warning {
   defined $_[0]? $_[0] !~ /$p/ : 1;
 }
 
-my $warnings;
-eval {
-  local $SIG{__WARN__} = sub { $warnings .= shift };
-  package DBICNSTest::RtBug41083;
-  use base 'DBIx::Class::Schema';
-  __PACKAGE__->load_namespaces(
-    result_namespace => 'Schema_A',
-    resultset_namespace => 'ResultSet_A',
-    default_resultset_class => 'ResultSet'
-  );
-};
-ok(!$@) or diag $@;
-ok(_chk_warning($warnings), 'expected no resultset complaint');
-ok(_chk_extra_sources_warning($warnings), 'expected no extra sources complaint') or diag($warnings);
-undef $warnings;
+{
+  my $warnings;
+  eval {
+    local $SIG{__WARN__} = sub { $warnings .= shift };
+    package DBICNSTest::RtBug41083;
+    use base 'DBIx::Class::Schema';
+    __PACKAGE__->load_namespaces(
+      result_namespace => 'Schema_A',
+      resultset_namespace => 'ResultSet_A',
+      default_resultset_class => 'ResultSet'
+    );
+  };
 
-eval {
-  local $SIG{__WARN__} = sub { $warnings .= shift };
-  package DBICNSTest::RtBug41083;
-  use base 'DBIx::Class::Schema';
-  __PACKAGE__->load_namespaces(
-    result_namespace => 'Schema',
-    resultset_namespace => 'ResultSet',
-    default_resultset_class => 'ResultSet'
-  );
-};
-ok(!$@) or diag $@;
-ok(_chk_warning($warnings), 'expected no resultset complaint') or diag $warnings;
-ok(_chk_extra_sources_warning($warnings), 'expected no extra sources complaint') or diag($warnings);
-undef $warnings;
+  ok(!$@) or diag $@;
+  ok(_chk_warning($warnings), 'expected no resultset complaint');
+  ok(_chk_extra_sources_warning($warnings), 'expected no extra sources complaint') or diag($warnings);
+}
+
+is_deeply (
+  [ DBICNSTest::RtBug41083->sources ],
+  [qw/ /],
+);
+
+{
+  my $warnings;
+  eval {
+    local $SIG{__WARN__} = sub { $warnings .= shift };
+    package DBICNSTest::RtBug41083;
+    use base 'DBIx::Class::Schema';
+    __PACKAGE__->load_namespaces(
+      result_namespace => 'Schema',
+      resultset_namespace => 'ResultSet',
+      default_resultset_class => 'ResultSet'
+    );
+  };
+  ok(!$@) or diag $@;
+  ok(_chk_warning($warnings), 'expected no resultset complaint') or diag $warnings;
+  ok(_chk_extra_sources_warning($warnings), 'expected no extra sources complaint') or diag($warnings);
+}
+
+is_deeply (
+  [ DBICNSTest::RtBug41083->sources ],
+  [qw/ /],
+);
+
