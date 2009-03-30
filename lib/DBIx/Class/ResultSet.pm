@@ -1117,12 +1117,6 @@ Performs an SQL C<COUNT> with the same query as the resultset was built
 with to find the number of elements. If passed arguments, does a search
 on the resultset and counts the results of that.
 
-Note: When using C<count> with C<group_by>, L<DBIx::Class> emulates C<GROUP BY>
-using C<COUNT( DISTINCT( columns ) )>. Some databases (notably SQLite) do
-not support C<DISTINCT> with multiple columns. If you are using such a
-database, you should only use columns from the main table in your C<group_by>
-clause.
-
 =cut
 
 sub count {
@@ -1146,20 +1140,7 @@ sub _count { # Separated out so pager can get the full count
   my $attrs = { %{$self->_resolved_attrs} };
 
   if (my $group_by = $attrs->{group_by}) {
-    delete $attrs->{having};
     delete $attrs->{order_by};
-    my @distinct = (ref $group_by ?  @$group_by : ($group_by));
-    # todo: try CONCAT for multi-column pk
-    my @pk = $self->result_source->primary_columns;
-    if (@pk == 1) {
-      my $alias = $attrs->{alias};
-      foreach my $column (@distinct) {
-        if ($column =~ qr/^(?:\Q${alias}.\E)?$pk[0]$/) {
-          @distinct = ($column);
-          last;
-        }
-      }
-    }
 
     $attrs->{select} = $group_by; 
     $attrs->{from} = [ { 'mesub' => (ref $self)->new($self->result_source, $attrs)->cursor->as_query } ];
