@@ -613,7 +613,7 @@ sub _source_exists
 
 =head1 AUTHORS
 
-Jess Robinson <castaway@desert-island.demon.co.uk>
+Jess Robinson <castaway@desert-island.me.uk>
 Luke Saunders <luke@shadowcatsystems.co.uk>
 
 =head1 LICENSE
