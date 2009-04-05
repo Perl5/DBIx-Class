@@ -241,7 +241,6 @@ undef $schema;
 
 # Test txn_scope_guard
 {
-  local $TODO = "Work out how this should work";
 
   # reset schema
   $schema = DBICTest->init_schema();
@@ -276,6 +275,7 @@ undef $schema;
     # forcing a txn_rollback to happen
     outer($schema, 0);
   };
+  local $TODO = "Work out how this should work";
   is($@, "Not sure what we want here, but something", "Rollback okay");
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");

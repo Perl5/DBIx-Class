@@ -84,13 +84,12 @@ TODO: {
 
     is_same_sql_bind(
         $sql, \@bind,
-        q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year DESC`/, [],
+        q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC/, [],
         'scalar ORDER BY okay (single value)'
     );
 }
 
 TODO: {
-    local $TODO = "select attr with star needs fixing (mst/nate)";
 
     ($sql, @bind) = $sql_maker->select(
           [
