@@ -1267,6 +1267,7 @@ sub register_extra_source {
 sub _register_source {
   my ($self, $moniker, $source, $params) = @_;
 
+  my $orig_source = $source;
   $source = $source->new({ %$source, source_name => $moniker });
 
   my %reg = %{$self->source_registrations};
@@ -1279,7 +1280,7 @@ sub _register_source {
 
   if ($source->result_class) {
     my %map = %{$self->class_mappings};
-    if (exists $map{$source->result_class}) {
+    if (exists $map{$source->result_class} && $orig_source ne $source->result_class->result_source_instance) {
       warn $source->result_class . ' already has a source, use register_extra_source for additional sources';
     }
     $map{$source->result_class} = $moniker;
