@@ -32,7 +32,7 @@ requires 'MRO::Compat'              => 0.09;
 requires 'Encode'                   => 0 if ($] <= 5.008000);  
 
 # configure_requires so the sanity check below can run
-configure_requires 'DBD::SQLite'    => 1.14;
+configure_requires 'DBD::SQLite'    => 1.21;
 
 test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Warn'          => 0.11;
@@ -195,7 +195,7 @@ WriteAll();
 
 
 if ($Module::Install::AUTHOR) {
-  # Need to do this _after_ WriteAll else it looses track of them
+  # Need to do this _after_ WriteAll else it loses track of them
   Meta->{values}{build_requires} = [ grep {
     my $ok = 1;
     foreach my $module (keys %force_requires_if_author) {
