@@ -281,6 +281,8 @@ penguin: K J Cheetham
 
 perigrin: Chris Prather <chris@prather.org>
 
+Peter Collingbourne <peter@pcc.me.uk>
+
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
 plu: Johannes Plunien <plu@cpan.org>

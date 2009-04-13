@@ -137,6 +137,16 @@ CREATE INDEX collection_object_idx_collection_collection_obj ON collection_objec
 CREATE INDEX collection_object_idx_object_c ON collection_object (object);
 
 --
+-- Table: demographic
+--
+CREATE TABLE demographic (
+  demographicid INTEGER PRIMARY KEY NOT NULL,
+  name varchar(100) NOT NULL
+);
+
+CREATE UNIQUE INDEX demographic_name_demographic ON demographic (name);
+
+--
 -- Table: employee
 --
 CREATE TABLE employee (
@@ -221,7 +231,8 @@ CREATE INDEX fourkeys_to_twokeys_idx_t_artist_t_cd_fourkeys_to ON fourkeys_to_tw
 --
 CREATE TABLE genre (
   genreid INTEGER PRIMARY KEY NOT NULL,
-  name varchar(100) NOT NULL
+  name varchar(100) NOT NULL,
+  demographicid INTEGER NOT NULL
 );
 
 CREATE UNIQUE INDEX genre_name_genre ON genre (name);
