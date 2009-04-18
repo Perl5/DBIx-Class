@@ -241,6 +241,8 @@ gphat: Cory G Watson <gphat@cpan.org>
 
 groditi: Guillermo Roditi <groditi@cpan.org>
 
+ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
+
 jesper: Jesper Krogh
 
 jgoulah: John Goulah <jgoulah@cpan.org>

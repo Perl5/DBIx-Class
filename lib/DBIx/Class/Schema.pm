@@ -1279,7 +1279,8 @@ sub _register_source {
 
   if ($source->result_class) {
     my %map = %{$self->class_mappings};
-    if (exists $map{$source->result_class}) {
+    if (exists $map{$source->result_class}
+            && $map{$source->result_class} ne $moniker) {
       warn $source->result_class . ' already has a source, use register_extra_source for additional sources';
     }
     $map{$source->result_class} = $moniker;
