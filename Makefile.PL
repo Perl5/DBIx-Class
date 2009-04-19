@@ -13,7 +13,6 @@ requires 'Data::Page'               => 2.00;
 requires 'Scalar::Util'             => 0;
 requires 'SQL::Abstract'            => 1.51;
 requires 'SQL::Abstract::Limit'     => 0.13;
-requires 'MRO::Compat'              => 0;
 requires 'Class::C3::Componentised' => 1.0004;
 requires 'Storable'                 => 0;
 requires 'Carp::Clan'               => 0;
@@ -75,7 +74,7 @@ my %force_requires_if_author = (
 if ($Module::Install::AUTHOR) {
 
   foreach my $module (keys %force_requires_if_author) {
-    requires ($module => $force_requires_if_author{$module});
+    build_requires ($module => $force_requires_if_author{$module});
   }
 
   system('pod2text lib/DBIx/Class.pm > README');

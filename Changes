@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+0.081000 2009-04-19 11:39:35 (UTC)
+        - Todo out the register_extra_source test until after shipping
+
 0.08099_08 2009-03-30 00:00:00 (UTC)
         - Fixed taint mode with load_namespaces
         - Putting IC::DateTime locale, timezone or floating_tz_ok attributes into
@@ -23,7 +26,7 @@ Revision history for DBIx::Class
         - Split sql statements for deploy only if SQLT::Producer returned a scalar
           containing all statements to be executed
         - Add as_query() for ResultSet and ResultSetColumn. This makes subqueries
-          possible. See the Cookbook for details. (robkinyon, michaelr)
+          possible. See the Cookbook for details.
         - Massive rewrite of Ordered to properly handle position constraints and
           to make it more matpath-friendly
         - deploy_statements called ddl_filename with the $version and $dir arguments

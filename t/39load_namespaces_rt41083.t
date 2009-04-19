@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More;
+use Test::More skip_all => 'Postponed until after 0.08100';
 
 use lib 't/lib';
 
