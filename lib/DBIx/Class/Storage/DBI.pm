@@ -1238,7 +1238,7 @@ sub _dbh_execute {
 
   $self->_query_start( $sql, @$bind );
 
-  my $sth = $self->sth($sql,$op);
+  my $sth = $self->sth($sql);
 
   my $placeholder_index = 1; 
 
