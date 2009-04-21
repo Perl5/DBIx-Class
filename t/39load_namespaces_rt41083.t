@@ -6,7 +6,7 @@ use Test::More;
 
 use lib 't/lib';
 
-plan tests => 15;
+plan tests => 8;
 
 sub _chk_warning {
   defined $_[0]?
