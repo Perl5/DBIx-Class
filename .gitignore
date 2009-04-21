@@ -1,6 +1,7 @@
 Build
 Build.bat
 MANIFEST
+MANIFEST.bak
 META.yml
 Makefile
 Makefile.old
