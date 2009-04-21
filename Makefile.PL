@@ -64,6 +64,12 @@ my %force_requires_if_author = (
   # t/60core.t
   'DateTime::Format::MySQL'   => 0,
 
+  # t/72pg.t
+  $ENV{DBICTEST_PG_DSN}
+    ? ('Sys::SigAction'=> 0)
+    : ()
+  ,
+
   # t/93storage_replication.t
   'Moose',                    => 0,
   'MooseX::AttributeHelpers'  => 0.12,
