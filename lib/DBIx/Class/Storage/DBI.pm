@@ -651,16 +651,10 @@ sub connect_info {
   $self->_sql_maker_opts({});
 
   if(keys %attrs) {
-    for my $storage_opt (@storage_options, 'cursor_class') {    # @storage_options is declared at the top of the module
-      if(my $value = delete $attrs{$storage_opt}) {
-        $self->$storage_opt($value);
-      }
-    }
-    for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
-      if(my $opt_val = delete $attrs{$sql_maker_opt}) {
-        $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
-      }
-    }
+    $self->$_(delete $attrs{$_})
+      for grep {exists $attrs{$_}} (@storage_options, 'cursor_class');   # @storage_options is declared at the top of the module
+    $self->_sql_maker_opts->{$_} = delete $attrs{$_}
+      for grep {exists $attrs{$_}} qw/limit_dialect quote_char name_sep/;
   }
 
   %attrs = () if (ref $args[0] eq 'CODE');  # _connect() never looks past $args[0] in this case
