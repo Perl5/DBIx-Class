@@ -1268,24 +1268,26 @@ sub _register_source {
   my ($self, $moniker, $source, $params) = @_;
 
   my $orig_source = $source;
+
   $source = $source->new({ %$source, source_name => $moniker });
+  $source->schema($self);
+  weaken($source->{schema}) if ref($self);
+
+  my $rs_class = $source->result_class;
+
 
   my %reg = %{$self->source_registrations};
   $reg{$moniker} = $source;
   $self->source_registrations(\%reg);
 
-  $source->schema($self);
-  weaken($source->{schema}) if ref($self);
   return if ($params->{extra});
 
-  if ($source->result_class) {
-    my %map = %{$self->class_mappings};
-    if (exists $map{$source->result_class} && $orig_source ne $source->result_class->result_source_instance) {
-      warn $source->result_class . ' already has a source, use register_extra_source for additional sources';
-    }
-    $map{$source->result_class} = $moniker;
-    $self->class_mappings(\%map);
+  my %map = %{$self->class_mappings};
+  if (exists $map{$rs_class} and $rs_class->result_source_instance ne $orig_source) {
+    carp "$rs_class already has a source, use register_extra_source for additional sources";
   }
+  $map{$rs_class} = $moniker;
+  $self->class_mappings(\%map);
 }
 
 sub _unregister_source {
