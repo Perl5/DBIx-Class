@@ -1283,7 +1283,13 @@ sub _register_source {
   return if ($params->{extra});
 
   my %map = %{$self->class_mappings};
-  if (exists $map{$rs_class} and $rs_class->result_source_instance ne $orig_source) {
+  if (
+    exists $map{$rs_class}
+      and
+    $map{$rs_class} ne $moniker
+      and
+    $rs_class->result_source_instance ne $orig_source
+  ) {
     carp "$rs_class already has a source, use register_extra_source for additional sources";
   }
   $map{$rs_class} = $moniker;

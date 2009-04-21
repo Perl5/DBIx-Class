@@ -38,7 +38,7 @@ local $SIG{__WARN__} = sub { $warn = shift };
 {
   my $source = $schema->source('DBICTest::Artist');
   $schema->register_source($source->source_name, $source);
-  is($warn, '', "regregistering an existing source under the same name causes no errors");
+  is($warn, '', "re-registering an existing source under the same name causes no errors");
 }
 
 {
