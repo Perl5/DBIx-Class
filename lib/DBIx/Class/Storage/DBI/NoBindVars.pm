@@ -19,14 +19,14 @@ well, as is the case with L<DBD::Sybase>
 
 =head2 connect_info
 
-We can't cache very effectively without bind variables, so force the C<disable_sth_caching> setting to be turned on when the connect info is set.
+We can't cache very effectively without bind variables, so force the C<prepare_cached> setting to be turned ooff when the connect info is set.
 
 =cut
 
 sub connect_info {
     my $self = shift;
     my $retval = $self->next::method(@_);
-    $self->disable_sth_caching(1);
+    $self->prepare_cached(0);
     $retval;
 }
 

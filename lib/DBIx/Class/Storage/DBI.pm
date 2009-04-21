@@ -20,7 +20,7 @@ __PACKAGE__->mk_group_accessors('simple' =>
 # the values for these accessors are picked out (and deleted) from
 # the attribute hashref passed to connect_info
 my @storage_options = qw/
-  on_connect_do on_disconnect_do disable_sth_caching unsafe auto_savepoint
+  on_connect_do on_disconnect_do prepare_cached unsafe auto_savepoint
 /;
 __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 
@@ -491,9 +491,9 @@ immediately before disconnecting from the database.
 Note, this only runs if you explicitly call L</disconnect> on the
 storage object.
 
-=item disable_sth_caching
+=item prepare_cached
 
-If set to a true value, this option will disable the caching of
+If set to a false value, this option will disable the caching of
 statement handles via L<DBI/prepare_cached>.
 
 =item limit_dialect 
@@ -605,7 +605,7 @@ L<DBIx::Class::Schema/connect>
           quote_char => q{`},
           name_sep => q{@},
           on_connect_do => ['SET search_path TO myschema,otherschema,public'],
-          disable_sth_caching => 1,
+          prepare_cached => 0,
       },
     ]
   );
@@ -650,7 +650,10 @@ sub connect_info {
   $self->_sql_maker(undef);
   $self->_sql_maker_opts({});
 
+  $self->prepare_cached(1); # Default prepare_cached to enabled
   if(keys %attrs) {
+    $attrs{prepare_cached} = ! $attrs{disable_sth_caching}
+      if exists $attrs{disable_sth_caching};
     $self->$_(delete $attrs{$_})
       for grep {exists $attrs{$_}} (@storage_options, 'cursor_class');   # @storage_options is declared at the top of the module
     $self->_sql_maker_opts->{$_} = delete $attrs{$_}
@@ -1232,13 +1235,14 @@ sub _query_end {
 }
 
 sub _dbh_execute {
-  my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
+  my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes,
+      $cached, @args) = @_;
 
   my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
 
   $self->_query_start( $sql, @$bind );
 
-  my $sth = $self->sth($sql);
+  my $sth = $self->sth($sql,$cached);
 
   my $placeholder_index = 1; 
 
@@ -1291,7 +1295,7 @@ sub insert {
     }
   }
 
-  $self->_execute('insert' => [], $source, $bind_attributes, $to_insert);
+  $self->_execute('insert' => [], $source, $bind_attributes, $self->prepare_cached, $to_insert);
 
   return $to_insert;
 }
@@ -1354,7 +1358,7 @@ sub update {
   my $source = shift @_;
   my $bind_attributes = $self->source_bind_attributes($source);
   
-  return $self->_execute('update' => [], $source, $bind_attributes, @_);
+  return $self->_execute('update' => [], $source, $bind_attributes, $self->prepare_cached, @_);
 }
 
 
@@ -1364,7 +1368,7 @@ sub delete {
   
   my $bind_attrs = {}; ## If ever it's needed...
   
-  return $self->_execute('delete' => [], $source, $bind_attrs, @_);
+  return $self->_execute('delete' => [], $source, $bind_attrs, $self->prepare_cached, @_);
 }
 
 sub _select {
@@ -1390,7 +1394,10 @@ sub _select_args {
     };
   }
   my $bind_attrs = {}; ## Future support
-  my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
+  my $cached = (exists $attrs->{prepare_cached}) ? $attrs->{prepare_cached}
+                                                 : $self->prepare_cached;
+  my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $cached,
+              $select, $condition, $order);
   if ($attrs->{software_limit} ||
       $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
         $attrs->{software_limit} = 1;
@@ -1463,12 +1470,11 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 =cut
 
 sub _dbh_sth {
-  my ($self, $dbh, $sql) = @_;
+  my ($self, $dbh, $sql, $cached) = @_;
 
   # 3 is the if_active parameter which avoids active sth re-use
-  my $sth = $self->disable_sth_caching
-    ? $dbh->prepare($sql)
-    : $dbh->prepare_cached($sql, {}, 3);
+  my $sth = $cached ? $dbh->prepare_cached($sql, {}, 3)
+                    : $dbh->prepare($sql);
 
   # XXX You would think RaiseError would make this impossible,
   #  but apparently that's not true :(
@@ -1478,8 +1484,8 @@ sub _dbh_sth {
 }
 
 sub sth {
-  my ($self, $sql) = @_;
-  $self->dbh_do('_dbh_sth', $sql);
+  my ($self, $sql, $cached) = @_;
+  $self->dbh_do('_dbh_sth', $sql, $cached);
 }
 
 sub _dbh_columns_info_for {
