@@ -2,30 +2,11 @@
 
 use strict;
 use warnings;
-use Test::More skip_all => 'Postponed until after 0.08100';
 
 use lib 't/lib';
+use Test::More tests => 8;
 
-=begin
-
-How did this get back here? The test is borked, there is a branch with
-the correct test and a tentative fix - branches/subclassed_rsset
-
-Make sure to nuke this file when merging, it is only left here to make
-merging of the above branch easier.
-
-
-ribasushi
-
-
-=cut
-
-
-__END__
-
-
-
-plan tests => 15;
+plan tests => 8;
 
 sub _chk_warning {
   defined $_[0]?
@@ -45,16 +26,6 @@ sub _verify_sources {
     \@monikers,
     'List of resultsource registrations',
   );
-
-  my %seen_rc;
-  for my $m (@monikers) {
-    my $src = DBICNSTest::RtBug41083->source ($m);
-    my $rc = $src->result_class;
-
-    ok ( (++$seen_rc{$rc} == 1), "result_class of $m is unique")
-      || diag "Source: $m, result_class: $rc";
-    like ($rc, qr/:: $m $/x, 'result_class matches moniker');
-  }
 }
 
 {
