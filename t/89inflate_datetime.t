@@ -5,7 +5,10 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-DBICTest::Schema->load_classes('EventTZDeprecated');
+{
+  local $SIG{__WARN__} = sub { warn @_ if $_[0] !~ /extra \=\> .+? has been deprecated/ };
+  DBICTest::Schema->load_classes('EventTZDeprecated');
+}
 
 my $schema = DBICTest->init_schema();
 

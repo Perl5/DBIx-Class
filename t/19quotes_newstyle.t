@@ -19,7 +19,7 @@ use_ok('DBIC::DebugObj');
 
 my $schema = DBICTest->init_schema();
 
-diag('Testing against ' . join(' ', map { $schema->storage->dbh->get_info($_) } qw/17 18/));
+#diag('Testing against ' . join(' ', map { $schema->storage->dbh->get_info($_) } qw/17 18/));
 
 my $dsn = $schema->storage->_dbi_connect_info->[0];
 $schema->connection(

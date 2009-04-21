@@ -6,6 +6,25 @@ use Test::More skip_all => 'Postponed until after 0.08100';
 
 use lib 't/lib';
 
+=begin
+
+How did this get back here? The test is borked, there is a branch with
+the correct test and a tentative fix - branches/subclassed_rsset
+
+Make sure to nuke this file when merging, it is only left here to make
+merging of the above branch easier.
+
+
+ribasushi
+
+
+=cut
+
+
+__END__
+
+
+
 plan tests => 15;
 
 sub _chk_warning {

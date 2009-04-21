@@ -41,7 +41,7 @@ if ($INC{'DBICTest/HelperRels.pm'}) {
   } );
 
  SKIP:{
-    skip "Can't fix right now", 1 unless $DBIx::Class::VERSION >= '0.09';
+    skip "Can't fix right now", 1 if $DBIx::Class::VERSION < 0.09;
     lives_ok { $big_flop->genre} "Don't throw exception when col is not loaded after insert";
   };
 }
