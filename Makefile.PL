@@ -9,6 +9,7 @@ name     'DBIx-Class';
 perl_version '5.006001';
 all_from 'lib/DBIx/Class.pm';
 
+requires 'DBD::SQLite'              => 1.23;
 requires 'Data::Page'               => 2.00;
 requires 'Scalar::Util'             => 0;
 requires 'SQL::Abstract'            => 1.51;
@@ -31,7 +32,7 @@ requires 'MRO::Compat'              => 0.09;
 requires 'Encode'                   => 0 if ($] <= 5.008000);  
 
 # configure_requires so the sanity check below can run
-configure_requires 'DBD::SQLite'    => 1.21;
+configure_requires 'DBD::SQLite';
 
 test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Warn'          => 0.11;
