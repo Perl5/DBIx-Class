@@ -285,7 +285,7 @@ penguin: K J Cheetham
 
 perigrin: Chris Prather <chris@prather.org>
 
-Peter Collingbourne <peter@pcc.me.uk>
+peter: Peter Collingbourne <peter@pcc.me.uk>
 
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
