@@ -31,25 +31,4 @@ sub inject_base {
   $class->next::method($target, @to_inject);
 }
 
-# Returns a true value if the specified class is installed and loaded
-# successfully, throws an exception if the class is found but not loaded
-# successfully, and false if the class is not installed
-sub load_optional_class {
-  my ($class, $f_class) = @_;
-  eval { $class->ensure_class_loaded($f_class) };
-  my $err = $@;   # so we don't lose it
-  if (! $err) {
-    return 1;
-  }
-  else {
-    my $fn = (join ('/', split ('::', $f_class) ) ) . '.pm';
-    if ($err =~ /Can't locate ${fn} in \@INC/ ) {
-      return 0;
-    }
-    else {
-      die $err;
-    }
-  }
-}
-
 1;

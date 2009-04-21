@@ -24,7 +24,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.08099_07';
+$VERSION = '0.08100';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -207,6 +207,8 @@ andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
 
+arcanez: Justin Hunter <justin.d.hunter@gmail.com>
+
 ash: Ash Berlin <ash@cpan.org>
 
 bert: Norbert Csongradi <bert@cpan.org>
@@ -240,6 +242,8 @@ dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 gphat: Cory G Watson <gphat@cpan.org>
 
 groditi: Guillermo Roditi <groditi@cpan.org>
+
+ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
 
 jesper: Jesper Krogh
 
@@ -280,6 +284,8 @@ paulm: Paul Makepeace
 penguin: K J Cheetham
 
 perigrin: Chris Prather <chris@prather.org>
+
+Peter Collingbourne <peter@pcc.me.uk>
 
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 

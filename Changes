@@ -1,9 +1,19 @@
 Revision history for DBIx::Class
 
-0.08099_07 2009-02-27 02:00:00 (UTC)
-        - putting IC::DateTime locale, timezone or floating_tz_ok attributes into
+0.081000 2009-04-19 11:39:35 (UTC)
+        - Todo out the register_extra_source test until after shipping
+
+0.08099_08 2009-03-30 00:00:00 (UTC)
+        - Fixed taint mode with load_namespaces
+        - Putting IC::DateTime locale, timezone or floating_tz_ok attributes into
           extra => {} has been deprecated. The new way is to put these things
           directly into the columns definition
+        - Switched MI code to MRO::Compat
+        - Document db-side default_value caveats
+        - Search_like() now warns to indicate deprecation in 0.09. (robkinyon)
+        - TxnScopeGuard left experimental state
+
+0.08099_07 2009-02-27 02:00:00 (UTC)
         - multi-create using find_or_create rather than _related for post-insert
         - fix get_inflated_columns to check has_column_loaded
         - Add DBIC_MULTICREATE_DEBUG env var (undocumented, quasi-internal)
@@ -16,18 +26,13 @@ Revision history for DBIx::Class
         - Split sql statements for deploy only if SQLT::Producer returned a scalar
           containing all statements to be executed
         - Add as_query() for ResultSet and ResultSetColumn. This makes subqueries
-          possible. See the Cookbook for details. (robkinyon, michaelr)
+          possible. See the Cookbook for details.
         - Massive rewrite of Ordered to properly handle position constraints and
           to make it more matpath-friendly
         - deploy_statements called ddl_filename with the $version and $dir arguments
-          in the wrong order. 
+          in the wrong order.
         - columns/+columns attributes now support { as => select } hahsrefs
         - support for views both in DBIC and via deploy() in SQLT
-        - test for not dying if a column isn't loaded after insert and a rel using
-          it is called. (eg ->new({ name => 'foo'})->bar if bar uses bar_id)
-          - Currently skipped. Changed exception to have a more detailed message
-          - Document the known issue and a possible work around.
-        - search_like() now warns to indicate deprecation in 0.09. (robkinyon)
 
 0.08099_06 2009-01-23 07:30:00 (UTC)
         - Allow a scalarref to be supplied to the 'from' resultset attribute

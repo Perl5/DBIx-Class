@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 71;
+plan tests => 74;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -41,7 +41,7 @@ if ($INC{'DBICTest/HelperRels.pm'}) {
   } );
 
  SKIP:{
-    skip "Can't fix right now", 1 unless $DBIx::Class::VERSION >= '0.09';
+    skip "Can't fix right now", 1 if $DBIx::Class::VERSION < 0.09;
     lives_ok { $big_flop->genre} "Don't throw exception when col is not loaded after insert";
   };
 }
@@ -289,3 +289,13 @@ cmp_ok($relinfo->{attrs}{is_foreign_key_constraint}, '==', 1, "is_foreign_key_co
 my $rs_overridden = $schema->source('ForceForeign');
 my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
 cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");
+
+# check that relationships below left join relationships are forced to left joins
+my $cds = $schema->resultset("CD")->search({ cdid => 1 }, { join => { genre => 'demographic' } });
+is($cds->count, 1, "subjoins under left joins force_left (string)");
+
+$cds = $schema->resultset("CD")->search({ cdid => 1 }, { join => { genre => [ 'demographic' ] } });
+is($cds->count, 1, "subjoins under left joins force_left (arrayref)");
+
+$cds = $schema->resultset("CD")->search({ cdid => 1 }, { join => { genre => { demographic => {} } } });
+is($cds->count, 1, "subjoins under left joins force_left (hashref)");

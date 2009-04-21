@@ -1167,6 +1167,18 @@ Or use C<cursor>
   while (my @vals = $cursor->next) {
     print $vals[0]."\n";
   }
+
+In case you're going to use this "trick" together with L<DBIx::Class::Schema/deploy> or
+L<DBIx::Class::Schema/create_ddl_dir> a table called "dual" will be created in your
+current schema. This would overlap "sys.dual" and you could not fetch "sysdate" or
+"sequence.nextval" anymore from dual. To avoid this problem, just tell
+L<SQL::Translator> to not create table dual:
+
+    my $sqlt_args = {
+        add_drop_table => 1,
+        parser_args    => { sources => [ grep $_ ne 'Dual', schema->sources ] },
+    };
+    $schema->create_ddl_dir( [qw/Oracle/], undef, './sql', undef, $sqlt_args );
  
 Or use L<DBIx::Class::ResultClass::HashRefInflator>
  

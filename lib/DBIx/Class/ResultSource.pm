@@ -1089,12 +1089,16 @@ sub resolve_join {
   $seen ||= {};
   $force_left ||= { force => 0 };
   if (ref $join eq 'ARRAY') {
-    return map { $self->resolve_join($_, $alias, $seen) } @$join;
+    return
+      map {
+        local $force_left->{force} = $force_left->{force};
+        $self->resolve_join($_, $alias, $seen, $force_left);
+      } @$join;
   } elsif (ref $join eq 'HASH') {
     return
       map {
         my $as = ($seen->{$_} ? $_.'_'.($seen->{$_}+1) : $_);
-        local $force_left->{force};
+        local $force_left->{force} = $force_left->{force};
         (
           $self->resolve_join($_, $alias, $seen, $force_left),
           $self->related_source($_)->resolve_join(

@@ -9,12 +9,12 @@ name     'DBIx-Class';
 perl_version '5.006001';
 all_from 'lib/DBIx/Class.pm';
 
+requires 'DBD::SQLite'              => 1.23;
 requires 'Data::Page'               => 2.00;
 requires 'Scalar::Util'             => 0;
 requires 'SQL::Abstract'            => 1.51;
 requires 'SQL::Abstract::Limit'     => 0.13;
-requires 'MRO::Compat'              => 0;
-requires 'Class::C3::Componentised' => 1.0004;
+requires 'Class::C3::Componentised' => 1.0005;
 requires 'Storable'                 => 0;
 requires 'Carp::Clan'               => 0;
 requires 'DBI'                      => 1.40;
@@ -32,7 +32,7 @@ requires 'MRO::Compat'              => 0.09;
 requires 'Encode'                   => 0 if ($] <= 5.008000);  
 
 # configure_requires so the sanity check below can run
-configure_requires 'DBD::SQLite'    => 1.14;
+configure_requires 'DBD::SQLite';
 
 test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Warn'          => 0.11;
@@ -64,6 +64,12 @@ my %force_requires_if_author = (
   # t/60core.t
   'DateTime::Format::MySQL'   => 0,
 
+  # t/72pg.t
+  $ENV{DBICTEST_PG_DSN}
+    ? ('Sys::SigAction'=> 0)
+    : ()
+  ,
+
   # t/93storage_replication.t
   'Moose',                    => 0,
   'MooseX::AttributeHelpers'  => 0.12,
@@ -75,7 +81,7 @@ my %force_requires_if_author = (
 if ($Module::Install::AUTHOR) {
 
   foreach my $module (keys %force_requires_if_author) {
-    requires ($module => $force_requires_if_author{$module});
+    build_requires ($module => $force_requires_if_author{$module});
   }
 
   system('pod2text lib/DBIx/Class.pm > README');
@@ -195,7 +201,7 @@ WriteAll();
 
 
 if ($Module::Install::AUTHOR) {
-  # Need to do this _after_ WriteAll else it looses track of them
+  # Need to do this _after_ WriteAll else it loses track of them
   Meta->{values}{build_requires} = [ grep {
     my $ok = 1;
     foreach my $module (keys %force_requires_if_author) {

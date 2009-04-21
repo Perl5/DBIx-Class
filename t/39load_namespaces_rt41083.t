@@ -2,11 +2,9 @@
 
 use strict;
 use warnings;
-use Test::More;
 
 use lib 't/lib';
-
-plan tests => 8;
+use Test::More tests => 8;
 
 sub _chk_warning {
   defined $_[0]?

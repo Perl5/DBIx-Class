@@ -7,7 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 45;
+plan tests => 49;
 
 # Check the defined unique constraints
 is_deeply(
@@ -182,4 +182,31 @@ is($row->baz, 3, 'baz is correct');
 
   ok($cd->in_storage, 'find correctly grepped the key across a relationship');
   is($cd->cdid, 1, 'cdid is correct');
+}
+
+# Test update_or_new
+{
+    my $cd1 = $schema->resultset('CD')->update_or_new(
+      {
+        artist => $artistid,
+        title  => "SuperHits $$",
+        year   => 2007,
+      },
+      { key => 'cd_artist_title' }
+    );
+
+    ok(!$cd1->in_storage, 'CD is not in storage yet after update_or_new');
+    $cd1->insert;
+    ok($cd1->in_storage, 'CD got added to strage after update_or_new && insert');
+
+    my $cd2 = $schema->resultset('CD')->update_or_new(
+      {
+        artist => $artistid,
+        title  => "SuperHits $$",
+        year   => 2008,
+      },
+      { key => 'cd_artist_title' }
+    );
+    ok($cd2->in_storage, 'Updating year using update_or_new was successful');
+    is($cd2->id, $cd1->id, 'Got the same CD using update_or_new');
 }
