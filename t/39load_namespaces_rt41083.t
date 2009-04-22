@@ -6,8 +6,6 @@ use warnings;
 use lib 't/lib';
 use Test::More tests => 8;
 
-plan tests => 8;
-
 sub _chk_warning {
   defined $_[0]?
     $_[0] !~ qr/We found ResultSet class '([^']+)' for '([^']+)', but it seems that you had already set '([^']+)' to use '([^']+)' instead/ :
