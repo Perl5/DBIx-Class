@@ -64,12 +64,9 @@ like( $@, qr/did not return a true value/,
     q/0;/,
   );
 
-  TODO: {
-    local $TODO = "Current load_optional_class cannot find PAR";
-    $retval = eval { $schema->load_optional_class('VIRTUAL::PAR::PACKAGE') };
-    ok( $@, 'load_optional_class of a no-true-returning PAR module did throw' );
-    ok( !$retval, 'no-true-returning PAR package not loaded' );
-  }
+  $retval = eval { $schema->load_optional_class('VIRTUAL::PAR::PACKAGE') };
+  ok( $@, 'load_optional_class of a no-true-returning PAR module did throw' );
+  ok( !$retval, 'no-true-returning PAR package not loaded' );
 
   # simulate a normal class (no one adjusted %INC so it will be tried again
   @code = (
@@ -77,12 +74,9 @@ like( $@, qr/did not return a true value/,
     q/1;/,
   );
 
-  TODO: {
-    local $TODO = "Current load_optional_class cannot find PARs";
-    $retval = eval { $schema->load_optional_class('VIRTUAL::PAR::PACKAGE') };
-    ok( !$@, 'load_optional_class of a PAR module did not throw' );
-    ok( $retval, 'PAR package "loaded"' );
-  }
+  $retval = eval { $schema->load_optional_class('VIRTUAL::PAR::PACKAGE') };
+  ok( !$@, 'load_optional_class of a PAR module did not throw' );
+  ok( $retval, 'PAR package "loaded"' );
 
   # see if we can still load stuff with the coderef present
   $retval = eval { $schema->load_optional_class('DBIx::Class::ResultClass::HashRefInflator') };
