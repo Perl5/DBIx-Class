@@ -14,7 +14,7 @@ __PACKAGE__->mk_classdata('__meta_info' => {});
 
 =head1 NAME
 
-DBIx::Class::CDBICompat::Relationships
+DBIx::Class::CDBICompat::Relationships - Emulate has_a(), has_many(), might_have() and meta_info()
 
 =head1 DESCRIPTION
 

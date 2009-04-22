@@ -673,7 +673,7 @@ Employ the standard stringification technique by using the C<overload>
 module.
 
 To make an object stringify itself as a single column, use something
-like this (replace C<foo> with the column/method of your choice):
+like this (replace C<name> with the column/method of your choice):
 
   use overload '""' => sub { shift->name}, fallback => 1;
 

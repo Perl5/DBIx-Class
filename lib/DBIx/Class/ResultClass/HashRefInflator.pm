@@ -5,7 +5,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::ResultClass::HashRefInflator
+DBIx::Class::ResultClass::HashRefInflator - Get raw hashrefs from a resultset
 
 =head1 SYNOPSIS
 
