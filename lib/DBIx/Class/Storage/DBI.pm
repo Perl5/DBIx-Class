@@ -20,7 +20,7 @@ __PACKAGE__->mk_group_accessors('simple' =>
 # the values for these accessors are picked out (and deleted) from
 # the attribute hashref passed to connect_info
 my @storage_options = qw/
-  on_connect_do on_disconnect_do prepare_cached unsafe auto_savepoint
+  on_connect_do on_disconnect_do disable_sth_caching prepare_cached unsafe auto_savepoint
 /;
 __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 
@@ -652,8 +652,6 @@ sub connect_info {
 
   $self->prepare_cached(1); # Default prepare_cached to enabled
   if(keys %attrs) {
-    $attrs{prepare_cached} = ! $attrs{disable_sth_caching}
-      if exists $attrs{disable_sth_caching};
     $self->$_(delete $attrs{$_})
       for grep {exists $attrs{$_}} (@storage_options, 'cursor_class');   # @storage_options is declared at the top of the module
     $self->_sql_maker_opts->{$_} = delete $attrs{$_}
@@ -1279,7 +1277,7 @@ sub _execute {
 }
 
 sub insert {
-  my ($self, $source, $to_insert) = @_;
+  my ($self, $source, $to_insert, $prepare_cached) = @_;
   
   my $ident = $source->from; 
   my $bind_attributes = $self->source_bind_attributes($source);
@@ -1295,7 +1293,7 @@ sub insert {
     }
   }
 
-  $self->_execute('insert' => [], $source, $bind_attributes, $self->prepare_cached, $to_insert);
+  $self->_execute('insert' => [], $source, $bind_attributes, $prepare_cached, $to_insert);
 
   return $to_insert;
 }
@@ -1356,19 +1354,21 @@ sub insert_bulk {
 sub update {
   my $self = shift @_;
   my $source = shift @_;
+  my $prepare_cached = shift @_;
   my $bind_attributes = $self->source_bind_attributes($source);
   
-  return $self->_execute('update' => [], $source, $bind_attributes, $self->prepare_cached, @_);
+  return $self->_execute('update' => [], $source, $bind_attributes, $prepare_cached, @_);
 }
 
 
 sub delete {
   my $self = shift @_;
   my $source = shift @_;
+  my $prepare_cached = shift @_;
   
   my $bind_attrs = {}; ## If ever it's needed...
   
-  return $self->_execute('delete' => [], $source, $bind_attrs, $self->prepare_cached, @_);
+  return $self->_execute('delete' => [], $source, $bind_attrs, $prepare_cached, @_);
 }
 
 sub _select {

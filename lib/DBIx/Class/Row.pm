@@ -19,7 +19,7 @@ BEGIN {
       : sub () { 0 };
 }
 
-__PACKAGE__->mk_group_accessors('simple' => qw/_source_handle/);
+__PACKAGE__->mk_group_accessors('simple' => qw/_source_handle prepare_cached/);
 
 =head1 NAME
 
@@ -153,6 +153,10 @@ sub new {
   my $source;
   if ($source = delete $attrs->{-result_source}) {
     $new->result_source($source);
+  }
+
+  if (my $prepare_cached = delete $attrs->{-prepare_cached}) {
+    $new->prepare_cached($prepare_cached);
   }
 
   if (my $related = delete $attrs->{-from_resultset}) {
@@ -325,7 +329,7 @@ sub insert {
     no warnings 'uninitialized';
     warn "MC $self inserting (".join(', ', $self->get_columns).")\n";
   };
-  my $updated_cols = $source->storage->insert($source, { $self->get_columns });
+  my $updated_cols = $source->storage->insert($source, { $self->get_columns }, $self->prepare_cached);
   foreach my $col (keys %$updated_cols) {
     $self->store_column($col, $updated_cols->{$col});
   }
@@ -488,7 +492,7 @@ sub update {
   my %to_update = $self->get_dirty_columns;
   return $self unless keys %to_update;
   my $rows = $self->result_source->storage->update(
-               $self->result_source, \%to_update,
+               $self->result_source, $self->prepare_cached, \%to_update,
                $self->{_orig_ident} || $ident_cond
              );
   if ($rows == 0) {
@@ -553,7 +557,7 @@ sub delete {
               unless exists $self->{_column_data}{$column};
     }
     $self->result_source->storage->delete(
-      $self->result_source, $ident_cond);
+      $self->result_source, $self->prepare_cached, $ident_cond);
     $self->in_storage(undef);
   } else {
     $self->throw_exception("Can't do class delete without a ResultSource instance")
