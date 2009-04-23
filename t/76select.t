@@ -29,7 +29,7 @@ lives_ok(sub { $rs->first->get_column('count') }, 'multiple +select/+as columns,
 lives_ok(sub { $rs->first->get_column('addedtitle') }, 'multiple +select/+as columns, 2nd rscolumn present');
 
 # Tests a regression in ResultSetColumn wrt +select
-my $rs = $schema->resultset('CD')->search(undef,
+$rs = $schema->resultset('CD')->search(undef,
     {
         '+select'   => [ \'COUNT(*) AS year_count' ],
 		order_by => 'year_count'
