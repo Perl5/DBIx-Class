@@ -155,8 +155,9 @@ sub new {
     $new->result_source($source);
   }
 
-  if (my $prepare_cached = delete $attrs->{-prepare_cached}) {
-    $new->prepare_cached($prepare_cached);
+  if (exists $attrs->{-prepare_cached}) {
+    # Force zero or non-zero value so that undef means this wasn't set
+    $new->prepare_cached(delete $attrs->{-prepare_cached} ? 1 : 0);
   }
 
   if (my $related = delete $attrs->{-from_resultset}) {

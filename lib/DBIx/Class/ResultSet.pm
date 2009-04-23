@@ -1777,6 +1777,9 @@ sub new_result {
     %{ $self->_remove_alias($values, $alias) },
     -source_handle => $self->_source_handle,
     -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
+    ( exists $self->{attrs}{prepare_cached}
+        ? (-prepare_cached => $self->{attrs}{prepare_cached})
+        : () ),
   );
 
   return $self->result_class->new(\%new);

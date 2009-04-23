@@ -14,13 +14,14 @@ use Scalar::Util qw/blessed weaken/;
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
-       _conn_pid _conn_tid transaction_depth _dbh_autocommit savepoints/
+       _conn_pid _conn_tid transaction_depth _dbh_autocommit savepoints
+       prepare_cached disable_sth_caching/
 );
 
 # the values for these accessors are picked out (and deleted) from
 # the attribute hashref passed to connect_info
 my @storage_options = qw/
-  on_connect_do on_disconnect_do disable_sth_caching prepare_cached unsafe auto_savepoint
+  on_connect_do on_disconnect_do unsafe auto_savepoint
 /;
 __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 
@@ -650,8 +651,11 @@ sub connect_info {
   $self->_sql_maker(undef);
   $self->_sql_maker_opts({});
 
-  $self->prepare_cached(1); # Default prepare_cached to enabled
   if(keys %attrs) {
+    for (grep {exists $attrs{$_}} qw(prepare_cached disable_sth_caching)) {
+      # Force zero or non-zero value so that undef means this wasn't set
+      $self->$_(delete $attrs{$_} ? 1 : 0);
+    }
     $self->$_(delete $attrs{$_})
       for grep {exists $attrs{$_}} (@storage_options, 'cursor_class');   # @storage_options is declared at the top of the module
     $self->_sql_maker_opts->{$_} = delete $attrs{$_}
@@ -1394,8 +1398,8 @@ sub _select_args {
     };
   }
   my $bind_attrs = {}; ## Future support
-  my $cached = (exists $attrs->{prepare_cached}) ? $attrs->{prepare_cached}
-                                                 : $self->prepare_cached;
+  my $cached = $attrs->{prepare_cached} ? 1 : 0
+    if exists $attrs->{prepare_cached};
   my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $cached,
               $select, $condition, $order);
   if ($attrs->{software_limit} ||
@@ -1471,6 +1475,10 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 
 sub _dbh_sth {
   my ($self, $dbh, $sql, $cached) = @_;
+  $cached = $self->prepare_cached unless defined $cached;
+  $cached = ! $self->disable_sth_caching
+    if defined $self->disable_sth_caching and !defined $cached;
+  $cached = 1 unless defined $cached;
 
   # 3 is the if_active parameter which avoids active sth re-use
   my $sth = $cached ? $dbh->prepare_cached($sql, {}, 3)
