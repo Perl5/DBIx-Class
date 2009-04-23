@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+		- Fix +select, +as, +columns and include_columns being stripped from
+		  ->get_columns (gphat)
+
 0.081000 2009-04-19 11:39:35 (UTC)
         - Todo out the register_extra_source test until after shipping
 

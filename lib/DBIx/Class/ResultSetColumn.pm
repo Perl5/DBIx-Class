@@ -38,7 +38,7 @@ sub new {
   $class = ref $class if ref $class;
   my $new_parent_rs = $rs->search_rs; # we don't want to mess up the original, so clone it
   my $attrs = $new_parent_rs->_resolved_attrs;
-  $new_parent_rs->{attrs}->{$_} = undef for qw(prefetch include_columns +select +as); # prefetch, include_columns, +select, +as cause additional columns to be fetched
+  $new_parent_rs->{attrs}->{prefetch} = undef; # prefetch cause additional columns to be fetched
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
