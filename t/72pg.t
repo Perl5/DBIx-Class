@@ -256,19 +256,15 @@ SKIP: {
     });
 }
 
-#SKIP: {
-  #skip "Oracle Auto-PK tests are broken", 16;
-
-  # test auto increment using sequences WITHOUT triggers
-  for (1..5) {
+for (1..5) {
     my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
     is($st->pkid1, $_, "Oracle Auto-PK without trigger: First primary key");
     is($st->pkid2, $_ + 9, "Oracle Auto-PK without trigger: Second primary key");
     is($st->nonpkid, $_ + 19, "Oracle Auto-PK without trigger: Non-primary key");
-  }
-  my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
-  is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
-#}
+}
+my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
+is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
+
 
 END {
     if($dbh) {
