@@ -108,7 +108,7 @@ NULLINSEARCH: {
     => 'Created an artist resultset of undef';
     
     TODO: {
-    	$TODO = "need to fix the row count =1 when select * from table where pk IS NULL problem";
+    	local $TODO = "need to fix the row count =1 when select * from table where pk IS NULL problem";
 	    is $artist2_rs->count, 0
 	    => 'got no rows';    	
     }

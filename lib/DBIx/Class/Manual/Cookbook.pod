@@ -19,19 +19,8 @@ paged resultset, which will fetch only a defined number of records at a time:
 
   return $rs->all(); # all records for page 1
 
-The C<page> attribute does not have to be specified in your search:
-
-  my $rs = $schema->resultset('Artist')->search(
-    undef,
-    {
-      rows => 10,
-    }
-  );
-
-  return $rs->page(1); # DBIx::Class::ResultSet containing first 10 records
-
-In either of the above cases, you can get a L<Data::Page> object for the
-resultset (suitable for use in e.g. a template) using the C<pager> method:
+You can get a L<Data::Page> object for the resultset (suitable for use
+in e.g. a template) using the C<pager> method:
 
   return $rs->pager();
 
@@ -684,7 +673,7 @@ Employ the standard stringification technique by using the C<overload>
 module.
 
 To make an object stringify itself as a single column, use something
-like this (replace C<foo> with the column/method of your choice):
+like this (replace C<name> with the column/method of your choice):
 
   use overload '""' => sub { shift->name}, fallback => 1;
 
@@ -1178,6 +1167,18 @@ Or use C<cursor>
   while (my @vals = $cursor->next) {
     print $vals[0]."\n";
   }
+
+In case you're going to use this "trick" together with L<DBIx::Class::Schema/deploy> or
+L<DBIx::Class::Schema/create_ddl_dir> a table called "dual" will be created in your
+current schema. This would overlap "sys.dual" and you could not fetch "sysdate" or
+"sequence.nextval" anymore from dual. To avoid this problem, just tell
+L<SQL::Translator> to not create table dual:
+
+    my $sqlt_args = {
+        add_drop_table => 1,
+        parser_args    => { sources => [ grep $_ ne 'Dual', schema->sources ] },
+    };
+    $schema->create_ddl_dir( [qw/Oracle/], undef, './sql', undef, $sqlt_args );
  
 Or use L<DBIx::Class::ResultClass::HashRefInflator>
  
@@ -1736,5 +1737,34 @@ L<Module::Find|Module::Find> and the related directory operations:-
 If you are instead using the L<load_namespaces|DBIx::Class::Schema/load_namespaces>
 syntax to load the appropriate classes there is not a direct alternative
 avoiding L<Module::Find|Module::Find>.
+
+=head1 MEMORY USAGE
+
+=head2 Cached statements
+
+L<DBIx::Class> normally caches all statements with L<< prepare_cached()|DBI/prepare_cached >>.
+This is normally a good idea, but if too many statements are cached, the database may use too much
+memory and may eventually run out and fail entirely.  If you suspect this may be the case, you may want
+to examine DBI's L<< CachedKids|DBI/CachedKidsCachedKids_(hash_ref) >> hash:
+
+    # print all currently cached prepared statements
+    print for keys %{$schema->storage->dbh->{CachedKids}};
+    # get a count of currently cached prepared statements
+    my $count = scalar keys %{$schema->storage->dbh->{CachedKids}};
+
+If it's appropriate, you can simply clear these statements, automatically deallocating them in the
+database:
+
+    my $kids = $schema->storage->dbh->{CachedKids};
+    delete @{$kids}{keys %$kids} if scalar keys %$kids > 100;
+
+But what you probably want is to expire unused statements and not those that are used frequently.
+You can accomplish this with L<Tie::Cache> or L<Tie::Cache::LRU>:
+
+    use Tie::Cache;
+    use DB::Main;
+    my $schema = DB::Main->connect($dbi_dsn, $user, $pass, {
+        on_connect_do => sub { tie %{shift->_dbh->{CachedKids}}, 'Tie::Cache', 100 },
+    });
 
 =cut

@@ -162,11 +162,12 @@ __PACKAGE__->mk_classdata('_result_source_instance' => []);
 sub _maybe_attach_source_to_schema {
   my ($class, $source) = @_;
   if (my $meth = $class->can('schema_instance')) {
-    my $schema = $class->$meth;
-    $schema->register_class($class, $class);
-    my $new_source = $schema->source($class);
-    %$source = %$new_source;
-    $schema->source_registrations->{$class} = $source;
+    if (my $schema = $class->$meth) {
+      $schema->register_class($class, $class);
+      my $new_source = $schema->source($class);
+      %$source = %$new_source;
+      $schema->source_registrations->{$class} = $source;
+    }
   }
 }
 

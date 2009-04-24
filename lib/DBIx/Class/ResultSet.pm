@@ -279,6 +279,11 @@ always return a resultset, even in list context.
 sub search_rs {
   my $self = shift;
 
+  # Special-case handling for (undef, undef).
+  if ( @_ == 2 && !defined $_[1] && !defined $_[0] ) {
+    pop(@_); pop(@_);
+  }
+
   my $attrs = {};
   $attrs = pop(@_) if @_ > 1 and ref $_[$#_] eq 'HASH';
   my $our_attrs = { %{$self->{attrs}} };
@@ -388,19 +393,29 @@ Pass a literal chunk of SQL to be added to the conditional part of the
 resultset query.
 
 CAVEAT: C<search_literal> is provided for Class::DBI compatibility and should
-only be used in that context. There are known problems using C<search_literal>
-in chained queries; it can result in bind values in the wrong order.  See
-L<DBIx::Class::Manual::Cookbook/Searching> and
+only be used in that context. C<search_literal> is a convenience method. 
+It is equivalent to calling $schema->search(\[]), but if you want to ensure
+columns are bound correctly, use C<search>.
+
+Example of how to use C<search> instead of C<search_literal>
+
+  my @cds = $cd_rs->search_literal('cdid = ? AND (artist = ? OR artist = ?)', (2, 1, 2));
+  my @cds = $cd_rs->search(\[ 'cdid = ? AND (artist = ? OR artist = ?)', [ 'cdid', 2 ], [ 'artist', 1 ], [ 'artist', 2 ] ]);
+
+
+See L<DBIx::Class::Manual::Cookbook/Searching> and 
 L<DBIx::Class::Manual::FAQ/Searching> for searching techniques that do not
 require C<search_literal>.
 
 =cut
 
 sub search_literal {
-  my ($self, $cond, @vals) = @_;
-  my $attrs = (ref $vals[$#vals] eq 'HASH' ? { %{ pop(@vals) } } : {});
-  $attrs->{bind} = [ @{$self->{attrs}{bind}||[]}, @vals ];
-  return $self->search(\$cond, $attrs);
+  my ($self, $sql, @bind) = @_; 
+  my $attr;
+  if ( @bind && ref($bind[-1]) eq 'HASH' ) {
+    $attr = pop @bind;
+  }
+  return $self->search(\[ $sql, map [ __DUMMY__ => $_ ], @bind ], ($attr || () ));
 }
 
 =head2 find
@@ -845,10 +860,24 @@ You most likely want to use L</search> with specific operators.
 
 For more information, see L<DBIx::Class::Manual::Cookbook>.
 
+This method is deprecated and will be removed in 0.09. Use L</search()>
+instead. An example conversion is:
+
+  ->search_like({ foo => 'bar' });
+
+  # Becomes
+
+  ->search({ foo => { like => 'bar' } });
+
 =cut
 
 sub search_like {
   my $class = shift;
+  carp join ("\n",
+    'search_like() is deprecated and will be removed in 0.09.',
+    'Instead use ->search({ x => { -like => "y%" } })',
+    '(note the outer pair of {}s - they are important!)'
+  );
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
   my $query = ref $_[0] eq 'HASH' ? { %{shift()} }: {@_};
   $query->{$_} = { 'like' => $query->{$_} } for keys %$query;
@@ -2068,6 +2097,63 @@ sub update_or_create {
   }
 
   return $self->create($cond);
+}
+
+=head2 update_or_new
+
+=over 4
+
+=item Arguments: \%col_values, { key => $unique_constraint }?
+
+=item Return Value: $rowobject
+
+=back
+
+  $resultset->update_or_new({ col => $val, ... });
+
+First, searches for an existing row matching one of the unique constraints
+(including the primary key) on the source of this resultset. If a row is
+found, updates it with the other given column values. Otherwise, instantiate
+a new result object and return it. The object will not be saved into your storage
+until you call L<DBIx::Class::Row/insert> on it.
+
+Takes an optional C<key> attribute to search on a specific unique constraint.
+For example:
+
+  # In your application
+  my $cd = $schema->resultset('CD')->update_or_new(
+    {
+      artist => 'Massive Attack',
+      title  => 'Mezzanine',
+      year   => 1998,
+    },
+    { key => 'cd_artist_title' }
+  );
+
+  if ($cd->in_storage) {
+      # the cd was updated
+  }
+  else {
+      # the cd is not yet in the database, let's insert it
+      $cd->insert;
+  }
+
+See also L</find>, L</find_or_create> and L<find_or_new>.
+
+=cut
+
+sub update_or_new {
+    my $self  = shift;
+    my $attrs = ( @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {} );
+    my $cond  = ref $_[0] eq 'HASH' ? shift : {@_};
+
+    my $row = $self->find( $cond, $attrs );
+    if ( defined $row ) {
+        $row->update($cond);
+        return $row;
+    }
+
+    return $self->new_result($cond);
 }
 
 =head2 get_cache

@@ -151,7 +151,7 @@ is($blrunner_dc->NumExplodingSheep, undef, 'Sheep correct');
 
 # Multi-column search
 {
-	my @films = $blrunner->search_like(title => "Bladerunner%", rating => '15');
+	my @films = $blrunner->search (title => { -like => "Bladerunner%"}, rating => '15');
 	is @films, 1, "Only one Bladerunner is a 15";
 }
 
@@ -208,7 +208,7 @@ is(scalar @films, 1, ' search returns one film');
 is($films[0]->id, $gone->id, ' ... the correct one');
 
 # Find all films which were directed by Bob
-@films = Film->search_like('Director', 'Bob %');
+@films = Film->search ( { 'Director' => { -like => 'Bob %' } });
 is(scalar @films, 3, ' search_like returns 3 films');
 ok(
 	eq_array(

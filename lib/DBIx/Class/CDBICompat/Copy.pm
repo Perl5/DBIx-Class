@@ -8,7 +8,7 @@ use Carp;
 
 =head1 NAME
 
-DBIx::Class::CDBICompat::Copy
+DBIx::Class::CDBICompat::Copy - Emulates Class::DBI->copy($new_id)
 
 =head1 SYNOPSIS
 

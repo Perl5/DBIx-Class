@@ -125,8 +125,12 @@ L<DBIx::Class::Schema/deploy>.
 =item default_value
 
 Set this to the default value which will be inserted into a column
-by the database. Can contain either a value or a function. This is
-currently only used by L<DBIx::Class::Schema/deploy>.
+by the database. Can contain either a value or a function (use a
+reference to a scalar e.g. C<\'now()'> if you want a function). This
+is currently only used by L<DBIx::Class::Schema/deploy>.
+
+See the note on L<DBIx::Class::Row/new> for more information about possible
+issues related to db-side default values.
 
 =item sequence
 
@@ -1085,12 +1089,16 @@ sub resolve_join {
   $seen ||= {};
   $force_left ||= { force => 0 };
   if (ref $join eq 'ARRAY') {
-    return map { $self->resolve_join($_, $alias, $seen) } @$join;
+    return
+      map {
+        local $force_left->{force} = $force_left->{force};
+        $self->resolve_join($_, $alias, $seen, $force_left);
+      } @$join;
   } elsif (ref $join eq 'HASH') {
     return
       map {
         my $as = ($seen->{$_} ? $_.'_'.($seen->{$_}+1) : $_);
-        local $force_left->{force};
+        local $force_left->{force} = $force_left->{force};
         (
           $self->resolve_join($_, $alias, $seen, $force_left),
           $self->related_source($_)->resolve_join(
@@ -1196,7 +1204,11 @@ sub resolve_condition {
         #warn "$self $k $for $v";
         unless ($for->has_column_loaded($v)) {
           if ($for->in_storage) {
-            $self->throw_exception("Column ${v} not loaded on ${for} trying to resolve relationship");
+            $self->throw_exception(
+              "Column ${v} not loaded or not passed to new() prior to insert()"
+                ." on ${for} trying to resolve relationship (maybe you forgot "
+                  ."to call ->reload_from_storage to get defaults from the db)"
+            );
           }
           return $UNRESOLVABLE_CONDITION;
         }

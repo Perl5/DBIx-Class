@@ -45,21 +45,6 @@ sub backup
   return $backupfile;
 }
 
-sub disconnect {
-
-  # As described in this node http://www.perlmonks.org/?node_id=666210
-  # there seems to be no sane way to ->disconnect a SQLite database with
-  # cached statement handles. As per mst we just zap the cache and 
-  # proceed as normal.
-
-  my $self = shift;
-  if ($self->connected) {
-    $self->_dbh->{CachedKids} = {};
-    $self->next::method (@_);
-  }
-}
-
-
 1;
 
 =head1 NAME

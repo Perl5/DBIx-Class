@@ -1287,20 +1287,22 @@ sub insert {
   my $ident = $source->from; 
   my $bind_attributes = $self->source_bind_attributes($source);
 
+  my $updated_cols = {};
+
   $self->ensure_connected;
   foreach my $col ( $source->columns ) {
     if ( !defined $to_insert->{$col} ) {
       my $col_info = $source->column_info($col);
 
       if ( $col_info->{auto_nextval} ) {
-        $to_insert->{$col} = $self->_sequence_fetch( 'nextval', $col_info->{sequence} || $self->_dbh_get_autoinc_seq($self->dbh, $source) );
+        $updated_cols->{$col} = $to_insert->{$col} = $self->_sequence_fetch( 'nextval', $col_info->{sequence} || $self->_dbh_get_autoinc_seq($self->dbh, $source) );
       }
     }
   }
 
   $self->_execute('insert' => [], $source, $bind_attributes, $to_insert);
 
-  return $to_insert;
+  return $updated_cols;
 }
 
 ## Still not quite perfect, and EXPERIMENTAL
@@ -1384,14 +1386,6 @@ sub _select {
 sub _select_args {
   my ($self, $ident, $select, $condition, $attrs) = @_;
   my $order = $attrs->{order_by};
-
-  if (ref $condition eq 'SCALAR') {
-    my $unwrap = ${$condition};
-    if ($unwrap =~ s/ORDER BY (.*)$//i) {
-      $order = $1;
-      $condition = \$unwrap;
-    }
-  }
 
   my $for = delete $attrs->{for};
   my $sql_maker = $self->sql_maker;

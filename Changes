@@ -1,5 +1,22 @@
 Revision history for DBIx::Class
 
+		- Fix +select, +as, +columns and include_columns being stripped from
+		  ->get_columns
+        - move load_optional_class from DBIx::Class::Componentised to Class::C3::Componentised
+
+0.081000 2009-04-19 11:39:35 (UTC)
+        - Todo out the register_extra_source test until after shipping
+
+0.08099_08 2009-03-30 00:00:00 (UTC)
+        - Fixed taint mode with load_namespaces
+        - Putting IC::DateTime locale, timezone or floating_tz_ok attributes into
+          extra => {} has been deprecated. The new way is to put these things
+          directly into the columns definition
+        - Switched MI code to MRO::Compat
+        - Document db-side default_value caveats
+        - Search_like() now warns to indicate deprecation in 0.09.
+        - TxnScopeGuard left experimental state
+
 0.08099_07 2009-02-27 02:00:00 (UTC)
         - multi-create using find_or_create rather than _related for post-insert
         - fix get_inflated_columns to check has_column_loaded
@@ -13,11 +30,11 @@ Revision history for DBIx::Class
         - Split sql statements for deploy only if SQLT::Producer returned a scalar
           containing all statements to be executed
         - Add as_query() for ResultSet and ResultSetColumn. This makes subqueries
-          possible. See the Cookbook for details. (robkinyon, michaelr)
+          possible. See the Cookbook for details.
         - Massive rewrite of Ordered to properly handle position constraints and
           to make it more matpath-friendly
         - deploy_statements called ddl_filename with the $version and $dir arguments
-          in the wrong order. 
+          in the wrong order.
         - columns/+columns attributes now support { as => select } hahsrefs
         - support for views both in DBIC and via deploy() in SQLT
 
@@ -41,11 +58,11 @@ Revision history for DBIx::Class
         - regression test for source_name 
 
 0.08099_05 2008-10-30 21:30:00 (UTC)
-        - Rewritte of Storage::DBI::connect_info(), extended with an
+        - Rewrite of Storage::DBI::connect_info(), extended with an
           additional argument format type
         - InflateColumn::DateTime: add warning about floating timezone
         - InflateColumn::DateTime: possible to enforce/skip inflation
-        - delete throws exception if passed arguments to prevent drunken mishaps. (purge)
+        - delete throws exception if passed arguments to prevent drunken mishaps.
         - Fix storage to copy scalar conds before regexping to avoid
           trying to modify a constant in odd edge cases
         - Related resultsets on uninserted objects are now empty

@@ -1,4 +1,5 @@
-package DBIx::Class::Test::SQLite;
+package # hide from PAUSE
+    DBIx::Class::Test::SQLite;
 
 =head1 NAME
 

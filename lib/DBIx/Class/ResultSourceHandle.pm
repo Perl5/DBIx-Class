@@ -20,7 +20,7 @@ our $thaw_schema;
 
 =head1 NAME
 
-DBIx::Class::ResultSourceHandle
+DBIx::Class::ResultSourceHandle - Decouple Rows/ResultSets objects from their Source objects
 
 =head1 DESCRIPTION
 

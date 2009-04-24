@@ -6,7 +6,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::CDBICompat::NoObjectIndex
+DBIx::Class::CDBICompat::NoObjectIndex - Defines empty methods for object indexing. They do nothing
 
 =head1 SYNOPSIS
 
