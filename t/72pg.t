@@ -15,9 +15,15 @@ use DBICTest;
 
   __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('testschema.casecheck');
-  __PACKAGE__->add_columns(qw/id name NAME uc_name/);
+  __PACKAGE__->add_columns(qw/id name NAME uc_name storecolumn/);
   __PACKAGE__->column_info_from_storage(1);
   __PACKAGE__->set_primary_key('id');
+
+sub store_column {
+    my ($self, $name, $value) = @_;
+    $value = '#'.$value if($name eq "storecolumn");
+    $self->maybe::next::method($name, $value);
+}
 
 }
 
@@ -45,7 +51,7 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
     unless ($dsn && $user);
 
 
-plan tests => 37;
+plan tests => 39;
 
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
@@ -73,9 +79,16 @@ $schema->source("SequenceTest")->name("testschema.sequence_test");
     $dbh->do("CREATE SEQUENCE pkid1_seq START 1 MAXVALUE 999999 MINVALUE 0");
     $dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
     $dbh->do("CREATE SEQUENCE nonpkid_seq START 20 MAXVALUE 999999 MINVALUE 0");
-    ok ( $dbh->do('CREATE TABLE testschema.casecheck (id serial PRIMARY KEY, "name" VARCHAR(1), "NAME" VARCHAR(2), "UC_NAME" VARCHAR(3));'), 'Creation of casecheck table');
+    ok ( $dbh->do('CREATE TABLE testschema.casecheck (id serial PRIMARY KEY, "name" VARCHAR(1), "NAME" VARCHAR(2), "UC_NAME" VARCHAR(3), "storecolumn" VARCHAR(10));'), 'Creation of casecheck table');
     ok ( $dbh->do('CREATE TABLE testschema.array_test (id serial PRIMARY KEY, arrayfield INTEGER[]);'), 'Creation of array_test table');
 }
+
+# store_column is called once for create() for non sequence columns
+
+ok(my $storecolumn = $schema->resultset('Casecheck')->create({'storecolumn' => 'a'}));
+
+is($storecolumn->storecolumn, '#a'); # was '##a'
+
 
 # This is in Core now, but it's here just to test that it doesn't break
 $schema->class('Artist')->load_components('PK::Auto');
@@ -243,8 +256,8 @@ SKIP: {
     });
 }
 
-SKIP: {
-  skip "Oracle Auto-PK tests are broken", 16;
+#SKIP: {
+  #skip "Oracle Auto-PK tests are broken", 16;
 
   # test auto increment using sequences WITHOUT triggers
   for (1..5) {
@@ -255,7 +268,7 @@ SKIP: {
   }
   my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
   is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
-}
+#}
 
 END {
     if($dbh) {
