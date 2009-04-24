@@ -19,12 +19,11 @@ use DBICTest;
   __PACKAGE__->column_info_from_storage(1);
   __PACKAGE__->set_primary_key('id');
 
-sub store_column {
+  sub store_column {
     my ($self, $name, $value) = @_;
     $value = '#'.$value if($name eq "storecolumn");
     $self->maybe::next::method($name, $value);
-}
-
+  }
 }
 
 {
@@ -278,4 +277,3 @@ END {
         $dbh->do("DROP SCHEMA testschema;");
     }
 }
-
