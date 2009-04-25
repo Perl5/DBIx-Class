@@ -981,6 +981,9 @@ for example to rebless the result into a different class.
 Reblessing can also be done more easily by setting C<result_class> in
 your Result class. See L<DBIx::Class::ResultSource/result_class>.
 
+Different types of results can also be created from a particular
+L<DBIx::Class::ResultSet>, see L<DBIx::Class::ResultSet/result_class>.
+
 =cut
 
 sub inflate_result {

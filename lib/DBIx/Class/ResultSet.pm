@@ -1121,6 +1121,11 @@ An accessor for the class to use when creating row objects. Defaults to
 C<< result_source->result_class >> - which in most cases is the name of the 
 L<"table"|DBIx::Class::Manual::Glossary/"ResultSource"> class.
 
+Note that changing the result_class will also remove any components
+that were originally loaded in the source class via
+L<DBIx::Class::ResultSource/load_components>. Any overloaded methods
+in the original source class will not run.
+
 =cut
 
 sub result_class {
