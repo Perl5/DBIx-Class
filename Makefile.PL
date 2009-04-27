@@ -1,4 +1,4 @@
-use inc::Module::Install 0.67;
+use inc::Module::Install 0.79;
 use strict;
 use warnings;
 use POSIX ();
@@ -8,6 +8,10 @@ use 5.006001; # delete this line if you want to send patches for earlier.
 name     'DBIx-Class';
 perl_version '5.006001';
 all_from 'lib/DBIx/Class.pm';
+
+# configure_requires so _check_sqlite() below can run
+# remove once test deprecated
+configure_requires 'DBD::SQLite';
 
 requires 'DBD::SQLite'              => 1.23;
 requires 'Data::Page'               => 2.00;
@@ -31,9 +35,6 @@ requires 'MRO::Compat'              => 0.09;
 # Perl 5.8.0 doesn't have utf8::is_utf8()
 requires 'Encode'                   => 0 if ($] <= 5.008000);  
 
-# configure_requires so the sanity check below can run
-configure_requires 'DBD::SQLite';
-
 test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Warn'          => 0.11;
 test_requires 'Test::Exception'     => 0;
@@ -41,9 +42,13 @@ test_requires 'Test::Deep'          => 0;
 
 recommends 'SQL::Translator'        => 0.09004;
 
-install_script 'script/dbicadmin';
+install_script (qw|
+    script/dbicadmin
+|);
 
-tests_recursive 't';
+tests_recursive (qw|
+    t
+|);
 
 # re-build README and require extra modules for testing if we're in a checkout
 
@@ -71,8 +76,10 @@ my %force_requires_if_author = (
   ,
 
   # t/93storage_replication.t
-  'Moose',                    => 0,
-  'MooseX::AttributeHelpers'  => 0.12,
+  'Moose',                        => 0.54,
+  'Moose::Util::TypeConstraints'  => 0.54,
+  'MooseX::AttributeHelpers'      => 0.12,
+  'Class::MOP'                    => 0.63,
 
   # t/96_is_deteministic_value.t
   'DateTime::Format::Strptime' => 0,
@@ -121,14 +128,6 @@ if ($Module::Install::AUTHOR) {
     $ok;
   } @{Meta->{values}{build_requires}} ];
 
-  my @scalar_keys = Module::Install::Metadata::Meta_TupleKeys();
-  my $cr = Module::Install::Metadata->can("Meta_TupleKeys");
-  {
-    no warnings 'redefine';
-    *Module::Install::Metadata::Meta_TupleKeys = sub {
-      return $cr->(@_), 'resources';
-    };
-  }
   Meta->{values}{resources} = [ 
     [ 'MailingList', 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class' ],
     [ 'IRC', 'irc://irc.perl.org/#dbix-class' ],
