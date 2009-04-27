@@ -153,6 +153,7 @@ sub _check_sqlite {
     }
     elsif (! $pid) {
       _torture_sqlite();
+      exit 0;
     }
     else {
       eval {
@@ -237,6 +238,4 @@ sub _torture_sqlite {
     $dbh->do ('COMMIT');                              # followed by commit
     $dbh->disconnect;
   }
-
-  exit 0;
 }
