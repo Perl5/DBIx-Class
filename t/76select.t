@@ -73,3 +73,10 @@ is ($subsel->next->title, $cds->next->title, 'First CD title match');
 is ($subsel->next->title, $cds->next->title, 'Second CD title match');
 
 is($schema->resultset('CD')->current_source_alias, "me", '$rs->current_source_alias returns "me"');
+
+my @cds = $schema->resultset('CD')->search({},
+    {
+        'join' => 'artist',
+        'columns' => ['cdid','title','artist.name'],
+    }
+);
