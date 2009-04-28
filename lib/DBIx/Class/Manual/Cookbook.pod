@@ -105,7 +105,7 @@ reference (this is a feature of L<SQL::Abstract>).
 Say you want to run a complex custom query on your user data, here's what
 you have to add to your User class:
 
-  package My::Schema::User;
+  package My::Schema::Result::User;
   
   use base qw/DBIx::Class/;
   
@@ -149,10 +149,10 @@ files (instead of stuffing all of them into the same resultset class), you can
 achieve the same with subclassing the resultset class and defining the
 ResultSource there:
 
-  package My::Schema::UserFriendsComplex;
+  package My::Schema::Result::UserFriendsComplex;
 
-  use My::Schema::User;
-  use base qw/My::Schema::User/;
+  use My::Schema::Result::User;
+  use base qw/My::Schema::Result::User/;
 
   __PACKAGE__->table('dummy');  # currently must be called before anything else
 
@@ -740,16 +740,16 @@ below:
  
 B<Schema Definition> 
  
-    package DB::Schema; 
+    package My::Schema; 
      
     use base qw/DBIx::Class::Schema/; 
  
-    __PACKAGE__->load_classes(qw/User/); 
+    __PACKAGE__->load_namespaces; 
  
  
 B<Proxy-Class definitions> 
  
-    package DB::Schema::User; 
+    package My::Schema::Result::User; 
      
     use strict; 
     use warnings; 
@@ -784,11 +784,11 @@ B<Proxy-Class definitions>
     } 
      
      
-    package DB::Schema::User::Admin; 
+    package My::Schema::Result::User::Admin; 
      
     use strict; 
     use warnings; 
-    use base qw/DB::Schema::User/; 
+    use base qw/My::Schema::Result::User/; 
      
     sub hello 
     { 
@@ -806,7 +806,7 @@ B<Test File> test.pl
  
     use warnings; 
     use strict; 
-    use DB::Schema; 
+    use My::Schema; 
      
     my $user_data = { email    => 'someguy@place.com',  
                       password => 'pass1',  
@@ -816,7 +816,7 @@ B<Test File> test.pl
                        password => 'pass2',  
                        admin    => 1 }; 
                            
-    my $schema = DB::Schema->connection('dbi:Pg:dbname=test'); 
+    my $schema = My::Schema->connection('dbi:Pg:dbname=test'); 
      
     $schema->resultset('User')->create( $user_data ); 
     $schema->resultset('User')->create( $admin_data ); 
@@ -1321,7 +1321,7 @@ class (refer to the advanced
 L<callback system|DBIx::Class::ResultSource/sqlt_deploy_callback> if you wish
 to share a hook between multiple sources):
 
- package My::Schema::Artist;
+ package My::Schema::Result::Artist;
 
  __PACKAGE__->table('artist');
  __PACKAGE__->add_columns(id => { ... }, name => { ... })
