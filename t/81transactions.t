@@ -276,8 +276,6 @@ $schema->storage->disconnect;
     my $w;
     local $SIG{__WARN__} = sub { $w = shift };
 
-    $schema->storage->debug (1);
-
     # The 0 arg says don't die, just let the scope guard go out of scope 
     # forcing a txn_rollback to happen
     outer($schema, 0);
