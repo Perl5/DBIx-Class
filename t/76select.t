@@ -102,13 +102,9 @@ lives_ok(sub {
   $rs->first->get_column('title')
 }, 'columns 2nd rscolumn present');
 
-TODO: {
-  local $TODO = "Need to remove '.' from accessors";
-  # I think this is too much dwis  #ribasushi
-  lives_ok(sub {
-    $rs->first->get_column("artist.name") 
-  }, 'columns 3rd rscolumn present'); 
-}
+lives_ok(sub {
+  $rs->first->artist->get_column('name') 
+}, 'columns 3rd rscolumn present'); 
 
 
 
@@ -137,10 +133,6 @@ lives_ok(sub {
   $rs->first->get_column('title')
 }, 'columns 2nd rscolumn present');
 
-TODO: {
-  local $TODO = "Need to remove '.' from accessors";
-  # I think this is too much dwis  #ribasushi
-  lives_ok(sub {
-    $rs->first->get_column("artist.name")
-  }, 'columns 3rd rscolumn present');
-}
+lives_ok(sub {
+  $rs->first->artist->get_column('name')
+}, 'columns 3rd rscolumn present');
