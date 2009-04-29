@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+        - Fixed two subtle bugs when using columns or select/as
+          paired with a join (limited prefetch)
+        - Fixed breakage of cdbi tests (RT#45551)
+        - Some POD improvements
+
 0.08101 2009-04-27 09:45:00 (UTC)
         - Fix +select, +as, +columns and include_columns being stripped
           by $rs->get_column
