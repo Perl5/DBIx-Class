@@ -60,8 +60,9 @@ my %force_requires_if_author = (
   'DBIx::ContextualFetch'     => 0,
   'Class::DBI::Plugin::DeepAbstractSearch' => 0,
   'Class::Trigger'            => 0,
-  'Time::Piece'               => 0,
+  'Time::Piece::MySQL'        => 0,
   'Clone'                     => 0,
+  'Date::Simple'              => 0,
 
   # t/52cycle.t
   'Test::Memory::Cycle'       => 0,

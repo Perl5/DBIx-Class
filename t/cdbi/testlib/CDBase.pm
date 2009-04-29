@@ -2,6 +2,6 @@ package # hide from PAUSE
     CDBase;
 
 use strict;
-use base qw(DBIx::Class::Test::SQLite);
+use base qw(DBIC::Test::SQLite);
 
 1;
