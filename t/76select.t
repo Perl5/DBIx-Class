@@ -9,7 +9,7 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 19;
+plan tests => 21;
 
 my $rs = $schema->resultset('CD')->search({},
     {
@@ -102,6 +102,15 @@ lives_ok(sub {
   $rs->first->get_column('title')
 }, 'columns 2nd rscolumn present');
 
+TODO: {
+  local $TODO = "Need to remove '.' from accessors";
+  # I think this is too much dwis  #ribasushi
+  lives_ok(sub {
+    $rs->first->get_column("artist.name") 
+  }, 'columns 3rd rscolumn present'); 
+}
+
+
 
 $rs = $schema->resultset('CD')->search({},
     {  
@@ -127,3 +136,11 @@ lives_ok(sub {
 lives_ok(sub {
   $rs->first->get_column('title')
 }, 'columns 2nd rscolumn present');
+
+TODO: {
+  local $TODO = "Need to remove '.' from accessors";
+  # I think this is too much dwis  #ribasushi
+  lives_ok(sub {
+    $rs->first->get_column("artist.name")
+  }, 'columns 3rd rscolumn present');
+}
