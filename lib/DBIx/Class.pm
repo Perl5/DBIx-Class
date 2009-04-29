@@ -245,6 +245,8 @@ groditi: Guillermo Roditi <groditi@cpan.org>
 
 ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
 
+jasonmay: Jason May <jason.a.may@gmail.com>
+
 jesper: Jesper Krogh
 
 jgoulah: John Goulah <jgoulah@cpan.org>
