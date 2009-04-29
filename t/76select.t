@@ -9,7 +9,7 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 21;
+plan tests => 23;
 
 my $rs = $schema->resultset('CD')->search({},
     {
@@ -85,10 +85,10 @@ $rs = $schema->resultset('CD')->search({},
 );
 
 my @query = @${$rs->as_query};
+TODO: { local $TODO = 'as_query() inconsistent'; is (scalar @query, 2, 'as_query() returned empty bindval arrayref') || push @query, [] }
 
 is_same_sql_bind (
   @query,
-  [],
   '(SELECT me.cdid, me.title, artist.name FROM cd me  JOIN artist artist ON artist.artistid = me.artist)',
   [],
   'Use of columns attribute results in proper sql'
@@ -120,10 +120,10 @@ $rs = $schema->resultset('CD')->search({},
 );
 
 @query = @${$rs->as_query};
+TODO: { local $TODO = 'as_query() inconsistent'; is (scalar @query, 2, 'as_query() returned empty bindval arrayref') || push @query, [] }
 
 is_same_sql_bind (
   @query,
-  [],
   '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, me.cdid, me.title, artist.name FROM cd me  JOIN artist artist ON artist.artistid = me.artist)',
   [],
   'Use of columns attribute results in proper sql'
