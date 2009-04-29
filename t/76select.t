@@ -5,10 +5,11 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 13;
+plan tests => 19;
 
 my $rs = $schema->resultset('CD')->search({},
     {
@@ -74,9 +75,55 @@ is ($subsel->next->title, $cds->next->title, 'Second CD title match');
 
 is($schema->resultset('CD')->current_source_alias, "me", '$rs->current_source_alias returns "me"');
 
-my @cds = $schema->resultset('CD')->search({},
+
+
+$rs = $schema->resultset('CD')->search({},
     {
         'join' => 'artist',
-        'columns' => ['cdid','title','artist.name'],
+        'columns' => ['cdid', 'title', 'artist.name'],
     }
 );
+
+my @query = @${$rs->as_query};
+
+is_same_sql_bind (
+  @query,
+  [],
+  '(SELECT me.cdid, me.title, artist.name FROM cd me  JOIN artist artist ON artist.artistid = me.artist)',
+  [],
+  'Use of columns attribute results in proper sql'
+);
+
+lives_ok(sub {
+  $rs->first->get_column('cdid')
+}, 'columns 1st rscolumn present');
+
+lives_ok(sub {
+  $rs->first->get_column('title')
+}, 'columns 2nd rscolumn present');
+
+
+$rs = $schema->resultset('CD')->search({},
+    {  
+        'join' => 'artist',
+        '+columns' => ['cdid', 'title', 'artist.name'],
+    }
+);
+
+@query = @${$rs->as_query};
+
+is_same_sql_bind (
+  @query,
+  [],
+  '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, me.cdid, me.title, artist.name FROM cd me  JOIN artist artist ON artist.artistid = me.artist)',
+  [],
+  'Use of columns attribute results in proper sql'
+);
+
+lives_ok(sub {
+  $rs->first->get_column('cdid') 
+}, 'columns 1st rscolumn present');
+
+lives_ok(sub {
+  $rs->first->get_column('title')
+}, 'columns 2nd rscolumn present');
