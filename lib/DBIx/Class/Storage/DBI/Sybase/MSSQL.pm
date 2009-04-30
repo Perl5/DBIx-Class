@@ -3,8 +3,7 @@ package DBIx::Class::Storage::DBI::Sybase::MSSQL;
 use strict;
 use warnings;
 
-use Class::C3;
-use base qw/DBIx::Class::Storage::DBI::MSSQL DBIx::Class::Storage::DBI::Sybase/;
+use base qw/DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server DBIx::Class::Storage::DBI::Sybase/;
 
 1;
 
@@ -28,6 +27,8 @@ after connecting.
 =head1 AUTHORS
 
 Brandon L Black <blblack@gmail.com>
+
+Justin Hunter <justin.d.hunter@gmail.com>
 
 =head1 LICENSE
 
