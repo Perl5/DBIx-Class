@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08102 2009-04-30 08:29:00 (UTC)
         - Fixed two subtle bugs when using columns or select/as
           paired with a join (limited prefetch)
         - Fixed breakage of cdbi tests (RT#45551)
