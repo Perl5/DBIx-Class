@@ -290,12 +290,13 @@ my $rs_overridden = $schema->source('ForceForeign');
 my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
 cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");
 
-# check that relationships below left join relationships are forced to left joins
-my $cds = $schema->resultset("CD")->search({ cdid => 1 }, { join => { genre => 'demographic' } });
+# check that relationships below left join relationships are forced to left joins 
+# when traversing multiple belongs_to
+my $cds = $schema->resultset("CD")->search({ 'me.cdid' => 5 }, { join => { single_track => 'cd' } });
 is($cds->count, 1, "subjoins under left joins force_left (string)");
 
-$cds = $schema->resultset("CD")->search({ cdid => 1 }, { join => { genre => [ 'demographic' ] } });
+$cds = $schema->resultset("CD")->search({ 'me.cdid' => 5 }, { join => { single_track => ['cd'] } });
 is($cds->count, 1, "subjoins under left joins force_left (arrayref)");
 
-$cds = $schema->resultset("CD")->search({ cdid => 1 }, { join => { genre => { demographic => {} } } });
+$cds = $schema->resultset("CD")->search({ 'me.cdid' => 5 }, { join => { single_track => { cd => {} } } });
 is($cds->count, 1, "subjoins under left joins force_left (hashref)");
