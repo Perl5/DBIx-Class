@@ -12,17 +12,15 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-plan tests => 5;
+plan tests => 6;
 
-my $storage_type = '::DBI::MSSQL';
-$storage_type = '::DBI::Sybase::MSSQL' if $dsn =~ /^dbi:Sybase:/;
-# Add more for others in the future when they exist (ODBC? ADO? JDBC?)
 
 my $schema = DBICTest::Schema->clone;
-$schema->storage_type($storage_type);
 $schema->connection($dsn, $user, $pass);
 
 my $dbh = $schema->storage->dbh;
+
+isa_ok($schema->storage, 'DBIx::Class::Storage::DBI::Sybase::MSSQL');
 
 $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
     DROP TABLE artist");
