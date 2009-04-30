@@ -8,10 +8,10 @@ use base qw/DBIx::Class::Storage::DBI::NoBindVars/;
 sub _rebless {
     my $self = shift;
 
-    my $dbh = $self->schema->storage->dbh;
-    my $DBMS_VERSION = @{$dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2];
-    if ($DBMS_VERSION =~ /^Microsoft /i) {
-        my $subclass = 'DBIx::Class::Storage::DBI::Sybase::MSSQL'; 
+    my $dbtype = eval { @{$self->_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2] };
+    unless ( $@ ) {
+        $dbtype =~ s/\W/_/gi;
+        my $subclass = "DBIx::Class::Storage::DBI::Sybase::${dbtype}";
         if ($self->load_optional_class($subclass) && !$self->isa($subclass)) {
             bless $self, $subclass;
             $self->_rebless;

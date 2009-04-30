@@ -7,20 +7,17 @@ use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 
-#warn "$dsn $user $pass";
-
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
 plan tests => 6;
-
 
 my $schema = DBICTest::Schema->clone;
 $schema->connection($dsn, $user, $pass);
 
 my $dbh = $schema->storage->dbh;
 
-isa_ok($schema->storage, 'DBIx::Class::Storage::DBI::Sybase::MSSQL');
+isa_ok($schema->storage, 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server');
 
 $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
     DROP TABLE artist");
