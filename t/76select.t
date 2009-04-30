@@ -9,7 +9,7 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 21;
+plan tests => 24;
 
 my $rs = $schema->resultset('CD')->search({},
     {
@@ -134,3 +134,68 @@ lives_ok(sub {
 lives_ok(sub {
   $rs->first->artist->get_column('name')
 }, 'columns 3rd rscolumn present');
+
+
+$rs = $schema->resultset('CD')->search({'tracks.position' => { -in => [2] } },
+  {
+    join => 'tracks',
+    columns => [qw/me.cdid me.title/],
+    '+select' => ['tracks.position'],
+    '+as' => ['track_position'],
+
+    # get a hashref of CD1 only (the first with a second track)
+    result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+    order_by => 'cdid',
+    rows => 1,
+  }
+);
+
+is_deeply (
+  $rs->single,
+  {
+    cdid => 1,
+    track_position => 2,
+    title => 'Spoonful of bees',
+  },
+  'limited prefetch via column works on a multi-relationship',
+);
+
+my $sub_rs = $rs->search ({},
+  {
+    columns => [qw/artist tracks.trackid/],    # columns should not be merged but override $rs columns
+    '+select' => ['tracks.title'],
+    '+as' => ['tracks.title'],
+  }
+);
+
+is_deeply (
+  $sub_rs->single,
+  {
+    artist => 1,
+    track_position => 2,
+    tracks =>
+      {
+        trackid => 17,
+        title => 'Apiary',
+      },
+  },
+  'columns/select/as fold properly on sub-searches',
+);
+
+TODO: {
+  local $TODO = "Multi-collapsing still doesn't work right - HRI should be getting an arrayref, not an individual hash";
+  is_deeply (
+    $sub_rs->single,
+    {
+      artist => 1,
+      track_position => 2,
+      tracks => [
+        {
+          trackid => 17,
+          title => 'Apiary',
+        },
+      ],
+    },
+    'columns/select/as fold properly on sub-searches',
+  );
+}
