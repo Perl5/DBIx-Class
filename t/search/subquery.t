@@ -85,8 +85,10 @@ my $cdrs = $schema->resultset('CD');
   my ($query, @bind) = @{$$arr};
   is_same_sql_bind(
     $query, \@bind,
-    "( SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track FROM (SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE id > 20) cd2 )",
-    [],
+    "( SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track FROM (SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE id > ?) cd2 )",
+    [
+      [ 'id', 20 ]
+    ],
   );
 }
 
@@ -137,10 +139,13 @@ my $cdrs = $schema->resultset('CD');
         (SELECT cd3.cdid,cd3.artist,cd3.title,cd3.year,cd3.genreid,cd3.single_track 
           FROM 
             (SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track 
-              FROM cd me WHERE id < 40) cd3
-          WHERE id > 20) cd2
+              FROM cd me WHERE id < ?) cd3
+          WHERE id > ?) cd2
     )",
-    [],
+    [
+      [ 'id', 40 ], 
+      [ 'id', 20 ]
+    ],
   );
 
 }
