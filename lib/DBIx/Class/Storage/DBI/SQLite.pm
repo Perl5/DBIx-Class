@@ -6,7 +6,7 @@ use POSIX 'strftime';
 use File::Copy;
 use File::Spec;
 
-use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
+use base qw/DBIx::Class::Storage::DBI/;
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;

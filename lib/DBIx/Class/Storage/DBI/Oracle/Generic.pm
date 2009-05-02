@@ -26,7 +26,7 @@ This class implements autoincrements for Oracle.
 
 use Carp::Clan qw/^DBIx::Class/;
 
-use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
+use base qw/DBIx::Class::Storage::DBI/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
