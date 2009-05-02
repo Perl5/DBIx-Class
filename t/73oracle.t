@@ -106,15 +106,32 @@ is($tjoin->next->title, 'Track1', "ambiguous column ok");
 
 # check count distinct with multiple columns
 my $other_track = $schema->resultset('Track')->create({ trackid => 2, cd => 1, position => 1, title => 'Track2' });
-my $tcount = $schema->resultset('Track')->search(
-    {},
-    {
-        select => [{count => {distinct => ['position', 'title']}}],
-        as => ['count']
-    }
-  );
 
-is($tcount->next->get_column('count'), 2, "multiple column select distinct ok");
+my $tcount = $schema->resultset('Track')->search(
+  {},
+  {
+    select => [ qw/position title/ ],
+    distinct => 1,
+  }
+);
+is($tcount->count, 13, 'multiple column COUNT DISTINCT ok');
+
+$tcount = $schema->resultset('Track')->search(
+  {},
+  {
+    columns => [ qw/position title/ ],
+    distinct => 1,
+  }
+);
+is($tcount->count, 13, 'multiple column COUNT DISTINCT ok');
+
+$tcount = $schema->resultset('Track')->search(
+  {},
+  { 
+     group_by => [ qw/position title/ ]
+  }
+);
+is($tcount->count, 13, 'multiple column COUNT DISTINCT using column syntax ok');
 
 # test LIMIT support
 for (1..6) {

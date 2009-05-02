@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 95;
+plan tests => 96;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -247,18 +247,28 @@ SKIP: {
   my $tcount = $schema->resultset('Track')->search(
     {},
     {
-      select => [ qw/position title/ ]
+      select => [ qw/position title/ ],
+      distinct => 1,
     }
   );
   is($tcount->count, 13, 'multiple column COUNT DISTINCT ok');
 
-   $tcount = $schema->resultset('Track')->search(
-     {},
-     {
-        group_by => [ qw/position title/ ]
-     }
-   );
-   is($tcount->count, 13, 'multiple column COUNT DISTINCT using column syntax ok');  
+  $tcount = $schema->resultset('Track')->search(
+    {},
+    {
+      columns => [ qw/position title/ ],
+      distinct => 1,
+    }
+  );
+  is($tcount->count, 13, 'multiple column COUNT DISTINCT ok');
+
+  $tcount = $schema->resultset('Track')->search(
+    {},
+    {
+       group_by => [ qw/position title/ ]
+    }
+  );
+  is($tcount->count, 13, 'multiple column COUNT DISTINCT using column syntax ok');  
 }
 
 my $tag_rs = $schema->resultset('Tag')->search(
