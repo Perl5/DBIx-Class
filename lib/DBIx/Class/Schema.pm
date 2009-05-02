@@ -1280,6 +1280,7 @@ sub _register_source {
   $self->source_registrations(\%reg);
 
   return if ($params->{extra});
+  return unless defined($rs_class) && $rs_class->can('result_source_instance');
 
   my %map = %{$self->class_mappings};
   if (

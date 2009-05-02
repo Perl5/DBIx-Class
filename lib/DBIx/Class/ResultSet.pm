@@ -1121,6 +1121,11 @@ An accessor for the class to use when creating row objects. Defaults to
 C<< result_source->result_class >> - which in most cases is the name of the 
 L<"table"|DBIx::Class::Manual::Glossary/"ResultSource"> class.
 
+Note that changing the result_class will also remove any components
+that were originally loaded in the source class via
+L<DBIx::Class::ResultSource/load_components>. Any overloaded methods
+in the original source class will not run.
+
 =cut
 
 sub result_class {
@@ -2382,12 +2387,20 @@ sub _resolved_attrs {
   # build columns (as long as select isn't set) into a set of as/select hashes
   unless ( $attrs->{select} ) {
       @colbits = map {
-          ( ref($_) eq 'HASH' ) ? $_
-            : {
-              (
-                  /^\Q${alias}.\E(.+)$/ ? $1
-                  : $_
-                ) => ( /\./ ? $_ : "${alias}.$_" )
+          ( ref($_) eq 'HASH' )
+              ? $_
+              : {
+                  (
+                    /^\Q${alias}.\E(.+)$/ 
+                      ? "$1"
+                      : "$_"
+                  )
+                => 
+                  (
+                    /\./ 
+                      ? "$_" 
+                      : "${alias}.$_"
+                  )
             }
       } ( ref($attrs->{columns}) eq 'ARRAY' ) ? @{ delete $attrs->{columns}} : (delete $attrs->{columns} || $source->columns );
   }

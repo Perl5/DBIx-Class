@@ -27,9 +27,6 @@ eval {
     year => '2012',
     genre => {
       name => '"Greatest" collections',
-      demographic => {
-        name => '"Greatest" collections demographic',
-      },
     },
     tags => [
       { tag => 'A' },
@@ -50,9 +47,6 @@ eval {
                       year => 2012,
                       genre => {
                         name => '"Greatest" collections',
-                        demographic => {
-                          name => '"Greatest" collections demographic',
-                        },
                       },
                       tags => [
                         { tag => 'A' },
@@ -74,9 +68,6 @@ eval {
                                     year => 2012,
                                     genre => {
                                       name => '"Greatest" collections',
-                                      demographic => {
-                                        name => '"Greatest" collections demographic',
-                                      },
                                     },
                                     tags => [
                                       { tag => 'A' },
@@ -88,9 +79,6 @@ eval {
                                     year => 2012,
                                     genre => {
                                       name => '"Greatest" collections2',
-                                      demographic => {
-                                        name => '"Greatest" collections demographic',
-                                      },
                                     },
                                     tags => [
                                       { tag => 'A' },
@@ -103,9 +91,6 @@ eval {
                               year => 2013,
                               genre => {
                                 name => '"Greatest" collections2',
-                                demographic => {
-                                  name => '"Greatest" collections demographic',
-                                },
                               },
                             }},
                           ],
@@ -118,9 +103,6 @@ eval {
                 year => 2012,
                 genre => {
                   name => '"Greatest" collections',
-                  demographic => {
-                    name => '"Greatest" collections demographic',
-                  },
                 },
                 tags => [
                   { tag => 'A' },

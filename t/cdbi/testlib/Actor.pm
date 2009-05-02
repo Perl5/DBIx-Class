@@ -4,7 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-use base 'DBIx::Class::Test::SQLite';
+use base 'DBIC::Test::SQLite';
 
 __PACKAGE__->set_table('Actor');
 

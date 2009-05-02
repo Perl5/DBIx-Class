@@ -105,7 +105,7 @@ reference (this is a feature of L<SQL::Abstract>).
 Say you want to run a complex custom query on your user data, here's what
 you have to add to your User class:
 
-  package My::Schema::User;
+  package My::Schema::Result::User;
   
   use base qw/DBIx::Class/;
   
@@ -149,10 +149,10 @@ files (instead of stuffing all of them into the same resultset class), you can
 achieve the same with subclassing the resultset class and defining the
 ResultSource there:
 
-  package My::Schema::UserFriendsComplex;
+  package My::Schema::Result::UserFriendsComplex;
 
-  use My::Schema::User;
-  use base qw/My::Schema::User/;
+  use My::Schema::Result::User;
+  use base qw/My::Schema::Result::User/;
 
   __PACKAGE__->table('dummy');  # currently must be called before anything else
 
@@ -740,16 +740,16 @@ below:
  
 B<Schema Definition> 
  
-    package DB::Schema; 
+    package My::Schema; 
      
     use base qw/DBIx::Class::Schema/; 
  
-    __PACKAGE__->load_classes(qw/User/); 
+    __PACKAGE__->load_namespaces; 
  
  
 B<Proxy-Class definitions> 
  
-    package DB::Schema::User; 
+    package My::Schema::Result::User; 
      
     use strict; 
     use warnings; 
@@ -784,11 +784,11 @@ B<Proxy-Class definitions>
     } 
      
      
-    package DB::Schema::User::Admin; 
+    package My::Schema::Result::User::Admin; 
      
     use strict; 
     use warnings; 
-    use base qw/DB::Schema::User/; 
+    use base qw/My::Schema::Result::User/; 
      
     sub hello 
     { 
@@ -806,7 +806,7 @@ B<Test File> test.pl
  
     use warnings; 
     use strict; 
-    use DB::Schema; 
+    use My::Schema; 
      
     my $user_data = { email    => 'someguy@place.com',  
                       password => 'pass1',  
@@ -816,7 +816,7 @@ B<Test File> test.pl
                        password => 'pass2',  
                        admin    => 1 }; 
                            
-    my $schema = DB::Schema->connection('dbi:Pg:dbname=test'); 
+    my $schema = My::Schema->connection('dbi:Pg:dbname=test'); 
      
     $schema->resultset('User')->create( $user_data ); 
     $schema->resultset('User')->create( $admin_data ); 
@@ -854,11 +854,16 @@ To do this simply use L<DBIx::Class::ResultClass::HashRefInflator>.
 
 Wasn't that easy?
 
+Beware, changing the Result class using
+L<DBIx::Class::ResultSet/result_class> will replace any existing class
+completely including any special components loaded using
+load_components, eg L<DBIx::Class::InflateColumn::DateTime>.
+
 =head2 Get raw data for blindingly fast results
 
 If the L<HashRefInflator|DBIx::Class::ResultClass::HashRefInflator> solution
 above is not fast enough for you, you can use a DBIx::Class to return values
-exactly as they come out of the data base with none of the convenience methods
+exactly as they come out of the database with none of the convenience methods
 wrapped round them.
 
 This is used like so:
@@ -869,13 +874,13 @@ This is used like so:
   }
 
 You will need to map the array offsets to particular columns (you can
-use the I<select> attribute of C<search()> to force ordering).
+use the L<DBIx::Class::ResultSet/select> attribute of L<DBIx::Class::ResultSet/search> to force ordering).
 
 =head1 RESULTSET OPERATIONS
 
 =head2 Getting Schema from a ResultSet
 
-To get the schema object from a result set, do the following:
+To get the L<DBIx::Class::Schema> object from a ResultSet, do the following:
 
  $rs->result_source->schema
 
@@ -1014,6 +1019,98 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
 
   $rs = $user->addresses(); # get all addresses for a user
   $rs = $address->users(); # get all users for an address
+
+=head2 Relationships across DB schemas
+
+Mapping relationships across L<DB schemas|DBIx::Class::Manual::Glossary/DB schema>
+is easy as long as the schemas themselves are all accessible via the same DBI
+connection. In most cases, this means that they are on the same database host
+as each other and your connecting database user has the proper permissions to them.
+
+To accomplish this one only needs to specify the DB schema name in the table
+declaration, like so...
+
+  package MyDatabase::Main::Artist;
+  use base qw/DBIx::Class/;
+  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  
+  __PACKAGE__->table('database1.artist'); # will use "database1.artist" in FROM clause
+  
+  __PACKAGE__->add_columns(qw/ artistid name /);
+  __PACKAGE__->set_primary_key('artistid');
+  __PACKAGE__->has_many('cds' => 'MyDatabase::Main::Cd');
+
+  1;
+
+Whatever string you specify there will be used to build the "FROM" clause in SQL
+queries.
+
+The big drawback to this is you now have DB schema names hardcoded in your
+class files. This becomes especially troublesome if you have multiple instances
+of your application to support a change lifecycle (e.g. DEV, TEST, PROD) and
+the DB schemas are named based on the environment (e.g. database1_dev).
+
+However, one can dynamically "map" to the proper DB schema by overriding the
+L<connection|DBIx::Class::Schama/connection> method in your Schema class and
+building a renaming facility, like so:
+
+  package MyDatabase::Schema;
+  use Moose;
+  
+  extends 'DBIx::Class::Schema';
+  
+  around connection => sub {
+    my ( $inner, $self, $dsn, $username, $pass, $attr ) = ( shift, @_ );
+   
+    my $postfix = delete $attr->{schema_name_postfix};
+    
+    $inner->(@_);
+    
+    if ( $postfix ) {
+        $self->append_db_name($postfix);
+    }
+  };
+
+  sub append_db_name {
+    my ( $self, $postfix ) = @_;
+    
+    my @sources_with_db 
+        = grep 
+            { $_->name =~ /^\w+\./mx } 
+            map 
+                { $self->source($_) } 
+                $self->sources;
+    
+    foreach my $source (@sources_with_db) {
+        my $name = $source->name;
+        $name =~ s{^(\w+)\.}{${1}${postfix}\.}mx;
+        
+        $source->name($name);
+    }
+  }
+
+  1;
+
+By overridding the L<connection|DBIx::Class::Schama/connection>
+method and extracting a custom option from the provided \%attr hashref one can
+then simply iterate over all the Schema's ResultSources, renaming them as
+needed.
+
+To use this facility, simply add or modify the \%attr hashref that is passed to 
+L<connection|DBIx::Class::Schama/connect>, as follows:
+
+  my $schema 
+    = MyDatabase::Schema->connect(
+      $dsn, 
+      $user, 
+      $pass,
+      {
+        schema_name_postfix => '_dev'
+        # ... Other options as desired ... 
+      })
+
+Obviously, one could accomplish even more advanced mapping via a hash map or a
+callback routine.
 
 =head1 TRANSACTIONS
 
@@ -1224,7 +1321,7 @@ class (refer to the advanced
 L<callback system|DBIx::Class::ResultSource/sqlt_deploy_callback> if you wish
 to share a hook between multiple sources):
 
- package My::Schema::Artist;
+ package My::Schema::Result::Artist;
 
  __PACKAGE__->table('artist');
  __PACKAGE__->add_columns(id => { ... }, name => { ... })
