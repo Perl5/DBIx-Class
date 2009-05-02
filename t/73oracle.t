@@ -39,7 +39,7 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
   unless ($dsn && $user && $pass);
 
-plan tests => 24;
+plan tests => 26;
 
 DBICTest::Schema->load_classes('ArtistFQN');
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
@@ -114,7 +114,7 @@ my $tcount = $schema->resultset('Track')->search(
     distinct => 1,
   }
 );
-is($tcount->count, 13, 'multiple column COUNT DISTINCT ok');
+is($tcount->count, 2, 'multiple column COUNT DISTINCT ok');
 
 $tcount = $schema->resultset('Track')->search(
   {},
@@ -123,7 +123,7 @@ $tcount = $schema->resultset('Track')->search(
     distinct => 1,
   }
 );
-is($tcount->count, 13, 'multiple column COUNT DISTINCT ok');
+is($tcount->count, 2, 'multiple column COUNT DISTINCT ok');
 
 $tcount = $schema->resultset('Track')->search(
   {},
@@ -131,7 +131,7 @@ $tcount = $schema->resultset('Track')->search(
      group_by => [ qw/position title/ ]
   }
 );
-is($tcount->count, 13, 'multiple column COUNT DISTINCT using column syntax ok');
+is($tcount->count, 2, 'multiple column COUNT DISTINCT using column syntax ok');
 
 # test LIMIT support
 for (1..6) {

@@ -99,7 +99,6 @@ my $exceptions = {
     'DBIx::Class::Storage::DBI'                         => { skip => 1 },
     'DBIx::Class::Storage::DBI::DB2'                    => { skip => 1 },
     'DBIx::Class::Storage::DBI::MSSQL'                  => { skip => 1 },
-    'DBIx::Class::Storage::DBI::MultiDistinctEmulation' => { skip => 1 },
     'DBIx::Class::Storage::DBI::ODBC400'                => { skip => 1 },
     'DBIx::Class::Storage::DBI::ODBC::DB2_400_SQL'      => { skip => 1 },
     'DBIx::Class::Storage::DBI::Oracle'                 => { skip => 1 },
