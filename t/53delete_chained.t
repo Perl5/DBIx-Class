@@ -28,7 +28,7 @@ cmp_ok($total_tracks, '>', 0, 'need track records');
   my $rs = $artist->cds->search_related('tracks');
   $total_tracks -= $rs->count;
   ok($rs->delete);
-  cmp_ok($schema->resultset('Track')->count, '==', $total_tracks, '3 tracks should be deleted');
+  is($schema->resultset('Track')->count, $total_tracks, '3 tracks should be deleted');
 }
 
 # test that delete_related w/conditions deletes just the matched related records only
@@ -43,5 +43,5 @@ cmp_ok($total_tracks, '>', 0, 'need track records');
   my $rs = $artist2->search_related('cds')->search_related('tracks');
   $total_tracks -= $rs->count;
   ok($rs->delete);
-  cmp_ok($schema->resultset('Track')->count, '==', $total_tracks, 'No tracks should be deleted');
+  is($schema->resultset('Track')->count, $total_tracks, 'No tracks should be deleted');
 }

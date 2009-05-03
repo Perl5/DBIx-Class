@@ -79,7 +79,7 @@ my $rscol = $art_rs->get_column( 'charfield' );
         [['artist.name' => 'Caterwauler McCrae']]
     );
     my $subsel_rs = $schema->resultset("CD")->search( { cdid => { IN => $query } } );
-    cmp_ok($subsel_rs->count, '==', $rs->count, 'Subselect on PK got the same row count');
+    is($subsel_rs->count, $rs->count, 'Subselect on PK got the same row count');
 }
 
 __END__
