@@ -7,7 +7,7 @@ use Data::Dumper;
 
 use Test::More;
 
-plan ( tests => 4 );
+plan ( tests => 6 );
 
 use lib qw(t/lib);
 use DBICTest;
@@ -64,6 +64,22 @@ my $rscol = $art_rs->get_column( 'charfield' );
     "(SELECT me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) ) )",
     [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
   );
+}
+
+{
+    my $rs = $schema->resultset("CD")->search(
+        { 'artist.name' => 'Caterwauler McCrae' },
+        { join => [qw/artist/]}
+    );
+    my $query = $rs->get_column('cdid')->as_query({ skip_parens => 1 });
+    my ($sql, @bind) = @{$$query};
+    is_same_sql_bind(
+      $sql, \@bind,
+        'SELECT me.cdid FROM cd me  JOIN artist artist ON artist.artistid = me.artist WHERE ( artist.name = ? )',
+        [['artist.name' => 'Caterwauler McCrae']]
+    );
+    my $subsel_rs = $schema->resultset("CD")->search( { cdid => { IN => $query } } );
+    cmp_ok($subsel_rs->count, '==', $rs->count, 'Subselect on PK got the same row count');
 }
 
 __END__

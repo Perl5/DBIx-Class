@@ -58,7 +58,7 @@ sub new {
 
 =over 4
 
-=item Arguments: none
+=item Arguments: See L<DBIx::Class::ResultSet/as_query>
 
 =item Return Value: \[ $sql, @bind ]
 
@@ -72,7 +72,7 @@ B<NOTE>: This feature is still experimental.
 
 =cut
 
-sub as_query { return shift->_resultset->as_query }
+sub as_query { return shift->_resultset->as_query(@_) }
 
 =head2 next
 

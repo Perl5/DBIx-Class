@@ -17,7 +17,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 18 );
+        : ( tests => 33 );
 }
 
 # figure out if we've got a version of sqlite that is older than 3.2.6, in
@@ -179,28 +179,79 @@ cmp_ok( $rs->count, '==', 1, "Single record in resultset");
 
 is($rs->first->name, 'We Are Goth', 'Correct record returned');
 
-# test for warnings on delete of joined resultset
-$rs = $schema->resultset("CD")->search(
-    { 'artist.name' => 'Caterwauler McCrae' },
-    { join => [qw/artist/]}
-);
-my $tst_delete_warning;
-eval {
-    local $SIG{__WARN__} = sub { $tst_delete_warning = shift };
-    $rs->delete();
-};
 
-ok( ($@ || $tst_delete_warning), 'fail/warning on attempt to delete a join-ed resultset');
+{
+    $schema->populate('Artist', [
+        [ qw/artistid name/ ],
+        [ 4, 'Another Boy Band' ],
+    ]);
+    $schema->populate('CD', [
+        [ qw/cdid artist title year/ ],
+        [ 6, 2, "Greatest Hits", 2001 ],
+        [ 7, 4, "Greatest Hits", 2005 ],
+        [ 8, 4, "BoyBandBlues", 2008 ],
+    ]);
+    $schema->populate('TwoKeys', [
+        [ qw/artist cd/ ],
+        [ 2, 4 ],
+        [ 2, 6 ],
+        [ 4, 7 ],
+        [ 4, 8 ],
+    ]);
+    
+    sub cd_count {
+        return $schema->resultset("CD")->count;
+    }
+    sub tk_count {
+        return $schema->resultset("TwoKeys")->count;
+    }
 
-# test for warnings on update of joined resultset
-$rs = $schema->resultset("CD")->search(
-    { 'artist.name' => 'Random Boy Band' },
-    { join => [qw/artist/]}
-);
-my $tst_update_warning;
-eval {
-    local $SIG{__WARN__} = sub { $tst_update_warning = shift };
-    $rs->update({ 'artist' => 1 });
-};
+    cmp_ok(cd_count(), '==', 8, '8 rows in table cd');
+    cmp_ok(tk_count(), '==', 7, '7 rows in table twokeys');
+ 
+    sub artist1 {
+        return $schema->resultset("CD")->search(
+            { 'artist.name' => 'Caterwauler McCrae' },
+            { join => [qw/artist/]}
+        );
+    }
+    sub artist2 {
+        return $schema->resultset("CD")->search(
+            { 'artist.name' => 'Random Boy Band' },
+            { join => [qw/artist/]}
+        );
+    }
 
-ok( ($@ || $tst_update_warning), 'fail/warning on attempt to update a join-ed resultset');
+    cmp_ok( artist1()->count, '==', 3, '3 Caterwauler McCrae CDs' );
+    ok( artist1()->delete, 'Successfully deleted 3 CDs' );
+    cmp_ok( artist1()->count, '==', 0, '0 Caterwauler McCrae CDs' );
+    cmp_ok( artist2()->count, '==', 2, '3 Random Boy Band CDs' );
+    ok( artist2()->update( { 'artist' => 1 } ) );
+    cmp_ok( artist2()->count, '==', 0, '0 Random Boy Band CDs' );
+    cmp_ok( artist1()->count, '==', 2, '2 Caterwauler McCrae CDs' );
+
+    # test update on multi-column-pk
+    sub tk1 {
+        return $schema->resultset("TwoKeys")->search(
+            {
+                'artist.name' => { like => '%Boy Band' },
+                'cd.title'    => 'Greatest Hits',
+            },
+            { join => [qw/artist cd/] }
+        );
+    }
+    sub tk2 {
+        return $schema->resultset("TwoKeys")->search(
+            { 'artist.name' => 'Caterwauler McCrae' },
+            { join => [qw/artist/]}
+        );
+    }
+    cmp_ok( tk2()->count, '==', 2, 'TwoKeys count == 2' );
+    cmp_ok( tk1()->count, '==', 2, 'TwoKeys count == 2' );
+    ok( tk1()->update( { artist => 1 } ) );
+    cmp_ok( tk1()->count, '==', 0, 'TwoKeys count == 0' );
+    cmp_ok( tk2()->count, '==', 4, '2 Caterwauler McCrae CDs' );
+    ok( tk2()->delete, 'Successfully deleted 4 CDs' );
+    cmp_ok(cd_count(), '==', 5, '5 rows in table cd');
+    cmp_ok(tk_count(), '==', 3, '3 rows in table twokeys');
+}

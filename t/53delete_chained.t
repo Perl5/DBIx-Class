@@ -4,7 +4,7 @@ use warnings;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 9;
+plan tests => 7;
 
 # This set of tests attempts to do a delete on a chained resultset, which
 # would lead to SQL DELETE with a JOIN, which is not supported by the 
@@ -25,9 +25,10 @@ cmp_ok($total_tracks, '>', 0, 'need track records');
   my $artist_tracks = $artist->cds->search_related('tracks')->count;
   cmp_ok($artist_tracks, '<', $total_tracks, 'need more tracks than just related tracks');
 
-  ok(!eval{$artist->cds->search_related('tracks')->delete});
-  cmp_ok($schema->resultset('Track')->count, '==', $total_tracks, 'No tracks should be deleted');
-  like ($w, qr/Currently \$rs->delete\(\) does not generate proper SQL/, 'Delete join warning');
+  my $rs = $artist->cds->search_related('tracks');
+  $total_tracks -= $rs->count;
+  ok($rs->delete);
+  cmp_ok($schema->resultset('Track')->count, '==', $total_tracks, '3 tracks should be deleted');
 }
 
 # test that delete_related w/conditions deletes just the matched related records only
@@ -39,7 +40,8 @@ cmp_ok($total_tracks, '>', 0, 'need track records');
   my $artist2_tracks = $artist2->search_related('cds')->search_related('tracks')->count;
   cmp_ok($artist2_tracks, '<', $total_tracks, 'need more tracks than related tracks');
   
-  ok(!eval{$artist2->search_related('cds')->search_related('tracks')->delete});
+  my $rs = $artist2->search_related('cds')->search_related('tracks');
+  $total_tracks -= $rs->count;
+  ok($rs->delete);
   cmp_ok($schema->resultset('Track')->count, '==', $total_tracks, 'No tracks should be deleted');
-  like ($w, qr/Currently \$rs->delete\(\) does not generate proper SQL/, 'Delete join warning');
 }
