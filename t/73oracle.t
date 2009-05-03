@@ -28,6 +28,7 @@
 use strict;
 use warnings;  
 
+use Test::Exception;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
@@ -39,7 +40,7 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
   unless ($dsn && $user && $pass);
 
-plan tests => 24;
+plan tests => 32;
 
 DBICTest::Schema->load_classes('ArtistFQN');
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
@@ -79,6 +80,23 @@ $dbh->do(qq{
     END IF;
   END;
 });
+
+{
+    # Swiped from t/bindtype_columns.t to avoid creating my own Resultset.
+
+    local $SIG{__WARN__} = sub {};
+    eval { $dbh->do('DROP TABLE bindtype_test') };
+
+    $dbh->do(qq[
+        CREATE TABLE bindtype_test 
+        (
+            id              integer      NOT NULL   PRIMARY KEY,
+            bytea           integer      NULL,
+            blob            blob         NULL,
+            clob            clob         NULL
+        )
+    ],{ RaiseError => 1, PrintError => 1 });
+}
 
 # This is in Core now, but it's here just to test that it doesn't break
 $schema->class('Artist')->load_components('PK::Auto');
@@ -147,6 +165,29 @@ for (1..5) {
 my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
+{
+	my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
+	$binstr{'large'} = $binstr{'small'} x 1024;
+
+	my $maxloblen = length $binstr{'large'};
+	note "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
+	local $dbh->{'LongReadLen'} = $maxloblen;
+
+	my $rs = $schema->resultset('BindType');
+	my $id = 0;
+
+	foreach my $type (qw( blob clob )) {
+		foreach my $size (qw( small large )) {
+			$id++;
+
+			lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$type} } ) }
+				"inserted $size $type without dying";
+
+			is( $rs->find($id)->$type, $binstr{$type}, "verified inserted $size $type" );
+		}
+	}
+}
+
 # clean up our mess
 END {
     if($schema && ($dbh = $schema->storage->dbh)) {
@@ -158,6 +199,7 @@ END {
         $dbh->do("DROP TABLE sequence_test");
         $dbh->do("DROP TABLE cd");
         $dbh->do("DROP TABLE track");
+        $dbh->do("DROP TABLE bindtype_test");
     }
 }
 

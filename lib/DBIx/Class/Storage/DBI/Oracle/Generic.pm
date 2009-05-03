@@ -26,6 +26,9 @@ This class implements autoincrements for Oracle.
 
 use Carp::Clan qw/^DBIx::Class/;
 
+use DBD::Oracle qw( :ora_types );
+#use constant ORA_BLOB => 113;  ## ORA_CLOB is 112
+
 use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
@@ -188,6 +191,48 @@ sub _svp_begin {
     my ($self, $name) = @_;
  
     $self->dbh->do("SAVEPOINT $name");
+}
+
+=head2 source_bind_attributes
+
+Handle LOB types in Oracle.  Under a certain size (4k?), you can get away
+with the driver assuming your input is the deprecated LONG type if you
+encode it as a hex string.  That ain't gonna fly at larger values, where
+you'll discover you have to do what this does.
+
+This method had to be overridden because we need to set ora_field to the
+actual column, and that isn't passed to the call (provided by Storage) to
+bind_attribute_by_data_type.
+
+According to L<DBD::Oracle>, the ora_field isn't always necessary, but
+adding it doesn't hurt, and will save your bacon if you're modifying a
+table with more than one LOB column.
+
+=cut
+
+sub source_bind_attributes 
+{
+	my $self = shift;
+	my($source) = @_;
+
+	my %bind_attributes;
+
+	foreach my $column ($source->columns) {
+		my $data_type = $source->column_info($column)->{data_type} || '';
+		next unless $data_type;
+
+		my %column_bind_attrs = $self->bind_attribute_by_data_type($data_type);
+
+		if ($data_type =~ /^[BC]LOB$/i) {
+			$column_bind_attrs{'ora_type'}
+				= uc($data_type) eq 'CLOB' ? ORA_CLOB : ORA_BLOB;
+			$column_bind_attrs{'ora_field'} = $column;
+		}
+
+		$bind_attributes{$column} = \%column_bind_attrs;
+	}
+
+	return \%bind_attributes;
 }
 
 # Oracle automatically releases a savepoint when you start another one with the
