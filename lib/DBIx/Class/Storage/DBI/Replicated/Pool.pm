@@ -4,6 +4,7 @@ use Moose;
 use MooseX::AttributeHelpers;
 use DBIx::Class::Storage::DBI::Replicated::Replicant;
 use List::Util qw(sum);
+use Scalar::Util ();
 
 =head1 NAME
 
@@ -149,8 +150,15 @@ sub connect_replicants {
   
   my @newly_created = ();
   foreach my $connect_info (@_) {
+    $connect_info = [ $connect_info ]
+      if Scalar::Util::reftype($connect_info) ne 'ARRAY';
+
     my $replicant = $self->connect_replicant($schema, $connect_info);
-    my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);
+
+    my $key = $connect_info->[0];
+    $key = $key->{dsn} if Scalar::Util::reftype($key) eq 'HASH';
+    ($key) = ($key =~ m/^dbi\:.+\:(.+)$/);
+
     $self->set_replicant( $key => $replicant);  
     push @newly_created, $replicant;
   }
