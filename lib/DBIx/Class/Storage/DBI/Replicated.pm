@@ -7,10 +7,10 @@ BEGIN {
   ## use, so we explicitly test for these.
 	
   my %replication_required = (
-    Moose => '0.54',
+    Moose => '0.77',
     MooseX::AttributeHelpers => '0.12',
-    Moose::Util::TypeConstraints => '0.54',
-    Class::MOP => '0.63',
+    MooseX::Types => '0.10',
+    namespace::clean => '0.11',
   );
 	
   my @didnt_load;
@@ -28,6 +28,9 @@ BEGIN {
 use DBIx::Class::Storage::DBI;
 use DBIx::Class::Storage::DBI::Replicated::Pool;
 use DBIx::Class::Storage::DBI::Replicated::Balancer;
+use DBIx::Class::Storage::DBI::Replicated::Types 'BalancerClassNamePart';
+
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -99,10 +102,10 @@ to force a query to run against Master when needed.
 
 Replicated Storage has additional requirements not currently part of L<DBIx::Class>
 
-  Moose => 0.54
+  Moose => 0.77
   MooseX::AttributeHelpers => 0.12 
-  Moose::Util::TypeConstraints => 0.54
-  Class::MOP => 0.63
+  MooseX::Types => 0.10
+  namespace::clean => 0.11
   
 You will need to install these modules manually via CPAN or make them part of the
 Makefile for your distribution.
@@ -164,23 +167,9 @@ choose how to spread the query load across each replicant in the pool.
 
 =cut
 
-subtype 'DBIx::Class::Storage::DBI::Replicated::BalancerClassNamePart',
-  as 'ClassName';
-    
-coerce 'DBIx::Class::Storage::DBI::Replicated::BalancerClassNamePart',
-  from 'Str',
-  via {
-  	my $type = $_;
-    if($type=~m/^::/) {
-      $type = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$type;
-    }  
-    Class::MOP::load_class($type);  
-    $type;  	
-  };
-
 has 'balancer_type' => (
   is=>'ro',
-  isa=>'DBIx::Class::Storage::DBI::Replicated::BalancerClassNamePart',
+  isa=>BalancerClassNamePart,
   coerce=>1,
   required=>1,
   default=> 'DBIx::Class::Storage::DBI::Replicated::Balancer::First',

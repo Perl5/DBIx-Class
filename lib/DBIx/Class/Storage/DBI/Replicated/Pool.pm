@@ -3,8 +3,11 @@ package DBIx::Class::Storage::DBI::Replicated::Pool;
 use Moose;
 use MooseX::AttributeHelpers;
 use DBIx::Class::Storage::DBI::Replicated::Replicant;
-use List::Util qw(sum);
-use Scalar::Util ();
+use List::Util 'sum';
+use Scalar::Util 'reftype';
+use Carp::Clan qw/^DBIx::Class/;
+
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -151,12 +154,15 @@ sub connect_replicants {
   my @newly_created = ();
   foreach my $connect_info (@_) {
     $connect_info = [ $connect_info ]
-      if Scalar::Util::reftype($connect_info) ne 'ARRAY';
+      if reftype $connect_info ne 'ARRAY';
+
+    croak "coderef connect_info not supported"
+      if ref $connect_info->[0] && reftype $connect_info->[0] eq 'CODE';
 
     my $replicant = $self->connect_replicant($schema, $connect_info);
 
     my $key = $connect_info->[0];
-    $key = $key->{dsn} if Scalar::Util::reftype($key) eq 'HASH';
+    $key = $key->{dsn} if ref $key && reftype $key eq 'HASH';
     ($key) = ($key =~ m/^dbi\:.+\:(.+)$/);
 
     $self->set_replicant( $key => $replicant);  
@@ -288,13 +294,13 @@ sub validate_replicants {
     if($self->_safely_ensure_connected($replicant)) {
       my $is_replicating = $replicant->is_replicating;
       unless(defined $is_replicating) {
-        $replicant->debugobj->print("Storage Driver ".ref $self." Does not support the 'is_replicating' method.  Assuming you are manually managing.");
+        $replicant->debugobj->print("Storage Driver ".ref($self)." Does not support the 'is_replicating' method.  Assuming you are manually managing.\n");
         next;
       } else {
         if($is_replicating) {
           my $lag_behind_master = $replicant->lag_behind_master;
           unless(defined $lag_behind_master) {
-            $replicant->debugobj->print("Storage Driver ".ref $self." Does not support the 'lag_behind_master' method.  Assuming you are manually managing.");
+            $replicant->debugobj->print("Storage Driver ".ref($self)." Does not support the 'lag_behind_master' method.  Assuming you are manually managing.\n");
             next;
           } else {
             if($lag_behind_master <= $self->maximum_lag) {

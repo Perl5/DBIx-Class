@@ -4,6 +4,7 @@ use lib qw(t/lib);
 use Test::More;
 use Test::Exception;
 use DBICTest;
+use List::Util 'first';
 
 BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
@@ -124,9 +125,20 @@ TESTSCHEMACLASSES: {
             "dbi:SQLite:${_}";
         } @{$self->slave_paths};
         
-        return map { [$_,'','',{AutoCommit=>1}] } @dsn;
+        my @connect_infos = map { [$_,'','',{AutoCommit=>1}] } @dsn;
+
+    # try a hashref too
+        my $c = $connect_infos[0];
+        $connect_infos[0] = {
+          dsn => $c->[0],
+          user => $c->[1],
+          password => $c->[2],
+          %{ $c->[3] }
+        };
+
+        @connect_infos
     }
-    
+
     ## Do a 'good enough' replication by copying the master dbfile over each of
     ## the slave dbfiles.  If the master is SQLite we do this, otherwise we
     ## just do a one second pause to let the slaves catch up.
@@ -211,10 +223,19 @@ ok my @replicant_connects = $replicated->generate_replicant_connect_info
 
 ok my @replicated_storages = $replicated->schema->storage->connect_replicants(@replicant_connects)
     => 'Created some storages suitable for replicants';
-    
+ 
+my @replicant_names = keys %{ $replicated->schema->storage->replicants };
+
+## Silence warning about not supporting the is_replicating method if using the
+## sqlite dbs.
+$replicated->schema->storage->debugobj->silence(1)
+  if first { m{^t/} } @replicant_names;
+   
 isa_ok $replicated->schema->storage->balancer->current_replicant
-    => 'DBIx::Class::Storage::DBI';
-    
+    => 'DBIx::Class::Storage::DBI'; 
+
+$replicated->schema->storage->debugobj->silence(0);
+
 ok $replicated->schema->storage->pool->has_replicants
     => 'does have replicants';     
 
@@ -227,8 +248,6 @@ does_ok $replicated_storages[0]
 does_ok $replicated_storages[1]
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
     
-my @replicant_names = keys %{$replicated->schema->storage->replicants};
-
 does_ok $replicated->schema->storage->replicants->{$replicant_names[0]}
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 
@@ -249,7 +268,15 @@ $replicated
 $replicated->replicate;
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
+
+## Silence warning about not supporting the is_replicating method if using the
+## sqlite dbs.
+$replicated->schema->storage->debugobj->silence(1)
+  if first { m{^t/} } @replicant_names;
+ 
 $replicated->schema->storage->pool->validate_replicants;
+
+$replicated->schema->storage->debugobj->silence(0);
 
 ## Make sure we can read the data.
 
@@ -350,13 +377,26 @@ ok $replicated->schema->resultset('Artist')->find(2)
 
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(0);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(0);
-    
+
+## Silence warning about falling back to master.
+$replicated->schema->storage->debugobj->silence(1);
+ 
 ok $replicated->schema->resultset('Artist')->find(2)
     => 'Fallback to master';
 
+$replicated->schema->storage->debugobj->silence(0);
+
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
+
+## Silence warning about not supporting the is_replicating method if using the
+## sqlite dbs.
+$replicated->schema->storage->debugobj->silence(1)
+  if first { m{^t/} } @replicant_names;
+ 
 $replicated->schema->storage->pool->validate_replicants;
+
+$replicated->schema->storage->debugobj->silence(0);
 
 ok $replicated->schema->resultset('Artist')->find(2)
     => 'Returned to replicates';

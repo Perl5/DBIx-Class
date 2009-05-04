@@ -5,7 +5,7 @@ use warnings;
 use base qw/Class::Accessor::Grouped/;
 use IO::File;
 
-__PACKAGE__->mk_group_accessors(simple => qw/callback debugfh/);
+__PACKAGE__->mk_group_accessors(simple => qw/callback debugfh silence/);
 
 =head1 NAME
 
@@ -55,6 +55,8 @@ to display the message.
 =cut
 sub print {
   my ($self, $msg) = @_;
+
+  return if $self->silence;
 
   if(!defined($self->debugfh())) {
     my $fh;
