@@ -94,7 +94,7 @@ sub register_column {
 
   my $type;
 
-  for (qw/date datetime/) {
+  for (qw/date datetime timestamp/) {
     my $key = "inflate_${_}";
 
     next unless exists $info->{$key};
@@ -106,7 +106,6 @@ sub register_column {
 
   unless ($type) {
     $type = lc($info->{data_type});
-    $type = 'datetime' if ($type =~ /^timestamp/);
   }
 
   my $timezone;
@@ -128,7 +127,7 @@ sub register_column {
 
   my $undef_if_invalid = $info->{datetime_undef_if_invalid};
 
-  if ($type eq 'datetime' || $type eq 'date') {
+  if ($type eq 'datetime' || $type eq 'date' || $type eq 'timestamp') {
     my ($parse, $format) = ("parse_${type}", "format_${type}");
 
     # This assignment must happen here, otherwise Devel::Cycle treats
@@ -157,7 +156,9 @@ sub register_column {
         {
           inflate => sub {
             my ($value, $obj) = @_;
-            my $dt = eval { $obj->_datetime_parser->$parse($value); };
+	    my $parser = $obj->_datetime_parser;
+	    my $parser_method = $parser->can($parse) ? $parse : "parse_datetime";
+            my $dt = eval { $parser->$parser_method($value); };
             die "Error while inflating ${value} for ${column} on ${self}: $@"
               if $@ and not $undef_if_invalid;
             $dt->set_time_zone($timezone) if $timezone;
@@ -166,6 +167,8 @@ sub register_column {
           },
           deflate => sub {
             my ($value, $obj) = @_;
+	    my $parser = $obj->_datetime_parser;
+	    my $parser_method = $parser->can($format) ? $format : "format_datetime";
             if ($timezone) {
                 warn "You're using a floating timezone, please see the documentation of"
                   . " DBIx::Class::InflateColumn::DateTime for an explanation"
@@ -175,12 +178,13 @@ sub register_column {
                 $value->set_time_zone($timezone);
                 $value->set_locale($locale) if $locale;
             }
-            $obj->_datetime_parser->$format($value);
+            $parser->$parser_method($value);
           },
         }
     );
   }
 }
+
 
 sub _datetime_parser {
   my $self = shift;

@@ -375,7 +375,8 @@ CREATE TABLE track (
   cd integer NOT NULL,
   position integer NOT NULL,
   title varchar(100) NOT NULL,
-  last_updated_on datetime
+  last_updated_on datetime,
+  last_updated_at datetime
 );
 
 CREATE INDEX track_idx_cd_track ON track (cd);
