@@ -26,8 +26,8 @@ This class implements autoincrements for Oracle.
 
 use Carp::Clan qw/^DBIx::Class/;
 
+# For ORA_BLOB => 113, ORA_CLOB => 112
 use DBD::Oracle qw( :ora_types );
-#use constant ORA_BLOB => 113;  ## ORA_CLOB is 112
 
 use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
 
