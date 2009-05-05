@@ -31,6 +31,15 @@ This subclass supports L<DBD::Sybase> for real Sybase databases.  If
 you are using an MSSQL database via L<DBD::Sybase>, see
 L<DBIx::Class::Storage::DBI::Sybase::MSSQL>.
 
+=head1 CAVEATS
+
+This storage driver uses L<DBIx::Class::Storage::DBI::NoBindVars> as a base.
+This means that bind variables will be interpolated (properly quoted of course)
+into the SQL query itself, without using bind placeholders.
+
+More importantly this means that caching of prepared statements is explicitly
+disabled, as the interpolation renders it useless.
+
 =head1 AUTHORS
 
 Brandon L Black <blblack@gmail.com>

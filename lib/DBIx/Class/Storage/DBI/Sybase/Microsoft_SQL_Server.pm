@@ -19,10 +19,14 @@ This subclass supports MSSQL connected via L<DBD::Sybase>.
   $schema->storage_type('::DBI::Sybase::Microsoft_SQL_Server');
   $schema->connect_info('dbi:Sybase:....', ...);
 
-=head1 BUGS
+=head1 CAVEATS
 
-Currently, this doesn't work right unless you call C<Class::C3::reinitialize()>
-after connecting.
+This storage driver uses L<DBIx::Class::Storage::DBI::NoBindVars> as a base.
+This means that bind variables will be interpolated (properly quoted of course)
+into the SQL query itself, without using bind placeholders.
+
+More importantly this means that caching of prepared statements is explicitly
+disabled, as the interpolation renders it useless.
 
 =head1 AUTHORS
 
