@@ -2,6 +2,9 @@ package DBIx::Class::Storage::DBI::Replicated::Replicant;
 
 use Moose::Role;
 requires qw/_query_start/;
+use MooseX::Types::Moose qw/Bool/;
+
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -42,7 +45,7 @@ storage driver for more information.
 
 has 'active' => (
   is=>'rw',
-  isa=>'Bool',
+  isa=>Bool,
   lazy=>1,
   required=>1,
   default=>1,

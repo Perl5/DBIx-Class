@@ -6,6 +6,7 @@ use DBIx::Class::Storage::DBI::Replicated::Replicant;
 use List::Util 'sum';
 use Scalar::Util 'reftype';
 use Carp::Clan qw/^DBIx::Class/;
+use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
 
 use namespace::clean -except => 'meta';
 
@@ -41,7 +42,7 @@ return a number of seconds that the replicating database is lagging.
 
 has 'maximum_lag' => (
   is=>'rw',
-  isa=>'Num',
+  isa=>Num,
   required=>1,
   lazy=>1,
   default=>0,
@@ -57,7 +58,7 @@ builtin.
 
 has 'last_validated' => (
   is=>'rw',
-  isa=>'Int',
+  isa=>Int,
   reader=>'last_validated',
   writer=>'_last_validated',
   lazy=>1,
@@ -74,7 +75,7 @@ just leave this alone.
 
 has 'replicant_type' => (
   is=>'ro',
-  isa=>'ClassName',
+  isa=>ClassName,
   required=>1,
   default=>'DBIx::Class::Storage::DBI',
   handles=>{
@@ -124,7 +125,7 @@ removes the replicant under $key from the pool
 has 'replicants' => (
   is=>'rw',
   metaclass => 'Collection::Hash',
-  isa=>'HashRef[DBIx::Class::Storage::DBI]',
+  isa=>HashRef['DBIx::Class::Storage::DBI'],
   default=>sub {{}},
   provides  => {
     'set' => 'set_replicant',

@@ -29,6 +29,7 @@ use DBIx::Class::Storage::DBI;
 use DBIx::Class::Storage::DBI::Replicated::Pool;
 use DBIx::Class::Storage::DBI::Replicated::Balancer;
 use DBIx::Class::Storage::DBI::Replicated::Types 'BalancerClassNamePart';
+use MooseX::Types::Moose qw/ClassName HashRef Object/;
 
 use namespace::clean -except => 'meta';
 
@@ -136,7 +137,7 @@ to: L<DBIx::Class::Storage::DBI::Replicated::Pool>.
 
 has 'pool_type' => (
   is=>'ro',
-  isa=>'ClassName',
+  isa=>ClassName,
   required=>1,
   default=>'DBIx::Class::Storage::DBI::Replicated::Pool',
   handles=>{
@@ -153,7 +154,7 @@ See L<DBIx::Class::Storage::Replicated::Pool> for available arguments.
 
 has 'pool_args' => (
   is=>'ro',
-  isa=>'HashRef',
+  isa=>HashRef,
   lazy=>1,
   required=>1,
   default=>sub { {} },
@@ -187,7 +188,7 @@ See L<DBIx::Class::Storage::Replicated::Balancer> for available arguments.
 
 has 'balancer_args' => (
   is=>'ro',
-  isa=>'HashRef',
+  isa=>HashRef,
   lazy=>1,
   required=>1,
   default=>sub { {} },
@@ -254,7 +255,7 @@ Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
 
 has 'read_handler' => (
   is=>'rw',
-  isa=>'Object',
+  isa=>Object,
   lazy_build=>1,
   handles=>[qw/
     select
@@ -271,7 +272,7 @@ Defines an object that implements the write side of L<BIx::Class::Storage::DBI>.
 
 has 'write_handler' => (
   is=>'ro',
-  isa=>'Object',
+  isa=>Object,
   lazy_build=>1,
   lazy_build=>1,
   handles=>[qw/   

@@ -5,6 +5,7 @@ use MooseX::Types
 use MooseX::Types::Moose qw/ClassName Str/;
 
 class_type 'DBIx::Class::Storage::DBI';
+class_type 'DBIx::Class::Schema';
 
 subtype BalancerClassNamePart,
   as ClassName;
