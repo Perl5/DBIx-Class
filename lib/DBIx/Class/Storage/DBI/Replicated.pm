@@ -25,11 +25,14 @@ BEGIN {
     if @didnt_load;  	
 }
 
+use Moose;
 use DBIx::Class::Storage::DBI;
 use DBIx::Class::Storage::DBI::Replicated::Pool;
 use DBIx::Class::Storage::DBI::Replicated::Balancer;
 use DBIx::Class::Storage::DBI::Replicated::Types 'BalancerClassNamePart';
 use MooseX::Types::Moose qw/ClassName HashRef Object/;
+use Scalar::Util 'reftype';
+use Carp::Clan qw/^DBIx::Class/;
 
 use namespace::clean -except => 'meta';
 
@@ -307,6 +310,31 @@ has 'write_handler' => (
   /],
 );
 
+has _master_connect_info_opts =>
+  (is => 'rw', isa => HashRef, default => sub { {} });
+
+=head2 around: connect_info
+
+Preserve master's C<connect_info> options (for merging with replicants.)
+
+=cut
+
+around connect_info => sub {
+  my ($next, $self, $info, @extra) = @_;
+
+  my %opts;
+  for my $arg (@$info) {
+    next unless (reftype($arg)||'') eq 'HASH';
+    %opts = (%opts, %$arg);
+  }
+
+  delete $opts{dsn};
+
+  $self->_master_connect_info_opts(\%opts);
+
+  $self->$next($info, @extra);
+};
+
 =head1 METHODS
 
 This class defines the following methods.
@@ -392,13 +420,39 @@ sub _build_read_handler {
 =head2 around: connect_replicants
 
 All calls to connect_replicants needs to have an existing $schema tacked onto
-top of the args, since L<DBIx::Storage::DBI> needs it.
+top of the args, since L<DBIx::Storage::DBI> needs it, and any C<connect_info>
+options merged with the master, with replicant opts having higher priority.
 
 =cut
 
-around 'connect_replicants' => sub {
-  my ($method, $self, @args) = @_;
-  $self->$method($self->schema, @args);
+around connect_replicants => sub {
+  my ($next, $self, @args) = @_;
+
+  for my $r (@args) {
+    $r = [ $r ] unless reftype $r eq 'ARRAY';
+
+    croak "coderef replicant connect_info not supported"
+      if ref $r->[0] && reftype $r->[0] eq 'CODE';
+
+# any connect_info options?
+    my $i = 0;
+    $i++ while $i < @$r && (reftype($r->[$i])||'') ne 'HASH';
+
+# make one if none    
+    $r->[$i] = {} unless $r->[$i];
+
+# merge if two hashes
+    my %opts = map %$_, @$r[$i .. $#{$r}];
+    splice @$r, $i+1, ($#{$r} - $i), ();
+
+# merge with master
+    %opts = (%{ $self->_master_connect_info_opts }, %opts);
+
+# update
+    $r->[$i] = \%opts;
+  }
+
+  $self->$next($self->schema, @args);
 };
 
 =head2 all_storages
@@ -683,6 +737,21 @@ sub disconnect {
   }
 }
 
+=head2 cursor_class
+
+set cursor class on all storages, or return master's
+
+=cut
+
+sub cursor_class {
+  my ($self, $cursor_class) = @_;
+
+  if ($cursor_class) {
+    $_->cursor_class($cursor_class) for $self->all_storages;
+  }
+  $self->master->cursor_class;
+}
+  
 =head1 GOTCHAS
 
 Due to the fact that replicants can lag behind a master, you must take care to

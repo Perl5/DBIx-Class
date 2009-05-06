@@ -5,12 +5,13 @@ use Test::More;
 use Test::Exception;
 use DBICTest;
 use List::Util 'first';
+use Scalar::Util 'reftype';
 
 BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 82 );
+        : ( tests => 83 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -87,6 +88,26 @@ TESTSCHEMACLASSES: {
     sub replicate {}
     sub cleanup {}
 
+    ## --------------------------------------------------------------------- ##
+    ## Add a connect_info option to test option merging.
+    ## --------------------------------------------------------------------- ##
+    {
+    package DBIx::Class::Storage::DBI::Replicated;
+
+    use Moose;
+
+    __PACKAGE__->meta->make_mutable;
+
+    around connect_info => sub {
+      my ($next, $self, $info) = @_;
+      $info->[3]{master_option} = 1;
+      $self->$next($info);
+    };
+
+    __PACKAGE__->meta->make_immutable;
+
+    no Moose;
+    }
   
     ## --------------------------------------------------------------------- ##
     ## Subclass for when you are using SQLite for testing, this provides a fake
@@ -227,11 +248,19 @@ ok my @replicated_storages = $replicated->schema->storage->connect_replicants(@r
 ok my @all_storages = $replicated->schema->storage->all_storages
     => '->all_storages';
 
-ok @all_storages == 3
+is scalar @all_storages
+    ,3
     => 'correct number of ->all_storages';
 
-ok ((grep $_->isa('DBIx::Class::Storage::DBI'), @all_storages) == 3
+is ((grep $_->isa('DBIx::Class::Storage::DBI'), @all_storages)
+    ,3
     => '->all_storages are correct type');
+
+is ((grep $_->{master_option},
+      grep { (reftype($_)||'') eq 'HASH' }
+        map @{ $_->_connect_info }, @all_storages)
+    ,3
+    => 'connect_info was merged from master to replicants');
  
 my @replicant_names = keys %{ $replicated->schema->storage->replicants };
 

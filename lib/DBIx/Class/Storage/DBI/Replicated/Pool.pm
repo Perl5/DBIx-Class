@@ -157,7 +157,7 @@ sub connect_replicants {
     $connect_info = [ $connect_info ]
       if reftype $connect_info ne 'ARRAY';
 
-    croak "coderef connect_info not supported"
+    croak "coderef replicant connect_info not supported"
       if ref $connect_info->[0] && reftype $connect_info->[0] eq 'CODE';
 
     my $replicant = $self->connect_replicant($schema, $connect_info);
