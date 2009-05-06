@@ -184,7 +184,11 @@ my $cdrs = $schema->resultset('CD');
   is_same_sql_bind(
     $query, \@bind,
     "(SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track FROM (SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE title = ?) cd2)",
-    ['Thriller'],
+    [
+      [ 'title',
+        'Thriller'
+      ]
+    ],
   );
 }
 
