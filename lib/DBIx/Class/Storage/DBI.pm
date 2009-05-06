@@ -175,7 +175,7 @@ sub _recurse_fields {
   }
   # Is the second check absolutely necessary?
   elsif ( $ref eq 'REF' and ref($$fields) eq 'ARRAY' ) {
-    return $self->_bind_to_sql( $fields );
+    return $self->_fold_sqlbind( $fields );
   }
   else {
     Carp::croak($ref . qq{ unexpected in _recurse_fields()})
@@ -268,18 +268,18 @@ sub _recurse_from {
   return join('', @sqlf);
 }
 
-sub _bind_to_sql {
-  my ($self, $arr) = @_;
-  my ($sql, @bind) = @{${$arr}};
-  push (@{$self->{from_bind}}, @bind);
+sub _fold_sqlbind {
+  my ($self, $sqlbind) = @_;
+  my $sql = shift @$$sqlbind;
+  push @{$self->{from_bind}}, @$$sqlbind;
   return $sql;
 }
 
 sub _make_as {
   my ($self, $from) = @_;
-  return join(' ', map { (ref $_ eq 'SCALAR' ? $$_ 
-                        : ref $_ eq 'REF'    ? $self->_bind_to_sql($_) 
-                        : $self->_quote($_)) 
+  return join(' ', map { (ref $_ eq 'SCALAR' ? $$_
+                        : ref $_ eq 'REF'    ? $self->_fold_sqlbind($_)
+                        : $self->_quote($_))
                        } reverse each %{$self->_skip_options($from)});
 }
 
