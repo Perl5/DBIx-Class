@@ -7,7 +7,7 @@ use Data::Dumper;
 
 use Test::More;
 
-plan ( tests => 7 );
+plan ( tests => 8 );
 
 use lib qw(t/lib);
 use DBICTest;
@@ -165,6 +165,26 @@ my $cdrs = $schema->resultset('CD');
     $query, \@bind,
     "( SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE year = (SELECT MAX(inner.year) FROM cd inner WHERE artistid = me.artistid) )",
     [],
+  );
+}
+
+{
+  my $rs = $cdrs->search(
+    {},
+    {
+      alias => 'cd2',
+      from => [
+        { cd2 => $cdrs->search({ title => 'Thriller' })->as_query },
+      ],
+    },
+  );
+
+  my $arr = $rs->as_query;
+  my ($query, @bind) = @{$$arr};
+  is_same_sql_bind(
+    $query, \@bind,
+    "(SELECT cd2.cdid, cd2.artist, cd2.title, cd2.year, cd2.genreid, cd2.single_track FROM (SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE title = ?) cd2)",
+    ['Thriller'],
   );
 }
 
