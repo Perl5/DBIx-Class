@@ -66,7 +66,8 @@ my $rscol = $art_rs->get_column( 'charfield' );
   );
 }
 
-{
+TODO: {
+    local $TODO = 'Needs -paren fixes in SQLA before it can work';
     my $rs = $schema->resultset("CD")->search(
         { 'artist.name' => 'Caterwauler McCrae' },
         { join => [qw/artist/]}
