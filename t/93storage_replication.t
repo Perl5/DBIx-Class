@@ -10,7 +10,7 @@ BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 79 );
+        : ( tests => 82 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -223,6 +223,15 @@ ok my @replicant_connects = $replicated->generate_replicant_connect_info
 
 ok my @replicated_storages = $replicated->schema->storage->connect_replicants(@replicant_connects)
     => 'Created some storages suitable for replicants';
+
+ok my @all_storages = $replicated->schema->storage->all_storages
+    => '->all_storages';
+
+ok @all_storages == 3
+    => 'correct number of ->all_storages';
+
+ok ((grep $_->isa('DBIx::Class::Storage::DBI'), @all_storages) == 3
+    => '->all_storages are correct type');
  
 my @replicant_names = keys %{ $replicated->schema->storage->replicants };
 

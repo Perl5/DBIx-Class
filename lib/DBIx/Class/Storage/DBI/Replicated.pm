@@ -412,7 +412,7 @@ sub all_storages {
   my $self = shift @_;
   return grep {defined $_ && blessed $_} (
      $self->master,
-     $self->replicants,
+     values %{ $self->replicants },
   );
 }
 
