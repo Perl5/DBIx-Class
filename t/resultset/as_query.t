@@ -75,5 +75,3 @@ TODO: {
     my $subsel_rs = $schema->resultset("CD")->search( { cdid => { IN => $rs->get_column('cdid')->as_query } } );
     cmp_ok($subsel_rs->count, '==', $rs->count, 'Subselect on PK got the same row count');
 }
-
-__END__
