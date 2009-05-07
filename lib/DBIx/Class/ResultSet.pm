@@ -1333,7 +1333,7 @@ sub _cond_for_update_delete {
   return $cond unless ref $full_cond;
 
   foreach my $pk ($self->result_source->primary_columns) {
-      $cond->{$pk} = { IN => $self->get_column($pk)->as_query({ skip_parens => 1 }) };
+      $cond->{$pk} = { -in => $self->get_column($pk)->as_query };
   }
 
   return $cond;
@@ -1810,7 +1810,7 @@ sub _remove_alias {
 
 =over 4
 
-=item Arguments: \%opts
+=item Arguments: none
 
 =item Return Value: \[ $sql, @bind ]
 
@@ -1821,14 +1821,6 @@ Returns the SQL query and bind vars associated with the invocant.
 This is generally used as the RHS for a subquery.
 
 B<NOTE>: This feature is still experimental.
-
-The query returned will be surrounded by parentheses, e.g:
-
-  ( SELECT cdid FROM cd WHERE title LIKE '%Hits%' )
-
-This behaviour can be changed by passing special options:
-
-  $rs->get_column('cdid')->as_query({ skip_parens => 1 });
 
 =cut
 

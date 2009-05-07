@@ -53,7 +53,7 @@ sub new {
 
 =over 4
 
-=item Arguments: See L<DBIx::Class::ResultSet/as_query>
+=item Arguments: none
 
 =item Return Value: \[ $sql, @bind ]
 
@@ -64,12 +64,7 @@ Returns the SQL statement and bind vars associated with the invocant.
 =cut
 
 sub as_query {
-  my ( $self, $opts ) = @_;
-
-  $self->throw_exception( "as_query needs a hashref" )
-    if defined $opts and ref $opts ne 'HASH';
-    
-  $opts->{skip_parens} ||= 0;
+  my $self = shift;
 
   my $storage = $self->{storage};
   my $sql_maker = $storage->sql_maker;
@@ -77,8 +72,7 @@ sub as_query {
 
   my @args = $storage->_select_args(@{$self->{args}});
   my ($sql, $bind)  = $storage->_prep_for_execute(@args[0 .. 2], [@args[4 .. $#args]]);
-  $sql = "($sql)" unless $opts->{skip_parens};
-  return \[ $sql, @$bind ];
+  return \[ "($sql)", @$bind ];
 }
 
 =head2 next

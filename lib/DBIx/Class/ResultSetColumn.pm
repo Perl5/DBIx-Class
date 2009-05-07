@@ -58,7 +58,7 @@ sub new {
 
 =over 4
 
-=item Arguments: See L<DBIx::Class::ResultSet/as_query>
+=item Arguments: none
 
 =item Return Value: \[ $sql, @bind ]
 
