@@ -30,22 +30,28 @@ $rs = $schema->resultset('Tag')->search({ tag => 'Blue' }, { distinct => 1 });
 is($rs->count, 4, 'Count with single column distinct');
 
 $rs = $schema->resultset('Tag')->search({ tag => { -in => $in_rs->get_column('tag')->as_query } });
-is($rs->count, 4, 'Count with IN subquery');
+#SELECT COUNT( * ) FROM tags me WHERE ( tag IN ( SELECT me.tag FROM tags me WHERE ( ( tag = ? OR tag = ? ) ) ) ): 'Blue', 'Shiny'
+is($rs->count, 6, 'Count with IN subquery');
 
 $rs = $schema->resultset('Tag')->search({ tag => { -in => $in_rs->get_column('tag')->as_query } }, { group_by => 'tag' });
-is($rs->count, 1, 'Count with IN subquery with outside group_by');
+#SELECT COUNT( * ) FROM (SELECT tag FROM tags me WHERE ( tag IN ( SELECT me.tag FROM tags me WHERE ( ( tag = ? OR tag = ? ) ) ) ) GROUP BY tag) mesub: 'Blue', 'Shiny'
+is($rs->count, 2, 'Count with IN subquery with outside group_by');
 
 $rs = $schema->resultset('Tag')->search({ tag => { -in => $in_rs->get_column('tag')->as_query } }, { distinct => 1 });
-is($rs->count, 4, 'Count with IN subquery with outside distinct');
+#SELECT COUNT( * ) FROM (SELECT me.tagid, me.cd, me.tag FROM tags me WHERE ( tag IN ( SELECT me.tag FROM tags me WHERE ( ( tag = ? OR tag = ? ) ) ) ) GROUP BY me.tagid, me.cd, me.tag) mesub: 'Blue', 'Shiny'
+is($rs->count, 6, 'Count with IN subquery with outside distinct');
 
 $rs = $schema->resultset('Tag')->search({ tag => { -in => $in_rs->get_column('tag')->as_query } }, { distinct => 1, select => 'tag' }), 
-is($rs->count, 1, 'Count with IN subquery with outside distinct on a single column');
+#SELECT COUNT( * ) FROM (SELECT tag FROM tags me WHERE ( tag IN ( SELECT me.tag FROM tags me WHERE ( ( tag = ? OR tag = ? ) ) ) ) GROUP BY tag) mesub: 'Blue', 'Shiny'
+is($rs->count, 2, 'Count with IN subquery with outside distinct on a single column');
 
 $rs = $schema->resultset('Tag')->search({ tag => { -in => $in_rs->search({}, { group_by => 'tag' })->get_column('tag')->as_query } });
-is($rs->count, 4, 'Count with IN subquery with single group_by');
+#SELECT COUNT( * ) FROM tags me WHERE ( tag IN ( SELECT me.tag FROM tags me WHERE ( ( tag = ? OR tag = ? ) ) GROUP BY tag ) ): 'Blue', 'Shiny'
+is($rs->count, 6, 'Count with IN subquery with single group_by');
 
 $rs = $schema->resultset('Tag')->search({ tag => { -in => $in_rs->search({}, { group_by => [ qw/tag cd/ ] })->get_column('tag')->as_query } });
-is($rs->count, 4, 'Count with IN subquery with multiple group_by');
+#SELECT COUNT( * ) FROM tags me WHERE ( tag IN ( SELECT me.tag FROM tags me WHERE ( ( tag = ? OR tag = ? ) ) GROUP BY tag, cd ) ): 'Blue', 'Shiny'
+is($rs->count, 6, 'Count with IN subquery with multiple group_by');
 
 $rs = $schema->resultset('Tag')->search({ tag => \"= 'Blue'" });
 is($rs->count, 4, 'Count without DISTINCT, using literal SQL');

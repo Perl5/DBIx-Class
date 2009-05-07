@@ -66,12 +66,11 @@ my $rscol = $art_rs->get_column( 'charfield' );
   );
 }
 
-TODO: {
-    local $TODO = 'Needs -paren fixes in SQLA before it can work';
-    my $rs = $schema->resultset("CD")->search(
-        { 'artist.name' => 'Caterwauler McCrae' },
-        { join => [qw/artist/]}
-    );
-    my $subsel_rs = $schema->resultset("CD")->search( { cdid => { IN => $rs->get_column('cdid')->as_query } } );
-    cmp_ok($subsel_rs->count, '==', $rs->count, 'Subselect on PK got the same row count');
+{
+  my $rs = $schema->resultset("CD")->search(
+    { 'artist.name' => 'Caterwauler McCrae' },
+    { join => [qw/artist/]}
+  );
+  my $subsel_rs = $schema->resultset("CD")->search( { cdid => { IN => $rs->get_column('cdid')->as_query } } );
+  is($subsel_rs->count, $rs->count, 'Subselect on PK got the same row count');
 }
