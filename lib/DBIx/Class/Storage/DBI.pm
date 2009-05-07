@@ -38,10 +38,10 @@ package # Hide from PAUSE
 
 use base qw/SQL::Abstract::Limit/;
 
-# This prevents the caching of $dbh in S::A::L, I believe
 sub new {
   my $self = shift->SUPER::new(@_);
 
+  # This prevents the caching of $dbh in S::A::L, I believe
   # If limit_dialect is a ref (like a $dbh), go ahead and replace
   #   it with what it resolves to:
   $self->{limit_dialect} = $self->_find_syntax($self->{limit_dialect})
@@ -49,6 +49,60 @@ sub new {
 
   $self;
 }
+
+
+
+# Some databases (sqlite) do not handle multiple parenthesis
+# around in/between arguments. A tentative x IN ( ( 1, 2 ,3) )
+# is interpreted as x IN 1 or something similar.
+#
+# Since we currently do not have access to the SQLA AST, resort
+# to barbaric mutilation of any SQL supplied in literal form
+
+sub _strip_outer_paren {
+  my ($self, $arg) = @_;
+
+use Data::Dumper;
+
+  return $self->_SWITCH_refkind ($arg, {
+    ARRAYREFREF => sub {
+      $$arg->[0] = __strip_outer_paren ($$arg->[0]);
+      return $arg;
+    },
+    SCALARREF => sub {
+      return \__strip_outer_paren( $$arg );
+    },
+    FALLBACK => sub {
+      return $arg
+    },
+  });
+}
+
+sub __strip_outer_paren {
+  my $sql = shift;
+
+  if ($sql and not ref $sql) {
+    while ($sql =~ /^ \s* \( (.*) \) \s* $/x ) {
+      $sql = $1;
+    }
+  }
+
+  return $sql;
+}
+
+sub _where_field_IN {
+  my ($self, $lhs, $op, $rhs) = @_;
+  $rhs = $self->_strip_outer_paren ($rhs);
+  return $self->SUPER::_where_field_IN ($lhs, $op, $rhs);
+}
+
+sub _where_field_BETWEEN {
+  my ($self, $lhs, $op, $rhs) = @_;
+  $rhs = $self->_strip_outer_paren ($rhs);
+  return $self->SUPER::_where_field_BETWEEN ($lhs, $op, $rhs);
+}
+
+
 
 # DB2 is the only remaining DB using this. Even though we are not sure if
 # RowNumberOver is still needed here (should be part of SQLA) leave the 
