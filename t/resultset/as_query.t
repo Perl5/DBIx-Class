@@ -65,5 +65,3 @@ my $rscol = $art_rs->get_column( 'charfield' );
     [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
   );
 }
-
-__END__

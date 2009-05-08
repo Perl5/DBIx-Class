@@ -24,6 +24,7 @@ else {
 # DateTime::Format::Oracle needs this set
 $ENV{NLS_DATE_FORMAT} = 'DD-MON-YY';
 $ENV{NLS_TIMESTAMP_FORMAT} = 'YYYY-MM-DD HH24:MI:SSXFF';
+$ENV{NLS_LANG} = 'AMERICAN_AMERICA.WE8ISO8859P1';
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 

@@ -796,19 +796,16 @@ sub _collapse_query {
   if (ref $query eq 'ARRAY') {
     foreach my $subquery (@$query) {
       next unless ref $subquery;  # -or
-#      warn "ARRAY: " . Dumper $subquery;
       $collapsed = $self->_collapse_query($subquery, $collapsed);
     }
   }
   elsif (ref $query eq 'HASH') {
     if (keys %$query and (keys %$query)[0] eq '-and') {
       foreach my $subquery (@{$query->{-and}}) {
-#        warn "HASH: " . Dumper $subquery;
         $collapsed = $self->_collapse_query($subquery, $collapsed);
       }
     }
     else {
-#      warn "LEAF: " . Dumper $query;
       foreach my $col (keys %$query) {
         my $value = $query->{$col};
         $collapsed->{$col}{$value}++;
@@ -1332,49 +1329,8 @@ sub _cond_for_update_delete {
   # No-op. No condition, we're updating/deleting everything
   return $cond unless ref $full_cond;
 
-  if (ref $full_cond eq 'ARRAY') {
-    $cond = [
-      map {
-        my %hash;
-        foreach my $key (keys %{$_}) {
-          $key =~ /([^.]+)$/;
-          $hash{$1} = $_->{$key};
-        }
-        \%hash;
-      } @{$full_cond}
-    ];
-  }
-  elsif (ref $full_cond eq 'HASH') {
-    if ((keys %{$full_cond})[0] eq '-and') {
-      $cond->{-and} = [];
-
-      my @cond = @{$full_cond->{-and}};
-      for (my $i = 0; $i < @cond; $i++) {
-        my $entry = $cond[$i];
-
-        my $hash;
-        if (ref $entry eq 'HASH') {
-          $hash = $self->_cond_for_update_delete($entry);
-        }
-        else {
-          $entry =~ /([^.]+)$/;
-          $hash->{$1} = $cond[++$i];
-        }
-
-        push @{$cond->{-and}}, $hash;
-      }
-    }
-    else {
-      foreach my $key (keys %{$full_cond}) {
-        $key =~ /([^.]+)$/;
-        $cond->{$1} = $full_cond->{$key};
-      }
-    }
-  }
-  else {
-    $self->throw_exception(
-      "Can't update/delete on resultset with condition unless hash or array"
-    );
+  foreach my $pk ($self->result_source->primary_columns) {
+      $cond->{$pk} = { -in => $self->get_column($pk)->as_query };
   }
 
   return $cond;
@@ -1402,13 +1358,8 @@ sub update {
   $self->throw_exception("Values for update must be a hash")
     unless ref $values eq 'HASH';
 
-  carp(   'WARNING! Currently $rs->update() does not generate proper SQL'
-        . ' on joined resultsets, and may affect rows well outside of the'
-        . ' contents of $rs. Use at your own risk' )
-    if ( $self->{attrs}{seen_join} );
-
   my $cond = $self->_cond_for_update_delete;
-   
+  
   return $self->result_source->storage->update(
     $self->result_source, $values, $cond
   );
@@ -1456,10 +1407,6 @@ to run. See also L<DBIx::Class::Row/delete>.
 delete may not generate correct SQL for a query with joins or a resultset
 chained from a related resultset.  In this case it will generate a warning:-
 
-  WARNING! Currently $rs->delete() does not generate proper SQL on
-  joined resultsets, and may delete rows well outside of the contents
-  of $rs. Use at your own risk
-
 In these cases you may find that delete_all is more appropriate, or you
 need to respecify your query in a way that can be expressed without a join.
 
@@ -1469,10 +1416,7 @@ sub delete {
   my ($self) = @_;
   $self->throw_exception("Delete should not be passed any arguments")
     if $_[1];
-  carp(   'WARNING! Currently $rs->delete() does not generate proper SQL'
-        . ' on joined resultsets, and may delete rows well outside of the'
-        . ' contents of $rs. Use at your own risk' )
-    if ( $self->{attrs}{seen_join} );
+
   my $cond = $self->_cond_for_update_delete;
 
   $self->result_source->storage->delete($self->result_source, $cond);
@@ -1813,19 +1757,16 @@ sub _collapse_cond {
   if (ref $cond eq 'ARRAY') {
     foreach my $subcond (@$cond) {
       next unless ref $subcond;  # -or
-#      warn "ARRAY: " . Dumper $subcond;
       $collapsed = $self->_collapse_cond($subcond, $collapsed);
     }
   }
   elsif (ref $cond eq 'HASH') {
     if (keys %$cond and (keys %$cond)[0] eq '-and') {
       foreach my $subcond (@{$cond->{-and}}) {
-#        warn "HASH: " . Dumper $subcond;
         $collapsed = $self->_collapse_cond($subcond, $collapsed);
       }
     }
     else {
-#      warn "LEAF: " . Dumper $cond;
       foreach my $col (keys %$cond) {
         my $value = $cond->{$col};
         $collapsed->{$col} = $value;

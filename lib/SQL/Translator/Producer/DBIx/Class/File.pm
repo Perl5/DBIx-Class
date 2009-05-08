@@ -25,6 +25,7 @@ $DEBUG   = 0 unless defined $DEBUG;
 
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(header_comment);
+use Data::Dumper ();
 
 ## Skip all column type translation, as we want to use whatever the parser got.
 
