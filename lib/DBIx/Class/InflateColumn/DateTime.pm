@@ -132,13 +132,11 @@ sub register_column {
     # the resulting deflator as a circular reference.
     my %info = ( '_ic_dt_method' => $type , %{ $info } );
 
-    my $floating_tz_ok;
     if (defined $info->{extra}{floating_tz_ok}) {
       warn "Putting floating_tz_ok into extra => { floating_tz_ok => 1 } has been deprecated, ".
            "please put it directly into the columns definition.";
-      $floating_tz_ok = $info->{extra}{floating_tz_ok};
+      $info{floating_tz_ok} = $info->{extra}{floating_tz_ok};
     }
-    $info{floating_tz_ok} = $floating_tz_ok unless defined $info{floating_tz_ok};
 
     $self->inflate_column(
       $column =>
