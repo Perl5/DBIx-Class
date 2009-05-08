@@ -128,37 +128,24 @@ sub register_column {
   my $undef_if_invalid = $info->{datetime_undef_if_invalid};
 
   if ($type eq 'datetime' || $type eq 'date' || $type eq 'timestamp') {
-    my ($parse, $format) = ("parse_${type}", "format_${type}");
+    # This shallow copy of %info avoids t/52_cycle.t treating
+    # the resulting deflator as a circular reference.
+    my %info = ( '_ic_dt_method' => $type , %{ $info } );
 
-    # This assignment must happen here, otherwise Devel::Cycle treats
-    # the resulting deflator as a circular reference (go figure):
-    #
-    # Cycle #1
-    #     DBICTest::Schema A->{source_registrations} => %B
-    #     %B->{Event} => DBIx::Class::ResultSource::Table C
-    #     DBIx::Class::ResultSource::Table C->{_columns} => %D
-    #     %D->{created_on} => %E
-    #     %E->{_inflate_info} => %F
-    #     %F->{deflate} => &G
-    #     closure &G, $info => $H
-    #     $H => %E
-    #
     my $floating_tz_ok;
     if (defined $info->{extra}{floating_tz_ok}) {
       warn "Putting floating_tz_ok into extra => { floating_tz_ok => 1 } has been deprecated, ".
            "please put it directly into the columns definition.";
       $floating_tz_ok = $info->{extra}{floating_tz_ok};
     }
-    $floating_tz_ok = $info->{floating_tz_ok} if defined $info->{floating_tz_ok};
+    $info{floating_tz_ok} = $floating_tz_ok unless defined $info{floating_tz_ok};
 
     $self->inflate_column(
       $column =>
         {
           inflate => sub {
             my ($value, $obj) = @_;
-	    my $parser = $obj->_datetime_parser;
-	    my $parser_method = $parser->can($parse) ? $parse : "parse_datetime";
-            my $dt = eval { $parser->$parser_method($value); };
+            my $dt = eval { $obj->_inflate_to_datetime( $value, \%info ) };
             die "Error while inflating ${value} for ${column} on ${self}: $@"
               if $@ and not $undef_if_invalid;
             $dt->set_time_zone($timezone) if $timezone;
@@ -167,24 +154,41 @@ sub register_column {
           },
           deflate => sub {
             my ($value, $obj) = @_;
-	    my $parser = $obj->_datetime_parser;
-	    my $parser_method = $parser->can($format) ? $format : "format_datetime";
             if ($timezone) {
                 warn "You're using a floating timezone, please see the documentation of"
                   . " DBIx::Class::InflateColumn::DateTime for an explanation"
                   if ref( $value->time_zone ) eq 'DateTime::TimeZone::Floating'
-                      and not $floating_tz_ok
+                      and not $info{floating_tz_ok}
                       and not $ENV{DBIC_FLOATING_TZ_OK};
                 $value->set_time_zone($timezone);
                 $value->set_locale($locale) if $locale;
             }
-            $parser->$parser_method($value);
+            $obj->_deflate_from_datetime( $value, \%info );
           },
         }
     );
   }
 }
 
+sub _flate_or_fallback
+{
+  my( $self, $value, $info, $method_fmt ) = @_;
+
+  my $parser = $self->_datetime_parser;
+  my $preferred_method = sprintf($method_fmt, $info->{ _ic_dt_method });
+  my $method = $parser->can($preferred_method) ? $preferred_method : sprintf($method_fmt, 'datetime');
+  return $parser->$method($value);
+}
+
+sub _inflate_to_datetime {
+  my( $self, $value, $info ) = @_;
+  return $self->_flate_or_fallback( $value, $info, 'parse_%s' );
+}
+
+sub _deflate_from_datetime {
+  my( $self, $value, $info ) = @_;
+  return $self->_flate_or_fallback( $value, $info, 'format_%s' );
+}
 
 sub _datetime_parser {
   my $self = shift;
