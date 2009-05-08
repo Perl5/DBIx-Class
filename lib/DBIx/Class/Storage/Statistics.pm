@@ -77,6 +77,10 @@ sub print {
   $self->debugfh->print($msg);
 }
 
+=head2 silence
+
+Turn off all output if set to true.
+
 =head2 txn_begin
 
 Called when a transaction begins.

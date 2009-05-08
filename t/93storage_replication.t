@@ -11,7 +11,7 @@ BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 83 );
+        : ( tests => 88 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -51,10 +51,10 @@ TESTSCHEMACLASSES: {
     ## Initialize the object
     
 	sub new {
-	    my $class = shift @_;
+	    my ($class, $schema_method) = (shift, shift);
 	    my $self = $class->SUPER::new(@_);
 	
-	    $self->schema( $self->init_schema );
+	    $self->schema( $self->init_schema($schema_method) );
 	    return $self;
 	}
     
@@ -64,26 +64,45 @@ TESTSCHEMACLASSES: {
         # current SQLT SQLite producer does not handle DROP TABLE IF EXISTS, trap warnings here
         local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /no such table.+DROP TABLE/ };
 
-        my $class = shift @_;
+        my ($class, $schema_method) = @_;
 
-        my $schema = DBICTest->init_schema(
-            sqlite_use_file => 1,
-            storage_type=>{
-            	'::DBI::Replicated' => {
-            		balancer_type=>'::Random',
-                    balancer_args=>{
-                    	auto_validate_every=>100,
-                    },
-            	}
-            },
-            deploy_args=>{
-                   add_drop_table => 1,
-            },
-        );
+        my $method = "get_schema_$schema_method";
+        my $schema = $class->$method;
 
         return $schema;
     }
-    
+
+    sub get_schema_by_storage_type {
+      DBICTest->init_schema(
+        sqlite_use_file => 1,
+        storage_type=>{
+          '::DBI::Replicated' => {
+            balancer_type=>'::Random',
+            balancer_args=>{
+              auto_validate_every=>100,
+            },
+          }
+        },
+        deploy_args=>{
+          add_drop_table => 1,
+        },
+      );
+    }
+
+    sub get_schema_by_connect_info {
+      DBICTest->init_schema(
+        sqlite_use_file => 1,
+        storage_type=> '::DBI::Replicated',
+        balancer_type=>'::Random',
+        balancer_args=> {
+          auto_validate_every=>100,
+        },
+        deploy_args=>{
+          add_drop_table => 1,
+        },
+      );
+    }
+
     sub generate_replicant_connect_info {}
     sub replicate {}
     sub cleanup {}
@@ -218,14 +237,22 @@ my $replicated_class = DBICTest->has_custom_dsn ?
     'DBIx::Class::DBI::Replicated::TestReplication::Custom' :
     'DBIx::Class::DBI::Replicated::TestReplication::SQLite';
 
-ok my $replicated = $replicated_class->new
-    => 'Created a replication object';
-    
-isa_ok $replicated->schema
-    => 'DBIx::Class::Schema';
-    
-isa_ok $replicated->schema->storage
-    => 'DBIx::Class::Storage::DBI::Replicated';
+my $replicated;
+
+for my $method (qw/by_connect_info by_storage_type/) {
+  ok $replicated = $replicated_class->new($method)
+      => "Created a replication object $method";
+      
+  isa_ok $replicated->schema
+      => 'DBIx::Class::Schema';
+      
+  isa_ok $replicated->schema->storage
+      => 'DBIx::Class::Storage::DBI::Replicated';
+
+  isa_ok $replicated->schema->storage->balancer
+      => 'DBIx::Class::Storage::DBI::Replicated::Balancer::Random'
+      => 'configured balancer_type';
+}
 
 ok $replicated->schema->storage->meta
     => 'has a meta object';
@@ -248,18 +275,20 @@ ok my @replicated_storages = $replicated->schema->storage->connect_replicants(@r
 ok my @all_storages = $replicated->schema->storage->all_storages
     => '->all_storages';
 
-is scalar @all_storages
-    ,3
+is scalar @all_storages,
+    3
     => 'correct number of ->all_storages';
 
-is ((grep $_->isa('DBIx::Class::Storage::DBI'), @all_storages)
-    ,3
+is ((grep $_->isa('DBIx::Class::Storage::DBI'), @all_storages),
+    3
     => '->all_storages are correct type');
 
-is ((grep $_->{master_option},
-      grep { (reftype($_)||'') eq 'HASH' }
-        map @{ $_->_connect_info }, @all_storages)
-    ,3
+my @all_storage_opts =
+  grep { (reftype($_)||'') eq 'HASH' }
+    map @{ $_->_connect_info }, @all_storages;
+
+is ((grep $_->{master_option}, @all_storage_opts),
+    3
     => 'connect_info was merged from master to replicants');
  
 my @replicant_names = keys %{ $replicated->schema->storage->replicants };

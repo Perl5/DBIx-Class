@@ -139,9 +139,8 @@ to: L<DBIx::Class::Storage::DBI::Replicated::Pool>.
 =cut
 
 has 'pool_type' => (
-  is=>'ro',
+  is=>'rw',
   isa=>ClassName,
-  required=>1,
   default=>'DBIx::Class::Storage::DBI::Replicated::Pool',
   handles=>{
     'create_pool' => 'new',
@@ -156,10 +155,9 @@ See L<DBIx::Class::Storage::Replicated::Pool> for available arguments.
 =cut
 
 has 'pool_args' => (
-  is=>'ro',
+  is=>'rw',
   isa=>HashRef,
   lazy=>1,
-  required=>1,
   default=>sub { {} },
 );
 
@@ -172,7 +170,7 @@ choose how to spread the query load across each replicant in the pool.
 =cut
 
 has 'balancer_type' => (
-  is=>'ro',
+  is=>'rw',
   isa=>BalancerClassNamePart,
   coerce=>1,
   required=>1,
@@ -190,7 +188,7 @@ See L<DBIx::Class::Storage::Replicated::Balancer> for available arguments.
 =cut
 
 has 'balancer_args' => (
-  is=>'ro',
+  is=>'rw',
   isa=>HashRef,
   lazy=>1,
   required=>1,
@@ -223,7 +221,7 @@ is a class that takes a pool (<DBIx::Class::Storage::DBI::Replicated::Pool>)
 =cut
 
 has 'balancer' => (
-  is=>'ro',
+  is=>'rw',
   isa=>'DBIx::Class::Storage::DBI::Replicated::Balancer',
   lazy_build=>1,
   handles=>[qw/auto_validate_every/],
@@ -316,6 +314,8 @@ has _master_connect_info_opts =>
 =head2 around: connect_info
 
 Preserve master's C<connect_info> options (for merging with replicants.)
+Also set any Replicated related options from connect_info, such as
+C<pool_type>, C<pool_args>, C<balancer_type> and C<balancer_args>.
 
 =cut
 
@@ -327,8 +327,31 @@ around connect_info => sub {
     next unless (reftype($arg)||'') eq 'HASH';
     %opts = (%opts, %$arg);
   }
-
   delete $opts{dsn};
+
+  if (@opts{qw/pool_type pool_args/}) {
+    $self->pool_type(delete $opts{pool_type})
+      if $opts{pool_type};
+
+    $self->pool_args({
+      %{ $self->pool_args },
+      %{ delete $opts{pool_args} || {} }
+    });
+
+    $self->pool($self->_build_pool);
+  }
+
+  if (@opts{qw/balancer_type balancer_args/}) {
+    $self->balancer_type(delete $opts{balancer_type})
+      if $opts{balancer_type};
+
+    $self->balancer_args({
+      %{ $self->balancer_args },
+      %{ delete $opts{balancer_args} || {} }
+    });
+
+    $self->balancer($self->_build_balancer);
+  }
 
   $self->_master_connect_info_opts(\%opts);
 

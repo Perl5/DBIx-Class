@@ -1,4 +1,12 @@
-package DBIx::Class::Storage::DBI::Replicated::Types;
+package # hide from PAUSE
+  DBIx::Class::Storage::DBI::Replicated::Types;
+
+=head1 NAME
+
+DBIx::Class::Storage::DBI::Replicated::Types - Types used internally by
+L<DBIx::Class::Storage::DBI::Replicated>
+
+=cut
 
 use MooseX::Types
   -declare => [qw/BalancerClassNamePart/];
@@ -20,5 +28,15 @@ coerce BalancerClassNamePart,
     Class::MOP::load_class($type);  
     $type;  	
   };
+
+=head1 AUTHOR
+
+  John Napiorkowski <john.napiorkowski@takkle.com>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut
 
 1;
