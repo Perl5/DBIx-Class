@@ -796,19 +796,16 @@ sub _collapse_query {
   if (ref $query eq 'ARRAY') {
     foreach my $subquery (@$query) {
       next unless ref $subquery;  # -or
-#      warn "ARRAY: " . Dumper $subquery;
       $collapsed = $self->_collapse_query($subquery, $collapsed);
     }
   }
   elsif (ref $query eq 'HASH') {
     if (keys %$query and (keys %$query)[0] eq '-and') {
       foreach my $subquery (@{$query->{-and}}) {
-#        warn "HASH: " . Dumper $subquery;
         $collapsed = $self->_collapse_query($subquery, $collapsed);
       }
     }
     else {
-#      warn "LEAF: " . Dumper $query;
       foreach my $col (keys %$query) {
         my $value = $query->{$col};
         $collapsed->{$col}{$value}++;
@@ -1760,19 +1757,16 @@ sub _collapse_cond {
   if (ref $cond eq 'ARRAY') {
     foreach my $subcond (@$cond) {
       next unless ref $subcond;  # -or
-#      warn "ARRAY: " . Dumper $subcond;
       $collapsed = $self->_collapse_cond($subcond, $collapsed);
     }
   }
   elsif (ref $cond eq 'HASH') {
     if (keys %$cond and (keys %$cond)[0] eq '-and') {
       foreach my $subcond (@{$cond->{-and}}) {
-#        warn "HASH: " . Dumper $subcond;
         $collapsed = $self->_collapse_cond($subcond, $collapsed);
       }
     }
     else {
-#      warn "LEAF: " . Dumper $cond;
       foreach my $col (keys %$cond) {
         my $value = $cond->{$col};
         $collapsed->{$col} = $value;

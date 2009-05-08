@@ -36,8 +36,8 @@ Returns a new L<DBIx::Class::Storage::DBI::Cursor> object.
 
 sub new {
   my ($class, $storage, $args, $attrs) = @_;
-  #use Data::Dumper; warn Dumper(@_);
   $class = ref $class if ref $class;
+
   my $new = {
     storage => $storage,
     args => $args,

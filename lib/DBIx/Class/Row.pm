@@ -347,7 +347,6 @@ sub insert {
     $self->throw_exception( "Can't get last insert id" )
       unless (@ids == @auto_pri);
     $self->store_column($auto_pri[$_] => $ids[$_]) for 0 .. $#ids;
-#use Data::Dumper; warn Dumper($self);
   }
 
 
