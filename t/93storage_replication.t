@@ -11,7 +11,7 @@ BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 88 );
+        : ( tests => 89 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -80,6 +80,7 @@ TESTSCHEMACLASSES: {
             balancer_type=>'::Random',
             balancer_args=>{
               auto_validate_every=>100,
+	      master_read_weight => 1
             },
           }
         },
@@ -96,6 +97,7 @@ TESTSCHEMACLASSES: {
         balancer_type=>'::Random',
         balancer_args=> {
           auto_validate_every=>100,
+	  master_read_weight => 1
         },
         deploy_args=>{
           add_drop_table => 1,
@@ -355,6 +357,28 @@ isa_ok $artist1
     
 is $artist1->name, 'Ozric Tentacles'
     => 'Found expected name for first result';
+
+## Check that master_read_weight is honored
+{
+    no warnings 'once';
+
+    # turn off redefined warning
+    local $SIG{__WARN__} = sub {};
+
+    local
+    *DBIx::Class::Storage::DBI::Replicated::Balancer::Random::random_number =
+	sub { 999 };
+
+    $replicated->schema->storage->balancer->increment_storage;
+
+    is $replicated->schema->storage->balancer->current_replicant,
+       $replicated->schema->storage->master
+       => 'master_read_weight is honored';
+
+    ## turn it off for the duration of the test
+    $replicated->schema->storage->balancer->master_read_weight(0);
+    $replicated->schema->storage->balancer->increment_storage;
+}
 
 ## Add some new rows that only the master will have  This is because
 ## we overload any type of write operation so that is must hit the master
@@ -684,3 +708,5 @@ ok $replicated->schema->resultset('Artist')->find(1)
 
 ## Delete the old database files
 $replicated->cleanup;
+
+# vim: sw=4 sts=4 :

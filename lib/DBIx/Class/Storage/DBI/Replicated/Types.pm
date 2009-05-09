@@ -9,8 +9,8 @@ L<DBIx::Class::Storage::DBI::Replicated>
 =cut
 
 use MooseX::Types
-  -declare => [qw/BalancerClassNamePart/];
-use MooseX::Types::Moose qw/ClassName Str/;
+  -declare => [qw/BalancerClassNamePart Weight/];
+use MooseX::Types::Moose qw/ClassName Str Num/;
 
 class_type 'DBIx::Class::Storage::DBI';
 class_type 'DBIx::Class::Schema';
@@ -28,6 +28,11 @@ coerce BalancerClassNamePart,
     Class::MOP::load_class($type);  
     $type;  	
   };
+
+subtype Weight,
+  as Num,
+  where { $_ >= 0 && $_ <= 1 },
+  message { 'weight must be a decimal between 0 and 1' };
 
 =head1 AUTHOR
 

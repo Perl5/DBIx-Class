@@ -275,7 +275,6 @@ has 'write_handler' => (
   is=>'ro',
   isa=>Object,
   lazy_build=>1,
-  lazy_build=>1,
   handles=>[qw/   
     on_connect_do
     on_disconnect_do       
@@ -388,7 +387,9 @@ Lazy builder for the L</master> attribute.
 
 sub _build_master {
   my $self = shift @_;
-  DBIx::Class::Storage::DBI->new($self->schema);
+  my $master = DBIx::Class::Storage::DBI->new($self->schema);
+  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
+  $master
 }
 
 =head2 _build_pool

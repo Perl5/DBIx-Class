@@ -77,7 +77,7 @@ my %force_requires_if_author = (
   ,
 
   # t/93storage_replication.t
-  'Moose',                        => 0.54,
+  'Moose',                        => 0.77,
   'MooseX::AttributeHelpers'      => 0.12,
   'MooseX::Types',                => 0.10,
   'namespace::clean'              => 0.11,
