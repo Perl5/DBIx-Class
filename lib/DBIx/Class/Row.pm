@@ -347,7 +347,6 @@ sub insert {
     $self->throw_exception( "Can't get last insert id" )
       unless (@ids == @auto_pri);
     $self->store_column($auto_pri[$_] => $ids[$_]) for 0 .. $#ids;
-#use Data::Dumper; warn Dumper($self);
   }
 
 
@@ -881,10 +880,10 @@ Inserts a new row into the database, as a copy of the original
 object. If a hashref of replacement data is supplied, these will take
 precedence over data in the original.
 
-If the row has related objects in a
-L<DBIx::Class::Relationship/has_many> then those objects may be copied
-too depending on the L<cascade_copy|DBIx::Class::Relationship>
-relationship attribute.
+Relationships will be followed by the copy procedure B<only> if the
+relationship specifes a true value for its
+L<cascade_copy|DBIx::Class::Relationship::Base> attribute. C<cascade_copy>
+is set by default on C<has_many> relationships and unset on all others.
 
 =cut
 

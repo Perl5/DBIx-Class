@@ -1,5 +1,11 @@
 Revision history for DBIx::Class
 
+        - Refactor DBIx::Class::Storage::DBI::Sybase to automatically 
+          load a subclass, namely Microsoft_SQL_Server.pm
+          (similar to DBIx::Class::Storage::DBI::ODBC)
+        - Proper support for update/delete of joined resultsets
+          (using IN => $sub_rs->as_query)
+
 0.08102 2009-04-30 08:29:00 (UTC)
         - Fixed two subtle bugs when using columns or select/as
           paired with a join (limited prefetch)

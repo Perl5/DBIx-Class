@@ -1110,7 +1110,6 @@ sub resolve_join {
     $self->throw_exception("No idea how to resolve join reftype ".ref $join);
   } else {
     my $count = ++$seen->{$join};
-    #use Data::Dumper; warn Dumper($seen);
     my $as = ($count > 1 ? "${join}_${count}" : $join);
     my $rel_info = $self->relationship_info($join);
     $self->throw_exception("No such relationship ${join}") unless $rel_info;
@@ -1287,8 +1286,6 @@ in the supplied relationships. Examples:
 sub resolve_prefetch {
   my ($self, $pre, $alias, $seen, $order, $collapse) = @_;
   $seen ||= {};
-  #$alias ||= $self->name;
-  #warn $alias, Dumper $pre;
   if( ref $pre eq 'ARRAY' ) {
     return
       map { $self->resolve_prefetch( $_, $alias, $seen, $order, $collapse ) }
@@ -1301,7 +1298,6 @@ sub resolve_prefetch {
       $self->related_source($_)->resolve_prefetch(
                $pre->{$_}, "${alias}.$_", $seen, $order, $collapse)
     } keys %$pre;
-    #die Dumper \@ret;
     return @ret;
   }
   elsif( ref $pre ) {
@@ -1354,8 +1350,6 @@ sub resolve_prefetch {
 
     return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
       $rel_source->columns;
-    #warn $alias, Dumper (\@ret);
-    #return @ret;
   }
 }
 

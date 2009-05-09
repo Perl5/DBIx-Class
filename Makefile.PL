@@ -16,7 +16,7 @@ configure_requires 'DBD::SQLite';
 requires 'DBD::SQLite'              => 1.23;
 requires 'Data::Page'               => 2.00;
 requires 'Scalar::Util'             => 0;
-requires 'SQL::Abstract'            => 1.53;
+requires 'SQL::Abstract'            => 1.54;
 requires 'SQL::Abstract::Limit'     => 0.13;
 requires 'Class::C3::Componentised' => 1.0005;
 requires 'Storable'                 => 0;
