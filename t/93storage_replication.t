@@ -6,12 +6,13 @@ use Test::Exception;
 use DBICTest;
 use List::Util 'first';
 use Scalar::Util 'reftype';
+use IO::Handle;
 
 BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 89 );
+        : ( tests => 90 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -366,7 +367,7 @@ is $artist1->name, 'Ozric Tentacles'
     local $SIG{__WARN__} = sub {};
 
     local
-    *DBIx::Class::Storage::DBI::Replicated::Balancer::Random::random_number =
+    *DBIx::Class::Storage::DBI::Replicated::Balancer::Random::_random_number =
 	sub { 999 };
 
     $replicated->schema->storage->balancer->increment_storage;
@@ -469,13 +470,20 @@ ok $replicated->schema->resultset('Artist')->find(2)
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(0);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(0);
 
-## Silence warning about falling back to master.
-$replicated->schema->storage->debugobj->silence(1);
- 
-ok $replicated->schema->resultset('Artist')->find(2)
-    => 'Fallback to master';
+{
+    ## catch the fallback to master warning
+    open my $debugfh, '>', \my $fallback_warning;
+    my $oldfh = $replicated->schema->storage->debugfh;
+    $replicated->schema->storage->debugfh($debugfh);
 
-$replicated->schema->storage->debugobj->silence(0);
+    ok $replicated->schema->resultset('Artist')->find(2)
+	=> 'Fallback to master';
+
+    like $fallback_warning, qr/falling back to master/
+	=> 'emits falling back to master warning';
+
+    $replicated->schema->storage->debugfh($oldfh);
+}
 
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);

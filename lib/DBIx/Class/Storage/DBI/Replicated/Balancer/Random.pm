@@ -55,21 +55,20 @@ sub next_storage {
   my $self = shift @_;
 
   my @replicants = $self->pool->active_replicants;
+
+  if (not @replicants) {
+    # will fall back to master anyway
+    return;
+  }
+
   my $master     = $self->master;
 
-  my $rnd = $self->random_number(@replicants + $self->master_read_weight);
+  my $rnd = $self->_random_number(@replicants + $self->master_read_weight);
 
   return $rnd >= @replicants ? $master : $replicants[int $rnd];
 }
 
-=head2 random_number
-
-Returns a random number from 0 to x, not including x. Uses perl's
-L<perlfunc/rand> by default.
-
-=cut
-
-sub random_number {
+sub _random_number {
   rand($_[1])
 }
 
