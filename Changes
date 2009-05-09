@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+        - ::Storage::DBI::Replicated::Balancer::Random:
+          added master_read_weight
+        - ::Storage::DBI::Replicated: storage opts from connect_info,
+          connect_info merging to replicants, hashref connect_info support,
+          improved trace output, other bug fixes/cleanups
         - Refactor DBIx::Class::Storage::DBI::Sybase to automatically 
           load a subclass, namely Microsoft_SQL_Server.pm
           (similar to DBIx::Class::Storage::DBI::ODBC)
