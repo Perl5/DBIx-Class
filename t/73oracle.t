@@ -180,10 +180,9 @@ is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manual
 		foreach my $size (qw( small large )) {
 			$id++;
 
-			lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$type} } ) }
+			lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
 				"inserted $size $type without dying";
-
-			is( $rs->find($id)->$type, $binstr{$type}, "verified inserted $size $type" );
+			ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
 		}
 	}
 }
