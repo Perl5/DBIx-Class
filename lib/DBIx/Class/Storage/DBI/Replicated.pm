@@ -337,7 +337,8 @@ around connect_info => sub {
       %{ delete $opts{pool_args} || {} }
     });
 
-    $self->pool($self->_build_pool);
+    $self->pool($self->_build_pool)
+	if $self->pool;
   }
 
   if (@opts{qw/balancer_type balancer_args/}) {
@@ -349,7 +350,8 @@ around connect_info => sub {
       %{ delete $opts{balancer_args} || {} }
     });
 
-    $self->balancer($self->_build_balancer);
+    $self->balancer($self->_build_balancer)
+	if $self->balancer;
   }
 
   $self->_master_connect_info_opts(\%opts);
