@@ -103,7 +103,7 @@ EOW
       );
       my @to_set = (ref($_[0]) eq 'ARRAY' ? @{ $_[0] } : @_);
       $self->search_related($rel, {})->delete;
-      $self->$add_meth($_) for (@to_set);
+      $self->$add_meth($_, ref($_[1]) ? $_[1] : {}) for (@to_set);
     };
 
     my $remove_meth_name = join '::', $class, $remove_meth;

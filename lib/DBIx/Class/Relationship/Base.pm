@@ -470,7 +470,7 @@ B<Currently only available for C<many-to-many> relationships.>
 
 =over 4
 
-=item Arguments: (\@hashrefs | \@objs)
+=item Arguments: (\@hashrefs | \@objs), $link_vals?
 
 =back
 
@@ -480,6 +480,10 @@ B<Currently only available for C<many-to-many> relationships.>
 
   $actor->set_roles(\@roles);
      # Replaces all of $actor's previous roles with the two named
+
+  $actor->set_roles(\@roles, { salary => 15_000_000 });
+     # Sets a column in the link table for all roles
+
 
 Replace all the related objects with the given reference to a list of
 objects. This does a C<delete> B<on the link table resultset> to remove the
