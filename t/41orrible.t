@@ -5,6 +5,7 @@ use Test::More;
 use DBIx::Class::Storage::DBI::Oracle::WhereJoins;
 
 use lib qw(t/lib);
+use DBICTest; # do not remove even though it is not used
 use DBIC::SqlMakerTest;
 
 plan tests => 4;
