@@ -37,6 +37,7 @@ package # Hide from PAUSE
   DBIC::SQL::Abstract; # Would merge upstream, but nate doesn't reply :(
 
 use base qw/SQL::Abstract::Limit/;
+use Carp::Clan qw/^DBIx::Class/;
 
 sub new {
   my $self = shift->SUPER::new(@_);
@@ -232,7 +233,7 @@ sub _recurse_fields {
               "{ select => [ qw/" . (join ' ', @$_fields) . "/ ], distinct => 1 }";
         }
         else {
-          warn "This syntax will be deprecated in 09, please use " . 
+          carp "This syntax will be deprecated in 09, please use " . 
                "{ group_by => '${_fields}' }" . 
                " or " .
                "{ select => '${_fields}', distinct => 1 }";
