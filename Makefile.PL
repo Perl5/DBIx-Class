@@ -190,6 +190,7 @@ EOE
             . 'Do you really want to continue?',
             'no',
           );
+
           exit 0 unless ($ans =~ /^y(es)?$/i);
       }
     }
