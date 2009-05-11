@@ -63,8 +63,6 @@ sub new {
 sub _strip_outer_paren {
   my ($self, $arg) = @_;
 
-use Data::Dumper;
-
   return $self->_SWITCH_refkind ($arg, {
     ARRAYREFREF => sub {
       $$arg->[0] = __strip_outer_paren ($$arg->[0]);
@@ -1393,13 +1391,7 @@ sub insert_bulk {
 #  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
   ## This must be an arrayref, else nothing works!
-  
   my $tuple_status = [];
-  
-  ##use Data::Dumper;
-  ##print STDERR Dumper( $data, $sql, [@bind] );
-
-  my $time = time();
 
   ## Get the bind_attributes, if any exist
   my $bind_attributes = $self->source_bind_attributes($source);

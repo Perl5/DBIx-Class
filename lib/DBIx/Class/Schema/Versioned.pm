@@ -182,7 +182,6 @@ use strict;
 use warnings;
 use base 'DBIx::Class';
 use POSIX 'strftime';
-use Data::Dumper;
 
 __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');

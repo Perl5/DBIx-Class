@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 74;
+plan tests => 78;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -189,6 +189,14 @@ is( $prod_rs->count(), 1, 'many_to_many add_to_$rel($obj) count ok' );
 is( $prod_rs->first->name, 'Matt S Trout',
     'many_to_many add_to_$rel($obj) ok' );
 $cd->remove_from_producers($prod);
+$cd->add_to_producers($prod, {attribute => 1});
+is( $prod_rs->count(), 1, 'many_to_many add_to_$rel($obj, $link_vals) count ok' );
+is( $cd->cd_to_producer->first->attribute, 1, 'many_to_many $link_vals ok');
+$cd->remove_from_producers($prod);
+$cd->set_producers([$prod], {attribute => 2});
+is( $prod_rs->count(), 1, 'many_to_many set_$rel($obj, $link_vals) count ok' );
+is( $cd->cd_to_producer->first->attribute, 2, 'many_to_many $link_vals ok');
+$cd->remove_from_producers($prod);
 is( $schema->resultset('Producer')->find(1)->name, 'Matt S Trout',
     "producer object exists after remove of link" );
 is( $prod_rs->count, 0, 'many_to_many remove_from_$rel($obj) ok' );
@@ -233,6 +241,7 @@ $twokey->remove_from_fourkeys($fourkey);
 is( $twokey->fourkeys->count, 0, 'twokey has no fourkeys' );
 is( $twokey->fourkeys_to_twokeys->count, 0,
     'twokey has no links to fourkey' );
+
 
 my $undef_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007 });
 is($undef_artist_cd->has_column_loaded('artist'), '', 'FK not loaded');

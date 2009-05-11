@@ -3,7 +3,8 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use warnings::register;
+
+use Carp::Clan qw/^DBIx::Class/;
 use Sub::Name ();
 
 sub many_to_many {
@@ -28,16 +29,20 @@ sub many_to_many {
 
     for ($add_meth, $remove_meth, $set_meth, $rs_meth) {
       if ( $class->can ($_) ) {
-        warnings::warnif(<<"EOW")
+        carp (<<"EOW") unless $ENV{DBIC_METHOD_CLOBBER_OK};
+
 ***************************************************************************
-The many-to-many relationship $meth is trying to create a utility method called
-$_. This will overwrite the existing method on $class. You almost certainly
-want to rename your method or the many-to-many relationship, as your method
-will not be callable (it will use the one from the relationship instead.)
+The many-to-many relationship '$meth' is trying to create a utility method
+called $_.
+This will completely overwrite one such already existing method on class
+$class.
 
-To disable this warning add the following to $class
+You almost certainly want to rename your method or the many-to-many
+relationship, as the functionality of the original method will not be
+accessible anymore.
 
-  no warnings 'DBIx::Class::Relationship::ManyToMany';
+To disable this warning set the environment variable DBIC_METHOD_CLOBBER_OK
+to a true value
 
 ***************************************************************************
 EOW
@@ -103,7 +108,7 @@ EOW
       );
       my @to_set = (ref($_[0]) eq 'ARRAY' ? @{ $_[0] } : @_);
       $self->search_related($rel, {})->delete;
-      $self->$add_meth($_) for (@to_set);
+      $self->$add_meth($_, ref($_[1]) ? $_[1] : {}) for (@to_set);
     };
 
     my $remove_meth_name = join '::', $class, $remove_meth;

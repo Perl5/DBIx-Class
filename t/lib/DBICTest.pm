@@ -3,6 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use DBICTest::AuthorCheck;
 use DBICTest::Schema;
 
 =head1 NAME

@@ -13,7 +13,6 @@ $VERSION = '1.10';
 $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
-use Data::Dumper;
 use SQL::Translator::Utils qw(debug normalize_name);
 
 use base qw(Exporter);

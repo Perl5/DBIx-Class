@@ -33,6 +33,8 @@ my $fn = {
 };
 
 use lib qw(t/lib);
+use DBICTest; # do not remove even though it is not used
+
 use_ok('DBICVersionOrig');
 
 my $schema_orig = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });

@@ -1,8 +1,8 @@
-#!/usr/bin/perl
 use strict;
 use warnings;
 use Test::More;
 use lib qw(t/lib);
+use DBICTest; # do not remove even though it is not used
 
 # This is a rather unusual test.
 # It does not test any aspect of DBIx::Class, but instead tests the
