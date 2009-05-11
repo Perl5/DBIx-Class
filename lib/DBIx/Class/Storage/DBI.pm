@@ -223,6 +223,22 @@ sub _recurse_fields {
       } @$fields);
   } elsif ($ref eq 'HASH') {
     foreach my $func (keys %$fields) {
+      if ($func eq 'distinct') {
+        my $_fields = $fields->{$func};
+        if (ref $_fields eq 'ARRAY' && @{$_fields} > 1) {
+          die "Unsupported syntax, please use " . 
+              "{ group_by => [ qw/" . (join ' ', @$_fields) . "/ ] }" .
+              " or " .
+              "{ select => [ qw/" . (join ' ', @$_fields) . "/ ], distinct => 1 }";
+        }
+        else {
+          warn "This syntax will be deprecated in 09, please use " . 
+               "{ group_by => '${_fields}' }" . 
+               " or " .
+               "{ select => '${_fields}', distinct => 1 }";
+        }
+      }
+      
       return $self->_sqlcase($func)
         .'( '.$self->_recurse_fields($fields->{$func}).' )';
     }

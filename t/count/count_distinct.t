@@ -2,6 +2,7 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 
 use lib qw(t/lib);
 
@@ -12,7 +13,7 @@ my $schema = DBICTest->init_schema();
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 16;
+plan tests => 18;
 
 # The tag Blue is assigned to cds 1 2 3 and 5
 # The tag Cheesy is assigned to cds 2 4 and 5
@@ -69,3 +70,13 @@ is($rs->count, 5, 'Count with literal SQL and another single group_by');
 
 $rs = $schema->resultset('Tag')->search({ tag => \" IN ('Blue', 'Cheesy')" }, { group_by => [ qw/tag cd/ ] });
 is($rs->count, 7, 'Count with literal SQL and multiple group_by');
+
+my @warnings;
+{
+  local $SIG{__WARN__} = sub { push @warnings, shift };
+  my $row = $schema->resultset('Tag')->search({}, { select => { distinct => 'tag' } })->first;
+}
+
+is(@warnings, 1, 'expecteing warn');
+
+dies_ok(sub { my $row = $schema->resultset('Tag')->search({}, { select => { distinct => [qw/tag cd/] } })->first }, 'expecting to die');
