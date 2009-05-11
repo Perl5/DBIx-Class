@@ -2,14 +2,14 @@ use strict;
 use warnings;
 
 use Test::More;
-use DBIx::Class::Storage::DBI::Oracle::WhereJoins;
+use DBIx::Class::SQLAHacks::OracleJoins;
 
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 
 plan tests => 4;
 
-my $sa = new DBIC::SQL::Abstract::Oracle;
+my $sa = new DBIx::Class::SQLAHacks::OracleJoins;
 
 $sa->limit_dialect('RowNum');
 

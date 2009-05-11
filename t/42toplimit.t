@@ -6,7 +6,7 @@ use DBIx::Class::Storage::DBI;
 
 plan tests => 1;
 
-my $sa = new DBIC::SQL::Abstract;
+my $sa = new DBIx::Class::SQLAHacks;
 
 $sa->limit_dialect( 'Top' );
 
