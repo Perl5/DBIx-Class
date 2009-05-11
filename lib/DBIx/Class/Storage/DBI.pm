@@ -231,6 +231,7 @@ sub _recurse_fields {
               "{ select => [ qw/" . (join ' ', @$_fields) . "/ ], distinct => 1 }";
         }
         else {
+          $_fields = $_fields[0] if ref $_fields eq 'ARRAY';
           carp "This syntax will be deprecated in 09, please use " . 
                "{ group_by => '${_fields}' }" . 
                " or " .
