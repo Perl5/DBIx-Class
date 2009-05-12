@@ -235,7 +235,7 @@ sub load_namespaces {
       
       if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
         if($rs_class && $rs_class ne $rs_set) {
-          warn "We found ResultSet class '$rs_class' for '$result', but it seems "
+          carp "We found ResultSet class '$rs_class' for '$result', but it seems "
              . "that you had already set '$result' to use '$rs_set' instead";
         }
       }
@@ -251,7 +251,7 @@ sub load_namespaces {
   }
 
   foreach (sort keys %resultsets) {
-    warn "load_namespaces found ResultSet class $_ with no "
+    carp "load_namespaces found ResultSet class $_ with no "
       . 'corresponding Result class';
   }
 
@@ -344,7 +344,7 @@ sub load_classes {
 
         my $snsub = $comp_class->can('source_name');
         if(! $snsub ) {
-          warn "Failed to load $comp_class. Can't find source_name method. Is $comp_class really a full DBIC result class? Fix it, move it elsewhere, or make your load_classes call more specific.";
+          carp "Failed to load $comp_class. Can't find source_name method. Is $comp_class really a full DBIC result class? Fix it, move it elsewhere, or make your load_classes call more specific.";
           next;
         }
         $comp = $snsub->($comp_class) || $comp;
@@ -1350,7 +1350,7 @@ more information.
   sub compose_connection {
     my ($self, $target, @info) = @_;
 
-    warn "compose_connection deprecated as of 0.08000"
+    carp "compose_connection deprecated as of 0.08000"
       unless ($INC{"DBIx/Class/CDBICompat.pm"} || $warn++);
 
     my $base = 'DBIx::Class::ResultSetProxy';

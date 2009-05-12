@@ -17,7 +17,7 @@ sub inject_base {
       foreach my $first_comp (@comps) {
         if ($to eq 'DBIx::Class::Core' &&
             $target->isa("DBIx::Class::${first_comp}")) {
-          warn "Possible incorrect order of components in ".
+          carp "Possible incorrect order of components in ".
                "${target}::load_components($first_comp) call: Core loaded ".
                "before $first_comp. See the documentation for ".
                "DBIx::Class::$first_comp for more information";

@@ -85,7 +85,7 @@ my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_v
   # should overwrite files and warn about it
   my @w;
   local $SIG{__WARN__} = sub { 
-    if ($_[0] =~ /^Overwriting/) {
+    if ($_[0] =~ /Overwriting existing/) {
       push @w, $_[0];
     }
     else {
@@ -95,8 +95,8 @@ my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_v
   $schema_upgrade->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0');
 
   is (2, @w, 'A warning generated for both the DDL and the diff');
-  like ($w[0], qr/^Overwriting existing DDL file - $fn->{v2}/, 'New version DDL overwrite warning');
-  like ($w[1], qr/^Overwriting existing diff file - $fn->{trans}/, 'Upgrade diff overwrite warning');
+  like ($w[0], qr/Overwriting existing DDL file - $fn->{v2}/, 'New version DDL overwrite warning');
+  like ($w[1], qr/Overwriting existing diff file - $fn->{trans}/, 'Upgrade diff overwrite warning');
 }
 
 {

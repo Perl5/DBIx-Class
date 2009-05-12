@@ -181,6 +181,8 @@ package DBIx::Class::Schema::Versioned;
 use strict;
 use warnings;
 use base 'DBIx::Class';
+
+use Carp::Clan qw/^DBIx::Class/;
 use POSIX 'strftime';
 
 __PACKAGE__->mk_classdata('_filedata');
@@ -225,7 +227,7 @@ sub install
 
   # must be called on a fresh database
   if ($self->get_db_version()) {
-    warn 'Install not possible as versions table already exists in database';
+    carp 'Install not possible as versions table already exists in database';
   }
 
   # default to current version if none passed
@@ -291,13 +293,13 @@ sub upgrade
 
   # db unversioned
   unless ($db_version) {
-    warn 'Upgrade not possible as database is unversioned. Please call install first.';
+    carp 'Upgrade not possible as database is unversioned. Please call install first.';
     return;
   }
 
   # db and schema at same version. do nothing
   if ($db_version eq $self->schema_version) {
-    print "Upgrade not necessary\n";
+    carp "Upgrade not necessary\n";
     return;
   }
 
@@ -317,11 +319,11 @@ sub upgrade
   $self->create_upgrade_path({ upgrade_file => $upgrade_file });
 
   unless (-f $upgrade_file) {
-    warn "Upgrade not possible, no upgrade file found ($upgrade_file), please create one\n";
+    carp "Upgrade not possible, no upgrade file found ($upgrade_file), please create one\n";
     return;
   }
 
-  warn "\nDB version ($db_version) is lower than the schema version (".$self->schema_version."). Attempting upgrade.\n";
+  carp "\nDB version ($db_version) is lower than the schema version (".$self->schema_version."). Attempting upgrade.\n";
 
   # backup if necessary then apply upgrade
   $self->_filedata($self->_read_sql_file($upgrade_file));
@@ -391,7 +393,7 @@ differently.
 sub apply_statement {
     my ($self, $statement) = @_;
 
-    $self->storage->dbh->do($_) or warn "SQL was:\n $_";
+    $self->storage->dbh->do($_) or carp "SQL was:\n $_";
 }
 
 =head2 get_db_version
@@ -490,17 +492,17 @@ sub _on_connect
 
   if($pversion eq $self->schema_version)
     {
-#         warn "This version is already installed\n";
+#         carp "This version is already installed\n";
         return 1;
     }
 
   if(!$pversion)
     {
-        warn "Your DB is currently unversioned. Please call upgrade on your schema to sync the DB.\n";
+        carp "Your DB is currently unversioned. Please call upgrade on your schema to sync the DB.\n";
         return 1;
     }
 
-  warn "Versions out of sync. This is " . $self->schema_version . 
+  carp "Versions out of sync. This is " . $self->schema_version . 
     ", your database contains version $pversion, please call upgrade on your Schema.\n";
 }
 
@@ -563,7 +565,7 @@ sub _create_db_to_schema_diff {
   print $file $diff;
   close($file);
 
-  print "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.\n";
+  carp "WARNING: There may be differences between your DB and your DBIC schema. Please review and if necessary run the SQL in $filename to sync your DB.\n";
 }
 
 
@@ -585,7 +587,7 @@ sub _read_sql_file {
   my $file = shift || return;
 
   my $fh;
-  open $fh, "<$file" or warn("Can't open upgrade file, $file ($!)");
+  open $fh, "<$file" or carp("Can't open upgrade file, $file ($!)");
   my @data = split(/\n/, join('', <$fh>));
   @data = grep(!/^--/, @data);
   @data = split(/;/, join('', @data));

@@ -1302,7 +1302,7 @@ sub create_ddl_dir {
   my ($self, $schema, $databases, $version, $dir, $preversion, $sqltargs) = @_;
 
   if(!$dir || !-d $dir) {
-    warn "No directory given, using ./\n";
+    carp "No directory given, using ./\n";
     $dir = "./";
   }
   $databases ||= ['MySQL', 'SQLite', 'PostgreSQL'];
@@ -1325,7 +1325,8 @@ sub create_ddl_dir {
   my $sqlt = SQL::Translator->new( $sqltargs );
 
   $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
-  my $sqlt_schema = $sqlt->translate({ data => $schema }) or die $sqlt->error;
+  my $sqlt_schema = $sqlt->translate({ data => $schema })
+    or $self->throw_exception ($sqlt->error);
 
   foreach my $db (@$databases) {
     $sqlt->reset();
@@ -1336,13 +1337,13 @@ sub create_ddl_dir {
     my $filename = $schema->ddl_filename($db, $version, $dir);
     if (-e $filename && ($version eq $schema_version )) {
       # if we are dumping the current version, overwrite the DDL
-      warn "Overwriting existing DDL file - $filename";
+      carp "Overwriting existing DDL file - $filename";
       unlink($filename);
     }
 
     my $output = $sqlt->translate;
     if(!$output) {
-      warn("Failed to translate to $db, skipping. (" . $sqlt->error . ")");
+      carp("Failed to translate to $db, skipping. (" . $sqlt->error . ")");
       next;
     }
     if(!open($file, ">$filename")) {
@@ -1358,13 +1359,13 @@ sub create_ddl_dir {
 
     my $prefilename = $schema->ddl_filename($db, $preversion, $dir);
     if(!-e $prefilename) {
-      warn("No previous schema file found ($prefilename)");
+      carp("No previous schema file found ($prefilename)");
       next;
     }
 
     my $difffile = $schema->ddl_filename($db, $version, $dir, $preversion);
     if(-e $difffile) {
-      warn("Overwriting existing diff file - $difffile");
+      carp("Overwriting existing diff file - $difffile");
       unlink($difffile);
     }
     
@@ -1373,26 +1374,37 @@ sub create_ddl_dir {
       my $t = SQL::Translator->new($sqltargs);
       $t->debug( 0 );
       $t->trace( 0 );
-      $t->parser( $db )                       or die $t->error;
-      my $out = $t->translate( $prefilename ) or die $t->error;
+
+      $t->parser( $db )
+        or $self->throw_exception ($t->error);
+
+      my $out = $t->translate( $prefilename )
+        or $self->throw_exception ($t->error);
+
       $source_schema = $t->schema;
-      unless ( $source_schema->name ) {
-        $source_schema->name( $prefilename );
-      }
+
+      $source_schema->name( $prefilename )
+        unless ( $source_schema->name );
     }
 
     # The "new" style of producers have sane normalization and can support 
     # diffing a SQL file against a DBIC->SQLT schema. Old style ones don't
     # And we have to diff parsed SQL against parsed SQL.
     my $dest_schema = $sqlt_schema;
-    
+
     unless ( "SQL::Translator::Producer::$db"->can('preprocess_schema') ) {
       my $t = SQL::Translator->new($sqltargs);
       $t->debug( 0 );
       $t->trace( 0 );
-      $t->parser( $db )                    or die $t->error;
-      my $out = $t->translate( $filename ) or die $t->error;
+
+      $t->parser( $db )
+        or $self->throw_exception ($t->error);
+
+      my $out = $t->translate( $filename )
+        or $self->throw_exception ($t->error);
+
       $dest_schema = $t->schema;
+
       $dest_schema->name( $filename )
         unless $dest_schema->name;
     }
@@ -1484,7 +1496,7 @@ sub deploy {
       $self->dbh->do($line); # shouldn't be using ->dbh ?
     };
     if ($@) {
-      warn qq{$@ (running "${line}")};
+      carp qq{$@ (running "${line}")};
     }
     $self->_query_end($line);
   };

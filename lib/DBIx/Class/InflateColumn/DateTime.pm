@@ -3,6 +3,7 @@ package DBIx::Class::InflateColumn::DateTime;
 use strict;
 use warnings;
 use base qw/DBIx::Class/;
+use Carp::Clan qw/^DBIx::Class/;
 
 =head1 NAME
 
@@ -110,14 +111,14 @@ sub register_column {
 
   my $timezone;
   if ( defined $info->{extra}{timezone} ) {
-    warn "Putting timezone into extra => { timezone => '...' } has been deprecated, ".
+    carp "Putting timezone into extra => { timezone => '...' } has been deprecated, ".
          "please put it directly into the columns definition.";
     $timezone = $info->{extra}{timezone};
   }
 
   my $locale;
   if ( defined $info->{extra}{locale} ) {
-    warn "Putting locale into extra => { locale => '...' } has been deprecated, ".
+    carp "Putting locale into extra => { locale => '...' } has been deprecated, ".
          "please put it directly into the columns definition.";
     $locale = $info->{extra}{locale};
   }
@@ -133,7 +134,7 @@ sub register_column {
     my %info = ( '_ic_dt_method' => $type , %{ $info } );
 
     if (defined $info->{extra}{floating_tz_ok}) {
-      warn "Putting floating_tz_ok into extra => { floating_tz_ok => 1 } has been deprecated, ".
+      carp "Putting floating_tz_ok into extra => { floating_tz_ok => 1 } has been deprecated, ".
            "please put it directly into the columns definition.";
       $info{floating_tz_ok} = $info->{extra}{floating_tz_ok};
     }
@@ -144,7 +145,7 @@ sub register_column {
           inflate => sub {
             my ($value, $obj) = @_;
             my $dt = eval { $obj->_inflate_to_datetime( $value, \%info ) };
-            die "Error while inflating ${value} for ${column} on ${self}: $@"
+            $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $@")
               if $@ and not $undef_if_invalid;
             $dt->set_time_zone($timezone) if $timezone;
             $dt->set_locale($locale) if $locale;
@@ -153,7 +154,7 @@ sub register_column {
           deflate => sub {
             my ($value, $obj) = @_;
             if ($timezone) {
-                warn "You're using a floating timezone, please see the documentation of"
+                carp "You're using a floating timezone, please see the documentation of"
                   . " DBIx::Class::InflateColumn::DateTime for an explanation"
                   if ref( $value->time_zone ) eq 'DateTime::TimeZone::Floating'
                       and not $info{floating_tz_ok}
