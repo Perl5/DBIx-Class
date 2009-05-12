@@ -1,10 +1,10 @@
-#!/usr/bin/perl -w
-#Simon Ilyushchenko, 12/05/05
-#Testing the case when we try to inject into @ISA a class that's already a parent of the target class.
 
 use strict;
 use Test::More tests => 2;
 use MRO::Compat;
+
+use lib qw(t/lib);
+use DBICTest; # do not remove even though it is not used
 
 {
 package AAA;

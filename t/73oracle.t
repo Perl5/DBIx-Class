@@ -40,7 +40,7 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
   unless ($dsn && $user && $pass);
 
-plan tests => 32;
+plan tests => 34;
 
 DBICTest::Schema->load_classes('ArtistFQN');
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
@@ -124,15 +124,32 @@ is($tjoin->next->title, 'Track1', "ambiguous column ok");
 
 # check count distinct with multiple columns
 my $other_track = $schema->resultset('Track')->create({ trackid => 2, cd => 1, position => 1, title => 'Track2' });
-my $tcount = $schema->resultset('Track')->search(
-    {},
-    {
-        select => [{count => {distinct => ['position', 'title']}}],
-        as => ['count']
-    }
-  );
 
-is($tcount->next->get_column('count'), 2, "multiple column select distinct ok");
+my $tcount = $schema->resultset('Track')->search(
+  {},
+  {
+    select => [ qw/position title/ ],
+    distinct => 1,
+  }
+);
+is($tcount->count, 2, 'multiple column COUNT DISTINCT ok');
+
+$tcount = $schema->resultset('Track')->search(
+  {},
+  {
+    columns => [ qw/position title/ ],
+    distinct => 1,
+  }
+);
+is($tcount->count, 2, 'multiple column COUNT DISTINCT ok');
+
+$tcount = $schema->resultset('Track')->search(
+  {},
+  { 
+     group_by => [ qw/position title/ ]
+  }
+);
+is($tcount->count, 2, 'multiple column COUNT DISTINCT using column syntax ok');
 
 # test LIMIT support
 for (1..6) {

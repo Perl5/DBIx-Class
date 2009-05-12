@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use lib 't/lib';
+use DBICTest; # do not remove even though it is not used 
 use Test::More tests => 8;
 
 sub _chk_warning {

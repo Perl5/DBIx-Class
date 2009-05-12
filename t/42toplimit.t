@@ -3,6 +3,8 @@ use warnings;
 
 use Test::More;
 use DBIx::Class::Storage::DBI;
+use lib qw(t/lib);
+use DBICTest; # do not remove even though it is not used
 
 plan tests => 1;
 
