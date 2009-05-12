@@ -16,7 +16,7 @@ my $exp_warn = qr/The many-to-many relationship 'bars' is trying to create/;
   ok (! $@, 'Eval code without warnings suppression')
     || diag $@;
 
-  ok (@w, "Warning triggered without DBIC_METHOD_CLOBBER_OK");
+  ok (@w, "Warning triggered without DBIC_OVERWRITE_HELPER_METHODS_OK");
 }
 
 {
@@ -25,12 +25,12 @@ my $exp_warn = qr/The many-to-many relationship 'bars' is trying to create/;
 
   my $code = gen_code ( suffix => 2 );
 
-  local $ENV{DBIC_METHOD_CLOBBER_OK} = 1;
+  local $ENV{DBIC_OVERWRITE_HELPER_METHODS_OK} = 1;
   eval "$code";
   ok (! $@, 'Eval code with warnings suppression')
     || diag $@;
 
-  ok (! @w, "No warning triggered with DBIC_METHOD_CLOBBER_OK");
+  ok (! @w, "No warning triggered with DBIC_OVERWRITE_HELPER_METHODS_OK");
 }
 
 sub gen_code {

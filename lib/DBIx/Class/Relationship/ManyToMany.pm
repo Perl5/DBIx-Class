@@ -29,7 +29,7 @@ sub many_to_many {
 
     for ($add_meth, $remove_meth, $set_meth, $rs_meth) {
       if ( $class->can ($_) ) {
-        carp (<<"EOW") unless $ENV{DBIC_METHOD_CLOBBER_OK};
+        carp (<<"EOW") unless $ENV{DBIC_OVERWRITE_HELPER_METHODS_OK};
 
 ***************************************************************************
 The many-to-many relationship '$meth' is trying to create a utility method
@@ -41,8 +41,8 @@ You almost certainly want to rename your method or the many-to-many
 relationship, as the functionality of the original method will not be
 accessible anymore.
 
-To disable this warning set the environment variable DBIC_METHOD_CLOBBER_OK
-to a true value
+To disable this warning set to a true value the environment variable
+DBIC_OVERWRITE_HELPER_METHODS_OK
 
 ***************************************************************************
 EOW
