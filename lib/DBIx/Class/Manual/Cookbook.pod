@@ -237,29 +237,49 @@ any of your aliases using either of these:
 
 =head2 SELECT DISTINCT with multiple columns
 
-  my $rs = $schema->resultset('Foo')->search(
+  my $rs = $schema->resultset('Artist')->search(
     {},
     {
-      select => [
-        { distinct => [ $source->columns ] }
-      ],
-      as => [ $source->columns ] # remember 'as' is not the same as SQL AS :-)
+      columns => [ qw/artistid name rank/ ],
+      distinct => 1
+    } 
+  );
+
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      columns => [ qw/artistid name rank/ ],
+      group_by => [ qw/artistid name rank/ ],
     }
   );
+
+  # Equivalent SQL:
+  # SELECT me.artistid, me.name, me.rank
+  # FROM artist me
+  # GROUP BY artistid, name, rank
 
 =head2 SELECT COUNT(DISTINCT colname)
 
-  my $rs = $schema->resultset('Foo')->search(
+  my $rs = $schema->resultset('Artist')->search(
     {},
     {
-      select => [
-        { count => { distinct => 'colname' } }
-      ],
-      as => [ 'count' ]
+      columns => [ qw/name/ ],
+      distinct => 1
     }
   );
 
-  my $count = $rs->next->get_column('count');
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      columns => [ qw/name/ ],
+      group_by => [ qw/name/ ],
+    }
+  );
+
+  my $count = $rs->count;
+
+  # Equivalent SQL:
+  # SELECT COUNT( DISTINCT( me.name ) ) FROM artist me 
 
 =head2 Grouping results
 
