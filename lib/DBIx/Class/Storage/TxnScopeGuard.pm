@@ -2,6 +2,7 @@ package DBIx::Class::Storage::TxnScopeGuard;
 
 use strict;
 use warnings;
+use Carp ();
 
 sub new {
   my ($class, $storage) = @_;

@@ -124,7 +124,7 @@ sub select {
   local $self->{rownum_hack_count} = 1
     if (defined $rest[0] && $self->{limit_dialect} eq 'RowNum');
   @rest = (-1) unless defined $rest[0];
-  die "LIMIT 0 Does Not Compute" if $rest[0] == 0;
+  croak "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
   my ($sql, @where_bind) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $order, @rest
@@ -189,7 +189,7 @@ sub _recurse_fields {
       if ($func eq 'distinct') {
         my $_fields = $fields->{$func};
         if (ref $_fields eq 'ARRAY' && @{$_fields} > 1) {
-          die "Unsupported syntax, please use " . 
+          croak "Unsupported syntax, please use " . 
               "{ group_by => [ qw/" . (join ' ', @$_fields) . "/ ] }" .
               " or " .
               "{ select => [ qw/" . (join ' ', @$_fields) . "/ ], distinct => 1 }";
@@ -212,7 +212,7 @@ sub _recurse_fields {
     return $self->_fold_sqlbind( $fields );
   }
   else {
-    Carp::croak($ref . qq{ unexpected in _recurse_fields()})
+    croak($ref . qq{ unexpected in _recurse_fields()})
   }
 }
 
@@ -332,8 +332,7 @@ sub _join_condition {
     for (keys %$cond) {
       my $v = $cond->{$_};
       if (ref $v) {
-        # XXX no throw_exception() in this package and croak() fails with strange results
-        Carp::croak(ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
+        croak (ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
             if ref($v) ne 'SCALAR';
         $j{$_} = $v;
       }

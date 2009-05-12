@@ -2,6 +2,7 @@ package # Hide from PAUSE
   DBIx::Class::SQLAHacks::OracleJoins;
 
 use base qw( DBIx::Class::SQLAHacks );
+use Carp::Clan qw/^DBIx::Class/;
 
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
@@ -67,7 +68,7 @@ sub _recurse_oracle_joins {
       #TODO: Support full outer joins -- this would happen much earlier in
       #the sequence since oracle 8's full outer join syntax is best
       #described as INSANE.
-      die "Can't handle full outer joins in Oracle 8 yet!\n"
+      croak "Can't handle full outer joins in Oracle 8 yet!\n"
         if $to_jt->{-join_type} =~ /full/i;
 
       $left_join  = q{(+)} if $to_jt->{-join_type} =~ /left/i
