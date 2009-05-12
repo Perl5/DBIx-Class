@@ -1,5 +1,4 @@
 package DBIx::Class::Storage::DBI::Oracle::Generic;
-# -*- mode: cperl; cperl-indent-level: 2 -*-
 
 use strict;
 use warnings;
@@ -24,14 +23,11 @@ This class implements autoincrements for Oracle.
 
 =cut
 
+use base qw/DBIx::Class::Storage::DBI/;
 use Carp::Clan qw/^DBIx::Class/;
 
 # For ORA_BLOB => 113, ORA_CLOB => 112
 use DBD::Oracle qw( :ora_types );
-
-use base qw/DBIx::Class::Storage::DBI::MultiDistinctEmulation/;
-
-# __PACKAGE__->load_components(qw/PK::Auto/);
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, @columns) = @_;

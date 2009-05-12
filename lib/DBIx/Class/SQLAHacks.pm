@@ -1,9 +1,8 @@
-
 package # Hide from PAUSE
-DBIx::Class::SQLAHacks; # Would merge upstream, but nate doesn't reply :(
-
+  DBIx::Class::SQLAHacks; # Would merge upstream, but nate doesn't reply :(
 
 use base qw/SQL::Abstract::Limit/;
+use Carp::Clan qw/^DBIx::Class/;
 
 sub new {
   my $self = shift->SUPER::new(@_);
@@ -114,6 +113,9 @@ sub _find_syntax {
 
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
+  local $self->{having_bind} = [];
+  local $self->{from_bind} = [];
+
   if (ref $table eq 'SCALAR') {
     $table = $$table;
   }
@@ -125,8 +127,7 @@ sub select {
   @rest = (-1) unless defined $rest[0];
   die "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
-  local $self->{having_bind} = [];
-  my ($sql, @ret) = $self->SUPER::select(
+  my ($sql, @where_bind) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $order, @rest
   );
   $sql .= 
@@ -138,7 +139,7 @@ sub select {
     ) :
     ''
   ;
-  return wantarray ? ($sql, @ret, @{$self->{having_bind}}) : $sql;
+  return wantarray ? ($sql, @{$self->{from_bind}}, @where_bind, @{$self->{having_bind}}) : $sql;
 }
 
 sub insert {
@@ -186,13 +187,30 @@ sub _recurse_fields {
       } @$fields);
   } elsif ($ref eq 'HASH') {
     foreach my $func (keys %$fields) {
+      if ($func eq 'distinct') {
+        my $_fields = $fields->{$func};
+        if (ref $_fields eq 'ARRAY' && @{$_fields} > 1) {
+          die "Unsupported syntax, please use " . 
+              "{ group_by => [ qw/" . (join ' ', @$_fields) . "/ ] }" .
+              " or " .
+              "{ select => [ qw/" . (join ' ', @$_fields) . "/ ], distinct => 1 }";
+        }
+        else {
+          $_fields = @{$_fields}[0] if ref $_fields eq 'ARRAY';
+          carp "This syntax will be deprecated in 09, please use " . 
+               "{ group_by => '${_fields}' }" . 
+               " or " .
+               "{ select => '${_fields}', distinct => 1 }";
+        }
+      }
+      
       return $self->_sqlcase($func)
         .'( '.$self->_recurse_fields($fields->{$func}).' )';
     }
   }
   # Is the second check absolutely necessary?
   elsif ( $ref eq 'REF' and ref($$fields) eq 'ARRAY' ) {
-    return $self->_bind_to_sql( $fields );
+    return $self->_fold_sqlbind( $fields );
   }
   else {
     Carp::croak($ref . qq{ unexpected in _recurse_fields()})
@@ -285,19 +303,18 @@ sub _recurse_from {
   return join('', @sqlf);
 }
 
-sub _bind_to_sql {
-  my $self = shift;
-  my $arr  = shift;
-  my $sql = shift @$$arr;
-  $sql =~ s/\?/$self->_quote((shift @$$arr)->[1])/eg;
-  return $sql
+sub _fold_sqlbind {
+  my ($self, $sqlbind) = @_;
+  my $sql = shift @$$sqlbind;
+  push @{$self->{from_bind}}, @$$sqlbind;
+  return $sql;
 }
 
 sub _make_as {
   my ($self, $from) = @_;
-  return join(' ', map { (ref $_ eq 'SCALAR' ? $$_ 
-                        : ref $_ eq 'REF'    ? $self->_bind_to_sql($_) 
-                        : $self->_quote($_)) 
+  return join(' ', map { (ref $_ eq 'SCALAR' ? $$_
+                        : ref $_ eq 'REF'    ? $self->_fold_sqlbind($_)
+                        : $self->_quote($_))
                        } reverse each %{$self->_skip_options($from)});
 }
 
