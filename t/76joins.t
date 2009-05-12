@@ -33,7 +33,7 @@ if( $schema->storage->dbh->get_info(17) eq 'SQLite' &&
 }
 
 # test the abstract join => SQL generator
-my $sa = new DBIC::SQL::Abstract;
+my $sa = new DBIx::Class::SQLAHacks;
 
 my @j = (
     { child => 'person' },

@@ -8,7 +8,7 @@ use DBICTest; # do not remove even though it is not used
 
 plan tests => 1;
 
-my $sa = new DBIC::SQL::Abstract;
+my $sa = new DBIx::Class::SQLAHacks;
 
 $sa->limit_dialect( 'Top' );
 
