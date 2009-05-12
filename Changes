@@ -1,5 +1,12 @@
 Revision history for DBIx::Class
 
+        - Remove MultiDistinctEmulation.pm, effectively deprecating
+          { select => { distinct => [ qw/col1 col2/ ] } }
+        - Change ->count code to work correctly with DISTINCT (distinct => 1)
+          via GROUP BY
+        - remove interpolation of bind vars for as_query
+        - update Cookbook entry for "SELECT DISTINCT with multiple columns"
+        - update Cookbook entry for "SELECT COUNT(DISTINCT colname)"
         - Refactor DBIx::Class::Storage::DBI::Sybase to automatically 
           load a subclass, namely Microsoft_SQL_Server.pm
           (similar to DBIx::Class::Storage::DBI::ODBC)
