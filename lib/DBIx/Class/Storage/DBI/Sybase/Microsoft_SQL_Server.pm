@@ -3,7 +3,10 @@ package DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server DBIx::Class::Storage::DBI::Sybase/;
+use base qw/
+  DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server
+  DBIx::Class::Storage::DBI::Sybase
+/;
 
 1;
 
