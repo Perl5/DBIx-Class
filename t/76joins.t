@@ -127,7 +127,7 @@ my @j6 = (
     [ { father => 'person' }, { 'father.person_id' => { '!=', '42' } }, ],
     [ { mother => 'person' }, { 'mother.person_id' => 'child.mother_id' } ],
 );
-$match = qr/^HASH reference arguments are not supported in JOINS - try using "\.\.\." instead/;
+$match = qr/HASH reference arguments are not supported in JOINS/;
 eval { $sa->_recurse_from(@j6) };
 like( $@, $match, 'join 6 (HASH reference for ON statement dies) ok' );
 
