@@ -1,5 +1,5 @@
 package # Hide from PAUSE
-  DBIx::Class::SQLAHacks; # Would merge upstream, but nate doesn't reply :(
+  DBIx::Class::SQLAHacks;
 
 use base qw/SQL::Abstract::Limit/;
 use Carp::Clan qw/^DBIx::Class/;
@@ -15,7 +15,6 @@ sub new {
 
   $self;
 }
-
 
 
 # Some databases (sqlite) do not handle multiple parenthesis
@@ -392,7 +391,9 @@ __END__
 
 =head1 NAME
 
-DBIx::Class::SQLAHacks - Things desired to be merged into SQL::Abstract
+DBIx::Class::SQLAHacks - This module is a subclass of SQL::Abstract::Limit
+and includes a number of DBIC-specific workarounds, not yet suitable for
+inclusion into SQLA proper.
 
 =head1 METHODS
 

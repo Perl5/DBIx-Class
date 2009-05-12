@@ -1,5 +1,5 @@
 package # Hide from PAUSE
-DBIx::Class::SQLAHacks::OracleJoins;
+  DBIx::Class::SQLAHacks::OracleJoins;
 
 use base qw( DBIx::Class::SQLAHacks );
 
