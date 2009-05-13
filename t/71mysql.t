@@ -136,7 +136,7 @@ my $cd = $schema->resultset ('CD')->create ({});
 
 my $producer = $schema->resultset ('Producer')->create ({});
 
-lives_ok { $cd->set_producers ([ $cd ]) } 'set_relationship doesnt die';
+lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
 
 # clean up our mess
 END {
