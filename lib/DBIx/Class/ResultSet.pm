@@ -1315,7 +1315,7 @@ sub _cond_for_update_delete {
   # Some attributes when present require a subquery
   # This might not work on some database (mysql), but...
   # it won't work without the subquery either so who cares
-  if (grep { defined $self->{attrs}{$_} } qw/join rows group_by/) {
+  if (grep { defined $self->{attrs}{$_} } qw/seen_join from rows group_by/) {
 
     foreach my $pk ($self->result_source->primary_columns) {
       $cond->{$pk} = { IN => $self->get_column($pk)->as_query };
