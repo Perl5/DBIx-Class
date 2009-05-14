@@ -1150,11 +1150,45 @@ on the resultset and counts the results of that.
 
 =cut
 
+my @count_via_subq_attrs = qw/join seen_join group_by/;
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
-  my $count = $self->_count;
+
+  my @check_attrs = @count_via_subq_attrs;
+
+  # if we are not paged - we are simply asking for a limit
+  if (not $self->{attrs}{page} and not $self->{attrs}{software_limit}) {
+    push @check_attrs, qw/rows offset/;
+  }
+
+  return $self->_has_attr (@check_attrs)
+    ? $self->_count_subq
+    : $self->_count_simple
+}
+
+sub _count_subq {
+  my $self = shift;
+
+  my $attrs = { %{$self->_resolved_attrs} };
+
+  my $select_cols = $attrs->{group_by} || [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
+  $attrs->{from} = [{
+    count_subq => $self->search ({}, { columns => $select_cols, group_by => $select_cols })
+                         ->as_query
+  }];
+
+  # the subquery above will integrate everything, including 'where' and any pagers
+  delete $attrs->{$_} for (@count_via_subq_attrs, qw/where rows offset pager page/ );
+
+  return $self->__count ($attrs);
+}
+
+sub _count_simple {
+  my $self = shift;
+
+  my $count = $self->__count;
   return 0 unless $count;
 
   # need to take offset from resolved attrs
@@ -1166,26 +1200,20 @@ sub count {
   return $count;
 }
 
-sub _count { # Separated out so pager can get the full count
-  my $self = shift;
-  my $attrs = { %{$self->_resolved_attrs} };
+sub __count {
+  my ($self, $attrs) = @_;
 
-  if (my $group_by = $attrs->{group_by}) {
-    delete $attrs->{order_by};
-
-    $attrs->{select} = $group_by; 
-    $attrs->{from} = [ { 'mesub' => (ref $self)->new($self->result_source, $attrs)->cursor->as_query } ];
-    delete $attrs->{where};
-  }
+  $attrs ||= { %{$self->{attrs}} };
 
   $attrs->{select} = { count => '*' };
   $attrs->{as} = [qw/count/];
 
-  # offset, order by, group by, where and page are not needed to count. record_filter is cdbi
-  delete $attrs->{$_} for qw/rows offset order_by group_by page pager record_filter/;
+  # take off any pagers, record_filter is cdbi, and no point of ordering a count
+  delete $attrs->{$_} for qw/rows offset page pager order_by record_filter/;
 
   my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
+
   return $count;
 }
 
@@ -1315,10 +1343,10 @@ sub _cond_for_update_delete {
   # Some attributes when present require a subquery
   # This might not work on some database (mysql), but...
   # it won't work without the subquery either so who cares
-  if (grep { defined $self->{attrs}{$_} } qw/join seen_join from rows group_by/) {
+  if ($self->_has_attr (qw/join seen_join group_by row offset page/) ) {
 
     foreach my $pk ($self->result_source->primary_columns) {
-      $cond->{$pk} = { IN => $self->get_column($pk)->as_query };
+      $cond->{$pk} = { -in => $self->get_column($pk)->as_query };
     }
 
     return $cond;
@@ -1390,7 +1418,7 @@ sub update {
     unless ref $values eq 'HASH';
 
   my $cond = $self->_cond_for_update_delete;
-  
+
   return $self->result_source->storage->update(
     $self->result_source, $values, $cond
   );
@@ -1672,7 +1700,7 @@ sub pager {
     unless $self->{attrs}{page};
   $attrs->{rows} ||= 10;
   return $self->{pager} ||= Data::Page->new(
-    $self->_count, $attrs->{rows}, $self->{attrs}{page});
+    $self->__count, $attrs->{rows}, $self->{attrs}{page});
 }
 
 =head2 page
@@ -1773,6 +1801,37 @@ sub _is_deterministic_value {
   my $ref_type = ref $value;
   return 1 if $ref_type eq '' || $ref_type eq 'SCALAR';
   return 1 if Scalar::Util::blessed($value);
+  return 0;
+}
+
+# _has_attr
+#
+# determines if the resultset defines at least one
+# of the attributes supplied
+#
+# used to determine if a subquery is neccessary
+
+sub _has_attr {
+  my ($self, @attr_names) = @_;
+
+  my $attrs = $self->_resolved_attrs;
+
+  my $join_check_req;
+
+  for my $n (@attr_names) {
+    return 1 if defined $attrs->{$n};
+    ++$join_check_req if $n =~ /join/;
+  }
+
+  # a join can be expressed as a multi-level from
+  return 1 if (
+    $join_check_req
+      and
+    ref $attrs->{from} eq 'ARRAY'
+      and
+    @{$attrs->{from}} > 1 
+  );
+
   return 0;
 }
 
