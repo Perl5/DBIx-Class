@@ -7,10 +7,10 @@ BEGIN {
   ## use, so we explicitly test for these.
 	
   my %replication_required = (
-    Moose => '0.54',
+    Moose => '0.77',
     MooseX::AttributeHelpers => '0.12',
-    Moose::Util::TypeConstraints => '0.54',
-    Class::MOP => '0.63',
+    MooseX::Types => '0.10',
+    namespace::clean => '0.11',
   );
 	
   my @didnt_load;
@@ -25,9 +25,16 @@ BEGIN {
     if @didnt_load;  	
 }
 
+use Moose;
 use DBIx::Class::Storage::DBI;
 use DBIx::Class::Storage::DBI::Replicated::Pool;
 use DBIx::Class::Storage::DBI::Replicated::Balancer;
+use DBIx::Class::Storage::DBI::Replicated::Types 'BalancerClassNamePart';
+use MooseX::Types::Moose qw/ClassName HashRef Object/;
+use Scalar::Util 'reftype';
+use Carp::Clan qw/^DBIx::Class/;
+
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -99,10 +106,10 @@ to force a query to run against Master when needed.
 
 Replicated Storage has additional requirements not currently part of L<DBIx::Class>
 
-  Moose => 0.54
+  Moose => 0.77
   MooseX::AttributeHelpers => 0.12 
-  Moose::Util::TypeConstraints => 0.54
-  Class::MOP => 0.63
+  MooseX::Types => 0.10
+  namespace::clean => 0.11
   
 You will need to install these modules manually via CPAN or make them part of the
 Makefile for your distribution.
@@ -132,9 +139,8 @@ to: L<DBIx::Class::Storage::DBI::Replicated::Pool>.
 =cut
 
 has 'pool_type' => (
-  is=>'ro',
-  isa=>'ClassName',
-  required=>1,
+  is=>'rw',
+  isa=>ClassName,
   default=>'DBIx::Class::Storage::DBI::Replicated::Pool',
   handles=>{
     'create_pool' => 'new',
@@ -149,10 +155,9 @@ See L<DBIx::Class::Storage::Replicated::Pool> for available arguments.
 =cut
 
 has 'pool_args' => (
-  is=>'ro',
-  isa=>'HashRef',
+  is=>'rw',
+  isa=>HashRef,
   lazy=>1,
-  required=>1,
   default=>sub { {} },
 );
 
@@ -164,23 +169,9 @@ choose how to spread the query load across each replicant in the pool.
 
 =cut
 
-subtype 'DBIx::Class::Storage::DBI::Replicated::BalancerClassNamePart',
-  as 'ClassName';
-    
-coerce 'DBIx::Class::Storage::DBI::Replicated::BalancerClassNamePart',
-  from 'Str',
-  via {
-  	my $type = $_;
-    if($type=~m/^::/) {
-      $type = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$type;
-    }  
-    Class::MOP::load_class($type);  
-    $type;  	
-  };
-
 has 'balancer_type' => (
-  is=>'ro',
-  isa=>'DBIx::Class::Storage::DBI::Replicated::BalancerClassNamePart',
+  is=>'rw',
+  isa=>BalancerClassNamePart,
   coerce=>1,
   required=>1,
   default=> 'DBIx::Class::Storage::DBI::Replicated::Balancer::First',
@@ -197,8 +188,8 @@ See L<DBIx::Class::Storage::Replicated::Balancer> for available arguments.
 =cut
 
 has 'balancer_args' => (
-  is=>'ro',
-  isa=>'HashRef',
+  is=>'rw',
+  isa=>HashRef,
   lazy=>1,
   required=>1,
   default=>sub { {} },
@@ -230,7 +221,7 @@ is a class that takes a pool (<DBIx::Class::Storage::DBI::Replicated::Pool>)
 =cut
 
 has 'balancer' => (
-  is=>'ro',
+  is=>'rw',
   isa=>'DBIx::Class::Storage::DBI::Replicated::Balancer',
   lazy_build=>1,
   handles=>[qw/auto_validate_every/],
@@ -265,7 +256,7 @@ Defines an object that implements the read side of L<BIx::Class::Storage::DBI>.
 
 has 'read_handler' => (
   is=>'rw',
-  isa=>'Object',
+  isa=>Object,
   lazy_build=>1,
   handles=>[qw/
     select
@@ -282,8 +273,7 @@ Defines an object that implements the write side of L<BIx::Class::Storage::DBI>.
 
 has 'write_handler' => (
   is=>'ro',
-  isa=>'Object',
-  lazy_build=>1,
+  isa=>Object,
   lazy_build=>1,
   handles=>[qw/   
     on_connect_do
@@ -317,6 +307,58 @@ has 'write_handler' => (
   /],
 );
 
+has _master_connect_info_opts =>
+  (is => 'rw', isa => HashRef, default => sub { {} });
+
+=head2 around: connect_info
+
+Preserve master's C<connect_info> options (for merging with replicants.)
+Also set any Replicated related options from connect_info, such as
+C<pool_type>, C<pool_args>, C<balancer_type> and C<balancer_args>.
+
+=cut
+
+around connect_info => sub {
+  my ($next, $self, $info, @extra) = @_;
+
+  my %opts;
+  for my $arg (@$info) {
+    next unless (reftype($arg)||'') eq 'HASH';
+    %opts = (%opts, %$arg);
+  }
+  delete $opts{dsn};
+
+  if (@opts{qw/pool_type pool_args/}) {
+    $self->pool_type(delete $opts{pool_type})
+      if $opts{pool_type};
+
+    $self->pool_args({
+      %{ $self->pool_args },
+      %{ delete $opts{pool_args} || {} }
+    });
+
+    $self->pool($self->_build_pool)
+	if $self->pool;
+  }
+
+  if (@opts{qw/balancer_type balancer_args/}) {
+    $self->balancer_type(delete $opts{balancer_type})
+      if $opts{balancer_type};
+
+    $self->balancer_args({
+      %{ $self->balancer_args },
+      %{ delete $opts{balancer_args} || {} }
+    });
+
+    $self->balancer($self->_build_balancer)
+	if $self->balancer;
+  }
+
+  $self->_master_connect_info_opts(\%opts);
+
+  $self->$next($info, @extra);
+};
+
 =head1 METHODS
 
 This class defines the following methods.
@@ -347,7 +389,9 @@ Lazy builder for the L</master> attribute.
 
 sub _build_master {
   my $self = shift @_;
-  DBIx::Class::Storage::DBI->new($self->schema);
+  my $master = DBIx::Class::Storage::DBI->new($self->schema);
+  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
+  $master
 }
 
 =head2 _build_pool
@@ -402,13 +446,39 @@ sub _build_read_handler {
 =head2 around: connect_replicants
 
 All calls to connect_replicants needs to have an existing $schema tacked onto
-top of the args, since L<DBIx::Storage::DBI> needs it.
+top of the args, since L<DBIx::Storage::DBI> needs it, and any C<connect_info>
+options merged with the master, with replicant opts having higher priority.
 
 =cut
 
-around 'connect_replicants' => sub {
-  my ($method, $self, @args) = @_;
-  $self->$method($self->schema, @args);
+around connect_replicants => sub {
+  my ($next, $self, @args) = @_;
+
+  for my $r (@args) {
+    $r = [ $r ] unless reftype $r eq 'ARRAY';
+
+    croak "coderef replicant connect_info not supported"
+      if ref $r->[0] && reftype $r->[0] eq 'CODE';
+
+# any connect_info options?
+    my $i = 0;
+    $i++ while $i < @$r && (reftype($r->[$i])||'') ne 'HASH';
+
+# make one if none    
+    $r->[$i] = {} unless $r->[$i];
+
+# merge if two hashes
+    my %opts = map %$_, @$r[$i .. $#{$r}];
+    splice @$r, $i+1, ($#{$r} - $i), ();
+
+# merge with master
+    %opts = (%{ $self->_master_connect_info_opts }, %opts);
+
+# update
+    $r->[$i] = \%opts;
+  }
+
+  $self->$next($self->schema, @args);
 };
 
 =head2 all_storages
@@ -423,7 +493,7 @@ sub all_storages {
   my $self = shift @_;
   return grep {defined $_ && blessed $_} (
      $self->master,
-     $self->replicants,
+     values %{ $self->replicants },
   );
 }
 
@@ -693,6 +763,21 @@ sub disconnect {
   }
 }
 
+=head2 cursor_class
+
+set cursor class on all storages, or return master's
+
+=cut
+
+sub cursor_class {
+  my ($self, $cursor_class) = @_;
+
+  if ($cursor_class) {
+    $_->cursor_class($cursor_class) for $self->all_storages;
+  }
+  $self->master->cursor_class;
+}
+  
 =head1 GOTCHAS
 
 Due to the fact that replicants can lag behind a master, you must take care to
