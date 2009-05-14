@@ -1,8 +1,21 @@
 Revision history for DBIx::Class
 
+        - Remove MultiDistinctEmulation.pm, effectively deprecating
+          { select => { distinct => [ qw/col1 col2/ ] } }
+        - Change ->count code to work correctly with DISTINCT (distinct => 1)
+          via GROUP BY
+        - remove interpolation of bind vars for as_query
+        - update Cookbook entry for "SELECT DISTINCT with multiple columns"
+        - update Cookbook entry for "SELECT COUNT(DISTINCT colname)"
         - Refactor DBIx::Class::Storage::DBI::Sybase to automatically 
           load a subclass, namely Microsoft_SQL_Server.pm
-          (similar to DBIx::Class::Storage::DBI::ODBC) 
+          (similar to DBIx::Class::Storage::DBI::ODBC)
+        - Proper support for update/delete of joined resultsets
+          (using IN => $sub_rs->as_query)
+        - Refactor InflateColumn::DateTime to allow components to
+          circumvent DateTime parsing
+        - Support inflation of timestamp datatype
+        - Support BLOB and CLOB datatypes on Oracle
 
 0.08102 2009-04-30 08:29:00 (UTC)
         - Fixed two subtle bugs when using columns or select/as

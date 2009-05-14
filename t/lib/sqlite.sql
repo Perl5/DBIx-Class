@@ -108,6 +108,7 @@ CREATE UNIQUE INDEX cd_artist_title_cd ON cd (artist, title);
 CREATE TABLE cd_to_producer (
   cd integer NOT NULL,
   producer integer NOT NULL,
+  attribute integer,
   PRIMARY KEY (cd, producer)
 );
 
@@ -375,7 +376,8 @@ CREATE TABLE track (
   cd integer NOT NULL,
   position integer NOT NULL,
   title varchar(100) NOT NULL,
-  last_updated_on datetime
+  last_updated_on datetime,
+  last_updated_at datetime
 );
 
 CREATE INDEX track_idx_cd_track ON track (cd);

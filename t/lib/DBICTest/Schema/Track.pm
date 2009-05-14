@@ -26,6 +26,10 @@ __PACKAGE__->add_columns(
     accessor => 'updated_date',
     is_nullable => 1
   },
+  last_updated_at => {
+    data_type => 'datetime',
+    is_nullable => 1
+  },
 );
 __PACKAGE__->set_primary_key('trackid');
 

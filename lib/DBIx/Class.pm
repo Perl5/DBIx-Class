@@ -275,6 +275,8 @@ nigel: Nigel Metheringham <nigelm@cpan.org>
 
 ningu: David Kamholz <dkamholz@cpan.org>
 
+Nniuq: Ron "Quinn" Straight" <quinnfazigu@gmail.org>
+
 norbi: Norbert Buchmuller <norbi@nix.hu>
 
 Numa: Dan Sully <daniel@cpan.org>

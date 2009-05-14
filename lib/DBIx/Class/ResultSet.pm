@@ -307,7 +307,7 @@ sub search_rs {
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
   # merge new attrs into inherited
-  foreach my $key (qw/join prefetch +select +as/) {
+  foreach my $key (qw/join prefetch +select +as bind/) {
     next unless exists $attrs->{$key};
     $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
@@ -796,19 +796,16 @@ sub _collapse_query {
   if (ref $query eq 'ARRAY') {
     foreach my $subquery (@$query) {
       next unless ref $subquery;  # -or
-#      warn "ARRAY: " . Dumper $subquery;
       $collapsed = $self->_collapse_query($subquery, $collapsed);
     }
   }
   elsif (ref $query eq 'HASH') {
     if (keys %$query and (keys %$query)[0] eq '-and') {
       foreach my $subquery (@{$query->{-and}}) {
-#        warn "HASH: " . Dumper $subquery;
         $collapsed = $self->_collapse_query($subquery, $collapsed);
       }
     }
     else {
-#      warn "LEAF: " . Dumper $query;
       foreach my $col (keys %$query) {
         my $value = $query->{$col};
         $collapsed->{$col}{$value}++;
@@ -1151,12 +1148,6 @@ Performs an SQL C<COUNT> with the same query as the resultset was built
 with to find the number of elements. If passed arguments, does a search
 on the resultset and counts the results of that.
 
-Note: When using C<count> with C<group_by>, L<DBIx::Class> emulates C<GROUP BY>
-using C<COUNT( DISTINCT( columns ) )>. Some databases (notably SQLite) do
-not support C<DISTINCT> with multiple columns. If you are using such a
-database, you should only use columns from the main table in your C<group_by>
-clause.
-
 =cut
 
 sub count {
@@ -1177,32 +1168,21 @@ sub count {
 
 sub _count { # Separated out so pager can get the full count
   my $self = shift;
-  my $select = { count => '*' };
-
   my $attrs = { %{$self->_resolved_attrs} };
-  if (my $group_by = delete $attrs->{group_by}) {
-    delete $attrs->{having};
-    my @distinct = (ref $group_by ?  @$group_by : ($group_by));
-    # todo: try CONCAT for multi-column pk
-    my @pk = $self->result_source->primary_columns;
-    if (@pk == 1) {
-      my $alias = $attrs->{alias};
-      foreach my $column (@distinct) {
-        if ($column =~ qr/^(?:\Q${alias}.\E)?$pk[0]$/) {
-          @distinct = ($column);
-          last;
-        }
-      }
-    }
 
-    $select = { count => { distinct => \@distinct } };
+  if (my $group_by = $attrs->{group_by}) {
+    delete $attrs->{order_by};
+
+    $attrs->{select} = $group_by; 
+    $attrs->{from} = [ { 'mesub' => (ref $self)->new($self->result_source, $attrs)->cursor->as_query } ];
+    delete $attrs->{where};
   }
 
-  $attrs->{select} = $select;
+  $attrs->{select} = { count => '*' };
   $attrs->{as} = [qw/count/];
 
-  # offset, order by and page are not needed to count. record_filter is cdbi
-  delete $attrs->{$_} for qw/rows offset order_by page pager record_filter/;
+  # offset, order by, group by, where and page are not needed to count. record_filter is cdbi
+  delete $attrs->{$_} for qw/rows offset order_by group_by page pager record_filter/;
 
   my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
@@ -1332,6 +1312,18 @@ sub _cond_for_update_delete {
   # No-op. No condition, we're updating/deleting everything
   return $cond unless ref $full_cond;
 
+  # Some attributes when present require a subquery
+  # This might not work on some database (mysql), but...
+  # it won't work without the subquery either so who cares
+  if (grep { defined $self->{attrs}{$_} } qw/join seen_join from rows group_by/) {
+
+    foreach my $pk ($self->result_source->primary_columns) {
+      $cond->{$pk} = { IN => $self->get_column($pk)->as_query };
+    }
+
+    return $cond;
+  }
+
   if (ref $full_cond eq 'ARRAY') {
     $cond = [
       map {
@@ -1347,11 +1339,9 @@ sub _cond_for_update_delete {
   elsif (ref $full_cond eq 'HASH') {
     if ((keys %{$full_cond})[0] eq '-and') {
       $cond->{-and} = [];
-
       my @cond = @{$full_cond->{-and}};
-      for (my $i = 0; $i < @cond; $i++) {
+       for (my $i = 0; $i < @cond; $i++) {
         my $entry = $cond[$i];
-
         my $hash;
         if (ref $entry eq 'HASH') {
           $hash = $self->_cond_for_update_delete($entry);
@@ -1360,7 +1350,6 @@ sub _cond_for_update_delete {
           $entry =~ /([^.]+)$/;
           $hash->{$1} = $cond[++$i];
         }
-
         push @{$cond->{-and}}, $hash;
       }
     }
@@ -1372,11 +1361,9 @@ sub _cond_for_update_delete {
     }
   }
   else {
-    $self->throw_exception(
-      "Can't update/delete on resultset with condition unless hash or array"
-    );
+    $self->throw_exception("Can't update/delete on resultset with condition unless hash or array");
   }
-
+ 
   return $cond;
 }
 
@@ -1402,13 +1389,8 @@ sub update {
   $self->throw_exception("Values for update must be a hash")
     unless ref $values eq 'HASH';
 
-  carp(   'WARNING! Currently $rs->update() does not generate proper SQL'
-        . ' on joined resultsets, and may affect rows well outside of the'
-        . ' contents of $rs. Use at your own risk' )
-    if ( $self->{attrs}{seen_join} );
-
   my $cond = $self->_cond_for_update_delete;
-   
+  
   return $self->result_source->storage->update(
     $self->result_source, $values, $cond
   );
@@ -1456,10 +1438,6 @@ to run. See also L<DBIx::Class::Row/delete>.
 delete may not generate correct SQL for a query with joins or a resultset
 chained from a related resultset.  In this case it will generate a warning:-
 
-  WARNING! Currently $rs->delete() does not generate proper SQL on
-  joined resultsets, and may delete rows well outside of the contents
-  of $rs. Use at your own risk
-
 In these cases you may find that delete_all is more appropriate, or you
 need to respecify your query in a way that can be expressed without a join.
 
@@ -1469,10 +1447,7 @@ sub delete {
   my ($self) = @_;
   $self->throw_exception("Delete should not be passed any arguments")
     if $_[1];
-  carp(   'WARNING! Currently $rs->delete() does not generate proper SQL'
-        . ' on joined resultsets, and may delete rows well outside of the'
-        . ' contents of $rs. Use at your own risk' )
-    if ( $self->{attrs}{seen_join} );
+
   my $cond = $self->_cond_for_update_delete;
 
   $self->result_source->storage->delete($self->result_source, $cond);
@@ -1813,19 +1788,16 @@ sub _collapse_cond {
   if (ref $cond eq 'ARRAY') {
     foreach my $subcond (@$cond) {
       next unless ref $subcond;  # -or
-#      warn "ARRAY: " . Dumper $subcond;
       $collapsed = $self->_collapse_cond($subcond, $collapsed);
     }
   }
   elsif (ref $cond eq 'HASH') {
     if (keys %$cond and (keys %$cond)[0] eq '-and') {
       foreach my $subcond (@{$cond->{-and}}) {
-#        warn "HASH: " . Dumper $subcond;
         $collapsed = $self->_collapse_cond($subcond, $collapsed);
       }
     }
     else {
-#      warn "LEAF: " . Dumper $cond;
       foreach my $col (keys %$cond) {
         my $value = $cond->{$col};
         $collapsed->{$col} = $value;

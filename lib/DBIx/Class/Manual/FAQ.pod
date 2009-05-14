@@ -552,3 +552,23 @@ group, or stringify_self method) ?
 See L<DBIx::Class::Manual::Cookbook/Stringification>
 
 =back
+
+=head2 Troubleshooting
+
+=over 4
+
+=item Help, I can't connect to postgresql!
+
+If you get an error such as:
+
+  DBI connect('dbname=dbic','user',...) failed: could not connect to server:
+  No such file or directory Is the server running locally and accepting
+  connections on Unix domain socket "/var/run/postgresql/.s.PGSQL.5432"?
+
+Likely you have/had two copies of postgresql installed simultaneously, the
+second one will use a default port of 5433, while L<DBD::Pg> is compiled with a
+default port of 5432.
+
+You can chance the port setting in C<postgresql.conf>.
+
+=back

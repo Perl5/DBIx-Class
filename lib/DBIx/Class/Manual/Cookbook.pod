@@ -237,29 +237,49 @@ any of your aliases using either of these:
 
 =head2 SELECT DISTINCT with multiple columns
 
-  my $rs = $schema->resultset('Foo')->search(
+  my $rs = $schema->resultset('Artist')->search(
     {},
     {
-      select => [
-        { distinct => [ $source->columns ] }
-      ],
-      as => [ $source->columns ] # remember 'as' is not the same as SQL AS :-)
+      columns => [ qw/artistid name rank/ ],
+      distinct => 1
+    } 
+  );
+
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      columns => [ qw/artistid name rank/ ],
+      group_by => [ qw/artistid name rank/ ],
     }
   );
+
+  # Equivalent SQL:
+  # SELECT me.artistid, me.name, me.rank
+  # FROM artist me
+  # GROUP BY artistid, name, rank
 
 =head2 SELECT COUNT(DISTINCT colname)
 
-  my $rs = $schema->resultset('Foo')->search(
+  my $rs = $schema->resultset('Artist')->search(
     {},
     {
-      select => [
-        { count => { distinct => 'colname' } }
-      ],
-      as => [ 'count' ]
+      columns => [ qw/name/ ],
+      distinct => 1
     }
   );
 
-  my $count = $rs->next->get_column('count');
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      columns => [ qw/name/ ],
+      group_by => [ qw/name/ ],
+    }
+  );
+
+  my $count = $rs->count;
+
+  # Equivalent SQL:
+  # SELECT COUNT( DISTINCT( me.name ) ) FROM artist me 
 
 =head2 Grouping results
 
@@ -497,9 +517,6 @@ L<DBIx::Class> has now prefetched all matching data from the C<artist> table,
 so no additional SQL statements are executed. You now have a much more
 efficient query.
 
-Note that as of L<DBIx::Class> 0.05999_01, C<prefetch> I<can> be used with
-C<has_many> relationships.
-
 Also note that C<prefetch> should only be used when you know you will
 definitely use data from a related table. Pre-fetching related tables when you
 only need columns from the main table will make performance worse!
@@ -617,7 +634,7 @@ CD and Concert, and join CD to LinerNotes:
 
 =head2 Multi-step prefetch
 
-From 0.04999_05 onwards, C<prefetch> can be nested more than one relationship
+C<prefetch> can be nested more than one relationship
 deep using the same syntax as a multi-step join:
 
   my $rs = $schema->resultset('Tag')->search(
@@ -657,8 +674,7 @@ method.
 
 AKA getting last_insert_id
 
-If you are using PK::Auto (which is a core component as of 0.07), this is 
-straightforward:
+Thanks to the core component PK::Auto, this is straightforward:
 
   my $foo = $rs->create(\%blah);
   # do more stuff
