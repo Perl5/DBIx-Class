@@ -31,8 +31,8 @@ coerce BalancerClassNamePart,
 
 subtype Weight,
   as Num,
-  where { $_ >= 0 && $_ <= 1 },
-  message { 'weight must be a decimal between 0 and 1' };
+  where { $_ >= 0 },
+  message { 'weight must be a decimal greater than 0' };
 
 =head1 AUTHOR
 

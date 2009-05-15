@@ -81,6 +81,7 @@ my %force_requires_if_author = (
   'MooseX::AttributeHelpers'      => 0.12,
   'MooseX::Types',                => 0.10,
   'namespace::clean'              => 0.11,
+  'Hash::Merge',                  => 0.11,
 
   # t/96_is_deteministic_value.t
   'DateTime::Format::Strptime' => 0,

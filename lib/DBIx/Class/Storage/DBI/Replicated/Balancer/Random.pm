@@ -30,10 +30,16 @@ This class defines the following attributes.
 
 =head2 master_read_weight
 
-A number from 0 to 1 that specifies what weight to give the master when choosing
-which backend to execute a read query on. A value of 0, which is the default,
-does no reads from master, while a value of 1 gives it the same priority as any
-single replicant.
+A number greater than 0 that specifies what weight to give the master when
+choosing which backend to execute a read query on. A value of 0, which is the
+default, does no reads from master, while a value of 1 gives it the same
+priority as any single replicant.
+
+For example: if you have 2 replicants, and a L</master_read_weight> of C<0.5>,
+the chance of reading from master will be C<20%>.
+
+You can set it to a value higher than 1, making master have higher weight than
+any single replicant, if for example you have a very powerful master.
 
 =cut
 

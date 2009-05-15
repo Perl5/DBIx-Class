@@ -11,6 +11,7 @@ BEGIN {
     MooseX::AttributeHelpers => '0.12',
     MooseX::Types => '0.10',
     namespace::clean => '0.11',
+    Hash::Merge => '0.11'
   );
 	
   my @didnt_load;
@@ -33,6 +34,7 @@ use DBIx::Class::Storage::DBI::Replicated::Types 'BalancerClassNamePart';
 use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
 use Carp::Clan qw/^DBIx::Class/;
+use Hash::Merge 'merge';
 
 use namespace::clean -except => 'meta';
 
@@ -110,6 +112,7 @@ Replicated Storage has additional requirements not currently part of L<DBIx::Cla
   MooseX::AttributeHelpers => 0.12 
   MooseX::Types => 0.10
   namespace::clean => 0.11
+  Hash::Merge => 0.11
   
 You will need to install these modules manually via CPAN or make them part of the
 Makefile for your distribution.
@@ -324,7 +327,7 @@ around connect_info => sub {
   my %opts;
   for my $arg (@$info) {
     next unless (reftype($arg)||'') eq 'HASH';
-    %opts = (%opts, %$arg);
+    %opts = %{ merge($arg, \%opts) };
   }
   delete $opts{dsn};
 
@@ -332,10 +335,9 @@ around connect_info => sub {
     $self->pool_type(delete $opts{pool_type})
       if $opts{pool_type};
 
-    $self->pool_args({
-      %{ $self->pool_args },
-      %{ delete $opts{pool_args} || {} }
-    });
+    $self->pool_args(
+      merge((delete $opts{pool_args} || {}), $self->pool_args)
+    );
 
     $self->pool($self->_build_pool)
 	if $self->pool;
@@ -345,10 +347,9 @@ around connect_info => sub {
     $self->balancer_type(delete $opts{balancer_type})
       if $opts{balancer_type};
 
-    $self->balancer_args({
-      %{ $self->balancer_args },
-      %{ delete $opts{balancer_args} || {} }
-    });
+    $self->balancer_args(
+      merge((delete $opts{balancer_args} || {}), $self->balancer_args)
+    );
 
     $self->balancer($self->_build_balancer)
 	if $self->balancer;
@@ -468,11 +469,21 @@ around connect_replicants => sub {
     $r->[$i] = {} unless $r->[$i];
 
 # merge if two hashes
-    my %opts = map %$_, @$r[$i .. $#{$r}];
+    my @hashes = @$r[$i .. $#{$r}];
+
+    croak "invalid connect_info options"
+      if (grep { reftype($_) eq 'HASH' } @hashes) != @hashes;
+
+    croak "too many hashrefs in connect_info"
+      if @hashes > 2;
+
+    my %opts = %{ merge(reverse @hashes) };
+
+# delete them
     splice @$r, $i+1, ($#{$r} - $i), ();
 
 # merge with master
-    %opts = (%{ $self->_master_connect_info_opts }, %opts);
+    %opts = %{ merge(\%opts, $self->_master_connect_info_opts) };
 
 # update
     $r->[$i] = \%opts;
