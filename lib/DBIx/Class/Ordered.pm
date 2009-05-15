@@ -272,6 +272,20 @@ sub last_sibling {
     return defined $lsib ? $lsib : 0;
 }
 
+# an optimised method to get the last sibling position without inflating a row object
+sub _last_sibling_pos {
+    my $self = shift;
+    my $position_column = $self->position_column;
+
+    my $cursor = $self->next_siblings->search(
+        {},
+        { rows => 1, order_by => { '-desc' => $position_column }, columns => $position_column },
+    )->cursor;
+
+    my ($pos) = $cursor->next;
+    return $pos;
+}
+
 =head2 move_previous
 
   $item->move_previous();
@@ -427,7 +441,7 @@ sub move_to_group {
         if ( not defined($to_position) or $to_position > $new_group_count) {
             $self->set_column(
                 $position_column => $new_group_count
-                    ? $self->_next_position_value ( $self->last_sibling->get_column ($position_column) )    # FIXME - no need to inflate last_sibling
+                    ? $self->_next_position_value ( $self->_last_sibling_pos )
                     : $self->_initial_position_value
             );
         }
@@ -459,10 +473,10 @@ sub insert {
     my $position_column = $self->position_column;
 
     unless ($self->get_column($position_column)) {
-        my $lsib = $self->last_sibling;     # FIXME - no need to inflate last_sibling
+        my $lsib_pos = $self->_last_sibling_pos;
         $self->set_column(
-            $position_column => ($lsib
-                ? $self->_next_position_value ( $lsib->get_column ($position_column) )
+            $position_column => (defined $lsib_pos
+                ? $self->_next_position_value ( $lsib_pos )
                 : $self->_initial_position_value
             )
         );
@@ -692,12 +706,22 @@ sub _shift_siblings {
     # position column is part of a unique constraint, and do a
     # one-by-one update if this is the case
 
-    if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $self->result_source->unique_constraints }} ) ) ) {
+    my $rsrc = $self->result_source;
 
-        my $rs = $shift_rs->search ({}, { order_by => { "-$ord", $position_column } } );
-        # FIXME - no need to inflate each row
-        while (my $r = $rs->next) {
-            $r->_ordered_internal_update ({ $position_column => \ "$position_column $op 1" } );
+    if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) ) ) {
+
+        my @pcols = $rsrc->primary_columns;
+        my $cursor = $shift_rs->search ({}, { order_by => { "-$ord", $position_column }, columns => \@pcols } )->cursor;
+        my $rs = $self->result_source->resultset;
+
+        while (my @pks = $cursor->next ) {
+
+          my $cond;
+          for my $i (0.. $#pcols) {
+            $cond->{$pcols[$i]} = $pks[$i];
+          }
+
+          $rs->search($cond)->update ({ $position_column => \ "$position_column $op 1" } );
         }
     }
     else {
