@@ -1326,6 +1326,18 @@ sub first {
   return $_[0]->reset->next;
 }
 
+
+# _update_delete_via_subq
+#
+# Presence of some rs attributes requires a subquery to reliably 
+# update/deletre
+#
+
+sub _update_delete_via_subq {
+  return $_[0]->_has_attr (qw/join seen_join group_by row offset page/);
+}
+
+
 # _cond_for_update_delete
 #
 # update/delete require the condition to be modified to handle
@@ -1339,18 +1351,6 @@ sub _cond_for_update_delete {
   $full_cond ||= $self->{cond};
   # No-op. No condition, we're updating/deleting everything
   return $cond unless ref $full_cond;
-
-  # Some attributes when present require a subquery
-  # This might not work on some database (mysql), but...
-  # it won't work without the subquery either so who cares
-  if ($self->_has_attr (qw/join seen_join group_by row offset page/) ) {
-
-    foreach my $pk ($self->result_source->primary_columns) {
-      $cond->{$pk} = { -in => $self->get_column($pk)->as_query };
-    }
-
-    return $cond;
-  }
 
   if (ref $full_cond eq 'ARRAY') {
     $cond = [
@@ -1391,7 +1391,7 @@ sub _cond_for_update_delete {
   else {
     $self->throw_exception("Can't update/delete on resultset with condition unless hash or array");
   }
- 
+
   return $cond;
 }
 
@@ -1414,8 +1414,13 @@ if no records were updated; exact type of success value is storage-dependent.
 
 sub update {
   my ($self, $values) = @_;
-  $self->throw_exception("Values for update must be a hash")
+  $self->throw_exception('Values for update must be a hash')
     unless ref $values eq 'HASH';
+
+  # rs operations with subqueries are Storage dependent - delegate
+  if ($self->_update_delete_via_subq) {
+    return $self->result_source->storage->subq_update_delete($self, 'update', $values);
+  }
 
   my $cond = $self->_cond_for_update_delete;
 
@@ -1441,7 +1446,7 @@ will run DBIC cascade triggers, while L</update> will not.
 
 sub update_all {
   my ($self, $values) = @_;
-  $self->throw_exception("Values for update must be a hash")
+  $self->throw_exception('Values for update_all must be a hash')
     unless ref $values eq 'HASH';
   foreach my $obj ($self->all) {
     $obj->set_columns($values)->update;
@@ -1472,9 +1477,14 @@ need to respecify your query in a way that can be expressed without a join.
 =cut
 
 sub delete {
-  my ($self) = @_;
-  $self->throw_exception("Delete should not be passed any arguments")
-    if $_[1];
+  my $self = shift;
+  $self->throw_exception('delete does not accept any arguments')
+    if @_;
+
+  # rs operations with subqueries are Storage dependent - delegate
+  if ($self->_update_delete_via_subq) {
+    return $self->result_source->storage->subq_update_delete($self, 'delete');
+  }
 
   my $cond = $self->_cond_for_update_delete;
 
@@ -1498,7 +1508,10 @@ will run DBIC cascade triggers, while L</delete> will not.
 =cut
 
 sub delete_all {
-  my ($self) = @_;
+  my $self = shift;
+  $self->throw_exception('delete_all does not accept any arguments')
+    if @_;
+
   $_->delete for $self->all;
   return 1;
 }
