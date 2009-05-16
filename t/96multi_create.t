@@ -362,16 +362,16 @@ lives_ok ( sub {
 
 	});
 	
-	ok( $cd_result && ref $cd_result eq 'DBICTest::CD', "Got Good CD Class");
+	isa_ok( $cd_result, 'DBICTest::CD', "Got Good CD Class");
 	ok( $cd_result->title eq "TestOneCD1", "Got Expected Title");
 	
 	my $tracks = $cd_result->tracks;
 	
-	ok( ref $tracks eq "DBIx::Class::ResultSet", "Got Expected Tracks ResultSet");
+	isa_ok( $tracks, 'DBIx::Class::ResultSet', 'Got Expected Tracks ResultSet');
 	
 	foreach my $track ($tracks->all)
 	{
-		ok( $track && ref $track eq 'DBICTest::Track', 'Got Expected Track Class');
+		isa_ok( $track, 'DBICTest::Track', 'Got Expected Track Class');
 	}
 }, 'First create_related pass');
 
@@ -391,17 +391,17 @@ lives_ok ( sub {
 
 	});
 	
-	ok( $cd_result && ref $cd_result eq 'DBICTest::CD', "Got Good CD Class");
+	isa_ok( $cd_result, 'DBICTest::CD', "Got Good CD Class");
 	ok( $cd_result->title eq "TestOneCD2", "Got Expected Title");
   ok( $cd_result->notes eq 'I can haz liner notes?', 'Liner notes');
 	
 	my $tracks = $cd_result->tracks;
 	
-	ok( ref $tracks eq "DBIx::Class::ResultSet", "Got Expected Tracks ResultSet");
+	isa_ok( $tracks, 'DBIx::Class::ResultSet', "Got Expected Tracks ResultSet");
 	
 	foreach my $track ($tracks->all)
 	{
-		ok( $track && ref $track eq 'DBICTest::Track', 'Got Expected Track Class');
+		isa_ok( $track, 'DBICTest::Track', 'Got Expected Track Class');
 	}
 }, 'second create_related with same arguments');
 

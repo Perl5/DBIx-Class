@@ -1,7 +1,7 @@
 package # hide from PAUSE 
     DBICTest::Schema::Track;
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 __PACKAGE__->load_components(qw/InflateColumn::DateTime Ordered/);
 
 __PACKAGE__->table('track');
