@@ -1712,8 +1712,15 @@ sub pager {
   $self->throw_exception("Can't create pager for non-paged rs")
     unless $self->{attrs}{page};
   $attrs->{rows} ||= 10;
+
+  # throw away the paging flags and re-run the count (possibly 
+  # with a subselect) to get the real total count
+  my $count_attrs = { %$attrs };
+  delete $count_attrs->{$_} for qw/rows offset page pager/;
+  my $total_count = (ref $self)->new($self->result_source, $count_attrs);
+
   return $self->{pager} ||= Data::Page->new(
-    $self->__count, $attrs->{rows}, $self->{attrs}{page});
+    $total_count, $attrs->{rows}, $self->{attrs}{page});
 }
 
 =head2 page
