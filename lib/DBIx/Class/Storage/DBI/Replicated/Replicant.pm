@@ -2,6 +2,10 @@ package DBIx::Class::Storage::DBI::Replicated::Replicant;
 
 use Moose::Role;
 requires qw/_query_start/;
+with 'DBIx::Class::Storage::DBI::Replicated::WithDSN';
+use MooseX::Types::Moose 'Bool';
+
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -42,7 +46,7 @@ storage driver for more information.
 
 has 'active' => (
   is=>'rw',
-  isa=>'Bool',
+  isa=>Bool,
   lazy=>1,
   required=>1,
   default=>1,
@@ -51,18 +55,6 @@ has 'active' => (
 =head1 METHODS
 
 This class defines the following methods.
-
-=head2 around: _query_start
-
-advice iof the _query_start method to add more debuggin
-
-=cut
-
-around '_query_start' => sub {
-  my ($method, $self, $sql, @bind) = @_;
-  my $dsn = $self->_dbi_connect_info->[0];
-  $self->$method("DSN: $dsn SQL: $sql", @bind);
-};
 
 =head2 debugobj
 
@@ -76,7 +68,8 @@ sub debugobj {
 
 =head1 ALSO SEE
 
-L<<a href="http://en.wikipedia.org/wiki/Replicant">http://en.wikipedia.org/wiki/Replicant</a>>
+L<http://en.wikipedia.org/wiki/Replicant>,
+L<DBIx::Class::Storage::DBI::Replicated>
 
 =head1 AUTHOR
 

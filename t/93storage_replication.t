@@ -4,12 +4,15 @@ use lib qw(t/lib);
 use Test::More;
 use Test::Exception;
 use DBICTest;
+use List::Util 'first';
+use Scalar::Util 'reftype';
+use IO::Handle;
 
 BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 79 );
+        : ( tests => 90 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -49,10 +52,10 @@ TESTSCHEMACLASSES: {
     ## Initialize the object
     
 	sub new {
-	    my $class = shift @_;
+	    my ($class, $schema_method) = (shift, shift);
 	    my $self = $class->SUPER::new(@_);
 	
-	    $self->schema( $self->init_schema );
+	    $self->schema( $self->init_schema($schema_method) );
 	    return $self;
 	}
     
@@ -62,30 +65,71 @@ TESTSCHEMACLASSES: {
         # current SQLT SQLite producer does not handle DROP TABLE IF EXISTS, trap warnings here
         local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /no such table.+DROP TABLE/ };
 
-        my $class = shift @_;
+        my ($class, $schema_method) = @_;
 
-        my $schema = DBICTest->init_schema(
-            sqlite_use_file => 1,
-            storage_type=>{
-            	'::DBI::Replicated' => {
-            		balancer_type=>'::Random',
-                    balancer_args=>{
-                    	auto_validate_every=>100,
-                    },
-            	}
-            },
-            deploy_args=>{
-                   add_drop_table => 1,
-            },
-        );
+        my $method = "get_schema_$schema_method";
+        my $schema = $class->$method;
 
         return $schema;
     }
-    
+
+    sub get_schema_by_storage_type {
+      DBICTest->init_schema(
+        sqlite_use_file => 1,
+        storage_type=>{
+          '::DBI::Replicated' => {
+            balancer_type=>'::Random',
+            balancer_args=>{
+              auto_validate_every=>100,
+	      master_read_weight => 1
+            },
+          }
+        },
+        deploy_args=>{
+          add_drop_table => 1,
+        },
+      );
+    }
+
+    sub get_schema_by_connect_info {
+      DBICTest->init_schema(
+        sqlite_use_file => 1,
+        storage_type=> '::DBI::Replicated',
+        balancer_type=>'::Random',
+        balancer_args=> {
+          auto_validate_every=>100,
+	  master_read_weight => 1
+        },
+        deploy_args=>{
+          add_drop_table => 1,
+        },
+      );
+    }
+
     sub generate_replicant_connect_info {}
     sub replicate {}
     sub cleanup {}
 
+    ## --------------------------------------------------------------------- ##
+    ## Add a connect_info option to test option merging.
+    ## --------------------------------------------------------------------- ##
+    {
+    package DBIx::Class::Storage::DBI::Replicated;
+
+    use Moose;
+
+    __PACKAGE__->meta->make_mutable;
+
+    around connect_info => sub {
+      my ($next, $self, $info) = @_;
+      $info->[3]{master_option} = 1;
+      $self->$next($info);
+    };
+
+    __PACKAGE__->meta->make_immutable;
+
+    no Moose;
+    }
   
     ## --------------------------------------------------------------------- ##
     ## Subclass for when you are using SQLite for testing, this provides a fake
@@ -124,9 +168,20 @@ TESTSCHEMACLASSES: {
             "dbi:SQLite:${_}";
         } @{$self->slave_paths};
         
-        return map { [$_,'','',{AutoCommit=>1}] } @dsn;
+        my @connect_infos = map { [$_,'','',{AutoCommit=>1}] } @dsn;
+
+    # try a hashref too
+        my $c = $connect_infos[0];
+        $connect_infos[0] = {
+          dsn => $c->[0],
+          user => $c->[1],
+          password => $c->[2],
+          %{ $c->[3] }
+        };
+
+        @connect_infos
     }
-    
+
     ## Do a 'good enough' replication by copying the master dbfile over each of
     ## the slave dbfiles.  If the master is SQLite we do this, otherwise we
     ## just do a one second pause to let the slaves catch up.
@@ -185,14 +240,22 @@ my $replicated_class = DBICTest->has_custom_dsn ?
     'DBIx::Class::DBI::Replicated::TestReplication::Custom' :
     'DBIx::Class::DBI::Replicated::TestReplication::SQLite';
 
-ok my $replicated = $replicated_class->new
-    => 'Created a replication object';
-    
-isa_ok $replicated->schema
-    => 'DBIx::Class::Schema';
-    
-isa_ok $replicated->schema->storage
-    => 'DBIx::Class::Storage::DBI::Replicated';
+my $replicated;
+
+for my $method (qw/by_connect_info by_storage_type/) {
+  ok $replicated = $replicated_class->new($method)
+      => "Created a replication object $method";
+      
+  isa_ok $replicated->schema
+      => 'DBIx::Class::Schema';
+      
+  isa_ok $replicated->schema->storage
+      => 'DBIx::Class::Storage::DBI::Replicated';
+
+  isa_ok $replicated->schema->storage->balancer
+      => 'DBIx::Class::Storage::DBI::Replicated::Balancer::Random'
+      => 'configured balancer_type';
+}
 
 ok $replicated->schema->storage->meta
     => 'has a meta object';
@@ -211,10 +274,38 @@ ok my @replicant_connects = $replicated->generate_replicant_connect_info
 
 ok my @replicated_storages = $replicated->schema->storage->connect_replicants(@replicant_connects)
     => 'Created some storages suitable for replicants';
-    
+
+ok my @all_storages = $replicated->schema->storage->all_storages
+    => '->all_storages';
+
+is scalar @all_storages,
+    3
+    => 'correct number of ->all_storages';
+
+is ((grep $_->isa('DBIx::Class::Storage::DBI'), @all_storages),
+    3
+    => '->all_storages are correct type');
+
+my @all_storage_opts =
+  grep { (reftype($_)||'') eq 'HASH' }
+    map @{ $_->_connect_info }, @all_storages;
+
+is ((grep $_->{master_option}, @all_storage_opts),
+    3
+    => 'connect_info was merged from master to replicants');
+ 
+my @replicant_names = keys %{ $replicated->schema->storage->replicants };
+
+## Silence warning about not supporting the is_replicating method if using the
+## sqlite dbs.
+$replicated->schema->storage->debugobj->silence(1)
+  if first { m{^t/} } @replicant_names;
+   
 isa_ok $replicated->schema->storage->balancer->current_replicant
-    => 'DBIx::Class::Storage::DBI';
-    
+    => 'DBIx::Class::Storage::DBI'; 
+
+$replicated->schema->storage->debugobj->silence(0);
+
 ok $replicated->schema->storage->pool->has_replicants
     => 'does have replicants';     
 
@@ -227,8 +318,6 @@ does_ok $replicated_storages[0]
 does_ok $replicated_storages[1]
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
     
-my @replicant_names = keys %{$replicated->schema->storage->replicants};
-
 does_ok $replicated->schema->storage->replicants->{$replicant_names[0]}
     => 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 
@@ -249,7 +338,15 @@ $replicated
 $replicated->replicate;
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
+
+## Silence warning about not supporting the is_replicating method if using the
+## sqlite dbs.
+$replicated->schema->storage->debugobj->silence(1)
+  if first { m{^t/} } @replicant_names;
+ 
 $replicated->schema->storage->pool->validate_replicants;
+
+$replicated->schema->storage->debugobj->silence(0);
 
 ## Make sure we can read the data.
 
@@ -261,6 +358,28 @@ isa_ok $artist1
     
 is $artist1->name, 'Ozric Tentacles'
     => 'Found expected name for first result';
+
+## Check that master_read_weight is honored
+{
+    no warnings 'once';
+
+    # turn off redefined warning
+    local $SIG{__WARN__} = sub {};
+
+    local
+    *DBIx::Class::Storage::DBI::Replicated::Balancer::Random::_random_number =
+	sub { 999 };
+
+    $replicated->schema->storage->balancer->increment_storage;
+
+    is $replicated->schema->storage->balancer->current_replicant,
+       $replicated->schema->storage->master
+       => 'master_read_weight is honored';
+
+    ## turn it off for the duration of the test
+    $replicated->schema->storage->balancer->master_read_weight(0);
+    $replicated->schema->storage->balancer->increment_storage;
+}
 
 ## Add some new rows that only the master will have  This is because
 ## we overload any type of write operation so that is must hit the master
@@ -350,13 +469,33 @@ ok $replicated->schema->resultset('Artist')->find(2)
 
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(0);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(0);
-    
-ok $replicated->schema->resultset('Artist')->find(2)
-    => 'Fallback to master';
+
+{
+    ## catch the fallback to master warning
+    open my $debugfh, '>', \my $fallback_warning;
+    my $oldfh = $replicated->schema->storage->debugfh;
+    $replicated->schema->storage->debugfh($debugfh);
+
+    ok $replicated->schema->resultset('Artist')->find(2)
+	=> 'Fallback to master';
+
+    like $fallback_warning, qr/falling back to master/
+	=> 'emits falling back to master warning';
+
+    $replicated->schema->storage->debugfh($oldfh);
+}
 
 $replicated->schema->storage->replicants->{$replicant_names[0]}->active(1);
 $replicated->schema->storage->replicants->{$replicant_names[1]}->active(1);
+
+## Silence warning about not supporting the is_replicating method if using the
+## sqlite dbs.
+$replicated->schema->storage->debugobj->silence(1)
+  if first { m{^t/} } @replicant_names;
+ 
 $replicated->schema->storage->pool->validate_replicants;
+
+$replicated->schema->storage->debugobj->silence(0);
 
 ok $replicated->schema->resultset('Artist')->find(2)
     => 'Returned to replicates';
@@ -577,3 +716,5 @@ ok $replicated->schema->resultset('Artist')->find(1)
 
 ## Delete the old database files
 $replicated->cleanup;
+
+# vim: sw=4 sts=4 :

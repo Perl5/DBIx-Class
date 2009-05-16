@@ -2,7 +2,7 @@ package DBICTest::Schema::EventTZ;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class::Core/;
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
 

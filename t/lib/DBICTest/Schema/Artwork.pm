@@ -1,7 +1,7 @@
 package # hide from PAUSE
     DBICTest::Schema::Artwork;
 
-use base qw/DBIx::Class::Core/;
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('cd_artwork');
 __PACKAGE__->add_columns(

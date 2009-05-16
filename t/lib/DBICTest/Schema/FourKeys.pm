@@ -1,7 +1,7 @@
 package # hide from PAUSE 
     DBICTest::Schema::FourKeys;
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('fourkeys');
 __PACKAGE__->add_columns(

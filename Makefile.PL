@@ -77,10 +77,11 @@ my %force_requires_if_author = (
   ,
 
   # t/93storage_replication.t
-  'Moose',                        => 0.54,
-  'Moose::Util::TypeConstraints'  => 0.54,
+  'Moose',                        => 0.77,
   'MooseX::AttributeHelpers'      => 0.12,
-  'Class::MOP'                    => 0.63,
+  'MooseX::Types',                => 0.10,
+  'namespace::clean'              => 0.11,
+  'Hash::Merge',                  => 0.11,
 
   # t/96_is_deteministic_value.t
   'DateTime::Format::Strptime' => 0,

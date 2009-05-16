@@ -3,7 +3,12 @@ package DBIx::Class::Storage::DBI::Replicated::Pool;
 use Moose;
 use MooseX::AttributeHelpers;
 use DBIx::Class::Storage::DBI::Replicated::Replicant;
-use List::Util qw(sum);
+use List::Util 'sum';
+use Scalar::Util 'reftype';
+use Carp::Clan qw/^DBIx::Class/;
+use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
+
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -37,7 +42,7 @@ return a number of seconds that the replicating database is lagging.
 
 has 'maximum_lag' => (
   is=>'rw',
-  isa=>'Num',
+  isa=>Num,
   required=>1,
   lazy=>1,
   default=>0,
@@ -53,7 +58,7 @@ builtin.
 
 has 'last_validated' => (
   is=>'rw',
-  isa=>'Int',
+  isa=>Int,
   reader=>'last_validated',
   writer=>'_last_validated',
   lazy=>1,
@@ -70,7 +75,7 @@ just leave this alone.
 
 has 'replicant_type' => (
   is=>'ro',
-  isa=>'ClassName',
+  isa=>ClassName,
   required=>1,
   default=>'DBIx::Class::Storage::DBI',
   handles=>{
@@ -120,7 +125,7 @@ removes the replicant under $key from the pool
 has 'replicants' => (
   is=>'rw',
   metaclass => 'Collection::Hash',
-  isa=>'HashRef[DBIx::Class::Storage::DBI]',
+  isa=>HashRef['DBIx::Class::Storage::DBI'],
   default=>sub {{}},
   provides  => {
     'set' => 'set_replicant',
@@ -149,8 +154,18 @@ sub connect_replicants {
   
   my @newly_created = ();
   foreach my $connect_info (@_) {
+    $connect_info = [ $connect_info ]
+      if reftype $connect_info ne 'ARRAY';
+
+    croak "coderef replicant connect_info not supported"
+      if ref $connect_info->[0] && reftype $connect_info->[0] eq 'CODE';
+
     my $replicant = $self->connect_replicant($schema, $connect_info);
-    my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);
+
+    my $key = $connect_info->[0];
+    $key = $key->{dsn} if ref $key && reftype $key eq 'HASH';
+    ($key) = ($key =~ m/^dbi\:.+\:(.+)$/);
+
     $self->set_replicant( $key => $replicant);  
     push @newly_created, $replicant;
   }
@@ -280,13 +295,13 @@ sub validate_replicants {
     if($self->_safely_ensure_connected($replicant)) {
       my $is_replicating = $replicant->is_replicating;
       unless(defined $is_replicating) {
-        $replicant->debugobj->print("Storage Driver ".ref $self." Does not support the 'is_replicating' method.  Assuming you are manually managing.");
+        $replicant->debugobj->print("Storage Driver ".ref($self)." Does not support the 'is_replicating' method.  Assuming you are manually managing.\n");
         next;
       } else {
         if($is_replicating) {
           my $lag_behind_master = $replicant->lag_behind_master;
           unless(defined $lag_behind_master) {
-            $replicant->debugobj->print("Storage Driver ".ref $self." Does not support the 'lag_behind_master' method.  Assuming you are manually managing.");
+            $replicant->debugobj->print("Storage Driver ".ref($self)." Does not support the 'lag_behind_master' method.  Assuming you are manually managing.\n");
             next;
           } else {
             if($lag_behind_master <= $self->maximum_lag) {
