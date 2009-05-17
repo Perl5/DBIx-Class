@@ -733,6 +733,48 @@ Just use C<find_or_new> instead, then check C<in_storage>:
     # do whatever else you wanted if it was a new row
   }
 
+=head2 Static sub-classing DBIx::Class result classes 
+
+AKA adding additional relationships/methods/etc. to a model for a
+specific usage of the (shared) model.
+
+B<Schema definition> 
+ 
+    package My::App::Schema; 
+     
+    use base DBIx::Class::Schema; 
+
+    # load subclassed classes from My::App::Schema::Result/ResultSet
+    __PACKAGE__->load_namespaces;
+
+    # load classes from shared model
+    load_classes({
+        'My::Shared::Model::Result' => [qw/
+            Foo
+            Bar
+        /]});
+
+    1;
+ 
+B<Result-Subclass definition> 
+ 
+    package My::App::Schema::Result::Baz;
+     
+    use strict; 
+    use warnings; 
+    use base My::Shared::Model::Result::Baz; 
+    
+    # WARNING: Make sure you call table() again in your subclass,
+    # otherwise DBIx::Class::ResultSourceProxy::Table will not be called
+    # and the class name is not correctly registered as a source
+    __PACKAGE__->table('baz'); 
+     
+    sub additional_method { 
+        return "I'm an additional method only needed by this app"; 
+    }
+
+    1;
+     
 =head2 Dynamic Sub-classing DBIx::Class proxy classes 
 
 AKA multi-class object inflation from one table
@@ -760,7 +802,9 @@ B<Schema Definition>
      
     use base qw/DBIx::Class::Schema/; 
  
-    __PACKAGE__->load_namespaces; 
+    __PACKAGE__->load_namespaces;
+
+    1;
  
  
 B<Proxy-Class definitions> 
@@ -798,7 +842,9 @@ B<Proxy-Class definitions>
         print "I am a regular user.\n"; 
         return ; 
     } 
-     
+    
+    1;
+
      
     package My::Schema::Result::User::Admin; 
      
@@ -816,7 +862,9 @@ B<Proxy-Class definitions>
     { 
         print "I am doing admin stuff\n"; 
         return ; 
-    } 
+    }
+
+    1;
  
 B<Test File> test.pl 
  

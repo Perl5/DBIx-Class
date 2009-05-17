@@ -57,7 +57,7 @@ my $it = $schema->resultset('Artist')->search( {},
       offset => 2,
       order_by => 'artistid' }
 );
-is( $it->count, 3, "LIMIT count ok" );
+is( $it->count, 3, "LIMIT count ok" );  # ask for 3 rows out of 7 artists
 is( $it->next->name, "Artist 2", "iterator->next ok" );
 $it->next;
 $it->next;

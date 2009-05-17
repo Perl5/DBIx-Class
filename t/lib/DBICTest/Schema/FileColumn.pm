@@ -3,7 +3,7 @@ DBICTest::Schema::FileColumn;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class::Core/;
+use base qw/DBICTest::BaseResult/;
 use File::Temp qw/tempdir/;
 
 __PACKAGE__->load_components(qw/InflateColumn::File/);

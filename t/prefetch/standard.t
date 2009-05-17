@@ -20,18 +20,6 @@ BEGIN {
         : ( tests => 45 );
 }
 
-# figure out if we've got a version of sqlite that is older than 3.2.6, in
-# which case COUNT(DISTINCT()) doesn't work
-my $is_broken_sqlite = 0;
-my ($sqlite_major_ver,$sqlite_minor_ver,$sqlite_patch_ver) =
-    split /\./, $schema->storage->dbh->get_info(18);
-if( $schema->storage->dbh->get_info(17) eq 'SQLite' &&
-    ( ($sqlite_major_ver < 3) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver < 2) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver == 2 && $sqlite_patch_ver < 6) ) ) {
-    $is_broken_sqlite = 1;
-}
-
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
 $schema->storage->debug(1);
@@ -160,11 +148,7 @@ $rs = $schema->resultset("CD")->search(
   { group_by => [qw/ title me.cdid /] }
 );
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok( $rs->count, '==', 5, "count() ok after group_by on main pk" );
-}
+cmp_ok( $rs->count, '==', 5, "count() ok after group_by on main pk" );
 
 cmp_ok( scalar $rs->all, '==', 5, "all() returns same count as count() after group_by on main pk" );
 
@@ -173,11 +157,7 @@ $rs = $schema->resultset("CD")->search(
   { join => [qw/ artist /], group_by => [qw/ artist.name /] }
 );
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
-}
+cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
 
 $rs = $schema->resultset("Artist")->search(
   {},
@@ -195,11 +175,7 @@ $rs = $schema->resultset("Artist")->search(
           'cds_2.title' => 'Forkful of bees' },
         { join => [ 'cds', 'cds' ] });
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok($rs->count, '==', 1, "single artist returned from multi-join");
-}
+cmp_ok($rs->count, '==', 1, "single artist returned from multi-join");
 
 is($rs->next->name, 'Caterwauler McCrae', "Correct artist returned");
 
