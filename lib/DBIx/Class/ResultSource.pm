@@ -1085,32 +1085,40 @@ Returns the join structure required for the related result source.
 =cut
 
 sub resolve_join {
-  my ($self, $join, $alias, $seen, $force_left) = @_;
-  $seen ||= {};
+  my ($self, $join, $alias, $seen, $force_left, $jpath) = @_;
+
+  # we need a supplied one, because we do in-place modifications, no returns
+  $self->throw_exception ('You must supply a seen hashref as the 3rd argument to resolve_join')
+    unless $seen;
+
   $force_left ||= { force => 0 };
+  $jpath ||= [];
+
   if (ref $join eq 'ARRAY') {
     return
       map {
         local $force_left->{force} = $force_left->{force};
-        $self->resolve_join($_, $alias, $seen, $force_left);
+        $self->resolve_join($_, $alias, $seen, $force_left, [@$jpath]);
       } @$join;
   } elsif (ref $join eq 'HASH') {
     return
       map {
-        my $as = ($seen->{$_} ? $_.'_'.($seen->{$_}+1) : $_);
+        my $as = ($seen->{$_} ? join ('_', $_, $seen->{$_} + 1) : $_);  # the actual seen value will be incremented below
         local $force_left->{force} = $force_left->{force};
         (
-          $self->resolve_join($_, $alias, $seen, $force_left),
+          $self->resolve_join($_, $alias, $seen, $force_left, [@$jpath]),
           $self->related_source($_)->resolve_join(
-            $join->{$_}, $as, $seen, $force_left
+            $join->{$_}, $as, $seen, $force_left, [@$jpath, $_]
           )
         );
       } keys %$join;
   } elsif (ref $join) {
     $self->throw_exception("No idea how to resolve join reftype ".ref $join);
   } else {
+
     my $count = ++$seen->{$join};
     my $as = ($count > 1 ? "${join}_${count}" : $join);
+
     my $rel_info = $self->relationship_info($join);
     $self->throw_exception("No such relationship ${join}") unless $rel_info;
     my $type;
@@ -1121,7 +1129,11 @@ sub resolve_join {
       $force_left->{force} = 1 if lc($type) eq 'left';
     }
     return [ { $as => $self->related_source($join)->from,
-               -join_type => $type },
+               -join_type => $type,
+               -join_path => [@$jpath, $join],
+               -join_alias => $as,
+               -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
+             },
              $self->resolve_condition($rel_info->{cond}, $as, $alias) ];
   }
 }
@@ -1284,19 +1296,20 @@ in the supplied relationships. Examples:
 =cut
 
 sub resolve_prefetch {
-  my ($self, $pre, $alias, $seen, $order, $collapse) = @_;
-  $seen ||= {};
+  my ($self, $pre, $alias, $alias_map, $order, $collapse, $pref_path) = @_;
+  $pref_path ||= [];
+
   if( ref $pre eq 'ARRAY' ) {
     return
-      map { $self->resolve_prefetch( $_, $alias, $seen, $order, $collapse ) }
+      map { $self->resolve_prefetch( $_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ) }
         @$pre;
   }
   elsif( ref $pre eq 'HASH' ) {
     my @ret =
     map {
-      $self->resolve_prefetch($_, $alias, $seen, $order, $collapse),
+      $self->resolve_prefetch($_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ),
       $self->related_source($_)->resolve_prefetch(
-               $pre->{$_}, "${alias}.$_", $seen, $order, $collapse)
+               $pre->{$_}, "${alias}.$_", $alias_map, $order, $collapse, [ @$pref_path, $_] )
     } keys %$pre;
     return @ret;
   }
@@ -1305,8 +1318,17 @@ sub resolve_prefetch {
       "don't know how to resolve prefetch reftype ".ref($pre));
   }
   else {
-    my $count = ++$seen->{$pre};
-    my $as = ($count > 1 ? "${pre}_${count}" : $pre);
+
+    my $p = $alias_map;
+    $p = $p->{$_} for (@$pref_path, $pre);
+
+    $self->throw_exception (
+      "Unable to resolve prefetch $pre - join alias map does not contain an entry for path "
+      . join (' -> ', @$pref_path, $pre)
+    ) if (ref $p->{-join_aliases} ne 'ARRAY' or not @{$p->{-join_aliases}} );
+    
+    my $as = shift @{$p->{-join_aliases}};
+
     my $rel_info = $self->relationship_info( $pre );
     $self->throw_exception( $self->name . " has no such relationship '$pre'" )
       unless $rel_info;
