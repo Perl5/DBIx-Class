@@ -43,3 +43,10 @@ sub test_order {
       ],
       expected_sql_order => ['foo ASC, bar DESC, baz ASC, frew ASC', 'foo DESC, bar ASC, baz DESC, frew DESC']
   });
+
+  is_same_sql(
+     $sa->select( 'foo', [qw{ bar baz}], undef, {
+           group_by => 'bar',
+           order_by => 'bar',
+    }, 1, 3),
+    "SELECT * FROM ( SELECT TOP 1 * FROM ( SELECT TOP 4 bar,baz FROM foo ORDER BY bar ASC GROUP BY bar ) AS foo ORDER BY bar DESC ) AS bar ORDER BY bar ASC");
