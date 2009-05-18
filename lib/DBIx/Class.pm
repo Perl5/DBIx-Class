@@ -8,13 +8,13 @@ use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
 
 
-sub mk_classdata { 
+sub mk_classdata {
   shift->mk_classaccessor(@_);
 }
 
 sub mk_classaccessor {
   my $self = shift;
-  $self->mk_group_accessors('inherited', $_[0]); 
+  $self->mk_group_accessors('inherited', $_[0]);
   $self->set_inherited(@_) if @_ > 1;
 }
 
@@ -238,6 +238,8 @@ dnm: Justin Wheeler <jwheeler@datademons.com>
 dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
 dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
+
+frew: Arthur Axel "fREW" Schmidt <frioux@gmail.com>
 
 gphat: Cory G Watson <gphat@cpan.org>
 
