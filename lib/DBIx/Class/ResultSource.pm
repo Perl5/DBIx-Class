@@ -1092,7 +1092,13 @@ sub resolve_join {
     unless $seen;
 
   $force_left ||= { force => 0 };
-  $jpath ||= [];
+
+  # This isn't quite right, we should actually dive into $seen and reconstruct
+  # the entire path (the reference entry point would be the join conditional
+  # with depth == current_depth - 1. At this point however nothing depends on
+  # having the entire path, transcending related_resultset, so just leave it
+  # as is, hairy enough already.
+  $jpath ||= [];  
 
   if (ref $join eq 'ARRAY') {
     return
