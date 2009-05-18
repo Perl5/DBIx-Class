@@ -256,7 +256,36 @@ sub _order_by {
 sub _order_directions {
   my ($self, $order) = @_;
   $order = $order->{order_by} if ref $order eq 'HASH';
+  if (ref $order eq 'HASH') {
+    $order = [$self->_order_directions_hash($order)];
+  } elsif (ref $order eq 'ARRAY') {
+    $order = [map {
+      if (ref $_ eq 'HASH') {
+        $self->_order_directions_hash($_);
+      } else {
+        $_;
+      }
+    } @{ $order }];
+  }
   return $self->SUPER::_order_directions($order);
+}
+
+sub _order_directions_hash {
+  my ($self, $order) = @_;
+    if (grep { $_ =~ /^-(desc|asc)/i } keys %{$order}) {
+       return map {
+          my $key = $_;
+          my @tmp;
+          s/^-(desc|asc)/\1/i;
+          my $dir = $_;
+          if (ref $order->{ $key } eq 'ARRAY') {
+            @tmp = map "$_ $dir", @{ $order->{ $key } };
+          } else { # should be scalar
+            @tmp = ( "$order->{$key} $dir" );
+          }
+          @tmp;
+       } keys %{$order};
+   }
 }
 
 sub _table {
