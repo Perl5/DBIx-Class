@@ -1708,6 +1708,9 @@ C<total_entries> on the L<Data::Page> object.
 
 sub pager {
   my ($self) = @_;
+
+  return $self->{pager} if $self->{pager};
+
   my $attrs = $self->{attrs};
   $self->throw_exception("Can't create pager for non-paged rs")
     unless $self->{attrs}{page};
@@ -1717,10 +1720,13 @@ sub pager {
   # with a subselect) to get the real total count
   my $count_attrs = { %$attrs };
   delete $count_attrs->{$_} for qw/rows offset page pager/;
-  my $total_count = (ref $self)->new($self->result_source, $count_attrs);
+  my $total_count = (ref $self)->new($self->result_source, $count_attrs)->count;
 
-  return $self->{pager} ||= Data::Page->new(
-    $total_count, $attrs->{rows}, $self->{attrs}{page});
+  return $self->{pager} = Data::Page->new(
+    $total_count,
+    $attrs->{rows},
+    $self->{attrs}{page}
+  );
 }
 
 =head2 page
