@@ -113,7 +113,7 @@ sub parse {
         my @primary = $source->primary_columns;
         my %unique_constraints = $source->unique_constraints;
         foreach my $uniq (sort keys %unique_constraints) {
-            if (!$source->compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
+            if (!$source->_compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
                 $table->add_constraint(
                             type             => 'unique',
                             name             => $uniq,
@@ -167,7 +167,7 @@ sub parse {
             # this is supposed to indicate a has_one/might_have...
             # where's the introspection!!?? :)
             else {
-                $fk_constraint = not $source->compare_relationship_keys(\@keys, \@primary);
+                $fk_constraint = not $source->_compare_relationship_keys(\@keys, \@primary);
             }
 
             my $cascade;

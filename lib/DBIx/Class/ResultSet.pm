@@ -505,7 +505,7 @@ sub find {
         && ($info = $self->result_source->relationship_info($key))) {
       my $val = delete $input_query->{$key};
       next KEY if (ref($val) eq 'ARRAY'); # has_many for multi_create
-      my $rel_q = $self->result_source->resolve_condition(
+      my $rel_q = $self->result_source->_resolve_condition(
                     $info->{cond}, $val, $key
                   );
       die "Can't handle OR join condition in find" if ref($rel_q) eq 'ARRAY';
@@ -1626,7 +1626,7 @@ sub populate {
         next unless $data->[$index]->{$rel} && ref $data->[$index]->{$rel} eq "HASH";
         my $result = $self->related_resultset($rel)->create($data->[$index]->{$rel});
         my ($reverse) = keys %{$self->result_source->reverse_relationship_info($rel)};
-        my $related = $result->result_source->resolve_condition(
+        my $related = $result->result_source->_resolve_condition(
           $result->result_source->relationship_info($reverse)->{cond},
           $self,        
           $result,        
@@ -1659,7 +1659,7 @@ sub populate {
      
         my $child = $parent->$rel;
     
-        my $related = $child->result_source->resolve_condition(
+        my $related = $child->result_source->_resolve_condition(
           $parent->result_source->relationship_info($rel)->{cond},
           $child,
           $parent,
@@ -2446,14 +2446,14 @@ sub _resolve_from {
   my $seen = { %{$attrs->{seen_join}||{}} };
 
   # we need to take the prefetch the attrs into account before we 
-  # ->resolve_join as otherwise they get lost - captainL
+  # ->_resolve_join as otherwise they get lost - captainL
   my $merged = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
 
-  push @$from, $source->resolve_join($merged, $attrs->{alias}, $seen) if ($merged);
+  push @$from, $source->_resolve_join($merged, $attrs->{alias}, $seen) if ($merged);
 
   ++$seen->{-relation_chain_depth};
 
-  push @$from, $source->resolve_join($extra_join, $attrs->{alias}, $seen);
+  push @$from, $source->_resolve_join($extra_join, $attrs->{alias}, $seen);
 
   ++$seen->{-relation_chain_depth};
 
@@ -2553,7 +2553,7 @@ sub _resolved_attrs {
     $attrs->{from} =    # have to copy here to avoid corrupting the original
       [
       @{ $attrs->{from} },
-      $source->resolve_join(
+      $source->_resolve_join(
         $join, $alias, { %{ $attrs->{seen_join} || {} } }
       )
       ];
@@ -2582,7 +2582,7 @@ sub _resolved_attrs {
       # bring joins back to level of current class
       my $join_map = $self->_joinpath_aliases ($attrs->{from}, $attrs->{seen_join});
       my @prefetch =
-        $source->resolve_prefetch( $p, $alias, $join_map, \@pre_order, $collapse );
+        $source->_resolve_prefetch( $p, $alias, $join_map, \@pre_order, $collapse );
       push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
       push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
     }

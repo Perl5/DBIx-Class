@@ -27,7 +27,7 @@ sub add_relationship_accessor {
       } elsif (exists $self->{_relationship_data}{$rel}) {
         return $self->{_relationship_data}{$rel};
       } else {
-        my $cond = $self->result_source->resolve_condition(
+        my $cond = $self->result_source->_resolve_condition(
           $rel_info->{cond}, $rel, $self
         );
         if ($rel_info->{attrs}->{undef_on_null_fk}){

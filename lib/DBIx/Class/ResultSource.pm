@@ -841,7 +841,7 @@ relationship.
 =back
 
 Throws an exception if the condition is improperly supplied, or cannot
-be resolved using L</resolve_join>.
+be resolved.
 
 =cut
 
@@ -881,7 +881,7 @@ sub add_relationship {
   }
   return unless $f_source; # Can't test rel without f_source
 
-  eval { $self->resolve_join($rel, 'me') };
+  eval { $self->_resolve_join($rel, 'me') };
 
   if ($@) { # If the resolve failed, back out and re-throw the error
     delete $rels{$rel}; #
@@ -1015,29 +1015,22 @@ sub reverse_relationship_info {
       my @other_cond = keys(%$othercond);
       my @other_refkeys = map {/^\w+\.(\w+)$/} @other_cond;
       my @other_keys = map {$othercond->{$_} =~ /^\w+\.(\w+)$/} @other_cond;
-      next if (!$self->compare_relationship_keys(\@refkeys, \@other_keys) ||
-               !$self->compare_relationship_keys(\@other_refkeys, \@keys));
+      next if (!$self->_compare_relationship_keys(\@refkeys, \@other_keys) ||
+               !$self->_compare_relationship_keys(\@other_refkeys, \@keys));
       $ret->{$otherrel} =  $otherrel_info;
     }
   }
   return $ret;
 }
 
-=head2 compare_relationship_keys
-
-=over 4
-
-=item Arguments: \@keys1, \@keys2
-
-=item Return value: 1/0 (true/false)
-
-=back
-
-Returns true if both sets of keynames are the same, false otherwise.
-
-=cut
-
 sub compare_relationship_keys {
+  carp 'compare_relationship_keys is a private method, stop calling it';
+  my $self = shift;
+  $self->_compare_relationship_keys (@_);
+}
+
+# Returns true if both sets of keynames are the same, false otherwise.
+sub _compare_relationship_keys {
   my ($self, $keys1, $keys2) = @_;
 
   # Make sure every keys1 is in keys2
@@ -1070,25 +1063,18 @@ sub compare_relationship_keys {
   return $found;
 }
 
-=head2 resolve_join
-
-=over 4
-
-=item Arguments: $relation
-
-=item Return value: Join condition arrayref
-
-=back
-
-Returns the join structure required for the related result source.
-
-=cut
-
 sub resolve_join {
+  carp 'resolve_join is a private method, stop calling it';
+  my $self = shift;
+  $self->_resolve_join (@_);
+}
+
+# Returns the {from} structure used to express JOIN conditions
+sub _resolve_join {
   my ($self, $join, $alias, $seen, $force_left, $jpath) = @_;
 
   # we need a supplied one, because we do in-place modifications, no returns
-  $self->throw_exception ('You must supply a seen hashref as the 3rd argument to resolve_join')
+  $self->throw_exception ('You must supply a seen hashref as the 3rd argument to _resolve_join')
     unless $seen;
 
   $force_left ||= { force => 0 };
@@ -1104,7 +1090,7 @@ sub resolve_join {
     return
       map {
         local $force_left->{force} = $force_left->{force};
-        $self->resolve_join($_, $alias, $seen, $force_left, [@$jpath]);
+        $self->_resolve_join($_, $alias, $seen, $force_left, [@$jpath]);
       } @$join;
   } elsif (ref $join eq 'HASH') {
     return
@@ -1112,8 +1098,8 @@ sub resolve_join {
         my $as = ($seen->{$_} ? join ('_', $_, $seen->{$_} + 1) : $_);  # the actual seen value will be incremented below
         local $force_left->{force} = $force_left->{force};
         (
-          $self->resolve_join($_, $alias, $seen, $force_left, [@$jpath]),
-          $self->related_source($_)->resolve_join(
+          $self->_resolve_join($_, $alias, $seen, $force_left, [@$jpath]),
+          $self->related_source($_)->_resolve_join(
             $join->{$_}, $as, $seen, $force_left, [@$jpath, $_]
           )
         );
@@ -1140,27 +1126,20 @@ sub resolve_join {
                -join_alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
              },
-             $self->resolve_condition($rel_info->{cond}, $as, $alias) ];
+             $self->_resolve_condition($rel_info->{cond}, $as, $alias) ];
   }
 }
 
-=head2 pk_depends_on
-
-=over 4
-
-=item Arguments: $relname, $rel_data
-
-=item Return value: 1/0 (true/false)
-
-=back
-
-Determines whether a relation is dependent on an object from this source
-having already been inserted. Takes the name of the relationship and a
-hashref of columns of the related object.
-
-=cut
-
 sub pk_depends_on {
+  carp 'pk_depends_on is a private method, stop calling it';
+  my $self = shift;
+  $self->_pk_depends_on (@_);
+}
+
+# Determines whether a relation is dependent on an object from this source
+# having already been inserted. Takes the name of the relationship and a
+# hashref of columns of the related object.
+sub _pk_depends_on {
   my ($self, $relname, $rel_data) = @_;
   my $cond = $self->relationship_info($relname)->{cond};
 
@@ -1189,23 +1168,18 @@ sub pk_depends_on {
   return 1;
 }
 
-=head2 resolve_condition
+sub resolve_condition {
+  carp 'resolve_condition is a private method, stop calling it';
+  my $self = shift;
+  $self->_resolve_condition (@_);
+}
 
-=over 4
-
-=item Arguments: $cond, $as, $alias|$object
-
-=back
-
-Resolves the passed condition to a concrete query fragment. If given an alias,
-returns a join condition; if given an object, inverts that object to produce
-a related conditional from that object.
-
-=cut
-
+# Resolves the passed condition to a concrete query fragment. If given an alias,
+# returns a join condition; if given an object, inverts that object to produce
+# a related conditional from that object.
 our $UNRESOLVABLE_CONDITION = \'1 = 0';
 
-sub resolve_condition {
+sub _resolve_condition {
   my ($self, $cond, $as, $for) = @_;
   #warn %$cond;
   if (ref $cond eq 'HASH') {
@@ -1246,75 +1220,38 @@ sub resolve_condition {
     }
     return \%ret;
   } elsif (ref $cond eq 'ARRAY') {
-    return [ map { $self->resolve_condition($_, $as, $for) } @$cond ];
+    return [ map { $self->_resolve_condition($_, $as, $for) } @$cond ];
   } else {
    die("Can't handle this yet :(");
   }
 }
 
-=head2 resolve_prefetch
-
-=over 4
-
-=item Arguments: hashref/arrayref/scalar
-
-=back
-
-Accepts one or more relationships for the current source and returns an
-array of column names for each of those relationships. Column names are
-prefixed relative to the current source, in accordance with where they appear
-in the supplied relationships. Examples:
-
-  my $source = $schema->resultset('Tag')->source;
-  @columns = $source->resolve_prefetch( { cd => 'artist' } );
-
-  # @columns =
-  #(
-  #  'cd.cdid',
-  #  'cd.artist',
-  #  'cd.title',
-  #  'cd.year',
-  #  'cd.artist.artistid',
-  #  'cd.artist.name'
-  #)
-
-  @columns = $source->resolve_prefetch( qw[/ cd /] );
-
-  # @columns =
-  #(
-  #   'cd.cdid',
-  #   'cd.artist',
-  #   'cd.title',
-  #   'cd.year'
-  #)
-
-  $source = $schema->resultset('CD')->source;
-  @columns = $source->resolve_prefetch( qw[/ artist producer /] );
-
-  # @columns =
-  #(
-  #  'artist.artistid',
-  #  'artist.name',
-  #  'producer.producerid',
-  #  'producer.name'
-  #)
-
-=cut
-
 sub resolve_prefetch {
+  carp 'resolve_prefetch is a private method, stop calling it';
+  my $self = shift;
+  $self->_resolve_prefetch (@_);
+}
+
+# Accepts one or more relationships for the current source and returns an
+# array of column names for each of those relationships. Column names are
+# prefixed relative to the current source, in accordance with where they appear
+# in the supplied relationships. Needs an alias_map generated by
+# $rs->_joinpath_aliases
+
+sub _resolve_prefetch {
   my ($self, $pre, $alias, $alias_map, $order, $collapse, $pref_path) = @_;
   $pref_path ||= [];
 
   if( ref $pre eq 'ARRAY' ) {
     return
-      map { $self->resolve_prefetch( $_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ) }
+      map { $self->_resolve_prefetch( $_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ) }
         @$pre;
   }
   elsif( ref $pre eq 'HASH' ) {
     my @ret =
     map {
-      $self->resolve_prefetch($_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ),
-      $self->related_source($_)->resolve_prefetch(
+      $self->_resolve_prefetch($_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ),
+      $self->related_source($_)->_resolve_prefetch(
                $pre->{$_}, "${alias}.$_", $alias_map, $order, $collapse, [ @$pref_path, $_] )
     } keys %$pre;
     return @ret;
