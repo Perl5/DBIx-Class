@@ -189,7 +189,7 @@ sub related_resultset {
     my $query = ((@_ > 1) ? {@_} : shift);
 
     my $source = $self->result_source;
-    my $cond = $source->resolve_condition(
+    my $cond = $source->_resolve_condition(
       $rel_obj->{cond}, $rel, $self
     );
     if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
@@ -404,7 +404,7 @@ sub set_from_related {
       unless Scalar::Util::blessed($f_obj) and $f_obj->isa($f_class);
   }
   $self->set_columns(
-    $self->result_source->resolve_condition(
+    $self->result_source->_resolve_condition(
        $rel_obj->{cond}, $f_obj, $rel));
   return 1;
 }

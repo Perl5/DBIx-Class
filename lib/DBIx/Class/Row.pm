@@ -112,7 +112,7 @@ sub __new_related_find_or_new_helper {
                 ->resultset
                 ->new_result($data);
   }
-  if ($self->result_source->pk_depends_on($relname, $data)) {
+  if ($self->result_source->_pk_depends_on($relname, $data)) {
     MULTICREATE_DEBUG and warn "MC $self constructing $relname via find_or_new";
     return $self->result_source
                 ->related_source($relname)
@@ -132,7 +132,7 @@ sub __their_pk_needs_us { # this should maybe be in resultsource.
   foreach my $key (keys %$reverse) {
     # if their primary key depends on us, then we have to
     # just create a result and we'll fill it out afterwards
-    return 1 if $rel_source->pk_depends_on($key, $us);
+    return 1 if $rel_source->_pk_depends_on($key, $us);
   }
   return 0;
 }
@@ -304,7 +304,7 @@ sub insert {
       next REL unless (Scalar::Util::blessed($rel_obj)
                        && $rel_obj->isa('DBIx::Class::Row'));
 
-      next REL unless $source->pk_depends_on(
+      next REL unless $source->_pk_depends_on(
                         $relname, { $rel_obj->get_columns }
                       );
 
@@ -913,7 +913,7 @@ sub copy {
 
     next unless $rel_info->{attrs}{cascade_copy};
   
-    my $resolved = $self->result_source->resolve_condition(
+    my $resolved = $self->result_source->_resolve_condition(
       $rel_info->{cond}, $rel, $new
     );
 

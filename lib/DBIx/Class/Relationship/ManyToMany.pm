@@ -119,7 +119,7 @@ EOW
       my $obj = shift;
       my $rel_source = $self->search_related($rel)->result_source;
       my $cond = $rel_source->relationship_info($f_rel)->{cond};
-      my $link_cond = $rel_source->resolve_condition(
+      my $link_cond = $rel_source->_resolve_condition(
         $cond, $obj, $f_rel
       );
       $self->search_related($rel, $link_cond)->delete;

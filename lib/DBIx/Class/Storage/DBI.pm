@@ -1051,6 +1051,85 @@ sub delete {
   return $self->_execute('delete' => [], $source, $bind_attrs, @_);
 }
 
+# We were sent here because the $rs contains a complex search
+# which will require a subquery to select the correct rows
+# (i.e. joined or limited resultsets)
+#
+# Genarating a single PK column subquery is trivial and supported
+# by all RDBMS. However if we have a multicolumn PK, things get ugly.
+# Look at multipk_update_delete()
+sub subq_update_delete {
+  my $self = shift;
+  my ($rs, $op, $values) = @_;
+
+  if ($rs->result_source->primary_columns == 1) {
+    return $self->_onepk_update_delete (@_);
+  }
+  else {
+    return $self->_multipk_update_delete (@_);
+  }
+}
+
+# Generally a single PK resultset operation is trivially expressed
+# with PK IN (subquery). However some databases (mysql) do not support
+# modification of a table mentioned in the subselect. This method
+# should be overriden in the appropriate storage class to be smarter
+# in such situations
+sub _onepk_update_delete {
+
+  my $self = shift;
+  my ($rs, $op, $values) = @_;
+
+  my $rsrc = $rs->result_source;
+  my @pcols = $rsrc->primary_columns;
+
+  return $self->$op (
+    $rsrc,
+    $op eq 'update' ? $values : (),
+    { $pcols[0] => { -in => $rs->get_column ($pcols[0])->as_query } },
+  );
+}
+
+# ANSI SQL does not provide a reliable way to perform a multicol-PK
+# resultset update/delete involving subqueries. So resort to simple
+# (and inefficient) delete_all style per-row opearations, while allowing
+# specific storages to override this with a faster implementation.
+#
+# We do not use $row->$op style queries, because resultset update/delete
+# is not expected to cascade (this is what delete_all/update_all is for).
+#
+# There should be no race conditions as the entire operation is rolled
+# in a transaction.
+sub _multipk_update_delete {
+  my $self = shift;
+  my ($rs, $op, $values) = @_;
+
+  my $rsrc = $rs->result_source;
+  my @pcols = $rsrc->primary_columns;
+
+  my $guard = $self->txn_scope_guard;
+
+  my $subrs_cur = $rs->search ({}, { columns => \@pcols })->cursor;
+  while (my @pks = $subrs_cur->next) {
+
+    my $cond;
+    for my $i (0.. $#pcols) {
+      $cond->{$pcols[$i]} = $pks[$i];
+    }
+
+    $self->$op (
+      $rsrc,
+      $op eq 'update' ? $values : (),
+      $cond,
+    );
+  }
+
+  $guard->commit;
+
+  return 1;
+}
+
+
 sub _select {
   my $self = shift;
   my $sql_maker = $self->sql_maker;

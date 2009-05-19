@@ -505,7 +505,7 @@ sub find {
         && ($info = $self->result_source->relationship_info($key))) {
       my $val = delete $input_query->{$key};
       next KEY if (ref($val) eq 'ARRAY'); # has_many for multi_create
-      my $rel_q = $self->result_source->resolve_condition(
+      my $rel_q = $self->result_source->_resolve_condition(
                     $info->{cond}, $val, $key
                   );
       die "Can't handle OR join condition in find" if ref($rel_q) eq 'ARRAY';
@@ -1150,11 +1150,52 @@ on the resultset and counts the results of that.
 
 =cut
 
+my @count_via_subq_attrs = qw/join seen_join prefetch group_by/;
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
-  my $count = $self->_count;
+
+  my @check_attrs = @count_via_subq_attrs;
+
+  # if we are not paged - we are simply asking for a limit
+  if (not $self->{attrs}{page} and not $self->{attrs}{software_limit}) {
+    push @check_attrs, qw/rows offset/;
+  }
+
+  return $self->_has_attr (@check_attrs)
+    ? $self->_count_subq
+    : $self->_count_simple
+}
+
+sub _count_subq {
+  my $self = shift;
+
+  my $attrs = { %{$self->_resolved_attrs} };
+
+  # copy for the subquery, we need to do some adjustments to it too
+  my $sub_attrs = { %$attrs };
+
+  # these can not go in the subquery either
+  delete $sub_attrs->{$_} for qw/prefetch select +select as +as columns +columns/;
+
+  # force a group_by and the same set of columns (most databases require this)
+  $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
+
+  $attrs->{from} = [{
+    count_subq => (ref $self)->new ($self->result_source, $sub_attrs )->as_query
+  }];
+
+  # the subquery replaces this
+  delete $attrs->{where};
+
+  return $self->__count ($attrs);
+}
+
+sub _count_simple {
+  my $self = shift;
+
+  my $count = $self->__count;
   return 0 unless $count;
 
   # need to take offset from resolved attrs
@@ -1166,26 +1207,21 @@ sub count {
   return $count;
 }
 
-sub _count { # Separated out so pager can get the full count
-  my $self = shift;
-  my $attrs = { %{$self->_resolved_attrs} };
+sub __count {
+  my ($self, $attrs) = @_;
 
-  if (my $group_by = $attrs->{group_by}) {
-    delete $attrs->{order_by};
+  $attrs ||= { %{$self->{attrs}} };
 
-    $attrs->{select} = $group_by; 
-    $attrs->{from} = [ { 'mesub' => (ref $self)->new($self->result_source, $attrs)->cursor->as_query } ];
-    delete $attrs->{where};
-  }
+  # take off any subquery attrs (they'd be incorporated in the subquery),
+  # any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
+  delete $attrs->{$_} for (@count_via_subq_attrs, qw/columns +columns select +select as +as rows offset page pager order_by record_filter/);
 
   $attrs->{select} = { count => '*' };
   $attrs->{as} = [qw/count/];
 
-  # offset, order by, group by, where and page are not needed to count. record_filter is cdbi
-  delete $attrs->{$_} for qw/rows offset order_by group_by page pager record_filter/;
-
   my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
+
   return $count;
 }
 
@@ -1298,6 +1334,18 @@ sub first {
   return $_[0]->reset->next;
 }
 
+
+# _update_delete_via_subq
+#
+# Presence of some rs attributes requires a subquery to reliably 
+# update/deletre
+#
+
+sub _update_delete_via_subq {
+  return $_[0]->_has_attr (qw/join seen_join group_by row offset page/);
+}
+
+
 # _cond_for_update_delete
 #
 # update/delete require the condition to be modified to handle
@@ -1311,18 +1359,6 @@ sub _cond_for_update_delete {
   $full_cond ||= $self->{cond};
   # No-op. No condition, we're updating/deleting everything
   return $cond unless ref $full_cond;
-
-  # Some attributes when present require a subquery
-  # This might not work on some database (mysql), but...
-  # it won't work without the subquery either so who cares
-  if (grep { defined $self->{attrs}{$_} } qw/join seen_join from rows group_by/) {
-
-    foreach my $pk ($self->result_source->primary_columns) {
-      $cond->{$pk} = { IN => $self->get_column($pk)->as_query };
-    }
-
-    return $cond;
-  }
 
   if (ref $full_cond eq 'ARRAY') {
     $cond = [
@@ -1363,7 +1399,7 @@ sub _cond_for_update_delete {
   else {
     $self->throw_exception("Can't update/delete on resultset with condition unless hash or array");
   }
- 
+
   return $cond;
 }
 
@@ -1386,11 +1422,16 @@ if no records were updated; exact type of success value is storage-dependent.
 
 sub update {
   my ($self, $values) = @_;
-  $self->throw_exception("Values for update must be a hash")
+  $self->throw_exception('Values for update must be a hash')
     unless ref $values eq 'HASH';
 
+  # rs operations with subqueries are Storage dependent - delegate
+  if ($self->_update_delete_via_subq) {
+    return $self->result_source->storage->subq_update_delete($self, 'update', $values);
+  }
+
   my $cond = $self->_cond_for_update_delete;
-  
+
   return $self->result_source->storage->update(
     $self->result_source, $values, $cond
   );
@@ -1413,7 +1454,7 @@ will run DBIC cascade triggers, while L</update> will not.
 
 sub update_all {
   my ($self, $values) = @_;
-  $self->throw_exception("Values for update must be a hash")
+  $self->throw_exception('Values for update_all must be a hash')
     unless ref $values eq 'HASH';
   foreach my $obj ($self->all) {
     $obj->set_columns($values)->update;
@@ -1444,9 +1485,14 @@ need to respecify your query in a way that can be expressed without a join.
 =cut
 
 sub delete {
-  my ($self) = @_;
-  $self->throw_exception("Delete should not be passed any arguments")
-    if $_[1];
+  my $self = shift;
+  $self->throw_exception('delete does not accept any arguments')
+    if @_;
+
+  # rs operations with subqueries are Storage dependent - delegate
+  if ($self->_update_delete_via_subq) {
+    return $self->result_source->storage->subq_update_delete($self, 'delete');
+  }
 
   my $cond = $self->_cond_for_update_delete;
 
@@ -1470,7 +1516,10 @@ will run DBIC cascade triggers, while L</delete> will not.
 =cut
 
 sub delete_all {
-  my ($self) = @_;
+  my $self = shift;
+  $self->throw_exception('delete_all does not accept any arguments')
+    if @_;
+
   $_->delete for $self->all;
   return 1;
 }
@@ -1577,7 +1626,7 @@ sub populate {
         next unless $data->[$index]->{$rel} && ref $data->[$index]->{$rel} eq "HASH";
         my $result = $self->related_resultset($rel)->create($data->[$index]->{$rel});
         my ($reverse) = keys %{$self->result_source->reverse_relationship_info($rel)};
-        my $related = $result->result_source->resolve_condition(
+        my $related = $result->result_source->_resolve_condition(
           $result->result_source->relationship_info($reverse)->{cond},
           $self,        
           $result,        
@@ -1610,7 +1659,7 @@ sub populate {
      
         my $child = $parent->$rel;
     
-        my $related = $child->result_source->resolve_condition(
+        my $related = $child->result_source->_resolve_condition(
           $parent->result_source->relationship_info($rel)->{cond},
           $child,
           $parent,
@@ -1667,12 +1716,25 @@ C<total_entries> on the L<Data::Page> object.
 
 sub pager {
   my ($self) = @_;
+
+  return $self->{pager} if $self->{pager};
+
   my $attrs = $self->{attrs};
   $self->throw_exception("Can't create pager for non-paged rs")
     unless $self->{attrs}{page};
   $attrs->{rows} ||= 10;
-  return $self->{pager} ||= Data::Page->new(
-    $self->_count, $attrs->{rows}, $self->{attrs}{page});
+
+  # throw away the paging flags and re-run the count (possibly 
+  # with a subselect) to get the real total count
+  my $count_attrs = { %$attrs };
+  delete $count_attrs->{$_} for qw/rows offset page pager/;
+  my $total_count = (ref $self)->new($self->result_source, $count_attrs)->count;
+
+  return $self->{pager} = Data::Page->new(
+    $total_count,
+    $attrs->{rows},
+    $self->{attrs}{page}
+  );
 }
 
 =head2 page
@@ -1773,6 +1835,37 @@ sub _is_deterministic_value {
   my $ref_type = ref $value;
   return 1 if $ref_type eq '' || $ref_type eq 'SCALAR';
   return 1 if Scalar::Util::blessed($value);
+  return 0;
+}
+
+# _has_attr
+#
+# determines if the resultset defines at least one
+# of the attributes supplied
+#
+# used to determine if a subquery is neccessary
+
+sub _has_attr {
+  my ($self, @attr_names) = @_;
+
+  my $attrs = $self->_resolved_attrs;
+
+  my $join_check_req;
+
+  for my $n (@attr_names) {
+    return 1 if defined $attrs->{$n};
+    ++$join_check_req if $n =~ /join/;
+  }
+
+  # a join can be expressed as a multi-level from
+  return 1 if (
+    $join_check_req
+      and
+    ref $attrs->{from} eq 'ARRAY'
+      and
+    @{$attrs->{from}} > 1 
+  );
+
   return 0;
 }
 
@@ -2353,14 +2446,14 @@ sub _resolve_from {
   my $seen = { %{$attrs->{seen_join}||{}} };
 
   # we need to take the prefetch the attrs into account before we 
-  # ->resolve_join as otherwise they get lost - captainL
+  # ->_resolve_join as otherwise they get lost - captainL
   my $merged = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
 
-  push @$from, $source->resolve_join($merged, $attrs->{alias}, $seen) if ($merged);
+  push @$from, $source->_resolve_join($merged, $attrs->{alias}, $seen) if ($merged);
 
   ++$seen->{-relation_chain_depth};
 
-  push @$from, $source->resolve_join($extra_join, $attrs->{alias}, $seen);
+  push @$from, $source->_resolve_join($extra_join, $attrs->{alias}, $seen);
 
   ++$seen->{-relation_chain_depth};
 
@@ -2460,7 +2553,7 @@ sub _resolved_attrs {
     $attrs->{from} =    # have to copy here to avoid corrupting the original
       [
       @{ $attrs->{from} },
-      $source->resolve_join(
+      $source->_resolve_join(
         $join, $alias, { %{ $attrs->{seen_join} || {} } }
       )
       ];
@@ -2489,7 +2582,7 @@ sub _resolved_attrs {
       # bring joins back to level of current class
       my $join_map = $self->_joinpath_aliases ($attrs->{from}, $attrs->{seen_join});
       my @prefetch =
-        $source->resolve_prefetch( $p, $alias, $join_map, \@pre_order, $collapse );
+        $source->_resolve_prefetch( $p, $alias, $join_map, \@pre_order, $collapse );
       push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
       push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
     }
@@ -2497,9 +2590,8 @@ sub _resolved_attrs {
   }
   $attrs->{collapse} = $collapse;
 
-  if ( $attrs->{page} ) {
-    $attrs->{offset} ||= 0;
-    $attrs->{offset} += ( $attrs->{rows} * ( $attrs->{page} - 1 ) );
+  if ( $attrs->{page} and not defined $attrs->{offset} ) {
+    $attrs->{offset} = ( $attrs->{rows} * ( $attrs->{page} - 1 ) );
   }
 
   return $self->{_attrs} = $attrs;

@@ -35,9 +35,12 @@ $rs = $schema->resultset('CD')->search(
            { join => 'artist' });
 eval { $rs->count };
 is_same_sql_bind(
-  $sql, \@bind,
-  "SELECT COUNT( * ) FROM `cd` `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )", ["'Caterwauler McCrae'", "'2001'"],
-  'got correct SQL for count query with quoting'
+  $sql,
+  \@bind,
+  "SELECT COUNT( * ) FROM (SELECT `me`.`cdid` FROM `cd` `me`  JOIN `artist` `artist` ON `artist`.`artistid` = `me`.`artist` WHERE ( ( `artist`.`name` = ? AND `me`.`year` = ? ) ) GROUP BY `me`.`cdid`) `count_subq`",
+  ["'Caterwauler McCrae'", "'2001'"],
+
+  'got correct SQL for joined count query with quoting'
 );
 
 my $order = 'year DESC';
@@ -59,8 +62,10 @@ $rs = $schema->resultset('CD')->search(
            { join => 'artist' });
 eval { $rs->count };
 is_same_sql_bind(
-  $sql, \@bind,
-  "SELECT COUNT( * ) FROM [cd] [me]  JOIN [artist] [artist] ON ( [artist].[artistid] = [me].[artist] ) WHERE ( [artist].[name] = ? AND [me].[year] = ? )", ["'Caterwauler McCrae'", "'2001'"],
+  $sql,
+  \@bind,
+  "SELECT COUNT( * ) FROM (SELECT [me].[cdid] FROM [cd] [me]  JOIN [artist] [artist] ON [artist].[artistid] = [me].[artist] WHERE ( ( [artist].[name] = ? AND [me].[year] = ? ) ) GROUP BY [me].[cdid]) [count_subq]",
+  ["'Caterwauler McCrae'", "'2001'"],
   'got correct SQL for count query with bracket quoting'
 );
 

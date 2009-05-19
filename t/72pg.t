@@ -72,6 +72,8 @@ $schema->source("Artist")->name("testschema.artist");
 $schema->source("SequenceTest")->name("testschema.sequence_test");
 {
     local $SIG{__WARN__} = sub {};
+    _cleanup ($dbh);
+
     $dbh->do("CREATE SCHEMA testschema;");
     $dbh->do("CREATE TABLE testschema.artist (artistid serial PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10), arrayfield INTEGER[]);");
     $dbh->do("CREATE TABLE testschema.sequence_test (pkid1 integer, pkid2 integer, nonpkid integer, name VARCHAR(100), CONSTRAINT pk PRIMARY KEY(pkid1, pkid2));");
@@ -264,16 +266,21 @@ for (1..5) {
 my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
+sub _cleanup {
+  my $dbh = shift or return;
 
-END {
-    if($dbh) {
-        $dbh->do("DROP TABLE testschema.artist;");
-        $dbh->do("DROP TABLE testschema.casecheck;");
-        $dbh->do("DROP TABLE testschema.sequence_test;");
-        $dbh->do("DROP TABLE testschema.array_test;");
-        $dbh->do("DROP SEQUENCE pkid1_seq");
-        $dbh->do("DROP SEQUENCE pkid2_seq");
-        $dbh->do("DROP SEQUENCE nonpkid_seq");
-        $dbh->do("DROP SCHEMA testschema;");
-    }
+  for my $stat (
+    'DROP TABLE testschema.artist',
+    'DROP TABLE testschema.casecheck',
+    'DROP TABLE testschema.sequence_test',
+    'DROP TABLE testschema.array_test',
+    'DROP SEQUENCE pkid1_seq',
+    'DROP SEQUENCE pkid2_seq',
+    'DROP SEQUENCE nonpkid_seq',
+    'DROP SCHEMA testschema',
+  ) {
+    eval { $dbh->do ($stat) };
+  }
 }
+
+END { _cleanup($dbh) }
