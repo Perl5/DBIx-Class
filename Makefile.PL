@@ -13,28 +13,31 @@ all_from 'lib/DBIx/Class.pm';
 # remove once test deprecated
 configure_requires 'DBD::SQLite';
 
-requires 'DBD::SQLite'              => 1.23;
+requires 'DBD::SQLite'              => 1.25;
 requires 'Data::Page'               => 2.00;
-requires 'Scalar::Util'             => 0;
 requires 'SQL::Abstract'            => 1.55;
 requires 'SQL::Abstract::Limit'     => 0.13;
 requires 'Class::C3::Componentised' => 1.0005;
-requires 'Storable'                 => 0;
-requires 'Carp::Clan'               => 0;
-requires 'DBI'                      => 1.40;
-requires 'Module::Find'             => 0;
-requires 'Class::Inspector'         => 0;
+requires 'Carp::Clan'               => 6.0;
+requires 'DBI'                      => 1.605;
+requires 'Module::Find'             => 0.06;
+requires 'Class::Inspector'         => 1.24;
 requires 'Class::Accessor::Grouped' => 0.08003;
-requires 'JSON::Any'                => 1.17;
+requires 'JSON::Any'                => 1.18;
 requires 'Scope::Guard'             => 0.03;
-requires 'Path::Class'              => 0;
-requires 'List::Util'               => 1.19;
+requires 'Path::Class'              => 0.16;
 requires 'Sub::Name'                => 0.04;
 requires 'MRO::Compat'              => 0.09;
 
-# Perl 5.8.0 doesn't have utf8::is_utf8()
-requires 'Encode'                   => 0 if ($] <= 5.008000);  
+# Core
+requires 'List::Util'               => 0;
+requires 'Scalar::Util'             => 0;
+requires 'Storable'                 => 0;
 
+# Perl 5.8.0 doesn't have utf8::is_utf8()
+requires 'Encode'                   => 0 if ($] <= 5.008000);
+
+test_requires 'Test::More'          => 0.82;
 test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Warn'          => 0.11;
 test_requires 'Test::Exception'     => 0;
