@@ -34,6 +34,15 @@ my $exceptions = {
            qw( MULTICREATE_DEBUG )
         ],
     },
+    'DBIx::Class::ResultSource' => {
+        ignore => [qw/
+          compare_relationship_keys
+          pk_depends_on
+          resolve_condition
+          resolve_join
+          resolve_prefetch
+        /],
+    },
     'DBIx::Class::Storage' => {
         ignore => [
             qw(cursor)
