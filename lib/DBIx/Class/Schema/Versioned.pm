@@ -70,12 +70,12 @@ DBIx::Class::Schema::Versioned - DBIx::Class::Schema plugin for Schema upgrades
 
 =head1 SYNOPSIS
 
-  package My::Schema;
+  package MyApp::Schema;
   use base qw/DBIx::Class::Schema/;
 
   our $VERSION = 0.001;
 
-  # load My::Schema::CD, My::Schema::Book, My::Schema::DVD
+  # load MyApp::Schema::CD, MyApp::Schema::Book, MyApp::Schema::DVD
   __PACKAGE__->load_classes(qw/CD Book DVD/);
 
   __PACKAGE__->load_components(qw/Schema::Versioned/);
