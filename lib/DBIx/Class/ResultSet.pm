@@ -1150,7 +1150,7 @@ on the resultset and counts the results of that.
 
 =cut
 
-my @count_via_subq_attrs = qw/join seen_join prefetch group_by/;
+my @count_via_subq_attrs = qw/join seen_join prefetch group_by having/;
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ and defined $_[0];
@@ -1212,9 +1212,8 @@ sub __count {
 
   $attrs ||= { %{$self->{attrs}} };
 
-  # take off any subquery attrs (they'd be incorporated in the subquery),
-  # any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
-  delete $attrs->{$_} for (@count_via_subq_attrs, qw/columns +columns select +select as +as rows offset page pager order_by record_filter/);
+  # these are the only attributes that actually matter for count
+  $attrs = { map { exists $attrs->{$_} ? ( $_ => $attrs->{$_} ) : () } qw/where bind alias from from_bind/ };
 
   $attrs->{select} = { count => '*' };
   $attrs->{as} = [qw/count/];
