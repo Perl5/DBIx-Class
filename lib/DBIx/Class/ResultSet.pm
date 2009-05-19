@@ -2328,7 +2328,7 @@ sub related_resultset {
       "search_related: result source '" . $self->result_source->source_name .
         "' has no such relationship $rel")
       unless $rel_obj;
-    
+
     my ($from,$seen) = $self->_resolve_from($rel);
 
     my $join_count = $seen->{$rel};
@@ -2421,28 +2421,33 @@ sub current_source_alias {
   return ($self->{attrs} || {})->{alias} || 'me';
 }
 
+# This code is called by search_related, and makes sure there
+# is clear separation between the joins before, during, and
+# after the relationship. This information is needed later
+# in order to properly resolve prefetch aliases (any alias
+# with a relation_chain_depth less than the depth of the
+# current prefetch is not considered)
 sub _resolve_from {
   my ($self, $extra_join) = @_;
   my $source = $self->result_source;
   my $attrs = $self->{attrs};
-  
+
   my $from = $attrs->{from}
     || [ { $attrs->{alias} => $source->from } ];
     
   my $seen = { %{$attrs->{seen_join}||{}} };
 
-  my $join = ($attrs->{join}
-               ? [ $attrs->{join}, $extra_join ]
-               : $extra_join);
-
   # we need to take the prefetch the attrs into account before we 
   # ->resolve_join as otherwise they get lost - captainL
-  my $merged = $self->_merge_attr( $join, $attrs->{prefetch} );
+  my $merged = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
 
-  $from = [
-    @$from,
-    ($join ? $source->resolve_join($merged, $attrs->{alias}, $seen) : ()),
-  ];
+  push @$from, $source->resolve_join($merged, $attrs->{alias}, $seen) if ($merged);
+
+  ++$seen->{-relation_chain_depth};
+
+  push @$from, $source->resolve_join($extra_join, $attrs->{alias}, $seen);
+
+  ++$seen->{-relation_chain_depth};
 
   return ($from,$seen);
 }
@@ -2564,12 +2569,12 @@ sub _resolved_attrs {
   if ( my $prefetch = delete $attrs->{prefetch} ) {
     $prefetch = $self->_merge_attr( {}, $prefetch );
     my @pre_order;
-    my $seen = { %{ $attrs->{seen_join} || {} } };
     foreach my $p ( ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch) ) {
 
       # bring joins back to level of current class
+      my $join_map = $self->_joinpath_aliases ($attrs->{from}, $attrs->{seen_join});
       my @prefetch =
-        $source->resolve_prefetch( $p, $alias, $seen, \@pre_order, $collapse );
+        $source->resolve_prefetch( $p, $alias, $join_map, \@pre_order, $collapse );
       push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
       push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
     }
@@ -2583,6 +2588,25 @@ sub _resolved_attrs {
   }
 
   return $self->{_attrs} = $attrs;
+}
+
+sub _joinpath_aliases {
+  my ($self, $fromspec, $seen) = @_;
+
+  my $paths = {};
+  return $paths unless ref $fromspec eq 'ARRAY';
+
+  for my $j (@$fromspec) {
+
+    next if ref $j ne 'ARRAY';
+    next if $j->[0]{-relation_chain_depth} < ( $seen->{-relation_chain_depth} || 0);
+
+    my $p = $paths;
+    $p = $p->{$_} ||= {} for @{$j->[0]{-join_path}};
+    push @{$p->{-join_aliases} }, $j->[0]{-join_alias};
+  }
+
+  return $paths;
 }
 
 sub _rollout_attr {

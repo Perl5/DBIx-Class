@@ -2,6 +2,8 @@ package # Hide from PAUSE
   DBIx::Class::SQLAHacks;
 
 use base qw/SQL::Abstract::Limit/;
+use strict;
+use warnings;
 use Carp::Clan qw/^DBIx::Class/;
 
 sub new {
@@ -272,20 +274,23 @@ sub _order_directions {
 
 sub _order_directions_hash {
   my ($self, $order) = @_;
-    if (grep { $_ =~ /^-(desc|asc)/i } keys %{$order}) {
-       return map {
-          my $key = $_;
-          my @tmp;
-          s/^-(desc|asc)/\1/i;
-          my $dir = $_;
-          if (ref $order->{ $key } eq 'ARRAY') {
-            @tmp = map "$_ $dir", @{ $order->{ $key } };
-          } else { # should be scalar
-            @tmp = ( "$order->{$key} $dir" );
-          }
-          @tmp;
-       } keys %{$order};
-   }
+  my @new_order;
+  foreach my $key (keys %{ $order }) {
+    if ($key =~ /^-(desc|asc)/i ) {
+      my $direction = $1;
+      my $type = ref $order->{ $key };
+      if ($type eq 'ARRAY') {
+        push @new_order, map( "$_ $direction", @{ $order->{ $key } } );
+      } elsif (!$type) {
+        push @new_order, "$order->{$key} $direction";
+      } else {
+        croak "hash order_by can only contain Scalar or Array, not $type";
+      }
+    } else {
+      croak "$key is not a valid direction, use -asc or -desc";
+    }
+  }
+  return @new_order;
 }
 
 sub _table {
