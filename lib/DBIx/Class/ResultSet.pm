@@ -1150,7 +1150,7 @@ on the resultset and counts the results of that.
 
 =cut
 
-my @count_via_subq_attrs = qw/join seen_join group_by/;
+my @count_via_subq_attrs = qw/join seen_join prefetch group_by/;
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ and defined $_[0];
@@ -1173,14 +1173,21 @@ sub _count_subq {
 
   my $attrs = { %{$self->_resolved_attrs} };
 
-  my $select_cols = $attrs->{group_by} || [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
+  # copy for the subquery, we need to do some adjustments to it too
+  my $sub_attrs = { %$attrs };
+
+  # these can not go in the subquery either
+  delete $sub_attrs->{$_} for qw/prefetch select +select as +as columns +columns/;
+
+  # force a group_by and the same set of columns (most databases require this)
+  $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
+
   $attrs->{from} = [{
-    count_subq => $self->search ({}, { columns => $select_cols, group_by => $select_cols })
-                         ->as_query
+    count_subq => (ref $self)->new ($self->result_source, $sub_attrs )->as_query
   }];
 
-  # the subquery above will integrate everything, including 'where' and any pagers
-  delete $attrs->{$_} for (@count_via_subq_attrs, qw/where rows offset pager page/ );
+  # the subquery replaces this
+  delete $attrs->{where};
 
   return $self->__count ($attrs);
 }
@@ -1205,11 +1212,12 @@ sub __count {
 
   $attrs ||= { %{$self->{attrs}} };
 
+  # take off any subquery attrs (they'd be incorporated in the subquery),
+  # any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
+  delete $attrs->{$_} for (@count_via_subq_attrs, qw/columns +columns select +select as +as rows offset page pager order_by record_filter/);
+
   $attrs->{select} = { count => '*' };
   $attrs->{as} = [qw/count/];
-
-  # take off any pagers, record_filter is cdbi, and no point of ordering a count
-  delete $attrs->{$_} for qw/rows offset page pager order_by record_filter/;
 
   my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
   my ($count) = $tmp_rs->cursor->next;
@@ -2582,9 +2590,8 @@ sub _resolved_attrs {
   }
   $attrs->{collapse} = $collapse;
 
-  if ( $attrs->{page} ) {
-    $attrs->{offset} ||= 0;
-    $attrs->{offset} += ( $attrs->{rows} * ( $attrs->{page} - 1 ) );
+  if ( $attrs->{page} and not defined $attrs->{offset} ) {
+    $attrs->{offset} = ( $attrs->{rows} * ( $attrs->{page} - 1 ) );
   }
 
   return $self->{_attrs} = $attrs;
