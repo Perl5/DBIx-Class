@@ -68,7 +68,7 @@ the database when these methods are called:
 
 =back
 
-=head1 EXAMPLES 
+=head1 EXAMPLES
 
 =head2 Chaining resultsets
 
@@ -193,7 +193,7 @@ sub new {
   return $class->new_result(@_) if ref $class;
 
   my ($source, $attrs) = @_;
-  $source = $source->handle 
+  $source = $source->handle
     unless $source->isa('DBIx::Class::ResultSourceHandle');
   $attrs = { %{$attrs||{}} };
 
@@ -296,7 +296,7 @@ sub search_rs {
 
   unless (
     (@_ && defined($_[0])) # @_ == () or (undef)
-    || 
+    ||
     (keys %$attrs # empty attrs or only 'safe' attrs
     && List::Util::first { !$safe{$_} } keys %$attrs)
   ) {
@@ -393,7 +393,7 @@ Pass a literal chunk of SQL to be added to the conditional part of the
 resultset query.
 
 CAVEAT: C<search_literal> is provided for Class::DBI compatibility and should
-only be used in that context. C<search_literal> is a convenience method. 
+only be used in that context. C<search_literal> is a convenience method.
 It is equivalent to calling $schema->search(\[]), but if you want to ensure
 columns are bound correctly, use C<search>.
 
@@ -403,14 +403,14 @@ Example of how to use C<search> instead of C<search_literal>
   my @cds = $cd_rs->search(\[ 'cdid = ? AND (artist = ? OR artist = ?)', [ 'cdid', 2 ], [ 'artist', 1 ], [ 'artist', 2 ] ]);
 
 
-See L<DBIx::Class::Manual::Cookbook/Searching> and 
+See L<DBIx::Class::Manual::Cookbook/Searching> and
 L<DBIx::Class::Manual::FAQ/Searching> for searching techniques that do not
 require C<search_literal>.
 
 =cut
 
 sub search_literal {
-  my ($self, $sql, @bind) = @_; 
+  my ($self, $sql, @bind) = @_;
   my $attr;
   if ( @bind && ref($bind[-1]) eq 'HASH' ) {
     $attr = pop @bind;
@@ -712,7 +712,7 @@ a warning:
   Query returned more than one row
 
 In this case, you should be using L</first> or L</find> instead, or if you really
-know what you are doing, use the L</rows> attribute to explicitly limit the size 
+know what you are doing, use the L</rows> attribute to explicitly limit the size
 of the resultset.
 
 =back
@@ -1016,7 +1016,7 @@ sub _collapse_result {
   do { # no need to check anything at the front, we always want the first row
 
     my %const;
-  
+
     foreach my $this_as (@construct_as) {
       $const{$this_as->[0]||''}{$this_as->[1]} = shift(@copy);
     }
@@ -1063,7 +1063,7 @@ sub _collapse_result {
         foreach my $p (@parts) {
           $target = $target->[1]->{$p} ||= [];
           $cur .= ".${p}";
-          if ($cur eq ".${key}" && (my @ckey = @{$collapse{$cur}||[]})) { 
+          if ($cur eq ".${key}" && (my @ckey = @{$collapse{$cur}||[]})) {
             # collapsing at this point and on final part
             my $pos = $collapse_pos{$cur};
             CK: foreach my $ck (@ckey) {
@@ -1114,8 +1114,8 @@ is derived.
 
 =back
 
-An accessor for the class to use when creating row objects. Defaults to 
-C<< result_source->result_class >> - which in most cases is the name of the 
+An accessor for the class to use when creating row objects. Defaults to
+C<< result_source->result_class >> - which in most cases is the name of the
 L<"table"|DBIx::Class::Manual::Glossary/"ResultSource"> class.
 
 Note that changing the result_class will also remove any components
@@ -1336,7 +1336,7 @@ sub first {
 
 # _update_delete_via_subq
 #
-# Presence of some rs attributes requires a subquery to reliably 
+# Presence of some rs attributes requires a subquery to reliably
 # update/deletre
 #
 
@@ -1536,7 +1536,7 @@ For the arrayref of hashrefs style each hashref should be a structure suitable
 forsubmitting to a $resultset->create(...) method.
 
 In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
-to insert the data, as this is a faster method.  
+to insert the data, as this is a faster method.
 
 Otherwise, each set of data is inserted into the database using
 L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
@@ -1545,10 +1545,10 @@ objects is returned.
 Example:  Assuming an Artist Class that has many CDs Classes relating:
 
   my $Artist_rs = $schema->resultset("Artist");
-  
-  ## Void Context Example 
+
+  ## Void Context Example
   $Artist_rs->populate([
-     { artistid => 4, name => 'Manufactured Crap', cds => [ 
+     { artistid => 4, name => 'Manufactured Crap', cds => [
         { title => 'My First CD', year => 2006 },
         { title => 'Yet More Tweeny-Pop crap', year => 2007 },
       ],
@@ -1560,7 +1560,7 @@ Example:  Assuming an Artist Class that has many CDs Classes relating:
       ],
      },
   ]);
-  
+
   ## Array Context Example
   my ($ArtistOne, $ArtistTwo, $ArtistThree) = $Artist_rs->populate([
     { name => "Artist One"},
@@ -1570,7 +1570,7 @@ Example:  Assuming an Artist Class that has many CDs Classes relating:
     { title => "Second CD", year => 2008},
   ]}
   ]);
-  
+
   print $ArtistOne->name; ## response is 'Artist One'
   print $ArtistThree->cds->count ## reponse is '2'
 
@@ -1586,11 +1586,11 @@ example:
   ]);
 
 Please note an important effect on your data when choosing between void and
-wantarray context. Since void context goes straight to C<insert_bulk> in 
+wantarray context. Since void context goes straight to C<insert_bulk> in
 L<DBIx::Class::Storage::DBI> this will skip any component that is overriding
-c<insert>.  So if you are using something like L<DBIx-Class-UUIDColumns> to 
-create primary keys for you, you will find that your PKs are empty.  In this 
-case you will have to use the wantarray context in order to create those 
+C<insert>.  So if you are using something like L<DBIx-Class-UUIDColumns> to
+create primary keys for you, you will find that your PKs are empty.  In this
+case you will have to use the wantarray context in order to create those
 values.
 
 =cut
@@ -1600,7 +1600,7 @@ sub populate {
   my $data = ref $_[0][0] eq 'HASH'
     ? $_[0] : ref $_[0][0] eq 'ARRAY' ? $self->_normalize_populate_args($_[0]) :
     $self->throw_exception('Populate expects an arrayref of hashes or arrayref of arrayrefs');
-  
+
   if(defined wantarray) {
     my @created;
     foreach my $item (@$data) {
@@ -1612,28 +1612,28 @@ sub populate {
 
     my @names = grep {!ref $first->{$_}} keys %$first;
     my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
-    my @pks = $self->result_source->primary_columns;  
+    my @pks = $self->result_source->primary_columns;
 
-    ## do the belongs_to relationships  
+    ## do the belongs_to relationships
     foreach my $index (0..$#$data) {
       if( grep { !defined $data->[$index]->{$_} } @pks ) {
         my @ret = $self->populate($data);
         return;
       }
-    
+
       foreach my $rel (@rels) {
         next unless $data->[$index]->{$rel} && ref $data->[$index]->{$rel} eq "HASH";
         my $result = $self->related_resultset($rel)->create($data->[$index]->{$rel});
         my ($reverse) = keys %{$self->result_source->reverse_relationship_info($rel)};
         my $related = $result->result_source->_resolve_condition(
           $result->result_source->relationship_info($reverse)->{cond},
-          $self,        
-          $result,        
+          $self,
+          $result,
         );
 
         delete $data->[$index]->{$rel};
         $data->[$index] = {%{$data->[$index]}, %$related};
-      
+
         push @names, keys %$related if $index == 0;
       }
     }
@@ -1642,8 +1642,8 @@ sub populate {
     my @values = map { [ @$_{@names} ] } @$data;
 
     $self->result_source->storage->insert_bulk(
-      $self->result_source, 
-      \@names, 
+      $self->result_source,
+      \@names,
       \@values,
     );
 
@@ -1653,11 +1653,11 @@ sub populate {
       foreach my $rel (@rels) {
         next unless $item->{$rel} && ref $item->{$rel} eq "ARRAY";
 
-        my $parent = $self->find(map {{$_=>$item->{$_}} } @pks) 
+        my $parent = $self->find(map {{$_=>$item->{$_}} } @pks)
      || $self->throw_exception('Cannot find the relating object.');
-     
+
         my $child = $parent->$rel;
-    
+
         my $related = $child->result_source->_resolve_condition(
           $parent->result_source->relationship_info($rel)->{cond},
           $child,
@@ -1690,7 +1690,7 @@ sub _normalize_populate_args {
     foreach my $index (0..$#names) {
       $result_to_create{$names[$index]} = $$datum[$index];
     }
-    push @results_to_create, \%result_to_create;    
+    push @results_to_create, \%result_to_create;
   }
   return \@results_to_create;
 }
@@ -1723,7 +1723,7 @@ sub pager {
     unless $self->{attrs}{page};
   $attrs->{rows} ||= 10;
 
-  # throw away the paging flags and re-run the count (possibly 
+  # throw away the paging flags and re-run the count (possibly
   # with a subselect) to get the real total count
   my $count_attrs = { %$attrs };
   delete $count_attrs->{$_} for qw/rows offset page pager/;
@@ -1794,13 +1794,13 @@ sub new_result {
     $self->throw_exception(
       "Can't abstract implicit construct, condition not a hash"
     ) if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
-  
+
     my $collapsed_cond = (
       $self->{cond}
         ? $self->_collapse_cond($self->{cond})
         : {}
     );
-  
+
     # precendence must be given to passed values over values inherited from
     # the cond, so the order here is important.
     my %implied =  %{$self->_remove_alias($collapsed_cond, $alias)};
@@ -1825,7 +1825,7 @@ sub new_result {
 
 # _is_deterministic_value
 #
-# Make an effor to strip non-deterministic values from the condition, 
+# Make an effor to strip non-deterministic values from the condition,
 # to make sure new_result chokes less
 
 sub _is_deterministic_value {
@@ -1862,7 +1862,7 @@ sub _has_attr {
       and
     ref $attrs->{from} eq 'ARRAY'
       and
-    @{$attrs->{from}} > 1 
+    @{$attrs->{from}} > 1
   );
 
   return 0;
@@ -2026,12 +2026,12 @@ Example of creating a new row.
     name=>"Some Person",
     email=>"somebody@someplace.com"
   });
-  
+
 Example of creating a new row and also creating rows in a related C<has_many>
 or C<has_one> resultset.  Note Arrayref.
 
   $artist_rs->create(
-     { artistid => 4, name => 'Manufactured Crap', cds => [ 
+     { artistid => 4, name => 'Manufactured Crap', cds => [
         { title => 'My First CD', year => 2006 },
         { title => 'Yet More Tweeny-Pop crap', year => 2007 },
       ],
@@ -2147,10 +2147,10 @@ For example:
     { key => 'cd_artist_title' }
   );
 
-  $cd->cd_to_producer->update_or_create({ 
-    producer => $producer, 
+  $cd->cd_to_producer->update_or_create({
+    producer => $producer,
     name => 'harry',
-  }, { 
+  }, {
     key => 'primary,
   });
 
@@ -2441,10 +2441,10 @@ sub _resolve_from {
 
   my $from = $attrs->{from}
     || [ { $attrs->{alias} => $source->from } ];
-    
+
   my $seen = { %{$attrs->{seen_join}||{}} };
 
-  # we need to take the prefetch the attrs into account before we 
+  # we need to take the prefetch the attrs into account before we
   # ->_resolve_join as otherwise they get lost - captainL
   my $merged = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
 
@@ -2477,14 +2477,14 @@ sub _resolved_attrs {
               ? $_
               : {
                   (
-                    /^\Q${alias}.\E(.+)$/ 
+                    /^\Q${alias}.\E(.+)$/
                       ? "$1"
                       : "$_"
                   )
-                => 
+                =>
                   (
-                    /\./ 
-                      ? "$_" 
+                    /\./
+                      ? "$_"
                       : "${alias}.$_"
                   )
             }
@@ -2617,7 +2617,7 @@ sub _joinpath_aliases {
 
 sub _rollout_attr {
   my ($self, $attr) = @_;
-  
+
   if (ref $attr eq 'HASH') {
     return $self->_rollout_hash($attr);
   } elsif (ref $attr eq 'ARRAY') {
@@ -2668,7 +2668,7 @@ sub _calculate_score {
       }
     } else {
       return ($a eq $b_key) ? 1 : 0;
-    }       
+    }
   } else {
     if (ref $a eq 'HASH') {
       my ($a_key) = keys %{$a};
@@ -2684,7 +2684,7 @@ sub _merge_attr {
 
   return $import unless defined($orig);
   return $orig unless defined($import);
-  
+
   $orig = $self->_rollout_attr($orig);
   $import = $self->_rollout_attr($import);
 
@@ -2960,19 +2960,19 @@ For example:
     }
   );
 
-You need to use the relationship (not the table) name in  conditions, 
-because they are aliased as such. The current table is aliased as "me", so 
+You need to use the relationship (not the table) name in  conditions,
+because they are aliased as such. The current table is aliased as "me", so
 you need to use me.column_name in order to avoid ambiguity. For example:
 
-  # Get CDs from 1984 with a 'Foo' track 
+  # Get CDs from 1984 with a 'Foo' track
   my $rs = $schema->resultset('CD')->search(
-    { 
+    {
       'me.year' => 1984,
       'tracks.name' => 'Foo'
     },
     { join => 'tracks' }
   );
-  
+
 If the same join is supplied twice, it will be aliased to <rel>_2 (and
 similarly for a third time). For e.g.
 
@@ -3025,12 +3025,12 @@ C<cd> or C<artist> relationships, which saves us two SQL statements in this
 case.
 
 Simple prefetches will be joined automatically, so there is no need
-for a C<join> attribute in the above search. 
+for a C<join> attribute in the above search.
 
 C<prefetch> can be used with the following relationship types: C<belongs_to>,
 C<has_one> (or if you're using C<add_relationship>, any relationship declared
 with an accessor type of 'single' or 'filter'). A more complex example that
-prefetches an artists cds, the tracks on those cds, and the tags associted 
+prefetches an artists cds, the tracks on those cds, and the tags associted
 with that artist is given below (assuming many-to-many from artists to tags):
 
  my $rs = $schema->resultset('Artist')->search(
@@ -3042,7 +3042,7 @@ with that artist is given below (assuming many-to-many from artists to tags):
      ]
    }
  );
- 
+
 
 B<NOTE:> If you specify a C<prefetch> attribute, the C<join> and C<select>
 attributes will be ignored.
@@ -3294,12 +3294,12 @@ searches - you have been warned.
     $table = $rs->result_source->name;
     $latest = $rs->search (
         undef,
-        { from => \ " 
-            (SELECT e1.* FROM $table e1 
-                JOIN $table e2 
-                    ON e1.location = e2.location 
-                    AND e1.sequence < e2.sequence 
-                WHERE e2.sequence is NULL 
+        { from => \ "
+            (SELECT e1.* FROM $table e1
+                JOIN $table e2
+                    ON e1.location = e2.location
+                    AND e1.sequence < e2.sequence
+                WHERE e2.sequence is NULL
             ) me",
         },
     );
