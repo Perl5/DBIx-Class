@@ -1155,7 +1155,7 @@ sub count {
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my @subq_attrs = qw/prefetch collapse distinct group_by having having_bind/;
+  my @subq_attrs = qw/prefetch collapse distinct group_by having/;
   my $attrs = $self->_resolved_attrs;
 
   # if we are not paged - we are simply asking for a limit
@@ -1177,7 +1177,7 @@ sub _count_subq {
   my $sub_attrs = { %$attrs };
 
   # these can not go in the subquery either
-  delete $sub_attrs->{$_} for qw/prefetch select +select as +as columns +columns/;
+  delete $sub_attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns/;
 
   # force a group_by and the same set of columns (most databases require this)
   $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
@@ -1187,7 +1187,7 @@ sub _count_subq {
   }];
 
   # the subquery replaces this
-  delete $attrs->{$_} for qw/where bind prefetch collapse group_by having/;
+  delete $attrs->{$_} for qw/where bind prefetch collapse distinct group_by having having_bind/;
 
   return $self->__count ($attrs);
 }
@@ -1200,9 +1200,10 @@ sub _count_simple {
 
   # need to take offset from resolved attrs
 
-  $count -= $self->{_attrs}{offset} if $self->{_attrs}{offset};
-  $count = $self->{attrs}{rows} if
-    $self->{attrs}{rows} and $self->{attrs}{rows} < $count;
+  my $attrs = $self->_resolved_attrs;
+
+  $count -= $attrs->{offset} if $attrs->{offset};
+  $count = $attrs->{rows} if $attrs->{rows} and $attrs->{rows} < $count;
   $count = 0 if ($count < 0);
   return $count;
 }
@@ -1353,7 +1354,7 @@ sub _rs_update_delete {
     # make a new $rs selecting only the PKs (that's all we really need)
     my $attrs = $self->_resolved_attrs;
 
-    delete $attrs->{$_} for qw/prefetch select +select as +as columns +columns/;
+    delete $attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns/;
     $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
 
     if ($needs_group_by_subq) {
