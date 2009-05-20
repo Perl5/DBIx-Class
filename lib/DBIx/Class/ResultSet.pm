@@ -46,27 +46,13 @@ A new ResultSet is returned from calling L</search> on an existing
 ResultSet. The new one will contain all the conditions of the
 original, plus any new conditions added in the C<search> call.
 
-A ResultSet is also an iterator. L</next> is used to return all the
-L<DBIx::Class::Row>s the ResultSet represents.
+A ResultSet also incorporates an implicit iterator. L</next> and L</reset>
+can be used to walk through all the L<DBIx::Class::Row>s the ResultSet
+represents.
 
 The query that the ResultSet represents is B<only> executed against
 the database when these methods are called:
-
-=over
-
-=item L</find>
-
-=item L</next>
-
-=item L</all>
-
-=item L</count>
-
-=item L</single>
-
-=item L</first>
-
-=back
+L</find> L</next> L</all> L</first> L</single> L</count>
 
 =head1 EXAMPLES
 
@@ -1145,8 +1131,8 @@ sub result_class {
 =back
 
 Performs an SQL C<COUNT> with the same query as the resultset was built
-with to find the number of elements. If passed arguments, does a search
-on the resultset and counts the results of that.
+with to find the number of elements. Passing arguments is equivalent to
+C<< $rs->search ($cond, \%attrs)->count >>
 
 =cut
 
