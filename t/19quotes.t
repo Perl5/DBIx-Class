@@ -24,7 +24,7 @@ my $schema = DBICTest->init_schema();
 $schema->storage->sql_maker->quote_char('`');
 $schema->storage->sql_maker->name_sep('.');
 
-my ($sql, @bind) = ('');
+my ($sql, @bind);
 $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
 $schema->storage->debug(1);
 

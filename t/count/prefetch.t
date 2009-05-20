@@ -33,7 +33,7 @@ my $schema = DBICTest->init_schema();
     $sql,
     \@bind,
     'SELECT COUNT( * ) FROM (SELECT cds.cdid FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid LEFT JOIN track tracks ON tracks.cd = cds.cdid JOIN artist artist ON artist.artistid = cds.artist WHERE tracks.position = ? OR tracks.position = ? GROUP BY cds.cdid ORDER BY tracks.cd) count_subq',
-    [ qw/'1' '2'/ ], # wtf? we quote bind vals?
+    [ qw/'1' '2'/ ],
   );
 }
 
@@ -58,6 +58,6 @@ my $schema = DBICTest->init_schema();
     $sql,
     \@bind,
     'SELECT COUNT( * ) FROM cd me LEFT JOIN track tracks ON tracks.cd = me.cdid JOIN cd disc ON disc.cdid = tracks.cd LEFT JOIN lyrics lyrics ON lyrics.track_id = tracks.trackid WHERE ( ( position = ? OR position = ? ) )',
-    [ qw/'1' '2'/ ], # wtf? we quote bind vals?
+    [ qw/'1' '2'/ ],
   );
 }

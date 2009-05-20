@@ -74,9 +74,8 @@ is ( $rs->count, 1, '...cookbook (bind first) + chained search' );
 
 {
   $rs = $schema->resultset('Complex')->search({}, { bind => [ 1999 ] })->search({}, { where => \"title LIKE ?", bind => [ 'Spoon%' ] });
-  my ($sql, @bind) = @${$rs->as_query};
   is_same_sql_bind(
-    $sql, \@bind,
+    $rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year FROM artist a JOIN cd ON cd.artist = a.artistid WHERE cd.year = ?) WHERE title LIKE ?)",
     [
       [ '!!dummy' => '1999' ], 

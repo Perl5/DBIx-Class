@@ -30,7 +30,7 @@ $schema->connection(
   { quote_char => '`', name_sep => '.' },
 );
 
-my ($sql, @bind) = ('');
+my ($sql, @bind);
 $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind)),
 $schema->storage->debug(1);
 

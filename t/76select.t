@@ -84,10 +84,8 @@ $rs = $schema->resultset('CD')->search({},
     }
 );
 
-my ($sql, @bind) = @${$rs->as_query};
 is_same_sql_bind (
-  $sql,
-  \@bind,
+  $rs->as_query,
   '(SELECT me.cdid, me.title, artist.name FROM cd me  JOIN artist artist ON artist.artistid = me.artist)',
   [],
   'Use of columns attribute results in proper sql'
@@ -114,10 +112,8 @@ $rs = $schema->resultset('CD')->search({},
     }
 );
 
-($sql, @bind) = @${$rs->as_query};
 is_same_sql_bind (
-  $sql,
-  \@bind,
+  $rs->as_query,
   '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, me.cdid, me.title, artist.name FROM cd me  JOIN artist artist ON artist.artistid = me.artist)',
   [],
   'Use of columns attribute results in proper sql'

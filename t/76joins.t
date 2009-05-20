@@ -32,9 +32,9 @@ my $match = 'person child JOIN person father ON ( father.person_id = '
           . 'child.father_id ) JOIN person mother ON ( mother.person_id '
           . '= child.mother_id )'
           ;
-is_same_sql_bind(
-  $sa->_recurse_from(@j), [],
-  $match, [],
+is_same_sql(
+  $sa->_recurse_from(@j),
+  $match,
   'join 1 ok'
 );
 
@@ -52,9 +52,9 @@ $match = 'person mother JOIN (person child JOIN person father ON ('
        . ' father.person_id = child.father_id )) ON ( mother.person_id = '
        . 'child.mother_id )'
        ;
-is_same_sql_bind(
-  $sa->_recurse_from(@j2), [],
-  $match, [],
+is_same_sql(
+  $sa->_recurse_from(@j2),
+  $match,
   'join 2 ok'
 );
 
@@ -69,9 +69,9 @@ $match = 'person child INNER JOIN person father ON ( father.person_id = '
           . '= child.mother_id )'
           ;
 
-is_same_sql_bind(
-  $sa->_recurse_from(@j3), [],
-  $match, [],
+is_same_sql(
+  $sa->_recurse_from(@j3),
+  $match,
   'join 3 (inner join) ok'
 );
 
@@ -89,9 +89,9 @@ $match = 'person mother LEFT JOIN (person child RIGHT JOIN person father ON ('
        . ' father.person_id = child.father_id )) ON ( mother.person_id = '
        . 'child.mother_id )'
        ;
-is_same_sql_bind(
-  $sa->_recurse_from(@j4), [],
-  $match, [],
+is_same_sql(
+  $sa->_recurse_from(@j4),
+  $match,
   'join 4 (nested joins + join types) ok'
 );
 
@@ -104,9 +104,9 @@ $match = 'person child JOIN person father ON ( father.person_id != '
           . 'child.father_id ) JOIN person mother ON ( mother.person_id '
           . '= child.mother_id )'
           ;
-is_same_sql_bind(
-  $sa->_recurse_from(@j5), [],
-  $match, [],
+is_same_sql(
+  $sa->_recurse_from(@j5),
+  $match,
   'join 5 (SCALAR reference for ON statement) ok'
 );
 
