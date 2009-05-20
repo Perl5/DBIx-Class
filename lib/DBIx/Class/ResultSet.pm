@@ -1156,9 +1156,10 @@ sub count {
   return scalar @{ $self->get_cache } if $self->get_cache;
 
   my @subq_attrs = qw/prefetch collapse distinct group_by having having_bind/;
+  my $attrs = $self->_resolved_attrs;
 
   # if we are not paged - we are simply asking for a limit
-  if (not $self->{attrs}{page} and not $self->{attrs}{software_limit}) {
+  if (not $attrs->{page} and not $attrs->{software_limit}) {
     push @subq_attrs, qw/rows offset/;
   }
 
@@ -1209,7 +1210,7 @@ sub _count_simple {
 sub __count {
   my ($self, $attrs) = @_;
 
-  $attrs ||= { %{$self->{attrs}} };
+  $attrs ||= { %{$self->_resolved_attrs} };
 
   # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
   delete $attrs->{$_} for (qw/columns +columns select +select as +as rows offset page pager order_by record_filter/); 
