@@ -1155,7 +1155,7 @@ sub count {
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my @subq_attrs = qw/prefetch collapse group_by having/;
+  my @subq_attrs = qw/prefetch collapse group_by having having_bind/;
 
   # if we are not paged - we are simply asking for a limit
   if (not $self->{attrs}{page} and not $self->{attrs}{software_limit}) {
