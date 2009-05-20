@@ -1081,12 +1081,16 @@ sub _onepk_update_delete {
   my ($rs, $op, $values) = @_;
 
   my $rsrc = $rs->result_source;
+  my $attrs = $rs->_resolved_attrs;
   my @pcols = $rsrc->primary_columns;
+
+  $self->throw_exception ('_onepk_update_delete can not be called on resultsets selecting multiple columns')
+    if (ref $attrs->{select} eq 'ARRAY' and @{$attrs->{select}} > 1);
 
   return $self->$op (
     $rsrc,
     $op eq 'update' ? $values : (),
-    { $pcols[0] => { -in => $rs->get_column ($pcols[0])->as_query } },
+    { $pcols[0] => { -in => $rs->as_query } },
   );
 }
 
@@ -1106,10 +1110,14 @@ sub _multipk_update_delete {
 
   my $rsrc = $rs->result_source;
   my @pcols = $rsrc->primary_columns;
+  my $attrs = $rs->_resolved_attrs;
+
+  $self->throw_exception ('Number of columns selected by supplied resultset does not match number of primary keys')
+    if ( ref $attrs->{select} ne 'ARRAY' or @{$attrs->{select}} != @pcols );
 
   my $guard = $self->txn_scope_guard;
 
-  my $subrs_cur = $rs->search ({}, { columns => \@pcols })->cursor;
+  my $subrs_cur = $rs->cursor;
   while (my @pks = $subrs_cur->next) {
 
     my $cond;

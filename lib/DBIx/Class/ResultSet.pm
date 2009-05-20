@@ -1155,7 +1155,7 @@ sub count {
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my @subq_attrs = qw/prefetch collapse group_by having having_bind/;
+  my @subq_attrs = qw/prefetch collapse distinct group_by having having_bind/;
 
   # if we are not paged - we are simply asking for a limit
   if (not $self->{attrs}{page} and not $self->{attrs}{software_limit}) {
@@ -1333,14 +1333,68 @@ sub first {
 }
 
 
-# _update_delete_via_subq
+# _rs_update_delete
 #
-# Presence of some rs attributes requires a subquery to reliably
-# update/deletre
-#
+# Determines whether and what type of subquery is required for the $rs operation.
+# If grouping is necessary either supplies its own, or verifies the current one
+# After all is done delegates to the proper storage method.
 
-sub _update_delete_via_subq {
-  return $_[0]->_has_attr (qw/join seen_join group_by row offset page/);
+sub _rs_update_delete {
+  my ($self, $op, $values) = @_;
+
+  my $rsrc = $self->result_source;
+
+  my $needs_group_by_subq = $self->_has_attr (qw/prefetch distinct join seen_join group_by/);
+  my $needs_subq = $self->_has_attr (qw/row offset page/);
+
+  if ($needs_group_by_subq or $needs_subq) {
+
+    # make a new $rs selecting only the PKs (that's all we really need)
+    my $attrs = $self->_resolved_attrs;
+
+    delete $attrs->{$_} for qw/prefetch select +select as +as columns +columns/;
+    $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
+
+    if ($needs_group_by_subq) {
+      # make sure no group_by was supplied, or if there is one - make sure it matches
+      # the columns compiled above perfectly. Anything else can not be sanely executed
+      # on most databases so croak right then and there
+
+      if (my $g = $attrs->{group_by}) {
+        my @current_group_by = map
+          { $_ =~ /\./ ? $_ : "$attrs->{alias}.$_" }
+          (ref $g eq 'ARRAY' ? @$g : $g );
+
+        if (
+          join ("\x00", sort @current_group_by)
+            ne
+          join ("\x00", sort @{$attrs->{columns}} )
+        ) {
+          $self->throw_exception (
+            "You have just attempted a $op operation on a resultset which does group_by"
+            . ' on columns other than the primary keys, while DBIC internally needs to retrieve'
+            . ' the primary keys in a subselect. All sane RDBMS engines do not support this'
+            . ' kind of queries. Please retry the operation with a modified group_by or'
+            . ' without using one at all.'
+          );
+        }
+      }
+      else {
+        $attrs->{group_by} = $attrs->{columns};
+      }
+    }
+
+    my $subrs = (ref $self)->new($rsrc, $attrs);
+
+    return $self->result_source->storage->subq_update_delete($subrs, $op, $values);
+  }
+  else {
+    return $rsrc->storage->$op(
+      $rsrc,
+      $op eq 'update' ? $values : (),
+      $self->_cond_for_update_delete,
+    );
+  }
 }
 
 
@@ -1423,16 +1477,7 @@ sub update {
   $self->throw_exception('Values for update must be a hash')
     unless ref $values eq 'HASH';
 
-  # rs operations with subqueries are Storage dependent - delegate
-  if ($self->_update_delete_via_subq) {
-    return $self->result_source->storage->subq_update_delete($self, 'update', $values);
-  }
-
-  my $cond = $self->_cond_for_update_delete;
-
-  return $self->result_source->storage->update(
-    $self->result_source, $values, $cond
-  );
+  return $self->_rs_update_delete ('update', $values);
 }
 
 =head2 update_all
@@ -1487,15 +1532,7 @@ sub delete {
   $self->throw_exception('delete does not accept any arguments')
     if @_;
 
-  # rs operations with subqueries are Storage dependent - delegate
-  if ($self->_update_delete_via_subq) {
-    return $self->result_source->storage->subq_update_delete($self, 'delete');
-  }
-
-  my $cond = $self->_cond_for_update_delete;
-
-  $self->result_source->storage->delete($self->result_source, $cond);
-  return 1;
+  return $self->_rs_update_delete ('delete');
 }
 
 =head2 delete_all
