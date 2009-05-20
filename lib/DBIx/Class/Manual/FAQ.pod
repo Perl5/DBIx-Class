@@ -571,4 +571,19 @@ default port of 5432.
 
 You can chance the port setting in C<postgresql.conf>.
 
+=item I've lost or forgotten my mysql password
+
+Stop mysqld and restart it with the --skip-grant-tables option.
+
+Issue the following statements in the mysql client.
+
+  UPDATE mysql.user SET Password=PASSWORD('MyNewPass') WHERE User='root';
+  FLUSH PRIVILEGES;
+
+Restart mysql.
+
+Taken from:
+
+L<http://dev.mysql.com/doc/refman/5.1/en/resetting-permissions.html>.
+
 =back
