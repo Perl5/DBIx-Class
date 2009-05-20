@@ -82,9 +82,9 @@ eval {    # Multiple false columns
 ok($@, $@);
 
 
-warning_is {
+warning_like {
     Lazy->columns( TEMP => qw(that) );
-} "Declaring column that as TEMP but it already exists";
+} qr/Declaring column that as TEMP but it already exists/;
 
 # Test that create() and update() throws out columns that changed
 {
