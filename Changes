@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - don't pass SQL functions into GROUP BY
         - Remove MultiDistinctEmulation.pm, effectively deprecating
           { select => { distinct => [ qw/col1 col2/ ] } }
         - Change ->count code to work correctly with DISTINCT (distinct => 1)
