@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 98;
+plan tests => 103;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -397,4 +397,13 @@ SKIP: {
   is($en_row->encoded, 'amliw', 'new encodes');
   $en_row->insert;
   is($en_row->encoded, 'amliw', 'insert does not encode again');
+}
+
+# make sure we got rid of the compat shims
+SKIP: {
+    skip "Remove in 0.09", 5 if $DBIx::Class::VERSION < 0.09;
+
+    for (qw/compare_relationship_keys pk_depends_on resolve_condition resolve_join resolve_prefetch/) {
+      ok (! DBIx::Class::ResultSource->can ($_), "$_ no longer provided by DBIx::Class::ResultSource");
+    }
 }
