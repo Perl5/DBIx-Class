@@ -13,7 +13,7 @@ my $schema = DBICTest->init_schema();
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 19;
+plan tests => 21;
 
 # The tag Blue is assigned to cds 1 2 3 and 5
 # The tag Cheesy is assigned to cds 2 4 and 5
@@ -71,11 +71,8 @@ is($rs->count, 5, 'Count with literal SQL and another single group_by');
 $rs = $schema->resultset('Tag')->search({ tag => \" IN ('Blue', 'Cheesy')" }, { group_by => [ qw/tag cd/ ] });
 is($rs->count, 7, 'Count with literal SQL and multiple group_by');
 
-$rs = $schema->resultset('Tag')->search({}, {
-  select => { length => 'tag' },
-  distinct => 1
-});
-is($rs->count, 3, 'Count by distinc result of function');
+$rs = $schema->resultset('Tag')->search({ tag => 'Blue' }, { '+select' => { max => 'tagid' }, distinct => 1 });
+is($rs->count, 4, 'Count with +select aggreggate');
 
 my @warnings;
 {
@@ -86,3 +83,5 @@ my @warnings;
 is(@warnings, 1, 'expecteing warn');
 
 dies_ok(sub { my $row = $schema->resultset('Tag')->search({}, { select => { distinct => [qw/tag cd/] } })->first }, 'expecting to die');
+dies_ok(sub { my $count = $schema->resultset('Tag')->search({}, { '+select' => \'tagid AS tag_id', distinct => 1 })->count }, 'expecting to die');
+dies_ok(sub { my $count = $schema->resultset('Tag')->search({}, { select => { length => 'tag' }, distinct => 1 })->count }, 'expecting to die');

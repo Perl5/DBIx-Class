@@ -2610,7 +2610,7 @@ sub _resolved_attrs {
 
   }
 
-  $attrs->{group_by} ||= $attrs->{select}
+  $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ]
     if delete $attrs->{distinct};
   if ( $attrs->{order_by} ) {
     $attrs->{order_by} = (
