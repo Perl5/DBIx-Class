@@ -153,6 +153,10 @@ the database.  Its value may contain:
 
 =over
 
+=item a scalar
+
+This contains one SQL statement to execute.
+
 =item an array reference
 
 This contains SQL statements to execute in order.  Each element contains
@@ -626,18 +630,24 @@ sub _populate_dbh {
   $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
 
   my $connection_do = $self->on_connect_do;
-  $self->_do_connection_actions($connection_do) if ref($connection_do);
+  $self->_do_connection_actions($connection_do) if $connection_do;
 }
 
 sub _do_connection_actions {
   my $self = shift;
   my $connection_do = shift;
 
-  if (ref $connection_do eq 'ARRAY') {
+  if (!ref $connection_do) {
+    $self->_do_query($connection_do);
+  }
+  elsif (ref $connection_do eq 'ARRAY') {
     $self->_do_query($_) foreach @$connection_do;
   }
   elsif (ref $connection_do eq 'CODE') {
     $connection_do->($self);
+  }
+  else {
+    $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref $connection_do) );
   }
 
   return $self;
