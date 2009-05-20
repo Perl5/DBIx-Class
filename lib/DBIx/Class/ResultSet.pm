@@ -1150,20 +1150,19 @@ on the resultset and counts the results of that.
 
 =cut
 
-my @count_via_subq_attrs = qw/join seen_join prefetch group_by having/;
 sub count {
   my $self = shift;
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my @check_attrs = @count_via_subq_attrs;
+  my @subq_attrs = qw/prefetch collapse group_by having/;
 
   # if we are not paged - we are simply asking for a limit
   if (not $self->{attrs}{page} and not $self->{attrs}{software_limit}) {
-    push @check_attrs, qw/rows offset/;
+    push @subq_attrs, qw/rows offset/;
   }
 
-  return $self->_has_attr (@check_attrs)
+  return $self->_has_attr (@subq_attrs)
     ? $self->_count_subq
     : $self->_count_simple
 }
@@ -1187,7 +1186,7 @@ sub _count_subq {
   }];
 
   # the subquery replaces this
-  delete $attrs->{where};
+  delete $attrs->{$_} for qw/where bind prefetch collapse group_by having/;
 
   return $self->__count ($attrs);
 }
@@ -1212,8 +1211,8 @@ sub __count {
 
   $attrs ||= { %{$self->{attrs}} };
 
-  # these are the only attributes that actually matter for count
-  $attrs = { map { exists $attrs->{$_} ? ( $_ => $attrs->{$_} ) : () } qw/where bind alias from from_bind/ };
+  # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
+  delete $attrs->{$_} for (qw/columns +columns select +select as +as rows offset page pager order_by record_filter/); 
 
   $attrs->{select} = { count => '*' };
   $attrs->{as} = [qw/count/];
@@ -1852,8 +1851,21 @@ sub _has_attr {
   my $join_check_req;
 
   for my $n (@attr_names) {
-    return 1 if defined $attrs->{$n};
     ++$join_check_req if $n =~ /join/;
+
+    my $attr =  $attrs->{$n};
+
+    next if not defined $attr;
+
+    if (ref $attr eq 'HASH') {
+      return 1 if keys %$attr;
+    }
+    elsif (ref $attr eq 'ARRAY') {
+      return 1 if @$attr;
+    }
+    else {
+      return 1 if $attr;
+    }
   }
 
   # a join can be expressed as a multi-level from

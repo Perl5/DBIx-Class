@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 96;
+plan tests => 98;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -221,16 +221,12 @@ my $search = [ { 'tags.tag' => 'Cheesy' }, { 'tags.tag' => 'Blue' } ];
 
 my( $or_rs ) = $schema->resultset("CD")->search_rs($search, { join => 'tags',
                                                   order_by => 'cdid' });
-# At this point in the test there are:
-# 1 artist with the cheesy AND blue tag
-# 1 artist with the cheesy tag
-# 2 artists with the blue tag
-#
-# Formerly this test expected 5 as there was no collapsing of the AND condition
-is($or_rs->count, 4, 'Search with OR ok');
+is($or_rs->all, 5, 'Joined search with OR returned correct number of rows');
+is($or_rs->count, 5, 'Search count with OR ok');
 
-my $distinct_rs = $schema->resultset("CD")->search($search, { join => 'tags', distinct => 1 });
-is($distinct_rs->all, 4, 'DISTINCT search with OR ok');
+my $collapsed_or_rs = $or_rs->search ({}, { distinct => 1 }); # induce collapse
+is ($collapsed_or_rs->all, 4, 'Collapsed joined search with OR returned correct number of rows');
+is ($collapsed_or_rs->count, 4, 'Collapsed search count with OR ok');
 
 {
   my $tcount = $schema->resultset('Track')->search(
@@ -265,13 +261,7 @@ my $tag_rs = $schema->resultset('Tag')->search(
 
 my $rel_rs = $tag_rs->search_related('cd');
 
-# At this point in the test there are:
-# 1 artist with the cheesy AND blue tag
-# 1 artist with the cheesy tag
-# 2 artists with the blue tag
-#
-# Formerly this test expected 5 as there was no collapsing of the AND condition
-is($rel_rs->count, 4, 'Related search ok');
+is($rel_rs->count, 5, 'Related search ok');
 
 is($or_rs->next->cdid, $rel_rs->next->cdid, 'Related object ok');
 $or_rs->reset;
