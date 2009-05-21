@@ -660,7 +660,7 @@ L<DBIx::Class::Cursor> for more information.
 sub cursor {
   my ($self) = @_;
 
-  my $attrs = { %{$self->_resolved_attrs} };
+  my $attrs = $self->_resolved_attrs_copy;
   return $self->{cursor}
     ||= $self->result_source->storage->select($attrs->{from}, $attrs->{select},
           $attrs->{where},$attrs);
@@ -711,7 +711,7 @@ sub single {
       $self->throw_exception('single() only takes search conditions, no attributes. You want ->search( $cond, $attrs )->single()');
   }
 
-  my $attrs = { %{$self->_resolved_attrs} };
+  my $attrs = $self->_resolved_attrs_copy;
   if ($where) {
     if (defined $attrs->{where}) {
       $attrs->{where} = {
@@ -1157,7 +1157,7 @@ sub count {
 sub _count_subq {
   my $self = shift;
 
-  my $attrs = { %{$self->_resolved_attrs} };
+  my $attrs = $self->_resolved_attrs_copy;
 
   # copy for the subquery, we need to do some adjustments to it too
   my $sub_attrs = { %$attrs };
@@ -1197,7 +1197,7 @@ sub _count_simple {
 sub __count {
   my ($self, $attrs) = @_;
 
-  $attrs ||= { %{$self->_resolved_attrs} };
+  $attrs ||= $self->_resolved_attrs_copy;
 
   # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
   delete $attrs->{$_} for (qw/columns +columns select +select as +as rows offset page pager order_by record_filter/); 
@@ -1338,7 +1338,7 @@ sub _rs_update_delete {
   if ($needs_group_by_subq or $needs_subq) {
 
     # make a new $rs selecting only the PKs (that's all we really need)
-    my $attrs = $self->_resolved_attrs;
+    my $attrs = $self->_resolved_attrs_copy;
 
     delete $attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns/;
     $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
@@ -2494,6 +2494,12 @@ sub _resolve_from {
   ++$seen->{-relation_chain_depth};
 
   return ($from,$seen);
+}
+
+# too many times we have to do $attrs = { %{$self->_resolved_attrs} }
+sub _resolved_attrs_copy {
+  my $self = shift;
+  return { %{$self->_resolved_attrs (@_)} };
 }
 
 sub _resolved_attrs {
