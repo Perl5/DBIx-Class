@@ -1162,8 +1162,8 @@ sub _count_subq {
   # copy for the subquery, we need to do some adjustments to it too
   my $sub_attrs = { %$attrs };
 
-  # these can not go in the subquery either
-  delete $sub_attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns/;
+  # these can not go in the subquery, and there is no point of ordering it
+  delete $sub_attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns order_by/;
 
   # force a group_by and the same set of columns (most databases require this)
   $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
