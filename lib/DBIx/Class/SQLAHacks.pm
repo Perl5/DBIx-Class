@@ -76,7 +76,7 @@ sub _RowNumberOver {
   my ($self, $sql, $order, $rows, $offset ) = @_;
 
   $offset += 1;
-  my $last = $rows + $offset;
+  my $last = $rows + $offset - 1;
   my ( $order_by ) = $self->_order_by( $order );
 
   $sql = <<"SQL";
