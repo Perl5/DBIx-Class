@@ -6,46 +6,35 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
+plan tests => 5;
+
 my $schema = DBICTest->init_schema();
 
-eval "use DBD::SQLite";
-plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 1;
+lives_ok(sub {
 
-=cut
-test fails with select => [ ], when the columns required for the relationship are absent
-
-DBIC_TRACE=1:
-
-  with select => [ qw / me.name cds.title ] (missing columns required for relationships)
-
-  SELECT me.name, cds.title, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track
-  FROM artist me
-  LEFT JOIN cd cds ON cds.artist = me.artistid
-  WHERE ( cds.title != ? )
-  GROUP BY me.name, cds.title
-  ORDER BY me.name, cds.title, cds.artist, cds.year: 'Generic Manufactured Singles'
-
-  ****************************************************************************************************************************
-
-  with no select => [ ]
-
-  SELECT me.artistid, me.name, me.rank, me.charfield, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track
-  FROM artist me
-  LEFT JOIN cd cds ON cds.artist = me.artistid 
-  WHERE ( cds.title != ? )
-  GROUP BY me.artistid, me.name, me.rank, me.charfield
-  ORDER BY me.name, cds.title, cds.artist, cds.year: 'Generic Manufactured Singles'
-
-=cut
+#  use Data::Dumper;
+#  warn Dumper [$schema->resultset('Artist')->search ({}, { prefetch => 'cds' })->hri_dump->all];
 
 
-my $rs = $schema->resultset('Artist')->search({ 'cds.title' => { '!=' => 'Generic Manufactured Singles' } }, ## exists
-                                              { prefetch => [ qw/ cds / ],
-                                                join => [ qw/ cds / ],
-                                                select => [ qw/ me.name cds.title / ],
-                                                distinct => 1,
-                                                order_by => [ qw/ me.name cds.title / ],
-                                              });
+  # while cds.* will be selected anyway (prefetch currently forces the result of _resolve_prefetch)
+  # only the requested me.name column will be fetched. This somehow does work on 08010 (tested)
 
-lives_ok(sub { $rs->first }, 'Lives ok');
+  # reference sql with select => [...]
+  #   SELECT me.name, cds.title, cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track FROM ...
+
+  my $rs = $schema->resultset('Artist')->search(
+    { 'cds.title' => { '!=', 'Generic Manufactured Singles' } },
+    {
+      prefetch => [ qw/ cds / ],
+      order_by => [ { -desc => 'me.name' }, 'cds.title' ],
+      select => [ qw/ me.name cds.title / ],
+    }
+  );
+
+  is ($rs->count, 2, 'Correct number of collapsed artists');
+  my $we_are_goth = $rs->first;
+  is ($we_are_goth->name, 'We Are Goth', 'Correct first artist');
+  is ($we_are_goth->cds->count, 1, 'Correct number of CDs for first artist');
+  is ($we_are_goth->cds->first->title, 'Come Be Depressed With Us', 'Correct cd for artist');
+
+});
