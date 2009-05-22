@@ -1141,21 +1141,25 @@ sub count {
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my @subq_attrs = qw/prefetch collapse distinct group_by having/;
+  my @grouped_subq_attrs = qw/prefetch collapse distinct group_by having/;
+  my @subq_attrs = ();
+  
   my $attrs = $self->_resolved_attrs;
-
   # if we are not paged - we are simply asking for a limit
   if (not $attrs->{page} and not $attrs->{software_limit}) {
     push @subq_attrs, qw/rows offset/;
   }
 
-  return $self->_has_attr (@subq_attrs)
-    ? $self->_count_subq
+  my $need_subq = $self->_has_attr (@subq_attrs);
+  my $need_group_subq = $self->_has_attr (@grouped_subq_attrs);
+
+  return ($need_subq || $need_group_subq)
+    ? $self->_count_subq ($need_group_subq)
     : $self->_count_simple
 }
 
 sub _count_subq {
-  my $self = shift;
+  my ($self, $add_group_by) = @_;
 
   my $attrs = $self->_resolved_attrs_copy;
 
@@ -1165,8 +1169,10 @@ sub _count_subq {
   # these can not go in the subquery, and there is no point of ordering it
   delete $sub_attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns order_by/;
 
-  # force a group_by and the same set of columns (most databases require this)
-  $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
+  # if needed force a group_by and the same set of columns (most databases require this)
+  if ($add_group_by) {
+    $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
+  }
 
   $attrs->{from} = [{
     count_subq => (ref $self)->new ($self->result_source, $sub_attrs )->as_query
