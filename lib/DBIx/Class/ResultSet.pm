@@ -2608,8 +2608,6 @@ sub _resolved_attrs {
 
   }
 
-  $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ]
-    if delete $attrs->{distinct};
   if ( $attrs->{order_by} ) {
     $attrs->{order_by} = (
       ref( $attrs->{order_by} ) eq 'ARRAY'
@@ -2636,6 +2634,11 @@ sub _resolved_attrs {
     }
     push( @{ $attrs->{order_by} }, @pre_order );
   }
+
+  if (delete $attrs->{distinct}) {
+    $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
+  }
+
   $attrs->{collapse} = $collapse;
 
   if ( $attrs->{page} and not defined $attrs->{offset} ) {
