@@ -614,23 +614,38 @@ sub _populate_dbh {
   my @info = @{$self->_dbi_connect_info || []};
   $self->_dbh($self->_connect(@info));
 
+  $self->_determine_driver;
+
   # Always set the transaction depth on connect, since
   #  there is no transaction in progress by definition
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
-
-  if(ref $self eq 'DBIx::Class::Storage::DBI') {
-    my $driver = $self->_dbh->{Driver}->{Name};
-    if ($self->load_optional_class("DBIx::Class::Storage::DBI::${driver}")) {
-      bless $self, "DBIx::Class::Storage::DBI::${driver}";
-      $self->_rebless();
-    }
-  }
 
   $self->_conn_pid($$);
   $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
 
   my $connection_do = $self->on_connect_do;
   $self->_do_connection_actions($connection_do) if $connection_do;
+}
+
+sub _determine_driver {
+  my ($self) = @_;
+
+  if (ref $self eq 'DBIx::Class::Storage::DBI') {
+    my $driver;
+
+    if ($self->_dbh) { # we are connected
+      $driver = $self->_dbh->{Driver}{Name};
+    } else {
+      # try to use dsn to not require being connected, the driver may still
+      # force a connection in _rebless to determine version
+      ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+    }
+
+    if ($self->load_optional_class("DBIx::Class::Storage::DBI::${driver}")) {
+      bless $self, "DBIx::Class::Storage::DBI::${driver}";
+      $self->_rebless();
+    }
+  }
 }
 
 sub _do_connection_actions {
