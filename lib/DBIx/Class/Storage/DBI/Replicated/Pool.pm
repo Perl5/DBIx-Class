@@ -190,6 +190,9 @@ sub connect_replicant {
 ## So we try to set the driver without connecting, however this doesn't always
 ## work, as a driver may need to connect to determine the DB version, and this
 ## may fail.
+##
+## Why this is necessary at all, is that we need to have the final storage
+## class to apply the Replicant role.
 
   $self->_safely($replicant, '->_determine_driver', sub {
     $replicant->_determine_driver
