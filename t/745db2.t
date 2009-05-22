@@ -49,7 +49,7 @@ is( $it->count, 3, "LIMIT count ok" );
 my @all = $it->all;
 is (@all, 3, 'Number of ->all objects matches count');
 
-$it->reset
+$it->reset;
 is( $it->next->name, "foo", "iterator->next ok" );
 is( $it->next->name, "Artist 1", "iterator->next ok" );
 is( $it->next->name, "Artist 2", "iterator->next ok" );
