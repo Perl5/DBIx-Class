@@ -1,4 +1,5 @@
-package DBIx::Class::Storage::DBI::Sybase::NoBindVars;
+package # hide from PAUSE
+    DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 use base qw/
   DBIx::Class::Storage::DBI::NoBindVars

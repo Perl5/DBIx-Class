@@ -1,4 +1,5 @@
-package DBIx::Class::Storage::DBI::Sybase::DateTime;
+package # hide from PAUSE
+    DBIx::Class::Storage::DBI::Sybase::DateTime;
 
 use strict;
 use warnings;
