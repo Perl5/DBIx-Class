@@ -87,7 +87,6 @@ my %force_requires_if_author = (
   'Hash::Merge',                  => 0.11,
 
   # t/96_is_deteministic_value.t
-  # t/746sybase.t
   'DateTime::Format::Strptime' => 0,
 );
 

@@ -4,14 +4,13 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use DBIx::Class::Storage::DBI::Sybase::DateTime;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 15;
+plan tests => 12;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
 
@@ -21,24 +20,16 @@ isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::Sybase' );
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
     eval { $dbh->do("DROP TABLE artist") };
-    eval { $dbh->do("DROP TABLE track") };
     $dbh->do(<<'SQL');
+
 CREATE TABLE artist (
-   artistid INT IDENTITY PRIMARY KEY,
+   artistid INT IDENTITY NOT NULL,
    name VARCHAR(100),
    rank INT DEFAULT 13 NOT NULL,
-   charfield CHAR(10) NULL
+   charfield CHAR(10) NULL,
+   primary key(artistid)
 )
-SQL
 
-# we only need the DT
-    $dbh->do(<<'SQL');
-CREATE TABLE track (
-   trackid INT IDENTITY PRIMARY KEY,
-   cd INT,
-   position INT,
-   last_updated_on DATETIME,
-)
 SQL
 
 });
@@ -61,7 +52,9 @@ for (1..6) {
     $seen_id{$new->artistid}++;
 }
 
-my $it = $schema->resultset('Artist')->search( {}, {
+my $it;
+
+$it = $schema->resultset('Artist')->search( {}, {
     rows => 3,
     order_by => 'artistid',
 });
@@ -80,26 +73,10 @@ $it->next;
 is( $it->next->name, "Artist 2", "iterator->next ok" );
 is( $it->next, undef, "next past end of resultset ok" );
 
-# Test DateTime inflation
-
-my $dt = DBIx::Class::Storage::DBI::Sybase::DateTime
-    ->parse_datetime('2004-08-21T14:36:48.080Z');
-
-my $row;
-ok( $row = $schema->resultset('Track')->create({
-    last_updated_on => $dt,
-    cd => 1,
-}));
-ok( $row = $schema->resultset('Track')
-    ->search({ trackid => $row->trackid }, { select => ['last_updated_on'] })
-    ->first
-);
-is( $row->updated_date, $dt, 'DateTime inflation works' );
 
 # clean up our mess
 END {
-    if (my $dbh = eval { $schema->storage->_dbh }) {
-        $dbh->do('DROP TABLE artist');
-        $dbh->do('DROP TABLE track');
-    }
+    my $dbh = eval { $schema->storage->_dbh };
+    $dbh->do('DROP TABLE artist') if $dbh;
 }
+
