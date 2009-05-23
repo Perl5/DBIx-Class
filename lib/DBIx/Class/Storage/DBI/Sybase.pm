@@ -19,6 +19,12 @@ sub _rebless {
     }
 }
 
+sub _dbh_last_insert_id {
+    my $self = shift;
+    my $sth = $self->_dbh->prepare_cached('select @@identity');
+    ($self->_dbh->selectrow_array($sth))[0];
+}
+
 1;
 
 =head1 NAME

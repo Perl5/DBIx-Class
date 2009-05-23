@@ -105,8 +105,10 @@ sub _find_syntax {
   # RowNumberOver is still needed here (should be part of SQLA) leave the 
   # code in place
   my $dbhname = blessed($syntax) ? $syntax->{Driver}{Name} : $syntax;
-  if(ref($self) && $dbhname && $dbhname eq 'DB2') {
-    return 'RowNumberOver';
+  if(ref($self) && $dbhname) {
+    if ($dbhname eq 'DB2') {
+      return 'RowNumberOver';
+    }
   }
   
   $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
