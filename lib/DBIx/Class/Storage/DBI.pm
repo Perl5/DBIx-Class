@@ -1082,63 +1082,63 @@ sub delete {
 #
 # Genarating a single PK column subquery is trivial and supported
 # by all RDBMS. However if we have a multicolumn PK, things get ugly.
-# Look at multipk_update_delete()
+# Look at _multipk_update_delete()
 sub subq_update_delete {
   my $self = shift;
   my ($rs, $op, $values) = @_;
 
-  if ($rs->result_source->primary_columns == 1) {
-    return $self->_onepk_update_delete (@_);
+  my $rsrc = $rs->result_source;
+
+  # we already check this, but double check naively just in case. Should be removed soon
+  my $sel = $rs->_resolved_attrs->{select};
+  $sel = [ $sel ] unless ref $sel eq 'ARRAY';
+  my @pcols = $rsrc->primary_columns;
+  if (@$sel != @pcols) {
+    $self->throw_exception (
+      'Subquery update/delete can not be called on resultsets selecting a'
+     .' number of columns different than the number of primary keys'
+    );
   }
+
+  if (@pcols == 1) {
+    return $self->$op (
+      $rsrc,
+      $op eq 'update' ? $values : (),
+      { $pcols[0] => { -in => $rs->as_query } },
+    );
+  }
+
   else {
     return $self->_multipk_update_delete (@_);
   }
 }
 
-# Generally a single PK resultset operation is trivially expressed
-# with PK IN (subquery). However some databases (mysql) do not support
-# modification of a table mentioned in the subselect. This method
-# should be overriden in the appropriate storage class to be smarter
-# in such situations
-sub _onepk_update_delete {
-
-  my $self = shift;
-  my ($rs, $op, $values) = @_;
-
-  my $rsrc = $rs->result_source;
-  my $attrs = $rs->_resolved_attrs;
-  my @pcols = $rsrc->primary_columns;
-
-  $self->throw_exception ('_onepk_update_delete can not be called on resultsets selecting multiple columns')
-    if (ref $attrs->{select} eq 'ARRAY' and @{$attrs->{select}} > 1);
-
-  return $self->$op (
-    $rsrc,
-    $op eq 'update' ? $values : (),
-    { $pcols[0] => { -in => $rs->as_query } },
-  );
+# ANSI SQL does not provide a reliable way to perform a multicol-PK
+# resultset update/delete involving subqueries. So by default resort
+# to simple (and inefficient) delete_all style per-row opearations,
+# while allowing specific storages to override this with a faster
+# implementation.
+#
+sub _multipk_update_delete {
+  return shift->_per_row_update_delete (@_);
 }
 
-# ANSI SQL does not provide a reliable way to perform a multicol-PK
-# resultset update/delete involving subqueries. So resort to simple
-# (and inefficient) delete_all style per-row opearations, while allowing
-# specific storages to override this with a faster implementation.
+# This is the default loop used to delete/update rows for multi PK
+# resultsets, and used by mysql exclusively (because it can't do anything
+# else).
 #
 # We do not use $row->$op style queries, because resultset update/delete
 # is not expected to cascade (this is what delete_all/update_all is for).
 #
 # There should be no race conditions as the entire operation is rolled
 # in a transaction.
-sub _multipk_update_delete {
+#
+sub _per_row_update_delete {
   my $self = shift;
   my ($rs, $op, $values) = @_;
 
   my $rsrc = $rs->result_source;
   my @pcols = $rsrc->primary_columns;
-  my $attrs = $rs->_resolved_attrs;
-
-  $self->throw_exception ('Number of columns selected by supplied resultset does not match number of primary keys')
-    if ( ref $attrs->{select} ne 'ARRAY' or @{$attrs->{select}} != @pcols );
 
   my $guard = $self->txn_scope_guard;
 
@@ -1161,7 +1161,6 @@ sub _multipk_update_delete {
 
   return 1;
 }
-
 
 sub _select {
   my $self = shift;

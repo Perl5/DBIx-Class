@@ -51,6 +51,12 @@ sub lag_behind_master {
     return shift->dbh->selectrow_hashref('show slave status')->{Seconds_Behind_Master};
 }
 
+# MySql can not do subquery update/deletes, only way is slow per-row operations.
+# This assumes you have proper privilege separation and use innodb.
+sub subq_update_delete {
+  return shift->_per_row_update_delete (@_);
+}
+
 1;
 
 =head1 NAME
