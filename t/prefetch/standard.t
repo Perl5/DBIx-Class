@@ -17,23 +17,13 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 74 );
+        : ( tests => 45 );
 }
 
-# figure out if we've got a version of sqlite that is older than 3.2.6, in
-# which case COUNT(DISTINCT()) doesn't work
-my $is_broken_sqlite = 0;
-my ($sqlite_major_ver,$sqlite_minor_ver,$sqlite_patch_ver) =
-    split /\./, $schema->storage->dbh->get_info(18);
-if( $schema->storage->dbh->get_info(17) eq 'SQLite' &&
-    ( ($sqlite_major_ver < 3) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver < 2) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver == 2 && $sqlite_patch_ver < 6) ) ) {
-    $is_broken_sqlite = 1;
-}
+my $queries = 0;
+$schema->storage->debugcb(sub { $queries++; });
+$schema->storage->debug(1);
 
-# bug in 0.07000 caused attr (join/prefetch) to be modifed by search
-# so we check the search & attr arrays are not modified
 my $search = { 'artist.name' => 'Caterwauler McCrae' };
 my $attr = { prefetch => [ qw/artist liner_notes/ ],
              order_by => 'me.cdid' };
@@ -41,58 +31,6 @@ my $search_str = Dumper($search);
 my $attr_str = Dumper($attr);
 
 my $rs = $schema->resultset("CD")->search($search, $attr);
-
-is(Dumper($search), $search_str, 'Search hash untouched after search()');
-is(Dumper($attr), $attr_str, 'Attribute hash untouched after search()');
-cmp_ok($rs + 0, '==', 3, 'Correct number of records returned');
-
-# A search() with prefetch seems to pollute an already joined resultset
-# in a way that offsets future joins (adapted from a test case by Debolaz)
-{
-  my ($cd_rs, $attrs);
-
-  # test a real-life case - rs is obtained by an implicit m2m join
-  $cd_rs = $schema->resultset ('Producer')->first->cds;
-  $attrs = Dumper $cd_rs->{attrs};
-
-  $cd_rs->search ({})->all;
-  is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
-
-  lives_ok (sub {
-    $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
-  }, 'first prefetching search ok');
-
-  lives_ok (sub {
-    $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
-  }, 'second prefetching search ok');
-
-
-  # test a regular rs with an empty seen_join injected - it should still work!
-  $cd_rs = $schema->resultset ('CD');
-  $cd_rs->{attrs}{seen_join}  = {};
-  $attrs = Dumper $cd_rs->{attrs};
-
-  $cd_rs->search ({})->all;
-  is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after a simple search');
-
-  lives_ok (sub {
-    $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after search with prefetch');
-  }, 'first prefetching search ok');
-
-  lives_ok (sub {
-    $cd_rs->search ({'artist.artistid' => 1}, { prefetch => 'artist' })->all;
-    is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
-  }, 'second prefetching search ok');
-}
-
-
-my $queries = 0;
-$schema->storage->debugcb(sub { $queries++; });
-$schema->storage->debug(1);
-
 my @cd = $rs->all;
 
 is($cd[0]->title, 'Spoonful of bees', 'First record returned ok');
@@ -210,11 +148,7 @@ $rs = $schema->resultset("CD")->search(
   { group_by => [qw/ title me.cdid /] }
 );
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok( $rs->count, '==', 5, "count() ok after group_by on main pk" );
-}
+cmp_ok( $rs->count, '==', 5, "count() ok after group_by on main pk" );
 
 cmp_ok( scalar $rs->all, '==', 5, "all() returns same count as count() after group_by on main pk" );
 
@@ -223,11 +157,7 @@ $rs = $schema->resultset("CD")->search(
   { join => [qw/ artist /], group_by => [qw/ artist.name /] }
 );
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
-}
+cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
 
 $rs = $schema->resultset("Artist")->search(
   {},
@@ -245,11 +175,7 @@ $rs = $schema->resultset("Artist")->search(
           'cds_2.title' => 'Forkful of bees' },
         { join => [ 'cds', 'cds' ] });
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok($rs->count, '==', 1, "single artist returned from multi-join");
-}
+cmp_ok($rs->count, '==', 1, "single artist returned from multi-join");
 
 is($rs->next->name, 'Caterwauler McCrae', "Correct artist returned");
 
@@ -388,98 +314,3 @@ is($art_rs_pr->search_related('cds')->search_related('tracks')->first->title,
 
 is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
 
-# once the following TODO is complete, remove the 2 warning tests immediately after the TODO block
-# (the TODO block itself contains tests ensuring that the warns are removed)
-TODO: {
-    local $TODO = 'Prefetch of multiple has_many rels at the same level (currently warn to protect the clueless git)';
-
-    #( 1 -> M + M )
-    my $cd_rs = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' });
-    my $pr_cd_rs = $cd_rs->search ({}, {
-        prefetch => [qw/tracks tags/],
-    });
-
-    my $tracks_rs = $cd_rs->first->tracks;
-    my $tracks_count = $tracks_rs->count;
-
-    my ($pr_tracks_rs, $pr_tracks_count);
-
-    $queries = 0;
-    $schema->storage->debugcb(sub { $queries++ });
-    $schema->storage->debug(1);
-
-    my $o_mm_warn;
-    {
-        local $SIG{__WARN__} = sub { $o_mm_warn = shift };
-        $pr_tracks_rs = $pr_cd_rs->first->tracks;
-    };
-    $pr_tracks_count = $pr_tracks_rs->count;
-
-    ok(! $o_mm_warn, 'no warning on attempt to prefetch several same level has_many\'s (1 -> M + M)');
-
-    is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
-    is($pr_tracks_count, $tracks_count, 'equal count of prefetched relations over several same level has_many\'s (1 -> M + M)');
-
-    for ($pr_tracks_rs, $tracks_rs) {
-        $_->result_class ('DBIx::Class::ResultClass::HashRefInflator');
-    }
-
-    is_deeply ([$pr_tracks_rs->all], [$tracks_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (1 -> M + M)');
-
-    #( M -> 1 -> M + M )
-    my $note_rs = $schema->resultset('LinerNotes')->search ({ notes => 'Buy Whiskey!' });
-    my $pr_note_rs = $note_rs->search ({}, {
-        prefetch => {
-            cd => [qw/tags tracks/]
-        },
-    });
-
-    my $tags_rs = $note_rs->first->cd->tags;
-    my $tags_count = $tags_rs->count;
-
-    my ($pr_tags_rs, $pr_tags_count);
-
-    $queries = 0;
-    $schema->storage->debugcb(sub { $queries++ });
-    $schema->storage->debug(1);
-
-    my $m_o_mm_warn;
-    {
-        local $SIG{__WARN__} = sub { $m_o_mm_warn = shift };
-        $pr_tags_rs = $pr_note_rs->first->cd->tags;
-    };
-    $pr_tags_count = $pr_tags_rs->count;
-
-    ok(! $m_o_mm_warn, 'no warning on attempt to prefetch several same level has_many\'s (M -> 1 -> M + M)');
-
-    is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
-
-    is($pr_tags_count, $tags_count, 'equal count of prefetched relations over several same level has_many\'s (M -> 1 -> M + M)');
-
-    for ($pr_tags_rs, $tags_rs) {
-        $_->result_class ('DBIx::Class::ResultClass::HashRefInflator');
-    }
-
-    is_deeply ([$pr_tags_rs->all], [$tags_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (M -> 1 -> M + M)');
-};
-
-# remove this closure once the TODO above is working
-my $w;
-{
-    local $SIG{__WARN__} = sub { $w = shift };
-
-    my $rs = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' }, { prefetch => [qw/tracks tags/] });
-    for (qw/all count next first/) {
-        undef $w;
-        my @stuff = $rs->search()->$_;
-        like ($w, qr/will currently disrupt both the functionality of .rs->count\(\), and the amount of objects retrievable via .rs->next\(\)/,
-            "warning on ->$_ attempt prefetching several same level has_manys (1 -> M + M)");
-    }
-    my $rs2 = $schema->resultset('LinerNotes')->search ({ notes => 'Buy Whiskey!' }, { prefetch => { cd => [qw/tags tracks/] } });
-    for (qw/all count next first/) {
-        undef $w;
-        my @stuff = $rs2->search()->$_;
-        like ($w, qr/will currently disrupt both the functionality of .rs->count\(\), and the amount of objects retrievable via .rs->next\(\)/,
-            "warning on ->$_ attempt prefetching several same level has_manys (M -> 1 -> M + M)");
-    }
-}

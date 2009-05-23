@@ -5,10 +5,11 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 12;
+plan tests => 24;
 
 my $rs = $schema->resultset('CD')->search({},
     {
@@ -27,6 +28,16 @@ $rs = $schema->resultset('CD')->search({},
 );
 lives_ok(sub { $rs->first->get_column('count') }, 'multiple +select/+as columns, 1st rscolumn present');
 lives_ok(sub { $rs->first->get_column('addedtitle') }, 'multiple +select/+as columns, 2nd rscolumn present');
+
+# Tests a regression in ResultSetColumn wrt +select
+$rs = $schema->resultset('CD')->search(undef,
+    {
+        '+select'   => [ \'COUNT(*) AS year_count' ],
+		order_by => 'year_count'
+	}
+);
+my @counts = $rs->get_column('cdid')->all;
+ok(scalar(@counts), 'got rows from ->all using +select');
 
 $rs = $schema->resultset('CD')->search({},
     {
@@ -63,3 +74,124 @@ is ($subsel->next->title, $cds->next->title, 'First CD title match');
 is ($subsel->next->title, $cds->next->title, 'Second CD title match');
 
 is($schema->resultset('CD')->current_source_alias, "me", '$rs->current_source_alias returns "me"');
+
+
+
+$rs = $schema->resultset('CD')->search({},
+    {
+        'join' => 'artist',
+        'columns' => ['cdid', 'title', 'artist.name'],
+    }
+);
+
+is_same_sql_bind (
+  $rs->as_query,
+  '(SELECT me.cdid, me.title, artist.name FROM cd me  JOIN artist artist ON artist.artistid = me.artist)',
+  [],
+  'Use of columns attribute results in proper sql'
+);
+
+lives_ok(sub {
+  $rs->first->get_column('cdid')
+}, 'columns 1st rscolumn present');
+
+lives_ok(sub {
+  $rs->first->get_column('title')
+}, 'columns 2nd rscolumn present');
+
+lives_ok(sub {
+  $rs->first->artist->get_column('name') 
+}, 'columns 3rd rscolumn present'); 
+
+
+
+$rs = $schema->resultset('CD')->search({},
+    {  
+        'join' => 'artist',
+        '+columns' => ['cdid', 'title', 'artist.name'],
+    }
+);
+
+is_same_sql_bind (
+  $rs->as_query,
+  '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, me.cdid, me.title, artist.name FROM cd me  JOIN artist artist ON artist.artistid = me.artist)',
+  [],
+  'Use of columns attribute results in proper sql'
+);
+
+lives_ok(sub {
+  $rs->first->get_column('cdid') 
+}, 'columns 1st rscolumn present');
+
+lives_ok(sub {
+  $rs->first->get_column('title')
+}, 'columns 2nd rscolumn present');
+
+lives_ok(sub {
+  $rs->first->artist->get_column('name')
+}, 'columns 3rd rscolumn present');
+
+
+$rs = $schema->resultset('CD')->search({'tracks.position' => { -in => [2] } },
+  {
+    join => 'tracks',
+    columns => [qw/me.cdid me.title/],
+    '+select' => ['tracks.position'],
+    '+as' => ['track_position'],
+
+    # get a hashref of CD1 only (the first with a second track)
+    result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+    order_by => 'cdid',
+    rows => 1,
+  }
+);
+
+is_deeply (
+  $rs->single,
+  {
+    cdid => 1,
+    track_position => 2,
+    title => 'Spoonful of bees',
+  },
+  'limited prefetch via column works on a multi-relationship',
+);
+
+my $sub_rs = $rs->search ({},
+  {
+    columns => [qw/artist tracks.trackid/],    # columns should not be merged but override $rs columns
+    '+select' => ['tracks.title'],
+    '+as' => ['tracks.title'],
+  }
+);
+
+is_deeply (
+  $sub_rs->single,
+  {
+    artist => 1,
+    track_position => 2,
+    tracks =>
+      {
+        trackid => 17,
+        title => 'Apiary',
+      },
+  },
+  'columns/select/as fold properly on sub-searches',
+);
+
+TODO: {
+  local $TODO = "Multi-collapsing still doesn't work right - HRI should be getting an arrayref, not an individual hash";
+  is_deeply (
+    $sub_rs->single,
+    {
+      artist => 1,
+      track_position => 2,
+      tracks => [
+        {
+          trackid => 17,
+          title => 'Apiary',
+        },
+      ],
+    },
+    'columns/select/as fold properly on sub-searches',
+  );
+}

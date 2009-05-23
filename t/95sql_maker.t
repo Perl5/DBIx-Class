@@ -20,10 +20,7 @@ my $schema = DBICTest->init_schema();
 my $sql_maker = $schema->storage->sql_maker;
 
 
-SKIP: {
-  skip "SQL::Abstract < 1.49 does not pass through arrayrefs", 2
-    if $SQL::Abstract::VERSION < 1.49;
-
+{
   my ($sql, @bind) = $sql_maker->insert(
             'lottery',
             {

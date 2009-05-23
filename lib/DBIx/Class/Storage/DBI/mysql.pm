@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI::mysql;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
@@ -49,6 +49,12 @@ sub is_replicating {
 
 sub lag_behind_master {
     return shift->dbh->selectrow_hashref('show slave status')->{Seconds_Behind_Master};
+}
+
+# MySql can not do subquery update/deletes, only way is slow per-row operations.
+# This assumes you have proper privilege separation and use innodb.
+sub subq_update_delete {
+  return shift->_per_row_update_delete (@_);
 }
 
 1;

@@ -3,6 +3,7 @@ package DBIx::Class::InflateColumn::DateTime;
 use strict;
 use warnings;
 use base qw/DBIx::Class/;
+use Carp::Clan qw/^DBIx::Class/;
 
 =head1 NAME
 
@@ -30,7 +31,7 @@ Then you can treat the specified column as a L<DateTime> object.
 If you want to set a specific timezone and locale for that field, use:
 
   __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago", locale => "de_DE" } }
+    starts_when => { data_type => 'datetime', timezone => "America/Chicago", locale => "de_DE" }
   );
 
 If you want to inflate no matter what data_type your column is,
@@ -94,7 +95,7 @@ sub register_column {
 
   my $type;
 
-  for (qw/date datetime/) {
+  for (qw/date datetime timestamp/) {
     my $key = "inflate_${_}";
 
     next unless exists $info->{$key};
@@ -106,46 +107,45 @@ sub register_column {
 
   unless ($type) {
     $type = lc($info->{data_type});
-    $type = 'datetime' if ($type =~ /^timestamp/);
   }
 
   my $timezone;
   if ( defined $info->{extra}{timezone} ) {
+    carp "Putting timezone into extra => { timezone => '...' } has been deprecated, ".
+         "please put it directly into the columns definition.";
     $timezone = $info->{extra}{timezone};
   }
 
   my $locale;
   if ( defined $info->{extra}{locale} ) {
+    carp "Putting locale into extra => { locale => '...' } has been deprecated, ".
+         "please put it directly into the columns definition.";
     $locale = $info->{extra}{locale};
   }
+  
+  $locale   = $info->{locale}   if defined $info->{locale};
+  $timezone = $info->{timezone} if defined $info->{timezone};
 
   my $undef_if_invalid = $info->{datetime_undef_if_invalid};
 
-  if ($type eq 'datetime' || $type eq 'date') {
-    my ($parse, $format) = ("parse_${type}", "format_${type}");
+  if ($type eq 'datetime' || $type eq 'date' || $type eq 'timestamp') {
+    # This shallow copy of %info avoids t/52_cycle.t treating
+    # the resulting deflator as a circular reference.
+    my %info = ( '_ic_dt_method' => $type , %{ $info } );
 
-    # This assignment must happen here, otherwise Devel::Cycle treats
-    # the resulting deflator as a circular reference (go figure):
-    #
-    # Cycle #1
-    #     DBICTest::Schema A->{source_registrations} => %B
-    #     %B->{Event} => DBIx::Class::ResultSource::Table C
-    #     DBIx::Class::ResultSource::Table C->{_columns} => %D
-    #     %D->{created_on} => %E
-    #     %E->{_inflate_info} => %F
-    #     %F->{deflate} => &G
-    #     closure &G, $info => $H
-    #     $H => %E
-    #
-    my $floating_tz_ok = $info->{extra}{floating_tz_ok};
+    if (defined $info->{extra}{floating_tz_ok}) {
+      carp "Putting floating_tz_ok into extra => { floating_tz_ok => 1 } has been deprecated, ".
+           "please put it directly into the columns definition.";
+      $info{floating_tz_ok} = $info->{extra}{floating_tz_ok};
+    }
 
     $self->inflate_column(
       $column =>
         {
           inflate => sub {
             my ($value, $obj) = @_;
-            my $dt = eval { $obj->_datetime_parser->$parse($value); };
-            die "Error while inflating ${value} for ${column} on ${self}: $@"
+            my $dt = eval { $obj->_inflate_to_datetime( $value, \%info ) };
+            $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $@")
               if $@ and not $undef_if_invalid;
             $dt->set_time_zone($timezone) if $timezone;
             $dt->set_locale($locale) if $locale;
@@ -154,19 +154,39 @@ sub register_column {
           deflate => sub {
             my ($value, $obj) = @_;
             if ($timezone) {
-                warn "You're using a floating timezone, please see the documentation of"
+                carp "You're using a floating timezone, please see the documentation of"
                   . " DBIx::Class::InflateColumn::DateTime for an explanation"
                   if ref( $value->time_zone ) eq 'DateTime::TimeZone::Floating'
-                      and not $floating_tz_ok
+                      and not $info{floating_tz_ok}
                       and not $ENV{DBIC_FLOATING_TZ_OK};
                 $value->set_time_zone($timezone);
                 $value->set_locale($locale) if $locale;
             }
-            $obj->_datetime_parser->$format($value);
+            $obj->_deflate_from_datetime( $value, \%info );
           },
         }
     );
   }
+}
+
+sub _flate_or_fallback
+{
+  my( $self, $value, $info, $method_fmt ) = @_;
+
+  my $parser = $self->_datetime_parser;
+  my $preferred_method = sprintf($method_fmt, $info->{ _ic_dt_method });
+  my $method = $parser->can($preferred_method) ? $preferred_method : sprintf($method_fmt, 'datetime');
+  return $parser->$method($value);
+}
+
+sub _inflate_to_datetime {
+  my( $self, $value, $info ) = @_;
+  return $self->_flate_or_fallback( $value, $info, 'parse_%s' );
+}
+
+sub _deflate_from_datetime {
+  my( $self, $value, $info ) = @_;
+  return $self->_flate_or_fallback( $value, $info, 'format_%s' );
 }
 
 sub _datetime_parser {
@@ -189,7 +209,7 @@ timezone, you will get a warning (as there is a very good chance this will not h
 result you expect). For example:
 
   __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago" } }
+    starts_when => { data_type => 'datetime', timezone => "America/Chicago" }
   );
 
   my $event = $schema->resultset('EventTZ')->create({
@@ -213,7 +233,7 @@ to be supply explicit times to the database:
 =item Suppress the check on per-column basis
 
   __PACKAGE__->add_columns(
-    starts_when => { data_type => 'datetime', extra => { timezone => "America/Chicago", floating_tz_ok => 1 } }
+    starts_when => { data_type => 'datetime', timezone => "America/Chicago", floating_tz_ok => 1 }
   );
 
 =item Suppress the check globally
@@ -222,7 +242,10 @@ Set the environment variable DBIC_FLOATING_TZ_OK to some true value.
 
 =back
 
-
+Putting extra attributes like timezone, locale or floating_tz_ok into extra => {} has been
+B<DEPRECATED> because this gets you into trouble using L<DBIx::Class::Schema::Versioned>.
+Instead put it directly into the columns definition like in the examples above. If you still
+use the old way you'll see a warning - please fix your code then!
 
 =head1 SEE ALSO
 

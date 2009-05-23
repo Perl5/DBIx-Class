@@ -1,7 +1,7 @@
 package # hide from PAUSE 
     DBICTest::Schema::BindType;
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('bindtype_test');
 

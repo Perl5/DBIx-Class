@@ -2,6 +2,7 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use DBI::Const::GetInfoType;
@@ -13,7 +14,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 10;
+plan tests => 11;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -22,6 +23,18 @@ my $dbh = $schema->storage->dbh;
 $dbh->do("DROP TABLE IF EXISTS artist;");
 
 $dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10));");
+
+$dbh->do("DROP TABLE IF EXISTS cd;");
+
+$dbh->do("CREATE TABLE cd (cdid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, artist INTEGER, title TEXT, year INTEGER, genreid INTEGER, single_track INTEGER);");
+
+$dbh->do("DROP TABLE IF EXISTS producer;");
+
+$dbh->do("CREATE TABLE producer (producerid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name TEXT);");
+
+$dbh->do("DROP TABLE IF EXISTS cd_to_producer;");
+
+$dbh->do("CREATE TABLE cd_to_producer (cd INTEGER,producer INTEGER);");
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
@@ -41,7 +54,7 @@ my $it = $schema->resultset('Artist')->search( {},
       offset => 2,
       order_by => 'artistid' }
 );
-is( $it->count, 3, "LIMIT count ok" );
+is( $it->count, 3, "LIMIT count ok" );  # ask for 3 rows out of 7 artists
 is( $it->next->name, "Artist 2", "iterator->next ok" );
 $it->next;
 $it->next;
@@ -108,7 +121,7 @@ NULLINSEARCH: {
     => 'Created an artist resultset of undef';
     
     TODO: {
-    	$TODO = "need to fix the row count =1 when select * from table where pk IS NULL problem";
+    	local $TODO = "need to fix the row count =1 when select * from table where pk IS NULL problem";
 	    is $artist2_rs->count, 0
 	    => 'got no rows';    	
     }
@@ -119,6 +132,11 @@ NULLINSEARCH: {
     => 'Nothing Found!';
 }
     
+my $cd = $schema->resultset ('CD')->create ({});
+
+my $producer = $schema->resultset ('Producer')->create ({});
+
+lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
 
 # clean up our mess
 END {

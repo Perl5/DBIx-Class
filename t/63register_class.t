@@ -1,19 +1,14 @@
 use strict;
 use warnings;  
 
-use Test::More tests => 3;
+use Test::More tests => 2;
 use lib qw(t/lib);
 use DBICTest;
 use DBICTest::Schema;
 use DBICTest::Schema::Artist;
 
 DBICTest::Schema::Artist->source_name('MyArtist');
-{
-    my $w;
-    local $SIG{__WARN__} = sub { $w = shift };
-    DBICTest::Schema->register_class('FooA', 'DBICTest::Schema::Artist');
-    like ($w, qr/use register_extra_source/, 'Complain about using register_class on an already-registered class');
-}
+DBICTest::Schema->register_class('FooA', 'DBICTest::Schema::Artist');
 
 my $schema = DBICTest->init_schema();
 

@@ -50,21 +50,19 @@ sub _prep_for_execute {
 
   foreach my $bound (@$bind) {
     my $col = shift @$bound;
-    my $do_quote = $self->should_quote_data_type($col);
+    my $datatype = 'FIXME!!!';
     foreach my $data (@$bound) {
         if(ref $data) {
             $data = ''.$data;
         }
-        $data = $self->_dbh->quote($data) if $do_quote;
+        $data = $self->_dbh->quote($data);
         $new_sql .= shift(@sql_part) . $data;
     }
   }
   $new_sql .= join '', @sql_part;
 
-  return ($new_sql);
+  return ($new_sql, []);
 }
-
-sub should_quote_data_type { 1 }
 
 =head1 AUTHORS
 

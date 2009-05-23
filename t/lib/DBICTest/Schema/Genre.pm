@@ -2,7 +2,7 @@ package DBICTest::Schema::Genre;
 
 use strict;
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('genre');
 __PACKAGE__->add_columns(

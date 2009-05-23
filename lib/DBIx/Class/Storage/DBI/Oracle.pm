@@ -8,7 +8,7 @@ use base qw/DBIx::Class::Storage::DBI/;
 sub _rebless {
     my ($self) = @_;
 
-    my $version = eval { $self->_dbh->get_info(18); };
+    my $version = eval { $self->dbh->get_info(18); };
 
     if ( !$@ ) {
         my ($major, $minor, $patchlevel) = split(/\./, $version);

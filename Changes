@@ -1,4 +1,58 @@
 Revision history for DBIx::Class
+
+        - don't pass SQL functions into GROUP BY
+        - Remove MultiDistinctEmulation.pm, effectively deprecating
+          { select => { distinct => [ qw/col1 col2/ ] } }
+        - Change ->count code to work correctly with DISTINCT (distinct => 1)
+          via GROUP BY
+        - remove interpolation of bind vars for as_query
+        - update Cookbook entry for "SELECT DISTINCT with multiple columns"
+        - update Cookbook entry for "SELECT COUNT(DISTINCT colname)"
+        - Refactor DBIx::Class::Storage::DBI::Sybase to automatically 
+          load a subclass, namely Microsoft_SQL_Server.pm
+          (similar to DBIx::Class::Storage::DBI::ODBC)
+        - Proper support for update/delete of joined resultsets
+          (using IN => $sub_rs->as_query)
+        - Refactor InflateColumn::DateTime to allow components to
+          circumvent DateTime parsing
+        - Support inflation of timestamp datatype
+        - Support BLOB and CLOB datatypes on Oracle
+        - Storage::DBI::Replicated::Balancer::Random:
+          added master_read_weight
+        - Storage::DBI::Replicated: storage opts from connect_info,
+          connect_info merging to replicants, hashref connect_info support,
+          improved trace output, other bug fixes/cleanups
+
+0.08102 2009-04-30 08:29:00 (UTC)
+        - Fixed two subtle bugs when using columns or select/as
+          paired with a join (limited prefetch)
+        - Fixed breakage of cdbi tests (RT#45551)
+        - Some POD improvements
+
+0.08101 2009-04-27 09:45:00 (UTC)
+        - Fix +select, +as, +columns and include_columns being stripped
+          by $rs->get_column
+        - move load_optional_class from DBIx::Class::Componentised to
+          Class::C3::Componentised, bump dependency
+        - register_extra_source() now *really* fixed wrt subclassing
+        - Added missing POD descriptions (RT#45195)
+        - Fix insert() to not store_column() every present object column
+        - Multiple Makefile.PL fixes
+
+0.08100 2009-04-19 11:39:35 (UTC)
+        - Todo out the register_extra_source test until after shipping
+
+0.08099_08 2009-03-30 00:00:00 (UTC)
+        - Fixed taint mode with load_namespaces
+        - Putting IC::DateTime locale, timezone or floating_tz_ok attributes into
+          extra => {} has been deprecated. The new way is to put these things
+          directly into the columns definition
+        - Switched MI code to MRO::Compat
+        - Document db-side default_value caveats
+        - Search_like() now warns to indicate deprecation in 0.09.
+        - TxnScopeGuard left experimental state
+
+0.08099_07 2009-02-27 02:00:00 (UTC)
         - multi-create using find_or_create rather than _related for post-insert
         - fix get_inflated_columns to check has_column_loaded
         - Add DBIC_MULTICREATE_DEBUG env var (undocumented, quasi-internal)
@@ -7,15 +61,17 @@ Revision history for DBIx::Class
           - not try and insert things tagged on via new_related unless required
         - Possible to set locale in IC::DateTime extra => {} config
         - Calling the accessor of a belongs_to when the foreign_key
-          was NULL and the row was not stored would unexpectedly fail (groditi)
+          was NULL and the row was not stored would unexpectedly fail 
         - Split sql statements for deploy only if SQLT::Producer returned a scalar
           containing all statements to be executed
         - Add as_query() for ResultSet and ResultSetColumn. This makes subqueries
-          possible. See the Cookbook for details. (robkinyon, michaelr)
+          possible. See the Cookbook for details.
         - Massive rewrite of Ordered to properly handle position constraints and
           to make it more matpath-friendly
         - deploy_statements called ddl_filename with the $version and $dir arguments
-          in the wrong order. (groditi)
+          in the wrong order.
+        - columns/+columns attributes now support { as => select } hahsrefs
+        - support for views both in DBIC and via deploy() in SQLT
 
 0.08099_06 2009-01-23 07:30:00 (UTC)
         - Allow a scalarref to be supplied to the 'from' resultset attribute
@@ -30,19 +86,18 @@ Revision history for DBIx::Class
           (http://msdn.microsoft.com/en-us/library/ms190315.aspx)
         - an sqlt_deploy_hook can now be shared between result sources using
           a configurable callback trigger
-        - new order_by => { -desc => 'colname' } syntax supported with
-          SQLA >= 1.50
-        - PG array datatype supported with SQLA >= 1.50
+        - new order_by => { -desc => 'colname' } syntax supported
+        - PG array datatype supported
         - insert should use store_column, not set_column to avoid marking
-          clean just-stored values as dirty. New test for this (groditi)
-        - regression test for source_name (groditi)
+          clean just-stored values as dirty. New test for this 
+        - regression test for source_name 
 
 0.08099_05 2008-10-30 21:30:00 (UTC)
-        - Rewritte of Storage::DBI::connect_info(), extended with an
+        - Rewrite of Storage::DBI::connect_info(), extended with an
           additional argument format type
         - InflateColumn::DateTime: add warning about floating timezone
         - InflateColumn::DateTime: possible to enforce/skip inflation
-        - delete throws exception if passed arguments to prevent drunken mishaps. (purge)
+        - delete throws exception if passed arguments to prevent drunken mishaps.
         - Fix storage to copy scalar conds before regexping to avoid
           trying to modify a constant in odd edge cases
         - Related resultsets on uninserted objects are now empty

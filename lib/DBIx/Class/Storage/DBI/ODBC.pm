@@ -7,7 +7,7 @@ use base qw/DBIx::Class::Storage::DBI/;
 sub _rebless {
     my ($self) = @_;
 
-    my $dbtype = eval { $self->_dbh->get_info(17) };
+    my $dbtype = eval { $self->dbh->get_info(17) };
     unless ( $@ ) {
         # Translate the backend name into a perl identifier
         $dbtype =~ s/\W/_/gi;

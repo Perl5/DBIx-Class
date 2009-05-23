@@ -36,8 +36,8 @@ Returns a new L<DBIx::Class::Storage::DBI::Cursor> object.
 
 sub new {
   my ($class, $storage, $args, $attrs) = @_;
-  #use Data::Dumper; warn Dumper(@_);
   $class = ref $class if ref $class;
+
   my $new = {
     storage => $storage,
     args => $args,
@@ -72,7 +72,7 @@ sub as_query {
 
   my @args = $storage->_select_args(@{$self->{args}});
   my ($sql, $bind)  = $storage->_prep_for_execute(@args[0 .. 2], [@args[4 .. $#args]]);
-  return \[ "($sql)", @$bind ];
+  return \[ "($sql)", @{ $bind || [] }];
 }
 
 =head2 next

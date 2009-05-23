@@ -1,7 +1,7 @@
 package # hide from PAUSE 
     DBICTest::Schema::Track;
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 __PACKAGE__->load_components(qw/InflateColumn::DateTime Ordered/);
 
 __PACKAGE__->table('track');
@@ -24,6 +24,10 @@ __PACKAGE__->add_columns(
   last_updated_on => {
     data_type => 'datetime',
     accessor => 'updated_date',
+    is_nullable => 1
+  },
+  last_updated_at => {
+    data_type => 'datetime',
     is_nullable => 1
   },
 );

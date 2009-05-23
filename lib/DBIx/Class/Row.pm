@@ -8,6 +8,10 @@ use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util ();
 use Scope::Guard;
 
+###
+### Internal method
+### Do not use
+###
 BEGIN {
   *MULTICREATE_DEBUG =
     $ENV{DBIC_MULTICREATE_DEBUG}
@@ -73,6 +77,23 @@ passed objects.
 
 For a more involved explanation, see L<DBIx::Class::ResultSet/create>.
 
+Please note that if a value is not passed to new, no value will be sent
+in the SQL INSERT call, and the column will therefore assume whatever
+default value was specified in your database. While DBIC will retrieve the
+value of autoincrement columns, it will never make an explicit database
+trip to retrieve default values assigned by the RDBMS. You can explicitly
+request that all values be fetched back from the database by calling
+L</discard_changes>, or you can supply an explicit C<undef> to columns
+with NULL as the default, and save yourself a SELECT.
+
+ CAVEAT:
+
+ The behavior described above will backfire if you use a foreign key column
+ with a database-defined default. If you call the relationship accessor on
+ an object that doesn't have a set value for the FK column, DBIC will throw
+ an exception, as it has no way of knowing the PK of the related object (if
+ there is one).
+
 =cut
 
 ## It needs to store the new objects somewhere, and call insert on that list later when insert is called on this object. We may need an accessor for these so the user can retrieve them, if just doing ->new().
@@ -91,7 +112,7 @@ sub __new_related_find_or_new_helper {
                 ->resultset
                 ->new_result($data);
   }
-  if ($self->result_source->pk_depends_on($relname, $data)) {
+  if ($self->result_source->_pk_depends_on($relname, $data)) {
     MULTICREATE_DEBUG and warn "MC $self constructing $relname via find_or_new";
     return $self->result_source
                 ->related_source($relname)
@@ -111,7 +132,7 @@ sub __their_pk_needs_us { # this should maybe be in resultsource.
   foreach my $key (keys %$reverse) {
     # if their primary key depends on us, then we have to
     # just create a result and we'll fill it out afterwards
-    return 1 if $rel_source->pk_depends_on($key, $us);
+    return 1 if $rel_source->_pk_depends_on($key, $us);
   }
   return 0;
 }
@@ -283,7 +304,7 @@ sub insert {
       next REL unless (Scalar::Util::blessed($rel_obj)
                        && $rel_obj->isa('DBIx::Class::Row'));
 
-      next REL unless $source->pk_depends_on(
+      next REL unless $source->_pk_depends_on(
                         $relname, { $rel_obj->get_columns }
                       );
 
@@ -326,7 +347,6 @@ sub insert {
     $self->throw_exception( "Can't get last insert id" )
       unless (@ids == @auto_pri);
     $self->store_column($auto_pri[$_] => $ids[$_]) for 0 .. $#ids;
-#use Data::Dumper; warn Dumper($self);
   }
 
 
@@ -860,10 +880,10 @@ Inserts a new row into the database, as a copy of the original
 object. If a hashref of replacement data is supplied, these will take
 precedence over data in the original.
 
-If the row has related objects in a
-L<DBIx::Class::Relationship/has_many> then those objects may be copied
-too depending on the L<cascade_copy|DBIx::Class::Relationship>
-relationship attribute.
+Relationships will be followed by the copy procedure B<only> if the
+relationship specifes a true value for its
+L<cascade_copy|DBIx::Class::Relationship::Base> attribute. C<cascade_copy>
+is set by default on C<has_many> relationships and unset on all others.
 
 =cut
 
@@ -893,7 +913,7 @@ sub copy {
 
     next unless $rel_info->{attrs}{cascade_copy};
   
-    my $resolved = $self->result_source->resolve_condition(
+    my $resolved = $self->result_source->_resolve_condition(
       $rel_info->{cond}, $rel, $new
     );
 
@@ -960,6 +980,9 @@ for example to rebless the result into a different class.
 Reblessing can also be done more easily by setting C<result_class> in
 your Result class. See L<DBIx::Class::ResultSource/result_class>.
 
+Different types of results can also be created from a particular
+L<DBIx::Class::ResultSet>, see L<DBIx::Class::ResultSet/result_class>.
+
 =cut
 
 sub inflate_result {
@@ -1005,7 +1028,6 @@ sub inflate_result {
         $fetched = $pre_source->result_class->inflate_result(
                       $pre_source, @{$pre_val});
       }
-      $new->related_resultset($pre)->set_cache([ $fetched ]);
       my $accessor = $source->relationship_info($pre)->{attrs}{accessor};
       $class->throw_exception("No accessor for prefetched $pre")
        unless defined $accessor;
@@ -1016,6 +1038,7 @@ sub inflate_result {
       } else {
        $class->throw_exception("Prefetch not supported with accessor '$accessor'");
       }
+      $new->related_resultset($pre)->set_cache([ $fetched ]);
     }
   }
   return $new;

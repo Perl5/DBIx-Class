@@ -1,7 +1,7 @@
 package # hide from PAUSE 
     DBICTest::Schema::SequenceTest;
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('sequence_test');
 __PACKAGE__->source_info({

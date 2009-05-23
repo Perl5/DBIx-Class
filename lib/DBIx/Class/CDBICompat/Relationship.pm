@@ -7,7 +7,7 @@ use Sub::Name ();
 
 =head1 NAME
 
-DBIx::Class::CDBICompat::Relationship
+DBIx::Class::CDBICompat::Relationship - Emulate the Class::DBI::Relationship object returned from meta_info()
 
 =head1 DESCRIPTION
 
