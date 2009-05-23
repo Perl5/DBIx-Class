@@ -193,20 +193,20 @@ sub _recurse_fields {
       if ($func eq 'distinct') {
         my $_fields = $fields->{$func};
         if (ref $_fields eq 'ARRAY' && @{$_fields} > 1) {
-          croak "Unsupported syntax, please use " . 
-              "{ group_by => [ qw/" . (join ' ', @$_fields) . "/ ] }" .
-              " or " .
-              "{ select => [ qw/" . (join ' ', @$_fields) . "/ ], distinct => 1 }";
+          croak (
+            'The select => { distinct => ... } syntax is not supported for multiple columns.'
+           .' Instead please use { group_by => [ qw/' . (join ' ', @$_fields) . '/ ] }'
+           .' or { select => [ qw/' . (join ' ', @$_fields) . '/ ], distinct => 1 }'
+          );
         }
         else {
           $_fields = @{$_fields}[0] if ref $_fields eq 'ARRAY';
-          carp "This syntax will be deprecated in 09, please use " . 
-               "{ group_by => '${_fields}' }" . 
-               " or " .
-               "{ select => '${_fields}', distinct => 1 }";
+          carp (
+            'The select => { distinct => ... } syntax will be deprecated in DBIC version 0.09,'
+           ." please use { group_by => '${_fields}' } or { select => '${_fields}', distinct => 1 }"
+          );
         }
       }
-      
       return $self->_sqlcase($func)
         .'( '.$self->_recurse_fields($fields->{$func}).' )';
     }
