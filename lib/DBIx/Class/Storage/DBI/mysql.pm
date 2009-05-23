@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI::mysql;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
 
