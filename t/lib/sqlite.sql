@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Thu Apr 30 10:04:57 2009
+-- Created on Sat May 23 21:30:53 2009
 -- 
 
 
@@ -195,7 +195,8 @@ CREATE TABLE fourkeys (
   bar integer NOT NULL,
   hello integer NOT NULL,
   goodbye integer NOT NULL,
-  sensors character NOT NULL,
+  sensors character(10) NOT NULL,
+  read_count integer,
   PRIMARY KEY (foo, bar, hello, goodbye)
 );
 
@@ -210,6 +211,7 @@ CREATE TABLE fourkeys_to_twokeys (
   t_artist integer NOT NULL,
   t_cd integer NOT NULL,
   autopilot character NOT NULL,
+  pilot_sequence integer,
   PRIMARY KEY (f_foo, f_bar, f_hello, f_goodbye, t_artist, t_cd)
 );
 
