@@ -4,9 +4,8 @@ use strict;
 use warnings;
 
 use base qw/
-  DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server
   DBIx::Class::Storage::DBI::NoBindVars
-  DBIx::Class::Storage::DBI::Sybase
+  DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server
 /;
 
 1;
