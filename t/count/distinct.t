@@ -13,7 +13,7 @@ my $schema = DBICTest->init_schema();
 
 eval "use DBD::SQLite";
 plan skip_all => 'needs DBD::SQLite for testing' if $@;
-plan tests => 21;
+plan tests => 22;
 
 # The tag Blue is assigned to cds 1 2 3 and 5
 # The tag Cheesy is assigned to cds 2 4 and 5
@@ -73,6 +73,9 @@ is($rs->count, 7, 'Count with literal SQL and multiple group_by');
 
 $rs = $schema->resultset('Tag')->search({ tag => 'Blue' }, { '+select' => { max => 'tagid' }, distinct => 1 });
 is($rs->count, 4, 'Count with +select aggreggate');
+
+$rs = $schema->resultset('Tag')->search({}, { select => 'length(me.tag)', distinct => 1 });
+is($rs->count, 3, 'Count by distinct function result as select literal');
 
 my @warnings;
 {

@@ -3,27 +3,50 @@ package DBIx::Class::Storage::DBI::Sybase;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::NoBindVars/;
+use base qw/DBIx::Class::Storage::DBI/;
 
 sub _rebless {
-    my $self = shift;
+  my $self = shift;
 
-    my $dbtype = eval { @{$self->dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2] };
-    unless ( $@ ) {
-        $dbtype =~ s/\W/_/gi;
-        my $subclass = "DBIx::Class::Storage::DBI::Sybase::${dbtype}";
-        if ($self->load_optional_class($subclass) && !$self->isa($subclass)) {
-            bless $self, $subclass;
-            $self->_rebless;
-        }
+  if (ref($self) eq 'DBIx::Class::Storage::DBI::Sybase') {
+    my $dbtype = eval {
+      @{$self->dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
+    } || '';
+
+    my $exception = $@;
+    $dbtype =~ s/\W/_/gi;
+    my $subclass = "DBIx::Class::Storage::DBI::Sybase::${dbtype}";
+
+    if (!$exception && $dbtype && $self->load_optional_class($subclass)) {
+      bless $self, $subclass;
+      $self->_rebless;
+    } else { # probably real Sybase
+      if (not $self->dbh->{syb_dynamic_supported}) {
+        bless $self, 'DBIx::Class::Storage:DBI::Sybase::NoBindVars';
+        $self->_rebless;
+      }
+
+      $self->dbh->syb_date_fmt('ISO_strict');
+      $self->dbh->do('set dateformat mdy');
     }
+  }
 }
 
 sub _dbh_last_insert_id {
-    my $self = shift;
-    my $sth = $self->_dbh->prepare_cached('select @@identity');
-    ($self->_dbh->selectrow_array($sth))[0];
+  my ($self, $dbh, $source, $col) = @_;
+
+  if (not $self->dbh->{syb_dynamic_supported}) {
+    # @@identity works only if not using placeholders
+    # Should this query be cached?
+    return ($dbh->selectrow_array('select @@identity'))[0];
+  }
+
+  # sorry, there's no other way!
+  my $sth = $dbh->prepare_cached("select max($col) from ".$source->from);
+  return ($dbh->selectrow_array($sth))[0];
 }
+
+sub datetime_parser_type { "DBIx::Class::Storage::DBI::Sybase::DateTime" }
 
 1;
 
@@ -39,12 +62,29 @@ L<DBIx::Class::Storage::DBI::Sybase::MSSQL>.
 
 =head1 CAVEATS
 
-This storage driver uses L<DBIx::Class::Storage::DBI::NoBindVars> as a base.
-This means that bind variables will be interpolated (properly quoted of course)
+If your version of Sybase does not support placeholders, then this storage
+driver uses L<DBIx::Class::Storage::DBI::NoBindVars> as a base,
+
+In which case, bind variables will be interpolated (properly quoted of course)
 into the SQL query itself, without using bind placeholders.
 
 More importantly this means that caching of prepared statements is explicitly
 disabled, as the interpolation renders it useless.
+
+If your version of Sybase B<DOES> support placeholders (check
+C<<$dbh->{syb_dynamic_supported}>> then unfortunately there's no way to get the
+C<last_insert_id> without doing a C<select max(col)>.
+
+But your queries will be cached.
+
+=head1 DATES
+
+On connection C<syb_date_fmt> is set to C<ISO_strict>, e.g.:
+C<2004-08-21T14:36:48.080Z> and C<dateformat> is set to C<mdy>, e.g.:
+C<08/13/1979>.
+
+You will need the L<DateTime::Format::Strptime> module if you are going to use
+L<DBIx::Class::InflateColumn::DateTime>.
 
 =head1 AUTHORS
 
@@ -52,8 +92,11 @@ Brandon L Black <blblack@gmail.com>
 
 Justin Hunter <justin.d.hunter@gmail.com>
 
+Rafael Kitover <rkitover@cpan.org>
+
 =head1 LICENSE
 
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+# vim:sts=2 sw=2:
