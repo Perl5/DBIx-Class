@@ -1171,6 +1171,14 @@ sub _count_subq {
 
   # if needed force a group_by and the same set of columns (most databases require this)
   if ($add_group_by) {
+
+    # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
+    # simply deleting group_by suffices, as the code below will re-fill it
+    # Note: we check $attrs, as $sub_attrs has collapse deleted
+    if (ref $attrs->{collapse} and keys %{$attrs->{collapse}} ) { 
+      delete $sub_attrs->{group_by};
+    }
+
     $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
   }
 
