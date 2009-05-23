@@ -20,8 +20,8 @@ sub _rebless {
 }
 
 sub _dbh_last_insert_id {
-    my $self = shift;
-    ($self->_dbh->selectrow_array('select @@identity'))[0];
+    my ($self, $dbh, $source, $col) = @_;
+    return ($dbh->selectrow_array('select @@identity'))[0];
 }
 
 1;
