@@ -14,7 +14,7 @@ carp 'Setting of storage_type is redundant as connections through DBD::Sybase'
     .' ::DBI::Sybase::Microsoft_SQL_Server';
 
 
-use base qw/DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server DBIx::Class::Storage::DBI::Sybase/;
+use base qw/DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server/;
 
 1;
 
