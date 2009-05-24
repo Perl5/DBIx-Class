@@ -19,7 +19,10 @@ sub _execute {
     my ($op) = @_;
 
     my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
-    $self->{_scope_identity} = $sth->fetchrow_array if $op eq 'insert';
+    if ($op eq 'insert') {
+      $self->{_scope_identity} = $sth->fetchrow_array;
+      $sth->finish;
+    }
 
     return wantarray ? ($rv, $sth, @bind) : $rv;
 }
