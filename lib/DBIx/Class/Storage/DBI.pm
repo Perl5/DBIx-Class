@@ -614,14 +614,14 @@ sub _populate_dbh {
   my @info = @{$self->_dbi_connect_info || []};
   $self->_dbh($self->_connect(@info));
 
+  $self->_conn_pid($$);
+  $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
+
   $self->_determine_driver;
 
   # Always set the transaction depth on connect, since
   #  there is no transaction in progress by definition
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
-
-  $self->_conn_pid($$);
-  $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
 
   my $connection_do = $self->on_connect_do;
   $self->_do_connection_actions($connection_do) if $connection_do;

@@ -15,6 +15,7 @@ plan tests => 12;
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
 
 $schema->storage->ensure_connected;
+
 isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server' );
 
 $schema->storage->dbh_do (sub {
