@@ -340,8 +340,11 @@ sub _recurse_from {
 
 sub _fold_sqlbind {
   my ($self, $sqlbind) = @_;
-  my $sql = shift @$$sqlbind;
-  push @{$self->{from_bind}}, @$$sqlbind;
+
+  my @sqlbind = @$$sqlbind; # copy
+  my $sql = shift @sqlbind;
+  push @{$self->{from_bind}}, @sqlbind;
+
   return $sql;
 }
 
