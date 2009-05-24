@@ -7,7 +7,7 @@ use lib qw(t/lib);
 use DBICTest; # do not remove even though it is not used
 use DBIC::SqlMakerTest;
 
-plan tests => 8;
+plan tests => 10;
 
 my $sa = new DBIx::Class::SQLAHacks;
 $sa->limit_dialect( 'Top' );
@@ -43,3 +43,17 @@ sub test_order {
       ],
       expected_sql_order => ['foo ASC, bar DESC, baz ASC, frew ASC', 'foo DESC, bar ASC, baz DESC, frew DESC']
   });
+
+{
+
+  my @w;
+  local $SIG{__WARN__} = sub { $_[0] =~ /Use of uninitialized value/ ? push @w, @_ : warn @_ };
+  my $subquery = $sa->select( [{ subq => \['(SELECT * FROM foo)'] }], [qw{bar baz}], undef, undef, 1, 3);
+  is_same_sql(
+    $subquery,
+    "SELECT * FROM ( SELECT TOP 1 * FROM ( SELECT TOP 4 bar,baz FROM (SELECT * FROM foo) ) AS foo) AS bar",
+  );
+
+  is (@w, 0, 'No warnings on limit with subquery')
+    || diag join ("\n", @w);
+}
