@@ -152,7 +152,7 @@ sub all {
   my ($self) = @_;
   if ($self->{attrs}{software_limit}
         && ($self->{attrs}{offset} || $self->{attrs}{rows})) {
-    return $self->SUPER::all;
+    return $self->next::method;
   }
   $self->{storage}->dbh_do($self->can('_dbh_all'), $self);
 }

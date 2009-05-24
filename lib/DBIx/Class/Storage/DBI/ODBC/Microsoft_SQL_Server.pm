@@ -8,7 +8,7 @@ sub _prep_for_execute {
     my $self = shift;
     my ($op, $extra_bind, $ident, $args) = @_;
 
-    my ($sql, $bind) = $self->SUPER::_prep_for_execute(@_);
+    my ($sql, $bind) = $self->next::method (@_);
     $sql .= ';SELECT SCOPE_IDENTITY()' if $op eq 'insert';
 
     return ($sql, $bind);
