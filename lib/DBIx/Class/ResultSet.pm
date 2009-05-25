@@ -746,26 +746,10 @@ sub single {
 #
 # This is a horrble hack, but seems like the best we can do at this point
 # Some limit emulations (Top) require an ordered resultset in order to 
-# function at all. So supply a PK order if such a condition is detected
+# function at all. So supply a PK order to be used if necessary
 
 sub _gen_virtual_order {
-  my $self = shift;
-  my $attrs = $self->_resolved_attrs_copy;
-
-  if ($attrs->{rows} or $attrs->{offset} ) {
-
-#   This check requires ensure_connected, so probably cheaper to just calculate all the time
-
-#    my $sm = $self->result_source->storage->_sql_maker;
-#
-#    if ($sm->_default_limit_syntax eq 'Top' and not @{$sm->_resolve_order ($attrs->{order_by}) }) {
-
-      return [ $self->result_source->primary_columns ];
-
-#    }
-  }
-
-  return undef;
+  return [ shift->result_source->primary_columns ];
 }
 
 # _is_unique_query
