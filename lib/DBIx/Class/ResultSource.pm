@@ -113,7 +113,7 @@ NULL values. This is currently only used by L<DBIx::Class::Schema/deploy>.
 
 Set this to a true value for a column whose value is somehow
 automatically set. This is used to determine which columns to empty
-when cloning objects using C<copy>. It is also used by
+when cloning objects using L<DBIx::Class::Row/copy>. It is also used by
 L<DBIx::Class::Schema/deploy>.
 
 =item is_foreign_key
