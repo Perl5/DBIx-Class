@@ -5,6 +5,7 @@ use base qw/SQL::Abstract::Limit/;
 use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class/;
+use Scalar::Util();
 
 sub new {
   my $self = shift->SUPER::new(@_);
@@ -97,21 +98,9 @@ SQL
 
 # While we're at it, this should make LIMIT queries more efficient,
 #  without digging into things too deeply
-use Scalar::Util 'blessed';
 sub _find_syntax {
   my ($self, $syntax) = @_;
-  
-  # DB2 is the only remaining DB using this. Even though we are not sure if
-  # RowNumberOver is still needed here (should be part of SQLA) leave the 
-  # code in place
-  my $dbhname = blessed($syntax) ? $syntax->{Driver}{Name} : $syntax;
-  if(ref($self) && $dbhname) {
-    if ($dbhname eq 'DB2') {
-      return 'RowNumberOver';
-    }
-  }
-  
-  $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
+  return $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
 }
 
 sub select {
