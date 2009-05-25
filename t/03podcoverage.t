@@ -111,6 +111,7 @@ my $exceptions = {
     'DBIx::Class::Storage::DBI::Sybase::MSSQL'          => { skip => 1 },
     'DBIx::Class::Storage::DBI::ODBC400'                => { skip => 1 },
     'DBIx::Class::Storage::DBI::ODBC::DB2_400_SQL'      => { skip => 1 },
+    'DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server' => { skip => 1 },
     'DBIx::Class::Storage::DBI::Oracle'                 => { skip => 1 },
     'DBIx::Class::Storage::DBI::Pg'                     => { skip => 1 },
     'DBIx::Class::Storage::DBI::SQLite'                 => { skip => 1 },
