@@ -1198,7 +1198,7 @@ sub _resolve_condition {
             $self->throw_exception(
               "Column ${v} not loaded or not passed to new() prior to insert()"
                 ." on ${for} trying to resolve relationship (maybe you forgot "
-                  ."to call ->reload_from_storage to get defaults from the db)"
+                  ."to call ->discard_changes to get defaults from the db)"
             );
           }
           return $UNRESOLVABLE_CONDITION;
