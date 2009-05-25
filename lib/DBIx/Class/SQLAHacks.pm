@@ -259,22 +259,34 @@ sub _order_by {
 
 sub _order_directions {
   my ($self, $order) = @_;
-  $order = $order->{order_by} if ref $order eq 'HASH';
-  if (ref $order eq 'HASH') {
-    $order = [$self->_order_directions_hash($order)];
-  } elsif (ref $order eq 'ARRAY') {
-    $order = [map {
-      if (ref $_ eq 'HASH') {
-        $self->_order_directions_hash($_);
-      } else {
-        $_;
-      }
-    } @{ $order }];
-  }
-  return $self->SUPER::_order_directions($order);
+  return $self->SUPER::_order_directions( $self->_resolve_order($order) );
 }
 
-sub _order_directions_hash {
+sub _resolve_order {
+  my ($self, $order) = @_;
+  $order = $order->{order_by} if (ref $order eq 'HASH' and $order->{order_by});
+
+  if (ref $order eq 'HASH') {
+    $order = [$self->_resolve_order_hash($order)];
+  }
+  elsif (ref $order eq 'ARRAY') {
+    $order = [map {
+      if (ref ($_) eq 'SCALAR') {
+        $$_
+      }
+      elsif (ref ($_) eq 'HASH') {
+        $self->_resolve_order_hash($_)
+      }
+      else {
+        $_
+      }
+    }  @$order];
+  }
+
+  return $order;
+}
+
+sub _resolve_order_hash {
   my ($self, $order) = @_;
   my @new_order;
   foreach my $key (keys %{ $order }) {

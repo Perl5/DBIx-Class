@@ -1187,7 +1187,7 @@ sub _select_args {
   my $bind_attrs = {}; ## Future support
   my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
   if ($attrs->{software_limit} ||
-      $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
+      $sql_maker->_default_limit_syntax eq "GenericSubQ") {
         $attrs->{software_limit} = 1;
   } else {
     $self->throw_exception("rows attribute must be positive if present")
