@@ -5,7 +5,6 @@ use base qw/SQL::Abstract::Limit/;
 use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class/;
-use Scalar::Util();
 
 sub new {
   my $self = shift->SUPER::new(@_);
