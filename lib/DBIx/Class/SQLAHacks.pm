@@ -99,10 +99,15 @@ sub _Top {
   croak '$order supplied to SQLAHacks limit emulators must be a hash'
     if (ref $order ne 'HASH');
 
+  $order = { %$order }; #copy
+
   my $last = $rows + $offset;
 
   my $req_order = $self->_order_by ($order->{order_by});
   my $limit_order = $req_order ? $order->{order_by} : $order->{_virtual_order_by};
+
+  delete $order->{$_} for qw/order_by _virtual_order_by/;
+  my $grpby_having = $self->_order_by ($order);
 
   my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
 
@@ -113,7 +118,7 @@ sub _Top {
   (
     SELECT TOP $rows * FROM
     (
-        SELECT TOP $last $sql $order_by_inner
+        SELECT TOP $last $sql $grpby_having $order_by_inner
     ) AS foo
     $order_by_outer
   ) AS bar
