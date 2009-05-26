@@ -1527,7 +1527,7 @@ sub update_all {
 
 =item Arguments: none
 
-=item Return Value: 1
+=item Return Value: $storage_rv
 
 =back
 
@@ -1535,11 +1535,8 @@ Deletes the contents of the resultset from its result source. Note that this
 will not run DBIC cascade triggers. See L</delete_all> if you need triggers
 to run. See also L<DBIx::Class::Row/delete>.
 
-delete may not generate correct SQL for a query with joins or a resultset
-chained from a related resultset.  In this case it will generate a warning:-
-
-In these cases you may find that delete_all is more appropriate, or you
-need to respecify your query in a way that can be expressed without a join.
+Return value will be the amount of rows deleted; exact type of return value
+is storage-dependent.
 
 =cut
 

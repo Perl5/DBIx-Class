@@ -4,6 +4,8 @@ Revision history for DBIx::Class
           of these operations will succeed, regardless of the complexity
           of $resultset. distinct, group_by, join, prefetch are all
           supported with expected results
+        - Return value of $rs->delete is now the storage return value
+          and not 1 as it used to be
         - don't pass SQL functions into GROUP BY
         - Remove MultiDistinctEmulation.pm, effectively deprecating
           { select => { distinct => [ qw/col1 col2/ ] } }
@@ -33,6 +35,7 @@ Revision history for DBIx::Class
           correctly (RT#28451)
         - "timestamp with time zone" columns (for Pg) now get inflated with a
           time zone information preserved
+        - MSSQL Top limit-emulation improvements (GROUP BY and subquery support)
 
 0.08102 2009-04-30 08:29:00 (UTC)
         - Fixed two subtle bugs when using columns or select/as

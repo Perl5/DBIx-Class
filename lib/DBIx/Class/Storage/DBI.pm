@@ -1144,6 +1144,7 @@ sub _per_row_update_delete {
   my $guard = $self->txn_scope_guard;
 
   my $subrs_cur = $rs->cursor;
+  my $row_cnt = '0E0';
   while (my @pks = $subrs_cur->next) {
 
     my $cond;
@@ -1156,11 +1157,13 @@ sub _per_row_update_delete {
       $op eq 'update' ? $values : (),
       $cond,
     );
+
+    $row_cnt++;
   }
 
   $guard->commit;
 
-  return 1;
+  return $row_cnt;
 }
 
 sub _select {
