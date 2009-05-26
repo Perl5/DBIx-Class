@@ -149,8 +149,9 @@ is ("$skip_inflation", '2006-04-21 18:04:06', 'Correct date/time');
 } # Skip if no MySQL DT::Formatter
 
 SKIP: {
+  eval { require DateTime::Format::Pg };
+  skip ('Need DateTime::Format::Pg for timestamp inflation tests', 3) if $@;
 
-  skip "ENV{DBIC_FLOATING_TZ_OK} was set, skipping", 3 unless eval { require DateTime::Format::Pg; 1};
   my $event = $schema->resultset("EventTZPg")->find(1);
   $event->update({created_on => '2009-01-15 17:00:00+00'});
   $event->discard_changes;
