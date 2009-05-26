@@ -72,6 +72,9 @@ my %force_requires_if_author = (
 
   # t/60core.t
   'DateTime::Format::MySQL'   => 0,
+  
+  # t/89inflate_datetime.t
+  'DateTime::Format::Pg'      => 0,
 
   # t/72pg.t
   $ENV{DBICTEST_PG_DSN}
