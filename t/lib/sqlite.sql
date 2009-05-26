@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat May 23 21:30:53 2009
+-- Created on Tue May 26 18:29:15 2009
 -- 
 
 
@@ -305,7 +305,7 @@ CREATE TABLE onekey (
 -- Table: owners
 --
 CREATE TABLE owners (
-  ownerid INTEGER PRIMARY KEY NOT NULL,
+  id INTEGER PRIMARY KEY NOT NULL,
   name varchar(100) NOT NULL
 );
 

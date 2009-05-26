@@ -36,6 +36,8 @@ Revision history for DBIx::Class
         - "timestamp with time zone" columns (for Pg) now get inflated with a
           time zone information preserved
         - MSSQL Top limit-emulation improvements (GROUP BY and subquery support)
+        - ResultSetColumn will not lose the joins infered from a parent
+          resultset prefetch
 
 0.08102 2009-04-30 08:29:00 (UTC)
         - Fixed two subtle bugs when using columns or select/as

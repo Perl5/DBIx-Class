@@ -310,7 +310,7 @@ sub populate_schema {
     ]);
 
     $schema->populate('Owners', [
-        [ qw/ownerid name/ ],
+        [ qw/id name/ ],
         [ 1, "Newton" ],
         [ 2, "Waltham" ],
     ]);
