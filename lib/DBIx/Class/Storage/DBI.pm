@@ -11,6 +11,7 @@ use DBIx::Class::SQLAHacks;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use Scalar::Util qw/blessed weaken/;
+use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
@@ -1177,11 +1178,14 @@ sub _select_args {
   my $sql_maker = $self->sql_maker;
   $sql_maker->{for} = $for;
 
-  if (exists $attrs->{group_by} || $attrs->{having}) {
+  my @in_order_attrs = qw/group_by having _virtual_order_by/;
+  if (List::Util::first { exists $attrs->{$_} } (@in_order_attrs) ) {
     $order = {
-      group_by => $attrs->{group_by},
-      having => $attrs->{having},
-      ($order ? (order_by => $order) : ())
+      ($order
+        ? (order_by => $order)
+        : ()
+      ),
+      ( map { $_ => $attrs->{$_} } (@in_order_attrs) )
     };
   }
   my $bind_attrs = {}; ## Future support

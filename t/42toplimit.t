@@ -9,6 +9,8 @@ use DBIC::SqlMakerTest;
 my $schema = DBICTest->init_schema;
 
 # Trick the sqlite DB to use Top limit emulation
+# We could test all of this via $sq->$op directly,
+# but some conditions needs a $rsrc
 delete $schema->storage->_sql_maker->{_cached_syntax};
 $schema->storage->_sql_maker->limit_dialect ('Top');
 
@@ -115,5 +117,22 @@ my @tests = (
   },
 );
 
-plan (tests => scalar @tests);
+plan (tests => scalar @tests + 1);
+
 test_order ($_) for @tests;
+
+is_same_sql_bind (
+  $rs->search ({}, { group_by => 'bar', order_by => 'bar' })->as_query,
+  '(
+    SELECT * FROM
+    (
+      SELECT TOP 1 * FROM
+      (
+        SELECT TOP 4  me.foo, me.bar, me.hello, me.goodbye, me.sensors, me.read_count FROM fourkeys me GROUP BY bar ORDER BY bar ASC
+      ) AS foo
+      ORDER BY bar DESC
+    ) AS bar
+    ORDER BY bar
+  )',
+  [],
+);

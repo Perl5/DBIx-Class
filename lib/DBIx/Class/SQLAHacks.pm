@@ -67,11 +67,7 @@ sub _where_field_BETWEEN {
   return $self->SUPER::_where_field_BETWEEN ($lhs, $op, $rhs);
 }
 
-
-
-# DB2 is the only remaining DB using this. Even though we are not sure if
-# RowNumberOver is still needed here (should be part of SQLA) leave the 
-# code in place
+# Slow but ANSI standard Limit/Offset support. DB2 uses this
 sub _RowNumberOver {
   my ($self, $sql, $order, $rows, $offset ) = @_;
 
@@ -93,6 +89,44 @@ SQL
 
   return $sql;
 }
+
+# Crappy Top based Limit/Offset support. MSSQL uses this currently,
+# but may have to switch to RowNumberOver one day
+sub _Top {
+  my ( $self, $sql, $order, $rows, $offset ) = @_;
+
+  croak '$order supplied to SQLAHacks limit emulators must be a hash'
+    if (ref $order ne 'HASH');
+
+  $order = { %$order }; #copy
+
+  my $last = $rows + $offset;
+
+  my $req_order = $self->_order_by ($order->{order_by});
+  my $limit_order = $req_order ? $order->{order_by} : $order->{_virtual_order_by};
+
+  delete $order->{$_} for qw/order_by _virtual_order_by/;
+  my $grpby_having = $self->_order_by ($order);
+
+  my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
+
+  $sql =~ s/^\s*(SELECT|select)//;
+
+  $sql = <<"SQL";
+  SELECT * FROM
+  (
+    SELECT TOP $rows * FROM
+    (
+        SELECT TOP $last $sql $grpby_having $order_by_inner
+    ) AS foo
+    $order_by_outer
+  ) AS bar
+  $req_order
+
+SQL
+    return $sql;
+}
+
 
 
 # While we're at it, this should make LIMIT queries more efficient,
@@ -213,32 +247,38 @@ sub _order_by {
   my $ret = '';
   my @extra;
   if (ref $_[0] eq 'HASH') {
+
     if (defined $_[0]->{group_by}) {
       $ret = $self->_sqlcase(' group by ')
         .$self->_recurse_fields($_[0]->{group_by}, { no_rownum_hack => 1 });
     }
+
     if (defined $_[0]->{having}) {
       my $frag;
       ($frag, @extra) = $self->_recurse_where($_[0]->{having});
       push(@{$self->{having_bind}}, @extra);
       $ret .= $self->_sqlcase(' having ').$frag;
     }
+
     if (defined $_[0]->{order_by}) {
       $ret .= $self->_order_by($_[0]->{order_by});
     }
+
     if (grep { $_ =~ /^-(desc|asc)/i } keys %{$_[0]}) {
       return $self->SUPER::_order_by($_[0]);
     }
+
   } elsif (ref $_[0] eq 'SCALAR') {
     $ret = $self->_sqlcase(' order by ').${ $_[0] };
   } elsif (ref $_[0] eq 'ARRAY' && @{$_[0]}) {
-    my @order = @{+shift};
-    $ret = $self->_sqlcase(' order by ')
-          .join(', ', map {
-                        my $r = $self->_order_by($_, @_);
-                        $r =~ s/^ ?ORDER BY //i;
-                        $r;
-                      } @order);
+    my @order = map {
+      my $r = $self->_order_by($_, @_);
+      $r =~ s/^ ?ORDER BY //i;
+      $r || ();
+    } @{+shift};
+
+    $ret = $self->_sqlcase(' order by ') . join(', ', @order) if @order;
+
   } else {
     $ret = $self->SUPER::_order_by(@_);
   }
@@ -252,7 +292,6 @@ sub _order_directions {
 
 sub _resolve_order {
   my ($self, $order) = @_;
-  $order = $order->{order_by} if (ref $order eq 'HASH' and $order->{order_by});
 
   if (ref $order eq 'HASH') {
     $order = [$self->_resolve_order_hash($order)];
@@ -292,6 +331,7 @@ sub _resolve_order_hash {
       croak "$key is not a valid direction, use -asc or -desc";
     }
   }
+
   return @new_order;
 }
 
