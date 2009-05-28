@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Tue May 26 18:29:15 2009
+-- Created on Thu May 28 10:10:00 2009
 -- 
 
 
@@ -81,6 +81,8 @@ CREATE TABLE books (
   title varchar(100) NOT NULL,
   price integer
 );
+
+CREATE INDEX books_idx_owner_books ON books (owner);
 
 --
 -- Table: cd

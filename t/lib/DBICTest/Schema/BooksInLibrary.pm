@@ -29,4 +29,6 @@ __PACKAGE__->set_primary_key('id');
 
 __PACKAGE__->resultset_attributes({where => { source => "Library" } });
 
+__PACKAGE__->belongs_to ( owner => 'DBICTest::Schema::Owners', 'owner' );
+
 1;
