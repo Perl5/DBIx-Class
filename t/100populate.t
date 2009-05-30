@@ -39,7 +39,6 @@ throws_ok ( sub {
   $schema->populate('CD', [
     map {
       {
-        cdid => $i++,           # without a PK the bulk insert does not engage - how come?
         artist => $artist->id,
         title => $_,
         year => 2009,
