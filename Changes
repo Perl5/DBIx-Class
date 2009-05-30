@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+        - order_by now can take \[$sql, @bind] as in
+          order_by => { -desc => \['colA LIKE ?', 'somestring'] }
+        - SQL::Abstract errors are now properly croak()ed with the
+          correct trace
+
 0.08103 2009-05-26 19:50:00 (UTC)
         - Multiple $resultset -> count/update/delete fixes. Now any
           of these operations will succeed, regardless of the complexity
