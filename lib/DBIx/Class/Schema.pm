@@ -173,8 +173,8 @@ sub _findallmod {
 }
 
 # returns a hash of $shortname => $fullname for every package
-#  found in the given namespaces ($shortname is with the $fullname's
-#  namespace stripped off)
+# found in the given namespaces ($shortname is with the $fullname's
+# namespace stripped off)
 sub _map_namespaces {
   my ($class, @namespaces) = @_;
 
@@ -188,6 +188,22 @@ sub _map_namespaces {
   }
 
   @results_hash;
+}
+
+# returns the result_source_instance for the passed class/object,
+# or dies with an informative message (used by load_namespaces)
+sub _ns_get_rsrc_instance {
+  my $class = shift;
+  my $rs = ref ($_[0]) || $_[0];
+
+  if ($rs->can ('result_source_instance') ) {
+    return $rs->result_source_instance;
+  }
+  else {
+    $class->throw_exception (
+      "Attempt to load_namespaces() class $rs failed - are you sure this is a real Result Class?"
+    );
+  }
 }
 
 sub load_namespaces {
@@ -231,7 +247,7 @@ sub load_namespaces {
       my $result_class = $results{$result};
 
       my $rs_class = delete $resultsets{$result};
-      my $rs_set = $result_class->resultset_class;
+      my $rs_set = $class->_ns_get_rsrc_instance ($result_class)->resultset_class;
       
       if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
         if($rs_class && $rs_class ne $rs_set) {
@@ -241,10 +257,10 @@ sub load_namespaces {
       }
       elsif($rs_class ||= $default_resultset_class) {
         $class->ensure_class_loaded($rs_class);
-        $result_class->resultset_class($rs_class);
+        $class->_ns_get_rsrc_instance ($result_class)->resultset_class($rs_class);
       }
 
-      my $source_name = $result_class->source_name || $result;
+      my $source_name = $class->_ns_get_rsrc_instance ($result_class)->source_name || $result;
 
       push(@to_register, [ $source_name, $result_class ]);
     }
