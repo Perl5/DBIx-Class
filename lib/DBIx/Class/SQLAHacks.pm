@@ -4,7 +4,28 @@ package # Hide from PAUSE
 use base qw/SQL::Abstract::Limit/;
 use strict;
 use warnings;
-use Carp::Clan qw/^DBIx::Class/;
+use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
+
+BEGIN {
+  # reinstall the carp()/croak() functions imported into SQL::Abstract
+  # as Carp and Carp::Clan do not like each other much
+  no warnings qw/redefine/;
+  no strict qw/refs/;
+  for my $f (qw/carp croak/) {
+    my $orig = \&{"SQL::Abstract::$f"};
+    *{"SQL::Abstract::$f"} = sub {
+
+      local $Carp::CarpLevel = 1;   # even though Carp::Clan ignores this, $orig will not
+
+      if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+\(\) called/) {
+        __PACKAGE__->can($f)->(@_);
+      }
+      else {
+        $orig->(@_);
+      }
+    }
+  }
+}
 
 sub new {
   my $self = shift->SUPER::new(@_);
