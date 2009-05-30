@@ -103,6 +103,7 @@ sub _Top {
   my $last = $rows + $offset;
 
   my $req_order = $self->_order_by ($order->{order_by});
+
   my $limit_order = $req_order ? $order->{order_by} : $order->{_virtual_order_by};
 
   delete $order->{$_} for qw/order_by _virtual_order_by/;
@@ -138,8 +139,8 @@ sub _find_syntax {
 
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
-  local $self->{having_bind} = [];
-  local $self->{from_bind} = [];
+
+  $self->{"${_}_bind"} = [] for (qw/having from order/);
 
   if (ref $table eq 'SCALAR') {
     $table = $$table;
@@ -164,7 +165,7 @@ sub select {
     ) :
     ''
   ;
-  return wantarray ? ($sql, @{$self->{from_bind}}, @where_bind, @{$self->{having_bind}}) : $sql;
+  return wantarray ? ($sql, @{$self->{from_bind}}, @where_bind, @{$self->{having_bind}}, @{$self->{order_bind}} ) : $sql;
 }
 
 sub insert {
@@ -243,96 +244,46 @@ sub _recurse_fields {
 }
 
 sub _order_by {
-  my $self = shift;
-  my $ret = '';
-  my @extra;
-  if (ref $_[0] eq 'HASH') {
+  my ($self, $arg) = @_;
 
-    if (defined $_[0]->{group_by}) {
+  if (ref $arg eq 'HASH' and keys %$arg and not grep { $_ =~ /^-(?:desc|asc)/i } keys %$arg ) {
+
+    my $ret = '';
+
+    if (defined $arg->{group_by}) {
       $ret = $self->_sqlcase(' group by ')
-        .$self->_recurse_fields($_[0]->{group_by}, { no_rownum_hack => 1 });
+        .$self->_recurse_fields($arg->{group_by}, { no_rownum_hack => 1 });
     }
 
-    if (defined $_[0]->{having}) {
-      my $frag;
-      ($frag, @extra) = $self->_recurse_where($_[0]->{having});
-      push(@{$self->{having_bind}}, @extra);
+    if (defined $arg->{having}) {
+      my ($frag, @bind) = $self->_recurse_where($arg->{having});
+      push(@{$self->{having_bind}}, @bind);
       $ret .= $self->_sqlcase(' having ').$frag;
     }
 
-    if (defined $_[0]->{order_by}) {
-      $ret .= $self->_order_by($_[0]->{order_by});
+    if (defined $arg->{order_by}) {
+      my ($frag, @bind) = $self->SUPER::_order_by($arg->{order_by});
+      push(@{$self->{order_bind}}, @bind);
+      $ret .= $frag;
     }
 
-    if (grep { $_ =~ /^-(desc|asc)/i } keys %{$_[0]}) {
-      return $self->SUPER::_order_by($_[0]);
-    }
-
-  } elsif (ref $_[0] eq 'SCALAR') {
-    $ret = $self->_sqlcase(' order by ').${ $_[0] };
-  } elsif (ref $_[0] eq 'ARRAY' && @{$_[0]}) {
-    my @order = map {
-      my $r = $self->_order_by($_, @_);
-      $r =~ s/^ ?ORDER BY //i;
-      $r || ();
-    } @{+shift};
-
-    $ret = $self->_sqlcase(' order by ') . join(', ', @order) if @order;
-
-  } else {
-    $ret = $self->SUPER::_order_by(@_);
+    return $ret;
   }
-  return $ret;
+  else {
+    my ($sql, @bind) = $self->SUPER::_order_by ($arg);
+    push(@{$self->{order_bind}}, @bind);
+    return $sql;
+  }
 }
 
 sub _order_directions {
   my ($self, $order) = @_;
-  return $self->SUPER::_order_directions( $self->_resolve_order($order) );
-}
 
-sub _resolve_order {
-  my ($self, $order) = @_;
-
-  if (ref $order eq 'HASH') {
-    $order = [$self->_resolve_order_hash($order)];
-  }
-  elsif (ref $order eq 'ARRAY') {
-    $order = [map {
-      if (ref ($_) eq 'SCALAR') {
-        $$_
-      }
-      elsif (ref ($_) eq 'HASH') {
-        $self->_resolve_order_hash($_)
-      }
-      else {
-        $_
-      }
-    }  @$order];
-  }
-
-  return $order;
-}
-
-sub _resolve_order_hash {
-  my ($self, $order) = @_;
-  my @new_order;
-  foreach my $key (keys %{ $order }) {
-    if ($key =~ /^-(desc|asc)/i ) {
-      my $direction = $1;
-      my $type = ref $order->{ $key };
-      if ($type eq 'ARRAY') {
-        push @new_order, map( "$_ $direction", @{ $order->{ $key } } );
-      } elsif (!$type) {
-        push @new_order, "$order->{$key} $direction";
-      } else {
-        croak "hash order_by can only contain Scalar or Array, not $type";
-      }
-    } else {
-      croak "$key is not a valid direction, use -asc or -desc";
-    }
-  }
-
-  return @new_order;
+  # strip bind values - none of the current _order_directions users support them
+  return $self->SUPER::_order_directions( [ map
+    { ref $_ ? $_->[0] : $_ }
+    $self->_order_by_chunks ($order)
+  ]);
 }
 
 sub _table {

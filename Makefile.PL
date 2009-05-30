@@ -15,7 +15,7 @@ configure_requires 'DBD::SQLite';
 
 requires 'DBD::SQLite'              => 1.25;
 requires 'Data::Page'               => 2.00;
-requires 'SQL::Abstract'            => 1.55;
+requires 'SQL::Abstract'            => 1.56;
 requires 'SQL::Abstract::Limit'     => 0.13;
 requires 'Class::C3::Componentised' => 1.0005;
 requires 'Carp::Clan'               => 6.0;
