@@ -1052,7 +1052,27 @@ sub insert_bulk {
     $sth->bind_param_array( $placeholder_index, [@data], $attributes );
     $placeholder_index++;
   }
-  my $rv = $sth->execute_array({ArrayTupleStatus => $tuple_status});
+  my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
+  if (my $err = $@) {
+    my $i = 0;
+    ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
+
+    $self->throw_exception($sth->errstr || "Unexpected populate error: $err")
+      if ($i > $#$tuple_status);
+
+    require Data::Dumper;
+    local $Data::Dumper::Terse = 1;
+    local $Data::Dumper::Indent = 1;
+    local $Data::Dumper::Useqq = 1;
+    local $Data::Dumper::Quotekeys = 0;
+
+    $self->throw_exception(sprintf "%s for populate slice:\n%s",
+      $tuple_status->[$i][1],
+      Data::Dumper::Dumper(
+        { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) }
+      ),
+    );
+  }
   $self->throw_exception($sth->errstr) if !$rv;
 
   $self->_query_end( $sql, @bind );
