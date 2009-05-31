@@ -49,6 +49,12 @@ tests_recursive (qw|
     t
 |);
 
+resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
+resources 'license'     => 'http://dev.perl.org/licenses/';
+resources 'repository'  => 'http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/';
+resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
+
+
 # re-build README and require extra modules for testing if we're in a checkout
 
 my %force_requires_if_author = (
@@ -129,12 +135,5 @@ if ($Module::Install::AUTHOR) {
     }
     $ok;
   } @{Meta->{values}{build_requires}} ];
-
-  Meta->{values}{resources} = [ 
-    [ 'MailingList', 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class' ],
-    [ 'IRC', 'irc://irc.perl.org/#dbix-class' ],
-    [ 'license', 'http://dev.perl.org/licenses/' ],
-    [ 'repository', 'http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/' ],
-  ];
   Meta->write;
 }
