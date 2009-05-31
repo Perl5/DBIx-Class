@@ -96,17 +96,6 @@ my %force_requires_if_author = (
 );
 
 if ($Module::Install::AUTHOR) {
-
-  foreach my $module (keys %force_requires_if_author) {
-    build_requires ($module => $force_requires_if_author{$module});
-  }
-
-  system('pod2text lib/DBIx/Class.pm > README');
-}
-
-auto_provides;
-
-if ($Module::Install::AUTHOR) {
   warn <<'EOW';
 ******************************************************************************
 ******************************************************************************
@@ -117,23 +106,27 @@ if ($Module::Install::AUTHOR) {
 ******************************************************************************
 
 EOW
+
+  foreach my $module (keys %force_requires_if_author) {
+    build_requires ($module => $force_requires_if_author{$module});
+  }
+
+  system('pod2text lib/DBIx/Class.pm > README');
 }
+
+auto_provides;
 
 auto_install;
 
 WriteAll();
 
+# Re-write META.yml to _exclude_ all forced requires (we do not want to ship this)
 if ($Module::Install::AUTHOR) {
-  # Need to do this _after_ WriteAll else it loses track of them
-  Meta->{values}{build_requires} = [ grep {
-    my $ok = 1;
-    foreach my $module (keys %force_requires_if_author) {
-      if ($_->[0] =~ /$module/) {
-        $ok = 0;
-        last;
-      }
-    }
-    $ok;
-  } @{Meta->{values}{build_requires}} ];
+
+  Meta->{values}{build_requires} = [ grep 
+    { not exists $force_requires_if_author{$_->[0]} }
+    ( @{Meta->{values}{build_requires}} )
+  ];
+
   Meta->write;
 }
