@@ -1015,16 +1015,16 @@ sub throw_exception {
 
 =over 4
 
-=item Arguments: $sqlt_args, $dir
+=item Arguments: \%sqlt_args, $dir
 
 =back
 
 Attempts to deploy the schema to the current storage using L<SQL::Translator>.
 
-See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>. The most
-common value for this would be C<< { add_drop_table => 1, } >> to have the SQL
-produced include a DROP TABLE statement for each table created. For quoting
-purposes use C<producer_options> value with C<quote_table_names> and
+See L<SQL::Translator/METHODS> for a list of values for C<\%sqlt_args>.
+The most common value for this would be C<< { add_drop_table => 1 } >>
+to have the SQL produced include a C<DROP TABLE> statement for each table
+created. For quoting purposes supply C<quote_table_names> and
 C<quote_field_names>.
 
 Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash 
@@ -1045,19 +1045,16 @@ sub deploy {
 
 =over 4
 
-=item Arguments: $rdbms_type, $sqlt_args, $dir
+=item Arguments: See L<DBIx::Class::Storage::DBI/deployment_statements>
 
 =item Return value: $listofstatements
 
 =back
 
-A convenient shortcut to storage->deployment_statements(). Returns the
-SQL statements used by L</deploy> and
-L<DBIx::Class::Schema::Storage/deploy>. C<$rdbms_type> provides the
-(optional) SQLT (not DBI) database driver name for which the SQL
-statements are produced.  If not supplied, the type is determined by
-interrogating the current connection.  The other two arguments are
-identical to those of L</deploy>.
+A convenient shortcut to
+C<< $self->storage->deployment_statements($self, @args) >>.
+Returns the SQL statements used by L</deploy> and
+L<DBIx::Class::Schema::Storage/deploy>.
 
 =cut
 
@@ -1074,42 +1071,15 @@ sub deployment_statements {
 
 =over 4
 
-=item Arguments: \@databases, $version, $directory, $preversion, $sqlt_args
+=item Arguments: See L<DBIx::Class::Storage::DBI/create_ddl_dir>
 
 =back
+
+A convenient shortcut to 
+C<< $self->storage->create_ddl_dir($self, @args) >>.
 
 Creates an SQL file based on the Schema, for each of the specified
-database types, in the given directory. Given a previous version number,
-this will also create a file containing the ALTER TABLE statements to
-transform the previous schema into the current one. Note that these
-statements may contain DROP TABLE or DROP COLUMN statements that can
-potentially destroy data.
-
-The file names are created using the C<ddl_filename> method below, please
-override this method in your schema if you would like a different file
-name format. For the ALTER file, the same format is used, replacing
-$version in the name with "$preversion-$version".
-
-See L<DBIx::Class::Schema/deploy> for details of $sqlt_args.
-
-If no arguments are passed, then the following default values are used:
-
-=over 4
-
-=item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
-
-=item version    - $schema->schema_version
-
-=item directory  - './'
-
-=item preversion - <none>
-
-=back
-
-Note that this feature is currently EXPERIMENTAL and may not work correctly
-across all databases, or fully handle complex relationships.
-
-WARNING: Please check all SQL files created, before applying them.
+database types, in the given directory.
 
 =cut
 

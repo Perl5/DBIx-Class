@@ -1416,7 +1416,7 @@ sub bind_attribute_by_data_type {
     return;
 }
 
-=head2 create_ddl_dir
+=head2 create_ddl_dir (EXPERIMENTAL)
 
 =over 4
 
@@ -1425,7 +1425,38 @@ sub bind_attribute_by_data_type {
 =back
 
 Creates a SQL file based on the Schema, for each of the specified
-database types, in the given directory.
+database engines in C<\@databases> in the given directory.
+(note: specify L<SQL::Translator> names, not L<DBI> driver names).
+
+Given a previous version number, this will also create a file containing
+the ALTER TABLE statements to transform the previous schema into the
+current one. Note that these statements may contain C<DROP TABLE> or
+C<DROP COLUMN> statements that can potentially destroy data.
+
+The file names are created using the C<ddl_filename> method below, please
+override this method in your schema if you would like a different file
+name format. For the ALTER file, the same format is used, replacing
+$version in the name with "$preversion-$version".
+
+See L<SQL::Translator/METHODS> for a list of values for C<\%sqlt_args>.
+The most common value for this would be C<< { add_drop_table => 1 } >>
+to have the SQL produced include a C<DROP TABLE> statement for each table
+created. For quoting purposes supply C<quote_table_names> and
+C<quote_field_names>.
+
+If no arguments are passed, then the following default values are assumed:
+
+=over 4
+
+=item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
+
+=item version    - $schema->schema_version
+
+=item directory  - './'
+
+=item preversion - <none>
+
+=back
 
 By default, C<\%sqlt_args> will have
 
@@ -1435,6 +1466,12 @@ merged with the hash passed in. To disable any of those features, pass in a
 hashref like the following
 
  { ignore_constraint_names => 0, # ... other options }
+
+
+Note that this feature is currently EXPERIMENTAL and may not work correctly 
+across all databases, or fully handle complex relationships.
+
+WARNING: Please check all SQL files created, before applying them.
 
 =cut
 
@@ -1571,8 +1608,9 @@ sub create_ddl_dir {
 =back
 
 Returns the statements used by L</deploy> and L<DBIx::Class::Schema/deploy>.
-The database driver name is given by C<$type>, though the value from
-L</sqlt_type> is used if it is not specified.
+
+The L<SQL::Translator> (not L<DBI>) database driver name can be explicitly
+provided in C<$type>, otherwise the result of L</sqlt_type> is used as default.
 
 C<$directory> is used to return statements from files in a previously created
 L</create_ddl_dir> directory and is optional. The filenames are constructed
@@ -1640,7 +1678,7 @@ sub deploy {
     }
     $self->_query_end($line);
   };
-  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } );
+  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { %{ $sqltargs || {} }, no_comments => 1 } );
   if (@statements > 1) {
     foreach my $statement (@statements) {
       $deploy->( $statement );
