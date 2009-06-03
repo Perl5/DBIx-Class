@@ -4,8 +4,9 @@ use strict;
 use warnings;
 
 use base qw/
-  DBIx::Class::Storage::DBI::NoBindVars
   DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server
+  DBIx::Class::Storage::DBI::Sybase
+  DBIx::Class::Storage::DBI::NoBindVars
 /;
 
 1;
@@ -17,10 +18,7 @@ DBD::Sybase
 
 =head1 SYNOPSIS
 
-This subclass supports MSSQL connected via L<DBD::Sybase>.
-
-  $schema->storage_type('::DBI::Sybase::Microsoft_SQL_Server');
-  $schema->connect_info('dbi:Sybase:....', ...);
+This subclass supports MSSQL server connections via L<DBD::Sybase>.
 
 =head1 CAVEATS
 
