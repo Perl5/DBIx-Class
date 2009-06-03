@@ -5,6 +5,8 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
+use Carp::Clan qw/^DBIx::Class/;
+
 sub _rebless {
   my $self = shift;
 
@@ -20,26 +22,38 @@ sub _rebless {
     if (!$exception && $dbtype && $self->load_optional_class($subclass)) {
       bless $self, $subclass;
       $self->_rebless;
-    } else { # probably real Sybase
-      if (not $self->dbh->{syb_dynamic_supported}) {
-        bless $self, 'DBIx::Class::Storage:DBI::Sybase::NoBindVars';
-        $self->_rebless;
-      }
-
-      $self->dbh->syb_date_fmt('ISO_strict');
-      $self->dbh->do('set dateformat mdy');
+    } elsif (not $self->dbh->{syb_dynamic_supported}) {
+# probably real Sybase
+      bless $self, 'DBIx::Class::Storage:DBI::Sybase::NoBindVars';
+      $self->_rebless;
     }
+  }
+}
+
+{
+  my $old_dbd_warned = 0;
+
+  sub _populate_dbh {
+    my $self = shift;
+    $self->next::method(@_);
+    my $dbh = $self->_dbh;
+
+    if ($dbh->can('syb_date_fmt')) {
+      $dbh->syb_date_fmt('ISO_strict');
+    } elsif (not $old_dbd_warned) {
+      carp "Your DBD::Sybase is too old to support ".
+      "DBIx::Class::InflateColumn::DateTime, please upgrade!";
+      $old_dbd_warned = 1;
+    }
+
+    $dbh->do('set dateformat mdy');
+
+    1;
   }
 }
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
-
-  if (not $self->dbh->{syb_dynamic_supported}) {
-    # @@identity works only if not using placeholders
-    # Should this query be cached?
-    return ($dbh->selectrow_array('select @@identity'))[0];
-  }
 
   # sorry, there's no other way!
   my $sth = $dbh->prepare_cached("select max($col) from ".$source->from);
