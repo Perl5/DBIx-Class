@@ -8,14 +8,17 @@ use DBICTest;
 {
   local $SIG{__WARN__} = sub { warn @_ if $_[0] !~ /extra \=\> .+? has been deprecated/ };
   DBICTest::Schema->load_classes('EventTZDeprecated');
+  DBICTest::Schema->load_classes('EventTZPg');
 }
 
 my $schema = DBICTest->init_schema();
 
-eval { require DateTime::Format::MySQL };
-plan skip_all => "Need DateTime::Format::MySQL for inflation tests" if $@;
+plan tests => 53;
 
-plan tests => 50;
+SKIP: {
+  eval { require DateTime::Format::MySQL };
+  skip "Need DateTime::Format::MySQL for inflation tests", 50  if $@;
+
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);
@@ -142,3 +145,18 @@ is("$varchar_datetime", '2006-05-22T19:05:07', 'Correct date/time');
 ## skip inflation field
 my $skip_inflation = $event->skip_inflation;
 is ("$skip_inflation", '2006-04-21 18:04:06', 'Correct date/time');
+
+} # Skip if no MySQL DT::Formatter
+
+SKIP: {
+  eval { require DateTime::Format::Pg };
+  skip ('Need DateTime::Format::Pg for timestamp inflation tests', 3) if $@;
+
+  my $event = $schema->resultset("EventTZPg")->find(1);
+  $event->update({created_on => '2009-01-15 17:00:00+00'});
+  $event->discard_changes;
+  isa_ok($event->created_on, "DateTime") or diag $event->created_on;
+  is($event->created_on->time_zone->name, "America/Chicago", "Timezone changed");
+  # Time zone difference -> -6hours
+  is($event->created_on->iso8601, "2009-01-15T11:00:00", "Time with TZ correct");
+}

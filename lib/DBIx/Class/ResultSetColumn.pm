@@ -43,12 +43,11 @@ sub new {
 
   # prefetch causes additional columns to be fetched, but we can not just make a new
   # rs via the _resolved_attrs trick - we need to retain the separation between
-  # +select/+as and select/as
-  for my $attr (qw/prefetch collapse/) {
-    for (qw/attrs _attrs/) {
-      delete $new_parent_rs->{$_}{$attr} if ref $new_parent_rs->{$_};
-    }
-  }
+  # +select/+as and select/as. At the same time we want to preserve any joins that the
+  # prefetch would otherwise generate.
+  my $init_attrs = $new_parent_rs->{attrs} ||= {};
+  delete $init_attrs->{collapse};
+  $init_attrs->{join} = $rs->_merge_attr( delete $init_attrs->{join}, delete $init_attrs->{prefetch} );
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column

@@ -661,6 +661,8 @@ sub cursor {
   my ($self) = @_;
 
   my $attrs = $self->_resolved_attrs_copy;
+  $attrs->{_virtual_order_by} = $self->_gen_virtual_order;
+
   return $self->{cursor}
     ||= $self->result_source->storage->select($attrs->{from}, $attrs->{select},
           $attrs->{where},$attrs);
@@ -712,6 +714,8 @@ sub single {
   }
 
   my $attrs = $self->_resolved_attrs_copy;
+  $attrs->{_virtual_order_by} = $self->_gen_virtual_order;
+
   if ($where) {
     if (defined $attrs->{where}) {
       $attrs->{where} = {
@@ -736,6 +740,16 @@ sub single {
   );
 
   return (@data ? ($self->_construct_object(@data))[0] : undef);
+}
+
+# _gen_virtual_order
+#
+# This is a horrble hack, but seems like the best we can do at this point
+# Some limit emulations (Top) require an ordered resultset in order to 
+# function at all. So supply a PK order to be used if necessary
+
+sub _gen_virtual_order {
+  return [ shift->result_source->primary_columns ];
 }
 
 # _is_unique_query
@@ -856,10 +870,10 @@ instead. An example conversion is:
 
 sub search_like {
   my $class = shift;
-  carp join ("\n",
-    'search_like() is deprecated and will be removed in 0.09.',
-    'Instead use ->search({ x => { -like => "y%" } })',
-    '(note the outer pair of {}s - they are important!)'
+  carp (
+    'search_like() is deprecated and will be removed in DBIC version 0.09.'
+   .' Instead use ->search({ x => { -like => "y%" } })'
+   .' (note the outer pair of {}s - they are important!)'
   );
   my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
   my $query = ref $_[0] eq 'HASH' ? { %{shift()} }: {@_};
@@ -1171,6 +1185,14 @@ sub _count_subq {
 
   # if needed force a group_by and the same set of columns (most databases require this)
   if ($add_group_by) {
+
+    # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
+    # simply deleting group_by suffices, as the code below will re-fill it
+    # Note: we check $attrs, as $sub_attrs has collapse deleted
+    if (ref $attrs->{collapse} and keys %{$attrs->{collapse}} ) { 
+      delete $sub_attrs->{group_by};
+    }
+
     $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
   }
 
@@ -1505,7 +1527,7 @@ sub update_all {
 
 =item Arguments: none
 
-=item Return Value: 1
+=item Return Value: $storage_rv
 
 =back
 
@@ -1513,11 +1535,8 @@ Deletes the contents of the resultset from its result source. Note that this
 will not run DBIC cascade triggers. See L</delete_all> if you need triggers
 to run. See also L<DBIx::Class::Row/delete>.
 
-delete may not generate correct SQL for a query with joins or a resultset
-chained from a related resultset.  In this case it will generate a warning:-
-
-In these cases you may find that delete_all is more appropriate, or you
-need to respecify your query in a way that can be expressed without a join.
+Return value will be the amount of rows deleted; exact type of return value
+is storage-dependent.
 
 =cut
 
@@ -1646,13 +1665,19 @@ sub populate {
 
     ## do the belongs_to relationships
     foreach my $index (0..$#$data) {
-      if( grep { !defined $data->[$index]->{$_} } @pks ) {
-        my @ret = $self->populate($data);
-        return;
+
+      # delegate to create() for any dataset without primary keys with specified relationships
+      if (grep { !defined $data->[$index]->{$_} } @pks ) {
+        for my $r (@rels) {
+          if (grep { ref $data->[$index]{$r} eq $_ } qw/HASH ARRAY/) {  # a related set must be a HASH or AoH
+            my @ret = $self->populate($data);
+            return;
+          }
+        }
       }
 
       foreach my $rel (@rels) {
-        next unless $data->[$index]->{$rel} && ref $data->[$index]->{$rel} eq "HASH";
+        next unless ref $data->[$index]->{$rel} eq "HASH";
         my $result = $self->related_resultset($rel)->create($data->[$index]->{$rel});
         my ($reverse) = keys %{$self->result_source->reverse_relationship_info($rel)};
         my $related = $result->result_source->_resolve_condition(

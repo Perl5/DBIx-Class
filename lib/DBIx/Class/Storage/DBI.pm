@@ -11,6 +11,7 @@ use DBIx::Class::SQLAHacks;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use Scalar::Util qw/blessed weaken/;
+use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
@@ -614,14 +615,14 @@ sub _populate_dbh {
   my @info = @{$self->_dbi_connect_info || []};
   $self->_dbh($self->_connect(@info));
 
+  $self->_conn_pid($$);
+  $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
+
   $self->_determine_driver;
 
   # Always set the transaction depth on connect, since
   #  there is no transaction in progress by definition
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
-
-  $self->_conn_pid($$);
-  $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
 
   my $connection_do = $self->on_connect_do;
   $self->_do_connection_actions($connection_do) if $connection_do;
@@ -1051,7 +1052,27 @@ sub insert_bulk {
     $sth->bind_param_array( $placeholder_index, [@data], $attributes );
     $placeholder_index++;
   }
-  my $rv = $sth->execute_array({ArrayTupleStatus => $tuple_status});
+  my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
+  if (my $err = $@) {
+    my $i = 0;
+    ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
+
+    $self->throw_exception($sth->errstr || "Unexpected populate error: $err")
+      if ($i > $#$tuple_status);
+
+    require Data::Dumper;
+    local $Data::Dumper::Terse = 1;
+    local $Data::Dumper::Indent = 1;
+    local $Data::Dumper::Useqq = 1;
+    local $Data::Dumper::Quotekeys = 0;
+
+    $self->throw_exception(sprintf "%s for populate slice:\n%s",
+      $tuple_status->[$i][1],
+      Data::Dumper::Dumper(
+        { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) }
+      ),
+    );
+  }
   $self->throw_exception($sth->errstr) if !$rv;
 
   $self->_query_end( $sql, @bind );
@@ -1142,6 +1163,9 @@ sub _per_row_update_delete {
 
   my $guard = $self->txn_scope_guard;
 
+  # emulate the return value of $sth->execute for non-selects
+  my $row_cnt = '0E0';
+
   my $subrs_cur = $rs->cursor;
   while (my @pks = $subrs_cur->next) {
 
@@ -1155,11 +1179,13 @@ sub _per_row_update_delete {
       $op eq 'update' ? $values : (),
       $cond,
     );
+
+    $row_cnt++;
   }
 
   $guard->commit;
 
-  return 1;
+  return $row_cnt;
 }
 
 sub _select {
@@ -1177,17 +1203,20 @@ sub _select_args {
   my $sql_maker = $self->sql_maker;
   $sql_maker->{for} = $for;
 
-  if (exists $attrs->{group_by} || $attrs->{having}) {
+  my @in_order_attrs = qw/group_by having _virtual_order_by/;
+  if (List::Util::first { exists $attrs->{$_} } (@in_order_attrs) ) {
     $order = {
-      group_by => $attrs->{group_by},
-      having => $attrs->{having},
-      ($order ? (order_by => $order) : ())
+      ($order
+        ? (order_by => $order)
+        : ()
+      ),
+      ( map { $_ => $attrs->{$_} } (@in_order_attrs) )
     };
   }
   my $bind_attrs = {}; ## Future support
   my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
   if ($attrs->{software_limit} ||
-      $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
+      $sql_maker->_default_limit_syntax eq "GenericSubQ") {
         $attrs->{software_limit} = 1;
   } else {
     $self->throw_exception("rows attribute must be positive if present")
@@ -1387,7 +1416,7 @@ sub bind_attribute_by_data_type {
     return;
 }
 
-=head2 create_ddl_dir
+=head2 create_ddl_dir (EXPERIMENTAL)
 
 =over 4
 
@@ -1396,7 +1425,38 @@ sub bind_attribute_by_data_type {
 =back
 
 Creates a SQL file based on the Schema, for each of the specified
-database types, in the given directory.
+database engines in C<\@databases> in the given directory.
+(note: specify L<SQL::Translator> names, not L<DBI> driver names).
+
+Given a previous version number, this will also create a file containing
+the ALTER TABLE statements to transform the previous schema into the
+current one. Note that these statements may contain C<DROP TABLE> or
+C<DROP COLUMN> statements that can potentially destroy data.
+
+The file names are created using the C<ddl_filename> method below, please
+override this method in your schema if you would like a different file
+name format. For the ALTER file, the same format is used, replacing
+$version in the name with "$preversion-$version".
+
+See L<SQL::Translator/METHODS> for a list of values for C<\%sqlt_args>.
+The most common value for this would be C<< { add_drop_table => 1 } >>
+to have the SQL produced include a C<DROP TABLE> statement for each table
+created. For quoting purposes supply C<quote_table_names> and
+C<quote_field_names>.
+
+If no arguments are passed, then the following default values are assumed:
+
+=over 4
+
+=item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
+
+=item version    - $schema->schema_version
+
+=item directory  - './'
+
+=item preversion - <none>
+
+=back
 
 By default, C<\%sqlt_args> will have
 
@@ -1406,6 +1466,12 @@ merged with the hash passed in. To disable any of those features, pass in a
 hashref like the following
 
  { ignore_constraint_names => 0, # ... other options }
+
+
+Note that this feature is currently EXPERIMENTAL and may not work correctly 
+across all databases, or fully handle complex relationships.
+
+WARNING: Please check all SQL files created, before applying them.
 
 =cut
 
@@ -1542,8 +1608,9 @@ sub create_ddl_dir {
 =back
 
 Returns the statements used by L</deploy> and L<DBIx::Class::Schema/deploy>.
-The database driver name is given by C<$type>, though the value from
-L</sqlt_type> is used if it is not specified.
+
+The L<SQL::Translator> (not L<DBI>) database driver name can be explicitly
+provided in C<$type>, otherwise the result of L</sqlt_type> is used as default.
 
 C<$directory> is used to return statements from files in a previously created
 L</create_ddl_dir> directory and is optional. The filenames are constructed
@@ -1611,7 +1678,7 @@ sub deploy {
     }
     $self->_query_end($line);
   };
-  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } );
+  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { %{ $sqltargs || {} }, no_comments => 1 } );
   if (@statements > 1) {
     foreach my $statement (@statements) {
       $deploy->( $statement );

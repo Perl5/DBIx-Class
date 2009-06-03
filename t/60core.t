@@ -5,10 +5,11 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 103;
+plan tests => 106;
 
 eval { require DateTime::Format::MySQL };
 my $NO_DTFM = $@ ? 1 : 0;
@@ -227,6 +228,20 @@ is($or_rs->count, 5, 'Search count with OR ok');
 my $collapsed_or_rs = $or_rs->search ({}, { distinct => 1 }); # induce collapse
 is ($collapsed_or_rs->all, 4, 'Collapsed joined search with OR returned correct number of rows');
 is ($collapsed_or_rs->count, 4, 'Collapsed search count with OR ok');
+
+my $pref_or_rs = $collapsed_or_rs->search ({}, { prefetch => [qw/tags/] });
+is_same_sql_bind (
+  $pref_or_rs->as_query,
+  '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, tags.tagid, tags.cd, tags.tag FROM cd me LEFT JOIN tags tags ON tags.cd = me.cdid WHERE ( ( tags.tag = ? OR tags.tag = ? ) ) GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, tags.tagid, tags.cd, tags.tag ORDER BY cdid, tags.cd, tags.tag)',
+  [
+    [ 'tags.tag' => 'Cheesy' ],
+    [ 'tags.tag' => 'Blue' ],
+  ],
+  'Prefetch + distinct resulted in correct group_by',
+);
+is ($pref_or_rs->all, 4, 'Prefetched grouped search with OR returned correct number of rows');
+is ($pref_or_rs->count, 4, 'Prefetched grouped count with OR ok');
+
 
 {
   my $tcount = $schema->resultset('Track')->search(

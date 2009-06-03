@@ -107,6 +107,10 @@ sub register_column {
 
   unless ($type) {
     $type = lc($info->{data_type});
+    if ($type eq "timestamp with time zone" || $type eq "timestamptz") {
+      $type = "timestamp";
+      $info->{_ic_dt_method} ||= "timestamp_with_timezone";
+    }
   }
 
   my $timezone;

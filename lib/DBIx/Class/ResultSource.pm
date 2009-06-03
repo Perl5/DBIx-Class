@@ -113,7 +113,7 @@ NULL values. This is currently only used by L<DBIx::Class::Schema/deploy>.
 
 Set this to a true value for a column whose value is somehow
 automatically set. This is used to determine which columns to empty
-when cloning objects using C<copy>. It is also used by
+when cloning objects using L<DBIx::Class::Row/copy>. It is also used by
 L<DBIx::Class::Schema/deploy>.
 
 =item is_foreign_key
@@ -1198,7 +1198,7 @@ sub _resolve_condition {
             $self->throw_exception(
               "Column ${v} not loaded or not passed to new() prior to insert()"
                 ." on ${for} trying to resolve relationship (maybe you forgot "
-                  ."to call ->reload_from_storage to get defaults from the db)"
+                  ."to call ->discard_changes to get defaults from the db)"
             );
           }
           return $UNRESOLVABLE_CONDITION;
@@ -1274,8 +1274,7 @@ sub resolve_prefetch {
             ? "at the same level (${as_prefix}) "
             : "at top level "
           )
-          . 'will currently disrupt both the functionality of $rs->count(), '
-          . 'and the amount of objects retrievable via $rs->next(). '
+          . 'will explode the number of row objects retrievable via ->next or ->all. '
           . 'Use at your own risk.'
         );
       }
@@ -1360,8 +1359,7 @@ sub _resolve_prefetch {
             ? "at the same level (${as_prefix}) "
             : "at top level "
           )
-          . 'will currently disrupt both the functionality of $rs->count(), '
-          . 'and the amount of objects retrievable via $rs->next(). '
+          . 'will explode the number of row objects retrievable via ->next or ->all. '
           . 'Use at your own risk.'
         );
       }

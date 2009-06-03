@@ -97,7 +97,7 @@ your session.
 sub connected {
   my $self = shift;
 
-  if (not $self->SUPER::connected(@_)) {
+  if (not $self->next::method(@_)) {
     return 0;
   }
   else {
@@ -127,9 +127,9 @@ sub _dbh_execute {
     do {
       eval {
         if ($wantarray) {
-          @res    = $self->SUPER::_dbh_execute(@_);
+          @res    = $self->next::method(@_);
         } else {
-          $res[0] = $self->SUPER::_dbh_execute(@_);
+          $res[0] = $self->next::method(@_);
         }
       };
       $exception = $@;

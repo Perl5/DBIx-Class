@@ -33,9 +33,10 @@ sub _multipk_update_delete {
     if ( ref $attrs->{select} ne 'ARRAY' or @{$attrs->{select}} != @pcols );
 
   # This is hideously ugly, but SQLA does not understand multicol IN expressions
+  my $sqla = $self->_sql_maker;
   my ($sql, @bind) = @${$rs->as_query};
-  $sql = sprintf ('(%s) IN %s',
-    join (', ', @pcols),
+  $sql = sprintf ('(%s) IN %s',   # the as_query stuff is already enclosed in ()s
+    join (', ', map { $sqla->_quote ($_) } @pcols),
     $sql,
   );
 

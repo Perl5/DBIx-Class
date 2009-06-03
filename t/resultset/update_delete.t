@@ -13,8 +13,6 @@ my $schema = DBICTest->init_schema();
 
 my $tkfks = $schema->resultset('FourKeys_to_TwoKeys');
 
-warn "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-
 my ($fa, $fb) = $tkfks->related_resultset ('fourkeys')->populate ([
   [qw/foo bar hello goodbye sensors read_count/],
   [qw/1   1   1     1       a       10         /],

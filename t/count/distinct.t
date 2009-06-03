@@ -77,14 +77,23 @@ is($rs->count, 4, 'Count with +select aggreggate');
 $rs = $schema->resultset('Tag')->search({}, { select => 'length(me.tag)', distinct => 1 });
 is($rs->count, 3, 'Count by distinct function result as select literal');
 
-my @warnings;
-{
-  local $SIG{__WARN__} = sub { push @warnings, shift };
+eval {
+  my @warnings;
+  local $SIG{__WARN__} = sub { $_[0] =~ /The select => { distinct => ... } syntax will be deprecated/ 
+    ? push @warnings, @_
+    : warn @_
+  };
   my $row = $schema->resultset('Tag')->search({}, { select => { distinct => 'tag' } })->first;
-}
+  is (@warnings, 1, 'Warned about deprecated distinct') if $DBIx::Class::VERSION < 0.09;
+};
+ok ($@, 'Exception on deprecated distinct usage thrown') if $DBIx::Class::VERSION >= 0.09;
 
-is(@warnings, 1, 'expecteing warn');
+throws_ok(
+  sub { my $row = $schema->resultset('Tag')->search({}, { select => { distinct => [qw/tag cd/] } })->first },
+  qr/select => { distinct => ... } syntax is not supported for multiple columns/,
+  'throw on unsupported syntax'
+);
 
-dies_ok(sub { my $row = $schema->resultset('Tag')->search({}, { select => { distinct => [qw/tag cd/] } })->first }, 'expecting to die');
+# These two rely on the database to throw an exception. This might not be the case one day. Please revise.
 dies_ok(sub { my $count = $schema->resultset('Tag')->search({}, { '+select' => \'tagid AS tag_id', distinct => 1 })->count }, 'expecting to die');
 dies_ok(sub { my $count = $schema->resultset('Tag')->search({}, { select => { length => 'tag' }, distinct => 1 })->count }, 'expecting to die');

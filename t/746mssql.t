@@ -10,11 +10,21 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 12;
+plan tests => 13;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
 
-$schema->storage->ensure_connected;
+{
+  no warnings 'redefine';
+  my $connect_count = 0;
+  my $orig_connect = \&DBI::connect;
+  local *DBI::connect = sub { $connect_count++; goto &$orig_connect };
+
+  $schema->storage->ensure_connected;
+
+  is( $connect_count, 1, 'only one connection made');
+}
+
 isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server' );
 
 $schema->storage->dbh_do (sub {

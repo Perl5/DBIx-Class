@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat May 23 21:30:53 2009
+-- Created on Thu May 28 10:10:00 2009
 -- 
 
 
@@ -81,6 +81,8 @@ CREATE TABLE books (
   title varchar(100) NOT NULL,
   price integer
 );
+
+CREATE INDEX books_idx_owner_books ON books (owner);
 
 --
 -- Table: cd
@@ -305,7 +307,7 @@ CREATE TABLE onekey (
 -- Table: owners
 --
 CREATE TABLE owners (
-  ownerid INTEGER PRIMARY KEY NOT NULL,
+  id INTEGER PRIMARY KEY NOT NULL,
   name varchar(100) NOT NULL
 );
 

@@ -52,7 +52,7 @@ sub lag_behind_master {
 }
 
 # MySql can not do subquery update/deletes, only way is slow per-row operations.
-# This assumes you have proper privilege separation and use innodb.
+# This assumes you have set proper transaction isolation and use innodb.
 sub subq_update_delete {
   return shift->_per_row_update_delete (@_);
 }

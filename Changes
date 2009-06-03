@@ -1,18 +1,32 @@
 Revision history for DBIx::Class
 
+        - order_by now can take \[$sql, @bind] as in
+          order_by => { -desc => \['colA LIKE ?', 'somestring'] }
+        - SQL::Abstract errors are now properly croak()ed with the
+          correct trace
+        - populate() now properly reports the dataset slice in case of
+          an exception
+        - fixed corner case when populate() erroneously falls back to
+          create()
+
+0.08103 2009-05-26 19:50:00 (UTC)
+        - Multiple $resultset -> count/update/delete fixes. Now any
+          of these operations will succeed, regardless of the complexity
+          of $resultset. distinct, group_by, join, prefetch are all
+          supported with expected results
+        - Return value of $rs->delete is now the storage return value
+          and not 1 as it used to be
         - don't pass SQL functions into GROUP BY
         - Remove MultiDistinctEmulation.pm, effectively deprecating
           { select => { distinct => [ qw/col1 col2/ ] } }
         - Change ->count code to work correctly with DISTINCT (distinct => 1)
           via GROUP BY
-        - remove interpolation of bind vars for as_query
-        - update Cookbook entry for "SELECT DISTINCT with multiple columns"
-        - update Cookbook entry for "SELECT COUNT(DISTINCT colname)"
+        - Removed interpolation of bind vars for as_query - placeholders
+          are preserved and nested query bind variables are properly 
+          merged in the correct order
         - Refactor DBIx::Class::Storage::DBI::Sybase to automatically 
           load a subclass, namely Microsoft_SQL_Server.pm
           (similar to DBIx::Class::Storage::DBI::ODBC)
-        - Proper support for update/delete of joined resultsets
-          (using IN => $sub_rs->as_query)
         - Refactor InflateColumn::DateTime to allow components to
           circumvent DateTime parsing
         - Support inflation of timestamp datatype
@@ -22,6 +36,18 @@ Revision history for DBIx::Class
         - Storage::DBI::Replicated: storage opts from connect_info,
           connect_info merging to replicants, hashref connect_info support,
           improved trace output, other bug fixes/cleanups
+        - distinct => 1 with prefetch now groups by all columns
+        - on_connect_do accepts a single string equivalent to a one
+          element arrayref (RT#45159)
+        - DB2 limit + offset now works correctly
+        - Sybase now supports autoinc PKs (RT#40265)
+        - Prefetch on joins over duplicate relations now works
+          correctly (RT#28451)
+        - "timestamp with time zone" columns (for Pg) now get inflated with a
+          time zone information preserved
+        - MSSQL Top limit-emulation improvements (GROUP BY and subquery support)
+        - ResultSetColumn will not lose the joins infered from a parent
+          resultset prefetch
 
 0.08102 2009-04-30 08:29:00 (UTC)
         - Fixed two subtle bugs when using columns or select/as
