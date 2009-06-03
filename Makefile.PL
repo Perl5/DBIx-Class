@@ -67,7 +67,7 @@ my %force_requires_if_author = (
   'Class::Trigger'            => 0,
   'Time::Piece::MySQL'        => 0,
   'Clone'                     => 0,
-  'Date::Simple'              => 0,
+  'Date::Simple'              => 3.03,
 
   # t/52cycle.t
   'Test::Memory::Cycle'       => 0,

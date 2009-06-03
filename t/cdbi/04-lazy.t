@@ -10,12 +10,10 @@ use Test::Warn;
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 36);
+  plan $@ 
+    ? (skip_all => 'Class::Trigger and DBIx::ContextualFetch required')
+    : (tests => 36)
+  ;
 }
 
 INIT {
@@ -120,7 +118,7 @@ warning_like {
 
 # Now again for inflated values
 SKIP: {
-    skip "Requires Date::Simple", 5 unless eval "use Date::Simple; 1; ";
+    skip "Requires Date::Simple 3.03", 5 unless eval "use Date::Simple 3.03; 1; ";
     Lazy->has_a(
         orp     => 'Date::Simple',
         inflate => sub { Date::Simple->new($_[0] . '-01-01') },
