@@ -23,19 +23,29 @@ sub _rebless {
     if (!$exception && $dbtype && $self->load_optional_class($subclass)) {
       bless $self, $subclass;
       $self->_rebless;
-    } elsif (not $self->dbh->{syb_dynamic_supported}) {
-      bless $self, 'DBIx::Class::Storage:DBI::Sybase::NoBindVars';
-      $self->_rebless;
+    } else {
+      # real Sybase
+      if (not $self->dbh->{syb_dynamic_supported}) {
+        bless $self, 'DBIx::Class::Storage:DBI::Sybase::NoBindVars';
+        $self->_rebless;
+      }
+      $self->_init_date_fmt;
     }
   }
+}
+
+sub _populate_dbh {
+  my $self = shift;
+  $self->next::method(@_);
+  $self->_init_date_fmt;
+  1;
 }
 
 {
   my $old_dbd_warned = 0;
 
-  sub _populate_dbh {
+  sub _init_date_fmt {
     my $self = shift;
-    $self->next::method(@_);
     my $dbh = $self->_dbh;
 
     if ($dbh->can('syb_date_fmt')) {
