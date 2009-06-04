@@ -926,6 +926,22 @@ sub _fix_bind_params {
         } @bind;
 }
 
+sub _flatten_bind_params {
+    my ($self, @bind) = @_;
+
+    ### Turn @bind from something like this:
+    ###   ( [ "artist", 1 ], [ "cdid", 1, 3 ] )
+    ### to this:
+    ###   ( 1, 1, 3 )
+    return
+        map {
+            if ( defined( $_ && $_->[1] ) ) {
+                @{$_}[ 1 .. $#$_ ];
+            }
+            else { undef; }
+        } @bind;
+}
+
 sub _query_start {
     my ( $self, $sql, @bind ) = @_;
 
@@ -1229,16 +1245,25 @@ sub _select_args {
   return @args;
 }
 
+sub _trim_attributes_for_count {
+  my ($self, $source, $attrs) = @_;
+  my %attrs = %$attrs;
+
+  # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
+  delete $attrs{$_} for (qw/columns +columns select +select as +as rows offset page pager order_by record_filter/);
+
+  return \%attrs;
+}
+
 sub count {
   my ($self, $source, $attrs) = @_;
 
-  # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
-  delete $attrs->{$_} for (qw/columns +columns select +select as +as rows offset page pager order_by record_filter/);
+  my $new_attrs = $self->_trim_attributes_for_count($source, $attrs);
 
-  $attrs->{select} = { count => '*' };
-  $attrs->{as} = [qw/count/];
+  $new_attrs->{select} = { count => '*' };
+  $new_attrs->{as} = [qw/count/];
 
-  my $tmp_rs = $source->resultset_class->new($source, $attrs);
+  my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
   my ($count) = $tmp_rs->cursor->next;
 
   return $count;

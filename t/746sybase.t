@@ -62,16 +62,15 @@ SQL
     $seen_id{$new->artistid}++;
   }
 
-  my $it = $schema->resultset('Artist')->search( {}, {
+## avoid quoting bug with NoBindVars for now
+#  my $it = $schema->resultset('Artist')->search({artistid => { '>' => 0 }}, {
+
+  my $it = $schema->resultset('Artist')->search({}, {
     rows => 3,
     order_by => 'artistid',
   });
 
-  TODO: {
-    local $TODO = 'Sybase is very very fucked in the limit department';
-
-    is( $it->count, 3, "LIMIT count ok" );
-  }
+  is( $it->count, 3, "LIMIT count ok" );
 
   is( $it->next->name, "foo", "iterator->next ok" );
   $it->next;

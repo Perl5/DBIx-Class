@@ -3,6 +3,7 @@ package DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server;
 use strict;
 use warnings;
 
+use Class::C3;
 use base qw/
   DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server
   DBIx::Class::Storage::DBI::NoBindVars
@@ -33,9 +34,7 @@ L<DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server>.
 
 =head1 AUTHORS
 
-Brandon L Black <blblack@gmail.com>
-
-Justin Hunter <justin.d.hunter@gmail.com>
+See L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 

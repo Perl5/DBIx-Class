@@ -59,6 +59,36 @@ sub _dbh_last_insert_id {
   return ($dbh->selectrow_array($sth))[0];
 }
 
+sub count {
+  my ($self, $source, $attrs) = @_;
+
+  if (exists $attrs->{rows}) {
+    my $new_attrs = $self->_trim_attributes_for_count($source, $attrs);
+
+    $new_attrs->{select} = '1';
+    $new_attrs->{as}     = ['dummy'];
+
+# speed things up at least *a little*
+    $new_attrs->{result_class} = 'DBIx::Class::ResultClass::HashRefInflator';
+
+    my $offset = $attrs->{offset} || 0;
+    my $total  = $attrs->{rows} + $offset;
+    
+    $self->dbh->do("set rowcount $total");
+
+    my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
+    
+    my $count = 0;
+    $count++ while $tmp_rs->cursor->next;
+
+    $self->dbh->do("set rowcount 0");
+
+    return $count;
+  }
+
+  return $self->next::method(@_);
+}
+
 sub datetime_parser_type { "DBIx::Class::Storage::DBI::Sybase::DateTime" }
 
 1;
@@ -89,6 +119,9 @@ But your queries will be cached.
 On connection C<syb_date_fmt> is set to C<ISO_strict>, e.g.:
 C<2004-08-21T14:36:48.080Z> and C<dateformat> is set to C<mdy>, e.g.:
 C<08/13/1979 18:08:55.080>.
+
+This works for both C<DATETIME> and C<SMALLDATETIME> columns, although
+C<SMALLDATETIME> columns only have minute precision.
 
 You will need the L<DateTime::Format::Strptime> module if you are going to use
 L<DBIx::Class::InflateColumn::DateTime>.

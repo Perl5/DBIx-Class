@@ -1,5 +1,6 @@
 package DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
+use Class::C3;
 use base qw/
   DBIx::Class::Storage::DBI::NoBindVars
   DBIx::Class::Storage::DBI::Sybase
