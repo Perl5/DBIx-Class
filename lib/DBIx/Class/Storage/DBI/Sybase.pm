@@ -61,7 +61,8 @@ sub _dbh_last_insert_id {
 }
 
 sub count {
-  my ($self, $source, $attrs) = @_;
+  my $self = shift;
+  my ($source, $attrs) = @_;
 
   if (not exists $attrs->{rows}) {
     return $self->next::method(@_);

@@ -11,7 +11,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/}
 plan skip_all => 'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => (16 + 4*2)*2;
+plan tests => (17 + 4*2)*2;
 
 my @storage_types = (
   'DBI::Sybase',
@@ -55,12 +55,16 @@ SQL
 
   $seen_id{$new->artistid}++;
 
-# test LIMIT support
   for (1..6) {
     $new = $schema->resultset('Artist')->create({ name => 'Artist ' . $_ });
     is ( $seen_id{$new->artistid}, undef, "id for Artist $_ is unique" );
     $seen_id{$new->artistid}++;
   }
+
+# test simple count
+  is ($schema->resultset('Artist')->count, 7, 'count(*) of whole table ok');
+
+# test LIMIT support
 
 ## avoid quoting bug with NoBindVars for now
 #  my $it = $schema->resultset('Artist')->search({artistid => { '>' => 0 }}, {
