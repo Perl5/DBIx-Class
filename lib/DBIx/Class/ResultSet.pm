@@ -1155,7 +1155,7 @@ sub count {
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my $meth = $self->_has_attr (qw/prefetch collapse distinct group_by having/) 
+  my $meth = $self->_has_attr (qw/prefetch collapse distinct group_by/)
     ? 'count_grouped'
     : 'count'
   ;
