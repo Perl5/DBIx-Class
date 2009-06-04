@@ -23,7 +23,6 @@ sub _rebless {
       bless $self, $subclass;
       $self->_rebless;
     } elsif (not $self->dbh->{syb_dynamic_supported}) {
-# probably real Sybase
       bless $self, 'DBIx::Class::Storage:DBI::Sybase::NoBindVars';
       $self->_rebless;
     }
