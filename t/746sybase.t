@@ -11,7 +11,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/}
 plan skip_all => 'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => (17 + 4*2)*2;
+plan tests => (18 + 4*2)*2;
 
 my @storage_types = (
   'DBI::Sybase',
@@ -94,6 +94,16 @@ SQL
   $it->next;
   is( $it->next->name, "Artist 5", "iterator->next ok" );
   is( $it->next, undef, "next past end of resultset ok" );
+
+# now try a grouped count
+  $schema->resultset('Artist')->create({ name => 'Artist 6' })
+    for (1..6);
+
+  $it = $schema->resultset('Artist')->search({}, {
+    group_by => 'name'
+  });
+
+  is( $it->count, 7, 'COUNT of GROUP_BY ok' );
 
   SKIP: {
     skip 'quoting bug with NoBindVars', 4*2
