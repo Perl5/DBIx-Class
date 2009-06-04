@@ -28,6 +28,9 @@ into the SQL query itself, without using bind placeholders.
 More importantly this means that caching of prepared statements is explicitly
 disabled, as the interpolation renders it useless.
 
+The actual driver code for MSSQL is in
+L<DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server>.
+
 =head1 AUTHORS
 
 Brandon L Black <blblack@gmail.com>

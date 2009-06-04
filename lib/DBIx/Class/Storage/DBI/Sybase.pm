@@ -69,24 +69,18 @@ DBIx::Class::Storage::DBI::Sybase - Storage::DBI subclass for Sybase
 
 =head1 SYNOPSIS
 
-This subclass supports L<DBD::Sybase> for real Sybase databases.  If
-you are using an MSSQL database via L<DBD::Sybase>, see
-L<DBIx::Class::Storage::DBI::Sybase::MSSQL>.
+This subclass supports L<DBD::Sybase> for real Sybase databases.  If you are
+using an MSSQL database via L<DBD::Sybase>, your storage will be reblessed to
+L<DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server>.
 
-=head1 CAVEATS
+=head1 DESCRIPTION
 
-If your version of Sybase does not support placeholders, then this storage
-driver uses L<DBIx::Class::Storage::DBI::NoBindVars> as a base,
+If your version of Sybase does not support placeholders, then your storage
+will be reblessed to L<DBIx::Class::Storage::DBI::Sybase::NoBindVars>. You can
+also enable that driver explicitly, see the documentation for more details.
 
-In which case, bind variables will be interpolated (properly quoted of course)
-into the SQL query itself, without using bind placeholders.
-
-More importantly this means that caching of prepared statements is explicitly
-disabled, as the interpolation renders it useless.
-
-If your version of Sybase B<DOES> support placeholders (check
-C<<$dbh->{syb_dynamic_supported}>> then unfortunately there's no way to get the
-C<last_insert_id> without doing a C<select max(col)>.
+With this driver there is unfortunately no way to get the C<last_insert_id>
+without doing a C<select max(col)>.
 
 But your queries will be cached.
 
@@ -94,18 +88,14 @@ But your queries will be cached.
 
 On connection C<syb_date_fmt> is set to C<ISO_strict>, e.g.:
 C<2004-08-21T14:36:48.080Z> and C<dateformat> is set to C<mdy>, e.g.:
-C<08/13/1979>.
+C<08/13/1979 18:08:55.080>.
 
 You will need the L<DateTime::Format::Strptime> module if you are going to use
 L<DBIx::Class::InflateColumn::DateTime>.
 
 =head1 AUTHORS
 
-Brandon L Black <blblack@gmail.com>
-
-Justin Hunter <justin.d.hunter@gmail.com>
-
-Rafael Kitover <rkitover@cpan.org>
+See L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
