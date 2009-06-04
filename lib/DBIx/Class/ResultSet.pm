@@ -1155,7 +1155,7 @@ sub count {
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my $meth = $self->_has_attr (qw/prefetch collapse distinct group_by having/) 
+  my $meth = $self->_has_attr (qw/prefetch collapse distinct group_by/)
     ? 'count_grouped'
     : 'count'
   ;
@@ -2437,7 +2437,7 @@ sub _resolve_from {
   my $from = $attrs->{from}
     || [ { $attrs->{alias} => $source->from } ];
 
-  my $seen = { %{$attrs->{seen_join}||{}} };
+  my $seen = $attrs->{seen_join} || {};
 
   # we need to take the prefetch the attrs into account before we
   # ->_resolve_join as otherwise they get lost - captainL
