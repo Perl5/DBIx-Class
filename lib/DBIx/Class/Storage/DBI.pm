@@ -1229,6 +1229,21 @@ sub _select_args {
   return @args;
 }
 
+sub count {
+  my ($self, $source, $attrs) = @_;
+
+  # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
+  delete $attrs->{$_} for (qw/columns +columns select +select as +as rows offset page pager order_by record_filter/);
+
+  $attrs->{select} = { count => '*' };
+  $attrs->{as} = [qw/count/];
+
+  my $tmp_rs = $source->resultset_class->new($source, $attrs);
+  my ($count) = $tmp_rs->cursor->next;
+
+  return $count;
+}
+
 sub source_bind_attributes {
   my ($self, $source) = @_;
   
