@@ -63,40 +63,27 @@ sub _dbh_last_insert_id {
 sub count {
   my ($self, $source, $attrs) = @_;
 
-  if (exists $attrs->{rows}) {
-    my $offset = $attrs->{offset} || 0;
-    my $total  = $attrs->{rows} + $offset;
-
-    my $new_attrs = $self->_trim_attributes_for_count($source, $attrs);
-
-    my $query = $source->resultset_class->new($source, $new_attrs)->as_query;
-
-    my $top_attrs = {};
-    $top_attrs->{from} = [{
-      top_subq => $query
-    }];
-    $top_attrs->{select} = "TOP $total 1";
-    $top_attrs->{as}     = ['total'];
-
-    my $top_query = $source->resultset_class->new($source, $top_attrs)->as_query;
-
-    my $count_attrs = {};
-    $count_attrs->{from} = [{
-      count_subq => $top_query
-    }];
-    $count_attrs->{select} = { count => '*' };
-    $count_attrs->{as}     = ['count'];
-
-    my $tmp_rs = $source->resultset_class->new($source, $count_attrs);
-    my ($count) = $tmp_rs->cursor->next;
-
-    $count -= $offset;
-    $count  = $attrs->{rows} if $count > $attrs->{rows};
-
-    return $count;
+  if (not exists $attrs->{rows}) {
+    return $self->next::method(@_);
   }
 
-  return $self->next::method(@_);
+  my $offset = $attrs->{offset} || 0;
+  my $total  = $attrs->{rows} + $offset;
+
+  my $new_attrs = $self->_trim_attributes_for_count($source, $attrs);
+  $new_attrs->{select} = '1';
+  $new_attrs->{as}     = ['dummy'];
+
+  my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
+
+  $self->dbh->{syb_rowcount} = $total;
+
+  my $count = 0;
+  $count++ while $tmp_rs->cursor->next;
+
+  $self->dbh->{syb_rowcount} = 0;
+
+  return $count - $offset;
 }
 
 sub datetime_parser_type { "DBIx::Class::Storage::DBI::Sybase::DateTime" }
