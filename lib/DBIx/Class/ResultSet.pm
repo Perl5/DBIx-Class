@@ -1176,6 +1176,7 @@ sub _count_subq {
   my ($self, $add_group_by) = @_;
 
   my $attrs = $self->_resolved_attrs_copy;
+  my $rsrc = $self->result_source;
 
   # copy for the subquery, we need to do some adjustments to it too
   my $sub_attrs = { %$attrs };
@@ -1193,49 +1194,34 @@ sub _count_subq {
       delete $sub_attrs->{group_by};
     }
 
-    $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
+    $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($rsrc->primary_columns) ];
   }
 
   $attrs->{from} = [{
-    count_subq => (ref $self)->new ($self->result_source, $sub_attrs )->as_query
+    count_subq => (ref $self)->new ($rsrc, $sub_attrs )->as_query
   }];
 
   # the subquery replaces this
   delete $attrs->{$_} for qw/where bind prefetch collapse distinct group_by having having_bind/;
 
-  return $self->__count ($attrs);
+  return $rsrc->storage->count ($rsrc, $attrs);
 }
 
 sub _count_simple {
   my $self = shift;
 
-  my $count = $self->__count;
+  my $rsrc = $self->result_source;
+
+  # the attrs supplied here are getting modified, do not reuse below
+  my $count = $rsrc->storage->count ($rsrc, $self->_resolved_attrs_copy);
   return 0 unless $count;
 
   # need to take offset from resolved attrs
-
   my $attrs = $self->_resolved_attrs;
 
   $count -= $attrs->{offset} if $attrs->{offset};
   $count = $attrs->{rows} if $attrs->{rows} and $attrs->{rows} < $count;
   $count = 0 if ($count < 0);
-  return $count;
-}
-
-sub __count {
-  my ($self, $attrs) = @_;
-
-  $attrs ||= $self->_resolved_attrs_copy;
-
-  # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
-  delete $attrs->{$_} for (qw/columns +columns select +select as +as rows offset page pager order_by record_filter/); 
-
-  $attrs->{select} = { count => '*' };
-  $attrs->{as} = [qw/count/];
-
-  my $tmp_rs = (ref $self)->new($self->result_source, $attrs);
-  my ($count) = $tmp_rs->cursor->next;
-
   return $count;
 }
 
