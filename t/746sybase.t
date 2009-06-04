@@ -11,7 +11,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/}
 plan skip_all => 'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 20*2;
+plan tests => (16 + 4*2)*2;
 
 my @storage_types = (
   'DBI::Sybase',
@@ -77,8 +77,22 @@ SQL
   is( $it->next->name, "Artist 2", "iterator->next ok" );
   is( $it->next, undef, "next past end of resultset ok" );
 
+# now try with offset
+  $it = $schema->resultset('Artist')->search({}, {
+    rows => 3,
+    offset => 3,
+    order_by => 'artistid',
+  });
+
+  is( $it->count, 3, "LIMIT with offset count ok" );
+
+  is( $it->next->name, "Artist 3", "iterator->next ok" );
+  $it->next;
+  is( $it->next->name, "Artist 5", "iterator->next ok" );
+  is( $it->next, undef, "next past end of resultset ok" );
+
   SKIP: {
-    skip 'quoting bug with NoBindVars', 8
+    skip 'quoting bug with NoBindVars', 4*2
         if $storage_type eq 'DBI::Sybase::NoBindVars';
 
 # Test DateTime inflation with DATETIME

@@ -3,6 +3,7 @@ package DBIx::Class::Storage::DBI::Sybase;
 use strict;
 use warnings;
 
+use Class::C3;
 use base qw/DBIx::Class::Storage::DBI/;
 
 use Carp::Clan qw/^DBIx::Class/;
@@ -63,25 +64,34 @@ sub count {
   my ($self, $source, $attrs) = @_;
 
   if (exists $attrs->{rows}) {
-    my $new_attrs = $self->_trim_attributes_for_count($source, $attrs);
-
-    $new_attrs->{select} = '1';
-    $new_attrs->{as}     = ['dummy'];
-
-# speed things up at least *a little*
-    $new_attrs->{result_class} = 'DBIx::Class::ResultClass::HashRefInflator';
-
     my $offset = $attrs->{offset} || 0;
     my $total  = $attrs->{rows} + $offset;
-    
-    $self->dbh->do("set rowcount $total");
 
-    my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
-    
-    my $count = 0;
-    $count++ while $tmp_rs->cursor->next;
+    my $new_attrs = $self->_trim_attributes_for_count($source, $attrs);
 
-    $self->dbh->do("set rowcount 0");
+    my $query = $source->resultset_class->new($source, $new_attrs)->as_query;
+
+    my $top_attrs = {};
+    $top_attrs->{from} = [{
+      top_subq => $query
+    }];
+    $top_attrs->{select} = "TOP $total 1";
+    $top_attrs->{as}     = ['total'];
+
+    my $top_query = $source->resultset_class->new($source, $top_attrs)->as_query;
+
+    my $count_attrs = {};
+    $count_attrs->{from} = [{
+      count_subq => $top_query
+    }];
+    $count_attrs->{select} = { count => '*' };
+    $count_attrs->{as}     = ['count'];
+
+    my $tmp_rs = $source->resultset_class->new($source, $count_attrs);
+    my ($count) = $tmp_rs->cursor->next;
+
+    $count -= $offset;
+    $count  = $attrs->{rows} if $count > $attrs->{rows};
 
     return $count;
   }

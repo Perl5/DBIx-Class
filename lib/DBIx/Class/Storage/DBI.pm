@@ -1252,7 +1252,7 @@ sub _trim_attributes_for_count {
   # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
   delete @attrs{qw/
     columns +columns select +select as +as rows offset page pager order_by
-    record_filter/)};
+    record_filter/};
 
   return \%attrs;
 }
