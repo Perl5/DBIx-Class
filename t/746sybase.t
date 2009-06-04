@@ -11,7 +11,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/}
 plan skip_all => 'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 16*2;
+plan tests => 20*2;
 
 my @storage_types = (
   'DBI::Sybase',
@@ -34,23 +34,12 @@ for my $storage_type (@storage_types) {
   $schema->storage->dbh_do (sub {
       my ($storage, $dbh) = @_;
       eval { $dbh->do("DROP TABLE artist") };
-      eval { $dbh->do("DROP TABLE track") };
       $dbh->do(<<'SQL');
 CREATE TABLE artist (
    artistid INT IDENTITY PRIMARY KEY,
    name VARCHAR(100),
    rank INT DEFAULT 13 NOT NULL,
    charfield CHAR(10) NULL
-)
-SQL
-
-# we only need the DT
-      $dbh->do(<<'SQL');
-CREATE TABLE track (
-   trackid INT IDENTITY PRIMARY KEY,
-   cd INT,
-   position INT,
-   last_updated_on DATETIME,
 )
 SQL
   });
@@ -90,23 +79,41 @@ SQL
   is( $it->next, undef, "next past end of resultset ok" );
 
   SKIP: {
-    skip 'quoting bug with NoBindVars', 4
+    skip 'quoting bug with NoBindVars', 8
         if $storage_type eq 'DBI::Sybase::NoBindVars';
 
-# Test DateTime inflation
-    ok(my $dt = DBIx::Class::Storage::DBI::Sybase::DateTime
-      ->parse_datetime('2004-08-21T14:36:48.080Z'));
-
-    my $row;
-    ok( $row = $schema->resultset('Track')->create({
-      last_updated_on => $dt,
-      cd => 1,
-    }));
-    ok( $row = $schema->resultset('Track')
-      ->search({ trackid => $row->trackid }, { select => ['last_updated_on'] })
-      ->first
+# Test DateTime inflation with DATETIME
+    my @dt_types = (
+      ['DATETIME', '2004-08-21T14:36:48.080Z'],
+      ['SMALLDATETIME', '2004-08-21T14:36:00.000Z'], # minute precision
     );
-    is( $row->updated_date, $dt, 'DateTime inflation works' );
+    
+    for my $dt_type (@dt_types) {
+      my ($type, $sample_dt) = @$dt_type;
+
+      eval { $schema->storage->dbh->do("DROP TABLE track") };
+      $schema->storage->dbh->do(<<"SQL");
+CREATE TABLE track (
+   trackid INT IDENTITY PRIMARY KEY,
+   cd INT,
+   position INT,
+   last_updated_on $type,
+)
+SQL
+      ok(my $dt = DBIx::Class::Storage::DBI::Sybase::DateTime
+        ->parse_datetime($sample_dt));
+
+      my $row;
+      ok( $row = $schema->resultset('Track')->create({
+        last_updated_on => $dt,
+        cd => 1,
+      }));
+      ok( $row = $schema->resultset('Track')
+        ->search({ trackid => $row->trackid }, { select => ['last_updated_on'] })
+        ->first
+      );
+      is( $row->updated_date, $dt, 'DateTime inflation works' );
+    }
   }
 }
 
