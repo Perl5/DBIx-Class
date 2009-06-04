@@ -1250,7 +1250,9 @@ sub _trim_attributes_for_count {
   my %attrs = %$attrs;
 
   # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
-  delete $attrs{$_} for (qw/columns +columns select +select as +as rows offset page pager order_by record_filter/);
+  delete @attrs{qw/
+    columns +columns select +select as +as rows offset page pager order_by
+    record_filter/)};
 
   return \%attrs;
 }
@@ -1266,7 +1268,41 @@ sub count {
   my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
   my ($count) = $tmp_rs->cursor->next;
 
+  # if the offset/rows attributes are still present, we did not use
+  # a subquery, so we need to make the calculations in software
+  $count -= $attrs->{offset} if $attrs->{offset};
+  $count = $attrs->{rows} if $attrs->{rows} and $attrs->{rows} < $count;
+  $count = 0 if ($count < 0);
+
   return $count;
+}
+
+sub count_grouped {
+  my ($self, $source, $attrs) = @_;
+
+  # copy for the subquery, we need to do some adjustments to it too
+  my $sub_attrs = { %$attrs };
+
+  # these can not go in the subquery, and there is no point of ordering it
+  delete $sub_attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns order_by/;
+
+  # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
+  # simply deleting group_by suffices, as the code below will re-fill it
+  # Note: we check $attrs, as $sub_attrs has collapse deleted
+  if (ref $attrs->{collapse} and keys %{$attrs->{collapse}} ) {
+    delete $sub_attrs->{group_by};
+  }
+
+  $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($source->primary_columns) ];
+
+  $attrs->{from} = [{
+    count_subq => $source->resultset_class->new ($source, $sub_attrs )->as_query
+  }];
+
+  # the subquery replaces this
+  delete $attrs->{$_} for qw/where bind prefetch collapse distinct group_by having having_bind rows offset page pager/;
+
+  return $self->count ($source, $attrs);
 }
 
 sub source_bind_attributes {

@@ -1155,74 +1155,15 @@ sub count {
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my @grouped_subq_attrs = qw/prefetch collapse distinct group_by having/;
-  my @subq_attrs = ();
-  
-  my $attrs = $self->_resolved_attrs;
-  # if we are not paged - we are simply asking for a limit
-  if (not $attrs->{page} and not $attrs->{software_limit}) {
-    push @subq_attrs, qw/rows offset/;
-  }
-
-  my $need_subq = $self->_has_attr (@subq_attrs);
-  my $need_group_subq = $self->_has_attr (@grouped_subq_attrs);
-
-  return ($need_subq || $need_group_subq)
-    ? $self->_count_subq ($need_group_subq)
-    : $self->_count_simple
-}
-
-sub _count_subq {
-  my ($self, $add_group_by) = @_;
+  my $meth = $self->_has_attr (qw/prefetch collapse distinct group_by having/) 
+    ? 'count_grouped'
+    : 'count'
+  ;
 
   my $attrs = $self->_resolved_attrs_copy;
   my $rsrc = $self->result_source;
 
-  # copy for the subquery, we need to do some adjustments to it too
-  my $sub_attrs = { %$attrs };
-
-  # these can not go in the subquery, and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns order_by/;
-
-  # if needed force a group_by and the same set of columns (most databases require this)
-  if ($add_group_by) {
-
-    # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
-    # simply deleting group_by suffices, as the code below will re-fill it
-    # Note: we check $attrs, as $sub_attrs has collapse deleted
-    if (ref $attrs->{collapse} and keys %{$attrs->{collapse}} ) { 
-      delete $sub_attrs->{group_by};
-    }
-
-    $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($rsrc->primary_columns) ];
-  }
-
-  $attrs->{from} = [{
-    count_subq => (ref $self)->new ($rsrc, $sub_attrs )->as_query
-  }];
-
-  # the subquery replaces this
-  delete $attrs->{$_} for qw/where bind prefetch collapse distinct group_by having having_bind/;
-
-  return $rsrc->storage->count ($rsrc, $attrs);
-}
-
-sub _count_simple {
-  my $self = shift;
-
-  my $rsrc = $self->result_source;
-
-  # the attrs supplied here are getting modified, do not reuse below
-  my $count = $rsrc->storage->count ($rsrc, $self->_resolved_attrs_copy);
-  return 0 unless $count;
-
-  # need to take offset from resolved attrs
-  my $attrs = $self->_resolved_attrs;
-
-  $count -= $attrs->{offset} if $attrs->{offset};
-  $count = $attrs->{rows} if $attrs->{rows} and $attrs->{rows} < $count;
-  $count = 0 if ($count < 0);
-  return $count;
+  return $rsrc->storage->$meth ($rsrc, $attrs);
 }
 
 sub _bool {
