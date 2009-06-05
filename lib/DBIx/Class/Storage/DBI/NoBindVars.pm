@@ -4,6 +4,8 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class::Storage::DBI';
+use Scalar::Util ();
+use Carp::Clan qw/^DBIx::Class/;
 
 =head1 NAME 
 
@@ -39,7 +41,7 @@ Manually subs in the values for the usual C<?> placeholders.
 sub _prep_for_execute {
   my $self = shift;
 
-  my ($op, $extra_bind, $ident) = @_;
+  my ($op, $extra_bind, $ident, $rsrc) = @_;
 
   my ($sql, $bind) = $self->next::method(@_);
 
@@ -50,7 +52,12 @@ sub _prep_for_execute {
 
   foreach my $bound (@$bind) {
     my $col = shift @$bound;
+
     my $datatype = 'FIXME!!!';
+
+# this is what needs to happen:
+#    my $datatype = $rsrc->column_info($col)->{data_type};
+
     foreach my $data (@$bound) {
         if(ref $data) {
             $data = ''.$data;

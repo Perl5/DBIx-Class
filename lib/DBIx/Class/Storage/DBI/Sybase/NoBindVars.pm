@@ -5,6 +5,7 @@ use base qw/
   DBIx::Class::Storage::DBI::NoBindVars
   DBIx::Class::Storage::DBI::Sybase
 /;
+use List::Util ();
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
@@ -14,11 +15,10 @@ sub _dbh_last_insert_id {
   return ($dbh->selectrow_array('select @@identity'))[0];
 }
 
-my $noquote = {
-    int => qr/^ \-? \d+ $/x,
-    integer => qr/^ \-? \d+ $/x,
+my %noquote = (
+    int => sub { /^ -? \d+ \z/x },
     # TODO maybe need to add float/real/etc
-};
+);
 
 sub should_quote_data_type {
   my $self = shift;
@@ -26,13 +26,13 @@ sub should_quote_data_type {
 
   return $self->next::method(@_) if not defined $value;
 
-  if (my $re = $noquote->{$type}) {
-    return 0 if $value =~ $re;
+  if (my $key = List::Util::first { $type =~ /^$_/i } keys %noquote) {
+    local $_ = $value;
+    return 0 if $noquote{$key}->();
   }
 
   return $self->next::method(@_);
 }
-
 
 1;
 
