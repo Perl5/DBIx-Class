@@ -1234,11 +1234,11 @@ sub count {
 
   my $tmp_attrs = { %$attrs };
 
-  # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
-  delete $tmp_attrs->{$_} for (qw/columns +columns select +select as +as rows offset page pager order_by record_filter/);
+  # take off any pagers, record_filter is cdbi, and no point of ordering a count
+  delete $tmp_attrs->{$_} for (qw/select as rows offset page order_by record_filter/);
 
+  # overwrite the selector
   $tmp_attrs->{select} = { count => '*' };
-  $tmp_attrs->{as} = [qw/count/];
 
   my $tmp_rs = $source->resultset_class->new($source, $tmp_attrs);
   my ($count) = $tmp_rs->cursor->next;
@@ -1259,7 +1259,7 @@ sub count_grouped {
   my $sub_attrs = { %$attrs };
 
   # these can not go in the subquery, and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns order_by/;
+  delete $sub_attrs->{$_} for qw/prefetch collapse select as order_by/;
 
   # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
   # simply deleting group_by suffices, as the code below will re-fill it
@@ -1268,16 +1268,28 @@ sub count_grouped {
     delete $sub_attrs->{group_by};
   }
 
-  $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($source->primary_columns) ];
+  $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($source->primary_columns) ];
+  $sub_attrs->{select} = $self->_grouped_count_select ($sub_attrs);
 
   $attrs->{from} = [{
     count_subq => $source->resultset_class->new ($source, $sub_attrs )->as_query
   }];
 
   # the subquery replaces this
-  delete $attrs->{$_} for qw/where bind prefetch collapse distinct group_by having having_bind rows offset page pager/;
+  delete $attrs->{$_} for qw/where bind prefetch collapse group_by having having_bind rows offset page pager/;
 
   return $self->count ($source, $attrs);
+}
+
+#
+# Returns a SELECT to go with a supplied GROUP BY
+# (caled by count_grouped so a group_by is present)
+# Most databases expect them to match, but some
+# choke in various ways.
+#
+sub _grouped_count_select {
+  my ($self, $attrs) = @_;
+  return $attrs->{group_by};
 }
 
 sub source_bind_attributes {
