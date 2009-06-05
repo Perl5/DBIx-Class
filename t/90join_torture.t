@@ -45,8 +45,8 @@ my @cds = $artists2[0]->cds;
 cmp_ok(scalar @cds, '==', 1, "condition based on inherited join okay");
 
 my $rs3 = $rs2->search_related('cds');
-cmp_ok(scalar($rs3->all), '==', 45, "All cds for artist returned");
 
+cmp_ok(scalar($rs3->all), '==', 45, "All cds for artist returned");
 
 cmp_ok($rs3->count, '==', 45, "All cds for artist returned via count");
 

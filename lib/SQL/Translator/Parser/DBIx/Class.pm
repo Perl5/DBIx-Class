@@ -13,7 +13,6 @@ $VERSION = '1.10';
 $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
-use Data::Dumper;
 use SQL::Translator::Utils qw(debug normalize_name);
 
 use base qw(Exporter);
@@ -114,7 +113,7 @@ sub parse {
         my @primary = $source->primary_columns;
         my %unique_constraints = $source->unique_constraints;
         foreach my $uniq (sort keys %unique_constraints) {
-            if (!$source->compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
+            if (!$source->_compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
                 $table->add_constraint(
                             type             => 'unique',
                             name             => $uniq,
@@ -168,7 +167,7 @@ sub parse {
             # this is supposed to indicate a has_one/might_have...
             # where's the introspection!!?? :)
             else {
-                $fk_constraint = not $source->compare_relationship_keys(\@keys, \@primary);
+                $fk_constraint = not $source->_compare_relationship_keys(\@keys, \@primary);
             }
 
             my $cascade;
@@ -293,14 +292,14 @@ C<SQL::Translator::Parser::DBIx::Class> reads a DBIx::Class schema,
 interrogates the columns, and stuffs it all in an $sqlt_schema object.
 
 It's primary use is in deploying database layouts described as a set
-of L<DBIx::Class> classes, to a database. To do this, see the
-L<DBIx::Class::Schema/deploy> method.
+of L<DBIx::Class> classes, to a database. To do this, see
+L<DBIx::Class::Schema/deploy>.
 
 This can also be achieved by having DBIx::Class export the schema as a
 set of SQL files ready for import into your database, or passed to
 other machines that need to have your application installed but don't
-have SQL::Translator installed. To do this see the
-L<DBIx::Class::Schema/create_ddl_dir> method.
+have SQL::Translator installed. To do this see
+L<DBIx::Class::Schema/create_ddl_dir>.
 
 =head1 SEE ALSO
 

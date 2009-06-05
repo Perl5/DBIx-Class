@@ -2,8 +2,6 @@ package DBIx::Class::Storage::DBI::ODBC::ACCESS;
 use strict;
 use warnings;
 
-use Data::Dump qw( dump );
-
 use DBI;
 use base qw/DBIx::Class::Storage::DBI/;
 

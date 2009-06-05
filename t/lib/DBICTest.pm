@@ -3,6 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use DBICTest::AuthorCheck;
 use DBICTest::Schema;
 
 =head1 NAME
@@ -74,7 +75,7 @@ sub _database {
     my $dbuser = $ENV{"DBICTEST_DBUSER"} || '';
     my $dbpass = $ENV{"DBICTEST_DBPASS"} || '';
 
-    my @connect_info = ($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
+    my @connect_info = ($dsn, $dbuser, $dbpass, { AutoCommit => 1, %args });
 
     return @connect_info;
 }
@@ -309,7 +310,7 @@ sub populate_schema {
     ]);
 
     $schema->populate('Owners', [
-        [ qw/ownerid name/ ],
+        [ qw/id name/ ],
         [ 1, "Newton" ],
         [ 2, "Waltham" ],
     ]);

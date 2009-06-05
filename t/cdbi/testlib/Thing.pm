@@ -1,5 +1,5 @@
 package Thing;
-use base 'DBIx::Class::Test::SQLite';
+use base 'DBIC::Test::SQLite';
 
 Thing->set_table("thing");
 Thing->columns(All => qw(id that_thing));

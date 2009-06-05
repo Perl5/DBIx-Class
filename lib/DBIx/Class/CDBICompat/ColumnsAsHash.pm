@@ -7,7 +7,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::CDBICompat::ColumnsAsHash
+DBIx::Class::CDBICompat::ColumnsAsHash - Emulates the behavior of Class::DBI where the object can be accessed as a hash of columns.
 
 =head1 SYNOPSIS
 

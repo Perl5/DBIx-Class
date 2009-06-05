@@ -8,7 +8,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 70;
+plan tests => 78;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -35,10 +35,15 @@ is( $cds[1]->title, 'Forkful of bees', 'search_related with abstract query ok' )
 if ($INC{'DBICTest/HelperRels.pm'}) {
   $artist->add_to_cds({ title => 'Big Flop', year => 2005 });
 } else {
-  $artist->create_related( 'cds', {
+  my $big_flop = $artist->create_related( 'cds', {
       title => 'Big Flop',
       year => 2005,
   } );
+
+ SKIP:{
+    skip "Can't fix right now", 1 if $DBIx::Class::VERSION < 0.09;
+    lives_ok { $big_flop->genre} "Don't throw exception when col is not loaded after insert";
+  };
 }
 
 my $big_flop_cd = ($artist->search_related('cds'))[3];
@@ -57,10 +62,10 @@ is( $big_flop_cd->title, 'Big Flop', 'create_related ok' );
 }
 
 my( $rs_from_list ) = $artist->search_related_rs('cds');
-is( ref($rs_from_list), 'DBIx::Class::ResultSet', 'search_related_rs in list context returns rs' );
+isa_ok( $rs_from_list, 'DBIx::Class::ResultSet', 'search_related_rs in list context returns rs' );
 
 ( $rs_from_list ) = $artist->cds_rs();
-is( ref($rs_from_list), 'DBIx::Class::ResultSet', 'relation_rs in list context returns rs' );
+isa_ok( $rs_from_list, 'DBIx::Class::ResultSet', 'relation_rs in list context returns rs' );
 
 # count_related
 is( $artist->count_related('cds'), 4, 'count_related ok' );
@@ -184,6 +189,14 @@ is( $prod_rs->count(), 1, 'many_to_many add_to_$rel($obj) count ok' );
 is( $prod_rs->first->name, 'Matt S Trout',
     'many_to_many add_to_$rel($obj) ok' );
 $cd->remove_from_producers($prod);
+$cd->add_to_producers($prod, {attribute => 1});
+is( $prod_rs->count(), 1, 'many_to_many add_to_$rel($obj, $link_vals) count ok' );
+is( $cd->cd_to_producer->first->attribute, 1, 'many_to_many $link_vals ok');
+$cd->remove_from_producers($prod);
+$cd->set_producers([$prod], {attribute => 2});
+is( $prod_rs->count(), 1, 'many_to_many set_$rel($obj, $link_vals) count ok' );
+is( $cd->cd_to_producer->first->attribute, 2, 'many_to_many $link_vals ok');
+$cd->remove_from_producers($prod);
 is( $schema->resultset('Producer')->find(1)->name, 'Matt S Trout',
     "producer object exists after remove of link" );
 is( $prod_rs->count, 0, 'many_to_many remove_from_$rel($obj) ok' );
@@ -228,6 +241,7 @@ $twokey->remove_from_fourkeys($fourkey);
 is( $twokey->fourkeys->count, 0, 'twokey has no fourkeys' );
 is( $twokey->fourkeys_to_twokeys->count, 0,
     'twokey has no links to fourkey' );
+
 
 my $undef_artist_cd = $schema->resultset("CD")->new_result({ 'title' => 'badgers', 'year' => 2007 });
 is($undef_artist_cd->has_column_loaded('artist'), '', 'FK not loaded');
@@ -284,3 +298,14 @@ cmp_ok($relinfo->{attrs}{is_foreign_key_constraint}, '==', 1, "is_foreign_key_co
 my $rs_overridden = $schema->source('ForceForeign');
 my $relinfo_with_attr = $rs_overridden->relationship_info ('cd_3');
 cmp_ok($relinfo_with_attr->{attrs}{is_foreign_key_constraint}, '==', 0, "is_foreign_key_constraint defined for belongs_to relationships with attr.");
+
+# check that relationships below left join relationships are forced to left joins 
+# when traversing multiple belongs_to
+my $cds = $schema->resultset("CD")->search({ 'me.cdid' => 5 }, { join => { single_track => 'cd' } });
+is($cds->count, 1, "subjoins under left joins force_left (string)");
+
+$cds = $schema->resultset("CD")->search({ 'me.cdid' => 5 }, { join => { single_track => ['cd'] } });
+is($cds->count, 1, "subjoins under left joins force_left (arrayref)");
+
+$cds = $schema->resultset("CD")->search({ 'me.cdid' => 5 }, { join => { single_track => { cd => {} } } });
+is($cds->count, 1, "subjoins under left joins force_left (hashref)");

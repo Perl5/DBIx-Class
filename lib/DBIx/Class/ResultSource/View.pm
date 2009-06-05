@@ -46,7 +46,7 @@ L<DBIx::Class::Schema/deploy> unless you set L</is_virtual> to true.
 Deploying the view does B<not> translate it between different database
 syntaxes, so be careful what you write in your view SQL.
 
-Virtual views (L</is_virtual> unset or false), are assumed to not
+Virtual views (L</is_virtual> true), are assumed to not
 exist in your database as a real view. The L</view_definition> in this
 case replaces the view name in a FROM clause in a subselect.
 
@@ -54,13 +54,13 @@ case replaces the view name in a FROM clause in a subselect.
 
 =over
 
-=item is_virtual set to true
+=item is_virtual set to false
 
   $schema->resultset('Year2000CDs')->all();
 
   SELECT cdid, artist, title FROM year2000cds me
 
-=item is_virtual set to false
+=item is_virtual set to true
 
   $schema->resultset('Year2000CDs')->all();
 
@@ -114,6 +114,8 @@ With Contributions from:
 Guillermo Roditi E<lt>groditi@cpan.orgE<gt>
 
 Jess Robinson <castaway@desert-island.me.uk>
+
+Wallace Reis <wreis@cpan.org>
 
 =head1 LICENSE
 

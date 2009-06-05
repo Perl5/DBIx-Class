@@ -2,6 +2,8 @@ package DBIx::Class::Storage::DBI::Replicated::Balancer::Random;
 
 use Moose;
 with 'DBIx::Class::Storage::DBI::Replicated::Balancer';
+use DBIx::Class::Storage::DBI::Replicated::Types 'Weight';
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -26,6 +28,23 @@ you, patches welcome.
 
 This class defines the following attributes.
 
+=head2 master_read_weight
+
+A number greater than 0 that specifies what weight to give the master when
+choosing which backend to execute a read query on. A value of 0, which is the
+default, does no reads from master, while a value of 1 gives it the same
+priority as any single replicant.
+
+For example: if you have 2 replicants, and a L</master_read_weight> of C<0.5>,
+the chance of reading from master will be C<20%>.
+
+You can set it to a value higher than 1, making master have higher weight than
+any single replicant, if for example you have a very powerful master.
+
+=cut
+
+has master_read_weight => (is => 'rw', isa => Weight, default => sub { 0 });
+
 =head1 METHODS
 
 This class defines the following methods.
@@ -40,11 +59,23 @@ be requested several times in a row.
 
 sub next_storage {
   my $self = shift @_;
-  my @active_replicants = $self->pool->active_replicants;
-  my $count_active_replicants = $#active_replicants +1;
-  my $random_replicant = int(rand($count_active_replicants));
-  
-  return $active_replicants[$random_replicant];
+
+  my @replicants = $self->pool->active_replicants;
+
+  if (not @replicants) {
+    # will fall back to master anyway
+    return;
+  }
+
+  my $master     = $self->master;
+
+  my $rnd = $self->_random_number(@replicants + $self->master_read_weight);
+
+  return $rnd >= @replicants ? $master : $replicants[int $rnd];
+}
+
+sub _random_number {
+  rand($_[1])
 }
 
 =head1 AUTHOR

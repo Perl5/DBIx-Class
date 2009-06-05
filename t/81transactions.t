@@ -272,7 +272,7 @@ $schema->storage->disconnect;
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
-  eval {
+  lives_ok (sub {
     my $w;
     local $SIG{__WARN__} = sub { $w = shift };
 
@@ -281,32 +281,27 @@ $schema->storage->disconnect;
     outer($schema, 0);
 
     like ($w, qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or an error/, 'Out of scope warning detected');
-  };
-
-  local $TODO = "Work out how this should work";
-  is($@, "Not sure what we want here, but something", "Rollback okay");
-
-  ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
+    ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
+  }, 'rollback successful withot exception');
 
   sub outer {
     my ($schema) = @_;
-   
+
     my $guard = $schema->txn_scope_guard;
     $schema->resultset('Artist')->create({
       name => 'Death Cab for Cutie',
     });
     inner(@_);
-    $guard->commit;
   }
 
   sub inner {
     my ($schema, $fatal) = @_;
-    my $guard = $schema->txn_scope_guard;
+
+    my $inner_guard = $schema->txn_scope_guard;
+    is($schema->storage->transaction_depth, 2, "Correct transaction depth");
 
     my $artist = $artist_rs->find({ name => 'Death Cab for Cutie' });
 
-    is($schema->storage->transaction_depth, 2, "Correct transaction depth");
-    undef $@;
     eval {
       $artist->cds->create({ 
         title => 'Plans',
@@ -320,6 +315,7 @@ $schema->storage->disconnect;
       die $@;
     }
 
-    # See what happens if we dont $guard->commit;
+    # inner guard should commit without consequences
+    $inner_guard->commit;
   }
 }

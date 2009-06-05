@@ -1,7 +1,7 @@
 package # hide from PAUSE
     DBICTest::Schema::Bookmark;
 
-    use base 'DBIx::Class::Core';
+    use base qw/DBICTest::BaseResult/;
 
 
 use strict;

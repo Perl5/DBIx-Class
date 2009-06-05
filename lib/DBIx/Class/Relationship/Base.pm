@@ -189,7 +189,7 @@ sub related_resultset {
     my $query = ((@_ > 1) ? {@_} : shift);
 
     my $source = $self->result_source;
-    my $cond = $source->resolve_condition(
+    my $cond = $source->_resolve_condition(
       $rel_obj->{cond}, $rel, $self
     );
     if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
@@ -404,7 +404,7 @@ sub set_from_related {
       unless Scalar::Util::blessed($f_obj) and $f_obj->isa($f_class);
   }
   $self->set_columns(
-    $self->result_source->resolve_condition(
+    $self->result_source->_resolve_condition(
        $rel_obj->{cond}, $f_obj, $rel));
   return 1;
 }
@@ -470,7 +470,7 @@ B<Currently only available for C<many-to-many> relationships.>
 
 =over 4
 
-=item Arguments: (\@hashrefs | \@objs)
+=item Arguments: (\@hashrefs | \@objs), $link_vals?
 
 =back
 
@@ -480,6 +480,10 @@ B<Currently only available for C<many-to-many> relationships.>
 
   $actor->set_roles(\@roles);
      # Replaces all of $actor's previous roles with the two named
+
+  $actor->set_roles(\@roles, { salary => 15_000_000 });
+     # Sets a column in the link table for all roles
+
 
 Replace all the related objects with the given reference to a list of
 objects. This does a C<delete> B<on the link table resultset> to remove the

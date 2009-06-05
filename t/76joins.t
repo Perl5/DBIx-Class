@@ -17,23 +17,11 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 18 );
-}
-
-# figure out if we've got a version of sqlite that is older than 3.2.6, in
-# which case COUNT(DISTINCT()) doesn't work
-my $is_broken_sqlite = 0;
-my ($sqlite_major_ver,$sqlite_minor_ver,$sqlite_patch_ver) =
-    split /\./, $schema->storage->dbh->get_info(18);
-if( $schema->storage->dbh->get_info(17) eq 'SQLite' &&
-    ( ($sqlite_major_ver < 3) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver < 2) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver == 2 && $sqlite_patch_ver < 6) ) ) {
-    $is_broken_sqlite = 1;
+        : ( tests => 33 );
 }
 
 # test the abstract join => SQL generator
-my $sa = new DBIC::SQL::Abstract;
+my $sa = new DBIx::Class::SQLAHacks;
 
 my @j = (
     { child => 'person' },
@@ -44,9 +32,9 @@ my $match = 'person child JOIN person father ON ( father.person_id = '
           . 'child.father_id ) JOIN person mother ON ( mother.person_id '
           . '= child.mother_id )'
           ;
-is_same_sql_bind(
-  $sa->_recurse_from(@j), [],
-  $match, [],
+is_same_sql(
+  $sa->_recurse_from(@j),
+  $match,
   'join 1 ok'
 );
 
@@ -64,9 +52,9 @@ $match = 'person mother JOIN (person child JOIN person father ON ('
        . ' father.person_id = child.father_id )) ON ( mother.person_id = '
        . 'child.mother_id )'
        ;
-is_same_sql_bind(
-  $sa->_recurse_from(@j2), [],
-  $match, [],
+is_same_sql(
+  $sa->_recurse_from(@j2),
+  $match,
   'join 2 ok'
 );
 
@@ -81,9 +69,9 @@ $match = 'person child INNER JOIN person father ON ( father.person_id = '
           . '= child.mother_id )'
           ;
 
-is_same_sql_bind(
-  $sa->_recurse_from(@j3), [],
-  $match, [],
+is_same_sql(
+  $sa->_recurse_from(@j3),
+  $match,
   'join 3 (inner join) ok'
 );
 
@@ -101,9 +89,9 @@ $match = 'person mother LEFT JOIN (person child RIGHT JOIN person father ON ('
        . ' father.person_id = child.father_id )) ON ( mother.person_id = '
        . 'child.mother_id )'
        ;
-is_same_sql_bind(
-  $sa->_recurse_from(@j4), [],
-  $match, [],
+is_same_sql(
+  $sa->_recurse_from(@j4),
+  $match,
   'join 4 (nested joins + join types) ok'
 );
 
@@ -116,9 +104,9 @@ $match = 'person child JOIN person father ON ( father.person_id != '
           . 'child.father_id ) JOIN person mother ON ( mother.person_id '
           . '= child.mother_id )'
           ;
-is_same_sql_bind(
-  $sa->_recurse_from(@j5), [],
-  $match, [],
+is_same_sql(
+  $sa->_recurse_from(@j5),
+  $match,
   'join 5 (SCALAR reference for ON statement) ok'
 );
 
@@ -127,7 +115,7 @@ my @j6 = (
     [ { father => 'person' }, { 'father.person_id' => { '!=', '42' } }, ],
     [ { mother => 'person' }, { 'mother.person_id' => 'child.mother_id' } ],
 );
-$match = qr/^HASH reference arguments are not supported in JOINS - try using "\.\.\." instead/;
+$match = qr/HASH reference arguments are not supported in JOINS/;
 eval { $sa->_recurse_from(@j6) };
 like( $@, $match, 'join 6 (HASH reference for ON statement dies) ok' );
 
@@ -140,7 +128,7 @@ my $rs = $schema->resultset("CD")->search(
                          ] ] }
          );
 
-cmp_ok( $rs + 0, '==', 1, "Single record in resultset");
+is( $rs + 0, 1, "Single record in resultset");
 
 is($rs->first->title, 'Forkful of bees', 'Correct record returned');
 
@@ -148,7 +136,7 @@ $rs = $schema->resultset("CD")->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { join => 'artist' });
 
-cmp_ok( $rs + 0, '==', 1, "Single record in resultset");
+is( $rs + 0, 1, "Single record in resultset");
 
 is($rs->first->title, 'Forkful of bees', 'Correct record returned');
 
@@ -157,7 +145,7 @@ $rs = $schema->resultset("CD")->search(
              'liner_notes.notes' => 'Kill Yourself!' },
            { join => [ qw/artist liner_notes/ ] });
 
-cmp_ok( $rs + 0, '==', 1, "Single record in resultset");
+is( $rs + 0, 1, "Single record in resultset");
 
 is($rs->first->title, 'Come Be Depressed With Us', 'Correct record returned');
 
@@ -166,7 +154,7 @@ $rs = $schema->resultset("CD")->search(
     { 'artist' => 1 },
     { join => [qw/artist/], order_by => 'artist.name' }
 );
-cmp_ok( scalar $rs->all, '==', scalar $rs->slice(0, $rs->count - 1), 'slice() with join has same count as all()' );
+is( scalar $rs->all, scalar $rs->slice(0, $rs->count - 1), 'slice() with join has same count as all()' );
 
 ok(!$rs->slice($rs->count+1000, $rs->count+1002)->count,
   'Slicing beyond end of rs returns a zero count');
@@ -175,32 +163,83 @@ $rs = $schema->resultset("Artist")->search(
         { 'liner_notes.notes' => 'Kill Yourself!' },
         { join => { 'cds' => 'liner_notes' } });
 
-cmp_ok( $rs->count, '==', 1, "Single record in resultset");
+is( $rs->count, 1, "Single record in resultset");
 
 is($rs->first->name, 'We Are Goth', 'Correct record returned');
 
-# test for warnings on delete of joined resultset
-$rs = $schema->resultset("CD")->search(
-    { 'artist.name' => 'Caterwauler McCrae' },
-    { join => [qw/artist/]}
-);
-my $tst_delete_warning;
-eval {
-    local $SIG{__WARN__} = sub { $tst_delete_warning = shift };
-    $rs->delete();
-};
 
-ok( ($@ || $tst_delete_warning), 'fail/warning on attempt to delete a join-ed resultset');
+{
+    $schema->populate('Artist', [
+        [ qw/artistid name/ ],
+        [ 4, 'Another Boy Band' ],
+    ]);
+    $schema->populate('CD', [
+        [ qw/cdid artist title year/ ],
+        [ 6, 2, "Greatest Hits", 2001 ],
+        [ 7, 4, "Greatest Hits", 2005 ],
+        [ 8, 4, "BoyBandBlues", 2008 ],
+    ]);
+    $schema->populate('TwoKeys', [
+        [ qw/artist cd/ ],
+        [ 2, 4 ],
+        [ 2, 6 ],
+        [ 4, 7 ],
+        [ 4, 8 ],
+    ]);
+    
+    sub cd_count {
+        return $schema->resultset("CD")->count;
+    }
+    sub tk_count {
+        return $schema->resultset("TwoKeys")->count;
+    }
 
-# test for warnings on update of joined resultset
-$rs = $schema->resultset("CD")->search(
-    { 'artist.name' => 'Random Boy Band' },
-    { join => [qw/artist/]}
-);
-my $tst_update_warning;
-eval {
-    local $SIG{__WARN__} = sub { $tst_update_warning = shift };
-    $rs->update({ 'artist' => 1 });
-};
+    is(cd_count(), 8, '8 rows in table cd');
+    is(tk_count(), 7, '7 rows in table twokeys');
+ 
+    sub artist1 {
+        return $schema->resultset("CD")->search(
+            { 'artist.name' => 'Caterwauler McCrae' },
+            { join => [qw/artist/]}
+        );
+    }
+    sub artist2 {
+        return $schema->resultset("CD")->search(
+            { 'artist.name' => 'Random Boy Band' },
+            { join => [qw/artist/]}
+        );
+    }
 
-ok( ($@ || $tst_update_warning), 'fail/warning on attempt to update a join-ed resultset');
+    is( artist1()->count, 3, '3 Caterwauler McCrae CDs' );
+    ok( artist1()->delete, 'Successfully deleted 3 CDs' );
+    is( artist1()->count, 0, '0 Caterwauler McCrae CDs' );
+    is( artist2()->count, 2, '3 Random Boy Band CDs' );
+    ok( artist2()->update( { 'artist' => 1 } ) );
+    is( artist2()->count, 0, '0 Random Boy Band CDs' );
+    is( artist1()->count, 2, '2 Caterwauler McCrae CDs' );
+
+    # test update on multi-column-pk
+    sub tk1 {
+        return $schema->resultset("TwoKeys")->search(
+            {
+                'artist.name' => { like => '%Boy Band' },
+                'cd.title'    => 'Greatest Hits',
+            },
+            { join => [qw/artist cd/] }
+        );
+    }
+    sub tk2 {
+        return $schema->resultset("TwoKeys")->search(
+            { 'artist.name' => 'Caterwauler McCrae' },
+            { join => [qw/artist/]}
+        );
+    }
+    is( tk2()->count, 2, 'TwoKeys count == 2' );
+    is( tk1()->count, 2, 'TwoKeys count == 2' );
+    ok( tk1()->update( { artist => 1 } ) );
+    is( tk1()->count, 0, 'TwoKeys count == 0' );
+    is( tk2()->count, 4, '2 Caterwauler McCrae CDs' );
+    ok( tk2()->delete, 'Successfully deleted 4 CDs' );
+    is(cd_count(), 5, '5 rows in table cd');
+    is(tk_count(), 3, '3 rows in table twokeys');
+}
