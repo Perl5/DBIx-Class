@@ -14,6 +14,26 @@ sub _dbh_last_insert_id {
   return ($dbh->selectrow_array('select @@identity'))[0];
 }
 
+my $noquote = {
+    int => qr/^ \-? \d+ $/x,
+    integer => qr/^ \-? \d+ $/x,
+    # TODO maybe need to add float/real/etc
+};
+
+sub should_quote_data_type {
+  my $self = shift;
+  my ($type, $value) = @_;
+
+  return $self->next::method(@_) if not defined $value;
+
+  if (my $re = $noquote->{$type}) {
+    return 0 if $value =~ $re;
+  }
+
+  return $self->next::method(@_);
+}
+
+
 1;
 
 =head1 NAME
