@@ -6,6 +6,7 @@ use base qw/
   DBIx::Class::Storage::DBI::Sybase
 /;
 use List::Util ();
+use Scalar::Util ();
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
@@ -15,9 +16,17 @@ sub _dbh_last_insert_id {
   return ($dbh->selectrow_array('select @@identity'))[0];
 }
 
+my $number = sub { Scalar::Util::looks_like_number($_[0]) };
+
 my %noquote = (
-    int => sub { /^ -? \d+ \z/x },
-    # TODO maybe need to add float/real/etc
+    int => sub { $_[0] =~ /^ -? \d+ \z/x },
+    bit => => sub { $_[0] =~ /^[01]\z/ },
+    money => sub { $_[0] =~ /^\$ \d+ (\.\d*)? \z/x },
+    float => $number,
+    real => $number,
+    double => $number,
+    decimal => $number,
+    numeric => $number,
 );
 
 sub should_quote_data_type {
@@ -26,9 +35,8 @@ sub should_quote_data_type {
 
   return $self->next::method(@_) if not defined $value;
 
-  if (my $key = List::Util::first { $type =~ /^$_/i } keys %noquote) {
-    local $_ = $value;
-    return 0 if $noquote{$key}->();
+  if (my $key = List::Util::first { $type =~ /$_/i } keys %noquote) {
+    return 0 if $noquote{$key}->($value);
   }
 
   return $self->next::method(@_);

@@ -41,7 +41,7 @@ Manually subs in the values for the usual C<?> placeholders.
 sub _prep_for_execute {
   my $self = shift;
 
-  my ($op, $extra_bind, $ident, $rsrc) = @_;
+  my ($op, $extra_bind, $ident, $args) = @_;
 
   my ($sql, $bind) = $self->next::method(@_);
 
