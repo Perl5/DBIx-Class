@@ -85,12 +85,12 @@ EOW
       my $obj;
       if (ref $_[0]) {
         if (ref $_[0] eq 'HASH') {
-          $obj = $f_rel_rs->create($_[0]);
+          $obj = $f_rel_rs->find_or_create($_[0]);
         } else {
           $obj = $_[0];
         }
       } else {
-        $obj = $f_rel_rs->create({@_});
+        $obj = $f_rel_rs->find_or_create({@_});
       }
 
       my $link_vals = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
