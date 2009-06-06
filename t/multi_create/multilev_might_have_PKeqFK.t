@@ -8,7 +8,7 @@ use DBICTest;
 
 sub mc_diag { diag (@_) if $ENV{DBIC_MULTICREATE_DEBUG} };
 
-plan tests => 8;
+plan tests => 13;
 
 my $schema = DBICTest->init_schema();
 
@@ -25,9 +25,8 @@ CD -> might have -> Artwork
 DG
 
 lives_ok (sub {
-  my $someartist = $schema->resultset('Artist')->first;
   my $cd = $schema->resultset('CD')->create ({
-    artist => $someartist,
+    artist => { name => 'the cincinnati kid' },
     title => 'Music to code by until the cows come home',
     year => 2008,
     artwork => {
@@ -40,6 +39,7 @@ lives_ok (sub {
 
   isa_ok ($cd, 'DBICTest::CD', 'Main CD object created');
   is ($cd->title, 'Music to code by until the cows come home', 'Correct CD title');
+  is ($cd->artist->name, 'the cincinnati kid', 'Correct artist created for CD');
 
   my $art_obj = $cd->artwork;
   ok ($art_obj->has_column_loaded ('cd_id'), 'PK/FK present on artwork object');
@@ -61,5 +61,45 @@ lives_ok (sub {
     'Artists named correctly queried via a new search',
   );
 }, 'multilevel might-have with a PK == FK in the might_have/has_many table ok');
+
+
+mc_diag (<<'DG');
+* Try the same as above in a different direction
+
+Artist -> has_many -> Artwork_to_Artist -> belongs_to
+                                               /
+  belongs_to <- CD <- belongs_to <- Artwork <-/
+    \
+     \-> Artist2
+
+DG
+
+lives_ok (sub {
+  $schema->resultset ('Artist')->create ({
+    name => 'The wooled wolf',
+    artist_to_artwork => [{
+      artwork => {
+        cd => {
+          title => 'Wool explosive',
+          year => 1999,
+          artist => { name => 'The black exploding sheep' },
+        }
+      }
+    }],
+  });
+
+  my $art2 = $schema->resultset ('Artist')->find ({ name => 'The black exploding sheep' });
+  ok ($art2, 'Second artist exists');
+
+  my $cd = $art2->cds->single;
+  is ($cd->title, 'Wool explosive', 'correctly created CD');
+
+  is_deeply (
+    [ $cd->artwork->artists->get_column ('name')->all ],
+    [ 'The wooled wolf' ],
+    'Artist correctly attached to artwork',
+  );
+
+}, 'Diamond chain creation ok');
 
 1;
