@@ -18,15 +18,17 @@ sub _dbh_last_insert_id {
 
 my $number = sub { Scalar::Util::looks_like_number($_[0]) };
 
+my $decimal = sub { $_[0] =~ /^ [-+]? \d+ (?:\.\d*)? \z/x };
+
 my %noquote = (
-    int => sub { $_[0] =~ /^ -? \d+ \z/x },
+    int => sub { $_[0] =~ /^ [-+]? \d+ \z/x },
     bit => => sub { $_[0] =~ /^[01]\z/ },
-    money => sub { $_[0] =~ /^\$ \d+ (\.\d*)? \z/x },
+    money => sub { $_[0] =~ /^\$ \d+ (?:\.\d*)? \z/x },
     float => $number,
     real => $number,
     double => $number,
-    decimal => $number,
-    numeric => $number,
+    decimal => $decimal,
+    numeric => $decimal,
 );
 
 sub should_quote_data_type {
