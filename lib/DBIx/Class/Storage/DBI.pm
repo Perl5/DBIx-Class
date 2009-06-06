@@ -1250,9 +1250,7 @@ sub _trim_attributes_for_count {
   my %attrs = %$attrs;
 
   # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
-  delete @attrs{qw/
-    columns +columns select +select as +as rows offset page pager order_by
-    record_filter/};
+  delete @attrs{qw/select as rows offset page order_by record_filter/};
 
   return \%attrs;
 }
@@ -1260,12 +1258,12 @@ sub _trim_attributes_for_count {
 sub count {
   my ($self, $source, $attrs) = @_;
 
-  my $new_attrs = $self->_trim_attributes_for_count($source, $attrs);
+  my $tmp_attrs = $self->_trim_attributes_for_count($source, $attrs);
 
-  $new_attrs->{select} = { count => '*' };
-  $new_attrs->{as} = [qw/count/];
+  # overwrite the selector
+  $tmp_attrs->{select} = { count => '*' };
 
-  my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
+  my $tmp_rs = $source->resultset_class->new($source, $tmp_attrs);
   my ($count) = $tmp_rs->cursor->next;
 
   # if the offset/rows attributes are still present, we did not use
@@ -1284,7 +1282,7 @@ sub count_grouped {
   my $sub_attrs = { %$attrs };
 
   # these can not go in the subquery, and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns order_by/;
+  delete $sub_attrs->{$_} for qw/prefetch collapse select as order_by/;
 
   # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
   # simply deleting group_by suffices, as the code below will re-fill it
@@ -1293,16 +1291,28 @@ sub count_grouped {
     delete $sub_attrs->{group_by};
   }
 
-  $sub_attrs->{columns} = $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($source->primary_columns) ];
+  $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($source->primary_columns) ];
+  $sub_attrs->{select} = $self->_grouped_count_select ($sub_attrs);
 
   $attrs->{from} = [{
     count_subq => $source->resultset_class->new ($source, $sub_attrs )->as_query
   }];
 
   # the subquery replaces this
-  delete $attrs->{$_} for qw/where bind prefetch collapse distinct group_by having having_bind rows offset page pager/;
+  delete $attrs->{$_} for qw/where bind prefetch collapse group_by having having_bind rows offset page pager/;
 
   return $self->count ($source, $attrs);
+}
+
+#
+# Returns a SELECT to go with a supplied GROUP BY
+# (caled by count_grouped so a group_by is present)
+# Most databases expect them to match, but some
+# choke in various ways.
+#
+sub _grouped_count_select {
+  my ($self, $attrs) = @_;
+  return $attrs->{group_by};
 }
 
 sub source_bind_attributes {
