@@ -105,21 +105,17 @@ SQL
 
   is( $it->count, 7, 'COUNT of GROUP_BY ok' );
 
-  SKIP: {
-    skip 'quoting bug with NoBindVars', 4*2
-        if $storage_type eq 'DBI::Sybase::NoBindVars';
-
 # Test DateTime inflation with DATETIME
-    my @dt_types = (
-      ['DATETIME', '2004-08-21T14:36:48.080Z'],
-      ['SMALLDATETIME', '2004-08-21T14:36:00.000Z'], # minute precision
-    );
-    
-    for my $dt_type (@dt_types) {
-      my ($type, $sample_dt) = @$dt_type;
+  my @dt_types = (
+    ['DATETIME', '2004-08-21T14:36:48.080Z'],
+    ['SMALLDATETIME', '2004-08-21T14:36:00.000Z'], # minute precision
+  );
+  
+  for my $dt_type (@dt_types) {
+    my ($type, $sample_dt) = @$dt_type;
 
-      eval { $schema->storage->dbh->do("DROP TABLE track") };
-      $schema->storage->dbh->do(<<"SQL");
+    eval { $schema->storage->dbh->do("DROP TABLE track") };
+    $schema->storage->dbh->do(<<"SQL");
 CREATE TABLE track (
    trackid INT IDENTITY PRIMARY KEY,
    cd INT,
@@ -127,20 +123,19 @@ CREATE TABLE track (
    last_updated_on $type,
 )
 SQL
-      ok(my $dt = DBIx::Class::Storage::DBI::Sybase::DateTime
-        ->parse_datetime($sample_dt));
+    ok(my $dt = DBIx::Class::Storage::DBI::Sybase::DateTime
+      ->parse_datetime($sample_dt));
 
-      my $row;
-      ok( $row = $schema->resultset('Track')->create({
-        last_updated_on => $dt,
-        cd => 1,
-      }));
-      ok( $row = $schema->resultset('Track')
-        ->search({ trackid => $row->trackid }, { select => ['last_updated_on'] })
-        ->first
-      );
-      is( $row->updated_date, $dt, 'DateTime inflation works' );
-    }
+    my $row;
+    ok( $row = $schema->resultset('Track')->create({
+      last_updated_on => $dt,
+      cd => 1,
+    }));
+    ok( $row = $schema->resultset('Track')
+      ->search({ trackid => $row->trackid }, { select => ['last_updated_on'] })
+      ->first
+    );
+    is( $row->updated_date, $dt, 'DateTime inflation works' );
   }
 }
 
