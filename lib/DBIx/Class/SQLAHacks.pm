@@ -193,6 +193,14 @@ sub insert {
   my $self = shift;
   my $table = shift;
   $table = $self->_quote($table) unless ref($table);
+
+  # SQLA will emit INSERT INTO $table ( ) VALUES ( )
+  # which is sadly understood only by MySQL. Change default behavior here,
+  # until SQLA2 comes with proper dialect support
+  if (! $_[0] or (ref $_[0] eq 'HASH' and !keys %{$_[0]} ) ) {
+    return "INSERT INTO ${table} DEFAULT VALUES"
+  }
+
   $self->SUPER::insert($table, @_);
 }
 
