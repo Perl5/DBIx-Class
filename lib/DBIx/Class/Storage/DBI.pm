@@ -1104,7 +1104,7 @@ sub delete {
 # Genarating a single PK column subquery is trivial and supported
 # by all RDBMS. However if we have a multicolumn PK, things get ugly.
 # Look at _multipk_update_delete()
-sub subq_update_delete {
+sub _subq_update_delete {
   my $self = shift;
   my ($rs, $op, $values) = @_;
 
@@ -1269,7 +1269,7 @@ sub count_grouped {
   }
 
   $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($source->primary_columns) ];
-  $sub_attrs->{select} = $self->_grouped_count_select ($sub_attrs);
+  $sub_attrs->{select} = $self->_grouped_count_select ($source, $sub_attrs);
 
   $attrs->{from} = [{
     count_subq => $source->resultset_class->new ($source, $sub_attrs )->as_query
@@ -1288,8 +1288,8 @@ sub count_grouped {
 # choke in various ways.
 #
 sub _grouped_count_select {
-  my ($self, $attrs) = @_;
-  return $attrs->{group_by};
+  my ($self, $source, $rs_args) = @_;
+  return $rs_args->{group_by};
 }
 
 sub source_bind_attributes {

@@ -8,6 +8,9 @@ Revision history for DBIx::Class
           an exception
         - fixed corner case when populate() erroneously falls back to
           create()
+        - work around braindead mysql when doing subquery counts on
+          resultsets containing identically named columns from several
+          tables
 
 0.08103 2009-05-26 19:50:00 (UTC)
         - Multiple $resultset -> count/update/delete fixes. Now any

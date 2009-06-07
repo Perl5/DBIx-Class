@@ -53,8 +53,21 @@ sub lag_behind_master {
 
 # MySql can not do subquery update/deletes, only way is slow per-row operations.
 # This assumes you have set proper transaction isolation and use innodb.
-sub subq_update_delete {
+sub _subq_update_delete {
   return shift->_per_row_update_delete (@_);
+}
+
+# MySql chokes on things like:
+# COUNT(*) FROM (SELECT tab1.col, tab2.col FROM tab1 JOIN tab2 ... )
+# claiming that col is a duplicate column (it loses the table specifiers by
+# the time it gets to the *). Thus for any subquery count we select only the
+# primary keys of the main table in the inner query. This hopefully still
+# hits the indexes and keeps mysql happy.
+# (mysql does not care if the SELECT and the GROUP BY match)
+sub _grouped_count_select {
+  my ($self, $source, $rs_args) = @_;
+  my @pcols = map { join '.', $rs_args->{alias}, $_ } ($source->primary_columns);
+  return @pcols ? \@pcols : $rs_args->{group_by};
 }
 
 1;

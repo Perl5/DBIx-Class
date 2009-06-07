@@ -1329,7 +1329,7 @@ sub _rs_update_delete {
 
     my $subrs = (ref $self)->new($rsrc, $attrs);
 
-    return $self->result_source->storage->subq_update_delete($subrs, $op, $values);
+    return $self->result_source->storage->_subq_update_delete($subrs, $op, $values);
   }
   else {
     return $rsrc->storage->$op(
