@@ -7,7 +7,6 @@ use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class/;
 use DBI;
-use DBIx::Class::SQLAHacks;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use Scalar::Util qw/blessed weaken/;
@@ -603,6 +602,7 @@ sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
     my $sql_maker_class = $self->sql_maker_class;
+    $self->ensure_class_loaded ($sql_maker_class);
     $self->_sql_maker($sql_maker_class->new( $self->_sql_maker_args ));
   }
   return $self->_sql_maker;

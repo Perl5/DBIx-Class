@@ -5,7 +5,7 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
 
-# __PACKAGE__->load_components(qw/PK::Auto/);
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MySQL');
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
