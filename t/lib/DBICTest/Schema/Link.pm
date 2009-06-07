@@ -25,6 +25,8 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key('id');
 
+__PACKAGE__->has_many ( bookmarks => 'DBICTest::Schema::Bookmark', 'link', { cascade_delete => 0 } );
+
 use overload '""' => sub { shift->url }, fallback=> 1;
 
 1;

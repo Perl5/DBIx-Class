@@ -210,7 +210,7 @@ my %fk_constraints = (
       'name' => 'bookmark_fk_link', 'index_name' => 'bookmark_idx_link',
       'selftable' => 'bookmark', 'foreigntable' => 'link', 
       'selfcols'  => ['link'], 'foreigncols' => ['id'],
-      on_delete => '', on_update => '', deferrable => 1,
+      on_delete => 'SET NULL', on_update => 'CASCADE', deferrable => 1,
     },
   ],
   # ForceForeign
