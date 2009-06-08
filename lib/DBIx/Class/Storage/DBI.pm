@@ -1197,22 +1197,16 @@ sub _select {
 
 sub _select_args {
   my ($self, $ident, $select, $condition, $attrs) = @_;
-  my $order = $attrs->{order_by};
 
   my $for = delete $attrs->{for};
   my $sql_maker = $self->sql_maker;
   $sql_maker->{for} = $for;
 
-  my @in_order_attrs = qw/group_by having _virtual_order_by/;
-  if (List::Util::first { exists $attrs->{$_} } (@in_order_attrs) ) {
-    $order = {
-      ($order
-        ? (order_by => $order)
-        : ()
-      ),
-      ( map { $_ => $attrs->{$_} } (@in_order_attrs) )
-    };
-  }
+  my $order = { map
+    { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
+    (qw/order_by group_by having _virtual_order_by/ )
+  };
+
   my $bind_attrs = {}; ## Future support
   my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
   if ($attrs->{software_limit} ||

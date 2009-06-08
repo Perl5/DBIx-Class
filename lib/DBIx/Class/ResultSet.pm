@@ -661,7 +661,6 @@ sub cursor {
   my ($self) = @_;
 
   my $attrs = $self->_resolved_attrs_copy;
-  $attrs->{_virtual_order_by} = $self->_gen_virtual_order;
 
   return $self->{cursor}
     ||= $self->result_source->storage->select($attrs->{from}, $attrs->{select},
@@ -714,7 +713,6 @@ sub single {
   }
 
   my $attrs = $self->_resolved_attrs_copy;
-  $attrs->{_virtual_order_by} = $self->_gen_virtual_order;
 
   if ($where) {
     if (defined $attrs->{where}) {
@@ -742,15 +740,6 @@ sub single {
   return (@data ? ($self->_construct_object(@data))[0] : undef);
 }
 
-# _gen_virtual_order
-#
-# This is a horrble hack, but seems like the best we can do at this point
-# Some limit emulations (Top) require an ordered resultset in order to 
-# function at all. So supply a PK order to be used if necessary
-
-sub _gen_virtual_order {
-  return [ shift->result_source->primary_columns ];
-}
 
 # _is_unique_query
 #
@@ -2574,6 +2563,14 @@ sub _resolved_attrs {
   else {
     $attrs->{order_by} = [];
   }
+
+  # If the order_by is otherwise empty - we will use this for TOP limit
+  # emulation and the like.
+  # Although this is needed only if the order_by is not defined, it is
+  # actually cheaper to just populate this rather than properly examining
+  # order_by (stuf like [ {} ] and the like)
+  $attrs->{_virtual_order_by} = [ $self->result_source->primary_columns ];
+
 
   my $collapse = $attrs->{collapse} || {};
   if ( my $prefetch = delete $attrs->{prefetch} ) {
