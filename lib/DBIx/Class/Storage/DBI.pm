@@ -10,7 +10,7 @@ use DBI;
 use DBIx::Class::SQLAHacks;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
-use Scalar::Util qw/blessed weaken/;
+use Scalar::Util();
 use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
@@ -717,7 +717,7 @@ sub _connect {
 
     if($dbh && !$self->unsafe) {
       my $weak_self = $self;
-      weaken($weak_self);
+      Scalar::Util::weaken($weak_self);
       $dbh->{HandleError} = sub {
           if ($weak_self) {
             $weak_self->throw_exception("DBI Exception: $_[0]");
@@ -898,7 +898,7 @@ sub txn_rollback {
 sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, $args) = @_;
 
-  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+  if( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
     $ident = $ident->from();
   }
 
@@ -990,7 +990,7 @@ sub _execute {
 
 sub insert {
   my ($self, $source, $to_insert) = @_;
-  
+
   my $ident = $source->from; 
   my $bind_attributes = $self->source_bind_attributes($source);
 
@@ -1092,7 +1092,7 @@ sub delete {
   my $self = shift @_;
   my $source = shift @_;
   
-  my $bind_attrs = {}; ## If ever it's needed...
+  my $bind_attrs = $self->source_bind_attributes($source);
   
   return $self->_execute('delete' => [], $source, $bind_attrs, @_);
 }
@@ -1213,7 +1213,42 @@ sub _select_args {
       ( map { $_ => $attrs->{$_} } (@in_order_attrs) )
     };
   }
-  my $bind_attrs = {}; ## Future support
+
+  # the reason this is so contrived is because we have several tables in
+  # from, each with its own set of bindattrs
+  my $alias2source;
+  if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+    $alias2source->{$ident->alias} = $ident;
+  }
+  elsif (ref $ident eq 'ARRAY') {
+
+    for (@$ident) {
+      my $tabinfo;
+      if (ref $_ eq 'HASH') {
+        $tabinfo = $_;
+      }
+      if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
+        $tabinfo = $_->[0];
+      }
+
+      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-result_source}
+        if ($tabinfo->{-result_source});
+    }
+  }
+
+  my $bind_attrs = {};
+  for my $alias (keys %$alias2source) {
+    my $bindtypes = $self->source_bind_attributes ($alias2source->{$alias}) || {};
+    for my $col (keys %$bindtypes) {
+
+      my $fqcn = join ('.', $alias, $col);
+      $bind_attrs->{$fqcn} = $bindtypes->{$col} if $bindtypes->{$col};
+
+      # so that unqualified searches can be bound too
+      $bind_attrs->{$col} = $bind_attrs->{$fqcn} if $alias eq 'me';
+    }
+  }
+
   my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
   if ($attrs->{software_limit} ||
       $sql_maker->_default_limit_syntax eq "GenericSubQ") {

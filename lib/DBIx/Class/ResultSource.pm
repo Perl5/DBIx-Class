@@ -1120,10 +1120,13 @@ sub _resolve_join {
       $type = $rel_info->{attrs}{join_type} || '';
       $force_left->{force} = 1 if lc($type) eq 'left';
     }
-    return [ { $as => $self->related_source($join)->from,
+
+    my $rel_src = $self->related_source($join);
+    return [ { $as => $rel_src->from,
+               -result_source => $rel_src,
                -join_type => $type,
                -join_path => [@$jpath, $join],
-               -join_alias => $as,
+               -alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
              },
              $self->_resolve_condition($rel_info->{cond}, $as, $alias) ];
