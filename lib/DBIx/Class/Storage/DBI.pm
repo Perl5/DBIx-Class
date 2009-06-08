@@ -1249,6 +1249,14 @@ sub _select_args {
     }
   }
 
+  # This would be the point to deflate anything found in $condition
+  # (and leave $attrs->{bind} intact). Problem is - inflators historically
+  # expect a row object. And all we have is a resultsource (it is trivial
+  # to extract deflator coderefs via $alias2source above).
+  #
+  # I don't see a way forward other than changing the way deflators are
+  # invoked, and that's just bad...
+
   my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
   if ($attrs->{software_limit} ||
       $sql_maker->_default_limit_syntax eq "GenericSubQ") {
