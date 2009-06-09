@@ -13,7 +13,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 53;
+plan tests => 57;
 
 SKIP: {
   eval { require DateTime::Format::MySQL };
@@ -28,6 +28,18 @@ isa_ok($event->starts_at, 'DateTime', 'DateTime returned');
 # klunky, but makes older Test::More installs happy
 my $starts = $event->starts_at;
 is("$starts", '2006-04-25T22:24:33', 'Correct date/time');
+
+TODO: {
+  local $TODO = "We can't do this yet before 0.09" if DBIx::Class->VERSION < 0.09;
+
+  ok(my $row =
+    $schema->resultset('Event')->search({ starts_at => $starts })->single);
+  is(eval { $row->id }, 1, 'DT in search');
+
+  ok($row =
+    $schema->resultset('Event')->search({ starts_at => { '>=' => $starts } })->single);
+  is(eval { $row->id }, 1, 'DT in search with condition');
+}
 
 # create using DateTime
 my $created = $schema->resultset('Event')->create({
