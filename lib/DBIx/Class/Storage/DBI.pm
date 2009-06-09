@@ -931,7 +931,7 @@ sub _query_start {
 
     if ( $self->debug ) {
         @bind = $self->_fix_bind_params(@bind);
-        
+
         $self->debugobj->query_start( $sql, @bind );
     }
 }
@@ -1214,29 +1214,10 @@ sub _select_args {
     };
   }
 
-  # the reason this is so contrived is because we have several tables in
-  # from, each with its own set of bindattrs
-  my $alias2source;
-  if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
-    $alias2source->{$ident->alias} = $ident;
-  }
-  elsif (ref $ident eq 'ARRAY') {
-
-    for (@$ident) {
-      my $tabinfo;
-      if (ref $_ eq 'HASH') {
-        $tabinfo = $_;
-      }
-      if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
-        $tabinfo = $_->[0];
-      }
-
-      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-result_source}
-        if ($tabinfo->{-result_source});
-    }
-  }
-
   my $bind_attrs = {};
+
+  my $alias2source = $self->_resolve_ident_sources ($ident);
+
   for my $alias (keys %$alias2source) {
     my $bindtypes = $self->source_bind_attributes ($alias2source->{$alias}) || {};
     for my $col (keys %$bindtypes) {
@@ -1270,6 +1251,35 @@ sub _select_args {
     push @args, $attrs->{rows}, $attrs->{offset};
   }
   return @args;
+}
+
+sub _resolve_ident_sources {
+  my ($self, $ident) = @_;
+
+  my $alias2source = {};
+
+  # the reason this is so contrived is that $ident may be a {from}
+  # structure, specifying multiple tables to join
+  if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+    $alias2source->{$ident->alias} = $ident;
+  }
+  elsif (ref $ident eq 'ARRAY') {
+
+    for (@$ident) {
+      my $tabinfo;
+      if (ref $_ eq 'HASH') {
+        $tabinfo = $_;
+      }
+      if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
+        $tabinfo = $_->[0];
+      }
+
+      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-result_source}
+        if ($tabinfo->{-result_source});
+    }
+  }
+
+  return $alias2source;
 }
 
 sub count {
