@@ -1925,7 +1925,10 @@ B<NOTE>: This feature is still experimental.
 
 =cut
 
-sub as_query { return shift->cursor->as_query(@_) }
+sub as_query {
+  my $self = shift;
+  return $self->result_source->storage->as_query($self);
+}
 
 =head2 find_or_new
 

@@ -910,6 +910,40 @@ sub _prep_for_execute {
   return ($sql, \@bind);
 }
 
+=head2 as_query
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: \[ $sql, @bind ]
+
+=back
+
+Returns the SQL statement and bind vars that would result from the given
+ResultSet (does not actually run a query)
+
+=cut
+
+sub as_query {
+  my ($self, $rs) = @_;
+
+  my $sql_maker = $self->sql_maker;
+  local $sql_maker->{for};
+
+  my $attr = $rs->_resolved_attrs;
+
+  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset) = $self->_select_args(...);
+  my @args = $self->_select_args($attr->{from}, $attr->{select}, $attr->{where}, $attr);
+
+  # my ($sql, $bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
+  my ($sql, $bind) = $self->_prep_for_execute(
+    @args[0 .. 2],
+    [ @args[4 .. $#args] ],
+  );
+  return \[ "($sql)", @{ $bind || [] }];
+}
+
 sub _fix_bind_params {
     my ($self, @bind) = @_;
 
