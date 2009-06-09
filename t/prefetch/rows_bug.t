@@ -7,7 +7,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 2);
+plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 3);
 
 my $schema = DBICTest->init_schema();
 my $no_prefetch = $schema->resultset('Artist')->search(
@@ -28,18 +28,37 @@ my $use_prefetch_count = 0;
 
 is($no_prefetch->count, $use_prefetch->count, '$no_prefetch->count == $use_prefetch->count');
 
-TODO: {
-  local $TODO = "This is a difficult bug to fix, workaround is not to use prefetch with rows";
-  $no_prefetch_count++  while $no_prefetch->next;
-  $use_prefetch_count++ while $use_prefetch->next;
-  is(
-    $no_prefetch_count,
-    $use_prefetch_count,
-    "manual row count confirms consistency"
-    . " (\$no_prefetch_count == $no_prefetch_count, "
-    . " \$use_prefetch_count == $use_prefetch_count)"
-  );
-}
+$no_prefetch_count++  while $no_prefetch->next;
+$use_prefetch_count++ while $use_prefetch->next;
+is(
+  $no_prefetch_count,
+  $use_prefetch_count,
+  "manual row count confirms consistency"
+  . " (\$no_prefetch_count == $no_prefetch_count, "
+  . " \$use_prefetch_count == $use_prefetch_count)"
+);
+
+$no_prefetch = $schema->resultset('Artist')->search(
+  undef,
+  { rows => 1 }
+);
+
+$use_prefetch = $schema->resultset('Artist')->search(
+  undef,
+  {
+    prefetch => 'cds',
+    rows     => 1
+  }
+);
+
+my $prefetch_artist = $use_prefetch->first;
+my $normal_artist = $no_prefetch->first;
+
+is(
+  $prefetch_artist->cds->count,
+  $normal_artist->cds->count,
+  "Count of child rel with prefetch + rows => 1 is right"
+);
 
 __END__
 The fix is to, when using prefetch, take the query and put it into a subquery
@@ -78,6 +97,7 @@ becomes:
 Problem:
   * The prefetch->join change needs to happen ONLY IF there are conditions
     that depend on bar being joined.
+  * Count of child rel.
   * How will this work when the $rs is further searched on? Those clauses
     need to be added to the subquery, not the outer one. This is particularly
     true if rows is added in the attribute later per the Pager.
