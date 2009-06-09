@@ -1927,7 +1927,7 @@ B<NOTE>: This feature is still experimental.
 
 sub as_query {
   my $self = shift;
-  return $self->result_source->storage->as_query($self);
+  return $self->result_source->storage->as_query($self->_resolved_attrs);
 }
 
 =head2 find_or_new

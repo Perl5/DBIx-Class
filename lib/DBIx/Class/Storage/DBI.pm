@@ -914,27 +914,25 @@ sub _prep_for_execute {
 
 =over 4
 
-=item Arguments: none
+=item Arguments: $rs_attrs
 
 =item Return Value: \[ $sql, @bind ]
 
 =back
 
 Returns the SQL statement and bind vars that would result from the given
-ResultSet (does not actually run a query)
+ResultSet attributes (does not actually run a query)
 
 =cut
 
 sub as_query {
-  my ($self, $rs) = @_;
+  my ($self, $rs_attr) = @_;
 
   my $sql_maker = $self->sql_maker;
   local $sql_maker->{for};
 
-  my $attr = $rs->_resolved_attrs;
-
   # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset) = $self->_select_args(...);
-  my @args = $self->_select_args($attr->{from}, $attr->{select}, $attr->{where}, $attr);
+  my @args = $self->_select_args($rs_attr->{from}, $rs_attr->{select}, $rs_attr->{where}, $rs_attr);
 
   # my ($sql, $bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
   my ($sql, $bind) = $self->_prep_for_execute(
