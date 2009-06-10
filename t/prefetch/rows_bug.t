@@ -7,7 +7,8 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 3);
+plan skip_all => 'fix pending';
+#plan tests => 4;
 
 my $schema = DBICTest->init_schema();
 my $no_prefetch = $schema->resultset('Artist')->search(
@@ -23,28 +24,29 @@ my $use_prefetch = $schema->resultset('Artist')->search(
   }
 );
 
-my $no_prefetch_count  = 0;
-my $use_prefetch_count = 0;
-
 is($no_prefetch->count, $use_prefetch->count, '$no_prefetch->count == $use_prefetch->count');
-
-$no_prefetch_count++  while $no_prefetch->next;
-$use_prefetch_count++ while $use_prefetch->next;
 is(
-  $no_prefetch_count,
-  $use_prefetch_count,
-  "manual row count confirms consistency"
-  . " (\$no_prefetch_count == $no_prefetch_count, "
-  . " \$use_prefetch_count == $use_prefetch_count)"
+  scalar ($no_prefetch->all),
+  scalar ($use_prefetch->all),
+  "Amount of returned rows is right"
 );
 
+
+
+my $artist_many_cds = $schema->resultset('Artist')->search ( {}, {
+  join => 'cds',
+  group_by => 'me.artistid',
+  having => \ 'count(cds.cdid) > 1',
+})->first;
+
+
 $no_prefetch = $schema->resultset('Artist')->search(
-  undef,
+  { artistid => $artist_many_cds->id },
   { rows => 1 }
 );
 
 $use_prefetch = $schema->resultset('Artist')->search(
-  undef,
+  { artistid => $artist_many_cds->id },
   {
     prefetch => 'cds',
     rows     => 1
@@ -59,45 +61,8 @@ is(
   $normal_artist->cds->count,
   "Count of child rel with prefetch + rows => 1 is right"
 );
-
-__END__
-The fix is to, when using prefetch, take the query and put it into a subquery
-joined to the tables we're prefetching from. This might result in the same
-table being joined once in the main subquery and once in the main query. This
-may actually resolve other, unknown edgecase bugs. It is also the right way
-to do prefetching. Optimizations can come later.
-
-This means that:
-  $foo_rs->search(
-    { ... },
-    {
-      prefetch => 'bar',
-      ...
-    },
-  );
-
-becomes:
-  my $temp = $foo_rs->search(
-    { ... },
-    {
-      join => 'bar',
-      ...
-    },
-  );
-  $foo_rs->storage->schema->resultset('foo')->search(
-    undef,
-    {
-      from => [
-        { me => $temp->as_query },
-      ],
-      prefetch => 'bar',
-    },
-  );
-
-Problem:
-  * The prefetch->join change needs to happen ONLY IF there are conditions
-    that depend on bar being joined.
-  * Count of child rel.
-  * How will this work when the $rs is further searched on? Those clauses
-    need to be added to the subquery, not the outer one. This is particularly
-    true if rows is added in the attribute later per the Pager.
+is (
+  scalar ($prefetch_artist->cds->all),
+  scalar ($normal_artist->cds->all),
+  "Amount of child rel rows with prefetch + rows => 1 is right"
+);
