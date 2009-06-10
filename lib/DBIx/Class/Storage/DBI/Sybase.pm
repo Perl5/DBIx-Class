@@ -81,9 +81,11 @@ sub count {
   my $offset = $attrs->{offset} || 0;
   my $total  = $attrs->{rows} + $offset;
 
-  my $new_attrs = $self->_trim_attributes_for_count($source, $attrs);
-  $new_attrs->{select} = '1';
-  $new_attrs->{as}     = ['dummy'];
+  my $new_attrs = $self->_copy_attributes_for_count($source, $attrs);
+
+  my $first_pk = ($source->primary_columns)[0];
+
+  $new_attrs->{select} = $first_pk ? "me.$first_pk" : 1;
 
   my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
 

@@ -1325,7 +1325,7 @@ sub _resolve_ident_sources {
   return $alias2source;
 }
 
-sub _trim_attributes_for_count {
+sub _copy_attributes_for_count {
   my ($self, $source, $attrs) = @_;
   my %attrs = %$attrs;
 
@@ -1338,7 +1338,7 @@ sub _trim_attributes_for_count {
 sub count {
   my ($self, $source, $attrs) = @_;
 
-  my $tmp_attrs = $self->_trim_attributes_for_count($source, $attrs);
+  my $tmp_attrs = $self->_copy_attributes_for_count($source, $attrs);
 
   # overwrite the selector
   $tmp_attrs->{select} = { count => '*' };
