@@ -103,6 +103,18 @@ $schema->populate ('Owners', [
   [qw/1   wiggle/],
   [qw/2   woggle/],
   [qw/3   boggle/],
+  [qw/4   fREW/],
+  [qw/5   fRIOUX/],
+  [qw/6   fROOH/],
+  [qw/7   fRUE/],
+  [qw/8   fISMBoC/],
+  [qw/9   station/],
+  [qw/10   mirror/],
+  [qw/11   dimly/],
+  [qw/12   face_to_face/],
+  [qw/13   icarus/],
+  [qw/14   dream/],
+  [qw/15   dyrstyggyr/],
 ]);
 
 $schema->populate ('BooksInLibrary', [
@@ -110,6 +122,15 @@ $schema->populate ('BooksInLibrary', [
   [qw/Library 1     secrets1/],
   [qw/Eatery  1     secrets2/],
   [qw/Library 2     secrets3/],
+  [qw/Library 3     secrets4/],
+  [qw/Eatery  3     secrets5/],
+  [qw/Library 4     secrets6/],
+  [qw/Library 5     secrets7/],
+  [qw/Eatery  5     secrets8/],
+  [qw/Library 6     secrets9/],
+  [qw/Library 7     secrets10/],
+  [qw/Eatery  7     secrets11/],
+  [qw/Library 8     secrets12/],
 ]);
 
 #
@@ -118,10 +139,16 @@ $schema->populate ('BooksInLibrary', [
 
 {
   # try a ->has_many direction (due to a 'multi' accessor the select/group_by group is collapsed)
-  my $owners = $schema->resultset ('Owners')->search (
-    { 'books.id' => { '!=', undef }},
-    { prefetch => 'books', distinct => 1 }
-  );
+  my $owners = $schema->resultset ('Owners')->search ({
+      'books.id' => { '!=', undef }
+    }, {
+      prefetch => 'books',
+      distinct => 1,
+      order_by => 'name',
+      page     => 2,
+      rows     => 5,
+    });
+
   my $owners2 = $schema->resultset ('Owners')->search ({ id => { -in => $owners->get_column ('me.id')->as_query }});
   for ($owners, $owners2) {
     is ($_->all, 2, 'Prefetched grouped search returns correct number of rows');
@@ -129,15 +156,29 @@ $schema->populate ('BooksInLibrary', [
   }
 
   # try a ->belongs_to direction (no select collapse)
-  my $books = $schema->resultset ('BooksInLibrary')->search (
-    { 'owner.name' => 'wiggle' },
-    { prefetch => 'owner', distinct => 1 }
-  );
+  my $books = $schema->resultset ('BooksInLibrary')->search ({
+      'owner.name' => 'wiggle'
+    }, {
+      prefetch => 'owner',
+      distinct => 1,
+      order_by => 'name',
+      page     => 2,
+      rows     => 5,
+    });
+
   my $books2 = $schema->resultset ('BooksInLibrary')->search ({ id => { -in => $books->get_column ('me.id')->as_query }});
   for ($books, $books2) {
     is ($_->all, 1, 'Prefetched grouped search returns correct number of rows');
     is ($_->count, 1, 'Prefetched grouped search returns correct count');
   }
+
+  #my $result = $schema->resultset('BooksInLibrary')->search(undef, {
+        #page     => 1,
+        #rows     => 25,
+        #order_by => ['name', 'title'],
+        #prefetch => 'owner'
+     #})->first;
+
 }
 
 # clean up our mess
@@ -145,4 +186,4 @@ END {
     my $dbh = eval { $schema->storage->_dbh };
     $dbh->do('DROP TABLE artist') if $dbh;
 }
-
+# vim:sw=2 sts=2
