@@ -2430,12 +2430,15 @@ sub _resolve_from {
   my $source = $self->result_source;
   my $attrs = $self->{attrs};
 
-  my $from = $attrs->{from}
-    || [ {
-      -result_source => $source,
-      -alias => $attrs->{alias},
-      $attrs->{alias} => $source->from,
-    } ];
+  my $from = [ @{
+      $attrs->{from}
+        ||
+      [{
+        -result_source => $source,
+        -alias => $attrs->{alias},
+        $attrs->{alias} => $source->from,
+      }]
+  }];
 
   my $seen = { %{$attrs->{seen_join} || {} } };
 

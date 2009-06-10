@@ -1039,7 +1039,7 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
-  my $ident = $source->from; 
+  my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
 
   my $updated_cols = {};
@@ -1303,7 +1303,8 @@ sub _resolve_ident_sources {
   # the reason this is so contrived is that $ident may be a {from}
   # structure, specifying multiple tables to join
   if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
-    $alias2source->{$ident->alias} = $ident;
+    # this is compat mode for insert/update/delete which do not deal with aliases
+    $alias2source->{me} = $ident;
   }
   elsif (ref $ident eq 'ARRAY') {
 
