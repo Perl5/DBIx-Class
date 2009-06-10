@@ -80,9 +80,9 @@ $q{artw_back}{query} = $q{artw_back}{rs}->as_query;
 for my $s (qw/a2a artw cd artw_back/) {
   my $rs = $q{$s}{rs};
 
-  lives_ok ( sub { $rs->first }, "first on $s does not throw an exception" );
+  lives_ok ( sub { $rs->first }, "first() on $s does not throw an exception" );
 
-  lives_ok ( sub { $rs->count }, "count on $s does not throw an exception" );
+  lives_ok ( sub { $rs->count }, "count() on $s does not throw an exception" );
 
   is_same_sql_bind ($rs->as_query, $q{$s}{query}, "$s resultset unmodified (as_query matches)" );
 }
