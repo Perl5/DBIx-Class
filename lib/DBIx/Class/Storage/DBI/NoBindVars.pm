@@ -53,10 +53,11 @@ sub _prep_for_execute {
   foreach my $bound (@$bind) {
     my $col = shift @$bound;
 
-    my $datatype = 'FIXME!!!';
+    $col =~ s/^([^.]*)\.//;
+    my $alias = $1 || 'me';
 
-# this is what needs to happen:
-#    my $datatype = $rsrc->column_info($col)->{data_type};
+    my $datatype = $self->_resolve_ident_sources($ident)->{$alias}
+        ->column_info($col)->{data_type};
 
     foreach my $data (@$bound) {
         if(ref $data) {

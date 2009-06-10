@@ -37,14 +37,9 @@ sub should_quote_data_type {
 
   return $self->next::method(@_) if not defined $value;
 
-## this is the correct method, but we have no type yet
-#  if (my $key = List::Util::first { $type =~ /$_/i } keys %noquote) {
-#    return 0 if $noquote{$key}->($value);
-#  }
-
-# temporary hack
-  return 0 if Scalar::Util::looks_like_number($value) ||
-    ($value =~ /^\$(\S*)\z/ && Scalar::Util::looks_like_number($1));
+  if (my $key = List::Util::first { $type =~ /$_/i } keys %noquote) {
+    return 0 if $noquote{$key}->($value);
+  }
 
   return $self->next::method(@_);
 }
