@@ -5,13 +5,38 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI::MSSQL/;
 
 sub _prep_for_execute {
-    my $self = shift;
-    my ($op, $extra_bind, $ident, $args) = @_;
+  my $self = shift;
+  my ($op, $extra_bind, $ident, $args) = @_;
 
-    my ($sql, $bind) = $self->next::method (@_);
-    $sql .= ';SELECT SCOPE_IDENTITY()' if $op eq 'insert';
+  my ($sql, $bind) = $self->next::method (@_);
+  $sql .= ';SELECT SCOPE_IDENTITY()' if $op eq 'insert';
 
-    return ($sql, $bind);
+  use Scalar::Util 'blessed';
+  use List::Util 'first';
+  if ( blessed $ident ) {
+    my %auto_inc_columns;
+    foreach my $column ($ident->columns) {
+      if ($ident->column_info($column)->{is_auto_increment}) {
+	$auto_inc_columns{$column} = 1;
+      }
+    }
+
+    my $table = $ident->from;
+    my $auto_inc_col = 0;
+    BINDS:
+    foreach my $bound (@{$bind}) {
+      my $col =  $bound->[0];
+      if ($auto_inc_columns{$col}) {
+	$auto_inc_col = 1;
+	last BINDS;
+      }
+    }
+    if ($auto_inc_col) {
+      $sql = "SET IDENTITY_INSERT $table ON; $sql; SET IDENTITY_INSERT $table OFF;"
+    }
+  }
+
+  return ($sql, $bind);
 }
 
 sub _execute {
@@ -64,3 +89,4 @@ Marc Mims C<< <marc@questright.com> >>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+# vim: sw=2 sts=2
