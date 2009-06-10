@@ -50,7 +50,7 @@ sub _prep_for_execute {
   my @sql_part = split /\?/, $sql;
   my $new_sql;
 
-  my $result_sources = {};
+  my $alias2src = $self->_resolve_ident_sources($ident);
 
   foreach my $bound (@$bind) {
     my $col = shift @$bound;
@@ -60,9 +60,7 @@ sub _prep_for_execute {
     $col =~ s/^([^\Q${name_sep}\E]*)\Q${name_sep}\E//;
     my $alias = $1 || 'me';
 
-    $result_sources->{$alias} ||=
-        $self->_resolve_ident_sources($ident)->{$alias};
-    my $rsrc = $result_sources->{$alias};
+    my $rsrc = $alias2src->{$alias};
 
     my $datatype = $rsrc->column_info($col)->{data_type};
 
