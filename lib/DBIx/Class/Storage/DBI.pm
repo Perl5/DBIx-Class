@@ -1563,7 +1563,7 @@ sub bind_attribute_by_data_type {
 
 Given a datatype from column_info, returns a boolean value indicating if
 the current RDBMS considers it a numeric value. This controls how
-L<< DBIx::Class::Row/set_column >> decides whether to mark the column as
+L<DBIx::Class::Row/set_column> decides whether to mark the column as
 dirty - when the datatype is deemed numeric a C<< <=> >> comparison will
 be performed instead of the usual C<eq>.
 
