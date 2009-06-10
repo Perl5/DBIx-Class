@@ -2,7 +2,7 @@ package # Hide from PAUSE
   DBIx::Class::SQLAHacks::OracleJoins;
 
 use base qw( DBIx::Class::SQLAHacks );
-use Carp::Clan qw/^DBIx::Class/;
+use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;

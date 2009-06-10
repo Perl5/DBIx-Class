@@ -661,7 +661,6 @@ sub cursor {
   my ($self) = @_;
 
   my $attrs = $self->_resolved_attrs_copy;
-  $attrs->{_virtual_order_by} = $self->_gen_virtual_order;
 
   return $self->{cursor}
     ||= $self->result_source->storage->select($attrs->{from}, $attrs->{select},
@@ -714,7 +713,6 @@ sub single {
   }
 
   my $attrs = $self->_resolved_attrs_copy;
-  $attrs->{_virtual_order_by} = $self->_gen_virtual_order;
 
   if ($where) {
     if (defined $attrs->{where}) {
@@ -742,15 +740,6 @@ sub single {
   return (@data ? ($self->_construct_object(@data))[0] : undef);
 }
 
-# _gen_virtual_order
-#
-# This is a horrble hack, but seems like the best we can do at this point
-# Some limit emulations (Top) require an ordered resultset in order to 
-# function at all. So supply a PK order to be used if necessary
-
-sub _gen_virtual_order {
-  return [ shift->result_source->primary_columns ];
-}
 
 # _is_unique_query
 #
@@ -1329,7 +1318,7 @@ sub _rs_update_delete {
 
     my $subrs = (ref $self)->new($rsrc, $attrs);
 
-    return $self->result_source->storage->subq_update_delete($subrs, $op, $values);
+    return $self->result_source->storage->_subq_update_delete($subrs, $op, $values);
   }
   else {
     return $rsrc->storage->$op(
@@ -1936,7 +1925,10 @@ B<NOTE>: This feature is still experimental.
 
 =cut
 
-sub as_query { return shift->cursor->as_query(@_) }
+sub as_query {
+  my $self = shift;
+  return $self->result_source->storage->as_query($self->_resolved_attrs);
+}
 
 =head2 find_or_new
 
@@ -1977,8 +1969,10 @@ sub find_or_new {
   my $self     = shift;
   my $attrs    = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
   my $hash     = ref $_[0] eq 'HASH' ? shift : {@_};
-  my $exists   = $self->find($hash, $attrs);
-  return defined $exists ? $exists : $self->new_result($hash);
+  if (keys %$hash and my $row = $self->find($hash, $attrs) ) {
+    return $row;
+  }
+  return $self->new_result($hash);
 }
 
 =head2 create
@@ -2108,8 +2102,10 @@ sub find_or_create {
   my $self     = shift;
   my $attrs    = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
   my $hash     = ref $_[0] eq 'HASH' ? shift : {@_};
-  my $exists   = $self->find($hash, $attrs);
-  return defined $exists ? $exists : $self->create($hash);
+  if (keys %$hash and my $row = $self->find($hash, $attrs) ) {
+    return $row;
+  }
+  return $self->create($hash);
 }
 
 =head2 update_or_create
@@ -2435,7 +2431,11 @@ sub _resolve_from {
   my $attrs = $self->{attrs};
 
   my $from = $attrs->{from}
-    || [ { $attrs->{alias} => $source->from } ];
+    || [ {
+      -result_source => $source,
+      -alias => $attrs->{alias},
+      $attrs->{alias} => $source->from,
+    } ];
 
   my $seen = { %{$attrs->{seen_join} || {} } };
 
@@ -2540,7 +2540,11 @@ sub _resolved_attrs {
     push( @{ $attrs->{as} }, @$adds );
   }
 
-  $attrs->{from} ||= [ { $self->{attrs}{alias} => $source->from } ];
+  $attrs->{from} ||= [ {
+    -result_source => $source,
+    -alias => $self->{attrs}{alias},
+    $self->{attrs}{alias} => $source->from,
+  } ];
 
   if ( exists $attrs->{join} || exists $attrs->{prefetch} ) {
     my $join = delete $attrs->{join} || {};
@@ -2570,6 +2574,14 @@ sub _resolved_attrs {
   else {
     $attrs->{order_by} = [];
   }
+
+  # If the order_by is otherwise empty - we will use this for TOP limit
+  # emulation and the like.
+  # Although this is needed only if the order_by is not defined, it is
+  # actually cheaper to just populate this rather than properly examining
+  # order_by (stuf like [ {} ] and the like)
+  $attrs->{_virtual_order_by} = [ $self->result_source->primary_columns ];
+
 
   my $collapse = $attrs->{collapse} || {};
   if ( my $prefetch = delete $attrs->{prefetch} ) {
@@ -2613,7 +2625,7 @@ sub _joinpath_aliases {
 
     my $p = $paths;
     $p = $p->{$_} ||= {} for @{$j->[0]{-join_path}};
-    push @{$p->{-join_aliases} }, $j->[0]{-join_alias};
+    push @{$p->{-join_aliases} }, $j->[0]{-alias};
   }
 
   return $paths;

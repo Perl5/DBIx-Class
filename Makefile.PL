@@ -71,6 +71,7 @@ my %force_requires_if_author = (
 
   # t/52cycle.t
   'Test::Memory::Cycle'       => 0,
+  'Devel::Cycle'              => 1.10,
 
   # t/60core.t
   'DateTime::Format::MySQL'   => 0,
