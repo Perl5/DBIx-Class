@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08104 2009-06-10 13:38:00 (UTC)
         - order_by now can take \[$sql, @bind] as in
           order_by => { -desc => \['colA LIKE ?', 'somestring'] }
         - SQL::Abstract errors are now properly croak()ed with the
@@ -11,7 +12,7 @@ Revision history for DBIx::Class
         - Work around braindead mysql when doing subquery counts on
           resultsets containing identically named columns from several
           tables
-        - Fixed a m2m add_to_$rel to invoke find_or_create on the far
+        - Fixed m2m add_to_$rel to invoke find_or_create on the far
           side of the relation, to avoid duplicates
         - DBIC now properly handles empty inserts (invoking all default
           values from the DB, normally via INSERT INTO tbl DEFAULT VALUES
@@ -19,7 +20,7 @@ Revision history for DBIx::Class
           default value insert is requested (RT#28875)
         - Make IC::DT extra warning state the column name too
         - It is now possible to transparrently search() on columns
-          requiring DBI bind (i.e. PostgreSQL blob)
+          requiring DBI bind (i.e. PostgreSQL BLOB)
         - as_query is now a Storage::DBI method, so custom cursors can
           be seamlessly used
         - Fix search_related regression introduced in 0.08103
