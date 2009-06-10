@@ -1,24 +1,18 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
+
 use lib qw(t/lib);
+use DBIC::SqlMakerTest;
+use DBIC::DebugObj;
 use DBICTest;
 use Data::Dumper;
 
 my $schema = DBICTest->init_schema();
 
-my $orig_debug = $schema->storage->debug;
-
-use IO::File;
-
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 10 );
-}
+plan tests => 22;
 
 # A search() with prefetch seems to pollute an already joined resultset
 # in a way that offsets future joins (adapted from a test case by Debolaz)
@@ -61,3 +55,35 @@ BEGIN {
     is (Dumper ($cd_rs->{attrs}), $attrs, 'Resultset attributes preserved after another search with prefetch')
   }, 'second prefetching search ok');
 }
+
+# Also test search_related, but now that we have as_query simply compare before and after
+my $artist = $schema->resultset ('Artist')->first;
+my %q;
+
+$q{a2a}{rs} = $artist->search_related ('artwork_to_artist');
+$q{a2a}{query} = $q{a2a}{rs}->as_query;
+
+$q{artw}{rs} = $q{a2a}{rs}->search_related ('artwork',
+  { },
+  { join => ['cd', 'artwork_to_artist'] },
+);
+$q{artw}{query} = $q{artw}{rs}->as_query;
+
+$q{cd}{rs} = $q{artw}{rs}->search_related ('cd', {}, { join => [ 'artist', 'tracks' ] } );
+$q{cd}{query} = $q{cd}{rs}->as_query;
+
+$q{artw_back}{rs} = $q{cd}{rs}->search_related ('artwork',
+  {}, { join => { artwork_to_artist => 'artist' } }
+)->search_related ('artwork_to_artist', {}, { join => 'artist' });
+$q{artw_back}{query} = $q{artw_back}{rs}->as_query;
+
+for my $s (qw/a2a artw cd artw_back/) {
+  my $rs = $q{$s}{rs};
+
+  lives_ok ( sub { $rs->first }, "first on $s does not throw an exception" );
+
+  lives_ok ( sub { $rs->count }, "count on $s does not throw an exception" );
+
+  is_same_sql_bind ($rs->as_query, $q{$s}{query}, "$s resultset unmodified (as_query matches)" );
+}
+
