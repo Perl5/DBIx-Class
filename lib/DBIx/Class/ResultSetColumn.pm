@@ -36,21 +36,31 @@ passed as params. Used internally by L<DBIx::Class::ResultSet/get_column>.
 sub new {
   my ($class, $rs, $column) = @_;
   $class = ref $class if ref $class;
+
+  $rs->throw_exception("column must be supplied") unless $column;
+
   my $new_parent_rs = $rs->search_rs; # we don't want to mess up the original, so clone it
-  my $attrs = $new_parent_rs->_resolved_attrs;
-  $new_parent_rs->{attrs}->{$_} = undef for qw(prefetch include_columns +select +as); # prefetch, include_columns, +select, +as cause additional columns to be fetched
+
+  # prefetch causes additional columns to be fetched, but we can not just make a new
+  # rs via the _resolved_attrs trick - we need to retain the separation between
+  # +select/+as and select/as. At the same time we want to preserve any joins that the
+  # prefetch would otherwise generate.
+  my $init_attrs = $new_parent_rs->{attrs} ||= {};
+  delete $init_attrs->{collapse};
+  $init_attrs->{join} = $rs->_merge_attr( delete $init_attrs->{join}, delete $init_attrs->{prefetch} );
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
   # definition set up with 'select' or '+select' attrs), otherwise use $column
   # (to create a new column definition on-the-fly).
+  my $attrs = $new_parent_rs->_resolved_attrs;
+
   my $as_list = $attrs->{as} || [];
   my $select_list = $attrs->{select} || [];
   my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
 
   my $new = bless { _select => $select, _as => $column, _parent_resultset => $new_parent_rs }, $class;
-  $new->throw_exception("column must be supplied") unless $column;
   return $new;
 }
 
@@ -72,7 +82,7 @@ B<NOTE>: This feature is still experimental.
 
 =cut
 
-sub as_query { return shift->_resultset->as_query }
+sub as_query { return shift->_resultset->as_query(@_) }
 
 =head2 next
 

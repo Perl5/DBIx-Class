@@ -34,6 +34,15 @@ my $exceptions = {
            qw( MULTICREATE_DEBUG )
         ],
     },
+    'DBIx::Class::ResultSource' => {
+        ignore => [qw/
+          compare_relationship_keys
+          pk_depends_on
+          resolve_condition
+          resolve_join
+          resolve_prefetch
+        /],
+    },
     'DBIx::Class::Storage' => {
         ignore => [
             qw(cursor)
@@ -99,13 +108,15 @@ my $exceptions = {
     'DBIx::Class::Storage::DBI'                         => { skip => 1 },
     'DBIx::Class::Storage::DBI::DB2'                    => { skip => 1 },
     'DBIx::Class::Storage::DBI::MSSQL'                  => { skip => 1 },
-    'DBIx::Class::Storage::DBI::MultiDistinctEmulation' => { skip => 1 },
+    'DBIx::Class::Storage::DBI::Sybase::MSSQL'          => { skip => 1 },
     'DBIx::Class::Storage::DBI::ODBC400'                => { skip => 1 },
     'DBIx::Class::Storage::DBI::ODBC::DB2_400_SQL'      => { skip => 1 },
+    'DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server' => { skip => 1 },
     'DBIx::Class::Storage::DBI::Oracle'                 => { skip => 1 },
     'DBIx::Class::Storage::DBI::Pg'                     => { skip => 1 },
     'DBIx::Class::Storage::DBI::SQLite'                 => { skip => 1 },
     'DBIx::Class::Storage::DBI::mysql'                  => { skip => 1 },
+    'DBIx::Class::SQLAHacks::MySQL'                     => { skip => 1 },
     'SQL::Translator::Parser::DBIx::Class'              => { skip => 1 },
     'SQL::Translator::Producer::DBIx::Class::File'      => { skip => 1 },
 

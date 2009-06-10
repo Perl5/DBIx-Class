@@ -5,42 +5,38 @@ use Test::More;
 use lib qw(t/lib);
 use Data::Dumper;
 
-plan ( ($] >= 5.009000 and $] < 5.010001)
-  ? (skip_all => 'warnings::register broken under 5.10: http://rt.perl.org/rt3/Public/Bug/Display.html?id=62522')
-  : (tests => 4)
-);
+plan tests => 4;
+my $exp_warn = qr/The many-to-many relationship 'bars' is trying to create/;
 
 {
   my @w; 
-  local $SIG{__WARN__} = sub { push @w, @_ };
+  local $SIG{__WARN__} = sub { $_[0] =~ $exp_warn ? push @w, $_[0] : warn $_[0] };
   my $code = gen_code ( suffix => 1 );
   eval "$code";
   ok (! $@, 'Eval code without warnings suppression')
     || diag $@;
 
-  ok ( (grep { $_ =~ /The many-to-many relationship bars is trying to create/ } @w), "Warning triggered without relevant 'no warnings'");
+  ok (@w, "Warning triggered without DBIC_OVERWRITE_HELPER_METHODS_OK");
 }
 
 {
   my @w; 
-  local $SIG{__WARN__} = sub { push @w, @_ };
+  local $SIG{__WARN__} = sub { $_[0] =~ $exp_warn ? push @w, $_[0] : warn $_[0] };
 
-  my $code = gen_code ( suffix => 2, no_warn => 1 );
+  my $code = gen_code ( suffix => 2 );
+
+  local $ENV{DBIC_OVERWRITE_HELPER_METHODS_OK} = 1;
   eval "$code";
   ok (! $@, 'Eval code with warnings suppression')
     || diag $@;
 
-  ok ( (not grep { $_ =~ /The many-to-many relationship bars is trying to create/ } @w), "No warning triggered with relevant 'no warnings'");
+  ok (! @w, "No warning triggered with DBIC_OVERWRITE_HELPER_METHODS_OK");
 }
 
 sub gen_code {
 
   my $args = { @_ };
   my $suffix = $args->{suffix};
-  my $no_warn = ( $args->{no_warn}
-    ? "no warnings 'DBIx::Class::Relationship::ManyToMany';"
-    : '',
-  );
 
   return <<EOF;
 use strict;
@@ -95,7 +91,6 @@ use warnings;
     },
   );
 
-  ${no_warn}
   __PACKAGE__->set_primary_key('barid');
   __PACKAGE__->has_many('foo_to_bar' => 'DBICTest::Schema::FooToBar${suffix}' => 'foo');
 

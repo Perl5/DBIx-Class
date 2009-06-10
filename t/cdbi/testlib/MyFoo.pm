@@ -3,6 +3,8 @@ package # hide from PAUSE
 
 use base 'MyBase';
 
+use Date::Simple 3.03;
+
 use strict;
 
 __PACKAGE__->set_table();

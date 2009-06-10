@@ -7,7 +7,7 @@ use Data::Dumper;
 
 use Test::More;
 
-plan ( tests => 4 );
+plan ( tests => 5 );
 
 use lib qw(t/lib);
 use DBICTest;
@@ -18,11 +18,8 @@ my $art_rs = $schema->resultset('Artist');
 my $cdrs = $schema->resultset('CD');
 
 {
-  my $arr = $art_rs->as_query;
-  my ($query, @bind) = @{$$arr};
-
   is_same_sql_bind(
-    $query, \@bind,
+    $art_rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me)", [],
   );
 }
@@ -30,11 +27,8 @@ my $cdrs = $schema->resultset('CD');
 $art_rs = $art_rs->search({ name => 'Billy Joel' });
 
 {
-  my $arr = $art_rs->as_query;
-  my ($query, @bind) = @{$$arr};
-
   is_same_sql_bind(
-    $query, \@bind,
+    $art_rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( name = ? ))",
     [ [ name => 'Billy Joel' ] ],
   );
@@ -43,11 +37,8 @@ $art_rs = $art_rs->search({ name => 'Billy Joel' });
 $art_rs = $art_rs->search({ rank => 2 });
 
 {
-  my $arr = $art_rs->as_query;
-  my ($query, @bind) = @{$$arr};
-
   is_same_sql_bind(
-    $query, \@bind,
+    $art_rs->as_query,
     "(SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) ) )",
     [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
   );
@@ -56,14 +47,18 @@ $art_rs = $art_rs->search({ rank => 2 });
 my $rscol = $art_rs->get_column( 'charfield' );
 
 {
-  my $arr = $rscol->as_query;
-  my ($query, @bind) = @{$$arr};
-
   is_same_sql_bind(
-    $query, \@bind,
+    $rscol->as_query,
     "(SELECT me.charfield FROM artist me WHERE ( ( ( rank = ? ) AND ( name = ? ) ) ) )",
     [ [ rank => 2 ], [ name => 'Billy Joel' ] ],
   );
 }
 
-__END__
+{
+  my $rs = $schema->resultset("CD")->search(
+    { 'artist.name' => 'Caterwauler McCrae' },
+    { join => [qw/artist/]}
+  );
+  my $subsel_rs = $schema->resultset("CD")->search( { cdid => { IN => $rs->get_column('cdid')->as_query } } );
+  is($subsel_rs->count, $rs->count, 'Subselect on PK got the same row count');
+}

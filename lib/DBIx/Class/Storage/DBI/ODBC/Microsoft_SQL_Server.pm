@@ -2,13 +2,13 @@ package DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::MSSQL/;
 
 sub _prep_for_execute {
     my $self = shift;
     my ($op, $extra_bind, $ident, $args) = @_;
 
-    my ($sql, $bind) = $self->SUPER::_prep_for_execute(@_);
+    my ($sql, $bind) = $self->next::method (@_);
     $sql .= ';SELECT SCOPE_IDENTITY()' if $op eq 'insert';
 
     return ($sql, $bind);
@@ -19,32 +19,15 @@ sub _execute {
     my ($op) = @_;
 
     my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
-    $self->{_scope_identity} = $sth->fetchrow_array if $op eq 'insert';
+    if ($op eq 'insert') {
+      $self->{_scope_identity} = $sth->fetchrow_array;
+      $sth->finish;
+    }
 
     return wantarray ? ($rv, $sth, @bind) : $rv;
 }
 
 sub last_insert_id { shift->{_scope_identity} }
-
-sub sqlt_type { 'SQLServer' }
-
-sub _sql_maker_opts {
-    my ( $self, $opts ) = @_;
-
-    if ( $opts ) {
-        $self->{_sql_maker_opts} = { %$opts };
-    }
-
-    return { limit_dialect => 'Top', %{$self->{_sql_maker_opts}||{}} };
-}
-
-sub build_datetime_parser {
-  my $self = shift;
-  my $type = "DateTime::Format::Strptime";
-  eval "use ${type}";
-  $self->throw_exception("Couldn't load ${type}: $@") if $@;
-  return $type->new( pattern => '%F %T' );
-}
 
 1;
 
@@ -71,17 +54,6 @@ be called is the same execute statement, not just the same connection.
 
 So, this implementation appends a SELECT SCOPE_IDENTITY() statement
 onto each INSERT to accommodate that requirement.
-
-=head1 METHODS
-
-=head2 last_insert_id
-
-=head2 sqlt_type
-
-=head2 build_datetime_parser
-
-The resulting parser handles the MSSQL C<DATETIME> type, but is almost
-certainly not sufficient for the other MSSQL 2008 date/time types.
 
 =head1 AUTHORS
 

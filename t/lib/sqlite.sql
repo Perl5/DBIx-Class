@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sun Feb 22 00:15:06 2009
+-- Created on Thu May 28 10:10:00 2009
 -- 
 
 
@@ -82,6 +82,8 @@ CREATE TABLE books (
   price integer
 );
 
+CREATE INDEX books_idx_owner_books ON books (owner);
+
 --
 -- Table: cd
 --
@@ -108,6 +110,7 @@ CREATE UNIQUE INDEX cd_artist_title_cd ON cd (artist, title);
 CREATE TABLE cd_to_producer (
   cd integer NOT NULL,
   producer integer NOT NULL,
+  attribute integer,
   PRIMARY KEY (cd, producer)
 );
 
@@ -194,7 +197,8 @@ CREATE TABLE fourkeys (
   bar integer NOT NULL,
   hello integer NOT NULL,
   goodbye integer NOT NULL,
-  sensors character NOT NULL,
+  sensors character(10) NOT NULL,
+  read_count integer,
   PRIMARY KEY (foo, bar, hello, goodbye)
 );
 
@@ -209,6 +213,7 @@ CREATE TABLE fourkeys_to_twokeys (
   t_artist integer NOT NULL,
   t_cd integer NOT NULL,
   autopilot character NOT NULL,
+  pilot_sequence integer,
   PRIMARY KEY (f_foo, f_bar, f_hello, f_goodbye, t_artist, t_cd)
 );
 
@@ -302,7 +307,7 @@ CREATE TABLE onekey (
 -- Table: owners
 --
 CREATE TABLE owners (
-  ownerid INTEGER PRIMARY KEY NOT NULL,
+  id INTEGER PRIMARY KEY NOT NULL,
   name varchar(100) NOT NULL
 );
 
@@ -375,7 +380,8 @@ CREATE TABLE track (
   cd integer NOT NULL,
   position integer NOT NULL,
   title varchar(100) NOT NULL,
-  last_updated_on datetime
+  last_updated_on datetime,
+  last_updated_at datetime
 );
 
 CREATE INDEX track_idx_cd_track ON track (cd);

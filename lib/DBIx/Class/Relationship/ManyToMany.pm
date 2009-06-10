@@ -3,7 +3,8 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use warnings::register;
+
+use Carp::Clan qw/^DBIx::Class/;
 use Sub::Name ();
 
 sub many_to_many {
@@ -28,16 +29,20 @@ sub many_to_many {
 
     for ($add_meth, $remove_meth, $set_meth, $rs_meth) {
       if ( $class->can ($_) ) {
-        warnings::warnif(<<"EOW")
+        carp (<<"EOW") unless $ENV{DBIC_OVERWRITE_HELPER_METHODS_OK};
+
 ***************************************************************************
-The many-to-many relationship $meth is trying to create a utility method called
-$_. This will overwrite the existing method on $class. You almost certainly
-want to rename your method or the many-to-many relationship, as your method
-will not be callable (it will use the one from the relationship instead.)
+The many-to-many relationship '$meth' is trying to create a utility method
+called $_.
+This will completely overwrite one such already existing method on class
+$class.
 
-To disable this warning add the following to $class
+You almost certainly want to rename your method or the many-to-many
+relationship, as the functionality of the original method will not be
+accessible anymore.
 
-  no warnings 'DBIx::Class::Relationship::ManyToMany';
+To disable this warning set to a true value the environment variable
+DBIC_OVERWRITE_HELPER_METHODS_OK
 
 ***************************************************************************
 EOW
@@ -80,12 +85,12 @@ EOW
       my $obj;
       if (ref $_[0]) {
         if (ref $_[0] eq 'HASH') {
-          $obj = $f_rel_rs->create($_[0]);
+          $obj = $f_rel_rs->find_or_create($_[0]);
         } else {
           $obj = $_[0];
         }
       } else {
-        $obj = $f_rel_rs->create({@_});
+        $obj = $f_rel_rs->find_or_create({@_});
       }
 
       my $link_vals = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
@@ -103,7 +108,7 @@ EOW
       );
       my @to_set = (ref($_[0]) eq 'ARRAY' ? @{ $_[0] } : @_);
       $self->search_related($rel, {})->delete;
-      $self->$add_meth($_) for (@to_set);
+      $self->$add_meth($_, ref($_[1]) ? $_[1] : {}) for (@to_set);
     };
 
     my $remove_meth_name = join '::', $class, $remove_meth;
@@ -114,7 +119,7 @@ EOW
       my $obj = shift;
       my $rel_source = $self->search_related($rel)->result_source;
       my $cond = $rel_source->relationship_info($f_rel)->{cond};
-      my $link_cond = $rel_source->resolve_condition(
+      my $link_cond = $rel_source->_resolve_condition(
         $cond, $obj, $f_rel
       );
       $self->search_related($rel, $link_cond)->delete;

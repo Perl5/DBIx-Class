@@ -19,12 +19,12 @@ use_ok('DBICTest');
 use_ok('DBIC::DebugObj');
 my $schema = DBICTest->init_schema();
 
-diag('Testing against ' . join(' ', map { $schema->storage->dbh->get_info($_) } qw/17 18/));
+#diag('Testing against ' . join(' ', map { $schema->storage->dbh->get_info($_) } qw/17 18/));
 
 $schema->storage->sql_maker->quote_char('`');
 $schema->storage->sql_maker->name_sep('.');
 
-my ($sql, @bind) = ('');
+my ($sql, @bind);
 $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
 $schema->storage->debug(1);
 

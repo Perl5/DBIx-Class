@@ -1,8 +1,8 @@
-package # Hide from pause for now - till we get it working
-  DBIx::Class::Storage::TxnScopeGuard;
+package DBIx::Class::Storage::TxnScopeGuard;
 
 use strict;
 use warnings;
+use Carp ();
 
 sub new {
   my ($class, $storage) = @_;
@@ -47,7 +47,7 @@ __END__
 
 =head1 NAME
 
-DBIx::Class::Storage::TxnScopeGuard - Experimental
+DBIx::Class::Storage::TxnScopeGuard - Scope-based transaction handling
 
 =head1 SYNOPSIS
 
@@ -70,14 +70,15 @@ right thing with transactions in DBIx::Class.
 
 =head2 new
 
-Creating an instance of this class will start a new transaction. Expects a
+Creating an instance of this class will start a new transaction (by
+implicitly calling L<DBIx::Class::Storage/txn_begin>. Expects a
 L<DBIx::Class::Storage> object as its only argument.
 
 =head2 commit
 
 Commit the transaction, and stop guarding the scope. If this method is not
-called (i.e. an exception is thrown) and this object goes out of scope then
-the transaction is rolled back.
+called and this object goes out of scope (i.e. an exception is thrown) then
+the transaction is rolled back, via L<DBIx::Class::Storage/txn_rollback>
 
 =cut
 

@@ -2,7 +2,7 @@ package # hide from PAUSE
     Blurb;
 
 use strict;
-use base 'DBIx::Class::Test::SQLite';
+use base 'DBIC::Test::SQLite';
 
 __PACKAGE__->set_table('Blurbs');
 __PACKAGE__->columns('Primary', 'Title');

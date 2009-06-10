@@ -79,12 +79,14 @@ sub belongs_to {
   return 1;
 }
 
-=head1 AUTHORS
+# Attempt to remove the POD so it (maybe) falls off the indexer
 
-Alexander Hartmaier <Alexander.Hartmaier@t-systems.at>
-
-Matt S. Trout <mst@shadowcatsystems.co.uk>
-
-=cut
+#=head1 AUTHORS
+#
+#Alexander Hartmaier <Alexander.Hartmaier@t-systems.at>
+#
+#Matt S. Trout <mst@shadowcatsystems.co.uk>
+#
+#=cut
 
 1;

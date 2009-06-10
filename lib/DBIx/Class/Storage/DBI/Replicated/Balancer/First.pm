@@ -2,6 +2,7 @@ package DBIx::Class::Storage::DBI::Replicated::Balancer::First;
 
 use Moose;
 with 'DBIx::Class::Storage::DBI::Replicated::Balancer';
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 

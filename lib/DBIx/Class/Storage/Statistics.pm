@@ -5,7 +5,7 @@ use warnings;
 use base qw/Class::Accessor::Grouped/;
 use IO::File;
 
-__PACKAGE__->mk_group_accessors(simple => qw/callback debugfh/);
+__PACKAGE__->mk_group_accessors(simple => qw/callback debugfh silence/);
 
 =head1 NAME
 
@@ -56,6 +56,8 @@ to display the message.
 sub print {
   my ($self, $msg) = @_;
 
+  return if $self->silence;
+
   if(!defined($self->debugfh())) {
     my $fh;
     my $debug_env = $ENV{DBIX_CLASS_STORAGE_DBI_DEBUG}
@@ -75,6 +77,10 @@ sub print {
   $self->debugfh->print($msg);
 }
 
+=head2 silence
+
+Turn off all output if set to true.
+
 =head2 txn_begin
 
 Called when a transaction begins.
@@ -82,6 +88,8 @@ Called when a transaction begins.
 =cut
 sub txn_begin {
   my $self = shift;
+
+  return if $self->callback;
 
   $self->print("BEGIN WORK\n");
 }
@@ -94,6 +102,8 @@ Called when a transaction is rolled back.
 sub txn_rollback {
   my $self = shift;
 
+  return if $self->callback;
+
   $self->print("ROLLBACK\n");
 }
 
@@ -104,6 +114,8 @@ Called when a transaction is committed.
 =cut
 sub txn_commit {
   my $self = shift;
+
+  return if $self->callback;
 
   $self->print("COMMIT\n");
 }
@@ -116,6 +128,8 @@ Called when a savepoint is created.
 sub svp_begin {
   my ($self, $name) = @_;
 
+  return if $self->callback;
+
   $self->print("SAVEPOINT $name\n");
 }
 
@@ -127,7 +141,9 @@ Called when a savepoint is released.
 sub svp_release {
   my ($self, $name) = @_;
 
- $self->print("RELEASE SAVEPOINT $name\n");
+  return if $self->callback;
+
+  $self->print("RELEASE SAVEPOINT $name\n");
 }
 
 =head2 svp_rollback
@@ -138,7 +154,9 @@ Called when rolling back to a savepoint.
 sub svp_rollback {
   my ($self, $name) = @_;
 
- $self->print("ROLLBACK TO SAVEPOINT $name\n");
+  return if $self->callback;
+
+  $self->print("ROLLBACK TO SAVEPOINT $name\n");
 }
 
 =head2 query_start

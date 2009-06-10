@@ -21,6 +21,8 @@ is( $it->pager->next_page, 2, "next_page ok" );
 
 is( $it->count, 3, "count on paged rs ok" );
 
+is( $it->pager->total_entries, 5, "total_entries ok" );
+
 is( $it->next->title, "Caterwaulin' Blues", "iterator->next ok" );
 
 $it->next;

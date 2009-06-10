@@ -1,5 +1,6 @@
 use strict;
 use Test::More;
+use lib 't/cdbi/testlib';
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
@@ -10,7 +11,7 @@ BEGIN {
 {
     package Thing;
 
-    use base 'DBIx::Class::Test::SQLite';
+    use base 'DBIC::Test::SQLite';
 
     Thing->columns(TEMP => qw[foo bar]);
     Thing->columns(All  => qw[thing_id yarrow flower]);

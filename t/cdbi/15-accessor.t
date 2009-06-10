@@ -25,6 +25,11 @@ INIT {
     sub Class::DBI::sheep { ok 0; }
 }
 
+# Install the deprecation warning intercept here for the rest of the 08 dev cycle
+local $SIG{__WARN__} = sub {
+  warn @_ unless (DBIx::Class->VERSION < 0.09 and $_[0] =~ /Query returned more than one row/);
+};
+
 sub Film::mutator_name {
     my ($class, $col) = @_;
     return "set_sheep" if lc $col eq "numexplodingsheep";
@@ -160,9 +165,6 @@ is $@, '', "No errors";
     like $@, qr/film/, "no hasa film";
 
     eval {
-        local $SIG{__WARN__} = sub {
-            warn @_ unless $_[0] =~ /Query returned more than one row/;
-        };
         ok my $f = $ac->movie, "hasa movie";
         isa_ok $f, "Film";
         is $f->id, $bt->id, " - Bad Taste";
@@ -264,5 +266,5 @@ is $@, '', "No errors";
     my $abigail = eval { Film->create({ title => "Abigail's Party" }) };
     like $@, qr/read only/, "Or create new films";
 
-    $sandl->discard_changes;
+    $_->discard_changes for ($naked, $sandl);
 }

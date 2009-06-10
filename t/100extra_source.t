@@ -12,7 +12,7 @@ use DBICTest;
     use base qw/DBIx::Class::ResultSource::Table/;
 }
 
-plan tests => 3;
+plan tests => 4;
 
 my $schema = DBICTest->init_schema();
 my $artist_source = $schema->source('Artist');
@@ -33,6 +33,12 @@ local $SIG{__WARN__} = sub { $warn = shift };
 
   my $source = $schema->source('DBICTest::Artist');
   is($source->source_name, 'Artist', 'original source still primary source');
+}
+
+{
+  my $source = $schema->source('DBICTest::Artist');
+  $schema->register_source($source->source_name, $source);
+  is($warn, '', "re-registering an existing source under the same name causes no errors");
 }
 
 {

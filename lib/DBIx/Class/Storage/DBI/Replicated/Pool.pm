@@ -3,7 +3,12 @@ package DBIx::Class::Storage::DBI::Replicated::Pool;
 use Moose;
 use MooseX::AttributeHelpers;
 use DBIx::Class::Storage::DBI::Replicated::Replicant;
-use List::Util qw(sum);
+use List::Util 'sum';
+use Scalar::Util 'reftype';
+use Carp::Clan qw/^DBIx::Class/;
+use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
+
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -37,7 +42,7 @@ return a number of seconds that the replicating database is lagging.
 
 has 'maximum_lag' => (
   is=>'rw',
-  isa=>'Num',
+  isa=>Num,
   required=>1,
   lazy=>1,
   default=>0,
@@ -53,7 +58,7 @@ builtin.
 
 has 'last_validated' => (
   is=>'rw',
-  isa=>'Int',
+  isa=>Int,
   reader=>'last_validated',
   writer=>'_last_validated',
   lazy=>1,
@@ -70,7 +75,7 @@ just leave this alone.
 
 has 'replicant_type' => (
   is=>'ro',
-  isa=>'ClassName',
+  isa=>ClassName,
   required=>1,
   default=>'DBIx::Class::Storage::DBI',
   handles=>{
@@ -120,7 +125,7 @@ removes the replicant under $key from the pool
 has 'replicants' => (
   is=>'rw',
   metaclass => 'Collection::Hash',
-  isa=>'HashRef[DBIx::Class::Storage::DBI]',
+  isa=>HashRef['DBIx::Class::Storage::DBI'],
   default=>sub {{}},
   provides  => {
     'set' => 'set_replicant',
@@ -137,9 +142,9 @@ This class defines the following methods.
 
 =head2 connect_replicants ($schema, Array[$connect_info])
 
-Given an array of $dsn suitable for connected to a database, create an
-L<DBIx::Class::Storage::DBI::Replicated::Replicant> object and store it in the
-L</replicants> attribute.
+Given an array of $dsn or connect_info structures suitable for connected to a
+database, create an L<DBIx::Class::Storage::DBI::Replicated::Replicant> object
+and store it in the L</replicants> attribute.
 
 =cut
 
@@ -149,8 +154,18 @@ sub connect_replicants {
   
   my @newly_created = ();
   foreach my $connect_info (@_) {
+    $connect_info = [ $connect_info ]
+      if reftype $connect_info ne 'ARRAY';
+
+    croak "coderef replicant connect_info not supported"
+      if ref $connect_info->[0] && reftype $connect_info->[0] eq 'CODE';
+
     my $replicant = $self->connect_replicant($schema, $connect_info);
-    my ($key) = ($connect_info->[0]=~m/^dbi\:.+\:(.+)$/);
+
+    my $key = $connect_info->[0];
+    $key = $key->{dsn} if ref $key && reftype $key eq 'HASH';
+    ($key) = ($key =~ m/^dbi\:.+\:(.+)$/);
+
     $self->set_replicant( $key => $replicant);  
     push @newly_created, $replicant;
   }
@@ -169,7 +184,20 @@ sub connect_replicant {
   my ($self, $schema, $connect_info) = @_;
   my $replicant = $self->create_replicant($schema);
   $replicant->connect_info($connect_info);
-  $self->_safely_ensure_connected($replicant);
+
+## It is undesirable for catalyst to connect at ->conect_replicants time, as
+## connections should only happen on the first request that uses the database.
+## So we try to set the driver without connecting, however this doesn't always
+## work, as a driver may need to connect to determine the DB version, and this
+## may fail.
+##
+## Why this is necessary at all, is that we need to have the final storage
+## class to apply the Replicant role.
+
+  $self->_safely($replicant, '->_determine_driver', sub {
+    $replicant->_determine_driver
+  });
+
   DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);  
   return $replicant;
 }
@@ -180,21 +208,39 @@ The standard ensure_connected method with throw an exception should it fail to
 connect.  For the master database this is desirable, but since replicants are
 allowed to fail, this behavior is not desirable.  This method wraps the call
 to ensure_connected in an eval in order to catch any generated errors.  That
-way a slave to go completely offline (ie, the box itself can die) without
+way a slave can go completely offline (ie, the box itself can die) without
 bringing down your entire pool of databases.
 
 =cut
 
 sub _safely_ensure_connected {
   my ($self, $replicant, @args) = @_;
+
+  return $self->_safely($replicant, '->ensure_connected', sub {
+    $replicant->ensure_connected(@args)
+  });
+}
+
+=head2 _safely ($replicant, $name, $code)
+
+Execute C<$code> for operation C<$name> catching any exceptions and printing an
+error message to the C<<$replicant->debugobj>>.
+
+Returns 1 on success and undef on failure.
+
+=cut
+
+sub _safely {
+  my ($self, $replicant, $name, $code) = @_;
+
   eval {
-    $replicant->ensure_connected(@args);
+    $code->()
   }; 
   if ($@) {
     $replicant
       ->debugobj
       ->print(
-        sprintf( "Exception trying to ->ensure_connected for replicant %s, error is %s",
+        sprintf( "Exception trying to $name for replicant %s, error is %s",
           $replicant->_dbi_connect_info->[0], $@)
         );
   	return;
@@ -280,13 +326,13 @@ sub validate_replicants {
     if($self->_safely_ensure_connected($replicant)) {
       my $is_replicating = $replicant->is_replicating;
       unless(defined $is_replicating) {
-        $replicant->debugobj->print("Storage Driver ".ref $self." Does not support the 'is_replicating' method.  Assuming you are manually managing.");
+        $replicant->debugobj->print("Storage Driver ".ref($self)." Does not support the 'is_replicating' method.  Assuming you are manually managing.\n");
         next;
       } else {
         if($is_replicating) {
           my $lag_behind_master = $replicant->lag_behind_master;
           unless(defined $lag_behind_master) {
-            $replicant->debugobj->print("Storage Driver ".ref $self." Does not support the 'lag_behind_master' method.  Assuming you are manually managing.");
+            $replicant->debugobj->print("Storage Driver ".ref($self)." Does not support the 'lag_behind_master' method.  Assuming you are manually managing.\n");
             next;
           } else {
             if($lag_behind_master <= $self->maximum_lag) {

@@ -2,7 +2,7 @@ package # hide from PAUSE
     DBICTest::Schema::Year2000CDs;
 ## Used in 104view.t
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 use DBIx::Class::ResultSource::View;
 
 __PACKAGE__->table_class('DBIx::Class::ResultSource::View');

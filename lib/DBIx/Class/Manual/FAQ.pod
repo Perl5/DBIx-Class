@@ -274,7 +274,7 @@ replaced with the following.)
 
 Or, if you have quoting off:
 
- ->search({ 'YEAR(date_of_birth' => 1979 });
+ ->search({ 'YEAR(date_of_birth)' => 1979 });
 
 =item .. find more help on constructing searches?
 
@@ -352,6 +352,20 @@ want to discard your local changes, just re-fetch the row from storage.  When yo
 to get a new, fresh copy of the row, just re-fetch the row from storage.
 L<DBIx::Class::PK/discard_changes> does just that by re-fetching the row from storage
 using the row's primary key.
+
+=item .. fetch my data a "page" at a time?
+
+Pass the C<rows> and C<page> attributes to your search, eg:
+
+  ->search({}, { rows => 10, page => 1});
+
+=item .. get a count of all rows even when paging?
+
+Call C<pager> on the paged resultset, it will return a L<Data::Page>
+object. Calling C<total_entries> on the pager will return the correct
+total.
+
+C<count> on the resultset will only return the total number in the page.
 
 =back
 
@@ -536,5 +550,40 @@ particular column or group of columns (a-la cdbi Stringfy column
 group, or stringify_self method) ?
 
 See L<DBIx::Class::Manual::Cookbook/Stringification>
+
+=back
+
+=head2 Troubleshooting
+
+=over 4
+
+=item Help, I can't connect to postgresql!
+
+If you get an error such as:
+
+  DBI connect('dbname=dbic','user',...) failed: could not connect to server:
+  No such file or directory Is the server running locally and accepting
+  connections on Unix domain socket "/var/run/postgresql/.s.PGSQL.5432"?
+
+Likely you have/had two copies of postgresql installed simultaneously, the
+second one will use a default port of 5433, while L<DBD::Pg> is compiled with a
+default port of 5432.
+
+You can chance the port setting in C<postgresql.conf>.
+
+=item I've lost or forgotten my mysql password
+
+Stop mysqld and restart it with the --skip-grant-tables option.
+
+Issue the following statements in the mysql client.
+
+  UPDATE mysql.user SET Password=PASSWORD('MyNewPass') WHERE User='root';
+  FLUSH PRIVILEGES;
+
+Restart mysql.
+
+Taken from:
+
+L<http://dev.mysql.com/doc/refman/5.1/en/resetting-permissions.html>.
 
 =back

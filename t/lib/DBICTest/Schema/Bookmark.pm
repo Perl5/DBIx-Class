@@ -1,7 +1,7 @@
 package # hide from PAUSE
     DBICTest::Schema::Bookmark;
 
-    use base 'DBIx::Class::Core';
+    use base qw/DBICTest::BaseResult/;
 
 
 use strict;
@@ -19,6 +19,6 @@ __PACKAGE__->add_columns(
 );
 
 __PACKAGE__->set_primary_key('id');
-__PACKAGE__->belongs_to(link => 'DBICTest::Schema::Link' );
+__PACKAGE__->belongs_to(link => 'DBICTest::Schema::Link', 'link', { on_delete => 'SET NULL' } );
 
 1;

@@ -2,6 +2,9 @@ package DBIx::Class::Storage::DBI::Replicated::Balancer;
 
 use Moose::Role;
 requires 'next_storage';
+use MooseX::Types::Moose qw/Int/;
+
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 
@@ -31,7 +34,7 @@ validating every query.
 
 has 'auto_validate_every' => (
   is=>'rw',
-  isa=>'Int',
+  isa=>Int,
   predicate=>'has_auto_validate_every',
 );
 

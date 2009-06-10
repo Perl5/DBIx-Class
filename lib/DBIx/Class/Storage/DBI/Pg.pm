@@ -5,7 +5,7 @@ use warnings;
 
 use DBD::Pg qw(:pg_types);
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
 
 # __PACKAGE__->load_components(qw/PK::Auto/);
 

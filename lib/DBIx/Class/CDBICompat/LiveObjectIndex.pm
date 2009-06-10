@@ -51,15 +51,15 @@ sub clear_object_index {
 sub insert {
   my ($self, @rest) = @_;
   $self->next::method(@rest);
-  
+
   return $self if $self->nocache;
 
-    # Because the insert will die() if it can't insert into the db (or should)
-    # we can be sure the object *was* inserted if we got this far. In which
-    # case, given primary keys are unique and ID only returns a
-    # value if the object has all its primary keys, we can be sure there
-    # isn't a real one in the object index already because such a record
-    # cannot have existed without the insert failing.
+  # Because the insert will die() if it can't insert into the db (or should)
+  # we can be sure the object *was* inserted if we got this far. In which
+  # case, given primary keys are unique and ID only returns a
+  # value if the object has all its primary keys, we can be sure there
+  # isn't a real one in the object index already because such a record
+  # cannot have existed without the insert failing.
   if (my $key = $self->ID) {
     my $live = $self->live_object_index;
     weaken($live->{$key} = $self);
@@ -67,7 +67,7 @@ sub insert {
       if ++$self->live_object_init_count->{count}
               % $self->purge_object_index_every == 0;
   }
-  #use Data::Dumper; warn Dumper($self);
+
   return $self;
 }
 

@@ -8,13 +8,13 @@ use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
 
 
-sub mk_classdata { 
+sub mk_classdata {
   shift->mk_classaccessor(@_);
 }
 
 sub mk_classaccessor {
   my $self = shift;
-  $self->mk_group_accessors('inherited', $_[0]); 
+  $self->mk_group_accessors('inherited', $_[0]);
   $self->set_inherited(@_) if @_ > 1;
 }
 
@@ -24,7 +24,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.08099_07';
+$VERSION = '0.08104';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -207,6 +207,8 @@ andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky
 
+arcanez: Justin Hunter <justin.d.hunter@gmail.com>
+
 ash: Ash Berlin <ash@cpan.org>
 
 bert: Norbert Csongradi <bert@cpan.org>
@@ -218,8 +220,6 @@ bluefeet: Aran Deltac <bluefeet@cpan.org>
 bricas: Brian Cassidy <bricas@cpan.org>
 
 caelum: Rafael Kitover <rkitover@cpan.org>
-
-captainL: Luke Saunders <luke.saunders@gmail.com>
 
 castaway: Jess Robinson
 
@@ -239,9 +239,15 @@ dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 
 dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 
+frew: Arthur Axel "fREW" Schmidt <frioux@gmail.com>
+
 gphat: Cory G Watson <gphat@cpan.org>
 
 groditi: Guillermo Roditi <groditi@cpan.org>
+
+ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
+
+jasonmay: Jason May <jason.a.may@gmail.com>
 
 jesper: Jesper Krogh
 
@@ -257,6 +263,8 @@ jshirley: J. Shirley <jshirley@gmail.com>
 
 konobi: Scott McWhirter
 
+lukes: Luke Saunders <luke.saunders@gmail.com>
+
 marcus: Marcus Ramberg <mramberg@cpan.org>
 
 mattlaw: Matt Lawrence
@@ -269,6 +277,10 @@ nigel: Nigel Metheringham <nigelm@cpan.org>
 
 ningu: David Kamholz <dkamholz@cpan.org>
 
+Nniuq: Ron "Quinn" Straight" <quinnfazigu@gmail.org>
+
+norbi: Norbert Buchmuller <norbi@nix.hu>
+
 Numa: Dan Sully <daniel@cpan.org>
 
 oyse: Øystein Torget <oystein.torget@dnv.com>
@@ -278,6 +290,8 @@ paulm: Paul Makepeace
 penguin: K J Cheetham
 
 perigrin: Chris Prather <chris@prather.org>
+
+peter: Peter Collingbourne <peter@pcc.me.uk>
 
 phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
@@ -301,6 +315,8 @@ scotty: Scotty Allen <scotty@scottyallen.com>
 
 semifor: Marc Mims <marc@questright.com>
 
+solomon: Jared Johnson <jaredj@nmgi.com>
+
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
 teejay : Aaron Trevena <teejay@cpan.org>
@@ -317,9 +333,9 @@ wdh: Will Hawes
 
 willert: Sebastian Willert <willert@cpan.org>
 
-zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
+wreis: Wallace Reis <wreis@cpan.org>
 
-norbi: Norbert Buchmuller <norbi@nix.hu>
+zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 LICENSE
 
