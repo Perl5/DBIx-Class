@@ -114,7 +114,7 @@ $schema->populate ('BooksInLibrary', [
 # (mysql doesn't seem to like subqueries with equally named columns)
 #
 
-SKIP: {
+{
   # try a ->has_many direction (due to a 'multi' accessor the select/group_by group is collapsed)
   my $owners = $schema->resultset ('Owners')->search (
     { 'books.id' => { '!=', undef }},
@@ -126,7 +126,7 @@ SKIP: {
     is ($_->count, 2, 'Prefetched grouped search returns correct count');
   }
 
-  # try a ->prefetch direction (no select collapse)
+  # try a ->belongs_to direction (no select collapse)
   my $books = $schema->resultset ('BooksInLibrary')->search (
     { 'owner.name' => 'wiggle' },
     { prefetch => 'owner', distinct => 1 }
