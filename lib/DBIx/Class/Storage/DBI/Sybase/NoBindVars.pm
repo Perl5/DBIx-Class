@@ -39,6 +39,9 @@ sub should_quote_data_type {
 
   if (my $key = List::Util::first { $type =~ /$_/i } keys %noquote) {
     return 0 if $noquote{$key}->($value);
+  } elsif ($type eq '__UNKNOWN__') {
+# try to guess based on value
+    return 0 if $number->($value) || $noquote->{money}->($value);
   }
 
   return $self->next::method(@_);

@@ -62,7 +62,8 @@ sub _prep_for_execute {
 
     my $rsrc = $alias2src->{$alias};
 
-    my $datatype = $rsrc->column_info($col)->{data_type};
+    my $datatype = $rsrc ? $rsrc->column_info($col)->{data_type} :
+        '__UNKNOWN__';
 
     foreach my $data (@$bound) {
         if(ref $data) {
