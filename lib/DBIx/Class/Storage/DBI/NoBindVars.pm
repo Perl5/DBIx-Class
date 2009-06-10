@@ -50,14 +50,21 @@ sub _prep_for_execute {
   my @sql_part = split /\?/, $sql;
   my $new_sql;
 
+  my $result_sources = {};
+
   foreach my $bound (@$bind) {
     my $col = shift @$bound;
 
-    $col =~ s/^([^.]*)\.//;
+    my $name_sep = $self->_sql_maker_opts->{name_sep} || '.';
+
+    $col =~ s/^([^\Q${name_sep}\E]*)\Q${name_sep}\E//;
     my $alias = $1 || 'me';
 
-    my $datatype = $self->_resolve_ident_sources($ident)->{$alias}
-        ->column_info($col)->{data_type};
+    $result_sources->{$alias} ||=
+        $self->_resolve_ident_sources($ident)->{$alias};
+    my $rsrc = $result_sources->{$alias};
+
+    my $datatype = $rsrc->column_info($col)->{data_type};
 
     foreach my $data (@$bound) {
         if(ref $data) {
