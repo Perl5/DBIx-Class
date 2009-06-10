@@ -769,8 +769,39 @@ sub set_column {
   my $old_value = $self->get_column($column);
 
   $self->store_column($column, $new_value);
-  $self->{_dirty_columns}{$column} = 1
-    if (defined $old_value xor defined $new_value) || (defined $old_value && $old_value ne $new_value);
+
+  my $dirty;
+  if (defined $old_value xor defined $new_value) {
+    $dirty = 1;
+  }
+  elsif (not defined $old_value) {  # both undef
+    $dirty = 0;
+  }
+  elsif ($old_value eq $new_value) {
+    $dirty = 0;
+  }
+  else {  # do a numeric comparison if datatype allows it
+    my $colinfo = $self->column_info ($column);
+
+    # cache for speed
+    if (not defined $colinfo->{is_numeric}) {
+      $colinfo->{is_numeric} =
+        $self->result_source->schema->storage->is_datatype_numeric ($colinfo->{data_type})
+          ? 1
+          : 0
+        ;
+    }
+
+    if ($colinfo->{is_numeric}) {
+      $dirty = $old_value <=> $new_value;
+    }
+    else {
+      $dirty = 1;
+    }
+  }
+
+  # sadly the update code just checks for keys, not for their value
+  $self->{_dirty_columns}{$column} = 1 if $dirty;
 
   # XXX clear out the relation cache for this column
   delete $self->{related_resultsets}{$column};

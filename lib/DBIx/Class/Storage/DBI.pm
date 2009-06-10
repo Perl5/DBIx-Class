@@ -1559,6 +1559,27 @@ sub bind_attribute_by_data_type {
     return;
 }
 
+=head2 is_datatype_numeric
+
+Given a datatype from column_info, returns a boolean value indicating if
+the current RDBMS considers it a numeric value. This controls how
+L<< DBIx::Class::Row/set_column >> decides whether to mark the column as
+dirty - when the datatype is deemed numeric a C<< <=> >> comparison will
+be performed instead of the usual C<eq>.
+
+=cut
+
+sub is_datatype_numeric {
+  my ($self, $dt) = @_;
+
+  return 0 unless $dt;
+
+  return $dt =~ /^ (?:
+    numeric | int(?:eger)? | (?:tiny|small|medium|big)int | dec(?:imal)? | real | float | double (?: \s+ precision)? | (?:big)?serial
+  ) $/ix;
+}
+
+
 =head2 create_ddl_dir (EXPERIMENTAL)
 
 =over 4
