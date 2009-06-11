@@ -4,6 +4,11 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::MSSQL/;
 
+sub insert_bulk {
+  my ($self, $source, $cols, $data) = @_;
+  next::method(@_);
+}
+
 sub _prep_for_execute {
   my $self = shift;
   my ($op, $extra_bind, $ident, $args) = @_;
@@ -11,19 +16,13 @@ sub _prep_for_execute {
   my ($sql, $bind) = $self->next::method (@_);
   $sql .= ';SELECT SCOPE_IDENTITY()' if $op eq 'insert';
 
-  my $alias2src = $self->_resolve_ident_sources($ident);
   my %identity_insert_tables;
+  my $col_sources = $self->_resolve_column_sources($ident, [map $_->[0], @{$bind}]);
+
   foreach my $bound (@{$bind}) {
-    my $col =  $bound->[0];
-    my $name_sep = $self->_sql_maker_opts->{name_sep} || '.';
-
-    $col =~ s/^([^\Q${name_sep}\E]*)\Q${name_sep}\E//;
-    my $alias = $1 || 'me';
-    my $rsrc = $alias2src->{$alias};
-
-    my $is_auto_increment = $rsrc && $rsrc->column_info($col)->{is_auto_increment};
-    my $table;
-    if ($is_auto_increment) {
+    my $col = $bound->[0];
+    my $rsrc = $col_sources->{$col};
+    if ($rsrc && $rsrc->column_info($col)->{is_auto_increment}) {
       $identity_insert_tables{$rsrc->from} = 1;
     }
   }
