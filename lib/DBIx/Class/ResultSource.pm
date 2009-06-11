@@ -116,6 +116,18 @@ automatically set. This is used to determine which columns to empty
 when cloning objects using L<DBIx::Class::Row/copy>. It is also used by
 L<DBIx::Class::Schema/deploy>.
 
+=item is_numeric
+
+Set this to a true or false value (not C<undef>) to explicitly specify
+if this column contains numeric data. This controls how set_column
+decides whether to consider a column dirty after an update: if
+C<is_numeric> is true a numeric comparison C<< <=> >> will take place
+instead of the usual C<eq>
+
+If not specified the storage class will attempt to figure this out on
+first access to the column, based on the column C<data_type>. The
+result will be cached in this attribute.
+
 =item is_foreign_key
 
 Set this to a true value for a column that contains a key from a
