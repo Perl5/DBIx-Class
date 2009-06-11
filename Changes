@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08105 2009-06-11 19:04:00 (UTC)
         - Update of numeric columns now properly uses != to determine
           dirtyness instead of the usual eq
         - Fixes to IC::DT tests
