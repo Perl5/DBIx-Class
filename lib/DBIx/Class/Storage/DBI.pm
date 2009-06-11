@@ -1309,21 +1309,23 @@ sub _resolve_ident_sources {
   return $alias2source;
 }
 
-# Takes $ident, [$column_names]
+# Takes $ident, \@column_names
 #
-# returns { $column_name => $resultsource, ... }
+# returns { $column_name => \%column_info, ... }
+# also note: this adds -result_source => $rsrc to the column info
 #
 # usage:
-#   my $col_sources = $self->_resolve_column_sources($ident, [map $_->[0], @{$bind}]);
-sub _resolve_column_sources {
+#   my $col_sources = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
+sub _resolve_column_info {
   my ($self, $ident, $colnames) = @_;
   my $alias2src = $self->_resolve_ident_sources($ident);
   my $name_sep = $self->_sql_maker_opts->{name_sep} || '.';
   my %return;
   foreach my $col (@{$colnames}) {
-    $col =~ s/^([^\Q${name_sep}\E]*)\Q${name_sep}\E//;
+    $col =~ m/^([^\Q${name_sep}\E]*)\Q${name_sep}\E/;
     my $alias = $1 || 'me';
-    $return{$col} = $alias2src->{$alias};
+    my $rsrc = $alias2src->{$alias};
+    $return{$col} = $rsrc && { %{$rsrc->column_info($col)}, -result_source => $rsrc };
   }
   return \%return;
 }

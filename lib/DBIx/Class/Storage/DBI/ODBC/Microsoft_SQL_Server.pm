@@ -17,13 +17,13 @@ sub _prep_for_execute {
   $sql .= ';SELECT SCOPE_IDENTITY()' if $op eq 'insert';
 
   my %identity_insert_tables;
-  my $col_sources = $self->_resolve_column_sources($ident, [map $_->[0], @{$bind}]);
+  my $col_info = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
 
   foreach my $bound (@{$bind}) {
     my $col = $bound->[0];
-    my $rsrc = $col_sources->{$col};
-    if ($rsrc && $rsrc->column_info($col)->{is_auto_increment}) {
-      $identity_insert_tables{$rsrc->from} = 1;
+    if ($col_info->{$col}->{is_auto_increment}) {
+      my $table = $col_info->{$col}->{-result_source}->from;
+      $identity_insert_tables{$table} = 1;
     }
   }
 
