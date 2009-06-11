@@ -121,7 +121,7 @@ L<DBIx::Class::Schema/deploy>.
 Set this to a true or false value (not C<undef>) to explicitly specify
 if this column contains numeric data. This controls how set_column
 decides whether to consider a column dirty after an update: if
-C<is_numeric> is true a numeric comparison C<< <=> >> will take place
+C<is_numeric> is true a numeric comparison C<< != >> will take place
 instead of the usual C<eq>
 
 If not specified the storage class will attempt to figure this out on

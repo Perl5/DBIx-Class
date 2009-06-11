@@ -793,7 +793,7 @@ sub set_column {
     }
 
     if ($colinfo->{is_numeric}) {
-      $dirty = $old_value <=> $new_value;
+      $dirty = $old_value != $new_value;
     }
     else {
       $dirty = 1;
