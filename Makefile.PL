@@ -73,11 +73,16 @@ my %force_requires_if_author = (
   'Test::Memory::Cycle'       => 0,
   'Devel::Cycle'              => 1.10,
 
+  # t/inflate/datetime*.t
+  # t/72.pg
+  # t/36datetime.t
   # t/60core.t
+  'DateTime::Format::SQLite'  => 0,
   'DateTime::Format::MySQL'   => 0,
-  
-  # t/89inflate_datetime.t
   'DateTime::Format::Pg'      => 0,
+
+  # t/96_is_deteministic_value.t
+  'DateTime::Format::Strptime' => 0,
 
   # t/72pg.t
   $ENV{DBICTEST_PG_DSN}
@@ -92,8 +97,6 @@ my %force_requires_if_author = (
   'namespace::clean'              => 0.11,
   'Hash::Merge',                  => 0.11,
 
-  # t/96_is_deteministic_value.t
-  'DateTime::Format::Strptime' => 0,
 );
 
 if ($Module::Install::AUTHOR) {
