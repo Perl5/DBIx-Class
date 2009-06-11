@@ -183,6 +183,39 @@ L<DBIx::Class::InflateColumn::DateTime>.
 
 sub datetime_parser_type { return "DateTime::Format::Oracle"; }
 
+=head2 connect_call_set_datetime_format
+
+Used as:
+
+    on_connect_call => 'set_datetime_format'
+
+In L<DBIx::Class::Storage::DBI/connect_info> to set the session nls date,
+and timestamp values for use with
+L<DBIx::Class::InflateColumn::DateTime>. As well as the necessary environment
+variables for L<DateTime::Format::Oracle>.
+
+Maximum allowable precision is used.
+
+C<nls_timestamp_tz_format> is also initialized but is not currently used by
+L<DBIx::Class::InflateColumn::DateTime>.
+
+=cut
+
+sub connect_call_set_datetime_format {
+  my $self = shift;
+  my $dbh  = $self->dbh;
+
+  my $date_format = $ENV{NLS_DATE_FORMAT} ||= 'YYYY-MM-DD HH24:MI:SS';
+  my $timestamp_format = $ENV{NLS_TIMESTAMP_FORMAT} ||=
+    'YYYY-MM-DD HH24:MI:SS.FF';
+  my $timestamp_tz_format = $ENV{NLS_TIMESTAMP_TZ_FORMAT} ||=
+    'YYYY-MM-DD HH24:MI:SS.FF TZHTZM';
+
+  $dbh->do("alter session set nls_date_format = '$date_format'");
+  $dbh->do("alter session set nls_timestamp_format = '$timestamp_format'");
+  $dbh->do("alter session set nls_timestamp_tz_format = '$timestamp_tz_format'");
+}
+
 sub _svp_begin {
     my ($self, $name) = @_;
  

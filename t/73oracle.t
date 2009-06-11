@@ -32,6 +32,7 @@ use Test::Exception;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DateTime;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_ORA_${_}" } qw/DSN USER PASS/};
 
@@ -40,10 +41,12 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
   unless ($dsn && $user && $pass);
 
-plan tests => 34;
+plan tests => 36;
 
 DBICTest::Schema->load_classes('ArtistFQN');
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+  on_connect_call => 'set_datetime_format'
+});
 
 my $dbh = $schema->storage->dbh;
 
@@ -112,15 +115,22 @@ is($new->artistid, 1, "Oracle Auto-PK worked");
 $new = $schema->resultset('ArtistFQN')->create( { name => 'bar' } );
 is( $new->artistid, 2, "Oracle Auto-PK worked with fully-qualified tablename" );
 
-# test join with row count ambiguity
+# test join with row count ambiguity, and DateTime inflation
+
+my $dt = DateTime->now;
+
 my $cd = $schema->resultset('CD')->create({ cdid => 1, artist => 1, title => 'EP C', year => '2003' });
-my $track = $schema->resultset('Track')->create({ trackid => 1, cd => 1, position => 1, title => 'Track1' });
+my $track = $schema->resultset('Track')->create({ trackid => 1, cd => 1,
+    position => 1, title => 'Track1', last_updated_on => $dt });
 my $tjoin = $schema->resultset('Track')->search({ 'me.title' => 'Track1'},
         { join => 'cd',
           rows => 2 }
 );
 
-is($tjoin->next->title, 'Track1', "ambiguous column ok");
+ok(my $row = $tjoin->next);
+
+is($row->title, 'Track1', "ambiguous column ok");
+is($row->updated_date, $dt, "DateTime inflation/deflation ok");
 
 # check count distinct with multiple columns
 my $other_track = $schema->resultset('Track')->create({ trackid => 2, cd => 1, position => 1, title => 'Track2' });

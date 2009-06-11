@@ -14,13 +14,14 @@ use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
-       _conn_pid _conn_tid transaction_depth _dbh_autocommit savepoints/
+       _conn_pid _conn_tid transaction_depth _dbh_autocommit _on_connect_do
+       _on_disconnect_do savepoints/
 );
 
 # the values for these accessors are picked out (and deleted) from
 # the attribute hashref passed to connect_info
 my @storage_options = qw/
-  on_connect_do on_disconnect_do disable_sth_caching unsafe auto_savepoint
+  on_connect_call on_disconnect_call disable_sth_caching unsafe auto_savepoint
 /;
 __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 
@@ -173,6 +174,68 @@ array reference, its return value is ignored.
 
 Takes arguments in the same form as L</on_connect_do> and executes them
 immediately before disconnecting from the database.
+
+Note, this only runs if you explicitly call L</disconnect> on the
+storage object.
+
+=item on_connect_call
+
+A more generalized form of L</on_connect_do> that calls the specified
+C<connect_call_METHOD> methods in your storage driver.
+
+  on_connect_do => 'select 1'
+
+is equivalent to:
+
+  on_connect_call => [ [ do_sql => 'select 1' ] ]
+
+Its values may contain:
+
+=over
+
+=item a scalar
+
+Will call the C<connect_call_METHOD> method.
+
+=item a code reference
+
+Will execute C<< $code->($storage) >>
+
+=item an array reference
+
+Each value can be a method name or code reference.
+
+=item an array of arrays
+
+For each array, the first item is taken to be the C<connect_call_> method name
+or code reference, and the rest are parameters to it.
+
+=back
+
+Some predefined storage methods you may use:
+
+=over
+
+=item do_sql
+
+Executes a SQL string or a code reference that returns a SQL string. This is
+what L</on_connect_do> and L</on_disconnect_do> use.
+
+=item set_datetime_format
+
+Execute any statements necessary to initialize the database session to return
+and accept datetime/timestamp values used with
+L<DBIx::Class::InflateColumn::DateTime>.
+
+=back
+
+=item on_disconnect_call
+
+Takes arguments in the same form as L</on_connect_call> and executes them
+immediately before disconnecting from the database.
+
+Calls the C<disconnect_call_METHOD> methods as opposed to the
+C<connect_call_METHOD> methods called by L</on_connect_call>.
 
 Note, this only runs if you explicitly call L</disconnect> on the
 storage object.
@@ -347,6 +410,11 @@ sub connect_info {
         $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
       }
     }
+    for my $connect_do_opt (qw/on_connect_do on_disconnect_do/) {
+      if(my $opt_val = delete $attrs{$connect_do_opt}) {
+        $self->$connect_do_opt($opt_val);
+      }
+    }
   }
 
   %attrs = () if (ref $args[0] eq 'CODE');  # _connect() never looks past $args[0] in this case
@@ -359,6 +427,54 @@ sub connect_info {
 
 This method is deprecated in favour of setting via L</connect_info>.
 
+=cut
+
+sub on_connect_do {
+  my $self = shift;
+  $self->_setup_connect_do(on_connect_do => @_);
+}
+
+=head2 on_disconnect_do
+
+This method is deprecated in favour of setting via L</connect_info>.
+
+=cut
+
+sub on_disconnect_do {
+  my $self = shift;
+  $self->_setup_connect_do(on_disconnect_do => @_);
+}
+
+sub _setup_connect_do {
+  my ($self, $opt) = (shift, shift);
+
+  my $accessor = "_$opt";
+
+  return $self->$accessor if not @_;
+
+  my $val = shift;
+
+  (my $call = $opt) =~ s/_do\z/_call/;
+
+  if (ref($self->$call) ne 'ARRAY') {
+    $self->$call([
+      defined $self->$call ?  $self->$call : ()
+    ]);
+  }
+
+  if (not ref($val)) {
+    push @{ $self->$call }, [ 'do_sql', $val ];
+  } elsif (ref($val) eq 'CODE') {
+    push @{ $self->$call }, $val;
+  } elsif (ref($val) eq 'ARRAY') {
+    push @{ $self->$call },
+    map [ 'do_sql', $_ ], @$val;
+  } else {
+    $self->throw_exception("Invalid type for $opt ".ref($val));
+  }
+
+  $self->$accessor($val);
+}
 
 =head2 dbh_do
 
@@ -506,8 +622,9 @@ sub disconnect {
   my ($self) = @_;
 
   if( $self->connected ) {
-    my $connection_do = $self->on_disconnect_do;
-    $self->_do_connection_actions($connection_do) if ref($connection_do);
+    my $connection_call = $self->on_disconnect_call;
+    $self->_do_connection_actions(disconnect_call_ => $connection_call)
+      if $connection_call;
 
     $self->_dbh->rollback unless $self->_dbh_autocommit;
     $self->_dbh->disconnect;
@@ -624,8 +741,9 @@ sub _populate_dbh {
   #  there is no transaction in progress by definition
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
 
-  my $connection_do = $self->on_connect_do;
-  $self->_do_connection_actions($connection_do) if $connection_do;
+  my $connection_call = $self->on_connect_call;
+  $self->_do_connection_actions(connect_call_ => $connection_call)
+    if $connection_call;
 }
 
 sub _determine_driver {
@@ -650,24 +768,40 @@ sub _determine_driver {
 }
 
 sub _do_connection_actions {
-  my $self = shift;
-  my $connection_do = shift;
+  my $self          = shift;
+  my $method_prefix = shift;
+  my $call          = shift;
 
-  if (!ref $connection_do) {
-    $self->_do_query($connection_do);
-  }
-  elsif (ref $connection_do eq 'ARRAY') {
-    $self->_do_query($_) foreach @$connection_do;
-  }
-  elsif (ref $connection_do eq 'CODE') {
-    $connection_do->($self);
-  }
-  else {
-    $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref $connection_do) );
+  if (not ref($call)) {
+    my $method = $method_prefix . $call;
+    $self->$method(@_);
+  } elsif (ref($call) eq 'CODE') {
+    $self->$call(@_);
+  } elsif (ref($call) eq 'ARRAY') {
+    if (ref($call->[0]) ne 'ARRAY') {
+      $self->_do_connection_actions($method_prefix, $_) for @$call;
+    } else {
+      $self->_do_connection_actions($method_prefix, @$_) for @$call;
+    }
+  } else {
+    $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref($call)) );
   }
 
   return $self;
 }
+
+sub connect_call_do_sql {
+  my $self = shift;
+  $self->_do_query(@_);
+}
+
+sub disconnect_call_do_sql {
+  my $self = shift;
+  $self->_do_query(@_);
+}
+
+# override in db-specific backend when necessary
+sub connect_call_set_datetime_format { 1 }
 
 sub _do_query {
   my ($self, $action) = @_;
