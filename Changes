@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+0.08106 2009-06-11 21:42:00 (UTC)
+        - Switched SQLite storage driver to DateTime::Format::SQLite
+          (proper timezone handling)
+        - Fix more test problems
+
 0.08105 2009-06-11 19:04:00 (UTC)
         - Update of numeric columns now properly uses != to determine
           dirtyness instead of the usual eq
