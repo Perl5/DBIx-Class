@@ -11,30 +11,26 @@ sub _prep_for_execute {
   my ($sql, $bind) = $self->next::method (@_);
   $sql .= ';SELECT SCOPE_IDENTITY()' if $op eq 'insert';
 
-  use Scalar::Util 'blessed';
-  use List::Util 'first';
-  if ( blessed $ident ) {
-    my %auto_inc_columns;
-    foreach my $column ($ident->columns) {
-      if ($ident->column_info($column)->{is_auto_increment}) {
-	$auto_inc_columns{$column} = 1;
-      }
-    }
+  my $alias2src = $self->_resolve_ident_sources($ident);
+  my %identity_insert_tables;
+  foreach my $bound (@{$bind}) {
+    my $col =  $bound->[0];
+    my $name_sep = $self->_sql_maker_opts->{name_sep} || '.';
 
-    my $table = $ident->from;
-    my $auto_inc_col = 0;
-    BINDS:
-    foreach my $bound (@{$bind}) {
-      my $col =  $bound->[0];
-      if ($auto_inc_columns{$col}) {
-	$auto_inc_col = 1;
-	last BINDS;
-      }
-    }
-    if ($auto_inc_col) {
-      $sql = "SET IDENTITY_INSERT $table ON; $sql; SET IDENTITY_INSERT $table OFF;"
+    $col =~ s/^([^\Q${name_sep}\E]*)\Q${name_sep}\E//;
+    my $alias = $1 || 'me';
+    my $rsrc = $alias2src->{$alias};
+
+    my $is_auto_increment = $rsrc && $rsrc->column_info($col)->{is_auto_increment};
+    my $table;
+    if ($is_auto_increment) {
+      $identity_insert_tables{$rsrc->from} = 1;
     }
   }
+
+  my $identity_insert_on = join '', map { "SET IDENTITY_INSERT $_ ON; " } keys %identity_insert_tables;
+  my $identity_insert_off = join '', map { "SET IDENTITY_INSERT $_ OFF; " } keys %identity_insert_tables;
+  $sql = "$identity_insert_on $sql $identity_insert_off";
 
   return ($sql, $bind);
 }
