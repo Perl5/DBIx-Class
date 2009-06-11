@@ -7,10 +7,9 @@ use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class/;
 use DBI;
-use DBIx::Class::SQLAHacks;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
-use Scalar::Util qw/blessed weaken/;
+use Scalar::Util();
 use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
@@ -603,6 +602,7 @@ sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
     my $sql_maker_class = $self->sql_maker_class;
+    $self->ensure_class_loaded ($sql_maker_class);
     $self->_sql_maker($sql_maker_class->new( $self->_sql_maker_args ));
   }
   return $self->_sql_maker;
@@ -717,7 +717,7 @@ sub _connect {
 
     if($dbh && !$self->unsafe) {
       my $weak_self = $self;
-      weaken($weak_self);
+      Scalar::Util::weaken($weak_self);
       $dbh->{HandleError} = sub {
           if ($weak_self) {
             $weak_self->throw_exception("DBI Exception: $_[0]");
@@ -898,7 +898,7 @@ sub txn_rollback {
 sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, $args) = @_;
 
-  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+  if( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
     $ident = $ident->from();
   }
 
@@ -908,6 +908,38 @@ sub _prep_for_execute {
     map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
       if $extra_bind;
   return ($sql, \@bind);
+}
+
+=head2 as_query
+
+=over 4
+
+=item Arguments: $rs_attrs
+
+=item Return Value: \[ $sql, @bind ]
+
+=back
+
+Returns the SQL statement and bind vars that would result from the given
+ResultSet attributes (does not actually run a query)
+
+=cut
+
+sub as_query {
+  my ($self, $rs_attr) = @_;
+
+  my $sql_maker = $self->sql_maker;
+  local $sql_maker->{for};
+
+  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset) = $self->_select_args(...);
+  my @args = $self->_select_args($rs_attr->{from}, $rs_attr->{select}, $rs_attr->{where}, $rs_attr);
+
+  # my ($sql, $bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
+  my ($sql, $bind) = $self->_prep_for_execute(
+    @args[0 .. 2],
+    [ @args[4 .. $#args] ],
+  );
+  return \[ "($sql)", @{ $bind || [] }];
 }
 
 sub _fix_bind_params {
@@ -931,7 +963,7 @@ sub _query_start {
 
     if ( $self->debug ) {
         @bind = $self->_fix_bind_params(@bind);
-        
+
         $self->debugobj->query_start( $sql, @bind );
     }
 }
@@ -990,8 +1022,8 @@ sub _execute {
 
 sub insert {
   my ($self, $source, $to_insert) = @_;
-  
-  my $ident = $source->from; 
+
+  my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
 
   my $updated_cols = {};
@@ -1092,7 +1124,7 @@ sub delete {
   my $self = shift @_;
   my $source = shift @_;
   
-  my $bind_attrs = {}; ## If ever it's needed...
+  my $bind_attrs = $self->source_bind_attributes($source);
   
   return $self->_execute('delete' => [], $source, $bind_attrs, @_);
 }
@@ -1104,7 +1136,7 @@ sub delete {
 # Genarating a single PK column subquery is trivial and supported
 # by all RDBMS. However if we have a multicolumn PK, things get ugly.
 # Look at _multipk_update_delete()
-sub subq_update_delete {
+sub _subq_update_delete {
   my $self = shift;
   my ($rs, $op, $values) = @_;
 
@@ -1197,23 +1229,41 @@ sub _select {
 
 sub _select_args {
   my ($self, $ident, $select, $condition, $attrs) = @_;
-  my $order = $attrs->{order_by};
 
   my $for = delete $attrs->{for};
   my $sql_maker = $self->sql_maker;
   $sql_maker->{for} = $for;
 
-  my @in_order_attrs = qw/group_by having _virtual_order_by/;
-  if (List::Util::first { exists $attrs->{$_} } (@in_order_attrs) ) {
-    $order = {
-      ($order
-        ? (order_by => $order)
-        : ()
-      ),
-      ( map { $_ => $attrs->{$_} } (@in_order_attrs) )
-    };
+  my $order = { map
+    { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
+    (qw/order_by group_by having _virtual_order_by/ )
+  };
+
+
+  my $bind_attrs = {};
+
+  my $alias2source = $self->_resolve_ident_sources ($ident);
+
+  for my $alias (keys %$alias2source) {
+    my $bindtypes = $self->source_bind_attributes ($alias2source->{$alias}) || {};
+    for my $col (keys %$bindtypes) {
+
+      my $fqcn = join ('.', $alias, $col);
+      $bind_attrs->{$fqcn} = $bindtypes->{$col} if $bindtypes->{$col};
+
+      # so that unqualified searches can be bound too
+      $bind_attrs->{$col} = $bind_attrs->{$fqcn} if $alias eq 'me';
+    }
   }
-  my $bind_attrs = {}; ## Future support
+
+  # This would be the point to deflate anything found in $condition
+  # (and leave $attrs->{bind} intact). Problem is - inflators historically
+  # expect a row object. And all we have is a resultsource (it is trivial
+  # to extract deflator coderefs via $alias2source above).
+  #
+  # I don't see a way forward other than changing the way deflators are
+  # invoked, and that's just bad...
+
   my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
   if ($attrs->{software_limit} ||
       $sql_maker->_default_limit_syntax eq "GenericSubQ") {
@@ -1227,6 +1277,36 @@ sub _select_args {
     push @args, $attrs->{rows}, $attrs->{offset};
   }
   return @args;
+}
+
+sub _resolve_ident_sources {
+  my ($self, $ident) = @_;
+
+  my $alias2source = {};
+
+  # the reason this is so contrived is that $ident may be a {from}
+  # structure, specifying multiple tables to join
+  if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+    # this is compat mode for insert/update/delete which do not deal with aliases
+    $alias2source->{me} = $ident;
+  }
+  elsif (ref $ident eq 'ARRAY') {
+
+    for (@$ident) {
+      my $tabinfo;
+      if (ref $_ eq 'HASH') {
+        $tabinfo = $_;
+      }
+      if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
+        $tabinfo = $_->[0];
+      }
+
+      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-result_source}
+        if ($tabinfo->{-result_source});
+    }
+  }
+
+  return $alias2source;
 }
 
 sub count {
@@ -1269,7 +1349,7 @@ sub count_grouped {
   }
 
   $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($source->primary_columns) ];
-  $sub_attrs->{select} = $self->_grouped_count_select ($sub_attrs);
+  $sub_attrs->{select} = $self->_grouped_count_select ($source, $sub_attrs);
 
   $attrs->{from} = [{
     count_subq => $source->resultset_class->new ($source, $sub_attrs )->as_query
@@ -1288,8 +1368,8 @@ sub count_grouped {
 # choke in various ways.
 #
 sub _grouped_count_select {
-  my ($self, $attrs) = @_;
-  return $attrs->{group_by};
+  my ($self, $source, $rs_args) = @_;
+  return $rs_args->{group_by};
 }
 
 sub source_bind_attributes {
@@ -1478,6 +1558,27 @@ Generally only needed for special case column types, like bytea in postgres.
 sub bind_attribute_by_data_type {
     return;
 }
+
+=head2 is_datatype_numeric
+
+Given a datatype from column_info, returns a boolean value indicating if
+the current RDBMS considers it a numeric value. This controls how
+L<DBIx::Class::Row/set_column> decides whether to mark the column as
+dirty - when the datatype is deemed numeric a C<< != >> comparison will
+be performed instead of the usual C<eq>.
+
+=cut
+
+sub is_datatype_numeric {
+  my ($self, $dt) = @_;
+
+  return 0 unless $dt;
+
+  return $dt =~ /^ (?:
+    numeric | int(?:eger)? | (?:tiny|small|medium|big)int | dec(?:imal)? | real | float | double (?: \s+ precision)? | (?:big)?serial
+  ) $/ix;
+}
+
 
 =head2 create_ddl_dir (EXPERIMENTAL)
 

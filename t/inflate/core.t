@@ -10,15 +10,12 @@ my $schema = DBICTest->init_schema();
 eval { require DateTime };
 plan skip_all => "Need DateTime for inflation tests" if $@;
 
-plan tests => 21;
+plan tests => 22;
 
-$schema->class('CD')
-#DBICTest::Schema::CD
-->inflate_column( 'year',
+$schema->class('CD') ->inflate_column( 'year',
     { inflate => sub { DateTime->new( year => shift ) },
       deflate => sub { shift->year } }
 );
-Class::C3->reinitialize;
 
 # inflation test
 my $cd = $schema->resultset("CD")->find(3);
@@ -66,6 +63,16 @@ eval { $cd->set_inflated_column('year', \'year + 1') };
 ok(!$@, 'set_inflated_column to "year + 1"');
 $cd->update;
 
+TODO: {
+  local $TODO = 'this was left in without a TODO - should it work?';
+
+  eval {
+    $cd->store_inflated_column('year', \'year + 1');
+    is_deeply( $cd->year, \'year + 1', 'deflate ok' );
+  };
+  ok(!$@, 'store_inflated_column to "year + 1"');
+}
+
 $cd = $schema->resultset("CD")->find(3);                 
 is( $cd->year->year, $before_year+1, 'deflate ok' );
 
@@ -104,9 +111,3 @@ my $copy = $cd->copy({ year => $now, title => "zemoose" });
 
 isnt( $copy->year->year, $before_year, "copy" );
  
-# eval { $cd->store_inflated_column('year', \'year + 1') };
-# print STDERR "ERROR: $@" if($@);
-# ok(!$@, 'store_inflated_column to "year + 1"');
-
-# is_deeply( $cd->year, \'year + 1', 'deflate ok' );
-

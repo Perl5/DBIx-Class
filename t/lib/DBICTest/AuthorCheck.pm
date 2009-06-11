@@ -84,7 +84,7 @@ EOE
 sub _find_co_root {
 
     my @mod_parts = split /::/, (__PACKAGE__ . '.pm');
-    my $rel_path = file (@mod_parts);
+    my $rel_path = join ('/', @mod_parts);  # %INC stores paths with / regardless of OS
 
     return undef unless ($INC{$rel_path});
 
@@ -93,7 +93,7 @@ sub _find_co_root {
     #  - do 'cd ..' as many times as necessary to get to t/lib/../..
 
     my $root = dir ($INC{$rel_path});
-    for (0 .. @mod_parts + 1) {
+    for (1 .. @mod_parts + 2) {
         $root = $root->parent;
     }
 

@@ -14,7 +14,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 23;
+plan tests => 19;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -114,7 +114,7 @@ $schema->populate ('BooksInLibrary', [
 # (mysql doesn't seem to like subqueries with equally named columns)
 #
 
-SKIP: {
+{
   # try a ->has_many direction (due to a 'multi' accessor the select/group_by group is collapsed)
   my $owners = $schema->resultset ('Owners')->search (
     { 'books.id' => { '!=', undef }},
@@ -122,41 +122,19 @@ SKIP: {
   );
   my $owners2 = $schema->resultset ('Owners')->search ({ id => { -in => $owners->get_column ('me.id')->as_query }});
   for ($owners, $owners2) {
-    lives_ok { is ($_->all, 2, 'Prefetched grouped search returns correct number of rows') }
-      || skip ('No test due to exception', 1);
-    lives_ok { is ($_->count, 2, 'Prefetched grouped search returns correct count') }
-      || skip ('No test due to exception', 1);
+    is ($_->all, 2, 'Prefetched grouped search returns correct number of rows');
+    is ($_->count, 2, 'Prefetched grouped search returns correct count');
   }
 
-  TODO: {
-    # try a ->prefetch direction (no select collapse)
-    my $books = $schema->resultset ('BooksInLibrary')->search (
-      { 'owner.name' => 'wiggle' },
-      { prefetch => 'owner', distinct => 1 }
-    );
-
-    local $TODO = 'MySQL is crazy - there seems to be no way to make this work';
-    # error thrown is:
-    # Duplicate column name 'id' [for Statement "
-    #   SELECT COUNT( * )
-    #     FROM (
-    #       SELECT me.id, me.source, me.owner, me.title, me.price, owner.id, owner.name
-    #         FROM books me
-    #         JOIN owners owner ON owner.id = me.owner 
-    #       WHERE ( ( owner.name = ? AND source = ? ) ) 
-    #       GROUP BY me.id, me.source, me.owner, me.title, me.price, owner.id, owner.name
-    #     ) count_subq
-    # " with ParamValues: 0='wiggle', 1='Library']
-    #
-    # go fucking figure
-
-    my $books2 = $schema->resultset ('BooksInLibrary')->search ({ id => { -in => $books->get_column ('me.id')->as_query }});
-    for ($books, $books2) {
-      lives_ok { is ($_->all, 1, 'Prefetched grouped search returns correct number of rows') }
-        || skip ('No test due to exception', 1);
-      lives_ok { is ($_->count, 1, 'Prefetched grouped search returns correct count') }
-        || skip ('No test due to exception', 1);
-    }
+  # try a ->belongs_to direction (no select collapse)
+  my $books = $schema->resultset ('BooksInLibrary')->search (
+    { 'owner.name' => 'wiggle' },
+    { prefetch => 'owner', distinct => 1 }
+  );
+  my $books2 = $schema->resultset ('BooksInLibrary')->search ({ id => { -in => $books->get_column ('me.id')->as_query }});
+  for ($books, $books2) {
+    is ($_->all, 1, 'Prefetched grouped search returns correct number of rows');
+    is ($_->count, 1, 'Prefetched grouped search returns correct count');
   }
 }
 
