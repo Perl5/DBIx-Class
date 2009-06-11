@@ -112,12 +112,16 @@ EOW
     build_requires ($module => $force_requires_if_author{$module});
   }
 
+  print "Regenerating README\n";
   system('pod2text lib/DBIx/Class.pm > README');
+
+  if (-f 'MANIFEST') {
+    print "Removing MANIFEST\n";
+    unlink 'MANIFEST';
+  }
 }
 
-auto_provides;
-
-auto_install;
+auto_install();
 
 WriteAll();
 
