@@ -77,7 +77,7 @@ DG
 lives_ok (sub {
   $schema->resultset ('Artist')->create ({
     name => 'The wooled wolf',
-    artist_to_artwork => [{
+    artwork_to_artist => [{
       artwork => {
         cd => {
           title => 'Wool explosive',
