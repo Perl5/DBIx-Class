@@ -45,6 +45,8 @@ sub backup
   return $backupfile;
 }
 
+sub datetime_parser_type { return "DateTime::Format::SQLite"; } 
+
 1;
 
 =head1 NAME

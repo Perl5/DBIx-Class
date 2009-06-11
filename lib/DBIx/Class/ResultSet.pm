@@ -1925,7 +1925,10 @@ B<NOTE>: This feature is still experimental.
 
 =cut
 
-sub as_query { return shift->cursor->as_query(@_) }
+sub as_query {
+  my $self = shift;
+  return $self->result_source->storage->as_query($self->_resolved_attrs);
+}
 
 =head2 find_or_new
 
@@ -2427,8 +2430,15 @@ sub _resolve_from {
   my $source = $self->result_source;
   my $attrs = $self->{attrs};
 
-  my $from = $attrs->{from}
-    || [ { $attrs->{alias} => $source->from } ];
+  my $from = [ @{
+      $attrs->{from}
+        ||
+      [{
+        -result_source => $source,
+        -alias => $attrs->{alias},
+        $attrs->{alias} => $source->from,
+      }]
+  }];
 
   my $seen = { %{$attrs->{seen_join} || {} } };
 
@@ -2533,7 +2543,11 @@ sub _resolved_attrs {
     push( @{ $attrs->{as} }, @$adds );
   }
 
-  $attrs->{from} ||= [ { $self->{attrs}{alias} => $source->from } ];
+  $attrs->{from} ||= [ {
+    -result_source => $source,
+    -alias => $self->{attrs}{alias},
+    $self->{attrs}{alias} => $source->from,
+  } ];
 
   if ( exists $attrs->{join} || exists $attrs->{prefetch} ) {
     my $join = delete $attrs->{join} || {};
@@ -2614,7 +2628,7 @@ sub _joinpath_aliases {
 
     my $p = $paths;
     $p = $p->{$_} ||= {} for @{$j->[0]{-join_path}};
-    push @{$p->{-join_aliases} }, $j->[0]{-join_alias};
+    push @{$p->{-join_aliases} }, $j->[0]{-alias};
   }
 
   return $paths;

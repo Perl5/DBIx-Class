@@ -5,9 +5,9 @@ use Test::More;
 use lib qw(t/lib);
 
 BEGIN {
-  eval { require Test::Memory::Cycle };
-  if ($@) {
-    plan skip_all => "leak test needs Test::Memory::Cycle";
+  eval { require Test::Memory::Cycle; require Devel::Cycle };
+  if ($@ or Devel::Cycle->VERSION < 1.10) {
+    plan skip_all => "leak test needs Test::Memory::Cycle and Devel::Cycle >= 1.10";
   } else {
     plan tests => 1;
   }

@@ -9,7 +9,7 @@ use Carp::Clan qw/^DBIx::Class/;
 use DBI;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
-use Scalar::Util qw/blessed weaken/;
+use Scalar::Util();
 use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
@@ -717,7 +717,7 @@ sub _connect {
 
     if($dbh && !$self->unsafe) {
       my $weak_self = $self;
-      weaken($weak_self);
+      Scalar::Util::weaken($weak_self);
       $dbh->{HandleError} = sub {
           if ($weak_self) {
             $weak_self->throw_exception("DBI Exception: $_[0]");
@@ -898,7 +898,7 @@ sub txn_rollback {
 sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, $args) = @_;
 
-  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+  if( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
     $ident = $ident->from();
   }
 
@@ -908,6 +908,38 @@ sub _prep_for_execute {
     map { ref $_ eq 'ARRAY' ? $_ : [ '!!dummy', $_ ] } @$extra_bind)
       if $extra_bind;
   return ($sql, \@bind);
+}
+
+=head2 as_query
+
+=over 4
+
+=item Arguments: $rs_attrs
+
+=item Return Value: \[ $sql, @bind ]
+
+=back
+
+Returns the SQL statement and bind vars that would result from the given
+ResultSet attributes (does not actually run a query)
+
+=cut
+
+sub as_query {
+  my ($self, $rs_attr) = @_;
+
+  my $sql_maker = $self->sql_maker;
+  local $sql_maker->{for};
+
+  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset) = $self->_select_args(...);
+  my @args = $self->_select_args($rs_attr->{from}, $rs_attr->{select}, $rs_attr->{where}, $rs_attr);
+
+  # my ($sql, $bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
+  my ($sql, $bind) = $self->_prep_for_execute(
+    @args[0 .. 2],
+    [ @args[4 .. $#args] ],
+  );
+  return \[ "($sql)", @{ $bind || [] }];
 }
 
 sub _fix_bind_params {
@@ -1092,7 +1124,7 @@ sub delete {
   my $self = shift @_;
   my $source = shift @_;
 
-  my $bind_attrs = {}; ## If ever it's needed...
+  my $bind_attrs = $self->source_bind_attributes($source);
 
   return $self->_execute('delete' => [], $source, $bind_attrs, @_);
 }
@@ -1207,7 +1239,31 @@ sub _select_args {
     (qw/order_by group_by having _virtual_order_by/ )
   };
 
-  my $bind_attrs = {}; ## Future support
+
+  my $bind_attrs = {};
+
+  my $alias2source = $self->_resolve_ident_sources ($ident);
+
+  for my $alias (keys %$alias2source) {
+    my $bindtypes = $self->source_bind_attributes ($alias2source->{$alias}) || {};
+    for my $col (keys %$bindtypes) {
+
+      my $fqcn = join ('.', $alias, $col);
+      $bind_attrs->{$fqcn} = $bindtypes->{$col} if $bindtypes->{$col};
+
+      # so that unqualified searches can be bound too
+      $bind_attrs->{$col} = $bind_attrs->{$fqcn} if $alias eq 'me';
+    }
+  }
+
+  # This would be the point to deflate anything found in $condition
+  # (and leave $attrs->{bind} intact). Problem is - inflators historically
+  # expect a row object. And all we have is a resultsource (it is trivial
+  # to extract deflator coderefs via $alias2source above).
+  #
+  # I don't see a way forward other than changing the way deflators are
+  # invoked, and that's just bad...
+
   my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
   if ($attrs->{software_limit} ||
       $sql_maker->_default_limit_syntax eq "GenericSubQ") {
@@ -1502,6 +1558,27 @@ Generally only needed for special case column types, like bytea in postgres.
 sub bind_attribute_by_data_type {
     return;
 }
+
+=head2 is_datatype_numeric
+
+Given a datatype from column_info, returns a boolean value indicating if
+the current RDBMS considers it a numeric value. This controls how
+L<DBIx::Class::Row/set_column> decides whether to mark the column as
+dirty - when the datatype is deemed numeric a C<< != >> comparison will
+be performed instead of the usual C<eq>.
+
+=cut
+
+sub is_datatype_numeric {
+  my ($self, $dt) = @_;
+
+  return 0 unless $dt;
+
+  return $dt =~ /^ (?:
+    numeric | int(?:eger)? | (?:tiny|small|medium|big)int | dec(?:imal)? | real | float | double (?: \s+ precision)? | (?:big)?serial
+  ) $/ix;
+}
+
 
 =head2 create_ddl_dir (EXPERIMENTAL)
 

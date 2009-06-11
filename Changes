@@ -1,16 +1,35 @@
 Revision history for DBIx::Class
 
+        - Update of numeric columns now properly uses != to determine
+          dirtyness instead of the usual eq
+        - Fixes to IC::DT tests
+        - Fixed exception when undef_if_invalid and timezone are both set on 
+          an invalid datetime column
+
+0.08104 2009-06-10 13:38:00 (UTC)
         - order_by now can take \[$sql, @bind] as in
           order_by => { -desc => \['colA LIKE ?', 'somestring'] }
         - SQL::Abstract errors are now properly croak()ed with the
           correct trace
         - populate() now properly reports the dataset slice in case of
           an exception
-        - fixed corner case when populate() erroneously falls back to
+        - Fixed corner case when populate() erroneously falls back to
           create()
-        - work around braindead mysql when doing subquery counts on
+        - Work around braindead mysql when doing subquery counts on
           resultsets containing identically named columns from several
           tables
+        - Fixed m2m add_to_$rel to invoke find_or_create on the far
+          side of the relation, to avoid duplicates
+        - DBIC now properly handles empty inserts (invoking all default
+          values from the DB, normally via INSERT INTO tbl DEFAULT VALUES
+        - Fix find_or_new/create to stop returning random rows when 
+          default value insert is requested (RT#28875)
+        - Make IC::DT extra warning state the column name too
+        - It is now possible to transparrently search() on columns
+          requiring DBI bind (i.e. PostgreSQL BLOB)
+        - as_query is now a Storage::DBI method, so custom cursors can
+          be seamlessly used
+        - Fix search_related regression introduced in 0.08103
 
 0.08103 2009-05-26 19:50:00 (UTC)
         - Multiple $resultset -> count/update/delete fixes. Now any

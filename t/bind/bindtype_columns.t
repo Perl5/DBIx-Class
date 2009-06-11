@@ -49,10 +49,7 @@ my $new;
   is($row->get_column('bytea'), $big_long_string, "Created the blob correctly.");
 }
 
-TODO: {
-  local $TODO =
-    'Passing bind attributes to $sth->bind_param() should be implemented (it only works in $storage->insert ATM)';
-
+{
   my $rs = $schema->resultset('BindType')->search({ bytea => $big_long_string });
 
   # search on the bytea column (select)

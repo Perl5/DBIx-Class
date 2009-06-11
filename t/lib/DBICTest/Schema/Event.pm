@@ -10,7 +10,7 @@ __PACKAGE__->table('event');
 
 __PACKAGE__->add_columns(
   id => { data_type => 'integer', is_auto_increment => 1 },
-  starts_at => { data_type => 'datetime', datetime_undef_if_invalid => 1 },
+  starts_at => { data_type => 'datetime' },
   created_on => { data_type => 'timestamp' },
   varchar_date => { data_type => 'varchar', inflate_date => 1, size => 20, is_nullable => 1 },
   varchar_datetime => { data_type => 'varchar', inflate_datetime => 1, size => 20, is_nullable => 1 },

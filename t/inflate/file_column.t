@@ -13,8 +13,8 @@ my $schema = DBICTest->init_schema();
 plan tests => 10;
 
 my $rs = $schema->resultset('FileColumn');
-my $fname = '96file_column.t';
-my $source_file = file('t', $fname);
+my $source_file = file(__FILE__);
+my $fname = $source_file->basename;
 my $fh = $source_file->open('r') or die "failed to open $source_file: $!\n";
 my $fc = eval {
     $rs->create({ file => { handle => $fh, filename => $fname } })
