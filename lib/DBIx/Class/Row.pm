@@ -377,7 +377,7 @@ sub insert {
               my $re = $self->result_source
                             ->related_source($relname)
                             ->resultset
-                            ->find_or_create($them);
+                            ->create($them);
               %{$obj} = %{$re};
               MULTICREATE_DEBUG and warn "MC $self new $relname $obj";
             }
