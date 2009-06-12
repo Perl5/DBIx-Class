@@ -12,7 +12,6 @@ sub insert_bulk {
   COLUMNS:
   foreach my $col (@{$cols}) {
     if ($source->column_info($col)->{is_auto_increment}) {
-      warn $col;
       $identity_insert = 1;
       last COLUMNS;
     }
