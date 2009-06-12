@@ -148,9 +148,13 @@ sub register_column {
         {
           inflate => sub {
             my ($value, $obj) = @_;
+
             my $dt = eval { $obj->_inflate_to_datetime( $value, \%info ) };
-            $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $@")
-              if $@ and not $undef_if_invalid;
+            if (my $err = $@ ) {
+              return undef if ($undef_if_invalid);
+              $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $err");
+            }
+
             $dt->set_time_zone($timezone) if $timezone;
             $dt->set_locale($locale) if $locale;
             return $dt;

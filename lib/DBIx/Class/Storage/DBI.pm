@@ -910,37 +910,6 @@ sub _prep_for_execute {
   return ($sql, \@bind);
 }
 
-=head2 as_query
-
-=over 4
-
-=item Arguments: $rs_attrs
-
-=item Return Value: \[ $sql, @bind ]
-
-=back
-
-Returns the SQL statement and bind vars that would result from the given
-ResultSet attributes (does not actually run a query)
-
-=cut
-
-sub as_query {
-  my ($self, $rs_attr) = @_;
-
-  my $sql_maker = $self->sql_maker;
-  local $sql_maker->{for};
-
-  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset) = $self->_select_args(...);
-  my @args = $self->_select_args($rs_attr->{from}, $rs_attr->{select}, $rs_attr->{where}, $rs_attr);
-
-  # my ($sql, $bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
-  my ($sql, $bind) = $self->_prep_for_execute(
-    @args[0 .. 2],
-    [ @args[4 .. $#args] ],
-  );
-  return \[ "($sql)", @{ $bind || [] }];
-}
 
 sub _fix_bind_params {
     my ($self, @bind) = @_;
@@ -1241,6 +1210,23 @@ sub _select {
   my $sql_maker = $self->sql_maker;
   local $sql_maker->{for};
   return $self->_execute($self->_select_args(@_));
+}
+
+sub _select_args_to_query {
+  my $self = shift;
+
+  my $sql_maker = $self->sql_maker;
+  local $sql_maker->{for};
+
+  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset) 
+  #  = $self->_select_args($ident, $select, $cond, $attrs);
+  my ($op, $bind, $ident, $bind_attrs, @args) =
+    $self->_select_args(@_);
+
+  # my ($sql, $bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
+  my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, \@args);
+
+  return \[ "($sql)", @{ $prepared_bind || [] }];
 }
 
 sub _select_args {
@@ -1581,6 +1567,27 @@ Generally only needed for special case column types, like bytea in postgres.
 sub bind_attribute_by_data_type {
     return;
 }
+
+=head2 is_datatype_numeric
+
+Given a datatype from column_info, returns a boolean value indicating if
+the current RDBMS considers it a numeric value. This controls how
+L<DBIx::Class::Row/set_column> decides whether to mark the column as
+dirty - when the datatype is deemed numeric a C<< != >> comparison will
+be performed instead of the usual C<eq>.
+
+=cut
+
+sub is_datatype_numeric {
+  my ($self, $dt) = @_;
+
+  return 0 unless $dt;
+
+  return $dt =~ /^ (?:
+    numeric | int(?:eger)? | (?:tiny|small|medium|big)int | dec(?:imal)? | real | float | double (?: \s+ precision)? | (?:big)?serial
+  ) $/ix;
+}
+
 
 =head2 create_ddl_dir (EXPERIMENTAL)
 
