@@ -279,7 +279,7 @@ any of your aliases using either of these:
   my $count = $rs->count;
 
   # Equivalent SQL:
-  # SELECT COUNT( DISTINCT( me.name ) ) FROM artist me 
+  # SELECT COUNT( * ) FROM (SELECT me.name FROM artist me GROUP BY me.name) count_subq: 
 
 =head2 Grouping results
 

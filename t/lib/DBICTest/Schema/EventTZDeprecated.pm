@@ -16,4 +16,10 @@ __PACKAGE__->add_columns(
 
 __PACKAGE__->set_primary_key('id');
 
+sub _datetime_parser {
+  require DateTime::Format::MySQL;
+  DateTime::Format::MySQL->new();
+}
+
+
 1;

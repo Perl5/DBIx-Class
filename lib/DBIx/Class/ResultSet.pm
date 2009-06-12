@@ -1927,7 +1927,13 @@ B<NOTE>: This feature is still experimental.
 
 sub as_query {
   my $self = shift;
-  return $self->result_source->storage->as_query($self->_resolved_attrs);
+
+  my $attrs = $self->_resolved_attrs_copy;
+
+  my ($sqlbind, $bind_attrs) = $self->result_source->storage
+    ->_select_args_to_query ($attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs);
+
+  return $sqlbind;
 }
 
 =head2 find_or_new
