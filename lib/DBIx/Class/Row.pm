@@ -647,6 +647,8 @@ sub has_column_loaded {
 Returns all loaded column data as a hash, containing raw values. To
 get just one value for a particular column, use L</get_column>.
 
+See L</get_inflated_columns> to get the inflated values.
+
 =cut
 
 sub get_columns {
