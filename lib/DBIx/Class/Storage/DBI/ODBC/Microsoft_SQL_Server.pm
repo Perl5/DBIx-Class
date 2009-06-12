@@ -12,23 +12,28 @@ sub insert_bulk {
   COLUMNS:
   foreach my $col (@{$cols}) {
     if ($source->column_info($col)->{is_auto_increment}) {
+      warn $col;
       $identity_insert = 1;
       last COLUMNS;
     }
   }
 
   my $table = $source->from;
-  $source->storage->dbh_do(sub {
-      my ($storage, $dbh, @cols) = @_;
-      $dbh->do("SET IDENTITY_INSERT $table ON;");
-    });
+  if ($identity_insert) {
+    $source->storage->dbh_do(sub {
+	my ($storage, $dbh, @cols) = @_;
+	$dbh->do("SET IDENTITY_INSERT $table ON;");
+      });
+  }
 
   next::method(@_);
 
-  $source->storage->dbh_do(sub {
-      my ($storage, $dbh, @cols) = @_;
-      $dbh->do("SET IDENTITY_INSERT $table OFF;");
-    });
+  if ($identity_insert) {
+    $source->storage->dbh_do(sub {
+	my ($storage, $dbh, @cols) = @_;
+	$dbh->do("SET IDENTITY_INSERT $table OFF;");
+      });
+  }
 
 }
 
