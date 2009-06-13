@@ -1192,7 +1192,6 @@ sub _per_row_update_delete {
 sub _select {
   my $self = shift;
   my $sql_maker = $self->sql_maker;
-  local $sql_maker->{for};
   return $self->_execute($self->_select_args(@_));
 }
 
@@ -1215,7 +1214,8 @@ sub _select_args {
 
   my $for = delete $attrs->{for};
   my $sql_maker = $self->sql_maker;
-  $sql_maker->{for} = $for;
+
+  local $sql_maker->{for} = $for;
 
   my $order = { map
     { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
