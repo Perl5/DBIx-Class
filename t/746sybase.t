@@ -4,7 +4,7 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use DBIx::Class::Storage::DBI::Sybase::DateTime;
+use DateTime::Format::Sybase;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
@@ -123,8 +123,7 @@ CREATE TABLE track (
    last_updated_on $type,
 )
 SQL
-    ok(my $dt = DBIx::Class::Storage::DBI::Sybase::DateTime
-      ->parse_datetime($sample_dt));
+    ok(my $dt = DateTime::Format::Sybase->parse_datetime($sample_dt));
 
     my $row;
     ok( $row = $schema->resultset('Track')->create({

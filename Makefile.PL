@@ -98,7 +98,7 @@ my %force_requires_if_author = (
   'Hash::Merge',                  => 0.11,
 
   # t/746sybase.t
-  'DateTime::Format::Strptime' => 0,
+  'DateTime::Format::Sybase' => 0,
 );
 
 if ($Module::Install::AUTHOR) {

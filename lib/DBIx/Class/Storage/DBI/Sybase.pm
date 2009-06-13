@@ -99,7 +99,7 @@ sub count {
   return $count - $offset;
 }
 
-sub datetime_parser_type { "DBIx::Class::Storage::DBI::Sybase::DateTime" }
+sub datetime_parser_type { "DateTime::Format::Sybase" }
 
 1;
 
@@ -133,7 +133,7 @@ C<08/13/1979 18:08:55.080>.
 This works for both C<DATETIME> and C<SMALLDATETIME> columns, although
 C<SMALLDATETIME> columns only have minute precision.
 
-You will need the L<DateTime::Format::Strptime> module if you are going to use
+You will need the L<DateTime::Format::Sybase> module if you are going to use
 L<DBIx::Class::InflateColumn::DateTime>.
 
 =head1 AUTHORS
