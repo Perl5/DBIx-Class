@@ -221,6 +221,26 @@ Some predefined storage methods you may use:
 Executes a SQL string or a code reference that returns a SQL string. This is
 what L</on_connect_do> and L</on_disconnect_do> use.
 
+It can take:
+
+=over
+
+=item a scalar
+
+Will execute the scalar as SQL.
+
+=item an arrayref
+
+Taken to be arguments to L<DBI/do>, the SQL string optionally followed by the
+attributes hashref and bind values.
+
+=item a code reference
+
+Will execute C<< $code->($storage) >> and execute the return array refs as
+above.
+
+=back
+
 =item set_datetime_format
 
 Execute any statements necessary to initialize the database session to return

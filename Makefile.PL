@@ -81,6 +81,9 @@ my %force_requires_if_author = (
   'DateTime::Format::MySQL'   => 0,
   'DateTime::Format::Pg'      => 0,
 
+  # t/73oracle.t
+  'DateTime::Format::Oracle'  => 0,
+
   # t/96_is_deteministic_value.t
   'DateTime::Format::Strptime' => 0,
 
