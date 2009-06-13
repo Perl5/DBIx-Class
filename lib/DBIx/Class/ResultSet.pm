@@ -2440,7 +2440,7 @@ sub _resolve_from {
       $attrs->{from}
         ||
       [{
-        -result_source => $source,
+        -source_handle => $source->handle,
         -alias => $attrs->{alias},
         $attrs->{alias} => $source->from,
       }]
@@ -2550,7 +2550,7 @@ sub _resolved_attrs {
   }
 
   $attrs->{from} ||= [ {
-    -result_source => $source,
+    -source_handle => $source->handle,
     -alias => $self->{attrs}{alias},
     $self->{attrs}{alias} => $source->from,
   } ];

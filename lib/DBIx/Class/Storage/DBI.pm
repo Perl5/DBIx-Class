@@ -1284,8 +1284,8 @@ sub _resolve_ident_sources {
         $tabinfo = $_->[0];
       }
 
-      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-result_source}
-        if ($tabinfo->{-result_source});
+      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-source_handle}->resolve
+        if ($tabinfo->{-source_handle});
     }
   }
 
