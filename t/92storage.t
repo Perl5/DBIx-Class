@@ -162,7 +162,7 @@ for my $type (keys %$invocations) {
 
   is_deeply (
     [$storage->on_connect_do, $storage->on_disconnect_do ],
-    [ [ map [ do_sql => $_ ], qw/a b c/ ], [ map [ do_sql => $_ ], qw/d e f/ ] ],
+    [ [qw/a b c/], [qw/d e f/] ],
     "$type correctly parsed DBIC specific on_[dis]connect_do",
   );
 }
