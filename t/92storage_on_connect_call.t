@@ -3,7 +3,7 @@ use warnings;
 no warnings qw/once redefine/;
 
 use lib qw(t/lib);
-require DBICTest;
+use DBICTest;
 
 use Test::More tests => 9;
 
@@ -31,6 +31,7 @@ ok $schema->connection(
         [ do_sql => [ 'insert into test1 values (?)', {}, 1 ] ],
         [ do_sql => sub { ['insert into test1 values (2)'] } ],
         [ sub { $_[0]->dbh->do($_[1]) }, 'insert into test1 values (3)' ],
+        # this invokes $storage->connect_call_foo('bar') (above)
         [ foo => 'bar' ],
     ],
     on_connect_do => 'insert into test1 values (4)',

@@ -17,7 +17,7 @@ else {
         plan skip_all => 'needs DateTime and DateTime::Format::Oracle for testing';
     }
     else {
-        plan tests => 7;
+        plan tests => 9;
     }
 }
 
@@ -67,9 +67,33 @@ $track->update;
 is( $track->last_updated_on->month, $dt->month, "deflate ok");
 is( int $track->last_updated_at->nanosecond, int $dt->nanosecond, "deflate ok with nanosecond precision");
 
+# test datetime_setup
+
+$schema->storage->disconnect;
+
+delete $ENV{NLS_DATE_FORMAT};
+delete $ENV{NLS_TIMESTAMP_FORMAT};
+
+$schema->connection($dsn, $user, $pass, {
+    on_connect_call => 'datetime_setup'
+});
+
+$dt = DateTime->now();
+
+my $timestamp = $dt->clone;
+$timestamp->millisecond( 80 );
+
+$track = $schema->resultset('Track')->find( 1 );
+$track->update({ last_updated_on => $dt, last_updated_at => $timestamp });
+
+$track = $schema->resultset('Track')->find(1);
+
+is( $track->last_updated_on, $dt, 'DateTime round-trip as DATE' );
+is( $track->last_updated_at, $timestamp, 'DateTime round-trip as TIMESTAMP' );
+
 # clean up our mess
 END {
-    if($dbh) {
+    if($schema && ($dbh = $schema->storage->dbh)) {
         $dbh->do("DROP TABLE track");
     }
 }

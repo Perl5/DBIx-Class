@@ -41,12 +41,10 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
   unless ($dsn && $user && $pass);
 
-plan tests => 36;
+plan tests => 35;
 
 DBICTest::Schema->load_classes('ArtistFQN');
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
-  on_connect_call => 'set_datetime_format'
-});
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 my $dbh = $schema->storage->dbh;
 
@@ -115,13 +113,11 @@ is($new->artistid, 1, "Oracle Auto-PK worked");
 $new = $schema->resultset('ArtistFQN')->create( { name => 'bar' } );
 is( $new->artistid, 2, "Oracle Auto-PK worked with fully-qualified tablename" );
 
-# test join with row count ambiguity, and DateTime inflation
-
-my $dt = DateTime->now;
+# test join with row count ambiguity
 
 my $cd = $schema->resultset('CD')->create({ cdid => 1, artist => 1, title => 'EP C', year => '2003' });
 my $track = $schema->resultset('Track')->create({ trackid => 1, cd => 1,
-    position => 1, title => 'Track1', last_updated_on => $dt });
+    position => 1, title => 'Track1' });
 my $tjoin = $schema->resultset('Track')->search({ 'me.title' => 'Track1'},
         { join => 'cd',
           rows => 2 }
@@ -130,7 +126,6 @@ my $tjoin = $schema->resultset('Track')->search({ 'me.title' => 'Track1'},
 ok(my $row = $tjoin->next);
 
 is($row->title, 'Track1', "ambiguous column ok");
-is($row->updated_date, $dt, "DateTime inflation/deflation ok");
 
 # check count distinct with multiple columns
 my $other_track = $schema->resultset('Track')->create({ trackid => 2, cd => 1, position => 1, title => 'Track2' });

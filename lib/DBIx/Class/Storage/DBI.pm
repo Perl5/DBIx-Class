@@ -241,11 +241,14 @@ above.
 
 =back
 
-=item set_datetime_format
+=item datetime_setup
 
 Execute any statements necessary to initialize the database session to return
 and accept datetime/timestamp values used with
 L<DBIx::Class::InflateColumn::DateTime>.
+
+Only necessary for some databases, see your specific storage driver for
+implementation details.
 
 =back
 
@@ -474,26 +477,22 @@ sub _setup_connect_do {
 
   my $val = shift;
 
-  (my $call = $opt) =~ s/_do\z/_call/;
+  $self->throw_exception("The value of $opt cannot be 'undef'")
+    unless defined $val;
 
-  if (ref($self->$call) ne 'ARRAY') {
-    $self->$call([
-      defined $self->$call ?  $self->$call : ()
-    ]);
-  }
+  my @store;
 
   if (not ref($val)) {
-    push @{ $self->$call }, [ 'do_sql', $val ];
+    push @store, [ 'do_sql', $val ];
   } elsif (ref($val) eq 'CODE') {
-    push @{ $self->$call }, $val;
+    push @store, $val;
   } elsif (ref($val) eq 'ARRAY') {
-    push @{ $self->$call },
-    map [ 'do_sql', $_ ], @$val;
+    push @store, map [ 'do_sql', $_ ], @$val;
   } else {
     $self->throw_exception("Invalid type for $opt ".ref($val));
   }
 
-  $self->$accessor($val);
+  $self->$accessor(\@store);
 }
 
 =head2 dbh_do
@@ -642,9 +641,12 @@ sub disconnect {
   my ($self) = @_;
 
   if( $self->connected ) {
-    my $connection_call = $self->on_disconnect_call;
-    $self->_do_connection_actions(disconnect_call_ => $connection_call)
-      if $connection_call;
+    if (my $connection_call = $self->on_disconnect_call) {
+      $self->_do_connection_actions(disconnect_call_ => $connection_call)
+    }
+    if (my $connection_do   = $self->_on_disconnect_do) {
+      $self->_do_connection_actions(disconnect_call_ => $connection_do)
+    }
 
     $self->_dbh->rollback unless $self->_dbh_autocommit;
     $self->_dbh->disconnect;
@@ -761,9 +763,12 @@ sub _populate_dbh {
   #  there is no transaction in progress by definition
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
 
-  my $connection_call = $self->on_connect_call;
-  $self->_do_connection_actions(connect_call_ => $connection_call)
-    if $connection_call;
+  if (my $connection_call = $self->on_connect_call) {
+    $self->_do_connection_actions(connect_call_ => $connection_call)
+  }
+  if (my $connection_do = $self->_on_connect_do) {
+    $self->_do_connection_actions(connect_call_ => $connection_do)
+  }
 }
 
 sub _determine_driver {
@@ -821,7 +826,7 @@ sub disconnect_call_do_sql {
 }
 
 # override in db-specific backend when necessary
-sub connect_call_set_datetime_format { 1 }
+sub connect_call_datetime_setup { 1 }
 
 sub _do_query {
   my ($self, $action) = @_;

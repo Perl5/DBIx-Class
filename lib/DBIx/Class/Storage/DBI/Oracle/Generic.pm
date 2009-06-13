@@ -183,11 +183,11 @@ L<DBIx::Class::InflateColumn::DateTime>.
 
 sub datetime_parser_type { return "DateTime::Format::Oracle"; }
 
-=head2 connect_call_set_datetime_format
+=head2 connect_call_datetime_setup
 
 Used as:
 
-    on_connect_call => 'set_datetime_format'
+    on_connect_call => 'datetime_setup'
 
 In L<DBIx::Class::Storage::DBI/connect_info> to set the session nls date, and
 timestamp values for use with L<DBIx::Class::InflateColumn::DateTime> and the
@@ -200,9 +200,15 @@ already been set.
 C<nls_timestamp_tz_format> is also initialized but is not currently used by
 L<DBIx::Class::InflateColumn::DateTime>.
 
+These are the defaults used:
+
+  $ENV{NLS_DATE_FORMAT}         ||= 'YYYY-MM-DD HH24:MI:SS';
+  $ENV{NLS_TIMESTAMP_FORMAT}    ||= 'YYYY-MM-DD HH24:MI:SS.FF';
+  $ENV{NLS_TIMESTAMP_TZ_FORMAT} ||= 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM';
+
 =cut
 
-sub connect_call_set_datetime_format {
+sub connect_call_datetime_setup {
   my $self = shift;
   my $dbh  = $self->dbh;
 
