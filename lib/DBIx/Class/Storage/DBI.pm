@@ -1199,15 +1199,12 @@ sub _select {
 sub _select_args_to_query {
   my $self = shift;
 
-  my $sql_maker = $self->sql_maker;
-  local $sql_maker->{for};
-
-  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset) 
+  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset)
   #  = $self->_select_args($ident, $select, $cond, $attrs);
   my ($op, $bind, $ident, $bind_attrs, @args) =
     $self->_select_args(@_);
 
-  # my ($sql, $bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
+  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
   my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, \@args);
 
   return \[ "($sql)", @{ $prepared_bind || [] }];
