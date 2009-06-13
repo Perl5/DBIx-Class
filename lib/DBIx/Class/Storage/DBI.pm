@@ -478,8 +478,11 @@ sub _setup_connect_do {
 
   my $val = shift;
 
-  $self->throw_exception("The value of $opt cannot be 'undef'")
-    unless defined $val;
+  if (not defined $val) {
+    $self->$accessor(undef);
+    $self->$store(undef);
+    return;
+  }
 
   my @store;
 
