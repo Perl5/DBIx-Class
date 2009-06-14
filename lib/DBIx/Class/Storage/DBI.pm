@@ -15,7 +15,8 @@ use List::Util();
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
        _conn_pid _conn_tid transaction_depth _dbh_autocommit _on_connect_do
-       _on_disconnect_do __on_connect_do __on_disconnect_do savepoints/
+       _on_disconnect_do _on_connect_do_store _on_disconnect_do_store
+       savepoints/
 );
 
 # the values for these accessors are picked out (and deleted) from
@@ -472,7 +473,7 @@ sub _setup_connect_do {
   my ($self, $opt) = (shift, shift);
 
   my $accessor = "_$opt";
-  my $store    = "__$opt";
+  my $store    = "_${opt}_store";
 
   return $self->$accessor if not @_;
 
@@ -649,7 +650,7 @@ sub disconnect {
     if (my $connection_call = $self->on_disconnect_call) {
       $self->_do_connection_actions(disconnect_call_ => $connection_call)
     }
-    if (my $connection_do   = $self->__on_disconnect_do) {
+    if (my $connection_do   = $self->_on_disconnect_do_store) {
       $self->_do_connection_actions(disconnect_call_ => $connection_do)
     }
 
@@ -771,7 +772,7 @@ sub _populate_dbh {
   if (my $connection_call = $self->on_connect_call) {
     $self->_do_connection_actions(connect_call_ => $connection_call)
   }
-  if (my $connection_do = $self->__on_connect_do) {
+  if (my $connection_do = $self->_on_connect_do_store) {
     $self->_do_connection_actions(connect_call_ => $connection_do)
   }
 }
