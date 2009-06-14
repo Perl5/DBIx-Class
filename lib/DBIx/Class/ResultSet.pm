@@ -1930,7 +1930,13 @@ sub as_query {
 
   my $attrs = $self->_resolved_attrs_copy;
 
-  my ($sqlbind, $bind_attrs) = $self->result_source->storage
+  # For future use:
+  #
+  # in list ctx:
+  # my ($sql, \@bind, \%dbi_bind_attrs) = _select_args_to_query (...)
+  # $sql also has no wrapping parenthesis in list ctx
+  #
+  my $sqlbind = $self->result_source->storage
     ->_select_args_to_query ($attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs);
 
   return $sqlbind;
