@@ -1930,7 +1930,13 @@ sub as_query {
 
   my $attrs = $self->_resolved_attrs_copy;
 
-  my ($sqlbind, $bind_attrs) = $self->result_source->storage
+  # For future use:
+  #
+  # in list ctx:
+  # my ($sql, \@bind, \%dbi_bind_attrs) = _select_args_to_query (...)
+  # $sql also has no wrapping parenthesis in list ctx
+  #
+  my $sqlbind = $self->result_source->storage
     ->_select_args_to_query ($attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs);
 
   return $sqlbind;
@@ -2440,7 +2446,7 @@ sub _resolve_from {
       $attrs->{from}
         ||
       [{
-        -result_source => $source,
+        -source_handle => $source->handle,
         -alias => $attrs->{alias},
         $attrs->{alias} => $source->from,
       }]
@@ -2550,7 +2556,7 @@ sub _resolved_attrs {
   }
 
   $attrs->{from} ||= [ {
-    -result_source => $source,
+    -source_handle => $source->handle,
     -alias => $self->{attrs}{alias},
     $self->{attrs}{alias} => $source->from,
   } ];
@@ -3287,9 +3293,21 @@ with a father in the person table, we could explicitly use C<INNER JOIN>:
     # SELECT child.* FROM person child
     # INNER JOIN person father ON child.father_id = father.id
 
-If you need to express really complex joins or you need a subselect, you
+You can select from a subquery by passing a resultset to from as follows.
+
+    $schema->resultset('Artist')->search( 
+        undef, 
+        {   alias => 'artist2',
+            from  => [ { artist2 => $artist_rs->as_query } ],
+        } );
+
+    # and you'll get sql like this..
+    # SELECT artist2.artistid, artist2.name, artist2.rank, artist2.charfield FROM 
+    #   ( SELECT me.artistid, me.name, me.rank, me.charfield FROM artists me ) artist2
+
+If you need to express really complex joins, you
 can supply literal SQL to C<from> via a scalar reference. In this case
-the contents of the scalar will replace the table name asscoiated with the
+the contents of the scalar will replace the table name associated with the
 resultsource.
 
 WARNING: This technique might very well not work as expected on chained

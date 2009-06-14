@@ -366,10 +366,11 @@ around connect_info => sub {
     $res = $self->$next($info, @extra);
   }
 
-  # May have to reapply role if master will be reblessed to a more specific
-  # driver.
-  $self->master->_determine_driver;
-  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($self->master);
+  # Make sure master is blessed into the correct class and apply role to it.
+  my $master = $self->master;
+  $master->_determine_driver;
+  Moose::Meta::Class->initialize(ref $master);
+  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
 
   $wantarray ? @res : $res;
 };
@@ -405,7 +406,6 @@ Lazy builder for the L</master> attribute.
 sub _build_master {
   my $self = shift @_;
   my $master = DBIx::Class::Storage::DBI->new($self->schema);
-  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
   $master
 }
 

@@ -1356,34 +1356,45 @@ sub _per_row_update_delete {
 
 sub _select {
   my $self = shift;
+
+  # localization is neccessary as
+  # 1) there is no infrastructure to pass this around (easy to do, but will wait)
+  # 2) _select_args sets it and _prep_for_execute consumes it
   my $sql_maker = $self->sql_maker;
   local $sql_maker->{for};
+
   return $self->_execute($self->_select_args(@_));
 }
 
 sub _select_args_to_query {
   my $self = shift;
 
+  # localization is neccessary as
+  # 1) there is no infrastructure to pass this around (easy to do, but will wait)
+  # 2) _select_args sets it and _prep_for_execute consumes it
   my $sql_maker = $self->sql_maker;
   local $sql_maker->{for};
 
-  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset) 
+  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset)
   #  = $self->_select_args($ident, $select, $cond, $attrs);
   my ($op, $bind, $ident, $bind_attrs, @args) =
     $self->_select_args(@_);
 
-  # my ($sql, $bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
+  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
   my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, \@args);
+  $prepared_bind ||= [];
 
-  return \[ "($sql)", @{ $prepared_bind || [] }];
+  return wantarray
+    ? ($sql, $prepared_bind, $bind_attrs)
+    : \[ "($sql)", @$prepared_bind ]
+  ;
 }
 
 sub _select_args {
   my ($self, $ident, $select, $condition, $attrs) = @_;
 
-  my $for = delete $attrs->{for};
   my $sql_maker = $self->sql_maker;
-  $sql_maker->{for} = $for;
+  $sql_maker->{for} = delete $attrs->{for};
 
   my $order = { map
     { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
@@ -1452,8 +1463,8 @@ sub _resolve_ident_sources {
         $tabinfo = $_->[0];
       }
 
-      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-result_source}
-        if ($tabinfo->{-result_source});
+      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-source_handle}->resolve
+        if ($tabinfo->{-source_handle});
     }
   }
 
