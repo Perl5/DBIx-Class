@@ -158,6 +158,10 @@ sub _find_syntax {
   return $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
 }
 
+my $for_syntax = {
+  update => 'FOR UPDATE',
+  shared => 'FOR SHARE',
+};
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
 
@@ -177,15 +181,10 @@ sub select {
   my ($sql, @where_bind) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $order, @rest
   );
-  $sql .= 
-    $self->{for} ?
-    (
-      $self->{for} eq 'update' ? ' FOR UPDATE' :
-      $self->{for} eq 'shared' ? ' FOR SHARE'  :
-      ''
-    ) :
-    ''
-  ;
+  if (my $for = delete $self->{_dbic_rs_attrs}{for}) {
+    $sql .= " $for_syntax->{$for}" if $for_syntax->{$for};
+  }
+
   return wantarray ? ($sql, @{$self->{from_bind}}, @where_bind, @{$self->{having_bind}}, @{$self->{order_bind}} ) : $sql;
 }
 

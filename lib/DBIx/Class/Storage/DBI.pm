@@ -1193,10 +1193,10 @@ sub _select {
   my $self = shift;
 
   # localization is neccessary as
-  # 1) there is no infrastructure to pass this around (easy to do, but will wait)
+  # 1) there is no infrastructure to pass this around before SQLA2
   # 2) _select_args sets it and _prep_for_execute consumes it
   my $sql_maker = $self->sql_maker;
-  local $sql_maker->{for};
+  local $sql_maker->{_dbic_rs_attrs};
 
   return $self->_execute($self->_select_args(@_));
 }
@@ -1205,10 +1205,10 @@ sub _select_args_to_query {
   my $self = shift;
 
   # localization is neccessary as
-  # 1) there is no infrastructure to pass this around (easy to do, but will wait)
+  # 1) there is no infrastructure to pass this around before SQLA2
   # 2) _select_args sets it and _prep_for_execute consumes it
   my $sql_maker = $self->sql_maker;
-  local $sql_maker->{for};
+  local $sql_maker->{_dbic_rs_attrs};
 
   # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset)
   #  = $self->_select_args($ident, $select, $cond, $attrs);
@@ -1229,7 +1229,7 @@ sub _select_args {
   my ($self, $ident, $select, $condition, $attrs) = @_;
 
   my $sql_maker = $self->sql_maker;
-  $sql_maker->{for} = delete $attrs->{for};
+  $sql_maker->{_dbic_rs_attrs} = $attrs;
 
   my $order = { map
     { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
