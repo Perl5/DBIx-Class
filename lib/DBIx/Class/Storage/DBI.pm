@@ -910,37 +910,6 @@ sub _prep_for_execute {
   return ($sql, \@bind);
 }
 
-=head2 as_query
-
-=over 4
-
-=item Arguments: $rs_attrs
-
-=item Return Value: \[ $sql, @bind ]
-
-=back
-
-Returns the SQL statement and bind vars that would result from the given
-ResultSet attributes (does not actually run a query)
-
-=cut
-
-sub as_query {
-  my ($self, $rs_attr) = @_;
-
-  my $sql_maker = $self->sql_maker;
-  local $sql_maker->{for};
-
-  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset) = $self->_select_args(...);
-  my @args = $self->_select_args($rs_attr->{from}, $rs_attr->{select}, $rs_attr->{where}, $rs_attr);
-
-  # my ($sql, $bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
-  my ($sql, $bind) = $self->_prep_for_execute(
-    @args[0 .. 2],
-    [ @args[4 .. $#args] ],
-  );
-  return \[ "($sql)", @{ $bind || [] }];
-}
 
 sub _fix_bind_params {
     my ($self, @bind) = @_;
@@ -1222,17 +1191,45 @@ sub _per_row_update_delete {
 
 sub _select {
   my $self = shift;
+
+  # localization is neccessary as
+  # 1) there is no infrastructure to pass this around (easy to do, but will wait)
+  # 2) _select_args sets it and _prep_for_execute consumes it
   my $sql_maker = $self->sql_maker;
   local $sql_maker->{for};
+
   return $self->_execute($self->_select_args(@_));
+}
+
+sub _select_args_to_query {
+  my $self = shift;
+
+  # localization is neccessary as
+  # 1) there is no infrastructure to pass this around (easy to do, but will wait)
+  # 2) _select_args sets it and _prep_for_execute consumes it
+  my $sql_maker = $self->sql_maker;
+  local $sql_maker->{for};
+
+  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset)
+  #  = $self->_select_args($ident, $select, $cond, $attrs);
+  my ($op, $bind, $ident, $bind_attrs, @args) =
+    $self->_select_args(@_);
+
+  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
+  my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, \@args);
+  $prepared_bind ||= [];
+
+  return wantarray
+    ? ($sql, $prepared_bind, $bind_attrs)
+    : \[ "($sql)", @$prepared_bind ]
+  ;
 }
 
 sub _select_args {
   my ($self, $ident, $select, $condition, $attrs) = @_;
 
-  my $for = delete $attrs->{for};
   my $sql_maker = $self->sql_maker;
-  $sql_maker->{for} = $for;
+  $sql_maker->{for} = delete $attrs->{for};
 
   my $order = { map
     { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
@@ -1301,8 +1298,8 @@ sub _resolve_ident_sources {
         $tabinfo = $_->[0];
       }
 
-      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-result_source}
-        if ($tabinfo->{-result_source});
+      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-source_handle}->resolve
+        if ($tabinfo->{-source_handle});
     }
   }
 

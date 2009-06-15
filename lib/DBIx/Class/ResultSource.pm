@@ -1135,7 +1135,7 @@ sub _resolve_join {
 
     my $rel_src = $self->related_source($join);
     return [ { $as => $rel_src->from,
-               -result_source => $rel_src,
+               -source_handle => $rel_src->handle,
                -join_type => $type,
                -join_path => [@$jpath, $join],
                -alias => $as,

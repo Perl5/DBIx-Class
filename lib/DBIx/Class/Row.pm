@@ -647,6 +647,8 @@ sub has_column_loaded {
 Returns all loaded column data as a hash, containing raw values. To
 get just one value for a particular column, use L</get_column>.
 
+See L</get_inflated_columns> to get the inflated values.
+
 =cut
 
 sub get_columns {
@@ -909,7 +911,11 @@ sub set_inflated_columns {
 
 Inserts a new row into the database, as a copy of the original
 object. If a hashref of replacement data is supplied, these will take
-precedence over data in the original.
+precedence over data in the original. Also any columns which have
+the L<column info attribute|DBIx::Class::ResultSource/add_columns>
+C<< is_auto_increment => 1 >> are explicitly removed before the copy,
+so that the database can insert its own autoincremented values into
+the new object.
 
 Relationships will be followed by the copy procedure B<only> if the
 relationship specifes a true value for its
