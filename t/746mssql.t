@@ -142,9 +142,9 @@ $schema->populate ('BooksInLibrary', [
     }, {
       prefetch => 'books',
       distinct => 1,
-      #order_by => 'name',
-      #page     => 2,
-      #rows     => 5,
+      order_by => 'name',
+      page     => 2,
+      rows     => 5,
     });
 
   my $owners2 = $schema->resultset ('Owners')->search ({ id => { -in => $owners->get_column ('me.id')->as_query }});
@@ -159,7 +159,7 @@ $schema->populate ('BooksInLibrary', [
     }, {
       prefetch => 'owner',
       distinct => 1,
-      #order_by => 'name',
+      order_by => 'name',
       #page     => 2,
       #rows     => 5,
     });
