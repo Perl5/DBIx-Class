@@ -168,14 +168,8 @@ In a nested transaction (calling txn_do() from within a txn_do() coderef) only
 the outermost transaction will issue a L</txn_commit>, and txn_do() can be
 called in void, scalar and list context and it will behave as expected.
 
-Please note that all of the code in your coderef, including non-DBIx::Class
-code, is part of a transaction.  This transaction may fail out halfway, or
-it may get partially double-executed (in the case that our DB connection
-failed halfway through the transaction, in which case we reconnect and
-restart the txn).  Therefore it is best that any side-effects in your coderef
-are idempotent (that is, can be re-executed multiple times and get the
-same result), and that you check up on your side-effects in the case of
-transaction failure.
+Unlike L</DBIx::Class::Storage/dbh_do>, the coderef will I<not> be
+automatically retried on error.
 
 =cut
 
