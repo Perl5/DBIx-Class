@@ -2599,19 +2599,21 @@ sub _resolved_attrs {
 
 
   my $collapse = $attrs->{collapse} || {};
+
   if ( my $prefetch = delete $attrs->{prefetch} ) {
     $prefetch = $self->_merge_attr( {}, $prefetch );
-    my @pre_order;
-    foreach my $p ( ref $prefetch eq 'ARRAY' ? @$prefetch : ($prefetch) ) {
 
-      # bring joins back to level of current class
-      my $join_map = $self->_joinpath_aliases ($attrs->{from}, $attrs->{seen_join});
-      my @prefetch =
-        $source->_resolve_prefetch( $p, $alias, $join_map, \@pre_order, $collapse );
-      push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
-      push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
-    }
-    push( @{ $attrs->{order_by} }, @pre_order );
+    my $prefetch_ordering = [];
+
+    my $join_map = $self->_joinpath_aliases ($attrs->{from}, $attrs->{seen_join});
+
+    my @prefetch =
+      $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $collapse );
+
+    push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
+    push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
+
+    push( @{ $attrs->{order_by} }, @$prefetch_ordering );
   }
 
   if (delete $attrs->{distinct}) {
