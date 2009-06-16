@@ -248,6 +248,9 @@ sub txn_begin { die "Virtual method!" }
 
 Issues a commit of the current transaction.
 
+It does I<not> perform an actual storage commit unless there's a DBIx::Class
+transaction currently in effect (i.e. you called L</txn_begin>).
+
 =cut
 
 sub txn_commit { die "Virtual method!" }

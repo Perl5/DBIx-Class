@@ -116,6 +116,12 @@ C<$first> will B<not> be a hashref, it will be a normal CD row since
 HashRefInflator only affects resultsets at inflation time, and prefetch causes
 relations to be inflated when the master C<$artist> row is inflated.
 
+=item *
+
+Column value inflation, e.g., using modules like
+L<DBIx::Class::InflateColumn::DateTime>, is not performed.
+The returned hash contains the raw database values.
+
 =back
 
 =cut
