@@ -52,11 +52,14 @@ Used as:
 
 In L<DBIx::Class::Storage::DBI/connect_info> to set:
 
-  $dbh->syb_date_fmt('ISO_strict');
-  $dbh->do('set dateformat mdy');
+  $dbh->syb_date_fmt('ISO_strict'); # output fmt: 2004-08-21T14:36:48.080Z
+  $dbh->do('set dateformat mdy');   # input fmt:  08/13/1979 18:08:55.080
 
 On connection for use with L<DBIx::Class::InflateColumn::DateTime>, using
-L<DateTime::Format::Sybase>.
+L<DateTime::Format::Sybase>, which you will need to install.
+
+This works for both C<DATETIME> and C<SMALLDATETIME> columns, although
+C<SMALLDATETIME> columns only have minute precision.
 
 =cut
 
@@ -142,15 +145,8 @@ But your queries will be cached.
 
 =head1 DATES
 
-On connection C<syb_date_fmt> is set to C<ISO_strict>, e.g.:
-C<2004-08-21T14:36:48.080Z> and C<dateformat> is set to C<mdy>, e.g.:
-C<08/13/1979 18:08:55.080>.
-
-This works for both C<DATETIME> and C<SMALLDATETIME> columns, although
-C<SMALLDATETIME> columns only have minute precision.
-
-You will need the L<DateTime::Format::Sybase> module if you are going to use
-L<DBIx::Class::InflateColumn::DateTime>.
+See L</connect_call_datetime_setup> to setup date formats
+for L<DBIx::Class::InflateColumn::DateTime>.
 
 =head1 AUTHORS
 
