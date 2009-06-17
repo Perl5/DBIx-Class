@@ -2622,8 +2622,10 @@ sub _resolved_attrs {
 
   $attrs->{collapse} = $collapse;
 
-  if ( $attrs->{page} and not defined $attrs->{offset} ) {
-    $attrs->{offset} = ( $attrs->{rows} * ( $attrs->{page} - 1 ) );
+  if ($attrs->{page} && not exists $attrs->{resolved_offset}) {
+    $attrs->{offset} = ($attrs->{rows} * ($attrs->{page} - 1)) +
+      ($attrs->{offset} || 0);
+    $attrs->{resolved_offset} = $attrs->{offset};
   }
 
   return $self->{_attrs} = $attrs;
