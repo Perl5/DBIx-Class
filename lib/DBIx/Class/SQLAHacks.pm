@@ -116,37 +116,97 @@ SQL
 sub _Top {
   my ( $self, $sql, $order, $rows, $offset ) = @_;
 
+  # mangle the input sql so it can be properly aliased in the outer queries
+  $sql =~ s/^ \s* SELECT \s+ (.+?) \s+ (?=FROM)//ix
+    or croak "Unrecognizable SELECT: $sql";
+  my $select = $1;
+
+  my (@outer_select, %col_index);
+  for my $selected_col (@{$self->{_dbic_rs_attrs}{select}}) {
+
+    my $new_colname;
+
+    if (ref $selected_col) {
+      $new_colname = $self->_quote ('column_' . (@outer_select + 1) );
+    }
+    else {
+      my $quoted_col = $self->_quote ($selected_col);
+
+      my $name_sep = $self->name_sep || '.';
+      $name_sep = "\Q$name_sep\E";
+
+      my ($table, $orig_colname) = ( $selected_col =~ / (?: (.+) $name_sep )? ([^$name_sep]+) $ /x );
+      $new_colname = $self->_quote ("${table}__${orig_colname}");
+
+      $select =~ s/(\Q$quoted_col\E|\Q$selected_col\E)/"$1 AS $new_colname"/e;
+
+      # record qualified name if available (should be)
+      $col_index{$selected_col} = $new_colname if $table;
+
+      # record unqialified name, undef if a duplicate is found
+      if (exists $col_index{$orig_colname}) {
+        $col_index{$orig_colname} = undef;
+      }
+      else {
+        $col_index{$orig_colname} = $new_colname;
+      }
+    }
+
+    push @outer_select, $new_colname;
+  }
+
+  my $outer_select = join (', ', @outer_select );
+
+
+  # deal with order
   croak '$order supplied to SQLAHacks limit emulators must be a hash'
     if (ref $order ne 'HASH');
 
   $order = { %$order }; #copy
 
-  my $last = $rows + $offset;
+  my $req_order = [ $self->_order_by_chunks ($order->{order_by}) ];
+  my $limit_order = [ @$req_order ? @$req_order : $self->_order_by_chunks ($order->{_virtual_order_by}) ];
 
-  my $req_order = $self->_order_by ($order->{order_by});
 
-  my $limit_order = $req_order ? $order->{order_by} : $order->{_virtual_order_by};
+  # normalize all column names in order by
+  # no copies, just aliasing ($_)
+  for ($req_order, $limit_order) {
+    for ( @{$_ || []} ) {
+      $_ = $col_index{$_} if $col_index{$_};
+    }
+  }
 
+
+  # generate the rest
   delete $order->{$_} for qw/order_by _virtual_order_by/;
   my $grpby_having = $self->_order_by ($order);
 
   my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
 
-  $sql =~ s/^\s*(SELECT|select)//;
+  my $last = $rows + $offset;
 
   $sql = <<"SQL";
-  SELECT * FROM
-  (
-    SELECT TOP $rows * FROM
-    (
-        SELECT TOP $last $sql $grpby_having $order_by_inner
-    ) AS foo
-    $order_by_outer
-  ) AS bar
-  $req_order
 
+    SELECT TOP $rows $outer_select FROM
+    (
+      SELECT TOP $last $select $sql $grpby_having $order_by_inner
+    ) AS inner_sel
+    $order_by_outer
 SQL
-    return $sql;
+
+  if (@$req_order) {
+    my $order_by_requested = $self->_order_by ($req_order);
+
+    $sql = <<"SQL";
+
+  SELECT $outer_select FROM
+  ( $sql ) AS outer_sel
+  $order_by_requested;
+SQL
+
+  }
+
+  return $sql;
 }
 
 

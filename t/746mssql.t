@@ -10,7 +10,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 21;
+plan tests => 19;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
 
@@ -147,11 +147,8 @@ $schema->populate ('BooksInLibrary', [
       rows     => 5,
     });
 
-  my $owners2 = $schema->resultset ('Owners')->search ({ id => { -in => $owners->get_column ('me.id')->as_query }});
-  for ($owners, $owners2) {
-    is ($_->all, 8, 'Prefetched grouped search returns correct number of rows');
-    is ($_->count, 8, 'Prefetched grouped search returns correct count');
-  }
+  is ($owners->all, 3, 'Prefetched grouped search returns correct number of rows');
+  is ($owners->count, 3, 'Prefetched grouped search returns correct count');
 
   # try a ->belongs_to direction (no select collapse)
   my $books = $schema->resultset ('BooksInLibrary')->search ({
@@ -160,15 +157,15 @@ $schema->populate ('BooksInLibrary', [
       prefetch => 'owner',
       distinct => 1,
       order_by => 'name',
-      #page     => 2,
-      #rows     => 5,
+      rows     => 5,
     });
 
-  my $books2 = $schema->resultset ('BooksInLibrary')->search ({ id => { -in => $books->get_column ('me.id')->as_query }});
-  for ($books, $books2) {
-    is ($_->all, 1, 'Prefetched grouped search returns correct number of rows');
-    is ($_->count, 1, 'Prefetched grouped search returns correct count');
-  }
+
+  is ($books->page(1)->all, 1, 'Prefetched grouped search returns correct number of rows');
+  is ($books->page(1)->count, 1, 'Prefetched grouped search returns correct count');
+
+  is ($books->page(2)->all, 0, 'Prefetched grouped search returns correct number of rows');
+  is ($books->page(2)->count, 0, 'Prefetched grouped search returns correct count');
 
 }
 

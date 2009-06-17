@@ -1316,13 +1316,19 @@ sub _resolve_ident_sources {
 sub _resolve_column_info {
   my ($self, $ident, $colnames) = @_;
   my $alias2src = $self->_resolve_ident_sources($ident);
-  my $name_sep = $self->_sql_maker_opts->{name_sep} || '.';
+
+  my $sep = $self->_sql_maker_opts->{name_sep} || '.';
+  $sep = "\Q$sep\E";
+  
   my %return;
   foreach my $col (@{$colnames}) {
-    $col =~ m/^([^\Q${name_sep}\E]*)\Q${name_sep}\E/;
+    $col =~ m/^ (?: ([^$sep]+) $sep)? (.+) $/x;
+
     my $alias = $1 || 'me';
+    my $colname = $2;
+
     my $rsrc = $alias2src->{$alias};
-    $return{$col} = $rsrc && { %{$rsrc->column_info($col)}, -result_source => $rsrc };
+    $return{$col} = $rsrc && { %{$rsrc->column_info($colname)}, -result_source => $rsrc };
   }
   return \%return;
 }
