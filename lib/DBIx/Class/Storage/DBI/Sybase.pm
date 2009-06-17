@@ -29,7 +29,7 @@ sub _rebless {
         bless $self, 'DBIx::Class::Storage:DBI::Sybase::NoBindVars';
         $self->_rebless;
       }
-      $self->_init_date_fmt;
+      $self->connect_call_datetime_setup;
     }
   }
 }
@@ -37,14 +37,30 @@ sub _rebless {
 sub _populate_dbh {
   my $self = shift;
   $self->next::method(@_);
-  $self->_init_date_fmt;
+  $self->connect_call_datetime_setup;
   1;
 }
 
 {
   my $old_dbd_warned = 0;
 
-  sub _init_date_fmt {
+=head2 connect_call_datetime_setup
+
+Used as:
+
+  on_connect_call => 'datetime_setup'
+
+In L<DBIx::Class::Storage::DBI/connect_info> to set:
+
+  $dbh->syb_date_fmt('ISO_strict');
+  $dbh->do('set dateformat mdy');
+
+On connection for use with L<DBIx::Class::InflateColumn::DateTime>, using
+L<DateTime::Format::Sybase>.
+
+=cut
+
+  sub connect_call_datetime_setup {
     my $self = shift;
     my $dbh = $self->_dbh;
 
