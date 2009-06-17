@@ -285,8 +285,10 @@ sub load_namespaces {
 
 =back
 
-Alternative method to L</load_namespaces> which you should look at
-using if you can.
+L</load_classes> is an alternative method to L</load_namespaces>, both of
+which serve similar purposes, each with different advantages and disadvantages.
+In the general case you should use L</load_namespaces>, unless you need to
+be able to specify that only specific classes are loaded at runtime.
 
 With no arguments, this method uses L<Module::Find> to find all classes under
 the schema's namespace. Otherwise, this method loads the classes you specify
