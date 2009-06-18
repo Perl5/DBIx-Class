@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+        - Fixed regression when both page and offset are specified on
+          a resultset
+        - Fixed HRI returning too many empty results on multilevel
+          nonexisting prefetch
         - Fixed the prefetch with limit bug
 
 0.08107 2009-06-14 08:21:00 (UTC)
