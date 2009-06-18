@@ -2,6 +2,7 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use DateTime::Format::Sybase;
@@ -11,7 +12,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/}
 plan skip_all => 'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => (18 + 4*2)*2;
+plan tests => (26 + 4*2)*2;
 
 my @storage_types = (
   'DBI::Sybase',
@@ -65,11 +66,9 @@ SQL
   is ($schema->resultset('Artist')->count, 7, 'count(*) of whole table ok');
 
 # test LIMIT support
-
-## avoid quoting bug with NoBindVars for now
-#  my $it = $schema->resultset('Artist')->search({artistid => { '>' => 0 }}, {
-
-  my $it = $schema->resultset('Artist')->search({}, {
+  my $it = $schema->resultset('Artist')->search({
+    artistid => { '>' => 0 }
+  }, {
     rows => 3,
     order_by => 'artistid',
   });
@@ -136,6 +135,49 @@ SQL
     );
     is( $row->updated_date, $dt, 'DateTime inflation works' );
   }
+
+# stole the blob stuff Nniuq wrote for 73oracle.t
+  my $dbh = $schema->storage->dbh;
+  {
+    local $SIG{__WARN__} = sub {};
+    eval { $dbh->do('DROP TABLE bindtype_test') };
+
+    $dbh->do(qq[
+      CREATE TABLE bindtype_test 
+      (
+        id    INT   PRIMARY KEY,
+        bytea INT   NULL,
+        blob  IMAGE NULL,
+        clob  TEXT  NULL
+      )
+    ],{ RaiseError => 1, PrintError => 1 });
+  }
+
+  my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
+  $binstr{'large'} = $binstr{'small'} x 1024;
+
+  my $maxloblen = length $binstr{'large'};
+  note "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
+  local $dbh->{'LongReadLen'} = $maxloblen;
+
+  my $rs = $schema->resultset('BindType');
+  my $id = 0;
+
+  TODO: {
+    local $TODO = 'text/image columns don\'t work yet';
+
+    foreach my $type (qw(clob blob)) {
+      foreach my $size (qw(small large)) {
+        no warnings 'uninitialized';
+        $id++;
+
+        lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
+        "inserted $size $type without dying";
+        ok(eval { $rs->find($id)->$type } eq $binstr{$size},
+          "verified inserted $size $type" );
+      }
+    }
+  }
 }
 
 # clean up our mess
@@ -143,5 +185,6 @@ END {
   if (my $dbh = eval { $schema->storage->_dbh }) {
     $dbh->do('DROP TABLE artist');
     $dbh->do('DROP TABLE track');
+    $dbh->do('DROP TABLE bindtype_test');
   }
 }
