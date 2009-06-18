@@ -1144,7 +1144,7 @@ sub count {
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my $meth = $self->_has_attr (qw/prefetch collapse distinct group_by/)
+  my $meth = $self->_has_resolved_attr (qw/collapse group_by/)
     ? 'count_grouped'
     : 'count'
   ;
@@ -1276,15 +1276,15 @@ sub _rs_update_delete {
 
   my $rsrc = $self->result_source;
 
-  my $needs_group_by_subq = $self->_has_attr (qw/prefetch distinct join seen_join group_by/);
-  my $needs_subq = $self->_has_attr (qw/row offset page/);
+  my $needs_group_by_subq = $self->_has_resolved_attr (qw/collapse group_by -join/);
+  my $needs_subq = $self->_has_resolved_attr (qw/row offset/);
 
   if ($needs_group_by_subq or $needs_subq) {
 
     # make a new $rs selecting only the PKs (that's all we really need)
     my $attrs = $self->_resolved_attrs_copy;
 
-    delete $attrs->{$_} for qw/prefetch collapse select +select as +as columns +columns/;
+    delete $attrs->{$_} for qw/collapse select as/;
     $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
 
     if ($needs_group_by_subq) {
@@ -1808,14 +1808,14 @@ sub _is_deterministic_value {
   return 0;
 }
 
-# _has_attr
+# _has_resolved_attr
 #
 # determines if the resultset defines at least one
 # of the attributes supplied
 #
 # used to determine if a subquery is neccessary
 
-sub _has_attr {
+sub _has_resolved_attr {
   my ($self, @attr_names) = @_;
 
   my $attrs = $self->_resolved_attrs;
@@ -1823,7 +1823,7 @@ sub _has_attr {
   my $join_check_req;
 
   for my $n (@attr_names) {
-    ++$join_check_req if $n =~ /join/;
+    ++$join_check_req if $n eq '-join';
 
     my $attr =  $attrs->{$n};
 
@@ -1840,7 +1840,7 @@ sub _has_attr {
     }
   }
 
-  # a join can be expressed as a multi-level from
+  # a resolved join is expressed as a multi-level from
   return 1 if (
     $join_check_req
       and
@@ -2622,10 +2622,12 @@ sub _resolved_attrs {
 
   $attrs->{collapse} = $collapse;
 
-  if ($attrs->{page} && not exists $attrs->{resolved_offset}) {
-    $attrs->{offset} = ($attrs->{rows} * ($attrs->{page} - 1)) +
+  # if both page and offset are specified, produce a combined offset
+  # even though it doesn't make much sense, this is what pre 081xx has
+  # been doing
+  if (my $page = delete $attrs->{page}) {
+    $attrs->{offset} = ($attrs->{rows} * ($page - 1)) +
       ($attrs->{offset} || 0);
-    $attrs->{resolved_offset} = $attrs->{offset};
   }
 
   return $self->{_attrs} = $attrs;

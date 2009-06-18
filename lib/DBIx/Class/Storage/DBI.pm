@@ -1311,8 +1311,8 @@ sub count {
 
   my $tmp_attrs = { %$attrs };
 
-  # take off any pagers, record_filter is cdbi, and no point of ordering a count
-  delete $tmp_attrs->{$_} for (qw/select as rows offset page order_by record_filter/);
+  # take off any limits, record_filter is cdbi, and no point of ordering a count
+  delete $tmp_attrs->{$_} for (qw/select as rows offset order_by record_filter/);
 
   # overwrite the selector
   $tmp_attrs->{select} = { count => '*' };
@@ -1336,7 +1336,7 @@ sub count_grouped {
   my $sub_attrs = { %$attrs };
 
   # these can not go in the subquery, and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/prefetch collapse select as order_by/;
+  delete $sub_attrs->{$_} for qw/collapse select as order_by/;
 
   # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
   # simply deleting group_by suffices, as the code below will re-fill it
@@ -1353,7 +1353,7 @@ sub count_grouped {
   }];
 
   # the subquery replaces this
-  delete $attrs->{$_} for qw/where bind prefetch collapse group_by having having_bind rows offset page pager/;
+  delete $attrs->{$_} for qw/where bind collapse group_by having having_bind rows offset/;
 
   return $self->count ($source, $attrs);
 }
