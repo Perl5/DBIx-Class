@@ -126,13 +126,12 @@ is_deeply [$rs_hashrefinf->all], \@hashrefinf, 'Check query using extended colum
 
 # check nested prefetching of has_many relationships which return nothing
 my $artist = $schema->resultset ('Artist')->create ({ name => 'unsuccessful artist without CDs'});
+$artist->discard_changes;
 my $rs_artists = $schema->resultset ('Artist')->search ({ 'me.artistid' => $artist->id}, {
-    prefetch => { cds => 'tracks' },
+    prefetch => { cds => 'tracks' }, result_class => 'DBIx::Class::ResultClass::HashRefInflator',
 });
-$rs_artists->result_class('DBIx::Class::ResultClass::HashRefInflator');
-my @artists_ok = ({
-    artistid => $artist->id,
-    name => "unsuccessful artist without CDs",
-    cds => [],
-});
-is_deeply [$rs_artists->all], \@artists_ok, 'nested has_many prefetch without entries';
+is_deeply(
+  [$rs_artists->all],
+  [{ $artist->get_columns, cds => [] }],
+  'nested has_many prefetch without entries'
+);
