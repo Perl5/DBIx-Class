@@ -1301,7 +1301,6 @@ sub _adjust_select_args_for_limited_prefetch {
   delete $attrs->{$_} for qw/where bind rows offset/;
   delete $sub_attrs->{$_} for qw/for collapse select order_by/;
 
-
   my $alias = $attrs->{alias};
 
   # create subquery select list
@@ -1318,6 +1317,10 @@ sub _adjust_select_args_for_limited_prefetch {
 
   # mangle the from, separating it into an outer and inner part
   my $self_ident = shift @$from;
+
+  # this map indicates which aliases need to be joined if we want
+  # to join a specific alias
+  # (e.g.  join => { cds => 'tracks' } - tracks will need cds too )
   my %join_map = map { $_->[0]{-alias} => $_->[0]{-join_path} } (@$from);
 
   my (%inner_joins, %outer_joins);
@@ -1347,6 +1350,10 @@ sub _adjust_select_args_for_limited_prefetch {
     # sort needed joins
     for my $alias (keys %join_map) {
 
+      # any table alias found on a column name in where or order_by
+      # gets included in %inner_joins
+      # Also any parent joins that are needed to reach this particular alias
+      # (e.g.  join => { cds => 'tracks' } - tracks will bring cds too )
       for my $piece ($where_sql, @order_by ) {
         if ($piece =~ /\b$alias\./) {
           $inner_joins{$alias} = 1;
@@ -1354,15 +1361,18 @@ sub _adjust_select_args_for_limited_prefetch {
         }
       }
 
+      # any alias found in the select becomes %outer_joins
+      # the join parents are included in the same manner
       for my $sel (@$select) {
         if ($sel =~ /^$alias\./) {
-          $outer_joins{$alias}++;
+          $outer_joins{$alias} = 1;
           $outer_joins{$_} = 1 for @{$join_map{$alias}};
         }
       }
     }
   }
 
+  # construct the inner $from for the subquery
   my $inner_from = [ $self_ident ];
   if (keys %inner_joins) {
     for my $j (@$from) {
@@ -1370,7 +1380,7 @@ sub _adjust_select_args_for_limited_prefetch {
     }
 
     # if a multi-type join was needed in the subquery ("multi" is indicated by
-    # presence in collapse) - add a group_by to simulate the collapse in the subq
+    # presence in {collapse}) - add a group_by to simulate the collapse in the subq
     for my $alias (keys %inner_joins) {
 
       # the dot comes from some weirdness in collapse
@@ -1382,6 +1392,7 @@ sub _adjust_select_args_for_limited_prefetch {
     }
   }
 
+  # generate the subquery
   my $subq = $self->_select_args_to_query (
     $inner_from,
     $sub_select,
@@ -1389,14 +1400,17 @@ sub _adjust_select_args_for_limited_prefetch {
     $sub_attrs
   );
 
-  my $outer_from = [ { me => $subq } ];
+  # generate the outer $from
+  my $outer_from = [ { $alias => $subq } ];
   if (keys %outer_joins) {
     for my $j (@$from) {
       push @$outer_from, $j if $outer_joins{$j->[0]{-alias}};
     }
   }
 
-  return ($outer_from, $select, {}, $attrs);  # where ended up in the subquery, thus {}
+  # now _select_args() will continue with the modified set of arguments
+  # where ended up in the subquery, thus {}
+  return ($outer_from, $select, {}, $attrs);
 }
 
 sub _resolve_ident_sources {
