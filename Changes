@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - Fixed the prefetch with limit bug
+
 0.08107 2009-06-14 08:21:00 (UTC)
         - Fix serialization regression introduced in 0.08103 (affects
           Cursor::Cached)

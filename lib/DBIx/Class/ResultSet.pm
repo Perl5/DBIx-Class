@@ -2598,8 +2598,7 @@ sub _resolved_attrs {
   $attrs->{_virtual_order_by} = [ $self->result_source->primary_columns ];
 
 
-  my $collapse = $attrs->{collapse} || {};
-
+  $attrs->{collapse} ||= {};
   if ( my $prefetch = delete $attrs->{prefetch} ) {
     $prefetch = $self->_merge_attr( {}, $prefetch );
 
@@ -2608,19 +2607,19 @@ sub _resolved_attrs {
     my $join_map = $self->_joinpath_aliases ($attrs->{from}, $attrs->{seen_join});
 
     my @prefetch =
-      $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $collapse );
+      $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $attrs->{collapse} );
 
     push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
     push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
 
     push( @{ $attrs->{order_by} }, @$prefetch_ordering );
+    $attrs->{_collapse_order_by} = \@$prefetch_ordering;
   }
+
 
   if (delete $attrs->{distinct}) {
     $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
   }
-
-  $attrs->{collapse} = $collapse;
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has

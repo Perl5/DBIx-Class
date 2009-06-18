@@ -7,20 +7,26 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan skip_all => 'fix pending';
-#plan tests => 4;
+plan tests => 4;
 
 my $schema = DBICTest->init_schema();
+
+
 my $no_prefetch = $schema->resultset('Artist')->search(
   undef,
   { rows => 3 }
 );
 
 my $use_prefetch = $schema->resultset('Artist')->search(
-  undef,
+  [   # search deliberately contrived
+    { 'artwork.cd_id' => undef },
+    { 'tracks.title' => { '!=' => 'blah-blah-1234568' }}
+  ],
   {
     prefetch => 'cds',
-    rows     => 3
+    join => { cds => [qw/artwork tracks/] },
+    rows     => 3,
+    order_by => { -desc => 'name' },
   }
 );
 
@@ -30,8 +36,6 @@ is(
   scalar ($use_prefetch->all),
   "Amount of returned rows is right"
 );
-
-
 
 my $artist_many_cds = $schema->resultset('Artist')->search ( {}, {
   join => 'cds',
