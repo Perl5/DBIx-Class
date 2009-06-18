@@ -6,7 +6,6 @@ use lib qw(t/lib);
 use DBICTest;
 my $schema = DBICTest->init_schema();
 
-
 # Under some versions of SQLite if the $rs is left hanging around it will lock
 # So we create a scope here cos I'm lazy
 {
@@ -124,3 +123,16 @@ $rs_hashrefinf = $schema->resultset ('Artist')->search ({ 'me.artistid' => 1}, {
 });
 $rs_hashrefinf->result_class('DBIx::Class::ResultClass::HashRefInflator');
 is_deeply [$rs_hashrefinf->all], \@hashrefinf, 'Check query using extended columns syntax';
+
+# check nested prefetching of has_many relationships which return nothing
+my $artist = $schema->resultset ('Artist')->create ({ name => 'unsuccessful artist without CDs'});
+my $rs_artists = $schema->resultset ('Artist')->search ({ 'me.artistid' => $artist->id}, {
+    prefetch => { cds => 'tracks' },
+});
+$rs_artists->result_class('DBIx::Class::ResultClass::HashRefInflator');
+my @artists_ok = ({
+    artistid => $artist->id,
+    name => "unsuccessful artist without CDs",
+    cds => [],
+});
+is_deeply [$rs_artists->all], \@artists_ok, 'nested has_many prefetch without entries';
