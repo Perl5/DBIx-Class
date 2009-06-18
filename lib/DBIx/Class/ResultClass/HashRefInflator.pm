@@ -73,8 +73,15 @@ $mk_hash = sub {
 
         # if there is at least one defined column consider the resultset real
         # (and not an emtpy has_many rel containing one empty hashref)
+        # an empty arrayref is an empty multi-sub-prefetch - don't consider
+        # those either
         for (values %$hash) {
-            return $hash if defined $_;
+            if (ref $_ eq 'ARRAY') {
+              return $hash if @$_;
+            }
+            elsif (defined $_) {
+              return $hash;
+            }
         }
 
         return undef;
