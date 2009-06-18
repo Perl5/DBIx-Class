@@ -30,6 +30,7 @@ sub _rebless {
         $self->_rebless;
       }
       $self->connect_call_datetime_setup;
+      $self->connect_call_blob_setup;
     }
   }
 }
@@ -38,7 +39,25 @@ sub _populate_dbh {
   my $self = shift;
   $self->next::method(@_);
   $self->connect_call_datetime_setup;
+  $self->connect_call_blob_setup;
   1;
+}
+
+=head2 connect_call_blob_setup
+
+Used as:
+
+  on_connect_call => 'blob_setup'
+
+Does C<< $dbh->{syb_binary_images} = 1; >> to return C<IMAGE> data as raw binary
+instead of as a hex string.
+
+=cut
+
+sub connect_call_blob_setup {
+  my $self = shift;
+  my $dbh = $self->_dbh;
+  $dbh->{syb_binary_images} = 1;
 }
 
 {
@@ -147,6 +166,11 @@ But your queries will be cached.
 
 See L</connect_call_datetime_setup> to setup date formats
 for L<DBIx::Class::InflateColumn::DateTime>.
+
+=head1 IMAGE COLUMNS
+
+See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
+setting you need to work with C<IMAGE> columns.
 
 =head1 AUTHORS
 
