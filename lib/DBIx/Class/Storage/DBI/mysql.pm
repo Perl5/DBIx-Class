@@ -3,7 +3,11 @@ package DBIx::Class::Storage::DBI::mysql;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::MultiColumnIn DBIx::Class::Storage::DBI::AmbiguousGlob/;
+use base qw/
+  DBIx::Class::Storage::DBI::MultiColumnIn
+  DBIx::Class::Storage::DBI::AmbiguousGlob
+  DBIx::Class::Storage::DBI
+/;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MySQL');
 
