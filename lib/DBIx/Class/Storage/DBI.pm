@@ -1318,22 +1318,27 @@ sub _adjust_select_args_for_limited_prefetch {
   # mangle the head of the {from}
   my $self_ident = shift @$from;
 
-  # this map indicates which aliases need to be joined if we want
-  # to join a specific alias
-  # (e.g.  join => { cds => 'tracks' } - tracks will need cds too )
-  my %join_map = map { $_->[0]{-alias} => $_->[0]{-join_path} } (@$from);
+  my %join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
 
   my (%inner_joins);
 
   # decide which parts of the join will remain on the inside
-  # (we do not need the purely-prefetch ones)
+  #
+  # this is not a very viable optimisation, but it was written
+  # before I realised this, so might as well remain. We can throw
+  # away _any_ branches of the join tree that are:
+  # 1) not mentioned in the condition/order
+  # 2) left-join leaves (or left-join leaf chains)
+  # Most of the join ocnditions will not satisfy this, but for real
+  # complex queries some might, and we might make some RDBMS happy.
+  #
   #
   # since we do not have introspectable SQLA, we fall back to ugly
   # scanning of raw SQL for WHERE, and for pieces of ORDER BY
   # in order to determine what goes into %inner_joins
   # It may not be very efficient, but it's a reasonable stop-gap
   {
-    # produce stuff unquoted, so it's easier to scan
+    # produce stuff unquoted, so it can be scanned
     my $sql_maker = $self->sql_maker;
     local $sql_maker->{quote_char};
 
@@ -1345,18 +1350,31 @@ sub _adjust_select_args_for_limited_prefetch {
     my $where_sql = $sql_maker->where ($where);
 
     # sort needed joins
-    for my $alias (keys %join_map) {
+    for my $alias (keys %join_info) {
 
       # any table alias found on a column name in where or order_by
       # gets included in %inner_joins
       # Also any parent joins that are needed to reach this particular alias
-      # (e.g.  join => { cds => 'tracks' } - tracks will bring cds too )
       for my $piece ($where_sql, @order_by ) {
         if ($piece =~ /\b$alias\./) {
           $inner_joins{$alias} = 1;
-          $inner_joins{$_} = 1 for @{$join_map{$alias}};
         }
       }
+    }
+  }
+
+  # scan for non-leaf/non-left joins and mark as needed
+  # also mark all ancestor joins that are needed to reach this particular alias
+  # (e.g.  join => { cds => 'tracks' } - tracks will bring cds too )
+  #
+  # traverse by the size of the -join_path i.e. reverse depth first
+  for my $alias (sort { @{$join_info{$b}{-join_path}} <=> @{$join_info{$a}{-join_path}} } (keys %join_info) ) {
+
+    my $j = $join_info{$alias};
+    $inner_joins{$alias} = 1 if (! $j->{-join_type} || ($j->{-join_type} !~ /^left$/i) );
+
+    if ($inner_joins{$alias}) {
+      $inner_joins{$_} = 1 for (@{$j->{-join_path}});
     }
   }
 
