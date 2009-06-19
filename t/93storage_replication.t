@@ -361,10 +361,7 @@ is $artist1->name, 'Ozric Tentacles'
 
 ## Check that master_read_weight is honored
 {
-    no warnings 'once';
-
-    # turn off redefined warning
-    local $SIG{__WARN__} = sub {};
+    no warnings qw/once redefine/;
 
     local
     *DBIx::Class::Storage::DBI::Replicated::Balancer::Random::_random_number =
