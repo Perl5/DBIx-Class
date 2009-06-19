@@ -1283,8 +1283,6 @@ sub _select_args {
   };
 
 
-  $sql_maker->{for} = delete $attrs->{for};
-
   return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $order, @limit);
 }
 
