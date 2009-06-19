@@ -31,7 +31,7 @@ my %noquote = (
     numeric => $decimal,
 );
 
-sub should_quote_data_type {
+sub should_quote {
   my $self = shift;
   my ($type, $value) = @_;
 

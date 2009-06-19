@@ -55,8 +55,11 @@ sub _prep_for_execute {
   foreach my $bound (@$bind) {
     my $col = shift @$bound;
 
-    my $name_sep = $self->_sql_maker_opts->{name_sep} || '.';
+    my $name_sep   = $self->_sql_maker_opts->{name_sep} || '.';
+    my $quote_char = $self->_sql_maker_opts->{quote_char} || '';
+    $quote_char    = join '', @$quote_char if ref $quote_char eq 'ARRAY';
 
+    $col =~ s/[\Q${quote_char}\E]//g if $quote_char;
     $col =~ s/^([^\Q${name_sep}\E]*)\Q${name_sep}\E//;
     my $alias = $1 || 'me';
 
@@ -65,10 +68,10 @@ sub _prep_for_execute {
     my $datatype = $rsrc && $rsrc->column_info($col)->{data_type};
 
     foreach my $data (@$bound) {
-        if(ref $data) {
-            $data = ''.$data;
-        }
-        $data = $self->_dbh->quote($data) if $self->should_quote_data_type($datatype, $data);
+        $data = ''.$data if ref $data;
+
+        $data = $self->_dbh->quote($data) if $self->should_quote($datatype, $data);
+
         $new_sql .= shift(@sql_part) . $data;
     }
   }
@@ -77,7 +80,7 @@ sub _prep_for_execute {
   return ($new_sql, []);
 }
 
-=head2 should_quote_data_type   
+=head2 should_quote
                                 
 This method is called by L</_prep_for_execute> for every column in
 order to determine if its value should be quoted or not. The arguments
@@ -94,7 +97,7 @@ columns). The default method always returns true (do quote).
                                 
 =cut                            
                                 
-sub should_quote_data_type { 1 }
+sub should_quote { 1 }
 
 =head1 AUTHORS
 

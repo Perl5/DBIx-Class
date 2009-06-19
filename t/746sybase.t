@@ -136,7 +136,7 @@ SQL
     is( $row->updated_date, $dt, 'DateTime inflation works' );
   }
 
-# stole the blob stuff Nniuq wrote for 73oracle.t
+# mostly stole the blob stuff Nniuq wrote for t/73oracle.t
   my $dbh = $schema->storage->dbh;
   {
     local $SIG{__WARN__} = sub {};
@@ -164,17 +164,18 @@ SQL
   my $id = 0;
 
   TODO: {
-    local $TODO = 'text/image columns don\'t work yet';
+    local $TODO = 'TEXT/IMAGE columns don\'t work yet';
 
-    foreach my $type (qw(clob blob)) {
+    foreach my $type (qw(blob clob)) {
       foreach my $size (qw(small large)) {
         no warnings 'uninitialized';
         $id++;
 
-        lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
-        "inserted $size $type without dying";
-        ok(eval { $rs->find($id)->$type } eq $binstr{$size},
-          "verified inserted $size $type" );
+        eval { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) };
+        ok(!$@, "inserted $size $type without dying");
+        ok(eval {
+          $rs->search({ id=> $id }, { select => [$type] })->single->$type
+        } eq $binstr{$size}, "verified inserted $size $type" );
       }
     }
   }

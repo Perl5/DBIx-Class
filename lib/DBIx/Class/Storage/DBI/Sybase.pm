@@ -52,6 +52,8 @@ Used as:
 Does C<< $dbh->{syb_binary_images} = 1; >> to return C<IMAGE> data as raw binary
 instead of as a hex string.
 
+Recommended.
+
 =cut
 
 sub connect_call_blob_setup {
@@ -100,6 +102,8 @@ C<SMALLDATETIME> columns only have minute precision.
   }
 }
 
+sub datetime_parser_type { "DateTime::Format::Sybase" }
+
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
 
@@ -107,6 +111,15 @@ sub _dbh_last_insert_id {
   my $sth = $dbh->prepare_cached("select max($col) from ".$source->from);
   return ($dbh->selectrow_array($sth))[0];
 }
+
+=head2 count
+
+Counts for limited queries are emulated by executing select queries and
+returning the number of successful executions minus the offset.
+
+This is necessary due to the limitations of Sybase.
+
+=cut
 
 sub count {
   my $self = shift;
@@ -137,8 +150,6 @@ sub count {
   return $count - $offset;
 }
 
-sub datetime_parser_type { "DateTime::Format::Sybase" }
-
 1;
 
 =head1 NAME
@@ -162,15 +173,24 @@ without doing a C<select max(col)>.
 
 But your queries will be cached.
 
+A recommended L<DBIx::Class::Storage::DBI/connect_info> setting:
+
+  on_connect_call => [qw/datetime_setup blob_setup/]
+
 =head1 DATES
 
 See L</connect_call_datetime_setup> to setup date formats
 for L<DBIx::Class::InflateColumn::DateTime>.
 
-=head1 IMAGE COLUMNS
+=head1 IMAGE AND TEXT COLUMNS
 
 See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
 setting you need to work with C<IMAGE> columns.
+
+Due to limitations in L<DBD::Sybase> and this driver, it is only possible to
+select one C<TEXT> or C<IMAGE> column at a time, and it must be at the end of
+your C<select> list (one way to insure that is to define the column last in your
+C<Result> class.)
 
 =head1 AUTHORS
 
