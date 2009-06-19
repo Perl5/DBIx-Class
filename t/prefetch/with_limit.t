@@ -8,7 +8,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 7;
+plan tests => 8;
 
 my $schema = DBICTest->init_schema();
 
@@ -84,7 +84,7 @@ throws_ok (
   'single() with multiprefetch is illegal',
 );
 
-my $artist = $use_prefetch->search({'cds.title' => $artist_many_cds->cds->first->title })->slice->next;
+my $artist = $use_prefetch->search({'cds.title' => $artist_many_cds->cds->first->title })->next;
 
 is($artist->cds->count, 1, "count on search limiting prefetched has_many");
 
