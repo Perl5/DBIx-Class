@@ -698,9 +698,13 @@ a warning:
 
   Query returned more than one row
 
-In this case, you should be using L</first> or L</find> instead, or if you really
+In this case, you should be using L</next> or L</find> instead, or if you really
 know what you are doing, use the L</rows> attribute to explicitly limit the size
 of the resultset.
+
+This method will also throw an exception if it is called on a resultset prefetching
+has_many, as such a prefetch implies fetching multiple rows from the database in
+order to assemble the resulting object.
 
 =back
 
@@ -713,6 +717,12 @@ sub single {
   }
 
   my $attrs = $self->_resolved_attrs_copy;
+
+  if (keys %{$attrs->{collapse}}) {
+    $self->throw_exception(
+      'single() can not be used on resultsets prefetching has_many. Use find( \%cond ) or next() instead'
+    );
+  }
 
   if ($where) {
     if (defined $attrs->{where}) {

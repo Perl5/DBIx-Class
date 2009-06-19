@@ -4,10 +4,11 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 4;
+plan tests => 7;
 
 my $schema = DBICTest->init_schema();
 
@@ -49,24 +50,36 @@ $no_prefetch = $schema->resultset('Artist')->search(
   { rows => 1 }
 );
 
-$use_prefetch = $schema->resultset('Artist')->search(
-  { artistid => $artist_many_cds->id },
-  {
-    prefetch => 'cds',
-    rows     => 1
-  }
-);
+$use_prefetch = $no_prefetch->search ({}, { prefetch => 'cds' });
 
-my $prefetch_artist = $use_prefetch->first;
-my $normal_artist = $no_prefetch->first;
+my $normal_artist = $no_prefetch->single;
+my $prefetch_artist = $use_prefetch->find({ name => $artist_many_cds->name });
+my $prefetch2_artist = $use_prefetch->first;
 
 is(
   $prefetch_artist->cds->count,
   $normal_artist->cds->count,
-  "Count of child rel with prefetch + rows => 1 is right"
+  "Count of child rel with prefetch + rows => 1 is right (find)"
 );
+is(
+  $prefetch2_artist->cds->count,
+  $normal_artist->cds->count,
+  "Count of child rel with prefetch + rows => 1 is right (first)"
+);
+
 is (
   scalar ($prefetch_artist->cds->all),
   scalar ($normal_artist->cds->all),
-  "Amount of child rel rows with prefetch + rows => 1 is right"
+  "Amount of child rel rows with prefetch + rows => 1 is right (find)"
+);
+is (
+  scalar ($prefetch2_artist->cds->all),
+  scalar ($normal_artist->cds->all),
+  "Amount of child rel rows with prefetch + rows => 1 is right (first)"
+);
+
+throws_ok (
+  sub { $use_prefetch->single },
+  qr/resultsets prefetching has_many/,
+  'single() with multiprefetch is illegal',
 );
