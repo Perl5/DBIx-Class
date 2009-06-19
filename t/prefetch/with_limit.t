@@ -83,3 +83,8 @@ throws_ok (
   qr/resultsets prefetching has_many/,
   'single() with multiprefetch is illegal',
 );
+
+my $artist = $use_prefetch->search({'cds.title' => $artist_many_cds->cds->first->title })->slice->next;
+
+is($artist->cds->count, 1, "count on search limiting prefetched has_many");
+
