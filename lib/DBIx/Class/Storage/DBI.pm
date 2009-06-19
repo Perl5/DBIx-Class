@@ -1315,7 +1315,7 @@ sub _adjust_select_args_for_limited_prefetch {
   }
 
 
-  # mangle the from, separating it into an outer and inner part
+  # mangle the head of the {from}
   my $self_ident = shift @$from;
 
   # this map indicates which aliases need to be joined if we want
@@ -1323,13 +1323,10 @@ sub _adjust_select_args_for_limited_prefetch {
   # (e.g.  join => { cds => 'tracks' } - tracks will need cds too )
   my %join_map = map { $_->[0]{-alias} => $_->[0]{-join_path} } (@$from);
 
-  my (%inner_joins, %outer_joins);
+  my (%inner_joins);
 
-  # decide which parts of the join will remain
-  #
-  # resolve the prefetch-needed joins here as well, as the $attr->{prefetch}
-  # is 1) resolved away 2) unreliable as it may be a result of search_related
-  # and whatnot
+  # decide which parts of the join will remain on the inside
+  # (we do not need the purely-prefetch ones)
   #
   # since we do not have introspectable SQLA, we fall back to ugly
   # scanning of raw SQL for WHERE, and for pieces of ORDER BY
@@ -1358,15 +1355,6 @@ sub _adjust_select_args_for_limited_prefetch {
         if ($piece =~ /\b$alias\./) {
           $inner_joins{$alias} = 1;
           $inner_joins{$_} = 1 for @{$join_map{$alias}};
-        }
-      }
-
-      # any alias found in the select becomes %outer_joins
-      # the join parents are included in the same manner
-      for my $sel (@$select) {
-        if ($sel =~ /^$alias\./) {
-          $outer_joins{$alias} = 1;
-          $outer_joins{$_} = 1 for @{$join_map{$alias}};
         }
       }
     }
@@ -1400,17 +1388,14 @@ sub _adjust_select_args_for_limited_prefetch {
     $sub_attrs
   );
 
-  # generate the outer $from
-  my $outer_from = [ { $alias => $subq } ];
-  if (keys %outer_joins) {
-    for my $j (@$from) {
-      push @$outer_from, $j if $outer_joins{$j->[0]{-alias}};
-    }
-  }
+  # put it back in $from
+  unshift @$from, { $alias => $subq };
 
-  # now _select_args() will continue with the modified set of arguments
-  # where ended up in the subquery, thus {}
-  return ($outer_from, $select, {}, $attrs);
+  # This is totally horrific - the $where ends up in both the inner and outer query
+  # Unfortunately not much can be done until SQLA2 introspection arrives
+  #
+  # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
+  return ($from, $select, $where, $attrs);
 }
 
 sub _resolve_ident_sources {
