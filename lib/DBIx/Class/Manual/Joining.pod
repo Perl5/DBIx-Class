@@ -34,7 +34,7 @@ to fetch the tracks, or you can use a join. Compare:
 So, joins are a way of extending simple select statements to include
 fields from other, related, tables. There are various types of joins,
 depending on which combination of the data you wish to retrieve, see
-L<MySQL's doc on JOINs|http://dev.mysql.com/doc/refman/5.0/en/join.html>.
+MySQL's doc on JOINs: L<http://dev.mysql.com/doc/refman/5.0/en/join.html>.
 
 =head1 DEFINING JOINS AND RELATIONSHIPS
 
