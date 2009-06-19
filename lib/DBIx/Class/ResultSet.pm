@@ -698,9 +698,13 @@ a warning:
 
   Query returned more than one row
 
-In this case, you should be using L</first> or L</find> instead, or if you really
+In this case, you should be using L</next> or L</find> instead, or if you really
 know what you are doing, use the L</rows> attribute to explicitly limit the size
 of the resultset.
+
+This method will also throw an exception if it is called on a resultset prefetching
+has_many, as such a prefetch implies fetching multiple rows from the database in
+order to assemble the resulting object.
 
 =back
 
@@ -713,6 +717,12 @@ sub single {
   }
 
   my $attrs = $self->_resolved_attrs_copy;
+
+  if (keys %{$attrs->{collapse}}) {
+    $self->throw_exception(
+      'single() can not be used on resultsets prefetching has_many. Use find( \%cond ) or next() instead'
+    );
+  }
 
   if ($where) {
     if (defined $attrs->{where}) {
@@ -2598,8 +2608,7 @@ sub _resolved_attrs {
   $attrs->{_virtual_order_by} = [ $self->result_source->primary_columns ];
 
 
-  my $collapse = $attrs->{collapse} || {};
-
+  $attrs->{collapse} ||= {};
   if ( my $prefetch = delete $attrs->{prefetch} ) {
     $prefetch = $self->_merge_attr( {}, $prefetch );
 
@@ -2608,19 +2617,19 @@ sub _resolved_attrs {
     my $join_map = $self->_joinpath_aliases ($attrs->{from}, $attrs->{seen_join});
 
     my @prefetch =
-      $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $collapse );
+      $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $attrs->{collapse} );
 
     push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
     push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
 
     push( @{ $attrs->{order_by} }, @$prefetch_ordering );
+    $attrs->{_collapse_order_by} = \@$prefetch_ordering;
   }
+
 
   if (delete $attrs->{distinct}) {
     $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
   }
-
-  $attrs->{collapse} = $collapse;
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has

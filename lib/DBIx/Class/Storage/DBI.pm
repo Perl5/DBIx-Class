@@ -1242,21 +1242,13 @@ sub _select_args_to_query {
 }
 
 sub _select_args {
-  my ($self, $ident, $select, $condition, $attrs) = @_;
+  my ($self, $ident, $select, $where, $attrs) = @_;
 
   my $sql_maker = $self->sql_maker;
-  $sql_maker->{for} = delete $attrs->{for};
-
-  my $order = { map
-    { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
-    (qw/order_by group_by having _virtual_order_by/ )
-  };
-
-
-  my $bind_attrs = {};
-
   my $alias2source = $self->_resolve_ident_sources ($ident);
 
+  # calculate bind_attrs before possible $ident mangling
+  my $bind_attrs = {};
   for my $alias (keys %$alias2source) {
     my $bindtypes = $self->source_bind_attributes ($alias2source->{$alias}) || {};
     for my $col (keys %$bindtypes) {
@@ -1269,15 +1261,7 @@ sub _select_args {
     }
   }
 
-  # This would be the point to deflate anything found in $condition
-  # (and leave $attrs->{bind} intact). Problem is - inflators historically
-  # expect a row object. And all we have is a resultsource (it is trivial
-  # to extract deflator coderefs via $alias2source above).
-  #
-  # I don't see a way forward other than changing the way deflators are
-  # invoked, and that's just bad...
-
-  my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
+  my @limit;
   if ($attrs->{software_limit} ||
       $sql_maker->_default_limit_syntax eq "GenericSubQ") {
         $attrs->{software_limit} = 1;
@@ -1287,9 +1271,165 @@ sub _select_args {
 
     # MySQL actually recommends this approach.  I cringe.
     $attrs->{rows} = 2**48 if not defined $attrs->{rows} and defined $attrs->{offset};
-    push @args, $attrs->{rows}, $attrs->{offset};
+
+    if ($attrs->{rows} && keys %{$attrs->{collapse}}) {
+      ($ident, $select, $where, $attrs)
+        = $self->_adjust_select_args_for_limited_prefetch ($ident, $select, $where, $attrs);
+    }
+    else {
+      push @limit, $attrs->{rows}, $attrs->{offset};
+    }
   }
-  return @args;
+
+###
+  # This would be the point to deflate anything found in $where
+  # (and leave $attrs->{bind} intact). Problem is - inflators historically
+  # expect a row object. And all we have is a resultsource (it is trivial
+  # to extract deflator coderefs via $alias2source above).
+  #
+  # I don't see a way forward other than changing the way deflators are
+  # invoked, and that's just bad...
+###
+
+  my $order = { map
+    { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
+    (qw/order_by group_by having _virtual_order_by/ )
+  };
+
+
+  $sql_maker->{for} = delete $attrs->{for};
+
+  return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $order, @limit);
+}
+
+sub _adjust_select_args_for_limited_prefetch {
+  my ($self, $from, $select, $where, $attrs) = @_;
+
+  if ($attrs->{group_by} and @{$attrs->{group_by}}) {
+    $self->throw_exception ('Prefetch with limit (rows/offset) is not supported on resultsets with a group_by attribute');
+  }
+
+  $self->throw_exception ('Prefetch with limit (rows/offset) is not supported on resultsets with a custom from attribute')
+    if (ref $from ne 'ARRAY');
+
+  # separate attributes
+  my $sub_attrs = { %$attrs };
+  delete $attrs->{$_} for qw/where bind rows offset/;
+  delete $sub_attrs->{$_} for qw/for collapse select order_by/;
+
+  my $alias = $attrs->{alias};
+
+  # create subquery select list
+  my $sub_select = [ grep { $_ =~ /^$alias\./ } @{$attrs->{select}} ];
+
+  # bring over all non-collapse-induced order_by into the inner query (if any)
+  # the outer one will have to keep them all
+  if (my $ord_cnt = @{$attrs->{order_by}} - @{$attrs->{_collapse_order_by}} ) {
+    $sub_attrs->{order_by} = [
+      @{$attrs->{order_by}}[ 0 .. ($#{$attrs->{order_by}} - $ord_cnt - 1) ]
+    ];
+  }
+
+
+  # mangle the head of the {from}
+  my $self_ident = shift @$from;
+
+  my %join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
+
+  my (%inner_joins);
+
+  # decide which parts of the join will remain on the inside
+  #
+  # this is not a very viable optimisation, but it was written
+  # before I realised this, so might as well remain. We can throw
+  # away _any_ branches of the join tree that are:
+  # 1) not mentioned in the condition/order
+  # 2) left-join leaves (or left-join leaf chains)
+  # Most of the join ocnditions will not satisfy this, but for real
+  # complex queries some might, and we might make some RDBMS happy.
+  #
+  #
+  # since we do not have introspectable SQLA, we fall back to ugly
+  # scanning of raw SQL for WHERE, and for pieces of ORDER BY
+  # in order to determine what goes into %inner_joins
+  # It may not be very efficient, but it's a reasonable stop-gap
+  {
+    # produce stuff unquoted, so it can be scanned
+    my $sql_maker = $self->sql_maker;
+    local $sql_maker->{quote_char};
+
+    my @order_by = (map
+      { ref $_ ? $_->[0] : $_ }
+      $sql_maker->_order_by_chunks ($sub_attrs->{order_by})
+    );
+
+    my $where_sql = $sql_maker->where ($where);
+
+    # sort needed joins
+    for my $alias (keys %join_info) {
+
+      # any table alias found on a column name in where or order_by
+      # gets included in %inner_joins
+      # Also any parent joins that are needed to reach this particular alias
+      for my $piece ($where_sql, @order_by ) {
+        if ($piece =~ /\b$alias\./) {
+          $inner_joins{$alias} = 1;
+        }
+      }
+    }
+  }
+
+  # scan for non-leaf/non-left joins and mark as needed
+  # also mark all ancestor joins that are needed to reach this particular alias
+  # (e.g.  join => { cds => 'tracks' } - tracks will bring cds too )
+  #
+  # traverse by the size of the -join_path i.e. reverse depth first
+  for my $alias (sort { @{$join_info{$b}{-join_path}} <=> @{$join_info{$a}{-join_path}} } (keys %join_info) ) {
+
+    my $j = $join_info{$alias};
+    $inner_joins{$alias} = 1 if (! $j->{-join_type} || ($j->{-join_type} !~ /^left$/i) );
+
+    if ($inner_joins{$alias}) {
+      $inner_joins{$_} = 1 for (@{$j->{-join_path}});
+    }
+  }
+
+  # construct the inner $from for the subquery
+  my $inner_from = [ $self_ident ];
+  if (keys %inner_joins) {
+    for my $j (@$from) {
+      push @$inner_from, $j if $inner_joins{$j->[0]{-alias}};
+    }
+
+    # if a multi-type join was needed in the subquery ("multi" is indicated by
+    # presence in {collapse}) - add a group_by to simulate the collapse in the subq
+    for my $alias (keys %inner_joins) {
+
+      # the dot comes from some weirdness in collapse
+      # remove after the rewrite
+      if ($attrs->{collapse}{".$alias"}) {
+        $sub_attrs->{group_by} = $sub_select;
+        last;
+      }
+    }
+  }
+
+  # generate the subquery
+  my $subq = $self->_select_args_to_query (
+    $inner_from,
+    $sub_select,
+    $where,
+    $sub_attrs
+  );
+
+  # put it back in $from
+  unshift @$from, { $alias => $subq };
+
+  # This is totally horrific - the $where ends up in both the inner and outer query
+  # Unfortunately not much can be done until SQLA2 introspection arrives
+  #
+  # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
+  return ($from, $select, $where, $attrs);
 }
 
 sub _resolve_ident_sources {
