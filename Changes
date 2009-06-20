@@ -5,6 +5,8 @@ Revision history for DBIx::Class
         - Fixed HRI returning too many empty results on multilevel
           nonexisting prefetch
         - Fixed the prefetch with limit bug
+        - New resultsed method count_rs, returns a ::ResultSetColumn
+          returning a single count value
 
 0.08107 2009-06-14 08:21:00 (UTC)
         - Fix serialization regression introduced in 0.08103 (affects
