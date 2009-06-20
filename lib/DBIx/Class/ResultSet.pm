@@ -2713,7 +2713,7 @@ sub _resolved_attrs {
   # Although this is needed only if the order_by is not defined, it is
   # actually cheaper to just populate this rather than properly examining
   # order_by (stuf like [ {} ] and the like)
-  my $prefix = $alias . ($source->schema->storage->_sql_maker_opts->{name_sep} || '.');
+  my $prefix = $alias . ($source->schema->storage->sql_maker->{name_sep} || '.');
   $attrs->{_virtual_order_by} = [
     map { $prefix . $_ } ($source->primary_columns)
   ];
