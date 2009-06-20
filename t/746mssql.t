@@ -10,7 +10,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 19;
+plan tests => 21;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -117,6 +117,7 @@ $schema->populate ('Owners', [
 
 $schema->populate ('BooksInLibrary', [
   [qw/source  owner title   /],
+  [qw/Library 1     secrets0/],
   [qw/Library 1     secrets1/],
   [qw/Eatery  1     secrets2/],
   [qw/Library 2     secrets3/],
@@ -142,34 +143,36 @@ $schema->populate ('BooksInLibrary', [
     }, {
       prefetch => 'books',
       order_by => 'name',
-      page     => 2,
-      rows     => 4,
+      rows     => 3,  # 8 results total
     });
+
+  is ($owners->page(1)->all, 3, 'has_many prefetch returns correct number of rows');
+  is ($owners->page(1)->count, 3, 'has-many prefetch returns correct count');
 
   TODO: {
     local $TODO = 'limit past end of resultset problem';
-    is ($owners->all, 3, 'has_many prefetch returns correct number of rows');
-    is ($owners->count, 3, 'has-many prefetch returns correct count');
+    is ($owners->page(3)->all, 2, 'has_many prefetch returns correct number of rows');
+    is ($owners->page(3)->count, 2, 'has-many prefetch returns correct count');
   }
 
   # try a ->belongs_to direction (no select collapse, group_by should work)
   my $books = $schema->resultset ('BooksInLibrary')->search ({
-      'owner.name' => 'wiggle'
+      'owner.name' => [qw/wiggle woggle/],
     }, {
       distinct => 1,
       prefetch => 'owner',
       order_by => 'name',
-      rows     => 5,
+      rows     => 2,  # 3 results total
     });
 
 
-  is ($books->page(1)->all, 1, 'Prefetched grouped search returns correct number of rows');
-  is ($books->page(1)->count, 1, 'Prefetched grouped search returns correct count');
+  is ($books->page(1)->all, 2, 'Prefetched grouped search returns correct number of rows');
+  is ($books->page(1)->count, 2, 'Prefetched grouped search returns correct count');
 
   TODO: {
     local $TODO = 'limit past end of resultset problem';
-    is ($books->page(2)->all, 0, 'Prefetched grouped search returns correct number of rows');
-    is ($books->page(2)->count, 0, 'Prefetched grouped search returns correct count');
+    is ($books->page(2)->all, 1, 'Prefetched grouped search returns correct number of rows');
+    is ($books->page(2)->count, 1, 'Prefetched grouped search returns correct count');
   }
 }
 
