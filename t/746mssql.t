@@ -12,7 +12,7 @@ plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this
 
 plan tests => 19;
 
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 {
   no warnings 'redefine';
@@ -90,7 +90,7 @@ CREATE TABLE Books (
 
 CREATE TABLE Owners (
    id INT IDENTITY (1, 1) NOT NULL,
-   [name] VARCHAR(100),
+   name VARCHAR(100),
 )
 
 SQL
@@ -136,26 +136,25 @@ $schema->populate ('BooksInLibrary', [
 #
 
 {
-  # try a ->has_many direction (due to a 'multi' accessor the select/group_by group is collapsed)
+  # try a ->has_many direction (group_by is not possible on has_many with limit)
   my $owners = $schema->resultset ('Owners')->search ({
       'books.id' => { '!=', undef }
     }, {
       prefetch => 'books',
-      distinct => 1,
       order_by => 'name',
       page     => 2,
-      rows     => 5,
+      rows     => 3,
     });
 
-  is ($owners->all, 3, 'Prefetched grouped search returns correct number of rows');
-  is ($owners->count, 3, 'Prefetched grouped search returns correct count');
+  is ($owners->all, 3, 'has_many prefetch returns correct number of rows');
+  is ($owners->count, 3, 'has-many prefetch returns correct count');
 
-  # try a ->belongs_to direction (no select collapse)
+  # try a ->belongs_to direction (no select collapse, group_by should work)
   my $books = $schema->resultset ('BooksInLibrary')->search ({
       'owner.name' => 'wiggle'
     }, {
-      prefetch => 'owner',
       distinct => 1,
+      prefetch => 'owner',
       order_by => 'name',
       rows     => 5,
     });
@@ -164,6 +163,7 @@ $schema->populate ('BooksInLibrary', [
   is ($books->page(1)->all, 1, 'Prefetched grouped search returns correct number of rows');
   is ($books->page(1)->count, 1, 'Prefetched grouped search returns correct count');
 
+  #
   is ($books->page(2)->all, 0, 'Prefetched grouped search returns correct number of rows');
   is ($books->page(2)->count, 0, 'Prefetched grouped search returns correct count');
 

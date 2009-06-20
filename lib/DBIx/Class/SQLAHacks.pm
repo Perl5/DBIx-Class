@@ -119,44 +119,90 @@ sub _Top {
   # mangle the input sql so it can be properly aliased in the outer queries
   $sql =~ s/^ \s* SELECT \s+ (.+?) \s+ (?=FROM)//ix
     or croak "Unrecognizable SELECT: $sql";
-  my $select = $1;
+  my $sql_select = $1;
+  my @sql_select = split (/\s*,\s*/, $sql_select);
 
-  my (@outer_select, %col_index);
-  for my $selected_col (@{$self->{_dbic_rs_attrs}{select}}) {
+  # we can't support subqueries (in fact MSSQL can't) - croak
+  if (@sql_select != @{$self->{_dbic_rs_attrs}{select}}) {
+    croak (sprintf (
+      'SQL SELECT did not parse cleanly - retrieved %d comma separated elements, while '
+    . 'the resultset select attribure contains %d elements: %s',
+      scalar @sql_select,
+      scalar @{$self->{_dbic_rs_attrs}{select}},
+      $sql_select,
+    ));
+  }
 
-    my $new_colname;
+  my $name_sep = $self->name_sep || '.';
+  $name_sep = "\Q$name_sep\E";
+  my $col_re = qr/ ^ (?: (.+) $name_sep )? ([^$name_sep]+) $ /x;
 
-    if (ref $selected_col) {
-      $new_colname = $self->_quote ('column_' . (@outer_select + 1) );
+  # construct the new select lists, rename(alias) some columns if necessary
+  my (@outer_select, @inner_select, %seen_names, %col_aliases, %outer_col_aliases);
+
+  for (@{$self->{_dbic_rs_attrs}{select}}) {
+    next if ref $_;
+    my ($table, $orig_colname) = ( $_ =~ $col_re );
+    next unless $table;
+    $seen_names{$orig_colname}++;
+  }
+
+  for my $i (0 .. $#sql_select) {
+
+    my $colsel_arg = $self->{_dbic_rs_attrs}{select}[$i];
+    my $colsel_sql = $sql_select[$i];
+
+    # this may or may not work (in case of a scalarref or something)
+    my ($table, $orig_colname) = ( $colsel_arg =~ $col_re );
+
+    my $quoted_alias;
+    # do not attempt to understand non-scalar selects - alias numerically
+    if (ref $colsel_arg) {
+      $quoted_alias = $self->_quote ('column_' . (@inner_select + 1) );
     }
+    # column name seen more than once - alias it
+    elsif ($orig_colname && ($seen_names{$orig_colname} > 1) ) {
+      $quoted_alias = $self->_quote ("${table}__${orig_colname}");
+    }
+
+    # we did rename - make a record and adjust
+    if ($quoted_alias) {
+      # alias inner
+      push @inner_select, "$colsel_sql AS $quoted_alias";
+
+      # push alias to outer
+      push @outer_select, $quoted_alias;
+
+      # Any aliasing accumulated here will be considered
+      # both for inner and outer adjustments of ORDER BY
+      $self->__record_alias (
+        \%col_aliases,
+        $quoted_alias,
+        $colsel_arg,
+        $table ? $orig_colname : undef,
+      );
+    }
+
+    # otherwise just leave things intact inside, and use the abbreviated one outside
+    # (as we do not have table names anymore)
     else {
-      my $quoted_col = $self->_quote ($selected_col);
+      push @inner_select, $colsel_sql;
 
-      my $name_sep = $self->name_sep || '.';
-      $name_sep = "\Q$name_sep\E";
-
-      my ($table, $orig_colname) = ( $selected_col =~ / (?: (.+) $name_sep )? ([^$name_sep]+) $ /x );
-      $new_colname = $self->_quote ("${table}__${orig_colname}");
-
-      $select =~ s/(\Q$quoted_col\E|\Q$selected_col\E)/"$1 AS $new_colname"/e;
-
-      # record qualified name if available (should be)
-      $col_index{$selected_col} = $new_colname if $table;
-
-      # record unqialified name, undef if a duplicate is found
-      if (exists $col_index{$orig_colname}) {
-        $col_index{$orig_colname} = undef;
-      }
-      else {
-        $col_index{$orig_colname} = $new_colname;
-      }
+      my $outer_quoted = $self->_quote ($orig_colname);  # it was not a duplicate so should just work
+      push @outer_select, $outer_quoted;
+      $self->__record_alias (
+        \%outer_col_aliases,
+        $outer_quoted,
+        $colsel_arg,
+        $table ? $orig_colname : undef,
+      );
     }
-
-    push @outer_select, $new_colname;
   }
 
   my $outer_select = join (', ', @outer_select );
+  my $inner_select = join (', ', @inner_select );
 
+  %outer_col_aliases = (%outer_col_aliases, %col_aliases);
 
   # deal with order
   croak '$order supplied to SQLAHacks limit emulators must be a hash'
@@ -167,13 +213,18 @@ sub _Top {
   my $req_order = [ $self->_order_by_chunks ($order->{order_by}) ];
   my $limit_order = [ @$req_order ? @$req_order : $self->_order_by_chunks ($order->{_virtual_order_by}) ];
 
+  my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
+  my $order_by_requested = $self->_order_by ($req_order);
 
-  # normalize all column names in order by
-  # no copies, just aliasing ($_)
-  for ($req_order, $limit_order) {
-    for ( @{$_ || []} ) {
-      $_ = $col_index{$_} if $col_index{$_};
+  # we can't really adjust the order_by columns, as introspection is lacking
+  # resort to simple substitution
+  for my $col (keys %outer_col_aliases) {
+    for ($order_by_requested, $order_by_outer) {
+      $_ =~ s/\s+$col\s+/ $outer_col_aliases{$col} /g;
     }
+  }
+  for my $col (keys %col_aliases) {
+    $order_by_inner =~ s/\s+$col\s+/$col_aliases{$col}/g;
   }
 
 
@@ -181,32 +232,55 @@ sub _Top {
   delete $order->{$_} for qw/order_by _virtual_order_by/;
   my $grpby_having = $self->_order_by ($order);
 
-  my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
 
-  my $last = $rows + $offset;
+  my $inner_lim = $rows + $offset;
 
-  $sql = <<"SQL";
+  my $sql = "SELECT TOP $inner_lim $inner_select $sql $grpby_having $order_by_inner";
+
+  if ($offset) {
+    $sql = <<"SQL";
 
     SELECT TOP $rows $outer_select FROM
     (
-      SELECT TOP $last $select $sql $grpby_having $order_by_inner
+      $sql
     ) AS inner_sel
     $order_by_outer
 SQL
 
-  if (@$req_order) {
-    my $order_by_requested = $self->_order_by ($req_order);
+  }
 
+  if ($order_by_requested) {
     $sql = <<"SQL";
 
-  SELECT $outer_select FROM
-  ( $sql ) AS outer_sel
-  $order_by_requested;
+    SELECT $outer_select FROM
+      ( $sql ) AS outer_sel
+    $order_by_requested;
 SQL
 
   }
 
   return $sql;
+}
+
+# action at a distance to shorten Top code above
+sub __record_alias {
+  my ($self, $register, $alias, $fqcol, $col) = @_;
+
+  # record qualified name
+  $register->{$fqcol} = $alias;
+  $register->{$self->_quote($fqcol)} = $alias;
+
+  return unless $col;
+
+  # record unqialified name, undef (no adjustment) if a duplicate is found
+  if (exists $register->{$col}) {
+    $register->{$col} = undef;
+  }
+  else {
+    $register->{$col} = $alias;
+  }
+
+  $register->{$self->_quote($col)} = $register->{$col};
 }
 
 

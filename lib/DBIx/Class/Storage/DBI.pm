@@ -1229,7 +1229,12 @@ sub _select_args {
   my ($self, $ident, $select, $where, $attrs) = @_;
 
   my $sql_maker = $self->sql_maker;
-  $sql_maker->{_dbic_rs_attrs} = $attrs;
+  $sql_maker->{_dbic_rs_attrs} = {
+    %$attrs,
+    select => $select,
+    from => $ident,
+    where => $where,
+  };
 
   my $alias2source = $self->_resolve_ident_sources ($ident);
 
@@ -1289,17 +1294,17 @@ sub _select_args {
 sub _adjust_select_args_for_limited_prefetch {
   my ($self, $from, $select, $where, $attrs) = @_;
 
-  if ($attrs->{group_by} and @{$attrs->{group_by}}) {
-    $self->throw_exception ('Prefetch with limit (rows/offset) is not supported on resultsets with a group_by attribute');
+  if ($attrs->{group_by} && @{$attrs->{group_by}}) {
+    $self->throw_exception ('has_many prefetch with limit (rows/offset) is not supported on grouped resultsets');
   }
 
-  $self->throw_exception ('Prefetch with limit (rows/offset) is not supported on resultsets with a custom from attribute')
+  $self->throw_exception ('has_many prefetch with limit (rows/offset) is not supported on resultsets with a custom from attribute')
     if (ref $from ne 'ARRAY');
 
   # separate attributes
   my $sub_attrs = { %$attrs };
   delete $attrs->{$_} for qw/where bind rows offset/;
-  delete $sub_attrs->{$_} for qw/for collapse select order_by/;
+  delete $sub_attrs->{$_} for qw/for collapse select as order_by/;
 
   my $alias = $attrs->{alias};
 
@@ -1313,7 +1318,6 @@ sub _adjust_select_args_for_limited_prefetch {
       @{$attrs->{order_by}}[ 0 .. ($#{$attrs->{order_by}} - $ord_cnt - 1) ]
     ];
   }
-
 
   # mangle the head of the {from}
   my $self_ident = shift @$from;
