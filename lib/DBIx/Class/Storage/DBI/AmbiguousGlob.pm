@@ -20,14 +20,14 @@ the time it gets to the *). Thus for any subquery count we select only the
 primary keys of the main table in the inner query. This hopefully still
 hits the indexes and keeps the server happy.
 
-At this point the only overriden method is C<_grouped_count_select()>
+At this point the only overriden method is C<_subq_count_select()>
 
 =cut
 
-sub _grouped_count_select {
-  my ($self, $source, $rs_args) = @_;
-  my @pcols = map { join '.', $rs_args->{alias}, $_ } ($source->primary_columns);
-  return @pcols ? \@pcols : $rs_args->{group_by};
+sub _subq_count_select {
+  my ($self, $source, $rs_attrs) = @_;
+  my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
+  return @pcols ? \@pcols : [ 1 ];
 }
 
 =head1 AUTHORS

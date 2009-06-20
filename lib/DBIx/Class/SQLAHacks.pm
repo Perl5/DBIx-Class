@@ -235,7 +235,7 @@ sub _Top {
 
   my $inner_lim = $rows + $offset;
 
-  my $sql = "SELECT TOP $inner_lim $inner_select $sql $grpby_having $order_by_inner";
+  $sql = "SELECT TOP $inner_lim $inner_select $sql $grpby_having $order_by_inner";
 
   if ($offset) {
     $sql = <<"SQL";

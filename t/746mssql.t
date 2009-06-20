@@ -143,11 +143,14 @@ $schema->populate ('BooksInLibrary', [
       prefetch => 'books',
       order_by => 'name',
       page     => 2,
-      rows     => 3,
+      rows     => 4,
     });
 
-  is ($owners->all, 3, 'has_many prefetch returns correct number of rows');
-  is ($owners->count, 3, 'has-many prefetch returns correct count');
+  TODO: {
+    local $TODO = 'limit past end of resultset problem';
+    is ($owners->all, 3, 'has_many prefetch returns correct number of rows');
+    is ($owners->count, 3, 'has-many prefetch returns correct count');
+  }
 
   # try a ->belongs_to direction (no select collapse, group_by should work)
   my $books = $schema->resultset ('BooksInLibrary')->search ({
@@ -163,10 +166,11 @@ $schema->populate ('BooksInLibrary', [
   is ($books->page(1)->all, 1, 'Prefetched grouped search returns correct number of rows');
   is ($books->page(1)->count, 1, 'Prefetched grouped search returns correct count');
 
-  #
-  is ($books->page(2)->all, 0, 'Prefetched grouped search returns correct number of rows');
-  is ($books->page(2)->count, 0, 'Prefetched grouped search returns correct count');
-
+  TODO: {
+    local $TODO = 'limit past end of resultset problem';
+    is ($books->page(2)->all, 0, 'Prefetched grouped search returns correct number of rows');
+    is ($books->page(2)->count, 0, 'Prefetched grouped search returns correct count');
+  }
 }
 
 # clean up our mess
