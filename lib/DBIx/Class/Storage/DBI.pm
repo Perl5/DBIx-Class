@@ -1446,75 +1446,37 @@ sub _resolve_ident_sources {
   return $alias2source;
 }
 
-sub count {
-  my ($self, $source, $attrs) = @_;
-
-  my $tmp_attrs = { %$attrs };
-
-  # take off any limits, record_filter is cdbi, and no point of ordering a count
-  delete $tmp_attrs->{$_} for (qw/select as rows offset order_by record_filter/);
-
-  # overwrite the selector
-  $tmp_attrs->{select} = { count => '*' };
-
-  my $tmp_rs = $source->resultset_class->new($source, $tmp_attrs);
-  my ($count) = $tmp_rs->cursor->next;
-
-  # if the offset/rows attributes are still present, we did not use
-  # a subquery, so we need to make the calculations in software
-  $count -= $attrs->{offset} if $attrs->{offset};
-  $count = $attrs->{rows} if $attrs->{rows} and $attrs->{rows} < $count;
-  $count = 0 if ($count < 0);
-
-  return $count;
+# Returns a counting SELECT for a simple count
+# query. Abstracted so that a storage could override
+# this to { count => 'firstcol' } or whatever makes
+# sense as a performance optimization
+sub _count_select {
+  #my ($self, $source, $rs_attrs) = @_;
+  return { count => '*' };
 }
 
-sub count_grouped {
-  my ($self, $source, $attrs) = @_;
-
-  # copy for the subquery, we need to do some adjustments to it too
-  my $sub_attrs = { %$attrs };
-
-  # these can not go in the subquery, and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/collapse select as order_by/;
-
-  # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
-  # simply deleting group_by suffices, as the code below will re-fill it
-  # Note: we check $attrs, as $sub_attrs has collapse deleted
-  if (ref $attrs->{collapse} and keys %{$attrs->{collapse}} ) {
-    delete $sub_attrs->{group_by};
-  }
-
-  $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($source->primary_columns) ];
-  $sub_attrs->{select} = $self->_grouped_count_select ($source, $sub_attrs);
-
-  $attrs->{from} = [{
-    count_subq => $source->resultset_class->new ($source, $sub_attrs )->as_query
-  }];
-
-  # the subquery replaces this
-  delete $attrs->{$_} for qw/where bind collapse group_by having having_bind rows offset/;
-
-  return $self->count ($source, $attrs);
-}
-
+# Returns a SELECT which will end up in the subselect
+# There may or may not be a group_by, as the subquery
+# might have been called to accomodate a limit
 #
-# Returns a SELECT to go with a supplied GROUP BY
-# (caled by count_grouped so a group_by is present)
-# Most databases expect them to match, but some
-# choke in various ways.
+# Most databases would be happy with whatever ends up
+# here, but some choke in various ways.
 #
-sub _grouped_count_select {
-  my ($self, $source, $rs_args) = @_;
-  return $rs_args->{group_by};
+sub _subq_count_select {
+  my ($self, $source, $rs_attrs) = @_;
+  return $rs_attrs->{group_by} if $rs_attrs->{group_by};
+
+  my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
+  return @pcols ? \@pcols : [ 1 ];
 }
+
 
 sub source_bind_attributes {
   my ($self, $source) = @_;
-  
+
   my $bind_attributes;
   foreach my $column ($source->columns) {
-  
+
     my $data_type = $source->column_info($column)->{data_type} || '';
     $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
      if $data_type;
