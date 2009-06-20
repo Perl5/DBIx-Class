@@ -1296,6 +1296,7 @@ sub _adjust_select_args_for_limited_prefetch {
   $self->throw_exception ('Prefetch with limit (rows/offset) is not supported on resultsets with a custom from attribute')
     if (ref $from ne 'ARRAY');
 
+
   # separate attributes
   my $sub_attrs = { %$attrs };
   delete $attrs->{$_} for qw/where bind rows offset/;
@@ -1314,13 +1315,31 @@ sub _adjust_select_args_for_limited_prefetch {
     ];
   }
 
+  # mangle {from}
+  $from = [ @$from ];
+  my $select_root = shift @$from;
+  my @outer_from = @$from;
 
-  # mangle the head of the {from}
-  my $self_ident = shift @$from;
-
+  my %inner_joins;
   my %join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
 
-  my (%inner_joins);
+  # in complex search_related chains $alias may *not* be 'me'
+  # so always include it in the inner join, and also shift away
+  # from the outer stack, so that the two datasets actually do
+  # meet
+  if ($select_root->{-alias} ne $alias) {
+    $inner_joins{$alias} = 1;
+
+    while (@outer_from && $outer_from[0][0]{-alias} ne $alias) {
+      shift @outer_from;
+    }
+    if (! @outer_from) {
+      $self->throw_exception ("Unable to find '$alias' in the {from} stack, something is wrong");
+    }
+
+    shift @outer_from; # the new subquery will represent this alias, so get rid of it
+  }
+
 
   # decide which parts of the join will remain on the inside
   #
@@ -1379,22 +1398,21 @@ sub _adjust_select_args_for_limited_prefetch {
   }
 
   # construct the inner $from for the subquery
-  my $inner_from = [ $self_ident ];
-  if (keys %inner_joins) {
-    for my $j (@$from) {
-      push @$inner_from, $j if $inner_joins{$j->[0]{-alias}};
-    }
+  my $inner_from = [ $select_root ];
+  for my $j (@$from) {
+    push @$inner_from, $j if $inner_joins{$j->[0]{-alias}};
+  }
 
-    # if a multi-type join was needed in the subquery ("multi" is indicated by
-    # presence in {collapse}) - add a group_by to simulate the collapse in the subq
-    for my $alias (keys %inner_joins) {
+  # if a multi-type join was needed in the subquery ("multi" is indicated by
+  # presence in {collapse}) - add a group_by to simulate the collapse in the subq
 
-      # the dot comes from some weirdness in collapse
-      # remove after the rewrite
-      if ($attrs->{collapse}{".$alias"}) {
-        $sub_attrs->{group_by} = $sub_select;
-        last;
-      }
+  for my $alias (keys %inner_joins) {
+
+    # the dot comes from some weirdness in collapse
+    # remove after the rewrite
+    if ($attrs->{collapse}{".$alias"}) {
+      $sub_attrs->{group_by} = $sub_select;
+      last;
     }
   }
 
@@ -1406,14 +1424,14 @@ sub _adjust_select_args_for_limited_prefetch {
     $sub_attrs
   );
 
-  # put it back in $from
-  unshift @$from, { $alias => $subq };
+  # put it in the new {from}
+  unshift @outer_from, { $alias => $subq };
 
   # This is totally horrific - the $where ends up in both the inner and outer query
   # Unfortunately not much can be done until SQLA2 introspection arrives
   #
   # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
-  return ($from, $select, $where, $attrs);
+  return (\@outer_from, $select, $where, $attrs);
 }
 
 sub _resolve_ident_sources {
