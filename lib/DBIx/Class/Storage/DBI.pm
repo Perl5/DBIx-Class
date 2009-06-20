@@ -1296,6 +1296,7 @@ sub _adjust_select_args_for_limited_prefetch {
   $self->throw_exception ('Prefetch with limit (rows/offset) is not supported on resultsets with a custom from attribute')
     if (ref $from ne 'ARRAY');
 
+
   # separate attributes
   my $sub_attrs = { %$attrs };
   delete $attrs->{$_} for qw/where bind rows offset/;
@@ -1314,13 +1315,31 @@ sub _adjust_select_args_for_limited_prefetch {
     ];
   }
 
+  # mangle {from}
+  $from = [ @$from ];
+  my $select_root = shift @$from;
+  my @outer_from = @$from;
 
-  # mangle the head of the {from}
-  my $self_ident = shift @$from;
-
+  my %inner_joins;
   my %join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
 
-  my (%inner_joins);
+  # in complex search_related chains $alias may *not* be 'me'
+  # so always include it in the inner join, and also shift away
+  # from the outer stack, so that the two datasets actually do
+  # meet
+  if ($select_root->{-alias} ne $alias) {
+    $inner_joins{$alias} = 1;
+
+    while (@outer_from && $outer_from[0][0]{-alias} ne $alias) {
+      shift @outer_from;
+    }
+    if (! @outer_from) {
+      $self->throw_exception ("Unable to find '$alias' in the {from} stack, something is wrong");
+    }
+
+    shift @outer_from; # the new subquery will represent this alias, so get rid of it
+  }
+
 
   # decide which parts of the join will remain on the inside
   #
@@ -1379,22 +1398,21 @@ sub _adjust_select_args_for_limited_prefetch {
   }
 
   # construct the inner $from for the subquery
-  my $inner_from = [ $self_ident ];
-  if (keys %inner_joins) {
-    for my $j (@$from) {
-      push @$inner_from, $j if $inner_joins{$j->[0]{-alias}};
-    }
+  my $inner_from = [ $select_root ];
+  for my $j (@$from) {
+    push @$inner_from, $j if $inner_joins{$j->[0]{-alias}};
+  }
 
-    # if a multi-type join was needed in the subquery ("multi" is indicated by
-    # presence in {collapse}) - add a group_by to simulate the collapse in the subq
-    for my $alias (keys %inner_joins) {
+  # if a multi-type join was needed in the subquery ("multi" is indicated by
+  # presence in {collapse}) - add a group_by to simulate the collapse in the subq
 
-      # the dot comes from some weirdness in collapse
-      # remove after the rewrite
-      if ($attrs->{collapse}{".$alias"}) {
-        $sub_attrs->{group_by} = $sub_select;
-        last;
-      }
+  for my $alias (keys %inner_joins) {
+
+    # the dot comes from some weirdness in collapse
+    # remove after the rewrite
+    if ($attrs->{collapse}{".$alias"}) {
+      $sub_attrs->{group_by} = $sub_select;
+      last;
     }
   }
 
@@ -1406,14 +1424,14 @@ sub _adjust_select_args_for_limited_prefetch {
     $sub_attrs
   );
 
-  # put it back in $from
-  unshift @$from, { $alias => $subq };
+  # put it in the new {from}
+  unshift @outer_from, { $alias => $subq };
 
   # This is totally horrific - the $where ends up in both the inner and outer query
   # Unfortunately not much can be done until SQLA2 introspection arrives
   #
   # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
-  return ($from, $select, $where, $attrs);
+  return (\@outer_from, $select, $where, $attrs);
 }
 
 sub _resolve_ident_sources {
@@ -1446,75 +1464,37 @@ sub _resolve_ident_sources {
   return $alias2source;
 }
 
-sub count {
-  my ($self, $source, $attrs) = @_;
-
-  my $tmp_attrs = { %$attrs };
-
-  # take off any limits, record_filter is cdbi, and no point of ordering a count
-  delete $tmp_attrs->{$_} for (qw/select as rows offset order_by record_filter/);
-
-  # overwrite the selector
-  $tmp_attrs->{select} = { count => '*' };
-
-  my $tmp_rs = $source->resultset_class->new($source, $tmp_attrs);
-  my ($count) = $tmp_rs->cursor->next;
-
-  # if the offset/rows attributes are still present, we did not use
-  # a subquery, so we need to make the calculations in software
-  $count -= $attrs->{offset} if $attrs->{offset};
-  $count = $attrs->{rows} if $attrs->{rows} and $attrs->{rows} < $count;
-  $count = 0 if ($count < 0);
-
-  return $count;
+# Returns a counting SELECT for a simple count
+# query. Abstracted so that a storage could override
+# this to { count => 'firstcol' } or whatever makes
+# sense as a performance optimization
+sub _count_select {
+  #my ($self, $source, $rs_attrs) = @_;
+  return { count => '*' };
 }
 
-sub count_grouped {
-  my ($self, $source, $attrs) = @_;
-
-  # copy for the subquery, we need to do some adjustments to it too
-  my $sub_attrs = { %$attrs };
-
-  # these can not go in the subquery, and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/collapse select as order_by/;
-
-  # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
-  # simply deleting group_by suffices, as the code below will re-fill it
-  # Note: we check $attrs, as $sub_attrs has collapse deleted
-  if (ref $attrs->{collapse} and keys %{$attrs->{collapse}} ) {
-    delete $sub_attrs->{group_by};
-  }
-
-  $sub_attrs->{group_by} ||= [ map { "$attrs->{alias}.$_" } ($source->primary_columns) ];
-  $sub_attrs->{select} = $self->_grouped_count_select ($source, $sub_attrs);
-
-  $attrs->{from} = [{
-    count_subq => $source->resultset_class->new ($source, $sub_attrs )->as_query
-  }];
-
-  # the subquery replaces this
-  delete $attrs->{$_} for qw/where bind collapse group_by having having_bind rows offset/;
-
-  return $self->count ($source, $attrs);
-}
-
+# Returns a SELECT which will end up in the subselect
+# There may or may not be a group_by, as the subquery
+# might have been called to accomodate a limit
 #
-# Returns a SELECT to go with a supplied GROUP BY
-# (caled by count_grouped so a group_by is present)
-# Most databases expect them to match, but some
-# choke in various ways.
+# Most databases would be happy with whatever ends up
+# here, but some choke in various ways.
 #
-sub _grouped_count_select {
-  my ($self, $source, $rs_args) = @_;
-  return $rs_args->{group_by};
+sub _subq_count_select {
+  my ($self, $source, $rs_attrs) = @_;
+  return $rs_attrs->{group_by} if $rs_attrs->{group_by};
+
+  my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
+  return @pcols ? \@pcols : [ 1 ];
 }
+
 
 sub source_bind_attributes {
   my ($self, $source) = @_;
-  
+
   my $bind_attributes;
   foreach my $column ($source->columns) {
-  
+
     my $data_type = $source->column_info($column)->{data_type} || '';
     $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
      if $data_type;
