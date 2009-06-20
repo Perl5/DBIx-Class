@@ -4,13 +4,14 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 21;
+plan tests => 23;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -137,7 +138,6 @@ $schema->populate ('BooksInLibrary', [
 #
 
 {
-$schema->debug (1);
   # try a ->has_many direction (group_by is not possible on has_many with limit)
   my $owners = $schema->resultset ('Owners')->search ({
       'books.id' => { '!=', undef }
@@ -155,6 +155,27 @@ $schema->debug (1);
     is ($owners->page(3)->all, 2, 'has_many prefetch returns correct number of rows');
     is ($owners->page(3)->count, 2, 'has-many prefetch returns correct count');
   }
+
+  # make sure count does not become overly complex FIXME
+  is_same_sql_bind (
+    $owners->page(2)->count_rs->as_query,
+    '(
+      SELECT COUNT( * )
+        FROM (
+          SELECT TOP 3 id
+            FROM (
+              SELECT TOP 6 me.id
+                FROM owners me
+                LEFT JOIN books books ON books.owner = me.id
+              WHERE ( books.id IS NOT NULL )
+              GROUP BY me.id
+              ORDER BY me.id ASC
+            ) AS inner_sel
+          ORDER BY id DESC
+        ) count_subq
+    )',
+    [],
+  );
 
   # try a ->belongs_to direction (no select collapse, group_by should work)
   my $books = $schema->resultset ('BooksInLibrary')->search ({
@@ -175,6 +196,32 @@ $schema->debug (1);
     is ($books->page(2)->all, 1, 'Prefetched grouped search returns correct number of rows');
     is ($books->page(2)->count, 1, 'Prefetched grouped search returns correct count');
   }
+
+  # make sure count does not become overly complex FIXME
+  is_same_sql_bind (
+    $books->page(2)->count_rs->as_query,
+    '(
+      SELECT COUNT( * )
+        FROM (
+          SELECT TOP 2 id
+            FROM (
+              SELECT TOP 4 me.id
+                FROM books me
+                JOIN owners owner ON owner.id = me.owner
+              WHERE ( ( ( owner.name = ? OR owner.name = ? ) AND source = ? ) )
+              GROUP BY me.id, me.source, me.owner, me.title, me.price, owner.id, owner.name
+              ORDER BY me.id ASC
+            ) AS inner_sel
+          ORDER BY id DESC
+        ) count_subq
+    )',
+    [
+      [ 'owner.name' => 'wiggle' ],
+      [ 'owner.name' => 'woggle' ],
+      [ 'source' => 'Library' ],
+    ],
+  );
+
 }
 
 # clean up our mess
