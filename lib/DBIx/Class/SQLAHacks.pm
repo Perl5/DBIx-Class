@@ -216,6 +216,16 @@ sub _Top {
   my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
   my $order_by_requested = $self->_order_by ($req_order);
 
+  # generate the rest
+  delete $order->{$_} for qw/order_by _virtual_order_by/;
+  my $grpby_having = $self->_order_by ($order);
+
+  # short circuit for counts - the ordering complexity is needless
+  if ($self->{_dbic_rs_attrs}{-for_count_only}) {
+    return "SELECT TOP $rows $inner_select $sql $grpby_having $order_by_outer";
+  }
+
+
   # we can't really adjust the order_by columns, as introspection is lacking
   # resort to simple substitution
   for my $col (keys %outer_col_aliases) {
@@ -226,12 +236,6 @@ sub _Top {
   for my $col (keys %col_aliases) {
     $order_by_inner =~ s/\s+$col\s+/$col_aliases{$col}/g;
   }
-
-
-  # generate the rest
-  delete $order->{$_} for qw/order_by _virtual_order_by/;
-  my $grpby_having = $self->_order_by ($order);
-
 
   my $inner_lim = $rows + $offset;
 

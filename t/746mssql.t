@@ -11,7 +11,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 23;
+plan tests => 25;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -154,28 +154,25 @@ $schema->populate ('BooksInLibrary', [
     local $TODO = 'limit past end of resultset problem';
     is ($owners->page(3)->all, 2, 'has_many prefetch returns correct number of rows');
     is ($owners->page(3)->count, 2, 'has-many prefetch returns correct count');
-  }
+    is ($owners->page(3)->count_rs->next, 2, 'has-many prefetch returns correct count_rs');
 
-  # make sure count does not become overly complex FIXME
-  is_same_sql_bind (
-    $owners->page(2)->count_rs->as_query,
-    '(
-      SELECT COUNT( * )
-        FROM (
-          SELECT TOP 3 id
-            FROM (
-              SELECT TOP 6 me.id
-                FROM owners me
-                LEFT JOIN books books ON books.owner = me.id
-              WHERE ( books.id IS NOT NULL )
-              GROUP BY me.id
-              ORDER BY me.id ASC
-            ) AS inner_sel
-          ORDER BY id DESC
-        ) count_subq
-    )',
-    [],
-  );
+    # make sure count does not become overly complex FIXME
+    is_same_sql_bind (
+      $owners->page(3)->count_rs->as_query,
+      '(
+        SELECT COUNT( * )
+          FROM (
+            SELECT TOP 3 me.id
+              FROM owners me
+              LEFT JOIN books books ON books.owner = me.id
+            WHERE ( books.id IS NOT NULL )
+            GROUP BY me.id
+            ORDER BY me.id DESC
+          ) count_subq
+      )',
+      [],
+    );
+  }
 
   # try a ->belongs_to direction (no select collapse, group_by should work)
   my $books = $schema->resultset ('BooksInLibrary')->search ({
@@ -195,32 +192,29 @@ $schema->populate ('BooksInLibrary', [
     local $TODO = 'limit past end of resultset problem';
     is ($books->page(2)->all, 1, 'Prefetched grouped search returns correct number of rows');
     is ($books->page(2)->count, 1, 'Prefetched grouped search returns correct count');
-  }
+    is ($books->page(2)->count_rs->next, 1, 'Prefetched grouped search returns correct count_rs');
 
-  # make sure count does not become overly complex FIXME
-  is_same_sql_bind (
-    $books->page(2)->count_rs->as_query,
-    '(
-      SELECT COUNT( * )
-        FROM (
-          SELECT TOP 2 id
-            FROM (
-              SELECT TOP 4 me.id
-                FROM books me
-                JOIN owners owner ON owner.id = me.owner
-              WHERE ( ( ( owner.name = ? OR owner.name = ? ) AND source = ? ) )
-              GROUP BY me.id, me.source, me.owner, me.title, me.price, owner.id, owner.name
-              ORDER BY me.id ASC
-            ) AS inner_sel
-          ORDER BY id DESC
-        ) count_subq
-    )',
-    [
-      [ 'owner.name' => 'wiggle' ],
-      [ 'owner.name' => 'woggle' ],
-      [ 'source' => 'Library' ],
-    ],
-  );
+    # make sure count does not become overly complex FIXME
+    is_same_sql_bind (
+      $books->page(2)->count_rs->as_query,
+      '(
+        SELECT COUNT( * )
+          FROM (
+            SELECT TOP 2 me.id
+              FROM books me
+              JOIN owners owner ON owner.id = me.owner
+            WHERE ( ( ( owner.name = ? OR owner.name = ? ) AND source = ? ) )
+            GROUP BY me.id, me.source, me.owner, me.title, me.price, owner.id, owner.name
+            ORDER BY me.id DESC
+          ) count_subq
+      )',
+      [
+        [ 'owner.name' => 'wiggle' ],
+        [ 'owner.name' => 'woggle' ],
+        [ 'source' => 'Library' ],
+      ],
+    );
+  }
 
 }
 
