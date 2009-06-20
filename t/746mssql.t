@@ -47,7 +47,7 @@ SQL
 my %seen_id;
 
 # fresh $schema so we start unconnected
-$schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
+$schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 # test primary key handling
 my $new = $schema->resultset('Artist')->create({ name => 'foo' });
@@ -137,6 +137,7 @@ $schema->populate ('BooksInLibrary', [
 #
 
 {
+$schema->debug (1);
   # try a ->has_many direction (group_by is not possible on has_many with limit)
   my $owners = $schema->resultset ('Owners')->search ({
       'books.id' => { '!=', undef }
