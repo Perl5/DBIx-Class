@@ -14,7 +14,7 @@ my $schema = DBICTest->init_schema;
 delete $schema->storage->_sql_maker->{_cached_syntax};
 $schema->storage->_sql_maker->limit_dialect ('Top');
 
-my $rs = $schema->resultset ('FourKeys')->search ({}, { rows => 1, offset => 3 });
+my $rs = $schema->resultset ('BooksInLibrary')->search ({}, { prefetch => 'owner', rows => 1, offset => 3 });
 
 sub test_order {
   my $args = shift;
@@ -34,7 +34,7 @@ sub test_order {
       ) bar
       $req_order
     )",
-    [],
+    [ [ source => 'Library' ] ],
   );
 }
 
@@ -122,17 +122,22 @@ plan (tests => scalar @tests + 1);
 test_order ($_) for @tests;
 
 is_same_sql_bind (
-  $rs->search ({}, { group_by => 'bar', order_by => 'bar' })->as_query,
+  $rs->search ({}, { group_by => 'title', order_by => 'title' })->as_query,
   '(
-    SELECT * FROM
-    (
-      SELECT TOP 1 * FROM
-      (
-        SELECT TOP 4  me.foo, me.bar, me.hello, me.goodbye, me.sensors, me.read_count FROM fourkeys me GROUP BY bar ORDER BY bar ASC
-      ) AS foo
-      ORDER BY bar DESC
-    ) AS bar
-    ORDER BY bar
+    SELECT me__id, source, owner, title, price, owner__id, name 
+      FROM (
+        SELECT TOP 1 me__id, source, owner, title, price, owner__id, name 
+          FROM (
+            SELECT TOP 4 me.id AS me__id, me.source, me.owner, me.title, me.price, owner.id AS owner__id, owner.name
+              FROM books me
+              JOIN owners owner ON owner.id = me.owner
+            WHERE ( source = ? )
+            GROUP BY title
+            ORDER BY title ASC
+          ) AS me
+        ORDER BY title DESC
+      ) AS me
+    ORDER BY title;
   )',
-  [],
+  [ [ source => 'Library' ] ],
 );
