@@ -32,7 +32,7 @@ foreach my $serializer (@serializers) {
 
 plan (skip_all => "No suitable serializer found") unless $selected;
 
-plan (tests => 8);
+plan (tests => 11);
 DBICTest::Schema::Serialized->inflate_column( 'serialized',
     { inflate => $selected->{inflater},
       deflate => $selected->{deflater},
@@ -84,3 +84,17 @@ is_deeply($object->serialized, $struct_hash, 'inflated hash matches original');
 ok($object->update( { serialized => $struct_array } ), 'arrayref deflation');
 ok($inflated = $object->serialized, 'arrayref inflation');
 is_deeply($inflated, $struct_array, 'inflated array matches original');
+
+
+#===== make sure make_column_dirty ineracts reasonably with inflation
+$object = $rs->first;
+$object->update ({serialized => { x => 'y'}});
+
+$object->serialized->{x} = 'z'; # change state without notifying $object
+ok (!$object->get_dirty_columns, 'no dirty columns yet');
+is_deeply ($object->serialized, { x => 'z' }, 'object data correct');
+
+$object->make_column_dirty('serialized');
+$object->update;
+
+is_deeply ($rs->first->serialized, { x => 'z' }, 'changes made it to the db' );
