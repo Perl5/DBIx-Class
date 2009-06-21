@@ -210,8 +210,12 @@ sub _Top {
 
   $order = { %$order }; #copy
 
-  my $req_order = [ $self->_order_by_chunks ($order->{order_by}) ];
-  my $limit_order = [ @$req_order ? @$req_order : $self->_order_by_chunks ($order->{_virtual_order_by}) ];
+  my $req_order = $order->{order_by};
+  my $limit_order =
+    scalar $self->_order_by_chunks ($req_order) # exaime normalized version, collapses nesting
+      ? $req_order
+      : $order->{_virtual_order_by}
+  ;
 
   my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
   my $order_by_requested = $self->_order_by ($req_order);
@@ -225,7 +229,6 @@ sub _Top {
     return "SELECT TOP $rows $inner_select $sql $grpby_having $order_by_outer";
   }
 
-
   # we can't really adjust the order_by columns, as introspection is lacking
   # resort to simple substitution
   for my $col (keys %outer_col_aliases) {
@@ -237,6 +240,7 @@ sub _Top {
     $order_by_inner =~ s/\s+$col\s+/$col_aliases{$col}/g;
   }
 
+
   my $inner_lim = $rows + $offset;
 
   $sql = "SELECT TOP $inner_lim $inner_select $sql $grpby_having $order_by_inner";
@@ -247,7 +251,7 @@ sub _Top {
     SELECT TOP $rows $outer_select FROM
     (
       $sql
-    ) AS inner_sel
+    ) AS me
     $order_by_outer
 SQL
 
@@ -257,7 +261,7 @@ SQL
     $sql = <<"SQL";
 
     SELECT $outer_select FROM
-      ( $sql ) AS outer_sel
+      ( $sql ) AS me
     $order_by_requested;
 SQL
 

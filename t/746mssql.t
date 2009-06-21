@@ -134,8 +134,12 @@ $schema->populate ('BooksInLibrary', [
 ]);
 
 #
-# try a distinct + prefetch on tables with identically named columns
+# try a prefetch on tables with identically named columns
 #
+
+# set quote char - make sure things work while quoted
+$schema->storage->_sql_maker->{quote_char} = [qw/[ ]/];
+$schema->storage->_sql_maker->{name_sep} = '.';
 
 {
   # try a ->has_many direction (group_by is not possible on has_many with limit)
@@ -162,13 +166,13 @@ $schema->populate ('BooksInLibrary', [
       '(
         SELECT COUNT( * )
           FROM (
-            SELECT TOP 3 me.id
-              FROM owners me
-              LEFT JOIN books books ON books.owner = me.id
-            WHERE ( books.id IS NOT NULL )
-            GROUP BY me.id
-            ORDER BY me.id DESC
-          ) count_subq
+            SELECT TOP 3 [me].[id]
+              FROM [owners] [me]
+              LEFT JOIN [books] [books] ON [books].[owner] = [me].[id]
+            WHERE ( [books].[id] IS NOT NULL )
+            GROUP BY [me].[id]
+            ORDER BY [me].[id] DESC
+          ) [count_subq]
       )',
       [],
     );
@@ -200,13 +204,13 @@ $schema->populate ('BooksInLibrary', [
       '(
         SELECT COUNT( * )
           FROM (
-            SELECT TOP 2 me.id
-              FROM books me
-              JOIN owners owner ON owner.id = me.owner
-            WHERE ( ( ( owner.name = ? OR owner.name = ? ) AND source = ? ) )
-            GROUP BY me.id, me.source, me.owner, me.title, me.price, owner.id, owner.name
-            ORDER BY me.id DESC
-          ) count_subq
+            SELECT TOP 2 [me].[id]
+              FROM [books] [me]
+              JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
+            WHERE ( ( ( [owner].[name] = ? OR [owner].[name] = ? ) AND [source] = ? ) )
+            GROUP BY [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price], [owner].[id], [owner].[name]
+            ORDER BY [me].[id] DESC
+          ) [count_subq]
       )',
       [
         [ 'owner.name' => 'wiggle' ],
