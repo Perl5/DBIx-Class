@@ -14,19 +14,18 @@ my $schema = DBICTest->init_schema();
 
 
 my $no_prefetch = $schema->resultset('Artist')->search(
-  undef,
-  { rows => 3 }
-);
-
-my $use_prefetch = $schema->resultset('Artist')->search(
   [   # search deliberately contrived
     { 'artwork.cd_id' => undef },
     { 'tracks.title' => { '!=' => 'blah-blah-1234568' }}
   ],
+  { rows => 3, join => { cds => [qw/artwork tracks/] },
+ }
+);
+
+my $use_prefetch = $no_prefetch->search(
+  {},
   {
     prefetch => 'cds',
-    join => { cds => [qw/artwork tracks/] },
-    rows     => 3,
     order_by => { -desc => 'name' },
   }
 );
