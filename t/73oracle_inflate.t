@@ -17,7 +17,7 @@ else {
         plan skip_all => 'needs DateTime and DateTime::Format::Oracle for testing';
     }
     else {
-        plan tests => 9;
+        plan tests => 10;
     }
 }
 
@@ -81,7 +81,7 @@ $schema->connection($dsn, $user, $pass, {
 $dt = DateTime->now();
 
 my $timestamp = $dt->clone;
-$timestamp->millisecond( 80 );
+$timestamp->set_nanosecond( int 500_000_000 );
 
 $track = $schema->resultset('Track')->find( 1 );
 $track->update({ last_updated_on => $dt, last_updated_at => $timestamp });
@@ -90,6 +90,9 @@ $track = $schema->resultset('Track')->find(1);
 
 is( $track->last_updated_on, $dt, 'DateTime round-trip as DATE' );
 is( $track->last_updated_at, $timestamp, 'DateTime round-trip as TIMESTAMP' );
+
+is( int $track->last_updated_at->nanosecond, int 500_000_000,
+  'TIMESTAMP nanoseconds survived' );
 
 # clean up our mess
 END {
