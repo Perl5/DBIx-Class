@@ -7,6 +7,7 @@ use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
 use File::Spec;
+use MRO::Compat;
 use Sub::Name ();
 require Module::Find;
 
@@ -239,16 +240,29 @@ sub load_namespaces {
     local *Class::C3::reinitialize = sub { };
     use warnings 'redefine';
 
-    # ensure classes are loaded and fetch properly sorted classes
+    # ensure classes are loaded and attached in inheritance order
     $class->ensure_class_loaded($_) foreach(values %results);
-    my @subclass_last = sort { $results{$a}->isa($results{$b}) } keys(%results);
-    
+    my %inh_idx;
+    my @subclass_last = sort {
+
+      ($inh_idx{$a} ||=
+        scalar @{mro::get_linear_isa( $results{$a} )}
+      )
+
+          <=>
+
+      ($inh_idx{$b} ||=
+        scalar @{mro::get_linear_isa( $results{$b} )}
+      )
+
+    } keys(%results);
+
     foreach my $result (@subclass_last) {
       my $result_class = $results{$result};
 
       my $rs_class = delete $resultsets{$result};
       my $rs_set = $class->_ns_get_rsrc_instance ($result_class)->resultset_class;
-      
+
       if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
         if($rs_class && $rs_class ne $rs_set) {
           carp "We found ResultSet class '$rs_class' for '$result', but it seems "
