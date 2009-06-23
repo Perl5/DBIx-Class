@@ -206,6 +206,12 @@ These are the defaults used:
   $ENV{NLS_TIMESTAMP_FORMAT}    ||= 'YYYY-MM-DD HH24:MI:SS.FF';
   $ENV{NLS_TIMESTAMP_TZ_FORMAT} ||= 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM';
 
+To get more than second precision with L<DBIx::Class::InflateColumn::DateTime>
+for your timestamps, use something like this:
+
+  use Time::HiRes 'time';
+  my $ts = DateTime->from_epoch(epoch => time);
+
 =cut
 
 sub connect_call_datetime_setup {
@@ -220,7 +226,7 @@ sub connect_call_datetime_setup {
 
   $dbh->do("alter session set nls_date_format = '$date_format'");
   $dbh->do("alter session set nls_timestamp_format = '$timestamp_format'");
-  $dbh->do("alter session set nls_timestamp_tz_format = '$timestamp_tz_format'");
+  $dbh->do("alter session set nls_timestamp_tz_format='$timestamp_tz_format'");
 }
 
 sub _svp_begin {
