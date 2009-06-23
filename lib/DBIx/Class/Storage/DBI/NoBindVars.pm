@@ -56,10 +56,7 @@ sub _prep_for_execute {
     my $col = shift @$bound;
 
     my $name_sep   = $self->_sql_maker_opts->{name_sep} || '.';
-    my $quote_char = $self->_sql_maker_opts->{quote_char} || '';
-    $quote_char    = join '', @$quote_char if ref $quote_char eq 'ARRAY';
 
-    $col =~ s/[\Q${quote_char}\E]//g if $quote_char;
     $col =~ s/^([^\Q${name_sep}\E]*)\Q${name_sep}\E//;
     my $alias = $1 || 'me';
 

@@ -62,9 +62,6 @@ sub connect_call_blob_setup {
   $dbh->{syb_binary_images} = 1;
 }
 
-{
-  my $old_dbd_warned = 0;
-
 =head2 connect_call_datetime_setup
 
 Used as:
@@ -83,6 +80,9 @@ This works for both C<DATETIME> and C<SMALLDATETIME> columns, although
 C<SMALLDATETIME> columns only have minute precision.
 
 =cut
+
+{
+  my $old_dbd_warned = 0;
 
   sub connect_call_datetime_setup {
     my $self = shift;
@@ -188,9 +188,7 @@ See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
 setting you need to work with C<IMAGE> columns.
 
 Due to limitations in L<DBD::Sybase> and this driver, it is only possible to
-select one C<TEXT> or C<IMAGE> column at a time, and it must be at the end of
-your C<select> list (one way to insure that is to define the column last in your
-C<Result> class.)
+select one C<TEXT> or C<IMAGE> column at a time.
 
 =head1 AUTHORS
 
