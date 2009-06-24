@@ -1154,16 +1154,121 @@ sub count {
   return $self->search(@_)->count if @_ and defined $_[0];
   return scalar @{ $self->get_cache } if $self->get_cache;
 
-  my $meth = $self->_has_resolved_attr (qw/collapse group_by/)
-    ? 'count_grouped'
-    : 'count'
-  ;
-
   my $attrs = $self->_resolved_attrs_copy;
-  my $rsrc = $self->result_source;
 
-  return $rsrc->storage->$meth ($rsrc, $attrs);
+  # this is a little optimization - it is faster to do the limit
+  # adjustments in software, instead of a subquery
+  my $rows = delete $attrs->{rows};
+  my $offset = delete $attrs->{offset};
+
+  my $crs;
+  if ($self->_has_resolved_attr (qw/collapse group_by/)) {
+    $crs = $self->_count_subq_rs ($attrs);
+  }
+  else {
+    $crs = $self->_count_rs ($attrs);
+  }
+  my $count = $crs->next;
+
+  $count -= $offset if $offset;
+  $count = $rows if $rows and $rows < $count;
+  $count = 0 if ($count < 0);
+
+  return $count;
 }
+
+=head2 count_rs
+
+=over 4
+
+=item Arguments: $cond, \%attrs??
+
+=item Return Value: $count_rs
+
+=back
+
+Same as L</count> but returns a L<DBIx::Class::ResultSetColumn> object.
+This can be very handy for subqueries:
+
+  ->search( { amount => $some_rs->count_rs->as_query } )
+
+As with regular resultsets the SQL query will be executed only after
+the resultset is accessed via L</next> or L</all>. That would return
+the same single value obtainable via L</count>.
+
+=cut
+
+sub count_rs {
+  my $self = shift;
+  return $self->search(@_)->count_rs if @_;
+
+  # this may look like a lack of abstraction (count() does about the same)
+  # but in fact an _rs *must* use a subquery for the limits, as the
+  # software based limiting can not be ported if this $rs is to be used
+  # in a subquery itself (i.e. ->as_query)
+  if ($self->_has_resolved_attr (qw/collapse group_by offset rows/)) {
+    return $self->_count_subq_rs;
+  }
+  else {
+    return $self->_count_rs;
+  }
+}
+
+#
+# returns a ResultSetColumn object tied to the count query
+#
+sub _count_rs {
+  my ($self, $attrs) = @_;
+
+  my $rsrc = $self->result_source;
+  $attrs ||= $self->_resolved_attrs;
+
+  my $tmp_attrs = { %$attrs };
+
+  # take off any limits, record_filter is cdbi, and no point of ordering a count 
+  delete $tmp_attrs->{$_} for (qw/select as rows offset order_by record_filter/);
+
+  # overwrite the selector (supplied by the storage)
+  $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $tmp_attrs);
+  $tmp_attrs->{as} = 'count';
+
+  my $tmp_rs = $rsrc->resultset_class->new($rsrc, $tmp_attrs)->get_column ('count');
+
+  return $tmp_rs;
+}
+
+#
+# same as above but uses a subquery
+#
+sub _count_subq_rs {
+  my ($self, $attrs) = @_;
+
+  my $rsrc = $self->result_source;
+  $attrs ||= $self->_resolved_attrs_copy;
+
+  my $sub_attrs = { %$attrs };
+
+  # these can not go in the subquery, and there is no point of ordering it
+  delete $sub_attrs->{$_} for qw/collapse select as order_by/;
+
+  # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
+  # clobber old group_by regardless
+  if ( keys %{$attrs->{collapse}} ) {
+    $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->primary_columns) ]
+  }
+
+  $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
+
+  $attrs->{from} = [{
+    count_subq => $rsrc->resultset_class->new ($rsrc, $sub_attrs )->as_query
+  }];
+
+  # the subquery replaces this
+  delete $attrs->{$_} for qw/where bind collapse group_by having having_bind rows offset/;
+
+  return $self->_count_rs ($attrs);
+}
+
 
 sub _bool {
   return 1;
@@ -1514,8 +1619,9 @@ In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
 to insert the data, as this is a faster method.
 
 Otherwise, each set of data is inserted into the database using
-L<DBIx::Class::ResultSet/create>, and a arrayref of the resulting row
-objects is returned.
+L<DBIx::Class::ResultSet/create>, and the resulting objects are
+accumulated into an array. The array itself, or an array reference
+is returned depending on scalar or list context.
 
 Example:  Assuming an Artist Class that has many CDs Classes relating:
 
@@ -1581,7 +1687,7 @@ sub populate {
     foreach my $item (@$data) {
       push(@created, $self->create($item));
     }
-    return @created;
+    return wantarray ? @created : \@created;
   } else {
     my ($first, @rest) = @$data;
 
@@ -2080,7 +2186,7 @@ sub create {
 =back
 
   $cd->cd_to_producer->find_or_create({ producer => $producer },
-                                      { key => 'primary });
+                                      { key => 'primary' });
 
 Tries to find a record based on its primary key or unique constraints; if none
 is found, creates one and returns that instead.
@@ -2571,22 +2677,24 @@ sub _resolved_attrs {
     $self->{attrs}{alias} => $source->from,
   } ];
 
-  if ( exists $attrs->{join} || exists $attrs->{prefetch} ) {
+  if ( $attrs->{join} || $attrs->{prefetch} ) {
+
+    $self->throw_exception ('join/prefetch can not be used with a literal scalarref {from}')
+      if ref $attrs->{from} ne 'ARRAY';
+
     my $join = delete $attrs->{join} || {};
 
     if ( defined $attrs->{prefetch} ) {
       $join = $self->_merge_attr( $join, $attrs->{prefetch} );
-
     }
 
     $attrs->{from} =    # have to copy here to avoid corrupting the original
       [
-      @{ $attrs->{from} },
-      $source->_resolve_join(
-        $join, $alias, { %{ $attrs->{seen_join} || {} } }
-      )
+        @{ $attrs->{from} },
+        $source->_resolve_join(
+          $join, $alias, { %{ $attrs->{seen_join} || {} } }
+        )
       ];
-
   }
 
   if ( $attrs->{order_by} ) {

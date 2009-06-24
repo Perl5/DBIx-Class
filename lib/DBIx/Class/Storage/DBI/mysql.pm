@@ -64,10 +64,10 @@ sub _subq_update_delete {
 # primary keys of the main table in the inner query. This hopefully still
 # hits the indexes and keeps mysql happy.
 # (mysql does not care if the SELECT and the GROUP BY match)
-sub _grouped_count_select {
-  my ($self, $source, $rs_args) = @_;
-  my @pcols = map { join '.', $rs_args->{alias}, $_ } ($source->primary_columns);
-  return @pcols ? \@pcols : $rs_args->{group_by};
+sub _subq_count_select {
+  my ($self, $source, $rs_attrs) = @_;
+  my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
+  return @pcols ? \@pcols : [ 1 ];
 }
 
 1;

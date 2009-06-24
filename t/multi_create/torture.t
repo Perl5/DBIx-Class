@@ -143,7 +143,11 @@ eval {
   is (
     $cds_2012->search(
       { 'tags.tag' => { -in => [qw/A B/] } },
-      { join => 'tags', group_by => 'me.cdid' }
+      {
+        join => 'tags',
+        group_by => 'me.cdid',
+        having => 'count(me.cdid) = 2',
+      }
     ),
     5,
     'All 10 tags were pairwise distributed between 5 year-2012 CDs'
