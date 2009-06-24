@@ -197,9 +197,6 @@ by it.
 Maximum allowable precision is used, unless the environment variables have
 already been set.
 
-C<nls_timestamp_tz_format> is also initialized but is not currently used by
-L<DBIx::Class::InflateColumn::DateTime>.
-
 These are the defaults used:
 
   $ENV{NLS_DATE_FORMAT}         ||= 'YYYY-MM-DD HH24:MI:SS';
