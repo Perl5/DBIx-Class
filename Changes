@@ -9,6 +9,8 @@ Revision history for DBIx::Class
           which in turn returns a single count value
         - make_column_dirty() now overwrites the deflated value with an
           inflated one if such exists
+        - Fixed set_$rel with where restriction deleting rows outside 
+          the restriction
 
 0.08107 2009-06-14 08:21:00 (UTC)
         - Fix serialization regression introduced in 0.08103 (affects

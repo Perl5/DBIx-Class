@@ -107,7 +107,7 @@ EOW
         "{$set_meth} needs a list of objects or hashrefs"
       );
       my @to_set = (ref($_[0]) eq 'ARRAY' ? @{ $_[0] } : @_);
-      $self->search_related($rel, {})->delete;
+      $self->search_related( $rel, ($rel_attrs||{})->{where},($rel_attrs||{})->{where}?{join => $f_rel}:{} )->delete;
       $self->$add_meth($_, ref($_[1]) ? $_[1] : {}) for (@to_set);
     };
 
