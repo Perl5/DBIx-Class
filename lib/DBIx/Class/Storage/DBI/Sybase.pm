@@ -8,6 +8,35 @@ use base qw/DBIx::Class::Storage::DBI/;
 
 use Carp::Clan qw/^DBIx::Class/;
 
+=head1 NAME
+
+DBIx::Class::Storage::DBI::Sybase - Storage::DBI subclass for Sybase
+
+=head1 SYNOPSIS
+
+This subclass supports L<DBD::Sybase> for real Sybase databases.  If you are
+using an MSSQL database via L<DBD::Sybase>, your storage will be reblessed to
+L<DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server>.
+
+=head1 DESCRIPTION
+
+If your version of Sybase does not support placeholders, then your storage
+will be reblessed to L<DBIx::Class::Storage::DBI::Sybase::NoBindVars>. You can
+also enable that driver explicitly, see the documentation for more details.
+
+With this driver there is unfortunately no way to get the C<last_insert_id>
+without doing a C<select max(col)>.
+
+But your queries will be cached.
+
+A recommended L<DBIx::Class::Storage::DBI/connect_info> setting:
+
+  on_connect_call => [qw/datetime_setup blob_setup/]
+
+=head1 METHODS
+
+=cut
+
 sub _rebless {
   my $self = shift;
 
@@ -112,70 +141,70 @@ sub _dbh_last_insert_id {
   return ($dbh->selectrow_array($sth))[0];
 }
 
-=head2 count
+# previous implementation of limited count for Sybase, does not include
+# count_grouped.
 
-Counts for limited queries are emulated by executing select queries and
-returning the number of successful executions minus the offset.
-
-This is necessary due to the limitations of Sybase.
-
-=cut
-
-sub count {
-  my $self = shift;
-  my ($source, $attrs) = @_;
-
-  if (not exists $attrs->{rows}) {
-    return $self->next::method(@_);
-  }
-
-  my $offset = $attrs->{offset} || 0;
-  my $total  = $attrs->{rows} + $offset;
-
-  my $new_attrs = $self->_copy_attributes_for_count($source, $attrs);
-
-  my $first_pk = ($source->primary_columns)[0];
-
-  $new_attrs->{select} = $first_pk ? "me.$first_pk" : 1;
-
-  my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
-
-  $self->dbh->{syb_rowcount} = $total;
-
-  my $count = 0;
-  $count++ while $tmp_rs->cursor->next;
-
-  $self->dbh->{syb_rowcount} = 0;
-
-  return $count - $offset;
-}
+#sub _copy_attributes_for_count {
+#  my ($self, $source, $attrs) = @_;
+#  my %attrs = %$attrs;
+#
+#  # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
+#  delete @attrs{qw/select as rows offset page order_by record_filter/};
+#
+#  return \%attrs;
+#}
+#
+#=head2 count
+#
+#Counts for limited queries are emulated by executing select queries and
+#returning the number of successful executions minus the offset.
+#
+#This is necessary due to the limitations of Sybase.
+#
+#=cut
+#
+#sub count {
+#  my $self = shift;
+#  my ($source, $attrs) = @_;
+#
+#  my $new_attrs = $self->_copy_attributes_for_count($source, $attrs);
+#
+#  if (exists $attrs->{rows}) {
+#    my $offset = $attrs->{offset} || 0;
+#    my $total  = $attrs->{rows} + $offset;
+#
+#    my $first_pk = ($source->primary_columns)[0];
+#
+#    $new_attrs->{select} = $first_pk ? "me.$first_pk" : 1;
+#
+#    my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
+#
+#    $self->dbh->{syb_rowcount} = $total;
+#
+#    my $count = 0;
+#    $count++ while $tmp_rs->cursor->next;
+#
+#    $self->dbh->{syb_rowcount} = 0;
+#
+#    return $count - $offset;
+#  } else {
+#    # overwrite the selector
+#    $new_attrs->{select} = { count => '*' };
+#
+#    my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
+#    my ($count) = $tmp_rs->cursor->next;
+#
+#    # if the offset/rows attributes are still present, we did not use
+#    # a subquery, so we need to make the calculations in software
+#    $count -= $attrs->{offset} if $attrs->{offset};
+#    $count = $attrs->{rows} if $attrs->{rows} and $attrs->{rows} < $count;
+#    $count = 0 if ($count < 0);
+#
+#    return $count;
+#  }
+#}
 
 1;
-
-=head1 NAME
-
-DBIx::Class::Storage::DBI::Sybase - Storage::DBI subclass for Sybase
-
-=head1 SYNOPSIS
-
-This subclass supports L<DBD::Sybase> for real Sybase databases.  If you are
-using an MSSQL database via L<DBD::Sybase>, your storage will be reblessed to
-L<DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server>.
-
-=head1 DESCRIPTION
-
-If your version of Sybase does not support placeholders, then your storage
-will be reblessed to L<DBIx::Class::Storage::DBI::Sybase::NoBindVars>. You can
-also enable that driver explicitly, see the documentation for more details.
-
-With this driver there is unfortunately no way to get the C<last_insert_id>
-without doing a C<select max(col)>.
-
-But your queries will be cached.
-
-A recommended L<DBIx::Class::Storage::DBI/connect_info> setting:
-
-  on_connect_call => [qw/datetime_setup blob_setup/]
 
 =head1 DATES
 
