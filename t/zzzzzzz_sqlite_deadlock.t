@@ -27,7 +27,6 @@ for my $close (0,1) {
 
   lives_ok (sub {
     my $schema = DBICTest::Schema->connect ("DBI:SQLite:$tmp_fn");
-    warn $tmp_fn;
     DBICTest->deploy_schema ($schema);
     DBICTest->populate_schema ($schema);
   });
