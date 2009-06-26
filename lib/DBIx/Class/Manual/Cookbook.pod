@@ -240,7 +240,7 @@ any of your aliases using either of these:
   my $rs = $schema->resultset('Artist')->search(
     {},
     {
-      columns => [ qw/artistid name rank/ ],
+      columns => [ qw/artist_id name rank/ ],
       distinct => 1
     } 
   );
@@ -248,15 +248,15 @@ any of your aliases using either of these:
   my $rs = $schema->resultset('Artist')->search(
     {},
     {
-      columns => [ qw/artistid name rank/ ],
-      group_by => [ qw/artistid name rank/ ],
+      columns => [ qw/artist_id name rank/ ],
+      group_by => [ qw/artist_id name rank/ ],
     }
   );
 
   # Equivalent SQL:
-  # SELECT me.artistid, me.name, me.rank
+  # SELECT me.artist_id, me.name, me.rank
   # FROM artist me
-  # GROUP BY artistid, name, rank
+  # GROUP BY artist_id, name, rank
 
 =head2 SELECT COUNT(DISTINCT colname)
 
@@ -336,7 +336,7 @@ from, select, and +select attributes.
   my $rs = $cdrs->search({
     year => {
       '=' => $cdrs->search(
-        { artistid => { '=' => \'me.artistid' } },
+        { artist_id => { '=' => \'me.artist_id' } },
         { alias => 'inner' }
       )->get_column('year')->max_rs->as_query,
     },
@@ -349,7 +349,7 @@ That creates the following SQL:
    WHERE year = (
       SELECT MAX(inner.year)
         FROM cd inner
-       WHERE artistid = me.artistid
+       WHERE artist_id = me.artist_id
       )
 
 =head3 EXPERIMENTAL
@@ -429,15 +429,20 @@ C<bind> attributes:
 =head2 Using joins and prefetch
 
 You can use the C<join> attribute to allow searching on, or sorting your
-results by, one or more columns in a related table. To return all CDs matching
-a particular artist name:
+results by, one or more columns in a related table.
+
+This requires that you have defined the L<DBIx::Class::Relationship>. For example :
+
+  My::Schema::CD->has_many( artists => 'My::Schema::Artist', 'artist_id');
+
+To return all CDs matching a particular artist name, you specify the name of the relationship ('artists'):
 
   my $rs = $schema->resultset('CD')->search(
     {
-      'artist.name' => 'Bob Marley'    
+      'artists.name' => 'Bob Marley'    
     },
     {
-      join => 'artist', # join the artist table
+      join => 'artists', # join the artist table
     }
   );
 
@@ -446,16 +451,19 @@ a particular artist name:
   # JOIN artist ON cd.artist = artist.id
   # WHERE artist.name = 'Bob Marley'
 
+In that example both the join, and the condition use the relationship name rather than the table name
+(see DBIx::Class::Manual::Joining for more details on aliasing ).
+
 If required, you can now sort on any column in the related tables by including
-it in your C<order_by> attribute:
+it in your C<order_by> attribute, (again using the aliased relation name rather than table name) :
 
   my $rs = $schema->resultset('CD')->search(
     {
-      'artist.name' => 'Bob Marley'
+      'artists.name' => 'Bob Marley'
     },
     {
-      join     => 'artist',
-      order_by => [qw/ artist.name /]
+      join     => 'artists',
+      order_by => [qw/ artists.name /]
     }
   );
 
@@ -492,12 +500,12 @@ This allows you to fetch results from related tables in advance:
 
   my $rs = $schema->resultset('CD')->search(
     {
-      'artist.name' => 'Bob Marley'
+      'artists.name' => 'Bob Marley'
     },
     {
-      join     => 'artist',
-      order_by => [qw/ artist.name /],
-      prefetch => 'artist' # return artist data too!
+      join     => 'artists',
+      order_by => [qw/ artists.name /],
+      prefetch => 'artists' # return artist data too!
     }
   );
 
@@ -1100,8 +1108,8 @@ declaration, like so...
   
   __PACKAGE__->table('database1.artist'); # will use "database1.artist" in FROM clause
   
-  __PACKAGE__->add_columns(qw/ artistid name /);
-  __PACKAGE__->set_primary_key('artistid');
+  __PACKAGE__->add_columns(qw/ artist_id name /);
+  __PACKAGE__->set_primary_key('artist_id');
   __PACKAGE__->has_many('cds' => 'MyDatabase::Main::Cd');
 
   1;
