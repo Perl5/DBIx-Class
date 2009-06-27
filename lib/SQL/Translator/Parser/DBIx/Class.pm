@@ -36,10 +36,10 @@ sub parse {
     $dbicschema     ||= $args->{'package'};
     my $limit_sources = $args->{'sources'};
 
-    die 'No DBIx::Class::Schema' unless ($dbicschema);
+    croak 'No DBIx::Class::Schema' unless ($dbicschema);
     if (!ref $dbicschema) {
       eval "use $dbicschema;";
-      die "Can't load $dbicschema ($@)" if($@);
+      croak "Can't load $dbicschema ($@)" if($@);
     }
 
     my $schema      = $tr->schema;
@@ -51,7 +51,8 @@ sub parse {
     my @monikers = sort $dbicschema->sources;
     if ($limit_sources) {
         my $ref = ref $limit_sources || '';
-        die "'sources' parameter must be an array or hash ref" unless $ref eq 'ARRAY' || ref eq 'HASH';
+        $dbicschema->throw_exception ("'sources' parameter must be an array or hash ref")
+          unless( $ref eq 'ARRAY' || ref eq 'HASH' );
 
         # limit monikers to those specified in 
         my $sources;
@@ -107,7 +108,8 @@ sub parse {
             if ($colinfo{is_nullable}) {
               $colinfo{default} = '' unless exists $colinfo{default};
             }
-            my $f = $table->add_field(%colinfo) || die $table->error;
+            my $f = $table->add_field(%colinfo)
+              || $dbicschema->throw_exception ($table->error);
         }
         $table->primary_key($source->primary_columns);
 
@@ -268,7 +270,7 @@ sub parse {
           name => $view_name,
           fields => [ $source->columns ],
           $source->view_definition ? ( 'sql' => $source->view_definition ) : ()
-        ) || die $schema->error;
+        ) || $dbicschema->throw_exception ($schema->error);
 
         $source->_invoke_sqlt_deploy_hook($view);
     }
