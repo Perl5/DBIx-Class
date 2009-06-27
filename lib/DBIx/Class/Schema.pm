@@ -1125,6 +1125,19 @@ name format is: C<$dir$schema-$version-$type.sql>.
 You may override this method in your schema if you wish to use a different
 format.
 
+ WARNING
+
+ Prior to DBIx::Class version 0.08100 this method had a different signature:
+
+    my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
+
+ In recent versions variables $dir and $version were reversed in order to
+ bring the signature in line with other Schema/Storage methods. If you 
+ really need to maintain backward compatibility, you can do the following
+ in any overriding methods:
+
+    ($dir, $version) = ($version, $dir) if ($DBIx::Class::VERSION < 0.08100);
+
 =cut
 
 sub ddl_filename {

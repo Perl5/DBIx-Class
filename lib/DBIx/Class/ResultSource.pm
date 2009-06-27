@@ -1083,26 +1083,23 @@ sub resolve_join {
 
 # Returns the {from} structure used to express JOIN conditions
 sub _resolve_join {
-  my ($self, $join, $alias, $seen, $force_left, $jpath) = @_;
+  my ($self, $join, $alias, $seen, $jpath, $force_left) = @_;
 
   # we need a supplied one, because we do in-place modifications, no returns
   $self->throw_exception ('You must supply a seen hashref as the 3rd argument to _resolve_join')
     unless $seen;
-
-  $force_left ||= { force => 0 };
 
   # This isn't quite right, we should actually dive into $seen and reconstruct
   # the entire path (the reference entry point would be the join conditional
   # with depth == current_depth - 1. At this point however nothing depends on
   # having the entire path, transcending related_resultset, so just leave it
   # as is, hairy enough already.
-  $jpath ||= [];  
+  $jpath ||= [];
 
   if (ref $join eq 'ARRAY') {
     return
       map {
-        local $force_left->{force} = $force_left->{force};
-        $self->_resolve_join($_, $alias, $seen, $force_left, [@$jpath]);
+        $self->_resolve_join($_, $alias, $seen, [@$jpath], $force_left);
       } @$join;
   } elsif (ref $join eq 'HASH') {
     return
@@ -1110,9 +1107,9 @@ sub _resolve_join {
         my $as = ($seen->{$_} ? join ('_', $_, $seen->{$_} + 1) : $_);  # the actual seen value will be incremented below
         local $force_left->{force} = $force_left->{force};
         (
-          $self->_resolve_join($_, $alias, $seen, $force_left, [@$jpath]),
+          $self->_resolve_join($_, $alias, $seen, [@$jpath], $force_left),
           $self->related_source($_)->_resolve_join(
-            $join->{$_}, $as, $seen, $force_left, [@$jpath, $_]
+            $join->{$_}, $as, $seen, [@$jpath, $_], $force_left
           )
         );
       } keys %$join;
@@ -1126,11 +1123,11 @@ sub _resolve_join {
     my $rel_info = $self->relationship_info($join);
     $self->throw_exception("No such relationship ${join}") unless $rel_info;
     my $type;
-    if ($force_left->{force}) {
+    if ($force_left) {
       $type = 'left';
     } else {
       $type = $rel_info->{attrs}{join_type} || '';
-      $force_left->{force} = 1 if lc($type) eq 'left';
+      $force_left = 1 if lc($type) eq 'left';
     }
 
     my $rel_src = $self->related_source($join);

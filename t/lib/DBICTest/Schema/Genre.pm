@@ -20,4 +20,6 @@ __PACKAGE__->add_unique_constraint ( genre_name => [qw/name/] );
 
 __PACKAGE__->has_many (cds => 'DBICTest::Schema::CD', 'genreid');
 
+__PACKAGE__->has_one (model_cd => 'DBICTest::Schema::CD', 'genreid');
+
 1;

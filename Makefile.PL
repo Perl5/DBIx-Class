@@ -59,7 +59,7 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 
 my %force_requires_if_author = (
   'Test::Pod::Coverage'       => 1.04,
-  'SQL::Translator'           => 0.09004,
+  'SQL::Translator'           => 0.09007,
 
   # CDBI-compat related
   'DBIx::ContextualFetch'     => 0,
