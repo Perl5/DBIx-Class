@@ -211,7 +211,7 @@ __END__
 
 =head1 USAGE NOTES
 
-If you have a datetime column with the C<timezone> extra setting, and subsenquently 
+If you have a datetime column with an associated C<timezone>, and subsequently
 create/update this column with a DateTime object in the L<DateTime::TimeZone::Floating>
 timezone, you will get a warning (as there is a very good chance this will not have the
 result you expect). For example:

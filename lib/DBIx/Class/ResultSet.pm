@@ -513,6 +513,14 @@ sub find {
     my $unique_query = $self->_build_unique_query($input_query, \@unique_cols);
     $query = $self->_add_alias($unique_query, $alias);
   }
+  elsif ($self->{attrs}{accessor} and $self->{attrs}{accessor} eq 'single') {
+    # This means that we got here after a merger of relationship conditions
+    # in ::Relationship::Base::search_related (the row method), and furthermore
+    # the relationship is of the 'single' type. This means that the condition
+    # provided by the relationship (already attached to $self) is sufficient,
+    # as there can be only one row in the databse that would satisfy the 
+    # relationship
+  }
   else {
     my @unique_queries = $self->_unique_queries($input_query, $attrs);
     $query = @unique_queries
@@ -521,27 +529,14 @@ sub find {
   }
 
   # Run the query
-  if (keys %$attrs) {
-    my $rs = $self->search($query, $attrs);
-    if (keys %{$rs->_resolved_attrs->{collapse}}) {
-      my $row = $rs->next;
-      carp "Query returned more than one row" if $rs->next;
-      return $row;
-    }
-    else {
-      return $rs->single;
-    }
+  my $rs = $self->search ($query, $attrs);
+  if (keys %{$rs->_resolved_attrs->{collapse}}) {
+    my $row = $rs->next;
+    carp "Query returned more than one row" if $rs->next;
+    return $row;
   }
   else {
-    if (keys %{$self->_resolved_attrs->{collapse}}) {
-      my $rs = $self->search($query);
-      my $row = $rs->next;
-      carp "Query returned more than one row" if $rs->next;
-      return $row;
-    }
-    else {
-      return $self->single($query);
-    }
+    return $rs->single;
   }
 }
 
@@ -2448,12 +2443,12 @@ sub related_resultset {
 
   $self->{related_resultsets} ||= {};
   return $self->{related_resultsets}{$rel} ||= do {
-    my $rel_obj = $self->result_source->relationship_info($rel);
+    my $rel_info = $self->result_source->relationship_info($rel);
 
     $self->throw_exception(
       "search_related: result source '" . $self->result_source->source_name .
         "' has no such relationship $rel")
-      unless $rel_obj;
+      unless $rel_info;
 
     my ($from,$seen) = $self->_resolve_from($rel);
 
@@ -2554,7 +2549,7 @@ sub current_source_alias {
 # with a relation_chain_depth less than the depth of the
 # current prefetch is not considered)
 sub _resolve_from {
-  my ($self, $extra_join) = @_;
+  my ($self, $rel) = @_;
   my $source = $self->result_source;
   my $attrs = $self->{attrs};
 
@@ -2578,7 +2573,7 @@ sub _resolve_from {
 
   ++$seen->{-relation_chain_depth};
 
-  push @$from, $source->_resolve_join($extra_join, $attrs->{alias}, $seen);
+  push @$from, $source->_resolve_join($rel, $attrs->{alias}, $seen);
 
   ++$seen->{-relation_chain_depth};
 
@@ -3213,7 +3208,7 @@ Makes the resultset paged and specifies the page to retrieve. Effectively
 identical to creating a non-pages resultset and then calling ->page($page)
 on it.
 
-If L<rows> attribute is not specified it defualts to 10 rows per page.
+If L<rows> attribute is not specified it defaults to 10 rows per page.
 
 When you have a paged resultset, L</count> will only return the number
 of rows in the page. To get the total, use the L</pager> and call
