@@ -2578,16 +2578,17 @@ sub _chain_relationship {
   # if $self already had a join/prefetch specified on it, the requested
   # $rel might very well be already included. What we do in this case
   # is effectively a no-op (except that we bump up the chain_depth on
-  # the join in question
+  # the join in question so we could tell it *is* the search_related)
   my $already_joined;
-  for my $j (@requested_joins) {
+
+  # we consider the last one thus reverse
+  for my $j (reverse @requested_joins) {
     if ($rel eq $j->[0]{-join_path}[-1]) {
       $j->[0]{-relation_chain_depth}++;
       $already_joined++;
       last;
     }
   }
-
   unless ($already_joined) {
     push @$from, $source->_resolve_join($rel, $attrs->{alias}, $seen);
   }
