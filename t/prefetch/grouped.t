@@ -30,13 +30,11 @@ for ($cd_rs->all) {
       # the select/as is deliberately silly to test both funcs and refs below
       select => [
         'me.cd',
-        \ 'COUNT (me.trackid) AS track_count',
         { count => 'me.trackid' },
       ],
       as => [qw/
         cd
         track_count
-        track_count_2
       /],
       group_by => [qw/me.cd/],
       prefetch => 'cd',
@@ -88,9 +86,9 @@ for ($cd_rs->all) {
   is_same_sql_bind (
     $track_rs->as_query,
     '(
-      SELECT me.cd, me.track_count, me.track_count_2, cd.cdid, cd.artist, cd.title, cd.year, cd.genreid, cd.single_track
+      SELECT me.cd, me.track_count, cd.cdid, cd.artist, cd.title, cd.year, cd.genreid, cd.single_track
         FROM (
-          SELECT me.cd, COUNT (me.trackid) AS track_count, COUNT (me.trackid) AS track_count_2
+          SELECT me.cd, COUNT (me.trackid) AS track_count,
             FROM track me
           WHERE ( cd IN ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) )
           GROUP BY me.cd
@@ -136,7 +134,7 @@ for ($cd_rs->all) {
     select => ['me.cdid', { count => 'tracks.trackid' } ],
     as => [qw/cdid track_count/],
     group_by => 'me.cdid',
-    order_by => { -desc => \ 'COUNT (tracks.trackid)' },
+    order_by => { -desc => 'track_count' },
     rows => 2,
   });
 
@@ -168,13 +166,13 @@ for ($cd_rs->all) {
             LEFT JOIN track tracks ON tracks.cd = me.cdid
           WHERE ( tracks.cd IS NOT NULL )
           GROUP BY me.cdid
-          ORDER BY COUNT (tracks.trackid) DESC,
+          ORDER BY track_count DESC,
           LIMIT 2
         ) me
         LEFT JOIN track tracks ON tracks.cd = me.cdid
         LEFT JOIN liner_notes liner_notes ON liner_notes.liner_id = me.cdid
       WHERE ( tracks.cd IS NOT NULL )
-      ORDER BY COUNT (tracks.trackid) DESC, tracks.cd
+      ORDER BY COUNT track_count DESC, tracks.cd
     )',
     [],
     'next() query generated expected SQL',
