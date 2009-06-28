@@ -82,7 +82,6 @@ for ($cd_rs->all) {
     'count() query generated expected SQL',
   );
 
-  # the double-count is deliberate
   is_same_sql_bind (
     $track_rs->as_query,
     '(
@@ -125,8 +124,6 @@ for ($cd_rs->all) {
 }
 
 # test a has_many/might_have prefetch at the same level
-# double-count for now, until we figure out how to do this cleanly
-# with a function
 # Note that one of the CDs now has 4 tracks instead of 3
 {
   my $most_tracks_rs = $cd_rs->search ({}, {
