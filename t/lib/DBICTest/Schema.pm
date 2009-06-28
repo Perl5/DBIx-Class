@@ -11,6 +11,7 @@ __PACKAGE__->load_classes(qw/
   BindType
   Employee
   CD
+  CDTableRef
   FileColumn
   Genre
   Link

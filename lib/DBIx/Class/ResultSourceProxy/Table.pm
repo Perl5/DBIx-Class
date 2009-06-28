@@ -75,7 +75,8 @@ Gets or sets the table name.
 sub table {
   my ($class, $table) = @_;
   return $class->result_source_instance->name unless $table;
-  unless (ref $table) {
+
+  unless (Scalar::Util::blessed($table) && $table->isa($class->table_class)) {
     $table = $class->table_class->new({
         $class->can('result_source_instance') ?
           %{$class->result_source_instance||{}} : (),

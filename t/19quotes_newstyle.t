@@ -11,7 +11,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 7 );
+        : ( tests => 8 );
 }
 
 use_ok('DBICTest');
@@ -43,6 +43,17 @@ eval { $rs->count };
 is_same_sql_bind(
   $sql, \@bind,
   "SELECT COUNT( * ) FROM `cd` `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )", ["'Caterwauler McCrae'", "'2001'"],
+  'got correct SQL for count query with quoting'
+);
+
+# try with ->table(\'cd') should NOT be quoted
+$rs = $schema->resultset('CDTableRef')->search(
+           { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
+           { join => 'artist' });
+eval { $rs->count };
+is_same_sql_bind(
+  $sql, \@bind,
+  "SELECT COUNT( * ) FROM cd `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )", ["'Caterwauler McCrae'", "'2001'"],
   'got correct SQL for count query with quoting'
 );
 
