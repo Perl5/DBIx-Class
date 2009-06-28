@@ -29,13 +29,17 @@ without doing a C<select max(col)>.
 
 But your queries will be cached.
 
-A recommended L<DBIx::Class::Storage::DBI/connect_info> setting:
+A recommended L<DBIx::Class::Storage::DBI/connect_info> settings:
 
-  on_connect_call => [qw/datetime_setup blob_setup/]
+  on_connect_call => [['datetime_setup'], [blob_setup => log_on_update => 0]]
 
 =head1 METHODS
 
 =cut
+
+__PACKAGE__->mk_group_accessors('simple' =>
+    qw/_blob_log_on_update/
+);
 
 sub _rebless {
   my $self = shift;
@@ -76,19 +80,105 @@ sub _populate_dbh {
 
 Used as:
 
-  on_connect_call => 'blob_setup'
+  on_connect_call => [ [ blob_setup => log_on_update => 0 ] ]
 
 Does C<< $dbh->{syb_binary_images} = 1; >> to return C<IMAGE> data as raw binary
 instead of as a hex string.
 
 Recommended.
 
+Also sets the C<log_on_update> value for blob write operations. The default is
+C<1>, but C<0> is better if your database is configured for it.
+
+See
+L<DBD::Sybase/Handling_IMAGE/TEXT_data_with_syb_ct_get_data()/syb_ct_send_data()>.
+
 =cut
 
 sub connect_call_blob_setup {
   my $self = shift;
+  my %args = @_;
   my $dbh = $self->_dbh;
   $dbh->{syb_binary_images} = 1;
+
+  $self->_blob_log_on_update($args{log_on_update})
+    if exists $args{log_on_update};
+}
+
+sub _is_lob_type {
+  my $self = shift;
+  shift =~ /(?:text|image|lob|bytea|binary)/i;
+}
+
+sub insert {
+  my $self = shift;
+  my ($source, $to_insert) = @_;
+
+  my %blob_cols;
+
+  for my $col (keys %$to_insert) {
+    $blob_cols{$col} = delete $to_insert->{$col}
+      if $self->_is_lob_type($source->column_info($col)->{data_type});
+  }
+
+  my $updated_cols = $self->next::method(@_);
+
+  $self->_update_blobs($source, \%blob_cols, $to_insert) if %blob_cols;
+
+  return $updated_cols;
+}
+
+sub _update_blobs {
+  my ($self, $source, $blob_cols, $inserted) = @_;
+  my $dbh = $self->dbh;
+
+  my $table = $source->from;
+
+  my (@primary_cols) = $source->primary_columns;
+
+  croak "Cannot update TEXT/IMAGE without a primary key!"
+    unless @primary_cols;
+
+  my $search_cond = join ',' => map "$_ = ?", @primary_cols;
+
+  for my $col (keys %$blob_cols) {
+    my $blob = $blob_cols->{$col};
+
+# First update to empty string in case it's NULL, can't update a NULL blob using
+# the API.
+    my $sth = $dbh->prepare_cached(
+      qq{update $table set $col = '' where $search_cond}
+    );
+    $sth->execute(map $inserted->{$_}, @primary_cols) or die $sth->errstr;
+    $sth->finish;
+
+    $sth = $dbh->prepare_cached(
+      "select $col from $table where $search_cond"
+    );
+    $sth->execute(map $inserted->{$_}, @primary_cols);
+
+    eval {
+      while ($sth->fetch) {
+        $sth->func('CS_GET', 1, 'ct_data_info') or die $sth->errstr;
+      }
+      $sth->func('ct_prepare_send') or die $sth->errstr;
+
+      my $log_on_update = $self->_blob_log_on_update;
+      $log_on_update    = 1 if not defined $log_on_update;
+
+      $sth->func('CS_SET', 1, {
+        total_txtlen => length($blob),
+        log_on_update => $log_on_update
+      }, 'ct_data_info') or die $sth->errstr;
+
+      $sth->func($blob, length($blob), 'ct_send_data') or die $sth->errstr;
+
+      $sth->func('ct_finish_send') or die $sth->errstr;
+    };
+    my $exception = $@;
+    $sth->finish;
+    croak $exception if $exception;
+  }
 }
 
 =head2 connect_call_datetime_setup
