@@ -2703,6 +2703,10 @@ sub _resolved_attrs {
     $attrs->{order_by} = [];
   }
 
+  if ($attrs->{group_by} and ! ref $attrs->{group_by}) {
+    $attrs->{group_by} = [ $attrs->{group_by} ];
+  }
+
   # If the order_by is otherwise empty - we will use this for TOP limit
   # emulation and the like.
   # Although this is needed only if the order_by is not defined, it is
