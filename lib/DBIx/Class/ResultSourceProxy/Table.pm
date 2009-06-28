@@ -6,7 +6,6 @@ use warnings;
 use base qw/DBIx::Class::ResultSourceProxy/;
 
 use DBIx::Class::ResultSource::Table;
-use Scalar::Util ();
 
 __PACKAGE__->mk_classdata(table_class => 'DBIx::Class::ResultSource::Table');
 
@@ -76,7 +75,7 @@ Gets or sets the table name.
 sub table {
   my ($class, $table) = @_;
   return $class->result_source_instance->name unless $table;
-  unless (Scalar::Util::blessed($table)) {
+  unless (ref $table) {
     $table = $class->table_class->new({
         $class->can('result_source_instance') ?
           %{$class->result_source_instance||{}} : (),
