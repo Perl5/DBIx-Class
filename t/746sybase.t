@@ -163,22 +163,18 @@ SQL
   my $rs = $schema->resultset('BindType');
   my $id = 0;
 
-  TODO: {
-#    local $TODO = 'TEXT/IMAGE columns don\'t work yet';
+  foreach my $type (qw(blob clob)) {
+    foreach my $size (qw(small large)) {
+      no warnings 'uninitialized';
+      $id++;
 
-    foreach my $type (qw(blob clob)) {
-      foreach my $size (qw(small large)) {
-        no warnings 'uninitialized';
-        $id++;
+      eval { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) };
+      ok(!$@, "inserted $size $type without dying");
+      diag $@ if $@;
 
-        eval { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) };
-        ok(!$@, "inserted $size $type without dying");
-        diag $@ if $@;
-
-        ok(eval {
-          $rs->search({ id=> $id }, { select => [$type] })->single->$type
-        } eq $binstr{$size}, "verified inserted $size $type" );
-      }
+      ok(eval {
+        $rs->search({ id=> $id }, { select => [$type] })->single->$type
+      } eq $binstr{$size}, "verified inserted $size $type" );
     }
   }
 }
