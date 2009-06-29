@@ -13,16 +13,15 @@ use Scalar::Util();
 use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
-       _conn_pid _conn_tid transaction_depth _dbh_autocommit _on_connect_do
-       _on_disconnect_do _on_connect_do_store _on_disconnect_do_store
-       savepoints/
+  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
+     _conn_pid _conn_tid transaction_depth _dbh_autocommit savepoints/
 );
 
 # the values for these accessors are picked out (and deleted) from
 # the attribute hashref passed to connect_info
 my @storage_options = qw/
-  on_connect_call on_disconnect_call disable_sth_caching unsafe auto_savepoint
+  on_connect_call on_disconnect_call on_connect_do on_disconnect_do
+  disable_sth_caching unsafe auto_savepoint
 /;
 __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 
@@ -453,52 +452,28 @@ This method is deprecated in favour of setting via L</connect_info>.
 
 =cut
 
-sub on_connect_do {
-  my $self = shift;
-  $self->_setup_connect_do(on_connect_do => @_);
-}
-
 =head2 on_disconnect_do
 
 This method is deprecated in favour of setting via L</connect_info>.
 
 =cut
 
-sub on_disconnect_do {
-  my $self = shift;
-  $self->_setup_connect_do(on_disconnect_do => @_);
-}
+sub _parse_connect_do {
+  my ($self, $type, $val) = @_;
 
-sub _setup_connect_do {
-  my ($self, $opt) = (shift, shift);
-
-  my $accessor = "_$opt";
-  my $store    = "_${opt}_store";
-
-  return $self->$accessor if not @_;
-
-  my $val = shift;
-
-  if (not defined $val) {
-    $self->$accessor(undef);
-    $self->$store(undef);
-    return;
-  }
-
-  my @store;
+  my @res;
 
   if (not ref($val)) {
-    push @store, [ 'do_sql', $val ];
+    push @res, [ 'do_sql', $val ];
   } elsif (ref($val) eq 'CODE') {
-    push @store, $val;
+    push @res, $val;
   } elsif (ref($val) eq 'ARRAY') {
-    push @store, map [ 'do_sql', $_ ], @$val;
+    push @res, map [ 'do_sql', $_ ], @$val;
   } else {
-    $self->throw_exception("Invalid type for $opt ".ref($val));
+    $self->throw_exception("Invalid type for $type: ".ref($val));
   }
 
-  $self->$store(\@store);
-  $self->$accessor($val);
+  return \@res;
 }
 
 =head2 dbh_do
@@ -650,8 +625,12 @@ sub disconnect {
     if (my $connection_call = $self->on_disconnect_call) {
       $self->_do_connection_actions(disconnect_call_ => $connection_call)
     }
-    if (my $connection_do   = $self->_on_disconnect_do_store) {
-      $self->_do_connection_actions(disconnect_call_ => $connection_do)
+    if (my $connection_do = $self->on_disconnect_do) {
+      $self->_do_connection_actions(
+        disconnect_call_ => $self->_parse_connect_do(
+          on_disconnect_do => $connection_do
+        )
+      )
     }
 
     $self->_dbh->rollback unless $self->_dbh_autocommit;
@@ -772,8 +751,10 @@ sub _populate_dbh {
   if (my $connection_call = $self->on_connect_call) {
     $self->_do_connection_actions(connect_call_ => $connection_call)
   }
-  if (my $connection_do = $self->_on_connect_do_store) {
-    $self->_do_connection_actions(connect_call_ => $connection_do)
+  if (my $connection_do = $self->on_connect_do) {
+    $self->_do_connection_actions(
+     connect_call_ => $self->_parse_connect_do(on_connect_do => $connection_do)
+    )
   }
 }
 
