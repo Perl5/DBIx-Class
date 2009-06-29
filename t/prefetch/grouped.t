@@ -42,6 +42,9 @@ for ($cd_rs->all) {
     },
   );
 
+  # this used to fuck up ->all, do not remove!
+  ok ($track_rs->first, 'There is stuff in the rs');
+
   is($track_rs->count, 5, 'Prefetched count with groupby');
   is($track_rs->all, 5, 'Prefetched objects with groupby');
 
@@ -50,14 +53,13 @@ for ($cd_rs->all) {
     $schema->storage->debugcb ( sub { $query_cnt++ } );
     $schema->storage->debug (1);
 
-    $track_rs->reset;
     while (my $collapsed_track = $track_rs->next) {
       my $cdid = $collapsed_track->get_column('cd');
       is($collapsed_track->get_column('track_count'), 3, "Correct count of tracks for CD $cdid" );
       ok($collapsed_track->cd->title, "Prefetched title for CD $cdid" );
     }
 
-    is ($query_cnt, 0, 'No queries on prefetched titles');
+    is ($query_cnt, 1, 'Single query on prefetched titles');
     $schema->storage->debugcb (undef);
     $schema->storage->debug ($sdebug);
   }
@@ -180,7 +182,7 @@ for ($cd_rs->all) {
 
   is ($most_tracks_rs->count, 2, 'Limit works');
   my $top_cd = $most_tracks_rs->first;
-  is ($top_cd->id, 2, 'Correct cd fetched on top'); # 2 because of the slice(1,1) above
+  is ($top_cd->id, 2, 'Correct cd fetched on top'); # 2 because of the slice(1,1) earlier
 
   my $query_cnt = 0;
   $schema->storage->debugcb ( sub { $query_cnt++ } );

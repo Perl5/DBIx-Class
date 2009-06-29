@@ -1271,7 +1271,6 @@ sub _select_args {
     ( $attrs->{group_by} && @{$attrs->{group_by}} &&
       $attrs->{prefetch_select} && @{$attrs->{prefetch_select}} )
   ) {
-    $select = [ @$select ]; # it will get mangled
     ($ident, $select, $where, $attrs)
       = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
   }
@@ -1302,7 +1301,12 @@ sub _select_args {
 sub _adjust_select_args_for_complex_prefetch {
   my ($self, $from, $select, $where, $attrs) = @_;
 
-  $self->throw_exception ('Prefetch with limit (rows/offset) is not supported on resultsets with a custom from attribute')
+  # copies for mangling
+  $from = [ @$from ];
+  $select = [ @$select ];
+  $attrs = { %$attrs };
+
+  $self->throw_exception ('Complex prefetches are not supported on resultsets with a custom from attribute')
     if (ref $from ne 'ARRAY');
 
   # separate attributes
@@ -1337,7 +1341,6 @@ sub _adjust_select_args_for_complex_prefetch {
   }
 
   # mangle {from}
-  $from = [ @$from ];
   my $select_root = shift @$from;
   my @outer_from = @$from;
 
