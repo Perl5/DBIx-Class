@@ -9,9 +9,8 @@ my $schema = DBICTest->init_schema();
 
 my $queries;
 $schema->storage->debugcb( sub{ $queries++ } );
+my $sdebug = $schema->storage->debug;
 
-eval "use DBD::SQLite";
-plan skip_all => 'needs DBD::SQLite for testing' if $@;
 plan tests => 23;
 
 my $rs = $schema->resultset("Artist")->search(
@@ -53,7 +52,7 @@ $artist = $rs->first();
 
 is( $queries, 1, 'revisiting a row does not issue a query when cache => 1' );
 
-$schema->storage->debug(0);
+$schema->storage->debug($sdebug);
 
 my @a = $schema->resultset("Artist")->search(
   { },
@@ -99,7 +98,7 @@ is( $artist->count_related('cds'), 3, 'artist->count_related returns correct val
 
 is($queries, 1, 'only one SQL statement executed');
 
-$schema->storage->debug(0);
+$schema->storage->debug($sdebug);
 
 # make sure related_resultset is deleted after object is updated
 $artist->set_column('name', 'New Name');
@@ -136,7 +135,7 @@ $artist = ($rs->all)[0];
 
 is($queries, 1, 'only one SQL statement executed');
 
-$schema->storage->debug(0);
+$schema->storage->debug($sdebug);
 
 my @objs;
 #$artist = $rs->find(1);
@@ -185,5 +184,5 @@ $artist = $rs->find(1);
 
 is( $queries, 1, 'only one select statement on find with has_many prefetch on resultset' );
 
-$schema->storage->debug(0);
+$schema->storage->debug($sdebug);
 

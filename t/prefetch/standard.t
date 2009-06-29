@@ -6,19 +6,12 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
-
-my $schema = DBICTest->init_schema();
-
-my $orig_debug = $schema->storage->debug;
-
 use IO::File;
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 45 );
-}
+my $schema = DBICTest->init_schema();
+my $orig_debug = $schema->storage->debug;
+
+plan tests => 45;
 
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
@@ -314,3 +307,5 @@ is($art_rs_pr->search_related('cds')->search_related('tracks')->first->title,
 
 is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
 
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);

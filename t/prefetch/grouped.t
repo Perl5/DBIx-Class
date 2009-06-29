@@ -10,6 +10,7 @@ use DBIC::SqlMakerTest;
 plan 'no_plan';
 
 my $schema = DBICTest->init_schema();
+my $sdebug = $schema->storage->debug;
 
 my $cd_rs = $schema->resultset('CD')->search (
   { 'tracks.cd' => { '!=', undef } },
@@ -47,6 +48,7 @@ for ($cd_rs->all) {
   {
     my $query_cnt = 0;
     $schema->storage->debugcb ( sub { $query_cnt++ } );
+    $schema->storage->debug (1);
 
     $track_rs->reset;
     while (my $collapsed_track = $track_rs->next) {
@@ -57,6 +59,7 @@ for ($cd_rs->all) {
 
     is ($query_cnt, 0, 'No queries on prefetched titles');
     $schema->storage->debugcb (undef);
+    $schema->storage->debug ($sdebug);
   }
 
   # Test sql by hand, as the sqlite db will simply paper over
@@ -184,6 +187,7 @@ for ($cd_rs->all) {
 
   my $query_cnt = 0;
   $schema->storage->debugcb ( sub { $query_cnt++ } );
+  $schema->storage->debug (1);
 
   is ($top_cd->get_column ('track_count'), 4, 'Track count fetched correctly');
   is ($top_cd->tracks->count, 4, 'Count of prefetched tracks rs still correct');
@@ -196,4 +200,5 @@ for ($cd_rs->all) {
 
   is ($query_cnt, 0, 'No queries executed during prefetched data access');
   $schema->storage->debugcb (undef);
+  $schema->storage->debug ($sdebug);
 }
