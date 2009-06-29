@@ -642,8 +642,10 @@ sub _determine_driver {
       ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
     }
 
-    if ($self->load_optional_class("DBIx::Class::Storage::DBI::${driver}")) {
-      bless $self, "DBIx::Class::Storage::DBI::${driver}";
+    my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
+    if ($self->load_optional_class($storage_class)) {
+      mro::set_mro($storage_class, 'c3');
+      bless $self, $storage_class;
       $self->_rebless();
     }
   }

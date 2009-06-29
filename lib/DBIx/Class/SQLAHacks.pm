@@ -12,12 +12,13 @@ BEGIN {
   no warnings qw/redefine/;
   no strict qw/refs/;
   for my $f (qw/carp croak/) {
+
     my $orig = \&{"SQL::Abstract::$f"};
     *{"SQL::Abstract::$f"} = sub {
 
       local $Carp::CarpLevel = 1;   # even though Carp::Clan ignores this, $orig will not
 
-      if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+\(\) called/) {
+      if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+ .+? called \s at/x) {
         __PACKAGE__->can($f)->(@_);
       }
       else {
