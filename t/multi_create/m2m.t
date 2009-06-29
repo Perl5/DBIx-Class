@@ -23,7 +23,7 @@ lives_ok ( sub {
 
   my $cd2 = $schema->resultset('CD')->search ( { cdid => { '!=', $cd->cdid } }, {rows => 1} )->single;  # retrieve a cd different from the first
   $cd2->add_to_producers ({name => 'new m2m producer'});                                                # attach to an existing producer
-  ok ($cd2->producers->find ({name => 'new m2m producer'}), 'Exsiting producer attached to existing cd');
+  ok ($cd2->producers->find ({name => 'new m2m producer'}), 'Existing producer attached to existing cd');
 
 }, 'Test far-end find_or_create over many_to_many');
 

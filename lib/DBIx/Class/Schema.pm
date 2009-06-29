@@ -7,6 +7,7 @@ use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
 use File::Spec;
+use MRO::Compat;
 use Sub::Name ();
 require Module::Find;
 
@@ -239,16 +240,29 @@ sub load_namespaces {
     local *Class::C3::reinitialize = sub { };
     use warnings 'redefine';
 
-    # ensure classes are loaded and fetch properly sorted classes
+    # ensure classes are loaded and attached in inheritance order
     $class->ensure_class_loaded($_) foreach(values %results);
-    my @subclass_last = sort { $results{$a}->isa($results{$b}) } keys(%results);
-    
+    my %inh_idx;
+    my @subclass_last = sort {
+
+      ($inh_idx{$a} ||=
+        scalar @{mro::get_linear_isa( $results{$a} )}
+      )
+
+          <=>
+
+      ($inh_idx{$b} ||=
+        scalar @{mro::get_linear_isa( $results{$b} )}
+      )
+
+    } keys(%results);
+
     foreach my $result (@subclass_last) {
       my $result_class = $results{$result};
 
       my $rs_class = delete $resultsets{$result};
       my $rs_set = $class->_ns_get_rsrc_instance ($result_class)->resultset_class;
-      
+
       if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
         if($rs_class && $rs_class ne $rs_set) {
           carp "We found ResultSet class '$rs_class' for '$result', but it seems "
@@ -1110,6 +1124,19 @@ name format is: C<$dir$schema-$version-$type.sql>.
 
 You may override this method in your schema if you wish to use a different
 format.
+
+ WARNING
+
+ Prior to DBIx::Class version 0.08100 this method had a different signature:
+
+    my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
+
+ In recent versions variables $dir and $version were reversed in order to
+ bring the signature in line with other Schema/Storage methods. If you 
+ really need to maintain backward compatibility, you can do the following
+ in any overriding methods:
+
+    ($dir, $version) = ($version, $dir) if ($DBIx::Class::VERSION < 0.08100);
 
 =cut
 

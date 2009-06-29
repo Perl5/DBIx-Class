@@ -45,7 +45,11 @@ my $translator = SQL::Translator->new(
     ok($output, "SQLT produced someoutput")
       or diag($translator->error);
 
-    like ($warn, qr/^SQLT attribute .+? was supplied for relationship/, 'Warn about dubious on_delete/on_update attributes');
+    like (
+      $warn,
+      qr/SQLT attribute .+? was supplied for relationship .+? which does not appear to be a foreign constraint/,
+      'Warn about dubious on_delete/on_update attributes',
+    );
 }
 
 # Note that the constraints listed here are the only ones that are tested -- if
@@ -155,7 +159,7 @@ my %fk_constraints = (
       'name' => 'artist_undirected_map_fk_id2', 'index_name' => 'artist_undirected_map_idx_id2',
       'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
       'selfcols'  => ['id2'], 'foreigncols' => ['artistid'],
-      on_delete => '', on_update => 'CASCADE', deferrable => 1,
+      on_delete => '', on_update => '', deferrable => 1,
     },
   ],
 
