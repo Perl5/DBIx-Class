@@ -50,7 +50,6 @@ for ($cd_rs->all) {
 
     $track_rs->reset;
     while (my $collapsed_track = $track_rs->next) {
-
       my $cdid = $collapsed_track->get_column('cd');
       is($collapsed_track->get_column('track_count'), 3, "Correct count of tracks for CD $cdid" );
       ok($collapsed_track->cd->title, "Prefetched title for CD $cdid" );
@@ -89,13 +88,17 @@ for ($cd_rs->all) {
         FROM (
           SELECT me.cd, COUNT (me.trackid) AS track_count,
             FROM track me
-          WHERE ( cd IN ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) )
+            JOIN cd cd ON cd.cdid = me.cd
+          WHERE ( me.cd IN ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) )
           GROUP BY me.cd
           ) as me
         JOIN cd cd ON cd.cdid = me.cd
       WHERE ( me.cd IN ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) )
     )',
-    [ map { [ 'me.cd' => $_] } ($cd_rs->get_column ('cdid')->all) ],
+    [ map
+      { [ 'me.cd' => $_] }
+      ( $cd_rs->get_column ('cdid')->all, $cd_rs->get_column ('cdid')->all )
+    ],
     'next() query generated expected SQL',
   );
 
@@ -156,20 +159,20 @@ for ($cd_rs->all) {
   is_same_sql_bind (
     $most_tracks_rs->as_query,
     '(
-      SELECT me.cdid, track_count, tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, liner_notes.liner_id, liner_notes.notes
+      SELECT me.cdid, me.track_count, tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, liner_notes.liner_id, liner_notes.notes
         FROM (
           SELECT me.cdid, COUNT( tracks.trackid ) AS track_count
             FROM cd me
             LEFT JOIN track tracks ON tracks.cd = me.cdid
           WHERE ( tracks.cd IS NOT NULL )
           GROUP BY me.cdid
-          ORDER BY track_count DESC,
+          ORDER BY track_count DESC
           LIMIT 2
         ) me
         LEFT JOIN track tracks ON tracks.cd = me.cdid
         LEFT JOIN liner_notes liner_notes ON liner_notes.liner_id = me.cdid
       WHERE ( tracks.cd IS NOT NULL )
-      ORDER BY COUNT track_count DESC, tracks.cd
+      ORDER BY track_count DESC, tracks.cd
     )',
     [],
     'next() query generated expected SQL',
