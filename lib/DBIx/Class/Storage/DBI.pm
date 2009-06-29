@@ -433,11 +433,6 @@ sub connect_info {
         $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
       }
     }
-    for my $connect_do_opt (qw/on_connect_do on_disconnect_do/) {
-      if(my $opt_val = delete $attrs{$connect_do_opt}) {
-        $self->$connect_do_opt($opt_val);
-      }
-    }
   }
 
   %attrs = () if (ref $args[0] eq 'CODE');  # _connect() never looks past $args[0] in this case
@@ -459,7 +454,10 @@ This method is deprecated in favour of setting via L</connect_info>.
 =cut
 
 sub _parse_connect_do {
-  my ($self, $type, $val) = @_;
+  my ($self, $type) = @_;
+
+  my $val = $self->$type;
+  return () if not defined $val;
 
   my @res;
 
@@ -468,7 +466,7 @@ sub _parse_connect_do {
   } elsif (ref($val) eq 'CODE') {
     push @res, $val;
   } elsif (ref($val) eq 'ARRAY') {
-    push @res, map [ 'do_sql', $_ ], @$val;
+    push @res, map { [ 'do_sql', $_ ] } @$val;
   } else {
     $self->throw_exception("Invalid type for $type: ".ref($val));
   }
@@ -622,16 +620,12 @@ sub disconnect {
   my ($self) = @_;
 
   if( $self->connected ) {
-    if (my $connection_call = $self->on_disconnect_call) {
-      $self->_do_connection_actions(disconnect_call_ => $connection_call)
-    }
-    if (my $connection_do = $self->on_disconnect_do) {
-      $self->_do_connection_actions(
-        disconnect_call_ => $self->_parse_connect_do(
-          on_disconnect_do => $connection_do
-        )
-      )
-    }
+    my @actions;
+
+    push @actions, ( $self->on_disconnect_call || () );
+    push @actions, $self->_parse_connect_do ('on_disconnect_do');
+
+    $self->_do_connection_actions(disconnect_call_ => $_) for @actions;
 
     $self->_dbh->rollback unless $self->_dbh_autocommit;
     $self->_dbh->disconnect;
@@ -718,7 +712,7 @@ sub dbh {
 
 sub _sql_maker_args {
     my ($self) = @_;
-    
+
     return ( bindtype=>'columns', array_datatypes => 1, limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
 }
 
@@ -748,14 +742,12 @@ sub _populate_dbh {
   #  there is no transaction in progress by definition
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
 
-  if (my $connection_call = $self->on_connect_call) {
-    $self->_do_connection_actions(connect_call_ => $connection_call)
-  }
-  if (my $connection_do = $self->on_connect_do) {
-    $self->_do_connection_actions(
-     connect_call_ => $self->_parse_connect_do(on_connect_do => $connection_do)
-    )
-  }
+  my @actions;
+
+  push @actions, ( $self->on_connect_call || () );
+  push @actions, $self->_parse_connect_do ('on_connect_do');
+
+  $self->_do_connection_actions(connect_call_ => $_) for @actions;
 }
 
 sub _determine_driver {
