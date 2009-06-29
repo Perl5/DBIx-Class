@@ -32,7 +32,6 @@ use Test::Exception;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use DateTime;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_ORA_${_}" } qw/DSN USER PASS/};
 
