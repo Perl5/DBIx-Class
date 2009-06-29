@@ -98,10 +98,7 @@ for ($cd_rs->all) {
         JOIN cd cd ON cd.cdid = me.cd
       WHERE ( me.cd IN ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) )
     )',
-    [ map
-      { [ 'me.cd' => $_] }
-      ( $cd_rs->get_column ('cdid')->all, $cd_rs->get_column ('cdid')->all )
-    ],
+    [ map { [ 'me.cd' => $_] } ( ($cd_rs->get_column ('cdid')->all) x 2 ) ],
     'next() query generated expected SQL',
   );
 
