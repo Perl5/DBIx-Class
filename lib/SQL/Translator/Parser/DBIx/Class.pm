@@ -81,9 +81,7 @@ sub parse {
     {
         my $source = $dbicschema->source($moniker);
         my $table_name = $source->name;
-
-        # Skip custom query sources
-        next if ref $table_name;
+        $table_name = $$table_name if ref $table_name eq 'SCALAR';  #sqlt currently does not do quoting right anyway
 
         # Its possible to have multiple DBIC sources using the same table
         next if $tables{$table_name};
@@ -141,6 +139,7 @@ sub parse {
 
             my $othertable = $source->related_source($rel);
             my $rel_table = $othertable->name;
+            $rel_table = $$rel_table if ref $rel_table eq 'SCALAR';  #sqlt currently does not do quoting right anyway
 
             my $reverse_rels = $source->reverse_relationship_info($rel);
             my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
@@ -259,6 +258,7 @@ sub parse {
     {
         my $source = $dbicschema->source($moniker);
         my $view_name = $source->name;
+        $view_name = $$view_name if ref $view_name eq 'SCALAR';  #sqlt currently does not do quoting right anyway
 
         # Skip custom query sources
         next if ref $view_name;
