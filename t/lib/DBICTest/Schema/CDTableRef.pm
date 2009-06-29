@@ -2,8 +2,11 @@ package # hide from PAUSE
     DBICTest::Schema::CDTableRef;
 
 use base qw/DBICTest::BaseResult/;
+use DBIx::Class::ResultSource::View;
 
+__PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 __PACKAGE__->table(\'cd');
+__PACKAGE__->result_source_instance->is_virtual(0);
 
 __PACKAGE__->add_columns(
   'cdid' => {
@@ -38,52 +41,5 @@ __PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist',
   'artist', { 
     is_deferrable => 1, 
 });
-
-# in case this is a single-cd it promotes a track from another cd
-__PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track', 'single_track', 
-    { join_type => 'left'} 
-);
-
-__PACKAGE__->has_many( tracks => 'DBICTest::Schema::Track', 'cd' );
-__PACKAGE__->has_many(
-    tags => 'DBICTest::Schema::Tag', 'cd',
-    { order_by => 'tag' },
-);
-__PACKAGE__->has_many(
-    cd_to_producer => 'DBICTest::Schema::CD_to_Producer' => 'cd'
-);
-
-__PACKAGE__->might_have(
-    liner_notes => 'DBICTest::Schema::LinerNotes', undef,
-    { proxy => [ qw/notes/ ] },
-);
-__PACKAGE__->might_have(artwork => 'DBICTest::Schema::Artwork', 'cd_id');
-
-__PACKAGE__->many_to_many( producers => cd_to_producer => 'producer' );
-__PACKAGE__->many_to_many(
-    producers_sorted => cd_to_producer => 'producer',
-    { order_by => 'producer.name' },
-);
-
-__PACKAGE__->belongs_to('genre', 'DBICTest::Schema::Genre',
-    { 'foreign.genreid' => 'self.genreid' },
-    {
-        join_type => 'left',
-        on_delete => 'SET NULL',
-        on_update => 'CASCADE',
-    },
-);
-
-#This second relationship was added to test the short-circuiting of pointless
-#queries provided by undef_on_null_fk. the relevant test in 66relationship.t
-__PACKAGE__->belongs_to('genre_inefficient', 'DBICTest::Schema::Genre',
-    { 'foreign.genreid' => 'self.genreid' },
-    {
-        join_type => 'left',
-        on_delete => 'SET NULL',
-        on_update => 'CASCADE',
-        undef_on_null_fk => 0,
-    },
-);
 
 1;

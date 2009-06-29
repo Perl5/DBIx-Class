@@ -11,7 +11,7 @@ BEGIN {
     eval "use DBD::SQLite";
     plan $@
         ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 9 );
+        : ( tests => 7 );
 }
 
 use_ok('DBICTest');
@@ -45,27 +45,6 @@ is_same_sql_bind(
   "SELECT COUNT( * ) FROM `cd` `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )", ["'Caterwauler McCrae'", "'2001'"],
   'got correct SQL for count query with quoting'
 );
-
-# try with ->table(\'cd') should NOT be quoted
-$rs = $schema->resultset('CDTableRef')->search(
-           { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
-           { join => 'artist' });
-eval { $rs->count };
-is_same_sql_bind(
-  $sql, \@bind,
-  "SELECT COUNT( * ) FROM cd `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )", ["'Caterwauler McCrae'", "'2001'"],
-  'got correct SQL for count query with quoting'
-);
-
-# check that the table works
-eval {
-  my $rs = $schema->resultset('CDTableRef');
-  $rs->create({ cdid => 6, artist => 3, title => 'mtfnpy', year => 2009 });
-  my $row = $rs->find(6);
-  $row->update({ title => 'bleh' });
-  $row->delete;
-};
-ok !$@, 'operations on scalarref table name work';
 
 my $order = 'year DESC';
 $rs = $schema->resultset('CD')->search({},
