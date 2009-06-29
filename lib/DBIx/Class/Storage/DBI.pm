@@ -1245,24 +1245,38 @@ sub _select_args {
     }
   }
 
-  my @limit;
-  if ($attrs->{software_limit} ||
-      $sql_maker->_default_limit_syntax eq "GenericSubQ") {
-        $attrs->{software_limit} = 1;
-  } else {
+  # adjust limits
+  if (
+    $attrs->{software_limit}
+      ||
+    $sql_maker->_default_limit_syntax eq "GenericSubQ"
+  ) {
+    $attrs->{software_limit} = 1;
+  }
+  else {
     $self->throw_exception("rows attribute must be positive if present")
       if (defined($attrs->{rows}) && !($attrs->{rows} > 0));
 
     # MySQL actually recommends this approach.  I cringe.
     $attrs->{rows} = 2**48 if not defined $attrs->{rows} and defined $attrs->{offset};
+  }
 
-    if ($attrs->{rows} && keys %{$attrs->{collapse}}) {
-      ($ident, $select, $where, $attrs)
-        = $self->_adjust_select_args_for_limited_prefetch ($ident, $select, $where, $attrs);
-    }
-    else {
-      push @limit, $attrs->{rows}, $attrs->{offset};
-    }
+  my @limit;
+
+  # see if we need to tear the prefetch apart (either limited has_many or grouped prefetch)
+  # otherwise delegate the limiting to the storage, unless software limit was requested
+  if (
+    ( $attrs->{rows} && keys %{$attrs->{collapse}} )
+       ||
+    ( $attrs->{group_by} && @{$attrs->{group_by}} &&
+      $attrs->{prefetch_select} && @{$attrs->{prefetch_select}} )
+  ) {
+    $select = [ @$select ]; # it will get mangled
+    ($ident, $select, $where, $attrs)
+      = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
+  }
+  elsif (! $attrs->{software_limit} ) {
+    push @limit, $attrs->{rows}, $attrs->{offset};
   }
 
 ###
@@ -1280,38 +1294,45 @@ sub _select_args {
     (qw/order_by group_by having _virtual_order_by/ )
   };
 
-
   $sql_maker->{for} = delete $attrs->{for};
 
   return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $order, @limit);
 }
 
-sub _adjust_select_args_for_limited_prefetch {
+sub _adjust_select_args_for_complex_prefetch {
   my ($self, $from, $select, $where, $attrs) = @_;
-
-  if ($attrs->{group_by} and @{$attrs->{group_by}}) {
-    $self->throw_exception ('Prefetch with limit (rows/offset) is not supported on resultsets with a group_by attribute');
-  }
 
   $self->throw_exception ('Prefetch with limit (rows/offset) is not supported on resultsets with a custom from attribute')
     if (ref $from ne 'ARRAY');
 
-
   # separate attributes
   my $sub_attrs = { %$attrs };
-  delete $attrs->{$_} for qw/where bind rows offset/;
-  delete $sub_attrs->{$_} for qw/for collapse select order_by/;
+  delete $attrs->{$_} for qw/where bind rows offset group_by having/;
+  delete $sub_attrs->{$_} for qw/for collapse prefetch_select _collapse_order_by select as/;
 
   my $alias = $attrs->{alias};
 
-  # create subquery select list
-  my $sub_select = [ grep { $_ =~ /^$alias\./ } @{$attrs->{select}} ];
+  # create subquery select list - loop only over primary columns
+  my $sub_select = [];
+  for my $i (0 .. @{$attrs->{select}} - @{$attrs->{prefetch_select}} - 1) {
+    my $sel = $attrs->{select}[$i];
+
+    # alias any functions to the dbic-side 'as' label
+    # adjust the outer select accordingly
+    if (ref $sel eq 'HASH' && !$sel->{-select}) {
+      $sel = { -select => $sel, -as => $attrs->{as}[$i] };
+      $select->[$i] = join ('.', $attrs->{alias}, $attrs->{as}[$i]);
+    }
+
+    push @$sub_select, $sel;
+  }
 
   # bring over all non-collapse-induced order_by into the inner query (if any)
   # the outer one will have to keep them all
+  delete $sub_attrs->{order_by};
   if (my $ord_cnt = @{$attrs->{order_by}} - @{$attrs->{_collapse_order_by}} ) {
     $sub_attrs->{order_by} = [
-      @{$attrs->{order_by}}[ 0 .. ($#{$attrs->{order_by}} - $ord_cnt - 1) ]
+      @{$attrs->{order_by}}[ 0 .. $ord_cnt - 1]
     ];
   }
 
@@ -1348,7 +1369,7 @@ sub _adjust_select_args_for_limited_prefetch {
   # away _any_ branches of the join tree that are:
   # 1) not mentioned in the condition/order
   # 2) left-join leaves (or left-join leaf chains)
-  # Most of the join ocnditions will not satisfy this, but for real
+  # Most of the join conditions will not satisfy this, but for real
   # complex queries some might, and we might make some RDBMS happy.
   #
   #
@@ -1411,7 +1432,7 @@ sub _adjust_select_args_for_limited_prefetch {
     # the dot comes from some weirdness in collapse
     # remove after the rewrite
     if ($attrs->{collapse}{".$alias"}) {
-      $sub_attrs->{group_by} = $sub_select;
+      $sub_attrs->{group_by} ||= $sub_select;
       last;
     }
   }
