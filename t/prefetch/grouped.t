@@ -77,7 +77,7 @@ for ($cd_rs->all) {
           SELECT me.cd
             FROM track me
             JOIN cd cd ON cd.cdid = me.cd
-          WHERE ( me.cd IN ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) )
+          WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
           GROUP BY me.cd
         )
       count_subq
@@ -94,11 +94,11 @@ for ($cd_rs->all) {
           SELECT me.cd, COUNT (me.trackid) AS track_count,
             FROM track me
             JOIN cd cd ON cd.cdid = me.cd
-          WHERE ( me.cd IN ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) )
+          WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
           GROUP BY me.cd
           ) as me
         JOIN cd cd ON cd.cdid = me.cd
-      WHERE ( me.cd IN ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) )
+      WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
     )',
     [ map { [ 'me.cd' => $_] } ( ($cd_rs->get_column ('cdid')->all) x 2 ) ],
     'next() query generated expected SQL',
