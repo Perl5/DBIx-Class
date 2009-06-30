@@ -1,0 +1,315 @@
+mo: ribasushi: are you pro or con wrt the extended join conditions?
+[18:22] ribasushi: totally pro, but con scalarrefs
+[18:22] ribasushi: and I'm a horrible designer
+[18:23] ribasushi: so I say "tell me what to write and I'll write it better than you would" 
+[18:23] mo: and what about a second hashref which is parsed like search()?
+[18:24] ribasushi: mo: show me what you mean
+[18:25] mst: join => { 'foo' => { -attrs => { ... } }
+[18:25] mo: has_many(accessor => 'CLASS', { foreign,self stuff }, { 'me.foo' => { '>' => 'accessor.bla' }  }
+[18:26] mst: and -attrs can then override the rel's defaults
+[18:26] ash: mo: there's already a 4th arg to rels
+[18:26] mo: mst: where would you put that in the has_many call?
+[18:26] mst: mo: that's for search() syntax
+[18:26] mo: ok so add another method next to has_many
+[18:26] mst: no
+[18:27] mst: I'm talking about overriding the join stuff in search()
+[18:27] mo: I'm talking about extended join conditions
+[18:27] mst: I am aware of that. I'm saying "we should do this at the same time"
+[18:27] pktm hat den Chatroom betreten.
+[18:28] ribasushi: I'm talking about both - it should be just like attrs - specifiable both on relationship and on searches
+[18:28] mo: mst: what would you propose?
+[18:28] ribasushi: and overridable accordingly of course
+[18:28] mo: syntax I mean
+[18:28] mst: does SQL::Abstract have a { -ident => 'foo.bar' } yet?
+[18:29] ribasushi: explain?
+[18:29] pktm: How do I (efficently) select the complement of a relation? I have products and categories, and I want to know the products, that are not assigned to a specific category. So what is complement( $category->products() )?
+[18:29] mst: pktm: er
+[18:29] mst: pktm: you mean not assigned to category X
+[18:29] mst: pktm: or not assigned to -any- category ?
+[18:29] pktm: not assigned to category X
+[18:29] robkinyon: mst: I think I have a solution
+[18:30] robkinyon: it's completely backwards INcompatible
+[18:30] robkinyon:
+[18:30] ribasushi: robkinyon: not interested 
+[18:30] robkinyon: but it solves all problems
+[18:30] robkinyon: (including world peace)
+[18:30] mo: ribasushi++ # who cares about backwards compat 
+[18:31] robkinyon: why don't we just allow the full search() syntax?
+[18:31] ribasushi: mo: I don't give a fuck frankly, I just want *my* code to work 
+[18:31] robkinyon: it's being used to build a search() anyways
+[18:31] arcanez: mst++ # being done
+[18:31] mst: robkinyon: that would be -exactly- my plan
+[18:31] mo: robkinyon++
+[18:31] mst: we add an extra relationship attribute
+[18:31] mo: what about self and foreign?
+[18:31] mst: that's a subref
+[18:31] mst: that's supplied @_ of ($rs, $lhs_alias, $rhs_alias)
+[18:32] mst: and is expected to return a chunk of search() params
+[18:32] dhoss: arcanez: get your GSoC stuff figured out yet?
+[18:32] robkinyon: and we implement the current code in terms of that?
+[18:32] ribasushi: mst: *this* I love
+[18:33] robkinyon: i can get behind this
+[18:33] robkinyon: regardless of use-case need
+[18:33] robkinyon: because this is a sane API
+[18:33] mst: it eliminates the "deep finding of self/foreign in SQLA" problem
+[18:33] mst: which was why I didn't want to do it before
+[18:33] zamolxes hat den Chatroom verlassen. (Quit: leaving)
+[18:33] mst: if the user wants to be clever, they get to handle that themselves
+[18:33] robkinyon: it also eliminates the need for two SQL specification languages
+[18:33] ribasushi: add_relationship receives two modes - either foreign./self. (for backcompat) or a regular search
+[18:33] robkinyon: and standardizes on the one that we're actually working on
+[18:33] ribasushi: and the helpers get adjusted to produce new code
+[18:33] ribasushi: and then join_cond can override all that
+[18:34] ribasushi: mst: that's what you mean?
+[18:34] mst: sub { my ($rs, $self, $foreign) = @_; { "${self}.foo" => { '>', "${foreign}.bar" } }; }
+[18:34] nigel hat den Chatroom verlassen. (Quit: nigel)
+[18:34] mst: add_relationship can DWIm based on if it gets a hashref or a subref in the join position
+[18:34] robkinyon: what about \{ ... } ?
+[18:34] mst: robkinyon: stop. think.
+[18:34] robkinyon: if it receives HREFREF, then it's just a search() args?
+[18:34] mo: what about an object
+[18:35] robkinyon: and that maps closely in terms of how things work right now to pass through
+[18:35] mst: wtf
+[18:35] mst: no.
+[18:36] mst: we can't just provide raw search args
+[18:36] mst: otherwise we have to recurse the full SQLA tree to substitute aliases
+[18:36] mst: which is a horrible job
+[18:36] mst: part of the reason for SQLA2 is to have somewhere we can do non horrible AQT comprehensions
+[18:36] mst: hence: subref
+[18:36] ribasushi: hear hear
+[18:36] mst: which delegates the problem to the user
+[18:36] arcanez: dhoss: plan to work on it once I watch a rather subdued mst
+[18:36] robkinyon: ok
+[18:37] dhoss: subdued mst? that's not fun...
+[18:37] robkinyon: subref it is
+[18:37] mst: we don't need to modify the helpers though
+[18:37] mst: well
+[18:37] arcanez: his dbix::class talk, wasn't it at 8am?
+[18:37] mst: resolve_join should switch to generating basic SQLA
+[18:37] mst: the only reason it ever didn't
+[18:37] mst: was SQLA had no way to represent identifiers on the RHS
+[18:37] mst: and the subref should just return SQLA
+[18:38] fade hat den Chatroom verlassen. (Quit: Leaving.)
+[18:38] ribasushi: these are implementation details which do not matter much
+[18:39] ribasushi: sqla does not support FROM at all, it is all done in Hacks anyway
+[18:39] ribasushi: talking about 1.5 of course
+[18:39] robkinyon: so, we agreed on a design?
+[18:40] solar_ant hat den Chatroom betreten.
+[18:40] mst: robkinyon: right, but this cleanup
+[18:40] mst: ribasushi:
+[18:40] mst: moves us towards being able to move it to SQLA
+[18:40] Psyche^ hat den Chatroom betreten.
+[18:40] mst: we didn't yet becaue ldami pointed out, quite rightly, that the DBIC interface was inconsistent
+[18:40] mst: we're about to fix that
+[18:40] Patterner hat den Chatroom verlassen. (Read error: Connection reset by peer)
+[18:40] Psyche^ heißt jetzt Patterner.
+[18:40] ribasushi: mst: of course, I do try to isolate chunks as I go
+[18:41] robkinyon: which means that ash and i better beat up SQLA2 quickly
+[18:41] ribasushi: but anyway - can someone type up an actual example for me
+[18:41] ribasushi: one for add_relationship
+[18:41] ribasushi: and one for search()
+[18:41] ribasushi: something I can turn into a test (or if someone submits an is_same_sql test - that'd be golden)
+[18:41] robkinyon: search() doesn't change here, does it?
+[18:41] ribasushi: sigh
+[18:42] ribasushi: of course it does - there's no point to do it otherwise
+[18:42] robkinyon: i thought the point was to unfuck add_relationship()?
+[18:42] ribasushi: i.e. not "changes" but supports an extra attribute
+[18:42] robkinyon: no ....
+[18:42] robkinyon: mst?
+[18:42] purl: i guess mst is wrong it is a hard way to write handles => qr/.*/ or a young whippersnapper from nigel's exalted position or planning to port the world to moose or working on serializable meta with another approach or simply a wanker or a bot or really a peach or a blunt or faster than light or a bitter betty or ~13 times better than sex
+[18:42] ribasushi: robkinyon: how do you supply bind values to a join if you set it on the relationship in stone
+[18:43] robkinyon: Scalar::Alias? 
+[18:44] robkinyon: Scalar::Defer
+[18:44] purl: i heard Scalar::Defer was one of them, is a nice module, does nice stuff
+[18:44] ribasushi: robkinyon: Rainbow::Pony ?  
+[18:44] ribasushi: be practical
+[18:44] arcanez: "are we fucked" "no because we didn't get to the pub in time to pull"
+[18:44] arcanez: hahahahaha
+[18:44] purl: LOLCON 5 reached.
+[18:44] robkinyon: ribasushi: Scalar::Defer is practical
+[18:45] robkinyon: at least mst has thought so in the past
+[18:45] mst: I like Data::Thunk better but nothingmuch is convinced it can't be 100% fixed and won't explain why well enough for me to try and prove him wrong
+[18:45] robkinyon: ribasushi: the point is that we want to defer resolution of the bindvars
+[18:46] mst: that's easy
+[18:46] robkinyon: that way, it becomes purely an add_relationship problem
+[18:46] mst: no rob, it doesn't
+[18:46] robkinyon: and search() is unaffected
+[18:46] mst: searhch needs extending as well
+[18:46] robkinyon: to do what?
+[18:46] mst: { join => { 'foo' => { -attrs => { join_args => [ 3 ] } } }
+[18:47] arcanez: mst: who's writing HashMap for moose?
+[18:47] ribasushi: mst: how about overrides on the spot? or that's too much foo?
+[18:47] ribasushi: I mean search to override the entire relship construction, only self. foreign. remain static
+[18:48] robkinyon: either way, have fun
+[18:48] • robkinyon & # errands
+[18:48] ribasushi: or hell - join without a relationship altogether
+[18:48] ribasushi: as in the case of self-join to figure out "last row"
+[18:48] mst: has_many('foo', $f_class, sub { my ($rs, $self, $foreign, $arg) = @_; { "${self}.id" => "${foreign}.bar_id", "${foreign}.weight" => { '>', $arg } }, ...);
+[18:48] mst: so you get
+[18:48] ribasushi: mst: I get that part
+[18:48] mst: LEFT JOIN foo ON me.id = foo.bar_id AND foo.weight > 3
+[18:49] ribasushi: I'm saying how do you feel about search ({}, { join => { a definition that is not a relationship, but which will produce a join nevertheless } });
+[18:50] ribasushi: example here: http://lists.scsys.co.uk/pipermail/dbix-class/2009-June/008095.html
+[18:50] ribasushi: I don't need anything from the right side, I just need the join to limit the left side properly
+[18:51] mst: anonymous joins will discourage re-use and completely fuck us introspection wise
+[18:51] mst: I don't want to do that yet
+[18:51] mst: we -will-
+[18:51] ribasushi: fair enough
+[18:51] mst: but I don't want to add too much stuff at once
+[18:51] ribasushi: mst++ #conservatism
+[18:53] mst: mo: so, you up for writing tests for this?
+[18:54] mo: I think David Ihnen is up to it, I was just trying to bring this to _your_ attention
+[18:54] ribasushi: except david ihnen is not reading this 
+[18:55] mo: so you have to convince him by mail 
+[18:55] mst: mo: so write up the conversation to an outline
+[18:55] mst: and reply to the list saying "if somebody writes spec tests we can make it happen"
+[18:55] mst: you don't have to be me to shout well volunteered
+[18:55] mst: you just have to look them in the eye and have them believe you already know they'll say yes
+[18:56] mo: I didn't get that add_relationship part
+[18:56] mo: does it even matter? 
+[18:56] mst: yes
+[18:57] mst: without the add_relationship part none of this will work at all
+[18:57] mo: but is it required for the tests?
+[18:57] mst: yes
+[18:57] mst: how can you write tests for something that can't work?
+[18:57] mo: so I have to call add_relationship in my test?
+[18:57] mst: what?
+[18:57] mst: what the fuck are you talking about?
+[18:57] mo: has_many calls add_relationship right?
+[18:57] mst: this is the DBIC test suite
+[18:57] mst: it's got a fucktonne of rels
+[18:57] mst: just add another one
+[18:58] pktm hat den Chatroom verlassen.
+[18:58] mo: can you tell me your weight so I can add it to the actors result class?
+[18:58] pktm hat den Chatroom betreten.
+[18:58] mst: I haven't weighed myself in ten years
+[18:59] pktm hat den Chatroom verlassen.
+[18:59] dnm: mst weight is made up of 90% human, 10% pure unadulterated rage.
+[18:59] • ilmari guesses about 75kg
+[18:59] dnm: s/mst/mst's/
+[18:59] dhoss: mo i'm 165, kthx
+[18:59] mst: I'm probably 14 stone ish? maybe a bit less
+[18:59] ilmari: judging by the fact that he's slightly taller and slightly skinnier than me
+[18:59] mst: I dunno
+[18:59] dhoss: dnm: you forget the beer part
+[19:00] ilmari: convert 75 kg to stone
+[19:00] purl: 75 kg is 11.8105 stone.
+[19:00] mst: hmm. I was 12 stone ish many years back
+[19:00] mo: convert 14 stine to kg
+[19:00] purl: I don't know how to convert 14 stine to kg.
+[19:00] dhoss: purl: convert 11.8105 stone to pounds
+[19:00] purl: 11.8105 stone is 165.347 pounds.
+[19:00] ribasushi: dhoss: he does evacuate occasionally...?
+[19:00] mst: I think you're ignoring the beer gut.
+[19:00] mo: convert 14 stone to kg
+[19:00] purl: 14 stone is 88.9041 kg.
+[19:00] • ilmari is somewhere between 75-80kg
+[19:00] dhoss: ribasushi: i figured it couldn't hurt to average
+[19:00] ribasushi: convert 82kg to stone
+[19:00] purl: 82kg is 12.9128 stone.
+[19:00] ribasushi: convert 82kg to lb
+[19:00] purl: 82kg is 180.779 lb.
+[19:00] • ribasushi 's a fatass
+[19:01] dhoss: mst: you're what, 6'2"
+[19:01] mo: convert 6'" to meters
+[19:01] purl: I don't know how to convert 6'" to meters.
+[19:01] dhoss: ribasushi: how tall?
+[19:01] mst: huh
+[19:01] mst: 71kg
+[19:01] mo: convert 6'2" to meters
+[19:01] purl: I don't know how to convert 6'2" to meters.
+[19:01] ilmari: purl: convert 6ft+2in to m
+[19:01] purl: Syntax error
+[19:01] ilmari: purl: convert 6.333ft to m
+[19:01] purl: 6.333ft is 1.9303 m.
+[19:01] mst: and I'm 6'
+[19:01] ribasushi: dhoss: 194cm, but I'm rather skinny, was at 75 up until 2yrs ago
+[19:01] mst: if my back was straight I'd be taller
+[19:01] ilmari: purl: convert 6.16ft to m
+[19:01] purl: 6.16ft is 1.87757 m.
+[19:02] mst: but I've spent too long slouching so my spine is curved
+[19:02] ribasushi: now I am still mostly skinny 
+[19:02] dhoss: purl: convert 194cm to feet
+[19:02] purl: 194cm is 6.36483 feet.
+[19:02] dhoss: ribasushi: tall guy
+[19:02] • dhoss is short apparently
+[19:02] ribasushi: well if we're factoring spine curvature
+[19:02] ribasushi: I'm normally 191-2 
+[19:03] mst: I literally can't stand up straighter than that
+[19:03] dhoss: ribasushi: still, i'm only 5'10"
+[19:03] mo: ok guys please fill out that form with your weight and size so I can include it with the dbic test suite and do an extended relationship on it: http://etherpad.com/jeAQjdub7M
+[19:03] arcanez: I'm 6'1", 190lbs
+[19:03] mst: mo: why not just use the year field on cds?
+[19:03] mo: it's more fun this way 
+[19:03] dnm: I'm 6'0", a lot lbs.
+[19:04] dhoss: huh. i haven't felt this short since middle school haha.
+[19:04] arcanez: so yeah, don't bother trying to understand http://www.shadowcat.co.uk/archive/conference-video/yapc-na-2009/lightning/
+[19:04] dnm: But, I am 15lbs lighter than I was 1 month ago.
+[19:04] arcanez: oh, he apologizes at the beginning
+[19:04] • dhoss actually gained 10lbs
+[19:05] arcanez: dhoss: p90x?
+[19:05] ribasushi: that pad thingy is nifty
+[19:05] dhoss: arcanez: no, before that, i'm not sure what caused it
+[19:06] mo: wtf is using chrome? 
+[19:06] • arcanez raises hand
+[19:07] mst: I'm waiting for them to learn how to write desktop code
+[19:07] arcanez: convert 190 pounds to stone
+[19:07] purl: 190 pounds is 13.5714 stone.
+[19:07] arcanez: convert 190 pounds to kg
+[19:07] purl: 190 pounds is 86.1826 kg.
+[19:08] mo: we should start coding in that editor 
+[19:08] arcanez: convert 6.1 ft to m
+[19:08] purl: 6.1 ft is 1.85928 m.
+[19:08] frew: ribasushi: ok, I've reviewed most of this.  I'll read through the rest tomorrow and then commence testing
+[19:08] ribasushi: frew++
+[19:09] frew: in other news: Firefox 3.5!
+[19:09] • ilmari has been using it happily on karmic since beta4, waiting for jaunty backport
+[19:10] arcanez: ilmari: jaunty uses amarok2 huh
+[19:10] frew: amarok2--
+[19:10] arcanez: frew: there aren't enough -- for that
+[19:10] frew: amarok2-- for (1..10**10);
+[19:10] ilmari: arcanez: I don't use amarok
+[19:10] arcanez:
+[19:10] frew: ok maybe that's a little harsh
+[19:10] ilmari: jaunty has amarok 2.1
+[19:10] frew: I really like amarok
+[19:11] ilmari: s/jaunty/karmic/
+[19:11] frew: and 2 is good; but it's got bugs that make me cry
+[19:11] ilmari: kde4.2 is annoying
+[19:11] arcanez: I <3 amarok1
+[19:11] ilmari: less so after I switched off compositing, which is just buggy beyond belief
+[19:11] ribasushi: frew: don/t forget t/42toplimit.t - it needs a massive rewrite to set the new query syntax in stone
+[19:11] arcanez: I use iTunes on Windows 7 at home though 
+[19:11] arcanez: ilmari: I'm a gnome guy
+[19:11] arcanez: perhaps I'd like E
+[19:11] • ilmari ponders trying awseome
+[19:11] frew: ribasushi: we'll burn that bridge tomorrow
+[19:12] ribasushi: yup, just re-nagging 
+[19:12] arcanez: someone buy me a mac mini
+[19:12] ilmari: arcanez: I use gnome on karmic at home,  but at work I like the ability to grow and pack windows with the keyboard
+[19:12] mo: how do I create a branch?
+[19:12] arcanez: is karmic the next ubuntu release name?
+[19:12] mo: ribasushi: can you branch it for me?
+[19:12] arcanez: mo: svn cp
+[19:12] ilmari: arcanez: yeh, 9.10 LTS aka karmic koala
+[19:12] ribasushi: mo: sv[kn] cp <what> <where>
+[19:13] ilmari: 10.04 hasn't been named yet
+[19:13] mo: dbic svn?
+[19:13] purl: dbic svn is probably http://dev.catalyst.perl.org/repos/bast/DBIx-Class
+[19:13] arcanez: ilmari: what # whas jaunty
+[19:13] • ilmari hopes for leaping llama
+[19:13] ilmari: arcanez: 9.04
+[19:13] ilmari: it's <year>.<month>
+[19:13] • dhoss still needs to update
+[19:13] ilmari: rather, <year-2000>.<month>
+[19:14] ilmari: which works nicely for such a young distro 
+[19:14] mo: arcanez: ribasushi thanks
+[19:14] ribasushi: we should switch dbic versions to that <Y-2000>.0MM0DD
+[19:14] arcanez: ribasushi: that wouldn't get confusing 
+[19:15] mst: ribasushi: VOM
+[19:15] arcanez: purl, vom?
+[19:15] purl: vom is, like, volt-ohm-meter
+[19:15] mo: ribasushi: Y-2000.DDD
+[19:15] ribasushi: mst: vom?
+[19:15] purl: i think vom is volt-ohm-meter
+[19:16] ribasushi: hm
