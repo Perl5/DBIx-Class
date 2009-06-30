@@ -6,7 +6,8 @@ use base qw/DBIx::Class::Storage::DBI::MSSQL/;
 use List::Util();
 
 sub insert_bulk {
-  my ($self, $source, $cols, $data) = @_;
+  my $self = shift;
+  my ($source, $cols, $data) = @_;
 
   my $identity_insert = 0;
 
@@ -23,7 +24,7 @@ sub insert_bulk {
     $self->dbh->do("SET IDENTITY_INSERT $table ON");
   }
 
-  next::method(@_);
+  $self->next::method(@_);
 
   if ($identity_insert) {
     my $table = $source->from;
