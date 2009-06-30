@@ -281,7 +281,7 @@ sub __record_alias {
 
   return unless $col;
 
-  # record unqialified name, undef (no adjustment) if a duplicate is found
+  # record unqualified name, undef (no adjustment) if a duplicate is found
   if (exists $register->{$col}) {
     $register->{$col} = undef;
   }

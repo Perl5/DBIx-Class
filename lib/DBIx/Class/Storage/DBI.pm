@@ -1493,7 +1493,7 @@ sub _adjust_select_args_for_limited_prefetch {
   # away _any_ branches of the join tree that are:
   # 1) not mentioned in the condition/order
   # 2) left-join leaves (or left-join leaf chains)
-  # Most of the join ocnditions will not satisfy this, but for real
+  # Most of the join conditions will not satisfy this, but for real
   # complex queries some might, and we might make some RDBMS happy.
   #
   #

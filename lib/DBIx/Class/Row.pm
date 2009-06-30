@@ -162,7 +162,7 @@ sub new {
   if ($attrs) {
     $new->throw_exception("attrs must be a hashref")
       unless ref($attrs) eq 'HASH';
-    
+
     my ($related,$inflated);
     ## Pretend all the rels are actual objects, unset below if not, for insert() to fix
     $new->{_rel_in_storage} = 1;
@@ -235,7 +235,7 @@ sub new {
       }
       $new->throw_exception("No such column $key on $class")
         unless $class->has_column($key);
-      $new->store_column($key => $attrs->{$key});          
+      $new->store_column($key => $attrs->{$key});
     }
 
     $new->{_relationship_data} = $related if $related;
@@ -283,7 +283,7 @@ sub insert {
   my $rollback_guard;
 
   # Check if we stored uninserted relobjs here in new()
-  my %related_stuff = (%{$self->{_relationship_data} || {}}, 
+  my %related_stuff = (%{$self->{_relationship_data} || {}},
                        %{$self->{_inflated_column} || {}});
 
   if(!$self->{_rel_in_storage}) {
@@ -332,7 +332,7 @@ sub insert {
 
   ## PK::Auto
   my @auto_pri = grep {
-                   !defined $self->get_column($_) || 
+                   !defined $self->get_column($_) ||
                    ref($self->get_column($_)) eq 'SCALAR'
                  } $self->primary_columns;
 
@@ -413,7 +413,7 @@ sub insert {
 Indicates whether the object exists as a row in the database or
 not. This is set to true when L<DBIx::Class::ResultSet/find>,
 L<DBIx::Class::ResultSet/create> or L<DBIx::Class::ResultSet/insert>
-are used. 
+are used.
 
 Creating a row object using L<DBIx::Class::ResultSet/new>, or calling
 L</delete> on one, sets it to false.
@@ -519,14 +519,14 @@ values to locate the row.
 
 The object is still perfectly usable, but L</in_storage> will
 now return 0 and the object must be reinserted using L</insert>
-before it can be used to L</update> the row again. 
+before it can be used to L</update> the row again.
 
 If you delete an object in a class with a C<has_many> relationship, an
 attempt is made to delete all the related objects as well. To turn
 this behaviour off, pass C<< cascade_delete => 0 >> in the C<$attr>
 hashref of the relationship, see L<DBIx::Class::Relationship>. Any
 database-level cascade or restrict will take precedence over a
-DBIx-Class-based cascading delete. 
+DBIx-Class-based cascading delete.
 
 If you delete an object within a txn_do() (see L<DBIx::Class::Storage/txn_do>)
 and the transaction subsequently fails, the row object will remain marked as
@@ -600,7 +600,7 @@ sub get_column {
   return $self->{_column_data}{$column} if exists $self->{_column_data}{$column};
   if (exists $self->{_inflated_column}{$column}) {
     return $self->store_column($column,
-      $self->_deflated_column($column, $self->{_inflated_column}{$column}));   
+      $self->_deflated_column($column, $self->{_inflated_column}{$column}));
   }
   $self->throw_exception( "No such column '${column}'" ) unless $self->has_column($column);
   return undef;
@@ -702,7 +702,7 @@ sub get_dirty_columns {
 Throws an exception if the column does not exist.
 
 Marks a column as having been changed regardless of whether it has
-really changed.  
+really changed.
 
 =cut
 sub make_column_dirty {
@@ -711,7 +711,7 @@ sub make_column_dirty {
   $self->throw_exception( "No such column '${column}'" )
     unless exists $self->{_column_data}{$column} || $self->has_column($column);
 
-  # the entire clean/dirty code relieas on exists, not on true/false
+  # the entire clean/dirty code relies on exists, not on true/false
   return 1 if exists $self->{_dirty_columns}{$column};
 
   $self->{_dirty_columns}{$column} = 1;
@@ -829,7 +829,7 @@ sub set_column {
 
   $row->set_columns({ $col => $val, ... });
 
-=over 
+=over
 
 =item Arguments: \%columndata
 
@@ -864,7 +864,7 @@ sub set_columns {
 =back
 
 Sets more than one column value at once. Any inflated values are
-deflated and the raw values stored. 
+deflated and the raw values stored.
 
 Any related values passed as Row objects, using the relation name as a
 key, are reduced to the appropriate foreign key values and stored. If
@@ -908,7 +908,7 @@ sub set_inflated_columns {
       }
     }
   }
-  $self->set_columns($upd);    
+  $self->set_columns($upd);
 }
 
 =head2 copy
@@ -954,7 +954,7 @@ sub copy {
   $new->set_inflated_columns($changes);
   $new->insert;
 
-  # Its possible we'll have 2 relations to the same Source. We need to make 
+  # Its possible we'll have 2 relations to the same Source. We need to make
   # sure we don't try to insert the same row twice esle we'll violate unique
   # constraints
   my $rels_copied = {};
@@ -963,7 +963,7 @@ sub copy {
     my $rel_info = $self->result_source->relationship_info($rel);
 
     next unless $rel_info->{attrs}{cascade_copy};
-  
+
     my $resolved = $self->result_source->_resolve_condition(
       $rel_info->{cond}, $rel, $new
     );
@@ -975,7 +975,7 @@ sub copy {
       $copied->{$id_str} = 1;
       my $rel_copy = $related->copy($resolved);
     }
- 
+
   }
   return $new;
 }
@@ -1260,11 +1260,11 @@ sub get_from_storage {
     my $self = shift @_;
     my $attrs = shift @_;
     my $resultset = $self->result_source->resultset;
-    
+
     if(defined $attrs) {
     	$resultset = $resultset->search(undef, $attrs);
     }
-    
+
     return $resultset->find($self->{_orig_ident} || $self->ident_condition);
 }
 
