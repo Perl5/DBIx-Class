@@ -65,11 +65,12 @@ sub _prep_for_execute {
     my $datatype = $rsrc && $rsrc->column_info($col)->{data_type};
 
     foreach my $data (@$bound) {
-        $data = ''.$data if ref $data;
+      $data = ''.$data if ref $data;
 
-        $data = $self->_dbh->quote($data) if $self->should_quote($datatype, $data);
+      $data = $self->_dbh->quote($data)
+        if $self->should_quote_value($datatype, $data);
 
-        $new_sql .= shift(@sql_part) . $data;
+      $new_sql .= shift(@sql_part) . $data;
     }
   }
   $new_sql .= join '', @sql_part;
@@ -77,7 +78,7 @@ sub _prep_for_execute {
   return ($new_sql, []);
 }
 
-=head2 should_quote
+=head2 should_quote_value
                                 
 This method is called by L</_prep_for_execute> for every column in
 order to determine if its value should be quoted or not. The arguments
@@ -94,7 +95,7 @@ columns). The default method always returns true (do quote).
                                 
 =cut                            
                                 
-sub should_quote { 1 }
+sub should_quote_value { 1 }
 
 =head1 AUTHORS
 

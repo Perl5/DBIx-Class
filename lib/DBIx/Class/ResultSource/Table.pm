@@ -26,9 +26,6 @@ Returns the FROM entry for the table (i.e. the table name)
 
 =cut
 
-use overload
-  '""' => \&from;    
-
 sub from { shift->name; }
 
 1;

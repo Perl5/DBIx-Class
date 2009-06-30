@@ -101,21 +101,49 @@ sub _is_lob_type {
 }
 
 sub insert {
-  my $self = shift;
-  my ($source, $to_insert) = @_;
+  my ($self, $source, $to_insert) = splice @_, 0, 3;
+
+  my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
+
+  my $updated_cols = $self->next::method($source, $to_insert, @_);
+
+  $self->_update_blobs($source, $blob_cols, $to_insert) if %$blob_cols;
+
+  return $updated_cols;
+}
+
+#sub update {
+#  my ($self, $source) = splice @_, 0, 2;
+#  my ($fields)        = @_;
+#
+#  my $blob_cols = $self->_remove_blob_cols($source, $fields);
+#
+#  my @res = 1;
+#
+#  if (%$fields) {
+#    if (wantarray) {
+#      @res    = $self->next::method($source, @_);
+#    } else {
+#      $res[0] = $self->next::method($source, @_);
+#    }
+#  }
+#
+#  $self->_update_blobs($source, $blob_cols, $fields) if %$blob_cols;
+#
+#  return wantarray ? @res : $res[0];
+#}
+
+sub _remove_blob_cols {
+  my ($self, $source, $fields) = @_;
 
   my %blob_cols;
 
-  for my $col (keys %$to_insert) {
-    $blob_cols{$col} = delete $to_insert->{$col}
+  for my $col (keys %$fields) {
+    $blob_cols{$col} = delete $fields->{$col}
       if $self->_is_lob_type($source->column_info($col)->{data_type});
   }
 
-  my $updated_cols = $self->next::method(@_);
-
-  $self->_update_blobs($source, \%blob_cols, $to_insert) if %blob_cols;
-
-  return $updated_cols;
+  return \%blob_cols;
 }
 
 sub _update_blobs {

@@ -5,14 +5,17 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-use DateTime::Format::Sybase;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-plan skip_all => 'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test'
-  unless ($dsn && $user);
-
-plan tests => (26 + 4*2)*2;
+if (not ($dsn && $user)) {
+  plan skip_all =>
+    'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test' .
+    "\nWarning: This test drops and creates the tables " .
+    "'artist' and 'bindtype_test'";
+} else {
+  plan tests => (26 + 2)*2;
+}
 
 my @storage_types = (
   'DBI::Sybase',
@@ -29,7 +32,6 @@ for my $storage_type (@storage_types) {
   $schema->connection($dsn, $user, $pass, {
     AutoCommit => 1,
     on_connect_call => [
-      [ 'datetime_setup' ],
       [ blob_setup => log_on_update => 1 ], # this is a safer option
     ],
   });
@@ -110,38 +112,6 @@ SQL
 
   is( $it->count, 7, 'COUNT of GROUP_BY ok' );
 
-# Test DateTime inflation with DATETIME
-  my @dt_types = (
-    ['DATETIME', '2004-08-21T14:36:48.080Z'],
-    ['SMALLDATETIME', '2004-08-21T14:36:00.000Z'], # minute precision
-  );
-  
-  for my $dt_type (@dt_types) {
-    my ($type, $sample_dt) = @$dt_type;
-
-    eval { $schema->storage->dbh->do("DROP TABLE track") };
-    $schema->storage->dbh->do(<<"SQL");
-CREATE TABLE track (
-   trackid INT IDENTITY PRIMARY KEY,
-   cd INT,
-   position INT,
-   last_updated_on $type,
-)
-SQL
-    ok(my $dt = DateTime::Format::Sybase->parse_datetime($sample_dt));
-
-    my $row;
-    ok( $row = $schema->resultset('Track')->create({
-      last_updated_on => $dt,
-      cd => 1,
-    }));
-    ok( $row = $schema->resultset('Track')
-      ->search({ trackid => $row->trackid }, { select => ['last_updated_on'] })
-      ->first
-    );
-    is( $row->updated_date, $dt, 'DateTime inflation works' );
-  }
-
 # mostly stole the blob stuff Nniuq wrote for t/73oracle.t
   my $dbh = $schema->storage->dbh;
   {
@@ -183,13 +153,26 @@ SQL
       } eq $binstr{$size}, "verified inserted $size $type" );
     }
   }
+
+  # try a blob update
+  TODO: {
+    local $TODO = 'updating TEXT/IMAGE does not work yet';
+
+    my $new_str = $binstr{large} . 'foo';
+    eval { $rs->search({ id => $id })->update({ blob => $new_str }) };
+    ok !$@, 'updated blob successfully';
+    diag $@ if $@;
+    ok(eval {
+      $rs->search({ id=> $id }, { select => ['blob'] })->single->blob
+    } eq $new_str, "verified updated blob" );
+    diag $@ if $@;
+  }
 }
 
 # clean up our mess
 END {
   if (my $dbh = eval { $schema->storage->_dbh }) {
     $dbh->do('DROP TABLE artist');
-    $dbh->do('DROP TABLE track');
     $dbh->do('DROP TABLE bindtype_test');
   }
 }

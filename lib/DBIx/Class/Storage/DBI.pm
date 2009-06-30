@@ -1065,22 +1065,6 @@ sub _fix_bind_params {
         } @bind;
 }
 
-sub _flatten_bind_params {
-    my ($self, @bind) = @_;
-
-    ### Turn @bind from something like this:
-    ###   ( [ "artist", 1 ], [ "cdid", 1, 3 ] )
-    ### to this:
-    ###   ( 1, 1, 3 )
-    return
-        map {
-            if ( defined( $_ && $_->[1] ) ) {
-                @{$_}[ 1 .. $#$_ ];
-            }
-            else { undef; }
-        } @bind;
-}
-
 sub _query_start {
     my ( $self, $sql, @bind ) = @_;
 

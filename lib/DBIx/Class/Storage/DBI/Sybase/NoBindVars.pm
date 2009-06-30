@@ -31,20 +31,20 @@ my %noquote = (
     numeric => $decimal,
 );
 
-sub should_quote {
+sub should_quote_value {
   my $self = shift;
   my ($type, $value) = @_;
 
-  return $self->next::method(@_) if not defined $value;
-
-  $type ||= '';
+  return $self->next::method(@_) if not defined $value or not defined $type;
 
   if (my $key = List::Util::first { $type =~ /$_/i } keys %noquote) {
     return 0 if $noquote{$key}->($value);
-  } elsif (not $type) {
-# try to guess based on value
-    return 0 if $number->($value) || $noquote->{money}->($value);
   }
+
+## try to guess based on value
+#  elsif (not $type) {
+#    return 0 if $number->($value) || $noquote->{money}->($value);
+#  }
 
   return $self->next::method(@_);
 }
