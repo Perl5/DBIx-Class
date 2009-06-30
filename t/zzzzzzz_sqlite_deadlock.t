@@ -12,6 +12,7 @@ use DBICTest::Schema;
 plan tests => 2;
 my $wait_for = 10;  # how many seconds to wait
 
+# Fails on mac os *only*. Do not enable
 $TODO = "This seems to be a DBD::SQLite problem, don't test for now";
 
 for my $close (0,1) {
