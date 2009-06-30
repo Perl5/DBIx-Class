@@ -6,6 +6,7 @@ use warnings;
 use base qw/DBIx::Class::ResultSourceProxy/;
 
 use DBIx::Class::ResultSource::Table;
+use Scalar::Util ();
 
 __PACKAGE__->mk_classdata(table_class => 'DBIx::Class::ResultSource::Table');
 
