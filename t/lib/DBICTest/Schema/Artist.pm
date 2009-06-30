@@ -44,6 +44,21 @@ __PACKAGE__->has_many(
     cds => 'DBICTest::Schema::CD', undef,
     { order_by => { -asc => 'year'} },
 );
+
+
+__PACKAGE__->has_many(
+    cds_80s => 'DBICTest::Schema::CD',
+    sub {
+        my ( $rs, $self, $foreign ) = @_;
+        return {
+            "${foreign}.artist" => "${self}.artistid",
+            "${foreign}.year"   => { '>', "1979" },
+            "${foreign}.year"   => { '<', "1990" }
+        };
+    }
+);
+
+
 __PACKAGE__->has_many(
     cds_unordered => 'DBICTest::Schema::CD'
 );
