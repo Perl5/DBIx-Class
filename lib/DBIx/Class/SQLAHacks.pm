@@ -213,7 +213,7 @@ sub _Top {
 
   my $req_order = $order->{order_by};
   my $limit_order =
-    scalar $self->_order_by_chunks ($req_order) # exaime normalized version, collapses nesting
+    scalar $self->_order_by_chunks ($req_order) # examine normalized version, collapses nesting
       ? $req_order
       : $order->{_virtual_order_by}
   ;

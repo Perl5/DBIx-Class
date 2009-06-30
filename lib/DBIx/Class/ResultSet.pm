@@ -1257,8 +1257,11 @@ sub _count_subq_rs {
   # this is so that ordering can be thrown away in things like Top limit
   $sub_attrs->{-for_count_only} = 1;
 
+  my $sub_rs = $rsrc->resultset_class->new ($rsrc, $sub_attrs);
   $attrs->{from} = [{
-    count_subq => $rsrc->resultset_class->new ($rsrc, $sub_attrs )->as_query
+    -alias => 'count_subq',
+    -source_handle => $rsrc->handle,
+    count_subq => $sub_rs->as_query,
   }];
 
   # the subquery replaces this

@@ -3,6 +3,7 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::MSSQL/;
+use List::Util();
 
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
@@ -17,23 +18,17 @@ sub insert_bulk {
     }
   }
 
-  my $table = $source->from;
   if ($identity_insert) {
-    $source->storage->dbh_do(sub {
-	my ($storage, $dbh, @cols) = @_;
-	$dbh->do("SET IDENTITY_INSERT $table ON;");
-      });
+    my $table = $source->from;
+    $self->dbh->do("SET IDENTITY_INSERT $table ON");
   }
 
   next::method(@_);
 
   if ($identity_insert) {
-    $source->storage->dbh_do(sub {
-	my ($storage, $dbh, @cols) = @_;
-	$dbh->do("SET IDENTITY_INSERT $table OFF;");
-      });
+    my $table = $source->from;
+    $self->dbh->do("SET IDENTITY_INSERT $table OFF");
   }
-
 }
 
 sub _prep_for_execute {
@@ -41,22 +36,19 @@ sub _prep_for_execute {
   my ($op, $extra_bind, $ident, $args) = @_;
 
   my ($sql, $bind) = $self->next::method (@_);
-  $sql .= ';SELECT SCOPE_IDENTITY()' if $op eq 'insert';
 
-  my %identity_insert_tables;
-  my $col_info = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
+  if ($op eq 'insert') {
+    $sql .= ';SELECT SCOPE_IDENTITY()';
 
-  foreach my $bound (@{$bind}) {
-    my $col = $bound->[0];
-    if ($col_info->{$col}->{is_auto_increment}) {
-      my $table = $col_info->{$col}->{-result_source}->from;
-      $identity_insert_tables{$table} = 1;
+    my $col_info = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
+    if (List::Util::first { $_->{is_auto_increment} } (values %$col_info) ) {
+
+      my $table = $ident->from;
+      my $identity_insert_on = "SET IDENTITY_INSERT $table ON";
+      my $identity_insert_off = "SET IDENTITY_INSERT $table OFF";
+      $sql = "$identity_insert_on; $sql; $identity_insert_off";
     }
   }
-
-  my $identity_insert_on = join '', map { "SET IDENTITY_INSERT $_ ON; " } keys %identity_insert_tables;
-  my $identity_insert_off = join '', map { "SET IDENTITY_INSERT $_ OFF; " } keys %identity_insert_tables;
-  $sql = "$identity_insert_on $sql $identity_insert_off";
 
   return ($sql, $bind);
 }

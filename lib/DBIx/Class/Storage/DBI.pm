@@ -1238,7 +1238,7 @@ sub _select_args {
     where => $where,
   };
 
-  my $alias2source = $self->_resolve_ident_sources ($ident);
+  my ($alias2source, $root_alias) = $self->_resolve_ident_sources ($ident);
 
   # calculate bind_attrs before possible $ident mangling
   my $bind_attrs = {};
@@ -1250,7 +1250,7 @@ sub _select_args {
       $bind_attrs->{$fqcn} = $bindtypes->{$col} if $bindtypes->{$col};
 
       # so that unqualified searches can be bound too
-      $bind_attrs->{$col} = $bind_attrs->{$fqcn} if $alias eq 'me';
+      $bind_attrs->{$col} = $bind_attrs->{$fqcn} if $alias eq $root_alias;
     }
   }
 
@@ -1432,10 +1432,17 @@ sub _adjust_select_args_for_limited_prefetch {
   );
 
   # put it in the new {from}
-  unshift @outer_from, { $alias => $subq };
+  unshift @outer_from, {
+    -alias => $alias,
+    -source_handle => $select_root->{-source_handle},
+    $alias => $subq,
+  };
 
   # This is totally horrific - the $where ends up in both the inner and outer query
-  # Unfortunately not much can be done until SQLA2 introspection arrives
+  # Unfortunately not much can be done until SQLA2 introspection arrives, and even
+  # then if where conditions apply to the *right* side of the prefetch, you may have
+  # to both filter the inner select (e.g. to apply a limit) and then have to re-filter
+  # the outer select to exclude joins you didin't want in the first place
   #
   # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
   return (\@outer_from, $select, $where, $attrs);
@@ -1445,12 +1452,14 @@ sub _resolve_ident_sources {
   my ($self, $ident) = @_;
 
   my $alias2source = {};
+  my $root_alias;
 
   # the reason this is so contrived is that $ident may be a {from}
   # structure, specifying multiple tables to join
   if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
     # this is compat mode for insert/update/delete which do not deal with aliases
     $alias2source->{me} = $ident;
+    $root_alias = 'me';
   }
   elsif (ref $ident eq 'ARRAY') {
 
@@ -1458,6 +1467,7 @@ sub _resolve_ident_sources {
       my $tabinfo;
       if (ref $_ eq 'HASH') {
         $tabinfo = $_;
+        $root_alias = $tabinfo->{-alias};
       }
       if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
         $tabinfo = $_->[0];
@@ -1468,7 +1478,7 @@ sub _resolve_ident_sources {
     }
   }
 
-  return $alias2source;
+  return ($alias2source, $root_alias);
 }
 
 # Takes $ident, \@column_names
@@ -1480,17 +1490,18 @@ sub _resolve_ident_sources {
 #   my $col_sources = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
 sub _resolve_column_info {
   my ($self, $ident, $colnames) = @_;
-  my $alias2src = $self->_resolve_ident_sources($ident);
+  my ($alias2src, $root_alias) = $self->_resolve_ident_sources($ident);
 
   my $sep = $self->_sql_maker_opts->{name_sep} || '.';
   $sep = "\Q$sep\E";
 
-  my %return;
-  foreach my $col (@{$colnames}) {
-    $col =~ m/^ (?: ([^$sep]+) $sep)? (.+) $/x;
+  my (%return, %converted);
+  foreach my $col (@$colnames) {
+    my ($alias, $colname) = $col =~ m/^ (?: ([^$sep]+) $sep)? (.+) $/x;
 
-    my $alias = $1 || 'me';
-    my $colname = $2;
+    # deal with unqualified cols - we assume the main alias for all
+    # unqualified ones, ugly but can't think of anything better right now
+    $alias ||= $root_alias;
 
     my $rsrc = $alias2src->{$alias};
     $return{$col} = $rsrc && { %{$rsrc->column_info($colname)}, -result_source => $rsrc };

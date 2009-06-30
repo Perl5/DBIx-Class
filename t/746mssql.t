@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
@@ -11,7 +12,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 25;
+plan tests => 27;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -97,41 +98,46 @@ CREATE TABLE Owners (
 SQL
 
 });
-$schema->populate ('Owners', [
-  [qw/id  name  /],
-  [qw/1   wiggle/],
-  [qw/2   woggle/],
-  [qw/3   boggle/],
-  [qw/4   fREW/],
-  [qw/5   fRIOUX/],
-  [qw/6   fROOH/],
-  [qw/7   fRUE/],
-  [qw/8   fISMBoC/],
-  [qw/9   station/],
-  [qw/10   mirror/],
-  [qw/11   dimly/],
-  [qw/12   face_to_face/],
-  [qw/13   icarus/],
-  [qw/14   dream/],
-  [qw/15   dyrstyggyr/],
-]);
 
-$schema->populate ('BooksInLibrary', [
-  [qw/source  owner title   /],
-  [qw/Library 1     secrets0/],
-  [qw/Library 1     secrets1/],
-  [qw/Eatery  1     secrets2/],
-  [qw/Library 2     secrets3/],
-  [qw/Library 3     secrets4/],
-  [qw/Eatery  3     secrets5/],
-  [qw/Library 4     secrets6/],
-  [qw/Library 5     secrets7/],
-  [qw/Eatery  5     secrets8/],
-  [qw/Library 6     secrets9/],
-  [qw/Library 7     secrets10/],
-  [qw/Eatery  7     secrets11/],
-  [qw/Library 8     secrets12/],
-]);
+lives_ok ( sub {
+  $schema->populate ('Owners', [
+    [qw/id  name  /],
+    [qw/1   wiggle/],
+    [qw/2   woggle/],
+    [qw/3   boggle/],
+    [qw/4   fREW/],
+    [qw/5   fRIOUX/],
+    [qw/6   fROOH/],
+    [qw/7   fRUE/],
+    [qw/8   fISMBoC/],
+    [qw/9   station/],
+    [qw/10   mirror/],
+    [qw/11   dimly/],
+    [qw/12   face_to_face/],
+    [qw/13   icarus/],
+    [qw/14   dream/],
+    [qw/15   dyrstyggyr/],
+  ]);
+}, 'populate with PKs supplied ok' );
+
+lives_ok ( sub {
+  $schema->populate ('BooksInLibrary', [
+    [qw/source  owner title   /],
+    [qw/Library 1     secrets0/],
+    [qw/Library 1     secrets1/],
+    [qw/Eatery  1     secrets2/],
+    [qw/Library 2     secrets3/],
+    [qw/Library 3     secrets4/],
+    [qw/Eatery  3     secrets5/],
+    [qw/Library 4     secrets6/],
+    [qw/Library 5     secrets7/],
+    [qw/Eatery  5     secrets8/],
+    [qw/Library 6     secrets9/],
+    [qw/Library 7     secrets10/],
+    [qw/Eatery  7     secrets11/],
+    [qw/Library 8     secrets12/],
+  ]);
+}, 'populate without PKs supplied ok' );
 
 #
 # try a prefetch on tables with identically named columns
@@ -142,7 +148,7 @@ $schema->storage->_sql_maker->{quote_char} = [qw/[ ]/];
 $schema->storage->_sql_maker->{name_sep} = '.';
 
 {
-  # try a ->has_many direction (group_by is not possible on has_many with limit)
+  # try a ->has_many direction
   my $owners = $schema->resultset ('Owners')->search ({
       'books.id' => { '!=', undef }
     }, {
