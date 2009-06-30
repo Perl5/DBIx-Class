@@ -11,7 +11,7 @@ use IO::File;
 my $schema = DBICTest->init_schema();
 my $orig_debug = $schema->storage->debug;
 
-plan tests => 45;
+plan tests => 44;
 
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
