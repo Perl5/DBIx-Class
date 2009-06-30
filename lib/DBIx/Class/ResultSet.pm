@@ -2451,7 +2451,7 @@ sub related_resultset {
         "' has no such relationship $rel")
       unless $rel_info;
 
-    my ($from,$seen) = $self->_resolve_from($rel);
+    my ($from,$seen) = $self->_chain_relationship($rel);
 
     my $join_count = $seen->{$rel};
     my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
@@ -2549,7 +2549,7 @@ sub current_source_alias {
 # in order to properly resolve prefetch aliases (any alias
 # with a relation_chain_depth less than the depth of the
 # current prefetch is not considered)
-sub _resolve_from {
+sub _chain_relationship {
   my ($self, $rel) = @_;
   my $source = $self->result_source;
   my $attrs = $self->{attrs};
@@ -2570,11 +2570,29 @@ sub _resolve_from {
   # ->_resolve_join as otherwise they get lost - captainL
   my $merged = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
 
-  push @$from, $source->_resolve_join($merged, $attrs->{alias}, $seen) if ($merged);
+  my @requested_joins = $source->_resolve_join($merged, $attrs->{alias}, $seen);
+
+  push @$from, @requested_joins;
 
   ++$seen->{-relation_chain_depth};
 
-  push @$from, $source->_resolve_join($rel, $attrs->{alias}, $seen);
+  # if $self already had a join/prefetch specified on it, the requested
+  # $rel might very well be already included. What we do in this case
+  # is effectively a no-op (except that we bump up the chain_depth on
+  # the join in question so we could tell it *is* the search_related)
+  my $already_joined;
+
+  # we consider the last one thus reverse
+  for my $j (reverse @requested_joins) {
+    if ($rel eq $j->[0]{-join_path}[-1]) {
+      $j->[0]{-relation_chain_depth}++;
+      $already_joined++;
+      last;
+    }
+  }
+  unless ($already_joined) {
+    push @$from, $source->_resolve_join($rel, $attrs->{alias}, $seen);
+  }
 
   ++$seen->{-relation_chain_depth};
 

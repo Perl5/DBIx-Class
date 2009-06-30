@@ -183,6 +183,49 @@ L<DBIx::Class::InflateColumn::DateTime>.
 
 sub datetime_parser_type { return "DateTime::Format::Oracle"; }
 
+=head2 connect_call_datetime_setup
+
+Used as:
+
+    on_connect_call => 'datetime_setup'
+
+In L<DBIx::Class::Storage::DBI/connect_info> to set the session nls date, and
+timestamp values for use with L<DBIx::Class::InflateColumn::DateTime> and the
+necessary environment variables for L<DateTime::Format::Oracle>, which is used
+by it.
+
+Maximum allowable precision is used, unless the environment variables have
+already been set.
+
+These are the defaults used:
+
+  $ENV{NLS_DATE_FORMAT}         ||= 'YYYY-MM-DD HH24:MI:SS';
+  $ENV{NLS_TIMESTAMP_FORMAT}    ||= 'YYYY-MM-DD HH24:MI:SS.FF';
+  $ENV{NLS_TIMESTAMP_TZ_FORMAT} ||= 'YYYY-MM-DD HH24:MI:SS.FF TZHTZM';
+
+To get more than second precision with L<DBIx::Class::InflateColumn::DateTime>
+for your timestamps, use something like this:
+
+  use Time::HiRes 'time';
+  my $ts = DateTime->from_epoch(epoch => time);
+
+=cut
+
+sub connect_call_datetime_setup {
+  my $self = shift;
+  my $dbh  = $self->dbh;
+
+  my $date_format = $ENV{NLS_DATE_FORMAT} ||= 'YYYY-MM-DD HH24:MI:SS';
+  my $timestamp_format = $ENV{NLS_TIMESTAMP_FORMAT} ||=
+    'YYYY-MM-DD HH24:MI:SS.FF';
+  my $timestamp_tz_format = $ENV{NLS_TIMESTAMP_TZ_FORMAT} ||=
+    'YYYY-MM-DD HH24:MI:SS.FF TZHTZM';
+
+  $dbh->do("alter session set nls_date_format = '$date_format'");
+  $dbh->do("alter session set nls_timestamp_format = '$timestamp_format'");
+  $dbh->do("alter session set nls_timestamp_tz_format='$timestamp_tz_format'");
+}
+
 sub _svp_begin {
     my ($self, $name) = @_;
  

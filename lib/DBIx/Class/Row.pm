@@ -799,8 +799,8 @@ sub set_column {
   else {  # do a numeric comparison if datatype allows it
     my $colinfo = $self->column_info ($column);
 
-    # cache for speed
-    if (not defined $colinfo->{is_numeric}) {
+    # cache for speed (the object may *not* have a resultsource instance)
+    if (not defined $colinfo->{is_numeric} && $self->_source_handle) {
       $colinfo->{is_numeric} =
         $self->result_source->schema->storage->is_datatype_numeric ($colinfo->{data_type})
           ? 1
