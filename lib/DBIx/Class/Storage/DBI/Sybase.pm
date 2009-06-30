@@ -62,18 +62,8 @@ sub _rebless {
         bless $self, 'DBIx::Class::Storage:DBI::Sybase::NoBindVars';
         $self->_rebless;
       }
-      $self->connect_call_datetime_setup;
-      $self->connect_call_blob_setup;
     }
   }
-}
-
-sub _populate_dbh {
-  my $self = shift;
-  $self->next::method(@_);
-  $self->connect_call_datetime_setup;
-  $self->connect_call_blob_setup;
-  1;
 }
 
 =head2 connect_call_blob_setup

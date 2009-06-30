@@ -26,7 +26,13 @@ for my $storage_type (@storage_types) {
   unless ($storage_type eq 'DBI::Sybase') { # autodetect
     $schema->storage_type("::$storage_type");
   }
-  $schema->connection($dsn, $user, $pass, {AutoCommit => 1});
+  $schema->connection($dsn, $user, $pass, {
+    AutoCommit => 1,
+    on_connect_call => [
+      [ 'datetime_setup' ],
+      [ blob_setup => log_on_update => 1 ], # this is a safer option
+    ],
+  });
 
   $schema->storage->ensure_connected;
 
