@@ -3,9 +3,9 @@ package DBIx::Class::Storage::DBI::mysql;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
 
-# __PACKAGE__->load_components(qw/PK::Auto/);
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MySQL');
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
@@ -13,6 +13,12 @@ sub with_deferred_fk_checks {
   $self->dbh->do('SET foreign_key_checks=0');
   $sub->();
   $self->dbh->do('SET foreign_key_checks=1');
+}
+
+sub connect_call_set_ansi_mode {
+  my $self = shift;
+  $self->dbh->do(q|SET sql_mode = 'ANSI,TRADITIONAL'|);
+  $self->dbh->do(q|SET sql_mode = 'ANSI,TRADITIONAL'|);
 }
 
 sub _dbh_last_insert_id {
@@ -49,6 +55,25 @@ sub is_replicating {
 
 sub lag_behind_master {
     return shift->dbh->selectrow_hashref('show slave status')->{Seconds_Behind_Master};
+}
+
+# MySql can not do subquery update/deletes, only way is slow per-row operations.
+# This assumes you have set proper transaction isolation and use innodb.
+sub _subq_update_delete {
+  return shift->_per_row_update_delete (@_);
+}
+
+# MySql chokes on things like:
+# COUNT(*) FROM (SELECT tab1.col, tab2.col FROM tab1 JOIN tab2 ... )
+# claiming that col is a duplicate column (it loses the table specifiers by
+# the time it gets to the *). Thus for any subquery count we select only the
+# primary keys of the main table in the inner query. This hopefully still
+# hits the indexes and keeps mysql happy.
+# (mysql does not care if the SELECT and the GROUP BY match)
+sub _subq_count_select {
+  my ($self, $source, $rs_attrs) = @_;
+  my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
+  return @pcols ? \@pcols : [ 1 ];
 }
 
 1;

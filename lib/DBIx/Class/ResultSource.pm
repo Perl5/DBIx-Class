@@ -113,8 +113,20 @@ NULL values. This is currently only used by L<DBIx::Class::Schema/deploy>.
 
 Set this to a true value for a column whose value is somehow
 automatically set. This is used to determine which columns to empty
-when cloning objects using C<copy>. It is also used by
+when cloning objects using L<DBIx::Class::Row/copy>. It is also used by
 L<DBIx::Class::Schema/deploy>.
+
+=item is_numeric
+
+Set this to a true or false value (not C<undef>) to explicitly specify
+if this column contains numeric data. This controls how set_column
+decides whether to consider a column dirty after an update: if
+C<is_numeric> is true a numeric comparison C<< != >> will take place
+instead of the usual C<eq>
+
+If not specified the storage class will attempt to figure this out on
+first access to the column, based on the column C<data_type>. The
+result will be cached in this attribute.
 
 =item is_foreign_key
 
@@ -881,7 +893,7 @@ sub add_relationship {
   }
   return unless $f_source; # Can't test rel without f_source
 
-  eval { $self->_resolve_join($rel, 'me') };
+  eval { $self->_resolve_join($rel, 'me', {}) };
 
   if ($@) { # If the resolve failed, back out and re-throw the error
     delete $rels{$rel}; #
@@ -1071,26 +1083,23 @@ sub resolve_join {
 
 # Returns the {from} structure used to express JOIN conditions
 sub _resolve_join {
-  my ($self, $join, $alias, $seen, $force_left, $jpath) = @_;
+  my ($self, $join, $alias, $seen, $jpath, $force_left) = @_;
 
   # we need a supplied one, because we do in-place modifications, no returns
   $self->throw_exception ('You must supply a seen hashref as the 3rd argument to _resolve_join')
     unless $seen;
-
-  $force_left ||= { force => 0 };
 
   # This isn't quite right, we should actually dive into $seen and reconstruct
   # the entire path (the reference entry point would be the join conditional
   # with depth == current_depth - 1. At this point however nothing depends on
   # having the entire path, transcending related_resultset, so just leave it
   # as is, hairy enough already.
-  $jpath ||= [];  
+  $jpath ||= [];
 
   if (ref $join eq 'ARRAY') {
     return
       map {
-        local $force_left->{force} = $force_left->{force};
-        $self->_resolve_join($_, $alias, $seen, $force_left, [@$jpath]);
+        $self->_resolve_join($_, $alias, $seen, [@$jpath], $force_left);
       } @$join;
   } elsif (ref $join eq 'HASH') {
     return
@@ -1098,9 +1107,9 @@ sub _resolve_join {
         my $as = ($seen->{$_} ? join ('_', $_, $seen->{$_} + 1) : $_);  # the actual seen value will be incremented below
         local $force_left->{force} = $force_left->{force};
         (
-          $self->_resolve_join($_, $alias, $seen, $force_left, [@$jpath]),
+          $self->_resolve_join($_, $alias, $seen, [@$jpath], $force_left),
           $self->related_source($_)->_resolve_join(
-            $join->{$_}, $as, $seen, $force_left, [@$jpath, $_]
+            $join->{$_}, $as, $seen, [@$jpath, $_], $force_left
           )
         );
       } keys %$join;
@@ -1108,22 +1117,27 @@ sub _resolve_join {
     $self->throw_exception("No idea how to resolve join reftype ".ref $join);
   } else {
 
+    return() unless defined $join;
+
     my $count = ++$seen->{$join};
     my $as = ($count > 1 ? "${join}_${count}" : $join);
 
     my $rel_info = $self->relationship_info($join);
     $self->throw_exception("No such relationship ${join}") unless $rel_info;
     my $type;
-    if ($force_left->{force}) {
+    if ($force_left) {
       $type = 'left';
     } else {
       $type = $rel_info->{attrs}{join_type} || '';
-      $force_left->{force} = 1 if lc($type) eq 'left';
+      $force_left = 1 if lc($type) eq 'left';
     }
-    return [ { $as => $self->related_source($join)->from,
+
+    my $rel_src = $self->related_source($join);
+    return [ { $as => $rel_src->from,
+               -source_handle => $rel_src->handle,
                -join_type => $type,
                -join_path => [@$jpath, $join],
-               -join_alias => $as,
+               -alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
              },
              $self->_resolve_condition($rel_info->{cond}, $as, $alias) ];
@@ -1198,7 +1212,7 @@ sub _resolve_condition {
             $self->throw_exception(
               "Column ${v} not loaded or not passed to new() prior to insert()"
                 ." on ${for} trying to resolve relationship (maybe you forgot "
-                  ."to call ->reload_from_storage to get defaults from the db)"
+                  ."to call ->discard_changes to get defaults from the db)"
             );
           }
           return $UNRESOLVABLE_CONDITION;
@@ -1274,8 +1288,7 @@ sub resolve_prefetch {
             ? "at the same level (${as_prefix}) "
             : "at top level "
           )
-          . 'will currently disrupt both the functionality of $rs->count(), '
-          . 'and the amount of objects retrievable via $rs->next(). '
+          . 'will explode the number of row objects retrievable via ->next or ->all. '
           . 'Use at your own risk.'
         );
       }
@@ -1360,8 +1373,7 @@ sub _resolve_prefetch {
             ? "at the same level (${as_prefix}) "
             : "at top level "
           )
-          . 'will currently disrupt both the functionality of $rs->count(), '
-          . 'and the amount of objects retrievable via $rs->next(). '
+          . 'will explode the number of row objects retrievable via ->next or ->all. '
           . 'Use at your own risk.'
         );
       }

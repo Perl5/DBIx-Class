@@ -142,9 +142,9 @@ This class defines the following methods.
 
 =head2 connect_replicants ($schema, Array[$connect_info])
 
-Given an array of $dsn suitable for connected to a database, create an
-L<DBIx::Class::Storage::DBI::Replicated::Replicant> object and store it in the
-L</replicants> attribute.
+Given an array of $dsn or connect_info structures suitable for connected to a
+database, create an L<DBIx::Class::Storage::DBI::Replicated::Replicant> object
+and store it in the L</replicants> attribute.
 
 =cut
 
@@ -184,7 +184,20 @@ sub connect_replicant {
   my ($self, $schema, $connect_info) = @_;
   my $replicant = $self->create_replicant($schema);
   $replicant->connect_info($connect_info);
-  $self->_safely_ensure_connected($replicant);
+
+## It is undesirable for catalyst to connect at ->conect_replicants time, as
+## connections should only happen on the first request that uses the database.
+## So we try to set the driver without connecting, however this doesn't always
+## work, as a driver may need to connect to determine the DB version, and this
+## may fail.
+##
+## Why this is necessary at all, is that we need to have the final storage
+## class to apply the Replicant role.
+
+  $self->_safely($replicant, '->_determine_driver', sub {
+    $replicant->_determine_driver
+  });
+
   DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);  
   return $replicant;
 }
@@ -195,21 +208,39 @@ The standard ensure_connected method with throw an exception should it fail to
 connect.  For the master database this is desirable, but since replicants are
 allowed to fail, this behavior is not desirable.  This method wraps the call
 to ensure_connected in an eval in order to catch any generated errors.  That
-way a slave to go completely offline (ie, the box itself can die) without
+way a slave can go completely offline (ie, the box itself can die) without
 bringing down your entire pool of databases.
 
 =cut
 
 sub _safely_ensure_connected {
   my ($self, $replicant, @args) = @_;
+
+  return $self->_safely($replicant, '->ensure_connected', sub {
+    $replicant->ensure_connected(@args)
+  });
+}
+
+=head2 _safely ($replicant, $name, $code)
+
+Execute C<$code> for operation C<$name> catching any exceptions and printing an
+error message to the C<<$replicant->debugobj>>.
+
+Returns 1 on success and undef on failure.
+
+=cut
+
+sub _safely {
+  my ($self, $replicant, $name, $code) = @_;
+
   eval {
-    $replicant->ensure_connected(@args);
+    $code->()
   }; 
   if ($@) {
     $replicant
       ->debugobj
       ->print(
-        sprintf( "Exception trying to ->ensure_connected for replicant %s, error is %s",
+        sprintf( "Exception trying to $name for replicant %s, error is %s",
           $replicant->_dbi_connect_info->[0], $@)
         );
   	return;

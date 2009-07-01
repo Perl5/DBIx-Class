@@ -35,12 +35,23 @@ my ($sql, @bind) = $sql_maker->select(
               {
                 'artist.artistid' => 'me.artist'
               }
-            ]
+            ],
+            [
+              {
+                'tracks' => 'tracks',
+                '-join_type' => 'left'
+              },
+              {
+                'tracks.cd' => 'me.cdid'
+              }
+            ],
           ],
           [
-            {
-              'count' => '*'
-            }
+            'me.cdid',
+            { count => 'tracks.cd' },
+            { -select => 'me.artist' },
+            { -select => 'me.title', -as => 'name' },
+            { -select => { min => 'me.year' }, -as => 'me.minyear' },
           ],
           {
             'artist.name' => 'Caterwauler McCrae',
@@ -53,8 +64,15 @@ my ($sql, @bind) = $sql_maker->select(
 
 is_same_sql_bind(
   $sql, \@bind,
-  q/SELECT COUNT( * ) FROM `cd` `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )/, [ ['artist.name' => 'Caterwauler McCrae'], ['me.year' => 2001] ],
-  'got correct SQL and bind parameters for count query with quoting'
+  q/
+    SELECT `me`.`cdid`, COUNT( `tracks`.`cd` ), `me`.`artist`, `me`.`title` AS `name`, MIN( `me`.`year` ) AS `me`.`minyear`
+      FROM `cd` `me`
+      JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` )
+      LEFT JOIN `tracks` `tracks` ON ( `tracks`.`cd` = `me`.`cdid` )
+    WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )
+  /,
+  [ ['artist.name' => 'Caterwauler McCrae'], ['me.year' => 2001] ],
+  'got correct SQL and bind parameters for complex select query with quoting'
 );
 
 

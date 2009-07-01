@@ -7,6 +7,7 @@ use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
 use File::Spec;
+use MRO::Compat;
 use Sub::Name ();
 require Module::Find;
 
@@ -173,8 +174,8 @@ sub _findallmod {
 }
 
 # returns a hash of $shortname => $fullname for every package
-#  found in the given namespaces ($shortname is with the $fullname's
-#  namespace stripped off)
+# found in the given namespaces ($shortname is with the $fullname's
+# namespace stripped off)
 sub _map_namespaces {
   my ($class, @namespaces) = @_;
 
@@ -188,6 +189,22 @@ sub _map_namespaces {
   }
 
   @results_hash;
+}
+
+# returns the result_source_instance for the passed class/object,
+# or dies with an informative message (used by load_namespaces)
+sub _ns_get_rsrc_instance {
+  my $class = shift;
+  my $rs = ref ($_[0]) || $_[0];
+
+  if ($rs->can ('result_source_instance') ) {
+    return $rs->result_source_instance;
+  }
+  else {
+    $class->throw_exception (
+      "Attempt to load_namespaces() class $rs failed - are you sure this is a real Result Class?"
+    );
+  }
 }
 
 sub load_namespaces {
@@ -223,16 +240,29 @@ sub load_namespaces {
     local *Class::C3::reinitialize = sub { };
     use warnings 'redefine';
 
-    # ensure classes are loaded and fetch properly sorted classes
+    # ensure classes are loaded and attached in inheritance order
     $class->ensure_class_loaded($_) foreach(values %results);
-    my @subclass_last = sort { $results{$a}->isa($results{$b}) } keys(%results);
-    
+    my %inh_idx;
+    my @subclass_last = sort {
+
+      ($inh_idx{$a} ||=
+        scalar @{mro::get_linear_isa( $results{$a} )}
+      )
+
+          <=>
+
+      ($inh_idx{$b} ||=
+        scalar @{mro::get_linear_isa( $results{$b} )}
+      )
+
+    } keys(%results);
+
     foreach my $result (@subclass_last) {
       my $result_class = $results{$result};
 
       my $rs_class = delete $resultsets{$result};
-      my $rs_set = $result_class->resultset_class;
-      
+      my $rs_set = $class->_ns_get_rsrc_instance ($result_class)->resultset_class;
+
       if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
         if($rs_class && $rs_class ne $rs_set) {
           carp "We found ResultSet class '$rs_class' for '$result', but it seems "
@@ -241,10 +271,10 @@ sub load_namespaces {
       }
       elsif($rs_class ||= $default_resultset_class) {
         $class->ensure_class_loaded($rs_class);
-        $result_class->resultset_class($rs_class);
+        $class->_ns_get_rsrc_instance ($result_class)->resultset_class($rs_class);
       }
 
-      my $source_name = $result_class->source_name || $result;
+      my $source_name = $class->_ns_get_rsrc_instance ($result_class)->source_name || $result;
 
       push(@to_register, [ $source_name, $result_class ]);
     }
@@ -269,8 +299,10 @@ sub load_namespaces {
 
 =back
 
-Alternative method to L</load_namespaces> which you should look at
-using if you can.
+L</load_classes> is an alternative method to L</load_namespaces>, both of
+which serve similar purposes, each with different advantages and disadvantages.
+In the general case you should use L</load_namespaces>, unless you need to
+be able to specify that only specific classes are loaded at runtime.
 
 With no arguments, this method uses L<Module::Find> to find all classes under
 the schema's namespace. Otherwise, this method loads the classes you specify
@@ -999,16 +1031,16 @@ sub throw_exception {
 
 =over 4
 
-=item Arguments: $sqlt_args, $dir
+=item Arguments: \%sqlt_args, $dir
 
 =back
 
 Attempts to deploy the schema to the current storage using L<SQL::Translator>.
 
-See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>. The most
-common value for this would be C<< { add_drop_table => 1, } >> to have the SQL
-produced include a DROP TABLE statement for each table created. For quoting
-purposes use C<producer_options> value with C<quote_table_names> and
+See L<SQL::Translator/METHODS> for a list of values for C<\%sqlt_args>.
+The most common value for this would be C<< { add_drop_table => 1 } >>
+to have the SQL produced include a C<DROP TABLE> statement for each table
+created. For quoting purposes supply C<quote_table_names> and
 C<quote_field_names>.
 
 Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash 
@@ -1029,19 +1061,16 @@ sub deploy {
 
 =over 4
 
-=item Arguments: $rdbms_type, $sqlt_args, $dir
+=item Arguments: See L<DBIx::Class::Storage::DBI/deployment_statements>
 
 =item Return value: $listofstatements
 
 =back
 
-A convenient shortcut to storage->deployment_statements(). Returns the
-SQL statements used by L</deploy> and
-L<DBIx::Class::Schema::Storage/deploy>. C<$rdbms_type> provides the
-(optional) SQLT (not DBI) database driver name for which the SQL
-statements are produced.  If not supplied, the type is determined by
-interrogating the current connection.  The other two arguments are
-identical to those of L</deploy>.
+A convenient shortcut to
+C<< $self->storage->deployment_statements($self, @args) >>.
+Returns the SQL statements used by L</deploy> and
+L<DBIx::Class::Schema::Storage/deploy>.
 
 =cut
 
@@ -1058,42 +1087,15 @@ sub deployment_statements {
 
 =over 4
 
-=item Arguments: \@databases, $version, $directory, $preversion, $sqlt_args
+=item Arguments: See L<DBIx::Class::Storage::DBI/create_ddl_dir>
 
 =back
+
+A convenient shortcut to 
+C<< $self->storage->create_ddl_dir($self, @args) >>.
 
 Creates an SQL file based on the Schema, for each of the specified
-database types, in the given directory. Given a previous version number,
-this will also create a file containing the ALTER TABLE statements to
-transform the previous schema into the current one. Note that these
-statements may contain DROP TABLE or DROP COLUMN statements that can
-potentially destroy data.
-
-The file names are created using the C<ddl_filename> method below, please
-override this method in your schema if you would like a different file
-name format. For the ALTER file, the same format is used, replacing
-$version in the name with "$preversion-$version".
-
-See L<DBIx::Class::Schema/deploy> for details of $sqlt_args.
-
-If no arguments are passed, then the following default values are used:
-
-=over 4
-
-=item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
-
-=item version    - $schema->schema_version
-
-=item directory  - './'
-
-=item preversion - <none>
-
-=back
-
-Note that this feature is currently EXPERIMENTAL and may not work correctly
-across all databases, or fully handle complex relationships.
-
-WARNING: Please check all SQL files created, before applying them.
+database types, in the given directory.
 
 =cut
 
@@ -1122,6 +1124,19 @@ name format is: C<$dir$schema-$version-$type.sql>.
 
 You may override this method in your schema if you wish to use a different
 format.
+
+ WARNING
+
+ Prior to DBIx::Class version 0.08100 this method had a different signature:
+
+    my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
+
+ In recent versions variables $dir and $version were reversed in order to
+ bring the signature in line with other Schema/Storage methods. If you 
+ really need to maintain backward compatibility, you can do the following
+ in any overriding methods:
+
+    ($dir, $version) = ($version, $dir) if ($DBIx::Class::VERSION < 0.08100);
 
 =cut
 

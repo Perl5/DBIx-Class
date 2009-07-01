@@ -8,16 +8,7 @@ use Data::Dumper;
 
 my $schema = DBICTest->init_schema();
 
-my $orig_debug = $schema->storage->debug;
-
-use IO::File;
-
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 3 );
-}
+plan tests => 3;
 
 # bug in 0.07000 caused attr (join/prefetch) to be modifed by search
 # so we check the search & attr arrays are not modified

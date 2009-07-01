@@ -8,7 +8,7 @@ use base qw/DBIx::Class::Storage::DBI::NoBindVars/;
 sub _rebless {
     my $self = shift;
 
-    my $dbtype = eval { @{$self->_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2] };
+    my $dbtype = eval { @{$self->dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2] };
     unless ( $@ ) {
         $dbtype =~ s/\W/_/gi;
         my $subclass = "DBIx::Class::Storage::DBI::Sybase::${dbtype}";
@@ -17,6 +17,11 @@ sub _rebless {
             $self->_rebless;
         }
     }
+}
+
+sub _dbh_last_insert_id {
+    my ($self, $dbh, $source, $col) = @_;
+    return ($dbh->selectrow_array('select @@identity'))[0];
 }
 
 1;

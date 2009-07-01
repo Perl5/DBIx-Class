@@ -14,7 +14,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 11;
+plan tests => 19;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -35,6 +35,14 @@ $dbh->do("CREATE TABLE producer (producerid INTEGER NOT NULL AUTO_INCREMENT PRIM
 $dbh->do("DROP TABLE IF EXISTS cd_to_producer;");
 
 $dbh->do("CREATE TABLE cd_to_producer (cd INTEGER,producer INTEGER);");
+
+$dbh->do("DROP TABLE IF EXISTS owners;");
+
+$dbh->do("CREATE TABLE owners (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100) NOT NULL);");
+
+$dbh->do("DROP TABLE IF EXISTS books;");
+
+$dbh->do("CREATE TABLE books (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, source VARCHAR(100) NOT NULL, owner integer NOT NULL, title varchar(100) NOT NULL,  price integer);");
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
@@ -86,6 +94,49 @@ my $test_type_info = {
         'default_value' => undef,
     },
 };
+
+$schema->populate ('Owners', [
+  [qw/id  name  /],
+  [qw/1   wiggle/],
+  [qw/2   woggle/],
+  [qw/3   boggle/],
+]);
+
+$schema->populate ('BooksInLibrary', [
+  [qw/source  owner title   /],
+  [qw/Library 1     secrets1/],
+  [qw/Eatery  1     secrets2/],
+  [qw/Library 2     secrets3/],
+]);
+
+#
+# try a distinct + prefetch on tables with identically named columns 
+# (mysql doesn't seem to like subqueries with equally named columns)
+#
+
+{
+  # try a ->has_many direction (due to a 'multi' accessor the select/group_by group is collapsed)
+  my $owners = $schema->resultset ('Owners')->search (
+    { 'books.id' => { '!=', undef }},
+    { prefetch => 'books', distinct => 1 }
+  );
+  my $owners2 = $schema->resultset ('Owners')->search ({ id => { -in => $owners->get_column ('me.id')->as_query }});
+  for ($owners, $owners2) {
+    is ($_->all, 2, 'Prefetched grouped search returns correct number of rows');
+    is ($_->count, 2, 'Prefetched grouped search returns correct count');
+  }
+
+  # try a ->belongs_to direction (no select collapse)
+  my $books = $schema->resultset ('BooksInLibrary')->search (
+    { 'owner.name' => 'wiggle' },
+    { prefetch => 'owner', distinct => 1 }
+  );
+  my $books2 = $schema->resultset ('BooksInLibrary')->search ({ id => { -in => $books->get_column ('me.id')->as_query }});
+  for ($books, $books2) {
+    is ($_->all, 1, 'Prefetched grouped search returns correct number of rows');
+    is ($_->count, 1, 'Prefetched grouped search returns correct count');
+  }
+}
 
 SKIP: {
     my $mysql_version = $dbh->get_info( $GetInfoType{SQL_DBMS_VER} );

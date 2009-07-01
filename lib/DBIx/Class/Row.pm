@@ -647,6 +647,8 @@ sub has_column_loaded {
 Returns all loaded column data as a hash, containing raw values. To
 get just one value for a particular column, use L</get_column>.
 
+See L</get_inflated_columns> to get the inflated values.
+
 =cut
 
 sub get_columns {
@@ -708,7 +710,21 @@ sub make_column_dirty {
 
   $self->throw_exception( "No such column '${column}'" )
     unless exists $self->{_column_data}{$column} || $self->has_column($column);
+
+  # the entire clean/dirty code relieas on exists, not on true/false
+  return 1 if exists $self->{_dirty_columns}{$column};
+
   $self->{_dirty_columns}{$column} = 1;
+
+  # if we are just now making the column dirty, and if there is an inflated
+  # value, force it over the deflated one
+  if (exists $self->{_inflated_column}{$column}) {
+    $self->store_column($column,
+      $self->_deflated_column(
+        $column, $self->{_inflated_column}{$column}
+      )
+    );
+  }
 }
 
 =head2 get_inflated_columns
@@ -769,8 +785,39 @@ sub set_column {
   my $old_value = $self->get_column($column);
 
   $self->store_column($column, $new_value);
-  $self->{_dirty_columns}{$column} = 1
-    if (defined $old_value xor defined $new_value) || (defined $old_value && $old_value ne $new_value);
+
+  my $dirty;
+  if (defined $old_value xor defined $new_value) {
+    $dirty = 1;
+  }
+  elsif (not defined $old_value) {  # both undef
+    $dirty = 0;
+  }
+  elsif ($old_value eq $new_value) {
+    $dirty = 0;
+  }
+  else {  # do a numeric comparison if datatype allows it
+    my $colinfo = $self->column_info ($column);
+
+    # cache for speed (the object may *not* have a resultsource instance)
+    if (not defined $colinfo->{is_numeric} && $self->_source_handle) {
+      $colinfo->{is_numeric} =
+        $self->result_source->schema->storage->is_datatype_numeric ($colinfo->{data_type})
+          ? 1
+          : 0
+        ;
+    }
+
+    if ($colinfo->{is_numeric}) {
+      $dirty = $old_value != $new_value;
+    }
+    else {
+      $dirty = 1;
+    }
+  }
+
+  # sadly the update code just checks for keys, not for their value
+  $self->{_dirty_columns}{$column} = 1 if $dirty;
 
   # XXX clear out the relation cache for this column
   delete $self->{related_resultsets}{$column};
@@ -878,7 +925,11 @@ sub set_inflated_columns {
 
 Inserts a new row into the database, as a copy of the original
 object. If a hashref of replacement data is supplied, these will take
-precedence over data in the original.
+precedence over data in the original. Also any columns which have
+the L<column info attribute|DBIx::Class::ResultSource/add_columns>
+C<< is_auto_increment => 1 >> are explicitly removed before the copy,
+so that the database can insert its own autoincremented values into
+the new object.
 
 Relationships will be followed by the copy procedure B<only> if the
 relationship specifes a true value for its
@@ -1036,7 +1087,7 @@ sub inflate_result {
       } elsif ($accessor eq 'filter') {
         $new->{_inflated_column}{$pre} = $fetched;
       } else {
-       $class->throw_exception("Prefetch not supported with accessor '$accessor'");
+       $class->throw_exception("Implicit prefetch (via select/columns) not supported with accessor '$accessor'");
       }
       $new->related_resultset($pre)->set_cache([ $fetched ]);
     }

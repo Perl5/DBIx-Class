@@ -12,6 +12,7 @@ __PACKAGE__->add_columns(
   't_artist' => { data_type => 'integer' },
   't_cd' => { data_type => 'integer' },
   'autopilot' => { data_type => 'character' },
+  'pilot_sequence' => { data_type => 'integer', is_nullable => 1 },
 );
 __PACKAGE__->set_primary_key(
   qw/f_foo f_bar f_hello f_goodbye t_artist t_cd/

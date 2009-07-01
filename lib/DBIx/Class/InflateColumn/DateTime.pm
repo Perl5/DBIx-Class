@@ -107,19 +107,23 @@ sub register_column {
 
   unless ($type) {
     $type = lc($info->{data_type});
+    if ($type eq "timestamp with time zone" || $type eq "timestamptz") {
+      $type = "timestamp";
+      $info->{_ic_dt_method} ||= "timestamp_with_timezone";
+    }
   }
 
   my $timezone;
   if ( defined $info->{extra}{timezone} ) {
     carp "Putting timezone into extra => { timezone => '...' } has been deprecated, ".
-         "please put it directly into the columns definition.";
+         "please put it directly into the '$column' column definition.";
     $timezone = $info->{extra}{timezone};
   }
 
   my $locale;
   if ( defined $info->{extra}{locale} ) {
     carp "Putting locale into extra => { locale => '...' } has been deprecated, ".
-         "please put it directly into the columns definition.";
+         "please put it directly into the '$column' column definition.";
     $locale = $info->{extra}{locale};
   }
   
@@ -135,7 +139,7 @@ sub register_column {
 
     if (defined $info->{extra}{floating_tz_ok}) {
       carp "Putting floating_tz_ok into extra => { floating_tz_ok => 1 } has been deprecated, ".
-           "please put it directly into the columns definition.";
+           "please put it directly into the '$column' column definition.";
       $info{floating_tz_ok} = $info->{extra}{floating_tz_ok};
     }
 
@@ -144,9 +148,13 @@ sub register_column {
         {
           inflate => sub {
             my ($value, $obj) = @_;
+
             my $dt = eval { $obj->_inflate_to_datetime( $value, \%info ) };
-            $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $@")
-              if $@ and not $undef_if_invalid;
+            if (my $err = $@ ) {
+              return undef if ($undef_if_invalid);
+              $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $err");
+            }
+
             $dt->set_time_zone($timezone) if $timezone;
             $dt->set_locale($locale) if $locale;
             return $dt;
@@ -203,7 +211,7 @@ __END__
 
 =head1 USAGE NOTES
 
-If you have a datetime column with the C<timezone> extra setting, and subsenquently 
+If you have a datetime column with an associated C<timezone>, and subsequently
 create/update this column with a DateTime object in the L<DateTime::TimeZone::Floating>
 timezone, you will get a warning (as there is a very good chance this will not have the
 result you expect). For example:

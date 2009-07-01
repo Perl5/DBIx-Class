@@ -272,14 +272,14 @@ sub last_sibling {
     return defined $lsib ? $lsib : 0;
 }
 
-# an optimised method to get the last sibling position without inflating a row object
-sub _last_sibling_pos {
+# an optimized method to get the last sibling position value without inflating a row object
+sub _last_sibling_posval {
     my $self = shift;
     my $position_column = $self->position_column;
 
     my $cursor = $self->next_siblings->search(
         {},
-        { rows => 1, order_by => { '-desc' => $position_column }, columns => $position_column },
+        { rows => 1, order_by => { '-desc' => $position_column }, select => $position_column },
     )->cursor;
 
     my ($pos) = $cursor->next;
@@ -313,7 +313,7 @@ the last in the list.
 
 sub move_next {
     my $self = shift;
-    return 0 unless $self->next_siblings->count;
+    return 0 unless defined $self->_last_sibling_posval;  # quick way to check for no more siblings
     return $self->move_to ($self->_position + 1);
 }
 
@@ -341,7 +341,11 @@ on success, and 0 if the object is already the last one.
 
 sub move_last {
     my $self = shift;
-    return $self->move_to( $self->_group_rs->count );
+    my $last_posval = $self->_last_sibling_posval;
+
+    return 0 unless defined $last_posval;
+
+    return $self->move_to( $self->_position_from_value ($last_posval) );
 }
 
 =head2 move_to
@@ -436,18 +440,21 @@ sub move_to_group {
         $self->move_last;
 
         $self->set_inflated_columns({ %$to_group, $position_column => undef });
-        my $new_group_count = $self->_group_rs->count;
+        my $new_group_last_posval = $self->_last_sibling_posval;
+        my $new_group_last_position = $self->_position_from_value (
+          $new_group_last_posval
+        );
 
-        if ( not defined($to_position) or $to_position > $new_group_count) {
+        if ( not defined($to_position) or $to_position > $new_group_last_position) {
             $self->set_column(
-                $position_column => $new_group_count
-                    ? $self->_next_position_value ( $self->_last_sibling_pos )
+                $position_column => $new_group_last_position
+                    ? $self->_next_position_value ( $new_group_last_posval )
                     : $self->_initial_position_value
             );
         }
         else {
             my $bumped_pos_val = $self->_position_value ($to_position);
-            my @between = ($to_position, $new_group_count);
+            my @between = ($to_position, $new_group_last_position);
             $self->_shift_siblings (1, @between);   #shift right
             $self->set_column( $position_column => $bumped_pos_val );
         }
@@ -473,10 +480,10 @@ sub insert {
     my $position_column = $self->position_column;
 
     unless ($self->get_column($position_column)) {
-        my $lsib_pos = $self->_last_sibling_pos;
+        my $lsib_posval = $self->_last_sibling_posval;
         $self->set_column(
-            $position_column => (defined $lsib_pos
-                ? $self->_next_position_value ( $lsib_pos )
+            $position_column => (defined $lsib_posval
+                ? $self->_next_position_value ( $lsib_posval )
                 : $self->_initial_position_value
             )
         );
@@ -614,6 +621,27 @@ sub _position {
 #    return $self->previous_siblings->count + 1;
 
     return $self->get_column ($self->position_column);
+}
+
+=head2 _position_from_value
+
+  my $num_pos = $item->_position_of_value ( $pos_value )
+
+Returns the B<absolute numeric position> of an object with a B<position
+value> set to C<$pos_value>. By default simply returns C<$pos_value>.
+
+=cut
+sub _position_from_value {
+    my ($self, $val) = @_;
+
+    return 0 unless defined $val;
+
+#    #the right way to do this
+#    return $self -> _group_rs
+#                 -> search({ $self->position_column => { '<=', $val } })
+#                 -> count
+
+    return $val;
 }
 
 =head2 _position_value

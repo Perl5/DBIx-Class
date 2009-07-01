@@ -324,6 +324,8 @@ C<pool_type>, C<pool_args>, C<balancer_type> and C<balancer_args>.
 around connect_info => sub {
   my ($next, $self, $info, @extra) = @_;
 
+  my $wantarray = wantarray;
+
   my %opts;
   for my $arg (@$info) {
     next unless (reftype($arg)||'') eq 'HASH';
@@ -357,7 +359,20 @@ around connect_info => sub {
 
   $self->_master_connect_info_opts(\%opts);
 
-  $self->$next($info, @extra);
+  my (@res, $res);
+  if ($wantarray) {
+    @res = $self->$next($info, @extra);
+  } else {
+    $res = $self->$next($info, @extra);
+  }
+
+  # Make sure master is blessed into the correct class and apply role to it.
+  my $master = $self->master;
+  $master->_determine_driver;
+  Moose::Meta::Class->initialize(ref $master);
+  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
+
+  $wantarray ? @res : $res;
 };
 
 =head1 METHODS
@@ -391,7 +406,6 @@ Lazy builder for the L</master> attribute.
 sub _build_master {
   my $self = shift @_;
   my $master = DBIx::Class::Storage::DBI->new($self->schema);
-  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
   $master
 }
 

@@ -39,27 +39,47 @@ sub new {
 
   $rs->throw_exception("column must be supplied") unless $column;
 
-  my $new_parent_rs = $rs->search_rs; # we don't want to mess up the original, so clone it
+  my $orig_attrs = $rs->_resolved_attrs;
+  my $new_parent_rs = $rs->search_rs;
 
   # prefetch causes additional columns to be fetched, but we can not just make a new
   # rs via the _resolved_attrs trick - we need to retain the separation between
-  # +select/+as and select/as
-  for my $attr (qw/prefetch collapse/) {
-    for (qw/attrs _attrs/) {
-      delete $new_parent_rs->{$_}{$attr} if ref $new_parent_rs->{$_};
-    }
-  }
+  # +select/+as and select/as. At the same time we want to preserve any joins that the
+  # prefetch would otherwise generate.
+
+  my $new_attrs = $new_parent_rs->{attrs} ||= {};
+  $new_attrs->{join} = $rs->_merge_attr( delete $new_attrs->{join}, delete $new_attrs->{prefetch} );
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
   # definition set up with 'select' or '+select' attrs), otherwise use $column
   # (to create a new column definition on-the-fly).
-  my $attrs = $new_parent_rs->_resolved_attrs;
 
-  my $as_list = $attrs->{as} || [];
-  my $select_list = $attrs->{select} || [];
+  my $as_list = $orig_attrs->{as} || [];
+  my $select_list = $orig_attrs->{select} || [];
   my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
+
+  # {collapse} would mean a has_many join was injected, which in turn means
+  # we need to group IF WE CAN (only if the column in question is unique)
+  if (!$new_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
+
+    # scan for a constraint that would contain our column only - that'd be proof
+    # enough it is unique
+    my $constraints = { $rs->result_source->unique_constraints };
+    for my $constraint_columns ( values %$constraints ) {
+
+      next unless @$constraint_columns == 1;
+
+      my $col = $constraint_columns->[0];
+      my $fqcol = join ('.', $new_attrs->{alias}, $col);
+
+      if ($col eq $select or $fqcol eq $select) {
+        $new_attrs->{group_by} = [ $select ];
+        last;
+      }
+    }
+  }
 
   my $new = bless { _select => $select, _as => $column, _parent_resultset => $new_parent_rs }, $class;
   return $new;

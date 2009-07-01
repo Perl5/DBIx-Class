@@ -85,12 +85,12 @@ EOW
       my $obj;
       if (ref $_[0]) {
         if (ref $_[0] eq 'HASH') {
-          $obj = $f_rel_rs->create($_[0]);
+          $obj = $f_rel_rs->find_or_create($_[0]);
         } else {
           $obj = $_[0];
         }
       } else {
-        $obj = $f_rel_rs->create({@_});
+        $obj = $f_rel_rs->find_or_create({@_});
       }
 
       my $link_vals = @_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {};
@@ -107,7 +107,14 @@ EOW
         "{$set_meth} needs a list of objects or hashrefs"
       );
       my @to_set = (ref($_[0]) eq 'ARRAY' ? @{ $_[0] } : @_);
-      $self->search_related($rel, {})->delete;
+      # if there is a where clause in the attributes, ensure we only delete
+      # rows that are within the where restriction
+      if ($rel_attrs && $rel_attrs->{where}) {
+        $self->search_related( $rel, $rel_attrs->{where},{join => $f_rel})->delete;
+      } else {
+        $self->search_related( $rel, {} )->delete;
+      }
+      # add in the set rel objects
       $self->$add_meth($_, ref($_[1]) ? $_[1] : {}) for (@to_set);
     };
 

@@ -7,20 +7,21 @@ use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class/;
 use DBI;
-use DBIx::Class::SQLAHacks;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
-use Scalar::Util qw/blessed weaken/;
+use Scalar::Util();
+use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
-       _conn_pid _conn_tid transaction_depth _dbh_autocommit savepoints/
+  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
+     _conn_pid _conn_tid transaction_depth _dbh_autocommit savepoints/
 );
 
 # the values for these accessors are picked out (and deleted) from
 # the attribute hashref passed to connect_info
 my @storage_options = qw/
-  on_connect_do on_disconnect_do disable_sth_caching unsafe auto_savepoint
+  on_connect_call on_disconnect_call on_connect_do on_disconnect_do
+  disable_sth_caching unsafe auto_savepoint
 /;
 __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 
@@ -173,6 +174,91 @@ array reference, its return value is ignored.
 
 Takes arguments in the same form as L</on_connect_do> and executes them
 immediately before disconnecting from the database.
+
+Note, this only runs if you explicitly call L</disconnect> on the
+storage object.
+
+=item on_connect_call
+
+A more generalized form of L</on_connect_do> that calls the specified
+C<connect_call_METHOD> methods in your storage driver.
+
+  on_connect_do => 'select 1'
+
+is equivalent to:
+
+  on_connect_call => [ [ do_sql => 'select 1' ] ]
+
+Its values may contain:
+
+=over
+
+=item a scalar
+
+Will call the C<connect_call_METHOD> method.
+
+=item a code reference
+
+Will execute C<< $code->($storage) >>
+
+=item an array reference
+
+Each value can be a method name or code reference.
+
+=item an array of arrays
+
+For each array, the first item is taken to be the C<connect_call_> method name
+or code reference, and the rest are parameters to it.
+
+=back
+
+Some predefined storage methods you may use:
+
+=over
+
+=item do_sql
+
+Executes a SQL string or a code reference that returns a SQL string. This is
+what L</on_connect_do> and L</on_disconnect_do> use.
+
+It can take:
+
+=over
+
+=item a scalar
+
+Will execute the scalar as SQL.
+
+=item an arrayref
+
+Taken to be arguments to L<DBI/do>, the SQL string optionally followed by the
+attributes hashref and bind values.
+
+=item a code reference
+
+Will execute C<< $code->($storage) >> and execute the return array refs as
+above.
+
+=back
+
+=item datetime_setup
+
+Execute any statements necessary to initialize the database session to return
+and accept datetime/timestamp values used with
+L<DBIx::Class::InflateColumn::DateTime>.
+
+Only necessary for some databases, see your specific storage driver for
+implementation details.
+
+=back
+
+=item on_disconnect_call
+
+Takes arguments in the same form as L</on_connect_call> and executes them
+immediately before disconnecting from the database.
+
+Calls the C<disconnect_call_METHOD> methods as opposed to the
+C<connect_call_METHOD> methods called by L</on_connect_call>.
 
 Note, this only runs if you explicitly call L</disconnect> on the
 storage object.
@@ -359,6 +445,34 @@ sub connect_info {
 
 This method is deprecated in favour of setting via L</connect_info>.
 
+=cut
+
+=head2 on_disconnect_do
+
+This method is deprecated in favour of setting via L</connect_info>.
+
+=cut
+
+sub _parse_connect_do {
+  my ($self, $type) = @_;
+
+  my $val = $self->$type;
+  return () if not defined $val;
+
+  my @res;
+
+  if (not ref($val)) {
+    push @res, [ 'do_sql', $val ];
+  } elsif (ref($val) eq 'CODE') {
+    push @res, $val;
+  } elsif (ref($val) eq 'ARRAY') {
+    push @res, map { [ 'do_sql', $_ ] } @$val;
+  } else {
+    $self->throw_exception("Invalid type for $type: ".ref($val));
+  }
+
+  return \@res;
+}
 
 =head2 dbh_do
 
@@ -506,8 +620,12 @@ sub disconnect {
   my ($self) = @_;
 
   if( $self->connected ) {
-    my $connection_do = $self->on_disconnect_do;
-    $self->_do_connection_actions($connection_do) if ref($connection_do);
+    my @actions;
+
+    push @actions, ( $self->on_disconnect_call || () );
+    push @actions, $self->_parse_connect_do ('on_disconnect_do');
+
+    $self->_do_connection_actions(disconnect_call_ => $_) for @actions;
 
     $self->_dbh->rollback unless $self->_dbh_autocommit;
     $self->_dbh->disconnect;
@@ -594,7 +712,7 @@ sub dbh {
 
 sub _sql_maker_args {
     my ($self) = @_;
-    
+
     return ( bindtype=>'columns', array_datatypes => 1, limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
 }
 
@@ -602,6 +720,7 @@ sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
     my $sql_maker_class = $self->sql_maker_class;
+    $self->ensure_class_loaded ($sql_maker_class);
     $self->_sql_maker($sql_maker_class->new( $self->_sql_maker_args ));
   }
   return $self->_sql_maker;
@@ -614,44 +733,79 @@ sub _populate_dbh {
   my @info = @{$self->_dbi_connect_info || []};
   $self->_dbh($self->_connect(@info));
 
+  $self->_conn_pid($$);
+  $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
+
+  $self->_determine_driver;
+
   # Always set the transaction depth on connect, since
   #  there is no transaction in progress by definition
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
 
-  if(ref $self eq 'DBIx::Class::Storage::DBI') {
-    my $driver = $self->_dbh->{Driver}->{Name};
+  my @actions;
+
+  push @actions, ( $self->on_connect_call || () );
+  push @actions, $self->_parse_connect_do ('on_connect_do');
+
+  $self->_do_connection_actions(connect_call_ => $_) for @actions;
+}
+
+sub _determine_driver {
+  my ($self) = @_;
+
+  if (ref $self eq 'DBIx::Class::Storage::DBI') {
+    my $driver;
+
+    if ($self->_dbh) { # we are connected
+      $driver = $self->_dbh->{Driver}{Name};
+    } else {
+      # try to use dsn to not require being connected, the driver may still
+      # force a connection in _rebless to determine version
+      ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+    }
+
     if ($self->load_optional_class("DBIx::Class::Storage::DBI::${driver}")) {
       bless $self, "DBIx::Class::Storage::DBI::${driver}";
       $self->_rebless();
     }
   }
-
-  $self->_conn_pid($$);
-  $self->_conn_tid(threads->tid) if $INC{'threads.pm'};
-
-  my $connection_do = $self->on_connect_do;
-  $self->_do_connection_actions($connection_do) if $connection_do;
 }
 
 sub _do_connection_actions {
-  my $self = shift;
-  my $connection_do = shift;
+  my $self          = shift;
+  my $method_prefix = shift;
+  my $call          = shift;
 
-  if (!ref $connection_do) {
-    $self->_do_query($connection_do);
-  }
-  elsif (ref $connection_do eq 'ARRAY') {
-    $self->_do_query($_) foreach @$connection_do;
-  }
-  elsif (ref $connection_do eq 'CODE') {
-    $connection_do->($self);
-  }
-  else {
-    $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref $connection_do) );
+  if (not ref($call)) {
+    my $method = $method_prefix . $call;
+    $self->$method(@_);
+  } elsif (ref($call) eq 'CODE') {
+    $self->$call(@_);
+  } elsif (ref($call) eq 'ARRAY') {
+    if (ref($call->[0]) ne 'ARRAY') {
+      $self->_do_connection_actions($method_prefix, $_) for @$call;
+    } else {
+      $self->_do_connection_actions($method_prefix, @$_) for @$call;
+    }
+  } else {
+    $self->throw_exception (sprintf ("Don't know how to process conection actions of type '%s'", ref($call)) );
   }
 
   return $self;
 }
+
+sub connect_call_do_sql {
+  my $self = shift;
+  $self->_do_query(@_);
+}
+
+sub disconnect_call_do_sql {
+  my $self = shift;
+  $self->_do_query(@_);
+}
+
+# override in db-specific backend when necessary
+sub connect_call_datetime_setup { 1 }
 
 sub _do_query {
   my ($self, $action) = @_;
@@ -701,7 +855,7 @@ sub _connect {
 
     if($dbh && !$self->unsafe) {
       my $weak_self = $self;
-      weaken($weak_self);
+      Scalar::Util::weaken($weak_self);
       $dbh->{HandleError} = sub {
           if ($weak_self) {
             $weak_self->throw_exception("DBI Exception: $_[0]");
@@ -882,7 +1036,7 @@ sub txn_rollback {
 sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, $args) = @_;
 
-  if( blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+  if( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
     $ident = $ident->from();
   }
 
@@ -893,6 +1047,7 @@ sub _prep_for_execute {
       if $extra_bind;
   return ($sql, \@bind);
 }
+
 
 sub _fix_bind_params {
     my ($self, @bind) = @_;
@@ -915,7 +1070,7 @@ sub _query_start {
 
     if ( $self->debug ) {
         @bind = $self->_fix_bind_params(@bind);
-        
+
         $self->debugobj->query_start( $sql, @bind );
     }
 }
@@ -974,8 +1129,8 @@ sub _execute {
 
 sub insert {
   my ($self, $source, $to_insert) = @_;
-  
-  my $ident = $source->from; 
+
+  my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
 
   my $updated_cols = {};
@@ -1036,7 +1191,27 @@ sub insert_bulk {
     $sth->bind_param_array( $placeholder_index, [@data], $attributes );
     $placeholder_index++;
   }
-  my $rv = $sth->execute_array({ArrayTupleStatus => $tuple_status});
+  my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
+  if (my $err = $@) {
+    my $i = 0;
+    ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
+
+    $self->throw_exception($sth->errstr || "Unexpected populate error: $err")
+      if ($i > $#$tuple_status);
+
+    require Data::Dumper;
+    local $Data::Dumper::Terse = 1;
+    local $Data::Dumper::Indent = 1;
+    local $Data::Dumper::Useqq = 1;
+    local $Data::Dumper::Quotekeys = 0;
+
+    $self->throw_exception(sprintf "%s for populate slice:\n%s",
+      $tuple_status->[$i][1],
+      Data::Dumper::Dumper(
+        { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) }
+      ),
+    );
+  }
   $self->throw_exception($sth->errstr) if !$rv;
 
   $self->_query_end( $sql, @bind );
@@ -1056,7 +1231,7 @@ sub delete {
   my $self = shift @_;
   my $source = shift @_;
   
-  my $bind_attrs = {}; ## If ever it's needed...
+  my $bind_attrs = $self->source_bind_attributes($source);
   
   return $self->_execute('delete' => [], $source, $bind_attrs, @_);
 }
@@ -1067,65 +1242,68 @@ sub delete {
 #
 # Genarating a single PK column subquery is trivial and supported
 # by all RDBMS. However if we have a multicolumn PK, things get ugly.
-# Look at multipk_update_delete()
-sub subq_update_delete {
+# Look at _multipk_update_delete()
+sub _subq_update_delete {
   my $self = shift;
   my ($rs, $op, $values) = @_;
 
-  if ($rs->result_source->primary_columns == 1) {
-    return $self->_onepk_update_delete (@_);
+  my $rsrc = $rs->result_source;
+
+  # we already check this, but double check naively just in case. Should be removed soon
+  my $sel = $rs->_resolved_attrs->{select};
+  $sel = [ $sel ] unless ref $sel eq 'ARRAY';
+  my @pcols = $rsrc->primary_columns;
+  if (@$sel != @pcols) {
+    $self->throw_exception (
+      'Subquery update/delete can not be called on resultsets selecting a'
+     .' number of columns different than the number of primary keys'
+    );
   }
+
+  if (@pcols == 1) {
+    return $self->$op (
+      $rsrc,
+      $op eq 'update' ? $values : (),
+      { $pcols[0] => { -in => $rs->as_query } },
+    );
+  }
+
   else {
     return $self->_multipk_update_delete (@_);
   }
 }
 
-# Generally a single PK resultset operation is trivially expressed
-# with PK IN (subquery). However some databases (mysql) do not support
-# modification of a table mentioned in the subselect. This method
-# should be overriden in the appropriate storage class to be smarter
-# in such situations
-sub _onepk_update_delete {
-
-  my $self = shift;
-  my ($rs, $op, $values) = @_;
-
-  my $rsrc = $rs->result_source;
-  my $attrs = $rs->_resolved_attrs;
-  my @pcols = $rsrc->primary_columns;
-
-  $self->throw_exception ('_onepk_update_delete can not be called on resultsets selecting multiple columns')
-    if (ref $attrs->{select} eq 'ARRAY' and @{$attrs->{select}} > 1);
-
-  return $self->$op (
-    $rsrc,
-    $op eq 'update' ? $values : (),
-    { $pcols[0] => { -in => $rs->as_query } },
-  );
+# ANSI SQL does not provide a reliable way to perform a multicol-PK
+# resultset update/delete involving subqueries. So by default resort
+# to simple (and inefficient) delete_all style per-row opearations,
+# while allowing specific storages to override this with a faster
+# implementation.
+#
+sub _multipk_update_delete {
+  return shift->_per_row_update_delete (@_);
 }
 
-# ANSI SQL does not provide a reliable way to perform a multicol-PK
-# resultset update/delete involving subqueries. So resort to simple
-# (and inefficient) delete_all style per-row opearations, while allowing
-# specific storages to override this with a faster implementation.
+# This is the default loop used to delete/update rows for multi PK
+# resultsets, and used by mysql exclusively (because it can't do anything
+# else).
 #
 # We do not use $row->$op style queries, because resultset update/delete
 # is not expected to cascade (this is what delete_all/update_all is for).
 #
 # There should be no race conditions as the entire operation is rolled
 # in a transaction.
-sub _multipk_update_delete {
+#
+sub _per_row_update_delete {
   my $self = shift;
   my ($rs, $op, $values) = @_;
 
   my $rsrc = $rs->result_source;
   my @pcols = $rsrc->primary_columns;
-  my $attrs = $rs->_resolved_attrs;
-
-  $self->throw_exception ('Number of columns selected by supplied resultset does not match number of primary keys')
-    if ( ref $attrs->{select} ne 'ARRAY' or @{$attrs->{select}} != @pcols );
 
   my $guard = $self->txn_scope_guard;
+
+  # emulate the return value of $sth->execute for non-selects
+  my $row_cnt = '0E0';
 
   my $subrs_cur = $rs->cursor;
   while (my @pks = $subrs_cur->next) {
@@ -1140,58 +1318,345 @@ sub _multipk_update_delete {
       $op eq 'update' ? $values : (),
       $cond,
     );
+
+    $row_cnt++;
   }
 
   $guard->commit;
 
-  return 1;
+  return $row_cnt;
 }
-
 
 sub _select {
   my $self = shift;
+
+  # localization is neccessary as
+  # 1) there is no infrastructure to pass this around (easy to do, but will wait)
+  # 2) _select_args sets it and _prep_for_execute consumes it
   my $sql_maker = $self->sql_maker;
   local $sql_maker->{for};
+
   return $self->_execute($self->_select_args(@_));
 }
 
-sub _select_args {
-  my ($self, $ident, $select, $condition, $attrs) = @_;
-  my $order = $attrs->{order_by};
+sub _select_args_to_query {
+  my $self = shift;
 
-  my $for = delete $attrs->{for};
+  # localization is neccessary as
+  # 1) there is no infrastructure to pass this around (easy to do, but will wait)
+  # 2) _select_args sets it and _prep_for_execute consumes it
   my $sql_maker = $self->sql_maker;
-  $sql_maker->{for} = $for;
+  local $sql_maker->{for};
 
-  if (exists $attrs->{group_by} || $attrs->{having}) {
-    $order = {
-      group_by => $attrs->{group_by},
-      having => $attrs->{having},
-      ($order ? (order_by => $order) : ())
-    };
+  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset)
+  #  = $self->_select_args($ident, $select, $cond, $attrs);
+  my ($op, $bind, $ident, $bind_attrs, @args) =
+    $self->_select_args(@_);
+
+  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
+  my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, \@args);
+  $prepared_bind ||= [];
+
+  return wantarray
+    ? ($sql, $prepared_bind, $bind_attrs)
+    : \[ "($sql)", @$prepared_bind ]
+  ;
+}
+
+sub _select_args {
+  my ($self, $ident, $select, $where, $attrs) = @_;
+
+  my $sql_maker = $self->sql_maker;
+  my $alias2source = $self->_resolve_ident_sources ($ident);
+
+  # calculate bind_attrs before possible $ident mangling
+  my $bind_attrs = {};
+  for my $alias (keys %$alias2source) {
+    my $bindtypes = $self->source_bind_attributes ($alias2source->{$alias}) || {};
+    for my $col (keys %$bindtypes) {
+
+      my $fqcn = join ('.', $alias, $col);
+      $bind_attrs->{$fqcn} = $bindtypes->{$col} if $bindtypes->{$col};
+
+      # so that unqualified searches can be bound too
+      $bind_attrs->{$col} = $bind_attrs->{$fqcn} if $alias eq 'me';
+    }
   }
-  my $bind_attrs = {}; ## Future support
-  my @args = ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $condition, $order);
-  if ($attrs->{software_limit} ||
-      $self->sql_maker->_default_limit_syntax eq "GenericSubQ") {
-        $attrs->{software_limit} = 1;
-  } else {
+
+  # adjust limits
+  if (
+    $attrs->{software_limit}
+      ||
+    $sql_maker->_default_limit_syntax eq "GenericSubQ"
+  ) {
+    $attrs->{software_limit} = 1;
+  }
+  else {
     $self->throw_exception("rows attribute must be positive if present")
       if (defined($attrs->{rows}) && !($attrs->{rows} > 0));
 
     # MySQL actually recommends this approach.  I cringe.
     $attrs->{rows} = 2**48 if not defined $attrs->{rows} and defined $attrs->{offset};
-    push @args, $attrs->{rows}, $attrs->{offset};
   }
-  return @args;
+
+  my @limit;
+
+  # see if we need to tear the prefetch apart (either limited has_many or grouped prefetch)
+  # otherwise delegate the limiting to the storage, unless software limit was requested
+  if (
+    ( $attrs->{rows} && keys %{$attrs->{collapse}} )
+       ||
+    ( $attrs->{group_by} && @{$attrs->{group_by}} &&
+      $attrs->{prefetch_select} && @{$attrs->{prefetch_select}} )
+  ) {
+    ($ident, $select, $where, $attrs)
+      = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
+  }
+  elsif (! $attrs->{software_limit} ) {
+    push @limit, $attrs->{rows}, $attrs->{offset};
+  }
+
+###
+  # This would be the point to deflate anything found in $where
+  # (and leave $attrs->{bind} intact). Problem is - inflators historically
+  # expect a row object. And all we have is a resultsource (it is trivial
+  # to extract deflator coderefs via $alias2source above).
+  #
+  # I don't see a way forward other than changing the way deflators are
+  # invoked, and that's just bad...
+###
+
+  my $order = { map
+    { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
+    (qw/order_by group_by having _virtual_order_by/ )
+  };
+
+  $sql_maker->{for} = delete $attrs->{for};
+
+  return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $order, @limit);
 }
+
+sub _adjust_select_args_for_complex_prefetch {
+  my ($self, $from, $select, $where, $attrs) = @_;
+
+  # copies for mangling
+  $from = [ @$from ];
+  $select = [ @$select ];
+  $attrs = { %$attrs };
+
+  $self->throw_exception ('Complex prefetches are not supported on resultsets with a custom from attribute')
+    if (ref $from ne 'ARRAY');
+
+  # separate attributes
+  my $sub_attrs = { %$attrs };
+  delete $attrs->{$_} for qw/where bind rows offset group_by having/;
+  delete $sub_attrs->{$_} for qw/for collapse prefetch_select _collapse_order_by select as/;
+
+  my $alias = $attrs->{alias};
+
+  # create subquery select list - loop only over primary columns
+  my $sub_select = [];
+  for my $i (0 .. @{$attrs->{select}} - @{$attrs->{prefetch_select}} - 1) {
+    my $sel = $attrs->{select}[$i];
+
+    # alias any functions to the dbic-side 'as' label
+    # adjust the outer select accordingly
+    if (ref $sel eq 'HASH' && !$sel->{-select}) {
+      $sel = { -select => $sel, -as => $attrs->{as}[$i] };
+      $select->[$i] = join ('.', $attrs->{alias}, $attrs->{as}[$i]);
+    }
+
+    push @$sub_select, $sel;
+  }
+
+  # bring over all non-collapse-induced order_by into the inner query (if any)
+  # the outer one will have to keep them all
+  delete $sub_attrs->{order_by};
+  if (my $ord_cnt = @{$attrs->{order_by}} - @{$attrs->{_collapse_order_by}} ) {
+    $sub_attrs->{order_by} = [
+      @{$attrs->{order_by}}[ 0 .. $ord_cnt - 1]
+    ];
+  }
+
+  # mangle {from}
+  my $select_root = shift @$from;
+  my @outer_from = @$from;
+
+  my %inner_joins;
+  my %join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
+
+  # in complex search_related chains $alias may *not* be 'me'
+  # so always include it in the inner join, and also shift away
+  # from the outer stack, so that the two datasets actually do
+  # meet
+  if ($select_root->{-alias} ne $alias) {
+    $inner_joins{$alias} = 1;
+
+    while (@outer_from && $outer_from[0][0]{-alias} ne $alias) {
+      shift @outer_from;
+    }
+    if (! @outer_from) {
+      $self->throw_exception ("Unable to find '$alias' in the {from} stack, something is wrong");
+    }
+
+    shift @outer_from; # the new subquery will represent this alias, so get rid of it
+  }
+
+
+  # decide which parts of the join will remain on the inside
+  #
+  # this is not a very viable optimisation, but it was written
+  # before I realised this, so might as well remain. We can throw
+  # away _any_ branches of the join tree that are:
+  # 1) not mentioned in the condition/order
+  # 2) left-join leaves (or left-join leaf chains)
+  # Most of the join conditions will not satisfy this, but for real
+  # complex queries some might, and we might make some RDBMS happy.
+  #
+  #
+  # since we do not have introspectable SQLA, we fall back to ugly
+  # scanning of raw SQL for WHERE, and for pieces of ORDER BY
+  # in order to determine what goes into %inner_joins
+  # It may not be very efficient, but it's a reasonable stop-gap
+  {
+    # produce stuff unquoted, so it can be scanned
+    my $sql_maker = $self->sql_maker;
+    local $sql_maker->{quote_char};
+
+    my @order_by = (map
+      { ref $_ ? $_->[0] : $_ }
+      $sql_maker->_order_by_chunks ($sub_attrs->{order_by})
+    );
+
+    my $where_sql = $sql_maker->where ($where);
+
+    # sort needed joins
+    for my $alias (keys %join_info) {
+
+      # any table alias found on a column name in where or order_by
+      # gets included in %inner_joins
+      # Also any parent joins that are needed to reach this particular alias
+      for my $piece ($where_sql, @order_by ) {
+        if ($piece =~ /\b$alias\./) {
+          $inner_joins{$alias} = 1;
+        }
+      }
+    }
+  }
+
+  # scan for non-leaf/non-left joins and mark as needed
+  # also mark all ancestor joins that are needed to reach this particular alias
+  # (e.g.  join => { cds => 'tracks' } - tracks will bring cds too )
+  #
+  # traverse by the size of the -join_path i.e. reverse depth first
+  for my $alias (sort { @{$join_info{$b}{-join_path}} <=> @{$join_info{$a}{-join_path}} } (keys %join_info) ) {
+
+    my $j = $join_info{$alias};
+    $inner_joins{$alias} = 1 if (! $j->{-join_type} || ($j->{-join_type} !~ /^left$/i) );
+
+    if ($inner_joins{$alias}) {
+      $inner_joins{$_} = 1 for (@{$j->{-join_path}});
+    }
+  }
+
+  # construct the inner $from for the subquery
+  my $inner_from = [ $select_root ];
+  for my $j (@$from) {
+    push @$inner_from, $j if $inner_joins{$j->[0]{-alias}};
+  }
+
+  # if a multi-type join was needed in the subquery ("multi" is indicated by
+  # presence in {collapse}) - add a group_by to simulate the collapse in the subq
+
+  for my $alias (keys %inner_joins) {
+
+    # the dot comes from some weirdness in collapse
+    # remove after the rewrite
+    if ($attrs->{collapse}{".$alias"}) {
+      $sub_attrs->{group_by} ||= $sub_select;
+      last;
+    }
+  }
+
+  # generate the subquery
+  my $subq = $self->_select_args_to_query (
+    $inner_from,
+    $sub_select,
+    $where,
+    $sub_attrs
+  );
+
+  # put it in the new {from}
+  unshift @outer_from, { $alias => $subq };
+
+  # This is totally horrific - the $where ends up in both the inner and outer query
+  # Unfortunately not much can be done until SQLA2 introspection arrives
+  #
+  # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
+  return (\@outer_from, $select, $where, $attrs);
+}
+
+sub _resolve_ident_sources {
+  my ($self, $ident) = @_;
+
+  my $alias2source = {};
+
+  # the reason this is so contrived is that $ident may be a {from}
+  # structure, specifying multiple tables to join
+  if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+    # this is compat mode for insert/update/delete which do not deal with aliases
+    $alias2source->{me} = $ident;
+  }
+  elsif (ref $ident eq 'ARRAY') {
+
+    for (@$ident) {
+      my $tabinfo;
+      if (ref $_ eq 'HASH') {
+        $tabinfo = $_;
+      }
+      if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
+        $tabinfo = $_->[0];
+      }
+
+      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-source_handle}->resolve
+        if ($tabinfo->{-source_handle});
+    }
+  }
+
+  return $alias2source;
+}
+
+# Returns a counting SELECT for a simple count
+# query. Abstracted so that a storage could override
+# this to { count => 'firstcol' } or whatever makes
+# sense as a performance optimization
+sub _count_select {
+  #my ($self, $source, $rs_attrs) = @_;
+  return { count => '*' };
+}
+
+# Returns a SELECT which will end up in the subselect
+# There may or may not be a group_by, as the subquery
+# might have been called to accomodate a limit
+#
+# Most databases would be happy with whatever ends up
+# here, but some choke in various ways.
+#
+sub _subq_count_select {
+  my ($self, $source, $rs_attrs) = @_;
+  return $rs_attrs->{group_by} if $rs_attrs->{group_by};
+
+  my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
+  return @pcols ? \@pcols : [ 1 ];
+}
+
 
 sub source_bind_attributes {
   my ($self, $source) = @_;
-  
+
   my $bind_attributes;
   foreach my $column ($source->columns) {
-  
+
     my $data_type = $source->column_info($column)->{data_type} || '';
     $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
      if $data_type;
@@ -1373,7 +1838,28 @@ sub bind_attribute_by_data_type {
     return;
 }
 
-=head2 create_ddl_dir
+=head2 is_datatype_numeric
+
+Given a datatype from column_info, returns a boolean value indicating if
+the current RDBMS considers it a numeric value. This controls how
+L<DBIx::Class::Row/set_column> decides whether to mark the column as
+dirty - when the datatype is deemed numeric a C<< != >> comparison will
+be performed instead of the usual C<eq>.
+
+=cut
+
+sub is_datatype_numeric {
+  my ($self, $dt) = @_;
+
+  return 0 unless $dt;
+
+  return $dt =~ /^ (?:
+    numeric | int(?:eger)? | (?:tiny|small|medium|big)int | dec(?:imal)? | real | float | double (?: \s+ precision)? | (?:big)?serial
+  ) $/ix;
+}
+
+
+=head2 create_ddl_dir (EXPERIMENTAL)
 
 =over 4
 
@@ -1382,7 +1868,38 @@ sub bind_attribute_by_data_type {
 =back
 
 Creates a SQL file based on the Schema, for each of the specified
-database types, in the given directory.
+database engines in C<\@databases> in the given directory.
+(note: specify L<SQL::Translator> names, not L<DBI> driver names).
+
+Given a previous version number, this will also create a file containing
+the ALTER TABLE statements to transform the previous schema into the
+current one. Note that these statements may contain C<DROP TABLE> or
+C<DROP COLUMN> statements that can potentially destroy data.
+
+The file names are created using the C<ddl_filename> method below, please
+override this method in your schema if you would like a different file
+name format. For the ALTER file, the same format is used, replacing
+$version in the name with "$preversion-$version".
+
+See L<SQL::Translator/METHODS> for a list of values for C<\%sqlt_args>.
+The most common value for this would be C<< { add_drop_table => 1 } >>
+to have the SQL produced include a C<DROP TABLE> statement for each table
+created. For quoting purposes supply C<quote_table_names> and
+C<quote_field_names>.
+
+If no arguments are passed, then the following default values are assumed:
+
+=over 4
+
+=item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
+
+=item version    - $schema->schema_version
+
+=item directory  - './'
+
+=item preversion - <none>
+
+=back
 
 By default, C<\%sqlt_args> will have
 
@@ -1392,6 +1909,12 @@ merged with the hash passed in. To disable any of those features, pass in a
 hashref like the following
 
  { ignore_constraint_names => 0, # ... other options }
+
+
+Note that this feature is currently EXPERIMENTAL and may not work correctly 
+across all databases, or fully handle complex relationships.
+
+WARNING: Please check all SQL files created, before applying them.
 
 =cut
 
@@ -1528,8 +2051,9 @@ sub create_ddl_dir {
 =back
 
 Returns the statements used by L</deploy> and L<DBIx::Class::Schema/deploy>.
-The database driver name is given by C<$type>, though the value from
-L</sqlt_type> is used if it is not specified.
+
+The L<SQL::Translator> (not L<DBI>) database driver name can be explicitly
+provided in C<$type>, otherwise the result of L</sqlt_type> is used as default.
 
 C<$directory> is used to return statements from files in a previously created
 L</create_ddl_dir> directory and is optional. The filenames are constructed
@@ -1597,7 +2121,7 @@ sub deploy {
     }
     $self->_query_end($line);
   };
-  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { no_comments => 1, %{ $sqltargs || {} } } );
+  my @statements = $self->deployment_statements($schema, $type, undef, $dir, { %{ $sqltargs || {} }, no_comments => 1 } );
   if (@statements > 1) {
     foreach my $statement (@statements) {
       $deploy->( $statement );

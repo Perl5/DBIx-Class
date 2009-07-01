@@ -5,20 +5,13 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-use Data::Dumper;
-
-my $schema = DBICTest->init_schema();
-
-my $orig_debug = $schema->storage->debug;
-
 use IO::File;
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 16 );
-}
+plan tests => 10;
+
+my $schema = DBICTest->init_schema();
+my $sdebug = $schema->storage->debug;
+
 
 # once the following TODO is complete, remove the 2 warning tests immediately
 # after the TODO block
@@ -51,6 +44,9 @@ TODO: {
     ok(! $o_mm_warn, 'no warning on attempt to prefetch several same level has_many\'s (1 -> M + M)');
 
     is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
+    $schema->storage->debugcb (undef);
+    $schema->storage->debug ($sdebug);
+
     is($pr_tracks_count, $tracks_count, 'equal count of prefetched relations over several same level has_many\'s (1 -> M + M)');
 
     for ($pr_tracks_rs, $tracks_rs) {
@@ -86,6 +82,8 @@ TODO: {
     ok(! $m_o_mm_warn, 'no warning on attempt to prefetch several same level has_many\'s (M -> 1 -> M + M)');
 
     is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
+    $schema->storage->debugcb (undef);
+    $schema->storage->debug ($sdebug);
 
     is($pr_tags_count, $tags_count, 'equal count of prefetched relations over several same level has_many\'s (M -> 1 -> M + M)');
 
@@ -97,24 +95,21 @@ TODO: {
 }
 
 # remove this closure once the TODO above is working
-my $w;
 {
-    local $SIG{__WARN__} = sub { $w = shift };
+    my $warn_re = qr/will explode the number of row objects retrievable via/;
+
+    my (@w, @dummy);
+    local $SIG{__WARN__} = sub { $_[0] =~ $warn_re ? push @w, @_ : warn @_ };
 
     my $rs = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' }, { prefetch => [qw/tracks tags/] });
-    for (qw/all count next first/) {
-        undef $w;
-        my @stuff = $rs->search()->$_;
-        like ($w, qr/will currently disrupt both the functionality of .rs->count\(\), and the amount of objects retrievable via .rs->next\(\)/,
-            "warning on ->$_ attempt prefetching several same level has_manys (1 -> M + M)");
-    }
+    @w = ();
+    @dummy = $rs->first;
+    is (@w, 1, 'warning on attempt prefetching several same level has_manys (1 -> M + M)');
+
     my $rs2 = $schema->resultset('LinerNotes')->search ({ notes => 'Buy Whiskey!' }, { prefetch => { cd => [qw/tags tracks/] } });
-    for (qw/all count next first/) {
-        undef $w;
-        my @stuff = $rs2->search()->$_;
-        like ($w, qr/will currently disrupt both the functionality of .rs->count\(\), and the amount of objects retrievable via .rs->next\(\)/,
-            "warning on ->$_ attempt prefetching several same level has_manys (M -> 1 -> M + M)");
-    }
+    @w = ();
+    @dummy = $rs2->first;
+    is (@w, 1, 'warning on attempt prefetching several same level has_manys (M -> 1 -> M + M)');
 }
 
 __END__

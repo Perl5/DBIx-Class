@@ -17,10 +17,7 @@ DBD::Sybase
 
 =head1 SYNOPSIS
 
-This subclass supports MSSQL connected via L<DBD::Sybase>.
-
-  $schema->storage_type('::DBI::Sybase::Microsoft_SQL_Server');
-  $schema->connect_info('dbi:Sybase:....', ...);
+This subclass supports MSSQL server connections via L<DBD::Sybase>.
 
 =head1 CAVEATS
 
