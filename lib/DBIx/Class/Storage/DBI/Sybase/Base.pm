@@ -1,4 +1,5 @@
-package DBIx::Class::Storage::DBI::Sybase::Base;
+package # hide from PAUSE
+    DBIx::Class::Storage::DBI::Sybase::Base;
 
 use strict;
 use warnings;
@@ -8,24 +9,12 @@ use warnings;
 DBIx::Class::Storage::DBI::Sybase::Base - Common functionality for drivers using
 DBD::Sybase
 
-=head1 METHODS
-
-=head2 connected
-
-Returns true if we have an open (and working) database connection, false if it
-is not (yet) open (or does not work). (Executes a simple SELECT to make sure it
-works.)
-
-The reason this is needed is that L<DBD::Sybase>'s ping() does not work with an
-active statement handle, leading to masked database errors.
-
 =cut
 
-sub connected {
+sub _ping {
   my $self = shift;
 
   my $dbh = $self->_dbh or return 0;
-  $dbh->FETCH('Active') or return 0;
 
   local $dbh->{RaiseError} = 1;
   eval {

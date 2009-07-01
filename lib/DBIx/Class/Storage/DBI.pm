@@ -669,10 +669,18 @@ sub connected {
           $self->_verify_pid;
           return 0 if !$self->_dbh;
       }
-      return ($dbh->FETCH('Active') && $dbh->ping);
+      return ($dbh->FETCH('Active') && $self->_ping);
   }
 
   return 0;
+}
+
+sub _ping {
+  my $self = shift;
+
+  my $dbh = $self->_dbh or return 0;
+
+  return $dbh->ping;
 }
 
 # handle pid changes correctly
