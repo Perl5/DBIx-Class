@@ -1087,7 +1087,7 @@ sub inflate_result {
       } elsif ($accessor eq 'filter') {
         $new->{_inflated_column}{$pre} = $fetched;
       } else {
-       $class->throw_exception("Prefetch not supported with accessor '$accessor'");
+       $class->throw_exception("Implicit prefetch (via select/columns) not supported with accessor '$accessor'");
       }
       $new->related_resultset($pre)->set_cache([ $fetched ]);
     }
