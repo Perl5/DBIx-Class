@@ -24,11 +24,12 @@ active statement handle, leading to masked database errors.
 sub connected {
   my $self = shift;
 
+  my $super = eval { $self->next::method(@_) };
+
+  return $super unless $@;
+
   my $dbh = $self->_dbh;
-
   local $dbh->{RaiseError} = 1;
-
-  my $ping_sth;
 
   eval {
     my $ping_sth = $dbh->prepare_cached("select 1");

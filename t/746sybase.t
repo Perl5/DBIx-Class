@@ -16,7 +16,7 @@ my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
 
 # start disconnected to test reconnection
 $schema->storage->ensure_connected;
-$schema->storage->disconnect;
+$schema->storage->_dbh->disconnect;
 
 isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::Sybase' );
 

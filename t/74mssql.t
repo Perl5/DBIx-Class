@@ -24,7 +24,7 @@ $schema->connection($dsn, $user, $pass);
 
 # start disconnected to test reconnection
 $schema->storage->ensure_connected;
-$schema->storage->disconnect;
+$schema->storage->_dbh->disconnect;
 
 my $dbh = $schema->storage->dbh;
 
