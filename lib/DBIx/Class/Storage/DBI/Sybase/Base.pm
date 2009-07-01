@@ -24,7 +24,9 @@ active statement handle, leading to masked database errors.
 sub connected {
   my $self = shift;
 
-  my $dbh = $self->_dbh;
+  my $dbh = $self->_dbh or return 0;
+  $dbh->FETCH('Active') or return 0;
+
   local $dbh->{RaiseError} = 1;
   eval {
     $dbh->do('select 1');
