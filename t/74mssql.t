@@ -9,6 +9,7 @@ BEGIN {
 }
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -17,7 +18,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-plan tests => 6;
+plan tests => 7;
 
 my $schema = DBICTest::Schema->clone;
 $schema->connection($dsn, $user, $pass);
@@ -26,9 +27,12 @@ $schema->connection($dsn, $user, $pass);
 $schema->storage->ensure_connected;
 $schema->storage->_dbh->disconnect;
 
-my $dbh = $schema->storage->dbh;
-
 isa_ok($schema->storage, 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server');
+
+my $dbh;
+lives_ok (sub {
+  $dbh = $schema->storage->dbh;
+}, 'reconnect works');
 
 $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
     DROP TABLE artist");
