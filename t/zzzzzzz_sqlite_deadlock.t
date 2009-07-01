@@ -9,14 +9,18 @@ use File::Temp ();
 use DBICTest;
 use DBICTest::Schema;
 
-plan skip_all => 'Fails on mac os *only*. Devs notified. Do not enable.';
-
 plan tests => 2;
 my $wait_for = 10;  # how many seconds to wait
 
 for my $close (0,1) {
 
-  my $tmp = File::Temp->new( UNLINK => 1, TMPDIR => 1, SUFFIX => '.sqlite' );
+  my $tmp = File::Temp->new(
+    UNLINK => 1,
+    TMPDIR => 1,
+    SUFFIX => '.sqlite',
+    EXLOCK => 0,  # important for BSD and derivatives
+  );
+
   my $tmp_fn = $tmp->filename;
   close $tmp if $close;
 
@@ -30,7 +34,7 @@ for my $close (0,1) {
   lives_ok (sub {
     my $schema = DBICTest::Schema->connect ("DBI:SQLite:$tmp_fn");
     DBICTest->deploy_schema ($schema);
-    DBICTest->populate_schema ($schema);
+    #DBICTest->populate_schema ($schema);
   });
 
   alarm 0;
