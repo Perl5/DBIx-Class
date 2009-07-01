@@ -7,7 +7,7 @@ use lib qw(t/lib);
 
 use DBICTest;
 
-plan tests => 3;
+plan tests => 5;
 
 my $schema = DBICTest->init_schema();
 
@@ -26,6 +26,10 @@ is (
   "Count correct with requested distinct collapse of main table"
 );
 
-
-
+my $artist=$schema->resultset('Artist')->create({name => 'xxx'});
+is($artist->related_resultset('cds')->count(), 0,
+   "No CDs found for a shiny new artist");
+my $artist_rs = $schema->resultset('Artist')->search({artistid => $artist->id});
+is($artist_rs->related_resultset('cds')->count(), 0,
+   "No CDs found for a shiny new artist using a resultset search");
 
