@@ -6,7 +6,7 @@ use warnings;
 =head1 NAME
 
 DBIx::Class::Storage::DBI::Sybase::Base - Common functionality for drivers using
-L<DBD::Sybase>
+DBD::Sybase
 
 =head1 METHODS
 

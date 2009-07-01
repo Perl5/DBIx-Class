@@ -99,16 +99,13 @@ sub connected {
 
   if (not $self->next::method(@_)) {
     return 0;
-  }
-  else {
+  } else {
     my $dbh = $self->_dbh;
 
     local $dbh->{RaiseError} = 1;
 
     eval {
-      my $ping_sth = $dbh->prepare_cached("select 1 from dual");
-      $ping_sth->execute;
-      $ping_sth->finish;
+      $dbh->do("select 1 from dual");
     };
 
     return $@ ? 0 : 1;
