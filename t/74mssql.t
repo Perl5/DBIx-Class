@@ -22,6 +22,10 @@ plan tests => 6;
 my $schema = DBICTest::Schema->clone;
 $schema->connection($dsn, $user, $pass);
 
+# start disconnected to test reconnection
+$schema->storage->ensure_connected;
+$schema->storage->disconnect;
+
 my $dbh = $schema->storage->dbh;
 
 isa_ok($schema->storage, 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server');
