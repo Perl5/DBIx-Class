@@ -7,6 +7,7 @@ use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
+my $sdebug = $schema->storage->debug;
 
 plan tests => 78;
 
@@ -57,7 +58,7 @@ is( $big_flop_cd->title, 'Big Flop', 'create_related ok' );
   is($queries, 0, 'No SELECT made for belongs_to if key IS NULL');
   $big_flop_cd->genre_inefficient; #should trigger a select query
   is($queries, 1, 'SELECT made for belongs_to if key IS NULL when undef_on_null_fk disabled');
-  $schema->storage->debug(0);
+  $schema->storage->debug($sdebug);
   $schema->storage->debugcb(undef);
 }
 

@@ -6,12 +6,10 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
+use IO::File;
 
 my $schema = DBICTest->init_schema();
-
 my $orig_debug = $schema->storage->debug;
-
-use IO::File;
 
 plan tests => 44;
 
@@ -291,3 +289,5 @@ is($art_rs_pr->search_related('cds')->search_related('tracks')->first->title,
 
 is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
 
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);

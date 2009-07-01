@@ -1243,8 +1243,8 @@ sub _count_subq_rs {
 
   my $sub_attrs = { %$attrs };
 
-  # these can not go in the subquery, and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/collapse select as order_by/;
+  # extra selectors do not go in the subquery and there is no point of ordering it
+  delete $sub_attrs->{$_} for qw/collapse prefetch_select select as order_by/;
 
   # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
   # clobber old group_by regardless
@@ -1311,13 +1311,12 @@ sub all {
 
   my @obj;
 
-  # TODO: don't call resolve here
   if (keys %{$self->_resolved_attrs->{collapse}}) {
-#  if ($self->{attrs}{prefetch}) {
-      # Using $self->cursor->all is really just an optimisation.
-      # If we're collapsing has_many prefetches it probably makes
-      # very little difference, and this is cleaner than hacking
-      # _construct_object to survive the approach
+    # Using $self->cursor->all is really just an optimisation.
+    # If we're collapsing has_many prefetches it probably makes
+    # very little difference, and this is cleaner than hacking
+    # _construct_object to survive the approach
+    $self->cursor->reset;
     my @row = $self->cursor->next;
     while (@row) {
       push(@obj, $self->_construct_object(@row));
@@ -1344,6 +1343,8 @@ sub all {
 =back
 
 Resets the resultset's cursor, so you can iterate through the elements again.
+Implicitly resets the storage cursor, so a subsequent L</next> will trigger
+another query.
 
 =cut
 
@@ -2717,8 +2718,9 @@ sub _resolved_attrs {
       : [ $attrs->{order_by} ]
     );
   }
-  else {
-    $attrs->{order_by} = [];
+
+  if ($attrs->{group_by} and ! ref $attrs->{group_by}) {
+    $attrs->{group_by} = [ $attrs->{group_by} ];
   }
 
   # If the order_by is otherwise empty - we will use this for TOP limit
@@ -2740,8 +2742,9 @@ sub _resolved_attrs {
     my @prefetch =
       $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $attrs->{collapse} );
 
-    push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
-    push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
+    $attrs->{prefetch_select} = [ map { $_->[0] } @prefetch ];
+    push @{ $attrs->{select} }, @{$attrs->{prefetch_select}};
+    push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
 
     push( @{ $attrs->{order_by} }, @$prefetch_ordering );
     $attrs->{_collapse_order_by} = \@$prefetch_ordering;
