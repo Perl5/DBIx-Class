@@ -7,7 +7,7 @@ use lib qw(t/lib);
 
 use DBICTest;
 
-plan tests => 9;
+plan tests => 7;
 
 my $schema = DBICTest->init_schema();
 
@@ -35,12 +35,3 @@ is(scalar($artist->related_resultset('cds')->all()), 0, "No CDs fetched for a sh
 my $artist_rs = $schema->resultset('Artist')->search({artistid => $artist->id});
 is($artist_rs->related_resultset('cds')->count(), 0, "No CDs counted for a shiny new artist using a resultset search");
 is(scalar($artist_rs->related_resultset('cds')->all), 0, "No CDs fetched for a shiny new artist using a resultset search");
-
-$artist->cds->create({});
-is($artist->related_resultset('cds')->count(), 1);
-is(scalar($artist->related_resultset('cds')->all()), 1);
-
-$artist_rs = $schema->resultset('Artist')->search({artistid => $artist->id});
-is($artist_rs->related_resultset('cds')->count(), 1);
-is(scalar($artist_rs->related_resultset('cds')->all), 1);
-
