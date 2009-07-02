@@ -5,7 +5,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 7;
+plan tests => 9;
 
 my $schema = DBICTest->init_schema();
 
@@ -25,7 +25,8 @@ is($cd_rs->search_related ('tracks')->all, 15, 'Track objects associated with CD
 
 my $artist=$schema->resultset('Artist')->create({name => 'xxx'});
 my $artist_rs = $schema->resultset('Artist')->search({artistid => $artist->id}, {prefetch=>'cds'});
-is($artist_rs->related_resultset('cds')->count, 0, "No CDs on a brand new artist");
-is($artist_rs->count, 1,
-   "No CDs prefetched but the artist is still returned");
+is($artist_rs->count, 1, "New artist found with prefetch turned on");
+is(scalar($artist_rs->all), 1, "New artist fetched with prefetch turned on");
+is($artist_rs->related_resultset('cds')->count, 0, "No CDs counted on a brand new artist");
+is(scalar($artist_rs->related_resultset('cds')->all), 0, "No CDs fetched on a brand new artist (count == fetch)");
 
