@@ -973,9 +973,14 @@ sub _collapse_result {
   # hit by a smooth^Wempty left-joined resultset. Just noop in that case
   # instead of producing a {}
   #
-  # Note the double-defined - $row may be [ 0, '' ]
-  #
-  return undef unless ( defined List::Util::first { defined $_ } (@$row) );
+  my $has_def;
+  for (@$row) {
+    if (defined $_) {
+      $has_def++;
+      last;
+    }
+  }
+  return undef unless $has_def;
 
   my @copy = @$row;
 
