@@ -212,17 +212,25 @@ sub _Top {
   $order = { %$order }; #copy
 
   my $req_order = $order->{order_by};
-  my $limit_order =
-    scalar $self->_order_by_chunks ($req_order) # examine normalized version, collapses nesting
-      ? $req_order
-      : $order->{_virtual_order_by}
-  ;
+
+  # examine normalized version, collapses nesting
+  my $limit_order;
+  if (scalar $self->_order_by_chunks ($req_order)) {
+    $limit_order = $req_order;
+  }
+  else {
+    my $rs_alias = $self->{_dbic_rs_attrs}{alias};
+    $limit_order = [ map
+      { join ('', $rs_alias, $name_sep, $_ ) }
+      ( $self->{_dbic_rs_attrs}{_source_handle}->resolve->primary_columns )
+    ];
+  }
 
   my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
   my $order_by_requested = $self->_order_by ($req_order);
 
   # generate the rest
-  delete $order->{$_} for qw/order_by _virtual_order_by/;
+  delete $order->{order_by};
   my $grpby_having = $self->_order_by ($order);
 
   # short circuit for counts - the ordering complexity is needless

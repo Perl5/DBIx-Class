@@ -1376,15 +1376,16 @@ sub _select_args_to_query {
 sub _select_args {
   my ($self, $ident, $select, $where, $attrs) = @_;
 
+  my ($alias2source, $root_alias) = $self->_resolve_ident_sources ($ident);
+
   my $sql_maker = $self->sql_maker;
   $sql_maker->{_dbic_rs_attrs} = {
     %$attrs,
     select => $select,
     from => $ident,
     where => $where,
+    _source_handle => $alias2source->{$root_alias}->handle,
   };
-
-  my ($alias2source, $root_alias) = $self->_resolve_ident_sources ($ident);
 
   # calculate bind_attrs before possible $ident mangling
   my $bind_attrs = {};
@@ -1445,7 +1446,7 @@ sub _select_args {
 
   my $order = { map
     { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
-    (qw/order_by group_by having _virtual_order_by/ )
+    (qw/order_by group_by having/ )
   };
 
   return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $order, @limit);

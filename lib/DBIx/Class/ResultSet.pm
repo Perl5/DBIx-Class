@@ -2861,27 +2861,17 @@ sub _resolved_attrs {
       ];
   }
 
-  if ( $attrs->{order_by} ) {
+  if ( defined $attrs->{order_by} ) {
     $attrs->{order_by} = (
       ref( $attrs->{order_by} ) eq 'ARRAY'
       ? [ @{ $attrs->{order_by} } ]
-      : [ $attrs->{order_by} ]
+      : [ $attrs->{order_by} || () ]
     );
   }
 
   if ($attrs->{group_by} and ! ref $attrs->{group_by}) {
     $attrs->{group_by} = [ $attrs->{group_by} ];
   }
-
-  # If the order_by is otherwise empty - we will use this for TOP limit
-  # emulation and the like.
-  # Although this is needed only if the order_by is not defined, it is
-  # actually cheaper to just populate this rather than properly examining
-  # order_by (stuf like [ {} ] and the like)
-  my $prefix = $alias . ($source->schema->storage->sql_maker->{name_sep} || '.');
-  $attrs->{_virtual_order_by} = [
-    map { $prefix . $_ } ($source->primary_columns)
-  ];
 
   $attrs->{collapse} ||= {};
   if ( my $prefetch = delete $attrs->{prefetch} ) {
@@ -2898,7 +2888,7 @@ sub _resolved_attrs {
     push @{ $attrs->{select} }, @{$attrs->{prefetch_select}};
     push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
 
-    push( @{ $attrs->{order_by} }, @$prefetch_ordering );
+    push( @{$attrs->{order_by}}, @$prefetch_ordering );
     $attrs->{_collapse_order_by} = \@$prefetch_ordering;
   }
 
