@@ -787,7 +787,10 @@ sub set_column {
   $self->store_column($column, $new_value);
 
   my $dirty;
-  if (defined $old_value xor defined $new_value) {
+  if (!$self->in_storage) { # no point tracking dirtyness on uninserted data
+    $dirty = 1;
+  }
+  elsif (defined $old_value xor defined $new_value) {
     $dirty = 1;
   }
   elsif (not defined $old_value) {  # both undef
