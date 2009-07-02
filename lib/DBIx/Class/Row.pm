@@ -787,7 +787,10 @@ sub set_column {
   $self->store_column($column, $new_value);
 
   my $dirty;
-  if (defined $old_value xor defined $new_value) {
+  if (!$self->in_storage) { # no point tracking dirtyness on uninserted data
+    $dirty = 1;
+  }
+  elsif (defined $old_value xor defined $new_value) {
     $dirty = 1;
   }
   elsif (not defined $old_value) {  # both undef
@@ -799,8 +802,8 @@ sub set_column {
   else {  # do a numeric comparison if datatype allows it
     my $colinfo = $self->column_info ($column);
 
-    # cache for speed
-    if (not defined $colinfo->{is_numeric}) {
+    # cache for speed (the object may *not* have a resultsource instance)
+    if (not defined $colinfo->{is_numeric} && $self->_source_handle) {
       $colinfo->{is_numeric} =
         $self->result_source->schema->storage->is_datatype_numeric ($colinfo->{data_type})
           ? 1
@@ -1087,7 +1090,7 @@ sub inflate_result {
       } elsif ($accessor eq 'filter') {
         $new->{_inflated_column}{$pre} = $fetched;
       } else {
-       $class->throw_exception("Prefetch not supported with accessor '$accessor'");
+       $class->throw_exception("Implicit prefetch (via select/columns) not supported with accessor '$accessor'");
       }
       $new->related_resultset($pre)->set_cache([ $fetched ]);
     }

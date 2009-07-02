@@ -1,16 +1,33 @@
 Revision history for DBIx::Class
 
+        - Fixed the has_many prefetch with limit/group deficiency -
+          it is now possible to select "top 5 commenters" while
+          prefetching all their comments
+        - New resultsed method count_rs, returns a ::ResultSetColumn
+          which in turn returns a single count value
+        - Even better support of count with limit
+        - count/all on related left-joined empty resultsets now correctly
+          returns 0/()
         - Fixed regression when both page and offset are specified on
           a resultset
         - Fixed HRI returning too many empty results on multilevel
           nonexisting prefetch
-        - Fixed the prefetch with limit bug
-        - New resultsed method count_rs, returns a ::ResultSetColumn
-          which in turn returns a single count value
         - make_column_dirty() now overwrites the deflated value with an
           inflated one if such exists
         - Fixed set_$rel with where restriction deleting rows outside 
           the restriction
+        - populate() returns the created objects or an arrayref of the
+          create dobjects depending on scalar vs. list context
+        - Fixed find_related on 'single' relationships - the former
+          implementation would overspecify the WHERE condition, reporting
+          no related objects when there in fact is one
+        - SQL::Translator::Parser::DBIx::Class now attaches tables to the
+          central schema object in relationship dependency order
+        - Fixed regression in set_column() preventing sourceless object
+          manipulations
+        - Fixed a bug in search_related doubling a join if the original
+          $rs already joins/prefetches the same relation
+        - Storage::DBI::connected() improvements for Oracle and Sybase
 
 0.08107 2009-06-14 08:21:00 (UTC)
         - Fix serialization regression introduced in 0.08103 (affects
@@ -27,8 +44,8 @@ Revision history for DBIx::Class
         - Update of numeric columns now properly uses != to determine
           dirtyness instead of the usual eq
         - Fixes to IC::DT tests
-        - Fixed exception when undef_if_invalid and timezone are both set on 
-          an invalid datetime column
+        - Fixed exception when undef_if_invalid and timezone are both set
+          on an invalid datetime column
 
 0.08104 2009-06-10 13:38:00 (UTC)
         - order_by now can take \[$sql, @bind] as in

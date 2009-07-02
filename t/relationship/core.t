@@ -7,8 +7,9 @@ use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
+my $sdebug = $schema->storage->debug;
 
-plan tests => 78;
+plan tests => 79;
 
 # has_a test
 my $cd = $schema->resultset("CD")->find(4);
@@ -57,7 +58,7 @@ is( $big_flop_cd->title, 'Big Flop', 'create_related ok' );
   is($queries, 0, 'No SELECT made for belongs_to if key IS NULL');
   $big_flop_cd->genre_inefficient; #should trigger a select query
   is($queries, 1, 'SELECT made for belongs_to if key IS NULL when undef_on_null_fk disabled');
-  $schema->storage->debug(0);
+  $schema->storage->debug($sdebug);
   $schema->storage->debugcb(undef);
 }
 
@@ -275,11 +276,11 @@ my $searched = $mapped_rs->search({'mapped_artists.artistid' => {'!=', undef}});
 
 cmp_ok($searched->count, '==', 2, "Both artist returned from map after adding another condition");
 
-# check join through cascaded has_many relationships
+# check join through cascaded has_many relationships (also empty has_many rels)
 $artist = $schema->resultset("Artist")->find(1);
 my $trackset = $artist->cds->search_related('tracks');
-# LEFT join means we also see the trackless additional album...
-cmp_ok($trackset->count, '==', 11, "Correct number of tracks for artist");
+is($trackset->count, 10, "Correct number of tracks for artist");
+is($trackset->all, 10, "Correct number of track objects for artist");
 
 # now see about updating eveything that belongs to artist 2 to artist 3
 $artist = $schema->resultset("Artist")->find(2);

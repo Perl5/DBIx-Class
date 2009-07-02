@@ -2,9 +2,9 @@ package DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server;
 
 use strict;
 use warnings;
-
-use Class::C3;
+use mro 'c3';
 use base qw/
+  DBIx::Class::Storage::DBI::Sybase::Base
   DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server
   DBIx::Class::Storage::DBI::NoBindVars
 /;

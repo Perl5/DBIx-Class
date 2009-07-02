@@ -8,9 +8,9 @@ use DBICTest;
 use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
+my $sdebug = $schema->storage->debug;
 
-#plan tests => 4;
-plan 'no_plan';
+plan tests => 6;
 
 my $artist = $schema->resultset ('Artist')->first;
 
@@ -74,6 +74,7 @@ $genre->update_or_create_related ('cds', {
 });
 
 $schema->storage->debugcb(undef);
+$schema->storage->debug ($sdebug);
 
 is_same_sql (
   $sql[0],

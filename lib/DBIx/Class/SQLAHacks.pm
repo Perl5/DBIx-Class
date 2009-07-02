@@ -240,28 +240,39 @@ sub _recurse_fields {
           ? ' AS col'.$self->{rownum_hack_count}++
           : '')
       } @$fields);
-  } elsif ($ref eq 'HASH') {
-    foreach my $func (keys %$fields) {
-      if ($func eq 'distinct') {
-        my $_fields = $fields->{$func};
-        if (ref $_fields eq 'ARRAY' && @{$_fields} > 1) {
-          croak (
-            'The select => { distinct => ... } syntax is not supported for multiple columns.'
-           .' Instead please use { group_by => [ qw/' . (join ' ', @$_fields) . '/ ] }'
-           .' or { select => [ qw/' . (join ' ', @$_fields) . '/ ], distinct => 1 }'
-          );
-        }
-        else {
-          $_fields = @{$_fields}[0] if ref $_fields eq 'ARRAY';
-          carp (
-            'The select => { distinct => ... } syntax will be deprecated in DBIC version 0.09,'
-           ." please use { group_by => '${_fields}' } or { select => '${_fields}', distinct => 1 }"
-          );
-        }
-      }
-      return $self->_sqlcase($func)
-        .'( '.$self->_recurse_fields($fields->{$func}).' )';
+  }
+  elsif ($ref eq 'HASH') {
+    my %hash = %$fields;
+    my ($select, $as);
+
+    if ($hash{-select}) {
+      $select = $self->_recurse_fields (delete $hash{-select});
+      $as = $self->_quote (delete $hash{-as});
     }
+    else {
+      my ($func, $args) = each %hash;
+      delete $hash{$func};
+
+      if (lc ($func) eq 'distinct' && ref $args eq 'ARRAY' && @$args > 1) {
+        croak (
+          'The select => { distinct => ... } syntax is not supported for multiple columns.'
+         .' Instead please use { group_by => [ qw/' . (join ' ', @$args) . '/ ] }'
+         .' or { select => [ qw/' . (join ' ', @$args) . '/ ], distinct => 1 }'
+        );
+      }
+      $select = sprintf ('%s( %s )',
+        $self->_sqlcase($func),
+        $self->_recurse_fields($args)
+      );
+    }
+
+    # there should be nothing left
+    if (keys %hash) {
+      croak "Malformed select argument - too many keys in hash: " . join (',', keys %$fields );
+    }
+
+    $select .= " AS $as" if $as;
+    return $select;
   }
   # Is the second check absolutely necessary?
   elsif ( $ref eq 'REF' and ref($$fields) eq 'ARRAY' ) {
@@ -279,9 +290,8 @@ sub _order_by {
 
     my $ret = '';
 
-    if (defined $arg->{group_by}) {
-      $ret = $self->_sqlcase(' group by ')
-        .$self->_recurse_fields($arg->{group_by}, { no_rownum_hack => 1 });
+    if (my $g = $self->_recurse_fields($arg->{group_by}, { no_rownum_hack => 1 }) ) {
+      $ret = $self->_sqlcase(' group by ') . $g;
     }
 
     if (defined $arg->{having}) {

@@ -859,6 +859,9 @@ B<Proxy-Class definitions>
     use strict; 
     use warnings; 
     use base qw/My::Schema::Result::User/; 
+
+    # This line is important
+    __PACKAGE__->table('users');
      
     sub hello 
     { 

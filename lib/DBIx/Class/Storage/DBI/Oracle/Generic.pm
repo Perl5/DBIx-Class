@@ -83,36 +83,18 @@ sub _sequence_fetch {
   return $id;
 }
 
-=head2 connected
-
-Returns true if we have an open (and working) database connection, false if it is not (yet)
-open (or does not work). (Executes a simple SELECT to make sure it works.)
-
-The reason this is needed is that L<DBD::Oracle>'s ping() does not do a real
-OCIPing but just gets the server version, which doesn't help if someone killed
-your session.
-
-=cut
-
-sub connected {
+sub _ping {
   my $self = shift;
 
-  if (not $self->next::method(@_)) {
-    return 0;
-  }
-  else {
-    my $dbh = $self->_dbh;
+  my $dbh = $self->_dbh or return 0;
 
-    local $dbh->{RaiseError} = 1;
+  local $dbh->{RaiseError} = 1;
 
-    eval {
-      my $ping_sth = $dbh->prepare_cached("select 1 from dual");
-      $ping_sth->execute;
-      $ping_sth->finish;
-    };
+  eval {
+    $dbh->do("select 1 from dual");
+  };
 
-    return $@ ? 0 : 1;
-  }
+  return $@ ? 0 : 1;
 }
 
 sub _dbh_execute {

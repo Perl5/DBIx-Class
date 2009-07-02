@@ -8,8 +8,7 @@ BEGIN {
     plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
     next;
   }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 98);
+  plan tests => 98;
 }
 
 INIT {
@@ -187,17 +186,14 @@ eval {
 	ok(!Film->retrieve('Ishtar'), 'Ishtar no longer there');
 	{
 		my $deprecated = 0;
-		#local $SIG{__WARN__} = sub { $deprecated++ if $_[0] =~ /deprecated/ };
+		local $SIG{__WARN__} = sub { $deprecated++ if $_[0] =~ /deprecated/ };
 		ok(
 			Film->delete(Director => 'Elaine May'),
 			"In fact, delete all films by Elaine May"
 		);
 		cmp_ok(Film->search(Director => 'Elaine May'), '==',
 			0, "0 Films by Elaine May");
-                SKIP: {
-                    skip "No deprecated warnings from compat layer", 1;
-		    is $deprecated, 1, "Got a deprecated warning";
-                }
+		is $deprecated, 0, "No deprecated warnings from compat layer";
 	}
 };
 is $@, '', "No problems with deletes";
