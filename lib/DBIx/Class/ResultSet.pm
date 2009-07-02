@@ -1322,54 +1322,38 @@ sub _switch_to_inner_join_if_needed {
   # the target as it is not in the parseable part of {from}
   return $from if @$from == 1;
 
-  my (@switch_idx, $found_target);
-
+  my $switch_branch;
   JOINSCAN:
-  for my $i (1 .. $#$from) {
-
-    push @switch_idx, $i;
-    my $j = $from->[$i];
-    my $jalias = $j->[0]{-alias};
-
-    # we found our current target - delete any siblings (same level joins)
-    # and bail out
-    if ($jalias eq $alias) {
-      $found_target++;
-
-      my $cur_depth = $j->[0]{-relation_chain_depth};
-      # we are -1, so look at -2
-      while (@switch_idx > 1
-              && $from->[$switch_idx[-2]][0]{-relation_chain_depth} == $cur_depth
-      ) {
-        splice @switch_idx, -2, 1;
-      }
-
+  for my $j (@{$from}[1 .. $#$from]) {
+    if ($j->[0]{-alias} eq $alias) {
+      $switch_branch = $j->[0]{-join_path};
       last JOINSCAN;
     }
   }
 
   # something else went wrong
-  return $from unless $found_target;
+  return $from unless $switch_branch;
 
   # So it looks like we will have to switch some stuff around.
   # local() is useless here as we will be leaving the scope
   # anyway, and deep cloning is just too fucking expensive
   # So replace the inner hashref manually
-  my @new_from;
-  my $sw_idx = { map { $_ => 1 } @switch_idx };
+  my @new_from = ($from->[0]);
+  my $sw_idx = { map { $_ => 1 } @$switch_branch };
 
-  for my $i (0 .. $#$from) {
-    if ($sw_idx->{$i}) {
-      my %attrs = %{$from->[$i][0]};
+  for my $j (@{$from}[1 .. $#$from]) {
+    my $jalias = $j->[0]{-alias};
+
+    if ($sw_idx->{$jalias}) {
+      my %attrs = %{$j->[0]};
       delete $attrs{-join_type};
-
       push @new_from, [
         \%attrs,
-        @{$from->[$i]}[ 1 .. $#{$from->[$i]} ],
+        @{$j}[ 1 .. $#$j ],
       ];
     }
     else {
-      push @new_from, $from->[$i];
+      push @new_from, $j;
     }
   }
 
@@ -2704,6 +2688,7 @@ sub _chain_relationship {
   # the join in question so we could tell it *is* the search_related)
   my $already_joined;
 
+
   # we consider the last one thus reverse
   for my $j (reverse @requested_joins) {
     if ($rel eq $j->[0]{-join_path}[-1]) {
@@ -2712,6 +2697,17 @@ sub _chain_relationship {
       last;
     }
   }
+
+# alternative way to scan the entire chain - not backwards compatible
+#  for my $j (reverse @$from) {
+#    next unless ref $j eq 'ARRAY';
+#    if ($j->[0]{-join_path} && $j->[0]{-join_path}[-1] eq $rel) {
+#      $j->[0]{-relation_chain_depth}++;
+#      $already_joined++;
+#      last;
+#    }
+#  }
+
   unless ($already_joined) {
     push @$from, $source->_resolve_join($rel, $attrs->{alias}, $seen);
   }

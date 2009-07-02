@@ -4,8 +4,9 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
-plan tests => 11;
+plan tests => 23;
 
 my $schema = DBICTest->init_schema();
 
@@ -40,3 +41,61 @@ $artist->create_related ('cds', { title => 'yyy', year => '1999' });
 is($artist_rs->related_resultset('cds')->count, 1, "1 CDs counted on a brand new artist");
 is(scalar($artist_rs->related_resultset('cds')->all), 1, "1 CDs prefetched on a brand new artist (count == fetch)");
 
+# Really fuck shit up with one more cd and some insanity
+# this doesn't quite work as there are the prefetch gets lost
+# on search_related. This however is too esoteric to fix right
+# now
+
+my $cd2 = $artist->create_related ('cds', {
+    title => 'zzz',
+    year => '1999',
+    tracks => [{ title => 'ping' }, { title => 'pong' }],
+});
+
+my $cds = $cd2->search_related ('artist', {}, { join => 'twokeys' })
+                  ->search_related ('cds');
+my $tracks = $cds->search_related ('tracks');
+
+is($tracks->count, 2, "2 Tracks counted on cd via artist via one of the cds");
+is(scalar($tracks->all), 2, "2 Track objects on cd via artist via one of the cds");
+
+is($cds->count, 2, "2 CDs counted on artist via one of the cds");
+is(scalar($cds->all), 2, "2 CD objectson artist via one of the cds");
+
+# make sure the join collapses all the way
+is_same_sql_bind (
+  $tracks->count_rs->as_query,
+  '(
+    SELECT COUNT( * )
+      FROM artist me
+      LEFT JOIN twokeys twokeys ON twokeys.artist = me.artistid
+      JOIN cd cds ON cds.artist = me.artistid
+      JOIN track tracks ON tracks.cd = cds.cdid
+    WHERE ( me.artistid = ? )
+  )',
+  [ [ 'me.artistid' => 4 ] ],
+);
+
+
+TODO: {
+  local $TODO = "Chaining with prefetch is fundamentally broken";
+
+  my $queries;
+  $schema->storage->debugcb ( sub { $queries++ } );
+  $schema->storage->debug (1);
+
+  my $cds = $cd2->search_related ('artist', {}, { prefetch => { cds => 'tracks' }, join => 'twokeys' })
+                  ->search_related ('cds');
+
+  my $tracks = $cds->search_related ('tracks');
+
+  is($tracks->count, 2, "2 Tracks counted on cd via artist via one of the cds");
+  is(scalar($tracks->all), 2, "2 Tracks prefetched on cd via artist via one of the cds");
+  is($tracks->count, 2, "Cached 2 Tracks counted on cd via artist via one of the cds");
+
+  is($cds->count, 2, "2 CDs counted on artist via one of the cds");
+  is(scalar($cds->all), 2, "2 CDs prefetched on artist via one of the cds");
+  is($cds->count, 2, "Cached 2 CDs counted on artist via one of the cds");
+
+  is ($queries, 3, '2 counts + 1 prefetch?');
+}
