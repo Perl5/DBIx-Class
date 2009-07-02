@@ -2655,6 +2655,11 @@ sub current_source_alias {
 # in order to properly resolve prefetch aliases (any alias
 # with a relation_chain_depth less than the depth of the
 # current prefetch is not considered)
+#
+# The increments happen in 1/2s to make it easier to correlate the
+# join depth with the join path. An integer means a relationship
+# specified via a search_related, whereas a fraction means an added
+# join/prefetch via attributes
 sub _chain_relationship {
   my ($self, $rel) = @_;
   my $source = $self->result_source;
@@ -2671,16 +2676,25 @@ sub _chain_relationship {
   }];
 
   my $seen = { %{$attrs->{seen_join} || {} } };
+  my $jpath = ($attrs->{seen_join} && keys %{$attrs->{seen_join}}) 
+    ? $from->[-1][0]{-join_path} 
+    : [];
+
 
   # we need to take the prefetch the attrs into account before we
   # ->_resolve_join as otherwise they get lost - captainL
   my $merged = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
 
-  my @requested_joins = $source->_resolve_join($merged, $attrs->{alias}, $seen);
+  my @requested_joins = $source->_resolve_join(
+    $merged,
+    $attrs->{alias},
+    $seen,
+    $jpath,
+  );
 
   push @$from, @requested_joins;
 
-  ++$seen->{-relation_chain_depth};
+  $seen->{-relation_chain_depth} += 0.5;
 
   # if $self already had a join/prefetch specified on it, the requested
   # $rel might very well be already included. What we do in this case
@@ -2692,7 +2706,7 @@ sub _chain_relationship {
   # we consider the last one thus reverse
   for my $j (reverse @requested_joins) {
     if ($rel eq $j->[0]{-join_path}[-1]) {
-      $j->[0]{-relation_chain_depth}++;
+      $j->[0]{-relation_chain_depth} += 0.5;
       $already_joined++;
       last;
     }
@@ -2702,17 +2716,22 @@ sub _chain_relationship {
 #  for my $j (reverse @$from) {
 #    next unless ref $j eq 'ARRAY';
 #    if ($j->[0]{-join_path} && $j->[0]{-join_path}[-1] eq $rel) {
-#      $j->[0]{-relation_chain_depth}++;
+#      $j->[0]{-relation_chain_depth} += 0.5;
 #      $already_joined++;
 #      last;
 #    }
 #  }
 
   unless ($already_joined) {
-    push @$from, $source->_resolve_join($rel, $attrs->{alias}, $seen);
+    push @$from, $source->_resolve_join(
+      $rel,
+      $attrs->{alias},
+      $seen,
+      $jpath,
+    );
   }
 
-  ++$seen->{-relation_chain_depth};
+  $seen->{-relation_chain_depth} += 0.5;
 
   return ($from,$seen);
 }
@@ -2824,7 +2843,13 @@ sub _resolved_attrs {
       [
         @{ $attrs->{from} },
         $source->_resolve_join(
-          $join, $alias, { %{ $attrs->{seen_join} || {} } }
+          $join,
+          $alias,
+          { %{ $attrs->{seen_join} || {} } },
+          ($attrs->{seen_join} && keys %{$attrs->{seen_join}})
+            ? $attrs->{from}[-1][0]{-join_path}
+            : []
+          ,
         )
       ];
   }
@@ -2877,8 +2902,11 @@ sub _resolved_attrs {
   # even though it doesn't make much sense, this is what pre 081xx has
   # been doing
   if (my $page = delete $attrs->{page}) {
-    $attrs->{offset} = ($attrs->{rows} * ($page - 1)) +
-      ($attrs->{offset} || 0);
+    $attrs->{offset} = 
+      ($attrs->{rows} * ($page - 1))
+            +
+      ($attrs->{offset} || 0)
+    ;
   }
 
   return $self->{_attrs} = $attrs;
@@ -2890,13 +2918,21 @@ sub _joinpath_aliases {
   my $paths = {};
   return $paths unless ref $fromspec eq 'ARRAY';
 
+  my $cur_depth = $seen->{-relation_chain_depth} || 0;
+
+  if (int ($cur_depth) != $cur_depth) {
+    $self->throw_exception ("-relation_chain_depth is not an integer, something went horribly wrong ($cur_depth)");
+  }
+
   for my $j (@$fromspec) {
 
     next if ref $j ne 'ARRAY';
-    next if $j->[0]{-relation_chain_depth} < ( $seen->{-relation_chain_depth} || 0);
+    next if $j->[0]{-relation_chain_depth} < $cur_depth;
+
+    my $jpath = $j->[0]{-join_path};
 
     my $p = $paths;
-    $p = $p->{$_} ||= {} for @{$j->[0]{-join_path}};
+    $p = $p->{$_} ||= {} for @{$jpath}[$cur_depth .. $#$jpath];
     push @{$p->{-join_aliases} }, $j->[0]{-alias};
   }
 
