@@ -11,7 +11,7 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 58;
+plan tests => 56;
 
 # The tag Blue is assigned to cds 1 2 3 and 5
 # The tag Cheesy is assigned to cds 2 4 and 5
@@ -80,17 +80,6 @@ for my $get_count (
   is($get_count->($rs), 3, 'Count by distinct function result as select literal');
 }
 
-eval {
-  my @warnings;
-  local $SIG{__WARN__} = sub { $_[0] =~ /The select => { distinct => ... } syntax will be deprecated/ 
-    ? push @warnings, @_
-    : warn @_
-  };
-  my $row = $schema->resultset('Tag')->search({}, { select => { distinct => 'tag' } })->first;
-  is (@warnings, 1, 'Warned about deprecated distinct') if $DBIx::Class::VERSION < 0.09;
-};
-ok ($@, 'Exception on deprecated distinct usage thrown') if $DBIx::Class::VERSION >= 0.09;
-
 throws_ok(
   sub { my $row = $schema->resultset('Tag')->search({}, { select => { distinct => [qw/tag cd/] } })->first },
   qr/select => { distinct => \.\.\. } syntax is not supported for multiple columns/,
@@ -99,4 +88,3 @@ throws_ok(
 
 # These two rely on the database to throw an exception. This might not be the case one day. Please revise.
 dies_ok(sub { my $count = $schema->resultset('Tag')->search({}, { '+select' => \'tagid AS tag_id', distinct => 1 })->count }, 'expecting to die');
-dies_ok(sub { my $count = $schema->resultset('Tag')->search({}, { select => { length => 'tag' }, distinct => 1 })->count }, 'expecting to die');

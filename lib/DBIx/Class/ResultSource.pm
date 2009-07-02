@@ -893,7 +893,7 @@ sub add_relationship {
   }
   return unless $f_source; # Can't test rel without f_source
 
-  eval { $self->_resolve_join($rel, 'me') };
+  eval { $self->_resolve_join($rel, 'me', {}) };
 
   if ($@) { # If the resolve failed, back out and re-throw the error
     delete $rels{$rel}; #
@@ -1116,6 +1116,8 @@ sub _resolve_join {
   } elsif (ref $join) {
     $self->throw_exception("No idea how to resolve join reftype ".ref $join);
   } else {
+
+    return() unless defined $join;
 
     my $count = ++$seen->{$join};
     my $as = ($count > 1 ? "${join}_${count}" : $join);

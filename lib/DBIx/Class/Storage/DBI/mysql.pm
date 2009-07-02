@@ -19,6 +19,12 @@ sub with_deferred_fk_checks {
   $self->dbh->do('SET foreign_key_checks=1');
 }
 
+sub connect_call_set_ansi_mode {
+  my $self = shift;
+  $self->dbh->do(q|SET sql_mode = 'ANSI,TRADITIONAL'|);
+  $self->dbh->do(q|SET sql_mode = 'ANSI,TRADITIONAL'|);
+}
+
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
   $dbh->{mysql_insertid};

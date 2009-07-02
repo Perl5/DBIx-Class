@@ -7,8 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-#plan tests => 4;
-plan 'no_plan';
+plan tests => 9;
 
 my $artist = $schema->resultset ('Artist')->first;
 
