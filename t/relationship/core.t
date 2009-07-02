@@ -279,8 +279,7 @@ cmp_ok($searched->count, '==', 2, "Both artist returned from map after adding an
 # check join through cascaded has_many relationships
 $artist = $schema->resultset("Artist")->find(1);
 my $trackset = $artist->cds->search_related('tracks');
-# LEFT join means we also see the trackless additional album...
-cmp_ok($trackset->count, '==', 11, "Correct number of tracks for artist");
+cmp_ok($trackset->count, '==', 10, "Correct number of tracks for artist");
 
 # now see about updating eveything that belongs to artist 2 to artist 3
 $artist = $schema->resultset("Artist")->find(2);

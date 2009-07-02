@@ -1227,6 +1227,11 @@ sub _count_rs {
   $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $tmp_attrs);
   $tmp_attrs->{as} = 'count';
 
+  # read the function comment
+  $tmp_attrs->{from} = $self->_switch_to_inner_join_if_needed (
+    $tmp_attrs->{from}, $tmp_attrs->{alias}
+  );
+
   my $tmp_rs = $rsrc->resultset_class->new($rsrc, $tmp_attrs)->get_column ('count');
 
   return $tmp_rs;
@@ -1254,6 +1259,11 @@ sub _count_subq_rs {
 
   $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
 
+  # read the function comment
+  $sub_attrs->{from} = $self->_switch_to_inner_join_if_needed (
+    $sub_attrs->{from}, $sub_attrs->{alias}
+  );
+
   $attrs->{from} = [{
     count_subq => $rsrc->resultset_class->new ($rsrc, $sub_attrs )->as_query
   }];
@@ -1262,6 +1272,93 @@ sub _count_subq_rs {
   delete $attrs->{$_} for qw/where bind collapse group_by having having_bind rows offset/;
 
   return $self->_count_rs ($attrs);
+}
+
+
+# The DBIC relationship chaining implementation is pretty simple - every
+# new related_relationship is pushed onto the {from} stack, and the {select}
+# window simply slides further in. This means that when we count somewhere
+# in the middle, we got to make sure that everything in the join chain is an
+# actual inner join, otherwise the count will come back with unpredictable
+# results (a resultset may be generated with _some_ rows regardless of if
+# the relation which the $rs currently selects has rows or not). E.g.
+# $artist_rs->cds->count - normally generates:
+# SELECT COUNT( * ) FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
+# which actually returns the number of artists * (number of cds || 1)
+#
+# So what we do here is crawl {from}, determine if the current alias is at
+# the top of the stack, and if not - make sure the chain is inner-joined down
+# to the root.
+#
+sub _switch_to_inner_join_if_needed {
+  my ($self, $from, $alias) = @_;
+
+  return $from if (
+    ref $from ne 'ARRAY'
+      ||
+    ref $from->[0] ne 'HASH'
+      ||
+    ! $from->[0]{-alias}
+      ||
+    $from->[0]{-alias} eq $alias
+  );
+
+  # this would be the case with a subquery - we'll never find
+  # the target as it is not in the parseable part of {from}
+  return $from if @$from == 1;
+
+  my (@switch_idx, $found_target);
+
+  JOINSCAN:
+  for my $i (1 .. $#$from) {
+
+    push @switch_idx, $i;
+    my $j = $from->[$i];
+    my $jalias = $j->[0]{-alias};
+
+    # we found our current target - delete any siblings (same level joins)
+    # and bail out
+    if ($jalias eq $alias) {
+      $found_target++;
+
+      my $cur_depth = $j->[0]{-relation_chain_depth};
+      # we are -1, so look at -2
+      while (@switch_idx > 1
+              && $from->[$switch_idx[-2]][0]{-relation_chain_depth} == $cur_depth
+      ) {
+        splice @switch_idx, -2, 1;
+      }
+
+      last JOINSCAN;
+    }
+  }
+
+  # something else went wrong
+  return $from unless $found_target;
+
+  # So it looks like we will have to switch some stuff around.
+  # local() is useless here as we will be leaving the scope
+  # anyway, and deep cloning is just too fucking expensive
+  # So replace the inner hashref manually
+  my @new_from;
+  my $sw_idx = { map { $_ => 1 } @switch_idx };
+
+  for my $i (0 .. $#$from) {
+    if ($sw_idx->{$i}) {
+      my %attrs = %{$from->[$i][0]};
+      delete $attrs{-join_type};
+
+      push @new_from, [
+        \%attrs,
+        @{$from->[$i]}[ 1 .. $#{$from->[$i]} ],
+      ];
+    }
+    else {
+      push @new_from, $from->[$i];
+    }
+  }
+
+  return \@new_from;
 }
 
 
@@ -1926,16 +2023,25 @@ sub _is_deterministic_value {
 # of the attributes supplied
 #
 # used to determine if a subquery is neccessary
+#
+# supports some  virtual attributes:
+#   -join
+#     This will scan for any joins being present on the resultset.
+#     It is not a mere key-search but a deep inspection of {from}
+#
 
 sub _has_resolved_attr {
   my ($self, @attr_names) = @_;
 
   my $attrs = $self->_resolved_attrs;
 
-  my $join_check_req;
+  my %extra_checks;
 
   for my $n (@attr_names) {
-    ++$join_check_req if $n eq '-join';
+    if (grep { $n eq $_ } (qw/-join/) ) {
+      $extra_checks{$n}++;
+      next;
+    }
 
     my $attr =  $attrs->{$n};
 
@@ -1954,7 +2060,7 @@ sub _has_resolved_attr {
 
   # a resolved join is expressed as a multi-level from
   return 1 if (
-    $join_check_req
+    $extra_checks{-join}
       and
     ref $attrs->{from} eq 'ARRAY'
       and
