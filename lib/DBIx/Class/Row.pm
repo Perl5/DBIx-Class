@@ -1053,7 +1053,6 @@ sub inflate_result {
   my $new = {
     _source_handle => $source_handle,
     _column_data => $me,
-    _in_storage => 1
   };
   bless $new, (ref $class || $class);
 
@@ -1065,14 +1064,25 @@ sub inflate_result {
       unless $pre_source;
     if (ref($pre_val->[0]) eq 'ARRAY') { # multi
       my @pre_objects;
-      foreach my $pre_rec (@$pre_val) {
-        unless ($pre_source->primary_columns == grep { exists $pre_rec->[0]{$_}
-           and defined $pre_rec->[0]{$_} } $pre_source->primary_columns) {
-          next;
+
+      for my $me_pref (@$pre_val) {
+
+        # the collapser currently *could* return bogus elements with all
+        # columns set to undef
+        my $has_def;
+        for (values %{$me_pref->[0]}) {
+          if (defined $_) {
+            $has_def++;
+            last;
+          }
         }
-        push(@pre_objects, $pre_source->result_class->inflate_result(
-                             $pre_source, @{$pre_rec}));
+        next unless $has_def;
+
+        push @pre_objects, $pre_source->result_class->inflate_result(
+          $pre_source, @$me_pref
+        );
       }
+
       $new->related_resultset($pre)->set_cache(\@pre_objects);
     } elsif (defined $pre_val->[0]) {
       my $fetched;
@@ -1095,6 +1105,8 @@ sub inflate_result {
       $new->related_resultset($pre)->set_cache([ $fetched ]);
     }
   }
+
+  $new->in_storage (1);
   return $new;
 }
 
