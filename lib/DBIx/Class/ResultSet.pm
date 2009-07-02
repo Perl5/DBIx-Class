@@ -957,7 +957,9 @@ sub next {
 
 sub _construct_object {
   my ($self, @row) = @_;
-  my $info = $self->_collapse_result($self->{_attrs}{as}, \@row);
+
+  my $info = $self->_collapse_result($self->{_attrs}{as}, \@row)
+    or return ();
   my @new = $self->result_class->inflate_result($self->result_source, @$info);
   @new = $self->{_attrs}{record_filter}->(@new)
     if exists $self->{_attrs}{record_filter};
@@ -966,6 +968,14 @@ sub _construct_object {
 
 sub _collapse_result {
   my ($self, $as_proto, $row) = @_;
+
+  # if the first row that ever came in is totally empty - this means we got
+  # hit by a smooth^Wempty left-joined resultset. Just noop in that case
+  # instead of producing a {}
+  #
+  # Note the double-defined - $row may be [ 0, '' ]
+  #
+  return undef unless ( defined List::Util::first { defined $_ } (@$row) );
 
   my @copy = @$row;
 
@@ -1227,7 +1237,7 @@ sub _count_rs {
   $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $tmp_attrs);
   $tmp_attrs->{as} = 'count';
 
-  # read the function comment
+  # read the comment on top of the actual function to see what this does
   $tmp_attrs->{from} = $self->_switch_to_inner_join_if_needed (
     $tmp_attrs->{from}, $tmp_attrs->{alias}
   );
@@ -1259,7 +1269,7 @@ sub _count_subq_rs {
 
   $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
 
-  # read the function comment
+  # read the comment on top of the actual function to see what this does
   $sub_attrs->{from} = $self->_switch_to_inner_join_if_needed (
     $sub_attrs->{from}, $sub_attrs->{alias}
   );
@@ -1426,6 +1436,7 @@ sub all {
   }
 
   $self->set_cache(\@obj) if $self->{attrs}{cache};
+
   return @obj;
 }
 
@@ -2024,7 +2035,7 @@ sub _is_deterministic_value {
 #
 # used to determine if a subquery is neccessary
 #
-# supports some  virtual attributes:
+# supports some virtual attributes:
 #   -join
 #     This will scan for any joins being present on the resultset.
 #     It is not a mere key-search but a deep inspection of {from}

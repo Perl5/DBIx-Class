@@ -6,8 +6,8 @@ Revision history for DBIx::Class
         - New resultsed method count_rs, returns a ::ResultSetColumn
           which in turn returns a single count value
         - Even better support of count with limit
-        - Count on related left-joined empty resultsets now correctly
-          returns 0
+        - count/all on related left-joined empty resultsets now correctly
+          returns 0/()
         - Fixed regression when both page and offset are specified on
           a resultset
         - Fixed HRI returning too many empty results on multilevel
