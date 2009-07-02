@@ -1193,7 +1193,6 @@ our $UNRESOLVABLE_CONDITION = \'1 = 0';
 
 sub _resolve_condition {
   my ($self, $cond, $as, $for) = @_;
-  #warn %$cond;
   if (ref $cond eq 'HASH') {
     my %ret;
     foreach my $k (keys %{$cond}) {
@@ -1234,7 +1233,7 @@ sub _resolve_condition {
   } elsif (ref $cond eq 'ARRAY') {
     return [ map { $self->_resolve_condition($_, $as, $for) } @$cond ];
   } else {
-   die("Can't handle this yet :(");
+   die("Can't handle condition $cond yet :(");
   }
 }
 
