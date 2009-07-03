@@ -144,7 +144,9 @@ like($artistid_defval,
 is_deeply($type_info, $test_type_info,
           'columns_info_for - column data types');
 
-{
+SKIP: {
+  skip "Need DBD::Pg 2.9.2 or newer for array tests", 4 if $DBD::Pg::VERSION < 2.009002;
+
   lives_ok {
     $schema->resultset('ArrayTest')->create({
       arrayfield => [1, 2],

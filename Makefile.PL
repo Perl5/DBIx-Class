@@ -94,6 +94,7 @@ my %force_requires_if_author = (
   $ENV{DBICTEST_PG_DSN}
     ? (
       'Sys::SigAction' => 0,
+      'DBD::Pg' => 2.009002,
       'DateTime::Format::Pg' => 0,
     ) : ()
   ,
