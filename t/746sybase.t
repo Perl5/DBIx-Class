@@ -1,5 +1,6 @@
 use strict;
 use warnings;  
+no warnings 'uninitialized';
 
 use Test::More;
 use Test::Exception;
@@ -151,10 +152,11 @@ SQL
       ok(!$@, "inserted $size $type without dying");
       diag $@ if $@;
 
-      ok(eval {
+      my $got = eval {
         $rs->search({ id=> $id }, { select => [$type] })->single->$type
-      } eq $binstr{$size}, "verified inserted $size $type" );
+      };
       diag $@ if $@;
+      ok($got eq $binstr{$size}, "verified inserted $size $type");
     }
   }
 
