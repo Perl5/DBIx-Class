@@ -5,6 +5,8 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::AmbiguousGlob DBIx::Class::Storage::DBI/;
 
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MSSQL');
+
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
   my ($id) = $dbh->selectrow_array('SELECT SCOPE_IDENTITY()');

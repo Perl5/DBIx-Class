@@ -190,8 +190,10 @@ $schema->storage->_sql_maker->{name_sep} = '.';
     }, {
       distinct => 1,
       prefetch => 'owner',
-      order_by => 'name',
       rows     => 2,  # 3 results total
+      order_by => { -desc => 'owner' },
+      # there is no sane way to order by the right side of a grouped prefetch currently :(
+      #order_by => { -desc => 'owner.name' },
     });
 
 

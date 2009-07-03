@@ -1376,7 +1376,7 @@ sub _select_args_to_query {
 sub _select_args {
   my ($self, $ident, $select, $where, $attrs) = @_;
 
-  my ($alias2source, $root_alias) = $self->_resolve_ident_sources ($ident);
+  my ($alias2source, $rs_alias) = $self->_resolve_ident_sources ($ident);
 
   my $sql_maker = $self->sql_maker;
   $sql_maker->{_dbic_rs_attrs} = {
@@ -1384,7 +1384,10 @@ sub _select_args {
     select => $select,
     from => $ident,
     where => $where,
-    _source_handle => $alias2source->{$root_alias}->handle,
+    $rs_alias
+      ? ( _source_handle => $alias2source->{$rs_alias}->handle )
+      : ()
+    ,
   };
 
   # calculate bind_attrs before possible $ident mangling
@@ -1397,7 +1400,7 @@ sub _select_args {
       $bind_attrs->{$fqcn} = $bindtypes->{$col} if $bindtypes->{$col};
 
       # so that unqualified searches can be bound too
-      $bind_attrs->{$col} = $bind_attrs->{$fqcn} if $alias eq $root_alias;
+      $bind_attrs->{$col} = $bind_attrs->{$fqcn} if $alias eq $rs_alias;
     }
   }
 
@@ -1452,16 +1455,20 @@ sub _select_args {
   return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $order, @limit);
 }
 
+#
+# This is the code producing joined subqueries like:
+# SELECT me.*, other.* FROM ( SELECT me.* FROM ... ) JOIN other ON ... 
+#
 sub _adjust_select_args_for_complex_prefetch {
   my ($self, $from, $select, $where, $attrs) = @_;
+
+  $self->throw_exception ('Complex prefetches are not supported on resultsets with a custom from attribute')
+    if (ref $from ne 'ARRAY');
 
   # copies for mangling
   $from = [ @$from ];
   $select = [ @$select ];
   $attrs = { %$attrs };
-
-  $self->throw_exception ('Complex prefetches are not supported on resultsets with a custom from attribute')
-    if (ref $from ne 'ARRAY');
 
   # separate attributes
   my $sub_attrs = { %$attrs };
@@ -1469,6 +1476,7 @@ sub _adjust_select_args_for_complex_prefetch {
   delete $sub_attrs->{$_} for qw/for collapse prefetch_select _collapse_order_by select as/;
 
   my $alias = $attrs->{alias};
+  my $sql_maker = $self->sql_maker;
 
   # create subquery select list - loop only over primary columns
   my $sub_select = [];
@@ -1495,7 +1503,7 @@ sub _adjust_select_args_for_complex_prefetch {
   }
 
   # mangle {from}
-  my $select_root = shift @$from;
+  my $join_root = shift @$from;
   my @outer_from = @$from;
 
   my %inner_joins;
@@ -1505,7 +1513,7 @@ sub _adjust_select_args_for_complex_prefetch {
   # so always include it in the inner join, and also shift away
   # from the outer stack, so that the two datasets actually do
   # meet
-  if ($select_root->{-alias} ne $alias) {
+  if ($join_root->{-alias} ne $alias) {
     $inner_joins{$alias} = 1;
 
     while (@outer_from && $outer_from[0][0]{-alias} ne $alias) {
@@ -1536,7 +1544,6 @@ sub _adjust_select_args_for_complex_prefetch {
   # It may not be very efficient, but it's a reasonable stop-gap
   {
     # produce stuff unquoted, so it can be scanned
-    my $sql_maker = $self->sql_maker;
     local $sql_maker->{quote_char};
 
     my @order_by = (map
@@ -1576,14 +1583,13 @@ sub _adjust_select_args_for_complex_prefetch {
   }
 
   # construct the inner $from for the subquery
-  my $inner_from = [ $select_root ];
+  my $inner_from = [ $join_root ];
   for my $j (@$from) {
     push @$inner_from, $j if $inner_joins{$j->[0]{-alias}};
   }
 
   # if a multi-type join was needed in the subquery ("multi" is indicated by
   # presence in {collapse}) - add a group_by to simulate the collapse in the subq
-
   for my $alias (keys %inner_joins) {
 
     # the dot comes from some weirdness in collapse
@@ -1605,7 +1611,7 @@ sub _adjust_select_args_for_complex_prefetch {
   # put it in the new {from}
   unshift @outer_from, {
     -alias => $alias,
-    -source_handle => $select_root->{-source_handle},
+    -source_handle => $join_root->{-source_handle},
     $alias => $subq,
   };
 
@@ -1623,14 +1629,14 @@ sub _resolve_ident_sources {
   my ($self, $ident) = @_;
 
   my $alias2source = {};
-  my $root_alias;
+  my $rs_alias;
 
   # the reason this is so contrived is that $ident may be a {from}
   # structure, specifying multiple tables to join
   if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
     # this is compat mode for insert/update/delete which do not deal with aliases
     $alias2source->{me} = $ident;
-    $root_alias = 'me';
+    $rs_alias = 'me';
   }
   elsif (ref $ident eq 'ARRAY') {
 
@@ -1638,7 +1644,7 @@ sub _resolve_ident_sources {
       my $tabinfo;
       if (ref $_ eq 'HASH') {
         $tabinfo = $_;
-        $root_alias = $tabinfo->{-alias};
+        $rs_alias = $tabinfo->{-alias};
       }
       if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
         $tabinfo = $_->[0];
@@ -1649,7 +1655,7 @@ sub _resolve_ident_sources {
     }
   }
 
-  return ($alias2source, $root_alias);
+  return ($alias2source, $rs_alias);
 }
 
 # Takes $ident, \@column_names

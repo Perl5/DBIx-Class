@@ -135,8 +135,11 @@ sub _Top {
   }
 
   my $name_sep = $self->name_sep || '.';
-  $name_sep = "\Q$name_sep\E";
-  my $col_re = qr/ ^ (?: (.+) $name_sep )? ([^$name_sep]+) $ /x;
+  my $esc_name_sep = "\Q$name_sep\E";
+  my $col_re = qr/ ^ (?: (.+) $esc_name_sep )? ([^$esc_name_sep]+) $ /x;
+
+  my $rs_alias = $self->{_dbic_rs_attrs}{alias};
+  my $quoted_rs_alias = $self->_quote ($rs_alias);
 
   # construct the new select lists, rename(alias) some columns if necessary
   my (@outer_select, @inner_select, %seen_names, %col_aliases, %outer_col_aliases);
@@ -219,7 +222,6 @@ sub _Top {
     $limit_order = $req_order;
   }
   else {
-    my $rs_alias = $self->{_dbic_rs_attrs}{alias};
     $limit_order = [ map
       { join ('', $rs_alias, $name_sep, $_ ) }
       ( $self->{_dbic_rs_attrs}{_source_handle}->resolve->primary_columns )
@@ -260,7 +262,7 @@ sub _Top {
     SELECT TOP $rows $outer_select FROM
     (
       $sql
-    ) AS me
+    ) $quoted_rs_alias
     $order_by_outer
 SQL
 
@@ -270,12 +272,13 @@ SQL
     $sql = <<"SQL";
 
     SELECT $outer_select FROM
-      ( $sql ) AS me
-    $order_by_requested;
+      ( $sql ) $quoted_rs_alias
+    $order_by_requested
 SQL
 
   }
 
+  $sql =~ s/\s*\n\s*/ /g; # parsing out multiline statements is harder than a single line
   return $sql;
 }
 
