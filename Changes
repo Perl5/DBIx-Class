@@ -30,6 +30,7 @@ Revision history for DBIx::Class
         - Storage::DBI::connected() improvements for Oracle and Sybase
         - Fixed prefetch+incomplete select regression introduced in
           0.08100
+        - MSSQL limit (TOP emulation) fixes and improvements
 
 0.08107 2009-06-14 08:21:00 (UTC)
         - Fix serialization regression introduced in 0.08103 (affects
