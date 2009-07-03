@@ -3,10 +3,11 @@ package DBIx::Class;
 use strict;
 use warnings;
 
+use MRO::Compat;
+
 use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
-
 
 sub mk_classdata {
   shift->mk_classaccessor(@_);

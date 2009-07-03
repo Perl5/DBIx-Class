@@ -12,12 +12,13 @@ BEGIN {
   no warnings qw/redefine/;
   no strict qw/refs/;
   for my $f (qw/carp croak/) {
+
     my $orig = \&{"SQL::Abstract::$f"};
     *{"SQL::Abstract::$f"} = sub {
 
       local $Carp::CarpLevel = 1;   # even though Carp::Clan ignores this, $orig will not
 
-      if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+\(\) called/) {
+      if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+ .+? called \s at/x) {
         __PACKAGE__->can($f)->(@_);
       }
       else {
@@ -116,37 +117,190 @@ SQL
 sub _Top {
   my ( $self, $sql, $order, $rows, $offset ) = @_;
 
+  # mangle the input sql so it can be properly aliased in the outer queries
+  $sql =~ s/^ \s* SELECT \s+ (.+?) \s+ (?=FROM)//ix
+    or croak "Unrecognizable SELECT: $sql";
+  my $sql_select = $1;
+  my @sql_select = split (/\s*,\s*/, $sql_select);
+
+  # we can't support subqueries (in fact MSSQL can't) - croak
+  if (@sql_select != @{$self->{_dbic_rs_attrs}{select}}) {
+    croak (sprintf (
+      'SQL SELECT did not parse cleanly - retrieved %d comma separated elements, while '
+    . 'the resultset select attribure contains %d elements: %s',
+      scalar @sql_select,
+      scalar @{$self->{_dbic_rs_attrs}{select}},
+      $sql_select,
+    ));
+  }
+
+  my $name_sep = $self->name_sep || '.';
+  my $esc_name_sep = "\Q$name_sep\E";
+  my $col_re = qr/ ^ (?: (.+) $esc_name_sep )? ([^$esc_name_sep]+) $ /x;
+
+  my $rs_alias = $self->{_dbic_rs_attrs}{alias};
+  my $quoted_rs_alias = $self->_quote ($rs_alias);
+
+  # construct the new select lists, rename(alias) some columns if necessary
+  my (@outer_select, @inner_select, %seen_names, %col_aliases, %outer_col_aliases);
+
+  for (@{$self->{_dbic_rs_attrs}{select}}) {
+    next if ref $_;
+    my ($table, $orig_colname) = ( $_ =~ $col_re );
+    next unless $table;
+    $seen_names{$orig_colname}++;
+  }
+
+  for my $i (0 .. $#sql_select) {
+
+    my $colsel_arg = $self->{_dbic_rs_attrs}{select}[$i];
+    my $colsel_sql = $sql_select[$i];
+
+    # this may or may not work (in case of a scalarref or something)
+    my ($table, $orig_colname) = ( $colsel_arg =~ $col_re );
+
+    my $quoted_alias;
+    # do not attempt to understand non-scalar selects - alias numerically
+    if (ref $colsel_arg) {
+      $quoted_alias = $self->_quote ('column_' . (@inner_select + 1) );
+    }
+    # column name seen more than once - alias it
+    elsif ($orig_colname && ($seen_names{$orig_colname} > 1) ) {
+      $quoted_alias = $self->_quote ("${table}__${orig_colname}");
+    }
+
+    # we did rename - make a record and adjust
+    if ($quoted_alias) {
+      # alias inner
+      push @inner_select, "$colsel_sql AS $quoted_alias";
+
+      # push alias to outer
+      push @outer_select, $quoted_alias;
+
+      # Any aliasing accumulated here will be considered
+      # both for inner and outer adjustments of ORDER BY
+      $self->__record_alias (
+        \%col_aliases,
+        $quoted_alias,
+        $colsel_arg,
+        $table ? $orig_colname : undef,
+      );
+    }
+
+    # otherwise just leave things intact inside, and use the abbreviated one outside
+    # (as we do not have table names anymore)
+    else {
+      push @inner_select, $colsel_sql;
+
+      my $outer_quoted = $self->_quote ($orig_colname);  # it was not a duplicate so should just work
+      push @outer_select, $outer_quoted;
+      $self->__record_alias (
+        \%outer_col_aliases,
+        $outer_quoted,
+        $colsel_arg,
+        $table ? $orig_colname : undef,
+      );
+    }
+  }
+
+  my $outer_select = join (', ', @outer_select );
+  my $inner_select = join (', ', @inner_select );
+
+  %outer_col_aliases = (%outer_col_aliases, %col_aliases);
+
+  # deal with order
   croak '$order supplied to SQLAHacks limit emulators must be a hash'
     if (ref $order ne 'HASH');
 
   $order = { %$order }; #copy
 
-  my $last = $rows + $offset;
+  my $req_order = $order->{order_by};
 
-  my $req_order = $self->_order_by ($order->{order_by});
-
-  my $limit_order = $req_order ? $order->{order_by} : $order->{_virtual_order_by};
-
-  delete $order->{$_} for qw/order_by _virtual_order_by/;
-  my $grpby_having = $self->_order_by ($order);
+  # examine normalized version, collapses nesting
+  my $limit_order;
+  if (scalar $self->_order_by_chunks ($req_order)) {
+    $limit_order = $req_order;
+  }
+  else {
+    $limit_order = [ map
+      { join ('', $rs_alias, $name_sep, $_ ) }
+      ( $self->{_dbic_rs_attrs}{_source_handle}->resolve->primary_columns )
+    ];
+  }
 
   my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
+  my $order_by_requested = $self->_order_by ($req_order);
 
-  $sql =~ s/^\s*(SELECT|select)//;
+  # generate the rest
+  delete $order->{order_by};
+  my $grpby_having = $self->_order_by ($order);
 
-  $sql = <<"SQL";
-  SELECT * FROM
-  (
-    SELECT TOP $rows * FROM
+  # short circuit for counts - the ordering complexity is needless
+  if ($self->{_dbic_rs_attrs}{-for_count_only}) {
+    return "SELECT TOP $rows $inner_select $sql $grpby_having $order_by_outer";
+  }
+
+  # we can't really adjust the order_by columns, as introspection is lacking
+  # resort to simple substitution
+  for my $col (keys %outer_col_aliases) {
+    for ($order_by_requested, $order_by_outer) {
+      $_ =~ s/\s+$col\s+/ $outer_col_aliases{$col} /g;
+    }
+  }
+  for my $col (keys %col_aliases) {
+    $order_by_inner =~ s/\s+$col\s+/ $col_aliases{$col} /g;
+  }
+
+
+  my $inner_lim = $rows + $offset;
+
+  $sql = "SELECT TOP $inner_lim $inner_select $sql $grpby_having $order_by_inner";
+
+  if ($offset) {
+    $sql = <<"SQL";
+
+    SELECT TOP $rows $outer_select FROM
     (
-        SELECT TOP $last $sql $grpby_having $order_by_inner
-    ) AS foo
+      $sql
+    ) $quoted_rs_alias
     $order_by_outer
-  ) AS bar
-  $req_order
-
 SQL
-    return $sql;
+
+  }
+
+  if ($order_by_requested) {
+    $sql = <<"SQL";
+
+    SELECT $outer_select FROM
+      ( $sql ) $quoted_rs_alias
+    $order_by_requested
+SQL
+
+  }
+
+  $sql =~ s/\s*\n\s*/ /g; # parsing out multiline statements is harder than a single line
+  return $sql;
+}
+
+# action at a distance to shorten Top code above
+sub __record_alias {
+  my ($self, $register, $alias, $fqcol, $col) = @_;
+
+  # record qualified name
+  $register->{$fqcol} = $alias;
+  $register->{$self->_quote($fqcol)} = $alias;
+
+  return unless $col;
+
+  # record unqualified name, undef (no adjustment) if a duplicate is found
+  if (exists $register->{$col}) {
+    $register->{$col} = undef;
+  }
+  else {
+    $register->{$col} = $alias;
+  }
+
+  $register->{$self->_quote($col)} = $register->{$col};
 }
 
 
@@ -158,6 +312,10 @@ sub _find_syntax {
   return $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
 }
 
+my $for_syntax = {
+  update => 'FOR UPDATE',
+  shared => 'FOR SHARE',
+};
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
 
@@ -177,15 +335,10 @@ sub select {
   my ($sql, @where_bind) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $order, @rest
   );
-  $sql .= 
-    $self->{for} ?
-    (
-      $self->{for} eq 'update' ? ' FOR UPDATE' :
-      $self->{for} eq 'shared' ? ' FOR SHARE'  :
-      ''
-    ) :
-    ''
-  ;
+  if (my $for = delete $self->{_dbic_rs_attrs}{for}) {
+    $sql .= " $for_syntax->{$for}" if $for_syntax->{$for};
+  }
+
   return wantarray ? ($sql, @{$self->{from_bind}}, @where_bind, @{$self->{having_bind}}, @{$self->{order_bind}} ) : $sql;
 }
 

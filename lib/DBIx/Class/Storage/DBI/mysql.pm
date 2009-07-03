@@ -3,7 +3,12 @@ package DBIx::Class::Storage::DBI::mysql;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
+use base qw/
+  DBIx::Class::Storage::DBI::MultiColumnIn
+  DBIx::Class::Storage::DBI::AmbiguousGlob
+  DBIx::Class::Storage::DBI
+/;
+use mro 'c3';
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MySQL');
 
@@ -47,7 +52,7 @@ sub _svp_rollback {
 
     $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
- 
+
 sub is_replicating {
     my $status = shift->dbh->selectrow_hashref('show slave status');
     return ($status->{Slave_IO_Running} eq 'Yes') && ($status->{Slave_SQL_Running} eq 'Yes');
@@ -61,19 +66,6 @@ sub lag_behind_master {
 # This assumes you have set proper transaction isolation and use innodb.
 sub _subq_update_delete {
   return shift->_per_row_update_delete (@_);
-}
-
-# MySql chokes on things like:
-# COUNT(*) FROM (SELECT tab1.col, tab2.col FROM tab1 JOIN tab2 ... )
-# claiming that col is a duplicate column (it loses the table specifiers by
-# the time it gets to the *). Thus for any subquery count we select only the
-# primary keys of the main table in the inner query. This hopefully still
-# hits the indexes and keeps mysql happy.
-# (mysql does not care if the SELECT and the GROUP BY match)
-sub _subq_count_select {
-  my ($self, $source, $rs_attrs) = @_;
-  my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
-  return @pcols ? \@pcols : [ 1 ];
 }
 
 1;

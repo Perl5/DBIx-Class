@@ -1,9 +1,9 @@
 package DBIx::Class::Storage::DBI::Cursor;
 
-use base qw/DBIx::Class::Cursor/;
-
 use strict;
 use warnings;
+
+use base qw/DBIx::Class::Cursor/;
 
 =head1 NAME
 

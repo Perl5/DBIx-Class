@@ -3,7 +3,10 @@ package DBIx::Class::Storage::DBI::MSSQL;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::AmbiguousGlob DBIx::Class::Storage::DBI/;
+use mro 'c3';
+
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MSSQL');
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
