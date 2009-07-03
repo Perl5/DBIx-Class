@@ -2226,12 +2226,15 @@ store. If the appropriate relationships are set up, foreign key fields
 can also be passed an object representing the foreign row, and the
 value will be set to its primary key.
 
-To create related objects, pass a hashref for the value if the related
-item is a foreign key relationship (L<DBIx::Class::Relationship/belongs_to>),
-and use the name of the relationship as the key. (NOT the name of the field,
-necessarily). For C<has_many> and C<has_one> relationships, pass an arrayref
-of hashrefs containing the data for each of the rows to create in the foreign
-tables, again using the relationship name as the key.
+To create related objects, pass a hashref of related-object column values
+B<keyed on the relationship name>. If the relationship is of type C<multi>
+(L<DBIx::Class::Relationship/has_many>) - pass an arrayref of hashrefs.
+The process will correctly identify columns holding foreign keys, and will
+transparrently populate them from the keys of the corresponding relation.
+This can be applied recursively, and will work correctly for a structure
+with an arbitrary depth and width, as long as the relationships actually
+exists and the correct column data has been supplied.
+
 
 Instead of hashrefs of plain related data (key/value pairs), you may
 also pass new or inserted objects. New objects (not inserted yet, see

@@ -8,7 +8,7 @@ use DBICTest;
 
 sub mc_diag { diag (@_) if $ENV{DBIC_MULTICREATE_DEBUG} };
 
-plan tests => 16;
+plan tests => 26;
 
 my $schema = DBICTest->init_schema();
 
@@ -30,8 +30,30 @@ my $rels = {
   might_have => 'artwork',
 };
 
-my $artist_rs = $schema->resultset('Artist');
+for my $type (qw/has_one might_have/) {
 
+  lives_ok (sub {
+
+    my $rel = $rels->{$type};
+    my $cd_title = "Simple test $type cd";
+
+    my $cd = $schema->resultset('CD')->create ({
+      artist => 1,
+      title => $cd_title,
+      year => 2008,
+      $rel => {},
+    });
+
+    isa_ok ($cd, 'DBICTest::CD', 'Main CD object created');
+    is ($cd->title, $cd_title, 'Correct CD title');
+
+    isa_ok ($cd->$rel, 'DBICTest::Artwork', 'Related artwork present');
+    ok ($cd->$rel->in_storage, 'And in storage');
+
+  }, "Simple $type creation");
+}
+
+my $artist_rs = $schema->resultset('Artist');
 for my $type (qw/has_one might_have/) {
 
   my $rel = $rels->{$type};
