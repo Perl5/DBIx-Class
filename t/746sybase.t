@@ -14,7 +14,7 @@ if (not ($dsn && $user)) {
     "\nWarning: This test drops and creates the tables " .
     "'artist' and 'bindtype_test'";
 } else {
-  plan tests => (26 + 2)*2;
+  plan tests => (27 + 2)*2;
 }
 
 my @storage_types = (
@@ -37,8 +37,11 @@ for my $storage_type (@storage_types) {
   });
 
   $schema->storage->ensure_connected;
+  $schema->storage->_dbh->disconnect;
 
   isa_ok( $schema->storage, "DBIx::Class::Storage::$storage_type" );
+
+  lives_ok (sub { $schema->storage->dbh }, 'reconnect works');
 
   $schema->storage->dbh_do (sub {
       my ($storage, $dbh) = @_;
@@ -151,6 +154,7 @@ SQL
       ok(eval {
         $rs->search({ id=> $id }, { select => [$type] })->single->$type
       } eq $binstr{$size}, "verified inserted $size $type" );
+      diag $@ if $@;
     }
   }
 

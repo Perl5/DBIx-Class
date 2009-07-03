@@ -4,8 +4,8 @@ use strict;
 use warnings;
 use mro 'c3';
 use base qw/
-    DBIx::Class::Storage::DBI::Sybase::Base
     DBIx::Class::Storage::DBI
+    DBIx::Class::Storage::DBI::Sybase::Base
 /;
 use Carp::Clan qw/^DBIx::Class/;
 
@@ -249,69 +249,6 @@ sub _dbh_last_insert_id {
   my $sth = $dbh->prepare_cached("select max($col) from ".$source->from);
   return ($dbh->selectrow_array($sth))[0];
 }
-
-# previous implementation of limited count for Sybase, does not include
-# count_grouped.
-
-#sub _copy_attributes_for_count {
-#  my ($self, $source, $attrs) = @_;
-#  my %attrs = %$attrs;
-#
-#  # take off any column specs, any pagers, record_filter is cdbi, and no point of ordering a count
-#  delete @attrs{qw/select as rows offset page order_by record_filter/};
-#
-#  return \%attrs;
-#}
-#
-#=head2 count
-#
-#Counts for limited queries are emulated by executing select queries and
-#returning the number of successful executions minus the offset.
-#
-#This is necessary due to the limitations of Sybase.
-#
-#=cut
-#
-#sub count {
-#  my $self = shift;
-#  my ($source, $attrs) = @_;
-#
-#  my $new_attrs = $self->_copy_attributes_for_count($source, $attrs);
-#
-#  if (exists $attrs->{rows}) {
-#    my $offset = $attrs->{offset} || 0;
-#    my $total  = $attrs->{rows} + $offset;
-#
-#    my $first_pk = ($source->primary_columns)[0];
-#
-#    $new_attrs->{select} = $first_pk ? "me.$first_pk" : 1;
-#
-#    my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
-#
-#    $self->dbh->{syb_rowcount} = $total;
-#
-#    my $count = 0;
-#    $count++ while $tmp_rs->cursor->next;
-#
-#    $self->dbh->{syb_rowcount} = 0;
-#
-#    return $count - $offset;
-#  } else {
-#    # overwrite the selector
-#    $new_attrs->{select} = { count => '*' };
-#
-#    my $tmp_rs = $source->resultset_class->new($source, $new_attrs);
-#    my ($count) = $tmp_rs->cursor->next;
-#
-#    # if the offset/rows attributes are still present, we did not use
-#    # a subquery, so we need to make the calculations in software
-#    $count -= $attrs->{offset} if $attrs->{offset};
-#    $count = $attrs->{rows} if $attrs->{rows} and $attrs->{rows} < $count;
-#    $count = 0 if ($count < 0);
-#
-#    return $count;
-#  }
-#}
 
 1;
 
