@@ -248,7 +248,7 @@ sub _Top {
     }
   }
   for my $col (keys %col_aliases) {
-    $order_by_inner =~ s/\s+$col\s+/$col_aliases{$col}/g;
+    $order_by_inner =~ s/\s+$col\s+/ $col_aliases{$col} /g;
   }
 
 
