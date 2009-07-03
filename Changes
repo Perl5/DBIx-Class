@@ -6,6 +6,12 @@ Revision history for DBIx::Class
         - New resultsed method count_rs, returns a ::ResultSetColumn
           which in turn returns a single count value
         - Even better support of count with limit
+        - New on_connect_call/on_disconnect_call functionality (check
+          POD of Storage::DBI)
+        - Automatic datetime handling environment/session setup for
+          Oracle via connect_call_datetime_setup()
+        - MySQL can now be turned into a sane database by adding
+          { on_connect_call => 'set_ansi_mode' } to the connect() call
         - count/all on related left-joined empty resultsets now correctly
           returns 0/()
         - Fixed regression when both page and offset are specified on

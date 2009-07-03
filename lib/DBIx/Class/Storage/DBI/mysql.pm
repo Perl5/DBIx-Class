@@ -10,15 +10,15 @@ __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MySQL');
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
 
-  $self->dbh->do('SET foreign_key_checks=0');
+  $self->_do_query('SET foreign_key_checks=0');
   $sub->();
-  $self->dbh->do('SET foreign_key_checks=1');
+  $self->_do_query('SET foreign_key_checks=1');
 }
 
 sub connect_call_set_ansi_mode {
   my $self = shift;
-  $self->dbh->do(q|SET sql_mode = 'ANSI,TRADITIONAL'|);
-  $self->dbh->do(q|SET sql_mode = 'ANSI,TRADITIONAL'|);
+  $self->_do_query(q|SET sql_mode = 'ANSI,TRADITIONAL'|);
+  $self->_do_query(q|SET SQL_AUTO_IS_NULL = 0|);
 }
 
 sub _dbh_last_insert_id {
