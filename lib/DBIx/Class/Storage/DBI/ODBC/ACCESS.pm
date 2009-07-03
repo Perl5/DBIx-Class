@@ -2,8 +2,10 @@ package DBIx::Class::Storage::DBI::ODBC::ACCESS;
 use strict;
 use warnings;
 
-use DBI;
 use base qw/DBIx::Class::Storage::DBI/;
+use mro 'c3';
+
+use DBI;
 
 my $ERR_MSG_START = __PACKAGE__ . ' failed: ';
 

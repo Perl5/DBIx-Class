@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::AmbiguousGlob DBIx::Class::Storage::DBI/;
+use mro 'c3';
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MSSQL');
 

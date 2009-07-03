@@ -1,10 +1,12 @@
 package DBIx::Class::Storage::DBI;
 # -*- mode: cperl; cperl-indent-level: 2 -*-
 
-use base 'DBIx::Class::Storage';
-
 use strict;
 use warnings;
+
+use base 'DBIx::Class::Storage';
+use mro 'c3';
+
 use Carp::Clan qw/^DBIx::Class/;
 use DBI;
 use DBIx::Class::Storage::DBI::Cursor;

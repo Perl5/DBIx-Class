@@ -2,11 +2,12 @@ package DBIx::Class::Storage::DBI::Sybase;
 
 use strict;
 use warnings;
-use mro 'c3';
+
 use base qw/
     DBIx::Class::Storage::DBI::Sybase::Base
     DBIx::Class::Storage::DBI::NoBindVars
 /;
+use mro 'c3';
 
 sub _rebless {
     my $self = shift;

@@ -3,6 +3,7 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
+use mro 'c3';
 
 sub _rebless {
     my ($self) = @_;

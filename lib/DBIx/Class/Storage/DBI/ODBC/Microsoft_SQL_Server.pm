@@ -3,6 +3,8 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::MSSQL/;
+use mro 'c3';
+
 use List::Util();
 
 sub insert_bulk {
