@@ -21,7 +21,7 @@ Revision history for DBIx::Class
         - Fixed set_$rel with where restriction deleting rows outside 
           the restriction
         - populate() returns the created objects or an arrayref of the
-          create dobjects depending on scalar vs. list context
+          created objects depending on scalar vs. list context
         - Fixed find_related on 'single' relationships - the former
           implementation would overspecify the WHERE condition, reporting
           no related objects when there in fact is one
