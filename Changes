@@ -10,8 +10,6 @@ Revision history for DBIx::Class
           POD of Storage::DBI)
         - Automatic datetime handling environment/session setup for
           Oracle via connect_call_datetime_setup()
-        - MySQL can now be turned into a sane database by adding
-          { on_connect_call => 'set_ansi_mode' } to the connect() call
         - count/all on related left-joined empty resultsets now correctly
           returns 0/()
         - Fixed regression when both page and offset are specified on

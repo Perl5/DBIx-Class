@@ -20,12 +20,6 @@ sub with_deferred_fk_checks {
   $self->_do_query('SET FOREIGN_KEY_CHECKS = 1');
 }
 
-sub connect_call_set_ansi_mode {
-  my $self = shift;
-  $self->_do_query(q|SET SQL_MODE = 'ANSI,TRADITIONAL'|);
-  $self->_do_query(q|SET SQL_AUTO_IS_NULL = 0|);
-}
-
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
   $dbh->{mysql_insertid};
@@ -84,9 +78,6 @@ C<$storage> object into this class.
 =head1 DESCRIPTION
 
 This class implements MySQL specific bits of L<DBIx::Class::Storage::DBI>.
-
-It also provides a one-stop macro that sets session variables such that
-MySQL behaves more predictably as far as the SQL standard is concerned.
 
 =head1 AUTHORS
 

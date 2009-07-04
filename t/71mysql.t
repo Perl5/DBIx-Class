@@ -164,12 +164,12 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
 ##
 ## Only way is to do a SET SQL_AUTO_IS_NULL = 0; on connect
 ## But I'm not sure if we should do this or not (Ash, 2008/06/03)
-#
-# There is now a built-in function to do this, test that everything works
-# with it (ribasushi, 2009/07/03)
 
 NULLINSEARCH: {
-    my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, { on_connect_call => 'set_ansi_mode' });
+    local $TODO = 'Fix pending in branches/mysql_ansi';
+    my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass);
+
+    $ansi_schema->resultset('Artist')->create ({ name => 'last created artist' });
 
     ok my $artist1_rs = $ansi_schema->resultset('Artist')->search({artistid=>6666})
       => 'Created an artist resultset of 6666';
