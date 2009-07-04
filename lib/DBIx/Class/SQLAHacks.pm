@@ -1,6 +1,10 @@
 package # Hide from PAUSE
   DBIx::Class::SQLAHacks;
 
+# This module is a subclass of SQL::Abstract::Limit and includes a number
+# of DBIC-specific workarounds, not yet suitable for inclusion into the
+# SQLA core
+
 use base qw/SQL::Abstract::Limit/;
 use strict;
 use warnings;
@@ -28,6 +32,9 @@ BEGIN {
   }
 }
 
+
+# Tries to determine limit dialect.
+#
 sub new {
   my $self = shift->SUPER::new(@_);
 
@@ -40,14 +47,12 @@ sub new {
   $self;
 }
 
-
 # Some databases (sqlite) do not handle multiple parenthesis
-# around in/between arguments. A tentative x IN ( ( 1, 2 ,3) )
+# around in/between arguments. A tentative x IN ( (1, 2 ,3) )
 # is interpreted as x IN 1 or something similar.
 #
 # Since we currently do not have access to the SQLA AST, resort
 # to barbaric mutilation of any SQL supplied in literal form
-
 sub _strip_outer_paren {
   my ($self, $arg) = @_;
 
@@ -316,6 +321,8 @@ my $for_syntax = {
   update => 'FOR UPDATE',
   shared => 'FOR SHARE',
 };
+# Quotes table names, handles "limit" dialects (e.g. where rownum between x and
+# y), supports SELECT ... FOR UPDATE and SELECT ... FOR SHARE.
 sub select {
   my ($self, $table, $fields, $where, $order, @rest) = @_;
 
@@ -342,6 +349,7 @@ sub select {
   return wantarray ? ($sql, @{$self->{from_bind}}, @where_bind, @{$self->{having_bind}}, @{$self->{order_bind}} ) : $sql;
 }
 
+# Quotes table names, and handles default inserts
 sub insert {
   my $self = shift;
   my $table = shift;
@@ -357,6 +365,7 @@ sub insert {
   $self->SUPER::insert($table, @_);
 }
 
+# Just quotes table names.
 sub update {
   my $self = shift;
   my $table = shift;
@@ -364,6 +373,7 @@ sub update {
   $self->SUPER::update($table, @_);
 }
 
+# Just quotes table names.
 sub delete {
   my $self = shift;
   my $table = shift;
@@ -592,12 +602,15 @@ sub limit_dialect {
     return $self->{limit_dialect};
 }
 
+# Set to an array-ref to specify separate left and right quotes for table names.
+# A single scalar is equivalen to [ $char, $char ]
 sub quote_char {
     my $self = shift;
     $self->{quote_char} = shift if @_;
     return $self->{quote_char};
 }
 
+# Character separating quoted table names.
 sub name_sep {
     my $self = shift;
     $self->{name_sep} = shift if @_;
@@ -605,50 +618,3 @@ sub name_sep {
 }
 
 1;
-
-__END__
-
-=pod
-
-=head1 NAME
-
-DBIx::Class::SQLAHacks - This module is a subclass of SQL::Abstract::Limit
-and includes a number of DBIC-specific workarounds, not yet suitable for
-inclusion into SQLA proper.
-
-=head1 METHODS
-
-=head2 new
-
-Tries to determine limit dialect.
-
-=head2 select
-
-Quotes table names, handles "limit" dialects (e.g. where rownum between x and
-y), supports SELECT ... FOR UPDATE and SELECT ... FOR SHARE.
-
-=head2 insert update delete
-
-Just quotes table names.
-
-=head2 limit_dialect
-
-Specifies the dialect of used for implementing an SQL "limit" clause for
-restricting the number of query results returned.  Valid values are: RowNum.
-
-See L<DBIx::Class::Storage::DBI/connect_info> for details.
-
-=head2 name_sep
-
-Character separating quoted table names.
-
-See L<DBIx::Class::Storage::DBI/connect_info> for details.
-
-=head2 quote_char
-
-Set to an array-ref to specify separate left and right quotes for table names.
-
-See L<DBIx::Class::Storage::DBI/connect_info> for details.
-
-=cut
-
