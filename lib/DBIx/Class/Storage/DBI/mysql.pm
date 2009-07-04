@@ -72,21 +72,25 @@ sub _subq_update_delete {
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::mysql - Automatic primary key class for MySQL
+DBIx::Class::Storage::DBI::mysql - Storage::DBI class implementing MySQL specifics
 
 =head1 SYNOPSIS
 
-  # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
-  __PACKAGE__->set_primary_key('id');
+Storage::DBI autodetects the underlying MySQL database, and re-blesses the
+C<$storage> object into this class.
+
+  my $schema = MyDatbase->connect( $dsn, $user, $pass, { set_ansi_mode => 1 } );
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for MySQL.
+This class implements MySQL specific bits of L<DBIx::Class::Storage::DBI>.
+
+It also provides a one-stop macro that sets session variables such that
+MySQL behaves more predictably as far as the SQL standard is concerned.
 
 =head1 AUTHORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<DBIx::Class/CONTRIBUTORS>
 
 =head1 LICENSE
 
