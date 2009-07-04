@@ -79,7 +79,7 @@ DBIx::Class::Storage::DBI::mysql - Storage::DBI class implementing MySQL specifi
 Storage::DBI autodetects the underlying MySQL database, and re-blesses the
 C<$storage> object into this class.
 
-  my $schema = MyDatbase->connect( $dsn, $user, $pass, { set_ansi_mode => 1 } );
+  my $schema = MyDb::Schema->connect( $dsn, $user, $pass, { set_ansi_mode => 1 } );
 
 =head1 DESCRIPTION
 
