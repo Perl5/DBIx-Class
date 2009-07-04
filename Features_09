@@ -14,11 +14,7 @@ Syntax improvements?
  - "belongs_to" to "contains/refers/something"
 
 Using inflated objects/references as values in searches
- - Goes together with subselects above
  - should deflate then run search
-
-FilterColumn - like Inflate, only for changing scalar values
- - This seems to be vaporware atm..
 
 SQL/API feature complete?
  - UNION
@@ -27,16 +23,15 @@ SQL/API feature complete?
 
 Moosification - ouch
 
+Metamodel stuff - introspection
+
 Prefetch improvements
  - slow on mysql, speedup?
  - multi has_many prefetch
- - paging working with prefetch
 
 Magically "discover" needed joins/prefetches and add them
  - eg $books->search({ 'author.name' => 'Fred'}), autoadds: join => 'author'
  - also guess aliases when supplying column names that are on joined/related tables
-
-Metamodel stuff - introspection
 
 Storage API/restructure
  - call update/insert etc on the ResultSource, which then calls to storage
@@ -52,4 +47,3 @@ Joining/searching weird attribute tables?
 Documentation - improvements
  - better indexing for finding of stuff in general
  - more cross-referencing of docs
-
