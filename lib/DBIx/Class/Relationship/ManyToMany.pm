@@ -7,11 +7,6 @@ use warnings;
 use Carp::Clan qw/^DBIx::Class/;
 use Sub::Name ();
 
-our %_pod_inherit_config = 
-  (
-   class_map => { 'DBIx::Class::Relationship::ManyToMany' => 'DBIx::Class::Relationship' }
-  );
-
 sub many_to_many {
   my ($class, $meth, $rel, $f_rel, $rel_attrs) = @_;
 

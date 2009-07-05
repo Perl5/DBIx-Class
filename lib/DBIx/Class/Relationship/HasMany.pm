@@ -4,11 +4,6 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
-our %_pod_inherit_config = 
-  (
-   class_map => { 'DBIx::Class::Relationship::HasMany' => 'DBIx::Class::Relationship' }
-  );
-
 sub has_many {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
 
