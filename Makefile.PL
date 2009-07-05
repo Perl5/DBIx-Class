@@ -42,6 +42,7 @@ requires 'SQL::Abstract::Limit'     => 0.13;
 requires 'Sub::Name'                => 0.04;
 
 recommends 'SQL::Translator'        => 0.09004;
+recommends 'Module::Install::Pod::Inherit' => '0.01';
 
 install_script (qw|
     script/dbicadmin
@@ -138,6 +139,10 @@ EOW
 }
 
 auto_install();
+
+eval { use Module::Install::Pod::Inherit; };
+
+PodInherit() if(!$@ && $Module::Install::AUTHOR);
 
 WriteAll();
 
