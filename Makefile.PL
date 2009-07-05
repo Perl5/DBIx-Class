@@ -61,6 +61,7 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 
 my %force_requires_if_author = (
   'Test::Pod::Coverage'       => 1.04,
+  'Module::Install::Pod::Inherit' => 0.01,
   'SQL::Translator'           => 0.09007,
 
   # CDBI-compat related
@@ -135,6 +136,9 @@ EOW
     print "Removing MANIFEST\n";
     unlink 'MANIFEST';
   }
+
+  eval { require Module::Install::Pod::Inherit };
+  Module::Install::Pod::Inherit::PodInherit() if !$@;
 }
 
 auto_install();
