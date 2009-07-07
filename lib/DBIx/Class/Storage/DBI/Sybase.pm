@@ -60,7 +60,8 @@ sub _rebless {
     } else {
       # real Sybase
       if (not $self->dbh->{syb_dynamic_supported}) {
-        bless $self, 'DBIx::Class::Storage:DBI::Sybase::NoBindVars';
+        $self->ensure_class_loaded('DBIx::Class::Storage::DBI::Sybase::NoBindVars');
+        bless $self, 'DBIx::Class::Storage::DBI::Sybase::NoBindVars';
         $self->_rebless;
       }
     }
