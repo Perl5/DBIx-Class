@@ -1,11 +1,18 @@
 Revision history for DBIx::Class
 
+        - Added call to Pod::Inherit in Makefile.PL - 
+          currently at author-time only, so we need to add the produced
+          .pod files to the MANIFEST
         - Fixed the has_many prefetch with limit/group deficiency -
           it is now possible to select "top 5 commenters" while
           prefetching all their comments
         - New resultsed method count_rs, returns a ::ResultSetColumn
           which in turn returns a single count value
         - Even better support of count with limit
+        - New on_connect_call/on_disconnect_call functionality (check
+          POD of Storage::DBI)
+        - Automatic datetime handling environment/session setup for
+          Oracle via connect_call_datetime_setup()
         - count/all on related left-joined empty resultsets now correctly
           returns 0/()
         - Fixed regression when both page and offset are specified on
@@ -17,7 +24,7 @@ Revision history for DBIx::Class
         - Fixed set_$rel with where restriction deleting rows outside 
           the restriction
         - populate() returns the created objects or an arrayref of the
-          create dobjects depending on scalar vs. list context
+          created objects depending on scalar vs. list context
         - Fixed find_related on 'single' relationships - the former
           implementation would overspecify the WHERE condition, reporting
           no related objects when there in fact is one
@@ -28,6 +35,9 @@ Revision history for DBIx::Class
         - Fixed a bug in search_related doubling a join if the original
           $rs already joins/prefetches the same relation
         - Storage::DBI::connected() improvements for Oracle and Sybase
+        - Fixed prefetch+incomplete select regression introduced in
+          0.08100
+        - MSSQL limit (TOP emulation) fixes and improvements
 
 0.08107 2009-06-14 08:21:00 (UTC)
         - Fix serialization regression introduced in 0.08103 (affects

@@ -2,11 +2,12 @@ package DBIx::Class::Storage::DBI::Sybase;
 
 use strict;
 use warnings;
-use mro 'c3';
+
 use base qw/
     DBIx::Class::Storage::DBI::Sybase::Base
     DBIx::Class::Storage::DBI
 /;
+use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 
 =head1 NAME

@@ -4,8 +4,7 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
-
-# __PACKAGE__->load_components(qw/PK::Auto/);
+use mro 'c3';
 
 sub _dbh_last_insert_id {
     my ($self, $dbh, $source, $col) = @_;

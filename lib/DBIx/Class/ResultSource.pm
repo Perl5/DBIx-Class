@@ -893,7 +893,7 @@ sub add_relationship {
   }
   return unless $f_source; # Can't test rel without f_source
 
-  eval { $self->_resolve_join($rel, 'me', {}) };
+  eval { $self->_resolve_join($rel, 'me', {}, []) };
 
   if ($@) { # If the resolve failed, back out and re-throw the error
     delete $rels{$rel}; #
@@ -1087,19 +1087,17 @@ sub _resolve_join {
 
   # we need a supplied one, because we do in-place modifications, no returns
   $self->throw_exception ('You must supply a seen hashref as the 3rd argument to _resolve_join')
-    unless $seen;
+    unless ref $seen eq 'HASH';
 
-  # This isn't quite right, we should actually dive into $seen and reconstruct
-  # the entire path (the reference entry point would be the join conditional
-  # with depth == current_depth - 1. At this point however nothing depends on
-  # having the entire path, transcending related_resultset, so just leave it
-  # as is, hairy enough already.
-  $jpath ||= [];
+  $self->throw_exception ('You must supply a joinpath arrayref as the 4th argument to _resolve_join')
+    unless ref $jpath eq 'ARRAY';
+
+  $jpath = [@$jpath];
 
   if (ref $join eq 'ARRAY') {
     return
       map {
-        $self->_resolve_join($_, $alias, $seen, [@$jpath], $force_left);
+        $self->_resolve_join($_, $alias, $seen, $jpath, $force_left);
       } @$join;
   } elsif (ref $join eq 'HASH') {
     return
@@ -1195,7 +1193,6 @@ our $UNRESOLVABLE_CONDITION = \'1 = 0';
 
 sub _resolve_condition {
   my ($self, $cond, $as, $for) = @_;
-  #warn %$cond;
   if (ref $cond eq 'HASH') {
     my %ret;
     foreach my $k (keys %{$cond}) {
@@ -1236,7 +1233,7 @@ sub _resolve_condition {
   } elsif (ref $cond eq 'ARRAY') {
     return [ map { $self->_resolve_condition($_, $as, $for) } @$cond ];
   } else {
-   die("Can't handle this yet :(");
+   die("Can't handle condition $cond yet :(");
   }
 }
 
@@ -1341,15 +1338,14 @@ sub _resolve_prefetch {
       "don't know how to resolve prefetch reftype ".ref($pre));
   }
   else {
-
     my $p = $alias_map;
     $p = $p->{$_} for (@$pref_path, $pre);
 
     $self->throw_exception (
-      "Unable to resolve prefetch $pre - join alias map does not contain an entry for path "
+      "Unable to resolve prefetch $pre - join alias map does not contain an entry for path: "
       . join (' -> ', @$pref_path, $pre)
     ) if (ref $p->{-join_aliases} ne 'ARRAY' or not @{$p->{-join_aliases}} );
-    
+
     my $as = shift @{$p->{-join_aliases}};
 
     my $rel_info = $self->relationship_info( $pre );

@@ -106,6 +106,7 @@ my $exceptions = {
     'DBIx::Class::ResultSetManager'                     => { skip => 1 },
     'DBIx::Class::ResultSourceProxy'                    => { skip => 1 },
     'DBIx::Class::Storage::DBI'                         => { skip => 1 },
+    'DBIx::Class::Storage::DBI::Replicated::Types'      => { skip => 1 },
     'DBIx::Class::Storage::DBI::DB2'                    => { skip => 1 },
     'DBIx::Class::Storage::DBI::MSSQL'                  => { skip => 1 },
     'DBIx::Class::Storage::DBI::Sybase::MSSQL'          => { skip => 1 },
@@ -116,7 +117,9 @@ my $exceptions = {
     'DBIx::Class::Storage::DBI::Pg'                     => { skip => 1 },
     'DBIx::Class::Storage::DBI::SQLite'                 => { skip => 1 },
     'DBIx::Class::Storage::DBI::mysql'                  => { skip => 1 },
+    'DBIx::Class::SQLAHacks'                            => { skip => 1 },
     'DBIx::Class::SQLAHacks::MySQL'                     => { skip => 1 },
+    'DBIx::Class::SQLAHacks::MSSQL'                     => { skip => 1 },
     'SQL::Translator::Parser::DBIx::Class'              => { skip => 1 },
     'SQL::Translator::Producer::DBIx::Class::File'      => { skip => 1 },
 

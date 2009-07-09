@@ -4,8 +4,7 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class::Storage::DBI';
-use Scalar::Util ();
-use Carp::Clan qw/^DBIx::Class/;
+use mro 'c3';
 
 =head1 NAME 
 

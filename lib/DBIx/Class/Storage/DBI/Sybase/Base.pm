@@ -4,6 +4,9 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+use base qw/DBIx::Class::Storage::DBI/;
+use mro 'c3';
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI::Sybase::Base - Common functionality for drivers using
