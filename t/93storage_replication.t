@@ -563,7 +563,7 @@ SKIP: {
     ## We skip this tests unless you have a custom replicants, since the default
     ## sqlite based replication tests don't support these functions.
     
-    skip 'Cannot Test Replicant Status on Non Replicating Database', 9
+    skip 'Cannot Test Replicant Status on Non Replicating Database', 10 
      unless DBICTest->has_custom_dsn && $ENV{"DBICTEST_SLAVE0_DSN"};
 
     $replicated->replicate; ## Give the slaves a chance to catchup.
