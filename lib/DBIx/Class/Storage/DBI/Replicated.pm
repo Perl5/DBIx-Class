@@ -48,11 +48,15 @@ The Following example shows how to change an existing $schema to a replicated
 storage type, add some replicated (readonly) databases, and perform reporting
 tasks.
 
-  ## Change storage_type in your schema class
+You should set the 'storage_type attribute to a replicated type.  You should
+also defined you arguments, such as which balancer you want and any arguments
+that the Pool object should get.
+
   $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
   
-  ## Add some slaves.  Basically this is an array of arrayrefs, where each
-  ## arrayref is database connect information
+Next, you need to add in the Replicants.  Basically this is an array of 
+arrayrefs, where each arrayref is database connect information.  Think of these
+arguments as what you'd pass to the 'normal' $schema->connect method.
   
   $schema->storage->connect_replicants(
     [$dsn1, $user, $pass, \%opts],
@@ -60,20 +64,25 @@ tasks.
     [$dsn3, $user, $pass, \%opts],
   );
   
-  ## Now, just use the $schema as normal
+Now, just use the $schema as you normally would.  Automatically all reads will
+be delegated to the replicants, while writes to the master.
+
   $schema->resultset('Source')->search({name=>'etc'});
   
-  ## You can force a given query to use a particular storage using the search
-  ### attribute 'force_pool'.  For example:
+You can force a given query to use a particular storage using the search
+attribute 'force_pool'.  For example:
   
   my $RS = $schema->resultset('Source')->search(undef, {force_pool=>'master'});
-  
-  ## Now $RS will force everything (both reads and writes) to use whatever was
-  ## setup as the master storage.  'master' is hardcoded to always point to the
-  ## Master, but you can also use any Replicant name.  Please see:
-  ## L<DBIx::Class::Storage::Replicated::Pool> and the replicants attribute for
-  ## More. Also see transactions and L</execute_reliably> for alternative ways
-  ## to force read traffic to the master.
+
+Now $RS will force everything (both reads and writes) to use whatever was setup
+as the master storage.  'master' is hardcoded to always point to the Master, 
+but you can also use any Replicant name.  Please see:
+L<DBIx::Class::Storage::Replicated::Pool> and the replicants attribute for more.
+
+Also see transactions and L</execute_reliably> for alternative ways to
+force read traffic to the master.  In general, you should wrap your statements
+in a transaction when you are reading and writing to the same tables at the
+same time, since your replicants will often lag a bit behind the master.
   
 =head1 DESCRIPTION
 

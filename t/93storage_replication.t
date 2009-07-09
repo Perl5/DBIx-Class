@@ -6,6 +6,7 @@ use Test::Exception;
 use DBICTest;
 use List::Util 'first';
 use Scalar::Util 'reftype';
+use File::Spec;
 use IO::Handle;
 
 BEGIN {
@@ -142,9 +143,9 @@ TESTSCHEMACLASSES: {
     use File::Copy;    
     use base 'DBIx::Class::DBI::Replicated::TestReplication';
     
-    __PACKAGE__->mk_accessors( qw/master_path slave_paths/ );
+    __PACKAGE__->mk_accessors(qw/master_path slave_paths/);
     
-    ## Set the mastep path from DBICTest
+    ## Set the master path from DBICTest
     
 	sub new {
 	    my $class = shift @_;
@@ -152,9 +153,9 @@ TESTSCHEMACLASSES: {
 	
 	    $self->master_path( DBICTest->_sqlite_dbfilename );
 	    $self->slave_paths([
-            "t/var/DBIxClass_slave1.db",
-            "t/var/DBIxClass_slave2.db",    
-        ]);
+			File::Spec->catfile(qw/t var DBIxClass_slave1.db/),
+			File::Spec->catfile(qw/t var DBIxClass_slave2.db/),
+		]);
         
 	    return $self;
 	}    
@@ -170,7 +171,10 @@ TESTSCHEMACLASSES: {
         
         my @connect_infos = map { [$_,'','',{AutoCommit=>1}] } @dsn;
 
-    # try a hashref too
+		## Make sure nothing is left over from a failed test
+		$self->cleanup;
+
+		## try a hashref too
         my $c = $connect_infos[0];
         $connect_infos[0] = {
           dsn => $c->[0],
@@ -198,7 +202,9 @@ TESTSCHEMACLASSES: {
     sub cleanup {
         my $self = shift @_;
         foreach my $slave (@{$self->slave_paths}) {
-            unlink $slave;
+			if(-e $slave) {
+				unlink $slave;
+			}
         }     
     }
     
