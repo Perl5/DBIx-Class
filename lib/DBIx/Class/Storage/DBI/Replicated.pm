@@ -288,7 +288,8 @@ has 'write_handler' => (
     create_ddl_dir
     deployment_statements
     datetime_parser
-    datetime_parser_type        
+    datetime_parser_type  
+    build_datetime_parser      
     last_insert_id
     insert
     insert_bulk
@@ -303,10 +304,19 @@ has 'write_handler' => (
     sth
     deploy
     with_deferred_fk_checks
-
+	dbh_do
     reload_row
+	with_deferred_fk_checks
     _prep_for_execute
-    
+
+	backup
+	is_datatype_numeric
+	_count_select
+	_subq_count_select
+	_subq_update_delete 
+	svp_rollback
+	svp_begin
+	svp_release
   /],
 );
 
