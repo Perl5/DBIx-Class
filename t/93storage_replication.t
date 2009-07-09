@@ -12,7 +12,7 @@ BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 125 );
+        : ( tests => 126 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
