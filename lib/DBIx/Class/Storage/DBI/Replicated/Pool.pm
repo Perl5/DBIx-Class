@@ -125,7 +125,7 @@ removes the replicant under $key from the pool
 has 'replicants' => (
   is=>'rw',
   metaclass => 'Collection::Hash',
-  isa=>HashRef['DBIx::Class::Storage::DBI'],
+  isa=>HashRef['Object'],
   default=>sub {{}},
   provides  => {
     'set' => 'set_replicant',
@@ -133,6 +133,7 @@ has 'replicants' => (
     'empty' => 'has_replicants',
     'count' => 'num_replicants',
     'delete' => 'delete_replicant',
+	'values' => 'all_replicant_storages',
   },
 );
 
