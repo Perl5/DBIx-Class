@@ -32,7 +32,10 @@ around '_query_start' => sub {
   my ($method, $self, $sql, @bind) = @_;
   my $dsn = $self->_dbi_connect_info->[0];
   my($op, $rest) = ($sql=~m/^(\w+) (.+)$/);
-  $self->$method("$op [DSN=$dsn] $rest", @bind);
+
+  my $storage_type = $self->can('active') ? 'REPLICANT' : 'MASTER';
+
+  $self->$method("$op [DSN_$storage_type=$dsn] $rest", @bind);
 };
 
 =head1 ALSO SEE
