@@ -7,11 +7,11 @@ BEGIN {
   ## use, so we explicitly test for these.
 	
   my %replication_required = (
-    Moose => '0.77',
-    MooseX::AttributeHelpers => '0.12',
-    MooseX::Types => '0.10',
-    namespace::clean => '0.11',
-    Hash::Merge => '0.11'
+    'Moose' => '0.77',
+    'MooseX::AttributeHelpers' => '0.12',
+    'MooseX::Types' => '0.10',
+    'namespace::clean' => '0.11',
+    'Hash::Merge' => '0.11'
   );
 	
   my @didnt_load;
@@ -612,23 +612,10 @@ writea are sent to the master only
 sub set_balanced_storage {
   my $self = shift @_;
   my $schema = $self->schema;
-  my $write_handler = $self->schema->storage->balancer;
+  my $balanced_handler = $self->schema->storage->balancer;
   
-  $schema->storage->read_handler($write_handler);
+  $schema->storage->read_handler($balanced_handler);
 }
-
-=head2 around: txn_do ($coderef)
-
-Overload to the txn_do method, which is delegated to whatever the
-L<write_handler> is set to.  We overload this in order to wrap in inside a
-L</execute_reliably> method.
-
-=cut
-
-around 'txn_do' => sub {
-  my($txn_do, $self, $coderef, @args) = @_;
-  $self->execute_reliably(sub {$self->$txn_do($coderef, @args)}); 
-};
 
 =head2 connected
 

@@ -31,7 +31,8 @@ Add C<DSN: > to debugging output.
 around '_query_start' => sub {
   my ($method, $self, $sql, @bind) = @_;
   my $dsn = $self->_dbi_connect_info->[0];
-  $self->$method("DSN: $dsn SQL: $sql", @bind);
+  my($op, $rest) = ($sql=~m/^(\w+) (.+)$/);
+  $self->$method("$op [DSN=$dsn] $rest", @bind);
 };
 
 =head1 ALSO SEE

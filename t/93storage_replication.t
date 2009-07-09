@@ -12,7 +12,7 @@ BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 90 );
+        : ( tests => 95 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -257,6 +257,8 @@ for my $method (qw/by_connect_info by_storage_type/) {
       => 'configured balancer_type';
 }
 
+$replicated->schema->storage->debugcb(sub {my ($ob, $info) = @_; warn "\n\n$ob, $info\n\n"});
+
 ok $replicated->schema->storage->meta
     => 'has a meta object';
     
@@ -295,6 +297,8 @@ is ((grep $_->{master_option}, @all_storage_opts),
     => 'connect_info was merged from master to replicants');
  
 my @replicant_names = keys %{ $replicated->schema->storage->replicants };
+
+ok @replicant_names, "found replicant names @replicant_names";
 
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
@@ -607,10 +611,10 @@ ok my $transaction = sub {
 	    ]);
 	    
     ok my $result = $replicated->schema->resultset('Artist')->find($id)
-        => 'Found expected artist';
+        => "Found expected artist for $id";
         
     ok my $more = $replicated->schema->resultset('Artist')->find(1)
-        => 'Found expected artist again';
+        => 'Found expected artist again for 1';
         
    return ($result, $more);
    
@@ -630,11 +634,14 @@ ok my $transaction = sub {
 
 ## Test that asking for single return works
 {
-	ok my $return = $replicated->schema->txn_do($transaction, 777)
+	ok my @return = $replicated->schema->txn_do($transaction, 777)
 	    => 'did transaction';
 	    
-	    is $return->id, 777
+	    is $return[0]->id, 777
 	        => 'first returned value is correct';
+	        
+	    is $return[1]->id, 1
+	        => 'second returned value is correct';
 }
 
 ## Test transaction returning a single value
@@ -711,6 +718,19 @@ ok $replicated->schema->resultset('Artist')->find(1)
         => 'got an artist result via force_pool storage';
 }
 
+## Test the force_pool resultset attribute part two.
+
+{
+	ok my $artist_rs = $replicated->schema->resultset('Artist')
+        => 'got artist resultset';
+	   
+	## Turn on Forced Pool Storage
+	ok my $reliable_artist_rs = $artist_rs->search(undef, {force_pool=>$replicant_names[0]})
+        => 'Created a resultset using force_pool storage';
+	   
+    ok my $artist = $reliable_artist_rs->find(2) 
+        => 'got an artist result via force_pool storage';
+}
 ## Delete the old database files
 $replicated->cleanup;
 
