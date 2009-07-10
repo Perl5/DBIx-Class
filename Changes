@@ -1,5 +1,12 @@
 Revision history for DBIx::Class
 
+        - Replication updates: Improved the replication tests so that they are
+          more reliable and accurate, and hopefully solve some cross platform
+          issues.  Bugfixes related to naming particular replicants in a
+          'force_pool' attribute.  Lots of documentation updates, including a
+          new Introduction.pod file. Fixed the way we detect transaction to 
+          make this more reliable and forward looking. Fixed some trouble with
+          the way Moose Types are used.  
         - Added call to Pod::Inherit in Makefile.PL -
           currently at author-time only, so we need to add the produced
           .pod files to the MANIFEST
