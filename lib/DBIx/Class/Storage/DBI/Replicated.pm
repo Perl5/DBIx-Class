@@ -77,12 +77,15 @@ attribute 'force_pool'.  For example:
 Now $RS will force everything (both reads and writes) to use whatever was setup
 as the master storage.  'master' is hardcoded to always point to the Master, 
 but you can also use any Replicant name.  Please see:
-L<DBIx::Class::Storage::Replicated::Pool> and the replicants attribute for more.
+L<DBIx::Class::Storage::DBI::Replicated::Pool> and the replicants attribute for more.
 
 Also see transactions and L</execute_reliably> for alternative ways to
 force read traffic to the master.  In general, you should wrap your statements
 in a transaction when you are reading and writing to the same tables at the
 same time, since your replicants will often lag a bit behind the master.
+
+See L<DBIx::Class::Storage::DBI::Replicated::Instructions> for more help and
+walkthroughs.
   
 =head1 DESCRIPTION
 
@@ -162,7 +165,7 @@ has 'pool_type' => (
 =head2 pool_args
 
 Contains a hashref of initialized information to pass to the Balancer object.
-See L<DBIx::Class::Storage::Replicated::Pool> for available arguments.
+See L<DBIx::Class::Storage::DBI::Replicated::Pool> for available arguments.
 
 =cut
 
@@ -195,7 +198,7 @@ has 'balancer_type' => (
 =head2 balancer_args
 
 Contains a hashref of initialized information to pass to the Balancer object.
-See L<DBIx::Class::Storage::Replicated::Balancer> for available arguments.
+See L<DBIx::Class::Storage::DBI::Replicated::Balancer> for available arguments.
 
 =cut
 
