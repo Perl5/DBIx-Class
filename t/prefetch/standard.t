@@ -1,24 +1,17 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
-
-my $schema = DBICTest->init_schema();
-
-my $orig_debug = $schema->storage->debug;
-
 use IO::File;
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 45 );
-}
+my $schema = DBICTest->init_schema();
+my $orig_debug = $schema->storage->debug;
+
+plan tests => 44;
 
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
@@ -227,28 +220,10 @@ is(eval { $tree_like->children->first->children->first->name }, 'quux',
 
 $tree_like = eval { $schema->resultset('TreeLike')->search(
     { 'children.id' => 3, 'children_2.id' => 6 }, 
-    { join => [qw/children children/] }
+    { join => [qw/children children children/] }
   )->search_related('children', { 'children_4.id' => 7 }, { prefetch => 'children' }
   )->first->children->first; };
 is(eval { $tree_like->name }, 'fong', 'Tree with multiple has_many joins ok');
-
-# test that collapsed joins don't get a _2 appended to the alias
-
-my $sql = '';
-$schema->storage->debugcb(sub { $sql = $_[1] });
-$schema->storage->debug(1);
-
-eval {
-  my $row = $schema->resultset('Artist')->search_related('cds', undef, {
-    join => 'tracks',
-    prefetch => 'tracks',
-  })->search_related('tracks')->first;
-};
-
-like( $sql, qr/^SELECT tracks_2\.trackid/, "join not collapsed for search_related" );
-
-$schema->storage->debug($orig_debug);
-$schema->storage->debugobj->callback(undef);
 
 $rs = $schema->resultset('Artist');
 $rs->create({ artistid => 4, name => 'Unknown singer-songwriter' });
@@ -314,3 +289,5 @@ is($art_rs_pr->search_related('cds')->search_related('tracks')->first->title,
 
 is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
 
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);

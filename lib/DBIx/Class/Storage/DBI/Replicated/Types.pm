@@ -1,12 +1,8 @@
 package # hide from PAUSE
   DBIx::Class::Storage::DBI::Replicated::Types;
 
-=head1 NAME
-
-DBIx::Class::Storage::DBI::Replicated::Types - Types used internally by
-L<DBIx::Class::Storage::DBI::Replicated>
-
-=cut
+# DBIx::Class::Storage::DBI::Replicated::Types - Types used internally by
+# L<DBIx::Class::Storage::DBI::Replicated>
 
 use MooseX::Types
   -declare => [qw/BalancerClassNamePart Weight/];
@@ -17,16 +13,16 @@ class_type 'DBIx::Class::Schema';
 
 subtype BalancerClassNamePart,
   as ClassName;
-    
+
 coerce BalancerClassNamePart,
   from Str,
   via {
     my $type = $_;
     if($type=~m/^::/) {
       $type = 'DBIx::Class::Storage::DBI::Replicated::Balancer'.$type;
-    }  
-    Class::MOP::load_class($type);  
-    $type;  	
+    }
+    Class::MOP::load_class($type);
+    $type;
   };
 
 subtype Weight,
@@ -34,14 +30,12 @@ subtype Weight,
   where { $_ >= 0 },
   message { 'weight must be a decimal greater than 0' };
 
-=head1 AUTHOR
-
-  John Napiorkowski <john.napiorkowski@takkle.com>
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
-
-=cut
+# AUTHOR
+#
+#  John Napiorkowski <john.napiorkowski@takkle.com>
+#
+# LICENSE
+#
+#  You may distribute this code under the same terms as Perl itself.
 
 1;

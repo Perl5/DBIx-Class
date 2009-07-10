@@ -8,10 +8,9 @@ use DBICTest;
 my $schema = DBICTest->init_schema();
 
 my $queries;
-$schema->storage->debugcb( sub{ $queries++ } );
+my $debugcb = sub{ $queries++ };
+my $sdebug = $schema->storage->debug;
 
-eval "use DBD::SQLite";
-plan skip_all => 'needs DBD::SQLite for testing' if $@;
 plan tests => 23;
 
 my $rs = $schema->resultset("Artist")->search(
@@ -46,6 +45,7 @@ $rs->clear_cache;
 
 $queries = 0;
 $schema->storage->debug(1);
+$schema->storage->debugcb ($debugcb);
 
 $rs = $schema->resultset('Artist')->search( undef, { cache => 1 } );
 while( $artist = $rs->next ) {}
@@ -53,7 +53,8 @@ $artist = $rs->first();
 
 is( $queries, 1, 'revisiting a row does not issue a query when cache => 1' );
 
-$schema->storage->debug(0);
+$schema->storage->debug($sdebug);
+$schema->storage->debugcb (undef);
 
 my @a = $schema->resultset("Artist")->search(
   { },
@@ -78,6 +79,7 @@ use Data::Dumper; $Data::Dumper::Deparse = 1;
 # start test for prefetch SELECT count
 $queries = 0;
 $schema->storage->debug(1);
+$schema->storage->debugcb ($debugcb);
 
 $artist = $rs->first;
 $rs->reset();
@@ -99,7 +101,8 @@ is( $artist->count_related('cds'), 3, 'artist->count_related returns correct val
 
 is($queries, 1, 'only one SQL statement executed');
 
-$schema->storage->debug(0);
+$schema->storage->debug($sdebug);
+$schema->storage->debugcb (undef);
 
 # make sure related_resultset is deleted after object is updated
 $artist->set_column('name', 'New Name');
@@ -131,18 +134,21 @@ is($artist->cds, 0, 'No cds for this artist');
 # SELECT count for nested has_many prefetch
 $queries = 0;
 $schema->storage->debug(1);
+$schema->storage->debugcb ($debugcb);
 
 $artist = ($rs->all)[0];
 
 is($queries, 1, 'only one SQL statement executed');
 
-$schema->storage->debug(0);
+$schema->storage->debug($sdebug);
+$schema->storage->debugcb (undef);
 
 my @objs;
 #$artist = $rs->find(1);
 
 $queries = 0;
 $schema->storage->debug(1);
+$schema->storage->debugcb ($debugcb);
 
 my $cds = $artist->cds;
 my $tags = $cds->next->tags;
@@ -185,5 +191,5 @@ $artist = $rs->find(1);
 
 is( $queries, 1, 'only one select statement on find with has_many prefetch on resultset' );
 
-$schema->storage->debug(0);
-
+$schema->storage->debug($sdebug);
+$schema->storage->debugcb (undef);

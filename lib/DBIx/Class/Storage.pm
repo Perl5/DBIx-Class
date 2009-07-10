@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class/;
+use mro 'c3';
 
 use Scalar::Util qw/weaken/;
 use Carp::Clan qw/^DBIx::Class/;

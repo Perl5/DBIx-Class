@@ -8,10 +8,9 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 18;
+plan tests => 20;
 
-my $cd;
-my $rs = $cd = $schema->resultset("CD")->search({}, { order_by => 'cdid' });
+my $rs = $schema->resultset("CD")->search({}, { order_by => 'cdid' });
 
 my $rs_title = $rs->get_column('title');
 my $rs_year = $rs->get_column('year');
@@ -76,3 +75,22 @@ is ($schema->resultset('BooksInLibrary')->get_column ('price')->sum, 125, 'Sum o
 my $owner = $schema->resultset('Owners')->find ({ name => 'Newton' });
 ok ($owner->books->count > 1, 'Owner Newton has multiple books');
 is ($owner->search_related ('books')->get_column ('price')->sum, 60, 'Correctly calculated price of all owned books');
+
+
+# make sure joined/prefetched get_column of a PK dtrt
+
+$rs->reset;
+my $j_rs = $rs->search ({}, { join => 'tracks' })->get_column ('cdid');
+is_deeply (
+  [ $j_rs->all ],
+  [ map { my $c = $rs->next; ( ($c->id) x $c->tracks->count ) } (1 .. $rs->count) ],
+  'join properly explodes amount of rows from get_column',
+);
+
+$rs->reset;
+my $p_rs = $rs->search ({}, { prefetch => 'tracks' })->get_column ('cdid');
+is_deeply (
+  [ $p_rs->all ],
+  [ $rs->get_column ('cdid')->all ],
+  'prefetch properly collapses amount of rows from get_column',
+);

@@ -957,7 +957,9 @@ sub next {
 
 sub _construct_object {
   my ($self, @row) = @_;
-  my $info = $self->_collapse_result($self->{_attrs}{as}, \@row);
+
+  my $info = $self->_collapse_result($self->{_attrs}{as}, \@row)
+    or return ();
   my @new = $self->result_class->inflate_result($self->result_source, @$info);
   @new = $self->{_attrs}{record_filter}->(@new)
     if exists $self->{_attrs}{record_filter};
@@ -966,6 +968,19 @@ sub _construct_object {
 
 sub _collapse_result {
   my ($self, $as_proto, $row) = @_;
+
+  # if the first row that ever came in is totally empty - this means we got
+  # hit by a smooth^Wempty left-joined resultset. Just noop in that case
+  # instead of producing a {}
+  #
+  my $has_def;
+  for (@$row) {
+    if (defined $_) {
+      $has_def++;
+      last;
+    }
+  }
+  return undef unless $has_def;
 
   my @copy = @$row;
 
@@ -1227,6 +1242,11 @@ sub _count_rs {
   $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $tmp_attrs);
   $tmp_attrs->{as} = 'count';
 
+  # read the comment on top of the actual function to see what this does
+  $tmp_attrs->{from} = $self->_switch_to_inner_join_if_needed (
+    $tmp_attrs->{from}, $tmp_attrs->{alias}
+  );
+
   my $tmp_rs = $rsrc->resultset_class->new($rsrc, $tmp_attrs)->get_column ('count');
 
   return $tmp_rs;
@@ -1243,8 +1263,8 @@ sub _count_subq_rs {
 
   my $sub_attrs = { %$attrs };
 
-  # these can not go in the subquery, and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/collapse select as order_by/;
+  # extra selectors do not go in the subquery and there is no point of ordering it
+  delete $sub_attrs->{$_} for qw/collapse prefetch_select select as order_by/;
 
   # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
   # clobber old group_by regardless
@@ -1254,14 +1274,97 @@ sub _count_subq_rs {
 
   $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
 
+  # read the comment on top of the actual function to see what this does
+  $sub_attrs->{from} = $self->_switch_to_inner_join_if_needed (
+    $sub_attrs->{from}, $sub_attrs->{alias}
+  );
+
+  # this is so that ordering can be thrown away in things like Top limit
+  $sub_attrs->{-for_count_only} = 1;
+
+  my $sub_rs = $rsrc->resultset_class->new ($rsrc, $sub_attrs);
+
   $attrs->{from} = [{
-    count_subq => $rsrc->resultset_class->new ($rsrc, $sub_attrs )->as_query
+    -alias => 'count_subq',
+    -source_handle => $rsrc->handle,
+    count_subq => $sub_rs->as_query,
   }];
 
   # the subquery replaces this
   delete $attrs->{$_} for qw/where bind collapse group_by having having_bind rows offset/;
 
   return $self->_count_rs ($attrs);
+}
+
+
+# The DBIC relationship chaining implementation is pretty simple - every
+# new related_relationship is pushed onto the {from} stack, and the {select}
+# window simply slides further in. This means that when we count somewhere
+# in the middle, we got to make sure that everything in the join chain is an
+# actual inner join, otherwise the count will come back with unpredictable
+# results (a resultset may be generated with _some_ rows regardless of if
+# the relation which the $rs currently selects has rows or not). E.g.
+# $artist_rs->cds->count - normally generates:
+# SELECT COUNT( * ) FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
+# which actually returns the number of artists * (number of cds || 1)
+#
+# So what we do here is crawl {from}, determine if the current alias is at
+# the top of the stack, and if not - make sure the chain is inner-joined down
+# to the root.
+#
+sub _switch_to_inner_join_if_needed {
+  my ($self, $from, $alias) = @_;
+
+  return $from if (
+    ref $from ne 'ARRAY'
+      ||
+    ref $from->[0] ne 'HASH'
+      ||
+    ! $from->[0]{-alias}
+      ||
+    $from->[0]{-alias} eq $alias
+  );
+
+  # this would be the case with a subquery - we'll never find
+  # the target as it is not in the parseable part of {from}
+  return $from if @$from == 1;
+
+  my $switch_branch;
+  JOINSCAN:
+  for my $j (@{$from}[1 .. $#$from]) {
+    if ($j->[0]{-alias} eq $alias) {
+      $switch_branch = $j->[0]{-join_path};
+      last JOINSCAN;
+    }
+  }
+
+  # something else went wrong
+  return $from unless $switch_branch;
+
+  # So it looks like we will have to switch some stuff around.
+  # local() is useless here as we will be leaving the scope
+  # anyway, and deep cloning is just too fucking expensive
+  # So replace the inner hashref manually
+  my @new_from = ($from->[0]);
+  my $sw_idx = { map { $_ => 1 } @$switch_branch };
+
+  for my $j (@{$from}[1 .. $#$from]) {
+    my $jalias = $j->[0]{-alias};
+
+    if ($sw_idx->{$jalias}) {
+      my %attrs = %{$j->[0]};
+      delete $attrs{-join_type};
+      push @new_from, [
+        \%attrs,
+        @{$j}[ 1 .. $#$j ],
+      ];
+    }
+    else {
+      push @new_from, $j;
+    }
+  }
+
+  return \@new_from;
 }
 
 
@@ -1311,13 +1414,12 @@ sub all {
 
   my @obj;
 
-  # TODO: don't call resolve here
   if (keys %{$self->_resolved_attrs->{collapse}}) {
-#  if ($self->{attrs}{prefetch}) {
-      # Using $self->cursor->all is really just an optimisation.
-      # If we're collapsing has_many prefetches it probably makes
-      # very little difference, and this is cleaner than hacking
-      # _construct_object to survive the approach
+    # Using $self->cursor->all is really just an optimisation.
+    # If we're collapsing has_many prefetches it probably makes
+    # very little difference, and this is cleaner than hacking
+    # _construct_object to survive the approach
+    $self->cursor->reset;
     my @row = $self->cursor->next;
     while (@row) {
       push(@obj, $self->_construct_object(@row));
@@ -1330,6 +1432,7 @@ sub all {
   }
 
   $self->set_cache(\@obj) if $self->{attrs}{cache};
+
   return @obj;
 }
 
@@ -1344,6 +1447,8 @@ sub all {
 =back
 
 Resets the resultset's cursor, so you can iterate through the elements again.
+Implicitly resets the storage cursor, so a subsequent L</next> will trigger
+another query.
 
 =cut
 
@@ -1925,16 +2030,25 @@ sub _is_deterministic_value {
 # of the attributes supplied
 #
 # used to determine if a subquery is neccessary
+#
+# supports some virtual attributes:
+#   -join
+#     This will scan for any joins being present on the resultset.
+#     It is not a mere key-search but a deep inspection of {from}
+#
 
 sub _has_resolved_attr {
   my ($self, @attr_names) = @_;
 
   my $attrs = $self->_resolved_attrs;
 
-  my $join_check_req;
+  my %extra_checks;
 
   for my $n (@attr_names) {
-    ++$join_check_req if $n eq '-join';
+    if (grep { $n eq $_ } (qw/-join/) ) {
+      $extra_checks{$n}++;
+      next;
+    }
 
     my $attr =  $attrs->{$n};
 
@@ -1953,7 +2067,7 @@ sub _has_resolved_attr {
 
   # a resolved join is expressed as a multi-level from
   return 1 if (
-    $join_check_req
+    $extra_checks{-join}
       and
     ref $attrs->{from} eq 'ARRAY'
       and
@@ -2119,12 +2233,15 @@ store. If the appropriate relationships are set up, foreign key fields
 can also be passed an object representing the foreign row, and the
 value will be set to its primary key.
 
-To create related objects, pass a hashref for the value if the related
-item is a foreign key relationship (L<DBIx::Class::Relationship/belongs_to>),
-and use the name of the relationship as the key. (NOT the name of the field,
-necessarily). For C<has_many> and C<has_one> relationships, pass an arrayref
-of hashrefs containing the data for each of the rows to create in the foreign
-tables, again using the relationship name as the key.
+To create related objects, pass a hashref of related-object column values
+B<keyed on the relationship name>. If the relationship is of type C<multi>
+(L<DBIx::Class::Relationship/has_many>) - pass an arrayref of hashrefs.
+The process will correctly identify columns holding foreign keys, and will
+transparrently populate them from the keys of the corresponding relation.
+This can be applied recursively, and will work correctly for a structure
+with an arbitrary depth and width, as long as the relationships actually
+exists and the correct column data has been supplied.
+
 
 Instead of hashrefs of plain related data (key/value pairs), you may
 also pass new or inserted objects. New objects (not inserted yet, see
@@ -2450,7 +2567,7 @@ sub related_resultset {
         "' has no such relationship $rel")
       unless $rel_info;
 
-    my ($from,$seen) = $self->_resolve_from($rel);
+    my ($from,$seen) = $self->_chain_relationship($rel);
 
     my $join_count = $seen->{$rel};
     my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
@@ -2548,7 +2665,12 @@ sub current_source_alias {
 # in order to properly resolve prefetch aliases (any alias
 # with a relation_chain_depth less than the depth of the
 # current prefetch is not considered)
-sub _resolve_from {
+#
+# The increments happen in 1/2s to make it easier to correlate the
+# join depth with the join path. An integer means a relationship
+# specified via a search_related, whereas a fraction means an added
+# join/prefetch via attributes
+sub _chain_relationship {
   my ($self, $rel) = @_;
   my $source = $self->result_source;
   my $attrs = $self->{attrs};
@@ -2564,18 +2686,62 @@ sub _resolve_from {
   }];
 
   my $seen = { %{$attrs->{seen_join} || {} } };
+  my $jpath = ($attrs->{seen_join} && keys %{$attrs->{seen_join}}) 
+    ? $from->[-1][0]{-join_path} 
+    : [];
+
 
   # we need to take the prefetch the attrs into account before we
   # ->_resolve_join as otherwise they get lost - captainL
   my $merged = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
 
-  push @$from, $source->_resolve_join($merged, $attrs->{alias}, $seen) if ($merged);
+  my @requested_joins = $source->_resolve_join(
+    $merged,
+    $attrs->{alias},
+    $seen,
+    $jpath,
+  );
 
-  ++$seen->{-relation_chain_depth};
+  push @$from, @requested_joins;
 
-  push @$from, $source->_resolve_join($rel, $attrs->{alias}, $seen);
+  $seen->{-relation_chain_depth} += 0.5;
 
-  ++$seen->{-relation_chain_depth};
+  # if $self already had a join/prefetch specified on it, the requested
+  # $rel might very well be already included. What we do in this case
+  # is effectively a no-op (except that we bump up the chain_depth on
+  # the join in question so we could tell it *is* the search_related)
+  my $already_joined;
+
+
+  # we consider the last one thus reverse
+  for my $j (reverse @requested_joins) {
+    if ($rel eq $j->[0]{-join_path}[-1]) {
+      $j->[0]{-relation_chain_depth} += 0.5;
+      $already_joined++;
+      last;
+    }
+  }
+
+# alternative way to scan the entire chain - not backwards compatible
+#  for my $j (reverse @$from) {
+#    next unless ref $j eq 'ARRAY';
+#    if ($j->[0]{-join_path} && $j->[0]{-join_path}[-1] eq $rel) {
+#      $j->[0]{-relation_chain_depth} += 0.5;
+#      $already_joined++;
+#      last;
+#    }
+#  }
+
+  unless ($already_joined) {
+    push @$from, $source->_resolve_join(
+      $rel,
+      $attrs->{alias},
+      $seen,
+      $jpath,
+    );
+  }
+
+  $seen->{-relation_chain_depth} += 0.5;
 
   return ($from,$seen);
 }
@@ -2687,29 +2853,28 @@ sub _resolved_attrs {
       [
         @{ $attrs->{from} },
         $source->_resolve_join(
-          $join, $alias, { %{ $attrs->{seen_join} || {} } }
+          $join,
+          $alias,
+          { %{ $attrs->{seen_join} || {} } },
+          ($attrs->{seen_join} && keys %{$attrs->{seen_join}})
+            ? $attrs->{from}[-1][0]{-join_path}
+            : []
+          ,
         )
       ];
   }
 
-  if ( $attrs->{order_by} ) {
+  if ( defined $attrs->{order_by} ) {
     $attrs->{order_by} = (
       ref( $attrs->{order_by} ) eq 'ARRAY'
       ? [ @{ $attrs->{order_by} } ]
-      : [ $attrs->{order_by} ]
+      : [ $attrs->{order_by} || () ]
     );
   }
-  else {
-    $attrs->{order_by} = [];
+
+  if ($attrs->{group_by} and ! ref $attrs->{group_by}) {
+    $attrs->{group_by} = [ $attrs->{group_by} ];
   }
-
-  # If the order_by is otherwise empty - we will use this for TOP limit
-  # emulation and the like.
-  # Although this is needed only if the order_by is not defined, it is
-  # actually cheaper to just populate this rather than properly examining
-  # order_by (stuf like [ {} ] and the like)
-  $attrs->{_virtual_order_by} = [ $self->result_source->primary_columns ];
-
 
   $attrs->{collapse} ||= {};
   if ( my $prefetch = delete $attrs->{prefetch} ) {
@@ -2722,10 +2887,11 @@ sub _resolved_attrs {
     my @prefetch =
       $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $attrs->{collapse} );
 
-    push( @{ $attrs->{select} }, map { $_->[0] } @prefetch );
-    push( @{ $attrs->{as} },     map { $_->[1] } @prefetch );
+    $attrs->{prefetch_select} = [ map { $_->[0] } @prefetch ];
+    push @{ $attrs->{select} }, @{$attrs->{prefetch_select}};
+    push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
 
-    push( @{ $attrs->{order_by} }, @$prefetch_ordering );
+    push( @{$attrs->{order_by}}, @$prefetch_ordering );
     $attrs->{_collapse_order_by} = \@$prefetch_ordering;
   }
 
@@ -2738,8 +2904,11 @@ sub _resolved_attrs {
   # even though it doesn't make much sense, this is what pre 081xx has
   # been doing
   if (my $page = delete $attrs->{page}) {
-    $attrs->{offset} = ($attrs->{rows} * ($page - 1)) +
-      ($attrs->{offset} || 0);
+    $attrs->{offset} = 
+      ($attrs->{rows} * ($page - 1))
+            +
+      ($attrs->{offset} || 0)
+    ;
   }
 
   return $self->{_attrs} = $attrs;
@@ -2751,13 +2920,21 @@ sub _joinpath_aliases {
   my $paths = {};
   return $paths unless ref $fromspec eq 'ARRAY';
 
+  my $cur_depth = $seen->{-relation_chain_depth} || 0;
+
+  if (int ($cur_depth) != $cur_depth) {
+    $self->throw_exception ("-relation_chain_depth is not an integer, something went horribly wrong ($cur_depth)");
+  }
+
   for my $j (@$fromspec) {
 
     next if ref $j ne 'ARRAY';
-    next if $j->[0]{-relation_chain_depth} < ( $seen->{-relation_chain_depth} || 0);
+    next if $j->[0]{-relation_chain_depth} < $cur_depth;
+
+    my $jpath = $j->[0]{-join_path};
 
     my $p = $paths;
-    $p = $p->{$_} ||= {} for @{$j->[0]{-join_path}};
+    $p = $p->{$_} ||= {} for @{$jpath}[$cur_depth .. $#$jpath];
     push @{$p->{-join_aliases} }, $j->[0]{-alias};
   }
 
