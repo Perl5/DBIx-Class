@@ -49,7 +49,7 @@ sub _prep_for_execute {
   my @sql_part = split /\?/, $sql;
   my $new_sql;
 
-  my $alias2src = $self->_resolve_ident_sources($ident);
+  my ($alias2src, $rs_alias) = $self->_resolve_ident_sources($ident);
 
   foreach my $bound (@$bind) {
     my $col = shift @$bound;
