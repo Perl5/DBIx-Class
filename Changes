@@ -1,8 +1,10 @@
 Revision history for DBIx::Class
 
-        - Added call to Pod::Inherit in Makefile.PL - 
+        - Added call to Pod::Inherit in Makefile.PL -
           currently at author-time only, so we need to add the produced
           .pod files to the MANIFEST
+
+0.08108 2009-07-05 23:15:00 (UTC)
         - Fixed the has_many prefetch with limit/group deficiency -
           it is now possible to select "top 5 commenters" while
           prefetching all their comments
