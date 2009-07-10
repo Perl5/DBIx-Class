@@ -3,7 +3,8 @@ package DBIx::Class::Storage::DBI::Replicated::Balancer;
 use Moose::Role;
 requires 'next_storage';
 use MooseX::Types::Moose qw/Int/;
-
+use DBIx::Class::Storage::DBI::Replicated::Pool;
+use DBIx::Class::Storage::DBI::Replicated::Types qw/DBICStorageDBI/;
 use namespace::clean -except => 'meta';
 
 =head1 NAME
@@ -48,7 +49,7 @@ ultimate fallback.
 
 has 'master' => (
   is=>'ro',
-  isa=>'DBIx::Class::Storage::DBI',
+  isa=>DBICStorageDBI,
   required=>1,
 );
 
@@ -80,7 +81,7 @@ via it's balancer object.
 
 has 'current_replicant' => (
   is=> 'rw',
-  isa=>'DBIx::Class::Storage::DBI',
+  isa=>DBICStorageDBI,
   lazy_build=>1,
   handles=>[qw/
     select

@@ -30,7 +30,7 @@ use Moose;
 use DBIx::Class::Storage::DBI;
 use DBIx::Class::Storage::DBI::Replicated::Pool;
 use DBIx::Class::Storage::DBI::Replicated::Balancer;
-use DBIx::Class::Storage::DBI::Replicated::Types 'BalancerClassNamePart';
+use DBIx::Class::Storage::DBI::Replicated::Types qw/BalancerClassNamePart DBICSchema DBICStorageDBI/;
 use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
 use Carp::Clan qw/^DBIx::Class/;
@@ -141,7 +141,7 @@ The underlying L<DBIx::Class::Schema> object this storage is attaching
 
 has 'schema' => (
     is=>'rw',
-    isa=>'DBIx::Class::Schema',
+    isa=>DBICSchema,
     weak_ref=>1,
     required=>1,
 );
@@ -254,7 +254,7 @@ pool of databases that is allowed to handle write traffic.
 
 has 'master' => (
   is=> 'ro',
-  isa=>'DBIx::Class::Storage::DBI',
+  isa=>DBICStorageDBI,
   lazy_build=>1,
 );
 
