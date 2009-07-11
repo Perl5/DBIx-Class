@@ -716,7 +716,11 @@ Returns the dbh - a data base handle of class L<DBI>.
 sub dbh {
   my ($self) = @_;
 
-  $self->ensure_connected;
+  if (not $self->_dbh) {
+    $self->_populate_dbh;
+  } else {
+    $self->ensure_connected;
+  }
   return $self->_dbh;
 }
 
