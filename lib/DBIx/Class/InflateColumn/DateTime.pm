@@ -51,10 +51,11 @@ It's also possible to explicitly skip inflation:
     starts_when => { data_type => 'datetime', inflate_datetime => 0 }
   );
 
-NOTE: Don't rely on C<InflateColumn::DateTime> to validate user input, this
-may have unexpected security implications. Instead, use an input parser to
-create a DateTime object. For instance, if your user input comes as a
-'YYYY-MM-DD' string, you can use C<DateTime::Format::ISO8601> thusly:
+NOTE: Don't rely on C<InflateColumn::DateTime> to parse date strings for you.
+The column is set directly for any non-references and C<InflateColumn::DateTime>
+is completely bypassed.  Instead, use an input parser to create a DateTime
+object. For instance, if your user input comes as a 'YYYY-MM-DD' string, you can
+use C<DateTime::Format::ISO8601> thusly:
 
   use DateTime::Format::ISO8601;
   my $dt = DateTime::Format::ISO8601->parse_datetime('YYYY-MM-DD');
