@@ -173,7 +173,8 @@ to describe a column which contains an ID of another Table, or C<has_many> to
 make a predefined accessor for fetching objects that contain this Table's
 foreign key:
 
-  __PACKAGE__->has_many('albums', 'My::Schema::Result::Artist', 'album_id');
+  # in My::Schema::Result::Artist
+  __PACKAGE__->has_many('albums', 'My::Schema::Result::Album', 'artist');
 
 See L<DBIx::Class::Relationship> for more information about the various types of
 available relationships and how you can design your own.
