@@ -324,22 +324,17 @@ See the Cookbook for more details.
 
 =item .. fetch a single (or topmost) row?
 
-Sometimes you many only want a single record back from a search. A quick
-way to get that single row is to first run your search as usual:
+See L<DBIx::Class::Manual::Cookbook/Retrieve_one_and_only_one_row_from_a_resultset>.
 
-  ->search->(undef, { order_by => "id DESC" })
-
-Then call L<DBIx::Class::ResultSet/slice> and ask it only to return 1 row:
-
-  ->slice(0)
-
-These two calls can be combined into a single statement:
+A less readable way is to ask a regular search to return 1 row, using
+L<DBIx::Class::ResultSet/slice>:
 
   ->search->(undef, { order_by => "id DESC" })->slice(0)
 
-Why slice instead of L<DBIx::Class::ResultSet/first> or L<DBIx::Class::ResultSet/single>?
-If supported by the database, slice will use LIMIT/OFFSET to hint to the database that we
-really only need one row. This can result in a significant speed improvement.
+which (if supported by the database) will use LIMIT/OFFSET to hint to the
+database that we really only need one row. This can result in a significant
+speed improvement. The method using L<DBIx::Class::ResultSet/single> mentioned
+in the cookbook can do the same if you pass a C<rows> attribute to the search.
 
 =item .. refresh a row from storage?
 
