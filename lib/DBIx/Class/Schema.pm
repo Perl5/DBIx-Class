@@ -42,7 +42,7 @@ DBIx::Class::Schema - composable schemas
     $dsn,
     $user,
     $password,
-    { AutoCommit => 0 },
+    { AutoCommit => 1 },
   );
 
   my $schema2 = Library::Schema->connect($coderef_returning_dbh);

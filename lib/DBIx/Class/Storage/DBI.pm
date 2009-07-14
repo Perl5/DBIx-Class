@@ -437,10 +437,19 @@ sub connect_info {
     }
   }
 
-  %attrs = () if (ref $args[0] eq 'CODE');  # _connect() never looks past $args[0] in this case
+  if (ref $args[0] eq 'CODE') {
+    # _connect() never looks past $args[0] in this case
+    %attrs = ()
+  } else {
+    %attrs = (%{ $self->_dbi_connect_attributes }, %attrs);
+  }
 
   $self->_dbi_connect_info([@args, keys %attrs ? \%attrs : ()]);
   $self->_connect_info;
+}
+
+sub _dbi_connect_attributes {
+  return { AutoCommit => 1 };
 }
 
 =head2 on_connect_do
@@ -621,7 +630,7 @@ database is not in C<AutoCommit> mode.
 sub disconnect {
   my ($self) = @_;
 
-  if( $self->connected ) {
+  if( $self->_dbh ) {
     my @actions;
 
     push @actions, ( $self->on_disconnect_call || () );
@@ -724,10 +733,24 @@ sub dbh {
   return $self->_dbh;
 }
 
+sub _get_dbh {
+  my $self = shift;
+
+  if (not $self->_dbh) {
+    $self->_populate_dbh;
+  }
+  return $self->_dbh;
+}
+
 sub _sql_maker_args {
     my ($self) = @_;
 
-    return ( bindtype=>'columns', array_datatypes => 1, limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
+    return (
+      bindtype=>'columns',
+      array_datatypes => 1,
+      limit_dialect => $self->_get_dbh,
+      %{$self->_sql_maker_opts}
+    );
 }
 
 sub sql_maker {
@@ -744,6 +767,7 @@ sub _rebless {}
 
 sub _populate_dbh {
   my ($self) = @_;
+
   my @info = @{$self->_dbi_connect_info || []};
   $self->_dbh($self->_connect(@info));
 
@@ -756,6 +780,11 @@ sub _populate_dbh {
   #  there is no transaction in progress by definition
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
 
+  $self->_run_connection_actions unless $self->{_in_determine_driver};
+}
+
+sub _run_connection_actions {
+  my $self = shift;
   my @actions;
 
   push @actions, ( $self->on_connect_call || () );
@@ -769,6 +798,8 @@ sub _determine_driver {
 
   if (ref $self eq 'DBIx::Class::Storage::DBI') {
     my $driver;
+    my $started_unconnected = 0;
+    local $self->{_in_determine_driver} = 1;
 
     if ($self->_dbh) { # we are connected
       $driver = $self->_dbh->{Driver}{Name};
@@ -776,6 +807,7 @@ sub _determine_driver {
       # try to use dsn to not require being connected, the driver may still
       # force a connection in _rebless to determine version
       ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+      $started_unconnected = 1;
     }
 
     my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
@@ -784,6 +816,8 @@ sub _determine_driver {
       bless $self, $storage_class;
       $self->_rebless();
     }
+
+    $self->_run_connection_actions if $started_unconnected;
   }
 }
 
@@ -983,14 +1017,13 @@ sub _svp_generate_name {
 
 sub txn_begin {
   my $self = shift;
-  $self->ensure_connected();
   if($self->{transaction_depth} == 0) {
     $self->debugobj->txn_begin()
       if $self->debug;
     # this isn't ->_dbh-> because
     #  we should reconnect on begin_work
     #  for AutoCommit users
-    $self->dbh->begin_work;
+    $self->dbh_do(sub { $_[1]->begin_work });
   } elsif ($self->auto_savepoint) {
     $self->svp_begin;
   }
@@ -1146,18 +1179,23 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
+  $self->_determine_driver;
+
   my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
 
   my $updated_cols = {};
 
-  $self->ensure_connected;
   foreach my $col ( $source->columns ) {
     if ( !defined $to_insert->{$col} ) {
       my $col_info = $source->column_info($col);
 
       if ( $col_info->{auto_nextval} ) {
-        $updated_cols->{$col} = $to_insert->{$col} = $self->_sequence_fetch( 'nextval', $col_info->{sequence} || $self->_dbh_get_autoinc_seq($self->dbh, $source) );
+        $updated_cols->{$col} = $to_insert->{$col} = $self->_sequence_fetch(
+          'nextval',
+          $col_info->{sequence} ||
+            $self->_dbh_get_autoinc_seq($self->_get_dbh, $source)
+        );
       }
     }
   }
@@ -1177,6 +1215,8 @@ sub insert_bulk {
   my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
   my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
+
+  $self->_determine_driver;
 
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql);
@@ -1237,6 +1277,7 @@ sub insert_bulk {
 sub update {
   my $self = shift @_;
   my $source = shift @_;
+  $self->_determine_driver;
   my $bind_attributes = $self->source_bind_attributes($source);
 
   return $self->_execute('update' => [], $source, $bind_attributes, @_);
@@ -1246,7 +1287,7 @@ sub update {
 sub delete {
   my $self = shift @_;
   my $source = shift @_;
-
+  $self->_determine_driver;
   my $bind_attrs = $self->source_bind_attributes($source);
 
   return $self->_execute('delete' => [], $source, $bind_attrs, @_);
@@ -1888,7 +1929,7 @@ Returns the database driver name.
 
 =cut
 
-sub sqlt_type { shift->dbh->{Driver}->{Name} }
+sub sqlt_type { shift->_get_dbh->{Driver}->{Name} }
 
 =head2 bind_attribute_by_data_type
 
@@ -2135,7 +2176,7 @@ See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>.
 sub deployment_statements {
   my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
   # Need to be connected to get the correct sqlt_type
-  $self->ensure_connected() unless $type;
+  $self->_get_dbh() unless $type;
   $type ||= $self->sqlt_type;
   $version ||= $schema->schema_version || '1.x';
   $dir ||= './';
@@ -2180,7 +2221,7 @@ sub deploy {
     return if $line =~ /^\s+$/; # skip whitespace only
     $self->_query_start($line);
     eval {
-      $self->dbh->do($line); # shouldn't be using ->dbh ?
+      $self->_get_dbh->do($line);
     };
     if ($@) {
       carp qq{$@ (running "${line}")};
@@ -2209,7 +2250,7 @@ Returns the datetime parser class
 sub datetime_parser {
   my $self = shift;
   return $self->{datetime_parser} ||= do {
-    $self->ensure_connected;
+    $self->_get_dbh;
     $self->build_datetime_parser(@_);
   };
 }

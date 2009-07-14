@@ -79,7 +79,7 @@ sub _dbh_get_autoinc_seq {
 
 sub _sequence_fetch {
   my ( $self, $type, $seq ) = @_;
-  my ($id) = $self->dbh->selectrow_array("SELECT ${seq}.${type} FROM DUAL");
+  my ($id) = $self->_get_dbh->selectrow_array("SELECT ${seq}.${type} FROM DUAL");
   return $id;
 }
 
@@ -195,7 +195,7 @@ for your timestamps, use something like this:
 
 sub connect_call_datetime_setup {
   my $self = shift;
-  my $dbh  = $self->dbh;
+  my $dbh  = $self->_get_dbh;
 
   my $date_format = $ENV{NLS_DATE_FORMAT} ||= 'YYYY-MM-DD HH24:MI:SS';
   my $timestamp_format = $ENV{NLS_TIMESTAMP_FORMAT} ||=
@@ -211,7 +211,7 @@ sub connect_call_datetime_setup {
 sub _svp_begin {
     my ($self, $name) = @_;
  
-    $self->dbh->do("SAVEPOINT $name");
+    $self->_get_dbh->do("SAVEPOINT $name");
 }
 
 =head2 source_bind_attributes
@@ -263,7 +263,7 @@ sub _svp_release { 1 }
 sub _svp_rollback {
     my ($self, $name) = @_;
 
-    $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
+    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 =head1 AUTHORS
