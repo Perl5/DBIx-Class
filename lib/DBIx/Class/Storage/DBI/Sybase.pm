@@ -65,7 +65,24 @@ sub _rebless {
         bless $self, 'DBIx::Class::Storage::DBI::Sybase::NoBindVars';
         $self->_rebless;
       }
+      $self->_set_maxConnect;
     }
+  }
+}
+
+sub _set_maxConnect {
+  my $self = shift;
+
+  my $dsn = $self->_dbi_connect_info->[0];
+
+  return if ref($dsn) eq 'CODE';
+
+  if ($dsn !~ /maxConnect=/) {
+    $self->_dbi_connect_info->[0] = "$dsn;maxConnect=256";
+    # will take effect next connection
+    my $connected = defined $self->_dbh;
+    $self->disconnect;
+    $self->ensure_connected if $connected;
   }
 }
 
@@ -253,6 +270,20 @@ sub _dbh_last_insert_id {
 }
 
 1;
+
+=head1 MAXIMUM CONNECTIONS
+
+L<DBD::Sybase> makes separate connections to the server for active statements in
+the background. By default the number of such connections is limited to 25, on
+both the client side and the server side.
+
+This is a bit too low, so on connection the clientside setting is set to C<256>
+(see L<DBD::Sybase/maxConnect>.) You can override it to whatever setting you
+like in the DSN.
+
+See
+L<http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.ase_15.0.sag1/html/sag1/sag1272.htm>
+for information on changing the setting on the server side.
 
 =head1 DATES
 
