@@ -77,8 +77,9 @@ sub connect_call_use_dynamic_cursors {
   if (not exists $dbi_attrs->{odbc_cursortype}) {
     # turn on support for multiple concurrent statements, unless overridden
     $self->_dbi_connect_info->[-1] = { %$dbi_attrs, odbc_cursortype => 2 };
-    # will take effect next connection
+    my $connected = defined $self->_dbh;
     $self->disconnect;
+    $self->ensure_connected if $connected;
     $self->_using_dynamic_cursors(1);
   }
 }
@@ -138,8 +139,9 @@ sub connect_call_use_mars {
 
   if ($dsn !~ /MARS_Connection=/) {
     $self->_dbi_connect_info->[0] = "$dsn;MARS_Connection=Yes";
-    # will take effect next connection
+    my $connected = defined $self->_dbh;
     $self->disconnect;
+    $self->ensure_connected if $connected;
   }
 }
 
