@@ -68,7 +68,7 @@ sub connect_call_use_dynamic_cursors {
   my $self = shift;
 
   if (ref($self->_dbi_connect_info->[0]) eq 'CODE') {
-    croak 'cannot set DBI attributes on CODE ref connect_infos';
+    croak 'cannot set DBI attributes on a CODE ref connect_info';
   }
 
   my $dbi_attrs = $self->_dbi_connect_info->[-1];
@@ -94,6 +94,53 @@ sub _rebless {
   }
 
   $self->_using_dynamic_cursors(0);
+}
+
+=head2 connect_call_use_server_cursors
+
+Use as:
+
+  on_connect_call => 'use_server_cursors'
+
+May allow multiple active select statements. See
+L<DBD::ODBC/odbc_SQL_ROWSET_SIZE> for more information.
+
+Takes an optional parameter for the value to set the attribute to, default is
+C<2>.
+
+B<WARNING>: this does not work on all versions of SQL Server, and may lock up
+your database!
+
+=cut
+
+=head2 connect_call_use_mars
+
+Use as:
+
+  on_connect_call => 'use_mars'
+
+Use to enable a feature of SQL Server 2005 and later, "Multiple Active Result
+Sets". See L<DBD::ODBC::FAQ/Does DBD::ODBC support Multiple Active Statements?>
+for more information.
+
+B<WARNING>: This has implications for the way transactions are handled.
+
+=cut
+
+sub connect_call_use_mars {
+  my $self = shift;
+
+  my $dsn = $self->_dbi_connect_info->[0];
+
+  if (ref($dsn) eq 'CODE') {
+    croak 'cannot change the DBI DSN on a CODE ref connect_info';
+  }
+
+  if ($dsn !~ /MARS_Connection=/) {
+    $self->_dbi_connect_info->[0] = "$dsn;MARS_Connection=Yes";
+    # will take effect next connection
+    $self->disconnect;
+  }
 }
 
 sub insert_bulk {
