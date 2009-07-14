@@ -138,7 +138,7 @@ EOW
   }
 
   eval { require Module::Install::Pod::Inherit };
-  Module::Install::Pod::Inherit::PodInherit() if !$@;
+  PodInherit() if !$@;
 }
 
 auto_install();

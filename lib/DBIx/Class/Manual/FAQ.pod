@@ -87,7 +87,7 @@ as part of the name, and make sure you give the one user you are going
 to connect with rights to read/write all the schemas/tables as
 necessary.
 
-=back 
+=back
 
 =head2 Relationships
 
@@ -112,7 +112,7 @@ for details.
 Create a C<belongs_to> relationship for the field containing the
 foreign key.  See L<DBIx::Class::Relationship/belongs_to>.
 
-=item .. define a foreign key relationship where the key field may contain NULL?  
+=item .. define a foreign key relationship where the key field may contain NULL?
 
 Just create a C<belongs_to> relationship, as above. If the column is
 NULL then the inflation to the foreign object will not happen. This
@@ -307,8 +307,8 @@ See the prefetch examples in the L<Cookbook|DBIx::Class::Manual::Cookbook>.
 
 =item .. fetch a whole column of data instead of a row?
 
-Call C<get_column> on a L<DBIx::Class::ResultSet>, this returns a
-L<DBIx::Class::ResultSetColumn>, see it's documentation and the
+Call C<get_column> on a L<DBIx::Class::ResultSet>. This returns a
+L<DBIx::Class::ResultSetColumn>. See its documentation and the
 L<Cookbook|DBIx::Class::Manual::Cookbook> for details.
 
 =item .. fetch a formatted column?
@@ -324,22 +324,17 @@ See the Cookbook for more details.
 
 =item .. fetch a single (or topmost) row?
 
-Sometimes you many only want a single record back from a search. A quick
-way to get that single row is to first run your search as usual:
+See L<DBIx::Class::Manual::Cookbook/Retrieve_one_and_only_one_row_from_a_resultset>.
 
-  ->search->(undef, { order_by => "id DESC" })
-
-Then call L<DBIx::Class::ResultSet/slice> and ask it only to return 1 row:
-
-  ->slice(0)
-
-These two calls can be combined into a single statement:
+A less readable way is to ask a regular search to return 1 row, using
+L<DBIx::Class::ResultSet/slice>:
 
   ->search->(undef, { order_by => "id DESC" })->slice(0)
 
-Why slice instead of L<DBIx::Class::ResultSet/first> or L<DBIx::Class::ResultSet/single>?
-If supported by the database, slice will use LIMIT/OFFSET to hint to the database that we
-really only need one row. This can result in a significant speed improvement.
+which (if supported by the database) will use LIMIT/OFFSET to hint to the
+database that we really only need one row. This can result in a significant
+speed improvement. The method using L<DBIx::Class::ResultSet/single> mentioned
+in the cookbook can do the same if you pass a C<rows> attribute to the search.
 
 =item .. refresh a row from storage?
 
@@ -410,17 +405,17 @@ scalar reference:
 
 But note that when using a scalar reference the column in the database
 will be updated but when you read the value from the object with e.g.
- 
+
  ->somecolumn()
- 
+
 you still get back the scalar reference to the string, B<not> the new
 value in the database. To get that you must refresh the row from storage
 using C<discard_changes()>. Or chain your function calls like this:
 
   ->update->discard_changes
- 
- to update the database and refresh the object in one step.
- 
+
+to update the database and refresh the object in one step.
+
 =item .. store JSON/YAML in a column and have it deflate/inflate automatically?
 
 You can use L<DBIx::Class::InflateColumn> to accomplish YAML/JSON storage transparently.
@@ -474,7 +469,7 @@ An another method is to use L<Moose> with your L<DBIx::Class> package.
 	package MyTable;
 
 	use Moose; # import Moose
-	use Moose::Util::TypeConstraint; # import Moose accessor type constraints 
+	use Moose::Util::TypeConstraint; # import Moose accessor type constraints
 
 	extends 'DBIx::Class'; # Moose changes the way we define our parent (base) package
 
@@ -486,7 +481,7 @@ With either of these methods the resulting use of the accesssor would be
 
 	my $row;
 
-	# assume that some where in here $row will get assigned to a MyTable row
+	# assume that somewhere in here $row will get assigned to a MyTable row
 
 	$row->non_column_data('some string'); # would set the non_column_data accessor
 
@@ -494,7 +489,7 @@ With either of these methods the resulting use of the accesssor would be
 
 	$row->update(); # would not inline the non_column_data accessor into the update
 
-	
+
 =item How do I use DBIx::Class objects in my TT templates?
 
 Like normal objects, mostly. However you need to watch out for TT
@@ -536,7 +531,7 @@ Look at the tips in L<DBIx::Class::Manual::Cookbook/"STARTUP SPEED">
 =item How do I reduce the overhead of database queries?
 
 You can reduce the overhead of object creation within L<DBIx::Class>
-using the tips in L<DBIx::Class::Manual::Cookbook/"Skip row object creation for faster results"> 
+using the tips in L<DBIx::Class::Manual::Cookbook/"Skip row object creation for faster results">
 and L<DBIx::Class::Manual::Cookbook/"Get raw data for blindingly fast results">
 
 =back

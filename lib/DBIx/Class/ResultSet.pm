@@ -1315,8 +1315,11 @@ sub _count_subq_rs {
 sub _switch_to_inner_join_if_needed {
   my ($self, $from, $alias) = @_;
 
+  # subqueries and other oddness is naturally not supported
   return $from if (
     ref $from ne 'ARRAY'
+      ||
+    @$from <= 1
       ||
     ref $from->[0] ne 'HASH'
       ||
@@ -1324,10 +1327,6 @@ sub _switch_to_inner_join_if_needed {
       ||
     $from->[0]{-alias} eq $alias
   );
-
-  # this would be the case with a subquery - we'll never find
-  # the target as it is not in the parseable part of {from}
-  return $from if @$from == 1;
 
   my $switch_branch;
   JOINSCAN:
