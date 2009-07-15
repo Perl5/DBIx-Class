@@ -8,7 +8,7 @@ use Carp::Clan qw/^DBIx::Class/;
 use List::Util();
 
 __PACKAGE__->mk_group_accessors(simple => qw/
-  _scope_identity _using_dynamic_cursors
+  _identity _using_dynamic_cursors
 /);
 
 =head1 NAME
@@ -207,13 +207,13 @@ sub _execute {
         ($identity) = $self->_dbh->selectrow_array('select @@identity');
       }
 
-      $self->_scope_identity($identity);
+      $self->_identity($identity);
     }
 
     return wantarray ? ($rv, $sth, @bind) : $rv;
 }
 
-sub last_insert_id { shift->_scope_identity() }
+sub last_insert_id { shift->_identity() }
 
 1;
 
