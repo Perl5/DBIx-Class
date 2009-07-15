@@ -3090,10 +3090,15 @@ These are in no particular order:
 
 =back
 
-Which column(s) to order the results by. If a single column name, or
-an arrayref of names is supplied, the argument is passed through
-directly to SQL. The hashref syntax allows for connection-agnostic
-specification of ordering direction:
+Which column(s) to order the results by. 
+
+[The full list of suitable values is documented in
+L<SQL::Abstract/"ORDER BY CLAUSES">; the following is a summary of
+common options.]
+
+If a single column name, or an arrayref of names is supplied, the
+argument is passed through directly to SQL. The hashref syntax allows
+for connection-agnostic specification of ordering direction:
 
  For descending order:
 
