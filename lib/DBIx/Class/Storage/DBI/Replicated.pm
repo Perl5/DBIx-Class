@@ -7,9 +7,9 @@ BEGIN {
   ## use, so we explicitly test for these.
 
   my %replication_required = (
-    'Moose' => '0.77',
-    'MooseX::AttributeHelpers' => '0.12',
-    'MooseX::Types' => '0.10',
+    'Moose' => '0.87',
+    'MooseX::AttributeHelpers' => '0.20',
+    'MooseX::Types' => '0.16',
     'namespace::clean' => '0.11',
     'Hash::Merge' => '0.11'
   );
@@ -120,11 +120,11 @@ to force a query to run against Master when needed.
 
 Replicated Storage has additional requirements not currently part of L<DBIx::Class>
 
-  Moose => 0.77
-  MooseX::AttributeHelpers => 0.12 
-  MooseX::Types => 0.10
-  namespace::clean => 0.11
-  Hash::Merge => 0.11
+  Moose => '0.87',
+  MooseX::AttributeHelpers => '0.20',
+  MooseX::Types => '0.16',
+  namespace::clean => '0.11',
+  Hash::Merge => '0.11'
 
 You will need to install these modules manually via CPAN or make them part of the
 Makefile for your distribution.
