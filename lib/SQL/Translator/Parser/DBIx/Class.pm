@@ -337,7 +337,7 @@ from a DBIx::Class::Schema instance
  ## Standalone
  use MyApp::Schema;
  use SQL::Translator;
- 
+
  my $schema = MyApp::Schema->connect;
  my $trans  = SQL::Translator->new (
       parser      => 'SQL::Translator::Parser::DBIx::Class',

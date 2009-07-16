@@ -24,10 +24,10 @@ Emulate C<has_a>, C<has_many>, C<might_have> and C<meta_info>.
 
 sub has_a {
     my($self, $col, @rest) = @_;
-    
+
     $self->_declare_has_a($col, @rest);
     $self->_mk_inflated_column_accessor($col);
-    
+
     return 1;
 }
 
@@ -37,7 +37,7 @@ sub _declare_has_a {
   $self->throw_exception( "No such column ${col}" )
    unless $self->has_column($col);
   $self->ensure_class_loaded($f_class);
-  
+
   my $rel_info;
 
   if ($args{'inflate'} || $args{'deflate'}) { # Non-database has_a
@@ -50,7 +50,7 @@ sub _declare_has_a {
       $args{'deflate'} = sub { shift->$meth; };
     }
     $self->inflate_column($col, \%args);
-    
+
     $rel_info = {
         class => $f_class
     };
@@ -59,9 +59,9 @@ sub _declare_has_a {
     $self->belongs_to($col, $f_class);
     $rel_info = $self->result_source_instance->relationship_info($col);
   }
-  
+
   $rel_info->{args} = \%args;
-  
+
   $self->_extend_meta(
     has_a => $col,
     $rel_info
@@ -72,7 +72,7 @@ sub _declare_has_a {
 
 sub _mk_inflated_column_accessor {
     my($class, $col) = @_;
-    
+
     return $class->mk_group_accessors('inflated_column' => $col);
 }
 
@@ -137,7 +137,7 @@ sub has_many {
 
 sub might_have {
   my ($class, $rel, $f_class, @columns) = @_;
-  
+
   my $ret;
   if (ref $columns[0] || !defined $columns[0]) {
     $ret = $class->next::method($rel, $f_class, @columns);
@@ -153,7 +153,7 @@ sub might_have {
     might_have => $rel,
     $rel_info
   );
-  
+
   return $ret;
 }
 

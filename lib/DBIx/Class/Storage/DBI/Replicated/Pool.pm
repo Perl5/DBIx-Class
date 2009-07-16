@@ -18,7 +18,7 @@ DBIx::Class::Storage::DBI::Replicated::Pool - Manage a pool of replicants
 
 This class is used internally by L<DBIx::Class::Storage::DBI::Replicated>.  You
 shouldn't need to create instances of this class.
-  
+
 =head1 DESCRIPTION
 
 In a replicated storage type, there is at least one replicant to handle the
@@ -89,11 +89,11 @@ A hashref of replicant, with the key being the dsn and the value returning the
 actual replicant storage.  For example if the $dsn element is something like:
 
   "dbi:SQLite:dbname=dbfile"
-  
+
 You could access the specific replicant via:
 
   $schema->storage->replicants->{'dbname=dbfile'}
-  
+
 This attributes also supports the following helper methods:
 
 =over 4
@@ -125,14 +125,15 @@ removes the replicant under $key from the pool
 has 'replicants' => (
   is=>'rw',
   metaclass => 'Collection::Hash',
-  isa=>HashRef['DBIx::Class::Storage::DBI'],
+  isa=>HashRef['Object'],
   default=>sub {{}},
   provides  => {
     'set' => 'set_replicant',
-    'get' => 'get_replicant',            
+    'get' => 'get_replicant',
     'empty' => 'has_replicants',
     'count' => 'num_replicants',
     'delete' => 'delete_replicant',
+    'values' => 'all_replicant_storages',
   },
 );
 
@@ -151,7 +152,7 @@ and store it in the L</replicants> attribute.
 sub connect_replicants {
   my $self = shift @_;
   my $schema = shift @_;
-  
+
   my @newly_created = ();
   foreach my $connect_info (@_) {
     $connect_info = [ $connect_info ]
@@ -169,7 +170,7 @@ sub connect_replicants {
     $self->set_replicant( $key => $replicant);  
     push @newly_created, $replicant;
   }
-  
+
   return @newly_created;
 }
 

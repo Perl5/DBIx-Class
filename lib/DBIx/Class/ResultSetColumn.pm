@@ -338,7 +338,7 @@ value. Produces the following SQL:
 sub func {
   my ($self,$function) = @_;
   my $cursor = $self->func_rs($function)->cursor;
-  
+
   if( wantarray ) {
     return map { $_->[ 0 ] } $cursor->all;
   }
@@ -373,9 +373,9 @@ sub func_rs {
 =head2 throw_exception
 
 See L<DBIx::Class::Schema/throw_exception> for details.
-  
+
 =cut 
-    
+
 sub throw_exception {
   my $self=shift;
   if (ref $self && $self->{_parent_resultset}) {
