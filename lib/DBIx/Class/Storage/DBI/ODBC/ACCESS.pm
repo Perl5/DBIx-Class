@@ -40,11 +40,11 @@ sub last_insert_id {
 
 sub bind_attribute_by_data_type {
     my $self = shift;
-    
+
     my ( $data_type ) = @_;
-    
+
     return { TYPE => $data_type } if $data_type == DBI::SQL_LONGVARCHAR;
-    
+
     return;
 }
 

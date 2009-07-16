@@ -14,7 +14,7 @@ DBIx::Class::Storage::DBI::Replicated::Balancer - A Software Load Balancer
 =head1 SYNOPSIS
 
 This role is used internally by L<DBIx::Class::Storage::DBI::Replicated>.
-    
+
 =head1 DESCRIPTION
 
 Given a pool (L<DBIx::Class::Storage::DBI::Replicated::Pool>) of replicated

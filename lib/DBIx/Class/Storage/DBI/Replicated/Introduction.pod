@@ -69,7 +69,7 @@ and canonical option.
 =head1 PARTS OF REPLICATED STORAGE
 
 A replicated storage contains several parts.  First, there is the replicated
-storage itself (L<DBIx::Class::Storage::DBI::Replicated).  A replicated storage
+storage itself (L<DBIx::Class::Storage::DBI::Replicated>).  A replicated storage
 takes a pool of replicants (L<DBIx::Class::Storage::DBI::Replicated::Pool>)
 and a software balancer (L<DBIx::Class::Storage::DBI::Replicated::Pool>).  The
 balancer does the job of splitting up all the read traffic amongst each

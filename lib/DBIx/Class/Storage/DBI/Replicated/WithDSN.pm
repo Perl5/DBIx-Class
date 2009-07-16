@@ -13,7 +13,7 @@ information in trace output
 =head1 SYNOPSIS
 
 This class is used internally by L<DBIx::Class::Storage::DBI::Replicated>.
-    
+
 =head1 DESCRIPTION
 
 This role adds C<DSN: > info to storage debugging output.

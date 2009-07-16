@@ -2,10 +2,10 @@ package DBIx::Class::Storage::DBI::Replicated;
 
 BEGIN {
   use Carp::Clan qw/^DBIx::Class/;
-	
+
   ## Modules required for Replication support not required for general DBIC
   ## use, so we explicitly test for these.
-	
+
   my %replication_required = (
     'Moose' => '0.77',
     'MooseX::AttributeHelpers' => '0.12',
@@ -13,17 +13,17 @@ BEGIN {
     'namespace::clean' => '0.11',
     'Hash::Merge' => '0.11'
   );
-	
+
   my @didnt_load;
-  
+
   for my $module (keys %replication_required) {
 	eval "use $module $replication_required{$module}";
 	push @didnt_load, "$module $replication_required{$module}"
 	 if $@;
   }
-	
+
   croak("@{[ join ', ', @didnt_load ]} are missing and are required for Replication")
-    if @didnt_load;  	
+    if @didnt_load;
 }
 
 use Moose;
@@ -49,29 +49,29 @@ storage type, add some replicated (readonly) databases, and perform reporting
 tasks.
 
 You should set the 'storage_type attribute to a replicated type.  You should
-also defined you arguments, such as which balancer you want and any arguments
+also define your arguments, such as which balancer you want and any arguments
 that the Pool object should get.
 
   $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
-  
+
 Next, you need to add in the Replicants.  Basically this is an array of 
 arrayrefs, where each arrayref is database connect information.  Think of these
 arguments as what you'd pass to the 'normal' $schema->connect method.
-  
+
   $schema->storage->connect_replicants(
     [$dsn1, $user, $pass, \%opts],
     [$dsn2, $user, $pass, \%opts],
     [$dsn3, $user, $pass, \%opts],
   );
-  
+
 Now, just use the $schema as you normally would.  Automatically all reads will
 be delegated to the replicants, while writes to the master.
 
   $schema->resultset('Source')->search({name=>'etc'});
-  
+
 You can force a given query to use a particular storage using the search
 attribute 'force_pool'.  For example:
-  
+
   my $RS = $schema->resultset('Source')->search(undef, {force_pool=>'master'});
 
 Now $RS will force everything (both reads and writes) to use whatever was setup
@@ -86,7 +86,7 @@ same time, since your replicants will often lag a bit behind the master.
 
 See L<DBIx::Class::Storage::DBI::Replicated::Instructions> for more help and
 walkthroughs.
-  
+
 =head1 DESCRIPTION
 
 Warning: This class is marked BETA.  This has been running a production
@@ -125,7 +125,7 @@ Replicated Storage has additional requirements not currently part of L<DBIx::Cla
   MooseX::Types => 0.10
   namespace::clean => 0.11
   Hash::Merge => 0.11
-  
+
 You will need to install these modules manually via CPAN or make them part of the
 Makefile for your distribution.
 
@@ -411,7 +411,7 @@ bits get put into the correct places.
 
 sub BUILDARGS {
   my ($class, $schema, $storage_type_args, @args) = @_;	
-  
+
   return {
   	schema=>$schema, 
   	%$storage_type_args,
@@ -568,24 +568,24 @@ inserted something and need to get a resultset including it, etc.
 
 sub execute_reliably {
   my ($self, $coderef, @args) = @_;
-  
+
   unless( ref $coderef eq 'CODE') {
     $self->throw_exception('Second argument must be a coderef');
   }
-  
+
   ##Get copy of master storage
   my $master = $self->master;
-  
+
   ##Get whatever the current read hander is
   my $current = $self->read_handler;
-  
+
   ##Set the read handler to master
   $self->read_handler($master);
-  
+
   ## do whatever the caller needs
   my @result;
   my $want_array = wantarray;
-  
+
   eval {
     if($want_array) {
       @result = $coderef->(@args);
@@ -595,13 +595,13 @@ sub execute_reliably {
       $coderef->(@args);
     }       
   };
-  
+
   ##Reset to the original state
   $self->read_handler($current); 
-  
+
   ##Exception testing has to come last, otherwise you might leave the 
   ##read_handler set to master.
-  
+
   if($@) {
     $self->throw_exception("coderef returned an error: $@");
   } else {
@@ -613,14 +613,14 @@ sub execute_reliably {
 
 Sets the current $schema to be 'reliable', that is all queries, both read and
 write are sent to the master
-  
+
 =cut
 
 sub set_reliable_storage {
   my $self = shift @_;
   my $schema = $self->schema;
   my $write_handler = $self->schema->storage->write_handler;
-  
+
   $schema->storage->read_handler($write_handler);
 }
 
@@ -628,14 +628,14 @@ sub set_reliable_storage {
 
 Sets the current $schema to be use the </balancer> for all reads, while all
 writea are sent to the master only
-  
+
 =cut
 
 sub set_balanced_storage {
   my $self = shift @_;
   my $schema = $self->schema;
   my $balanced_handler = $self->schema->storage->balancer;
-  
+
   $schema->storage->read_handler($balanced_handler);
 }
 
@@ -811,7 +811,7 @@ sub cursor_class {
   }
   $self->master->cursor_class;
 }
-  
+
 =head1 GOTCHAS
 
 Due to the fact that replicants can lag behind a master, you must take care to
@@ -845,7 +845,7 @@ using the Schema clone method.
 
   my $new_schema = $schema->clone;
   $new_schema->set_reliable_storage;
-  
+
   ## $new_schema will use only the Master storage for all reads/writes while
   ## the $schema object will use replicated storage.
 

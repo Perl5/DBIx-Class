@@ -16,12 +16,12 @@ sub resultset_instance {
 # request in case the database modifies the new value (say, via a trigger)
 sub update {
     my $self = shift;
-    
+
     my @dirty_columns = keys %{$self->{_dirty_columns}};
-    
+
     my $ret = $self->next::method(@_);
     $self->_clear_column_data(@dirty_columns);
-    
+
     return $ret;
 }
 
@@ -30,12 +30,12 @@ sub update {
 sub create {
     my $class = shift;
     my($data) = @_;
-    
+
     my @columns = keys %$data;
-    
+
     my $obj = $class->next::method(@_);
     return $obj unless defined $obj;
-    
+
     my %primary_cols = map { $_ => 1 } $class->primary_columns;
     my @data_cols = grep !$primary_cols{$_}, @columns;
     $obj->_clear_column_data(@data_cols);
@@ -46,7 +46,7 @@ sub create {
 
 sub _clear_column_data {
     my $self = shift;
-    
+
     delete $self->{_column_data}{$_}     for @_;
     delete $self->{_inflated_column}{$_} for @_;
 }
@@ -71,7 +71,7 @@ sub copy {
   for my $col ($self->primary_columns) {
     $changes->{$col} = undef unless exists $changes->{$col};
   }
-  
+
   return $self->next::method($changes);
 }
 
