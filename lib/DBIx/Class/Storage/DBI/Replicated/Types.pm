@@ -5,11 +5,14 @@ package # hide from PAUSE
 # L<DBIx::Class::Storage::DBI::Replicated>
 
 use MooseX::Types
-  -declare => [qw/BalancerClassNamePart Weight/];
+  -declare => [qw/BalancerClassNamePart Weight DBICSchema DBICStorageDBI/];
 use MooseX::Types::Moose qw/ClassName Str Num/;
 
 class_type 'DBIx::Class::Storage::DBI';
 class_type 'DBIx::Class::Schema';
+
+subtype DBICSchema, as 'DBIx::Class::Schema';
+subtype DBICStorageDBI, as 'DBIx::Class::Storage::DBI';
 
 subtype BalancerClassNamePart,
   as ClassName;

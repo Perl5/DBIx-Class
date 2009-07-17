@@ -25,7 +25,7 @@ The CDBI iterator returns true if there were any results, false otherwise.  The 
 
 sub _init_result_source_instance {
   my $class = shift;
-  
+
   my $table = $class->next::method(@_);
   $table->resultset_class("DBIx::Class::CDBICompat::Iterator::ResultSet");
 

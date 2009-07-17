@@ -40,13 +40,13 @@ use inflate_datetime or inflate_date:
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'varchar', inflate_datetime => 1 }
   );
-  
+
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'varchar', inflate_date => 1 }
   );
 
 It's also possible to explicitly skip inflation:
-  
+
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'datetime', inflate_datetime => 0 }
   );
@@ -86,7 +86,7 @@ directly called by end users.
 In the case of an invalid date, L<DateTime> will throw an exception.  To
 bypass these exceptions and just have the inflation return undef, use
 the C<datetime_undef_if_invalid> option in the column info:
-  
+
     "broken_date",
     {
         data_type => "datetime",
@@ -119,6 +119,9 @@ sub register_column {
     if ($type eq "timestamp with time zone" || $type eq "timestamptz") {
       $type = "timestamp";
       $info->{_ic_dt_method} ||= "timestamp_with_timezone";
+    } elsif ($type eq "smalldatetime") {
+      $type = "datetime";
+      $info->{_ic_dt_method} ||= "datetime";
     }
   }
 
@@ -135,7 +138,7 @@ sub register_column {
          "please put it directly into the '$column' column definition.";
     $locale = $info->{extra}{locale};
   }
-  
+
   $locale   = $info->{locale}   if defined $info->{locale};
   $timezone = $info->{timezone} if defined $info->{timezone};
 

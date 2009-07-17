@@ -139,7 +139,7 @@ Returns the sequence name for an autoincrement column
 
 sub get_autoinc_seq {
   my ($self, $source, $col) = @_;
-    
+
   $self->dbh_do('_dbh_get_autoinc_seq', $source, $col);
 }
 
@@ -210,7 +210,7 @@ sub connect_call_datetime_setup {
 
 sub _svp_begin {
     my ($self, $name) = @_;
- 
+
     $self->_get_dbh->do("SAVEPOINT $name");
 }
 

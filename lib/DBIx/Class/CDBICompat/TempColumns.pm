@@ -11,7 +11,7 @@ __PACKAGE__->mk_classdata('_temp_columns' => { });
 
 sub _add_column_group {
   my ($class, $group, @cols) = @_;
-  
+
   return $class->next::method($group, @cols) unless $group eq 'TEMP';
 
   my %new_cols = map { $_ => 1 } @cols;
@@ -61,11 +61,11 @@ sub find_column {
 
 sub set {
   my($self, %data) = @_;
-  
+
   my $temp_data = $self->_extract_temp_data(\%data);
-  
+
   $self->set_temp($_, $temp_data->{$_}) for keys %$temp_data;
-  
+
   return $self->next::method(%data);
 }
 
