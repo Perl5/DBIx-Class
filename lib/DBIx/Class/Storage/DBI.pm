@@ -817,7 +817,8 @@ sub _determine_driver {
       $self->_rebless();
     }
 
-    $self->_run_connection_actions if $started_unconnected;
+    $self->_run_connection_actions
+        if $started_unconnected && defined $self->_dbh;
   }
 }
 
