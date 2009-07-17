@@ -8,6 +8,11 @@ use base qw/
 use List::Util ();
 use Scalar::Util ();
 
+sub _rebless {
+  my $self = shift;
+  $self->disable_sth_caching(1);
+}
+
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
 
@@ -39,6 +44,8 @@ sub should_quote_value {
 
   if (my $key = List::Util::first { $type =~ /$_/i } keys %noquote) {
     return 0 if $noquote{$key}->($value);
+  } elsif($self->is_datatype_numeric($type) && $number->($value)) {
+    return 0;
   }
 
 ## try to guess based on value

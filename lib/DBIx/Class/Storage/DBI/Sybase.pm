@@ -79,7 +79,6 @@ sub _set_maxConnect {
 
   if ($dsn !~ /maxConnect=/) {
     $self->_dbi_connect_info->[0] = "$dsn;maxConnect=256";
-    # will take effect next connection
     my $connected = defined $self->_dbh;
     $self->disconnect;
     $self->ensure_connected if $connected;
@@ -159,8 +158,10 @@ sub _remove_blob_cols {
   my %blob_cols;
 
   for my $col (keys %$fields) {
-    $blob_cols{$col} = delete $fields->{$col}
-      if $self->_is_lob_type($source->column_info($col)->{data_type});
+    if ($self->_is_lob_type($source->column_info($col)->{data_type})) {
+      $blob_cols{$col} = delete $fields->{$col};
+      $fields->{$col} = \"''";
+    }
   }
 
   return \%blob_cols;
@@ -172,28 +173,40 @@ sub _update_blobs {
 
   my $table = $source->from;
 
+  my %inserted = %$inserted;
   my (@primary_cols) = $source->primary_columns;
 
-  croak "Cannot update TEXT/IMAGE without a primary key!"
+  croak "Cannot update TEXT/IMAGE column(s) without a primary key"
     unless @primary_cols;
 
-  my $search_cond = join ',' => map "$_ = ?", @primary_cols;
+  if ((grep { defined $inserted{$_} } @primary_cols) != @primary_cols) {
+    if (@primary_cols == 1) {
+      my $col = $primary_cols[0];
+      $inserted{$col} = $self->last_insert_id($source, $col);
+    } else {
+      croak "Cannot update TEXT/IMAGE column(s) without primary key values";
+    }
+  }
 
   for my $col (keys %$blob_cols) {
     my $blob = $blob_cols->{$col};
+    my $sth;
 
-# First update to empty string in case it's NULL, can't update a NULL blob using
-# the API.
-    my $sth = $dbh->prepare_cached(
-      qq{update $table set $col = '' where $search_cond}
-    );
-    $sth->execute(map $inserted->{$_}, @primary_cols) or die $sth->errstr;
-    $sth->finish;
+    if (not $self->isa('DBIx::Class::Storage::DBI::NoBindVars')) {
+      my $search_cond = join ',' => map "$_ = ?", @primary_cols;
 
-    $sth = $dbh->prepare_cached(
-      "select $col from $table where $search_cond"
-    );
-    $sth->execute(map $inserted->{$_}, @primary_cols);
+      $sth = $self->sth(
+        "select $col from $table where $search_cond"
+      );
+      $sth->execute(map $inserted{$_}, @primary_cols);
+    } else {
+      my $search_cond = join ',' => map "$_ = $inserted{$_}", @primary_cols;
+
+      $sth = $dbh->prepare(
+        "select $col from $table where $search_cond"
+      );
+      $sth->execute;
+    }
 
     eval {
       while ($sth->fetch) {

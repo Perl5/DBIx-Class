@@ -15,7 +15,7 @@ if (not ($dsn && $user)) {
     "\nWarning: This test drops and creates the tables " .
     "'artist' and 'bindtype_test'";
 } else {
-  plan tests => (27 + 2)*2;
+  plan tests => (29 + 2)*2;
 }
 
 my @storage_types = (
@@ -125,12 +125,12 @@ SQL
     $dbh->do(qq[
       CREATE TABLE bindtype_test 
       (
-        id    INT   PRIMARY KEY,
+        id    INT   IDENTITY PRIMARY KEY,
         bytea INT   NULL,
         blob  IMAGE NULL,
         clob  TEXT  NULL
       )
-    ],{ RaiseError => 1, PrintError => 1 });
+    ],{ RaiseError => 1, PrintError => 0 });
   }
 
   my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
@@ -141,19 +141,20 @@ SQL
   local $dbh->{'LongReadLen'} = $maxloblen;
 
   my $rs = $schema->resultset('BindType');
-  my $id = 0;
+  my $last_id;
 
   foreach my $type (qw(blob clob)) {
     foreach my $size (qw(small large)) {
       no warnings 'uninitialized';
-      $id++;
 
-      eval { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) };
+      my $created = eval { $rs->create( { $type => $binstr{$size} } ) };
       ok(!$@, "inserted $size $type without dying");
       diag $@ if $@;
 
+      $last_id = $created->id if $created;
+
       my $got = eval {
-        $rs->search({ id=> $id }, { select => [$type] })->single->$type
+        $rs->search({ id => $last_id }, { select => [$type] })->single->$type
       };
       diag $@ if $@;
       ok($got eq $binstr{$size}, "verified inserted $size $type");
@@ -165,14 +166,39 @@ SQL
     local $TODO = 'updating TEXT/IMAGE does not work yet';
 
     my $new_str = $binstr{large} . 'foo';
-    eval { $rs->search({ id => $id })->update({ blob => $new_str }) };
+    eval { $rs->search({ id => $last_id })->update({ blob => $new_str }) };
     ok !$@, 'updated blob successfully';
     diag $@ if $@;
     ok(eval {
-      $rs->search({ id=> $id }, { select => ['blob'] })->single->blob
+      $rs->search({ id => $last_id }, { select => ['blob'] })->single->blob
     } eq $new_str, "verified updated blob" );
     diag $@ if $@;
   }
+
+  # blob insert with explicit PK
+  {
+    local $SIG{__WARN__} = sub {};
+    eval { $dbh->do('DROP TABLE bindtype_test') };
+
+    $dbh->do(qq[
+      CREATE TABLE bindtype_test 
+      (
+        id    INT   PRIMARY KEY,
+        bytea INT   NULL,
+        blob  IMAGE NULL,
+        clob  TEXT  NULL
+      )
+    ],{ RaiseError => 1, PrintError => 0 });
+  }
+  my $created = eval { $rs->create( { id => 1, blob => $binstr{large} } ) };
+  ok(!$@, "inserted large blob without dying");
+  diag $@ if $@;
+
+  my $got = eval {
+    $rs->search({ id => 1 }, { select => ['blob'] })->single->blob
+  };
+  diag $@ if $@;
+  ok($got eq $binstr{large}, "verified inserted large blob");
 }
 
 # clean up our mess

@@ -10,6 +10,11 @@ use base qw/
 /;
 use mro 'c3';
 
+sub _rebless {
+  my $self = shift;
+  $self->disable_sth_caching(1);
+}
+
 1;
 
 =head1 NAME
