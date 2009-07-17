@@ -21,11 +21,11 @@ sub datetime_parser_type { "DateTime::Format::DB2"; }
 
 sub _sql_maker_opts {
     my ( $self, $opts ) = @_;
-    
+
     if ( $opts ) {
         $self->{_sql_maker_opts} = { %$opts };
     }
-                    
+
     return { limit_dialect => 'RowNumberOver', %{$self->{_sql_maker_opts}||{}} };
 }
 

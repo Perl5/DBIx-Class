@@ -1480,7 +1480,7 @@ sub _adjust_select_args_for_complex_prefetch {
   my $alias = $attrs->{alias};
   my $sql_maker = $self->sql_maker;
 
-  # create subquery select list - loop only over primary columns
+  # create subquery select list - consider only stuff *not* brought in by the prefetch
   my $sub_select = [];
   for my $i (0 .. @{$attrs->{select}} - @{$attrs->{prefetch_select}} - 1) {
     my $sel = $attrs->{select}[$i];
@@ -1489,7 +1489,7 @@ sub _adjust_select_args_for_complex_prefetch {
     # adjust the outer select accordingly
     if (ref $sel eq 'HASH' && !$sel->{-select}) {
       $sel = { -select => $sel, -as => $attrs->{as}[$i] };
-      $select->[$i] = join ('.', $attrs->{alias}, $attrs->{as}[$i]);
+      $select->[$i] = join ('.', $attrs->{alias}, ($attrs->{as}[$i] || "select_$i") );
     }
 
     push @$sub_select, $sel;
@@ -1547,6 +1547,8 @@ sub _adjust_select_args_for_complex_prefetch {
   {
     # produce stuff unquoted, so it can be scanned
     local $sql_maker->{quote_char};
+    my $sep = $self->_sql_maker_opts->{name_sep} || '.';
+    $sep = "\Q$sep\E";
 
     my @order_by = (map
       { ref $_ ? $_->[0] : $_ }
@@ -1554,6 +1556,7 @@ sub _adjust_select_args_for_complex_prefetch {
     );
 
     my $where_sql = $sql_maker->where ($where);
+    my $select_sql = $sql_maker->_recurse_fields ($sub_select);
 
     # sort needed joins
     for my $alias (keys %join_info) {
@@ -1561,8 +1564,8 @@ sub _adjust_select_args_for_complex_prefetch {
       # any table alias found on a column name in where or order_by
       # gets included in %inner_joins
       # Also any parent joins that are needed to reach this particular alias
-      for my $piece ($where_sql, @order_by ) {
-        if ($piece =~ /\b$alias\./) {
+      for my $piece ($select_sql, $where_sql, @order_by ) {
+        if ($piece =~ /\b $alias $sep/x) {
           $inner_joins{$alias} = 1;
         }
       }

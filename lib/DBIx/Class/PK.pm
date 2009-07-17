@@ -42,16 +42,16 @@ sub discard_changes {
   my ($self, $attrs) = @_;
   delete $self->{_dirty_columns};
   return unless $self->in_storage; # Don't reload if we aren't real!
-  
+
   if( my $current_storage = $self->get_from_storage($attrs)) {
-  	
+
     # Set $self to the current.
   	%$self = %$current_storage;
-  	
+
     # Avoid a possible infinite loop with
     # sub DESTROY { $_[0]->discard_changes }
     bless $current_storage, 'Do::Not::Exist';
-    
+
     return $self;  	
   } else {
     $self->in_storage(0);

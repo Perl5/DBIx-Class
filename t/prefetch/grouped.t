@@ -28,7 +28,6 @@ for ($cd_rs->all) {
   my $track_rs = $schema->resultset ('Track')->search (
     { 'me.cd' => { -in => [ $cd_rs->get_column ('cdid')->all ] } },
     {
-      # the select/as is deliberately silly to test both funcs and refs below
       select => [
         'me.cd',
         { count => 'me.trackid' },
@@ -66,8 +65,6 @@ for ($cd_rs->all) {
 
   # Test sql by hand, as the sqlite db will simply paper over
   # improper group/select combinations
-  #
-  # the exploded IN needs fixing below, coming in another branch
   #
   is_same_sql_bind (
     $track_rs->count_rs->as_query,
@@ -131,14 +128,19 @@ for ($cd_rs->all) {
 # test a has_many/might_have prefetch at the same level
 # Note that one of the CDs now has 4 tracks instead of 3
 {
-  my $most_tracks_rs = $cd_rs->search ({}, {
-    prefetch => 'liner_notes',  # tracks are alredy prefetched
-    select => ['me.cdid', { count => 'tracks.trackid' } ],
-    as => [qw/cdid track_count/],
-    group_by => 'me.cdid',
-    order_by => { -desc => 'track_count' },
-    rows => 2,
-  });
+  my $most_tracks_rs = $schema->resultset ('CD')->search (
+    {
+      'me.cdid' => { '!=' => undef },  # duh - this is just to test WHERE
+    },
+    {
+      prefetch => [qw/tracks liner_notes/],
+      select => ['me.cdid', { count => 'tracks.trackid' } ],
+      as => [qw/cdid track_count/],
+      group_by => 'me.cdid',
+      order_by => { -desc => 'track_count' },
+      rows => 2,
+    }
+  );
 
   is_same_sql_bind (
     $most_tracks_rs->count_rs->as_query,
@@ -149,7 +151,7 @@ for ($cd_rs->all) {
             FROM cd me
             LEFT JOIN track tracks ON tracks.cd = me.cdid
             LEFT JOIN liner_notes liner_notes ON liner_notes.liner_id = me.cdid
-          WHERE ( tracks.cd IS NOT NULL )
+          WHERE ( me.cdid IS NOT NULL )
           GROUP BY me.cdid
           LIMIT 2
         ) count_subq
@@ -166,14 +168,14 @@ for ($cd_rs->all) {
           SELECT me.cdid, COUNT( tracks.trackid ) AS track_count
             FROM cd me
             LEFT JOIN track tracks ON tracks.cd = me.cdid
-          WHERE ( tracks.cd IS NOT NULL )
+          WHERE ( me.cdid IS NOT NULL )
           GROUP BY me.cdid
           ORDER BY track_count DESC
           LIMIT 2
         ) me
         LEFT JOIN track tracks ON tracks.cd = me.cdid
         LEFT JOIN liner_notes liner_notes ON liner_notes.liner_id = me.cdid
-      WHERE ( tracks.cd IS NOT NULL )
+      WHERE ( me.cdid IS NOT NULL )
       ORDER BY track_count DESC, tracks.cd
     )',
     [],

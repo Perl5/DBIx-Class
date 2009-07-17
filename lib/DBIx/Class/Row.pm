@@ -1332,6 +1332,13 @@ This method can also be used to refresh from storage, retrieving any
 changes made since the row was last read from storage. Actually
 implemented in L<DBIx::Class::PK>
 
+Note: If you are using L<DBIx::Class::Storage::DBI::Replicated> as your
+storage, please kept in mind that if you L</discard_changes> on a row that you
+just updated or created, you should wrap the entire bit inside a transaction.
+Otherwise you run the risk that you insert or update to the master database
+but read from a replicant database that has not yet been updated from the
+master.  This will result in unexpected results.
+
 =cut
 
 1;

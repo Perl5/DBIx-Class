@@ -337,7 +337,7 @@ from a DBIx::Class::Schema instance
  ## Standalone
  use MyApp::Schema;
  use SQL::Translator;
- 
+
  my $schema = MyApp::Schema->connect;
  my $trans  = SQL::Translator->new (
       parser      => 'SQL::Translator::Parser::DBIx::Class',
@@ -353,7 +353,7 @@ This class requires L<SQL::Translator> installed to work.
 C<SQL::Translator::Parser::DBIx::Class> reads a DBIx::Class schema,
 interrogates the columns, and stuffs it all in an $sqlt_schema object.
 
-It's primary use is in deploying database layouts described as a set
+Its primary use is in deploying database layouts described as a set
 of L<DBIx::Class> classes, to a database. To do this, see
 L<DBIx::Class::Schema/deploy>.
 

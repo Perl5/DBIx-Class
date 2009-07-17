@@ -59,7 +59,7 @@ __PACKAGE__->mk_classdata('_transform_sql_handlers' =>
             $rel_obj->{cond}, $to, $from) );
         return $join;
       }
-        
+
   } );
 
 sub db_Main {
@@ -115,7 +115,7 @@ sub sth_to_objects {
 
 sub transform_sql {
   my ($class, $sql, @args) = @_;
-  
+
   my $tclass = $class->sql_transformer_class;
   $class->ensure_class_loaded($tclass);
   my $t = $tclass->new($class, $sql, @args);

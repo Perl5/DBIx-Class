@@ -1315,8 +1315,11 @@ sub _count_subq_rs {
 sub _switch_to_inner_join_if_needed {
   my ($self, $from, $alias) = @_;
 
+  # subqueries and other oddness is naturally not supported
   return $from if (
     ref $from ne 'ARRAY'
+      ||
+    @$from <= 1
       ||
     ref $from->[0] ne 'HASH'
       ||
@@ -1324,10 +1327,6 @@ sub _switch_to_inner_join_if_needed {
       ||
     $from->[0]{-alias} eq $alias
   );
-
-  # this would be the case with a subquery - we'll never find
-  # the target as it is not in the parseable part of {from}
-  return $from if @$from == 1;
 
   my $switch_branch;
   JOINSCAN:
@@ -3091,10 +3090,15 @@ These are in no particular order:
 
 =back
 
-Which column(s) to order the results by. If a single column name, or
-an arrayref of names is supplied, the argument is passed through
-directly to SQL. The hashref syntax allows for connection-agnostic
-specification of ordering direction:
+Which column(s) to order the results by. 
+
+[The full list of suitable values is documented in
+L<SQL::Abstract/"ORDER BY CLAUSES">; the following is a summary of
+common options.]
+
+If a single column name, or an arrayref of names is supplied, the
+argument is passed through directly to SQL. The hashref syntax allows
+for connection-agnostic specification of ordering direction:
 
  For descending order:
 

@@ -60,20 +60,20 @@ That's it, now you can change the position of your objects.
 
   #!/use/bin/perl
   use My::Item;
-  
+
   my $item = My::Item->create({ name=>'Matt S. Trout' });
   # If using grouping_column:
   my $item = My::Item->create({ name=>'Matt S. Trout', group_id=>1 });
-  
+
   my $rs = $item->siblings();
   my @siblings = $item->siblings();
-  
+
   my $sibling;
   $sibling = $item->first_sibling();
   $sibling = $item->last_sibling();
   $sibling = $item->previous_sibling();
   $sibling = $item->next_sibling();
-  
+
   $item->move_previous();
   $item->move_next();
   $item->move_first();

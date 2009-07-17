@@ -83,18 +83,18 @@ command immediately before C<JOIN>.
 
 An arrayref containing a list of accessors in the foreign class to create in
 the main class. If, for example, you do the following:
-  
+
   MyDB::Schema::CD->might_have(liner_notes => 'MyDB::Schema::LinerNotes',
     undef, {
       proxy => [ qw/notes/ ],
     });
-  
+
 Then, assuming MyDB::Schema::LinerNotes has an accessor named notes, you can do:
 
   my $cd = MyDB::Schema::CD->find(1);
   $cd->notes('Notes go here'); # set notes -- LinerNotes object is
                                # created if it doesn't exist
-  
+
 =item accessor
 
 Specifies the type of accessor that should be created for the relationship.
@@ -179,7 +179,7 @@ sub related_resultset {
   my $rel_info = $self->relationship_info($rel);
   $self->throw_exception( "No such relationship ${rel}" )
     unless $rel_info;
-  
+
   return $self->{related_resultsets}{$rel} ||= do {
     my $attrs = (@_ > 1 && ref $_[$#_] eq 'HASH' ? pop(@_) : {});
     $attrs = { %{$rel_info->{attrs} || {}}, %$attrs };
