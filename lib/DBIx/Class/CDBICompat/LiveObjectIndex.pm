@@ -20,9 +20,9 @@ __PACKAGE__->mk_classdata('__nocache' => 0);
 
 sub nocache {
     my $class = shift;
-    
+
     return $class->__nocache(@_) if @_;
-    
+
     return 1 if $Class::DBI::Weaken_Is_Available == 0;
     return $class->__nocache;
 }
@@ -74,9 +74,9 @@ sub insert {
 sub inflate_result {
   my ($class, @rest) = @_;
   my $new = $class->next::method(@rest);
-  
+
   return $new if $new->nocache;
-  
+
   if (my $key = $new->ID) {
     #warn "Key $key";
     my $live = $class->live_object_index;

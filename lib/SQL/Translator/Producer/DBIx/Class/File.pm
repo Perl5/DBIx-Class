@@ -128,7 +128,7 @@ __PACKAGE__->table('${tname}');
                 $tableextras{$table->name} .= "\n__PACKAGE__->belongs_to('" .
                     $cont->fields->[0]->name . "', '" .
                     "${dbixschema}::" . $cont->reference_table . "');\n";
-                
+
                 my $other = "\n__PACKAGE__->has_many('" .
                     "get_" . $table->name. "', '" .
                     "${dbixschema}::" . $table->name. "', '" .

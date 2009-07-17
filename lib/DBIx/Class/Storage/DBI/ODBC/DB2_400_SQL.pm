@@ -23,7 +23,7 @@ sub _dbh_last_insert_id {
 
 sub _sql_maker_opts {
     my ($self) = @_;
-    
+
     $self->dbh_do(sub {
         my ($self, $dbh) = @_;
 

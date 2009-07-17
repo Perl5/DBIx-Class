@@ -40,16 +40,25 @@ use inflate_datetime or inflate_date:
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'varchar', inflate_datetime => 1 }
   );
-  
+
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'varchar', inflate_date => 1 }
   );
 
 It's also possible to explicitly skip inflation:
-  
+
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'datetime', inflate_datetime => 0 }
   );
+
+NOTE: Don't rely on C<InflateColumn::DateTime> to parse date strings for you.
+The column is set directly for any non-references and C<InflateColumn::DateTime>
+is completely bypassed.  Instead, use an input parser to create a DateTime
+object. For instance, if your user input comes as a 'YYYY-MM-DD' string, you can
+use C<DateTime::Format::ISO8601> thusly:
+
+  use DateTime::Format::ISO8601;
+  my $dt = DateTime::Format::ISO8601->parse_datetime('YYYY-MM-DD');
 
 =head1 DESCRIPTION
 
@@ -77,7 +86,7 @@ directly called by end users.
 In the case of an invalid date, L<DateTime> will throw an exception.  To
 bypass these exceptions and just have the inflation return undef, use
 the C<datetime_undef_if_invalid> option in the column info:
-  
+
     "broken_date",
     {
         data_type => "datetime",
@@ -110,6 +119,9 @@ sub register_column {
     if ($type eq "timestamp with time zone" || $type eq "timestamptz") {
       $type = "timestamp";
       $info->{_ic_dt_method} ||= "timestamp_with_timezone";
+    } elsif ($type eq "smalldatetime") {
+      $type = "datetime";
+      $info->{_ic_dt_method} ||= "datetime";
     }
   }
 
@@ -126,7 +138,7 @@ sub register_column {
          "please put it directly into the '$column' column definition.";
     $locale = $info->{extra}{locale};
   }
-  
+
   $locale   = $info->{locale}   if defined $info->{locale};
   $timezone = $info->{timezone} if defined $info->{timezone};
 

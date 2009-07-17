@@ -984,7 +984,7 @@ opposing a C<has_many> relation. For definition of these look in
 L<DBIx::Class::Relationship>.
 
 The returned hashref is keyed by the name of the opposing
-relationship, and contains it's data in the same manner as
+relationship, and contains its data in the same manner as
 L</relationship_info>.
 
 =cut

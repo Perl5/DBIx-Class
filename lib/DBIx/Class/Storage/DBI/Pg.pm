@@ -79,7 +79,7 @@ sub bind_attribute_by_data_type {
     bytea => { pg_type => DBD::Pg::PG_BYTEA },
     blob  => { pg_type => DBD::Pg::PG_BYTEA },
   };
- 
+
   if( defined $bind_attributes->{$data_type} ) {
     return $bind_attributes->{$data_type};
   }

@@ -73,7 +73,7 @@ sub _register_column_group {
 
   sub _has_custom_accessor {
     my($class, $name) = @_;
-    
+
     no strict 'refs';
     my $existing_accessor = *{$class .'::'. $name}{CODE};
     return $existing_accessor && !$our_accessors{$existing_accessor};
@@ -90,7 +90,7 @@ sub _register_column_group {
       my $fullname = join '::', $class, $name;
       *$fullname = Sub::Name::subname $fullname, $accessor;
     }
-    
+
     $our_accessors{$accessor}++;
 
     return 1;
@@ -120,7 +120,7 @@ sub _mk_group_accessors {
     # warn "  $field $alias\n";
     {
       no strict 'refs';
-      
+
       $class->_deploy_accessor($name,  $accessor);
       $class->_deploy_accessor($alias, $accessor);
     }
