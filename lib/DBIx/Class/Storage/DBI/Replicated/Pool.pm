@@ -34,7 +34,7 @@ This class defines the following attributes.
 This is a number which defines the maximum allowed lag returned by the
 L<DBIx::Class::Storage::DBI/lag_behind_master> method.  The default is 0.  In
 general, this should return a larger number when the replicant is lagging
-behind it's master, however the implementation of this is database specific, so
+behind its master, however the implementation of this is database specific, so
 don't count on this number having a fixed meaning.  For example, MySQL will
 return a number of seconds that the replicating database is lagging.
 
@@ -51,7 +51,7 @@ has 'maximum_lag' => (
 =head2 last_validated
 
 This is an integer representing a time since the last time the replicants were
-validated. It's nothing fancy, just an integer provided via the perl time 
+validated. It's nothing fancy, just an integer provided via the perl L<time|perlfunc/time>
 builtin.
 
 =cut

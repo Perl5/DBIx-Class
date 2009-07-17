@@ -75,7 +75,7 @@ databases is going to help you to scale traffic.
 
 This attribute returns the next slave to handle a read request.  Your L</pool>
 attribute has methods to help you shuffle through all the available replicants
-via it's balancer object.
+via its balancer object.
 
 =cut
 

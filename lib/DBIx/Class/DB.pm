@@ -186,7 +186,7 @@ sub result_source_instance {
   return unless Scalar::Util::blessed($source);
 
   if ($result_class ne $class) {  # new class
-    # Give this new class it's own source and register it.
+    # Give this new class its own source and register it.
     $source = $source->new({ 
         %$source, 
         source_name  => $class,
