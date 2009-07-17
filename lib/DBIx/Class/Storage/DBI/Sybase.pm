@@ -31,6 +31,9 @@ without doing a C<select max(col)>.
 
 But your queries will be cached.
 
+You need at least version C<1.09> of L<DBD::Sybase> for placeholder support.
+Otherwise your storage will be automatically reblessed into C<::NoBindVars>.
+
 A recommended L<DBIx::Class::Storage::DBI/connect_info> settings:
 
   on_connect_call => [['datetime_setup'], [blob_setup => log_on_update => 0]]
@@ -58,11 +61,28 @@ sub _rebless {
     if (!$exception && $dbtype && $self->load_optional_class($subclass)) {
       bless $self, $subclass;
       $self->_rebless;
-    } else {
-      # real Sybase
+    } else { # real Sybase
+      my $no_bind_vars = 'DBIx::Class::Storage::DBI::Sybase::NoBindVars';
+
       if (not $self->dbh->{syb_dynamic_supported}) {
-        $self->ensure_class_loaded('DBIx::Class::Storage::DBI::Sybase::NoBindVars');
-        bless $self, 'DBIx::Class::Storage::DBI::Sybase::NoBindVars';
+        $self->ensure_class_loaded($no_bind_vars);
+        bless $self, $no_bind_vars;
+        $self->_rebless;
+      }
+      
+      if ($DBD::Sybase::VERSION < 1.09) {
+        carp <<'EOF';
+
+Your version of Sybase potentially supports placeholders and query caching,
+however your version of DBD::Sybase is too old to do this properly. Please
+upgrade to at least version 1.09 if you want this feature.
+
+TEXT/IMAGE column support will also not work in older versions of DBD::Sybase.
+
+See perldoc DBIx::Class::Storage::DBI::Sybase for more details.
+EOF
+        $self->ensure_class_loaded($no_bind_vars);
+        bless $self, $no_bind_vars;
         $self->_rebless;
       }
       $self->_set_maxConnect;
@@ -116,9 +136,56 @@ sub connect_call_blob_setup {
 
 sub _is_lob_type {
   my $self = shift;
-  shift =~ /(?:text|image|lob|bytea|binary)/i;
+  my $type = shift;
+  $type && $type =~ /(?:text|image|lob|bytea|binary)/i;
 }
 
+# Move TEXT/IMAGE column to the end of select list, and make sure there is only
+# one.
+#
+# work in progress
+#
+# * column indexes need to be fixed if @$select is reordered, not sure if that's
+# possible
+# * needs to handle hashrefs
+# * for some reason tests pass without this, even though documentation says
+# blobs should be at the end of the select list
+# * needs to at least croak for multiple blobs
+#
+#sub _select_args {
+#  my ($self, $ident, $select) = splice @_, 0, 3;
+#
+#  my ($alias2src, $rs_alias) = $self->_resolve_ident_sources($ident);
+#  my $name_sep = $self->_sql_maker_opts->{name_sep} || '.';
+#
+#  my (@non_blobs, @blobs);
+#
+#  for my $col (@$select) {
+#    if (ref $col) {
+## XXX should handle hashrefs too
+#      push @non_blobs, $col;
+#      next;
+#    }
+#
+#    $col =~ s/^([^\Q${name_sep}\E]*)\Q${name_sep}\E//;
+#    my $alias    = $1 || $rs_alias;
+#    my $rsrc     = $alias2src->{$alias};
+#    my $datatype = $rsrc && $rsrc->column_info($col)->{data_type};
+# 
+#    if ($self->_is_lob_type($datatype)) {
+#      push @blobs, $col;
+#    } else {
+#      push @non_blobs, $col;
+#    }
+#  }
+#
+#  croak "cannot select more than a one TEXT/IMAGE column"
+#    if @blobs > 1;
+#
+#  $self->next::method($ident, [@non_blobs, @blobs], @_);
+#}
+
+# override to handle TEXT/IMAGE
 sub insert {
   my ($self, $source, $to_insert) = splice @_, 0, 3;
 
@@ -305,11 +372,17 @@ for L<DBIx::Class::InflateColumn::DateTime>.
 
 =head1 IMAGE AND TEXT COLUMNS
 
+You need at least version C<1.09> of L<DBD::Sybase> for C<TEXT/IMAGE> column
+support.
+
 See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
 setting you need to work with C<IMAGE> columns.
 
 Due to limitations in L<DBD::Sybase> and this driver, it is only possible to
-select one C<TEXT> or C<IMAGE> column at a time.
+select one C<TEXT> or C<IMAGE> column at a time. This is handled automatically
+for tables with only one such column, if you have more than one, supply a
+C<< select => [qw/col list .../] >> key to your C<< ->search >> calls, with the
+single desired C<TEXT/IMAGE> column at the end of the list.
 
 =head1 AUTHORS
 

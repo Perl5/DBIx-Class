@@ -9,13 +9,15 @@ use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
+my $TESTS = 31 + 2;
+
 if (not ($dsn && $user)) {
   plan skip_all =>
     'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test' .
     "\nWarning: This test drops and creates the tables " .
     "'artist' and 'bindtype_test'";
 } else {
-  plan tests => (29 + 2)*2;
+  plan tests => $TESTS*2;
 }
 
 my @storage_types = (
@@ -23,8 +25,10 @@ my @storage_types = (
   'DBI::Sybase::NoBindVars',
 );
 my $schema;
+my $storage_idx = -1;
 
 for my $storage_type (@storage_types) {
+  $storage_idx++;
   $schema = DBICTest::Schema->clone;
 
   unless ($storage_type eq 'DBI::Sybase') { # autodetect
@@ -39,6 +43,14 @@ for my $storage_type (@storage_types) {
 
   $schema->storage->ensure_connected;
   $schema->storage->_dbh->disconnect;
+
+  if ($storage_idx == 0 &&
+      $schema->storage->isa('DBIx::Class::Storage::DBI::Sybase::NoBindVars')) {
+# no placeholders in this version of Sybase or DBD::Sybase
+      my $tb = Test::More->builder;
+      $tb->skip('no placeholders') for 1..$TESTS;
+      next;
+  }
 
   isa_ok( $schema->storage, "DBIx::Class::Storage::$storage_type" );
 
@@ -116,95 +128,127 @@ SQL
 
   is( $it->count, 7, 'COUNT of GROUP_BY ok' );
 
-# mostly stole the blob stuff Nniuq wrote for t/73oracle.t
-  my $dbh = $schema->storage->dbh;
-  {
-    local $SIG{__WARN__} = sub {};
-    eval { $dbh->do('DROP TABLE bindtype_test') };
+# mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
+  SKIP: {
+    skip 'Need at least version 1.09 of DBD::Sybase to test TEXT/IMAGE', 14
+        unless $DBD::Sybase::VERSION >= 1.09;
 
-    $dbh->do(qq[
-      CREATE TABLE bindtype_test 
-      (
-        id    INT   IDENTITY PRIMARY KEY,
-        bytea INT   NULL,
-        blob  IMAGE NULL,
-        clob  TEXT  NULL
-      )
-    ],{ RaiseError => 1, PrintError => 0 });
-  }
+    my $dbh = $schema->storage->dbh;
+    {
+      local $SIG{__WARN__} = sub {};
+      eval { $dbh->do('DROP TABLE bindtype_test') };
 
-  my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
-  $binstr{'large'} = $binstr{'small'} x 1024;
-
-  my $maxloblen = length $binstr{'large'};
-  note "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
-  local $dbh->{'LongReadLen'} = $maxloblen;
-
-  my $rs = $schema->resultset('BindType');
-  my $last_id;
-
-  foreach my $type (qw(blob clob)) {
-    foreach my $size (qw(small large)) {
-      no warnings 'uninitialized';
-
-      my $created = eval { $rs->create( { $type => $binstr{$size} } ) };
-      ok(!$@, "inserted $size $type without dying");
-      diag $@ if $@;
-
-      $last_id = $created->id if $created;
-
-      my $got = eval {
-        $rs->search({ id => $last_id }, { select => [$type] })->single->$type
-      };
-      diag $@ if $@;
-      ok($got eq $binstr{$size}, "verified inserted $size $type");
+      $dbh->do(qq[
+        CREATE TABLE bindtype_test 
+        (
+          id    INT   IDENTITY PRIMARY KEY,
+          bytea INT   NULL,
+          blob  IMAGE NULL,
+          clob  TEXT  NULL
+        )
+      ],{ RaiseError => 1, PrintError => 0 });
     }
-  }
 
-  # try a blob update
-  TODO: {
-    local $TODO = 'updating TEXT/IMAGE does not work yet';
+    my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
+    $binstr{'large'} = $binstr{'small'} x 1024;
 
-    my $new_str = $binstr{large} . 'foo';
-    eval { $rs->search({ id => $last_id })->update({ blob => $new_str }) };
-    ok !$@, 'updated blob successfully';
+    my $maxloblen = length $binstr{'large'};
+    note
+      "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
+    local $dbh->{'LongReadLen'} = $maxloblen;
+
+    my $rs = $schema->resultset('BindType');
+    my $last_id;
+
+    foreach my $type (qw(blob clob)) {
+      foreach my $size (qw(small large)) {
+        no warnings 'uninitialized';
+
+        my $created = eval { $rs->create( { $type => $binstr{$size} } ) };
+        ok(!$@, "inserted $size $type without dying");
+        diag $@ if $@;
+
+        $last_id = $created->id if $created;
+
+        my $got = eval {
+          $rs->search({ id => $last_id }, { select => [$type] })->single->$type
+        };
+        diag $@ if $@;
+        ok($got eq $binstr{$size}, "verified inserted $size $type");
+      }
+    }
+
+    # try a blob update
+    TODO: {
+      local $TODO = 'updating TEXT/IMAGE does not work yet';
+
+      my $new_str = $binstr{large} . 'foo';
+      eval { $rs->search({ id => $last_id })->update({ blob => $new_str }) };
+      ok !$@, 'updated blob successfully';
+      diag $@ if $@;
+      ok(eval {
+        $rs->search({ id => $last_id }, { select => ['blob'] })->single->blob
+      } eq $new_str, "verified updated blob" );
+      diag $@ if $@;
+    }
+
+    # blob insert with explicit PK
+    {
+      local $SIG{__WARN__} = sub {};
+      eval { $dbh->do('DROP TABLE bindtype_test') };
+
+      $dbh->do(qq[
+        CREATE TABLE bindtype_test 
+        (
+          id    INT   PRIMARY KEY,
+          bytea INT   NULL,
+          blob  IMAGE NULL,
+          clob  TEXT  NULL
+        )
+      ],{ RaiseError => 1, PrintError => 0 });
+    }
+    my $created = eval { $rs->create( { id => 1, blob => $binstr{large} } ) };
+    ok(!$@, "inserted large blob without dying");
     diag $@ if $@;
-    ok(eval {
-      $rs->search({ id => $last_id }, { select => ['blob'] })->single->blob
-    } eq $new_str, "verified updated blob" );
+
+    my $got = eval {
+      $rs->search({ id => 1 }, { select => ['blob'] })->single->blob
+    };
     diag $@ if $@;
+    ok($got eq $binstr{large}, "verified inserted large blob");
+
+    # Test select args ordering on a ->find for a table with one blob
+    {
+      local $SIG{__WARN__} = sub {};
+      eval { $dbh->do('DROP TABLE single_blob_test') };
+
+      $dbh->do(qq[
+        CREATE TABLE single_blob_test 
+        (
+          id    INT   IDENTITY PRIMARY KEY,
+          blob  IMAGE NULL,
+          foo VARCHAR(256) NULL
+        )
+      ],{ RaiseError => 1, PrintError => 0 });
+    }
+    $rs = $schema->resultset('SingleBlob');
+    $created = eval { $rs->create({
+      blob => $binstr{large}, foo => 'dummy'
+    }) };
+    ok(!$@, "inserted single large blob without dying");
+    diag $@ if $@;
+
+    $got = eval { $rs->find($created->id)->blob };
+    diag $@ if $@;
+    ok($got eq $binstr{large}, "verified inserted large blob through ->find");
   }
-
-  # blob insert with explicit PK
-  {
-    local $SIG{__WARN__} = sub {};
-    eval { $dbh->do('DROP TABLE bindtype_test') };
-
-    $dbh->do(qq[
-      CREATE TABLE bindtype_test 
-      (
-        id    INT   PRIMARY KEY,
-        bytea INT   NULL,
-        blob  IMAGE NULL,
-        clob  TEXT  NULL
-      )
-    ],{ RaiseError => 1, PrintError => 0 });
-  }
-  my $created = eval { $rs->create( { id => 1, blob => $binstr{large} } ) };
-  ok(!$@, "inserted large blob without dying");
-  diag $@ if $@;
-
-  my $got = eval {
-    $rs->search({ id => 1 }, { select => ['blob'] })->single->blob
-  };
-  diag $@ if $@;
-  ok($got eq $binstr{large}, "verified inserted large blob");
 }
 
 # clean up our mess
 END {
   if (my $dbh = eval { $schema->storage->_dbh }) {
     $dbh->do('DROP TABLE artist');
-    $dbh->do('DROP TABLE bindtype_test');
+    eval { $dbh->do('DROP TABLE bindtype_test')    };
+    eval { $dbh->do('DROP TABLE single_blob_test') };
   }
 }

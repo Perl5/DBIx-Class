@@ -57,7 +57,7 @@ sub _prep_for_execute {
     my $name_sep   = $self->_sql_maker_opts->{name_sep} || '.';
 
     $col =~ s/^([^\Q${name_sep}\E]*)\Q${name_sep}\E//;
-    my $alias = $1 || 'me';
+    my $alias = $1 || $rs_alias;
 
     my $rsrc = $alias2src->{$alias};
 
