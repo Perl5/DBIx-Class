@@ -66,7 +66,8 @@ without placeholder support
 =head1 DESCRIPTION
 
 If you're using this driver than your version of Sybase does not support
-placeholders. You can check with:
+placeholders, or your version of L<DBD::Sybase> is too old (you need at least
+C<1.09>. You can check with:
 
   $dbh->{syb_dynamic_supported}
 

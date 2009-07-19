@@ -322,8 +322,11 @@ sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
 
   # sorry, there's no other way!
-  my $sth = $dbh->prepare_cached("select max($col) from ".$source->from);
-  return ($dbh->selectrow_array($sth))[0];
+  my $sth = $self->sth("select max($col) from ".$source->from);
+  my ($id) = $dbh->selectrow_array($sth);
+  $sth->finish;
+
+  return $id;
 }
 
 1;
@@ -354,12 +357,6 @@ support.
 
 See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
 setting you need to work with C<IMAGE> columns.
-
-Due to limitations in L<DBD::Sybase> and this driver, it is only possible to
-select one C<TEXT> or C<IMAGE> column at a time. This is handled automatically
-for tables with only one such column, if you have more than one, supply a
-C<< select => [qw/col list .../] >> key to your C<< ->search >> calls, with the
-single desired C<TEXT/IMAGE> column at the end of the list.
 
 =head1 AUTHORS
 

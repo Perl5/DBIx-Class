@@ -171,7 +171,7 @@ SQL
         $last_id = $created->id if $created;
 
         my $got = eval {
-          $rs->search({ id => $last_id }, { select => [$type] })->single->$type
+          $rs->find($last_id)->$type
         };
         diag $@ if $@;
         ok($got eq $binstr{$size}, "verified inserted $size $type");
@@ -187,7 +187,7 @@ SQL
       ok !$@, 'updated blob successfully';
       diag $@ if $@;
       ok(eval {
-        $rs->search({ id => $last_id }, { select => ['blob'] })->single->blob
+        $rs->find($last_id)->blob
       } eq $new_str, "verified updated blob" );
       diag $@ if $@;
     }
@@ -212,7 +212,7 @@ SQL
     diag $@ if $@;
 
     my $got = eval {
-      $rs->search({ id => 1 }, { select => ['blob'] })->single->blob
+      $rs->find(1)->blob
     };
     diag $@ if $@;
     ok($got eq $binstr{large}, "verified inserted large blob");
