@@ -9,7 +9,7 @@ use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 31 + 2;
+my $TESTS = 29 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -130,7 +130,7 @@ SQL
 
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
-    skip 'Need at least version 1.09 of DBD::Sybase to test TEXT/IMAGE', 14
+    skip 'Need at least version 1.09 of DBD::Sybase to test TEXT/IMAGE', 12
         unless $DBD::Sybase::VERSION >= 1.09;
 
     my $dbh = $schema->storage->dbh;
@@ -216,31 +216,6 @@ SQL
     };
     diag $@ if $@;
     ok($got eq $binstr{large}, "verified inserted large blob");
-
-    # Test select args ordering on a ->find for a table with one blob
-    {
-      local $SIG{__WARN__} = sub {};
-      eval { $dbh->do('DROP TABLE single_blob_test') };
-
-      $dbh->do(qq[
-        CREATE TABLE single_blob_test 
-        (
-          id    INT   IDENTITY PRIMARY KEY,
-          blob  IMAGE NULL,
-          foo VARCHAR(256) NULL
-        )
-      ],{ RaiseError => 1, PrintError => 0 });
-    }
-    $rs = $schema->resultset('SingleBlob');
-    $created = eval { $rs->create({
-      blob => $binstr{large}, foo => 'dummy'
-    }) };
-    ok(!$@, "inserted single large blob without dying");
-    diag $@ if $@;
-
-    $got = eval { $rs->find($created->id)->blob };
-    diag $@ if $@;
-    ok($got eq $binstr{large}, "verified inserted large blob through ->find");
   }
 }
 
@@ -249,6 +224,5 @@ END {
   if (my $dbh = eval { $schema->storage->_dbh }) {
     $dbh->do('DROP TABLE artist');
     eval { $dbh->do('DROP TABLE bindtype_test')    };
-    eval { $dbh->do('DROP TABLE single_blob_test') };
   }
 }

@@ -13,6 +13,16 @@ use mro 'c3';
 sub _rebless {
   my $self = shift;
   $self->disable_sth_caching(1);
+
+# LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
+# huge on some versions of SQL server and can cause memory problems, so we
+# fix it up here.
+  my $dbh = $self->_dbh;
+
+  my $text_size = eval { $self->_dbi_connect_info->[-1]->{LongReadLen} } ||
+    32768; # the DBD::Sybase default
+
+  $dbh->do("set textsize $text_size");
 }
 
 1;

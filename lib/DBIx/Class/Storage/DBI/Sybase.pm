@@ -140,49 +140,26 @@ sub _is_lob_type {
   $type && $type =~ /(?:text|image|lob|bytea|binary)/i;
 }
 
-# Move TEXT/IMAGE column to the end of select list, and make sure there is only
-# one.
+## This will be useful if we ever implement BLOB filehandle inflation and will
+## need to use the API, but for now it isn't.
 #
-# work in progress
-#
-# * column indexes need to be fixed if @$select is reordered, not sure if that's
-# possible
-# * needs to handle hashrefs
-# * for some reason tests pass without this, even though documentation says
-# blobs should be at the end of the select list
-# * needs to at least croak for multiple blobs
-#
-#sub _select_args {
-#  my ($self, $ident, $select) = splice @_, 0, 3;
-#
-#  my ($alias2src, $rs_alias) = $self->_resolve_ident_sources($ident);
-#  my $name_sep = $self->_sql_maker_opts->{name_sep} || '.';
+#sub order_columns_for_select {
+#  my ($self, $source) = @_;
 #
 #  my (@non_blobs, @blobs);
 #
-#  for my $col (@$select) {
-#    if (ref $col) {
-## XXX should handle hashrefs too
-#      push @non_blobs, $col;
-#      next;
-#    }
-#
-#    $col =~ s/^([^\Q${name_sep}\E]*)\Q${name_sep}\E//;
-#    my $alias    = $1 || $rs_alias;
-#    my $rsrc     = $alias2src->{$alias};
-#    my $datatype = $rsrc && $rsrc->column_info($col)->{data_type};
-# 
-#    if ($self->_is_lob_type($datatype)) {
+#  for my $col ($source->columns) {
+#    if ($self->_is_lob_type($source->column_info($col)->{data_type})) {
 #      push @blobs, $col;
 #    } else {
 #      push @non_blobs, $col;
 #    }
 #  }
 #
-#  croak "cannot select more than a one TEXT/IMAGE column"
+#  croak "cannot select more than a one TEXT/IMAGE column at a time"
 #    if @blobs > 1;
 #
-#  $self->next::method($ident, [@non_blobs, @blobs], @_);
+#  return (@non_blobs, @blobs);
 #}
 
 # override to handle TEXT/IMAGE

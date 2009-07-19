@@ -2277,6 +2277,23 @@ sub lag_behind_master {
     return;
 }
 
+=head2 order_columns_for_select
+
+Returns an ordered list of column names for use with a C<SELECT> when the column
+list is not explicitly specified.
+By default returns the result of L<DBIx::Class::ResultSource/columns>.
+
+This may be overridden in a specific storage when there are requirements such
+as moving C<BLOB> columns to the end of the list.
+
+=cut
+
+sub order_columns_for_select {
+  my ($self, $source) = @_;
+
+  return $source->columns;
+}
+
 sub DESTROY {
   my $self = shift;
   return if !$self->_dbh;

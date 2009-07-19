@@ -2780,7 +2780,10 @@ sub _resolved_attrs {
                       : "${alias}.$_"
                   )
             }
-      } ( ref($attrs->{columns}) eq 'ARRAY' ) ? @{ delete $attrs->{columns}} : (delete $attrs->{columns} || $source->columns );
+      } ( ref($attrs->{columns}) eq 'ARRAY' ) ?
+          @{ delete $attrs->{columns}} :
+            (delete $attrs->{columns} ||
+              $source->storage->order_columns_for_select($source) );
   }
   # add the additional columns on
   foreach ( 'include_columns', '+columns' ) {
