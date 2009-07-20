@@ -102,8 +102,10 @@ EOF
 
     return $using_freetds if defined $using_freetds;
 
-    local $dbh->{syb_rowcount} = 1; # this is broken in freetds
-    $using_freetds = @{ $dbh->selectall_arrayref('sp_help') } != 1;
+#    local $dbh->{syb_rowcount} = 1; # this is broken in freetds
+#    $using_freetds = @{ $dbh->selectall_arrayref('sp_help') } != 1;
+
+    $using_freetds = $dbh->{syb_oc_version} =~ /freetds/i;
 
     return $using_freetds;
   }
