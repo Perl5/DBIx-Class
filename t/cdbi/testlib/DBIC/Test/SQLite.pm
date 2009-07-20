@@ -1,5 +1,5 @@
 package # hide from PAUSE
-    DBIC::Test::SQLite;
+    DBIx::Class::Test::SQLite;
 
 =head1 NAME
 
