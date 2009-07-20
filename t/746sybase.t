@@ -155,7 +155,7 @@ SQL
     my $maxloblen = length $binstr{'large'};
     note
       "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
-    local $dbh->{'LongReadLen'} = $maxloblen;
+    local $dbh->{'LongReadLen'} = $maxloblen * 2;
 
     my $rs = $schema->resultset('BindType');
     my $last_id;
@@ -178,20 +178,6 @@ SQL
       }
     }
 
-    # try a blob update
-    TODO: {
-      local $TODO = 'updating TEXT/IMAGE does not work yet';
-
-      my $new_str = $binstr{large} . 'foo';
-      eval { $rs->search({ id => $last_id })->update({ blob => $new_str }) };
-      ok !$@, 'updated blob successfully';
-      diag $@ if $@;
-      ok(eval {
-        $rs->find($last_id)->blob
-      } eq $new_str, "verified updated blob" );
-      diag $@ if $@;
-    }
-
     # blob insert with explicit PK
     {
       local $SIG{__WARN__} = sub {};
@@ -208,14 +194,25 @@ SQL
       ],{ RaiseError => 1, PrintError => 0 });
     }
     my $created = eval { $rs->create( { id => 1, blob => $binstr{large} } ) };
-    ok(!$@, "inserted large blob without dying");
+    ok(!$@, "inserted large blob without dying with manual PK");
     diag $@ if $@;
 
     my $got = eval {
       $rs->find(1)->blob
     };
     diag $@ if $@;
-    ok($got eq $binstr{large}, "verified inserted large blob");
+    ok($got eq $binstr{large}, "verified inserted large blob with manual PK");
+
+    # try a blob update
+    my $new_str = $binstr{large} . 'mtfnpy';
+    eval { $rs->search({ id => 1 })->update({ blob => $new_str }) };
+    ok !$@, 'updated blob successfully';
+    diag $@ if $@;
+    $got = eval {
+      $rs->find(1)->blob
+    };
+    diag $@ if $@;
+    ok($got eq $new_str, "verified updated blob");
   }
 }
 

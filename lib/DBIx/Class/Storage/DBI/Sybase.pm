@@ -137,7 +137,7 @@ sub connect_call_blob_setup {
 sub _is_lob_type {
   my $self = shift;
   my $type = shift;
-  $type && $type =~ /(?:text|image|lob|bytea|binary)/i;
+  $type && $type =~ /(?:text|image|lob|bytea|binary|memo)/i;
 }
 
 ## This will be useful if we ever implement BLOB filehandle inflation and will
@@ -170,31 +170,29 @@ sub insert {
 
   my $updated_cols = $self->next::method($source, $to_insert, @_);
 
-  $self->_update_blobs($source, $blob_cols, $to_insert) if %$blob_cols;
+  $self->_insert_blobs($source, $blob_cols, $to_insert) if %$blob_cols;
 
   return $updated_cols;
 }
 
-#sub update {
-#  my ($self, $source) = splice @_, 0, 2;
-#  my ($fields)        = @_;
-#
-#  my $blob_cols = $self->_remove_blob_cols($source, $fields);
-#
-#  my @res = 1;
-#
-#  if (%$fields) {
-#    if (wantarray) {
-#      @res    = $self->next::method($source, @_);
-#    } else {
-#      $res[0] = $self->next::method($source, @_);
-#    }
-#  }
-#
-#  $self->_update_blobs($source, $blob_cols, $fields) if %$blob_cols;
-#
-#  return wantarray ? @res : $res[0];
-#}
+sub update {
+  my ($self, $source)  = splice @_, 0, 2;
+  my ($fields, $where) = @_;
+  my $wantarray        = wantarray;
+
+  my $blob_cols = $self->_remove_blob_cols($source, $fields);
+
+  my @res;
+  if ($wantarray) {
+    @res    = $self->next::method($source, @_);
+  } else {
+    $res[0] = $self->next::method($source, @_);
+  }
+
+  $self->_update_blobs($source, $blob_cols, $where) if %$blob_cols;
+
+  return $wantarray ? @res : $res[0];
+}
 
 sub _remove_blob_cols {
   my ($self, $source, $fields) = @_;
@@ -212,21 +210,56 @@ sub _remove_blob_cols {
 }
 
 sub _update_blobs {
-  my ($self, $source, $blob_cols, $inserted) = @_;
-  my $dbh = $self->dbh;
+  my ($self, $source, $blob_cols, $where) = @_;
 
-  my $table = $source->from;
-
-  my %inserted = %$inserted;
   my (@primary_cols) = $source->primary_columns;
 
   croak "Cannot update TEXT/IMAGE column(s) without a primary key"
     unless @primary_cols;
 
-  if ((grep { defined $inserted{$_} } @primary_cols) != @primary_cols) {
+# check if we're updating a single row by PK
+  my $pk_cols_in_where = 0;
+  for my $col (@primary_cols) {
+    $pk_cols_in_where++ if defined $where->{$col};
+  }
+  my @rows;
+
+  if ($pk_cols_in_where == @primary_cols) {
+    my %row_to_update;
+    @row_to_update{@primary_cols} = @{$where}{@primary_cols};
+    @rows = \%row_to_update;
+  } else {
+    my $rs = $source->resultset->search(
+      $where,
+      {
+        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+        select => \@primary_cols
+      }
+    );
+    @rows = $rs->all; # statement must finish
+  }
+
+  for my $row (@rows) {
+    $self->_insert_blobs($source, $blob_cols, $row);
+  }
+}
+
+sub _insert_blobs {
+  my ($self, $source, $blob_cols, $row) = @_;
+  my $dbh = $self->dbh;
+
+  my $table = $source->from;
+
+  my %row = %$row;
+  my (@primary_cols) = $source->primary_columns;
+
+  croak "Cannot update TEXT/IMAGE column(s) without a primary key"
+    unless @primary_cols;
+
+  if ((grep { defined $row{$_} } @primary_cols) != @primary_cols) {
     if (@primary_cols == 1) {
       my $col = $primary_cols[0];
-      $inserted{$col} = $self->last_insert_id($source, $col);
+      $row{$col} = $self->last_insert_id($source, $col);
     } else {
       croak "Cannot update TEXT/IMAGE column(s) without primary key values";
     }
@@ -242,9 +275,9 @@ sub _update_blobs {
       $sth = $self->sth(
         "select $col from $table where $search_cond"
       );
-      $sth->execute(map $inserted{$_}, @primary_cols);
+      $sth->execute(map $row{$_}, @primary_cols);
     } else {
-      my $search_cond = join ',' => map "$_ = $inserted{$_}", @primary_cols;
+      my $search_cond = join ',' => map "$_ = $row{$_}", @primary_cols;
 
       $sth = $dbh->prepare(
         "select $col from $table where $search_cond"
