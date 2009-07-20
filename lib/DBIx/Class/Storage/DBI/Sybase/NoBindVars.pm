@@ -66,10 +66,17 @@ without placeholder support
 =head1 DESCRIPTION
 
 If you're using this driver than your version of Sybase does not support
-placeholders, or your version of L<DBD::Sybase> is too old (you need at least
-C<1.09>. You can check with:
+placeholders, or your version of L<DBD::Sybase> was compiled with FreeTDS rather
+than the Sybase OpenClient libraries. You can check with:
 
   $dbh->{syb_dynamic_supported}
+
+To see if you are using FreeTDS, run:
+
+  perl -MDBD::Sybase -le 'print grep /Sybase\./, @DynaLoader::dl_shared_objects' | xargs ldd
+
+If you see C<libct.so> or similar, rather than C<libsybct.so> then you are using
+FreeTDS.
 
 You can also enable this driver explicitly using:
 

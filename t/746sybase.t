@@ -46,7 +46,7 @@ for my $storage_type (@storage_types) {
 
   if ($storage_idx == 0 &&
       $schema->storage->isa('DBIx::Class::Storage::DBI::Sybase::NoBindVars')) {
-# no placeholders in this version of Sybase or DBD::Sybase
+# no placeholders in this version of Sybase or DBD::Sybase (or using FreeTDS)
       my $tb = Test::More->builder;
       $tb->skip('no placeholders') for 1..$TESTS;
       next;
@@ -130,8 +130,8 @@ SQL
 
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
-    skip 'Need at least version 1.09 of DBD::Sybase to test TEXT/IMAGE', 12
-        unless $DBD::Sybase::VERSION >= 1.09;
+    skip 'TEXT/IMAGE support does not work with FreeTDS', 12
+      if $schema->storage->_using_freetds;
 
     my $dbh = $schema->storage->dbh;
     {

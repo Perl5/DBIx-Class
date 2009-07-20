@@ -31,8 +31,9 @@ without doing a C<select max(col)>.
 
 But your queries will be cached.
 
-You need at least version C<1.09> of L<DBD::Sybase> for placeholder support.
-Otherwise your storage will be automatically reblessed into C<::NoBindVars>.
+You need a version of L<DBD::Sybase> compiled with the Sybase OpenClient
+libraries, B<NOT> FreeTDS, for placeholder support. Otherwise your storage will
+be automatically reblessed into C<::NoBindVars>.
 
 A recommended L<DBIx::Class::Storage::DBI/connect_info> settings:
 
@@ -70,14 +71,16 @@ sub _rebless {
         $self->_rebless;
       }
       
-      if ($DBD::Sybase::VERSION < 1.09) {
+      if ($self->_using_freetds) {
         carp <<'EOF';
 
 Your version of Sybase potentially supports placeholders and query caching,
-however your version of DBD::Sybase is too old to do this properly. Please
-upgrade to at least version 1.09 if you want this feature.
+however you seem to be using FreeTDS which does not (yet?) support this.
 
-TEXT/IMAGE column support will also not work in older versions of DBD::Sybase.
+Please recompile DBD::Sybase with the Sybase OpenClient libraries if you want
+these features.
+
+TEXT/IMAGE column support will also not work under FreeTDS.
 
 See perldoc DBIx::Class::Storage::DBI::Sybase for more details.
 EOF
@@ -87,6 +90,22 @@ EOF
       }
       $self->_set_maxConnect;
     }
+  }
+}
+
+{
+  my $using_freetds = undef;
+
+  sub _using_freetds {
+    my $self = shift;
+    my $dbh  = $self->_dbh;
+
+    return $using_freetds if defined $using_freetds;
+
+    local $dbh->{syb_rowcount} = 1; # this is broken in freetds
+    $using_freetds = @{ $dbh->selectall_arrayref('sp_help') } != 1;
+
+    return $using_freetds;
   }
 }
 
@@ -385,8 +404,8 @@ for L<DBIx::Class::InflateColumn::DateTime>.
 
 =head1 IMAGE AND TEXT COLUMNS
 
-You need at least version C<1.09> of L<DBD::Sybase> for C<TEXT/IMAGE> column
-support.
+L<DBD::Sybase> compiled with FreeTDS will B<NOT> work with C<TEXT/IMAGE>
+columns.
 
 See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
 setting you need to work with C<IMAGE> columns.
