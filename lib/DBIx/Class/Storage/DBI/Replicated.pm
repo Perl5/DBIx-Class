@@ -8,7 +8,7 @@ BEGIN {
 
   my %replication_required = (
     'Moose' => '0.87',
-    'MooseX::AttributeHelpers' => '0.20',
+    'MooseX::AttributeHelpers' => '0.21',
     'MooseX::Types' => '0.16',
     'namespace::clean' => '0.11',
     'Hash::Merge' => '0.11'
