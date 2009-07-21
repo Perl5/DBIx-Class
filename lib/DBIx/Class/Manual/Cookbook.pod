@@ -147,7 +147,7 @@ L</delete>, ...  on it).
 If you prefer to have the definitions of these custom ResultSources in separate
 files (instead of stuffing all of them into the same ResultSource class), you
 can achieve the same with subclassing the ResultSource class and defining the
-new SQL ResultSource there:
+new ResultSource there:
 
   package My::Schema::Result::UserFriendsComplex;
 
