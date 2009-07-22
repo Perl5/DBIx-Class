@@ -73,10 +73,7 @@ than the Sybase OpenClient libraries. You can check with:
 
 To see if you are using FreeTDS, run:
 
-  perl -MDBD::Sybase -le 'print grep /Sybase\./, @DynaLoader::dl_shared_objects' | xargs ldd
-
-If you see C<libct.so> or similar, rather than C<libsybct.so> then you are using
-FreeTDS.
+  perl -MDBI -le 'my $dbh = DBI->connect($dsn, $user, $pass); print $dbh->{syb_oc_version}'
 
 You can also enable this driver explicitly using:
 
