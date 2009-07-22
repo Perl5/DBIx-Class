@@ -9,7 +9,6 @@ __PACKAGE__->load_classes(qw/
   Artist
   SequenceTest
   BindType
-  SingleBlob
   Employee
   CD
   FileColumn

@@ -12,7 +12,7 @@ use Carp::Clan qw/^DBIx::Class/;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Sybase - Storage::DBI subclass for Sybase
+DBIx::Class::Storage::DBI::Sybase - Sybase support for DBIx::Class
 
 =head1 SYNOPSIS
 
