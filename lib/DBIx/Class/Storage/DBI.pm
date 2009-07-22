@@ -2289,9 +2289,9 @@ as moving C<BLOB> columns to the end of the list.
 =cut
 
 sub order_columns_for_select {
-  my ($self, $source) = @_;
+  my ($self, $source, $columns) = @_;
 
-  return $source->columns;
+  return @$columns;
 }
 
 sub DESTROY {

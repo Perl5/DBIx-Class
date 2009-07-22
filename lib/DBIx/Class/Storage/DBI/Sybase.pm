@@ -35,9 +35,9 @@ You need a version of L<DBD::Sybase> compiled with the Sybase OpenClient
 libraries, B<NOT> FreeTDS, for placeholder support. Otherwise your storage will
 be automatically reblessed into C<::NoBindVars>.
 
-A recommended L<DBIx::Class::Storage::DBI/connect_info> settings:
+A recommended L<DBIx::Class::Storage::DBI/connect_info> setting:
 
-  on_connect_call => [['datetime_setup'], [blob_setup => log_on_update => 0]]
+  on_connect_call => [['datetime_setup'], ['blob_setup', log_on_update => 0]]
 
 =head1 METHODS
 
@@ -65,12 +65,6 @@ sub _rebless {
     } else { # real Sybase
       my $no_bind_vars = 'DBIx::Class::Storage::DBI::Sybase::NoBindVars';
 
-      if (not $self->dbh->{syb_dynamic_supported}) {
-        $self->ensure_class_loaded($no_bind_vars);
-        bless $self, $no_bind_vars;
-        $self->_rebless;
-      }
-      
       if ($self->_using_freetds) {
         carp <<'EOF';
 
@@ -88,27 +82,22 @@ EOF
         bless $self, $no_bind_vars;
         $self->_rebless;
       }
+
+      if (not $self->dbh->{syb_dynamic_supported}) {
+        $self->ensure_class_loaded($no_bind_vars);
+        bless $self, $no_bind_vars;
+        $self->_rebless;
+      }
+ 
       $self->_set_maxConnect;
     }
   }
 }
 
-{
-  my $using_freetds = undef;
+sub _using_freetds {
+  my $self = shift;
 
-  sub _using_freetds {
-    my $self = shift;
-    my $dbh  = $self->_dbh;
-
-    return $using_freetds if defined $using_freetds;
-
-#    local $dbh->{syb_rowcount} = 1; # this is broken in freetds
-#    $using_freetds = @{ $dbh->selectall_arrayref('sp_help') } != 1;
-
-    $using_freetds = $dbh->{syb_oc_version} =~ /freetds/i;
-
-    return $using_freetds;
-  }
+  return $self->_dbh->{syb_oc_version} =~ /freetds/i;
 }
 
 sub _set_maxConnect {
@@ -130,7 +119,7 @@ sub _set_maxConnect {
 
 Used as:
 
-  on_connect_call => [ [ blob_setup => log_on_update => 0 ] ]
+  on_connect_call => [ [ 'blob_setup', log_on_update => 0 ] ]
 
 Does C<< $dbh->{syb_binary_images} = 1; >> to return C<IMAGE> data as raw binary
 instead of as a hex string.
@@ -165,11 +154,11 @@ sub _is_lob_type {
 ## need to use the API, but for now it isn't.
 #
 #sub order_columns_for_select {
-#  my ($self, $source) = @_;
+#  my ($self, $source, $columns) = @_;
 #
 #  my (@non_blobs, @blobs);
 #
-#  for my $col ($source->columns) {
+#  for my $col (@$columns) {
 #    if ($self->_is_lob_type($source->column_info($col)->{data_type})) {
 #      push @blobs, $col;
 #    } else {

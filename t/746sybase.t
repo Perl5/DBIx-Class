@@ -29,11 +29,13 @@ my $storage_idx = -1;
 
 for my $storage_type (@storage_types) {
   $storage_idx++;
-  $schema = DBICTest::Schema->clone;
+# this is so we can set ->storage_type before connecting
+  my $schema = DBICTest::Schema->clone;
 
   unless ($storage_type eq 'DBI::Sybase') { # autodetect
     $schema->storage_type("::$storage_type");
   }
+
   $schema->connection($dsn, $user, $pass, {
     AutoCommit => 1,
     on_connect_call => [
@@ -42,7 +44,6 @@ for my $storage_type (@storage_types) {
   });
 
   $schema->storage->ensure_connected;
-  $schema->storage->_dbh->disconnect;
 
   if ($storage_idx == 0 &&
       $schema->storage->isa('DBIx::Class::Storage::DBI::Sybase::NoBindVars')) {
@@ -54,6 +55,7 @@ for my $storage_type (@storage_types) {
 
   isa_ok( $schema->storage, "DBIx::Class::Storage::$storage_type" );
 
+  $schema->storage->_dbh->disconnect;
   lives_ok (sub { $schema->storage->dbh }, 'reconnect works');
 
   $schema->storage->dbh_do (sub {
