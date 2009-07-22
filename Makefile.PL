@@ -84,9 +84,9 @@ my %force_requires_if_author = (
   'DateTime::Format::Strptime'=> 0,
 
   # t/93storage_replication.t
-  'Moose',                    => 0.77,
-  'MooseX::AttributeHelpers'  => 0.12,
-  'MooseX::Types',            => 0.10,
+  'Moose',                    => 0.87,
+  'MooseX::AttributeHelpers'  => 0.21,
+  'MooseX::Types',            => 0.16,
   'namespace::clean'          => 0.11,
   'Hash::Merge',              => 0.11,
 
