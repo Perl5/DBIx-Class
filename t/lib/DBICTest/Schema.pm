@@ -21,6 +21,7 @@ __PACKAGE__->load_classes(qw/
   Year2000CDs
   Year1999CDs
   CustomSql
+  Money
   /,
   { 'DBICTest::Schema' => [qw/
     LinerNotes
