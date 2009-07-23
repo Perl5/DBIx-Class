@@ -43,7 +43,7 @@ sub _prep_for_execute {
     my $fields = $args->[0];
     my $col_info = $self->_resolve_column_info($ident, [keys %$fields]);
 
-    for my $col (keys %$col_info) {
+    for my $col (keys %$fields) {
       if ($col_info->{$col}{data_type} eq 'money') {
         my $val = $fields->{$col};
 
