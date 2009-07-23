@@ -83,7 +83,7 @@ $schema->storage->dbh_do (sub {
 
 CREATE TABLE money_test (
    id INT IDENTITY PRIMARY KEY,
-   amount money
+   amount MONEY NULL
 )
 
 SQL
