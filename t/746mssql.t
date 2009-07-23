@@ -12,7 +12,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 29;
+plan tests => 31;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -94,10 +94,16 @@ my $rs = $schema->resultset('Money');
 
 my $row;
 lives_ok {
-  $row = $rs->create({ amount => \'cast(100.00 as money)' });
+  $row = $rs->create({ amount => 100 });
 } 'inserted a money value';
 
 is $rs->find($row->id)->amount, '100.00', 'money value round-trip';
+
+lives_ok {
+  $row->update({ amount => 200 });
+} 'updated a money value';
+
+is $rs->find($row->id)->amount, '200.00', 'updated money value round-trip';
 
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
