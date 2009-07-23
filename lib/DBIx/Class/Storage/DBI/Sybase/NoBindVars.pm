@@ -75,6 +75,8 @@ To see if you are using FreeTDS, run:
 
   perl -MDBI -le 'my $dbh = DBI->connect($dsn, $user, $pass); print $dbh->{syb_oc_version}'
 
+You will get a warning on startup if you're using FreeTDS in any case.
+
 You can also enable this driver explicitly using:
 
   my $schema = SchemaClass->clone;
