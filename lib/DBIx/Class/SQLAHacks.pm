@@ -170,7 +170,8 @@ sub _Top {
       $quoted_alias = $self->_quote ('column_' . (@inner_select + 1) );
     }
     # column name seen more than once - alias it
-    elsif ($orig_colname && ($seen_names{$orig_colname} > 1) ) {
+    elsif ($orig_colname &&
+          ($seen_names{$orig_colname} && $seen_names{$orig_colname} > 1) ) {
       $quoted_alias = $self->_quote ("${table}__${orig_colname}");
     }
 
