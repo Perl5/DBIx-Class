@@ -176,6 +176,19 @@ sub _prep_for_execute {
   my $self = shift;
   my ($op, $extra_bind, $ident, $args) = @_;
 
+# cast MONEY values properly
+  if ($op eq 'insert' || $op eq 'update') {
+    my $fields = $args->[0];
+    my $col_info = $self->_resolve_column_info($ident, [keys %$fields]);
+
+    for my $col (keys %$fields) {
+      if ($col_info->{$col}{data_type} =~ /^money\z/i) {
+        my $val = $fields->{$col};
+        $fields->{$col} = \['CAST(? AS MONEY)', [ $col => $val ]];
+      }
+    }
+  }
+
   my ($sql, $bind) = $self->next::method (@_);
 
   if ($op eq 'insert') {

@@ -145,13 +145,12 @@ that you cannot modify the rows it contains, ie. cannot call L</update>,
 L</delete>, ...  on it).
 
 If you prefer to have the definitions of these custom ResultSources in separate
-files (instead of stuffing all of them into the same resultset class), you can
-achieve the same with subclassing the resultset class and defining the
-ResultSource there:
+files (instead of stuffing all of them into the same ResultSource class), you
+can achieve the same with subclassing the ResultSource class and defining the
+new ResultSource there:
 
   package My::Schema::Result::UserFriendsComplex;
 
-  use My::Schema::Result::User;
   use base qw/My::Schema::Result::User/;
 
   __PACKAGE__->table('dummy');  # currently must be called before anything else
@@ -159,7 +158,7 @@ ResultSource there:
   # Hand in your query as a scalar reference
   # It will be added as a sub-select after FROM,
   # so pay attention to the surrounding brackets!
-  __PACKAGE__->name( \<<SQL );
+  __PACKAGE__->result_source_instance->name( \<<SQL );
   ( SELECT u.* FROM user u
   INNER JOIN user_friends f ON u.id = f.user_id
   WHERE f.friend_user_id = ?
@@ -168,6 +167,8 @@ ResultSource there:
   INNER JOIN user_friends f ON u.id = f.friend_user_id
   WHERE f.user_id = ? )
   SQL
+
+  1;
 
 TIMTOWDI.
 

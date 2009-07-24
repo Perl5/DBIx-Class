@@ -5,7 +5,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Oracle::Generic - Automatic primary key class for Oracle
+DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
 
 =head1 SYNOPSIS
 
@@ -52,7 +52,7 @@ sub _dbh_get_autoinc_seq {
   };
 
   # trigger_body is a LONG
-  $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
+  local $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
 
   my $sth;
 
@@ -195,7 +195,6 @@ for your timestamps, use something like this:
 
 sub connect_call_datetime_setup {
   my $self = shift;
-  my $dbh  = $self->_get_dbh;
 
   my $date_format = $ENV{NLS_DATE_FORMAT} ||= 'YYYY-MM-DD HH24:MI:SS';
   my $timestamp_format = $ENV{NLS_TIMESTAMP_FORMAT} ||=
@@ -203,9 +202,11 @@ sub connect_call_datetime_setup {
   my $timestamp_tz_format = $ENV{NLS_TIMESTAMP_TZ_FORMAT} ||=
     'YYYY-MM-DD HH24:MI:SS.FF TZHTZM';
 
-  $dbh->do("alter session set nls_date_format = '$date_format'");
-  $dbh->do("alter session set nls_timestamp_format = '$timestamp_format'");
-  $dbh->do("alter session set nls_timestamp_tz_format='$timestamp_tz_format'");
+  $self->_do_query("alter session set nls_date_format = '$date_format'");
+  $self->_do_query(
+"alter session set nls_timestamp_format = '$timestamp_format'");
+  $self->_do_query(
+"alter session set nls_timestamp_tz_format='$timestamp_tz_format'");
 }
 
 sub _svp_begin {
@@ -266,11 +267,9 @@ sub _svp_rollback {
     $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
-=head1 AUTHORS
+=head1 AUTHOR
 
-Andy Grundman <andy@hybridized.org>
-
-Scott Connelly <scottsweep@yahoo.com>
+See L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 

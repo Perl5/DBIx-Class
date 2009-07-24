@@ -349,13 +349,13 @@ It should output:
 
 A reference implentation of the database and scripts in this example
 are available in the main distribution for DBIx::Class under the
-directory C<t/examples/Schema>.
+directory F<t/examples/Schema>.
 
 With these scripts we're relying on @INC looking in the current
 working directory.  You may want to add the MyDatabase namespaces to
 @INC in a different way when it comes to deployment.
 
-The C<testdb.pl> script is an excellent start for testing your database
+The F<testdb.pl> script is an excellent start for testing your database
 model.
 
 This example uses L<DBIx::Class::Schema/load_namespaces> to load in the
