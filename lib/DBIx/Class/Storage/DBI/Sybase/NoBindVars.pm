@@ -13,13 +13,8 @@ sub _rebless {
   $self->disable_sth_caching(1);
 }
 
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $source, $col) = @_;
-
-  # @@identity works only if not using placeholders
-  # Should this query be cached?
-  return ($dbh->selectrow_array('select @@identity'))[0];
-}
+# this works when NOT using placeholders
+sub _fetch_identity_sql { 'SELECT @@IDENTITY' }
 
 my $number = sub { Scalar::Util::looks_like_number($_[0]) };
 

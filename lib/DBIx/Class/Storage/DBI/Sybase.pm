@@ -11,6 +11,10 @@ use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
 
+__PACKAGE__->mk_group_accessors('simple' =>
+    qw/_identity _blob_log_on_update/
+);
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI::Sybase - Sybase support for DBIx::Class
@@ -43,10 +47,6 @@ A recommended L<DBIx::Class::Storage::DBI/connect_info> setting:
 =head1 METHODS
 
 =cut
-
-__PACKAGE__->mk_group_accessors('simple' =>
-    qw/_blob_log_on_update/
-);
 
 sub _rebless {
   my $self = shift;
@@ -173,6 +173,67 @@ sub _is_lob_type {
 #  return (@non_blobs, @blobs);
 #}
 
+# the select-piggybacking-on-insert trick stolen from odbc/mssql
+sub _prep_for_execute {
+  my $self = shift;
+  my ($op, $extra_bind, $ident, $args) = @_;
+
+  my ($sql, $bind) = $self->next::method (@_);
+
+  if ($op eq 'insert') {
+    my ($identity_insert_on, $identity_insert_off, $identity_col);
+    my $table = $ident->from;
+
+    my $bind_info = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
+    $identity_col =
+List::Util::first { $bind_info->{$_}{is_auto_increment} } (keys %$bind_info);
+
+    if ($identity_col) {
+      $identity_insert_on  = "SET IDENTITY_INSERT $table ON";
+      $identity_insert_off = "SET IDENTITY_INSERT $table OFF";
+    } else {
+      $identity_col = List::Util::first {
+        $ident->column_info($_)->{is_auto_increment}
+      } $ident->columns;
+    }
+
+    if ($identity_col) {
+# Sybase has nested transactions, only the outermost is actually committed
+      $sql =
+        "BEGIN TRANSACTION\n" .
+        ($identity_insert_on  ? "$identity_insert_on\n"  : '') .
+        "$sql\n" .
+        ($identity_insert_off ? "$identity_insert_off\n" : '') .
+        $self->_fetch_identity_sql($ident, $identity_col) . "\n" .
+        "COMMIT";
+    }
+  }
+
+  return ($sql, $bind);
+}
+
+sub _fetch_identity_sql {
+  my ($self, $source, $col) = @_;
+
+  return "SELECT MAX($col) FROM ".$source->from;
+}
+
+sub _execute {
+  my $self = shift;
+  my ($op) = @_;
+
+  my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
+
+  if ($op eq 'insert') {
+    $self->_identity($sth->fetchrow_array);
+    $sth->finish;
+  }
+
+  return wantarray ? ($rv, $sth, @bind) : $rv;
+}
+
+sub last_insert_id { shift->_identity }
+
 # override to handle TEXT/IMAGE
 sub insert {
   my ($self, $source, $to_insert) = splice @_, 0, 3;
@@ -180,19 +241,7 @@ sub insert {
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
-# check if we need to set IDENTITY_INSERT
-  my $identity_insert = 0;
-  my %col_info = map { ($_, $source->column_info($_)) } keys %$to_insert;
-  my $table    = $source->from;
-
-  if (List::Util::first { $_->{is_auto_increment} } (values %col_info)) {
-    $identity_insert = 1;
-    $dbh->do("SET IDENTITY_INSERT $table ON");
-  }
-
   my $updated_cols = $self->next::method($source, $to_insert, @_);
-
-  $dbh->do("SET IDENTITY_INSERT $table OFF") if $identity_insert;
 
   $self->_insert_blobs($source, $blob_cols, $to_insert) if %$blob_cols;
 
@@ -374,17 +423,6 @@ C<SMALLDATETIME> columns only have minute precision.
 }
 
 sub datetime_parser_type { "DateTime::Format::Sybase" }
-
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $source, $col) = @_;
-
-  # sorry, there's no other way!
-  my $sth = $self->sth("select max($col) from ".$source->from);
-  my ($id) = $dbh->selectrow_array($sth);
-  $sth->finish;
-
-  return $id;
-}
 
 # savepoint support using ASE syntax
 
