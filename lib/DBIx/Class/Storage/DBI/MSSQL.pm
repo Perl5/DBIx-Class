@@ -150,8 +150,11 @@ C<SELECT @@IDENTITY> can also be used by issuing:
 
   $self->_identity_method('@@identity');
 
-this is more dangerous, as inserting into a table with an on insert trigger that
-inserts into another table with an identity will give erroneous results.
+it will only be used if SCOPE_IDENTITY() fails.
+
+This is more dangerous, as inserting into a table with an on insert trigger that
+inserts into another table with an identity will give erroneous results on
+recent versions of SQL Server.
 
 =head1 AUTHOR
 
