@@ -192,9 +192,7 @@ sub insert {
 
   my $updated_cols = $self->next::method($source, $to_insert, @_);
 
-  if ($identity_insert) {
-    $dbh->do("SET IDENTITY_INSERT $table OFF");
-  }
+  $dbh->do("SET IDENTITY_INSERT $table OFF") if $identity_insert;
 
   $self->_insert_blobs($source, $blob_cols, $to_insert) if %$blob_cols;
 
@@ -386,6 +384,23 @@ sub _dbh_last_insert_id {
   $sth->finish;
 
   return $id;
+}
+
+# savepoint support using ASE syntax
+
+sub _svp_begin {
+  my ($self, $name) = @_;
+
+  $self->dbh->do("SAVE TRANSACTION $name");
+}
+
+# A new SAVE TRANSACTION with the same name releases the previous one.
+sub _svp_release { 1 }
+
+sub _svp_rollback {
+  my ($self, $name) = @_;
+
+  $self->dbh->do("ROLLBACK TRANSACTION $name");
 }
 
 1;
