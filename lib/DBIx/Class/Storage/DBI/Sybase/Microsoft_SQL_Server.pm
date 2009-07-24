@@ -5,7 +5,7 @@ use warnings;
 
 use base qw/
   DBIx::Class::Storage::DBI::Sybase::Base
-  DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server
+  DBIx::Class::Storage::DBI::MSSQL
 /;
 use mro 'c3';
 
@@ -13,8 +13,8 @@ use mro 'c3';
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server - Storage::DBI subclass for MSSQL via
-DBD::Sybase
+DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server - Support for Microsoft
+SQL Server via DBD::Sybase
 
 =head1 SYNOPSIS
 
@@ -29,11 +29,9 @@ into the SQL query itself, without using bind placeholders.
 More importantly this means that caching of prepared statements is explicitly
 disabled, as the interpolation renders it useless.
 
-=head1 AUTHORS
+=head1 AUTHOR
 
-Brandon L Black <blblack@gmail.com>
-
-Justin Hunter <justin.d.hunter@gmail.com>
+See L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
