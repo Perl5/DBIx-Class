@@ -12,7 +12,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 34;
+plan tests => 33;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -48,22 +48,12 @@ SQL
 
 my %seen_id;
 
-my @opts = (
-  { on_connect_call => 'use_dynamic_cursors' },
-  {},
-);
-my $new;
+# fresh $schema so we start unconnected
+$schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
-# test Auto-PK with different options
-for my $opts (@opts) {
-  $schema = DBICTest::Schema->clone;
-  $schema->connection($dsn, $user, $pass, $opts);
-
-  $schema->resultset('Artist')->search({ name => 'foo' })->delete;
-
-  $new = $schema->resultset('Artist')->create({ name => 'foo' });
-  ok($new->artistid > 0, "Auto-PK worked");
-}
+# test primary key handling
+my $new = $schema->resultset('Artist')->create({ name => 'foo' });
+ok($new->artistid > 0, "Auto-PK worked");
 
 $seen_id{$new->artistid}++;
 
