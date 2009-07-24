@@ -9,6 +9,7 @@ use base qw/
 /;
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
+use List::Util ();
 
 =head1 NAME
 
@@ -175,10 +176,25 @@ sub _is_lob_type {
 # override to handle TEXT/IMAGE
 sub insert {
   my ($self, $source, $to_insert) = splice @_, 0, 3;
+  my $dbh = $self->_dbh;
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
+# check if we need to set IDENTITY_INSERT
+  my $identity_insert = 0;
+  my %col_info = map { ($_, $source->column_info($_)) } keys %$to_insert;
+  my $table    = $source->from;
+
+  if (List::Util::first { $_->{is_auto_increment} } (values %col_info)) {
+    $identity_insert = 1;
+    $dbh->do("SET IDENTITY_INSERT $table ON");
+  }
+
   my $updated_cols = $self->next::method($source, $to_insert, @_);
+
+  if ($identity_insert) {
+    $dbh->do("SET IDENTITY_INSERT $table OFF");
+  }
 
   $self->_insert_blobs($source, $blob_cols, $to_insert) if %$blob_cols;
 

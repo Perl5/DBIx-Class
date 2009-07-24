@@ -181,6 +181,7 @@ SQL
     }
 
     # blob insert with explicit PK
+    # also a good opportunity to test IDENTITY_INSERT
     {
       local $SIG{__WARN__} = sub {};
       eval { $dbh->do('DROP TABLE bindtype_test') };
@@ -188,7 +189,7 @@ SQL
       $dbh->do(qq[
         CREATE TABLE bindtype_test 
         (
-          id    INT   PRIMARY KEY,
+          id    INT   IDENTITY PRIMARY KEY,
           bytea INT   NULL,
           blob  IMAGE NULL,
           clob  TEXT  NULL
