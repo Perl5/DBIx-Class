@@ -8,6 +8,10 @@ use mro 'c3';
 
 use List::Util();
 
+__PACKAGE__->mk_group_accessors(simple => qw/
+  _identity _identity_method
+/);
+
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MSSQL');
 
 sub insert_bulk {
@@ -78,15 +82,26 @@ sub _execute {
 
   my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
   if ($op eq 'insert') {
-    $self->{_scope_identity} = $sth->fetchrow_array;
-    $sth->finish;
+    $self->_identity($self->_fetch_identity($sth));
   }
 
   return wantarray ? ($rv, $sth, @bind) : $rv;
 }
 
+sub _fetch_identity {
+  my ($self, $sth) = @_;
+  my ($identity) = $sth->fetchrow_array;
+  $sth->finish;
 
-sub last_insert_id { shift->{_scope_identity} }
+  if ((not defined $identity) && $self->_identity_method &&
+        $self->_identity_method eq '@@identity') {
+    ($identity) = $self->_dbh->selectrow_array('select @@identity');
+  }
+
+  return $identity;
+}
+
+sub last_insert_id { shift->_identity }
 
 sub build_datetime_parser {
   my $self = shift;
@@ -130,6 +145,13 @@ be called is the same execute statement, not just the same connection.
 
 So, this implementation appends a SELECT SCOPE_IDENTITY() statement
 onto each INSERT to accommodate that requirement.
+
+C<SELECT @@IDENTITY> can also be used by issuing:
+
+  $self->_identity_method('@@identity');
+
+this is more dangerous, as inserting into a table with an on insert trigger that
+inserts into another table with an identity will give erroneous results.
 
 =head1 AUTHOR
 
