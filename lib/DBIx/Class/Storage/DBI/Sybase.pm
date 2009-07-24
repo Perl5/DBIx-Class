@@ -181,16 +181,17 @@ sub _prep_for_execute {
   my ($sql, $bind) = $self->next::method (@_);
 
   if ($op eq 'insert') {
-    my ($identity_insert_on, $identity_insert_off, $identity_col);
     my $table = $ident->from;
 
     my $bind_info = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
-    $identity_col =
+    my $identity_col =
 List::Util::first { $bind_info->{$_}{is_auto_increment} } (keys %$bind_info);
 
     if ($identity_col) {
-      $identity_insert_on  = "SET IDENTITY_INSERT $table ON";
-      $identity_insert_off = "SET IDENTITY_INSERT $table OFF";
+      $sql =
+"SET IDENTITY_INSERT $table ON\n" .
+"$sql\n" .
+"SET IDENTITY_INSERT $table OFF"
     } else {
       $identity_col = List::Util::first {
         $ident->column_info($_)->{is_auto_increment}
@@ -201,9 +202,7 @@ List::Util::first { $bind_info->{$_}{is_auto_increment} } (keys %$bind_info);
 # Sybase has nested transactions, only the outermost is actually committed
       $sql =
         "BEGIN TRANSACTION\n" .
-        ($identity_insert_on  ? "$identity_insert_on\n"  : '') .
         "$sql\n" .
-        ($identity_insert_off ? "$identity_insert_off\n" : '') .
         $self->_fetch_identity_sql($ident, $identity_col) . "\n" .
         "COMMIT";
     }
