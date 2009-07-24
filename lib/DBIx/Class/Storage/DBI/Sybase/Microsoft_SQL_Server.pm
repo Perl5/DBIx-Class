@@ -9,6 +9,32 @@ use base qw/
 /;
 use mro 'c3';
 
+sub _rebless {
+  my $self = shift;
+  my $dbh  = $self->_dbh;
+
+  my ($placeholders_supported) = eval {
+# There's also $dbh->{syb_dynamic_supported} but it can be inaccurate for this
+# purpose.
+    local $dbh->{PrintError} = 0;
+    $dbh->selectrow_array('select ?', {}, 1);
+  };
+
+  if (not $placeholders_supported) {
+    bless $self,
+      'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
+    $self->_rebless;
+  }
+
+# LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
+# huge on some versions of SQL server and can cause memory problems, so we
+# fix it up here.
+  my $text_size = eval { $self->_dbi_connect_info->[-1]->{LongReadLen} } ||
+    32768; # the DBD::Sybase default
+
+  $dbh->do("set textsize $text_size");
+}
+
 1;
 
 =head1 NAME
@@ -20,14 +46,15 @@ SQL Server via DBD::Sybase
 
 This subclass supports MSSQL server connections via L<DBD::Sybase>.
 
-=head1 CAVEATS
+=head1 DESCRIPTION
 
-This storage driver uses L<DBIx::Class::Storage::DBI::NoBindVars> as a base.
-This means that bind variables will be interpolated (properly quoted of course)
-into the SQL query itself, without using bind placeholders.
+This driver tries to determine whether your version of L<DBD::Sybase> and
+supporting libraries (usually FreeTDS) support using placeholders, if not the
+storage will be reblessed to
+L<DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars>.
 
-More importantly this means that caching of prepared statements is explicitly
-disabled, as the interpolation renders it useless.
+The MSSQL specific functionality is provided by
+L<DBIx::Class::Storage::DBI::MSSQL>.
 
 =head1 AUTHOR
 
