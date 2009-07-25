@@ -27,6 +27,18 @@ sub _ping {
   return $@ ? 0 : 1;
 }
 
+sub _placeholders_supported {
+  my $self = shift;
+  my $dbh  = $self->_dbh;
+
+  return eval {
+# There's also $dbh->{syb_dynamic_supported} but it can be inaccurate for this
+# purpose.
+    local $dbh->{PrintError} = 0;
+    $dbh->selectrow_array('select 1 where 1 = ?', {}, 1);
+  };
+}
+
 1;
 
 =head1 AUTHORS

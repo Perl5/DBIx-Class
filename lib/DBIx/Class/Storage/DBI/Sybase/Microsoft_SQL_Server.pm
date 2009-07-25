@@ -13,14 +13,7 @@ sub _rebless {
   my $self = shift;
   my $dbh  = $self->_dbh;
 
-  my ($placeholders_supported) = eval {
-# There's also $dbh->{syb_dynamic_supported} but it can be inaccurate for this
-# purpose.
-    local $dbh->{PrintError} = 0;
-    $dbh->selectrow_array('select ?', {}, 1);
-  };
-
-  if (not $placeholders_supported) {
+  if (not $self->_placeholders_supported) {
     bless $self,
       'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
     $self->_rebless;
