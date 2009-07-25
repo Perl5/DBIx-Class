@@ -9,7 +9,7 @@ use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 29 + 2;
+my $TESTS = 35 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -76,7 +76,7 @@ SQL
 # so we start unconnected
   $schema->storage->disconnect;
 
-# inserts happen in a txn, so we test txn nesting
+# inserts happen in a txn, so we make sure they can nest
   $schema->txn_begin;
 
 # test primary key handling
@@ -222,12 +222,51 @@ SQL
     diag $@ if $@;
     ok($got eq $new_str, "verified updated blob");
   }
+
+# test MONEY column support
+  $schema->storage->dbh_do (sub {
+      my ($storage, $dbh) = @_;
+      eval { $dbh->do("DROP TABLE money_test") };
+      $dbh->do(<<'SQL');
+CREATE TABLE money_test (
+   id INT IDENTITY PRIMARY KEY,
+   amount MONEY NULL
+)
+SQL
+  });
+
+  my $rs = $schema->resultset('Money');
+
+  my $row;
+  lives_ok {
+    $row = $rs->create({ amount => 100 });
+  } 'inserted a money value';
+
+  is eval { $rs->find($row->id)->amount }, 100, 'money value round-trip';
+
+  lives_ok {
+    $row->update({ amount => 200 });
+  } 'updated a money value';
+
+  is eval { $rs->find($row->id)->amount },
+    200, 'updated money value round-trip';
+
+  lives_ok {
+    $row->update({ amount => undef });
+  } 'updated a money value to NULL';
+
+  my $null_amount = eval { $rs->find($row->id)->amount };
+  ok(
+    (($null_amount == undef) && (not $@)),
+    'updated money value to NULL round-trip'
+  );
+  diag $@ if $@;
 }
 
 # clean up our mess
 END {
   if (my $dbh = eval { $schema->storage->_dbh }) {
-    $dbh->do('DROP TABLE artist');
-    eval { $dbh->do('DROP TABLE bindtype_test')    };
+    eval { $dbh->do("DROP TABLE $_") }
+      for qw/artist bindtype_test money_test/;
   }
 }

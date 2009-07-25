@@ -59,8 +59,11 @@ sub _prep_for_execute {
     foreach my $data (@$bound) {
       $data = ''.$data if ref $data;
 
+      $data = $self->transform_unbound_value($datatype, $data)
+        if $datatype;
+
       $data = $self->_dbh->quote($data)
-        if $self->should_quote_value($datatype, $data);
+        if (!$datatype || $self->should_quote_value($datatype, $data));
 
       $new_sql .= shift(@sql_part) . $data;
     }
@@ -71,7 +74,7 @@ sub _prep_for_execute {
 }
 
 =head2 should_quote_value
-                                
+
 This method is called by L</_prep_for_execute> for every column in
 order to determine if its value should be quoted or not. The arguments
 are the current column data type and the actual bind value. The return
@@ -79,15 +82,24 @@ value is interpreted as: true - do quote, false - do not quote. You should
 override this in you Storage::DBI::<database> subclass, if your RDBMS
 does not like quotes around certain datatypes (e.g. Sybase and integer
 columns). The default method always returns true (do quote).
-                                
+
  WARNING!!!                     
-                                
+
  Always validate that the bind-value is valid for the current datatype.
  Otherwise you may very well open the door to SQL injection attacks.
-                                
+
 =cut                            
-                                
+
 sub should_quote_value { 1 }
+
+=head2 transform_unbound_value
+
+Given a datatype and the value to be inserted directly into a SQL query, returns
+the necessary SQL fragment to represent that value.
+
+=cut
+
+sub transform_unbound_value { $_[2] }
 
 =head1 AUTHORS
 

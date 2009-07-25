@@ -33,7 +33,6 @@ $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
     eval { $dbh->do("DROP TABLE artist") };
     $dbh->do(<<'SQL');
-
 CREATE TABLE artist (
    artistid INT IDENTITY NOT NULL,
    name VARCHAR(100),
@@ -41,7 +40,6 @@ CREATE TABLE artist (
    charfield CHAR(10) NULL,
    primary key(artistid)
 )
-
 SQL
 
 });
@@ -80,14 +78,11 @@ $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
     eval { $dbh->do("DROP TABLE money_test") };
     $dbh->do(<<'SQL');
-
 CREATE TABLE money_test (
    id INT IDENTITY PRIMARY KEY,
    amount MONEY NULL
 )
-
 SQL
-
 });
 
 my $rs = $schema->resultset('Money');
@@ -116,8 +111,6 @@ $schema->storage->dbh_do (sub {
     eval { $dbh->do("DROP TABLE Owners") };
     eval { $dbh->do("DROP TABLE Books") };
     $dbh->do(<<'SQL');
-
-
 CREATE TABLE Books (
    id INT IDENTITY (1, 1) NOT NULL,
    source VARCHAR(100),
@@ -130,7 +123,6 @@ CREATE TABLE Owners (
    id INT IDENTITY (1, 1) NOT NULL,
    name VARCHAR(100),
 )
-
 SQL
 
 });
@@ -268,11 +260,9 @@ $schema->storage->_sql_maker->{name_sep} = '.';
 
 # clean up our mess
 END {
-    if (my $dbh = eval { $schema->storage->_dbh }) {
-      $dbh->do('DROP TABLE artist');
-      $dbh->do('DROP TABLE money_test');
-      $dbh->do('DROP TABLE Books');
-      $dbh->do('DROP TABLE Owners');
-    }
+  if (my $dbh = eval { $schema->storage->_dbh }) {
+    eval { $dbh->do("DROP TABLE $_") }
+      for qw/artist money_test Books Owners/;
+  }
 }
 # vim:sw=2 sts=2

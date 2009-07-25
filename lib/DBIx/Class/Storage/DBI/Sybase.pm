@@ -245,9 +245,9 @@ sub insert {
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
-# Sybase has nested transactions fortunately, because we have to do the insert
-# in a transaction to avoid race conditions with the SELECT MAX(COL) identity
-# method used when placeholders are enabled.
+# Sybase has savepoints fortunately, because we have to do the insert in a
+# transaction to avoid race conditions with the SELECT MAX(COL) identity method
+# used when placeholders are enabled.
   my $updated_cols = do {
     local $self->{auto_savepoint} = 1;
     my $args = \@_;

@@ -51,6 +51,17 @@ sub should_quote_value {
   return $self->next::method(@_);
 }
 
+sub transform_unbound_value {
+  my ($self, $type, $value) = @_;
+
+  if ($type =~ /money/i && defined $value) {
+    $value =~ s/^\$//;
+    $value = '$' . $value;
+  }
+
+  return $value;
+}
+
 1;
 
 =head1 NAME
