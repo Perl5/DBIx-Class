@@ -32,7 +32,7 @@ will be reblessed to L<DBIx::Class::Storage::DBI::Sybase::NoBindVars>. You can
 also enable that driver explicitly, see the documentation for more details.
 
 With this driver there is unfortunately no way to get the C<last_insert_id>
-without doing a C<select max(col)>.
+without doing a C<SELECT MAX(col)>.
 
 But your queries will be cached.
 
@@ -93,6 +93,14 @@ EOF
       $self->_set_maxConnect;
     }
   }
+}
+
+# Make sure we have CHAINED mode turned on, we don't know how DBD::Sybase was
+# compiled.
+sub _populate_dbh {
+  my $self = shift;
+  $self->next::method(@_);
+  $self->_dbh->{syb_chained_txn} = 1;
 }
 
 sub _using_freetds {
@@ -199,12 +207,9 @@ List::Util::first { $bind_info->{$_}{is_auto_increment} } (keys %$bind_info);
     }
 
     if ($identity_col) {
-# Sybase has nested transactions, only the outermost is actually committed
       $sql =
-        "BEGIN TRANSACTION\n" .
         "$sql\n" .
-        $self->_fetch_identity_sql($ident, $identity_col) . "\n" .
-        "COMMIT";
+        $self->_fetch_identity_sql($ident, $identity_col) . "\n";
     }
   }
 
@@ -233,14 +238,24 @@ sub _execute {
 
 sub last_insert_id { shift->_identity }
 
-# override to handle TEXT/IMAGE
+# override to handle TEXT/IMAGE and nested txn
 sub insert {
   my ($self, $source, $to_insert) = splice @_, 0, 3;
   my $dbh = $self->_dbh;
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
-  my $updated_cols = $self->next::method($source, $to_insert, @_);
+# Sybase has nested transactions fortunately, because we have to do the insert
+# in a transaction to avoid race conditions with the SELECT MAX(COL) identity
+# method used when placeholders are enabled.
+  my $updated_cols = do {
+    local $self->{auto_savepoint} = 1;
+    my $args = \@_;
+    my $method = $self->next::can;
+    $self->txn_do(
+      sub { $self->$method($source, $to_insert, @$args) }
+    );
+  };
 
   $self->_insert_blobs($source, $blob_cols, $to_insert) if %$blob_cols;
 

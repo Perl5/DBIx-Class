@@ -76,6 +76,9 @@ SQL
 # so we start unconnected
   $schema->storage->disconnect;
 
+# inserts happen in a txn, so we test txn nesting
+  $schema->txn_begin;
+
 # test primary key handling
   my $new = $schema->resultset('Artist')->create({ name => 'foo' });
   ok($new->artistid > 0, "Auto-PK worked");
@@ -87,6 +90,8 @@ SQL
     is ( $seen_id{$new->artistid}, undef, "id for Artist $_ is unique" );
     $seen_id{$new->artistid}++;
   }
+
+  $schema->txn_commit;
 
 # test simple count
   is ($schema->resultset('Artist')->count, 7, 'count(*) of whole table ok');
