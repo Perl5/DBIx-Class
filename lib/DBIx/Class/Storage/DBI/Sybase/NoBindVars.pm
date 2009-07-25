@@ -39,7 +39,7 @@ sub should_quote_value {
 
   if (my $key = List::Util::first { $type =~ /$_/i } keys %noquote) {
     return 0 if $noquote{$key}->($value);
-  } elsif($self->is_datatype_numeric($type) && $number->($value)) {
+  } elsif ($self->is_datatype_numeric($type) && $number->($value)) {
     return 0;
   }
 
