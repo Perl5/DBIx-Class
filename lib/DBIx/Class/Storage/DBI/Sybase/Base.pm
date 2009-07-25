@@ -35,6 +35,7 @@ sub _placeholders_supported {
 # There's also $dbh->{syb_dynamic_supported} but it can be inaccurate for this
 # purpose.
     local $dbh->{PrintError} = 0;
+# this specifically tests a bind that is NOT a string
     $dbh->selectrow_array('select 1 where 1 = ?', {}, 1);
   };
 }
