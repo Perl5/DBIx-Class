@@ -103,6 +103,23 @@ sub _fetch_identity {
 
 sub last_insert_id { shift->_identity }
 
+# savepoint syntax is the same as in Sybase ASE
+
+sub _svp_begin {
+  my ($self, $name) = @_;
+
+  $self->dbh->do("SAVE TRANSACTION $name");
+}
+
+# A new SAVE TRANSACTION with the same name releases the previous one.
+sub _svp_release { 1 }
+
+sub _svp_rollback {
+  my ($self, $name) = @_;
+
+  $self->dbh->do("ROLLBACK TRANSACTION $name");
+}
+
 sub build_datetime_parser {
   my $self = shift;
   my $type = "DateTime::Format::Strptime";
