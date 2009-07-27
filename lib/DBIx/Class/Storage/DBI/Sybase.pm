@@ -12,7 +12,7 @@ use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update/
+    qw/_identity _blob_log_on_update _auto_cast _insert_txn/
 );
 
 =head1 NAME
@@ -66,22 +66,37 @@ sub _rebless {
     } else { # real Sybase
       my $no_bind_vars = 'DBIx::Class::Storage::DBI::Sybase::NoBindVars';
 
+# This is reset to 0 in ::NoBindVars, only necessary because we use max(col) to
+# get the identity.
+      $self->_insert_txn(1);
+
       if ($self->_using_freetds) {
-        carp <<'EOF';
+        carp <<'EOF' unless $ENV{DBIC_SYBASE_FREETDS_NOWARN};
 
-Your version of Sybase potentially supports placeholders and query caching,
-however you seem to be using FreeTDS which does not (yet?) support this.
+You are using FreeTDS with Sybase.
 
-Please recompile DBD::Sybase with the Sybase OpenClient libraries if you want
-these features.
+We will do our best to support this configuration, but please consider this
+support experimental.
 
-TEXT/IMAGE column support will also not work under FreeTDS.
+TEXT/IMAGE columns will definitely not work.
+
+You are encouraged to recompile DBD::Sybase with the Sybase OpenClient libraries
+instead.
 
 See perldoc DBIx::Class::Storage::DBI::Sybase for more details.
+
+To turn off this warning set the DBIC_SYBASE_FREETDS_NOWARN environment
+variable.
 EOF
-        $self->ensure_class_loaded($no_bind_vars);
-        bless $self, $no_bind_vars;
-        $self->_rebless;
+        if (not $self->_placeholders_with_type_conversion_supported) {
+          if ($self->_placeholders_supported) {
+            $self->_auto_cast(1);
+          } else {
+            $self->ensure_class_loaded($no_bind_vars);
+            bless $self, $no_bind_vars;
+            $self->_rebless;
+          }
+        }
       }
 
       if (not $self->dbh->{syb_dynamic_supported}) {
@@ -90,37 +105,28 @@ EOF
         $self->_rebless;
       }
  
-      $self->_set_maxConnect;
+      $self->_set_max_connect(256);
     }
   }
 }
 
-# Make sure we have CHAINED mode turned on, we don't know how DBD::Sybase was
-# compiled.
+# Make sure we have CHAINED mode turned on if AutoCommit is off in non-FreeTDS
+# DBD::Sybase (since we don't know how DBD::Sybase was compiled.) If however
+# we're using FreeTDS, CHAINED mode turns on an implicit transaction which we
+# only want when AutoCommit is off.
 sub _populate_dbh {
   my $self = shift;
+
   $self->next::method(@_);
-  $self->_dbh->{syb_chained_txn} = 1;
-}
 
-sub _using_freetds {
-  my $self = shift;
-
-  return $self->_dbh->{syb_oc_version} =~ /freetds/i;
-}
-
-sub _set_maxConnect {
-  my $self = shift;
-
-  my $dsn = $self->_dbi_connect_info->[0];
-
-  return if ref($dsn) eq 'CODE';
-
-  if ($dsn !~ /maxConnect=/) {
-    $self->_dbi_connect_info->[0] = "$dsn;maxConnect=256";
-    my $connected = defined $self->_dbh;
-    $self->disconnect;
-    $self->ensure_connected if $connected;
+  if (not $self->_using_freetds) {
+    $self->_dbh->{syb_chained_txn} = 1;
+  } else {
+    if ($self->_dbh_autocommit) {
+      $self->_dbh->do('SET CHAINED OFF');
+    } else {
+      $self->_dbh->do('SET CHAINED ON');
+    }
   }
 }
 
@@ -159,39 +165,43 @@ sub _is_lob_type {
   $type && $type =~ /(?:text|image|lob|bytea|binary|memo)/i;
 }
 
-## This will be useful if we ever implement BLOB filehandle inflation and will
-## need to use the API, but for now it isn't.
-#
-#sub order_columns_for_select {
-#  my ($self, $source, $columns) = @_;
-#
-#  my (@non_blobs, @blobs);
-#
-#  for my $col (@$columns) {
-#    if ($self->_is_lob_type($source->column_info($col)->{data_type})) {
-#      push @blobs, $col;
-#    } else {
-#      push @non_blobs, $col;
-#    }
-#  }
-#
-#  croak "cannot select more than a one TEXT/IMAGE column at a time"
-#    if @blobs > 1;
-#
-#  return (@non_blobs, @blobs);
-#}
-
-# the select-piggybacking-on-insert trick stolen from odbc/mssql
+# The select-piggybacking-on-insert trick stolen from odbc/mssql
 sub _prep_for_execute {
   my $self = shift;
   my ($op, $extra_bind, $ident, $args) = @_;
 
   my ($sql, $bind) = $self->next::method (@_);
 
+# Some combinations of FreeTDS and Sybase throw implicit conversion errors for
+# all placeeholders, so we convert them into CASTs here.
+# Based on code in ::DBI::NoBindVars .
+#
+# If we're using ::NoBindVars, there are no binds by this point so this code
+# gets skippeed.
+  if ($self->_auto_cast && @$bind) {
+    my $new_sql;
+    my @sql_part = split /\?/, $sql;
+    my $col_info = $self->_resolve_column_info($ident,[ map $_->[0], @$bind ]);
+
+    foreach my $bound (@$bind) {
+      my $col = $bound->[0];
+      my $syb_type = $self->_syb_base_type($col_info->{$col}{data_type});
+
+      foreach my $data (@{$bound}[1..$#$bound]) {
+        $new_sql .= shift(@sql_part) .
+          ($syb_type ? "CAST(? AS $syb_type)" : '?');
+      }
+    }
+    $new_sql .= join '', @sql_part;
+    $sql = $new_sql;
+  }
+
   if ($op eq 'insert') {
     my $table = $ident->from;
 
-    my $bind_info = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
+    my $bind_info = $self->_resolve_column_info(
+      $ident, [map $_->[0], @{$bind}]
+    );
     my $identity_col =
 List::Util::first { $bind_info->{$_}{is_auto_increment} } (keys %$bind_info);
 
@@ -209,11 +219,40 @@ List::Util::first { $bind_info->{$_}{is_auto_increment} } (keys %$bind_info);
     if ($identity_col) {
       $sql =
         "$sql\n" .
-        $self->_fetch_identity_sql($ident, $identity_col) . "\n";
+        $self->_fetch_identity_sql($ident, $identity_col);
     }
   }
 
   return ($sql, $bind);
+}
+
+# Stolen from SQLT, with some modifications. This will likely change when the
+# SQLT Sybase stuff is redone/fixed-up.
+my %TYPE_MAPPING  = (
+    number    => 'numeric',
+    money     => 'money',
+    varchar   => 'varchar',
+    varchar2  => 'varchar',
+    timestamp => 'datetime',
+    text      => 'varchar',
+    real      => 'double precision',
+    comment   => 'text',
+    bit       => 'bit',
+    tinyint   => 'smallint',
+    float     => 'double precision',
+    serial    => 'numeric',
+    bigserial => 'numeric',
+    boolean   => 'varchar',
+    long      => 'varchar',
+);
+
+sub _syb_base_type {
+  my ($self, $type) = @_;
+
+  $type = lc $type;
+  $type =~ s/ identity//;
+
+  return uc($TYPE_MAPPING{$type} || $type);
 }
 
 sub _fetch_identity_sql {
@@ -238,23 +277,25 @@ sub _execute {
 
 sub last_insert_id { shift->_identity }
 
-# override to handle TEXT/IMAGE and nested txn
+# override to handle TEXT/IMAGE and to do a transaction if necessary
 sub insert {
   my ($self, $source, $to_insert) = splice @_, 0, 3;
   my $dbh = $self->_dbh;
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
-# Sybase has savepoints fortunately, because we have to do the insert in a
-# transaction to avoid race conditions with the SELECT MAX(COL) identity method
-# used when placeholders are enabled.
+# We have to do the insert in a transaction to avoid race conditions with the
+# SELECT MAX(COL) identity method used when placeholders are enabled.
   my $updated_cols = do {
-    local $self->{auto_savepoint} = 1;
-    my $args = \@_;
-    my $method = $self->next::can;
-    $self->txn_do(
-      sub { $self->$method($source, $to_insert, @$args) }
-    );
+    if ($self->_insert_txn && (not $self->{transaction_depth})) {
+      my $args = \@_;
+      my $method = $self->next::can;
+      $self->txn_do(
+        sub { $self->$method($source, $to_insert, @$args) }
+      );
+    } else {
+      $self->next::method($source, $to_insert, @_);
+    }
   };
 
   $self->_insert_blobs($source, $blob_cols, $to_insert) if %$blob_cols;
@@ -356,26 +397,18 @@ sub _insert_blobs {
     my $blob = $blob_cols->{$col};
     my $sth;
 
-    if (not $self->isa('DBIx::Class::Storage::DBI::NoBindVars')) {
-      my $search_cond = join ',' => map "$_ = ?", @primary_cols;
-
-      $sth = $self->sth(
-        "select $col from $table where $search_cond"
-      );
-      $sth->execute(map $row{$_}, @primary_cols);
-    } else {
-      my $search_cond = join ',' => map "$_ = $row{$_}", @primary_cols;
-
-      $sth = $dbh->prepare(
-        "select $col from $table where $search_cond"
-      );
-      $sth->execute;
-    }
+    my %where = map { ($_, $row{$_}) } @primary_cols;
+    my $cursor = $source->resultset->search(\%where, {
+      select => [$col]
+    })->cursor;
+    $cursor->next;
+    $sth = $cursor->sth;
 
     eval {
-      while ($sth->fetch) {
+      do {
         $sth->func('CS_GET', 1, 'ct_data_info') or die $sth->errstr;
-      }
+      } while $sth->fetch;
+
       $sth->func('ct_prepare_send') or die $sth->errstr;
 
       my $log_on_update = $self->_blob_log_on_update;
@@ -391,8 +424,16 @@ sub _insert_blobs {
       $sth->func('ct_finish_send') or die $sth->errstr;
     };
     my $exception = $@;
-    $sth->finish;
-    croak $exception if $exception;
+    $sth->finish if $sth;
+    if ($exception) {
+      if ($self->_using_freetds) {
+        croak
+"TEXT/IMAGE operation failed, probably because you're using FreeTDS: " .
+$exception;
+      } else {
+        croak $exception;
+      }
+    }
   }
 }
 
@@ -438,6 +479,35 @@ C<SMALLDATETIME> columns only have minute precision.
 
 sub datetime_parser_type { "DateTime::Format::Sybase" }
 
+# ->begin_work and such have no effect with FreeTDS
+
+sub _dbh_begin_work {
+  my $self = shift;
+  if (not $self->_using_freetds) {
+    return $self->next::method(@_);
+  } else {
+    $self->dbh->do('BEGIN TRAN');
+  }
+}
+
+sub _dbh_commit {
+  my $self = shift;
+  if (not $self->_using_freetds) {
+    return $self->next::method(@_);
+  } else {
+    $self->_dbh->do('COMMIT');
+  }
+}
+
+sub _dbh_rollback {
+  my $self = shift;
+  if (not $self->_using_freetds) {
+    return $self->next::method(@_);
+  } else {
+    $self->_dbh->do('ROLLBACK');
+  }
+}
+
 # savepoint support using ASE syntax
 
 sub _svp_begin {
@@ -478,8 +548,14 @@ for L<DBIx::Class::InflateColumn::DateTime>.
 
 =head1 IMAGE AND TEXT COLUMNS
 
-L<DBD::Sybase> compiled with FreeTDS will B<NOT> work with C<TEXT/IMAGE>
-columns.
+L<DBD::Sybase> compiled with FreeTDS will B<NOT> allow you to insert or update
+C<TEXT/IMAGE> columns.
+
+C<< $dbh->{LongReadLen} >> will also not work with FreeTDS use:
+
+  $schema->storage->dbh->do("SET TEXTSIZE <bytes>")
+
+instead.
 
 See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
 setting you need to work with C<IMAGE> columns.

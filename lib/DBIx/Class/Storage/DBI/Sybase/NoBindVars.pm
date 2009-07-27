@@ -11,6 +11,7 @@ use Scalar::Util ();
 sub _rebless {
   my $self = shift;
   $self->disable_sth_caching(1);
+  $self->_insert_txn(0);
 }
 
 # this works when NOT using placeholders

@@ -160,9 +160,12 @@ SQL
     $binstr{'large'} = $binstr{'small'} x 1024;
 
     my $maxloblen = length $binstr{'large'};
-    note
-      "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
-    local $dbh->{'LongReadLen'} = $maxloblen * 2;
+    
+    if (not $schema->storage->_using_freetds) {
+      $dbh->{'LongReadLen'} = $maxloblen * 2;
+    } else {
+      $dbh->do("set textsize ".($maxloblen * 2));
+    }
 
     my $rs = $schema->resultset('BindType');
     my $last_id;

@@ -35,9 +35,41 @@ sub _placeholders_supported {
 # There's also $dbh->{syb_dynamic_supported} but it can be inaccurate for this
 # purpose.
     local $dbh->{PrintError} = 0;
+    $dbh->selectrow_array('select ?', {}, 1);
+  };
+}
+
+sub _placeholders_with_type_conversion_supported {
+  my $self = shift;
+  my $dbh  = $self->_dbh;
+
+  return eval {
+    local $dbh->{PrintError} = 0;
 # this specifically tests a bind that is NOT a string
     $dbh->selectrow_array('select 1 where 1 = ?', {}, 1);
   };
+}
+
+sub _set_max_connect {
+  my $self = shift;
+  my $val  = shift || 256;
+
+  my $dsn = $self->_dbi_connect_info->[0];
+
+  return if ref($dsn) eq 'CODE';
+
+  if ($dsn !~ /maxConnect=/) {
+    $self->_dbi_connect_info->[0] = "$dsn;maxConnect=$val";
+    my $connected = defined $self->_dbh;
+    $self->disconnect;
+    $self->ensure_connected if $connected;
+  }
+}
+
+sub _using_freetds {
+  my $self = shift;
+
+  return $self->_dbh->{syb_oc_version} =~ /freetds/i;
 }
 
 1;

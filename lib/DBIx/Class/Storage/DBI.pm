@@ -629,7 +629,8 @@ sub disconnect {
 
     $self->_do_connection_actions(disconnect_call_ => $_) for @actions;
 
-    $self->_dbh->rollback unless $self->_dbh_autocommit;
+    $self->_dbh_rollback unless $self->_dbh_autocommit;
+
     $self->_dbh->disconnect;
     $self->_dbh(undef);
     $self->{_dbh_gen}++;
@@ -986,11 +987,16 @@ sub txn_begin {
     # this isn't ->_dbh-> because
     #  we should reconnect on begin_work
     #  for AutoCommit users
-    $self->dbh->begin_work;
+    $self->_dbh_begin_work;
   } elsif ($self->auto_savepoint) {
     $self->svp_begin;
   }
   $self->{transaction_depth}++;
+}
+
+sub _dbh_begin_work {
+  my $self = shift;
+  $self->dbh->begin_work;
 }
 
 sub txn_commit {
@@ -999,7 +1005,7 @@ sub txn_commit {
     my $dbh = $self->_dbh;
     $self->debugobj->txn_commit()
       if ($self->debug);
-    $dbh->commit;
+    $self->_dbh_commit;
     $self->{transaction_depth} = 0
       if $self->_dbh_autocommit;
   }
@@ -1008,6 +1014,11 @@ sub txn_commit {
     $self->svp_release
       if $self->auto_savepoint;
   }
+}
+
+sub _dbh_commit {
+  my $self = shift;
+  $self->_dbh->commit;
 }
 
 sub txn_rollback {
@@ -1019,7 +1030,7 @@ sub txn_rollback {
         if ($self->debug);
       $self->{transaction_depth} = 0
         if $self->_dbh_autocommit;
-      $dbh->rollback;
+      $self->_dbh_rollback;
     }
     elsif($self->{transaction_depth} > 1) {
       $self->{transaction_depth}--;
@@ -1040,6 +1051,11 @@ sub txn_rollback {
     $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
     $self->throw_exception($error);
   }
+}
+
+sub _dbh_rollback {
+  my $self = shift;
+  $self->_dbh->rollback;
 }
 
 # This used to be the top-half of _execute.  It was split out to make it
