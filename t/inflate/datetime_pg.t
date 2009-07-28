@@ -13,7 +13,7 @@ use DBICTest;
 eval { require DateTime::Format::Pg };
 plan $@
   ? ( skip_all =>  'Need DateTime::Format::Pg for timestamp inflation tests')
-  : ( tests => 3 )
+  : ( tests => 6 )
 ;
 
 
@@ -27,4 +27,14 @@ my $schema = DBICTest->init_schema();
   is($event->created_on->time_zone->name, "America/Chicago", "Timezone changed");
   # Time zone difference -> -6hours
   is($event->created_on->iso8601, "2009-01-15T11:00:00", "Time with TZ correct");
+
+# test 'timestamp without time zone'
+  my $dt = DateTime->from_epoch(epoch => time);
+  $dt->set_nanosecond(int 500_000_000);
+  $event->update({ts_without_tz => $dt});
+  $event->discard_changes;
+  isa_ok($event->ts_without_tz, "DateTime") or diag $event->created_on;
+  is($event->ts_without_tz, $dt, 'timestamp without time zone inflation');
+  is($event->ts_without_tz->microsecond, $dt->microsecond,
+    'timestamp without time zone microseconds survived');
 }

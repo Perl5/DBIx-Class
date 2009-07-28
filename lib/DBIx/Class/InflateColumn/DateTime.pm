@@ -119,6 +119,9 @@ sub register_column {
     if ($type eq "timestamp with time zone" || $type eq "timestamptz") {
       $type = "timestamp";
       $info->{_ic_dt_method} ||= "timestamp_with_timezone";
+    } elsif ($type eq "timestamp without time zone") {
+      $type = "timestamp";
+      $info->{_ic_dt_method} ||= "timestamp_without_timezone";
     } elsif ($type eq "smalldatetime") {
       $type = "datetime";
       $info->{_ic_dt_method} ||= "datetime";
