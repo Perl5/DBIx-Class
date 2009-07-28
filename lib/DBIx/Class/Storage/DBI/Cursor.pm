@@ -7,6 +7,7 @@ use base qw/
   Class::Accessor::Grouped
   DBIx::Class::Cursor
 /;
+use mro 'c3';
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/sth/
