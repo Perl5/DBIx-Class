@@ -15,10 +15,13 @@ BEGIN {
 
 my $schema = DBICTest->init_schema();
 # Dummy was yanked out by the sqlt hook test
+# CustomSql tests the horrific/deprecated ->name(\$sql) hack
 # YearXXXXCDs are views
-
-my @sources = grep { $_ ne 'Dummy' && $_ !~ /^Year\d{4}CDs$/ } 
-                $schema->sources;
+#
+my @sources = grep
+  { $_ !~ /^ (?: Dummy | CustomSql | Year\d{4}CDs ) $/x }
+  $schema->sources
+;
 
 plan tests => ( @sources * 3);
 

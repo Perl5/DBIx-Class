@@ -12,7 +12,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 27;
+plan tests => 33;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -74,6 +74,42 @@ is( $it->next->name, "foo", "iterator->next ok" );
 $it->next;
 is( $it->next->name, "Artist 2", "iterator->next ok" );
 is( $it->next, undef, "next past end of resultset ok" );
+
+# test MONEY type
+$schema->storage->dbh_do (sub {
+    my ($storage, $dbh) = @_;
+    eval { $dbh->do("DROP TABLE money_test") };
+    $dbh->do(<<'SQL');
+
+CREATE TABLE money_test (
+   id INT IDENTITY PRIMARY KEY,
+   amount MONEY NULL
+)
+
+SQL
+
+});
+
+my $rs = $schema->resultset('Money');
+
+my $row;
+lives_ok {
+  $row = $rs->create({ amount => 100 });
+} 'inserted a money value';
+
+is $rs->find($row->id)->amount, '100.00', 'money value round-trip';
+
+lives_ok {
+  $row->update({ amount => 200 });
+} 'updated a money value';
+
+is $rs->find($row->id)->amount, '200.00', 'updated money value round-trip';
+
+lives_ok {
+  $row->update({ amount => undef });
+} 'updated a money value to NULL';
+
+is $rs->find($row->id)->amount, undef,'updated money value to NULL round-trip';
 
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
@@ -232,7 +268,11 @@ $schema->storage->_sql_maker->{name_sep} = '.';
 
 # clean up our mess
 END {
-    my $dbh = eval { $schema->storage->_dbh };
-    $dbh->do('DROP TABLE artist') if $dbh;
+    if (my $dbh = eval { $schema->storage->_dbh }) {
+      $dbh->do('DROP TABLE artist');
+      $dbh->do('DROP TABLE money_test');
+      $dbh->do('DROP TABLE Books');
+      $dbh->do('DROP TABLE Owners');
+    }
 }
 # vim:sw=2 sts=2
