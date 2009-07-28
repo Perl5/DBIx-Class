@@ -15,6 +15,7 @@ __PACKAGE__->add_columns(
   varchar_date => { data_type => 'varchar', inflate_date => 1, size => 20, is_nullable => 1 },
   varchar_datetime => { data_type => 'varchar', inflate_datetime => 1, size => 20, is_nullable => 1 },
   skip_inflation => { data_type => 'datetime', inflate_datetime => 0, is_nullable => 1 },
+  ts_without_tz => { data_type => 'datetime', is_nullable => 1 }, # used in EventTZPg
 );
 
 __PACKAGE__->set_primary_key('id');
