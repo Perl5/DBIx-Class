@@ -17,12 +17,10 @@ sub _rebless {
 # LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
 # huge on some versions of SQL server and can cause memory problems, so we
 # fix it up here.
-  my $dbh = $self->_dbh;
-
-  my $text_size = eval { $self->_dbi_connect_info->[-1]->{LongReadLen} } ||
-    32768; # the DBD::Sybase default
-
-  $dbh->do("set textsize $text_size");
+  $self->set_textsize(
+    eval { $self->_dbi_connect_info->[-1]->{LongReadLen} } ||
+    32768 # the DBD::Sybase default
+  );
 }
 
 1;

@@ -76,7 +76,7 @@ SQL
 # so we start unconnected
   $schema->storage->disconnect;
 
-# inserts happen in a txn, so we make sure they can nest
+# inserts happen in a txn, so we make sure it still works inside a txn too
   $schema->txn_begin;
 
 # test primary key handling
@@ -138,7 +138,7 @@ SQL
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
     skip 'TEXT/IMAGE support does not work with FreeTDS', 12
-      if $schema->storage->_using_freetds;
+      if $schema->storage->using_freetds;
 
     my $dbh = $schema->storage->dbh;
     {
@@ -161,7 +161,7 @@ SQL
 
     my $maxloblen = length $binstr{'large'};
     
-    if (not $schema->storage->_using_freetds) {
+    if (not $schema->storage->using_freetds) {
       $dbh->{'LongReadLen'} = $maxloblen * 2;
     } else {
       $dbh->do("set textsize ".($maxloblen * 2));

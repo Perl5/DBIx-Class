@@ -72,17 +72,8 @@ without placeholder support
 
 =head1 DESCRIPTION
 
-If you're using this driver than your version of Sybase does not support
-placeholders, or your version of L<DBD::Sybase> was compiled with FreeTDS rather
-than the Sybase OpenClient libraries. You can check with:
-
-  $dbh->{syb_dynamic_supported}
-
-To see if you are using FreeTDS, run:
-
-  perl -MDBI -le 'my $dbh = DBI->connect($dsn, $user, $pass); print $dbh->{syb_oc_version}'
-
-You will get a warning on startup if you're using FreeTDS in any case.
+If you're using this driver than your version of Sybase, or the libraries you
+use to connect to it, do not support placeholders.
 
 You can also enable this driver explicitly using:
 
@@ -95,7 +86,7 @@ $sth->execute >> for details on the pros and cons of using placeholders.
 
 One advantage of not using placeholders is that C<select @@identity> will work
 for obtainging the last insert id of an C<IDENTITY> column, instead of having to
-do C<select max(col)> as the base Sybase driver does.
+do C<select max(col)> in a transaction as the base Sybase driver does.
 
 When using this driver, bind variables will be interpolated (properly quoted of
 course) into the SQL query itself, without using placeholders.

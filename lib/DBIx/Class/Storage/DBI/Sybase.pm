@@ -5,14 +5,13 @@ use warnings;
 
 use base qw/
     DBIx::Class::Storage::DBI::Sybase::Base
-    DBIx::Class::Storage::DBI
 /;
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update _auto_cast _insert_txn/
+    qw/_identity _blob_log_on_update auto_cast _insert_txn/
 );
 
 =head1 NAME
@@ -35,10 +34,6 @@ With this driver there is unfortunately no way to get the C<last_insert_id>
 without doing a C<SELECT MAX(col)>.
 
 But your queries will be cached.
-
-You need a version of L<DBD::Sybase> compiled with the Sybase OpenClient
-libraries, B<NOT> FreeTDS, for placeholder support. Otherwise your storage will
-be automatically reblessed into C<::NoBindVars>.
 
 A recommended L<DBIx::Class::Storage::DBI/connect_info> setting:
 
@@ -70,7 +65,7 @@ sub _rebless {
 # get the identity.
       $self->_insert_txn(1);
 
-      if ($self->_using_freetds) {
+      if ($self->using_freetds) {
         carp <<'EOF' unless $ENV{DBIC_SYBASE_FREETDS_NOWARN};
 
 You are using FreeTDS with Sybase.
@@ -80,7 +75,7 @@ support experimental.
 
 TEXT/IMAGE columns will definitely not work.
 
-You are encouraged to recompile DBD::Sybase with the Sybase OpenClient libraries
+You are encouraged to recompile DBD::Sybase with the Sybase Open Client libraries
 instead.
 
 See perldoc DBIx::Class::Storage::DBI::Sybase for more details.
@@ -88,18 +83,20 @@ See perldoc DBIx::Class::Storage::DBI::Sybase for more details.
 To turn off this warning set the DBIC_SYBASE_FREETDS_NOWARN environment
 variable.
 EOF
-        if (not $self->_placeholders_with_type_conversion_supported) {
-          if ($self->_placeholders_supported) {
-            $self->_auto_cast(1);
+        if (not $self->placeholders_with_type_conversion_supported) {
+          if ($self->placeholders_supported) {
+            $self->auto_cast(1);
           } else {
             $self->ensure_class_loaded($no_bind_vars);
             bless $self, $no_bind_vars;
             $self->_rebless;
           }
         }
-      }
 
-      if (not $self->dbh->{syb_dynamic_supported}) {
+        $self->set_textsize; # based on LongReadLen in connect_info
+
+      } elsif (not $self->dbh->{syb_dynamic_supported}) {
+# not necessarily FreeTDS, but no placeholders nevertheless
         $self->ensure_class_loaded($no_bind_vars);
         bless $self, $no_bind_vars;
         $self->_rebless;
@@ -119,7 +116,7 @@ sub _populate_dbh {
 
   $self->next::method(@_);
 
-  if (not $self->_using_freetds) {
+  if (not $self->using_freetds) {
     $self->_dbh->{syb_chained_txn} = 1;
   } else {
     if ($self->_dbh_autocommit) {
@@ -159,6 +156,33 @@ sub connect_call_blob_setup {
     if exists $args{log_on_update};
 }
 
+=head2 connect_call_set_auto_cast
+
+In some configurations (usually with L</FreeTDS>) statements with values bound
+to columns or conditions that are not strings will throw implicit type
+conversion errors. For L</FreeTDS> this is automatically detected, and this
+option is set.
+
+It converts placeholders to:
+
+  CAST(? as $type)
+
+the type is taken from the L<DBIx::Class::ResultSource/data_type> setting from
+your Result class, and mapped to a Sybase type using a mapping based on
+L<SQL::Translator> if necessary.
+
+This setting can also be set outside of
+L<DBIx::Class::Storage::DBI/connect_info> at any time using:
+
+  $schema->storage->auto_cast(1);
+
+=cut
+
+sub connect_call_set_auto_cast {
+  my $self = shift;
+  $self->auto_cast(1);
+}
+
 sub _is_lob_type {
   my $self = shift;
   my $type = shift;
@@ -178,7 +202,7 @@ sub _prep_for_execute {
 #
 # If we're using ::NoBindVars, there are no binds by this point so this code
 # gets skippeed.
-  if ($self->_auto_cast && @$bind) {
+  if ($self->auto_cast && @$bind) {
     my $new_sql;
     my @sql_part = split /\?/, $sql;
     my $col_info = $self->_resolve_column_info($ident,[ map $_->[0], @$bind ]);
@@ -426,7 +450,7 @@ sub _insert_blobs {
     my $exception = $@;
     $sth->finish if $sth;
     if ($exception) {
-      if ($self->_using_freetds) {
+      if ($self->using_freetds) {
         croak
 "TEXT/IMAGE operation failed, probably because you're using FreeTDS: " .
 $exception;
@@ -464,6 +488,7 @@ C<SMALLDATETIME> columns only have minute precision.
     my $dbh = $self->_dbh;
 
     if ($dbh->can('syb_date_fmt')) {
+# amazingly, this works with FreeTDS
       $dbh->syb_date_fmt('ISO_strict');
     } elsif (not $old_dbd_warned) {
       carp "Your DBD::Sybase is too old to support ".
@@ -471,7 +496,7 @@ C<SMALLDATETIME> columns only have minute precision.
       $old_dbd_warned = 1;
     }
 
-    $dbh->do('set dateformat mdy');
+    $dbh->do('SET DATEFORMAT mdy');
 
     1;
   }
@@ -479,33 +504,34 @@ C<SMALLDATETIME> columns only have minute precision.
 
 sub datetime_parser_type { "DateTime::Format::Sybase" }
 
-# ->begin_work and such have no effect with FreeTDS
+# ->begin_work and such have no effect with FreeTDS but we run them anyway to
+# let the DBD keep any state it needs to.
+#
+# If they ever do start working, the extra statements will do no harm (because
+# Sybase supports nested transactions.)
 
 sub _dbh_begin_work {
   my $self = shift;
-  if (not $self->_using_freetds) {
-    return $self->next::method(@_);
-  } else {
+  $self->next::method(@_);
+  if ($self->using_freetds) {
     $self->dbh->do('BEGIN TRAN');
   }
 }
 
 sub _dbh_commit {
   my $self = shift;
-  if (not $self->_using_freetds) {
-    return $self->next::method(@_);
-  } else {
+  if ($self->using_freetds) {
     $self->_dbh->do('COMMIT');
   }
+  return $self->next::method(@_);
 }
 
 sub _dbh_rollback {
   my $self = shift;
-  if (not $self->_using_freetds) {
-    return $self->next::method(@_);
-  } else {
+  if ($self->using_freetds) {
     $self->_dbh->do('ROLLBACK');
   }
+  return $self->next::method(@_);
 }
 
 # savepoint support using ASE syntax
@@ -527,15 +553,47 @@ sub _svp_rollback {
 
 1;
 
+=head1 FreeTDS
+
+This driver supports L<DBD::Sybase> compiled against FreeTDS
+(L<http://www.freetds.org/>) to the best of our ability, however it is
+recommended that you recompile L<DBD::Sybase> against the Sybase Open Client
+libraries. They are a part of the Sybase ASE distribution:
+
+The Open Client FAQ is here:
+L<http://www.isug.com/Sybase_FAQ/ASE/section7.html>.
+
+Sybase ASE for Linux (which comes with the Open Client libraries) may be
+downloaded here: L<http://response.sybase.com/forms/ASE_Linux_Download>.
+
+To see if you're using FreeTDS check C<< $schema->storage->using_freetds >>, or run:
+
+  perl -MDBI -le 'my $dbh = DBI->connect($dsn, $user, $pass); print $dbh->{syb_oc_version}'
+
+Some versions of the libraries involved will not support placeholders, in which
+case the storage will be reblessed to
+L<DBIx::Class::Storage::DBI::Sybase::NoBindVars>.
+
+In some configurations, placeholders will work but will throw implicit
+conversion errors for anything that's not expecting a string. In such a case,
+the C<auto_cast> option is automatically set, which you may enable yourself with
+L</connect_call_set_auto_cast> (see the description of that method for more
+details.)
+
+In other configurations, placeholers will work just as they do with the Sybase
+Open Client libraries.
+
+Inserts or updates of TEXT/IMAGE columns will B<NOT> work with FreeTDS.
+
 =head1 MAXIMUM CONNECTIONS
 
-L<DBD::Sybase> makes separate connections to the server for active statements in
-the background. By default the number of such connections is limited to 25, on
-both the client side and the server side.
+The TDS protocol makes separate connections to the server for active statements
+in the background. By default the number of such connections is limited to 25,
+on both the client side and the server side.
 
-This is a bit too low, so on connection the clientside setting is set to C<256>
-(see L<DBD::Sybase/maxConnect>.) You can override it to whatever setting you
-like in the DSN.
+This is a bit too low for a complex L<DBIx::Class> application, so on connection
+the client side setting is set to C<256> (see L<DBD::Sybase/maxConnect>.) You
+can override it to whatever setting you like in the DSN.
 
 See
 L<http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.ase_15.0.sag1/html/sag1/sag1272.htm>
@@ -546,16 +604,24 @@ for information on changing the setting on the server side.
 See L</connect_call_datetime_setup> to setup date formats
 for L<DBIx::Class::InflateColumn::DateTime>.
 
-=head1 IMAGE AND TEXT COLUMNS
+=head1 TEXT/IMAGE COLUMNS
 
 L<DBD::Sybase> compiled with FreeTDS will B<NOT> allow you to insert or update
 C<TEXT/IMAGE> columns.
 
-C<< $dbh->{LongReadLen} >> will also not work with FreeTDS use:
+Setting C<< $dbh->{LongReadLen} >> will also not work with FreeTDS use either:
 
-  $schema->storage->dbh->do("SET TEXTSIZE <bytes>")
+  $schema->storage->dbh->do("SET TEXTSIZE $bytes");
+
+or
+
+  $schema->storage->set_textsize($bytes);
 
 instead.
+
+However, the C<LongReadLen> you pass in
+L<DBIx::Class::Storage::DBI/connect_info> is used to execute the equivalent
+C<SET TEXTSIZE> command on connection.
 
 See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
 setting you need to work with C<IMAGE> columns.

@@ -1,5 +1,4 @@
-package # hide from PAUSE
-    DBIx::Class::Storage::DBI::Sybase::Base;
+package DBIx::Class::Storage::DBI::Sybase::Base;
 
 use strict;
 use warnings;
@@ -11,6 +10,15 @@ use mro 'c3';
 
 DBIx::Class::Storage::DBI::Sybase::Base - Common functionality for drivers using
 DBD::Sybase
+
+=head1 DESCRIPTION
+
+This is the base class for L<DBIx::Class::Storage::DBI::Sybase> and
+L<DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server>. It provides some
+utility methods related to L<DBD::Sybase> and the supported functions of the
+database you are connecting to.
+
+=head1 METHODS
 
 =cut
 
@@ -27,7 +35,14 @@ sub _ping {
   return $@ ? 0 : 1;
 }
 
-sub _placeholders_supported {
+=head2 placeholders_supported
+
+Whether or not string placeholders work. Does not check for implicit conversion
+errors, see L</placeholders_with_type_conversion_supported>.
+
+=cut
+
+sub placeholders_supported {
   my $self = shift;
   my $dbh  = $self->_dbh;
 
@@ -35,16 +50,22 @@ sub _placeholders_supported {
 # There's also $dbh->{syb_dynamic_supported} but it can be inaccurate for this
 # purpose.
     local $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
     $dbh->selectrow_array('select ?', {}, 1);
   };
 }
 
-sub _placeholders_with_type_conversion_supported {
+=head2 placeholders_with_type_conversion_supported 
+
+=cut
+
+sub placeholders_with_type_conversion_supported {
   my $self = shift;
   my $dbh  = $self->_dbh;
 
   return eval {
     local $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
 # this specifically tests a bind that is NOT a string
     $dbh->selectrow_array('select 1 where 1 = ?', {}, 1);
   };
@@ -66,10 +87,39 @@ sub _set_max_connect {
   }
 }
 
-sub _using_freetds {
+=head2 using_freetds
+
+Whether or not L<DBD::Sybase> was compiled against FreeTDS. If false, it means
+the Sybase OpenClient libraries were used.
+
+=cut
+
+sub using_freetds {
   my $self = shift;
 
   return $self->_dbh->{syb_oc_version} =~ /freetds/i;
+}
+
+=head2 set_textsize
+
+When using FreeTDS and/or MSSQL, C<< $dbh->{LongReadLen} >> is not available,
+use this function instead. It does:
+
+  $dbh->do("SET TEXTSIZE $bytes");
+
+Takes the number of bytes, or uses the C<LongReadLen> value from your
+L<DBIx::Class/connect_info> if omitted.
+
+=cut
+
+sub set_textsize {
+  my $self = shift;
+  my $text_size = shift ||
+    eval { $self->_dbi_connect_info->[-1]->{LongReadLen} };
+
+  return unless defined $text_size;
+
+  $self->_dbh->do("SET TEXTSIZE $text_size");
 }
 
 1;
