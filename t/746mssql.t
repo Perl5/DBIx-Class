@@ -12,8 +12,9 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 34;
+plan tests => 39;
 
+DBICTest::Schema->load_classes('ArtistGUID');
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 {
@@ -33,7 +34,6 @@ $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
     eval { $dbh->do("DROP TABLE artist") };
     $dbh->do(<<'SQL');
-
 CREATE TABLE artist (
    artistid INT IDENTITY NOT NULL,
    name VARCHAR(100),
@@ -41,9 +41,7 @@ CREATE TABLE artist (
    charfield CHAR(10) NULL,
    primary key(artistid)
 )
-
 SQL
-
 });
 
 my %seen_id;
@@ -85,6 +83,49 @@ $it->next;
 is( $it->next->name, "Artist 2", "iterator->next ok" );
 is( $it->next, undef, "next past end of resultset ok" );
 
+# test GUID columns
+
+$schema->storage->dbh_do (sub {
+    my ($storage, $dbh) = @_;
+    eval { $dbh->do("DROP TABLE artist") };
+    $dbh->do(<<'SQL');
+CREATE TABLE artist (
+   artistid UNIQUEIDENTIFIER NOT NULL,
+   name VARCHAR(100),
+   rank INT NOT NULL DEFAULT '13',
+   charfield CHAR(10) NULL,
+   a_guid UNIQUEIDENTIFIER,
+   primary key(artistid)
+)
+SQL
+});
+
+my $row;
+lives_ok {
+  $row = $schema->resultset('ArtistGUID')->create({ name => 'mtfnpy' })
+} 'created a row with a GUID';
+
+ok(
+  eval { $row->artistid },
+  'row has GUID PK col populated',
+);
+diag $@ if $@;
+
+ok(
+  eval { $row->a_guid },
+  'row has a GUID col with auto_nextval populated',
+);
+diag $@ if $@;
+
+my $row_from_db = $schema->resultset('ArtistGUID')
+  ->search({ name => 'mtfnpy' })->first;
+
+is $row_from_db->artistid, $row->artistid,
+  'PK GUID round trip';
+
+is $row_from_db->a_guid, $row->a_guid,
+  'NON-PK GUID round trip';
+
 # test MONEY type
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
@@ -102,7 +143,6 @@ SQL
 
 my $rs = $schema->resultset('Money');
 
-my $row;
 lives_ok {
   $row = $rs->create({ amount => 100 });
 } 'inserted a money value';
@@ -126,8 +166,6 @@ $schema->storage->dbh_do (sub {
     eval { $dbh->do("DROP TABLE Owners") };
     eval { $dbh->do("DROP TABLE Books") };
     $dbh->do(<<'SQL');
-
-
 CREATE TABLE Books (
    id INT IDENTITY (1, 1) NOT NULL,
    source VARCHAR(100),
@@ -140,7 +178,6 @@ CREATE TABLE Owners (
    id INT IDENTITY (1, 1) NOT NULL,
    name VARCHAR(100),
 )
-
 SQL
 
 });
@@ -278,11 +315,9 @@ $schema->storage->_sql_maker->{name_sep} = '.';
 
 # clean up our mess
 END {
-    if (my $dbh = eval { $schema->storage->_dbh }) {
-      $dbh->do('DROP TABLE artist');
-      $dbh->do('DROP TABLE money_test');
-      $dbh->do('DROP TABLE Books');
-      $dbh->do('DROP TABLE Owners');
-    }
+  if (my $dbh = eval { $schema->storage->_dbh }) {
+    eval { $dbh->do("DROP TABLE $_") }
+      for qw/artist money_test Books Owners/;
+  }
 }
 # vim:sw=2 sts=2

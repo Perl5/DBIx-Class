@@ -41,6 +41,40 @@ sub insert_bulk {
   }
 }
 
+sub insert {
+  my $self = shift;
+  my ($source, $to_insert) = @_;
+
+  my $updated_cols = {};
+
+  my %guid_cols;
+  my @pk_cols = $source->primary_columns;
+  my %pk_cols;
+  @pk_cols{@pk_cols} = ();
+
+  my @pk_guids = grep {
+    $source->column_info($_)->{data_type} =~ /^uniqueidentifier/i
+  } @pk_cols;
+
+  my @auto_guids = grep {
+    $source->column_info($_)->{data_type} =~ /^uniqueidentifier/i
+    &&
+    $source->column_info($_)->{auto_nextval}
+  } grep { not exists $pk_cols{$_} } $source->columns;
+
+  my @get_guids_for =
+    grep { not exists $to_insert->{$_} } (@pk_guids, @auto_guids);
+
+  for my $guid_col (@get_guids_for) {
+    my ($new_guid) = $self->dbh->selectrow_array('SELECT NEWID()');
+    $updated_cols->{$guid_col} = $to_insert->{$guid_col} = $new_guid;
+  }
+
+  $updated_cols = { %$updated_cols, %{ $self->next::method(@_) } };
+
+  return $updated_cols;
+}
+
 sub _prep_for_execute {
   my $self = shift;
   my ($op, $extra_bind, $ident, $args) = @_;
