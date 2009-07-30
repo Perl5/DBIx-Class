@@ -129,7 +129,7 @@ sub _fetch_identity {
   my ($identity) = $sth->fetchrow_array;
   $sth->finish;
 
-  if ((not defined $identity) && $self->_identity_method) 
+  if ((not defined $identity) && $self->_identity_method) {
     ($identity) = $self->_dbh->selectrow_array(
       'select ' . $self->_identity_method
     );
