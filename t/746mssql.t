@@ -100,6 +100,9 @@ CREATE TABLE artist (
 SQL
 });
 
+# start disconnected to make sure insert works on an un-reblessed storage
+$schema = DBICTest::Schema->connect($dsn, $user, $pass);
+
 my $row;
 lives_ok {
   $row = $schema->resultset('ArtistGUID')->create({ name => 'mtfnpy' })

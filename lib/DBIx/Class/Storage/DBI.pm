@@ -15,8 +15,8 @@ use Scalar::Util();
 use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
-     _conn_pid _conn_tid transaction_depth _dbh_autocommit savepoints/
+  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
+     _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints/
 );
 
 # the values for these accessors are picked out (and deleted) from
@@ -763,7 +763,7 @@ sub _populate_dbh {
 sub _determine_driver {
   my ($self) = @_;
 
-  if (ref $self eq 'DBIx::Class::Storage::DBI') {
+  if (not $self->_driver_determined) {
     my $driver;
 
     if ($self->_dbh) { # we are connected
@@ -780,6 +780,8 @@ sub _determine_driver {
       bless $self, $storage_class;
       $self->_rebless();
     }
+
+    $self->_driver_determined(1);
   }
 }
 
@@ -1142,7 +1144,7 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
-  if ((not $self->_dbh) && ref($self) eq __PACKAGE__) {
+  if (not $self->_driver_determined) {
     $self->_determine_driver;
     goto $self->can('insert');
   }
