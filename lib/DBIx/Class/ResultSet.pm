@@ -3377,6 +3377,34 @@ with that artist is given below (assuming many-to-many from artists to tags):
 B<NOTE:> If you specify a C<prefetch> attribute, the C<join> and C<select>
 attributes will be ignored.
 
+B<CAVEATs>:
+
+=over 4
+
+=item * Prefetch uses the cache to populate the prefetched relationships. This
+may or may not be what you want.
+
+=item * If you specify a condition on a prefetched relationship, ONLY those
+rows that match the prefetched condition will be fetched into that relationship.
+This means that adding prefetch to a search() B<may alter> what is returned by
+traversing a relationship. So, if you have C<Foo->has_many(Bar)> and you do
+
+  my $foo_rs = Foo->search({
+      'bar.col1' => $value,
+  });
+
+  my $count = $foo_rs->first->bars->count;
+
+  my $foo_rs_prefetch = $foo_rs->search( {}, { prefetch => 'bars' } );
+
+  my $prefetch_count = $foo_rs_prefetch->first->bars->count;
+
+  cmp_ok( $count, '==', $prefetch_count, "Counts should be the same" );
+
+that cmp_ok() may or may not pass depending on the datasets involved.
+
+=back
+
 =head2 page
 
 =over 4
