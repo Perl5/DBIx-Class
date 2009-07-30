@@ -3377,7 +3377,8 @@ with that artist is given below (assuming many-to-many from artists to tags):
 B<NOTE:> If you specify a C<prefetch> attribute, the C<join> and C<select>
 attributes will be ignored.
 
-B<CAVEATs>:
+B<CAVEATs>: Prefetch does a lot of deep magic. As such, it may not behave
+exactly as you might expect.
 
 =over 4
 
@@ -3390,7 +3391,9 @@ This means that adding prefetch to a search() B<may alter> what is returned by
 traversing a relationship. So, if you have C<Foo->has_many(Bar)> and you do
 
   my $foo_rs = Foo->search({
-      'bar.col1' => $value,
+      'bars.col1' => $value,
+  }, {
+      join => 'bars',
   });
 
   my $count = $foo_rs->first->bars->count;
@@ -3401,7 +3404,8 @@ traversing a relationship. So, if you have C<Foo->has_many(Bar)> and you do
 
   cmp_ok( $count, '==', $prefetch_count, "Counts should be the same" );
 
-that cmp_ok() may or may not pass depending on the datasets involved.
+that cmp_ok() may or may not pass depending on the datasets involved. This
+behavior may or may not survive the 0.09 transition.
 
 =back
 
