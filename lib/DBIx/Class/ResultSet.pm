@@ -3382,25 +3382,29 @@ exactly as you might expect.
 
 =over 4
 
-=item * Prefetch uses the cache to populate the prefetched relationships. This
+=item * 
+
+Prefetch uses the L</cache> to populate the prefetched relationships. This
 may or may not be what you want.
 
-=item * If you specify a condition on a prefetched relationship, ONLY those
+=item * 
+
+If you specify a condition on a prefetched relationship, ONLY those
 rows that match the prefetched condition will be fetched into that relationship.
 This means that adding prefetch to a search() B<may alter> what is returned by
-traversing a relationship. So, if you have C<Foo->has_many(Bar)> and you do
+traversing a relationship. So, if you have C<Artist->has_many(CDs)> and you do
 
-  my $foo_rs = Foo->search({
-      'bars.col1' => $value,
+  my $artist_rs = $schema->resultset('Artist')->search({
+      'cds.year' => 2008,
   }, {
-      join => 'bars',
+      join => 'cds',
   });
 
-  my $count = $foo_rs->first->bars->count;
+  my $count = $artist_rs->first->cds->count;
 
-  my $foo_rs_prefetch = $foo_rs->search( {}, { prefetch => 'bars' } );
+  my $artist_rs_prefetch = $artist_rs->search( {}, { prefetch => 'cds' } );
 
-  my $prefetch_count = $foo_rs_prefetch->first->bars->count;
+  my $prefetch_count = $artist_rs_prefetch->first->cds->count;
 
   cmp_ok( $count, '==', $prefetch_count, "Counts should be the same" );
 
