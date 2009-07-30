@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat Jun 27 14:02:39 2009
+-- Created on Thu Jul 30 08:44:22 2009
 -- 
 
 
@@ -63,7 +63,8 @@ CREATE TABLE event (
   created_on timestamp NOT NULL,
   varchar_date varchar(20),
   varchar_datetime varchar(20),
-  skip_inflation datetime
+  skip_inflation datetime,
+  ts_without_tz datetime
 );
 
 --
@@ -104,6 +105,14 @@ CREATE TABLE link (
   id INTEGER PRIMARY KEY NOT NULL,
   url varchar(100),
   title varchar(100)
+);
+
+--
+-- Table: money_test
+--
+CREATE TABLE money_test (
+  id INTEGER PRIMARY KEY NOT NULL,
+  amount money
 );
 
 --
@@ -225,7 +234,7 @@ CREATE INDEX artist_undirected_map_idx_id2 ON artist_undirected_map (id2);
 --
 CREATE TABLE bookmark (
   id INTEGER PRIMARY KEY NOT NULL,
-  link integer NOT NULL
+  link integer
 );
 
 CREATE INDEX bookmark_idx_link ON bookmark (link);
