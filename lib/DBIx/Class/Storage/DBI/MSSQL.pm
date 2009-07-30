@@ -41,6 +41,8 @@ sub insert_bulk {
   }
 }
 
+# support MSSQL GUID column types
+
 sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
@@ -127,9 +129,10 @@ sub _fetch_identity {
   my ($identity) = $sth->fetchrow_array;
   $sth->finish;
 
-  if ((not defined $identity) && $self->_identity_method &&
-        $self->_identity_method eq '@@identity') {
-    ($identity) = $self->_dbh->selectrow_array('select @@identity');
+  if ((not defined $identity) && $self->_identity_method) 
+    ($identity) = $self->_dbh->selectrow_array(
+      'select ' . $self->_identity_method
+    );
   }
 
   return $identity;

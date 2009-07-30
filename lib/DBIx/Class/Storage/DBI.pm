@@ -1144,6 +1144,7 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
+# redispatch to insert method of storage we reblessed into, if necessary
   if (not $self->_driver_determined) {
     $self->_determine_driver;
     goto $self->can('insert');
