@@ -1142,12 +1142,16 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
+  if ((not $self->_dbh) && ref($self) eq __PACKAGE__) {
+    $self->_determine_driver;
+    goto $self->can('insert');
+  }
+
   my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
 
   my $updated_cols = {};
 
-  $self->ensure_connected;
   foreach my $col ( $source->columns ) {
     if ( !defined $to_insert->{$col} ) {
       my $col_info = $source->column_info($col);
