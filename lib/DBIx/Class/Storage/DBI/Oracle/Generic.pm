@@ -231,6 +231,7 @@ table with more than one LOB column.
 
 sub source_bind_attributes 
 {
+	require DBD::Oracle;
 	my $self = shift;
 	my($source) = @_;
 
