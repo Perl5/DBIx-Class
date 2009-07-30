@@ -27,8 +27,11 @@ my $schema = DBICTest::Schema->clone;
 $schema->connection($dsn, $user, $pass);
 $schema->storage->ensure_connected;
 
+# coltype, column, datehash
 my @dt_types = (
-  ['DATETIME', {
+  ['DATETIME',
+   'last_updated_at',
+   {
     year => 2004,
     month => 8,
     day => 21,
@@ -37,7 +40,9 @@ my @dt_types = (
     second => 48,
     nanosecond => 500000000,
   }],
-  ['SMALLDATETIME', { # minute precision
+  ['SMALLDATETIME', # minute precision
+   'small_dt',
+   {
     year => 2004,
     month => 8,
     day => 21,
@@ -47,7 +52,7 @@ my @dt_types = (
 );
 
 for my $dt_type (@dt_types) {
-  my ($type, $sample_dt) = @$dt_type;
+  my ($type, $col, $sample_dt) = @$dt_type;
 
   eval { $schema->storage->dbh->do("DROP TABLE track") };
   $schema->storage->dbh->do(<<"SQL");
@@ -55,21 +60,21 @@ CREATE TABLE track (
  trackid INT IDENTITY PRIMARY KEY,
  cd INT,
  position INT,
- last_updated_on $type,
+ $col $type,
 )
 SQL
   ok(my $dt = DateTime->new($sample_dt));
 
   my $row;
   ok( $row = $schema->resultset('Track')->create({
-        last_updated_on => $dt,
+        $col => $dt,
         cd => 1,
       }));
   ok( $row = $schema->resultset('Track')
-    ->search({ trackid => $row->trackid }, { select => ['last_updated_on'] })
+    ->search({ trackid => $row->trackid }, { select => [$col] })
     ->first
   );
-  is( $row->updated_date, $dt, 'DateTime roundtrip' );
+  is( $row->$col, $dt, 'DateTime roundtrip' );
 }
 
 # clean up our mess
