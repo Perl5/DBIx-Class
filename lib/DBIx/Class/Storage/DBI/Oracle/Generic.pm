@@ -26,9 +26,6 @@ This class implements autoincrements for Oracle.
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
-# For ORA_BLOB => 113, ORA_CLOB => 112
-use DBD::Oracle qw( :ora_types );
-
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, @columns) = @_;
   my @ids = ();
@@ -246,8 +243,9 @@ sub source_bind_attributes
 		my %column_bind_attrs = $self->bind_attribute_by_data_type($data_type);
 
 		if ($data_type =~ /^[BC]LOB$/i) {
-			$column_bind_attrs{'ora_type'}
-				= uc($data_type) eq 'CLOB' ? ORA_CLOB : ORA_BLOB;
+			$column_bind_attrs{'ora_type'} = uc($data_type) eq 'CLOB' ?
+				DBD::Oracle::ORA_CLOB() :
+				DBD::Oracle::ORA_BLOB();
 			$column_bind_attrs{'ora_field'} = $column;
 		}
 
