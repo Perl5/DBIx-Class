@@ -419,14 +419,13 @@ sub _insert_blobs {
 
   for my $col (keys %$blob_cols) {
     my $blob = $blob_cols->{$col};
-    my $sth;
 
     my %where = map { ($_, $row{$_}) } @primary_cols;
     my $cursor = $source->resultset->search(\%where, {
       select => [$col]
     })->cursor;
     $cursor->next;
-    $sth = $cursor->sth;
+    my $sth = $cursor->sth;
 
     eval {
       do {

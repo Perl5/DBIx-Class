@@ -43,13 +43,15 @@ for my $storage_type (@storage_types) {
 
   isa_ok( $schema->storage, "DBIx::Class::Storage::$storage_type" );
 
+# coltype, col, date
   my @dt_types = (
-    ['DATETIME', '2004-08-21T14:36:48.080Z'],
-    ['SMALLDATETIME', '2004-08-21T14:36:00.000Z'], # minute precision
+    ['DATETIME', 'last_updated_at', '2004-08-21T14:36:48.080Z'],
+# minute precision
+    ['SMALLDATETIME', 'small_dt', '2004-08-21T14:36:00.000Z'],
   );
   
   for my $dt_type (@dt_types) {
-    my ($type, $sample_dt) = @$dt_type;
+    my ($type, $col, $sample_dt) = @$dt_type;
 
     eval { $schema->storage->dbh->do("DROP TABLE track") };
     $schema->storage->dbh->do(<<"SQL");
@@ -57,21 +59,21 @@ CREATE TABLE track (
    trackid INT IDENTITY PRIMARY KEY,
    cd INT,
    position INT,
-   last_updated_on $type,
+   $col $type,
 )
 SQL
     ok(my $dt = DateTime::Format::Sybase->parse_datetime($sample_dt));
 
     my $row;
     ok( $row = $schema->resultset('Track')->create({
-          last_updated_on => $dt,
+          $col => $dt,
           cd => 1,
         }));
     ok( $row = $schema->resultset('Track')
-      ->search({ trackid => $row->trackid }, { select => ['last_updated_on'] })
+      ->search({ trackid => $row->trackid }, { select => [$col] })
       ->first
     );
-    is( $row->updated_date, $dt, 'DateTime roundtrip' );
+    is( $row->$col, $dt, 'DateTime roundtrip' );
   }
 }
 

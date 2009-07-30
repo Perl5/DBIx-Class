@@ -30,6 +30,10 @@ __PACKAGE__->add_columns(
     data_type => 'datetime',
     is_nullable => 1
   },
+  small_dt => { # for mssql and sybase DT tests
+    data_type => 'smalldatetime',
+    is_nullable => 1
+  },
 );
 __PACKAGE__->set_primary_key('trackid');
 
