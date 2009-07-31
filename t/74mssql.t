@@ -23,8 +23,8 @@ my $TESTS = 13;
 plan tests => $TESTS * 2;
 
 my @storage_types = (
-  'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server',
-  'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars',
+  'DBI::Sybase::Microsoft_SQL_Server',
+  'DBI::Sybase::Microsoft_SQL_Server::NoBindVars',
 );
 my $storage_idx = -1;
 my $schema;
@@ -35,7 +35,7 @@ for my $storage_type (@storage_types) {
   $schema = DBICTest::Schema->clone;
 
   if ($storage_idx != 0) { # autodetect
-    $schema->storage_type($storage_type);
+    $schema->storage_type("::$storage_type");
   }
 
   $schema->connection($dsn, $user, $pass);
@@ -48,7 +48,7 @@ for my $storage_type (@storage_types) {
     next;
   }
 
-  isa_ok($schema->storage, $storage_type);
+  isa_ok($schema->storage, "DBIx::Class::Storage::$storage_type");
 
 # start disconnected to test reconnection
   $schema->storage->_dbh->disconnect;

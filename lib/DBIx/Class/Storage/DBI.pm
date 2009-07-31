@@ -764,21 +764,23 @@ sub _determine_driver {
   my ($self) = @_;
 
   if (not $self->_driver_determined) {
-    my $driver;
+    if (ref($self) eq __PACKAGE__) {
+      my $driver;
 
-    if ($self->_dbh) { # we are connected
-      $driver = $self->_dbh->{Driver}{Name};
-    } else {
-      # try to use dsn to not require being connected, the driver may still
-      # force a connection in _rebless to determine version
-      ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
-    }
+      if ($self->_dbh) { # we are connected
+        $driver = $self->_dbh->{Driver}{Name};
+      } else {
+        # try to use dsn to not require being connected, the driver may still
+        # force a connection in _rebless to determine version
+        ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+      }
 
-    my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
-    if ($self->load_optional_class($storage_class)) {
-      mro::set_mro($storage_class, 'c3');
-      bless $self, $storage_class;
-      $self->_rebless();
+      my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
+      if ($self->load_optional_class($storage_class)) {
+        mro::set_mro($storage_class, 'c3');
+        bless $self, $storage_class;
+        $self->_rebless();
+      }
     }
 
     $self->_driver_determined(1);
