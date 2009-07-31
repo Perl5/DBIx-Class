@@ -293,7 +293,7 @@ sub search_rs {
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
   # merge new attrs into inherited
-  foreach my $key (qw/join prefetch +select +as bind/) {
+  foreach my $key (qw/join order_by prefetch +select +as bind/) {
     next unless exists $attrs->{$key};
     $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
@@ -3392,7 +3392,7 @@ may or may not be what you want.
 If you specify a condition on a prefetched relationship, ONLY those
 rows that match the prefetched condition will be fetched into that relationship.
 This means that adding prefetch to a search() B<may alter> what is returned by
-traversing a relationship. So, if you have C<Artist->has_many(CDs)> and you do
+traversing a relationship. So, if you have C<< Artist->has_many(CDs) >> and you do
 
   my $artist_rs = $schema->resultset('Artist')->search({
       'cds.year' => 2008,
