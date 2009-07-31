@@ -8,7 +8,7 @@ use DBICTest;
 use DBIC::SqlMakerTest;
 use DBIC::DebugObj;
 
-plan tests => 6;
+plan tests => 9;
 
 my $schema = DBICTest->init_schema();
 
@@ -18,6 +18,31 @@ my $schema = DBICTest->init_schema();
             ->search_related('cds',
                 { 'tracks.position' => [1,2] },
                 { prefetch => [qw/tracks artist/] },
+            );
+  is ($rs->all, 5, 'Correct number of objects');
+
+
+  my ($sql, @bind);
+  $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
+  $schema->storage->debug(1);
+
+
+  is ($rs->count, 5, 'Correct count');
+
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'SELECT COUNT( * ) FROM (SELECT cds.cdid FROM artist me JOIN cd cds ON cds.artist = me.artistid LEFT JOIN track tracks ON tracks.cd = cds.cdid JOIN artist artist ON artist.artistid = cds.artist WHERE tracks.position = ? OR tracks.position = ? GROUP BY cds.cdid) count_subq',
+    [ qw/'1' '2'/ ],
+  );
+}
+
+# collapsing prefetch with distinct
+{
+  my $rs = $schema->resultset("Artist")->search(undef, {distinct => 1})
+            ->search_related('cds')->search_related('genre',
+                { 'genre.name' => 'foo' },
+                { prefetch => q(cds) },
             );
   is ($rs->all, 5, 'Correct number of objects');
 
