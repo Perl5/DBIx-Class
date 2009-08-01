@@ -1687,6 +1687,18 @@ sub _resolve_column_info {
   $sep = "\Q$sep\E";
 
   my (%return, %converted);
+
+  if (not $colnames) {
+    $colnames = [ map {
+      my $alias  = $_;
+      my $source = $alias2src->{$alias};
+      map "${alias}${sep}$_", $source->columns
+    } keys %$alias2src ];
+
+# also add unqualified columns for 'me' table
+    push @$colnames, $alias2src->{$root_alias}->columns;
+  }
+
   foreach my $col (@$colnames) {
     my ($alias, $colname) = $col =~ m/^ (?: ([^$sep]+) $sep)? (.+) $/x;
 
