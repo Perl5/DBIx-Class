@@ -73,8 +73,10 @@ Create a schema class called MyDB/Schema.pm:
 
   1;
 
-Create a table class to represent artists, who have many CDs, in
+Create a result class to represent artists, who have many CDs, in
 MyDB/Schema/Result/Artist.pm:
+
+See L<DBIx::Class::ResultSource> for docs on defining result classes.
 
   package MyDB::Schema::Result::Artist;
   use base qw/DBIx::Class/;
@@ -87,7 +89,7 @@ MyDB/Schema/Result/Artist.pm:
 
   1;
 
-A table class to represent a CD, which belongs to an artist, in
+A result class to represent a CD, which belongs to an artist, in
 MyDB/Schema/Result/CD.pm:
 
   package MyDB::Schema::Result::CD;
@@ -109,8 +111,16 @@ Then you can use these classes in your application's code:
 
   # Query for all artists and put them in an array,
   # or retrieve them as a result set object.
+  # $schema->resultset returns a DBIx::Class::ResultSet
   my @all_artists = $schema->resultset('Artist')->all;
   my $all_artists_rs = $schema->resultset('Artist');
+
+  # Output all artists names
+  # $artist here is a DBIx::Class::Row, which has accessors 
+  # for all its columns.
+  foreach $artist (@artists) {
+    print $artist->name, "\n";
+  }
 
   # Create a result set to search for artists.
   # This does not query the DB.
