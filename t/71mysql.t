@@ -169,7 +169,7 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
 # with it (ribasushi, 2009/07/03)
 
 NULLINSEARCH: {
-    my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, { on_connect_call => 'set_ansi_mode' });
+    my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, { on_connect_call => 'set_strict_mode' });
 
     $ansi_schema->resultset('Artist')->create ({ name => 'last created artist' });
 
