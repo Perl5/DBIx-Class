@@ -17,7 +17,7 @@ DBIx::Class::ResultSource::View - ResultSource object representing a view
 
 =head1 SYNOPSIS
 
-  package MyDB::Schema::Year2000CDs;
+  package MyDB::Schema::Result::Year2000CDs;
 
   use DBIx::Class::ResultSource::View;
 
