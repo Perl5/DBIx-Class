@@ -74,7 +74,7 @@ sub construct {
     my $class = shift;
     my $obj = $class->resultset_instance->new_result(@_);
     $obj->in_storage(1);
-    
+
     return $obj;
 }
 

@@ -1,4 +1,4 @@
-=head1 NAME 
+=head1 NAME
 
 DBIx::Class::Manual::Cookbook - Miscellaneous recipes
 
@@ -62,12 +62,12 @@ L<SQL::Abstract/WHERE CLAUSES>.
 Sometimes you need only the first "top" row of a resultset. While this can be
 easily done with L<< $rs->first|DBIx::Class::ResultSet/first >>, it is suboptimal,
 as a full blown cursor for the resultset will be created and then immediately
-destroyed after fetching the first row object. 
+destroyed after fetching the first row object.
 L<< $rs->single|DBIx::Class::ResultSet/single >> is
 designed specifically for this case - it will grab the first returned result
-without even instantiating a cursor. 
+without even instantiating a cursor.
 
-Before replacing all your calls to C<first()> with C<single()> please observe the 
+Before replacing all your calls to C<first()> with C<single()> please observe the
 following CAVEATS:
 
 =over
@@ -96,70 +96,30 @@ you can silence the warning by explicitly limiting the resultset size:
 
 Sometimes you have to run arbitrary SQL because your query is too complex
 (e.g. it contains Unions, Sub-Selects, Stored Procedures, etc.) or has to
-be optimized for your database in a special way, but you still want to 
-get the results as a L<DBIx::Class::ResultSet>. 
-The recommended way to accomplish this is by defining a separate ResultSource 
-for your query. You can then inject complete SQL statements using a scalar 
+be optimized for your database in a special way, but you still want to
+get the results as a L<DBIx::Class::ResultSet>.
+The recommended way to accomplish this is by defining a separate ResultSource
+for your query. You can then inject complete SQL statements using a scalar
 reference (this is a feature of L<SQL::Abstract>).
 
 Say you want to run a complex custom query on your user data, here's what
 you have to add to your User class:
 
   package My::Schema::Result::User;
-  
+
   use base qw/DBIx::Class/;
-  
+
   # ->load_components, ->table, ->add_columns, etc.
 
   # Make a new ResultSource based on the User class
   my $source = __PACKAGE__->result_source_instance();
   my $new_source = $source->new( $source );
   $new_source->source_name( 'UserFriendsComplex' );
-  
+
   # Hand in your query as a scalar reference
   # It will be added as a sub-select after FROM,
   # so pay attention to the surrounding brackets!
   $new_source->name( \<<SQL );
-  ( SELECT u.* FROM user u 
-  INNER JOIN user_friends f ON u.id = f.user_id 
-  WHERE f.friend_user_id = ?
-  UNION 
-  SELECT u.* FROM user u 
-  INNER JOIN user_friends f ON u.id = f.friend_user_id 
-  WHERE f.user_id = ? )
-  SQL 
-
-  # Finally, register your new ResultSource with your Schema
-  My::Schema->register_extra_source( 'UserFriendsComplex' => $new_source );
-
-Next, you can execute your complex query using bind parameters like this:
-
-  my $friends = [ $schema->resultset( 'UserFriendsComplex' )->search( {}, 
-    {
-      bind  => [ 12345, 12345 ]
-    }
-  ) ];
-  
-... and you'll get back a perfect L<DBIx::Class::ResultSet> (except, of course,
-that you cannot modify the rows it contains, ie. cannot call L</update>,
-L</delete>, ...  on it).
-
-If you prefer to have the definitions of these custom ResultSources in separate
-files (instead of stuffing all of them into the same resultset class), you can
-achieve the same with subclassing the resultset class and defining the
-ResultSource there:
-
-  package My::Schema::Result::UserFriendsComplex;
-
-  use My::Schema::Result::User;
-  use base qw/My::Schema::Result::User/;
-
-  __PACKAGE__->table('dummy');  # currently must be called before anything else
-
-  # Hand in your query as a scalar reference
-  # It will be added as a sub-select after FROM,
-  # so pay attention to the surrounding brackets!
-  __PACKAGE__->name( \<<SQL );
   ( SELECT u.* FROM user u
   INNER JOIN user_friends f ON u.id = f.user_id
   WHERE f.friend_user_id = ?
@@ -168,6 +128,47 @@ ResultSource there:
   INNER JOIN user_friends f ON u.id = f.friend_user_id
   WHERE f.user_id = ? )
   SQL
+
+  # Finally, register your new ResultSource with your Schema
+  My::Schema->register_extra_source( 'UserFriendsComplex' => $new_source );
+
+Next, you can execute your complex query using bind parameters like this:
+
+  my $friends = [ $schema->resultset( 'UserFriendsComplex' )->search( {},
+    {
+      bind  => [ 12345, 12345 ]
+    }
+  ) ];
+
+... and you'll get back a perfect L<DBIx::Class::ResultSet> (except, of course,
+that you cannot modify the rows it contains, ie. cannot call L</update>,
+L</delete>, ...  on it).
+
+If you prefer to have the definitions of these custom ResultSources in separate
+files (instead of stuffing all of them into the same ResultSource class), you
+can achieve the same with subclassing the ResultSource class and defining the
+new ResultSource there:
+
+  package My::Schema::Result::UserFriendsComplex;
+
+  use base qw/My::Schema::Result::User/;
+
+  __PACKAGE__->table('dummy');  # currently must be called before anything else
+
+  # Hand in your query as a scalar reference
+  # It will be added as a sub-select after FROM,
+  # so pay attention to the surrounding brackets!
+  __PACKAGE__->result_source_instance->name( \<<SQL );
+  ( SELECT u.* FROM user u
+  INNER JOIN user_friends f ON u.id = f.user_id
+  WHERE f.friend_user_id = ?
+  UNION
+  SELECT u.* FROM user u
+  INNER JOIN user_friends f ON u.id = f.friend_user_id
+  WHERE f.user_id = ? )
+  SQL
+
+  1;
 
 TIMTOWDI.
 
@@ -231,7 +232,7 @@ any of your aliases using either of these:
 
   # Define accessor manually:
   sub name_length { shift->get_column('name_length'); }
-    
+
   # Or use DBIx::Class::AccessorGroup:
   __PACKAGE__->mk_group_accessors('column' => 'name_length');
 
@@ -242,7 +243,7 @@ any of your aliases using either of these:
     {
       columns => [ qw/artist_id name rank/ ],
       distinct => 1
-    } 
+    }
   );
 
   my $rs = $schema->resultset('Artist')->search(
@@ -279,7 +280,7 @@ any of your aliases using either of these:
   my $count = $rs->count;
 
   # Equivalent SQL:
-  # SELECT COUNT( * ) FROM (SELECT me.name FROM artist me GROUP BY me.name) count_subq: 
+  # SELECT COUNT( * ) FROM (SELECT me.name FROM artist me GROUP BY me.name) count_subq:
 
 =head2 Grouping results
 
@@ -359,7 +360,7 @@ Please note that subqueries are considered an experimental feature.
 =head2 Predefined searches
 
 You can write your own L<DBIx::Class::ResultSet> class by inheriting from it
-and define often used searches as methods:
+and defining often used searches as methods:
 
   package My::DBIC::ResultSet::CD;
   use strict;
@@ -439,7 +440,7 @@ To return all CDs matching a particular artist name, you specify the name of the
 
   my $rs = $schema->resultset('CD')->search(
     {
-      'artists.name' => 'Bob Marley'    
+      'artists.name' => 'Bob Marley'
     },
     {
       join => 'artists', # join the artist table
@@ -452,7 +453,7 @@ To return all CDs matching a particular artist name, you specify the name of the
   # WHERE artist.name = 'Bob Marley'
 
 In that example both the join, and the condition use the relationship name rather than the table name
-(see DBIx::Class::Manual::Joining for more details on aliasing ).
+(see L<DBIx::Class::Manual::Joining> for more details on aliasing ).
 
 If required, you can now sort on any column in the related tables by including
 it in your C<order_by> attribute, (again using the aliased relation name rather than table name) :
@@ -673,7 +674,7 @@ It is possible to get a Schema object from a row object like so:
 
   my $schema = $cd->result_source->schema;
   # use the schema as normal:
-  my $artist_rs = $schema->resultset('Artist'); 
+  my $artist_rs = $schema->resultset('Artist');
 
 This can be useful when you don't want to pass around a Schema object to every
 method.
@@ -693,7 +694,7 @@ not work, but then you already know the value of the last primary key anyway.
 
 =head2 Stringification
 
-Employ the standard stringification technique by using the C<overload>
+Employ the standard stringification technique by using the L<overload>
 module.
 
 To make an object stringify itself as a single column, use something
@@ -741,16 +742,16 @@ Just use C<find_or_new> instead, then check C<in_storage>:
     # do whatever else you wanted if it was a new row
   }
 
-=head2 Static sub-classing DBIx::Class result classes 
+=head2 Static sub-classing DBIx::Class result classes
 
 AKA adding additional relationships/methods/etc. to a model for a
 specific usage of the (shared) model.
 
-B<Schema definition> 
- 
-    package My::App::Schema; 
-     
-    use base DBIx::Class::Schema; 
+B<Schema definition>
+
+    package My::App::Schema;
+
+    use base DBIx::Class::Schema;
 
     # load subclassed classes from My::App::Schema::Result/ResultSet
     __PACKAGE__->load_namespaces;
@@ -763,35 +764,35 @@ B<Schema definition>
         /]});
 
     1;
- 
-B<Result-Subclass definition> 
- 
+
+B<Result-Subclass definition>
+
     package My::App::Schema::Result::Baz;
-     
-    use strict; 
-    use warnings; 
-    use base My::Shared::Model::Result::Baz; 
-    
+
+    use strict;
+    use warnings;
+    use base My::Shared::Model::Result::Baz;
+
     # WARNING: Make sure you call table() again in your subclass,
     # otherwise DBIx::Class::ResultSourceProxy::Table will not be called
     # and the class name is not correctly registered as a source
-    __PACKAGE__->table('baz'); 
-     
-    sub additional_method { 
-        return "I'm an additional method only needed by this app"; 
+    __PACKAGE__->table('baz');
+
+    sub additional_method {
+        return "I'm an additional method only needed by this app";
     }
 
     1;
-     
-=head2 Dynamic Sub-classing DBIx::Class proxy classes 
+
+=head2 Dynamic Sub-classing DBIx::Class proxy classes
 
 AKA multi-class object inflation from one table
- 
+
 L<DBIx::Class> classes are proxy classes, therefore some different
 techniques need to be employed for more than basic subclassing.  In
 this example we have a single user table that carries a boolean bit
 for admin.  We would like like to give the admin users
-objects(L<DBIx::Class::Row>) the same methods as a regular user but
+objects (L<DBIx::Class::Row>) the same methods as a regular user but
 also special admin only methods.  It doesn't make sense to create two
 seperate proxy-class files for this.  We would be copying all the user
 methods into the Admin class.  There is a cleaner way to accomplish
@@ -803,128 +804,128 @@ L<DBIx::Class::ResultSet> when inflating a result from storage.  So we
 grab the object being returned, inspect the values we are looking for,
 bless it if it's an admin object, and then return it.  See the example
 below:
- 
-B<Schema Definition> 
- 
-    package My::Schema; 
-     
-    use base qw/DBIx::Class::Schema/; 
- 
+
+B<Schema Definition>
+
+    package My::Schema;
+
+    use base qw/DBIx::Class::Schema/;
+
     __PACKAGE__->load_namespaces;
 
     1;
- 
- 
-B<Proxy-Class definitions> 
- 
-    package My::Schema::Result::User; 
-     
-    use strict; 
-    use warnings; 
-    use base qw/DBIx::Class/; 
-     
-    ### Defined what our admin class is for ensure_class_loaded 
-    my $admin_class = __PACKAGE__ . '::Admin'; 
-     
-    __PACKAGE__->load_components(qw/Core/); 
-     
-    __PACKAGE__->table('users'); 
-     
-    __PACKAGE__->add_columns(qw/user_id   email    password  
-                                firstname lastname active 
-                                admin/); 
-     
-    __PACKAGE__->set_primary_key('user_id'); 
-     
-    sub inflate_result { 
-        my $self = shift;  
-        my $ret = $self->next::method(@_); 
-        if( $ret->admin ) {### If this is an admin rebless for extra functions  
-            $self->ensure_class_loaded( $admin_class ); 
-            bless $ret, $admin_class; 
-        } 
-        return $ret; 
-    } 
-     
-    sub hello { 
-        print "I am a regular user.\n"; 
-        return ; 
-    } 
-    
-    1;
 
-     
-    package My::Schema::Result::User::Admin; 
-     
-    use strict; 
-    use warnings; 
-    use base qw/My::Schema::Result::User/; 
 
-    # This line is important
+B<Proxy-Class definitions>
+
+    package My::Schema::Result::User;
+
+    use strict;
+    use warnings;
+    use base qw/DBIx::Class/;
+
+    ### Define what our admin class is, for ensure_class_loaded()
+    my $admin_class = __PACKAGE__ . '::Admin';
+
+    __PACKAGE__->load_components(qw/Core/);
+
     __PACKAGE__->table('users');
-     
-    sub hello 
-    { 
-        print "I am an admin.\n"; 
-        return; 
-    } 
-     
-    sub do_admin_stuff 
-    { 
-        print "I am doing admin stuff\n"; 
-        return ; 
+
+    __PACKAGE__->add_columns(qw/user_id   email    password
+                                firstname lastname active
+                                admin/);
+
+    __PACKAGE__->set_primary_key('user_id');
+
+    sub inflate_result {
+        my $self = shift;
+        my $ret = $self->next::method(@_);
+        if( $ret->admin ) {### If this is an admin, rebless for extra functions
+            $self->ensure_class_loaded( $admin_class );
+            bless $ret, $admin_class;
+        }
+        return $ret;
+    }
+
+    sub hello {
+        print "I am a regular user.\n";
+        return ;
     }
 
     1;
- 
-B<Test File> test.pl 
- 
-    use warnings; 
-    use strict; 
-    use My::Schema; 
-     
-    my $user_data = { email    => 'someguy@place.com',  
-                      password => 'pass1',  
-                      admin    => 0 }; 
-                           
-    my $admin_data = { email    => 'someadmin@adminplace.com',  
-                       password => 'pass2',  
-                       admin    => 1 }; 
-                           
-    my $schema = My::Schema->connection('dbi:Pg:dbname=test'); 
-     
-    $schema->resultset('User')->create( $user_data ); 
-    $schema->resultset('User')->create( $admin_data ); 
-     
-    ### Now we search for them 
-    my $user = $schema->resultset('User')->single( $user_data ); 
-    my $admin = $schema->resultset('User')->single( $admin_data ); 
-     
-    print ref $user, "\n"; 
-    print ref $admin, "\n"; 
-     
-    print $user->password , "\n"; # pass1 
-    print $admin->password , "\n";# pass2; inherited from User 
-    print $user->hello , "\n";# I am a regular user. 
-    print $admin->hello, "\n";# I am an admin. 
- 
-    ### The statement below will NOT print 
-    print "I can do admin stuff\n" if $user->can('do_admin_stuff'); 
-    ### The statement below will print 
-    print "I can do admin stuff\n" if $admin->can('do_admin_stuff'); 
+
+
+    package My::Schema::Result::User::Admin;
+
+    use strict;
+    use warnings;
+    use base qw/My::Schema::Result::User/;
+
+    # This line is important
+    __PACKAGE__->table('users');
+
+    sub hello
+    {
+        print "I am an admin.\n";
+        return;
+    }
+
+    sub do_admin_stuff
+    {
+        print "I am doing admin stuff\n";
+        return ;
+    }
+
+    1;
+
+B<Test File> test.pl
+
+    use warnings;
+    use strict;
+    use My::Schema;
+
+    my $user_data = { email    => 'someguy@place.com',
+                      password => 'pass1',
+                      admin    => 0 };
+
+    my $admin_data = { email    => 'someadmin@adminplace.com',
+                       password => 'pass2',
+                       admin    => 1 };
+
+    my $schema = My::Schema->connection('dbi:Pg:dbname=test');
+
+    $schema->resultset('User')->create( $user_data );
+    $schema->resultset('User')->create( $admin_data );
+
+    ### Now we search for them
+    my $user = $schema->resultset('User')->single( $user_data );
+    my $admin = $schema->resultset('User')->single( $admin_data );
+
+    print ref $user, "\n";
+    print ref $admin, "\n";
+
+    print $user->password , "\n"; # pass1
+    print $admin->password , "\n";# pass2; inherited from User
+    print $user->hello , "\n";# I am a regular user.
+    print $admin->hello, "\n";# I am an admin.
+
+    ### The statement below will NOT print
+    print "I can do admin stuff\n" if $user->can('do_admin_stuff');
+    ### The statement below will print
+    print "I can do admin stuff\n" if $admin->can('do_admin_stuff');
 
 =head2 Skip row object creation for faster results
 
 DBIx::Class is not built for speed, it's built for convenience and
 ease of use, but sometimes you just need to get the data, and skip the
 fancy objects.
-  
+
 To do this simply use L<DBIx::Class::ResultClass::HashRefInflator>.
-  
+
  my $rs = $schema->resultset('CD');
- 
+
  $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
- 
+
  my $hash_ref = $rs->find(1);
 
 Wasn't that easy?
@@ -968,7 +969,7 @@ ways, the obvious one is to use search:
 
   my $rs = $schema->resultset('Items')->search(
     {},
-    { 
+    {
        select => [ { sum => 'Cost' } ],
        as     => [ 'total_cost' ], # remember this 'as' is for DBIx::Class::ResultSet not SQL
     }
@@ -997,7 +998,7 @@ Or just iterate through the values of this column only:
     print $c;
   }
 
-C<ResultSetColumn> only has a limited number of built-in functions, if
+C<ResultSetColumn> only has a limited number of built-in functions. If
 you need one that it doesn't have, then you can use the C<func> method
 instead:
 
@@ -1012,7 +1013,7 @@ See L<DBIx::Class::ResultSetColumn> for more documentation.
 
 =head2 Creating a result set from a set of rows
 
-Sometimes you have a (set of) row objects that you want to put into a 
+Sometimes you have a (set of) row objects that you want to put into a
 resultset without the need to hit the DB again. You can do that by using the
 L<set_cache|DBIx::Class::Resultset/set_cache> method:
 
@@ -1047,7 +1048,7 @@ Deletes only the book named Titanic by the author in $author.
 
 =head2 Ordering a relationship result set
 
-If you always want a relation to be ordered, you can specify this when you 
+If you always want a relation to be ordered, you can specify this when you
 create the relationship.
 
 To order C<< $book->pages >> by descending page_number, create the relation
@@ -1108,9 +1109,9 @@ declaration, like so...
   package MyDatabase::Main::Artist;
   use base qw/DBIx::Class/;
   __PACKAGE__->load_components(qw/PK::Auto Core/);
-  
+
   __PACKAGE__->table('database1.artist'); # will use "database1.artist" in FROM clause
-  
+
   __PACKAGE__->add_columns(qw/ artist_id name /);
   __PACKAGE__->set_primary_key('artist_id');
   __PACKAGE__->has_many('cds' => 'MyDatabase::Main::Cd');
@@ -1131,16 +1132,16 @@ building a renaming facility, like so:
 
   package MyDatabase::Schema;
   use Moose;
-  
+
   extends 'DBIx::Class::Schema';
-  
+
   around connection => sub {
     my ( $inner, $self, $dsn, $username, $pass, $attr ) = ( shift, @_ );
-   
+
     my $postfix = delete $attr->{schema_name_postfix};
-    
+
     $inner->(@_);
-    
+
     if ( $postfix ) {
         $self->append_db_name($postfix);
     }
@@ -1148,18 +1149,18 @@ building a renaming facility, like so:
 
   sub append_db_name {
     my ( $self, $postfix ) = @_;
-    
-    my @sources_with_db 
-        = grep 
-            { $_->name =~ /^\w+\./mx } 
-            map 
-                { $self->source($_) } 
+
+    my @sources_with_db
+        = grep
+            { $_->name =~ /^\w+\./mx }
+            map
+                { $self->source($_) }
                 $self->sources;
-    
+
     foreach my $source (@sources_with_db) {
         my $name = $source->name;
         $name =~ s{^(\w+)\.}{${1}${postfix}\.}mx;
-        
+
         $source->name($name);
     }
   }
@@ -1171,17 +1172,17 @@ method and extracting a custom option from the provided \%attr hashref one can
 then simply iterate over all the Schema's ResultSources, renaming them as
 needed.
 
-To use this facility, simply add or modify the \%attr hashref that is passed to 
+To use this facility, simply add or modify the \%attr hashref that is passed to
 L<connection|DBIx::Class::Schama/connect>, as follows:
 
-  my $schema 
+  my $schema
     = MyDatabase::Schema->connect(
-      $dsn, 
-      $user, 
+      $dsn,
+      $user,
       $pass,
       {
         schema_name_postfix => '_dev'
-        # ... Other options as desired ... 
+        # ... Other options as desired ...
       })
 
 Obviously, one could accomplish even more advanced mapping via a hash map or a
@@ -1227,14 +1228,14 @@ transaction to fail. Support for savepoints and for true nested
 transactions (for databases that support them) will hopefully be added
 in the future.
 
-=head1 SQL 
+=head1 SQL
 
 =head2 Creating Schemas From An Existing Database
 
-L<DBIx::Class::Schema::Loader> will connect to a database and create a 
+L<DBIx::Class::Schema::Loader> will connect to a database and create a
 L<DBIx::Class::Schema> and associated sources by examining the database.
 
-The recommend way of achieving this is to use the 
+The recommend way of achieving this is to use the
 L<make_schema_at|DBIx::Class::Schema::Loader/make_schema_at> method:
 
   perl -MDBIx::Class::Schema::Loader=make_schema_at,dump_to_dir:./lib \
@@ -1296,7 +1297,7 @@ other than a select, if you CRUD on your dual table you *will* break
 your database.
 
 Make a table class as you would for any other table
-                                                                               
+
   package MyAppDB::Dual;
   use strict;
   use warnings;
@@ -1307,34 +1308,34 @@ Make a table class as you would for any other table
     "dummy",
     { data_type => "VARCHAR2", is_nullable => 0, size => 1 },
   );
- 
+
 Once you've loaded your table class select from it using C<select>
 and C<as> instead of C<columns>
- 
+
   my $rs = $schema->resultset('Dual')->search(undef,
     { select => [ 'sydate' ],
       as     => [ 'now' ]
     },
   );
- 
+
 All you have to do now is be careful how you access your resultset, the below
 will not work because there is no column called 'now' in the Dual table class
- 
+
   while (my $dual = $rs->next) {
     print $dual->now."\n";
   }
   # Can't locate object method "now" via package "MyAppDB::Dual" at headshot.pl line 23.
- 
+
 You could of course use 'dummy' in C<as> instead of 'now', or C<add_columns> to
 your Dual class for whatever you wanted to select from dual, but that's just
 silly, instead use C<get_column>
- 
+
   while (my $dual = $rs->next) {
     print $dual->get_column('now')."\n";
   }
- 
+
 Or use C<cursor>
- 
+
   my $cursor = $rs->cursor;
   while (my @vals = $cursor->next) {
     print $vals[0]."\n";
@@ -1351,48 +1352,48 @@ L<SQL::Translator> to not create table dual:
         parser_args    => { sources => [ grep $_ ne 'Dual', schema->sources ] },
     };
     $schema->create_ddl_dir( [qw/Oracle/], undef, './sql', undef, $sqlt_args );
- 
+
 Or use L<DBIx::Class::ResultClass::HashRefInflator>
- 
+
   $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
   while ( my $dual = $rs->next ) {
     print $dual->{now}."\n";
   }
- 
+
 Here are some example C<select> conditions to illustrate the different syntax
-you could use for doing stuff like 
+you could use for doing stuff like
 C<oracles.heavily(nested(functions_can('take', 'lots'), OF), 'args')>
- 
+
   # get a sequence value
   select => [ 'A_SEQ.nextval' ],
- 
+
   # get create table sql
   select => [ { 'dbms_metadata.get_ddl' => [ "'TABLE'", "'ARTIST'" ]} ],
- 
+
   # get a random num between 0 and 100
   select => [ { "trunc" => [ { "dbms_random.value" => [0,100] } ]} ],
- 
+
   # what year is it?
   select => [ { 'extract' => [ \'year from sysdate' ] } ],
- 
+
   # do some math
   select => [ {'round' => [{'cos' => [ \'180 * 3.14159265359/180' ]}]}],
- 
+
   # which day of the week were you born on?
   select => [{'to_char' => [{'to_date' => [ "'25-DEC-1980'", "'dd-mon-yyyy'" ]}, "'day'"]}],
- 
+
   # select 16 rows from dual
   select   => [ "'hello'" ],
   as       => [ 'world' ],
   group_by => [ 'cube( 1, 2, 3, 4 )' ],
- 
- 
+
+
 
 =head2 Adding Indexes And Functions To Your SQL
 
 Often you will want indexes on columns on your table to speed up searching. To
-do this, create a method called C<sqlt_deploy_hook> in the relevant source 
-class (refer to the advanced 
+do this, create a method called C<sqlt_deploy_hook> in the relevant source
+class (refer to the advanced
 L<callback system|DBIx::Class::ResultSource/sqlt_deploy_callback> if you wish
 to share a hook between multiple sources):
 
@@ -1409,13 +1410,13 @@ to share a hook between multiple sources):
 
  1;
 
-Sometimes you might want to change the index depending on the type of the 
+Sometimes you might want to change the index depending on the type of the
 database for which SQL is being generated:
 
   my ($db_type = $sqlt_table->schema->translator->producer_type)
     =~ s/^SQL::Translator::Producer:://;
 
-You can also add hooks to the schema level to stop certain tables being 
+You can also add hooks to the schema level to stop certain tables being
 created:
 
  package My::Schema;
@@ -1508,7 +1509,7 @@ database thinks it has.
 Alternatively, you can send the conversion sql scripts to your
 customers as above.
 
-=head2 Setting quoting for the generated SQL. 
+=head2 Setting quoting for the generated SQL.
 
 If the database contains column names with spaces and/or reserved words, they
 need to be quoted in the SQL queries. This is done using:
@@ -1518,14 +1519,14 @@ need to be quoted in the SQL queries. This is done using:
 
 The first sets the quote characters. Either a pair of matching
 brackets, or a C<"> or C<'>:
-  
+
  __PACKAGE__->storage->sql_maker->quote_char('"');
 
 Check the documentation of your database for the correct quote
 characters to use. C<name_sep> needs to be set to allow the SQL
 generator to put the quotes the correct place.
 
-In most cases you should set these as part of the arguments passed to 
+In most cases you should set these as part of the arguments passed to
 L<DBIx::Class::Schema/connect>:
 
  my $schema = My::Schema->connect(
@@ -1553,7 +1554,7 @@ to Microsoft SQL-server (See more names in SQL::Abstract::Limit
 The JDBC bridge is one way of getting access to a MSSQL server from a platform
 that Microsoft doesn't deliver native client libraries for. (e.g. Linux)
 
-The limit dialect can also be set at connect time by specifying a 
+The limit dialect can also be set at connect time by specifying a
 C<limit_dialect> key in the final hash as shown above.
 
 =head2 Working with PostgreSQL array types
@@ -1594,7 +1595,7 @@ the bind values (the C<[1, 2, 3]> arrayref in the above example) wrapped in
 arrayrefs together with the column name, like this: C<< [column_name => value]
 >>.
 
-=head1 BOOTSTRAPPING/MIGRATING 
+=head1 BOOTSTRAPPING/MIGRATING
 
 =head2 Easy migration from class-based to schema-based setup
 
@@ -1605,10 +1606,10 @@ instead:
 
   use MyDB;
   use SQL::Translator;
-  
+
   my $schema = MyDB->schema_instance;
-  
-  my $translator           =  SQL::Translator->new( 
+
+  my $translator           =  SQL::Translator->new(
       debug                => $debug          ||  0,
       trace                => $trace          ||  0,
       no_comments          => $no_comments    ||  0,
@@ -1622,13 +1623,13 @@ instead:
           'prefix'         => 'My::Schema',
                          },
   );
-  
+
   $translator->parser('SQL::Translator::Parser::DBIx::Class');
   $translator->producer('SQL::Translator::Producer::DBIx::Class::File');
-  
+
   my $output = $translator->translate(@args) or die
           "Error: " . $translator->error;
-  
+
   print $output;
 
 You could use L<Module::Find> to search for all subclasses in the MyDB::*
@@ -1657,16 +1658,16 @@ C<next::method>.
     return $new;
   }
 
-For more information about C<next::method>, look in the L<Class::C3> 
+For more information about C<next::method>, look in the L<Class::C3>
 documentation. See also L<DBIx::Class::Manual::Component> for more
 ways to write your own base classes to do this.
 
 People looking for ways to do "triggers" with DBIx::Class are probably
-just looking for this. 
+just looking for this.
 
 =head2 Changing one field whenever another changes
 
-For example, say that you have three columns, C<id>, C<number>, and 
+For example, say that you have three columns, C<id>, C<number>, and
 C<squared>.  You would like to make changes to C<number> and have
 C<squared> be automagically set to the value of C<number> squared.
 You can accomplish this by overriding C<store_column>:
@@ -1684,7 +1685,7 @@ redispatches your call to store_column in the superclass(es).
 
 =head2 Automatically creating related objects
 
-You might have a class C<Artist> which has many C<CD>s.  Further, if you
+You might have a class C<Artist> which has many C<CD>s.  Further, you
 want to create a C<CD> object every time you insert an C<Artist> object.
 You can accomplish this by overriding C<insert> on your objects:
 
@@ -1881,7 +1882,7 @@ Typically L<DBIx::Class> result classes start off with
 If this preamble is moved into a common base class:-
 
     package MyDBICbase;
-    
+
     use base qw/DBIx::Class/;
     __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
     1;
@@ -1902,7 +1903,7 @@ The schema class will normally contain
 to load the result classes. This will use L<Module::Find|Module::Find>
 to find and load the appropriate modules. Explicitly defining the
 classes you wish to load will remove the overhead of
-L<Module::Find|Module::Find> and the related directory operations:-
+L<Module::Find|Module::Find> and the related directory operations:
 
     __PACKAGE__->load_classes(qw/ CD Artist Track /);
 

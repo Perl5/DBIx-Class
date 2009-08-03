@@ -9,7 +9,7 @@ use mro 'c3';
 use DBD::Pg qw(:pg_types);
 
 # Ask for a DBD::Pg with array support
-warn "DBD::Pg 2.9.2 or greater is strongly recommended"
+warn "DBD::Pg 2.9.2 or greater is strongly recommended\n"
   if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
 
 sub with_deferred_fk_checks {
@@ -50,7 +50,7 @@ sub _dbh_get_autoinc_seq {
 
 sub get_autoinc_seq {
   my ($self,$source,$col) = @_;
-    
+
   my @pri = $source->primary_columns;
   my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2)
     : (undef,$source->name);
@@ -71,7 +71,7 @@ sub bind_attribute_by_data_type {
     bytea => { pg_type => DBD::Pg::PG_BYTEA },
     blob  => { pg_type => DBD::Pg::PG_BYTEA },
   };
- 
+
   if( defined $bind_attributes->{$data_type} ) {
     return $bind_attributes->{$data_type};
   }

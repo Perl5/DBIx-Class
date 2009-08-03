@@ -1,5 +1,17 @@
 Revision history for DBIx::Class
 
+        - Replication updates: Improved the replication tests so that they are
+          more reliable and accurate, and hopefully solve some cross platform
+          issues.  Bugfixes related to naming particular replicants in a
+          'force_pool' attribute.  Lots of documentation updates, including a
+          new Introduction.pod file. Fixed the way we detect transaction to 
+          make this more reliable and forward looking. Fixed some trouble with
+          the way Moose Types are used.  
+        - Added call to Pod::Inherit in Makefile.PL -
+          currently at author-time only, so we need to add the produced
+          .pod files to the MANIFEST
+
+0.08108 2009-07-05 23:15:00 (UTC)
         - Fixed the has_many prefetch with limit/group deficiency -
           it is now possible to select "top 5 commenters" while
           prefetching all their comments
@@ -21,7 +33,7 @@ Revision history for DBIx::Class
         - Fixed set_$rel with where restriction deleting rows outside 
           the restriction
         - populate() returns the created objects or an arrayref of the
-          create dobjects depending on scalar vs. list context
+          created objects depending on scalar vs. list context
         - Fixed find_related on 'single' relationships - the former
           implementation would overspecify the WHERE condition, reporting
           no related objects when there in fact is one

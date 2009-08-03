@@ -60,6 +60,7 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 # re-build README and require extra modules for testing if we're in a checkout
 
 my %force_requires_if_author = (
+#  'Module::Install::Pod::Inherit' => 0.01,
   'Test::Pod::Coverage'       => 1.04,
   'SQL::Translator'           => 0.09007,
 
@@ -83,9 +84,9 @@ my %force_requires_if_author = (
   'DateTime::Format::Strptime'=> 0,
 
   # t/93storage_replication.t
-  'Moose',                    => 0.77,
-  'MooseX::AttributeHelpers'  => 0.12,
-  'MooseX::Types',            => 0.10,
+  'Moose',                    => 0.87,
+  'MooseX::AttributeHelpers'  => 0.21,
+  'MooseX::Types',            => 0.16,
   'namespace::clean'          => 0.11,
   'Hash::Merge',              => 0.11,
 
@@ -135,6 +136,9 @@ EOW
     print "Removing MANIFEST\n";
     unlink 'MANIFEST';
   }
+
+#  eval { require Module::Install::Pod::Inherit };
+#  PodInherit() if !$@;
 }
 
 auto_install();

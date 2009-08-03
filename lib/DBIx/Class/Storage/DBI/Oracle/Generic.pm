@@ -5,7 +5,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Oracle::Generic - Automatic primary key class for Oracle
+DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
 
 =head1 SYNOPSIS
 
@@ -25,9 +25,6 @@ This class implements autoincrements for Oracle.
 
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
-
-# For ORA_BLOB => 113, ORA_CLOB => 112
-use DBD::Oracle qw( :ora_types );
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, @columns) = @_;
@@ -52,7 +49,7 @@ sub _dbh_get_autoinc_seq {
   };
 
   # trigger_body is a LONG
-  $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
+  local $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
 
   my $sth;
 
@@ -139,7 +136,7 @@ Returns the sequence name for an autoincrement column
 
 sub get_autoinc_seq {
   my ($self, $source, $col) = @_;
-    
+
   $self->dbh_do('_dbh_get_autoinc_seq', $source, $col);
 }
 
@@ -195,7 +192,6 @@ for your timestamps, use something like this:
 
 sub connect_call_datetime_setup {
   my $self = shift;
-  my $dbh  = $self->dbh;
 
   my $date_format = $ENV{NLS_DATE_FORMAT} ||= 'YYYY-MM-DD HH24:MI:SS';
   my $timestamp_format = $ENV{NLS_TIMESTAMP_FORMAT} ||=
@@ -203,14 +199,16 @@ sub connect_call_datetime_setup {
   my $timestamp_tz_format = $ENV{NLS_TIMESTAMP_TZ_FORMAT} ||=
     'YYYY-MM-DD HH24:MI:SS.FF TZHTZM';
 
-  $dbh->do("alter session set nls_date_format = '$date_format'");
-  $dbh->do("alter session set nls_timestamp_format = '$timestamp_format'");
-  $dbh->do("alter session set nls_timestamp_tz_format='$timestamp_tz_format'");
+  $self->_do_query("alter session set nls_date_format = '$date_format'");
+  $self->_do_query(
+"alter session set nls_timestamp_format = '$timestamp_format'");
+  $self->_do_query(
+"alter session set nls_timestamp_tz_format='$timestamp_tz_format'");
 }
 
 sub _svp_begin {
     my ($self, $name) = @_;
- 
+
     $self->dbh->do("SAVEPOINT $name");
 }
 
@@ -233,6 +231,7 @@ table with more than one LOB column.
 
 sub source_bind_attributes 
 {
+	require DBD::Oracle;
 	my $self = shift;
 	my($source) = @_;
 
@@ -245,8 +244,9 @@ sub source_bind_attributes
 		my %column_bind_attrs = $self->bind_attribute_by_data_type($data_type);
 
 		if ($data_type =~ /^[BC]LOB$/i) {
-			$column_bind_attrs{'ora_type'}
-				= uc($data_type) eq 'CLOB' ? ORA_CLOB : ORA_BLOB;
+			$column_bind_attrs{'ora_type'} = uc($data_type) eq 'CLOB' ?
+				DBD::Oracle::ORA_CLOB() :
+				DBD::Oracle::ORA_BLOB();
 			$column_bind_attrs{'ora_field'} = $column;
 		}
 
@@ -266,11 +266,9 @@ sub _svp_rollback {
     $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
-=head1 AUTHORS
+=head1 AUTHOR
 
-Andy Grundman <andy@hybridized.org>
-
-Scott Connelly <scottsweep@yahoo.com>
+See L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
