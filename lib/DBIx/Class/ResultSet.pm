@@ -2928,7 +2928,7 @@ sub _joinpath_aliases {
   for my $j (@$fromspec) {
 
     next if ref $j ne 'ARRAY';
-    next if $j->[0]{-relation_chain_depth} < $cur_depth;
+    next if ($j->[0]{-relation_chain_depth} || 0) < $cur_depth;
 
     my $jpath = $j->[0]{-join_path};
 
@@ -3376,6 +3376,42 @@ with that artist is given below (assuming many-to-many from artists to tags):
 
 B<NOTE:> If you specify a C<prefetch> attribute, the C<join> and C<select>
 attributes will be ignored.
+
+B<CAVEATs>: Prefetch does a lot of deep magic. As such, it may not behave
+exactly as you might expect.
+
+=over 4
+
+=item * 
+
+Prefetch uses the L</cache> to populate the prefetched relationships. This
+may or may not be what you want.
+
+=item * 
+
+If you specify a condition on a prefetched relationship, ONLY those
+rows that match the prefetched condition will be fetched into that relationship.
+This means that adding prefetch to a search() B<may alter> what is returned by
+traversing a relationship. So, if you have C<< Artist->has_many(CDs) >> and you do
+
+  my $artist_rs = $schema->resultset('Artist')->search({
+      'cds.year' => 2008,
+  }, {
+      join => 'cds',
+  });
+
+  my $count = $artist_rs->first->cds->count;
+
+  my $artist_rs_prefetch = $artist_rs->search( {}, { prefetch => 'cds' } );
+
+  my $prefetch_count = $artist_rs_prefetch->first->cds->count;
+
+  cmp_ok( $count, '==', $prefetch_count, "Counts should be the same" );
+
+that cmp_ok() may or may not pass depending on the datasets involved. This
+behavior may or may not survive the 0.09 transition.
+
+=back
 
 =head2 page
 
