@@ -44,11 +44,12 @@ concurrent statements.
 Will add C<< odbc_cursortype => 2 >> to your DBI connection attributes. See
 L<DBD::ODBC/odbc_cursortype> for more information.
 
-Alternatively, you can add it yourself and dynamic cursor will be automatically
-enabled.
+Alternatively, you can add it yourself and dynamic cursor support will be
+automatically enabled.
 
-This will not work with CODE ref connect_info's and will do nothing if you set
-C<odbc_cursortype> yourself.
+If you're using FreeTDS, C<tds_version> must be set to at least C<8.0>.
+
+This will not work with CODE ref connect_info's.
 
 B<WARNING:> this will break C<SCOPE_IDENTITY()>, and C<SELECT @@IDENTITY> will
 be used instead, which on SQL Server 2005 and later will return erroneous
@@ -83,6 +84,21 @@ sub connect_call_use_dynamic_cursors {
 
 sub _set_dynamic_cursors {
   my $self = shift;
+  my $dbh  = $self->_dbh;
+
+  eval {
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
+    $dbh->do('SELECT @@IDENTITY');
+  };
+  if ($@) {
+    croak <<'EOF';
+
+Your drivers do not seem to support dynamic cursors (odbc_cursortype => 2),
+if you're using FreeTDS, make sure to set tds_version to 8.0 or greater.
+EOF
+  }
+
   $self->_using_dynamic_cursors(1);
   $self->_identity_method('@@identity');
 }

@@ -54,13 +54,24 @@ my $new;
 
 # test Auto-PK with different options
 for my $opts (@opts) {
-  $schema = DBICTest::Schema->clone;
-  $schema->connection($dsn, $user, $pass, $opts);
+  SKIP: {
+    $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opts);
 
-  $schema->resultset('Artist')->search({ name => 'foo' })->delete;
+    eval {
+      $schema->storage->ensure_connected
+    };
+    if ($@ =~ /dynamic cursors/) {
+      skip
+'Dynamic Cursors not functional, tds_version 8.0 or greater required if using'.
+' FreeTDS', 1;
+    }
 
-  $new = $schema->resultset('Artist')->create({ name => 'foo' });
-  ok($new->artistid > 0, "Auto-PK worked");
+    $schema->resultset('Artist')->search({ name => 'foo' })->delete;
+
+    $new = $schema->resultset('Artist')->create({ name => 'foo' });
+
+    ok($new->artistid > 0, "Auto-PK worked");
+  }
 }
 
 $seen_id{$new->artistid}++;
