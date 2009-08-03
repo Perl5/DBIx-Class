@@ -84,10 +84,10 @@ sub _prep_for_execute {
 # cast MONEY values properly
   if ($op eq 'insert' || $op eq 'update') {
     my $fields = $args->[0];
-    my $col_info = $self->_resolve_column_info($ident, [keys %$fields]);
 
     for my $col (keys %$fields) {
-      if ($col_info->{$col}{data_type} =~ /^money\z/i) {
+      # $ident is a result source object with INSERT/UPDATE ops
+      if ($ident->column_info ($col)->{data_type} =~ /^money\z/i) {
         my $val = $fields->{$col};
         $fields->{$col} = \['CAST(? AS MONEY)', [ $col => $val ]];
       }
@@ -117,25 +117,25 @@ sub _execute {
   my ($op) = @_;
 
   my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
+
   if ($op eq 'insert') {
-    $self->_identity($self->_fetch_identity($sth));
+
+    # this should bring back the result of SELECT SCOPE_IDENTITY() we tacked
+    # on in _prep_for_execute above
+    my ($identity) = $sth->fetchrow_array;
+
+    # SCOPE_IDENTITY failed, but we can do something else
+    if ( (! $identity) && $self->_identity_method) {
+      ($identity) = $self->_dbh->selectrow_array(
+        'select ' . $self->_identity_method
+      );
+    }
+
+    $self->_identity($identity);
+    $sth->finish;
   }
 
   return wantarray ? ($rv, $sth, @bind) : $rv;
-}
-
-sub _fetch_identity {
-  my ($self, $sth) = @_;
-  my ($identity) = $sth->fetchrow_array;
-  $sth->finish;
-
-  if ((not defined $identity) && $self->_identity_method) {
-    ($identity) = $self->_dbh->selectrow_array(
-      'select ' . $self->_identity_method
-    );
-  }
-
-  return $identity;
 }
 
 sub last_insert_id { shift->_identity }
