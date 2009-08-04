@@ -2931,7 +2931,7 @@ sub _joinpath_aliases {
   for my $j (@$fromspec) {
 
     next if ref $j ne 'ARRAY';
-    next if $j->[0]{-relation_chain_depth} < $cur_depth;
+    next if ($j->[0]{-relation_chain_depth} || 0) < $cur_depth;
 
     my $jpath = $j->[0]{-join_path};
 

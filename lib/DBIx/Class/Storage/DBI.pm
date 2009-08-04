@@ -1401,8 +1401,21 @@ sub _select_args {
       my $fqcn = join ('.', $alias, $col);
       $bind_attrs->{$fqcn} = $bindtypes->{$col} if $bindtypes->{$col};
 
-      # so that unqualified searches can be bound too
-      $bind_attrs->{$col} = $bind_attrs->{$fqcn} if $alias eq $rs_alias;
+      # Unqialified column names are nice, but at the same time can be
+      # rather ambiguous. What we do here is basically go along with
+      # the loop, adding an unqualified column slot to $bind_attrs,
+      # alongside the fully qualified name. As soon as we encounter
+      # another column by that name (which would imply another table)
+      # we unset the unqualified slot and never add any info to it
+      # to avoid erroneous type binding. If this happens the users
+      # only choice will be to fully qualify his column name
+
+      if (exists $bind_attrs->{$col}) {
+        $bind_attrs->{$col} = {};
+      }
+      else {
+        $bind_attrs->{$col} = $bind_attrs->{$fqcn};
+      }
     }
   }
 
