@@ -233,42 +233,4 @@ for ($cd_rs->all) {
   is ($rs->count, 5, 'Correct count of CDs');
 }
 
-lives_ok (sub {
-    my $rs = $schema->resultset("Artwork")->search(undef, {distinct => 1})
-              ->search_related('artwork_to_artist')->search_related('artist',
-                 undef,
-                  { prefetch => q(cds) },
-              );
-    is($rs->all, 0, 'prefetch without WHERE');
-
-    $rs = $schema->resultset("Artwork")->search(undef, {distinct => 1})
-              ->search_related('artwork_to_artist')->search_related('artist',
-                 { 'cds.title' => 'foo' },
-                  { prefetch => q(cds) },
-              );
-    is($rs->all, 0, 'prefetch with WHERE');
-
-
-    # different case
-    $rs = $schema->resultset("Artist")->search(undef)
-                ->search_related('cds')->search_related('genre',
-                    { 'genre.name' => 'foo' },
-                    { prefetch => q(cds) },
-                 );
-    is($rs->all, 0, 'prefetch without distinct');
-
-    $rs = $schema->resultset("Artist")->search(undef, {distinct => 1})
-                ->search_related('cds')->search_related('genre',
-                    { 'genre.name' => 'foo' },
-                 );
-    is($rs->all, 0, 'distinct without prefetch');
-
-    $rs = $schema->resultset("Artist")->search({artistid => '11'}, {distinct => 1})
-                ->search_related('cds')->search_related('genre',
-                    { 'genre.name' => 'foo' },
-                    { prefetch => q(cds) },
-                 );
-    is($rs->all, 0, 'prefetch with distinct');
-}, 'distinct generally works with prefetch');
-
 done_testing;
