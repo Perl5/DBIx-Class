@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+        - support for MSSQL 'money' type
+        - support for 'smalldatetime' type used in MSSQL and Sybase for
+          InflateColumn::DateTime
+        - support for Postgres 'timestamp without timezone' type in
+          InflateColumn::DateTime
         - Replication updates: Improved the replication tests so that they are
           more reliable and accurate, and hopefully solve some cross platform
           issues.  Bugfixes related to naming particular replicants in a
