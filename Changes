@@ -5,6 +5,8 @@ Revision history for DBIx::Class
           InflateColumn::DateTime
         - support for Postgres 'timestamp without timezone' type in
           InflateColumn::DateTime
+        - much improved Sybase support, including support for TEXT/IMAGE
+          columns and connecting via FreeTDS
         - Replication updates: Improved the replication tests so that they are
           more reliable and accurate, and hopefully solve some cross platform
           issues.  Bugfixes related to naming particular replicants in a
