@@ -7,8 +7,6 @@ use Test::More;
 use DBICTest;
 use DBIC::SqlMakerTest;
 
-plan tests => 14;
-
 my $schema = DBICTest->init_schema();
 
 # collapsing prefetch
@@ -100,41 +98,4 @@ my $schema = DBICTest->init_schema();
   );
 }
 
-{
-    my $rs = $schema->resultset("Artwork")->search(undef, {distinct => 1})
-              ->search_related('artwork_to_artist')->search_related('artist',
-                 undef,
-                  { prefetch => q(cds) },
-              );
-    is($rs->all, 0, 'failure without WHERE');
-
-    $rs = $schema->resultset("Artwork")->search(undef, {distinct => 1})
-              ->search_related('artwork_to_artist')->search_related('artist',
-                 { 'cds.title' => 'foo' }, # this line has changed
-                  { prefetch => q(cds) },
-              );
-    is($rs->all, 0, 'success with WHERE');
-
-
-    # different case
-    $rs = $schema->resultset("Artist")->search(undef)#, {distinct => 1})
-                ->search_related('cds')->search_related('genre',
-                    { 'genre.name' => 'foo' },
-                    { prefetch => q(cds) },
-                 );
-    is($rs->all, 0, 'success without distinct');
-
-    $rs = $schema->resultset("Artist")->search(undef, {distinct => 1})
-                ->search_related('cds')->search_related('genre',
-                    { 'genre.name' => 'foo' },
-                    #{ prefetch => q(cds) },
-                 );
-    is($rs->all, 0, 'success without prefetch');
-
-    $rs = $schema->resultset("Artist")->search(undef, {distinct => 1})
-                ->search_related('cds')->search_related('genre',
-                    { 'genre.name' => 'foo' },
-                    { prefetch => q(cds) },
-                 );
-    is($rs->all, 0, 'failure with distinct');
-}
+done_testing;
