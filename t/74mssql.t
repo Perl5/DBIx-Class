@@ -1,7 +1,15 @@
 use strict;
 use warnings;  
 
+# use this if you keep a copy of DBD::Sybase linked to FreeTDS somewhere else
+BEGIN {
+  if (my $lib_dirs = $ENV{DBICTEST_MSSQL_PERL5LIB}) {
+    unshift @INC, $_ for split /:/, $lib_dirs;
+  }
+}
+
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -10,14 +18,21 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-plan tests => 6;
+plan tests => 13;
 
 my $schema = DBICTest::Schema->clone;
 $schema->connection($dsn, $user, $pass);
 
-my $dbh = $schema->storage->dbh;
+# start disconnected to test reconnection
+$schema->storage->ensure_connected;
+$schema->storage->_dbh->disconnect;
 
 isa_ok($schema->storage, 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server');
+
+my $dbh;
+lives_ok (sub {
+  $dbh = $schema->storage->dbh;
+}, 'reconnect works');
 
 $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
     DROP TABLE artist");
@@ -59,10 +74,48 @@ $it->next;
 $it->next;
 is( $it->next, undef, "next past end of resultset ok" );
 
+# test MONEY column support
+$schema->storage->dbh_do (sub {
+    my ($storage, $dbh) = @_;
+    eval { $dbh->do("DROP TABLE money_test") };
+    $dbh->do(<<'SQL');
+
+CREATE TABLE money_test (
+   id INT IDENTITY PRIMARY KEY,
+   amount MONEY NULL
+)
+
+SQL
+
+});
+
+my $rs = $schema->resultset('Money');
+
+my $row;
+lives_ok {
+  $row = $rs->create({ amount => 100 });
+} 'inserted a money value';
+
+is $rs->find($row->id)->amount, 100, 'money value round-trip';
+
+lives_ok {
+  $row->update({ amount => 200 });
+} 'updated a money value';
+
+is $rs->find($row->id)->amount, 200, 'updated money value round-trip';
+
+lives_ok {
+  $row->update({ amount => undef });
+} 'updated a money value to NULL';
+
+is $rs->find($row->id)->amount, undef,'updated money value to NULL round-trip';
+
 # clean up our mess
 END {
     $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL DROP TABLE artist")
         if $dbh;
     $dbh->do("IF OBJECT_ID('cd', 'U') IS NOT NULL DROP TABLE cd")
+        if $dbh;
+    $dbh->do("IF OBJECT_ID('money_test', 'U') IS NOT NULL DROP TABLE money_test")
         if $dbh;
 }

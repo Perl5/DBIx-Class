@@ -14,6 +14,7 @@ $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
+use Carp::Clan qw/^SQL::Translator|^DBIx::Class/;
 
 use base qw(Exporter);
 
@@ -34,11 +35,11 @@ sub parse {
     my $dbicschema    = $args->{'DBIx::Class::Schema'} ||  $args->{"DBIx::Schema"} ||$data;
     $dbicschema     ||= $args->{'package'};
     my $limit_sources = $args->{'sources'};
-    
-    die 'No DBIx::Class::Schema' unless ($dbicschema);
+
+    croak 'No DBIx::Class::Schema' unless ($dbicschema);
     if (!ref $dbicschema) {
       eval "use $dbicschema;";
-      die "Can't load $dbicschema ($@)" if($@);
+      croak "Can't load $dbicschema ($@)" if($@);
     }
 
     my $schema      = $tr->schema;
@@ -47,12 +48,11 @@ sub parse {
     $schema->name( ref($dbicschema) . " v" . ($dbicschema->schema_version || '1.x'))
       unless ($schema->name);
 
-    my %seen_tables;
-
     my @monikers = sort $dbicschema->sources;
     if ($limit_sources) {
         my $ref = ref $limit_sources || '';
-        die "'sources' parameter must be an array or hash ref" unless $ref eq 'ARRAY' || ref eq 'HASH';
+        $dbicschema->throw_exception ("'sources' parameter must be an array or hash ref")
+          unless( $ref eq 'ARRAY' || ref eq 'HASH' );
 
         # limit monikers to those specified in 
         my $sources;
@@ -76,21 +76,23 @@ sub parse {
       }
     }
 
+    my %tables;
     foreach my $moniker (sort @table_monikers)
     {
         my $source = $dbicschema->source($moniker);
-        
+        my $table_name = $source->name;
+
         # Skip custom query sources
-        next if ref($source->name);
+        next if ref $table_name;
 
-        # Its possible to have multiple DBIC source using same table
-        next if $seen_tables{$source->name}++;
+        # Its possible to have multiple DBIC sources using the same table
+        next if $tables{$table_name};
 
-        my $table = $schema->add_table(
-                                       name => $source->name,
+        $tables{$table_name}{source} = $source;
+        my $table = $tables{$table_name}{object} = SQL::Translator::Schema::Table->new(
+                                       name => $table_name,
                                        type => 'TABLE',
-                                       ) || die $schema->error;
-        my $colcount = 0;
+                                       );
         foreach my $col ($source->columns)
         {
             # assuming column_info in dbic is the same as DBI (?)
@@ -106,7 +108,8 @@ sub parse {
             if ($colinfo{is_nullable}) {
               $colinfo{default} = '' unless exists $colinfo{default};
             }
-            my $f = $table->add_field(%colinfo) || die $table->error;
+            my $f = $table->add_field(%colinfo)
+              || $dbicschema->throw_exception ($table->error);
         }
         $table->primary_key($source->primary_columns);
 
@@ -125,7 +128,7 @@ sub parse {
         my @rels = $source->relationships();
 
         my %created_FK_rels;
-        
+
         # global add_fk_index set in parser_args
         my $add_fk_index = (exists $args->{add_fk_index} && ($args->{add_fk_index} == 0)) ? 0 : 1;
 
@@ -146,7 +149,7 @@ sub parse {
             my $idx;
             my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $othertable->columns;            
             my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}}); 
-      
+
             # Get the key information, mapping off the foreign/self markers
             my @refkeys = map {/^\w+\.(\w+)$/} @cond;
             my @keys = map {$rel_info->{cond}->{$_} =~ /^\w+\.(\w+)$/} @cond;
@@ -177,7 +180,7 @@ sub parse {
                         $cascade->{$c} = $rel_info->{attrs}{"on_$c"};
                     }
                     else {
-                        warn "SQLT attribute 'on_$c' was supplied for relationship '$moniker/$rel', which does not appear to be a foreign constraint. "
+                        carp "SQLT attribute 'on_$c' was supplied for relationship '$moniker/$rel', which does not appear to be a foreign constraint. "
                             . "If you are sure that SQLT must generate a constraint for this relationship, add 'is_foreign_key_constraint => 1' to the attributes.\n";
                     }
                 }
@@ -195,17 +198,21 @@ sub parse {
                 my $key_test = join("\x00", @keys);
                 next if $created_FK_rels{$rel_table}->{$key_test};
 
-                my $is_deferrable = $rel_info->{attrs}{is_deferrable};
-                
-                # global parser_args add_fk_index param can be overridden on the rel def
-                my $add_fk_index_rel = (exists $rel_info->{attrs}{add_fk_index}) ? $rel_info->{attrs}{add_fk_index} : $add_fk_index;
-
-
-                $created_FK_rels{$rel_table}->{$key_test} = 1;
                 if (scalar(@keys)) {
+
+                  $created_FK_rels{$rel_table}->{$key_test} = 1;
+
+                  my $is_deferrable = $rel_info->{attrs}{is_deferrable};
+
+                  # do not consider deferrable constraints and self-references
+                  # for dependency calculations
+                  if (! $is_deferrable and $rel_table ne $table_name) {
+                    $tables{$table_name}{foreign_table_deps}{$rel_table}++;
+                  }
+
                   $table->add_constraint(
                                     type             => 'foreign_key',
-                                    name             => join('_', $table->name, 'fk', @keys),
+                                    name             => join('_', $table_name, 'fk', @keys),
                                     fields           => \@keys,
                                     reference_fields => \@refkeys,
                                     reference_table  => $rel_table,
@@ -213,10 +220,13 @@ sub parse {
                                     on_update        => uc ($cascade->{update} || ''),
                                     (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
                   );
-                    
+
+                  # global parser_args add_fk_index param can be overridden on the rel def
+                  my $add_fk_index_rel = (exists $rel_info->{attrs}{add_fk_index}) ? $rel_info->{attrs}{add_fk_index} : $add_fk_index;
+
                   if ($add_fk_index_rel) {
                       my $index = $table->add_index(
-                                                    name   => join('_', $table->name, 'idx', @keys),
+                                                    name   => join('_', $table_name, 'idx', @keys),
                                                     fields => \@keys,
                                                     type   => 'NORMAL',
                                                     );
@@ -224,36 +234,88 @@ sub parse {
               }
             }
         }
-		
-        $source->_invoke_sqlt_deploy_hook($table);
+
     }
 
+    # attach the tables to the schema in dependency order
+    my $dependencies = {
+      map { $_ => _resolve_deps ($_, \%tables) } (keys %tables)
+    };
+    for my $table (sort
+      {
+        keys %{$dependencies->{$a} || {} } <=> keys %{ $dependencies->{$b} || {} }
+          ||
+        $a cmp $b
+      }
+      (keys %tables)
+    ) {
+      $schema->add_table ($tables{$table}{object});
+      $tables{$table}{source} -> _invoke_sqlt_deploy_hook( $tables{$table}{object} );
+    }
+
+
+    my %views;
     foreach my $moniker (sort @view_monikers)
     {
         my $source = $dbicschema->source($moniker);
+        my $view_name = $source->name;
+
         # Skip custom query sources
-        next if ref($source->name);
+        next if ref $view_name;
 
         # Its possible to have multiple DBIC source using same table
-        next if $seen_tables{$source->name}++;
+        next if $views{$view_name}++;
 
-        my $view = $schema->add_view(
-          name => $source->name,
+        my $view = $schema->add_view (
+          name => $view_name,
           fields => [ $source->columns ],
           $source->view_definition ? ( 'sql' => $source->view_definition ) : ()
-        );
-        if ($source->result_class->can('sqlt_deploy_hook')) {
-          $source->result_class->sqlt_deploy_hook($view);
-        }
+        ) || $dbicschema->throw_exception ($schema->error);
 
         $source->_invoke_sqlt_deploy_hook($view);
     }
+
 
     if ($dbicschema->can('sqlt_deploy_hook')) {
       $dbicschema->sqlt_deploy_hook($schema);
     }
 
     return 1;
+}
+
+#
+# Quick and dirty dependency graph calculator
+#
+sub _resolve_deps {
+  my ($table, $tables, $seen) = @_;
+
+  my $ret = {};
+  $seen ||= {};
+
+  # copy and bump all deps by one (so we can reconstruct the chain)
+  my %seen = map { $_ => $seen->{$_} + 1 } (keys %$seen);
+  $seen{$table} = 1;
+
+  for my $dep (keys %{$tables->{$table}{foreign_table_deps}} ) {
+
+    if ($seen->{$dep}) {
+
+      # warn and remove the circular constraint so we don't get flooded with the same warning over and over
+      #carp sprintf ("Circular dependency detected, schema may not be deployable:\n%s\n",
+      #  join (' -> ', (sort { $seen->{$b} <=> $seen->{$a} } (keys %$seen) ), $table, $dep )
+      #);
+      #delete $tables->{$table}{foreign_table_deps}{$dep};
+
+      return {};
+    }
+
+    my $subdeps = _resolve_deps ($dep, $tables, \%seen);
+    $ret->{$_} += $subdeps->{$_} for ( keys %$subdeps );
+
+    ++$ret->{$dep};
+  }
+
+  return $ret;
 }
 
 1;
@@ -275,7 +337,7 @@ from a DBIx::Class::Schema instance
  ## Standalone
  use MyApp::Schema;
  use SQL::Translator;
- 
+
  my $schema = MyApp::Schema->connect;
  my $trans  = SQL::Translator->new (
       parser      => 'SQL::Translator::Parser::DBIx::Class',
@@ -291,7 +353,7 @@ This class requires L<SQL::Translator> installed to work.
 C<SQL::Translator::Parser::DBIx::Class> reads a DBIx::Class schema,
 interrogates the columns, and stuffs it all in an $sqlt_schema object.
 
-It's primary use is in deploying database layouts described as a set
+Its primary use is in deploying database layouts described as a set
 of L<DBIx::Class> classes, to a database. To do this, see
 L<DBIx::Class::Schema/deploy>.
 

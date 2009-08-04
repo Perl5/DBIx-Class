@@ -3,16 +3,11 @@ use warnings FATAL => 'all';
 
 use Test::More;
 
-BEGIN {
-    eval "use SQL::Abstract 1.49";
-    plan $@
-        ? ( skip_all => "Needs SQLA 1.49+" )
-        : ( tests => 8 );
-}
-
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
+
+plan tests => 8;
 
 my $schema = DBICTest->init_schema();
 my $art_rs = $schema->resultset('Artist');

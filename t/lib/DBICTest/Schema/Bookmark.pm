@@ -15,6 +15,7 @@ __PACKAGE__->add_columns(
     },
     'link' => {
         data_type => 'integer',
+        is_nullable => 1,
     },
 );
 

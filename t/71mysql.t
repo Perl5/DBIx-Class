@@ -155,41 +155,38 @@ SKIP: {
     is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
 }
 
+my $cd = $schema->resultset ('CD')->create ({});
+my $producer = $schema->resultset ('Producer')->create ({});
+lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
+
+
 ## Can we properly deal with the null search problem?
 ##
 ## Only way is to do a SET SQL_AUTO_IS_NULL = 0; on connect
 ## But I'm not sure if we should do this or not (Ash, 2008/06/03)
+#
+# There is now a built-in function to do this, test that everything works
+# with it (ribasushi, 2009/07/03)
 
 NULLINSEARCH: {
-    
-    ok my $artist1_rs = $schema->resultset('Artist')->search({artistid=>6666})
-    => 'Created an artist resultset of 6666';
-    
+    my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, { on_connect_call => 'set_strict_mode' });
+
+    $ansi_schema->resultset('Artist')->create ({ name => 'last created artist' });
+
+    ok my $artist1_rs = $ansi_schema->resultset('Artist')->search({artistid=>6666})
+      => 'Created an artist resultset of 6666';
+
     is $artist1_rs->count, 0
-    => 'Got no returned rows';
-    
-    ok my $artist2_rs = $schema->resultset('Artist')->search({artistid=>undef})
-    => 'Created an artist resultset of undef';
-    
-    TODO: {
-    	local $TODO = "need to fix the row count =1 when select * from table where pk IS NULL problem";
-	    is $artist2_rs->count, 0
-	    => 'got no rows';    	
-    }
+      => 'Got no returned rows';
+
+    ok my $artist2_rs = $ansi_schema->resultset('Artist')->search({artistid=>undef})
+      => 'Created an artist resultset of undef';
+
+    is $artist2_rs->count, 0
+      => 'got no rows';
 
     my $artist = $artist2_rs->single;
-    
+
     is $artist => undef
-    => 'Nothing Found!';
-}
-    
-my $cd = $schema->resultset ('CD')->create ({});
-
-my $producer = $schema->resultset ('Producer')->create ({});
-
-lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
-
-# clean up our mess
-END {
-    #$dbh->do("DROP TABLE artist") if $dbh;
+      => 'Nothing Found!';
 }

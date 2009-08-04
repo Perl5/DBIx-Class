@@ -9,21 +9,12 @@ name     'DBIx-Class';
 perl_version '5.006001';
 all_from 'lib/DBIx/Class.pm';
 
-requires 'DBD::SQLite'              => 1.25;
-requires 'Data::Page'               => 2.00;
-requires 'SQL::Abstract'            => 1.56;
-requires 'SQL::Abstract::Limit'     => 0.13;
-requires 'Class::C3::Componentised' => 1.0005;
-requires 'Carp::Clan'               => 6.0;
-requires 'DBI'                      => 1.605;
-requires 'Module::Find'             => 0.06;
-requires 'Class::Inspector'         => 1.24;
-requires 'Class::Accessor::Grouped' => 0.08003;
-requires 'JSON::Any'                => 1.18;
-requires 'Scope::Guard'             => 0.03;
-requires 'Path::Class'              => 0.16;
-requires 'Sub::Name'                => 0.04;
-requires 'MRO::Compat'              => 0.09;
+
+test_requires 'Test::Builder'       => 0.33;
+test_requires 'Test::Deep'          => 0;
+test_requires 'Test::Exception'     => 0;
+test_requires 'Test::More'          => 0.82;
+test_requires 'Test::Warn'          => 0.11;
 
 # Core
 requires 'List::Util'               => 0;
@@ -33,11 +24,22 @@ requires 'Storable'                 => 0;
 # Perl 5.8.0 doesn't have utf8::is_utf8()
 requires 'Encode'                   => 0 if ($] <= 5.008000);
 
-test_requires 'Test::More'          => 0.82;
-test_requires 'Test::Builder'       => 0.33;
-test_requires 'Test::Warn'          => 0.11;
-test_requires 'Test::Exception'     => 0;
-test_requires 'Test::Deep'          => 0;
+# Dependencies (keep in alphabetical order)
+requires 'Carp::Clan'               => 6.0;
+requires 'Class::Accessor::Grouped' => 0.08003;
+requires 'Class::C3::Componentised' => 1.0005;
+requires 'Class::Inspector'         => 1.24;
+requires 'Data::Page'               => 2.00;
+requires 'DBD::SQLite'              => 1.25;
+requires 'DBI'                      => 1.605;
+requires 'JSON::Any'                => 1.18;
+requires 'MRO::Compat'              => 0.09;
+requires 'Module::Find'             => 0.06;
+requires 'Path::Class'              => 0.16;
+requires 'Scope::Guard'             => 0.03;
+requires 'SQL::Abstract'            => 1.56;
+requires 'SQL::Abstract::Limit'     => 0.13;
+requires 'Sub::Name'                => 0.04;
 
 recommends 'SQL::Translator'        => 0.09004;
 
@@ -58,8 +60,9 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 # re-build README and require extra modules for testing if we're in a checkout
 
 my %force_requires_if_author = (
+#  'Module::Install::Pod::Inherit' => 0.01,
   'Test::Pod::Coverage'       => 1.04,
-  'SQL::Translator'           => 0.09004,
+  'SQL::Translator'           => 0.09007,
 
   # CDBI-compat related
   'DBIx::ContextualFetch'     => 0,
@@ -73,30 +76,41 @@ my %force_requires_if_author = (
   'Test::Memory::Cycle'       => 0,
   'Devel::Cycle'              => 1.10,
 
-  # t/inflate/datetime*.t
-  # t/72.pg
   # t/36datetime.t
   # t/60core.t
   'DateTime::Format::SQLite'  => 0,
-  'DateTime::Format::MySQL'   => 0,
-  'DateTime::Format::Pg'      => 0,
 
   # t/96_is_deteministic_value.t
-  'DateTime::Format::Strptime' => 0,
-
-  # t/72pg.t
-  $ENV{DBICTEST_PG_DSN}
-    ? ('Sys::SigAction'=> 0)
-    : ()
-  ,
+  'DateTime::Format::Strptime'=> 0,
 
   # t/93storage_replication.t
-  'Moose',                        => 0.77,
-  'MooseX::AttributeHelpers'      => 0.12,
-  'MooseX::Types',                => 0.10,
-  'namespace::clean'              => 0.11,
-  'Hash::Merge',                  => 0.11,
+  'Moose',                    => 0.87,
+  'MooseX::AttributeHelpers'  => 0.21,
+  'MooseX::Types',            => 0.16,
+  'namespace::clean'          => 0.11,
+  'Hash::Merge',              => 0.11,
 
+  # database-dependent reqs
+  #
+  $ENV{DBICTEST_PG_DSN}
+    ? (
+      'Sys::SigAction' => 0,
+      'DBD::Pg' => 2.009002,
+      'DateTime::Format::Pg' => 0,
+    ) : ()
+  ,
+
+  $ENV{DBICTEST_MYSQL_DSN}
+    ? (
+      'DateTime::Format::MySQL' => 0,
+    ) : ()
+  ,
+
+  $ENV{DBICTEST_ORACLE_DSN}
+    ? (
+      'DateTime::Format::Oracle' => 0,
+    ) : ()
+  ,
 );
 
 if ($Module::Install::AUTHOR) {
@@ -111,7 +125,7 @@ if ($Module::Install::AUTHOR) {
 
 EOW
 
-  foreach my $module (keys %force_requires_if_author) {
+  foreach my $module (sort keys %force_requires_if_author) {
     build_requires ($module => $force_requires_if_author{$module});
   }
 
@@ -122,6 +136,9 @@ EOW
     print "Removing MANIFEST\n";
     unlink 'MANIFEST';
   }
+
+#  eval { require Module::Install::Pod::Inherit };
+#  PodInherit() if !$@;
 }
 
 auto_install();

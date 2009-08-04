@@ -3,16 +3,29 @@ package DBIx::Class::Storage::DBI::mysql;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
+use base qw/
+  DBIx::Class::Storage::DBI::MultiColumnIn
+  DBIx::Class::Storage::DBI::AmbiguousGlob
+  DBIx::Class::Storage::DBI
+/;
+use mro 'c3';
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MySQL');
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
 
-  $self->dbh->do('SET foreign_key_checks=0');
+  $self->_do_query('SET FOREIGN_KEY_CHECKS = 0');
   $sub->();
-  $self->dbh->do('SET foreign_key_checks=1');
+  $self->_do_query('SET FOREIGN_KEY_CHECKS = 1');
+}
+
+sub connect_call_set_strict_mode {
+  my $self = shift;
+
+  # the @@sql_mode puts back what was previously set on the session handle
+  $self->_do_query(q|SET SQL_MODE = CONCAT('ANSI,TRADITIONAL,ONLY_FULL_GROUP_BY,', @@sql_mode)|);
+  $self->_do_query(q|SET SQL_AUTO_IS_NULL = 0|);
 }
 
 sub _dbh_last_insert_id {
@@ -41,7 +54,7 @@ sub _svp_rollback {
 
     $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
- 
+
 sub is_replicating {
     my $status = shift->dbh->selectrow_hashref('show slave status');
     return ($status->{Slave_IO_Running} eq 'Yes') && ($status->{Slave_SQL_Running} eq 'Yes');
@@ -57,38 +70,30 @@ sub _subq_update_delete {
   return shift->_per_row_update_delete (@_);
 }
 
-# MySql chokes on things like:
-# COUNT(*) FROM (SELECT tab1.col, tab2.col FROM tab1 JOIN tab2 ... )
-# claiming that col is a duplicate column (it loses the table specifiers by
-# the time it gets to the *). Thus for any subquery count we select only the
-# primary keys of the main table in the inner query. This hopefully still
-# hits the indexes and keeps mysql happy.
-# (mysql does not care if the SELECT and the GROUP BY match)
-sub _grouped_count_select {
-  my ($self, $source, $rs_args) = @_;
-  my @pcols = map { join '.', $rs_args->{alias}, $_ } ($source->primary_columns);
-  return @pcols ? \@pcols : $rs_args->{group_by};
-}
-
 1;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::mysql - Automatic primary key class for MySQL
+DBIx::Class::Storage::DBI::mysql - Storage::DBI class implementing MySQL specifics
 
 =head1 SYNOPSIS
 
-  # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
-  __PACKAGE__->set_primary_key('id');
+Storage::DBI autodetects the underlying MySQL database, and re-blesses the
+C<$storage> object into this class.
+
+  my $schema = MyDb::Schema->connect( $dsn, $user, $pass, { set_strict_mode => 1 } );
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for MySQL.
+This class implements MySQL specific bits of L<DBIx::Class::Storage::DBI>.
+
+It also provides a one-stop on-connect macro C<set_strict_mode> which sets
+session variables such that MySQL behaves more predictably as far as the
+SQL standard is concerned.
 
 =head1 AUTHORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
+See L<DBIx::Class/CONTRIBUTORS>
 
 =head1 LICENSE
 

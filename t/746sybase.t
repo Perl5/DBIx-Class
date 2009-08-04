@@ -2,6 +2,7 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -10,12 +11,20 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/}
 plan skip_all => 'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 12;
+plan tests => 13;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {AutoCommit => 1});
 
+# start disconnected to test reconnection
 $schema->storage->ensure_connected;
+$schema->storage->_dbh->disconnect;
+
 isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::Sybase' );
+
+my $dbh;
+lives_ok (sub {
+  $dbh = $schema->storage->dbh;
+}, 'reconnect works');
 
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;

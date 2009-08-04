@@ -9,9 +9,9 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 106;
+plan tests => 103;
 
-eval { require DateTime::Format::MySQL };
+eval { require DateTime::Format::SQLite };
 my $NO_DTFM = $@ ? 1 : 0;
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
@@ -195,7 +195,7 @@ is( $schema->resultset("Track")->find(100)->title, 'Insert or Update - updated',
 
 # get_inflated_columns w/relation and accessor alias
 SKIP: {
-    skip "This test requires DateTime::Format::MySQL", 8 if $NO_DTFM;
+    skip "This test requires DateTime::Format::SQLite", 8 if $NO_DTFM;
 
     isa_ok($new->updated_date, 'DateTime', 'have inflated object via accessor');
     my %tdata = $new->get_inflated_columns;
@@ -228,20 +228,6 @@ is($or_rs->count, 5, 'Search count with OR ok');
 my $collapsed_or_rs = $or_rs->search ({}, { distinct => 1 }); # induce collapse
 is ($collapsed_or_rs->all, 4, 'Collapsed joined search with OR returned correct number of rows');
 is ($collapsed_or_rs->count, 4, 'Collapsed search count with OR ok');
-
-my $pref_or_rs = $collapsed_or_rs->search ({}, { prefetch => [qw/tags/] });
-is_same_sql_bind (
-  $pref_or_rs->as_query,
-  '(SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, tags.tagid, tags.cd, tags.tag FROM cd me LEFT JOIN tags tags ON tags.cd = me.cdid WHERE ( ( tags.tag = ? OR tags.tag = ? ) ) GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, tags.tagid, tags.cd, tags.tag ORDER BY cdid, tags.cd, tags.tag)',
-  [
-    [ 'tags.tag' => 'Cheesy' ],
-    [ 'tags.tag' => 'Blue' ],
-  ],
-  'Prefetch + distinct resulted in correct group_by',
-);
-is ($pref_or_rs->all, 4, 'Prefetched grouped search with OR returned correct number of rows');
-is ($pref_or_rs->count, 4, 'Prefetched grouped count with OR ok');
-
 
 {
   my $tcount = $schema->resultset('Track')->search(
@@ -389,7 +375,7 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
 
 # test get_inflated_columns with objects
 SKIP: {
-    skip "This test requires DateTime::Format::MySQL", 5 if $NO_DTFM;
+    skip "This test requires DateTime::Format::SQLite", 5 if $NO_DTFM;
     my $event = $schema->resultset('Event')->search->first;
     my %edata = $event->get_inflated_columns;
     is($edata{'id'}, $event->id, 'got id');

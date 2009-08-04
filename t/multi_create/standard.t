@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 92;
+plan tests => 93;
 
 my $schema = DBICTest->init_schema();
 
@@ -328,7 +328,7 @@ lives_ok ( sub {
   is($newartist2->name, 'Fred 3', 'Created new artist with cds via find_or_create');
 }, 'Nested find_or_create');
 
-throws_ok ( sub {
+lives_ok ( sub {
   my $artist2 = $schema->resultset('Artist')->create({
     name => 'Fred 4',
     cds => [
@@ -344,7 +344,9 @@ throws_ok ( sub {
       },
     ]
   });
-}, qr/title are not unique/, 'Multiple same level has_many create fails with duplicate error');
+
+  is($artist2->in_storage, 1, 'artist with duplicate rels inserted okay');
+}, 'Multiple same level has_many create');
 
 lives_ok ( sub {
 	my $artist = $schema->resultset('Artist')->first;

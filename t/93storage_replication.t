@@ -6,19 +6,24 @@ use Test::Exception;
 use DBICTest;
 use List::Util 'first';
 use Scalar::Util 'reftype';
+use File::Spec;
 use IO::Handle;
 
 BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 90 );
+        : ( tests => 126 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 use_ok 'DBIx::Class::Storage::DBI::Replicated';
+
+use Moose();
+use MooseX::Types();
+diag "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
 
 =head1 HOW TO USE
 
@@ -142,9 +147,9 @@ TESTSCHEMACLASSES: {
     use File::Copy;    
     use base 'DBIx::Class::DBI::Replicated::TestReplication';
     
-    __PACKAGE__->mk_accessors( qw/master_path slave_paths/ );
+    __PACKAGE__->mk_accessors(qw/master_path slave_paths/);
     
-    ## Set the mastep path from DBICTest
+    ## Set the master path from DBICTest
     
 	sub new {
 	    my $class = shift @_;
@@ -152,9 +157,9 @@ TESTSCHEMACLASSES: {
 	
 	    $self->master_path( DBICTest->_sqlite_dbfilename );
 	    $self->slave_paths([
-            "t/var/DBIxClass_slave1.db",
-            "t/var/DBIxClass_slave2.db",    
-        ]);
+			File::Spec->catfile(qw/t var DBIxClass_slave1.db/),
+			File::Spec->catfile(qw/t var DBIxClass_slave2.db/),
+		]);
         
 	    return $self;
 	}    
@@ -170,7 +175,10 @@ TESTSCHEMACLASSES: {
         
         my @connect_infos = map { [$_,'','',{AutoCommit=>1}] } @dsn;
 
-    # try a hashref too
+		## Make sure nothing is left over from a failed test
+		$self->cleanup;
+
+		## try a hashref too
         my $c = $connect_infos[0];
         $connect_infos[0] = {
           dsn => $c->[0],
@@ -198,7 +206,9 @@ TESTSCHEMACLASSES: {
     sub cleanup {
         my $self = shift @_;
         foreach my $slave (@{$self->slave_paths}) {
-            unlink $slave;
+			if(-e $slave) {
+				unlink $slave;
+			}
         }     
     }
     
@@ -275,6 +285,19 @@ ok my @replicant_connects = $replicated->generate_replicant_connect_info
 ok my @replicated_storages = $replicated->schema->storage->connect_replicants(@replicant_connects)
     => 'Created some storages suitable for replicants';
 
+our %debug;
+$replicated->schema->storage->debug(1);
+$replicated->schema->storage->debugcb(sub {
+	my ($op, $info) = @_;
+	##warn "\n$op, $info\n";
+	%debug = (
+		op => $op,
+		info => $info,
+		dsn => ($info=~m/\[(.+)\]/)[0],
+		storage_type => $info=~m/REPLICANT/ ? 'REPLICANT' : 'MASTER',
+	);
+});
+
 ok my @all_storages = $replicated->schema->storage->all_storages
     => '->all_storages';
 
@@ -295,6 +318,8 @@ is ((grep $_->{master_option}, @all_storage_opts),
     => 'connect_info was merged from master to replicants');
  
 my @replicant_names = keys %{ $replicated->schema->storage->replicants };
+
+ok @replicant_names, "found replicant names @replicant_names";
 
 ## Silence warning about not supporting the is_replicating method if using the
 ## sqlite dbs.
@@ -332,6 +357,11 @@ $replicated
         [ qw/artistid name/ ],
         [ 4, "Ozric Tentacles"],
     ]);
+
+	is $debug{storage_type}, 'MASTER', 
+		"got last query from a master: $debug{dsn}";
+	
+	like $debug{info}, qr/INSERT/, 'Last was an insert';
                 
 ## Make sure all the slaves have the table definitions
 
@@ -353,6 +383,11 @@ $replicated->schema->storage->debugobj->silence(0);
 ok my $artist1 = $replicated->schema->resultset('Artist')->find(4)
     => 'Created Result';
 
+## We removed testing here since master read weight is on, so we can't tell in
+## advance what storage to expect.  We turn master read weight off a bit lower
+## is $debug{storage_type}, 'REPLICANT' 
+## 	=> "got last query from a replicant: $debug{dsn}, $debug{info}";
+
 isa_ok $artist1
     => 'DBICTest::Artist';
     
@@ -361,10 +396,7 @@ is $artist1->name, 'Ozric Tentacles'
 
 ## Check that master_read_weight is honored
 {
-    no warnings 'once';
-
-    # turn off redefined warning
-    local $SIG{__WARN__} = sub {};
+    no warnings qw/once redefine/;
 
     local
     *DBIx::Class::Storage::DBI::Replicated::Balancer::Random::_random_number =
@@ -394,6 +426,11 @@ $replicated
         [ 7, "Watergate"],
     ]);
 
+	is $debug{storage_type}, 'MASTER', 
+		"got last query from a master: $debug{dsn}";
+	
+	like $debug{info}, qr/INSERT/, 'Last was an insert';
+
 ## Make sure all the slaves have the table definitions
 $replicated->replicate;
 
@@ -401,7 +438,10 @@ $replicated->replicate;
 
 ok my $artist2 = $replicated->schema->resultset('Artist')->find(5)
     => 'Sync succeed';
-    
+
+is $debug{storage_type}, 'REPLICANT' 
+	=> "got last query from a replicant: $debug{dsn}";
+	    
 isa_ok $artist2
     => 'DBICTest::Artist';
     
@@ -423,7 +463,10 @@ is $replicated->schema->storage->pool->connected_replicants => 0
 
 ok my $artist3 = $replicated->schema->resultset('Artist')->find(6)
     => 'Still finding stuff.';
-    
+
+is $debug{storage_type}, 'REPLICANT' 
+	=> "got last query from a replicant: $debug{dsn}";
+	    
 isa_ok $artist3
     => 'DBICTest::Artist';
     
@@ -437,7 +480,10 @@ is $replicated->schema->storage->pool->connected_replicants => 1
 
 ok ! $replicated->schema->resultset('Artist')->find(666)
     => 'Correctly failed to find something.';
-    
+
+is $debug{storage_type}, 'REPLICANT' 
+	=> "got last query from a replicant: $debug{dsn}";
+		    
 ## test the reliable option
 
 TESTRELIABLE: {
@@ -446,23 +492,38 @@ TESTRELIABLE: {
 	
 	ok $replicated->schema->resultset('Artist')->find(2)
 	    => 'Read from master 1';
-	
+
+	is $debug{storage_type}, 'MASTER', 
+		"got last query from a master: $debug{dsn}";
+			
 	ok $replicated->schema->resultset('Artist')->find(5)
 	    => 'Read from master 2';
-	    
+
+	is $debug{storage_type}, 'MASTER', 
+		"got last query from a master: $debug{dsn}";
+			    
     $replicated->schema->storage->set_balanced_storage;	    
 	    
 	ok $replicated->schema->resultset('Artist')->find(3)
         => 'Read from replicant';
+
+	is $debug{storage_type}, 'REPLICANT', 
+		"got last query from a replicant: $debug{dsn}";
 }
 
 ## Make sure when reliable goes out of scope, we are using replicants again
 
 ok $replicated->schema->resultset('Artist')->find(1)
     => 'back to replicant 1.';
-    
+
+	is $debug{storage_type}, 'REPLICANT', 
+		"got last query from a replicant: $debug{dsn}";
+		    
 ok $replicated->schema->resultset('Artist')->find(2)
     => 'back to replicant 2.';
+
+	is $debug{storage_type}, 'REPLICANT', 
+		"got last query from a replicant: $debug{dsn}";
 
 ## set all the replicants to inactive, and make sure the balancer falls back to
 ## the master.
@@ -477,10 +538,13 @@ $replicated->schema->storage->replicants->{$replicant_names[1]}->active(0);
     $replicated->schema->storage->debugfh($debugfh);
 
     ok $replicated->schema->resultset('Artist')->find(2)
-	=> 'Fallback to master';
+		=> 'Fallback to master';
+
+	is $debug{storage_type}, 'MASTER', 
+		"got last query from a master: $debug{dsn}";
 
     like $fallback_warning, qr/falling back to master/
-	=> 'emits falling back to master warning';
+		=> 'emits falling back to master warning';
 
     $replicated->schema->storage->debugfh($oldfh);
 }
@@ -499,6 +563,9 @@ $replicated->schema->storage->debugobj->silence(0);
 
 ok $replicated->schema->resultset('Artist')->find(2)
     => 'Returned to replicates';
+
+is $debug{storage_type}, 'REPLICANT', 
+	"got last query from a replicant: $debug{dsn}";
     
 ## Getting slave status tests
 
@@ -506,7 +573,7 @@ SKIP: {
     ## We skip this tests unless you have a custom replicants, since the default
     ## sqlite based replication tests don't support these functions.
     
-    skip 'Cannot Test Replicant Status on Non Replicating Database', 9
+    skip 'Cannot Test Replicant Status on Non Replicating Database', 10 
      unless DBICTest->has_custom_dsn && $ENV{"DBICTEST_SLAVE0_DSN"};
 
     $replicated->replicate; ## Give the slaves a chance to catchup.
@@ -562,6 +629,9 @@ SKIP: {
 	    	
 	ok $replicated->schema->resultset('Artist')->find(5)
 	    => 'replicant reactivated';
+
+	is $debug{storage_type}, 'REPLICANT',
+		"got last query from a replicant: $debug{dsn}";
 	    
 	is $replicated->schema->storage->pool->active_replicants => 2
 	    => "both replicants reactivated";        
@@ -572,7 +642,10 @@ SKIP: {
 ok my $reliably = sub {
 	
     ok $replicated->schema->resultset('Artist')->find(5)
-        => 'replicant reactivated';	
+        => 'replicant reactivated';
+
+	is $debug{storage_type}, 'MASTER',
+		"got last query from a master: $debug{dsn}";
 	
 } => 'created coderef properly';
 
@@ -595,6 +668,8 @@ throws_ok {$replicated->schema->storage->execute_reliably($unreliably)}
 
 ok $replicated->schema->resultset('Artist')->find(3)
     => 'replicant reactivated';
+
+is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{dsn}";
     
 ## make sure transactions are set to execute_reliably
 
@@ -610,11 +685,17 @@ ok my $transaction = sub {
 	    ]);
 	    
     ok my $result = $replicated->schema->resultset('Artist')->find($id)
-        => 'Found expected artist';
-        
+        => "Found expected artist for $id";
+
+	is $debug{storage_type}, 'MASTER',
+		"got last query from a master: $debug{dsn}";
+			        
     ok my $more = $replicated->schema->resultset('Artist')->find(1)
-        => 'Found expected artist again';
-        
+        => 'Found expected artist again for 1';
+
+	is $debug{storage_type}, 'MASTER',
+		"got last query from a master: $debug{dsn}";
+			        
    return ($result, $more);
    
 } => 'Created a coderef properly';
@@ -626,18 +707,28 @@ ok my $transaction = sub {
 	    
 	    is $return[0]->id, 666
 	        => 'first returned value is correct';
+
+		is $debug{storage_type}, 'MASTER',
+		    "got last query from a master: $debug{dsn}";
 	        
 	    is $return[1]->id, 1
 	        => 'second returned value is correct';
+
+		is $debug{storage_type}, 'MASTER',
+		     "got last query from a master: $debug{dsn}";
+
 }
 
 ## Test that asking for single return works
 {
-	ok my $return = $replicated->schema->txn_do($transaction, 777)
+	ok my @return = $replicated->schema->txn_do($transaction, 777)
 	    => 'did transaction';
 	    
-	    is $return->id, 777
+	    is $return[0]->id, 777
 	        => 'first returned value is correct';
+	        
+	    is $return[1]->id, 1
+	        => 'second returned value is correct';
 }
 
 ## Test transaction returning a single value
@@ -646,6 +737,7 @@ ok my $transaction = sub {
 	ok my $result = $replicated->schema->txn_do(sub {
 		ok my $more = $replicated->schema->resultset('Artist')->find(1)
 		=> 'found inside a transaction';
+		is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
 		return $more;
 	}) => 'successfully processed transaction';
 	
@@ -657,15 +749,22 @@ ok my $transaction = sub {
 
 ok $replicated->schema->resultset('Artist')->find(1)
     => 'replicant reactivated';
+
+is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{dsn}";
     
 ## Test Discard changes
 
 {
 	ok my $artist = $replicated->schema->resultset('Artist')->find(2)
 	    => 'got an artist to test discard changes';
-	    
-	ok $artist->discard_changes
+
+	is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{dsn}";
+
+	ok $artist->get_from_storage({force_pool=>'master'})
 	   => 'properly discard changes';
+
+	is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
+
 }
 
 ## Test some edge cases, like trying to do a transaction inside a transaction, etc
@@ -675,6 +774,7 @@ ok $replicated->schema->resultset('Artist')->find(1)
     	return $replicated->schema->txn_do(sub {
 	        ok my $more = $replicated->schema->resultset('Artist')->find(1)
 	        => 'found inside a transaction inside a transaction';
+			is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
 	        return $more;    		
     	});
     }) => 'successfully processed transaction';
@@ -689,7 +789,8 @@ ok $replicated->schema->resultset('Artist')->find(1)
 	    	return $replicated->schema->txn_do(sub {
 	    		return $replicated->schema->storage->execute_reliably(sub {
 			        ok my $more = $replicated->schema->resultset('Artist')->find(1)
-			        => 'found inside crazy deep transactions and execute_reliably';
+			          => 'found inside crazy deep transactions and execute_reliably';
+					is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
 			        return $more; 	    			
 	    		});
 	    	});    	
@@ -712,8 +813,25 @@ ok $replicated->schema->resultset('Artist')->find(1)
 	   
     ok my $artist = $reliable_artist_rs->find(2) 
         => 'got an artist result via force_pool storage';
+
+	is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
 }
 
+## Test the force_pool resultset attribute part two.
+
+{
+	ok my $artist_rs = $replicated->schema->resultset('Artist')
+        => 'got artist resultset';
+	   
+	## Turn on Forced Pool Storage
+	ok my $reliable_artist_rs = $artist_rs->search(undef, {force_pool=>$replicant_names[0]})
+        => 'Created a resultset using force_pool storage';
+	   
+    ok my $artist = $reliable_artist_rs->find(2) 
+        => 'got an artist result via force_pool storage';
+
+	is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{dsn}";
+}
 ## Delete the old database files
 $replicated->cleanup;
 

@@ -67,7 +67,7 @@ Adds columns to the current class and creates accessors for them.
 =head2 table
 
   __PACKAGE__->table('tbl_name');
-  
+
 Gets or sets the table name.
 
 =cut

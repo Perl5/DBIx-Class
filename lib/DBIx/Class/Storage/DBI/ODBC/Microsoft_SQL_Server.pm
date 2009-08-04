@@ -3,15 +3,70 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::MSSQL/;
+use mro 'c3';
+
+use List::Util();
+
+sub insert_bulk {
+  my $self = shift;
+  my ($source, $cols, $data) = @_;
+
+  my $identity_insert = 0;
+
+  COLUMNS:
+  foreach my $col (@{$cols}) {
+    if ($source->column_info($col)->{is_auto_increment}) {
+      $identity_insert = 1;
+      last COLUMNS;
+    }
+  }
+
+  if ($identity_insert) {
+    my $table = $source->from;
+    $self->dbh->do("SET IDENTITY_INSERT $table ON");
+  }
+
+  $self->next::method(@_);
+
+  if ($identity_insert) {
+    my $table = $source->from;
+    $self->dbh->do("SET IDENTITY_INSERT $table OFF");
+  }
+}
 
 sub _prep_for_execute {
-    my $self = shift;
-    my ($op, $extra_bind, $ident, $args) = @_;
+  my $self = shift;
+  my ($op, $extra_bind, $ident, $args) = @_;
 
-    my ($sql, $bind) = $self->next::method (@_);
-    $sql .= ';SELECT SCOPE_IDENTITY()' if $op eq 'insert';
+# cast MONEY values properly
+  if ($op eq 'insert' || $op eq 'update') {
+    my $fields = $args->[0];
+    my $col_info = $self->_resolve_column_info($ident, [keys %$fields]);
 
-    return ($sql, $bind);
+    for my $col (keys %$fields) {
+      if ($col_info->{$col}{data_type} =~ /^money\z/i) {
+        my $val = $fields->{$col};
+        $fields->{$col} = \['CAST(? AS MONEY)', [ $col => $val ]];
+      }
+    }
+  }
+
+  my ($sql, $bind) = $self->next::method (@_);
+
+  if ($op eq 'insert') {
+    $sql .= ';SELECT SCOPE_IDENTITY()';
+
+    my $col_info = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
+    if (List::Util::first { $_->{is_auto_increment} } (values %$col_info) ) {
+
+      my $table = $ident->from;
+      my $identity_insert_on = "SET IDENTITY_INSERT $table ON";
+      my $identity_insert_off = "SET IDENTITY_INSERT $table OFF";
+      $sql = "$identity_insert_on; $sql; $identity_insert_off";
+    }
+  }
+
+  return ($sql, $bind);
 }
 
 sub _execute {
@@ -64,3 +119,4 @@ Marc Mims C<< <marc@questright.com> >>
 You may distribute this code under the same terms as Perl itself.
 
 =cut
+# vim: sw=2 sts=2
