@@ -1430,7 +1430,7 @@ sub _select_args {
     ( $attrs->{rows} && keys %{$attrs->{collapse}} )
        ||
     ( $attrs->{group_by} && @{$attrs->{group_by}} &&
-      $attrs->{prefetch_select} && @{$attrs->{prefetch_select}} )
+      $attrs->{_prefetch_select} && @{$attrs->{_prefetch_select}} )
   ) {
     ($ident, $select, $where, $attrs)
       = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
@@ -1475,14 +1475,15 @@ sub _adjust_select_args_for_complex_prefetch {
   # separate attributes
   my $sub_attrs = { %$attrs };
   delete $attrs->{$_} for qw/where bind rows offset group_by having/;
-  delete $sub_attrs->{$_} for qw/for collapse prefetch_select _collapse_order_by select as/;
+  delete $sub_attrs->{$_} for qw/for collapse _prefetch_select _collapse_order_by select as/;
 
   my $alias = $attrs->{alias};
   my $sql_maker = $self->sql_maker;
 
   # create subquery select list - consider only stuff *not* brought in by the prefetch
   my $sub_select = [];
-  for my $i (0 .. @{$attrs->{select}} - @{$attrs->{prefetch_select}} - 1) {
+  my $sub_group_by;
+  for my $i (0 .. @{$attrs->{select}} - @{$attrs->{_prefetch_select}} - 1) {
     my $sel = $attrs->{select}[$i];
 
     # alias any functions to the dbic-side 'as' label
@@ -1595,13 +1596,15 @@ sub _adjust_select_args_for_complex_prefetch {
 
   # if a multi-type join was needed in the subquery ("multi" is indicated by
   # presence in {collapse}) - add a group_by to simulate the collapse in the subq
-  for my $alias (keys %inner_joins) {
+  unless ($sub_attrs->{group_by}) {
+    for my $alias (keys %inner_joins) {
 
-    # the dot comes from some weirdness in collapse
-    # remove after the rewrite
-    if ($attrs->{collapse}{".$alias"}) {
-      $sub_attrs->{group_by} ||= $sub_select;
-      last;
+      # the dot comes from some weirdness in collapse
+      # remove after the rewrite
+      if ($attrs->{collapse}{".$alias"}) {
+        $sub_attrs->{group_by} ||= $sub_select;
+        last;
+      }
     }
   }
 
