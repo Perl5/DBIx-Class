@@ -9,6 +9,35 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
+lives_ok ( sub {
+  my $no_prefetch = $schema->resultset('Track')->search_related(cd =>
+    {
+      'cd.year' => "2000",
+    },
+    {
+      join => 'tags',
+      order_by => 'me.trackid',
+      rows => 1,
+    }
+  );
+
+  my $use_prefetch = $no_prefetch->search(
+    {},
+    {
+      prefetch => 'tags',
+    }
+  );
+
+  is($use_prefetch->count, $no_prefetch->count, 'counts with and without prefetch match');
+  is(
+    scalar ($use_prefetch->all),
+    scalar ($no_prefetch->all),
+    "Amount of returned rows is right"
+  );
+
+}, 'search_related prefetch with order_by works');
+
+
 lives_ok (sub {
     my $rs = $schema->resultset("Artwork")->search(undef, {distinct => 1})
               ->search_related('artwork_to_artist')->search_related('artist',
@@ -59,6 +88,6 @@ lives_ok (sub {
 
 
 
-}, 'distinct generally works with prefetch');
+}, 'distinct generally works with prefetch on deep search_related chains');
 
 done_testing;
