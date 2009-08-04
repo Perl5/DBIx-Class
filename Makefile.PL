@@ -60,8 +60,8 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 # re-build README and require extra modules for testing if we're in a checkout
 
 my %force_requires_if_author = (
+#  'Module::Install::Pod::Inherit' => 0.01,
   'Test::Pod::Coverage'       => 1.04,
-  'Module::Install::Pod::Inherit' => 0.01,
   'SQL::Translator'           => 0.09007,
 
   # CDBI-compat related
@@ -143,8 +143,8 @@ EOW
     unlink 'MANIFEST';
   }
 
-  eval { require Module::Install::Pod::Inherit };
-  PodInherit() if !$@;
+#  eval { require Module::Install::Pod::Inherit };
+#  PodInherit() if !$@;
 }
 
 auto_install();

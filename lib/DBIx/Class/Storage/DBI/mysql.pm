@@ -20,6 +20,14 @@ sub with_deferred_fk_checks {
   $self->_do_query('SET FOREIGN_KEY_CHECKS = 1');
 }
 
+sub connect_call_set_strict_mode {
+  my $self = shift;
+
+  # the @@sql_mode puts back what was previously set on the session handle
+  $self->_do_query(q|SET SQL_MODE = CONCAT('ANSI,TRADITIONAL,ONLY_FULL_GROUP_BY,', @@sql_mode)|);
+  $self->_do_query(q|SET SQL_AUTO_IS_NULL = 0|);
+}
+
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
   $dbh->{mysql_insertid};
@@ -73,11 +81,15 @@ DBIx::Class::Storage::DBI::mysql - Storage::DBI class implementing MySQL specifi
 Storage::DBI autodetects the underlying MySQL database, and re-blesses the
 C<$storage> object into this class.
 
-  my $schema = MyDb::Schema->connect( $dsn, $user, $pass );
+  my $schema = MyDb::Schema->connect( $dsn, $user, $pass, { set_strict_mode => 1 } );
 
 =head1 DESCRIPTION
 
 This class implements MySQL specific bits of L<DBIx::Class::Storage::DBI>.
+
+It also provides a one-stop on-connect macro C<set_strict_mode> which sets
+session variables such that MySQL behaves more predictably as far as the
+SQL standard is concerned.
 
 =head1 AUTHORS
 
