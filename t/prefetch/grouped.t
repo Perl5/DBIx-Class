@@ -263,7 +263,7 @@ lives_ok (sub {
                  );
     is($rs->all, 0, 'distinct without prefetch');
 
-    $rs = $schema->resultset("Artist")->search(undef, {distinct => 1})
+    $rs = $schema->resultset("Artist")->search({artistid => '11'}, {distinct => 1})
                 ->search_related('cds')->search_related('genre',
                     { 'genre.name' => 'foo' },
                     { prefetch => q(cds) },
