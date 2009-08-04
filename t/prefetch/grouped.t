@@ -6,7 +6,6 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
 
-#plan tests => 6;
 plan 'no_plan';
 
 my $schema = DBICTest->init_schema();
@@ -202,4 +201,34 @@ for ($cd_rs->all) {
   is ($query_cnt, 0, 'No queries executed during prefetched data access');
   $schema->storage->debugcb (undef);
   $schema->storage->debug ($sdebug);
+}
+
+# make sure that distinct still works
+{
+  my $rs = $schema->resultset("CD")->search({}, {
+    prefetch => 'tags',
+    order_by => 'cdid',
+    distinct => 1,
+  });
+
+  is_same_sql_bind (
+    $rs->as_query,
+    '(
+      SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+             tags.tagid, tags.cd, tags.tag 
+        FROM (
+          SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+            FROM cd me
+          GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          ORDER BY cdid
+        ) me
+        LEFT JOIN tags tags ON tags.cd = me.cdid
+      ORDER BY cdid, tags.cd, tags.tag
+    )',
+    [],
+    'Prefetch + distinct resulted in correct group_by',
+  );
+
+  is ($rs->all, 5, 'Correct number of CD objects');
+  is ($rs->count, 5, 'Correct count of CDs');
 }
