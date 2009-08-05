@@ -441,14 +441,17 @@ sub connect_info {
     # _connect() never looks past $args[0] in this case
     %attrs = ()
   } else {
-    %attrs = (%{ $self->_dbi_connect_attributes }, %attrs);
+    %attrs = (
+      %{ $self->_default_dbi_connect_attributes || {} },
+      %attrs,
+    );
   }
 
   $self->_dbi_connect_info([@args, keys %attrs ? \%attrs : ()]);
   $self->_connect_info;
 }
 
-sub _dbi_connect_attributes {
+sub _default_dbi_connect_attributes {
   return { AutoCommit => 1 };
 }
 
@@ -2426,7 +2429,7 @@ sub DESTROY {
 
 DBIx::Class can do some wonderful magic with handling exceptions,
 disconnections, and transactions when you use C<< AutoCommit => 1 >>
-combined with C<txn_do> for transaction support.
+(the default) combined with C<txn_do> for transaction support.
 
 If you set C<< AutoCommit => 0 >> in your connect info, then you are always
 in an assumed transaction between commits, and you're telling us you'd
@@ -2436,7 +2439,6 @@ disconnects because we don't know anything about how to restart your
 transactions.  You're on your own for handling all sorts of exceptional
 cases if you choose the C<< AutoCommit => 0 >> path, just as you would
 be with raw DBI.
-
 
 
 =head1 AUTHORS
