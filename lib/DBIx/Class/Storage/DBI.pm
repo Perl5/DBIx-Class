@@ -1490,7 +1490,7 @@ sub _adjust_select_args_for_complex_prefetch {
   delete $attrs->{$_} for qw/where bind rows offset group_by having/;
   delete $sub_attrs->{$_} for qw/for collapse _prefetch_select _collapse_order_by select as/;
 
-  my $alias = $attrs->{alias};
+  my $select_root_alias = $attrs->{alias};
   my $sql_maker = $self->sql_maker;
 
   # create subquery select list - consider only stuff *not* brought in by the prefetch
@@ -1518,29 +1518,15 @@ sub _adjust_select_args_for_complex_prefetch {
     ];
   }
 
-  # mangle {from}
+  # mangle {from}, keep in mind that $from is "headless" from here on
   my $join_root = shift @$from;
-  my @outer_from = @$from;
 
   my %inner_joins;
   my %join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
 
-  # in complex search_related chains $alias may *not* be 'me'
-  # so always include it in the inner join, and also shift away
-  # from the outer stack, so that the two datasets actually do
-  # meet
-  if ($join_root->{-alias} ne $alias) {
-    $inner_joins{$alias} = 1;
-
-    while (@outer_from && $outer_from[0][0]{-alias} ne $alias) {
-      shift @outer_from;
-    }
-    if (! @outer_from) {
-      $self->throw_exception ("Unable to find '$alias' in the {from} stack, something is wrong");
-    }
-
-    shift @outer_from; # the new subquery will represent this alias, so get rid of it
-  }
+  # in complex search_related chains $select_root_alias may *not* be
+  # 'me' so always include it in the inner join
+  $inner_joins{$select_root_alias} = 1 if ($join_root->{-alias} ne $select_root_alias);
 
 
   # decide which parts of the join will remain on the inside
@@ -1628,13 +1614,41 @@ sub _adjust_select_args_for_complex_prefetch {
     $where,
     $sub_attrs
   );
-
-  # put it in the new {from}
-  unshift @outer_from, {
-    -alias => $alias,
+  my $subq_joinspec = {
+    -alias => $select_root_alias,
     -source_handle => $join_root->{-source_handle},
-    $alias => $subq,
+    $select_root_alias => $subq,
   };
+
+  # Generate a new from (really just replace the join slot with the subquery)
+  # Before we would start the outer chain from the subquery itself (i.e.
+  # SELECT ... FROM (SELECT ... ) alias JOIN ..., but this turned out to be
+  # a bad idea for search_related, as the root of the chain was effectively
+  # lost (i.e. $artist_rs->search_related ('cds'... ) would result in alias
+  # of 'cds', which would prevent from doing things like order_by artist.*)
+  # See t/prefetch/via_search_related.t for a better idea
+  my @outer_from;
+  if ($join_root->{-alias} eq $select_root_alias) { # just swap the root part and we're done
+    @outer_from = (
+      $subq_joinspec,
+      @$from,
+    )
+  }
+  else {  # this is trickier
+    @outer_from = ($join_root);
+
+    for my $j (@$from) {
+      if ($j->[0]{-alias} eq $select_root_alias) {
+        push @outer_from, [
+          $subq_joinspec,
+          @{$j}[1 .. $#$j],
+        ];
+      }
+      else {
+        push @outer_from, $j;
+      }
+    }
+  }
 
   # This is totally horrific - the $where ends up in both the inner and outer query
   # Unfortunately not much can be done until SQLA2 introspection arrives, and even
