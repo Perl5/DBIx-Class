@@ -766,12 +766,12 @@ is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{d
 	is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
 
 	ok $artist->discard_changes({force_pool=>'master'})
-	   => 'properly alled discard_changes against master (manual attrs)';
+	   => 'properly called discard_changes against master (manual attrs)';
 
 	is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
 
 	ok $artist->discard_changes()
-	   => 'properly alled discard_changes against master (default attrs)';
+	   => 'properly called discard_changes against master (default attrs)';
 
 	is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}"
 }
