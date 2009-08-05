@@ -11,6 +11,8 @@ use DBIC::SqlMakerTest;
 
 my $ping_count = 0;
 
+my $schema = DBICTest->init_schema();
+
 {
   local $SIG{__WARN__} = sub {};
   require DBIx::Class::Storage::DBI;
@@ -22,8 +24,6 @@ my $ping_count = 0;
     goto &$ping;
   };
 }
-
-my $schema = DBICTest->init_schema();
 
 my $orig_debug = $schema->storage->debug;
 
