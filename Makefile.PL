@@ -45,6 +45,15 @@ requires 'Sub::Name'                => 0.04;
 
 recommends 'SQL::Translator'        => 0.09004;
 
+feature 'Replication',
+  -default => 0,
+  'Moose' => '0.88',
+  'MooseX::AttributeHelpers' => '0.21',
+  'MooseX::Types' => '0.16',
+  'namespace::clean' => '0.11',
+  'Hash::Merge' => '0.11';
+
+
 install_script (qw|
     script/dbicadmin
 |);
