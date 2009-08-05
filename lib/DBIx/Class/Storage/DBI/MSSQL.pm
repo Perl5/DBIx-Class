@@ -30,14 +30,14 @@ sub insert_bulk {
 
   if ($identity_insert) {
     my $table = $source->from;
-    $self->_get_dbh->do("SET IDENTITY_INSERT $table ON");
+    $self->last_dbh->do("SET IDENTITY_INSERT $table ON");
   }
 
   $self->next::method(@_);
 
   if ($identity_insert) {
     my $table = $source->from;
-    $self->_get_dbh->do("SET IDENTITY_INSERT $table OFF");
+    $self->last_dbh->do("SET IDENTITY_INSERT $table OFF");
   }
 }
 
@@ -68,7 +68,7 @@ sub insert {
     grep { not exists $to_insert->{$_} } (@pk_guids, @auto_guids);
 
   for my $guid_col (@get_guids_for) {
-    my ($new_guid) = $self->_get_dbh->selectrow_array('SELECT NEWID()');
+    my ($new_guid) = $self->last_dbh->selectrow_array('SELECT NEWID()');
     $updated_cols->{$guid_col} = $to_insert->{$guid_col} = $new_guid;
   }
 
@@ -145,7 +145,7 @@ sub last_insert_id { shift->_identity }
 sub _svp_begin {
   my ($self, $name) = @_;
 
-  $self->_get_dbh->do("SAVE TRANSACTION $name");
+  $self->last_dbh->do("SAVE TRANSACTION $name");
 }
 
 # A new SAVE TRANSACTION with the same name releases the previous one.
@@ -154,7 +154,7 @@ sub _svp_release { 1 }
 sub _svp_rollback {
   my ($self, $name) = @_;
 
-  $self->_get_dbh->do("ROLLBACK TRANSACTION $name");
+  $self->last_dbh->do("ROLLBACK TRANSACTION $name");
 }
 
 sub build_datetime_parser {
