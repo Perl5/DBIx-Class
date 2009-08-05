@@ -1264,7 +1264,7 @@ sub _count_subq_rs {
   my $sub_attrs = { %$attrs };
 
   # extra selectors do not go in the subquery and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/collapse prefetch_select select as order_by/;
+  delete $sub_attrs->{$_} for qw/collapse select _prefetch_select as order_by/;
 
   # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
   # clobber old group_by regardless
@@ -2882,6 +2882,12 @@ sub _resolved_attrs {
     $attrs->{group_by} = [ $attrs->{group_by} ];
   }
 
+  # generate the distinct induced group_by early, as prefetch will be carried via a
+  # subquery (since a group_by is present)
+  if (delete $attrs->{distinct}) {
+    $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
+  }
+
   $attrs->{collapse} ||= {};
   if ( my $prefetch = delete $attrs->{prefetch} ) {
     $prefetch = $self->_merge_attr( {}, $prefetch );
@@ -2893,17 +2899,14 @@ sub _resolved_attrs {
     my @prefetch =
       $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $attrs->{collapse} );
 
-    $attrs->{prefetch_select} = [ map { $_->[0] } @prefetch ];
-    push @{ $attrs->{select} }, @{$attrs->{prefetch_select}};
+    # we need to somehow mark which columns came from prefetch
+    $attrs->{_prefetch_select} = [ map { $_->[0] } @prefetch ];
+
+    push @{ $attrs->{select} }, @{$attrs->{_prefetch_select}};
     push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
 
     push( @{$attrs->{order_by}}, @$prefetch_ordering );
     $attrs->{_collapse_order_by} = \@$prefetch_ordering;
-  }
-
-
-  if (delete $attrs->{distinct}) {
-    $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
   }
 
   # if both page and offset are specified, produce a combined offset
