@@ -43,6 +43,7 @@ sub discard_changes {
   delete $self->{_dirty_columns};
   return unless $self->in_storage; # Don't reload if we aren't real!
 
+  $attrs = { force_pool => 'master', %{ defined $attrs ? $attrs:{} } };
   if( my $current_storage = $self->get_from_storage($attrs)) {
 
     # Set $self to the current.
