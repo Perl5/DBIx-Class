@@ -1708,7 +1708,7 @@ sub _resolve_ident_sources {
 # also note: this adds -result_source => $rsrc to the column info
 #
 # usage:
-#   my $col_sources = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
+#   my $col_sources = $self->_resolve_column_info($ident, @column_names);
 sub _resolve_column_info {
   my ($self, $ident, $colnames) = @_;
   my ($alias2src, $root_alias) = $self->_resolve_ident_sources($ident);
@@ -1716,29 +1716,39 @@ sub _resolve_column_info {
   my $sep = $self->_sql_maker_opts->{name_sep} || '.';
   $sep = "\Q$sep\E";
 
-  my (%return, %converted);
+  my (%return, %seen_cols);
 
-  if (not $colnames) {
-    $colnames = [ map {
-      my $alias  = $_;
-      my $source = $alias2src->{$alias};
-      map "${alias}${sep}$_", $source->columns
-    } keys %$alias2src ];
-
-# also add unqualified columns for 'me' table
-    push @$colnames, $alias2src->{$root_alias}->columns;
+  # compile a global list of column names, to be able to properly
+  # disambiguate unqualified column names (if at all possible)
+  for my $alias (keys %$alias2src) {
+    my $rsrc = $alias2src->{$alias};
+    for my $colname ($rsrc->columns) {
+      push @{$seen_cols{$colname}}, $alias;
+    }
   }
 
+  COLUMN:
   foreach my $col (@$colnames) {
     my ($alias, $colname) = $col =~ m/^ (?: ([^$sep]+) $sep)? (.+) $/x;
 
-    # deal with unqualified cols - we assume the main alias for all
-    # unqualified ones, ugly but can't think of anything better right now
-    $alias ||= $root_alias;
+    unless ($alias) {
+      # see if the column was seen exactly once (so we know which rsrc it came from)
+      if ($seen_cols{$colname} and @{$seen_cols{$colname}} == 1) {
+        $alias = $seen_cols{$colname}[0];
+      }
+      else {
+        next COLUMN;
+      }
+    }
 
     my $rsrc = $alias2src->{$alias};
-    $return{$col} = $rsrc && { %{$rsrc->column_info($colname)}, -result_source => $rsrc };
+    $return{$col} = $rsrc && {
+      %{$rsrc->column_info($colname)},
+      -result_source => $rsrc,
+      -source_alias => $alias,
+    };
   }
+
   return \%return;
 }
 
