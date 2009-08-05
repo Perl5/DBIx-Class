@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+        - refactor of MSSQL storage drivers, with some new features: support for
+          placeholders for MSSQL via DBD::Sybase with autodetection,
+          'uniqueidentifier' support with auto newid(), dynamic cursor support and
+          other MARS options for ODBC
         - support for MSSQL 'money' type
         - support for 'smalldatetime' type used in MSSQL and Sybase for
           InflateColumn::DateTime

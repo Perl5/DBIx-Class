@@ -15,8 +15,8 @@ use Scalar::Util();
 use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
-     _conn_pid _conn_tid transaction_depth _dbh_autocommit savepoints/
+  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
+     _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints/
 );
 
 # the values for these accessors are picked out (and deleted) from
@@ -763,23 +763,27 @@ sub _populate_dbh {
 sub _determine_driver {
   my ($self) = @_;
 
-  if (ref $self eq 'DBIx::Class::Storage::DBI') {
-    my $driver;
+  if (not $self->_driver_determined) {
+    if (ref($self) eq __PACKAGE__) {
+      my $driver;
 
-    if ($self->_dbh) { # we are connected
-      $driver = $self->_dbh->{Driver}{Name};
-    } else {
-      # try to use dsn to not require being connected, the driver may still
-      # force a connection in _rebless to determine version
-      ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+      if ($self->_dbh) { # we are connected
+        $driver = $self->_dbh->{Driver}{Name};
+      } else {
+        # try to use dsn to not require being connected, the driver may still
+        # force a connection in _rebless to determine version
+        ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+      }
+
+      my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
+      if ($self->load_optional_class($storage_class)) {
+        mro::set_mro($storage_class, 'c3');
+        bless $self, $storage_class;
+        $self->_rebless();
+      }
     }
 
-    my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
-    if ($self->load_optional_class($storage_class)) {
-      mro::set_mro($storage_class, 'c3');
-      bless $self, $storage_class;
-      $self->_rebless();
-    }
+    $self->_driver_determined(1);
   }
 }
 
@@ -1142,12 +1146,17 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
+# redispatch to insert method of storage we reblessed into, if necessary
+  if (not $self->_driver_determined) {
+    $self->_determine_driver;
+    goto $self->can('insert');
+  }
+
   my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
 
   my $updated_cols = {};
 
-  $self->ensure_connected;
   foreach my $col ( $source->columns ) {
     if ( !defined $to_insert->{$col} ) {
       my $col_info = $source->column_info($col);
@@ -1699,7 +1708,7 @@ sub _resolve_ident_sources {
 # also note: this adds -result_source => $rsrc to the column info
 #
 # usage:
-#   my $col_sources = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
+#   my $col_sources = $self->_resolve_column_info($ident, @column_names);
 sub _resolve_column_info {
   my ($self, $ident, $colnames) = @_;
   my ($alias2src, $root_alias) = $self->_resolve_ident_sources($ident);
@@ -1707,17 +1716,39 @@ sub _resolve_column_info {
   my $sep = $self->_sql_maker_opts->{name_sep} || '.';
   $sep = "\Q$sep\E";
 
-  my (%return, %converted);
+  my (%return, %seen_cols);
+
+  # compile a global list of column names, to be able to properly
+  # disambiguate unqualified column names (if at all possible)
+  for my $alias (keys %$alias2src) {
+    my $rsrc = $alias2src->{$alias};
+    for my $colname ($rsrc->columns) {
+      push @{$seen_cols{$colname}}, $alias;
+    }
+  }
+
+  COLUMN:
   foreach my $col (@$colnames) {
     my ($alias, $colname) = $col =~ m/^ (?: ([^$sep]+) $sep)? (.+) $/x;
 
-    # deal with unqualified cols - we assume the main alias for all
-    # unqualified ones, ugly but can't think of anything better right now
-    $alias ||= $root_alias;
+    unless ($alias) {
+      # see if the column was seen exactly once (so we know which rsrc it came from)
+      if ($seen_cols{$colname} and @{$seen_cols{$colname}} == 1) {
+        $alias = $seen_cols{$colname}[0];
+      }
+      else {
+        next COLUMN;
+      }
+    }
 
     my $rsrc = $alias2src->{$alias};
-    $return{$col} = $rsrc && { %{$rsrc->column_info($colname)}, -result_source => $rsrc };
+    $return{$col} = $rsrc && {
+      %{$rsrc->column_info($colname)},
+      -result_source => $rsrc,
+      -source_alias => $alias,
+    };
   }
+
   return \%return;
 }
 
