@@ -253,6 +253,7 @@ my $replicated_class = DBICTest->has_custom_dsn ?
 my $replicated;
 
 for my $method (qw/by_connect_info by_storage_type/) {
+  undef $replicated;
   ok $replicated = $replicated_class->new($method)
       => "Created a replication object $method";
 
