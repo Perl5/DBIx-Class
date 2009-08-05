@@ -42,7 +42,7 @@ my $dbh = $schema->storage->dbh;
 eval {
   $dbh->do("DROP TABLE track");
 };
-$dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255), last_updated_on DATE, last_updated_at TIMESTAMP)");
+$dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255), last_updated_on DATE, last_updated_at TIMESTAMP, small_dt DATE)");
 
 # insert a row to play with
 my $new = $schema->resultset('Track')->create({ trackid => 1, cd => 1, position => 1, title => 'Track1', last_updated_on => '06-MAY-07', last_updated_at => '2009-05-03 21:17:18.5' });

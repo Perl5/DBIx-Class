@@ -15,8 +15,8 @@ use Scalar::Util();
 use List::Util();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts
-     _conn_pid _conn_tid transaction_depth _dbh_autocommit savepoints/
+  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
+     _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints/
 );
 
 # the values for these accessors are picked out (and deleted) from
@@ -796,26 +796,30 @@ sub _run_connection_actions {
 sub _determine_driver {
   my ($self) = @_;
 
-  if (ref $self eq 'DBIx::Class::Storage::DBI') {
-    my $driver;
+  if (not $self->_driver_determined) {
+    if (ref($self) eq __PACKAGE__) {
+      my $driver;
     my $started_unconnected = 0;
     local $self->{_in_determine_driver} = 1;
 
-    if ($self->_dbh) { # we are connected
-      $driver = $self->_dbh->{Driver}{Name};
-    } else {
-      # try to use dsn to not require being connected, the driver may still
-      # force a connection in _rebless to determine version
-      ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+      if ($self->_dbh) { # we are connected
+        $driver = $self->_dbh->{Driver}{Name};
+      } else {
+        # try to use dsn to not require being connected, the driver may still
+        # force a connection in _rebless to determine version
+        ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+      }
+
+      my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
+      if ($self->load_optional_class($storage_class)) {
+        mro::set_mro($storage_class, 'c3');
+        bless $self, $storage_class;
+        $self->_rebless();
+      }
       $started_unconnected = 1;
     }
 
-    my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
-    if ($self->load_optional_class($storage_class)) {
-      mro::set_mro($storage_class, 'c3');
-      bless $self, $storage_class;
-      $self->_rebless();
-    }
+    $self->_driver_determined(1);
 
     $self->_run_connection_actions
         if $started_unconnected && defined $self->_dbh;
@@ -1180,7 +1184,11 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
-  $self->_determine_driver;
+# redispatch to insert method of storage we reblessed into, if necessary
+  if (not $self->_driver_determined) {
+    $self->_determine_driver;
+    goto $self->can('insert');
+  }
 
   my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
@@ -1447,8 +1455,21 @@ sub _select_args {
       my $fqcn = join ('.', $alias, $col);
       $bind_attrs->{$fqcn} = $bindtypes->{$col} if $bindtypes->{$col};
 
-      # so that unqualified searches can be bound too
-      $bind_attrs->{$col} = $bind_attrs->{$fqcn} if $alias eq $rs_alias;
+      # Unqialified column names are nice, but at the same time can be
+      # rather ambiguous. What we do here is basically go along with
+      # the loop, adding an unqualified column slot to $bind_attrs,
+      # alongside the fully qualified name. As soon as we encounter
+      # another column by that name (which would imply another table)
+      # we unset the unqualified slot and never add any info to it
+      # to avoid erroneous type binding. If this happens the users
+      # only choice will be to fully qualify his column name
+
+      if (exists $bind_attrs->{$col}) {
+        $bind_attrs->{$col} = {};
+      }
+      else {
+        $bind_attrs->{$col} = $bind_attrs->{$fqcn};
+      }
     }
   }
 
@@ -1476,7 +1497,7 @@ sub _select_args {
     ( $attrs->{rows} && keys %{$attrs->{collapse}} )
        ||
     ( $attrs->{group_by} && @{$attrs->{group_by}} &&
-      $attrs->{prefetch_select} && @{$attrs->{prefetch_select}} )
+      $attrs->{_prefetch_select} && @{$attrs->{_prefetch_select}} )
   ) {
     ($ident, $select, $where, $attrs)
       = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
@@ -1521,14 +1542,15 @@ sub _adjust_select_args_for_complex_prefetch {
   # separate attributes
   my $sub_attrs = { %$attrs };
   delete $attrs->{$_} for qw/where bind rows offset group_by having/;
-  delete $sub_attrs->{$_} for qw/for collapse prefetch_select _collapse_order_by select as/;
+  delete $sub_attrs->{$_} for qw/for collapse _prefetch_select _collapse_order_by select as/;
 
-  my $alias = $attrs->{alias};
+  my $select_root_alias = $attrs->{alias};
   my $sql_maker = $self->sql_maker;
 
   # create subquery select list - consider only stuff *not* brought in by the prefetch
   my $sub_select = [];
-  for my $i (0 .. @{$attrs->{select}} - @{$attrs->{prefetch_select}} - 1) {
+  my $sub_group_by;
+  for my $i (0 .. @{$attrs->{select}} - @{$attrs->{_prefetch_select}} - 1) {
     my $sel = $attrs->{select}[$i];
 
     # alias any functions to the dbic-side 'as' label
@@ -1550,29 +1572,15 @@ sub _adjust_select_args_for_complex_prefetch {
     ];
   }
 
-  # mangle {from}
+  # mangle {from}, keep in mind that $from is "headless" from here on
   my $join_root = shift @$from;
-  my @outer_from = @$from;
 
   my %inner_joins;
   my %join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
 
-  # in complex search_related chains $alias may *not* be 'me'
-  # so always include it in the inner join, and also shift away
-  # from the outer stack, so that the two datasets actually do
-  # meet
-  if ($join_root->{-alias} ne $alias) {
-    $inner_joins{$alias} = 1;
-
-    while (@outer_from && $outer_from[0][0]{-alias} ne $alias) {
-      shift @outer_from;
-    }
-    if (! @outer_from) {
-      $self->throw_exception ("Unable to find '$alias' in the {from} stack, something is wrong");
-    }
-
-    shift @outer_from; # the new subquery will represent this alias, so get rid of it
-  }
+  # in complex search_related chains $select_root_alias may *not* be
+  # 'me' so always include it in the inner join
+  $inner_joins{$select_root_alias} = 1 if ($join_root->{-alias} ne $select_root_alias);
 
 
   # decide which parts of the join will remain on the inside
@@ -1641,13 +1649,15 @@ sub _adjust_select_args_for_complex_prefetch {
 
   # if a multi-type join was needed in the subquery ("multi" is indicated by
   # presence in {collapse}) - add a group_by to simulate the collapse in the subq
-  for my $alias (keys %inner_joins) {
+  unless ($sub_attrs->{group_by}) {
+    for my $alias (keys %inner_joins) {
 
-    # the dot comes from some weirdness in collapse
-    # remove after the rewrite
-    if ($attrs->{collapse}{".$alias"}) {
-      $sub_attrs->{group_by} ||= $sub_select;
-      last;
+      # the dot comes from some weirdness in collapse
+      # remove after the rewrite
+      if ($attrs->{collapse}{".$alias"}) {
+        $sub_attrs->{group_by} ||= $sub_select;
+        last;
+      }
     }
   }
 
@@ -1658,13 +1668,41 @@ sub _adjust_select_args_for_complex_prefetch {
     $where,
     $sub_attrs
   );
-
-  # put it in the new {from}
-  unshift @outer_from, {
-    -alias => $alias,
+  my $subq_joinspec = {
+    -alias => $select_root_alias,
     -source_handle => $join_root->{-source_handle},
-    $alias => $subq,
+    $select_root_alias => $subq,
   };
+
+  # Generate a new from (really just replace the join slot with the subquery)
+  # Before we would start the outer chain from the subquery itself (i.e.
+  # SELECT ... FROM (SELECT ... ) alias JOIN ..., but this turned out to be
+  # a bad idea for search_related, as the root of the chain was effectively
+  # lost (i.e. $artist_rs->search_related ('cds'... ) would result in alias
+  # of 'cds', which would prevent from doing things like order_by artist.*)
+  # See t/prefetch/via_search_related.t for a better idea
+  my @outer_from;
+  if ($join_root->{-alias} eq $select_root_alias) { # just swap the root part and we're done
+    @outer_from = (
+      $subq_joinspec,
+      @$from,
+    )
+  }
+  else {  # this is trickier
+    @outer_from = ($join_root);
+
+    for my $j (@$from) {
+      if ($j->[0]{-alias} eq $select_root_alias) {
+        push @outer_from, [
+          $subq_joinspec,
+          @{$j}[1 .. $#$j],
+        ];
+      }
+      else {
+        push @outer_from, $j;
+      }
+    }
+  }
 
   # This is totally horrific - the $where ends up in both the inner and outer query
   # Unfortunately not much can be done until SQLA2 introspection arrives, and even
@@ -1715,7 +1753,7 @@ sub _resolve_ident_sources {
 # also note: this adds -result_source => $rsrc to the column info
 #
 # usage:
-#   my $col_sources = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
+#   my $col_sources = $self->_resolve_column_info($ident, @column_names);
 sub _resolve_column_info {
   my ($self, $ident, $colnames) = @_;
   my ($alias2src, $root_alias) = $self->_resolve_ident_sources($ident);
@@ -1723,17 +1761,39 @@ sub _resolve_column_info {
   my $sep = $self->_sql_maker_opts->{name_sep} || '.';
   $sep = "\Q$sep\E";
 
-  my (%return, %converted);
+  my (%return, %seen_cols);
+
+  # compile a global list of column names, to be able to properly
+  # disambiguate unqualified column names (if at all possible)
+  for my $alias (keys %$alias2src) {
+    my $rsrc = $alias2src->{$alias};
+    for my $colname ($rsrc->columns) {
+      push @{$seen_cols{$colname}}, $alias;
+    }
+  }
+
+  COLUMN:
   foreach my $col (@$colnames) {
     my ($alias, $colname) = $col =~ m/^ (?: ([^$sep]+) $sep)? (.+) $/x;
 
-    # deal with unqualified cols - we assume the main alias for all
-    # unqualified ones, ugly but can't think of anything better right now
-    $alias ||= $root_alias;
+    unless ($alias) {
+      # see if the column was seen exactly once (so we know which rsrc it came from)
+      if ($seen_cols{$colname} and @{$seen_cols{$colname}} == 1) {
+        $alias = $seen_cols{$colname}[0];
+      }
+      else {
+        next COLUMN;
+      }
+    }
 
     my $rsrc = $alias2src->{$alias};
-    $return{$col} = $rsrc && { %{$rsrc->column_info($colname)}, -result_source => $rsrc };
+    $return{$col} = $rsrc && {
+      %{$rsrc->column_info($colname)},
+      -result_source => $rsrc,
+      -source_alias => $alias,
+    };
   }
+
   return \%return;
 }
 

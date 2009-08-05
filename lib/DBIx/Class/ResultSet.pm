@@ -1264,7 +1264,7 @@ sub _count_subq_rs {
   my $sub_attrs = { %$attrs };
 
   # extra selectors do not go in the subquery and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/collapse prefetch_select select as order_by/;
+  delete $sub_attrs->{$_} for qw/collapse select _prefetch_select as order_by/;
 
   # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
   # clobber old group_by regardless
@@ -2875,6 +2875,12 @@ sub _resolved_attrs {
     $attrs->{group_by} = [ $attrs->{group_by} ];
   }
 
+  # generate the distinct induced group_by early, as prefetch will be carried via a
+  # subquery (since a group_by is present)
+  if (delete $attrs->{distinct}) {
+    $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
+  }
+
   $attrs->{collapse} ||= {};
   if ( my $prefetch = delete $attrs->{prefetch} ) {
     $prefetch = $self->_merge_attr( {}, $prefetch );
@@ -2886,17 +2892,14 @@ sub _resolved_attrs {
     my @prefetch =
       $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $attrs->{collapse} );
 
-    $attrs->{prefetch_select} = [ map { $_->[0] } @prefetch ];
-    push @{ $attrs->{select} }, @{$attrs->{prefetch_select}};
+    # we need to somehow mark which columns came from prefetch
+    $attrs->{_prefetch_select} = [ map { $_->[0] } @prefetch ];
+
+    push @{ $attrs->{select} }, @{$attrs->{_prefetch_select}};
     push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
 
     push( @{$attrs->{order_by}}, @$prefetch_ordering );
     $attrs->{_collapse_order_by} = \@$prefetch_ordering;
-  }
-
-
-  if (delete $attrs->{distinct}) {
-    $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
   }
 
   # if both page and offset are specified, produce a combined offset
@@ -2928,7 +2931,7 @@ sub _joinpath_aliases {
   for my $j (@$fromspec) {
 
     next if ref $j ne 'ARRAY';
-    next if $j->[0]{-relation_chain_depth} < $cur_depth;
+    next if ($j->[0]{-relation_chain_depth} || 0) < $cur_depth;
 
     my $jpath = $j->[0]{-join_path};
 
@@ -3376,6 +3379,42 @@ with that artist is given below (assuming many-to-many from artists to tags):
 
 B<NOTE:> If you specify a C<prefetch> attribute, the C<join> and C<select>
 attributes will be ignored.
+
+B<CAVEATs>: Prefetch does a lot of deep magic. As such, it may not behave
+exactly as you might expect.
+
+=over 4
+
+=item * 
+
+Prefetch uses the L</cache> to populate the prefetched relationships. This
+may or may not be what you want.
+
+=item * 
+
+If you specify a condition on a prefetched relationship, ONLY those
+rows that match the prefetched condition will be fetched into that relationship.
+This means that adding prefetch to a search() B<may alter> what is returned by
+traversing a relationship. So, if you have C<< Artist->has_many(CDs) >> and you do
+
+  my $artist_rs = $schema->resultset('Artist')->search({
+      'cds.year' => 2008,
+  }, {
+      join => 'cds',
+  });
+
+  my $count = $artist_rs->first->cds->count;
+
+  my $artist_rs_prefetch = $artist_rs->search( {}, { prefetch => 'cds' } );
+
+  my $prefetch_count = $artist_rs_prefetch->first->cds->count;
+
+  cmp_ok( $count, '==', $prefetch_count, "Counts should be the same" );
+
+that cmp_ok() may or may not pass depending on the datasets involved. This
+behavior may or may not survive the 0.09 transition.
+
+=back
 
 =head2 page
 

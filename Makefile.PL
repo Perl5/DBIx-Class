@@ -13,8 +13,10 @@ all_from 'lib/DBIx/Class.pm';
 test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Deep'          => 0;
 test_requires 'Test::Exception'     => 0;
-test_requires 'Test::More'          => 0.82;
+test_requires 'Test::More'          => 0.92;
 test_requires 'Test::Warn'          => 0.11;
+
+test_requires 'File::Temp'          => 0.22;
 
 # Core
 requires 'List::Util'               => 0;
@@ -60,8 +62,8 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 # re-build README and require extra modules for testing if we're in a checkout
 
 my %force_requires_if_author = (
+#  'Module::Install::Pod::Inherit' => 0.01,
   'Test::Pod::Coverage'       => 1.04,
-  'Module::Install::Pod::Inherit' => 0.01,
   'SQL::Translator'           => 0.09007,
 
   # CDBI-compat related
@@ -137,8 +139,8 @@ EOW
     unlink 'MANIFEST';
   }
 
-  eval { require Module::Install::Pod::Inherit };
-  PodInherit() if !$@;
+#  eval { require Module::Install::Pod::Inherit };
+#  PodInherit() if !$@;
 }
 
 auto_install();
