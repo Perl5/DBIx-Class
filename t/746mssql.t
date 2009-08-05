@@ -263,7 +263,7 @@ $schema->storage->_sql_maker->{name_sep} = '.';
     is ($owners->page(3)->count, 2, 'has-many prefetch returns correct count');
     is ($owners->page(3)->count_rs->next, 2, 'has-many prefetch returns correct count_rs');
 
-    # make sure count does not become overly complex FIXME
+    # make sure count does not become overly complex
     is_same_sql_bind (
       $owners->page(3)->count_rs->as_query,
       '(
@@ -303,7 +303,7 @@ $schema->storage->_sql_maker->{name_sep} = '.';
     is ($books->page(2)->count, 1, 'Prefetched grouped search returns correct count');
     is ($books->page(2)->count_rs->next, 1, 'Prefetched grouped search returns correct count_rs');
 
-    # make sure count does not become overly complex FIXME
+    # make sure count does not become overly complex (FIXME - the distinct-induced group_by is incorrect)
     is_same_sql_bind (
       $books->page(2)->count_rs->as_query,
       '(
@@ -313,7 +313,7 @@ $schema->storage->_sql_maker->{name_sep} = '.';
               FROM [books] [me]
               JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
             WHERE ( ( ( [owner].[name] = ? OR [owner].[name] = ? ) AND [source] = ? ) )
-            GROUP BY [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price], [owner].[id], [owner].[name]
+            GROUP BY [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
             ORDER BY [me].[id] DESC
           ) [count_subq]
       )',
