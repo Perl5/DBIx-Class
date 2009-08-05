@@ -111,8 +111,6 @@ L<ResultSource::View|DBIx::Class::ResultSource::View> for your query.
   use warnings;
   use base qw/DBIx::Class/;
 
-  use DBIx::Class::ResultSource::View;
-
   __PACKAGE__->load_components('Core');
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 

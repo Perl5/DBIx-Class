@@ -40,8 +40,6 @@ DBIx::Class::ResultSource - Result source object
   # Create a query (view) based result source, in a result class
   package MyDB::Schema::Result::Year2000CDs;
 
-  use DBIx::Class::ResultSource::View;
-
   __PACKAGE__->load_components('Core');
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
