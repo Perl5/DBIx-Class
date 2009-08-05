@@ -530,8 +530,15 @@ sub dbh_do {
 
   local $self->{_in_dbh_do} = 1;
 
+  $self->_do_with_reconnect($code, @_);
+}
+
+sub _do_with_reconnect {
+  my $self = shift;
+  my $code = shift;
   my @result;
   my $want_array = wantarray;
+  my $dbh = $self->_dbh;
 
   eval {
     $self->_verify_pid if $dbh;
@@ -1056,7 +1063,7 @@ sub txn_begin {
     # this isn't ->_dbh-> because
     #  we should reconnect on begin_work
     #  for AutoCommit users
-    $self->dbh_do(sub { $_[1]->begin_work });
+    $self->_do_with_reconnect(sub { $_[1]->begin_work });
   } elsif ($self->auto_savepoint) {
     $self->svp_begin;
   }
