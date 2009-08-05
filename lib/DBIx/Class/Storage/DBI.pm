@@ -667,6 +667,22 @@ sub with_deferred_fk_checks {
   $sub->();
 }
 
+=head2 connected
+
+=over
+
+=item Arguments: none
+
+=item Return Value: 1|0
+
+=back
+
+Verifies that the the current database handle is active and ready to execute
+an SQL statement (i.e. the connection did not get stale, server is still
+answering, etc.) This method is used internally by L</dbh>.
+
+=cut
+
 sub connected {
   my ($self) = @_;
 
@@ -718,7 +734,9 @@ sub ensure_connected {
 
 =head2 dbh
 
-Returns the dbh - a data base handle of class L<DBI>.
+Returns a C<$dbh> - a data base handle of class L<DBI>. The returned handle
+is guaranteed to be healthy by implicitly calling L</connected>, and if
+necessary performing a reconnection before returning.
 
 =cut
 
@@ -733,12 +751,19 @@ sub dbh {
   return $self->_dbh;
 }
 
-sub _get_dbh {
-  my $self = shift;
+=head2 last_dbh
 
-  if (not $self->_dbh) {
-    $self->_populate_dbh;
-  }
+This returns the B<last> available C<$dbh> if any, or attempts to
+connect and returns the resulting handle. This method differs from
+L</dbh> by not validating if a preexisting handle is still healthy
+via L</connected>. Make sure you take appropriate precautions
+when using this method, as the C<$dbh> may be useless at this point.
+
+=cut
+
+sub last_dbh {
+  my $self = shift;
+  $self->_populate_dbh unless $self->_dbh;
   return $self->_dbh;
 }
 
@@ -748,7 +773,7 @@ sub _sql_maker_args {
     return (
       bindtype=>'columns',
       array_datatypes => 1,
-      limit_dialect => $self->_get_dbh,
+      limit_dialect => $self->last_dbh,
       %{$self->_sql_maker_opts}
     );
 }
@@ -1203,7 +1228,7 @@ sub insert {
         $updated_cols->{$col} = $to_insert->{$col} = $self->_sequence_fetch(
           'nextval',
           $col_info->{sequence} ||
-            $self->_dbh_get_autoinc_seq($self->_get_dbh, $source)
+            $self->_dbh_get_autoinc_seq($self->last_dbh, $source)
         );
       }
     }
@@ -1993,7 +2018,7 @@ Returns the database driver name.
 
 =cut
 
-sub sqlt_type { shift->_get_dbh->{Driver}->{Name} }
+sub sqlt_type { shift->last_dbh->{Driver}->{Name} }
 
 =head2 bind_attribute_by_data_type
 
@@ -2240,7 +2265,7 @@ See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>.
 sub deployment_statements {
   my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
   # Need to be connected to get the correct sqlt_type
-  $self->_get_dbh() unless $type;
+  $self->last_dbh() unless $type;
   $type ||= $self->sqlt_type;
   $version ||= $schema->schema_version || '1.x';
   $dir ||= './';
@@ -2285,7 +2310,7 @@ sub deploy {
     return if $line =~ /^\s+$/; # skip whitespace only
     $self->_query_start($line);
     eval {
-      $self->_get_dbh->do($line);
+      $self->last_dbh->do($line);
     };
     if ($@) {
       carp qq{$@ (running "${line}")};
@@ -2314,7 +2339,7 @@ Returns the datetime parser class
 sub datetime_parser {
   my $self = shift;
   return $self->{datetime_parser} ||= do {
-    $self->_get_dbh;
+    $self->last_dbh;
     $self->build_datetime_parser(@_);
   };
 }
