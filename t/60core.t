@@ -9,8 +9,6 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 103;
-
 eval { require DateTime::Format::SQLite };
 my $NO_DTFM = $@ ? 1 : 0;
 
@@ -408,3 +406,50 @@ SKIP: {
       ok (! DBIx::Class::ResultSource->can ($_), "$_ no longer provided by DBIx::Class::ResultSource");
     }
 }
+
+#------------------------------
+# READ THIS BEFORE "FIXING"
+#------------------------------
+#
+# make sure we got rid of discard_changes mess - this is a mess and a source
+# of great confusion. Here I simply die if the methods are available, which
+# is wrong on its own (we *have* to provide some sort of back-compat, even
+# if with warnings). Here is how I envision things should actually be. Also
+# note that a lot of the deprecation can be started today (i.e. the switch
+# from get_from_storage to copy_from_storage). So:
+#
+# $row->discard_changes =>
+#   warning, and delegation to reload_from_storage
+#
+# $row->reload_from_storage =>
+#   does what discard changes did in 0.08 - issues a query to the db
+#   and repopulates all column slots, regardless of dirty states etc.
+#
+# $row->revert_changes =>
+#   does what discard_changes should have done initially (before it became
+#   a dual-purpose call). In order to make this work we will have to
+#   augment $row to carry its own initial-state, much like svn has a
+#   copy of the current checkout in contrast to cvs.
+#
+# my $db_row = $row->get_from_storage =>
+#   warns and delegates to an improved name copy_from_storage, with the
+#   same semantics
+#
+# my $db_row = $row->copy_from_storage =>
+#   a much better/descriptive name than get_from_storage
+#
+#------------------------------
+# READ THIS BEFORE "FIXING"
+#------------------------------
+#
+SKIP: {
+    skip "Something needs to be done before 0.09", 2 if $DBIx::Class::VERSION < 0.09;
+
+    my $row = $schema->resultset ('Artist')->next;
+
+    for (qw/discard_changes get_from_storage/) {
+      ok (! $row->can ($_), "$_ needs *some* sort of facelift before 0.09 ships - current state of affairs is unacceptable");
+    }
+}
+
+done_testing;
