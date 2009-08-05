@@ -2310,7 +2310,10 @@ sub deploy {
     return if $line =~ /^\s+$/; # skip whitespace only
     $self->_query_start($line);
     eval {
-      $self->last_dbh->do($line);
+      # a previous error may invalidate $dbh - thus we need to use dbh()
+      # to guarantee a healthy $dbh (this is temporary until we get
+      # proper error handling on deploy() )
+      $self->dbh->do($line);
     };
     if ($@) {
       carp qq{$@ (running "${line}")};
