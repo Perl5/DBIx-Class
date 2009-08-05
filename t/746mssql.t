@@ -161,13 +161,13 @@ lives_ok {
   $row = $rs->create({ amount => 100 });
 } 'inserted a money value';
 
-is $rs->find($row->id)->amount, '100.00', 'money value round-trip';
+is int($rs->find($row->id)->amount), 100, 'money value round-trip';
 
 lives_ok {
   $row->update({ amount => 200 });
 } 'updated a money value';
 
-is $rs->find($row->id)->amount, '200.00', 'updated money value round-trip';
+is int($rs->find($row->id)->amount), 200, 'updated money value round-trip';
 
 lives_ok {
   $row->update({ amount => undef });
