@@ -41,7 +41,8 @@ sub is_same_sql_bind {
   croak "Unexpected argument(s) supplied to is_same_sql_bind: " . join ('; ', @_)
     if @_;
 
-  SQL::Abstract::Test::is_same_sql_bind (@args);
+  @_ = @args;
+  goto &SQL::Abstract::Test::is_same_sql_bind;
 }
 
 *is_same_sql = \&SQL::Abstract::Test::is_same_sql;
