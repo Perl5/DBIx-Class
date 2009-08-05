@@ -140,11 +140,11 @@ sub connect_call_use_server_cursors {
   $self->_dbh->{odbc_SQL_ROWSET_SIZE} = $sql_rowset_size;
 }
 
-=head2 connect_call_use_mars
+=head2 connect_call_use_MARS
 
 Use as:
 
-  on_connect_call => 'use_mars'
+  on_connect_call => 'use_MARS'
 
 Use to enable a feature of SQL Server 2005 and later, "Multiple Active Result
 Sets". See L<DBD::ODBC::FAQ/Does DBD::ODBC support Multiple Active Statements?>
@@ -154,7 +154,7 @@ B<WARNING>: This has implications for the way transactions are handled.
 
 =cut
 
-sub connect_call_use_mars {
+sub connect_call_use_MARS {
   my $self = shift;
 
   my $dsn = $self->_dbi_connect_info->[0];
