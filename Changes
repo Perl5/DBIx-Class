@@ -15,6 +15,7 @@ Revision history for DBIx::Class
             autodetection
           - 'uniqueidentifier' support with auto newid()
           - Dynamic cursor support and other MARS options for ODBC
+          - savepoints with auto_savepoint => 1
         - Support for MSSQL 'money' type
         - Support for 'smalldatetime' type used in MSSQL and Sybase for
           InflateColumn::DateTime
