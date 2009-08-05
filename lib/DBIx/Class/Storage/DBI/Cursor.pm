@@ -128,7 +128,7 @@ sub _dbh_all {
   my ($storage, $dbh, $self) = @_;
 
   $self->_check_dbh_gen;
-  $self->sth->finish if $self->sth->{Active};
+  $self->sth->finish if $self->sth && $self->sth->{Active};
   $self->sth(undef);
   my ($rv, $sth) = $storage->_select(@{$self->{args}});
   return @{$sth->fetchall_arrayref};

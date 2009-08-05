@@ -6,7 +6,6 @@ use warnings;
 use base qw/
   DBIx::Class::Storage::DBI::Sybase::Base
   DBIx::Class::Storage::DBI::MSSQL
-  DBIx::Class::Storage::DBI::NoBindVars
 /;
 use mro 'c3';
 
@@ -14,7 +13,7 @@ sub _rebless {
   my $self = shift;
   my $dbh  = $self->_dbh;
 
-  if (not $self->_placeholders_supported) {
+  if (not $self->placeholders_with_type_conversion_supported) {
     bless $self,
       'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
     $self->_rebless;
