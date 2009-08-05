@@ -13,7 +13,7 @@ BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
     plan $@
         ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 126 );
+        : ( tests => 130 );
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -761,10 +761,19 @@ is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{d
 	is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{dsn}";
 
 	ok $artist->get_from_storage({force_pool=>'master'})
-	   => 'properly discard changes';
+	   => 'properly called get_from_storage against master (manual attrs)';
 
 	is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
 
+	ok $artist->discard_changes({force_pool=>'master'})
+	   => 'properly alled discard_changes against master (manual attrs)';
+
+	is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
+
+	ok $artist->discard_changes()
+	   => 'properly alled discard_changes against master (default attrs)';
+
+	is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}"
 }
 
 ## Test some edge cases, like trying to do a transaction inside a transaction, etc
