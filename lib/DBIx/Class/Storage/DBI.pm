@@ -797,17 +797,18 @@ sub _determine_driver {
   my ($self) = @_;
 
   if (not $self->_driver_determined) {
-    if (ref($self) eq __PACKAGE__) {
-      my $driver;
     my $started_unconnected = 0;
     local $self->{_in_determine_driver} = 1;
 
+    if (ref($self) eq __PACKAGE__) {
+      my $driver;
       if ($self->_dbh) { # we are connected
         $driver = $self->_dbh->{Driver}{Name};
       } else {
         # try to use dsn to not require being connected, the driver may still
         # force a connection in _rebless to determine version
         ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+        $started_unconnected = 1;
       }
 
       my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
@@ -816,7 +817,6 @@ sub _determine_driver {
         bless $self, $storage_class;
         $self->_rebless();
       }
-      $started_unconnected = 1;
     }
 
     $self->_driver_determined(1);
