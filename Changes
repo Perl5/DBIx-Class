@@ -1,17 +1,35 @@
 Revision history for DBIx::Class
 
-        - Replication updates: Improved the replication tests so that they are
-          more reliable and accurate, and hopefully solve some cross platform
-          issues.  Bugfixes related to naming particular replicants in a
-          'force_pool' attribute.  Lots of documentation updates, including a
-          new Introduction.pod file. Fixed the way we detect transaction to 
-          make this more reliable and forward looking. Fixed some trouble with
-          the way Moose Types are used.
+        - Replication updates:
+          - Improved the replication tests so that they are more reliable
+            and accurate, and hopefully solve some cross platform issues.
+          - Bugfixes related to naming particular replicants in a
+            'force_pool' attribute.
+          - Lots of documentation updates, including a new Introduction.pod
+            file.
+          - Fixed the way we detect transaction to make this more reliable
+            and forward looking.
+          - Fixed some trouble with the way Moose Types are used.
+        - Refactor of MSSQL storage drivers, with some new features:
+          - Support for placeholders for MSSQL via DBD::Sybase with proper
+            autodetection
+          - 'uniqueidentifier' support with auto newid()
+          - Dynamic cursor support and other MARS options for ODBC
+          - savepoints with auto_savepoint => 1
+        - Support for MSSQL 'money' type
+        - Support for 'smalldatetime' type used in MSSQL and Sybase for
+          InflateColumn::DateTime
+        - support for Postgres 'timestamp without timezone' type in
+          InflateColumn::DateTime (RT#48389)
         - Added new MySQL specific on_connect_call macro 'set_strict_mode'
           (also known as make_mysql_not_suck_as_much)
-        - Added call to Pod::Inherit in Makefile.PL -
-          currently at author-time only, so we need to add the produced
-          .pod files to the MANIFEST
+        - Multiple prefetch-related fixes:
+          - Adjust overly agressive subquery join-chain pruning
+          - Always preserve the outer join-chain - fixes numerous
+            problems with search_related chaining
+          - Deal with the distinct => 1 attribute properly when using
+            prefetch
+        - Multiple POD improvements
 
 
 0.08108 2009-07-05 23:15:00 (UTC)

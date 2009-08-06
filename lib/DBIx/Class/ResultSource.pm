@@ -40,8 +40,6 @@ DBIx::Class::ResultSource - Result source object
   # Create a query (view) based result source, in a result class
   package MyDB::Schema::Result::Year2000CDs;
 
-  use DBIx::Class::ResultSource::View;
-
   __PACKAGE__->load_components('Core');
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
@@ -245,9 +243,15 @@ automatically.
 
 =item auto_nextval
 
-Set this to a true value for a column whose value is retrieved
-automatically from an oracle sequence. If you do not use an Oracle
-trigger to get the nextval, you have to set sequence as well.
+Set this to a true value for a column whose value is retrieved automatically
+from a sequence or function (if supported by your Storage driver.) For a
+sequence, if you do not use a trigger to get the nextval, you have to set the
+L</sequence> value as well.
+
+Also set this for MSSQL columns with the 'uniqueidentifier'
+L<DBIx::Class::ResultSource/data_type> whose values you want to automatically
+generate using C<NEWID()>, unless they are a primary key in which case this will
+be done anyway.
 
 =item extra
 

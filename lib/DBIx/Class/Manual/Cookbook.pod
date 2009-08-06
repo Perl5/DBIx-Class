@@ -19,6 +19,8 @@ paged resultset, which will fetch only a defined number of records at a time:
 
   return $rs->all(); # all records for page 1
 
+  return $rs->page(2); # records for page 2
+
 You can get a L<Data::Page> object for the resultset (suitable for use
 in e.g. a template) using the C<pager> method:
 
@@ -59,12 +61,12 @@ L<SQL::Abstract/WHERE CLAUSES>.
 
 =head2 Retrieve one and only one row from a resultset
 
-Sometimes you need only the first "top" row of a resultset. While this can be
-easily done with L<< $rs->first|DBIx::Class::ResultSet/first >>, it is suboptimal,
-as a full blown cursor for the resultset will be created and then immediately
-destroyed after fetching the first row object.
-L<< $rs->single|DBIx::Class::ResultSet/single >> is
-designed specifically for this case - it will grab the first returned result
+Sometimes you need only the first "top" row of a resultset. While this
+can be easily done with L<< $rs->first|DBIx::Class::ResultSet/first
+>>, it is suboptimal, as a full blown cursor for the resultset will be
+created and then immediately destroyed after fetching the first row
+object.  L<< $rs->single|DBIx::Class::ResultSet/single >> is designed
+specifically for this case - it will grab the first returned result
 without even instantiating a cursor.
 
 Before replacing all your calls to C<first()> with C<single()> please observe the
@@ -73,14 +75,16 @@ following CAVEATS:
 =over
 
 =item *
+
 While single() takes a search condition just like search() does, it does
 _not_ accept search attributes. However one can always chain a single() to
 a search():
 
-  my $top_cd = $cd_rs -> search({}, { order_by => 'rating' }) -> single;
+  my $top_cd = $cd_rs->search({}, { order_by => 'rating' })->single;
 
 
 =item *
+
 Since single() is the engine behind find(), it is designed to fetch a
 single row per database query. Thus a warning will be issued when the
 underlying SELECT returns more than one row. Sometimes however this usage
@@ -88,7 +92,7 @@ is valid: i.e. we have an arbitrary number of cd's but only one of them is
 at the top of the charts at any given time. If you know what you are doing,
 you can silence the warning by explicitly limiting the resultset size:
 
-  my $top_cd = $cd_rs -> search ({}, { order_by => 'rating', rows => 1 }) -> single;
+  my $top_cd = $cd_rs->search ({}, { order_by => 'rating', rows => 1 })->single;
 
 =back
 
@@ -98,79 +102,44 @@ Sometimes you have to run arbitrary SQL because your query is too complex
 (e.g. it contains Unions, Sub-Selects, Stored Procedures, etc.) or has to
 be optimized for your database in a special way, but you still want to
 get the results as a L<DBIx::Class::ResultSet>.
-The recommended way to accomplish this is by defining a separate ResultSource
-for your query. You can then inject complete SQL statements using a scalar
-reference (this is a feature of L<SQL::Abstract>).
 
-Say you want to run a complex custom query on your user data, here's what
-you have to add to your User class:
+The recommended way to accomplish this is by defining a separate
+L<ResultSource::View|DBIx::Class::ResultSource::View> for your query.
 
-  package My::Schema::Result::User;
-
+  package My::Schema::Result::UserFriendsComplex;
+  use strict;
+  use warnings;
   use base qw/DBIx::Class/;
 
-  # ->load_components, ->table, ->add_columns, etc.
+  __PACKAGE__->load_components('Core');
+  __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
-  # Make a new ResultSource based on the User class
-  my $source = __PACKAGE__->result_source_instance();
-  my $new_source = $source->new( $source );
-  $new_source->source_name( 'UserFriendsComplex' );
+  # ->table, ->add_columns, etc.
 
-  # Hand in your query as a scalar reference
-  # It will be added as a sub-select after FROM,
-  # so pay attention to the surrounding brackets!
-  $new_source->name( \<<SQL );
-  ( SELECT u.* FROM user u
-  INNER JOIN user_friends f ON u.id = f.user_id
-  WHERE f.friend_user_id = ?
-  UNION
-  SELECT u.* FROM user u
-  INNER JOIN user_friends f ON u.id = f.friend_user_id
-  WHERE f.user_id = ? )
-  SQL
-
-  # Finally, register your new ResultSource with your Schema
-  My::Schema->register_extra_source( 'UserFriendsComplex' => $new_source );
+  __PACKAGE__->result_source_instance->is_virtual(1);
+  __PACKAGE__->result_source_instance->view_definition(q[
+    SELECT u.* FROM user u
+    INNER JOIN user_friends f ON u.id = f.user_id
+    WHERE f.friend_user_id = ?
+    UNION
+    SELECT u.* FROM user u
+    INNER JOIN user_friends f ON u.id = f.friend_user_id
+    WHERE f.user_id = ?
+  ]);
 
 Next, you can execute your complex query using bind parameters like this:
 
-  my $friends = [ $schema->resultset( 'UserFriendsComplex' )->search( {},
+  my $friends = $schema->resultset( 'UserFriendsComplex' )->search( {},
     {
       bind  => [ 12345, 12345 ]
     }
-  ) ];
+  );
 
 ... and you'll get back a perfect L<DBIx::Class::ResultSet> (except, of course,
 that you cannot modify the rows it contains, ie. cannot call L</update>,
 L</delete>, ...  on it).
 
-If you prefer to have the definitions of these custom ResultSources in separate
-files (instead of stuffing all of them into the same ResultSource class), you
-can achieve the same with subclassing the ResultSource class and defining the
-new ResultSource there:
-
-  package My::Schema::Result::UserFriendsComplex;
-
-  use base qw/My::Schema::Result::User/;
-
-  __PACKAGE__->table('dummy');  # currently must be called before anything else
-
-  # Hand in your query as a scalar reference
-  # It will be added as a sub-select after FROM,
-  # so pay attention to the surrounding brackets!
-  __PACKAGE__->result_source_instance->name( \<<SQL );
-  ( SELECT u.* FROM user u
-  INNER JOIN user_friends f ON u.id = f.user_id
-  WHERE f.friend_user_id = ?
-  UNION
-  SELECT u.* FROM user u
-  INNER JOIN user_friends f ON u.id = f.friend_user_id
-  WHERE f.user_id = ? )
-  SQL
-
-  1;
-
-TIMTOWDI.
+Note that you cannot have bind parameters unless is_virtual is set to true.
 
 =head2 Using specific columns
 

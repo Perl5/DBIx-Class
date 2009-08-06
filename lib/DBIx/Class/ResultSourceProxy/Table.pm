@@ -23,8 +23,11 @@ sub _init_result_source_instance {
     my $class_has_table_instance = ($table and $table->result_class eq $class);
     return $table if $class_has_table_instance;
 
+    my $table_class = $class->table_class;
+    $class->ensure_class_loaded($table_class);
+
     if( $table ) {
-        $table = $class->table_class->new({
+        $table = $table_class->new({
             %$table,
             result_class => $class,
             source_name => undef,
@@ -32,7 +35,7 @@ sub _init_result_source_instance {
         });
     }
     else {
-        $table = $class->table_class->new({
+        $table = $table_class->new({
             name            => undef,
             result_class    => $class,
             source_name     => undef,
@@ -78,7 +81,11 @@ sub table {
   return $class->result_source_instance->name unless $table;
 
   unless (Scalar::Util::blessed($table) && $table->isa($class->table_class)) {
-    $table = $class->table_class->new({
+
+    my $table_class = $class->table_class;
+    $class->ensure_class_loaded($table_class);
+
+    $table = $table_class->new({
         $class->can('result_source_instance') ?
           %{$class->result_source_instance||{}} : (),
         name => $table,
