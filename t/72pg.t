@@ -46,14 +46,14 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
   '(note: This test drops and creates tables called \'artist\', \'casecheck\', \'array_test\' and \'sequence_test\''.
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''.
-  ' as well as following schemas: \'testschema\'!)'
+  ' as well as following schemas: \'testschema\',\'anothertestschema\'!)'
     unless ($dsn && $user);
 
 
-plan tests => 39;
+plan tests => 41;
 
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass,);
 
 # Check that datetime_parser returns correctly before we explicitly connect.
 SKIP: {
@@ -74,14 +74,28 @@ $schema->source("SequenceTest")->name("testschema.sequence_test");
     local $SIG{__WARN__} = sub {};
     _cleanup ($dbh);
 
+    my $artist_table_def = <<EOS;
+(
+  artistid serial PRIMARY KEY
+  , name VARCHAR(100)
+  , rank INTEGER NOT NULL DEFAULT '13'
+  , charfield CHAR(10)
+  , arrayfield INTEGER[]
+)
+EOS
     $dbh->do("CREATE SCHEMA testschema;");
-    $dbh->do("CREATE TABLE testschema.artist (artistid serial PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10), arrayfield INTEGER[]);");
+    $dbh->do("CREATE TABLE testschema.artist $artist_table_def;");
     $dbh->do("CREATE TABLE testschema.sequence_test (pkid1 integer, pkid2 integer, nonpkid integer, name VARCHAR(100), CONSTRAINT pk PRIMARY KEY(pkid1, pkid2));");
     $dbh->do("CREATE SEQUENCE pkid1_seq START 1 MAXVALUE 999999 MINVALUE 0");
     $dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
     $dbh->do("CREATE SEQUENCE nonpkid_seq START 20 MAXVALUE 999999 MINVALUE 0");
     ok ( $dbh->do('CREATE TABLE testschema.casecheck (id serial PRIMARY KEY, "name" VARCHAR(1), "NAME" VARCHAR(2), "UC_NAME" VARCHAR(3), "storecolumn" VARCHAR(10));'), 'Creation of casecheck table');
     ok ( $dbh->do('CREATE TABLE testschema.array_test (id serial PRIMARY KEY, arrayfield INTEGER[]);'), 'Creation of array_test table');
+    $dbh->do("CREATE SCHEMA anothertestschema;");
+    $dbh->do("CREATE TABLE anothertestschema.artist $artist_table_def;");
+    $dbh->do("CREATE SCHEMA yetanothertestschema;");
+    $dbh->do("CREATE TABLE yetanothertestschema.artist $artist_table_def;");
+    $dbh->do('set search_path=testschema,public');
 }
 
 # store_column is called once for create() for non sequence columns
@@ -94,13 +108,30 @@ is($storecolumn->storecolumn, '#a'); # was '##a'
 # This is in Core now, but it's here just to test that it doesn't break
 $schema->class('Artist')->load_components('PK::Auto');
 
+
+{ #test that auto-pk also works with the defined search path by un-schema-qualifying
+  #the table name
+  my $artist_name_save = $schema->source("Artist")->name;
+  $schema->source("Artist")->name("artist");
+
+  my $unq_new;
+  lives_ok {
+      $unq_new = $schema->resultset('Artist')->create({ name => 'baz' });
+  } 'insert into unqualified, shadowed table succeeds';
+
+  is($unq_new && $unq_new->artistid, 1, "and got correct artistid");
+
+  $schema->source("Artist")->name($artist_name_save);
+}
+
 my $new = $schema->resultset('Artist')->create({ name => 'foo' });
 
-is($new->artistid, 1, "Auto-PK worked");
+is($new->artistid, 2, "Auto-PK worked");
 
 $new = $schema->resultset('Artist')->create({ name => 'bar' });
 
-is($new->artistid, 2, "Auto-PK worked");
+is($new->artistid, 3, "Auto-PK worked");
+
 
 my $test_type_info = {
     'artistid' => {
@@ -280,6 +311,10 @@ sub _cleanup {
     'DROP SEQUENCE pkid2_seq',
     'DROP SEQUENCE nonpkid_seq',
     'DROP SCHEMA testschema',
+    'DROP TABLE anothertestschema.artist',
+    'DROP SCHEMA anothertestschema',
+    'DROP TABLE yetanothertestschema.artist',
+    'DROP SCHEMA yetanothertestschema',
   ) {
     eval { $dbh->do ($stat) };
   }
