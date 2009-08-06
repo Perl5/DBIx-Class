@@ -141,6 +141,13 @@ L</delete>, ...  on it).
 
 Note that you cannot have bind parameters unless is_virtual is set to true.
 
+If you're using the old C<< $rsrc_instance->name(\'( SELECT ...') >> method for
+custom SQL, you are highly encouraged to update your code to use a virtual view
+as above. Otherwise add the following code so that on C<< ->deploy >> there is
+no attempt to create a table with that name:
+
+  sub sqlt_deploy_hook { $_[1]->schema->drop_table ($_[1]) }
+
 =head2 Using specific columns
 
 When you only want specific columns from a table, you can use

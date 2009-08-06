@@ -82,13 +82,8 @@ sub parse {
         my $source = $dbicschema->source($moniker);
         my $table_name = $source->name;
 
-        if (ref $table_name) {
-          if (ref $table_name eq 'SCALAR') {
-            $table_name = $$table_name;
-          } else {
-            next;
-          }
-        }
+        # sqlt currently does not do quoting right anyway
+        $table_name = $$table_name if ref $table_name eq 'SCALAR';
 
         # Its possible to have multiple DBIC sources using the same table
         next if $tables{$table_name};
@@ -258,18 +253,15 @@ sub parse {
       $schema->add_table ($tables{$table}{object});
       $tables{$table}{source} -> _invoke_sqlt_deploy_hook( $tables{$table}{object} );
 
-      if ($schema->get_table($table) && $table =~ /\( \s* SELECT \s+/x) {
+      if ($schema->get_table($table) && $table =~ /SELECT \s+/ix) {
         warn <<'EOF';
+
 Custom SQL through ->name(\'( SELECT ...') is DEPRECATED, see the "Arbitrary
 SQL" entry in:
 
   perldoc DBIx::Class::Manual::Cookbook
 
 for the current method of doing this.
-
-To exclude this Result class from ->deploy, add the following to it:
-
-  sub sqlt_deploy_hook { $_[1]->schema->drop_table ($_[1]) }
 
 EOF
       }
