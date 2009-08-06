@@ -36,14 +36,40 @@ sub last_insert_id {
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $schema, $table, @pri) = @_;
 
-  while (my $col = shift @pri) {
-    my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref;
-    if(defined $info->{COLUMN_DEF} and
-       $info->{COLUMN_DEF} =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/) {
-      my $seq = $1;
-      # may need to strip quotes -- see if this works
-      return $seq =~ /\./ ? $seq : $info->{TABLE_SCHEM} . "." . $seq;
-    }
+  # get the list of postgres schemas to search.  if we have a schema
+  # specified, use that.  otherwise, use the search path
+  my @search_path;
+  if( defined $schema and length $schema ) {
+      @search_path = ( $schema );
+  } else {
+      my ($search_path) = $dbh->selectrow_array('SHOW search_path');
+      while( $search_path =~ s/([^,]+),?// ) {
+          unless( defined $1 and length $1 ) {
+              $self->throw_exception("search path sanity check failed: '$1'")
+          }
+          push @search_path, $1;
+      }
+  }
+
+  foreach my $search_schema (@search_path) {
+      foreach my $col (@pri) {
+          my $info = $dbh->column_info(undef,$search_schema,$table,$col)->fetchrow_hashref;
+          if($info) {
+              # if we get here, we have definitely found the right
+              # column.
+              if( defined $info->{COLUMN_DEF} and
+                  $info->{COLUMN_DEF}
+                    =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i
+                ) {
+                  my $seq = $1;
+                  return $seq =~ /\./ ? $seq : $info->{TABLE_SCHEM} . "." . $seq;
+              } else {
+                  # we have found the column, but cannot figure out
+                  # the nextval seq
+                  return;
+              }
+          }
+      }
   }
   return;
 }
