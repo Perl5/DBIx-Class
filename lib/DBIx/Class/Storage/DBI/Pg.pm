@@ -43,7 +43,7 @@ sub _dbh_get_autoinc_seq {
       @search_path = ( $schema );
   } else {
       my ($search_path) = $dbh->selectrow_array('SHOW search_path');
-      while( $search_path =~ s/([^,]+),?// ) {
+      while( $search_path =~ s/("[^"]+"|[^,]+),?// ) {
           unless( defined $1 and length $1 ) {
               $self->throw_exception("search path sanity check failed: '$1'")
           }
