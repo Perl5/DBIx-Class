@@ -552,6 +552,15 @@ sub _svp_rollback {
 
 1;
 
+=head1 Schema::Loader Support
+
+There is an experimental branch of L<DBIx::Class::Schema::Loader> that will
+allow you to dump a schema from most (if not all) versions of Sybase.
+
+It is available via subversion from:
+
+  http://dev.catalyst.perl.org/repos/bast/branches/DBIx-Class-Schema-Loader/mssql_tweaks
+
 =head1 FreeTDS
 
 This driver supports L<DBD::Sybase> compiled against FreeTDS
