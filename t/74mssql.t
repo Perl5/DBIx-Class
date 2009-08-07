@@ -103,12 +103,10 @@ for my $storage_type (@storage_types) {
       my ($storage, $dbh) = @_;
       eval { $dbh->do("DROP TABLE money_test") };
       $dbh->do(<<'SQL');
-
   CREATE TABLE money_test (
      id INT IDENTITY PRIMARY KEY,
      amount MONEY NULL
   )
-
 SQL
 
   });
@@ -120,19 +118,21 @@ SQL
     $row = $rs->create({ amount => 100 });
   } 'inserted a money value';
 
-  is $rs->find($row->id)->amount, 100, 'money value round-trip';
+  cmp_ok $rs->find($row->id)->amount, '==', 100, 'money value round-trip';
 
   lives_ok {
     $row->update({ amount => 200 });
   } 'updated a money value';
 
-  is $rs->find($row->id)->amount, 200, 'updated money value round-trip';
+  cmp_ok $rs->find($row->id)->amount, '==', 200,
+    'updated money value round-trip';
 
   lives_ok {
     $row->update({ amount => undef });
   } 'updated a money value to NULL';
 
-  is $rs->find($row->id)->amount, undef,'updated money value to NULL round-trip';
+  is $rs->find($row->id)->amount,
+    undef, 'updated money value to NULL round-trip';
 }
 
 # clean up our mess
