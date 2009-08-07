@@ -10,6 +10,8 @@ Revision history for DBIx::Class
           - Fixed the way we detect transaction to make this more reliable
             and forward looking.
           - Fixed some trouble with the way Moose Types are used.
+          - Made discard_chages/get_from_storage replication aware (they
+            now read from the master storage by default)
         - Refactor of MSSQL storage drivers, with some new features:
           - Support for placeholders for MSSQL via DBD::Sybase with proper
             autodetection
