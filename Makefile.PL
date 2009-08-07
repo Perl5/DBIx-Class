@@ -103,9 +103,6 @@ my %force_requires_if_author = (
   ,
 );
 
-feature ('Storage Replication', -default => 0, %replication_requires);
-
-
 
 install_script (qw|
     script/dbicadmin
