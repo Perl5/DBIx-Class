@@ -11,9 +11,7 @@ use IO::Handle;
 
 BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
-    plan $@
-        ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 132 );
+    plan skip_all => "Deps not installed: $@" if $@;
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -849,5 +847,7 @@ is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{d
 }
 ## Delete the old database files
 $replicated->cleanup;
+
+done_testing;
 
 # vim: sw=4 sts=4 :
