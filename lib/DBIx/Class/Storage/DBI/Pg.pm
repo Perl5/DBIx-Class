@@ -52,8 +52,16 @@ sub get_autoinc_seq {
   my ($self,$source,$col) = @_;
 
   my @pri = $source->primary_columns;
-  my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2)
-    : (undef,$source->name);
+
+  my $schema;
+  my $table = $source->name;
+
+  if (ref $table eq 'SCALAR') {
+    $table = $$table;
+  }
+  elsif ($table =~ /^(.+)\.(.+)$/) {
+    ($schema, $table) = ($1, $2);
+  }
 
   $self->dbh_do('_dbh_get_autoinc_seq', $schema, $table, @pri);
 }

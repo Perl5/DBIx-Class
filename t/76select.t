@@ -64,6 +64,7 @@ my $cds = $schema->resultset ('CD')->search ({}, { order_by => 'me.cdid'}); # ma
 cmp_ok ($cds->count, '>', 2, 'Initially populated with more than 2 CDs');
 
 my $table = $cds->result_source->name;
+$table = $$table if ref $table eq 'SCALAR';
 my $subsel = $cds->search ({}, {
     columns => [qw/cdid title/],
     from => \ "(SELECT cdid, title FROM $table LIMIT 2) me",

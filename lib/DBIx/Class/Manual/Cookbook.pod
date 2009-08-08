@@ -103,8 +103,9 @@ Sometimes you have to run arbitrary SQL because your query is too complex
 be optimized for your database in a special way, but you still want to
 get the results as a L<DBIx::Class::ResultSet>.
 
-The recommended way to accomplish this is by defining a separate
-L<ResultSource::View|DBIx::Class::ResultSource::View> for your query.
+This is accomplished by defining a
+L<ResultSource::View|DBIx::Class::ResultSource::View> for your query,
+almost like you would define a regular ResultSource.
 
   package My::Schema::Result::UserFriendsComplex;
   use strict;
@@ -116,7 +117,9 @@ L<ResultSource::View|DBIx::Class::ResultSource::View> for your query.
 
   # ->table, ->add_columns, etc.
 
+  # do not attempt to deploy() this view
   __PACKAGE__->result_source_instance->is_virtual(1);
+
   __PACKAGE__->result_source_instance->view_definition(q[
     SELECT u.* FROM user u
     INNER JOIN user_friends f ON u.id = f.user_id
@@ -140,6 +143,21 @@ that you cannot modify the rows it contains, ie. cannot call L</update>,
 L</delete>, ...  on it).
 
 Note that you cannot have bind parameters unless is_virtual is set to true.
+
+=over
+
+=item * NOTE
+
+If you're using the old deprecated C<< $rsrc_instance->name(\'( SELECT ...') >>
+method for custom SQL execution, you are highly encouraged to update your code 
+to use a virtual view as above. If you do not want to change your code, and just
+want to suppress the deprecation warning when you call
+L<DBIx::Class::Schema/deploy>, add this line to your source definition, so that
+C<deploy> will exclude this "table":
+
+  sub sqlt_deploy_hook { $_[1]->schema->drop_table ($_[1]) }
+
+=back
 
 =head2 Using specific columns
 

@@ -584,7 +584,10 @@ optional constraint name.
 sub name_unique_constraint {
   my ($self, $cols) = @_;
 
-  return join '_', $self->name, @$cols;
+  my $name = $self->name;
+  $name = $$name if (ref $name eq 'SCALAR');
+
+  return join '_', $name, @$cols;
 }
 
 =head2 unique_constraints
