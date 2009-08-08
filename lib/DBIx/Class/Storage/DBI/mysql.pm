@@ -40,28 +40,28 @@ sub sqlt_type {
 sub _svp_begin {
     my ($self, $name) = @_;
 
-    $self->dbh->do("SAVEPOINT $name");
+    $self->last_dbh->do("SAVEPOINT $name");
 }
 
 sub _svp_release {
     my ($self, $name) = @_;
 
-    $self->dbh->do("RELEASE SAVEPOINT $name");
+    $self->last_dbh->do("RELEASE SAVEPOINT $name");
 }
 
 sub _svp_rollback {
     my ($self, $name) = @_;
 
-    $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
+    $self->last_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 sub is_replicating {
-    my $status = shift->dbh->selectrow_hashref('show slave status');
+    my $status = shift->last_dbh->selectrow_hashref('show slave status');
     return ($status->{Slave_IO_Running} eq 'Yes') && ($status->{Slave_SQL_Running} eq 'Yes');
 }
 
 sub lag_behind_master {
-    return shift->dbh->selectrow_hashref('show slave status')->{Seconds_Behind_Master};
+    return shift->last_dbh->selectrow_hashref('show slave status')->{Seconds_Behind_Master};
 }
 
 # MySql can not do subquery update/deletes, only way is slow per-row operations.
