@@ -48,7 +48,7 @@ sub _rebless {
 
   if (ref($self) eq 'DBIx::Class::Storage::DBI::Sybase') {
     my $dbtype = eval {
-      @{$self->dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
+      @{$self->last_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
     } || '';
 
     my $exception = $@;

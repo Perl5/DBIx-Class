@@ -36,7 +36,7 @@ $rs = $schema->resultset('CD')->search(
 eval { $rs->count };
 is_same_sql_bind(
   $sql, \@bind,
-  "SELECT COUNT( * ) FROM `cd` `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )", ["'Caterwauler McCrae'", "'2001'"],
+  "SELECT COUNT( * ) FROM cd `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )", ["'Caterwauler McCrae'", "'2001'"],
   'got correct SQL for count query with quoting'
 );
 
@@ -60,7 +60,7 @@ $rs = $schema->resultset('CD')->search(
 eval { $rs->count };
 is_same_sql_bind(
   $sql, \@bind,
-  "SELECT COUNT( * ) FROM [cd] [me]  JOIN [artist] [artist] ON ( [artist].[artistid] = [me].[artist] ) WHERE ( [artist].[name] = ? AND [me].[year] = ? )", ["'Caterwauler McCrae'", "'2001'"],
+  "SELECT COUNT( * ) FROM cd [me]  JOIN [artist] [artist] ON ( [artist].[artistid] = [me].[artist] ) WHERE ( [artist].[name] = ? AND [me].[year] = ? )", ["'Caterwauler McCrae'", "'2001'"],
   'got correct SQL for count query with bracket quoting'
 );
 

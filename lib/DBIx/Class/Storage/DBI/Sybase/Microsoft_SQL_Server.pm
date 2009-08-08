@@ -11,7 +11,7 @@ use mro 'c3';
 
 sub _rebless {
   my $self = shift;
-  my $dbh  = $self->_dbh;
+  my $dbh  = $self->last_dbh;
 
   if (not $self->placeholders_with_type_conversion_supported) {
     bless $self,

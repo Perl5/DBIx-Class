@@ -44,7 +44,7 @@ errors, see L</placeholders_with_type_conversion_supported>.
 
 sub placeholders_supported {
   my $self = shift;
-  my $dbh  = $self->_dbh;
+  my $dbh  = $self->last_dbh;
 
   return eval {
 # There's also $dbh->{syb_dynamic_supported} but it can be inaccurate for this
