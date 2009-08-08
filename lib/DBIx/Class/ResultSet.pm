@@ -2764,31 +2764,38 @@ sub _resolved_attrs {
 
   # build columns (as long as select isn't set) into a set of as/select hashes
   unless ( $attrs->{select} ) {
-      @colbits = map {
-          ( ref($_) eq 'HASH' )
-              ? $_
-              : {
-                  (
-                    /^\Q${alias}.\E(.+)$/
-                      ? "$1"
-                      : "$_"
-                  )
-                =>
-                  (
-                    /\./
-                      ? "$_"
-                      : "${alias}.$_"
-                  )
-            }
-      } ( ref($attrs->{columns}) eq 'ARRAY' ) ?
-          @{ delete $attrs->{columns}} :
-            (delete $attrs->{columns} ||
-              $source->storage->order_columns_for_select(
-                $source,
-                [ $source->columns ]
-              )
-            );
+
+    my @cols = ( ref($attrs->{columns}) eq 'ARRAY' )
+      ? @{ delete $attrs->{columns}}
+      : (
+          ( delete $attrs->{columns} )
+            ||
+          $source->storage->order_columns_for_select(
+              $source,
+              [ $source->columns ]
+          )
+        )
+    ;
+
+    @colbits = map {
+      ( ref($_) eq 'HASH' )
+      ? $_
+      : {
+          (
+            /^\Q${alias}.\E(.+)$/
+              ? "$1"
+              : "$_"
+          )
+            =>
+          (
+            /\./
+              ? "$_"
+              : "${alias}.$_"
+          )
+        }
+    } @cols;
   }
+
   # add the additional columns on
   foreach ( 'include_columns', '+columns' ) {
       push @colbits, map {

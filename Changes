@@ -18,20 +18,17 @@ Revision history for DBIx::Class
           - 'uniqueidentifier' support with auto newid()
           - Dynamic cursor support and other MARS options for ODBC
           - savepoints with auto_savepoint => 1
-        - Support for MSSQL 'money' type
+        - Complete Sybase RDBMS support including:
+          - Support for TEXT/IMAGE columns
+          - Transaction savepoints support
+          - Support for bind variables when connecting via Sybase OpenClient
+          - Support for interpolated variables with proper quoting when
+            connecting via FreeTDS
+        - Support for MSSQL/Sybase 'money' type
         - Support for 'smalldatetime' type used in MSSQL and Sybase for
           InflateColumn::DateTime
         - Support for Postgres 'timestamp without timezone' type in
           InflateColumn::DateTime
-        - Much improved Sybase support, including support for TEXT/IMAGE
-          columns and connecting via FreeTDS
-        - Replication updates: Improved the replication tests so that they are
-          more reliable and accurate, and hopefully solve some cross platform
-          issues.  Bugfixes related to naming particular replicants in a
-          'force_pool' attribute.  Lots of documentation updates, including a
-          new Introduction.pod file. Fixed the way we detect transaction to 
-          make this more reliable and forward looking. Fixed some trouble with
-          the way Moose Types are used.
         - Added new MySQL specific on_connect_call macro 'set_strict_mode'
           (also known as make_mysql_not_suck_as_much)
         - Multiple prefetch-related fixes:
