@@ -253,17 +253,19 @@ sub parse {
       $schema->add_table ($tables{$table}{object});
       $tables{$table}{source} -> _invoke_sqlt_deploy_hook( $tables{$table}{object} );
 
-      if ($schema->get_table($table) && $table =~ /SELECT \s+/ix) {
-        warn <<'EOF';
+      # the hook might have already removed the table
+      if ($schema->get_table($table) && $table =~ /^ \s* \( \s* SELECT \s+/ix) {
+        warn <<'EOW';
 
-Custom SQL through ->name(\'( SELECT ...') is DEPRECATED, see the "Arbitrary
-SQL" entry in:
+Custom SQL through ->name(\'( SELECT ...') is DEPRECATED, for more details see
+"Arbitrary SQL through a custom ResultSource" in DBIx::Class::Manual::Cookbook
+or http://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class/Manual/Cookbook.pod
 
-  perldoc DBIx::Class::Manual::Cookbook
+EOW
 
-for the current method of doing this.
-
-EOF
+        # remove the table as there is no way someone might want to
+        # actually deploy this
+        $schema->drop_table ($table);
       }
     }
 
