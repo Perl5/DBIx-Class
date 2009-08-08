@@ -585,7 +585,7 @@ sub name_unique_constraint {
   my ($self, $cols) = @_;
 
   my $name = $self->name;
-  $name = $$name if ref $name;
+  $name = $$name if (ref $name eq 'SCALAR');
 
   return join '_', $name, @$cols;
 }
