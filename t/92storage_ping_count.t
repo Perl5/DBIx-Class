@@ -1,19 +1,13 @@
 use strict;
 use warnings;  
 
-# Stolen from 76joins.t (a good test for this purpose)
-
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
 use DBIC::SqlMakerTest;
 
-plan tests => 1;
-
 my $ping_count = 0;
-
-my $schema = DBICTest->init_schema();
 
 {
   local $SIG{__WARN__} = sub {};
@@ -26,6 +20,19 @@ my $schema = DBICTest->init_schema();
     goto &$ping;
   };
 }
+
+
+# We do not count pings during deploy() because of the flux
+# around sqlt. Eventually there should be no pings at all
+my $schema = DBICTest->init_schema( sqlite_use_file => 1, no_populate => 1 );
+
+TODO: {
+  local $TODO = 'Unable to fix before proper deploy() error handling';
+  is ($ping_count, 0, 'no _ping() calls during deploy');
+  $ping_count = 0;
+}
+
+DBICTest->populate_schema ($schema);
 
 # perform some operations and make sure they don't ping
 
@@ -52,3 +59,5 @@ $schema->txn_do(sub {
 });
 
 is $ping_count, 0, 'no _ping() calls';
+
+done_testing;

@@ -530,15 +530,8 @@ sub dbh_do {
 
   local $self->{_in_dbh_do} = 1;
 
-  $self->_do_with_reconnect($code, @_);
-}
-
-sub _do_with_reconnect {
-  my $self = shift;
-  my $code = shift;
   my @result;
   my $want_array = wantarray;
-  my $dbh = $self->_dbh;
 
   eval {
     $self->_verify_pid if $dbh;
@@ -608,7 +601,7 @@ sub txn_do {
     my $exception = $@;
     if(!$exception) { return $want_array ? @result : $result[0] }
 
-    if($tried++ > 0 || $self->connected) {
+    if($tried++ || $self->connected) {
       eval { $self->txn_rollback };
       my $rollback_exception = $@;
       if($rollback_exception) {
@@ -1060,10 +1053,14 @@ sub txn_begin {
   if($self->{transaction_depth} == 0) {
     $self->debugobj->txn_begin()
       if $self->debug;
-    # this isn't ->_dbh-> because
-    #  we should reconnect on begin_work
-    #  for AutoCommit users
-    $self->_do_with_reconnect(sub { $_[1]->begin_work });
+
+    # being here implies we have AutoCommit => 1
+    # if the user is utilizing txn_do - good for
+    # him, otherwise we need to ensure that the
+    # $dbh is healthy on BEGIN
+    my $dbh_method = $self->{_in_dbh_do} ? '_dbh' : 'dbh';
+    $self->$dbh_method->begin_work;
+
   } elsif ($self->auto_savepoint) {
     $self->svp_begin;
   }
