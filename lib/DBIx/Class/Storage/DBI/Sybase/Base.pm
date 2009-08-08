@@ -29,7 +29,7 @@ sub _ping {
 
 sub _placeholders_supported {
   my $self = shift;
-  my $dbh  = $self->_dbh;
+  my $dbh  = $self->last_dbh;
 
   return eval {
 # There's also $dbh->{syb_dynamic_supported} but it can be inaccurate for this

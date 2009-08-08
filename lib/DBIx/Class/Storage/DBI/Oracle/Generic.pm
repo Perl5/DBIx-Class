@@ -76,7 +76,7 @@ sub _dbh_get_autoinc_seq {
 
 sub _sequence_fetch {
   my ( $self, $type, $seq ) = @_;
-  my ($id) = $self->dbh->selectrow_array("SELECT ${seq}.${type} FROM DUAL");
+  my ($id) = $self->last_dbh->selectrow_array("SELECT ${seq}.${type} FROM DUAL");
   return $id;
 }
 
@@ -209,7 +209,7 @@ sub connect_call_datetime_setup {
 sub _svp_begin {
     my ($self, $name) = @_;
 
-    $self->dbh->do("SAVEPOINT $name");
+    $self->last_dbh->do("SAVEPOINT $name");
 }
 
 =head2 source_bind_attributes
@@ -263,7 +263,7 @@ sub _svp_release { 1 }
 sub _svp_rollback {
     my ($self, $name) = @_;
 
-    $self->dbh->do("ROLLBACK TO SAVEPOINT $name")
+    $self->last_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 =head1 AUTHOR
