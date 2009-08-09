@@ -6,9 +6,29 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan 'no_plan';
-
 my $schema = DBICTest->init_schema();
+
+# For fully intuitive multicreate any relationships in a chain
+# that do not exist for one reason or another should be created,
+# even if the preceeding relationship already exists.
+#
+# To get this to work a minor rewrite of find() is necessary, and
+# more importantly some sort of recursive_insert() call needs to 
+# be available. The way things will work then is:
+# *) while traversing the hierarchy code calls find_or_create()
+# *) this in turn calls find(%\nested_dataset)
+# *) this should return not only the existing object, but must
+#    also attach all non-existing (in fact maybe existing) related
+#    bits of data to it, with in_storage => 0
+# *) then before returning the result of the succesful find(), we
+#    simply call $obj->recursive_insert and all is dandy
+#
+# Since this will not be a very clean solution, todoifying for the
+# time being until an actual need arises
+#
+# ribasushi
+
+TODO: { my $f = __FILE__; local $TODO = "See comment at top of $f for discussion of the TODO";
 
 {
   my $counts;
@@ -35,9 +55,8 @@ my $schema = DBICTest->init_schema();
     is ($schema->resultset('Genre')->count, $counts->{Genre} + 1, '1 new genre');
 
     is ($existing_nogen_cd->genre->title,  'sugar genre', 'Correct genre assigned to CD');
-  });
+  }, 'create() did not throw');
 }
-
 {
   my $counts;
   $counts->{$_} = $schema->resultset($_)->count for qw/Artist CD Producer/;
@@ -78,7 +97,9 @@ my $schema = DBICTest->init_schema();
       [ qw/queen1 queen2/ ],
       'Correct cd names',
     );
-  });
+  }, 'create() did not throw');
 }
 
-1;
+}
+
+done_testing;
