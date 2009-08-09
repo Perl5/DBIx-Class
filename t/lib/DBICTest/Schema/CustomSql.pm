@@ -12,4 +12,6 @@ __PACKAGE__->result_source_instance->name(\<<SQL);
   WHERE cd.year = ?)
 SQL
 
+sub sqlt_deploy_hook { $_[1]->schema->drop_table($_[1]) }
+
 1;

@@ -1,13 +1,12 @@
 use strict;
 use warnings;
+
 use Test::More;
+use Test::Exception;
 
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
-
-#plan tests => 6;
-plan 'no_plan';
 
 my $schema = DBICTest->init_schema();
 my $sdebug = $schema->storage->debug;
@@ -163,7 +162,9 @@ for ($cd_rs->all) {
   is_same_sql_bind (
     $most_tracks_rs->as_query,
     '(
-      SELECT me.cdid, me.track_count, tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, liner_notes.liner_id, liner_notes.notes
+      SELECT  me.cdid, me.track_count,
+              tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, tracks.small_dt,
+              liner_notes.liner_id, liner_notes.notes
         FROM (
           SELECT me.cdid, COUNT( tracks.trackid ) AS track_count
             FROM cd me
@@ -203,3 +204,35 @@ for ($cd_rs->all) {
   $schema->storage->debugcb (undef);
   $schema->storage->debug ($sdebug);
 }
+
+# make sure that distinct still works
+{
+  my $rs = $schema->resultset("CD")->search({}, {
+    prefetch => 'tags',
+    order_by => 'cdid',
+    distinct => 1,
+  });
+
+  is_same_sql_bind (
+    $rs->as_query,
+    '(
+      SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+             tags.tagid, tags.cd, tags.tag 
+        FROM (
+          SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+            FROM cd me
+          GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          ORDER BY cdid
+        ) me
+        LEFT JOIN tags tags ON tags.cd = me.cdid
+      ORDER BY cdid, tags.cd, tags.tag
+    )',
+    [],
+    'Prefetch + distinct resulted in correct group_by',
+  );
+
+  is ($rs->all, 5, 'Correct number of CD objects');
+  is ($rs->count, 5, 'Correct count of CDs');
+}
+
+done_testing;

@@ -16,6 +16,9 @@ test_requires 'Test::Exception'     => 0;
 test_requires 'Test::More'          => 0.92;
 test_requires 'Test::Warn'          => 0.11;
 
+test_requires 'File::Temp'          => 0.22;
+
+
 # Core
 requires 'List::Util'               => 0;
 requires 'Scalar::Util'             => 0;
@@ -43,23 +46,17 @@ requires 'Sub::Name'                => 0.04;
 
 recommends 'SQL::Translator'        => 0.09004;
 
-install_script (qw|
-    script/dbicadmin
-|);
-
-tests_recursive (qw|
-    t
-|);
-
-resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
-resources 'license'     => 'http://dev.perl.org/licenses/';
-resources 'repository'  => 'http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/';
-resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
-
-
-# re-build README and require extra modules for testing if we're in a checkout
+my %replication_requires = (
+  'Moose',                    => 0.87,
+  'MooseX::AttributeHelpers'  => 0.21,
+  'MooseX::Types',            => 0.16,
+  'namespace::clean'          => 0.11,
+  'Hash::Merge',              => 0.11,
+);
 
 my %force_requires_if_author = (
+  %replication_requires,
+
 #  'Module::Install::Pod::Inherit' => 0.01,
   'Test::Pod::Coverage'       => 1.04,
   'SQL::Translator'           => 0.09007,
@@ -83,13 +80,6 @@ my %force_requires_if_author = (
   # t/96_is_deteministic_value.t
   'DateTime::Format::Strptime'=> 0,
 
-  # t/93storage_replication.t
-  'Moose',                    => 0.87,
-  'MooseX::AttributeHelpers'  => 0.21,
-  'MooseX::Types',            => 0.16,
-  'namespace::clean'          => 0.11,
-  'Hash::Merge',              => 0.11,
-
   # database-dependent reqs
   #
   $ENV{DBICTEST_PG_DSN}
@@ -112,6 +102,23 @@ my %force_requires_if_author = (
     ) : ()
   ,
 );
+
+
+install_script (qw|
+    script/dbicadmin
+|);
+
+tests_recursive (qw|
+    t
+|);
+
+resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
+resources 'license'     => 'http://dev.perl.org/licenses/';
+resources 'repository'  => 'http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/';
+resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
+
+
+# re-build README and require extra modules for testing if we're in a checkout
 
 if ($Module::Install::AUTHOR) {
   warn <<'EOW';
@@ -137,8 +144,8 @@ EOW
     unlink 'MANIFEST';
   }
 
-#  eval { require Module::Install::Pod::Inherit };
-#  PodInherit() if !$@;
+#  require Module::Install::Pod::Inherit;
+#  PodInherit();
 }
 
 auto_install();

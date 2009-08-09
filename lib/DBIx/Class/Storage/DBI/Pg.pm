@@ -15,7 +15,7 @@ warn "DBD::Pg 2.9.2 or greater is strongly recommended\n"
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
 
-  $self->dbh->do('SET CONSTRAINTS ALL DEFERRED');
+  $self->last_dbh->do('SET CONSTRAINTS ALL DEFERRED');
   $sub->();
 }
 
@@ -52,8 +52,16 @@ sub get_autoinc_seq {
   my ($self,$source,$col) = @_;
 
   my @pri = $source->primary_columns;
-  my ($schema,$table) = $source->name =~ /^(.+)\.(.+)$/ ? ($1,$2)
-    : (undef,$source->name);
+
+  my $schema;
+  my $table = $source->name;
+
+  if (ref $table eq 'SCALAR') {
+    $table = $$table;
+  }
+  elsif ($table =~ /^(.+)\.(.+)$/) {
+    ($schema, $table) = ($1, $2);
+  }
 
   $self->dbh_do('_dbh_get_autoinc_seq', $schema, $table, @pri);
 }
@@ -82,26 +90,26 @@ sub bind_attribute_by_data_type {
 
 sub _sequence_fetch {
   my ( $self, $type, $seq ) = @_;
-  my ($id) = $self->dbh->selectrow_array("SELECT nextval('${seq}')");
+  my ($id) = $self->last_dbh->selectrow_array("SELECT nextval('${seq}')");
   return $id;
 }
 
 sub _svp_begin {
     my ($self, $name) = @_;
 
-    $self->dbh->pg_savepoint($name);
+    $self->last_dbh->pg_savepoint($name);
 }
 
 sub _svp_release {
     my ($self, $name) = @_;
 
-    $self->dbh->pg_release($name);
+    $self->last_dbh->pg_release($name);
 }
 
 sub _svp_rollback {
     my ($self, $name) = @_;
 
-    $self->dbh->pg_rollback_to($name);
+    $self->last_dbh->pg_rollback_to($name);
 }
 
 1;

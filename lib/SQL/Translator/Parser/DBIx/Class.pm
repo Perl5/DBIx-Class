@@ -82,8 +82,9 @@ sub parse {
         my $source = $dbicschema->source($moniker);
         my $table_name = $source->name;
 
-        # Skip custom query sources
-        next if ref $table_name;
+        # FIXME - this isn't the right way to do it, but sqlt does not
+        # support quoting properly to be signaled about this
+        $table_name = $$table_name if ref $table_name eq 'SCALAR';
 
         # Its possible to have multiple DBIC sources using the same table
         next if $tables{$table_name};
@@ -141,6 +142,10 @@ sub parse {
 
             my $othertable = $source->related_source($rel);
             my $rel_table = $othertable->name;
+
+            # FIXME - this isn't the right way to do it, but sqlt does not
+            # support quoting properly to be signaled about this
+            $rel_table = $$rel_table if ref $rel_table eq 'SCALAR';
 
             my $reverse_rels = $source->reverse_relationship_info($rel);
             my ($otherrelname, $otherrelationship) = each %{$reverse_rels};
@@ -251,14 +256,32 @@ sub parse {
     ) {
       $schema->add_table ($tables{$table}{object});
       $tables{$table}{source} -> _invoke_sqlt_deploy_hook( $tables{$table}{object} );
-    }
 
+      # the hook might have already removed the table
+      if ($schema->get_table($table) && $table =~ /^ \s* \( \s* SELECT \s+/ix) {
+        warn <<'EOW';
+
+Custom SQL through ->name(\'( SELECT ...') is DEPRECATED, for more details see
+"Arbitrary SQL through a custom ResultSource" in DBIx::Class::Manual::Cookbook
+or http://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class/Manual/Cookbook.pod
+
+EOW
+
+        # remove the table as there is no way someone might want to
+        # actually deploy this
+        $schema->drop_table ($table);
+      }
+    }
 
     my %views;
     foreach my $moniker (sort @view_monikers)
     {
         my $source = $dbicschema->source($moniker);
         my $view_name = $source->name;
+
+        # FIXME - this isn't the right way to do it, but sqlt does not
+        # support quoting properly to be signaled about this
+        $view_name = $$view_name if ref $view_name eq 'SCALAR';
 
         # Skip custom query sources
         next if ref $view_name;

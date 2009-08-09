@@ -3,7 +3,6 @@ package # hide from PAUSE
 ## Used in 104view.t
 
 use base qw/DBICTest::BaseResult/;
-use DBIx::Class::ResultSource::View;
 
 __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 

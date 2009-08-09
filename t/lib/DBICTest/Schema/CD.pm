@@ -3,7 +3,10 @@ package # hide from PAUSE
 
 use base qw/DBICTest::BaseResult/;
 
-__PACKAGE__->table('cd');
+# this tests table name as scalar ref
+# DO NOT REMOVE THE \
+__PACKAGE__->table(\'cd');
+
 __PACKAGE__->add_columns(
   'cdid' => {
     data_type => 'integer',
