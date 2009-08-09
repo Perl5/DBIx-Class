@@ -164,8 +164,6 @@ sub new {
       unless ref($attrs) eq 'HASH';
 
     my ($related,$inflated);
-    ## Pretend all the rels are actual objects, unset below if not, for insert() to fix
-    $new->{_rel_in_storage} = 1;
 
     foreach my $key (keys %$attrs) {
       if (ref $attrs->{$key}) {
@@ -181,9 +179,9 @@ sub new {
           }
 
           if ($rel_obj->in_storage) {
+            $new->{_rel_in_storage}{$key} = 1;
             $new->set_from_related($key, $rel_obj);
           } else {
-            $new->{_rel_in_storage} = 0;
             MULTICREATE_DEBUG and warn "MC $new uninserted $key $rel_obj\n";
           }
 
@@ -202,13 +200,11 @@ sub new {
             }
 
             if ($rel_obj->in_storage) {
-              $new->set_from_related($key, $rel_obj);
+              $rel_obj->throw_exception ('A multi relationship can not be pre-existing when doing multicreate. Something went wrong');
             } else {
-              $new->{_rel_in_storage} = 0;
               MULTICREATE_DEBUG and
                 warn "MC $new uninserted $key $rel_obj (${\($idx+1)} of $total)\n";
             }
-            $new->set_from_related($key, $rel_obj) if $rel_obj->in_storage;
             push(@objects, $rel_obj);
           }
           $related->{$key} = \@objects;
@@ -221,8 +217,10 @@ sub new {
           if(!Scalar::Util::blessed($rel_obj)) {
             $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
           }
-          unless ($rel_obj->in_storage) {
-            $new->{_rel_in_storage} = 0;
+          if ($rel_obj->in_storage) {
+            $new->{_rel_in_storage}{$key} = 1;
+          }
+          else {
             MULTICREATE_DEBUG and warn "MC $new uninserted $key $rel_obj";
           }
           $inflated->{$key} = $rel_obj;
@@ -286,27 +284,21 @@ sub insert {
   my %related_stuff = (%{$self->{_relationship_data} || {}},
                        %{$self->{_inflated_column} || {}});
 
-  if(!$self->{_rel_in_storage}) {
+  # insert what needs to be inserted before us
+  my %pre_insert;
+  for my $relname (keys %related_stuff) {
+    my $rel_obj = $related_stuff{$relname};
 
-    # The guard will save us if we blow out of this scope via die
-    $rollback_guard = $source->storage->txn_scope_guard;
+    if (! $self->{_rel_in_storage}{$relname}) {
+      next unless (Scalar::Util::blessed($rel_obj)
+                    && $rel_obj->isa('DBIx::Class::Row'));
 
-    ## Should all be in relationship_data, but we need to get rid of the
-    ## 'filter' reltype..
-    ## These are the FK rels, need their IDs for the insert.
+      next unless $source->_pk_depends_on(
+                    $relname, { $rel_obj->get_columns }
+                  );
 
-    my @pri = $self->primary_columns;
-
-    REL: foreach my $relname (keys %related_stuff) {
-
-      my $rel_obj = $related_stuff{$relname};
-
-      next REL unless (Scalar::Util::blessed($rel_obj)
-                       && $rel_obj->isa('DBIx::Class::Row'));
-
-      next REL unless $source->_pk_depends_on(
-                        $relname, { $rel_obj->get_columns }
-                      );
+      # The guard will save us if we blow out of this scope via die
+      $rollback_guard ||= $source->storage->txn_scope_guard;
 
       MULTICREATE_DEBUG and warn "MC $self pre-reconstructing $relname $rel_obj\n";
 
@@ -315,10 +307,19 @@ sub insert {
                     ->related_source($relname)
                     ->resultset
                     ->find_or_create($them);
+
       %{$rel_obj} = %{$re};
-      $self->set_from_related($relname, $rel_obj);
-      delete $related_stuff{$relname};
+      $self->{_rel_in_storage}{$relname} = 1;
     }
+
+    $self->set_from_related($relname, $rel_obj);
+    delete $related_stuff{$relname};
+  }
+
+  # start a transaction here if not started yet and there is more stuff
+  # to insert after us
+  if (keys %related_stuff) {
+    $rollback_guard ||= $source->storage->txn_scope_guard
   }
 
   MULTICREATE_DEBUG and do {
@@ -332,13 +333,12 @@ sub insert {
 
   ## PK::Auto
   my @auto_pri = grep {
-                   !defined $self->get_column($_) ||
-                   ref($self->get_column($_)) eq 'SCALAR'
+                  (not defined $self->get_column($_))
+                    ||
+                  (ref($self->get_column($_)) eq 'SCALAR')
                  } $self->primary_columns;
 
   if (@auto_pri) {
-    #$self->throw_exception( "More than one possible key found for auto-inc on ".ref $self )
-    #  if defined $too_many;
     MULTICREATE_DEBUG and warn "MC $self fetching missing PKs ".join(', ', @auto_pri)."\n";
     my $storage = $self->result_source->storage;
     $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" )
@@ -353,47 +353,48 @@ sub insert {
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
 
-  if(!$self->{_rel_in_storage}) {
-    ## Now do the relationships that need our ID (has_many etc.)
-    foreach my $relname (keys %related_stuff) {
-      my $rel_obj = $related_stuff{$relname};
-      my @cands;
-      if (Scalar::Util::blessed($rel_obj)
-          && $rel_obj->isa('DBIx::Class::Row')) {
-        @cands = ($rel_obj);
-      } elsif (ref $rel_obj eq 'ARRAY') {
-        @cands = @$rel_obj;
-      }
-      if (@cands) {
-        my $reverse = $source->reverse_relationship_info($relname);
-        foreach my $obj (@cands) {
-          $obj->set_from_related($_, $self) for keys %$reverse;
-          my $them = { %{$obj->{_relationship_data} || {} }, $obj->get_inflated_columns };
-          if ($self->__their_pk_needs_us($relname, $them)) {
-            if (exists $self->{_ignore_at_insert}{$relname}) {
-              MULTICREATE_DEBUG and warn "MC $self skipping post-insert on $relname";
-            } else {
-              MULTICREATE_DEBUG and warn "MC $self re-creating $relname $obj";
-              my $re = $self->result_source
-                            ->related_source($relname)
-                            ->resultset
-                            ->create($them);
-              %{$obj} = %{$re};
-              MULTICREATE_DEBUG and warn "MC $self new $relname $obj";
-            }
+  foreach my $relname (keys %related_stuff) {
+    my $rel_obj = $related_stuff{$relname};
+    my @cands;
+    if (Scalar::Util::blessed($rel_obj)
+          && $rel_obj->isa('DBIx::Class::Row'))
+    {
+      @cands = ($rel_obj);
+    }
+    elsif (ref $rel_obj eq 'ARRAY') {
+      @cands = @$rel_obj;
+    }
+
+    if (@cands) {
+      my $reverse = $source->reverse_relationship_info($relname);
+      foreach my $obj (@cands) {
+        $obj->set_from_related($_, $self) for keys %$reverse;
+        my $them = { %{$obj->{_relationship_data} || {} }, $obj->get_inflated_columns };
+        if ($self->__their_pk_needs_us($relname, $them)) {
+          if (exists $self->{_ignore_at_insert}{$relname}) {
+            MULTICREATE_DEBUG and warn "MC $self skipping post-insert on $relname";
           } else {
-            MULTICREATE_DEBUG and warn "MC $self post-inserting $obj";
-            $obj->insert();
+            MULTICREATE_DEBUG and warn "MC $self re-creating $relname $obj";
+            my $re = $self->result_source
+                          ->related_source($relname)
+                          ->resultset
+                          ->create($them);
+            %{$obj} = %{$re};
+            MULTICREATE_DEBUG and warn "MC $self new $relname $obj";
           }
+        } else {
+          MULTICREATE_DEBUG and warn "MC $self post-inserting $obj";
+          $obj->insert();
         }
       }
     }
-    delete $self->{_ignore_at_insert};
-    $rollback_guard->commit;
   }
 
   $self->in_storage(1);
-  undef $self->{_orig_ident};
+  delete $self->{_orig_ident};
+  delete $self->{_ignore_at_insert};
+  $rollback_guard->commit if $rollback_guard;
+
   return $self;
 }
 
