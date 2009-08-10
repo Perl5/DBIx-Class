@@ -2,6 +2,7 @@ use warnings;
 use strict;
 
 use Test::More;
+use Test::Exception;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -34,14 +35,11 @@ TODO: {
     $row->get_from_storage;
     is( $row->increment, 4 );
 
-    eval {
+    throws_ok (sub {
         $row =
           $schema->resultset('Track')
           ->create( { title => 'bar', cd => 2, set_increment => 1 } );
-    };
-    ok( !$@, 'lives ok' );
-    is( $row->increment, 1 );
-
+    }, qr/no such column/i);
 }
 
 done_testing;
