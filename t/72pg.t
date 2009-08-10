@@ -50,7 +50,7 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
     unless ($dsn && $user);
 
 
-plan tests => 41;
+plan tests => 42;
 
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass,);
@@ -108,9 +108,10 @@ is($storecolumn->storecolumn, '#a'); # was '##a'
 # This is in Core now, but it's here just to test that it doesn't break
 $schema->class('Artist')->load_components('PK::Auto');
 
+cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an empty artist table');
 
-{ #test that auto-pk also works with the defined search path by un-schema-qualifying
-  #the table name
+{ # test that auto-pk also works with the defined search path by
+  # un-schema-qualifying the table name
   my $artist_name_save = $schema->source("Artist")->name;
   $schema->source("Artist")->name("artist");
 
