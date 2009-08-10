@@ -326,6 +326,7 @@ has 'write_handler' => (
     _count_select
     _subq_count_select
     _subq_update_delete
+    _order_select_columns
     svp_rollback
     svp_begin
     svp_release

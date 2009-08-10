@@ -2770,9 +2770,9 @@ sub _resolved_attrs {
       : (
           ( delete $attrs->{columns} )
             ||
-          $source->storage->order_columns_for_select(
+          $source->storage->_order_select_columns(
               $source,
-              [ $source->columns ]
+              [ $source->columns ],
           )
         )
     ;

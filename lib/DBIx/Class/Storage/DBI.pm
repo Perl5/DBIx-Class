@@ -1868,6 +1868,21 @@ sub _subq_count_select {
   return @pcols ? \@pcols : [ 1 ];
 }
 
+#
+# Returns an ordered list of column names before they are used
+# in a SELECT statement. By default simply returns the list
+# passed in.
+#
+# This may be overridden in a specific storage when there are
+# requirements such as moving BLOB columns to the end of the 
+# SELECT list.
+sub _order_select_columns {
+  #my ($self, $source, $columns) = @_;
+  return @{$_[2]};
+}
+
+
+
 
 sub source_bind_attributes {
   my ($self, $source) = @_;
@@ -2431,23 +2446,6 @@ starts at zero and increases with the amount of lag. Default in undef
 
 sub lag_behind_master {
     return;
-}
-
-=head2 order_columns_for_select
-
-Returns an ordered list of column names for use with a C<SELECT> when the column
-list is not explicitly specified.
-By default returns the result of L<DBIx::Class::ResultSource/columns>.
-
-This may be overridden in a specific storage when there are requirements such
-as moving C<BLOB> columns to the end of the list.
-
-=cut
-
-sub order_columns_for_select {
-  my ($self, $source, $columns) = @_;
-
-  return @$columns;
 }
 
 sub DESTROY {
