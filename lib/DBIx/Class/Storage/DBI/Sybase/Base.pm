@@ -57,6 +57,11 @@ sub placeholders_supported {
 
 =head2 placeholders_with_type_conversion_supported 
 
+Checks if placeholders bound to non-string types throw implicit type conversion
+errors or not.
+
+See L<DBIx::Class::Storage::DBI::Sybase/connect_call_set_auto_cast>.
+
 =cut
 
 sub placeholders_with_type_conversion_supported {

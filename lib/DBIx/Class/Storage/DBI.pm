@@ -1332,8 +1332,14 @@ sub insert_bulk {
 
 sub update {
   my $self = shift @_;
+
+# redispatch to update method of storage we reblessed into, if necessary
+  if (not $self->_driver_determined) {
+    $self->_determine_driver;
+    goto $self->can('update');
+  }
+
   my $source = shift @_;
-  $self->_determine_driver;
   my $bind_attributes = $self->source_bind_attributes($source);
 
   return $self->_execute('update' => [], $source, $bind_attributes, @_);
