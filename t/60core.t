@@ -452,4 +452,6 @@ SKIP: {
     }
 }
 
+throws_ok { $schema->resultset} qr/resultset\(\) expects a source name/, 'resultset with no argument throws exception';
+
 done_testing;
