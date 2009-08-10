@@ -235,4 +235,40 @@ for ($cd_rs->all) {
   is ($rs->count, 5, 'Correct count of CDs');
 }
 
+# RT 47779, test group_by as a scalar ref
+{
+  my $track_rs = $schema->resultset ('Track')->search (
+    { 'me.cd' => { -in => [ $cd_rs->get_column ('cdid')->all ] } },
+    {
+      select => [
+        'me.cd',
+        { count => 'me.trackid' },
+      ],
+      as => [qw/
+        cd
+        track_count
+      /],
+      group_by => \'SUBSTR(me.cd, 1, 1)',
+      prefetch => 'cd',
+    },
+  );
+
+  is_same_sql_bind (
+    $track_rs->count_rs->as_query,
+    '(
+      SELECT COUNT( * )
+        FROM (
+          SELECT me.cd
+            FROM track me
+            JOIN cd cd ON cd.cdid = me.cd
+          WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
+          GROUP BY SUBSTR(me.cd, 1, 1)
+        )
+      count_subq
+    )',
+    [ map { [ 'me.cd' => $_] } ($cd_rs->get_column ('cdid')->all) ],
+    'count() query generated expected SQL',
+  );
+}
+
 done_testing;
