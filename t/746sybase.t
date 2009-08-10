@@ -27,7 +27,7 @@ my @storage_types = (
 my $schema;
 my $storage_idx = -1;
 
-sub get_connected_schema {
+sub get_schema {
   DBICTest::Schema->connect($dsn, $user, $pass, {
     on_connect_call => [
       [ blob_setup => log_on_update => 1 ], # this is a safer option
@@ -42,7 +42,7 @@ for my $storage_type (@storage_types) {
     DBICTest::Schema->storage_type("::$storage_type");
   }
 
-  $schema = get_connected_schema();
+  $schema = get_schema();
 
   $schema->storage->ensure_connected;
 
@@ -86,7 +86,7 @@ SQL
 # check redispatch to storage-specific insert when auto-detected storage
   if ($storage_type eq 'DBI::Sybase') {
     DBICTest::Schema->storage_type('::DBI');
-    $schema = get_connected_schema();
+    $schema = get_schema();
   }
 
   $new = $schema->resultset('Artist')->create({ name => 'Artist 1' });
@@ -231,7 +231,7 @@ SQL
     # check redispatch to storage-specific update when auto-detected storage
     if ($storage_type eq 'DBI::Sybase') {
       DBICTest::Schema->storage_type('::DBI');
-      $schema = get_connected_schema();
+      $schema = get_schema();
     }
 
     eval { $rs->search({ id => 1 })->update({ blob => $new_str }) };
