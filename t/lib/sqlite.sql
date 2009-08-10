@@ -283,7 +283,8 @@ CREATE TABLE track (
   title varchar(100) NOT NULL,
   last_updated_on datetime,
   last_updated_at datetime,
-  small_dt smalldatetime
+  small_dt smalldatetime,
+  increment integer
 );
 
 CREATE INDEX track_idx_cd ON track (cd);

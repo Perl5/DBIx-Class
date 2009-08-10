@@ -471,6 +471,7 @@ sub move_to_group {
 
       my @original_values = $cursor->next;
       $self->set_inflated_columns ({ %values, map { $_ => shift @original_values } (@dirty_cols) });
+      delete $self->{_dirty_columns}{$_} for (@dirty_cols);
     }
 
     if ($self->_is_in_group ($to_group) ) {

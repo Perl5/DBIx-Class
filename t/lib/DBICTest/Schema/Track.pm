@@ -34,6 +34,11 @@ __PACKAGE__->add_columns(
     data_type => 'smalldatetime',
     is_nullable => 1
   },
+  increment => {
+      data_type => 'integer',
+      is_nullable => 1,
+      accessor => '_increment',
+  }
 );
 __PACKAGE__->set_primary_key('trackid');
 
@@ -49,5 +54,21 @@ __PACKAGE__->belongs_to( disc => 'DBICTest::Schema::CD' => 'cd');
 
 __PACKAGE__->might_have( cd_single => 'DBICTest::Schema::CD', 'single_track' );
 __PACKAGE__->might_have( lyrics => 'DBICTest::Schema::Lyrics', 'track_id' );
+
+sub increment {
+    my $self = shift;
+    if(@_) {
+        return $self->_increment($_[0] + 1);
+    }
+    return $self->_increment();
+}
+
+sub set_increment {
+    my $self = shift;
+    if(@_) {
+        return $self->_increment($_[0]);
+    }
+    return $self->_increment();
+}
 
 1;
