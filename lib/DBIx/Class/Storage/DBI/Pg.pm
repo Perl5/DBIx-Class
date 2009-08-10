@@ -33,6 +33,23 @@ sub last_insert_id {
   $self->dbh_do('_dbh_last_insert_id', $seq);
 }
 
+sub _get_pg_search_path {
+    my ($self,$dbh) = @_;
+    # cache the search path as ['schema','schema',...] in the storage
+    # obj
+    $self->{_pg_search_path} ||= do {
+        my @search_path;
+        my ($sp_string) = $dbh->selectrow_array('SHOW search_path');
+        while( $sp_string =~ s/("[^"]+"|[^,]+),?// ) {
+            unless( defined $1 and length $1 ) {
+                $self->throw_exception("search path sanity check failed: '$1'")
+            }
+            push @search_path, $1;
+        }
+        \@search_path
+    };
+}
+
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $schema, $table, @pri) = @_;
 
@@ -42,13 +59,7 @@ sub _dbh_get_autoinc_seq {
   if( defined $schema and length $schema ) {
       @search_path = ( $schema );
   } else {
-      my ($search_path) = $dbh->selectrow_array('SHOW search_path');
-      while( $search_path =~ s/("[^"]+"|[^,]+),?// ) {
-          unless( defined $1 and length $1 ) {
-              $self->throw_exception("search path sanity check failed: '$1'")
-          }
-          push @search_path, $1;
-      }
+      @search_path = @{ $self->_get_pg_search_path($dbh) };
   }
 
   foreach my $search_schema (@search_path) {
