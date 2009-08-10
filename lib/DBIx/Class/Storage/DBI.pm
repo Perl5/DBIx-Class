@@ -824,7 +824,7 @@ sub _run_connection_actions {
 sub _determine_driver {
   my ($self) = @_;
 
-  if (not $self->_driver_determined) {
+  if ((not $self->_driver_determined) && (not $self->{_in_determine_driver})) {
     my $started_unconnected = 0;
     local $self->{_in_determine_driver} = 1;
 
