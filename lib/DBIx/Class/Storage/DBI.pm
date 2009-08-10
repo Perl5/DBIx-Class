@@ -825,7 +825,7 @@ sub _run_connection_actions {
 sub _determine_driver {
   my ($self) = @_;
 
-  if (not $self->_driver_determined) {
+  if ((not $self->_driver_determined) && (not $self->{_in_determine_driver})) {
     my $started_unconnected = 0;
     local $self->{_in_determine_driver} = 1;
 
@@ -1331,7 +1331,7 @@ sub insert_bulk {
 }
 
 sub update {
-  my $self = shift @_;
+  my ($self, $source, @args) = @_; 
 
 # redispatch to update method of storage we reblessed into, if necessary
   if (not $self->_driver_determined) {
@@ -1339,10 +1339,9 @@ sub update {
     goto $self->can('update');
   }
 
-  my $source = shift @_;
   my $bind_attributes = $self->source_bind_attributes($source);
 
-  return $self->_execute('update' => [], $source, $bind_attributes, @_);
+  return $self->_execute('update' => [], $source, $bind_attributes, @args);
 }
 
 

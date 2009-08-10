@@ -27,21 +27,22 @@ my @storage_types = (
 my $schema;
 my $storage_idx = -1;
 
-for my $storage_type (@storage_types) {
-  $storage_idx++;
-# this is so we can set ->storage_type before connecting
-  my $schema = DBICTest::Schema->clone;
-
-  unless ($storage_type eq 'DBI::Sybase') { # autodetect
-    $schema->storage_type("::$storage_type");
-  }
-
-  $schema->connection($dsn, $user, $pass, {
-    AutoCommit => 1,
+sub get_connected_schema {
+  DBICTest::Schema->connect($dsn, $user, $pass, {
     on_connect_call => [
       [ blob_setup => log_on_update => 1 ], # this is a safer option
     ],
   });
+}
+
+for my $storage_type (@storage_types) {
+  $storage_idx++;
+
+  unless ($storage_type eq 'DBI::Sybase') { # autodetect
+    DBICTest::Schema->storage_type("::$storage_type");
+  }
+
+  $schema = get_connected_schema();
 
   $schema->storage->ensure_connected;
 
@@ -76,16 +77,26 @@ SQL
 # so we start unconnected
   $schema->storage->disconnect;
 
-# inserts happen in a txn, so we make sure it still works inside a txn too
-  $schema->txn_begin;
-
 # test primary key handling
   my $new = $schema->resultset('Artist')->create({ name => 'foo' });
   ok($new->artistid > 0, "Auto-PK worked");
 
   $seen_id{$new->artistid}++;
 
-  for (1..6) {
+# check redispatch to storage-specific insert when auto-detected storage
+  if ($storage_type eq 'DBI::Sybase') {
+    DBICTest::Schema->storage_type('::DBI');
+    $schema = get_connected_schema();
+  }
+
+  $new = $schema->resultset('Artist')->create({ name => 'Artist 1' });
+  is ( $seen_id{$new->artistid}, undef, 'id for Artist 1 is unique' );
+  $seen_id{$new->artistid}++;
+
+# inserts happen in a txn, so we make sure it still works inside a txn too
+  $schema->txn_begin;
+
+  for (2..6) {
     $new = $schema->resultset('Artist')->create({ name => 'Artist ' . $_ });
     is ( $seen_id{$new->artistid}, undef, "id for Artist $_ is unique" );
     $seen_id{$new->artistid}++;
@@ -216,6 +227,13 @@ SQL
 
     # try a blob update
     my $new_str = $binstr{large} . 'mtfnpy';
+
+    # check redispatch to storage-specific update when auto-detected storage
+    if ($storage_type eq 'DBI::Sybase') {
+      DBICTest::Schema->storage_type('::DBI');
+      $schema = get_connected_schema();
+    }
+
     eval { $rs->search({ id => 1 })->update({ blob => $new_str }) };
     ok !$@, 'updated blob successfully';
     diag $@ if $@;
