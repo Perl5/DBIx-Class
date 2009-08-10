@@ -28,7 +28,7 @@ Revision history for DBIx::Class
         - Support for 'smalldatetime' type used in MSSQL and Sybase for
           InflateColumn::DateTime
         - Support for Postgres 'timestamp without timezone' type in
-          InflateColumn::DateTime
+          InflateColumn::DateTime (RT#48389)
         - Added new MySQL specific on_connect_call macro 'set_strict_mode'
           (also known as make_mysql_not_suck_as_much)
         - Multiple prefetch-related fixes:
