@@ -258,7 +258,7 @@ for ($cd_rs->all) {
     '(
       SELECT COUNT( * )
         FROM (
-          SELECT me.cd
+          SELECT SUBSTR(me.cd, 1, 1)
             FROM track me
             JOIN cd cd ON cd.cdid = me.cd
           WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
