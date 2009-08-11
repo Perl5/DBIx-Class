@@ -71,10 +71,17 @@ is_deeply($inflated, $struct_hash, 'inflated hash matches original');
 $object = $rs->create( { 
     serialized => '',
 } );
-eval { $object->set_inflated_column('serialized', $struct_hash) };
-ok(!$@, 'set_inflated_column to a hashref');
+$object->set_inflated_column('serialized', $struct_hash);
 is_deeply($object->serialized, $struct_hash, 'inflated hash matches original');
 
+$object = $rs->new({});
+$object->serialized ($struct_hash);
+$object->insert;
+is_deeply (
+  $rs->find ({id => $object->id})->serialized,
+  $struct_hash,
+  'new/insert works',
+);
 
 #====== testing arrayref serialization
 
@@ -82,8 +89,16 @@ ok($object->update( { serialized => $struct_array } ), 'arrayref deflation');
 ok($inflated = $object->serialized, 'arrayref inflation');
 is_deeply($inflated, $struct_array, 'inflated array matches original');
 
+$object = $rs->new({});
+$object->serialized ($struct_array);
+$object->insert;
+is_deeply (
+  $rs->find ({id => $object->id})->serialized,
+  $struct_array,
+  'new/insert works',
+);
 
-#===== make sure make_column_dirty ineracts reasonably with inflation
+#===== make sure make_column_dirty interacts reasonably with inflation
 $object = $rs->first;
 $object->update ({serialized => { x => 'y'}});
 
