@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Thu Jul 30 09:37:43 2009
+-- Created on Wed Aug 12 16:10:43 2009
 -- 
 
 
@@ -285,8 +285,7 @@ CREATE TABLE track (
   title varchar(100) NOT NULL,
   last_updated_on datetime,
   last_updated_at datetime,
-  small_dt smalldatetime,
-  increment integer
+  small_dt smalldatetime
 );
 
 CREATE INDEX track_idx_cd ON track (cd);
