@@ -564,7 +564,7 @@ sub update {
     # these steps are necessary to keep the external appearance of
     # ->update($upd) so that other things overloading update() will
     # work properly
-    my %original_values = $self->get_inflated_columns;
+    my %original_values = $self->get_columns;
     my %existing_changes = $self->get_dirty_columns;
 
     # See if any of the *supplied* changes would affect the ordering
