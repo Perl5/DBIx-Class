@@ -163,7 +163,7 @@ for ($cd_rs->all) {
     $most_tracks_rs->as_query,
     '(
       SELECT  me.cdid, me.track_count,
-              tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, tracks.small_dt, tracks.increment,
+              tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, tracks.small_dt,
               liner_notes.liner_id, liner_notes.notes
         FROM (
           SELECT me.cdid, COUNT( tracks.trackid ) AS track_count
