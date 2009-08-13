@@ -13,7 +13,7 @@ sub _rebless {
     my $self = shift;
 
     my $dbtype = eval {
-      @{$self->last_dbh
+      @{$self->_get_dbh
         ->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})
       }[2]
     };

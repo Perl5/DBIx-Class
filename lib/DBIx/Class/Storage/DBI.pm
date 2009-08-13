@@ -452,7 +452,11 @@ sub connect_info {
 }
 
 sub _default_dbi_connect_attributes {
-  return { AutoCommit => 1 };
+  return {
+    AutoCommit => 1,
+    RaiseError => 1,
+    PrintError => 0,
+  };
 }
 
 =head2 on_connect_do
@@ -551,6 +555,7 @@ sub dbh_do {
     }
   };
 
+  # ->connected might unset $@ - copy
   my $exception = $@;
   if(!$exception) { return $want_array ? @result : $result[0] }
 
@@ -598,6 +603,7 @@ sub txn_do {
       $self->txn_commit;
     };
 
+    # ->connected might unset $@ - copy
     my $exception = $@;
     if(!$exception) { return $want_array ? @result : $result[0] }
 
@@ -687,22 +693,32 @@ answering, etc.) This method is used internally by L</dbh>.
 =cut
 
 sub connected {
-  my ($self) = @_;
+  my $self = shift;
+  return 0 unless $self->_seems_connected;
 
-  if(my $dbh = $self->_dbh) {
-      if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
-          $self->_dbh(undef);
-          $self->{_dbh_gen}++;
-          return;
-      }
-      else {
-          $self->_verify_pid;
-          return 0 if !$self->_dbh;
-      }
-      return ($dbh->FETCH('Active') && $self->_ping);
+  #be on the safe side
+  local $self->_dbh->{RaiseError} = 1;
+
+  return $self->_ping;
+}
+
+sub _seems_connected {
+  my $self = shift;
+
+  my $dbh = $self->_dbh
+    or return 0;
+
+  if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
+    $self->_dbh(undef);
+    $self->{_dbh_gen}++;
+    return 0;
+  }
+  else {
+    $self->_verify_pid;
+    return 0 if !$self->_dbh;
   }
 
-  return 0;
+  return $dbh->FETCH('Active');
 }
 
 sub _ping {
@@ -739,7 +755,9 @@ sub ensure_connected {
 
 Returns a C<$dbh> - a data base handle of class L<DBI>. The returned handle
 is guaranteed to be healthy by implicitly calling L</connected>, and if
-necessary performing a reconnection before returning.
+necessary performing a reconnection before returning. Keep in mind that this
+is very B<expensive> on some database engines. Consider using L<dbh_do>
+instead.
 
 =cut
 
@@ -754,17 +772,8 @@ sub dbh {
   return $self->_dbh;
 }
 
-=head2 last_dbh
-
-This returns the B<last> available C<$dbh> if any, or attempts to
-connect and returns the resulting handle. This method differs from
-L</dbh> by not validating if a preexisting handle is still healthy
-via L</connected>. Make sure you take appropriate precautions
-when using this method, as the C<$dbh> may be useless at this point.
-
-=cut
-
-sub last_dbh {
+# this is the internal "get dbh or connect (don't check)" method
+sub _get_dbh {
   my $self = shift;
   $self->_populate_dbh unless $self->_dbh;
   return $self->_dbh;
@@ -776,7 +785,7 @@ sub _sql_maker_args {
     return (
       bindtype=>'columns',
       array_datatypes => 1,
-      limit_dialect => $self->last_dbh,
+      limit_dialect => $self->_get_dbh,
       %{$self->_sql_maker_opts}
     );
 }
@@ -797,6 +806,7 @@ sub _populate_dbh {
   my ($self) = @_;
 
   my @info = @{$self->_dbi_connect_info || []};
+  $self->_dbh(undef); # in case ->connected failed we might get sent here
   $self->_dbh($self->_connect(@info));
 
   $self->_conn_pid($$);
@@ -1235,7 +1245,7 @@ sub insert {
         $updated_cols->{$col} = $to_insert->{$col} = $self->_sequence_fetch(
           'nextval',
           $col_info->{sequence} ||
-            $self->_dbh_get_autoinc_seq($self->last_dbh, $source)
+            $self->_dbh_get_autoinc_seq($self->_get_dbh, $source)
         );
       }
     }
@@ -2025,7 +2035,7 @@ Returns the database driver name.
 
 =cut
 
-sub sqlt_type { shift->last_dbh->{Driver}->{Name} }
+sub sqlt_type { shift->_get_dbh->{Driver}->{Name} }
 
 =head2 bind_attribute_by_data_type
 
@@ -2271,8 +2281,6 @@ See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>.
 
 sub deployment_statements {
   my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
-  # Need to be connected to get the correct sqlt_type
-  $self->last_dbh() unless $type;
   $type ||= $self->sqlt_type;
   $version ||= $schema->schema_version || '1.x';
   $dir ||= './';
@@ -2317,10 +2325,9 @@ sub deploy {
     return if $line =~ /^\s+$/; # skip whitespace only
     $self->_query_start($line);
     eval {
-      # a previous error may invalidate $dbh - thus we need to use dbh()
-      # to guarantee a healthy $dbh (this is temporary until we get
-      # proper error handling on deploy() )
-      $self->dbh->do($line);
+      # do a dbh_do cycle here, as we need some error checking in
+      # place (even though we will ignore errors)
+      $self->dbh_do (sub { $_[1]->do($line) });
     };
     if ($@) {
       carp qq{$@ (running "${line}")};
@@ -2349,7 +2356,7 @@ Returns the datetime parser class
 sub datetime_parser {
   my $self = shift;
   return $self->{datetime_parser} ||= do {
-    $self->last_dbh;
+    $self->_populate_dbh unless $self->_dbh;
     $self->build_datetime_parser(@_);
   };
 }

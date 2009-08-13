@@ -33,9 +33,6 @@ Revision history for DBIx::Class
             prefetch
         - Massive optimization of the DBI storage layer - reduce the
           amount of connected() calls
-        - New ::Storage::DBI method last_dbh() - it will still return a
-          newly connected $dbh if we start unconnected, but will not ping
-          the server on every invocation unlike dbh()
         - Some fixes of multi-create corner cases
         - Multiple POD improvements
         - Added exception when resultset is called without an argument
