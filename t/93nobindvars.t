@@ -65,5 +65,6 @@ is( $it->next, undef, "next past end of resultset ok" );
 
 # clean up our mess
 END {
+    my $dbh = eval { $schema->storage->_dbh };
     $dbh->do("DROP TABLE artist") if $dbh;
 }
