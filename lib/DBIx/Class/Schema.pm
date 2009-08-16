@@ -543,6 +543,8 @@ name.
 
 sub resultset {
   my ($self, $moniker) = @_;
+  $self->throw_exception('resultset() expects a source name')
+    unless defined $moniker;
   return $self->source($moniker)->resultset;
 }
 

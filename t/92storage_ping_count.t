@@ -22,15 +22,13 @@ my $ping_count = 0;
 }
 
 
-# We do not count pings during deploy() because of the flux
-# around sqlt. Eventually there should be no pings at all
+# measure pings around deploy() separately
 my $schema = DBICTest->init_schema( sqlite_use_file => 1, no_populate => 1 );
 
-TODO: {
-  local $TODO = 'Unable to fix before proper deploy() error handling';
-  is ($ping_count, 0, 'no _ping() calls during deploy');
-  $ping_count = 0;
-}
+is ($ping_count, 0, 'no _ping() calls during deploy');
+$ping_count = 0;
+
+
 
 DBICTest->populate_schema ($schema);
 

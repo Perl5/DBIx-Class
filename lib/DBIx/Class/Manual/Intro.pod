@@ -200,8 +200,12 @@ many options.
 
 =head2 Connecting
 
-To connect to your Schema, you need to provide the connection details.  The
-arguments are the same as for L<DBI/connect>:
+To connect to your Schema, you need to provide the connection details or a
+database handle.
+
+=head3 Via connection details
+
+The arguments are the same as for L<DBI/connect>:
 
   my $schema = My::Schema->connect('dbi:SQLite:/home/me/myapp/my.db');
 
@@ -226,6 +230,16 @@ a special fifth argument to connect:
 
 See L<DBIx::Class::Schema::Storage::DBI/connect_info> for more information about
 this and other special C<connect>-time options.
+
+=head3 Via a database handle
+
+The supplied coderef is expected to return a single connected database handle
+(e.g. a L<DBI> C<$dbh>)
+
+  my $schema = My::Schema->connect (
+    sub { Some::DBH::Factory->connect },
+    \%extra_attrs,
+  );
 
 =head2 Basic usage
 

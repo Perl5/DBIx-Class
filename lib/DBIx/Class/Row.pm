@@ -354,18 +354,17 @@ sub insert {
   $self->{related_resultsets} = {};
 
   foreach my $relname (keys %related_stuff) {
-    my $rel_obj = $related_stuff{$relname};
-    my @cands;
-    if (Scalar::Util::blessed($rel_obj)
-          && $rel_obj->isa('DBIx::Class::Row'))
-    {
-      @cands = ($rel_obj);
-    }
-    elsif (ref $rel_obj eq 'ARRAY') {
-      @cands = @$rel_obj;
-    }
+    next unless $source->has_relationship ($relname);
 
-    if (@cands) {
+    my @cands = ref $related_stuff{$relname} eq 'ARRAY'
+      ? @{$related_stuff{$relname}}
+      : $related_stuff{$relname}
+    ;
+
+    if (@cands
+          && Scalar::Util::blessed($cands[0])
+            && $cands[0]->isa('DBIx::Class::Row')
+    ) {
       my $reverse = $source->reverse_relationship_info($relname);
       foreach my $obj (@cands) {
         $obj->set_from_related($_, $self) for keys %$reverse;

@@ -76,7 +76,7 @@ sub _dbh_get_autoinc_seq {
 
 sub _sequence_fetch {
   my ( $self, $type, $seq ) = @_;
-  my ($id) = $self->last_dbh->selectrow_array("SELECT ${seq}.${type} FROM DUAL");
+  my ($id) = $self->_get_dbh->selectrow_array("SELECT ${seq}.${type} FROM DUAL");
   return $id;
 }
 
@@ -206,6 +206,12 @@ sub connect_call_datetime_setup {
 "alter session set nls_timestamp_tz_format='$timestamp_tz_format'");
 }
 
+sub _svp_begin {
+    my ($self, $name) = @_;
+
+    $self->_get_dbh->do("SAVEPOINT $name");
+}
+
 =head2 source_bind_attributes
 
 Handle LOB types in Oracle.  Under a certain size (4k?), you can get away
@@ -263,7 +269,7 @@ sub _svp_release { 1 }
 sub _svp_rollback {
     my ($self, $name) = @_;
 
-    $self->last_dbh->do("ROLLBACK TO SAVEPOINT $name")
+    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 =head1 AUTHOR
