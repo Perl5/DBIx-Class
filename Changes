@@ -31,8 +31,10 @@ Revision history for DBIx::Class
             problems with search_related chaining
           - Deal with the distinct => 1 attribute properly when using
             prefetch
+        - An extension of the select-hashref syntax, allowing labeling
+          SQL-side aliasing: select => [ { max => 'foo', -as => 'bar' } ]
         - Massive optimization of the DBI storage layer - reduce the
-          amount of connected() calls
+          amount of connected() ping-calls
         - Some fixes of multi-create corner cases
         - Multiple POD improvements
         - Added exception when resultset is called without an argument
