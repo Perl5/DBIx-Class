@@ -49,9 +49,7 @@ my ($sql, @bind) = $sql_maker->select(
           [
             'me.cdid',
             { count => 'tracks.cd' },
-            { -select => 'me.artist' },
-            { -select => 'me.title', -as => 'name' },
-            { -select => { min => 'me.year' }, -as => 'me.minyear' },
+            { min => 'me.year', -as => 'me.minyear' },
           ],
           {
             'artist.name' => 'Caterwauler McCrae',
@@ -65,7 +63,7 @@ my ($sql, @bind) = $sql_maker->select(
 is_same_sql_bind(
   $sql, \@bind,
   q/
-    SELECT `me`.`cdid`, COUNT( `tracks`.`cd` ), `me`.`artist`, `me`.`title` AS `name`, MIN( `me`.`year` ) AS `me`.`minyear`
+    SELECT `me`.`cdid`, COUNT( `tracks`.`cd` ), MIN( `me`.`year` ) AS `me`.`minyear`
       FROM `cd` `me`
       JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` )
       LEFT JOIN `tracks` `tracks` ON ( `tracks`.`cd` = `me`.`cdid` )
@@ -294,7 +292,13 @@ $sql_maker->quote_char([qw/[ ]/]);
           ],
           [
             {
-              'count' => '*'
+              max => 'rank',
+              -as => 'max_rank',
+            },
+            'rank',
+            {
+              'count' => '*',
+              -as => 'cnt',
             }
           ],
           {
@@ -308,7 +312,7 @@ $sql_maker->quote_char([qw/[ ]/]);
 
 is_same_sql_bind(
   $sql, \@bind,
-  q/SELECT COUNT( * ) FROM [cd] [me]  JOIN [artist] [artist] ON ( [artist].[artistid] = [me].[artist] ) WHERE ( [artist].[name] = ? AND [me].[year] = ? )/, [ ['artist.name' => 'Caterwauler McCrae'], ['me.year' => 2001] ],
+  q/SELECT MAX ( [rank] ) AS [max_rank], [rank], COUNT( * ) AS [cnt] FROM [cd] [me]  JOIN [artist] [artist] ON ( [artist].[artistid] = [me].[artist] ) WHERE ( [artist].[name] = ? AND [me].[year] = ? )/, [ ['artist.name' => 'Caterwauler McCrae'], ['me.year' => 2001] ],
   'got correct SQL and bind parameters for count query with bracket quoting'
 );
 

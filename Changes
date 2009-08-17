@@ -10,6 +10,8 @@ Revision history for DBIx::Class
           - Fixed the way we detect transaction to make this more reliable
             and forward looking.
           - Fixed some trouble with the way Moose Types are used.
+          - Made discard_chages/get_from_storage replication aware (they
+            now read from the master storage by default)
         - Refactor of MSSQL storage drivers, with some new features:
           - Support for placeholders for MSSQL via DBD::Sybase with proper
             autodetection
@@ -29,10 +31,15 @@ Revision history for DBIx::Class
             problems with search_related chaining
           - Deal with the distinct => 1 attribute properly when using
             prefetch
+        - An extension of the select-hashref syntax, allowing labeling
+          SQL-side aliasing: select => [ { max => 'foo', -as => 'bar' } ]
+        - Massive optimization of the DBI storage layer - reduce the
+          amount of connected() ping-calls
+        - Some fixes of multi-create corner cases
         - Multiple POD improvements
+        - Added exception when resultset is called without an argument
         - Improved support for non-schema-qualified tables under
-          Postgres.
-           - Fixed last_insert_id sequence detection.
+          Postgres (fixed last_insert_id sequence name auto-detection)
 
 0.08108 2009-07-05 23:15:00 (UTC)
         - Fixed the has_many prefetch with limit/group deficiency -

@@ -1266,8 +1266,8 @@ sub _count_subq_rs {
   # extra selectors do not go in the subquery and there is no point of ordering it
   delete $sub_attrs->{$_} for qw/collapse select _prefetch_select as order_by/;
 
-  # if we prefetch, we group_by primary keys only as this is what we would get out of the rs via ->next/->all
-  # clobber old group_by regardless
+  # if we prefetch, we group_by primary keys only as this is what we would get out
+  # of the rs via ->next/->all. We DO WANT to clobber old group_by regardless
   if ( keys %{$attrs->{collapse}} ) {
     $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->primary_columns) ]
   }
@@ -1509,7 +1509,8 @@ sub _rs_update_delete {
       if (my $g = $attrs->{group_by}) {
         my @current_group_by = map
           { $_ =~ /\./ ? $_ : "$attrs->{alias}.$_" }
-          (ref $g eq 'ARRAY' ? @$g : $g );
+          @$g
+        ;
 
         if (
           join ("\x00", sort @current_group_by)
@@ -2871,7 +2872,7 @@ sub _resolved_attrs {
     );
   }
 
-  if ($attrs->{group_by} and ! ref $attrs->{group_by}) {
+  if ($attrs->{group_by} and ref $attrs->{group_by} ne 'ARRAY') {
     $attrs->{group_by} = [ $attrs->{group_by} ];
   }
 

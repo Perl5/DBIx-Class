@@ -133,10 +133,10 @@ for ($cd_rs->all) {
     },
     {
       prefetch => [qw/tracks liner_notes/],
-      select => ['me.cdid', { count => 'tracks.trackid' } ],
-      as => [qw/cdid track_count/],
+      select => ['me.cdid', { count => 'tracks.trackid' }, { max => 'tracks.trackid', -as => 'maxtr'} ],
+      as => [qw/cdid track_count max_track_id/],
       group_by => 'me.cdid',
-      order_by => { -desc => 'track_count' },
+      order_by => [ { -desc => 'track_count' }, { -asc => 'maxtr' } ],
       rows => 2,
     }
   );
@@ -162,22 +162,22 @@ for ($cd_rs->all) {
   is_same_sql_bind (
     $most_tracks_rs->as_query,
     '(
-      SELECT  me.cdid, me.track_count,
+      SELECT  me.cdid, me.track_count, me.maxtr,
               tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, tracks.small_dt,
               liner_notes.liner_id, liner_notes.notes
         FROM (
-          SELECT me.cdid, COUNT( tracks.trackid ) AS track_count
+          SELECT me.cdid, COUNT( tracks.trackid ) AS track_count, MAX( tracks.trackid ) AS maxtr,
             FROM cd me
             LEFT JOIN track tracks ON tracks.cd = me.cdid
           WHERE ( me.cdid IS NOT NULL )
           GROUP BY me.cdid
-          ORDER BY track_count DESC
+          ORDER BY track_count DESC, maxtr ASC
           LIMIT 2
         ) me
         LEFT JOIN track tracks ON tracks.cd = me.cdid
         LEFT JOIN liner_notes liner_notes ON liner_notes.liner_id = me.cdid
       WHERE ( me.cdid IS NOT NULL )
-      ORDER BY track_count DESC, tracks.cd
+      ORDER BY track_count DESC, maxtr ASC, tracks.cd
     )',
     [],
     'next() query generated expected SQL',
@@ -233,6 +233,42 @@ for ($cd_rs->all) {
 
   is ($rs->all, 5, 'Correct number of CD objects');
   is ($rs->count, 5, 'Correct count of CDs');
+}
+
+# RT 47779, test group_by as a scalar ref
+{
+  my $track_rs = $schema->resultset ('Track')->search (
+    { 'me.cd' => { -in => [ $cd_rs->get_column ('cdid')->all ] } },
+    {
+      select => [
+        'me.cd',
+        { count => 'me.trackid' },
+      ],
+      as => [qw/
+        cd
+        track_count
+      /],
+      group_by => \'SUBSTR(me.cd, 1, 1)',
+      prefetch => 'cd',
+    },
+  );
+
+  is_same_sql_bind (
+    $track_rs->count_rs->as_query,
+    '(
+      SELECT COUNT( * )
+        FROM (
+          SELECT SUBSTR(me.cd, 1, 1)
+            FROM track me
+            JOIN cd cd ON cd.cdid = me.cd
+          WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
+          GROUP BY SUBSTR(me.cd, 1, 1)
+        )
+      count_subq
+    )',
+    [ map { [ 'me.cd' => $_] } ($cd_rs->get_column ('cdid')->all) ],
+    'count() query generated expected SQL',
+  );
 }
 
 done_testing;

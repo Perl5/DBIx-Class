@@ -42,7 +42,7 @@ DBIx::Class::Schema - composable schemas
     $dsn,
     $user,
     $password,
-    { AutoCommit => 0 },
+    { AutoCommit => 1 },
   );
 
   my $schema2 = Library::Schema->connect($coderef_returning_dbh);
@@ -543,6 +543,8 @@ name.
 
 sub resultset {
   my ($self, $moniker) = @_;
+  $self->throw_exception('resultset() expects a source name')
+    unless defined $moniker;
   return $self->source($moniker)->resultset;
 }
 

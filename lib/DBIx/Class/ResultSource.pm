@@ -584,7 +584,10 @@ optional constraint name.
 sub name_unique_constraint {
   my ($self, $cols) = @_;
 
-  return join '_', $self->name, @$cols;
+  my $name = $self->name;
+  $name = $$name if (ref $name eq 'SCALAR');
+
+  return join '_', $name, @$cols;
 }
 
 =head2 unique_constraints
@@ -1262,18 +1265,22 @@ sub pk_depends_on {
 # hashref of columns of the related object.
 sub _pk_depends_on {
   my ($self, $relname, $rel_data) = @_;
-  my $cond = $self->relationship_info($relname)->{cond};
 
+  my $relinfo = $self->relationship_info($relname);
+
+  # don't assume things if the relationship direction is specified
+  return $relinfo->{attrs}{is_foreign_key_constraint}
+    if exists ($relinfo->{attrs}{is_foreign_key_constraint});
+
+  my $cond = $relinfo->{cond};
   return 0 unless ref($cond) eq 'HASH';
 
   # map { foreign.foo => 'self.bar' } to { bar => 'foo' }
-
   my $keyhash = { map { my $x = $_; $x =~ s/.*\.//; $x; } reverse %$cond };
 
   # assume anything that references our PK probably is dependent on us
   # rather than vice versa, unless the far side is (a) defined or (b)
   # auto-increment
-
   my $rel_source = $self->related_source($relname);
 
   foreach my $p ($self->primary_columns) {

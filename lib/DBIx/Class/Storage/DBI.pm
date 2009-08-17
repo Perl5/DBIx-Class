@@ -437,10 +437,26 @@ sub connect_info {
     }
   }
 
-  %attrs = () if (ref $args[0] eq 'CODE');  # _connect() never looks past $args[0] in this case
+  if (ref $args[0] eq 'CODE') {
+    # _connect() never looks past $args[0] in this case
+    %attrs = ()
+  } else {
+    %attrs = (
+      %{ $self->_default_dbi_connect_attributes || {} },
+      %attrs,
+    );
+  }
 
   $self->_dbi_connect_info([@args, keys %attrs ? \%attrs : ()]);
   $self->_connect_info;
+}
+
+sub _default_dbi_connect_attributes {
+  return {
+    AutoCommit => 1,
+    RaiseError => 1,
+    PrintError => 0,
+  };
 }
 
 =head2 on_connect_do
@@ -539,6 +555,7 @@ sub dbh_do {
     }
   };
 
+  # ->connected might unset $@ - copy
   my $exception = $@;
   if(!$exception) { return $want_array ? @result : $result[0] }
 
@@ -546,6 +563,8 @@ sub dbh_do {
 
   # We were not connected - reconnect and retry, but let any
   #  exception fall right through this time
+  carp "Retrying $code after catching disconnected exception: $exception"
+    if $ENV{DBIC_DBIRETRY_DEBUG};
   $self->_populate_dbh;
   $self->$code($self->_dbh, @_);
 }
@@ -586,10 +605,11 @@ sub txn_do {
       $self->txn_commit;
     };
 
+    # ->connected might unset $@ - copy
     my $exception = $@;
     if(!$exception) { return $want_array ? @result : $result[0] }
 
-    if($tried++ > 0 || $self->connected) {
+    if($tried++ || $self->connected) {
       eval { $self->txn_rollback };
       my $rollback_exception = $@;
       if($rollback_exception) {
@@ -607,6 +627,8 @@ sub txn_do {
 
     # We were not connected, and was first try - reconnect and retry
     # via the while loop
+    carp "Retrying $coderef after catching disconnected exception: $exception"
+      if $ENV{DBIC_DBIRETRY_DEBUG};
     $self->_populate_dbh;
   }
 }
@@ -621,7 +643,7 @@ database is not in C<AutoCommit> mode.
 sub disconnect {
   my ($self) = @_;
 
-  if( $self->connected ) {
+  if( $self->_dbh ) {
     my @actions;
 
     push @actions, ( $self->on_disconnect_call || () );
@@ -658,23 +680,49 @@ sub with_deferred_fk_checks {
   $sub->();
 }
 
-sub connected {
-  my ($self) = @_;
+=head2 connected
 
-  if(my $dbh = $self->_dbh) {
-      if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
-          $self->_dbh(undef);
-          $self->{_dbh_gen}++;
-          return;
-      }
-      else {
-          $self->_verify_pid;
-          return 0 if !$self->_dbh;
-      }
-      return ($dbh->FETCH('Active') && $self->_ping);
+=over
+
+=item Arguments: none
+
+=item Return Value: 1|0
+
+=back
+
+Verifies that the the current database handle is active and ready to execute
+an SQL statement (i.e. the connection did not get stale, server is still
+answering, etc.) This method is used internally by L</dbh>.
+
+=cut
+
+sub connected {
+  my $self = shift;
+  return 0 unless $self->_seems_connected;
+
+  #be on the safe side
+  local $self->_dbh->{RaiseError} = 1;
+
+  return $self->_ping;
+}
+
+sub _seems_connected {
+  my $self = shift;
+
+  my $dbh = $self->_dbh
+    or return 0;
+
+  if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
+    $self->_dbh(undef);
+    $self->{_dbh_gen}++;
+    return 0;
+  }
+  else {
+    $self->_verify_pid;
+    return 0 if !$self->_dbh;
   }
 
-  return 0;
+  return $dbh->FETCH('Active');
 }
 
 sub _ping {
@@ -709,21 +757,41 @@ sub ensure_connected {
 
 =head2 dbh
 
-Returns the dbh - a data base handle of class L<DBI>.
+Returns a C<$dbh> - a data base handle of class L<DBI>. The returned handle
+is guaranteed to be healthy by implicitly calling L</connected>, and if
+necessary performing a reconnection before returning. Keep in mind that this
+is very B<expensive> on some database engines. Consider using L<dbh_do>
+instead.
 
 =cut
 
 sub dbh {
   my ($self) = @_;
 
-  $self->ensure_connected;
+  if (not $self->_dbh) {
+    $self->_populate_dbh;
+  } else {
+    $self->ensure_connected;
+  }
+  return $self->_dbh;
+}
+
+# this is the internal "get dbh or connect (don't check)" method
+sub _get_dbh {
+  my $self = shift;
+  $self->_populate_dbh unless $self->_dbh;
   return $self->_dbh;
 }
 
 sub _sql_maker_args {
     my ($self) = @_;
 
-    return ( bindtype=>'columns', array_datatypes => 1, limit_dialect => $self->dbh, %{$self->_sql_maker_opts} );
+    return (
+      bindtype=>'columns',
+      array_datatypes => 1,
+      limit_dialect => $self->_get_dbh,
+      %{$self->_sql_maker_opts}
+    );
 }
 
 sub sql_maker {
@@ -740,7 +808,9 @@ sub _rebless {}
 
 sub _populate_dbh {
   my ($self) = @_;
+
   my @info = @{$self->_dbi_connect_info || []};
+  $self->_dbh(undef); # in case ->connected failed we might get sent here
   $self->_dbh($self->_connect(@info));
 
   $self->_conn_pid($$);
@@ -752,6 +822,11 @@ sub _populate_dbh {
   #  there is no transaction in progress by definition
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
 
+  $self->_run_connection_actions unless $self->{_in_determine_driver};
+}
+
+sub _run_connection_actions {
+  my $self = shift;
   my @actions;
 
   push @actions, ( $self->on_connect_call || () );
@@ -763,16 +838,19 @@ sub _populate_dbh {
 sub _determine_driver {
   my ($self) = @_;
 
-  if (not $self->_driver_determined) {
+  if ((not $self->_driver_determined) && (not $self->{_in_determine_driver})) {
+    my $started_unconnected = 0;
+    local $self->{_in_determine_driver} = 1;
+
     if (ref($self) eq __PACKAGE__) {
       my $driver;
-
       if ($self->_dbh) { # we are connected
         $driver = $self->_dbh->{Driver}{Name};
       } else {
         # try to use dsn to not require being connected, the driver may still
         # force a connection in _rebless to determine version
         ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+        $started_unconnected = 1;
       }
 
       my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
@@ -784,6 +862,9 @@ sub _determine_driver {
     }
 
     $self->_driver_determined(1);
+
+    $self->_run_connection_actions
+        if $started_unconnected && defined $self->_dbh;
   }
 }
 
@@ -983,14 +1064,17 @@ sub _svp_generate_name {
 
 sub txn_begin {
   my $self = shift;
-  $self->ensure_connected();
   if($self->{transaction_depth} == 0) {
     $self->debugobj->txn_begin()
       if $self->debug;
-    # this isn't ->_dbh-> because
-    #  we should reconnect on begin_work
-    #  for AutoCommit users
-    $self->dbh->begin_work;
+
+    # being here implies we have AutoCommit => 1
+    # if the user is utilizing txn_do - good for
+    # him, otherwise we need to ensure that the
+    # $dbh is healthy on BEGIN
+    my $dbh_method = $self->{_in_dbh_do} ? '_dbh' : 'dbh';
+    $self->$dbh_method->begin_work;
+
   } elsif ($self->auto_savepoint) {
     $self->svp_begin;
   }
@@ -1162,7 +1246,11 @@ sub insert {
       my $col_info = $source->column_info($col);
 
       if ( $col_info->{auto_nextval} ) {
-        $updated_cols->{$col} = $to_insert->{$col} = $self->_sequence_fetch( 'nextval', $col_info->{sequence} || $self->_dbh_get_autoinc_seq($self->dbh, $source) );
+        $updated_cols->{$col} = $to_insert->{$col} = $self->_sequence_fetch(
+          'nextval',
+          $col_info->{sequence} ||
+            $self->_dbh_get_autoinc_seq($self->_get_dbh, $source)
+        );
       }
     }
   }
@@ -1182,6 +1270,8 @@ sub insert_bulk {
   my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
   my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
+
+  $self->_determine_driver;
 
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql);
@@ -1242,6 +1332,7 @@ sub insert_bulk {
 sub update {
   my $self = shift @_;
   my $source = shift @_;
+  $self->_determine_driver;
   my $bind_attributes = $self->source_bind_attributes($source);
 
   return $self->_execute('update' => [], $source, $bind_attributes, @_);
@@ -1251,7 +1342,7 @@ sub update {
 sub delete {
   my $self = shift @_;
   my $source = shift @_;
-
+  $self->_determine_driver;
   my $bind_attrs = $self->source_bind_attributes($source);
 
   return $self->_execute('delete' => [], $source, $bind_attrs, @_);
@@ -1510,9 +1601,9 @@ sub _adjust_select_args_for_complex_prefetch {
 
     # alias any functions to the dbic-side 'as' label
     # adjust the outer select accordingly
-    if (ref $sel eq 'HASH' && !$sel->{-select}) {
-      $sel = { -select => $sel, -as => $attrs->{as}[$i] };
-      $select->[$i] = join ('.', $attrs->{alias}, ($attrs->{as}[$i] || "select_$i") );
+    if (ref $sel eq 'HASH' ) {
+      $sel->{-as} ||= $attrs->{as}[$i];
+      $select->[$i] = join ('.', $attrs->{alias}, ($sel->{-as} || "select_$i") );
     }
 
     push @$sub_select, $sel;
@@ -1948,7 +2039,7 @@ Returns the database driver name.
 
 =cut
 
-sub sqlt_type { shift->dbh->{Driver}->{Name} }
+sub sqlt_type { shift->_get_dbh->{Driver}->{Name} }
 
 =head2 bind_attribute_by_data_type
 
@@ -2194,8 +2285,6 @@ See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>.
 
 sub deployment_statements {
   my ($self, $schema, $type, $version, $dir, $sqltargs) = @_;
-  # Need to be connected to get the correct sqlt_type
-  $self->ensure_connected() unless $type;
   $type ||= $self->sqlt_type;
   $version ||= $schema->schema_version || '1.x';
   $dir ||= './';
@@ -2240,7 +2329,9 @@ sub deploy {
     return if $line =~ /^\s+$/; # skip whitespace only
     $self->_query_start($line);
     eval {
-      $self->dbh->do($line); # shouldn't be using ->dbh ?
+      # do a dbh_do cycle here, as we need some error checking in
+      # place (even though we will ignore errors)
+      $self->dbh_do (sub { $_[1]->do($line) });
     };
     if ($@) {
       carp qq{$@ (running "${line}")};
@@ -2269,7 +2360,7 @@ Returns the datetime parser class
 sub datetime_parser {
   my $self = shift;
   return $self->{datetime_parser} ||= do {
-    $self->ensure_connected;
+    $self->_populate_dbh unless $self->_dbh;
     $self->build_datetime_parser(@_);
   };
 }
@@ -2340,8 +2431,13 @@ sub lag_behind_master {
 
 sub DESTROY {
   my $self = shift;
-  return if !$self->_dbh;
-  $self->_verify_pid;
+  $self->_verify_pid if $self->_dbh;
+
+  # some databases need this to stop spewing warnings
+  if (my $dbh = $self->_dbh) {
+    eval { $dbh->disconnect };
+  }
+
   $self->_dbh(undef);
 }
 
@@ -2353,7 +2449,7 @@ sub DESTROY {
 
 DBIx::Class can do some wonderful magic with handling exceptions,
 disconnections, and transactions when you use C<< AutoCommit => 1 >>
-combined with C<txn_do> for transaction support.
+(the default) combined with C<txn_do> for transaction support.
 
 If you set C<< AutoCommit => 0 >> in your connect info, then you are always
 in an assumed transaction between commits, and you're telling us you'd
@@ -2363,7 +2459,6 @@ disconnects because we don't know anything about how to restart your
 transactions.  You're on your own for handling all sorts of exceptional
 cases if you choose the C<< AutoCommit => 0 >> path, just as you would
 be with raw DBI.
-
 
 
 =head1 AUTHORS

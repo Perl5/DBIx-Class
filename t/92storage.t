@@ -93,6 +93,7 @@ my $invocations = {
           'bar',
           undef,
           {
+            %{$storage->_default_dbi_connect_attributes || {} },
             PrintError => 0,
             AutoCommit => 1,
           },
@@ -122,8 +123,8 @@ my $invocations = {
       args => [
           {
             on_connect_do => [qw/a b c/],
-            PrintError => 0,
-            AutoCommit => 1,
+            PrintError => 1,
+            AutoCommit => 0,
             on_disconnect_do => [qw/d e f/],
             user => 'bar',
             dsn => 'foo',
@@ -138,8 +139,9 @@ my $invocations = {
           'bar',
           undef,
           {
-            PrintError => 0,
-            AutoCommit => 1,
+            %{$storage->_default_dbi_connect_attributes || {} },
+            PrintError => 1,
+            AutoCommit => 0,
           },
       ],
   },

@@ -103,8 +103,9 @@ Sometimes you have to run arbitrary SQL because your query is too complex
 be optimized for your database in a special way, but you still want to
 get the results as a L<DBIx::Class::ResultSet>.
 
-The recommended way to accomplish this is by defining a separate
-L<ResultSource::View|DBIx::Class::ResultSource::View> for your query.
+This is accomplished by defining a
+L<ResultSource::View|DBIx::Class::ResultSource::View> for your query,
+almost like you would define a regular ResultSource.
 
   package My::Schema::Result::UserFriendsComplex;
   use strict;
@@ -116,7 +117,9 @@ L<ResultSource::View|DBIx::Class::ResultSource::View> for your query.
 
   # ->table, ->add_columns, etc.
 
+  # do not attempt to deploy() this view
   __PACKAGE__->result_source_instance->is_virtual(1);
+
   __PACKAGE__->result_source_instance->view_definition(q[
     SELECT u.* FROM user u
     INNER JOIN user_friends f ON u.id = f.user_id
@@ -140,6 +143,21 @@ that you cannot modify the rows it contains, ie. cannot call L</update>,
 L</delete>, ...  on it).
 
 Note that you cannot have bind parameters unless is_virtual is set to true.
+
+=over
+
+=item * NOTE
+
+If you're using the old deprecated C<< $rsrc_instance->name(\'( SELECT ...') >>
+method for custom SQL execution, you are highly encouraged to update your code 
+to use a virtual view as above. If you do not want to change your code, and just
+want to suppress the deprecation warning when you call
+L<DBIx::Class::Schema/deploy>, add this line to your source definition, so that
+C<deploy> will exclude this "table":
+
+  sub sqlt_deploy_hook { $_[1]->schema->drop_table ($_[1]) }
+
+=back
 
 =head2 Using specific columns
 
@@ -181,12 +199,33 @@ to access the returned value:
   # SELECT name name, LENGTH( name )
   # FROM artist
 
-Note that the C< as > attribute has absolutely nothing to with the sql
-syntax C< SELECT foo AS bar > (see the documentation in
-L<DBIx::Class::ResultSet/ATTRIBUTES>).  If your alias exists as a
-column in your base class (i.e. it was added with C<add_columns>), you
-just access it as normal. Our C<Artist> class has a C<name> column, so
-we just use the C<name> accessor:
+Note that the C<as> attribute B<has absolutely nothing to do> with the sql
+syntax C< SELECT foo AS bar > (see the documentation in 
+L<DBIx::Class::ResultSet/ATTRIBUTES>). You can control the C<AS> part of the
+generated SQL via the C<-as> field attribute as follows:
+
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      join => 'cds',
+      distinct => 1,
+      +select => [ { count => 'cds.cdid', -as => 'amount_of_cds' } ],
+      +as => [qw/num_cds/],
+      order_by => { -desc => 'amount_of_cds' },
+    }
+  );
+
+  # Equivalent SQL
+  # SELECT me.artistid, me.name, me.rank, me.charfield, COUNT( cds.cdid ) AS amount_of_cds 
+  #   FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid 
+  # GROUP BY me.artistid, me.name, me.rank, me.charfield 
+  # ORDER BY amount_of_cds DESC 
+
+
+If your alias exists as a column in your base class (i.e. it was added with
+L<add_columns|DBIx::Class::ResultSource/add_columns>), you just access it as
+normal. Our C<Artist> class has a C<name> column, so we just use the C<name>
+accessor:
 
   my $artist = $rs->first();
   my $name = $artist->name();

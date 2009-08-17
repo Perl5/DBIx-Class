@@ -135,7 +135,7 @@ sub deploy_schema {
         close IN;
         for my $chunk ( split (/;\s*\n+/, $sql) ) {
           if ( $chunk =~ / ^ (?! --\s* ) \S /xm ) {  # there is some real sql in the chunk - a non-space at the start of the string which is not a comment
-            $schema->storage->dbh->do($chunk) or print "Error on SQL: $chunk\n";
+            $schema->storage->dbh_do(sub { $_[1]->do($chunk) }) or print "Error on SQL: $chunk\n";
           }
         }
     }

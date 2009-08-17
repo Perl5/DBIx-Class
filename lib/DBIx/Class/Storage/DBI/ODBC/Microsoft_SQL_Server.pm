@@ -137,7 +137,7 @@ sub connect_call_use_server_cursors {
   my $self            = shift;
   my $sql_rowset_size = shift || 2;
 
-  $self->_dbh->{odbc_SQL_ROWSET_SIZE} = $sql_rowset_size;
+  $self->_get_dbh->{odbc_SQL_ROWSET_SIZE} = $sql_rowset_size;
 }
 
 =head2 connect_call_use_MARS
@@ -165,9 +165,9 @@ sub connect_call_use_MARS {
 
   if ($dsn !~ /MARS_Connection=/) {
     $self->_dbi_connect_info->[0] = "$dsn;MARS_Connection=Yes";
-    my $connected = defined $self->_dbh;
+    my $was_connected = defined $self->_dbh;
     $self->disconnect;
-    $self->ensure_connected if $connected;
+    $self->ensure_connected if $was_connected;
   }
 }
 

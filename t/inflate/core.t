@@ -1,7 +1,8 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -9,8 +10,6 @@ my $schema = DBICTest->init_schema();
 
 eval { require DateTime };
 plan skip_all => "Need DateTime for inflation tests" if $@;
-
-plan tests => 22;
 
 $schema->class('CD') ->inflate_column( 'year',
     { inflate => sub { DateTime->new( year => shift ) },
@@ -54,10 +53,10 @@ eval { $cd->set_inflated_column('year', $now) };
 ok(!$@, 'set_inflated_column with DateTime object');
 $cd->update;
 
-$cd = $schema->resultset("CD")->find(3);                 
+$cd = $schema->resultset("CD")->find(3);
 is( $cd->year->year, $now->year, 'deflate ok' );
 
-$cd = $schema->resultset("CD")->find(3);                 
+$cd = $schema->resultset("CD")->find(3);
 my $before_year = $cd->year->year;
 eval { $cd->set_inflated_column('year', \'year + 1') };
 ok(!$@, 'set_inflated_column to "year + 1"');
@@ -66,18 +65,17 @@ $cd->update;
 TODO: {
   local $TODO = 'this was left in without a TODO - should it work?';
 
-  eval {
+  lives_ok (sub {
     $cd->store_inflated_column('year', \'year + 1');
     is_deeply( $cd->year, \'year + 1', 'deflate ok' );
-  };
-  ok(!$@, 'store_inflated_column to "year + 1"');
+  }, 'store_inflated_column to "year + 1"');
 }
 
-$cd = $schema->resultset("CD")->find(3);                 
+$cd = $schema->resultset("CD")->find(3);
 is( $cd->year->year, $before_year+1, 'deflate ok' );
 
 # store_inflated_column test
-$cd = $schema->resultset("CD")->find(3);                 
+$cd = $schema->resultset("CD")->find(3);
 eval { $cd->store_inflated_column('year', $now) };
 ok(!$@, 'store_inflated_column with DateTime object');
 $cd->update;
@@ -85,21 +83,21 @@ $cd->update;
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 # update tests
-$cd = $schema->resultset("CD")->find(3);                 
+$cd = $schema->resultset("CD")->find(3);
 eval { $cd->update({'year' => $now}) };
 ok(!$@, 'update using DateTime object ok');
 is($cd->year->year, $now->year, 'deflate ok');
 
-$cd = $schema->resultset("CD")->find(3);                 
+$cd = $schema->resultset("CD")->find(3);
 $before_year = $cd->year->year;
 eval { $cd->update({'year' => \'year + 1'}) };
 ok(!$@, 'update using scalarref ok');
 
-$cd = $schema->resultset("CD")->find(3);                 
+$cd = $schema->resultset("CD")->find(3);
 is($cd->year->year, $before_year + 1, 'deflate ok');
 
 # discard_changes test
-$cd = $schema->resultset("CD")->find(3);                 
+$cd = $schema->resultset("CD")->find(3);
 # inflate the year
 $before_year = $cd->year->year;
 $cd->update({ year => \'year + 1'});
@@ -110,4 +108,5 @@ is($cd->year->year, $before_year + 1, 'discard_changes clears the inflated value
 my $copy = $cd->copy({ year => $now, title => "zemoose" });
 
 isnt( $copy->year->year, $before_year, "copy" );
- 
+
+done_testing;

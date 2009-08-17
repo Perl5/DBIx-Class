@@ -8,8 +8,6 @@ use DBICTest;
 
 sub mc_diag { diag (@_) if $ENV{DBIC_MULTICREATE_DEBUG} };
 
-plan tests => 26;
-
 my $schema = DBICTest->init_schema();
 
 mc_diag (<<'DG');
@@ -102,4 +100,4 @@ for my $type (qw/has_one might_have/) {
   }, "multilevel $type with a PK == FK in the $type/has_many table ok");
 }
 
-1;
+done_testing;

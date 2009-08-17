@@ -329,12 +329,10 @@ sub select {
 
   $self->{"${_}_bind"} = [] for (qw/having from order/);
 
-  if (ref $table eq 'SCALAR') {
-    $table = $$table;
-  }
-  elsif (not ref $table) {
+  if (not ref($table) or ref($table) eq 'SCALAR') {
     $table = $self->_quote($table);
   }
+
   local $self->{rownum_hack_count} = 1
     if (defined $rest[0] && $self->{limit_dialect} eq 'RowNum');
   @rest = (-1) unless defined $rest[0];
@@ -354,7 +352,7 @@ sub select {
 sub insert {
   my $self = shift;
   my $table = shift;
-  $table = $self->_quote($table) unless ref($table);
+  $table = $self->_quote($table);
 
   # SQLA will emit INSERT INTO $table ( ) VALUES ( )
   # which is sadly understood only by MySQL. Change default behavior here,
@@ -370,7 +368,7 @@ sub insert {
 sub update {
   my $self = shift;
   my $table = shift;
-  $table = $self->_quote($table) unless ref($table);
+  $table = $self->_quote($table);
   $self->SUPER::update($table, @_);
 }
 
@@ -378,7 +376,7 @@ sub update {
 sub delete {
   my $self = shift;
   my $table = shift;
-  $table = $self->_quote($table) unless ref($table);
+  $table = $self->_quote($table);
   $self->SUPER::delete($table, @_);
 }
 
@@ -407,35 +405,33 @@ sub _recurse_fields {
   }
   elsif ($ref eq 'HASH') {
     my %hash = %$fields;
-    my ($select, $as);
 
-    if ($hash{-select}) {
-      $select = $self->_recurse_fields (delete $hash{-select});
-      $as = $self->_quote (delete $hash{-as});
-    }
-    else {
-      my ($func, $args) = each %hash;
-      delete $hash{$func};
+    my $as = delete $hash{-as};   # if supplied
 
-      if (lc ($func) eq 'distinct' && ref $args eq 'ARRAY' && @$args > 1) {
-        croak (
-          'The select => { distinct => ... } syntax is not supported for multiple columns.'
-         .' Instead please use { group_by => [ qw/' . (join ' ', @$args) . '/ ] }'
-         .' or { select => [ qw/' . (join ' ', @$args) . '/ ], distinct => 1 }'
-        );
-      }
-      $select = sprintf ('%s( %s )',
-        $self->_sqlcase($func),
-        $self->_recurse_fields($args)
+    my ($func, $args) = each %hash;
+    delete $hash{$func};
+
+    if (lc ($func) eq 'distinct' && ref $args eq 'ARRAY' && @$args > 1) {
+      croak (
+        'The select => { distinct => ... } syntax is not supported for multiple columns.'
+       .' Instead please use { group_by => [ qw/' . (join ' ', @$args) . '/ ] }'
+       .' or { select => [ qw/' . (join ' ', @$args) . '/ ], distinct => 1 }'
       );
     }
+
+    my $select = sprintf ('%s( %s )%s',
+      $self->_sqlcase($func),
+      $self->_recurse_fields($args),
+      $as
+        ? sprintf (' %s %s', $self->_sqlcase('as'), $as)
+        : ''
+    );
 
     # there should be nothing left
     if (keys %hash) {
       croak "Malformed select argument - too many keys in hash: " . join (',', keys %$fields );
     }
 
-    $select .= " AS $as" if $as;
     return $select;
   }
   # Is the second check absolutely necessary?
@@ -584,6 +580,7 @@ sub _join_condition {
 sub _quote {
   my ($self, $label) = @_;
   return '' unless defined $label;
+  return $$label if ref($label) eq 'SCALAR';
   return "*" if $label eq '*';
   return $label unless $self->{quote_char};
   if(ref $self->{quote_char} eq "ARRAY"){

@@ -11,9 +11,7 @@ use IO::Handle;
 
 BEGIN {
     eval "use DBIx::Class::Storage::DBI::Replicated; use Test::Moose";
-    plan $@
-        ? ( skip_all => "Deps not installed: $@" )
-        : ( tests => 126 );
+    plan skip_all => "Deps not installed: $@" if $@;
 }
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
@@ -766,6 +764,20 @@ is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{d
 
     is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
 
+    ok $artist->discard_changes({force_pool=>'master'})
+       => 'properly called discard_changes against master (manual attrs)';
+
+    is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
+
+    ok $artist->discard_changes()
+       => 'properly called discard_changes against master (default attrs)';
+
+    is $debug{storage_type}, 'MASTER', "got last query from a master: $debug{dsn}";
+
+    ok $artist->discard_changes({force_pool=>$replicant_names[0]})
+       => 'properly able to override the default attributes';
+
+    is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{dsn}"
 }
 
 ## Test some edge cases, like trying to do a transaction inside a transaction, etc
@@ -835,5 +847,7 @@ is $debug{storage_type}, 'REPLICANT', "got last query from a replicant: $debug{d
 }
 ## Delete the old database files
 $replicated->cleanup;
+
+done_testing;
 
 # vim: sw=4 sts=4 :

@@ -85,5 +85,6 @@ is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
 
 # clean up our mess
 END {
+    my $dbh = eval { $schema->storage->_dbh };
     $dbh->do("DROP TABLE artist") if $dbh;
 }
