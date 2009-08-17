@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
@@ -50,7 +50,7 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
     unless ($dsn && $user);
 
 
-plan tests => 42;
+plan tests => 45;
 
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass,);
@@ -121,6 +121,17 @@ cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an
   } 'insert into unqualified, shadowed table succeeds';
 
   is($unq_new && $unq_new->artistid, 1, "and got correct artistid");
+
+  #test with anothertestschema
+  $schema->source('Artist')->name('anothertestschema.artist');
+  my $another_new = $schema->resultset('Artist')->create({ name => 'ribasushi'});
+  is( $another_new->artistid,1, 'got correct artistid for yetanotherschema');
+
+  #test with yetanothertestschema
+  $schema->source('Artist')->name('yetanothertestschema.artist');
+  my $yetanother_new = $schema->resultset('Artist')->create({ name => 'ribasushi'});
+  is( $yetanother_new->artistid,1, 'got correct artistid for yetanotherschema');
+  is( $yetanother_new->artistid,1, 'got correct artistid for yetanotherschema');
 
   $schema->source("Artist")->name($artist_name_save);
 }
