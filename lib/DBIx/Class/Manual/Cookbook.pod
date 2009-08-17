@@ -209,8 +209,8 @@ generated SQL via the C<-as> field attribute as follows:
     {
       join => 'cds',
       distinct => 1,
-      +select => [ { count => 'cds.cdid', -as => 'amount_of_cds' } ],
-      +as => [qw/num_cds/],
+      '+select' => [ { count => 'cds.cdid', -as => 'amount_of_cds' } ],
+      '+as' => [qw/num_cds/],
       order_by => { -desc => 'amount_of_cds' },
     }
   );
