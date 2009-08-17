@@ -166,7 +166,28 @@ DBIx::Class::Storage::DBI::Pg - Automatic primary key class for PostgreSQL
 
 This class implements autoincrements for PostgreSQL.
 
-=head1 AUTHORS
+=head1 POSTGRESQL SCHEMA SUPPORT
+
+This supports multiple PostgreSQL schemas, with one caveat: for
+performance reasons, the schema search path is queried the first time it is
+needed and CACHED for subsequent uses.
+
+For this reason, you should do any necessary manipulation of the
+PostgreSQL search path BEFORE instantiating your schema object, or as
+part of the on_connect_do option to connect(), for example:
+
+   my $schema = My::Schema->connect
+                  ( $dsn,$user,$pass,
+                    { on_connect_do =>
+                        [ 'SET search_path TO myschema, foo, public' ],
+                    },
+                  );
+
+=head1 CONTRIBUTORS
+
+Robert Buels <rbuels@cpan.org>
+
+=head1 AUTHOR
 
 Marcus Ramberg <m.ramberg@cpan.org>
 
