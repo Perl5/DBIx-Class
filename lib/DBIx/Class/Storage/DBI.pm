@@ -1601,9 +1601,9 @@ sub _adjust_select_args_for_complex_prefetch {
 
     # alias any functions to the dbic-side 'as' label
     # adjust the outer select accordingly
-    if (ref $sel eq 'HASH' && !$sel->{-select}) {
-      $sel = { -select => $sel, -as => $attrs->{as}[$i] };
-      $select->[$i] = join ('.', $attrs->{alias}, ($attrs->{as}[$i] || "select_$i") );
+    if (ref $sel eq 'HASH' ) {
+      $sel->{-as} ||= $attrs->{as}[$i];
+      $select->[$i] = join ('.', $attrs->{alias}, ($sel->{-as} || "select_$i") );
     }
 
     push @$sub_select, $sel;

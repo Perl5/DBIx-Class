@@ -133,10 +133,10 @@ for ($cd_rs->all) {
     },
     {
       prefetch => [qw/tracks liner_notes/],
-      select => ['me.cdid', { count => 'tracks.trackid' } ],
-      as => [qw/cdid track_count/],
+      select => ['me.cdid', { count => 'tracks.trackid' }, { max => 'tracks.trackid', -as => 'maxtr'} ],
+      as => [qw/cdid track_count max_track_id/],
       group_by => 'me.cdid',
-      order_by => { -desc => 'track_count' },
+      order_by => [ { -desc => 'track_count' }, { -asc => 'maxtr' } ],
       rows => 2,
     }
   );
@@ -162,22 +162,22 @@ for ($cd_rs->all) {
   is_same_sql_bind (
     $most_tracks_rs->as_query,
     '(
-      SELECT  me.cdid, me.track_count,
+      SELECT  me.cdid, me.track_count, me.maxtr,
               tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, tracks.small_dt,
               liner_notes.liner_id, liner_notes.notes
         FROM (
-          SELECT me.cdid, COUNT( tracks.trackid ) AS track_count
+          SELECT me.cdid, COUNT( tracks.trackid ) AS track_count, MAX( tracks.trackid ) AS maxtr,
             FROM cd me
             LEFT JOIN track tracks ON tracks.cd = me.cdid
           WHERE ( me.cdid IS NOT NULL )
           GROUP BY me.cdid
-          ORDER BY track_count DESC
+          ORDER BY track_count DESC, maxtr ASC
           LIMIT 2
         ) me
         LEFT JOIN track tracks ON tracks.cd = me.cdid
         LEFT JOIN liner_notes liner_notes ON liner_notes.liner_id = me.cdid
       WHERE ( me.cdid IS NOT NULL )
-      ORDER BY track_count DESC, tracks.cd
+      ORDER BY track_count DESC, maxtr ASC, tracks.cd
     )',
     [],
     'next() query generated expected SQL',

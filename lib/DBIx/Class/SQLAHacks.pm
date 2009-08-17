@@ -405,35 +405,33 @@ sub _recurse_fields {
   }
   elsif ($ref eq 'HASH') {
     my %hash = %$fields;
-    my ($select, $as);
 
-    if ($hash{-select}) {
-      $select = $self->_recurse_fields (delete $hash{-select});
-      $as = $self->_quote (delete $hash{-as});
-    }
-    else {
-      my ($func, $args) = each %hash;
-      delete $hash{$func};
+    my $as = delete $hash{-as};   # if supplied
 
-      if (lc ($func) eq 'distinct' && ref $args eq 'ARRAY' && @$args > 1) {
-        croak (
-          'The select => { distinct => ... } syntax is not supported for multiple columns.'
-         .' Instead please use { group_by => [ qw/' . (join ' ', @$args) . '/ ] }'
-         .' or { select => [ qw/' . (join ' ', @$args) . '/ ], distinct => 1 }'
-        );
-      }
-      $select = sprintf ('%s( %s )',
-        $self->_sqlcase($func),
-        $self->_recurse_fields($args)
+    my ($func, $args) = each %hash;
+    delete $hash{$func};
+
+    if (lc ($func) eq 'distinct' && ref $args eq 'ARRAY' && @$args > 1) {
+      croak (
+        'The select => { distinct => ... } syntax is not supported for multiple columns.'
+       .' Instead please use { group_by => [ qw/' . (join ' ', @$args) . '/ ] }'
+       .' or { select => [ qw/' . (join ' ', @$args) . '/ ], distinct => 1 }'
       );
     }
+
+    my $select = sprintf ('%s( %s )%s',
+      $self->_sqlcase($func),
+      $self->_recurse_fields($args),
+      $as
+        ? join (' ', $self->_sqlcase('as'), $as)
+        : ''
+    );
 
     # there should be nothing left
     if (keys %hash) {
       croak "Malformed select argument - too many keys in hash: " . join (',', keys %$fields );
     }
 
-    $select .= " AS $as" if $as;
     return $select;
   }
   # Is the second check absolutely necessary?
