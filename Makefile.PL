@@ -117,6 +117,12 @@ resources 'license'     => 'http://dev.perl.org/licenses/';
 resources 'repository'  => 'http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/';
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
 
+no_index 'DBIx::Class::Storage::DBI::Sybase::Base';
+no_index 'DBIx::Class::SQLAHacks';
+no_index 'DBIx::Class::SQLAHacks::MSSQL';
+no_index 'DBIx::Class::Storage::DBI::AmbiguousGlob';
+no_index 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server';
+no_index 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
 
 # re-build README and require extra modules for testing if we're in a checkout
 

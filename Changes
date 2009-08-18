@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08109 2009-08-18 08:35:00 (UTC)
         - Replication updates:
           - Improved the replication tests so that they are more reliable
             and accurate, and hopefully solve some cross platform issues.
