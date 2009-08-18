@@ -83,7 +83,7 @@ sub connect_call_use_dynamic_cursors {
 
 sub _set_dynamic_cursors {
   my $self = shift;
-  my $dbh  = $self->_dbh;
+  my $dbh  = $self->_get_dbh;
 
   eval {
     local $dbh->{RaiseError} = 1;
