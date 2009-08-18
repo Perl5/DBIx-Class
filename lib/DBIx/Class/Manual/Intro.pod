@@ -267,8 +267,8 @@ instead:
   $album->set_column('title', 'Presence');
   $title = $album->get_column('title');
 
-Just like with L<Class::DBI>, you call C<update> to commit your changes to the
-database:
+Just like with L<Class::DBI>, you call C<update> to save your changes to the
+database (by executing the actual C<UPDATE> statement):
 
   $album->update;
 
