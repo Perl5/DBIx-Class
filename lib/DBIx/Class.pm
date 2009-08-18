@@ -25,7 +25,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.08108';
+$VERSION = '0.08109';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -311,6 +311,8 @@ plu: Johannes Plunien <plu@cpan.org>
 quicksilver: Jules Bean
 
 rafl: Florian Ragwitz <rafl@debian.org>
+
+rbuels: Robert Buels <rmb32@cornell.edu>
 
 rdj: Ryan D Johnson <ryan@innerfence.com>
 

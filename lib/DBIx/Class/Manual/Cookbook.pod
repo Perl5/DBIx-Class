@@ -199,12 +199,33 @@ to access the returned value:
   # SELECT name name, LENGTH( name )
   # FROM artist
 
-Note that the C< as > attribute has absolutely nothing to with the sql
-syntax C< SELECT foo AS bar > (see the documentation in
-L<DBIx::Class::ResultSet/ATTRIBUTES>).  If your alias exists as a
-column in your base class (i.e. it was added with C<add_columns>), you
-just access it as normal. Our C<Artist> class has a C<name> column, so
-we just use the C<name> accessor:
+Note that the C<as> attribute B<has absolutely nothing to do> with the sql
+syntax C< SELECT foo AS bar > (see the documentation in 
+L<DBIx::Class::ResultSet/ATTRIBUTES>). You can control the C<AS> part of the
+generated SQL via the C<-as> field attribute as follows:
+
+  my $rs = $schema->resultset('Artist')->search(
+    {},
+    {
+      join => 'cds',
+      distinct => 1,
+      '+select' => [ { count => 'cds.cdid', -as => 'amount_of_cds' } ],
+      '+as' => [qw/num_cds/],
+      order_by => { -desc => 'amount_of_cds' },
+    }
+  );
+
+  # Equivalent SQL
+  # SELECT me.artistid, me.name, me.rank, me.charfield, COUNT( cds.cdid ) AS amount_of_cds 
+  #   FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid 
+  # GROUP BY me.artistid, me.name, me.rank, me.charfield 
+  # ORDER BY amount_of_cds DESC 
+
+
+If your alias exists as a column in your base class (i.e. it was added with
+L<add_columns|DBIx::Class::ResultSource/add_columns>), you just access it as
+normal. Our C<Artist> class has a C<name> column, so we just use the C<name>
+accessor:
 
   my $artist = $rs->first();
   my $name = $artist->name();
