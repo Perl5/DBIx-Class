@@ -274,9 +274,16 @@ EOW
     }
 
     my %views;
-    foreach my $moniker (sort @view_monikers)
+    my @view_sources =
+      sort {
+        (exists $a->depends_on->{$b->source_name} ? 1 : 0)
+        <=>
+        (exists $b->depends_on->{$a->source_name} ? 1 : 0)
+      }
+      map { $dbicschema->source($_) } @view_monikers;
+    
+    foreach my $source (@view_sources)
     {
-        my $source = $dbicschema->source($moniker);
         my $view_name = $source->name;
 
         # FIXME - this isn't the right way to do it, but sqlt does not

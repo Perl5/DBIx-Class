@@ -8,8 +8,14 @@ use DBIx::Class::ResultSet;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/ResultSource/);
 __PACKAGE__->mk_group_accessors(
-  'simple' => qw(is_virtual view_definition)
+  'simple' => qw(is_virtual view_definition depends_on)
 );
+
+sub new {
+  my $new = shift->next::method(@_);
+  $new->{depends_on} = { %{$new->{depends_on}||{}} };
+  return $new;
+}
 
 =head1 NAME
 
