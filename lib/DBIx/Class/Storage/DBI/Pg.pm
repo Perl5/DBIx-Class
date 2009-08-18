@@ -33,17 +33,54 @@ sub last_insert_id {
   $self->dbh_do('_dbh_last_insert_id', $seq);
 }
 
+sub _get_pg_search_path {
+    my ($self,$dbh) = @_;
+    # cache the search path as ['schema','schema',...] in the storage
+    # obj
+    $self->{_pg_search_path} ||= do {
+        my @search_path;
+        my ($sp_string) = $dbh->selectrow_array('SHOW search_path');
+        while( $sp_string =~ s/("[^"]+"|[^,]+),?// ) {
+            unless( defined $1 and length $1 ) {
+                $self->throw_exception("search path sanity check failed: '$1'")
+            }
+            push @search_path, $1;
+        }
+        \@search_path
+    };
+}
+
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $schema, $table, @pri) = @_;
 
-  while (my $col = shift @pri) {
-    my $info = $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref;
-    if(defined $info->{COLUMN_DEF} and
-       $info->{COLUMN_DEF} =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/) {
-      my $seq = $1;
-      # may need to strip quotes -- see if this works
-      return $seq =~ /\./ ? $seq : $info->{TABLE_SCHEM} . "." . $seq;
-    }
+  # get the list of postgres schemas to search.  if we have a schema
+  # specified, use that.  otherwise, use the search path
+  my @search_path;
+  if( defined $schema and length $schema ) {
+      @search_path = ( $schema );
+  } else {
+      @search_path = @{ $self->_get_pg_search_path($dbh) };
+  }
+
+  foreach my $search_schema (@search_path) {
+      foreach my $col (@pri) {
+          my $info = $dbh->column_info(undef,$search_schema,$table,$col)->fetchrow_hashref;
+          if($info) {
+              # if we get here, we have definitely found the right
+              # column.
+              if( defined $info->{COLUMN_DEF} and
+                  $info->{COLUMN_DEF}
+                    =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i
+                ) {
+                  my $seq = $1;
+                  return $seq =~ /\./ ? $seq : $info->{TABLE_SCHEM} . "." . $seq;
+              } else {
+                  # we have found the column, but cannot figure out
+                  # the nextval seq
+                  return;
+              }
+          }
+      }
   }
   return;
 }
@@ -129,9 +166,26 @@ DBIx::Class::Storage::DBI::Pg - Automatic primary key class for PostgreSQL
 
 This class implements autoincrements for PostgreSQL.
 
+=head1 POSTGRESQL SCHEMA SUPPORT
+
+This supports multiple PostgreSQL schemas, with one caveat: for
+performance reasons, the schema search path is queried the first time it is
+needed and CACHED for subsequent uses.
+
+For this reason, you should do any necessary manipulation of the
+PostgreSQL search path BEFORE instantiating your schema object, or as
+part of the on_connect_do option to connect(), for example:
+
+   my $schema = My::Schema->connect
+                  ( $dsn,$user,$pass,
+                    { on_connect_do =>
+                        [ 'SET search_path TO myschema, foo, public' ],
+                    },
+                  );
+
 =head1 AUTHORS
 
-Marcus Ramberg <m.ramberg@cpan.org>
+See L<DBIx::Class/CONTRIBUTORS>
 
 =head1 LICENSE
 

@@ -38,6 +38,8 @@ Revision history for DBIx::Class
         - Some fixes of multi-create corner cases
         - Multiple POD improvements
         - Added exception when resultset is called without an argument
+        - Improved support for non-schema-qualified tables under
+          Postgres (fixed last_insert_id sequence name auto-detection)
 
 0.08108 2009-07-05 23:15:00 (UTC)
         - Fixed the has_many prefetch with limit/group deficiency -
