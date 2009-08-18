@@ -75,9 +75,8 @@ sub connect_call_use_dynamic_cursors {
   if (not exists $dbi_attrs->{odbc_cursortype}) {
     # turn on support for multiple concurrent statements, unless overridden
     $dbi_attrs->{odbc_cursortype} = 2;
-    my $connected = defined $self->_dbh;
-    $self->disconnect;
-    $self->ensure_connected if $connected;
+    $self->disconnect; # resetting dbi attrs, so have to reconnect
+    $self->ensure_connected;
     $self->_set_dynamic_cursors;
   }
 }
