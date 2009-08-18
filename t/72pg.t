@@ -49,9 +49,6 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
   ' as well as following schemas: \'testschema\',\'anothertestschema\'!)'
     unless ($dsn && $user);
 
-
-plan tests => 45;
-
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass,);
 
@@ -331,5 +328,7 @@ sub _cleanup {
     eval { $dbh->do ($stat) };
   }
 }
+
+done_testing;
 
 END { _cleanup($dbh) }

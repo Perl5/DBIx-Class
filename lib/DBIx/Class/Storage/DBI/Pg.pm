@@ -183,13 +183,9 @@ part of the on_connect_do option to connect(), for example:
                     },
                   );
 
-=head1 CONTRIBUTORS
+=head1 AUTHORS
 
-Robert Buels <rbuels@cpan.org>
-
-=head1 AUTHOR
-
-Marcus Ramberg <m.ramberg@cpan.org>
+See L<DBIx::Class/CONTRIBUTORS>
 
 =head1 LICENSE
 
