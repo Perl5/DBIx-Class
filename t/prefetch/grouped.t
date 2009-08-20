@@ -271,4 +271,16 @@ for ($cd_rs->all) {
   );
 }
 
+{
+    $schema->storage->debug(1);
+    my $cd_rs = $schema->resultset('CD')->search(undef, {
+            distinct => 1,
+            join     => [qw/ tracks /],
+            prefetch => [qw/ artist /],
+        });
+    
+    is($cd_rs->all, 5, 'search with has_many join and distinct ok');
+    $schema->storage->debug(0);
+}
+
 done_testing;
