@@ -2303,18 +2303,18 @@ sub deployment_statements {
       . $self->_check_sqlt_message . q{'})
           if !$self->_check_sqlt_version;
 
-  require SQL::Translator::Parser::DBIx::Class;
-  eval qq{use SQL::Translator::Producer::${type}};
-  $self->throw_exception($@) if $@;
-
   # sources needs to be a parser arg, but for simplicty allow at top level
   # coming in
   $sqltargs->{parser_args}{sources} = delete $sqltargs->{sources}
       if exists $sqltargs->{sources};
 
-  my $tr = SQL::Translator->new(%$sqltargs);
-  SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
-  return "SQL::Translator::Producer::${type}"->can('produce')->($tr);
+  my $tr = SQL::Translator->new(
+    producer => "SQL::Translator::Producer::${type}",
+    %$sqltargs,
+    parser => 'SQL::Translator::Parser::DBIx::Class',
+    data => $schema,
+  );
+  return $tr->translate;
 }
 
 sub deploy {
