@@ -1,4 +1,4 @@
--- Created on Wed Aug 12 16:10:43 2009
+-- Created on Thu Aug 20 07:47:13 2009
 -- 
 
 
@@ -13,6 +13,8 @@ CREATE TABLE artist (
   rank integer NOT NULL DEFAULT '13',
   charfield char(10)
 );
+
+CREATE INDEX artist_name_hookidx ON artist (name);
 
 --
 -- Table: bindtype_test
