@@ -17,11 +17,11 @@ SQL tracing, so to see what is happening try
 
 Alternatively use the C<< storage->debug >> class method:-
 
-  $class->storage->debug(1);
+  $schema->storage->debug(1);
 
 To send the output somewhere else set debugfh:-
 
-  $class->storage->debugfh(IO::File->new('/tmp/trace.out', 'w');
+  $schema->storage->debugfh(IO::File->new('/tmp/trace.out', 'w');
 
 Alternatively you can do this with the environment variable too:-
 
