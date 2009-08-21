@@ -2,16 +2,12 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 3 );
-}
+plan tests => 4;
 
 use_ok('DBICTest');
 
@@ -52,3 +48,10 @@ my $sql_maker = $schema->storage->sql_maker;
     'sql_maker passes arrayrefs in update'
   );
 }
+
+# Make sure the carp/croak override in SQLA works (via SQLAHacks)
+my $file = __FILE__;
+$file = "\Q$file\E";
+throws_ok (sub {
+  $schema->resultset ('Artist')->search ({}, { order_by => { -asc => 'stuff', -desc => 'staff' } } )->as_query;
+}, qr/$file/, 'Exception correctly croak()ed');

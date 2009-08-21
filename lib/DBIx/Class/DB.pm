@@ -162,18 +162,19 @@ __PACKAGE__->mk_classdata('_result_source_instance' => []);
 sub _maybe_attach_source_to_schema {
   my ($class, $source) = @_;
   if (my $meth = $class->can('schema_instance')) {
-    my $schema = $class->$meth;
-    $schema->register_class($class, $class);
-    my $new_source = $schema->source($class);
-    %$source = %$new_source;
-    $schema->source_registrations->{$class} = $source;
+    if (my $schema = $class->$meth) {
+      $schema->register_class($class, $class);
+      my $new_source = $schema->source($class);
+      %$source = %$new_source;
+      $schema->source_registrations->{$class} = $source;
+    }
   }
 }
 
 sub result_source_instance {
   my $class = shift;
   $class = ref $class || $class;
-  
+
   if (@_) {
     my $source = $_[0];
     $class->_result_source_instance([$source, $class]);
@@ -185,7 +186,7 @@ sub result_source_instance {
   return unless Scalar::Util::blessed($source);
 
   if ($result_class ne $class) {  # new class
-    # Give this new class it's own source and register it.
+    # Give this new class its own source and register it.
     $source = $source->new({ 
         %$source, 
         source_name  => $class,

@@ -4,12 +4,7 @@ use strict;
 use warnings;
 use Test::More;
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 12 );
-}
+plan tests => 12;
 
 use lib qw(t/lib);
 

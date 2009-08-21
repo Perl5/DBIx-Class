@@ -1,3 +1,6 @@
+^(?!script/|examples/|lib/|inc/|t/|Makefile.PL$|README$|MANIFEST$|Changes$|META.yml$)
+
+
 # Avoid version control files.
 \bRCS\b
 \bCVS\b

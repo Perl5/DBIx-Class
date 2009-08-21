@@ -8,9 +8,7 @@ use DBI;
 
 use vars qw/$dbh/;
 
-# temporary, might get switched to the new test framework someday
-my @connect = ("dbi:mysql:test", "", "", { PrintError => 0});
-
+my @connect = (@ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/}, { PrintError => 0});
 $dbh = DBI->connect(@connect) or die DBI->errstr;
 my @table;
 

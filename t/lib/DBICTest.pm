@@ -3,6 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use DBICTest::AuthorCheck;
 use DBICTest::Schema;
 
 =head1 NAME
@@ -74,7 +75,7 @@ sub _database {
     my $dbuser = $ENV{"DBICTEST_DBUSER"} || '';
     my $dbpass = $ENV{"DBICTEST_DBPASS"} || '';
 
-    my @connect_info = ($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
+    my @connect_info = ($dsn, $dbuser, $dbpass, { AutoCommit => 1, %args });
 
     return @connect_info;
 }
@@ -134,7 +135,7 @@ sub deploy_schema {
         close IN;
         for my $chunk ( split (/;\s*\n+/, $sql) ) {
           if ( $chunk =~ / ^ (?! --\s* ) \S /xm ) {  # there is some real sql in the chunk - a non-space at the start of the string which is not a comment
-            $schema->storage->dbh->do($chunk) or print "Error on SQL: $chunk\n";
+            $schema->storage->dbh_do(sub { $_[1]->do($chunk) }) or print "Error on SQL: $chunk\n";
           }
         }
     }
@@ -309,7 +310,7 @@ sub populate_schema {
     ]);
 
     $schema->populate('Owners', [
-        [ qw/ownerid name/ ],
+        [ qw/id name/ ],
         [ 1, "Newton" ],
         [ 2, "Waltham" ],
     ]);

@@ -6,7 +6,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::CDBICompat::Iterator
+DBIx::Class::CDBICompat::Iterator - Emulates the extra behaviors of the Class::DBI search iterator.
 
 =head1 SYNOPSIS
 
@@ -25,7 +25,7 @@ The CDBI iterator returns true if there were any results, false otherwise.  The 
 
 sub _init_result_source_instance {
   my $class = shift;
-  
+
   my $table = $class->next::method(@_);
   $table->resultset_class("DBIx::Class::CDBICompat::Iterator::ResultSet");
 

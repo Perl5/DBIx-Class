@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use base 'DBIx::Class::Storage::DBI';
+use mro 'c3';
 
 =head1 NAME 
 
@@ -61,7 +62,7 @@ sub _prep_for_execute {
   }
   $new_sql .= join '', @sql_part;
 
-  return ($new_sql);
+  return ($new_sql, []);
 }
 
 =head1 AUTHORS

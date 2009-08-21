@@ -6,7 +6,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::CDBICompat::AbstractSearch
+DBIx::Class::CDBICompat::AbstractSearch - Emulates Class::DBI::AbstractSearch
 
 =head1 SYNOPSIS
 

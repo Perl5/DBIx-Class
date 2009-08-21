@@ -50,18 +50,31 @@ sub retrieve_from_sql {
 
   $cond =~ s/^\s*WHERE//i;
 
-  if( $cond =~ s/\bLIMIT (\d+)\s*$//i ) {
-      push @rest, { rows => $1 };
+  # Need to parse the SQL clauses after WHERE in reverse
+  # order of appearance.
+
+  my %attrs;
+
+  if( $cond =~ s/\bLIMIT\s+(\d+)\s*$//i ) {
+      $attrs{rows} = $1;
   }
 
-  return $class->search_literal($cond, @rest);
+  if ( $cond =~ s/\bORDER\s+BY\s+(.*)\s*$//i ) {
+      $attrs{order_by} = $1;
+  }
+
+  if( $cond =~ s/\bGROUP\s+BY\s+(.*)\s*$//i ) {
+      $attrs{group_by} = $1;
+  }
+
+  return $class->search_literal($cond, @rest, ( %attrs ? \%attrs : () ) );
 }
 
 sub construct {
     my $class = shift;
     my $obj = $class->resultset_instance->new_result(@_);
     $obj->in_storage(1);
-    
+
     return $obj;
 }
 

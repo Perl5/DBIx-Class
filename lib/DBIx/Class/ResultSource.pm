@@ -24,12 +24,73 @@ DBIx::Class::ResultSource - Result source object
 
 =head1 SYNOPSIS
 
+  # Create a table based result source, in a result class.
+
+  package MyDB::Schema::Result::Artist;
+  use base qw/DBIx::Class/;
+
+  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->table('artist');
+  __PACKAGE__->add_columns(qw/ artistid name /);
+  __PACKAGE__->set_primary_key('artistid');
+  __PACKAGE__->has_many(cds => 'MyDB::Schema::Result::CD');
+
+  1;
+
+  # Create a query (view) based result source, in a result class
+  package MyDB::Schema::Result::Year2000CDs;
+
+  __PACKAGE__->load_components('Core');
+  __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
+
+  __PACKAGE__->table('year2000cds');
+  __PACKAGE__->result_source_instance->is_virtual(1);
+  __PACKAGE__->result_source_instance->view_definition(
+      "SELECT cdid, artist, title FROM cd WHERE year ='2000'"
+      );
+
+
 =head1 DESCRIPTION
 
-A ResultSource is a component of a schema from which results can be directly
-retrieved, most usually a table (see L<DBIx::Class::ResultSource::Table>)
+A ResultSource is an object that represents a source of data for querying.
 
-Basic view support also exists, see L<<DBIx::Class::ResultSource::View>.
+This class is a base class for various specialised types of result
+sources, for example L<DBIx::Class::ResultSource::Table>. Table is the
+default result source type, so one is created for you when defining a
+result class as described in the synopsis above.
+
+More specifically, the L<DBIx::Class::Core> component pulls in the
+L<DBIx::Class::ResultSourceProxy::Table> as a base class, which
+defines the L<table|DBIx::Class::ResultSourceProxy::Table/table>
+method. When called, C<table> creates and stores an instance of
+L<DBIx::Class::ResultSoure::Table>. Luckily, to use tables as result
+sources, you don't need to remember any of this.
+
+Result sources representing select queries, or views, can also be
+created, see L<DBIx::Class::ResultSource::View> for full details.
+
+=head2 Finding result source objects
+
+As mentioned above, a result source instance is created and stored for
+you when you define a L<Result Class|DBIx::Class::Manual::Glossary/Result Class>.
+
+You can retrieve the result source at runtime in the following ways:
+
+=over
+
+=item From a Schema object:
+
+   $schema->source($source_name);
+
+=item From a Row object:
+
+   $row->result_source;
+
+=item From a ResultSet object:
+
+   $rs->result_source;
+
+=back
 
 =head1 METHODS
 
@@ -69,9 +130,9 @@ sub new {
 
   $source->add_columns('col1' => \%col1_info, 'col2' => \%col2_info, ...);
 
-Adds columns to the result source. If supplied key => hashref pairs, uses
-the hashref as the column_info for that column. Repeated calls of this
-method will add more columns, not replace them.
+Adds columns to the result source. If supplied colname => hashref
+pairs, uses the hashref as the L</column_info> for that column. Repeated
+calls of this method will add more columns, not replace them.
 
 The column names given will be created as accessor methods on your
 L<DBIx::Class::Row> objects. You can change the name of the accessor
@@ -84,51 +145,96 @@ keys are currently recognised/used by DBIx::Class:
 
 =item accessor
 
+   { accessor => '_name' }
+
+   # example use, replace standard accessor with one of your own:
+   sub name {
+       my ($self, $value) = @_;
+
+       die "Name cannot contain digits!" if($value =~ /\d/);
+       $self->_name($value);
+
+       return $self->_name();
+   }
+
 Use this to set the name of the accessor method for this column. If unset,
 the name of the column will be used.
 
 =item data_type
 
-This contains the column type. It is automatically filled by the
-L<SQL::Translator::Producer::DBIx::Class::File> producer, and the
-L<DBIx::Class::Schema::Loader> module. If you do not enter a
-data_type, DBIx::Class will attempt to retrieve it from the
-database for you, using L<DBI>'s column_info method. The values of this
-key are typically upper-cased.
+   { data_type => 'integer' }
+
+This contains the column type. It is automatically filled if you use the
+L<SQL::Translator::Producer::DBIx::Class::File> producer, or the
+L<DBIx::Class::Schema::Loader> module. 
 
 Currently there is no standard set of values for the data_type. Use
 whatever your database supports.
 
 =item size
 
+   { size => 20 }
+
 The length of your column, if it is a column type that can have a size
-restriction. This is currently only used by L<DBIx::Class::Schema/deploy>.
+restriction. This is currently only used to create tables from your
+schema, see L<DBIx::Class::Schema/deploy>.
 
 =item is_nullable
 
-Set this to a true value for a columns that is allowed to contain
-NULL values. This is currently only used by L<DBIx::Class::Schema/deploy>.
+   { is_nullable => 1 }
+
+Set this to a true value for a columns that is allowed to contain NULL
+values, default is false. This is currently only used to create tables
+from your schema, see L<DBIx::Class::Schema/deploy>.
 
 =item is_auto_increment
 
+   { is_auto_increment => 1 }
+
 Set this to a true value for a column whose value is somehow
-automatically set. This is used to determine which columns to empty
-when cloning objects using C<copy>. It is also used by
+automatically set, defaults to false. This is used to determine which
+columns to empty when cloning objects using
+L<DBIx::Class::Row/copy>. It is also used by
 L<DBIx::Class::Schema/deploy>.
+
+=item is_numeric
+
+   { is_numeric => 1 }
+
+Set this to a true or false value (not C<undef>) to explicitly specify
+if this column contains numeric data. This controls how set_column
+decides whether to consider a column dirty after an update: if
+C<is_numeric> is true a numeric comparison C<< != >> will take place
+instead of the usual C<eq>
+
+If not specified the storage class will attempt to figure this out on
+first access to the column, based on the column C<data_type>. The
+result will be cached in this attribute.
 
 =item is_foreign_key
 
+   { is_foreign_key => 1 }
+
 Set this to a true value for a column that contains a key from a
-foreign table. This is currently only used by
-L<DBIx::Class::Schema/deploy>.
+foreign table, defaults to false. This is currently only used to
+create tables from your schema, see L<DBIx::Class::Schema/deploy>.
 
 =item default_value
 
-Set this to the default value which will be inserted into a column
-by the database. Can contain either a value or a function. This is
-currently only used by L<DBIx::Class::Schema/deploy>.
+   { default_value => \'now()' }
+
+Set this to the default value which will be inserted into a column by
+the database. Can contain either a value or a function (use a
+reference to a scalar e.g. C<\'now()'> if you want a function). This
+is currently only used to create tables from your schema, see
+L<DBIx::Class::Schema/deploy>.
+
+See the note on L<DBIx::Class::Row/new> for more information about possible
+issues related to db-side default values.
 
 =item sequence
+
+   { sequence => 'my_table_seq' }
 
 Set this on a primary key column to the name of the sequence used to
 generate a new key value. If not specified, L<DBIx::Class::PK::Auto>
@@ -137,9 +243,15 @@ automatically.
 
 =item auto_nextval
 
-Set this to a true value for a column whose value is retrieved
-automatically from an oracle sequence. If you do not use an Oracle
-trigger to get the nextval, you have to set sequence as well.
+Set this to a true value for a column whose value is retrieved automatically
+from a sequence or function (if supported by your Storage driver.) For a
+sequence, if you do not use a trigger to get the nextval, you have to set the
+L</sequence> value as well.
+
+Also set this for MSSQL columns with the 'uniqueidentifier'
+L<DBIx::Class::ResultSource/data_type> whose values you want to automatically
+generate using C<NEWID()>, unless they are a primary key in which case this will
+be done anyway.
 
 =item extra
 
@@ -155,13 +267,13 @@ L<SQL::Translator::Producer::MySQL>.
 
 =over
 
-=item Arguments: $colname, [ \%columninfo ]
+=item Arguments: $colname, \%columninfo?
 
 =item Return value: 1/0 (true/false)
 
 =back
 
-  $source->add_column('col' => \%info?);
+  $source->add_column('col' => \%info);
 
 Add a single column and optional column info. Uses the same column
 info keys as L</add_columns>.
@@ -221,8 +333,8 @@ sub has_column {
   my $info = $source->column_info($col);
 
 Returns the column metadata hashref for a column, as originally passed
-to L</add_columns>. See the description of L</add_columns> for information
-on the contents of the hashref.
+to L</add_columns>. See L</add_columns> above for information on the
+contents of the hashref.
 
 =cut
 
@@ -346,14 +458,16 @@ sub remove_column { shift->remove_columns(@_); } # DO NOT CHANGE THIS TO GLOB
 
 =back
 
-Defines one or more columns as primary key for this source. Should be
+Defines one or more columns as primary key for this source. Must be
 called after L</add_columns>.
 
 Additionally, defines a L<unique constraint|add_unique_constraint>
 named C<primary>.
 
 The primary key columns are used by L<DBIx::Class::PK::Auto> to
-retrieve automatically created values from the database.
+retrieve automatically created values from the database. They are also
+used as default joining columns when specifying relationships, see
+L<DBIx::Class::Relationship>.
 
 =cut
 
@@ -392,7 +506,7 @@ sub primary_columns {
 
 =over 4
 
-=item Arguments: [ $name ], \@colnames
+=item Arguments: $name?, \@colnames
 
 =item Return value: undefined
 
@@ -410,11 +524,13 @@ Alternatively, you can specify only the columns:
 
   __PACKAGE__->add_unique_constraint([ qw/column1 column2/ ]);
 
-This will result in a unique constraint named C<table_column1_column2>, where
-C<table> is replaced with the table name.
+This will result in a unique constraint named
+C<table_column1_column2>, where C<table> is replaced with the table
+name.
 
-Unique constraints are used, for example, when you call
-L<DBIx::Class::ResultSet/find>. Only columns in the constraint are searched.
+Unique constraints are used, for example, when you pass the constraint
+name as the C<key> attribute to L<DBIx::Class::ResultSet/find>. Then
+only columns in the constraint are searched.
 
 Throws an error if any of the given column names do not yet exist on
 the result source.
@@ -468,7 +584,10 @@ optional constraint name.
 sub name_unique_constraint {
   my ($self, $cols) = @_;
 
-  return join '_', $self->name, @$cols;
+  my $name = $self->name;
+  $name = $$name if (ref $name eq 'SCALAR');
+
+  return join '_', $name, @$cols;
 }
 
 =head2 unique_constraints
@@ -483,7 +602,8 @@ sub name_unique_constraint {
 
   $source->unique_constraints();
 
-Read-only accessor which returns a hash of unique constraints on this source.
+Read-only accessor which returns a hash of unique constraints on this
+source.
 
 The hash is keyed by constraint name, and contains an arrayref of
 column names as values.
@@ -643,11 +763,15 @@ but is cached from then on unless resultset_class changes.
 
 =back
 
-  package My::ResultSetClass;
+  package My::Schema::ResultSet::Artist;
   use base 'DBIx::Class::ResultSet';
   ...
 
-  $source->resultset_class('My::ResultSet::Class');
+  # In the result class
+  __PACKAGE__->resultset_class('My::Schema::ResultSet::Artist');
+
+  # Or in code
+  $source->resultset_class('My::Schema::ResultSet::Artist');
 
 Set the class of the resultset. This is useful if you want to create your
 own resultset methods. Create your own class derived from
@@ -665,6 +789,10 @@ exists.
 
 =back
 
+  # In the result class
+  __PACKAGE__->resultset_attributes({ order_by => [ 'id' ] });
+
+  # Or in code
   $source->resultset_attributes({ order_by => [ 'id' ] });
 
 Store a collection of resultset attributes, that will be set on every
@@ -837,7 +965,7 @@ relationship.
 =back
 
 Throws an exception if the condition is improperly supplied, or cannot
-be resolved using L</resolve_join>.
+be resolved.
 
 =cut
 
@@ -877,7 +1005,7 @@ sub add_relationship {
   }
   return unless $f_source; # Can't test rel without f_source
 
-  eval { $self->resolve_join($rel, 'me') };
+  eval { $self->_resolve_join($rel, 'me', {}, []) };
 
   if ($@) { # If the resolve failed, back out and re-throw the error
     delete $rels{$rel}; #
@@ -965,7 +1093,7 @@ opposing a C<has_many> relation. For definition of these look in
 L<DBIx::Class::Relationship>.
 
 The returned hashref is keyed by the name of the opposing
-relationship, and contains it's data in the same manner as
+relationship, and contains its data in the same manner as
 L</relationship_info>.
 
 =cut
@@ -1011,29 +1139,22 @@ sub reverse_relationship_info {
       my @other_cond = keys(%$othercond);
       my @other_refkeys = map {/^\w+\.(\w+)$/} @other_cond;
       my @other_keys = map {$othercond->{$_} =~ /^\w+\.(\w+)$/} @other_cond;
-      next if (!$self->compare_relationship_keys(\@refkeys, \@other_keys) ||
-               !$self->compare_relationship_keys(\@other_refkeys, \@keys));
+      next if (!$self->_compare_relationship_keys(\@refkeys, \@other_keys) ||
+               !$self->_compare_relationship_keys(\@other_refkeys, \@keys));
       $ret->{$otherrel} =  $otherrel_info;
     }
   }
   return $ret;
 }
 
-=head2 compare_relationship_keys
-
-=over 4
-
-=item Arguments: \@keys1, \@keys2
-
-=item Return value: 1/0 (true/false)
-
-=back
-
-Returns true if both sets of keynames are the same, false otherwise.
-
-=cut
-
 sub compare_relationship_keys {
+  carp 'compare_relationship_keys is a private method, stop calling it';
+  my $self = shift;
+  $self->_compare_relationship_keys (@_);
+}
+
+# Returns true if both sets of keynames are the same, false otherwise.
+sub _compare_relationship_keys {
   my ($self, $keys1, $keys2) = @_;
 
   # Make sure every keys1 is in keys2
@@ -1066,89 +1187,100 @@ sub compare_relationship_keys {
   return $found;
 }
 
-=head2 resolve_join
-
-=over 4
-
-=item Arguments: $relation
-
-=item Return value: Join condition arrayref
-
-=back
-
-Returns the join structure required for the related result source.
-
-=cut
-
 sub resolve_join {
-  my ($self, $join, $alias, $seen, $force_left) = @_;
-  $seen ||= {};
-  $force_left ||= { force => 0 };
+  carp 'resolve_join is a private method, stop calling it';
+  my $self = shift;
+  $self->_resolve_join (@_);
+}
+
+# Returns the {from} structure used to express JOIN conditions
+sub _resolve_join {
+  my ($self, $join, $alias, $seen, $jpath, $force_left) = @_;
+
+  # we need a supplied one, because we do in-place modifications, no returns
+  $self->throw_exception ('You must supply a seen hashref as the 3rd argument to _resolve_join')
+    unless ref $seen eq 'HASH';
+
+  $self->throw_exception ('You must supply a joinpath arrayref as the 4th argument to _resolve_join')
+    unless ref $jpath eq 'ARRAY';
+
+  $jpath = [@$jpath];
+
   if (ref $join eq 'ARRAY') {
-    return map { $self->resolve_join($_, $alias, $seen) } @$join;
+    return
+      map {
+        $self->_resolve_join($_, $alias, $seen, $jpath, $force_left);
+      } @$join;
   } elsif (ref $join eq 'HASH') {
     return
       map {
-        my $as = ($seen->{$_} ? $_.'_'.($seen->{$_}+1) : $_);
-        local $force_left->{force};
+        my $as = ($seen->{$_} ? join ('_', $_, $seen->{$_} + 1) : $_);  # the actual seen value will be incremented below
+        local $force_left->{force} = $force_left->{force};
         (
-          $self->resolve_join($_, $alias, $seen, $force_left),
-          $self->related_source($_)->resolve_join(
-            $join->{$_}, $as, $seen, $force_left
+          $self->_resolve_join($_, $alias, $seen, [@$jpath], $force_left),
+          $self->related_source($_)->_resolve_join(
+            $join->{$_}, $as, $seen, [@$jpath, $_], $force_left
           )
         );
       } keys %$join;
   } elsif (ref $join) {
     $self->throw_exception("No idea how to resolve join reftype ".ref $join);
   } else {
+
+    return() unless defined $join;
+
     my $count = ++$seen->{$join};
-    #use Data::Dumper; warn Dumper($seen);
     my $as = ($count > 1 ? "${join}_${count}" : $join);
+
     my $rel_info = $self->relationship_info($join);
     $self->throw_exception("No such relationship ${join}") unless $rel_info;
     my $type;
-    if ($force_left->{force}) {
+    if ($force_left) {
       $type = 'left';
     } else {
       $type = $rel_info->{attrs}{join_type} || '';
-      $force_left->{force} = 1 if lc($type) eq 'left';
+      $force_left = 1 if lc($type) eq 'left';
     }
-    return [ { $as => $self->related_source($join)->from,
-               -join_type => $type },
-             $self->resolve_condition($rel_info->{cond}, $as, $alias) ];
+
+    my $rel_src = $self->related_source($join);
+    return [ { $as => $rel_src->from,
+               -source_handle => $rel_src->handle,
+               -join_type => $type,
+               -join_path => [@$jpath, $join],
+               -alias => $as,
+               -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
+             },
+             $self->_resolve_condition($rel_info->{cond}, $as, $alias) ];
   }
 }
 
-=head2 pk_depends_on
-
-=over 4
-
-=item Arguments: $relname, $rel_data
-
-=item Return value: 1/0 (true/false)
-
-=back
-
-Determines whether a relation is dependent on an object from this source
-having already been inserted. Takes the name of the relationship and a
-hashref of columns of the related object.
-
-=cut
-
 sub pk_depends_on {
-  my ($self, $relname, $rel_data) = @_;
-  my $cond = $self->relationship_info($relname)->{cond};
+  carp 'pk_depends_on is a private method, stop calling it';
+  my $self = shift;
+  $self->_pk_depends_on (@_);
+}
 
+# Determines whether a relation is dependent on an object from this source
+# having already been inserted. Takes the name of the relationship and a
+# hashref of columns of the related object.
+sub _pk_depends_on {
+  my ($self, $relname, $rel_data) = @_;
+
+  my $relinfo = $self->relationship_info($relname);
+
+  # don't assume things if the relationship direction is specified
+  return $relinfo->{attrs}{is_foreign_key_constraint}
+    if exists ($relinfo->{attrs}{is_foreign_key_constraint});
+
+  my $cond = $relinfo->{cond};
   return 0 unless ref($cond) eq 'HASH';
 
   # map { foreign.foo => 'self.bar' } to { bar => 'foo' }
-
   my $keyhash = { map { my $x = $_; $x =~ s/.*\.//; $x; } reverse %$cond };
 
   # assume anything that references our PK probably is dependent on us
   # rather than vice versa, unless the far side is (a) defined or (b)
   # auto-increment
-
   my $rel_source = $self->related_source($relname);
 
   foreach my $p ($self->primary_columns) {
@@ -1164,25 +1296,19 @@ sub pk_depends_on {
   return 1;
 }
 
-=head2 resolve_condition
+sub resolve_condition {
+  carp 'resolve_condition is a private method, stop calling it';
+  my $self = shift;
+  $self->_resolve_condition (@_);
+}
 
-=over 4
-
-=item Arguments: $cond, $as, $alias|$object
-
-=back
-
-Resolves the passed condition to a concrete query fragment. If given an alias,
-returns a join condition; if given an object, inverts that object to produce
-a related conditional from that object.
-
-=cut
-
+# Resolves the passed condition to a concrete query fragment. If given an alias,
+# returns a join condition; if given an object, inverts that object to produce
+# a related conditional from that object.
 our $UNRESOLVABLE_CONDITION = \'1 = 0';
 
-sub resolve_condition {
+sub _resolve_condition {
   my ($self, $cond, $as, $for) = @_;
-  #warn %$cond;
   if (ref $cond eq 'HASH') {
     my %ret;
     foreach my $k (keys %{$cond}) {
@@ -1196,7 +1322,11 @@ sub resolve_condition {
         #warn "$self $k $for $v";
         unless ($for->has_column_loaded($v)) {
           if ($for->in_storage) {
-            $self->throw_exception("Column ${v} not loaded on ${for} trying to resolve relationship");
+            $self->throw_exception(
+              "Column ${v} not loaded or not passed to new() prior to insert()"
+                ." on ${for} trying to resolve relationship (maybe you forgot "
+                  ."to call ->discard_changes to get defaults from the db)"
+            );
           }
           return $UNRESOLVABLE_CONDITION;
         }
@@ -1217,66 +1347,18 @@ sub resolve_condition {
     }
     return \%ret;
   } elsif (ref $cond eq 'ARRAY') {
-    return [ map { $self->resolve_condition($_, $as, $for) } @$cond ];
+    return [ map { $self->_resolve_condition($_, $as, $for) } @$cond ];
   } else {
-   die("Can't handle this yet :(");
+   die("Can't handle condition $cond yet :(");
   }
 }
 
-=head2 resolve_prefetch
-
-=over 4
-
-=item Arguments: hashref/arrayref/scalar
-
-=back
-
-Accepts one or more relationships for the current source and returns an
-array of column names for each of those relationships. Column names are
-prefixed relative to the current source, in accordance with where they appear
-in the supplied relationships. Examples:
-
-  my $source = $schema->resultset('Tag')->source;
-  @columns = $source->resolve_prefetch( { cd => 'artist' } );
-
-  # @columns =
-  #(
-  #  'cd.cdid',
-  #  'cd.artist',
-  #  'cd.title',
-  #  'cd.year',
-  #  'cd.artist.artistid',
-  #  'cd.artist.name'
-  #)
-
-  @columns = $source->resolve_prefetch( qw[/ cd /] );
-
-  # @columns =
-  #(
-  #   'cd.cdid',
-  #   'cd.artist',
-  #   'cd.title',
-  #   'cd.year'
-  #)
-
-  $source = $schema->resultset('CD')->source;
-  @columns = $source->resolve_prefetch( qw[/ artist producer /] );
-
-  # @columns =
-  #(
-  #  'artist.artistid',
-  #  'artist.name',
-  #  'producer.producerid',
-  #  'producer.name'
-  #)
-
-=cut
-
+# Legacy code, needs to go entirely away (fully replaced by _resolve_prefetch)
 sub resolve_prefetch {
+  carp 'resolve_prefetch is a private method, stop calling it';
+
   my ($self, $pre, $alias, $seen, $order, $collapse) = @_;
   $seen ||= {};
-  #$alias ||= $self->name;
-  #warn $alias, Dumper $pre;
   if( ref $pre eq 'ARRAY' ) {
     return
       map { $self->resolve_prefetch( $_, $alias, $seen, $order, $collapse ) }
@@ -1289,7 +1371,6 @@ sub resolve_prefetch {
       $self->related_source($_)->resolve_prefetch(
                $pre->{$_}, "${alias}.$_", $seen, $order, $collapse)
     } keys %$pre;
-    #die Dumper \@ret;
     return @ret;
   }
   elsif( ref $pre ) {
@@ -1320,8 +1401,7 @@ sub resolve_prefetch {
             ? "at the same level (${as_prefix}) "
             : "at top level "
           )
-          . 'will currently disrupt both the functionality of $rs->count(), '
-          . 'and the amount of objects retrievable via $rs->next(). '
+          . 'will explode the number of row objects retrievable via ->next or ->all. '
           . 'Use at your own risk.'
         );
       }
@@ -1342,8 +1422,90 @@ sub resolve_prefetch {
 
     return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
       $rel_source->columns;
-    #warn $alias, Dumper (\@ret);
-    #return @ret;
+  }
+}
+
+# Accepts one or more relationships for the current source and returns an
+# array of column names for each of those relationships. Column names are
+# prefixed relative to the current source, in accordance with where they appear
+# in the supplied relationships. Needs an alias_map generated by
+# $rs->_joinpath_aliases
+
+sub _resolve_prefetch {
+  my ($self, $pre, $alias, $alias_map, $order, $collapse, $pref_path) = @_;
+  $pref_path ||= [];
+
+  if( ref $pre eq 'ARRAY' ) {
+    return
+      map { $self->_resolve_prefetch( $_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ) }
+        @$pre;
+  }
+  elsif( ref $pre eq 'HASH' ) {
+    my @ret =
+    map {
+      $self->_resolve_prefetch($_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ),
+      $self->related_source($_)->_resolve_prefetch(
+               $pre->{$_}, "${alias}.$_", $alias_map, $order, $collapse, [ @$pref_path, $_] )
+    } keys %$pre;
+    return @ret;
+  }
+  elsif( ref $pre ) {
+    $self->throw_exception(
+      "don't know how to resolve prefetch reftype ".ref($pre));
+  }
+  else {
+    my $p = $alias_map;
+    $p = $p->{$_} for (@$pref_path, $pre);
+
+    $self->throw_exception (
+      "Unable to resolve prefetch $pre - join alias map does not contain an entry for path: "
+      . join (' -> ', @$pref_path, $pre)
+    ) if (ref $p->{-join_aliases} ne 'ARRAY' or not @{$p->{-join_aliases}} );
+
+    my $as = shift @{$p->{-join_aliases}};
+
+    my $rel_info = $self->relationship_info( $pre );
+    $self->throw_exception( $self->name . " has no such relationship '$pre'" )
+      unless $rel_info;
+    my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
+    my $rel_source = $self->related_source($pre);
+
+    if (exists $rel_info->{attrs}{accessor}
+         && $rel_info->{attrs}{accessor} eq 'multi') {
+      $self->throw_exception(
+        "Can't prefetch has_many ${pre} (join cond too complex)")
+        unless ref($rel_info->{cond}) eq 'HASH';
+      my $dots = @{[$as_prefix =~ m/\./g]} + 1; # +1 to match the ".${as_prefix}"
+      if (my ($fail) = grep { @{[$_ =~ m/\./g]} == $dots }
+                         keys %{$collapse}) {
+        my ($last) = ($fail =~ /([^\.]+)$/);
+        carp (
+          "Prefetching multiple has_many rels ${last} and ${pre} "
+          .(length($as_prefix)
+            ? "at the same level (${as_prefix}) "
+            : "at top level "
+          )
+          . 'will explode the number of row objects retrievable via ->next or ->all. '
+          . 'Use at your own risk.'
+        );
+      }
+      #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
+      #              values %{$rel_info->{cond}};
+      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->primary_columns ];
+        # action at a distance. prepending the '.' allows simpler code
+        # in ResultSet->_collapse_result
+      my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
+                    keys %{$rel_info->{cond}};
+      my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
+                   ? @{$rel_info->{attrs}{order_by}}
+                   : (defined $rel_info->{attrs}{order_by}
+                       ? ($rel_info->{attrs}{order_by})
+                       : ()));
+      push(@$order, map { "${as}.$_" } (@key, @ord));
+    }
+
+    return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
+      $rel_source->columns;
   }
 }
 

@@ -1,7 +1,7 @@
 package # hide from PAUSE 
     Film;
 
-use base 'DBIx::Class::Test::SQLite';
+use base 'DBIC::Test::SQLite';
 use strict;
 
 __PACKAGE__->set_table('Movies');

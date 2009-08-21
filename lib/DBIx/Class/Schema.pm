@@ -8,7 +8,7 @@ use Carp::Clan qw/^DBIx::Class/;
 use Scalar::Util qw/weaken/;
 use File::Spec;
 use Sub::Name ();
-require Module::Find;
+use Module::Find();
 
 use base qw/DBIx::Class/;
 
@@ -42,7 +42,7 @@ DBIx::Class::Schema - composable schemas
     $dsn,
     $user,
     $password,
-    { AutoCommit => 0 },
+    { AutoCommit => 1 },
   );
 
   my $schema2 = Library::Schema->connect($coderef_returning_dbh);
@@ -173,8 +173,8 @@ sub _findallmod {
 }
 
 # returns a hash of $shortname => $fullname for every package
-#  found in the given namespaces ($shortname is with the $fullname's
-#  namespace stripped off)
+# found in the given namespaces ($shortname is with the $fullname's
+# namespace stripped off)
 sub _map_namespaces {
   my ($class, @namespaces) = @_;
 
@@ -188,6 +188,22 @@ sub _map_namespaces {
   }
 
   @results_hash;
+}
+
+# returns the result_source_instance for the passed class/object,
+# or dies with an informative message (used by load_namespaces)
+sub _ns_get_rsrc_instance {
+  my $class = shift;
+  my $rs = ref ($_[0]) || $_[0];
+
+  if ($rs->can ('result_source_instance') ) {
+    return $rs->result_source_instance;
+  }
+  else {
+    $class->throw_exception (
+      "Attempt to load_namespaces() class $rs failed - are you sure this is a real Result Class?"
+    );
+  }
 }
 
 sub load_namespaces {
@@ -223,35 +239,48 @@ sub load_namespaces {
     local *Class::C3::reinitialize = sub { };
     use warnings 'redefine';
 
-    # ensure classes are loaded and fetch properly sorted classes
+    # ensure classes are loaded and attached in inheritance order
     $class->ensure_class_loaded($_) foreach(values %results);
-    my @subclass_last = sort { $results{$a}->isa($results{$b}) } keys(%results);
-    
+    my %inh_idx;
+    my @subclass_last = sort {
+
+      ($inh_idx{$a} ||=
+        scalar @{mro::get_linear_isa( $results{$a} )}
+      )
+
+          <=>
+
+      ($inh_idx{$b} ||=
+        scalar @{mro::get_linear_isa( $results{$b} )}
+      )
+
+    } keys(%results);
+
     foreach my $result (@subclass_last) {
       my $result_class = $results{$result};
 
       my $rs_class = delete $resultsets{$result};
-      my $rs_set = $result_class->resultset_class;
-      
+      my $rs_set = $class->_ns_get_rsrc_instance ($result_class)->resultset_class;
+
       if($rs_set && $rs_set ne 'DBIx::Class::ResultSet') {
         if($rs_class && $rs_class ne $rs_set) {
-          warn "We found ResultSet class '$rs_class' for '$result', but it seems "
+          carp "We found ResultSet class '$rs_class' for '$result', but it seems "
              . "that you had already set '$result' to use '$rs_set' instead";
         }
       }
       elsif($rs_class ||= $default_resultset_class) {
         $class->ensure_class_loaded($rs_class);
-        $result_class->resultset_class($rs_class);
+        $class->_ns_get_rsrc_instance ($result_class)->resultset_class($rs_class);
       }
 
-      my $source_name = $result_class->source_name || $result;
+      my $source_name = $class->_ns_get_rsrc_instance ($result_class)->source_name || $result;
 
       push(@to_register, [ $source_name, $result_class ]);
     }
   }
 
   foreach (sort keys %resultsets) {
-    warn "load_namespaces found ResultSet class $_ with no "
+    carp "load_namespaces found ResultSet class $_ with no "
       . 'corresponding Result class';
   }
 
@@ -269,8 +298,10 @@ sub load_namespaces {
 
 =back
 
-Alternative method to L</load_namespaces> which you should look at
-using if you can.
+L</load_classes> is an alternative method to L</load_namespaces>, both of
+which serve similar purposes, each with different advantages and disadvantages.
+In the general case you should use L</load_namespaces>, unless you need to
+be able to specify that only specific classes are loaded at runtime.
 
 With no arguments, this method uses L<Module::Find> to find all classes under
 the schema's namespace. Otherwise, this method loads the classes you specify
@@ -344,7 +375,7 @@ sub load_classes {
 
         my $snsub = $comp_class->can('source_name');
         if(! $snsub ) {
-          warn "Failed to load $comp_class. Can't find source_name method. Is $comp_class really a full DBIC result class? Fix it, move it elsewhere, or make your load_classes call more specific.";
+          carp "Failed to load $comp_class. Can't find source_name method. Is $comp_class really a full DBIC result class? Fix it, move it elsewhere, or make your load_classes call more specific.";
           next;
         }
         $comp = $snsub->($comp_class) || $comp;
@@ -480,8 +511,14 @@ syntax on the C<@connectinfo> argument, or L<DBIx::Class::Storage> in
 general.
 
 Note that C<connect_info> expects an arrayref of arguments, but
-C<connect> does not. C<connect> wraps it's arguments in an arrayref
+C<connect> does not. C<connect> wraps its arguments in an arrayref
 before passing them to C<connect_info>.
+
+=head3 Overloading
+
+C<connect> is a convenience method. It is equivalent to calling
+$schema->clone->connection(@connectinfo). To write your own overloaded
+version, overload L</connection> instead.
 
 =cut
 
@@ -506,6 +543,8 @@ name.
 
 sub resultset {
   my ($self, $moniker) = @_;
+  $self->throw_exception('resultset() expects a source name')
+    unless defined $moniker;
   return $self->source($moniker)->resultset;
 }
 
@@ -611,7 +650,7 @@ sub txn_do {
   $self->storage->txn_do(@_);
 }
 
-=head2 txn_scope_guard (EXPERIMENTAL)
+=head2 txn_scope_guard
 
 Runs C<txn_scope_guard> on the schema's storage. See 
 L<DBIx::Class::Storage/txn_scope_guard>.
@@ -718,7 +757,7 @@ i.e.,
     [ 2, 'Indie Band' ],
     ...
   ]);
-  
+
 Since wantarray context is basically the same as looping over $rs->create(...) 
 you won't see any performance benefits and in this case the method is more for
 convenience. Void context sends the column information directly to storage
@@ -760,16 +799,19 @@ Similar to L</connect> except sets the storage object and connection
 data in-place on the Schema class. You should probably be calling
 L</connect> to get a proper Schema object instead.
 
+=head3 Overloading
+
+Overload C<connection> to change the behaviour of C<connect>.
 
 =cut
 
 sub connection {
   my ($self, @info) = @_;
   return $self if !@info && $self->storage;
-  
+
   my ($storage_class, $args) = ref $self->storage_type ? 
     ($self->_normalize_storage_type($self->storage_type),{}) : ($self->storage_type, {});
-    
+
   $storage_class = 'DBIx::Class::Storage'.$storage_class
     if $storage_class =~ m/^::/;
   eval "require ${storage_class};";
@@ -990,15 +1032,17 @@ sub throw_exception {
 
 =over 4
 
-=item Arguments: $sqlt_args, $dir
+=item Arguments: \%sqlt_args, $dir
 
 =back
 
 Attempts to deploy the schema to the current storage using L<SQL::Translator>.
 
-See L<SQL::Translator/METHODS> for a list of values for C<$sqlt_args>. The most
-common value for this would be C<< { add_drop_table => 1, } >> to have the SQL
-produced include a DROP TABLE statement for each table created.
+See L<SQL::Translator/METHODS> for a list of values for C<\%sqlt_args>.
+The most common value for this would be C<< { add_drop_table => 1 } >>
+to have the SQL produced include a C<DROP TABLE> statement for each table
+created. For quoting purposes supply C<quote_table_names> and
+C<quote_field_names>.
 
 Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash 
 ref or an array ref, containing a list of source to deploy. If present, then 
@@ -1018,19 +1062,16 @@ sub deploy {
 
 =over 4
 
-=item Arguments: $rdbms_type, $sqlt_args, $dir
+=item Arguments: See L<DBIx::Class::Storage::DBI/deployment_statements>
 
 =item Return value: $listofstatements
 
 =back
 
-A convenient shortcut to storage->deployment_statements(). Returns the
-SQL statements used by L</deploy> and
-L<DBIx::Class::Schema::Storage/deploy>. C<$rdbms_type> provides the
-(optional) SQLT (not DBI) database driver name for which the SQL
-statements are produced.  If not supplied, the type is determined by
-interrogating the current connection.  The other two arguments are
-identical to those of L</deploy>.
+A convenient shortcut to
+C<< $self->storage->deployment_statements($self, @args) >>.
+Returns the SQL statements used by L</deploy> and
+L<DBIx::Class::Schema::Storage/deploy>.
 
 =cut
 
@@ -1047,42 +1088,15 @@ sub deployment_statements {
 
 =over 4
 
-=item Arguments: \@databases, $version, $directory, $preversion, $sqlt_args
+=item Arguments: See L<DBIx::Class::Storage::DBI/create_ddl_dir>
 
 =back
+
+A convenient shortcut to 
+C<< $self->storage->create_ddl_dir($self, @args) >>.
 
 Creates an SQL file based on the Schema, for each of the specified
-database types, in the given directory. Given a previous version number,
-this will also create a file containing the ALTER TABLE statements to
-transform the previous schema into the current one. Note that these
-statements may contain DROP TABLE or DROP COLUMN statements that can
-potentially destroy data.
-
-The file names are created using the C<ddl_filename> method below, please
-override this method in your schema if you would like a different file
-name format. For the ALTER file, the same format is used, replacing
-$version in the name with "$preversion-$version".
-
-See L<DBIx::Class::Schema/deploy> for details of $sqlt_args.
-
-If no arguments are passed, then the following default values are used:
-
-=over 4
-
-=item databases  - ['MySQL', 'SQLite', 'PostgreSQL']
-
-=item version    - $schema->schema_version
-
-=item directory  - './'
-
-=item preversion - <none>
-
-=back
-
-Note that this feature is currently EXPERIMENTAL and may not work correctly
-across all databases, or fully handle complex relationships.
-
-WARNING: Please check all SQL files created, before applying them.
+database types, in the given directory.
 
 =cut
 
@@ -1112,6 +1126,19 @@ name format is: C<$dir$schema-$version-$type.sql>.
 You may override this method in your schema if you wish to use a different
 format.
 
+ WARNING
+
+ Prior to DBIx::Class version 0.08100 this method had a different signature:
+
+    my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
+
+ In recent versions variables $dir and $version were reversed in order to
+ bring the signature in line with other Schema/Storage methods. If you 
+ really need to maintain backward compatibility, you can do the following
+ in any overriding methods:
+
+    ($dir, $version) = ($version, $dir) if ($DBIx::Class::VERSION < 0.08100);
+
 =cut
 
 sub ddl_filename {
@@ -1121,7 +1148,7 @@ sub ddl_filename {
   $filename =~ s/::/-/g;
   $filename = File::Spec->catfile($dir, "$filename-$version-$type.sql");
   $filename =~ s/$version/$preversion-$version/ if($preversion);
-  
+
   return $filename;
 }
 
@@ -1256,24 +1283,33 @@ sub register_extra_source {
 sub _register_source {
   my ($self, $moniker, $source, $params) = @_;
 
+  my $orig_source = $source;
+
   $source = $source->new({ %$source, source_name => $moniker });
+  $source->schema($self);
+  weaken($source->{schema}) if ref($self);
+
+  my $rs_class = $source->result_class;
 
   my %reg = %{$self->source_registrations};
   $reg{$moniker} = $source;
   $self->source_registrations(\%reg);
 
-  $source->schema($self);
-  weaken($source->{schema}) if ref($self);
   return if ($params->{extra});
+  return unless defined($rs_class) && $rs_class->can('result_source_instance');
 
-  if ($source->result_class) {
-    my %map = %{$self->class_mappings};
-    if (exists $map{$source->result_class}) {
-      warn $source->result_class . ' already has a source, use register_extra_source for additional sources';
-    }
-    $map{$source->result_class} = $moniker;
-    $self->class_mappings(\%map);
+  my %map = %{$self->class_mappings};
+  if (
+    exists $map{$rs_class}
+      and
+    $map{$rs_class} ne $moniker
+      and
+    $rs_class->result_source_instance ne $orig_source
+  ) {
+    carp "$rs_class already has a source, use register_extra_source for additional sources";
   }
+  $map{$rs_class} = $moniker;
+  $self->class_mappings(\%map);
 }
 
 sub _unregister_source {
@@ -1330,7 +1366,7 @@ more information.
   sub compose_connection {
     my ($self, $target, @info) = @_;
 
-    warn "compose_connection deprecated as of 0.08000"
+    carp "compose_connection deprecated as of 0.08000"
       unless ($INC{"DBIx/Class/CDBICompat.pm"} || $warn++);
 
     my $base = 'DBIx::Class::ResultSetProxy';
@@ -1338,7 +1374,7 @@ more information.
     $self->throw_exception
       ("No arguments to load_classes and couldn't load ${base} ($@)")
         if $@;
-  
+
     if ($self eq $target) {
       # Pathological case, largely caused by the docs on early C::M::DBIC::Plain
       foreach my $moniker ($self->sources) {
@@ -1351,14 +1387,14 @@ more information.
       $self->connection(@info);
       return $self;
     }
-  
+
     my $schema = $self->compose_namespace($target, $base);
     {
       no strict 'refs';
       my $name = join '::', $target, 'schema';
       *$name = Sub::Name::subname $name, sub { $schema };
     }
-  
+
     $schema->connection(@info);
     foreach my $moniker ($schema->sources) {
       my $source = $schema->source($moniker);

@@ -64,6 +64,11 @@ TODO: {
       'rank' => {
           'data_type' => 'integer',
           'is_nullable' => 0,
+          'default_value' => '13',
+      },
+      'charfield' => {
+          'data_type' => 'char',
+          'is_nullable' => 1,
       },
     },
     'Correctly retrieve column info (mixed null and non-null columns)'

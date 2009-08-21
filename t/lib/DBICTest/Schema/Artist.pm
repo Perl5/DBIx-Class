@@ -1,7 +1,7 @@
 package # hide from PAUSE 
     DBICTest::Schema::Artist;
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('artist');
 __PACKAGE__->source_info({
@@ -54,9 +54,9 @@ __PACKAGE__->has_many(
 );
 
 __PACKAGE__->has_many(
-    artist_to_artwork => 'DBICTest::Schema::Artwork_to_Artist' => 'artist_id'
+    artwork_to_artist => 'DBICTest::Schema::Artwork_to_Artist' => 'artist_id'
 );
-__PACKAGE__->many_to_many('artworks', 'artist_to_artwork', 'artwork');
+__PACKAGE__->many_to_many('artworks', 'artwork_to_artist', 'artwork');
 
 
 sub sqlt_deploy_hook {

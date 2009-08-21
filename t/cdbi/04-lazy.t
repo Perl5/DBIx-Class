@@ -10,12 +10,10 @@ use Test::Warn;
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
-  if ($@) {
-    plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
-  }
-	eval "use DBD::SQLite";
-	plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 36);
+  plan $@ 
+    ? (skip_all => 'Class::Trigger and DBIx::ContextualFetch required')
+    : (tests => 36)
+  ;
 }
 
 INIT {
@@ -82,9 +80,9 @@ eval {    # Multiple false columns
 ok($@, $@);
 
 
-warning_is {
+warning_like {
     Lazy->columns( TEMP => qw(that) );
-} "Declaring column that as TEMP but it already exists";
+} qr/Declaring column that as TEMP but it already exists/;
 
 # Test that create() and update() throws out columns that changed
 {
@@ -120,7 +118,7 @@ warning_is {
 
 # Now again for inflated values
 SKIP: {
-    skip "Requires Date::Simple", 5 unless eval "use Date::Simple; 1; ";
+    skip "Requires Date::Simple 3.03", 5 unless eval "use Date::Simple 3.03; 1; ";
     Lazy->has_a(
         orp     => 'Date::Simple',
         inflate => sub { Date::Simple->new($_[0] . '-01-01') },

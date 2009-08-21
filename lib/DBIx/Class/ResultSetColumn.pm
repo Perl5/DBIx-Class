@@ -36,21 +36,52 @@ passed as params. Used internally by L<DBIx::Class::ResultSet/get_column>.
 sub new {
   my ($class, $rs, $column) = @_;
   $class = ref $class if ref $class;
-  my $new_parent_rs = $rs->search_rs; # we don't want to mess up the original, so clone it
-  my $attrs = $new_parent_rs->_resolved_attrs;
-  $new_parent_rs->{attrs}->{$_} = undef for qw(prefetch include_columns +select +as); # prefetch, include_columns, +select, +as cause additional columns to be fetched
+
+  $rs->throw_exception("column must be supplied") unless $column;
+
+  my $orig_attrs = $rs->_resolved_attrs;
+  my $new_parent_rs = $rs->search_rs;
+
+  # prefetch causes additional columns to be fetched, but we can not just make a new
+  # rs via the _resolved_attrs trick - we need to retain the separation between
+  # +select/+as and select/as. At the same time we want to preserve any joins that the
+  # prefetch would otherwise generate.
+
+  my $new_attrs = $new_parent_rs->{attrs} ||= {};
+  $new_attrs->{join} = $rs->_merge_attr( delete $new_attrs->{join}, delete $new_attrs->{prefetch} );
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
   # definition set up with 'select' or '+select' attrs), otherwise use $column
   # (to create a new column definition on-the-fly).
-  my $as_list = $attrs->{as} || [];
-  my $select_list = $attrs->{select} || [];
+
+  my $as_list = $orig_attrs->{as} || [];
+  my $select_list = $orig_attrs->{select} || [];
   my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
 
+  # {collapse} would mean a has_many join was injected, which in turn means
+  # we need to group IF WE CAN (only if the column in question is unique)
+  if (!$new_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
+
+    # scan for a constraint that would contain our column only - that'd be proof
+    # enough it is unique
+    my $constraints = { $rs->result_source->unique_constraints };
+    for my $constraint_columns ( values %$constraints ) {
+
+      next unless @$constraint_columns == 1;
+
+      my $col = $constraint_columns->[0];
+      my $fqcol = join ('.', $new_attrs->{alias}, $col);
+
+      if ($col eq $select or $fqcol eq $select) {
+        $new_attrs->{group_by} = [ $select ];
+        last;
+      }
+    }
+  }
+
   my $new = bless { _select => $select, _as => $column, _parent_resultset => $new_parent_rs }, $class;
-  $new->throw_exception("column must be supplied") unless $column;
   return $new;
 }
 
@@ -72,7 +103,7 @@ B<NOTE>: This feature is still experimental.
 
 =cut
 
-sub as_query { return shift->_resultset->as_query }
+sub as_query { return shift->_resultset->as_query(@_) }
 
 =head2 next
 
@@ -307,7 +338,7 @@ value. Produces the following SQL:
 sub func {
   my ($self,$function) = @_;
   my $cursor = $self->func_rs($function)->cursor;
-  
+
   if( wantarray ) {
     return map { $_->[ 0 ] } $cursor->all;
   }
@@ -342,9 +373,9 @@ sub func_rs {
 =head2 throw_exception
 
 See L<DBIx::Class::Schema/throw_exception> for details.
-  
+
 =cut 
-    
+
 sub throw_exception {
   my $self=shift;
   if (ref $self && $self->{_parent_resultset}) {

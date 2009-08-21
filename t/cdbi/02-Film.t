@@ -8,8 +8,7 @@ BEGIN {
     plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
     next;
   }
-  eval "use DBD::SQLite";
-  plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 98);
+  plan tests => 98;
 }
 
 INIT {
@@ -151,7 +150,7 @@ is($blrunner_dc->NumExplodingSheep, undef, 'Sheep correct');
 
 # Multi-column search
 {
-	my @films = $blrunner->search_like(title => "Bladerunner%", rating => '15');
+	my @films = $blrunner->search (title => { -like => "Bladerunner%"}, rating => '15');
 	is @films, 1, "Only one Bladerunner is a 15";
 }
 
@@ -187,17 +186,14 @@ eval {
 	ok(!Film->retrieve('Ishtar'), 'Ishtar no longer there');
 	{
 		my $deprecated = 0;
-		#local $SIG{__WARN__} = sub { $deprecated++ if $_[0] =~ /deprecated/ };
+		local $SIG{__WARN__} = sub { $deprecated++ if $_[0] =~ /deprecated/ };
 		ok(
 			Film->delete(Director => 'Elaine May'),
 			"In fact, delete all films by Elaine May"
 		);
 		cmp_ok(Film->search(Director => 'Elaine May'), '==',
 			0, "0 Films by Elaine May");
-                SKIP: {
-                    skip "No deprecated warnings from compat layer", 1;
-		    is $deprecated, 1, "Got a deprecated warning";
-                }
+		is $deprecated, 0, "No deprecated warnings from compat layer";
 	}
 };
 is $@, '', "No problems with deletes";
@@ -208,7 +204,7 @@ is(scalar @films, 1, ' search returns one film');
 is($films[0]->id, $gone->id, ' ... the correct one');
 
 # Find all films which were directed by Bob
-@films = Film->search_like('Director', 'Bob %');
+@films = Film->search ( { 'Director' => { -like => 'Bob %' } });
 is(scalar @films, 3, ' search_like returns 3 films');
 ok(
 	eq_array(

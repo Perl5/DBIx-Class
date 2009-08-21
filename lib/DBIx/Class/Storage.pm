@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class/;
+use mro 'c3';
 
 use Scalar::Util qw/weaken/;
 use Carp::Clan qw/^DBIx::Class/;
@@ -248,6 +249,9 @@ sub txn_begin { die "Virtual method!" }
 
 Issues a commit of the current transaction.
 
+It does I<not> perform an actual storage commit unless there's a DBIx::Class
+transaction currently in effect (i.e. you called L</txn_begin>).
+
 =cut
 
 sub txn_commit { die "Virtual method!" }
@@ -299,21 +303,25 @@ sub svp_rollback { die "Virtual method!" }
 
 =for comment
 
-=head2 txn_scope_guard (EXPERIMENTAL)
+=head2 txn_scope_guard
 
-An alternative way of using transactions to C<txn_do>:
+An alternative way of transaction handling based on
+L<DBIx::Class::Storage::TxnScopeGuard>:
 
- my $txn = $storage->txn_scope_guard;
+ my $txn_guard = $storage->txn_scope_guard;
 
  $row->col1("val1");
  $row->update;
 
- $txn->commit;
+ $txn_guard->commit;
 
-If a exception occurs, the transaction will be rolled back. This is still very
-experiemental, and we are not 100% sure it is working right when nested. The
-onus is on you as the user to make sure you dont forget to call
-$C<$txn->commit>.
+If an exception occurs, or the guard object otherwise leaves the scope
+before C<< $txn_guard->commit >> is called, the transaction will be rolled
+back by an explicit L</txn_rollback> call. In essence this is akin to
+using a L</txn_begin>/L</txn_commit> pair, without having to worry
+about calling L</txn_rollback> at the right places. Note that since there
+is no defined code closure, there will be no retries and other magic upon
+database disconnection. If you need such functionality see L</txn_do>.
 
 =cut
 
@@ -324,7 +332,7 @@ sub txn_scope_guard {
 =head2 sql_maker
 
 Returns a C<sql_maker> object - normally an object of class
-C<DBIC::SQL::Abstract>.
+C<DBIx::Class::SQLAHacks>.
 
 =cut
 

@@ -1,36 +1,17 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Data::Dumper;
-
-my $schema = DBICTest->init_schema();
-
-my $orig_debug = $schema->storage->debug;
-
 use IO::File;
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 45 );
-}
+my $schema = DBICTest->init_schema();
+my $orig_debug = $schema->storage->debug;
 
-# figure out if we've got a version of sqlite that is older than 3.2.6, in
-# which case COUNT(DISTINCT()) doesn't work
-my $is_broken_sqlite = 0;
-my ($sqlite_major_ver,$sqlite_minor_ver,$sqlite_patch_ver) =
-    split /\./, $schema->storage->dbh->get_info(18);
-if( $schema->storage->dbh->get_info(17) eq 'SQLite' &&
-    ( ($sqlite_major_ver < 3) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver < 2) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver == 2 && $sqlite_patch_ver < 6) ) ) {
-    $is_broken_sqlite = 1;
-}
+plan tests => 44;
 
 my $queries = 0;
 $schema->storage->debugcb(sub { $queries++; });
@@ -160,11 +141,7 @@ $rs = $schema->resultset("CD")->search(
   { group_by => [qw/ title me.cdid /] }
 );
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok( $rs->count, '==', 5, "count() ok after group_by on main pk" );
-}
+cmp_ok( $rs->count, '==', 5, "count() ok after group_by on main pk" );
 
 cmp_ok( scalar $rs->all, '==', 5, "all() returns same count as count() after group_by on main pk" );
 
@@ -173,11 +150,7 @@ $rs = $schema->resultset("CD")->search(
   { join => [qw/ artist /], group_by => [qw/ artist.name /] }
 );
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
-}
+cmp_ok( $rs->count, '==', 3, "count() ok after group_by on related column" );
 
 $rs = $schema->resultset("Artist")->search(
   {},
@@ -195,11 +168,7 @@ $rs = $schema->resultset("Artist")->search(
           'cds_2.title' => 'Forkful of bees' },
         { join => [ 'cds', 'cds' ] });
 
-SKIP: {
-    skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 1
-        if $is_broken_sqlite;
-    cmp_ok($rs->count, '==', 1, "single artist returned from multi-join");
-}
+cmp_ok($rs->count, '==', 1, "single artist returned from multi-join");
 
 is($rs->next->name, 'Caterwauler McCrae', "Correct artist returned");
 
@@ -251,28 +220,10 @@ is(eval { $tree_like->children->first->children->first->name }, 'quux',
 
 $tree_like = eval { $schema->resultset('TreeLike')->search(
     { 'children.id' => 3, 'children_2.id' => 6 }, 
-    { join => [qw/children children/] }
+    { join => [qw/children children children/] }
   )->search_related('children', { 'children_4.id' => 7 }, { prefetch => 'children' }
   )->first->children->first; };
 is(eval { $tree_like->name }, 'fong', 'Tree with multiple has_many joins ok');
-
-# test that collapsed joins don't get a _2 appended to the alias
-
-my $sql = '';
-$schema->storage->debugcb(sub { $sql = $_[1] });
-$schema->storage->debug(1);
-
-eval {
-  my $row = $schema->resultset('Artist')->search_related('cds', undef, {
-    join => 'tracks',
-    prefetch => 'tracks',
-  })->search_related('tracks')->first;
-};
-
-like( $sql, qr/^SELECT tracks_2\.trackid/, "join not collapsed for search_related" );
-
-$schema->storage->debug($orig_debug);
-$schema->storage->debugobj->callback(undef);
 
 $rs = $schema->resultset('Artist');
 $rs->create({ artistid => 4, name => 'Unknown singer-songwriter' });
@@ -338,3 +289,5 @@ is($art_rs_pr->search_related('cds')->search_related('tracks')->first->title,
 
 is($queries, 0, 'chained search_related after has_many->has_many prefetch ran no queries');
 
+$schema->storage->debug($orig_debug);
+$schema->storage->debugobj->callback(undef);

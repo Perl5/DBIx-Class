@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 12;
 
 use lib qw(t/lib);
 use base 'DBICTest';
@@ -11,6 +11,22 @@ my $schema = DBICTest->init_schema(
     no_connect  => 1,
     no_deploy   => 1,
 );
+
+ok $schema->connection(
+  DBICTest->_database,
+  {
+    on_connect_do => 'CREATE TABLE TEST_empty (id INTEGER)',
+  },
+), 'connection()';
+
+is_deeply (
+  $schema->storage->dbh->selectall_arrayref('SELECT * FROM TEST_empty'),
+  [],
+  'string version on_connect_do() worked'
+);
+
+$schema->storage->disconnect;
+
 ok $schema->connection(
     DBICTest->_database,
     {
@@ -24,10 +40,11 @@ ok $schema->connection(
     },
 ), 'connection()';
 
-is_deeply
+is_deeply (
   $schema->storage->dbh->selectall_arrayref('SELECT * FROM TEST_empty'),
   [ [ 2 ], [ 3 ], [ 7 ] ],
-  'on_connect_do() worked';
+  'on_connect_do() worked'
+);
 eval { $schema->storage->dbh->do('SELECT 1 FROM TEST_nonexistent'); };
 ok $@, 'Searching for nonexistent table dies';
 

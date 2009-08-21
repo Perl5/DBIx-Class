@@ -1,9 +1,12 @@
 package # hide from PAUSE 
     DBICTest::Schema::CD;
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 
-__PACKAGE__->table('cd');
+# this tests table name as scalar ref
+# DO NOT REMOVE THE \
+__PACKAGE__->table(\'cd');
+
 __PACKAGE__->add_columns(
   'cdid' => {
     data_type => 'integer',
@@ -38,7 +41,9 @@ __PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist', undef, {
 });
 
 # in case this is a single-cd it promotes a track from another cd
-__PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track' );
+__PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track', 'single_track', 
+    { join_type => 'left'} 
+);
 
 __PACKAGE__->has_many( tracks => 'DBICTest::Schema::Track' );
 __PACKAGE__->has_many(
@@ -54,6 +59,7 @@ __PACKAGE__->might_have(
     { proxy => [ qw/notes/ ] },
 );
 __PACKAGE__->might_have(artwork => 'DBICTest::Schema::Artwork', 'cd_id');
+__PACKAGE__->has_one(mandatory_artwork => 'DBICTest::Schema::Artwork', 'cd_id');
 
 __PACKAGE__->many_to_many( producers => cd_to_producer => 'producer' );
 __PACKAGE__->many_to_many(

@@ -7,7 +7,7 @@ use warnings;
 
 =head1 NAME
 
-DBIx::Class::CDBICompat::ColumnsAsHash
+DBIx::Class::CDBICompat::ColumnsAsHash - Emulates the behavior of Class::DBI where the object can be accessed as a hash of columns.
 
 =head1 SYNOPSIS
 
@@ -39,16 +39,16 @@ sub inflate_result {
     my $class = shift;
 
     my $new = $class->next::method(@_);
-    
+
     $new->_make_columns_as_hash;
-    
+
     return $new;
 }
 
 
 sub _make_columns_as_hash {
     my $self = shift;
-    
+
     for my $col ($self->columns) {
         if( exists $self->{$col} ) {
             warn "Skipping mapping $col to a hash key because it exists";

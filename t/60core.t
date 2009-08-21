@@ -5,30 +5,16 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 95;
-
-eval { require DateTime::Format::MySQL };
+eval { require DateTime::Format::SQLite };
 my $NO_DTFM = $@ ? 1 : 0;
-
-# figure out if we've got a version of sqlite that is older than 3.2.6, in
-# which case COUNT(DISTINCT()) doesn't work
-my $is_broken_sqlite = 0;
-my ($sqlite_major_ver,$sqlite_minor_ver,$sqlite_patch_ver) =
-    split /\./, $schema->storage->dbh->get_info(18);
-if( $schema->storage->dbh->get_info(17) eq 'SQLite' &&
-    ( ($sqlite_major_ver < 3) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver < 2) ||
-      ($sqlite_major_ver == 3 && $sqlite_minor_ver == 2 && $sqlite_patch_ver < 6) ) ) {
-    $is_broken_sqlite = 1;
-}
-
 
 my @art = $schema->resultset("Artist")->search({ }, { order_by => 'name DESC'});
 
-cmp_ok(@art, '==', 3, "Three artists returned");
+is(@art, 3, "Three artists returned");
 
 my $art = $art[0];
 
@@ -39,7 +25,7 @@ $art->name('We Are In Rehab');
 is($art->name, 'We Are In Rehab', "Accessor update ok");
 
 my %dirty = $art->get_dirty_columns();
-cmp_ok(scalar(keys(%dirty)), '==', 1, '1 dirty column');
+is(scalar(keys(%dirty)), 1, '1 dirty column');
 ok(grep($_ eq 'name', keys(%dirty)), 'name is dirty');
 
 is($art->get_column("name"), 'We Are In Rehab', 'And via get_column');
@@ -47,7 +33,7 @@ is($art->get_column("name"), 'We Are In Rehab', 'And via get_column');
 ok($art->update, 'Update run');
 
 my %not_dirty = $art->get_dirty_columns();
-cmp_ok(scalar(keys(%not_dirty)), '==', 0, 'Nothing is dirty');
+is(scalar(keys(%not_dirty)), 0, 'Nothing is dirty');
 
 eval {
   my $ret = $art->make_column_dirty('name2');
@@ -55,7 +41,7 @@ eval {
 ok(defined($@), 'Failed to make non-existent column dirty');
 $art->make_column_dirty('name');
 my %fake_dirty = $art->get_dirty_columns();
-cmp_ok(scalar(keys(%fake_dirty)), '==', 1, '1 fake dirty column');
+is(scalar(keys(%fake_dirty)), 1, '1 fake dirty column');
 ok(grep($_ eq 'name', keys(%fake_dirty)), 'name is fake dirty');
 
 my $record_jp = $schema->resultset("Artist")->search(undef, { join => 'cds' })->search(undef, { prefetch => 'cds' })->next;
@@ -68,15 +54,15 @@ ok($record_fn, "funny join is okay");
 
 @art = $schema->resultset("Artist")->search({ name => 'We Are In Rehab' });
 
-cmp_ok(@art, '==', 1, "Changed artist returned by search");
+is(@art, 1, "Changed artist returned by search");
 
-cmp_ok($art[0]->artistid, '==', 3,'Correct artist too');
+is($art[0]->artistid, 3,'Correct artist too');
 
 lives_ok (sub { $art->delete }, 'Cascading delete on Ordered has_many works' );  # real test in ordered.t
 
 @art = $schema->resultset("Artist")->search({ });
 
-cmp_ok(@art, '==', 2, 'And then there were two');
+is(@art, 2, 'And then there were two');
 
 ok(!$art->in_storage, "It knows it's dead");
 
@@ -90,15 +76,15 @@ ok($art->in_storage, "Re-created");
 
 @art = $schema->resultset("Artist")->search({ });
 
-cmp_ok(@art, '==', 3, 'And now there are three again');
+is(@art, 3, 'And now there are three again');
 
 my $new = $schema->resultset("Artist")->create({ artistid => 4 });
 
-cmp_ok($new->artistid, '==', 4, 'Create produced record ok');
+is($new->artistid, 4, 'Create produced record ok');
 
 @art = $schema->resultset("Artist")->search({ });
 
-cmp_ok(@art, '==', 4, "Oh my god! There's four of them!");
+is(@art, 4, "Oh my god! There's four of them!");
 
 $new->set_column('name' => 'Man With A Fork');
 
@@ -152,7 +138,7 @@ is($schema->resultset("Artist")->count, 4, 'count ok');
 my $cd = $schema->resultset("CD")->find(1);
 my %cols = $cd->get_columns;
 
-cmp_ok(keys %cols, '==', 6, 'get_columns number of columns ok');
+is(keys %cols, 6, 'get_columns number of columns ok');
 
 is($cols{title}, 'Spoonful of bees', 'get_columns values ok');
 
@@ -207,7 +193,7 @@ is( $schema->resultset("Track")->find(100)->title, 'Insert or Update - updated',
 
 # get_inflated_columns w/relation and accessor alias
 SKIP: {
-    skip "This test requires DateTime::Format::MySQL", 8 if $NO_DTFM;
+    skip "This test requires DateTime::Format::SQLite", 8 if $NO_DTFM;
 
     isa_ok($new->updated_date, 'DateTime', 'have inflated object via accessor');
     my %tdata = $new->get_inflated_columns;
@@ -234,32 +220,39 @@ my $search = [ { 'tags.tag' => 'Cheesy' }, { 'tags.tag' => 'Blue' } ];
 
 my( $or_rs ) = $schema->resultset("CD")->search_rs($search, { join => 'tags',
                                                   order_by => 'cdid' });
+is($or_rs->all, 5, 'Joined search with OR returned correct number of rows');
+is($or_rs->count, 5, 'Search count with OR ok');
 
-cmp_ok($or_rs->count, '==', 5, 'Search with OR ok');
+my $collapsed_or_rs = $or_rs->search ({}, { distinct => 1 }); # induce collapse
+is ($collapsed_or_rs->all, 4, 'Collapsed joined search with OR returned correct number of rows');
+is ($collapsed_or_rs->count, 4, 'Collapsed search count with OR ok');
 
-my $distinct_rs = $schema->resultset("CD")->search($search, { join => 'tags', distinct => 1 });
-cmp_ok($distinct_rs->all, '==', 4, 'DISTINCT search with OR ok');
-
-SKIP: {
-  skip "SQLite < 3.2.6 doesn't understand COUNT(DISTINCT())", 2
-    if $is_broken_sqlite;
-
-  my $tcount = $schema->resultset("Track")->search(
+{
+  my $tcount = $schema->resultset('Track')->search(
     {},
-    {       
-       select => {count => {distinct => ['position', 'title']}},
-	   as => ['count']
+    {
+      select => [ qw/position title/ ],
+      distinct => 1,
     }
   );
-  cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT ok');
+  is($tcount->count, 13, 'multiple column COUNT DISTINCT ok');
 
-  $tcount = $schema->resultset("Track")->search(
+  $tcount = $schema->resultset('Track')->search(
     {},
-    {       
-       columns => {count => {count => {distinct => ['position', 'title']}}},
+    {
+      columns => [ qw/position title/ ],
+      distinct => 1,
     }
   );
-  cmp_ok($tcount->next->get_column('count'), '==', 13, 'multiple column COUNT DISTINCT using column syntax ok');
+  is($tcount->count, 13, 'multiple column COUNT DISTINCT ok');
+
+  $tcount = $schema->resultset('Track')->search(
+    {},
+    {
+       group_by => [ qw/position title/ ]
+    }
+  );
+  is($tcount->count, 13, 'multiple column COUNT DISTINCT using column syntax ok');  
 }
 
 my $tag_rs = $schema->resultset('Tag')->search(
@@ -267,17 +260,17 @@ my $tag_rs = $schema->resultset('Tag')->search(
 
 my $rel_rs = $tag_rs->search_related('cd');
 
-cmp_ok($rel_rs->count, '==', 5, 'Related search ok');
+is($rel_rs->count, 5, 'Related search ok');
 
-cmp_ok($or_rs->next->cdid, '==', $rel_rs->next->cdid, 'Related object ok');
+is($or_rs->next->cdid, $rel_rs->next->cdid, 'Related object ok');
 $or_rs->reset;
 $rel_rs->reset;
 
 my $tag = $schema->resultset('Tag')->search(
                [ { 'me.tag' => 'Blue' } ], { cols=>[qw/tagid/] } )->next;
 
-cmp_ok($tag->has_column_loaded('tagid'), '==', 1, 'Has tagid loaded');
-cmp_ok($tag->has_column_loaded('tag'), '==', 0, 'Has not tag  loaded');
+ok($tag->has_column_loaded('tagid'), 'Has tagid loaded');
+ok(!$tag->has_column_loaded('tag'), 'Has not tag loaded');
 
 ok($schema->storage(), 'Storage available');
 
@@ -309,7 +302,7 @@ ok($schema->storage(), 'Storage available');
   ok($schema->source('SourceNameArtists'), 'SourceNameArtists result source exists');
 
   my @artsn = $schema->resultset('SourceNameArtists')->search({}, { order_by => 'name DESC' });
-  cmp_ok(@artsn, '==', 4, "Four artists returned");
+  is(@artsn, 4, "Four artists returned");
   
   # make sure subclasses that don't set source_name are ok
   ok($schema->source('ArtistSubclass'), 'ArtistSubclass exists');
@@ -323,8 +316,8 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
 {
   my $art_del = $schema->resultset("Artist")->find({ artistid => 1 });
   lives_ok (sub { $art_del->delete }, 'Cascading delete on Ordered has_many works' );  # real test in ordered.t
-  cmp_ok( $schema->resultset("CD")->search({artist => 1}), '==', 0, 'Cascading through has_many top level.');
-  cmp_ok( $schema->resultset("CD_to_Producer")->search({cd => 1}), '==', 0, 'Cascading through has_many children.');
+  is( $schema->resultset("CD")->search({artist => 1}), 0, 'Cascading through has_many top level.');
+  is( $schema->resultset("CD_to_Producer")->search({cd => 1}), 0, 'Cascading through has_many children.');
 }
 
 # test column_info
@@ -380,7 +373,7 @@ lives_ok (sub { my $newlink = $newbook->link}, "stringify to false value doesn't
 
 # test get_inflated_columns with objects
 SKIP: {
-    skip "This test requires DateTime::Format::MySQL", 5 if $NO_DTFM;
+    skip "This test requires DateTime::Format::SQLite", 5 if $NO_DTFM;
     my $event = $schema->resultset('Event')->search->first;
     my %edata = $event->get_inflated_columns;
     is($edata{'id'}, $event->id, 'got id');
@@ -404,3 +397,61 @@ SKIP: {
   $en_row->insert;
   is($en_row->encoded, 'amliw', 'insert does not encode again');
 }
+
+# make sure we got rid of the compat shims
+SKIP: {
+    skip "Remove in 0.09", 5 if $DBIx::Class::VERSION < 0.09;
+
+    for (qw/compare_relationship_keys pk_depends_on resolve_condition resolve_join resolve_prefetch/) {
+      ok (! DBIx::Class::ResultSource->can ($_), "$_ no longer provided by DBIx::Class::ResultSource");
+    }
+}
+
+#------------------------------
+# READ THIS BEFORE "FIXING"
+#------------------------------
+#
+# make sure we got rid of discard_changes mess - this is a mess and a source
+# of great confusion. Here I simply die if the methods are available, which
+# is wrong on its own (we *have* to provide some sort of back-compat, even
+# if with warnings). Here is how I envision things should actually be. Also
+# note that a lot of the deprecation can be started today (i.e. the switch
+# from get_from_storage to copy_from_storage). So:
+#
+# $row->discard_changes =>
+#   warning, and delegation to reload_from_storage
+#
+# $row->reload_from_storage =>
+#   does what discard changes did in 0.08 - issues a query to the db
+#   and repopulates all column slots, regardless of dirty states etc.
+#
+# $row->revert_changes =>
+#   does what discard_changes should have done initially (before it became
+#   a dual-purpose call). In order to make this work we will have to
+#   augment $row to carry its own initial-state, much like svn has a
+#   copy of the current checkout in contrast to cvs.
+#
+# my $db_row = $row->get_from_storage =>
+#   warns and delegates to an improved name copy_from_storage, with the
+#   same semantics
+#
+# my $db_row = $row->copy_from_storage =>
+#   a much better/descriptive name than get_from_storage
+#
+#------------------------------
+# READ THIS BEFORE "FIXING"
+#------------------------------
+#
+SKIP: {
+    skip "Something needs to be done before 0.09", 2 if $DBIx::Class::VERSION < 0.09;
+
+    my $row = $schema->resultset ('Artist')->next;
+
+    for (qw/discard_changes get_from_storage/) {
+      ok (! $row->can ($_), "$_ needs *some* sort of facelift before 0.09 ships - current state of affairs is unacceptable");
+    }
+}
+
+throws_ok { $schema->resultset} qr/resultset\(\) expects a source name/, 'resultset with no argument throws exception';
+
+done_testing;

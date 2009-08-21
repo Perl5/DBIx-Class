@@ -2,7 +2,7 @@ package # hide from PAUSE
     Director;
 
 use strict;
-use base 'DBIx::Class::Test::SQLite';
+use base 'DBIC::Test::SQLite';
 
 __PACKAGE__->set_table('Directors');
 __PACKAGE__->columns('All' => qw/ Name Birthday IsInsane /);

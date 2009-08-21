@@ -1,7 +1,7 @@
 package # hide from PAUSE
     DBICTest::Schema::Dummy;
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 
 use strict;
 use warnings;

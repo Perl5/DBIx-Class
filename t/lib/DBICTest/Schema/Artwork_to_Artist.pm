@@ -1,7 +1,7 @@
 package # hide from PAUSE
     DBICTest::Schema::Artwork_to_Artist;
 
-use base qw/DBIx::Class::Core/;
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('artwork_to_artist');
 __PACKAGE__->add_columns(

@@ -9,6 +9,17 @@ explain them.
 
 =head1 TERMS
 
+=head2 DB schema
+
+Refers to a single physical schema within an RDBMS. Synonymous with the terms
+'database', for MySQL; and 'schema', for most other RDBMS(s).
+
+In other words, it's the 'xyz' _thing_ you're connecting to when using any of
+the following L<DSN|DBI/connect>(s):
+
+  dbi:DriverName:xyz@hostname:port
+  dbi:DriverName:database=xyz;host=hostname;port=port
+
 =head2 Inflation
 
 The act of turning database row data into objects in

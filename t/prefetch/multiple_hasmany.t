@@ -1,25 +1,16 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-use Data::Dumper;
-
-my $schema = DBICTest->init_schema();
-
-my $orig_debug = $schema->storage->debug;
-
 use IO::File;
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-#        : ( tests => 16 );
-        : 'no_plan';
-}
+plan tests => 10;
+
+my $schema = DBICTest->init_schema();
+my $sdebug = $schema->storage->debug;
 
 # once the following TODO is complete, remove the 2 warning tests immediately
 # after the TODO block
@@ -52,19 +43,17 @@ TODO: {
     ok(! $o_mm_warn, 'no warning on attempt to prefetch several same level has_many\'s (1 -> M + M)');
 
     is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
+    $schema->storage->debugcb (undef);
+    $schema->storage->debug ($sdebug);
+
     is($pr_tracks_count, $tracks_count, 'equal count of prefetched relations over several same level has_many\'s (1 -> M + M)');
-
-    for ($pr_tracks_rs, $tracks_rs) {
-        $_->result_class ('DBIx::Class::ResultClass::HashRefInflator');
-    }
-
-    is_deeply ([$pr_tracks_rs->all], [$tracks_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (1 -> M + M)');
+    is ($pr_tracks_rs->all, $tracks_rs->all, 'equal amount of objects returned with and without prefetch over several same level has_many\'s (1 -> M + M)');
 
     #( M -> 1 -> M + M )
     my $note_rs = $schema->resultset('LinerNotes')->search ({ notes => 'Buy Whiskey!' });
     my $pr_note_rs = $note_rs->search ({}, {
         prefetch => {
-            cd => [qw/tags tracks/]
+            cd => [qw/tracks tags/]
         },
     });
 
@@ -87,35 +76,29 @@ TODO: {
     ok(! $m_o_mm_warn, 'no warning on attempt to prefetch several same level has_many\'s (M -> 1 -> M + M)');
 
     is($queries, 1, 'prefetch one->(has_many,has_many) ran exactly 1 query');
+    $schema->storage->debugcb (undef);
+    $schema->storage->debug ($sdebug);
 
     is($pr_tags_count, $tags_count, 'equal count of prefetched relations over several same level has_many\'s (M -> 1 -> M + M)');
-
-    for ($pr_tags_rs, $tags_rs) {
-        $_->result_class ('DBIx::Class::ResultClass::HashRefInflator');
-    }
-
-    is_deeply ([$pr_tags_rs->all], [$tags_rs->all], 'same structure returned with and without prefetch over several same level has_many\'s (M -> 1 -> M + M)');
+    is($pr_tags_rs->all, $tags_rs->all, 'equal amount of objects with and without prefetch over several same level has_many\'s (M -> 1 -> M + M)');
 }
 
 # remove this closure once the TODO above is working
-my $w;
 {
-    local $SIG{__WARN__} = sub { $w = shift };
+    my $warn_re = qr/will explode the number of row objects retrievable via/;
+
+    my (@w, @dummy);
+    local $SIG{__WARN__} = sub { $_[0] =~ $warn_re ? push @w, @_ : warn @_ };
 
     my $rs = $schema->resultset('CD')->search ({ 'me.title' => 'Forkful of bees' }, { prefetch => [qw/tracks tags/] });
-    for (qw/all count next first/) {
-        undef $w;
-        my @stuff = $rs->search()->$_;
-        like ($w, qr/will currently disrupt both the functionality of .rs->count\(\), and the amount of objects retrievable via .rs->next\(\)/,
-            "warning on ->$_ attempt prefetching several same level has_manys (1 -> M + M)");
-    }
+    @w = ();
+    @dummy = $rs->first;
+    is (@w, 1, 'warning on attempt prefetching several same level has_manys (1 -> M + M)');
+
     my $rs2 = $schema->resultset('LinerNotes')->search ({ notes => 'Buy Whiskey!' }, { prefetch => { cd => [qw/tags tracks/] } });
-    for (qw/all count next first/) {
-        undef $w;
-        my @stuff = $rs2->search()->$_;
-        like ($w, qr/will currently disrupt both the functionality of .rs->count\(\), and the amount of objects retrievable via .rs->next\(\)/,
-            "warning on ->$_ attempt prefetching several same level has_manys (M -> 1 -> M + M)");
-    }
+    @w = ();
+    @dummy = $rs2->first;
+    is (@w, 1, 'warning on attempt prefetching several same level has_manys (M -> 1 -> M + M)');
 }
 
 
@@ -159,6 +142,7 @@ while (my @stuff = $c->next) {
 }
 
 $rs->reset;
+use Data::Dumper;
 note Dumper [
   "\n$query",
   "\n$tb",
@@ -203,7 +187,9 @@ it is massaged to look something like:
     t3 => { col1 => 5, col2 => 6 },
   };
 At this point, find the stuff that's different is easy enough to do and slotting
-things into the right spot is, likewise, pretty straightforward.
+things into the right spot is, likewise, pretty straightforward. Instead of
+storing things in a AoH, store them in a HoH keyed on the PKs of the the table,
+then convert to an AoH after all collapsing is done.
 
 This implies that the collapse attribute can probably disappear or, at the
 least, be turned into a boolean (which is how it's used in every other place).

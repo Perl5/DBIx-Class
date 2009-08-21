@@ -7,6 +7,11 @@ package # hide from PAUSE
 use strict;
 use warnings;
 
+our %_pod_inherit_config = 
+  (
+   class_map => { 'DBIx::Class::Relationship::BelongsTo' => 'DBIx::Class::Relationship' }
+  );
+
 sub belongs_to {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
 
@@ -79,12 +84,14 @@ sub belongs_to {
   return 1;
 }
 
-=head1 AUTHORS
+# Attempt to remove the POD so it (maybe) falls off the indexer
 
-Alexander Hartmaier <Alexander.Hartmaier@t-systems.at>
-
-Matt S. Trout <mst@shadowcatsystems.co.uk>
-
-=cut
+#=head1 AUTHORS
+#
+#Alexander Hartmaier <Alexander.Hartmaier@t-systems.at>
+#
+#Matt S. Trout <mst@shadowcatsystems.co.uk>
+#
+#=cut
 
 1;

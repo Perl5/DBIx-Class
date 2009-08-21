@@ -16,10 +16,10 @@ sub add_columns {
 
 sub has_a {
     my($self, $col, @rest) = @_;
-    
+
     $self->_declare_has_a(lc $col, @rest);
     $self->_mk_inflated_column_accessor($col);
-    
+
     return 1;
 }
 

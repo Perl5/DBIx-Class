@@ -5,9 +5,8 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-eval { require DateTime::Format::MySQL };
-
-plan $@ ? ( skip_all => 'Requires DateTime::Format::MySQL' )
+eval { require DateTime::Format::SQLite };
+plan $@ ? ( skip_all => 'Requires DateTime::Format::SQLite' )
         : ( tests => 3 );
 
 my $schema = DBICTest->init_schema(
@@ -24,8 +23,6 @@ is(
 
 my $parser = $schema->storage->datetime_parser();
 
-# We're currently expecting a MySQL parser. May change in future.
-is($parser, 'DateTime::Format::MySQL', 'Got expected datetime_parser');
-
+is($parser, 'DateTime::Format::SQLite', 'Got expected storage-set datetime_parser');
 isa_ok($schema->storage, 'DBIx::Class::Storage::DBI::SQLite', 'storage');
 

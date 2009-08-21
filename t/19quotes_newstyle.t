@@ -19,7 +19,7 @@ use_ok('DBIC::DebugObj');
 
 my $schema = DBICTest->init_schema();
 
-diag('Testing against ' . join(' ', map { $schema->storage->dbh->get_info($_) } qw/17 18/));
+#diag('Testing against ' . join(' ', map { $schema->storage->dbh->get_info($_) } qw/17 18/));
 
 my $dsn = $schema->storage->_dbi_connect_info->[0];
 $schema->connection(
@@ -30,7 +30,7 @@ $schema->connection(
   { quote_char => '`', name_sep => '.' },
 );
 
-my ($sql, @bind) = ('');
+my ($sql, @bind);
 $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind)),
 $schema->storage->debug(1);
 
@@ -42,7 +42,7 @@ $rs = $schema->resultset('CD')->search(
 eval { $rs->count };
 is_same_sql_bind(
   $sql, \@bind,
-  "SELECT COUNT( * ) FROM `cd` `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )", ["'Caterwauler McCrae'", "'2001'"],
+  "SELECT COUNT( * ) FROM cd `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )", ["'Caterwauler McCrae'", "'2001'"],
   'got correct SQL for count query with quoting'
 );
 
@@ -73,7 +73,7 @@ $rs = $schema->resultset('CD')->search(
 eval { $rs->count };
 is_same_sql_bind(
   $sql, \@bind,
-  "SELECT COUNT( * ) FROM [cd] [me]  JOIN [artist] [artist] ON ( [artist].[artistid] = [me].[artist] ) WHERE ( [artist].[name] = ? AND [me].[year] = ? )", ["'Caterwauler McCrae'", "'2001'"],
+  "SELECT COUNT( * ) FROM cd [me]  JOIN [artist] [artist] ON ( [artist].[artistid] = [me].[artist] ) WHERE ( [artist].[name] = ? AND [me].[year] = ? )", ["'Caterwauler McCrae'", "'2001'"],
   'got correct SQL for count query with bracket quoting'
 );
 

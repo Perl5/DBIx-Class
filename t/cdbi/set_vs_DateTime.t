@@ -1,6 +1,7 @@
 use strict;
 use Test::More;
 use Test::Exception;
+use lib 't/cdbi/testlib';
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
@@ -13,7 +14,7 @@ BEGIN {
 {
     package Thing;
 
-    use base 'DBIx::Class::Test::SQLite';
+    use base 'DBIC::Test::SQLite';
 
     Thing->columns(All  => qw[thing_id this that date]);
 }

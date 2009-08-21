@@ -11,7 +11,7 @@ my @Extra_Modules = qw(
     DBIx::ContextualFetch
     Clone
 );
-                
+
 my @didnt_load;
 for my $module (@Extra_Modules) {
     push @didnt_load, $module unless eval qq{require $module};
@@ -149,13 +149,13 @@ Relationships between tables (has_a, has_many...) must be delcared after all tab
 
     package Foo;
     use base qw(Class::DBI);
-    
+
     Foo->table("foo");
     Foo->columns( All => qw(this that bar) );
 
     package Bar;
     use base qw(Class::DBI);
-    
+
     Bar->table("bar");
     Bar->columns( All => qw(up down) );
 

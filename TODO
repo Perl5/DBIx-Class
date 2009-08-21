@@ -3,12 +3,8 @@
   - ResultSource objects caching ->resultset causes interesting problems
   - find why XSUB dumper kills schema in Catalyst (may be Pg only?)
 
-2006-04-11 by castaway
- - docs of copy() should say that is_auto_increment is essential for auto_incrementing keys
-
 2006-03-25 by mst
   - find a way to un-wantarray search without breaking compat
-  - audit logging component
   - delay relationship setup if done via ->load_classes
   - double-sided relationships
   - make short form of class specifier in relationships work
@@ -20,9 +16,6 @@
    __PACKAGE__->add_columns(phone => { set=>sub{ ... }, get=>sub{ ... } }); 
    We should still support the old inflate/deflate syntax, but this new 
    way should be recommended. 
-
-2006-02-07 by castaway
- - Extract DBIC::SQL::Abstract into a separate module for CPAN
 
 2006-03-18 by bluefeet
  - Support table locking.
@@ -47,18 +40,8 @@
        if you haven't specified one of the others
 
 2008-10-30 by ribasushi
- Leftovers for next dev-release
   - Rewrite the test suite to rely on $schema->deploy, allowing for seamless
     testing of various RDBMS using the same tests
-  - Proper support of default create (i.e. create({}) ), with proper workarounds
-    for different Storage's
   - Automatically infer quote_char/name_sep from $schema->storage
-  - Finally incorporate View support (needs real tests)
   - Fix and properly test chained search attribute merging
-
-2008-11-07 by ribasushi
-  - Be loud when a relationship resolution fails because we did not select/as
-    a neccessary pk
   - Recursive update() (all code seems to be already available)
-  - $rs->populate changes its syntax depending on wantarray context (BAD)
-    Also the interface differs from $schema->populate (not so good)

@@ -8,9 +8,29 @@ use DBICTest;
 eval "use SQL::Translator";
 plan skip_all => 'SQL::Translator required' if $@;
 
-my $schema = DBICTest->init_schema;
+my $schema = DBICTest->init_schema (no_deploy => 1);
 
-plan tests => 133;
+# replace the sqlt calback with a custom version ading an index
+$schema->source('Track')->sqlt_deploy_callback(sub {
+  my ($self, $sqlt_table) = @_;
+
+  is (
+    $sqlt_table->schema->translator->producer_type,
+    join ('::', 'SQL::Translator::Producer', $schema->storage->sqlt_type),
+    'Production type passed to translator object',
+  );
+
+  if ($schema->storage->sqlt_type eq 'SQLite' ) {
+    $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
+      or die $sqlt_table->error;
+  }
+
+  $self->default_sqlt_deploy_hook($sqlt_table);
+});
+
+$schema->deploy; # do not remove, this fires the is() test in the callback above
+
+
 
 my $translator = SQL::Translator->new( 
   parser_args => {
@@ -26,16 +46,6 @@ my $translator = SQL::Translator->new(
     my $relinfo = $schema->source('Artist')->relationship_info ('cds');
     local $relinfo->{attrs}{on_delete} = 'restrict';
 
-    $schema->source('Track')->sqlt_deploy_callback(sub {
-      my ($self, $sqlt_table) = @_;
-
-      if ($schema->storage->sqlt_type eq 'SQLite' ) {
-        $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
-          or die $sqlt_table->error;
-      }
-
-      $self->default_sqlt_deploy_hook($sqlt_table);
-    });
 
     $translator->parser('SQL::Translator::Parser::DBIx::Class');
     $translator->producer('SQLite');
@@ -45,7 +55,12 @@ my $translator = SQL::Translator->new(
     ok($output, "SQLT produced someoutput")
       or diag($translator->error);
 
-    like ($warn, qr/^SQLT attribute .+? was supplied for relationship/, 'Warn about dubious on_delete/on_update attributes');
+
+    like (
+      $warn,
+      qr/SQLT attribute .+? was supplied for relationship .+? which does not appear to be a foreign constraint/,
+      'Warn about dubious on_delete/on_update attributes',
+    );
 }
 
 # Note that the constraints listed here are the only ones that are tested -- if
@@ -155,7 +170,7 @@ my %fk_constraints = (
       'name' => 'artist_undirected_map_fk_id2', 'index_name' => 'artist_undirected_map_idx_id2',
       'selftable' => 'artist_undirected_map', 'foreigntable' => 'artist', 
       'selfcols'  => ['id2'], 'foreigncols' => ['artistid'],
-      on_delete => '', on_update => 'CASCADE', deferrable => 1,
+      on_delete => '', on_update => '', deferrable => 1,
     },
   ],
 
@@ -210,7 +225,7 @@ my %fk_constraints = (
       'name' => 'bookmark_fk_link', 'index_name' => 'bookmark_idx_link',
       'selftable' => 'bookmark', 'foreigntable' => 'link', 
       'selfcols'  => ['link'], 'foreigncols' => ['id'],
-      on_delete => '', on_update => '', deferrable => 1,
+      on_delete => 'SET NULL', on_update => 'CASCADE', deferrable => 1,
     },
   ],
   # ForceForeign
@@ -439,3 +454,5 @@ sub test_unique {
   is( $got->name, $expected->{name},
       "name parameter correct for `$desc'" );
 }
+
+done_testing;

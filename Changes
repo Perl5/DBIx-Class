@@ -1,5 +1,196 @@
 Revision history for DBIx::Class
 
+0.08109 2009-08-18 08:35:00 (UTC)
+        - Replication updates:
+          - Improved the replication tests so that they are more reliable
+            and accurate, and hopefully solve some cross platform issues.
+          - Bugfixes related to naming particular replicants in a
+            'force_pool' attribute.
+          - Lots of documentation updates, including a new Introduction.pod
+            file.
+          - Fixed the way we detect transaction to make this more reliable
+            and forward looking.
+          - Fixed some trouble with the way Moose Types are used.
+          - Made discard_chages/get_from_storage replication aware (they
+            now read from the master storage by default)
+        - Refactor of MSSQL storage drivers, with some new features:
+          - Support for placeholders for MSSQL via DBD::Sybase with proper
+            autodetection
+          - 'uniqueidentifier' support with auto newid()
+          - Dynamic cursor support and other MARS options for ODBC
+          - savepoints with auto_savepoint => 1
+        - Support for MSSQL 'money' type
+        - Support for 'smalldatetime' type used in MSSQL and Sybase for
+          InflateColumn::DateTime
+        - support for Postgres 'timestamp without timezone' type in
+          InflateColumn::DateTime (RT#48389)
+        - Added new MySQL specific on_connect_call macro 'set_strict_mode'
+          (also known as make_mysql_not_suck_as_much)
+        - Multiple prefetch-related fixes:
+          - Adjust overly agressive subquery join-chain pruning
+          - Always preserve the outer join-chain - fixes numerous
+            problems with search_related chaining
+          - Deal with the distinct => 1 attribute properly when using
+            prefetch
+        - An extension of the select-hashref syntax, allowing labeling
+          SQL-side aliasing: select => [ { max => 'foo', -as => 'bar' } ]
+        - Massive optimization of the DBI storage layer - reduce the
+          amount of connected() ping-calls
+        - Some fixes of multi-create corner cases
+        - Multiple POD improvements
+        - Added exception when resultset is called without an argument
+        - Improved support for non-schema-qualified tables under
+          Postgres (fixed last_insert_id sequence name auto-detection)
+
+0.08108 2009-07-05 23:15:00 (UTC)
+        - Fixed the has_many prefetch with limit/group deficiency -
+          it is now possible to select "top 5 commenters" while
+          prefetching all their comments
+        - New resultsed method count_rs, returns a ::ResultSetColumn
+          which in turn returns a single count value
+        - Even better support of count with limit
+        - New on_connect_call/on_disconnect_call functionality (check
+          POD of Storage::DBI)
+        - Automatic datetime handling environment/session setup for
+          Oracle via connect_call_datetime_setup()
+        - count/all on related left-joined empty resultsets now correctly
+          returns 0/()
+        - Fixed regression when both page and offset are specified on
+          a resultset
+        - Fixed HRI returning too many empty results on multilevel
+          nonexisting prefetch
+        - make_column_dirty() now overwrites the deflated value with an
+          inflated one if such exists
+        - Fixed set_$rel with where restriction deleting rows outside 
+          the restriction
+        - populate() returns the created objects or an arrayref of the
+          created objects depending on scalar vs. list context
+        - Fixed find_related on 'single' relationships - the former
+          implementation would overspecify the WHERE condition, reporting
+          no related objects when there in fact is one
+        - SQL::Translator::Parser::DBIx::Class now attaches tables to the
+          central schema object in relationship dependency order
+        - Fixed regression in set_column() preventing sourceless object
+          manipulations
+        - Fixed a bug in search_related doubling a join if the original
+          $rs already joins/prefetches the same relation
+        - Storage::DBI::connected() improvements for Oracle and Sybase
+        - Fixed prefetch+incomplete select regression introduced in
+          0.08100
+        - MSSQL limit (TOP emulation) fixes and improvements
+
+0.08107 2009-06-14 08:21:00 (UTC)
+        - Fix serialization regression introduced in 0.08103 (affects
+          Cursor::Cached)
+        - POD fixes
+        - Fixed incomplete ::Replicated debug output
+
+0.08106 2009-06-11 21:42:00 (UTC)
+        - Switched SQLite storage driver to DateTime::Format::SQLite
+          (proper timezone handling)
+        - Fix more test problems
+
+0.08105 2009-06-11 19:04:00 (UTC)
+        - Update of numeric columns now properly uses != to determine
+          dirtyness instead of the usual eq
+        - Fixes to IC::DT tests
+        - Fixed exception when undef_if_invalid and timezone are both set
+          on an invalid datetime column
+
+0.08104 2009-06-10 13:38:00 (UTC)
+        - order_by now can take \[$sql, @bind] as in
+          order_by => { -desc => \['colA LIKE ?', 'somestring'] }
+        - SQL::Abstract errors are now properly croak()ed with the
+          correct trace
+        - populate() now properly reports the dataset slice in case of
+          an exception
+        - Fixed corner case when populate() erroneously falls back to
+          create()
+        - Work around braindead mysql when doing subquery counts on
+          resultsets containing identically named columns from several
+          tables
+        - Fixed m2m add_to_$rel to invoke find_or_create on the far
+          side of the relation, to avoid duplicates
+        - DBIC now properly handles empty inserts (invoking all default
+          values from the DB, normally via INSERT INTO tbl DEFAULT VALUES
+        - Fix find_or_new/create to stop returning random rows when 
+          default value insert is requested (RT#28875)
+        - Make IC::DT extra warning state the column name too
+        - It is now possible to transparrently search() on columns
+          requiring DBI bind (i.e. PostgreSQL BLOB)
+        - as_query is now a Storage::DBI method, so custom cursors can
+          be seamlessly used
+        - Fix search_related regression introduced in 0.08103
+
+0.08103 2009-05-26 19:50:00 (UTC)
+        - Multiple $resultset -> count/update/delete fixes. Now any
+          of these operations will succeed, regardless of the complexity
+          of $resultset. distinct, group_by, join, prefetch are all
+          supported with expected results
+        - Return value of $rs->delete is now the storage return value
+          and not 1 as it used to be
+        - don't pass SQL functions into GROUP BY
+        - Remove MultiDistinctEmulation.pm, effectively deprecating
+          { select => { distinct => [ qw/col1 col2/ ] } }
+        - Change ->count code to work correctly with DISTINCT (distinct => 1)
+          via GROUP BY
+        - Removed interpolation of bind vars for as_query - placeholders
+          are preserved and nested query bind variables are properly 
+          merged in the correct order
+        - Refactor DBIx::Class::Storage::DBI::Sybase to automatically 
+          load a subclass, namely Microsoft_SQL_Server.pm
+          (similar to DBIx::Class::Storage::DBI::ODBC)
+        - Refactor InflateColumn::DateTime to allow components to
+          circumvent DateTime parsing
+        - Support inflation of timestamp datatype
+        - Support BLOB and CLOB datatypes on Oracle
+        - Storage::DBI::Replicated::Balancer::Random:
+          added master_read_weight
+        - Storage::DBI::Replicated: storage opts from connect_info,
+          connect_info merging to replicants, hashref connect_info support,
+          improved trace output, other bug fixes/cleanups
+        - distinct => 1 with prefetch now groups by all columns
+        - on_connect_do accepts a single string equivalent to a one
+          element arrayref (RT#45159)
+        - DB2 limit + offset now works correctly
+        - Sybase now supports autoinc PKs (RT#40265)
+        - Prefetch on joins over duplicate relations now works
+          correctly (RT#28451)
+        - "timestamp with time zone" columns (for Pg) now get inflated with a
+          time zone information preserved
+        - MSSQL Top limit-emulation improvements (GROUP BY and subquery support)
+        - ResultSetColumn will not lose the joins infered from a parent
+          resultset prefetch
+
+0.08102 2009-04-30 08:29:00 (UTC)
+        - Fixed two subtle bugs when using columns or select/as
+          paired with a join (limited prefetch)
+        - Fixed breakage of cdbi tests (RT#45551)
+        - Some POD improvements
+
+0.08101 2009-04-27 09:45:00 (UTC)
+        - Fix +select, +as, +columns and include_columns being stripped
+          by $rs->get_column
+        - move load_optional_class from DBIx::Class::Componentised to
+          Class::C3::Componentised, bump dependency
+        - register_extra_source() now *really* fixed wrt subclassing
+        - Added missing POD descriptions (RT#45195)
+        - Fix insert() to not store_column() every present object column
+        - Multiple Makefile.PL fixes
+
+0.08100 2009-04-19 11:39:35 (UTC)
+        - Todo out the register_extra_source test until after shipping
+
+0.08099_08 2009-03-30 00:00:00 (UTC)
+        - Fixed taint mode with load_namespaces
+        - Putting IC::DateTime locale, timezone or floating_tz_ok attributes into
+          extra => {} has been deprecated. The new way is to put these things
+          directly into the columns definition
+        - Switched MI code to MRO::Compat
+        - Document db-side default_value caveats
+        - Search_like() now warns to indicate deprecation in 0.09.
+        - TxnScopeGuard left experimental state
+
 0.08099_07 2009-02-27 02:00:00 (UTC)
         - multi-create using find_or_create rather than _related for post-insert
         - fix get_inflated_columns to check has_column_loaded
@@ -9,15 +200,15 @@ Revision history for DBIx::Class
           - not try and insert things tagged on via new_related unless required
         - Possible to set locale in IC::DateTime extra => {} config
         - Calling the accessor of a belongs_to when the foreign_key
-          was NULL and the row was not stored would unexpectedly fail (groditi)
+          was NULL and the row was not stored would unexpectedly fail 
         - Split sql statements for deploy only if SQLT::Producer returned a scalar
           containing all statements to be executed
         - Add as_query() for ResultSet and ResultSetColumn. This makes subqueries
-          possible. See the Cookbook for details. (robkinyon, michaelr)
+          possible. See the Cookbook for details.
         - Massive rewrite of Ordered to properly handle position constraints and
           to make it more matpath-friendly
         - deploy_statements called ddl_filename with the $version and $dir arguments
-          in the wrong order. (groditi)
+          in the wrong order.
         - columns/+columns attributes now support { as => select } hahsrefs
         - support for views both in DBIC and via deploy() in SQLT
 
@@ -37,15 +228,15 @@ Revision history for DBIx::Class
         - new order_by => { -desc => 'colname' } syntax supported
         - PG array datatype supported
         - insert should use store_column, not set_column to avoid marking
-          clean just-stored values as dirty. New test for this (groditi)
-        - regression test for source_name (groditi)
+          clean just-stored values as dirty. New test for this 
+        - regression test for source_name 
 
 0.08099_05 2008-10-30 21:30:00 (UTC)
-        - Rewritte of Storage::DBI::connect_info(), extended with an
+        - Rewrite of Storage::DBI::connect_info(), extended with an
           additional argument format type
         - InflateColumn::DateTime: add warning about floating timezone
         - InflateColumn::DateTime: possible to enforce/skip inflation
-        - delete throws exception if passed arguments to prevent drunken mishaps. (purge)
+        - delete throws exception if passed arguments to prevent drunken mishaps.
         - Fix storage to copy scalar conds before regexping to avoid
           trying to modify a constant in odd edge cases
         - Related resultsets on uninserted objects are now empty

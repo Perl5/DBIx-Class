@@ -20,6 +20,8 @@ __PACKAGE__->load_classes(qw/
   Tag
   Year2000CDs
   Year1999CDs
+  CustomSql
+  Money
   /,
   { 'DBICTest::Schema' => [qw/
     LinerNotes

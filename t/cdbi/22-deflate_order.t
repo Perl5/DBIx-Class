@@ -12,6 +12,7 @@ if ($@) {
 eval { require Time::Piece::MySQL };
 plan skip_all => "Need Time::Piece::MySQL for this test" if $@;
 
+use lib 't/cdbi/testlib';
 eval { require 't/cdbi/testlib/Log.pm' };
 plan skip_all => "Need MySQL for this test" if $@;
 

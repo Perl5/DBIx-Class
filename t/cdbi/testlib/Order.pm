@@ -2,7 +2,7 @@ package # hide from PAUSE
     Order;
 
 use strict;
-use base 'DBIx::Class::Test::SQLite';
+use base 'DBIC::Test::SQLite';
 
 __PACKAGE__->set_table('orders');
 __PACKAGE__->table_alias('orders');

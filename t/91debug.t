@@ -51,22 +51,21 @@ open(STDERR, '>&STDERRCOPY');
 
 # test trace output correctness for bind params
 {
-    my ($sql, @bind) = ('');
-    $schema->storage->debugcb( sub { $sql = $_[1] } );
+    my ($sql, @bind);
+    $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
 
     my @cds = $schema->resultset('CD')->search( { artist => 1, cdid => { -between => [ 1, 3 ] }, } );
     is_same_sql_bind(
-        $sql, [],
-        "SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? ): '1', '1', '3'", [],
+        $sql, \@bind,
+        "SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE ( artist = ? AND (cdid BETWEEN ? AND ?) ): '1', '1', '3'",
+        [qw/'1' '1' '3'/],
         'got correct SQL with all bind parameters (debugcb)'
     );
 
-    $schema->storage->debugcb(undef);
-    $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
     @cds = $schema->resultset('CD')->search( { artist => 1, cdid => { -between => [ 1, 3 ] }, } );
     is_same_sql_bind(
         $sql, \@bind,
-        "SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE ( artist = ? AND cdid BETWEEN ? AND ? )", ["'1'", "'1'", "'3'"],
+        "SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE ( artist = ? AND (cdid BETWEEN ? AND ?) )", ["'1'", "'1'", "'3'"],
         'got correct SQL with all bind parameters (debugobj)'
     );
 }

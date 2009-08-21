@@ -7,7 +7,7 @@ use Sub::Name ();
 
 =head1 NAME
 
-DBIx::Class::CDBICompat::Relationship
+DBIx::Class::CDBICompat::Relationship - Emulate the Class::DBI::Relationship object returned from meta_info()
 
 =head1 DESCRIPTION
 
@@ -25,7 +25,7 @@ my %method2key = (
 
 sub new {
     my($class, $args) = @_;
-    
+
     return bless $args, $class;
 }
 
@@ -34,7 +34,7 @@ for my $method (keys %method2key) {
     my $code = sub {
         $_[0]->{$key};
     };
-    
+
     no strict 'refs';
     *{$method} = Sub::Name::subname $method, $code;
 }

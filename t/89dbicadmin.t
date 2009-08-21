@@ -21,7 +21,6 @@ my $tests_per_run = 5;
 
 plan tests => $tests_per_run * @json_backends;
 
-use JSON::Any;
 for my $js (@json_backends) {
 
     eval {JSON::Any->import ($js) };

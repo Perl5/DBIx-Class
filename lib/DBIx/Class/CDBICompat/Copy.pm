@@ -8,7 +8,7 @@ use Carp;
 
 =head1 NAME
 
-DBIx::Class::CDBICompat::Copy
+DBIx::Class::CDBICompat::Copy - Emulates Class::DBI->copy($new_id)
 
 =head1 SYNOPSIS
 
@@ -25,7 +25,7 @@ Emulates C<<Class::DBI->copy($new_id)>>.
 sub copy {
     my($self, $arg) = @_;
     return $self->next::method($arg) if ref $arg;
-    
+
     my @primary_columns = $self->primary_columns;
     croak("Need hash-ref to edit copied column values")
         if @primary_columns > 1;

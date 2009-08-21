@@ -21,12 +21,11 @@ cmp_ok(@art, '==', 3, "Three artists returned");
 
 # Disconnect the dbh, and be sneaky about it
 # Also test if DBD::SQLite finaly knows how to ->disconnect properly
-TODO: {
-    local $TODO = 'SQLite is evil/braindead. Once this test starts passing, remove the related atrocity from DBIx::Class::Storage::DBI::SQLite';
-    my $w;
-    local $SIG{__WARN__} = sub { $w = shift };
-    $schema->storage->_dbh->disconnect;
-    ok ($w !~ /active statement handles/, 'SQLite can disconnect properly \o/');
+{
+  my $w;
+  local $SIG{__WARN__} = sub { $w = shift };
+  $schema->storage->_dbh->disconnect;
+  ok ($w !~ /active statement handles/, 'SQLite can disconnect properly');
 }
 
 # Try the operation again - What should happen here is:

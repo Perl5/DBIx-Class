@@ -2,6 +2,7 @@ use strict;
 use warnings;  
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use Storable qw(dclone freeze thaw);
@@ -20,10 +21,11 @@ my %stores = (
     },
 );
 
-plan tests => (7 * keys %stores);
+plan tests => (11 * keys %stores);
 
 for my $name (keys %stores) {
     my $store = $stores{$name};
+    my $copy;
 
     my $artist = $schema->resultset('Artist')->find(1);
     
@@ -39,22 +41,35 @@ for my $name (keys %stores) {
         DBICTest::CD->result_source_instance->schema(undef);
     }
 
-    my $copy = eval { $store->($artist) };
+    lives_ok { $copy = $store->($artist) } "serialize row object lives: $name";
     is_deeply($copy, $artist, "serialize row object works: $name");
 
-    # Test that an object with a related_resultset can be serialized.
-    my @cds = $artist->related_resultset("cds");
+    my $cd_rs = $artist->search_related("cds");
 
+    # test that a result source can be serialized as well
+
+    $cd_rs->_resolved_attrs;  # this builds up the {from} attr
+
+    lives_ok {
+      $copy = $store->($cd_rs);
+      is_deeply (
+        [ $copy->all ],
+        [ $cd_rs->all ],
+        "serialize resultset works: $name",
+      );
+    } "serialize resultset lives: $name";
+
+    # Test that an object with a related_resultset can be serialized.
     ok $artist->{related_resultsets}, 'has key: related_resultsets';
 
-    $copy = eval { $store->($artist) };
+    lives_ok { $copy = $store->($artist) } "serialize row object with related_resultset lives: $name";
     for my $key (keys %$artist) {
         next if $key eq 'related_resultsets';
         next if $key eq '_inflated_column';
         is_deeply($copy->{$key}, $artist->{$key},
                   qq[serialize with related_resultset "$key"]);
     }
-  
+
     ok eval { $copy->discard_changes; 1 } or diag $@;
     is($copy->id, $artist->id, "IDs still match ");
 }

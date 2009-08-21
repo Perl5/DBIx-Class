@@ -1,6 +1,7 @@
 use strict;
 
 use Test::More;
+use lib 't/cdbi/testlib';
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
@@ -13,7 +14,7 @@ BEGIN {
 #-----------------------------------------------------------------------
 package State;
 
-use base 'DBIx::Class::Test::SQLite';
+use base 'DBIC::Test::SQLite';
 
 State->table('State');
 State->columns(Essential => qw/Abbreviation Name/);
@@ -39,7 +40,7 @@ sub Snowfall { 1 }
 
 package City;
 
-use base 'DBIx::Class::Test::SQLite';
+use base 'DBIC::Test::SQLite';
 
 City->table('City');
 City->columns(All => qw/Name State Population/);
@@ -56,7 +57,7 @@ City->columns(All => qw/Name State Population/);
 
 #-------------------------------------------------------------------------
 package CD;
-use base 'DBIx::Class::Test::SQLite';
+use base 'DBIC::Test::SQLite';
 
 CD->table('CD');
 CD->columns('All' => qw/artist title length/);
