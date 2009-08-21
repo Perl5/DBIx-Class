@@ -45,8 +45,8 @@ for (1..6) {
 }
 
 # test multiple active cursors
-my $rs1 = $schema->resultset('Artist');
-my $rs2 = $schema->resultset('Artist');
+my $rs1 = $schema->resultset('Artist')->search({}, { order_by => 'artistid' });
+my $rs2 = $schema->resultset('Artist')->search({}, { order_by => 'name' });
 
 while ($rs1->next) {
   ok eval { $rs2->next }, 'multiple active cursors';
