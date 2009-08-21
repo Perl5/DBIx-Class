@@ -9,7 +9,7 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 24;
+plan tests => 23;
 
 my $rs = $schema->resultset('CD')->search({},
     {
@@ -165,34 +165,19 @@ my $sub_rs = $rs->search ({},
   }
 );
 
-is_deeply (
-  $sub_rs->single,
-  {
-    artist => 1,
-    track_position => 2,
-    tracks =>
-      {
-        trackid => 17,
-        title => 'Apiary',
-      },
-  },
-  'columns/select/as fold properly on sub-searches',
-);
-
-TODO: {
-  local $TODO = "Multi-collapsing still doesn't work right - HRI should be getting an arrayref, not an individual hash";
-  is_deeply (
+is_deeply(
     $sub_rs->single,
     {
-      artist => 1,
-      track_position => 2,
-      tracks => [
-        {
-          trackid => 17,
-          title => 'Apiary',
-        },
-      ],
+        artist         => 1,
+        track_position => 2,
+        tracks         => [
+            {
+                trackid => 17,
+                title   => 'Apiary',
+            },
+        ],
     },
     'columns/select/as fold properly on sub-searches',
-  );
-}
+);
+
+

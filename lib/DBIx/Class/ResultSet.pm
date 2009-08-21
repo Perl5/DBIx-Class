@@ -966,139 +966,182 @@ sub _construct_object {
   return @new;
 }
 
-sub _collapse_result {
-  my ($self, $as_proto, $row) = @_;
+# _unflatten_result takes a row hashref which looks like this:
+# $VAR1 = {
+#   'cd.artist.artistid' => '1',
+#   'cd.artist' => '1',
+#   'cd_id' => '1',
+#   'cd.genreid' => undef,
+#   'cd.year' => '1999',
+#   'cd.title' => 'Spoonful of bees',
+#   'cd.single_track' => undef,
+#   'cd.artist.name' => 'Caterwauler McCrae',
+#   'cd.artist.rank' => '13',
+#   'cd.artist.charfield' => undef,
+#   'cd.cdid' => '1'
+# };
 
-  # if the first row that ever came in is totally empty - this means we got
-  # hit by a smooth^Wempty left-joined resultset. Just noop in that case
-  # instead of producing a {}
-  #
-  my $has_def;
-  for (@$row) {
-    if (defined $_) {
-      $has_def++;
-      last;
-    }
-  }
-  return undef unless $has_def;
+# and generates the following structure:
 
-  my @copy = @$row;
+# $VAR1 = [
+#   {
+#     'cd_id' => '1'
+#   },
+#   {
+#     'cd' => [
+#       {
+#         'single_track' => undef,
+#         'cdid' => '1',
+#         'artist' => '1',
+#         'title' => 'Spoonful of bees',
+#         'year' => '1999',
+#         'genreid' => undef
+#       },
+#       {
+#         'artist' => [
+#           {
+#             'artistid' => '1',
+#             'charfield' => undef,
+#             'name' => 'Caterwauler McCrae',
+#             'rank' => '13'
+#           }
+#         ]
+#       }
+#     ]
+#   }
+# ];  
 
-  # 'foo'         => [ undef, 'foo' ]
-  # 'foo.bar'     => [ 'foo', 'bar' ]
-  # 'foo.bar.baz' => [ 'foo.bar', 'baz' ]
+# It returns one row object which consists of an arrayref with two
+# elements. The first contains the plain column data, the second 
+# contains the data of relationships. Those are row arrayrefs, themselves.
 
-  my @construct_as = map { [ (/^(?:(.*)\.)?([^.]+)$/) ] } @$as_proto;
+# it's a recursive function. It needs to request the relationship_info
+# to decide whether to put the data of a relationship in a hashref
+# (i.e. belongs_to) or an arrayref (i.e. has_many).
 
-  my %collapse = %{$self->{_attrs}{collapse}||{}};
+sub _unflatten_result {
+    my ( $self, $row ) = @_;
 
-  my @pri_index;
+    my $columns = {};
+    my $rels    = {};
 
-  # if we're doing collapsing (has_many prefetch) we need to grab records
-  # until the PK changes, so fill @pri_index. if not, we leave it empty so
-  # we know we don't have to bother.
-
-  # the reason for not using the collapse stuff directly is because if you
-  # had for e.g. two artists in a row with no cds, the collapse info for
-  # both would be NULL (undef) so you'd lose the second artist
-
-  # store just the index so we can check the array positions from the row
-  # without having to contruct the full hash
-
-  if (keys %collapse) {
-    my %pri = map { ($_ => 1) } $self->result_source->primary_columns;
-    foreach my $i (0 .. $#construct_as) {
-      next if defined($construct_as[$i][0]); # only self table
-      if (delete $pri{$construct_as[$i][1]}) {
-        push(@pri_index, $i);
-      }
-      last unless keys %pri; # short circuit (Johnny Five Is Alive!)
-    }
-  }
-
-  # no need to do an if, it'll be empty if @pri_index is empty anyway
-
-  my %pri_vals = map { ($_ => $copy[$_]) } @pri_index;
-
-  my @const_rows;
-
-  do { # no need to check anything at the front, we always want the first row
-
-    my %const;
-
-    foreach my $this_as (@construct_as) {
-      $const{$this_as->[0]||''}{$this_as->[1]} = shift(@copy);
-    }
-
-    push(@const_rows, \%const);
-
-  } until ( # no pri_index => no collapse => drop straight out
-      !@pri_index
-    or
-      do { # get another row, stash it, drop out if different PK
-
-        @copy = $self->cursor->next;
-        $self->{stashed_row} = \@copy;
-
-        # last thing in do block, counts as true if anything doesn't match
-
-        # check xor defined first for NULL vs. NOT NULL then if one is
-        # defined the other must be so check string equality
-
-        grep {
-          (defined $pri_vals{$_} ^ defined $copy[$_])
-          || (defined $pri_vals{$_} && ($pri_vals{$_} ne $copy[$_]))
-        } @pri_index;
-      }
-  );
-
-  my $alias = $self->{attrs}{alias};
-  my $info = [];
-
-  my %collapse_pos;
-
-  my @const_keys;
-
-  foreach my $const (@const_rows) {
-    scalar @const_keys or do {
-      @const_keys = sort { length($a) <=> length($b) } keys %$const;
-    };
-    foreach my $key (@const_keys) {
-      if (length $key) {
-        my $target = $info;
-        my @parts = split(/\./, $key);
-        my $cur = '';
-        my $data = $const->{$key};
-        foreach my $p (@parts) {
-          $target = $target->[1]->{$p} ||= [];
-          $cur .= ".${p}";
-          if ($cur eq ".${key}" && (my @ckey = @{$collapse{$cur}||[]})) {
-            # collapsing at this point and on final part
-            my $pos = $collapse_pos{$cur};
-            CK: foreach my $ck (@ckey) {
-              if (!defined $pos->{$ck} || $pos->{$ck} ne $data->{$ck}) {
-                $collapse_pos{$cur} = $data;
-                delete @collapse_pos{ # clear all positioning for sub-entries
-                  grep { m/^\Q${cur}.\E/ } keys %collapse_pos
-                };
-                push(@$target, []);
-                last CK;
-              }
-            }
-          }
-          if (exists $collapse{$cur}) {
-            $target = $target->[-1];
-          }
+    foreach my $column ( sort keys %$row ) {
+        if ( $column =~ /^(.*?)\.(.*)$/ ) {
+            $rels->{$1} ||= {};
+            $rels->{$1}->{$2} = $row->{$column};
         }
-        $target->[0] = $data;
-      } else {
-        $info->[0] = $const->{$key};
-      }
+        else {
+            $columns->{$column} = $row->{$column};
+        }
     }
-  }
 
-  return $info;
+    foreach my $rel ( sort keys %$rels ) {
+        my $rel_info = $self->result_source->relationship_info($rel);
+        $rels->{$rel} =
+          $self->related_resultset($rel)->_unflatten_result( $rels->{$rel} );
+        $rels->{$rel} = [ $rels->{$rel} ]
+          if ( $rel_info->{attrs}->{accessor} eq 'multi' );
+    }
+
+    return keys %$rels ? [ $columns, $rels ] : [$columns];
 }
+
+# two arguments: $as_proto is an arrayref of column names,
+# $row_ref is an arrayref of the data. If none of the row data
+# is defined we return undef (that's copied from the old
+# _collapse_result). Next we decide whether we need to collapse
+# the resultset (i.e. we prefetch something) or not. $collapse
+# indicates that. The do-while loop will run once if we do not need
+# to collapse the result and will run as long as _merge_result returns
+# a true value. It will return undef if the current added row does not
+# match the previous row. A bit of stashing and cursor magic is
+# required so that the cursor is not mixed up.
+
+# "$rows" is a bit misleading. In the end, there should only be one
+# element in this arrayref. 
+
+sub _collapse_result {
+    my ( $self, $as_proto, $row_ref ) = @_;
+    my $has_def;
+    for (@$row_ref) {
+        if ( defined $_ ) {
+            $has_def++;
+            last;
+        }
+    }
+    return undef unless $has_def;
+
+    my $collapse = keys %{ $self->{_attrs}{collapse} || {} };
+    my $rows     = [];
+    my @row      = @$row_ref;
+    do {
+        my $i = 0;
+        my $row = { map { $_ => $row[ $i++ ] } @$as_proto };
+        $row = $self->_unflatten_result($row);
+        unless ( scalar @$rows ) {
+            push( @$rows, $row );
+        }
+        $collapse = undef unless ( $self->_merge_result( $rows, $row ) );
+      } while (
+        $collapse
+        && do { @row = $self->cursor->next; $self->{stashed_row} = \@row if @row; }
+      );
+
+    return $rows->[0];
+
+}
+
+# _merge_result accepts an arrayref of rows objects (again, an arrayref of two elements)
+# and a row object which should be merged into the first object.
+# First we try to find out whether $row is already in $rows. If this is the case
+# we try to merge them by iteration through their relationship data. We call
+# _merge_result again on them, so they get merged.
+
+# If we don't find the $row in $rows, we append it to $rows and return undef.
+# _merge_result returns 1 otherwise (i.e. $row has been found in $rows).
+
+sub _merge_result {
+    my ( $self, $rows, $row ) = @_;
+    my ( $columns, $rels ) = @$row;
+    my $found = undef;
+    foreach my $seen (@$rows) {
+        my $match = 1;
+        foreach my $column ( keys %$columns ) {
+            if (   defined $seen->[0]->{$column} ^ defined $columns->{$column}
+                or defined $columns->{$column}
+                && $seen->[0]->{$column} ne $columns->{$column} )
+            {
+
+                $match = 0;
+                last;
+            }
+        }
+        if ($match) {
+            $found = $seen;
+            last;
+        }
+    }
+    if ($found) {
+        foreach my $rel ( keys %$rels ) {
+            my $old_rows = $found->[1]->{$rel};
+            $self->_merge_result(
+                ref $found->[1]->{$rel}->[0] eq 'HASH' ? [ $found->[1]->{$rel} ]
+                : $found->[1]->{$rel},
+                ref $rels->{$rel}->[0] eq 'HASH' ? [ $rels->{$rel}->[0], $rels->{$rel}->[1] ]
+                : $rels->{$rel}->[0]
+            );
+
+        }
+
+    }
+    else {
+        push( @$rows, $row );
+        return undef;
+    }
+
+    return 1;
+}
+
 
 =head2 result_source
 

@@ -110,8 +110,8 @@ for my $index (0 .. $#hashrefinf) {
     my $datahashref = $hashrefinf[$index];
 
     is ($track->cd->artist->name, $datahashref->{name}, 'Brought back correct artist');
-    for my $col (keys %{$datahashref->{cds}{tracks}}) {
-        is ($track->get_column ($col), $datahashref->{cds}{tracks}{$col}, "Correct track '$col'");
+    for my $col (keys %{$datahashref->{cds}[0]{tracks}[0]}) {
+        is ($track->get_column ($col), $datahashref->{cds}[0]{tracks}[0]{$col}, "Correct track '$col'");
     }
 }
 
