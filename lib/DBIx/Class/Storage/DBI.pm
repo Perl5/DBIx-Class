@@ -1900,9 +1900,6 @@ sub _order_select_columns {
   return @{$_[2]};
 }
 
-
-
-
 sub source_bind_attributes {
   my ($self, $source) = @_;
 
@@ -2075,6 +2072,38 @@ Returns the database driver name.
 =cut
 
 sub sqlt_type { shift->_get_dbh->{Driver}->{Name} }
+
+
+# Check if placeholders are supported at all
+sub _placeholders_supported {
+  my $self = shift;
+  my $dbh  = $self->_get_dbh;
+
+  # some drivers provide a $dbh attribute (e.g. Sybase and $dbh->{syb_dynamic_supported})
+  # but it is inaccurate more often than not
+  eval {
+    local $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
+    $dbh->do('select ?', {}, 1);
+  };
+  return $@ ? 0 : 1;
+}
+
+# Check if placeholders bound to non-string types throw exceptions
+#
+sub _typeless_placeholders_supported {
+  my $self = shift;
+  my $dbh  = $self->_get_dbh;
+
+  eval {
+    local $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
+    # this specifically tests a bind that is NOT a string
+    $dbh->do('select 1 where 1 = ?', {}, 1);
+  };
+  return $@ ? 0 : 1;
+}
+
 
 =head2 bind_attribute_by_data_type
 

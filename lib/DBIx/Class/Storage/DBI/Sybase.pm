@@ -83,8 +83,8 @@ See perldoc DBIx::Class::Storage::DBI::Sybase for more details.
 To turn off this warning set the DBIC_SYBASE_FREETDS_NOWARN environment
 variable.
 EOF
-        if (not $self->placeholders_with_type_conversion_supported) {
-          if ($self->placeholders_supported) {
+        if (not $self->_typeless_placeholders_supported) {
+          if ($self->_placeholders_supported) {
             $self->auto_cast(1);
           } else {
             $self->ensure_class_loaded($no_bind_vars);

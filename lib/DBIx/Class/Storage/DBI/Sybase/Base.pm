@@ -35,47 +35,6 @@ sub _ping {
   return $@ ? 0 : 1;
 }
 
-=head2 placeholders_supported
-
-Whether or not string placeholders work. Does not check for implicit conversion
-errors, see L</placeholders_with_type_conversion_supported>.
-
-=cut
-
-sub placeholders_supported {
-  my $self = shift;
-  my $dbh  = $self->_get_dbh;
-
-  return eval {
-# There's also $dbh->{syb_dynamic_supported} but it can be inaccurate for this
-# purpose.
-    local $dbh->{PrintError} = 0;
-    local $dbh->{RaiseError} = 1;
-    $dbh->selectrow_array('select ?', {}, 1);
-  };
-}
-
-=head2 placeholders_with_type_conversion_supported 
-
-Checks if placeholders bound to non-string types throw implicit type conversion
-errors or not.
-
-See L<DBIx::Class::Storage::DBI::Sybase/connect_call_set_auto_cast>.
-
-=cut
-
-sub placeholders_with_type_conversion_supported {
-  my $self = shift;
-  my $dbh  = $self->_dbh;
-
-  return eval {
-    local $dbh->{PrintError} = 0;
-    local $dbh->{RaiseError} = 1;
-# this specifically tests a bind that is NOT a string
-    $dbh->selectrow_array('select 1 where 1 = ?', {}, 1);
-  };
-}
-
 sub _set_max_connect {
   my $self = shift;
   my $val  = shift || 256;
