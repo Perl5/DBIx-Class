@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use base qw/
-  DBIx::Class::Storage::DBI::Sybase::Base
+  DBIx::Class::Storage::DBI::Sybase::Common
   DBIx::Class::Storage::DBI::MSSQL
 /;
 use mro 'c3';

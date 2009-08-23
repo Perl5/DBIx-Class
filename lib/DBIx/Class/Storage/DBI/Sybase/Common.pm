@@ -1,4 +1,4 @@
-package DBIx::Class::Storage::DBI::Sybase::Base;
+package DBIx::Class::Storage::DBI::Sybase::Common;
 
 use strict;
 use warnings;
@@ -8,7 +8,7 @@ use mro 'c3';
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Sybase::Base - Common functionality for drivers using
+DBIx::Class::Storage::DBI::Sybase::Common - Common functionality for drivers using
 DBD::Sybase
 
 =head1 DESCRIPTION

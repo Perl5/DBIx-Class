@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use base qw/
-    DBIx::Class::Storage::DBI::Sybase::Base
+    DBIx::Class::Storage::DBI::Sybase::Common
 /;
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;

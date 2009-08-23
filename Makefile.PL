@@ -123,7 +123,7 @@ resources 'license'     => 'http://dev.perl.org/licenses/';
 resources 'repository'  => 'http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/';
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
 
-no_index 'DBIx::Class::Storage::DBI::Sybase::Base';
+no_index 'DBIx::Class::Storage::DBI::Sybase::Common';
 no_index 'DBIx::Class::SQLAHacks';
 no_index 'DBIx::Class::SQLAHacks::MSSQL';
 no_index 'DBIx::Class::Storage::DBI::AmbiguousGlob';
