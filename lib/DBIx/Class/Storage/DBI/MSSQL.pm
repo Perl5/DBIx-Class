@@ -55,10 +55,14 @@ sub insert {
   @pk_cols{@pk_cols} = ();
 
   my @pk_guids = grep {
+    $source->column_info($_)->{data_type}
+    &&
     $source->column_info($_)->{data_type} =~ /^uniqueidentifier/i
   } @pk_cols;
 
   my @auto_guids = grep {
+    $source->column_info($_)->{data_type}
+    &&
     $source->column_info($_)->{data_type} =~ /^uniqueidentifier/i
     &&
     $source->column_info($_)->{auto_nextval}
@@ -87,7 +91,9 @@ sub _prep_for_execute {
 
     for my $col (keys %$fields) {
       # $ident is a result source object with INSERT/UPDATE ops
-      if ($ident->column_info ($col)->{data_type} =~ /^money\z/i) {
+      if ($ident->column_info ($col)->{data_type}
+         &&
+         $ident->column_info ($col)->{data_type} =~ /^money\z/i) {
         my $val = $fields->{$col};
         $fields->{$col} = \['CAST(? AS MONEY)', [ $col => $val ]];
       }

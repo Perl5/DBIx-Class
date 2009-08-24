@@ -330,6 +330,8 @@ semifor: Marc Mims <marc@questright.com>
 
 solomon: Jared Johnson <jaredj@nmgi.com>
 
+spb: Stephen Bennett <stephen@freenode.net>
+
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 
 teejay : Aaron Trevena <teejay@cpan.org>

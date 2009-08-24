@@ -1548,9 +1548,9 @@ L<DBIx::Class::Schema/connect>:
  )
 
 In some cases, quoting will be required for all users of a schema. To enforce
-this, you can also overload the C<connect> method for your schema class:
+this, you can also overload the C<connection> method for your schema class:
 
- sub connect {
+ sub connection {
      my $self = shift;
      my $rv = $self->next::method( @_ );
      $rv->storage->sql_maker->quote_char([ qw/[ ]/ ]);
