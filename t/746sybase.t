@@ -150,8 +150,10 @@ SQL
 # placeholders.)
   {
     no warnings 'redefine';
+
     my @debug_out;
-    local *DBIx::Class::Storage::DBI::_query_start = sub {
+    local $schema->storage->{debug} = 1;
+    local $schema->storage->debugobj->{callback} = sub {
       push @debug_out, $_[1];
     };
 
