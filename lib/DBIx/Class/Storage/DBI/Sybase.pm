@@ -11,7 +11,7 @@ use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update auto_cast _insert_txn/
+    qw/_identity _blob_log_on_update auto_cast insert_txn/
 );
 
 =head1 NAME
@@ -31,7 +31,9 @@ will be reblessed to L<DBIx::Class::Storage::DBI::Sybase::NoBindVars>. You can
 also enable that driver explicitly, see the documentation for more details.
 
 With this driver there is unfortunately no way to get the C<last_insert_id>
-without doing a C<SELECT MAX(col)>.
+without doing a C<SELECT MAX(col)>. This is done safely in a transaction
+(locking the table.) The transaction can be turned off if concurrency is not an
+issue, see L<DBIx::Class::Storage::DBI::Sybase/connect_call_unsafe_insert>.
 
 But your queries will be cached.
 
@@ -63,7 +65,7 @@ sub _rebless {
 
 # This is reset to 0 in ::NoBindVars, only necessary because we use max(col) to
 # get the identity.
-      $self->_insert_txn(1);
+      $self->insert_txn(1);
 
       if ($self->using_freetds) {
         carp <<'EOF' unless $ENV{DBIC_SYBASE_FREETDS_NOWARN};
@@ -100,6 +102,9 @@ EOF
         $self->ensure_class_loaded($no_bind_vars);
         bless $self, $no_bind_vars;
         $self->_rebless;
+      } elsif (not $self->_typeless_placeholders_supported) {
+# this is highly unlikely, but we check just in case
+        $self->auto_cast(1);
       }
  
       $self->_set_max_connect(256);
@@ -181,6 +186,32 @@ L<DBIx::Class::Storage::DBI/connect_info> at any time using:
 sub connect_call_set_auto_cast {
   my $self = shift;
   $self->auto_cast(1);
+}
+
+=head2 connect_call_unsafe_insert
+
+With placeholders enabled, inserts are done in a transaction so that there are
+no concurrency issues with getting the inserted identity value using
+C<SELECT MAX(col)> when placeholders are enabled.
+
+When using C<DBIx::Class::Storage::DBI::Sybase::NoBindVars> transactions are
+disabled.
+
+To turn off transactions for inserts (for an application that doesn't need
+concurrency, or a loader, for example) use this setting in
+L<DBIx::Class::Storage::DBI/connect_info>,
+
+  on_connect_call => ['unsafe_insert']
+
+To manipulate this setting at runtime, use:
+
+  $schema->storage->insert_txn(0); # 1 to re-enable
+
+=cut
+
+sub connect_call_unsafe_insert {
+  my $self = shift;
+  $self->insert_txn(0);
 }
 
 sub _is_lob_type {
@@ -308,10 +339,22 @@ sub insert {
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
+  my $need_last_insert_id = 0;
+
+  my ($identity_col) =
+    map $_->[0],
+    grep $_->[1]{is_auto_increment},
+    map [ $_, $source->column_info($_) ],
+    $source->columns;
+
+  $need_last_insert_id = 1
+    if $identity_col && (not exists $to_insert->{$identity_col});
+
 # We have to do the insert in a transaction to avoid race conditions with the
 # SELECT MAX(COL) identity method used when placeholders are enabled.
   my $updated_cols = do {
-    if ($self->_insert_txn && (not $self->{transaction_depth})) {
+    if ($need_last_insert_id && $self->insert_txn &&
+        (not $self->{transaction_depth})) {
       my $args = \@_;
       my $method = $self->next::can;
       $self->txn_do(
