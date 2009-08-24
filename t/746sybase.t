@@ -9,7 +9,7 @@ use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 35 + 2;
+my $TESTS = 37 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -145,6 +145,35 @@ SQL
   });
 
   is( $it->count, 7, 'COUNT of GROUP_BY ok' );
+
+# do an identity insert (which should happen with no txn when using
+# placeholders.)
+  {
+    no warnings 'redefine';
+    my @debug_out;
+    local *DBIx::Class::Storage::DBI::_query_start = sub {
+      push @debug_out, $_[1];
+    };
+
+    my $txn_used = 0;
+    my $txn_commit = \&DBIx::Class::Storage::DBI::txn_commit;
+    local *DBIx::Class::Storage::DBI::txn_commit = sub {
+      $txn_used = 1;
+      goto &$txn_commit;
+    };
+
+    $schema->resultset('Artist')
+      ->create({ artistid => 999, name => 'mtfnpy' });
+
+    ok((grep /IDENTITY_INSERT/i, @debug_out), 'IDENTITY_INSERT');
+
+    SKIP: {
+      skip 'not testing lack of txn on IDENTITY_INSERT with NoBindVars', 1
+        if $storage_type =~ /NoBindVars/i;
+
+      is $txn_used, 0, 'no txn on insert with IDENTITY_INSERT';
+    }
+  }
 
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
