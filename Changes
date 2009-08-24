@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - Fixed a complex prefetch + regular join regression introduced
+          in 0.08108
+
 0.08109 2009-08-18 08:35:00 (UTC)
         - Replication updates:
           - Improved the replication tests so that they are more reliable
