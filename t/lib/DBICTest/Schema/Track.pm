@@ -14,7 +14,7 @@ __PACKAGE__->add_columns(
     data_type => 'integer',
   },
   'position' => {
-    data_type => 'integer',
+    data_type => 'int',
     accessor => 'pos',
   },
   'title' => {
