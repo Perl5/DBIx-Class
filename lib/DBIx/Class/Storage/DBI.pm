@@ -2041,6 +2041,13 @@ Returns the database driver name.
 
 sub sqlt_type { shift->_get_dbh->{Driver}->{Name} }
 
+# By default there is no resolution of DBIC data types to DBI data types
+# In essence this makes e.g. AutoCast a noop
+sub _dbi_data_type {
+  #my ($self, $data_type) = @_;
+  return undef
+};
+
 =head2 bind_attribute_by_data_type
 
 Given a datatype from column info, returns a database specific bind
