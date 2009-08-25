@@ -71,7 +71,7 @@ that this feature is new as of 0.07, so it may not be perfect yet - bug
 reports to the list very much welcome).
 
 If the data_type of a field is C<date>, C<datetime> or C<timestamp> (or
-a derivative of these datatypes, e.g. C<timestamp with timezone>, this
+a derivative of these datatypes, e.g. C<timestamp with timezone>), this
 module will automatically call the appropriate parse/format method for
 deflation/inflation as defined in the storage class. For instance, for
 a C<datetime> field the methods C<parse_datetime> and C<format_datetime>
