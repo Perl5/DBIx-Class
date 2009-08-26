@@ -2084,7 +2084,16 @@ Returns the database driver name.
 
 =cut
 
-sub sqlt_type { shift->_get_dbh->{Driver}->{Name} }
+sub sqlt_type {
+  my ($self) = @_;
+
+  if (not $self->_driver_determined) {
+    $self->_determine_driver;
+    goto $self->can ('sqlt_type');
+  }
+
+  $self->_get_dbh->{Driver}->{Name};
+}
 
 =head2 bind_attribute_by_data_type
 
