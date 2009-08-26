@@ -22,41 +22,48 @@ plan tests => scalar(@modules);
 #             do not need to be documented.
 my $exceptions = {
     'DBIx::Class' => {
-        ignore => [
-            qw/MODIFY_CODE_ATTRIBUTES
-              component_base_class
-              mk_classdata
-              mk_classaccessor/
-        ]
+        ignore => [qw/
+            MODIFY_CODE_ATTRIBUTES
+            component_base_class
+            mk_classdata
+            mk_classaccessor
+        /]
     },
     'DBIx::Class::Row' => {
-        ignore => [
-           qw( MULTICREATE_DEBUG )
-        ],
+        ignore => [qw/
+            MULTICREATE_DEBUG
+        /],
     },
     'DBIx::Class::ResultSource' => {
         ignore => [qw/
-          compare_relationship_keys
-          pk_depends_on
-          resolve_condition
-          resolve_join
-          resolve_prefetch
+            compare_relationship_keys
+            pk_depends_on
+            resolve_condition
+            resolve_join
+            resolve_prefetch
+        /],
+    },
+    'DBIx::Class::ResultSourceHandle' => {
+        ignore => [qw/
+            schema
+            source_moniker
         /],
     },
     'DBIx::Class::Storage' => {
-        ignore => [
-            qw(cursor)
-        ]
+        ignore => [qw/
+            schema
+            cursor
+        /]
     },
     'DBIx::Class::Schema' => {
-        ignore => [
-            qw(setup_connection_class)
-        ]
+        ignore => [qw/
+            setup_connection_class
+        /]
     },
     'DBIx::Class::Storage::DBI::Sybase' => {
-        ignore => [
-            qw/should_quote_data_type/,
-        ]
+        ignore => [qw/
+            should_quote_data_type
+        /]
     },
     'DBIx::Class::CDBICompat::AccessorMapping'          => { skip => 1 },
     'DBIx::Class::CDBICompat::AbstractSearch' => {
@@ -105,6 +112,7 @@ my $exceptions = {
     'DBIx::Class::ResultSetProxy'                       => { skip => 1 },
     'DBIx::Class::ResultSetManager'                     => { skip => 1 },
     'DBIx::Class::ResultSourceProxy'                    => { skip => 1 },
+    'DBIx::Class::Storage::Statistics'                  => { skip => 1 },
     'DBIx::Class::Storage::DBI'                         => { skip => 1 },
     'DBIx::Class::Storage::DBI::Replicated::Types'      => { skip => 1 },
     'DBIx::Class::Storage::DBI::DB2'                    => { skip => 1 },
