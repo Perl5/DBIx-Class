@@ -51,6 +51,7 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
 
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
 
+# make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
 {
   my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
