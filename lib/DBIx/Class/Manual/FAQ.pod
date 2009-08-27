@@ -26,8 +26,7 @@ need to do is to install L<DBD::SQLite> from CPAN, and it's usable).
 
 Next, spend some time defining which data you need to store, and how
 it relates to the other data you have. For some help on normalisation,
-go to L<http://b62.tripod.com/doc/dbbase.htm> or
-L<http://209.197.234.36/db/simple.html>.
+go to L<http://b62.tripod.com/doc/dbbase.htm>.
 
 Now, decide whether you want to have the database itself be the
 definitive source of information about the data layout, or your
