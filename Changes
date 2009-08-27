@@ -2,6 +2,10 @@ Revision history for DBIx::Class
 
         - Fixed a complex prefetch + regular join regression introduced
           in 0.08108
+        - SQLT related fixes:
+          - sqlt_type is now called on the correct storage object
+          - hooks can now see the correct producer_type
+        - POD improvements
 
 0.08109 2009-08-18 08:35:00 (UTC)
         - Replication updates:
