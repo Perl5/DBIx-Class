@@ -2278,6 +2278,19 @@ C<belongs_to>resultset. Note Hashref.
     }
   });
 
+=over
+
+=item WARNING
+
+When subclassing ResultSet never attempt to override this method. Since
+it is a simple shortcut for C<< $self->new_result($attrs)->insert >>, a
+lot of the internals simply never call it, so your override will be
+bypassed more often than not. Override either L<new|DBIx::Class::Row/new>
+or L<insert|DBIx::Class::Row/insert> depending on how early in the
+L</create> process you need to intervene.
+
+=back
+
 =cut
 
 sub create {
