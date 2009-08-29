@@ -20,7 +20,7 @@ use DBIC::SqlMakerTest;
       int => undef, # no conversion
     };
 
-    sub _map_data_type {
+    sub _native_data_type {
       return $type_map->{$_[1]};
     }
 }

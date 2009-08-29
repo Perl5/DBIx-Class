@@ -23,7 +23,7 @@ statements with values bound to columns or conditions that are not strings will
 throw implicit type conversion errors.
 
 As long as a column L<data_type|DBIx::Class::ResultSource/add_columns> is
-defined, and it resolves to a base RDBMS native type via L</_map_data_type> as
+defined, and it resolves to a base RDBMS native type via L</_native_data_type> as
 defined in your Storage driver, the placeholder for this column will be
 converted to:
 
@@ -46,7 +46,7 @@ sub _prep_for_execute {
 
     foreach my $bound (@$bind) {
       my $col = $bound->[0];
-      my $type = $self->_map_data_type($col_info->{$col}{data_type});
+      my $type = $self->_native_data_type($col_info->{$col}{data_type});
 
       foreach my $data (@{$bound}[1..$#$bound]) {
         $new_sql .= shift(@sql_part) .

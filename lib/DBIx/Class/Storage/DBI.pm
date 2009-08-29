@@ -2078,7 +2078,7 @@ sub last_insert_id {
   $self->dbh_do('_dbh_last_insert_id', @_);
 }
 
-=head2 _map_data_type
+=head2 _native_data_type
 
 =over 4
 
@@ -2104,7 +2104,7 @@ C<ENUM(foo,bar,baz)> becomes C<ENUM>.
 
 =cut
 
-sub _map_data_type {
+sub _native_data_type {
   #my ($self, $data_type) = @_;
   return undef
 }
