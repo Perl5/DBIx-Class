@@ -12,7 +12,7 @@ use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update insert_txn _extra_dbh/
+    qw/_identity _blob_log_on_update insert_txn/
 );
 
 =head1 NAME
@@ -100,7 +100,7 @@ EOF
         $self->set_textsize; # based on LongReadLen in connect_info
 
       }
-      elsif (not $self->dbh->{syb_dynamic_supported}) {
+      elsif (not $self->_get_dbh->{syb_dynamic_supported}) {
         # not necessarily FreeTDS, but no placeholders nevertheless
         $self->ensure_class_loaded($no_bind_vars);
         bless $self, $no_bind_vars;
@@ -133,10 +133,6 @@ sub _populate_dbh {
       $self->_dbh->do('SET CHAINED ON');
     }
   }
-
-# for insert transactions
-  $self->_extra_dbh($self->_connect(@{ $self->_dbi_connect_info }));
-  $self->_extra_dbh->{AutoCommit} = 1;
 }
 
 =head2 connect_call_blob_setup
@@ -316,7 +312,6 @@ sub insert {
   my $updated_cols = do {
     if ($need_last_insert_id && $self->insert_txn &&
         (not $self->{transaction_depth})) {
-      local $self->{_dbh} = $self->_extra_dbh;
       my $guard = $self->txn_scope_guard;
       my $upd_cols = $self->next::method (@_);
       $guard->commit;
@@ -408,7 +403,7 @@ sub _update_blobs {
 
 sub _insert_blobs {
   my ($self, $source, $blob_cols, $row) = @_;
-  my $dbh = $self->dbh;
+  my $dbh = $self->_get_dbh;
 
   my $table = $source->from;
 
@@ -524,7 +519,7 @@ sub _dbh_begin_work {
   my $self = shift;
   $self->next::method(@_);
   if ($self->using_freetds) {
-    $self->dbh->do('BEGIN TRAN');
+    $self->_get_dbh->do('BEGIN TRAN');
   }
 }
 
@@ -549,7 +544,7 @@ sub _dbh_rollback {
 sub _svp_begin {
   my ($self, $name) = @_;
 
-  $self->dbh->do("SAVE TRANSACTION $name");
+  $self->_get_dbh->do("SAVE TRANSACTION $name");
 }
 
 # A new SAVE TRANSACTION with the same name releases the previous one.
@@ -558,7 +553,7 @@ sub _svp_release { 1 }
 sub _svp_rollback {
   my ($self, $name) = @_;
 
-  $self->dbh->do("ROLLBACK TRANSACTION $name");
+  $self->_get_dbh->do("ROLLBACK TRANSACTION $name");
 }
 
 1;
@@ -613,14 +608,31 @@ Due to limitations of the TDS protocol, L<DBD::Sybase>, or both; you cannot
 begin a transaction while there are active cursors. An active cursor is, for
 example, a L<ResultSet|DBIx::Class::ResultSet> that has been executed using
 C<next> or C<first> but has not been exhausted or
-L<DBIx::Class::ResultSet/reset>.
-
-To get around this problem, use L<DBIx::Class::ResultSet/all> for smaller
-ResultSets, and/or put the active cursors you will need in the scope of the
-transaction.
+L<reset|DBIx::Class::ResultSet/reset>.
 
 Transactions done for inserts in C<AutoCommit> mode when placeholders are in use
-are not affected, as they are executed on a separate connection.
+are also affected, so this won't work:
+
+  while (my $row = $rs1->next) {
+    $rs2->create({ foo => $row->foo });
+  }
+
+Some workarounds:
+
+=over 4
+
+=item * set C<< $schema->storage->insert_txn(0) >> temporarily (see
+L</connect_call_unsafe_insert>)
+
+=item * use L<DBIx::Class::Storage::DBI::Replicated>
+
+=item * L<connect|DBIx::Class::Schema/connect> another L<Schema|DBIx::Class::Schema>
+
+=item * load the data from your cursor with L<DBIx::Class::ResultSet/all>
+
+=item * enlarge the scope of the transaction
+
+=back
 
 =head1 MAXIMUM CONNECTIONS
 
