@@ -59,7 +59,7 @@ sub _prep_for_execute {
     foreach my $data (@$bound) {
       $data = ''.$data if ref $data;
 
-      $data = $self->transform_unbound_value($datatype, $data)
+      $data = $self->_prep_bind_value($datatype, $data)
         if $datatype;
 
       $data = $self->_dbh->quote($data)
@@ -83,29 +83,33 @@ override this in you Storage::DBI::<database> subclass, if your RDBMS
 does not like quotes around certain datatypes (e.g. Sybase and integer
 columns). The default method always returns true (do quote).
 
- WARNING!!!                     
+ WARNING!!!
 
  Always validate that the bind-value is valid for the current datatype.
  Otherwise you may very well open the door to SQL injection attacks.
 
-=cut                            
+=cut
 
-sub should_quote_value { 1 }
+sub should_quote_value {
+  #my ($self, $datatype, $value) = @_;
+  return 1;
+}
 
-=head2 transform_unbound_value
+=head2 _prep_bind_value
 
 Given a datatype and the value to be inserted directly into a SQL query, returns
-the necessary SQL fragment to represent that value.
+the necessary string to represent that value (by e.g. adding a '$' sign)
 
 =cut
 
-sub transform_unbound_value { $_[2] }
+sub _prep_bind_value {
+  #my ($self, $datatype, $value) = @_;
+  return $_[2];
+}
 
 =head1 AUTHORS
 
-Brandon Black <blblack@gmail.com>
-
-Trym Skaar <trym@tryms.no>
+See L<DBIx::Class/CONTRIBUTORS>
 
 =head1 LICENSE
 

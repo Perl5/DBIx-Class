@@ -98,8 +98,9 @@ EOF
 
         $self->set_textsize; # based on LongReadLen in connect_info
 
-      } elsif (not $self->dbh->{syb_dynamic_supported}) {
-# not necessarily FreeTDS, but no placeholders nevertheless
+      }
+      elsif (not $self->dbh->{syb_dynamic_supported}) {
+        # not necessarily FreeTDS, but no placeholders nevertheless
         $self->ensure_class_loaded($no_bind_vars);
         bless $self, $no_bind_vars;
         $self->_rebless;
@@ -107,7 +108,7 @@ EOF
 # this is highly unlikely, but we check just in case
         $self->auto_cast(1);
       }
- 
+
       $self->_set_max_connect(256);
     }
   }
@@ -194,7 +195,6 @@ sub _is_lob_type {
   $type && $type =~ /(?:text|image|lob|bytea|binary|memo)/i;
 }
 
-# The select-piggybacking-on-insert trick stolen from mssql
 sub _prep_for_execute {
   my $self = shift;
   my ($op, $extra_bind, $ident, $args) = @_;
@@ -207,18 +207,23 @@ sub _prep_for_execute {
     my $bind_info = $self->_resolve_column_info(
       $ident, [map $_->[0], @{$bind}]
     );
-    my $identity_col =
-List::Util::first { $bind_info->{$_}{is_auto_increment} } (keys %$bind_info);
+    my $identity_col = List::Util::first
+      { $bind_info->{$_}{is_auto_increment} }
+      (keys %$bind_info)
+    ;
 
     if ($identity_col) {
-      $sql =
-"SET IDENTITY_INSERT $table ON\n" .
-"$sql\n" .
-"SET IDENTITY_INSERT $table OFF"
-    } else {
-      $identity_col = List::Util::first {
-        $ident->column_info($_)->{is_auto_increment}
-      } $ident->columns;
+      $sql = join ("\n",
+        "SET IDENTITY_INSERT $table ON",
+        $sql,
+        "SET IDENTITY_INSERT $table OFF",
+      );
+    }
+    else {
+      $identity_col = List::Util::first
+        { $ident->column_info($_)->{is_auto_increment} }
+        $ident->columns
+      ;
     }
 
     if ($identity_col) {
@@ -231,9 +236,10 @@ List::Util::first { $bind_info->{$_}{is_auto_increment} } (keys %$bind_info);
   return ($sql, $bind);
 }
 
-# Stolen from SQLT, with some modifications. This will likely change when the
-# SQLT Sybase stuff is redone/fixed-up.
-my %TYPE_MAPPING  = (
+# Stolen from SQLT, with some modifications. This is a makeshift
+# solution before a sane type-mapping library is available, thus
+# the 'our' for easy overrides.
+our %TYPE_MAPPING  = (
     number    => 'numeric',
     money     => 'money',
     varchar   => 'varchar',
@@ -284,8 +290,8 @@ sub last_insert_id { shift->_identity }
 
 # override to handle TEXT/IMAGE and to do a transaction if necessary
 sub insert {
-  my ($self, $source, $to_insert) = splice @_, 0, 3;
-  my $dbh = $self->_dbh;
+  my $self = shift;
+  my ($ident, $source, $to_insert) = @_;
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
@@ -300,18 +306,18 @@ sub insert {
   $need_last_insert_id = 1
     if $identity_col && (not exists $to_insert->{$identity_col});
 
-# We have to do the insert in a transaction to avoid race conditions with the
-# SELECT MAX(COL) identity method used when placeholders are enabled.
+  # We have to do the insert in a transaction to avoid race conditions with the
+  # SELECT MAX(COL) identity method used when placeholders are enabled.
   my $updated_cols = do {
     if ($need_last_insert_id && $self->insert_txn &&
         (not $self->{transaction_depth})) {
-      my $args = \@_;
-      my $method = $self->next::can;
-      $self->txn_do(
-        sub { $self->$method($source, $to_insert, @$args) }
-      );
-    } else {
-      $self->next::method($source, $to_insert, @_);
+      my $guard = $self->txn_scope_guard;
+      my $upd_cols = $self->next::method (@_);
+      $guard->commit;
+      return $upd_cols;
+    }
+    else {
+      $self->next::method(@_);
     }
   };
 
@@ -321,20 +327,25 @@ sub insert {
 }
 
 sub update {
-  my ($self, $source)  = splice @_, 0, 2;
-  my ($fields, $where) = @_;
-  my $wantarray        = wantarray;
+  my $self = shift;
+  my ($source, $fields, $ident_cond) = @_;
+
+  my $wantarray = wantarray;
 
   my $blob_cols = $self->_remove_blob_cols($source, $fields);
 
   my @res;
   if ($wantarray) {
-    @res    = $self->next::method($source, @_);
-  } else {
-    $res[0] = $self->next::method($source, @_);
+    @res    = $self->next::method(@_);
+  }
+  elsif (defined $wantarray) {
+    $res[0] = $self->next::method(@_);
+  }
+  else {
+    $self->next::method(@_);
   }
 
-  $self->_update_blobs($source, $blob_cols, $where) if %$blob_cols;
+  $self->_update_blobs($source, $blob_cols, $ident_cond) if %$blob_cols;
 
   return $wantarray ? @res : $res[0];
 }
@@ -355,7 +366,7 @@ sub _remove_blob_cols {
 }
 
 sub _update_blobs {
-  my ($self, $source, $blob_cols, $where) = @_;
+  my ($self, $source, $blob_cols, $ident_cond) = @_;
 
   my (@primary_cols) = $source->primary_columns;
 
@@ -365,17 +376,17 @@ sub _update_blobs {
 # check if we're updating a single row by PK
   my $pk_cols_in_where = 0;
   for my $col (@primary_cols) {
-    $pk_cols_in_where++ if defined $where->{$col};
+    $pk_cols_in_where++ if defined $ident_cond->{$col};
   }
   my @rows;
 
   if ($pk_cols_in_where == @primary_cols) {
     my %row_to_update;
-    @row_to_update{@primary_cols} = @{$where}{@primary_cols};
+    @row_to_update{@primary_cols} = @{$ident_cond}{@primary_cols};
     @rows = \%row_to_update;
   } else {
     my $rs = $source->resultset->search(
-      $where,
+      $ident_cond,
       {
         result_class => 'DBIx::Class::ResultClass::HashRefInflator',
         select => \@primary_cols
@@ -443,9 +454,10 @@ sub _insert_blobs {
     $sth->finish if $sth;
     if ($exception) {
       if ($self->using_freetds) {
-        croak
-"TEXT/IMAGE operation failed, probably because you're using FreeTDS: " .
-$exception;
+        croak (
+          'TEXT/IMAGE operation failed, probably because you are using FreeTDS: '
+          . $exception
+        );
       } else {
         croak $exception;
       }
@@ -480,7 +492,7 @@ C<SMALLDATETIME> columns only have minute precision.
     my $dbh = $self->_dbh;
 
     if ($dbh->can('syb_date_fmt')) {
-# amazingly, this works with FreeTDS
+      # amazingly, this works with FreeTDS
       $dbh->syb_date_fmt('ISO_strict');
     } elsif (not $old_dbd_warned) {
       carp "Your DBD::Sybase is too old to support ".

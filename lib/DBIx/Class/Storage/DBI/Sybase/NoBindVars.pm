@@ -52,12 +52,12 @@ sub should_quote_value {
   return $self->next::method(@_);
 }
 
-sub transform_unbound_value {
+sub _prep_bind_value {
   my ($self, $type, $value) = @_;
 
   if ($type =~ /money/i && defined $value) {
-    $value =~ s/^\$//;
-    $value = '$' . $value;
+    # change a ^ not followed by \$ to a \$
+    $value =~ s/^ (?! \$) /\$/x;
   }
 
   return $value;
