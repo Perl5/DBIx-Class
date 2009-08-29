@@ -602,7 +602,7 @@ allow you to dump a schema from most (if not all) versions of Sybase.
 
 It is available via subversion from:
 
-  http://dev.catalyst.perl.org/repos/bast/branches/DBIx-Class-Schema-Loader/mssql_tweaks
+  http://dev.catalyst.perl.org/repos/bast/branches/DBIx-Class-Schema-Loader/current
 
 =head1 FreeTDS
 
