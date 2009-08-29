@@ -1597,178 +1597,223 @@ sub _select_args {
 sub _adjust_select_args_for_complex_prefetch {
   my ($self, $from, $select, $where, $attrs) = @_;
 
+  $self->throw_exception ('Nothing to prefetch... how did we get here?!')
+    if not @{$attrs->{_prefetch_select}};
+
   $self->throw_exception ('Complex prefetches are not supported on resultsets with a custom from attribute')
-    if (ref $from ne 'ARRAY');
+    if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY');
 
-  # copies for mangling
-  $from = [ @$from ];
-  $select = [ @$select ];
-  $attrs = { %$attrs };
 
-  # separate attributes
-  my $sub_attrs = { %$attrs };
-  delete $attrs->{$_} for qw/where bind rows offset group_by having/;
-  delete $sub_attrs->{$_} for qw/for collapse _prefetch_select _collapse_order_by select as/;
+  # generate inner/outer attribute lists, remove stuff that doesn't apply
+  my $outer_attrs = { %$attrs };
+  delete $outer_attrs->{$_} for qw/where bind rows offset group_by having/;
 
-  my $select_root_alias = $attrs->{alias};
-  my $sql_maker = $self->sql_maker;
+  my $inner_attrs = { %$attrs };
+  delete $inner_attrs->{$_} for qw/for collapse _prefetch_select _collapse_order_by select as/;
 
-  # create subquery select list - consider only stuff *not* brought in by the prefetch
-  my $sub_select = [];
-  my $sub_group_by;
-  for my $i (0 .. @{$attrs->{select}} - @{$attrs->{_prefetch_select}} - 1) {
-    my $sel = $attrs->{select}[$i];
-
-    # alias any functions to the dbic-side 'as' label
-    # adjust the outer select accordingly
-    if (ref $sel eq 'HASH' ) {
-      $sel->{-as} ||= $attrs->{as}[$i];
-      $select->[$i] = join ('.', $attrs->{alias}, ($sel->{-as} || "select_$i") );
-    }
-
-    push @$sub_select, $sel;
-  }
 
   # bring over all non-collapse-induced order_by into the inner query (if any)
   # the outer one will have to keep them all
-  delete $sub_attrs->{order_by};
-  if (my $ord_cnt = @{$attrs->{order_by}} - @{$attrs->{_collapse_order_by}} ) {
-    $sub_attrs->{order_by} = [
-      @{$attrs->{order_by}}[ 0 .. $ord_cnt - 1]
+  delete $inner_attrs->{order_by};
+  if (my $ord_cnt = @{$outer_attrs->{order_by}} - @{$outer_attrs->{_collapse_order_by}} ) {
+    $inner_attrs->{order_by} = [
+      @{$outer_attrs->{order_by}}[ 0 .. $ord_cnt - 1]
     ];
   }
 
-  # mangle {from}, keep in mind that $from is "headless" from here on
-  my $join_root = shift @$from;
 
-  my %inner_joins;
-  my %join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
+  # generate the inner/outer select lists
+  # for inside we consider only stuff *not* brought in by the prefetch
+  # on the outside we substitute any function for its alias
+  my $outer_select = [ @$select ];
+  my $inner_select = [];
+  for my $i (0 .. ( @$outer_select - @{$outer_attrs->{_prefetch_select}} - 1) ) {
+    my $sel = $outer_select->[$i];
 
-  # in complex search_related chains $select_root_alias may *not* be
-  # 'me' so always include it in the inner join
-  $inner_joins{$select_root_alias} = 1 if ($join_root->{-alias} ne $select_root_alias);
+    if (ref $sel eq 'HASH' ) {
+      $sel->{-as} ||= $attrs->{as}[$i];
+      $outer_select->[$i] = join ('.', $attrs->{alias}, ($sel->{-as} || "inner_column_$i") );
+    }
+
+    push @$inner_select, $sel;
+  }
+
+  # normalize a copy of $from, so it will be easier to work with further
+  # down (i.e. promote the initial hashref to an AoH)
+  $from = [ @$from ];
+  $from->[0] = [ $from->[0] ];
+  my %original_join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
 
 
-  # decide which parts of the join will remain on the inside
-  #
-  # this is not a very viable optimisation, but it was written
-  # before I realised this, so might as well remain. We can throw
-  # away _any_ branches of the join tree that are:
-  # 1) not mentioned in the condition/order
-  # 2) left-join leaves (or left-join leaf chains)
-  # Most of the join conditions will not satisfy this, but for real
-  # complex queries some might, and we might make some RDBMS happy.
-  #
-  #
-  # since we do not have introspectable SQLA, we fall back to ugly
-  # scanning of raw SQL for WHERE, and for pieces of ORDER BY
-  # in order to determine what goes into %inner_joins
+  # decide which parts of the join will remain in either part of
+  # the outer/inner query
+
+  # First we compose a list of which aliases are used in restrictions
+  # (i.e. conditions/order/grouping/etc). Since we do not have
+  # introspectable SQLA, we fall back to ugly scanning of raw SQL for
+  # WHERE, and for pieces of ORDER BY in order to determine which aliases
+  # need to appear in the resulting sql.
   # It may not be very efficient, but it's a reasonable stop-gap
+  # Also unqualified column names will not be considered, but more often
+  # than not this is actually ok
+  #
+  # In the same loop we enumerate part of the selection aliases, as
+  # it requires the same sqla hack for the time being
+  my ($restrict_aliases, $select_aliases, $prefetch_aliases);
   {
     # produce stuff unquoted, so it can be scanned
+    my $sql_maker = $self->sql_maker;
     local $sql_maker->{quote_char};
     my $sep = $self->_sql_maker_opts->{name_sep} || '.';
     $sep = "\Q$sep\E";
 
-    my @order_by = (map
+    my $non_prefetch_select_sql = $sql_maker->_recurse_fields ($inner_select);
+    my $prefetch_select_sql = $sql_maker->_recurse_fields ($outer_attrs->{_prefetch_select});
+    my $where_sql = $sql_maker->where ($where);
+    my $group_by_sql = $sql_maker->_order_by({
+      map { $_ => $inner_attrs->{$_} } qw/group_by having/
+    });
+    my @non_prefetch_order_by_chunks = (map
       { ref $_ ? $_->[0] : $_ }
-      $sql_maker->_order_by_chunks ($sub_attrs->{order_by})
+      $sql_maker->_order_by_chunks ($inner_attrs->{order_by})
     );
 
-    my $where_sql = $sql_maker->where ($where);
-    my $select_sql = $sql_maker->_recurse_fields ($sub_select);
 
-    # sort needed joins
-    for my $alias (keys %join_info) {
+    for my $alias (keys %original_join_info) {
+      my $seen_re = qr/\b $alias $sep/x;
 
-      # any table alias found on a column name in where or order_by
-      # gets included in %inner_joins
-      # Also any parent joins that are needed to reach this particular alias
-      for my $piece ($select_sql, $where_sql, @order_by ) {
-        if ($piece =~ /\b $alias $sep/x) {
-          $inner_joins{$alias} = 1;
+      for my $piece ($where_sql, $group_by_sql, @non_prefetch_order_by_chunks ) {
+        if ($piece =~ $seen_re) {
+          $restrict_aliases->{$alias} = 1;
         }
       }
+
+      if ($non_prefetch_select_sql =~ $seen_re) {
+          $select_aliases->{$alias} = 1;
+      }
+
+      if ($prefetch_select_sql =~ $seen_re) {
+          $prefetch_aliases->{$alias} = 1;
+      }
+
     }
   }
 
-  # scan for non-leaf/non-left joins and mark as needed
-  # also mark all ancestor joins that are needed to reach this particular alias
-  # (e.g.  join => { cds => 'tracks' } - tracks will bring cds too )
-  #
-  # traverse by the size of the -join_path i.e. reverse depth first
-  for my $alias (sort { @{$join_info{$b}{-join_path}} <=> @{$join_info{$a}{-join_path}} } (keys %join_info) ) {
+  # Add any non-left joins to the restriction list (such joins are indeed restrictions)
+  for my $j (values %original_join_info) {
+    my $alias = $j->{-alias} or next;
+    $restrict_aliases->{$alias} = 1 if (
+      (not $j->{-join_type})
+        or
+      ($j->{-join_type} !~ /^left (?: \s+ outer)? $/xi)
+    );
+  }
 
-    my $j = $join_info{$alias};
-    $inner_joins{$alias} = 1 if (! $j->{-join_type} || ($j->{-join_type} !~ /^left$/i) );
-
-    if ($inner_joins{$alias}) {
-      $inner_joins{$_} = 1 for (@{$j->{-join_path}});
+  # mark all join parents as mentioned
+  # (e.g.  join => { cds => 'tracks' } - tracks will need to bring cds too )
+  for my $collection ($restrict_aliases, $select_aliases) {
+    for my $alias (keys %$collection) {
+      $collection->{$_} = 1
+        for (@{ $original_join_info{$alias}{-join_path} || [] });
     }
   }
 
   # construct the inner $from for the subquery
-  my $inner_from = [ $join_root ];
+  my %inner_joins = (map { %{$_ || {}} } ($restrict_aliases, $select_aliases) );
+  my @inner_from;
   for my $j (@$from) {
-    push @$inner_from, $j if $inner_joins{$j->[0]{-alias}};
+    push @inner_from, $j if $inner_joins{$j->[0]{-alias}};
   }
 
   # if a multi-type join was needed in the subquery ("multi" is indicated by
   # presence in {collapse}) - add a group_by to simulate the collapse in the subq
-  unless ($sub_attrs->{group_by}) {
+  unless ($inner_attrs->{group_by}) {
     for my $alias (keys %inner_joins) {
 
       # the dot comes from some weirdness in collapse
       # remove after the rewrite
       if ($attrs->{collapse}{".$alias"}) {
-        $sub_attrs->{group_by} ||= $sub_select;
+        $inner_attrs->{group_by} ||= $inner_select;
         last;
       }
     }
   }
 
+  # demote the inner_from head
+  $inner_from[0] = $inner_from[0][0];
+
   # generate the subquery
   my $subq = $self->_select_args_to_query (
-    $inner_from,
-    $sub_select,
+    \@inner_from,
+    $inner_select,
     $where,
-    $sub_attrs
+    $inner_attrs,
   );
+
   my $subq_joinspec = {
-    -alias => $select_root_alias,
-    -source_handle => $join_root->{-source_handle},
-    $select_root_alias => $subq,
+    -alias => $attrs->{alias},
+    -source_handle => $inner_from[0]{-source_handle},
+    $attrs->{alias} => $subq,
   };
 
-  # Generate a new from (really just replace the join slot with the subquery)
-  # Before we would start the outer chain from the subquery itself (i.e.
-  # SELECT ... FROM (SELECT ... ) alias JOIN ..., but this turned out to be
-  # a bad idea for search_related, as the root of the chain was effectively
-  # lost (i.e. $artist_rs->search_related ('cds'... ) would result in alias
-  # of 'cds', which would prevent from doing things like order_by artist.*)
-  # See t/prefetch/via_search_related.t for a better idea
-  my @outer_from;
-  if ($join_root->{-alias} eq $select_root_alias) { # just swap the root part and we're done
-    @outer_from = (
-      $subq_joinspec,
-      @$from,
-    )
-  }
-  else {  # this is trickier
-    @outer_from = ($join_root);
+  # Generate the outer from - this is relatively easy (really just replace
+  # the join slot with the subquery), with a major caveat - we can not
+  # join anything that is non-selecting (not part of the prefetch), but at
+  # the same time is a multi-type relationship, as it will explode the result.
+  #
+  # There are two possibilities here
+  # - either the join is non-restricting, in which case we simply throw it away
+  # - it is part of the restrictions, in which case we need to collapse the outer
+  #   result by tackling yet another group_by to the outside of the query
 
-    for my $j (@$from) {
-      if ($j->[0]{-alias} eq $select_root_alias) {
-        push @outer_from, [
-          $subq_joinspec,
-          @{$j}[1 .. $#$j],
-        ];
-      }
-      else {
-        push @outer_from, $j;
-      }
+  # so first generate the outer_from, up to the substitution point
+  my @outer_from;
+  while (my $j = shift @$from) {
+    if ($j->[0]{-alias} eq $attrs->{alias}) { # time to swap
+      push @outer_from, [
+        $subq_joinspec,
+        @{$j}[1 .. $#$j],
+      ];
+      last; # we'll take care of what's left in $from below
+    }
+    else {
+      push @outer_from, $j;
     }
   }
+
+  # see what's left - throw away if not selecting/restricting
+  # also throw in a group_by if restricting to guard against
+  # cross-join explosions
+  #
+  while (my $j = shift @$from) {
+    my $alias = $j->[0]{-alias};
+
+    if ($select_aliases->{$alias} || $prefetch_aliases->{$alias}) {
+      push @outer_from, $j;
+    }
+    elsif ($restrict_aliases->{$alias}) {
+      push @outer_from, $j;
+
+      # FIXME - this should be obviated by SQLA2, as I'll be able to 
+      # have restrict_inner and restrict_outer... or something to that
+      # effect... I think...
+
+      # FIXME2 - I can't find a clean way to determine if a particular join
+      # is a multi - instead I am just treating everything as a potential
+      # explosive join (ribasushi)
+      #
+      # if (my $handle = $j->[0]{-source_handle}) {
+      #   my $rsrc = $handle->resolve;
+      #   ... need to bail out of the following if this is not a multi,
+      #       as it will be much easier on the db ...
+
+          $outer_attrs->{group_by} ||= $outer_select;
+      # }
+    }
+  }
+
+  # demote the outer_from head
+  $outer_from[0] = $outer_from[0][0];
 
   # This is totally horrific - the $where ends up in both the inner and outer query
   # Unfortunately not much can be done until SQLA2 introspection arrives, and even
@@ -1777,7 +1822,7 @@ sub _adjust_select_args_for_complex_prefetch {
   # the outer select to exclude joins you didin't want in the first place
   #
   # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
-  return (\@outer_from, $select, $where, $attrs);
+  return (\@outer_from, $outer_select, $where, $outer_attrs);
 }
 
 sub _resolve_ident_sources {
@@ -2065,14 +2110,36 @@ sub last_insert_id {
   $self->dbh_do('_dbh_last_insert_id', @_);
 }
 
-=head2 sqlt_type
+=head2 _native_data_type
 
-Returns the database driver name.
+=over 4
+
+=item Arguments: $type_name
+
+=back
+
+This API is B<EXPERIMENTAL>, will almost definitely change in the future, and
+currently only used by L<::AutoCast|DBIx::Class::Storage::DBI::AutoCast> and
+L<::Sybase|DBIx::Class::Storage::DBI::Sybase>.
+
+The default implementation returns C<undef>, implement in your Storage driver if
+you need this functionality.
+
+Should map types from other databases to the native RDBMS type, for example
+C<VARCHAR2> to C<VARCHAR>.
+
+Types with modifiers should map to the underlying data type. For example,
+C<INTEGER AUTO_INCREMENT> should become C<INTEGER>.
+
+Composite types should map to the container type, for example
+C<ENUM(foo,bar,baz)> becomes C<ENUM>.
 
 =cut
 
-sub sqlt_type { shift->_get_dbh->{Driver}->{Name} }
-
+sub _native_data_type {
+  #my ($self, $data_type) = @_;
+  return undef
+}
 
 # Check if placeholders are supported at all
 sub _placeholders_supported {
@@ -2104,6 +2171,22 @@ sub _typeless_placeholders_supported {
   return $@ ? 0 : 1;
 }
 
+=head2 sqlt_type
+
+Returns the database driver name.
+
+=cut
+
+sub sqlt_type {
+  my ($self) = @_;
+
+  if (not $self->_driver_determined) {
+    $self->_determine_driver;
+    goto $self->can ('sqlt_type');
+  }
+
+  $self->_get_dbh->{Driver}->{Name};
+}
 
 =head2 bind_attribute_by_data_type
 
