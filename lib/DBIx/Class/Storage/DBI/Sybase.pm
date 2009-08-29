@@ -5,13 +5,14 @@ use warnings;
 
 use base qw/
     DBIx::Class::Storage::DBI::Sybase::Common
+    DBIx::Class::Storage::DBI::AutoCast
 /;
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update auto_cast insert_txn/
+    qw/_identity _blob_log_on_update insert_txn/
 );
 
 =head1 NAME
@@ -161,33 +162,6 @@ sub connect_call_blob_setup {
     if exists $args{log_on_update};
 }
 
-=head2 connect_call_set_auto_cast
-
-In some configurations (usually with L</FreeTDS>) statements with values bound
-to columns or conditions that are not strings will throw implicit type
-conversion errors. For L</FreeTDS> this is automatically detected, and this
-option is set.
-
-It converts placeholders to:
-
-  CAST(? as $type)
-
-the type is taken from the L<DBIx::Class::ResultSource/data_type> setting from
-your Result class, and mapped to a Sybase type using a mapping based on
-L<SQL::Translator> if necessary.
-
-This setting can also be set outside of
-L<DBIx::Class::Storage::DBI/connect_info> at any time using:
-
-  $schema->storage->auto_cast(1);
-
-=cut
-
-sub connect_call_set_auto_cast {
-  my $self = shift;
-  $self->auto_cast(1);
-}
-
 =head2 connect_call_unsafe_insert
 
 With placeholders enabled, inserts are done in a transaction so that there are
@@ -220,36 +194,12 @@ sub _is_lob_type {
   $type && $type =~ /(?:text|image|lob|bytea|binary|memo)/i;
 }
 
-# The select-piggybacking-on-insert trick stolen from odbc/mssql
+# The select-piggybacking-on-insert trick stolen from mssql
 sub _prep_for_execute {
   my $self = shift;
   my ($op, $extra_bind, $ident, $args) = @_;
 
   my ($sql, $bind) = $self->next::method (@_);
-
-# Some combinations of FreeTDS and Sybase throw implicit conversion errors for
-# all placeeholders, so we convert them into CASTs here.
-# Based on code in ::DBI::NoBindVars .
-#
-# If we're using ::NoBindVars, there are no binds by this point so this code
-# gets skippeed.
-  if ($self->auto_cast && @$bind) {
-    my $new_sql;
-    my @sql_part = split /\?/, $sql;
-    my $col_info = $self->_resolve_column_info($ident,[ map $_->[0], @$bind ]);
-
-    foreach my $bound (@$bind) {
-      my $col = $bound->[0];
-      my $syb_type = $self->_syb_base_type($col_info->{$col}{data_type});
-
-      foreach my $data (@{$bound}[1..$#$bound]) {
-        $new_sql .= shift(@sql_part) .
-          ($syb_type ? "CAST(? AS $syb_type)" : '?');
-      }
-    }
-    $new_sql .= join '', @sql_part;
-    $sql = $new_sql;
-  }
 
   if ($op eq 'insert') {
     my $table = $ident->from;
@@ -301,7 +251,7 @@ my %TYPE_MAPPING  = (
     long      => 'varchar',
 );
 
-sub _syb_base_type {
+sub _native_data_type {
   my ($self, $type) = @_;
 
   $type = lc $type;
@@ -602,7 +552,7 @@ allow you to dump a schema from most (if not all) versions of Sybase.
 
 It is available via subversion from:
 
-  http://dev.catalyst.perl.org/repos/bast/branches/DBIx-Class-Schema-Loader/current
+  http://dev.catalyst.perl.org/repos/bast/branches/DBIx-Class-Schema-Loader/current/
 
 =head1 FreeTDS
 
@@ -625,11 +575,14 @@ Some versions of the libraries involved will not support placeholders, in which
 case the storage will be reblessed to
 L<DBIx::Class::Storage::DBI::Sybase::NoBindVars>.
 
-In some configurations, placeholders will work but will throw implicit
+In some configurations, placeholders will work but will throw implicit type
 conversion errors for anything that's not expecting a string. In such a case,
-the C<auto_cast> option is automatically set, which you may enable yourself with
-L</connect_call_set_auto_cast> (see the description of that method for more
-details.)
+the C<auto_cast> option from L<DBIx::Class::Storage::DBI::AutoCast> is
+automatically set, which you may enable on connection with
+L<DBIx::Class::Storage::DBI::AutoCast/connect_call_set_auto_cast>. The type info
+for the C<CAST>s is taken from the L<DBIx::Class::ResultSource/data_type>
+definitions in your Result classes, and are mapped to a Sybase type (if it isn't
+already) using a mapping based on L<SQL::Translator>.
 
 In other configurations, placeholers will work just as they do with the Sybase
 Open Client libraries.
