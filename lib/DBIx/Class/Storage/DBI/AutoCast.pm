@@ -18,16 +18,16 @@ DBIx::Class::Storage::DBI::AutoCast
 
 =head1 DESCRIPTION
 
-Some combinations of RDBMS and DBD drivers (e.g. FreeTDS and Sybase)
-statements with values bound to columns or conditions that are not strings
-will throw implicit type conversion errors.
+In some combinations of RDBMS and DBD drivers (e.g. FreeTDS and Sybase)
+statements with values bound to columns or conditions that are not strings will
+throw implicit type conversion errors.
 
 As long as a column L<data_type|DBIx::Class::ResultSource/add_columns> is
-defined, and it resolves to a L<DBI> C<$dbi_type> via C<_dbi_data_type()>
-as defined in your Storage driver, the placeholder for this column will
-be converted to:
+defined, and it resolves to a base RDBMS native type via L</_map_data_type> as
+defined in your Storage driver, the placeholder for this column will be
+converted to:
 
-  CAST(? as $dbi_type)
+  CAST(? as $mapped_type)
 
 =cut
 
@@ -46,11 +46,11 @@ sub _prep_for_execute {
 
     foreach my $bound (@$bind) {
       my $col = $bound->[0];
-      my $dbi_type = $self->_dbi_data_type($col_info->{$col}{data_type});
+      my $type = $self->_map_data_type($col_info->{$col}{data_type});
 
       foreach my $data (@{$bound}[1..$#$bound]) {   # <--- this will multiply the amount of ?'s no...?
         $new_sql .= shift(@sql_part) .
-          ($dbi_type ? "CAST(? AS $dbi_type)" : '?');
+          ($type ? "CAST(? AS $type)" : '?');
       }
     }
     $new_sql .= join '', @sql_part;
