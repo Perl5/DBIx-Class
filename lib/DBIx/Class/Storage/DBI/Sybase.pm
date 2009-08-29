@@ -12,7 +12,7 @@ use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update insert_txn/
+    qw/_identity _blob_log_on_update insert_txn _extra_dbh/
 );
 
 =head1 NAME
@@ -34,7 +34,8 @@ also enable that driver explicitly, see the documentation for more details.
 With this driver there is unfortunately no way to get the C<last_insert_id>
 without doing a C<SELECT MAX(col)>. This is done safely in a transaction
 (locking the table.) The transaction can be turned off if concurrency is not an
-issue, see L<DBIx::Class::Storage::DBI::Sybase/connect_call_unsafe_insert>.
+issue, or you don't need the C<IDENTITY> value, see
+L<DBIx::Class::Storage::DBI::Sybase/connect_call_unsafe_insert>.
 
 But your queries will be cached.
 
@@ -132,6 +133,10 @@ sub _populate_dbh {
       $self->_dbh->do('SET CHAINED ON');
     }
   }
+
+# for insert transactions
+  $self->_extra_dbh($self->_connect(@{ $self->_dbi_connect_info }));
+  $self->_extra_dbh->{AutoCommit} = 1;
 }
 
 =head2 connect_call_blob_setup
@@ -311,6 +316,7 @@ sub insert {
   my $updated_cols = do {
     if ($need_last_insert_id && $self->insert_txn &&
         (not $self->{transaction_depth})) {
+      local $self->{_dbh} = $self->_extra_dbh;
       my $guard = $self->txn_scope_guard;
       my $upd_cols = $self->next::method (@_);
       $guard->commit;
@@ -600,6 +606,21 @@ In other configurations, placeholers will work just as they do with the Sybase
 Open Client libraries.
 
 Inserts or updates of TEXT/IMAGE columns will B<NOT> work with FreeTDS.
+
+=head1 TRANSACTIONS
+
+Due to limitations of the TDS protocol, L<DBD::Sybase>, or both; you cannot
+begin a transaction while there are active cursors. An active cursor is, for
+example, a L<ResultSet|DBIx::Class::ResultSet> that has been executed using
+C<next> or C<first> but has not been exhausted or
+L<DBIx::Class::ResultSet/reset>.
+
+To get around this problem, use L<DBIx::Class::ResultSet/all> for smaller
+ResultSets, and/or put the active cursors you will need in the scope of the
+transaction.
+
+Transactions done for inserts in C<AutoCommit> mode when placeholders are in use
+are not affected, as they are executed on a separate connection.
 
 =head1 MAXIMUM CONNECTIONS
 

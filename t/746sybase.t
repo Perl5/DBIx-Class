@@ -6,10 +6,12 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::Storage::DBI::Sybase;
+use DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 37 + 2;
+my $TESTS = 38 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -33,6 +35,15 @@ sub get_schema {
       [ blob_setup => log_on_update => 1 ], # this is a safer option
     ],
   });
+}
+
+my $ping_count = 0;
+{
+  my $ping = DBIx::Class::Storage::DBI::Sybase->can('_ping');
+  *DBIx::Class::Storage::DBI::Sybase::_ping = sub {
+    $ping_count++;
+    goto $ping;
+  };
 }
 
 for my $storage_type (@storage_types) {
@@ -287,6 +298,21 @@ CREATE TABLE money_test (
 SQL
   });
 
+# First, we'll open a cursor to test insert transactions when there's an active
+# cursor.
+  SKIP: {
+    skip 'not testing insert with active cursor unless using insert_txn', 1
+      unless $schema->storage->insert_txn;
+
+    my $artist_rs = $schema->resultset('Artist');
+    $artist_rs->first;
+    lives_ok {
+      my $row = $schema->resultset('Money')->create({ amount => 100 });
+      $row->delete;
+    } 'inserted a row with an active cursor';
+  }
+
+# Now test money values.
   my $rs = $schema->resultset('Money');
 
   my $row;
@@ -321,4 +347,5 @@ END {
     eval { $dbh->do("DROP TABLE $_") }
       for qw/artist bindtype_test money_test/;
   }
+  diag "ping count was $ping_count" unless $ping_count == 0;
 }

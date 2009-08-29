@@ -1078,12 +1078,11 @@ sub txn_begin {
 
 sub _dbh_begin_work {
   my $self = shift;
-  # being here implies we have AutoCommit => 1
-  # if the user is utilizing txn_do - good for
-  # him, otherwise we need to ensure that the
-  # $dbh is healthy on BEGIN
-  my $dbh_method = $self->{_in_dbh_do} ? '_dbh' : 'dbh';
-  $self->$dbh_method->begin_work;
+  if ($self->{_in_dbh_do}) {
+    $self->_dbh->begin_work;
+  } else {
+    $self->dbh_do(sub { $_[1]->begin_work });
+  }
 }
 
 sub txn_commit {

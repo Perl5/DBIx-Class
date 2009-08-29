@@ -59,7 +59,7 @@ sub _prep_for_execute {
     foreach my $data (@$bound) {
       $data = ''.$data if ref $data;
 
-      $data = $self->_prep_bind_value($datatype, $data)
+      $data = $self->_prep_interpolated_value($datatype, $data)
         if $datatype;
 
       $data = $self->_dbh->quote($data)
@@ -95,14 +95,14 @@ sub should_quote_value {
   return 1;
 }
 
-=head2 _prep_bind_value
+=head2 _prep_interpolated_value
 
 Given a datatype and the value to be inserted directly into a SQL query, returns
 the necessary string to represent that value (by e.g. adding a '$' sign)
 
 =cut
 
-sub _prep_bind_value {
+sub _prep_interpolated_value {
   #my ($self, $datatype, $value) = @_;
   return $_[2];
 }

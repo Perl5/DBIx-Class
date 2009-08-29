@@ -52,7 +52,7 @@ sub should_quote_value {
   return $self->next::method(@_);
 }
 
-sub _prep_bind_value {
+sub _prep_interpolated_value {
   my ($self, $type, $value) = @_;
 
   if ($type =~ /money/i && defined $value) {
