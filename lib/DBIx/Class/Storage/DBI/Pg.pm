@@ -19,19 +19,23 @@ sub with_deferred_fk_checks {
   $sub->();
 }
 
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $seq) = @_;
-  $dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
-}
-
 sub last_insert_id {
   my ($self,$source,$col) = @_;
   my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
   $self->throw_exception("could not fetch primary key for " . $source->name . ", could not "
     . "get autoinc sequence for $col (check that table and column specifications are correct "
     . "and in the correct case)") unless defined $seq;
-  $self->dbh_do('_dbh_last_insert_id', $seq);
+
+  $self->_dbh_last_insert_id ($self->_dbh, $seq);
 }
+
+# there seems to be absolutely no reason to have this as a separate method,
+# but leaving intact in case someone is already overriding it
+sub _dbh_last_insert_id {
+  my ($self, $dbh, $seq) = @_;
+  $dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
+}
+
 
 sub _get_pg_search_path {
     my ($self,$dbh) = @_;

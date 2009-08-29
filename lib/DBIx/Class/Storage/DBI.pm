@@ -1224,7 +1224,7 @@ sub _dbh_execute {
 
 sub _execute {
     my $self = shift;
-    $self->dbh_do('_dbh_execute', @_)
+    $self->dbh_do('_dbh_execute', @_);  # retry over disconnects
 }
 
 sub insert {
@@ -1987,7 +1987,7 @@ sub _dbh_sth {
 
 sub sth {
   my ($self, $sql) = @_;
-  $self->dbh_do('_dbh_sth', $sql);
+  $self->dbh_do('_dbh_sth', $sql);  # retry over disconnects
 }
 
 sub _dbh_columns_info_for {
@@ -2049,7 +2049,7 @@ sub _dbh_columns_info_for {
 
 sub columns_info_for {
   my ($self, $table) = @_;
-  $self->dbh_do('_dbh_columns_info_for', $table);
+  $self->_dbh_columns_info_for ($self->_get_dbh, $table);
 }
 
 =head2 last_insert_id
@@ -2075,7 +2075,7 @@ EOE
 
 sub last_insert_id {
   my $self = shift;
-  $self->dbh_do('_dbh_last_insert_id', @_);
+  $self->_dbh_last_insert_id ($self->_dbh, @_);
 }
 
 =head2 _native_data_type
