@@ -328,7 +328,7 @@ sub insert {
 
 sub update {
   my $self = shift;
-  my ($source, $fields, $ident_cond) = @_;
+  my ($source, $fields, $where) = @_;
 
   my $wantarray = wantarray;
 
@@ -345,7 +345,7 @@ sub update {
     $self->next::method(@_);
   }
 
-  $self->_update_blobs($source, $blob_cols, $ident_cond) if %$blob_cols;
+  $self->_update_blobs($source, $blob_cols, $where) if %$blob_cols;
 
   return $wantarray ? @res : $res[0];
 }
@@ -366,7 +366,7 @@ sub _remove_blob_cols {
 }
 
 sub _update_blobs {
-  my ($self, $source, $blob_cols, $ident_cond) = @_;
+  my ($self, $source, $blob_cols, $where) = @_;
 
   my (@primary_cols) = $source->primary_columns;
 
@@ -376,17 +376,17 @@ sub _update_blobs {
 # check if we're updating a single row by PK
   my $pk_cols_in_where = 0;
   for my $col (@primary_cols) {
-    $pk_cols_in_where++ if defined $ident_cond->{$col};
+    $pk_cols_in_where++ if defined $where->{$col};
   }
   my @rows;
 
   if ($pk_cols_in_where == @primary_cols) {
     my %row_to_update;
-    @row_to_update{@primary_cols} = @{$ident_cond}{@primary_cols};
+    @row_to_update{@primary_cols} = @{$where}{@primary_cols};
     @rows = \%row_to_update;
   } else {
     my $rs = $source->resultset->search(
-      $ident_cond,
+      $where,
       {
         result_class => 'DBIx::Class::ResultClass::HashRefInflator',
         select => \@primary_cols
