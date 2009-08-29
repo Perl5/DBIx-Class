@@ -291,7 +291,7 @@ sub last_insert_id { shift->_identity }
 # override to handle TEXT/IMAGE and to do a transaction if necessary
 sub insert {
   my $self = shift;
-  my ($ident, $source, $to_insert) = @_;
+  my ($source, $to_insert) = @_;
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
@@ -314,7 +314,7 @@ sub insert {
       my $guard = $self->txn_scope_guard;
       my $upd_cols = $self->next::method (@_);
       $guard->commit;
-      return $upd_cols;
+      $upd_cols;
     }
     else {
       $self->next::method(@_);
@@ -642,7 +642,7 @@ C<SET TEXTSIZE> command on connection.
 See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
 setting you need to work with C<IMAGE> columns.
 
-=head1 AUTHORS
+=head1 AUTHOR
 
 See L<DBIx::Class/CONTRIBUTORS>.
 
