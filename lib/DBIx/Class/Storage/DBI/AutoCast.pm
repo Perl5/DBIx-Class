@@ -48,7 +48,7 @@ sub _prep_for_execute {
       my $col = $bound->[0];
       my $type = $self->_map_data_type($col_info->{$col}{data_type});
 
-      foreach my $data (@{$bound}[1..$#$bound]) {   # <--- this will multiply the amount of ?'s no...?
+      foreach my $data (@{$bound}[1..$#$bound]) {
         $new_sql .= shift(@sql_part) .
           ($type ? "CAST(? AS $type)" : '?');
       }

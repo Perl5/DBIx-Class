@@ -33,9 +33,15 @@ my $rs = $schema->resultset ('CD')->search ({
   'tracks.last_updated_at' => { '!=', undef },
   'tracks.last_updated_on' => { '<', 2009 },
   'tracks.position' => 4,
+  'tracks.single_track' => \[ '= ?', [ single_track => [1, 2, 3 ] ] ],
 }, { join => 'tracks' });
 
-my $bind = [ [ cdid => 5 ], [ 'tracks.last_updated_on' => 2009 ], [ 'tracks.position' => 4 ] ];
+my $bind = [
+  [ cdid => 5 ],
+  [ 'tracks.last_updated_on' => 2009 ],
+  [ 'tracks.position' => 4 ],
+  [ 'single_track' => [ 1, 2, 3] ],
+];
 
 is_same_sql_bind (
   $rs->as_query,
@@ -48,6 +54,7 @@ is_same_sql_bind (
       AND tracks.last_updated_at IS NOT NULL
       AND tracks.last_updated_on < ?
       AND tracks.position = ?
+      AND tracks.single_track = ?
   )',
   $bind,
   'expected sql with casting off',
@@ -66,6 +73,7 @@ is_same_sql_bind (
       AND tracks.last_updated_at IS NOT NULL
       AND tracks.last_updated_on < CAST (? AS yyy)
       AND tracks.position = ?
+      AND tracks.single_track = CAST(? AS INT)
   )',
   $bind,
   'expected sql with casting on',
