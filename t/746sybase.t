@@ -11,7 +11,7 @@ use DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 38 + 2;
+my $TESTS = 39 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -187,6 +187,15 @@ SQL
       is $txn_used, 0, 'no txn on insert with IDENTITY_INSERT';
     }
   }
+
+# test correlated subquery
+  my $subq = $schema->resultset('Artist')->search({ artistid => { '>' => 3 } })
+    ->get_column('artistid')
+    ->as_query;
+  my $subq_rs = $schema->resultset('Artist')->search({
+    artistid => { -in => $subq }
+  });
+  is $subq_rs->count, 11, 'correlated subquery';
 
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
