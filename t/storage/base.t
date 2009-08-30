@@ -33,7 +33,7 @@ use Data::Dumper;
     }
 }
 
-plan tests => 17;
+plan tests => 21;
 
 my $schema = DBICTest->init_schema( sqlite_use_file => 1 );
 
@@ -143,6 +143,16 @@ my $invocations = {
             PrintError => 1,
             AutoCommit => 0,
           },
+      ],
+  },
+  'connect_info ([ \%attr_with_coderef ])' => {
+      args => [ {
+        dbh_maker => $coderef,
+        on_connect_do => [qw/a b c/],
+        on_disconnect_do => [qw/d e f/],
+      } ],
+      dbi_connect_info => [
+        $coderef
       ],
   },
 };

@@ -125,6 +125,9 @@ following config (L<Config::General> style):
     </connect_info>
   </Model::DB>
 
+The C<dsn>/C<user>/C<password> combination can be substituted by the
+C<dbh_maker> key whose value is a coderef that returns the C<$dbh>.
+
 =back
 
 Please note that the L<DBI> docs recommend that you always explicitly
@@ -337,6 +340,12 @@ L<DBIx::Class::Schema/connect>
   # Connect via subref
   ->connect_info([ sub { DBI->connect(...) } ]);
 
+  # Connect via subref in hashref
+  ->connect_info([{
+    dbh_maker => sub { DBI->connect(...) },
+    on_connect_do => 'alter session ...',
+  }]);
+
   # A bit more complicated
   ->connect_info(
     [
@@ -407,8 +416,15 @@ sub connect_info {
   elsif (ref $args[0] eq 'HASH') { # single hashref (i.e. Catalyst config)
     %attrs = %{$args[0]};
     @args = ();
-    for (qw/password user dsn/) {
-      unshift @args, delete $attrs{$_};
+    if (my $code = delete $attrs{dbh_maker}) {
+      @args = $code;
+      if (delete @attrs{qw/dsn user password/}) {
+        warn 'dsn/user/password ignored when dbh_maker coderef used in ' .
+             'connect_info';
+      }
+    }
+    else {
+      @args = delete @attrs{qw/dsn user password/};
     }
   }
   else {                # otherwise assume dsn/user/password + \%attrs + \%extra_attrs
