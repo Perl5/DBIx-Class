@@ -289,12 +289,15 @@ sub _execute {
 
 sub last_insert_id { shift->_identity }
 
-# override to handle TEXT/IMAGE and to do a transaction if necessary
+# handles TEXT/IMAGE and transaction for last_insert_id
 sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
+
+# insert+blob insert done atomically
+  my $guard = $self->txn_scope_guard if %$blob_cols;
 
   my $need_last_insert_id = 0;
 
@@ -324,6 +327,8 @@ sub insert {
 
   $self->_insert_blobs($source, $blob_cols, $to_insert) if %$blob_cols;
 
+  $guard->commit if $guard;
+
   return $updated_cols;
 }
 
@@ -334,6 +339,9 @@ sub update {
   my $wantarray = wantarray;
 
   my $blob_cols = $self->_remove_blob_cols($source, $fields);
+
+# update+blob update(s) done atomically
+  my $guard = $self->txn_scope_guard if %$blob_cols;
 
   my @res;
   if ($wantarray) {
@@ -347,6 +355,8 @@ sub update {
   }
 
   $self->_update_blobs($source, $blob_cols, $where) if %$blob_cols;
+
+  $guard->commit if %$blob_cols;
 
   return $wantarray ? @res : $res[0];
 }
