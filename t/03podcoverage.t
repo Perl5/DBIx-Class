@@ -125,6 +125,7 @@ my $exceptions = {
     'DBIx::Class::Storage::DBI::Pg'                     => { skip => 1 },
     'DBIx::Class::Storage::DBI::SQLite'                 => { skip => 1 },
     'DBIx::Class::Storage::DBI::mysql'                  => { skip => 1 },
+    'DBIx::Class::Storage::DBI::AutoCast'               => { skip => 1 },
     'DBIx::Class::SQLAHacks'                            => { skip => 1 },
     'DBIx::Class::SQLAHacks::MySQL'                     => { skip => 1 },
     'DBIx::Class::SQLAHacks::MSSQL'                     => { skip => 1 },

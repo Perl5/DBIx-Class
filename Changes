@@ -11,6 +11,8 @@ Revision history for DBIx::Class
             when needed
           - Support for interpolated variables with proper quoting when
             connecting to an older Sybase and/or via FreeTDS
+        - The hashref to connection_info now accepts a 'dbh_maker'
+          coderef, allowing better intergration with Catalyst
         - Fixed a complex prefetch + regular join regression introduced
           in 0.08108
         - SQLT related fixes:
