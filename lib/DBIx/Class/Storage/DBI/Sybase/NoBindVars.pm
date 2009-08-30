@@ -32,22 +32,18 @@ my %noquote = (
     numeric => $decimal,
 );
 
-sub should_quote_value {
+sub interpolate_unquoted {
   my $self = shift;
   my ($type, $value) = @_;
 
   return $self->next::method(@_) if not defined $value or not defined $type;
 
   if (my $key = List::Util::first { $type =~ /$_/i } keys %noquote) {
-    return 0 if $noquote{$key}->($value);
-  } elsif ($self->is_datatype_numeric($type) && $number->($value)) {
-    return 0;
+    return 1 if $noquote{$key}->($value);
   }
-
-## try to guess based on value
-#  elsif (not $type) {
-#    return 0 if $number->($value) || $noquote->{money}->($value);
-#  }
+  elsif ($self->is_datatype_numeric($type) && $number->($value)) {
+    return 1;
+  }
 
   return $self->next::method(@_);
 }

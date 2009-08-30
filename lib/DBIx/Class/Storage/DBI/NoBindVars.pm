@@ -63,7 +63,7 @@ sub _prep_for_execute {
         if $datatype;
 
       $data = $self->_dbh->quote($data)
-        if (!$datatype || $self->should_quote_value($datatype, $data));
+        unless $self->interpolate_unquoted($datatype, $data);
 
       $new_sql .= shift(@sql_part) . $data;
     }
@@ -73,15 +73,15 @@ sub _prep_for_execute {
   return ($new_sql, []);
 }
 
-=head2 should_quote_value
+=head2 interpolate_unquoted
 
 This method is called by L</_prep_for_execute> for every column in
 order to determine if its value should be quoted or not. The arguments
 are the current column data type and the actual bind value. The return
-value is interpreted as: true - do quote, false - do not quote. You should
+value is interpreted as: true - do not quote, false - do quote. You should
 override this in you Storage::DBI::<database> subclass, if your RDBMS
 does not like quotes around certain datatypes (e.g. Sybase and integer
-columns). The default method always returns true (do quote).
+columns). The default method always returns false (do quote).
 
  WARNING!!!
 
@@ -90,9 +90,9 @@ columns). The default method always returns true (do quote).
 
 =cut
 
-sub should_quote_value {
+sub interpolate_unquoted {
   #my ($self, $datatype, $value) = @_;
-  return 1;
+  return 0;
 }
 
 =head2 _prep_interpolated_value
