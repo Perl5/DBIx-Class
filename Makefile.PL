@@ -14,7 +14,7 @@ test_requires 'Test::Builder'       => 0.33;
 test_requires 'Test::Deep'          => 0;
 test_requires 'Test::Exception'     => 0;
 test_requires 'Test::More'          => 0.92;
-test_requires 'Test::Warn'          => 0.11;
+test_requires 'Test::Warn'          => 0.21;
 
 test_requires 'File::Temp'          => 0.22;
 

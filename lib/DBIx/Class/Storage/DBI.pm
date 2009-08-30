@@ -112,6 +112,12 @@ mixed together:
     %extra_attributes,
   }];
 
+  $connect_info_args = [{
+    dbh_maker => sub { DBI->connect (...) },
+    %dbi_attributes,
+    %extra_attributes,
+  }];
+
 This is particularly useful for L<Catalyst> based applications, allowing the
 following config (L<Config::General> style):
 
@@ -126,7 +132,8 @@ following config (L<Config::General> style):
   </Model::DB>
 
 The C<dsn>/C<user>/C<password> combination can be substituted by the
-C<dbh_maker> key whose value is a coderef that returns the C<$dbh>.
+C<dbh_maker> key whose value is a coderef that returns a connected
+L<DBI database handle|DBI/connect>
 
 =back
 
@@ -418,9 +425,15 @@ sub connect_info {
     @args = ();
     if (my $code = delete $attrs{dbh_maker}) {
       @args = $code;
-      if (delete @attrs{qw/dsn user password/}) {
-        warn 'dsn/user/password ignored when dbh_maker coderef used in ' .
-             'connect_info';
+
+      my @ignored = grep { delete $attrs{$_} } (qw/dsn user password/);
+      if (@ignored) {
+        carp sprintf (
+            'Attribute(s) %s in connect_info were ignored, as they can not be applied '
+          . "to the result of 'dbh_maker'",
+
+          join (', ', map { "'$_'" } (@ignored) ),
+        );
       }
     }
     else {
