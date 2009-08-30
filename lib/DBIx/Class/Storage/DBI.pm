@@ -1107,6 +1107,12 @@ sub txn_begin {
 
 sub _dbh_begin_work {
   my $self = shift;
+
+  # if the user is utilizing txn_do - good for him, otherwise we need to
+  # ensure that the $dbh is healthy on BEGIN.
+  # We do this via ->dbh_do instead of ->dbh, so that the ->dbh "ping"
+  # will be replaced by a failure of begin_work itself (which will be
+  # then retried on reconnect)
   if ($self->{_in_dbh_do}) {
     $self->_dbh->begin_work;
   } else {
