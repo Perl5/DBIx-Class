@@ -12,7 +12,7 @@ use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update insert_txn/
+    qw/_identity _blob_log_on_update unsafe_insert/
 );
 
 =head1 NAME
@@ -64,10 +64,6 @@ sub _rebless {
       $self->_rebless;
     } else { # real Sybase
       my $no_bind_vars = 'DBIx::Class::Storage::DBI::Sybase::NoBindVars';
-
-# This is reset to 0 in ::NoBindVars, only necessary because we use max(col) to
-# get the identity.
-      $self->insert_txn(1);
 
       if ($self->using_freetds) {
         carp <<'EOF' unless $ENV{DBIC_SYBASE_FREETDS_NOWARN};
@@ -181,13 +177,13 @@ L<DBIx::Class::Storage::DBI/connect_info>,
 
 To manipulate this setting at runtime, use:
 
-  $schema->storage->insert_txn(0); # 1 to re-enable
+  $schema->storage->unsafe_insert(0|1);
 
 =cut
 
 sub connect_call_unsafe_insert {
   my $self = shift;
-  $self->insert_txn(0);
+  $self->unsafe_insert(1);
 }
 
 sub _is_lob_type {
@@ -313,8 +309,9 @@ sub insert {
   # We have to do the insert in a transaction to avoid race conditions with the
   # SELECT MAX(COL) identity method used when placeholders are enabled.
   my $updated_cols = do {
-    if ($need_last_insert_id && $self->insert_txn &&
-        (not $self->{transaction_depth})) {
+    if (
+      $need_last_insert_id && !$self->unsafe_insert && !$self->{transaction_depth}
+    ) {
       my $guard = $self->txn_scope_guard;
       my $upd_cols = $self->next::method (@_);
       $guard->commit;
@@ -631,7 +628,7 @@ Some workarounds:
 
 =over 4
 
-=item * set C<< $schema->storage->insert_txn(0) >> temporarily (see
+=item * set C<< $schema->storage->unsafe_insert(1) >> temporarily (see
 L</connect_call_unsafe_insert>)
 
 =item * use L<DBIx::Class::Storage::DBI::Replicated>

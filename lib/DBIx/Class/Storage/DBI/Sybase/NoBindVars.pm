@@ -11,7 +11,9 @@ use Scalar::Util ();
 sub _rebless {
   my $self = shift;
   $self->disable_sth_caching(1);
-  $self->insert_txn(0);
+  $self->unsafe_insert(1);  # there is nothing unsafe as the
+                            # last_insert_id mechanism is different
+                            # without bindvars
 }
 
 # this works when NOT using placeholders

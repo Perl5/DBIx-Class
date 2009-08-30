@@ -312,8 +312,8 @@ SQL
     local $TODO = 'not supported yet or possibly ever';
 
     SKIP: {
-      skip 'not testing insert with active cursor unless using insert_txn', 1
-        unless $schema->storage->insert_txn;
+      skip 'not testing insert with active cursor if using unsafe_insert', 1
+        if $schema->storage->unsafe_insert;
 
       my $artist_rs = $schema->resultset('Artist');
       $artist_rs->first;
