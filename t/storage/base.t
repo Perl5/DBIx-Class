@@ -166,8 +166,6 @@ for my $type (keys %$invocations) {
   local $Data::Dumper::Sortkeys = 1;
   my $arg_dump = Dumper ($invocations->{$type}{args});
 
-  my $do = sub {  };
-
   warnings_exist (
     sub { $storage->connect_info ($invocations->{$type}{args}) },
      $invocations->{$type}{warn} || (),

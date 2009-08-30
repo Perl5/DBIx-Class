@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - The hashref to connection_info now accepts a 'dbh_maker'
+          coderef, allowing better intergration with Catalyst
         - Fixed a complex prefetch + regular join regression introduced
           in 0.08108
         - SQLT related fixes:
