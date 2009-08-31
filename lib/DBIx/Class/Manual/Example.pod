@@ -27,7 +27,7 @@ And these rules exists:
 
 Install DBIx::Class via CPAN should be sufficient.
 
-=head3 Create the database/tables.
+=head3 Create the database/tables
 
 First make and change the directory:
 
@@ -126,7 +126,7 @@ MyDatabase/Main/Result/Track.pm:
   1;
 
 
-=head3 Write a script to insert some records.
+=head3 Write a script to insert some records
 
 insertdb.pl
 
