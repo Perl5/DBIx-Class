@@ -159,19 +159,13 @@ sub connect_replicants {
     $connect_info = [ $connect_info ]
       if reftype $connect_info ne 'ARRAY';
 
-    my $replicant = $self->connect_replicant($schema, $connect_info);
-
     my $connect_coderef =
       (reftype($connect_info->[0])||'') eq 'CODE' ? $connect_info->[0]
         : (reftype($connect_info->[0])||'') eq 'HASH' &&
           $connect_info->[0]->{dbh_maker};
 
     my $dsn;
-    if (not $connect_coderef) {
-      $dsn = $connect_info->[0];
-      $dsn = $dsn->{dsn} if (reftype($dsn)||'') eq 'HASH';
-    }
-    else {
+    my $replicant = do {
 # yes this is evil, but it only usually happens once
       no warnings 'redefine';
       my $connect = \&DBI::connect;
@@ -179,9 +173,15 @@ sub connect_replicants {
         $dsn = $_[1];
         goto $connect;
       };
-      $connect_coderef->();
+      $self->connect_replicant($schema, $connect_info);
+    };
+
+    if (!$dsn && !$connect_coderef) {
+      $dsn = $connect_info->[0];
+      $dsn = $dsn->{dsn} if (reftype($dsn)||'') eq 'HASH';
     }
     $replicant->dsn($dsn);
+
     my ($key) = ($dsn =~ m/^dbi\:.+\:(.+)$/i);
 
     $self->set_replicant($key => $replicant);  
