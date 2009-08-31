@@ -41,6 +41,9 @@ around '_query_start' => sub {
     if ((reftype($dsn)||'') ne 'CODE') {
       "$op [DSN_$storage_type=$dsn]$rest";
     }
+    elsif (my $id = eval { $self->id }) {
+      "$op [$storage_type=$id]$rest";
+    }
     else {
       "$op [$storage_type]$rest";
     }

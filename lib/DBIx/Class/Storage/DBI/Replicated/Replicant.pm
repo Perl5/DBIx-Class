@@ -52,10 +52,8 @@ has 'active' => (
   default=>1,
 );
 
-has dsn => (
-  is => 'rw',
-  isa => Str,
-);
+has dsn => (is => 'rw', isa => Str);
+has id  => (is => 'rw', isa => Str);
 
 =head1 METHODS
 

@@ -138,6 +138,16 @@ has 'replicants' => (
   },
 );
 
+has next_unknown_replicant_id => (
+  is => 'rw',
+  metaclass => 'Counter',
+  isa => Int,
+  default => 1,
+  provides => {
+    inc => 'inc_unknown_replicant_id'
+  },
+);
+
 =head1 METHODS
 
 This class defines the following methods.
@@ -166,7 +176,8 @@ sub connect_replicants {
 
     my $dsn;
     my $replicant = do {
-# yes this is evil, but it only usually happens once
+# yes this is evil, but it only usually happens once (for coderefs)
+# this will fail if the coderef does not actually DBI::connect
       no warnings 'redefine';
       my $connect = \&DBI::connect;
       local *DBI::connect = sub {
@@ -176,15 +187,27 @@ sub connect_replicants {
       $self->connect_replicant($schema, $connect_info);
     };
 
-    if (!$dsn && !$connect_coderef) {
-      $dsn = $connect_info->[0];
-      $dsn = $dsn->{dsn} if (reftype($dsn)||'') eq 'HASH';
+    my $key;
+
+    if (!$dsn) {
+      if (!$connect_coderef) {
+        $dsn = $connect_info->[0];
+        $dsn = $dsn->{dsn} if (reftype($dsn)||'') eq 'HASH';
+      }
+      else {
+        # all attempts to get the DSN failed
+        $key = "UNKNOWN_" . $self->next_unknown_replicant_id;
+        $self->inc_unknown_replicant_id;
+      }
     }
-    $replicant->dsn($dsn);
+    if ($dsn) {
+      $replicant->dsn($dsn);
+      ($key) = ($dsn =~ m/^dbi\:.+\:(.+)$/i);
+    }
 
-    my ($key) = ($dsn =~ m/^dbi\:.+\:(.+)$/i);
-
+    $replicant->id($key);
     $self->set_replicant($key => $replicant);  
+
     push @newly_created, $replicant;
   }
 
