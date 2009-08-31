@@ -5,6 +5,7 @@ use MooseX::AttributeHelpers;
 use DBIx::Class::Storage::DBI::Replicated::Replicant;
 use List::Util 'sum';
 use Scalar::Util 'reftype';
+use DBI ();
 use Carp::Clan qw/^DBIx::Class/;
 use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
 
@@ -158,16 +159,32 @@ sub connect_replicants {
     $connect_info = [ $connect_info ]
       if reftype $connect_info ne 'ARRAY';
 
-    croak "coderef replicant connect_info not supported"
-      if ref $connect_info->[0] && reftype $connect_info->[0] eq 'CODE';
-
     my $replicant = $self->connect_replicant($schema, $connect_info);
 
-    my $key = $connect_info->[0];
-    $key = $key->{dsn} if ref $key && reftype $key eq 'HASH';
-    ($key) = ($key =~ m/^dbi\:.+\:(.+)$/);
+    my $connect_coderef =
+      (reftype($connect_info->[0])||'') eq 'CODE' ? $connect_info->[0]
+        : (reftype($connect_info->[0])||'') eq 'HASH' &&
+          $connect_info->[0]->{dbh_maker};
 
-    $self->set_replicant( $key => $replicant);  
+    my $dsn;
+    if (not $connect_coderef) {
+      $dsn = $connect_info->[0];
+      $dsn = $dsn->{dsn} if (reftype($dsn)||'') eq 'HASH';
+    }
+    else {
+# yes this is evil, but it only usually happens once
+      no warnings 'redefine';
+      my $connect = \&DBI::connect;
+      local *DBI::connect = sub {
+        $dsn = $_[1];
+        goto $connect;
+      };
+      $connect_coderef->();
+    }
+    $replicant->dsn($dsn);
+    my ($key) = ($dsn =~ m/^dbi\:.+\:(.+)$/i);
+
+    $self->set_replicant($key => $replicant);  
     push @newly_created, $replicant;
   }
 

@@ -876,10 +876,18 @@ sub _determine_driver {
       if ($self->_dbh) { # we are connected
         $driver = $self->_dbh->{Driver}{Name};
       } else {
-        # try to use dsn to not require being connected, the driver may still
-        # force a connection in _rebless to determine version
-        ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
-        $started_unconnected = 1;
+        # if connect_info is a CODEREF, we have no choice but to connect
+        if (ref $self->_dbi_connect_info->[0] &&
+            Scalar::Util::reftype($self->_dbi_connect_info->[0]) eq 'CODE') {
+          $self->_populate_dbh;
+          $driver = $self->_dbh->{Driver}{Name};
+        }
+        else {
+          # try to use dsn to not require being connected, the driver may still
+          # force a connection in _rebless to determine version
+          ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+          $started_unconnected = 1;
+        }
       }
 
       my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
