@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
@@ -43,11 +44,15 @@ use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
-plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
-  '(note: This test drops and creates tables called \'artist\', \'casecheck\', \'array_test\' and \'sequence_test\''.
-  ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''.
-  ' as well as following schemas: \'testschema\',\'anothertestschema\'!)'
-    unless ($dsn && $user);
+plan skip_all => <<EOM unless $dsn && $user;
+Set \$ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test
+( NOTE: This test drops and creates tables called 'artist', 'casecheck',
+  'array_test' and 'sequence_test' as well as following sequences:
+  'pkid1_seq', 'pkid2_seq' and 'nonpkid_seq''.  as well as following
+  schemas: 'testschema', 'anothertestschema', 'yetanothertestschema',
+  'unq_nextval_schema', and 'unq_nextval_schema2'
+)
+EOM
 
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
 
@@ -101,6 +106,32 @@ EOS
     $dbh->do("CREATE SCHEMA yetanothertestschema;");
     $dbh->do("CREATE TABLE yetanothertestschema.artist $artist_table_def;");
     $dbh->do('set search_path=testschema,public');
+    $dbh->do("CREATE SCHEMA unq_nextval_schema;");
+    $dbh->do("CREATE SCHEMA unq_nextval_schema2;");
+    $dbh->do(<<EOS);
+ CREATE TABLE unq_nextval_schema.artist
+ (
+   artistid integer not null default nextval('artist_artistid_seq'::regclass) PRIMARY KEY
+   , name VARCHAR(100)
+   , rank INTEGER NOT NULL DEFAULT '13'
+   , charfield CHAR(10)
+   , arrayfield INTEGER[]
+ );
+EOS
+    $dbh->do('set search_path=public,testschema,yetanothertestschema');
+    $dbh->do('create sequence public.artist_artistid_seq'); #< in the public schema
+    $dbh->do(<<EOS);
+ CREATE TABLE unq_nextval_schema2.artist
+ (
+   artistid integer not null default nextval('public.artist_artistid_seq'::regclass) PRIMARY KEY
+   , name VARCHAR(100)
+   , rank INTEGER NOT NULL DEFAULT '13'
+   , charfield CHAR(10)
+   , arrayfield INTEGER[]
+ );
+EOS
+    $dbh->do('set search_path=testschema,public');
+
 }
 
 # store_column is called once for create() for non sequence columns
@@ -108,7 +139,6 @@ EOS
 ok(my $storecolumn = $schema->resultset('Casecheck')->create({'storecolumn' => 'a'}));
 
 is($storecolumn->storecolumn, '#a'); # was '##a'
-
 
 # This is in Core now, but it's here just to test that it doesn't break
 $schema->class('Artist')->load_components('PK::Auto');
@@ -127,27 +157,73 @@ cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an
 
   is($unq_new && $unq_new->artistid, 1, "and got correct artistid");
 
-  #test with anothertestschema
-  $schema->source('Artist')->name('anothertestschema.artist');
-  my $another_new = $schema->resultset('Artist')->create({ name => 'ribasushi'});
-  is( $another_new->artistid,1, 'got correct artistid for yetanotherschema');
+  my @test_schemas = ( [qw| anothertestschema    1      |],
+                       [qw| yetanothertestschema 1      |],
+                     );
+  foreach my $t ( @test_schemas ) {
+      my ($sch_name, $start_num) = @$t;
+      #test with anothertestschema
+      $schema->source('Artist')->name("$sch_name.artist");
+      $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
+      my $another_new;
+      lives_ok {
+          $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
+          is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
+              or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+      } "$sch_name liid 1 did not die"
+          or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+      lives_ok {
+          $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
+          is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
+              or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+      } "$sch_name liid 2 did not die"
+          or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
 
-  #test with yetanothertestschema
-  $schema->source('Artist')->name('yetanothertestschema.artist');
-  my $yetanother_new = $schema->resultset('Artist')->create({ name => 'ribasushi'});
-  is( $yetanother_new->artistid,1, 'got correct artistid for yetanotherschema');
-  is( $yetanother_new->artistid,1, 'got correct artistid for yetanotherschema');
+  }
 
+
+  my @todo_schemas = (
+                      [qw| unq_nextval_schema   2 |],
+                      [qw| unq_nextval_schema2  1 |],
+                     );
+  warnings_like {
+    TODO: {
+          local $TODO = 'have not figured out a 100% reliable way to tell which schema an unqualified seq is in';
+
+          foreach my $t ( @todo_schemas ) {
+              my ($sch_name, $start_num) = @$t;
+              #test with anothertestschema
+              $schema->source('Artist')->name("$sch_name.artist");
+              $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
+              my $another_new;
+              lives_ok {
+                  $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
+                  is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
+                      or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+              } "$sch_name liid 1 did not die"
+                  or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+              lives_ok {
+                  $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
+                  is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
+                      or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+              } "$sch_name liid 2 did not die"
+                  or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+
+          }
+      }
+  } [ (qr/guessing sequence/)x2], 'got a bunch of warnings from unqualified schema guessing';
+
+  $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
   $schema->source("Artist")->name($artist_name_save);
 }
 
-my $new = $schema->resultset('Artist')->create({ name => 'foo' });
-
-is($new->artistid, 2, "Auto-PK worked");
-
-$new = $schema->resultset('Artist')->create({ name => 'bar' });
-
-is($new->artistid, 3, "Auto-PK worked");
+my $new;
+lives_ok {
+    $new = $schema->resultset('Artist')->create({ name => 'foo' });
+    is($new->artistid, 4, "Auto-PK worked");
+    $new = $schema->resultset('Artist')->create({ name => 'bar' });
+    is($new->artistid, 5, "Auto-PK worked");
+} 'old auto-pk tests did not die either';
 
 
 my $test_type_info = {
@@ -316,10 +392,21 @@ for (1..5) {
 my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
+#_cleanup ($dbh);
+
+done_testing;
+
+
 sub _cleanup {
   my $dbh = shift or return;
+  $dbh->ping or return;
 
   for my $stat (
+    'DROP TABLE unq_nextval_schema2.artist',
+    'DROP SCHEMA unq_nextval_schema2',
+    'DROP SEQUENCE public.artist_artistid_seq',
+    'DROP TABLE unq_nextval_schema.artist',
+    'DROP SCHEMA unq_nextval_schema',
     'DROP TABLE testschema.artist',
     'DROP TABLE testschema.casecheck',
     'DROP TABLE testschema.sequence_test',
@@ -334,9 +421,8 @@ sub _cleanup {
     'DROP SCHEMA yetanothertestschema',
   ) {
     eval { $dbh->do ($stat) };
+    diag $@ if $@;
   }
 }
-
-done_testing;
 
 END { _cleanup($dbh) }
