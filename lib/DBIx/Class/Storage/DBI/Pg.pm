@@ -21,10 +21,12 @@ sub with_deferred_fk_checks {
 
 sub last_insert_id {
   my ($self,$source,$col) = @_;
-  my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col));
-  $self->throw_exception("could not fetch primary key for " . $source->name . ", could not "
-    . "get autoinc sequence for $col (check that table and column specifications are correct "
-    . "and in the correct case)") unless defined $seq;
+  my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col))
+      or $self->throw_exception( "could not determine sequence for "
+                                 . $source->name
+                                 . ".$col, please consider adding a "
+                                 . "schema-qualified sequence to its column info"
+                               );
 
   $self->_dbh_last_insert_id ($self->_dbh, $seq);
 }
@@ -77,7 +79,24 @@ sub _dbh_get_autoinc_seq {
                     =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i
                 ) {
                   my $seq = $1;
-                  return $seq =~ /\./ ? $seq : $info->{TABLE_SCHEM} . "." . $seq;
+
+                  # have not figured out a 100% reliable way to tell
+                  # what sequence is meant if it is not
+                  # schema-qualified.  see TODO tests in 72pg.t
+                  if( $seq =~ /\./ ) {
+                      return $seq;
+                  } else {
+                      # this guess is going to be incorrect some of
+                      # the time, which could lead to problems that
+                      # could be pretty hairy to trace.  thus the
+                      # warning.
+                      $seq = $info->{TABLE_SCHEM} . "." . $seq;
+                      warn "WARNING: guessing sequence '$seq' for key $search_schema.$table.$col\n";
+                      return $seq;
+                  }
+
+                  # return our (schema-qualified) seq
+                  return $seq;
               } else {
                   # we have found the column, but cannot figure out
                   # the nextval seq
