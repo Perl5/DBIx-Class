@@ -201,6 +201,14 @@ merged back to trunk for a major release.
 L<DBIx::Class::Manual::DocMap> lists each task you might want help on, and
 the modules where you will find documentation.
 
+=head1 COPYRIGHT & LICENSE
+
+Copyright (c) 2005 - 2009 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
+as listed below.
+
+This library is free software and may be distributed under the same terms
+as perl itself.
+
 =head1 AUTHOR
 
 mst: Matt S. Trout <mst@shadowcatsystems.co.uk>
@@ -351,9 +359,5 @@ willert: Sebastian Willert <willert@cpan.org>
 wreis: Wallace Reis <wreis@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself.
 
 =cut
