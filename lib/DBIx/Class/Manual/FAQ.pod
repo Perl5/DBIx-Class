@@ -26,8 +26,7 @@ need to do is to install L<DBD::SQLite> from CPAN, and it's usable).
 
 Next, spend some time defining which data you need to store, and how
 it relates to the other data you have. For some help on normalisation,
-go to L<http://b62.tripod.com/doc/dbbase.htm> or
-L<http://209.197.234.36/db/simple.html>.
+go to L<http://b62.tripod.com/doc/dbbase.htm>.
 
 Now, decide whether you want to have the database itself be the
 definitive source of information about the data layout, or your
@@ -217,10 +216,10 @@ values to filter them by, for example:
 
  ->search({'created_time' => { '>=', '2006-06-01 00:00:00' } })
 
-Note that to use a function here you need to make the whole value into
-a scalar reference:
+Note that to use a function here you need to make it a scalar
+reference:
 
- ->search({'created_time' => \'>= yesterday()' })
+ ->search({'created_time' => { '>=', \'yesterday()' } })
 
 =item .. search in several tables simultaneously?
 
@@ -243,19 +242,6 @@ equality, so you're probably better off creating a C<view> in your
 database, and using that as your source. A C<view> is a stored SQL
 query, which can be accessed similarly to a table, see your database
 documentation for details.
-
-=item .. search using greater-than or less-than and database functions?
-
-To use functions or literal SQL with conditions other than equality
-you need to supply the entire condition, for example:
-
- my $interval = "< now() - interval '12 hours'";
- ->search({last_attempt => \$interval})
-
-and not:
-
- my $interval = "now() - interval '12 hours'";
- ->search({last_attempt => { '<' => \$interval } })
 
 =item .. search with an SQL function on the left hand side?
 

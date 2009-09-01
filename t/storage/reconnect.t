@@ -9,7 +9,7 @@ use DBICTest;
 
 plan tests => 6;
 
-my $db_orig = "$FindBin::Bin/var/DBIxClass.db";
+my $db_orig = "$FindBin::Bin/../var/DBIxClass.db";
 my $db_tmp  = "$db_orig.tmp";
 
 # Set up the "usual" sqlite for DBICTest

@@ -209,8 +209,8 @@ generated SQL via the C<-as> field attribute as follows:
     {
       join => 'cds',
       distinct => 1,
-      +select => [ { count => 'cds.cdid', -as => 'amount_of_cds' } ],
-      +as => [qw/num_cds/],
+      '+select' => [ { count => 'cds.cdid', -as => 'amount_of_cds' } ],
+      '+as' => [qw/num_cds/],
       order_by => { -desc => 'amount_of_cds' },
     }
   );
@@ -1517,18 +1517,18 @@ database thinks it has.
 Alternatively, you can send the conversion sql scripts to your
 customers as above.
 
-=head2 Setting quoting for the generated SQL.
+=head2 Setting quoting for the generated SQL
 
 If the database contains column names with spaces and/or reserved words, they
 need to be quoted in the SQL queries. This is done using:
 
- __PACKAGE__->storage->sql_maker->quote_char([ qw/[ ]/] );
- __PACKAGE__->storage->sql_maker->name_sep('.');
+ $schema->storage->sql_maker->quote_char([ qw/[ ]/] );
+ $schema->storage->sql_maker->name_sep('.');
 
 The first sets the quote characters. Either a pair of matching
 brackets, or a C<"> or C<'>:
 
- __PACKAGE__->storage->sql_maker->quote_char('"');
+ $schema->storage->sql_maker->quote_char('"');
 
 Check the documentation of your database for the correct quote
 characters to use. C<name_sep> needs to be set to allow the SQL
@@ -1546,6 +1546,17 @@ L<DBIx::Class::Schema/connect>:
     name_sep   => '.'
   }
  )
+
+In some cases, quoting will be required for all users of a schema. To enforce
+this, you can also overload the C<connection> method for your schema class:
+
+ sub connection {
+     my $self = shift;
+     my $rv = $self->next::method( @_ );
+     $rv->storage->sql_maker->quote_char([ qw/[ ]/ ]);
+     $rv->storage->sql_maker->name_sep('.');
+     return $rv;
+ }
 
 =head2 Setting limit dialect for SQL::Abstract::Limit
 

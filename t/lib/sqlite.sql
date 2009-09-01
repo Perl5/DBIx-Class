@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Wed Aug 12 16:10:43 2009
+-- Created on Tue Aug 25 12:34:34 2009
 -- 
 
 
@@ -15,6 +15,8 @@ CREATE TABLE artist (
   rank integer NOT NULL DEFAULT '13',
   charfield char(10)
 );
+
+CREATE INDEX artist_name_hookidx ON artist (name);
 
 --
 -- Table: bindtype_test
@@ -281,7 +283,7 @@ CREATE INDEX self_ref_alias_idx_self_ref ON self_ref_alias (self_ref);
 CREATE TABLE track (
   trackid INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL,
-  position integer NOT NULL,
+  position int NOT NULL,
   title varchar(100) NOT NULL,
   last_updated_on datetime,
   last_updated_at datetime,

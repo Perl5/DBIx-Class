@@ -518,8 +518,15 @@ around connect_replicants => sub {
 # delete them
     splice @$r, $i+1, ($#{$r} - $i), ();
 
+# make sure master/replicants opts don't clash
+    my %master_opts = %{ $self->_master_connect_info_opts };
+    if (exists $opts{dbh_maker}) {
+        delete @master_opts{qw/dsn user password/};
+    }
+    delete $master_opts{dbh_maker};
+
 # merge with master
-    %opts = %{ merge(\%opts, $self->_master_connect_info_opts) };
+    %opts = %{ merge(\%opts, \%master_opts) };
 
 # update
     $r->[$i] = \%opts;

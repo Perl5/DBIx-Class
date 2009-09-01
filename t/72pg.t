@@ -50,8 +50,16 @@ plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test '.
     unless ($dsn && $user);
 
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass,);
 
+# make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
+{
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+
+  ok (!$schema->storage->_dbh, 'definitely not connected');
+  is ($schema->storage->sqlt_type, 'PostgreSQL', 'sqlt_type correct pre-connection');
+}
+
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 # Check that datetime_parser returns correctly before we explicitly connect.
 SKIP: {
     eval { require DateTime::Format::Pg };

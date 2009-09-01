@@ -25,7 +25,7 @@ sub component_base_class { 'DBIx::Class' }
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
 
-$VERSION = '0.08108';
+$VERSION = '0.08109';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -329,6 +329,8 @@ scotty: Scotty Allen <scotty@scottyallen.com>
 semifor: Marc Mims <marc@questright.com>
 
 solomon: Jared Johnson <jaredj@nmgi.com>
+
+spb: Stephen Bennett <stephen@freenode.net>
 
 sszabo: Stephan Szabo <sszabo@bigpanda.com>
 

@@ -19,6 +19,17 @@ my $cdrs = $schema->resultset('CD');
 my @tests = (
   {
     rs => $cdrs,
+    search => \[ "title = ? AND year LIKE ?", 'buahaha', '20%' ],
+    attrs => { rows => 5 },
+    sqlbind => \[
+      "( SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE (title = ? AND year LIKE ?) LIMIT 5)",
+      'buahaha',
+      '20%',
+    ],
+  },
+
+  {
+    rs => $cdrs,
     search => {
       artist_id => { 'in' => $art_rs->search({}, { rows => 1 })->get_column( 'id' )->as_query },
     },

@@ -18,6 +18,7 @@ columns to be of the datetime, timestamp or date datatype.
   __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'datetime' }
+    create_date => { data_type => 'date' }
   );
 
 NOTE: You B<must> load C<InflateColumn::DateTime> B<before> C<Core>. See
@@ -68,6 +69,16 @@ that you are using.  If you switch from one database to a different
 one your code should continue to work without modification (though note
 that this feature is new as of 0.07, so it may not be perfect yet - bug
 reports to the list very much welcome).
+
+If the data_type of a field is C<date>, C<datetime> or C<timestamp> (or
+a derivative of these datatypes, e.g. C<timestamp with timezone>), this
+module will automatically call the appropriate parse/format method for
+deflation/inflation as defined in the storage class. For instance, for
+a C<datetime> field the methods C<parse_datetime> and C<format_datetime>
+would be called on deflation/inflation. If the storage class does not
+provide a specialized inflator/deflator, C<[parse|format]_datetime> will
+be used as a fallback. See L<DateTime::Format> for more information on
+date formatting.
 
 For more help with using components, see L<DBIx::Class::Manual::Component/USING>.
 

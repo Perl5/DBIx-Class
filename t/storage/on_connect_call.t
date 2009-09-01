@@ -7,6 +7,7 @@ use DBICTest;
 
 use Test::More tests => 9;
 
+use DBIx::Class::Storage::DBI;
 my $schema = DBICTest->init_schema(
   no_connect  => 1,
   no_deploy   => 1,
