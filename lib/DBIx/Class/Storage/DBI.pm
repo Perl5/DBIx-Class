@@ -1303,12 +1303,17 @@ sub insert {
 ## only prepped once.
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
+
+# redispatch to insert_bulk method of storage we reblessed into, if necessary
+  if (not $self->_driver_determined) {
+    $self->_determine_driver;
+    goto $self->can('insert_bulk');
+  }
+
   my %colvalues;
   my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
   my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
-
-  $self->_determine_driver;
 
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql);
