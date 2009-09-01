@@ -186,7 +186,7 @@ cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an
                       [qw| unq_nextval_schema   2 |],
                       [qw| unq_nextval_schema2  1 |],
                      );
-  warnings_like {
+  warnings_exist {
     TODO: {
           local $TODO = 'have not figured out a 100% reliable way to tell which schema an unqualified seq is in';
 
