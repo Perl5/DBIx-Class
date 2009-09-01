@@ -186,32 +186,35 @@ cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an
                       [qw| unq_nextval_schema   2 |],
                       [qw| unq_nextval_schema2  1 |],
                      );
-  warnings_exist {
-    TODO: {
-          local $TODO = 'have not figured out a 100% reliable way to tell which schema an unqualified seq is in';
+  TODO: {
+    local $TODO = 'have not figured out a 100% reliable way to tell which schema an unqualified seq is in';
+    warnings_exist (
+      sub {
+        foreach my $t ( @todo_schemas ) {
+          my ($sch_name, $start_num) = @$t;
+          #test with anothertestschema
+          $schema->source('Artist')->name("$sch_name.artist");
+          $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
+          my $another_new;
+          lives_ok {
+            $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
+            is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
+              or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+          } "$sch_name liid 1 did not die"
+            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
 
-          foreach my $t ( @todo_schemas ) {
-              my ($sch_name, $start_num) = @$t;
-              #test with anothertestschema
-              $schema->source('Artist')->name("$sch_name.artist");
-              $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
-              my $another_new;
-              lives_ok {
-                  $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
-                  is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
-                      or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-              } "$sch_name liid 1 did not die"
-                  or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-              lives_ok {
-                  $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
-                  is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
-                      or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-              } "$sch_name liid 2 did not die"
-                  or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-
-          }
-      }
-  } [ (qr/guessing sequence/)x2], 'got a bunch of warnings from unqualified schema guessing';
+          lives_ok {
+            $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
+            is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
+              or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+          } "$sch_name liid 2 did not die"
+            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+        }
+      },
+      [ (qr/guessing sequence/)x2],
+      'got a bunch of warnings from unqualified schema guessing'
+    );
+  }
 
   $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
   $schema->source("Artist")->name($artist_name_save);
