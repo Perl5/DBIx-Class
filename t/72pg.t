@@ -53,8 +53,8 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 my $dbh = $schema->storage->dbh;
 
-drop_test_schema($dbh, 'no warn');
-create_test_schema($dbh);
+drop_test_schema($schema, 'no warn');
+create_test_schema($schema);
 
 ### begin main tests
 
@@ -368,22 +368,22 @@ for (1..5) {
 my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
-sub _cleanup {
-  my $schema = shift or return;
-  local $SIG{__WARN__} = sub {};
+done_testing;
 
 exit;
-END { drop_test_schema($dbh) }
+END { drop_test_schema($schema) }
 
 
 ######### SUBROUTINES
 
 sub create_test_schema {
-    my $dbh = shift;
+    my $schema = shift;
+    $schema->storage->dbh_do(sub {
+      my (undef,$dbh) = @_;
 
-    local $SIG{__WARN__} = sub {};
+      local $dbh->{Warn} = 0;
 
-    my $std_artist_table = <<EOS;
+      my $std_artist_table = <<EOS;
 (
   artistid serial PRIMARY KEY
   , name VARCHAR(100)
@@ -393,9 +393,9 @@ sub create_test_schema {
 )
 EOS
 
-    $dbh->do("CREATE SCHEMA testschema");
-    $dbh->do("CREATE TABLE testschema.artist $std_artist_table");
-    $dbh->do(<<EOS);
+      $dbh->do("CREATE SCHEMA testschema");
+      $dbh->do("CREATE TABLE testschema.artist $std_artist_table");
+      $dbh->do(<<EOS);
 CREATE TABLE testschema.sequence_test (
     pkid1 integer
     , pkid2 integer
@@ -404,10 +404,10 @@ CREATE TABLE testschema.sequence_test (
     , CONSTRAINT pk PRIMARY KEY(pkid1, pkid2)
 )
 EOS
-    $dbh->do("CREATE SEQUENCE pkid1_seq START 1 MAXVALUE 999999 MINVALUE 0");
-    $dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
-    $dbh->do("CREATE SEQUENCE nonpkid_seq START 20 MAXVALUE 999999 MINVALUE 0");
-    $dbh->do(<<EOS);
+      $dbh->do("CREATE SEQUENCE pkid1_seq START 1 MAXVALUE 999999 MINVALUE 0");
+      $dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
+      $dbh->do("CREATE SEQUENCE nonpkid_seq START 20 MAXVALUE 999999 MINVALUE 0");
+      $dbh->do(<<EOS);
 CREATE TABLE testschema.casecheck (
     id serial PRIMARY KEY
     , "name" VARCHAR(1)
@@ -416,20 +416,20 @@ CREATE TABLE testschema.casecheck (
     , "storecolumn" VARCHAR(10)
 )
 EOS
-    $dbh->do(<<EOS);
+      $dbh->do(<<EOS);
 CREATE TABLE testschema.array_test (
     id serial PRIMARY KEY
     , arrayfield INTEGER[]
 )
 EOS
-    $dbh->do("CREATE SCHEMA anothertestschema");
-    $dbh->do("CREATE TABLE anothertestschema.artist $std_artist_table");
-    $dbh->do("CREATE SCHEMA yetanothertestschema");
-    $dbh->do("CREATE TABLE yetanothertestschema.artist $std_artist_table");
-    $dbh->do('set search_path=testschema,public');
-    $dbh->do("CREATE SCHEMA unq_nextval_schema");
-    $dbh->do("CREATE SCHEMA unq_nextval_schema2");
-    $dbh->do(<<EOS);
+      $dbh->do("CREATE SCHEMA anothertestschema");
+      $dbh->do("CREATE TABLE anothertestschema.artist $std_artist_table");
+      $dbh->do("CREATE SCHEMA yetanothertestschema");
+      $dbh->do("CREATE TABLE yetanothertestschema.artist $std_artist_table");
+      $dbh->do('set search_path=testschema,public');
+      $dbh->do("CREATE SCHEMA unq_nextval_schema");
+      $dbh->do("CREATE SCHEMA unq_nextval_schema2");
+      $dbh->do(<<EOS);
  CREATE TABLE unq_nextval_schema.artist
  (
    artistid integer not null default nextval('artist_artistid_seq'::regclass) PRIMARY KEY
@@ -439,9 +439,9 @@ EOS
    , arrayfield INTEGER[]
  );
 EOS
-    $dbh->do('set search_path=public,testschema,yetanothertestschema');
-    $dbh->do('create sequence public.artist_artistid_seq'); #< in the public schema
-    $dbh->do(<<EOS);
+      $dbh->do('set search_path=public,testschema,yetanothertestschema');
+      $dbh->do('create sequence public.artist_artistid_seq'); #< in the public schema
+      $dbh->do(<<EOS);
  CREATE TABLE unq_nextval_schema2.artist
  (
    artistid integer not null default nextval('public.artist_artistid_seq'::regclass) PRIMARY KEY
@@ -451,29 +451,35 @@ EOS
    , arrayfield INTEGER[]
  );
 EOS
-    $dbh->do('set search_path=testschema,public');
+      $dbh->do('set search_path=testschema,public');
+  });
 }
 
 
 
 sub drop_test_schema {
-  my ( $dbh, $no_warn ) = @_;
+    my ( $schema, $no_warn ) = @_;
 
-  return unless $dbh->ping;
+    $schema->storage->dbh_do(sub {
+        my (undef,$dbh) = @_;
 
-  for my $stat (
-    'DROP SCHEMA testschema CASCADE',
-    'DROP SCHEMA anothertestschema CASCADE',
-    'DROP SCHEMA yetanothertestschema CASCADE',
-    'DROP SEQUENCE pkid1_seq',
-    'DROP SEQUENCE pkid2_seq',
-    'DROP SEQUENCE nonpkid_seq',
-  ) {
-    eval { $schema->storage->_do_query ($stat) };
-    diag $@ if $@ && !$no_warn;
-  }
+        local $dbh->{Warn} = 0;
+
+        for my $stat (
+                      'DROP SCHEMA unq_nextval_schema2 CASCADE',
+                      'DROP SEQUENCE public.artist_artistid_seq',
+                      'DROP SCHEMA unq_nextval_schema CASCADE',
+                      'DROP SCHEMA testschema CASCADE',
+                      'DROP SEQUENCE pkid1_seq',
+                      'DROP SEQUENCE pkid2_seq',
+                      'DROP SEQUENCE nonpkid_seq',
+                      'DROP SCHEMA anothertestschema CASCADE',
+                      'DROP SCHEMA yetanothertestschema CASCADE',
+                     ) {
+            eval { $dbh->do ($stat) };
+            diag $@ if $@ && !$no_warn;
+        }
+    });
 }
 
 done_testing;
-
-END { _cleanup($schema) }
