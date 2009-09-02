@@ -7,21 +7,6 @@ use lib qw(t/lib);
 use DBICTest;
 
 
-BEGIN {
-  package DBICTest::Schema::ArrayTest;
-
-  use strict;
-  use warnings;
-  use base 'DBIx::Class';
-
-  __PACKAGE__->load_components(qw/Core/);
-  __PACKAGE__->table('testschema.array_test');
-  __PACKAGE__->add_columns(qw/id arrayfield/);
-  __PACKAGE__->column_info_from_storage(1);
-  __PACKAGE__->set_primary_key('id');
-
-}
-
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => <<EOM unless $dsn && $user;
@@ -34,193 +19,132 @@ Set \$ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test
 )
 EOM
 
+### load any test classes that are defined further down in the file
 
-########## Case check
+our @test_classes; #< array that will be pushed into by test classes defined in this file
+DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_classes;
 
-BEGIN {
-  package DBICTest::Schema::Casecheck;
 
-  use strict;
-  use warnings;
-  use base 'DBIx::Class';
-
-  __PACKAGE__->load_components(qw/Core/);
-  __PACKAGE__->table('testschema.casecheck');
-  __PACKAGE__->add_columns(qw/id name NAME uc_name storecolumn/);
-  __PACKAGE__->column_info_from_storage(1);
-  __PACKAGE__->set_primary_key('id');
-
-  sub store_column {
-    my ($self, $name, $value) = @_;
-    $value = '#'.$value if($name eq "storecolumn");
-    $self->maybe::next::method($name, $value);
-  }
-}
-
-DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
-
-# make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
+###  pre-connect tests
 {
-  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  my $s = DBICTest::Schema->connect($dsn, $user, $pass);
 
-  ok (!$schema->storage->_dbh, 'definitely not connected');
-  is ($schema->storage->sqlt_type, 'PostgreSQL', 'sqlt_type correct pre-connection');
+  ok (!$s->storage->_dbh, 'definitely not connected');
+
+  # Check that datetime_parser returns correctly before we explicitly connect.
+ SKIP: {
+      eval { require DateTime::Format::Pg };
+      skip "DateTime::Format::Pg required", 2 if $@;
+
+      my $store = ref $s->storage;
+      is($store, 'DBIx::Class::Storage::DBI', 'Started with generic storage');
+
+      my $parser = $s->storage->datetime_parser;
+      is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
+  }
+
+
+  # make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
+  is ($s->storage->sqlt_type, 'PostgreSQL', 'sqlt_type correct pre-connection');
 }
+
+### connect, create postgres-specific test schema
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
-# Check that datetime_parser returns correctly before we explicitly connect.
-SKIP: {
-    eval { require DateTime::Format::Pg };
-    skip "DateTime::Format::Pg required", 2 if $@;
-
-    my $store = ref $schema->storage;
-    is($store, 'DBIx::Class::Storage::DBI', 'Started with generic storage');
-
-    my $parser = $schema->storage->datetime_parser;
-    is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
-}
-
 my $dbh = $schema->storage->dbh;
-$schema->source("Artist")->name("testschema.artist");
-$schema->source("SequenceTest")->name("testschema.sequence_test");
-{
-    local $SIG{__WARN__} = sub {};
-    _cleanup ($dbh);
 
-    my $artist_table_def = <<EOS;
-(
-  artistid serial PRIMARY KEY
-  , name VARCHAR(100)
-  , rank INTEGER NOT NULL DEFAULT '13'
-  , charfield CHAR(10)
-  , arrayfield INTEGER[]
-)
-EOS
-    $dbh->do("CREATE SCHEMA testschema;");
-    $dbh->do("CREATE TABLE testschema.artist $artist_table_def;");
-    $dbh->do("CREATE TABLE testschema.sequence_test (pkid1 integer, pkid2 integer, nonpkid integer, name VARCHAR(100), CONSTRAINT pk PRIMARY KEY(pkid1, pkid2));");
-    $dbh->do("CREATE SEQUENCE pkid1_seq START 1 MAXVALUE 999999 MINVALUE 0");
-    $dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
-    $dbh->do("CREATE SEQUENCE nonpkid_seq START 20 MAXVALUE 999999 MINVALUE 0");
-    ok ( $dbh->do('CREATE TABLE testschema.casecheck (id serial PRIMARY KEY, "name" VARCHAR(1), "NAME" VARCHAR(2), "UC_NAME" VARCHAR(3), "storecolumn" VARCHAR(10));'), 'Creation of casecheck table');
-    ok ( $dbh->do('CREATE TABLE testschema.array_test (id serial PRIMARY KEY, arrayfield INTEGER[]);'), 'Creation of array_test table');
-    $dbh->do("CREATE SCHEMA anothertestschema;");
-    $dbh->do("CREATE TABLE anothertestschema.artist $artist_table_def;");
-    $dbh->do("CREATE SCHEMA yetanothertestschema;");
-    $dbh->do("CREATE TABLE yetanothertestschema.artist $artist_table_def;");
-    $dbh->do('set search_path=testschema,public');
-    $dbh->do("CREATE SCHEMA unq_nextval_schema;");
-    $dbh->do("CREATE SCHEMA unq_nextval_schema2;");
-    $dbh->do(<<EOS);
- CREATE TABLE unq_nextval_schema.artist
- (
-   artistid integer not null default nextval('artist_artistid_seq'::regclass) PRIMARY KEY
-   , name VARCHAR(100)
-   , rank INTEGER NOT NULL DEFAULT '13'
-   , charfield CHAR(10)
-   , arrayfield INTEGER[]
- );
-EOS
-    $dbh->do('set search_path=public,testschema,yetanothertestschema');
-    $dbh->do('create sequence public.artist_artistid_seq'); #< in the public schema
-    $dbh->do(<<EOS);
- CREATE TABLE unq_nextval_schema2.artist
- (
-   artistid integer not null default nextval('public.artist_artistid_seq'::regclass) PRIMARY KEY
-   , name VARCHAR(100)
-   , rank INTEGER NOT NULL DEFAULT '13'
-   , charfield CHAR(10)
-   , arrayfield INTEGER[]
- );
-EOS
-    $dbh->do('set search_path=testschema,public');
+drop_test_schema($dbh, 'no warn');
+create_test_schema($dbh);
 
-}
+### begin main tests
 
-
-
+###  auto-pk / last_insert_id / sequence discovery
 {
 
-  # This is in Core now, but it's here just to test that it doesn't break
-  $schema->class('Artist')->load_components('PK::Auto');
-  cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an empty artist table');
+    $schema->source("Artist")->name("testschema.artist");
 
-  # test that auto-pk also works with the defined search path by
-  # un-schema-qualifying the table name
-  my $artist_name_save = $schema->source("Artist")->name;
-  $schema->source("Artist")->name("artist");
+    # This is in Core now, but it's here just to test that it doesn't break
+    $schema->class('Artist')->load_components('PK::Auto');
+    cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an empty artist table');
 
-  my $unq_new;
-  lives_ok {
-      $unq_new = $schema->resultset('Artist')->create({ name => 'baz' });
-  } 'insert into unqualified, shadowed table succeeds';
+    # test that auto-pk also works with the defined search path by
+    # un-schema-qualifying the table name
+    my $artist_name_save = $schema->source("Artist")->name;
+    $schema->source("Artist")->name("artist");
 
-  is($unq_new && $unq_new->artistid, 1, "and got correct artistid");
+    my $unq_new;
+    lives_ok {
+        $unq_new = $schema->resultset('Artist')->create({ name => 'baz' });
+    } 'insert into unqualified, shadowed table succeeds';
 
-  my @test_schemas = ( [qw| anothertestschema    1      |],
-                       [qw| yetanothertestschema 1      |],
-                     );
-  foreach my $t ( @test_schemas ) {
-      my ($sch_name, $start_num) = @$t;
-      #test with anothertestschema
-      $schema->source('Artist')->name("$sch_name.artist");
-      $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
-      my $another_new;
-      lives_ok {
-          $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
-          is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
-              or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-      } "$sch_name liid 1 did not die"
-          or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-      lives_ok {
-          $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
-          is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
-              or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-      } "$sch_name liid 2 did not die"
-          or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+    is($unq_new && $unq_new->artistid, 1, "and got correct artistid");
 
-  }
+    my @test_schemas = ( [qw| anothertestschema    1      |],
+                         [qw| yetanothertestschema 1      |],
+                       );
+    foreach my $t ( @test_schemas ) {
+        my ($sch_name, $start_num) = @$t;
+        #test with anothertestschema
+        $schema->source('Artist')->name("$sch_name.artist");
+        $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
+        my $another_new;
+        lives_ok {
+            $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
+            is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
+                or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+        } "$sch_name liid 1 did not die"
+            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+        lives_ok {
+            $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
+            is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
+                or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+        } "$sch_name liid 2 did not die"
+            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+
+    }
 
 
-  my @todo_schemas = (
-                      [qw| unq_nextval_schema   2 |],
-                      [qw| unq_nextval_schema2  1 |],
-                     );
+    my @todo_schemas = (
+                        [qw| unq_nextval_schema   2 |],
+                        [qw| unq_nextval_schema2  1 |],
+                       );
 
-  foreach my $t ( @todo_schemas ) {
-    my ($sch_name, $start_num) = @$t;
+    foreach my $t ( @todo_schemas ) {
+        my ($sch_name, $start_num) = @$t;
 
-    #test with anothertestschema
-    $schema->source('Artist')->name("$sch_name.artist");
+        #test with anothertestschema
+        $schema->source('Artist')->name("$sch_name.artist");
+        $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
+        my $another_new;
+        lives_ok {
+            $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
+            is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
+                or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+        } "$sch_name liid 1 did not die"
+            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+
+        lives_ok {
+            $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
+            is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
+                or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+        } "$sch_name liid 2 did not die"
+            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+    }
+
     $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
-    my $another_new;
-    lives_ok {
-      $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
-      is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
-        or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-    } "$sch_name liid 1 did not die"
-      or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-
-    lives_ok {
-      $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
-      is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
-        or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-    } "$sch_name liid 2 did not die"
-      or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-  }
-
-  $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
-  $schema->source("Artist")->name($artist_name_save);
+    $schema->source("Artist")->name($artist_name_save);
 }
 
-my $new;
 lives_ok {
-    $new = $schema->resultset('Artist')->create({ name => 'foo' });
+    my $new = $schema->resultset('Artist')->create({ name => 'foo' });
     is($new->artistid, 4, "Auto-PK worked");
     $new = $schema->resultset('Artist')->create({ name => 'bar' });
     is($new->artistid, 5, "Auto-PK worked");
 } 'old auto-pk tests did not die either';
 
+
+
+### type_info tests
 
 my $test_type_info = {
     'artistid' => {
@@ -255,7 +179,6 @@ my $test_type_info = {
     },
 };
 
-
 my $type_info = $schema->storage->columns_info_for('testschema.artist');
 my $artistid_defval = delete $type_info->{artistid}->{default_value};
 like($artistid_defval,
@@ -264,6 +187,26 @@ like($artistid_defval,
 is_deeply($type_info, $test_type_info,
           'columns_info_for - column data types');
 
+
+
+
+####### Array tests
+
+BEGIN {
+  package DBICTest::Schema::ArrayTest;
+  push @main::test_classes, __PACKAGE__;
+
+  use strict;
+  use warnings;
+  use base 'DBIx::Class';
+
+  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->table('testschema.array_test');
+  __PACKAGE__->add_columns(qw/id arrayfield/);
+  __PACKAGE__->column_info_from_storage(1);
+  __PACKAGE__->set_primary_key('id');
+
+}
 SKIP: {
   skip "Need DBD::Pg 2.9.2 or newer for array tests", 4 if $DBD::Pg::VERSION < 2.009002;
 
@@ -293,6 +236,30 @@ SKIP: {
 }
 
 
+
+########## Case check
+
+BEGIN {
+  package DBICTest::Schema::Casecheck;
+  push @main::test_classes, __PACKAGE__;
+
+  use strict;
+  use warnings;
+  use base 'DBIx::Class';
+
+  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->table('testschema.casecheck');
+  __PACKAGE__->add_columns(qw/id name NAME uc_name storecolumn/);
+  __PACKAGE__->column_info_from_storage(1);
+  __PACKAGE__->set_primary_key('id');
+
+  sub store_column {
+    my ($self, $name, $value) = @_;
+    $value = '#'.$value if($name eq "storecolumn");
+    $self->maybe::next::method($name, $value);
+  }
+}
+
 # store_column is called once for create() for non sequence columns
 ok(my $storecolumn = $schema->resultset('Casecheck')->create({'storecolumn' => 'a'}));
 is($storecolumn->storecolumn, '#a'); # was '##a'
@@ -306,12 +273,15 @@ is( $NAME_info->{size}, 2, "Case sensitive matching info for 'NAME'" );
 my $uc_name_info = $schema->source('Casecheck')->column_info( 'uc_name' );
 is( $uc_name_info->{size}, 3, "Case insensitive matching info for 'uc_name'" );
 
-# Test SELECT ... FOR UPDATE
+
+
+
+## Test SELECT ... FOR UPDATE
+
 my $HaveSysSigAction = eval "require Sys::SigAction" && !$@;
-if ($HaveSysSigAction) {
+if( $HaveSysSigAction ) {
     Sys::SigAction->import( 'set_sig_handler' );
 }
-
 SKIP: {
     skip "Sys::SigAction is not available", 3 unless $HaveSysSigAction;
     # create a new schema
@@ -383,6 +353,10 @@ SKIP: {
     });
 }
 
+
+######## other Auto-pk tests
+
+$schema->source("SequenceTest")->name("testschema.sequence_test");
 for (1..5) {
     my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
     is($st->pkid1, $_, "Oracle Auto-PK without trigger: First primary key");
@@ -392,14 +366,97 @@ for (1..5) {
 my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
-#_cleanup ($dbh);
-
+drop_test_schema($dbh);
 done_testing;
 
+exit;
+END { drop_test_schema($dbh) }
 
-sub _cleanup {
-  my $dbh = shift or return;
-  $dbh->ping or return;
+
+######### SUBROUTINES
+
+sub create_test_schema {
+    my $dbh = shift;
+
+    local $SIG{__WARN__} = sub {};
+
+    my $std_artist_table = <<EOS;
+(
+  artistid serial PRIMARY KEY
+  , name VARCHAR(100)
+  , rank INTEGER NOT NULL DEFAULT '13'
+  , charfield CHAR(10)
+  , arrayfield INTEGER[]
+)
+EOS
+
+    $dbh->do("CREATE SCHEMA testschema");
+    $dbh->do("CREATE TABLE testschema.artist $std_artist_table");
+    $dbh->do(<<EOS);
+CREATE TABLE testschema.sequence_test (
+    pkid1 integer
+    , pkid2 integer
+    , nonpkid integer
+    , name VARCHAR(100)
+    , CONSTRAINT pk PRIMARY KEY(pkid1, pkid2)
+)
+EOS
+    $dbh->do("CREATE SEQUENCE pkid1_seq START 1 MAXVALUE 999999 MINVALUE 0");
+    $dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
+    $dbh->do("CREATE SEQUENCE nonpkid_seq START 20 MAXVALUE 999999 MINVALUE 0");
+    $dbh->do(<<EOS);
+CREATE TABLE testschema.casecheck (
+    id serial PRIMARY KEY
+    , "name" VARCHAR(1)
+    , "NAME" VARCHAR(2)
+    , "UC_NAME" VARCHAR(3)
+    , "storecolumn" VARCHAR(10)
+)
+EOS
+    $dbh->do(<<EOS);
+CREATE TABLE testschema.array_test (
+    id serial PRIMARY KEY
+    , arrayfield INTEGER[]
+)
+EOS
+    $dbh->do("CREATE SCHEMA anothertestschema");
+    $dbh->do("CREATE TABLE anothertestschema.artist $std_artist_table");
+    $dbh->do("CREATE SCHEMA yetanothertestschema");
+    $dbh->do("CREATE TABLE yetanothertestschema.artist $std_artist_table");
+    $dbh->do('set search_path=testschema,public');
+    $dbh->do("CREATE SCHEMA unq_nextval_schema");
+    $dbh->do("CREATE SCHEMA unq_nextval_schema2");
+    $dbh->do(<<EOS);
+ CREATE TABLE unq_nextval_schema.artist
+ (
+   artistid integer not null default nextval('artist_artistid_seq'::regclass) PRIMARY KEY
+   , name VARCHAR(100)
+   , rank INTEGER NOT NULL DEFAULT '13'
+   , charfield CHAR(10)
+   , arrayfield INTEGER[]
+ );
+EOS
+    $dbh->do('set search_path=public,testschema,yetanothertestschema');
+    $dbh->do('create sequence public.artist_artistid_seq'); #< in the public schema
+    $dbh->do(<<EOS);
+ CREATE TABLE unq_nextval_schema2.artist
+ (
+   artistid integer not null default nextval('public.artist_artistid_seq'::regclass) PRIMARY KEY
+   , name VARCHAR(100)
+   , rank INTEGER NOT NULL DEFAULT '13'
+   , charfield CHAR(10)
+   , arrayfield INTEGER[]
+ );
+EOS
+    $dbh->do('set search_path=testschema,public');
+}
+
+
+
+sub drop_test_schema {
+  my ( $dbh, $no_warn ) = @_;
+
+  return unless $dbh->ping;
 
   for my $stat (
     'DROP TABLE unq_nextval_schema2.artist',
@@ -421,8 +478,7 @@ sub _cleanup {
     'DROP SCHEMA yetanothertestschema',
   ) {
     eval { $dbh->do ($stat) };
-    diag $@ if $@;
+    diag $@ if $@ && !$no_warn;
   }
 }
 
-END { _cleanup($dbh) }
