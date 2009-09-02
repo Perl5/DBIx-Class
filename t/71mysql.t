@@ -174,8 +174,7 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
   }, 'join does not throw (mysql 3 test)';
 
   # induce a jointype override, make sure it works even if we don't have mysql3
-  no warnings qw/redefine/;
-  local *DBIx::Class::SQLAHacks::MySQL::_default_jointype = sub {'inner'};
+  local $schema->storage->sql_maker->{_default_jointype} = 'inner';
   is_same_sql_bind (
     $rs->as_query,
     '(
