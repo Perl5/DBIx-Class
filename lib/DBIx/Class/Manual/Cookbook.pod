@@ -37,7 +37,10 @@ Sometimes you need to formulate a query using specific operators:
 
 This results in something like the following C<WHERE> clause:
 
-  WHERE artist LIKE '%Lamb%' AND title LIKE '%Fear of Fours%'
+  WHERE artist LIKE ? AND title LIKE ?
+
+And the following bind values for the placeholders: C<'%Lamb%'>, C<'%Fear of
+Fours%'>.
 
 Other queries might require slightly more complex logic:
 
