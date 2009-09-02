@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+
 use strict;
 use warnings;
 use Test::More;
@@ -15,11 +16,10 @@ BEGIN {
   plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
     unless ($dsn);
 
-
-    eval "use DBD::mysql; use SQL::Translator 0.09003;";
-    plan $@
-        ? ( skip_all => 'needs DBD::mysql and SQL::Translator 0.09003 for testing' )
-        : ( tests => 22 );
+  require DBIx::Class;
+  plan skip_all =>
+      'Test needs SQL::Translator ' . DBIx::Class->_sqlt_minimum_version
+    if not DBIx::Class->_sqlt_version_ok;
 }
 
 my $version_table_name = 'dbix_class_schema_versions';
@@ -182,3 +182,5 @@ TODO: {
 unless ($ENV{DBICTEST_KEEP_VERSIONING_DDL}) {
     unlink $_ for (values %$fn);
 }
+
+done_testing;
