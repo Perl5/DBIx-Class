@@ -247,16 +247,7 @@ documentation for details.
 
 To use an SQL function on the left hand side of a comparison:
 
- ->search({}, { where => \'YEAR(date_of_birth)=1979' });
-
-=begin hidden
-
-(When the bind arg ordering bug is fixed, the previous example can be
-replaced with the following.)
-
- ->search({}, { where => \'YEAR(date_of_birth)=?', bind => [ 1979 ] });
-
-=end hidden
+ ->search({ -nest => \[ 'YEAR(date_of_birth)', [ dummy => 1979 ] ] });
 
 Or, if you have quoting off:
 
