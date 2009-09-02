@@ -60,9 +60,6 @@ create_test_schema($schema);
 
 ###  auto-pk / last_insert_id / sequence discovery
 {
-    local $SIG{__WARN__} = sub {};
-    _cleanup ($schema);
-
     $schema->source("Artist")->name("testschema.artist");
 
     # This is in Core now, but it's here just to test that it doesn't break
