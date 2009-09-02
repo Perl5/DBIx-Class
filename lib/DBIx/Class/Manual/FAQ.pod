@@ -247,7 +247,7 @@ documentation for details.
 
 To use an SQL function on the left hand side of a comparison:
 
- ->search({ -nest => \[ 'YEAR(date_of_birth)', [ dummy => 1979 ] ] });
+ ->search({ -nest => \[ 'YEAR(date_of_birth) = ?', [ dummy => 1979 ] ] });
 
 Or, if you have quoting off:
 

@@ -423,14 +423,14 @@ specification as you would any column:
 With quoting on, or for a more portable solution, use literal SQL values with
 placeholders:
 
-  $rs->search(\[ 'YEAR(date_of_birth)', [ dummy => 1979 ] ]);
+  $rs->search(\[ 'YEAR(date_of_birth) = ?', [ dummy => 1979 ] ]);
 
   # Equivalent SQL:
   # SELECT * FROM employee WHERE YEAR(date_of_birth) = ?
 
   $rs->search({
     name => 'Bob',
-    -nest => \[ 'YEAR(date_of_birth)', [ dummy => 1979 ] ],
+    -nest => \[ 'YEAR(date_of_birth) = ?', [ dummy => 1979 ] ],
   });
 
   # Equivalent SQL:
