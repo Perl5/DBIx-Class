@@ -423,23 +423,24 @@ specification as you would any column:
 With quoting on, or for a more portable solution, use literal SQL values with
 placeholders:
 
-  $rs->search(\[ 'YEAR(date_of_birth) = ?', [ date_of_birth => 1979 ] ]);
+  $rs->search(\[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ]);
 
   # Equivalent SQL:
   # SELECT * FROM employee WHERE YEAR(date_of_birth) = ?
 
   $rs->search({
     name => 'Bob',
-    -nest => \[ 'YEAR(date_of_birth) = ?', [ date_of_birth => 1979 ] ],
+    -nest => \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ],
   });
 
   # Equivalent SQL:
   # SELECT * FROM employee WHERE name = ? AND YEAR(date_of_birth) = ?
 
-Note: the C<date_of_birth> string in the C<< [ date_of_birth => 1979 ] >> part
-should be the same as the name of the column. It is used by L<DBIx::Class> to
-handle special column types. (If no column is involved in your expression, just
-invent a column name.)
+Note: the C<plain_value> string in the C<< [ plain_value => 1979 ] >> part
+should be either the same as the name of the column (do this if the type of the
+return value of the function is the same as the type of the column) or
+otherwise it's essentially a dummy string currently (use C<plain_value> as a
+habit). It is used by L<DBIx::Class> to handle special column types.
 
 See also L<SQL::Abstract/Literal SQL with placeholders and bind values
 (subqueries)>.
