@@ -247,7 +247,12 @@ documentation for details.
 
 To use an SQL function on the left hand side of a comparison:
 
- ->search({ -nest => \[ 'YEAR(date_of_birth) = ?', [ dummy => 1979 ] ] });
+ ->search({ -nest => \[ 'YEAR(date_of_birth) = ?', [ date_of_birth => 1979 ] ] });
+
+Note: the C<date_of_birth> string in the C<< [ date_of_birth => 1979 ] >> part
+should be the same as the name of the column. It is used by L<DBIx::Class> to
+handle special column types. (If no column is involved in your expression, just
+invent a column name.)
 
 Or, if you have quoting off:
 
