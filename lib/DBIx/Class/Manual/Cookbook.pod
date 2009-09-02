@@ -1071,7 +1071,7 @@ create the relationship.
 To order C<< $book->pages >> by descending page_number, create the relation
 as follows:
 
-  __PACKAGE__->has_many('pages' => 'Page', 'book', { order_by => \'page_number DESC'} );
+  __PACKAGE__->has_many('pages' => 'Page', 'book', { order_by => { -desc => 'page_number'} } );
 
 =head2 Filtering a relationship result set
 
