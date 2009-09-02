@@ -420,25 +420,24 @@ specification as you would any column:
 
   $rs->search({ 'YEAR(date_of_birth)' => 1979 });
 
-With quoting on, or for a more portable solution, use the C<where>
-attribute:
+With quoting on, or for a more portable solution, use literal SQL values with
+placeholders:
 
-  $rs->search({}, { where => \'YEAR(date_of_birth) = 1979' });
+  $rs->search(\[ 'YEAR(date_of_birth)', [ dummy => 1979 ] ]);
 
-=begin hidden
+  # Equivalent SQL:
+  # SELECT * FROM employee WHERE YEAR(date_of_birth) = ?
 
-(When the bind args ordering bug is fixed, this technique will be better
-and can replace the one above.)
-
-With quoting on, or for a more portable solution, use the C<where> and
-C<bind> attributes:
-
-  $rs->search({}, {
-      where => \'YEAR(date_of_birth) = ?',
-      bind  => [ 1979 ]
+  $rs->search({
+    name => 'Bob',
+    -nest => \[ 'YEAR(date_of_birth)', [ dummy => 1979 ] ],
   });
 
-=end hidden
+  # Equivalent SQL:
+  # SELECT * FROM employee WHERE name = ? AND YEAR(date_of_birth) = ?
+
+See also L<SQL::Abstract/Literal SQL with placeholders and bind values
+(subqueries)>.
 
 =head1 JOINS AND PREFETCHING
 
