@@ -1113,6 +1113,16 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   $rs = $user->addresses(); # get all addresses for a user
   $rs = $address->users(); # get all users for an address
 
+  my $address = $user->add_to_addresses(    # returns a My::Address instance,
+                                            # NOT a My::UserAddress instance!
+    {
+      country => 'United Kingdom',
+      area_code => 'XYZ',
+      town => 'London',
+      street => 'Sesame',
+    }
+  );
+
 =head2 Relationships across DB schemas
 
 Mapping relationships across L<DB schemas|DBIx::Class::Manual::Glossary/DB schema>
