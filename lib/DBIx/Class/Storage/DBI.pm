@@ -44,7 +44,14 @@ DBIx::Class::Storage::DBI - DBI storage handler
   my $schema = MySchema->connect('dbi:SQLite:my.db');
 
   $schema->storage->debug(1);
-  $schema->dbh_do("DROP TABLE authors");
+
+  my @stuff = $schema->storage->dbh_do(
+    sub {
+      my ($storage, $dbh, @args) = @_;
+      $dbh->do("DROP TABLE authors");
+    },
+    @column_list
+  );
 
   $schema->resultset('Book')->search({
      written_on => $schema->storage->datetime_parser(DateTime->now)
