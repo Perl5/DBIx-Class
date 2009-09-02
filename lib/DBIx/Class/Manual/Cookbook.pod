@@ -409,8 +409,10 @@ Then call your new method in your code:
 
 =head2 Using SQL functions on the left hand side of a comparison
 
-Using SQL functions on the left hand side of a comparison is generally
-not a good idea since it requires a scan of the entire table.  However,
+Using SQL functions on the left hand side of a comparison is generally not a
+good idea since it requires a scan of the entire table. (Unless your RDBMS
+supports indexes on expressions - including return values of functions -, and
+you create an index on the return value of the function in question.) However,
 it can be accomplished with C<DBIx::Class> when necessary.
 
 If you do not have quoting on, simply include the function in your search
