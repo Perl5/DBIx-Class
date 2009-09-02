@@ -336,7 +336,7 @@ B<NOTE>: You have to explicitly use '=' when doing an equality comparison.
 The following will B<not> work:
 
   my $rs = $schema->resultset('CD')->search({
-    artist_id => $inside_rs->get_column('id')->as_query,
+    artist_id => $inside_rs->get_column('id')->as_query,  # does NOT work
   });
 
 =head3 Support
