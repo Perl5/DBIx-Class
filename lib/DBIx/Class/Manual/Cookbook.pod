@@ -928,6 +928,9 @@ B<Test File> test.pl
     ### The statement below will print
     print "I can do admin stuff\n" if $admin->can('do_admin_stuff');
 
+Alternatively you can use L<DBIx::Class::DynamicSubclass> that implements
+exactly the above functionality.
+
 =head2 Skip row object creation for faster results
 
 DBIx::Class is not built for speed, it's built for convenience and
