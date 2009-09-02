@@ -6,27 +6,8 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-{
-  package DBICTest::Schema::Casecheck;
 
-  use strict;
-  use warnings;
-  use base 'DBIx::Class';
-
-  __PACKAGE__->load_components(qw/Core/);
-  __PACKAGE__->table('testschema.casecheck');
-  __PACKAGE__->add_columns(qw/id name NAME uc_name storecolumn/);
-  __PACKAGE__->column_info_from_storage(1);
-  __PACKAGE__->set_primary_key('id');
-
-  sub store_column {
-    my ($self, $name, $value) = @_;
-    $value = '#'.$value if($name eq "storecolumn");
-    $self->maybe::next::method($name, $value);
-  }
-}
-
-{
+BEGIN {
   package DBICTest::Schema::ArrayTest;
 
   use strict;
@@ -52,6 +33,29 @@ Set \$ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test
   'unq_nextval_schema', and 'unq_nextval_schema2'
 )
 EOM
+
+
+########## Case check
+
+BEGIN {
+  package DBICTest::Schema::Casecheck;
+
+  use strict;
+  use warnings;
+  use base 'DBIx::Class';
+
+  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->table('testschema.casecheck');
+  __PACKAGE__->add_columns(qw/id name NAME uc_name storecolumn/);
+  __PACKAGE__->column_info_from_storage(1);
+  __PACKAGE__->set_primary_key('id');
+
+  sub store_column {
+    my ($self, $name, $value) = @_;
+    $value = '#'.$value if($name eq "storecolumn");
+    $self->maybe::next::method($name, $value);
+  }
+}
 
 DBICTest::Schema->load_classes( 'Casecheck', 'ArrayTest' );
 
@@ -133,18 +137,15 @@ EOS
 
 }
 
-# store_column is called once for create() for non sequence columns
 
-ok(my $storecolumn = $schema->resultset('Casecheck')->create({'storecolumn' => 'a'}));
 
-is($storecolumn->storecolumn, '#a'); # was '##a'
+{
 
-# This is in Core now, but it's here just to test that it doesn't break
-$schema->class('Artist')->load_components('PK::Auto');
+  # This is in Core now, but it's here just to test that it doesn't break
+  $schema->class('Artist')->load_components('PK::Auto');
+  cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an empty artist table');
 
-cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an empty artist table');
-
-{ # test that auto-pk also works with the defined search path by
+  # test that auto-pk also works with the defined search path by
   # un-schema-qualifying the table name
   my $artist_name_save = $schema->source("Artist")->name;
   $schema->source("Artist")->name("artist");
@@ -291,6 +292,10 @@ SKIP: {
   is($count, 1, 'comparing arrayref to pg array data gives correct result');
 }
 
+
+# store_column is called once for create() for non sequence columns
+ok(my $storecolumn = $schema->resultset('Casecheck')->create({'storecolumn' => 'a'}));
+is($storecolumn->storecolumn, '#a'); # was '##a'
 
 my $name_info = $schema->source('Casecheck')->column_info( 'name' );
 is( $name_info->{size}, 1, "Case sensitive matching info for 'name'" );
