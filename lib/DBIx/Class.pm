@@ -29,6 +29,10 @@ $VERSION = '0.08109';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
+# what version of sqlt do we require if deploy() without a ddl_dir is invoked
+# when changing also adjust $sqlt_recommends in Makefile.PL
+my $minimum_sqlt_version = '0.11002';
+
 sub MODIFY_CODE_ATTRIBUTES {
   my ($class,$code,@attrs) = @_;
   $class->mk_classdata('__attr_cache' => {})
@@ -43,6 +47,34 @@ sub _attr_cache {
   my $rest = eval { $self->next::method };
   return $@ ? $cache : { %$cache, %$rest };
 }
+
+# SQLT version handling
+{
+  my $_sqlt_version_ok;     # private
+  my $_sqlt_version_error;  # private
+
+  sub _sqlt_version_ok {
+    if (!defined $_sqlt_version_ok) {
+      eval "use SQL::Translator $minimum_sqlt_version";
+      if ($@) {
+        $_sqlt_version_ok = 0;
+        $_sqlt_version_error = $@;
+      }
+      else {
+        $_sqlt_version_ok = 1;
+      }
+    }
+    return $_sqlt_version_ok;
+  }
+
+  sub _sqlt_version_error {
+    shift->_sqlt_version_ok unless defined $_sqlt_version_ok;
+    return $_sqlt_version_error;
+  }
+
+  sub _sqlt_minimum_version { $minimum_sqlt_version };
+}
+
 
 1;
 
@@ -201,6 +233,11 @@ merged back to trunk for a major release.
 L<DBIx::Class::Manual::DocMap> lists each task you might want help on, and
 the modules where you will find documentation.
 
+=head1 COPYRIGHT
+
+Copyright (c) 2005 - 2009 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
+as listed below.
+
 =head1 AUTHOR
 
 mst: Matt S. Trout <mst@shadowcatsystems.co.uk>
@@ -354,6 +391,7 @@ zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This library is free software and may be distributed under the same terms
+as perl itself.
 
 =cut

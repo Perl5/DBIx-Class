@@ -4,6 +4,7 @@ Revision history for DBIx::Class
           coderef, allowing better intergration with Catalyst
         - Fixed a complex prefetch + regular join regression introduced
           in 0.08108
+        - Fixed insert_bulk rebless handling
         - SQLT related fixes:
           - sqlt_type is now called on the correct storage object
           - hooks can now see the correct producer_type

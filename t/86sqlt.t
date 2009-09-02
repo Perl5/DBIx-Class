@@ -5,8 +5,12 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-eval "use SQL::Translator";
-plan skip_all => 'SQL::Translator required' if $@;
+BEGIN {
+  require DBIx::Class;
+  plan skip_all =>
+      'Test needs SQL::Translator ' . DBIx::Class->_sqlt_minimum_version
+    if not DBIx::Class->_sqlt_version_ok;
+}
 
 my $schema = DBICTest->init_schema (no_deploy => 1);
 

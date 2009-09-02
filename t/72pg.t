@@ -60,6 +60,8 @@ create_test_schema($dbh);
 
 ###  auto-pk / last_insert_id / sequence discovery
 {
+    local $SIG{__WARN__} = sub {};
+    _cleanup ($schema);
 
     $schema->source("Artist")->name("testschema.artist");
 
@@ -366,8 +368,9 @@ for (1..5) {
 my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
-drop_test_schema($dbh);
-done_testing;
+sub _cleanup {
+  my $schema = shift or return;
+  local $SIG{__WARN__} = sub {};
 
 exit;
 END { drop_test_schema($dbh) }
@@ -459,26 +462,18 @@ sub drop_test_schema {
   return unless $dbh->ping;
 
   for my $stat (
-    'DROP TABLE unq_nextval_schema2.artist',
-    'DROP SCHEMA unq_nextval_schema2',
-    'DROP SEQUENCE public.artist_artistid_seq',
-    'DROP TABLE unq_nextval_schema.artist',
-    'DROP SCHEMA unq_nextval_schema',
-    'DROP TABLE testschema.artist',
-    'DROP TABLE testschema.casecheck',
-    'DROP TABLE testschema.sequence_test',
-    'DROP TABLE testschema.array_test',
+    'DROP SCHEMA testschema CASCADE',
+    'DROP SCHEMA anothertestschema CASCADE',
+    'DROP SCHEMA yetanothertestschema CASCADE',
     'DROP SEQUENCE pkid1_seq',
     'DROP SEQUENCE pkid2_seq',
     'DROP SEQUENCE nonpkid_seq',
-    'DROP SCHEMA testschema',
-    'DROP TABLE anothertestschema.artist',
-    'DROP SCHEMA anothertestschema',
-    'DROP TABLE yetanothertestschema.artist',
-    'DROP SCHEMA yetanothertestschema',
   ) {
-    eval { $dbh->do ($stat) };
+    eval { $schema->storage->_do_query ($stat) };
     diag $@ if $@ && !$no_warn;
   }
 }
 
+done_testing;
+
+END { _cleanup($schema) }

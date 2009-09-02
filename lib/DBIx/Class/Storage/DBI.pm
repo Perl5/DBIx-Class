@@ -1303,12 +1303,17 @@ sub insert {
 ## only prepped once.
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
+
+# redispatch to insert_bulk method of storage we reblessed into, if necessary
+  if (not $self->_driver_determined) {
+    $self->_determine_driver;
+    goto $self->can('insert_bulk');
+  }
+
   my %colvalues;
   my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
   my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
-
-  $self->_determine_driver;
 
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql);
@@ -2277,9 +2282,8 @@ sub create_ddl_dir {
     %{$sqltargs || {}}
   };
 
-  $self->throw_exception(q{Can't create a ddl file without SQL::Translator 0.09003: '}
-      . $self->_check_sqlt_message . q{'})
-          if !$self->_check_sqlt_version;
+  $self->throw_exception("Can't create a ddl file without SQL::Translator: " . $self->_sqlt_version_error)
+    if !$self->_sqlt_version_ok;
 
   my $sqlt = SQL::Translator->new( $sqltargs );
 
@@ -2421,9 +2425,8 @@ sub deployment_statements {
       return join('', @rows);
   }
 
-  $self->throw_exception(q{Can't deploy without SQL::Translator 0.09003: '}
-      . $self->_check_sqlt_message . q{'})
-          if !$self->_check_sqlt_version;
+  $self->throw_exception("Can't deploy without either SQL::Translator or a ddl_dir: " . $self->_sqlt_version_error )
+    if !$self->_sqlt_version_ok;
 
   # sources needs to be a parser arg, but for simplicty allow at top level
   # coming in
@@ -2510,21 +2513,6 @@ sub build_datetime_parser {
   return $type;
 }
 
-{
-    my $_check_sqlt_version; # private
-    my $_check_sqlt_message; # private
-    sub _check_sqlt_version {
-        return $_check_sqlt_version if defined $_check_sqlt_version;
-        eval 'use SQL::Translator "0.09003"';
-        $_check_sqlt_message = $@ || '';
-        $_check_sqlt_version = !$@;
-    }
-
-    sub _check_sqlt_message {
-        _check_sqlt_version if !defined $_check_sqlt_message;
-        $_check_sqlt_message;
-    }
-}
 
 =head2 is_replicating
 

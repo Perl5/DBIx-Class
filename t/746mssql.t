@@ -198,6 +198,8 @@ SQL
 });
 
 lives_ok ( sub {
+  # start a new connection, make sure rebless works
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
   $schema->populate ('Owners', [
     [qw/id  name  /],
     [qw/1   wiggle/],
@@ -219,6 +221,8 @@ lives_ok ( sub {
 }, 'populate with PKs supplied ok' );
 
 lives_ok ( sub {
+  # start a new connection, make sure rebless works
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
   $schema->populate ('BooksInLibrary', [
     [qw/source  owner title   /],
     [qw/Library 1     secrets0/],
