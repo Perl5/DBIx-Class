@@ -247,6 +247,8 @@ any of your aliases using either of these:
   # Or use DBIx::Class::AccessorGroup:
   __PACKAGE__->mk_group_accessors('column' => 'name_length');
 
+See also L</Using SQL functions on the left hand side of a comparison>.
+
 =head2 SELECT DISTINCT with multiple columns
 
   my $rs = $schema->resultset('Artist')->search(
