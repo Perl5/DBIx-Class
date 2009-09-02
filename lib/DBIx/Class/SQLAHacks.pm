@@ -517,7 +517,7 @@ sub _recurse_from {
       $join_type =~ s/^\s+ | \s+$//xg;
     }
 
-    $join_type ||= $self->_default_jointype;
+    $join_type = $self->_default_jointype if not defined $join_type;
 
     my $join_clause = sprintf ('%s JOIN ',
       $join_type ?  ' ' . uc($join_type) : ''

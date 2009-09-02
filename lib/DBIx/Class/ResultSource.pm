@@ -1237,9 +1237,10 @@ sub _resolve_join {
     my $type;
     if ($force_left) {
       $type = 'left';
-    } else {
-      $type = $rel_info->{attrs}{join_type} || '';
-      $force_left = 1 if lc($type) eq 'left';
+    }
+    else {
+      $type = $rel_info->{attrs}{join_type};
+      $force_left = 1 if lc($type||'') eq 'left';
     }
 
     my $rel_src = $self->related_source($join);
