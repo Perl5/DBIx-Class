@@ -45,6 +45,14 @@ $dbh->do("CREATE TABLE books (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, so
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
+# make sure sqlt_type overrides work (::Storage::DBI::mysql does this) 
+{
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+
+  ok (!$schema->storage->_dbh, 'definitely not connected');
+  is ($schema->storage->sqlt_type, 'MySQL', 'sqlt_type correct pre-connection');
+}
+
 # This is in Core now, but it's here just to test that it doesn't break
 $schema->class('Artist')->load_components('PK::Auto');
 
