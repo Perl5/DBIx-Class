@@ -467,6 +467,7 @@ sub apk_t_set {
 
 ######## EXTENDED AUTO-PK TESTS
 
+my @eapk_id_columns;
 BEGIN {
   package DBICTest::Schema::ExtAPK;
   push @main::test_classes, __PACKAGE__;
@@ -476,39 +477,122 @@ BEGIN {
   use base 'DBIx::Class';
 
   __PACKAGE__->load_components(qw/Core/);
-  __PACKAGE__->table('apk_t');
+  __PACKAGE__->table('apk');
 
+  @eapk_id_columns = qw( id1 id2 id3 id4 );
   __PACKAGE__->add_columns(
     map { $_ => { data_type => 'integer', is_auto_increment => 1 } }
-        qw( id1 id2 id3 id4 )
+       @eapk_id_columns
   );
 
-  __PACKAGE__->set_primary_key('id1');
+  __PACKAGE__->set_primary_key('id2'); #< note the SECOND column is
+                                       #the primary key
 }
 
-my @apk_schemas;
-BEGIN{ @apk_schemas = map "dbic_apk_$_", 0..5 }
+my @eapk_schemas;
+BEGIN{ @eapk_schemas = map "dbic_apk_$_", 0..5 }
 
 sub run_extended_apk_tests {
   my $schema = shift;
 
+  #save the search path and reset it at the end
+  my $search_path_save = $schema->storage->dbh_do('_get_pg_search_path');
+
   eapk_drop_all($schema,'no warn');
 
-  # make the test schemas
+  # make the test schemas and sequences
   $schema->storage->dbh_do(sub {
-    $_[1]->do("CREATE SCHEMA $_")
-        for @apk_schemas;
+    my ( undef, $dbh ) = @_;
+
+    $dbh->do("CREATE SCHEMA $_")
+        for @eapk_schemas;
+
+    $dbh->do("CREATE SEQUENCE $eapk_schemas[5].fooseq");
+
+    $dbh->do("SET search_path = ".join ',', @eapk_schemas );
   });
 
-  eapk_create($schema, with_search_path => [0,1]);
+  # clear our search_path cache
+  $schema->storage->{_pg_search_path} = undef;
 
-  #unqualified table, unqualified 
+  eapk_create( $schema,
+               with_search_path => [0,1],
+             );
+  eapk_create( $schema,
+               with_search_path => [1,0,'public'],
+               nextval => "$eapk_schemas[5].fooseq",
+             );
+  eapk_create( $schema,
+               with_search_path => ['public',0,1],
+               qualify_table => 2,
+             );
+
   lives_ok {
     $schema->resultset('ExtAPK')->create({});
-  } 'create in first schema does not die';
+  } 'create in first schema lives';
 
+  eapk_poke( $schema, 0 );
+  eapk_poke( $schema, 1 );
+  eapk_poke( $schema, 1 );
+
+  # set our search path back
+  eapk_set_search_path( $schema, @$search_path_save );
 }
 
+# do a DBIC create on the apk table in the given schema number (which is an
+# index of @eapk_schemas)
+
+my %seqs; #< sanity-check hash of schema.table.col => currval of its sequence
+
+sub eapk_poke {
+  my ($s, $schema_num) = @_;
+
+  my $schema_name = defined $schema_num
+      ? $eapk_schemas[$schema_num]
+      : '';
+
+  my $schema_name_actual = $schema_name || $s->storage->dbh_do('_get_pg_search_path')->[0];
+
+  $s->source('ExtAPK')->name($schema_name.'apk');
+  #< clear sequence name cache
+  $s->source('ExtAPK')->column_info($_)->{sequence} = undef
+      for @eapk_id_columns;
+
+  no warnings 'uninitialized';
+  lives_ok {
+    my $new;
+    for my $inc (1,2,3) {
+      $new = $schema->resultset('ExtAPK')->create({});
+      for my $id (@eapk_id_columns) {
+        my $proper_seqval = ++$seqs{"$schema_name_actual.apk.$id"};
+        is( $new->$id, $proper_seqval, "correct $id inc $inc" )
+            or eapk_seq_diag($s);
+      }
+    }
+  } "create in schema '$schema_name' lives"
+      or eapk_seq_diag($s);
+}
+
+# print diagnostic info on which sequences were found in the ExtAPK
+# class
+sub eapk_seq_diag {
+    my $s = shift;
+    my $schema = shift || $s->storage->dbh_do('_get_pg_search_path')->[0];
+
+    diag "$schema.apk sequences: ",
+        join(', ',
+             map "$_:".($s->source('ExtAPK')->column_info($_)->{sequence} || '<none>'),
+             @eapk_id_columns
+            );
+}
+
+sub eapk_set_search_path {
+    my ($s,@sp) = @_;
+    my $sp = join ',',@sp;
+    $s->storage->dbh_do( sub { $_[1]->do("SET search_path = $sp") } );
+}
+
+# create the apk table in the given schema, can set whether the table name is qualified, what the nextval is for the second ID
 sub eapk_create {
     my ($schema, %a) = @_;
 
@@ -519,17 +603,23 @@ sub eapk_create {
         if ( $a{with_search_path} ) {
             ($searchpath_save) = $dbh->selectrow_array('SHOW search_path');
 
-            my $search_path = join ',',@apk_schemas[@{$a{with_search_path}}];
+            my $search_path = join ',',map {/\D/ ? $_ : $eapk_schemas[$_]} @{$a{with_search_path}};
 
             $dbh->do("SET search_path = $search_path");
         }
 
-        my $schema = $a{qualify} ? "$a{qualify}." : '';
+        my $table_name = $a{qualify_table}
+            ? ($eapk_schemas[$a{qualify_table}] || die). ".apk"
+            : 'apk';
         local $_[1]->{Warn} = 0;
+
+        my $id_def = $a{nextval}
+            ? "integer primary key not null default nextval('$a{nextval}'::regclass)"
+            : 'serial primary key';
         $dbh->do(<<EOS);
-CREATE TABLE apk_t (
-  id1 serial primary key
-  , id2 serial
+CREATE TABLE $table_name (
+  id1 serial
+  , id2 $id_def
   , id3 serial
   , id4 serial
 )
@@ -550,7 +640,7 @@ sub eapk_drop_all {
         local $dbh->{Warn} = 0;
 
         # drop the test schemas
-        for (@apk_schemas ) {
+        for (@eapk_schemas ) {
             eval{ $dbh->do("DROP SCHEMA $_ CASCADE") };
             diag $@ if $@ && !$no_warn;
         }
