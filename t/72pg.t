@@ -527,13 +527,14 @@ sub run_extended_apk_tests {
                qualify_table => 2,
              );
 
-  lives_ok {
-    $schema->resultset('ExtAPK')->create({});
-  } 'create in first schema lives';
-
+  eapk_poke( $schema, 0 );
+  eapk_poke( $schema, 2 );
+  eapk_poke( $schema, 1 );
   eapk_poke( $schema, 0 );
   eapk_poke( $schema, 1 );
   eapk_poke( $schema, 1 );
+  eapk_poke( $schema, 2 );
+  eapk_poke( $schema, 0 );
 
   # set our search path back
   eapk_set_search_path( $schema, @$search_path_save );
