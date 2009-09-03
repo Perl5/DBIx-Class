@@ -44,7 +44,14 @@ DBIx::Class::Storage::DBI - DBI storage handler
   my $schema = MySchema->connect('dbi:SQLite:my.db');
 
   $schema->storage->debug(1);
-  $schema->dbh_do("DROP TABLE authors");
+
+  my @stuff = $schema->storage->dbh_do(
+    sub {
+      my ($storage, $dbh, @args) = @_;
+      $dbh->do("DROP TABLE authors");
+    },
+    @column_list
+  );
 
   $schema->resultset('Book')->search({
      written_on => $schema->storage->datetime_parser(DateTime->now)
@@ -556,7 +563,7 @@ sub dbh_do {
   my $self = shift;
   my $code = shift;
 
-  my $dbh = $self->_dbh;
+  my $dbh = $self->_get_dbh;
 
   return $self->$code($dbh, @_) if $self->{_in_dbh_do}
       || $self->{transaction_depth};
@@ -567,11 +574,6 @@ sub dbh_do {
   my $want_array = wantarray;
 
   eval {
-    $self->_verify_pid if $dbh;
-    if(!$self->_dbh) {
-        $self->_populate_dbh;
-        $dbh = $self->_dbh;
-    }
 
     if($want_array) {
         @result = $self->$code($dbh, @_);
@@ -618,8 +620,7 @@ sub txn_do {
   my $tried = 0;
   while(1) {
     eval {
-      $self->_verify_pid if $self->_dbh;
-      $self->_populate_dbh if !$self->_dbh;
+      $self->_get_dbh;
 
       $self->txn_begin;
       if($want_array) {
@@ -809,6 +810,7 @@ sub dbh {
 # this is the internal "get dbh or connect (don't check)" method
 sub _get_dbh {
   my $self = shift;
+  $self->_verify_pid if $self->_dbh;
   $self->_populate_dbh unless $self->_dbh;
   return $self->_dbh;
 }
@@ -877,10 +879,18 @@ sub _determine_driver {
       if ($self->_dbh) { # we are connected
         $driver = $self->_dbh->{Driver}{Name};
       } else {
-        # try to use dsn to not require being connected, the driver may still
-        # force a connection in _rebless to determine version
-        ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
-        $started_unconnected = 1;
+        # if connect_info is a CODEREF, we have no choice but to connect
+        if (ref $self->_dbi_connect_info->[0] &&
+            Scalar::Util::reftype($self->_dbi_connect_info->[0]) eq 'CODE') {
+          $self->_populate_dbh;
+          $driver = $self->_dbh->{Driver}{Name};
+        }
+        else {
+          # try to use dsn to not require being connected, the driver may still
+          # force a connection in _rebless to determine version
+          ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
+          $started_unconnected = 1;
+        }
       }
 
       my $storage_class = "DBIx::Class::Storage::DBI::${driver}";
@@ -952,7 +962,7 @@ sub _do_query {
     my @bind = map { [ undef, $_ ] } @do_args;
 
     $self->_query_start($sql, @bind);
-    $self->_dbh->do($sql, $attrs, @do_args);
+    $self->_get_dbh->do($sql, $attrs, @do_args);
     $self->_query_end($sql, @bind);
   }
 
@@ -1315,12 +1325,17 @@ sub insert {
 ## only prepped once.
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
+
+# redispatch to insert_bulk method of storage we reblessed into, if necessary
+  if (not $self->_driver_determined) {
+    $self->_determine_driver;
+    goto $self->can('insert_bulk');
+  }
+
   my %colvalues;
   my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
   my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
-
-  $self->_determine_driver;
 
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql);
@@ -2336,9 +2351,8 @@ sub create_ddl_dir {
     %{$sqltargs || {}}
   };
 
-  $self->throw_exception(q{Can't create a ddl file without SQL::Translator 0.09003: '}
-      . $self->_check_sqlt_message . q{'})
-          if !$self->_check_sqlt_version;
+  $self->throw_exception("Can't create a ddl file without SQL::Translator: " . $self->_sqlt_version_error)
+    if !$self->_sqlt_version_ok;
 
   my $sqlt = SQL::Translator->new( $sqltargs );
 
@@ -2480,9 +2494,8 @@ sub deployment_statements {
       return join('', @rows);
   }
 
-  $self->throw_exception(q{Can't deploy without SQL::Translator 0.09003: '}
-      . $self->_check_sqlt_message . q{'})
-          if !$self->_check_sqlt_version;
+  $self->throw_exception("Can't deploy without either SQL::Translator or a ddl_dir: " . $self->_sqlt_version_error )
+    if !$self->_sqlt_version_ok;
 
   # sources needs to be a parser arg, but for simplicty allow at top level
   # coming in
@@ -2564,26 +2577,10 @@ See L</datetime_parser>
 sub build_datetime_parser {
   my $self = shift;
   my $type = $self->datetime_parser_type(@_);
-  eval "use ${type}";
-  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  $self->ensure_class_loaded ($type);
   return $type;
 }
 
-{
-    my $_check_sqlt_version; # private
-    my $_check_sqlt_message; # private
-    sub _check_sqlt_version {
-        return $_check_sqlt_version if defined $_check_sqlt_version;
-        eval 'use SQL::Translator "0.09003"';
-        $_check_sqlt_message = $@ || '';
-        $_check_sqlt_version = !$@;
-    }
-
-    sub _check_sqlt_message {
-        _check_sqlt_version if !defined $_check_sqlt_message;
-        $_check_sqlt_message;
-    }
-}
 
 =head2 is_replicating
 

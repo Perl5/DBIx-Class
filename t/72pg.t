@@ -77,7 +77,7 @@ $schema->source("Artist")->name("testschema.artist");
 $schema->source("SequenceTest")->name("testschema.sequence_test");
 {
     local $SIG{__WARN__} = sub {};
-    _cleanup ($dbh);
+    _cleanup ($schema);
 
     my $artist_table_def = <<EOS;
 (
@@ -317,26 +317,21 @@ my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
 sub _cleanup {
-  my $dbh = shift or return;
+  my $schema = shift or return;
+  local $SIG{__WARN__} = sub {};
 
   for my $stat (
-    'DROP TABLE testschema.artist',
-    'DROP TABLE testschema.casecheck',
-    'DROP TABLE testschema.sequence_test',
-    'DROP TABLE testschema.array_test',
+    'DROP SCHEMA testschema CASCADE',
+    'DROP SCHEMA anothertestschema CASCADE',
+    'DROP SCHEMA yetanothertestschema CASCADE',
     'DROP SEQUENCE pkid1_seq',
     'DROP SEQUENCE pkid2_seq',
     'DROP SEQUENCE nonpkid_seq',
-    'DROP SCHEMA testschema',
-    'DROP TABLE anothertestschema.artist',
-    'DROP SCHEMA anothertestschema',
-    'DROP TABLE yetanothertestschema.artist',
-    'DROP SCHEMA yetanothertestschema',
   ) {
-    eval { $dbh->do ($stat) };
+    eval { $schema->storage->_do_query ($stat) };
   }
 }
 
 done_testing;
 
-END { _cleanup($dbh) }
+END { _cleanup($schema) }

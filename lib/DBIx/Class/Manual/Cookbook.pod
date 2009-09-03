@@ -1517,7 +1517,7 @@ database thinks it has.
 Alternatively, you can send the conversion sql scripts to your
 customers as above.
 
-=head2 Setting quoting for the generated SQL.
+=head2 Setting quoting for the generated SQL
 
 If the database contains column names with spaces and/or reserved words, they
 need to be quoted in the SQL queries. This is done using:

@@ -5,12 +5,11 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-
 BEGIN {
-    eval "use SQL::Translator 0.09003;";
-    if ($@) {
-        plan skip_all => 'needs SQL::Translator 0.09003 for testing';
-    }
+  require DBIx::Class;
+  plan skip_all =>
+      'Test needs SQL::Translator ' . DBIx::Class->_sqlt_minimum_version
+    if not DBIx::Class->_sqlt_version_ok;
 }
 
 my $schema = DBICTest->init_schema();
@@ -22,8 +21,6 @@ my @sources = grep
   { $_ !~ /^ (?: Dummy | CustomSql | Year\d{4}CDs ) $/x }
   $schema->sources
 ;
-
-plan tests => ( @sources * 3);
 
 { 
 	my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { } } });
@@ -64,6 +61,8 @@ plan tests => ( @sources * 3);
 		is($index_count, 0, "correct number of indices for $source with add_fk_index => 0");
 	}
 }
+
+done_testing;
 
 sub create_schema {
 	my $args = shift;

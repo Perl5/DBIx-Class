@@ -216,10 +216,10 @@ values to filter them by, for example:
 
  ->search({'created_time' => { '>=', '2006-06-01 00:00:00' } })
 
-Note that to use a function here you need to make the whole value into
-a scalar reference:
+Note that to use a function here you need to make it a scalar
+reference:
 
- ->search({'created_time' => \'>= yesterday()' })
+ ->search({'created_time' => { '>=', \'yesterday()' } })
 
 =item .. search in several tables simultaneously?
 
@@ -242,19 +242,6 @@ equality, so you're probably better off creating a C<view> in your
 database, and using that as your source. A C<view> is a stored SQL
 query, which can be accessed similarly to a table, see your database
 documentation for details.
-
-=item .. search using greater-than or less-than and database functions?
-
-To use functions or literal SQL with conditions other than equality
-you need to supply the entire condition, for example:
-
- my $interval = "< now() - interval '12 hours'";
- ->search({last_attempt => \$interval})
-
-and not:
-
- my $interval = "now() - interval '12 hours'";
- ->search({last_attempt => { '<' => \$interval } })
 
 =item .. search with an SQL function on the left hand side?
 

@@ -110,10 +110,6 @@ These components are under development, there interfaces may
 change, they may not work, etc.  So, use them if you want, but 
 be warned.
 
-L<DBIx::Class::Serialize> - Hooks for Storable freeze/thaw.
-
-L<DBIx::Class::Serialize::Storable> - Hooks for Storable freeze/thaw.
-
 L<DBIx::Class::Validation> - Validate all data before submitting to your database.
 
 =head2 Core
@@ -136,6 +132,8 @@ L<DBIx::Class::Relationship> - Inter-table relationships.
 
 L<DBIx::Class::ResultSourceProxy::Table> - Provides a classdata table object and method proxies.
 
+L<DBIx::Class::Serialize::Storable> - Hooks for Storable freeze/thaw.
+
 L<DBIx::Class::Row> - Basic row methods.
 
 =head1 SEE ALSO
@@ -145,4 +143,3 @@ L<DBIx::Class::Manual::Cookbook>
 =head1 AUTHOR
 
 Aran Clary Deltac <bluefeet@cpan.org>
-
