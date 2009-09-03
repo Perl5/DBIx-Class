@@ -58,65 +58,7 @@ create_test_schema($schema);
 
 ### begin main tests
 
-###  auto-pk / last_insert_id / sequence discovery
-{
-    # This is in Core now, but it's here just to test that it doesn't break
-    $schema->class('Artist')->load_components('PK::Auto');
-    cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an empty artist table');
-
-    # test that auto-pk also works with the defined search path by
-    # un-schema-qualifying the table name
-    apk_t_set($schema,'artist');
-
-    my $unq_new;
-    lives_ok {
-        $unq_new = $schema->resultset('Artist')->create({ name => 'baz' });
-    } 'insert into unqualified, shadowed table succeeds';
-
-    is($unq_new && $unq_new->artistid, 1, "and got correct artistid");
-
-    my @test_schemas = ( [qw| dbic_t_schema_2    1  |],
-                         [qw| dbic_t_schema_3    1  |],
-                         [qw| dbic_t_schema_4    2  |],
-                         [qw| dbic_t_schema_5    1  |],
-                       );
-    foreach my $t ( @test_schemas ) {
-        my ($sch_name, $start_num) = @$t;
-        #test with dbic_t_schema_2
-        apk_t_set($schema,"$sch_name.artist");
-        my $another_new;
-        lives_ok {
-            $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
-            is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
-                or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-        } "$sch_name liid 1 did not die"
-            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-        lives_ok {
-            $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
-            is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
-                or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-        } "$sch_name liid 2 did not die"
-            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-
-    }
-}
-
-lives_ok {
-    apk_t_set($schema,'dbic_t_schema.artist');
-    my $new = $schema->resultset('Artist')->create({ name => 'foo' });
-    is($new->artistid, 4, "Auto-PK worked");
-    $new = $schema->resultset('Artist')->create({ name => 'bar' });
-    is($new->artistid, 5, "Auto-PK worked");
-} 'old auto-pk tests did not die either';
-
-# sets the artist table name and clears sequence name cache
-sub apk_t_set {
-    my ( $s, $n ) = @_;
-    $s->source("Artist")->name($n);
-    $s->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
-}
-
-
+run_apk_tests($schema);
 
 
 ### type_info tests
@@ -455,4 +397,64 @@ sub drop_test_schema {
     });
 }
 
-done_testing;
+###  auto-pk / last_insert_id / sequence discovery
+sub run_apk_tests {
+    my $schema = shift;
+
+    # This is in Core now, but it's here just to test that it doesn't break
+    $schema->class('Artist')->load_components('PK::Auto');
+    cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an empty artist table');
+
+    # test that auto-pk also works with the defined search path by
+    # un-schema-qualifying the table name
+    apk_t_set($schema,'artist');
+
+    my $unq_new;
+    lives_ok {
+        $unq_new = $schema->resultset('Artist')->create({ name => 'baz' });
+    } 'insert into unqualified, shadowed table succeeds';
+
+    is($unq_new && $unq_new->artistid, 1, "and got correct artistid");
+
+    my @test_schemas = ( [qw| dbic_t_schema_2    1  |],
+                         [qw| dbic_t_schema_3    1  |],
+                         [qw| dbic_t_schema_4    2  |],
+                         [qw| dbic_t_schema_5    1  |],
+                       );
+    foreach my $t ( @test_schemas ) {
+        my ($sch_name, $start_num) = @$t;
+        #test with dbic_t_schema_2
+        apk_t_set($schema,"$sch_name.artist");
+        my $another_new;
+        lives_ok {
+            $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
+            is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
+                or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+        } "$sch_name liid 1 did not die"
+            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+        lives_ok {
+            $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
+            is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
+                or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+        } "$sch_name liid 2 did not die"
+            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
+
+    }
+
+    lives_ok {
+        apk_t_set($schema,'dbic_t_schema.artist');
+        my $new = $schema->resultset('Artist')->create({ name => 'foo' });
+        is($new->artistid, 4, "Auto-PK worked");
+        $new = $schema->resultset('Artist')->create({ name => 'bar' });
+        is($new->artistid, 5, "Auto-PK worked");
+    } 'old auto-pk tests did not die either';
+}
+
+
+# sets the artist table name and clears sequence name cache
+sub apk_t_set {
+    my ( $s, $n ) = @_;
+    $s->source("Artist")->name($n);
+    $s->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
+}
+
