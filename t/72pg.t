@@ -60,16 +60,13 @@ create_test_schema($schema);
 
 ###  auto-pk / last_insert_id / sequence discovery
 {
-    $schema->source("Artist")->name("dbic_t_schema.artist");
-
     # This is in Core now, but it's here just to test that it doesn't break
     $schema->class('Artist')->load_components('PK::Auto');
     cmp_ok( $schema->resultset('Artist')->count, '==', 0, 'this should start with an empty artist table');
 
     # test that auto-pk also works with the defined search path by
     # un-schema-qualifying the table name
-    my $artist_name_save = $schema->source("Artist")->name;
-    $schema->source("Artist")->name("artist");
+    apk_t_set($schema,'artist');
 
     my $unq_new;
     lives_ok {
@@ -78,14 +75,15 @@ create_test_schema($schema);
 
     is($unq_new && $unq_new->artistid, 1, "and got correct artistid");
 
-    my @test_schemas = ( [qw| dbic_t_schema_2    1      |],
-                         [qw| dbic_t_schema_3 1      |],
+    my @test_schemas = ( [qw| dbic_t_schema_2    1  |],
+                         [qw| dbic_t_schema_3    1  |],
+                         [qw| dbic_t_schema_4    2  |],
+                         [qw| dbic_t_schema_5    1  |],
                        );
     foreach my $t ( @test_schemas ) {
         my ($sch_name, $start_num) = @$t;
         #test with dbic_t_schema_2
-        $schema->source('Artist')->name("$sch_name.artist");
-        $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
+        apk_t_set($schema,"$sch_name.artist");
         my $another_new;
         lives_ok {
             $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
@@ -101,45 +99,23 @@ create_test_schema($schema);
             or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
 
     }
-
-
-    my @todo_schemas = (
-                        [qw| dbic_t_schema_4   2 |],
-                        [qw| dbic_t_schema_5  1 |],
-                       );
-
-    foreach my $t ( @todo_schemas ) {
-        my ($sch_name, $start_num) = @$t;
-
-        #test with dbic_t_schema_2
-        $schema->source('Artist')->name("$sch_name.artist");
-        $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
-        my $another_new;
-        lives_ok {
-            $another_new = $schema->resultset('Artist')->create({ name => 'Tollbooth Willy'});
-            is( $another_new->artistid,$start_num, "got correct artistid for $sch_name")
-                or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-        } "$sch_name liid 1 did not die"
-            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-
-        lives_ok {
-            $another_new = $schema->resultset('Artist')->create({ name => 'Adam Sandler'});
-            is( $another_new->artistid,$start_num+1, "got correct artistid for $sch_name")
-                or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-        } "$sch_name liid 2 did not die"
-            or diag "USED SEQUENCE: ".($schema->source('Artist')->column_info('artistid')->{sequence} || '<none>');
-    }
-
-    $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
-    $schema->source("Artist")->name($artist_name_save);
 }
 
 lives_ok {
+    apk_t_set($schema,'dbic_t_schema.artist');
     my $new = $schema->resultset('Artist')->create({ name => 'foo' });
     is($new->artistid, 4, "Auto-PK worked");
     $new = $schema->resultset('Artist')->create({ name => 'bar' });
     is($new->artistid, 5, "Auto-PK worked");
 } 'old auto-pk tests did not die either';
+
+# sets the artist table name and clears sequence name cache
+sub apk_t_set {
+    my ( $s, $n ) = @_;
+    $s->source("Artist")->name($n);
+    $s->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
+}
+
 
 
 
