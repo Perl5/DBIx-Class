@@ -61,7 +61,7 @@ create_test_schema($schema);
 # run a BIG bunch of tests for last-insert-id / Auto-PK / sequence
 # discovery
 run_apk_tests($schema); #< older set of auto-pk tests
-#run_extended_apk_tests($schema); #< new extended set of auto-pk tests
+run_extended_apk_tests($schema); #< new extended set of auto-pk tests
 
 ### type_info tests
 
@@ -455,10 +455,7 @@ sub run_apk_tests {
         $new = $schema->resultset('Artist')->create({ name => 'bar' });
         is($new->artistid, 5, "Auto-PK worked");
     } 'old auto-pk tests did not die either';
-
-
 }
-
 
 # sets the artist table name and clears sequence name cache
 sub apk_t_set {
@@ -493,22 +490,23 @@ my @apk_schemas;
 BEGIN{ @apk_schemas = map "dbic_apk_$_", 0..5 }
 
 sub run_extended_apk_tests {
-    my $schema = shift;
+  my $schema = shift;
 
-    eapk_drop_all($schema,'no warn');
+  eapk_drop_all($schema,'no warn');
 
-    # make the test schemas
-    $schema->storage->dbh_do("CREATE SCHEMA $_")
+  # make the test schemas
+  $schema->storage->dbh_do(sub {
+    $_[1]->do("CREATE SCHEMA $_")
         for @apk_schemas;
+  });
 
-    eapk_create($schema, with_search_path => [0,1]);
+  eapk_create($schema, with_search_path => [0,1]);
 
-    #unqualified table, unqualified 
-    lives_ok {
-        $schema->resultset('ExtAPK')->create({});
-    } 'create in first schema does not die';
+  #unqualified table, unqualified 
+  lives_ok {
+    $schema->resultset('ExtAPK')->create({});
+  } 'create in first schema does not die';
 
-    #drop_ext_apk_test_schema($schema);
 }
 
 sub eapk_create {
@@ -525,7 +523,6 @@ sub eapk_create {
 
             $dbh->do("SET search_path = $search_path");
         }
-
 
         my $schema = $a{qualify} ? "$a{qualify}." : '';
         $dbh->do(<<EOS);
@@ -544,7 +541,6 @@ EOS
 }
 
 
-
 sub eapk_drop_all {
     my ( $schema, $no_warn ) = @_;
 
@@ -552,11 +548,13 @@ sub eapk_drop_all {
         my (undef,$dbh) = @_;
 
         local $dbh->{Warn} = 0;
-        local $SIG{__DIE__} = $no_warn ? sub{} : \&diag;
 
         # drop the test schemas
-        $dbh->do("DROP SCHEMA $_ CASCADE")
-            for @apk_schemas;
+        for (@apk_schemas ) {
+            eval{ $dbh->do("DROP SCHEMA $_ CASCADE") };
+            diag $@ if $@ && !$no_warn;
+        }
+
 
     });
 }
