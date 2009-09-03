@@ -58,8 +58,11 @@ create_test_schema($schema);
 
 ### begin main tests
 
-run_apk_tests($schema);
 
+# run a BIG bunch of tests for last-insert-id / Auto-PK / sequence
+# discovery
+run_apk_tests($schema); #< older set of auto-pk tests
+run_extended_apk_tests($schema); #< new extended set of auto-pk tests
 
 ### type_info tests
 
@@ -271,7 +274,7 @@ SKIP: {
 }
 
 
-######## other Auto-pk tests
+######## other older Auto-pk tests
 
 $schema->source("SequenceTest")->name("dbic_t_schema.sequence_test");
 for (1..5) {
@@ -397,6 +400,7 @@ sub drop_test_schema {
     });
 }
 
+
 ###  auto-pk / last_insert_id / sequence discovery
 sub run_apk_tests {
     my $schema = shift;
@@ -448,6 +452,8 @@ sub run_apk_tests {
         $new = $schema->resultset('Artist')->create({ name => 'bar' });
         is($new->artistid, 5, "Auto-PK worked");
     } 'old auto-pk tests did not die either';
+
+
 }
 
 
@@ -458,3 +464,42 @@ sub apk_t_set {
     $s->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
 }
 
+
+sub run_extended_apk_tests {
+    my $schema = shift;
+
+    drop_ext_apk_test_schema($schema);
+    create_ext_apk_test_schema($schema);
+
+
+
+    # drop our auto-pk test schema
+    drop_ext_apk_test_schema($schema);
+}
+
+sub create_ext_apk_test_schema {
+    my $schema = shift;
+    $schema->storage->dbh_do(sub {
+      my (undef,$dbh) = @_;
+
+      local $dbh->{Warn} = 0;
+
+    });
+}
+
+sub drop_ext_apk_test_schema {
+    my ( $schema, $no_warn ) = @_;
+
+    $schema->storage->dbh_do(sub {
+        my (undef,$dbh) = @_;
+
+        local $dbh->{Warn} = 0;
+
+        for my $stat (
+                      ()
+                     ) {
+            eval { $dbh->do ($stat) };
+            diag $@ if $@ && !$no_warn;
+        }
+    });
+}
