@@ -554,7 +554,7 @@ sub eapk_poke {
 
   my $schema_name_actual = $schema_name || $s->storage->dbh_do('_get_pg_search_path')->[0];
 
-  $s->source('ExtAPK')->name($schema_name.'apk');
+  $s->source('ExtAPK')->name($schema_name ? $schema_name.'.apk' : 'apk');
   #< clear sequence name cache
   $s->source('ExtAPK')->column_info($_)->{sequence} = undef
       for @eapk_id_columns;
