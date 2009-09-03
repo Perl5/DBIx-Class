@@ -51,7 +51,6 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
 ### connect, create postgres-specific test schema
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
-my $dbh = $schema->storage->dbh;
 
 drop_test_schema($schema, 'no warn');
 create_test_schema($schema);
@@ -62,7 +61,7 @@ create_test_schema($schema);
 # run a BIG bunch of tests for last-insert-id / Auto-PK / sequence
 # discovery
 run_apk_tests($schema); #< older set of auto-pk tests
-run_extended_apk_tests($schema); #< new extended set of auto-pk tests
+#run_extended_apk_tests($schema); #< new extended set of auto-pk tests
 
 ### type_info tests
 
@@ -289,7 +288,11 @@ is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manual
 done_testing;
 
 exit;
-END { drop_test_schema($schema) }
+
+END {
+    drop_test_schema($schema);
+    eapk_drop_all( $schema)
+};
 
 
 ######### SUBROUTINES
@@ -465,41 +468,95 @@ sub apk_t_set {
 }
 
 
+######## EXTENDED AUTO-PK TESTS
+
+BEGIN {
+  package DBICTest::Schema::ExtAPK;
+  push @main::test_classes, __PACKAGE__;
+
+  use strict;
+  use warnings;
+  use base 'DBIx::Class';
+
+  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->table('apk_t');
+
+  __PACKAGE__->add_columns(
+    map { $_ => { data_type => 'integer', is_auto_increment => 1 } }
+        qw( id1 id2 id3 id4 )
+  );
+
+  __PACKAGE__->set_primary_key('id1');
+}
+
+my @apk_schemas;
+BEGIN{ @apk_schemas = map "dbic_apk_$_", 0..5 }
+
 sub run_extended_apk_tests {
     my $schema = shift;
 
-    drop_ext_apk_test_schema($schema);
-    create_ext_apk_test_schema($schema);
+    eapk_drop_all($schema,'no warn');
 
+    # make the test schemas
+    $schema->storage->dbh_do("CREATE SCHEMA $_")
+        for @apk_schemas;
 
+    eapk_create($schema, with_search_path => [0,1]);
 
-    # drop our auto-pk test schema
-    drop_ext_apk_test_schema($schema);
+    #unqualified table, unqualified 
+    lives_ok {
+        $schema->resultset('ExtAPK')->create({});
+    } 'create in first schema does not die';
+
+    #drop_ext_apk_test_schema($schema);
 }
 
-sub create_ext_apk_test_schema {
-    my $schema = shift;
+sub eapk_create {
+    my ($schema, %a) = @_;
+
     $schema->storage->dbh_do(sub {
-      my (undef,$dbh) = @_;
+        my (undef,$dbh) = @_;
 
-      local $dbh->{Warn} = 0;
+        my $searchpath_save;
+        if ( $a{with_search_path} ) {
+            ($searchpath_save) = $dbh->selectrow_array('SHOW search_path');
 
+            my $search_path = join ',',@apk_schemas[@{$a{with_search_path}}];
+
+            $dbh->do("SET search_path = $search_path");
+        }
+
+
+        my $schema = $a{qualify} ? "$a{qualify}." : '';
+        $dbh->do(<<EOS);
+CREATE TABLE apk_t (
+  id1 serial primary key
+  , id2 serial
+  , id3 serial
+  , id4 serial
+)
+EOS
+
+        if( $searchpath_save ) {
+            $dbh->do("SET search_path = $searchpath_save");
+        }
     });
 }
 
-sub drop_ext_apk_test_schema {
+
+
+sub eapk_drop_all {
     my ( $schema, $no_warn ) = @_;
 
     $schema->storage->dbh_do(sub {
         my (undef,$dbh) = @_;
 
         local $dbh->{Warn} = 0;
+        local $SIG{__DIE__} = $no_warn ? sub{} : \&diag;
 
-        for my $stat (
-                      ()
-                     ) {
-            eval { $dbh->do ($stat) };
-            diag $@ if $@ && !$no_warn;
-        }
+        # drop the test schemas
+        $dbh->do("DROP SCHEMA $_ CASCADE")
+            for @apk_schemas;
+
     });
 }
