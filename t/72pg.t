@@ -291,7 +291,7 @@ exit;
 
 END {
     drop_test_schema($schema);
-    eapk_drop_all( $schema)
+    #eapk_drop_all( $schema)
 };
 
 
@@ -508,6 +508,7 @@ sub run_extended_apk_tests {
         for @eapk_schemas;
 
     $dbh->do("CREATE SEQUENCE $eapk_schemas[5].fooseq");
+    $dbh->do("CREATE SEQUENCE $eapk_schemas[4].fooseq");
 
     $dbh->do("SET search_path = ".join ',', @eapk_schemas );
   });
@@ -526,12 +527,17 @@ sub run_extended_apk_tests {
                with_search_path => ['public',0,1],
                qualify_table => 2,
              );
+  eapk_create( $schema,
+               with_search_path => [3,1,0,'public'],
+               nextval => "$eapk_schemas[4].fooseq",
+             );
 
   eapk_poke( $schema, 0 );
   eapk_poke( $schema, 2 );
   eapk_poke( $schema, 1 );
   eapk_poke( $schema, 0 );
   eapk_poke( $schema, 1 );
+  eapk_poke( $schema, 3 );
   eapk_poke( $schema, 1 );
   eapk_poke( $schema, 2 );
   eapk_poke( $schema, 0 );
@@ -567,11 +573,11 @@ sub eapk_poke {
       for my $id (@eapk_id_columns) {
         my $proper_seqval = ++$seqs{"$schema_name_actual.apk.$id"};
         is( $new->$id, $proper_seqval, "correct $id inc $inc" )
-            or eapk_seq_diag($s);
+            or eapk_seq_diag($s,$schema_name);
       }
     }
   } "create in schema '$schema_name' lives"
-      or eapk_seq_diag($s);
+      or eapk_seq_diag($s,$schema_name);
 }
 
 # print diagnostic info on which sequences were found in the ExtAPK
