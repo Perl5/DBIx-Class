@@ -191,6 +191,8 @@ sub _svp_rollback {
 
 1;
 
+__END__
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI::Pg - Automatic primary key class for PostgreSQL
