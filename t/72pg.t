@@ -525,6 +525,7 @@ sub eapk_create {
         }
 
         my $schema = $a{qualify} ? "$a{qualify}." : '';
+        local $_[1]->{Warn} = 0;
         $dbh->do(<<EOS);
 CREATE TABLE apk_t (
   id1 serial primary key
@@ -539,7 +540,6 @@ EOS
         }
     });
 }
-
 
 sub eapk_drop_all {
     my ( $schema, $no_warn ) = @_;
