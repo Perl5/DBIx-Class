@@ -14,8 +14,8 @@ Set \$ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test
 ( NOTE: This test drops and creates tables called 'artist', 'casecheck',
   'array_test' and 'sequence_test' as well as following sequences:
   'pkid1_seq', 'pkid2_seq' and 'nonpkid_seq''.  as well as following
-  schemas: 'testschema', 'anothertestschema', 'yetanothertestschema',
-  'unq_nextval_schema', and 'unq_nextval_schema2'
+  schemas: 'dbic_t_schema', 'dbic_t_schema_2', 'dbic_t_schema_3',
+  'dbic_t_schema_4', and 'dbic_t_schema_5'
 )
 EOM
 
@@ -60,7 +60,7 @@ create_test_schema($schema);
 
 ###  auto-pk / last_insert_id / sequence discovery
 {
-    $schema->source("Artist")->name("testschema.artist");
+    $schema->source("Artist")->name("dbic_t_schema.artist");
 
     # This is in Core now, but it's here just to test that it doesn't break
     $schema->class('Artist')->load_components('PK::Auto');
@@ -78,12 +78,12 @@ create_test_schema($schema);
 
     is($unq_new && $unq_new->artistid, 1, "and got correct artistid");
 
-    my @test_schemas = ( [qw| anothertestschema    1      |],
-                         [qw| yetanothertestschema 1      |],
+    my @test_schemas = ( [qw| dbic_t_schema_2    1      |],
+                         [qw| dbic_t_schema_3 1      |],
                        );
     foreach my $t ( @test_schemas ) {
         my ($sch_name, $start_num) = @$t;
-        #test with anothertestschema
+        #test with dbic_t_schema_2
         $schema->source('Artist')->name("$sch_name.artist");
         $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
         my $another_new;
@@ -104,14 +104,14 @@ create_test_schema($schema);
 
 
     my @todo_schemas = (
-                        [qw| unq_nextval_schema   2 |],
-                        [qw| unq_nextval_schema2  1 |],
+                        [qw| dbic_t_schema_4   2 |],
+                        [qw| dbic_t_schema_5  1 |],
                        );
 
     foreach my $t ( @todo_schemas ) {
         my ($sch_name, $start_num) = @$t;
 
-        #test with anothertestschema
+        #test with dbic_t_schema_2
         $schema->source('Artist')->name("$sch_name.artist");
         $schema->source('Artist')->column_info('artistid')->{sequence} = undef; #< clear sequence name cache
         my $another_new;
@@ -178,7 +178,7 @@ my $test_type_info = {
     },
 };
 
-my $type_info = $schema->storage->columns_info_for('testschema.artist');
+my $type_info = $schema->storage->columns_info_for('dbic_t_schema.artist');
 my $artistid_defval = delete $type_info->{artistid}->{default_value};
 like($artistid_defval,
      qr/^nextval\('([^\.]*\.){0,1}artist_artistid_seq'::(?:text|regclass)\)/,
@@ -200,7 +200,7 @@ BEGIN {
   use base 'DBIx::Class';
 
   __PACKAGE__->load_components(qw/Core/);
-  __PACKAGE__->table('testschema.array_test');
+  __PACKAGE__->table('dbic_t_schema.array_test');
   __PACKAGE__->add_columns(qw/id arrayfield/);
   __PACKAGE__->column_info_from_storage(1);
   __PACKAGE__->set_primary_key('id');
@@ -247,7 +247,7 @@ BEGIN {
   use base 'DBIx::Class';
 
   __PACKAGE__->load_components(qw/Core/);
-  __PACKAGE__->table('testschema.casecheck');
+  __PACKAGE__->table('dbic_t_schema.casecheck');
   __PACKAGE__->add_columns(qw/id name NAME uc_name storecolumn/);
   __PACKAGE__->column_info_from_storage(1);
   __PACKAGE__->set_primary_key('id');
@@ -285,7 +285,7 @@ SKIP: {
     skip "Sys::SigAction is not available", 3 unless $HaveSysSigAction;
     # create a new schema
     my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
-    $schema2->source("Artist")->name("testschema.artist");
+    $schema2->source("Artist")->name("dbic_t_schema.artist");
 
     $schema->txn_do( sub {
         my $artist = $schema->resultset('Artist')->search(
@@ -322,7 +322,7 @@ SKIP: {
     skip "Sys::SigAction is not available", 3 unless $HaveSysSigAction;
     # create a new schema
     my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
-    $schema2->source("Artist")->name("testschema.artist");
+    $schema2->source("Artist")->name("dbic_t_schema.artist");
 
     $schema->txn_do( sub {
         my $artist = $schema->resultset('Artist')->search(
@@ -355,7 +355,7 @@ SKIP: {
 
 ######## other Auto-pk tests
 
-$schema->source("SequenceTest")->name("testschema.sequence_test");
+$schema->source("SequenceTest")->name("dbic_t_schema.sequence_test");
 for (1..5) {
     my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
     is($st->pkid1, $_, "Oracle Auto-PK without trigger: First primary key");
@@ -390,10 +390,10 @@ sub create_test_schema {
 )
 EOS
 
-      $dbh->do("CREATE SCHEMA testschema");
-      $dbh->do("CREATE TABLE testschema.artist $std_artist_table");
+      $dbh->do("CREATE SCHEMA dbic_t_schema");
+      $dbh->do("CREATE TABLE dbic_t_schema.artist $std_artist_table");
       $dbh->do(<<EOS);
-CREATE TABLE testschema.sequence_test (
+CREATE TABLE dbic_t_schema.sequence_test (
     pkid1 integer
     , pkid2 integer
     , nonpkid integer
@@ -405,7 +405,7 @@ EOS
       $dbh->do("CREATE SEQUENCE pkid2_seq START 10 MAXVALUE 999999 MINVALUE 0");
       $dbh->do("CREATE SEQUENCE nonpkid_seq START 20 MAXVALUE 999999 MINVALUE 0");
       $dbh->do(<<EOS);
-CREATE TABLE testschema.casecheck (
+CREATE TABLE dbic_t_schema.casecheck (
     id serial PRIMARY KEY
     , "name" VARCHAR(1)
     , "NAME" VARCHAR(2)
@@ -414,20 +414,20 @@ CREATE TABLE testschema.casecheck (
 )
 EOS
       $dbh->do(<<EOS);
-CREATE TABLE testschema.array_test (
+CREATE TABLE dbic_t_schema.array_test (
     id serial PRIMARY KEY
     , arrayfield INTEGER[]
 )
 EOS
-      $dbh->do("CREATE SCHEMA anothertestschema");
-      $dbh->do("CREATE TABLE anothertestschema.artist $std_artist_table");
-      $dbh->do("CREATE SCHEMA yetanothertestschema");
-      $dbh->do("CREATE TABLE yetanothertestschema.artist $std_artist_table");
-      $dbh->do('set search_path=testschema,public');
-      $dbh->do("CREATE SCHEMA unq_nextval_schema");
-      $dbh->do("CREATE SCHEMA unq_nextval_schema2");
+      $dbh->do("CREATE SCHEMA dbic_t_schema_2");
+      $dbh->do("CREATE TABLE dbic_t_schema_2.artist $std_artist_table");
+      $dbh->do("CREATE SCHEMA dbic_t_schema_3");
+      $dbh->do("CREATE TABLE dbic_t_schema_3.artist $std_artist_table");
+      $dbh->do('set search_path=dbic_t_schema,public');
+      $dbh->do("CREATE SCHEMA dbic_t_schema_4");
+      $dbh->do("CREATE SCHEMA dbic_t_schema_5");
       $dbh->do(<<EOS);
- CREATE TABLE unq_nextval_schema.artist
+ CREATE TABLE dbic_t_schema_4.artist
  (
    artistid integer not null default nextval('artist_artistid_seq'::regclass) PRIMARY KEY
    , name VARCHAR(100)
@@ -436,10 +436,10 @@ EOS
    , arrayfield INTEGER[]
  );
 EOS
-      $dbh->do('set search_path=public,testschema,yetanothertestschema');
+      $dbh->do('set search_path=public,dbic_t_schema,dbic_t_schema_3');
       $dbh->do('create sequence public.artist_artistid_seq'); #< in the public schema
       $dbh->do(<<EOS);
- CREATE TABLE unq_nextval_schema2.artist
+ CREATE TABLE dbic_t_schema_5.artist
  (
    artistid integer not null default nextval('public.artist_artistid_seq'::regclass) PRIMARY KEY
    , name VARCHAR(100)
@@ -448,7 +448,7 @@ EOS
    , arrayfield INTEGER[]
  );
 EOS
-      $dbh->do('set search_path=testschema,public');
+      $dbh->do('set search_path=dbic_t_schema,public');
   });
 }
 
@@ -463,15 +463,15 @@ sub drop_test_schema {
         local $dbh->{Warn} = 0;
 
         for my $stat (
-                      'DROP SCHEMA unq_nextval_schema2 CASCADE',
+                      'DROP SCHEMA dbic_t_schema_5 CASCADE',
                       'DROP SEQUENCE public.artist_artistid_seq',
-                      'DROP SCHEMA unq_nextval_schema CASCADE',
-                      'DROP SCHEMA testschema CASCADE',
+                      'DROP SCHEMA dbic_t_schema_4 CASCADE',
+                      'DROP SCHEMA dbic_t_schema CASCADE',
                       'DROP SEQUENCE pkid1_seq',
                       'DROP SEQUENCE pkid2_seq',
                       'DROP SEQUENCE nonpkid_seq',
-                      'DROP SCHEMA anothertestschema CASCADE',
-                      'DROP SCHEMA yetanothertestschema CASCADE',
+                      'DROP SCHEMA dbic_t_schema_2 CASCADE',
+                      'DROP SCHEMA dbic_t_schema_3 CASCADE',
                      ) {
             eval { $dbh->do ($stat) };
             diag $@ if $@ && !$no_warn;
