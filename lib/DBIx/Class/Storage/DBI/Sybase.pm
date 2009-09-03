@@ -293,7 +293,7 @@ sub insert {
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
 # insert+blob insert done atomically
-  my $guard = $self->txn_scope_guard if %$blob_cols;
+  my $guard = $self->txn_scope_guard if $blob_cols;
 
   my $need_last_insert_id = 0;
 
@@ -322,7 +322,7 @@ sub insert {
     }
   };
 
-  $self->_insert_blobs($source, $blob_cols, $to_insert) if %$blob_cols;
+  $self->_insert_blobs($source, $blob_cols, $to_insert) if $blob_cols;
 
   $guard->commit if $guard;
 
@@ -338,7 +338,7 @@ sub update {
   my $blob_cols = $self->_remove_blob_cols($source, $fields);
 
 # update+blob update(s) done atomically
-  my $guard = $self->txn_scope_guard if %$blob_cols;
+  my $guard = $self->txn_scope_guard if $blob_cols;
 
   my @res;
   if ($wantarray) {
@@ -351,9 +351,9 @@ sub update {
     $self->next::method(@_);
   }
 
-  $self->_update_blobs($source, $blob_cols, $where) if %$blob_cols;
+  $self->_update_blobs($source, $blob_cols, $where) if $blob_cols;
 
-  $guard->commit if %$blob_cols;
+  $guard->commit if $guard;
 
   return $wantarray ? @res : $res[0];
 }
@@ -370,7 +370,7 @@ sub _remove_blob_cols {
     }
   }
 
-  return \%blob_cols;
+  return keys %blob_cols ? \%blob_cols : undef;
 }
 
 sub _update_blobs {
