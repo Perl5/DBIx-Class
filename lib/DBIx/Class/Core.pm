@@ -7,6 +7,7 @@ no warnings 'qw';
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/
+  Serialize::Storable
   Relationship
   InflateColumn
   PK::Auto
