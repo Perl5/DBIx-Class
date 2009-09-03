@@ -233,11 +233,6 @@ merged back to trunk for a major release.
 L<DBIx::Class::Manual::DocMap> lists each task you might want help on, and
 the modules where you will find documentation.
 
-=head1 COPYRIGHT
-
-Copyright (c) 2005 - 2009 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
-as listed below.
-
 =head1 AUTHOR
 
 mst: Matt S. Trout <mst@shadowcatsystems.co.uk>
@@ -388,6 +383,11 @@ willert: Sebastian Willert <willert@cpan.org>
 wreis: Wallace Reis <wreis@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
+
+=head1 COPYRIGHT
+
+Copyright (c) 2005 - 2009 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
+as listed above.
 
 =head1 LICENSE
 
