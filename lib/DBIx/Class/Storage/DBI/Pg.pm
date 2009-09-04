@@ -60,18 +60,21 @@ sub _get_pg_search_path {
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $schema, $table, $col) = @_;
 
+  my $sqlmaker = $self->sql_maker;
+  local $sqlmaker->{bindtype} = 'normal';
 
-  my @where = ( 'c.relname = ?', 'a.attname = ?' );
-  my @bind  = ($table, $col);
-  if( defined $schema && length $schema ) {
-      push @where, 'n.nspname = ?';
-      push @bind, $schema;
-  } else {
-      push @where, 'pg_catalog.pg_table_is_visible(c.oid)';
-  }
-  my $where = join ' AND ', @where;
+  my ($where, @bind) = $self->sql_maker->where ({
+    'a.attnum' => {'>', 0},
+    'c.relname' => $table,
+    'a.attname' => $col,
+    -not_bool => 'a.attisdropped',
+    (defined $schema && length $schema)
+      ? ( 'n.nspname' => $schema )
+      : ( -bool => \'pg_catalog.pg_table_is_visible(c.oid)' )
+  });
 
   my ($seq_expr) = $dbh->selectrow_array(<<EOS,undef,@bind);
+
 SELECT
   (SELECT pg_catalog.pg_get_expr(d.adbin, d.adrelid)
    FROM pg_catalog.pg_attrdef d
@@ -79,13 +82,14 @@ SELECT
 FROM pg_catalog.pg_class c
      JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
      JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
-WHERE
-  $where
-  AND a.attnum > 0 AND NOT a.attisdropped
+$where
+
 EOS
 
-  $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i
-      or $self->throw_exception("could not parse sequence expression '$seq_expr'");
+  unless (defined $seq_expr && $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ){
+    $seq_expr = '' unless defined $seq_expr;
+    $self->throw_exception("could not parse sequence expression: '$seq_expr'");
+  }
 
   return $1;
 }
