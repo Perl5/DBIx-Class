@@ -56,7 +56,7 @@ sub _dbh_get_autoinc_seq {
 
   # use DBD::Pg to fetch the column info if it is recent enough to
   # work. otherwise, use custom SQL
-  my $seq_expr =  $DBD::Pg::VERSION > 2.015001
+  my $seq_expr =  $DBD::Pg::VERSION >= 2.015001
       ? eval{ $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref->{COLUMN_DEF} }
       : $self->_dbh_get_column_default( $dbh, $schema, $table, $col );
 
