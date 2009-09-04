@@ -39,6 +39,7 @@ sub _dbh_last_insert_id {
 }
 
 
+# get the postgres search path, and cache it
 sub _get_pg_search_path {
     my ($self,$dbh) = @_;
     # cache the search path as ['schema','schema',...] in the storage
@@ -173,8 +174,8 @@ This class implements autoincrements for PostgreSQL.
 =head1 POSTGRESQL SCHEMA SUPPORT
 
 This supports multiple PostgreSQL schemas, with one caveat: for
-performance reasons, the schema search path is queried the first time it is
-needed and CACHED for subsequent uses.
+performance reasons, data about the search path, sequence names, and
+so forth is queried as needed and CACHED for subsequent uses.
 
 For this reason, you should do any necessary manipulation of the
 PostgreSQL search path BEFORE instantiating your schema object, or as
