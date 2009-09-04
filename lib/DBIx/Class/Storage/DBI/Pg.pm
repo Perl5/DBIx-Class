@@ -59,72 +59,34 @@ sub _get_pg_search_path {
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $schema, $table, $col) = @_;
 
-  # get the list of postgres schemas to search.  if we have a schema
-  # specified, use that.  otherwise, use the search path
-  my @search_path;
-  if( defined $schema and length $schema ) {
-      @search_path = ( $schema );
+
+  my @where = ( 'c.relname = ?', 'a.attname = ?' );
+  my @bind  = ($table, $col);
+  if( defined $schema && length $schema ) {
+      push @where, 'n.nspname = ?';
+      push @bind, $schema;
   } else {
-      @search_path = @{ $self->_get_pg_search_path($dbh) };
+      push @where, 'pg_catalog.pg_table_is_visible(c.oid)';
   }
+  my $where = join ' AND ', @where;
 
-  # find the sequence(s) of the column in question (should have nextval declared on it)
-  my @sequence_names;
-  foreach my $search_schema (@search_path) {
-    my $info = $dbh->column_info(undef,$search_schema,$table,$col)->fetchrow_hashref;
-    if($info && defined $info->{COLUMN_DEF}
-             && $info->{COLUMN_DEF} =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i
-    ) {
-        push @sequence_names, $1;
-    }
-  }
+  my ($seq_expr) = $dbh->selectrow_array(<<EOS,undef,@bind);
+SELECT
+  (SELECT pg_catalog.pg_get_expr(d.adbin, d.adrelid)
+   FROM pg_catalog.pg_attrdef d
+   WHERE d.adrelid = a.attrelid AND d.adnum = a.attnum AND a.atthasdef)
+FROM pg_catalog.pg_class c
+     JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+WHERE
+  $where
+  AND a.attnum > 0 AND NOT a.attisdropped
+EOS
 
-  if (@sequence_names != 1) {
-    $self->throw_exception (sprintf
-      q|Unable to reliably determine autoinc sequence name for '%s'.'%s' (possible candidates: %s)|,
-      $table,
-      $col,
-      join (', ', (@sequence_names ? @sequence_names : 'none found') ),
-    );
-  }
+  $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i
+      or $self->throw_exception("could not parse sequence expression '$seq_expr'");
 
-  my $seq = $sequence_names[0];
-
-  if( $seq !~ /\./ ) {
-    my $sth = $dbh->prepare (
-      'SELECT * FROM "information_schema"."sequences" WHERE "sequence_name" = ?'
-    );
-    $sth->execute ($seq);
-
-    my @seen_in_schemas;
-    while (my $h = $sth->fetchrow_hashref) {
-      push @seen_in_schemas, $h->{sequence_schema};
-    }
-
-    if (not @seen_in_schemas) {
-      $self->throw_exception (sprintf
-        q|Automatically determined autoinc sequence name '%s' for '%s'.'%s' does not seem to exist...'|,
-        $seq,
-        $table,
-        $col,
-      );
-    }
-    elsif (@seen_in_schemas > 1) {
-      $self->throw_exception (sprintf
-        q|Unable to reliably fully-qualify automatically determined autoinc sequence name '%s' for '%s'.'%s' (same name exist in schemas: %s)|,
-        $seq,
-        $table,
-        $col,
-        join (', ', (@seen_in_schemas)),
-      );
-    }
-    else {
-      my $sql_maker = $self->sql_maker;
-      $seq = join ('.', map { $sql_maker->_quote ($_) } ($seen_in_schemas[0], $seq) );
-    }
-  }
-
-  return $seq;
+  return $1;
 }
 
 sub get_autoinc_seq {
