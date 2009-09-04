@@ -54,10 +54,10 @@ sub _dbh_get_autoinc_seq {
     ( $schema, $table ) = ( $1, $2 );
   }
 
+  # use DBD::Pg to fetch the column info if it is recent enough to
+  # work. otherwise, use custom SQL
   my $seq_expr =  $DBD::Pg::VERSION > 2.015001
-      # use DBD::Pg to fetch the column info if it is recent enough to work
       ? eval{ $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref->{COLUMN_DEF} }
-      # otherwise, use a custom SQL method
       : $self->_dbh_get_column_default( $dbh, $schema, $table, $col );
 
   # if no default value is set on the column, or if we can't parse the
