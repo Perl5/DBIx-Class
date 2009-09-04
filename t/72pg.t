@@ -291,7 +291,7 @@ exit;
 
 END {
     drop_test_schema($schema);
-    #eapk_drop_all( $schema)
+    eapk_drop_all( $schema)
 };
 
 
