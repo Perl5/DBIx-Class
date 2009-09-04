@@ -104,6 +104,13 @@ is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
 
+# test that store_column is called once for create() for non sequence columns 
+{
+  ok(my $artist = $schema->resultset('Artist')->create({name => 'store_column test'}));
+  is($artist->name, 'X store_column test'); # used to be 'X X store...'
+  $artist->delete;
+}
+
 # Test backwards compatibility
 {
   my $warnings = '';

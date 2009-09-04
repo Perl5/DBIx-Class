@@ -19,13 +19,13 @@ Set \$ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test
 )
 EOM
 
-### load any test classes that are defined further down in the file
+### load any test classes that are defined further down in the file via BEGIN blocks
 
 our @test_classes; #< array that will be pushed into by test classes defined in this file
 DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_classes;
 
 
-###  pre-connect tests
+###  pre-connect tests (keep each test separate as to make sure rebless() runs)
 {
   my $s = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -57,7 +57,7 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
-drop_test_schema($schema, 'no warn');
+drop_test_schema($schema);
 create_test_schema($schema);
 
 ### begin main tests
@@ -67,6 +67,10 @@ create_test_schema($schema);
 # discovery
 run_apk_tests($schema); #< older set of auto-pk tests
 run_extended_apk_tests($schema); #< new extended set of auto-pk tests
+
+
+
+
 
 ### type_info tests
 
@@ -173,20 +177,10 @@ BEGIN {
 
   __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('dbic_t_schema.casecheck');
-  __PACKAGE__->add_columns(qw/id name NAME uc_name storecolumn/);
+  __PACKAGE__->add_columns(qw/id name NAME uc_name/);
   __PACKAGE__->column_info_from_storage(1);
   __PACKAGE__->set_primary_key('id');
-
-  sub store_column {
-    my ($self, $name, $value) = @_;
-    $value = '#'.$value if($name eq "storecolumn");
-    $self->maybe::next::method($name, $value);
-  }
 }
-
-# store_column is called once for create() for non sequence columns
-ok(my $storecolumn = $schema->resultset('Casecheck')->create({'storecolumn' => 'a'}));
-is($storecolumn->storecolumn, '#a'); # was '##a'
 
 my $name_info = $schema->source('Casecheck')->column_info( 'name' );
 is( $name_info->{size}, 1, "Case sensitive matching info for 'name'" );
@@ -202,79 +196,61 @@ is( $uc_name_info->{size}, 3, "Case insensitive matching info for 'uc_name'" );
 
 ## Test SELECT ... FOR UPDATE
 
-my $HaveSysSigAction = eval "require Sys::SigAction" && !$@;
-if( $HaveSysSigAction ) {
-    Sys::SigAction->import( 'set_sig_handler' );
-}
 SKIP: {
-    skip "Sys::SigAction is not available", 3 unless $HaveSysSigAction;
-    # create a new schema
-    my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
-    $schema2->source("Artist")->name("dbic_t_schema.artist");
+    if(eval "require Sys::SigAction" && !$@) {
+        Sys::SigAction->import( 'set_sig_handler' );
+    }
+    else {
+      skip "Sys::SigAction is not available", 6;
+    }
 
-    $schema->txn_do( sub {
-        my $artist = $schema->resultset('Artist')->search(
-            {
-                artistid => 1
-            },
-            {
-                for => 'update'
-            }
-        )->first;
-        is($artist->artistid, 1, "select for update returns artistid = 1");
+    my ($timed_out, $artist2);
 
-        my $artist_from_schema2;
-        my $error_ok = 0;
-        eval {
-            my $h = set_sig_handler( 'ALRM', sub { die "DBICTestTimeout" } );
-            alarm(2);
-            $artist_from_schema2 = $schema2->resultset('Artist')->find(1);
-            $artist_from_schema2->name('fooey');
-            $artist_from_schema2->update;
-            alarm(0);
-        };
-        if (my $e = $@) {
-            $error_ok = $e =~ /DBICTestTimeout/;
-        }
-
+    for my $t (
+      {
         # Make sure that an error was raised, and that the update failed
-        ok($error_ok, "update from second schema times out");
-        ok($artist_from_schema2->is_column_changed('name'), "'name' column is still dirty from second schema");
-    });
-}
+        update_lock => 1,
+        test_sub => sub {
+          ok($timed_out, "update from second schema times out");
+          ok($artist2->is_column_changed('name'), "'name' column is still dirty from second schema");
+        },
+      },
+      {
+        # Make sure that an error was NOT raised, and that the update succeeded
+        update_lock => 0,
+        test_sub => sub {
+          ok(! $timed_out, "update from second schema DOES NOT timeout");
+          ok(! $artist2->is_column_changed('name'), "'name' column is NOT dirty from second schema");
+        },
+      },
+    ) {
+      # create a new schema
+      my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
+      $schema2->source("Artist")->name("dbic_t_schema.artist");
 
-SKIP: {
-    skip "Sys::SigAction is not available", 3 unless $HaveSysSigAction;
-    # create a new schema
-    my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
-    $schema2->source("Artist")->name("dbic_t_schema.artist");
-
-    $schema->txn_do( sub {
+      $schema->txn_do( sub {
         my $artist = $schema->resultset('Artist')->search(
             {
                 artistid => 1
             },
+            $t->{update_lock} ? { for => 'update' } : {}
         )->first;
-        is($artist->artistid, 1, "select for update returns artistid = 1");
+        is($artist->artistid, 1, "select returns artistid = 1");
 
-        my $artist_from_schema2;
-        my $error_ok = 0;
+        $timed_out = 0;
         eval {
             my $h = set_sig_handler( 'ALRM', sub { die "DBICTestTimeout" } );
             alarm(2);
-            $artist_from_schema2 = $schema2->resultset('Artist')->find(1);
-            $artist_from_schema2->name('fooey');
-            $artist_from_schema2->update;
+            $artist2 = $schema2->resultset('Artist')->find(1);
+            $artist2->name('fooey');
+            $artist2->update;
             alarm(0);
         };
-        if (my $e = $@) {
-            $error_ok = $e =~ /DBICTestTimeout/;
-        }
+        $timed_out = $@ =~ /DBICTestTimeout/;
+      });
 
-        # Make sure that an error was NOT raised, and that the update succeeded
-        ok(! $error_ok, "update from second schema DOES NOT timeout");
-        ok(! $artist_from_schema2->is_column_changed('name'), "'name' column is NOT dirty from second schema");
-    });
+      $t->{test_sub}->();
+    }
 }
 
 
@@ -339,7 +315,6 @@ CREATE TABLE dbic_t_schema.casecheck (
     , "name" VARCHAR(1)
     , "NAME" VARCHAR(2)
     , "UC_NAME" VARCHAR(3)
-    , "storecolumn" VARCHAR(10)
 )
 EOS
       $dbh->do(<<EOS);
@@ -384,7 +359,7 @@ EOS
 
 
 sub drop_test_schema {
-    my ( $schema, $no_warn ) = @_;
+    my ( $schema, $warn_exceptions ) = @_;
 
     $schema->storage->dbh_do(sub {
         my (undef,$dbh) = @_;
@@ -403,7 +378,7 @@ sub drop_test_schema {
                       'DROP SCHEMA dbic_t_schema_3 CASCADE',
                      ) {
             eval { $dbh->do ($stat) };
-            diag $@ if $@ && !$no_warn;
+            diag $@ if $@ && $warn_exceptions;
         }
     });
 }
@@ -503,7 +478,7 @@ sub run_extended_apk_tests {
   #save the search path and reset it at the end
   my $search_path_save = $schema->storage->dbh_do('_get_pg_search_path');
 
-  eapk_drop_all($schema,'no warn');
+  eapk_drop_all($schema);
 
   # make the test schemas and sequences
   $schema->storage->dbh_do(sub {
@@ -656,7 +631,7 @@ EOS
 }
 
 sub eapk_drop_all {
-    my ( $schema, $no_warn ) = @_;
+    my ( $schema, $warn_exceptions ) = @_;
 
     $schema->storage->dbh_do(sub {
         my (undef,$dbh) = @_;
@@ -666,7 +641,7 @@ sub eapk_drop_all {
         # drop the test schemas
         for (@eapk_schemas ) {
             eval{ $dbh->do("DROP SCHEMA $_ CASCADE") };
-            diag $@ if $@ && !$no_warn;
+            diag $@ if $@ && $warn_exceptions;
         }
 
 
