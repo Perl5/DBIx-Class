@@ -21,7 +21,7 @@ sub with_deferred_fk_checks {
 
 sub last_insert_id {
   my ($self,$source,$col) = @_;
-  my $seq = ($source->column_info($col)->{sequence} ||= $self->get_autoinc_seq($source,$col))
+  my $seq = ( $source->column_info($col)->{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
       or $self->throw_exception( "could not determine sequence for "
                                  . $source->name
                                  . ".$col, please consider adding a "
@@ -40,12 +40,24 @@ sub _dbh_last_insert_id {
 
 
 sub _dbh_get_autoinc_seq {
-  my ($self, $dbh, $schema, $table, $col) = @_;
+  my ($self, $dbh, $source, $col) = @_;
+
+  my $schema;
+  my $table = $source->name;
+
+  # deref table name if it needs it
+  $table = $$table
+      if ref $table eq 'SCALAR';
+
+  # parse out schema name if present
+  if( $table =~ /^(.+)\.(.+)$/ ) {
+    ( $schema, $table ) = ( $1, $2 );
+  }
 
   my $sqlmaker = $self->sql_maker;
   local $sqlmaker->{bindtype} = 'normal';
 
-  my ($where, @bind) = $self->sql_maker->where ({
+  my ($where, @bind) = $sqlmaker->where ({
     'a.attnum' => {'>', 0},
     'c.relname' => $table,
     'a.attname' => $col,
@@ -62,15 +74,23 @@ SELECT
    FROM pg_catalog.pg_attrdef d
    WHERE d.adrelid = a.attrelid AND d.adnum = a.attnum AND a.atthasdef)
 FROM pg_catalog.pg_class c
-     JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+     LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
      JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
 $where
 
 EOS
 
-  unless (defined $seq_expr && $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ){
+  defined $seq_expr and length $seq_expr
+      or $self->throw_exception( "no sequence found for $table.$col, check table definition, "
+                                 . "or explicitly set the 'sequence' for this column in the "
+                                 . $source->source_name
+                                 . " class"
+                               );
+
+  unless ( $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ){
     $seq_expr = '' unless defined $seq_expr;
-    $self->throw_exception("could not parse sequence expression: '$seq_expr'");
+    $schema = $schema . "." if defined $schema && length $schema;
+    $self->throw_exception("could not parse nextval expression for $schema$table.$col: '$seq_expr'");
   }
 
   return $1;
@@ -79,17 +99,6 @@ EOS
 sub get_autoinc_seq {
   my ($self,$source,$col) = @_;
 
-  my $schema;
-  my $table = $source->name;
-
-  if (ref $table eq 'SCALAR') {
-    $table = $$table;
-  }
-  elsif ($table =~ /^(.+)\.(.+)$/) {
-    ($schema, $table) = ($1, $2);
-  }
-
-  $self->dbh_do('_dbh_get_autoinc_seq', $schema, $table, $col);
 }
 
 sub sqlt_type {
