@@ -3,7 +3,6 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
-use Data::Dumper;
 
 plan tests => 4;
 my $exp_warn = qr/The many-to-many relationship 'bars' is trying to create/;
