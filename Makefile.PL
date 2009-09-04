@@ -40,7 +40,7 @@ requires 'MRO::Compat'              => '0.09';
 requires 'Module::Find'             => '0.06';
 requires 'Path::Class'              => '0.16';
 requires 'Scope::Guard'             => '0.03';
-requires 'SQL::Abstract'            => '1.57';
+requires 'SQL::Abstract'            => '1.58';
 requires 'SQL::Abstract::Limit'     => '0.13';
 requires 'Sub::Name'                => '0.04';
 
