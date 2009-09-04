@@ -509,6 +509,7 @@ sub run_extended_apk_tests {
 
     $dbh->do("CREATE SEQUENCE $eapk_schemas[5].fooseq");
     $dbh->do("CREATE SEQUENCE $eapk_schemas[4].fooseq");
+    $dbh->do("CREATE SEQUENCE $eapk_schemas[3].fooseq");
 
     $dbh->do("SET search_path = ".join ',', @eapk_schemas );
   });
@@ -531,12 +532,19 @@ sub run_extended_apk_tests {
                with_search_path => [3,1,0,'public'],
                nextval => "$eapk_schemas[4].fooseq",
              );
+  eapk_create( $schema,
+               with_search_path => [3,1,0,'public'],
+               nextval => "$eapk_schemas[3].fooseq",
+               qualify_table => 4,
+             );
 
   eapk_poke( $schema, 0 );
   eapk_poke( $schema, 2 );
+  eapk_poke( $schema, 4 );
   eapk_poke( $schema, 1 );
   eapk_poke( $schema, 0 );
   eapk_poke( $schema, 1 );
+  eapk_poke( $schema, 4 );
   eapk_poke( $schema, 3 );
   eapk_poke( $schema, 1 );
   eapk_poke( $schema, 2 );
@@ -572,7 +580,7 @@ sub eapk_poke {
       $new = $schema->resultset('ExtAPK')->create({});
       for my $id (@eapk_id_columns) {
         my $proper_seqval = ++$seqs{"$schema_name_actual.apk.$id"};
-        is( $new->$id, $proper_seqval, "correct $id inc $inc" )
+        is( $new->$id, $proper_seqval, "$schema_name_actual.apk.$id correct inc $inc" )
             or eapk_seq_diag($s,$schema_name);
       }
     }
