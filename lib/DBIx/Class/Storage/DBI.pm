@@ -44,7 +44,14 @@ DBIx::Class::Storage::DBI - DBI storage handler
   my $schema = MySchema->connect('dbi:SQLite:my.db');
 
   $schema->storage->debug(1);
-  $schema->dbh_do("DROP TABLE authors");
+
+  my @stuff = $schema->storage->dbh_do(
+    sub {
+      my ($storage, $dbh, @args) = @_;
+      $dbh->do("DROP TABLE authors");
+    },
+    @column_list
+  );
 
   $schema->resultset('Book')->search({
      written_on => $schema->storage->datetime_parser(DateTime->now)
@@ -556,7 +563,7 @@ sub dbh_do {
   my $self = shift;
   my $code = shift;
 
-  my $dbh = $self->_dbh;
+  my $dbh = $self->_get_dbh;
 
   return $self->$code($dbh, @_) if $self->{_in_dbh_do}
       || $self->{transaction_depth};
@@ -567,11 +574,6 @@ sub dbh_do {
   my $want_array = wantarray;
 
   eval {
-    $self->_verify_pid if $dbh;
-    if(!$self->_dbh) {
-        $self->_populate_dbh;
-        $dbh = $self->_dbh;
-    }
 
     if($want_array) {
         @result = $self->$code($dbh, @_);
@@ -618,8 +620,7 @@ sub txn_do {
   my $tried = 0;
   while(1) {
     eval {
-      $self->_verify_pid if $self->_dbh;
-      $self->_populate_dbh if !$self->_dbh;
+      $self->_get_dbh;
 
       $self->txn_begin;
       if($want_array) {
@@ -808,6 +809,7 @@ sub dbh {
 # this is the internal "get dbh or connect (don't check)" method
 sub _get_dbh {
   my $self = shift;
+  $self->_verify_pid if $self->_dbh;
   $self->_populate_dbh unless $self->_dbh;
   return $self->_dbh;
 }
@@ -959,7 +961,7 @@ sub _do_query {
     my @bind = map { [ undef, $_ ] } @do_args;
 
     $self->_query_start($sql, @bind);
-    $self->_dbh->do($sql, $attrs, @do_args);
+    $self->_get_dbh->do($sql, $attrs, @do_args);
     $self->_query_end($sql, @bind);
   }
 
@@ -2485,7 +2487,6 @@ Returns the datetime parser class
 sub datetime_parser {
   my $self = shift;
   return $self->{datetime_parser} ||= do {
-    $self->_populate_dbh unless $self->_dbh;
     $self->build_datetime_parser(@_);
   };
 }
@@ -2506,10 +2507,14 @@ See L</datetime_parser>
 =cut
 
 sub build_datetime_parser {
+  if (not $_[0]->_driver_determined) {
+    $_[0]->_determine_driver;
+    goto $_[0]->can('build_datetime_parser');
+  }
+
   my $self = shift;
   my $type = $self->datetime_parser_type(@_);
-  eval "use ${type}";
-  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  $self->ensure_class_loaded ($type);
   return $type;
 }
 

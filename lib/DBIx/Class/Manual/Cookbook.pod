@@ -37,7 +37,10 @@ Sometimes you need to formulate a query using specific operators:
 
 This results in something like the following C<WHERE> clause:
 
-  WHERE artist LIKE '%Lamb%' AND title LIKE '%Fear of Fours%'
+  WHERE artist LIKE ? AND title LIKE ?
+
+And the following bind values for the placeholders: C<'%Lamb%'>, C<'%Fear of
+Fours%'>.
 
 Other queries might require slightly more complex logic:
 
@@ -244,6 +247,8 @@ any of your aliases using either of these:
   # Or use DBIx::Class::AccessorGroup:
   __PACKAGE__->mk_group_accessors('column' => 'name_length');
 
+See also L</Using SQL functions on the left hand side of a comparison>.
+
 =head2 SELECT DISTINCT with multiple columns
 
   my $rs = $schema->resultset('Artist')->search(
@@ -331,7 +336,7 @@ B<NOTE>: You have to explicitly use '=' when doing an equality comparison.
 The following will B<not> work:
 
   my $rs = $schema->resultset('CD')->search({
-    artist_id => $inside_rs->get_column('id')->as_query,
+    artist_id => $inside_rs->get_column('id')->as_query,  # does NOT work
   });
 
 =head3 Support
@@ -404,8 +409,10 @@ Then call your new method in your code:
 
 =head2 Using SQL functions on the left hand side of a comparison
 
-Using SQL functions on the left hand side of a comparison is generally
-not a good idea since it requires a scan of the entire table.  However,
+Using SQL functions on the left hand side of a comparison is generally not a
+good idea since it requires a scan of the entire table. (Unless your RDBMS
+supports indexes on expressions - including return values of functions -, and
+you create an index on the return value of the function in question.) However,
 it can be accomplished with C<DBIx::Class> when necessary.
 
 If you do not have quoting on, simply include the function in your search
@@ -413,25 +420,30 @@ specification as you would any column:
 
   $rs->search({ 'YEAR(date_of_birth)' => 1979 });
 
-With quoting on, or for a more portable solution, use the C<where>
-attribute:
+With quoting on, or for a more portable solution, use literal SQL values with
+placeholders:
 
-  $rs->search({}, { where => \'YEAR(date_of_birth) = 1979' });
+  $rs->search(\[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ]);
 
-=begin hidden
+  # Equivalent SQL:
+  # SELECT * FROM employee WHERE YEAR(date_of_birth) = ?
 
-(When the bind args ordering bug is fixed, this technique will be better
-and can replace the one above.)
-
-With quoting on, or for a more portable solution, use the C<where> and
-C<bind> attributes:
-
-  $rs->search({}, {
-      where => \'YEAR(date_of_birth) = ?',
-      bind  => [ 1979 ]
+  $rs->search({
+    name => 'Bob',
+    -nest => \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ],
   });
 
-=end hidden
+  # Equivalent SQL:
+  # SELECT * FROM employee WHERE name = ? AND YEAR(date_of_birth) = ?
+
+Note: the C<plain_value> string in the C<< [ plain_value => 1979 ] >> part
+should be either the same as the name of the column (do this if the type of the
+return value of the function is the same as the type of the column) or
+otherwise it's essentially a dummy string currently (use C<plain_value> as a
+habit). It is used by L<DBIx::Class> to handle special column types.
+
+See also L<SQL::Abstract/Literal SQL with placeholders and bind values
+(subqueries)>.
 
 =head1 JOINS AND PREFETCHING
 
@@ -922,6 +934,9 @@ B<Test File> test.pl
     ### The statement below will print
     print "I can do admin stuff\n" if $admin->can('do_admin_stuff');
 
+Alternatively you can use L<DBIx::Class::DynamicSubclass> that implements
+exactly the above functionality.
+
 =head2 Skip row object creation for faster results
 
 DBIx::Class is not built for speed, it's built for convenience and
@@ -1062,7 +1077,7 @@ create the relationship.
 To order C<< $book->pages >> by descending page_number, create the relation
 as follows:
 
-  __PACKAGE__->has_many('pages' => 'Page', 'book', { order_by => \'page_number DESC'} );
+  __PACKAGE__->has_many('pages' => 'Page', 'book', { order_by => { -desc => 'page_number'} } );
 
 =head2 Filtering a relationship result set
 
@@ -1103,6 +1118,16 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
 
   $rs = $user->addresses(); # get all addresses for a user
   $rs = $address->users(); # get all users for an address
+
+  my $address = $user->add_to_addresses(    # returns a My::Address instance,
+                                            # NOT a My::UserAddress instance!
+    {
+      country => 'United Kingdom',
+      area_code => 'XYZ',
+      town => 'London',
+      street => 'Sesame',
+    }
+  );
 
 =head2 Relationships across DB schemas
 

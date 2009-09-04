@@ -6,7 +6,6 @@ use warnings;
 use DBIx::Class::ResultSet;
 use DBIx::Class::ResultSourceHandle;
 use Carp::Clan qw/^DBIx::Class/;
-use Storable;
 
 use base qw/DBIx::Class/;
 

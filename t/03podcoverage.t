@@ -76,6 +76,7 @@ my $exceptions = {
     'DBIx::Class::ResultSetProxy'                   => { skip => 1 },
     'DBIx::Class::ResultSourceProxy'                => { skip => 1 },
     'DBIx::Class::Storage::Statistics'              => { skip => 1 },
+    'DBIx::Class::Storage::DBI::Replicated::Types'  => { skip => 1 },
 
 # test some specific components whose parents are exempt below
     'DBIx::Class::Storage::DBI::Replicated*'        => {},
