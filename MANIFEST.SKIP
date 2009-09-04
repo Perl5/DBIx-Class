@@ -6,6 +6,9 @@
 \bCVS\b
 ,v$
 \B\.svn\b
+\B\.git\b
+\B\.gitignore\b
+\b_darcs\b
 
 # Avoid Makemaker generated and utility files.
 \bMakefile$
