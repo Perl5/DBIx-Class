@@ -39,24 +39,6 @@ sub _dbh_last_insert_id {
 }
 
 
-# get the postgres search path, and cache it
-sub _get_pg_search_path {
-    my ($self,$dbh) = @_;
-    # cache the search path as ['schema','schema',...] in the storage
-    # obj
-    $self->{_pg_search_path} ||= do {
-        my @search_path;
-        my ($sp_string) = $dbh->selectrow_array('SHOW search_path');
-        while( $sp_string =~ s/("[^"]+"|[^,]+),?// ) {
-            unless( defined $1 and length $1 ) {
-                $self->throw_exception("search path sanity check failed: '$1'")
-            }
-            push @search_path, $1;
-        }
-        \@search_path
-    };
-}
-
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $schema, $table, $col) = @_;
 

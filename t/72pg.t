@@ -476,7 +476,7 @@ sub run_extended_apk_tests {
   my $schema = shift;
 
   #save the search path and reset it at the end
-  my $search_path_save = $schema->storage->dbh_do('_get_pg_search_path');
+  my $search_path_save = eapk_get_search_path($schema);
 
   eapk_drop_all($schema);
 
@@ -546,7 +546,7 @@ sub eapk_poke {
       ? $eapk_schemas[$schema_num]
       : '';
 
-  my $schema_name_actual = $schema_name || $s->storage->dbh_do('_get_pg_search_path')->[0];
+  my $schema_name_actual = $schema_name || eapk_get_search_path($s)->[0];
 
   $s->source('ExtAPK')->name($schema_name ? $schema_name.'.apk' : 'apk');
   #< clear sequence name cache
@@ -576,7 +576,7 @@ sub eapk_poke {
 # class
 sub eapk_seq_diag {
     my $s = shift;
-    my $schema = shift || $s->storage->dbh_do('_get_pg_search_path')->[0];
+    my $schema = shift || eapk_get_search_path($s)->[0];
 
     diag "$schema.apk sequences: ",
         join(', ',
@@ -585,6 +585,25 @@ sub eapk_seq_diag {
             );
 }
 
+# get the postgres search path as an arrayref
+sub eapk_get_search_path {
+    my ( $s ) = @_;
+    # cache the search path as ['schema','schema',...] in the storage
+    # obj
+
+    return $s->storage->dbh_do(sub {
+        my (undef, $dbh) = @_;
+        my @search_path;
+        my ($sp_string) = $dbh->selectrow_array('SHOW search_path');
+        while ( $sp_string =~ s/("[^"]+"|[^,]+),?// ) {
+            unless( defined $1 and length $1 ) {
+                die "search path sanity check failed: '$1'";
+            }
+            push @search_path, $1;
+        }
+        \@search_path
+    });
+}
 sub eapk_set_search_path {
     my ($s,@sp) = @_;
     my $sp = join ',',@sp;
