@@ -32,7 +32,7 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
   ok (!$s->storage->_dbh, 'definitely not connected');
 
   # Check that datetime_parser returns correctly before we explicitly connect.
- SKIP: {
+  SKIP: {
       eval { require DateTime::Format::Pg };
       skip "DateTime::Format::Pg required", 2 if $@;
 
@@ -43,9 +43,14 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
       is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
   }
 
-
+  ok (!$s->storage->_dbh, 'still not connected');
+}
+{
+  my $s = DBICTest::Schema->connect($dsn, $user, $pass);
   # make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
+  ok (!$s->storage->_dbh, 'definitely not connected');
   is ($s->storage->sqlt_type, 'PostgreSQL', 'sqlt_type correct pre-connection');
+  ok (!$s->storage->_dbh, 'still not connected');
 }
 
 ### connect, create postgres-specific test schema
