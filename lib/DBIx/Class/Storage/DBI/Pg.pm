@@ -54,6 +54,22 @@ sub _dbh_get_autoinc_seq {
     ( $schema, $table ) = ( $1, $2 );
   }
 
+  # Build and execute a query into the pg_catalog to find the Pg
+  # expression for the default value for this column in this table.
+  # If the table name is schema-qualified, query using that specific
+  # schema name.
+
+  # Otherwise, find the table in the standard Postgres way, using the
+  # search path.  This is done with the pg_catalog.pg_table_is_visible
+  # function, which returns true if a given table is 'visible',
+  # meaning the first table of that name to be found in the search
+  # path.
+
+  # I *think* we can be assured that this query will always find the
+  # correct column according to standard Postgres semantics.
+  #
+  # -- rbuels
+
   my $sqlmaker = $self->sql_maker;
   local $sqlmaker->{bindtype} = 'normal';
 
