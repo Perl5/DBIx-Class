@@ -80,17 +80,16 @@ $where
 
 EOS
 
-  defined $seq_expr and length $seq_expr
-      or $self->throw_exception( "no sequence found for $table.$col, check table definition, "
-                                 . "or explicitly set the 'sequence' for this column in the "
-                                 . $source->source_name
-                                 . " class"
-                               );
-
-  unless ( $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ){
+  # if no default value is set on the column, or if we can't parse the
+  # default value as a sequence, throw.
+  unless ( defined $seq_expr and $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ){
     $seq_expr = '' unless defined $seq_expr;
-    $schema = $schema . "." if defined $schema && length $schema;
-    $self->throw_exception("could not parse nextval expression for $schema$table.$col: '$seq_expr'");
+    $schema = "$schema." if defined $schema && length $schema;
+    $self->throw_exception( "no sequence found for $schema$table.$col, check table definition, "
+                            . "or explicitly set the 'sequence' for this column in the "
+                            . $source->source_name
+                            . " class"
+                          );
   }
 
   return $1;
