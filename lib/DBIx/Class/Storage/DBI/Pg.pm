@@ -173,13 +173,17 @@ This class implements autoincrements for PostgreSQL.
 
 =head1 POSTGRESQL SCHEMA SUPPORT
 
-This supports multiple PostgreSQL schemas, with one caveat: for
+This driver supports multiple PostgreSQL schemas, with one caveat: for
 performance reasons, data about the search path, sequence names, and
 so forth is queried as needed and CACHED for subsequent uses.
 
-For this reason, you should do any necessary manipulation of the
-PostgreSQL search path BEFORE instantiating your schema object, or as
-part of the on_connect_do option to connect(), for example:
+For this reason, once your schema is instantiated, you should not
+change the PostgreSQL schema search path for that schema's database
+connection. If you do, Bad Things may happen.
+
+You should do any necessary manipulation of the search path BEFORE
+instantiating your schema object, or as part of the on_connect_do
+option to connect(), for example:
 
    my $schema = My::Schema->connect
                   ( $dsn,$user,$pass,
