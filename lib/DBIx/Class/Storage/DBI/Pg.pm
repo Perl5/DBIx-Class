@@ -54,6 +54,32 @@ sub _dbh_get_autoinc_seq {
     ( $schema, $table ) = ( $1, $2 );
   }
 
+  my $seq_expr =  $DBD::Pg::VERSION > 2.015001
+      # use DBD::Pg to fetch the column info if it is recent enough to work
+      ? eval{ $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref->{COLUMN_DEF} }
+      # otherwise, use a custom SQL method
+      : $self->_dbh_get_column_default( $dbh, $schema, $table, $col );
+
+  # if no default value is set on the column, or if we can't parse the
+  # default value as a sequence, throw.
+  unless ( defined $seq_expr and $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ){
+    $seq_expr = '' unless defined $seq_expr;
+    $schema = "$schema." if defined $schema && length $schema;
+    $self->throw_exception( "no sequence found for $schema$table.$col, check table definition, "
+                            . "or explicitly set the 'sequence' for this column in the "
+                            . $source->source_name
+                            . " class"
+                          );
+  }
+
+  return $1;
+}
+
+# custom method for fetching column default, since column_info has a
+# bug with older versions of DBD::Pg
+sub _dbh_get_column_default {
+  my ( $self, $dbh, $schema, $table, $col ) = @_;
+
   # Build and execute a query into the pg_catalog to find the Pg
   # expression for the default value for this column in this table.
   # If the table name is schema-qualified, query using that specific
@@ -96,25 +122,9 @@ $where
 
 EOS
 
-  # if no default value is set on the column, or if we can't parse the
-  # default value as a sequence, throw.
-  unless ( defined $seq_expr and $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ){
-    $seq_expr = '' unless defined $seq_expr;
-    $schema = "$schema." if defined $schema && length $schema;
-    $self->throw_exception( "no sequence found for $schema$table.$col, check table definition, "
-                            . "or explicitly set the 'sequence' for this column in the "
-                            . $source->source_name
-                            . " class"
-                          );
-  }
-
-  return $1;
+  return $seq_expr;
 }
 
-sub get_autoinc_seq {
-  my ($self,$source,$col) = @_;
-
-}
 
 sub sqlt_type {
   return 'PostgreSQL';
