@@ -578,7 +578,11 @@ sub eapk_poke {
     my $new;
     for my $inc (1,2,3) {
       $new = $schema->resultset('ExtAPK')->create({});
-      for my $id (@eapk_id_columns) {
+      my $proper_seqval = ++$seqs{"$schema_name_actual.apk.id2"};
+      is( $new->id2, $proper_seqval, "$schema_name_actual.apk.id2 correct inc $inc" )
+          or eapk_seq_diag($s,$schema_name);
+      $new->discard_changes;
+      for my $id (grep $_ ne 'id2', @eapk_id_columns) {
         my $proper_seqval = ++$seqs{"$schema_name_actual.apk.$id"};
         is( $new->$id, $proper_seqval, "$schema_name_actual.apk.$id correct inc $inc" )
             or eapk_seq_diag($s,$schema_name);
