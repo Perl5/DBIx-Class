@@ -11,6 +11,8 @@ Revision history for DBIx::Class
           - sqlt_type is now called on the correct storage object
           - hooks can now see the correct producer_type
           - optional SQLT requirements for e.g. deploy() bumped to 0.11002
+        - Really fixed (and greatly cleaned up) postgresql autoinc sequence
+          autodetection
         - Automatically detect MySQL v3 and use INNER JOIN instead of JOIN
         - POD improvements
 
