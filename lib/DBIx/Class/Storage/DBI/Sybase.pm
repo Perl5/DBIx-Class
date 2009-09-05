@@ -12,7 +12,7 @@ use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update unsafe_insert/
+    qw/_identity _blob_log_on_update unsafe_insert _insert_dbh/
 );
 
 =head1 NAME
@@ -129,6 +129,8 @@ sub _populate_dbh {
       $self->_dbh->do('SET CHAINED ON');
     }
   }
+
+  $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }));
 }
 
 =head2 connect_call_blob_setup
@@ -258,7 +260,7 @@ sub _native_data_type {
   my ($self, $type) = @_;
 
   $type = lc $type;
-  $type =~ s/ identity//;
+  $type =~ s/\s* identity//x;
 
   return uc($TYPE_MAPPING{$type} || $type);
 }
@@ -312,6 +314,7 @@ sub insert {
     if (
       $need_last_insert_id && !$self->unsafe_insert && !$self->{transaction_depth}
     ) {
+      local $self->{_dbh} = $self->_insert_dbh;
       my $guard = $self->txn_scope_guard;
       my $upd_cols = $self->next::method (@_);
       $guard->commit;

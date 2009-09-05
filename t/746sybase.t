@@ -307,9 +307,9 @@ CREATE TABLE money_test (
 SQL
   });
 
-# test insert transactions when there's an active cursor
+# test insert transaction when there's an active cursor
   TODO: { 
-    local $TODO = 'not supported yet or possibly ever';
+#    local $TODO = 'not supported yet or possibly ever';
 
     SKIP: {
       skip 'not testing insert with active cursor if using unsafe_insert', 1
