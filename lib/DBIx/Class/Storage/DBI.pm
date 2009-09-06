@@ -2546,10 +2546,12 @@ sub lag_behind_master {
 
 sub DESTROY {
   my $self = shift;
+
   $self->_verify_pid if $self->_dbh;
 
   # some databases need this to stop spewing warnings
   if (my $dbh = $self->_dbh) {
+    local $@;
     eval { $dbh->disconnect };
   }
 
