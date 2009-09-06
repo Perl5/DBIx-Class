@@ -16,10 +16,20 @@ __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MSSQL');
 
 sub _set_identity_insert {
   my ($self, $table) = @_;
-  $self->_get_dbh->do (sprintf
+
+  my $sql = sprintf (
     'SET IDENTITY_INSERT %s ON',
-    $self->sql_maker->_quote ($table)
+    $self->sql_maker->_quote ($table),
   );
+
+  my $dbh = $self->_get_dbh;
+  eval { $dbh->do ($sql) };
+  if ($@) {
+    $self->throw_exception (sprintf "Error executing '%s': %s",
+      $sql,
+      $dbh->errstr,
+    );
+  }
 }
 
 sub insert_bulk {
