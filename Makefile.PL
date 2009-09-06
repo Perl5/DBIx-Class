@@ -61,8 +61,14 @@ my %force_requires_if_author = (
   %replication_requires,
 
 #  'Module::Install::Pod::Inherit' => '0.01',
-  'Test::Pod::Coverage'       => '1.04',
   'SQL::Translator'           => $sqlt_recommends,
+
+  # when changing also adjust version in t/02pod.t
+  'Test::Pod'                 => '1.26',
+
+  # when changing also adjust version in t/03podcoverage.t
+  'Test::Pod::Coverage'       => '1.08',
+  'Pod::Coverage'             => '0.20',
 
   # CDBI-compat related
   'DBIx::ContextualFetch'     => '0',
