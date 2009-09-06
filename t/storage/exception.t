@@ -21,9 +21,9 @@ use DBICTest::Schema;
     my $self = shift;
     my $death = $self->_dbi_connect_info->[3]{die};
 
-    die $death if $death eq 'before_populate';
+    die "storage test died: $death" if $death eq 'before_populate';
     my $ret = $self->next::method (@_);
-    die $death if $death eq 'after_populate';
+    die "storage test died: $death" if $death eq 'after_populate';
 
     return $ret;
   }
@@ -34,12 +34,12 @@ local $TODO = "I have no idea what is going on here... but it ain't right";
 
 for (qw/before_populate after_populate/) {
 
-  throws_ok (sub {
+  dies_ok (sub {
     my $schema = DBICTest::Schema->clone;
     $schema->storage_type ('Dying::Storage');
     $schema->connection (DBICTest->_database, { die => $_ });
     $schema->storage->ensure_connected;
-  }, qr/$_/, "$_ exception found");
+  }, "$_ exception found");
 }
 
 }
