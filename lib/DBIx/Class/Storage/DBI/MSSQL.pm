@@ -221,13 +221,15 @@ This is more dangerous, as inserting into a table with an on insert trigger that
 inserts into another table with an identity will give erroneous results on
 recent versions of SQL Server.
 
-=head2 bulk_insert
+=head2 identity insert
 
 Be aware that we have tried to make things as simple as possible for our users.
-For MSSQL that means that when a user tries to do a populate/bulk_insert which
-includes an autoincrementing column, we will try to tell the database to allow
-the insertion of the autoinc column.  But the user must have the db_ddladmin
-role membership, otherwise you will get a fairly opaque error message.
+For MSSQL that means that when a user tries to create a row, while supplying an
+explicit value for an autoincrementing column, we will try to issue the
+appropriate database call to make this possible, namely C<SET IDENTITY_INSERT
+$table_name ON>. Unfortunately this operation in MSSQL requires the
+C<db_ddladmin> privilege, which is normally not included in the standard
+write-permissions.
 
 =head1 AUTHOR
 
