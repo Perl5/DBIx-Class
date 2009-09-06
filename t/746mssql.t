@@ -12,8 +12,6 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ODBC_${_}" } qw/DSN USER PA
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ODBC_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 39;
-
 DBICTest::Schema->load_classes('ArtistGUID');
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -220,6 +218,19 @@ lives_ok ( sub {
   ]);
 }, 'populate with PKs supplied ok' );
 
+lives_ok (sub {
+  # start a new connection, make sure rebless works
+  # test an insert with a supplied identity, followed by one without
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  for (1..2) {
+    my $id = $_ * 20 ;
+    $schema->resultset ('Owners')->create ({ id => $id, name => "troglodoogle $id" });
+    $schema->resultset ('Owners')->create ({ name => "troglodoogle " . ($id + 1) });
+  }
+}, 'create with/without PKs ok' );
+
+is ($schema->resultset ('Owners')->count, 19, 'owner rows really in db' );
+
 lives_ok ( sub {
   # start a new connection, make sure rebless works
   my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
@@ -329,8 +340,9 @@ $schema->storage->_sql_maker->{name_sep} = '.';
       ],
     );
   }
-
 }
+
+done_testing;
 
 # clean up our mess
 END {
