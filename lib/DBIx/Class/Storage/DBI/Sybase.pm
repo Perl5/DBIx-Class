@@ -129,8 +129,6 @@ sub _populate_dbh {
       $self->_dbh->do('SET CHAINED ON');
     }
   }
-
-  $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }));
 }
 
 =head2 connect_call_blob_setup
@@ -314,10 +312,13 @@ sub insert {
     if (
       $need_last_insert_id && !$self->unsafe_insert && !$self->{transaction_depth}
     ) {
+      $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }))
+        unless $self->_insert_dbh;
       local $self->{_dbh} = $self->_insert_dbh;
       my $guard = $self->txn_scope_guard;
       my $upd_cols = $self->next::method (@_);
       $guard->commit;
+      $self->_insert_dbh($self->_dbh);
       $upd_cols;
     }
     else {
@@ -621,18 +622,11 @@ C<next> or C<first> but has not been exhausted or
 L<reset|DBIx::Class::ResultSet/reset>.
 
 Transactions done for inserts in C<AutoCommit> mode when placeholders are in use
-are also affected, so this won't work:
-
-  while (my $row = $rs1->next) {
-    $rs2->create({ foo => $row->foo });
-  }
+are not affected, as they use an extra database handle to do the insert.
 
 Some workarounds:
 
 =over 4
-
-=item * set C<< $schema->storage->unsafe_insert(1) >> temporarily (see
-L</connect_call_unsafe_insert>)
 
 =item * use L<DBIx::Class::Storage::DBI::Replicated>
 
