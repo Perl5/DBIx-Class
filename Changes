@@ -1,6 +1,6 @@
 Revision history for DBIx::Class
 
-0.08110 2009-09-06 15:52:00 (UTC)
+0.08111 2009-09-06 21:58:00 (UTC)
         - The hashref to connection_info now accepts a 'dbh_maker'
           coderef, allowing better intergration with Catalyst
         - Fixed a complex prefetch + regular join regression introduced
@@ -17,6 +17,7 @@ Revision history for DBIx::Class
         - Automatically detect MySQL v3 and use INNER JOIN instead of JOIN
         - POD improvements (including RT#48769)
         - Test suite tweaks (including fixes for recent CPANTS fails)
+        - Better support for MSSQL IDENTITY_INSERT ON
 
 0.08109 2009-08-18 08:35:00 (UTC)
         - Replication updates:
