@@ -40,7 +40,7 @@ requires 'MRO::Compat'              => '0.09';
 requires 'Module::Find'             => '0.06';
 requires 'Path::Class'              => '0.16';
 requires 'Scope::Guard'             => '0.03';
-requires 'SQL::Abstract'            => '1.56';
+requires 'SQL::Abstract'            => '1.58';
 requires 'SQL::Abstract::Limit'     => '0.13';
 requires 'Sub::Name'                => '0.04';
 
@@ -61,8 +61,14 @@ my %force_requires_if_author = (
   %replication_requires,
 
 #  'Module::Install::Pod::Inherit' => '0.01',
-  'Test::Pod::Coverage'       => '1.04',
   'SQL::Translator'           => $sqlt_recommends,
+
+  # when changing also adjust version in t/02pod.t
+  'Test::Pod'                 => '1.26',
+
+  # when changing also adjust version in t/03podcoverage.t
+  'Test::Pod::Coverage'       => '1.08',
+  'Pod::Coverage'             => '0.20',
 
   # CDBI-compat related
   'DBIx::ContextualFetch'     => '0',

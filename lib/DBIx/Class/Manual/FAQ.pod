@@ -247,16 +247,13 @@ documentation for details.
 
 To use an SQL function on the left hand side of a comparison:
 
- ->search({}, { where => \'YEAR(date_of_birth)=1979' });
+ ->search({ -nest => \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ] });
 
-=begin hidden
-
-(When the bind arg ordering bug is fixed, the previous example can be
-replaced with the following.)
-
- ->search({}, { where => \'YEAR(date_of_birth)=?', bind => [ 1979 ] });
-
-=end hidden
+Note: the C<plain_value> string in the C<< [ plain_value => 1979 ] >> part
+should be either the same as the name of the column (do this if the type of the
+return value of the function is the same as the type of the column) or
+otherwise it's essentially a dummy string currently (use C<plain_value> as a
+habit). It is used by L<DBIx::Class> to handle special column types.
 
 Or, if you have quoting off:
 

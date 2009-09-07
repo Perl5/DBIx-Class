@@ -84,6 +84,8 @@ Check out the L<Class::C3> docs for more information about inheritance.
 These components provide extra functionality beyond 
 basic functionality that you can't live without.
 
+L<DBIx::Class::Serialize::Storable> - Hooks for Storable freeze/thaw.
+
 L<DBIx::Class::CDBICompat> - Class::DBI Compatibility layer.
 
 L<DBIx::Class::FormTools> - Build forms with multiple interconnected objects.
@@ -131,8 +133,6 @@ L<DBIx::Class::PK> - This class contains methods for handling primary keys and m
 L<DBIx::Class::Relationship> - Inter-table relationships.
 
 L<DBIx::Class::ResultSourceProxy::Table> - Provides a classdata table object and method proxies.
-
-L<DBIx::Class::Serialize::Storable> - Hooks for Storable freeze/thaw.
 
 L<DBIx::Class::Row> - Basic row methods.
 

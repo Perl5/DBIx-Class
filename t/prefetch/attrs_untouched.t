@@ -4,7 +4,9 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+
 use Data::Dumper;
+$Data::Dumper::Sortkeys = 1;
 
 my $schema = DBICTest->init_schema();
 

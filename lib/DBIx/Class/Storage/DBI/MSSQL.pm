@@ -14,31 +14,36 @@ __PACKAGE__->mk_group_accessors(simple => qw/
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MSSQL');
 
+sub _set_identity_insert {
+  my ($self, $table) = @_;
+
+  my $sql = sprintf (
+    'SET IDENTITY_INSERT %s ON',
+    $self->sql_maker->_quote ($table),
+  );
+
+  my $dbh = $self->_get_dbh;
+  eval { $dbh->do ($sql) };
+  if ($@) {
+    $self->throw_exception (sprintf "Error executing '%s': %s",
+      $sql,
+      $dbh->errstr,
+    );
+  }
+}
+
 sub insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
-  my $identity_insert = 0;
-
-  COLUMNS:
-  foreach my $col (@{$cols}) {
-    if ($source->column_info($col)->{is_auto_increment}) {
-      $identity_insert = 1;
-      last COLUMNS;
-    }
-  }
-
-  if ($identity_insert) {
-    my $table = $source->from;
-    $self->_get_dbh->do("SET IDENTITY_INSERT $table ON");
+  if (List::Util::first
+      { $source->column_info ($_)->{is_auto_increment} }
+      (@{$cols})
+  ) {
+      $self->_set_identity_insert ($source->name);
   }
 
   $self->next::method(@_);
-
-  if ($identity_insert) {
-    my $table = $source->from;
-    $self->_get_dbh->do("SET IDENTITY_INSERT $table OFF");
-  }
 }
 
 # support MSSQL GUID column types
@@ -47,7 +52,7 @@ sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
-  my $updated_cols = {};
+  my $supplied_col_info = $self->_resolve_column_info($source, [keys %$to_insert] );
 
   my %guid_cols;
   my @pk_cols = $source->primary_columns;
@@ -71,9 +76,15 @@ sub insert {
   my @get_guids_for =
     grep { not exists $to_insert->{$_} } (@pk_guids, @auto_guids);
 
+  my $updated_cols = {};
+
   for my $guid_col (@get_guids_for) {
     my ($new_guid) = $self->_get_dbh->selectrow_array('SELECT NEWID()');
     $updated_cols->{$guid_col} = $to_insert->{$guid_col} = $new_guid;
+  }
+
+  if (List::Util::first { $_->{is_auto_increment} } (values %$supplied_col_info) ) {
+    $self->_set_identity_insert ($source->name);
   }
 
   $updated_cols = { %$updated_cols, %{ $self->next::method(@_) } };
@@ -105,14 +116,6 @@ sub _prep_for_execute {
   if ($op eq 'insert') {
     $sql .= ';SELECT SCOPE_IDENTITY()';
 
-    my $col_info = $self->_resolve_column_info($ident, [map $_->[0], @{$bind}]);
-    if (List::Util::first { $_->{is_auto_increment} } (values %$col_info) ) {
-
-      my $table = $ident->from;
-      my $identity_insert_on = "SET IDENTITY_INSERT $table ON";
-      my $identity_insert_off = "SET IDENTITY_INSERT $table OFF";
-      $sql = "$identity_insert_on; $sql; $identity_insert_off";
-    }
   }
 
   return ($sql, $bind);
@@ -218,13 +221,15 @@ This is more dangerous, as inserting into a table with an on insert trigger that
 inserts into another table with an identity will give erroneous results on
 recent versions of SQL Server.
 
-=head2 bulk_insert
+=head2 identity insert
 
 Be aware that we have tried to make things as simple as possible for our users.
-For MSSQL that means that when a user tries to do a populate/bulk_insert which
-includes an autoincrementing column, we will try to tell the database to allow
-the insertion of the autoinc column.  But the user must have the db_ddladmin
-role membership, otherwise you will get a fairly opaque error message.
+For MSSQL that means that when a user tries to create a row, while supplying an
+explicit value for an autoincrementing column, we will try to issue the
+appropriate database call to make this possible, namely C<SET IDENTITY_INSERT
+$table_name ON>. Unfortunately this operation in MSSQL requires the
+C<db_ddladmin> privilege, which is normally not included in the standard
+write-permissions.
 
 =head1 AUTHOR
 

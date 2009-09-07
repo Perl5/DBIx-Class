@@ -11,8 +11,6 @@ plan tests => 7;
 
 my $schema = DBICTest->init_schema();
 
-use Data::Dumper;
-
 # add 2 extra artists
 $schema->populate ('Artist', [
     [qw/name/],

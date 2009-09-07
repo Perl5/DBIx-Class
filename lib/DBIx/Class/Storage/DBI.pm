@@ -1379,6 +1379,7 @@ sub insert_bulk {
     local $Data::Dumper::Indent = 1;
     local $Data::Dumper::Useqq = 1;
     local $Data::Dumper::Quotekeys = 0;
+    local $Data::Dumper::Sortkeys = 1;
 
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
       $tuple_status->[$i][1],
@@ -2554,7 +2555,6 @@ Returns the datetime parser class
 sub datetime_parser {
   my $self = shift;
   return $self->{datetime_parser} ||= do {
-    $self->_populate_dbh unless $self->_dbh;
     $self->build_datetime_parser(@_);
   };
 }
@@ -2575,6 +2575,11 @@ See L</datetime_parser>
 =cut
 
 sub build_datetime_parser {
+  if (not $_[0]->_driver_determined) {
+    $_[0]->_determine_driver;
+    goto $_[0]->can('build_datetime_parser');
+  }
+
   my $self = shift;
   my $type = $self->datetime_parser_type(@_);
   $self->ensure_class_loaded ($type);
@@ -2609,10 +2614,12 @@ sub lag_behind_master {
 
 sub DESTROY {
   my $self = shift;
+
   $self->_verify_pid if $self->_dbh;
 
   # some databases need this to stop spewing warnings
   if (my $dbh = $self->_dbh) {
+    local $@;
     eval { $dbh->disconnect };
   }
 

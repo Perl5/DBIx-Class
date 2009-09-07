@@ -11,6 +11,8 @@ Revision history for DBIx::Class
             when needed
           - Support for interpolated variables with proper quoting when
             connecting to an older Sybase and/or via FreeTDS
+
+0.08111 2009-09-06 21:58:00 (UTC)
         - The hashref to connection_info now accepts a 'dbh_maker'
           coderef, allowing better intergration with Catalyst
         - Fixed a complex prefetch + regular join regression introduced
@@ -20,10 +22,14 @@ Revision history for DBIx::Class
           cleanup
         - SQLT related fixes:
           - sqlt_type is now called on the correct storage object
-          - hooks can now see the correct producer_type
+          - hooks can now see the correct producer_type (RT#47891)
           - optional SQLT requirements for e.g. deploy() bumped to 0.11002
+        - Really fixed (and greatly cleaned up) postgresql autoinc sequence
+          autodetection
         - Automatically detect MySQL v3 and use INNER JOIN instead of JOIN
-        - POD improvements
+        - POD improvements (including RT#48769)
+        - Test suite tweaks (including fixes for recent CPANTS fails)
+        - Better support for MSSQL IDENTITY_INSERT ON
 
 0.08109 2009-08-18 08:35:00 (UTC)
         - Replication updates:
