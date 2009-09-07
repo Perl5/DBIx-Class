@@ -106,7 +106,8 @@ sub STORABLE_thaw {
         $self->{schema} = $rs->schema if $rs;
     }
 
-    carp "Unable to restore schema" unless $self->{schema};
+    carp "Unable to restore schema. Look at 'freeze' and 'thaw' methods in DBIx::Class::Schema."
+        unless $self->{schema};
 }
 
 =head1 AUTHOR
