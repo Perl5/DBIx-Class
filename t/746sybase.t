@@ -18,17 +18,12 @@ if (not ($dsn && $user)) {
     'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test' .
     "\nWarning: This test drops and creates the tables " .
     "'artist' and 'bindtype_test'";
-} else {
-  plan tests => $TESTS*2 + 1;
 }
 
 my @storage_types = (
   'DBI::Sybase',
   'DBI::Sybase::NoBindVars',
 );
-my $schema;
-my $storage_idx = -1;
-
 sub get_schema {
   DBICTest::Schema->connect($dsn, $user, $pass, {
     on_connect_call => [
@@ -46,9 +41,21 @@ my $ping_count = 0;
   };
 }
 
+my $schema;
+my $storage_idx = -1;
+
 for my $storage_type (@storage_types) {
   $storage_idx++;
+  _run_tests ($storage);
+}
 
+
+
+
+is $ping_count, 0, 'no pings';
+
+
+sub _run_tests {
   unless ($storage_type eq 'DBI::Sybase') { # autodetect
     DBICTest::Schema->storage_type("::$storage_type");
   }
@@ -353,8 +360,6 @@ SQL
   );
   diag $@ if $@;
 }
-
-is $ping_count, 0, 'no pings';
 
 # clean up our mess
 END {
