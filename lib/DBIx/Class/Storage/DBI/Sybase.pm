@@ -398,7 +398,7 @@ sub _update_blobs {
       $where,
       {
         result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-        select => \@primary_cols
+        columns => \@primary_cols
       }
     );
     @rows = $rs->all; # statement must finish
