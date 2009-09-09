@@ -10,6 +10,7 @@ use base qw/
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
+use Sub::Name ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_identity _blob_log_on_update _insert_dbh _identity_method/
@@ -317,7 +318,9 @@ sub insert {
 sub _insert {
   my ($self, $source, $to_insert, $blob_cols, $identity_col) = @_;
 
-  my $updated_cols = $self->next::method ($source, $to_insert);
+  my $updated_cols =
+    (Sub::Name::subname insert =>
+      sub { $self->next::method ($source, $to_insert) })->();
 
   my $final_row = {
     $identity_col => $self->last_insert_id($source, $identity_col),

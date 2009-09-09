@@ -11,7 +11,7 @@ use DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 40 + 2;
+my $TESTS = 41 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -199,7 +199,7 @@ SQL
 
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
-    skip 'TEXT/IMAGE support does not work with FreeTDS', 12
+    skip 'TEXT/IMAGE support does not work with FreeTDS', 13
       if $schema->storage->using_freetds;
 
     my $dbh = $schema->storage->_dbh;
@@ -293,6 +293,14 @@ SQL
     };
     diag $@ if $@;
     ok($got eq $new_str, "verified updated blob");
+
+    ## try multi-row blob update
+    # first insert some blobs
+    $rs->find(1)->delete;
+    $rs->create({ blob => $binstr{large} }) for (1..3);
+    $new_str = $binstr{large} . 'foo';
+    $rs->update({ blob => $new_str });
+    is((grep $_->blob eq $new_str, $rs->all), 3, 'multi-row blob update');
   }
 
 # test MONEY column support
