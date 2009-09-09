@@ -10,7 +10,6 @@ use base qw/
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
-use Sub::Name ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_identity _blob_log_on_update _insert_dbh _identity_method/
@@ -279,12 +278,16 @@ sub insert {
       && ($self->_identity_method||'') ne '@@IDENTITY'
     ) ? 1 : 0;
 
+  my $next = $self->next::can;
+
   # we are already in a transaction, or there are no blobs
   # and we don't need the PK - just (try to) do it
   if ($self->{transaction_depth}
         || (!$blob_cols && !$dumb_last_insert_id) 
   ) {
-    return $self->_insert ($source, $to_insert, $blob_cols, $identity_col);
+    return $self->_insert (
+      $source, $to_insert, $blob_cols, $identity_col, $next
+    );
   }
 
   # this is tricky: a transaction needs to take place if we need
@@ -307,7 +310,9 @@ sub insert {
   # so we update the accessor just in case
   $self->_insert_dbh($self->_dbh);
 
-  my $updated_cols = $self->_insert ($source, $to_insert, $blob_cols, $identity_col);
+  my $updated_cols = $self->_insert (
+    $source, $to_insert, $blob_cols, $identity_col, $next
+  );
 
   $guard->commit;
 
@@ -316,11 +321,9 @@ sub insert {
 }
 
 sub _insert {
-  my ($self, $source, $to_insert, $blob_cols, $identity_col) = @_;
+  my ($self, $source, $to_insert, $blob_cols, $identity_col, $next) = @_;
 
-  my $updated_cols =
-    (Sub::Name::subname insert =>
-      sub { $self->next::method ($source, $to_insert) })->();
+  my $updated_cols = $self->$next ($source, $to_insert);
 
   my $final_row = {
     $identity_col => $self->last_insert_id($source, $identity_col),
