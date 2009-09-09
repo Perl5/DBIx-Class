@@ -1,23 +1,26 @@
 package DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
-use Class::C3;
 use base qw/
   DBIx::Class::Storage::DBI::NoBindVars
   DBIx::Class::Storage::DBI::Sybase
 /;
+use mro 'c3';
 use List::Util ();
 use Scalar::Util ();
+
+sub new {
+  my $self = shift->next::method(@_);
+  $self->_rebless;
+  return $self;
+}
 
 sub _rebless {
   my $self = shift;
   $self->disable_sth_caching(1);
-  $self->unsafe_insert(1);  # there is nothing unsafe as the
-                            # last_insert_id mechanism is different
-                            # without bindvars
+  $self->_identity_method('@@IDENTITY');
 }
 
-# this works when NOT using placeholders
-sub _fetch_identity_sql { 'SELECT @@IDENTITY' }
+sub _fetch_identity_sql { 'SELECT ' . $_[0]->_identity_method }
 
 my $number = sub { Scalar::Util::looks_like_number($_[0]) };
 

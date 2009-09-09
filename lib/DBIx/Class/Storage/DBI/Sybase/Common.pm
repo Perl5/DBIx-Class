@@ -28,7 +28,18 @@ sub _ping {
   my $dbh = $self->_dbh or return 0;
 
   local $dbh->{RaiseError} = 1;
+  local $dbh->{PrintError} = 0;
+  local $@;
+
+  if ($dbh->{syb_no_child_con}) {
+# ping is impossible with an active statement, we return false if so
+    my $ping = eval { $dbh->ping };
+    return $@ ? 0 : $ping;
+  }
+
   eval {
+# XXX if the main connection goes stale, does opening another for this statement
+# really determine anything?
     $dbh->do('select 1');
   };
 
@@ -72,14 +83,16 @@ use this function instead. It does:
   $dbh->do("SET TEXTSIZE $bytes");
 
 Takes the number of bytes, or uses the C<LongReadLen> value from your
-L<DBIx::Class/connect_info> if omitted.
+L<DBIx::Class/connect_info> if omitted, lastly falls back to the C<32768> which
+is the L<DBD::Sybase> default.
 
 =cut
 
 sub set_textsize {
   my $self = shift;
   my $text_size = shift ||
-    eval { $self->_dbi_connect_info->[-1]->{LongReadLen} };
+    eval { $self->_dbi_connect_info->[-1]->{LongReadLen} } ||
+    32768; # the DBD::Sybase default
 
   return unless defined $text_size;
 

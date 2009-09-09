@@ -11,7 +11,7 @@ use DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 39 + 2;
+my $TESTS = 40 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -308,21 +308,36 @@ SQL
   });
 
 # test insert transaction when there's an active cursor
-  TODO: { 
-#    local $TODO = 'not supported yet or possibly ever';
+  SKIP: {
+    skip 'not testing insert with active cursor if using ::NoBindVars', 1
+      if $storage_type =~ /NoBindVars/i;
 
-    SKIP: {
-      skip 'not testing insert with active cursor if using unsafe_insert', 1
-        if $schema->storage->unsafe_insert;
+    my $artist_rs = $schema->resultset('Artist');
+    $artist_rs->first;
+    lives_ok {
+      my $row = $schema->resultset('Money')->create({ amount => 100 });
+      $row->delete;
+    } 'inserted a row with an active cursor';
+    $ping_count-- if $@; # dbh_do calls ->connected
+  }
 
-      my $artist_rs = $schema->resultset('Artist');
-      $artist_rs->first;
-      lives_ok {
+# test insert in an outer transaction when there's an active cursor
+  TODO: {
+    local $TODO = 'this should work once we have eager cursors';
+
+# clear state, or we get a deadlock on $row->delete
+# XXX figure out why this happens
+    $schema->storage->disconnect;
+
+    lives_ok {
+      $schema->txn_do(sub {
+        my $artist_rs = $schema->resultset('Artist');
+        $artist_rs->first;
         my $row = $schema->resultset('Money')->create({ amount => 100 });
         $row->delete;
-      } 'inserted a row with an active cursor';
-      $ping_count-- if $@; # dbh_do calls ->connected
-    }
+      });
+    } 'inserted a row with an active cursor in outer txn';
+    $ping_count-- if $@; # dbh_do calls ->connected
   }
 
 # Now test money values.

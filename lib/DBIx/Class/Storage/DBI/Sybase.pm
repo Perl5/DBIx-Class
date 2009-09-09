@@ -12,7 +12,7 @@ use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update unsafe_insert _insert_dbh/
+    qw/_identity _blob_log_on_update _insert_dbh _identity_method/
 );
 
 =head1 NAME
@@ -33,11 +33,7 @@ also enable that driver explicitly, see the documentation for more details.
 
 With this driver there is unfortunately no way to get the C<last_insert_id>
 without doing a C<SELECT MAX(col)>. This is done safely in a transaction
-(locking the table.) The transaction can be turned off if concurrency is not an
-issue, or you don't need the C<IDENTITY> value, see
-L<DBIx::Class::Storage::DBI::Sybase/connect_call_unsafe_insert>.
-
-But your queries will be cached.
+(locking the table.) See L</INSERTS WITH PLACEHOLDERS>.
 
 A recommended L<DBIx::Class::Storage::DBI/connect_info> setting:
 
@@ -160,32 +156,6 @@ sub connect_call_blob_setup {
     if exists $args{log_on_update};
 }
 
-=head2 connect_call_unsafe_insert
-
-With placeholders enabled, inserts are done in a transaction so that there are
-no concurrency issues with getting the inserted identity value using
-C<SELECT MAX(col)> when placeholders are enabled.
-
-When using C<DBIx::Class::Storage::DBI::Sybase::NoBindVars> transactions are
-disabled.
-
-To turn off transactions for inserts (for an application that doesn't need
-concurrency, or a loader, for example) use this setting in
-L<DBIx::Class::Storage::DBI/connect_info>,
-
-  on_connect_call => ['unsafe_insert']
-
-To manipulate this setting at runtime, use:
-
-  $schema->storage->unsafe_insert(0|1);
-
-=cut
-
-sub connect_call_unsafe_insert {
-  my $self = shift;
-  $self->unsafe_insert(1);
-}
-
 sub _is_lob_type {
   my $self = shift;
   my $type = shift;
@@ -292,8 +262,18 @@ sub insert {
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
-# insert+blob insert done atomically
-  my $guard = $self->txn_scope_guard if $blob_cols;
+# insert+blob insert done atomically, on _insert_dbh
+  (my ($guard), local ($self->{_dbh})) = do {
+    $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }))
+      unless $self->_insert_dbh;
+
+    my $new_guard = $self->txn_scope_guard;
+
+# _dbh_begin_work may reconnect, if so we need to update _insert_dbh
+    $self->_insert_dbh($self->_dbh);
+
+    ($new_guard, $self->_insert_dbh)
+  } if $blob_cols;
 
   my $need_last_insert_id = 0;
 
@@ -309,16 +289,24 @@ sub insert {
   # We have to do the insert in a transaction to avoid race conditions with the
   # SELECT MAX(COL) identity method used when placeholders are enabled.
   my $updated_cols = do {
+    no warnings 'uninitialized';
     if (
-      $need_last_insert_id && !$self->unsafe_insert && !$self->{transaction_depth}
+      $need_last_insert_id &&
+      $self->_identity_method ne '@@IDENTITY' &&
+      !$self->{transaction_depth}
     ) {
       $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }))
         unless $self->_insert_dbh;
       local $self->{_dbh} = $self->_insert_dbh;
+
       my $guard = $self->txn_scope_guard;
+
+# _dbh_begin_work may reconnect, if so we need to update _insert_dbh
+      $self->_insert_dbh($self->_dbh);
+
       my $upd_cols = $self->next::method (@_);
       $guard->commit;
-      $self->_insert_dbh($self->_dbh);
+
       $upd_cols;
     }
     else {
@@ -613,6 +601,17 @@ Open Client libraries.
 
 Inserts or updates of TEXT/IMAGE columns will B<NOT> work with FreeTDS.
 
+=head1 INSERTS WITH PLACEHOLDERS
+
+With placeholders enabled, inserts are done in a transaction so that there are
+no concurrency issues with getting the inserted identity value using
+C<SELECT MAX(col)>, which is the only way to get the C<IDENTITY> value in this
+mode.
+
+When using C<DBIx::Class::Storage::DBI::Sybase::NoBindVars> transactions are
+disabled, as there are no concurrency issues with C<SELECT @@IDENTITY> as it's a
+session variable.
+
 =head1 TRANSACTIONS
 
 Due to limitations of the TDS protocol, L<DBD::Sybase>, or both; you cannot
@@ -620,6 +619,18 @@ begin a transaction while there are active cursors. An active cursor is, for
 example, a L<ResultSet|DBIx::Class::ResultSet> that has been executed using
 C<next> or C<first> but has not been exhausted or
 L<reset|DBIx::Class::ResultSet/reset>.
+
+For example, this will not work:
+
+  $schema->txn_do(sub {
+    my $rs = $schema->resultset('Book');
+    while (my $row = $rs->next) {
+      $schema->resultset('MetaData')->create({
+        book_id => $row->id,
+        ...
+      });
+    }
+  });
 
 Transactions done for inserts in C<AutoCommit> mode when placeholders are in use
 are not affected, as they use an extra database handle to do the insert.
@@ -633,8 +644,6 @@ Some workarounds:
 =item * L<connect|DBIx::Class::Schema/connect> another L<Schema|DBIx::Class::Schema>
 
 =item * load the data from your cursor with L<DBIx::Class::ResultSet/all>
-
-=item * enlarge the scope of the transaction
 
 =back
 

@@ -9,6 +9,12 @@ use base qw/
 /;
 use mro 'c3';
 
+sub new {
+  my $self = shift->next::method(@_);
+  $self->_rebless;
+  return $self;
+}
+
 sub _rebless {
   my $self = shift;
 
