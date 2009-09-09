@@ -836,7 +836,9 @@ sub sql_maker {
   return $self->_sql_maker;
 }
 
+# nothing to do by default
 sub _rebless {}
+sub _init {}
 
 sub _populate_dbh {
   my ($self) = @_;
@@ -902,6 +904,8 @@ sub _determine_driver {
     }
 
     $self->_driver_determined(1);
+
+    $self->_init; # run driver-specific initializations
 
     $self->_run_connection_actions
         if $started_unconnected && defined $self->_dbh;

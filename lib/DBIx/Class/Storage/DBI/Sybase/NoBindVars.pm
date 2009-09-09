@@ -8,16 +8,11 @@ use mro 'c3';
 use List::Util ();
 use Scalar::Util ();
 
-sub new {
-  my $self = shift->next::method(@_);
-  $self->_rebless;
-  return $self;
-}
-
-sub _rebless {
+sub _init {
   my $self = shift;
   $self->disable_sth_caching(1);
   $self->_identity_method('@@IDENTITY');
+  $self->next::method (@_);
 }
 
 sub _fetch_identity_sql { 'SELECT ' . $_[0]->_identity_method }

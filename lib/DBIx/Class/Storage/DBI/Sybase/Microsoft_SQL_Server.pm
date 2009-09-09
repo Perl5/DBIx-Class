@@ -9,12 +9,6 @@ use base qw/
 /;
 use mro 'c3';
 
-sub new {
-  my $self = shift->next::method(@_); 
-  $self->_rebless;
-  return $self;
-}
-
 sub _rebless {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
@@ -24,10 +18,14 @@ sub _rebless {
       'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
     $self->_rebless;
   }
+}
 
-# LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
-# huge on some versions of SQL server and can cause memory problems, so we
-# fix it up here (see Sybase/Common.pm .)
+sub _init {
+  my $self = shift;
+
+  # LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
+  # huge on some versions of SQL server and can cause memory problems, so we
+  # fix it up here (see Sybase/Common.pm)
   $self->set_textsize;
 }
 

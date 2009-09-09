@@ -88,9 +88,6 @@ EOF
             $self->_rebless;
           }
         }
-
-        $self->set_textsize; # based on LongReadLen in connect_info
-
       }
       elsif (not $self->_get_dbh->{syb_dynamic_supported}) {
         # not necessarily FreeTDS, but no placeholders nevertheless
@@ -101,10 +98,16 @@ EOF
 # this is highly unlikely, but we check just in case
         $self->auto_cast(1);
       }
-
-      $self->_set_max_connect(256);
     }
   }
+}
+
+sub _init {
+  my $self = shift;
+  $self->_set_max_connect(256);
+
+  # based on LongReadLen in connect_info
+  $self->set_textsize if $self->using_freetds;
 }
 
 # Make sure we have CHAINED mode turned on if AutoCommit is off in non-FreeTDS

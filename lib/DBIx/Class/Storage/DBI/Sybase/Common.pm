@@ -71,7 +71,7 @@ the Sybase OpenClient libraries were used.
 sub using_freetds {
   my $self = shift;
 
-  return $self->_dbh->{syb_oc_version} =~ /freetds/i;
+  return $self->_get_dbh->{syb_oc_version} =~ /freetds/i;
 }
 
 =head2 set_textsize
