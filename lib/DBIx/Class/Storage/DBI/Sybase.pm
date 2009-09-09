@@ -239,7 +239,9 @@ sub _native_data_type {
 sub _fetch_identity_sql {
   my ($self, $source, $col) = @_;
 
-  return "SELECT MAX($col) FROM ".$source->from;
+  return sprintf ("SELECT MAX(%s) FROM %s",
+    map { $self->sql_maker->_quote ($_) } ($col, $source->from)
+  );
 }
 
 sub _execute {
@@ -265,61 +267,65 @@ sub insert {
 
   my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
-# insert+blob insert done atomically, on _insert_dbh
-  (my ($guard), local ($self->{_dbh})) = do {
-    $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }))
-      unless $self->_insert_dbh;
-
-    my $new_guard = $self->txn_scope_guard;
-
-# _dbh_begin_work may reconnect, if so we need to update _insert_dbh
-    $self->_insert_dbh($self->_dbh);
-
-    ($new_guard, $self->_insert_dbh)
-  } if $blob_cols;
-
-  my $need_last_insert_id = 0;
-
-  my ($identity_col) =
-    map $_->[0],
-    grep $_->[1]{is_auto_increment},
-    map [ $_, $source->column_info($_) ],
+  my $identity_col = List::Util::first
+    { $source->column_info($_)->{is_auto_increment} }
     $source->columns;
 
-  $need_last_insert_id = 1
-    if $identity_col && (not exists $to_insert->{$identity_col});
+  # do we need the horrific SELECT MAX(COL) hack?
+  my $dumb_last_insert_id =
+    (    $identity_col
+      && (not exists $to_insert->{$identity_col})
+      && ($self->_identity_method||'') ne '@@IDENTITY'
+    ) ? 1 : 0;
 
-  # We have to do the insert in a transaction to avoid race conditions with the
-  # SELECT MAX(COL) identity method used when placeholders are enabled.
-  my $updated_cols = do {
-    no warnings 'uninitialized';
-    if (
-      $need_last_insert_id &&
-      $self->_identity_method ne '@@IDENTITY' &&
-      !$self->{transaction_depth}
-    ) {
-      $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }))
-        unless $self->_insert_dbh;
-      local $self->{_dbh} = $self->_insert_dbh;
+  # we are already in a transaction, or there are no blobs
+  # and we don't need the PK - just (try to) do it
+  if ($self->{transaction_depth}
+        || (!$blob_cols && !$dumb_last_insert_id) 
+  ) {
+    return $self->_insert ($source, $to_insert, $blob_cols, $identity_col);
+  }
 
-      my $guard = $self->txn_scope_guard;
+  # this is tricky: a transaction needs to take place if we need
+  # either a last_insert_id or we will be doing blob insert.
+  # This will happen on a *seperate* connection, thus the local()
+  # acrobatics
 
-# _dbh_begin_work may reconnect, if so we need to update _insert_dbh
-      $self->_insert_dbh($self->_dbh);
+  local $self->{_dbh};
 
-      my $upd_cols = $self->next::method (@_);
-      $guard->commit;
+  # localize so it appears right if we blow out with an exception
+  local $self->{transaction_depth} = 0;
 
-      $upd_cols;
-    }
-    else {
-      $self->next::method(@_);
-    }
+  $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }))
+    unless $self->_insert_dbh;
+
+  $self->{_dbh} = $self->_insert_dbh;
+  my $guard = $self->txn_scope_guard;
+
+  # _dbh_begin_work in the guard may reconnect,
+  # so we update the accessor just in case
+  $self->_insert_dbh($self->_dbh);
+
+  my $updated_cols = $self->_insert ($source, $to_insert, $blob_cols, $identity_col);
+
+  $guard->commit;
+
+  return $updated_cols;
+
+}
+
+sub _insert {
+  my ($self, $source, $to_insert, $blob_cols, $identity_col) = @_;
+
+  my $updated_cols = $self->next::method ($source, $to_insert);
+
+  my $final_row = {
+    $identity_col => $self->last_insert_id($source, $identity_col),
+    %$to_insert,
+    %$updated_cols,
   };
 
-  $self->_insert_blobs($source, $blob_cols, $to_insert) if $blob_cols;
-
-  $guard->commit if $guard;
+  $self->_insert_blobs ($source, $blob_cols, $final_row) if $blob_cols;
 
   return $updated_cols;
 }
@@ -416,12 +422,7 @@ sub _insert_blobs {
     unless @primary_cols;
 
   if ((grep { defined $row{$_} } @primary_cols) != @primary_cols) {
-    if (@primary_cols == 1) {
-      my $col = $primary_cols[0];
-      $row{$col} = $self->last_insert_id($source, $col);
-    } else {
-      croak "Cannot update TEXT/IMAGE column(s) without primary key values";
-    }
+    croak "Cannot update TEXT/IMAGE column(s) without primary key values";
   }
 
   for my $col (keys %$blob_cols) {
