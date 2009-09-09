@@ -1,13 +1,13 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
+use DBIC::DebugObj;
 
 my $schema = DBICTest->init_schema();
-
-plan tests => 49;
 
 # Check the defined unique constraints
 is_deeply(
@@ -210,3 +210,26 @@ is($row->baz, 3, 'baz is correct');
     ok($cd2->in_storage, 'Updating year using update_or_new was successful');
     is($cd2->id, $cd1->id, 'Got the same CD using update_or_new');
 }
+
+# make sure the ident condition is assembled sanely
+{
+  my $artist = $schema->resultset('Artist')->next;
+
+  my ($sql, @bind);
+  $schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind)),
+  $schema->storage->debug(1);
+
+  $artist->discard_changes;
+
+  is_same_sql_bind (
+    $sql,
+    \@bind,
+    'SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me WHERE me.artistid = ?',
+    [qw/'1'/],
+  );
+
+  $schema->storage->debug(0);
+  $schema->storage->debugobj(undef);
+}
+
+done_testing;

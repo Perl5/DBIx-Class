@@ -32,18 +32,38 @@ sub _set_identity_insert {
   }
 }
 
+sub _unset_identity_insert {
+  my ($self, $table) = @_;
+
+  my $sql = sprintf (
+    'SET IDENTITY_INSERT %s OFF',
+    $self->sql_maker->_quote ($table),
+  );
+
+  my $dbh = $self->_get_dbh;
+  $dbh->do ($sql);
+}
+
 sub insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
-  if (List::Util::first
+  my $is_identity_insert = (List::Util::first
       { $source->column_info ($_)->{is_auto_increment} }
       (@{$cols})
-  ) {
-      $self->_set_identity_insert ($source->name);
+  )
+     ? 1
+     : 0;
+
+  if ($is_identity_insert) {
+     $self->_set_identity_insert ($source->name);
   }
 
   $self->next::method(@_);
+
+  if ($is_identity_insert) {
+     $self->_unset_identity_insert ($source->name);
+  }
 }
 
 # support MSSQL GUID column types
@@ -83,11 +103,20 @@ sub insert {
     $updated_cols->{$guid_col} = $to_insert->{$guid_col} = $new_guid;
   }
 
-  if (List::Util::first { $_->{is_auto_increment} } (values %$supplied_col_info) ) {
-    $self->_set_identity_insert ($source->name);
+  my $is_identity_insert = (List::Util::first { $_->{is_auto_increment} } (values %$supplied_col_info) )
+     ? 1
+     : 0;
+
+  if ($is_identity_insert) {
+     $self->_set_identity_insert ($source->name);
   }
 
   $updated_cols = { %$updated_cols, %{ $self->next::method(@_) } };
+
+  if ($is_identity_insert) {
+     $self->_unset_identity_insert ($source->name);
+  }
+
 
   return $updated_cols;
 }

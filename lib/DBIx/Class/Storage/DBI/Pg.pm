@@ -20,15 +20,22 @@ sub with_deferred_fk_checks {
 }
 
 sub last_insert_id {
-  my ($self,$source,$col) = @_;
-  my $seq = ( $source->column_info($col)->{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
+  my ($self,$source,@cols) = @_;
+
+  my @values;
+
+  for my $col (@cols) {
+    my $seq = ( $source->column_info($col)->{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
       or $self->throw_exception( "could not determine sequence for "
                                  . $source->name
                                  . ".$col, please consider adding a "
                                  . "schema-qualified sequence to its column info"
                                );
 
-  $self->_dbh_last_insert_id ($self->_dbh, $seq);
+    push @values, $self->_dbh_last_insert_id ($self->_dbh, $seq);
+  }
+
+  return @values;
 }
 
 # there seems to be absolutely no reason to have this as a separate method,

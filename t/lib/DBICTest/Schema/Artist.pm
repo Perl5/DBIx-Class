@@ -30,6 +30,7 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('artistid');
+__PACKAGE__->add_unique_constraint(['artistid']); # do not remove, part of a test
 
 __PACKAGE__->mk_classdata('field_name_for', {
     artistid    => 'primary key',
