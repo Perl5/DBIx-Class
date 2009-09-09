@@ -29,7 +29,6 @@ sub _ping {
 
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
-  local $@;
 
   if ($dbh->{syb_no_child_con}) {
 # ping is impossible with an active statement, we return false if so
