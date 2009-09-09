@@ -1322,10 +1322,14 @@ sub _resolve_condition {
         #warn "$self $k $for $v";
         unless ($for->has_column_loaded($v)) {
           if ($for->in_storage) {
-            $self->throw_exception(
-              "Column ${v} not loaded or not passed to new() prior to insert()"
-                ." on ${for} trying to resolve relationship (maybe you forgot "
-                  ."to call ->discard_changes to get defaults from the db)"
+            $self->throw_exception(sprintf
+              'Unable to resolve relationship from %s to %s: column %s.%s not '
+            . 'loaded from storage (or not passed to new() prior to insert()). '
+            . 'Maybe you forgot to call ->discard_changes to get defaults from the db.',
+
+              $for->result_source->source_name,
+              $as,
+              $as, $v,
             );
           }
           return $UNRESOLVABLE_CONDITION;
