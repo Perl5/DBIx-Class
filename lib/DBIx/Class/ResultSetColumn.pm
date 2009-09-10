@@ -172,7 +172,7 @@ Much like L<DBIx::Class::ResultSet/reset>.
 sub reset {
   my $self = shift;
   $self->_resultset->cursor->reset;
-  return $self;
+  return undef;
 }
 
 =head2 first
@@ -194,7 +194,8 @@ Much like L<DBIx::Class::ResultSet/first> but just returning the one value.
 
 sub first {
   my $self = shift;
-  my ($row) = $self->_resultset->cursor->reset->next;
+  $self->_resultset->reset();
+  my ($row) = $self->_resultset->cursor->next;
   return $row;
 }
 

@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+        - Change ResultSetColumn->reset() to no longer return $self, which
+          fixes an issue with using Cursor::Cached and ResultSetColumn
+          together.
+
 0.08111 2009-09-06 21:58:00 (UTC)
         - The hashref to connection_info now accepts a 'dbh_maker'
           coderef, allowing better intergration with Catalyst
