@@ -125,7 +125,10 @@ one value.
 
 sub next {
   my $self = shift;
+
+  # using cursor so we don't inflate anything
   my ($row) = $self->_resultset->cursor->next;
+
   return $row;
 }
 
@@ -149,6 +152,8 @@ than row objects.
 
 sub all {
   my $self = shift;
+
+  # using cursor so we don't inflate anything
   return map { $_->[0] } $self->_resultset->cursor->all;
 }
 
@@ -172,7 +177,7 @@ Much like L<DBIx::Class::ResultSet/reset>.
 sub reset {
   my $self = shift;
   $self->_resultset->cursor->reset;
-  return undef;
+  return $self;
 }
 
 =head2 first
@@ -194,8 +199,11 @@ Much like L<DBIx::Class::ResultSet/first> but just returning the one value.
 
 sub first {
   my $self = shift;
-  $self->_resultset->reset();
+
+  # using cursor so we don't inflate anything
+  $self->_resultset->cursor->reset;
   my ($row) = $self->_resultset->cursor->next;
+
   return $row;
 }
 
@@ -396,7 +404,7 @@ sub throw_exception {
 #
 # Returns the underlying resultset. Creates it from the parent resultset if
 # necessary.
-# 
+#
 sub _resultset {
   my $self = shift;
 

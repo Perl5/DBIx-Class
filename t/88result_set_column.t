@@ -8,8 +8,6 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 21;
-
 my $rs = $schema->resultset("CD")->search({}, { order_by => 'cdid' });
 
 my $rs_title = $rs->get_column('title');
@@ -28,9 +26,8 @@ is($rs_title->min, 'Caterwaulin\' Blues', "min okay for title");
 
 cmp_ok($rs_year->sum, '==', 9996, "three artists returned");
 
-my $reset_ret = $rs_year->reset;
+$rs_year->reset;
 is($rs_year->next, 1999, "reset okay");
-is($reset_ret, undef, 'reset returns undef');
 
 is($rs_year->first, 1999, "first okay");
 
@@ -95,3 +92,5 @@ is_deeply (
   [ $rs->get_column ('cdid')->all ],
   'prefetch properly collapses amount of rows from get_column',
 );
+
+done_testing;

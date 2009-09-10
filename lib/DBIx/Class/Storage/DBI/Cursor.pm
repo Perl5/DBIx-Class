@@ -148,6 +148,7 @@ sub reset {
   # No need to care about failures here
   eval { $self->{sth}->finish if $self->{sth} && $self->{sth}->{Active} };
   $self->_soft_reset;
+  return undef;
 }
 
 sub _soft_reset {
@@ -156,7 +157,6 @@ sub _soft_reset {
   delete $self->{sth};
   delete $self->{done};
   $self->{pos} = 0;
-  return $self;
 }
 
 sub _check_dbh_gen {
