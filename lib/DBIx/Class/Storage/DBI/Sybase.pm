@@ -286,7 +286,7 @@ sub insert {
         || (!$blob_cols && !$dumb_last_insert_id) 
   ) {
     return $self->_insert (
-      $source, $to_insert, $blob_cols, $identity_col, $next
+      $next, $source, $to_insert, $blob_cols, $identity_col
     );
   }
 
@@ -296,9 +296,6 @@ sub insert {
   # acrobatics
 
   local $self->{_dbh};
-
-  # localize so it appears right if we blow out with an exception
-  local $self->{transaction_depth} = 0;
 
   $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }))
     unless $self->_insert_dbh;
@@ -311,7 +308,7 @@ sub insert {
   $self->_insert_dbh($self->_dbh);
 
   my $updated_cols = $self->_insert (
-    $source, $to_insert, $blob_cols, $identity_col, $next
+    $next, $source, $to_insert, $blob_cols, $identity_col
   );
 
   $guard->commit;
@@ -321,7 +318,7 @@ sub insert {
 }
 
 sub _insert {
-  my ($self, $source, $to_insert, $blob_cols, $identity_col, $next) = @_;
+  my ($self, $next, $source, $to_insert, $blob_cols, $identity_col) = @_;
 
   my $updated_cols = $self->$next ($source, $to_insert);
 
@@ -341,11 +338,24 @@ sub update {
   my ($source, $fields, $where) = @_;
 
   my $wantarray = wantarray;
-
   my $blob_cols = $self->_remove_blob_cols($source, $fields);
 
-# update+blob update(s) done atomically
-  my $guard = $self->txn_scope_guard if $blob_cols;
+  if (not $blob_cols) {
+    return $self->next::method(@_);
+  }
+
+# update+blob update(s) done atomically on separate connection (see insert)
+  local $self->{_dbh};
+
+  $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }))
+    unless $self->_insert_dbh;
+
+  $self->{_dbh} = $self->_insert_dbh;
+  my $guard = $self->txn_scope_guard;
+
+  # _dbh_begin_work in the guard may reconnect,
+  # so we update the accessor just in case
+  $self->_insert_dbh($self->_dbh);
 
   my @res;
   if ($wantarray) {
@@ -358,9 +368,9 @@ sub update {
     $self->next::method(@_);
   }
 
-  $self->_update_blobs($source, $blob_cols, $where) if $blob_cols;
+  $self->_update_blobs($source, $blob_cols, $where);
 
-  $guard->commit if $guard;
+  $guard->commit;
 
   return $wantarray ? @res : $res[0];
 }
