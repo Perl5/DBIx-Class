@@ -262,6 +262,8 @@ bluefeet: Aran Deltac <bluefeet@cpan.org>
 
 bricas: Brian Cassidy <bricas@cpan.org>
 
+brunov: Bruno Vecchi <vecchi.b@gmail.com>
+
 caelum: Rafael Kitover <rkitover@cpan.org>
 
 castaway: Jess Robinson
