@@ -1462,7 +1462,7 @@ sub _resolve_prefetch {
     $p = $p->{$_} for (@$pref_path, $pre);
 
     $self->throw_exception (
-      "Unable to resolve prefetch $pre - join alias map does not contain an entry for path: "
+      "Unable to resolve prefetch '$pre' - join alias map does not contain an entry for path: "
       . join (' -> ', @$pref_path, $pre)
     ) if (ref $p->{-join_aliases} ne 'ARRAY' or not @{$p->{-join_aliases}} );
 
