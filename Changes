@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+        - remove the recommends from Makefile.PL, DBIx::Class is not
+          supposed to have optional dependencies. ever.
+        - mangle the DBIx/Class.pm POD to be more clear about
+          copyright and license
         - Change ResultSetColumn->reset() to no longer return $self, which
           fixes an issue with using Cursor::Cached and ResultSetColumn
           together.
