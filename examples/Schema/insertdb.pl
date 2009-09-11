@@ -47,10 +47,10 @@ my %tracks = (
 
 my @tracks;
 foreach my $track (keys %tracks) {
-    my $cdname = $schema->resultset('Cd')->search({
+    my $cd = $schema->resultset('Cd')->find({
         title => $tracks{$track},
     });
-    push @tracks, [$cdname->first, $track];
+    push @tracks, [$cd->id, $track];
 }
 
 $schema->populate('Track',[
