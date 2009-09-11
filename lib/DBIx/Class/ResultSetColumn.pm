@@ -207,6 +207,33 @@ sub first {
   return $row;
 }
 
+=head2 single
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $value
+
+=back
+
+Much like L<DBIx::Class::ResultSet/single> fetches one and only one column
+value using the cursor directly. If additional rows are present a warning
+is issued before discarding the cursor.
+
+=cut
+
+sub single {
+  my $self = shift;
+
+  my $attrs = $self->_resultset->_resolved_attrs;
+  my ($row) = $self->_resultset->result_source->storage->select_single(
+    $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
+  );
+
+  return $row;
+}
+
 =head2 min
 
 =over 4

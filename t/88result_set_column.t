@@ -1,7 +1,8 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
+use Test::Warn;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
@@ -30,6 +31,10 @@ $rs_year->reset;
 is($rs_year->next, 1999, "reset okay");
 
 is($rs_year->first, 1999, "first okay");
+
+warnings_exist (sub {
+  is($rs_year->single, 1999, "single okay");
+}, qr/Query returned more than one row/, 'single warned');
 
 # test +select/+as for single column
 my $psrs = $schema->resultset('CD')->search({},

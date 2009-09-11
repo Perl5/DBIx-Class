@@ -8,9 +8,11 @@ Revision history for DBIx::Class
           dropped during the serial-autodetection rwrite
         - Make sure ResultSetColumn does not depend on the (undefined)
           return value of ->cursor->reset()
+        - Add single() to ResultSetColumn (same semantics as ResultSet)
         - Make sure to turn off IDENTITY_INSERT after insert() on MSSQL
           tables that needed it
         - More informative exception on failing _resolve_relationship
+        - Fix unreported rollback exceptions in TxnScopeGuard
 
 0.08111 2009-09-06 21:58:00 (UTC)
         - The hashref to connection_info now accepts a 'dbh_maker'
