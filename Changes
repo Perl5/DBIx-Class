@@ -1,12 +1,16 @@
 Revision history for DBIx::Class
 
-        - remove the recommends from Makefile.PL, DBIx::Class is not
+        - Remove the recommends from Makefile.PL, DBIx::Class is not
           supposed to have optional dependencies. ever.
-        - mangle the DBIx/Class.pm POD to be more clear about
+        - Mangle the DBIx/Class.pm POD to be more clear about
           copyright and license
-        - Change ResultSetColumn->reset() to no longer return $self, which
-          fixes an issue with using Cursor::Cached and ResultSetColumn
-          together.
+        - Put back PG's multiple autoinc per table support, accidentally
+          dropped during the serial-autodetection rwrite
+        - Make sure ResultSetColumn does not depend on the (undefined)
+          return value of ->cursor->reset()
+        - Make sure to turn off IDENTITY_INSERT after insert() on MSSQL
+          tables that needed it
+        - More informative exception on failing _resolve_relationship
 
 0.08111 2009-09-06 21:58:00 (UTC)
         - The hashref to connection_info now accepts a 'dbh_maker'
