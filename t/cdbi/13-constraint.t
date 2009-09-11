@@ -95,13 +95,11 @@ ok $fred, "Got fred";
     }
     eval { Film->constrain_column(codirector => Untaint => 'date') };
     is $@, '', 'Can constrain with untaint';
+
     my $freeaa =
         eval { Film->create({ title => "The Freaa", codirector => 'today' }) };
-    TODO: {
-        local $TODO = "no idea what this is supposed to do";
-        is $@, '', "Can create codirector";
-        is $freeaa && $freeaa->codirector, '2001-03-03', "Set the codirector";
-    }
+    is $@, '', "Can create codirector";
+    is $freeaa && $freeaa->codirector, '2001-03-03', "Set the codirector";
 }
 
 __DATA__
