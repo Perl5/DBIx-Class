@@ -25,19 +25,19 @@ sub DESTROY {
 
   my $exception = $@;
   Carp::cluck("A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or an error - bad")
-    unless $exception; 
+    unless $exception;
+
+  my $rollback_exception;
   {
     local $@;
     eval { $storage->txn_rollback };
-    my $rollback_exception = $@;
-    if($rollback_exception) {
-      my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
-
-      $storage->throw_exception(
-        "Transaction aborted: ${exception}. "
+    $rollback_exception = $@;
+  }
+  if ($rollback_exception && $rollback_exception !~ /DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION/) {
+    $storage->throw_exception(
+        "Transaction aborted: ${exception} "
         . "Rollback failed: ${rollback_exception}"
-      ) unless $rollback_exception =~ /$exception_class/;
-    }
+    );
   }
 }
 
