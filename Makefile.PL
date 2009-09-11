@@ -54,6 +54,9 @@ my %replication_requires = (
   'Hash::Merge',              => '0.11',
 );
 
+# when changing also adjust $DBIx::Class::minimum_sqlt_version
+my $sqlt_recommends = '0.11002';
+
 my %force_requires_if_author = (
   %replication_requires,
 
