@@ -329,23 +329,22 @@ $schema->storage->disconnect;
   }, qr/Deliberate exception.+Rollback failed/s);
 }
 
-# make sure it warns and dies on failed rollbacks
-TODO: {
+# make sure it warns *big* on failed rollbacks
+{
   my $schema = DBICTest->init_schema();
 
-  local $TODO = "Can't die in DESTROY :(";
-
-  throws_ok (sub {
-    warnings_exist (sub {
+  warnings_exist (sub {
       my $guard = $schema->txn_scope_guard;
       $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
 
       $schema->storage->disconnect;  # this should freak out the guard rollback
-
     },
-    qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
-    'out-of-scope warning');
-  }, qr/Rollback failed:/, 'rollback error thrown' );
+    [
+      qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
+      qr/\*+ ROLLBACK FAILED\!\!\! \*+/,
+    ],
+    'proper warnings generated on out-of-scope+rollback failure'
+  );
 }
 
 done_testing;

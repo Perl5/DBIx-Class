@@ -41,8 +41,12 @@ sub DESTROY {
           ."Rollback failed: ${rollback_exception}";
     }
     else {
-      # throws an object (verified with eval{}) but DESTROY eats the exception
-      $storage->throw_exception ("Rollback failed: ${rollback_exception}");
+      carp (join ' ',
+        "********************* ROLLBACK FAILED!!! ********************",
+        "\nA rollback operation failed after the guard went out of scope.",
+        'This is potentially a disastrous situation, check your data for',
+        "consistency: $rollback_exception"
+      );
     }
   }
 }
