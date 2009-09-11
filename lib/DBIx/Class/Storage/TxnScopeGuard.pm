@@ -25,7 +25,7 @@ sub DESTROY {
 
   my $exception = $@;
 
-  carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error - bad'
+  carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back.'
     unless $exception;
 
   my $rollback_exception;
@@ -41,7 +41,8 @@ sub DESTROY {
           ."Rollback failed: ${rollback_exception}";
     }
     else {
-      carp "Rollback failed: ${rollback_exception}";
+      # throws an object (verified with eval{}) but DESTROY eats the exception
+      $storage->throw_exception ("Rollback failed: ${rollback_exception}");
     }
   }
 }
