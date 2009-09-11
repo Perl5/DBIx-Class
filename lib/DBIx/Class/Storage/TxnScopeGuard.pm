@@ -2,7 +2,7 @@ package DBIx::Class::Storage::TxnScopeGuard;
 
 use strict;
 use warnings;
-use Carp ();
+use Carp::Clan qw/^DBIx::Class/;
 
 sub new {
   my ($class, $storage) = @_;
@@ -24,7 +24,8 @@ sub DESTROY {
   return if $dismiss;
 
   my $exception = $@;
-  Carp::cluck("A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or an error - bad")
+
+  carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error - bad'
     unless $exception;
 
   my $rollback_exception;
@@ -33,11 +34,15 @@ sub DESTROY {
     eval { $storage->txn_rollback };
     $rollback_exception = $@;
   }
+
   if ($rollback_exception && $rollback_exception !~ /DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION/) {
-    $storage->throw_exception(
-        "Transaction aborted: ${exception} "
-        . "Rollback failed: ${rollback_exception}"
-    );
+    if ($exception) {
+      $@ = "Transaction aborted: ${exception} "
+          ."Rollback failed: ${rollback_exception}";
+    }
+    else {
+      carp "Rollback failed: ${rollback_exception}";
+    }
   }
 }
 
