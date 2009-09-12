@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::Track;
 
 use base qw/DBICTest::BaseResult/;
@@ -61,6 +61,18 @@ __PACKAGE__->belongs_to(
     "DBICTest::Schema::Year2000CDs",
     { "foreign.cdid" => "self.cd" },
     { join_type => 'left' },
+);
+
+__PACKAGE__->might_have (
+    'next_track',
+    __PACKAGE__,
+    sub {
+        my ( $self_alias, $rel_alias, $self_rsrc, $rel_name ) = @_;
+        return {
+            "${self_alias}.cd" => \ "${rel_alias}.cd",
+            "${self_alias}.position" => { '<', \ "${rel_alias}.position" },
+        };
+    },
 );
 
 1;
