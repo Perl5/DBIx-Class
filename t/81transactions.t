@@ -333,7 +333,10 @@ $schema->storage->disconnect;
 {
   my $schema = DBICTest->init_schema();
 
-  warnings_exist (sub {
+  # something is really confusing Test::Warn here, no time to debug
+=begin
+  warnings_exist (
+    sub {
       my $guard = $schema->txn_scope_guard;
       $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
 
@@ -345,6 +348,30 @@ $schema->storage->disconnect;
     ],
     'proper warnings generated on out-of-scope+rollback failure'
   );
+=cut
+
+  my @want = (
+    qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
+    qr/\*+ ROLLBACK FAILED\!\!\! \*+/,
+  );
+
+  my @w;
+  local $SIG{__WARN__} = sub {
+    if (grep {$_[0] =~ $_} (@want)) {
+      push @w, $_[0];
+    }
+    else {
+      warn $_[0];
+    }
+  };
+  {
+      my $guard = $schema->txn_scope_guard;
+      $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
+
+      $schema->storage->disconnect;  # this should freak out the guard rollback
+  }
+
+  is (@w, 2, 'Both expected warnings found');
 }
 
 done_testing;

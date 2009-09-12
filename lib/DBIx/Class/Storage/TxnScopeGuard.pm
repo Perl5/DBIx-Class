@@ -25,30 +25,32 @@ sub DESTROY {
 
   my $exception = $@;
 
-  carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back.'
-    unless $exception;
-
-  my $rollback_exception;
   {
     local $@;
+
+    carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back.'
+      unless $exception;
+
     eval { $storage->txn_rollback };
-    $rollback_exception = $@;
+    my $rollback_exception = $@;
+
+    if ($rollback_exception && $rollback_exception !~ /DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION/) {
+      if ($exception) {
+        $exception = "Transaction aborted: ${exception} "
+          ."Rollback failed: ${rollback_exception}";
+      }
+      else {
+        carp (join ' ',
+          "********************* ROLLBACK FAILED!!! ********************",
+          "\nA rollback operation failed after the guard went out of scope.",
+          'This is potentially a disastrous situation, check your data for',
+          "consistency: $rollback_exception"
+        );
+      }
+    }
   }
 
-  if ($rollback_exception && $rollback_exception !~ /DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION/) {
-    if ($exception) {
-      $@ = "Transaction aborted: ${exception} "
-          ."Rollback failed: ${rollback_exception}";
-    }
-    else {
-      carp (join ' ',
-        "********************* ROLLBACK FAILED!!! ********************",
-        "\nA rollback operation failed after the guard went out of scope.",
-        'This is potentially a disastrous situation, check your data for',
-        "consistency: $rollback_exception"
-      );
-    }
-  }
+  $@ = $exception;
 }
 
 1;
