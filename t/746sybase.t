@@ -17,7 +17,7 @@ if (not ($dsn && $user)) {
   plan skip_all =>
     'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test' .
     "\nWarning: This test drops and creates the tables " .
-    "'artist' and 'bindtype_test'";
+    "'artist', 'money_test' and 'bindtype_test'";
 } else {
   plan tests => $TESTS*2 + 1;
 }

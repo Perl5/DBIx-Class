@@ -13,11 +13,11 @@ use List::Util ();
 use Sub::Name ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update _insert_storage _is_insert_storage
+    qw/_identity _blob_log_on_update _writer_storage _is_writer_storage
        _identity_method/
 );
 
-my @also_proxy_to_insert_storage = qw/
+my @also_proxy_to_writer_storage = qw/
   disconnect _connect_info _sql_maker _sql_maker_opts disable_sth_caching
   auto_savepoint unsafe cursor_class debug debugobj schema
 /;
@@ -116,24 +116,27 @@ sub _init {
   # based on LongReadLen in connect_info
   $self->set_textsize if $self->using_freetds;
 
-# create storage for insert transactions, unless this is that storage
-  return if $self->_is_insert_storage;
+# create storage for insert/(update blob) transactions,
+# unless this is that storage
+  return if $self->_is_writer_storage;
 
-  my $insert_storage = (ref $self)->new;
+  my $writer_storage = (ref $self)->new;
 
-  $insert_storage->_is_insert_storage(1);
-  $insert_storage->connect_info($self->connect_info);
+  $writer_storage->_is_writer_storage(1);
+  $writer_storage->connect_info($self->connect_info);
 
-  $self->_insert_storage($insert_storage);
+  $self->_writer_storage($writer_storage);
 }
 
-for my $method (@also_proxy_to_insert_storage) {
+for my $method (@also_proxy_to_writer_storage) {
   no strict 'refs';
+
+  my $replaced = __PACKAGE__->can($method);
 
   *{$method} = Sub::Name::subname __PACKAGE__."::$method" => sub {
     my $self = shift;
-    $self->_insert_storage->$method(@_) if $self->_insert_storage;
-    return $self->next::method(@_);
+    $self->_writer_storage->$replaced(@_) if $self->_writer_storage;
+    return $self->$replaced(@_);
   };
 }
 
@@ -316,15 +319,15 @@ sub insert {
     );
   }
 
-  # otherwise use the _insert_storage to do the insert+transaction on another
+  # otherwise use the _writer_storage to do the insert+transaction on another
   # connection
-  my $guard = $self->_insert_storage->txn_scope_guard;
+  my $guard = $self->_writer_storage->txn_scope_guard;
 
-  my $updated_cols = $self->_insert_storage->_insert (
+  my $updated_cols = $self->_writer_storage->_insert (
     $next, $source, $to_insert, $blob_cols, $identity_col
   );
 
-  $self->_identity($self->_insert_storage->_identity);
+  $self->_identity($self->_writer_storage->_identity);
 
   $guard->commit;
 
@@ -359,7 +362,7 @@ sub update {
   }
 
 # update+blob update(s) done atomically on separate connection
-  $self = $self->_insert_storage;
+  $self = $self->_writer_storage;
 
   my $guard = $self->txn_scope_guard;
 
