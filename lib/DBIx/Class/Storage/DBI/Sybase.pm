@@ -10,10 +10,16 @@ use base qw/
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 use List::Util ();
+use Sub::Name ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update _insert_dbh _identity_method/
+    qw/_identity _blob_log_on_update _insert_storage _identity_method/
 );
+
+my @delegate_to_insert_storage = qw/
+  disconnect _connect_info _sql_maker _sql_maker_opts disable_sth_caching
+  auto_savepoint unsafe cursor_class debug debugobj schema
+/;
 
 =head1 NAME
 
@@ -108,6 +114,22 @@ sub _init {
 
   # based on LongReadLen in connect_info
   $self->set_textsize if $self->using_freetds;
+
+# create storage for insert transactions
+  $self->_insert_storage((ref $self)->new);
+  $self->_insert_storage->connect_info($self->connect_info);
+
+  $self->_insert_storage->set_textsize if $self->using_freetds;
+}
+
+for my $method (@delegate_to_insert_storage) {
+  no strict 'refs';
+
+  *{$method} = Sub::Name::subname $method => sub {
+    my $self = shift;
+    $self->_insert_storage->$method(@_) if $self->_insert_storage;
+    return $self->next::method(@_);
+  };
 }
 
 # Make sure we have CHAINED mode turned on if AutoCommit is off in non-FreeTDS
@@ -273,10 +295,9 @@ sub insert {
 
   # do we need the horrific SELECT MAX(COL) hack?
   my $dumb_last_insert_id =
-    (    $identity_col
-      && (not exists $to_insert->{$identity_col})
-      && ($self->_identity_method||'') ne '@@IDENTITY'
-    ) ? 1 : 0;
+       $identity_col
+    && (not exists $to_insert->{$identity_col})
+    && ($self->_identity_method||'') ne '@@IDENTITY';
 
   my $next = $self->next::can;
 
@@ -290,31 +311,19 @@ sub insert {
     );
   }
 
-  # this is tricky: a transaction needs to take place if we need
-  # either a last_insert_id or we will be doing blob insert.
-  # This will happen on a *seperate* connection, thus the local()
-  # acrobatics
+  # otherwise use the _insert_storage to do the insert+transaction on another
+  # connection
+  my $guard = $self->_insert_storage->txn_scope_guard;
 
-  local $self->{_dbh};
-
-  $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }))
-    unless $self->_insert_dbh;
-
-  $self->{_dbh} = $self->_insert_dbh;
-  my $guard = $self->txn_scope_guard;
-
-  # _dbh_begin_work in the guard may reconnect,
-  # so we update the accessor just in case
-  $self->_insert_dbh($self->_dbh);
-
-  my $updated_cols = $self->_insert (
+  my $updated_cols = $self->_insert_storage->_insert (
     $next, $source, $to_insert, $blob_cols, $identity_col
   );
+
+  $self->_identity($self->_insert_storage->_identity);
 
   $guard->commit;
 
   return $updated_cols;
-
 }
 
 sub _insert {
@@ -344,18 +353,10 @@ sub update {
     return $self->next::method(@_);
   }
 
-# update+blob update(s) done atomically on separate connection (see insert)
-  local $self->{_dbh};
+# update+blob update(s) done atomically on separate connection
+  $self = $self->_insert_storage;
 
-  $self->_insert_dbh($self->_connect(@{ $self->_dbi_connect_info }))
-    unless $self->_insert_dbh;
-
-  $self->{_dbh} = $self->_insert_dbh;
   my $guard = $self->txn_scope_guard;
-
-  # _dbh_begin_work in the guard may reconnect,
-  # so we update the accessor just in case
-  $self->_insert_dbh($self->_dbh);
 
   my @res;
   if ($wantarray) {
@@ -410,14 +411,10 @@ sub _update_blobs {
     @row_to_update{@primary_cols} = @{$where}{@primary_cols};
     @rows = \%row_to_update;
   } else {
-    my $rs = $source->resultset->search(
-      $where,
-      {
-        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-        columns => \@primary_cols
-      }
-    );
-    @rows = $rs->all; # statement must finish
+    my $cursor = $self->select ($source, \@primary_cols, $where, {});
+    @rows = map {
+      my %row; @row{@primary_cols} = @$_; \%row
+    } $cursor->all;
   }
 
   for my $row (@rows) {
@@ -445,9 +442,8 @@ sub _insert_blobs {
     my $blob = $blob_cols->{$col};
 
     my %where = map { ($_, $row{$_}) } @primary_cols;
-    my $cursor = $source->resultset->search(\%where, {
-      select => [$col]
-    })->cursor;
+
+    my $cursor = $self->select ($source, [$col], \%where, {});
     $cursor->next;
     my $sth = $cursor->sth;
 
@@ -628,6 +624,9 @@ no concurrency issues with getting the inserted identity value using
 C<SELECT MAX(col)>, which is the only way to get the C<IDENTITY> value in this
 mode.
 
+In addition, they are done on a separate connection so that it's possible to
+have active cursors when doing an insert.
+
 When using C<DBIx::Class::Storage::DBI::Sybase::NoBindVars> transactions are
 disabled, as there are no concurrency issues with C<SELECT @@IDENTITY> as it's a
 session variable.
@@ -653,7 +652,7 @@ For example, this will not work:
   });
 
 Transactions done for inserts in C<AutoCommit> mode when placeholders are in use
-are not affected, as they use an extra database handle to do the insert.
+are not affected, as they are done on an extra database handle.
 
 Some workarounds:
 
