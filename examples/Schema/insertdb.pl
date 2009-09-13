@@ -23,10 +23,10 @@ my %albums = (
 
 my @cds;
 foreach my $lp (keys %albums) {
-    my $artist = $schema->resultset('Artist')->search({
+    my $artist = $schema->resultset('Artist')->find({
         name => $albums{$lp}
     });
-    push @cds, [$lp, $artist->first];
+    push @cds, [$lp, $artist->id];
 }
 
 $schema->populate('Cd', [
@@ -47,10 +47,10 @@ my %tracks = (
 
 my @tracks;
 foreach my $track (keys %tracks) {
-    my $cdname = $schema->resultset('Cd')->search({
+    my $cd = $schema->resultset('Cd')->find({
         title => $tracks{$track},
     });
-    push @tracks, [$cdname->first, $track];
+    push @tracks, [$cd->id, $track];
 }
 
 $schema->populate('Track',[

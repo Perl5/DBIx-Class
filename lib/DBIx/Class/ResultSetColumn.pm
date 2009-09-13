@@ -125,7 +125,10 @@ one value.
 
 sub next {
   my $self = shift;
+
+  # using cursor so we don't inflate anything
   my ($row) = $self->_resultset->cursor->next;
+
   return $row;
 }
 
@@ -149,6 +152,8 @@ than row objects.
 
 sub all {
   my $self = shift;
+
+  # using cursor so we don't inflate anything
   return map { $_->[0] } $self->_resultset->cursor->all;
 }
 
@@ -194,7 +199,38 @@ Much like L<DBIx::Class::ResultSet/first> but just returning the one value.
 
 sub first {
   my $self = shift;
-  my ($row) = $self->_resultset->cursor->reset->next;
+
+  # using cursor so we don't inflate anything
+  $self->_resultset->cursor->reset;
+  my ($row) = $self->_resultset->cursor->next;
+
+  return $row;
+}
+
+=head2 single
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $value
+
+=back
+
+Much like L<DBIx::Class::ResultSet/single> fetches one and only one column
+value using the cursor directly. If additional rows are present a warning
+is issued before discarding the cursor.
+
+=cut
+
+sub single {
+  my $self = shift;
+
+  my $attrs = $self->_resultset->_resolved_attrs;
+  my ($row) = $self->_resultset->result_source->storage->select_single(
+    $attrs->{from}, $attrs->{select}, $attrs->{where}, $attrs
+  );
+
   return $row;
 }
 
@@ -395,7 +431,7 @@ sub throw_exception {
 #
 # Returns the underlying resultset. Creates it from the parent resultset if
 # necessary.
-# 
+#
 sub _resultset {
   my $self = shift;
 

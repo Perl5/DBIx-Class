@@ -5,6 +5,8 @@ use POSIX ();
 
 use 5.006001; # delete this line if you want to send patches for earlier.
 
+# ****** DO NOT ADD OPTIONAL DEPENDENCIES. EVER. --mst ******
+
 name     'DBIx-Class';
 perl_version '5.006001';
 all_from 'lib/DBIx/Class.pm';
@@ -54,8 +56,6 @@ my %replication_requires = (
 
 # when changing also adjust $DBIx::Class::minimum_sqlt_version
 my $sqlt_recommends = '0.11002';
-
-recommends 'SQL::Translator'  => $sqlt_recommends;
 
 my %force_requires_if_author = (
   %replication_requires,

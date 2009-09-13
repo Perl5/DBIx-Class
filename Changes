@@ -1,5 +1,18 @@
 Revision history for DBIx::Class
 
+        - Remove the recommends from Makefile.PL, DBIx::Class is not
+          supposed to have optional dependencies. ever.
+        - Mangle the DBIx/Class.pm POD to be more clear about
+          copyright and license
+        - Put back PG's multiple autoinc per table support, accidentally
+          dropped during the serial-autodetection rwrite
+        - Make sure ResultSetColumn does not depend on the (undefined)
+          return value of ->cursor->reset()
+        - Add single() to ResultSetColumn (same semantics as ResultSet)
+        - Make sure to turn off IDENTITY_INSERT after insert() on MSSQL
+          tables that needed it
+        - More informative exception on failing _resolve_relationship
+        - Fix unreported rollback exceptions in TxnScopeGuard
         - Complete Sybase RDBMS support including:
           - Support for TEXT/IMAGE columns
           - Support for the 'money' datatype
