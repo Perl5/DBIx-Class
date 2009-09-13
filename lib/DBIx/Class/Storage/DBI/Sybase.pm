@@ -13,10 +13,11 @@ use List::Util ();
 use Sub::Name ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update _insert_storage _identity_method/
+    qw/_identity _blob_log_on_update _insert_storage _is_insert_storage
+       _identity_method/
 );
 
-my @delegate_to_insert_storage = qw/
+my @also_proxy_to_insert_storage = qw/
   disconnect _connect_info _sql_maker _sql_maker_opts disable_sth_caching
   auto_savepoint unsafe cursor_class debug debugobj schema
 /;
@@ -115,17 +116,21 @@ sub _init {
   # based on LongReadLen in connect_info
   $self->set_textsize if $self->using_freetds;
 
-# create storage for insert transactions
-  $self->_insert_storage((ref $self)->new);
-  $self->_insert_storage->connect_info($self->connect_info);
+# create storage for insert transactions, unless this is that storage
+  return if $self->_is_insert_storage;
 
-  $self->_insert_storage->set_textsize if $self->using_freetds;
+  my $insert_storage = (ref $self)->new;
+
+  $insert_storage->_is_insert_storage(1);
+  $insert_storage->connect_info($self->connect_info);
+
+  $self->_insert_storage($insert_storage);
 }
 
-for my $method (@delegate_to_insert_storage) {
+for my $method (@also_proxy_to_insert_storage) {
   no strict 'refs';
 
-  *{$method} = Sub::Name::subname $method => sub {
+  *{$method} = Sub::Name::subname __PACKAGE__."::$method" => sub {
     my $self = shift;
     $self->_insert_storage->$method(@_) if $self->_insert_storage;
     return $self->next::method(@_);
@@ -375,6 +380,63 @@ sub update {
 
   return $wantarray ? @res : $res[0];
 }
+
+### the insert_bulk stuff stolen from DBI/MSSQL.pm
+
+sub _set_identity_insert {
+  my ($self, $table) = @_;
+
+  my $sql = sprintf (
+    'SET IDENTITY_INSERT %s ON',
+    $self->sql_maker->_quote ($table),
+  );
+
+  my $dbh = $self->_get_dbh;
+  eval { $dbh->do ($sql) };
+  if ($@) {
+    $self->throw_exception (sprintf "Error executing '%s': %s",
+      $sql,
+      $dbh->errstr,
+    );
+  }
+}
+
+sub _unset_identity_insert {
+  my ($self, $table) = @_;
+
+  my $sql = sprintf (
+    'SET IDENTITY_INSERT %s OFF',
+    $self->sql_maker->_quote ($table),
+  );
+
+  my $dbh = $self->_get_dbh;
+  $dbh->do ($sql);
+}
+
+# XXX this should use the DBD::Sybase bulk API, where possible
+sub insert_bulk {
+  my $self = shift;
+  my ($source, $cols, $data) = @_;
+
+  my $is_identity_insert = (List::Util::first
+      { $source->column_info ($_)->{is_auto_increment} }
+      (@{$cols})
+  )
+     ? 1
+     : 0;
+
+  if ($is_identity_insert) {
+     $self->_set_identity_insert ($source->name);
+  }
+
+  $self->next::method(@_);
+
+  if ($is_identity_insert) {
+     $self->_unset_identity_insert ($source->name);
+  }
+}
+
+### end of stolen insert_bulk section
 
 sub _remove_blob_cols {
   my ($self, $source, $fields) = @_;

@@ -11,7 +11,7 @@ use DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 41 + 2;
+my $TESTS = 48 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -187,6 +187,71 @@ SQL
       is $txn_used, 0, 'no txn on insert with IDENTITY_INSERT';
     }
   }
+
+# test insert_bulk using populate, this should always pass whether or not it
+# does anything Sybase specific or not. Just here to aid debugging.
+  lives_ok {
+    $schema->resultset('Artist')->populate([
+      {
+        name => 'bulk artist 1',
+        charfield => 'foo',
+      },
+      {
+        name => 'bulk artist 2',
+        charfield => 'foo',
+      },
+      {
+        name => 'bulk artist 3',
+        charfield => 'foo',
+      },
+    ]);
+  } 'insert_bulk via populate';
+
+  my $bulk_rs = $schema->resultset('Artist')->search({
+    name => { -like => 'bulk artist %' }
+  });
+
+  is $bulk_rs->count, 3, 'correct number inserted via insert_bulk';
+
+  is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
+    'column set correctly via insert_bulk');
+
+  my %bulk_ids;
+  @bulk_ids{map $_->artistid, $bulk_rs->all} = ();
+
+  is ((scalar keys %bulk_ids), 3,
+    'identities generated correctly in insert_bulk');
+
+  $bulk_rs->delete;
+
+# now test insert_bulk with IDENTITY_INSERT
+  lives_ok {
+    $schema->resultset('Artist')->populate([
+      {
+        artistid => 2001,
+        name => 'bulk artist 1',
+        charfield => 'foo',
+      },
+      {
+        artistid => 2002,
+        name => 'bulk artist 2',
+        charfield => 'foo',
+      },
+      {
+        artistid => 2003,
+        name => 'bulk artist 3',
+        charfield => 'foo',
+      },
+    ]);
+  } 'insert_bulk with IDENTITY_INSERT via populate';
+
+  is $bulk_rs->count, 3,
+    'correct number inserted via insert_bulk with IDENTITY_INSERT';
+
+  is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
+    'column set correctly via insert_bulk with IDENTITY_INSERT');
+
+  $bulk_rs->delete;
 
 # test correlated subquery
   my $subq = $schema->resultset('Artist')->search({ artistid => { '>' => 3 } })
