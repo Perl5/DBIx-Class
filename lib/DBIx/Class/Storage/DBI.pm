@@ -2078,8 +2078,8 @@ sub _dbh_sth {
 }
 
 sub sth {
-  my ($self, $sql, @args) = @_;
-  $self->dbh_do('_dbh_sth', $sql, @args);  # retry over disconnects
+  my ($self, $sql, $op, $sth_attr) = @_;
+  $self->dbh_do('_dbh_sth', $sql, $op, $sth_attr);  # retry over disconnects
 }
 
 sub _dbh_columns_info_for {
