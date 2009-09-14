@@ -11,7 +11,7 @@ use DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 49 + 2;
+my $TESTS = 52 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -220,6 +220,32 @@ SQL
 
   is ((scalar keys %bulk_ids), 3,
     'identities generated correctly in insert_bulk');
+
+  $bulk_rs->delete;
+
+# make sure insert_bulk works a second time on the same connection
+  lives_ok {
+    $schema->resultset('Artist')->populate([
+      {
+        name => 'bulk artist 1',
+        charfield => 'bar',
+      },
+      {
+        name => 'bulk artist 2',
+        charfield => 'bar',
+      },
+      {
+        name => 'bulk artist 3',
+        charfield => 'bar',
+      },
+    ]);
+  } 'insert_bulk via populate called a second time';
+
+  is $bulk_rs->count, 3,
+    'correct number inserted via insert_bulk';
+
+  is ((grep $_->charfield eq 'bar', $bulk_rs->all), 3,
+    'column set correctly via insert_bulk');
 
   $bulk_rs->delete;
 
