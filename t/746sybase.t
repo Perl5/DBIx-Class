@@ -11,7 +11,7 @@ use DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 48 + 2;
+my $TESTS = 49 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -188,8 +188,7 @@ SQL
     }
   }
 
-# test insert_bulk using populate, this should always pass whether or not it
-# does anything Sybase specific or not. Just here to aid debugging.
+# test insert_bulk using populate.
   lives_ok {
     $schema->resultset('Artist')->populate([
       {
@@ -223,6 +222,21 @@ SQL
     'identities generated correctly in insert_bulk');
 
   $bulk_rs->delete;
+
+# test invalid insert_bulk (missing required column)
+#
+# There should be a rollback, reconnect and the next valid insert_bulk should
+# succeed.
+  throws_ok {
+    $schema->resultset('Artist')->populate([
+      {
+        charfield => 'foo',
+      }
+    ]);
+  } qr/no value or default|does not allow null/i,
+# The second pattern is the error from fallback to regular array insert on
+# incompatible charset.
+  'insert_bulk with missing required column throws error';
 
 # now test insert_bulk with IDENTITY_INSERT
   lives_ok {

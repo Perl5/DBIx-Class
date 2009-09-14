@@ -24,6 +24,7 @@ Revision history for DBIx::Class
             when needed
           - Support for interpolated variables with proper quoting when
             connecting to an older Sybase and/or via FreeTDS
+          - Bulk API support for populate()
 
 0.08111 2009-09-06 21:58:00 (UTC)
         - The hashref to connection_info now accepts a 'dbh_maker'

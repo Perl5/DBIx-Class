@@ -1328,7 +1328,7 @@ sub insert {
 ## scalar refs, or at least, all the same type as the first set, the statement is
 ## only prepped once.
 sub insert_bulk {
-  my ($self, $source, $cols, $data) = @_;
+  my ($self, $source, $cols, $data, $sth_attr) = @_;
 
 # redispatch to insert_bulk method of storage we reblessed into, if necessary
   if (not $self->_driver_determined) {
@@ -1339,10 +1339,11 @@ sub insert_bulk {
   my %colvalues;
   my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
+# XXX some bulk APIs require column list in database order
   my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
 
   $self->_query_start( $sql, @bind );
-  my $sth = $self->sth($sql);
+  my $sth = $self->sth($sql, 'insert', $sth_attr);
 
 #  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
@@ -1371,7 +1372,7 @@ sub insert_bulk {
     $placeholder_index++;
   }
   my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
-  if (my $err = $@) {
+  if (my $err = $@ || $sth->errstr) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
 
@@ -1393,6 +1394,8 @@ sub insert_bulk {
     );
   }
   $self->throw_exception($sth->errstr) if !$rv;
+
+  $sth->finish;
 
   $self->_query_end( $sql, @bind );
   return (wantarray ? ($rv, $sth, @bind) : $rv);
@@ -2057,12 +2060,15 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 =cut
 
 sub _dbh_sth {
-  my ($self, $dbh, $sql) = @_;
+  my ($self, $dbh, $sql, $op, $sth_attr) = @_;
+# $op is ignored right now
+
+  $sth_attr ||= {};
 
   # 3 is the if_active parameter which avoids active sth re-use
   my $sth = $self->disable_sth_caching
-    ? $dbh->prepare($sql)
-    : $dbh->prepare_cached($sql, {}, 3);
+    ? $dbh->prepare($sql, $sth_attr)
+    : $dbh->prepare_cached($sql, $sth_attr, 3);
 
   # XXX You would think RaiseError would make this impossible,
   #  but apparently that's not true :(
@@ -2072,8 +2078,8 @@ sub _dbh_sth {
 }
 
 sub sth {
-  my ($self, $sql) = @_;
-  $self->dbh_do('_dbh_sth', $sql);  # retry over disconnects
+  my ($self, $sql, @args) = @_;
+  $self->dbh_do('_dbh_sth', $sql, @args);  # retry over disconnects
 }
 
 sub _dbh_columns_info_for {
