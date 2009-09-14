@@ -475,7 +475,7 @@ sub insert_bulk {
 
   if ((not $use_bulk_api) &&
       (Scalar::Util::reftype($self->_dbi_connect_info->[0])||'') eq 'CODE' &&
-      $self->_bulk_disabled_due_to_coderef_connect_info_warned) {
+      (not $self->_bulk_disabled_due_to_coderef_connect_info_warned)) {
     carp <<'EOF';
 Bulk API support disabled due to use of a CODEREF connect_info. Reverting to
 array inserts.
