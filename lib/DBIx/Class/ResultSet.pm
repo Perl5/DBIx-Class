@@ -2196,13 +2196,14 @@ You most likely want this method when looking for existing rows using
 a unique constraint that is not the primary key, or looking for
 related rows.
 
-If you want objects to be saved immediately, use L</find_or_create> instead.
+If you want objects to be saved immediately, use L</find_or_create>
+instead.
 
-B<Note>: C<find_or_new> is probably not what you want when creating a
-new row in a table that uses primary keys supplied by the
-database. Passing in a primary key column with a value of I<undef>
-will cause L</find> to attempt to search for a row with a value of
-I<NULL>.
+B<Note>: Take care when using C<find_or_new> with a table having
+columns with values that are automatically supplied by the database
+(e.g. an auto_increment primary key column).  In normal usage, the
+value of such columns should NOT be specified in the call to
+C<find_or_new>.
 
 =cut
 
@@ -2344,11 +2345,11 @@ condition. Another process could create a record in the table after
 the find has completed and before the create has started. To avoid
 this problem, use find_or_create() inside a transaction.
 
-B<Note>: C<find_or_create> is probably not what you want when creating
-a new row in a table that uses primary keys supplied by the
-database. Passing in a primary key column with a value of I<undef>
-will cause L</find> to attempt to search for a row with a value of
-I<NULL>.
+B<Note>: Take care when using C<find_or_create> with a table having
+columns with values that are automatically supplied by the database
+(e.g. an auto_increment primary key column).  In normal usage, the
+value of such columns should NOT be specified in the call to
+C<find_or_create>.
 
 See also L</find> and L</update_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
@@ -2411,11 +2412,11 @@ If the C<key> is specified as C<primary>, it searches only on the primary key.
 See also L</find> and L</find_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 
-B<Note>: C<update_or_create> is probably not what you want when
-looking for a row in a table that uses primary keys supplied by the
-database, unless you actually have a key value. Passing in a primary
-key column with a value of I<undef> will cause L</find> to attempt to
-search for a row with a value of I<NULL>.
+B<Note>: Take care when using C<update_or_create> with a table having
+columns with values that are automatically supplied by the database
+(e.g. an auto_increment primary key column).  In normal usage, the
+value of such columns should NOT be specified (even as undef) in the
+call to C<update_or_create>.
 
 =cut
 
@@ -2472,7 +2473,13 @@ For example:
       $cd->insert;
   }
 
-See also L</find>, L</find_or_create> and L<find_or_new>.
+B<Note>: Take care when using C<update_or_new> with a table having
+columns with values that are automatically supplied by the database
+(e.g. an auto_increment primary key column).  In normal usage, the
+value of such columns should NOT be specified in the call to
+C<update_or_new>.
+
+See also L</find>, L</find_or_create> and L</find_or_new>.
 
 =cut
 
