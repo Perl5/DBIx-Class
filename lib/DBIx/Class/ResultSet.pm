@@ -2200,10 +2200,10 @@ If you want objects to be saved immediately, use L</find_or_create>
 instead.
 
 B<Note>: Take care when using C<find_or_new> with a table having
-columns with values that are automatically supplied by the database
-(e.g. an auto_increment primary key column).  In normal usage, the
-value of such columns should NOT be specified in the call to
-C<find_or_new>.
+columns with default values that you intend to be automatically
+supplied by the database (e.g. an auto_increment primary key column).
+In normal usage, the value of such columns should NOT be included at
+all in the call to C<find_or_new>, even when set to C<undef>.
 
 =cut
 
@@ -2346,10 +2346,10 @@ the find has completed and before the create has started. To avoid
 this problem, use find_or_create() inside a transaction.
 
 B<Note>: Take care when using C<find_or_create> with a table having
-columns with values that are automatically supplied by the database
-(e.g. an auto_increment primary key column).  In normal usage, the
-value of such columns should NOT be specified in the call to
-C<find_or_create>.
+columns with default values that you intend to be automatically
+supplied by the database (e.g. an auto_increment primary key column).
+In normal usage, the value of such columns should NOT be included at
+all in the call to C<find_or_create>, even when set to C<undef>.
 
 See also L</find> and L</update_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
@@ -2413,10 +2413,10 @@ See also L</find> and L</find_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 
 B<Note>: Take care when using C<update_or_create> with a table having
-columns with values that are automatically supplied by the database
-(e.g. an auto_increment primary key column).  In normal usage, the
-value of such columns should NOT be specified (even as undef) in the
-call to C<update_or_create>.
+columns with default values that you intend to be automatically
+supplied by the database (e.g. an auto_increment primary key column).
+In normal usage, the value of such columns should NOT be included at
+all in the call to C<update_or_create>, even when set to C<undef>.
 
 =cut
 
@@ -2474,10 +2474,10 @@ For example:
   }
 
 B<Note>: Take care when using C<update_or_new> with a table having
-columns with values that are automatically supplied by the database
-(e.g. an auto_increment primary key column).  In normal usage, the
-value of such columns should NOT be specified in the call to
-C<update_or_new>.
+columns with default values that you intend to be automatically
+supplied by the database (e.g. an auto_increment primary key column).
+In normal usage, the value of such columns should NOT be included at
+all in the call to C<update_or_new>, even when set to C<undef>.
 
 See also L</find>, L</find_or_create> and L</find_or_new>.
 
