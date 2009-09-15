@@ -2896,7 +2896,12 @@ sub _resolved_attrs {
   # generate the distinct induced group_by early, as prefetch will be carried via a
   # subquery (since a group_by is present)
   if (delete $attrs->{distinct}) {
-    $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
+    if ($attrs->{group_by}) {
+      carp ("Useless use of distinct on a grouped resultset ('distinct' is ignored when a 'group_by' is present)");
+    }
+    else {
+      $attrs->{group_by} = [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
+    }
   }
 
   $attrs->{collapse} ||= {};
@@ -3515,7 +3520,8 @@ done.
 
 =back
 
-Set to 1 to group by all columns.
+Set to 1 to group by all columns. If the resultset already has a group_by
+attribute, this setting is ignored and an appropriate warning is issued.
 
 =head2 where
 
