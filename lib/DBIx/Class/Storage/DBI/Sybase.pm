@@ -13,13 +13,11 @@ use List::Util ();
 use Sub::Name ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update _writer_storage _is_extra_storage
-       _bulk_storage _is_bulk_storage _began_bulk_work 
-       _bulk_disabled_due_to_coderef_connect_info_warned
+    qw/_identity _blob_log_on_update _writer_storage _is_writer_storage
        _identity_method/
 );
 
-my @also_proxy_to_extra_storages = qw/
+my @also_proxy_to_writer_storage = qw/
   disconnect _connect_info _sql_maker _sql_maker_opts disable_sth_caching
   auto_savepoint unsafe cursor_class debug debugobj schema
 /;
@@ -104,7 +102,7 @@ EOF
         bless $self, $no_bind_vars;
         $self->_rebless;
       } elsif (not $self->_typeless_placeholders_supported) {
-        # this is highly unlikely, but we check just in case
+# this is highly unlikely, but we check just in case
         $self->auto_cast(1);
       }
     }
@@ -120,60 +118,26 @@ sub _init {
 
 # create storage for insert/(update blob) transactions,
 # unless this is that storage
-  return if $self->_is_extra_storage;
+  return if $self->_is_writer_storage;
 
   my $writer_storage = (ref $self)->new;
 
-  $writer_storage->_is_extra_storage(1);
+  $writer_storage->_is_writer_storage(1);
   $writer_storage->connect_info($self->connect_info);
 
   $self->_writer_storage($writer_storage);
-
-# create a bulk storage unless connect_info is a coderef
-  return
-    if (Scalar::Util::reftype($self->_dbi_connect_info->[0])||'') eq 'CODE';
-
-  my $bulk_storage = (ref $self)->new;
-
-  $bulk_storage->_is_extra_storage(1);
-  $bulk_storage->_is_bulk_storage(1); # for special ->disconnect acrobatics
-  $bulk_storage->connect_info($self->connect_info);
-
-# this is why
-  $bulk_storage->_dbi_connect_info->[0] .= ';bulkLogin=1';
-  
-  $self->_bulk_storage($bulk_storage);
 }
 
-for my $method (@also_proxy_to_extra_storages) {
+for my $method (@also_proxy_to_writer_storage) {
   no strict 'refs';
-  no warnings 'redefine';
 
   my $replaced = __PACKAGE__->can($method);
 
-  *{$method} = Sub::Name::subname $method => sub {
+  *{$method} = Sub::Name::subname __PACKAGE__."::$method" => sub {
     my $self = shift;
     $self->_writer_storage->$replaced(@_) if $self->_writer_storage;
-    $self->_bulk_storage->$replaced(@_)   if $self->_bulk_storage;
     return $self->$replaced(@_);
   };
-}
-
-sub disconnect {
-  my $self = shift;
-
-# Even though we call $sth->finish for uses off the bulk API, there's still an
-# "active statement" warning on disconnect, which we throw away here.
-# This is due to the bug described in insert_bulk.
-# Currently a noop because 'prepare' is used instead of 'prepare_cached'.
-  local $SIG{__WARN__} = sub {
-    warn $_[0] unless $_[0] =~ /active statement/i;
-  } if $self->_is_bulk_storage;
-
-# so that next transaction gets a dbh
-  $self->_began_bulk_work(0) if $self->_is_bulk_storage;
-
-  $self->next::method;
 }
 
 # Make sure we have CHAINED mode turned on if AutoCommit is off in non-FreeTDS
@@ -184,12 +148,6 @@ sub _populate_dbh {
   my $self = shift;
 
   $self->next::method(@_);
-  
-  if ($self->_is_bulk_storage) {
-# this should be cleared on every reconnect
-    $self->_began_bulk_work(0);
-    return;
-  }
 
   if (not $self->using_freetds) {
     $self->_dbh->{syb_chained_txn} = 1;
@@ -426,7 +384,7 @@ sub update {
   return $wantarray ? @res : $res[0];
 }
 
-### the insert_bulk partially stolen from DBI/MSSQL.pm
+### the insert_bulk stuff stolen from DBI/MSSQL.pm
 
 sub _set_identity_insert {
   my ($self, $table) = @_;
@@ -458,194 +416,30 @@ sub _unset_identity_insert {
   $dbh->do ($sql);
 }
 
-## XXX add blob support
+# XXX this should use the DBD::Sybase bulk API, where possible
 sub insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
   my $is_identity_insert = (List::Util::first
-    { $source->column_info ($_)->{is_auto_increment} } @{$cols}
-  ) ? 1 : 0;
+      { $source->column_info ($_)->{is_auto_increment} }
+      (@{$cols})
+  )
+     ? 1
+     : 0;
 
-  my @source_columns = $source->columns;
-
-  my $use_bulk_api =
-    $self->_bulk_storage && 
-    $self->_get_dbh->{syb_has_blk};
-
-  if ((not $use_bulk_api) &&
-      (Scalar::Util::reftype($self->_dbi_connect_info->[0])||'') eq 'CODE' &&
-      (not $self->_bulk_disabled_due_to_coderef_connect_info_warned)) {
-    carp <<'EOF';
-Bulk API support disabled due to use of a CODEREF connect_info. Reverting to
-array inserts.
-EOF
-    $self->_bulk_disabled_due_to_coderef_connect_info_warned(1);
+  if ($is_identity_insert) {
+     $self->_set_identity_insert ($source->name);
   }
 
-  if (not $use_bulk_api) {
-    if ($is_identity_insert) {
-       $self->_set_identity_insert ($source->name);
-    }
+  $self->next::method(@_);
 
-    $self->next::method(@_);
-
-    if ($is_identity_insert) {
-       $self->_unset_identity_insert ($source->name);
-    }
-
-    return;
+  if ($is_identity_insert) {
+     $self->_unset_identity_insert ($source->name);
   }
-
-# otherwise, use the bulk API
-
-# rearrange @$data so that columns are in database order
-  my %orig_idx;
-  @orig_idx{@$cols} = 0..$#$cols;
-
-  my %new_idx;
-  @new_idx{@source_columns} = 0..$#source_columns;
-
-  my @new_data;
-  for my $datum (@$data) {
-    my $new_datum = [];
-    for my $col (@source_columns) {
-# identity data will be 'undef' if not $is_identity_insert
-# columns with defaults will also be 'undef'
-      $new_datum->[ $new_idx{$col} ] =
-        exists $orig_idx{$col} ? $datum->[ $orig_idx{$col} ] : undef;
-    }
-    push @new_data, $new_datum;
-  }
-
-  my $identity_col = List::Util::first
-    { $source->column_info($_)->{is_auto_increment} } @source_columns;
-
-# bcp identity index is 1-based
-  my $identity_idx = exists $new_idx{$identity_col} ?
-    $new_idx{$identity_col} + 1 : 0;
-
-## Set a client-side conversion error handler, straight from DBD::Sybase docs.
-# This ignores any data conversion errors detected by the client side libs, as
-# they are usually harmless.
-  my $orig_cslib_cb = DBD::Sybase::set_cslib_cb(
-    Sub::Name::subname insert_bulk => sub {
-      my ($layer, $origin, $severity, $errno, $errmsg, $osmsg, $blkmsg) = @_;
-
-      return 1 if $errno == 36;
-
-      carp 
-        "Layer: $layer, Origin: $origin, Severity: $severity, Error: $errno" .
-        ($errmsg ? "\n$errmsg" : '') .
-        ($osmsg  ? "\n$osmsg"  : '')  .
-        ($blkmsg ? "\n$blkmsg" : '');
-      
-      return 0;
-  });
-
-  eval {
-    my $bulk = $self->_bulk_storage;
-
-    my $guard = $bulk->txn_scope_guard;
-
-## XXX get this to work instead of our own $sth
-## will require SQLA or *Hacks changes for ordered columns
-#    $bulk->next::method($source, \@source_columns, \@new_data, {
-#      syb_bcp_attribs => {
-#        identity_flag   => $is_identity_insert,
-#        identity_column => $identity_idx, 
-#      }
-#    });
-    my $sql = 'INSERT INTO ' .
-      $bulk->sql_maker->_quote($source->name) . ' (' .
-# colname list is ignored for BCP, but does no harm
-      (join ', ', map $bulk->sql_maker->_quote($_), @source_columns) . ') '.
-      ' VALUES ('.  (join ', ', ('?') x @source_columns) . ')';
-
-## XXX there's a bug in the DBD::Sybase bulk support that makes $sth->finish for
-## a prepare_cached statement ineffective. Replace with ->sth when fixed, or
-## better yet the version above. Should be fixed in DBD::Sybase .
-    my $sth = $bulk->_get_dbh->prepare($sql,
-#      'insert', # op
-      {
-        syb_bcp_attribs => {
-          identity_flag   => $is_identity_insert,
-          identity_column => $identity_idx, 
-        }
-      }
-    );
-
-    my $bind_attributes = $self->source_bind_attributes($source);
-
-    foreach my $slice_idx (0..$#source_columns) {
-      my $col = $source_columns[$slice_idx];
-
-      my $attributes = $bind_attributes->{$col}
-        if $bind_attributes && defined $bind_attributes->{$col};
-
-      my @slice = map $_->[$slice_idx], @new_data;
-
-      $sth->bind_param_array(($slice_idx + 1), \@slice, $attributes);
-    }
-
-    $bulk->_query_start($sql);
-
-# this is stolen from DBI::insert_bulk
-    my $tuple_status = [];
-    my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
-
-    if (my $err = $@ || $sth->errstr) {
-      my $i = 0;
-      ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
-
-      $self->throw_exception("Unexpected populate error: $err")
-        if ($i > $#$tuple_status);
-
-      require Data::Dumper;
-      local $Data::Dumper::Terse = 1;
-      local $Data::Dumper::Indent = 1;
-      local $Data::Dumper::Useqq = 1;
-      local $Data::Dumper::Quotekeys = 0;
-      local $Data::Dumper::Sortkeys = 1;
-
-      $self->throw_exception(sprintf "%s for populate slice:\n%s",
-        ($tuple_status->[$i][1] || $err),
-        Data::Dumper::Dumper(
-          { map { $source_columns[$_] => $new_data[$i][$_] } (0 .. $#$cols) }
-        ),
-      );
-    }
-
-    $guard->commit;
-    $sth->finish;
-
-    $bulk->_query_end($sql);
-  };
-  my $exception = $@;
-  if ($exception =~ /-Y option/) {
-    carp <<"EOF";
-
-Sybase bulk API operation failed due to character set incompatibility, reverting
-to regular array inserts:
-
-*** Try unsetting the LANG environment variable.
-
-$@
-EOF
-    $self->_bulk_storage(undef);
-    DBD::Sybase::set_cslib_cb($orig_cslib_cb);
-    unshift @_, $self;
-    goto \&insert_bulk;
-  }
-  elsif ($exception) {
-    DBD::Sybase::set_cslib_cb($orig_cslib_cb);
-# rollback makes the bulkLogin connection unusable
-    $self->_bulk_storage->disconnect;
-    $self->throw_exception($exception);
-  }
-
-  DBD::Sybase::set_cslib_cb($orig_cslib_cb);
 }
+
+### end of stolen insert_bulk section
 
 sub _remove_blob_cols {
   my ($self, $source, $fields) = @_;
@@ -803,18 +597,10 @@ sub datetime_parser_type { "DateTime::Format::Sybase" }
 
 sub _dbh_begin_work {
   my $self = shift;
-
-# bulkLogin=1 connections are always in a transaction, and can only call BEGIN
-# TRAN once. However, we need to make sure there's a $dbh.
-  return if $self->_is_bulk_storage && $self->_dbh && $self->_began_bulk_work;
-
   $self->next::method(@_);
-
   if ($self->using_freetds) {
     $self->_get_dbh->do('BEGIN TRAN');
   }
-
-  $self->_began_bulk_work(1) if $self->_is_bulk_storage;
 }
 
 sub _dbh_commit {
@@ -985,27 +771,6 @@ C<SET TEXTSIZE> command on connection.
 
 See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
 setting you need to work with C<IMAGE> columns.
-
-=head1 BULK API
-
-The experimental L<DBD::Sybase> Bulk API support is used for
-L<populate|DBIx::Class::ResultSet/populate> in B<void> context, in a transaction
-on a separate connection.
-
-To use this feature effectively, use a large number of rows for each
-L<populate|DBIx::Class::ResultSet/populate> call, eg.:
-
-  while (my $rows = $data_source->get_100_rows()) {
-    $rs->populate($rows);
-  }
-
-B<NOTE:> the L<add_columns|DBIx::Class::ResultSource/add_columns>
-calls in your C<Result> classes B<must> list columns in database order for this
-to work. Also, you may have to unset the C<LANG> environment variable before
-loading your app, if it doesn't match the character set of your database.
-
-When inserting IMAGE columns using this method, you'll need to use
-L</connect_call_blob_setup> as well.
 
 =head1 AUTHOR
 
