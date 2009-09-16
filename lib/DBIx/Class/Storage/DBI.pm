@@ -1376,7 +1376,7 @@ sub insert_bulk {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
 
-    $self->throw_exception($sth->errstr || "Unexpected populate error: $err")
+    $self->throw_exception("Unexpected populate error: $err")
       if ($i > $#$tuple_status);
 
     require Data::Dumper;
@@ -1387,16 +1387,14 @@ sub insert_bulk {
     local $Data::Dumper::Sortkeys = 1;
 
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
-      $tuple_status->[$i][1],
+      ($tuple_status->[$i][1] || $err),
       Data::Dumper::Dumper(
         { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) }
       ),
     );
   }
-  $self->throw_exception($sth->errstr) if !$rv;
 
   $sth->finish;
-
   $self->_query_end( $sql, @bind );
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }

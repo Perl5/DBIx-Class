@@ -575,11 +575,45 @@ EOF
       }
     );
 
+    my $bind_attributes = $self->source_bind_attributes($source);
+
+    foreach my $slice_idx (0..$#source_columns) {
+      my $col = $source_columns[$slice_idx];
+
+      my $attributes = $bind_attributes->{$col}
+        if $bind_attributes && defined $bind_attributes->{$col};
+
+      my @slice = map $_->[$slice_idx], @new_data;
+
+      $sth->bind_param_array(($slice_idx + 1), \@slice, $attributes);
+    }
+
     $bulk->_query_start($sql);
 
-    for my $datum (@new_data) {
-      $sth->execute(@$datum);
-      die $sth->errstr if $sth->errstr; # just in case
+# this is stolen from DBI::insert_bulk
+    my $tuple_status = [];
+    my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
+
+    if (my $err = $@ || $sth->errstr) {
+      my $i = 0;
+      ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
+
+      $self->throw_exception("Unexpected populate error: $err")
+        if ($i > $#$tuple_status);
+
+      require Data::Dumper;
+      local $Data::Dumper::Terse = 1;
+      local $Data::Dumper::Indent = 1;
+      local $Data::Dumper::Useqq = 1;
+      local $Data::Dumper::Quotekeys = 0;
+      local $Data::Dumper::Sortkeys = 1;
+
+      $self->throw_exception(sprintf "%s for populate slice:\n%s",
+        ($tuple_status->[$i][1] || $err),
+        Data::Dumper::Dumper(
+          { map { $source_columns[$_] => $new_data[$i][$_] } (0 .. $#$cols) }
+        ),
+      );
     }
 
     $guard->commit;
@@ -607,7 +641,7 @@ EOF
     DBD::Sybase::set_cslib_cb($orig_cslib_cb);
 # rollback makes the bulkLogin connection unusable
     $self->_bulk_storage->disconnect;
-    $self->throw_exception($exception) if $exception;
+    $self->throw_exception($exception);
   }
 
   DBD::Sybase::set_cslib_cb($orig_cslib_cb);
@@ -969,6 +1003,9 @@ B<NOTE:> the L<add_columns|DBIx::Class::ResultSource/add_columns>
 calls in your C<Result> classes B<must> list columns in database order for this
 to work. Also, you may have to unset the C<LANG> environment variable before
 loading your app, if it doesn't match the character set of your database.
+
+When inserting IMAGE columns using this method, you'll need to use
+L</connect_call_blob_setup> as well.
 
 =head1 AUTHOR
 
