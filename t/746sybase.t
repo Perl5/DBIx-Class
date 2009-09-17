@@ -5,13 +5,22 @@ no warnings 'uninitialized';
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
+
+BEGIN {
+  require DBICTest::Schema::BindType;
+  DBICTest::Schema::BindType->add_column(
+    anint => { data_type => 'integer' }
+  );
+}
+
 use DBICTest;
-use DBIx::Class::Storage::DBI::Sybase;
-use DBIx::Class::Storage::DBI::Sybase::NoBindVars;
+
+require DBIx::Class::Storage::DBI::Sybase;
+require DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 48 + 2;
+my $TESTS = 51 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -157,8 +166,7 @@ SQL
 
   is( $it->count, 7, 'COUNT of GROUP_BY ok' );
 
-# do an identity insert (which should happen with no txn when using
-# placeholders.)
+# do an IDENTITY_INSERT
   {
     no warnings 'redefine';
 
@@ -178,7 +186,7 @@ SQL
     $schema->resultset('Artist')
       ->create({ artistid => 999, name => 'mtfnpy' });
 
-    ok((grep /IDENTITY_INSERT/i, @debug_out), 'IDENTITY_INSERT');
+    ok((grep /IDENTITY_INSERT/i, @debug_out), 'IDENTITY_INSERT used');
 
     SKIP: {
       skip 'not testing lack of txn on IDENTITY_INSERT with NoBindVars', 1
@@ -187,6 +195,23 @@ SQL
       is $txn_used, 0, 'no txn on insert with IDENTITY_INSERT';
     }
   }
+
+# do an IDENTITY_UPDATE
+  {
+    my @debug_out;
+    local $schema->storage->{debug} = 1;
+    local $schema->storage->debugobj->{callback} = sub {
+      push @debug_out, $_[1];
+    };
+
+    lives_and {
+      $schema->resultset('Artist')
+        ->find(999)->update({ artistid => 555 });
+      ok((grep /IDENTITY_UPDATE/i, @debug_out));
+    } 'IDENTITY_UPDATE used';
+    $ping_count-- if $@;
+  }
+
 
 # test insert_bulk using populate, this should always pass whether or not it
 # does anything Sybase specific or not. Just here to aid debugging.
@@ -264,7 +289,7 @@ SQL
 
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
-    skip 'TEXT/IMAGE support does not work with FreeTDS', 13
+    skip 'TEXT/IMAGE support does not work with FreeTDS', 16
       if $schema->storage->using_freetds;
 
     my $dbh = $schema->storage->_dbh;
@@ -278,7 +303,8 @@ SQL
           id    INT   IDENTITY PRIMARY KEY,
           bytea INT   NULL,
           blob  IMAGE NULL,
-          clob  TEXT  NULL
+          clob  TEXT  NULL,
+          anint INT   NULL
         )
       ],{ RaiseError => 1, PrintError => 0 });
     }
@@ -317,20 +343,9 @@ SQL
 
     # blob insert with explicit PK
     # also a good opportunity to test IDENTITY_INSERT
-    {
-      local $SIG{__WARN__} = sub {};
-      eval { $dbh->do('DROP TABLE bindtype_test') };
 
-      $dbh->do(qq[
-        CREATE TABLE bindtype_test 
-        (
-          id    INT   IDENTITY PRIMARY KEY,
-          bytea INT   NULL,
-          blob  IMAGE NULL,
-          clob  TEXT  NULL
-        )
-      ],{ RaiseError => 1, PrintError => 0 });
-    }
+    $rs->delete;
+
     my $created = eval { $rs->create( { id => 1, blob => $binstr{large} } ) };
     ok(!$@, "inserted large blob without dying with manual PK");
     diag $@ if $@;
@@ -359,13 +374,27 @@ SQL
     diag $@ if $@;
     ok($got eq $new_str, "verified updated blob");
 
+    # try a blob update with IDENTITY_UPDATE
+    lives_and {
+      $new_str = $binstr{large} . 'hlagh';
+      $rs->find(1)->update({ id => 999, blob => $new_str });
+      ok($rs->find(999)->blob eq $new_str);
+    } 'verified updated blob with IDENTITY_UPDATE';
+
     ## try multi-row blob update
     # first insert some blobs
-    $rs->find(1)->delete;
+    $rs->delete;
     $rs->create({ blob => $binstr{large} }) for (1..3);
     $new_str = $binstr{large} . 'foo';
     $rs->update({ blob => $new_str });
     is((grep $_->blob eq $new_str, $rs->all), 3, 'multi-row blob update');
+
+    # make sure impossible blob update throws
+    throws_ok {
+      $rs->update({ anint => 5 });
+      $rs->create({ anint => 6 });
+      $rs->search({ anint => 5 })->update({ blob => $new_str, anint => 6 });
+    } qr/impossible/, 'impossible blob update throws';
   }
 
 # test MONEY column support

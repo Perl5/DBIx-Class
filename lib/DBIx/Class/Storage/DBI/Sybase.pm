@@ -355,16 +355,32 @@ sub update {
   my ($source, $fields, $where) = @_;
 
   my $wantarray = wantarray;
+
   my $blob_cols = $self->_remove_blob_cols($source, $fields);
 
+  my $table = $source->name;
+
+  my $identity_col = List::Util::first
+    { $source->column_info($_)->{is_auto_increment} }
+    $source->columns;
+
+  my $is_identity_update = $identity_col && defined $fields->{$identity_col};
+
   if (not $blob_cols) {
+    $self->_set_identity_insert($table, 'update')   if $is_identity_update;
     return $self->next::method(@_);
+    $self->_unset_identity_insert($table, 'update') if $is_identity_update;
   }
+
+# check if condition and fields allow for a 2-step update
+  $self->_assert_blob_update_possible($source, $fields, $where);
 
 # update+blob update(s) done atomically on separate connection
   $self = $self->_writer_storage;
 
   my $guard = $self->txn_scope_guard;
+
+  $self->_set_identity_insert($table, 'update')   if $is_identity_update;
 
   my @res;
   if ($wantarray) {
@@ -377,26 +393,72 @@ sub update {
     $self->next::method(@_);
   }
 
-  $self->_update_blobs($source, $blob_cols, $where);
+  $self->_unset_identity_insert($table, 'update') if $is_identity_update;
+
+  my %new_where = map { $_ => ($fields->{$_} || $where->{$_}) } keys %$where;
+
+  $self->_update_blobs($source, $blob_cols, \%new_where);
 
   $guard->commit;
 
   return $wantarray ? @res : $res[0];
 }
 
+sub _assert_blob_update_possible {
+  my ($self, $source, $fields, $where) = @_;
+
+  my $table = $source->name;
+
+# If $where condition is mutually exclusive from $fields (what gets updated)
+# then update is safe.
+  my %count;
+  $count{$_}++ foreach keys %$where, keys %$fields;
+  return 1 unless List::Util::first { $_ == 2 } values %count;
+
+# Otherwise check that what is updated includes either a primary or unique key.
+  my (@primary_cols) = $source->primary_columns;
+  return 1 if (grep exists $fields->{$_}, @primary_cols) == @primary_cols;
+
+  my %unique_constraints = $source->unique_constraints;
+  for my $uniq_constr (values %unique_constraints) {
+    return 1 if (grep exists $fields->{$_}, @$uniq_constr) == @$uniq_constr;
+  }
+
+# otherwise throw exception
+  require Data::Dumper;
+  local $Data::Dumper::Terse = 1;
+  local $Data::Dumper::Indent = 1;
+  local $Data::Dumper::Useqq = 1;
+  local $Data::Dumper::Quotekeys = 0;
+  local $Data::Dumper::Sortkeys = 1;
+
+  croak sprintf
+"2-step TEXT/IMAGE update on table '$table' impossible for condition: \n%s\n".
+"Setting columns: \n%s\n",
+    Data::Dumper::Dumper($where),
+    Data::Dumper::Dumper($fields);
+}
+
 ### the insert_bulk stuff stolen from DBI/MSSQL.pm
 
 sub _set_identity_insert {
-  my ($self, $table) = @_;
+  my ($self, $table, $op) = @_;
 
   my $sql = sprintf (
-    'SET IDENTITY_INSERT %s ON',
+    'SET IDENTITY_%s %s ON',
+    (uc($op) || 'INSERT'),
     $self->sql_maker->_quote ($table),
   );
 
+  $self->_query_start($sql);
+
   my $dbh = $self->_get_dbh;
   eval { $dbh->do ($sql) };
-  if ($@) {
+  my $exception = $@;
+
+  $self->_query_end($sql);
+
+  if ($exception) {
     $self->throw_exception (sprintf "Error executing '%s': %s",
       $sql,
       $dbh->errstr,
@@ -405,15 +467,20 @@ sub _set_identity_insert {
 }
 
 sub _unset_identity_insert {
-  my ($self, $table) = @_;
+  my ($self, $table, $op) = @_;
 
   my $sql = sprintf (
-    'SET IDENTITY_INSERT %s OFF',
+    'SET IDENTITY_%s %s OFF',
+    (uc($op) || 'INSERT'),
     $self->sql_maker->_quote ($table),
   );
 
+  $self->_query_start($sql);
+
   my $dbh = $self->_get_dbh;
   $dbh->do ($sql);
+
+  $self->_query_end($sql);
 }
 
 # XXX this should use the DBD::Sybase bulk API, where possible
@@ -491,7 +558,7 @@ sub _insert_blobs {
   my ($self, $source, $blob_cols, $row) = @_;
   my $dbh = $self->_get_dbh;
 
-  my $table = $source->from;
+  my $table = $source->name;
 
   my %row = %$row;
   my (@primary_cols) = $source->primary_columns;
@@ -511,6 +578,18 @@ sub _insert_blobs {
     my $cursor = $self->select ($source, [$col], \%where, {});
     $cursor->next;
     my $sth = $cursor->sth;
+
+    if (not $sth) {
+      require Data::Dumper;
+      local $Data::Dumper::Terse = 1;
+      local $Data::Dumper::Indent = 1;
+      local $Data::Dumper::Useqq = 1;
+      local $Data::Dumper::Quotekeys = 0;
+      local $Data::Dumper::Sortkeys = 1;
+
+      croak "\nCould not find row in table '$table' for blob update:\n".
+        Data::Dumper::Dumper(\%where)."\n";
+    }
 
     eval {
       do {
