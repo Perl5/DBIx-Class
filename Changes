@@ -23,6 +23,7 @@ Revision history for DBIx::Class
         - Make sure to turn off IDENTITY_INSERT after insert() on MSSQL
           tables that needed it
         - More informative exception on failing _resolve_relationship
+        - Allow undef/NULL as the sole grouping value in Ordered
         - Fix unreported rollback exceptions in TxnScopeGuard
         - Fix overly-eager left-join chain enforcing code
         - Warn about using distinct with an existing group_by
