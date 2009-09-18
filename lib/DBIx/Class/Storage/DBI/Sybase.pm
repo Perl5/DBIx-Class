@@ -461,7 +461,7 @@ sub _update_blobs {
 
   my (@primary_cols) = $source->primary_columns;
 
-  croak "Cannot update TEXT/IMAGE column(s) without a primary key"
+  $self->throw_exception('Cannot update TEXT/IMAGE column(s) without a primary key')
     unless @primary_cols;
 
 # check if we're updating a single row by PK
@@ -496,12 +496,11 @@ sub _insert_blobs {
   my %row = %$row;
   my (@primary_cols) = $source->primary_columns;
 
-  croak "Cannot update TEXT/IMAGE column(s) without a primary key"
+  $self->throw_exception('Cannot update TEXT/IMAGE column(s) without a primary key')
     unless @primary_cols;
 
-  if ((grep { defined $row{$_} } @primary_cols) != @primary_cols) {
-    croak "Cannot update TEXT/IMAGE column(s) without primary key values";
-  }
+  $self->throw_exception('Cannot update TEXT/IMAGE column(s) without primary key values')
+    if ((grep { defined $row{$_} } @primary_cols) != @primary_cols);
 
   for my $col (keys %$blob_cols) {
     my $blob = $blob_cols->{$col};
@@ -535,12 +534,12 @@ sub _insert_blobs {
     $sth->finish if $sth;
     if ($exception) {
       if ($self->using_freetds) {
-        croak (
+        $self->throw_exception (
           'TEXT/IMAGE operation failed, probably because you are using FreeTDS: '
           . $exception
         );
       } else {
-        croak $exception;
+        $self->throw_exception($exception);
       }
     }
   }

@@ -5,6 +5,8 @@ use warnings;
 
 use DBIx::Class::ResultSet;
 use DBIx::Class::ResultSourceHandle;
+
+use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 
 use base qw/DBIx::Class/;
@@ -1591,10 +1593,12 @@ See L<DBIx::Class::Schema/"throw_exception">.
 
 sub throw_exception {
   my $self = shift;
-  if (defined $self->schema) {
+
+  if (defined $self->schema);
     $self->schema->throw_exception(@_);
-  } else {
-    croak(@_);
+  }
+  else {
+    DBIx::Class::Exception->throw(@_);
   }
 }
 

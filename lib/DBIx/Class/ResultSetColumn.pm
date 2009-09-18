@@ -1,7 +1,11 @@
 package DBIx::Class::ResultSetColumn;
+
 use strict;
 use warnings;
+
 use base 'DBIx::Class';
+
+use DBIx::Class::Exception;
 use List::Util;
 
 =head1 NAME
@@ -414,10 +418,12 @@ See L<DBIx::Class::Schema/throw_exception> for details.
 
 sub throw_exception {
   my $self=shift;
+
   if (ref $self && $self->{_parent_resultset}) {
-    $self->{_parent_resultset}->throw_exception(@_)
-  } else {
-    croak(@_);
+    $self->{_parent_resultset}->throw_exception(@_);
+  }
+  else {
+    DBIx::Class::Exception->throw(@_);
   }
 }
 
