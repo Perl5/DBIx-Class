@@ -3,11 +3,7 @@ package DBIx::Class::Storage::DBI::Cursor;
 use strict;
 use warnings;
 
-use base qw/
-  Class::Accessor::Grouped
-  DBIx::Class::Cursor
-/;
-use mro 'c3';
+use base qw/DBIx::Class::Cursor/;
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/sth/
