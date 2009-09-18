@@ -102,8 +102,7 @@ EOF
   $self->_identity_method('@@identity');
 }
 
-sub _rebless {
-  no warnings 'uninitialized';
+sub _init {
   my $self = shift;
 
   if (ref($self->_dbi_connect_info->[0]) ne 'CODE' &&

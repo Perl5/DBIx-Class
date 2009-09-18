@@ -681,7 +681,8 @@ sub disconnect {
 
     $self->_do_connection_actions(disconnect_call_ => $_) for @actions;
 
-    $self->_dbh->rollback unless $self->_dbh_autocommit;
+    $self->_dbh_rollback unless $self->_dbh_autocommit;
+
     $self->_dbh->disconnect;
     $self->_dbh(undef);
     $self->{_dbh_gen}++;
@@ -835,7 +836,9 @@ sub sql_maker {
   return $self->_sql_maker;
 }
 
+# nothing to do by default
 sub _rebless {}
+sub _init {}
 
 sub _populate_dbh {
   my ($self) = @_;
@@ -901,6 +904,8 @@ sub _determine_driver {
     }
 
     $self->_driver_determined(1);
+
+    $self->_init; # run driver-specific initializations
 
     $self->_run_connection_actions
         if $started_unconnected && defined $self->_dbh;
@@ -1106,18 +1111,27 @@ sub txn_begin {
   if($self->{transaction_depth} == 0) {
     $self->debugobj->txn_begin()
       if $self->debug;
-
-    # being here implies we have AutoCommit => 1
-    # if the user is utilizing txn_do - good for
-    # him, otherwise we need to ensure that the
-    # $dbh is healthy on BEGIN
-    my $dbh_method = $self->{_in_dbh_do} ? '_dbh' : 'dbh';
-    $self->$dbh_method->begin_work;
-
-  } elsif ($self->auto_savepoint) {
+    $self->_dbh_begin_work;
+  }
+  elsif ($self->auto_savepoint) {
     $self->svp_begin;
   }
   $self->{transaction_depth}++;
+}
+
+sub _dbh_begin_work {
+  my $self = shift;
+
+  # if the user is utilizing txn_do - good for him, otherwise we need to
+  # ensure that the $dbh is healthy on BEGIN.
+  # We do this via ->dbh_do instead of ->dbh, so that the ->dbh "ping"
+  # will be replaced by a failure of begin_work itself (which will be
+  # then retried on reconnect)
+  if ($self->{_in_dbh_do}) {
+    $self->_dbh->begin_work;
+  } else {
+    $self->dbh_do(sub { $_[1]->begin_work });
+  }
 }
 
 sub txn_commit {
@@ -1126,7 +1140,7 @@ sub txn_commit {
     my $dbh = $self->_dbh;
     $self->debugobj->txn_commit()
       if ($self->debug);
-    $dbh->commit;
+    $self->_dbh_commit;
     $self->{transaction_depth} = 0
       if $self->_dbh_autocommit;
   }
@@ -1135,6 +1149,11 @@ sub txn_commit {
     $self->svp_release
       if $self->auto_savepoint;
   }
+}
+
+sub _dbh_commit {
+  my $self = shift;
+  $self->_dbh->commit;
 }
 
 sub txn_rollback {
@@ -1146,7 +1165,7 @@ sub txn_rollback {
         if ($self->debug);
       $self->{transaction_depth} = 0
         if $self->_dbh_autocommit;
-      $dbh->rollback;
+      $self->_dbh_rollback;
     }
     elsif($self->{transaction_depth} > 1) {
       $self->{transaction_depth}--;
@@ -1167,6 +1186,11 @@ sub txn_rollback {
     $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
     $self->throw_exception($error);
   }
+}
+
+sub _dbh_rollback {
+  my $self = shift;
+  $self->_dbh->rollback;
 }
 
 # This used to be the top-half of _execute.  It was split out to make it
@@ -1375,12 +1399,17 @@ sub insert_bulk {
 }
 
 sub update {
-  my $self = shift @_;
-  my $source = shift @_;
-  $self->_determine_driver;
+  my ($self, $source, @args) = @_; 
+
+# redispatch to update method of storage we reblessed into, if necessary
+  if (not $self->_driver_determined) {
+    $self->_determine_driver;
+    goto $self->can('update');
+  }
+
   my $bind_attributes = $self->source_bind_attributes($source);
 
-  return $self->_execute('update' => [], $source, $bind_attributes, @_);
+  return $self->_execute('update' => [], $source, $bind_attributes, @args);
 }
 
 
@@ -1957,6 +1986,18 @@ sub _subq_count_select {
   return @pcols ? \@pcols : [ 1 ];
 }
 
+#
+# Returns an ordered list of column names before they are used
+# in a SELECT statement. By default simply returns the list
+# passed in.
+#
+# This may be overridden in a specific storage when there are
+# requirements such as moving BLOB columns to the end of the 
+# SELECT list.
+sub _order_select_columns {
+  #my ($self, $source, $columns) = @_;
+  return @{$_[2]};
+}
 
 sub source_bind_attributes {
   my ($self, $source) = @_;
@@ -2152,6 +2193,36 @@ C<ENUM(foo,bar,baz)> becomes C<ENUM>.
 sub _native_data_type {
   #my ($self, $data_type) = @_;
   return undef
+}
+
+# Check if placeholders are supported at all
+sub _placeholders_supported {
+  my $self = shift;
+  my $dbh  = $self->_get_dbh;
+
+  # some drivers provide a $dbh attribute (e.g. Sybase and $dbh->{syb_dynamic_supported})
+  # but it is inaccurate more often than not
+  eval {
+    local $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
+    $dbh->do('select ?', {}, 1);
+  };
+  return $@ ? 0 : 1;
+}
+
+# Check if placeholders bound to non-string types throw exceptions
+#
+sub _typeless_placeholders_supported {
+  my $self = shift;
+  my $dbh  = $self->_get_dbh;
+
+  eval {
+    local $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
+    # this specifically tests a bind that is NOT a string
+    $dbh->do('select 1 where 1 = ?', {}, 1);
+  };
+  return $@ ? 0 : 1;
 }
 
 =head2 sqlt_type

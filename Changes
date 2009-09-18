@@ -1,5 +1,16 @@
 Revision history for DBIx::Class
 
+        - Complete Sybase RDBMS support including:
+          - Support for TEXT/IMAGE columns
+          - Support for the 'money' datatype
+          - Transaction savepoints support
+          - DateTime inflation support
+          - Support for bind variables when connecting to a newer Sybase with
+            OpenClient libraries
+          - Support for connections via FreeTDS with CASTs for bind variables
+            when needed
+          - Support for interpolated variables with proper quoting when
+            connecting to an older Sybase and/or via FreeTDS
         - Remove the recommends from Makefile.PL, DBIx::Class is not
           supposed to have optional dependencies. ever.
         - Mangle the DBIx/Class.pm POD to be more clear about
@@ -56,7 +67,7 @@ Revision history for DBIx::Class
         - Support for MSSQL 'money' type
         - Support for 'smalldatetime' type used in MSSQL and Sybase for
           InflateColumn::DateTime
-        - support for Postgres 'timestamp without timezone' type in
+        - Support for Postgres 'timestamp without timezone' type in
           InflateColumn::DateTime (RT#48389)
         - Added new MySQL specific on_connect_call macro 'set_strict_mode'
           (also known as make_mysql_not_suck_as_much)

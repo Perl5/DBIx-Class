@@ -222,7 +222,7 @@ has 'pool' => (
   isa=>'DBIx::Class::Storage::DBI::Replicated::Pool',
   lazy_build=>1,
   handles=>[qw/
-    connect_replicants    
+    connect_replicants
     replicants
     has_replicants
   /],
@@ -277,7 +277,7 @@ has 'read_handler' => (
     select
     select_single
     columns_info_for
-  /],    
+  /],
 );
 
 =head2 write_handler
@@ -290,9 +290,9 @@ has 'write_handler' => (
   is=>'ro',
   isa=>Object,
   lazy_build=>1,
-  handles=>[qw/   
+  handles=>[qw/
     on_connect_do
-    on_disconnect_do       
+    on_disconnect_do
     connect_info
     throw_exception
     sql_maker
@@ -300,8 +300,8 @@ has 'write_handler' => (
     create_ddl_dir
     deployment_statements
     datetime_parser
-    datetime_parser_type  
-    build_datetime_parser      
+    datetime_parser_type
+    build_datetime_parser
     last_insert_id
     insert
     insert_bulk
@@ -316,19 +316,20 @@ has 'write_handler' => (
     sth
     deploy
     with_deferred_fk_checks
-	dbh_do
+    dbh_do
     reload_row
-	with_deferred_fk_checks
+    with_deferred_fk_checks
     _prep_for_execute
 
-	backup
-	is_datatype_numeric
-	_count_select
-	_subq_count_select
-	_subq_update_delete 
-	svp_rollback
-	svp_begin
-	svp_release
+    backup
+    is_datatype_numeric
+    _count_select
+    _subq_count_select
+    _subq_update_delete
+    _order_select_columns
+    svp_rollback
+    svp_begin
+    svp_release
   /],
 );
 
@@ -364,7 +365,7 @@ around connect_info => sub {
     );
 
     $self->pool($self->_build_pool)
-	if $self->pool;
+      if $self->pool;
   }
 
   if (@opts{qw/balancer_type balancer_args/}) {
@@ -376,7 +377,7 @@ around connect_info => sub {
     );
 
     $self->balancer($self->_build_balancer)
-	if $self->balancer;
+      if $self->balancer;
   }
 
   $self->_master_connect_info_opts(\%opts);
@@ -413,9 +414,9 @@ sub BUILDARGS {
   my ($class, $schema, $storage_type_args, @args) = @_;	
 
   return {
-  	schema=>$schema, 
-  	%$storage_type_args,
-  	@args
+    schema=>$schema,
+    %$storage_type_args,
+    @args
   }
 }
 
@@ -452,7 +453,7 @@ the balancer knows which pool it's balancing.
 sub _build_balancer {
   my $self = shift @_;
   $self->create_balancer(
-    pool=>$self->pool, 
+    pool=>$self->pool,
     master=>$self->master,
     %{$self->balancer_args},
   );
@@ -501,7 +502,7 @@ around connect_replicants => sub {
     my $i = 0;
     $i++ while $i < @$r && (reftype($r->[$i])||'') ne 'HASH';
 
-# make one if none    
+# make one if none
     $r->[$i] = {} unless $r->[$i];
 
 # merge if two hashes
@@ -600,11 +601,11 @@ sub execute_reliably {
       ($result[0]) = ($coderef->(@args));
     } else {
       $coderef->(@args);
-    }       
+    }
   };
 
   ##Reset to the original state
-  $self->read_handler($current); 
+  $self->read_handler($current);
 
   ##Exception testing has to come last, otherwise you might leave the 
   ##read_handler set to master.
@@ -738,7 +739,7 @@ sub debug {
   if(@_) {
     foreach my $source ($self->all_storages) {
       $source->debug(@_);
-    }   
+    }
   }
   return $self->master->debug;
 }
@@ -754,7 +755,7 @@ sub debugobj {
   if(@_) {
     foreach my $source ($self->all_storages) {
       $source->debugobj(@_);
-    } 	
+    }
   }
   return $self->master->debugobj;
 }
@@ -770,7 +771,7 @@ sub debugfh {
   if(@_) {
     foreach my $source ($self->all_storages) {
       $source->debugfh(@_);
-    }   
+    }
   }
   return $self->master->debugfh;
 }
@@ -786,7 +787,7 @@ sub debugcb {
   if(@_) {
     foreach my $source ($self->all_storages) {
       $source->debugcb(@_);
-    }   
+    }
   }
   return $self->master->debugcb;
 }
