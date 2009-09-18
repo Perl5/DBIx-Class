@@ -25,6 +25,9 @@ Revision history for DBIx::Class
         - More informative exception on failing _resolve_relationship
         - Fix unreported rollback exceptions in TxnScopeGuard
         - Fix overly-eager left-join chain enforcing code
+        - Warn about using distinct with an existing group_by
+        - Warn about attempting to $rs->get_column a non-unique column
+          when has_many joins are added to resultset
 
 0.08111 2009-09-06 21:58:00 (UTC)
         - The hashref to connection_info now accepts a 'dbh_maker'

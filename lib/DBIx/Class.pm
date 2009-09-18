@@ -30,7 +30,7 @@ $VERSION = '0.08111';
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
 # what version of sqlt do we require if deploy() without a ddl_dir is invoked
-# when changing also adjust $sqlt_recommends in Makefile.PL
+# when changing also adjust the corresponding author_require in Makefile.PL
 my $minimum_sqlt_version = '0.11002';
 
 sub MODIFY_CODE_ATTRIBUTES {
