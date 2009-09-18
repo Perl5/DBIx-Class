@@ -75,6 +75,19 @@ sub _attr_cache {
   sub _sqlt_minimum_version { $minimum_sqlt_version };
 }
 
+# Pretty printer for debug messages
+sub _pretty_print {
+
+  require Data::Dumper;
+  local $Data::Dumper::Terse = 1;
+  local $Data::Dumper::Indent = 1;
+  local $Data::Dumper::Useqq = 1;
+  local $Data::Dumper::Quotekeys = 0;
+  local $Data::Dumper::Sortkeys = 1;
+
+  return Data::Dumper::Dumper ($_[1]);
+}
+
 
 1;
 
