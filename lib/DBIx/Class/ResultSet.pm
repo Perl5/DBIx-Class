@@ -7,6 +7,7 @@ use overload
         'bool'   => "_bool",
         fallback => 1;
 use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Exception;
 use Data::Page;
 use Storable;
 use DBIx::Class::ResultSetColumn;
@@ -3117,12 +3118,13 @@ See L<DBIx::Class::Schema/throw_exception> for details.
 
 sub throw_exception {
   my $self=shift;
+
   if (ref $self && $self->_source_handle->schema) {
     $self->_source_handle->schema->throw_exception(@_)
-  } else {
-    croak(@_);
   }
-
+  else {
+    DBIx::Class::Exception->throw(@_);
+  }
 }
 
 # XXX: FIXME: Attributes docs need clearing up

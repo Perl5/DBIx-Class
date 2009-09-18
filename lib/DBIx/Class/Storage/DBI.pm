@@ -1002,6 +1002,8 @@ sub _connect {
             $weak_self->throw_exception("DBI Exception: $_[0]");
           }
           else {
+            # the handler may be invoked by something totally out of
+            # the scope of DBIC
             croak ("DBI Exception: $_[0]");
           }
       };

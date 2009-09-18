@@ -17,9 +17,9 @@ BEGIN {
   my @didnt_load;
 
   for my $module (keys %replication_required) {
-	eval "use $module $replication_required{$module}";
-	push @didnt_load, "$module $replication_required{$module}"
-	 if $@;
+    eval "use $module $replication_required{$module}";
+    push @didnt_load, "$module $replication_required{$module}"
+      if $@;
   }
 
   croak("@{[ join ', ', @didnt_load ]} are missing and are required for Replication")
@@ -33,7 +33,6 @@ use DBIx::Class::Storage::DBI::Replicated::Balancer;
 use DBIx::Class::Storage::DBI::Replicated::Types qw/BalancerClassNamePart DBICSchema DBICStorageDBI/;
 use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
-use Carp::Clan qw/^DBIx::Class/;
 use Hash::Merge 'merge';
 
 use namespace::clean -except => 'meta';
@@ -495,7 +494,7 @@ around connect_replicants => sub {
   for my $r (@args) {
     $r = [ $r ] unless reftype $r eq 'ARRAY';
 
-    croak "coderef replicant connect_info not supported"
+    $self->throw_exception('coderef replicant connect_info not supported')
       if ref $r->[0] && reftype $r->[0] eq 'CODE';
 
 # any connect_info options?
@@ -508,10 +507,10 @@ around connect_replicants => sub {
 # merge if two hashes
     my @hashes = @$r[$i .. $#{$r}];
 
-    croak "invalid connect_info options"
+    $self->throw_exception('invalid connect_info options')
       if (grep { reftype($_) eq 'HASH' } @hashes) != @hashes;
 
-    croak "too many hashrefs in connect_info"
+    $self->throw_exception('too many hashrefs in connect_info')
       if @hashes > 2;
 
     my %opts = %{ merge(reverse @hashes) };
