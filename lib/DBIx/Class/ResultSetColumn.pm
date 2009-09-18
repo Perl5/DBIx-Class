@@ -5,6 +5,7 @@ use warnings;
 
 use base 'DBIx::Class';
 
+use Carp::Clan qw/^DBIx::Class/;
 use DBIx::Class::Exception;
 use List::Util;
 
@@ -65,7 +66,7 @@ sub new {
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
 
   # {collapse} would mean a has_many join was injected, which in turn means
-  # we need to group IF WE CAN (only if the column in question is unique)
+  # we need to group *IF WE CAN* (only if the column in question is unique)
   if (!$new_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
 
     # scan for a constraint that would contain our column only - that'd be proof
@@ -80,8 +81,16 @@ sub new {
 
       if ($col eq $select or $fqcol eq $select) {
         $new_attrs->{group_by} = [ $select ];
+        delete $new_attrs->{distinct}; # it is ignored when group_by is present
         last;
       }
+    }
+
+    if (!$new_attrs->{group_by}) {
+      carp (
+          "Attempting to retrieve non-unique column '$column' on a resultset containing "
+        . 'one-to-many joins will return duplicate results.'
+      );
     }
   }
 
