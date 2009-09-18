@@ -6,12 +6,13 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-use DBIx::Class::Storage::DBI::Sybase;
-use DBIx::Class::Storage::DBI::Sybase::NoBindVars;
+
+require DBIx::Class::Storage::DBI::Sybase;
+require DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 55 + 2;
+my $TESTS = 58 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -157,8 +158,7 @@ SQL
 
   is( $it->count, 7, 'COUNT of GROUP_BY ok' );
 
-# do an identity insert (which should happen with no txn when using
-# placeholders.)
+# do an IDENTITY_INSERT
   {
     no warnings 'redefine';
 
@@ -178,7 +178,7 @@ SQL
     $schema->resultset('Artist')
       ->create({ artistid => 999, name => 'mtfnpy' });
 
-    ok((grep /IDENTITY_INSERT/i, @debug_out), 'IDENTITY_INSERT');
+    ok((grep /IDENTITY_INSERT/i, @debug_out), 'IDENTITY_INSERT used');
 
     SKIP: {
       skip 'not testing lack of txn on IDENTITY_INSERT with NoBindVars', 1
@@ -188,40 +188,61 @@ SQL
     }
   }
 
-# test insert_bulk using populate.
-  lives_ok {
-    $schema->resultset('Artist')->populate([
-      {
-        name => 'bulk artist 1',
-        charfield => 'foo',
-      },
-      {
-        name => 'bulk artist 2',
-        charfield => 'foo',
-      },
-      {
-        name => 'bulk artist 3',
-        charfield => 'foo',
-      },
-    ]);
-  } 'insert_bulk via populate';
+# do an IDENTITY_UPDATE
+  {
+    my @debug_out;
+    local $schema->storage->{debug} = 1;
+    local $schema->storage->debugobj->{callback} = sub {
+      push @debug_out, $_[1];
+    };
+
+    lives_and {
+      $schema->resultset('Artist')
+        ->find(999)->update({ artistid => 555 });
+      ok((grep /IDENTITY_UPDATE/i, @debug_out));
+    } 'IDENTITY_UPDATE used';
+    $ping_count-- if $@;
+  }
 
   my $bulk_rs = $schema->resultset('Artist')->search({
     name => { -like => 'bulk artist %' }
   });
 
-  is $bulk_rs->count, 3, 'correct number inserted via insert_bulk';
+# test insert_bulk using populate.
+  SKIP: {
+    skip 'insert_bulk not supported', 4
+      unless $schema->storage->_can_insert_bulk;
 
-  is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
-    'column set correctly via insert_bulk');
+    lives_ok {
+      $schema->resultset('Artist')->populate([
+        {
+          name => 'bulk artist 1',
+          charfield => 'foo',
+        },
+        {
+          name => 'bulk artist 2',
+          charfield => 'foo',
+        },
+        {
+          name => 'bulk artist 3',
+          charfield => 'foo',
+        },
+      ]);
+    } 'insert_bulk via populate';
 
-  my %bulk_ids;
-  @bulk_ids{map $_->artistid, $bulk_rs->all} = ();
+    is $bulk_rs->count, 3, 'correct number inserted via insert_bulk';
 
-  is ((scalar keys %bulk_ids), 3,
-    'identities generated correctly in insert_bulk');
+    is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
+      'column set correctly via insert_bulk');
 
-  $bulk_rs->delete;
+    my %bulk_ids;
+    @bulk_ids{map $_->artistid, $bulk_rs->all} = ();
+
+    is ((scalar keys %bulk_ids), 3,
+      'identities generated correctly in insert_bulk');
+
+    $bulk_rs->delete;
+  }
 
 # make sure insert_bulk works a second time on the same connection
   lives_ok {
@@ -265,33 +286,38 @@ SQL
   'insert_bulk with missing required column throws error';
 
 # now test insert_bulk with IDENTITY_INSERT
-  lives_ok {
-    $schema->resultset('Artist')->populate([
-      {
-        artistid => 2001,
-        name => 'bulk artist 1',
-        charfield => 'foo',
-      },
-      {
-        artistid => 2002,
-        name => 'bulk artist 2',
-        charfield => 'foo',
-      },
-      {
-        artistid => 2003,
-        name => 'bulk artist 3',
-        charfield => 'foo',
-      },
-    ]);
-  } 'insert_bulk with IDENTITY_INSERT via populate';
+  SKIP: {
+    skip 'insert_bulk not supported', 3
+      unless $schema->storage->_can_insert_bulk;
 
-  is $bulk_rs->count, 3,
-    'correct number inserted via insert_bulk with IDENTITY_INSERT';
+    lives_ok {
+      $schema->resultset('Artist')->populate([
+        {
+          artistid => 2001,
+          name => 'bulk artist 1',
+          charfield => 'foo',
+        },
+        {
+          artistid => 2002,
+          name => 'bulk artist 2',
+          charfield => 'foo',
+        },
+        {
+          artistid => 2003,
+          name => 'bulk artist 3',
+          charfield => 'foo',
+        },
+      ]);
+    } 'insert_bulk with IDENTITY_INSERT via populate';
 
-  is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
-    'column set correctly via insert_bulk with IDENTITY_INSERT');
+    is $bulk_rs->count, 3,
+      'correct number inserted via insert_bulk with IDENTITY_INSERT';
 
-  $bulk_rs->delete;
+    is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
+      'column set correctly via insert_bulk with IDENTITY_INSERT');
+
+    $bulk_rs->delete;
+  }
 
 # test correlated subquery
   my $subq = $schema->resultset('Artist')->search({ artistid => { '>' => 3 } })
@@ -304,7 +330,7 @@ SQL
 
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
-    skip 'TEXT/IMAGE support does not work with FreeTDS', 16
+    skip 'TEXT/IMAGE support does not work with FreeTDS', 18
       if $schema->storage->using_freetds;
 
     my $dbh = $schema->storage->_dbh;
@@ -383,6 +409,13 @@ SQL
       ok($rs->find(1)->blob eq $new_str)
     } 'verified updated blob';
 
+    # try a blob update with IDENTITY_UPDATE
+    lives_and {
+      $new_str = $binstr{large} . 'hlagh';
+      $rs->find(1)->update({ id => 999, blob => $new_str });
+      ok($rs->find(999)->blob eq $new_str);
+    } 'verified updated blob with IDENTITY_UPDATE';
+
     ## try multi-row blob update
     # first insert some blobs
     $new_str = $binstr{large} . 'foo';
@@ -417,6 +450,13 @@ SQL
 
     is((grep $_->clob eq $new_str, $rs->all), 2,
       'TEXT column set correctly via insert_bulk');
+
+    # make sure impossible blob update throws
+    throws_ok {
+      $rs->update({ clob => 'foo' });
+      $rs->create({ clob => 'bar' });
+      $rs->search({ clob => 'foo' })->update({ clob => 'bar' });
+    } qr/impossible/, 'impossible blob update throws';
   }
 
 # test MONEY column support
@@ -432,10 +472,7 @@ SQL
   });
 
 # test insert transaction when there's an active cursor
-  SKIP: {
-    skip 'not testing insert with active cursor if using ::NoBindVars', 1
-      if $storage_type =~ /NoBindVars/i;
-
+  {
     my $artist_rs = $schema->resultset('Artist');
     $artist_rs->first;
     lives_ok {

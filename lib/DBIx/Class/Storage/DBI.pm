@@ -1339,8 +1339,12 @@ sub insert_bulk {
   my %colvalues;
   my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
-# XXX some bulk APIs require column list in database order
-  my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
+
+  my ($sql, $bind) = $self->_prep_for_execute (
+    'insert', undef, $source, [\%colvalues]
+  );
+  my @bind = @$bind
+    or croak 'Cannot insert_bulk without support for placeholders';
 
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql, 'insert', $sth_attr);
@@ -1372,6 +1376,7 @@ sub insert_bulk {
     $placeholder_index++;
   }
   my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
+  $sth->finish;
   if (my $err = $@ || $sth->errstr) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
@@ -1394,7 +1399,6 @@ sub insert_bulk {
     );
   }
 
-  $sth->finish;
   $self->_query_end( $sql, @bind );
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
