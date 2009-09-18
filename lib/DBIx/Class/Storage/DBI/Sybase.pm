@@ -195,6 +195,12 @@ sub _is_lob_type {
   $type && $type =~ /(?:text|image|lob|bytea|binary|memo)/i;
 }
 
+sub _is_lob_column {
+  my ($self, $source, $column) = @_;
+
+  return $self->_is_lob_type($source->column_info($column)->{data_type});
+}
+
 sub _prep_for_execute {
   my $self = shift;
   my ($op, $extra_bind, $ident, $args) = @_;
@@ -352,7 +358,7 @@ sub _insert {
 
 sub update {
   my $self = shift;
-  my ($source, $fields, $where) = @_;
+  my ($source, $fields, $where, @rest) = @_;
 
   my $wantarray = wantarray;
 
@@ -372,71 +378,49 @@ sub update {
     $self->_unset_identity_insert($table, 'update') if $is_identity_update;
   }
 
-# check if condition and fields allow for a 2-step update
-  $self->_assert_blob_update_possible($source, $fields, $where);
+# check that we're not updating a blob column that's also in $where
+  for my $blob (grep $self->_is_lob_column($source, $_), $source->columns) {
+    if (exists $where->{$blob} && exists $fields->{$blob}) {
+      croak
+'Update of TEXT/IMAGE column that is also in search condition impossible';
+    }
+  }
 
 # update+blob update(s) done atomically on separate connection
   $self = $self->_writer_storage;
 
   my $guard = $self->txn_scope_guard;
 
-  $self->_set_identity_insert($table, 'update')   if $is_identity_update;
+# First update the blob columns to be updated to '' (taken from $fields, where
+# it is originally put by _remove_blob_cols .)
+  my %blobs_to_empty = map { ($_ => delete $fields->{$_}) } keys %$blob_cols;
+
+  $self->next::method($source, \%blobs_to_empty, $where, @rest);
+
+# Now update the blobs before the other columns in case the update of other
+# columns makes the search condition invalid.
+  $self->_update_blobs($source, $blob_cols, $where);
 
   my @res;
-  if ($wantarray) {
-    @res    = $self->next::method(@_);
-  }
-  elsif (defined $wantarray) {
-    $res[0] = $self->next::method(@_);
-  }
-  else {
-    $self->next::method(@_);
-  }
+  if (%$fields) {
+    $self->_set_identity_insert($table, 'update')   if $is_identity_update;
 
-  $self->_unset_identity_insert($table, 'update') if $is_identity_update;
+    if ($wantarray) {
+      @res    = $self->next::method(@_);
+    }
+    elsif (defined $wantarray) {
+      $res[0] = $self->next::method(@_);
+    }
+    else {
+      $self->next::method(@_);
+    }
 
-  my %new_where = map { $_ => ($fields->{$_} || $where->{$_}) } keys %$where;
-
-  $self->_update_blobs($source, $blob_cols, \%new_where);
+    $self->_unset_identity_insert($table, 'update') if $is_identity_update;
+  }
 
   $guard->commit;
 
   return $wantarray ? @res : $res[0];
-}
-
-sub _assert_blob_update_possible {
-  my ($self, $source, $fields, $where) = @_;
-
-  my $table = $source->name;
-
-# If $where condition is mutually exclusive from $fields (what gets updated)
-# then update is safe.
-  my %count;
-  $count{$_}++ foreach keys %$where, keys %$fields;
-  return 1 unless List::Util::first { $_ == 2 } values %count;
-
-# Otherwise check that what is updated includes either a primary or unique key.
-  my (@primary_cols) = $source->primary_columns;
-  return 1 if (grep exists $fields->{$_}, @primary_cols) == @primary_cols;
-
-  my %unique_constraints = $source->unique_constraints;
-  for my $uniq_constr (values %unique_constraints) {
-    return 1 if (grep exists $fields->{$_}, @$uniq_constr) == @$uniq_constr;
-  }
-
-# otherwise throw exception
-  require Data::Dumper;
-  local $Data::Dumper::Terse = 1;
-  local $Data::Dumper::Indent = 1;
-  local $Data::Dumper::Useqq = 1;
-  local $Data::Dumper::Quotekeys = 0;
-  local $Data::Dumper::Sortkeys = 1;
-
-  croak sprintf
-"2-step TEXT/IMAGE update on table '$table' impossible for condition: \n%s\n".
-"Setting columns: \n%s\n",
-    Data::Dumper::Dumper($where),
-    Data::Dumper::Dumper($fields);
 }
 
 ### the insert_bulk stuff stolen from DBI/MSSQL.pm
@@ -508,6 +492,8 @@ sub insert_bulk {
 
 ### end of stolen insert_bulk section
 
+# Make sure blobs are not bound as placeholders, and return any non-empty ones
+# as a hash.
 sub _remove_blob_cols {
   my ($self, $source, $fields) = @_;
 
@@ -515,8 +501,14 @@ sub _remove_blob_cols {
 
   for my $col (keys %$fields) {
     if ($self->_is_lob_type($source->column_info($col)->{data_type})) {
-      $blob_cols{$col} = delete $fields->{$col};
-      $fields->{$col} = \"''";
+      my $blob_val = delete $fields->{$col};
+      if (not defined $blob_val) {
+        $fields->{$col} = \'NULL';
+      }
+      else {
+        $fields->{$col} = \"''";
+        $blob_cols{$col} = $blob_val unless $blob_val eq '';
+      }
     }
   }
 

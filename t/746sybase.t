@@ -391,9 +391,9 @@ SQL
 
     # make sure impossible blob update throws
     throws_ok {
-      $rs->update({ anint => 5 });
-      $rs->create({ anint => 6 });
-      $rs->search({ anint => 5 })->update({ blob => $new_str, anint => 6 });
+      $rs->update({ clob => 'foo' });
+      $rs->create({ clob => 'bar' });
+      $rs->search({ clob => 'foo' })->update({ clob => 'bar' });
     } qr/impossible/, 'impossible blob update throws';
   }
 
