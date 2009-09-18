@@ -14,6 +14,11 @@ use DBIx::Class::Storage::Statistics;
 use Scalar::Util();
 use List::Util();
 
+# what version of sqlt do we require if deploy() without a ddl_dir is invoked
+# when changing also adjust the corresponding author_require in Makefile.PL
+my $minimum_sqlt_version = '0.11002';
+
+
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
      _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints/
@@ -2616,6 +2621,33 @@ starts at zero and increases with the amount of lag. Default in undef
 
 sub lag_behind_master {
     return;
+}
+
+# SQLT version handling 
+{
+  my $_sqlt_version_ok;     # private 
+  my $_sqlt_version_error;  # private 
+
+  sub _sqlt_version_ok {
+    if (!defined $_sqlt_version_ok) {
+      eval "use SQL::Translator $minimum_sqlt_version";
+      if ($@) {
+        $_sqlt_version_ok = 0;
+        $_sqlt_version_error = $@;
+      }
+      else {
+        $_sqlt_version_ok = 1;
+      }
+    }
+    return $_sqlt_version_ok;
+  }
+
+  sub _sqlt_version_error {
+    shift->_sqlt_version_ok unless defined $_sqlt_version_ok;
+    return $_sqlt_version_error;
+  }
+
+  sub _sqlt_minimum_version { $minimum_sqlt_version };
 }
 
 sub DESTROY {

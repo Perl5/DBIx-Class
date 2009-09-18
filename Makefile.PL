@@ -62,7 +62,7 @@ my %replication_requires = (
 my %force_requires_if_author = (
   %replication_requires,
 
-  # when changing also adjust $DBIx::Class::minimum_sqlt_version
+  # when changing also adjust $DBIx::Class::Storage::DBI::minimum_sqlt_version
   'SQL::Translator'           => '0.11002',
 
 #  'Module::Install::Pod::Inherit' => '0.01',

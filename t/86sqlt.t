@@ -6,10 +6,10 @@ use lib qw(t/lib);
 use DBICTest;
 
 BEGIN {
-  require DBIx::Class;
+  require DBIx::Class::Storage::DBI;
   plan skip_all =>
-      'Test needs SQL::Translator ' . DBIx::Class->_sqlt_minimum_version
-    if not DBIx::Class->_sqlt_version_ok;
+      'Test needs SQL::Translator ' . DBIx::Class::Storage::DBI->_sqlt_minimum_version
+    if not DBIx::Class::Storage::DBI->_sqlt_version_ok;
 }
 
 my $schema = DBICTest->init_schema (no_deploy => 1);
