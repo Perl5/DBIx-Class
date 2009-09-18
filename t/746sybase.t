@@ -245,30 +245,35 @@ SQL
   }
 
 # make sure insert_bulk works a second time on the same connection
-  lives_ok {
-    $schema->resultset('Artist')->populate([
-      {
-        name => 'bulk artist 1',
-        charfield => 'bar',
-      },
-      {
-        name => 'bulk artist 2',
-        charfield => 'bar',
-      },
-      {
-        name => 'bulk artist 3',
-        charfield => 'bar',
-      },
-    ]);
-  } 'insert_bulk via populate called a second time';
+  SKIP: {
+    skip 'insert_bulk not supported', 3
+      unless $schema->storage->_can_insert_bulk;
 
-  is $bulk_rs->count, 3,
-    'correct number inserted via insert_bulk';
+    lives_ok {
+      $schema->resultset('Artist')->populate([
+        {
+          name => 'bulk artist 1',
+          charfield => 'bar',
+        },
+        {
+          name => 'bulk artist 2',
+          charfield => 'bar',
+        },
+        {
+          name => 'bulk artist 3',
+          charfield => 'bar',
+        },
+      ]);
+    } 'insert_bulk via populate called a second time';
 
-  is ((grep $_->charfield eq 'bar', $bulk_rs->all), 3,
-    'column set correctly via insert_bulk');
+    is $bulk_rs->count, 3,
+      'correct number inserted via insert_bulk';
 
-  $bulk_rs->delete;
+    is ((grep $_->charfield eq 'bar', $bulk_rs->all), 3,
+      'column set correctly via insert_bulk');
+
+    $bulk_rs->delete;
+  }
 
 # test invalid insert_bulk (missing required column)
 #
@@ -280,9 +285,10 @@ SQL
         charfield => 'foo',
       }
     ]);
-  } qr/no value or default|does not allow null/i,
+  } qr/no value or default|does not allow null|placeholders/i,
 # The second pattern is the error from fallback to regular array insert on
 # incompatible charset.
+# The third is for ::NoBindVars with no syb_has_blk.
   'insert_bulk with missing required column throws error';
 
 # now test insert_bulk with IDENTITY_INSERT
@@ -342,7 +348,7 @@ SQL
         CREATE TABLE bindtype_test 
         (
           id    INT   IDENTITY PRIMARY KEY,
-          bytea INT   NULL,
+          bytea IMAGE NULL,
           blob  IMAGE NULL,
           clob  TEXT  NULL
         )

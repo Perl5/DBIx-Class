@@ -520,8 +520,13 @@ sub insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
+  my $identity_col = List::Util::first
+    { $source->column_info($_)->{is_auto_increment} }
+    $source->columns;
+
   my $is_identity_insert = (List::Util::first
-    { $source->column_info ($_)->{is_auto_increment} } @{$cols}
+    { $source->column_info ($_)->{is_auto_increment} }
+    @{$cols}
   ) ? 1 : 0;
 
   my @source_columns = $source->columns;
@@ -541,16 +546,52 @@ EOF
   }
 
   if (not $use_bulk_api) {
-    if ($is_identity_insert) {
-       $self->_set_identity_insert ($source->name);
-    }
+    my $blob_cols = $self->_remove_blob_cols_array($source, $cols, $data);
 
+    my $dumb_last_insert_id =
+         $identity_col
+      && (not $is_identity_insert)
+      && ($self->_identity_method||'') ne '@@IDENTITY';
+
+    ($self, my ($guard)) = do {
+      if ($self->{transaction_depth} == 0 &&
+          ($blob_cols || $dumb_last_insert_id)) {
+        ($self->_writer_storage, $self->_writer_storage->txn_scope_guard);
+      }
+      else {
+        ($self, undef);
+      }
+    };
+
+    $self->_set_identity_insert ($source->name)   if $is_identity_insert;
     $self->next::method(@_);
+    $self->_unset_identity_insert ($source->name) if $is_identity_insert;
 
-    if ($is_identity_insert) {
-       $self->_unset_identity_insert ($source->name);
+    if ($blob_cols) {
+      if ($is_identity_insert) {
+        $self->_insert_blobs_array ($source, $blob_cols, $cols, $data);
+      }
+      else {
+        my @cols_with_identities = (@$cols, $identity_col);
+
+        ## calculate identities
+        # XXX This assumes identities always increase by 1, which may or may not
+        # be true.
+        my ($last_identity) =
+          $self->_dbh->selectrow_array (
+            $self->_fetch_identity_sql($source, $identity_col)
+          );
+        my @identities = (($last_identity - @$data + 1) .. $last_identity);
+
+        my @data_with_identities = map [@$_, shift @identities], @$data;
+
+        $self->_insert_blobs_array (
+          $source, $blob_cols, \@cols_with_identities, \@data_with_identities
+        );
+      }
     }
 
+    $guard->commit if $guard;
     return;
   }
 
@@ -574,9 +615,6 @@ EOF
     }
     push @new_data, $new_datum;
   }
-
-  my $identity_col = List::Util::first
-    { $source->column_info($_)->{is_auto_increment} } @source_columns;
 
 # bcp identity index is 1-based
   my $identity_idx = exists $new_idx{$identity_col} ?
@@ -727,6 +765,33 @@ sub _remove_blob_cols {
   return keys %blob_cols ? \%blob_cols : undef;
 }
 
+# same for insert_bulk
+sub _remove_blob_cols_array {
+  my ($self, $source, $cols, $data) = @_;
+
+  my @blob_cols;
+
+  for my $i (0..$#$cols) {
+    my $col = $cols->[$i];
+
+    if ($self->_is_lob_type($source->column_info($col)->{data_type})) {
+      for my $j (0..$#$data) {
+        my $blob_val = delete $data->[$j][$i];
+        if (not defined $blob_val) {
+          $data->[$j][$i] = \'NULL';
+        }
+        else {
+          $data->[$j][$i] = \"''";
+          $blob_cols[$j][$i] = $blob_val
+            unless $blob_val eq '';
+        }
+      }
+    }
+  }
+
+  return @blob_cols ? \@blob_cols : undef;
+}
+
 sub _update_blobs {
   my ($self, $source, $blob_cols, $where) = @_;
 
@@ -826,6 +891,26 @@ sub _insert_blobs {
         croak $exception;
       }
     }
+  }
+}
+
+sub _insert_blobs_array {
+  my ($self, $source, $blob_cols, $cols, $data) = @_;
+
+  for my $i (0..$#$data) {
+    my $datum = $data->[$i];
+
+    my %row;
+    @row{ @$cols } = @$datum;
+
+    my %blob_vals;
+    for my $j (0..$#$cols) {
+      if (exists $blob_cols->[$i][$j]) {
+        $blob_vals{ $cols->[$j] } = $blob_cols->[$i][$j];
+      }
+    }
+
+    $self->_insert_blobs ($source, \%blob_vals, \%row);
   }
 }
 

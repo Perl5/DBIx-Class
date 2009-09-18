@@ -1337,17 +1337,51 @@ sub insert_bulk {
   }
 
   my %colvalues;
-  my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
+
+  # bind literal sql if it's the same in all slices
+  for my $i (0..$#$cols) {
+    my $first_val = $data->[0][$i];
+    next unless (Scalar::Util::reftype($first_val)||'') eq 'SCALAR';
+
+    $colvalues{ $cols->[$i] } = $first_val
+      if (grep {
+        (Scalar::Util::reftype($_)||'') eq 'SCALAR' &&
+        $$_ eq $$first_val
+      } map $data->[$_][$i], (1..$#$data)) == (@$data - 1);
+  }
 
   my ($sql, $bind) = $self->_prep_for_execute (
     'insert', undef, $source, [\%colvalues]
   );
-  my @bind = @$bind
-    or croak 'Cannot insert_bulk without support for placeholders';
+  my @bind = @$bind;
+
+  my $empty_bind = 1 if (not @bind) &&
+    (grep { (Scalar::Util::reftype($_)||'') eq 'SCALAR' } values %colvalues)
+    == @$cols;
+
+  if ((not @bind) && (not $empty_bind)) {
+    croak 'Cannot insert_bulk without support for placeholders';
+  }
 
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql, 'insert', $sth_attr);
+
+  if ($empty_bind) {
+    # bind_param_array doesn't work if there are no binds
+    eval {
+      local $self->_get_dbh->{RaiseError} = 1;
+      local $self->_get_dbh->{PrintError} = 0;
+      foreach (0..$#$data) {
+        $sth->execute;
+        $sth->fetchall_arrayref;
+      }
+    };
+    my $exception = $@;
+    $sth->finish;
+    $self->throw_exception($exception) if $exception;
+    return;
+  }
 
 #  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
 
@@ -1375,6 +1409,7 @@ sub insert_bulk {
     $sth->bind_param_array( $placeholder_index, [@data], $attributes );
     $placeholder_index++;
   }
+
   my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
   $sth->finish;
   if (my $err = $@ || $sth->errstr) {
