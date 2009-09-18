@@ -1594,7 +1594,7 @@ See L<DBIx::Class::Schema/"throw_exception">.
 sub throw_exception {
   my $self = shift;
 
-  if (defined $self->schema);
+  if (defined $self->schema) {
     $self->schema->throw_exception(@_);
   }
   else {
