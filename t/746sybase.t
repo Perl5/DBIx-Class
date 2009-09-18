@@ -204,71 +204,80 @@ SQL
     $ping_count-- if $@;
   }
 
-
-# test insert_bulk using populate, this should always pass whether or not it
-# does anything Sybase specific or not. Just here to aid debugging.
-  lives_ok {
-    $schema->resultset('Artist')->populate([
-      {
-        name => 'bulk artist 1',
-        charfield => 'foo',
-      },
-      {
-        name => 'bulk artist 2',
-        charfield => 'foo',
-      },
-      {
-        name => 'bulk artist 3',
-        charfield => 'foo',
-      },
-    ]);
-  } 'insert_bulk via populate';
-
   my $bulk_rs = $schema->resultset('Artist')->search({
     name => { -like => 'bulk artist %' }
   });
 
-  is $bulk_rs->count, 3, 'correct number inserted via insert_bulk';
+# test insert_bulk using populate, this should always pass whether or not it
+# does anything Sybase specific or not. Just here to aid debugging.
+  SKIP: {
+    skip 'insert_bulk not supported', 4
+      unless $schema->storage->_can_insert_bulk;
 
-  is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
-    'column set correctly via insert_bulk');
+    lives_ok {
+      $schema->resultset('Artist')->populate([
+        {
+          name => 'bulk artist 1',
+          charfield => 'foo',
+        },
+        {
+          name => 'bulk artist 2',
+          charfield => 'foo',
+        },
+        {
+          name => 'bulk artist 3',
+          charfield => 'foo',
+        },
+      ]);
+    } 'insert_bulk via populate';
 
-  my %bulk_ids;
-  @bulk_ids{map $_->artistid, $bulk_rs->all} = ();
+    is $bulk_rs->count, 3, 'correct number inserted via insert_bulk';
 
-  is ((scalar keys %bulk_ids), 3,
-    'identities generated correctly in insert_bulk');
+    is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
+      'column set correctly via insert_bulk');
 
-  $bulk_rs->delete;
+    my %bulk_ids;
+    @bulk_ids{map $_->artistid, $bulk_rs->all} = ();
+
+    is ((scalar keys %bulk_ids), 3,
+      'identities generated correctly in insert_bulk');
+
+    $bulk_rs->delete;
+  }
 
 # now test insert_bulk with IDENTITY_INSERT
-  lives_ok {
-    $schema->resultset('Artist')->populate([
-      {
-        artistid => 2001,
-        name => 'bulk artist 1',
-        charfield => 'foo',
-      },
-      {
-        artistid => 2002,
-        name => 'bulk artist 2',
-        charfield => 'foo',
-      },
-      {
-        artistid => 2003,
-        name => 'bulk artist 3',
-        charfield => 'foo',
-      },
-    ]);
-  } 'insert_bulk with IDENTITY_INSERT via populate';
+  SKIP: {
+    skip 'insert_bulk not supported', 3
+      unless $schema->storage->_can_insert_bulk;
 
-  is $bulk_rs->count, 3,
-    'correct number inserted via insert_bulk with IDENTITY_INSERT';
+    lives_ok {
+      $schema->resultset('Artist')->populate([
+        {
+          artistid => 2001,
+          name => 'bulk artist 1',
+          charfield => 'foo',
+        },
+        {
+          artistid => 2002,
+          name => 'bulk artist 2',
+          charfield => 'foo',
+        },
+        {
+          artistid => 2003,
+          name => 'bulk artist 3',
+          charfield => 'foo',
+        },
+      ]);
+    } 'insert_bulk with IDENTITY_INSERT via populate';
 
-  is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
-    'column set correctly via insert_bulk with IDENTITY_INSERT');
+    is $bulk_rs->count, 3,
+      'correct number inserted via insert_bulk with IDENTITY_INSERT';
 
-  $bulk_rs->delete;
+    is ((grep $_->charfield eq 'foo', $bulk_rs->all), 3,
+      'column set correctly via insert_bulk with IDENTITY_INSERT');
+
+    $bulk_rs->delete;
+  }
 
 # test correlated subquery
   my $subq = $schema->resultset('Artist')->search({ artistid => { '>' => 3 } })
@@ -281,7 +290,7 @@ SQL
 
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
-    skip 'TEXT/IMAGE support does not work with FreeTDS', 16
+    skip 'TEXT/IMAGE support does not work with FreeTDS', 15
       if $schema->storage->using_freetds;
 
     my $dbh = $schema->storage->_dbh;
@@ -401,10 +410,7 @@ SQL
   });
 
 # test insert transaction when there's an active cursor
-  SKIP: {
-    skip 'not testing insert with active cursor if using ::NoBindVars', 1
-      if $storage_type =~ /NoBindVars/i;
-
+  {
     my $artist_rs = $schema->resultset('Artist');
     $artist_rs->first;
     lives_ok {

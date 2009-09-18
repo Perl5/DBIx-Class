@@ -18,6 +18,9 @@ __PACKAGE__->mk_group_accessors('simple' =>
 );
 
 my @also_proxy_to_writer_storage = qw/
+  connect_call_set_auto_cast auto_cast connect_call_blob_setup
+  connect_call_datetime_setup
+
   disconnect _connect_info _sql_maker _sql_maker_opts disable_sth_caching
   auto_savepoint unsafe cursor_class debug debugobj schema
 /;
@@ -124,12 +127,14 @@ sub _init {
 
   $writer_storage->_is_writer_storage(1);
   $writer_storage->connect_info($self->connect_info);
+  $writer_storage->auto_cast($self->auto_cast);
 
   $self->_writer_storage($writer_storage);
 }
 
 for my $method (@also_proxy_to_writer_storage) {
   no strict 'refs';
+  no warnings 'redefine';
 
   my $replaced = __PACKAGE__->can($method);
 
@@ -466,6 +471,9 @@ sub _unset_identity_insert {
 
   $self->_query_end($sql);
 }
+
+# for tests
+sub _can_insert_bulk { 1 }
 
 # XXX this should use the DBD::Sybase bulk API, where possible
 sub insert_bulk {
