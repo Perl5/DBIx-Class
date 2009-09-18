@@ -5,14 +5,6 @@ no warnings 'uninitialized';
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
-
-BEGIN {
-  require DBICTest::Schema::BindType;
-  DBICTest::Schema::BindType->add_column(
-    anint => { data_type => 'integer' }
-  );
-}
-
 use DBICTest;
 
 require DBIx::Class::Storage::DBI::Sybase;
@@ -303,8 +295,7 @@ SQL
           id    INT   IDENTITY PRIMARY KEY,
           bytea INT   NULL,
           blob  IMAGE NULL,
-          clob  TEXT  NULL,
-          anint INT   NULL
+          clob  TEXT  NULL
         )
       ],{ RaiseError => 1, PrintError => 0 });
     }
