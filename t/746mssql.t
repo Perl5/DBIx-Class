@@ -143,14 +143,11 @@ $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
     eval { $dbh->do("DROP TABLE money_test") };
     $dbh->do(<<'SQL');
-
 CREATE TABLE money_test (
    id INT IDENTITY PRIMARY KEY,
    amount MONEY NULL
 )
-
 SQL
-
 });
 
 my $rs = $schema->resultset('Money');
