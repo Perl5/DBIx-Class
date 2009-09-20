@@ -1993,18 +1993,6 @@ sub _subq_count_select {
   return @pcols ? \@pcols : [ 1 ];
 }
 
-#
-# Returns an ordered list of column names before they are used
-# in a SELECT statement. By default simply returns the list
-# passed in.
-#
-# This may be overridden in a specific storage when there are
-# requirements such as moving BLOB columns to the end of the 
-# SELECT list.
-sub _order_select_columns {
-  #my ($self, $source, $columns) = @_;
-  return @{$_[2]};
-}
 
 sub source_bind_attributes {
   my ($self, $source) = @_;
