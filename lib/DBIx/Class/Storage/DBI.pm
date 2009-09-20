@@ -1346,7 +1346,12 @@ sub insert_bulk {
   my %colvalues;
   my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
-  my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
+
+  my ($sql, $bind) = $self->_prep_for_execute (
+    'insert', undef, $source, [\%colvalues]
+  );
+  my @bind = @$bind
+    or croak 'Cannot insert_bulk without support for placeholders';
 
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql);
@@ -1378,6 +1383,7 @@ sub insert_bulk {
     $placeholder_index++;
   }
   my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
+  $sth->finish;
   if (my $err = $@) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
@@ -1385,18 +1391,11 @@ sub insert_bulk {
     $self->throw_exception($sth->errstr || "Unexpected populate error: $err")
       if ($i > $#$tuple_status);
 
-    require Data::Dumper;
-    local $Data::Dumper::Terse = 1;
-    local $Data::Dumper::Indent = 1;
-    local $Data::Dumper::Useqq = 1;
-    local $Data::Dumper::Quotekeys = 0;
-    local $Data::Dumper::Sortkeys = 1;
-
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
       $tuple_status->[$i][1],
-      Data::Dumper::Dumper(
-        { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) }
-      ),
+      $self->_pretty_print ({
+        map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols)
+      }),
     );
   }
   $self->throw_exception($sth->errstr) if !$rv;

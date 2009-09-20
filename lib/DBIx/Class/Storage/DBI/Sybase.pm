@@ -18,6 +18,9 @@ __PACKAGE__->mk_group_accessors('simple' =>
 );
 
 my @also_proxy_to_writer_storage = qw/
+  connect_call_set_auto_cast auto_cast connect_call_blob_setup
+  connect_call_datetime_setup
+
   disconnect _connect_info _sql_maker _sql_maker_opts disable_sth_caching
   auto_savepoint unsafe cursor_class debug debugobj schema
 /;
@@ -124,12 +127,14 @@ sub _init {
 
   $writer_storage->_is_writer_storage(1);
   $writer_storage->connect_info($self->connect_info);
+  $writer_storage->auto_cast($self->auto_cast);
 
   $self->_writer_storage($writer_storage);
 }
 
 for my $method (@also_proxy_to_writer_storage) {
   no strict 'refs';
+  no warnings 'redefine';
 
   my $replaced = __PACKAGE__->can($method);
 
@@ -193,6 +198,12 @@ sub _is_lob_type {
   my $self = shift;
   my $type = shift;
   $type && $type =~ /(?:text|image|lob|bytea|binary|memo)/i;
+}
+
+sub _is_lob_column {
+  my ($self, $source, $column) = @_;
+
+  return $self->_is_lob_type($source->column_info($column)->{data_type});
 }
 
 sub _prep_for_execute {
@@ -352,13 +363,32 @@ sub _insert {
 
 sub update {
   my $self = shift;
-  my ($source, $fields, $where) = @_;
+  my ($source, $fields, $where, @rest) = @_;
 
   my $wantarray = wantarray;
+
   my $blob_cols = $self->_remove_blob_cols($source, $fields);
 
+  my $table = $source->name;
+
+  my $identity_col = List::Util::first
+    { $source->column_info($_)->{is_auto_increment} }
+    $source->columns;
+
+  my $is_identity_update = $identity_col && defined $fields->{$identity_col};
+
   if (not $blob_cols) {
+    $self->_set_identity_insert($table, 'update')   if $is_identity_update;
     return $self->next::method(@_);
+    $self->_unset_identity_insert($table, 'update') if $is_identity_update;
+  }
+
+# check that we're not updating a blob column that's also in $where
+  for my $blob (grep $self->_is_lob_column($source, $_), $source->columns) {
+    if (exists $where->{$blob} && exists $fields->{$blob}) {
+      croak
+'Update of TEXT/IMAGE column that is also in search condition impossible';
+    }
   }
 
 # update+blob update(s) done atomically on separate connection
@@ -366,18 +396,32 @@ sub update {
 
   my $guard = $self->txn_scope_guard;
 
-  my @res;
-  if ($wantarray) {
-    @res    = $self->next::method(@_);
-  }
-  elsif (defined $wantarray) {
-    $res[0] = $self->next::method(@_);
-  }
-  else {
-    $self->next::method(@_);
-  }
+# First update the blob columns to be updated to '' (taken from $fields, where
+# it is originally put by _remove_blob_cols .)
+  my %blobs_to_empty = map { ($_ => delete $fields->{$_}) } keys %$blob_cols;
 
+  $self->next::method($source, \%blobs_to_empty, $where, @rest);
+
+# Now update the blobs before the other columns in case the update of other
+# columns makes the search condition invalid.
   $self->_update_blobs($source, $blob_cols, $where);
+
+  my @res;
+  if (%$fields) {
+    $self->_set_identity_insert($table, 'update')   if $is_identity_update;
+
+    if ($wantarray) {
+      @res    = $self->next::method(@_);
+    }
+    elsif (defined $wantarray) {
+      $res[0] = $self->next::method(@_);
+    }
+    else {
+      $self->next::method(@_);
+    }
+
+    $self->_unset_identity_insert($table, 'update') if $is_identity_update;
+  }
 
   $guard->commit;
 
@@ -387,16 +431,23 @@ sub update {
 ### the insert_bulk stuff stolen from DBI/MSSQL.pm
 
 sub _set_identity_insert {
-  my ($self, $table) = @_;
+  my ($self, $table, $op) = @_;
 
   my $sql = sprintf (
-    'SET IDENTITY_INSERT %s ON',
+    'SET IDENTITY_%s %s ON',
+    (uc($op) || 'INSERT'),
     $self->sql_maker->_quote ($table),
   );
 
+  $self->_query_start($sql);
+
   my $dbh = $self->_get_dbh;
   eval { $dbh->do ($sql) };
-  if ($@) {
+  my $exception = $@;
+
+  $self->_query_end($sql);
+
+  if ($exception) {
     $self->throw_exception (sprintf "Error executing '%s': %s",
       $sql,
       $dbh->errstr,
@@ -405,16 +456,24 @@ sub _set_identity_insert {
 }
 
 sub _unset_identity_insert {
-  my ($self, $table) = @_;
+  my ($self, $table, $op) = @_;
 
   my $sql = sprintf (
-    'SET IDENTITY_INSERT %s OFF',
+    'SET IDENTITY_%s %s OFF',
+    (uc($op) || 'INSERT'),
     $self->sql_maker->_quote ($table),
   );
 
+  $self->_query_start($sql);
+
   my $dbh = $self->_get_dbh;
   $dbh->do ($sql);
+
+  $self->_query_end($sql);
 }
+
+# for tests
+sub _can_insert_bulk { 1 }
 
 # XXX this should use the DBD::Sybase bulk API, where possible
 sub insert_bulk {
@@ -441,6 +500,8 @@ sub insert_bulk {
 
 ### end of stolen insert_bulk section
 
+# Make sure blobs are not bound as placeholders, and return any non-empty ones
+# as a hash.
 sub _remove_blob_cols {
   my ($self, $source, $fields) = @_;
 
@@ -448,8 +509,14 @@ sub _remove_blob_cols {
 
   for my $col (keys %$fields) {
     if ($self->_is_lob_type($source->column_info($col)->{data_type})) {
-      $blob_cols{$col} = delete $fields->{$col};
-      $fields->{$col} = \"''";
+      my $blob_val = delete $fields->{$col};
+      if (not defined $blob_val) {
+        $fields->{$col} = \'NULL';
+      }
+      else {
+        $fields->{$col} = \"''";
+        $blob_cols{$col} = $blob_val unless $blob_val eq '';
+      }
     }
   }
 
@@ -491,7 +558,7 @@ sub _insert_blobs {
   my ($self, $source, $blob_cols, $row) = @_;
   my $dbh = $self->_get_dbh;
 
-  my $table = $source->from;
+  my $table = $source->name;
 
   my %row = %$row;
   my (@primary_cols) = $source->primary_columns;
@@ -510,6 +577,14 @@ sub _insert_blobs {
     my $cursor = $self->select ($source, [$col], \%where, {});
     $cursor->next;
     my $sth = $cursor->sth;
+
+    if (not $sth) {
+
+      $self->throw_exception(
+          "Could not find row in table '$table' for blob update:\n"
+        . $self->_pretty_print (\%where)
+      );
+    }
 
     eval {
       do {

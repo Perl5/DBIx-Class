@@ -59,6 +59,9 @@ sub _prep_interpolated_value {
   return $value;
 }
 
+# for tests
+sub _can_insert_bulk { 0 }
+
 1;
 
 =head1 NAME
