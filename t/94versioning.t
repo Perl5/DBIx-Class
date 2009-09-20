@@ -16,10 +16,10 @@ BEGIN {
   plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
     unless ($dsn);
 
-  require DBIx::Class;
+  require DBIx::Class::Storage::DBI;
   plan skip_all =>
-      'Test needs SQL::Translator ' . DBIx::Class->_sqlt_minimum_version
-    if not DBIx::Class->_sqlt_version_ok;
+      'Test needs SQL::Translator ' . DBIx::Class::Storage::DBI->_sqlt_minimum_version
+    if not DBIx::Class::Storage::DBI->_sqlt_version_ok;
 }
 
 my $version_table_name = 'dbix_class_schema_versions';

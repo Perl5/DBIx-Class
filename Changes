@@ -12,8 +12,12 @@ Revision history for DBIx::Class
         - Make sure to turn off IDENTITY_INSERT after insert() on MSSQL
           tables that needed it
         - More informative exception on failing _resolve_relationship
+        - Allow undef/NULL as the sole grouping value in Ordered
         - Fix unreported rollback exceptions in TxnScopeGuard
         - Fix overly-eager left-join chain enforcing code
+        - Warn about using distinct with an existing group_by
+        - Warn about attempting to $rs->get_column a non-unique column
+          when has_many joins are added to resultset
 
 0.08111 2009-09-06 21:58:00 (UTC)
         - The hashref to connection_info now accepts a 'dbh_maker'
@@ -56,7 +60,7 @@ Revision history for DBIx::Class
         - Support for MSSQL 'money' type
         - Support for 'smalldatetime' type used in MSSQL and Sybase for
           InflateColumn::DateTime
-        - support for Postgres 'timestamp without timezone' type in
+        - Support for Postgres 'timestamp without timezone' type in
           InflateColumn::DateTime (RT#48389)
         - Added new MySQL specific on_connect_call macro 'set_strict_mode'
           (also known as make_mysql_not_suck_as_much)

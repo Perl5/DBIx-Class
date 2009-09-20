@@ -61,7 +61,7 @@ sub _prep_for_execute {
 }
 
 
-=head1 AUTHORS
+=head1 AUTHOR
 
 See L<DBIx::Class/CONTRIBUTORS>
 

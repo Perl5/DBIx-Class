@@ -54,14 +54,18 @@ my %replication_requires = (
   'Hash::Merge',              => '0.11',
 );
 
-# when changing also adjust $DBIx::Class::minimum_sqlt_version
-my $sqlt_recommends = '0.11002';
-
+#************************************************************************#
+# Make *ABSOLUTELY SURE* that nothing on this list is a real require,    #
+# since every module listed in %force_requires_if_author is deleted      #
+# from the final META.yml (thus will never make it as a CPAN dependency) #
+#************************************************************************#
 my %force_requires_if_author = (
   %replication_requires,
 
+  # when changing also adjust $DBIx::Class::Storage::DBI::minimum_sqlt_version
+  'SQL::Translator'           => '0.11002',
+
 #  'Module::Install::Pod::Inherit' => '0.01',
-  'SQL::Translator'           => $sqlt_recommends,
 
   # when changing also adjust version in t/02pod.t
   'Test::Pod'                 => '1.26',
@@ -111,6 +115,11 @@ my %force_requires_if_author = (
     ) : ()
   ,
 );
+#************************************************************************#
+# Make *ABSOLUTELY SURE* that nothing on the list aboveis a real require,#
+# since every module listed in %force_requires_if_author is deleted      #
+# from the final META.yml (thus will never make it as a CPAN dependency) #
+#************************************************************************#
 
 
 install_script (qw|

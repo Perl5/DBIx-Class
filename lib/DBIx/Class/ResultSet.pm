@@ -7,6 +7,7 @@ use overload
         'bool'   => "_bool",
         fallback => 1;
 use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Exception;
 use Data::Page;
 use Storable;
 use DBIx::Class::ResultSetColumn;
@@ -2789,24 +2790,35 @@ sub _resolved_attrs {
 
   # build columns (as long as select isn't set) into a set of as/select hashes
   unless ( $attrs->{select} ) {
-      @colbits = map {
-          ( ref($_) eq 'HASH' )
-              ? $_
-              : {
-                  (
-                    /^\Q${alias}.\E(.+)$/
-                      ? "$1"
-                      : "$_"
-                  )
-                =>
-                  (
-                    /\./
-                      ? "$_"
-                      : "${alias}.$_"
-                  )
-            }
-      } ( ref($attrs->{columns}) eq 'ARRAY' ) ? @{ delete $attrs->{columns}} : (delete $attrs->{columns} || $source->columns );
+
+    my @cols = ( ref($attrs->{columns}) eq 'ARRAY' )
+      ? @{ delete $attrs->{columns}}
+      : (
+          ( delete $attrs->{columns} )
+            ||
+          $source->columns
+        )
+    ;
+
+    @colbits = map {
+      ( ref($_) eq 'HASH' )
+      ? $_
+      : {
+          (
+            /^\Q${alias}.\E(.+)$/
+              ? "$1"
+              : "$_"
+          )
+            =>
+          (
+            /\./
+              ? "$_"
+              : "${alias}.$_"
+          )
+        }
+    } @cols;
   }
+
   # add the additional columns on
   foreach ( 'include_columns', '+columns' ) {
       push @colbits, map {
@@ -3103,12 +3115,13 @@ See L<DBIx::Class::Schema/throw_exception> for details.
 
 sub throw_exception {
   my $self=shift;
+
   if (ref $self && $self->_source_handle->schema) {
     $self->_source_handle->schema->throw_exception(@_)
-  } else {
-    croak(@_);
   }
-
+  else {
+    DBIx::Class::Exception->throw(@_);
+  }
 }
 
 # XXX: FIXME: Attributes docs need clearing up
