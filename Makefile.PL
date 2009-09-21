@@ -116,7 +116,7 @@ my %force_requires_if_author = (
   ,
 );
 #************************************************************************#
-# Make *ABSOLUTELY SURE* that nothing on the list aboveis a real require,#
+# Make ABSOLUTELY SURE that nothing on the list above is a real require, #
 # since every module listed in %force_requires_if_author is deleted      #
 # from the final META.yml (thus will never make it as a CPAN dependency) #
 #************************************************************************#
