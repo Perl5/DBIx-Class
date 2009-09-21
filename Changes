@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - Sybase bulk API support for populate()
+
         - Complete Sybase RDBMS support including:
           - Support for TEXT/IMAGE columns
           - Support for the 'money' datatype
