@@ -18,6 +18,8 @@ Revision history for DBIx::Class
         - Warn about using distinct with an existing group_by
         - Warn about attempting to $rs->get_column a non-unique column
           when has_many joins are added to resultset
+        - Refactor of the exception handlink system (now everything is a
+          DBIx::Class::Exception object)
 
 0.08111 2009-09-06 21:58:00 (UTC)
         - The hashref to connection_info now accepts a 'dbh_maker'

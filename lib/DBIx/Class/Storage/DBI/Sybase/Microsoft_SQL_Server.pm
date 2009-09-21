@@ -28,7 +28,6 @@ sub _rebless {
   $dbh->do("set textsize $text_size");
 }
 
-
 1;
 
 =head1 NAME
