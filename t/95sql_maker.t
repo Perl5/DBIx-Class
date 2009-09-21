@@ -7,11 +7,9 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 
-plan tests => 4;
-
 use_ok('DBICTest');
 
-my $schema = DBICTest->init_schema();
+my $schema = DBICTest->init_schema(no_deploy => 1);
 
 my $sql_maker = $schema->storage->sql_maker;
 
@@ -49,9 +47,33 @@ my $sql_maker = $schema->storage->sql_maker;
   );
 }
 
+# make sure the cookbook caveat of { $op, \'...' } no longer applies
+{
+  my ($sql, @bind) = $sql_maker->where({
+    last_attempt => \ '< now() - interval "12 hours"',
+    next_attempt => { '<', \ 'now() - interval "12 hours"' },
+    created => [
+      { '<=', \ '1969' },
+      \ '> 1984',
+    ],
+  });
+  is_same_sql_bind(
+    $sql,
+    \@bind,
+    'WHERE
+          (created <= 1969 OR created > 1984 )
+      AND last_attempt < now() - interval "12 hours"
+      AND next_attempt < now() - interval "12 hours"
+    ',
+    [],
+  );
+}
+
 # Make sure the carp/croak override in SQLA works (via SQLAHacks)
 my $file = __FILE__;
 $file = "\Q$file\E";
 throws_ok (sub {
   $schema->resultset ('Artist')->search ({}, { order_by => { -asc => 'stuff', -desc => 'staff' } } )->as_query;
 }, qr/$file/, 'Exception correctly croak()ed');
+
+done_testing;

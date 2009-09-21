@@ -3,8 +3,6 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Data::Dumper;
-
 use Test::More;
 
 plan ( tests => 5 );

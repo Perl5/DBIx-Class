@@ -16,7 +16,7 @@ if ($@) {
     plan skip_all => 'Install Text::CSV_XS or Text::CSV_PP to run this test' if ($@);
 }
 
-my @json_backends = qw/XS JSON DWIW Syck/;
+my @json_backends = qw/XS JSON DWIW/;
 my $tests_per_run = 5;
 
 plan tests => $tests_per_run * @json_backends;

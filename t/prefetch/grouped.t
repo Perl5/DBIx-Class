@@ -271,4 +271,62 @@ for ($cd_rs->all) {
   );
 }
 
+{
+    my $cd_rs = $schema->resultset('CD')->search({}, {
+            distinct => 1,
+            join     => [qw/ tracks /],
+            prefetch => [qw/ artist /],
+        });
+    is($cd_rs->count, 5, 'complex prefetch + non-prefetching has_many join count correct');
+    is($cd_rs->all, 5, 'complex prefetch + non-prefetching has_many join number of objects correct');
+
+    # make sure join tracks was thrown out
+    is_same_sql_bind (
+      $cd_rs->as_query,
+      '(
+        SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+               artist.artistid, artist.name, artist.rank, artist.charfield
+          FROM (
+            SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+              FROM cd me
+              JOIN artist artist ON artist.artistid = me.artist
+            GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          ) me
+          JOIN artist artist ON artist.artistid = me.artist
+      )',
+      [],
+    );
+
+
+
+    # try the same as above, but add a condition so the tracks join can not be thrown away
+    my $cd_rs2 = $cd_rs->search ({ 'tracks.title' => { '!=' => 'ugabuganoexist' } });
+    is($cd_rs2->count, 5, 'complex prefetch + non-prefetching restricted has_many join count correct');
+    is($cd_rs2->all, 5, 'complex prefetch + non-prefetching restricted has_many join number of objects correct');
+
+    # the outer group_by seems like a necessary evil, if someone can figure out how to take it away
+    # without breaking compat - be my guest
+    is_same_sql_bind (
+      $cd_rs2->as_query,
+      '(
+        SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+               artist.artistid, artist.name, artist.rank, artist.charfield
+          FROM (
+            SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+              FROM cd me
+              LEFT JOIN track tracks ON tracks.cd = me.cdid
+              JOIN artist artist ON artist.artistid = me.artist
+            WHERE ( tracks.title != ? )
+            GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          ) me
+          LEFT JOIN track tracks ON tracks.cd = me.cdid
+          JOIN artist artist ON artist.artistid = me.artist
+        WHERE ( tracks.title != ? )
+        GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+                 artist.artistid, artist.name, artist.rank, artist.charfield
+      )',
+      [ map { [ 'tracks.title' => 'ugabuganoexist' ] } (1 .. 2) ],
+    );
+}
+
 done_testing;

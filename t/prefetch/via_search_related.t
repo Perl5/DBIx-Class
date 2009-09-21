@@ -57,34 +57,46 @@ lives_ok (sub {
 
 
 # test where conditions at the root of the related chain
-    my $artist_rs = $schema->resultset("Artist")->search({artistid => 11});
-
+    my $artist_rs = $schema->resultset("Artist")->search({artistid => 2});
+    my $artist = $artist_rs->next;
+    $artist->create_related ('cds', $_) for (
+      {
+        year => 1999, title => 'vague cd', genre => { name => 'vague genre' }
+      },
+      {
+        year => 1999, title => 'vague cd2', genre => { name => 'vague genre' }
+      },
+    );
 
     $rs = $artist_rs->search_related('cds')->search_related('genre',
-                    { 'genre.name' => 'foo' },
+                    { 'genre.name' => 'vague genre' },
                     { prefetch => 'cds' },
                  );
-    is($rs->all, 0, 'prefetch without distinct (objects)');
-    is($rs->count, 0, 'prefetch without distinct (count)');
-
+    is($rs->all, 1, 'base without distinct (objects)');
+    is($rs->count, 1, 'base without distinct (count)');
+    # artist -> 2 cds -> 2 genres -> 2 cds for each genre = 4
+    is($rs->search_related('cds')->all, 4, 'prefetch without distinct (objects)');
+    is($rs->search_related('cds')->count, 4, 'prefetch without distinct (count)');
 
 
     $rs = $artist_rs->search(undef, {distinct => 1})
                 ->search_related('cds')->search_related('genre',
-                    { 'genre.name' => 'foo' },
+                    { 'genre.name' => 'vague genre' },
                  );
-    is($rs->all, 0, 'distinct without prefetch (objects)');
-    is($rs->count, 0, 'distinct without prefetch (count)');
-
+    is($rs->all, 1, 'distinct without prefetch (objects)');
+    is($rs->count, 1, 'distinct without prefetch (count)');
 
 
     $rs = $artist_rs->search({}, {distinct => 1})
                 ->search_related('cds')->search_related('genre',
-                    { 'genre.name' => 'foo' },
+                    { 'genre.name' => 'vague genre' },
                     { prefetch => 'cds' },
                  );
-    is($rs->all, 0, 'distinct with prefetch (objects)');
-    is($rs->count, 0, 'distinct with prefetch (count)');
+    is($rs->all, 1, 'distinct with prefetch (objects)');
+    is($rs->count, 1, 'distinct with prefetch (count)');
+    # artist -> 2 cds -> 2 genres -> 2 cds for each genre + distinct = 2
+    is($rs->search_related('cds')->all, 2, 'prefetched distinct with prefetch (objects)');
+    is($rs->search_related('cds')->count, 2, 'prefetched distinct with prefetch (count)');
 
 
 

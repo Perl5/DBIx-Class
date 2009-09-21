@@ -54,20 +54,16 @@ sub _check_author_makefile {
 We have a number of reasons to believe that this is a development
 checkout and that you, the user, did not run `perl Makefile.PL`
 before using this code. You absolutely _must_ perform this step,
-as not doing so often results in a lot of wasted time for other
-contributors trying to assit you with "it broke!" problems.
+and ensure you have all required dependencies present. Not doing
+so often results in a lot of wasted time for other contributors
+trying to assit you with spurious "its broken!" problems.
 
 If you are seeing this message unexpectedly (i.e. you are in fact
-attempting a regular installation be it through CPAN or manually,
-set the variable DBICTEST_NO_MAKEFILE_VERIFICATION to a true value
-so you can continue. Also _make_absolutely_sure_ to report this to
-either the mailing list or to the irc channel as described in
+attempting a regular installation be it through CPAN or manually),
+please report the situation to either the mailing list or to the
+irc channel as described in
 
 http://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class.pm#GETTING_HELP/SUPPORT
-
-Failure to do this will make us believe that all these checks are
-indeed foolproof and we will remove the ability to override this
-entirely.
 
 The DBIC team
 
@@ -77,6 +73,19 @@ EOE
 
     exit 1;
   }
+}
+
+# Mimic $Module::Install::AUTHOR
+sub is_author {
+
+  my $root = _find_co_root()
+    or return undef;
+
+  return (
+    ( not -d $root->subdir ('inc') )
+      or
+    ( -e $root->subdir ('inc')->file ($^O eq 'VMS' ? '_author' : '.author') )
+  );
 }
 
 # Try to determine the root of a checkout/untar if possible

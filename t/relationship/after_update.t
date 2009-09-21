@@ -1,7 +1,5 @@
-#!/usr/bin/perl -w
-
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);

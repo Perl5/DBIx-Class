@@ -2,7 +2,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use Data::Dumper;
 use lib qw(t/lib);
 use DBICTest;
 my $schema = DBICTest->init_schema();

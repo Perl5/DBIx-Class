@@ -7,8 +7,6 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-use Data::Dumper;
-
 my @serializers = (
     { module => 'YAML.pm',
       inflater => sub { YAML::Load (shift) },

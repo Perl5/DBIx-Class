@@ -84,6 +84,8 @@ Check out the L<Class::C3> docs for more information about inheritance.
 These components provide extra functionality beyond 
 basic functionality that you can't live without.
 
+L<DBIx::Class::Serialize::Storable> - Hooks for Storable freeze/thaw.
+
 L<DBIx::Class::CDBICompat> - Class::DBI Compatibility layer.
 
 L<DBIx::Class::FormTools> - Build forms with multiple interconnected objects.
@@ -109,10 +111,6 @@ L<DBIx::Class::WebForm> - CRUD methods.
 These components are under development, there interfaces may 
 change, they may not work, etc.  So, use them if you want, but 
 be warned.
-
-L<DBIx::Class::Serialize> - Hooks for Storable freeze/thaw.
-
-L<DBIx::Class::Serialize::Storable> - Hooks for Storable freeze/thaw.
 
 L<DBIx::Class::Validation> - Validate all data before submitting to your database.
 
@@ -145,4 +143,3 @@ L<DBIx::Class::Manual::Cookbook>
 =head1 AUTHOR
 
 Aran Clary Deltac <bluefeet@cpan.org>
-

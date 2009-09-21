@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Benchmark;
 use lib qw(t/lib);
 use DBICTest; # do not remove even though it is not used
 
@@ -24,9 +25,6 @@ plan skip_all =>
 
 plan skip_all => 'Skipping as AUTOMATED_TESTING is set'
   if ( $ENV{AUTOMATED_TESTING} );
-
-eval "use Benchmark ':all'";
-plan skip_all => 'needs Benchmark for testing' if $@;
 
 plan tests => 3;
 

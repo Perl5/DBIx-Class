@@ -30,7 +30,7 @@ if ($t_libs) {
 }
 
 pod2usage(1) if ($help);
-$ENV{DBIX_CLASS_STORAGE_DBI_DEBUG} = 1 if ($trace);
+$ENV{DBIC_TRACE} = 1 if ($trace);
 
 die('No op specified') if(!$op);
 die('Invalid op') if ($op!~/^insert|update|delete|select$/s);

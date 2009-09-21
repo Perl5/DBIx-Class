@@ -1,5 +1,46 @@
 Revision history for DBIx::Class
 
+0.08112 2009-09-21 10:57:00 (UTC)
+        - Remove the recommends from Makefile.PL, DBIx::Class is not
+          supposed to have optional dependencies. ever.
+        - Mangle the DBIx/Class.pm POD to be more clear about
+          copyright and license
+        - Put back PG's multiple autoinc per table support, accidentally
+          dropped during the serial-autodetection rewrite
+        - Make sure ResultSetColumn does not depend on the (undefined)
+          return value of ->cursor->reset()
+        - Add single() to ResultSetColumn (same semantics as ResultSet)
+        - Make sure to turn off IDENTITY_INSERT after insert() on MSSQL
+          tables that needed it
+        - More informative exception on failing _resolve_relationship
+        - Allow undef/NULL as the sole grouping value in Ordered
+        - Fix unreported rollback exceptions in TxnScopeGuard
+        - Fix overly-eager left-join chain enforcing code
+        - Warn about using distinct with an existing group_by
+        - Warn about attempting to $rs->get_column a non-unique column
+          when has_many joins are added to resultset
+        - Refactor of the exception handling system (now everything is a
+          DBIx::Class::Exception object)
+
+0.08111 2009-09-06 21:58:00 (UTC)
+        - The hashref to connection_info now accepts a 'dbh_maker'
+          coderef, allowing better intergration with Catalyst
+        - Fixed a complex prefetch + regular join regression introduced
+          in 0.08108
+        - Fixed insert_bulk rebless handling
+        - Fixed Storable roundtrip regression, and general serialization
+          cleanup
+        - SQLT related fixes:
+          - sqlt_type is now called on the correct storage object
+          - hooks can now see the correct producer_type (RT#47891)
+          - optional SQLT requirements for e.g. deploy() bumped to 0.11002
+        - Really fixed (and greatly cleaned up) postgresql autoinc sequence
+          autodetection
+        - Automatically detect MySQL v3 and use INNER JOIN instead of JOIN
+        - POD improvements (including RT#48769)
+        - Test suite tweaks (including fixes for recent CPANTS fails)
+        - Better support for MSSQL IDENTITY_INSERT ON
+
 0.08109 2009-08-18 08:35:00 (UTC)
         - Replication updates:
           - Improved the replication tests so that they are more reliable
@@ -22,7 +63,7 @@ Revision history for DBIx::Class
         - Support for MSSQL 'money' type
         - Support for 'smalldatetime' type used in MSSQL and Sybase for
           InflateColumn::DateTime
-        - support for Postgres 'timestamp without timezone' type in
+        - Support for Postgres 'timestamp without timezone' type in
           InflateColumn::DateTime (RT#48389)
         - Added new MySQL specific on_connect_call macro 'set_strict_mode'
           (also known as make_mysql_not_suck_as_much)
