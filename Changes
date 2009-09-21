@@ -1,11 +1,12 @@
 Revision history for DBIx::Class
 
+0.08112 2009-09-21 10:57:00 (UTC)
         - Remove the recommends from Makefile.PL, DBIx::Class is not
           supposed to have optional dependencies. ever.
         - Mangle the DBIx/Class.pm POD to be more clear about
           copyright and license
         - Put back PG's multiple autoinc per table support, accidentally
-          dropped during the serial-autodetection rwrite
+          dropped during the serial-autodetection rewrite
         - Make sure ResultSetColumn does not depend on the (undefined)
           return value of ->cursor->reset()
         - Add single() to ResultSetColumn (same semantics as ResultSet)
@@ -18,7 +19,7 @@ Revision history for DBIx::Class
         - Warn about using distinct with an existing group_by
         - Warn about attempting to $rs->get_column a non-unique column
           when has_many joins are added to resultset
-        - Refactor of the exception handlink system (now everything is a
+        - Refactor of the exception handling system (now everything is a
           DBIx::Class::Exception object)
 
 0.08111 2009-09-06 21:58:00 (UTC)
