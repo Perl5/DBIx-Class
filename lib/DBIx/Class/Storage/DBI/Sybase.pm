@@ -428,13 +428,8 @@ sub update {
       if $is_identity_update;
   }
 
-# check that we're not updating a blob column that's also in $where
-  for my $blob (grep $self->_is_lob_column($source, $_), $source->columns) {
-    if (exists $where->{$blob} && exists $fields->{$blob}) {
-      croak
-'Update of TEXT/IMAGE column that is also in search condition impossible';
-    }
-  }
+# If there are any blobs in $where, Sybase will return a descriptive error
+# message.
 
 # update+blob update(s) done atomically on separate connection
   $self = $self->_writer_storage;
@@ -475,6 +470,7 @@ sub update {
   return $wantarray ? @res : $res[0];
 }
 
+# for IDENTITY_INSERT / IDENTITY_UPDATE
 sub _set_session_identity {
   my ($self, $op, $table, $off_on) = @_;
 
@@ -504,9 +500,6 @@ sub _set_session_identity {
     );
   }
 }
-
-# for tests
-sub _can_insert_bulk { 1 }
 
 sub insert_bulk {
   my $self = shift;
@@ -540,14 +533,8 @@ EOF
   if (not $use_bulk_api) {
     my $blob_cols = $self->_remove_blob_cols_array($source, $cols, $data);
 
-    my $dumb_last_insert_id =
-         $identity_col
-      && (not $is_identity_insert)
-      && ($self->_identity_method||'') ne '@@IDENTITY';
-
     ($self, my ($guard)) = do {
-      if ($self->{transaction_depth} == 0 &&
-          ($blob_cols || $dumb_last_insert_id)) {
+      if ($self->{transaction_depth} == 0 && $blob_cols) {
         ($self->_writer_storage, $self->_writer_storage->txn_scope_guard);
       }
       else {
@@ -1053,10 +1040,10 @@ session variable.
 =head1 TRANSACTIONS
 
 Due to limitations of the TDS protocol, L<DBD::Sybase>, or both; you cannot
-begin a transaction while there are active cursors. An active cursor is, for
-example, a L<ResultSet|DBIx::Class::ResultSet> that has been executed using
-C<next> or C<first> but has not been exhausted or
-L<reset|DBIx::Class::ResultSet/reset>.
+begin a transaction while there are active cursors; nor can you use multiple
+active cursors within a transaction. An active cursor is, for example, a
+L<ResultSet|DBIx::Class::ResultSet> that has been executed using C<next> or
+C<first> but has not been exhausted or L<reset|DBIx::Class::ResultSet/reset>.
 
 For example, this will not work:
 
@@ -1069,6 +1056,11 @@ For example, this will not work:
       });
     }
   });
+
+This won't either:
+
+  my $first_row = $large_rs->first;
+  $schema->txn_do(sub { ... });
 
 Transactions done for inserts in C<AutoCommit> mode when placeholders are in use
 are not affected, as they are done on an extra database handle.

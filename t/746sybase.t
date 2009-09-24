@@ -211,7 +211,7 @@ SQL
 # test insert_bulk using populate.
   SKIP: {
     skip 'insert_bulk not supported', 4
-      unless $schema->storage->_can_insert_bulk;
+      unless $storage_type !~ /NoBindVars/i;
 
     lives_ok {
       $schema->resultset('Artist')->populate([
@@ -247,7 +247,7 @@ SQL
 # make sure insert_bulk works a second time on the same connection
   SKIP: {
     skip 'insert_bulk not supported', 3
-      unless $schema->storage->_can_insert_bulk;
+      unless $storage_type !~ /NoBindVars/i;
 
     lives_ok {
       $schema->resultset('Artist')->populate([
@@ -294,7 +294,7 @@ SQL
 # now test insert_bulk with IDENTITY_INSERT
   SKIP: {
     skip 'insert_bulk not supported', 3
-      unless $schema->storage->_can_insert_bulk;
+      unless $storage_type !~ /NoBindVars/i;
 
     lives_ok {
       $schema->resultset('Artist')->populate([
@@ -457,12 +457,12 @@ SQL
     is((grep $_->clob eq $new_str, $rs->all), 2,
       'TEXT column set correctly via insert_bulk');
 
-    # make sure impossible blob update throws
-    throws_ok {
-      $rs->update({ clob => 'foo' });
-      $rs->create({ clob => 'bar' });
-      $rs->search({ clob => 'foo' })->update({ clob => 'bar' });
-    } qr/impossible/, 'impossible blob update throws';
+    lives_and {
+      $rs->delete;
+      $rs->create({ blob => $binstr{large} }) for (1..2);
+      $rs->update({ blob => undef });
+      is((grep !defined($_->blob), $rs->all), 2);
+    } 'blob update to NULL';
   }
 
 # test MONEY column support
