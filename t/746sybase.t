@@ -12,7 +12,7 @@ require DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 58 + 2;
+my $TESTS = 62 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -336,7 +336,7 @@ SQL
 
 # mostly stolen from the blob stuff Nniuq wrote for t/73oracle.t
   SKIP: {
-    skip 'TEXT/IMAGE support does not work with FreeTDS', 18
+    skip 'TEXT/IMAGE support does not work with FreeTDS', 22
       if $schema->storage->using_freetds;
 
     my $dbh = $schema->storage->_dbh;
@@ -434,7 +434,7 @@ SQL
 
     $rs->delete;
 
-    # now try insert_bulk with blobs
+    # now try insert_bulk with blobs and only blobs
     $new_str = $binstr{large} . 'bar';
     lives_ok {
       $rs->populate([
@@ -456,6 +456,41 @@ SQL
 
     is((grep $_->clob eq $new_str, $rs->all), 2,
       'TEXT column set correctly via insert_bulk');
+
+    # now try insert_bulk with blobs and a non-blob which also happens to be an
+    # identity column
+    SKIP: {
+      skip 'no insert_bulk without placeholders', 4
+        if $storage_type =~ /NoBindVars/i;
+
+      $rs->delete;
+      $new_str = $binstr{large} . 'bar';
+      lives_ok {
+        $rs->populate([
+          {
+            id => 1,
+            bytea => 1,
+            blob => $binstr{large},
+            clob => $new_str,
+          },
+          {
+            id => 2,
+            bytea => 1,
+            blob => $binstr{large},
+            clob => $new_str,
+          },
+        ]);
+      } 'insert_bulk with blobs and explicit identity DOES not die';
+
+      is((grep $_->blob eq $binstr{large}, $rs->all), 2,
+        'IMAGE column set correctly via insert_bulk with identity');
+
+      is((grep $_->clob eq $new_str, $rs->all), 2,
+        'TEXT column set correctly via insert_bulk with identity');
+
+      is_deeply [ map $_->id, $rs->all ], [ 1,2 ],
+        'explicit identities set correctly via insert_bulk with blobs';
+    }
 
     lives_and {
       $rs->delete;

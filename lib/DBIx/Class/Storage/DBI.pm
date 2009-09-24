@@ -1346,7 +1346,7 @@ sub insert_bulk {
   my %colvalues;
   @colvalues{@$cols} = (0..$#$cols);
 
-  # bind literal sql if it's the same in all slices
+  # pass scalarref to SQLA for literal sql if it's the same in all slices
   for my $i (0..$#$cols) {
     my $first_val = $data->[0][$i];
     next unless (Scalar::Util::reftype($first_val)||'') eq 'SCALAR';
@@ -1374,23 +1374,24 @@ sub insert_bulk {
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql, 'insert', $sth_attr);
 
-  if ($empty_bind) {
-    # bind_param_array doesn't work if there are no binds
-    eval {
-      local $self->_get_dbh->{RaiseError} = 1;
-      local $self->_get_dbh->{PrintError} = 0;
-      foreach (0..$#$data) {
-        $sth->execute;
-        $sth->fetchall_arrayref;
-      }
-    };
-    my $exception = $@;
-    $sth->finish;
-    $self->throw_exception($exception) if $exception;
-    return;
-  }
+  my $rv = do {
+    if ($empty_bind) {
+      # bind_param_array doesn't work if there are no binds
+      $self->_execute_array_empty( $sth, scalar @$data );
+    }
+    else {
+#      @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+      $self->_execute_array( $source, $sth, \@bind, $cols, $data );
+    }
+  };
 
-#  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+  $self->_query_end( $sql, @bind );
+
+  return (wantarray ? ($rv, $sth, @bind) : $rv);
+}
+
+sub _execute_array {
+  my ($self, $source, $sth, $bind, $cols, $data, $guard) = @_;
 
   ## This must be an arrayref, else nothing works!
   my $tuple_status = [];
@@ -1401,7 +1402,7 @@ sub insert_bulk {
   ## Bind the values and execute
   my $placeholder_index = 1;
 
-  foreach my $bound (@bind) {
+  foreach my $bound (@$bind) {
 
     my $attributes = {};
     my ($column_name, $data_index) = @$bound;
@@ -1418,7 +1419,11 @@ sub insert_bulk {
   }
 
   my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
+
+  $guard->commit if $guard; # probably only needed for Sybase
+
   $sth->finish;
+
   if (my $err = $@ || $sth->errstr) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
@@ -1434,8 +1439,27 @@ sub insert_bulk {
     );
   }
 
-  $self->_query_end( $sql, @bind );
-  return (wantarray ? ($rv, $sth, @bind) : $rv);
+  return $rv;
+}
+
+sub _execute_array_empty {
+  my ($self, $sth, $count) = @_;
+  eval {
+    my $dbh = $self->_get_dbh;
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
+    foreach (1..$count) {
+      $sth->execute;
+# In case of a multi-statement with a select, some DBDs (namely Sybase) require
+# the cursor to be exhausted.
+      $sth->fetchall_arrayref;
+    }
+  };
+  my $exception = $@;
+  $sth->finish;
+  $self->throw_exception($exception) if $exception;
+
+  return $count;
 }
 
 sub update {

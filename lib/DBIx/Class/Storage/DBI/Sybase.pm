@@ -510,7 +510,7 @@ sub insert_bulk {
     $source->columns;
 
   my $is_identity_insert = (List::Util::first
-    { $source->column_info ($_)->{is_auto_increment} }
+    { $_ eq $identity_col }
     @{$cols}
   ) ? 1 : 0;
 
@@ -525,7 +525,7 @@ sub insert_bulk {
       (not $self->_bulk_disabled_due_to_coderef_connect_info_warned)) {
     carp <<'EOF';
 Bulk API support disabled due to use of a CODEREF connect_info. Reverting to
-array inserts.
+regular array inserts.
 EOF
     $self->_bulk_disabled_due_to_coderef_connect_info_warned(1);
   }
@@ -647,42 +647,14 @@ EOF
       }
     );
 
-    my $bind_attributes = $self->source_bind_attributes($source);
+    my @bind = do {
+      my $idx = 0;
+      map [ $_, $idx++ ], @source_columns;
+    };
 
-    foreach my $slice_idx (0..$#source_columns) {
-      my $col = $source_columns[$slice_idx];
-
-      my $attributes = $bind_attributes->{$col}
-        if $bind_attributes && defined $bind_attributes->{$col};
-
-      my @slice = map $_->[$slice_idx], @new_data;
-
-      $sth->bind_param_array(($slice_idx + 1), \@slice, $attributes);
-    }
-
-    $bulk->_query_start($sql);
-
-# this is stolen from DBI::insert_bulk
-    my $tuple_status = [];
-    my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
-
-    if (my $err = $@ || $sth->errstr) {
-      my $i = 0;
-      ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
-
-      $self->throw_exception("Unexpected populate error: $err")
-        if ($i > $#$tuple_status);
-
-      $self->throw_exception(sprintf "%s for populate slice:\n%s",
-        ($tuple_status->[$i][1] || $err),
-        $self->_pretty_print ({
-          map { $source_columns[$_] => $new_data[$i][$_] } (0 .. $#$cols)
-        }),
-      );
-    }
-
-    $guard->commit;
-    $sth->finish;
+    $self->_execute_array(
+      $source, $sth, \@bind, \@source_columns, \@new_data, $guard
+    );
 
     $bulk->_query_end($sql);
   };
@@ -720,7 +692,7 @@ sub _remove_blob_cols {
   my %blob_cols;
 
   for my $col (keys %$fields) {
-    if ($self->_is_lob_type($source->column_info($col)->{data_type})) {
+    if ($self->_is_lob_column($source, $col)) {
       my $blob_val = delete $fields->{$col};
       if (not defined $blob_val) {
         $fields->{$col} = \'NULL';
@@ -744,7 +716,7 @@ sub _remove_blob_cols_array {
   for my $i (0..$#$cols) {
     my $col = $cols->[$i];
 
-    if ($self->_is_lob_type($source->column_info($col)->{data_type})) {
+    if ($self->_is_lob_column($source, $col)) {
       for my $j (0..$#$data) {
         my $blob_val = delete $data->[$j][$i];
         if (not defined $blob_val) {
