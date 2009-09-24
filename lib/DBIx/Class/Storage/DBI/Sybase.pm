@@ -419,9 +419,13 @@ sub update {
   my $is_identity_update = $identity_col && defined $fields->{$identity_col};
 
   if (not $blob_cols) {
-    $self->_set_identity_insert($table, 'update')   if $is_identity_update;
+    $self->_set_session_identity(UPDATE => $table, 'ON')
+      if $is_identity_update;
+
     return $self->next::method(@_);
-    $self->_unset_identity_insert($table, 'update') if $is_identity_update;
+
+    $self->_set_session_identity(UPDATE => $table, 'OFF')
+      if $is_identity_update;
   }
 
 # check that we're not updating a blob column that's also in $where
@@ -449,7 +453,8 @@ sub update {
 
   my @res;
   if (%$fields) {
-    $self->_set_identity_insert($table, 'update')   if $is_identity_update;
+    $self->_set_session_identity(UPDATE => $table, 'ON')
+      if $is_identity_update;
 
     if ($wantarray) {
       @res    = $self->next::method(@_);
@@ -461,7 +466,8 @@ sub update {
       $self->next::method(@_);
     }
 
-    $self->_unset_identity_insert($table, 'update') if $is_identity_update;
+    $self->_set_session_identity(UPDATE => $table, 'OFF')
+      if $is_identity_update;
   }
 
   $guard->commit;
@@ -469,21 +475,24 @@ sub update {
   return $wantarray ? @res : $res[0];
 }
 
-### the insert_bulk partially stolen from DBI/MSSQL.pm
-
-sub _set_identity_insert {
-  my ($self, $table, $op) = @_;
+sub _set_session_identity {
+  my ($self, $op, $table, $off_on) = @_;
 
   my $sql = sprintf (
-    'SET IDENTITY_%s %s ON',
-    (uc($op) || 'INSERT'),
-    $self->sql_maker->_quote ($table),
+    'SET IDENTITY_%s %s %s',
+    uc $op,
+    $self->sql_maker->_quote($table),
+    uc $off_on,
   );
 
   $self->_query_start($sql);
 
   my $dbh = $self->_get_dbh;
-  eval { $dbh->do ($sql) };
+  eval {
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
+    $dbh->do ($sql)
+  };
   my $exception = $@;
 
   $self->_query_end($sql);
@@ -491,26 +500,9 @@ sub _set_identity_insert {
   if ($exception) {
     $self->throw_exception (sprintf "Error executing '%s': %s",
       $sql,
-      $dbh->errstr,
+      $exception,
     );
   }
-}
-
-sub _unset_identity_insert {
-  my ($self, $table, $op) = @_;
-
-  my $sql = sprintf (
-    'SET IDENTITY_%s %s OFF',
-    (uc($op) || 'INSERT'),
-    $self->sql_maker->_quote ($table),
-  );
-
-  $self->_query_start($sql);
-
-  my $dbh = $self->_get_dbh;
-  $dbh->do ($sql);
-
-  $self->_query_end($sql);
 }
 
 # for tests
@@ -563,9 +555,7 @@ EOF
       }
     };
 
-    $self->_set_identity_insert ($source->name)   if $is_identity_insert;
     $self->next::method(@_);
-    $self->_unset_identity_insert ($source->name) if $is_identity_insert;
 
     if ($blob_cols) {
       if ($is_identity_insert) {
