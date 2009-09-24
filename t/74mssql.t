@@ -18,7 +18,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-my $TESTS = 13;
+my $TESTS = 14;
 
 plan tests => $TESTS * 2;
 
@@ -133,6 +133,15 @@ SQL
 
   is $rs->find($row->id)->amount,
     undef, 'updated money value to NULL round-trip';
+
+  # test multiple active statements
+  lives_ok {
+    $rs->create({ amount => 300 }) for (1..3);
+    my $artist_rs = $schema->resultset('Artist');
+    while (my $row = $rs->next) {
+      my $artist = $artist_rs->next;
+    }
+  } 'multiple active statements';
 }
 
 # clean up our mess
