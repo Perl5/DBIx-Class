@@ -12,7 +12,7 @@ require DBIx::Class::Storage::DBI::Sybase::NoBindVars;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 62 + 2;
+my $TESTS = 63 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -500,17 +500,26 @@ SQL
     } 'blob update to NULL';
   }
 
-# test MONEY column support
+# test MONEY column support (and some other misc. stuff)
   $schema->storage->dbh_do (sub {
       my ($storage, $dbh) = @_;
       eval { $dbh->do("DROP TABLE money_test") };
       $dbh->do(<<'SQL');
 CREATE TABLE money_test (
    id INT IDENTITY PRIMARY KEY,
-   amount MONEY NULL
+   amount MONEY DEFAULT $999.99 NULL
 )
 SQL
   });
+
+  my $rs = $schema->resultset('Money');
+
+# test insert with defaults
+  lives_and {
+    $rs->create({});
+    is((grep $_->amount == 999.99, $rs->all), 1);
+  } 'insert with all defaults works';
+  $rs->delete;
 
 # test insert transaction when there's an active cursor
   {
@@ -543,8 +552,6 @@ SQL
   }
 
 # Now test money values.
-  my $rs = $schema->resultset('Money');
-
   my $row;
   lives_ok {
     $row = $rs->create({ amount => 100 });

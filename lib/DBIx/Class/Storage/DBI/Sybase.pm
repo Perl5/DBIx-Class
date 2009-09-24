@@ -347,11 +347,21 @@ sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
-  my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
-
-  my $identity_col = List::Util::first
+  my $identity_col = (List::Util::first
     { $source->column_info($_)->{is_auto_increment} }
-    $source->columns;
+    $source->columns) || '';
+
+  # check for empty insert
+  # INSERT INTO foo DEFAULT VALUES -- does not work with Sybase
+  # try to insert explicit 'DEFAULT's instead (except for identity)
+  if (not %$to_insert) {
+    for my $col ($source->columns) {
+      next if $col eq $identity_col;
+      $to_insert->{$col} = \'DEFAULT';
+    }
+  }
+
+  my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
   # do we need the horrific SELECT MAX(COL) hack?
   my $dumb_last_insert_id =
@@ -392,7 +402,8 @@ sub _insert {
   my $updated_cols = $self->$next ($source, $to_insert);
 
   my $final_row = {
-    $identity_col => $self->last_insert_id($source, $identity_col),
+    ($identity_col ?
+      ($identity_col => $self->last_insert_id($source, $identity_col)) : ()),
     %$to_insert,
     %$updated_cols,
   };
