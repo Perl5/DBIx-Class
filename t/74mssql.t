@@ -18,7 +18,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-my $TESTS = 14;
+my $TESTS = 15;
 
 plan tests => $TESTS * 2;
 
@@ -134,14 +134,26 @@ SQL
   is $rs->find($row->id)->amount,
     undef, 'updated money value to NULL round-trip';
 
+  $rs->create({ amount => 300 }) for (1..3);
+
   # test multiple active statements
   lives_ok {
-    $rs->create({ amount => 300 }) for (1..3);
     my $artist_rs = $schema->resultset('Artist');
     while (my $row = $rs->next) {
       my $artist = $artist_rs->next;
     }
+    $rs->reset;
   } 'multiple active statements';
+
+  # test multiple active statements in a transaction
+  TODO: {
+    local $TODO = 'needs similar FreeTDS fixes to the ones in Sybase.pm';
+    lives_ok {
+      $schema->txn_do(sub {
+        $rs->create({ amount => 400 });
+      });
+    } 'simple transaction';
+  }
 }
 
 # clean up our mess
