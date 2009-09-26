@@ -253,39 +253,44 @@ sub _prep_for_execute {
 
   my ($sql, $bind) = $self->next::method (@_);
 
-  if ($op eq 'insert') {
-    my $table = $ident->from;
+  my $table = Scalar::Util::blessed($ident) ? $ident->from : $ident;
 
-    my $bind_info = $self->_resolve_column_info(
-      $ident, [map $_->[0], @{$bind}]
+  my $bind_info = $self->_resolve_column_info(
+    $ident, [map $_->[0], @{$bind}]
+  );
+  my $bound_identity_col = List::Util::first
+    { $bind_info->{$_}{is_auto_increment} }
+    (keys %$bind_info)
+  ;
+  my $identity_col = Scalar::Util::blessed($ident) &&
+    List::Util::first
+    { $ident->column_info($_)->{is_auto_increment} }
+    $ident->columns
+  ;
+
+  if (($op eq 'insert' && $bound_identity_col) ||
+      ($op eq 'update' && exists $args->[0]{$identity_col})) {
+    $sql = join ("\n",
+      $self->_set_table_identity_sql($op => $table, 'on'),
+      $sql,
+      $self->_set_table_identity_sql($op => $table, 'off'),
     );
-    my $identity_col = List::Util::first
-      { $bind_info->{$_}{is_auto_increment} }
-      (keys %$bind_info)
-    ;
+  }
 
-    if ($identity_col) {
-      $sql = join ("\n",
-        "SET IDENTITY_INSERT $table ON",
-        $sql,
-        "SET IDENTITY_INSERT $table OFF",
-      );
-    }
-    else {
-      $identity_col = List::Util::first
-        { $ident->column_info($_)->{is_auto_increment} }
-        $ident->columns
-      ;
-    }
-
-    if ($identity_col) {
-      $sql =
-        "$sql\n" .
-        $self->_fetch_identity_sql($ident, $identity_col);
-    }
+  if ($op eq 'insert' && (not $bound_identity_col) && $identity_col) {
+    $sql =
+      "$sql\n" .
+      $self->_fetch_identity_sql($ident, $identity_col);
   }
 
   return ($sql, $bind);
+}
+
+sub _set_table_identity_sql {
+  my ($self, $op, $table, $on_off) = @_;
+
+  return sprintf 'SET IDENTITY_%s %s %s',
+    uc($op), $self->sql_maker->_quote($table), uc($on_off);
 }
 
 # Stolen from SQLT, with some modifications. This is a makeshift
@@ -429,18 +434,11 @@ sub update {
 
   my $is_identity_update = $identity_col && defined $fields->{$identity_col};
 
-  if (not $blob_cols) {
-    $self->_set_session_identity(UPDATE => $table, 'ON')
-      if $is_identity_update;
-
-    return $self->next::method(@_);
-
-    $self->_set_session_identity(UPDATE => $table, 'OFF')
-      if $is_identity_update;
-  }
+  return $self->next::method(@_) unless $blob_cols;
 
 # If there are any blobs in $where, Sybase will return a descriptive error
 # message.
+# XXX blobs can still be used with a LIKE query, and this should be handled.
 
 # update+blob update(s) done atomically on separate connection
   $self = $self->_writer_storage;
@@ -459,9 +457,6 @@ sub update {
 
   my @res;
   if (%$fields) {
-    $self->_set_session_identity(UPDATE => $table, 'ON')
-      if $is_identity_update;
-
     if ($wantarray) {
       @res    = $self->next::method(@_);
     }
@@ -471,45 +466,11 @@ sub update {
     else {
       $self->next::method(@_);
     }
-
-    $self->_set_session_identity(UPDATE => $table, 'OFF')
-      if $is_identity_update;
   }
 
   $guard->commit;
 
   return $wantarray ? @res : $res[0];
-}
-
-# for IDENTITY_INSERT / IDENTITY_UPDATE
-sub _set_session_identity {
-  my ($self, $op, $table, $off_on) = @_;
-
-  my $sql = sprintf (
-    'SET IDENTITY_%s %s %s',
-    uc $op,
-    $self->sql_maker->_quote($table),
-    uc $off_on,
-  );
-
-  $self->_query_start($sql);
-
-  my $dbh = $self->_get_dbh;
-  eval {
-    local $dbh->{RaiseError} = 1;
-    local $dbh->{PrintError} = 0;
-    $dbh->do ($sql)
-  };
-  my $exception = $@;
-
-  $self->_query_end($sql);
-
-  if ($exception) {
-    $self->throw_exception (sprintf "Error executing '%s': %s",
-      $sql,
-      $exception,
-    );
-  }
 }
 
 sub insert_bulk {
@@ -544,8 +505,14 @@ EOF
   if (not $use_bulk_api) {
     my $blob_cols = $self->_remove_blob_cols_array($source, $cols, $data);
 
+    my $dumb_last_insert_id =
+         $identity_col
+      && (not $is_identity_insert)
+      && ($self->_identity_method||'') ne '@@IDENTITY';
+
     ($self, my ($guard)) = do {
-      if ($self->{transaction_depth} == 0 && $blob_cols) {
+      if ($self->{transaction_depth} == 0 && $blob_cols &&
+          $dumb_last_insert_id) {
         ($self->_writer_storage, $self->_writer_storage->txn_scope_guard);
       }
       else {
@@ -669,7 +636,10 @@ EOF
 
     $bulk->_query_end($sql);
   };
+
   my $exception = $@;
+  DBD::Sybase::set_cslib_cb($orig_cslib_cb);
+
   if ($exception =~ /-Y option/) {
     carp <<"EOF";
 
@@ -678,21 +648,17 @@ to regular array inserts:
 
 *** Try unsetting the LANG environment variable.
 
-$@
+$exception
 EOF
     $self->_bulk_storage(undef);
-    DBD::Sybase::set_cslib_cb($orig_cslib_cb);
     unshift @_, $self;
     goto \&insert_bulk;
   }
   elsif ($exception) {
-    DBD::Sybase::set_cslib_cb($orig_cslib_cb);
 # rollback makes the bulkLogin connection unusable
     $self->_bulk_storage->disconnect;
     $self->throw_exception($exception);
   }
-
-  DBD::Sybase::set_cslib_cb($orig_cslib_cb);
 }
 
 # Make sure blobs are not bound as placeholders, and return any non-empty ones

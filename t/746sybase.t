@@ -480,7 +480,7 @@ SQL
             clob => $new_str,
           },
         ]);
-      } 'insert_bulk with blobs and explicit identity DOES not die';
+      } 'insert_bulk with blobs and explicit identity does NOT die';
 
       is((grep $_->blob eq $binstr{large}, $rs->all), 2,
         'IMAGE column set correctly via insert_bulk with identity');
