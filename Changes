@@ -1,18 +1,18 @@
 Revision history for DBIx::Class
 
-        - Sybase bulk API support for populate()
 
         - Complete Sybase RDBMS support including:
           - Support for TEXT/IMAGE columns
           - Support for the 'money' datatype
-        - Transaction savepoints support
-        - DateTime inflation support
-        - Support for bind variables when connecting to a newer Sybase with
-           OpenClient libraries
-        - Support for connections via FreeTDS with CASTs for bind variables
-           when needed
-        - Support for interpolated variables with proper quoting when
-           connecting to an older Sybase and/or via FreeTDS
+          - Transaction savepoints support
+          - DateTime inflation support
+          - Support for bind variables when connecting to a newer Sybase with
+             OpenClient libraries
+          - Support for connections via FreeTDS with CASTs for bind variables
+             when needed
+          - Support for interpolated variables with proper quoting when
+             connecting to an older Sybase and/or via FreeTDS
+          - bulk API support for populate()
 
 0.08112 2009-09-21 10:57:00 (UTC)
         - Remove the recommends from Makefile.PL, DBIx::Class is not

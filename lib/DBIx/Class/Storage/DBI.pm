@@ -1368,7 +1368,9 @@ sub insert_bulk {
     == @$cols;
 
   if ((not @bind) && (not $empty_bind)) {
-    croak 'Cannot insert_bulk without support for placeholders';
+    $self->throw_exception(
+      'Cannot insert_bulk without support for placeholders'
+    );
   }
 
   $self->_query_start( $sql, @bind );
@@ -1420,7 +1422,8 @@ sub _execute_array {
 
   my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
 
-  $guard->commit if $guard; # probably only needed for Sybase
+# only needed for Sybase, it requires a commit before the $sth->finish
+  $guard->commit if $guard;
 
   $sth->finish;
 
@@ -2050,15 +2053,23 @@ sub _subq_count_select {
   return @pcols ? \@pcols : [ 1 ];
 }
 
-#
-# Returns an ordered list of column names before they are used
-# in a SELECT statement. By default simply returns the list
-# passed in.
-#
-# This may be overridden in a specific storage when there are
-# requirements such as moving BLOB columns to the end of the 
-# SELECT list.
-sub _order_select_columns {
+=head2 order_select_columns
+
+=over 4
+
+=item Arguments: $source, \@columns
+
+=back
+
+Returns an ordered list of column names to be used in a SELECT statement. By
+default simply returns the list that was passed in.
+
+This may be overridden in a specific storage when there are requirements such as
+moving BLOB columns to the end of the SELECT list.
+
+=cut
+
+sub order_select_columns {
   #my ($self, $source, $columns) = @_;
   return @{$_[2]};
 }

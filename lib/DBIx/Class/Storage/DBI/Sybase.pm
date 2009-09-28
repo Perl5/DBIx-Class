@@ -681,7 +681,7 @@ sub _remove_blob_cols {
     }
   }
 
-  return keys %blob_cols ? \%blob_cols : undef;
+  return %blob_cols ? \%blob_cols : undef;
 }
 
 # same for insert_bulk
@@ -1087,6 +1087,33 @@ loading your app, if it doesn't match the character set of your database.
 
 When inserting IMAGE columns using this method, you'll need to use
 L</connect_call_blob_setup> as well.
+
+=head1 TODO
+
+=over
+
+=item *
+
+Transitions to AutoCommit=0 (starting a transaction) mode by exhausting
+any active cursors, using eager cursors.
+
+=item *
+
+Real limits and limited counts using stored procedures deployed on startup.
+
+=item *
+
+Adaptive Server Anywhere (ASA) support, with possible SQLA::Limit support.
+
+=item *
+
+Blob update with a LIKE query on a blob, without invalidating the WHERE condition.
+
+=item *
+
+bulk_insert using prepare_cached (see comments.)
+
+=back
 
 =head1 AUTHOR
 
