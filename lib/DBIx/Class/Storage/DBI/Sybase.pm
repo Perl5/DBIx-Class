@@ -852,7 +852,7 @@ C<SMALLDATETIME> columns only have minute precision.
 
   sub connect_call_datetime_setup {
     my $self = shift;
-    my $dbh = $self->_dbh;
+    my $dbh = $self->_get_dbh;
 
     if ($dbh->can('syb_date_fmt')) {
       # amazingly, this works with FreeTDS
