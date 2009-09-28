@@ -42,7 +42,7 @@ requires 'MRO::Compat'              => '0.09';
 requires 'Module::Find'             => '0.06';
 requires 'Path::Class'              => '0.16';
 requires 'Scope::Guard'             => '0.03';
-requires 'SQL::Abstract'            => '1.58';
+requires 'SQL::Abstract'            => '1.60';
 requires 'SQL::Abstract::Limit'     => '0.13';
 requires 'Sub::Name'                => '0.04';
 
@@ -122,7 +122,7 @@ my %force_requires_if_author = (
   ,
 );
 #************************************************************************#
-# Make *ABSOLUTELY SURE* that nothing on the list aboveis a real require,#
+# Make ABSOLUTELY SURE that nothing on the list above is a real require, #
 # since every module listed in %force_requires_if_author is deleted      #
 # from the final META.yml (thus will never make it as a CPAN dependency) #
 #************************************************************************#
