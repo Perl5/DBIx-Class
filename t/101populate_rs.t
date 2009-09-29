@@ -15,7 +15,7 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 142;
+plan tests => 182;
 
 
 ## ----------------------------------------------------------------------------
@@ -23,8 +23,16 @@ plan tests => 142;
 ## ----------------------------------------------------------------------------
 
 my $schema	= DBICTest->init_schema();
+
+$schema->resultset('Genre')->create({
+  genreid => 1,
+  name => 'Mixed',
+});
+
 my $art_rs	= $schema->resultset('Artist');
+my $restricted_art_rs	= $art_rs->search({rank => 42});
 my $cd_rs	= $schema->resultset('CD');
+my $restricted_cd_rs	= $cd_rs->search({genreid => 1});
 
 ok( $schema, 'Got a Schema object');
 ok( $art_rs, 'Got Good Artist Resultset');
@@ -164,7 +172,7 @@ ARRAY_CONTEXT: {
 		
 		## Get the result row objects.
 		
-		my ($girl, $crap, $damn, $formerly) = $art_rs->populate($artists);
+		my ($girl, $crap, $damn, $formerly) = $restricted_art_rs->populate($artists);
 		
 		## Do we have the right object?
 		
@@ -179,6 +187,10 @@ ARRAY_CONTEXT: {
 		ok( $girl->name eq 'Angsty-Whiny Girl', "Got Correct name for result object");
 		ok( $damn->name eq 'Like I Give a Damn', "Got Correct name for result object");	
 		ok( $formerly->name eq 'Formerly Named', "Got Correct name for result object");
+		cmp_ok( $crap->rank, '==', 42, "Got Correct rank for result object");
+		cmp_ok( $girl->rank, '==', 42, "Got Correct rank for result object");
+		cmp_ok( $damn->rank, '==', 42, "Got Correct rank for result object");	
+		cmp_ok( $formerly->rank, '==', 42, "Got Correct rank for result object");
 		
 		## Create the expected children sub objects?
 		
@@ -238,7 +250,7 @@ ARRAY_CONTEXT: {
 		
 		## Get the result row objects.
 		
-		my ($girl, $crap, $damn, $formerly) = $art_rs->populate($artists);
+		my ($girl, $crap, $damn, $formerly) = $restricted_art_rs->populate($artists);
 		
 		## Do we have the right object?
 		
@@ -254,6 +266,10 @@ ARRAY_CONTEXT: {
 		ok( $girl->artistid == $first_aid, "Got Correct artist PK for result object");		
 		ok( $damn->name eq 'PK_Like I Give a Damn', "Got Correct name for result object");	
 		ok( $formerly->name eq 'PK_Formerly Named', "Got Correct name for result object");
+		cmp_ok( $crap->rank, '==', 42, "Got Correct rank for result object");
+		cmp_ok( $girl->rank, '==', 42, "Got Correct rank for result object");
+		cmp_ok( $damn->rank, '==', 42, "Got Correct rank for result object");	
+		cmp_ok( $formerly->rank, '==', 42, "Got Correct rank for result object");
 		
 		## Create the expected children sub objects?
 		
@@ -289,17 +305,21 @@ ARRAY_CONTEXT: {
 			},		
 		];
 		
-		my ($cdA, $cdB) = $cd_rs->populate($cds);
+		my ($cdA, $cdB) = $restricted_cd_rs->populate($cds);
 		
 
 		isa_ok($cdA, 'DBICTest::CD', 'Created CD');
 		isa_ok($cdA->artist, 'DBICTest::Artist', 'Set Artist');
 		is($cdA->artist->name, 'Fred BloggsC', 'Set Artist to FredC');
+		isa_ok($cdA->genre, 'DBICTest::Genre', 'Set Genre');
+		cmp_ok($cdA->genre->id, '==', 1, 'Set Genre ID to 1');
 
 		
 		isa_ok($cdB, 'DBICTest::CD', 'Created CD');
 		isa_ok($cdB->artist, 'DBICTest::Artist', 'Set Artist');
 		is($cdB->artist->name, 'Fred BloggsD', 'Set Artist to FredD');
+		isa_ok($cdB->genre, 'DBICTest::Genre', 'Set Genre');
+		cmp_ok($cdB->genre->id, '==', 1, 'Set Genre ID to 1');
 	}
 
 	BELONGS_TO_WITH_PKs: {
@@ -322,16 +342,20 @@ ARRAY_CONTEXT: {
 			},		
 		];
 		
-		my ($cdA, $cdB) = $cd_rs->populate($cds);
+		my ($cdA, $cdB) = $restricted_cd_rs->populate($cds);
 		
 		isa_ok($cdA, 'DBICTest::CD', 'Created CD');
 		isa_ok($cdA->artist, 'DBICTest::Artist', 'Set Artist');
 		is($cdA->artist->name, 'Fred BloggsC', 'Set Artist to FredC');
+		isa_ok($cdA->genre, 'DBICTest::Genre', 'Set Genre');
+		cmp_ok($cdA->genre->id, '==', 1, 'Set Genre ID to 1');
 		
 		isa_ok($cdB, 'DBICTest::CD', 'Created CD');
 		isa_ok($cdB->artist, 'DBICTest::Artist', 'Set Artist');
 		is($cdB->artist->name, 'Fred BloggsD', 'Set Artist to FredD');
 		ok($cdB->artist->artistid == $aid, "Got Expected Artist ID");
+		isa_ok($cdB->genre, 'DBICTest::Genre', 'Set Genre');
+		cmp_ok($cdB->genre->id, '==', 1, 'Set Genre ID to 1');
 	}
 }
 
@@ -395,7 +419,7 @@ VOID_CONTEXT: {
 		
 		## Get the result row objects.
 		
-		$art_rs->populate($artists);
+		$restricted_art_rs->populate($artists);
 		
 		my ($undef, $girl, $formerly, $damn, $crap) = $art_rs->search(
 		
@@ -418,6 +442,11 @@ VOID_CONTEXT: {
 		ok( $damn->name eq 'VOID_PK_Like I Give a Damn', "Got Correct name for result object");	
 		ok( $formerly->name eq 'VOID_PK_Formerly Named', "Got Correct name for result object");
 		ok( !defined $undef->name, "Got Correct name 'is undef' for result object");		
+		cmp_ok( $crap->rank, '==', 42, "Got Correct rank for result object");
+		cmp_ok( $girl->rank, '==', 42, "Got Correct rank for result object");
+		cmp_ok( $damn->rank, '==', 42, "Got Correct rank for result object");	
+		cmp_ok( $formerly->rank, '==', 42, "Got Correct rank for result object");
+		cmp_ok( $undef->rank, '==', 42, "Got Correct rank for result object");
 		
 		## Create the expected children sub objects?
 		ok( $crap->can('cds'), "Has cds relationship");
@@ -461,7 +490,7 @@ VOID_CONTEXT: {
 			},		
 		];
 		
-		$cd_rs->populate($cds);
+		$restricted_cd_rs->populate($cds);
 		
 		my ($cdA, $cdB) = $cd_rs->search(
 			{title=>[sort map {$_->{title}} @$cds]},
@@ -471,11 +500,15 @@ VOID_CONTEXT: {
 		isa_ok($cdA, 'DBICTest::CD', 'Created CD');
 		isa_ok($cdA->artist, 'DBICTest::Artist', 'Set Artist');
 		is($cdA->artist->name, 'Fred BloggsCB', 'Set Artist to FredCB');
+		isa_ok($cdA->genre, 'DBICTest::Genre', 'Set Genre');
+		cmp_ok($cdA->genre->id, '==', 1, 'Set Genre ID to 1');
 		
 		isa_ok($cdB, 'DBICTest::CD', 'Created CD');
 		isa_ok($cdB->artist, 'DBICTest::Artist', 'Set Artist');
 		is($cdB->artist->name, 'Fred BloggsDB', 'Set Artist to FredDB');
 		ok($cdB->artist->artistid == $aid, "Got Expected Artist ID");
+		isa_ok($cdB->genre, 'DBICTest::Genre', 'Set Genre');
+		cmp_ok($cdB->genre->id, '==', 1, 'Set Genre ID to 1');
 	}
 
 	BELONGS_TO_NO_PKs: {
@@ -501,7 +534,7 @@ VOID_CONTEXT: {
 			},		
 		];
 		
-		$cd_rs->populate($cds);
+		$restricted_cd_rs->populate($cds);
 		
 		my ($cdA, $cdB, $cdC) = $cd_rs->search(
 			{title=>[sort map {$_->{title}} @$cds]},
@@ -512,16 +545,22 @@ VOID_CONTEXT: {
 		isa_ok($cdA->artist, 'DBICTest::Artist', 'Set Artist');
 		is($cdA->title, 'Some CD3BB', 'Found Expected title');
 		is($cdA->artist->name, 'Fred BloggsCBB', 'Set Artist to FredCBB');
+		isa_ok($cdA->genre, 'DBICTest::Genre', 'Set Genre');
+		cmp_ok($cdA->genre->id, '==', 1, 'Set Genre ID to 1');
 		
 		isa_ok($cdB, 'DBICTest::CD', 'Created CD');
 		isa_ok($cdB->artist, 'DBICTest::Artist', 'Set Artist');
 		is($cdB->title, 'Some CD4BB', 'Found Expected title');
 		is($cdB->artist->name, 'Fred BloggsDBB', 'Set Artist to FredDBB');
+		isa_ok($cdB->genre, 'DBICTest::Genre', 'Set Genre');
+		cmp_ok($cdB->genre->id, '==', 1, 'Set Genre ID to 1');
 		
 		isa_ok($cdC, 'DBICTest::CD', 'Created CD');
 		isa_ok($cdC->artist, 'DBICTest::Artist', 'Set Artist');
 		is($cdC->title, 'Some CD5BB', 'Found Expected title');
 		is( $cdC->artist->name, undef, 'Set Artist to something undefined');
+		isa_ok($cdC->genre, 'DBICTest::Genre', 'Set Genre');
+		cmp_ok($cdC->genre->id, '==', 1, 'Set Genre ID to 1');
 	}
 	
 	
@@ -559,7 +598,7 @@ VOID_CONTEXT: {
 		
 		## Get the result row objects.
 		
-		$art_rs->populate($artists);
+		$restricted_art_rs->populate($artists);
 		
 		my ($girl, $formerly, $damn, $crap) = $art_rs->search(
 			{name=>[sort map {$_->{name}} @$artists]},
@@ -579,6 +618,10 @@ VOID_CONTEXT: {
 		ok( $girl->name eq 'VOID_Angsty-Whiny Girl', "Got Correct name for result object");
 		ok( $damn->name eq 'VOID_Like I Give a Damn', "Got Correct name for result object");	
 		ok( $formerly->name eq 'VOID_Formerly Named', "Got Correct name for result object");
+		cmp_ok( $crap->rank, '==', 42, "Got Correct rank for result object");
+		cmp_ok( $girl->rank, '==', 42, "Got Correct rank for result object");
+		cmp_ok( $damn->rank, '==', 42, "Got Correct rank for result object");	
+		cmp_ok( $formerly->rank, '==', 42, "Got Correct rank for result object");
 		
 		## Create the expected children sub objects?
 		ok( $crap->can('cds'), "Has cds relationship");
@@ -604,7 +647,7 @@ VOID_CONTEXT: {
 }
 
 ARRAYREF_OF_ARRAYREF_STYLE: {
-  $art_rs->populate([
+  $restricted_art_rs->populate([
     [qw/artistid name/],
     [1000, 'A Formally Unknown Singer'],
     [1001, 'A singer that jumped the shark two albums ago'],
@@ -619,7 +662,11 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
   is $jumped->name, 'A singer that jumped the shark two albums ago', 'Correct Name';
   is $cool->name, 'An actually cool singer.', 'Correct Name';
   
-  my ($cooler, $lamer) = $art_rs->populate([
+  cmp_ok $unknown->rank, '==', 42, 'Correct Rank';
+  cmp_ok $jumped->rank, '==', 42, 'Correct Rank';
+  cmp_ok $cool->rank, '==', 42, 'Correct Rank';
+  
+  my ($cooler, $lamer) = $restricted_art_rs->populate([
     [qw/artistid name/],
     [1003, 'Cooler'],
     [1004, 'Lamer'],	
@@ -627,4 +674,7 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
   
   is $cooler->name, 'Cooler', 'Correct Name';
   is $lamer->name, 'Lamer', 'Correct Name';  
+
+  cmp_ok $cooler->rank, '==', 42, 'Correct Rank';
+  cmp_ok $lamer->rank, '==', 42, 'Correct Rank';  
 }
