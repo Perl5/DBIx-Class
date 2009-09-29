@@ -449,6 +449,8 @@ sub update {
 # it is originally put by _remove_blob_cols .)
   my %blobs_to_empty = map { ($_ => delete $fields->{$_}) } keys %$blob_cols;
 
+# We can't only update NULL blobs, because blobs cannot be in the WHERE clause.
+
   $self->next::method($source, \%blobs_to_empty, $where, @rest);
 
 # Now update the blobs before the other columns in case the update of other

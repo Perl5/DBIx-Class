@@ -1335,7 +1335,7 @@ sub insert {
 ## scalar refs, or at least, all the same type as the first set, the statement is
 ## only prepped once.
 sub insert_bulk {
-  my ($self, $source, $cols, $data, $sth_attr) = @_;
+  my ($self, $source, $cols, $data) = @_;
 
 # redispatch to insert_bulk method of storage we reblessed into, if necessary
   if (not $self->_driver_determined) {
@@ -1374,7 +1374,7 @@ sub insert_bulk {
   }
 
   $self->_query_start( $sql, @bind );
-  my $sth = $self->sth($sql, 'insert', $sth_attr);
+  my $sth = $self->sth($sql);
 
   my $rv = do {
     if ($empty_bind) {
@@ -2053,27 +2053,6 @@ sub _subq_count_select {
   return @pcols ? \@pcols : [ 1 ];
 }
 
-=head2 order_select_columns
-
-=over 4
-
-=item Arguments: $source, \@columns
-
-=back
-
-Returns an ordered list of column names to be used in a SELECT statement. By
-default simply returns the list that was passed in.
-
-This may be overridden in a specific storage when there are requirements such as
-moving BLOB columns to the end of the SELECT list.
-
-=cut
-
-sub order_select_columns {
-  #my ($self, $source, $columns) = @_;
-  return @{$_[2]};
-}
-
 sub source_bind_attributes {
   my ($self, $source) = @_;
 
@@ -2132,15 +2111,12 @@ Returns a L<DBI> sth (statement handle) for the supplied SQL.
 =cut
 
 sub _dbh_sth {
-  my ($self, $dbh, $sql, $op, $sth_attr) = @_;
-# $op is ignored right now
-
-  $sth_attr ||= {};
+  my ($self, $dbh, $sql) = @_;
 
   # 3 is the if_active parameter which avoids active sth re-use
   my $sth = $self->disable_sth_caching
-    ? $dbh->prepare($sql, $sth_attr)
-    : $dbh->prepare_cached($sql, $sth_attr, 3);
+    ? $dbh->prepare($sql)
+    : $dbh->prepare_cached($sql, {}, 3);
 
   # XXX You would think RaiseError would make this impossible,
   #  but apparently that's not true :(
@@ -2150,8 +2126,8 @@ sub _dbh_sth {
 }
 
 sub sth {
-  my ($self, $sql, $op, $sth_attr) = @_;
-  $self->dbh_do('_dbh_sth', $sql, $op, $sth_attr);  # retry over disconnects
+  my ($self, $sql) = @_;
+  $self->dbh_do('_dbh_sth', $sql);  # retry over disconnects
 }
 
 sub _dbh_columns_info_for {

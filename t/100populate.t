@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 23;
+plan tests => 24;
 
 my $schema = DBICTest->init_schema();
 
@@ -116,3 +116,19 @@ is($link7->id, 7, 'Link 7 id');
 is($link7->url, undef, 'Link 7 url');
 is($link7->title, 'gtitle', 'Link 7 title');
 
+# test _execute_array_empty (insert_bulk with all literal sql)
+my $rs = $schema->resultset('Artist');
+$rs->delete;
+$rs->populate([
+    (+{
+        name => \"'DT'",
+        rank => \500,
+        charfield => \"'mtfnpy'",
+    }) x 5
+]);
+
+is((grep {
+  $_->name eq 'DT' &&
+  $_->rank == 500  &&
+  $_->charfield eq 'mtfnpy'
+} $rs->all), 5, 'populate with all literal SQL');
