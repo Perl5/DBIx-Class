@@ -512,15 +512,8 @@ EOF
       && (not $is_identity_insert)
       && ($self->_identity_method||'') ne '@@IDENTITY';
 
-    ($self, my ($guard)) = do {
-      if ($self->{transaction_depth} == 0 && $blob_cols &&
-          $dumb_last_insert_id) {
-        ($self->_writer_storage, $self->_writer_storage->txn_scope_guard);
-      }
-      else {
-        ($self, undef);
-      }
-    };
+    $self     = $self->_writer_storage;
+    my $guard = $self->txn_scope_guard;
 
     $self->next::method(@_);
 
@@ -548,7 +541,7 @@ EOF
       }
     }
 
-    $guard->commit if $guard;
+    $guard->commit;
     return;
   }
 

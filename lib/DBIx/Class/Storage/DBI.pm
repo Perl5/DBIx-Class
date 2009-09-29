@@ -1393,6 +1393,8 @@ sub insert_bulk {
 sub _execute_array {
   my ($self, $source, $sth, $bind, $cols, $data, $after_exec_cb) = @_;
 
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
+
   ## This must be an arrayref, else nothing works!
   my $tuple_status = [];
 
@@ -1444,11 +1446,16 @@ sub _execute_array {
     );
   }
 
+  $guard->commit if $guard;
+
   return $rv;
 }
 
 sub _execute_array_empty {
   my ($self, $sth, $count) = @_;
+
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
+
   eval {
     my $dbh = $self->_get_dbh;
     local $dbh->{RaiseError} = 1;
@@ -1473,6 +1480,8 @@ sub _execute_array_empty {
   $exception = $@ unless $exception;
 
   $self->throw_exception($exception) if $exception;
+
+  $guard->commit if $guard;
 
   return $count;
 }
