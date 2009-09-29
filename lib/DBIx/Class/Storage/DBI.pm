@@ -1418,8 +1418,9 @@ sub _execute_array {
     $placeholder_index++;
   }
 
-  my $rv = eval {
-    $sth->execute_array({ArrayTupleStatus => $tuple_status});
+  my $rv;
+  eval {
+    $rv = $sth->execute_array({ArrayTupleStatus => $tuple_status});
     $after_exec_cb->() if $after_exec_cb;
   };
   my $err = $@ || $sth->errstr;
