@@ -1349,12 +1349,11 @@ sub insert_bulk {
   # pass scalarref to SQLA for literal sql if it's the same in all slices
   for my $i (0..$#$cols) {
     my $first_val = $data->[0][$i];
-    next unless (Scalar::Util::reftype($first_val)||'') eq 'SCALAR';
+    next unless ref $first_val eq 'SCALAR';
 
     $colvalues{ $cols->[$i] } = $first_val
       if (grep {
-        (Scalar::Util::reftype($_)||'') eq 'SCALAR' &&
-        $$_ eq $$first_val
+        ref $_ eq 'SCALAR' && $$_ eq $$first_val
       } map $data->[$_][$i], (1..$#$data)) == (@$data - 1);
   }
 
@@ -1364,8 +1363,7 @@ sub insert_bulk {
   my @bind = @$bind;
 
   my $empty_bind = 1 if (not @bind) &&
-    (grep { (Scalar::Util::reftype($_)||'') eq 'SCALAR' } values %colvalues)
-    == @$cols;
+    (grep { ref $_ eq 'SCALAR' } values %colvalues) == @$cols;
 
   if ((not @bind) && (not $empty_bind)) {
     $self->throw_exception(
@@ -1393,7 +1391,7 @@ sub insert_bulk {
 }
 
 sub _execute_array {
-  my ($self, $source, $sth, $bind, $cols, $data, $guard) = @_;
+  my ($self, $source, $sth, $bind, $cols, $data, $after_exec_cb) = @_;
 
   ## This must be an arrayref, else nothing works!
   my $tuple_status = [];
@@ -1420,14 +1418,17 @@ sub _execute_array {
     $placeholder_index++;
   }
 
-  my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
+  my $rv = eval {
+    $sth->execute_array({ArrayTupleStatus => $tuple_status});
+    $after_exec_cb->() if $after_exec_cb;
+  };
+  my $err = $@ || $sth->errstr;
 
-# only needed for Sybase, it requires a commit before the $sth->finish
-  $guard->commit if $guard;
+# Statement must finish even if there was an exception.
+  eval { $sth->finish };
+  $err = $@ unless $err;
 
-  $sth->finish;
-
-  if (my $err = $@ || $sth->errstr) {
+  if ($err) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
 
@@ -1451,19 +1452,34 @@ sub _execute_array_empty {
     my $dbh = $self->_get_dbh;
     local $dbh->{RaiseError} = 1;
     local $dbh->{PrintError} = 0;
+
+# In case of a multi-statement with a select, some DBDs (namely Sybase) require
+# the statement to be exhausted.
+    my $fetch = 0;
+    if ($self->_exhaust_statements && $sth->{Statement} =~ /(?:\n|;)select/i) {
+      $fetch = 1;
+    }
+
     foreach (1..$count) {
       $sth->execute;
-# In case of a multi-statement with a select, some DBDs (namely Sybase) require
-# the cursor to be exhausted.
-      $sth->fetchall_arrayref;
+      $sth->fetchall_arrayref if $fetch;
     }
   };
   my $exception = $@;
-  $sth->finish;
+
+# Make sure statement is finished even if there was an exception.
+  eval { $sth->finish };
+  $exception = $@ unless $exception;
+
   $self->throw_exception($exception) if $exception;
 
   return $count;
 }
+
+# Whether we prefer to exhaust cursors with results, or they can be
+# reused/finished without fetching anything. To be overridden to '1' in storages
+# that need it.
+sub _exhaust_statements { 0 }
 
 sub update {
   my ($self, $source, @args) = @_; 

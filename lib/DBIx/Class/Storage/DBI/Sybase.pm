@@ -633,7 +633,9 @@ EOF
     };
 
     $self->_execute_array(
-      $source, $sth, \@bind, \@source_columns, \@new_data, $guard
+      $source, $sth, \@bind, \@source_columns, \@new_data, sub {
+        $guard->commit
+      }
     );
 
     $bulk->_query_end($sql);
@@ -662,6 +664,9 @@ EOF
     $self->throw_exception($exception);
   }
 }
+
+# Sybase is very sensitive to this.
+sub _exhaust_statements { 1 }
 
 # Make sure blobs are not bound as placeholders, and return any non-empty ones
 # as a hash.
