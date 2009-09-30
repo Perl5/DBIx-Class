@@ -1391,7 +1391,7 @@ sub insert_bulk {
 }
 
 sub _execute_array {
-  my ($self, $source, $sth, $bind, $cols, $data, $after_exec_cb) = @_;
+  my ($self, $source, $sth, $bind, $cols, $data, @extra) = @_;
 
   my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
 
@@ -1420,10 +1420,8 @@ sub _execute_array {
     $placeholder_index++;
   }
 
-  my $rv;
-  eval {
-    $rv = $sth->execute_array({ArrayTupleStatus => $tuple_status});
-    $after_exec_cb->() if $after_exec_cb;
+  my $rv = eval {
+    $self->_dbh_execute_array($sth, $tuple_status, @extra);
   };
   my $err = $@ || $sth->errstr;
 
@@ -1449,6 +1447,12 @@ sub _execute_array {
   $guard->commit if $guard;
 
   return $rv;
+}
+
+sub _dbh_execute_array {
+    my ($self, $sth, $tuple_status, @extra) = @_;
+
+    return $sth->execute_array({ArrayTupleStatus => $tuple_status});
 }
 
 sub _execute_array_empty {

@@ -664,6 +664,15 @@ EOF
   }
 }
 
+sub _dbh_execute_array {
+  my ($self, $sth, $tuple_status, $cb) = @_;
+
+  my $rv = $self->next::method($sth, $tuple_status);
+  $cb->() if $cb;
+
+  return $rv;
+}
+
 # Make sure blobs are not bound as placeholders, and return any non-empty ones
 # as a hash.
 sub _remove_blob_cols {
