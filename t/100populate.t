@@ -6,8 +6,6 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 24;
-
 my $schema = DBICTest->init_schema();
 
 # The map below generates stuff like:
@@ -132,3 +130,26 @@ is((grep {
   $_->rank == 500  &&
   $_->charfield eq 'mtfnpy'
 } $rs->all), 5, 'populate with all literal SQL');
+
+$rs->delete;
+
+throws_ok {
+    $rs->populate([
+        {
+            artistid => 1,
+            name => 'foo1',
+        },
+        {
+            artistid => 'foo', # this dies
+            name => 'foo2',
+        },
+        {
+            artistid => 3,
+            name => 'foo3',
+        },
+    ]);
+} qr/slice/, 'bad slice';
+
+is($rs->count, 0, 'populate is atomic');
+
+done_testing;
