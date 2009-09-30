@@ -513,8 +513,11 @@ EOF
       && (not $is_identity_insert)
       && ($self->_identity_method||'') ne '@@IDENTITY';
 
-    $self     = $self->_writer_storage;
-    my $guard = $self->txn_scope_guard;
+    ($self, my $guard) = $self->{transaction_depth} == 0 ? 
+      ($self->_writer_storage, $self->_writer_storage->txn_scope_guard)
+      :
+      ($self, undef);
+
     local $self->{insert_bulk} = 1;
 
     $self->next::method(@_);
@@ -543,7 +546,8 @@ EOF
       }
     }
 
-    $guard->commit;
+    $guard->commit if $guard;
+
     return;
   }
 
