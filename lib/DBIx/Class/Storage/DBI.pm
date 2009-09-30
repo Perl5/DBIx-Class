@@ -1461,17 +1461,7 @@ sub _execute_array_empty {
     local $dbh->{RaiseError} = 1;
     local $dbh->{PrintError} = 0;
 
-# In case of a multi-statement with a select, some DBDs (namely Sybase) require
-# the statement to be exhausted.
-    my $fetch = 0;
-    if ($self->_exhaust_statements && $sth->{Statement} =~ /(?:\n|;)select/i) {
-      $fetch = 1;
-    }
-
-    foreach (1..$count) {
-      $sth->execute;
-      $sth->fetchall_arrayref if $fetch;
-    }
+    $sth->execute foreach 1..$count;
   };
   my $exception = $@;
 
@@ -1485,11 +1475,6 @@ sub _execute_array_empty {
 
   return $count;
 }
-
-# Whether we prefer to exhaust cursors with results, or they can be
-# reused/finished without fetching anything. To be overridden to '1' in storages
-# that need it.
-sub _exhaust_statements { 0 }
 
 sub update {
   my ($self, $source, @args) = @_; 

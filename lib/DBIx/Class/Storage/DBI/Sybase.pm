@@ -277,7 +277,8 @@ sub _prep_for_execute {
     );
   }
 
-  if ($op eq 'insert' && (not $bound_identity_col) && $identity_col) {
+  if ($op eq 'insert' && (not $bound_identity_col) && $identity_col &&
+      (not $self->{insert_bulk})) {
     $sql =
       "$sql\n" .
       $self->_fetch_identity_sql($ident, $identity_col);
@@ -514,6 +515,7 @@ EOF
 
     $self     = $self->_writer_storage;
     my $guard = $self->txn_scope_guard;
+    local $self->{insert_bulk} = 1;
 
     $self->next::method(@_);
 
@@ -657,9 +659,6 @@ EOF
     $self->throw_exception($exception);
   }
 }
-
-# Sybase is very sensitive to this.
-sub _exhaust_statements { 1 }
 
 # Make sure blobs are not bound as placeholders, and return any non-empty ones
 # as a hash.
