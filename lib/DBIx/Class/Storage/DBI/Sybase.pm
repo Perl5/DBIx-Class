@@ -508,11 +508,8 @@ EOF
   if (not $use_bulk_api) {
     my $blob_cols = $self->_remove_blob_cols_array($source, $cols, $data);
 
-    my $dumb_last_insert_id =
-         $identity_col
-      && (not $is_identity_insert)
-      && ($self->_identity_method||'') ne '@@IDENTITY';
-
+# _execute_array uses a txn anyway, but it ends too early in case we need to
+# select max(col) to get the identity for inserting blobs.
     ($self, my $guard) = $self->{transaction_depth} == 0 ? 
       ($self->_writer_storage, $self->_writer_storage->txn_scope_guard)
       :
