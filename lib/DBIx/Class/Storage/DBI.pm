@@ -13,6 +13,7 @@ use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use Scalar::Util();
 use List::Util();
+use Data::Dumper::Concise();
 
 # what version of sqlt do we require if deploy() without a ddl_dir is invoked
 # when changing also adjust the corresponding author_require in Makefile.PL
@@ -1438,7 +1439,7 @@ sub _execute_array {
 
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
       ($tuple_status->[$i][1] || $err),
-      $self->_pretty_print ({
+      Data::Dumper::Concise::Dumper({
         map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols)
       }),
     );

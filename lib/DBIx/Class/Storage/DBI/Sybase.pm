@@ -9,8 +9,9 @@ use base qw/
 /;
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
-use List::Util ();
-use Sub::Name ();
+use List::Util();
+use Sub::Name();
+use Data::Dumper::Concise();
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_identity _blob_log_on_update _writer_storage _is_extra_storage
@@ -779,7 +780,7 @@ sub _insert_blobs {
 
       $self->throw_exception(
           "Could not find row in table '$table' for blob update:\n"
-        . $self->_pretty_print (\%where)
+        . Data::Dumper::Concise::Dumper (\%where)
       );
     }
 
