@@ -878,13 +878,14 @@ sub _determine_driver {
   my ($self) = @_;
 
   if ((not $self->_driver_determined) && (not $self->{_in_determine_driver})) {
-    my $started_unconnected = 0;
+    my $started_connected = 0;
     local $self->{_in_determine_driver} = 1;
 
     if (ref($self) eq __PACKAGE__) {
       my $driver;
       if ($self->_dbh) { # we are connected
         $driver = $self->_dbh->{Driver}{Name};
+        $started_connected = 1;
       } else {
         # if connect_info is a CODEREF, we have no choice but to connect
         if (ref $self->_dbi_connect_info->[0] &&
@@ -896,7 +897,6 @@ sub _determine_driver {
           # try to use dsn to not require being connected, the driver may still
           # force a connection in _rebless to determine version
           ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
-          $started_unconnected = 1;
         }
       }
 
@@ -913,7 +913,7 @@ sub _determine_driver {
     $self->_init; # run driver-specific initializations
 
     $self->_run_connection_actions
-        if $started_unconnected && defined $self->_dbh;
+        if !$started_connected && defined $self->_dbh;
   }
 }
 
