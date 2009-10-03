@@ -10,7 +10,7 @@ use DBIx::Class::Storage::DBI;
 
 # !!! do not replace this with done_testing - tests reside in the callbacks
 # !!! number of calls is important
-use Test::More tests => 11;
+use Test::More tests => 15;
 # !!!
 
 my $schema = DBICTest::Schema->clone;
@@ -77,4 +77,21 @@ my $schema = DBICTest::Schema->clone;
   ok (! $schema->storage->connected, 'start disconnected');
   $schema->storage->ensure_connected;
   $schema->storage->disconnect; # this should not fire any tests
+}
+
+{
+  ok $schema->connection(
+    sub { DBI->connect(DBICTest->_database) },
+    {
+      # method list form
+      on_connect_call => [ sub { ok 1, "on_connect_call after DT parser" }, ],
+      on_disconnect_call => [ sub { ok 1, "on_disconnect_call after DT parser" }, ],
+    },
+  ), 'connection()';
+
+  ok (! $schema->storage->connected, 'start disconnected');
+  my $parser = $schema->storage->datetime_parser;
+
+  $schema->storage->ensure_connected;
+  $schema->storage->disconnect;
 }
