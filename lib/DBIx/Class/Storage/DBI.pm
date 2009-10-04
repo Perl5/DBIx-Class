@@ -1347,15 +1347,16 @@ sub insert_bulk {
   my %colvalues;
   @colvalues{@$cols} = (0..$#$cols);
 
-  # pass scalarref to SQLA for literal sql if it's the same in all slices
   for my $i (0..$#$cols) {
     my $first_val = $data->[0][$i];
     next unless ref $first_val eq 'SCALAR';
 
-    $colvalues{ $cols->[$i] } = $first_val
-      if (grep {
-        ref $_ eq 'SCALAR' && $$_ eq $$first_val
-      } map $data->[$_][$i], (1..$#$data)) == (@$data - 1);
+    $colvalues{ $cols->[$i] } = $first_val;
+## This is probably unnecessary since $rs->populate only looks at the first
+## slice anyway.
+#      if (grep {
+#        ref $_ eq 'SCALAR' && $$_ eq $$first_val
+#      } map $data->[$_][$i], (1..$#$data)) == (@$data - 1);
   }
 
   my ($sql, $bind) = $self->_prep_for_execute (
@@ -1378,7 +1379,7 @@ sub insert_bulk {
   my $rv = do {
     if ($empty_bind) {
       # bind_param_array doesn't work if there are no binds
-      $self->_execute_array_empty( $sth, scalar @$data );
+      $self->_dbh_execute_inserts_with_no_binds( $sth, scalar @$data );
     }
     else {
 #      @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
@@ -1456,7 +1457,7 @@ sub _dbh_execute_array {
     return $sth->execute_array({ArrayTupleStatus => $tuple_status});
 }
 
-sub _execute_array_empty {
+sub _dbh_execute_inserts_with_no_binds {
   my ($self, $sth, $count) = @_;
 
   my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
