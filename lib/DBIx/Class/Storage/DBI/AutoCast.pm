@@ -10,7 +10,7 @@ __PACKAGE__->mk_group_accessors('simple' => 'auto_cast' );
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::AutoCast
+DBIx::Class::Storage::DBI::AutoCast - Storage component for RDBMS requiring explicit placeholder typing
 
 =head1 SYNOPSIS
 
