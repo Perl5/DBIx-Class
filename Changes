@@ -1,7 +1,11 @@
 Revision history for DBIx::Class
 
         - Add is_paged method to DBIx::Class::ResultSet so that we can
-          check that if we want a pager.
+          check that if we want a pager
+        - Skip versioning test on really old perls lacking Time::HiRes
+          (RT #50209)
+        - Fixed on_connect_do/call regression when used with a coderef
+          connector (RT #50003)
 
 0.08112 2009-09-21 10:57:00 (UTC)
         - Remove the recommends from Makefile.PL, DBIx::Class is not
