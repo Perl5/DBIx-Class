@@ -10,10 +10,10 @@ my $schema = DBICTest->init_schema();
 
 my $tkfks = $schema->resultset('Artist');
 
-ok !$tkfks->is_paginated, 'vanilla resultset is not paginated';
+ok !$tkfks->is_paged, 'vanilla resultset is not paginated';
 
 my $paginated = $tkfks->search(undef, { page => 5 });
-ok $paginated->is_paginated, 'resultset is paginated now';
+ok $paginated->is_paged, 'resultset is paginated now';
 
 done_testing;
 

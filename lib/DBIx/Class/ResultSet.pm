@@ -2564,13 +2564,19 @@ sub clear_cache {
   shift->set_cache(undef);
 }
 
-=head2 is_paginated
+=head2 is_paged
 
-Returns true if the resultset has been paginated
+=over 4
+
+=item Arguments: none
+
+=item Return Value: true, if the resultset has been paginated
+
+=back
 
 =cut
 
-sub is_paginated {
+sub is_paged {
   my ($self) = @_;
   return !!$self->{attrs}{page};
 }
