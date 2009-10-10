@@ -501,7 +501,7 @@ sub move_to_group {
     }
     else {
       my $bumped_pos_val = $self->_position_value ($to_position);
-      my @between = ($to_position, $new_group_last_position);
+      my @between = map { $self->_position_value ($_) } ($to_position, $new_group_last_position);
       $self->_shift_siblings (1, @between);   #shift right
       $self->set_column( $position_column => $bumped_pos_val );
     }
