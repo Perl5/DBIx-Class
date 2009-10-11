@@ -6,6 +6,7 @@ Revision history for DBIx::Class
           (RT #50209)
         - Fixed on_connect_do/call regression when used with a coderef
           connector (RT #50003)
+        - A couple of fixes to Ordered to remedy subclassing issues
 
 0.08112 2009-09-21 10:57:00 (UTC)
         - Remove the recommends from Makefile.PL, DBIx::Class is not
