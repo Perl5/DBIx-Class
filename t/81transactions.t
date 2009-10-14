@@ -1,23 +1,22 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
+use Test::Warn;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 64;
-
 my $code = sub {
   my ($artist, @cd_titles) = @_;
-  
+
   $artist->create_related('cds', {
     title => $_,
     year => 2006,
   }) foreach (@cd_titles);
-  
+
   return $artist->cds->all;
 };
 
@@ -258,13 +257,13 @@ $schema->storage->disconnect;
       name => 'Death Cab for Cutie',
       made_up_column => 1,
     });
-    
+
    $guard->commit;
   } qr/No such column made_up_column .*? at .*?81transactions.t line \d+/s, "Error propogated okay";
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
-  my $inner_exception;
+  my $inner_exception;  # set in inner() below
   eval {
     outer($schema, 1);
   };
@@ -273,14 +272,11 @@ $schema->storage->disconnect;
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
   lives_ok (sub {
-    my $w;
-    local $SIG{__WARN__} = sub { $w = shift };
-
-    # The 0 arg says don't die, just let the scope guard go out of scope 
-    # forcing a txn_rollback to happen
-    outer($schema, 0);
-
-    like ($w, qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or an error/, 'Out of scope warning detected');
+    warnings_exist ( sub {
+      # The 0 arg says don't die, just let the scope guard go out of scope 
+      # forcing a txn_rollback to happen
+      outer($schema, 0);
+    }, qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./, 'Out of scope warning detected');
     ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
   }, 'rollback successful withot exception');
 
@@ -319,3 +315,63 @@ $schema->storage->disconnect;
     $inner_guard->commit;
   }
 }
+
+# make sure the guard does not eat exceptions
+{
+  my $schema = DBICTest->init_schema();
+  throws_ok (sub {
+    my $guard = $schema->txn_scope_guard;
+    $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
+
+    $schema->storage->disconnect;  # this should freak out the guard rollback
+
+    die 'Deliberate exception';
+  }, qr/Deliberate exception.+Rollback failed/s);
+}
+
+# make sure it warns *big* on failed rollbacks
+{
+  my $schema = DBICTest->init_schema();
+
+  # something is really confusing Test::Warn here, no time to debug
+=begin
+  warnings_exist (
+    sub {
+      my $guard = $schema->txn_scope_guard;
+      $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
+
+      $schema->storage->disconnect;  # this should freak out the guard rollback
+    },
+    [
+      qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
+      qr/\*+ ROLLBACK FAILED\!\!\! \*+/,
+    ],
+    'proper warnings generated on out-of-scope+rollback failure'
+  );
+=cut
+
+  my @want = (
+    qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./,
+    qr/\*+ ROLLBACK FAILED\!\!\! \*+/,
+  );
+
+  my @w;
+  local $SIG{__WARN__} = sub {
+    if (grep {$_[0] =~ $_} (@want)) {
+      push @w, $_[0];
+    }
+    else {
+      warn $_[0];
+    }
+  };
+  {
+      my $guard = $schema->txn_scope_guard;
+      $schema->resultset ('Artist')->create ({ name => 'bohhoo'});
+
+      $schema->storage->disconnect;  # this should freak out the guard rollback
+  }
+
+  is (@w, 2, 'Both expected warnings found');
+}
+
+done_testing;

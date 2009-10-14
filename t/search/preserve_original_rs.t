@@ -8,7 +8,10 @@ use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 use DBIC::DebugObj;
 use DBICTest;
+
+# use Data::Dumper comparisons to avoid mesing with coderefs
 use Data::Dumper;
+$Data::Dumper::Sortkeys = 1;
 
 my $schema = DBICTest->init_schema();
 

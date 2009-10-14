@@ -5,103 +5,121 @@ use POSIX ();
 
 use 5.006001; # delete this line if you want to send patches for earlier.
 
+# ****** DO NOT ADD OPTIONAL DEPENDENCIES. EVER. --mst ******
+
 name     'DBIx-Class';
 perl_version '5.006001';
 all_from 'lib/DBIx/Class.pm';
 
 
-test_requires 'Test::Builder'       => 0.33;
-test_requires 'Test::Deep'          => 0;
-test_requires 'Test::Exception'     => 0;
-test_requires 'Test::More'          => 0.92;
-test_requires 'Test::Warn'          => 0.11;
+test_requires 'Test::Builder'       => '0.33';
+test_requires 'Test::Deep'          => '0';
+test_requires 'Test::Exception'     => '0';
+test_requires 'Test::More'          => '0.92';
+test_requires 'Test::Warn'          => '0.21';
 
-test_requires 'File::Temp'          => 0.22;
+test_requires 'File::Temp'          => '0.22';
 
 
 # Core
-requires 'List::Util'               => 0;
-requires 'Scalar::Util'             => 0;
-requires 'Storable'                 => 0;
+requires 'List::Util'               => '0';
+requires 'Scalar::Util'             => '0';
+requires 'Storable'                 => '0';
 
 # Perl 5.8.0 doesn't have utf8::is_utf8()
-requires 'Encode'                   => 0 if ($] <= 5.008000);
+requires 'Encode'                   => '0' if ($] <= 5.008000);
 
 # Dependencies (keep in alphabetical order)
-requires 'Carp::Clan'               => 6.0;
-requires 'Class::Accessor::Grouped' => 0.08003;
-requires 'Class::C3::Componentised' => 1.0005;
-requires 'Class::Inspector'         => 1.24;
-requires 'Data::Page'               => 2.00;
-requires 'DBD::SQLite'              => 1.25;
-requires 'DBI'                      => 1.605;
-requires 'JSON::Any'                => 1.18;
-requires 'MRO::Compat'              => 0.09;
-requires 'Module::Find'             => 0.06;
-requires 'Path::Class'              => 0.16;
-requires 'Scope::Guard'             => 0.03;
-requires 'SQL::Abstract'            => 1.56;
-requires 'SQL::Abstract::Limit'     => 0.13;
-requires 'Sub::Name'                => 0.04;
-
-recommends 'SQL::Translator'        => 0.09004;
+requires 'Carp::Clan'               => '6.0';
+requires 'Class::Accessor::Grouped' => '0.09000';
+requires 'Class::C3::Componentised' => '1.0005';
+requires 'Class::Inspector'         => '1.24';
+requires 'Data::Page'               => '2.00';
+requires 'DBD::SQLite'              => '1.25';
+requires 'DBI'                      => '1.605';
+requires 'JSON::Any'                => '1.18';
+requires 'MRO::Compat'              => '0.09';
+requires 'Module::Find'             => '0.06';
+requires 'Path::Class'              => '0.16';
+requires 'Scope::Guard'             => '0.03';
+requires 'SQL::Abstract'            => '1.60';
+requires 'SQL::Abstract::Limit'     => '0.13';
+requires 'Sub::Name'                => '0.04';
 
 my %replication_requires = (
-  'Moose',                    => 0.87,
-  'MooseX::AttributeHelpers'  => 0.21,
-  'MooseX::Types',            => 0.16,
-  'namespace::clean'          => 0.11,
-  'Hash::Merge',              => 0.11,
+  'Moose',                    => '0.87',
+  'MooseX::AttributeHelpers'  => '0.21',
+  'MooseX::Types',            => '0.16',
+  'namespace::clean'          => '0.11',
+  'Hash::Merge',              => '0.11',
 );
 
+#************************************************************************#
+# Make *ABSOLUTELY SURE* that nothing on this list is a real require,    #
+# since every module listed in %force_requires_if_author is deleted      #
+# from the final META.yml (thus will never make it as a CPAN dependency) #
+#************************************************************************#
 my %force_requires_if_author = (
   %replication_requires,
 
-#  'Module::Install::Pod::Inherit' => 0.01,
-  'Test::Pod::Coverage'       => 1.04,
-  'SQL::Translator'           => 0.09007,
+  # when changing also adjust $DBIx::Class::Storage::DBI::minimum_sqlt_version
+  'SQL::Translator'           => '0.11002',
+
+#  'Module::Install::Pod::Inherit' => '0.01',
+
+  # when changing also adjust version in t/02pod.t
+  'Test::Pod'                 => '1.26',
+
+  # when changing also adjust version in t/03podcoverage.t
+  'Test::Pod::Coverage'       => '1.08',
+  'Pod::Coverage'             => '0.20',
 
   # CDBI-compat related
-  'DBIx::ContextualFetch'     => 0,
-  'Class::DBI::Plugin::DeepAbstractSearch' => 0,
-  'Class::Trigger'            => 0,
-  'Time::Piece::MySQL'        => 0,
-  'Clone'                     => 0,
-  'Date::Simple'              => 3.03,
+  'DBIx::ContextualFetch'     => '0',
+  'Class::DBI::Plugin::DeepAbstractSearch' => '0',
+  'Class::Trigger'            => '0',
+  'Time::Piece::MySQL'        => '0',
+  'Clone'                     => '0',
+  'Date::Simple'              => '3.03',
 
   # t/52cycle.t
-  'Test::Memory::Cycle'       => 0,
-  'Devel::Cycle'              => 1.10,
+  'Test::Memory::Cycle'       => '0',
+  'Devel::Cycle'              => '1.10',
 
   # t/36datetime.t
   # t/60core.t
-  'DateTime::Format::SQLite'  => 0,
+  'DateTime::Format::SQLite'  => '0',
 
   # t/96_is_deteministic_value.t
-  'DateTime::Format::Strptime'=> 0,
+  'DateTime::Format::Strptime'=> '0',
 
   # database-dependent reqs
   #
   $ENV{DBICTEST_PG_DSN}
     ? (
-      'Sys::SigAction' => 0,
-      'DBD::Pg' => 2.009002,
-      'DateTime::Format::Pg' => 0,
+      'Sys::SigAction' => '0',
+      'DBD::Pg' => '2.009002',
+      'DateTime::Format::Pg' => '0',
     ) : ()
   ,
 
   $ENV{DBICTEST_MYSQL_DSN}
     ? (
-      'DateTime::Format::MySQL' => 0,
+      'DateTime::Format::MySQL' => '0',
     ) : ()
   ,
 
   $ENV{DBICTEST_ORACLE_DSN}
     ? (
-      'DateTime::Format::Oracle' => 0,
+      'DateTime::Format::Oracle' => '0',
     ) : ()
   ,
 );
+#************************************************************************#
+# Make ABSOLUTELY SURE that nothing on the list above is a real require, #
+# since every module listed in %force_requires_if_author is deleted      #
+# from the final META.yml (thus will never make it as a CPAN dependency) #
+#************************************************************************#
 
 
 install_script (qw|

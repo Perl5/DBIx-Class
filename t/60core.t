@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
@@ -35,10 +36,10 @@ ok($art->update, 'Update run');
 my %not_dirty = $art->get_dirty_columns();
 is(scalar(keys(%not_dirty)), 0, 'Nothing is dirty');
 
-eval {
+throws_ok ( sub {
   my $ret = $art->make_column_dirty('name2');
-};
-ok(defined($@), 'Failed to make non-existent column dirty');
+}, qr/No such column 'name2'/, 'Failed to make non-existent column dirty');
+
 $art->make_column_dirty('name');
 my %fake_dirty = $art->get_dirty_columns();
 is(scalar(keys(%fake_dirty)), 1, '1 fake dirty column');
@@ -103,6 +104,17 @@ my $new_again = $schema->resultset("Artist")->find(4);
 is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
+
+# test that store_column is called once for create() for non sequence columns 
+{
+  ok(my $artist = $schema->resultset('Artist')->create({name => 'store_column test'}));
+  is($artist->name, 'X store_column test'); # used to be 'X X store...'
+  
+  # call store_column even though the column doesn't seem to be dirty
+  ok($artist->update({name => 'X store_column test'}));
+  is($artist->name, 'X X store_column test');
+  $artist->delete;
+}
 
 # Test backwards compatibility
 {
@@ -210,9 +222,9 @@ SKIP: {
     isa_ok($tdata{'last_updated_on'}, 'DateTime', 'inflated accessored column');
 }
 
-eval { $schema->class("Track")->load_components('DoesNotExist'); };
-
-ok $@, $@;
+throws_ok (sub {
+  $schema->class("Track")->load_components('DoesNotExist');
+}, qr!Can't locate DBIx/Class/DoesNotExist.pm!, 'exception on nonexisting component');
 
 is($schema->class("Artist")->field_name_for->{name}, 'artist name', 'mk_classdata usage ok');
 
@@ -226,6 +238,13 @@ is($or_rs->count, 5, 'Search count with OR ok');
 my $collapsed_or_rs = $or_rs->search ({}, { distinct => 1 }); # induce collapse
 is ($collapsed_or_rs->all, 4, 'Collapsed joined search with OR returned correct number of rows');
 is ($collapsed_or_rs->count, 4, 'Collapsed search count with OR ok');
+
+# make sure sure distinct on a grouped rs is warned about
+my $cd_rs = $schema->resultset ('CD')
+              ->search ({}, { distinct => 1, group_by => 'title' });
+warnings_exist (sub {
+  $cd_rs->next;
+}, qr/Useless use of distinct/, 'UUoD warning');
 
 {
   my $tcount = $schema->resultset('Track')->search(

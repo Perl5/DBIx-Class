@@ -74,8 +74,6 @@ $rs = $schema->resultset("Artist")->search(
   }
 );
 
-use Data::Dumper; $Data::Dumper::Deparse = 1;
-
 # start test for prefetch SELECT count
 $queries = 0;
 $schema->storage->debug(1);

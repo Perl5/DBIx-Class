@@ -3,8 +3,6 @@
 use strict;
 use warnings;
 
-use Data::Dumper;
-
 use Test::More;
 
 plan ( tests => 1 );

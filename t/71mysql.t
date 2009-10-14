@@ -6,6 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use DBI::Const::GetInfoType;
+use DBIC::SqlMakerTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
@@ -13,8 +14,6 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
-
-plan tests => 19;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -45,6 +44,14 @@ $dbh->do("DROP TABLE IF EXISTS books;");
 $dbh->do("CREATE TABLE books (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, source VARCHAR(100) NOT NULL, owner integer NOT NULL, title varchar(100) NOT NULL,  price integer);");
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
+
+# make sure sqlt_type overrides work (::Storage::DBI::mysql does this) 
+{
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+
+  ok (!$schema->storage->_dbh, 'definitely not connected');
+  is ($schema->storage->sqlt_type, 'MySQL', 'sqlt_type correct pre-connection');
+}
 
 # This is in Core now, but it's here just to test that it doesn't break
 $schema->class('Artist')->load_components('PK::Auto');
@@ -153,12 +160,41 @@ SKIP: {
 
     my $type_info = $schema->storage->columns_info_for('artist');
     is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
+
+
 }
 
 my $cd = $schema->resultset ('CD')->create ({});
 my $producer = $schema->resultset ('Producer')->create ({});
 lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
 
+{
+  my $artist = $schema->resultset('Artist')->next;
+  my $cd = $schema->resultset('CD')->next;
+  $cd->set_from_related ('artist', $artist);
+  $cd->update;
+
+  my $rs = $schema->resultset('CD')->search ({}, { prefetch => 'artist' });
+
+  lives_ok sub {
+    my $cd = $rs->next;
+    is ($cd->artist->name, $artist->name, 'Prefetched artist');
+  }, 'join does not throw (mysql 3 test)';
+
+  # induce a jointype override, make sure it works even if we don't have mysql3
+  local $schema->storage->sql_maker->{_default_jointype} = 'inner';
+  is_same_sql_bind (
+    $rs->as_query,
+    '(
+      SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+             artist.artistid, artist.name, artist.rank, artist.charfield
+        FROM cd me
+        INNER JOIN artist artist ON artist.artistid = me.artist
+    )',
+    [],
+    'overriden default join type works',
+  );
+}
 
 ## Can we properly deal with the null search problem?
 ##
@@ -190,3 +226,5 @@ NULLINSEARCH: {
     is $artist => undef
       => 'Nothing Found!';
 }
+
+done_testing;

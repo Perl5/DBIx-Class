@@ -3,10 +3,7 @@
 use strict;
 use warnings;
 
-use Data::Dumper;
-
 use Test::More;
-
 
 use lib qw(t/lib);
 use DBICTest;
@@ -17,6 +14,17 @@ my $art_rs = $schema->resultset('Artist');
 my $cdrs = $schema->resultset('CD');
 
 my @tests = (
+  {
+    rs => $cdrs,
+    search => \[ "title = ? AND year LIKE ?", 'buahaha', '20%' ],
+    attrs => { rows => 5 },
+    sqlbind => \[
+      "( SELECT me.cdid,me.artist,me.title,me.year,me.genreid,me.single_track FROM cd me WHERE (title = ? AND year LIKE ?) LIMIT 5)",
+      'buahaha',
+      '20%',
+    ],
+  },
+
   {
     rs => $cdrs,
     search => {

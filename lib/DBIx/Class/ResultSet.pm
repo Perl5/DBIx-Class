@@ -7,6 +7,7 @@ use overload
         'bool'   => "_bool",
         fallback => 1;
 use Carp::Clan qw/^DBIx::Class/;
+use DBIx::Class::Exception;
 use Data::Page;
 use Storable;
 use DBIx::Class::ResultSetColumn;
@@ -518,7 +519,7 @@ sub find {
     # in ::Relationship::Base::search_related (the row method), and furthermore
     # the relationship is of the 'single' type. This means that the condition
     # provided by the relationship (already attached to $self) is sufficient,
-    # as there can be only one row in the databse that would satisfy the 
+    # as there can be only one row in the databse that would satisfy the
     # relationship
   }
   else {
@@ -570,12 +571,16 @@ sub _unique_queries {
   my $where = $self->_collapse_cond($self->{attrs}{where} || {});
   my $num_where = scalar keys %$where;
 
-  my @unique_queries;
+  my (@unique_queries, %seen_column_combinations);
   foreach my $name (@constraint_names) {
-    my @unique_cols = $self->result_source->unique_constraint_columns($name);
-    my $unique_query = $self->_build_unique_query($query, \@unique_cols);
+    my @constraint_cols = $self->result_source->unique_constraint_columns($name);
 
-    my $num_cols = scalar @unique_cols;
+    my $constraint_sig = join "\x00", sort @constraint_cols;
+    next if $seen_column_combinations{$constraint_sig}++;
+
+    my $unique_query = $self->_build_unique_query($query, \@constraint_cols);
+
+    my $num_cols = scalar @constraint_cols;
     my $num_query = scalar keys %$unique_query;
 
     my $total = $num_query + $num_where;
@@ -1235,7 +1240,7 @@ sub _count_rs {
 
   my $tmp_attrs = { %$attrs };
 
-  # take off any limits, record_filter is cdbi, and no point of ordering a count 
+  # take off any limits, record_filter is cdbi, and no point of ordering a count
   delete $tmp_attrs->{$_} for (qw/select as rows offset order_by record_filter/);
 
   # overwrite the selector (supplied by the storage)
@@ -2192,13 +2197,14 @@ You most likely want this method when looking for existing rows using
 a unique constraint that is not the primary key, or looking for
 related rows.
 
-If you want objects to be saved immediately, use L</find_or_create> instead.
+If you want objects to be saved immediately, use L</find_or_create>
+instead.
 
-B<Note>: C<find_or_new> is probably not what you want when creating a
-new row in a table that uses primary keys supplied by the
-database. Passing in a primary key column with a value of I<undef>
-will cause L</find> to attempt to search for a row with a value of
-I<NULL>.
+B<Note>: Take care when using C<find_or_new> with a table having
+columns with default values that you intend to be automatically
+supplied by the database (e.g. an auto_increment primary key column).
+In normal usage, the value of such columns should NOT be included at
+all in the call to C<find_or_new>, even when set to C<undef>.
 
 =cut
 
@@ -2278,6 +2284,19 @@ C<belongs_to>resultset. Note Hashref.
     }
   });
 
+=over
+
+=item WARNING
+
+When subclassing ResultSet never attempt to override this method. Since
+it is a simple shortcut for C<< $self->new_result($attrs)->insert >>, a
+lot of the internals simply never call it, so your override will be
+bypassed more often than not. Override either L<new|DBIx::Class::Row/new>
+or L<insert|DBIx::Class::Row/insert> depending on how early in the
+L</create> process you need to intervene.
+
+=back
+
 =cut
 
 sub create {
@@ -2327,11 +2346,11 @@ condition. Another process could create a record in the table after
 the find has completed and before the create has started. To avoid
 this problem, use find_or_create() inside a transaction.
 
-B<Note>: C<find_or_create> is probably not what you want when creating
-a new row in a table that uses primary keys supplied by the
-database. Passing in a primary key column with a value of I<undef>
-will cause L</find> to attempt to search for a row with a value of
-I<NULL>.
+B<Note>: Take care when using C<find_or_create> with a table having
+columns with default values that you intend to be automatically
+supplied by the database (e.g. an auto_increment primary key column).
+In normal usage, the value of such columns should NOT be included at
+all in the call to C<find_or_create>, even when set to C<undef>.
 
 See also L</find> and L</update_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
@@ -2394,11 +2413,11 @@ If the C<key> is specified as C<primary>, it searches only on the primary key.
 See also L</find> and L</find_or_create>. For information on how to declare
 unique constraints, see L<DBIx::Class::ResultSource/add_unique_constraint>.
 
-B<Note>: C<update_or_create> is probably not what you want when
-looking for a row in a table that uses primary keys supplied by the
-database, unless you actually have a key value. Passing in a primary
-key column with a value of I<undef> will cause L</find> to attempt to
-search for a row with a value of I<NULL>.
+B<Note>: Take care when using C<update_or_create> with a table having
+columns with default values that you intend to be automatically
+supplied by the database (e.g. an auto_increment primary key column).
+In normal usage, the value of such columns should NOT be included at
+all in the call to C<update_or_create>, even when set to C<undef>.
 
 =cut
 
@@ -2455,7 +2474,13 @@ For example:
       $cd->insert;
   }
 
-See also L</find>, L</find_or_create> and L<find_or_new>.
+B<Note>: Take care when using C<update_or_new> with a table having
+columns with default values that you intend to be automatically
+supplied by the database (e.g. an auto_increment primary key column).
+In normal usage, the value of such columns should NOT be included at
+all in the call to C<update_or_new>, even when set to C<undef>.
+
+See also L</find>, L</find_or_create> and L</find_or_new>.
 
 =cut
 
@@ -2537,6 +2562,23 @@ Clears the cache for the resultset.
 
 sub clear_cache {
   shift->set_cache(undef);
+}
+
+=head2 is_paged
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: true, if the resultset has been paginated
+
+=back
+
+=cut
+
+sub is_paged {
+  my ($self) = @_;
+  return !!$self->{attrs}{page};
 }
 
 =head2 related_resultset
@@ -2686,8 +2728,8 @@ sub _chain_relationship {
   }];
 
   my $seen = { %{$attrs->{seen_join} || {} } };
-  my $jpath = ($attrs->{seen_join} && keys %{$attrs->{seen_join}}) 
-    ? $from->[-1][0]{-join_path} 
+  my $jpath = ($attrs->{seen_join} && keys %{$attrs->{seen_join}})
+    ? $from->[-1][0]{-join_path}
     : [];
 
 
@@ -2765,24 +2807,35 @@ sub _resolved_attrs {
 
   # build columns (as long as select isn't set) into a set of as/select hashes
   unless ( $attrs->{select} ) {
-      @colbits = map {
-          ( ref($_) eq 'HASH' )
-              ? $_
-              : {
-                  (
-                    /^\Q${alias}.\E(.+)$/
-                      ? "$1"
-                      : "$_"
-                  )
-                =>
-                  (
-                    /\./
-                      ? "$_"
-                      : "${alias}.$_"
-                  )
-            }
-      } ( ref($attrs->{columns}) eq 'ARRAY' ) ? @{ delete $attrs->{columns}} : (delete $attrs->{columns} || $source->columns );
+
+    my @cols = ( ref($attrs->{columns}) eq 'ARRAY' )
+      ? @{ delete $attrs->{columns}}
+      : (
+          ( delete $attrs->{columns} )
+            ||
+          $source->columns
+        )
+    ;
+
+    @colbits = map {
+      ( ref($_) eq 'HASH' )
+      ? $_
+      : {
+          (
+            /^\Q${alias}.\E(.+)$/
+              ? "$1"
+              : "$_"
+          )
+            =>
+          (
+            /\./
+              ? "$_"
+              : "${alias}.$_"
+          )
+        }
+    } @cols;
   }
+
   # add the additional columns on
   foreach ( 'include_columns', '+columns' ) {
       push @colbits, map {
@@ -2840,7 +2893,7 @@ sub _resolved_attrs {
 
   if ( $attrs->{join} || $attrs->{prefetch} ) {
 
-    $self->throw_exception ('join/prefetch can not be used with a literal scalarref {from}')
+    $self->throw_exception ('join/prefetch can not be used with a custom {from}')
       if ref $attrs->{from} ne 'ARRAY';
 
     my $join = delete $attrs->{join} || {};
@@ -2879,7 +2932,12 @@ sub _resolved_attrs {
   # generate the distinct induced group_by early, as prefetch will be carried via a
   # subquery (since a group_by is present)
   if (delete $attrs->{distinct}) {
-    $attrs->{group_by} ||= [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
+    if ($attrs->{group_by}) {
+      carp ("Useless use of distinct on a grouped resultset ('distinct' is ignored when a 'group_by' is present)");
+    }
+    else {
+      $attrs->{group_by} = [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
+    }
   }
 
   $attrs->{collapse} ||= {};
@@ -2907,7 +2965,7 @@ sub _resolved_attrs {
   # even though it doesn't make much sense, this is what pre 081xx has
   # been doing
   if (my $page = delete $attrs->{page}) {
-    $attrs->{offset} = 
+    $attrs->{offset} =
       ($attrs->{rows} * ($page - 1))
             +
       ($attrs->{offset} || 0)
@@ -2985,6 +3043,13 @@ sub _rollout_hash {
 
 sub _calculate_score {
   my ($self, $a, $b) = @_;
+
+  if (defined $a xor defined $b) {
+    return 0;
+  }
+  elsif (not defined $a) {
+    return 1;
+  }
 
   if (ref $b eq 'HASH') {
     my ($b_key) = keys %{$b};
@@ -3067,12 +3132,13 @@ See L<DBIx::Class::Schema/throw_exception> for details.
 
 sub throw_exception {
   my $self=shift;
+
   if (ref $self && $self->_source_handle->schema) {
     $self->_source_handle->schema->throw_exception(@_)
-  } else {
-    croak(@_);
   }
-
+  else {
+    DBIx::Class::Exception->throw(@_);
+  }
 }
 
 # XXX: FIXME: Attributes docs need clearing up
@@ -3094,7 +3160,7 @@ These are in no particular order:
 
 =back
 
-Which column(s) to order the results by. 
+Which column(s) to order the results by.
 
 [The full list of suitable values is documented in
 L<SQL::Abstract/"ORDER BY CLAUSES">; the following is a summary of
@@ -3386,12 +3452,12 @@ exactly as you might expect.
 
 =over 4
 
-=item * 
+=item *
 
 Prefetch uses the L</cache> to populate the prefetched relationships. This
 may or may not be what you want.
 
-=item * 
+=item *
 
 If you specify a condition on a prefetched relationship, ONLY those
 rows that match the prefetched condition will be fetched into that relationship.
@@ -3491,7 +3557,8 @@ done.
 
 =back
 
-Set to 1 to group by all columns.
+Set to 1 to group by all columns. If the resultset already has a group_by
+attribute, this setting is ignored and an appropriate warning is issued.
 
 =head2 where
 
@@ -3502,8 +3569,8 @@ Adds to the WHERE clause.
   # only return rows WHERE deleted IS NULL for all searches
   __PACKAGE__->resultset_attributes({ where => { deleted => undef } }); )
 
-Can be overridden by passing C<{ where => undef }> as an attribute
-to a resulset.
+Can be overridden by passing C<< { where => undef } >> as an attribute
+to a resultset.
 
 =back
 
@@ -3524,177 +3591,6 @@ By default, searches are not cached.
 
 For more examples of using these attributes, see
 L<DBIx::Class::Manual::Cookbook>.
-
-=head2 from
-
-=over 4
-
-=item Value: \@from_clause
-
-=back
-
-The C<from> attribute gives you manual control over the C<FROM> clause of SQL
-statements generated by L<DBIx::Class>, allowing you to express custom C<JOIN>
-clauses.
-
-NOTE: Use this on your own risk.  This allows you to shoot off your foot!
-
-C<join> will usually do what you need and it is strongly recommended that you
-avoid using C<from> unless you cannot achieve the desired result using C<join>.
-And we really do mean "cannot", not just tried and failed. Attempting to use
-this because you're having problems with C<join> is like trying to use x86
-ASM because you've got a syntax error in your C. Trust us on this.
-
-Now, if you're still really, really sure you need to use this (and if you're
-not 100% sure, ask the mailing list first), here's an explanation of how this
-works.
-
-The syntax is as follows -
-
-  [
-    { <alias1> => <table1> },
-    [
-      { <alias2> => <table2>, -join_type => 'inner|left|right' },
-      [], # nested JOIN (optional)
-      { <table1.column1> => <table2.column2>, ... (more conditions) },
-    ],
-    # More of the above [ ] may follow for additional joins
-  ]
-
-  <table1> <alias1>
-  JOIN
-    <table2> <alias2>
-    [JOIN ...]
-  ON <table1.column1> = <table2.column2>
-  <more joins may follow>
-
-An easy way to follow the examples below is to remember the following:
-
-    Anything inside "[]" is a JOIN
-    Anything inside "{}" is a condition for the enclosing JOIN
-
-The following examples utilize a "person" table in a family tree application.
-In order to express parent->child relationships, this table is self-joined:
-
-    # Person->belongs_to('father' => 'Person');
-    # Person->belongs_to('mother' => 'Person');
-
-C<from> can be used to nest joins. Here we return all children with a father,
-then search against all mothers of those children:
-
-  $rs = $schema->resultset('Person')->search(
-      undef,
-      {
-          alias => 'mother', # alias columns in accordance with "from"
-          from => [
-              { mother => 'person' },
-              [
-                  [
-                      { child => 'person' },
-                      [
-                          { father => 'person' },
-                          { 'father.person_id' => 'child.father_id' }
-                      ]
-                  ],
-                  { 'mother.person_id' => 'child.mother_id' }
-              ],
-          ]
-      },
-  );
-
-  # Equivalent SQL:
-  # SELECT mother.* FROM person mother
-  # JOIN (
-  #   person child
-  #   JOIN person father
-  #   ON ( father.person_id = child.father_id )
-  # )
-  # ON ( mother.person_id = child.mother_id )
-
-The type of any join can be controlled manually. To search against only people
-with a father in the person table, we could explicitly use C<INNER JOIN>:
-
-    $rs = $schema->resultset('Person')->search(
-        undef,
-        {
-            alias => 'child', # alias columns in accordance with "from"
-            from => [
-                { child => 'person' },
-                [
-                    { father => 'person', -join_type => 'inner' },
-                    { 'father.id' => 'child.father_id' }
-                ],
-            ]
-        },
-    );
-
-    # Equivalent SQL:
-    # SELECT child.* FROM person child
-    # INNER JOIN person father ON child.father_id = father.id
-
-You can select from a subquery by passing a resultset to from as follows.
-
-    $schema->resultset('Artist')->search( 
-        undef, 
-        {   alias => 'artist2',
-            from  => [ { artist2 => $artist_rs->as_query } ],
-        } );
-
-    # and you'll get sql like this..
-    # SELECT artist2.artistid, artist2.name, artist2.rank, artist2.charfield FROM 
-    #   ( SELECT me.artistid, me.name, me.rank, me.charfield FROM artists me ) artist2
-
-If you need to express really complex joins, you
-can supply literal SQL to C<from> via a scalar reference. In this case
-the contents of the scalar will replace the table name associated with the
-resultsource.
-
-WARNING: This technique might very well not work as expected on chained
-searches - you have been warned.
-
-    # Assuming the Event resultsource is defined as:
-
-        MySchema::Event->add_columns (
-            sequence => {
-                data_type => 'INT',
-                is_auto_increment => 1,
-            },
-            location => {
-                data_type => 'INT',
-            },
-            type => {
-                data_type => 'INT',
-            },
-        );
-        MySchema::Event->set_primary_key ('sequence');
-
-    # This will get back the latest event for every location. The column
-    # selector is still provided by DBIC, all we do is add a JOIN/WHERE
-    # combo to limit the resultset
-
-    $rs = $schema->resultset('Event');
-    $table = $rs->result_source->name;
-    $latest = $rs->search (
-        undef,
-        { from => \ "
-            (SELECT e1.* FROM $table e1
-                JOIN $table e2
-                    ON e1.location = e2.location
-                    AND e1.sequence < e2.sequence
-                WHERE e2.sequence is NULL
-            ) me",
-        },
-    );
-
-    # Equivalent SQL (with the DBIC chunks added):
-
-    SELECT me.sequence, me.location, me.type FROM
-       (SELECT e1.* FROM events e1
-           JOIN events e2
-               ON e1.location = e2.location
-               AND e1.sequence < e2.sequence
-           WHERE e2.sequence is NULL
-       ) me;
 
 =head2 for
 

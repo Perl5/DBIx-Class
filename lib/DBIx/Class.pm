@@ -6,7 +6,7 @@ use warnings;
 use MRO::Compat;
 
 use vars qw($VERSION);
-use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
+use base qw/Class::C3::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
 
 sub mk_classdata {
@@ -24,8 +24,7 @@ sub component_base_class { 'DBIx::Class' }
 # Always remember to do all digits for the version even if they're 0
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
-
-$VERSION = '0.08109';
+$VERSION = '0.08112';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -230,6 +229,8 @@ bluefeet: Aran Deltac <bluefeet@cpan.org>
 
 bricas: Brian Cassidy <bricas@cpan.org>
 
+brunov: Bruno Vecchi <vecchi.b@gmail.com>
+
 caelum: Rafael Kitover <rkitover@cpan.org>
 
 castaway: Jess Robinson
@@ -340,6 +341,8 @@ Todd Lipcon
 
 Tom Hukins
 
+triode: Pete Gamache <gamache@cpan.org>
+
 typester: Daisuke Murase <typester@cpan.org>
 
 victori: Victor Igumnov <victori@cpan.org>
@@ -352,8 +355,14 @@ wreis: Wallace Reis <wreis@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
+=head1 COPYRIGHT
+
+Copyright (c) 2005 - 2009 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
+as listed above.
+
 =head1 LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+This library is free software and may be distributed under the same terms
+as perl itself.
 
 =cut

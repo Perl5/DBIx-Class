@@ -47,52 +47,6 @@ sub new {
   $self;
 }
 
-# Some databases (sqlite) do not handle multiple parenthesis
-# around in/between arguments. A tentative x IN ( (1, 2 ,3) )
-# is interpreted as x IN 1 or something similar.
-#
-# Since we currently do not have access to the SQLA AST, resort
-# to barbaric mutilation of any SQL supplied in literal form
-sub _strip_outer_paren {
-  my ($self, $arg) = @_;
-
-  return $self->_SWITCH_refkind ($arg, {
-    ARRAYREFREF => sub {
-      $$arg->[0] = __strip_outer_paren ($$arg->[0]);
-      return $arg;
-    },
-    SCALARREF => sub {
-      return \__strip_outer_paren( $$arg );
-    },
-    FALLBACK => sub {
-      return $arg
-    },
-  });
-}
-
-sub __strip_outer_paren {
-  my $sql = shift;
-
-  if ($sql and not ref $sql) {
-    while ($sql =~ /^ \s* \( (.*) \) \s* $/x ) {
-      $sql = $1;
-    }
-  }
-
-  return $sql;
-}
-
-sub _where_field_IN {
-  my ($self, $lhs, $op, $rhs) = @_;
-  $rhs = $self->_strip_outer_paren ($rhs);
-  return $self->SUPER::_where_field_IN ($lhs, $op, $rhs);
-}
-
-sub _where_field_BETWEEN {
-  my ($self, $lhs, $op, $rhs) = @_;
-  $rhs = $self->_strip_outer_paren ($rhs);
-  return $self->SUPER::_where_field_BETWEEN ($lhs, $op, $rhs);
-}
 
 # Slow but ANSI standard Limit/Offset support. DB2 uses this
 sub _RowNumberOver {
@@ -508,15 +462,21 @@ sub _recurse_from {
   foreach my $j (@join) {
     my ($to, $on) = @$j;
 
+
     # check whether a join type exists
-    my $join_clause = '';
     my $to_jt = ref($to) eq 'ARRAY' ? $to->[0] : $to;
-    if (ref($to_jt) eq 'HASH' and exists($to_jt->{-join_type})) {
-      $join_clause = ' '.uc($to_jt->{-join_type}).' JOIN ';
-    } else {
-      $join_clause = ' JOIN ';
+    my $join_type;
+    if (ref($to_jt) eq 'HASH' and defined($to_jt->{-join_type})) {
+      $join_type = $to_jt->{-join_type};
+      $join_type =~ s/^\s+ | \s+$//xg;
     }
-    push(@sqlf, $join_clause);
+
+    $join_type = $self->{_default_jointype} if not defined $join_type;
+
+    my $join_clause = sprintf ('%s JOIN ',
+      $join_type ?  ' ' . uc($join_type) : ''
+    );
+    push @sqlf, $join_clause;
 
     if (ref $to eq 'ARRAY') {
       push(@sqlf, '(', $self->_recurse_from(@$to), ')');
