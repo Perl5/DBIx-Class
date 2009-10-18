@@ -156,5 +156,16 @@ L<https://bugzilla.redhat.com/show_bug.cgi?id=379791>,
 L<https://bugzilla.redhat.com/show_bug.cgi?id=460308> and
 L<http://rhn.redhat.com/errata/RHBA-2008-0876.html>
 
+=head2 Excessive Memory Allocation with TEXT/BLOB/etc. Columns and Large LongReadLen
+
+It has been observed, using L<DBD::ODBC>, that a creating a L<DBIx::Class::Row> 
+object which includes a column of data type TEXT/BLOB/etc. will allocate 
+LongReadLen bytes.  This allocation does not leak, but if LongReadLen 
+is large in size, and many such row objects are created, e.g. as the 
+output of a ResultSet query, the memory footprint of the Perl interpreter 
+can grow very large.
+
+The solution is to use the smallest practical value for LongReadLen.
+
 =cut
 

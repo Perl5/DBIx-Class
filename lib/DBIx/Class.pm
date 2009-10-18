@@ -354,6 +354,8 @@ Todd Lipcon
 
 Tom Hukins
 
+triode: Pete Gamache <gamache@cpan.org>
+
 typester: Daisuke Murase <typester@cpan.org>
 
 victori: Victor Igumnov <victori@cpan.org>
