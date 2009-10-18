@@ -519,7 +519,7 @@ sub find {
     # in ::Relationship::Base::search_related (the row method), and furthermore
     # the relationship is of the 'single' type. This means that the condition
     # provided by the relationship (already attached to $self) is sufficient,
-    # as there can be only one row in the databse that would satisfy the 
+    # as there can be only one row in the databse that would satisfy the
     # relationship
   }
   else {
@@ -1240,7 +1240,7 @@ sub _count_rs {
 
   my $tmp_attrs = { %$attrs };
 
-  # take off any limits, record_filter is cdbi, and no point of ordering a count 
+  # take off any limits, record_filter is cdbi, and no point of ordering a count
   delete $tmp_attrs->{$_} for (qw/select as rows offset order_by record_filter/);
 
   # overwrite the selector (supplied by the storage)
@@ -2567,6 +2567,23 @@ sub clear_cache {
   shift->set_cache(undef);
 }
 
+=head2 is_paged
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: true, if the resultset has been paginated
+
+=back
+
+=cut
+
+sub is_paged {
+  my ($self) = @_;
+  return !!$self->{attrs}{page};
+}
+
 =head2 related_resultset
 
 =over 4
@@ -2714,8 +2731,8 @@ sub _chain_relationship {
   }];
 
   my $seen = { %{$attrs->{seen_join} || {} } };
-  my $jpath = ($attrs->{seen_join} && keys %{$attrs->{seen_join}}) 
-    ? $from->[-1][0]{-join_path} 
+  my $jpath = ($attrs->{seen_join} && keys %{$attrs->{seen_join}})
+    ? $from->[-1][0]{-join_path}
     : [];
 
 
@@ -2951,7 +2968,7 @@ sub _resolved_attrs {
   # even though it doesn't make much sense, this is what pre 081xx has
   # been doing
   if (my $page = delete $attrs->{page}) {
-    $attrs->{offset} = 
+    $attrs->{offset} =
       ($attrs->{rows} * ($page - 1))
             +
       ($attrs->{offset} || 0)
@@ -3146,7 +3163,7 @@ These are in no particular order:
 
 =back
 
-Which column(s) to order the results by. 
+Which column(s) to order the results by.
 
 [The full list of suitable values is documented in
 L<SQL::Abstract/"ORDER BY CLAUSES">; the following is a summary of
@@ -3438,12 +3455,12 @@ exactly as you might expect.
 
 =over 4
 
-=item * 
+=item *
 
 Prefetch uses the L</cache> to populate the prefetched relationships. This
 may or may not be what you want.
 
-=item * 
+=item *
 
 If you specify a condition on a prefetched relationship, ONLY those
 rows that match the prefetched condition will be fetched into that relationship.
@@ -3555,8 +3572,8 @@ Adds to the WHERE clause.
   # only return rows WHERE deleted IS NULL for all searches
   __PACKAGE__->resultset_attributes({ where => { deleted => undef } }); )
 
-Can be overridden by passing C<{ where => undef }> as an attribute
-to a resulset.
+Can be overridden by passing C<< { where => undef } >> as an attribute
+to a resultset.
 
 =back
 

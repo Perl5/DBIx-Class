@@ -2687,10 +2687,10 @@ sub lag_behind_master {
     return;
 }
 
-# SQLT version handling 
+# SQLT version handling
 {
-  my $_sqlt_version_ok;     # private 
-  my $_sqlt_version_error;  # private 
+  my $_sqlt_version_ok;     # private
+  my $_sqlt_version_error;  # private
 
   sub _sqlt_version_ok {
     if (!defined $_sqlt_version_ok) {
