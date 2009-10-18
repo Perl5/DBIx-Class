@@ -152,4 +152,48 @@ throws_ok {
 
 is($rs->count, 0, 'populate is atomic');
 
+# Trying to use a column marked as a bind in the first slice with literal sql in
+# a later slice should throw.
+
+throws_ok {
+  $rs->populate([
+    {
+      artistid => 1,
+      name => \"'foo'",
+    },
+    {
+      artistid => \2,
+      name => \"'foo'",
+    }
+  ]);
+} qr/bind expected/, 'literal sql where bind expected throws';
+
+# ... and vice-versa.
+
+throws_ok {
+  $rs->populate([
+    {
+      artistid => \1,
+      name => \"'foo'",
+    },
+    {
+      artistid => 2,
+      name => \"'foo'",
+    }
+  ]);
+} qr/literal SQL expected/i, 'bind where literal sql expected throws';
+
+throws_ok {
+  $rs->populate([
+    {
+      artistid => 1,
+      name => \"'foo'",
+    },
+    {
+      artistid => 2,
+      name => \"'bar'",
+    }
+  ]);
+} qr/inconsistent/, 'literal sql must be the same in all slices';
+
 done_testing;

@@ -1359,6 +1359,45 @@ sub insert_bulk {
 #      } map $data->[$_][$i], (1..$#$data)) == (@$data - 1);
   }
 
+  # check for bad data
+  my $bad_slice = sub {
+    my ($msg, $slice_idx) = @_;
+    $self->throw_exception(sprintf "%s for populate slice:\n%s",
+      $msg,
+      Data::Dumper::Concise::Dumper({
+        map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
+      }),
+    );
+  };
+
+  for my $datum_idx (0..$#$data) {
+    my $datum = $data->[$datum_idx];
+
+    for my $col_idx (0..$#$cols) {
+      my $val            = $datum->[$col_idx];
+      my $sqla_bind      = $colvalues{ $cols->[$col_idx] };
+      my $is_literal_sql = (ref $sqla_bind) eq 'SCALAR';
+
+      if ($is_literal_sql) {
+        if (not ref $val) {
+          $bad_slice->('bind found where literal SQL expected', $datum_idx);
+        }
+        elsif ((my $reftype = ref $val) ne 'SCALAR') {
+          $bad_slice->("$reftype reference found where literal SQL expected",
+            $datum_idx);
+        }
+        elsif ($$val ne $$sqla_bind){
+          $bad_slice->("inconsistent literal SQL value, expecting: '$$sqla_bind'",
+            $datum_idx);
+        }
+      }
+      elsif (my $reftype = ref $val) {
+        $bad_slice->("$reftype reference found where bind expected",
+          $datum_idx);
+      }
+    }
+  }
+
   my ($sql, $bind) = $self->_prep_for_execute (
     'insert', undef, $source, [\%colvalues]
   );
