@@ -9,15 +9,18 @@ use base qw/
 /;
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
-use List::Util ();
-use Sub::Name ();
+use List::Util();
+use Sub::Name();
+use Data::Dumper::Concise();
 
 __PACKAGE__->mk_group_accessors('simple' =>
-    qw/_identity _blob_log_on_update _writer_storage _is_writer_storage
+    qw/_identity _blob_log_on_update _writer_storage _is_extra_storage
+       _bulk_storage _is_bulk_storage _began_bulk_work
+       _bulk_disabled_due_to_coderef_connect_info_warned
        _identity_method/
 );
 
-my @also_proxy_to_writer_storage = qw/
+my @also_proxy_to_extra_storages = qw/
   connect_call_set_auto_cast auto_cast connect_call_blob_setup
   connect_call_datetime_setup
 
@@ -105,7 +108,7 @@ EOF
         bless $self, $no_bind_vars;
         $self->_rebless;
       } elsif (not $self->_typeless_placeholders_supported) {
-# this is highly unlikely, but we check just in case
+        # this is highly unlikely, but we check just in case
         $self->auto_cast(1);
       }
     }
@@ -121,28 +124,61 @@ sub _init {
 
 # create storage for insert/(update blob) transactions,
 # unless this is that storage
-  return if $self->_is_writer_storage;
+  return if $self->_is_extra_storage;
 
   my $writer_storage = (ref $self)->new;
 
-  $writer_storage->_is_writer_storage(1);
+  $writer_storage->_is_extra_storage(1);
   $writer_storage->connect_info($self->connect_info);
   $writer_storage->auto_cast($self->auto_cast);
 
   $self->_writer_storage($writer_storage);
+
+# create a bulk storage unless connect_info is a coderef
+  return
+    if (Scalar::Util::reftype($self->_dbi_connect_info->[0])||'') eq 'CODE';
+
+  my $bulk_storage = (ref $self)->new;
+
+  $bulk_storage->_is_extra_storage(1);
+  $bulk_storage->_is_bulk_storage(1); # for special ->disconnect acrobatics
+  $bulk_storage->connect_info($self->connect_info);
+
+# this is why
+  $bulk_storage->_dbi_connect_info->[0] .= ';bulkLogin=1';
+
+  $self->_bulk_storage($bulk_storage);
 }
 
-for my $method (@also_proxy_to_writer_storage) {
+for my $method (@also_proxy_to_extra_storages) {
   no strict 'refs';
   no warnings 'redefine';
 
   my $replaced = __PACKAGE__->can($method);
 
-  *{$method} = Sub::Name::subname __PACKAGE__."::$method" => sub {
+  *{$method} = Sub::Name::subname $method => sub {
     my $self = shift;
     $self->_writer_storage->$replaced(@_) if $self->_writer_storage;
+    $self->_bulk_storage->$replaced(@_)   if $self->_bulk_storage;
     return $self->$replaced(@_);
   };
+}
+
+sub disconnect {
+  my $self = shift;
+
+# Even though we call $sth->finish for uses off the bulk API, there's still an
+# "active statement" warning on disconnect, which we throw away here.
+# This is due to the bug described in insert_bulk.
+# Currently a noop because 'prepare' is used instead of 'prepare_cached'.
+  local $SIG{__WARN__} = sub {
+    warn $_[0] unless $_[0] =~ /active statement/i;
+  } if $self->_is_bulk_storage;
+
+# so that next transaction gets a dbh
+  $self->_began_bulk_work(0) if $self->_is_bulk_storage;
+
+  $self->next::method;
 }
 
 # Make sure we have CHAINED mode turned on if AutoCommit is off in non-FreeTDS
@@ -153,6 +189,12 @@ sub _populate_dbh {
   my $self = shift;
 
   $self->next::method(@_);
+  
+  if ($self->_is_bulk_storage) {
+# this should be cleared on every reconnect
+    $self->_began_bulk_work(0);
+    return;
+  }
 
   if (not $self->using_freetds) {
     $self->_dbh->{syb_chained_txn} = 1;
@@ -212,39 +254,45 @@ sub _prep_for_execute {
 
   my ($sql, $bind) = $self->next::method (@_);
 
-  if ($op eq 'insert') {
-    my $table = $ident->from;
+  my $table = Scalar::Util::blessed($ident) ? $ident->from : $ident;
 
-    my $bind_info = $self->_resolve_column_info(
-      $ident, [map $_->[0], @{$bind}]
+  my $bind_info = $self->_resolve_column_info(
+    $ident, [map $_->[0], @{$bind}]
+  );
+  my $bound_identity_col = List::Util::first
+    { $bind_info->{$_}{is_auto_increment} }
+    (keys %$bind_info)
+  ;
+  my $identity_col = Scalar::Util::blessed($ident) &&
+    List::Util::first
+    { $ident->column_info($_)->{is_auto_increment} }
+    $ident->columns
+  ;
+
+  if (($op eq 'insert' && $bound_identity_col) ||
+      ($op eq 'update' && exists $args->[0]{$identity_col})) {
+    $sql = join ("\n",
+      $self->_set_table_identity_sql($op => $table, 'on'),
+      $sql,
+      $self->_set_table_identity_sql($op => $table, 'off'),
     );
-    my $identity_col = List::Util::first
-      { $bind_info->{$_}{is_auto_increment} }
-      (keys %$bind_info)
-    ;
+  }
 
-    if ($identity_col) {
-      $sql = join ("\n",
-        "SET IDENTITY_INSERT $table ON",
-        $sql,
-        "SET IDENTITY_INSERT $table OFF",
-      );
-    }
-    else {
-      $identity_col = List::Util::first
-        { $ident->column_info($_)->{is_auto_increment} }
-        $ident->columns
-      ;
-    }
-
-    if ($identity_col) {
-      $sql =
-        "$sql\n" .
-        $self->_fetch_identity_sql($ident, $identity_col);
-    }
+  if ($op eq 'insert' && (not $bound_identity_col) && $identity_col &&
+      (not $self->{insert_bulk})) {
+    $sql =
+      "$sql\n" .
+      $self->_fetch_identity_sql($ident, $identity_col);
   }
 
   return ($sql, $bind);
+}
+
+sub _set_table_identity_sql {
+  my ($self, $op, $table, $on_off) = @_;
+
+  return sprintf 'SET IDENTITY_%s %s %s',
+    uc($op), $self->sql_maker->_quote($table), uc($on_off);
 }
 
 # Stolen from SQLT, with some modifications. This is a makeshift
@@ -306,11 +354,21 @@ sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
-  my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
-
-  my $identity_col = List::Util::first
+  my $identity_col = (List::Util::first
     { $source->column_info($_)->{is_auto_increment} }
-    $source->columns;
+    $source->columns) || '';
+
+  # check for empty insert
+  # INSERT INTO foo DEFAULT VALUES -- does not work with Sybase
+  # try to insert explicit 'DEFAULT's instead (except for identity)
+  if (not %$to_insert) {
+    for my $col ($source->columns) {
+      next if $col eq $identity_col;
+      $to_insert->{$col} = \'DEFAULT';
+    }
+  }
+
+  my $blob_cols = $self->_remove_blob_cols($source, $to_insert);
 
   # do we need the horrific SELECT MAX(COL) hack?
   my $dumb_last_insert_id =
@@ -351,7 +409,8 @@ sub _insert {
   my $updated_cols = $self->$next ($source, $to_insert);
 
   my $final_row = {
-    $identity_col => $self->last_insert_id($source, $identity_col),
+    ($identity_col ?
+      ($identity_col => $self->last_insert_id($source, $identity_col)) : ()),
     %$to_insert,
     %$updated_cols,
   };
@@ -377,19 +436,11 @@ sub update {
 
   my $is_identity_update = $identity_col && defined $fields->{$identity_col};
 
-  if (not $blob_cols) {
-    $self->_set_identity_insert($table, 'update')   if $is_identity_update;
-    return $self->next::method(@_);
-    $self->_unset_identity_insert($table, 'update') if $is_identity_update;
-  }
+  return $self->next::method(@_) unless $blob_cols;
 
-# check that we're not updating a blob column that's also in $where
-  for my $blob (grep $self->_is_lob_column($source, $_), $source->columns) {
-    if (exists $where->{$blob} && exists $fields->{$blob}) {
-      croak
-'Update of TEXT/IMAGE column that is also in search condition impossible';
-    }
-  }
+# If there are any blobs in $where, Sybase will return a descriptive error
+# message.
+# XXX blobs can still be used with a LIKE query, and this should be handled.
 
 # update+blob update(s) done atomically on separate connection
   $self = $self->_writer_storage;
@@ -400,6 +451,8 @@ sub update {
 # it is originally put by _remove_blob_cols .)
   my %blobs_to_empty = map { ($_ => delete $fields->{$_}) } keys %$blob_cols;
 
+# We can't only update NULL blobs, because blobs cannot be in the WHERE clause.
+
   $self->next::method($source, \%blobs_to_empty, $where, @rest);
 
 # Now update the blobs before the other columns in case the update of other
@@ -408,8 +461,6 @@ sub update {
 
   my @res;
   if (%$fields) {
-    $self->_set_identity_insert($table, 'update')   if $is_identity_update;
-
     if ($wantarray) {
       @res    = $self->next::method(@_);
     }
@@ -419,8 +470,6 @@ sub update {
     else {
       $self->next::method(@_);
     }
-
-    $self->_unset_identity_insert($table, 'update') if $is_identity_update;
   }
 
   $guard->commit;
@@ -428,77 +477,199 @@ sub update {
   return $wantarray ? @res : $res[0];
 }
 
-### the insert_bulk stuff stolen from DBI/MSSQL.pm
-
-sub _set_identity_insert {
-  my ($self, $table, $op) = @_;
-
-  my $sql = sprintf (
-    'SET IDENTITY_%s %s ON',
-    (uc($op) || 'INSERT'),
-    $self->sql_maker->_quote ($table),
-  );
-
-  $self->_query_start($sql);
-
-  my $dbh = $self->_get_dbh;
-  eval { $dbh->do ($sql) };
-  my $exception = $@;
-
-  $self->_query_end($sql);
-
-  if ($exception) {
-    $self->throw_exception (sprintf "Error executing '%s': %s",
-      $sql,
-      $dbh->errstr,
-    );
-  }
-}
-
-sub _unset_identity_insert {
-  my ($self, $table, $op) = @_;
-
-  my $sql = sprintf (
-    'SET IDENTITY_%s %s OFF',
-    (uc($op) || 'INSERT'),
-    $self->sql_maker->_quote ($table),
-  );
-
-  $self->_query_start($sql);
-
-  my $dbh = $self->_get_dbh;
-  $dbh->do ($sql);
-
-  $self->_query_end($sql);
-}
-
-# for tests
-sub _can_insert_bulk { 1 }
-
-# XXX this should use the DBD::Sybase bulk API, where possible
 sub insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
-  my $is_identity_insert = (List::Util::first
-      { $source->column_info ($_)->{is_auto_increment} }
-      (@{$cols})
-  )
-     ? 1
-     : 0;
+  my $identity_col = List::Util::first
+    { $source->column_info($_)->{is_auto_increment} }
+    $source->columns;
 
-  if ($is_identity_insert) {
-     $self->_set_identity_insert ($source->name);
+  my $is_identity_insert = (List::Util::first
+    { $_ eq $identity_col }
+    @{$cols}
+  ) ? 1 : 0;
+
+  my @source_columns = $source->columns;
+
+  my $use_bulk_api =
+    $self->_bulk_storage &&
+    $self->_get_dbh->{syb_has_blk};
+
+  if ((not $use_bulk_api) &&
+      (Scalar::Util::reftype($self->_dbi_connect_info->[0])||'') eq 'CODE' &&
+      (not $self->_bulk_disabled_due_to_coderef_connect_info_warned)) {
+    carp <<'EOF';
+Bulk API support disabled due to use of a CODEREF connect_info. Reverting to
+regular array inserts.
+EOF
+    $self->_bulk_disabled_due_to_coderef_connect_info_warned(1);
   }
 
-  $self->next::method(@_);
+  if (not $use_bulk_api) {
+    my $blob_cols = $self->_remove_blob_cols_array($source, $cols, $data);
 
-  if ($is_identity_insert) {
-     $self->_unset_identity_insert ($source->name);
+# _execute_array uses a txn anyway, but it ends too early in case we need to
+# select max(col) to get the identity for inserting blobs.
+    ($self, my $guard) = $self->{transaction_depth} == 0 ? 
+      ($self->_writer_storage, $self->_writer_storage->txn_scope_guard)
+      :
+      ($self, undef);
+
+    local $self->{insert_bulk} = 1;
+
+    $self->next::method(@_);
+
+    if ($blob_cols) {
+      if ($is_identity_insert) {
+        $self->_insert_blobs_array ($source, $blob_cols, $cols, $data);
+      }
+      else {
+        my @cols_with_identities = (@$cols, $identity_col);
+
+        ## calculate identities
+        # XXX This assumes identities always increase by 1, which may or may not
+        # be true.
+        my ($last_identity) =
+          $self->_dbh->selectrow_array (
+            $self->_fetch_identity_sql($source, $identity_col)
+          );
+        my @identities = (($last_identity - @$data + 1) .. $last_identity);
+
+        my @data_with_identities = map [@$_, shift @identities], @$data;
+
+        $self->_insert_blobs_array (
+          $source, $blob_cols, \@cols_with_identities, \@data_with_identities
+        );
+      }
+    }
+
+    $guard->commit if $guard;
+
+    return;
+  }
+
+# otherwise, use the bulk API
+
+# rearrange @$data so that columns are in database order
+  my %orig_idx;
+  @orig_idx{@$cols} = 0..$#$cols;
+
+  my %new_idx;
+  @new_idx{@source_columns} = 0..$#source_columns;
+
+  my @new_data;
+  for my $datum (@$data) {
+    my $new_datum = [];
+    for my $col (@source_columns) {
+# identity data will be 'undef' if not $is_identity_insert
+# columns with defaults will also be 'undef'
+      $new_datum->[ $new_idx{$col} ] =
+        exists $orig_idx{$col} ? $datum->[ $orig_idx{$col} ] : undef;
+    }
+    push @new_data, $new_datum;
+  }
+
+# bcp identity index is 1-based
+  my $identity_idx = exists $new_idx{$identity_col} ?
+    $new_idx{$identity_col} + 1 : 0;
+
+## Set a client-side conversion error handler, straight from DBD::Sybase docs.
+# This ignores any data conversion errors detected by the client side libs, as
+# they are usually harmless.
+  my $orig_cslib_cb = DBD::Sybase::set_cslib_cb(
+    Sub::Name::subname insert_bulk => sub {
+      my ($layer, $origin, $severity, $errno, $errmsg, $osmsg, $blkmsg) = @_;
+
+      return 1 if $errno == 36;
+
+      carp
+        "Layer: $layer, Origin: $origin, Severity: $severity, Error: $errno" .
+        ($errmsg ? "\n$errmsg" : '') .
+        ($osmsg  ? "\n$osmsg"  : '')  .
+        ($blkmsg ? "\n$blkmsg" : '');
+
+      return 0;
+  });
+
+  eval {
+    my $bulk = $self->_bulk_storage;
+
+    my $guard = $bulk->txn_scope_guard;
+
+## XXX get this to work instead of our own $sth
+## will require SQLA or *Hacks changes for ordered columns
+#    $bulk->next::method($source, \@source_columns, \@new_data, {
+#      syb_bcp_attribs => {
+#        identity_flag   => $is_identity_insert,
+#        identity_column => $identity_idx,
+#      }
+#    });
+    my $sql = 'INSERT INTO ' .
+      $bulk->sql_maker->_quote($source->name) . ' (' .
+# colname list is ignored for BCP, but does no harm
+      (join ', ', map $bulk->sql_maker->_quote($_), @source_columns) . ') '.
+      ' VALUES ('.  (join ', ', ('?') x @source_columns) . ')';
+
+## XXX there's a bug in the DBD::Sybase bulk support that makes $sth->finish for
+## a prepare_cached statement ineffective. Replace with ->sth when fixed, or
+## better yet the version above. Should be fixed in DBD::Sybase .
+    my $sth = $bulk->_get_dbh->prepare($sql,
+#      'insert', # op
+      {
+        syb_bcp_attribs => {
+          identity_flag   => $is_identity_insert,
+          identity_column => $identity_idx,
+        }
+      }
+    );
+
+    my @bind = do {
+      my $idx = 0;
+      map [ $_, $idx++ ], @source_columns;
+    };
+
+    $self->_execute_array(
+      $source, $sth, \@bind, \@source_columns, \@new_data, sub {
+        $guard->commit
+      }
+    );
+
+    $bulk->_query_end($sql);
+  };
+
+  my $exception = $@;
+  DBD::Sybase::set_cslib_cb($orig_cslib_cb);
+
+  if ($exception =~ /-Y option/) {
+    carp <<"EOF";
+
+Sybase bulk API operation failed due to character set incompatibility, reverting
+to regular array inserts:
+
+*** Try unsetting the LANG environment variable.
+
+$exception
+EOF
+    $self->_bulk_storage(undef);
+    unshift @_, $self;
+    goto \&insert_bulk;
+  }
+  elsif ($exception) {
+# rollback makes the bulkLogin connection unusable
+    $self->_bulk_storage->disconnect;
+    $self->throw_exception($exception);
   }
 }
 
-### end of stolen insert_bulk section
+sub _dbh_execute_array {
+  my ($self, $sth, $tuple_status, $cb) = @_;
+
+  my $rv = $self->next::method($sth, $tuple_status);
+  $cb->() if $cb;
+
+  return $rv;
+}
 
 # Make sure blobs are not bound as placeholders, and return any non-empty ones
 # as a hash.
@@ -508,7 +679,7 @@ sub _remove_blob_cols {
   my %blob_cols;
 
   for my $col (keys %$fields) {
-    if ($self->_is_lob_type($source->column_info($col)->{data_type})) {
+    if ($self->_is_lob_column($source, $col)) {
       my $blob_val = delete $fields->{$col};
       if (not defined $blob_val) {
         $fields->{$col} = \'NULL';
@@ -520,7 +691,34 @@ sub _remove_blob_cols {
     }
   }
 
-  return keys %blob_cols ? \%blob_cols : undef;
+  return %blob_cols ? \%blob_cols : undef;
+}
+
+# same for insert_bulk
+sub _remove_blob_cols_array {
+  my ($self, $source, $cols, $data) = @_;
+
+  my @blob_cols;
+
+  for my $i (0..$#$cols) {
+    my $col = $cols->[$i];
+
+    if ($self->_is_lob_column($source, $col)) {
+      for my $j (0..$#$data) {
+        my $blob_val = delete $data->[$j][$i];
+        if (not defined $blob_val) {
+          $data->[$j][$i] = \'NULL';
+        }
+        else {
+          $data->[$j][$i] = \"''";
+          $blob_cols[$j][$i] = $blob_val
+            unless $blob_val eq '';
+        }
+      }
+    }
+  }
+
+  return @blob_cols ? \@blob_cols : undef;
 }
 
 sub _update_blobs {
@@ -582,7 +780,7 @@ sub _insert_blobs {
 
       $self->throw_exception(
           "Could not find row in table '$table' for blob update:\n"
-        . $self->_pretty_print (\%where)
+        . Data::Dumper::Concise::Dumper (\%where)
       );
     }
 
@@ -620,6 +818,26 @@ sub _insert_blobs {
   }
 }
 
+sub _insert_blobs_array {
+  my ($self, $source, $blob_cols, $cols, $data) = @_;
+
+  for my $i (0..$#$data) {
+    my $datum = $data->[$i];
+
+    my %row;
+    @row{ @$cols } = @$datum;
+
+    my %blob_vals;
+    for my $j (0..$#$cols) {
+      if (exists $blob_cols->[$i][$j]) {
+        $blob_vals{ $cols->[$j] } = $blob_cols->[$i][$j];
+      }
+    }
+
+    $self->_insert_blobs ($source, \%blob_vals, \%row);
+  }
+}
+
 =head2 connect_call_datetime_setup
 
 Used as:
@@ -644,7 +862,7 @@ C<SMALLDATETIME> columns only have minute precision.
 
   sub connect_call_datetime_setup {
     my $self = shift;
-    my $dbh = $self->_dbh;
+    my $dbh = $self->_get_dbh;
 
     if ($dbh->can('syb_date_fmt')) {
       # amazingly, this works with FreeTDS
@@ -671,10 +889,18 @@ sub datetime_parser_type { "DateTime::Format::Sybase" }
 
 sub _dbh_begin_work {
   my $self = shift;
+
+# bulkLogin=1 connections are always in a transaction, and can only call BEGIN
+# TRAN once. However, we need to make sure there's a $dbh.
+  return if $self->_is_bulk_storage && $self->_dbh && $self->_began_bulk_work;
+
   $self->next::method(@_);
+
   if ($self->using_freetds) {
     $self->_get_dbh->do('BEGIN TRAN');
   }
+
+  $self->_began_bulk_work(1) if $self->_is_bulk_storage;
 }
 
 sub _dbh_commit {
@@ -773,10 +999,10 @@ session variable.
 =head1 TRANSACTIONS
 
 Due to limitations of the TDS protocol, L<DBD::Sybase>, or both; you cannot
-begin a transaction while there are active cursors. An active cursor is, for
-example, a L<ResultSet|DBIx::Class::ResultSet> that has been executed using
-C<next> or C<first> but has not been exhausted or
-L<reset|DBIx::Class::ResultSet/reset>.
+begin a transaction while there are active cursors; nor can you use multiple
+active cursors within a transaction. An active cursor is, for example, a
+L<ResultSet|DBIx::Class::ResultSet> that has been executed using C<next> or
+C<first> but has not been exhausted or L<reset|DBIx::Class::ResultSet/reset>.
 
 For example, this will not work:
 
@@ -789,6 +1015,11 @@ For example, this will not work:
       });
     }
   });
+
+This won't either:
+
+  my $first_row = $large_rs->first;
+  $schema->txn_do(sub { ... });
 
 Transactions done for inserts in C<AutoCommit> mode when placeholders are in use
 are not affected, as they are done on an extra database handle.
@@ -845,6 +1076,54 @@ C<SET TEXTSIZE> command on connection.
 
 See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
 setting you need to work with C<IMAGE> columns.
+
+=head1 BULK API
+
+The experimental L<DBD::Sybase> Bulk API support is used for
+L<populate|DBIx::Class::ResultSet/populate> in B<void> context, in a transaction
+on a separate connection.
+
+To use this feature effectively, use a large number of rows for each
+L<populate|DBIx::Class::ResultSet/populate> call, eg.:
+
+  while (my $rows = $data_source->get_100_rows()) {
+    $rs->populate($rows);
+  }
+
+B<NOTE:> the L<add_columns|DBIx::Class::ResultSource/add_columns>
+calls in your C<Result> classes B<must> list columns in database order for this
+to work. Also, you may have to unset the C<LANG> environment variable before
+loading your app, if it doesn't match the character set of your database.
+
+When inserting IMAGE columns using this method, you'll need to use
+L</connect_call_blob_setup> as well.
+
+=head1 TODO
+
+=over
+
+=item *
+
+Transitions to AutoCommit=0 (starting a transaction) mode by exhausting
+any active cursors, using eager cursors.
+
+=item *
+
+Real limits and limited counts using stored procedures deployed on startup.
+
+=item *
+
+Adaptive Server Anywhere (ASA) support, with possible SQLA::Limit support.
+
+=item *
+
+Blob update with a LIKE query on a blob, without invalidating the WHERE condition.
+
+=item *
+
+bulk_insert using prepare_cached (see comments.)
+
+=back
 
 =head1 AUTHOR
 

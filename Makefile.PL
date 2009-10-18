@@ -45,6 +45,7 @@ requires 'Scope::Guard'             => '0.03';
 requires 'SQL::Abstract'            => '1.60';
 requires 'SQL::Abstract::Limit'     => '0.13';
 requires 'Sub::Name'                => '0.04';
+requires 'Data::Dumper::Concise'    => '1.000';
 
 my %replication_requires = (
   'Moose',                    => '0.87',

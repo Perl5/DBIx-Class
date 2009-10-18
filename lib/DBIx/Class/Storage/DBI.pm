@@ -13,6 +13,7 @@ use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use Scalar::Util();
 use List::Util();
+use Data::Dumper::Concise();
 
 # what version of sqlt do we require if deploy() without a ddl_dir is invoked
 # when changing also adjust the corresponding author_require in Makefile.PL
@@ -1344,19 +1345,96 @@ sub insert_bulk {
   }
 
   my %colvalues;
-  my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
+
+  for my $i (0..$#$cols) {
+    my $first_val = $data->[0][$i];
+    next unless ref $first_val eq 'SCALAR';
+
+    $colvalues{ $cols->[$i] } = $first_val;
+## This is probably unnecessary since $rs->populate only looks at the first
+## slice anyway.
+#      if (grep {
+#        ref $_ eq 'SCALAR' && $$_ eq $$first_val
+#      } map $data->[$_][$i], (1..$#$data)) == (@$data - 1);
+  }
+
+  # check for bad data
+  my $bad_slice = sub {
+    my ($msg, $slice_idx) = @_;
+    $self->throw_exception(sprintf "%s for populate slice:\n%s",
+      $msg,
+      Data::Dumper::Concise::Dumper({
+        map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
+      }),
+    );
+  };
+
+  for my $datum_idx (0..$#$data) {
+    my $datum = $data->[$datum_idx];
+
+    for my $col_idx (0..$#$cols) {
+      my $val            = $datum->[$col_idx];
+      my $sqla_bind      = $colvalues{ $cols->[$col_idx] };
+      my $is_literal_sql = (ref $sqla_bind) eq 'SCALAR';
+
+      if ($is_literal_sql) {
+        if (not ref $val) {
+          $bad_slice->('bind found where literal SQL expected', $datum_idx);
+        }
+        elsif ((my $reftype = ref $val) ne 'SCALAR') {
+          $bad_slice->("$reftype reference found where literal SQL expected",
+            $datum_idx);
+        }
+        elsif ($$val ne $$sqla_bind){
+          $bad_slice->("inconsistent literal SQL value, expecting: '$$sqla_bind'",
+            $datum_idx);
+        }
+      }
+      elsif (my $reftype = ref $val) {
+        $bad_slice->("$reftype reference found where bind expected",
+          $datum_idx);
+      }
+    }
+  }
 
   my ($sql, $bind) = $self->_prep_for_execute (
     'insert', undef, $source, [\%colvalues]
   );
-  my @bind = @$bind
-    or croak 'Cannot insert_bulk without support for placeholders';
+  my @bind = @$bind;
+
+  my $empty_bind = 1 if (not @bind) &&
+    (grep { ref $_ eq 'SCALAR' } values %colvalues) == @$cols;
+
+  if ((not @bind) && (not $empty_bind)) {
+    $self->throw_exception(
+      'Cannot insert_bulk without support for placeholders'
+    );
+  }
 
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql);
 
-#  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+  my $rv = do {
+    if ($empty_bind) {
+      # bind_param_array doesn't work if there are no binds
+      $self->_dbh_execute_inserts_with_no_binds( $sth, scalar @$data );
+    }
+    else {
+#      @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+      $self->_execute_array( $source, $sth, \@bind, $cols, $data );
+    }
+  };
+
+  $self->_query_end( $sql, @bind );
+
+  return (wantarray ? ($rv, $sth, @bind) : $rv);
+}
+
+sub _execute_array {
+  my ($self, $source, $sth, $bind, $cols, $data, @extra) = @_;
+
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
 
   ## This must be an arrayref, else nothing works!
   my $tuple_status = [];
@@ -1367,7 +1445,7 @@ sub insert_bulk {
   ## Bind the values and execute
   my $placeholder_index = 1;
 
-  foreach my $bound (@bind) {
+  foreach my $bound (@$bind) {
 
     my $attributes = {};
     my ($column_name, $data_index) = @$bound;
@@ -1382,26 +1460,65 @@ sub insert_bulk {
     $sth->bind_param_array( $placeholder_index, [@data], $attributes );
     $placeholder_index++;
   }
-  my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
-  $sth->finish;
-  if (my $err = $@) {
+
+  my $rv = eval {
+    $self->_dbh_execute_array($sth, $tuple_status, @extra);
+  };
+  my $err = $@ || $sth->errstr;
+
+# Statement must finish even if there was an exception.
+  eval { $sth->finish };
+  $err = $@ unless $err;
+
+  if ($err) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
 
-    $self->throw_exception($sth->errstr || "Unexpected populate error: $err")
+    $self->throw_exception("Unexpected populate error: $err")
       if ($i > $#$tuple_status);
 
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
-      $tuple_status->[$i][1],
-      $self->_pretty_print ({
+      ($tuple_status->[$i][1] || $err),
+      Data::Dumper::Concise::Dumper({
         map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols)
       }),
     );
   }
-  $self->throw_exception($sth->errstr) if !$rv;
 
-  $self->_query_end( $sql, @bind );
-  return (wantarray ? ($rv, $sth, @bind) : $rv);
+  $guard->commit if $guard;
+
+  return $rv;
+}
+
+sub _dbh_execute_array {
+    my ($self, $sth, $tuple_status, @extra) = @_;
+
+    return $sth->execute_array({ArrayTupleStatus => $tuple_status});
+}
+
+sub _dbh_execute_inserts_with_no_binds {
+  my ($self, $sth, $count) = @_;
+
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
+
+  eval {
+    my $dbh = $self->_get_dbh;
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
+
+    $sth->execute foreach 1..$count;
+  };
+  my $exception = $@;
+
+# Make sure statement is finished even if there was an exception.
+  eval { $sth->finish };
+  $exception = $@ unless $exception;
+
+  $self->throw_exception($exception) if $exception;
+
+  $guard->commit if $guard;
+
+  return $count;
 }
 
 sub update {
@@ -1990,19 +2107,6 @@ sub _subq_count_select {
 
   my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
   return @pcols ? \@pcols : [ 1 ];
-}
-
-#
-# Returns an ordered list of column names before they are used
-# in a SELECT statement. By default simply returns the list
-# passed in.
-#
-# This may be overridden in a specific storage when there are
-# requirements such as moving BLOB columns to the end of the 
-# SELECT list.
-sub _order_select_columns {
-  #my ($self, $source, $columns) = @_;
-  return @{$_[2]};
 }
 
 sub source_bind_attributes {
