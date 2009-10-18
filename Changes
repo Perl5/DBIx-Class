@@ -1,5 +1,18 @@
 Revision history for DBIx::Class
 
+
+        - Complete Sybase RDBMS support including:
+          - Support for TEXT/IMAGE columns
+          - Support for the 'money' datatype
+          - Transaction savepoints support
+          - DateTime inflation support
+          - Support for bind variables when connecting to a newer Sybase with
+             OpenClient libraries
+          - Support for connections via FreeTDS with CASTs for bind variables
+             when needed
+          - Support for interpolated variables with proper quoting when
+             connecting to an older Sybase and/or via FreeTDS
+          - bulk API support for populate()
         - Add is_paged method to DBIx::Class::ResultSet so that we can
           check that if we want a pager
         - Skip versioning test on really old perls lacking Time::HiRes

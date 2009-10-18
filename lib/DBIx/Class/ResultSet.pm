@@ -1796,7 +1796,10 @@ sub populate {
   } else {
     my ($first, @rest) = @$data;
 
-    my @names = grep {!ref $first->{$_}} keys %$first;
+    my @names = grep {
+      (not ref $first->{$_}) || (ref $first->{$_} eq 'SCALAR')
+    } keys %$first;
+
     my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
     my @pks = $self->result_source->primary_columns;
 

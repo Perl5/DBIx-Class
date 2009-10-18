@@ -6,8 +6,6 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 23;
-
 my $schema = DBICTest->init_schema();
 
 # The map below generates stuff like:
@@ -116,3 +114,86 @@ is($link7->id, 7, 'Link 7 id');
 is($link7->url, undef, 'Link 7 url');
 is($link7->title, 'gtitle', 'Link 7 title');
 
+# test _execute_array_empty (insert_bulk with all literal sql)
+my $rs = $schema->resultset('Artist');
+$rs->delete;
+$rs->populate([
+    (+{
+        name => \"'DT'",
+        rank => \500,
+        charfield => \"'mtfnpy'",
+    }) x 5
+]);
+
+is((grep {
+  $_->name eq 'DT' &&
+  $_->rank == 500  &&
+  $_->charfield eq 'mtfnpy'
+} $rs->all), 5, 'populate with all literal SQL');
+
+$rs->delete;
+
+throws_ok {
+    $rs->populate([
+        {
+            artistid => 1,
+            name => 'foo1',
+        },
+        {
+            artistid => 'foo', # this dies
+            name => 'foo2',
+        },
+        {
+            artistid => 3,
+            name => 'foo3',
+        },
+    ]);
+} qr/slice/, 'bad slice';
+
+is($rs->count, 0, 'populate is atomic');
+
+# Trying to use a column marked as a bind in the first slice with literal sql in
+# a later slice should throw.
+
+throws_ok {
+  $rs->populate([
+    {
+      artistid => 1,
+      name => \"'foo'",
+    },
+    {
+      artistid => \2,
+      name => \"'foo'",
+    }
+  ]);
+} qr/bind expected/, 'literal sql where bind expected throws';
+
+# ... and vice-versa.
+
+throws_ok {
+  $rs->populate([
+    {
+      artistid => \1,
+      name => \"'foo'",
+    },
+    {
+      artistid => 2,
+      name => \"'foo'",
+    }
+  ]);
+} qr/literal SQL expected/i, 'bind where literal sql expected throws';
+
+throws_ok {
+  $rs->populate([
+    {
+      artistid => 1,
+      name => \"'foo'",
+    },
+    {
+      artistid => 2,
+      name => \"'bar'",
+    }
+  ]);
+} qr/inconsistent/, 'literal sql must be the same in all slices';
+
+done_testing;
