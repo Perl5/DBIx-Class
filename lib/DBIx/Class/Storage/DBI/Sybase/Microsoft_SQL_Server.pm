@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use base qw/
-  DBIx::Class::Storage::DBI::Sybase::Base
+  DBIx::Class::Storage::DBI::Sybase::Common
   DBIx::Class::Storage::DBI::MSSQL
 /;
 use mro 'c3';
@@ -13,19 +13,20 @@ sub _rebless {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
 
-  if (not $self->_placeholders_supported) {
+  if (not $self->_typeless_placeholders_supported) {
     bless $self,
       'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
     $self->_rebless;
   }
+}
 
-# LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
-# huge on some versions of SQL server and can cause memory problems, so we
-# fix it up here.
-  my $text_size = eval { $self->_dbi_connect_info->[-1]->{LongReadLen} } ||
-    32768; # the DBD::Sybase default
+sub _init {
+  my $self = shift;
 
-  $dbh->do("set textsize $text_size");
+  # LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
+  # huge on some versions of SQL server and can cause memory problems, so we
+  # fix it up here (see Sybase/Common.pm)
+  $self->set_textsize;
 }
 
 1;

@@ -5,7 +5,6 @@ use warnings;
 use Test::More;
 use File::Spec;
 use File::Copy;
-use Time::HiRes qw/time sleep/;
 
 #warn "$dsn $user $pass";
 my ($dsn, $user, $pass);
@@ -16,10 +15,14 @@ BEGIN {
   plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
     unless ($dsn);
 
-  require DBIx::Class;
+  eval { require Time::HiRes }
+    || plan skip_all => 'Test needs Time::HiRes';
+  Time::HiRes->import(qw/time sleep/);
+
+  require DBIx::Class::Storage::DBI;
   plan skip_all =>
-      'Test needs SQL::Translator ' . DBIx::Class->_sqlt_minimum_version
-    if not DBIx::Class->_sqlt_version_ok;
+      'Test needs SQL::Translator ' . DBIx::Class::Storage::DBI->_sqlt_minimum_version
+    if not DBIx::Class::Storage::DBI->_sqlt_version_ok;
 }
 
 my $version_table_name = 'dbix_class_schema_versions';

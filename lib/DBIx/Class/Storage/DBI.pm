@@ -13,6 +13,12 @@ use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use Scalar::Util();
 use List::Util();
+use Data::Dumper::Concise();
+
+# what version of sqlt do we require if deploy() without a ddl_dir is invoked
+# when changing also adjust the corresponding author_require in Makefile.PL
+my $minimum_sqlt_version = '0.11002';
+
 
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
@@ -681,7 +687,8 @@ sub disconnect {
 
     $self->_do_connection_actions(disconnect_call_ => $_) for @actions;
 
-    $self->_dbh->rollback unless $self->_dbh_autocommit;
+    $self->_dbh_rollback unless $self->_dbh_autocommit;
+
     $self->_dbh->disconnect;
     $self->_dbh(undef);
     $self->{_dbh_gen}++;
@@ -835,7 +842,9 @@ sub sql_maker {
   return $self->_sql_maker;
 }
 
+# nothing to do by default
 sub _rebless {}
+sub _init {}
 
 sub _populate_dbh {
   my ($self) = @_;
@@ -870,13 +879,14 @@ sub _determine_driver {
   my ($self) = @_;
 
   if ((not $self->_driver_determined) && (not $self->{_in_determine_driver})) {
-    my $started_unconnected = 0;
+    my $started_connected = 0;
     local $self->{_in_determine_driver} = 1;
 
     if (ref($self) eq __PACKAGE__) {
       my $driver;
       if ($self->_dbh) { # we are connected
         $driver = $self->_dbh->{Driver}{Name};
+        $started_connected = 1;
       } else {
         # if connect_info is a CODEREF, we have no choice but to connect
         if (ref $self->_dbi_connect_info->[0] &&
@@ -888,7 +898,6 @@ sub _determine_driver {
           # try to use dsn to not require being connected, the driver may still
           # force a connection in _rebless to determine version
           ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
-          $started_unconnected = 1;
         }
       }
 
@@ -902,8 +911,10 @@ sub _determine_driver {
 
     $self->_driver_determined(1);
 
+    $self->_init; # run driver-specific initializations
+
     $self->_run_connection_actions
-        if $started_unconnected && defined $self->_dbh;
+        if !$started_connected && defined $self->_dbh;
   }
 }
 
@@ -997,6 +1008,8 @@ sub _connect {
             $weak_self->throw_exception("DBI Exception: $_[0]");
           }
           else {
+            # the handler may be invoked by something totally out of
+            # the scope of DBIC
             croak ("DBI Exception: $_[0]");
           }
       };
@@ -1106,18 +1119,27 @@ sub txn_begin {
   if($self->{transaction_depth} == 0) {
     $self->debugobj->txn_begin()
       if $self->debug;
-
-    # being here implies we have AutoCommit => 1
-    # if the user is utilizing txn_do - good for
-    # him, otherwise we need to ensure that the
-    # $dbh is healthy on BEGIN
-    my $dbh_method = $self->{_in_dbh_do} ? '_dbh' : 'dbh';
-    $self->$dbh_method->begin_work;
-
-  } elsif ($self->auto_savepoint) {
+    $self->_dbh_begin_work;
+  }
+  elsif ($self->auto_savepoint) {
     $self->svp_begin;
   }
   $self->{transaction_depth}++;
+}
+
+sub _dbh_begin_work {
+  my $self = shift;
+
+  # if the user is utilizing txn_do - good for him, otherwise we need to
+  # ensure that the $dbh is healthy on BEGIN.
+  # We do this via ->dbh_do instead of ->dbh, so that the ->dbh "ping"
+  # will be replaced by a failure of begin_work itself (which will be
+  # then retried on reconnect)
+  if ($self->{_in_dbh_do}) {
+    $self->_dbh->begin_work;
+  } else {
+    $self->dbh_do(sub { $_[1]->begin_work });
+  }
 }
 
 sub txn_commit {
@@ -1126,7 +1148,7 @@ sub txn_commit {
     my $dbh = $self->_dbh;
     $self->debugobj->txn_commit()
       if ($self->debug);
-    $dbh->commit;
+    $self->_dbh_commit;
     $self->{transaction_depth} = 0
       if $self->_dbh_autocommit;
   }
@@ -1135,6 +1157,11 @@ sub txn_commit {
     $self->svp_release
       if $self->auto_savepoint;
   }
+}
+
+sub _dbh_commit {
+  my $self = shift;
+  $self->_dbh->commit;
 }
 
 sub txn_rollback {
@@ -1146,7 +1173,7 @@ sub txn_rollback {
         if ($self->debug);
       $self->{transaction_depth} = 0
         if $self->_dbh_autocommit;
-      $dbh->rollback;
+      $self->_dbh_rollback;
     }
     elsif($self->{transaction_depth} > 1) {
       $self->{transaction_depth}--;
@@ -1167,6 +1194,11 @@ sub txn_rollback {
     $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
     $self->throw_exception($error);
   }
+}
+
+sub _dbh_rollback {
+  my $self = shift;
+  $self->_dbh->rollback;
 }
 
 # This used to be the top-half of _execute.  It was split out to make it
@@ -1313,14 +1345,96 @@ sub insert_bulk {
   }
 
   my %colvalues;
-  my $table = $source->from;
   @colvalues{@$cols} = (0..$#$cols);
-  my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
+
+  for my $i (0..$#$cols) {
+    my $first_val = $data->[0][$i];
+    next unless ref $first_val eq 'SCALAR';
+
+    $colvalues{ $cols->[$i] } = $first_val;
+## This is probably unnecessary since $rs->populate only looks at the first
+## slice anyway.
+#      if (grep {
+#        ref $_ eq 'SCALAR' && $$_ eq $$first_val
+#      } map $data->[$_][$i], (1..$#$data)) == (@$data - 1);
+  }
+
+  # check for bad data
+  my $bad_slice = sub {
+    my ($msg, $slice_idx) = @_;
+    $self->throw_exception(sprintf "%s for populate slice:\n%s",
+      $msg,
+      Data::Dumper::Concise::Dumper({
+        map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
+      }),
+    );
+  };
+
+  for my $datum_idx (0..$#$data) {
+    my $datum = $data->[$datum_idx];
+
+    for my $col_idx (0..$#$cols) {
+      my $val            = $datum->[$col_idx];
+      my $sqla_bind      = $colvalues{ $cols->[$col_idx] };
+      my $is_literal_sql = (ref $sqla_bind) eq 'SCALAR';
+
+      if ($is_literal_sql) {
+        if (not ref $val) {
+          $bad_slice->('bind found where literal SQL expected', $datum_idx);
+        }
+        elsif ((my $reftype = ref $val) ne 'SCALAR') {
+          $bad_slice->("$reftype reference found where literal SQL expected",
+            $datum_idx);
+        }
+        elsif ($$val ne $$sqla_bind){
+          $bad_slice->("inconsistent literal SQL value, expecting: '$$sqla_bind'",
+            $datum_idx);
+        }
+      }
+      elsif (my $reftype = ref $val) {
+        $bad_slice->("$reftype reference found where bind expected",
+          $datum_idx);
+      }
+    }
+  }
+
+  my ($sql, $bind) = $self->_prep_for_execute (
+    'insert', undef, $source, [\%colvalues]
+  );
+  my @bind = @$bind;
+
+  my $empty_bind = 1 if (not @bind) &&
+    (grep { ref $_ eq 'SCALAR' } values %colvalues) == @$cols;
+
+  if ((not @bind) && (not $empty_bind)) {
+    $self->throw_exception(
+      'Cannot insert_bulk without support for placeholders'
+    );
+  }
 
   $self->_query_start( $sql, @bind );
   my $sth = $self->sth($sql);
 
-#  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+  my $rv = do {
+    if ($empty_bind) {
+      # bind_param_array doesn't work if there are no binds
+      $self->_dbh_execute_inserts_with_no_binds( $sth, scalar @$data );
+    }
+    else {
+#      @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+      $self->_execute_array( $source, $sth, \@bind, $cols, $data );
+    }
+  };
+
+  $self->_query_end( $sql, @bind );
+
+  return (wantarray ? ($rv, $sth, @bind) : $rv);
+}
+
+sub _execute_array {
+  my ($self, $source, $sth, $bind, $cols, $data, @extra) = @_;
+
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
 
   ## This must be an arrayref, else nothing works!
   my $tuple_status = [];
@@ -1331,7 +1445,7 @@ sub insert_bulk {
   ## Bind the values and execute
   my $placeholder_index = 1;
 
-  foreach my $bound (@bind) {
+  foreach my $bound (@$bind) {
 
     my $attributes = {};
     my ($column_name, $data_index) = @$bound;
@@ -1346,40 +1460,79 @@ sub insert_bulk {
     $sth->bind_param_array( $placeholder_index, [@data], $attributes );
     $placeholder_index++;
   }
-  my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
-  if (my $err = $@) {
+
+  my $rv = eval {
+    $self->_dbh_execute_array($sth, $tuple_status, @extra);
+  };
+  my $err = $@ || $sth->errstr;
+
+# Statement must finish even if there was an exception.
+  eval { $sth->finish };
+  $err = $@ unless $err;
+
+  if ($err) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
 
-    $self->throw_exception($sth->errstr || "Unexpected populate error: $err")
+    $self->throw_exception("Unexpected populate error: $err")
       if ($i > $#$tuple_status);
 
-    require Data::Dumper;
-    local $Data::Dumper::Terse = 1;
-    local $Data::Dumper::Indent = 1;
-    local $Data::Dumper::Useqq = 1;
-    local $Data::Dumper::Quotekeys = 0;
-
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
-      $tuple_status->[$i][1],
-      Data::Dumper::Dumper(
-        { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) }
-      ),
+      ($tuple_status->[$i][1] || $err),
+      Data::Dumper::Concise::Dumper({
+        map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols)
+      }),
     );
   }
-  $self->throw_exception($sth->errstr) if !$rv;
 
-  $self->_query_end( $sql, @bind );
-  return (wantarray ? ($rv, $sth, @bind) : $rv);
+  $guard->commit if $guard;
+
+  return $rv;
+}
+
+sub _dbh_execute_array {
+    my ($self, $sth, $tuple_status, @extra) = @_;
+
+    return $sth->execute_array({ArrayTupleStatus => $tuple_status});
+}
+
+sub _dbh_execute_inserts_with_no_binds {
+  my ($self, $sth, $count) = @_;
+
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
+
+  eval {
+    my $dbh = $self->_get_dbh;
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
+
+    $sth->execute foreach 1..$count;
+  };
+  my $exception = $@;
+
+# Make sure statement is finished even if there was an exception.
+  eval { $sth->finish };
+  $exception = $@ unless $exception;
+
+  $self->throw_exception($exception) if $exception;
+
+  $guard->commit if $guard;
+
+  return $count;
 }
 
 sub update {
-  my $self = shift @_;
-  my $source = shift @_;
-  $self->_determine_driver;
+  my ($self, $source, @args) = @_; 
+
+# redispatch to update method of storage we reblessed into, if necessary
+  if (not $self->_driver_determined) {
+    $self->_determine_driver;
+    goto $self->can('update');
+  }
+
   my $bind_attributes = $self->source_bind_attributes($source);
 
-  return $self->_execute('update' => [], $source, $bind_attributes, @_);
+  return $self->_execute('update' => [], $source, $bind_attributes, @args);
 }
 
 
@@ -1956,7 +2109,6 @@ sub _subq_count_select {
   return @pcols ? \@pcols : [ 1 ];
 }
 
-
 sub source_bind_attributes {
   my ($self, $source) = @_;
 
@@ -2151,6 +2303,36 @@ C<ENUM(foo,bar,baz)> becomes C<ENUM>.
 sub _native_data_type {
   #my ($self, $data_type) = @_;
   return undef
+}
+
+# Check if placeholders are supported at all
+sub _placeholders_supported {
+  my $self = shift;
+  my $dbh  = $self->_get_dbh;
+
+  # some drivers provide a $dbh attribute (e.g. Sybase and $dbh->{syb_dynamic_supported})
+  # but it is inaccurate more often than not
+  eval {
+    local $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
+    $dbh->do('select ?', {}, 1);
+  };
+  return $@ ? 0 : 1;
+}
+
+# Check if placeholders bound to non-string types throw exceptions
+#
+sub _typeless_placeholders_supported {
+  my $self = shift;
+  my $dbh  = $self->_get_dbh;
+
+  eval {
+    local $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
+    # this specifically tests a bind that is NOT a string
+    $dbh->do('select 1 where 1 = ?', {}, 1);
+  };
+  return $@ ? 0 : 1;
 }
 
 =head2 sqlt_type
@@ -2544,12 +2726,41 @@ sub lag_behind_master {
     return;
 }
 
+# SQLT version handling
+{
+  my $_sqlt_version_ok;     # private
+  my $_sqlt_version_error;  # private
+
+  sub _sqlt_version_ok {
+    if (!defined $_sqlt_version_ok) {
+      eval "use SQL::Translator $minimum_sqlt_version";
+      if ($@) {
+        $_sqlt_version_ok = 0;
+        $_sqlt_version_error = $@;
+      }
+      else {
+        $_sqlt_version_ok = 1;
+      }
+    }
+    return $_sqlt_version_ok;
+  }
+
+  sub _sqlt_version_error {
+    shift->_sqlt_version_ok unless defined $_sqlt_version_ok;
+    return $_sqlt_version_error;
+  }
+
+  sub _sqlt_minimum_version { $minimum_sqlt_version };
+}
+
 sub DESTROY {
   my $self = shift;
+
   $self->_verify_pid if $self->_dbh;
 
   # some databases need this to stop spewing warnings
   if (my $dbh = $self->_dbh) {
+    local $@;
     eval { $dbh->disconnect };
   }
 

@@ -520,11 +520,11 @@ sub _create_db_to_schema_diff {
     return;
   }
 
-  $self->throw_exception($self->_sqlt_version_error)
-    if (not $self->_sqlt_version_ok);
+  $self->throw_exception($self->storage->_sqlt_version_error)
+    if (not $self->storage->_sqlt_version_ok);
 
-  my $db_tr = SQL::Translator->new({ 
-                                    add_drop_table => 1, 
+  my $db_tr = SQL::Translator->new({
+                                    add_drop_table => 1,
                                     parser => 'DBI',
                                     parser_args => { dbh => $self->storage->dbh }
                                    });

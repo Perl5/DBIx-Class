@@ -5,6 +5,7 @@ use Test::More tests => 12;
 
 use lib qw(t/lib);
 use base 'DBICTest';
+require DBI;
 
 
 my $schema = DBICTest->init_schema(
@@ -28,7 +29,7 @@ is_deeply (
 $schema->storage->disconnect;
 
 ok $schema->connection(
-    DBICTest->_database,
+    sub { DBI->connect(DBICTest->_database) },
     {
         on_connect_do       => [
             'CREATE TABLE TEST_empty (id INTEGER)',

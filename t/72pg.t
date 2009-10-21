@@ -271,6 +271,7 @@ done_testing;
 exit;
 
 END {
+    return unless $schema;
     drop_test_schema($schema);
     eapk_drop_all( $schema)
 };

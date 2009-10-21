@@ -1,14 +1,30 @@
+use warnings;
+use strict;
+
 use Test::More;
 use List::Util ();
+use lib qw(t/lib);
+use DBICTest;
 
-eval "use Pod::Coverage 0.19";
-plan skip_all => 'Pod::Coverage 0.19 required' if $@;
-eval "use Test::Pod::Coverage 1.04";
-plan skip_all => 'Test::Pod::Coverage 1.04 required' if $@;
+my @MODULES = (
+  'Test::Pod::Coverage 1.08',
+  'Pod::Coverage 0.20',
+);
 
-plan skip_all => 'set TEST_POD to enable this test'
-  unless ($ENV{TEST_POD} || -e 'MANIFEST.SKIP');
+# Don't run tests for installs
+unless ( DBICTest::AuthorCheck->is_author || $ENV{AUTOMATED_TESTING} || $ENV{RELEASE_TESTING} ) {
+  plan( skip_all => "Author tests not required for installation" );
+}
 
+# Load the testing modules
+foreach my $MODULE ( @MODULES ) {
+  eval "use $MODULE";
+  if ( $@ ) {
+    $ENV{RELEASE_TESTING}
+    ? die( "Failed to load required release-testing module $MODULE" )
+    : plan( skip_all => "$MODULE not available for testing" );
+  }
+}
 
 # Since this is about checking documentation, a little documentation
 # of what this is doing might be in order.

@@ -86,8 +86,6 @@ For more help with using components, see L<DBIx::Class::Manual::Component/USING>
 
 __PACKAGE__->load_components(qw/InflateColumn/);
 
-__PACKAGE__->mk_group_accessors('simple' => '__datetime_parser');
-
 =head2 register_column
 
 Chains with the L<DBIx::Class::Row/register_column> method, and sets
@@ -224,12 +222,7 @@ sub _deflate_from_datetime {
 }
 
 sub _datetime_parser {
-  my $self = shift;
-  if (my $parser = $self->__datetime_parser) {
-    return $parser;
-  }
-  my $parser = $self->result_source->storage->datetime_parser(@_);
-  return $self->__datetime_parser($parser);
+  shift->result_source->storage->datetime_parser (@_);
 }
 
 1;

@@ -5,6 +5,8 @@ use POSIX ();
 
 use 5.006001; # delete this line if you want to send patches for earlier.
 
+# ****** DO NOT ADD OPTIONAL DEPENDENCIES. EVER. --mst ******
+
 name     'DBIx-Class';
 perl_version '5.006001';
 all_from 'lib/DBIx/Class.pm';
@@ -40,9 +42,10 @@ requires 'MRO::Compat'              => '0.09';
 requires 'Module::Find'             => '0.06';
 requires 'Path::Class'              => '0.16';
 requires 'Scope::Guard'             => '0.03';
-requires 'SQL::Abstract'            => '1.58';
+requires 'SQL::Abstract'            => '1.60';
 requires 'SQL::Abstract::Limit'     => '0.13';
 requires 'Sub::Name'                => '0.04';
+requires 'Data::Dumper::Concise'    => '1.000';
 
 my %replication_requires = (
   'Moose',                    => '0.87',
@@ -52,17 +55,25 @@ my %replication_requires = (
   'Hash::Merge',              => '0.11',
 );
 
-# when changing also adjust $DBIx::Class::minimum_sqlt_version
-my $sqlt_recommends = '0.11002';
-
-recommends 'SQL::Translator'  => $sqlt_recommends;
-
+#************************************************************************#
+# Make *ABSOLUTELY SURE* that nothing on this list is a real require,    #
+# since every module listed in %force_requires_if_author is deleted      #
+# from the final META.yml (thus will never make it as a CPAN dependency) #
+#************************************************************************#
 my %force_requires_if_author = (
   %replication_requires,
 
+  # when changing also adjust $DBIx::Class::Storage::DBI::minimum_sqlt_version
+  'SQL::Translator'           => '0.11002',
+
 #  'Module::Install::Pod::Inherit' => '0.01',
-  'Test::Pod::Coverage'       => '1.04',
-  'SQL::Translator'           => $sqlt_recommends,
+
+  # when changing also adjust version in t/02pod.t
+  'Test::Pod'                 => '1.26',
+
+  # when changing also adjust version in t/03podcoverage.t
+  'Test::Pod::Coverage'       => '1.08',
+  'Pod::Coverage'             => '0.20',
 
   # CDBI-compat related
   'DBIx::ContextualFetch'     => '0',
@@ -104,7 +115,18 @@ my %force_requires_if_author = (
       'DateTime::Format::Oracle' => '0',
     ) : ()
   ,
+
+  $ENV{DBICTEST_SYBASE_DSN}
+    ? (
+      'DateTime::Format::Sybase' => 0,
+    ) : ()
+  ,
 );
+#************************************************************************#
+# Make ABSOLUTELY SURE that nothing on the list above is a real require, #
+# since every module listed in %force_requires_if_author is deleted      #
+# from the final META.yml (thus will never make it as a CPAN dependency) #
+#************************************************************************#
 
 
 install_script (qw|
@@ -120,7 +142,7 @@ resources 'license'     => 'http://dev.perl.org/licenses/';
 resources 'repository'  => 'http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/';
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
 
-no_index 'DBIx::Class::Storage::DBI::Sybase::Base';
+no_index 'DBIx::Class::Storage::DBI::Sybase::Common';
 no_index 'DBIx::Class::SQLAHacks';
 no_index 'DBIx::Class::SQLAHacks::MSSQL';
 no_index 'DBIx::Class::Storage::DBI::AmbiguousGlob';

@@ -7,7 +7,6 @@ no warnings 'qw';
 use base qw/DBIx::Class/;
 
 __PACKAGE__->load_components(qw/
-  Serialize::Storable
   Relationship
   InflateColumn
   PK::Auto
@@ -34,8 +33,6 @@ L<DBIx::Class> core features.  You almost certainly want these.
 The core modules currently are:
 
 =over 4
-
-=item L<DBIx::Class::Serialize::Storable>
 
 =item L<DBIx::Class::InflateColumn>
 

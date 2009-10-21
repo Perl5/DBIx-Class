@@ -11,11 +11,6 @@ sub STORABLE_freeze {
     # reattached in the thaw handler below
     delete $to_serialize->{result_source};
 
-    # If the parser is cached there is a chance that the interpeter
-    # which receives the ice will not have the parser loaded
-    # A re-determination will force an implicit load
-    delete $to_serialize->{__datetime_parser};
-
     # Dynamic values, easy to recalculate
     delete $to_serialize->{$_} for qw/related_resultsets _inflated_column/;
 

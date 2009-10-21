@@ -1,5 +1,49 @@
 Revision history for DBIx::Class
 
+
+        - Complete Sybase RDBMS support including:
+          - Support for TEXT/IMAGE columns
+          - Support for the 'money' datatype
+          - Transaction savepoints support
+          - DateTime inflation support
+          - Support for bind variables when connecting to a newer Sybase with
+             OpenClient libraries
+          - Support for connections via FreeTDS with CASTs for bind variables
+             when needed
+          - Support for interpolated variables with proper quoting when
+             connecting to an older Sybase and/or via FreeTDS
+          - bulk API support for populate()
+        - Add is_paged method to DBIx::Class::ResultSet so that we can
+          check that if we want a pager
+        - Skip versioning test on really old perls lacking Time::HiRes
+          (RT #50209)
+        - Fixed on_connect_do/call regression when used with a coderef
+          connector (RT #50003)
+        - A couple of fixes to Ordered to remedy subclassing issues
+
+0.08112 2009-09-21 10:57:00 (UTC)
+        - Remove the recommends from Makefile.PL, DBIx::Class is not
+          supposed to have optional dependencies. ever.
+        - Mangle the DBIx/Class.pm POD to be more clear about
+          copyright and license
+        - Put back PG's multiple autoinc per table support, accidentally
+          dropped during the serial-autodetection rewrite
+        - Make sure ResultSetColumn does not depend on the (undefined)
+          return value of ->cursor->reset()
+        - Add single() to ResultSetColumn (same semantics as ResultSet)
+        - Make sure to turn off IDENTITY_INSERT after insert() on MSSQL
+          tables that needed it
+        - More informative exception on failing _resolve_relationship
+        - Allow undef/NULL as the sole grouping value in Ordered
+        - Fix unreported rollback exceptions in TxnScopeGuard
+        - Fix overly-eager left-join chain enforcing code
+        - Warn about using distinct with an existing group_by
+        - Warn about attempting to $rs->get_column a non-unique column
+          when has_many joins are added to resultset
+        - Refactor of the exception handling system (now everything is a
+          DBIx::Class::Exception object)
+
+0.08111 2009-09-06 21:58:00 (UTC)
         - The hashref to connection_info now accepts a 'dbh_maker'
           coderef, allowing better intergration with Catalyst
         - Fixed a complex prefetch + regular join regression introduced
@@ -9,10 +53,14 @@ Revision history for DBIx::Class
           cleanup
         - SQLT related fixes:
           - sqlt_type is now called on the correct storage object
-          - hooks can now see the correct producer_type
+          - hooks can now see the correct producer_type (RT#47891)
           - optional SQLT requirements for e.g. deploy() bumped to 0.11002
+        - Really fixed (and greatly cleaned up) postgresql autoinc sequence
+          autodetection
         - Automatically detect MySQL v3 and use INNER JOIN instead of JOIN
-        - POD improvements
+        - POD improvements (including RT#48769)
+        - Test suite tweaks (including fixes for recent CPANTS fails)
+        - Better support for MSSQL IDENTITY_INSERT ON
 
 0.08109 2009-08-18 08:35:00 (UTC)
         - Replication updates:
@@ -36,7 +84,7 @@ Revision history for DBIx::Class
         - Support for MSSQL 'money' type
         - Support for 'smalldatetime' type used in MSSQL and Sybase for
           InflateColumn::DateTime
-        - support for Postgres 'timestamp without timezone' type in
+        - Support for Postgres 'timestamp without timezone' type in
           InflateColumn::DateTime (RT#48389)
         - Added new MySQL specific on_connect_call macro 'set_strict_mode'
           (also known as make_mysql_not_suck_as_much)
@@ -75,7 +123,7 @@ Revision history for DBIx::Class
           nonexisting prefetch
         - make_column_dirty() now overwrites the deflated value with an
           inflated one if such exists
-        - Fixed set_$rel with where restriction deleting rows outside 
+        - Fixed set_$rel with where restriction deleting rows outside
           the restriction
         - populate() returns the created objects or an arrayref of the
           created objects depending on scalar vs. list context
@@ -127,7 +175,7 @@ Revision history for DBIx::Class
           side of the relation, to avoid duplicates
         - DBIC now properly handles empty inserts (invoking all default
           values from the DB, normally via INSERT INTO tbl DEFAULT VALUES
-        - Fix find_or_new/create to stop returning random rows when 
+        - Fix find_or_new/create to stop returning random rows when
           default value insert is requested (RT#28875)
         - Make IC::DT extra warning state the column name too
         - It is now possible to transparrently search() on columns
@@ -149,9 +197,9 @@ Revision history for DBIx::Class
         - Change ->count code to work correctly with DISTINCT (distinct => 1)
           via GROUP BY
         - Removed interpolation of bind vars for as_query - placeholders
-          are preserved and nested query bind variables are properly 
+          are preserved and nested query bind variables are properly
           merged in the correct order
-        - Refactor DBIx::Class::Storage::DBI::Sybase to automatically 
+        - Refactor DBIx::Class::Storage::DBI::Sybase to automatically
           load a subclass, namely Microsoft_SQL_Server.pm
           (similar to DBIx::Class::Storage::DBI::ODBC)
         - Refactor InflateColumn::DateTime to allow components to
@@ -214,7 +262,7 @@ Revision history for DBIx::Class
           - not try and insert things tagged on via new_related unless required
         - Possible to set locale in IC::DateTime extra => {} config
         - Calling the accessor of a belongs_to when the foreign_key
-          was NULL and the row was not stored would unexpectedly fail 
+          was NULL and the row was not stored would unexpectedly fail
         - Split sql statements for deploy only if SQLT::Producer returned a scalar
           containing all statements to be executed
         - Add as_query() for ResultSet and ResultSetColumn. This makes subqueries
@@ -242,8 +290,8 @@ Revision history for DBIx::Class
         - new order_by => { -desc => 'colname' } syntax supported
         - PG array datatype supported
         - insert should use store_column, not set_column to avoid marking
-          clean just-stored values as dirty. New test for this 
-        - regression test for source_name 
+          clean just-stored values as dirty. New test for this
+        - regression test for source_name
 
 0.08099_05 2008-10-30 21:30:00 (UTC)
         - Rewrite of Storage::DBI::connect_info(), extended with an
@@ -257,7 +305,7 @@ Revision history for DBIx::Class
         - Fixed up related resultsets and multi-create
         - Fixed superfluous connection in ODBC::_rebless
         - Fixed undef PK for first insert in ODBC::Microsoft_SQL_Server
-        - Added virtual method to Versioned so a user can create upgrade 
+        - Added virtual method to Versioned so a user can create upgrade
           path across multiple versions (jgoulah)
         - Better (and marginally faster) implementation of the HashRefInflator
           hash construction algorithm
@@ -266,7 +314,7 @@ Revision history for DBIx::Class
 
 0.08099_04 2008-07-24 01:00:00
         - Functionality to storage to enable a sub to be run without FK checks
-        - Fixed $schema->clone bug which caused clone and source to share 
+        - Fixed $schema->clone bug which caused clone and source to share
           internal hash refs
         - Added register_extra_source methods for additional sources
         - Added datetime_undef_if_invalid for InflateColumn::DateTime to
@@ -292,11 +340,11 @@ Revision history for DBIx::Class
         - Add warnings for non-unique ResultSet::find queries
         - Changed Storage::DBI::Replication to Storage::DBI::Replicated and
           refactored support.
-        - By default now deploy/diff et al. will ignore constraint and index 
+        - By default now deploy/diff et al. will ignore constraint and index
           names
         - Add ResultSet::_is_deterministic_value, make new_result filter the
           values passed to new to drop values that would generate invalid SQL.
-        - Use Sub::Name to name closures before installing them. Fixes 
+        - Use Sub::Name to name closures before installing them. Fixes
           incompatibility with Moose method modifiers on generated methods.
 
 0.08010 2008-03-01 10:30
@@ -305,7 +353,7 @@ Revision history for DBIx::Class
 0.08009 2008-01-20 13:30
         - Made search_rs smarter about when to preserve the cache to fix
           mm prefetch usage
-        - Added Storage::DBI subclass for MSSQL over ODBC. 
+        - Added Storage::DBI subclass for MSSQL over ODBC.
         - Added freeze, thaw and dclone methods to Schema so that thawed
           objects will get re-attached to the schema.
         - Moved dbicadmin to JSON::Any wrapped JSON.pm for a sane API
@@ -319,20 +367,20 @@ Revision history for DBIx::Class
           foreign and self parts the wrong way round in the condition
         - ResultSetColumn::func() now returns all results if called in list
           context; this makes things like func('DISTINCT') work as expected
-        - Many-to-many relationships now warn if the utility methods would 
+        - Many-to-many relationships now warn if the utility methods would
           clash
         - InflateColumn::DateTime now accepts an extra parameter of timezone
           to set timezone on the DT object (thanks Sergio Salvi)
-        - Added sqlt_deploy_hook to result classes so that indexes can be 
+        - Added sqlt_deploy_hook to result classes so that indexes can be
           added.
-        - Added startup checks to warn loudly if we appear to be running on 
+        - Added startup checks to warn loudly if we appear to be running on
           RedHat systems from perl-5.8.8-10 and up that have the bless/overload
           patch applied (badly) which causes 2x -> 100x performance penalty.
           (Jon Schutz)
-        - ResultSource::reverse_relationship_info can distinguish between 
+        - ResultSource::reverse_relationship_info can distinguish between
           sources using the same table
         - Row::insert will now not fall over if passed duplicate related objects
-        - Row::copy will not fall over if you have two relationships to the 
+        - Row::copy will not fall over if you have two relationships to the
           same source with a unique constraint on it
 
 0.08007 2007-09-04 19:36:00
@@ -344,7 +392,7 @@ Revision history for DBIx::Class
         - Move to using Class::C3::Componentised
         - Remove warn statement from DBIx::Class::Row
 
-0.08005 2007-08-06 
+0.08005 2007-08-06
         - add timestamp fix re rt.cpan 26978 - no test yet but change
           clearly should cause no regressions
         - provide alias for related_resultset via local() so it's set
@@ -359,7 +407,7 @@ Revision history for DBIx::Class
           (original fix from diz)
 
 0.08004 2007-08-06 19:00:00
-        - fix storage connect code to not trigger bug via auto-viv 
+        - fix storage connect code to not trigger bug via auto-viv
           (test from aherzog)
         - fixup cursor_class to be an 'inherited' attr for per-package defaults
         - add default_resultset_attributes entry to Schema
