@@ -472,6 +472,7 @@ BEGIN {
 
 my @eapk_schemas;
 BEGIN{ @eapk_schemas = map "dbic_apk_$_", 0..5 }
+my %seqs; #< hash of schema.table.col => currval of its (DBIC) primary key sequence
 
 sub run_extended_apk_tests {
   my $schema = shift;
@@ -489,8 +490,16 @@ sub run_extended_apk_tests {
         for @eapk_schemas;
 
     $dbh->do("CREATE SEQUENCE $eapk_schemas[5].fooseq");
+    $dbh->do("SELECT setval('$eapk_schemas[5].fooseq',400)");
+    $seqs{"$eapk_schemas[1].apk.id2"} = 400;
+
     $dbh->do("CREATE SEQUENCE $eapk_schemas[4].fooseq");
+    $dbh->do("SELECT setval('$eapk_schemas[4].fooseq',300)");
+    $seqs{"$eapk_schemas[3].apk.id2"} = 300;
+
     $dbh->do("CREATE SEQUENCE $eapk_schemas[3].fooseq");
+    $dbh->do("SELECT setval('$eapk_schemas[3].fooseq',200)");
+    $seqs{"$eapk_schemas[4].apk.id2"} = 200;
 
     $dbh->do("SET search_path = ".join ',', reverse @eapk_schemas );
   });
@@ -540,8 +549,6 @@ sub run_extended_apk_tests {
 # do a DBIC create on the apk table in the given schema number (which is an
 # index of @eapk_schemas)
 
-my %seqs; #< sanity-check hash of schema.table.col => currval of its sequence
-
 sub eapk_poke {
   my ($s, $schema_num) = @_;
 
@@ -560,12 +567,13 @@ sub eapk_poke {
   lives_ok {
     my $new;
     for my $inc (1,2,3) {
-      $new = $schema->resultset('ExtAPK')->create({});
+      $new = $schema->resultset('ExtAPK')->create({ id1 => 1});
       my $proper_seqval = ++$seqs{"$schema_name_actual.apk.id2"};
       is( $new->id2, $proper_seqval, "$schema_name_actual.apk.id2 correct inc $inc" )
           or eapk_seq_diag($s,$schema_name);
       $new->discard_changes;
-      for my $id (grep $_ ne 'id2', @eapk_id_columns) {
+      is( $new->id1, 1 );
+      for my $id ('id3','id4') {
         my $proper_seqval = ++$seqs{"$schema_name_actual.apk.$id"};
         is( $new->$id, $proper_seqval, "$schema_name_actual.apk.$id correct inc $inc" )
             or eapk_seq_diag($s,$schema_name);
@@ -635,13 +643,13 @@ sub eapk_create {
         local $_[1]->{Warn} = 0;
 
         my $id_def = $a{nextval}
-            ? "integer primary key not null default nextval('$a{nextval}'::regclass)"
-            : 'serial primary key';
+            ? "integer not null default nextval('$a{nextval}'::regclass)"
+            : 'serial';
         $dbh->do(<<EOS);
 CREATE TABLE $table_name (
   id1 serial
   , id2 $id_def
-  , id3 serial
+  , id3 serial primary key
   , id4 serial
 )
 EOS
