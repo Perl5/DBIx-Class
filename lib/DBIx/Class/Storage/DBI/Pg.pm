@@ -22,36 +22,113 @@ sub with_deferred_fk_checks {
 sub last_insert_id {
   my ($self,$source,@cols) = @_;
 
-  return map $self->dbh_do('_dbh_last_insert_id', $source, $_ ), @cols;
+  my @values;
+
+  for my $col (@cols) {
+    my $seq = ( $source->column_info($col)->{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
+      or $self->throw_exception( "could not determine sequence for "
+                                 . $source->name
+                                 . ".$col, please consider adding a "
+                                 . "schema-qualified sequence to its column info"
+                               );
+
+    push @values, $self->_dbh_last_insert_id ($self->_dbh, $seq);
+  }
+
+  return @values;
 }
 
+# there seems to be absolutely no reason to have this as a separate method,
+# but leaving intact in case someone is already overriding it
 sub _dbh_last_insert_id {
-  my ($self, $dbh, $source, $col ) = @_;
-
-  # if a sequence is defined, explicitly specify it to DBD::Pg's last_insert_id()
-  if( my $seq = $source->column_info($col)->{sequence} ) {
-      return $dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
-
-  }
-  # if not, parse out the schema and table names, pass them to
-  # DBD::Pg, and let it figure out (and cache) the sequence name
-  # itself.
-  else {
-
-    my $schema;
-    my $table = $source->name;
-
-    # deref table name if necessary
-    $table = $$table if ref $table eq 'SCALAR';
-
-    # parse out schema name if present
-    if ( $table =~ /^(.+)\.(.+)$/ ) {
-        ( $schema, $table ) = ( $1, $2 );
-    }
-
-    return $dbh->last_insert_id( undef, $schema, $table, undef );
-  }
+  my ($self, $dbh, $seq) = @_;
+  $dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
 }
+
+
+sub _dbh_get_autoinc_seq {
+  my ($self, $dbh, $source, $col) = @_;
+
+  my $schema;
+  my $table = $source->name;
+
+  # deref table name if it needs it
+  $table = $$table
+      if ref $table eq 'SCALAR';
+
+  # parse out schema name if present
+  if( $table =~ /^(.+)\.(.+)$/ ) {
+    ( $schema, $table ) = ( $1, $2 );
+  }
+
+  # get the column default using a Postgres-specific pg_catalog query
+  my $seq_expr = $self->_dbh_get_column_default( $dbh, $schema, $table, $col );
+
+  # if no default value is set on the column, or if we can't parse the
+  # default value as a sequence, throw.
+  unless ( defined $seq_expr and $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ){
+    $seq_expr = '' unless defined $seq_expr;
+    $schema = "$schema." if defined $schema && length $schema;
+    $self->throw_exception( "no sequence found for $schema$table.$col, check table definition, "
+                            . "or explicitly set the 'sequence' for this column in the "
+                            . $source->source_name
+                            . " class"
+                          );
+  }
+
+  return $1;
+}
+
+# custom method for fetching column default, since column_info has a
+# bug with older versions of DBD::Pg
+sub _dbh_get_column_default {
+  my ( $self, $dbh, $schema, $table, $col ) = @_;
+
+  # Build and execute a query into the pg_catalog to find the Pg
+  # expression for the default value for this column in this table.
+  # If the table name is schema-qualified, query using that specific
+  # schema name.
+
+  # Otherwise, find the table in the standard Postgres way, using the
+  # search path.  This is done with the pg_catalog.pg_table_is_visible
+  # function, which returns true if a given table is 'visible',
+  # meaning the first table of that name to be found in the search
+  # path.
+
+  # I *think* we can be assured that this query will always find the
+  # correct column according to standard Postgres semantics.
+  #
+  # -- rbuels
+
+  my $sqlmaker = $self->sql_maker;
+  local $sqlmaker->{bindtype} = 'normal';
+
+  my ($where, @bind) = $sqlmaker->where ({
+    'a.attnum' => {'>', 0},
+    'c.relname' => $table,
+    'a.attname' => $col,
+    -not_bool => 'a.attisdropped',
+    (defined $schema && length $schema)
+      ? ( 'n.nspname' => $schema )
+      : ( -bool => \'pg_catalog.pg_table_is_visible(c.oid)' )
+  });
+
+  my ($seq_expr) = $dbh->selectrow_array(<<EOS,undef,@bind);
+
+SELECT
+  (SELECT pg_catalog.pg_get_expr(d.adbin, d.adrelid)
+   FROM pg_catalog.pg_attrdef d
+   WHERE d.adrelid = a.attrelid AND d.adnum = a.attnum AND a.atthasdef)
+FROM pg_catalog.pg_class c
+     LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+     JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+$where
+
+EOS
+
+  return $seq_expr;
+}
+
 
 sub sqlt_type {
   return 'PostgreSQL';
