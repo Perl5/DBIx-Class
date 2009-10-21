@@ -5,6 +5,7 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use Path::Class::File ();
 
 my $schema = DBICTest->init_schema();
 
@@ -217,5 +218,44 @@ throws_ok {
     }
   ]);
 } qr/inconsistent/, 'literal sql must be the same in all slices';
+
+# the stringification has nothing to do with the artist name
+# this is solely for testing consistency
+my $fn = Path::Class::File->new ('somedir/somefilename.tmp');
+my $fn2 = Path::Class::File->new ('somedir/someotherfilename.tmp');
+
+lives_ok {
+  $rs->populate([
+    {
+      name => 'supplied before stringifying object',
+    },
+    {
+      name => $fn,
+    }
+  ]);
+} 'stringifying objects pass through';
+
+# ... and vice-versa.
+
+lives_ok {
+  $rs->populate([
+    {
+      name => $fn2,
+    },
+    {
+      name => 'supplied after stringifying object',
+    },
+  ]);
+} 'stringifying objects pass through';
+
+for (
+  $fn,
+  $fn2,
+  'supplied after stringifying object',
+  'supplied before stringifying object'
+) {
+  my $row = $rs->find ({name => $_});
+  ok ($row, "Stringification test row '$_' properly inserted");
+}
 
 done_testing;
