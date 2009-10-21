@@ -1361,9 +1361,10 @@ sub insert_bulk {
 
   # check for bad data
   my $bad_slice = sub {
-    my ($msg, $slice_idx) = @_;
-    $self->throw_exception(sprintf "%s for populate slice:\n%s",
+    my ($msg, $col_idx, $slice_idx) = @_;
+    $self->throw_exception(sprintf "%s for column '%s' in populate slice:\n%s",
       $msg,
+      $cols->[$col_idx],
       Data::Dumper::Concise::Dumper({
         map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
       }),
@@ -1380,20 +1381,20 @@ sub insert_bulk {
 
       if ($is_literal_sql) {
         if (not ref $val) {
-          $bad_slice->('bind found where literal SQL expected', $datum_idx);
+          $bad_slice->('bind found where literal SQL expected', $col_idx, $datum_idx);
         }
         elsif ((my $reftype = ref $val) ne 'SCALAR') {
           $bad_slice->("$reftype reference found where literal SQL expected",
-            $datum_idx);
+            $col_idx, $datum_idx);
         }
         elsif ($$val ne $$sqla_bind){
           $bad_slice->("inconsistent literal SQL value, expecting: '$$sqla_bind'",
-            $datum_idx);
+            $col_idx, $datum_idx);
         }
       }
       elsif (my $reftype = ref $val) {
         $bad_slice->("$reftype reference found where bind expected",
-          $datum_idx);
+          $col_idx, $datum_idx);
       }
     }
   }
@@ -1412,7 +1413,7 @@ sub insert_bulk {
     );
   }
 
-  $self->_query_start( $sql, @bind );
+  $self->_query_start( $sql, ['__BULK__'] );
   my $sth = $self->sth($sql);
 
   my $rv = do {
@@ -1426,7 +1427,7 @@ sub insert_bulk {
     }
   };
 
-  $self->_query_end( $sql, @bind );
+  $self->_query_end( $sql, ['__BULK__'] );
 
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
