@@ -492,7 +492,7 @@ sub run_extended_apk_tests {
     $dbh->do("CREATE SEQUENCE $eapk_schemas[4].fooseq");
     $dbh->do("CREATE SEQUENCE $eapk_schemas[3].fooseq");
 
-    $dbh->do("SET search_path = ".join ',', @eapk_schemas );
+    $dbh->do("SET search_path = ".join ',', reverse @eapk_schemas );
   });
 
   # clear our search_path cache
@@ -519,12 +519,14 @@ sub run_extended_apk_tests {
                qualify_table => 4,
              );
 
+  eapk_poke( $schema );
   eapk_poke( $schema, 0 );
   eapk_poke( $schema, 2 );
   eapk_poke( $schema, 4 );
   eapk_poke( $schema, 1 );
   eapk_poke( $schema, 0 );
   eapk_poke( $schema, 1 );
+  eapk_poke( $schema );
   eapk_poke( $schema, 4 );
   eapk_poke( $schema, 3 );
   eapk_poke( $schema, 1 );
@@ -547,7 +549,7 @@ sub eapk_poke {
       ? $eapk_schemas[$schema_num]
       : '';
 
-  my $schema_name_actual = $schema_name || eapk_get_search_path($s)->[0];
+  my $schema_name_actual = $schema_name || eapk_find_visible_schema($s);
 
   $s->source('ExtAPK')->name($schema_name ? $schema_name.'.apk' : 'apk');
   #< clear sequence name cache
@@ -577,7 +579,7 @@ sub eapk_poke {
 # class
 sub eapk_seq_diag {
     my $s = shift;
-    my $schema = shift || eapk_get_search_path($s)->[0];
+    my $schema = shift || eapk_find_visible_schema($s);
 
     diag "$schema.apk sequences: ",
         join(', ',
@@ -666,4 +668,20 @@ sub eapk_drop_all {
 
 
     });
+}
+
+sub eapk_find_visible_schema {
+    my ($s) = @_;
+
+    my ($schema) =
+        $s->storage->dbh_do(sub {
+            $_[1]->selectrow_array(<<EOS);
+SELECT n.nspname
+FROM pg_catalog.pg_namespace n
+JOIN pg_catalog.pg_class c ON c.relnamespace = n.oid
+WHERE c.relname = 'apk'
+  AND pg_catalog.pg_table_is_visible(c.oid)
+EOS
+        });
+    return $schema;
 }
