@@ -1352,22 +1352,20 @@ sub insert_bulk {
     next unless ref $first_val eq 'SCALAR';
 
     $colvalues{ $cols->[$i] } = $first_val;
-## This is probably unnecessary since $rs->populate only looks at the first
-## slice anyway.
-#      if (grep {
-#        ref $_ eq 'SCALAR' && $$_ eq $$first_val
-#      } map $data->[$_][$i], (1..$#$data)) == (@$data - 1);
   }
 
-  # check for bad data
+  # check for bad data and stringify stringifiable objects
   my $bad_slice = sub {
     my ($msg, $col_idx, $slice_idx) = @_;
     $self->throw_exception(sprintf "%s for column '%s' in populate slice:\n%s",
       $msg,
       $cols->[$col_idx],
-      Data::Dumper::Concise::Dumper({
-        map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
-      }),
+      do {
+        local $Data::Dumper::Maxdepth = 1; # don't dump objects, if any
+        Data::Dumper::Concise::Dumper({
+          map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
+        }),
+      }
     );
   };
 
@@ -1393,8 +1391,14 @@ sub insert_bulk {
         }
       }
       elsif (my $reftype = ref $val) {
-        $bad_slice->("$reftype reference found where bind expected",
-          $col_idx, $datum_idx);
+        require overload;
+        if (overload::Method($val, '""')) {
+          $datum->[$col_idx] = "".$val;
+        }
+        else {
+          $bad_slice->("$reftype reference found where bind expected",
+            $col_idx, $datum_idx);
+        }
       }
     }
   }
