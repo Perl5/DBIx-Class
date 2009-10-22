@@ -258,4 +258,42 @@ for (
   ok ($row, "Stringification test row '$_' properly inserted");
 }
 
+$rs->delete;
+
+# test stringification with ->create rather than Storage::insert_bulk as well
+
+lives_ok {
+  my @dummy = $rs->populate([
+    {
+      name => 'supplied before stringifying object',
+    },
+    {
+      name => $fn,
+    }
+  ]);
+} 'stringifying objects pass through';
+
+# ... and vice-versa.
+
+lives_ok {
+  my @dummy = $rs->populate([
+    {
+      name => $fn2,
+    },
+    {
+      name => 'supplied after stringifying object',
+    },
+  ]);
+} 'stringifying objects pass through';
+
+for (
+  $fn,
+  $fn2,
+  'supplied after stringifying object',
+  'supplied before stringifying object'
+) {
+  my $row = $rs->find ({name => $_});
+  ok ($row, "Stringification test row '$_' properly inserted");
+}
+
 done_testing;
