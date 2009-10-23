@@ -2628,7 +2628,11 @@ sub deployment_statements {
     parser => 'SQL::Translator::Parser::DBIx::Class',
     data => $schema,
   );
-  return $tr->translate;
+
+  my $ret = $tr->translate
+    or $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error);
+
+  return $ret;
 }
 
 sub deploy {
