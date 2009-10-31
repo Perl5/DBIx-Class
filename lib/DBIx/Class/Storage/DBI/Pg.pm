@@ -61,11 +61,15 @@ sub _dbh_get_autoinc_seq {
     ( $schema, $table ) = ( $1, $2 );
   }
 
+### XXX This is unsafe in DBD::Pg 2.15.1, it can disconnect for some reason
+###
   # use DBD::Pg to fetch the column info if it is recent enough to
   # work. otherwise, use custom SQL
-  my $seq_expr =  $DBD::Pg::VERSION >= 2.015001
-      ? eval{ $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref->{COLUMN_DEF} }
-      : $self->_dbh_get_column_default( $dbh, $schema, $table, $col );
+#  my $seq_expr =  $DBD::Pg::VERSION >= 2.015001
+#      ? eval{ $dbh->column_info(undef,$schema,$table,$col)->fetchrow_hashref->{COLUMN_DEF} }
+#      : $self->_dbh_get_column_default( $dbh, $schema, $table, $col );
+
+  my $seq_expr = $self->_dbh_get_column_default( $dbh, $schema, $table, $col );
 
   # if no default value is set on the column, or if we can't parse the
   # default value as a sequence, throw.
