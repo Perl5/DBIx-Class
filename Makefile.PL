@@ -139,7 +139,7 @@ tests_recursive (qw|
 
 resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
 resources 'license'     => 'http://dev.perl.org/licenses/';
-resources 'repository'  => 'http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/';
+resources 'repository'  => 'http://dev.catalyst.perl.org/repos/bast/DBIx-Class/';
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
 
 no_index 'DBIx::Class::Storage::DBI::Sybase::Common';
