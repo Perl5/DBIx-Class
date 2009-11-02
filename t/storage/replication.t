@@ -266,6 +266,55 @@ for my $method (qw/by_connect_info by_storage_type/) {
       => 'configured balancer_type';
 }
 
+### check that all Storage::DBI methods are handled by ::Replicated
+{
+  my $storage_dbi_meta = Class::MOP::Class->initialize('DBIx::Class::Storage::DBI');
+  my $replicated_meta  = DBIx::Class::Storage::DBI::Replicated->meta;
+
+  my @storage_dbi_methods = sort $storage_dbi_meta->get_all_method_names;
+  my @replicated_methods  = sort $replicated_meta->get_all_method_names;
+
+# remove constants
+  @storage_dbi_methods = grep !/^[A-Z_]+\z/, @storage_dbi_methods;
+
+# remove CAG accessors
+  @storage_dbi_methods = grep !/_accessor\z/, @storage_dbi_methods;
+
+# remove DBIx::Class (the root parent, with CAG and stuff) methods
+  my @cag_methods = Class::MOP::Class->initialize('DBIx::Class')
+    ->get_all_method_names;
+  my %count;
+  $count{$_}++ for (@storage_dbi_methods, @cag_methods);
+
+  @storage_dbi_methods = grep $count{$_} != 2, @storage_dbi_methods;
+
+# make hashes
+  my %storage_dbi_methods;
+  @storage_dbi_methods{@storage_dbi_methods} = ();
+  my %replicated_methods;
+  @replicated_methods{@replicated_methods} = ();
+
+# remove ::Replicated-specific methods
+  for my $method (@replicated_methods) {
+    delete $replicated_methods{$method}
+      unless exists $storage_dbi_methods{$method};
+  }
+
+# check that what's left is implemented
+  %count = ();
+  $count{$_}++ for (@storage_dbi_methods, @replicated_methods);
+
+  if ((grep $count{$_} == 2, @storage_dbi_methods) == @storage_dbi_methods) {
+    pass 'all DBIx::Class::Storage::DBI methods implemented';
+  }
+  else {
+    my @unimplemented = grep $count{$_} == 1, @storage_dbi_methods;
+
+    fail 'the following DBIx::Class::Storage::DBI methods are unimplemented: '
+      . "@unimplemented";
+  }
+}
+
 ok $replicated->schema->storage->meta
     => 'has a meta object';
 
