@@ -299,6 +299,7 @@ for my $method (qw/by_connect_info by_storage_type/) {
     delete $replicated_methods{$method}
       unless exists $storage_dbi_methods{$method};
   }
+  @replicated_methods = keys %replicated_methods;
 
 # check that what's left is implemented
   %count = ();
