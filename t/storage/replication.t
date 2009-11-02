@@ -268,23 +268,23 @@ for my $method (qw/by_connect_info by_storage_type/) {
 
 ### check that all Storage::DBI methods are handled by ::Replicated
 {
-  my $storage_dbi_meta = Class::MOP::Class->initialize('DBIx::Class::Storage::DBI');
-  my $replicated_meta  = DBIx::Class::Storage::DBI::Replicated->meta;
+  my @storage_dbi_methods = Class::MOP::Class
+    ->initialize('DBIx::Class::Storage::DBI')->get_all_method_names;
 
-  my @storage_dbi_methods = sort $storage_dbi_meta->get_all_method_names;
-  my @replicated_methods  = sort $replicated_meta->get_all_method_names;
+  my @replicated_methods  = DBIx::Class::Storage::DBI::Replicated->meta
+    ->get_all_method_names;
 
-# remove constants
+# remove constants and OTHER_CRAP
   @storage_dbi_methods = grep !/^[A-Z_]+\z/, @storage_dbi_methods;
 
 # remove CAG accessors
   @storage_dbi_methods = grep !/_accessor\z/, @storage_dbi_methods;
 
 # remove DBIx::Class (the root parent, with CAG and stuff) methods
-  my @cag_methods = Class::MOP::Class->initialize('DBIx::Class')
+  my @root_methods = Class::MOP::Class->initialize('DBIx::Class')
     ->get_all_method_names;
   my %count;
-  $count{$_}++ for (@storage_dbi_methods, @cag_methods);
+  $count{$_}++ for (@storage_dbi_methods, @root_methods);
 
   @storage_dbi_methods = grep $count{$_} != 2, @storage_dbi_methods;
 
