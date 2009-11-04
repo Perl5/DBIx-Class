@@ -26,11 +26,11 @@ sub last_insert_id {
 
   for my $col (@cols) {
     my $seq = ( $source->column_info($col)->{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
-      or $self->throw_exception( "could not determine sequence for "
-                                 . $source->name
-                                 . ".$col, please consider adding a "
-                                 . "schema-qualified sequence to its column info"
-                               );
+      or $self->throw_exception( sprintf(
+        'could not determine sequence for column %s.%s, please consider adding a schema-qualified sequence to its column info',
+          $source->name,
+          $col,
+      ));
 
     push @values, $self->_dbh_last_insert_id ($self->_dbh, $seq);
   }
@@ -69,11 +69,14 @@ sub _dbh_get_autoinc_seq {
   unless ( defined $seq_expr and $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ) {
     $seq_expr = '' unless defined $seq_expr;
     $schema = "$schema." if defined $schema && length $schema;
-    $self->throw_exception( "no sequence found for $schema$table.$col, check table definition, "
-                            . "or explicitly set the 'sequence' for this column in the "
-                            . $source->source_name
-                            . " class"
-                          );
+    $self->throw_exception( sprintf (
+      'no sequence found for %s%s.%s, check the RDBMS table definition or explicitly set the '.
+      "'sequence' for this column in %s",
+        $schema ? "$schema." : '',
+        $table,
+        $col,
+        $source->source_name,
+    ));
   }
 
   return $1;
