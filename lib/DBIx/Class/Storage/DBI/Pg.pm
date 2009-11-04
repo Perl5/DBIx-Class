@@ -66,7 +66,7 @@ sub _dbh_get_autoinc_seq {
 
   # if no default value is set on the column, or if we can't parse the
   # default value as a sequence, throw.
-  unless ( defined $seq_expr and $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ){
+  unless ( defined $seq_expr and $seq_expr =~ /^nextval\(+'([^']+)'::(?:text|regclass)\)/i ) {
     $seq_expr = '' unless defined $seq_expr;
     $schema = "$schema." if defined $schema && length $schema;
     $self->throw_exception( "no sequence found for $schema$table.$col, check table definition, "

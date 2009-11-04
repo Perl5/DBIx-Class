@@ -1796,8 +1796,10 @@ sub populate {
   } else {
     my ($first, @rest) = @$data;
 
+    require overload;
     my @names = grep {
-      (not ref $first->{$_}) || (ref $first->{$_} eq 'SCALAR')
+      (not ref $first->{$_}) || (ref $first->{$_} eq 'SCALAR') ||
+        (overload::Method($first->{$_}, '""'))
     } keys %$first;
 
     my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;

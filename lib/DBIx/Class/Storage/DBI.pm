@@ -1352,21 +1352,20 @@ sub insert_bulk {
     next unless ref $first_val eq 'SCALAR';
 
     $colvalues{ $cols->[$i] } = $first_val;
-## This is probably unnecessary since $rs->populate only looks at the first
-## slice anyway.
-#      if (grep {
-#        ref $_ eq 'SCALAR' && $$_ eq $$first_val
-#      } map $data->[$_][$i], (1..$#$data)) == (@$data - 1);
   }
 
-  # check for bad data
+  # check for bad data and stringify stringifiable objects
   my $bad_slice = sub {
-    my ($msg, $slice_idx) = @_;
-    $self->throw_exception(sprintf "%s for populate slice:\n%s",
+    my ($msg, $col_idx, $slice_idx) = @_;
+    $self->throw_exception(sprintf "%s for column '%s' in populate slice:\n%s",
       $msg,
-      Data::Dumper::Concise::Dumper({
-        map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
-      }),
+      $cols->[$col_idx],
+      do {
+        local $Data::Dumper::Maxdepth = 1; # don't dump objects, if any
+        Data::Dumper::Concise::Dumper({
+          map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
+        }),
+      }
     );
   };
 
@@ -1380,20 +1379,26 @@ sub insert_bulk {
 
       if ($is_literal_sql) {
         if (not ref $val) {
-          $bad_slice->('bind found where literal SQL expected', $datum_idx);
+          $bad_slice->('bind found where literal SQL expected', $col_idx, $datum_idx);
         }
         elsif ((my $reftype = ref $val) ne 'SCALAR') {
           $bad_slice->("$reftype reference found where literal SQL expected",
-            $datum_idx);
+            $col_idx, $datum_idx);
         }
         elsif ($$val ne $$sqla_bind){
           $bad_slice->("inconsistent literal SQL value, expecting: '$$sqla_bind'",
-            $datum_idx);
+            $col_idx, $datum_idx);
         }
       }
       elsif (my $reftype = ref $val) {
-        $bad_slice->("$reftype reference found where bind expected",
-          $datum_idx);
+        require overload;
+        if (overload::Method($val, '""')) {
+          $datum->[$col_idx] = "".$val;
+        }
+        else {
+          $bad_slice->("$reftype reference found where bind expected",
+            $col_idx, $datum_idx);
+        }
       }
     }
   }
@@ -1412,7 +1417,7 @@ sub insert_bulk {
     );
   }
 
-  $self->_query_start( $sql, @bind );
+  $self->_query_start( $sql, ['__BULK__'] );
   my $sth = $self->sth($sql);
 
   my $rv = do {
@@ -1426,7 +1431,7 @@ sub insert_bulk {
     }
   };
 
-  $self->_query_end( $sql, @bind );
+  $self->_query_end( $sql, ['__BULK__'] );
 
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
@@ -2623,7 +2628,11 @@ sub deployment_statements {
     parser => 'SQL::Translator::Parser::DBIx::Class',
     data => $schema,
   );
-  return $tr->translate;
+
+  my $ret = $tr->translate
+    or $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error);
+
+  return $ret;
 }
 
 sub deploy {
