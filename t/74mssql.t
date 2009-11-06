@@ -18,7 +18,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-my $TESTS = 15;
+my $TESTS = 18;
 
 plan tests => $TESTS * 2;
 
@@ -145,15 +145,30 @@ SQL
     $rs->reset;
   } 'multiple active statements';
 
-  # test multiple active statements in a transaction
-  TODO: {
-    local $TODO = 'needs similar FreeTDS fixes to the ones in Sybase.pm';
-    lives_ok {
-      $schema->txn_do(sub {
-        $rs->create({ amount => 400 });
-      });
-    } 'simple transaction';
-  }
+  $rs->delete;
+
+  # test simple transaction with commit
+  lives_ok {
+    $schema->txn_do(sub {
+      $rs->create({ amount => 400 });
+    });
+  } 'simple transaction';
+
+  cmp_ok $rs->first->amount, '==', 400, 'committed';
+  $rs->reset;
+
+  $rs->delete;
+
+  # test rollback
+  throws_ok {
+    $schema->txn_do(sub {
+      $rs->create({ amount => 400 });
+      die 'mtfnpy';
+    });
+  } qr/mtfnpy/, 'simple failed txn';
+
+  is $rs->first, undef, 'rolled back';
+  $rs->reset;
 }
 
 # clean up our mess

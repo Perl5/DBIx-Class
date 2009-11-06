@@ -29,6 +29,24 @@ sub _init {
   $self->set_textsize;
 }
 
+sub _dbh_begin_work {
+  my $self = shift;
+
+  $self->_get_dbh->do('BEGIN TRAN');
+}
+
+sub _dbh_commit {
+  my $self = shift;
+
+  $self->_dbh->do('COMMIT');
+}
+
+sub _dbh_rollback {
+  my $self = shift;
+
+  $self->_dbh->do('ROLLBACK');
+}
+
 1;
 
 =head1 NAME
