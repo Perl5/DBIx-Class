@@ -23,6 +23,7 @@ Revision history for DBIx::Class
         - Fixed another lingering problem with PostgreSQL
           auto-increment support and its interaction with multiple
           schemas
+        - Transaction support for MSSQL via DBD::Sybase
 
 0.08112 2009-09-21 10:57:00 (UTC)
         - Remove the recommends from Makefile.PL, DBIx::Class is not

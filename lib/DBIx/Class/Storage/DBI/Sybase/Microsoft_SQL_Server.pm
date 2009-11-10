@@ -37,14 +37,16 @@ sub _dbh_begin_work {
 
 sub _dbh_commit {
   my $self = shift;
-
-  $self->_dbh->do('COMMIT');
+  my $dbh  = $self->_dbh
+    or $self->throw_exception('cannot COMMIT on a disconnected handle');
+  $dbh->do('COMMIT');
 }
 
 sub _dbh_rollback {
   my $self = shift;
-
-  $self->_dbh->do('ROLLBACK');
+  my $dbh  = $self->_dbh
+    or $self->throw_exception('cannot ROLLBACK on a disconnected handle');
+  $dbh->do('ROLLBACK');
 }
 
 1;
