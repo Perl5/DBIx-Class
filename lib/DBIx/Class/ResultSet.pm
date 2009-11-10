@@ -3260,6 +3260,9 @@ When you use function/stored procedure names and do not supply an C<as>
 attribute, the column names returned are storage-dependent. E.g. MySQL would
 return a column named C<count(employeeid)> in the above example.
 
+B<NOTE:> You will almost always need a corresponding 'as' entry when you use
+'select'.
+
 =head2 +select
 
 =over 4
