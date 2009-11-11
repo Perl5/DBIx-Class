@@ -1794,15 +1794,19 @@ sub populate {
     }
     return wantarray ? @created : \@created;
   } else {
-    my ($first, @rest) = @$data;
+    my $first = $data->[0];
 
-    require overload;
-    my @names = grep {
-      (not ref $first->{$_}) || (ref $first->{$_} eq 'SCALAR') ||
-        (overload::Method($first->{$_}, '""'))
-    } keys %$first;
+    # if a column is a registered relationship, and is a non-blessed hash/array, consider
+    # it relationship data
+    my (@rels, @columns);
+    for (keys %$first) {
+      my $ref = ref $first->{$_};
+      $self->result_source->has_relationship($_) && ($ref eq 'ARRAY' or $ref eq 'HASH')
+        ? push @rels, $_
+        : push @columns, $_
+      ;
+    }
 
-    my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
     my @pks = $self->result_source->primary_columns;
 
     ## do the belongs_to relationships
@@ -1831,17 +1835,15 @@ sub populate {
         delete $data->[$index]->{$rel};
         $data->[$index] = {%{$data->[$index]}, %$related};
 
-        push @names, keys %$related if $index == 0;
+        push @columns, keys %$related if $index == 0;
       }
     }
 
     ## do bulk insert on current row
-    my @values = map { [ @$_{@names} ] } @$data;
-
     $self->result_source->storage->insert_bulk(
       $self->result_source,
-      \@names,
-      \@values,
+      \@columns,
+      [ map { [ @$_{@columns} ] } @$data ],
     );
 
     ## do the has_many relationships
