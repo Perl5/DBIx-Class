@@ -314,6 +314,6 @@ lives_ok {
             autopilot => 'b',
       }]
    }])
-} 'fix RT50828';
+} 'multicol-PK has_many populate works';
 
 done_testing;
