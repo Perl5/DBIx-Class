@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - Fix Oracle autoincrement broken for Resultsets with scalar refs
+          (RT #50874)
         - Complete Sybase RDBMS support including:
           - Support for TEXT/IMAGE columns
           - Support for the 'money' datatype
