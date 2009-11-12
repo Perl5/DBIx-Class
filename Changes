@@ -32,6 +32,7 @@ Revision history for DBIx::Class
         - Improvements to populate's handling of mixed scalarref values
         - Fixed regression losing result_class after $rs->find (introduced
           in 0.08108)
+        - Fix in_storage() to return 1|0 as per existing documentation
         - POD improvements
 
 0.08112 2009-09-21 10:57:00 (UTC)
