@@ -1549,20 +1549,20 @@ sub _dbh_execute_inserts_with_no_binds {
 }
 
 sub update {
-  my ($self, $source, $data, $where, @args) = @_; 
+  my ($self, $source, @args) = @_; 
 
   my $bind_attrs = $self->source_bind_attributes($source);
 
-  return $self->_execute('update' => [], $source, $bind_attrs, $data, $where, @args);
+  return $self->_execute('update' => [], $source, $bind_attrs, @args);
 }
 
 
 sub delete {
-  my ($self, $source, $where, @args) = @_;
+  my ($self, $source, @args) = @_;
 
   my $bind_attrs = $self->source_bind_attributes($source);
 
-  return $self->_execute('delete' => [], $source, $bind_attrs, $where, @args);
+  return $self->_execute('delete' => [], $source, $bind_attrs, @args);
 }
 
 # Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
@@ -1634,16 +1634,7 @@ sub _subq_update_delete {
 
   my $rsrc = $rs->result_source;
 
-  # we already check this, but double check naively just in case. Should be removed soon
-  my $sel = $rs->_resolved_attrs->{select};
-  $sel = [ $sel ] unless ref $sel eq 'ARRAY';
   my @pcols = $rsrc->primary_columns;
-  if (@$sel != @pcols) {
-    $self->throw_exception (
-      'Subquery update/delete can not be called on resultsets selecting a'
-     .' number of columns different than the number of primary keys'
-    );
-  }
 
   if (@pcols == 1) {
     return $self->$op (
