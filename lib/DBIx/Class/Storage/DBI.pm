@@ -4,7 +4,7 @@ package DBIx::Class::Storage::DBI;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::Hacks DBIx::Class::Storage/;
+use base qw/DBIx::Class::Storage::DBIHacks DBIx::Class::Storage/;
 use mro 'c3';
 
 use Carp::Clan qw/^DBIx::Class/;

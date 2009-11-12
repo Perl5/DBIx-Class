@@ -1,9 +1,9 @@
-package DBIx::Class::Storage::DBI::Hacks;
+package DBIx::Class::Storage::DBIHacks;
 
 #
 # This module contains code that should never have seen the light of day,
 # does not belong in the Storage, or is otherwise unfit for public
-# display. The arrival of SQLA2 should immediatelyt oboslere 90% of this
+# display. The arrival of SQLA2 should immediately oboslete 90% of this
 #
 
 use strict;
@@ -360,7 +360,7 @@ sub _straight_join_to_node {
       ||
     ! $from->[0]{-alias}
       ||
-    $from->[0]{-alias} eq $alias
+    $from->[0]{-alias} eq $alias  # this last bit means $alias is the head of $from - nothing to do
   );
 
   # find the current $alias in the $from structure
@@ -373,13 +373,13 @@ sub _straight_join_to_node {
     }
   }
 
-  # something else went wrong
+  # something else went quite wrong
   return $from unless $switch_branch;
 
   # So it looks like we will have to switch some stuff around.
   # local() is useless here as we will be leaving the scope
   # anyway, and deep cloning is just too fucking expensive
-  # So replace the inner hashref manually 
+  # So replace the first hashref in the node arrayref manually 
   my @new_from = ($from->[0]);
   my $sw_idx = { map { $_ => 1 } @$switch_branch };
 
