@@ -33,6 +33,8 @@ Revision history for DBIx::Class
         - Fixed regression losing result_class after $rs->find (introduced
           in 0.08108)
         - Fix in_storage() to return 1|0 as per existing documentation
+        - Centralize handling of _determine_driver calls prior to certain
+          ::Storage::DBI methods
         - POD improvements
 
 0.08112 2009-09-21 10:57:00 (UTC)

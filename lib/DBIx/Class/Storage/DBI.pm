@@ -41,6 +41,38 @@ __PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class/);
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
 
 
+# Each of these methods need _determine_driver called before itself
+# in order to function reliably. This is a purely DRY optimization
+my @rdbms_specific_methods = qw/
+  sqlt_type
+  build_datetime_parser
+  datetime_parser_type
+
+  insert
+  insert_bulk
+  update
+  delete
+  select
+  select_single
+/;
+
+for my $meth (@rdbms_specific_methods) {
+
+  my $orig = __PACKAGE__->can ($meth)
+    or next;
+
+  no strict qw/refs/;
+  no warnings qw/redefine/;
+  *{__PACKAGE__ ."::$meth"} = sub {
+    if (not $_[0]->_driver_determined) {
+      $_[0]->_determine_driver;
+      goto $_[0]->can($meth);
+    }
+    $orig->(@_);
+  };
+}
+
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI - DBI storage handler
@@ -713,7 +745,6 @@ in MySQL's case disabled entirely.
 # Storage subclasses should override this
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
-
   $sub->();
 }
 
@@ -1304,12 +1335,6 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
-# redispatch to insert method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('insert');
-  }
-
   my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
 
@@ -1340,12 +1365,6 @@ sub insert {
 ## only prepped once.
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
-
-# redispatch to insert_bulk method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('insert_bulk');
-  }
 
   my %colvalues;
   @colvalues{@$cols} = (0..$#$cols);
@@ -1532,12 +1551,6 @@ sub _dbh_execute_inserts_with_no_binds {
 sub update {
   my ($self, $source, @args) = @_; 
 
-# redispatch to update method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('update');
-  }
-
   my $bind_attributes = $self->source_bind_attributes($source);
 
   return $self->_execute('update' => [], $source, $bind_attributes, @args);
@@ -1545,12 +1558,11 @@ sub update {
 
 
 sub delete {
-  my $self = shift @_;
-  my $source = shift @_;
-  $self->_determine_driver;
+  my ($self, $source, @args) = @_; 
+
   my $bind_attrs = $self->source_bind_attributes($source);
 
-  return $self->_execute('delete' => [], $source, $bind_attrs, @_);
+  return $self->_execute('delete' => [], $source, $bind_attrs, @args);
 }
 
 # We were sent here because the $rs contains a complex search
@@ -2350,14 +2362,7 @@ Returns the database driver name.
 =cut
 
 sub sqlt_type {
-  my ($self) = @_;
-
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can ('sqlt_type');
-  }
-
-  $self->_get_dbh->{Driver}->{Name};
+  shift->_get_dbh->{Driver}->{Name};
 }
 
 =head2 bind_attribute_by_data_type
@@ -2701,11 +2706,6 @@ See L</datetime_parser>
 =cut
 
 sub build_datetime_parser {
-  if (not $_[0]->_driver_determined) {
-    $_[0]->_determine_driver;
-    goto $_[0]->can('build_datetime_parser');
-  }
-
   my $self = shift;
   my $type = $self->datetime_parser_type(@_);
   $self->ensure_class_loaded ($type);
