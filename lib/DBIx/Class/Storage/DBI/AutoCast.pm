@@ -10,7 +10,7 @@ __PACKAGE__->mk_group_accessors('simple' => 'auto_cast' );
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::AutoCast
+DBIx::Class::Storage::DBI::AutoCast - Storage component for RDBMS requiring explicit placeholder typing
 
 =head1 SYNOPSIS
 
@@ -28,6 +28,10 @@ defined in your Storage driver, the placeholder for this column will be
 converted to:
 
   CAST(? as $mapped_type)
+
+This option can also be enabled in L<DBIx::Class::Storage::DBI/connect_info> as:
+
+  on_connect_call => ['set_auto_cast']
 
 =cut
 
@@ -60,6 +64,26 @@ sub _prep_for_execute {
   return ($sql, $bind);
 }
 
+=head2 connect_call_set_auto_cast
+
+Executes:
+
+  $schema->storage->auto_cast(1);
+
+on connection.
+
+Used as:
+
+    on_connect_call => ['set_auto_cast']
+
+in L<DBIx::Class::Storage::DBI/connect_info>.
+
+=cut
+
+sub connect_call_set_auto_cast {
+  my $self = shift;
+  $self->auto_cast(1);
+}
 
 =head1 AUTHOR
 

@@ -227,4 +227,14 @@ NULLINSEARCH: {
       => 'Nothing Found!';
 }
 
+
+## If find() is the first query after connect()
+## DBI::Storage::sql_maker() will be called before
+## _determine_driver() and so the ::SQLHacks class for MySQL
+## will not be used
+
+my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
+$schema2->resultset("Artist")->find(4);
+isa_ok($schema2->storage->sql_maker, 'DBIx::Class::SQLAHacks::MySQL');
+
 done_testing;

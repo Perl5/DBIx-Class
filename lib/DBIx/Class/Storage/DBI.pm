@@ -13,6 +13,7 @@ use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use Scalar::Util();
 use List::Util();
+use Data::Dumper::Concise();
 
 # what version of sqlt do we require if deploy() without a ddl_dir is invoked
 # when changing also adjust the corresponding author_require in Makefile.PL
@@ -38,6 +39,38 @@ __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
 __PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class/);
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
+
+
+# Each of these methods need _determine_driver called before itself
+# in order to function reliably. This is a purely DRY optimization
+my @rdbms_specific_methods = qw/
+  sqlt_type
+  build_datetime_parser
+  datetime_parser_type
+
+  insert
+  insert_bulk
+  update
+  delete
+  select
+  select_single
+/;
+
+for my $meth (@rdbms_specific_methods) {
+
+  my $orig = __PACKAGE__->can ($meth)
+    or next;
+
+  no strict qw/refs/;
+  no warnings qw/redefine/;
+  *{__PACKAGE__ ."::$meth"} = sub {
+    if (not $_[0]->_driver_determined) {
+      $_[0]->_determine_driver;
+      goto $_[0]->can($meth);
+    }
+    $orig->(@_);
+  };
+}
 
 
 =head1 NAME
@@ -712,7 +745,6 @@ in MySQL's case disabled entirely.
 # Storage subclasses should override this
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
-
   $sub->();
 }
 
@@ -878,13 +910,14 @@ sub _determine_driver {
   my ($self) = @_;
 
   if ((not $self->_driver_determined) && (not $self->{_in_determine_driver})) {
-    my $started_unconnected = 0;
+    my $started_connected = 0;
     local $self->{_in_determine_driver} = 1;
 
     if (ref($self) eq __PACKAGE__) {
       my $driver;
       if ($self->_dbh) { # we are connected
         $driver = $self->_dbh->{Driver}{Name};
+        $started_connected = 1;
       } else {
         # if connect_info is a CODEREF, we have no choice but to connect
         if (ref $self->_dbi_connect_info->[0] &&
@@ -896,7 +929,6 @@ sub _determine_driver {
           # try to use dsn to not require being connected, the driver may still
           # force a connection in _rebless to determine version
           ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
-          $started_unconnected = 1;
         }
       }
 
@@ -913,7 +945,7 @@ sub _determine_driver {
     $self->_init; # run driver-specific initializations
 
     $self->_run_connection_actions
-        if $started_unconnected && defined $self->_dbh;
+        if !$started_connected && defined $self->_dbh;
   }
 }
 
@@ -1144,7 +1176,6 @@ sub _dbh_begin_work {
 sub txn_commit {
   my $self = shift;
   if ($self->{transaction_depth} == 1) {
-    my $dbh = $self->_dbh;
     $self->debugobj->txn_commit()
       if ($self->debug);
     $self->_dbh_commit;
@@ -1160,7 +1191,9 @@ sub txn_commit {
 
 sub _dbh_commit {
   my $self = shift;
-  $self->_dbh->commit;
+  my $dbh  = $self->_dbh
+    or $self->throw_exception('cannot COMMIT on a disconnected handle');
+  $dbh->commit;
 }
 
 sub txn_rollback {
@@ -1197,7 +1230,9 @@ sub txn_rollback {
 
 sub _dbh_rollback {
   my $self = shift;
-  $self->_dbh->rollback;
+  my $dbh  = $self->_dbh
+    or $self->throw_exception('cannot ROLLBACK on a disconnected handle');
+  $dbh->rollback;
 }
 
 # This used to be the top-half of _execute.  It was split out to make it
@@ -1300,12 +1335,6 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
-# redispatch to insert method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('insert');
-  }
-
   my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
 
@@ -1337,21 +1366,102 @@ sub insert {
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
 
-# redispatch to insert_bulk method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('insert_bulk');
+  my %colvalues;
+  @colvalues{@$cols} = (0..$#$cols);
+
+  for my $i (0..$#$cols) {
+    my $first_val = $data->[0][$i];
+    next unless ref $first_val eq 'SCALAR';
+
+    $colvalues{ $cols->[$i] } = $first_val;
   }
 
-  my %colvalues;
-  my $table = $source->from;
-  @colvalues{@$cols} = (0..$#$cols);
-  my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
+  # check for bad data and stringify stringifiable objects
+  my $bad_slice = sub {
+    my ($msg, $col_idx, $slice_idx) = @_;
+    $self->throw_exception(sprintf "%s for column '%s' in populate slice:\n%s",
+      $msg,
+      $cols->[$col_idx],
+      do {
+        local $Data::Dumper::Maxdepth = 1; # don't dump objects, if any
+        Data::Dumper::Concise::Dumper({
+          map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
+        }),
+      }
+    );
+  };
 
-  $self->_query_start( $sql, @bind );
+  for my $datum_idx (0..$#$data) {
+    my $datum = $data->[$datum_idx];
+
+    for my $col_idx (0..$#$cols) {
+      my $val            = $datum->[$col_idx];
+      my $sqla_bind      = $colvalues{ $cols->[$col_idx] };
+      my $is_literal_sql = (ref $sqla_bind) eq 'SCALAR';
+
+      if ($is_literal_sql) {
+        if (not ref $val) {
+          $bad_slice->('bind found where literal SQL expected', $col_idx, $datum_idx);
+        }
+        elsif ((my $reftype = ref $val) ne 'SCALAR') {
+          $bad_slice->("$reftype reference found where literal SQL expected",
+            $col_idx, $datum_idx);
+        }
+        elsif ($$val ne $$sqla_bind){
+          $bad_slice->("inconsistent literal SQL value, expecting: '$$sqla_bind'",
+            $col_idx, $datum_idx);
+        }
+      }
+      elsif (my $reftype = ref $val) {
+        require overload;
+        if (overload::Method($val, '""')) {
+          $datum->[$col_idx] = "".$val;
+        }
+        else {
+          $bad_slice->("$reftype reference found where bind expected",
+            $col_idx, $datum_idx);
+        }
+      }
+    }
+  }
+
+  my ($sql, $bind) = $self->_prep_for_execute (
+    'insert', undef, $source, [\%colvalues]
+  );
+  my @bind = @$bind;
+
+  my $empty_bind = 1 if (not @bind) &&
+    (grep { ref $_ eq 'SCALAR' } values %colvalues) == @$cols;
+
+  if ((not @bind) && (not $empty_bind)) {
+    $self->throw_exception(
+      'Cannot insert_bulk without support for placeholders'
+    );
+  }
+
+  $self->_query_start( $sql, ['__BULK__'] );
   my $sth = $self->sth($sql);
 
-#  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+  my $rv = do {
+    if ($empty_bind) {
+      # bind_param_array doesn't work if there are no binds
+      $self->_dbh_execute_inserts_with_no_binds( $sth, scalar @$data );
+    }
+    else {
+#      @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+      $self->_execute_array( $source, $sth, \@bind, $cols, $data );
+    }
+  };
+
+  $self->_query_end( $sql, ['__BULK__'] );
+
+  return (wantarray ? ($rv, $sth, @bind) : $rv);
+}
+
+sub _execute_array {
+  my ($self, $source, $sth, $bind, $cols, $data, @extra) = @_;
+
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
 
   ## This must be an arrayref, else nothing works!
   my $tuple_status = [];
@@ -1362,7 +1472,7 @@ sub insert_bulk {
   ## Bind the values and execute
   my $placeholder_index = 1;
 
-  foreach my $bound (@bind) {
+  foreach my $bound (@$bind) {
 
     my $attributes = {};
     my ($column_name, $data_index) = @$bound;
@@ -1377,42 +1487,69 @@ sub insert_bulk {
     $sth->bind_param_array( $placeholder_index, [@data], $attributes );
     $placeholder_index++;
   }
-  my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
-  if (my $err = $@) {
+
+  my $rv = eval {
+    $self->_dbh_execute_array($sth, $tuple_status, @extra);
+  };
+  my $err = $@ || $sth->errstr;
+
+# Statement must finish even if there was an exception.
+  eval { $sth->finish };
+  $err = $@ unless $err;
+
+  if ($err) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
 
-    $self->throw_exception($sth->errstr || "Unexpected populate error: $err")
+    $self->throw_exception("Unexpected populate error: $err")
       if ($i > $#$tuple_status);
 
-    require Data::Dumper;
-    local $Data::Dumper::Terse = 1;
-    local $Data::Dumper::Indent = 1;
-    local $Data::Dumper::Useqq = 1;
-    local $Data::Dumper::Quotekeys = 0;
-    local $Data::Dumper::Sortkeys = 1;
-
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
-      $tuple_status->[$i][1],
-      Data::Dumper::Dumper(
-        { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) }
-      ),
+      ($tuple_status->[$i][1] || $err),
+      Data::Dumper::Concise::Dumper({
+        map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols)
+      }),
     );
   }
-  $self->throw_exception($sth->errstr) if !$rv;
 
-  $self->_query_end( $sql, @bind );
-  return (wantarray ? ($rv, $sth, @bind) : $rv);
+  $guard->commit if $guard;
+
+  return $rv;
+}
+
+sub _dbh_execute_array {
+    my ($self, $sth, $tuple_status, @extra) = @_;
+
+    return $sth->execute_array({ArrayTupleStatus => $tuple_status});
+}
+
+sub _dbh_execute_inserts_with_no_binds {
+  my ($self, $sth, $count) = @_;
+
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
+
+  eval {
+    my $dbh = $self->_get_dbh;
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
+
+    $sth->execute foreach 1..$count;
+  };
+  my $exception = $@;
+
+# Make sure statement is finished even if there was an exception.
+  eval { $sth->finish };
+  $exception = $@ unless $exception;
+
+  $self->throw_exception($exception) if $exception;
+
+  $guard->commit if $guard;
+
+  return $count;
 }
 
 sub update {
   my ($self, $source, @args) = @_; 
-
-# redispatch to update method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('update');
-  }
 
   my $bind_attributes = $self->source_bind_attributes($source);
 
@@ -1421,12 +1558,11 @@ sub update {
 
 
 sub delete {
-  my $self = shift @_;
-  my $source = shift @_;
-  $self->_determine_driver;
+  my ($self, $source, @args) = @_; 
+
   my $bind_attrs = $self->source_bind_attributes($source);
 
-  return $self->_execute('delete' => [], $source, $bind_attrs, @_);
+  return $self->_execute('delete' => [], $source, $bind_attrs, @args);
 }
 
 # We were sent here because the $rs contains a complex search
@@ -1993,7 +2129,6 @@ sub _subq_count_select {
   return @pcols ? \@pcols : [ 1 ];
 }
 
-
 sub source_bind_attributes {
   my ($self, $source) = @_;
 
@@ -2227,14 +2362,7 @@ Returns the database driver name.
 =cut
 
 sub sqlt_type {
-  my ($self) = @_;
-
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can ('sqlt_type');
-  }
-
-  $self->_get_dbh->{Driver}->{Name};
+  shift->_get_dbh->{Driver}->{Name};
 }
 
 =head2 bind_attribute_by_data_type
@@ -2508,7 +2636,11 @@ sub deployment_statements {
     parser => 'SQL::Translator::Parser::DBIx::Class',
     data => $schema,
   );
-  return $tr->translate;
+
+  my $ret = $tr->translate
+    or $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error);
+
+  return $ret;
 }
 
 sub deploy {
@@ -2574,11 +2706,6 @@ See L</datetime_parser>
 =cut
 
 sub build_datetime_parser {
-  if (not $_[0]->_driver_determined) {
-    $_[0]->_determine_driver;
-    goto $_[0]->can('build_datetime_parser');
-  }
-
   my $self = shift;
   my $type = $self->datetime_parser_type(@_);
   $self->ensure_class_loaded ($type);
@@ -2611,10 +2738,10 @@ sub lag_behind_master {
     return;
 }
 
-# SQLT version handling 
+# SQLT version handling
 {
-  my $_sqlt_version_ok;     # private 
-  my $_sqlt_version_error;  # private 
+  my $_sqlt_version_ok;     # private
+  my $_sqlt_version_error;  # private
 
   sub _sqlt_version_ok {
     if (!defined $_sqlt_version_ok) {

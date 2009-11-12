@@ -53,8 +53,16 @@ sub _dbh_get_autoinc_seq {
 
   my $sth;
 
+  my $source_name;
+  if ( ref $source->name ne 'SCALAR' ) {
+      $source_name = $source->name;
+  }
+  else {
+      $source_name = ${$source->name};
+  }
+
   # check for fully-qualified name (eg. SCHEMA.TABLENAME)
-  if ( my ( $schema, $table ) = $source->name =~ /(\w+)\.(\w+)/ ) {
+  if ( my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/ ) {
     $sql = q{
       SELECT trigger_body FROM ALL_TRIGGERS t
       WHERE t.owner = ? AND t.table_name = ?
@@ -66,7 +74,7 @@ sub _dbh_get_autoinc_seq {
   }
   else {
     $sth = $dbh->prepare($sql);
-    $sth->execute( uc( $source->name ) );
+    $sth->execute( uc( $source_name ) );
   }
   while (my ($insert_trigger) = $sth->fetchrow_array) {
     return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
@@ -223,7 +231,7 @@ table with more than one LOB column.
 
 =cut
 
-sub source_bind_attributes 
+sub source_bind_attributes
 {
 	require DBD::Oracle;
 	my $self = shift;
