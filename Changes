@@ -30,6 +30,8 @@ Revision history for DBIx::Class
         - Remove some IN workarounds, and require a recent version of
           SQLA instead
         - Improvements to populate's handling of mixed scalarref values
+        - Fixed regression losing result_class after $rs->find (introduced
+          in 0.08108)
         - POD improvements
 
 0.08112 2009-09-21 10:57:00 (UTC)

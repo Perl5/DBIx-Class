@@ -357,9 +357,9 @@ sub search_rs {
   }
 
   my $rs = (ref $self)->new($self->result_source, $new_attrs);
-  if ($rows) {
-    $rs->set_cache($rows);
-  }
+
+  $rs->set_cache($rows) if ($rows);
+
   return $rs;
 }
 
@@ -530,7 +530,7 @@ sub find {
   }
 
   # Run the query
-  my $rs = $self->search ($query, $attrs);
+  my $rs = $self->search ($query, {result_class => $self->result_class, %$attrs});
   if (keys %{$rs->_resolved_attrs->{collapse}}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
