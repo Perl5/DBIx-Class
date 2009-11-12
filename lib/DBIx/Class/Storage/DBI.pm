@@ -1567,6 +1567,14 @@ sub delete {
   return $self->_execute('delete' => [], $source, $bind_attrs, $where, @args);
 }
 
+# Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
+# a condition containing 'me' or other table prefixes will not work
+# at all. Since we employ subqueries when multiple tables are involved
+# (joins), it is relatively safe to strip all column qualifiers. Worst
+# case scenario the error message will be a bit misleading, if the
+# user supplies a foreign qualifier without a join (the message would
+# be "can't find column X", when in fact the user shoud join T containing
+# T.X)
 sub _strip_cond_qualifiers {
   my ($self, $where) = @_;
 
