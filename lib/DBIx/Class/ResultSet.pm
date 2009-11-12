@@ -1284,7 +1284,9 @@ sub _count_subq_rs {
     $sub_attrs->{from}, $sub_attrs->{alias}
   );
 
-  # this is so that ordering can be thrown away in things like Top limit
+  # this is so that the query can be simplified e.g.
+  # * non-limiting joins can be pruned
+  # * ordering can be thrown away in things like Top limit
   $sub_attrs->{-for_count_only} = 1;
 
   my $sub_rs = $rsrc->resultset_class->new ($rsrc, $sub_attrs);
