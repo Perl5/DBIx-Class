@@ -1549,20 +1549,35 @@ sub _dbh_execute_inserts_with_no_binds {
 }
 
 sub update {
-  my ($self, $source, @args) = @_; 
+  my ($self, $source, $data, $where, @args) = @_; 
 
-  my $bind_attributes = $self->source_bind_attributes($source);
+  my $bind_attrs = $self->source_bind_attributes($source);
+  $where = $self->_strip_cond_qualifiers ($where);
 
-  return $self->_execute('update' => [], $source, $bind_attributes, @args);
+  return $self->_execute('update' => [], $source, $bind_attrs, $data, $where, @args);
 }
 
 
 sub delete {
-  my ($self, $source, @args) = @_; 
+  my ($self, $source, $where, @args) = @_;
 
   my $bind_attrs = $self->source_bind_attributes($source);
+  $where = $self->_strip_cond_qualifiers ($where);
 
-  return $self->_execute('delete' => [], $source, $bind_attrs, @args);
+  return $self->_execute('delete' => [], $source, $bind_attrs, $where, @args);
+}
+
+sub _strip_cond_qualifiers {
+  my ($self, $where) = @_;
+
+  my $sqlmaker = $self->sql_maker;
+  my ($sql, @bind) = $sqlmaker->_recurse_where($where);
+  return undef unless $sql;
+
+  my ($qquot, $qsep) = map { quotemeta $_ } ( ($sqlmaker->quote_char||''), ($sqlmaker->name_sep||'.') );
+  $sql =~ s/ (?: $qquot [\w\-]+ $qquot | [\w\-]+ ) $qsep //gx;
+
+  return \[$sql, @bind];
 }
 
 # We were sent here because the $rs contains a complex search

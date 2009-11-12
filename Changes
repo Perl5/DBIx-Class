@@ -35,6 +35,7 @@ Revision history for DBIx::Class
         - Fix in_storage() to return 1|0 as per existing documentation
         - Centralize handling of _determine_driver calls prior to certain
           ::Storage::DBI methods
+        - Fix update/delete arbitrary condition handling (RT#51409)
         - POD improvements
 
 0.08112 2009-09-21 10:57:00 (UTC)
