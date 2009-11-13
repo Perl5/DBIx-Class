@@ -63,12 +63,13 @@ sub _rebless {
     my $dbtype = eval {
       @{$self->_get_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
     } || '';
+    $self->throw_exception("Unable to estable connection to determine database type: $@")
+      if $@;
 
-    my $exception = $@;
     $dbtype =~ s/\W/_/gi;
     my $subclass = "DBIx::Class::Storage::DBI::Sybase::${dbtype}";
 
-    if (!$exception && $dbtype && $self->load_optional_class($subclass)) {
+    if ($dbtype && $self->load_optional_class($subclass)) {
       bless $self, $subclass;
       $self->_rebless;
     } else { # real Sybase
@@ -189,7 +190,7 @@ sub _populate_dbh {
   my $self = shift;
 
   $self->next::method(@_);
-  
+
   if ($self->_is_bulk_storage) {
 # this should be cleared on every reconnect
     $self->_began_bulk_work(0);
@@ -381,7 +382,7 @@ sub insert {
   # we are already in a transaction, or there are no blobs
   # and we don't need the PK - just (try to) do it
   if ($self->{transaction_depth}
-        || (!$blob_cols && !$dumb_last_insert_id) 
+        || (!$blob_cols && !$dumb_last_insert_id)
   ) {
     return $self->_insert (
       $next, $source, $to_insert, $blob_cols, $identity_col
@@ -511,7 +512,7 @@ EOF
 
 # _execute_array uses a txn anyway, but it ends too early in case we need to
 # select max(col) to get the identity for inserting blobs.
-    ($self, my $guard) = $self->{transaction_depth} == 0 ? 
+    ($self, my $guard) = $self->{transaction_depth} == 0 ?
       ($self->_writer_storage, $self->_writer_storage->txn_scope_guard)
       :
       ($self, undef);
