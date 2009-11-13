@@ -371,6 +371,9 @@ C<column_info> supplied with C<add_columns>.
 
 =item .. insert many rows of data efficiently?
 
+The C<populate> method in L<DBIx::Class::ResultSet> provides
+efficient bulk inserts.
+
 =item .. update a collection of rows at the same time?
 
 Create a resultset using a search, to filter the rows of data you

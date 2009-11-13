@@ -41,6 +41,38 @@ __PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class/);
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
 
 
+# Each of these methods need _determine_driver called before itself
+# in order to function reliably. This is a purely DRY optimization
+my @rdbms_specific_methods = qw/
+  sqlt_type
+  build_datetime_parser
+  datetime_parser_type
+
+  insert
+  insert_bulk
+  update
+  delete
+  select
+  select_single
+/;
+
+for my $meth (@rdbms_specific_methods) {
+
+  my $orig = __PACKAGE__->can ($meth)
+    or next;
+
+  no strict qw/refs/;
+  no warnings qw/redefine/;
+  *{__PACKAGE__ ."::$meth"} = sub {
+    if (not $_[0]->_driver_determined) {
+      $_[0]->_determine_driver;
+      goto $_[0]->can($meth);
+    }
+    $orig->(@_);
+  };
+}
+
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI - DBI storage handler
@@ -713,7 +745,6 @@ in MySQL's case disabled entirely.
 # Storage subclasses should override this
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
-
   $sub->();
 }
 
@@ -1304,12 +1335,6 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
-# redispatch to insert method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('insert');
-  }
-
   my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
 
@@ -1340,12 +1365,6 @@ sub insert {
 ## only prepped once.
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
-
-# redispatch to insert_bulk method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('insert_bulk');
-  }
 
   my %colvalues;
   @colvalues{@$cols} = (0..$#$cols);
@@ -1532,30 +1551,79 @@ sub _dbh_execute_inserts_with_no_binds {
 sub update {
   my ($self, $source, @args) = @_; 
 
-# redispatch to update method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('update');
-  }
+  my $bind_attrs = $self->source_bind_attributes($source);
 
-  my $bind_attributes = $self->source_bind_attributes($source);
-
-  return $self->_execute('update' => [], $source, $bind_attributes, @args);
+  return $self->_execute('update' => [], $source, $bind_attrs, @args);
 }
 
 
 sub delete {
-  my $self = shift @_;
-  my $source = shift @_;
-  $self->_determine_driver;
+  my ($self, $source, @args) = @_;
+
   my $bind_attrs = $self->source_bind_attributes($source);
 
-  return $self->_execute('delete' => [], $source, $bind_attrs, @_);
+  return $self->_execute('delete' => [], $source, $bind_attrs, @args);
+}
+
+# Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
+# a condition containing 'me' or other table prefixes will not work
+# at all. What this code tries to do (badly) is introspect the condition
+# and remove all column qualifiers. If it bails out early (returns undef)
+# the calling code should try another approach (e.g. a subquery)
+sub _strip_cond_qualifiers {
+  my ($self, $where) = @_;
+
+  my $cond = {};
+
+  # No-op. No condition, we're updating/deleting everything
+  return $cond unless $where;
+
+  if (ref $where eq 'ARRAY') {
+    $cond = [
+      map {
+        my %hash;
+        foreach my $key (keys %{$_}) {
+          $key =~ /([^.]+)$/;
+          $hash{$1} = $_->{$key};
+        }
+        \%hash;
+      } @$where
+    ];
+  }
+  elsif (ref $where eq 'HASH') {
+    if ( (keys %$where) == 1 && ( (keys %{$where})[0] eq '-and' )) {
+      $cond->{-and} = [];
+      my @cond = @{$where->{-and}};
+       for (my $i = 0; $i < @cond; $i++) {
+        my $entry = $cond[$i];
+        my $hash;
+        if (ref $entry eq 'HASH') {
+          $hash = $self->_strip_cond_qualifiers($entry);
+        }
+        else {
+          $entry =~ /([^.]+)$/;
+          $hash->{$1} = $cond[++$i];
+        }
+        push @{$cond->{-and}}, $hash;
+      }
+    }
+    else {
+      foreach my $key (keys %$where) {
+        $key =~ /([^.]+)$/;
+        $cond->{$1} = $where->{$key};
+      }
+    }
+  }
+  else {
+    return undef;
+  }
+
+  return $cond;
 }
 
 # We were sent here because the $rs contains a complex search
 # which will require a subquery to select the correct rows
-# (i.e. joined or limited resultsets)
+# (i.e. joined or limited resultsets, or non-introspectable conditions)
 #
 # Genarating a single PK column subquery is trivial and supported
 # by all RDBMS. However if we have a multicolumn PK, things get ugly.
@@ -1566,16 +1634,7 @@ sub _subq_update_delete {
 
   my $rsrc = $rs->result_source;
 
-  # we already check this, but double check naively just in case. Should be removed soon
-  my $sel = $rs->_resolved_attrs->{select};
-  $sel = [ $sel ] unless ref $sel eq 'ARRAY';
   my @pcols = $rsrc->primary_columns;
-  if (@$sel != @pcols) {
-    $self->throw_exception (
-      'Subquery update/delete can not be called on resultsets selecting a'
-     .' number of columns different than the number of primary keys'
-    );
-  }
 
   if (@pcols == 1) {
     return $self->$op (
@@ -2350,14 +2409,7 @@ Returns the database driver name.
 =cut
 
 sub sqlt_type {
-  my ($self) = @_;
-
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can ('sqlt_type');
-  }
-
-  $self->_get_dbh->{Driver}->{Name};
+  shift->_get_dbh->{Driver}->{Name};
 }
 
 =head2 bind_attribute_by_data_type
@@ -2701,11 +2753,6 @@ See L</datetime_parser>
 =cut
 
 sub build_datetime_parser {
-  if (not $_[0]->_driver_determined) {
-    $_[0]->_determine_driver;
-    goto $_[0]->can('build_datetime_parser');
-  }
-
   my $self = shift;
   my $type = $self->datetime_parser_type(@_);
   $self->ensure_class_loaded ($type);
