@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08113 2009-11-13 23:13:00 (UTC)
         - Fix populate with has_many bug
           (RT #50828)
         - Fix Oracle autoincrement broken for Resultsets with scalar refs
