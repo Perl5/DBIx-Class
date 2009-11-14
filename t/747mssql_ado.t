@@ -11,7 +11,7 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ADO_${_}" } qw/DSN USER PAS
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ADO_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 10;
+plan tests => 11;
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 $schema->storage->ensure_connected;
@@ -38,6 +38,16 @@ ok($new->artistid > 0, 'Auto-PK worked');
 # make sure select works
 my $found = $schema->resultset('Artist')->search({ name => 'foo' })->first;
 is $found->artistid, $new->artistid, 'search works';
+
+# try a select with a big column list
+TODO: {
+  local $TODO = 'select with a big column list does not work';
+
+  $found = $schema->resultset('Artist')->search({ name => 'foo' }, {
+    select => ['name', map "'foo' foo_$_", 0..50]
+  })->first;
+  is $found->artistid, $new->artistid, 'select with big column list';
+}
 
 # create a few more rows
 for (1..6) {
