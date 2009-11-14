@@ -110,7 +110,7 @@ my %force_requires_if_author = (
     ) : ()
   ,
 
-  $ENV{DBICTEST_ORACLE_DSN}
+  $ENV{DBICTEST_ORA_DSN}
     ? (
       'DateTime::Format::Oracle' => '0',
     ) : ()
