@@ -47,6 +47,22 @@ sub backup
   return $backupfile;
 }
 
+sub deployment_statements {
+  my $self = shift;;
+  my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
+
+  $sqltargs ||= {};
+
+  my $sqlite_version = $self->_get_dbh->{sqlite_version};
+
+  # numify, SQLT does a numeric comparison
+  $sqlite_version =~ s/^(\d+) \. (\d+) (?: \. (\d+))? .*/${1}.${2}/x;
+
+  $sqltargs->{producer_args}{sqlite_version} = $sqlite_version;
+
+  $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
+}
+
 sub datetime_parser_type { return "DateTime::Format::SQLite"; } 
 
 1;

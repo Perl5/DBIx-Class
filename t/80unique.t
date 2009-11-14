@@ -195,7 +195,7 @@ is($row->baz, 3, 'baz is correct');
       { key => 'cd_artist_title' }
     );
 
-    ok(!$cd1->in_storage, 'CD is not in storage yet after update_or_new');
+    is($cd1->in_storage, 0, 'CD is not in storage yet after update_or_new');
     $cd1->insert;
     ok($cd1->in_storage, 'CD got added to strage after update_or_new && insert');
 

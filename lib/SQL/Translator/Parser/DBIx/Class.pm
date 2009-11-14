@@ -184,7 +184,7 @@ sub parse {
                     if ($fk_constraint) {
                         $cascade->{$c} = $rel_info->{attrs}{"on_$c"};
                     }
-                    else {
+                    elsif ( $rel_info->{attrs}{"on_$c"} ) {
                         carp "SQLT attribute 'on_$c' was supplied for relationship '$moniker/$rel', which does not appear to be a foreign constraint. "
                             . "If you are sure that SQLT must generate a constraint for this relationship, add 'is_foreign_key_constraint => 1' to the attributes.\n";
                     }

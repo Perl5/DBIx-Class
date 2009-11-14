@@ -357,9 +357,9 @@ sub search_rs {
   }
 
   my $rs = (ref $self)->new($self->result_source, $new_attrs);
-  if ($rows) {
-    $rs->set_cache($rows);
-  }
+
+  $rs->set_cache($rows) if ($rows);
+
   return $rs;
 }
 
@@ -530,7 +530,7 @@ sub find {
   }
 
   # Run the query
-  my $rs = $self->search ($query, $attrs);
+  my $rs = $self->search ($query, {result_class => $self->result_class, %$attrs});
   if (keys %{$rs->_resolved_attrs->{collapse}}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
@@ -1495,8 +1495,12 @@ sub _rs_update_delete {
 
   my $rsrc = $self->result_source;
 
+  # if a condition exists we need to strip all table qualifiers
+  # if this is not possible we'll force a subquery below
+  my $cond = $rsrc->schema->storage->_strip_cond_qualifiers ($self->{cond});
+
   my $needs_group_by_subq = $self->_has_resolved_attr (qw/collapse group_by -join/);
-  my $needs_subq = $self->_has_resolved_attr (qw/row offset/);
+  my $needs_subq = (not defined $cond) || $self->_has_resolved_attr(qw/row offset/);
 
   if ($needs_group_by_subq or $needs_subq) {
 
@@ -1544,69 +1548,10 @@ sub _rs_update_delete {
     return $rsrc->storage->$op(
       $rsrc,
       $op eq 'update' ? $values : (),
-      $self->_cond_for_update_delete,
+      $cond,
     );
   }
 }
-
-
-# _cond_for_update_delete
-#
-# update/delete require the condition to be modified to handle
-# the differing SQL syntax available.  This transforms the $self->{cond}
-# appropriately, returning the new condition.
-
-sub _cond_for_update_delete {
-  my ($self, $full_cond) = @_;
-  my $cond = {};
-
-  $full_cond ||= $self->{cond};
-  # No-op. No condition, we're updating/deleting everything
-  return $cond unless ref $full_cond;
-
-  if (ref $full_cond eq 'ARRAY') {
-    $cond = [
-      map {
-        my %hash;
-        foreach my $key (keys %{$_}) {
-          $key =~ /([^.]+)$/;
-          $hash{$1} = $_->{$key};
-        }
-        \%hash;
-      } @{$full_cond}
-    ];
-  }
-  elsif (ref $full_cond eq 'HASH') {
-    if ((keys %{$full_cond})[0] eq '-and') {
-      $cond->{-and} = [];
-      my @cond = @{$full_cond->{-and}};
-       for (my $i = 0; $i < @cond; $i++) {
-        my $entry = $cond[$i];
-        my $hash;
-        if (ref $entry eq 'HASH') {
-          $hash = $self->_cond_for_update_delete($entry);
-        }
-        else {
-          $entry =~ /([^.]+)$/;
-          $hash->{$1} = $cond[++$i];
-        }
-        push @{$cond->{-and}}, $hash;
-      }
-    }
-    else {
-      foreach my $key (keys %{$full_cond}) {
-        $key =~ /([^.]+)$/;
-        $cond->{$1} = $full_cond->{$key};
-      }
-    }
-  }
-  else {
-    $self->throw_exception("Can't update/delete on resultset with condition unless hash or array");
-  }
-
-  return $cond;
-}
-
 
 =head2 update
 
@@ -1794,10 +1739,19 @@ sub populate {
     }
     return wantarray ? @created : \@created;
   } else {
-    my ($first, @rest) = @$data;
+    my $first = $data->[0];
 
-    my @names = grep {!ref $first->{$_}} keys %$first;
-    my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
+    # if a column is a registered relationship, and is a non-blessed hash/array, consider
+    # it relationship data
+    my (@rels, @columns);
+    for (keys %$first) {
+      my $ref = ref $first->{$_};
+      $self->result_source->has_relationship($_) && ($ref eq 'ARRAY' or $ref eq 'HASH')
+        ? push @rels, $_
+        : push @columns, $_
+      ;
+    }
+
     my @pks = $self->result_source->primary_columns;
 
     ## do the belongs_to relationships
@@ -1826,17 +1780,15 @@ sub populate {
         delete $data->[$index]->{$rel};
         $data->[$index] = {%{$data->[$index]}, %$related};
 
-        push @names, keys %$related if $index == 0;
+        push @columns, keys %$related if $index == 0;
       }
     }
 
     ## do bulk insert on current row
-    my @values = map { [ @$_{@names} ] } @$data;
-
     $self->result_source->storage->insert_bulk(
       $self->result_source,
-      \@names,
-      \@values,
+      \@columns,
+      [ map { [ @$_{@columns} ] } @$data ],
     );
 
     ## do the has_many relationships
@@ -1845,7 +1797,7 @@ sub populate {
       foreach my $rel (@rels) {
         next unless $item->{$rel} && ref $item->{$rel} eq "ARRAY";
 
-        my $parent = $self->find(map {{$_=>$item->{$_}} } @pks)
+        my $parent = $self->find({map { $_ => $item->{$_} } @pks})
      || $self->throw_exception('Cannot find the relating object.');
 
         my $child = $parent->$rel;
@@ -3254,6 +3206,9 @@ names:
 When you use function/stored procedure names and do not supply an C<as>
 attribute, the column names returned are storage-dependent. E.g. MySQL would
 return a column named C<count(employeeid)> in the above example.
+
+B<NOTE:> You will almost always need a corresponding 'as' entry when you use
+'select'.
 
 =head2 +select
 

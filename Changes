@@ -1,5 +1,23 @@
 Revision history for DBIx::Class
 
+0.08113 2009-11-13 23:13:00 (UTC)
+        - Fix populate with has_many bug
+          (RT #50828)
+        - Fix Oracle autoincrement broken for Resultsets with scalar refs
+          (RT #50874)
+        - Complete Sybase RDBMS support including:
+          - Support for TEXT/IMAGE columns
+          - Support for the 'money' datatype
+          - Transaction savepoints support
+          - DateTime inflation support
+          - Support for bind variables when connecting to a newer Sybase with
+             OpenClient libraries
+          - Support for connections via FreeTDS with CASTs for bind variables
+             when needed
+          - Support for interpolated variables with proper quoting when
+             connecting to an older Sybase and/or via FreeTDS
+          - bulk API support for populate()
+        - Transaction support for MSSQL via DBD::Sybase
         - Add is_paged method to DBIx::Class::ResultSet so that we can
           check that if we want a pager
         - Skip versioning test on really old perls lacking Time::HiRes
@@ -7,6 +25,19 @@ Revision history for DBIx::Class
         - Fixed on_connect_do/call regression when used with a coderef
           connector (RT #50003)
         - A couple of fixes to Ordered to remedy subclassing issues
+        - Fixed another lingering problem with PostgreSQL
+          auto-increment support and its interaction with multiple
+          schemas
+        - Remove some IN workarounds, and require a recent version of
+          SQLA instead
+        - Improvements to populate's handling of mixed scalarref values
+        - Fixed regression losing result_class after $rs->find (introduced
+          in 0.08108)
+        - Fix in_storage() to return 1|0 as per existing documentation
+        - Centralize handling of _determine_driver calls prior to certain
+          ::Storage::DBI methods
+        - Fix update/delete arbitrary condition handling (RT#51409)
+        - POD improvements
 
 0.08112 2009-09-21 10:57:00 (UTC)
         - Remove the recommends from Makefile.PL, DBIx::Class is not

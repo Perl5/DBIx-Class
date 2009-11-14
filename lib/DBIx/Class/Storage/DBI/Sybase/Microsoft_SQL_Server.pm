@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use base qw/
-  DBIx::Class::Storage::DBI::Sybase::Base
+  DBIx::Class::Storage::DBI::Sybase::Common
   DBIx::Class::Storage::DBI::MSSQL
 /;
 use mro 'c3';
@@ -18,14 +18,35 @@ sub _rebless {
       'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
     $self->_rebless;
   }
+}
 
-# LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
-# huge on some versions of SQL server and can cause memory problems, so we
-# fix it up here.
-  my $text_size = eval { $self->_dbi_connect_info->[-1]->{LongReadLen} } ||
-    32768; # the DBD::Sybase default
+sub _init {
+  my $self = shift;
 
-  $dbh->do("set textsize $text_size");
+  # LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
+  # huge on some versions of SQL server and can cause memory problems, so we
+  # fix it up here (see Sybase/Common.pm)
+  $self->set_textsize;
+}
+
+sub _dbh_begin_work {
+  my $self = shift;
+
+  $self->_get_dbh->do('BEGIN TRAN');
+}
+
+sub _dbh_commit {
+  my $self = shift;
+  my $dbh  = $self->_dbh
+    or $self->throw_exception('cannot COMMIT on a disconnected handle');
+  $dbh->do('COMMIT');
+}
+
+sub _dbh_rollback {
+  my $self = shift;
+  my $dbh  = $self->_dbh
+    or $self->throw_exception('cannot ROLLBACK on a disconnected handle');
+  $dbh->do('ROLLBACK');
 }
 
 1;

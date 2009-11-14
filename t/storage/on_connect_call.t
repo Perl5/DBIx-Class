@@ -10,7 +10,7 @@ use DBIx::Class::Storage::DBI;
 
 # !!! do not replace this with done_testing - tests reside in the callbacks
 # !!! number of calls is important
-use Test::More tests => 15;
+use Test::More tests => 16;
 # !!!
 
 my $schema = DBICTest::Schema->clone;
@@ -90,8 +90,9 @@ my $schema = DBICTest::Schema->clone;
   ), 'connection()';
 
   ok (! $schema->storage->connected, 'start disconnected');
-  my $parser = $schema->storage->datetime_parser;
 
-  $schema->storage->ensure_connected;
+  $schema->storage->_determine_driver;  # this should connect due to the coderef
+
+  ok ($schema->storage->connected, 'determine driver connects');
   $schema->storage->disconnect;
 }
