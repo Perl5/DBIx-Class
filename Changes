@@ -18,7 +18,7 @@ Revision history for DBIx::Class
              connecting to an older Sybase and/or via FreeTDS
           - bulk API support for populate()
         - Transaction support for MSSQL via DBD::Sybase
-        - Preliminary (read not very good) support for MSSQL via DBD::ADO
+        - Preliminary support for MSSQL via DBD::ADO
         - Add is_paged method to DBIx::Class::ResultSet so that we can
           check that if we want a pager
         - Skip versioning test on really old perls lacking Time::HiRes
