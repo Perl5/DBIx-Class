@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - Preliminary support for MSSQL via DBD::ADO
+
 0.08113 2009-11-13 23:13:00 (UTC)
         - Fix populate with has_many bug
           (RT #50828)
@@ -18,7 +20,6 @@ Revision history for DBIx::Class
              connecting to an older Sybase and/or via FreeTDS
           - bulk API support for populate()
         - Transaction support for MSSQL via DBD::Sybase
-        - Preliminary support for MSSQL via DBD::ADO
         - Add is_paged method to DBIx::Class::ResultSet so that we can
           check that if we want a pager
         - Skip versioning test on really old perls lacking Time::HiRes
