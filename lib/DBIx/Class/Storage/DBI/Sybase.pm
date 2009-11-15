@@ -191,6 +191,8 @@ sub _populate_dbh {
 
   $self->next::method(@_);
 
+  return unless $self->_driver_determined; # otherwise we screw up MSSQL
+
   if ($self->_is_bulk_storage) {
 # this should be cleared on every reconnect
     $self->_began_bulk_work(0);
