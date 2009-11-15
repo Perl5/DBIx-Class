@@ -171,6 +171,16 @@ SQL
   $rs->reset;
 }
 
+# test op-induced autoconnect
+lives_ok (sub {
+
+  my $schema =  DBICTest::Schema->clone;
+  $schema->connection($dsn, $user, $pass);
+
+  my $artist = $schema->resultset ('Artist')->search ({}, { order_by => 'artistid' })->next;
+  is ($artist->id, 1, 'Artist retrieved successfully');
+}, 'Query-induced autoconnect works');
+
 # clean up our mess
 END {
   if (my $dbh = eval { $schema->storage->dbh }) {
