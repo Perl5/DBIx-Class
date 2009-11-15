@@ -110,7 +110,7 @@ my %force_requires_if_author = (
     ) : ()
   ,
 
-  $ENV{DBICTEST_ORACLE_DSN}
+  $ENV{DBICTEST_ORA_DSN}
     ? (
       'DateTime::Format::Oracle' => '0',
     ) : ()
@@ -148,6 +148,7 @@ no_index 'DBIx::Class::SQLAHacks::MSSQL';
 no_index 'DBIx::Class::Storage::DBI::AmbiguousGlob';
 no_index 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server';
 no_index 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
+no_index 'DBIx::Class::Storage::DBIHacks';
 
 # re-build README and require extra modules for testing if we're in a checkout
 

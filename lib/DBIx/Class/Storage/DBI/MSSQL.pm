@@ -160,7 +160,7 @@ sub _execute {
 
     # this should bring back the result of SELECT SCOPE_IDENTITY() we tacked
     # on in _prep_for_execute above
-    my ($identity) = $sth->fetchrow_array;
+    my ($identity) = eval { $sth->fetchrow_array };
 
     # SCOPE_IDENTITY failed, but we can do something else
     if ( (! $identity) && $self->_identity_method) {

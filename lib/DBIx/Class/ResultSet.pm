@@ -357,9 +357,9 @@ sub search_rs {
   }
 
   my $rs = (ref $self)->new($self->result_source, $new_attrs);
-  if ($rows) {
-    $rs->set_cache($rows);
-  }
+
+  $rs->set_cache($rows) if ($rows);
+
   return $rs;
 }
 
@@ -530,7 +530,7 @@ sub find {
   }
 
   # Run the query
-  my $rs = $self->search ($query, $attrs);
+  my $rs = $self->search ($query, {result_class => $self->result_class, %$attrs});
   if (keys %{$rs->_resolved_attrs->{collapse}}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
@@ -1248,7 +1248,7 @@ sub _count_rs {
   $tmp_attrs->{as} = 'count';
 
   # read the comment on top of the actual function to see what this does
-  $tmp_attrs->{from} = $self->_switch_to_inner_join_if_needed (
+  $tmp_attrs->{from} = $self->result_source->schema->storage->_straight_join_to_node (
     $tmp_attrs->{from}, $tmp_attrs->{alias}
   );
 
@@ -1280,11 +1280,13 @@ sub _count_subq_rs {
   $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
 
   # read the comment on top of the actual function to see what this does
-  $sub_attrs->{from} = $self->_switch_to_inner_join_if_needed (
+  $sub_attrs->{from} = $self->result_source->schema->storage->_straight_join_to_node (
     $sub_attrs->{from}, $sub_attrs->{alias}
   );
 
-  # this is so that ordering can be thrown away in things like Top limit
+  # this is so that the query can be simplified e.g.
+  # * non-limiting joins can be pruned
+  # * ordering can be thrown away in things like Top limit
   $sub_attrs->{-for_count_only} = 1;
 
   my $sub_rs = $rsrc->resultset_class->new ($rsrc, $sub_attrs);
@@ -1300,77 +1302,6 @@ sub _count_subq_rs {
 
   return $self->_count_rs ($attrs);
 }
-
-
-# The DBIC relationship chaining implementation is pretty simple - every
-# new related_relationship is pushed onto the {from} stack, and the {select}
-# window simply slides further in. This means that when we count somewhere
-# in the middle, we got to make sure that everything in the join chain is an
-# actual inner join, otherwise the count will come back with unpredictable
-# results (a resultset may be generated with _some_ rows regardless of if
-# the relation which the $rs currently selects has rows or not). E.g.
-# $artist_rs->cds->count - normally generates:
-# SELECT COUNT( * ) FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
-# which actually returns the number of artists * (number of cds || 1)
-#
-# So what we do here is crawl {from}, determine if the current alias is at
-# the top of the stack, and if not - make sure the chain is inner-joined down
-# to the root.
-#
-sub _switch_to_inner_join_if_needed {
-  my ($self, $from, $alias) = @_;
-
-  # subqueries and other oddness is naturally not supported
-  return $from if (
-    ref $from ne 'ARRAY'
-      ||
-    @$from <= 1
-      ||
-    ref $from->[0] ne 'HASH'
-      ||
-    ! $from->[0]{-alias}
-      ||
-    $from->[0]{-alias} eq $alias
-  );
-
-  my $switch_branch;
-  JOINSCAN:
-  for my $j (@{$from}[1 .. $#$from]) {
-    if ($j->[0]{-alias} eq $alias) {
-      $switch_branch = $j->[0]{-join_path};
-      last JOINSCAN;
-    }
-  }
-
-  # something else went wrong
-  return $from unless $switch_branch;
-
-  # So it looks like we will have to switch some stuff around.
-  # local() is useless here as we will be leaving the scope
-  # anyway, and deep cloning is just too fucking expensive
-  # So replace the inner hashref manually
-  my @new_from = ($from->[0]);
-  my $sw_idx = { map { $_ => 1 } @$switch_branch };
-
-  for my $j (@{$from}[1 .. $#$from]) {
-    my $jalias = $j->[0]{-alias};
-
-    if ($sw_idx->{$jalias}) {
-      my %attrs = %{$j->[0]};
-      delete $attrs{-join_type};
-      push @new_from, [
-        \%attrs,
-        @{$j}[ 1 .. $#$j ],
-      ];
-    }
-    else {
-      push @new_from, $j;
-    }
-  }
-
-  return \@new_from;
-}
-
 
 sub _bool {
   return 1;
@@ -1495,8 +1426,12 @@ sub _rs_update_delete {
 
   my $rsrc = $self->result_source;
 
+  # if a condition exists we need to strip all table qualifiers
+  # if this is not possible we'll force a subquery below
+  my $cond = $rsrc->schema->storage->_strip_cond_qualifiers ($self->{cond});
+
   my $needs_group_by_subq = $self->_has_resolved_attr (qw/collapse group_by -join/);
-  my $needs_subq = $self->_has_resolved_attr (qw/row offset/);
+  my $needs_subq = (not defined $cond) || $self->_has_resolved_attr(qw/row offset/);
 
   if ($needs_group_by_subq or $needs_subq) {
 
@@ -1544,69 +1479,10 @@ sub _rs_update_delete {
     return $rsrc->storage->$op(
       $rsrc,
       $op eq 'update' ? $values : (),
-      $self->_cond_for_update_delete,
+      $cond,
     );
   }
 }
-
-
-# _cond_for_update_delete
-#
-# update/delete require the condition to be modified to handle
-# the differing SQL syntax available.  This transforms the $self->{cond}
-# appropriately, returning the new condition.
-
-sub _cond_for_update_delete {
-  my ($self, $full_cond) = @_;
-  my $cond = {};
-
-  $full_cond ||= $self->{cond};
-  # No-op. No condition, we're updating/deleting everything
-  return $cond unless ref $full_cond;
-
-  if (ref $full_cond eq 'ARRAY') {
-    $cond = [
-      map {
-        my %hash;
-        foreach my $key (keys %{$_}) {
-          $key =~ /([^.]+)$/;
-          $hash{$1} = $_->{$key};
-        }
-        \%hash;
-      } @{$full_cond}
-    ];
-  }
-  elsif (ref $full_cond eq 'HASH') {
-    if ((keys %{$full_cond})[0] eq '-and') {
-      $cond->{-and} = [];
-      my @cond = @{$full_cond->{-and}};
-       for (my $i = 0; $i < @cond; $i++) {
-        my $entry = $cond[$i];
-        my $hash;
-        if (ref $entry eq 'HASH') {
-          $hash = $self->_cond_for_update_delete($entry);
-        }
-        else {
-          $entry =~ /([^.]+)$/;
-          $hash->{$1} = $cond[++$i];
-        }
-        push @{$cond->{-and}}, $hash;
-      }
-    }
-    else {
-      foreach my $key (keys %{$full_cond}) {
-        $key =~ /([^.]+)$/;
-        $cond->{$1} = $full_cond->{$key};
-      }
-    }
-  }
-  else {
-    $self->throw_exception("Can't update/delete on resultset with condition unless hash or array");
-  }
-
-  return $cond;
-}
-
 
 =head2 update
 
@@ -1794,15 +1670,19 @@ sub populate {
     }
     return wantarray ? @created : \@created;
   } else {
-    my ($first, @rest) = @$data;
+    my $first = $data->[0];
 
-    require overload;
-    my @names = grep {
-      (not ref $first->{$_}) || (ref $first->{$_} eq 'SCALAR') ||
-        (overload::Method($first->{$_}, '""'))
-    } keys %$first;
+    # if a column is a registered relationship, and is a non-blessed hash/array, consider
+    # it relationship data
+    my (@rels, @columns);
+    for (keys %$first) {
+      my $ref = ref $first->{$_};
+      $self->result_source->has_relationship($_) && ($ref eq 'ARRAY' or $ref eq 'HASH')
+        ? push @rels, $_
+        : push @columns, $_
+      ;
+    }
 
-    my @rels = grep { $self->result_source->has_relationship($_) } keys %$first;
     my @pks = $self->result_source->primary_columns;
 
     ## do the belongs_to relationships
@@ -1831,17 +1711,15 @@ sub populate {
         delete $data->[$index]->{$rel};
         $data->[$index] = {%{$data->[$index]}, %$related};
 
-        push @names, keys %$related if $index == 0;
+        push @columns, keys %$related if $index == 0;
       }
     }
 
     ## do bulk insert on current row
-    my @values = map { [ @$_{@names} ] } @$data;
-
     $self->result_source->storage->insert_bulk(
       $self->result_source,
-      \@names,
-      \@values,
+      \@columns,
+      [ map { [ @$_{@columns} ] } @$data ],
     );
 
     ## do the has_many relationships
@@ -1850,7 +1728,7 @@ sub populate {
       foreach my $rel (@rels) {
         next unless $item->{$rel} && ref $item->{$rel} eq "ARRAY";
 
-        my $parent = $self->find(map {{$_=>$item->{$_}} } @pks)
+        my $parent = $self->find({map { $_ => $item->{$_} } @pks})
      || $self->throw_exception('Cannot find the relating object.');
 
         my $child = $parent->$rel;
@@ -3259,6 +3137,9 @@ names:
 When you use function/stored procedure names and do not supply an C<as>
 attribute, the column names returned are storage-dependent. E.g. MySQL would
 return a column named C<count(employeeid)> in the above example.
+
+B<NOTE:> You will almost always need a corresponding 'as' entry when you use
+'select'.
 
 =head2 +select
 

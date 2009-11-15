@@ -1,6 +1,14 @@
 Revision history for DBIx::Class
 
+0.08114 2009-11-14 17:45:00 (UTC)
+        - Preliminary support for MSSQL via DBD::ADO
+        - Fix botched 0.08113 release (invalid tarball)
 
+0.08113 2009-11-13 23:13:00 (UTC)
+        - Fix populate with has_many bug
+          (RT #50828)
+        - Fix Oracle autoincrement broken for Resultsets with scalar refs
+          (RT #50874)
         - Complete Sybase RDBMS support including:
           - Support for TEXT/IMAGE columns
           - Support for the 'money' datatype
@@ -13,6 +21,7 @@ Revision history for DBIx::Class
           - Support for interpolated variables with proper quoting when
              connecting to an older Sybase and/or via FreeTDS
           - bulk API support for populate()
+        - Transaction support for MSSQL via DBD::Sybase
         - Add is_paged method to DBIx::Class::ResultSet so that we can
           check that if we want a pager
         - Skip versioning test on really old perls lacking Time::HiRes
@@ -23,6 +32,16 @@ Revision history for DBIx::Class
         - Fixed another lingering problem with PostgreSQL
           auto-increment support and its interaction with multiple
           schemas
+        - Remove some IN workarounds, and require a recent version of
+          SQLA instead
+        - Improvements to populate's handling of mixed scalarref values
+        - Fixed regression losing result_class after $rs->find (introduced
+          in 0.08108)
+        - Fix in_storage() to return 1|0 as per existing documentation
+        - Centralize handling of _determine_driver calls prior to certain
+          ::Storage::DBI methods
+        - Fix update/delete arbitrary condition handling (RT#51409)
+        - POD improvements
 
 0.08112 2009-09-21 10:57:00 (UTC)
         - Remove the recommends from Makefile.PL, DBIx::Class is not

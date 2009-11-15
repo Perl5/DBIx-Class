@@ -1,7 +1,7 @@
 use strict;
-use warnings;  
+use warnings;
 
-use Test::More qw(no_plan);
+use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 my $schema = DBICTest->init_schema();
@@ -9,7 +9,7 @@ my $schema = DBICTest->init_schema();
 # Under some versions of SQLite if the $rs is left hanging around it will lock
 # So we create a scope here cos I'm lazy
 {
-    my $rs = $schema->resultset('CD');
+    my $rs = $schema->resultset('CD')->search ({}, { order_by => 'cdid' });
 
     # get the defined columns
     my @dbic_cols = sort $rs->result_source->columns;
@@ -23,8 +23,10 @@ my $schema = DBICTest->init_schema();
     my @hashref_cols = sort keys %$datahashref1;
 
     is_deeply( \@dbic_cols, \@hashref_cols, 'returned columns' );
-}
 
+    my $cd1 = $rs->find ({cdid => 1});
+    is_deeply ( $cd1, $datahashref1, 'first/find return the same thing');
+}
 
 sub check_cols_of {
     my ($dbic_obj, $datahashref) = @_;
@@ -135,3 +137,5 @@ is_deeply(
   [{ $artist->get_columns, cds => [] }],
   'nested has_many prefetch without entries'
 );
+
+done_testing;

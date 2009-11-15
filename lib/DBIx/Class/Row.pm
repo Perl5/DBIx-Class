@@ -424,7 +424,7 @@ L</delete> on one, sets it to false.
 sub in_storage {
   my ($self, $val) = @_;
   $self->{_in_storage} = $val if @_ > 1;
-  return $self->{_in_storage};
+  return $self->{_in_storage} ? 1 : 0;
 }
 
 =head2 update
