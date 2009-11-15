@@ -1248,7 +1248,7 @@ sub _count_rs {
   $tmp_attrs->{as} = 'count';
 
   # read the comment on top of the actual function to see what this does
-  $tmp_attrs->{from} = $self->_switch_to_inner_join_if_needed (
+  $tmp_attrs->{from} = $self->result_source->schema->storage->_straight_join_to_node (
     $tmp_attrs->{from}, $tmp_attrs->{alias}
   );
 
@@ -1280,11 +1280,13 @@ sub _count_subq_rs {
   $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
 
   # read the comment on top of the actual function to see what this does
-  $sub_attrs->{from} = $self->_switch_to_inner_join_if_needed (
+  $sub_attrs->{from} = $self->result_source->schema->storage->_straight_join_to_node (
     $sub_attrs->{from}, $sub_attrs->{alias}
   );
 
-  # this is so that ordering can be thrown away in things like Top limit
+  # this is so that the query can be simplified e.g.
+  # * non-limiting joins can be pruned
+  # * ordering can be thrown away in things like Top limit
   $sub_attrs->{-for_count_only} = 1;
 
   my $sub_rs = $rsrc->resultset_class->new ($rsrc, $sub_attrs);
@@ -1300,77 +1302,6 @@ sub _count_subq_rs {
 
   return $self->_count_rs ($attrs);
 }
-
-
-# The DBIC relationship chaining implementation is pretty simple - every
-# new related_relationship is pushed onto the {from} stack, and the {select}
-# window simply slides further in. This means that when we count somewhere
-# in the middle, we got to make sure that everything in the join chain is an
-# actual inner join, otherwise the count will come back with unpredictable
-# results (a resultset may be generated with _some_ rows regardless of if
-# the relation which the $rs currently selects has rows or not). E.g.
-# $artist_rs->cds->count - normally generates:
-# SELECT COUNT( * ) FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
-# which actually returns the number of artists * (number of cds || 1)
-#
-# So what we do here is crawl {from}, determine if the current alias is at
-# the top of the stack, and if not - make sure the chain is inner-joined down
-# to the root.
-#
-sub _switch_to_inner_join_if_needed {
-  my ($self, $from, $alias) = @_;
-
-  # subqueries and other oddness is naturally not supported
-  return $from if (
-    ref $from ne 'ARRAY'
-      ||
-    @$from <= 1
-      ||
-    ref $from->[0] ne 'HASH'
-      ||
-    ! $from->[0]{-alias}
-      ||
-    $from->[0]{-alias} eq $alias
-  );
-
-  my $switch_branch;
-  JOINSCAN:
-  for my $j (@{$from}[1 .. $#$from]) {
-    if ($j->[0]{-alias} eq $alias) {
-      $switch_branch = $j->[0]{-join_path};
-      last JOINSCAN;
-    }
-  }
-
-  # something else went wrong
-  return $from unless $switch_branch;
-
-  # So it looks like we will have to switch some stuff around.
-  # local() is useless here as we will be leaving the scope
-  # anyway, and deep cloning is just too fucking expensive
-  # So replace the inner hashref manually
-  my @new_from = ($from->[0]);
-  my $sw_idx = { map { $_ => 1 } @$switch_branch };
-
-  for my $j (@{$from}[1 .. $#$from]) {
-    my $jalias = $j->[0]{-alias};
-
-    if ($sw_idx->{$jalias}) {
-      my %attrs = %{$j->[0]};
-      delete $attrs{-join_type};
-      push @new_from, [
-        \%attrs,
-        @{$j}[ 1 .. $#$j ],
-      ];
-    }
-    else {
-      push @new_from, $j;
-    }
-  }
-
-  return \@new_from;
-}
-
 
 sub _bool {
   return 1;
