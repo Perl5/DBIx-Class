@@ -1,4 +1,5 @@
-package DBIx::Class::Storage::DBIHacks;
+package   #hide from PAUSE
+  DBIx::Class::Storage::DBIHacks;
 
 #
 # This module contains code that should never have seen the light of day,
