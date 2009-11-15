@@ -1565,62 +1565,6 @@ sub delete {
   return $self->_execute('delete' => [], $source, $bind_attrs, @args);
 }
 
-# Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
-# a condition containing 'me' or other table prefixes will not work
-# at all. What this code tries to do (badly) is introspect the condition
-# and remove all column qualifiers. If it bails out early (returns undef)
-# the calling code should try another approach (e.g. a subquery)
-sub _strip_cond_qualifiers {
-  my ($self, $where) = @_;
-
-  my $cond = {};
-
-  # No-op. No condition, we're updating/deleting everything
-  return $cond unless $where;
-
-  if (ref $where eq 'ARRAY') {
-    $cond = [
-      map {
-        my %hash;
-        foreach my $key (keys %{$_}) {
-          $key =~ /([^.]+)$/;
-          $hash{$1} = $_->{$key};
-        }
-        \%hash;
-      } @$where
-    ];
-  }
-  elsif (ref $where eq 'HASH') {
-    if ( (keys %$where) == 1 && ( (keys %{$where})[0] eq '-and' )) {
-      $cond->{-and} = [];
-      my @cond = @{$where->{-and}};
-       for (my $i = 0; $i < @cond; $i++) {
-        my $entry = $cond[$i];
-        my $hash;
-        if (ref $entry eq 'HASH') {
-          $hash = $self->_strip_cond_qualifiers($entry);
-        }
-        else {
-          $entry =~ /([^.]+)$/;
-          $hash->{$1} = $cond[++$i];
-        }
-        push @{$cond->{-and}}, $hash;
-      }
-    }
-    else {
-      foreach my $key (keys %$where) {
-        $key =~ /([^.]+)$/;
-        $cond->{$1} = $where->{$key};
-      }
-    }
-  }
-  else {
-    return undef;
-  }
-
-  return $cond;
-}
-
 # We were sent here because the $rs contains a complex search
 # which will require a subquery to select the correct rows
 # (i.e. joined or limited resultsets, or non-introspectable conditions)
@@ -1634,7 +1578,21 @@ sub _subq_update_delete {
 
   my $rsrc = $rs->result_source;
 
+  # quick check if we got a sane rs on our hands
   my @pcols = $rsrc->primary_columns;
+
+  my $sel = $rs->_resolved_attrs->{select};
+  $sel = [ $sel ] unless ref $sel eq 'ARRAY';
+
+  if (
+      join ("\x00", map { join '.', $rs->{attrs}{alias}, $_ } sort @pcols)
+        ne
+      join ("\x00", sort @$sel )
+  ) {
+    $self->throw_exception (
+      '_subq_update_delete can not be called on resultsets selecting columns other than the primary keys'
+    );
+  }
 
   if (@pcols == 1) {
     return $self->$op (

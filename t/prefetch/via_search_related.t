@@ -37,7 +37,6 @@ lives_ok ( sub {
 
 }, 'search_related prefetch with order_by works');
 
-
 lives_ok ( sub {
   my $no_prefetch = $schema->resultset('Track')->search_related(cd =>
     {
