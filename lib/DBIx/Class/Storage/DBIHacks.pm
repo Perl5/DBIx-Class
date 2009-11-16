@@ -288,16 +288,16 @@ sub _resolve_ident_sources {
 # returns { $column_name => \%column_info, ... }
 # also note: this adds -result_source => $rsrc to the column info
 #
-# usage:
-#   my $col_sources = $self->_resolve_column_info($ident, @column_names);
+# If no columns_names are supplied returns info about *all* columns
+# for all sources
 sub _resolve_column_info {
   my ($self, $ident, $colnames) = @_;
   my ($alias2src, $root_alias) = $self->_resolve_ident_sources($ident);
 
   my $sep = $self->_sql_maker_opts->{name_sep} || '.';
-  $sep = "\Q$sep\E";
+  my $qsep = quotemeta $sep;
 
-  my (%return, %seen_cols);
+  my (%return, %seen_cols, @auto_colnames);
 
   # compile a global list of column names, to be able to properly
   # disambiguate unqualified column names (if at all possible)
@@ -305,12 +305,18 @@ sub _resolve_column_info {
     my $rsrc = $alias2src->{$alias};
     for my $colname ($rsrc->columns) {
       push @{$seen_cols{$colname}}, $alias;
+      push @auto_colnames, "$alias$sep$colname" unless $colnames;
     }
   }
 
+  $colnames ||= [
+    @auto_colnames,
+    grep { @{$seen_cols{$_}} == 1 } (keys %seen_cols),
+  ];
+
   COLUMN:
   foreach my $col (@$colnames) {
-    my ($alias, $colname) = $col =~ m/^ (?: ([^$sep]+) $sep)? (.+) $/x;
+    my ($alias, $colname) = $col =~ m/^ (?: ([^$qsep]+) $qsep)? (.+) $/x;
 
     unless ($alias) {
       # see if the column was seen exactly once (so we know which rsrc it came from)
