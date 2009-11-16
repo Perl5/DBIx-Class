@@ -217,11 +217,11 @@ for ($cd_rs->all) {
     $rs->as_query,
     '(
       SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
-             tags.tagid, tags.cd, tags.tag 
+             tags.tagid, tags.cd, tags.tag
         FROM (
           SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
             FROM cd me
-          GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, cdid
           ORDER BY cdid
         ) me
         LEFT JOIN tags tags ON tags.cd = me.cdid
@@ -327,6 +327,30 @@ for ($cd_rs->all) {
       )',
       [ map { [ 'tracks.title' => 'ugabuganoexist' ] } (1 .. 2) ],
     );
+}
+
+{
+    my $rs = $schema->resultset('CD')->search({},
+        {
+           '+select' => [{ count => 'tags.tag' }],
+           '+as' => ['test_count'],
+           prefetch => ['tags'],
+           distinct => 1,
+           order_by => {'-asc' => 'tags.tag'},
+           rows => 1
+        }
+    );
+    is_same_sql_bind($rs->as_query, q{
+        (SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, me.test_count, tags.tagid, tags.cd, tags.tag
+          FROM (SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, COUNT( tags.tag ) AS test_count
+                FROM cd me LEFT JOIN tags tags ON tags.cd = me.cdid
+            GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, tags.tag
+            ORDER BY tags.tag ASC LIMIT 1)
+            me
+          LEFT JOIN tags tags ON tags.cd = me.cdid
+         ORDER BY tags.tag ASC, tags.cd, tags.tag
+        )
+    }, []);
 }
 
 done_testing;

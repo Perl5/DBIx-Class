@@ -2820,6 +2820,22 @@ sub _resolved_attrs {
     }
     else {
       $attrs->{group_by} = [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
+
+      # add any order_by parts that are not already present in the group_by
+      # we need to be careful not to add any named functions/aggregates
+      # i.e. select => [ ... { count => 'foo', -as 'foocount' } ... ]
+      my %already_grouped = map { $_ => 1 } (@{$attrs->{group_by}});
+
+      my $storage = $self->result_source->schema->storage;
+      my $rs_column_list = $storage->_resolve_column_info ($attrs->{from});
+      my @chunks = $storage->sql_maker->_order_by_chunks ($attrs->{order_by});
+
+      for my $chunk (map { ref $_ ? @$_ : $_ } (@chunks) ) {
+        $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+        if ($rs_column_list->{$chunk} && not $already_grouped{$chunk}++) {
+          push @{$attrs->{group_by}}, $chunk;
+        }
+      }
     }
   }
 
