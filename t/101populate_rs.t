@@ -15,8 +15,6 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 146;
-
 
 ## ----------------------------------------------------------------------------
 ## Get a Schema and some ResultSets we can play with.
@@ -689,3 +687,5 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
     cmp_ok( $mega_lamer->rank, '==', 42, "Got Correct rank for result object");
   } 
 }
+
+done_testing;
