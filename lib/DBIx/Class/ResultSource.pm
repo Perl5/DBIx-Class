@@ -389,7 +389,7 @@ sub columns {
   my $self = shift;
   $self->throw_exception(
     "columns() is a read-only accessor, did you mean add_columns()?"
-  ) if (@_ > 1);
+  ) if @_;
   return @{$self->{_ordered_columns}||[]};
 }
 

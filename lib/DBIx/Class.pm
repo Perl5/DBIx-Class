@@ -24,7 +24,7 @@ sub component_base_class { 'DBIx::Class' }
 # Always remember to do all digits for the version even if they're 0
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
-$VERSION = '0.08112';
+$VERSION = '0.08114';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -115,7 +115,7 @@ Then you can use these classes in your application's code:
   my $all_artists_rs = $schema->resultset('Artist');
 
   # Output all artists names
-  # $artist here is a DBIx::Class::Row, which has accessors 
+  # $artist here is a DBIx::Class::Row, which has accessors
   # for all its columns. Rows are also subclasses of your Result class.
   foreach $artist (@artists) {
     print $artist->name, "\n";
@@ -340,6 +340,8 @@ teejay : Aaron Trevena <teejay@cpan.org>
 Todd Lipcon
 
 Tom Hukins
+
+triode: Pete Gamache <gamache@cpan.org>
 
 typester: Daisuke Murase <typester@cpan.org>
 

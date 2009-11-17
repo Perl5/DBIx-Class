@@ -86,7 +86,7 @@ sub parse {
         # support quoting properly to be signaled about this
         $table_name = $$table_name if ref $table_name eq 'SCALAR';
 
-        # Its possible to have multiple DBIC sources using the same table
+        # It's possible to have multiple DBIC sources using the same table
         next if $tables{$table_name};
 
         $tables{$table_name}{source} = $source;
@@ -141,6 +141,7 @@ sub parse {
             next unless ref $rel_info->{cond} eq 'HASH';
 
             my $othertable = $source->related_source($rel);
+            next if $othertable->isa('DBIx::Class::ResultSource::View');  # can't define constraints referencing a view
             my $rel_table = $othertable->name;
 
             # FIXME - this isn't the right way to do it, but sqlt does not
@@ -184,7 +185,7 @@ sub parse {
                     if ($fk_constraint) {
                         $cascade->{$c} = $rel_info->{attrs}{"on_$c"};
                     }
-                    else {
+                    elsif ( $rel_info->{attrs}{"on_$c"} ) {
                         carp "SQLT attribute 'on_$c' was supplied for relationship '$moniker/$rel', which does not appear to be a foreign constraint. "
                             . "If you are sure that SQLT must generate a constraint for this relationship, add 'is_foreign_key_constraint => 1' to the attributes.\n";
                     }
@@ -200,7 +201,7 @@ sub parse {
                 next unless $fk_constraint;
 
                 # Make sure we dont create the same foreign key constraint twice
-                my $key_test = join("\x00", @keys);
+                my $key_test = join("\x00", sort @keys);
                 next if $created_FK_rels{$rel_table}->{$key_test};
 
                 if (scalar(@keys)) {
@@ -214,7 +215,6 @@ sub parse {
                   if (! $is_deferrable and $rel_table ne $table_name) {
                     $tables{$table_name}{foreign_table_deps}{$rel_table}++;
                   }
-
                   $table->add_constraint(
                                     type             => 'foreign_key',
                                     name             => join('_', $table_name, 'fk', @keys),

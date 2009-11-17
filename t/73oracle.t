@@ -26,7 +26,7 @@
 }
 
 use strict;
-use warnings;  
+use warnings;
 
 use Test::Exception;
 use Test::More;
@@ -40,7 +40,7 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
   unless ($dsn && $user && $pass);
 
-plan tests => 35;
+plan tests => 36;
 
 DBICTest::Schema->load_classes('ArtistFQN');
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
@@ -49,6 +49,7 @@ my $dbh = $schema->storage->dbh;
 
 eval {
   $dbh->do("DROP SEQUENCE artist_seq");
+  $dbh->do("DROP SEQUENCE cd_seq");
   $dbh->do("DROP SEQUENCE pkid1_seq");
   $dbh->do("DROP SEQUENCE pkid2_seq");
   $dbh->do("DROP SEQUENCE nonpkid_seq");
@@ -58,6 +59,7 @@ eval {
   $dbh->do("DROP TABLE track");
 };
 $dbh->do("CREATE SEQUENCE artist_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
+$dbh->do("CREATE SEQUENCE cd_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE pkid1_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE pkid2_seq START WITH 10 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE nonpkid_seq START WITH 20 MAXVALUE 999999 MINVALUE 0");
@@ -67,6 +69,7 @@ $dbh->do("CREATE TABLE cd (cdid NUMBER(12), artist NUMBER(12), title VARCHAR(255
 $dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255), last_updated_on DATE, last_updated_at DATE, small_dt DATE)");
 
 $dbh->do("ALTER TABLE artist ADD (CONSTRAINT artist_pk PRIMARY KEY (artistid))");
+$dbh->do("ALTER TABLE cd ADD (CONSTRAINT cd_pk PRIMARY KEY (cdid))");
 $dbh->do("ALTER TABLE sequence_test ADD (CONSTRAINT sequence_test_constraint PRIMARY KEY (pkid1, pkid2))");
 $dbh->do(qq{
   CREATE OR REPLACE TRIGGER artist_insert_trg
@@ -80,6 +83,18 @@ $dbh->do(qq{
     END IF;
   END;
 });
+$dbh->do(qq{
+  CREATE OR REPLACE TRIGGER cd_insert_trg
+  BEFORE INSERT ON cd
+  FOR EACH ROW
+  BEGIN
+    IF :new.cdid IS NULL THEN
+      SELECT cd_seq.nextval
+      INTO :new.cdid
+      FROM DUAL;
+    END IF;
+  END;
+});
 
 {
     # Swiped from t/bindtype_columns.t to avoid creating my own Resultset.
@@ -88,7 +103,7 @@ $dbh->do(qq{
     eval { $dbh->do('DROP TABLE bindtype_test') };
 
     $dbh->do(qq[
-        CREATE TABLE bindtype_test 
+        CREATE TABLE bindtype_test
         (
             id              integer      NOT NULL   PRIMARY KEY,
             bytea           integer      NULL,
@@ -108,13 +123,15 @@ $schema->class('Track')->load_components('PK::Auto::Oracle');
 my $new = $schema->resultset('Artist')->create({ name => 'foo' });
 is($new->artistid, 1, "Oracle Auto-PK worked");
 
+my $cd = $schema->resultset('CD')->create({ artist => 1, title => 'EP C', year => '2003' });
+is($new->artistid, 1, "Oracle Auto-PK worked - using scalar ref as table name");
+
 # test again with fully-qualified table name
 $new = $schema->resultset('ArtistFQN')->create( { name => 'bar' } );
 is( $new->artistid, 2, "Oracle Auto-PK worked with fully-qualified tablename" );
 
 # test join with row count ambiguity
 
-my $cd = $schema->resultset('CD')->create({ cdid => 1, artist => 1, title => 'EP C', year => '2003' });
 my $track = $schema->resultset('Track')->create({ trackid => 1, cd => 1,
     position => 1, title => 'Track1' });
 my $tjoin = $schema->resultset('Track')->search({ 'me.title' => 'Track1'},
@@ -149,7 +166,7 @@ is($tcount->count, 2, 'multiple column COUNT DISTINCT ok');
 
 $tcount = $schema->resultset('Track')->search(
   {},
-  { 
+  {
      group_by => [ qw/position title/ ]
   }
 );
@@ -186,7 +203,10 @@ for (1..5) {
 my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
-{
+SKIP: {
+        skip 'buggy BLOB support in DBD::Oracle 1.23', 8
+          if $DBD::Oracle::VERSION == 1.23;
+
 	my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
 	$binstr{'large'} = $binstr{'small'} x 1024;
 
@@ -212,6 +232,7 @@ is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manual
 END {
     if($schema && ($dbh = $schema->storage->dbh)) {
         $dbh->do("DROP SEQUENCE artist_seq");
+        $dbh->do("DROP SEQUENCE cd_seq");
         $dbh->do("DROP SEQUENCE pkid1_seq");
         $dbh->do("DROP SEQUENCE pkid2_seq");
         $dbh->do("DROP SEQUENCE nonpkid_seq");

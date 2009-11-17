@@ -45,6 +45,7 @@ requires 'Scope::Guard'             => '0.03';
 requires 'SQL::Abstract'            => '1.60';
 requires 'SQL::Abstract::Limit'     => '0.13';
 requires 'Sub::Name'                => '0.04';
+requires 'Data::Dumper::Concise'    => '1.000';
 
 my %replication_requires = (
   'Moose',                    => '0.87',
@@ -109,9 +110,15 @@ my %force_requires_if_author = (
     ) : ()
   ,
 
-  $ENV{DBICTEST_ORACLE_DSN}
+  $ENV{DBICTEST_ORA_DSN}
     ? (
       'DateTime::Format::Oracle' => '0',
+    ) : ()
+  ,
+
+  $ENV{DBICTEST_SYBASE_DSN}
+    ? (
+      'DateTime::Format::Sybase' => 0,
     ) : ()
   ,
 );
@@ -132,15 +139,16 @@ tests_recursive (qw|
 
 resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
 resources 'license'     => 'http://dev.perl.org/licenses/';
-resources 'repository'  => 'http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/';
+resources 'repository'  => 'http://dev.catalyst.perl.org/repos/bast/DBIx-Class/';
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
 
-no_index 'DBIx::Class::Storage::DBI::Sybase::Base';
+no_index 'DBIx::Class::Storage::DBI::Sybase::Common';
 no_index 'DBIx::Class::SQLAHacks';
 no_index 'DBIx::Class::SQLAHacks::MSSQL';
 no_index 'DBIx::Class::Storage::DBI::AmbiguousGlob';
 no_index 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server';
 no_index 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
+no_index 'DBIx::Class::Storage::DBIHacks';
 
 # re-build README and require extra modules for testing if we're in a checkout
 

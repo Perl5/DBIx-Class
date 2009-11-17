@@ -4,7 +4,7 @@ package DBIx::Class::Storage::DBI;
 use strict;
 use warnings;
 
-use base 'DBIx::Class::Storage';
+use base qw/DBIx::Class::Storage::DBIHacks DBIx::Class::Storage/;
 use mro 'c3';
 
 use Carp::Clan qw/^DBIx::Class/;
@@ -13,6 +13,7 @@ use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
 use Scalar::Util();
 use List::Util();
+use Data::Dumper::Concise();
 
 # what version of sqlt do we require if deploy() without a ddl_dir is invoked
 # when changing also adjust the corresponding author_require in Makefile.PL
@@ -38,6 +39,38 @@ __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
 __PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class/);
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
+
+
+# Each of these methods need _determine_driver called before itself
+# in order to function reliably. This is a purely DRY optimization
+my @rdbms_specific_methods = qw/
+  sqlt_type
+  build_datetime_parser
+  datetime_parser_type
+
+  insert
+  insert_bulk
+  update
+  delete
+  select
+  select_single
+/;
+
+for my $meth (@rdbms_specific_methods) {
+
+  my $orig = __PACKAGE__->can ($meth)
+    or next;
+
+  no strict qw/refs/;
+  no warnings qw/redefine/;
+  *{__PACKAGE__ ."::$meth"} = sub {
+    if (not $_[0]->_driver_determined) {
+      $_[0]->_determine_driver;
+      goto $_[0]->can($meth);
+    }
+    $orig->(@_);
+  };
+}
 
 
 =head1 NAME
@@ -712,7 +745,6 @@ in MySQL's case disabled entirely.
 # Storage subclasses should override this
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
-
   $sub->();
 }
 
@@ -878,13 +910,14 @@ sub _determine_driver {
   my ($self) = @_;
 
   if ((not $self->_driver_determined) && (not $self->{_in_determine_driver})) {
-    my $started_unconnected = 0;
+    my $started_connected = 0;
     local $self->{_in_determine_driver} = 1;
 
     if (ref($self) eq __PACKAGE__) {
       my $driver;
       if ($self->_dbh) { # we are connected
         $driver = $self->_dbh->{Driver}{Name};
+        $started_connected = 1;
       } else {
         # if connect_info is a CODEREF, we have no choice but to connect
         if (ref $self->_dbi_connect_info->[0] &&
@@ -896,7 +929,6 @@ sub _determine_driver {
           # try to use dsn to not require being connected, the driver may still
           # force a connection in _rebless to determine version
           ($driver) = $self->_dbi_connect_info->[0] =~ /dbi:([^:]+):/i;
-          $started_unconnected = 1;
         }
       }
 
@@ -913,7 +945,7 @@ sub _determine_driver {
     $self->_init; # run driver-specific initializations
 
     $self->_run_connection_actions
-        if $started_unconnected && defined $self->_dbh;
+        if !$started_connected && defined $self->_dbh;
   }
 }
 
@@ -1144,7 +1176,6 @@ sub _dbh_begin_work {
 sub txn_commit {
   my $self = shift;
   if ($self->{transaction_depth} == 1) {
-    my $dbh = $self->_dbh;
     $self->debugobj->txn_commit()
       if ($self->debug);
     $self->_dbh_commit;
@@ -1160,7 +1191,9 @@ sub txn_commit {
 
 sub _dbh_commit {
   my $self = shift;
-  $self->_dbh->commit;
+  my $dbh  = $self->_dbh
+    or $self->throw_exception('cannot COMMIT on a disconnected handle');
+  $dbh->commit;
 }
 
 sub txn_rollback {
@@ -1197,7 +1230,9 @@ sub txn_rollback {
 
 sub _dbh_rollback {
   my $self = shift;
-  $self->_dbh->rollback;
+  my $dbh  = $self->_dbh
+    or $self->throw_exception('cannot ROLLBACK on a disconnected handle');
+  $dbh->rollback;
 }
 
 # This used to be the top-half of _execute.  It was split out to make it
@@ -1300,12 +1335,6 @@ sub _execute {
 sub insert {
   my ($self, $source, $to_insert) = @_;
 
-# redispatch to insert method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('insert');
-  }
-
   my $ident = $source->from;
   my $bind_attributes = $self->source_bind_attributes($source);
 
@@ -1337,21 +1366,102 @@ sub insert {
 sub insert_bulk {
   my ($self, $source, $cols, $data) = @_;
 
-# redispatch to insert_bulk method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('insert_bulk');
+  my %colvalues;
+  @colvalues{@$cols} = (0..$#$cols);
+
+  for my $i (0..$#$cols) {
+    my $first_val = $data->[0][$i];
+    next unless ref $first_val eq 'SCALAR';
+
+    $colvalues{ $cols->[$i] } = $first_val;
   }
 
-  my %colvalues;
-  my $table = $source->from;
-  @colvalues{@$cols} = (0..$#$cols);
-  my ($sql, @bind) = $self->sql_maker->insert($table, \%colvalues);
+  # check for bad data and stringify stringifiable objects
+  my $bad_slice = sub {
+    my ($msg, $col_idx, $slice_idx) = @_;
+    $self->throw_exception(sprintf "%s for column '%s' in populate slice:\n%s",
+      $msg,
+      $cols->[$col_idx],
+      do {
+        local $Data::Dumper::Maxdepth = 1; # don't dump objects, if any
+        Data::Dumper::Concise::Dumper({
+          map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
+        }),
+      }
+    );
+  };
 
-  $self->_query_start( $sql, @bind );
+  for my $datum_idx (0..$#$data) {
+    my $datum = $data->[$datum_idx];
+
+    for my $col_idx (0..$#$cols) {
+      my $val            = $datum->[$col_idx];
+      my $sqla_bind      = $colvalues{ $cols->[$col_idx] };
+      my $is_literal_sql = (ref $sqla_bind) eq 'SCALAR';
+
+      if ($is_literal_sql) {
+        if (not ref $val) {
+          $bad_slice->('bind found where literal SQL expected', $col_idx, $datum_idx);
+        }
+        elsif ((my $reftype = ref $val) ne 'SCALAR') {
+          $bad_slice->("$reftype reference found where literal SQL expected",
+            $col_idx, $datum_idx);
+        }
+        elsif ($$val ne $$sqla_bind){
+          $bad_slice->("inconsistent literal SQL value, expecting: '$$sqla_bind'",
+            $col_idx, $datum_idx);
+        }
+      }
+      elsif (my $reftype = ref $val) {
+        require overload;
+        if (overload::Method($val, '""')) {
+          $datum->[$col_idx] = "".$val;
+        }
+        else {
+          $bad_slice->("$reftype reference found where bind expected",
+            $col_idx, $datum_idx);
+        }
+      }
+    }
+  }
+
+  my ($sql, $bind) = $self->_prep_for_execute (
+    'insert', undef, $source, [\%colvalues]
+  );
+  my @bind = @$bind;
+
+  my $empty_bind = 1 if (not @bind) &&
+    (grep { ref $_ eq 'SCALAR' } values %colvalues) == @$cols;
+
+  if ((not @bind) && (not $empty_bind)) {
+    $self->throw_exception(
+      'Cannot insert_bulk without support for placeholders'
+    );
+  }
+
+  $self->_query_start( $sql, ['__BULK__'] );
   my $sth = $self->sth($sql);
 
-#  @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+  my $rv = do {
+    if ($empty_bind) {
+      # bind_param_array doesn't work if there are no binds
+      $self->_dbh_execute_inserts_with_no_binds( $sth, scalar @$data );
+    }
+    else {
+#      @bind = map { ref $_ ? ''.$_ : $_ } @bind; # stringify args
+      $self->_execute_array( $source, $sth, \@bind, $cols, $data );
+    }
+  };
+
+  $self->_query_end( $sql, ['__BULK__'] );
+
+  return (wantarray ? ($rv, $sth, @bind) : $rv);
+}
+
+sub _execute_array {
+  my ($self, $source, $sth, $bind, $cols, $data, @extra) = @_;
+
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
 
   ## This must be an arrayref, else nothing works!
   my $tuple_status = [];
@@ -1362,7 +1472,7 @@ sub insert_bulk {
   ## Bind the values and execute
   my $placeholder_index = 1;
 
-  foreach my $bound (@bind) {
+  foreach my $bound (@$bind) {
 
     my $attributes = {};
     my ($column_name, $data_index) = @$bound;
@@ -1377,63 +1487,89 @@ sub insert_bulk {
     $sth->bind_param_array( $placeholder_index, [@data], $attributes );
     $placeholder_index++;
   }
-  my $rv = eval { $sth->execute_array({ArrayTupleStatus => $tuple_status}) };
-  if (my $err = $@) {
+
+  my $rv = eval {
+    $self->_dbh_execute_array($sth, $tuple_status, @extra);
+  };
+  my $err = $@ || $sth->errstr;
+
+# Statement must finish even if there was an exception.
+  eval { $sth->finish };
+  $err = $@ unless $err;
+
+  if ($err) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
 
-    $self->throw_exception($sth->errstr || "Unexpected populate error: $err")
+    $self->throw_exception("Unexpected populate error: $err")
       if ($i > $#$tuple_status);
 
-    require Data::Dumper;
-    local $Data::Dumper::Terse = 1;
-    local $Data::Dumper::Indent = 1;
-    local $Data::Dumper::Useqq = 1;
-    local $Data::Dumper::Quotekeys = 0;
-    local $Data::Dumper::Sortkeys = 1;
-
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
-      $tuple_status->[$i][1],
-      Data::Dumper::Dumper(
-        { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) }
-      ),
+      ($tuple_status->[$i][1] || $err),
+      Data::Dumper::Concise::Dumper({
+        map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols)
+      }),
     );
   }
-  $self->throw_exception($sth->errstr) if !$rv;
 
-  $self->_query_end( $sql, @bind );
-  return (wantarray ? ($rv, $sth, @bind) : $rv);
+  $guard->commit if $guard;
+
+  return $rv;
+}
+
+sub _dbh_execute_array {
+    my ($self, $sth, $tuple_status, @extra) = @_;
+
+    return $sth->execute_array({ArrayTupleStatus => $tuple_status});
+}
+
+sub _dbh_execute_inserts_with_no_binds {
+  my ($self, $sth, $count) = @_;
+
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
+
+  eval {
+    my $dbh = $self->_get_dbh;
+    local $dbh->{RaiseError} = 1;
+    local $dbh->{PrintError} = 0;
+
+    $sth->execute foreach 1..$count;
+  };
+  my $exception = $@;
+
+# Make sure statement is finished even if there was an exception.
+  eval { $sth->finish };
+  $exception = $@ unless $exception;
+
+  $self->throw_exception($exception) if $exception;
+
+  $guard->commit if $guard;
+
+  return $count;
 }
 
 sub update {
   my ($self, $source, @args) = @_; 
 
-# redispatch to update method of storage we reblessed into, if necessary
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can('update');
-  }
+  my $bind_attrs = $self->source_bind_attributes($source);
 
-  my $bind_attributes = $self->source_bind_attributes($source);
-
-  return $self->_execute('update' => [], $source, $bind_attributes, @args);
+  return $self->_execute('update' => [], $source, $bind_attrs, @args);
 }
 
 
 sub delete {
-  my $self = shift @_;
-  my $source = shift @_;
-  $self->_determine_driver;
+  my ($self, $source, @args) = @_;
+
   my $bind_attrs = $self->source_bind_attributes($source);
 
-  return $self->_execute('delete' => [], $source, $bind_attrs, @_);
+  return $self->_execute('delete' => [], $source, $bind_attrs, @args);
 }
 
 # We were sent here because the $rs contains a complex search
 # which will require a subquery to select the correct rows
-# (i.e. joined or limited resultsets)
+# (i.e. joined or limited resultsets, or non-introspectable conditions)
 #
-# Genarating a single PK column subquery is trivial and supported
+# Generating a single PK column subquery is trivial and supported
 # by all RDBMS. However if we have a multicolumn PK, things get ugly.
 # Look at _multipk_update_delete()
 sub _subq_update_delete {
@@ -1442,14 +1578,19 @@ sub _subq_update_delete {
 
   my $rsrc = $rs->result_source;
 
-  # we already check this, but double check naively just in case. Should be removed soon
+  # quick check if we got a sane rs on our hands
+  my @pcols = $rsrc->primary_columns;
+
   my $sel = $rs->_resolved_attrs->{select};
   $sel = [ $sel ] unless ref $sel eq 'ARRAY';
-  my @pcols = $rsrc->primary_columns;
-  if (@$sel != @pcols) {
+
+  if (
+      join ("\x00", map { join '.', $rs->{attrs}{alias}, $_ } sort @pcols)
+        ne
+      join ("\x00", sort @$sel )
+  ) {
     $self->throw_exception (
-      'Subquery update/delete can not be called on resultsets selecting a'
-     .' number of columns different than the number of primary keys'
+      '_subq_update_delete can not be called on resultsets selecting columns other than the primary keys'
     );
   }
 
@@ -1651,324 +1792,6 @@ sub _select_args {
   return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $order, @limit);
 }
 
-#
-# This is the code producing joined subqueries like:
-# SELECT me.*, other.* FROM ( SELECT me.* FROM ... ) JOIN other ON ... 
-#
-sub _adjust_select_args_for_complex_prefetch {
-  my ($self, $from, $select, $where, $attrs) = @_;
-
-  $self->throw_exception ('Nothing to prefetch... how did we get here?!')
-    if not @{$attrs->{_prefetch_select}};
-
-  $self->throw_exception ('Complex prefetches are not supported on resultsets with a custom from attribute')
-    if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY');
-
-
-  # generate inner/outer attribute lists, remove stuff that doesn't apply
-  my $outer_attrs = { %$attrs };
-  delete $outer_attrs->{$_} for qw/where bind rows offset group_by having/;
-
-  my $inner_attrs = { %$attrs };
-  delete $inner_attrs->{$_} for qw/for collapse _prefetch_select _collapse_order_by select as/;
-
-
-  # bring over all non-collapse-induced order_by into the inner query (if any)
-  # the outer one will have to keep them all
-  delete $inner_attrs->{order_by};
-  if (my $ord_cnt = @{$outer_attrs->{order_by}} - @{$outer_attrs->{_collapse_order_by}} ) {
-    $inner_attrs->{order_by} = [
-      @{$outer_attrs->{order_by}}[ 0 .. $ord_cnt - 1]
-    ];
-  }
-
-
-  # generate the inner/outer select lists
-  # for inside we consider only stuff *not* brought in by the prefetch
-  # on the outside we substitute any function for its alias
-  my $outer_select = [ @$select ];
-  my $inner_select = [];
-  for my $i (0 .. ( @$outer_select - @{$outer_attrs->{_prefetch_select}} - 1) ) {
-    my $sel = $outer_select->[$i];
-
-    if (ref $sel eq 'HASH' ) {
-      $sel->{-as} ||= $attrs->{as}[$i];
-      $outer_select->[$i] = join ('.', $attrs->{alias}, ($sel->{-as} || "inner_column_$i") );
-    }
-
-    push @$inner_select, $sel;
-  }
-
-  # normalize a copy of $from, so it will be easier to work with further
-  # down (i.e. promote the initial hashref to an AoH)
-  $from = [ @$from ];
-  $from->[0] = [ $from->[0] ];
-  my %original_join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
-
-
-  # decide which parts of the join will remain in either part of
-  # the outer/inner query
-
-  # First we compose a list of which aliases are used in restrictions
-  # (i.e. conditions/order/grouping/etc). Since we do not have
-  # introspectable SQLA, we fall back to ugly scanning of raw SQL for
-  # WHERE, and for pieces of ORDER BY in order to determine which aliases
-  # need to appear in the resulting sql.
-  # It may not be very efficient, but it's a reasonable stop-gap
-  # Also unqualified column names will not be considered, but more often
-  # than not this is actually ok
-  #
-  # In the same loop we enumerate part of the selection aliases, as
-  # it requires the same sqla hack for the time being
-  my ($restrict_aliases, $select_aliases, $prefetch_aliases);
-  {
-    # produce stuff unquoted, so it can be scanned
-    my $sql_maker = $self->sql_maker;
-    local $sql_maker->{quote_char};
-    my $sep = $self->_sql_maker_opts->{name_sep} || '.';
-    $sep = "\Q$sep\E";
-
-    my $non_prefetch_select_sql = $sql_maker->_recurse_fields ($inner_select);
-    my $prefetch_select_sql = $sql_maker->_recurse_fields ($outer_attrs->{_prefetch_select});
-    my $where_sql = $sql_maker->where ($where);
-    my $group_by_sql = $sql_maker->_order_by({
-      map { $_ => $inner_attrs->{$_} } qw/group_by having/
-    });
-    my @non_prefetch_order_by_chunks = (map
-      { ref $_ ? $_->[0] : $_ }
-      $sql_maker->_order_by_chunks ($inner_attrs->{order_by})
-    );
-
-
-    for my $alias (keys %original_join_info) {
-      my $seen_re = qr/\b $alias $sep/x;
-
-      for my $piece ($where_sql, $group_by_sql, @non_prefetch_order_by_chunks ) {
-        if ($piece =~ $seen_re) {
-          $restrict_aliases->{$alias} = 1;
-        }
-      }
-
-      if ($non_prefetch_select_sql =~ $seen_re) {
-          $select_aliases->{$alias} = 1;
-      }
-
-      if ($prefetch_select_sql =~ $seen_re) {
-          $prefetch_aliases->{$alias} = 1;
-      }
-
-    }
-  }
-
-  # Add any non-left joins to the restriction list (such joins are indeed restrictions)
-  for my $j (values %original_join_info) {
-    my $alias = $j->{-alias} or next;
-    $restrict_aliases->{$alias} = 1 if (
-      (not $j->{-join_type})
-        or
-      ($j->{-join_type} !~ /^left (?: \s+ outer)? $/xi)
-    );
-  }
-
-  # mark all join parents as mentioned
-  # (e.g.  join => { cds => 'tracks' } - tracks will need to bring cds too )
-  for my $collection ($restrict_aliases, $select_aliases) {
-    for my $alias (keys %$collection) {
-      $collection->{$_} = 1
-        for (@{ $original_join_info{$alias}{-join_path} || [] });
-    }
-  }
-
-  # construct the inner $from for the subquery
-  my %inner_joins = (map { %{$_ || {}} } ($restrict_aliases, $select_aliases) );
-  my @inner_from;
-  for my $j (@$from) {
-    push @inner_from, $j if $inner_joins{$j->[0]{-alias}};
-  }
-
-  # if a multi-type join was needed in the subquery ("multi" is indicated by
-  # presence in {collapse}) - add a group_by to simulate the collapse in the subq
-  unless ($inner_attrs->{group_by}) {
-    for my $alias (keys %inner_joins) {
-
-      # the dot comes from some weirdness in collapse
-      # remove after the rewrite
-      if ($attrs->{collapse}{".$alias"}) {
-        $inner_attrs->{group_by} ||= $inner_select;
-        last;
-      }
-    }
-  }
-
-  # demote the inner_from head
-  $inner_from[0] = $inner_from[0][0];
-
-  # generate the subquery
-  my $subq = $self->_select_args_to_query (
-    \@inner_from,
-    $inner_select,
-    $where,
-    $inner_attrs,
-  );
-
-  my $subq_joinspec = {
-    -alias => $attrs->{alias},
-    -source_handle => $inner_from[0]{-source_handle},
-    $attrs->{alias} => $subq,
-  };
-
-  # Generate the outer from - this is relatively easy (really just replace
-  # the join slot with the subquery), with a major caveat - we can not
-  # join anything that is non-selecting (not part of the prefetch), but at
-  # the same time is a multi-type relationship, as it will explode the result.
-  #
-  # There are two possibilities here
-  # - either the join is non-restricting, in which case we simply throw it away
-  # - it is part of the restrictions, in which case we need to collapse the outer
-  #   result by tackling yet another group_by to the outside of the query
-
-  # so first generate the outer_from, up to the substitution point
-  my @outer_from;
-  while (my $j = shift @$from) {
-    if ($j->[0]{-alias} eq $attrs->{alias}) { # time to swap
-      push @outer_from, [
-        $subq_joinspec,
-        @{$j}[1 .. $#$j],
-      ];
-      last; # we'll take care of what's left in $from below
-    }
-    else {
-      push @outer_from, $j;
-    }
-  }
-
-  # see what's left - throw away if not selecting/restricting
-  # also throw in a group_by if restricting to guard against
-  # cross-join explosions
-  #
-  while (my $j = shift @$from) {
-    my $alias = $j->[0]{-alias};
-
-    if ($select_aliases->{$alias} || $prefetch_aliases->{$alias}) {
-      push @outer_from, $j;
-    }
-    elsif ($restrict_aliases->{$alias}) {
-      push @outer_from, $j;
-
-      # FIXME - this should be obviated by SQLA2, as I'll be able to 
-      # have restrict_inner and restrict_outer... or something to that
-      # effect... I think...
-
-      # FIXME2 - I can't find a clean way to determine if a particular join
-      # is a multi - instead I am just treating everything as a potential
-      # explosive join (ribasushi)
-      #
-      # if (my $handle = $j->[0]{-source_handle}) {
-      #   my $rsrc = $handle->resolve;
-      #   ... need to bail out of the following if this is not a multi,
-      #       as it will be much easier on the db ...
-
-          $outer_attrs->{group_by} ||= $outer_select;
-      # }
-    }
-  }
-
-  # demote the outer_from head
-  $outer_from[0] = $outer_from[0][0];
-
-  # This is totally horrific - the $where ends up in both the inner and outer query
-  # Unfortunately not much can be done until SQLA2 introspection arrives, and even
-  # then if where conditions apply to the *right* side of the prefetch, you may have
-  # to both filter the inner select (e.g. to apply a limit) and then have to re-filter
-  # the outer select to exclude joins you didin't want in the first place
-  #
-  # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
-  return (\@outer_from, $outer_select, $where, $outer_attrs);
-}
-
-sub _resolve_ident_sources {
-  my ($self, $ident) = @_;
-
-  my $alias2source = {};
-  my $rs_alias;
-
-  # the reason this is so contrived is that $ident may be a {from}
-  # structure, specifying multiple tables to join
-  if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
-    # this is compat mode for insert/update/delete which do not deal with aliases
-    $alias2source->{me} = $ident;
-    $rs_alias = 'me';
-  }
-  elsif (ref $ident eq 'ARRAY') {
-
-    for (@$ident) {
-      my $tabinfo;
-      if (ref $_ eq 'HASH') {
-        $tabinfo = $_;
-        $rs_alias = $tabinfo->{-alias};
-      }
-      if (ref $_ eq 'ARRAY' and ref $_->[0] eq 'HASH') {
-        $tabinfo = $_->[0];
-      }
-
-      $alias2source->{$tabinfo->{-alias}} = $tabinfo->{-source_handle}->resolve
-        if ($tabinfo->{-source_handle});
-    }
-  }
-
-  return ($alias2source, $rs_alias);
-}
-
-# Takes $ident, \@column_names
-#
-# returns { $column_name => \%column_info, ... }
-# also note: this adds -result_source => $rsrc to the column info
-#
-# usage:
-#   my $col_sources = $self->_resolve_column_info($ident, @column_names);
-sub _resolve_column_info {
-  my ($self, $ident, $colnames) = @_;
-  my ($alias2src, $root_alias) = $self->_resolve_ident_sources($ident);
-
-  my $sep = $self->_sql_maker_opts->{name_sep} || '.';
-  $sep = "\Q$sep\E";
-
-  my (%return, %seen_cols);
-
-  # compile a global list of column names, to be able to properly
-  # disambiguate unqualified column names (if at all possible)
-  for my $alias (keys %$alias2src) {
-    my $rsrc = $alias2src->{$alias};
-    for my $colname ($rsrc->columns) {
-      push @{$seen_cols{$colname}}, $alias;
-    }
-  }
-
-  COLUMN:
-  foreach my $col (@$colnames) {
-    my ($alias, $colname) = $col =~ m/^ (?: ([^$sep]+) $sep)? (.+) $/x;
-
-    unless ($alias) {
-      # see if the column was seen exactly once (so we know which rsrc it came from)
-      if ($seen_cols{$colname} and @{$seen_cols{$colname}} == 1) {
-        $alias = $seen_cols{$colname}[0];
-      }
-      else {
-        next COLUMN;
-      }
-    }
-
-    my $rsrc = $alias2src->{$alias};
-    $return{$col} = $rsrc && {
-      %{$rsrc->column_info($colname)},
-      -result_source => $rsrc,
-      -source_alias => $alias,
-    };
-  }
-
-  return \%return;
-}
-
 # Returns a counting SELECT for a simple count
 # query. Abstracted so that a storage could override
 # this to { count => 'firstcol' } or whatever makes
@@ -1992,7 +1815,6 @@ sub _subq_count_select {
   my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
   return @pcols ? \@pcols : [ 1 ];
 }
-
 
 sub source_bind_attributes {
   my ($self, $source) = @_;
@@ -2227,14 +2049,7 @@ Returns the database driver name.
 =cut
 
 sub sqlt_type {
-  my ($self) = @_;
-
-  if (not $self->_driver_determined) {
-    $self->_determine_driver;
-    goto $self->can ('sqlt_type');
-  }
-
-  $self->_get_dbh->{Driver}->{Name};
+  shift->_get_dbh->{Driver}->{Name};
 }
 
 =head2 bind_attribute_by_data_type
@@ -2508,7 +2323,11 @@ sub deployment_statements {
     parser => 'SQL::Translator::Parser::DBIx::Class',
     data => $schema,
   );
-  return $tr->translate;
+
+  my $ret = $tr->translate
+    or $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error);
+
+  return $ret;
 }
 
 sub deploy {
@@ -2574,11 +2393,6 @@ See L</datetime_parser>
 =cut
 
 sub build_datetime_parser {
-  if (not $_[0]->_driver_determined) {
-    $_[0]->_determine_driver;
-    goto $_[0]->can('build_datetime_parser');
-  }
-
   my $self = shift;
   my $type = $self->datetime_parser_type(@_);
   $self->ensure_class_loaded ($type);
@@ -2611,10 +2425,10 @@ sub lag_behind_master {
     return;
 }
 
-# SQLT version handling 
+# SQLT version handling
 {
-  my $_sqlt_version_ok;     # private 
-  my $_sqlt_version_error;  # private 
+  my $_sqlt_version_ok;     # private
+  my $_sqlt_version_error;  # private
 
   sub _sqlt_version_ok {
     if (!defined $_sqlt_version_ok) {

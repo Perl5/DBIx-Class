@@ -18,10 +18,6 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-my $TESTS = 15;
-
-plan tests => $TESTS * 2;
-
 my @storage_types = (
   'DBI::Sybase::Microsoft_SQL_Server',
   'DBI::Sybase::Microsoft_SQL_Server::NoBindVars',
@@ -29,6 +25,7 @@ my @storage_types = (
 my $storage_idx = -1;
 my $schema;
 
+my $NUMBER_OF_TESTS_IN_BLOCK = 18;
 for my $storage_type (@storage_types) {
   $storage_idx++;
 
@@ -44,7 +41,7 @@ for my $storage_type (@storage_types) {
 
   if ($storage_idx == 0 && ref($schema->storage) =~ /NoBindVars\z/) {
     my $tb = Test::More->builder;
-    $tb->skip('no placeholders') for 1..$TESTS;
+    $tb->skip('no placeholders') for 1..$NUMBER_OF_TESTS_IN_BLOCK;
     next;
   }
 
@@ -145,16 +142,43 @@ SQL
     $rs->reset;
   } 'multiple active statements';
 
-  # test multiple active statements in a transaction
-  TODO: {
-    local $TODO = 'needs similar FreeTDS fixes to the ones in Sybase.pm';
-    lives_ok {
-      $schema->txn_do(sub {
-        $rs->create({ amount => 400 });
-      });
-    } 'simple transaction';
-  }
+  $rs->delete;
+
+  # test simple transaction with commit
+  lives_ok {
+    $schema->txn_do(sub {
+      $rs->create({ amount => 400 });
+    });
+  } 'simple transaction';
+
+  cmp_ok $rs->first->amount, '==', 400, 'committed';
+  $rs->reset;
+
+  $rs->delete;
+
+  # test rollback
+  throws_ok {
+    $schema->txn_do(sub {
+      $rs->create({ amount => 400 });
+      die 'mtfnpy';
+    });
+  } qr/mtfnpy/, 'simple failed txn';
+
+  is $rs->first, undef, 'rolled back';
+  $rs->reset;
 }
+
+# test op-induced autoconnect
+lives_ok (sub {
+
+  my $schema =  DBICTest::Schema->clone;
+  $schema->connection($dsn, $user, $pass);
+
+  my $artist = $schema->resultset ('Artist')->search ({}, { order_by => 'artistid' })->next;
+  is ($artist->id, 1, 'Artist retrieved successfully');
+}, 'Query-induced autoconnect works');
+
+done_testing;
 
 # clean up our mess
 END {
