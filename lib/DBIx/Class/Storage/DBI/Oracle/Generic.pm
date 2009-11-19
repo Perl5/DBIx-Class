@@ -15,9 +15,55 @@ DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
   __PACKAGE__->set_primary_key('id');
   __PACKAGE__->sequence('mysequence');
 
+  # Somewhere in your Code
+  # add some data to a table with a hierarchical relationship
+  $schema->resultset('Person')->create ({
+        firstname => 'foo',
+        lastname => 'bar',
+        children => [
+            {
+                firstname => 'child1',
+                lastname => 'bar',
+                children => [
+                    {
+                        firstname => 'grandchild',
+                        lastname => 'bar',
+                    }
+                ],
+            },
+            {
+                firstname => 'child2',
+                lastname => 'bar',
+            },
+        ],
+    });
+
+  # select from the hierarchical relationship
+  my $rs = $schema->resultset('Person')->search({},
+    {
+      'start_with' => { 'firstname' => 'foo', 'lastname' => 'bar' },
+      'connect_by' => { 'parentid' => 'prior persionid'},
+      'order_siblings_by' => 'firstname ASC',
+    };
+  );
+
+  # this will select the whole tree starting from person "foo bar", creating
+  # following query:
+  # SELECT
+  #     me.persionid me.firstname, me.lastname, me.parentid
+  # FROM
+  #     person me
+  # START WITH
+  #     firstname = 'foo' and lastname = 'bar'
+  # CONNECT BY
+  #     parentid = prior persionid
+  # ORDER SIBLINGS BY
+  #     firstname ASC
+
 =head1 DESCRIPTION
 
-This class implements autoincrements for Oracle.
+This class implements autoincrements for Oracle and adds support for Oracle
+specific hierarchical queries.
 
 =head1 METHODS
 
@@ -25,6 +71,8 @@ This class implements autoincrements for Oracle.
 
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
+
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::Oracle');
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, @columns) = @_;
@@ -273,6 +321,94 @@ sub _svp_rollback {
 
     $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
+
+sub _select_args {
+    my ($self, $ident, $select, $where, $attrs) = @_;
+
+    my $connect_by_args = {};
+    if ( $attrs->{connect_by} || $attrs->{start_with} || $attrs->{order_siblings_by} ) {
+        $connect_by_args = {
+            connect_by => $attrs->{connect_by},
+            start_with => $attrs->{start_with},
+            order_siblings_by => $attrs->{order_siblings_by},
+        }
+    }
+
+    my @rv = $self->next::method($ident, $select, $where, $attrs);
+
+    return (@rv, $connect_by_args);
+}
+
+=head1 ATTRIBUTES
+
+Following additional attributes can be used in resultsets.
+
+=head2 connect_by
+
+=over 4
+
+=item Value: \%connect_by
+
+=back
+
+A hashref of conditions used to specify the relationship between parent rows
+and child rows of the hierarchy.
+
+  connect_by => { parentid => 'prior personid' }
+
+  # adds a connect by statement to the query:
+  # SELECT
+  #     me.persionid me.firstname, me.lastname, me.parentid
+  # FROM
+  #     person me
+  # CONNECT BY
+  #     parentid = prior persionid
+
+=head2 start_with
+
+=over 4
+
+=item Value: \%condition
+
+=back
+
+A hashref of conditions which specify the root row(s) of the hierarchy.
+
+It uses the same syntax as L<DBIx::Class::ResultSet/search>
+
+  start_with => { firstname => 'Foo', lastname => 'Bar' }
+
+  # SELECT
+  #     me.persionid me.firstname, me.lastname, me.parentid
+  # FROM
+  #     person me
+  # START WITH
+  #     firstname = 'foo' and lastname = 'bar'
+  # CONNECT BY
+  #     parentid = prior persionid
+
+=head2 order_siblings_by
+
+=over 4
+
+=item Value: ($order_siblings_by | \@order_siblings_by)
+
+=back
+
+Which column(s) to order the siblings by.
+
+It uses the same syntax as L<DBIx::Class::ResultSet/order_by>
+
+  'order_siblings_by' => 'firstname ASC'
+
+  # SELECT
+  #     me.persionid me.firstname, me.lastname, me.parentid
+  # FROM
+  #     person me
+  # CONNECT BY
+  #     parentid = prior persionid
+  # ORDER SIBLINGS BY
+  #     firstname ASC
 
 =head1 AUTHOR
 

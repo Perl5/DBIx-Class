@@ -40,16 +40,23 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
   unless ($dsn && $user && $pass);
 
-plan tests => 36;
-
 DBICTest::Schema->load_classes('ArtistFQN');
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 my $dbh = $schema->storage->dbh;
 
+if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
+    plan tests => 46;
+}
+else {
+    plan tests => 36;
+}
+
+
 eval {
   $dbh->do("DROP SEQUENCE artist_seq");
   $dbh->do("DROP SEQUENCE cd_seq");
+  $dbh->do("DROP SEQUENCE track_seq");
   $dbh->do("DROP SEQUENCE pkid1_seq");
   $dbh->do("DROP SEQUENCE pkid2_seq");
   $dbh->do("DROP SEQUENCE nonpkid_seq");
@@ -60,16 +67,18 @@ eval {
 };
 $dbh->do("CREATE SEQUENCE artist_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE cd_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
+$dbh->do("CREATE SEQUENCE track_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE pkid1_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE pkid2_seq START WITH 10 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE nonpkid_seq START WITH 20 MAXVALUE 999999 MINVALUE 0");
-$dbh->do("CREATE TABLE artist (artistid NUMBER(12), name VARCHAR(255), rank NUMBER(38), charfield VARCHAR2(10))");
+$dbh->do("CREATE TABLE artist (artistid NUMBER(12), parentid NUMBER(12), name VARCHAR(255), rank NUMBER(38), charfield VARCHAR2(10))");
 $dbh->do("CREATE TABLE sequence_test (pkid1 NUMBER(12), pkid2 NUMBER(12), nonpkid NUMBER(12), name VARCHAR(255))");
-$dbh->do("CREATE TABLE cd (cdid NUMBER(12), artist NUMBER(12), title VARCHAR(255), year VARCHAR(4))");
+$dbh->do("CREATE TABLE cd (cdid NUMBER(12), artist NUMBER(12), title VARCHAR(255), year VARCHAR(4), single_track NUMBER(12), genreid NUMBER(12))");
 $dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255), last_updated_on DATE, last_updated_at DATE, small_dt DATE)");
 
 $dbh->do("ALTER TABLE artist ADD (CONSTRAINT artist_pk PRIMARY KEY (artistid))");
 $dbh->do("ALTER TABLE cd ADD (CONSTRAINT cd_pk PRIMARY KEY (cdid))");
+$dbh->do("ALTER TABLE track ADD (CONSTRAINT track_pk PRIMARY KEY (trackid))");
 $dbh->do("ALTER TABLE sequence_test ADD (CONSTRAINT sequence_test_constraint PRIMARY KEY (pkid1, pkid2))");
 $dbh->do(qq{
   CREATE OR REPLACE TRIGGER artist_insert_trg
@@ -91,6 +100,30 @@ $dbh->do(qq{
     IF :new.cdid IS NULL THEN
       SELECT cd_seq.nextval
       INTO :new.cdid
+      FROM DUAL;
+    END IF;
+  END;
+});
+$dbh->do(qq{
+  CREATE OR REPLACE TRIGGER cd_insert_trg
+  BEFORE INSERT ON cd
+  FOR EACH ROW
+  BEGIN
+    IF :new.cdid IS NULL THEN
+      SELECT cd_seq.nextval
+      INTO :new.cdid
+      FROM DUAL;
+    END IF;
+  END;
+});
+$dbh->do(qq{
+  CREATE OR REPLACE TRIGGER track_insert_trg
+  BEFORE INSERT ON track
+  FOR EACH ROW
+  BEGIN
+    IF :new.trackid IS NULL THEN
+      SELECT track_seq.nextval
+      INTO :new.trackid
       FROM DUAL;
     END IF;
   END;
@@ -132,7 +165,7 @@ is( $new->artistid, 2, "Oracle Auto-PK worked with fully-qualified tablename" );
 
 # test join with row count ambiguity
 
-my $track = $schema->resultset('Track')->create({ trackid => 1, cd => 1,
+my $track = $schema->resultset('Track')->create({ cd => $cd->cdid,
     position => 1, title => 'Track1' });
 my $tjoin = $schema->resultset('Track')->search({ 'me.title' => 'Track1'},
         { join => 'cd',
@@ -144,7 +177,7 @@ ok(my $row = $tjoin->next);
 is($row->title, 'Track1', "ambiguous column ok");
 
 # check count distinct with multiple columns
-my $other_track = $schema->resultset('Track')->create({ trackid => 2, cd => 1, position => 1, title => 'Track2' });
+my $other_track = $schema->resultset('Track')->create({ cd => $cd->cdid, position => 1, title => 'Track2' });
 
 my $tcount = $schema->resultset('Track')->search(
   {},
@@ -228,11 +261,312 @@ SKIP: {
 	}
 }
 
+# test hierarchical querys
+if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
+    my $source = $schema->source('Artist');
+
+    $source->add_column( 'parentid' );
+
+    $source->add_relationship('children', 'DBICTest::Schema::Artist',
+        { 'foreign.parentid' => 'self.artistid' },
+        {
+            accessor => 'multi',
+            join_type => 'LEFT',
+            cascade_delete => 1,
+            cascade_copy => 1,
+        } );
+    $source->add_relationship('parent', 'DBICTest::Schema::Artist',
+        { 'foreign.artistid' => 'self.parentid' },
+        { accessor => 'single' } );
+    DBICTest::Schema::Artist->add_column( 'parentid' );
+    DBICTest::Schema::Artist->has_many(
+        children => 'DBICTest::Schema::Artist',
+        { 'foreign.parentid' => 'self.artistid' }
+    );
+    DBICTest::Schema::Artist->belongs_to(
+        parent => 'DBICTest::Schema::Artist',
+        { 'foreign.artistid' => 'self.parentid' }
+    );
+
+    $schema->resultset('Artist')->create ({
+        name => 'root',
+        cds => [],
+        children => [
+            {
+                name => 'child1',
+                children => [
+                    {
+                        name => 'grandchild',
+                        cds => [
+                            {
+                                title => "grandchilds's cd" ,
+                                year => '2008',
+                                tracks => [
+                                    {
+                                        position => 1,
+                                        title => 'Track 1 grandchild',
+                                    }
+                                ],
+                            }
+                        ],
+                        children => [
+                            {
+                                name => 'greatgrandchild',
+                            }
+                        ],
+                    }
+                ],
+            },
+            {
+                name => 'child2',
+            },
+        ],
+    });
+
+    {
+      # select the whole tree
+      my $rs = $schema->resultset('Artist')->search({},
+                              {
+                                'start_with' => { 'name' => 'root' },
+                                'connect_by' => { 'parentid' => 'prior artistid'},
+                              });
+=pod
+    SELECT
+        COUNT( * )
+    FROM
+        artist me
+    START WITH
+        name = ?
+    CONNECT BY
+        parentid = prior artistid
+
+    Parameters: 'root'
+=cut
+      is( $rs->count, 5, 'Connect By count ok' );
+      my $ok = 1;
+=pod
+    SELECT
+        me.artistid, me.name, me.rank, me.charfield, me.parentid
+    FROM
+        artist me
+    START WITH
+        name = ?
+    CONNECT BY
+        parentid = prior artistid
+
+    Parameters: 'root'
+=cut
+      foreach my $node_name (qw(root child1 grandchild greatgrandchild child2)) {
+        $ok = 0 if $rs->next->name ne $node_name;
+      }
+      ok( $ok, 'got artist tree');
+    }
+
+    {
+      # use order siblings by statement
+      my $rs = $schema->resultset('Artist')->search({},
+                              {
+                                'start_with' => { 'name' => 'root' },
+                                'connect_by' => { 'parentid' => 'prior artistid'},
+                                'order_siblings_by' => 'name DESC',
+                              });
+      my $ok = 1;
+=pod
+    SELECT
+        me.artistid, me.name, me.rank, me.charfield, me.parentid
+    FROM
+        artist me
+    START WITH
+        name = ?
+    CONNECT BY
+        parentid = prior artistid
+    ORDER SIBLINGS BY
+        name DESC
+
+    Parameters: 'root'
+=cut
+      foreach my $node_name (qw(root child2 child1 grandchild greatgrandchild)) {
+        $ok = 0 if $rs->next->name ne $node_name;
+      }
+      ok( $ok, 'Order Siblings By ok');
+    }
+
+    {
+      # get the root node
+      my $rs = $schema->resultset('Artist')->search({ parentid => undef },
+                              {
+                                'start_with' => { 'name' => 'greatgrandchild' },
+                                'connect_by' => { 'prior parentid' => 'artistid'},
+                              });
+=pod
+    SELECT
+        COUNT( * )
+    FROM
+        artist me
+    WHERE
+        ( parentid IS NULL )
+    START WITH
+        name = ?
+    CONNECT BY
+        prior parentid = artistid
+
+    Parameters: 'greatgrandchild'
+=cut
+      is( $rs->count, 1, 'root node count ok' );
+=pod
+    SELECT
+        me.artistid, me.name, me.rank, me.charfield, me.parentid
+    FROM
+        artist me
+    WHERE
+        ( parentid IS NULL )
+    START WITH
+        name = ?
+    CONNECT BY
+        prior parentid = artistid
+
+    Parameters: 'greatgrandchild'
+=cut
+      ok( $rs->next->name eq 'root', 'found root node');
+    }
+
+    {
+      # combine a connect by with a join
+      my $rs = $schema->resultset('Artist')->search({'cds.title' => { 'like' => '%cd'}},
+                              {
+                                'join' => 'cds',
+                                'start_with' => { 'name' => 'root' },
+                                'connect_by' => { 'parentid' => 'prior artistid'},
+                              });
+=pod
+    SELECT
+        COUNT( * )
+    FROM
+        artist me
+    LEFT JOIN
+        cd cds ON cds.artist = me.artistid
+    WHERE
+        ( cds.title LIKE ? )
+    START WITH
+        name = ?
+    CONNECT BY
+        parentid = prior artistid
+
+    Parameters: '%cd', 'root'
+=cut
+      is( $rs->count, 1, 'Connect By with a join; count ok' );
+=pod
+    SELECT
+        me.artistid, me.name, me.rank, me.charfield, me.parentid
+    FROM
+        artist me
+    LEFT JOIN
+        cd cds ON cds.artist = me.artistid
+    WHERE
+        ( cds.title LIKE ? )
+    START WITH
+        name = ?
+    CONNECT BY
+        parentid = prior artistid
+
+    Parameters: '%cd', 'root'
+=cut
+      ok( $rs->next->name eq 'grandchild', 'Connect By with a join; result name ok')
+    }
+
+    {
+      # combine a connect by with order_by
+      my $rs = $schema->resultset('Artist')->search({},
+                              {
+                                'start_with' => { 'name' => 'greatgrandchild' },
+                                'connect_by' => { 'prior parentid' => 'artistid'},
+                                'order_by' => 'name ASC',
+                              });
+      my $ok = 1;
+=pod
+    SELECT
+        me.artistid, me.name, me.rank, me.charfield, me.parentid
+    FROM
+        artist me
+    START WITH
+        name = ?
+    CONNECT BY
+        prior parentid = artistid
+    ORDER BY
+        name ASC
+
+    Parameters: 'greatgrandchild'
+=cut
+      foreach my $node_name (qw(child1 grandchild greatgrandchild root)) {
+        $ok = 0 if $rs->next->name ne $node_name;
+      }
+      ok( $ok, 'Connect By with a order_by; result name ok');
+    }
+
+    {
+      # limit a connect by
+      my $rs = $schema->resultset('Artist')->search({},
+                              {
+                                'start_with' => { 'name' => 'greatgrandchild' },
+                                'connect_by' => { 'prior parentid' => 'artistid'},
+                                'order_by' => 'name ASC',
+                                'rows' => 2,
+                                'page' => 1,
+                              });
+=pod
+    SELECT
+        COUNT( * )
+    FROM
+        artist me
+    START WITH
+        name = ?
+    CONNECT BY
+        prior parentid = artistid
+
+    Parameters: 'greatgrandchild'
+=cut
+      is( $rs->count(), 2, 'Connect By; LIMIT count ok' );
+      my $ok = 1;
+=pod
+    SELECT
+        *
+    FROM
+        (
+            SELECT
+                A.*,ROWNUM r
+            FROM
+                (
+                    SELECT
+                        me.artistid AS col1, me.name AS col2, me.rank AS col3, me.charfield AS col4, me.parentid AS col5
+                    FROM
+                        artist me
+                    START WITH
+                        name = ?
+                    CONNECT BY
+                        prior parentid = artistid
+                    ORDER BY
+                        name ASC
+                ) A
+            WHERE
+                ROWNUM < 3
+        ) B
+    WHERE
+        r >= 1
+    Parameters: 'greatgrandchild'
+=cut
+      foreach my $node_name (qw(child1 grandchild)) {
+        $ok = 0 if $rs->next->name ne $node_name;
+      }
+      ok( $ok, 'LIMIT a Connect By query ok');
+    }
+}
+
 # clean up our mess
 END {
     if($schema && ($dbh = $schema->storage->dbh)) {
         $dbh->do("DROP SEQUENCE artist_seq");
         $dbh->do("DROP SEQUENCE cd_seq");
+        $dbh->do("DROP SEQUENCE track_seq");
         $dbh->do("DROP SEQUENCE pkid1_seq");
         $dbh->do("DROP SEQUENCE pkid2_seq");
         $dbh->do("DROP SEQUENCE nonpkid_seq");
