@@ -472,6 +472,10 @@ sub _on_connect
   my ($self, $args) = @_;
 
   $args = {} unless $args;
+
+  # useful when connecting from scripts etc
+  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
+
   $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
   my $vtable = $self->{vschema}->resultset('Table');
 
@@ -486,8 +490,6 @@ sub _on_connect
     }
   }
 
-  # useful when connecting from scripts etc
-  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
   my $pversion = $self->get_db_version();
 
   if($pversion eq $self->schema_version)
