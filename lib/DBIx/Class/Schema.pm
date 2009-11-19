@@ -631,13 +631,13 @@ See L<DBIx::Class::Storage/"txn_do"> for more information.
 This interface is preferred over using the individual methods L</txn_begin>,
 L</txn_commit>, and L</txn_rollback> below.
 
-WARNING: If you are connected with C<AutoCommit => 0> the transaction is
+WARNING: If you are connected with C<< AutoCommit => 0 >> the transaction is
 considered nested, and you will still need to call L</txn_commit> to write your
-changes when appropriate. You will also want to connect with C<auto_savepoint =>
-1> to get partial rollback to work, if the storage driver for your database
+changes when appropriate. You will also want to connect with C<< auto_savepoint =>
+1 >> to get partial rollback to work, if the storage driver for your database
 supports it.
 
-Connecting with C<AutoCommit => 1> is recommended.
+Connecting with C<< AutoCommit => 1 >> is recommended.
 
 =cut
 
