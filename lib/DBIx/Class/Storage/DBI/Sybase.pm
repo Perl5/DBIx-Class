@@ -120,8 +120,8 @@ sub _init {
   my $self = shift;
   $self->_set_max_connect(256);
 
-  # based on LongReadLen in connect_info
-  $self->set_textsize if $self->using_freetds;
+# this is also done on _populate_dbh, but storage may not be reblessed yet
+  $self->_syb_setup_connection;
 
 # create storage for insert/(update blob) transactions,
 # unless this is that storage
@@ -182,14 +182,23 @@ sub disconnect {
   $self->next::method;
 }
 
-# Make sure we have CHAINED mode turned on if AutoCommit is off in non-FreeTDS
-# DBD::Sybase (since we don't know how DBD::Sybase was compiled.) If however
-# we're using FreeTDS, CHAINED mode turns on an implicit transaction which we
-# only want when AutoCommit is off.
 sub _populate_dbh {
   my $self = shift;
 
   $self->next::method(@_);
+
+  $self->_syb_setup_connection;
+}
+
+# Set up session settings for Sybase databases for the connection, called from
+# _populate_dbh and _init (before _driver_determined .)
+#
+# Make sure we have CHAINED mode turned on if AutoCommit is off in non-FreeTDS
+# DBD::Sybase (since we don't know how DBD::Sybase was compiled.) If however
+# we're using FreeTDS, CHAINED mode turns on an implicit transaction which we
+# only want when AutoCommit is off.
+sub _syb_setup_connection {
+  my $self = shift;
 
   return unless $self->_driver_determined; # otherwise we screw up MSSQL
 
@@ -202,6 +211,9 @@ sub _populate_dbh {
   if (not $self->using_freetds) {
     $self->_dbh->{syb_chained_txn} = 1;
   } else {
+    # based on LongReadLen in connect_info
+    $self->set_textsize;
+
     if ($self->_dbh_autocommit) {
       $self->_dbh->do('SET CHAINED OFF');
     } else {
