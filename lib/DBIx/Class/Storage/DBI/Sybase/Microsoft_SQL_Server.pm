@@ -20,13 +20,15 @@ sub _rebless {
   }
 }
 
-sub _init {
+sub _run_connection_actions {
   my $self = shift;
 
   # LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
   # huge on some versions of SQL server and can cause memory problems, so we
   # fix it up here (see Sybase/Common.pm)
   $self->set_textsize;
+
+  $self->next::method(@_);
 }
 
 sub _dbh_begin_work {

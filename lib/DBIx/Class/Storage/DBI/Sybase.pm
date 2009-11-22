@@ -120,9 +120,6 @@ sub _init {
   my $self = shift;
   $self->_set_max_connect(256);
 
-# this is also done on _populate_dbh, but storage may not be reblessed yet
-  $self->_syb_setup_connection;
-
 # create storage for insert/(update blob) transactions,
 # unless this is that storage
   return if $self->_is_extra_storage;
@@ -182,25 +179,16 @@ sub disconnect {
   $self->next::method;
 }
 
-sub _populate_dbh {
-  my $self = shift;
-
-  $self->next::method(@_);
-
-  $self->_syb_setup_connection;
-}
-
-# Set up session settings for Sybase databases for the connection, called from
-# _populate_dbh and _init (before _driver_determined .)
+# Set up session settings for Sybase databases for the connection.
 #
 # Make sure we have CHAINED mode turned on if AutoCommit is off in non-FreeTDS
 # DBD::Sybase (since we don't know how DBD::Sybase was compiled.) If however
 # we're using FreeTDS, CHAINED mode turns on an implicit transaction which we
 # only want when AutoCommit is off.
-sub _syb_setup_connection {
+#
+# Also SET TEXTSIZE for FreeTDS because LongReadLen doesn't work.
+sub _run_connection_actions {
   my $self = shift;
-
-  return unless $self->_driver_determined; # otherwise we screw up MSSQL
 
   if ($self->_is_bulk_storage) {
 # this should be cleared on every reconnect
@@ -220,6 +208,8 @@ sub _syb_setup_connection {
       $self->_dbh->do('SET CHAINED ON');
     }
   }
+
+  $self->next::method(@_);
 }
 
 =head2 connect_call_blob_setup

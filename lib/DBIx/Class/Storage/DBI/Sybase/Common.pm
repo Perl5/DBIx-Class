@@ -31,7 +31,7 @@ sub _ping {
   local $dbh->{PrintError} = 0;
 
   if ($dbh->{syb_no_child_con}) {
-# ping is impossible with an active statement, we return false if so
+# if extra connections are not allowed, then ->ping is reliable
     my $ping = eval { $dbh->ping };
     return $@ ? 0 : $ping;
   }
