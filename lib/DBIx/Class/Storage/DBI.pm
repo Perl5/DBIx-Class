@@ -14,6 +14,7 @@ use DBIx::Class::Storage::Statistics;
 use Scalar::Util();
 use List::Util();
 use Data::Dumper::Concise();
+use Sub::Name ();
 
 # what version of sqlt do we require if deploy() without a ddl_dir is invoked
 # when changing also adjust the corresponding author_require in Makefile.PL
@@ -63,7 +64,7 @@ for my $meth (@rdbms_specific_methods) {
 
   no strict qw/refs/;
   no warnings qw/redefine/;
-  *{__PACKAGE__ ."::$meth"} = sub {
+  *{__PACKAGE__ ."::$meth"} = Sub::Name::subname $meth => sub {
     if (not $_[0]->_driver_determined) {
       $_[0]->_determine_driver;
       goto $_[0]->can($meth);
