@@ -7,8 +7,8 @@ use base qw/DBIx::Class::Storage::DBI/;
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Sybase::Common - Base class for drivers using
-DBD::Sybase
+DBIx::Class::Storage::DBI::Sybase - Base class for drivers using
+L<DBD::Sybase>
 
 =head1 DESCRIPTION
 
