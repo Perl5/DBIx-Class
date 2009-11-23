@@ -473,11 +473,11 @@ sub _on_connect
 
   $args = {} unless $args;
 
-  # useful when connecting from scripts etc
-  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
-
   $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
   my $vtable = $self->{vschema}->resultset('Table');
+
+  # useful when connecting from scripts etc
+  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
 
   # check for legacy versions table and move to new if exists
   my $vschema_compat = DBIx::Class::VersionCompat->connect(@{$self->storage->connect_info()});
