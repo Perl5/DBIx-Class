@@ -24,7 +24,7 @@ my @storage_types = (
   'DBI::Sybase::ASE',
   'DBI::Sybase::ASE::NoBindVars',
 );
-eval "require $_" for @storage_types;
+eval "require DBIx::Class::Storage::$_;" for @storage_types;
 
 my $schema;
 my $storage_idx = -1;
