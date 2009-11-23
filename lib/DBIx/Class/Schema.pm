@@ -908,7 +908,7 @@ sub compose_namespace {
     no strict 'refs';
     no warnings 'redefine';
     foreach my $meth (qw/class source resultset/) {
-      *{"${target}::${meth}"} =
+      *{"${target}::${meth}"} = Sub::Name::subname "${target}::${meth}" =>
         sub { shift->schema->$meth(@_) };
     }
   }

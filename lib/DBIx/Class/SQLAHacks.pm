@@ -9,6 +9,7 @@ use base qw/SQL::Abstract::Limit/;
 use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
+use Sub::Name();
 
 BEGIN {
   # reinstall the carp()/croak() functions imported into SQL::Abstract
@@ -18,17 +19,15 @@ BEGIN {
   for my $f (qw/carp croak/) {
 
     my $orig = \&{"SQL::Abstract::$f"};
-    *{"SQL::Abstract::$f"} = sub {
-
-      local $Carp::CarpLevel = 1;   # even though Carp::Clan ignores this, $orig will not
-
-      if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+ .+? called \s at/x) {
-        __PACKAGE__->can($f)->(@_);
-      }
-      else {
-        $orig->(@_);
-      }
-    }
+    *{"SQL::Abstract::$f"} = Sub::Name::subname "SQL::Abstract::$f" =>
+      sub {
+        if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+ .+? called \s at/x) {
+          __PACKAGE__->can($f)->(@_);
+        }
+        else {
+          goto $orig;
+        }
+      };
   }
 }
 
