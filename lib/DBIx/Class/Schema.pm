@@ -406,12 +406,10 @@ sub load_classes {
 
 Set the storage class that will be instantiated when L</connect> is called.
 If the classname starts with C<::>, the prefix C<DBIx::Class::Storage> is
-assumed by L</connect>.  
+assumed by L</connect>.
 
 You want to use this to set subclasses of L<DBIx::Class::Storage::DBI>
-in cases where the appropriate subclass is not autodetected, such as
-when dealing with MSSQL via L<DBD::Sybase>, in which case you'd set it
-to C<::DBI::Sybase::MSSQL>.
+in cases where the appropriate subclass is not autodetected.
 
 If your storage type requires instantiation arguments, those are
 defined as a second argument in the form of a hashref and the entire

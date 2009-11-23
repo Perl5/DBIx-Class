@@ -3,6 +3,8 @@ Revision history for DBIx::Class
         - Fix distinct => 1 with non-selecting order_by (the columns
           in order_by also need to be aded to the resulting group_by)
         - Do not attempt to deploy FK constraints pointing to a View
+        - Refactored Sybase storage driver into a central ::DBI::Sybase
+          dispatcher, and a sybase-specific ::DBI::Sybase::ASE
 
 0.08114 2009-11-14 17:45:00 (UTC)
         - Preliminary support for MSSQL via DBD::ADO

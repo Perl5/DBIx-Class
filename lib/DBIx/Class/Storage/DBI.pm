@@ -1992,7 +1992,7 @@ sub last_insert_id {
 
 This API is B<EXPERIMENTAL>, will almost definitely change in the future, and
 currently only used by L<::AutoCast|DBIx::Class::Storage::DBI::AutoCast> and
-L<::Sybase|DBIx::Class::Storage::DBI::Sybase>.
+L<::Sybase::ASE|DBIx::Class::Storage::DBI::Sybase::ASE>.
 
 The default implementation returns C<undef>, implement in your Storage driver if
 you need this functionality.
