@@ -15,8 +15,6 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 142;
-
 
 ## ----------------------------------------------------------------------------
 ## Get a Schema and some ResultSets we can play with.
@@ -25,6 +23,8 @@ plan tests => 142;
 my $schema	= DBICTest->init_schema();
 my $art_rs	= $schema->resultset('Artist');
 my $cd_rs	= $schema->resultset('CD');
+
+my $restricted_art_rs	= $art_rs->search({rank => 42});
 
 ok( $schema, 'Got a Schema object');
 ok( $art_rs, 'Got Good Artist Resultset');
@@ -333,6 +333,18 @@ ARRAY_CONTEXT: {
 		is($cdB->artist->name, 'Fred BloggsD', 'Set Artist to FredD');
 		ok($cdB->artist->artistid == $aid, "Got Expected Artist ID");
 	}
+
+  WITH_COND_FROM_RS: {
+  
+    my ($more_crap) = $restricted_art_rs->populate([
+      {
+        name => 'More Manufactured Crap',
+      },
+    ]);
+    
+    ## Did it use the condition in the resultset?
+    cmp_ok( $more_crap->rank, '==', 42, "Got Correct rank for result object");
+  } 
 }
 
 
@@ -601,6 +613,21 @@ VOID_CONTEXT: {
 		ok( $cd2->title eq "VOID_Yet More Tweeny-Pop crap", "Got Expected CD Title");
 	}
 
+  WITH_COND_FROM_RS: {
+  
+    $restricted_art_rs->populate([
+      {
+        name => 'VOID More Manufactured Crap',
+      },
+    ]);
+
+    my $more_crap = $art_rs->search({
+      name => 'VOID More Manufactured Crap'
+    })->first;
+    
+    ## Did it use the condition in the resultset?
+    cmp_ok( $more_crap->rank, '==', 42, "Got Correct rank for result object");
+  } 
 }
 
 ARRAYREF_OF_ARRAYREF_STYLE: {
@@ -619,7 +646,7 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
   is $jumped->name, 'A singer that jumped the shark two albums ago', 'Correct Name';
   is $cool->name, 'An actually cool singer.', 'Correct Name';
   
-  my ($cooler, $lamer) = $art_rs->populate([
+  my ($cooler, $lamer) = $restricted_art_rs->populate([
     [qw/artistid name/],
     [1003, 'Cooler'],
     [1004, 'Lamer'],	
@@ -627,4 +654,36 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
   
   is $cooler->name, 'Cooler', 'Correct Name';
   is $lamer->name, 'Lamer', 'Correct Name';  
+
+  cmp_ok $cooler->rank, '==', 42, 'Correct Rank';
+
+  ARRAY_CONTEXT_WITH_COND_FROM_RS: {
+  
+    my ($mega_lamer) = $restricted_art_rs->populate([
+      {
+        name => 'Mega Lamer',
+      },
+    ]);
+
+    ## Did it use the condition in the resultset?
+    cmp_ok( $mega_lamer->rank, '==', 42, "Got Correct rank for result object");
+  } 
+
+  VOID_CONTEXT_WITH_COND_FROM_RS: {
+  
+    $restricted_art_rs->populate([
+      {
+        name => 'VOID Mega Lamer',
+      },
+    ]);
+
+    my $mega_lamer = $art_rs->search({
+      name => 'VOID Mega Lamer'
+    })->first;
+    
+    ## Did it use the condition in the resultset?
+    cmp_ok( $mega_lamer->rank, '==', 42, "Got Correct rank for result object");
+  } 
 }
+
+done_testing;

@@ -155,7 +155,7 @@ sub new {
     $new->result_source($source);
   }
 
-  if (my $related = delete $attrs->{-from_resultset}) {
+  if (my $related = delete $attrs->{-cols_from_relations}) {
     @{$new->{_ignore_at_insert}={}}{@$related} = ();
   }
 

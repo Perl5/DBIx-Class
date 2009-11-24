@@ -1715,11 +1715,17 @@ sub populate {
       }
     }
 
+    ## inherit the data locked in the conditions of the resultset
+    my ($rs_data) = $self->_merge_cond_with_data({});
+    delete @{$rs_data}{@columns};
+    my @inherit_cols = keys %$rs_data;
+    my @inherit_data = values %$rs_data;
+
     ## do bulk insert on current row
     $self->result_source->storage->insert_bulk(
       $self->result_source,
-      \@columns,
-      [ map { [ @$_{@columns} ] } @$data ],
+      [@columns, @inherit_cols],
+      [ map { [ @$_{@columns}, @inherit_data ] } @$data ],
     );
 
     ## do the has_many relationships
@@ -1856,46 +1862,66 @@ sub new_result {
   $self->throw_exception( "new_result needs a hash" )
     unless (ref $values eq 'HASH');
 
-  my %new;
-  my $alias = $self->{attrs}{alias};
+  my ($merged_cond, $cols_from_relations) = $self->_merge_cond_with_data($values);
 
-  if (
-    defined $self->{cond}
-    && $self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
-  ) {
-    %new = %{ $self->{attrs}{related_objects} || {} };  # nothing might have been inserted yet
-    $new{-from_resultset} = [ keys %new ] if keys %new;
-  } else {
-    $self->throw_exception(
-      "Can't abstract implicit construct, condition not a hash"
-    ) if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
-
-    my $collapsed_cond = (
-      $self->{cond}
-        ? $self->_collapse_cond($self->{cond})
-        : {}
-    );
-
-    # precendence must be given to passed values over values inherited from
-    # the cond, so the order here is important.
-    my %implied =  %{$self->_remove_alias($collapsed_cond, $alias)};
-    while( my($col,$value) = each %implied ){
-      if(ref($value) eq 'HASH' && keys(%$value) && (keys %$value)[0] eq '='){
-        $new{$col} = $value->{'='};
-        next;
-      }
-      $new{$col} = $value if $self->_is_deterministic_value($value);
-    }
-  }
-
-  %new = (
-    %new,
-    %{ $self->_remove_alias($values, $alias) },
+  my %new = (
+    %$merged_cond,
+    @$cols_from_relations
+      ? (-cols_from_relations => $cols_from_relations)
+      : (),
     -source_handle => $self->_source_handle,
     -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
   );
 
   return $self->result_class->new(\%new);
+}
+
+# _merge_cond_with_data
+#
+# Takes a simple hash of K/V data and returns its copy merged with the
+# condition already present on the resultset. Additionally returns an
+# arrayref of value/condition names, which were inferred from related
+# objects (this is needed for in-memory related objects)
+sub _merge_cond_with_data {
+  my ($self, $data) = @_;
+
+  my (%new_data, @cols_from_relations);
+
+  my $alias = $self->{attrs}{alias};
+
+  if (! defined $self->{cond}) {
+    # just massage $data below
+  }
+  elsif ($self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
+    %new_data = %{ $self->{attrs}{related_objects} || {} };  # nothing might have been inserted yet
+    @cols_from_relations = keys %new_data;
+  }
+  elsif (ref $self->{cond} ne 'HASH') {
+    $self->throw_exception(
+      "Can't abstract implicit construct, resultset condition not a hash"
+    );
+  }
+  else {
+    # precendence must be given to passed values over values inherited from
+    # the cond, so the order here is important.
+    my $collapsed_cond = $self->_collapse_cond($self->{cond});
+    my %implied = %{$self->_remove_alias($collapsed_cond, $alias)};
+
+    while ( my($col, $value) = each %implied ) {
+      if (ref($value) eq 'HASH' && keys(%$value) && (keys %$value)[0] eq '=') {
+        $new_data{$col} = $value->{'='};
+        next;
+      }
+      $new_data{$col} = $value if $self->_is_deterministic_value($value);
+    }
+  }
+
+  %new_data = (
+    %new_data,
+    %{ $self->_remove_alias($data, $alias) },
+  );
+
+  return (\%new_data, \@cols_from_relations);
 }
 
 # _is_deterministic_value
