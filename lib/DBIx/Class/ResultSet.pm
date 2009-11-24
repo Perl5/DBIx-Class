@@ -1715,24 +1715,17 @@ sub populate {
       }
     }
 
-    ## merge with the conditions from $self (inherited conditions)
-    my ($inherited_cond) = $self->_merge_with_cond({});
-    delete @{$inherited_cond}{@names};
-    my @inherited_names = keys %$inherited_cond;
-    my @values;
-    foreach my $row (@$data) {
-      my %row_data;
-      @row_data{@names} = @{$row}{@names};
-      my ($merged_cond) = $self->_merge_with_cond(\%row_data);
-      push @values, [ @{$merged_cond}{@names, @inherited_names} ];
-    }
-    push @names, @inherited_names;
+    ## inherit the data locked in the conditions of the resultset
+    my ($rs_data) = $self->_merge_cond_with_data({});
+    delete @{$rs_data}{@columns};
+    my @inherit_cols = keys %$rs_data;
+    my @inherit_data = values %$rs_data;
 
     ## do bulk insert on current row
     $self->result_source->storage->insert_bulk(
       $self->result_source,
-      \@columns,
-      [ map { [ @$_{@columns} ] } @$data ],
+      [@columns, @inherit_cols],
+      [ map { [ @$_{@columns}, @inherit_data ] } @$data ],
     );
 
     ## do the has_many relationships
@@ -1869,12 +1862,12 @@ sub new_result {
   $self->throw_exception( "new_result needs a hash" )
     unless (ref $values eq 'HASH');
 
-  my ($merged_cond, $from_resultset) = $self->_merge_with_cond($values);
+  my ($merged_cond, $cols_from_relations) = $self->_merge_cond_with_data($values);
 
   my %new = (
     %$merged_cond,
-    @$from_resultset
-      ? (-from_resultset => $from_resultset)
+    @$cols_from_relations
+      ? (-cols_from_relations => $cols_from_relations)
       : (),
     -source_handle => $self->_source_handle,
     -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
@@ -1883,54 +1876,52 @@ sub new_result {
   return $self->result_class->new(\%new);
 }
 
-# _merge_with_cond
+# _merge_cond_with_data
 #
-# Merges $values (a hashref) with the condition in the resultset and returns
-# the resulting hashref and an arrayref that contains the keys that are coming
-# from related resultsets.
+# Takes a simple hash of K/V data and returns its copy merged with the
+# condition already present on the resultset. Additionally returns an
+# arrayref of value/condition names, which were inferred from related
+# objects (this is needed for in-memory related objects)
+sub _merge_cond_with_data {
+  my ($self, $data) = @_;
 
-sub _merge_with_cond {
-  my ($self, $values) = @_;
-
-  my (%merged_cond, @from_resultset);
+  my (%new_data, @cols_from_relations);
 
   my $alias = $self->{attrs}{alias};
 
-  if (
-    defined $self->{cond}
-    && $self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
-  ) {
-    %merged_cond = %{ $self->{attrs}{related_objects} || {} };  # nothing might have been inserted yet
-    @from_resultset = keys %merged_cond;
-  } else {
+  if (! defined $self->{cond}) {
+    # just massage $data below
+  }
+  elsif ($self->{cond} eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
+    %new_data = %{ $self->{attrs}{related_objects} || {} };  # nothing might have been inserted yet
+    @cols_from_relations = keys %new_data;
+  }
+  elsif (ref $self->{cond} ne 'HASH') {
     $self->throw_exception(
-      "Can't abstract implicit construct, condition not a hash"
-    ) if ($self->{cond} && !(ref $self->{cond} eq 'HASH'));
-
-    my $collapsed_cond = (
-      $self->{cond}
-        ? $self->_collapse_cond($self->{cond})
-        : {}
+      "Can't abstract implicit construct, resultset condition not a hash"
     );
-
+  }
+  else {
     # precendence must be given to passed values over values inherited from
     # the cond, so the order here is important.
+    my $collapsed_cond = $self->_collapse_cond($self->{cond});
     my %implied = %{$self->_remove_alias($collapsed_cond, $alias)};
+
     while ( my($col, $value) = each %implied ) {
       if (ref($value) eq 'HASH' && keys(%$value) && (keys %$value)[0] eq '=') {
-        $merged_cond{$col} = $value->{'='};
+        $new_data{$col} = $value->{'='};
         next;
       }
-      $merged_cond{$col} = $value if $self->_is_deterministic_value($value);
+      $new_data{$col} = $value if $self->_is_deterministic_value($value);
     }
   }
 
-  %merged_cond = (
-    %merged_cond,
-    %{ $self->_remove_alias($values, $alias) },
+  %new_data = (
+    %new_data,
+    %{ $self->_remove_alias($data, $alias) },
   );
 
-  return (\%merged_cond, \@from_resultset);
+  return (\%new_data, \@cols_from_relations);
 }
 
 # _is_deterministic_value

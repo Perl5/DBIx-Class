@@ -646,9 +646,7 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
   is $jumped->name, 'A singer that jumped the shark two albums ago', 'Correct Name';
   is $cool->name, 'An actually cool singer.', 'Correct Name';
   
-  #cmp_ok $cool->rank, '==', 42, 'Correct Rank';
-  
-  my ($cooler, $lamer) = $art_rs->populate([
+  my ($cooler, $lamer) = $restricted_art_rs->populate([
     [qw/artistid name/],
     [1003, 'Cooler'],
     [1004, 'Lamer'],	
@@ -657,7 +655,7 @@ ARRAYREF_OF_ARRAYREF_STYLE: {
   is $cooler->name, 'Cooler', 'Correct Name';
   is $lamer->name, 'Lamer', 'Correct Name';  
 
-  #cmp_ok $cooler->rank, '==', 42, 'Correct Rank';
+  cmp_ok $cooler->rank, '==', 42, 'Correct Rank';
 
   ARRAY_CONTEXT_WITH_COND_FROM_RS: {
   
