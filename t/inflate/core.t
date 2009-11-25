@@ -64,14 +64,8 @@ eval { $cd->set_inflated_column('year', \'year + 1') };
 ok(!$@, 'set_inflated_column to "year + 1"');
 $cd->update;
 
-TODO: {
-  local $TODO = 'this was left in without a TODO - should it work?';
-
-  lives_ok (sub {
-    $cd->store_inflated_column('year', \'year + 1');
-    is_deeply( $cd->year, \'year + 1', 'deflate ok' );
-  }, 'store_inflated_column to "year + 1"');
-}
+$cd->store_inflated_column('year', \'year + 1');
+is_deeply( $cd->year, \'year + 1', 'scalarref deflate passthrough ok' );
 
 $cd = $rs->find(3);
 is( $cd->year->year, $before_year+1, 'deflate ok' );
