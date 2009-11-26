@@ -2619,26 +2619,44 @@ sub current_source_alias {
 # The increments happen twice per join. An even number means a
 # relationship specified via a search_related, whereas an odd
 # number indicates a join/prefetch added via attributes
+#
+# Also this code will wrap the current resultset (the one we
+# chain to) in a subselect IFF it contains limiting attributes
 sub _chain_relationship {
   my ($self, $rel) = @_;
   my $source = $self->result_source;
   my $attrs = { %{$self->{attrs}||{}} };
 
-  my $from = [ @{
-      $attrs->{from}
-        ||
-      [{
-        -source_handle => $source->handle,
-        -alias => $attrs->{alias},
-        $attrs->{alias} => $source->from,
-      }]
-  }];
+  my $from;
+  my @force_subq_attrs = qw/offset rows/;
+
+  if (
+    ($attrs->{from} && ref $attrs->{from} ne 'ARRAY')
+      ||
+    $self->_has_resolved_attr (@force_subq_attrs)
+  ) {
+    $from = [{
+      -source_handle => $source->handle,
+      -alias => $attrs->{alias},
+      $attrs->{alias} => $self->as_query,
+    }];
+    delete @{$attrs}{@force_subq_attrs};
+  }
+  elsif ($attrs->{from}) {  #shallow copy suffices
+    $from = [ @{$attrs->{from}} ];
+  }
+  else {
+    $from = [{
+      -source_handle => $source->handle,
+      -alias => $attrs->{alias},
+      $attrs->{alias} => $source->from,
+    }];
+  }
 
   my $seen = { %{$attrs->{seen_join} || {} } };
   my $jpath = ($attrs->{seen_join} && keys %{$attrs->{seen_join}})
     ? $from->[-1][0]{-join_path}
     : [];
-
 
   # we need to take the prefetch the attrs into account before we
   # ->_resolve_join as otherwise they get lost - captainL
