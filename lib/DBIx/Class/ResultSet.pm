@@ -2518,14 +2518,13 @@ sub related_resultset {
         "' has no such relationship $rel")
       unless $rel_info;
 
-    my ($from,$seen) = $self->_chain_relationship($rel);
+    my ($from,$seen,$attrs) = $self->_chain_relationship($rel);
 
     my $join_count = $seen->{$rel};
     my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
-    my %attrs = %{$self->{attrs}||{}};
-    delete @attrs{qw(result_class alias)};
+    delete @{$attrs}{qw(result_class alias)};
 
     my $new_cache;
 
@@ -2546,13 +2545,13 @@ sub related_resultset {
       # to work sanely (e.g. RestrictWithObject wants to be able to add
       # extra query restrictions, and these may need to be $alias.)
 
-      my $attrs = $rel_source->resultset_attributes;
-      local $attrs->{alias} = $alias;
+      my $rel_attrs = $rel_source->resultset_attributes;
+      local $rel_attrs->{alias} = $alias;
 
       $rel_source->resultset
                  ->search_rs(
                      undef, {
-                       %attrs,
+                       %$attrs,
                        join => undef,
                        prefetch => undef,
                        select => undef,
@@ -2617,14 +2616,13 @@ sub current_source_alias {
 # with a relation_chain_depth less than the depth of the
 # current prefetch is not considered)
 #
-# The increments happen in 1/2s to make it easier to correlate the
-# join depth with the join path. An integer means a relationship
-# specified via a search_related, whereas a fraction means an added
-# join/prefetch via attributes
+# The increments happen twice per join. An even number means a
+# relationship specified via a search_related, whereas an odd
+# number indicates a join/prefetch added via attributes
 sub _chain_relationship {
   my ($self, $rel) = @_;
   my $source = $self->result_source;
-  my $attrs = $self->{attrs};
+  my $attrs = { %{$self->{attrs}||{}} };
 
   my $from = [ @{
       $attrs->{from}
@@ -2655,7 +2653,7 @@ sub _chain_relationship {
 
   push @$from, @requested_joins;
 
-  $seen->{-relation_chain_depth} += 0.5;
+  $seen->{-relation_chain_depth}++;
 
   # if $self already had a join/prefetch specified on it, the requested
   # $rel might very well be already included. What we do in this case
@@ -2667,7 +2665,7 @@ sub _chain_relationship {
   # we consider the last one thus reverse
   for my $j (reverse @requested_joins) {
     if ($rel eq $j->[0]{-join_path}[-1]) {
-      $j->[0]{-relation_chain_depth} += 0.5;
+      $j->[0]{-relation_chain_depth}++;
       $already_joined++;
       last;
     }
@@ -2677,7 +2675,7 @@ sub _chain_relationship {
 #  for my $j (reverse @$from) {
 #    next unless ref $j eq 'ARRAY';
 #    if ($j->[0]{-join_path} && $j->[0]{-join_path}[-1] eq $rel) {
-#      $j->[0]{-relation_chain_depth} += 0.5;
+#      $j->[0]{-relation_chain_depth}++;
 #      $already_joined++;
 #      last;
 #    }
@@ -2692,9 +2690,9 @@ sub _chain_relationship {
     );
   }
 
-  $seen->{-relation_chain_depth} += 0.5;
+  $seen->{-relation_chain_depth}++;
 
-  return ($from,$seen);
+  return ($from,$seen,$attrs);
 }
 
 # too many times we have to do $attrs = { %{$self->_resolved_attrs} }
@@ -2908,8 +2906,8 @@ sub _joinpath_aliases {
 
   my $cur_depth = $seen->{-relation_chain_depth} || 0;
 
-  if (int ($cur_depth) != $cur_depth) {
-    $self->throw_exception ("-relation_chain_depth is not an integer, something went horribly wrong ($cur_depth)");
+  if ($cur_depth % 2) {
+    $self->throw_exception ("-relation_chain_depth is not even, something went horribly wrong ($cur_depth)");
   }
 
   for my $j (@$fromspec) {
@@ -2920,7 +2918,7 @@ sub _joinpath_aliases {
     my $jpath = $j->[0]{-join_path};
 
     my $p = $paths;
-    $p = $p->{$_} ||= {} for @{$jpath}[$cur_depth .. $#$jpath];
+    $p = $p->{$_} ||= {} for @{$jpath}[$cur_depth/2 .. $#$jpath]; #only even depths are actual jpath boundaries
     push @{$p->{-join_aliases} }, $j->[0]{-alias};
   }
 
