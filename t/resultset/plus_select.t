@@ -44,7 +44,7 @@ is_deeply (
 
 SKIP: {
   eval { require DateTime };
-  skip "Need DateTime for +select/get_inflated_columns tests" if $@;
+  skip "Need DateTime for +select/get_inflated_columns tests", 1 if $@;
 
   $schema->class('CD')->inflate_column( 'year',
     { inflate => sub { DateTime->new( year => shift ) },
