@@ -53,8 +53,15 @@ my $schema = DBICTest->init_schema();
       SELECT COUNT( * )
         FROM (
           SELECT genre.genreid
-            FROM artist me
-            JOIN cd cds ON cds.artist = me.artistid
+            FROM (
+              SELECT cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track
+                FROM (
+                  SELECT me.artistid, me.name, me.rank, me.charfield
+                    FROM artist me GROUP BY me.artistid, me.name, me.rank, me.charfield
+                ) me
+                LEFT JOIN cd cds ON cds.artist = me.artistid
+              GROUP BY cds.cdid, cds.artist, cds.title, cds.year, cds.genreid, cds.single_track
+            ) cds
             JOIN genre genre ON genre.genreid = cds.genreid
             LEFT JOIN cd cds_2 ON cds_2.genreid = genre.genreid
           WHERE ( genre.name = ? )

@@ -2518,9 +2518,9 @@ sub related_resultset {
         "' has no such relationship $rel")
       unless $rel_info;
 
-    my ($from,$seen,$attrs) = $self->_chain_relationship($rel);
+    my $attrs = $self->_chain_relationship($rel);
 
-    my $join_count = $seen->{$rel};
+    my $join_count = $attrs->{seen_join}{$rel};
     my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
@@ -2552,13 +2552,7 @@ sub related_resultset {
                  ->search_rs(
                      undef, {
                        %$attrs,
-                       join => undef,
-                       prefetch => undef,
-                       select => undef,
-                       as => undef,
-                       where => $self->{cond},
-                       seen_join => $seen,
-                       from => $from,
+                       where => $attrs->{where},
                    });
     };
     $new->set_cache($new_cache) if $new_cache;
@@ -2627,8 +2621,16 @@ sub _chain_relationship {
   my $source = $self->result_source;
   my $attrs = { %{$self->{attrs}||{}} };
 
+  # we need to take the prefetch the attrs into account before we
+  # ->_resolve_join as otherwise they get lost - captainL
+  my $join = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
+
+  delete @{$attrs}{qw/join prefetch collapse select as columns +select +as +columns/};
+
+  my $seen = { %{ (delete $attrs->{seen_join}) || {} } };
+
   my $from;
-  my @force_subq_attrs = qw/offset rows/;
+  my @force_subq_attrs = qw/offset rows group_by having/;
 
   if (
     ($attrs->{from} && ref $attrs->{from} ne 'ARRAY')
@@ -2640,7 +2642,8 @@ sub _chain_relationship {
       -alias => $attrs->{alias},
       $attrs->{alias} => $self->as_query,
     }];
-    delete @{$attrs}{@force_subq_attrs};
+    delete @{$attrs}{@force_subq_attrs, 'where'};
+    $seen->{-relation_chain_depth} = 0;
   }
   elsif ($attrs->{from}) {  #shallow copy suffices
     $from = [ @{$attrs->{from}} ];
@@ -2653,17 +2656,12 @@ sub _chain_relationship {
     }];
   }
 
-  my $seen = { %{$attrs->{seen_join} || {} } };
-  my $jpath = ($attrs->{seen_join} && keys %{$attrs->{seen_join}})
+  my $jpath = ($seen->{-relation_chain_depth})
     ? $from->[-1][0]{-join_path}
     : [];
 
-  # we need to take the prefetch the attrs into account before we
-  # ->_resolve_join as otherwise they get lost - captainL
-  my $merged = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
-
   my @requested_joins = $source->_resolve_join(
-    $merged,
+    $join,
     $attrs->{alias},
     $seen,
     $jpath,
@@ -2710,7 +2708,7 @@ sub _chain_relationship {
 
   $seen->{-relation_chain_depth}++;
 
-  return ($from,$seen,$attrs);
+  return {%$attrs, from => $from, seen_join => $seen};
 }
 
 # too many times we have to do $attrs = { %{$self->_resolved_attrs} }
