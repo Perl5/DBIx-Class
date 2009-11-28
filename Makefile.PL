@@ -144,8 +144,15 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 
 no_index 'DBIx::Class::SQLAHacks';
 no_index 'DBIx::Class::SQLAHacks::MSSQL';
+no_index 'DBIx::Class::SQLAHacks::OracleJoins';
 no_index 'DBIx::Class::Storage::DBI::AmbiguousGlob';
 no_index 'DBIx::Class::Storage::DBIHacks';
+no_index 'DBIx::Class::PK::Auto::DB2';
+no_index 'DBIx::Class::PK::Auto::MSSQL';
+no_index 'DBIx::Class::PK::Auto::MySQL';
+no_index 'DBIx::Class::PK::Auto::Oracle';
+no_index 'DBIx::Class::PK::Auto::Pg';
+no_index 'DBIx::Class::PK::Auto::SQLite';
 
 # re-build README and require extra modules for testing if we're in a checkout
 
