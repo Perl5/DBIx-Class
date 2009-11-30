@@ -971,85 +971,6 @@ sub _construct_object {
   return @new;
 }
 
-# _unflatten_result takes a row hashref which looks like this:
-# $VAR1 = {
-#   'cd.artist.artistid' => '1',
-#   'cd.artist' => '1',
-#   'cd_id' => '1',
-#   'cd.genreid' => undef,
-#   'cd.year' => '1999',
-#   'cd.title' => 'Spoonful of bees',
-#   'cd.single_track' => undef,
-#   'cd.artist.name' => 'Caterwauler McCrae',
-#   'cd.artist.rank' => '13',
-#   'cd.artist.charfield' => undef,
-#   'cd.cdid' => '1'
-# };
-
-# and generates the following structure:
-
-# $VAR1 = [
-#   {
-#     'cd_id' => '1'
-#   },
-#   {
-#     'cd' => [
-#       {
-#         'single_track' => undef,
-#         'cdid' => '1',
-#         'artist' => '1',
-#         'title' => 'Spoonful of bees',
-#         'year' => '1999',
-#         'genreid' => undef
-#       },
-#       {
-#         'artist' => [
-#           {
-#             'artistid' => '1',
-#             'charfield' => undef,
-#             'name' => 'Caterwauler McCrae',
-#             'rank' => '13'
-#           }
-#         ]
-#       }
-#     ]
-#   }
-# ];  
-
-# It returns one row object which consists of an arrayref with two
-# elements. The first contains the plain column data, the second 
-# contains the data of relationships. Those are row arrayrefs, themselves.
-
-# it's a recursive function. It needs to request the relationship_info
-# to decide whether to put the data of a relationship in a hashref
-# (i.e. belongs_to) or an arrayref (i.e. has_many).
-
-sub _unflatten_result {
-    my ( $self, $row ) = @_;
-
-    my $columns = {};
-    my $rels    = {};
-
-    foreach my $column ( sort keys %$row ) {
-        if ( $column =~ /^(.*?)\.(.*)$/ ) {
-            $rels->{$1} ||= {};
-            $rels->{$1}->{$2} = $row->{$column};
-        }
-        else {
-            $columns->{$column} = $row->{$column};
-        }
-    }
-
-    foreach my $rel ( sort keys %$rels ) {
-        my $rel_info = $self->result_source->relationship_info($rel);
-        $rels->{$rel} =
-          $self->related_resultset($rel)->_unflatten_result( $rels->{$rel} );
-        $rels->{$rel} = [ $rels->{$rel} ]
-          if ( $rel_info->{attrs}->{accessor} eq 'multi' );
-    }
-
-    return keys %$rels ? [ $columns, $rels ] : [$columns];
-}
 
 # two arguments: $as_proto is an arrayref of column names,
 # $row_ref is an arrayref of the data. If none of the row data
@@ -1082,7 +1003,7 @@ sub _collapse_result {
     do {
         my $i = 0;
         my $row = { map { $_ => $row[ $i++ ] } @$as_proto };
-        $row = $self->_unflatten_result($row);
+        $row = $self->result_source->_parse_row($row, $collapse);
         unless ( scalar @$rows ) {
             push( @$rows, $row );
         }

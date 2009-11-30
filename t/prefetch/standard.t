@@ -5,7 +5,6 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-use IO::File;
 
 my $schema = DBICTest->init_schema();
 my $orig_debug = $schema->storage->debug;

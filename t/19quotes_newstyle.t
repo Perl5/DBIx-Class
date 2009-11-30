@@ -2,7 +2,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use IO::File;
 
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;

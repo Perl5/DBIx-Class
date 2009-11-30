@@ -4,7 +4,6 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use IO::File;
 use File::Compare;
 use Path::Class qw/file/;
 

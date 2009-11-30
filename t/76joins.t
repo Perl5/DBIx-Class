@@ -10,8 +10,6 @@ my $schema = DBICTest->init_schema();
 
 my $orig_debug = $schema->storage->debug;
 
-use IO::File;
-
 BEGIN {
     eval "use DBD::SQLite";
     plan $@

@@ -1503,6 +1503,46 @@ sub _resolve_prefetch {
   }
 }
 
+# Takes a hashref of $sth->fetchrow values keyed to the corresponding
+# {as} dbic aliases, and splits it into a native columns hashref
+# (as in $row->get_columns), followed by any non-native (prefetched)
+# columns, presented in a nested structure resembling an HRI dump.
+# The structure is constructed taking into account relationship metadata
+# (single vs multi).
+# The resulting arrayref resembles the arguments to ::Row::inflate_result
+# For an example look at t/prefetch/_util.t
+#
+# The will collapse flag is for backwards compatibility only - if it is
+# set, all relationship row-parts are returned as hashes, even if some
+# of these relationships are has_many's
+#
+sub _parse_row {
+    my ( $self, $row, $will_collapse ) = @_;
+
+    my ($me, $pref);
+
+    foreach my $column ( keys %$row ) {
+        if ( $column =~ /^ ([^\.]+) \. (.*) $/x ) {
+            $pref->{$1}{$2} = $row->{$column};
+        }
+        else {
+            $me->{$column} = $row->{$column};
+        }
+    }
+
+    foreach my $rel ( keys %{$pref||{}} ) {
+        my $rel_info = $self->relationship_info($rel);
+
+        $pref->{$rel} =
+          $self->related_source($rel)->_parse_row( $pref->{$rel}, $will_collapse );
+
+        $pref->{$rel} = [ $pref->{$rel} ]
+          if ( $will_collapse && $rel_info->{attrs}{accessor} eq 'multi' );
+    }
+
+    return [ $me||{}, $pref||() ];
+}
+
 =head2 related_source
 
 =over 4
