@@ -232,13 +232,13 @@ which can be assigned to relationships as well.
 
 =back
 
-Creates a one-to-many relationship, where the corresponding elements
-of the foreign class store the calling class's primary key in one (or
-more) of the foreign class columns. This relationship defaults to using
-the end of this classes namespace as the foreign key in C<$related_class>
-to resolve the join, unless C<$their_fk_column> specifies the foreign
-key column in C<$related_class> or C<cond> specifies a reference to a
-join condition hash.
+Creates a one-to-many relationship where the foreign class refers to
+this class's primary key. This relationship refers to zero or more
+records in the foreign table (ie, a C<LEFT JOIN>). This relationship 
+defaults to using the end of this classes namespace as the foreign key
+in C<$related_class> to resolve the join, unless C<$their_fk_column>
+specifies the foreign key column in C<$related_class> or C<cond>
+specifies a reference to a join condition hash.
 
 =over
 
