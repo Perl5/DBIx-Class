@@ -85,9 +85,10 @@ has 'schema' => (
 sub _build_schema {
 	my ($self)  = @_;
 	$self->ensure_class_loaded($self->schema_class);
-	warn Dumper $self->connect_info();
 
-	return $self->schema_class->connect($self->connect_info()},  $self->connect_info->[3], { ignore_version => 1} );
+	$self->connect_info->[3]->{ignore_version} =1;
+	#warn Dumper ($self->connect_info(), $self->connect_info->[3], {ignore_version => 1 });
+	return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );
 }
 
 has 'connect_info' => (
@@ -153,7 +154,7 @@ has preversion => (
 );
 
 sub create {
-	my ($self, $sqlt_type, ) = @_;
+	my ($self, $sqlt_type, $sqlt_args) = @_;
 	if ($self->has_preversion) {
 		print "attempting to create diff file for ".$self->preversion."\n";
 	}
@@ -162,7 +163,7 @@ sub create {
 	# create the dir if does not exist
 	$self->sql_dir->mkpath() if ( ! -d $self->sql_dir);
 
-	$schema->create_ddl_dir( $sqlt_type, (defined $schema->schema_version ? $schema->schema_version : ""), $self->sql_dir->stringify, $self->preversion );
+	$schema->create_ddl_dir( $sqlt_type, (defined $schema->schema_version ? $schema->schema_version : ""), $self->sql_dir->stringify, $self->preversion, $sqlt_args );
 }
 
 sub upgrade {
@@ -191,11 +192,15 @@ sub install {
 }
 
 sub deploy {
-	my ($self) = @_;
+	my ($self, $args) = @_;
 	my $schema = $self->schema();
 	if (!$schema->get_db_version() ) {
 		# schema is unversioned
-		$schema->deploy();
+#		warn "going to deploy";
+#		warn Dumper $schema->deployment_statements();
+		
+		$schema->deploy( $args, $self->sql_dir)
+			or die "could not deploy schema";
 	} else {
 		warn "there already is a database with a version here, try upgrade instead";
 	}
