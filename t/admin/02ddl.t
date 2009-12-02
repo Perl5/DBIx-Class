@@ -91,8 +91,10 @@ $admin = DBIx::Class::Admin->new(
 	connect_info => $schema->storage->connect_info(),
 );
 
-$admin->upgrade();
+lives_ok { $admin->create($schema->storage->sqlt_type(), {add_drop_table=>0}); } 'Can create DBICVersionOrig sql in ' . $schema->storage->sqlt_type;
+lives_ok {$admin->upgrade();} 'upgrade the schema';
 
+is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema deployed and versions match');
 
 }
 
