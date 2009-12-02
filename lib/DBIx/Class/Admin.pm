@@ -87,7 +87,6 @@ sub _build_schema {
 	$self->ensure_class_loaded($self->schema_class);
 
 	$self->connect_info->[3]->{ignore_version} =1;
-	#warn Dumper ($self->connect_info(), $self->connect_info->[3], {ignore_version => 1 });
 	return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );
 }
 
@@ -143,7 +142,7 @@ has 'sql_type' => (
 );
 
 has version => (
-	is			=> 'ro',
+	is			=> 'rw',
 	isa			=> 'Str',
 );
 
@@ -153,13 +152,22 @@ has preversion => (
 	predicate	=> 'has_preversion',
 );
 
+has force => (
+	is			=> 'rw',
+	isa			=> 'Bool',
+);
+
+has '_confirm' => (
+	is		=> 'ro',
+	isa		=> 'Bool',
+);
+
 sub create {
 	my ($self, $sqlt_type, $sqlt_args) = @_;
 	if ($self->has_preversion) {
 		print "attempting to create diff file for ".$self->preversion."\n";
 	}
 	my $schema = $self->schema();
-#	warn "running with params sqlt_type = $sqlt_type, version = " .$schema->schema_version . " sql_dir = " . $self->sql_dir . " preversion = " . ($self->has_preversion ?  $self->preversion : "" ). "\n";
 	# create the dir if does not exist
 	$self->sql_dir->mkpath() if ( ! -d $self->sql_dir);
 
@@ -171,22 +179,33 @@ sub upgrade {
 	my $schema = $self->schema();
 	if (!$schema->get_db_version()) {
 		# schema is unversioned
-		warn "could not determin current schema version, please either install or deploy";
+		die "could not determin current schema version, please either install or deploy";
 	} else {
 		$schema->upgrade();
 	}
 }
 
 sub install {
-	my ($self) = @_;
+	my ($self, $version) = @_;
 
 	my $schema = $self->schema();
-	if (!$schema->get_db_version()) {
+	$version ||= $self->version();
+	if (!$schema->get_db_version() ) {
 		# schema is unversioned
-		print "Going to install schema version";
-		$schema->install($self->version);
-	} else {
-		warn "schema already has a version not installing, try upgrade instead";
+		print "Going to install schema version\n";
+		my $ret = $schema->install($version);
+		print "retun is $ret\n";
+	}
+	elsif ($schema->get_db_version() and $self->force ) {
+		warn "forcing install may not be a good idea";
+		if($self->confirm() ) {
+			# FIXME private api
+			warn $version;
+			$self->schema->_set_db_version({ version => $version});
+		}
+	}
+	else {
+		die "schema already has a version not installing, try upgrade instead";
 	}
 
 }
@@ -196,13 +215,10 @@ sub deploy {
 	my $schema = $self->schema();
 	if (!$schema->get_db_version() ) {
 		# schema is unversioned
-#		warn "going to deploy";
-#		warn Dumper $schema->deployment_statements();
-		
 		$schema->deploy( $args, $self->sql_dir)
 			or die "could not deploy schema";
 	} else {
-		warn "there already is a database with a version here, try upgrade instead";
+		die "there already is a database with a version here, try upgrade instead";
 	}
 }
 
@@ -303,8 +319,11 @@ sub output_data {
 }
 
 sub confirm {
-    print "Are you sure you want to do this? (type YES to confirm) ";
-    my $response = <STDIN>;
+    my ($self) = @_;
+	print "Are you sure you want to do this? (type YES to confirm) ";
+	# mainly here for testing
+	return 1 if ($self->_confirm());
+	my $response = <STDIN>;
     return 1 if ($response=~/^YES/);
     return;
 }
