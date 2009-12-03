@@ -249,6 +249,20 @@ lives_ok ( sub {
   ]);
 }, 'populate without PKs supplied ok' );
 
+# make sure ordered subselects work
+{
+  my $book_owner_ids = $schema->resultset ('BooksInLibrary')
+                               ->search ({}, { join => 'owner', distinct => 1, order_by => { -desc => 'owner'} })
+                                ->get_column ('owner');
+
+  my $owners = $schema->resultset ('Owners')->search ({
+    id => { -in => $book_owner_ids->as_query }
+  });
+
+  is ($owners->count, 8, 'Correct amount of book owners');
+  is ($owners->all, 8, 'Correct amount of book owner objects');
+}
+
 #
 # try a prefetch on tables with identically named columns
 #

@@ -178,6 +178,31 @@ sub _execute {
 
 sub last_insert_id { shift->_identity }
 
+#
+# MSSQL is retarded wrt ordered subselects. One needs to add a TOP 100%
+# to *all* subqueries, do it here.
+#
+sub _select_args_to_query {
+  my $self = shift;
+
+  my $sql_maker = $self->sql_maker;
+  my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order) = $self->_select_args(@_);
+
+  if (not scalar $sql_maker->_order_by_chunks ($order->{order_by}) ) {
+    # no ordering, just short circuit
+    return $self->next::method (@_);
+  }
+
+  my ($sql, $bind, @rest) = $self->next::method (@_);
+  $sql =~ s/^ \s* SELECT \s/SELECT TOP 100 PERCENT /xi;
+
+  return wantarray
+    ? ($sql, $bind, @rest)
+    : \[ "($sql)", @$bind ]
+  ;
+}
+
+
 # savepoint syntax is the same as in Sybase ASE
 
 sub _svp_begin {
