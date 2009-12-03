@@ -1581,6 +1581,14 @@ sub _subq_update_delete {
 
   # quick check if we got a sane rs on our hands
   my @pcols = $rsrc->primary_columns;
+  unless (@pcols) {
+    $self->throw_exception (
+      sprintf (
+        "You must declare primary key(s) on source '%s' (via set_primary_key) in order to update or delete complex resultsets",
+        $rsrc->source_name || $rsrc->from
+      )
+    );
+  }
 
   my $sel = $rs->_resolved_attrs->{select};
   $sel = [ $sel ] unless ref $sel eq 'ARRAY';
