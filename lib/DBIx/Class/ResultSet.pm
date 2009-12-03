@@ -1658,10 +1658,10 @@ values.
 =cut
 
 sub populate {
-  my $self = shift @_;
-  my $data = ref $_[0][0] eq 'HASH'
-    ? $_[0] : ref $_[0][0] eq 'ARRAY' ? $self->_normalize_populate_args($_[0]) :
-    $self->throw_exception('Populate expects an arrayref of hashes or arrayref of arrayrefs');
+  my $self = shift;
+
+  # cruft placed in standalone method
+  my $data = $self->_normalize_populate_args(@_);
 
   if(defined wantarray) {
     my @created;
@@ -1754,26 +1754,27 @@ sub populate {
   }
 }
 
-=head2 _normalize_populate_args ($args)
 
-Private method used by L</populate> to normalize its incoming arguments.  Factored
-out in case you want to subclass and accept new argument structures to the
-L</populate> method.
-
-=cut
-
+# populate() argumnets went over several incarnations
+# What we ultimately support is AoH
 sub _normalize_populate_args {
-  my ($self, $data) = @_;
-  my @names = @{shift(@$data)};
-  my @results_to_create;
-  foreach my $datum (@$data) {
-    my %result_to_create;
-    foreach my $index (0..$#names) {
-      $result_to_create{$names[$index]} = $$datum[$index];
+  my ($self, $arg) = @_;
+
+  if (ref $arg eq 'ARRAY') {
+    if (ref $arg->[0] eq 'HASH') {
+      return $arg;
     }
-    push @results_to_create, \%result_to_create;
+    elsif (ref $arg->[0] eq 'ARRAY') {
+      my @ret;
+      my @colnames = @{$arg->[0]};
+      foreach my $values (@{$arg}[1 .. $#$arg]) {
+        push @ret, { map { $colnames[$_] => $values->[$_] } (0 .. $#colnames) };
+      }
+      return \@ret;
+    }
   }
-  return \@results_to_create;
+
+  $self->throw_exception('Populate expects an arrayref of hashrefs or arrayref of arrayrefs');
 }
 
 =head2 pager
