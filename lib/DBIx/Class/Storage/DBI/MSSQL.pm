@@ -212,7 +212,7 @@ sub _sql_maker_opts {
     $self->{_sql_maker_opts} = { %$opts };
   }
 
-  return { limit_dialect => 'Top', %{$self->{_sql_maker_opts}||{}} };
+  return { limit_dialect => 'RowNumberOver', %{$self->{_sql_maker_opts}||{}} };
 }
 
 1;
