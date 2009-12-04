@@ -13,19 +13,9 @@ use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 sub _MSRowNumberOver {
   my ($self, $sql, $order, $rows, $offset ) = @_;
 
-  # get the order_by only
+  # get the order_by only (or make up an order if none exists)
   my $order_by = $self->_order_by(
-    (delete $order->{order_by}) || do {
-
-      # no order was supplied - make something up:
-      my $rsrc = $self->{_dbic_rs_attrs}{_source_handle}->resolve;
-      if (my @pk = $rsrc->primary_columns) {
-        \@pk;
-      }
-      else {
-        [($rsrc->columns)[0]];
-      }
-    }
+    (delete $order->{order_by}) || \ '(SELECT (1))'
   );
 
   # whatever is left
