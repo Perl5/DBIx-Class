@@ -275,13 +275,20 @@ $schema->storage->_sql_maker->{name_sep} = '.';
   # try a ->has_many direction
   my $owners = $schema->resultset ('Owners')->search (
     {
-      'books.id' => { '!=', undef }
+      'books.id' => { '!=', undef },
+      'me.name' => { '!=', 'somebogusstring' },
     },
     {
       prefetch => 'books',
-      order_by => 'name',
+      order_by => { -asc => \['name + ?', [ test => 'xxx' ]] }, # test bindvar propagation
       rows     => 3,  # 8 results total
     },
+  );
+
+  my ($sql, @bind) = @${$owners->page(3)->as_query};
+  is_deeply (
+    \@bind,
+    [ ([ 'me.name' => 'somebogusstring' ], [ test => 'xxx' ]) x 2 ],  # double because of the prefetch subq
   );
 
   is ($owners->page(1)->all, 3, 'has_many prefetch returns correct number of rows');
@@ -299,6 +306,7 @@ $schema->storage->_sql_maker->{name_sep} = '.';
     },
     {
       distinct => 1,
+      having => \['1 = ?', [ test => 1 ] ], #test having propagation
       prefetch => 'owner',
       rows     => 2,  # 3 results total
       order_by => { -desc => 'owner' },
@@ -307,6 +315,16 @@ $schema->storage->_sql_maker->{name_sep} = '.';
     },
   );
 
+  ($sql, @bind) = @${$books->page(3)->as_query};
+  is_deeply (
+    \@bind,
+    [
+      # inner
+      [ 'owner.name' => 'wiggle' ], [ 'owner.name' => 'woggle' ], [ source => 'Library' ], [ test => '1' ],
+      # outer
+      [ 'owner.name' => 'wiggle' ], [ 'owner.name' => 'woggle' ], [ source => 'Library' ],
+    ],
+  );
 
   is ($books->page(1)->all, 2, 'Prefetched grouped search returns correct number of rows');
   is ($books->page(1)->count, 2, 'Prefetched grouped search returns correct count');

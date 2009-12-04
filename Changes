@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - Real limit/offset support for MSSQL server (via Row_Number)
         - Fix distinct => 1 with non-selecting order_by (the columns
           in order_by also need to be aded to the resulting group_by)
         - Do not attempt to deploy FK constraints pointing to a View
