@@ -57,12 +57,12 @@ lives_ok ( sub {
     }
   );
 
-  is($use_prefetch->count, $no_prefetch->count, 'counts with and without prefetch match');
   is(
     scalar ($use_prefetch->all),
     scalar ($no_prefetch->all),
     "Amount of returned rows is right"
   );
+  is($use_prefetch->count, $no_prefetch->count, 'counts with and without prefetch match');
 
 }, 'search_related prefetch with condition referencing unqualified column of a joined table works');
 }

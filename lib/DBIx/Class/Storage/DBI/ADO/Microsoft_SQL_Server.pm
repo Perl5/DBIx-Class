@@ -18,7 +18,7 @@ sub _rebless {
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server - Support for Microsoft
+DBIx::Class::Storage::DBI::ADO::Microsoft_SQL_Server - Support for Microsoft
 SQL Server via DBD::ADO
 
 =head1 SYNOPSIS

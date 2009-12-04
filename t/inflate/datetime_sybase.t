@@ -23,15 +23,15 @@ if (not ($dsn && $user)) {
 }
 
 my @storage_types = (
-  'DBI::Sybase',
-  'DBI::Sybase::NoBindVars',
+  'DBI::Sybase::ASE',
+  'DBI::Sybase::ASE::NoBindVars',
 );
 my $schema;
 
 for my $storage_type (@storage_types) {
   $schema = DBICTest::Schema->clone;
 
-  unless ($storage_type eq 'DBI::Sybase') { # autodetect
+  unless ($storage_type eq 'DBI::Sybase::ASE') { # autodetect
     $schema->storage_type("::$storage_type");
   }
   $schema->connection($dsn, $user, $pass, {

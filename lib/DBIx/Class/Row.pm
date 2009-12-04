@@ -155,7 +155,7 @@ sub new {
     $new->result_source($source);
   }
 
-  if (my $related = delete $attrs->{-from_resultset}) {
+  if (my $related = delete $attrs->{-cols_from_relations}) {
     @{$new->{_ignore_at_insert}={}}{@$related} = ();
   }
 
@@ -751,10 +751,27 @@ See L<DBIx::Class::InflateColumn> for how to setup inflation.
 
 sub get_inflated_columns {
   my $self = shift;
-  return map {
-    my $accessor = $self->column_info($_)->{'accessor'} || $_;
-    ($_ => $self->$accessor);
-  } grep $self->has_column_loaded($_), $self->columns;
+
+  my %loaded_colinfo = (map
+    { $_ => $self->column_info($_) }
+    (grep { $self->has_column_loaded($_) } $self->columns)
+  );
+
+  my %inflated;
+  for my $col (keys %loaded_colinfo) {
+    if (exists $loaded_colinfo{$col}{accessor}) {
+      my $acc = $loaded_colinfo{$col}{accessor};
+      if (defined $acc) {
+        $inflated{$col} = $self->$acc;
+      }
+    }
+    else {
+      $inflated{$col} = $self->$col;
+    }
+  }
+
+  # return all loaded columns with the inflations overlayed on top
+  return ($self->get_columns, %inflated);
 }
 
 =head2 set_column

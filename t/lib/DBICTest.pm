@@ -155,6 +155,11 @@ sub populate_schema {
     my $self = shift;
     my $schema = shift;
 
+    $schema->populate('Genre', [
+      [qw/genreid name/],
+      [qw/1       emo  /],
+    ]);
+
     $schema->populate('Artist', [
         [ qw/artistid name/ ],
         [ 1, 'Caterwauler McCrae' ],
@@ -163,8 +168,8 @@ sub populate_schema {
     ]);
 
     $schema->populate('CD', [
-        [ qw/cdid artist title year/ ],
-        [ 1, 1, "Spoonful of bees", 1999 ],
+        [ qw/cdid artist title year genreid/ ],
+        [ 1, 1, "Spoonful of bees", 1999, 1 ],
         [ 2, 1, "Forkful of bees", 2001 ],
         [ 3, 1, "Caterwaulin' Blues", 1997 ],
         [ 4, 2, "Generic Manufactured Singles", 2001 ],
@@ -243,7 +248,7 @@ sub populate_schema {
     
     $schema->populate('TreeLike', [
         [ qw/id parent name/ ],
-        [ 1, undef, 'root' ],        
+        [ 1, undef, 'root' ],
         [ 2, 1, 'foo'  ],
         [ 3, 2, 'bar'  ],
         [ 6, 2, 'blop' ],

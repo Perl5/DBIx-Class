@@ -14,6 +14,7 @@ use DBIx::Class::Storage::Statistics;
 use Scalar::Util();
 use List::Util();
 use Data::Dumper::Concise();
+use Sub::Name ();
 
 # what version of sqlt do we require if deploy() without a ddl_dir is invoked
 # when changing also adjust the corresponding author_require in Makefile.PL
@@ -63,7 +64,7 @@ for my $meth (@rdbms_specific_methods) {
 
   no strict qw/refs/;
   no warnings qw/redefine/;
-  *{__PACKAGE__ ."::$meth"} = sub {
+  *{__PACKAGE__ ."::$meth"} = Sub::Name::subname $meth => sub {
     if (not $_[0]->_driver_determined) {
       $_[0]->_determine_driver;
       goto $_[0]->can($meth);
@@ -1580,6 +1581,14 @@ sub _subq_update_delete {
 
   # quick check if we got a sane rs on our hands
   my @pcols = $rsrc->primary_columns;
+  unless (@pcols) {
+    $self->throw_exception (
+      sprintf (
+        "You must declare primary key(s) on source '%s' (via set_primary_key) in order to update or delete complex resultsets",
+        $rsrc->source_name || $rsrc->from
+      )
+    );
+  }
 
   my $sel = $rs->_resolved_attrs->{select};
   $sel = [ $sel ] unless ref $sel eq 'ARRAY';
@@ -1991,7 +2000,7 @@ sub last_insert_id {
 
 This API is B<EXPERIMENTAL>, will almost definitely change in the future, and
 currently only used by L<::AutoCast|DBIx::Class::Storage::DBI::AutoCast> and
-L<::Sybase|DBIx::Class::Storage::DBI::Sybase>.
+L<::Sybase::ASE|DBIx::Class::Storage::DBI::Sybase::ASE>.
 
 The default implementation returns C<undef>, implement in your Storage driver if
 you need this functionality.

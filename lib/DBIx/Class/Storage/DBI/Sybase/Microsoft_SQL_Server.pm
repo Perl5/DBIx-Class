@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use base qw/
-  DBIx::Class::Storage::DBI::Sybase::Common
+  DBIx::Class::Storage::DBI::Sybase
   DBIx::Class::Storage::DBI::MSSQL
 /;
 use mro 'c3';
@@ -20,13 +20,15 @@ sub _rebless {
   }
 }
 
-sub _init {
+sub _run_connection_actions {
   my $self = shift;
 
   # LongReadLen doesn't work with MSSQL through DBD::Sybase, and the default is
   # huge on some versions of SQL server and can cause memory problems, so we
-  # fix it up here (see Sybase/Common.pm)
+  # fix it up here (see ::DBI::Sybase.pm)
   $self->set_textsize;
+
+  $self->next::method(@_);
 }
 
 sub _dbh_begin_work {

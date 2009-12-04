@@ -25,7 +25,7 @@ $dbh->do("CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY 
 
 $dbh->do("DROP TABLE IF EXISTS cd;");
 
-$dbh->do("CREATE TABLE cd (cdid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, artist INTEGER, title TEXT, year INTEGER, genreid INTEGER, single_track INTEGER);");
+$dbh->do("CREATE TABLE cd (cdid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, artist INTEGER, title TEXT, year DATE, genreid INTEGER, single_track INTEGER);");
 
 $dbh->do("DROP TABLE IF EXISTS producer;");
 
@@ -160,8 +160,6 @@ SKIP: {
 
     my $type_info = $schema->storage->columns_info_for('artist');
     is_deeply($type_info, $test_type_info, 'columns_info_for - column data types');
-
-
 }
 
 my $cd = $schema->resultset ('CD')->create ({});
@@ -227,6 +225,53 @@ NULLINSEARCH: {
       => 'Nothing Found!';
 }
 
+ZEROINSEARCH: {
+  my $cds_per_year = {
+    2001 => 2,
+    2002 => 1,
+    2005 => 3,
+  };
+
+  my $rs = $schema->resultset ('CD');
+  $rs->delete;
+  for my $y (keys %$cds_per_year) {
+    for my $c (1 .. $cds_per_year->{$y} ) {
+      $rs->create ({ title => "CD $y-$c", artist => 1, year => "$y-01-01" });
+    }
+  }
+
+  is ($rs->count, 6, 'CDs created successfully');
+
+  $rs = $rs->search ({}, {
+    select => [ {year => 'year'} ], as => ['y'], distinct => 1, order_by => 'year',
+  });
+
+  is_deeply (
+    [ $rs->get_column ('y')->all ],
+    [ sort keys %$cds_per_year ],
+    'Years group successfully',
+  );
+
+  $rs->create ({ artist => 1, year => '0-1-1', title => 'Jesus Rap' });
+
+  is_deeply (
+    [ $rs->get_column ('y')->all ],
+    [ 0, sort keys %$cds_per_year ],
+    'Zero-year groups successfully',
+  );
+
+  # convoluted search taken verbatim from list 
+  my $restrict_rs = $rs->search({ -and => [
+    year => { '!=', 0 },
+    year => { '!=', undef }
+  ]});
+
+  is_deeply (
+    [ $restrict_rs->get_column('y')->all ],
+    [ $rs->get_column ('y')->all ],
+    'Zero year was correctly excluded from resultset',
+  );
+}
 
 ## If find() is the first query after connect()
 ## DBI::Storage::sql_maker() will be called before
