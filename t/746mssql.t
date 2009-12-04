@@ -273,84 +273,47 @@ $schema->storage->_sql_maker->{name_sep} = '.';
 
 {
   # try a ->has_many direction
-  my $owners = $schema->resultset ('Owners')->search ({
+  my $owners = $schema->resultset ('Owners')->search (
+    {
       'books.id' => { '!=', undef }
-    }, {
+    },
+    {
       prefetch => 'books',
       order_by => 'name',
       rows     => 3,  # 8 results total
-    });
+    },
+  );
 
   is ($owners->page(1)->all, 3, 'has_many prefetch returns correct number of rows');
   is ($owners->page(1)->count, 3, 'has-many prefetch returns correct count');
 
-  TODO: {
-    local $TODO = 'limit past end of resultset problem';
-    is ($owners->page(3)->all, 2, 'has_many prefetch returns correct number of rows');
-    is ($owners->page(3)->count, 2, 'has-many prefetch returns correct count');
-    is ($owners->page(3)->count_rs->next, 2, 'has-many prefetch returns correct count_rs');
+  is ($owners->page(3)->all, 2, 'has_many prefetch returns correct number of rows');
+  is ($owners->page(3)->count, 2, 'has-many prefetch returns correct count');
+  is ($owners->page(3)->count_rs->next, 2, 'has-many prefetch returns correct count_rs');
 
-    # make sure count does not become overly complex
-    is_same_sql_bind (
-      $owners->page(3)->count_rs->as_query,
-      '(
-        SELECT COUNT( * )
-          FROM (
-            SELECT TOP 3 [me].[id]
-              FROM [owners] [me]
-              LEFT JOIN [books] [books] ON [books].[owner] = [me].[id]
-            WHERE ( [books].[id] IS NOT NULL )
-            GROUP BY [me].[id]
-            ORDER BY [me].[id] DESC
-          ) [count_subq]
-      )',
-      [],
-    );
-  }
 
   # try a ->belongs_to direction (no select collapse, group_by should work)
-  my $books = $schema->resultset ('BooksInLibrary')->search ({
+  my $books = $schema->resultset ('BooksInLibrary')->search (
+    {
       'owner.name' => [qw/wiggle woggle/],
-    }, {
+    },
+    {
       distinct => 1,
       prefetch => 'owner',
       rows     => 2,  # 3 results total
       order_by => { -desc => 'owner' },
       # there is no sane way to order by the right side of a grouped prefetch currently :(
       #order_by => { -desc => 'owner.name' },
-    });
+    },
+  );
 
 
   is ($books->page(1)->all, 2, 'Prefetched grouped search returns correct number of rows');
   is ($books->page(1)->count, 2, 'Prefetched grouped search returns correct count');
 
-  TODO: {
-    local $TODO = 'limit past end of resultset problem';
-    is ($books->page(2)->all, 1, 'Prefetched grouped search returns correct number of rows');
-    is ($books->page(2)->count, 1, 'Prefetched grouped search returns correct count');
-    is ($books->page(2)->count_rs->next, 1, 'Prefetched grouped search returns correct count_rs');
-
-    # make sure count does not become overly complex (FIXME - the distinct-induced group_by is incorrect)
-    is_same_sql_bind (
-      $books->page(2)->count_rs->as_query,
-      '(
-        SELECT COUNT( * )
-          FROM (
-            SELECT TOP 2 [me].[id]
-              FROM [books] [me]
-              JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
-            WHERE ( ( ( [owner].[name] = ? OR [owner].[name] = ? ) AND [source] = ? ) )
-            GROUP BY [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
-            ORDER BY [me].[id] DESC
-          ) [count_subq]
-      )',
-      [
-        [ 'owner.name' => 'wiggle' ],
-        [ 'owner.name' => 'woggle' ],
-        [ 'source' => 'Library' ],
-      ],
-    );
-  }
+  is ($books->page(2)->all, 1, 'Prefetched grouped search returns correct number of rows');
+  is ($books->page(2)->count, 1, 'Prefetched grouped search returns correct count');
+  is ($books->page(2)->count_rs->next, 1, 'Prefetched grouped search returns correct count_rs');
 }
 
 done_testing;
