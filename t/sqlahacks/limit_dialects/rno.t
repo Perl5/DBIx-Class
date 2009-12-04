@@ -6,14 +6,11 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
 
-my $schema = DBICTest->init_schema;
-$schema->storage_type('::DBI::MSSQL');
-
-# Trick the sqlite DB to use Top limit emulation
-# We could test all of this via $sq->$op directly,
-# but some conditions need a $rsrc
-delete $schema->storage->_sql_maker->{_cached_syntax};
-$schema->storage->_sql_maker->limit_dialect ('RowNumberOver');
+my $schema = DBICTest->init_schema(
+   no_deploy => 1,
+   no_populate => 1,
+   storage_type => '::DBI::MSSQL',
+);
 
 my $rs = $schema->resultset ('BooksInLibrary')->search ({}, { prefetch => 'owner', rows => 1, offset => 3 });
 
