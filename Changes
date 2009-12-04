@@ -10,6 +10,7 @@ Revision history for DBIx::Class
         - Fix count/objects from search_related on limited resultset
         - Make get_inflated_columns behave identically to get_columns
           wrt +select/+as (RT#46953)
+        - Fix problems with scalarrefs under InflateColumn (RT#51559)
 
 0.08114 2009-11-14 17:45:00 (UTC)
         - Preliminary support for MSSQL via DBD::ADO

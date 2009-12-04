@@ -124,8 +124,11 @@ sub get_inflated_column {
     unless exists $self->column_info($col)->{_inflate_info};
   return $self->{_inflated_column}{$col}
     if exists $self->{_inflated_column}{$col};
-  return $self->{_inflated_column}{$col} =
-           $self->_inflated_column($col, $self->get_column($col));
+
+  my $val = $self->get_column($col);
+  return $val if ref $val eq 'SCALAR';  #that would be a not-yet-reloaded sclarref update
+
+  return $self->{_inflated_column}{$col} = $self->_inflated_column($col, $val);
 }
 
 =head2 set_inflated_column
