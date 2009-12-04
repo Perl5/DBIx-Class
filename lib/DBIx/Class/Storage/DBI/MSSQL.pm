@@ -193,12 +193,12 @@ sub _select_args_to_query {
     return $self->next::method (@_);
   }
 
-  my ($sql, $bind, @rest) = $self->next::method (@_);
+  my ($sql, $prep_bind, @rest) = $self->next::method (@_);
   $sql =~ s/^ \s* SELECT \s/SELECT TOP 100 PERCENT /xi;
 
   return wantarray
-    ? ($sql, $bind, @rest)
-    : \[ "($sql)", @$bind ]
+    ? ($sql, $prep_bind, @rest)
+    : \[ "($sql)", @$prep_bind ]
   ;
 }
 
