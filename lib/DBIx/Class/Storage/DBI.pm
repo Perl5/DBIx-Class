@@ -1782,7 +1782,7 @@ sub _select_args {
   elsif (
     ($attrs->{rows} || $attrs->{offset})
       &&
-    ($sql_maker->limit_dialect eq 'RowNumberOver' || $sql_maker->limit_dialect eq 'Top' )
+    $sql_maker->limit_dialect eq 'RowNumberOver'
       &&
     (ref $ident eq 'ARRAY' && @$ident > 1)  # indicates a join
       &&
