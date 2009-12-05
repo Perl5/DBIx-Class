@@ -185,26 +185,13 @@ sub last_insert_id { shift->_identity }
 sub _select_args_to_query {
   my $self = shift;
 
-  # _select_args does some shady action at a distance
-  # see DBI.pm for more info
-  my $sql_maker = $self->sql_maker;
-  my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset);
-  {
-    local $sql_maker->{_dbic_rs_attrs};
-    ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset) = $self->_select_args(@_);
-  }
-
-  if (
-    ($rows || $offset)
-      ||
-    not scalar $sql_maker->_order_by_chunks ($order->{order_by})
-  ) {
-    # either limited RS or no ordering, just short circuit
-    return $self->next::method (@_);
-  }
-
   my ($sql, $prep_bind, @rest) = $self->next::method (@_);
-  $sql =~ s/^ \s* SELECT \s/SELECT TOP 100 PERCENT /xi;
+
+  # see if this is an ordered subquery
+  my $attrs = $_[3];
+  if ( scalar $self->sql_maker->_order_by_chunks ($attrs->{order_by}) ) {
+    $sql =~ s/^ \s* SELECT \s/SELECT TOP 100 PERCENT /xi;
+  }
 
   return wantarray
     ? ($sql, $prep_bind, @rest)
