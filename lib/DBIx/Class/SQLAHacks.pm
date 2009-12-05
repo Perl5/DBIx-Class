@@ -53,7 +53,7 @@ sub _RowNumberOver {
 
   # get the order_by only (or make up an order if none exists)
   my $order_by = $self->_order_by(
-    (delete $order->{order_by}) || \ '(SELECT (1))'
+    (delete $order->{order_by}) || $self->_rno_default_order
   );
 
   # whatever is left
@@ -69,6 +69,11 @@ EOS
 
   $sql =~ s/\s*\n\s*/ /g;   # easier to read in the debugger
   return $sql;
+}
+
+# some databases are happy with OVER (), some need OVER (ORDER BY (SELECT (1)) )
+sub _rno_default_order {
+  return undef;
 }
 
 # Crappy Top based Limit/Offset support. Legacy from MSSQL.

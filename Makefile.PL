@@ -144,6 +144,7 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 
 no_index 'DBIx::Class::SQLAHacks';
 no_index 'DBIx::Class::SQLAHacks::MySQL';
+no_index 'DBIx::Class::SQLAHacks::MSSQL';
 no_index 'DBIx::Class::SQLAHacks::OracleJoins';
 no_index 'DBIx::Class::Storage::DBI::AmbiguousGlob';
 no_index 'DBIx::Class::Storage::DBIHacks';
