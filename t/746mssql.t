@@ -345,10 +345,16 @@ $schema->storage->_sql_maker->{name_sep} = '.';
   );
 
   is ($rs->all, 3, 'Correct amount of objects from right-sorted joined resultset');
-  my $limited_rs = $rs->search ({}, {rows => 2, offset => 2});
-  is ($limited_rs->count, 1, 'Correct count of limited right-sorted joined resultset');
-  is ($limited_rs->count_rs->next, 1, 'Correct count_rs of limited right-sorted joined resultset');
-  is ($limited_rs->all, 1, 'Correct amount of objects from limited right-sorted joined resultset');
+  my $limited_rs = $rs->search ({}, {rows => 3, offset => 1});
+  is ($limited_rs->count, 2, 'Correct count of limited right-sorted joined resultset');
+  is ($limited_rs->count_rs->next, 2, 'Correct count_rs of limited right-sorted joined resultset');
+  is ($limited_rs->all, 2, 'Correct amount of objects from limited right-sorted joined resultset');
+
+  is_deeply (
+    [map { $_->name } ($limited_rs->search_related ('owner')->all) ],
+    [qw/woggle wiggle/],    # there is 1 woggle library book and 2 wiggle books, the limit gets us one of each
+    'Rows were properly ordered'
+  );
 }
 
 done_testing;
