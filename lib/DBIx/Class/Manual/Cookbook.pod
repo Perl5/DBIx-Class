@@ -1257,9 +1257,101 @@ example of the recommended way to use it:
 Nested transactions will work as expected. That is, only the outermost
 transaction will actually issue a commit to the $dbh, and a rollback
 at any level of any transaction will cause the entire nested
-transaction to fail. Support for savepoints and for true nested
-transactions (for databases that support them) will hopefully be added
-in the future.
+transaction to fail.
+ 
+=head2 Nested transactions and auto-savepoints
+
+If savepoints are supported by your RDBMS, it is possible to achieve true
+nested transactions with minimal effort. To enable auto-savepoints via nested
+transactions, supply the C<< auto_savepoint = 1 >> connection attribute.
+
+Here is an example of true nested transactions. In the example, we start a big
+task which will create several rows. Generation of data for each row is a
+fragile operation and might fail. If we fail creating something, depending on
+the type of failure, we want to abort the whole task, or only skip the failed
+row.
+
+  my $schema = MySchema->connect("dbi:Pg:dbname=my_db");
+
+  # Start a transaction. Every database change from here on will only be 
+  # commited into the database if the eval block succeeds.
+  eval {
+    $schema->txn_do(sub {
+      # SQL: BEGIN WORK;
+
+      my $job = $schema->resultset('Job')->create({ name=> 'big job' });
+      # SQL: INSERT INTO job ( name) VALUES ( 'big job' );
+
+      for (1..10) {
+
+        # Start a nested transaction, which in fact sets a savepoint.
+        eval {
+          $schema->txn_do(sub {
+            # SQL: SAVEPOINT savepoint_0;
+
+            my $thing = $schema->resultset('Thing')->create({ job=>$job->id });
+            # SQL: INSERT INTO thing ( job) VALUES ( 1 );
+
+            if (rand > 0.8) {
+              # This will generate an error, thus setting $@
+
+              $thing->update({force_fail=>'foo'});
+              # SQL: UPDATE thing SET force_fail = 'foo'
+              #      WHERE ( id = 42 );
+            }
+          });
+        };
+        if ($@) {
+          # SQL: ROLLBACK TO SAVEPOINT savepoint_0;
+
+          # There was an error while creating a $thing. Depending on the error
+          # we want to abort the whole transaction, or only rollback the
+          # changes related to the creation of this $thing
+
+          # Abort the whole job
+          if ($@ =~ /horrible_problem/) {
+            print "something horrible happend, aborting job!";
+            die $@;                # rethrow error
+          }
+
+          # Ignore this $thing, report the error, and continue with the
+          # next $thing
+          print "Cannot create thing: $@";
+        }
+        # There was no error, so save all changes since the last 
+        # savepoint.
+
+        # SQL: RELEASE SAVEPOINT savepoint_0;
+      }
+    });
+  };
+  if ($@) {
+    # There was an error while handling the $job. Rollback all changes
+    # since the transaction started, including the already commited
+    # ('released') savepoints. There will be neither a new $job nor any
+    # $thing entry in the database.
+
+    # SQL: ROLLBACK;
+
+    print "ERROR: $@\n";
+  }
+  else {
+    # There was no error while handling the $job. Commit all changes.
+    # Only now other connections can see the newly created $job and
+    # @things.
+
+    # SQL: COMMIT;
+
+    print "Ok\n";
+  }
+
+In this example it might be hard to see where the rollbacks, releases and
+commits are happening, but it works just the same as for plain L<<txn_do>>: If
+the C<eval>-block around C<txn_do> fails, a rollback is issued. If the C<eval>
+succeeds, the transaction is committed (or the savepoint released).
+
+While you can get more fine-grained controll using C<svp_begin>, C<svp_release>
+and C<svp_rollback>, it is strongly recommended to use C<txn_do> with coderefs.
 
 =head1 SQL
 
