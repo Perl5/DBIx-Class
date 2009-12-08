@@ -227,6 +227,18 @@ sub build_datetime_parser {
 
 sub sqlt_type { 'SQLServer' }
 
+sub _get_mssql_version {
+  my $self = shift;
+
+  my $data = $self->_get_dbh->selectrow_hashref('xp_msver ProductVersion');
+
+  if ($data->{Character_Value} =~ /^(\d+)\./) {
+    return $1;
+  } else {
+    die q{wtf your server doesn't have a version!};
+  }
+}
+
 sub _sql_maker_opts {
   my ( $self, $opts ) = @_;
 
@@ -234,7 +246,12 @@ sub _sql_maker_opts {
     $self->{_sql_maker_opts} = { %$opts };
   }
 
-  return { limit_dialect => 'RowNumberOver', %{$self->{_sql_maker_opts}||{}} };
+  my $version = $self->_get_mssql_version;
+
+  return {
+    limit_dialect => ($version >= 9 ? 'RowNumberOver' : 'Top'),
+    %{$self->{_sql_maker_opts}||{}}
+  };
 }
 
 1;
