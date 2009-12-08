@@ -235,7 +235,7 @@ sub _get_mssql_version {
   if ($data->{Character_Value} =~ /^(\d+)\./) {
     return $1;
   } else {
-    die q{wtf your server doesn't have a version!};
+    $self->throw_exception(q{your MSSQL server doesn't have a version!});
   }
 }
 
