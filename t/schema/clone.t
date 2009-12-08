@@ -7,10 +7,7 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-ok ($schema->storage->connected, 'initialized schema connected');
-
 my $clone = $schema->clone;
-ok (!$clone->storage->connected, 'The clone storage is not connected');
-cmp_ok ($clone->storage, 'ne', $schema->storage, 'Storage cloned with schema');
+cmp_ok ($clone->storage, 'eq', $schema->storage, 'Storage copied into new schema (not a new instance)');
 
 done_testing;
