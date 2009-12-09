@@ -14,6 +14,14 @@ sub _rebless {
   $self->_identity_method('@@identity');
 }
 
+sub _sth_bind_param {
+  my ($self, $sth, $placeholder_index, $data, $attributes, @extra) = @_;
+
+  $attributes->{ado_size} = 8000; # max VARCHAR on MSSQL
+
+  $self->next::method($sth, $placeholder_index, $data, $attributes, @extra);
+}
+
 1;
 
 =head1 NAME
