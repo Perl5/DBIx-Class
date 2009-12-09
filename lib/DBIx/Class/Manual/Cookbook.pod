@@ -113,9 +113,8 @@ almost like you would define a regular ResultSource.
   package My::Schema::Result::UserFriendsComplex;
   use strict;
   use warnings;
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components('Core');
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
   # ->table, ->add_columns, etc.
@@ -395,7 +394,7 @@ To use your resultset, first tell DBIx::Class to create an instance of it
 for you, in your My::DBIC::Schema::CD class:
 
   # class definition as normal
-  __PACKAGE__->load_components(qw/ Core /);
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('cd');
 
   # tell DBIC to use the custom ResultSet class
@@ -842,12 +841,10 @@ B<Proxy-Class definitions>
 
     use strict;
     use warnings;
-    use base qw/DBIx::Class/;
+    use base qw/DBIx::Class::Core/;
 
     ### Define what our admin class is, for ensure_class_loaded()
     my $admin_class = __PACKAGE__ . '::Admin';
-
-    __PACKAGE__->load_components(qw/Core/);
 
     __PACKAGE__->table('users');
 
@@ -1090,8 +1087,7 @@ If you want to get a filtered result set, you can just add add to $attr as follo
 This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_many>:
 
   package My::User;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components('Core');
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('user');
   __PACKAGE__->add_columns(qw/id name/);
   __PACKAGE__->set_primary_key('id');
@@ -1099,8 +1095,7 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->many_to_many('addresses' => 'user_address', 'address');
 
   package My::UserAddress;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components('Core');
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('user_address');
   __PACKAGE__->add_columns(qw/user address/);
   __PACKAGE__->set_primary_key(qw/user address/);
@@ -1108,8 +1103,7 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->belongs_to('address' => 'My::Address');
 
   package My::Address;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components('Core');
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('address');
   __PACKAGE__->add_columns(qw/id street town area_code country/);
   __PACKAGE__->set_primary_key('id');
@@ -1140,8 +1134,7 @@ To accomplish this one only needs to specify the DB schema name in the table
 declaration, like so...
 
   package MyDatabase::Main::Artist;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->table('database1.artist'); # will use "database1.artist" in FROM clause
 
@@ -1426,8 +1419,7 @@ Make a table class as you would for any other table
   package MyAppDB::Dual;
   use strict;
   use warnings;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components("Core");
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table("Dual");
   __PACKAGE__->add_columns(
     "dummy",
@@ -2012,15 +2004,15 @@ details on creating static schemas from a database).
 
 Typically L<DBIx::Class> result classes start off with
 
-    use base qw/DBIx::Class/;
-    __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
+    use base qw/DBIx::Class::Core/;
+    __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
 
 If this preamble is moved into a common base class:-
 
     package MyDBICbase;
 
-    use base qw/DBIx::Class/;
-    __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
+    use base qw/DBIx::Class::Core/;
+    __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
     1;
 
 and each result class then uses this as a base:-

@@ -22,8 +22,8 @@ DBIx::Class::Core - Core set of DBIx::Class modules
 
 =head1 SYNOPSIS
 
-  # In your table classes
-  __PACKAGE__->load_components(qw/Core/);
+  # In your result (table) classes
+  use base 'DBIx::Class::Core';
 
 =head1 DESCRIPTION
 

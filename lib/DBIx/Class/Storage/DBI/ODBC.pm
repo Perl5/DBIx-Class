@@ -36,17 +36,10 @@ sub _dbh_last_insert_id {
 
 DBIx::Class::Storage::DBI::ODBC - Base class for ODBC drivers
 
-=head1 SYNOPSIS
-
-  # In your table classes
-  __PACKAGE__->load_components(qw/Core/);
-
-
 =head1 DESCRIPTION
 
 This class simply provides a mechanism for discovering and loading a sub-class
 for a specific ODBC backend.  It should be transparent to the user.
-
 
 =head1 AUTHORS
 

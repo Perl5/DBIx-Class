@@ -126,9 +126,8 @@ BEGIN {
 
   use strict;
   use warnings;
-  use base 'DBIx::Class';
+  use base 'DBIx::Class::Core';
 
-  __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('dbic_t_schema.array_test');
   __PACKAGE__->add_columns(qw/id arrayfield/);
   __PACKAGE__->column_info_from_storage(1);
@@ -173,9 +172,8 @@ BEGIN {
 
   use strict;
   use warnings;
-  use base 'DBIx::Class';
+  use base 'DBIx::Class::Core';
 
-  __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('dbic_t_schema.casecheck');
   __PACKAGE__->add_columns(qw/id name NAME uc_name/);
   __PACKAGE__->column_info_from_storage(1);
@@ -455,9 +453,8 @@ BEGIN {
 
   use strict;
   use warnings;
-  use base 'DBIx::Class';
+  use base 'DBIx::Class::Core';
 
-  __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('apk');
 
   @eapk_id_columns = qw( id1 id2 id3 id4 );

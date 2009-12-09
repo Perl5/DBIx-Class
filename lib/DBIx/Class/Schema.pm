@@ -33,8 +33,9 @@ DBIx::Class::Schema - composable schemas
   __PACKAGE__->load_namespaces();
 
   package Library::Schema::Result::CD;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/); # for example
+  use base qw/DBIx::Class::Core/;
+
+  __PACKAGE__->load_components(qw/InflateColumn::DateTime/); # for example
   __PACKAGE__->table('cd');
 
   # Elsewhere in your code:

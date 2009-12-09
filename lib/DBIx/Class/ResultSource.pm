@@ -28,9 +28,8 @@ DBIx::Class::ResultSource - Result source object
   # Create a table based result source, in a result class.
 
   package MyDB::Schema::Result::Artist;
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
@@ -40,8 +39,9 @@ DBIx::Class::ResultSource - Result source object
 
   # Create a query (view) based result source, in a result class
   package MyDB::Schema::Result::Year2000CDs;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components('Core');
+  __PACKAGE__->load_components('InflateColumn::DateTime');
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
   __PACKAGE__->table('year2000cds');
@@ -60,10 +60,10 @@ sources, for example L<DBIx::Class::ResultSource::Table>. Table is the
 default result source type, so one is created for you when defining a
 result class as described in the synopsis above.
 
-More specifically, the L<DBIx::Class::Core> component pulls in the
-L<DBIx::Class::ResultSourceProxy::Table> as a base class, which
-defines the L<table|DBIx::Class::ResultSourceProxy::Table/table>
-method. When called, C<table> creates and stores an instance of
+More specifically, the L<DBIx::Class::Core> base class pulls in the
+L<DBIx::Class::ResultSourceProxy::Table> component, which defines
+the L<table|DBIx::Class::ResultSourceProxy::Table/table> method.
+When called, C<table> creates and stores an instance of
 L<DBIx::Class::ResultSoure::Table>. Luckily, to use tables as result
 sources, you don't need to remember any of this.
 

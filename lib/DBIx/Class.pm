@@ -78,9 +78,8 @@ MyDB/Schema/Result/Artist.pm:
 See L<DBIx::Class::ResultSource> for docs on defining result classes.
 
   package MyDB::Schema::Result::Artist;
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
@@ -92,9 +91,9 @@ A result class to represent a CD, which belongs to an artist, in
 MyDB/Schema/Result/CD.pm:
 
   package MyDB::Schema::Result::CD;
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components(qw/Core/);
+  __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
   __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/ cdid artistid title year /);
   __PACKAGE__->set_primary_key('cdid');

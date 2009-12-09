@@ -23,7 +23,9 @@ DBIx::Class::UTF8Columns - Force UTF8 (Unicode) flag on columns
 =head1 SYNOPSIS
 
     package Artist;
-    __PACKAGE__->load_components(qw/UTF8Columns Core/);
+    use base 'DBIx::Class::Core';
+
+    __PACKAGE__->load_components(qw/UTF8Columns/);
     __PACKAGE__->utf8_columns(qw/name description/);
 
     # then belows return strings with utf8 flag

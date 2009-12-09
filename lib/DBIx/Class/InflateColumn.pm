@@ -178,7 +178,7 @@ sub store_inflated_column {
 =over 4
 
 =item L<DBIx::Class::Core> - This component is loaded as part of the
-      "core" L<DBIx::Class> components; generally there is no need to
+      C<core> L<DBIx::Class> components; generally there is no need to
       load it directly
 
 =back
