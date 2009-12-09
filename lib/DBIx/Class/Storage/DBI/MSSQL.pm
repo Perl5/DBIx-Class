@@ -235,23 +235,27 @@ sub _get_mssql_version {
   if ($data->{Character_Value} =~ /^(\d+)\./) {
     return $1;
   } else {
-    $self->throw_exception(q{your MSSQL server doesn't have a version!});
+    $self->throw_exception(q{Your ProductVersion's Character_Value is missing or malformed!});
   }
 }
 
-sub _sql_maker_opts {
-  my ( $self, $opts ) = @_;
+sub sql_maker {
+  my $self = shift;
 
-  if ( $opts ) {
-    $self->{_sql_maker_opts} = { %$opts };
+  unless ($self->_sql_maker) {
+    unless ($self->{_sql_maker_opts}{limit_dialect}) {
+      my $version = $self->_get_mssql_version;
+
+      $self->{_sql_maker_opts} = {
+        limit_dialect => ($version >= 9 ? 'RowNumberOver' : 'Top'),
+        %{$self->{_sql_maker_opts}||{}}
+      };
+    }
+
+    my $maker = $self->next::method (@_);
   }
 
-  my $version = $self->_get_mssql_version;
-
-  return {
-    limit_dialect => ($version >= 9 ? 'RowNumberOver' : 'Top'),
-    %{$self->{_sql_maker_opts}||{}}
-  };
+  return $self->_sql_maker;
 }
 
 1;
