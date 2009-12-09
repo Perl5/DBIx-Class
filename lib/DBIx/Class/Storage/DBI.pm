@@ -1788,7 +1788,7 @@ sub _select_args {
       &&
     scalar $sql_maker->_order_by_chunks ($attrs->{order_by})
   ) {
-    # the two limit dialects above mangle the SQL such that the join gets lost
+    # the RNO limit dialect above mangles the SQL such that the join gets lost
     # wrap a subquery here
 
     push @limit, delete @{$attrs}{qw/rows offset/};
