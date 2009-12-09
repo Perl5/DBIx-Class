@@ -244,7 +244,7 @@ sub sql_maker {
 
   unless ($self->_sql_maker) {
     unless ($self->{_sql_maker_opts}{limit_dialect}) {
-      my $version = $self->_get_mssql_version;
+      my $version = eval { $self->_get_mssql_version; } || 0;
 
       $self->{_sql_maker_opts} = {
         limit_dialect => ($version >= 9 ? 'RowNumberOver' : 'Top'),
