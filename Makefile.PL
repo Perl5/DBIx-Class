@@ -143,6 +143,7 @@ resources 'repository'  => 'http://dev.catalyst.perl.org/repos/bast/DBIx-Class/'
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
 
 no_index 'DBIx::Class::SQLAHacks';
+no_index 'DBIx::Class::SQLAHacks::MySQL';
 no_index 'DBIx::Class::SQLAHacks::MSSQL';
 no_index 'DBIx::Class::SQLAHacks::OracleJoins';
 no_index 'DBIx::Class::Storage::DBI::AmbiguousGlob';

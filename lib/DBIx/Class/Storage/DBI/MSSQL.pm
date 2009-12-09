@@ -178,6 +178,28 @@ sub _execute {
 
 sub last_insert_id { shift->_identity }
 
+#
+# MSSQL is retarded wrt ordered subselects. One needs to add a TOP 100%
+# to *all* subqueries, do it here.
+#
+sub _select_args_to_query {
+  my $self = shift;
+
+  my ($sql, $prep_bind, @rest) = $self->next::method (@_);
+
+  # see if this is an ordered subquery
+  my $attrs = $_[3];
+  if ( scalar $self->sql_maker->_order_by_chunks ($attrs->{order_by}) ) {
+    $sql =~ s/^ \s* SELECT \s/SELECT TOP 100 PERCENT /xi;
+  }
+
+  return wantarray
+    ? ($sql, $prep_bind, @rest)
+    : \[ "($sql)", @$prep_bind ]
+  ;
+}
+
+
 # savepoint syntax is the same as in Sybase ASE
 
 sub _svp_begin {
@@ -205,14 +227,35 @@ sub build_datetime_parser {
 
 sub sqlt_type { 'SQLServer' }
 
-sub _sql_maker_opts {
-  my ( $self, $opts ) = @_;
+sub _get_mssql_version {
+  my $self = shift;
 
-  if ( $opts ) {
-    $self->{_sql_maker_opts} = { %$opts };
+  my $data = $self->_get_dbh->selectrow_hashref('xp_msver ProductVersion');
+
+  if ($data->{Character_Value} =~ /^(\d+)\./) {
+    return $1;
+  } else {
+    $self->throw_exception(q{Your ProductVersion's Character_Value is missing or malformed!});
+  }
+}
+
+sub sql_maker {
+  my $self = shift;
+
+  unless ($self->_sql_maker) {
+    unless ($self->{_sql_maker_opts}{limit_dialect}) {
+      my $version = $self->_get_mssql_version;
+
+      $self->{_sql_maker_opts} = {
+        limit_dialect => ($version >= 9 ? 'RowNumberOver' : 'Top'),
+        %{$self->{_sql_maker_opts}||{}}
+      };
+    }
+
+    my $maker = $self->next::method (@_);
   }
 
-  return { limit_dialect => 'Top', %{$self->{_sql_maker_opts}||{}} };
+  return $self->_sql_maker;
 }
 
 1;

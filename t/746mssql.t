@@ -28,6 +28,11 @@ my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server' );
 
+{
+  my $schema2 = $schema->connect ($schema->storage->connect_info);
+  ok (! $schema2->storage->connected, 'a re-connected cloned schema starts unconnected');
+}
+
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
     eval { $dbh->do("DROP TABLE artist") };
@@ -249,6 +254,20 @@ lives_ok ( sub {
   ]);
 }, 'populate without PKs supplied ok' );
 
+# make sure ordered subselects work
+{
+  my $book_owner_ids = $schema->resultset ('BooksInLibrary')
+                               ->search ({}, { join => 'owner', distinct => 1, order_by => { -desc => 'owner'} })
+                                ->get_column ('owner');
+
+  my $owners = $schema->resultset ('Owners')->search ({
+    id => { -in => $book_owner_ids->as_query }
+  });
+
+  is ($owners->count, 8, 'Correct amount of book owners');
+  is ($owners->all, 8, 'Correct amount of book owner objects');
+}
+
 #
 # try a prefetch on tables with identically named columns
 #
@@ -259,84 +278,88 @@ $schema->storage->_sql_maker->{name_sep} = '.';
 
 {
   # try a ->has_many direction
-  my $owners = $schema->resultset ('Owners')->search ({
-      'books.id' => { '!=', undef }
-    }, {
+  my $owners = $schema->resultset ('Owners')->search (
+    {
+      'books.id' => { '!=', undef },
+      'me.name' => { '!=', 'somebogusstring' },
+    },
+    {
       prefetch => 'books',
-      order_by => 'name',
+      order_by => { -asc => \['name + ?', [ test => 'xxx' ]] }, # test bindvar propagation
       rows     => 3,  # 8 results total
-    });
+    },
+  );
+
+  my ($sql, @bind) = @${$owners->page(3)->as_query};
+  is_deeply (
+    \@bind,
+    [ ([ 'me.name' => 'somebogusstring' ], [ test => 'xxx' ]) x 2 ],  # double because of the prefetch subq
+  );
 
   is ($owners->page(1)->all, 3, 'has_many prefetch returns correct number of rows');
   is ($owners->page(1)->count, 3, 'has-many prefetch returns correct count');
 
-  TODO: {
-    local $TODO = 'limit past end of resultset problem';
-    is ($owners->page(3)->all, 2, 'has_many prefetch returns correct number of rows');
-    is ($owners->page(3)->count, 2, 'has-many prefetch returns correct count');
-    is ($owners->page(3)->count_rs->next, 2, 'has-many prefetch returns correct count_rs');
+  is ($owners->page(3)->all, 2, 'has_many prefetch returns correct number of rows');
+  is ($owners->page(3)->count, 2, 'has-many prefetch returns correct count');
+  is ($owners->page(3)->count_rs->next, 2, 'has-many prefetch returns correct count_rs');
 
-    # make sure count does not become overly complex
-    is_same_sql_bind (
-      $owners->page(3)->count_rs->as_query,
-      '(
-        SELECT COUNT( * )
-          FROM (
-            SELECT TOP 3 [me].[id]
-              FROM [owners] [me]
-              LEFT JOIN [books] [books] ON [books].[owner] = [me].[id]
-            WHERE ( [books].[id] IS NOT NULL )
-            GROUP BY [me].[id]
-            ORDER BY [me].[id] DESC
-          ) [count_subq]
-      )',
-      [],
-    );
-  }
 
   # try a ->belongs_to direction (no select collapse, group_by should work)
-  my $books = $schema->resultset ('BooksInLibrary')->search ({
+  my $books = $schema->resultset ('BooksInLibrary')->search (
+    {
       'owner.name' => [qw/wiggle woggle/],
-    }, {
+    },
+    {
       distinct => 1,
+      having => \['1 = ?', [ test => 1 ] ], #test having propagation
       prefetch => 'owner',
       rows     => 2,  # 3 results total
       order_by => { -desc => 'owner' },
-      # there is no sane way to order by the right side of a grouped prefetch currently :(
-      #order_by => { -desc => 'owner.name' },
-    });
+    },
+  );
 
+  ($sql, @bind) = @${$books->page(3)->as_query};
+  is_deeply (
+    \@bind,
+    [
+      # inner
+      [ 'owner.name' => 'wiggle' ], [ 'owner.name' => 'woggle' ], [ source => 'Library' ], [ test => '1' ],
+      # outer
+      [ 'owner.name' => 'wiggle' ], [ 'owner.name' => 'woggle' ], [ source => 'Library' ],
+    ],
+  );
 
   is ($books->page(1)->all, 2, 'Prefetched grouped search returns correct number of rows');
   is ($books->page(1)->count, 2, 'Prefetched grouped search returns correct count');
 
-  TODO: {
-    local $TODO = 'limit past end of resultset problem';
-    is ($books->page(2)->all, 1, 'Prefetched grouped search returns correct number of rows');
-    is ($books->page(2)->count, 1, 'Prefetched grouped search returns correct count');
-    is ($books->page(2)->count_rs->next, 1, 'Prefetched grouped search returns correct count_rs');
+  is ($books->page(2)->all, 1, 'Prefetched grouped search returns correct number of rows');
+  is ($books->page(2)->count, 1, 'Prefetched grouped search returns correct count');
+  is ($books->page(2)->count_rs->next, 1, 'Prefetched grouped search returns correct count_rs');
+}
 
-    # make sure count does not become overly complex (FIXME - the distinct-induced group_by is incorrect)
-    is_same_sql_bind (
-      $books->page(2)->count_rs->as_query,
-      '(
-        SELECT COUNT( * )
-          FROM (
-            SELECT TOP 2 [me].[id]
-              FROM [books] [me]
-              JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
-            WHERE ( ( ( [owner].[name] = ? OR [owner].[name] = ? ) AND [source] = ? ) )
-            GROUP BY [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
-            ORDER BY [me].[id] DESC
-          ) [count_subq]
-      )',
-      [
-        [ 'owner.name' => 'wiggle' ],
-        [ 'owner.name' => 'woggle' ],
-        [ 'source' => 'Library' ],
-      ],
-    );
-  }
+# make sure right-join-side ordering limit works
+{
+  my $rs = $schema->resultset ('BooksInLibrary')->search (
+    {
+      'owner.name' => [qw/wiggle woggle/],
+    },
+    {
+      join => 'owner',
+      order_by => { -desc => 'owner.name' },
+    }
+  );
+
+  is ($rs->all, 3, 'Correct amount of objects from right-sorted joined resultset');
+  my $limited_rs = $rs->search ({}, {rows => 3, offset => 1});
+  is ($limited_rs->count, 2, 'Correct count of limited right-sorted joined resultset');
+  is ($limited_rs->count_rs->next, 2, 'Correct count_rs of limited right-sorted joined resultset');
+  is ($limited_rs->all, 2, 'Correct amount of objects from limited right-sorted joined resultset');
+
+  is_deeply (
+    [map { $_->name } ($limited_rs->search_related ('owner')->all) ],
+    [qw/woggle wiggle/],    # there is 1 woggle library book and 2 wiggle books, the limit gets us one of each
+    'Rows were properly ordered'
+  );
 }
 
 done_testing;
