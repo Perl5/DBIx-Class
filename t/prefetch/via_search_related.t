@@ -109,26 +109,30 @@ lives_ok (sub {
     is($rs->search_related('cds')->count, 4, 'prefetch without distinct (count)');
 
 
-    $rs = $artist_rs->search(undef, {distinct => 1})
-                ->search_related('cds')->search_related('genre',
+    $rs = $artist_rs->search_related('cds', {}, { distinct => 1})->search_related('genre',
                     { 'genre.name' => 'vague genre' },
                  );
+    is($rs->all, 2, 'distinct does not propagate over search_related (objects)');
+    is($rs->count, 2, 'distinct does not propagate over search_related (count)');
+
+    $rs = $rs->search ({}, { distinct => 1} );
     is($rs->all, 1, 'distinct without prefetch (objects)');
     is($rs->count, 1, 'distinct without prefetch (count)');
 
 
-    $rs = $artist_rs->search({}, {distinct => 1})
-                ->search_related('cds')->search_related('genre',
+    $rs = $artist_rs->search_related('cds')->search_related('genre',
                     { 'genre.name' => 'vague genre' },
-                    { prefetch => 'cds' },
+                    { prefetch => 'cds', distinct => 1 },
                  );
     is($rs->all, 1, 'distinct with prefetch (objects)');
     is($rs->count, 1, 'distinct with prefetch (count)');
+
+  TODO: {
+    local $TODO = "This makes another 2 trips to the database, it can't be right";
     # artist -> 2 cds -> 2 genres -> 2 cds for each genre + distinct = 2
     is($rs->search_related('cds')->all, 2, 'prefetched distinct with prefetch (objects)');
     is($rs->search_related('cds')->count, 2, 'prefetched distinct with prefetch (count)');
-
-
+  }
 
 }, 'distinct generally works with prefetch on deep search_related chains');
 

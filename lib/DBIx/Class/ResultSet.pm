@@ -2626,7 +2626,7 @@ sub _chain_relationship {
   # ->_resolve_join as otherwise they get lost - captainL
   my $join = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
 
-  delete @{$attrs}{qw/join prefetch collapse select as columns +select +as +columns/};
+  delete @{$attrs}{qw/join prefetch collapse distinct select as columns +select +as +columns/};
 
   my $seen = { %{ (delete $attrs->{seen_join}) || {} } };
 

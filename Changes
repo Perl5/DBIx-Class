@@ -5,6 +5,7 @@ Revision history for DBIx::Class
           in order_by also need to be aded to the resulting group_by)
         - Do not attempt to deploy FK constraints pointing to a View
         - Fix count/objects from search_related on limited resultset
+        - Stop propagating distinct => 1 over search_related chains
         - Make sure populate() inherits the resultset conditions just
           like create() does
         - Make get_inflated_columns behave identically to get_columns
