@@ -91,8 +91,7 @@ $admin = DBIx::Class::Admin->new(
 	connect_info => $schema->storage->connect_info(),
 );
 
-$admin->preversion("1.0");
-lives_ok { $admin->create($schema->storage->sqlt_type(), ); } 'Can create diff for ' . $schema->storage->sqlt_type;
+lives_ok { $admin->create($schema->storage->sqlt_type(), {}, "1.0" ); } 'Can create diff for ' . $schema->storage->sqlt_type;
 # sleep required for upgrade table to hold a distinct time of upgrade value
 # otherwise the returned of get_db_version can be undeterministic
 sleep 1;
