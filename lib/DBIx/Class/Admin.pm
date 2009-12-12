@@ -252,86 +252,64 @@ sub insert_data {
 }
 
 sub update_data {
-	my ($self, $resultset, $set, $where) = @_;
-    $resultset = $resultset->search( ($where||{}) );
-    my $count = $resultset->count();
-    print "This action will modify $count ".ref($resultset)." records.\n" if (!$self->quiet);
-    if ( $self->force || $self->confirm() ) {
-        $resultset->update_all( $set );
-    }
+	my ($self, $rs, $set, $where) = @_;
+
+	my $resultset = $self->schema->resultset($rs);
+	$resultset = $resultset->search( ($where||{}) );
+
+	my $count = $resultset->count();
+	print "This action will modify $count ".ref($resultset)." records.\n" if (!$self->quiet);
+
+	if ( $self->force || $self->confirm() ) {
+		$resultset->update_all( $set );
+	}
 }
 
 # FIXME
 #die('Do not use the set option with the delete op') if ($set);
 sub delete_data {
-	my ($self, $resultset, $where, $attrs) = @_;
+	my ($self, $rs, $where, $attrs) = @_;
 
-    $resultset = $resultset->search( ($where||{}), ($attrs||()) );
-    my $count = $resultset->count();
-    print "This action will delete $count ".ref($resultset)." records.\n" if (!$self->quiet);
-    if ( $self->force || $self->confirm() ) {
-        $resultset->delete_all();
-    }
+	my $resultset = $self->schema->resultset($rs);
+	$resultset = $resultset->search( ($where||{}), ($attrs||()) );
+
+	my $count = $resultset->count();
+	print "This action will delete $count ".ref($resultset)." records.\n" if (!$self->quiet);
+
+	if ( $self->force || $self->confirm() ) {
+		$resultset->delete_all();
+	}
 }
 
-
-#FIXME
-# die('Do not use the set option with the select op') if ($set);
 sub select_data {
-	my ($self, $resultset, $where, $attrs) = @_;
+	my ($self, $rs, $where, $attrs) = @_;
 
-	
-    $resultset = $resultset->search( ($where||{}), ($attrs||()) );
-}
+	my $resultset = $self->schema->resultset($rs);
+	$resultset = $resultset->search( ($where||{}), ($attrs||()) );
 
-# TODO, make this more generic, for different data formats
-sub output_data {
-	my ($self, $resultset) = @_;
+	my @data;
+	my @columns = $resultset->result_source->columns();
+	push @data, [@columns];# 
 
-#	eval {
-#		ensure_class_loaded 'Data::Tabular::Dumper';
-#	};
-#	if($@) {
-#		die "Data::Tabular::Dumper is needed for outputing data";
-#	}
-	my $csv_class;
-	# load compatible CSV generators
-	foreach $csv_class (qw(Text::CSV_XS Text::CSV_PP)) {
-		eval { ensure_class_loaded $csv_class};
-		if($@) {
-			$csv_class = undef;
-			next;
-		} 
-	}
-	if (not defined $csv_class) {
-		die ('The select op requires either the Text::CSV_XS or the Text::CSV_PP module');
+	while (my $row = $resultset->next()) {
+		my @fields;
+		foreach my $column (@columns) {
+			push( @fields, $row->get_column($column) );
+		}
+		push @data, [@fields];
 	}
 
-    my $csv = $csv_class->new({
-       sep_char => ( $self->csv_format eq 'tsv' ? "\t" : ',' ),
-    });
-
-    my @columns = $resultset->result_source->columns();
-    $csv->combine( @columns );
-    print $csv->string()."\n";
-    while (my $row = $resultset->next()) {
-        my @fields;
-        foreach my $column (@columns) {
-            push( @fields, $row->get_column($column) );
-        }
-        $csv->combine( @fields );
-        print $csv->string()."\n";
-    }
+	return \@data;
 }
 
 sub confirm {
-    my ($self) = @_;
+	my ($self) = @_;
 	print "Are you sure you want to do this? (type YES to confirm) \n";
 	# mainly here for testing
 	return 1 if ($self->_confirm());
 	my $response = <STDIN>;
-    return 1 if ($response=~/^YES/);
-    return;
+	return 1 if ($response=~/^YES/);
+	return;
 }
 
 1;
