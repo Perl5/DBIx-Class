@@ -17,13 +17,40 @@
 package DBIx::Class::Admin;
 
 use Moose;
-use MooseX::Types;
+use MooseX::Types 
+	-declare => [qw( DBICConnectInfo )];
 use MooseX::Types::Moose qw/Int HashRef ArrayRef Str Any/;
+use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
 use Try::Tiny;
 use parent 'Class::C3::Componentised';
 
 use Data::Dumper;
+use JSON::Any;
+
+
+coerce ArrayRef,
+	from JSON,
+	via { _json_to_data ($_) };
+
+coerce HashRef,
+	from JSON,
+	via { _json_to_data($_) };
+
+subtype DBICConnectInfo,
+	as ArrayRef;
+
+coerce DBICConnectInfo,
+	from JSON,
+	 via { return _json_to_data($_) } ;
+
+coerce DBICConnectInfo,
+	from Str,
+		via { return _json_to_data($_) };
+
+coerce DBICConnectInfo,
+	from HashRef,
+	 via { [ $_->{dsn}, $_->{user}, $_->{password} ]  };
 #
 #		['lib|I:s' => 'Additonal library path to search in'], 
 #		['schema|s:s' => 'The class of the schema to load', { required => 1 } ],
@@ -115,8 +142,6 @@ has 'schema' => (
 	lazy_build	=> 1,
 );
 
-
-
 sub _build_schema {
 	my ($self)  = @_;
 	$self->ensure_class_loaded($self->schema_class);
@@ -125,14 +150,55 @@ sub _build_schema {
 	return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );
 }
 
+=head2 resultset
+
+a resultset from the schema to operate on
+=cut
+has 'resultset' => (
+	is			=> 'rw',
+	isa			=> Str,
+);
+
+=head2 where
+
+a hash ref or json string to be used for identifying data to manipulate
+=cut
+
+has 'where' => (
+	is			=> 'rw',
+	isa			=> HashRef,
+	coerce		=> 1,
+);
+
+=head2 set
+a hash ref or json string to be used for inserting or updating data
+=cut
+
+has 'set' => (
+	is			=> 'rw',
+	isa			=> HashRef,
+	coerce		=> 1,
+);
+
+=head2 attrs
+a hash ref or json string to be used for passing additonal info to the ->search call
+=cut
+has 'attrs' => (
+	is 			=> 'rw',
+	isa			=> HashRef,
+	coerce		=> 1,
+);
 =head2 connect_info
 
 connect_info the arguments to provide to the connect call of the schema_class
 =cut
+
+
 has 'connect_info' => (
 	is			=> 'ro',
-	isa			=> ArrayRef,
+	isa			=> DBICConnectInfo,
 	lazy_build	=> 1,
+	coerce		=> 1,
 );
 
 sub _build_connect_info {
@@ -354,7 +420,7 @@ sub deploy {
 #die('Do not use the where option with the insert op') if ($where);
 #die('Do not use the attrs option with the insert op') if ($attrs);
 
-=head2 insert_data
+=head2 insert
 
 =over 4
 
@@ -362,19 +428,22 @@ sub deploy {
 
 =back
 
-insert_data takes the name of a resultset from the schema_class and a hashref of data to insert
+insert takes the name of a resultset from the schema_class and a hashref of data to insert
 into that resultset
 
 =cut
-sub insert_data {
+sub insert {
 	my ($self, $rs, $set) = @_;
+
+	$rs ||= $self->resultset();
+	$set ||= $self->set();
 	my $resultset = $self->schema->resultset($rs);
 	my $obj = $resultset->create( $set );
 	print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n" if (!$self->quiet);
 }
 
 
-=head2 update_data
+=head2 update
 
 =over 4 
 
@@ -382,12 +451,15 @@ sub insert_data {
 
 =back
 
-update_data takes the name of a resultset from the schema_class, a hashref of data to update and 
+update takes the name of a resultset from the schema_class, a hashref of data to update and 
 a where hash used to form the search for the rows to update. 
 =cut
-sub update_data {
+sub update {
 	my ($self, $rs, $set, $where) = @_;
 
+	$rs ||= $self->resultset();
+	$where ||= $self->where();
+	$set ||= $self->set();
 	my $resultset = $self->schema->resultset($rs);
 	$resultset = $resultset->search( ($where||{}) );
 
@@ -401,7 +473,7 @@ sub update_data {
 
 # FIXME
 #die('Do not use the set option with the delete op') if ($set);
-=head2 delete_data
+=head2 delete
 
 =over 4
 
@@ -409,12 +481,15 @@ sub update_data {
 
 =back
 
-delete_data takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search. 
+delete takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search. 
 The found data is deleted and cannot be recovered.
 =cut
-sub delete_data {
+sub delete {
 	my ($self, $rs, $where, $attrs) = @_;
 
+	$rs ||= $self->resultset();
+	$where ||= $self->where();
+	$attrs ||= $self->attrs();
 	my $resultset = $self->schema->resultset($rs);
 	$resultset = $resultset->search( ($where||{}), ($attrs||()) );
 
@@ -426,7 +501,7 @@ sub delete_data {
 	}
 }
 
-=head2 select_data
+=head2 select
 
 =over 4
 
@@ -434,13 +509,16 @@ sub delete_data {
 
 =back
 
-select_data takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search. 
+select takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search. 
 The found data is returned in a array ref where the first row will be the columns list.
 
 =cut
-sub select_data {
+sub select {
 	my ($self, $rs, $where, $attrs) = @_;
 
+	$rs ||= $self->resultset();
+	$where ||= $self->where();
+	$attrs ||= $self->attrs();
 	my $resultset = $self->schema->resultset($rs);
 	$resultset = $resultset->search( ($where||{}), ($attrs||()) );
 
@@ -482,4 +560,24 @@ sub _find_stanza {
 	}
 	return $cfg;
 }
+
+sub _json_to_data {
+	my ($json_str) = @_;
+	my $json = JSON::Any->new(allow_barekey => 1, allow_singlequote => 1, relaxed=>1);
+	my $ret = $json->jsonToObj($json_str);
+	return $ret;
+}
+
+=head1 AUTHOR
+
+Gordon Irving <goraxe@cpan.org>
+
+with code taken from dbicadmin by 
+Aran Deltac <bluefeet@cpan.org>
+
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+=cut
 1;
