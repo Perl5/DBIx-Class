@@ -337,14 +337,14 @@ $schema->storage->_sql_maker->{name_sep} = '.';
   is ($books->page(2)->count_rs->next, 1, 'Prefetched grouped search returns correct count_rs');
 }
 
-# make sure right-join-side ordering limit works
+# make sure right-join-side single-prefetch ordering limit works
 {
   my $rs = $schema->resultset ('BooksInLibrary')->search (
     {
       'owner.name' => [qw/wiggle woggle/],
     },
     {
-      join => 'owner',
+      prefetch => 'owner',
       order_by => { -desc => 'owner.name' },
     }
   );
