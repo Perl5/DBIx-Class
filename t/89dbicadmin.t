@@ -38,28 +38,30 @@ sub test_dbicadmin {
 
     my $employees = $schema->resultset('Employee');
 
-    system( _prepare_system_args( qw|--op=insert --set={"name":"Matt"}| ) );
+    system( _prepare_system_args( qw|--insert --set={"name":"Matt"}| ) );
     ok( ($employees->count()==1), "$ENV{JSON_ANY_ORDER}: insert count" );
 
     my $employee = $employees->find(1);
     ok( ($employee->name() eq 'Matt'), "$ENV{JSON_ANY_ORDER}: insert valid" );
 
-    system( _prepare_system_args( qw|--op=update --set={"name":"Trout"}| ) );
+    system( _prepare_system_args( qw|--update --set={"name":"Trout"}| ) );
     $employee = $employees->find(1);
     ok( ($employee->name() eq 'Trout'), "$ENV{JSON_ANY_ORDER}: update" );
 
-    system( _prepare_system_args( qw|--op=insert --set={"name":"Aran"}| ) );
+    system( _prepare_system_args( qw|--insert --set={"name":"Aran"}| ) );
 
     SKIP: {
         skip ("MSWin32 doesn't support -| either", 1) if $^O eq 'MSWin32';
 
-        open(my $fh, "-|",  _prepare_system_args( qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
+        open(my $fh, "-|",  _prepare_system_args( qw|--select --attrs={"order_by":"name"}| ) ) or die $!;
         my $data = do { local $/; <$fh> };
         close($fh);
-        ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" );
+        if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
+			diag ("data from select is $data")
+		};
     }
 
-    system( _prepare_system_args( qw|--op=delete --where={"name":"Trout"}| ) );
+    system( _prepare_system_args( qw|--delete --where={"name":"Trout"}| ) );
     ok( ($employees->count()==1), "$ENV{JSON_ANY_ORDER}: delete" );
 }
 
