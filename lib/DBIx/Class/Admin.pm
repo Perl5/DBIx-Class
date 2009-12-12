@@ -157,6 +157,11 @@ has force => (
 	isa			=> 'Bool',
 );
 
+has quiet => (
+	is			=> 'rw',
+	isa			=> 'Bool',
+);
+
 has '_confirm' => (
 	is		=> 'ro',
 	isa		=> 'Bool',
@@ -181,7 +186,8 @@ sub upgrade {
 		# schema is unversioned
 		die "could not determin current schema version, please either install or deploy";
 	} else {
-		$schema->upgrade();
+		my $ret = $schema->upgrade();
+		return $ret;
 	}
 }
 
@@ -200,7 +206,6 @@ sub install {
 		warn "forcing install may not be a good idea";
 		if($self->confirm() ) {
 			# FIXME private api
-			warn $version;
 			$self->schema->_set_db_version({ version => $version});
 		}
 	}
@@ -240,7 +245,8 @@ sub find_stanza {
 #die('Do not use the where option with the insert op') if ($where);
 #die('Do not use the attrs option with the insert op') if ($attrs);
 sub insert_data {
-	my ($self, $resultset, $set) = @_;
+	my ($self, $rs, $set) = @_;
+	my $resultset = $self->schema->resultset($rs);
 	my $obj = $resultset->create( $set );
     print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n" if (!$self->quiet);
 }
@@ -320,7 +326,7 @@ sub output_data {
 
 sub confirm {
     my ($self) = @_;
-	print "Are you sure you want to do this? (type YES to confirm) ";
+	print "Are you sure you want to do this? (type YES to confirm) \n";
 	# mainly here for testing
 	return 1 if ($self->_confirm());
 	my $response = <STDIN>;
