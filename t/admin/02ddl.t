@@ -93,6 +93,9 @@ $admin = DBIx::Class::Admin->new(
 
 $admin->preversion("1.0");
 lives_ok { $admin->create($schema->storage->sqlt_type(), ); } 'Can create diff for ' . $schema->storage->sqlt_type;
+# sleep required for upgrade table to hold a distinct time of upgrade value
+# otherwise the returned of get_db_version can be undeterministic
+sleep 1;
 lives_ok {$admin->upgrade();} 'upgrade the schema';
 
 is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema and db versions match');
