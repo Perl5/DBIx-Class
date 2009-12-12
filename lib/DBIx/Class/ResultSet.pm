@@ -2638,10 +2638,19 @@ sub _chain_relationship {
       ||
     $self->_has_resolved_attr (@force_subq_attrs)
   ) {
+    # Nuke the prefetch (if any) before the new $rs attrs
+    # are resolved (prefetch is useless - we are wrapping
+    # a subquery anyway).
+    my $rs_copy = $self->search;
+    $rs_copy->{attrs}{join} = $self->_merge_attr (
+      $rs_copy->{attrs}{join},
+      delete $rs_copy->{attrs}{prefetch},
+    );
+
     $from = [{
       -source_handle => $source->handle,
       -alias => $attrs->{alias},
-      $attrs->{alias} => $self->as_query,
+      $attrs->{alias} => $rs_copy->as_query,
     }];
     delete @{$attrs}{@force_subq_attrs, 'where'};
     $seen->{-relation_chain_depth} = 0;
