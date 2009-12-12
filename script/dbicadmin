@@ -20,11 +20,12 @@ my ($opts, $usage) = describe_options(
 			['create|c' => 'Create version diffs needs preversion',],
 			['upgrade|u' => 'Upgrade the database to the current schema '],
 			['install|i' => 'Install the schema to the database',],
-			['deploy|d' => 'Deploy the schema to the database',],
+			['deploy|d' => 'Deploy the a to the database',],
 			['select|s'   => 'Select data from the schema', ],
 			['insert|i'   => 'Insert data into the schema', ],
 			['update|u'   => 'Update data in the schema', ], 
 			['delete|D'   => 'Delete data from the schema',],
+			['op:s' => 'compatiblity option all of the above can be suppied as --op=<action>'],
 			['help|h' => 'display this help'],
 		], required=> 1 }],
 		['Options'],
@@ -70,9 +71,11 @@ my $admin = DBIx::Class::Admin->new( %$opts );
 
 
 my $action = $opts->{action};
-print "going to perform action $action\n";
+
+$action = $opts->{op} if ($action eq 'op');
 my $res = $admin->$action();
 
+print "going to perform action $action\n";
 if ($action eq 'select') {
 
 	my $csv_class;

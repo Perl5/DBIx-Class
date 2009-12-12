@@ -51,31 +51,6 @@ coerce DBICConnectInfo,
 coerce DBICConnectInfo,
 	from HashRef,
 	 via { [ $_->{dsn}, $_->{user}, $_->{password} ]  };
-#
-#		['lib|I:s' => 'Additonal library path to search in'], 
-#		['schema|s:s' => 'The class of the schema to load', { required => 1 } ],
-#		['config-stanza|S:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
-#		['config|C:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
-#		['connect-info|n:s%' => ' supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
-#		['sql-dir|q:s' => 'The directory where sql diffs will be created'],
-#		['sql-type|t:s' => 'The RDBMs falvour you wish to use'],
-#		['version|v:i' => 'Supply a version install'],
-#		['preversion|p:s' => 'The previous version to diff against',],
-#
-#    'schema=s'  => \my $schema_class,
-#    'class=s'   => \my $resultset_class,
-#    'connect=s' => \my $connect,
-#    'op=s'      => \my $op,
-#    'set=s'     => \my $set,
-#    'where=s'   => \my $where,
-#    'attrs=s'   => \my $attrs,
-#    'format=s'  => \my $format,
-#    'force'     => \my $force,
-#    'trace'     => \my $trace,
-#    'quiet'     => \my $quiet,
-#    'help'      => \my $help,
-#    'tlibs'      => \my $t_libs,
-#=cut
 
 =head1 NAME
 
@@ -287,7 +262,7 @@ has force => (
 	isa			=> 'Bool',
 );
 
-=head2 quite
+=head2 quiet
 
 Be less verbose about actions
 =cut
