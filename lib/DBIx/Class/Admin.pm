@@ -20,39 +20,68 @@ use Moose;
 use MooseX::Types;
 use MooseX::Types::Moose qw/Int HashRef ArrayRef Str Any/;
 use MooseX::Types::Path::Class qw(Dir File);
-#use DBIx::Class::Schema;
 use Try::Tiny;
 use parent 'Class::C3::Componentised';
 
 use Data::Dumper;
-=c
-		['lib|I:s' => 'Additonal library path to search in'], 
-		['schema|s:s' => 'The class of the schema to load', { required => 1 } ],
-		['config-stanza|S:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
-		['config|C:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
-		['connect-info|n:s%' => ' supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
-		['sql-dir|q:s' => 'The directory where sql diffs will be created'],
-		['sql-type|t:s' => 'The RDBMs falvour you wish to use'],
-		['version|v:i' => 'Supply a version install'],
-		['preversion|p:s' => 'The previous version to diff against',],
+#
+#		['lib|I:s' => 'Additonal library path to search in'], 
+#		['schema|s:s' => 'The class of the schema to load', { required => 1 } ],
+#		['config-stanza|S:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
+#		['config|C:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
+#		['connect-info|n:s%' => ' supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
+#		['sql-dir|q:s' => 'The directory where sql diffs will be created'],
+#		['sql-type|t:s' => 'The RDBMs falvour you wish to use'],
+#		['version|v:i' => 'Supply a version install'],
+#		['preversion|p:s' => 'The previous version to diff against',],
+#
+#    'schema=s'  => \my $schema_class,
+#    'class=s'   => \my $resultset_class,
+#    'connect=s' => \my $connect,
+#    'op=s'      => \my $op,
+#    'set=s'     => \my $set,
+#    'where=s'   => \my $where,
+#    'attrs=s'   => \my $attrs,
+#    'format=s'  => \my $format,
+#    'force'     => \my $force,
+#    'trace'     => \my $trace,
+#    'quiet'     => \my $quiet,
+#    'help'      => \my $help,
+#    'tlibs'      => \my $t_libs,
+#=cut
 
-    'schema=s'  => \my $schema_class,
-    'class=s'   => \my $resultset_class,
-    'connect=s' => \my $connect,
-    'op=s'      => \my $op,
-    'set=s'     => \my $set,
-    'where=s'   => \my $where,
-    'attrs=s'   => \my $attrs,
-    'format=s'  => \my $format,
-    'force'     => \my $force,
-    'trace'     => \my $trace,
-    'quiet'     => \my $quiet,
-    'help'      => \my $help,
-    'tlibs'      => \my $t_libs,
-=cut
+=head1 NAME
+
+DBIx::Class::Admin - Administration object for schemas
+
+=head1 SYNOPSIS
+
+	use DBIx::Class::Admin;
+
+	# ddl manipulation
+	my $admin = DBIx::Class::Admin->new(
+		schema_class=> 'MY::Schema',
+		sql_dir=> $sql_dir,
+		connect_info => { dsn => $dsn, user => $user, password => $pass },
+	);
+
+	# create SQLite sql
+	$admin->create('SQLite');
+
+	# create SQL diff for an upgrade
+	$admin->create('SQLite', {} , "1.0");
+
+	# upgrade a database
+	$admin->upgrade();
+
+	# install a version for an unversioned schema
+	$admin->install("3.0");
 
 =head1 Attributes
 
+=head2 lib
+
+add a library search path
 =cut
 has lib => (
 	is		=> 'ro',
@@ -66,14 +95,20 @@ sub _set_inc {
 	push @INC, $lib->stringify;
 }
 
+=head2 schema_class
 
+the class of the schema to load
+=cut
 has 'schema_class' => (
 	is		=> 'ro',
 	isa		=> 'Str',
 	coerce	=> 1,
 );
 
+=head2 schema
 
+A pre-connected schema object can be provided for manipulation
+=cut
 has 'schema' => (
 	is			=> 'ro',
 	isa			=> 'DBIx::Class::Schema',
@@ -90,6 +125,10 @@ sub _build_schema {
 	return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );
 }
 
+=head2 connect_info
+
+connect_info the arguments to provide to the connect call of the schema_class
+=cut
 has 'connect_info' => (
 	is			=> 'ro',
 	isa			=> ArrayRef,
@@ -98,9 +137,36 @@ has 'connect_info' => (
 
 sub _build_connect_info {
 	my ($self) = @_;
-	return find_stanza($self->config, $self->config_stanza);
+	return $self->_find_stanza($self->config, $self->config_stanza);
 }
 
+=head2 config_file
+
+config_file provide a config_file to read connect_info from, if this is provided
+config_stanze should also be provided to locate where the connect_info is in the config
+The config file should be in a format readable by Config::General
+=cut
+has config_file => (
+	is			=> 'ro',
+	isa			=> File,
+	coerce		=> 1,
+);
+
+=head2 config_stanza
+
+config_stanza for use with config_file should be a '::' deliminated 'path' to the connection information
+designed for use with catalyst config files
+=cut
+has 'config_stanza' => (
+	is			=> 'ro',
+	isa			=> 'Str',
+);
+
+=head2 config
+
+Instead of loading from a file the configuration can be provided directly as a hash ref.  Please note 
+config_stanza will still be required.
+=cut
 has config => (
 	is			=> 'ro',
 	isa			=> HashRef,
@@ -118,66 +184,98 @@ sub _build_config {
 	return $cfg;
 }
 
-has config_file => (
-	is			=> 'ro',
-	isa			=> File,
-);
+=head2 sql_dir
 
-has 'config_stanza' => (
-	is			=> 'ro',
-	isa			=> 'Str',
-);
-
+The location where sql ddl files should be created or found for an upgrade.
+=cut
 has 'sql_dir' => (
 	is			=> 'ro',
 	isa			=> Dir,
 	coerce		=> 1,
 );
 
+=head2 version
 
-
-has 'sql_type' => (
-	is			=> 'ro',
-	isa			=> 'Str',
-);
-
+Used for install, the version which will be 'installed' in the schema
+=cut
 has version => (
 	is			=> 'rw',
 	isa			=> 'Str',
 );
 
+=head2 preversion
+
+Previouse version of the schema to create an upgrade diff for, the full sql for that version of the sql must be in the sql_dir
+=cut
 has preversion => (
 	is			=> 'rw',
 	isa			=> 'Str',
-	predicate	=> 'has_preversion',
 );
 
+=head2 force
+
+Try and force certain operations.
+=cut
 has force => (
 	is			=> 'rw',
 	isa			=> 'Bool',
 );
 
+=head2 quite
+
+Be less verbose about actions
+=cut
 has quiet => (
 	is			=> 'rw',
 	isa			=> 'Bool',
 );
 
 has '_confirm' => (
-	is		=> 'ro',
+	is		=> 'bare',
 	isa		=> 'Bool',
 );
 
+=head1 METHODS
+
+=head2 create
+
+=over 4
+
+=item Arguments: $sqlt_type, \%sqlt_args, $preversion
+
+=back
+
+L<create> will generate sql for the supplied schema_class in sql_dir.  The flavour of sql to 
+generate can be controlled by suppling a sqlt_type which should be a L<SQL::Translator> name.  
+
+Arguments for L<SQL::Translator> can be supplied in the sqlt_args hashref.
+
+Optional preversion can be supplied to generate a diff to be used by upgrade.
+=cut
+
 sub create {
-	my ($self, $sqlt_type, $sqlt_args) = @_;
-	if ($self->has_preversion) {
-		print "attempting to create diff file for ".$self->preversion."\n";
-	}
+	my ($self, $sqlt_type, $sqlt_args, $preversion) = @_;
+
+	$preversion ||= $self->preversion();
+
 	my $schema = $self->schema();
 	# create the dir if does not exist
 	$self->sql_dir->mkpath() if ( ! -d $self->sql_dir);
 
-	$schema->create_ddl_dir( $sqlt_type, (defined $schema->schema_version ? $schema->schema_version : ""), $self->sql_dir->stringify, $self->preversion, $sqlt_args );
+	$schema->create_ddl_dir( $sqlt_type, (defined $schema->schema_version ? $schema->schema_version : ""), $self->sql_dir->stringify, $preversion, $sqlt_args );
 }
+
+=head2 upgrade
+
+=over 4
+
+=item Arguments: <none>
+
+=back
+
+upgrade will attempt to upgrade the connected database to the same version as the schema_class.
+B<MAKE SURE YOU BACKUP YOUR DB FIRST>
+=cut
 
 sub upgrade {
 	my ($self) = @_;
@@ -191,6 +289,19 @@ sub upgrade {
 	}
 }
 
+=head2 install
+
+=over 4
+
+=item Arguments: $version
+
+=back
+
+install is here to help when you want to move to L<DBIx::Class::Schema::Versioned> and have an existing 
+database.  install will take a version and add the version tracking tables and 'install' the version.  No 
+further ddl modification takes place.  Setting the force attribute to a true value will allow overriding of 
+already versioned databases.
+=cut
 sub install {
 	my ($self, $version) = @_;
 
@@ -204,7 +315,7 @@ sub install {
 	}
 	elsif ($schema->get_db_version() and $self->force ) {
 		warn "forcing install may not be a good idea";
-		if($self->confirm() ) {
+		if($self->_confirm() ) {
 			# FIXME private api
 			$self->schema->_set_db_version({ version => $version});
 		}
@@ -215,6 +326,17 @@ sub install {
 
 }
 
+=head2 deploy
+
+=over 4
+
+=item Arguments: $args
+
+=back
+
+deploy will create the schema at the connected database.  C<$args> are passed straight to 
+L<DBIx::Class::Schema/deploy>.  
+=cut
 sub deploy {
 	my ($self, $args) = @_;
 	my $schema = $self->schema();
@@ -227,30 +349,42 @@ sub deploy {
 	}
 }
 
-sub find_stanza {
-	my ($self, $cfg, $stanza) = @_;
-	my @path = split /::/, $stanza;
-	while (my $path = shift @path) {
-		if (exists $cfg->{$path}) {
-			$cfg = $cfg->{$path};
-		}
-		else {
-			die "could not find $stanza in config, $path did not seem to exist";
-		}
-	}
-	return $cfg;
-}
 
 # FIXME ensure option spec compatability
 #die('Do not use the where option with the insert op') if ($where);
 #die('Do not use the attrs option with the insert op') if ($attrs);
+
+=head2 insert_data
+
+=over 4
+
+=item Arguments: $rs, $set
+
+=back
+
+insert_data takes the name of a resultset from the schema_class and a hashref of data to insert
+into that resultset
+
+=cut
 sub insert_data {
 	my ($self, $rs, $set) = @_;
 	my $resultset = $self->schema->resultset($rs);
 	my $obj = $resultset->create( $set );
-    print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n" if (!$self->quiet);
+	print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n" if (!$self->quiet);
 }
 
+
+=head2 update_data
+
+=over 4 
+
+=item Arguments: $rs, $set, $where
+
+=back
+
+update_data takes the name of a resultset from the schema_class, a hashref of data to update and 
+a where hash used to form the search for the rows to update. 
+=cut
 sub update_data {
 	my ($self, $rs, $set, $where) = @_;
 
@@ -260,13 +394,24 @@ sub update_data {
 	my $count = $resultset->count();
 	print "This action will modify $count ".ref($resultset)." records.\n" if (!$self->quiet);
 
-	if ( $self->force || $self->confirm() ) {
+	if ( $self->force || $self->_confirm() ) {
 		$resultset->update_all( $set );
 	}
 }
 
 # FIXME
 #die('Do not use the set option with the delete op') if ($set);
+=head2 delete_data
+
+=over 4
+
+=item Arguments: $rs, $where, $attrs
+
+=back
+
+delete_data takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search. 
+The found data is deleted and cannot be recovered.
+=cut
 sub delete_data {
 	my ($self, $rs, $where, $attrs) = @_;
 
@@ -276,11 +421,23 @@ sub delete_data {
 	my $count = $resultset->count();
 	print "This action will delete $count ".ref($resultset)." records.\n" if (!$self->quiet);
 
-	if ( $self->force || $self->confirm() ) {
+	if ( $self->force || $self->_confirm() ) {
 		$resultset->delete_all();
 	}
 }
 
+=head2 select_data
+
+=over 4
+
+=item Arguments: $rs, $where, $attrs
+
+=back
+
+select_data takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search. 
+The found data is returned in a array ref where the first row will be the columns list.
+
+=cut
 sub select_data {
 	my ($self, $rs, $where, $attrs) = @_;
 
@@ -302,14 +459,27 @@ sub select_data {
 	return \@data;
 }
 
-sub confirm {
+sub _confirm {
 	my ($self) = @_;
 	print "Are you sure you want to do this? (type YES to confirm) \n";
 	# mainly here for testing
-	return 1 if ($self->_confirm());
+	return 1 if ($self->meta->get_attribute('_confirm')->get_value($self));
 	my $response = <STDIN>;
 	return 1 if ($response=~/^YES/);
 	return;
 }
 
+sub _find_stanza {
+	my ($self, $cfg, $stanza) = @_;
+	my @path = split /::/, $stanza;
+	while (my $path = shift @path) {
+		if (exists $cfg->{$path}) {
+			$cfg = $cfg->{$path};
+		}
+		else {
+			die "could not find $stanza in config, $path did not seem to exist";
+		}
+	}
+	return $cfg;
+}
 1;
