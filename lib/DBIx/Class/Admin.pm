@@ -23,11 +23,13 @@ use MooseX::Types::Moose qw/Int HashRef ArrayRef Str Any/;
 use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
 use Try::Tiny;
+
 use parent 'Class::C3::Componentised';
 
-use Data::Dumper;
 use JSON::Any;
 
+
+my @_deps = qw(Moose MooseX::Types MooseX::Types::JSON MooseX::Types::Path::Class Try::Tiny parent JSON::Any Class::C3::Componentised);
 
 coerce ArrayRef,
 	from JSON,
@@ -543,6 +545,23 @@ sub _json_to_data {
 	return $ret;
 }
 
+
+{  # deps check
+
+my @_missing_deps;
+foreach my $dep (@_deps) {
+	eval "require $dep";
+	if ($@) {
+		push @_missing_deps, $dep;
+	}
+}
+
+if (@_missing_deps > 0) {
+	die "The following dependecies are missing " . join ",", @_missing_deps;
+}
+
+
+}
 =head1 AUTHOR
 
 Gordon Irving <goraxe@cpan.org>
