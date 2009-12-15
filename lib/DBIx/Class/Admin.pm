@@ -28,8 +28,9 @@ use parent 'Class::C3::Componentised';
 
 use JSON::Any;
 
+use namespace::autoclean;
 
-my @_deps = qw(Moose MooseX::Types MooseX::Types::JSON MooseX::Types::Path::Class Try::Tiny parent JSON::Any Class::C3::Componentised);
+my @_deps = qw(Moose MooseX::Types MooseX::Types::JSON MooseX::Types::Path::Class Try::Tiny parent JSON::Any Class::C3::Componentised namespace::autoclean);
 
 coerce ArrayRef,
 	from JSON,
