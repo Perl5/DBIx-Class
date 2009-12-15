@@ -8,8 +8,7 @@
 #        FILES:  ---
 #         BUGS:  ---
 #        NOTES:  ---
-#       AUTHOR:  Gordon Irving (), <Gordon.irving@sophos.com>
-#      COMPANY:  Sophos
+#       AUTHOR:  Gordon Irving (), <goraxe@cpan.org>
 #      VERSION:  1.0
 #      CREATED:  28/11/09 16:14:21 GMT
 #     REVISION:  ---
@@ -22,9 +21,14 @@ use Test::More;                      # last test to print
 
 use Test::Exception;
 
+
+BEGIN {
+    eval "use DBIx::Class::Admin";
+    plan skip_all => "Deps not installed: $@" if $@;
+}
+
 use Path::Class;
 use FindBin qw($Bin);
-
 use Module::Load;
 
 use lib dir($Bin,'..', '..','lib')->stringify;

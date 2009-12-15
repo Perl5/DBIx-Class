@@ -8,7 +8,7 @@
 #        FILES:  ---
 #         BUGS:  ---
 #        NOTES:  ---
-#       AUTHOR:  Gordon Irving (), <Gordon.irving@sophos.com>
+#       AUTHOR:  Gordon Irving (), <goraxe@cpan.org>
 #      VERSION:  1.0
 #      CREATED:  12/12/09 12:44:57 GMT
 #     REVISION:  ---
@@ -21,6 +21,11 @@ use Test::More;
 
 use Test::Exception;
 use Test::Deep;
+
+BEGIN {
+    eval "use DBIx::Class::Admin";
+    plan skip_all => "Deps not installed: $@" if $@;
+}
 
 use Path::Class;
 use FindBin qw($Bin);
@@ -50,19 +55,19 @@ use DBICTest;
 	);
 	isa_ok ($admin, 'DBIx::Class::Admin', 'create the admin object');
 
-	$admin->insert_data('Employee', { name => 'Matt' });
+	$admin->insert('Employee', { name => 'Matt' });
 	my $employees = $schema->resultset('Employee');
 	is ($employees->count(), 1, "insert okay" );
 
 	my $employee = $employees->find(1);
 	is($employee->name(),  'Matt', "insert valid" );
 
-	$admin->update_data('Employee', {name => 'Trout'}, {name => 'Matt'});
+	$admin->update('Employee', {name => 'Trout'}, {name => 'Matt'});
 
 	$employee = $employees->find(1);
 	is($employee->name(),  'Trout', "update Matt to Trout" );
 
-	$admin->insert_data('Employee', {name =>'Aran'});
+	$admin->insert('Employee', {name =>'Aran'});
 
 	my $expected_data = [ 
 		[$employee->result_source->columns() ],
@@ -70,10 +75,10 @@ use DBICTest;
 		[2,2,undef,undef,undef,'Aran']
 	];
 	my $data;
-	lives_ok { $data = $admin->select_data('Employee')} 'can retrive data from database';
+	lives_ok { $data = $admin->select('Employee')} 'can retrive data from database';
 	cmp_deeply($data, $expected_data, 'DB matches whats expected');
 
-	$admin->delete_data('Employee', {name=>'Trout'});
+	$admin->delete('Employee', {name=>'Trout'});
 	my $del_rs  = $employees->search({name => 'Trout'});
 	is($del_rs->count(), 0, "delete Trout" );
 	is ($employees->count(), 1, "left Aran" );
