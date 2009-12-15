@@ -341,7 +341,7 @@ $schema->storage->_sql_maker->{name_sep} = '.';
 {
   my $rs = $schema->resultset ('BooksInLibrary')->search (
     {
-      'owner.name' => [qw/wiggle woggle/],
+      'owner.name' => { '!=', 'woggle' },
     },
     {
       prefetch => 'owner',
@@ -349,16 +349,36 @@ $schema->storage->_sql_maker->{name_sep} = '.';
     }
   );
 
-  is ($rs->all, 3, 'Correct amount of objects from right-sorted joined resultset');
-  my $limited_rs = $rs->search ({}, {rows => 3, offset => 1});
-  is ($limited_rs->count, 2, 'Correct count of limited right-sorted joined resultset');
-  is ($limited_rs->count_rs->next, 2, 'Correct count_rs of limited right-sorted joined resultset');
-  is ($limited_rs->all, 2, 'Correct amount of objects from limited right-sorted joined resultset');
+  is ($rs->all, 8, 'Correct amount of objects from right-sorted joined resultset');
+  is_deeply (
+    [map { $_->owner->name } ($rs->all) ],
+    [qw/wiggle wiggle fRUE fROOH fRIOUX fREW fISMBoC boggle /],
+    'Rows were properly ordered'
+  );
+
+  my $limited_rs = $rs->search ({}, {rows => 7, offset => 2});
+  is ($limited_rs->count, 6, 'Correct count of limited right-sorted joined resultset');
+  is ($limited_rs->count_rs->next, 6, 'Correct count_rs of limited right-sorted joined resultset');
+
+  my $queries;
+  $schema->storage->debugcb(sub { $queries++; });
+  $schema->storage->debug(1);
+
+  is_deeply (
+    [map { $_->owner->name } ($limited_rs->all) ],
+    [qw/fRUE fROOH fRIOUX fREW fISMBoC boggle /],
+    'Limited rows were properly ordered'
+  );
+  is ($queries, 1, 'Only one query with prefetch');
+
+  $schema->storage->debugcb(undef);
+  $schema->storage->debug(0);
+
 
   is_deeply (
     [map { $_->name } ($limited_rs->search_related ('owner')->all) ],
-    [qw/woggle wiggle/],    # there is 1 woggle library book and 2 wiggle books, the limit gets us one of each
-    'Rows were properly ordered'
+    [qw/fRUE fROOH fRIOUX fREW fISMBoC boggle /],
+    'Rows are still properly ordered after search_related'
   );
 }
 
