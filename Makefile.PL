@@ -20,6 +20,8 @@ test_requires 'Test::Warn'          => '0.21';
 
 test_requires 'File::Temp'          => '0.22';
 
+test_requires 'Module::Load'        => '0.16';
+
 
 # Core
 requires 'List::Util'               => '0';
@@ -55,6 +57,18 @@ my %replication_requires = (
   'Hash::Merge',              => '0.11',
 );
 
+my %admin_requires = (
+  'Moose',                     => '0.87',
+  'MooseX::Types',             => '0.16',
+  'MooseX::Types::Path::Class' => '0.05',
+  'MooseX::Types::JSON'        => '0.02',
+  'Try::Tiny'                  => '0.02',
+  'namespace::clean'           => '0.11',
+  'parent'                     => '0.223',
+  'JSON::Any'                  => '0',
+  'Getopt::Long::Descriptive'  => '0.081',
+);
+
 #************************************************************************#
 # Make *ABSOLUTELY SURE* that nothing on this list is a real require,    #
 # since every module listed in %force_requires_if_author is deleted      #
@@ -62,7 +76,7 @@ my %replication_requires = (
 #************************************************************************#
 my %force_requires_if_author = (
   %replication_requires,
-
+  %admin_requires,
   # when changing also adjust $DBIx::Class::Storage::DBI::minimum_sqlt_version
   'SQL::Translator'           => '0.11002',
 
