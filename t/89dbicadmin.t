@@ -7,15 +7,22 @@ use lib qw(t/lib);
 use DBICTest;
 
 
-eval 'require JSON::Any';
-plan skip_all => 'Install JSON::Any to run this test' if ($@);
+BEGIN {
+    eval "require DBIx::Class::Admin";
+    plan skip_all => "Deps not installed: $@" if $@;
 
-eval 'require Text::CSV_XS';
-if ($@) {
-    eval 'require Text::CSV_PP';
-    plan skip_all => 'Install Text::CSV_XS or Text::CSV_PP to run this test' if ($@);
+    eval "require Getopt::Long::Descriptive";
+    plan skip_all => 'Install Getopt::Long::Descriptive to run this test' if ($@);
+
+    eval 'require JSON::Any';
+    plan skip_all => 'Install JSON::Any to run this test' if ($@);
+
+    eval 'require Text::CSV_XS';
+    if ($@) {
+        eval 'require Text::CSV_PP';
+        plan skip_all => 'Install Text::CSV_XS or Text::CSV_PP to run this test' if ($@);
+    }
 }
-
 my @json_backends = qw/XS JSON DWIW/;
 my $tests_per_run = 5;
 
