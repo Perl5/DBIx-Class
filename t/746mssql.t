@@ -380,6 +380,66 @@ $schema->storage->_sql_maker->{name_sep} = '.';
     [qw/fRUE fROOH fRIOUX fREW fISMBoC boggle /],
     'Rows are still properly ordered after search_related'
   );
+
+
+# Just to aid bug-hunting, delete block before merging
+{
+
+=begin
+
+Alan's SQL:
+
+      SELECT me.id, me.surveyor_id, me.survey_site_id, me.year, surveyor.id, surveyor.name, surveyor.email, surveyor.phone, surveyor.login, surveyor.password, surveyor.is_active, surveyor.is_verifier, surveyor.arm_length, surveyor.eye_height, surveyor.year_joined
+        FROM (
+          SELECT *
+            FROM (
+              SELECT orig_query.*, ROW_NUMBER() OVER( ORDER BY (SELECT(1)) ) AS rno__row__index
+                FROM (
+                  SELECT me.id, me.surveyor_id, me.survey_site_id, me.year
+                    FROM (
+                      SELECT TOP 100 PERCENT me.id, me.surveyor_id, me.survey_site_id, me.year
+                        FROM surveyors_survey_sites me
+                        JOIN surveyors surveyor ON surveyor.id = me.surveyor_id
+                      ORDER BY surveyor.name
+                    ) me
+                ) orig_query
+            ) rno_subq
+          WHERE rno__row__index BETWEEN 136 AND 150 
+        ) me
+        JOIN surveyors surveyor ON surveyor.id = me.surveyor_id
+      ORDER BY surveyor.name
+=cut
+
+  is_same_sql_bind (
+    $limited_rs->as_query,
+    '(
+      SELECT TOP 100 PERCENT [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price], [owner].[id], [owner].[name]
+        FROM (
+          SELECT *
+            FROM (
+              SELECT orig_query.*, ROW_NUMBER() OVER( ORDER BY (SELECT(1)) ) AS rno__row__index 
+                FROM (
+                  SELECT [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
+                    FROM (
+                      SELECT TOP 100 PERCENT [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
+                        FROM [books] [me]
+                        JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
+                      WHERE ( ( [owner].[name] != ? AND [source] = ? ) )
+                      ORDER BY [owner].[name] DESC
+                    ) [me]
+                ) orig_query
+            ) rno_subq
+          WHERE rno__row__index BETWEEN 3 AND 9
+        ) [me]
+        JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
+      WHERE ( ( [owner].[name] != ? AND [source] = ? ) )
+      ORDER BY [owner].[name] DESC
+    )',
+    [ ([ 'owner.name' => 'woggle' ], [ source => 'Library' ]) x 2 ],
+    'Expected SQL executed',
+  );
+}
+
 }
 
 done_testing;
