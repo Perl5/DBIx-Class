@@ -59,10 +59,12 @@ sub _RowNumberOver {
   # whatever is left
   my $group_having = $self->_order_by($order);
 
-  $sql = sprintf (<<'EOS', $order_by, $sql, $group_having, $offset + 1, $offset + $rows, );
+  my $qalias = $self->_quote ($self->{_dbic_rs_attrs}{alias});
+
+  $sql = sprintf (<<'EOS', $qalias, $order_by, $sql, $group_having, $qalias, $offset + 1, $offset + $rows, );
 
 SELECT * FROM (
-  SELECT orig_query.*, ROW_NUMBER() OVER(%s ) AS rno__row__index FROM (%s%s) orig_query
+  SELECT %s.*, ROW_NUMBER() OVER(%s ) AS rno__row__index FROM (%s%s) %s
 ) rno_subq WHERE rno__row__index BETWEEN %d AND %d
 
 EOS

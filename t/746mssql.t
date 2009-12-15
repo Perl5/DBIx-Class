@@ -417,7 +417,7 @@ Alan's SQL:
         FROM (
           SELECT *
             FROM (
-              SELECT orig_query.*, ROW_NUMBER() OVER( ORDER BY (SELECT(1)) ) AS rno__row__index 
+              SELECT [me].*, ROW_NUMBER() OVER( ORDER BY (SELECT(1)) ) AS rno__row__index 
                 FROM (
                   SELECT [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
                     FROM (
@@ -427,7 +427,7 @@ Alan's SQL:
                       WHERE ( ( [owner].[name] != ? AND [source] = ? ) )
                       ORDER BY [owner].[name] DESC
                     ) [me]
-                ) orig_query
+                ) [me]
             ) rno_subq
           WHERE rno__row__index BETWEEN 3 AND 9
         ) [me]
