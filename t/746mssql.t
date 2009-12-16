@@ -178,10 +178,10 @@ is $rs->find($row->id)->amount, undef,'updated money value to NULL round-trip';
 
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
-    eval { $dbh->do("DROP TABLE Owners") };
-    eval { $dbh->do("DROP TABLE Books") };
+    eval { $dbh->do("DROP TABLE owners") };
+    eval { $dbh->do("DROP TABLE books") };
     $dbh->do(<<'SQL');
-CREATE TABLE Books (
+CREATE TABLE books (
    id INT IDENTITY (1, 1) NOT NULL,
    source VARCHAR(100),
    owner INT,
@@ -189,7 +189,7 @@ CREATE TABLE Books (
    price INT NULL
 )
 
-CREATE TABLE Owners (
+CREATE TABLE owners (
    id INT IDENTITY (1, 1) NOT NULL,
    name VARCHAR(100),
 )
@@ -238,18 +238,18 @@ lives_ok ( sub {
   my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
   $schema->populate ('BooksInLibrary', [
     [qw/source  owner title   /],
-    [qw/Library 7     secrets10/],
-    [qw/Eatery  1     secrets2/],
-    [qw/Library 3     secrets4/],
-    [qw/Eatery  5     secrets8/],
-    [qw/Library 5     secrets7/],
-    [qw/Library 2     secrets3/],
-    [qw/Eatery  7     secrets11/],
-    [qw/Library 4     secrets6/],
     [qw/Library 1     secrets0/],
-    [qw/Eatery  3     secrets5/],
-    [qw/Library 6     secrets9/],
     [qw/Library 1     secrets1/],
+    [qw/Eatery  1     secrets2/],
+    [qw/Library 2     secrets3/],
+    [qw/Library 3     secrets4/],
+    [qw/Eatery  3     secrets5/],
+    [qw/Library 4     secrets6/],
+    [qw/Library 5     secrets7/],
+    [qw/Eatery  5     secrets8/],
+    [qw/Library 6     secrets9/],
+    [qw/Library 7     secrets10/],
+    [qw/Eatery  7     secrets11/],
     [qw/Library 8     secrets12/],
   ]);
 }, 'populate without PKs supplied ok' );
@@ -419,7 +419,7 @@ Alan's SQL:
         FROM (
           SELECT *
             FROM (
-              SELECT [me].*, ROW_NUMBER() OVER( ORDER BY (SELECT(1)) ) AS rno__row__index 
+              SELECT [me].*, ROW_NUMBER() OVER( ORDER BY (SELECT(1)) ) AS rno__row__index
                 FROM (
                   SELECT [me].[id], [me].[source], [me].[owner], [me].[title], [me].[price]
                     FROM (
@@ -450,7 +450,7 @@ done_testing;
 END {
   if (my $dbh = eval { $schema->storage->_dbh }) {
     eval { $dbh->do("DROP TABLE $_") }
-      for qw/artist money_test Books Owners/;
+      for qw/artist money_test books owners/;
   }
 }
 # vim:sw=2 sts=2
