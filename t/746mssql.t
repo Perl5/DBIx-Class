@@ -272,12 +272,12 @@ lives_ok ( sub {
 
   $schema->storage->debug (1);
   diag "\n";
-  my @subq_names = [ map { $_->name } ($sealed_owners->all) ];
-  my @names = [ map { $_->name } ($owners->all) ];
+  my @names = map { $_->name } ($owners->all);
+  my @subq_names = map { $_->name } ($sealed_owners->all);
 
   is_deeply (
-    \@subq_names,
     \@names,
+    \@subq_names,
     'Sort preserved from within a subquery'
   ) || diag do { require Data::Dumper::Concise; Data::Dumper::Concise::Dumper (\@names, \@subq_names) };
   $schema->storage->debug (0);
