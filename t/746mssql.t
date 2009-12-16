@@ -224,7 +224,7 @@ lives_ok (sub {
   # start a new connection, make sure rebless works
   # test an insert with a supplied identity, followed by one without
   my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
-  for (1..2) {
+  for (2, 1) {
     my $id = $_ * 20 ;
     $schema->resultset ('Owners')->create ({ id => $id, name => "troglodoogle $id" });
     $schema->resultset ('Owners')->create ({ name => "troglodoogle " . ($id + 1) });
@@ -256,17 +256,51 @@ lives_ok ( sub {
 
 # make sure ordered subselects work
 {
+  my $owners = $schema->resultset ('Owners')->search ({}, { order_by => 'name' });
+  my $al = $owners->current_source_alias;
+  my $sealed_owners = $owners->result_source->resultset->search (
+    {},
+    {
+      alias => $al,
+      from => [{
+        -alias => $al,
+        -source_handle => $owners->result_source->handle,
+        $al => $owners->as_query,
+      }],
+    },
+  );
+
+  $schema->storage->debug (1);
+  diag "\n";
+  my @subq_names = [ map { $_->name } ($sealed_owners->all) ];
+  my @names = [ map { $_->name } ($owners->all) ];
+
+  is_deeply (
+    \@subq_names,
+    \@names,
+    'Sort preserved from within a subquery'
+  ) || diag do { require Data::Dumper::Concise; Data::Dumper::Concise::Dumper (\@names, \@subq_names) };
+  $schema->storage->debug (0);
+
+
+
   my $book_owner_ids = $schema->resultset ('BooksInLibrary')
-                               ->search ({}, { join => 'owner', distinct => 1, order_by => { -desc => 'owner'} })
+                               ->search ({}, { join => 'owner', distinct => 1, order_by => 'owner.name' })
                                 ->get_column ('owner');
 
-  my $owners = $schema->resultset ('Owners')->search ({
+  my $book_owners = $schema->resultset ('Owners')->search ({
     id => { -in => $book_owner_ids->as_query }
   });
 
-  is ($owners->count, 8, 'Correct amount of book owners');
-  is ($owners->all, 8, 'Correct amount of book owner objects');
+  is ($book_owners->count, 8, 'Correct amount of book owners');
+
+  is_deeply (
+    [ map { $_->id } ($book_owners->all) ],
+    [ $book_owner_ids->all ],
+    'Sort is preserved across IN subqueries',
+  );
 }
+
 # make sure right-join-side single-prefetch ordering limit works
 {
   my $rs = $schema->resultset ('BooksInLibrary')->search (
