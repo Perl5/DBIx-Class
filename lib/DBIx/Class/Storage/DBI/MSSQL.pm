@@ -179,8 +179,9 @@ sub _execute {
 sub last_insert_id { shift->_identity }
 
 #
-# MSSQL is retarded wrt ordered subselects. One needs to add a TOP 100%
-# to *all* subqueries, do it here.
+# MSSQL is retarded wrt ordered subselects. One needs to add a TOP
+# to *all* subqueries, but one also can't use TOP 100 PERCENT
+# http://sqladvice.com/forums/permalink/18496/22931/ShowThread.aspx#22931
 #
 sub _select_args_to_query {
   my $self = shift;
@@ -190,7 +191,8 @@ sub _select_args_to_query {
   # see if this is an ordered subquery
   my $attrs = $_[3];
   if ( scalar $self->sql_maker->_order_by_chunks ($attrs->{order_by}) ) {
-    $sql =~ s/^ \s* SELECT \s/SELECT TOP 100 PERCENT /xi;
+    my $max = 2 ** 32;
+    $sql =~ s/^ \s* SELECT \s/SELECT TOP $max /xi;
   }
 
   return wantarray
