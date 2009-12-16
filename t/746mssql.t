@@ -238,18 +238,18 @@ lives_ok ( sub {
   my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
   $schema->populate ('BooksInLibrary', [
     [qw/source  owner title   /],
-    [qw/Library 1     secrets0/],
-    [qw/Library 1     secrets1/],
-    [qw/Eatery  1     secrets2/],
-    [qw/Library 2     secrets3/],
-    [qw/Library 3     secrets4/],
-    [qw/Eatery  3     secrets5/],
-    [qw/Library 4     secrets6/],
-    [qw/Library 5     secrets7/],
-    [qw/Eatery  5     secrets8/],
-    [qw/Library 6     secrets9/],
     [qw/Library 7     secrets10/],
+    [qw/Eatery  1     secrets2/],
+    [qw/Library 3     secrets4/],
+    [qw/Eatery  5     secrets8/],
+    [qw/Library 5     secrets7/],
+    [qw/Library 2     secrets3/],
     [qw/Eatery  7     secrets11/],
+    [qw/Library 4     secrets6/],
+    [qw/Library 1     secrets0/],
+    [qw/Eatery  3     secrets5/],
+    [qw/Library 6     secrets9/],
+    [qw/Library 1     secrets1/],
     [qw/Library 8     secrets12/],
   ]);
 }, 'populate without PKs supplied ok' );
@@ -345,14 +345,16 @@ $schema->storage->_sql_maker->{name_sep} = '.';
     },
     {
       prefetch => 'owner',
-      order_by => { -desc => 'owner.name' },
+      order_by => 'owner.name',
     }
   );
+  # this is the order in which they should come from the above query
+  my @owner_names = qw/boggle fISMBoC fREW fRIOUX fROOH fRUE wiggle wiggle/;
 
   is ($rs->all, 8, 'Correct amount of objects from right-sorted joined resultset');
   is_deeply (
     [map { $_->owner->name } ($rs->all) ],
-    [qw/wiggle wiggle fRUE fROOH fRIOUX fREW fISMBoC boggle /],
+    \@owner_names,
     'Rows were properly ordered'
   );
 
@@ -366,7 +368,7 @@ $schema->storage->_sql_maker->{name_sep} = '.';
 
   is_deeply (
     [map { $_->owner->name } ($limited_rs->all) ],
-    [qw/fRUE fROOH fRIOUX fREW fISMBoC boggle /],
+    [@owner_names[2 .. 7]],
     'Limited rows were properly ordered'
   );
   is ($queries, 1, 'Only one query with prefetch');
@@ -377,7 +379,7 @@ $schema->storage->_sql_maker->{name_sep} = '.';
 
   is_deeply (
     [map { $_->name } ($limited_rs->search_related ('owner')->all) ],
-    [qw/fRUE fROOH fRIOUX fREW fISMBoC boggle /],
+    [@owner_names[2 .. 7]],
     'Rows are still properly ordered after search_related'
   );
 
@@ -425,7 +427,7 @@ Alan's SQL:
                         FROM [books] [me]
                         JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
                       WHERE ( ( [owner].[name] != ? AND [source] = ? ) )
-                      ORDER BY [owner].[name] DESC
+                      ORDER BY [owner].[name]
                     ) [me]
                 ) [me]
             ) rno_subq
@@ -433,7 +435,7 @@ Alan's SQL:
         ) [me]
         JOIN [owners] [owner] ON [owner].[id] = [me].[owner]
       WHERE ( ( [owner].[name] != ? AND [source] = ? ) )
-      ORDER BY [owner].[name] DESC
+      ORDER BY [owner].[name]
     )',
     [ ([ 'owner.name' => 'woggle' ], [ source => 'Library' ]) x 2 ],
     'Expected SQL executed',
