@@ -267,6 +267,53 @@ lives_ok ( sub {
   is ($owners->count, 8, 'Correct amount of book owners');
   is ($owners->all, 8, 'Correct amount of book owner objects');
 }
+# make sure right-join-side single-prefetch ordering limit works
+{
+  my $rs = $schema->resultset ('BooksInLibrary')->search (
+    {
+      'owner.name' => { '!=', 'woggle' },
+    },
+    {
+      prefetch => 'owner',
+      order_by => 'owner.name',
+    }
+  );
+  # this is the order in which they should come from the above query
+  my @owner_names = qw/boggle fISMBoC fREW fRIOUX fROOH fRUE wiggle wiggle/;
+
+  is ($rs->all, 8, 'Correct amount of objects from right-sorted joined resultset');
+  is_deeply (
+    [map { $_->owner->name } ($rs->all) ],
+    \@owner_names,
+    'Rows were properly ordered'
+  );
+
+  my $limited_rs = $rs->search ({}, {rows => 7, offset => 2});
+  is ($limited_rs->count, 6, 'Correct count of limited right-sorted joined resultset');
+  is ($limited_rs->count_rs->next, 6, 'Correct count_rs of limited right-sorted joined resultset');
+
+  my $queries;
+  $schema->storage->debugcb(sub { $queries++; });
+  $schema->storage->debug(1);
+
+  is_deeply (
+    [map { $_->owner->name } ($limited_rs->all) ],
+    [@owner_names[2 .. 7]],
+    'Limited rows were properly ordered'
+  );
+  is ($queries, 1, 'Only one query with prefetch');
+
+  $schema->storage->debugcb(undef);
+  $schema->storage->debug(0);
+
+
+  is_deeply (
+    [map { $_->name } ($limited_rs->search_related ('owner')->all) ],
+    [@owner_names[2 .. 7]],
+    'Rows are still properly ordered after search_related'
+  );
+}
+
 
 #
 # try a prefetch on tables with identically named columns
@@ -337,55 +384,23 @@ $schema->storage->_sql_maker->{name_sep} = '.';
   is ($books->page(2)->count_rs->next, 1, 'Prefetched grouped search returns correct count_rs');
 }
 
-# make sure right-join-side single-prefetch ordering limit works
+
+
+# Just to aid bug-hunting, delete block before merging
 {
-  my $rs = $schema->resultset ('BooksInLibrary')->search (
+
+  my $limited_rs = $schema->resultset ('BooksInLibrary')->search (
     {
       'owner.name' => { '!=', 'woggle' },
     },
     {
       prefetch => 'owner',
       order_by => 'owner.name',
+      rows => 7,
+      offset => 2,
     }
   );
-  # this is the order in which they should come from the above query
-  my @owner_names = qw/boggle fISMBoC fREW fRIOUX fROOH fRUE wiggle wiggle/;
 
-  is ($rs->all, 8, 'Correct amount of objects from right-sorted joined resultset');
-  is_deeply (
-    [map { $_->owner->name } ($rs->all) ],
-    \@owner_names,
-    'Rows were properly ordered'
-  );
-
-  my $limited_rs = $rs->search ({}, {rows => 7, offset => 2});
-  is ($limited_rs->count, 6, 'Correct count of limited right-sorted joined resultset');
-  is ($limited_rs->count_rs->next, 6, 'Correct count_rs of limited right-sorted joined resultset');
-
-  my $queries;
-  $schema->storage->debugcb(sub { $queries++; });
-  $schema->storage->debug(1);
-
-  is_deeply (
-    [map { $_->owner->name } ($limited_rs->all) ],
-    [@owner_names[2 .. 7]],
-    'Limited rows were properly ordered'
-  );
-  is ($queries, 1, 'Only one query with prefetch');
-
-  $schema->storage->debugcb(undef);
-  $schema->storage->debug(0);
-
-
-  is_deeply (
-    [map { $_->name } ($limited_rs->search_related ('owner')->all) ],
-    [@owner_names[2 .. 7]],
-    'Rows are still properly ordered after search_related'
-  );
-
-
-# Just to aid bug-hunting, delete block before merging
-{
 
 =begin
 
@@ -440,8 +455,6 @@ Alan's SQL:
     [ ([ 'owner.name' => 'woggle' ], [ source => 'Library' ]) x 2 ],
     'Expected SQL executed',
   );
-}
-
 }
 
 done_testing;
