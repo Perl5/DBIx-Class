@@ -441,6 +441,17 @@ methods and valid relationship attributes. Also see L<DBIx::Class::ResultSet>
 for a L<list of standard resultset attributes|DBIx::Class::ResultSet/ATTRIBUTES>
 which can be assigned to relationships as well.
 
+Note that if you supply a condition on which to join, if the column in the
+current table allows nulls (i.e., has the C<is_nullable> attribute set to a
+true value), than C<might_have> will warn about this because it's naughty and
+you shouldn't do that.  
+
+ "might_have/has_one" must not be on columns with is_nullable set to true (MySchema::SomeClass/key)
+
+If you must be naughty, you can suppress the warning by setting
+C<DBIC_DONT_VALIDATE_RELS> environment variable to a true value.  Otherwise,
+you probably just want to use C<DBIx::Class::Relationship/belongs_to>.
+
 =head2 has_one
 
 =over 4
@@ -527,6 +538,11 @@ See L<DBIx::Class::Relationship::Base> for documentation on relationship
 methods and valid relationship attributes. Also see L<DBIx::Class::ResultSet>
 for a L<list of standard resultset attributes|DBIx::Class::ResultSet/ATTRIBUTES>
 which can be assigned to relationships as well.
+
+Note that if you supply a condition on which to join, if the column in the
+current table allows nulls (i.e., has the C<is_nullable> attribute set to a
+true value), than warnings might apply just as with
+L<DBIx::Class::Relationship/might_have>.
 
 =head2 many_to_many
 

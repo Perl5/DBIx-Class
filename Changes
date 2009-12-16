@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - might_have/has_one now warn if applied calling class's column
+          has is_nullable set to true.
+
 0.08115 2009-12-10 09:02:00 (CST)
         - Real limit/offset support for MSSQL server (via Row_Number)
         - Fix distinct => 1 with non-selecting order_by (the columns

@@ -294,6 +294,8 @@ norbi: Norbert Buchmuller <norbi@nix.hu>
 
 Numa: Dan Sully <daniel@cpan.org>
 
+ovid: Curtis "Ovid" Poe <ovid@cpan.org>
+
 oyse: Øystein Torget <oystein.torget@dnv.com>
 
 paulm: Paul Makepeace
