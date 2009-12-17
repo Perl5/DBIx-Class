@@ -39,23 +39,21 @@ use ok 'DBIx::Class::Admin';
 use DBICTest;
 
 my $sql_dir = dir($Bin,"..","var");
-
+my @connect_info = DBICTest->_database(
+	no_deploy=>1,
+	no_populate=>1,
+	sqlite_use_file	=> 1,
+);
 { # create the schema
 
 #  make sure we are  clean
 clean_dir($sql_dir);
 
-# create a DBICTest so we can steal its connect info
-my $schema = DBICTest->init_schema(
-    no_deploy=>1,
-    no_populate=>1,
-	);
-
 
 my $admin = DBIx::Class::Admin->new(
 	schema_class=> "DBICTest::Schema",
 	sql_dir=> $sql_dir,
-	connect_info => $schema->storage->connect_info() 
+	connect_info => \@connect_info, 
 );
 isa_ok ($admin, 'DBIx::Class::Admin', 'create the admin object');
 lives_ok { $admin->create('MySQL'); } 'Can create MySQL sql';
@@ -64,11 +62,11 @@ lives_ok { $admin->create('SQLite'); } 'Can Create SQLite sql';
 
 { # upgrade schema
 
-my $schema = DBICTest->init_schema(
-	no_deploy		=> 1,
-	no_populat		=> 1,
-	sqlite_use_file	=> 1,
-);
+#my $schema = DBICTest->init_schema(
+#	no_deploy		=> 1,
+#	no_populat		=> 1,
+#	sqlite_use_file	=> 1,
+#);
 
 clean_dir($sql_dir);
 load 'DBICVersionOrig';
@@ -76,8 +74,11 @@ load 'DBICVersionOrig';
 my $admin = DBIx::Class::Admin->new(
 	schema_class => 'DBICVersion::Schema', 
 	sql_dir =>  $sql_dir,
-	connect_info => $schema->storage->connect_info(),
+	connect_info => \@connect_info,
 );
+
+my $schema = $admin->schema();
+
 lives_ok { $admin->create($schema->storage->sqlt_type(), {add_drop_table=>0}); } 'Can create DBICVersionOrig sql in ' . $schema->storage->sqlt_type;
 lives_ok { $admin->deploy(  ) } 'Can Deploy schema';
 
@@ -92,7 +93,7 @@ load 'DBICVersionNew';
 $admin = DBIx::Class::Admin->new(
 	schema_class => 'DBICVersion::Schema', 
 	sql_dir =>  "t/var",
-	connect_info => $schema->storage->connect_info(),
+	connect_info => \@connect_info
 );
 
 lives_ok { $admin->create($schema->storage->sqlt_type(), {}, "1.0" ); } 'Can create diff for ' . $schema->storage->sqlt_type;
@@ -109,17 +110,11 @@ is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema and db versio
 
 clean_dir($sql_dir);
 
-my $schema = DBICTest->init_schema(
-    no_deploy=>1,
-    no_populate=>1,
-	sqlite_use_file	=> 1,
-	);
-
 my $admin = DBIx::Class::Admin->new(
 	schema_class	=> 'DBICVersion::Schema', 
 	sql_dir			=> $sql_dir,
-	connect_info	=> $schema->storage->connect_info(),
 	_confirm		=> 1,
+	connect_info	=> \@connect_info,
 );
 
 $admin->version("3.0");
