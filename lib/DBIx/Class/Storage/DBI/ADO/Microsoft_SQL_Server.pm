@@ -15,14 +15,12 @@ sub _rebless {
 }
 
 sub source_bind_attributes {
-  my ($self, $source) = @_;
+  my $self = shift;
+  my ($source) = @_;
 
-  my $bind_attributes;
+  my $bind_attributes = $self->next::method(@_);
+
   foreach my $column ($source->columns) {
-
-    my $data_type = $source->column_info($column)->{data_type} || '';
-    $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
-      if $data_type;
     $bind_attributes->{$column}{ado_size} ||= 8000; # max VARCHAR
   }
 
