@@ -81,10 +81,6 @@ my @sources = grep
     my @view_names = sort map { $_->name } @views;
 
     is_deeply( @view_names, @expected_view_names, "all expected views included int SQL::Translator schema" );
-    
-    #use Data::Dumper::Concise;
-    #warn Dumper(@view_names);
-    #is($view->error, undef, 'view with a view_definition is skipped.');
 }
 
 done_testing;
