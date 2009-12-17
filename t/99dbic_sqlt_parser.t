@@ -15,10 +15,10 @@ BEGIN {
 my $schema = DBICTest->init_schema();
 # Dummy was yanked out by the sqlt hook test
 # CustomSql tests the horrific/deprecated ->name(\$sql) hack
-# YearXXXXCDs are views
+# YearXXXXCDs and NoViewDefinition are views
 #
 my @sources = grep
-  { $_ !~ /^ (?: Dummy | CustomSql | Year\d{4}CDs ) $/x }
+  { $_ !~ /^ (?: Dummy | CustomSql | Year\d{4}CDs | NoViewDefinition ) $/x }
   $schema->sources
 ;
 
@@ -60,6 +60,31 @@ my @sources = grep
 		my $index_count = scalar(@indices);
 		is($index_count, 0, "correct number of indices for $source with add_fk_index => 0");
 	}
+}
+
+{ 
+    #my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { } } });
+	my $sqlt_schema = create_schema({ schema => $schema });
+    
+    my @views = $sqlt_schema->get_views;
+
+    # the following views are skipped:
+    # Year1999CDs is virtual
+    # NoViewDefinition has no view_definition
+    is(scalar @views, 1, "number of views ok");
+
+    foreach my $view (@views) {
+        ok($view->is_valid, "view " . $view->name . " is valid");
+    }
+
+    my @expected_view_names = (qw/ year2000cds /);
+    my @view_names = sort map { $_->name } @views;
+
+    is_deeply( @view_names, @expected_view_names, "all expected views included int SQL::Translator schema" );
+    
+    #use Data::Dumper::Concise;
+    #warn Dumper(@view_names);
+    #is($view->error, undef, 'view with a view_definition is skipped.');
 }
 
 done_testing;

@@ -289,6 +289,8 @@ EOW
         # Its possible to have multiple DBIC source using same table
         next if $views{$view_name}++;
 
+        next unless $source->view_definition;
+
         my $view = $schema->add_view (
           name => $view_name,
           fields => [ $source->columns ],
