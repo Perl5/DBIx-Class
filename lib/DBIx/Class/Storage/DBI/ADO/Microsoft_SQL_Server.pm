@@ -42,6 +42,7 @@ sub bind_attribute_by_data_type {
 }
 
 # approximate
+# XXX needs to support varchar(max) and varbinary(max)
 sub _mssql_max_data_type_representation_size_in_bytes {
   my $self = shift;
 
@@ -65,6 +66,7 @@ sub _mssql_max_data_type_representation_size_in_bytes {
     money => 100,
     float => 100,
     real => 100,
+    uniqueidentifier => 100,
     ntext => $blob_max,
     text => $blob_max,
     image => $blob_max,
