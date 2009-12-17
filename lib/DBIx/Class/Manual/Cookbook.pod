@@ -1381,7 +1381,7 @@ MySQL, SQLite and PostgreSQL, using the $VERSION from your Schema.pm.
 To create a new database using the schema:
 
  my $schema = My::Schema->connect($dsn);
- $schema->deploy({ add_drop_tables => 1});
+ $schema->deploy({ add_drop_table => 1});
 
 To import created .sql files using the mysql client:
 
