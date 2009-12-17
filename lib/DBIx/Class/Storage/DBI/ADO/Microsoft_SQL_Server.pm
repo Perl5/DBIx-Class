@@ -14,12 +14,68 @@ sub _rebless {
   $self->_identity_method('@@identity');
 }
 
-sub _sth_bind_param {
-  my ($self, $sth, $placeholder_index, $data, $attributes, @extra) = @_;
+sub source_bind_attributes {
+  my ($self, $source) = @_;
 
-  $attributes->{ado_size} = 8000; # max VARCHAR on MSSQL
+  my $bind_attributes;
+  foreach my $column ($source->columns) {
 
-  $self->next::method($sth, $placeholder_index, $data, $attributes, @extra);
+    my $data_type = $source->column_info($column)->{data_type} || '';
+    $bind_attributes->{$column} = $self->bind_attribute_by_data_type($data_type)
+      if $data_type;
+    $bind_attributes->{$column}{ado_size} ||= 8000; # max VARCHAR
+  }
+
+  return $bind_attributes;
+}
+
+sub bind_attribute_by_data_type {
+  my ($self, $data_type) = @_;
+
+  my $max_size =
+    $self->_mssql_max_data_type_representation_size_in_bytes->{$data_type};
+
+  my $res = {};
+  $res->{ado_size} = $max_size if $max_size;
+
+  return $res;
+}
+
+# approximate
+sub _mssql_max_data_type_representation_size_in_bytes {
+  my $self = shift;
+
+  my $blob_max = $self->_get_dbh->{LongReadLen} || 32768;
+
+  return +{
+    char => 8000,
+    varchar => 8000,
+    binary => 8000,
+    varbinary => 8000,
+    nchar => 8000,
+    nvarchar => 8000,
+    numeric => 100,
+    smallint => 100,
+    tinyint => 100,
+    smallmoney => 100,
+    bigint => 100,
+    bit => 100,
+    decimal => 100,
+    int => 100,
+    money => 100,
+    float => 100,
+    real => 100,
+    ntext => $blob_max,
+    text => $blob_max,
+    image => $blob_max,
+    date => 100,
+    datetime => 100,
+    datetime2 => 100,
+    datetimeoffset => 100,
+    smalldatetime => 100,
+    time => 100,
+    timestamp => 100,
+  }
 }
 
 1;

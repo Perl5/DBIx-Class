@@ -1290,12 +1290,6 @@ sub _query_end {
     }
 }
 
-sub _sth_bind_param {
-  my ($self, $sth, $placeholder_index, $data, $attributes) = @_;
-
-  $sth->bind_param($placeholder_index, $data, $attributes);
-}
-
 sub _dbh_execute {
   my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
 
@@ -1320,7 +1314,7 @@ sub _dbh_execute {
       my $ref = ref $data;
       $data = $ref && $ref ne 'ARRAY' ? ''.$data : $data; # stringify args (except arrayrefs)
 
-      $self->_sth_bind_param($sth, $placeholder_index, $data, $attributes);
+      $sth->bind_param($placeholder_index, $data, $attributes);
       $placeholder_index++;
     }
   }
