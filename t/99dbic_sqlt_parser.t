@@ -63,24 +63,41 @@ my @sources = grep
 }
 
 { 
-    #my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { } } });
-	my $sqlt_schema = create_schema({ schema => $schema });
-    
-    my @views = $sqlt_schema->get_views;
+    {
+        package # hide from PAUSE
+            DBICTest::Schema::NoViewDefinition;
 
-    # the following views are skipped:
-    # Year1999CDs is virtual
-    # NoViewDefinition has no view_definition
-    is(scalar @views, 1, "number of views ok");
+        use base qw/DBICTest::BaseResult/;
 
-    foreach my $view (@views) {
-        ok($view->is_valid, "view " . $view->name . " is valid");
+        __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
+        __PACKAGE__->table('noviewdefinition');
+
+        1;
     }
 
-    my @expected_view_names = (qw/ year2000cds /);
-    my @view_names = sort map { $_->name } @views;
+    my $schema_invalid_view = $schema->clone;
+    $schema_invalid_view->register_class('NoViewDefinition', 'DBICTest::Schema::NoViewDefinition');
 
-    is_deeply( @view_names, @expected_view_names, "all expected views included int SQL::Translator schema" );
+    eval {
+	    my $sqlt_schema = create_schema({ schema => $schema_invalid_view });
+    };
+    like($@, qr/view noviewdefinition is missing a view_definition/, "parser detects views with a view_definition");
+    
+#    my @views = $sqlt_schema->get_views;
+#
+#    # the following views are skipped:
+#    # Year1999CDs is virtual
+#    # NoViewDefinition has no view_definition
+#    is(scalar @views, 1, "number of views ok");
+#
+#    foreach my $view (@views) {
+#        ok($view->is_valid, "view " . $view->name . " is valid");
+#    }
+#
+#    my @expected_view_names = (qw/ year2000cds /);
+#    my @view_names = sort map { $_->name } @views;
+#
+#    is_deeply( @view_names, @expected_view_names, "all expected views included int SQL::Translator schema" );
 }
 
 done_testing;
@@ -101,7 +118,7 @@ sub create_schema {
 	my $sqlt = SQL::Translator->new( $sqltargs );
 
 	$sqlt->parser('SQL::Translator::Parser::DBIx::Class');
-	return $sqlt->translate({ data => $schema }) or die $sqlt->error;
+	return $sqlt->translate({ data => $schema }) || die $sqlt->error;
 }
 
 sub get_table {
