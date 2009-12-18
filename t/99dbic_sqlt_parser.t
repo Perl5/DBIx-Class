@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -81,7 +82,10 @@ my @sources = grep
     eval {
 	    my $sqlt_schema = create_schema({ schema => $schema_invalid_view });
     };
-    like($@, qr/view noviewdefinition is missing a view_definition/, "parser detects views with a view_definition");
+    #like($@, qr/view noviewdefinition is missing a view_definition/, "parser detects views with a view_definition");
+    throws_ok { create_schema({ schema => $schema_invalid_view }) }
+        qr/view noviewdefinition is missing a view_definition/,
+        'parser detects views with a view_definition';
     
 #    my @views = $sqlt_schema->get_views;
 #
