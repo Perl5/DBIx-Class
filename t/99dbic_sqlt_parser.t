@@ -16,7 +16,7 @@ BEGIN {
 my $schema = DBICTest->init_schema();
 # Dummy was yanked out by the sqlt hook test
 # CustomSql tests the horrific/deprecated ->name(\$sql) hack
-# YearXXXXCDs and NoViewDefinition are views
+# YearXXXXCDs are views
 #
 my @sources = grep
   { $_ !~ /^ (?: Dummy | CustomSql | Year\d{4}CDs ) $/x }
