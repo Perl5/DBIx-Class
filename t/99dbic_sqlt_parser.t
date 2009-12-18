@@ -19,7 +19,7 @@ my $schema = DBICTest->init_schema();
 # YearXXXXCDs and NoViewDefinition are views
 #
 my @sources = grep
-  { $_ !~ /^ (?: Dummy | CustomSql | Year\d{4}CDs | NoViewDefinition ) $/x }
+  { $_ !~ /^ (?: Dummy | CustomSql | Year\d{4}CDs ) $/x }
   $schema->sources
 ;
 
@@ -79,29 +79,9 @@ my @sources = grep
     my $schema_invalid_view = $schema->clone;
     $schema_invalid_view->register_class('NoViewDefinition', 'DBICTest::Schema::NoViewDefinition');
 
-    eval {
-	    my $sqlt_schema = create_schema({ schema => $schema_invalid_view });
-    };
-    #like($@, qr/view noviewdefinition is missing a view_definition/, "parser detects views with a view_definition");
     throws_ok { create_schema({ schema => $schema_invalid_view }) }
         qr/view noviewdefinition is missing a view_definition/,
         'parser detects views with a view_definition';
-    
-#    my @views = $sqlt_schema->get_views;
-#
-#    # the following views are skipped:
-#    # Year1999CDs is virtual
-#    # NoViewDefinition has no view_definition
-#    is(scalar @views, 1, "number of views ok");
-#
-#    foreach my $view (@views) {
-#        ok($view->is_valid, "view " . $view->name . " is valid");
-#    }
-#
-#    my @expected_view_names = (qw/ year2000cds /);
-#    my @view_names = sort map { $_->name } @views;
-#
-#    is_deeply( @view_names, @expected_view_names, "all expected views included int SQL::Translator schema" );
 }
 
 done_testing;
