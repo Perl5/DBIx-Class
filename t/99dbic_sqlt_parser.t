@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -62,6 +63,27 @@ my @sources = grep
 	}
 }
 
+{ 
+    {
+        package # hide from PAUSE
+            DBICTest::Schema::NoViewDefinition;
+
+        use base qw/DBICTest::BaseResult/;
+
+        __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
+        __PACKAGE__->table('noviewdefinition');
+
+        1;
+    }
+
+    my $schema_invalid_view = $schema->clone;
+    $schema_invalid_view->register_class('NoViewDefinition', 'DBICTest::Schema::NoViewDefinition');
+
+    throws_ok { create_schema({ schema => $schema_invalid_view }) }
+        qr/view noviewdefinition is missing a view_definition/,
+        'parser detects views with a view_definition';
+}
+
 done_testing;
 
 sub create_schema {
@@ -80,7 +102,7 @@ sub create_schema {
 	my $sqlt = SQL::Translator->new( $sqltargs );
 
 	$sqlt->parser('SQL::Translator::Parser::DBIx::Class');
-	return $sqlt->translate({ data => $schema }) or die $sqlt->error;
+	return $sqlt->translate({ data => $schema }) || die $sqlt->error;
 }
 
 sub get_table {
