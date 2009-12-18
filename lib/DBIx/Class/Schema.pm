@@ -1186,9 +1186,9 @@ sub freeze {
 
 =back
 
-Recommended way of dcloning objects. If a L<DBIx::Class::Row> object is passed
-its references to the schema object (which itself is B<not> cloned)
-are properly maintained.
+Recommended way of dcloning L<DBIx::Class::Row> and L<DBIx::Class::ResultSet>
+objects so their references to the schema object
+(which itself is B<not> cloned) are properly maintained.
 
 =cut
 
