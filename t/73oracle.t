@@ -328,7 +328,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       my $rs = $schema->resultset('Artist')->search({},
                               {
                                 'start_with' => { 'name' => 'root' },
-                                'connect_by' => { 'parentid' => 'prior artistid'},
+                                'connect_by' => { 'parentid' => { '-prior' => \'artistid' } },
                               });
 =pod
     SELECT
@@ -367,7 +367,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       my $rs = $schema->resultset('Artist')->search({},
                               {
                                 'start_with' => { 'name' => 'root' },
-                                'connect_by' => { 'parentid' => 'prior artistid'},
+                                'connect_by' => { 'parentid' => { '-prior' => \'artistid' } },
                                 'order_siblings_by' => 'name DESC',
                               });
       my $ok = 1;
@@ -396,7 +396,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       my $rs = $schema->resultset('Artist')->search({ parentid => undef },
                               {
                                 'start_with' => { 'name' => 'greatgrandchild' },
-                                'connect_by' => { 'prior parentid' => 'artistid'},
+                                'connect_by' => { '-prior' => [  \'parentid', \'artistid' ] } ,
                               });
 =pod
     SELECT
@@ -436,7 +436,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
                               {
                                 'join' => 'cds',
                                 'start_with' => { 'name' => 'root' },
-                                'connect_by' => { 'parentid' => 'prior artistid'},
+                                'connect_by' => { 'parentid' => { '-prior' => \'artistid' } },
                               });
 =pod
     SELECT
@@ -479,7 +479,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       my $rs = $schema->resultset('Artist')->search({},
                               {
                                 'start_with' => { 'name' => 'greatgrandchild' },
-                                'connect_by' => { 'prior parentid' => 'artistid'},
+                                'connect_by' => { '-prior' => [ \'parentid', \'artistid' ] },
                                 'order_by' => 'name ASC',
                               });
       my $ok = 1;
@@ -508,7 +508,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       my $rs = $schema->resultset('Artist')->search({},
                               {
                                 'start_with' => { 'name' => 'greatgrandchild' },
-                                'connect_by' => { 'prior parentid' => 'artistid'},
+                                'connect_by' => { '-prior' => [ \'parentid', \'artistid' ] },
                                 'order_by' => 'name ASC',
                                 'rows' => 2,
                                 'page' => 1,
