@@ -1,6 +1,6 @@
-#!/usr/bin/perl
 use strict;
 use warnings;
+
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
@@ -24,43 +24,43 @@ my @sources = grep
 ;
 
 { 
-	my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { } } });
+  my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { } } });
 
-	foreach my $source (@sources) {
-		my $table = get_table($sqlt_schema, $schema, $source);
+  foreach my $source (@sources) {
+    my $table = get_table($sqlt_schema, $schema, $source);
 
-		my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
-		my @indices = $table->get_indices;
-		my $index_count = scalar(@indices);
+    my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
+    my @indices = $table->get_indices;
+    my $index_count = scalar(@indices);
     $index_count++ if ($source eq 'TwoKeys'); # TwoKeys has the index turned off on the rel def
-		is($index_count, $fk_count, "correct number of indices for $source with no args");
-	}
+    is($index_count, $fk_count, "correct number of indices for $source with no args");
+  }
 }
 
 { 
-	my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { add_fk_index => 1 } } });
+  my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { add_fk_index => 1 } } });
 
-	foreach my $source (@sources) {
-		my $table = get_table($sqlt_schema, $schema, $source);
+  foreach my $source (@sources) {
+    my $table = get_table($sqlt_schema, $schema, $source);
 
-		my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
-		my @indices = $table->get_indices;
-		my $index_count = scalar(@indices);
+    my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
+    my @indices = $table->get_indices;
+    my $index_count = scalar(@indices);
     $index_count++ if ($source eq 'TwoKeys'); # TwoKeys has the index turned off on the rel def
-		is($index_count, $fk_count, "correct number of indices for $source with add_fk_index => 1");
-	}
+    is($index_count, $fk_count, "correct number of indices for $source with add_fk_index => 1");
+  }
 }
 
 { 
-	my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { add_fk_index => 0 } } });
+  my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { add_fk_index => 0 } } });
 
-	foreach my $source (@sources) {
-		my $table = get_table($sqlt_schema, $schema, $source);
+  foreach my $source (@sources) {
+    my $table = get_table($sqlt_schema, $schema, $source);
 
-		my @indices = $table->get_indices;
-		my $index_count = scalar(@indices);
-		is($index_count, 0, "correct number of indices for $source with add_fk_index => 0");
-	}
+    my @indices = $table->get_indices;
+    my $index_count = scalar(@indices);
+    is($index_count, 0, "correct number of indices for $source with add_fk_index => 0");
+  }
 }
 
 { 
@@ -87,22 +87,22 @@ my @sources = grep
 done_testing;
 
 sub create_schema {
-	my $args = shift;
+  my $args = shift;
 
-	my $schema = $args->{schema};
-	my $additional_sqltargs = $args->{args} || {};
+  my $schema = $args->{schema};
+  my $additional_sqltargs = $args->{args} || {};
 
-	my $sqltargs = {
-		add_drop_table => 1, 
-		ignore_constraint_names => 1,
-		ignore_index_names => 1,
-		%{$additional_sqltargs}
-		};
+  my $sqltargs = {
+    add_drop_table => 1, 
+    ignore_constraint_names => 1,
+    ignore_index_names => 1,
+    %{$additional_sqltargs}
+  };
 
-	my $sqlt = SQL::Translator->new( $sqltargs );
+  my $sqlt = SQL::Translator->new( $sqltargs );
 
-	$sqlt->parser('SQL::Translator::Parser::DBIx::Class');
-	return $sqlt->translate({ data => $schema }) || die $sqlt->error;
+  $sqlt->parser('SQL::Translator::Parser::DBIx::Class');
+  return $sqlt->translate({ data => $schema }) || die $sqlt->error;
 }
 
 sub get_table {
