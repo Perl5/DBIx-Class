@@ -65,19 +65,19 @@ sub parse {
     }
 
 
-    my(@table_monikers, @view_monikers);
+    my(%table_monikers, %view_monikers);
     for my $moniker (@monikers){
       my $source = $dbicschema->source($moniker);
        if ( $source->isa('DBIx::Class::ResultSource::Table') ) {
-         push(@table_monikers, $moniker);
+         $table_monikers{$moniker}++;
       } elsif( $source->isa('DBIx::Class::ResultSource::View') ){
           next if $source->is_virtual;
-         push(@view_monikers, $moniker);
+         $view_monikers{$moniker}++;
       }
     }
 
     my %tables;
-    foreach my $moniker (sort @table_monikers)
+    foreach my $moniker (sort keys %table_monikers)
     {
         my $source = $dbicschema->source($moniker);
         my $table_name = $source->name;
@@ -131,18 +131,22 @@ sub parse {
         my %created_FK_rels;
 
         # global add_fk_index set in parser_args
-        my $add_fk_index = (exists $args->{add_fk_index} && ($args->{add_fk_index} == 0)) ? 0 : 1;
+        my $add_fk_index = (exists $args->{add_fk_index} && ! $args->{add_fk_index}) ? 0 : 1;
 
         foreach my $rel (sort @rels)
         {
+
             my $rel_info = $source->relationship_info($rel);
 
             # Ignore any rel cond that isn't a straight hash
             next unless ref $rel_info->{cond} eq 'HASH';
 
-            my $othertable = $source->related_source($rel);
-            next if $othertable->isa('DBIx::Class::ResultSource::View');  # can't define constraints referencing a view
-            my $rel_table = $othertable->name;
+            my $relsource = $source->related_source($rel);
+
+            # related sources might be excluded via a {sources} filter or might be views
+            next unless exists $table_monikers{$relsource->source_name};
+
+            my $rel_table = $relsource->name;
 
             # FIXME - this isn't the right way to do it, but sqlt does not
             # support quoting properly to be signaled about this
@@ -153,7 +157,7 @@ sub parse {
 
             # Force the order of @cond to match the order of ->add_columns
             my $idx;
-            my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $othertable->columns;            
+            my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $relsource->columns;
             my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}}); 
 
             # Get the key information, mapping off the foreign/self markers
@@ -210,11 +214,12 @@ sub parse {
 
                   my $is_deferrable = $rel_info->{attrs}{is_deferrable};
 
-                  # do not consider deferrable constraints and self-references
-                  # for dependency calculations
+                  # calculate dependencies: do not consider deferrable constraints and
+                  # self-references for dependency calculations
                   if (! $is_deferrable and $rel_table ne $table_name) {
                     $tables{$table_name}{foreign_table_deps}{$rel_table}++;
                   }
+
                   $table->add_constraint(
                                     type             => 'foreign_key',
                                     name             => join('_', $table_name, 'fk', @keys),
@@ -274,7 +279,7 @@ EOW
     }
 
     my %views;
-    foreach my $moniker (sort @view_monikers)
+    foreach my $moniker (sort keys %view_monikers)
     {
         my $source = $dbicschema->source($moniker);
         my $view_name = $source->name;

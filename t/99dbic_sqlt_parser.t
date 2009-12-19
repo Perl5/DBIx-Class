@@ -84,6 +84,24 @@ my @sources = grep
         'parser detects views with a view_definition';
 }
 
+lives_ok (sub {
+  my $sqlt_schema = create_schema ({
+    schema => $schema,
+    args => {
+      parser_args => {
+        sources => ['CD']
+      },
+    },
+  });
+
+  is_deeply (
+    [$sqlt_schema->get_tables ],
+    ['cd'],
+    'sources limitng with relationships works',
+  );
+
+});
+
 done_testing;
 
 sub create_schema {

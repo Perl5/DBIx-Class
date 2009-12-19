@@ -2,6 +2,8 @@ Revision history for DBIx::Class
 
         - might_have/has_one now warn if applied calling class's column
           has is_nullable set to true.
+        - Fixed regression in deploy() with a {sources} table limit applied
+          (RT#52812)
         - Cookbook POD fix for add_drop_table instead of add_drop_tables
         - Views without a view_definition will throw an exception when
           parsed by SQL::Translator::Parser::DBIx::Class
