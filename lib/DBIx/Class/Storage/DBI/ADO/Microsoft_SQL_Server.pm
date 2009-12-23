@@ -121,7 +121,7 @@ for caveats regarding this.
 =head3 truncation bug
 
 There is a bug with MSSQL ADO providers where data gets truncated based on the
-size on the bind sizes in the first prepare:
+size of the bind sizes in the first prepare call:
 
 L<https://rt.cpan.org/Ticket/Display.html?id=52048>
 
