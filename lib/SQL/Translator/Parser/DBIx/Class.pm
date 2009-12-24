@@ -112,9 +112,11 @@ sub parse {
             my $f = $table->add_field(%colinfo)
               || $dbicschema->throw_exception ($table->error);
         }
-        $table->primary_key($source->primary_columns);
 
         my @primary = $source->primary_columns;
+
+        $table->primary_key(@primary) if @primary;
+
         my %unique_constraints = $source->unique_constraints;
         foreach my $uniq (sort keys %unique_constraints) {
             if (!$source->_compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
