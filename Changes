@@ -8,6 +8,7 @@ Revision history for DBIx::Class
         - Views without a view_definition will throw an exception when
           parsed by SQL::Translator::Parser::DBIx::Class
         - Schema POD improvement for dclone
+        - Fix regression in context sensitiveness of deployment_statements
 
 0.08115 2009-12-10 09:02:00 (CST)
         - Real limit/offset support for MSSQL server (via Row_Number)

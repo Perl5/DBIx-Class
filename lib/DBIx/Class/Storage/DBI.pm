@@ -2373,10 +2373,19 @@ sub deployment_statements {
     data => $schema,
   );
 
-  my $ret = $tr->translate
-    or $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error);
+  my @ret;
+  my $wa = wantarray;
+  if ($wa) {
+    @ret = $tr->translate;
+  }
+  else {
+    $ret[0] = $tr->translate;
+  }
 
-  return $ret;
+  $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error)
+    unless (@ret && defined $ret[0]);
+
+  return $wa ? @ret : $ret[0];
 }
 
 sub deploy {
