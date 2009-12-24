@@ -220,6 +220,7 @@ lives_ok ( sub {
   ]);
 }, 'populate with PKs supplied ok' );
 
+
 lives_ok (sub {
   # start a new connection, make sure rebless works
   # test an insert with a supplied identity, followed by one without
@@ -256,7 +257,8 @@ lives_ok ( sub {
 
 # make sure ordered subselects work
 {
-  my $owners = $schema->resultset ('Owners')->search ({}, { order_by => 'name' });
+  my $owners = $schema->resultset ('Owners')->search ({}, { order_by => 'name', offset => 2, rows => 3 });
+
   my $al = $owners->current_source_alias;
   my $sealed_owners = $owners->result_source->resultset->search (
     {},
@@ -274,6 +276,22 @@ lives_ok ( sub {
     [ map { $_->name } ($sealed_owners->all) ],
     [ map { $_->name } ($owners->all) ],
     'Sort preserved from within a subquery',
+  );
+
+
+  my $corelated_owners = $owners->result_source->resultset->search (
+    {
+      id => { -in => $owners->get_column('id')->as_query },
+    },
+    {
+      order_by => 'name'
+    },
+  );
+
+  is_deeply (
+    [ map { $_->name } ($corelated_owners->all) ],
+    [ map { $_->name } ($owners->all) ],
+    'Sort preserved from within a corelated subquery',
   );
 }
 
