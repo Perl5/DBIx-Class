@@ -31,7 +31,7 @@ requires 'Encode'                   => '0' if ($] <= 5.008000);
 
 # Dependencies (keep in alphabetical order)
 requires 'Carp::Clan'               => '6.0';
-requires 'Class::Accessor::Grouped' => '0.09000';
+requires 'Class::Accessor::Grouped' => '0.09002';
 requires 'Class::C3::Componentised' => '1.0005';
 requires 'Class::Inspector'         => '1.24';
 requires 'Data::Page'               => '2.00';
