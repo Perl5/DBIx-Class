@@ -282,7 +282,7 @@ L<DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
 queries.
 
 Unfortunately, Oracle doesn't support identifiers over 30 chars in length, so
-if the L<DBIx::Class::Relationship> name is shortened here if necessary.
+the L<DBIx::Class::Relationship> name is shortened here if necessary.
 
 See L<DBIx::Class::Storage/"relname_to_table_alias">.
 
