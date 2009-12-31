@@ -17,7 +17,9 @@ DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for Oracle.
+This class implements base Oracle support. The subclass
+L<DBIx::Class::Storage::DBI::Oracle::WhereJoins> is for C<(+)> joins in Oracle
+versions before 9.
 
 =head1 METHODS
 
@@ -272,6 +274,37 @@ sub _svp_rollback {
     my ($self, $name) = @_;
 
     $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+}
+
+=head2 relname_to_table_alias
+
+L<DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
+queries.
+
+Unfortunately, Oracle doesn't support identifiers over 30 chars in length, so
+if the L<DBIx::Class::Relationship> name is shortened here if necessary.
+
+See L<DBIx::Class::Storage/"relname_to_table_alias">.
+
+=cut
+
+sub relname_to_table_alias {
+  my $self = shift;
+  my ($relname, $join_count) = @_;
+
+  my $alias = $self->next::method(@_);
+
+  return $alias if length($alias) <= 30;
+
+  $alias =~ s/[aeiou]//ig;
+
+  return $alias if length($alias) <= 30;
+
+  ($alias = $relname) =~ s/[aeiou]//ig;
+  substr($alias, 0, 30 - length($join_count) - 1) = '';
+  $alias .= "_$join_count";
+
+  return $alias;
 }
 
 =head1 AUTHOR

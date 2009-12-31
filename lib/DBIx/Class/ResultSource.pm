@@ -1228,7 +1228,9 @@ sub _resolve_join {
       $force_left ||= lc($rel_info->{attrs}{join_type}||'') eq 'left';
 
       # the actual seen value will be incremented by the recursion
-      my $as = ($seen->{$rel} ? join ('_', $rel, $seen->{$rel} + 1) : $rel);
+      my $as = $self->storage->relname_to_table_alias(
+        $rel, ($seen->{$rel} && $seen->{$rel} + 1)
+      );
 
       push @ret, (
         $self->_resolve_join($rel, $alias, $seen, [@$jpath], $force_left),
@@ -1245,7 +1247,9 @@ sub _resolve_join {
   }
   else {
     my $count = ++$seen->{$join};
-    my $as = ($count > 1 ? "${join}_${count}" : $join);
+    my $as = $self->storage->relname_to_table_alias(
+      $join, ($count > 1 && $count)
+    );
 
     my $rel_info = $self->relationship_info($join)
       or $self->throw_exception("No such relationship ${join}");
