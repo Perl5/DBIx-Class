@@ -124,11 +124,22 @@ my $new = $schema->resultset('Artist')->create({ name => 'foo' });
 is($new->artistid, 1, "Oracle Auto-PK worked");
 
 my $cd = $schema->resultset('CD')->create({ artist => 1, title => 'EP C', year => '2003' });
-is($new->artistid, 1, "Oracle Auto-PK worked - using scalar ref as table name");
+is($cd->cdid, 1, "Oracle Auto-PK worked - using scalar ref as table name");
 
 # test again with fully-qualified table name
 $new = $schema->resultset('ArtistFQN')->create( { name => 'bar' } );
 is( $new->artistid, 2, "Oracle Auto-PK worked with fully-qualified tablename" );
+
+# test rel names over the 30 char limit
+my $query = $schema->resultset('Artist')->search({
+  'cds_very_very_very_long_relationship_name.title' => 'EP C'
+}, {
+  prefetch => 'cds_very_very_very_long_relationship_name'
+});
+
+lives_and {
+  is $query->first->cds_very_very_very_long_relationship_name->cdid, 1
+} 'query with rel name over 30 chars survived and worked';
 
 # test join with row count ambiguity
 
