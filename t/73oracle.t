@@ -40,8 +40,6 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
   unless ($dsn && $user && $pass);
 
-plan tests => 36;
-
 DBICTest::Schema->load_classes('ArtistFQN');
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -238,6 +236,8 @@ SKIP: {
 		}
 	}
 }
+
+done_testing;
 
 # clean up our mess
 END {
