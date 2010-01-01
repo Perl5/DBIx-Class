@@ -2532,7 +2532,8 @@ C<"$relname">.
 sub relname_to_table_alias {
   my ($self, $relname, $join_count) = @_;
 
-  my $alias = ($join_count > 1 ? join('_', $relname, $join_count) : $relname);
+  my $alias = ($join_count && $join_count > 1 ?
+    join('_', $relname, $join_count) : $relname);
 
   return $alias;
 }

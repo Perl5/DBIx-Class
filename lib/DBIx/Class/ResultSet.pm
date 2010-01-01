@@ -2523,7 +2523,8 @@ sub related_resultset {
 
     my $join_count = $attrs->{seen_join}{$rel};
 
-    my $alias = $self->storage->relname_to_table_alias($rel, $join_count);
+    my $alias = $self->result_source->storage
+        ->relname_to_table_alias($rel, $join_count);
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     delete @{$attrs}{qw(result_class alias)};
