@@ -282,7 +282,8 @@ L<DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
 queries.
 
 Unfortunately, Oracle doesn't support identifiers over 30 chars in length, so
-the L<DBIx::Class::Relationship> name is shortened here if necessary.
+the L<DBIx::Class::Relationship> name is shortened and appended with half of an
+MD5 hash.
 
 See L<DBIx::Class::Storage/"relname_to_table_alias">.
 
@@ -296,15 +297,17 @@ sub relname_to_table_alias {
 
   return $alias if length($alias) <= 30;
 
-  $alias =~ s/[aeiou]//ig;
+  # get a base64 md5 of the alias with join_count
+  require Digest::MD5;
+  my $ctx = Digest::MD5->new;
+  $ctx->add($alias);
+  my $md5 = $ctx->b64digest;
 
-  return $alias if length($alias) <= 30;
+  # truncate and prepend to truncated relname without vowels
+  (my $devoweled = $relname) =~ s/[aeiou]//g;
+  my $res = substr($devoweled, 0, 18) . '_' . substr($md5, 0, 11);
 
-  ($alias = $relname) =~ s/[aeiou]//ig;
-  substr($alias, 0, 30 - length($join_count) - 1) = '';
-  $alias .= "_$join_count";
-
-  return $alias;
+  return $res;
 }
 
 =head1 AUTHOR

@@ -29,6 +29,9 @@ requires 'Storable'                 => '0';
 # Perl 5.8.0 doesn't have utf8::is_utf8()
 requires 'Encode'                   => '0' if ($] <= 5.008000);
 
+# Pre 5.8 does not have Digest::MD5
+requires 'Digest::MD5'              => '0' if ($] <  5.007003);
+
 # Dependencies (keep in alphabetical order)
 requires 'Carp::Clan'               => '6.0';
 requires 'Class::Accessor::Grouped' => '0.09002';
