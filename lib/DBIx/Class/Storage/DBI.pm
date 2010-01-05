@@ -2510,6 +2510,34 @@ sub lag_behind_master {
   sub _sqlt_minimum_version { $minimum_sqlt_version };
 }
 
+=head2 relname_to_table_alias
+
+=over 4
+
+=item Arguments: $relname, $join_count
+
+=back
+
+L<DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
+queries.
+
+This hook is to allow specific L<DBIx::Class::Storage> drivers to change the
+way these aliases are named.
+
+The default behavior is C<"$relname_$join_count" if $join_count > 1>, otherwise
+C<"$relname">.
+
+=cut
+
+sub relname_to_table_alias {
+  my ($self, $relname, $join_count) = @_;
+
+  my $alias = ($join_count && $join_count > 1 ?
+    join('_', $relname, $join_count) : $relname);
+
+  return $alias;
+}
+
 sub DESTROY {
   my $self = shift;
 

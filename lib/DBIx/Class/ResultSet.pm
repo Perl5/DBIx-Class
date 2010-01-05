@@ -2522,7 +2522,9 @@ sub related_resultset {
     my $attrs = $self->_chain_relationship($rel);
 
     my $join_count = $attrs->{seen_join}{$rel};
-    my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
+
+    my $alias = $self->result_source->storage
+        ->relname_to_table_alias($rel, $join_count);
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     delete @{$attrs}{qw(result_class alias)};
