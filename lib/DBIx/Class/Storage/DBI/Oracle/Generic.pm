@@ -305,9 +305,12 @@ sub relname_to_table_alias {
 
   # truncate and prepend to truncated relname without vowels
   (my $devoweled = $relname) =~ s/[aeiou]//g;
-  my $res = substr($devoweled, 0, 18) . '_' . substr($md5, 0, 11);
+  my $shortened = substr($devoweled, 0, 18);
 
-  return $res;
+  my $new_alias =
+    $shortened . '_' . substr($md5, 0, 30 - length($shortened) - 1);
+
+  return $new_alias;
 }
 
 =head1 AUTHOR
