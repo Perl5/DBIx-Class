@@ -8,7 +8,7 @@ use 5.006001; # delete this line if you want to send patches for earlier.
 # ****** DO NOT ADD OPTIONAL DEPENDENCIES. EVER. --mst ******
 
 name     'DBIx-Class';
-perl_version '5.006001';
+perl_version '5.008001';
 all_from 'lib/DBIx/Class.pm';
 
 
@@ -25,12 +25,6 @@ test_requires 'File::Temp'          => '0.22';
 requires 'List::Util'               => '0';
 requires 'Scalar::Util'             => '0';
 requires 'Storable'                 => '0';
-
-# Perl 5.8.0 doesn't have utf8::is_utf8()
-requires 'Encode'                   => '0' if ($] <= 5.008000);
-
-# Pre 5.8 does not have Digest::MD5
-requires 'Digest::MD5'              => '0' if ($] <  5.007003);
 
 # Dependencies (keep in alphabetical order)
 requires 'Carp::Clan'               => '6.0';
