@@ -303,6 +303,9 @@ sub relname_to_table_alias {
   $ctx->add($alias);
   my $md5 = $ctx->b64digest;
 
+  # remove alignment mark just in case
+  $md5 =~ s/=*\z//;
+
   # truncate and prepend to truncated relname without vowels
   (my $devoweled = $relname) =~ s/[aeiou]//g;
   my $shortened = substr($devoweled, 0, 18);
