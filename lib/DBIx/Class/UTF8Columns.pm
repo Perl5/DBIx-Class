@@ -2,17 +2,7 @@ package DBIx::Class::UTF8Columns;
 use strict;
 use warnings;
 use base qw/DBIx::Class/;
-
-BEGIN {
-
-    # Perl 5.8.0 doesn't have utf8::is_utf8()
-    # Yes, 5.8.0 support for Unicode is suboptimal, but things like RHEL3 ship with it.
-    if ($] <= 5.008000) {
-        require Encode;
-    } else {
-        require utf8;
-    }
-}
+use utf8;
 
 __PACKAGE__->mk_classdata( '_utf8_columns' );
 
@@ -71,15 +61,10 @@ sub get_column {
 
     my $cols = $self->_utf8_columns;
     if ( $cols and defined $value and $cols->{$column} ) {
-
-        if ($] <= 5.008000) {
-            Encode::_utf8_on($value) unless Encode::is_utf8($value);
-        } else {
-            utf8::decode($value) unless utf8::is_utf8($value);
-        }
+      utf8::decode($value) unless utf8::is_utf8($value);
     }
 
-    $value;
+    return $value;
 }
 
 =head2 get_columns
@@ -91,15 +76,10 @@ sub get_columns {
     my %data = $self->next::method(@_);
 
     foreach my $col (grep { defined $data{$_} } keys %{ $self->_utf8_columns || {} }) {
-
-        if ($] <= 5.008000) {
-            Encode::_utf8_on($data{$col}) unless Encode::is_utf8($data{$col});
-        } else {
-            utf8::decode($data{$col}) unless utf8::is_utf8($data{$col});
-        }
+      utf8::decode($data{$col}) unless utf8::is_utf8($data{$col});
     }
 
-    %data;
+    return %data;
 }
 
 =head2 store_column
@@ -111,12 +91,7 @@ sub store_column {
 
     my $cols = $self->_utf8_columns;
     if ( $cols and defined $value and $cols->{$column} ) {
-
-        if ($] <= 5.008000) {
-            Encode::_utf8_off($value) if Encode::is_utf8($value);
-        } else {
-            utf8::encode($value) if utf8::is_utf8($value);
-        }
+      utf8::encode($value) if utf8::is_utf8($value);
     }
 
     $self->next::method( $column, $value );

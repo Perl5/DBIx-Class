@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use POSIX ();
 
-use 5.006001; # delete this line if you want to send patches for earlier.
+use 5.008001;
 
 # ****** DO NOT ADD OPTIONAL DEPENDENCIES. EVER. --mst ******
 
@@ -33,7 +33,7 @@ requires 'Class::C3::Componentised' => '1.0005';
 requires 'Class::Inspector'         => '1.24';
 requires 'Data::Page'               => '2.00';
 requires 'DBD::SQLite'              => '1.25';
-requires 'DBI'                      => '1.605';
+requires 'DBI'                      => '1.609';
 requires 'JSON::Any'                => '1.18';
 requires 'MRO::Compat'              => '0.09';
 requires 'Module::Find'             => '0.06';
