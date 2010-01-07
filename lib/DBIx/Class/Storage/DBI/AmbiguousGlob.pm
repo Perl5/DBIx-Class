@@ -8,7 +8,7 @@ use mro 'c3';
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::AmbiguousGlob - Storage component for RDBMS supporting multicolumn in clauses
+DBIx::Class::Storage::DBI::AmbiguousGlob - Storage component for RDBMS choking on count(*)
 
 =head1 DESCRIPTION
 
