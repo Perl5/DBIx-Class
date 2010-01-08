@@ -1178,8 +1178,17 @@ sub freeze {
 
 =head2 dclone
 
-Recommeneded way of dcloning objects. This is needed to properly maintain
-references to the schema object (which itself is B<not> cloned.)
+=over 4
+
+=item Arguments: $object
+
+=item Return Value: dcloned $object
+
+=back
+
+Recommended way of dcloning L<DBIx::Class::Row> and L<DBIx::Class::ResultSet>
+objects so their references to the schema object
+(which itself is B<not> cloned) are properly maintained.
 
 =cut
 

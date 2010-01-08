@@ -9,7 +9,14 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-my $rs = $schema->resultset("CD")->search({}, { order_by => 'cdid' });
+my $rs = $schema->resultset("CD");
+
+cmp_ok (
+  $rs->count,
+    '!=',
+  $rs->search ({}, {columns => ['year'], distinct => 1})->count,
+  'At least one year is the same in rs'
+);
 
 my $rs_title = $rs->get_column('title');
 my $rs_year = $rs->get_column('year');
@@ -35,6 +42,14 @@ is($rs_year->first, 1999, "first okay");
 warnings_exist (sub {
   is($rs_year->single, 1999, "single okay");
 }, qr/Query returned more than one row/, 'single warned');
+
+
+# test distinct propagation
+is_deeply (
+  [$rs->search ({}, { distinct => 1 })->get_column ('year')->all],
+  [$rs_year->func('distinct')],
+  'distinct => 1 is passed through properly',
+);
 
 # test +select/+as for single column
 my $psrs = $schema->resultset('CD')->search({},

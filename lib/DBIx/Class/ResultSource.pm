@@ -1228,7 +1228,9 @@ sub _resolve_join {
       $force_left ||= lc($rel_info->{attrs}{join_type}||'') eq 'left';
 
       # the actual seen value will be incremented by the recursion
-      my $as = ($seen->{$rel} ? join ('_', $rel, $seen->{$rel} + 1) : $rel);
+      my $as = $self->storage->relname_to_table_alias(
+        $rel, ($seen->{$rel} && $seen->{$rel} + 1)
+      );
 
       push @ret, (
         $self->_resolve_join($rel, $alias, $seen, [@$jpath], $force_left),
@@ -1245,7 +1247,9 @@ sub _resolve_join {
   }
   else {
     my $count = ++$seen->{$join};
-    my $as = ($count > 1 ? "${join}_${count}" : $join);
+    my $as = $self->storage->relname_to_table_alias(
+      $join, ($count > 1 && $count)
+    );
 
     my $rel_info = $self->relationship_info($join)
       or $self->throw_exception("No such relationship ${join}");
@@ -1334,13 +1338,13 @@ sub _resolve_condition {
         unless ($for->has_column_loaded($v)) {
           if ($for->in_storage) {
             $self->throw_exception(sprintf
-              'Unable to resolve relationship from %s to %s: column %s.%s not '
-            . 'loaded from storage (or not passed to new() prior to insert()). '
-            . 'Maybe you forgot to call ->discard_changes to get defaults from the db.',
-
-              $for->result_source->source_name,
+              "Unable to resolve relationship '%s' from object %s: column '%s' not "
+            . 'loaded from storage (or not passed to new() prior to insert()). You '
+            . 'probably need to call ->discard_changes to get the server-side defaults '
+            . 'from the database.',
               $as,
-              $as, $v,
+              $for,
+              $v,
             );
           }
           return $UNRESOLVABLE_CONDITION;

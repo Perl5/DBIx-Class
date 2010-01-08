@@ -1431,7 +1431,7 @@ sub _rs_update_delete {
   my $cond = $rsrc->schema->storage->_strip_cond_qualifiers ($self->{cond});
 
   my $needs_group_by_subq = $self->_has_resolved_attr (qw/collapse group_by -join/);
-  my $needs_subq = (not defined $cond) || $self->_has_resolved_attr(qw/row offset/);
+  my $needs_subq = $needs_group_by_subq || (not defined $cond) || $self->_has_resolved_attr(qw/row offset/);
 
   if ($needs_group_by_subq or $needs_subq) {
 
@@ -2522,7 +2522,9 @@ sub related_resultset {
     my $attrs = $self->_chain_relationship($rel);
 
     my $join_count = $attrs->{seen_join}{$rel};
-    my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
+
+    my $alias = $self->result_source->storage
+        ->relname_to_table_alias($rel, $join_count);
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     delete @{$attrs}{qw(result_class alias)};

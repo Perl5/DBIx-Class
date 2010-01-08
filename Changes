@@ -1,9 +1,17 @@
 Revision history for DBIx::Class
 
+        - Perl 5.8.1 is now the minimum supported version
+        - might_have/has_one now warn if applied calling class's column
+          has is_nullable set to true.
+        - Fixed regression in deploy() with a {sources} table limit applied
+          (RT#52812)
+        - Cookbook POD fix for add_drop_table instead of add_drop_tables
+        - Views without a view_definition will throw an exception when
+          parsed by SQL::Translator::Parser::DBIx::Class
+        - Schema POD improvement for dclone
+        - Fix regression in context sensitiveness of deployment_statements
         - Fix regression resulting in overcomplicated query on
           search_related from prefetching resultsets
-        - Better isolation of RNO-limited queries from the rest
-          of a prefetching resultset
 
 0.08115 2009-12-10 09:02:00 (CST)
         - Real limit/offset support for MSSQL server (via Row_Number)

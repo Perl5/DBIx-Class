@@ -26,7 +26,8 @@ sub _rebless {
   }
 }
 
-# set cursor type here, if necessary
+# Here I was just experimenting with ADO cursor types, left in as a comment in
+# case you want to as well. See the DBD::ADO docs.
 #sub _dbh_sth {
 #  my ($self, $dbh, $sql) = @_;
 #

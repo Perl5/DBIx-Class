@@ -7,8 +7,7 @@ BEGIN {
   ## use, so we explicitly test for these.
 
   my %replication_required = (
-    'Moose' => '0.87',
-    'MooseX::AttributeHelpers' => '0.21',
+    'Moose' => '0.90',
     'MooseX::Types' => '0.16',
     'namespace::clean' => '0.11',
     'Hash::Merge' => '0.11'
@@ -119,8 +118,7 @@ to force a query to run against Master when needed.
 
 Replicated Storage has additional requirements not currently part of L<DBIx::Class>
 
-  Moose => '0.87',
-  MooseX::AttributeHelpers => '0.20',
+  Moose => '0.90',
   MooseX::Types => '0.16',
   namespace::clean => '0.11',
   Hash::Merge => '0.11'

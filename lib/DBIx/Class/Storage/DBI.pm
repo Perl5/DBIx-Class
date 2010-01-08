@@ -1290,12 +1290,6 @@ sub _query_end {
     }
 }
 
-sub _sth_bind_param {
-  my ($self, $sth, $placeholder_index, $data, $attributes) = @_;
-
-  $sth->bind_param($placeholder_index, $data, $attributes);
-}
-
 sub _dbh_execute {
   my ($self, $dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
 
@@ -1320,7 +1314,7 @@ sub _dbh_execute {
       my $ref = ref $data;
       $data = $ref && $ref ne 'ARRAY' ? ''.$data : $data; # stringify args (except arrayrefs)
 
-      $self->_sth_bind_param($sth, $placeholder_index, $data, $attributes);
+      $sth->bind_param($placeholder_index, $data, $attributes);
       $placeholder_index++;
     }
   }
@@ -2391,10 +2385,19 @@ sub deployment_statements {
     data => $schema,
   );
 
-  my $ret = $tr->translate
-    or $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error);
+  my @ret;
+  my $wa = wantarray;
+  if ($wa) {
+    @ret = $tr->translate;
+  }
+  else {
+    $ret[0] = $tr->translate;
+  }
 
-  return $ret;
+  $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error)
+    unless (@ret && defined $ret[0]);
+
+  return $wa ? @ret : $ret[0];
 }
 
 sub deploy {
@@ -2517,6 +2520,34 @@ sub lag_behind_master {
   }
 
   sub _sqlt_minimum_version { $minimum_sqlt_version };
+}
+
+=head2 relname_to_table_alias
+
+=over 4
+
+=item Arguments: $relname, $join_count
+
+=back
+
+L<DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
+queries.
+
+This hook is to allow specific L<DBIx::Class::Storage> drivers to change the
+way these aliases are named.
+
+The default behavior is C<"$relname_$join_count" if $join_count > 1>, otherwise
+C<"$relname">.
+
+=cut
+
+sub relname_to_table_alias {
+  my ($self, $relname, $join_count) = @_;
+
+  my $alias = ($join_count && $join_count > 1 ?
+    join('_', $relname, $join_count) : $relname);
+
+  return $alias;
 }
 
 sub DESTROY {
