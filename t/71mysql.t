@@ -243,11 +243,11 @@ ZEROINSEARCH: {
   is ($rs->count, 6, 'CDs created successfully');
 
   $rs = $rs->search ({}, {
-    select => [ {year => 'year'} ], as => ['y'], distinct => 1, order_by => 'year',
+    select => [ \ 'YEAR(year)' ], as => ['y'], distinct => 1,
   });
 
   is_deeply (
-    [ $rs->get_column ('y')->all ],
+    [ sort ($rs->get_column ('y')->all) ],
     [ sort keys %$cds_per_year ],
     'Years group successfully',
   );
@@ -255,7 +255,7 @@ ZEROINSEARCH: {
   $rs->create ({ artist => 1, year => '0-1-1', title => 'Jesus Rap' });
 
   is_deeply (
-    [ $rs->get_column ('y')->all ],
+    [ sort $rs->get_column ('y')->all ],
     [ 0, sort keys %$cds_per_year ],
     'Zero-year groups successfully',
   );
