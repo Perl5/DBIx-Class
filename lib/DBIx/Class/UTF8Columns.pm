@@ -26,6 +26,15 @@ DBIx::Class::UTF8Columns - Force UTF8 (Unicode) flag on columns
 
 This module allows you to get columns data that have utf8 (Unicode) flag.
 
+=head2 Warning
+
+Note that this module overloads L<DBIx::Class::Row/store_column> in a way
+that may prevent other components overloading the same method from working
+correctly. This component must be the last one before L<DBIx::Class::Row>
+(which is provided by L<DBIx::Class::Core>). DBIx::Class will detect such
+incorrect component order and issue an appropriate warning, advising which
+components need to be loaded differently.
+
 =head1 SEE ALSO
 
 L<Template::Stash::ForceUTF8>, L<DBIx::Class::UUIDColumns>.
@@ -42,7 +51,7 @@ sub utf8_columns {
         foreach my $col (@_) {
             $self->throw_exception("column $col doesn't exist")
                 unless $self->has_column($col);
-        }        
+        }
         return $self->_utf8_columns({ map { $_ => 1 } @_ });
     } else {
         return $self->_utf8_columns;
@@ -59,10 +68,9 @@ sub get_column {
     my ( $self, $column ) = @_;
     my $value = $self->next::method($column);
 
-    my $cols = $self->_utf8_columns;
-    if ( $cols and defined $value and $cols->{$column} ) {
-      utf8::decode($value) unless utf8::is_utf8($value);
-    }
+    utf8::decode($value) if (
+      defined $value and $self->_is_utf8_column($column) and ! utf8::is_utf8($value)
+    );
 
     return $value;
 }
@@ -75,8 +83,10 @@ sub get_columns {
     my $self = shift;
     my %data = $self->next::method(@_);
 
-    foreach my $col (grep { defined $data{$_} } keys %{ $self->_utf8_columns || {} }) {
-      utf8::decode($data{$col}) unless utf8::is_utf8($data{$col});
+    foreach my $col (keys %data) {
+      utf8::decode($data{$col}) if (
+        exists $data{$col} and defined $data{$col} and $self->_is_utf8_column($col) and ! utf8::is_utf8($data{$col})
+      );
     }
 
     return %data;
@@ -89,27 +99,32 @@ sub get_columns {
 sub store_column {
     my ( $self, $column, $value ) = @_;
 
-    my $cols = $self->_utf8_columns;
-    if ( $cols and defined $value and $cols->{$column} ) {
-      utf8::encode($value) if utf8::is_utf8($value);
+    # the dirtyness comparison must happen on the non-encoded value
+    my $copy;
+
+    if ( defined $value and $self->_is_utf8_column($column) and utf8::is_utf8($value) ) {
+      $copy = $value;
+      utf8::encode($value);
     }
 
     $self->next::method( $column, $value );
+
+    return $copy || $value;
 }
 
-=head1 AUTHOR
+# override this if you want to force everything to be encoded/decoded
+sub _is_utf8_column {
+  return (shift->utf8_columns || {})->{shift};
+}
 
-Daisuke Murase <typester@cpan.org>
+=head1 AUTHORS
 
-=head1 COPYRIGHT
+See L<DBIx::Class/CONTRIBUTORS>.
 
-This program is free software; you can redistribute
-it and/or modify it under the same terms as Perl itself.
+=head1 LICENSE
 
-The full text of the license can be found in the
-LICENSE file included with this module.
+You may distribute this code under the same terms as Perl itself.
 
 =cut
 
 1;
-

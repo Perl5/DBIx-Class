@@ -2,9 +2,24 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
 use utf8;
+
+warning_like (sub {
+
+  package A::Comp;
+  use base 'DBIx::Class';
+  sub store_column { shift->next::method (@_) };
+  1;
+
+  package A::Test;
+  use base 'DBIx::Class::Core';
+  __PACKAGE__->load_components(qw(UTF8Columns +A::Comp));
+  1;
+}, qr/Incorrect loading order of DBIx::Class::UTF8Columns/ );
+
 
 my $schema = DBICTest->init_schema();
 

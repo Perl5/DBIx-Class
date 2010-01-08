@@ -4,9 +4,10 @@ use strict;
 use warnings;
 
 use MRO::Compat;
+use mro 'c3';
 
 use vars qw($VERSION);
-use base qw/Class::C3::Componentised Class::Accessor::Grouped/;
+use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
 
 sub mk_classdata {
