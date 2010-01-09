@@ -13,6 +13,10 @@ Revision history for DBIx::Class
         - Fix regression in context sensitiveness of deployment_statements
         - Fix regression resulting in overcomplicated query on
           search_related from prefetching resultsets
+        - Better isolation of RNO-limited queries from the rest of a
+          prefetching resultset
+        - New MSSQL specific resultset attribute to allow hacky ordered
+          subquery suppot
 
 0.08115 2009-12-10 09:02:00 (CST)
         - Real limit/offset support for MSSQL server (via Row_Number)

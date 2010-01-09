@@ -327,8 +327,8 @@ write-permissions.
 
 DBIC can do truly wonderful things with the aid of subqueries, and does so
 automatically when necessary. Especially useful are ordered subqueries,
-which allow things like "Give me things number 4 to 6 (ordered by name), and
-prefetch all their relationss, no matter how many". In its pursuit of standards
+which allow searches like "Give me things number 4 to 6 (ordered by name), and
+prefetch all their relations, no matter how many". In its pursuit of standards
 Microsft SQL Server goes to great lengths to forbid the use of ordered
 subqueries. While there is a hack which fools the syntax checker, the optimizer
 may B<still elect to break the subquery>. Testing has determined that while
@@ -345,7 +345,7 @@ ResultSet individually.
 If it is possible to rewrite the search() in a way that will avoid the need
 for this flag - you are urged to do so. If DBIC internals insist that an
 ordered subquery is necessary for an operation, and you believe there is a
-differnt way to express the query - please file a bugreport.
+differnt/better way to get the same result - please file a bugreport.
 
 =head1 AUTHOR
 
