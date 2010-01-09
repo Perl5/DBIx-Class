@@ -32,7 +32,7 @@ use base qw(Exporter);
 # -------------------------------------------------------------------
 sub parse {
     # this is a hack to prevent schema leaks due to a retarded SQLT implementation
-    # DO NOT REMOVE
+    # DO NOT REMOVE (until SQLT2 is out, the all of this will be rewritten anyway)
     Scalar::Util::weaken ($_[1]);
 
     my ($tr, $data)   = @_;
