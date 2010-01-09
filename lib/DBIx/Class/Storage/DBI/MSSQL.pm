@@ -191,6 +191,9 @@ sub _select_args_to_query {
   # see if this is an ordered subquery
   my $attrs = $_[3];
   if ( scalar $self->sql_maker->_order_by_chunks ($attrs->{order_by}) ) {
+    $self->throw_exception(
+      'An ordered subquery encountered. Please see "Ordered Subqueries" in DBIx::Class::Storage::DBI::MSSQL
+    ') unless $attrs->{unsafe_subquery};
     my $max = 2 ** 32;
     $sql =~ s/^ \s* SELECT \s/SELECT TOP $max /xi;
   }
@@ -304,6 +307,45 @@ appropriate database call to make this possible, namely C<SET IDENTITY_INSERT
 $table_name ON>. Unfortunately this operation in MSSQL requires the
 C<db_ddladmin> privilege, which is normally not included in the standard
 write-permissions.
+
+=head2 Ordered Subqueries
+
+ # this is deemed unsafe and throws under MSSQL
+ $rs->search ({}, {
+  prefetch => 'relation',
+  rows => 2,
+  offset => 3,
+ });
+
+ # however this should work (but please check what comes back from the db)
+ $rs->search ({}, {
+  unsafe_subquery => 1,
+  prefetch => 'relation',
+  rows => 2,
+  offset => 3,
+ });
+
+DBIC can do truly wonderful things with the aid of subqueries, and does so
+automatically when necessary. Especially useful are ordered subqueries,
+which allow things like "Give me things number 4 to 6 (ordered by name), and
+prefetch all their relationss, no matter how many". In its pursuit of standards
+Microsft SQL Server goes to great lengths to forbid the use of ordered
+subqueries. While there is a hack which fools the syntax checker, the optimizer
+may B<still elect to break the subquery>. Testing has determined that while
+such breakage does occur (the test suite contains an explicit test which
+demonstrates the problem), it is relative rare. The benefits of ordered
+subqueries are on the other hand too great to be outright disabled for MSSQL.
+
+Thus compromise between usability and perfection is the MSSQL-specific
+L<resultset attribute|DBIx::Class::ResultSet/ATTRIBUTES> C<unsafe_subquery>.
+It is deliberately not possible to set this on the Storage level, as the user
+should inspect (and preferrably regression-test) the return of every such
+ResultSet individually.
+
+If it is possible to rewrite the search() in a way that will avoid the need
+for this flag - you are urged to do so. If DBIC internals insist that an
+ordered subquery is necessary for an operation, and you believe there is a
+differnt way to express the query - please file a bugreport.
 
 =head1 AUTHOR
 
