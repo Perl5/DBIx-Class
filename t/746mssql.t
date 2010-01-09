@@ -320,6 +320,13 @@ TODO: {
     join ("\x00", map { $_->name } ($owners->all) ),
     'Sadly sort not preserved from within a corelated subquery',
   );
+
+  cmp_ok (
+    join ("\x00", sort map { $_->name } ($corelated_owners->all) ),
+      'ne',
+    join ("\x00", sort map { $_->name } ($owners->all) ),
+    'Which in fact gives a completely wrong dataset',
+  );
 }
 
 
