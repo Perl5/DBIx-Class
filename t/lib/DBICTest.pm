@@ -127,7 +127,7 @@ sub deploy_schema {
     my $args = shift || {};
 
     if ($ENV{"DBICTEST_SQLT_DEPLOY"}) { 
-        $schema->deploy($args);    
+        $schema->deploy($args);
     } else {
         open IN, "t/lib/sqlite.sql";
         my $sql;

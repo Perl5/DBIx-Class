@@ -5,6 +5,8 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBICTest::Schema;
+use Scalar::Util ();
 
 BEGIN {
   require DBIx::Class::Storage::DBI;
@@ -12,6 +14,16 @@ BEGIN {
       'Test needs SQL::Translator ' . DBIx::Class::Storage::DBI->_sqlt_minimum_version
     if not DBIx::Class::Storage::DBI->_sqlt_version_ok;
 }
+
+# Test for SQLT-related leaks
+{
+  my $s = DBICTest::Schema->clone;
+  my $sqlt_s = create_schema ({ schema => $s });
+  Scalar::Util::weaken ($s);
+
+  ok (!$s, 'Schema not leaked');
+}
+
 
 my $schema = DBICTest->init_schema();
 # Dummy was yanked out by the sqlt hook test
