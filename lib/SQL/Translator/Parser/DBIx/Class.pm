@@ -15,6 +15,7 @@ $DEBUG = 0 unless defined $DEBUG;
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use Carp::Clan qw/^SQL::Translator|^DBIx::Class/;
+use Scalar::Util ();
 
 use base qw(Exporter);
 
@@ -30,6 +31,10 @@ use base qw(Exporter);
 # We're working with DBIx::Class Schemas, not data streams.
 # -------------------------------------------------------------------
 sub parse {
+    # this is a hack to prevent schema leaks due to a retarded SQLT implementation
+    # DO NOT REMOVE (until SQLT2 is out, the all of this will be rewritten anyway)
+    Scalar::Util::weaken ($_[1]);
+
     my ($tr, $data)   = @_;
     my $args          = $tr->parser_args;
     my $dbicschema    = $args->{'DBIx::Class::Schema'} ||  $args->{"DBIx::Schema"} ||$data;

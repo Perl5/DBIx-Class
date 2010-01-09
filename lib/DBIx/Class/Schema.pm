@@ -5,7 +5,7 @@ use warnings;
 
 use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
-use Scalar::Util qw/weaken/;
+use Scalar::Util ();
 use File::Spec;
 use Sub::Name ();
 use Module::Find();
@@ -1295,7 +1295,7 @@ sub _register_source {
 
   $source = $source->new({ %$source, source_name => $moniker });
   $source->schema($self);
-  weaken($source->{schema}) if ref($self);
+  Scalar::Util::weaken($source->{schema}) if ref($self);
 
   my $rs_class = $source->result_class;
 

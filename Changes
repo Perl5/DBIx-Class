@@ -17,6 +17,7 @@ Revision history for DBIx::Class
           prefetching resultset
         - New MSSQL specific resultset attribute to allow hacky ordered
           subquery suppot
+        - Fix nasty schema/dbhandle leak due to SQL::Translator
 
 0.08115 2009-12-10 09:02:00 (CST)
         - Real limit/offset support for MSSQL server (via Row_Number)

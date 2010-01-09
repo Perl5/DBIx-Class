@@ -1583,7 +1583,7 @@ L<DBIx::Class::ResultSourceHandle>.
 =cut
 
 sub handle {
-    return new DBIx::Class::ResultSourceHandle({
+    return DBIx::Class::ResultSourceHandle->new({
         schema         => $_[0]->schema,
         source_moniker => $_[0]->source_name
     });
