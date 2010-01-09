@@ -18,7 +18,7 @@ BEGIN {
 # Test for SQLT-related leaks
 {
   my $s = DBICTest::Schema->clone;
-  my $sqlt_s = create_schema ({ schema => $s });
+  create_schema ({ schema => $s });
   Scalar::Util::weaken ($s);
 
   ok (!$s, 'Schema not leaked');
