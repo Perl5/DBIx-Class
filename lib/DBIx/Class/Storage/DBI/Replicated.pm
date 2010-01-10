@@ -50,7 +50,9 @@ You should set the 'storage_type attribute to a replicated type.  You should
 also define your arguments, such as which balancer you want and any arguments
 that the Pool object should get.
 
+  my $schema = Schema::Class->clone;
   $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
+  $schema->connection(...);
 
 Next, you need to add in the Replicants.  Basically this is an array of 
 arrayrefs, where each arrayref is database connect information.  Think of these
