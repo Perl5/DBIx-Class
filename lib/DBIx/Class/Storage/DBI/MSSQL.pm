@@ -193,7 +193,7 @@ sub _select_args_to_query {
   if ( scalar $self->sql_maker->_order_by_chunks ($attrs->{order_by}) ) {
     $self->throw_exception(
       'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL
-    ') unless $attrs->{unsafe_subselect};
+    ') unless $attrs->{unsafe_subselect_ok};
     my $max = 2 ** 32;
     $sql =~ s/^ \s* SELECT \s/SELECT TOP $max /xi;
   }
@@ -339,13 +339,13 @@ rare. The benefits of ordered subselects are on the other hand too great to be
 outright disabled for MSSQL.
 
 Thus compromise between usability and perfection is the MSSQL-specific
-L<resultset attribute|DBIx::Class::ResultSet/ATTRIBUTES> C<unsafe_subselect>.
+L<resultset attribute|DBIx::Class::ResultSet/ATTRIBUTES> C<unsafe_subselect_ok>.
 It is deliberately not possible to set this on the Storage level, as the user
 should inspect (and preferrably regression-test) the return of every such
 ResultSet individually. The example above would work if written like:
 
  $rs->search ({}, {
-  unsafe_subselect => 1,
+  unsafe_subselect_ok => 1,
   prefetch => 'relation',
   rows => 2,
   offset => 3,

@@ -262,7 +262,7 @@ throws_ok (sub {
 
 # make sure ordered subselects *somewhat* work
 {
-  my $owners = $schema->resultset ('Owners')->search ({}, { order_by => 'name', offset => 2, rows => 3, unsafe_subselect => 1 });
+  my $owners = $schema->resultset ('Owners')->search ({}, { order_by => 'name', offset => 2, rows => 3, unsafe_subselect_ok => 1 });
 
   my $al = $owners->current_source_alias;
   my $sealed_owners = $owners->result_source->resultset->search (
@@ -288,7 +288,7 @@ TODO: {
   local $TODO = "This porbably will never work, but it isn't critical either afaik";
 
   my $book_owner_ids = $schema->resultset ('BooksInLibrary')
-                               ->search ({}, { join => 'owner', distinct => 1, order_by => 'owner.name', unsafe_subselect => 1 })
+                               ->search ({}, { join => 'owner', distinct => 1, order_by => 'owner.name', unsafe_subselect_ok => 1 })
                                 ->get_column ('owner');
 
   my $book_owners = $schema->resultset ('Owners')->search ({
@@ -304,7 +304,7 @@ TODO: {
 
 # This is known not to work - thus the negative test
 {
-  my $owners = $schema->resultset ('Owners')->search ({}, { order_by => 'name', offset => 2, rows => 3, unsafe_subselect => 1 });
+  my $owners = $schema->resultset ('Owners')->search ({}, { order_by => 'name', offset => 2, rows => 3, unsafe_subselect_ok => 1 });
   my $corelated_owners = $owners->result_source->resultset->search (
     {
       id => { -in => $owners->get_column('id')->as_query },
@@ -351,7 +351,7 @@ TODO: {
     'Rows were properly ordered'
   );
 
-  my $limited_rs = $rs->search ({}, {rows => 7, offset => 2, unsafe_subselect => 1});
+  my $limited_rs = $rs->search ({}, {rows => 7, offset => 2, unsafe_subselect_ok => 1});
   is ($limited_rs->count, 6, 'Correct count of limited right-sorted joined resultset');
   is ($limited_rs->count_rs->next, 6, 'Correct count_rs of limited right-sorted joined resultset');
 
@@ -397,7 +397,7 @@ $schema->storage->_sql_maker->{name_sep} = '.';
       prefetch => 'books',
       order_by => { -asc => \['name + ?', [ test => 'xxx' ]] }, # test bindvar propagation
       rows     => 3,  # 8 results total
-      unsafe_subselect => 1,
+      unsafe_subselect_ok => 1,
     },
   );
 
@@ -426,7 +426,7 @@ $schema->storage->_sql_maker->{name_sep} = '.';
       prefetch => 'owner',
       rows     => 2,  # 3 results total
       order_by => { -desc => 'owner' },
-      unsafe_subselect => 1,
+      unsafe_subselect_ok => 1,
     },
   );
 
