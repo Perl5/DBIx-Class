@@ -1269,6 +1269,24 @@ sub register_source {
   $self->_register_source(@_);
 }
 
+=head2 unregister_source
+
+=over 4
+
+=item Arguments: $moniker
+
+=back
+
+Removes the L<DBIx::Class::ResultSource> from the schema for the given moniker.
+
+=cut
+
+sub unregister_source {
+  my $self = shift;
+
+  $self->_unregister_source(@_);
+}
+
 =head2 register_extra_source
 
 =over 4
