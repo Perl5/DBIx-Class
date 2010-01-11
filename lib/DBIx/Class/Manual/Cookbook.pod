@@ -317,7 +317,7 @@ Please see L<DBIx::Class::ResultSet/ATTRIBUTES> documentation if you
 are in any way unsure about the use of the attributes above (C< join
 >, C< select >, C< as > and C< group_by >).
 
-=head2 Subqueries (EXPERIMENTAL)
+=head2 Subqueries
 
 You can write subqueries relatively easily in DBIC.
 
@@ -364,10 +364,6 @@ That creates the following SQL:
         FROM cd inner
        WHERE artist_id = me.artist_id
       )
-
-=head3 EXPERIMENTAL
-
-Please note that subqueries are considered an experimental feature.
 
 =head2 Predefined searches
 

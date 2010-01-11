@@ -98,7 +98,7 @@ sub new {
   return $new;
 }
 
-=head2 as_query (EXPERIMENTAL)
+=head2 as_query
 
 =over 4
 
@@ -111,8 +111,6 @@ sub new {
 Returns the SQL query and bind vars associated with the invocant.
 
 This is generally used as the RHS for a subquery.
-
-B<NOTE>: This feature is still experimental.
 
 =cut
 

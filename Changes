@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
         - Perl 5.8.1 is now the minimum supported version
+        - Subqueries no longer marked experimental
         - might_have/has_one now warn if applied calling class's column
           has is_nullable set to true.
         - Fixed regression in deploy() with a {sources} table limit applied
@@ -10,6 +11,12 @@ Revision history for DBIx::Class
           parsed by SQL::Translator::Parser::DBIx::Class
         - Schema POD improvement for dclone
         - Fix regression in context sensitiveness of deployment_statements
+        - Fix regression resulting in overcomplicated query on
+          search_related from prefetching resultsets
+        - Better isolation of RNO-limited queries from the rest of a
+          prefetching resultset
+        - New MSSQL specific resultset attribute to allow hacky ordered
+          subquery suppot
         - Fix nasty schema/dbhandle leak due to SQL::Translator
 
 0.08115 2009-12-10 09:02:00 (CST)

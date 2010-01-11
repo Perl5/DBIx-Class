@@ -1384,7 +1384,6 @@ sub insert {
   return $updated_cols;
 }
 
-## Still not quite perfect, and EXPERIMENTAL
 ## Currently it is assumed that all values passed will be "normal", i.e. not
 ## scalar refs, or at least, all the same type as the first set, the statement is
 ## only prepped once.
@@ -1792,11 +1791,24 @@ sub _select_args {
 
   my @limit;
 
-  # see if we need to tear the prefetch apart (either limited has_many or grouped prefetch)
-  # otherwise delegate the limiting to the storage, unless software limit was requested
+  # see if we need to tear the prefetch apart otherwise delegate the limiting to the
+  # storage, unless software limit was requested
   if (
+    #limited has_many
     ( $attrs->{rows} && keys %{$attrs->{collapse}} )
        ||
+    # limited prefetch with RNO subqueries
+    (
+      $attrs->{rows}
+        &&
+      $sql_maker->limit_dialect eq 'RowNumberOver'
+        &&
+      $attrs->{_prefetch_select}
+        &&
+      @{$attrs->{_prefetch_select}}
+    )
+      ||
+    # grouped prefetch
     ( $attrs->{group_by}
         &&
       @{$attrs->{group_by}}
@@ -1806,7 +1818,6 @@ sub _select_args {
       @{$attrs->{_prefetch_select}}
     )
   ) {
-
     ($ident, $select, $where, $attrs)
       = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
   }
@@ -2160,7 +2171,7 @@ sub is_datatype_numeric {
 }
 
 
-=head2 create_ddl_dir (EXPERIMENTAL)
+=head2 create_ddl_dir
 
 =over 4
 
@@ -2212,10 +2223,8 @@ hashref like the following
  { ignore_constraint_names => 0, # ... other options }
 
 
-Note that this feature is currently EXPERIMENTAL and may not work correctly
-across all databases, or fully handle complex relationships.
-
-WARNING: Please check all SQL files created, before applying them.
+WARNING: You are strongly advised to check all SQL files created, before applying
+them.
 
 =cut
 

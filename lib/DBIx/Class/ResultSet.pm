@@ -2047,7 +2047,7 @@ sub _remove_alias {
   return \%unaliased;
 }
 
-=head2 as_query (EXPERIMENTAL)
+=head2 as_query
 
 =over 4
 
@@ -2060,8 +2060,6 @@ sub _remove_alias {
 Returns the SQL query and bind vars associated with the invocant.
 
 This is generally used as the RHS for a subquery.
-
-B<NOTE>: This feature is still experimental.
 
 =cut
 
@@ -2640,10 +2638,19 @@ sub _chain_relationship {
       ||
     $self->_has_resolved_attr (@force_subq_attrs)
   ) {
+    # Nuke the prefetch (if any) before the new $rs attrs
+    # are resolved (prefetch is useless - we are wrapping
+    # a subquery anyway).
+    my $rs_copy = $self->search;
+    $rs_copy->{attrs}{join} = $self->_merge_attr (
+      $rs_copy->{attrs}{join},
+      delete $rs_copy->{attrs}{prefetch},
+    );
+
     $from = [{
       -source_handle => $source->handle,
       -alias => $attrs->{alias},
-      $attrs->{alias} => $self->as_query,
+      $attrs->{alias} => $rs_copy->as_query,
     }];
     delete @{$attrs}{@force_subq_attrs, 'where'};
     $seen->{-relation_chain_depth} = 0;

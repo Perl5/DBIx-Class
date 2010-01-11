@@ -51,19 +51,27 @@ sub new {
 sub _RowNumberOver {
   my ($self, $sql, $order, $rows, $offset ) = @_;
 
+  # get the select to make the final amount of columns equal the original one
+  my ($select) = $sql =~ /^ \s* SELECT \s+ (.+?) \s+ FROM/ix
+    or croak "Unrecognizable SELECT: $sql";
+
   # get the order_by only (or make up an order if none exists)
   my $order_by = $self->_order_by(
     (delete $order->{order_by}) || $self->_rno_default_order
   );
 
-  # whatever is left
+  # whatever is left of the order_by
   my $group_having = $self->_order_by($order);
 
-  $sql = sprintf (<<'EOS', $order_by, $sql, $group_having, $offset + 1, $offset + $rows, );
+  my $qalias = $self->_quote ($self->{_dbic_rs_attrs}{alias});
 
-SELECT * FROM (
-  SELECT orig_query.*, ROW_NUMBER() OVER(%s ) AS rno__row__index FROM (%s%s) orig_query
-) rno_subq WHERE rno__row__index BETWEEN %d AND %d
+  $sql = sprintf (<<EOS, $offset + 1, $offset + $rows, );
+
+SELECT $select FROM (
+  SELECT $qalias.*, ROW_NUMBER() OVER($order_by ) AS rno__row__index FROM (
+    ${sql}${group_having}
+  ) $qalias
+) $qalias WHERE rno__row__index BETWEEN %d AND %d
 
 EOS
 

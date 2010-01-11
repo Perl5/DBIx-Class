@@ -1083,7 +1083,7 @@ sub deployment_statements {
   $self->storage->deployment_statements($self, @_);
 }
 
-=head2 create_ddl_dir (EXPERIMENTAL)
+=head2 create_ddl_dir
 
 =over 4
 
