@@ -16,7 +16,7 @@ Revision history for DBIx::Class
         - Better isolation of RNO-limited queries from the rest of a
           prefetching resultset
         - New MSSQL specific resultset attribute to allow hacky ordered
-          subquery suppot
+          subquery support
         - Fix nasty schema/dbhandle leak due to SQL::Translator
 
 0.08115 2009-12-10 09:02:00 (CST)
