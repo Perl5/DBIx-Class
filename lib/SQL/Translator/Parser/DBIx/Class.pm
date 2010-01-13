@@ -379,7 +379,14 @@ from a DBIx::Class::Schema instance
  my $schema = MyApp::Schema->connect;
  my $trans  = SQL::Translator->new (
       parser      => 'SQL::Translator::Parser::DBIx::Class',
-      parser_args => { package => $schema },
+      parser_args => {
+          package => $schema,
+          # to explicitly specify which ResultSources are to be parsed
+          sources => [qw/
+            Artist
+            CD
+          /],
+      },
       producer    => 'SQLite',
      ) or die SQL::Translator->error;
  my $out = $trans->translate() or die $trans->error;
