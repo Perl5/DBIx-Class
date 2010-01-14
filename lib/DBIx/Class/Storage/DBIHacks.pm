@@ -68,10 +68,15 @@ sub _adjust_select_args_for_complex_prefetch {
   $from = [ @$from ];
   $from->[0] = [ $from->[0] ];
 
-  my ( $restrict_aliases, $select_aliases, $prefetch_aliases ) =
-    $self->_choose_aliases_to_include( $from, $where, $inner_select, $inner_attrs, $outer_select,
+  my ( $ra1, $sa1, $pa1 ) =
+    $self->_resolve_aliases_from_select_args( $from, $where, $inner_select, 
+      $inner_attrs, );
+  my ( $ra2, $sa2, $pa2 ) =
+    $self->_resolve_aliases_from_select_args( $from, $where, $outer_select,
       $outer_attrs, );
-
+  my $restrict_aliases = { %$ra1, %$ra2 };
+  my $select_aliases   = { %$sa1, %$sa2 };
+  my $prefetch_aliases = { %$pa1, %$pa2 };
 
   # construct the inner $from for the subquery
   my %inner_joins = (map { %{$_ || {}} } ($restrict_aliases, $select_aliases) );
@@ -178,6 +183,85 @@ sub _adjust_select_args_for_complex_prefetch {
   #
   # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
   return (\@outer_from, $outer_select, $where, $outer_attrs);
+}
+
+sub _resolve_aliases_from_select_args {
+  my ( $self, $from, $where, $select, $attrs ) = @_;
+
+  my %original_join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
+  # decide which parts of the join will remain in either part of
+  # the outer/inner query
+
+  # First we compose a list of which aliases are used in restrictions
+  # (i.e. conditions/order/grouping/etc). Since we do not have
+  # introspectable SQLA, we fall back to ugly scanning of raw SQL for
+  # WHERE, and for pieces of ORDER BY in order to determine which aliases
+  # need to appear in the resulting sql.
+  # It may not be very efficient, but it's a reasonable stop-gap
+  # Also unqualified column names will not be considered, but more often
+  # than not this is actually ok
+  #
+  # In the same loop we enumerate part of the selection aliases, as
+  # it requires the same sqla hack for the time being
+  my ( $restrict_aliases, $select_aliases, $prefetch_aliases ) = ( {}, {}, {} );
+  {
+    # produce stuff unquoted, so it can be scanned
+    my $sql_maker = $self->sql_maker;
+    local $sql_maker->{quote_char};
+    my $sep = $self->_sql_maker_opts->{name_sep} || '.';
+    $sep = "\Q$sep\E";
+
+    my $non_prefetch_select_sql = $sql_maker->_recurse_fields ($select) || '';
+    my $prefetch_select_sql = $sql_maker->_recurse_fields ($attrs->{_prefetch_select}) || '';
+    my $where_sql = $sql_maker->where ($where);
+    my $group_by_sql = $sql_maker->_order_by({
+      map { $_ => $attrs->{$_} } qw/group_by having/
+    }) || '';
+    my @non_prefetch_order_by_chunks = (map
+      { ref $_ ? $_->[0] : $_ }
+      $sql_maker->_order_by_chunks ($attrs->{order_by})
+    );
+
+
+    for my $alias (keys %original_join_info) {
+      my $seen_re = qr/\b $alias $sep/x;
+
+      for my $piece ($where_sql, $group_by_sql, @non_prefetch_order_by_chunks ) {
+        if ($piece =~ $seen_re) {
+          $restrict_aliases->{$alias} = 1;
+        }
+      }
+
+      if ($non_prefetch_select_sql =~ $seen_re) {
+          $select_aliases->{$alias} = 1;
+      }
+
+      if ($prefetch_select_sql =~ $seen_re) {
+          $prefetch_aliases->{$alias} = 1;
+      }
+
+    }
+  }
+
+  # Add any non-left joins to the restriction list (such joins are indeed restrictions)
+  for my $j (values %original_join_info) {
+    my $alias = $j->{-alias} or next;
+    $restrict_aliases->{$alias} = 1 if (
+      (not $j->{-join_type})
+        or
+      ($j->{-join_type} !~ /^left (?: \s+ outer)? $/xi)
+    );
+  }
+
+  # mark all join parents as mentioned
+  # (e.g.  join => { cds => 'tracks' } - tracks will need to bring cds too )
+  for my $collection ($restrict_aliases, $select_aliases) {
+    for my $alias (keys %$collection) {
+      $collection->{$_} = 1
+        for (@{ $original_join_info{$alias}{-join_path} || [] });
+    }
+  }
+  return ( $restrict_aliases, $select_aliases, $prefetch_aliases );
 }
 
 sub _choose_aliases_to_include {
