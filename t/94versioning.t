@@ -32,56 +32,56 @@ my $ddl_dir = File::Spec->catdir ('t', 'var');
 my $fn = {
     v1 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-1.0-MySQL.sql'),
     v2 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-2.0-MySQL.sql'),
-    trans => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-1.0-2.0-MySQL.sql'),
+    v3 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-3.0-MySQL.sql'),
+    trans_v12 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-1.0-2.0-MySQL.sql'),
+    trans_v23 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-2.0-3.0-MySQL.sql'),
 };
 
 use lib qw(t/lib);
 use DBICTest; # do not remove even though it is not used
 
-use_ok('DBICVersionOrig');
+use_ok('DBICVersion_v1');
 
-my $schema_orig = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
-eval { $schema_orig->storage->dbh->do('drop table ' . $version_table_name) };
-eval { $schema_orig->storage->dbh->do('drop table ' . $old_table_name) };
+my $schema_v1 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
+eval { $schema_v1->storage->dbh->do('drop table ' . $version_table_name) };
+eval { $schema_v1->storage->dbh->do('drop table ' . $old_table_name) };
 
-is($schema_orig->ddl_filename('MySQL', '1.0', $ddl_dir), $fn->{v1}, 'Filename creation working');
+is($schema_v1->ddl_filename('MySQL', '1.0', $ddl_dir), $fn->{v1}, 'Filename creation working');
 unlink( $fn->{v1} ) if ( -e $fn->{v1} );
-$schema_orig->create_ddl_dir('MySQL', undef, $ddl_dir);
+$schema_v1->create_ddl_dir('MySQL', undef, $ddl_dir);
 
 ok(-f $fn->{v1}, 'Created DDL file');
-$schema_orig->deploy({ add_drop_table => 1 });
+$schema_v1->deploy({ add_drop_table => 1 });
 
-my $tvrs = $schema_orig->{vschema}->resultset('Table');
-is($schema_orig->_source_exists($tvrs), 1, 'Created schema from DDL file');
+my $tvrs = $schema_v1->{vschema}->resultset('Table');
+is($schema_v1->_source_exists($tvrs), 1, 'Created schema from DDL file');
 
 # loading a new module defining a new version of the same table
 DBICVersion::Schema->_unregister_source ('Table');
-eval "use DBICVersionNew";
+eval "use DBICVersion_v2";
 
-my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
+my $schema_v2 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
 {
   unlink($fn->{v2});
-  unlink($fn->{trans});
+  unlink($fn->{trans_v12});
 
-  is($schema_upgrade->get_db_version(), '1.0', 'get_db_version ok');
-  is($schema_upgrade->schema_version, '2.0', 'schema version ok');
-  $schema_upgrade->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0');
-  ok(-f $fn->{trans}, 'Created DDL file');
+  is($schema_v2->get_db_version(), '1.0', 'get_db_version ok');
+  is($schema_v2->schema_version, '2.0', 'schema version ok');
+  $schema_v2->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0');
+  ok(-f $fn->{trans_v12}, 'Created DDL file');
 
   {
     my $w;
     local $SIG{__WARN__} = sub { $w = shift };
 
-    sleep 1;    # remove this when TODO below is completed
-
-    $schema_upgrade->upgrade();
+    $schema_v2->upgrade();
     like ($w, qr/Attempting upgrade\.$/, 'Warn before upgrade');
   }
 
-  is($schema_upgrade->get_db_version(), '2.0', 'db version number upgraded');
+  is($schema_v2->get_db_version(), '2.0', 'db version number upgraded');
 
   eval {
-    $schema_upgrade->storage->dbh->do('select NewVersionName from TestVersion');
+    $schema_v2->storage->dbh->do('select NewVersionName from TestVersion');
   };
   is($@, '', 'new column created');
 
@@ -95,11 +95,11 @@ my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_v
       warn @_;
     }
   };
-  $schema_upgrade->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0');
+  $schema_v2->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0');
 
   is (2, @w, 'A warning generated for both the DDL and the diff');
   like ($w[0], qr/Overwriting existing DDL file - $fn->{v2}/, 'New version DDL overwrite warning');
-  like ($w[1], qr/Overwriting existing diff file - $fn->{trans}/, 'Upgrade diff overwrite warning');
+  like ($w[1], qr/Overwriting existing diff file - $fn->{trans_v12}/, 'Upgrade diff overwrite warning');
 }
 
 {
@@ -123,6 +123,63 @@ my $schema_upgrade = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_v
   };
   ok($@, 'old version table gone');
 
+}
+
+# repeat the v1->v2 process for v2->v3 before testing v1->v3
+DBICVersion::Schema->_unregister_source ('Table');
+eval "use DBICVersion_v3";
+
+my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
+{
+  unlink($fn->{v3});
+  unlink($fn->{trans_v23});
+
+  is($schema_v3->get_db_version(), '2.0', 'get_db_version 2.0 ok');
+  is($schema_v3->schema_version, '3.0', 'schema version 3.0 ok');
+  $schema_v3->create_ddl_dir('MySQL', '3.0', $ddl_dir, '2.0');
+  ok(-f $fn->{trans_v23}, 'Created DDL 2.0 -> 3.0 file');
+
+  {
+    my $w;
+    local $SIG{__WARN__} = sub { $w = shift };
+
+    $schema_v3->upgrade();
+    like ($w, qr/Attempting upgrade\.$/, 'Warn before upgrade');
+  }
+
+  is($schema_v3->get_db_version(), '3.0', 'db version number upgraded');
+
+  eval {
+    $schema_v3->storage->dbh->do('select ExtraColumn from TestVersion');
+  };
+  is($@, '', 'new column created');
+}
+
+# now put the v1 schema back again
+{
+  # drop all the tables...
+  eval { $schema_v1->storage->dbh->do('drop table ' . $version_table_name) };
+  eval { $schema_v1->storage->dbh->do('drop table ' . $old_table_name) };
+  eval { $schema_v1->storage->dbh->do('drop table TestVersion') };
+
+  {
+    local $DBICVersion::Schema::VERSION = '1.0';
+    $schema_v1->deploy;
+  }
+  is($schema_v1->get_db_version(), '1.0', 'get_db_version 1.0 ok');
+}
+
+# attempt v1 -> v3 upgrade....
+{
+  {
+    my $w;
+    local $SIG{__WARN__} = sub { $w = shift };
+
+    $schema_v3->upgrade();
+    like ($w, qr/Attempting upgrade\.$/, 'Warn before upgrade');
+  }
+
+  is($schema_v3->get_db_version(), '3.0', 'db version number upgraded');
 }
 
 # check behaviour of DBIC_NO_VERSION_CHECK env var and ignore_version connect attr
@@ -162,9 +219,9 @@ TODO: {
 
   local $TODO = 'To fix this properly the table must be extended with an autoinc column, mst will not accept anything less';
 
-  eval { $schema_orig->storage->dbh->do('drop table ' . $version_table_name) };
-  eval { $schema_orig->storage->dbh->do('drop table ' . $old_table_name) };
-  eval { $schema_orig->storage->dbh->do('drop table TestVersion') };
+  eval { $schema_v2->storage->dbh->do('drop table ' . $version_table_name) };
+  eval { $schema_v2->storage->dbh->do('drop table ' . $old_table_name) };
+  eval { $schema_v2->storage->dbh->do('drop table TestVersion') };
 
   # this attempts to sleep until the turn of the second
   my $t = time();
@@ -172,14 +229,14 @@ TODO: {
   diag ('Fast deploy/upgrade start: ', time() );
 
   {
-    local $DBICVersion::Schema::VERSION = '1.0';
-    $schema_orig->deploy;
+    local $DBICVersion::Schema::VERSION = '2.0';
+    $schema_v2->deploy;
   }
 
   local $SIG{__WARN__} = sub { warn if $_[0] !~ /Attempting upgrade\.$/ };
-  $schema_upgrade->upgrade();
+  $schema_v2->upgrade();
 
-  is($schema_upgrade->get_db_version(), '2.0', 'Fast deploy/upgrade');
+  is($schema_v2->get_db_version(), '3.0', 'Fast deploy/upgrade');
 };
 
 unless ($ENV{DBICTEST_KEEP_VERSIONING_DDL}) {
