@@ -23,16 +23,16 @@ use Test::Exception;
 
 
 BEGIN {
+    use FindBin qw($Bin);
+    use File::Spec::Functions qw(catdir);
+    use lib catdir($Bin,'..', '..','lib');
+    use lib catdir($Bin,'..', 'lib');
+
     eval "use DBIx::Class::Admin";
     plan skip_all => "Deps not installed: $@" if $@;
 }
 
 use Path::Class;
-use FindBin qw($Bin);
-use Module::Load;
-
-use lib dir($Bin,'..', '..','lib')->stringify;
-use lib dir($Bin,'..', 'lib')->stringify;
 
 use ok 'DBIx::Class::Admin';
 
@@ -69,7 +69,7 @@ my @connect_info = DBICTest->_database(
 #);
 
     clean_dir($sql_dir);
-    load 'DBICVersionOrig';
+    require DBICVersionOrig;
 
     my $admin = DBIx::Class::Admin->new(
         schema_class => 'DBICVersion::Schema', 
@@ -88,7 +88,7 @@ my @connect_info = DBICTest->_database(
     is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema deployed and versions match');
 
 
-    load 'DBICVersionNew';
+    require DBICVersionNew;
 
     $admin = DBIx::Class::Admin->new(
         schema_class => 'DBICVersion::Schema', 

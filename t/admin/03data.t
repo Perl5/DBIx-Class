@@ -23,15 +23,16 @@ use Test::Exception;
 use Test::Deep;
 
 BEGIN {
+
+    use FindBin qw($Bin);
+    use File::Spec::Functions qw(catdir);
+    use lib catdir($Bin,'..', '..','lib');
+    use lib catdir($Bin,'..', 'lib');
     eval "use DBIx::Class::Admin";
     plan skip_all => "Deps not installed: $@" if $@;
 }
 
 use Path::Class;
-use FindBin qw($Bin);
-
-use lib dir($Bin,'..', '..','lib')->stringify;
-use lib dir($Bin,'..', 'lib')->stringify;
 
 use ok 'DBIx::Class::Admin';
 
