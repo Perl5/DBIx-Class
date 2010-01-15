@@ -215,11 +215,6 @@ sub parse {
                 my $key_test = join("\x00", sort @keys);
                 next if $created_FK_rels{$rel_table}->{$key_test};
                 
-                # Make sure we dont create additional indexes for the
-                # primary columns
-                my $pk_test = join("\x00", @primary);
-                next if $key_test eq $pk_test;
-
                 if (scalar(@keys)) {
 
                   $created_FK_rels{$rel_table}->{$key_test} = 1;
@@ -245,13 +240,23 @@ sub parse {
 
                   # global parser_args add_fk_index param can be overridden on the rel def
                   my $add_fk_index_rel = (exists $rel_info->{attrs}{add_fk_index}) ? $rel_info->{attrs}{add_fk_index} : $add_fk_index;
+                  # Make sure we don't create another index with the same
+                  # order of columns twice
+
+                  # WARNING: don't sort the key columns because the order of
+                  # columns is important for indexes and two indexes with the
+                  # same cols but different order are allowed and sometimes
+                  # needed
+                  my $key_idx_test = join("\x00", @keys);
+                  my $pk_idx_test  = join("\x00", @primary);
+                  next if $key_idx_test eq $pk_idx_test;
 
                   if ($add_fk_index_rel) {
                       my $index = $table->add_index(
-                                                    name   => join('_', $table_name, 'idx', @keys),
-                                                    fields => \@keys,
-                                                    type   => 'NORMAL',
-                                                    );
+                          name   => join('_', $table_name, 'idx', @keys),
+                          fields => \@keys,
+                          type   => 'NORMAL',
+                      );
                   }
               }
             }
