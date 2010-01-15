@@ -31,7 +31,7 @@ is_same_sql_bind (
       ) me
       JOIN artist artist ON artist.artistid = me.artist
       LEFT JOIN track tracks ON tracks.cd = me.cdid
-      LEFT JOIN tags tags ON tags.cd = me.cdid
+      JOIN tags tags ON tags.cd = me.cdid
     WHERE ( tags.tag IS NOT NULL )
     GROUP BY tags.tagid, tags.cd, tags.tag
   )',

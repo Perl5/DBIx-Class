@@ -974,19 +974,6 @@ sub _construct_object {
 sub _collapse_result {
   my ($self, $as_proto, $row) = @_;
 
-  # if the first row that ever came in is totally empty - this means we got
-  # hit by a smooth^Wempty left-joined resultset. Just noop in that case
-  # instead of producing a {}
-  #
-  my $has_def;
-  for (@$row) {
-    if (defined $_) {
-      $has_def++;
-      last;
-    }
-  }
-  return undef unless $has_def;
-
   my @copy = @$row;
 
   # 'foo'         => [ undef, 'foo' ]
@@ -1247,11 +1234,6 @@ sub _count_rs {
   $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $tmp_attrs);
   $tmp_attrs->{as} = 'count';
 
-  # read the comment on top of the actual function to see what this does
-  $tmp_attrs->{from} = $self->result_source->schema->storage->_straight_join_to_node (
-    $tmp_attrs->{from}, $tmp_attrs->{alias}
-  );
-
   my $tmp_rs = $rsrc->resultset_class->new($rsrc, $tmp_attrs)->get_column ('count');
 
   return $tmp_rs;
@@ -1278,11 +1260,6 @@ sub _count_subq_rs {
   }
 
   $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
-
-  # read the comment on top of the actual function to see what this does
-  $sub_attrs->{from} = $self->result_source->schema->storage->_straight_join_to_node (
-    $sub_attrs->{from}, $sub_attrs->{alias}
-  );
 
   # this is so that the query can be simplified e.g.
   # * non-limiting joins can be pruned
@@ -2510,10 +2487,11 @@ sub related_resultset {
 
   $self->{related_resultsets} ||= {};
   return $self->{related_resultsets}{$rel} ||= do {
-    my $rel_info = $self->result_source->relationship_info($rel);
+    my $rsrc = $self->result_source;
+    my $rel_info = $rsrc->relationship_info($rel);
 
     $self->throw_exception(
-      "search_related: result source '" . $self->result_source->source_name .
+      "search_related: result source '" . $rsrc->source_name .
         "' has no such relationship $rel")
       unless $rel_info;
 
@@ -2523,6 +2501,13 @@ sub related_resultset {
 
     my $alias = $self->result_source->storage
         ->relname_to_table_alias($rel, $join_count);
+
+    # since this is search_related, and we already slid the select window inwards
+    # (the select/as attrs were deleted in the beginning), we need to flip all 
+    # left joins to inner, so we get the expected results
+    # read the comment on top of the actual function to see what this does
+    $attrs->{from} = $rsrc->schema->storage->_straight_join_to_node ($attrs->{from}, $alias);
+
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     delete @{$attrs}{qw(result_class alias)};
@@ -2536,7 +2521,7 @@ sub related_resultset {
       }
     }
 
-    my $rel_source = $self->result_source->related_source($rel);
+    my $rel_source = $rsrc->related_source($rel);
 
     my $new = do {
 
@@ -2687,7 +2672,6 @@ sub _chain_relationship {
   # the join in question so we could tell it *is* the search_related)
   my $already_joined;
 
-
   # we consider the last one thus reverse
   for my $j (reverse @requested_joins) {
     if ($rel eq $j->[0]{-join_path}[-1]) {
@@ -2696,7 +2680,6 @@ sub _chain_relationship {
       last;
     }
   }
-
 # alternative way to scan the entire chain - not backwards compatible
 #  for my $j (reverse @$from) {
 #    next unless ref $j eq 'ARRAY';
