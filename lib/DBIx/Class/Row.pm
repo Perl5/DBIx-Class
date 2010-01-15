@@ -527,7 +527,9 @@ attempt is made to delete all the related objects as well. To turn
 this behaviour off, pass C<< cascade_delete => 0 >> in the C<$attr>
 hashref of the relationship, see L<DBIx::Class::Relationship>. Any
 database-level cascade or restrict will take precedence over a
-DBIx-Class-based cascading delete.
+DBIx-Class-based cascading delete, since DBIx-Class B<deletes the
+main row first> and only then attempts to delete any remaining related
+rows.
 
 If you delete an object within a txn_do() (see L<DBIx::Class::Storage/txn_do>)
 and the transaction subsequently fails, the row object will remain marked as
