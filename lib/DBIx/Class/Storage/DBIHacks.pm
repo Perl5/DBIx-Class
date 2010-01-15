@@ -66,9 +66,9 @@ sub _adjust_select_args_for_complex_prefetch {
 
   # scan the from spec against different attributes, and see which joins are needed
   # in what role
-  my $inner_aliaslist =
+  my $inner_aliastypes =
     $self->_resolve_aliases_from_select_args( $from, $where, $inner_select, $inner_attrs );
-  my $outer_aliaslist =
+  my $outer_aliastypes =
     $self->_resolve_aliases_from_select_args( $from, $where, $outer_select, $outer_attrs );
 
 
@@ -80,7 +80,7 @@ sub _adjust_select_args_for_complex_prefetch {
 
 
   # construct the inner $from for the subquery
-  my %inner_joins = (map { %{$inner_aliaslist->{$_} || {}} } (qw/restrict select/) );
+  my %inner_joins = (map { %$_ } (values %$inner_aliastypes) );
   my @inner_from;
   for my $j (@$from) {
     push @inner_from, $j if $inner_joins{$j->[0]{-alias}};
@@ -150,10 +150,10 @@ sub _adjust_select_args_for_complex_prefetch {
   while (my $j = shift @$from) {
     my $alias = $j->[0]{-alias};
 
-    if ($outer_aliaslist->{select}{$alias}) {
+    if ($outer_aliastypes->{select}{$alias}) {
       push @outer_from, $j;
     }
-    elsif ($outer_aliaslist->{restrict}{$alias}) {
+    elsif ($outer_aliastypes->{restrict}{$alias}) {
       push @outer_from, $j;
 
       # FIXME - this should be obviated by SQLA2, as I'll be able to 
@@ -203,7 +203,7 @@ sub _resolve_aliases_from_select_args {
     if ref $from ne 'ARRAY';
 
   # what we will return
-  my $alias_map;
+  my $aliases_by_type;
 
   # see what aliases are there to work with
   my $alias_list;
@@ -234,18 +234,18 @@ sub _resolve_aliases_from_select_args {
     my $al_re = qr/\b $alias $sep/x;
 
     for my $piece ($where_sql, $group_by_sql) {
-      $alias_map->{restrict}{$alias} = 1 if ($piece =~ $al_re);
+      $aliases_by_type->{restrict}{$alias} = 1 if ($piece =~ $al_re);
     }
 
     for my $piece ($select_sql, @order_by_chunks ) {
-      $alias_map->{select}{$alias} = 1 if ($piece =~ $al_re);
+      $aliases_by_type->{select}{$alias} = 1 if ($piece =~ $al_re);
     }
   }
 
   # Add any non-left joins to the restriction list (such joins are indeed restrictions)
   for my $j (values %$alias_list) {
     my $alias = $j->{-alias} or next;
-    $alias_map->{restrict}{$alias} = 1 if (
+    $aliases_by_type->{restrict}{$alias} = 1 if (
       (not $j->{-join_type})
         or
       ($j->{-join_type} !~ /^left (?: \s+ outer)? $/xi)
@@ -254,14 +254,14 @@ sub _resolve_aliases_from_select_args {
 
   # mark all join parents as mentioned
   # (e.g.  join => { cds => 'tracks' } - tracks will need to bring cds too )
-  for my $collection (qw/restrict select/) {
-    for my $alias (keys %{$alias_map->{$collection}||{}}) {
-      $alias_map->{$collection}{$_} = 1
+  for my $type (keys %$aliases_by_type) {
+    for my $alias (keys %{$aliases_by_type->{$type}}) {
+      $aliases_by_type->{$type}{$_} = 1
         for (@{ $alias_list->{$alias}{-join_path} || [] });
     }
   }
 
-  return $alias_map;
+  return $aliases_by_type;
 }
 
 sub _resolve_ident_sources {
