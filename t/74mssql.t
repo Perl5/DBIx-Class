@@ -31,13 +31,18 @@ for my $storage_type (@storage_types) {
 
   $schema = DBICTest::Schema->clone;
 
-  if ($storage_idx != 0) { # autodetect
-    $schema->storage_type("::$storage_type");
-  }
-
   $schema->connection($dsn, $user, $pass);
 
-  $schema->storage->ensure_connected;
+  if ($storage_idx != 0) { # autodetect
+    no warnings 'redefine';
+    local *DBIx::Class::Storage::DBI::_typeless_placeholders_supported =
+      sub { 0 };
+#    $schema->storage_type("::$storage_type");
+    $schema->storage->ensure_connected;
+  }
+  else {
+    $schema->storage->ensure_connected;
+  }
 
   if ($storage_idx == 0 && ref($schema->storage) =~ /NoBindVars\z/) {
     my $tb = Test::More->builder;

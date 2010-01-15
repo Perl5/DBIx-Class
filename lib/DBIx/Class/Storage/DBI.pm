@@ -451,13 +451,50 @@ L<DBIx::Class::Schema/connect>
 =cut
 
 sub connect_info {
+  my ($self, $info) = @_;
+
+  return $self->_connect_info if !$info;
+
+  $self->_connect_info($info); # copy for _connect_info
+
+  $info = $self->_normalize_connect_info($info)
+    if ref $info eq 'ARRAY';
+
+  for my $storage_opt (keys %{ $info->{storage_options} }) {
+    my $value = $info->{storage_options}{$storage_opt};
+
+    $self->$storage_opt($value);
+  }
+
+  # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
+  #  the new set of options
+  $self->_sql_maker(undef);
+  $self->_sql_maker_opts({});
+
+  for my $sql_maker_opt (keys %{ $info->{sql_maker_options} }) {
+    my $value = $info->{sql_maker_options}{$sql_maker_opt};
+
+    $self->_sql_maker_opts->{$sql_maker_opt} = $value;
+  }
+
+  my %attrs = (
+    %{ $self->_default_dbi_connect_attributes || {} },
+    %{ $info->{attributes} || {} },
+  );
+
+  my @args = @{ $info->{arguments} };
+
+  $self->_dbi_connect_info([@args,
+    %attrs && !(ref $args[0] eq 'CODE') ? \%attrs : ()]);
+
+  return $self->_connect_info;
+}
+
+sub _normalize_connect_info {
   my ($self, $info_arg) = @_;
-
-  return $self->_connect_info if !$info_arg;
-
+  my %info;
+ 
   my @args = @$info_arg;  # take a shallow copy for further mutilation
-  $self->_connect_info([@args]); # copy for _connect_info
-
 
   # combine/pre-parse arguments depending on invocation style
 
@@ -494,36 +531,23 @@ sub connect_info {
     @args = @args[0,1,2];
   }
 
-  # Kill sql_maker/_sql_maker_opts, so we get a fresh one with only
-  #  the new set of options
-  $self->_sql_maker(undef);
-  $self->_sql_maker_opts({});
+  $info{arguments} = \@args; 
 
-  if(keys %attrs) {
-    for my $storage_opt (@storage_options, 'cursor_class') {    # @storage_options is declared at the top of the module
-      if(my $value = delete $attrs{$storage_opt}) {
-        $self->$storage_opt($value);
-      }
-    }
-    for my $sql_maker_opt (qw/limit_dialect quote_char name_sep/) {
-      if(my $opt_val = delete $attrs{$sql_maker_opt}) {
-        $self->_sql_maker_opts->{$sql_maker_opt} = $opt_val;
-      }
-    }
-  }
+  my @storage_opts = grep exists $attrs{$_},
+    @storage_options, 'cursor_class';
 
-  if (ref $args[0] eq 'CODE') {
-    # _connect() never looks past $args[0] in this case
-    %attrs = ()
-  } else {
-    %attrs = (
-      %{ $self->_default_dbi_connect_attributes || {} },
-      %attrs,
-    );
-  }
+  @{ $info{storage_options} }{@storage_opts} =
+    delete @attrs{@storage_opts} if @storage_opts;
 
-  $self->_dbi_connect_info([@args, keys %attrs ? \%attrs : ()]);
-  $self->_connect_info;
+  my @sql_maker_opts = grep exists $attrs{$_},
+    qw/limit_dialect quote_char name_sep/;
+
+  @{ $info{sql_maker_options} }{@sql_maker_opts} =
+    delete @attrs{@sql_maker_opts} if @sql_maker_opts;
+
+  $info{attributes} = \%attrs if %attrs;
+
+  return \%info;
 }
 
 sub _default_dbi_connect_attributes {
@@ -1360,7 +1384,6 @@ sub insert {
   return $updated_cols;
 }
 
-## Still not quite perfect, and EXPERIMENTAL
 ## Currently it is assumed that all values passed will be "normal", i.e. not
 ## scalar refs, or at least, all the same type as the first set, the statement is
 ## only prepped once.
@@ -1768,11 +1791,24 @@ sub _select_args {
 
   my @limit;
 
-  # see if we need to tear the prefetch apart (either limited has_many or grouped prefetch)
-  # otherwise delegate the limiting to the storage, unless software limit was requested
+  # see if we need to tear the prefetch apart otherwise delegate the limiting to the
+  # storage, unless software limit was requested
   if (
+    #limited has_many
     ( $attrs->{rows} && keys %{$attrs->{collapse}} )
        ||
+    # limited prefetch with RNO subqueries
+    (
+      $attrs->{rows}
+        &&
+      $sql_maker->limit_dialect eq 'RowNumberOver'
+        &&
+      $attrs->{_prefetch_select}
+        &&
+      @{$attrs->{_prefetch_select}}
+    )
+      ||
+    # grouped prefetch
     ( $attrs->{group_by}
         &&
       @{$attrs->{group_by}}
@@ -1782,7 +1818,6 @@ sub _select_args {
       @{$attrs->{_prefetch_select}}
     )
   ) {
-
     ($ident, $select, $where, $attrs)
       = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
   }
@@ -2136,7 +2171,7 @@ sub is_datatype_numeric {
 }
 
 
-=head2 create_ddl_dir (EXPERIMENTAL)
+=head2 create_ddl_dir
 
 =over 4
 
@@ -2188,10 +2223,8 @@ hashref like the following
  { ignore_constraint_names => 0, # ... other options }
 
 
-Note that this feature is currently EXPERIMENTAL and may not work correctly
-across all databases, or fully handle complex relationships.
-
-WARNING: Please check all SQL files created, before applying them.
+WARNING: You are strongly advised to check all SQL files created, before applying
+them.
 
 =cut
 
@@ -2373,10 +2406,19 @@ sub deployment_statements {
     data => $schema,
   );
 
-  my $ret = $tr->translate
-    or $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error);
+  my @ret;
+  my $wa = wantarray;
+  if ($wa) {
+    @ret = $tr->translate;
+  }
+  else {
+    $ret[0] = $tr->translate;
+  }
 
-  return $ret;
+  $self->throw_exception( 'Unable to produce deployment statements: ' . $tr->error)
+    unless (@ret && defined $ret[0]);
+
+  return $wa ? @ret : $ret[0];
 }
 
 sub deploy {
@@ -2499,6 +2541,34 @@ sub lag_behind_master {
   }
 
   sub _sqlt_minimum_version { $minimum_sqlt_version };
+}
+
+=head2 relname_to_table_alias
+
+=over 4
+
+=item Arguments: $relname, $join_count
+
+=back
+
+L<DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
+queries.
+
+This hook is to allow specific L<DBIx::Class::Storage> drivers to change the
+way these aliases are named.
+
+The default behavior is C<"$relname_$join_count" if $join_count > 1>, otherwise
+C<"$relname">.
+
+=cut
+
+sub relname_to_table_alias {
+  my ($self, $relname, $join_count) = @_;
+
+  my $alias = ($join_count && $join_count > 1 ?
+    join('_', $relname, $join_count) : $relname);
+
+  return $alias;
 }
 
 sub DESTROY {

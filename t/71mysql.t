@@ -225,6 +225,23 @@ NULLINSEARCH: {
       => 'Nothing Found!';
 }
 
+# check for proper grouped counts
+{
+  my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, { on_connect_call => 'set_strict_mode' });
+  my $rs = $ansi_schema->resultset('CD');
+
+  my $years;
+  $years->{$_->year|| scalar keys %$years}++ for $rs->all;  # NULL != NULL, thus the keys eval
+
+  lives_ok ( sub {
+    is (
+      $rs->search ({}, { group_by => 'year'})->count,
+      scalar keys %$years,
+      'grouped count correct',
+    );
+  }, 'Grouped count does not throw');
+}
+
 ZEROINSEARCH: {
   my $cds_per_year = {
     2001 => 2,
@@ -243,11 +260,11 @@ ZEROINSEARCH: {
   is ($rs->count, 6, 'CDs created successfully');
 
   $rs = $rs->search ({}, {
-    select => [ {year => 'year'} ], as => ['y'], distinct => 1, order_by => 'year',
+    select => [ \ 'YEAR(year)' ], as => ['y'], distinct => 1,
   });
 
   is_deeply (
-    [ $rs->get_column ('y')->all ],
+    [ sort ($rs->get_column ('y')->all) ],
     [ sort keys %$cds_per_year ],
     'Years group successfully',
   );
@@ -255,7 +272,7 @@ ZEROINSEARCH: {
   $rs->create ({ artist => 1, year => '0-1-1', title => 'Jesus Rap' });
 
   is_deeply (
-    [ $rs->get_column ('y')->all ],
+    [ sort $rs->get_column ('y')->all ],
     [ 0, sort keys %$cds_per_year ],
     'Zero-year groups successfully',
   );

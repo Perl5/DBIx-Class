@@ -802,7 +802,7 @@ sub set_column {
   $self->{_orig_ident} ||= $self->ident_condition;
   my $old_value = $self->get_column($column);
 
-  $self->store_column($column, $new_value);
+  $new_value = $self->store_column($column, $new_value);
 
   my $dirty;
   if (!$self->in_storage) { # no point tracking dirtyness on uninserted data

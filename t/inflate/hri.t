@@ -45,7 +45,7 @@ sub check_cols_of {
             my @dbic_reltable = $dbic_obj->$col;
             my @hashref_reltable = @{$datahashref->{$col}};
   
-            is (scalar @hashref_reltable, scalar @dbic_reltable, 'number of related entries');
+            is (scalar @dbic_reltable, scalar @hashref_reltable, 'number of related entries');
 
             # for my $index (0..scalar @hashref_reltable) {
             for my $index (0..scalar @dbic_reltable) {

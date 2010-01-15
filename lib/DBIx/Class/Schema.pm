@@ -5,7 +5,7 @@ use warnings;
 
 use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
-use Scalar::Util qw/weaken/;
+use Scalar::Util ();
 use File::Spec;
 use Sub::Name ();
 use Module::Find();
@@ -1083,7 +1083,7 @@ sub deployment_statements {
   $self->storage->deployment_statements($self, @_);
 }
 
-=head2 create_ddl_dir (EXPERIMENTAL)
+=head2 create_ddl_dir
 
 =over 4
 
@@ -1178,8 +1178,17 @@ sub freeze {
 
 =head2 dclone
 
-Recommeneded way of dcloning objects. This is needed to properly maintain
-references to the schema object (which itself is B<not> cloned.)
+=over 4
+
+=item Arguments: $object
+
+=item Return Value: dcloned $object
+
+=back
+
+Recommended way of dcloning L<DBIx::Class::Row> and L<DBIx::Class::ResultSet>
+objects so their references to the schema object
+(which itself is B<not> cloned) are properly maintained.
 
 =cut
 
@@ -1260,6 +1269,24 @@ sub register_source {
   $self->_register_source(@_);
 }
 
+=head2 unregister_source
+
+=over 4
+
+=item Arguments: $moniker
+
+=back
+
+Removes the L<DBIx::Class::ResultSource> from the schema for the given moniker.
+
+=cut
+
+sub unregister_source {
+  my $self = shift;
+
+  $self->_unregister_source(@_);
+}
+
 =head2 register_extra_source
 
 =over 4
@@ -1286,7 +1313,7 @@ sub _register_source {
 
   $source = $source->new({ %$source, source_name => $moniker });
   $source->schema($self);
-  weaken($source->{schema}) if ref($self);
+  Scalar::Util::weaken($source->{schema}) if ref($self);
 
   my $rs_class = $source->result_class;
 
