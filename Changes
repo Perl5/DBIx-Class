@@ -13,6 +13,8 @@ Revision history for DBIx::Class
         - Fix regression in context sensitiveness of deployment_statements
         - Fix regression resulting in overcomplicated query on
           search_related from prefetching resultsets
+        - Fix regression on all-null returning searches (properly switch
+          LEFT JOIN to JOIN in order to distinguish between both cases)
         - Better isolation of RNO-limited queries from the rest of a
           prefetching resultset
         - New MSSQL specific resultset attribute to allow hacky ordered
