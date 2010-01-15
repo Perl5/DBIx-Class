@@ -217,7 +217,7 @@ sub parse {
                 
                 # Make sure we dont create additional indexes for the
                 # primary columns
-                my $pk_test = join("\x00", sort @primary);
+                my $pk_test = join("\x00", @primary);
                 next if $key_test eq $pk_test;
 
                 if (scalar(@keys)) {
