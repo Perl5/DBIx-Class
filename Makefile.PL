@@ -3,12 +3,12 @@ use strict;
 use warnings;
 use POSIX ();
 
-use 5.006001; # delete this line if you want to send patches for earlier.
+use 5.008001;
 
 # ****** DO NOT ADD OPTIONAL DEPENDENCIES. EVER. --mst ******
 
 name     'DBIx-Class';
-perl_version '5.006001';
+perl_version '5.008001';
 all_from 'lib/DBIx/Class.pm';
 
 
@@ -26,17 +26,14 @@ requires 'List::Util'               => '0';
 requires 'Scalar::Util'             => '0';
 requires 'Storable'                 => '0';
 
-# Perl 5.8.0 doesn't have utf8::is_utf8()
-requires 'Encode'                   => '0' if ($] <= 5.008000);
-
 # Dependencies (keep in alphabetical order)
 requires 'Carp::Clan'               => '6.0';
-requires 'Class::Accessor::Grouped' => '0.09000';
+requires 'Class::Accessor::Grouped' => '0.09002';
 requires 'Class::C3::Componentised' => '1.0005';
 requires 'Class::Inspector'         => '1.24';
 requires 'Data::Page'               => '2.00';
 requires 'DBD::SQLite'              => '1.25';
-requires 'DBI'                      => '1.605';
+requires 'DBI'                      => '1.609';
 requires 'JSON::Any'                => '1.18';
 requires 'MRO::Compat'              => '0.09';
 requires 'Module::Find'             => '0.06';
@@ -48,8 +45,7 @@ requires 'Sub::Name'                => '0.04';
 requires 'Data::Dumper::Concise'    => '1.000';
 
 my %replication_requires = (
-  'Moose',                    => '0.87',
-  'MooseX::AttributeHelpers'  => '0.21',
+  'Moose',                    => '0.90',
   'MooseX::Types',            => '0.16',
   'namespace::clean'          => '0.11',
   'Hash::Merge',              => '0.11',

@@ -4,9 +4,10 @@ use strict;
 use warnings;
 
 use MRO::Compat;
+use mro 'c3';
 
 use vars qw($VERSION);
-use base qw/Class::C3::Componentised Class::Accessor::Grouped/;
+use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
 
 sub mk_classdata {
@@ -116,7 +117,7 @@ Then you can use these classes in your application's code:
   # Output all artists names
   # $artist here is a DBIx::Class::Row, which has accessors
   # for all its columns. Rows are also subclasses of your Result class.
-  foreach $artist (@artists) {
+  foreach $artist (@all_artists) {
     print $artist->name, "\n";
   }
 

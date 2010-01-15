@@ -7,8 +7,7 @@ BEGIN {
   ## use, so we explicitly test for these.
 
   my %replication_required = (
-    'Moose' => '0.87',
-    'MooseX::AttributeHelpers' => '0.21',
+    'Moose' => '0.90',
     'MooseX::Types' => '0.16',
     'namespace::clean' => '0.11',
     'Hash::Merge' => '0.11'
@@ -51,7 +50,9 @@ You should set the 'storage_type attribute to a replicated type.  You should
 also define your arguments, such as which balancer you want and any arguments
 that the Pool object should get.
 
+  my $schema = Schema::Class->clone;
   $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
+  $schema->connection(...);
 
 Next, you need to add in the Replicants.  Basically this is an array of 
 arrayrefs, where each arrayref is database connect information.  Think of these
@@ -119,8 +120,7 @@ to force a query to run against Master when needed.
 
 Replicated Storage has additional requirements not currently part of L<DBIx::Class>
 
-  Moose => '0.87',
-  MooseX::AttributeHelpers => '0.20',
+  Moose => '0.90',
   MooseX::Types => '0.16',
   namespace::clean => '0.11',
   Hash::Merge => '0.11'

@@ -17,7 +17,9 @@ DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for Oracle.
+This class implements base Oracle support. The subclass
+L<DBIx::Class::Storage::DBI::Oracle::WhereJoins> is for C<(+)> joins in Oracle
+versions before 9.
 
 =head1 METHODS
 
@@ -272,6 +274,46 @@ sub _svp_rollback {
     my ($self, $name) = @_;
 
     $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+}
+
+=head2 relname_to_table_alias
+
+L<DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
+queries.
+
+Unfortunately, Oracle doesn't support identifiers over 30 chars in length, so
+the L<DBIx::Class::Relationship> name is shortened and appended with half of an
+MD5 hash.
+
+See L<DBIx::Class::Storage/"relname_to_table_alias">.
+
+=cut
+
+sub relname_to_table_alias {
+  my $self = shift;
+  my ($relname, $join_count) = @_;
+
+  my $alias = $self->next::method(@_);
+
+  return $alias if length($alias) <= 30;
+
+  # get a base64 md5 of the alias with join_count
+  require Digest::MD5;
+  my $ctx = Digest::MD5->new;
+  $ctx->add($alias);
+  my $md5 = $ctx->b64digest;
+
+  # remove alignment mark just in case
+  $md5 =~ s/=*\z//;
+
+  # truncate and prepend to truncated relname without vowels
+  (my $devoweled = $relname) =~ s/[aeiou]//g;
+  my $shortened = substr($devoweled, 0, 18);
+
+  my $new_alias =
+    $shortened . '_' . substr($md5, 0, 30 - length($shortened) - 1);
+
+  return $new_alias;
 }
 
 =head1 AUTHOR

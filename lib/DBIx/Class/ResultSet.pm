@@ -1408,7 +1408,7 @@ sub _rs_update_delete {
   my $cond = $rsrc->schema->storage->_strip_cond_qualifiers ($self->{cond});
 
   my $needs_group_by_subq = $self->_has_resolved_attr (qw/collapse group_by -join/);
-  my $needs_subq = (not defined $cond) || $self->_has_resolved_attr(qw/row offset/);
+  my $needs_subq = $needs_group_by_subq || (not defined $cond) || $self->_has_resolved_attr(qw/row offset/);
 
   if ($needs_group_by_subq or $needs_subq) {
 
@@ -2024,7 +2024,7 @@ sub _remove_alias {
   return \%unaliased;
 }
 
-=head2 as_query (EXPERIMENTAL)
+=head2 as_query
 
 =over 4
 
@@ -2037,8 +2037,6 @@ sub _remove_alias {
 Returns the SQL query and bind vars associated with the invocant.
 
 This is generally used as the RHS for a subquery.
-
-B<NOTE>: This feature is still experimental.
 
 =cut
 
@@ -2500,13 +2498,16 @@ sub related_resultset {
     my $attrs = $self->_chain_relationship($rel);
 
     my $join_count = $attrs->{seen_join}{$rel};
-    my $alias = ($join_count > 1 ? join('_', $rel, $join_count) : $rel);
+
+    my $alias = $self->result_source->storage
+        ->relname_to_table_alias($rel, $join_count);
 
     # since this is search_related, and we already slid the select window inwards
     # (the select/as attrs were deleted in the beginning), we need to flip all 
     # left joins to inner, so we get the expected results
     # read the comment on top of the actual function to see what this does
     $attrs->{from} = $rsrc->schema->storage->_straight_join_to_node ($attrs->{from}, $alias);
+
 
     #XXX - temp fix for result_class bug. There likely is a more elegant fix -groditi
     delete @{$attrs}{qw(result_class alias)};
@@ -2622,10 +2623,19 @@ sub _chain_relationship {
       ||
     $self->_has_resolved_attr (@force_subq_attrs)
   ) {
+    # Nuke the prefetch (if any) before the new $rs attrs
+    # are resolved (prefetch is useless - we are wrapping
+    # a subquery anyway).
+    my $rs_copy = $self->search;
+    $rs_copy->{attrs}{join} = $self->_merge_attr (
+      $rs_copy->{attrs}{join},
+      delete $rs_copy->{attrs}{prefetch},
+    );
+
     $from = [{
       -source_handle => $source->handle,
       -alias => $attrs->{alias},
-      $attrs->{alias} => $self->as_query,
+      $attrs->{alias} => $rs_copy->as_query,
     }];
     delete @{$attrs}{@force_subq_attrs, 'where'};
     $seen->{-relation_chain_depth} = 0;

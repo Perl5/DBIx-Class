@@ -82,7 +82,7 @@ sub _validate_cond {
     my $key = $1;
     my $column_info = $class->column_info($key);
     if ( $column_info->{is_nullable} ) {
-      carp(qq'"might_have/has_one" must not be on columns with is_nullable set to true ($class/$key) ');
+      carp(qq'"might_have/has_one" must not be on columns with is_nullable set to true ($class/$key). This might indicate an incorrect use of those relationship helpers instead of belongs_to.');
     }
   }
 }

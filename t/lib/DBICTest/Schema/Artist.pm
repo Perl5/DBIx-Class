@@ -44,6 +44,9 @@ __PACKAGE__->has_many(
 __PACKAGE__->has_many(
     cds_unordered => 'DBICTest::Schema::CD'
 );
+__PACKAGE__->has_many(
+    cds_very_very_very_long_relationship_name => 'DBICTest::Schema::CD'
+);
 
 __PACKAGE__->has_many( twokeys => 'DBICTest::Schema::TwoKeys' );
 __PACKAGE__->has_many( onekeys => 'DBICTest::Schema::OneKey' );
