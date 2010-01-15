@@ -38,14 +38,22 @@ my @sources = grep
 { 
   my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { } } });
 
-  foreach my $source (@sources) {
-    my $table = get_table($sqlt_schema, $schema, $source);
+  foreach my $source_name (@sources) {
+    my $table = get_table($sqlt_schema, $schema, $source_name);
 
     my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
     my @indices = $table->get_indices;
+
     my $index_count = scalar(@indices);
-    $index_count++ if ($source eq 'TwoKeys'); # TwoKeys has the index turned off on the rel def
-    is($index_count, $fk_count, "correct number of indices for $source with no args");
+    $index_count++ if ($source_name eq 'TwoKeys'); # TwoKeys has the index turned off on the rel def
+    is($index_count, $fk_count, "correct number of indices for $source_name with no args");
+    
+    for my $index (@indices) {
+        my $source = $schema->source($source_name);
+        my @pks = $source->primary_columns;
+        my @idx_cols = $index->fields;
+        ok ( !eq_set(\@pks, \@idx_cols), "no additional index for the primary columns exists in $source_name");
+    }
   }
 }
 
