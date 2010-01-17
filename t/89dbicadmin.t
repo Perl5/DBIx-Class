@@ -3,7 +3,9 @@ use strict;
 use warnings;
 
 use Test::More;
+use Config;
 use lib qw(t/lib);
+$ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 use DBICTest;
 
 
