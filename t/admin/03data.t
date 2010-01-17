@@ -77,6 +77,4 @@ use ok 'DBIx::Class::Admin';
   is ($employees->count(), 1, "left Aran" );
 }
 
-
-
 done_testing;

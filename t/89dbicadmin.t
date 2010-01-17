@@ -1,6 +1,6 @@
 # vim: filetype=perl
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -41,6 +41,8 @@ for my $js (@json_backends) {
 }
 
 sub test_dbicadmin {
+#    $ENV{PERL5LIB} = join ':', @INC;
+
     my $schema = DBICTest->init_schema( sqlite_use_file => 1 );  # reinit a fresh db for every run
 
     my $employees = $schema->resultset('Employee');
@@ -64,8 +66,8 @@ sub test_dbicadmin {
         my $data = do { local $/; <$fh> };
         close($fh);
         if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
-			diag ("data from select is $data")
-		};
+          diag ("data from select is $data")
+        };
     }
 
     system( _prepare_system_args( qw|--op=delete --where={"name":"Trout"}| ) );
@@ -80,10 +82,11 @@ sub test_dbicadmin {
 #
 sub _prepare_system_args {
     my $perl = $^X;
+
     my @args = (
-        qw|script/dbicadmin --quiet --schema=DBICTest::Schema --class=Employee --tlibs|,
+        qw|script/dbicadmin --quiet --schema=DBICTest::Schema --class=Employee|,
         q|--connect=["dbi:SQLite:dbname=t/var/DBIxClass.db","","",{"AutoCommit":1}]|,
-        qw|--force --tlibs|,
+        qw|--force|,
         @_,
     );
 
