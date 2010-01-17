@@ -321,7 +321,7 @@ sub upgrade
     return;
   }
 
-  carp "\nDB version ($db_version) is lower than the schema version (".$self->schema_version."). Attempting upgrade.\n";
+  carp "DB version ($db_version) is lower than the schema version (".$self->schema_version."). Attempting upgrade.\n";
 
   # backup if necessary then apply upgrade
   $self->_filedata($self->_read_sql_file($upgrade_file));
@@ -391,7 +391,7 @@ differently.
 sub apply_statement {
     my ($self, $statement) = @_;
 
-    $self->storage->dbh->do($_) or carp "SQL was:\n $_";
+    $self->storage->dbh->do($_) or carp "SQL was: $_";
 }
 
 =head2 get_db_version
@@ -502,7 +502,7 @@ sub _on_connect
         return 1;
     }
 
-  carp "Versions out of sync. This is " . $self->schema_version . 
+  carp "Versions out of sync. This is " . $self->schema_version .
     ", your database contains version $pversion, please call upgrade on your Schema.\n";
 }
 
