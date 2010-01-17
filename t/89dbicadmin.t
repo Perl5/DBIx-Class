@@ -1,4 +1,4 @@
-# vim: filetype=perl et ts=2
+# vim: filetype=perl
 use strict;
 use warnings;  
 
@@ -64,8 +64,8 @@ sub test_dbicadmin {
         my $data = do { local $/; <$fh> };
         close($fh);
         if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
-            diag ("data from select is $data")
-        };
+			diag ("data from select is $data")
+		};
     }
 
     system( _prepare_system_args( qw|--op=delete --where={"name":"Trout"}| ) );

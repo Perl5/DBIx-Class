@@ -1,5 +1,5 @@
-#!/usr/bin/perl
-# vim: ts=2 et
+#!/usr/bin/perl 
+
 use strict;
 use warnings;
 
@@ -8,47 +8,47 @@ use DBIx::Class::Admin;
 
 
 my ($opts, $usage) = describe_options(
-    "%c: %o",
-    (
-        ['Actions'],
-        ["action" => hidden => { one_of => [
-            ['create|c' => 'Create version diffs needs preversion',],
-            ['upgrade|u' => 'Upgrade the database to the current schema '],
-            ['install|i' => 'Install the schema to the database',],
-            ['deploy|d' => 'Deploy the a to the database',],
-            ['select|s'   => 'Select data from the schema', ],
-            ['insert|i'   => 'Insert data into the schema', ],
-            ['update|u'   => 'Update data in the schema', ], 
-            ['delete|D'   => 'Delete data from the schema',],
-            ['op:s' => 'compatiblity option all of the above can be suppied as --op=<action>'],
-            ['help|h' => 'display this help'],
-            ], required=> 1 }],
-        ['Options'],
-        ['schema-class|schema|C:s' => 'The class of the schema to load', { required => 1 } ],
-        ['resultset|resultset_class|class|r:s' => 'The resultset to operate on for data manipulation' ],
-        ['config-stanza|S:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
-        ['config|f:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
-        ['connect-info|n:s%' => 'Supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
-        ['connect:s' => 'Supply the connect info as a json string' ],
-        ['sql-dir|q:s' => 'The directory where sql diffs will be created'],
-        ['sql-type|t:s' => 'The RDBMs flavour you wish to use'],
-        ['version|v:i' => 'Supply a version install'],
-        ['preversion|p:s' => 'The previous version to diff against',],
-        ['set:s' => 'JSON data used to perform data operations' ],
-        ['lib|I:s' => 'Additonal library path to search in'], 
-        ['attrs:s' => 'JSON string to be used for the second argument for search'],
-        ['where:s' => 'JSON string to be used for the where clause of search'],
-        ['force' => 'Be forceful with some operations'],
-        ['trace' => 'Turn on DBIx::Class trace output'],
-        ['tlibs' => 'Include test dirs in @INC'],
-        ['quiet' => 'Be less verbose'],
-    )
+  "%c: %o",
+  (
+    ['Actions'],
+    ["action" => hidden => { one_of => [
+      ['create|c' => 'Create version diffs needs preversion',],
+      ['upgrade|u' => 'Upgrade the database to the current schema '],
+      ['install|i' => 'Install the schema to the database',],
+      ['deploy|d' => 'Deploy the a to the database',],
+      ['select|s'   => 'Select data from the schema', ],
+      ['insert|i'   => 'Insert data into the schema', ],
+      ['update|u'   => 'Update data in the schema', ], 
+      ['delete|D'   => 'Delete data from the schema',],
+      ['op:s' => 'compatiblity option all of the above can be suppied as --op=<action>'],
+      ['help|h' => 'display this help'],
+    ], required=> 1 }],
+    ['Options'],
+    ['schema-class|schema|C:s' => 'The class of the schema to load', { required => 1 } ],
+    ['resultset|resultset_class|class|r:s' => 'The resultset to operate on for data manipulation' ],
+    ['config-stanza|S:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
+    ['config|f:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
+    ['connect-info|n:s%' => 'Supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
+    ['connect:s' => 'Supply the connect info as a json string' ],
+    ['sql-dir|q:s' => 'The directory where sql diffs will be created'],
+    ['sql-type|t:s' => 'The RDBMs flavour you wish to use'],
+    ['version|v:i' => 'Supply a version install'],
+    ['preversion|p:s' => 'The previous version to diff against',],
+    ['set:s' => 'JSON data used to perform data operations' ],
+    ['lib|I:s' => 'Additonal library path to search in'], 
+    ['attrs:s' => 'JSON string to be used for the second argument for search'],
+    ['where:s' => 'JSON string to be used for the where clause of search'],
+    ['force' => 'Be forceful with some operations'],
+    ['trace' => 'Turn on DBIx::Class trace output'],
+    ['tlibs' => 'Include test dirs in @INC'],
+    ['quiet' => 'Be less verbose'],
+  )
 );
 
 
 if ($opts->{help}) {
-    print $usage->text;
-    exit 0;
+  print $usage->text;
+  exit 0;
 }
 
 if ($opts->{tlibs}) {
@@ -59,7 +59,7 @@ die "please only use one of --config or --connect-info" if ($opts->{config} and 
 
 # option compatability mangle
 if($opts->{connect}) {
-    $opts->{connect_info} = delete $opts->{connect};
+  $opts->{connect_info} = delete $opts->{connect};
 }
 
 my $admin = DBIx::Class::Admin->new( %$opts );
@@ -73,24 +73,24 @@ my $res = $admin->$action();
 print "going to perform action $action\n";
 if ($action eq 'select') {
 
-    my $csv_class;
-    my $format = $opts->{format} || 'tsv';
-    die('Invalid format') if ($format!~/^tsv|csv$/s);
-    $csv_class = 'Text::CSV_XS';
-    eval{ require Text::CSV_XS };
-    if ($@) {
-        $csv_class = 'Text::CSV_PP';
-        eval{ require Text::CSV_PP };
-        die('The select op requires either the Text::CSV_XS or the Text::CSV_PP module') if ($@);
-    }
+  my $csv_class;
+  my $format = $opts->{format} || 'tsv';
+  die('Invalid format') if ($format!~/^tsv|csv$/s);
+  $csv_class = 'Text::CSV_XS';
+  eval{ require Text::CSV_XS };
+  if ($@) {
+    $csv_class = 'Text::CSV_PP';
+    eval{ require Text::CSV_PP };
+    die('The select op requires either the Text::CSV_XS or the Text::CSV_PP module') if ($@);
+  }
 
-    my $csv = $csv_class->new({
-            sep_char => ( $format eq 'tsv' ? "\t" : ',' ),
-        });
-    foreach my $row (@$res) {
-        $csv->combine( @$row );
-        print $csv->string()."\n";
-    }
+  my $csv = $csv_class->new({
+      sep_char => ( $format eq 'tsv' ? "\t" : ',' ),
+    });
+  foreach my $row (@$res) {
+    $csv->combine( @$row );
+    print $csv->string()."\n";
+  }
 }
 
 

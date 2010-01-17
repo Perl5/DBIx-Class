@@ -1,4 +1,4 @@
-# vim: et ts=2
+#
 #===============================================================================
 #
 #         FILE:  Admin.pm
@@ -18,7 +18,7 @@ package DBIx::Class::Admin;
 
 use Moose;
 use MooseX::Types 
--declare => [qw( DBICConnectInfo )];
+  -declare => [qw( DBICConnectInfo )];
 use MooseX::Types::Moose qw/Int HashRef ArrayRef Str Any/;
 use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
@@ -33,27 +33,27 @@ use namespace::autoclean;
 my @_deps = qw(Moose MooseX::Types MooseX::Types::JSON MooseX::Types::Path::Class Try::Tiny parent JSON::Any Class::C3::Componentised namespace::autoclean);
 
 coerce ArrayRef,
-from JSON,
-via { _json_to_data ($_) };
+  from JSON,
+  via { _json_to_data ($_) };
 
 coerce HashRef,
-from JSON,
-via { _json_to_data($_) };
+  from JSON,
+  via { _json_to_data($_) };
 
 subtype DBICConnectInfo,
-as ArrayRef;
+  as ArrayRef;
 
 coerce DBICConnectInfo,
-from JSON,
-via { return _json_to_data($_) } ;
+  from JSON,
+   via { return _json_to_data($_) } ;
 
 coerce DBICConnectInfo,
-from Str,
-via { return _json_to_data($_) };
+  from Str,
+    via { return _json_to_data($_) };
 
 coerce DBICConnectInfo,
-from HashRef,
-via { [ $_->{dsn}, $_->{user}, $_->{password} ]  };
+  from HashRef,
+   via { [ $_->{dsn}, $_->{user}, $_->{password} ]  };
 
 =head1 NAME
 
@@ -89,15 +89,15 @@ DBIx::Class::Admin - Administration object for schemas
 add a library search path
 =cut
 has lib => (
-is		=> 'ro',
-isa		=> Dir,
-coerce	=> 1,
-trigger => \&_set_inc,
+  is    => 'ro',
+  isa    => Dir,
+  coerce  => 1,
+  trigger => \&_set_inc,
 );
 
 sub _set_inc {
-    my ($self, $lib) = @_;
-    push @INC, $lib->stringify;
+  my ($self, $lib) = @_;
+  push @INC, $lib->stringify;
 }
 
 =head2 schema_class
@@ -105,9 +105,9 @@ sub _set_inc {
 the class of the schema to load
 =cut
 has 'schema_class' => (
-is		=> 'ro',
-isa		=> 'Str',
-coerce	=> 1,
+  is    => 'ro',
+  isa    => 'Str',
+  coerce  => 1,
 );
 
 =head2 schema
@@ -115,17 +115,17 @@ coerce	=> 1,
 A pre-connected schema object can be provided for manipulation
 =cut
 has 'schema' => (
-is			=> 'ro',
-isa			=> 'DBIx::Class::Schema',
-lazy_build	=> 1,
+  is      => 'ro',
+  isa      => 'DBIx::Class::Schema',
+  lazy_build  => 1,
 );
 
 sub _build_schema {
-    my ($self)  = @_;
-    $self->ensure_class_loaded($self->schema_class);
+  my ($self)  = @_;
+  $self->ensure_class_loaded($self->schema_class);
 
-    $self->connect_info->[3]->{ignore_version} =1;
-    return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );
+  $self->connect_info->[3]->{ignore_version} =1;
+  return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );
 }
 
 =head2 resultset
@@ -133,8 +133,8 @@ sub _build_schema {
 a resultset from the schema to operate on
 =cut
 has 'resultset' => (
-is			=> 'rw',
-isa			=> Str,
+  is      => 'rw',
+  isa      => Str,
 );
 
 =head2 where
@@ -143,9 +143,9 @@ a hash ref or json string to be used for identifying data to manipulate
 =cut
 
 has 'where' => (
-is			=> 'rw',
-isa			=> HashRef,
-coerce		=> 1,
+  is      => 'rw',
+  isa      => HashRef,
+  coerce    => 1,
 );
 
 =head2 set
@@ -153,18 +153,18 @@ a hash ref or json string to be used for inserting or updating data
 =cut
 
 has 'set' => (
-is			=> 'rw',
-isa			=> HashRef,
-coerce		=> 1,
+  is      => 'rw',
+  isa      => HashRef,
+  coerce    => 1,
 );
 
 =head2 attrs
 a hash ref or json string to be used for passing additonal info to the ->search call
 =cut
 has 'attrs' => (
-is 			=> 'rw',
-isa			=> HashRef,
-coerce		=> 1,
+  is       => 'rw',
+  isa      => HashRef,
+  coerce    => 1,
 );
 =head2 connect_info
 
@@ -173,15 +173,15 @@ connect_info the arguments to provide to the connect call of the schema_class
 
 
 has 'connect_info' => (
-is			=> 'ro',
-isa			=> DBICConnectInfo,
-lazy_build	=> 1,
-coerce		=> 1,
+  is      => 'ro',
+  isa      => DBICConnectInfo,
+  lazy_build  => 1,
+  coerce    => 1,
 );
 
 sub _build_connect_info {
-    my ($self) = @_;
-    return $self->_find_stanza($self->config, $self->config_stanza);
+  my ($self) = @_;
+  return $self->_find_stanza($self->config, $self->config_stanza);
 }
 
 =head2 config_file
@@ -191,9 +191,9 @@ config_stanze should also be provided to locate where the connect_info is in the
 The config file should be in a format readable by Config::General
 =cut
 has config_file => (
-is			=> 'ro',
-isa			=> File,
-coerce		=> 1,
+  is      => 'ro',
+  isa      => File,
+  coerce    => 1,
 );
 
 =head2 config_stanza
@@ -202,8 +202,8 @@ config_stanza for use with config_file should be a '::' deliminated 'path' to th
 designed for use with catalyst config files
 =cut
 has 'config_stanza' => (
-is			=> 'ro',
-isa			=> 'Str',
+  is      => 'ro',
+  isa      => 'Str',
 );
 
 =head2 config
@@ -212,20 +212,20 @@ Instead of loading from a file the configuration can be provided directly as a h
 config_stanza will still be required.
 =cut
 has config => (
-is			=> 'ro',
-isa			=> HashRef,
-lazy_build	=> 1,
+  is      => 'ro',
+  isa      => HashRef,
+  lazy_build  => 1,
 );
 
 sub _build_config {
-    my ($self) = @_;
-    try { require 'Config::Any'; } catch { die "Config::Any is required to parse the config file"; };
+  my ($self) = @_;
+  try { require 'Config::Any'; } catch { die "Config::Any is required to parse the config file"; };
 
-    my $cfg = Config::Any->load_files ( {files => [$self->config_file], use_ext =>1, flatten_to_hash=>1});
+  my $cfg = Config::Any->load_files ( {files => [$self->config_file], use_ext =>1, flatten_to_hash=>1});
 
-    # just grab the config from the config file
-    $cfg = $cfg->{$self->config_file};
-    return $cfg;
+  # just grab the config from the config file
+  $cfg = $cfg->{$self->config_file};
+  return $cfg;
 }
 
 =head2 sql_dir
@@ -233,9 +233,9 @@ sub _build_config {
 The location where sql ddl files should be created or found for an upgrade.
 =cut
 has 'sql_dir' => (
-is			=> 'ro',
-isa			=> Dir,
-coerce		=> 1,
+  is      => 'ro',
+  isa      => Dir,
+  coerce    => 1,
 );
 
 =head2 version
@@ -243,8 +243,8 @@ coerce		=> 1,
 Used for install, the version which will be 'installed' in the schema
 =cut
 has version => (
-is			=> 'rw',
-isa			=> 'Str',
+  is      => 'rw',
+  isa      => 'Str',
 );
 
 =head2 preversion
@@ -252,8 +252,8 @@ isa			=> 'Str',
 Previouse version of the schema to create an upgrade diff for, the full sql for that version of the sql must be in the sql_dir
 =cut
 has preversion => (
-is			=> 'rw',
-isa			=> 'Str',
+  is      => 'rw',
+  isa      => 'Str',
 );
 
 =head2 force
@@ -261,8 +261,8 @@ isa			=> 'Str',
 Try and force certain operations.
 =cut
 has force => (
-is			=> 'rw',
-isa			=> 'Bool',
+  is      => 'rw',
+  isa      => 'Bool',
 );
 
 =head2 quiet
@@ -270,13 +270,13 @@ isa			=> 'Bool',
 Be less verbose about actions
 =cut
 has quiet => (
-is			=> 'rw',
-isa			=> 'Bool',
+  is      => 'rw',
+  isa      => 'Bool',
 );
 
 has '_confirm' => (
-is		=> 'bare',
-isa		=> 'Bool',
+  is    => 'bare',
+  isa    => 'Bool',
 );
 
 =head1 METHODS
@@ -298,15 +298,15 @@ Optional preversion can be supplied to generate a diff to be used by upgrade.
 =cut
 
 sub create {
-    my ($self, $sqlt_type, $sqlt_args, $preversion) = @_;
+  my ($self, $sqlt_type, $sqlt_args, $preversion) = @_;
 
-    $preversion ||= $self->preversion();
+  $preversion ||= $self->preversion();
 
-    my $schema = $self->schema();
-    # create the dir if does not exist
-    $self->sql_dir->mkpath() if ( ! -d $self->sql_dir);
+  my $schema = $self->schema();
+  # create the dir if does not exist
+  $self->sql_dir->mkpath() if ( ! -d $self->sql_dir);
 
-    $schema->create_ddl_dir( $sqlt_type, (defined $schema->schema_version ? $schema->schema_version : ""), $self->sql_dir->stringify, $preversion, $sqlt_args );
+  $schema->create_ddl_dir( $sqlt_type, (defined $schema->schema_version ? $schema->schema_version : ""), $self->sql_dir->stringify, $preversion, $sqlt_args );
 }
 
 =head2 upgrade
@@ -322,15 +322,15 @@ B<MAKE SURE YOU BACKUP YOUR DB FIRST>
 =cut
 
 sub upgrade {
-    my ($self) = @_;
-    my $schema = $self->schema();
-    if (!$schema->get_db_version()) {
-        # schema is unversioned
-        die "could not determin current schema version, please either install or deploy";
-    } else {
-        my $ret = $schema->upgrade();
-        return $ret;
-    }
+  my ($self) = @_;
+  my $schema = $self->schema();
+  if (!$schema->get_db_version()) {
+    # schema is unversioned
+    die "could not determin current schema version, please either install or deploy";
+  } else {
+    my $ret = $schema->upgrade();
+    return $ret;
+  }
 }
 
 =head2 install
@@ -347,26 +347,26 @@ further ddl modification takes place.  Setting the force attribute to a true val
 already versioned databases.
 =cut
 sub install {
-    my ($self, $version) = @_;
+  my ($self, $version) = @_;
 
-    my $schema = $self->schema();
-    $version ||= $self->version();
-    if (!$schema->get_db_version() ) {
-        # schema is unversioned
-        print "Going to install schema version\n";
-        my $ret = $schema->install($version);
-        print "retun is $ret\n";
+  my $schema = $self->schema();
+  $version ||= $self->version();
+  if (!$schema->get_db_version() ) {
+    # schema is unversioned
+    print "Going to install schema version\n";
+    my $ret = $schema->install($version);
+    print "retun is $ret\n";
+  }
+  elsif ($schema->get_db_version() and $self->force ) {
+    warn "forcing install may not be a good idea";
+    if($self->_confirm() ) {
+      # FIXME private api
+      $self->schema->_set_db_version({ version => $version});
     }
-    elsif ($schema->get_db_version() and $self->force ) {
-        warn "forcing install may not be a good idea";
-        if($self->_confirm() ) {
-            # FIXME private api
-            $self->schema->_set_db_version({ version => $version});
-        }
-    }
-    else {
-        die "schema already has a version not installing, try upgrade instead";
-    }
+  }
+  else {
+    die "schema already has a version not installing, try upgrade instead";
+  }
 
 }
 
@@ -382,15 +382,15 @@ deploy will create the schema at the connected database.  C<$args> are passed st
 L<DBIx::Class::Schema/deploy>.  
 =cut
 sub deploy {
-    my ($self, $args) = @_;
-    my $schema = $self->schema();
-    if (!$schema->get_db_version() ) {
-        # schema is unversioned
-        $schema->deploy( $args, $self->sql_dir)
-            or die "could not deploy schema";
-    } else {
-        die "there already is a database with a version here, try upgrade instead";
-    }
+  my ($self, $args) = @_;
+  my $schema = $self->schema();
+  if (!$schema->get_db_version() ) {
+    # schema is unversioned
+    $schema->deploy( $args, $self->sql_dir)
+      or die "could not deploy schema";
+  } else {
+    die "there already is a database with a version here, try upgrade instead";
+  }
 }
 
 
@@ -411,13 +411,13 @@ into that resultset
 
 =cut
 sub insert {
-    my ($self, $rs, $set) = @_;
+  my ($self, $rs, $set) = @_;
 
-    $rs ||= $self->resultset();
-    $set ||= $self->set();
-    my $resultset = $self->schema->resultset($rs);
-    my $obj = $resultset->create( $set );
-    print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n" if (!$self->quiet);
+  $rs ||= $self->resultset();
+  $set ||= $self->set();
+  my $resultset = $self->schema->resultset($rs);
+  my $obj = $resultset->create( $set );
+  print ''.ref($resultset).' ID: '.join(',',$obj->id())."\n" if (!$self->quiet);
 }
 
 
@@ -433,20 +433,20 @@ update takes the name of a resultset from the schema_class, a hashref of data to
 a where hash used to form the search for the rows to update. 
 =cut
 sub update {
-    my ($self, $rs, $set, $where) = @_;
+  my ($self, $rs, $set, $where) = @_;
 
-    $rs ||= $self->resultset();
-    $where ||= $self->where();
-    $set ||= $self->set();
-    my $resultset = $self->schema->resultset($rs);
-    $resultset = $resultset->search( ($where||{}) );
+  $rs ||= $self->resultset();
+  $where ||= $self->where();
+  $set ||= $self->set();
+  my $resultset = $self->schema->resultset($rs);
+  $resultset = $resultset->search( ($where||{}) );
 
-    my $count = $resultset->count();
-    print "This action will modify $count ".ref($resultset)." records.\n" if (!$self->quiet);
+  my $count = $resultset->count();
+  print "This action will modify $count ".ref($resultset)." records.\n" if (!$self->quiet);
 
-    if ( $self->force || $self->_confirm() ) {
-        $resultset->update_all( $set );
-    }
+  if ( $self->force || $self->_confirm() ) {
+    $resultset->update_all( $set );
+  }
 }
 
 # FIXME
@@ -463,20 +463,20 @@ delete takes the name of a resultset from the schema_class, a where hashref and 
 The found data is deleted and cannot be recovered.
 =cut
 sub delete {
-    my ($self, $rs, $where, $attrs) = @_;
+  my ($self, $rs, $where, $attrs) = @_;
 
-    $rs ||= $self->resultset();
-    $where ||= $self->where();
-    $attrs ||= $self->attrs();
-    my $resultset = $self->schema->resultset($rs);
-    $resultset = $resultset->search( ($where||{}), ($attrs||()) );
+  $rs ||= $self->resultset();
+  $where ||= $self->where();
+  $attrs ||= $self->attrs();
+  my $resultset = $self->schema->resultset($rs);
+  $resultset = $resultset->search( ($where||{}), ($attrs||()) );
 
-    my $count = $resultset->count();
-    print "This action will delete $count ".ref($resultset)." records.\n" if (!$self->quiet);
+  my $count = $resultset->count();
+  print "This action will delete $count ".ref($resultset)." records.\n" if (!$self->quiet);
 
-    if ( $self->force || $self->_confirm() ) {
-        $resultset->delete_all();
-    }
+  if ( $self->force || $self->_confirm() ) {
+    $resultset->delete_all();
+  }
 }
 
 =head2 select
@@ -492,58 +492,58 @@ The found data is returned in a array ref where the first row will be the column
 
 =cut
 sub select {
-    my ($self, $rs, $where, $attrs) = @_;
+  my ($self, $rs, $where, $attrs) = @_;
 
-    $rs ||= $self->resultset();
-    $where ||= $self->where();
-    $attrs ||= $self->attrs();
-    my $resultset = $self->schema->resultset($rs);
-    $resultset = $resultset->search( ($where||{}), ($attrs||()) );
+  $rs ||= $self->resultset();
+  $where ||= $self->where();
+  $attrs ||= $self->attrs();
+  my $resultset = $self->schema->resultset($rs);
+  $resultset = $resultset->search( ($where||{}), ($attrs||()) );
 
-    my @data;
-    my @columns = $resultset->result_source->columns();
-    push @data, [@columns];# 
+  my @data;
+  my @columns = $resultset->result_source->columns();
+  push @data, [@columns];# 
 
-    while (my $row = $resultset->next()) {
-        my @fields;
-        foreach my $column (@columns) {
-            push( @fields, $row->get_column($column) );
-        }
-        push @data, [@fields];
+  while (my $row = $resultset->next()) {
+    my @fields;
+    foreach my $column (@columns) {
+      push( @fields, $row->get_column($column) );
     }
+    push @data, [@fields];
+  }
 
-    return \@data;
+  return \@data;
 }
 
 sub _confirm {
-    my ($self) = @_;
-    print "Are you sure you want to do this? (type YES to confirm) \n";
-    # mainly here for testing
-    return 1 if ($self->meta->get_attribute('_confirm')->get_value($self));
-    my $response = <STDIN>;
-    return 1 if ($response=~/^YES/);
-    return;
+  my ($self) = @_;
+  print "Are you sure you want to do this? (type YES to confirm) \n";
+  # mainly here for testing
+  return 1 if ($self->meta->get_attribute('_confirm')->get_value($self));
+  my $response = <STDIN>;
+  return 1 if ($response=~/^YES/);
+  return;
 }
 
 sub _find_stanza {
-    my ($self, $cfg, $stanza) = @_;
-    my @path = split /::/, $stanza;
-    while (my $path = shift @path) {
-        if (exists $cfg->{$path}) {
-            $cfg = $cfg->{$path};
-        }
-        else {
-            die "could not find $stanza in config, $path did not seem to exist";
-        }
+  my ($self, $cfg, $stanza) = @_;
+  my @path = split /::/, $stanza;
+  while (my $path = shift @path) {
+    if (exists $cfg->{$path}) {
+      $cfg = $cfg->{$path};
     }
-    return $cfg;
+    else {
+      die "could not find $stanza in config, $path did not seem to exist";
+    }
+  }
+  return $cfg;
 }
 
 sub _json_to_data {
-    my ($json_str) = @_;
-    my $json = JSON::Any->new(allow_barekey => 1, allow_singlequote => 1, relaxed=>1);
-    my $ret = $json->jsonToObj($json_str);
-    return $ret;
+  my ($json_str) = @_;
+  my $json = JSON::Any->new(allow_barekey => 1, allow_singlequote => 1, relaxed=>1);
+  my $ret = $json->jsonToObj($json_str);
+  return $ret;
 }
 
 
@@ -551,14 +551,14 @@ sub _json_to_data {
 
 my @_missing_deps;
 foreach my $dep (@_deps) {
-    eval "require $dep";
-    if ($@) {
-        push @_missing_deps, $dep;
-    }
+  eval "require $dep";
+  if ($@) {
+    push @_missing_deps, $dep;
+  }
 }
 
 if (@_missing_deps > 0) {
-    die "The following dependecies are missing " . join ",", @_missing_deps;
+  die "The following dependecies are missing " . join ",", @_missing_deps;
 }
 
 

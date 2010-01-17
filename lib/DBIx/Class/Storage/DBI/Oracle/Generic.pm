@@ -209,11 +209,15 @@ sub connect_call_datetime_setup {
   my $timestamp_tz_format = $ENV{NLS_TIMESTAMP_TZ_FORMAT} ||=
     'YYYY-MM-DD HH24:MI:SS.FF TZHTZM';
 
-  $self->_do_query("alter session set nls_date_format = '$date_format'");
   $self->_do_query(
-"alter session set nls_timestamp_format = '$timestamp_format'");
+    "alter session set nls_date_format = '$date_format'"
+  );
   $self->_do_query(
-"alter session set nls_timestamp_tz_format='$timestamp_tz_format'");
+    "alter session set nls_timestamp_format = '$timestamp_format'"
+  );
+  $self->_do_query(
+    "alter session set nls_timestamp_tz_format='$timestamp_tz_format'"
+  );
 }
 
 =head2 source_bind_attributes
@@ -235,35 +239,35 @@ table with more than one LOB column.
 
 sub source_bind_attributes
 {
-	require DBD::Oracle;
-	my $self = shift;
-	my($source) = @_;
+  require DBD::Oracle;
+  my $self = shift;
+  my($source) = @_;
 
-	my %bind_attributes;
+  my %bind_attributes;
 
-	foreach my $column ($source->columns) {
-		my $data_type = $source->column_info($column)->{data_type} || '';
-		next unless $data_type;
+  foreach my $column ($source->columns) {
+    my $data_type = $source->column_info($column)->{data_type} || '';
+    next unless $data_type;
 
-		my %column_bind_attrs = $self->bind_attribute_by_data_type($data_type);
+    my %column_bind_attrs = $self->bind_attribute_by_data_type($data_type);
 
-		if ($data_type =~ /^[BC]LOB$/i) {
-			$column_bind_attrs{'ora_type'} = uc($data_type) eq 'CLOB' ?
-				DBD::Oracle::ORA_CLOB() :
-				DBD::Oracle::ORA_BLOB();
-			$column_bind_attrs{'ora_field'} = $column;
-		}
+    if ($data_type =~ /^[BC]LOB$/i) {
+      $column_bind_attrs{'ora_type'} = uc($data_type) eq 'CLOB'
+        ? DBD::Oracle::ORA_CLOB()
+        : DBD::Oracle::ORA_BLOB()
+      ;
+      $column_bind_attrs{'ora_field'} = $column;
+    }
 
-		$bind_attributes{$column} = \%column_bind_attrs;
-	}
+    $bind_attributes{$column} = \%column_bind_attrs;
+  }
 
-	return \%bind_attributes;
+  return \%bind_attributes;
 }
 
 sub _svp_begin {
-    my ($self, $name) = @_;
-
-    $self->_get_dbh->do("SAVEPOINT $name");
+  my ($self, $name) = @_;
+  $self->_get_dbh->do("SAVEPOINT $name");
 }
 
 # Oracle automatically releases a savepoint when you start another one with the
@@ -271,9 +275,8 @@ sub _svp_begin {
 sub _svp_release { 1 }
 
 sub _svp_rollback {
-    my ($self, $name) = @_;
-
-    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+  my ($self, $name) = @_;
+  $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 =head2 relname_to_table_alias

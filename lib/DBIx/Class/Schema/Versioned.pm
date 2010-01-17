@@ -268,7 +268,7 @@ and the schema_version which is retrieved via $self->schema_version
 =cut
 
 sub create_upgrade_path {
-	## override this method
+  ## override this method
 }
 
 =head2 upgrade

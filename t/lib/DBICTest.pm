@@ -32,7 +32,7 @@ DBIx::Class.
     no_populate=>1,
     storage_type=>'::DBI::Replicated',
     storage_type_args=>{
-    	balancer_type=>'DBIx::Class::Storage::DBI::Replicated::Balancer::Random'
+      balancer_type=>'DBIx::Class::Storage::DBI::Replicated::Balancer::Random'
     },
   );
 
@@ -48,7 +48,7 @@ default, unless the no_deploy or no_populate flags are set.
 =cut
 
 sub has_custom_dsn {
-	return $ENV{"DBICTEST_DSN"} ? 1:0;
+    return $ENV{"DBICTEST_DSN"} ? 1:0;
 }
 
 sub _sqlite_dbfilename {
@@ -59,7 +59,7 @@ sub _sqlite_dbname {
     my $self = shift;
     my %args = @_;
     return $self->_sqlite_dbfilename if $args{sqlite_use_file} or $ENV{"DBICTEST_SQLITE_USE_FILE"};
-	return ":memory:";
+    return ":memory:";
 }
 
 sub _database {
@@ -85,7 +85,7 @@ sub init_schema {
     my %args = @_;
 
     my $schema;
-    
+
     if ($args{compose_connection}) {
       $schema = DBICTest::Schema->compose_connection(
                   'DBICTest', $self->_database(%args)
@@ -94,8 +94,8 @@ sub init_schema {
       $schema = DBICTest::Schema->compose_namespace('DBICTest');
     }
     if( $args{storage_type}) {
-    	$schema->storage_type($args{storage_type});
-    }    
+      $schema->storage_type($args{storage_type});
+    }
     if ( !$args{no_connect} ) {
       $schema = $schema->connect($self->_database(%args));
       $schema->storage->on_connect_do(['PRAGMA synchronous = OFF'])
