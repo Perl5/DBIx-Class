@@ -23,30 +23,22 @@ use Test::Exception;
 use Test::Deep;
 
 BEGIN {
-
-    use FindBin qw($Bin);
-    use File::Spec::Functions qw(catdir);
-    use lib catdir($Bin,'..', '..','lib');
-    use lib catdir($Bin,'..', 'lib');
     eval "use DBIx::Class::Admin";
     plan skip_all => "Deps not installed: $@" if $@;
 }
 
-use Path::Class;
+use lib 't/lib';
+use DBICTest;
 
 use ok 'DBIx::Class::Admin';
 
-use DBICTest;
 
 { # test data maniplulation functions
 
   # create a DBICTest so we can steal its connect info
   my $schema = DBICTest->init_schema(
-  #    no_deploy=>1,
-  #  no_populate=>1,
     sqlite_use_file => 1,
-    );
-
+  );
 
   my $admin = DBIx::Class::Admin->new(
     schema_class=> "DBICTest::Schema",
