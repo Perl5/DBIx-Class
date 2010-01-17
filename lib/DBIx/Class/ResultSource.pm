@@ -1261,7 +1261,7 @@ sub _resolve_join {
                   ? 'left'
                   : $rel_info->{attrs}{join_type}
                 ,
-               -join_path => [@$jpath, $join],
+               -join_path => [@$jpath, $as],
                -is_single => (List::Util::first { $rel_info->{attrs}{accessor} eq $_ } (qw/single filter/) ),
                -alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
