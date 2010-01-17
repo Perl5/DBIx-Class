@@ -1,19 +1,3 @@
-#
-#===============================================================================
-#
-#         FILE:  01load.t
-#
-#  DESCRIPTION:  
-#
-#        FILES:  ---
-#         BUGS:  ---
-#        NOTES:  ---
-#       AUTHOR:  Gordon Irving (), <goraxe@cpan.org>
-#      VERSION:  1.0
-#      CREATED:  28/11/09 13:54:30 GMT
-#     REVISION:  ---
-#===============================================================================
-
 use strict;
 use warnings;
 

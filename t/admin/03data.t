@@ -1,19 +1,3 @@
-#
-#===============================================================================
-#
-#         FILE:  03sql.t
-#
-#  DESCRIPTION:  test sql manipulation funtions
-#
-#        FILES:  ---
-#         BUGS:  ---
-#        NOTES:  ---
-#       AUTHOR:  Gordon Irving (), <goraxe@cpan.org>
-#      VERSION:  1.0
-#      CREATED:  12/12/09 12:44:57 GMT
-#     REVISION:  ---
-#===============================================================================
-
 use strict;
 use warnings;
 

@@ -1,19 +1,3 @@
-#
-#===============================================================================
-#
-#         FILE:  Admin.pm
-#
-#  DESCRIPTION:  Administrative functions for DBIx::Class Schemata
-#
-#        FILES:  ---
-#         BUGS:  ---
-#        NOTES:  ---
-#       AUTHOR:  Gordon Irving (), <Gordon.irving@sophos.com>
-#      VERSION:  1.0
-#      CREATED:  28/11/09 12:27:15 GMT
-#     REVISION:  ---
-#===============================================================================
-
 package DBIx::Class::Admin;
 
 use Moose;
