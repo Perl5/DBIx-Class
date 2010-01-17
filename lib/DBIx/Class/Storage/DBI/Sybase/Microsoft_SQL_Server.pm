@@ -13,7 +13,11 @@ sub _rebless {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
 
+  return if ref $self ne __PACKAGE__;
+
   if (not $self->_typeless_placeholders_supported) {
+    require
+      DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars;
     bless $self,
       'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
     $self->_rebless;

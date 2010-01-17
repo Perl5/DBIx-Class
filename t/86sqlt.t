@@ -14,6 +14,36 @@ BEGIN {
 
 my $schema = DBICTest->init_schema (no_deploy => 1);
 
+
+# Check deployment statements ctx sensitivity
+{
+  my $not_first_table_creation_re = qr/CREATE TABLE fourkeys_to_twokeys/;
+
+
+  my $statements = $schema->deployment_statements;
+  like (
+    $statements,
+    $not_first_table_creation_re,
+    'All create statements returned in 1 string in scalar ctx'
+  );
+
+  my @statements = $schema->deployment_statements;
+  cmp_ok (scalar @statements, '>', 1, 'Multiple statement lines in array ctx');
+
+  my $i = 0;
+  while ($i <= $#statements) {
+    last if $statements[$i] =~ $not_first_table_creation_re;
+    $i++;
+  }
+
+  ok (
+    ($i > 0) && ($i <= $#statements),
+    "Creation statement was found somewherere within array ($i)"
+  );
+}
+
+
+
 # replace the sqlt calback with a custom version ading an index
 $schema->source('Track')->sqlt_deploy_callback(sub {
   my ($self, $sqlt_table) = @_;

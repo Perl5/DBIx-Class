@@ -1,7 +1,6 @@
 package DBIx::Class::Storage::DBI::Replicated::Pool;
 
 use Moose;
-use MooseX::AttributeHelpers;
 use DBIx::Class::Storage::DBI::Replicated::Replicant;
 use List::Util 'sum';
 use Scalar::Util 'reftype';
@@ -125,26 +124,31 @@ removes the replicant under $key from the pool
 
 has 'replicants' => (
   is=>'rw',
-  metaclass => 'Collection::Hash',
+  traits => ['Hash'],
   isa=>HashRef['Object'],
   default=>sub {{}},
-  provides  => {
-    'set' => 'set_replicant',
-    'get' => 'get_replicant',
-    'empty' => 'has_replicants',
-    'count' => 'num_replicants',
-    'delete' => 'delete_replicant',
-    'values' => 'all_replicant_storages',
+  handles  => {
+    'set_replicant' => 'set',
+    'get_replicant' => 'get',
+    'has_replicants' => 'is_empty',
+    'num_replicants' => 'count',
+    'delete_replicant' => 'delete',
+    'all_replicant_storages' => 'values',
   },
 );
 
+around has_replicants => sub {
+    my ($orig, $self) = @_;
+    return !$self->$orig;
+};
+
 has next_unknown_replicant_id => (
   is => 'rw',
-  metaclass => 'Counter',
+  traits => ['Counter'],
   isa => Int,
   default => 1,
-  provides => {
-    inc => 'inc_unknown_replicant_id'
+  handles => {
+    'inc_unknown_replicant_id' => 'inc',
   },
 );
 

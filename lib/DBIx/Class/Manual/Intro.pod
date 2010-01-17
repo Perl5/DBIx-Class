@@ -105,13 +105,14 @@ required resultset classes.
 Next, create each of the classes you want to load as specified above:
 
   package My::Schema::Result::Album;
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-Load any components required by each class with the load_components() method.
-This should consist of "Core" plus any additional components you want to use.
-For example, if you want to force columns to use UTF-8 encoding:
+Load any additional components you may need with the load_components() method,
+and provide component configuration if required. For example, if you want
+automatic row ordering:
 
-  __PACKAGE__->load_components(qw/ ForceUTF8 Core /);
+  __PACKAGE__->load_components(qw/ Ordered /);
+  __PACKAGE__->position_column('rank');
 
 Set the table for your class:
 
@@ -119,7 +120,7 @@ Set the table for your class:
 
 Add columns to your class:
 
-  __PACKAGE__->add_columns(qw/ albumid artist title /);
+  __PACKAGE__->add_columns(qw/ albumid artist title rank /);
 
 Each column can also be set up with its own accessor, data_type and other pieces
 of information that it may be useful to have -- just pass C<add_columns> a hash:
@@ -145,13 +146,20 @@ of information that it may be useful to have -- just pass C<add_columns> a hash:
                               is_nullable => 0,
                               is_auto_increment => 0,
                               default_value => '',
+                            },
+                          rank =>
+                            { data_type => 'integer',
+                              size      => 16,
+                              is_nullable => 0,
+                              is_auto_increment => 0,
+                              default_value => '',
                             }
                          );
 
 DBIx::Class doesn't directly use most of this data yet, but various related
 modules such as L<DBIx::Class::WebForm> make use of it. Also it allows you to
 create your database tables from your Schema, instead of the other way around.
-See L<SQL::Translator> for details.
+See L<DBIx::Class::Schema/deploy> for details.
 
 See L<DBIx::Class::ResultSource> for more details of the possible column
 attributes.

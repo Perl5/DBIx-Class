@@ -268,7 +268,7 @@ is_same_sql_bind (
   '(
     SELECT artist_undirected_maps.id1, artist_undirected_maps.id2
       FROM artist me
-      LEFT JOIN artist_undirected_map artist_undirected_maps
+      JOIN artist_undirected_map artist_undirected_maps
         ON artist_undirected_maps.id1 = me.artistid OR artist_undirected_maps.id2 = me.artistid
     WHERE ( artistid = ? )
   )',

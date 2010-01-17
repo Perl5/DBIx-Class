@@ -1,10 +1,9 @@
 package DBICVersion::Table;
 
-use base 'DBIx::Class';
+use base 'DBIx::Class::Core';
 use strict;
 use warnings;
 
-__PACKAGE__->load_components(qw/ Core/);
 __PACKAGE__->table('TestVersion');
 
 __PACKAGE__->add_columns

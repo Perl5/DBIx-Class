@@ -8,7 +8,7 @@ use Config;
 
 BEGIN {
     plan skip_all => 'Your perl does not support ithreads'
-        if !$Config{useithreads} || $] < 5.008;
+        if !$Config{useithreads};
 }
 
 use threads;

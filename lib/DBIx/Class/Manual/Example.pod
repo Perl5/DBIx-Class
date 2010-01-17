@@ -89,8 +89,7 @@ MyDatabase/Main.pm:
 MyDatabase/Main/Result/Artist.pm:
 
   package MyDatabase::Main::Result::Artist;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
+  use base qw/DBIx::Class::Core/;
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
@@ -102,8 +101,8 @@ MyDatabase/Main/Result/Artist.pm:
 MyDatabase/Main/Result/Cd.pm:
 
   package MyDatabase::Main::Result::Cd;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
+  use base qw/DBIx::Class::Core/;
+  __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
   __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/ cdid artist title/);
   __PACKAGE__->set_primary_key('cdid');
@@ -116,10 +115,9 @@ MyDatabase/Main/Result/Cd.pm:
 MyDatabase/Main/Result/Track.pm:
 
   package MyDatabase::Main::Result::Track;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
+  use base qw/DBIx::Class::Core/;
   __PACKAGE__->table('track');
-  __PACKAGE__->add_columns(qw/ trackid cd title/);
+  __PACKAGE__->add_columns(qw/ trackid cd title /);
   __PACKAGE__->set_primary_key('trackid');
   __PACKAGE__->belongs_to('cd' => 'MyDatabase::Main::Result::Cd');
 

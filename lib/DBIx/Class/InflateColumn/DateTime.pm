@@ -15,14 +15,13 @@ Load this component and then declare one or more
 columns to be of the datetime, timestamp or date datatype.
 
   package Event;
-  __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
+  use base 'DBIx::Class::Core';
+
+  __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'datetime' }
     create_date => { data_type => 'date' }
   );
-
-NOTE: You B<must> load C<InflateColumn::DateTime> B<before> C<Core>. See
-L<DBIx::Class::Manual::Component> for details.
 
 Then you can treat the specified column as a L<DateTime> object.
 

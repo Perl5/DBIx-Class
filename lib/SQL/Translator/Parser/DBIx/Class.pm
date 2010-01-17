@@ -15,6 +15,7 @@ $DEBUG = 0 unless defined $DEBUG;
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use Carp::Clan qw/^SQL::Translator|^DBIx::Class/;
+use Scalar::Util ();
 
 use base qw(Exporter);
 
@@ -30,6 +31,10 @@ use base qw(Exporter);
 # We're working with DBIx::Class Schemas, not data streams.
 # -------------------------------------------------------------------
 sub parse {
+    # this is a hack to prevent schema leaks due to a retarded SQLT implementation
+    # DO NOT REMOVE (until SQLT2 is out, the all of this will be rewritten anyway)
+    Scalar::Util::weaken ($_[1]);
+
     my ($tr, $data)   = @_;
     my $args          = $tr->parser_args;
     my $dbicschema    = $args->{'DBIx::Class::Schema'} ||  $args->{"DBIx::Schema"} ||$data;
@@ -65,19 +70,19 @@ sub parse {
     }
 
 
-    my(@table_monikers, @view_monikers);
+    my(%table_monikers, %view_monikers);
     for my $moniker (@monikers){
       my $source = $dbicschema->source($moniker);
        if ( $source->isa('DBIx::Class::ResultSource::Table') ) {
-         push(@table_monikers, $moniker);
+         $table_monikers{$moniker}++;
       } elsif( $source->isa('DBIx::Class::ResultSource::View') ){
           next if $source->is_virtual;
-         push(@view_monikers, $moniker);
+         $view_monikers{$moniker}++;
       }
     }
 
     my %tables;
-    foreach my $moniker (sort @table_monikers)
+    foreach my $moniker (sort keys %table_monikers)
     {
         my $source = $dbicschema->source($moniker);
         my $table_name = $source->name;
@@ -112,9 +117,11 @@ sub parse {
             my $f = $table->add_field(%colinfo)
               || $dbicschema->throw_exception ($table->error);
         }
-        $table->primary_key($source->primary_columns);
 
         my @primary = $source->primary_columns;
+
+        $table->primary_key(@primary) if @primary;
+
         my %unique_constraints = $source->unique_constraints;
         foreach my $uniq (sort keys %unique_constraints) {
             if (!$source->_compare_relationship_keys($unique_constraints{$uniq}, \@primary)) {
@@ -131,18 +138,22 @@ sub parse {
         my %created_FK_rels;
 
         # global add_fk_index set in parser_args
-        my $add_fk_index = (exists $args->{add_fk_index} && ($args->{add_fk_index} == 0)) ? 0 : 1;
+        my $add_fk_index = (exists $args->{add_fk_index} && ! $args->{add_fk_index}) ? 0 : 1;
 
         foreach my $rel (sort @rels)
         {
+
             my $rel_info = $source->relationship_info($rel);
 
             # Ignore any rel cond that isn't a straight hash
             next unless ref $rel_info->{cond} eq 'HASH';
 
-            my $othertable = $source->related_source($rel);
-            next if $othertable->isa('DBIx::Class::ResultSource::View');  # can't define constraints referencing a view
-            my $rel_table = $othertable->name;
+            my $relsource = $source->related_source($rel);
+
+            # related sources might be excluded via a {sources} filter or might be views
+            next unless exists $table_monikers{$relsource->source_name};
+
+            my $rel_table = $relsource->name;
 
             # FIXME - this isn't the right way to do it, but sqlt does not
             # support quoting properly to be signaled about this
@@ -153,7 +164,7 @@ sub parse {
 
             # Force the order of @cond to match the order of ->add_columns
             my $idx;
-            my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $othertable->columns;            
+            my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $relsource->columns;
             my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}}); 
 
             # Get the key information, mapping off the foreign/self markers
@@ -210,11 +221,12 @@ sub parse {
 
                   my $is_deferrable = $rel_info->{attrs}{is_deferrable};
 
-                  # do not consider deferrable constraints and self-references
-                  # for dependency calculations
+                  # calculate dependencies: do not consider deferrable constraints and
+                  # self-references for dependency calculations
                   if (! $is_deferrable and $rel_table ne $table_name) {
                     $tables{$table_name}{foreign_table_deps}{$rel_table}++;
                   }
+
                   $table->add_constraint(
                                     type             => 'foreign_key',
                                     name             => join('_', $table_name, 'fk', @keys),
@@ -274,7 +286,7 @@ EOW
     }
 
     my %views;
-    foreach my $moniker (sort @view_monikers)
+    foreach my $moniker (sort keys %view_monikers)
     {
         my $source = $dbicschema->source($moniker);
         my $view_name = $source->name;
@@ -288,6 +300,9 @@ EOW
 
         # Its possible to have multiple DBIC source using same table
         next if $views{$view_name}++;
+
+        $dbicschema->throw_exception ("view $view_name is missing a view_definition")
+            unless $source->view_definition;
 
         my $view = $schema->add_view (
           name => $view_name,
@@ -364,7 +379,14 @@ from a DBIx::Class::Schema instance
  my $schema = MyApp::Schema->connect;
  my $trans  = SQL::Translator->new (
       parser      => 'SQL::Translator::Parser::DBIx::Class',
-      parser_args => { package => $schema },
+      parser_args => {
+          package => $schema,
+          # to explicitly specify which ResultSources are to be parsed
+          sources => [qw/
+            Artist
+            CD
+          /],
+      },
       producer    => 'SQLite',
      ) or die SQL::Translator->error;
  my $out = $trans->translate() or die $trans->error;

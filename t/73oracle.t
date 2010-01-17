@@ -40,8 +40,6 @@ plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. 
   ' as well as following sequences: \'pkid1_seq\', \'pkid2_seq\' and \'nonpkid_seq\''
   unless ($dsn && $user && $pass);
 
-plan tests => 36;
-
 DBICTest::Schema->load_classes('ArtistFQN');
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -65,7 +63,7 @@ $dbh->do("CREATE SEQUENCE pkid2_seq START WITH 10 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE nonpkid_seq START WITH 20 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE TABLE artist (artistid NUMBER(12), name VARCHAR(255), rank NUMBER(38), charfield VARCHAR2(10))");
 $dbh->do("CREATE TABLE sequence_test (pkid1 NUMBER(12), pkid2 NUMBER(12), nonpkid NUMBER(12), name VARCHAR(255))");
-$dbh->do("CREATE TABLE cd (cdid NUMBER(12), artist NUMBER(12), title VARCHAR(255), year VARCHAR(4))");
+$dbh->do("CREATE TABLE cd (cdid NUMBER(12), artist NUMBER(12), title VARCHAR(255), year VARCHAR(4), genreid NUMBER(12), single_track NUMBER(12))");
 $dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255), last_updated_on DATE, last_updated_at DATE, small_dt DATE)");
 
 $dbh->do("ALTER TABLE artist ADD (CONSTRAINT artist_pk PRIMARY KEY (artistid))");
@@ -124,11 +122,38 @@ my $new = $schema->resultset('Artist')->create({ name => 'foo' });
 is($new->artistid, 1, "Oracle Auto-PK worked");
 
 my $cd = $schema->resultset('CD')->create({ artist => 1, title => 'EP C', year => '2003' });
-is($new->artistid, 1, "Oracle Auto-PK worked - using scalar ref as table name");
+is($cd->cdid, 1, "Oracle Auto-PK worked - using scalar ref as table name");
 
 # test again with fully-qualified table name
 $new = $schema->resultset('ArtistFQN')->create( { name => 'bar' } );
 is( $new->artistid, 2, "Oracle Auto-PK worked with fully-qualified tablename" );
+
+# test rel names over the 30 char limit
+my $query = $schema->resultset('Artist')->search({
+  artistid => 1 
+}, {
+  prefetch => 'cds_very_very_very_long_relationship_name'
+});
+
+lives_and {
+  is $query->first->cds_very_very_very_long_relationship_name->first->cdid, 1
+} 'query with rel name over 30 chars survived and worked';
+
+# rel name over 30 char limit with user condition
+# This requires walking the SQLA data structure.
+{
+  local $TODO = 'user condition on rel longer than 30 chars';
+
+  $query = $schema->resultset('Artist')->search({
+    'cds_very_very_very_long_relationship_name.title' => 'EP C'
+  }, {
+    prefetch => 'cds_very_very_very_long_relationship_name'
+  });
+
+  lives_and {
+    is $query->first->cds_very_very_very_long_relationship_name->first->cdid, 1
+  } 'query with rel name over 30 chars and user condition survived and worked';
+}
 
 # test join with row count ambiguity
 
@@ -227,6 +252,8 @@ SKIP: {
 		}
 	}
 }
+
+done_testing;
 
 # clean up our mess
 END {
