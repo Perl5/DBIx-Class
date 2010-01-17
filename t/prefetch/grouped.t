@@ -148,7 +148,6 @@ for ($cd_rs->all) {
         FROM (
           SELECT me.cdid
             FROM cd me
-            LEFT JOIN track tracks ON tracks.cd = me.cdid
           WHERE ( me.cdid IS NOT NULL )
           GROUP BY me.cdid
           LIMIT 2

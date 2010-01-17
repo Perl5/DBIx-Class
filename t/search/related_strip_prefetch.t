@@ -25,12 +25,11 @@ is_same_sql_bind (
         SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
           FROM cd me
           JOIN artist artist ON artist.artistid = me.artist
-          LEFT JOIN track tracks ON tracks.cd = me.cdid
+          LEFT JOIN track tracks ON tracks.cd = me.cdid 
         WHERE ( tracks.id != ? )
         LIMIT 2
       ) me
       JOIN artist artist ON artist.artistid = me.artist
-      LEFT JOIN track tracks ON tracks.cd = me.cdid
       JOIN tags tags ON tags.cd = me.cdid
     WHERE ( tags.tag IS NOT NULL )
     GROUP BY tags.tagid, tags.cd, tags.tag

@@ -17,24 +17,30 @@ use Carp::Clan qw/^DBIx::Class/;
 
 #
 # This code will remove non-selecting/non-restricting joins from
-# {from} specs, aiding the RDBMS query optimizer.
+# {from} specs, aiding the RDBMS query optimizer
 #
 sub _prune_unused_joins {
-  my $self = shift;
+  my ($self) = shift;
 
-  my $from = shift;
+  my ($from, $select, $where, $attrs) = @_;
+
   if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY') {
     return $from;   # only standard {from} specs are supported
   }
 
-  my $aliastypes = $self->_resolve_aliastypes_from_select_args($from, @_);
+  my $aliastypes = $self->_resolve_aliastypes_from_select_args(@_);
+
+  # a grouped set will not be affected by amount of rows. Thus any
+  # {multiplying} joins can go
+  delete $aliastypes->{multiplying} if $attrs->{group_by};
+
 
   my @newfrom = $from->[0]; # FROM head is always present
 
   my %need_joins = (map { %{$_||{}} } (values %$aliastypes) );
   for my $j (@{$from}[1..$#$from]) {
     push @newfrom, $j if (
-      ! $j->[0]{-alias} # legacy crap
+      (! $j->[0]{-alias}) # legacy crap
         ||
       $need_joins{$j->[0]{-alias}}
     );
