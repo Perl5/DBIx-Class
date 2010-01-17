@@ -1,11 +1,10 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl
 
 use strict;
 use warnings;
 
 use Getopt::Long::Descriptive;
 use DBIx::Class::Admin;
-
 
 my ($opts, $usage) = describe_options(
   "%c: %o",
@@ -40,7 +39,6 @@ my ($opts, $usage) = describe_options(
     ['where:s' => 'JSON string to be used for the where clause of search'],
     ['force' => 'Be forceful with some operations'],
     ['trace' => 'Turn on DBIx::Class trace output'],
-    ['tlibs' => 'Include test dirs in @INC'],
     ['quiet' => 'Be less verbose'],
   )
 );
@@ -49,10 +47,6 @@ my ($opts, $usage) = describe_options(
 if ($opts->{help}) {
   print $usage->text;
   exit 0;
-}
-
-if ($opts->{tlibs}) {
-    unshift( @INC, 't/lib', 'lib' );
 }
 
 die "please only use one of --config or --connect-info" if ($opts->{config} and $opts->{connect_info});
@@ -99,7 +93,7 @@ if ($action eq 'select') {
 
 Aran Deltac <bluefeet@cpan.org>
 
-refactored by 
+refactored by
 Gordon Irving <goraxe@cpan.org>
 
 =head1 LICENSE
