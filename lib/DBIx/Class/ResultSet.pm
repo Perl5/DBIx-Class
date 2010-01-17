@@ -1253,16 +1253,15 @@ sub _count_subq_rs {
   # extra selectors do not go in the subquery and there is no point of ordering it
   delete $sub_attrs->{$_} for qw/collapse select _prefetch_select as order_by/;
 
-  # if we prefetch, we group_by primary keys only as this is what we would get out
-  # of the rs via ->next/->all. We DO WANT to clobber old group_by regardless
-  if ( keys %{$attrs->{collapse}} ) {
+  # if we multi-prefetch we group_by primary keys only as this is what we would
+  # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
+  if ( keys %{$attrs->{collapse}}  ) {
     $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->primary_columns) ]
   }
 
   $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
 
   # this is so that the query can be simplified e.g.
-  # * non-limiting joins can be pruned
   # * ordering can be thrown away in things like Top limit
   $sub_attrs->{-for_count_only} = 1;
 
@@ -2927,7 +2926,7 @@ sub _joinpath_aliases {
     my $jpath = $j->[0]{-join_path};
 
     my $p = $paths;
-    $p = $p->{$_} ||= {} for @{$jpath}[$cur_depth/2 .. $#$jpath]; #only even depths are actual jpath boundaries
+    $p = $p->{$_} ||= {} for @{$jpath}[ ($cur_depth/2) .. $#$jpath]; #only even depths are actual jpath boundaries
     push @{$p->{-join_aliases} }, $j->[0]{-alias};
   }
 

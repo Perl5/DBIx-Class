@@ -17,9 +17,7 @@ use Carp::Clan qw/^DBIx::Class/;
 
 #
 # This code will remove non-selecting/non-restricting joins from
-# {from} specs, aiding the RDBMS query optimizer. It will leave any
-# unused type-multi joins, if the amount of returned rows is
-# important (i.e. count without collapse)
+# {from} specs, aiding the RDBMS query optimizer.
 #
 sub _prune_unused_joins {
   my $self = shift;
@@ -29,13 +27,17 @@ sub _prune_unused_joins {
     return $from;   # only standard {from} specs are supported
   }
 
-  my $aliastypes = $self->_resolve_aliases_from_select_args($from, @_);
+  my $aliastypes = $self->_resolve_aliastypes_from_select_args($from, @_);
 
   my @newfrom = $from->[0]; # FROM head is always present
 
   my %need_joins = (map { %{$_||{}} } (values %$aliastypes) );
   for my $j (@{$from}[1..$#$from]) {
-    push @newfrom, $j if $need_joins{$j->[0]{-alias}};
+    push @newfrom, $j if (
+      ! $j->[0]{-alias} # legacy crap
+        ||
+      $need_joins{$j->[0]{-alias}}
+    );
   }
 
   return \@newfrom;
@@ -92,19 +94,13 @@ sub _adjust_select_args_for_complex_prefetch {
   # construct the inner $from for the subquery
   my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, $inner_attrs);
 
-  # if a multi-type join was needed in the subquery ("multi" is indicated by
-  # presence in {collapse}) - add a group_by to simulate the collapse in the subq
-  unless ($inner_attrs->{group_by}) {
-    for my $alias (map { $_->[0]{-alias} } (@{$inner_from}[1 .. $#$inner_from]) ) {
-
-      # the dot comes from some weirdness in collapse
-      # remove after the rewrite
-      if ($attrs->{collapse}{".$alias"}) {
-        $inner_attrs->{group_by} ||= $inner_select;
-        last;
-      }
-    }
-  }
+  # if a multi-type join was needed in the subquery - add a group_by to simulate the
+  # collapse in the subq
+  $inner_attrs->{group_by} ||= $inner_select
+    if List::Util::first
+      { ! $_->[0]{-is_single} }
+      (@{$inner_from}[1 .. $#$inner_from])
+  ;
 
   # generate the subquery
   my $subq = $self->_select_args_to_query (
@@ -153,7 +149,7 @@ sub _adjust_select_args_for_complex_prefetch {
   # scan the from spec against different attributes, and see which joins are needed
   # in what role
   my $outer_aliastypes =
-    $self->_resolve_aliases_from_select_args( $from, $outer_select, $where, $outer_attrs );
+    $self->_resolve_aliastypes_from_select_args( $from, $outer_select, $where, $outer_attrs );
 
   # see what's left - throw away if not selecting/restricting
   # also throw in a group_by if restricting to guard against
@@ -167,22 +163,7 @@ sub _adjust_select_args_for_complex_prefetch {
     }
     elsif ($outer_aliastypes->{restrict}{$alias}) {
       push @outer_from, $j;
-
-      # FIXME - this should be obviated by SQLA2, as I'll be able to 
-      # have restrict_inner and restrict_outer... or something to that
-      # effect... I think...
-
-      # FIXME2 - I can't find a clean way to determine if a particular join
-      # is a multi - instead I am just treating everything as a potential
-      # explosive join (ribasushi)
-      #
-      # if (my $handle = $j->[0]{-source_handle}) {
-      #   my $rsrc = $handle->resolve;
-      #   ... need to bail out of the following if this is not a multi,
-      #       as it will be much easier on the db ...
-
-          $outer_attrs->{group_by} ||= $outer_select;
-      # }
+      $outer_attrs->{group_by} ||= $outer_select unless $j->[0]{-is_single};
     }
   }
 
@@ -208,7 +189,7 @@ sub _adjust_select_args_for_complex_prefetch {
 # happen is for it to fail due to an unqualified column, which in
 # turn will result in a vocal exception. Qualifying the column will
 # invariably solve the problem.
-sub _resolve_aliases_from_select_args {
+sub _resolve_aliastypes_from_select_args {
   my ( $self, $from, $select, $where, $attrs ) = @_;
 
   $self->throw_exception ('Unable to analyze custom {from}')
@@ -219,10 +200,15 @@ sub _resolve_aliases_from_select_args {
 
   # see what aliases are there to work with
   my $alias_list;
-  my @from = @$from; # if I don't copy weird shit happens
-  for my $j (@from) {
+  for (@$from) {
+    my $j = $_;
     $j = $j->[0] if ref $j eq 'ARRAY';
-    $alias_list->{$j->{-alias}} = $j;
+    my $al = $j->{-alias}
+      or next;
+
+    $alias_list->{$al} = $j;
+    $aliases_by_type->{multiplying}{$al} = 1
+      unless $j->{-is_single};
   }
 
   # set up a botched SQLA

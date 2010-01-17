@@ -72,7 +72,7 @@ my $schema = DBICTest->init_schema();
 {
   my $rs = $schema->resultset("CD")
             ->search_related('tracks',
-                { position => [1,2] },
+                { position => [1,2], 'lyrics.lyric_id' => undef },
                 { prefetch => [qw/disc lyrics/] },
             );
   is ($rs->all, 10, 'Correct number of objects');
@@ -88,7 +88,7 @@ my $schema = DBICTest->init_schema();
         JOIN track tracks ON tracks.cd = me.cdid
         JOIN cd disc ON disc.cdid = tracks.cd
         LEFT JOIN lyrics lyrics ON lyrics.track_id = tracks.trackid
-      WHERE position = ? OR position = ?
+      WHERE lyrics.lyric_id IS NULL AND (position = ? OR position = ?)
     )',
     [ map { [ position => $_ ] } (1, 2) ],
   );
