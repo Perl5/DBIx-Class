@@ -17,28 +17,26 @@
 use strict;
 use warnings;
 
-use Test::More;                      # last test to print
-
+use Test::More;
 use Test::Exception;
+use Test::Warn;
 
 
 BEGIN {
-    use FindBin qw($Bin);
-    use File::Spec::Functions qw(catdir);
-    use lib catdir($Bin,'..', '..','lib');
-    use lib catdir($Bin,'..', 'lib');
-
     eval "use DBIx::Class::Admin";
     plan skip_all => "Deps not installed: $@" if $@;
 }
+
+
+use lib qw(t/lib);
+use DBICTest;
 
 use Path::Class;
 
 use ok 'DBIx::Class::Admin';
 
-use DBICTest;
 
-my $sql_dir = dir($Bin,"..","var");
+my $sql_dir = dir(qw/t var/);
 my @connect_info = DBICTest->_database(
   no_deploy=>1,
   no_populate=>1,
@@ -92,7 +90,7 @@ require DBICVersionNew;
 
 $admin = DBIx::Class::Admin->new(
   schema_class => 'DBICVersion::Schema', 
-  sql_dir =>  "t/var",
+  sql_dir =>  $sql_dir,
   connect_info => \@connect_info
 );
 
@@ -100,7 +98,10 @@ lives_ok { $admin->create($schema->storage->sqlt_type(), {}, "1.0" ); } 'Can cre
 # sleep required for upgrade table to hold a distinct time of upgrade value
 # otherwise the returned of get_db_version can be undeterministic
 sleep 1;
-lives_ok {$admin->upgrade();} 'upgrade the schema';
+{
+  local $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /DB version .+? is lower than the schema version/ };
+  lives_ok {$admin->upgrade();} 'upgrade the schema';
+}
 
 is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema and db versions match');
 
@@ -123,13 +124,15 @@ is($admin->schema->get_db_version, "3.0", 'db thinks its version 3.0');
 dies_ok { $admin->install("4.0"); } 'cannot install to allready existing version';
 sleep 1;
 $admin->force(1);
-lives_ok { $admin->install("4.0"); } 'can force install to allready existing version';
+warnings_exist ( sub {
+  lives_ok { $admin->install("4.0") } 'can force install to allready existing version'
+}, qr/Forcing install may not be a good idea/, 'Force warning emitted' );
 is($admin->schema->get_db_version, "4.0", 'db thinks its version 4.0');
 #clean_dir($sql_dir);
 }
 
 sub clean_dir {
-  my ($dir)  =@_;
+  my ($dir) = @_;
   $dir = $dir->resolve;
   if ( ! -d $dir ) {
     $dir->mkpath();

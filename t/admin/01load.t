@@ -17,15 +17,7 @@
 use strict;
 use warnings;
 
-use Test::More;                      # last test to print
-
-use FindBin qw($Bin);
-use Path::Class;
-
-
-use lib dir($Bin,'..', '..','lib')->stringify;
-use lib dir($Bin,'..', 'lib')->stringify;
-
+use Test::More;
 
 
 BEGIN {

@@ -250,7 +250,7 @@ has config => (
 
 sub _build_config {
   my ($self) = @_;
-  try { require 'Config::Any'; } catch { die "Config::Any is required to parse the config file"; };
+  try { require Config::Any } catch { die "Config::Any is required to parse the config file"; };
 
   my $cfg = Config::Any->load_files ( {files => [$self->config_file], use_ext =>1, flatten_to_hash=>1});
 
@@ -411,7 +411,7 @@ sub install {
     print "retun is $ret\n";
   }
   elsif ($schema->get_db_version() and $self->force ) {
-    warn "forcing install may not be a good idea";
+    warn "Forcing install may not be a good idea";
     if($self->_confirm() ) {
       # FIXME private api
       $self->schema->_set_db_version({ version => $version});
