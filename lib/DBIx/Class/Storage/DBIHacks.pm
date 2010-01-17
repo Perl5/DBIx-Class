@@ -16,6 +16,33 @@ use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 
 #
+# This code will remove non-selecting/non-restricting joins from
+# {from} specs, aiding the RDBMS query optimizer. It will leave any
+# unused type-multi joins, if the amount of returned rows is
+# important (i.e. count without collapse)
+#
+sub _prune_unused_joins {
+  my $self = shift;
+
+  my $from = shift;
+  if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY') {
+    return $from;   # only standard {from} specs are supported
+  }
+
+  my $aliastypes = $self->_resolve_aliases_from_select_args($from, @_);
+
+  my @newfrom = $from->[0]; # FROM head is always present
+
+  my %need_joins = (map { %{$_||{}} } (values %$aliastypes) );
+  for my $j (@{$from}[1..$#$from]) {
+    push @newfrom, $j if $need_joins{$j->[0]{-alias}};
+  }
+
+  return \@newfrom;
+}
+
+
+#
 # This is the code producing joined subqueries like:
 # SELECT me.*, other.* FROM ( SELECT me.* FROM ... ) JOIN other ON ... 
 #
@@ -46,7 +73,6 @@ sub _adjust_select_args_for_complex_prefetch {
     ];
   }
 
-
   # generate the inner/outer select lists
   # for inside we consider only stuff *not* brought in by the prefetch
   # on the outside we substitute any function for its alias
@@ -63,34 +89,13 @@ sub _adjust_select_args_for_complex_prefetch {
     push @$inner_select, $sel;
   }
 
-
-  # scan the from spec against different attributes, and see which joins are needed
-  # in what role
-  my $inner_aliastypes =
-    $self->_resolve_aliases_from_select_args( $from, $where, $inner_select, $inner_attrs );
-  my $outer_aliastypes =
-    $self->_resolve_aliases_from_select_args( $from, $where, $outer_select, $outer_attrs );
-
-
-
-  # normalize a copy of $from, so it will be easier to work with further
-  # down (i.e. promote the initial hashref to an AoH)
-  $from = [ @$from ];
-  $from->[0] = [ $from->[0] ];
-
-
   # construct the inner $from for the subquery
-  my %inner_joins = (map { %$_ } (values %$inner_aliastypes) );
-  my @inner_from;
-  for my $j (@$from) {
-    push @inner_from, $j if $inner_joins{$j->[0]{-alias}};
-  }
-
+  my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, $inner_attrs);
 
   # if a multi-type join was needed in the subquery ("multi" is indicated by
   # presence in {collapse}) - add a group_by to simulate the collapse in the subq
   unless ($inner_attrs->{group_by}) {
-    for my $alias (keys %inner_joins) {
+    for my $alias (map { $_->[0]{-alias} } (@{$inner_from}[1 .. $#$inner_from]) ) {
 
       # the dot comes from some weirdness in collapse
       # remove after the rewrite
@@ -101,12 +106,9 @@ sub _adjust_select_args_for_complex_prefetch {
     }
   }
 
-  # demote the inner_from head
-  $inner_from[0] = $inner_from[0][0];
-
   # generate the subquery
   my $subq = $self->_select_args_to_query (
-    \@inner_from,
+    $inner_from,
     $inner_select,
     $where,
     $inner_attrs,
@@ -114,7 +116,7 @@ sub _adjust_select_args_for_complex_prefetch {
 
   my $subq_joinspec = {
     -alias => $attrs->{alias},
-    -source_handle => $inner_from[0]{-source_handle},
+    -source_handle => $inner_from->[0]{-source_handle},
     $attrs->{alias} => $subq,
   };
 
@@ -127,6 +129,11 @@ sub _adjust_select_args_for_complex_prefetch {
   # - either the join is non-restricting, in which case we simply throw it away
   # - it is part of the restrictions, in which case we need to collapse the outer
   #   result by tackling yet another group_by to the outside of the query
+
+  # normalize a copy of $from, so it will be easier to work with further
+  # down (i.e. promote the initial hashref to an AoH)
+  $from = [ @$from ];
+  $from->[0] = [ $from->[0] ];
 
   # so first generate the outer_from, up to the substitution point
   my @outer_from;
@@ -142,6 +149,11 @@ sub _adjust_select_args_for_complex_prefetch {
       push @outer_from, $j;
     }
   }
+
+  # scan the from spec against different attributes, and see which joins are needed
+  # in what role
+  my $outer_aliastypes =
+    $self->_resolve_aliases_from_select_args( $from, $outer_select, $where, $outer_attrs );
 
   # see what's left - throw away if not selecting/restricting
   # also throw in a group_by if restricting to guard against
@@ -197,7 +209,7 @@ sub _adjust_select_args_for_complex_prefetch {
 # turn will result in a vocal exception. Qualifying the column will
 # invariably solve the problem.
 sub _resolve_aliases_from_select_args {
-  my ( $self, $from, $where, $select, $attrs ) = @_;
+  my ( $self, $from, $select, $where, $attrs ) = @_;
 
   $self->throw_exception ('Unable to analyze custom {from}')
     if ref $from ne 'ARRAY';
