@@ -40,9 +40,9 @@ use DBICTest;
 
 my $sql_dir = dir($Bin,"..","var");
 my @connect_info = DBICTest->_database(
-	no_deploy=>1,
-	no_populate=>1,
-	sqlite_use_file	=> 1,
+  no_deploy=>1,
+  no_populate=>1,
+  sqlite_use_file  => 1,
 );
 { # create the schema
 
@@ -51,9 +51,9 @@ clean_dir($sql_dir);
 
 
 my $admin = DBIx::Class::Admin->new(
-	schema_class=> "DBICTest::Schema",
-	sql_dir=> $sql_dir,
-	connect_info => \@connect_info, 
+  schema_class=> "DBICTest::Schema",
+  sql_dir=> $sql_dir,
+  connect_info => \@connect_info, 
 );
 isa_ok ($admin, 'DBIx::Class::Admin', 'create the admin object');
 lives_ok { $admin->create('MySQL'); } 'Can create MySQL sql';
@@ -63,18 +63,18 @@ lives_ok { $admin->create('SQLite'); } 'Can Create SQLite sql';
 { # upgrade schema
 
 #my $schema = DBICTest->init_schema(
-#	no_deploy		=> 1,
-#	no_populat		=> 1,
-#	sqlite_use_file	=> 1,
+#  no_deploy    => 1,
+#  no_populat    => 1,
+#  sqlite_use_file  => 1,
 #);
 
 clean_dir($sql_dir);
 require DBICVersionOrig;
 
 my $admin = DBIx::Class::Admin->new(
-	schema_class => 'DBICVersion::Schema', 
-	sql_dir =>  $sql_dir,
-	connect_info => \@connect_info,
+  schema_class => 'DBICVersion::Schema', 
+  sql_dir =>  $sql_dir,
+  connect_info => \@connect_info,
 );
 
 my $schema = $admin->schema();
@@ -91,9 +91,9 @@ is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema deployed and 
 require DBICVersionNew;
 
 $admin = DBIx::Class::Admin->new(
-	schema_class => 'DBICVersion::Schema', 
-	sql_dir =>  "t/var",
-	connect_info => \@connect_info
+  schema_class => 'DBICVersion::Schema', 
+  sql_dir =>  "t/var",
+  connect_info => \@connect_info
 );
 
 lives_ok { $admin->create($schema->storage->sqlt_type(), {}, "1.0" ); } 'Can create diff for ' . $schema->storage->sqlt_type;
@@ -111,10 +111,10 @@ is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema and db versio
 clean_dir($sql_dir);
 
 my $admin = DBIx::Class::Admin->new(
-	schema_class	=> 'DBICVersion::Schema', 
-	sql_dir			=> $sql_dir,
-	_confirm		=> 1,
-	connect_info	=> \@connect_info,
+  schema_class  => 'DBICVersion::Schema', 
+  sql_dir      => $sql_dir,
+  _confirm    => 1,
+  connect_info  => \@connect_info,
 );
 
 $admin->version("3.0");
@@ -129,16 +129,16 @@ is($admin->schema->get_db_version, "4.0", 'db thinks its version 4.0');
 }
 
 sub clean_dir {
-	my ($dir)  =@_;
-	$dir = $dir->resolve;
-	if ( ! -d $dir ) {
-		$dir->mkpath();
-	}
-	foreach my $file ($dir->children) {
-		# skip any hidden files
-		next if ($file =~ /^\./); 
-		unlink $file;
-	}
+  my ($dir)  =@_;
+  $dir = $dir->resolve;
+  if ( ! -d $dir ) {
+    $dir->mkpath();
+  }
+  foreach my $file ($dir->children) {
+    # skip any hidden files
+    next if ($file =~ /^\./); 
+    unlink $file;
+  }
 }
 
 done_testing;
