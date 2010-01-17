@@ -23,7 +23,10 @@ use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
 use Try::Tiny;
 
+use Carp::Clan qw/^DBIx::Class/;
+
 use parent 'Class::C3::Componentised';
+use parent 'DBIx::Class::Schema';
 
 use JSON::Any;
 
@@ -83,25 +86,6 @@ DBIx::Class::Admin - Administration object for schemas
   $admin->install("3.0");
 
 =head1 Attributes
-
-=head2 lib
-
-add a library search path
-
-=cut
-
-has lib => (
-  is    => 'ro',
-  isa    => Dir,
-  coerce  => 1,
-  trigger => \&_set_inc,
-);
-
-sub _set_inc {
-  my ($self, $lib) = @_;
-  push @INC, $lib->stringify;
-}
-
 
 =head2 schema_class
 
@@ -250,7 +234,7 @@ has config => (
 
 sub _build_config {
   my ($self) = @_;
-  try { require Config::Any } catch { die "Config::Any is required to parse the config file"; };
+  try { require Config::Any } catch { $self->throw_exception( "Config::Any is required to parse the config file"); };
 
   my $cfg = Config::Any->load_files ( {files => [$self->config_file], use_ext =>1, flatten_to_hash=>1});
 
@@ -376,7 +360,7 @@ sub upgrade {
   my $schema = $self->schema();
   if (!$schema->get_db_version()) {
     # schema is unversioned
-    die "could not determin current schema version, please either install or deploy";
+    $self->throw_exception ("could not determin current schema version, please either install or deploy");
   } else {
     my $ret = $schema->upgrade();
     return $ret;
@@ -411,14 +395,13 @@ sub install {
     print "retun is $ret\n";
   }
   elsif ($schema->get_db_version() and $self->force ) {
-    warn "Forcing install may not be a good idea";
+    carp "Forcing install may not be a good idea";
     if($self->_confirm() ) {
-      # FIXME private api
       $self->schema->_set_db_version({ version => $version});
     }
   }
   else {
-    die "schema already has a version not installing, try upgrade instead";
+    $self->throw_exception ("schema already has a version not installing, try upgrade instead");
   }
 
 }
@@ -443,17 +426,11 @@ sub deploy {
   if (!$schema->get_db_version() ) {
     # schema is unversioned
     $schema->deploy( $args, $self->sql_dir)
-      or die "could not deploy schema";
+      or $self->throw_exception ("could not deploy schema");
   } else {
-    die "there already is a database with a version here, try upgrade instead";
+    $self->throw_exception("there already is a database with a version here, try upgrade instead");
   }
 }
-
-
-# FIXME ensure option spec compatability
-#die('Do not use the where option with the insert op') if ($where);
-#die('Do not use the attrs option with the insert op') if ($attrs);
-
 
 =head2 insert
 
@@ -508,9 +485,6 @@ sub update {
     $resultset->update_all( $set );
   }
 }
-
-# FIXME
-#die('Do not use the set option with the delete op') if ($set);
 
 
 =head2 delete
@@ -599,7 +573,7 @@ sub _find_stanza {
       $cfg = $cfg->{$path};
     }
     else {
-      die "could not find $stanza in config, $path did not seem to exist";
+      $self->throw_exception("could not find $stanza in config, $path did not seem to exist");
     }
   }
   return $cfg;
