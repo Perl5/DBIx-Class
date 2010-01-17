@@ -17,8 +17,7 @@
 package DBIx::Class::Admin;
 
 use Moose;
-use MooseX::Types 
-  -declare => [qw( DBICConnectInfo )];
+use MooseX::Types -declare => [qw( DBICConnectInfo )];
 use MooseX::Types::Moose qw/Int HashRef ArrayRef Str Any/;
 use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
@@ -55,6 +54,7 @@ coerce DBICConnectInfo,
   from HashRef,
    via { [ $_->{dsn}, $_->{user}, $_->{password} ]  };
 
+
 =head1 NAME
 
 DBIx::Class::Admin - Administration object for schemas
@@ -87,7 +87,9 @@ DBIx::Class::Admin - Administration object for schemas
 =head2 lib
 
 add a library search path
+
 =cut
+
 has lib => (
   is    => 'ro',
   isa    => Dir,
@@ -100,20 +102,26 @@ sub _set_inc {
   push @INC, $lib->stringify;
 }
 
+
 =head2 schema_class
 
 the class of the schema to load
+
 =cut
+
 has 'schema_class' => (
   is    => 'ro',
   isa    => 'Str',
   coerce  => 1,
 );
 
+
 =head2 schema
 
 A pre-connected schema object can be provided for manipulation
+
 =cut
+
 has 'schema' => (
   is      => 'ro',
   isa      => 'DBIx::Class::Schema',
@@ -128,18 +136,23 @@ sub _build_schema {
   return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );
 }
 
+
 =head2 resultset
 
 a resultset from the schema to operate on
+
 =cut
+
 has 'resultset' => (
   is      => 'rw',
   isa      => Str,
 );
 
+
 =head2 where
 
 a hash ref or json string to be used for identifying data to manipulate
+
 =cut
 
 has 'where' => (
@@ -148,8 +161,11 @@ has 'where' => (
   coerce    => 1,
 );
 
+
 =head2 set
+
 a hash ref or json string to be used for inserting or updating data
+
 =cut
 
 has 'set' => (
@@ -158,19 +174,25 @@ has 'set' => (
   coerce    => 1,
 );
 
+
 =head2 attrs
+
 a hash ref or json string to be used for passing additonal info to the ->search call
+
 =cut
+
 has 'attrs' => (
   is       => 'rw',
   isa      => HashRef,
   coerce    => 1,
 );
+
+
 =head2 connect_info
 
 connect_info the arguments to provide to the connect call of the schema_class
-=cut
 
+=cut
 
 has 'connect_info' => (
   is      => 'ro',
@@ -184,33 +206,42 @@ sub _build_connect_info {
   return $self->_find_stanza($self->config, $self->config_stanza);
 }
 
+
 =head2 config_file
 
 config_file provide a config_file to read connect_info from, if this is provided
 config_stanze should also be provided to locate where the connect_info is in the config
 The config file should be in a format readable by Config::General
+
 =cut
+
 has config_file => (
   is      => 'ro',
   isa      => File,
   coerce    => 1,
 );
 
+
 =head2 config_stanza
 
 config_stanza for use with config_file should be a '::' deliminated 'path' to the connection information
 designed for use with catalyst config files
+
 =cut
+
 has 'config_stanza' => (
   is      => 'ro',
   isa      => 'Str',
 );
 
+
 =head2 config
 
 Instead of loading from a file the configuration can be provided directly as a hash ref.  Please note 
 config_stanza will still be required.
+
 =cut
+
 has config => (
   is      => 'ro',
   isa      => HashRef,
@@ -228,47 +259,62 @@ sub _build_config {
   return $cfg;
 }
 
+
 =head2 sql_dir
 
 The location where sql ddl files should be created or found for an upgrade.
+
 =cut
+
 has 'sql_dir' => (
   is      => 'ro',
   isa      => Dir,
   coerce    => 1,
 );
 
+
 =head2 version
 
 Used for install, the version which will be 'installed' in the schema
+
 =cut
+
 has version => (
   is      => 'rw',
   isa      => 'Str',
 );
 
+
 =head2 preversion
 
 Previouse version of the schema to create an upgrade diff for, the full sql for that version of the sql must be in the sql_dir
+
 =cut
+
 has preversion => (
   is      => 'rw',
   isa      => 'Str',
 );
 
+
 =head2 force
 
 Try and force certain operations.
+
 =cut
+
 has force => (
   is      => 'rw',
   isa      => 'Bool',
 );
 
+
 =head2 quiet
 
 Be less verbose about actions
+
 =cut
+
 has quiet => (
   is      => 'rw',
   isa      => 'Bool',
@@ -278,6 +324,7 @@ has '_confirm' => (
   is    => 'bare',
   isa    => 'Bool',
 );
+
 
 =head1 METHODS
 
@@ -295,6 +342,7 @@ generate can be controlled by suppling a sqlt_type which should be a L<SQL::Tran
 Arguments for L<SQL::Translator> can be supplied in the sqlt_args hashref.
 
 Optional preversion can be supplied to generate a diff to be used by upgrade.
+
 =cut
 
 sub create {
@@ -309,6 +357,7 @@ sub create {
   $schema->create_ddl_dir( $sqlt_type, (defined $schema->schema_version ? $schema->schema_version : ""), $self->sql_dir->stringify, $preversion, $sqlt_args );
 }
 
+
 =head2 upgrade
 
 =over 4
@@ -319,6 +368,7 @@ sub create {
 
 upgrade will attempt to upgrade the connected database to the same version as the schema_class.
 B<MAKE SURE YOU BACKUP YOUR DB FIRST>
+
 =cut
 
 sub upgrade {
@@ -333,6 +383,7 @@ sub upgrade {
   }
 }
 
+
 =head2 install
 
 =over 4
@@ -345,7 +396,9 @@ install is here to help when you want to move to L<DBIx::Class::Schema::Versione
 database.  install will take a version and add the version tracking tables and 'install' the version.  No 
 further ddl modification takes place.  Setting the force attribute to a true value will allow overriding of 
 already versioned databases.
+
 =cut
+
 sub install {
   my ($self, $version) = @_;
 
@@ -370,6 +423,7 @@ sub install {
 
 }
 
+
 =head2 deploy
 
 =over 4
@@ -379,8 +433,10 @@ sub install {
 =back
 
 deploy will create the schema at the connected database.  C<$args> are passed straight to 
-L<DBIx::Class::Schema/deploy>.  
+L<DBIx::Class::Schema/deploy>.
+
 =cut
+
 sub deploy {
   my ($self, $args) = @_;
   my $schema = $self->schema();
@@ -398,6 +454,7 @@ sub deploy {
 #die('Do not use the where option with the insert op') if ($where);
 #die('Do not use the attrs option with the insert op') if ($attrs);
 
+
 =head2 insert
 
 =over 4
@@ -410,6 +467,7 @@ insert takes the name of a resultset from the schema_class and a hashref of data
 into that resultset
 
 =cut
+
 sub insert {
   my ($self, $rs, $set) = @_;
 
@@ -423,15 +481,17 @@ sub insert {
 
 =head2 update
 
-=over 4 
+=over 4
 
 =item Arguments: $rs, $set, $where
 
 =back
 
-update takes the name of a resultset from the schema_class, a hashref of data to update and 
-a where hash used to form the search for the rows to update. 
+update takes the name of a resultset from the schema_class, a hashref of data to update and
+a where hash used to form the search for the rows to update.
+
 =cut
+
 sub update {
   my ($self, $rs, $set, $where) = @_;
 
@@ -451,6 +511,8 @@ sub update {
 
 # FIXME
 #die('Do not use the set option with the delete op') if ($set);
+
+
 =head2 delete
 
 =over 4
@@ -459,9 +521,11 @@ sub update {
 
 =back
 
-delete takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search. 
+delete takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search.
 The found data is deleted and cannot be recovered.
+
 =cut
+
 sub delete {
   my ($self, $rs, $where, $attrs) = @_;
 
@@ -479,6 +543,7 @@ sub delete {
   }
 }
 
+
 =head2 select
 
 =over 4
@@ -491,6 +556,7 @@ select takes the name of a resultset from the schema_class, a where hashref and 
 The found data is returned in a array ref where the first row will be the columns list.
 
 =cut
+
 sub select {
   my ($self, $rs, $where, $attrs) = @_;
 
@@ -563,16 +629,16 @@ if (@_missing_deps > 0) {
 
 
 }
-=head1 AUTHOR
 
-Gordon Irving <goraxe@cpan.org>
 
-with code taken from dbicadmin by 
-Aran Deltac <bluefeet@cpan.org>
+=head1 AUTHORS
 
+See L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+You may distribute this code under the same terms as Perl itself
+
 =cut
+
 1;
