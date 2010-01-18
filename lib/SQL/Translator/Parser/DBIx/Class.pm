@@ -421,7 +421,8 @@ L<DBIx::Class::Schema/create_ddl_dir>.
 =head2 add_fk_index
 
 Create an index for each foreign key.
-It defaults to enabled because this is a sensible default which accelerates most rdbms.
+Enabled by default, as having indexed foreign key columns is normally the
+sensible thing to do.
 
 =head2 sources
 
@@ -430,8 +431,8 @@ It defaults to enabled because this is a sensible default which accelerates most
 =item Arguments: @classes
 
 =back
-          
-To explicitly specify which ResultSources should be parsed.
+
+Limit the amount of parsed sources by supplying an explicit list of source names.
 
 =head1 SEE ALSO
 
