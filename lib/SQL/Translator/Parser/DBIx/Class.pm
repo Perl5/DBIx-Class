@@ -206,8 +206,7 @@ sub parse {
                 }
             }
 
-            if($rel_table)
-            {
+            if($rel_table) {
                 # Constraints are added only if applicable
                 next unless $fk_constraint;
                 
@@ -216,7 +215,6 @@ sub parse {
                 next if $created_FK_rels{$rel_table}->{$key_test};
                 
                 if (scalar(@keys)) {
-
                   $created_FK_rels{$rel_table}->{$key_test} = 1;
 
                   my $is_deferrable = $rel_info->{attrs}{is_deferrable};
@@ -228,14 +226,14 @@ sub parse {
                   }
 
                   $table->add_constraint(
-                                    type             => 'foreign_key',
-                                    name             => join('_', $table_name, 'fk', @keys),
-                                    fields           => \@keys,
-                                    reference_fields => \@refkeys,
-                                    reference_table  => $rel_table,
-                                    on_delete        => uc ($cascade->{delete} || ''),
-                                    on_update        => uc ($cascade->{update} || ''),
-                                    (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
+                    type             => 'foreign_key',
+                    name             => join('_', $table_name, 'fk', @keys),
+                    fields           => \@keys,
+                    reference_fields => \@refkeys,
+                    reference_table  => $rel_table,
+                    on_delete        => uc ($cascade->{delete} || ''),
+                    on_update        => uc ($cascade->{update} || ''),
+                    (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
                   );
 
                   # global parser_args add_fk_index param can be overridden on the rel def
@@ -391,7 +389,7 @@ from a DBIx::Class::Schema instance
       parser      => 'SQL::Translator::Parser::DBIx::Class',
       parser_args => {
           package => $schema,
-          # to explicitly specify which ResultSources are to be parsed
+          add_fk_index => 0,
           sources => [qw/
             Artist
             CD
@@ -418,6 +416,23 @@ other machines that need to have your application installed but don't
 have SQL::Translator installed. To do this see
 L<DBIx::Class::Schema/create_ddl_dir>.
 
+=head1 PARSER OPTIONS
+
+=head2 add_fk_index
+
+Create an index for each foreign key.
+It defaults to enabled because this is a sensible default which accelerates most rdbms.
+
+=head2 sources
+
+=over 4
+
+=item Arguments: @classes
+
+=back
+          
+To explicitly specify which ResultSources should be parsed.
+
 =head1 SEE ALSO
 
 L<SQL::Translator>, L<DBIx::Class::Schema>
@@ -429,3 +444,5 @@ Jess Robinson
 Matt S Trout
 
 Ash Berlin
+
+Alexander Hartmaier
