@@ -428,7 +428,7 @@ sensible thing to do.
 
 =over 4
 
-=item Arguments: @classes
+=item Arguments: \@class_names
 
 =back
 

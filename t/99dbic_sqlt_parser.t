@@ -35,6 +35,12 @@ my @sources = grep
   $schema->sources
 ;
 
+my $idx_exceptions = {
+    'Artwork'       => -1,
+    'ForceForeign'  => -1,
+    'LinerNotes'    => -1,
+};
+
 { 
   my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { } } });
 
@@ -42,6 +48,7 @@ my @sources = grep
     my $table = get_table($sqlt_schema, $schema, $source_name);
 
     my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
+    $fk_count += $idx_exceptions->{$source_name} || 0;
     my @indices = $table->get_indices;
 
     my $index_count = scalar(@indices);
@@ -60,14 +67,15 @@ my @sources = grep
 { 
   my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { add_fk_index => 1 } } });
 
-  foreach my $source (@sources) {
-    my $table = get_table($sqlt_schema, $schema, $source);
+  foreach my $source_name (@sources) {
+    my $table = get_table($sqlt_schema, $schema, $source_name);
 
     my $fk_count = scalar(grep { $_->type eq 'FOREIGN KEY' } $table->get_constraints);
+    $fk_count += $idx_exceptions->{$source_name} || 0;
     my @indices = $table->get_indices;
     my $index_count = scalar(@indices);
-    $index_count++ if ($source eq 'TwoKeys'); # TwoKeys has the index turned off on the rel def
-    is($index_count, $fk_count, "correct number of indices for $source with add_fk_index => 1");
+    $index_count++ if ($source_name eq 'TwoKeys'); # TwoKeys has the index turned off on the rel def
+    is($index_count, $fk_count, "correct number of indices for $source_name with add_fk_index => 1");
   }
 }
 
