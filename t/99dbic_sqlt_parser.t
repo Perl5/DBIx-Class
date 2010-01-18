@@ -50,8 +50,8 @@ my @sources = grep
     
     for my $index (@indices) {
         my $source = $schema->source($source_name);
-        my $pk_test = join("\x00", sort $source->primary_columns);
-        my $idx_test = join("\x00", sort $index->fields);
+        my $pk_test = join("\x00", $source->primary_columns);
+        my $idx_test = join("\x00", $index->fields);
         isnt ( $pk_test, $idx_test, "no additional index for the primary columns exists in $source_name");
     }
   }
