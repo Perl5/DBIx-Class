@@ -19,7 +19,6 @@ test_requires 'Test::More'          => '0.92';
 test_requires 'Test::Warn'          => '0.21';
 
 test_requires 'File::Temp'          => '0.22';
-test_requires 'Test::NoTabs'        => '0.9';
 
 
 # Core
@@ -67,6 +66,9 @@ my %force_requires_if_author = (
 
   # when changing also adjust version in t/02pod.t
   'Test::Pod'                 => '1.26',
+
+  # when changing also adjust version in t/06notabs.t
+  'Test::NoTabs'              => '0.9',
 
   # when changing also adjust version in t/03podcoverage.t
   'Test::Pod::Coverage'       => '1.08',
