@@ -39,6 +39,7 @@ my $idx_exceptions = {
     'Artwork'       => -1,
     'ForceForeign'  => -1,
     'LinerNotes'    => -1,
+    'TwoKeys'       => -1, # TwoKeys has the index turned off on the rel def
 };
 
 { 
@@ -52,7 +53,6 @@ my $idx_exceptions = {
     my @indices = $table->get_indices;
 
     my $index_count = scalar(@indices);
-    $index_count++ if ($source_name eq 'TwoKeys'); # TwoKeys has the index turned off on the rel def
     is($index_count, $fk_count, "correct number of indices for $source_name with no args");
     
     for my $index (@indices) {
@@ -74,7 +74,6 @@ my $idx_exceptions = {
     $fk_count += $idx_exceptions->{$source_name} || 0;
     my @indices = $table->get_indices;
     my $index_count = scalar(@indices);
-    $index_count++ if ($source_name eq 'TwoKeys'); # TwoKeys has the index turned off on the rel def
     is($index_count, $fk_count, "correct number of indices for $source_name with add_fk_index => 1");
   }
 }

@@ -440,10 +440,10 @@ L<SQL::Translator>, L<DBIx::Class::Schema>
 
 =head1 AUTHORS
 
-Jess Robinson
+See L<DBIx::Class/CONTRIBUTORS>.
 
-Matt S Trout
+=head1 LICENSE
 
-Ash Berlin
+You may distribute this code under the same terms as Perl itself.
 
-Alexander Hartmaier
+=cut
