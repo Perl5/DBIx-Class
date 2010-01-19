@@ -209,11 +209,11 @@ sub parse {
             if($rel_table) {
                 # Constraints are added only if applicable
                 next unless $fk_constraint;
-                
+
                 # Make sure we dont create the same foreign key constraint twice
                 my $key_test = join("\x00", sort @keys);
                 next if $created_FK_rels{$rel_table}->{$key_test};
-                
+
                 if (scalar(@keys)) {
                   $created_FK_rels{$rel_table}->{$key_test} = 1;
 
@@ -238,16 +238,14 @@ sub parse {
 
                   # global parser_args add_fk_index param can be overridden on the rel def
                   my $add_fk_index_rel = (exists $rel_info->{attrs}{add_fk_index}) ? $rel_info->{attrs}{add_fk_index} : $add_fk_index;
-                  # Make sure we don't create another index with the same
-                  # order of columns twice
 
-                  # WARNING: don't sort the key columns because the order of
+                  # Check that we do not create an index identical to the PK index
+                  # (some RDBMS croak on this, and it generally doesn't make much sense)
+                  # NOTE: we do not sort the key columns because the order of
                   # columns is important for indexes and two indexes with the
                   # same cols but different order are allowed and sometimes
                   # needed
-                  my $key_idx_test = join("\x00", @keys);
-                  my $pk_idx_test  = join("\x00", @primary);
-                  next if $key_idx_test eq $pk_idx_test;
+                  next if join("\x00", @keys) eq join("\x00", @primary);
 
                   if ($add_fk_index_rel) {
                       my $index = $table->add_index(

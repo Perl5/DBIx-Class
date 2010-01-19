@@ -42,7 +42,7 @@ my $idx_exceptions = {
     'TwoKeys'       => -1, # TwoKeys has the index turned off on the rel def
 };
 
-{ 
+{
   my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { } } });
 
   foreach my $source_name (@sources) {
@@ -54,7 +54,7 @@ my $idx_exceptions = {
 
     my $index_count = scalar(@indices);
     is($index_count, $fk_count, "correct number of indices for $source_name with no args");
-    
+
     for my $index (@indices) {
         my $source = $schema->source($source_name);
         my $pk_test = join("\x00", $source->primary_columns);
@@ -64,7 +64,7 @@ my $idx_exceptions = {
   }
 }
 
-{ 
+{
   my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { add_fk_index => 1 } } });
 
   foreach my $source_name (@sources) {
@@ -78,7 +78,7 @@ my $idx_exceptions = {
   }
 }
 
-{ 
+{
   my $sqlt_schema = create_schema({ schema => $schema, args => { parser_args => { add_fk_index => 0 } } });
 
   foreach my $source (@sources) {
@@ -90,7 +90,7 @@ my $idx_exceptions = {
   }
 }
 
-{ 
+{
     {
         package # hide from PAUSE
             DBICTest::Schema::NoViewDefinition;
