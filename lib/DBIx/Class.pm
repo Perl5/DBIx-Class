@@ -321,7 +321,7 @@ rbuels: Robert Buels <rmb32@cornell.edu>
 
 rdj: Ryan D Johnson <ryan@innerfence.com>
 
-ribasushi: Peter Rabbitson <rabbit+dbic@rabbit.us>
+ribasushi: Peter Rabbitson <ribasushi@cpan.org>
 
 rjbs: Ricardo Signes <rjbs@cpan.org>
 
