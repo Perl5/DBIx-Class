@@ -27,6 +27,9 @@ At this point the only overriden method is C<_subq_count_select()>
 
 sub _subq_count_select {
   my ($self, $source, $rs_attrs) = @_;
+
+  return $rs_attrs->{group_by} if $rs_attrs->{group_by};
+
   my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
   return @pcols ? \@pcols : [ 1 ];
 }

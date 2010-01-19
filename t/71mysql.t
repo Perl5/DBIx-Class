@@ -225,6 +225,23 @@ NULLINSEARCH: {
       => 'Nothing Found!';
 }
 
+# check for proper grouped counts
+{
+  my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, { on_connect_call => 'set_strict_mode' });
+  my $rs = $ansi_schema->resultset('CD');
+
+  my $years;
+  $years->{$_->year|| scalar keys %$years}++ for $rs->all;  # NULL != NULL, thus the keys eval
+
+  lives_ok ( sub {
+    is (
+      $rs->search ({}, { group_by => 'year'})->count,
+      scalar keys %$years,
+      'grouped count correct',
+    );
+  }, 'Grouped count does not throw');
+}
+
 ZEROINSEARCH: {
   my $cds_per_year = {
     2001 => 2,

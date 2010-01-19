@@ -27,7 +27,7 @@ is_same_sql(
       single_track_2.trackid, single_track_2.cd, single_track_2.position, single_track_2.title, single_track_2.last_updated_on, single_track_2.last_updated_at, single_track_2.small_dt,
       cd.cdid, cd.artist, cd.title, cd.year, cd.genreid, cd.single_track
     FROM artist me
-      LEFT JOIN cd cds ON cds.artist = me.artistid
+      JOIN cd cds ON cds.artist = me.artistid
       LEFT JOIN track single_track ON single_track.trackid = cds.single_track
       LEFT JOIN track single_track_2 ON single_track_2.trackid = cds.single_track
       LEFT JOIN cd cd ON cd.cdid = single_track_2.cd

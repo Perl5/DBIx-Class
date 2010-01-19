@@ -3,7 +3,10 @@
 use strict;
 use warnings;
 use Test::More;
-use File::Spec;
+use Test::Warn;
+use Test::Exception;
+
+use Path::Class;
 use File::Copy;
 
 #warn "$dsn $user $pass";
@@ -28,13 +31,13 @@ BEGIN {
 my $version_table_name = 'dbix_class_schema_versions';
 my $old_table_name = 'SchemaVersions';
 
-my $ddl_dir = File::Spec->catdir ('t', 'var');
+my $ddl_dir = dir ('t', 'var');
 my $fn = {
-    v1 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-1.0-MySQL.sql'),
-    v2 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-2.0-MySQL.sql'),
-    v3 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-3.0-MySQL.sql'),
-    trans_v12 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-1.0-2.0-MySQL.sql'),
-    trans_v23 => File::Spec->catfile($ddl_dir, 'DBICVersion-Schema-2.0-3.0-MySQL.sql'),
+    v1 => $ddl_dir->file ('DBICVersion-Schema-1.0-MySQL.sql'),
+    v2 => $ddl_dir->file ('DBICVersion-Schema-2.0-MySQL.sql'),
+    v3 => $ddl_dir->file ('DBICVersion-Schema-3.0-MySQL.sql'),
+    trans_v12 => $ddl_dir-> ('DBICVersion-Schema-1.0-2.0-MySQL.sql'),
+    trans_v23 => $ddl_dir-> ('DBICVersion-Schema-2.0-3.0-MySQL.sql'),
 };
 
 use lib qw(t/lib);
@@ -70,58 +73,46 @@ my $schema_v2 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
   $schema_v2->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0');
   ok(-f $fn->{trans_v12}, 'Created DDL file');
 
-  {
-    my $w;
-    local $SIG{__WARN__} = sub { $w = shift };
-
-    $schema_v2->upgrade();
-    like ($w, qr/Attempting upgrade\.$/, 'Warn before upgrade');
-  }
+  sleep 1;    # remove this when TODO below is completed
+  warnings_like (
+    sub { $schema_v2->upgrade() },
+    qr/DB version .+? is lower than the schema version/,
+    'Warn before upgrade',
+  );
 
   is($schema_v2->get_db_version(), '2.0', 'db version number upgraded');
 
-  eval {
+  lives_ok ( sub {
     $schema_v2->storage->dbh->do('select NewVersionName from TestVersion');
-  };
-  is($@, '', 'new column created');
+  }, 'new column created' );
 
-  # should overwrite files and warn about it
-  my @w;
-  local $SIG{__WARN__} = sub { 
-    if ($_[0] =~ /Overwriting existing/) {
-      push @w, $_[0];
-    }
-    else {
-      warn @_;
-    }
-  };
-  $schema_v2->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0');
-
-  is (2, @w, 'A warning generated for both the DDL and the diff');
-  like ($w[0], qr/Overwriting existing DDL file - $fn->{v2}/, 'New version DDL overwrite warning');
-  like ($w[1], qr/Overwriting existing diff file - $fn->{trans_v12}/, 'Upgrade diff overwrite warning');
+  warnings_exist (
+    sub { $schema_v2->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0') },
+    [
+      qr/Overwriting existing DDL file - $fn->{v2}/,
+      qr/Overwriting existing diff file - $fn->{trans}/,
+    ],
+    'An overwrite warning generated for both the DDL and the diff',
+  );
 }
 
 {
   my $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
-  eval {
+  lives_ok (sub {
     $schema_version->storage->dbh->do('select * from ' . $version_table_name);
-  };
-  is($@, '', 'version table exists');
+  }, 'version table exists');
 
-  eval {
+  lives_ok (sub {
     $schema_version->storage->dbh->do("DROP TABLE IF EXISTS $old_table_name");
     $schema_version->storage->dbh->do("RENAME TABLE $version_table_name TO $old_table_name");
-  };
-  is($@, '', 'versions table renamed to old style table');
+  }, 'versions table renamed to old style table');
 
   $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
   is($schema_version->get_db_version, '2.0', 'transition from old table name to new okay');
 
-  eval {
+  dies_ok (sub {
     $schema_version->storage->dbh->do('select * from ' . $old_table_name);
-  };
-  ok($@, 'old version table gone');
+  }, 'old version table gone');
 
 }
 
@@ -190,28 +181,23 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
   };
 
 
-  my $warn = '';
-  local $SIG{__WARN__} = sub { $warn = shift };
-  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
-  like($warn, qr/Your DB is currently unversioned/, 'warning detected without env var or attr');
+  warnings_like ( sub {
+    $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  }, qr/Your DB is currently unversioned/, 'warning detected without env var or attr' );
 
+  warnings_like ( sub {
+    $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
+  },  [], 'warning not detected with attr set');
 
-  # should warn
-  $warn = '';
-  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
-  is($warn, '', 'warning not detected with attr set');
-  # should not warn
 
   local $ENV{DBIC_NO_VERSION_CHECK} = 1;
-  $warn = '';
-  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
-  is($warn, '', 'warning not detected with env var set');
-  # should not warn
+  warnings_like ( sub {
+    $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass);
+  }, [], 'warning not detected with env var set');
 
-  $warn = '';
-  $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 0 });
-  like($warn, qr/Your DB is currently unversioned/, 'warning detected without env var or attr');
-  # should warn
+  warnings_like ( sub {
+    $schema_version = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 0 });
+  }, qr/Your DB is currently unversioned/, 'warning detected without env var or attr');
 }
 
 # attempt a deploy/upgrade cycle within one second

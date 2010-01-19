@@ -9,10 +9,16 @@ Revision history for DBIx::Class
         - Cookbook POD fix for add_drop_table instead of add_drop_tables
         - Views without a view_definition will throw an exception when
           parsed by SQL::Translator::Parser::DBIx::Class
+        - Stop the SQLT parser from auto-adding indexes identical to the
+          Primary Key
         - Schema POD improvement for dclone
         - Fix regression in context sensitiveness of deployment_statements
         - Fix regression resulting in overcomplicated query on
           search_related from prefetching resultsets
+        - Fix regression on all-null returning searches (properly switch
+          LEFT JOIN to JOIN in order to distinguish between both cases)
+        - Fix regression in groupedresultset count() used on strict-mode
+          MySQL connections
         - Better isolation of RNO-limited queries from the rest of a
           prefetching resultset
         - New MSSQL specific resultset attribute to allow hacky ordered

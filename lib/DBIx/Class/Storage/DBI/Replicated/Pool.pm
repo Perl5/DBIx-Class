@@ -280,16 +280,15 @@ sub _safely {
 
   eval {
     $code->()
-  }; 
+  };
   if ($@) {
-    $replicant
-      ->debugobj
-      ->print(
-        sprintf( "Exception trying to $name for replicant %s, error is %s",
-          $replicant->_dbi_connect_info->[0], $@)
-        );
-  	return;
+    $replicant->debugobj->print(sprintf(
+      "Exception trying to $name for replicant %s, error is %s",
+      $replicant->_dbi_connect_info->[0], $@)
+    );
+    return undef;
   }
+
   return 1;
 }
 
