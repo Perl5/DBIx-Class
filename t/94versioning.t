@@ -32,8 +32,6 @@ use lib qw(t/lib);
 use DBICTest; # do not remove even though it is not used
 
 use_ok('DBICVersion_v1');
-use_ok('DBICVersion_v2');
-use_ok('DBICVersion_v3');
 
 my $version_table_name = 'dbix_class_schema_versions';
 my $old_table_name = 'SchemaVersions';
@@ -65,6 +63,7 @@ is($schema_v1->_source_exists($tvrs), 1, 'Created schema from DDL file');
 
 # loading a new module defining a new version of the same table
 DBICVersion::Schema->_unregister_source ('Table');
+use_ok('DBICVersion_v2');
 
 my $schema_v2 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
 {
@@ -76,7 +75,6 @@ my $schema_v2 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
   $schema_v2->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0');
   ok(-f $fn->{trans_v12}, 'Created DDL file');
 
-  sleep 1;    # remove this when TODO below is completed
   warnings_like (
     sub { $schema_v2->upgrade() },
     qr/DB version .+? is lower than the schema version/,
@@ -121,6 +119,7 @@ my $schema_v2 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
 
 # repeat the v1->v2 process for v2->v3 before testing v1->v3
 DBICVersion::Schema->_unregister_source ('Table');
+use_ok('DBICVersion_v3');
 
 my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
 {
@@ -162,6 +161,7 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
 # attempt v1 -> v3 upgrade
 {
   local $SIG{__WARN__} = sub { warn if $_[0] !~ /Attempting upgrade\.$/ };
+  $schema_v3->upgrade();
   is($schema_v3->get_db_version(), '3.0', 'db version number upgraded');
 }
 
@@ -193,10 +193,7 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
 }
 
 # attempt a deploy/upgrade cycle within one second
-TODO: {
-
-  local $TODO = 'To fix this properly the table must be extended with an autoinc column, mst will not accept anything less';
-
+{
   eval { $schema_v2->storage->dbh->do('drop table ' . $version_table_name) };
   eval { $schema_v2->storage->dbh->do('drop table ' . $old_table_name) };
   eval { $schema_v2->storage->dbh->do('drop table TestVersion') };
@@ -204,7 +201,7 @@ TODO: {
   # this attempts to sleep until the turn of the second
   my $t = time();
   sleep (int ($t) + 1 - $t);
-  diag ('Fast deploy/upgrade start: ', time() );
+  note ('Fast deploy/upgrade start: ', time() );
 
   {
     local $DBICVersion::Schema::VERSION = '2.0';
