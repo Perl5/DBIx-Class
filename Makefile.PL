@@ -70,6 +70,9 @@ my %force_requires_if_author = (
   # when changing also adjust version in t/06notabs.t
   'Test::NoTabs'              => '0.9',
 
+  # when changing also adjust version in t/07eol.t
+  'Test::EOL'                 => '0.6',
+
   # when changing also adjust version in t/03podcoverage.t
   'Test::Pod::Coverage'       => '1.08',
   'Pod::Coverage'             => '0.20',
