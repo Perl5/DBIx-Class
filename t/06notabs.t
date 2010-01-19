@@ -23,6 +23,6 @@ foreach my $MODULE ( @MODULES ) {
   }
 }
 
-all_perl_files_ok();
+all_perl_files_ok(qw/t lib script maint/);
 
 done_testing;

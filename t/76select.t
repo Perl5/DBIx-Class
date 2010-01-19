@@ -33,8 +33,8 @@ lives_ok(sub { $rs->first->get_column('addedtitle') }, 'multiple +select/+as col
 $rs = $schema->resultset('CD')->search(undef,
     {
         '+select'   => [ \'COUNT(*) AS year_count' ],
-		order_by => 'year_count'
-	}
+        order_by => 'year_count'
+    }
 );
 my @counts = $rs->get_column('cdid')->all;
 ok(scalar(@counts), 'got rows from ->all using +select');
