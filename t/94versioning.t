@@ -28,10 +28,19 @@ BEGIN {
     if not DBIx::Class::Storage::DBI->_sqlt_version_ok;
 }
 
+use lib qw(t/lib);
+use DBICTest; # do not remove even though it is not used
+
+use_ok('DBICVersion_v1');
+use_ok('DBICVersion_v2');
+use_ok('DBICVersion_v3');
+
 my $version_table_name = 'dbix_class_schema_versions';
 my $old_table_name = 'SchemaVersions';
 
 my $ddl_dir = dir ('t', 'var');
+mkdir ($ddl_dir) unless -d $ddl_dir;
+
 my $fn = {
     v1 => $ddl_dir->file ('DBICVersion-Schema-1.0-MySQL.sql'),
     v2 => $ddl_dir->file ('DBICVersion-Schema-2.0-MySQL.sql'),
@@ -39,11 +48,6 @@ my $fn = {
     trans_v12 => $ddl_dir->file ('DBICVersion-Schema-1.0-2.0-MySQL.sql'),
     trans_v23 => $ddl_dir->file ('DBICVersion-Schema-2.0-3.0-MySQL.sql'),
 };
-
-use lib qw(t/lib);
-use DBICTest; # do not remove even though it is not used
-
-use_ok('DBICVersion_v1');
 
 my $schema_v1 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
 eval { $schema_v1->storage->dbh->do('drop table ' . $version_table_name) };
@@ -61,7 +65,6 @@ is($schema_v1->_source_exists($tvrs), 1, 'Created schema from DDL file');
 
 # loading a new module defining a new version of the same table
 DBICVersion::Schema->_unregister_source ('Table');
-eval "use DBICVersion_v2";
 
 my $schema_v2 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
 {
@@ -90,7 +93,7 @@ my $schema_v2 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
     sub { $schema_v2->create_ddl_dir('MySQL', '2.0', $ddl_dir, '1.0') },
     [
       qr/Overwriting existing DDL file - $fn->{v2}/,
-      qr/Overwriting existing diff file - $fn->{trans}/,
+      qr/Overwriting existing diff file - $fn->{trans_v12}/,
     ],
     'An overwrite warning generated for both the DDL and the diff',
   );
@@ -118,7 +121,6 @@ my $schema_v2 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
 
 # repeat the v1->v2 process for v2->v3 before testing v1->v3
 DBICVersion::Schema->_unregister_source ('Table');
-eval "use DBICVersion_v3";
 
 my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_version => 1 });
 {
@@ -130,20 +132,17 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
   $schema_v3->create_ddl_dir('MySQL', '3.0', $ddl_dir, '2.0');
   ok(-f $fn->{trans_v23}, 'Created DDL 2.0 -> 3.0 file');
 
-  {
-    my $w;
-    local $SIG{__WARN__} = sub { $w = shift };
-
-    $schema_v3->upgrade();
-    like ($w, qr/Attempting upgrade\.$/, 'Warn before upgrade');
-  }
+  warnings_exist (
+    sub { $schema_v3->upgrade() },
+    qr/DB version .+? is lower than the schema version/,
+    'Warn before upgrade',
+  );
 
   is($schema_v3->get_db_version(), '3.0', 'db version number upgraded');
 
-  eval {
+  lives_ok ( sub {
     $schema_v3->storage->dbh->do('select ExtraColumn from TestVersion');
-  };
-  is($@, '', 'new column created');
+  }, 'new column created');
 }
 
 # now put the v1 schema back again
@@ -160,16 +159,9 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
   is($schema_v1->get_db_version(), '1.0', 'get_db_version 1.0 ok');
 }
 
-# attempt v1 -> v3 upgrade....
+# attempt v1 -> v3 upgrade
 {
-  {
-    my $w;
-    local $SIG{__WARN__} = sub { $w = shift };
-
-    $schema_v3->upgrade();
-    like ($w, qr/Attempting upgrade\.$/, 'Warn before upgrade');
-  }
-
+  local $SIG{__WARN__} = sub { warn if $_[0] !~ /Attempting upgrade\.$/ };
   is($schema_v3->get_db_version(), '3.0', 'db version number upgraded');
 }
 
