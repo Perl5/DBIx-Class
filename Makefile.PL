@@ -19,6 +19,7 @@ test_requires 'Test::More'          => '0.92';
 test_requires 'Test::Warn'          => '0.21';
 
 test_requires 'File::Temp'          => '0.22';
+test_requires 'Test::NoTabs'        => '0.9';
 
 
 # Core
@@ -141,7 +142,7 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 # Deprecated/internal modules need no exposure
 no_index directory => $_ for (qw|
   lib/DBIx/Class/SQLAHacks
-  lib/DBIx/Class/PK/Auto 
+  lib/DBIx/Class/PK/Auto
 |);
 no_index package => $_ for (qw/
   DBIx::Class::Storage::DBI::AmbiguousGlob
@@ -185,7 +186,7 @@ WriteAll();
 # Re-write META.yml to _exclude_ all forced requires (we do not want to ship this)
 if ($Module::Install::AUTHOR) {
 
-  Meta->{values}{build_requires} = [ grep 
+  Meta->{values}{build_requires} = [ grep
     { not exists $force_requires_if_author{$_->[0]} }
     ( @{Meta->{values}{build_requires}} )
   ];
