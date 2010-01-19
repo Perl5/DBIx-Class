@@ -206,8 +206,7 @@ sub parse {
                 }
             }
 
-            if($rel_table)
-            {
+            if($rel_table) {
                 # Constraints are added only if applicable
                 next unless $fk_constraint;
 
@@ -216,7 +215,6 @@ sub parse {
                 next if $created_FK_rels{$rel_table}->{$key_test};
 
                 if (scalar(@keys)) {
-
                   $created_FK_rels{$rel_table}->{$key_test} = 1;
 
                   my $is_deferrable = $rel_info->{attrs}{is_deferrable};
@@ -228,25 +226,33 @@ sub parse {
                   }
 
                   $table->add_constraint(
-                                    type             => 'foreign_key',
-                                    name             => join('_', $table_name, 'fk', @keys),
-                                    fields           => \@keys,
-                                    reference_fields => \@refkeys,
-                                    reference_table  => $rel_table,
-                                    on_delete        => uc ($cascade->{delete} || ''),
-                                    on_update        => uc ($cascade->{update} || ''),
-                                    (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
+                    type             => 'foreign_key',
+                    name             => join('_', $table_name, 'fk', @keys),
+                    fields           => \@keys,
+                    reference_fields => \@refkeys,
+                    reference_table  => $rel_table,
+                    on_delete        => uc ($cascade->{delete} || ''),
+                    on_update        => uc ($cascade->{update} || ''),
+                    (defined $is_deferrable ? ( deferrable => $is_deferrable ) : ()),
                   );
 
                   # global parser_args add_fk_index param can be overridden on the rel def
                   my $add_fk_index_rel = (exists $rel_info->{attrs}{add_fk_index}) ? $rel_info->{attrs}{add_fk_index} : $add_fk_index;
 
+                  # Check that we do not create an index identical to the PK index
+                  # (some RDBMS croak on this, and it generally doesn't make much sense)
+                  # NOTE: we do not sort the key columns because the order of
+                  # columns is important for indexes and two indexes with the
+                  # same cols but different order are allowed and sometimes
+                  # needed
+                  next if join("\x00", @keys) eq join("\x00", @primary);
+
                   if ($add_fk_index_rel) {
                       my $index = $table->add_index(
-                                                    name   => join('_', $table_name, 'idx', @keys),
-                                                    fields => \@keys,
-                                                    type   => 'NORMAL',
-                                                    );
+                          name   => join('_', $table_name, 'idx', @keys),
+                          fields => \@keys,
+                          type   => 'NORMAL',
+                      );
                   }
               }
             }
@@ -381,7 +387,7 @@ from a DBIx::Class::Schema instance
       parser      => 'SQL::Translator::Parser::DBIx::Class',
       parser_args => {
           package => $schema,
-          # to explicitly specify which ResultSources are to be parsed
+          add_fk_index => 0,
           sources => [qw/
             Artist
             CD
@@ -408,14 +414,34 @@ other machines that need to have your application installed but don't
 have SQL::Translator installed. To do this see
 L<DBIx::Class::Schema/create_ddl_dir>.
 
+=head1 PARSER OPTIONS
+
+=head2 add_fk_index
+
+Create an index for each foreign key.
+Enabled by default, as having indexed foreign key columns is normally the
+sensible thing to do.
+
+=head2 sources
+
+=over 4
+
+=item Arguments: \@class_names
+
+=back
+
+Limit the amount of parsed sources by supplying an explicit list of source names.
+
 =head1 SEE ALSO
 
 L<SQL::Translator>, L<DBIx::Class::Schema>
 
 =head1 AUTHORS
 
-Jess Robinson
+See L<DBIx::Class/CONTRIBUTORS>.
 
-Matt S Trout
+=head1 LICENSE
 
-Ash Berlin
+You may distribute this code under the same terms as Perl itself.
+
+=cut
