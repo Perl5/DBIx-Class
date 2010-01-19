@@ -36,8 +36,8 @@ my $fn = {
     v1 => $ddl_dir->file ('DBICVersion-Schema-1.0-MySQL.sql'),
     v2 => $ddl_dir->file ('DBICVersion-Schema-2.0-MySQL.sql'),
     v3 => $ddl_dir->file ('DBICVersion-Schema-3.0-MySQL.sql'),
-    trans_v12 => $ddl_dir-> ('DBICVersion-Schema-1.0-2.0-MySQL.sql'),
-    trans_v23 => $ddl_dir-> ('DBICVersion-Schema-2.0-3.0-MySQL.sql'),
+    trans_v12 => $ddl_dir->file ('DBICVersion-Schema-1.0-2.0-MySQL.sql'),
+    trans_v23 => $ddl_dir->file ('DBICVersion-Schema-2.0-3.0-MySQL.sql'),
 };
 
 use lib qw(t/lib);
