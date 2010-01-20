@@ -12,6 +12,8 @@ Revision history for DBIx::Class
         - Stop the SQLT parser from auto-adding indexes identical to the
           Primary Key
         - Schema POD improvement for dclone
+        - Fix ResultSetColumn improperly selecting more than the requested
+          column when +columns/+select is present
         - Fix regression in context sensitiveness of deployment_statements
         - Fix regression resulting in overcomplicated query on
           search_related from prefetching resultsets
