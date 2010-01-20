@@ -1,45 +1,37 @@
 package DBIx::Class::Admin;
 
+# check deps
+BEGIN {
+    my @_deps = qw(
+        Moose MooseX::Types MooseX::Types::JSON MooseX::Types::Path::Class
+        Try::Tiny parent JSON::Any Class::C3::Componentised
+        namespace::autoclean
+    );
+
+    my @_missing_deps;
+    foreach my $dep (@_deps) {
+      eval "require $dep";
+      if ($@) {
+        push @_missing_deps, $dep;
+      }
+    }
+
+    if (@_missing_deps > 0) {
+      die "The following dependecies are missing " . join ",", @_missing_deps;
+    }
+}
+
 use Moose;
-use MooseX::Types -declare => [qw( DBICConnectInfo )];
-use MooseX::Types::Moose qw/Int HashRef ArrayRef Str Any/;
+use parent 'DBIx::Class::Schema';
+use Carp::Clan qw/^DBIx::Class/;
+
+use MooseX::Types::Moose qw/Int HashRef ArrayRef Str Any Bool/;
+use DBIx::Class::Admin::Types qw/DBICConnectInfo/;
 use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
 use Try::Tiny;
-
-use Carp::Clan qw/^DBIx::Class/;
-
-use parent 'Class::C3::Componentised';
-use parent 'DBIx::Class::Schema';
-
 use JSON::Any;
-
 use namespace::autoclean;
-
-my @_deps = qw(Moose MooseX::Types MooseX::Types::JSON MooseX::Types::Path::Class Try::Tiny parent JSON::Any Class::C3::Componentised namespace::autoclean);
-
-coerce ArrayRef,
-  from JSON,
-  via { _json_to_data ($_) };
-
-coerce HashRef,
-  from JSON,
-  via { _json_to_data($_) };
-
-subtype DBICConnectInfo,
-  as ArrayRef;
-
-coerce DBICConnectInfo,
-  from JSON,
-   via { return _json_to_data($_) } ;
-
-coerce DBICConnectInfo,
-  from Str,
-    via { return _json_to_data($_) };
-
-coerce DBICConnectInfo,
-  from HashRef,
-   via { [ $_->{dsn}, $_->{user}, $_->{password} ]  };
 
 
 =head1 NAME
@@ -79,7 +71,7 @@ the class of the schema to load
 
 has 'schema_class' => (
   is    => 'ro',
-  isa    => 'Str',
+  isa    => Str,
   coerce  => 1,
 );
 
@@ -199,7 +191,7 @@ designed for use with catalyst config files
 
 has 'config_stanza' => (
   is      => 'ro',
-  isa      => 'Str',
+  isa      => Str,
 );
 
 
@@ -249,7 +241,7 @@ Used for install, the version which will be 'installed' in the schema
 
 has version => (
   is      => 'rw',
-  isa      => 'Str',
+  isa      => Str,
 );
 
 
@@ -261,7 +253,7 @@ Previouse version of the schema to create an upgrade diff for, the full sql for 
 
 has preversion => (
   is      => 'rw',
-  isa      => 'Str',
+  isa      => Str,
 );
 
 
@@ -273,7 +265,7 @@ Try and force certain operations.
 
 has force => (
   is      => 'rw',
-  isa      => 'Bool',
+  isa      => Bool,
 );
 
 
@@ -285,12 +277,12 @@ Be less verbose about actions
 
 has quiet => (
   is      => 'rw',
-  isa      => 'Bool',
+  isa      => Bool,
 );
 
 has '_confirm' => (
   is    => 'bare',
-  isa    => 'Bool',
+  isa    => Bool,
 );
 
 
@@ -562,32 +554,6 @@ sub _find_stanza {
   }
   return $cfg;
 }
-
-sub _json_to_data {
-  my ($json_str) = @_;
-  my $json = JSON::Any->new(allow_barekey => 1, allow_singlequote => 1, relaxed=>1);
-  my $ret = $json->jsonToObj($json_str);
-  return $ret;
-}
-
-
-{  # deps check
-
-my @_missing_deps;
-foreach my $dep (@_deps) {
-  eval "require $dep";
-  if ($@) {
-    push @_missing_deps, $dep;
-  }
-}
-
-if (@_missing_deps > 0) {
-  die "The following dependecies are missing " . join ",", @_missing_deps;
-}
-
-
-}
-
 
 =head1 AUTHORS
 
