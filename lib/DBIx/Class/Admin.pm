@@ -25,8 +25,8 @@ use Moose;
 use parent 'DBIx::Class::Schema';
 use Carp::Clan qw/^DBIx::Class/;
 
-use MooseX::Types::Moose qw/Int HashRef ArrayRef Str Any Bool/;
-use DBIx::Class::Admin::Types qw/DBICConnectInfo/;
+use MooseX::Types::Moose qw/Int Str Any Bool/;
+use DBIx::Class::Admin::Types qw/DBICConnectInfo DBICHashRef/;
 use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
 use Try::Tiny;
@@ -117,7 +117,7 @@ a hash ref or json string to be used for identifying data to manipulate
 
 has 'where' => (
   is      => 'rw',
-  isa      => HashRef,
+  isa      => DBICHashRef,
   coerce    => 1,
 );
 
@@ -130,7 +130,7 @@ a hash ref or json string to be used for inserting or updating data
 
 has 'set' => (
   is      => 'rw',
-  isa      => HashRef,
+  isa      => DBICHashRef,
   coerce    => 1,
 );
 
@@ -143,7 +143,7 @@ a hash ref or json string to be used for passing additonal info to the ->search 
 
 has 'attrs' => (
   is       => 'rw',
-  isa      => HashRef,
+  isa      => DBICHashRef,
   coerce    => 1,
 );
 
@@ -204,7 +204,7 @@ config_stanza will still be required.
 
 has config => (
   is      => 'ro',
-  isa      => HashRef,
+  isa      => DBICHashRef,
   lazy_build  => 1,
 );
 

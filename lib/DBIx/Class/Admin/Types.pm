@@ -3,15 +3,23 @@ package # hide from PAUSE
 
 use MooseX::Types -declare => [qw(
     DBICConnectInfo
+    DBICArrayRef
+    DBICHashRef
 )];
 use MooseX::Types::Moose qw/Int HashRef ArrayRef Str Any Bool/;
 use MooseX::Types::JSON qw(JSON);
 
-coerce ArrayRef,
+subtype DBICArrayRef,
+    as ArrayRef;
+
+subtype DBICHashRef,
+    as HashRef;
+
+coerce DBICArrayRef,
   from JSON,
   via { _json_to_data ($_) };
 
-coerce HashRef,
+coerce DBICHashRef,
   from JSON,
   via { _json_to_data($_) };
 
