@@ -520,6 +520,65 @@ You can reduce the overhead of object creation within L<DBIx::Class>
 using the tips in L<DBIx::Class::Manual::Cookbook/"Skip row object creation for faster results">
 and L<DBIx::Class::Manual::Cookbook/"Get raw data for blindingly fast results">
 
+=item How do I override a run time method (e.g. a relationship accessor)?
+
+If you need access to the original accessor, then you must "wrap around" the original method.
+You can do that either with L<Moose::Manual::MethodModifiers> or L<Class::Method::Modifiers>.
+The code example works for both modules:
+
+    package Your::Schema::Group;
+    use Class::Method::Modifiers;
+    
+    # ... declare columns ...
+    
+    __PACKAGE__->has_many('group_servers', 'Your::Schema::GroupServer', 'group_id');
+    __PACKAGE__->many_to_many('servers', 'group_servers', 'server');
+    
+    # if the server group is a "super group", then return all servers
+    # otherwise return only servers that belongs to the given group
+    around 'servers' => sub {
+        my $orig = shift;
+        my $self = shift;
+
+        return $self->$orig(@_) unless $self->is_super_group;
+        return $self->result_source->schema->resultset('Server')->all;
+    };
+
+If you just want to override the original method, and don't care about the data
+from the original accessor, then you have two options. Either use
+L<Method::Signatures::Simple> that does most of the work for you, or do
+it the "dirty way".
+
+L<Method::Signatures::Simple> way:
+
+    package Your::Schema::Group;
+    use Method::Signatures::Simple;
+    
+    # ... declare columns ...
+    
+    __PACKAGE__->has_many('group_servers', 'Your::Schema::GroupServer', 'group_id');
+    __PACKAGE__->many_to_many('servers', 'group_servers', 'server');
+    
+    # The method keyword automatically injects the annoying my $self = shift; for you.
+    method servers {
+        return $self->result_source->schema->resultset('Server')->search({ ... });
+    }
+
+The dirty way:
+
+    package Your::Schema::Group;
+    use Sub::Name;
+    
+    # ... declare columns ...
+    
+    __PACKAGE__->has_many('group_servers', 'Your::Schema::GroupServer', 'group_id');
+    __PACKAGE__->many_to_many('servers', 'group_servers', 'server');
+    
+    *servers = subname servers => sub {
+        my $self = shift;
+        return $self->result_source->schema->resultset('Server')->search({ ... });
+    };
+    
 =back
 
 =head2 Notes for CDBI users
