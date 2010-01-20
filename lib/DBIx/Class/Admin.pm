@@ -72,7 +72,6 @@ the class of the schema to load
 has 'schema_class' => (
   is    => 'ro',
   isa    => Str,
-  coerce  => 1,
 );
 
 
