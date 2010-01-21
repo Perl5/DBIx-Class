@@ -267,6 +267,8 @@ jgoulah: John Goulah <jgoulah@cpan.org>
 
 jguenther: Justin Guenther <jguenther@cpan.org>
 
+jhannah: Jay Hannah <jay@jays.net>
+
 jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
 
 jon: Jon Schutz <jjschutz@cpan.org>
