@@ -40,6 +40,16 @@ DBIx::Class::Admin - Administration object for schemas
 
 =head1 SYNOPSIS
 
+  $ dbicadmin --help
+
+  $ dbicadmin --schema=MyApp::Schema \
+    --connect='["dbi:SQLite:my.db", "", ""]' \
+    --deploy
+
+  $ dbicadmin --schema=MyApp::Schema --class=Employee \
+    --connect='["dbi:SQLite:my.db", "", ""]' \
+    --op=update --set='{"name":"New_Employee"}'
+
   use DBIx::Class::Admin;
 
   # ddl manipulation
@@ -60,6 +70,30 @@ DBIx::Class::Admin - Administration object for schemas
 
   # install a version for an unversioned schema
   $admin->install("3.0");
+
+=head1 REQUIREMENTS
+
+The following CPAN modules are required to use C<dbicadmin> and this module:
+
+L<Moose>
+
+L<MooseX::Types>
+
+L<MooseX::Types::JSON>
+
+L<MooseX::Types::Path::Class>
+
+L<Try::Tiny>
+
+L<parent>
+
+L<JSON::Any>
+
+L<namespace::autoclean>
+
+L<Getopt::Long::Descriptive>
+
+L<Text::CSV>
 
 =head1 Attributes
 
@@ -554,7 +588,7 @@ sub _find_stanza {
   return $cfg;
 }
 
-=head1 AUTHORS
+=head1 AUTHOR
 
 See L<DBIx::Class/CONTRIBUTORS>.
 
