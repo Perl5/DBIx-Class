@@ -776,7 +776,7 @@ sub get_inflated_columns {
   return ($self->get_columns, %inflated);
 }
 
-sub _is_numeric {
+sub _is_column_numeric {
    my ($self, $column) = @_;
     my $colinfo = $self->column_info ($column);
 
@@ -836,7 +836,7 @@ sub set_column {
     $dirty = 0;
   }
   else {  # do a numeric comparison if datatype allows it
-    if ($self->_is_numeric($column)) {
+    if ($self->_is_column_numeric($column)) {
       $dirty = $old_value != $new_value;
     }
     else {
