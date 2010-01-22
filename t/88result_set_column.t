@@ -75,7 +75,7 @@ is($psrs->get_column('title')->next, 'The Final Countdown', '+select/+as overrid
 # test +select/+as for multiple columns
 $psrs = $schema->resultset('CD')->search({},
     {
-        '+select'   => [ \'COUNT(*)', 'title' ],
+        '+select'   => [ \'COUNT(*) AS cnt', 'title' ],
         '+as'       => [ 'count', 'addedtitle' ]
     }
 );
@@ -104,7 +104,16 @@ is_same_sql_bind (
   'Correct SQL for get_column/+as func'
 );
 
+# test correct subquery with +select when necessary
+lives_ok ( sub {
+  is (
+    scalar $psrs->search ({}, { order_by => 'cnt' })->get_column ('year')->all,
+    $psrs->count,
+    'Subquery count induced by aliased function',
+  );
+});
 
+# test for prefetch not leaking
 {
   my $rs = $schema->resultset("CD")->search({}, { prefetch => 'artist' });
   my $rsc = $rs->get_column('year');
