@@ -6,6 +6,7 @@ use Test::Warn;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
@@ -61,6 +62,16 @@ my $psrs = $schema->resultset('CD')->search({},
 lives_ok(sub { $psrs->get_column('count')->next }, '+select/+as additional column "count" present (scalar)');
 dies_ok(sub { $psrs->get_column('noSuchColumn')->next }, '+select/+as nonexistent column throws exception');
 
+# test +select/+as for overriding a column
+$psrs = $schema->resultset('CD')->search({},
+    {
+        'select'   => \"'The Final Countdown'",
+        'as'       => 'title'
+    }
+);
+is($psrs->get_column('title')->next, 'The Final Countdown', '+select/+as overridden column "title"');
+
+
 # test +select/+as for multiple columns
 $psrs = $schema->resultset('CD')->search({},
     {
@@ -71,14 +82,28 @@ $psrs = $schema->resultset('CD')->search({},
 lives_ok(sub { $psrs->get_column('count')->next }, '+select/+as multiple additional columns, "count" column present');
 lives_ok(sub { $psrs->get_column('addedtitle')->next }, '+select/+as multiple additional columns, "addedtitle" column present');
 
-# test +select/+as for overriding a column
-$psrs = $schema->resultset('CD')->search({},
-    {
-        'select'   => \"'The Final Countdown'",
-        'as'       => 'title'
-    }
+# test that +select/+as specs do not leak
+is_same_sql_bind (
+  $psrs->get_column('year')->as_query,
+  '(SELECT me.year FROM cd me)',
+  [],
+  'Correct SQL for get_column/as'
 );
-is($psrs->get_column('title')->next, 'The Final Countdown', '+select/+as overridden column "title"');
+
+is_same_sql_bind (
+  $psrs->get_column('addedtitle')->as_query,
+  '(SELECT me.title FROM cd me)',
+  [],
+  'Correct SQL for get_column/+as col'
+);
+
+is_same_sql_bind (
+  $psrs->get_column('count')->as_query,
+  '(SELECT COUNT(*) FROM cd me)',
+  [],
+  'Correct SQL for get_column/+as func'
+);
+
 
 {
   my $rs = $schema->resultset("CD")->search({}, { prefetch => 'artist' });

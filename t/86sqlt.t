@@ -269,6 +269,7 @@ my %fk_constraints = (
       'name' => 'forceforeign_fk_artist', 'index_name' => 'forceforeign_idx_artist',
       'selftable' => 'forceforeign', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'], 
+      'noindex'  => 1,
       on_delete => '', on_update => '', deferrable => 1,
     },
   ],
@@ -464,21 +465,21 @@ sub test_fk {
   my ($expected, $got) = @_;
   my $desc = $expected->{display};
   is( $got->name, $expected->{name},
-      "name parameter correct for `$desc'" );
+      "name parameter correct for '$desc'" );
   is( $got->on_delete, $expected->{on_delete},
-      "on_delete parameter correct for `$desc'" );
+      "on_delete parameter correct for '$desc'" );
   is( $got->on_update, $expected->{on_update},
-      "on_update parameter correct for `$desc'" );
+      "on_update parameter correct for '$desc'" );
   is( $got->deferrable, $expected->{deferrable},
-      "is_deferrable parameter correct for `$desc'" );
+      "is_deferrable parameter correct for '$desc'" );
 
   my $index = get_index( $got->table, { fields => $expected->{selfcols} } );
 
   if ($expected->{noindex}) {
-      ok( !defined $index, "index doesn't for `$desc'" );
+      ok( !defined $index, "index doesn't for '$desc'" );
   } else {
-      ok( defined $index, "index exists for `$desc'" );
-      is( $index->name, $expected->{index_name}, "index has correct name for `$desc'" );
+      ok( defined $index, "index exists for '$desc'" );
+      is( $index->name, $expected->{index_name}, "index has correct name for '$desc'" );
   }
 }
 
@@ -486,7 +487,7 @@ sub test_unique {
   my ($expected, $got) = @_;
   my $desc = $expected->{display};
   is( $got->name, $expected->{name},
-      "name parameter correct for `$desc'" );
+      "name parameter correct for '$desc'" );
 }
 
 done_testing;

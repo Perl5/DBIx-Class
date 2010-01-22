@@ -409,7 +409,7 @@ bits get put into the correct places.
 =cut
 
 sub BUILDARGS {
-  my ($class, $schema, $storage_type_args, @args) = @_;	
+  my ($class, $schema, $storage_type_args, @args) = @_;  
 
   return {
     schema=>$schema,

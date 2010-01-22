@@ -229,28 +229,29 @@ my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
 SKIP: {
-        skip 'buggy BLOB support in DBD::Oracle 1.23', 8
-          if $DBD::Oracle::VERSION == 1.23;
+  skip 'buggy BLOB support in DBD::Oracle 1.23', 8
+    if $DBD::Oracle::VERSION == 1.23;
 
-	my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
-	$binstr{'large'} = $binstr{'small'} x 1024;
+  my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
+  $binstr{'large'} = $binstr{'small'} x 1024;
 
-	my $maxloblen = length $binstr{'large'};
-	note "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
-	local $dbh->{'LongReadLen'} = $maxloblen;
+  my $maxloblen = length $binstr{'large'};
+  note "Localizing LongReadLen to $maxloblen to avoid truncation of test data";
+  local $dbh->{'LongReadLen'} = $maxloblen;
 
-	my $rs = $schema->resultset('BindType');
-	my $id = 0;
+  my $rs = $schema->resultset('BindType');
+  my $id = 0;
 
-	foreach my $type (qw( blob clob )) {
-		foreach my $size (qw( small large )) {
-			$id++;
+  foreach my $type (qw( blob clob )) {
+    foreach my $size (qw( small large )) {
+      $id++;
 
-			lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
-				"inserted $size $type without dying";
-			ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
-		}
-	}
+      lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
+      "inserted $size $type without dying";
+
+      ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
+    }
+  }
 }
 
 done_testing;

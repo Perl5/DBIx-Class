@@ -42,24 +42,26 @@ sub new {
   my ($class, $rs, $column) = @_;
   $class = ref $class if ref $class;
 
-  $rs->throw_exception("column must be supplied") unless $column;
+  $rs->throw_exception('column must be supplied') unless $column;
 
   my $orig_attrs = $rs->_resolved_attrs;
   my $new_parent_rs = $rs->search_rs;
+  my $new_attrs = $new_parent_rs->{attrs} ||= {};
+
+  # since what we do is actually chain to the original resultset, we need to throw
+  # away all selectors (otherwise they'll chain)
+  delete $new_attrs->{$_} for (qw/columns +columns select +select as +as cols include_columns/);
 
   # prefetch causes additional columns to be fetched, but we can not just make a new
   # rs via the _resolved_attrs trick - we need to retain the separation between
   # +select/+as and select/as. At the same time we want to preserve any joins that the
   # prefetch would otherwise generate.
-
-  my $new_attrs = $new_parent_rs->{attrs} ||= {};
   $new_attrs->{join} = $rs->_merge_attr( delete $new_attrs->{join}, delete $new_attrs->{prefetch} );
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
   # definition set up with 'select' or '+select' attrs), otherwise use $column
   # (to create a new column definition on-the-fly).
-
   my $as_list = $orig_attrs->{as} || [];
   my $select_list = $orig_attrs->{select} || [];
   my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
