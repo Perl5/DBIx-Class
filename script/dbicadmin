@@ -44,11 +44,6 @@ my ($opts, $usage) = describe_options(
 );
 
 
-if ($opts->{help}) {
-  print $usage->text;
-  exit 0;
-}
-
 die "please only use one of --config or --connect-info" if ($opts->{config} and $opts->{connect_info});
 
 # option compatability mangle
