@@ -24,6 +24,8 @@ Revision history for DBIx::Class
         - New MSSQL specific resultset attribute to allow hacky ordered
           subquery support
         - Fix nasty schema/dbhandle leak due to SQL::Translator
+        - Initial implementation of a mechanism for Schema::Version to
+          apply multiple step upgrades
         - Fix regression on externally supplied $dbh with AutoCommit=0
         - FAQ "Custom methods in Result classes"
         - Cookbook POD fix for add_drop_table instead of add_drop_tables
