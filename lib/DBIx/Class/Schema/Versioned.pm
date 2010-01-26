@@ -114,7 +114,7 @@ upgrades. Your creation script might look like a bit like this:
   use Getopt::Long;
   use MyApp::Schema;
 
-  my ( $preversion, $help ); 
+  my ( $preversion, $help );
   GetOptions(
     'p|preversion:s'  => \$preversion,
   ) or die pod2usage;
@@ -258,12 +258,12 @@ sub deploy {
 
 =back
 
-Virtual method that should be overriden to create an upgrade file. 
-This is useful in the case of upgrading across multiple versions 
+Virtual method that should be overriden to create an upgrade file.
+This is useful in the case of upgrading across multiple versions
 to concatenate several files to create one upgrade file.
 
 You'll probably want the db_version retrieved via $self->get_db_version
-and the schema_version which is retrieved via $self->schema_version 
+and the schema_version which is retrieved via $self->schema_version
 
 =cut
 
@@ -284,12 +284,12 @@ of schema versions. This is then used to produce a set of steps to
 upgrade through to achieve the required schema version.
 
 You may want the db_version retrieved via $self->get_db_version
-and the schema_version which is retrieved via $self->schema_version 
+and the schema_version which is retrieved via $self->schema_version
 
 =cut
 
 sub ordered_schema_versions {
-	## override this method
+  ## override this method
 }
 
 =head2 upgrade
@@ -444,7 +444,7 @@ sub do_upgrade
 {
   my ($self) = @_;
 
-  # just run all the commands (including inserts) in order                                                        
+  # just run all the commands (including inserts) in order
   $self->run_upgrade(qr/.*?/);
 }
 
@@ -503,12 +503,12 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version = 0;
-    eval {
-      my $stamp = $vtable->get_column('installed')->max;
-      $version = $vtable->search({ installed => $stamp })->first->version;
+    my $version = eval {
+      $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
+              ->get_column ('version')
+               ->next;
     };
-    return $version;
+    return $version || 0;
 }
 
 =head2 schema_version
@@ -522,7 +522,7 @@ Returns the current schema class' $VERSION
 This is an overwritable method which is called just before the upgrade, to
 allow you to make a backup of the database. Per default this method attempts
 to call C<< $self->storage->backup >>, to run the standard backup on each
-database type. 
+database type.
 
 This method should return the name of the backup file, if appropriate..
 
