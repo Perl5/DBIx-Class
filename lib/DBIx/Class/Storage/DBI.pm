@@ -1745,7 +1745,7 @@ sub _select_args {
     select => $select,
     from => $ident,
     where => $where,
-    $rs_alias
+    $rs_alias && $alias2source->{$rs_alias}
       ? ( _source_handle => $alias2source->{$rs_alias}->handle )
       : ()
     ,
@@ -1862,6 +1862,9 @@ sub _select_args {
   elsif (! $attrs->{software_limit} ) {
     push @limit, $attrs->{rows}, $attrs->{offset};
   }
+
+  # try to simplify the joinmap further (prune unreferenced type-single joins)
+  $ident = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
 
 ###
   # This would be the point to deflate anything found in $where
