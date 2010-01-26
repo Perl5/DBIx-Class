@@ -254,7 +254,7 @@ $schema->storage->disconnect;
 
   lives_ok (sub {
     warnings_exist ( sub {
-      # The 0 arg says don't die, just let the scope guard go out of scope 
+      # The 0 arg says don't die, just let the scope guard go out of scope
       # forcing a txn_rollback to happen
       outer($schema, 0);
     }, qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./, 'Out of scope warning detected');
@@ -280,9 +280,9 @@ $schema->storage->disconnect;
     my $artist = $artist_rs->find({ name => 'Death Cab for Cutie' });
 
     eval {
-      $artist->cds->create({ 
+      $artist->cds->create({
         title => 'Plans',
-        year => 2005, 
+        year => 2005,
         $fatal ? ( foo => 'bar' ) : ()
       });
     };
@@ -353,6 +353,42 @@ $schema->storage->disconnect;
   }
 
   is (@w, 2, 'Both expected warnings found');
+}
+
+# make sure AutoCommit => 0 on external handles behaves correctly with scope_guard
+{
+  my $factory = DBICTest->init_schema (AutoCommit => 0);
+  cmp_ok ($factory->resultset('CD')->count, '>', 0, 'Something to delete');
+  my $dbh = $factory->storage->dbh;
+
+  ok (!$dbh->{AutoCommit}, 'AutoCommit is off on $dbh');
+  my $schema = DBICTest::Schema->connect (sub { $dbh });
+
+
+  lives_ok ( sub {
+    my $guard = $schema->txn_scope_guard;
+    $schema->resultset('CD')->delete;
+    $guard->commit;
+  }, 'No attempt to start a transaction with scope guard');
+
+  is ($schema->resultset('CD')->count, 0, 'Deletion successful');
+}
+
+# make sure AutoCommit => 0 on external handles behaves correctly with txn_do
+{
+  my $factory = DBICTest->init_schema (AutoCommit => 0);
+  cmp_ok ($factory->resultset('CD')->count, '>', 0, 'Something to delete');
+  my $dbh = $factory->storage->dbh;
+
+  ok (!$dbh->{AutoCommit}, 'AutoCommit is off on $dbh');
+  my $schema = DBICTest::Schema->connect (sub { $dbh });
+
+
+  lives_ok ( sub {
+    $schema->txn_do (sub { $schema->resultset ('CD')->delete });
+  }, 'No attempt to start a atransaction with txn_do');
+
+  is ($schema->resultset('CD')->count, 0, 'Deletion successful');
 }
 
 done_testing;
