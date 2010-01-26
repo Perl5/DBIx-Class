@@ -10,10 +10,10 @@ __PACKAGE__->columns(Primary => 'film');
 __PACKAGE__->columns(Others  => qw/orders/);
 
 sub create_sql {
-	return qq{
-		film     VARCHAR(255),
-		orders   INTEGER
-	};
+  return qq{
+    film     VARCHAR(255),
+    orders   INTEGER
+  };
 }
 
 1;

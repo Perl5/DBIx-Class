@@ -67,6 +67,12 @@ my %force_requires_if_author = (
   # when changing also adjust version in t/02pod.t
   'Test::Pod'                 => '1.26',
 
+  # when changing also adjust version in t/06notabs.t
+#  'Test::NoTabs'              => '0.9',
+
+  # when changing also adjust version in t/07eol.t
+#  'Test::EOL'                 => '0.6',
+
   # when changing also adjust version in t/03podcoverage.t
   'Test::Pod::Coverage'       => '1.08',
   'Pod::Coverage'             => '0.20',
@@ -141,7 +147,7 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 # Deprecated/internal modules need no exposure
 no_index directory => $_ for (qw|
   lib/DBIx/Class/SQLAHacks
-  lib/DBIx/Class/PK/Auto 
+  lib/DBIx/Class/PK/Auto
 |);
 no_index package => $_ for (qw/
   DBIx::Class::Storage::DBI::AmbiguousGlob
@@ -185,7 +191,7 @@ WriteAll();
 # Re-write META.yml to _exclude_ all forced requires (we do not want to ship this)
 if ($Module::Install::AUTHOR) {
 
-  Meta->{values}{build_requires} = [ grep 
+  Meta->{values}{build_requires} = [ grep
     { not exists $force_requires_if_author{$_->[0]} }
     ( @{Meta->{values}{build_requires}} )
   ];

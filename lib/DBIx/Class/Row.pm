@@ -776,6 +776,22 @@ sub get_inflated_columns {
   return ($self->get_columns, %inflated);
 }
 
+sub _is_column_numeric {
+   my ($self, $column) = @_;
+    my $colinfo = $self->column_info ($column);
+
+    # cache for speed (the object may *not* have a resultsource instance)
+    if (not defined $colinfo->{is_numeric} && $self->_source_handle) {
+      $colinfo->{is_numeric} =
+        $self->result_source->schema->storage->is_datatype_numeric ($colinfo->{data_type})
+          ? 1
+          : 0
+        ;
+    }
+
+    return $colinfo->{is_numeric};
+}
+
 =head2 set_column
 
   $row->set_column($col => $val);
@@ -820,18 +836,7 @@ sub set_column {
     $dirty = 0;
   }
   else {  # do a numeric comparison if datatype allows it
-    my $colinfo = $self->column_info ($column);
-
-    # cache for speed (the object may *not* have a resultsource instance)
-    if (not defined $colinfo->{is_numeric} && $self->_source_handle) {
-      $colinfo->{is_numeric} =
-        $self->result_source->schema->storage->is_datatype_numeric ($colinfo->{data_type})
-          ? 1
-          : 0
-        ;
-    }
-
-    if ($colinfo->{is_numeric}) {
+    if ($self->_is_column_numeric($column)) {
       $dirty = $old_value != $new_value;
     }
     else {
