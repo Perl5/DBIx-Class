@@ -76,9 +76,13 @@ my @tests = (
   {
     rs => $art_rs,
     attrs => {
-      from => [ { 'me' => 'artist' }, 
-        [ { 'cds' => $cdrs->search({},{ 'select' => [\'me.artist as cds_artist' ]})->as_query },
-        { 'me.artistid' => 'cds_artist' } ] ]
+      from => [
+        { 'me' => 'artist' },
+        [
+          { 'cds' => $cdrs->search({}, { 'select' => [\'me.artist as cds_artist' ]})->as_query },
+          { 'me.artistid' => 'cds_artist' } 
+        ]
+      ]
     },
     sqlbind => \[
       "( SELECT me.artistid, me.name, me.rank, me.charfield FROM artist me JOIN (SELECT me.artist as cds_artist FROM cd me) cds ON me.artistid = cds_artist )"

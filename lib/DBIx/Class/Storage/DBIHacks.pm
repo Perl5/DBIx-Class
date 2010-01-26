@@ -16,6 +16,40 @@ use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
 
 #
+# This code will remove non-selecting/non-restricting joins from
+# {from} specs, aiding the RDBMS query optimizer
+#
+sub _prune_unused_joins {
+  my ($self) = shift;
+
+  my ($from, $select, $where, $attrs) = @_;
+
+  if (ref $from ne 'ARRAY' || ref $from->[0] ne 'HASH' || ref $from->[1] ne 'ARRAY') {
+    return $from;   # only standard {from} specs are supported
+  }
+
+  my $aliastypes = $self->_resolve_aliastypes_from_select_args(@_);
+
+  # a grouped set will not be affected by amount of rows. Thus any
+  # {multiplying} joins can go
+  delete $aliastypes->{multiplying} if $attrs->{group_by};
+
+
+  my @newfrom = $from->[0]; # FROM head is always present
+
+  my %need_joins = (map { %{$_||{}} } (values %$aliastypes) );
+  for my $j (@{$from}[1..$#$from]) {
+    push @newfrom, $j if (
+      (! $j->[0]{-alias}) # legacy crap
+        ||
+      $need_joins{$j->[0]{-alias}}
+    );
+  }
+
+  return \@newfrom;
+}
+
+#
 # This is the code producing joined subqueries like:
 # SELECT me.*, other.* FROM ( SELECT me.* FROM ... ) JOIN other ON ... 
 #
@@ -46,7 +80,6 @@ sub _adjust_select_args_for_complex_prefetch {
     ];
   }
 
-
   # generate the inner/outer select lists
   # for inside we consider only stuff *not* brought in by the prefetch
   # on the outside we substitute any function for its alias
@@ -63,113 +96,21 @@ sub _adjust_select_args_for_complex_prefetch {
     push @$inner_select, $sel;
   }
 
-  # normalize a copy of $from, so it will be easier to work with further
-  # down (i.e. promote the initial hashref to an AoH)
-  $from = [ @$from ];
-  $from->[0] = [ $from->[0] ];
-  my %original_join_info = map { $_->[0]{-alias} => $_->[0] } (@$from);
-
-
-  # decide which parts of the join will remain in either part of
-  # the outer/inner query
-
-  # First we compose a list of which aliases are used in restrictions
-  # (i.e. conditions/order/grouping/etc). Since we do not have
-  # introspectable SQLA, we fall back to ugly scanning of raw SQL for
-  # WHERE, and for pieces of ORDER BY in order to determine which aliases
-  # need to appear in the resulting sql.
-  # It may not be very efficient, but it's a reasonable stop-gap
-  # Also unqualified column names will not be considered, but more often
-  # than not this is actually ok
-  #
-  # In the same loop we enumerate part of the selection aliases, as
-  # it requires the same sqla hack for the time being
-  my ($restrict_aliases, $select_aliases, $prefetch_aliases);
-  {
-    # produce stuff unquoted, so it can be scanned
-    my $sql_maker = $self->sql_maker;
-    local $sql_maker->{quote_char};
-    my $sep = $self->_sql_maker_opts->{name_sep} || '.';
-    $sep = "\Q$sep\E";
-
-    my $non_prefetch_select_sql = $sql_maker->_recurse_fields ($inner_select);
-    my $prefetch_select_sql = $sql_maker->_recurse_fields ($outer_attrs->{_prefetch_select});
-    my $where_sql = $sql_maker->where ($where);
-    my $group_by_sql = $sql_maker->_order_by({
-      map { $_ => $inner_attrs->{$_} } qw/group_by having/
-    });
-    my @non_prefetch_order_by_chunks = (map
-      { ref $_ ? $_->[0] : $_ }
-      $sql_maker->_order_by_chunks ($inner_attrs->{order_by})
-    );
-
-
-    for my $alias (keys %original_join_info) {
-      my $seen_re = qr/\b $alias $sep/x;
-
-      for my $piece ($where_sql, $group_by_sql, @non_prefetch_order_by_chunks ) {
-        if ($piece =~ $seen_re) {
-          $restrict_aliases->{$alias} = 1;
-        }
-      }
-
-      if ($non_prefetch_select_sql =~ $seen_re) {
-          $select_aliases->{$alias} = 1;
-      }
-
-      if ($prefetch_select_sql =~ $seen_re) {
-          $prefetch_aliases->{$alias} = 1;
-      }
-
-    }
-  }
-
-  # Add any non-left joins to the restriction list (such joins are indeed restrictions)
-  for my $j (values %original_join_info) {
-    my $alias = $j->{-alias} or next;
-    $restrict_aliases->{$alias} = 1 if (
-      (not $j->{-join_type})
-        or
-      ($j->{-join_type} !~ /^left (?: \s+ outer)? $/xi)
-    );
-  }
-
-  # mark all join parents as mentioned
-  # (e.g.  join => { cds => 'tracks' } - tracks will need to bring cds too )
-  for my $collection ($restrict_aliases, $select_aliases) {
-    for my $alias (keys %$collection) {
-      $collection->{$_} = 1
-        for (@{ $original_join_info{$alias}{-join_path} || [] });
-    }
-  }
-
   # construct the inner $from for the subquery
-  my %inner_joins = (map { %{$_ || {}} } ($restrict_aliases, $select_aliases) );
-  my @inner_from;
-  for my $j (@$from) {
-    push @inner_from, $j if $inner_joins{$j->[0]{-alias}};
-  }
+  # we need to prune first, because this will determine if we need a group_bu below
+  my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, $inner_attrs);
 
-  # if a multi-type join was needed in the subquery ("multi" is indicated by
-  # presence in {collapse}) - add a group_by to simulate the collapse in the subq
-  unless ($inner_attrs->{group_by}) {
-    for my $alias (keys %inner_joins) {
-
-      # the dot comes from some weirdness in collapse
-      # remove after the rewrite
-      if ($attrs->{collapse}{".$alias"}) {
-        $inner_attrs->{group_by} ||= $inner_select;
-        last;
-      }
-    }
-  }
-
-  # demote the inner_from head
-  $inner_from[0] = $inner_from[0][0];
+  # if a multi-type join was needed in the subquery - add a group_by to simulate the
+  # collapse in the subq
+  $inner_attrs->{group_by} ||= $inner_select
+    if List::Util::first
+      { ! $_->[0]{-is_single} }
+      (@{$inner_from}[1 .. $#$inner_from])
+  ;
 
   # generate the subquery
   my $subq = $self->_select_args_to_query (
-    \@inner_from,
+    $inner_from,
     $inner_select,
     $where,
     $inner_attrs,
@@ -177,7 +118,7 @@ sub _adjust_select_args_for_complex_prefetch {
 
   my $subq_joinspec = {
     -alias => $attrs->{alias},
-    -source_handle => $inner_from[0]{-source_handle},
+    -source_handle => $inner_from->[0]{-source_handle},
     $attrs->{alias} => $subq,
   };
 
@@ -190,6 +131,11 @@ sub _adjust_select_args_for_complex_prefetch {
   # - either the join is non-restricting, in which case we simply throw it away
   # - it is part of the restrictions, in which case we need to collapse the outer
   #   result by tackling yet another group_by to the outside of the query
+
+  # normalize a copy of $from, so it will be easier to work with further
+  # down (i.e. promote the initial hashref to an AoH)
+  $from = [ @$from ];
+  $from->[0] = [ $from->[0] ];
 
   # so first generate the outer_from, up to the substitution point
   my @outer_from;
@@ -206,6 +152,11 @@ sub _adjust_select_args_for_complex_prefetch {
     }
   }
 
+  # scan the from spec against different attributes, and see which joins are needed
+  # in what role
+  my $outer_aliastypes =
+    $self->_resolve_aliastypes_from_select_args( $from, $outer_select, $where, $outer_attrs );
+
   # see what's left - throw away if not selecting/restricting
   # also throw in a group_by if restricting to guard against
   # cross-join explosions
@@ -213,27 +164,12 @@ sub _adjust_select_args_for_complex_prefetch {
   while (my $j = shift @$from) {
     my $alias = $j->[0]{-alias};
 
-    if ($select_aliases->{$alias} || $prefetch_aliases->{$alias}) {
+    if ($outer_aliastypes->{select}{$alias}) {
       push @outer_from, $j;
     }
-    elsif ($restrict_aliases->{$alias}) {
+    elsif ($outer_aliastypes->{restrict}{$alias}) {
       push @outer_from, $j;
-
-      # FIXME - this should be obviated by SQLA2, as I'll be able to 
-      # have restrict_inner and restrict_outer... or something to that
-      # effect... I think...
-
-      # FIXME2 - I can't find a clean way to determine if a particular join
-      # is a multi - instead I am just treating everything as a potential
-      # explosive join (ribasushi)
-      #
-      # if (my $handle = $j->[0]{-source_handle}) {
-      #   my $rsrc = $handle->resolve;
-      #   ... need to bail out of the following if this is not a multi,
-      #       as it will be much easier on the db ...
-
-          $outer_attrs->{group_by} ||= $outer_select;
-      # }
+      $outer_attrs->{group_by} ||= $outer_select unless $j->[0]{-is_single};
     }
   }
 
@@ -248,6 +184,88 @@ sub _adjust_select_args_for_complex_prefetch {
   #
   # OTOH it can be seen as a plus: <ash> (notes that this query would make a DBA cry ;)
   return (\@outer_from, $outer_select, $where, $outer_attrs);
+}
+
+# Due to a lack of SQLA2 we fall back to crude scans of all the
+# select/where/order/group attributes, in order to determine what
+# aliases are neded to fulfill the query. This information is used
+# throughout the code to prune unnecessary JOINs from the queries
+# in an attempt to reduce the execution time.
+# Although the method is pretty horrific, the worst thing that can
+# happen is for it to fail due to an unqualified column, which in
+# turn will result in a vocal exception. Qualifying the column will
+# invariably solve the problem.
+sub _resolve_aliastypes_from_select_args {
+  my ( $self, $from, $select, $where, $attrs ) = @_;
+
+  $self->throw_exception ('Unable to analyze custom {from}')
+    if ref $from ne 'ARRAY';
+
+  # what we will return
+  my $aliases_by_type;
+
+  # see what aliases are there to work with
+  my $alias_list;
+  for (@$from) {
+    my $j = $_;
+    $j = $j->[0] if ref $j eq 'ARRAY';
+    my $al = $j->{-alias}
+      or next;
+
+    $alias_list->{$al} = $j;
+    $aliases_by_type->{multiplying}{$al} = 1
+      unless $j->{-is_single};
+  }
+
+  # set up a botched SQLA
+  my $sql_maker = $self->sql_maker;
+  my $sep = quotemeta ($self->_sql_maker_opts->{name_sep} || '.');
+  local $sql_maker->{quote_char}; # so that we can regex away
+
+
+  my $select_sql = $sql_maker->_recurse_fields ($select);
+  my $where_sql = $sql_maker->where ($where);
+  my $group_by_sql = $sql_maker->_order_by({
+    map { $_ => $attrs->{$_} } qw/group_by having/
+  });
+  my @order_by_chunks = (map
+    { ref $_ ? $_->[0] : $_ }
+    $sql_maker->_order_by_chunks ($attrs->{order_by})
+  );
+
+  # match every alias to the sql chunks above
+  for my $alias (keys %$alias_list) {
+    my $al_re = qr/\b $alias $sep/x;
+
+    for my $piece ($where_sql, $group_by_sql) {
+      $aliases_by_type->{restrict}{$alias} = 1 if ($piece =~ $al_re);
+    }
+
+    for my $piece ($select_sql, @order_by_chunks ) {
+      $aliases_by_type->{select}{$alias} = 1 if ($piece =~ $al_re);
+    }
+  }
+
+  # Add any non-left joins to the restriction list (such joins are indeed restrictions)
+  for my $j (values %$alias_list) {
+    my $alias = $j->{-alias} or next;
+    $aliases_by_type->{restrict}{$alias} = 1 if (
+      (not $j->{-join_type})
+        or
+      ($j->{-join_type} !~ /^left (?: \s+ outer)? $/xi)
+    );
+  }
+
+  # mark all join parents as mentioned
+  # (e.g.  join => { cds => 'tracks' } - tracks will need to bring cds too )
+  for my $type (keys %$aliases_by_type) {
+    for my $alias (keys %{$aliases_by_type->{$type}}) {
+      $aliases_by_type->{$type}{$_} = 1
+        for (map { keys %$_ } @{ $alias_list->{$alias}{-join_path} || [] });
+    }
+  }
+
+  return $aliases_by_type;
 }
 
 sub _resolve_ident_sources {
@@ -388,7 +406,7 @@ sub _straight_join_to_node {
   # anyway, and deep cloning is just too fucking expensive
   # So replace the first hashref in the node arrayref manually 
   my @new_from = ($from->[0]);
-  my $sw_idx = { map { $_ => 1 } @$switch_branch };
+  my $sw_idx = { map { values %$_ => 1 } @$switch_branch };
 
   for my $j (@{$from}[1 .. $#$from]) {
     my $jalias = $j->[0]{-alias};

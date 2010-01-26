@@ -22,14 +22,13 @@ my $code = sub {
 
 # Test checking of parameters
 {
-  eval {
+  throws_ok (sub {
     (ref $schema)->txn_do(sub{});
-  };
-  like($@, qr/storage/, "can't call txn_do without storage");
-  eval {
+  }, qr/storage/, "can't call txn_do without storage");
+
+  throws_ok ( sub {
     $schema->txn_do('');
-  };
-  like($@, qr/must be a CODE reference/, '$coderef parameter check ok');
+  }, qr/must be a CODE reference/, '$coderef parameter check ok');
 }
 
 # Test successful txn_do() - scalar context
@@ -81,13 +80,10 @@ my $code = sub {
   my $artist = $schema->resultset('Artist')->find(2);
   my $count_before = $artist->cds->count;
 
-  eval {
+  lives_ok (sub {
     $schema->txn_do($nested_code, $schema, $artist, $code);
-  };
+  }, 'nested txn_do succeeded');
 
-  my $error = $@;
-
-  ok(!$error, 'nested txn_do succeeded');
   is($artist->cds({
     title => 'nested txn_do test CD '.$_,
   })->first->year, 2006, qq{nested txn_do CD$_ year ok}) for (1..10);
@@ -112,13 +108,10 @@ my $fail_code = sub {
 
   my $artist = $schema->resultset('Artist')->find(3);
 
-  eval {
+  throws_ok (sub {
     $schema->txn_do($fail_code, $artist);
-  };
+  }, qr/the sky is falling/, 'failed txn_do threw an exception');
 
-  my $error = $@;
-
-  like($error, qr/the sky is falling/, 'failed txn_do threw an exception');
   my $cd = $artist->cds({
     title => 'this should not exist',
     year => 2005,
@@ -134,13 +127,10 @@ my $fail_code = sub {
 
   my $artist = $schema->resultset('Artist')->find(3);
 
-  eval {
+  throws_ok (sub {
     $schema->txn_do($fail_code, $artist);
-  };
+  }, qr/the sky is falling/, 'failed txn_do threw an exception');
 
-  my $error = $@;
-
-  like($error, qr/the sky is falling/, 'failed txn_do threw an exception');
   my $cd = $artist->cds({
     title => 'this should not exist',
     year => 2005,
@@ -167,16 +157,13 @@ my $fail_code = sub {
     die 'FAILED';
   };
 
-  eval {
-    $schema->txn_do($fail_code, $artist);
-  };
-
-  my $error = $@;
-
-  like($error, qr/Rollback failed/, 'failed txn_do with a failed '.
-       'txn_rollback threw a rollback exception');
-  like($error, qr/the sky is falling/, 'failed txn_do with a failed '.
-       'txn_rollback included the original exception');
+  throws_ok (
+    sub {
+      $schema->txn_do($fail_code, $artist);
+    },
+    qr/the sky is falling.+Rollback failed/s,
+    'txn_rollback threw a rollback exception (and included the original exception'
+  );
 
   my $cd = $artist->cds({
     title => 'this should not exist',
@@ -208,13 +195,10 @@ my $fail_code = sub {
 
   my $artist = $schema->resultset('Artist')->find(3);
 
-  eval {
+  throws_ok ( sub {
     $schema->txn_do($nested_fail_code, $schema, $artist, $code, $fail_code);
-  };
+  }, qr/the sky is falling/, 'nested failed txn_do threw exception');
 
-  my $error = $@;
-
-  like($error, qr/the sky is falling/, 'nested failed txn_do threw exception');
   ok(!defined($artist->cds({
     title => 'nested txn_do test CD '.$_,
     year => 2006,
@@ -229,12 +213,10 @@ my $fail_code = sub {
 # Grab a new schema to test txn before connect
 {
     my $schema2 = DBICTest->init_schema(no_deploy => 1);
-    eval {
+    lives_ok (sub {
         $schema2->txn_begin();
         $schema2->txn_begin();
-    };
-    my $err = $@;
-    ok(! $err, 'Pre-connection nested transactions.');
+    }, 'Pre-connection nested transactions.');
 
     # although not connected DBI would still warn about rolling back at disconnect
     $schema2->txn_rollback;
@@ -263,17 +245,16 @@ $schema->storage->disconnect;
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
-  my $inner_exception;  # set in inner() below
-  eval {
+  my $inner_exception = '';  # set in inner() below
+  throws_ok (sub {
     outer($schema, 1);
-  };
-  is($@, $inner_exception, "Nested exceptions propogated");
+  }, qr/$inner_exception/, "Nested exceptions propogated");
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 
   lives_ok (sub {
     warnings_exist ( sub {
-      # The 0 arg says don't die, just let the scope guard go out of scope 
+      # The 0 arg says don't die, just let the scope guard go out of scope
       # forcing a txn_rollback to happen
       outer($schema, 0);
     }, qr/A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back./, 'Out of scope warning detected');
@@ -299,9 +280,9 @@ $schema->storage->disconnect;
     my $artist = $artist_rs->find({ name => 'Death Cab for Cutie' });
 
     eval {
-      $artist->cds->create({ 
+      $artist->cds->create({
         title => 'Plans',
-        year => 2005, 
+        year => 2005,
         $fatal ? ( foo => 'bar' ) : ()
       });
     };
@@ -372,6 +353,42 @@ $schema->storage->disconnect;
   }
 
   is (@w, 2, 'Both expected warnings found');
+}
+
+# make sure AutoCommit => 0 on external handles behaves correctly with scope_guard
+{
+  my $factory = DBICTest->init_schema (AutoCommit => 0);
+  cmp_ok ($factory->resultset('CD')->count, '>', 0, 'Something to delete');
+  my $dbh = $factory->storage->dbh;
+
+  ok (!$dbh->{AutoCommit}, 'AutoCommit is off on $dbh');
+  my $schema = DBICTest::Schema->connect (sub { $dbh });
+
+
+  lives_ok ( sub {
+    my $guard = $schema->txn_scope_guard;
+    $schema->resultset('CD')->delete;
+    $guard->commit;
+  }, 'No attempt to start a transaction with scope guard');
+
+  is ($schema->resultset('CD')->count, 0, 'Deletion successful');
+}
+
+# make sure AutoCommit => 0 on external handles behaves correctly with txn_do
+{
+  my $factory = DBICTest->init_schema (AutoCommit => 0);
+  cmp_ok ($factory->resultset('CD')->count, '>', 0, 'Something to delete');
+  my $dbh = $factory->storage->dbh;
+
+  ok (!$dbh->{AutoCommit}, 'AutoCommit is off on $dbh');
+  my $schema = DBICTest::Schema->connect (sub { $dbh });
+
+
+  lives_ok ( sub {
+    $schema->txn_do (sub { $schema->resultset ('CD')->delete });
+  }, 'No attempt to start a atransaction with txn_do');
+
+  is ($schema->resultset('CD')->count, 0, 'Deletion successful');
 }
 
 done_testing;

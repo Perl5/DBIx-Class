@@ -1,18 +1,18 @@
 Revision history for DBIx::Class
 
-        - FAQ "Custom methods in Result classes"
         - Perl 5.8.1 is now the minimum supported version
+        - Massive optimization of the join resolution code - now joins
+          will be removed from the resulting SQL if DBIC can prove they
+          are not referenced by anything
         - Subqueries no longer marked experimental
         - might_have/has_one now warn if applied calling class's column
           has is_nullable set to true.
         - Fixed regression in deploy() with a {sources} table limit applied
           (RT#52812)
-        - Cookbook POD fix for add_drop_table instead of add_drop_tables
         - Views without a view_definition will throw an exception when
           parsed by SQL::Translator::Parser::DBIx::Class
         - Stop the SQLT parser from auto-adding indexes identical to the
           Primary Key
-        - Schema POD improvement for dclone
         - Fix ResultSetColumn improperly selecting more than the requested
           column when +columns/+select is present
         - Fix regression in context sensitiveness of deployment_statements
@@ -27,6 +27,12 @@ Revision history for DBIx::Class
         - New MSSQL specific resultset attribute to allow hacky ordered
           subquery support
         - Fix nasty schema/dbhandle leak due to SQL::Translator
+        - Initial implementation of a mechanism for Schema::Version to
+          apply multiple step upgrades
+        - Fix regression on externally supplied $dbh with AutoCommit=0
+        - FAQ "Custom methods in Result classes"
+        - Cookbook POD fix for add_drop_table instead of add_drop_tables
+        - Schema POD improvement for dclone
 
 0.08115 2009-12-10 09:02:00 (CST)
         - Real limit/offset support for MSSQL server (via Row_Number)

@@ -493,7 +493,7 @@ sub connect_info {
 sub _normalize_connect_info {
   my ($self, $info_arg) = @_;
   my %info;
- 
+
   my @args = @$info_arg;  # take a shallow copy for further mutilation
 
   # combine/pre-parse arguments depending on invocation style
@@ -1050,7 +1050,7 @@ sub _connect {
 
   eval {
     if(ref $info[0] eq 'CODE') {
-       $dbh = &{$info[0]}
+       $dbh = $info[0]->();
     }
     else {
        $dbh = DBI->connect(@info);
@@ -1172,6 +1172,11 @@ sub _svp_generate_name {
 
 sub txn_begin {
   my $self = shift;
+
+  # this means we have not yet connected and do not know the AC status
+  # (e.g. coderef $dbh)
+  $self->ensure_connected if (! defined $self->_dbh_autocommit);
+
   if($self->{transaction_depth} == 0) {
     $self->debugobj->txn_begin()
       if $self->debug;
@@ -1740,7 +1745,7 @@ sub _select_args {
     select => $select,
     from => $ident,
     where => $where,
-    $rs_alias
+    $rs_alias && $alias2source->{$rs_alias}
       ? ( _source_handle => $alias2source->{$rs_alias}->handle )
       : ()
     ,
@@ -1857,6 +1862,9 @@ sub _select_args {
   elsif (! $attrs->{software_limit} ) {
     push @limit, $attrs->{rows}, $attrs->{offset};
   }
+
+  # try to simplify the joinmap further (prune unreferenced type-single joins)
+  $ident = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
 
 ###
   # This would be the point to deflate anything found in $where

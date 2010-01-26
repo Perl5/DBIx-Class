@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
@@ -8,8 +8,6 @@ use DBICTest;
 use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
-
-plan tests => 24;
 
 my $rs = $schema->resultset('CD')->search({},
     {
@@ -28,16 +26,6 @@ $rs = $schema->resultset('CD')->search({},
 );
 lives_ok(sub { $rs->first->get_column('count') }, 'multiple +select/+as columns, 1st rscolumn present');
 lives_ok(sub { $rs->first->get_column('addedtitle') }, 'multiple +select/+as columns, 2nd rscolumn present');
-
-# Tests a regression in ResultSetColumn wrt +select
-$rs = $schema->resultset('CD')->search(undef,
-    {
-        '+select'   => [ \'COUNT(*) AS year_count' ],
-        order_by => 'year_count'
-    }
-);
-my @counts = $rs->get_column('cdid')->all;
-ok(scalar(@counts), 'got rows from ->all using +select');
 
 $rs = $schema->resultset('CD')->search({},
     {
@@ -196,3 +184,5 @@ TODO: {
     'columns/select/as fold properly on sub-searches',
   );
 }
+
+done_testing;
