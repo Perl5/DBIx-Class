@@ -30,9 +30,8 @@ use DBIx::Class::Admin::Types qw/DBICConnectInfo DBICHashRef/;
 use MooseX::Types::JSON qw(JSON);
 use MooseX::Types::Path::Class qw(Dir File);
 use Try::Tiny;
-use JSON::Any;
+use JSON::Any qw(DWIW XS JSON);
 use namespace::autoclean;
-
 
 =head1 NAME
 
@@ -48,7 +47,7 @@ DBIx::Class::Admin - Administration object for schemas
 
   $ dbicadmin --schema=MyApp::Schema --class=Employee \
     --connect='["dbi:SQLite:my.db", "", ""]' \
-    --op=update --set='{"name":"New_Employee"}'
+    --op=update --set='{ "name": "New_Employee" }'
 
   use DBIx::Class::Admin;
 
@@ -88,6 +87,8 @@ L<Try::Tiny>
 L<parent>
 
 L<JSON::Any>
+
+(L<JSON::DWIW> preferred for barekey support)
 
 L<namespace::autoclean>
 
