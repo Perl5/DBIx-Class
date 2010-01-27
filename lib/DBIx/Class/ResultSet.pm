@@ -2888,7 +2888,7 @@ sub _resolved_attrs {
         my @jpath = map { keys %$_ } @{$j->[0]{-join_path}};
 
         my $p = $join_map;
-        $p = $p->{$_} ||= {} for @jpath[ ($start_depth/2) .. $#jpath]; #only even depths are actual jpath boundaries 
+        $p = $p->{$_} ||= {} for @jpath[ ($start_depth/2) .. $#jpath]; #only even depths are actual jpath boundaries
         push @{$p->{-join_aliases} }, $j->[0]{-alias};
       }
     }
