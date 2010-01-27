@@ -8,8 +8,6 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 9;
-
 my $schema = DBICTest->init_schema();
 
 
@@ -25,6 +23,8 @@ my $no_prefetch = $schema->resultset('Artist')->search(
 my $use_prefetch = $no_prefetch->search(
   {},
   {
+    select => ['me.artistid', 'me.name'],
+    as => ['artistid', 'name'],
     prefetch => 'cds',
     order_by => { -desc => 'name' },
   }
@@ -90,3 +90,4 @@ is($artist->cds->count, 1, "count on search limiting prefetched has_many");
 my $artist2 = $use_prefetch->search({'cds.title' => { '!=' => $artist_many_cds->cds->first->title } })->slice (0,0)->next;
 is($artist2->cds->count, 2, "count on search limiting prefetched has_many");
 
+done_testing;

@@ -6,25 +6,19 @@ use lib qw(t/lib);
 use DBICTest;
 use DBIC::DebugObj;
 use DBIC::SqlMakerTest;
+use Path::Class qw/file/;
 
 my $schema = DBICTest->init_schema();
 
-plan tests => 7;
 
 ok ( $schema->storage->debug(1), 'debug' );
-ok ( defined(
-       $schema->storage->debugfh(
-         IO::File->new('t/var/sql.log', 'w')
-       )
-     ),
-     'debugfh'
-   );
+$schema->storage->debugfh(file('t/var/sql.log')->openw);
 
 $schema->storage->debugfh->autoflush(1);
 my $rs = $schema->resultset('CD')->search({});
 $rs->count();
 
-my $log = new IO::File('t/var/sql.log', 'r') or die($!);
+my $log = file('t/var/sql.log')->openr;
 my $line = <$log>;
 $log->close();
 ok($line =~ /^SELECT COUNT/, 'Log success');
@@ -33,7 +27,7 @@ $schema->storage->debugfh(undef);
 $ENV{'DBIC_TRACE'} = '=t/var/foo.log';
 $rs = $schema->resultset('CD')->search({});
 $rs->count();
-$log = new IO::File('t/var/foo.log', 'r') or die($!);
+$log = file('t/var/foo.log')->openr;
 $line = <$log>;
 $log->close();
 ok($line =~ /^SELECT COUNT/, 'Log success');
@@ -70,4 +64,4 @@ open(STDERR, '>&STDERRCOPY');
     );
 }
 
-1;
+done_testing;
