@@ -531,7 +531,7 @@ sub _normalize_connect_info {
     @args = @args[0,1,2];
   }
 
-  $info{arguments} = \@args; 
+  $info{arguments} = \@args;
 
   my @storage_opts = grep exists $attrs{$_},
     @storage_options, 'cursor_class';
@@ -1578,7 +1578,7 @@ sub _dbh_execute_inserts_with_no_binds {
 }
 
 sub update {
-  my ($self, $source, @args) = @_; 
+  my ($self, $source, @args) = @_;
 
   my $bind_attrs = $self->source_bind_attributes($source);
 
@@ -1677,11 +1677,12 @@ sub _per_row_update_delete {
   my $row_cnt = '0E0';
 
   my $subrs_cur = $rs->cursor;
-  while (my @pks = $subrs_cur->next) {
+  my @all_pk = $subrs_cur->all;
+  for my $pks ( @all_pk) {
 
     my $cond;
     for my $i (0.. $#pcols) {
-      $cond->{$pcols[$i]} = $pks[$i];
+      $cond->{$pcols[$i]} = $pks->[$i];
     }
 
     $self->$op (
