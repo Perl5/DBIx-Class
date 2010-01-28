@@ -2,6 +2,7 @@ Revision history for DBIx::Class
 
         - FAQ "Custom methods in Result classes"
         - Perl 5.8.1 is now the minimum supported version
+        - DBIx::Class::InflateColumn::File entered deprecated state
         - Subqueries no longer marked experimental
         - might_have/has_one now warn if applied calling class's column
           has is_nullable set to true.
