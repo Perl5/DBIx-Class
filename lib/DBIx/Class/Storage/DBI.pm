@@ -1468,9 +1468,13 @@ sub insert_bulk {
     );
   }
 
+  # neither _execute_array, nor _execute_inserts_with_no_binds are
+  # atomic (even if _execute _array is a single call). Thus a safety
+  # scope guard
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
+
   $self->_query_start( $sql, ['__BULK__'] );
   my $sth = $self->sth($sql);
-
   my $rv = do {
     if ($empty_bind) {
       # bind_param_array doesn't work if there are no binds
@@ -1484,13 +1488,14 @@ sub insert_bulk {
 
   $self->_query_end( $sql, ['__BULK__'] );
 
+
+  $guard->commit if $guard;
+
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
 
 sub _execute_array {
   my ($self, $source, $sth, $bind, $cols, $data, @extra) = @_;
-
-  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
 
   ## This must be an arrayref, else nothing works!
   my $tuple_status = [];
@@ -1540,9 +1545,6 @@ sub _execute_array {
       }),
     );
   }
-
-  $guard->commit if $guard;
-
   return $rv;
 }
 
@@ -1554,8 +1556,6 @@ sub _dbh_execute_array {
 
 sub _dbh_execute_inserts_with_no_binds {
   my ($self, $sth, $count) = @_;
-
-  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
 
   eval {
     my $dbh = $self->_get_dbh;
@@ -1571,8 +1571,6 @@ sub _dbh_execute_inserts_with_no_binds {
   $exception = $@ unless $exception;
 
   $self->throw_exception($exception) if $exception;
-
-  $guard->commit if $guard;
 
   return $count;
 }
