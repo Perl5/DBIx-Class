@@ -1,10 +1,8 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Tue Jan 19 12:46:12 2010
+-- Created on Thu Jan 28 11:26:22 2010
 -- 
-
-
-BEGIN TRANSACTION;
+;
 
 --
 -- Table: artist
@@ -447,6 +445,4 @@ CREATE INDEX fourkeys_to_twokeys_idx_t_artist_t_cd ON fourkeys_to_twokeys (t_art
 -- View: year2000cds
 --
 CREATE VIEW year2000cds AS
-    SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = "2000";
-
-COMMIT;
+    SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = "2000"
