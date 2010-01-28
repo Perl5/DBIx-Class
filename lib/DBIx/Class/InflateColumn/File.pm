@@ -107,7 +107,15 @@ sub _save_file_column {
 
 =head1 NAME
 
-DBIx::Class::InflateColumn::File -  map files from the Database to the filesystem.
+DBIx::Class::InflateColumn::File -  DEPRECATED (superseded by DBIx::Class::InflateColumn::FS)
+
+=head2 Deprecation Notice
+
+ This component has a number of architectural deficiencies and is not
+ recommended for further use. It will be retained for backwards
+ compatibility, but no new functionality patches will be accepted.
+ Please consider using the much more mature and actively supported
+ DBIx::Class::InflateColumn::FS
 
 =head1 SYNOPSIS
 
