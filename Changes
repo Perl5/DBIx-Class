@@ -5,6 +5,7 @@ Revision history for DBIx::Class
           will be removed from the resulting SQL if DBIC can prove they
           are not referenced by anything
         - Subqueries no longer marked experimental
+        - Support for Informix RDBMS (limit/offset and auto-inc columns)
         - might_have/has_one now warn if applied calling class's column
           has is_nullable set to true.
         - Fixed regression in deploy() with a {sources} table limit applied
