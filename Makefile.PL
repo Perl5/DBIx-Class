@@ -46,7 +46,7 @@ requires 'Data::Dumper::Concise'    => '1.000';
 
 my %replication_requires = (
   'Moose',                    => '0.90',
-  'MooseX::Types',            => '0.16',
+  'MooseX::Types',            => '0.21',
   'namespace::clean'          => '0.11',
   'Hash::Merge',              => '0.11',
 );
