@@ -17,18 +17,24 @@ sub inject_base {
 
   no strict 'refs';
   for my $comp (reverse @_) {
-    if (
-      $comp->isa ('DBIx::Class::UTF8Columns')
-        and
-      my @broken = grep { $_ ne 'DBIx::Class::Row' and defined ${"${_}::"}{store_column} } (@present_components)
-    ) {
+
+    if ($comp->isa ('DBIx::Class::UTF8Columns') ) {
+      require B;
+      my @broken;
+
+      for (@present_components) {
+        my $cref = $_->can ('store_column')
+         or next;
+        push @broken, $_ if B::svref_2object($cref)->STASH->NAME ne 'DBIx::Class::Row';
+      }
+
       carp "Incorrect loading order of $comp by ${target} will affect other components overriding store_column ("
           . join (', ', @broken)
-          .'). Refer to the documentation of DBIx::Class::UTF8Columns for more info';
+          .'). Refer to the documentation of DBIx::Class::UTF8Columns for more info'
+       if @broken;
     }
-    else {
-      unshift @present_components, $comp;
-    }
+
+    unshift @present_components, $comp;
   }
 
   $class->next::method($target, @_);
