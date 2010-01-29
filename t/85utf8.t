@@ -18,7 +18,7 @@ warning_like (sub {
   use base 'DBIx::Class::Core';
   __PACKAGE__->load_components(qw(UTF8Columns +A::Comp));
   1;
-}, qr/Incorrect loading order of DBIx::Class::UTF8Columns/ );
+}, qr/Incorrect loading order of DBIx::Class::UTF8Columns.+affect other components overriding store_column \(A::Comp\)/ );
 
 
 my $schema = DBICTest->init_schema();
