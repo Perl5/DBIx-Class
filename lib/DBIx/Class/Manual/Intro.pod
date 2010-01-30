@@ -434,7 +434,7 @@ For example, the following would not work:
 
  my $row = $schema->resultset('People')
    ->search({ last_name => 'Dantes' })
-   ->first;
+   ->next;
  $row->update({ children => 2 }); # <-- exception thrown because $row isn't
                                   # necessarily unique
 
