@@ -430,6 +430,18 @@ L<search|DBIx::Class::ResultSet/search>,
 L<update|DBIx::Class::ResultSet/update>,
 L<delete|DBIx::Class::ResultSet/delete>
 
+For example, the following would not work:
+
+ my $row = $schema->resultset('People')
+   ->search({ last_name => 'Dantes' })
+   ->first;
+ $row->update({ children => 2 }); # <-- exception thrown because $row isn't
+                                  # necessarily unique
+
+So instead the following should be done:
+
+ $schema->resultset('People')->search({ last_name => 'Dantes' })
+   ->update({ children => 2 }); # <-- update's ALL Dantes to have children of 2
 
 =head2 Problems on RHEL5/CentOS5
 
