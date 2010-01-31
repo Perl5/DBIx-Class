@@ -23,6 +23,22 @@ __PACKAGE__->add_columns
         'is_nullable' => 0,
         'size' => '10'
         },
+      'NewVersionName' => {
+        'data_type' => 'VARCHAR',
+        'is_auto_increment' => 0,
+        'default_value' => undef,
+        'is_foreign_key' => 0,
+        'is_nullable' => 1,
+        'size' => '20'
+        },
+      'ExtraColumn' => {
+        'data_type' => 'VARCHAR',
+        'is_auto_increment' => 0,
+        'default_value' => undef,
+        'is_foreign_key' => 0,
+        'is_nullable' => 1,
+        'size' => '20'
+        }
       );
 
 __PACKAGE__->set_primary_key('Version');
@@ -32,14 +48,11 @@ use base 'DBIx::Class::Schema';
 use strict;
 use warnings;
 
-our $VERSION = '1.0';
+our $VERSION = '3.0';
 
 __PACKAGE__->register_class('Table', 'DBICVersion::Table');
 __PACKAGE__->load_components('+DBIx::Class::Schema::Versioned');
-
-sub upgrade_directory
-{
-    return 't/var/';
-}
+__PACKAGE__->upgrade_directory('t/var/');
+__PACKAGE__->backup_directory('t/var/backup/');
 
 1;
