@@ -1102,6 +1102,42 @@ loading your app, if it doesn't match the character set of your database.
 When inserting IMAGE columns using this method, you'll need to use
 L</connect_call_blob_setup> as well.
 
+=head1 COMPUTED COLUMNS
+
+If you have columns such as:
+
+  created_dtm AS getdate()
+
+represent them in your Result classes as:
+
+  created_dtm => {
+    data_type => undef,
+    default_value => \'getdate()',
+    is_nullable => 0,
+  }
+
+The C<data_type> must exist and must be C<undef>. Then empty inserts will work
+on tables with such columns.
+
+=head1 TIMESTAMP COLUMNS
+
+C<timestamp> columns in Sybase ASE are not really timestamps, see:
+L<http://dba.fyicenter.com/Interview-Questions/SYBASE/The_timestamp_datatype_in_Sybase_.html>.
+
+They should be defined in your Result classes as:
+
+  ts => {
+    data_type => 'timestamp',
+    is_nullable => 0,
+    inflate_datetime => 0,
+  }
+
+The C<<inflate_datetime => 0>> is necessary if you use
+L<DBIx::Class::InflateColumn::DateTime>, and most people do, and still want to
+be able to read these values.
+
+The values will come back as hexadecimal.
+
 =head1 TODO
 
 =over
