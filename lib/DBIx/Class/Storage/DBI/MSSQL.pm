@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI::MSSQL;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::AmbiguousGlob DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
 use List::Util();
