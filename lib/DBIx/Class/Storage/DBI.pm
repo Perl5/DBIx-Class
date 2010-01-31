@@ -1606,15 +1606,7 @@ sub _subq_update_delete {
   my $rsrc = $rs->result_source;
 
   # quick check if we got a sane rs on our hands
-  my @pcols = $rsrc->primary_columns;
-  unless (@pcols) {
-    $self->throw_exception (
-      sprintf (
-        "You must declare primary key(s) on source '%s' (via set_primary_key) in order to update or delete complex resultsets",
-        $rsrc->source_name || $rsrc->from
-      )
-    );
-  }
+  my @pcols = $rsrc->_pri_cols;
 
   my $sel = $rs->_resolved_attrs->{select};
   $sel = [ $sel ] unless ref $sel eq 'ARRAY';
@@ -1667,7 +1659,7 @@ sub _per_row_update_delete {
   my ($rs, $op, $values) = @_;
 
   my $rsrc = $rs->result_source;
-  my @pcols = $rsrc->primary_columns;
+  my @pcols = $rsrc->_pri_cols;
 
   my $guard = $self->txn_scope_guard;
 

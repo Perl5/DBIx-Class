@@ -26,7 +26,7 @@ sub _multipk_update_delete {
   my ($rs, $op, $values) = @_;
 
   my $rsrc = $rs->result_source;
-  my @pcols = $rsrc->primary_columns;
+  my @pcols = $rsrc->_pri_cols;
   my $attrs = $rs->_resolved_attrs;
 
   # naive check - this is an internal method after all, we should know what we are doing 

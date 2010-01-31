@@ -37,7 +37,7 @@ sub id {
 
 sub _ident_values {
   my ($self) = @_;
-  return (map { $self->{_column_data}{$_} } $self->primary_columns);
+  return (map { $self->{_column_data}{$_} } $self->_pri_cols);
 }
 
 =head2 ID
@@ -65,7 +65,7 @@ sub ID {
     unless ref $self;
   return undef unless $self->in_storage;
   return $self->_create_ID(map { $_ => $self->{_column_data}{$_} }
-                             $self->primary_columns);
+                             $self->_pri_cols);
 }
 
 sub _create_ID {
@@ -89,7 +89,7 @@ sub ident_condition {
   my ($self, $alias) = @_;
   my %cond;
   my $prefix = defined $alias ? $alias.'.' : '';
-  $cond{$prefix.$_} = $self->get_column($_) for $self->primary_columns;
+  $cond{$prefix.$_} = $self->get_column($_) for $self->_pri_cols;
   return \%cond;
 }
 
