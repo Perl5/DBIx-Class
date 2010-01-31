@@ -150,13 +150,13 @@ The script above assumes that if the database is unversioned then it is empty
 and we can safely deploy the DDL to it. However things are not always so simple.
 
 if you want to initialise a pre-existing database where the DDL is not the same
-as the DDL for your current schema version then you will need a diff which 
+as the DDL for your current schema version then you will need a diff which
 converts the database's DDL to the current DDL. The best way to do this is
 to get a dump of the database schema (without data) and save that in your
 SQL directory as version 0.000 (the filename must be as with
-L<DBIx::Class::Schema/ddl_filename>) then create a diff using your create DDL 
+L<DBIx::Class::Schema/ddl_filename>) then create a diff using your create DDL
 script given above from version 0.000 to the current version. Then hand check
-and if necessary edit the resulting diff to ensure that it will apply. Once you have 
+and if necessary edit the resulting diff to ensure that it will apply. Once you have
 done all that you can do this:
 
   if (!$schema->get_db_version()) {
@@ -168,7 +168,7 @@ done all that you can do this:
   $schema->upgrade();
 
 In the case of an unversioned database the above code will create the
-dbix_class_schema_versions table and write version 0.000 to it, then 
+dbix_class_schema_versions table and write version 0.000 to it, then
 upgrade will then apply the diff we talked about creating in the previous paragraph
 and then you're good to go.
 
@@ -399,7 +399,7 @@ sub upgrade_single_step
   }
 
   # strangely the first time this is called can
-  # differ to subsequent times. so we call it 
+  # differ to subsequent times. so we call it
   # here to be sure.
   # XXX - just fix it
   $self->storage->sqlt_type;
@@ -435,7 +435,7 @@ This is an overwritable method used to run your upgrade. The freeform method
 allows you to run your upgrade any way you please, you can call C<run_upgrade>
 any number of times to run the actual SQL commands, and in between you can
 sandwich your data upgrading. For example, first run all the B<CREATE>
-commands, then migrate your data from old to new tables/formats, then 
+commands, then migrate your data from old to new tables/formats, then
 issue the DROP commands when you are finished. Will run the whole file as it is by default.
 
 =cut
@@ -469,7 +469,7 @@ sub run_upgrade
     $self->_filedata([ grep { $_ !~ /$stm/i } @{$self->_filedata} ]);
 
     for (@statements)
-    {      
+    {
         $self->storage->debugobj->query_start($_) if $self->storage->debug;
         $self->apply_statement($_);
         $self->storage->debugobj->query_end($_) if $self->storage->debug;
@@ -641,7 +641,7 @@ sub _create_db_to_schema_diff {
     $tr->parser->($tr, $$data);
   }
 
-  my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db, 
+  my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db,
                                                 $dbic_tr->schema, $db,
                                                 { ignore_constraint_names => 1, ignore_index_names => 1, caseopt => 1 });
 
@@ -704,14 +704,17 @@ sub _read_sql_file {
   my $self = shift;
   my $file = shift || return;
 
-  my $fh;
-  open $fh, "<$file" or carp("Can't open upgrade file, $file ($!)");
-  my @data = split(/\n/, join('', <$fh>));
-  @data = grep(!/^--/, @data);
-  @data = split(/;/, join('', @data));
-  close($fh);
-  @data = grep { $_ && $_ !~ /^-- / } @data;
-  @data = grep { $_ !~ /^(BEGIN|BEGIN TRANSACTION|COMMIT)/m } @data;
+  open my $fh, '<', $file or carp("Can't open upgrade file, $file ($!)");
+  my @data = split /\n/, join '', <$fh>;
+  close $fh;
+
+  @data = grep {
+     $_ &&
+     !/^--/ &&
+     !/^(BEGIN|BEGIN TRANSACTION|COMMIT)/m
+  } split /;/,
+     join '', @data;
+
   return \@data;
 }
 
