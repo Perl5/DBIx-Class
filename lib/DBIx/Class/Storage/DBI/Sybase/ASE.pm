@@ -353,10 +353,19 @@ sub insert {
 
   # check for empty insert
   # INSERT INTO foo DEFAULT VALUES -- does not work with Sybase
-  # try to insert explicit 'DEFAULT's instead (except for identity)
+  # try to insert explicit 'DEFAULT's instead (except for identity, timestamp
+  # and computed columns)
   if (not %$to_insert) {
     for my $col ($source->columns) {
       next if $col eq $identity_col;
+
+      my $info = $source->column_info($col);
+
+      next if ref $info->{default_value} eq 'SCALAR'
+        || (exists $info->{data_type} && (not defined $info->{data_type}));
+
+      next if $info->{data_type} && $info->{data_type} =~ /^timestamp\z/i;
+
       $to_insert->{$col} = \'DEFAULT';
     }
   }
