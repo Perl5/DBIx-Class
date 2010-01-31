@@ -801,7 +801,7 @@ sub _shift_siblings {
         my $cursor = $shift_rs->search ({}, { order_by => { "-$ord", $position_column }, columns => \@pcols } )->cursor;
         my $rs = $self->result_source->resultset;
 
-        my @all_pks = $cusrsor->all;
+        my @all_pks = $cursor->all;
         while (my $pks = shift @all_pks) {
           my $cond;
           for my $i (0.. $#pcols) {

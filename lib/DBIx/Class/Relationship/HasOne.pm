@@ -62,7 +62,7 @@ sub _get_primary_key {
   $target_class ||= $class;
   my ($pri, $too_many) = eval { $target_class->_pri_cols };
   $class->throw_exception(
-    "Can't infer join condition for ${rel} on ${target_class}: $@"
+    "Can't infer join condition on ${target_class}: $@"
   ) if $@;
 
   $class->throw_exception(
