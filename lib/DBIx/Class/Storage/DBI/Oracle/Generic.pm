@@ -255,7 +255,7 @@ sub source_bind_attributes
       if ($DBD::Oracle::VERSION eq '1.23') {
         $self->throw_exception(
 "BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
-"version"
+"version.\n\nSee: https://rt.cpan.org/Public/Bug/Display.html?id=46016\n"
         );
       }
 
