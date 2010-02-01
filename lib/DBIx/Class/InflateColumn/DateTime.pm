@@ -178,21 +178,12 @@ sub register_column {
               $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $err");
             }
 
-            $dt->set_time_zone($timezone) if $timezone;
-            $dt->set_locale($locale) if $locale;
-            return $dt;
+            return $obj->_post_inflate_datetime( $dt, \%info );
           },
           deflate => sub {
             my ($value, $obj) = @_;
-            if ($timezone) {
-                carp "You're using a floating timezone, please see the documentation of"
-                  . " DBIx::Class::InflateColumn::DateTime for an explanation"
-                  if ref( $value->time_zone ) eq 'DateTime::TimeZone::Floating'
-                      and not $info{floating_tz_ok}
-                      and not $ENV{DBIC_FLOATING_TZ_OK};
-                $value->set_time_zone($timezone);
-                $value->set_locale($locale) if $locale;
-            }
+
+            $value = $obj->_pre_deflate_datetime( $value, \%info );
             $obj->_deflate_from_datetime( $value, \%info );
           },
         }
@@ -222,6 +213,65 @@ sub _deflate_from_datetime {
 
 sub _datetime_parser {
   shift->result_source->storage->datetime_parser (@_);
+}
+
+sub _post_inflate_datetime {
+  my( $self, $dt, $info ) = @_;
+
+  my $timezone;
+  if (exists $info->{timezone}) {
+    $timezone = $info->{timezone};
+  }
+  elsif (exists $info->{extra} and exists $info->{extra}{timezone}) {
+    $timezone = $info->{extra}{timezone};
+  }
+
+  my $locale;
+  if (exists $info->{locale}) {
+    $locale = $info->{locale};
+  }
+  elsif (exists $info->{extra} and exists $info->{extra}{locale}) {
+    $locale = $info->{extra}{locale};
+  }
+
+  $dt->set_time_zone($timezone) if $timezone;
+  $dt->set_locale($locale) if $locale;
+
+  return $dt;
+}
+
+sub _pre_deflate_datetime {
+  my( $self, $dt, $info ) = @_;
+
+  my $timezone;
+  if (exists $info->{timezone}) {
+    $timezone = $info->{timezone};
+  }
+  elsif (exists $info->{extra} and exists $info->{extra}{timezone}) {
+    $timezone = $info->{extra}{timezone};
+  }
+
+  my $locale;
+  if (exists $info->{locale}) {
+    $locale = $info->{locale};
+  }
+  elsif (exists $info->{extra} and exists $info->{extra}{locale}) {
+    $locale = $info->{extra}{locale};
+  }
+
+  if ($timezone) {
+    carp "You're using a floating timezone, please see the documentation of"
+      . " DBIx::Class::InflateColumn::DateTime for an explanation"
+      if ref( $dt->time_zone ) eq 'DateTime::TimeZone::Floating'
+          and not $info->{floating_tz_ok}
+          and not $ENV{DBIC_FLOATING_TZ_OK};
+
+    $dt->set_time_zone($timezone);
+  }
+
+  $dt->set_locale($locale) if $locale;
+
+  return $dt;
 }
 
 1;

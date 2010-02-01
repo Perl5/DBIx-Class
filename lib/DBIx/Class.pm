@@ -227,6 +227,8 @@ blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
 
+boghead: Bryan Beeley <cpan@beeley.org>
+
 bricas: Brian Cassidy <bricas@cpan.org>
 
 brunov: Bruno Vecchi <vecchi.b@gmail.com>
