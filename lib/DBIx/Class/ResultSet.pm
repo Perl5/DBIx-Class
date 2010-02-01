@@ -2503,7 +2503,7 @@ sub related_resultset {
         ->relname_to_table_alias($rel, $join_count);
 
     # since this is search_related, and we already slid the select window inwards
-    # (the select/as attrs were deleted in the beginning), we need to flip all 
+    # (the select/as attrs were deleted in the beginning), we need to flip all
     # left joins to inner, so we get the expected results
     # read the comment on top of the actual function to see what this does
     $attrs->{from} = $rsrc->schema->storage->_straight_join_to_node ($attrs->{from}, $alias);
@@ -2710,11 +2710,10 @@ sub _resolved_attrs_copy {
   return { %{$self->_resolved_attrs (@_)} };
 }
 
-sub _resolved_attrs {
-  my $self = shift;
-  return $self->{_attrs} if $self->{_attrs};
+sub _merge_attrs {
+  my $self  = shift;
+  my $attrs = shift;
 
-  my $attrs  = { %{ $self->{attrs} || {} } };
   my $source = $self->result_source;
   my $alias  = $attrs->{alias};
 
@@ -2753,25 +2752,27 @@ sub _resolved_attrs {
   }
 
   # add the additional columns on
-  foreach ( 'include_columns', '+columns' ) {
+  foreach (qw{include_columns +columns}) {
       push @colbits, map {
           ( ref($_) eq 'HASH' )
             ? $_
             : { ( split( /\./, $_ ) )[-1] => ( /\./ ? $_ : "${alias}.$_" ) }
-      } ( ref($attrs->{$_}) eq 'ARRAY' ) ? @{ delete $attrs->{$_} } : delete $attrs->{$_} if ( $attrs->{$_} );
+      } ( ref($attrs->{$_}) eq 'ARRAY' )
+         ? @{ delete $attrs->{$_} }
+         : delete $attrs->{$_} if ( $attrs->{$_} );
   }
 
   # start with initial select items
   if ( $attrs->{select} ) {
     $attrs->{select} =
         ( ref $attrs->{select} eq 'ARRAY' )
-      ? [ @{ $attrs->{select} } ]
+      ? $attrs->{select}
       : [ $attrs->{select} ];
     $attrs->{as} = (
       $attrs->{as}
       ? (
         ref $attrs->{as} eq 'ARRAY'
-        ? [ @{ $attrs->{as} } ]
+        ? $attrs->{as}
         : [ $attrs->{as} ]
         )
       : [ map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{ $attrs->{select} } ]
@@ -2785,21 +2786,29 @@ sub _resolved_attrs {
   }
 
   # now add colbits to select/as
-  push( @{ $attrs->{select} }, map { values( %{$_} ) } @colbits );
-  push( @{ $attrs->{as} },     map { keys( %{$_} ) } @colbits );
+  push @{ $attrs->{select} }, map values %{$_}, @colbits;
+  push @{ $attrs->{as}     }, map keys   %{$_}, @colbits;
 
-  my $adds;
-  if ( $adds = delete $attrs->{'+select'} ) {
+  if ( my $adds = delete $attrs->{'+select'} ) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push(
-      @{ $attrs->{select} },
-      map { /\./ || ref $_ ? $_ : "${alias}.$_" } @$adds
-    );
+    push @{ $attrs->{select} },
+      map { /\./ || ref $_ ? $_ : "${alias}.$_" } @$adds;
   }
-  if ( $adds = delete $attrs->{'+as'} ) {
+  if ( my $adds = delete $attrs->{'+as'} ) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push( @{ $attrs->{as} }, @$adds );
+    push @{ $attrs->{as} }, @$adds;
   }
+  return $attrs;
+}
+
+sub _resolved_attrs {
+  my $self = shift;
+  return $self->{_attrs} if $self->{_attrs};
+
+  my $attrs = $self->_merge_attrs({ %{ $self->{attrs} || {} } });
+  my $source = $self->result_source;
+  my $alias  = $attrs->{alias};
+
 
   $attrs->{from} ||= [ {
     -source_handle => $source->handle,
