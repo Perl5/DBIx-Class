@@ -944,12 +944,8 @@ sub _svp_rollback {
 
 =head1 Schema::Loader Support
 
-There is an experimental branch of L<DBIx::Class::Schema::Loader> that will
-allow you to dump a schema from most (if not all) versions of Sybase.
-
-It is available via subversion from:
-
-  http://dev.catalyst.perl.org/repos/bast/branches/DBIx-Class-Schema-Loader/current/
+As of version C<0.05000>, L<DBIx::Class::Schema::Loader> should work well with
+most (if not all) versions of Sybase ASE.
 
 =head1 FreeTDS
 
