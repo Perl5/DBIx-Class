@@ -299,6 +299,10 @@ sub search_rs {
     $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
 
+  if (List::Util::first { exists $new_attrs->{$_} } qw{select as columns}) {
+     delete $new_attrs->{$_} for (qw{+select +as +columns});
+  }
+
   my $cond = (@_
     ? (
         (@_ == 1 || ref $_[0] eq "HASH")
