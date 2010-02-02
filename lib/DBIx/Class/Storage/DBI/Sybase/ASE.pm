@@ -353,10 +353,19 @@ sub insert {
 
   # check for empty insert
   # INSERT INTO foo DEFAULT VALUES -- does not work with Sybase
-  # try to insert explicit 'DEFAULT's instead (except for identity)
+  # try to insert explicit 'DEFAULT's instead (except for identity, timestamp
+  # and computed columns)
   if (not %$to_insert) {
     for my $col ($source->columns) {
       next if $col eq $identity_col;
+
+      my $info = $source->column_info($col);
+
+      next if ref $info->{default_value} eq 'SCALAR'
+        || (exists $info->{data_type} && (not defined $info->{data_type}));
+
+      next if $info->{data_type} && $info->{data_type} =~ /^timestamp\z/i;
+
       $to_insert->{$col} = \'DEFAULT';
     }
   }
@@ -935,12 +944,8 @@ sub _svp_rollback {
 
 =head1 Schema::Loader Support
 
-There is an experimental branch of L<DBIx::Class::Schema::Loader> that will
-allow you to dump a schema from most (if not all) versions of Sybase.
-
-It is available via subversion from:
-
-  http://dev.catalyst.perl.org/repos/bast/branches/DBIx-Class-Schema-Loader/current/
+As of version C<0.05000>, L<DBIx::Class::Schema::Loader> should work well with
+most (if not all) versions of Sybase ASE.
 
 =head1 FreeTDS
 
@@ -1092,6 +1097,42 @@ loading your app, if it doesn't match the character set of your database.
 
 When inserting IMAGE columns using this method, you'll need to use
 L</connect_call_blob_setup> as well.
+
+=head1 COMPUTED COLUMNS
+
+If you have columns such as:
+
+  created_dtm AS getdate()
+
+represent them in your Result classes as:
+
+  created_dtm => {
+    data_type => undef,
+    default_value => \'getdate()',
+    is_nullable => 0,
+  }
+
+The C<data_type> must exist and must be C<undef>. Then empty inserts will work
+on tables with such columns.
+
+=head1 TIMESTAMP COLUMNS
+
+C<timestamp> columns in Sybase ASE are not really timestamps, see:
+L<http://dba.fyicenter.com/Interview-Questions/SYBASE/The_timestamp_datatype_in_Sybase_.html>.
+
+They should be defined in your Result classes as:
+
+  ts => {
+    data_type => 'timestamp',
+    is_nullable => 0,
+    inflate_datetime => 0,
+  }
+
+The C<<inflate_datetime => 0>> is necessary if you use
+L<DBIx::Class::InflateColumn::DateTime>, and most people do, and still want to
+be able to read these values.
+
+The values will come back as hexadecimal.
 
 =head1 TODO
 
