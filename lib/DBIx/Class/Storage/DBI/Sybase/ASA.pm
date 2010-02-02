@@ -40,9 +40,10 @@ sub insert {
 
   if (not $is_identity_insert) {
     my ($identity_col) = grep $source->column_info($_)->{is_auto_increment},
-      $source->primary_columns;
+      $source->columns;
     my $dbh = $self->_get_dbh;
     my $table_name = $source->from;
+    $table_name    = $$table_name if ref $table_name;
 
     my ($identity) = $dbh->selectrow_array("SELECT GET_IDENTITY('$table_name')");
 
