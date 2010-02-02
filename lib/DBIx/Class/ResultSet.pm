@@ -2710,10 +2710,11 @@ sub _resolved_attrs_copy {
   return { %{$self->_resolved_attrs (@_)} };
 }
 
-sub _merge_attrs {
-  my $self  = shift;
-  my $attrs = shift;
+sub _resolved_attrs {
+  my $self = shift;
+  return $self->{_attrs} if $self->{_attrs};
 
+  my $attrs  = { %{ $self->{attrs} || {} } };
   my $source = $self->result_source;
   my $alias  = $attrs->{alias};
 
@@ -2766,13 +2767,13 @@ sub _merge_attrs {
   if ( $attrs->{select} ) {
     $attrs->{select} =
         ( ref $attrs->{select} eq 'ARRAY' )
-      ? $attrs->{select}
+      ? [ @{ $attrs->{select} } ]
       : [ $attrs->{select} ];
     $attrs->{as} = (
       $attrs->{as}
       ? (
         ref $attrs->{as} eq 'ARRAY'
-        ? $attrs->{as}
+        ? [ @{ $attrs->{as} } ]
         : [ $attrs->{as} ]
         )
       : [ map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{ $attrs->{select} } ]
@@ -2798,17 +2799,6 @@ sub _merge_attrs {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
     push @{ $attrs->{as} }, @$adds;
   }
-  return $attrs;
-}
-
-sub _resolved_attrs {
-  my $self = shift;
-  return $self->{_attrs} if $self->{_attrs};
-
-  my $attrs = $self->_merge_attrs({ %{ $self->{attrs} || {} } });
-  my $source = $self->result_source;
-  my $alias  = $attrs->{alias};
-
 
   $attrs->{from} ||= [ {
     -source_handle => $source->handle,
