@@ -6,12 +6,12 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
+# tests stolen from 748informix.t
+
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_ASA_${_}" } qw/DSN USER PASS/};
 
-#warn "$dsn $user $pass";
-
 plan skip_all => 'Set $ENV{DBICTEST_SYBASE_ASA_DSN}, _USER and _PASS to run this test'
-  unless ($dsn && $user);
+  unless ($dsn);
 
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
@@ -72,11 +72,44 @@ is( $lim->next->artistid, 101, "iterator->next ok" );
 is( $lim->next->artistid, 102, "iterator->next ok" );
 is( $lim->next, undef, "next past end of resultset ok" );
 
+# test blobs (stolen from 73oracle.t)
+eval { $dbh->do('DROP TABLE bindtype_test') };
+$dbh->do(qq[
+CREATE TABLE bindtype_test
+(
+  id    INT          NOT NULL PRIMARY KEY,
+  bytea INT          NULL,
+  blob  LONG BINARY  NULL,
+  clob  LONG VARCHAR NULL
+)
+],{ RaiseError => 1, PrintError => 1 });
+
+my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
+$binstr{'large'} = $binstr{'small'} x 1024;
+
+my $maxloblen = length $binstr{'large'};
+local $dbh->{'LongReadLen'} = $maxloblen;
+
+my $rs = $schema->resultset('BindType');
+my $id = 0;
+
+foreach my $type (qw( blob clob )) {
+  foreach my $size (qw( small large )) {
+    $id++;
+
+    lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
+    "inserted $size $type without dying";
+
+    ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
+  }
+}
 
 done_testing;
 
 # clean up our mess
 END {
     my $dbh = eval { $schema->storage->_dbh };
-    $dbh->do("DROP TABLE artist") if $dbh;
+    if ($dbh) {
+        $dbh->do("DROP TABLE $_") for qw/artist bindtype_test/;
+    }
 }
