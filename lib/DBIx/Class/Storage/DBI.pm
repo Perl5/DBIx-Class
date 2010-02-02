@@ -2586,7 +2586,10 @@ sub DESTROY {
   # some databases need this to stop spewing warnings
   if (my $dbh = $self->_dbh) {
     local $@;
-    eval { $dbh->disconnect };
+    eval {
+      %{ $dbh->{CachedKids} } = ();
+      $dbh->disconnect;
+    };
   }
 
   $self->_dbh(undef);
