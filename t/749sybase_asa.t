@@ -19,7 +19,14 @@ my $dbh = $schema->storage->dbh;
 
 eval { $dbh->do("DROP TABLE artist") };
 
-$dbh->do("CREATE TABLE artist (artistid INT IDENTITY PRIMARY KEY, name VARCHAR(255), charfield CHAR(10), rank INT DEFAULT 13)");
+$dbh->do(<<EOF);
+CREATE TABLE artist (
+  artistid INT IDENTITY PRIMARY KEY,
+  name VARCHAR(255) NULL,
+  charfield CHAR(10) NULL,
+  rank INT DEFAULT 13
+)
+EOF
 
 my $ars = $schema->resultset('Artist');
 is ( $ars->count, 0, 'No rows at first' );
@@ -72,6 +79,14 @@ is( $lim->next->artistid, 101, "iterator->next ok" );
 is( $lim->next->artistid, 102, "iterator->next ok" );
 is( $lim->next, undef, "next past end of resultset ok" );
 
+# test empty insert
+{
+  local $ars->result_source->column_info('artistid')->{is_auto_increment} = 0;
+
+  lives_ok { $ars->create({}) }
+    'empty insert works';
+}
+
 # test blobs (stolen from 73oracle.t)
 eval { $dbh->do('DROP TABLE bindtype_test') };
 $dbh->do(qq[
@@ -97,6 +112,9 @@ foreach my $type (qw( blob clob )) {
   foreach my $size (qw( small large )) {
     $id++;
 
+# turn off horrendous binary DBIC_TRACE output
+    local $schema->storage->{debug} = 0;
+
     lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
     "inserted $size $type without dying";
 
@@ -108,8 +126,7 @@ done_testing;
 
 # clean up our mess
 END {
-    my $dbh = eval { $schema->storage->_dbh };
-    if ($dbh) {
-        $dbh->do("DROP TABLE $_") for qw/artist bindtype_test/;
-    }
+  if (my $dbh = eval { $schema->storage->_dbh }) {
+    $dbh->do("DROP TABLE $_") for qw/artist bindtype_test/;
+  }
 }
