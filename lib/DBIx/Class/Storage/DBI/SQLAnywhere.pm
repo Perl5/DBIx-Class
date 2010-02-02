@@ -12,7 +12,7 @@ __PACKAGE__->mk_group_accessors(simple => qw/
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Sybase::ASA - Driver for Sybase SQL Anywhere
+DBIx::Class::Storage::DBI::SQLAnywhere - Driver for Sybase SQL Anywhere
 
 =head1 DESCRIPTION
 
@@ -22,7 +22,13 @@ RowNumberOver limit implementation.
 You need the C<DBD::SQLAnywhere> driver that comes with the SQL Anywhere
 distribution, B<NOT> the one on CPAN. It is usually under a path such as:
 
-    /opt/sqlanywhere11/sdk/perl
+  /opt/sqlanywhere11/sdk/perl
+
+Recommended L<DBIx::Class::Storage::DBI/connect_info> settings:
+
+  on_connect_call => 'datetime_setup'
+
+=head1 METHODS
 
 =cut
 
@@ -57,7 +63,7 @@ sub insert {
   return $self->next::method(@_);
 }
 
-# stolen from DB2
+# this sub stolen from DB2
 
 sub _sql_maker_opts {
   my ( $self, $opts ) = @_;
@@ -67,6 +73,48 @@ sub _sql_maker_opts {
   }
 
   return { limit_dialect => 'RowNumberOver', %{$self->{_sql_maker_opts}||{}} };
+}
+
+# this sub stolen from MSSQL
+
+sub build_datetime_parser {
+  my $self = shift;
+  my $type = "DateTime::Format::Strptime";
+  eval "use ${type}";
+  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  return $type->new( pattern => '%Y-%m-%d %H:%M:%S.%6N' );
+}
+
+=head2 connect_call_datetime_setup
+
+Used as:
+
+    on_connect_call => 'datetime_setup'
+
+In L<DBIx::Class::Storage::DBI/connect_info> to set the date and timestamp
+formats (as temporary options for the session) for use with
+L<DBIx::Class::InflateColumn::DateTime>.
+
+The C<TIMESTAMP> data type supports up to 6 digits after the decimal point for
+second precision. The full precision is used.
+
+The C<DATE> data type supposedly stores hours and minutes too, according to the
+documentation, but I could not get that to work. It seems to only store the
+date.
+
+You will need the L<DateTime::Format::Strptime> module for inflation to work.
+
+=cut
+
+sub connect_call_datetime_setup {
+  my $self = shift;
+
+  $self->_do_query(
+    "set temporary option timestamp_format = 'yyyy-mm-dd hh:mm:ss.ssssss'"
+  );
+  $self->_do_query(
+    "set temporary option date_format      = 'yyyy-mm-dd hh:mm:ss.ssssss'"
+  );
 }
 
 1;

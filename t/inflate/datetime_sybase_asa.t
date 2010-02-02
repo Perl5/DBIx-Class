@@ -13,9 +13,9 @@ if (not $dsn) {
     'Set $ENV{DBICTEST_SYBASE_ASA_DSN}, _USER and _PASS to run this test' .
     "\nWarning: This test drops and creates a table called 'track'";
 } else {
-  eval "use DateTime; use DateTime::Format::Sybase;";
+  eval "use DateTime; use DateTime::Format::Strptime;";
   if ($@) {
-    plan skip_all => 'needs DateTime and DateTime::Format::Sybase for testing';
+    plan skip_all => 'needs DateTime and DateTime::Format::Strptime for testing';
   }
 }
 
@@ -24,15 +24,14 @@ my $schema;
 $schema = DBICTest::Schema->clone;
 
 $schema->connection($dsn, $user, $pass, {
-  AutoCommit => 1,
   on_connect_call => [ 'datetime_setup' ],
 });
 
 # coltype, col, date
 my @dt_types = (
-  ['DATETIME', 'last_updated_at', '2004-08-21T14:36:48.080Z'],
-# minute precision
-  ['SMALLDATETIME', 'small_dt', '2004-08-21T14:36:00.000Z'],
+  ['TIMESTAMP', 'last_updated_at', '2004-08-21 14:36:48.080444'],
+# date only (but minute precision according to ASA docs)
+  ['DATE', 'small_dt', '2004-08-21 00:00:00.000000'],
 );
 
 for my $dt_type (@dt_types) {
@@ -47,7 +46,7 @@ CREATE TABLE track (
   $col $type,
 )
 SQL
-  ok(my $dt = DateTime::Format::Sybase->parse_datetime($sample_dt));
+  ok(my $dt = $schema->storage->datetime_parser->parse_datetime($sample_dt));
 
   my $row;
   ok( $row = $schema->resultset('Track')->create({
