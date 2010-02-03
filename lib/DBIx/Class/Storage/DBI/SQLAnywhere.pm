@@ -39,17 +39,11 @@ sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
-  my $supplied_col_info = $self->_resolve_column_info($source, [keys %$to_insert]);
-
-  my $is_identity_insert = (List::Util::first { $_->{is_auto_increment} } (values %$supplied_col_info) )
-     ? 1
-     : 0;
-
   my $identity_col = List::Util::first {
       $source->column_info($_)->{is_auto_increment} 
   } $source->columns;
 
-  if ((not $is_identity_insert) && $identity_col) {
+  if ($identity_col && (not exists $to_insert->{$identity_col})) {
     my $dbh = $self->_get_dbh;
     my $table_name = $source->from;
     $table_name    = $$table_name if ref $table_name;
