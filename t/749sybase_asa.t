@@ -11,7 +11,7 @@ use DBICTest;
 my ($dsn, $user, $pass)    = @ENV{map { "DBICTEST_SYBASE_ASA_${_}" }      qw/DSN USER PASS/};
 my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_SYBASE_ASA_ODBC_${_}" } qw/DSN USER PASS/};
 
-plan skip_all => <<"EOF" unless $dsn || $dsn2;
+plan skip_all => <<'EOF' unless $dsn || $dsn2;
 Set $ENV{DBICTEST_SYBASE_ASA_DSN} and/or $ENV{DBICTEST_SYBASE_ASA_ODBC_DSN},
 _USER and _PASS to run these tests
 EOF
