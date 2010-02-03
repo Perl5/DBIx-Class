@@ -6,6 +6,7 @@ Revision history for DBIx::Class
           are not referenced by anything
         - Subqueries no longer marked experimental
         - Support for Informix RDBMS (limit/offset and auto-inc columns)
+        - Support for Sybase SQLAnywhere, both native and via ODBC
         - might_have/has_one now warn if applied calling class's column
           has is_nullable set to true.
         - Fixed regression in deploy() with a {sources} table limit applied
@@ -14,6 +15,8 @@ Revision history for DBIx::Class
           parsed by SQL::Translator::Parser::DBIx::Class
         - Stop the SQLT parser from auto-adding indexes identical to the
           Primary Key
+        - InflateColumn::DateTime refactoring to allow fine grained method
+          overloads
         - Fix ResultSetColumn improperly selecting more than the requested
           column when +columns/+select is present
         - Fix regression in context sensitiveness of deployment_statements
