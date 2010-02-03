@@ -123,6 +123,11 @@ my %force_requires_if_author = (
       'DateTime::Format::Sybase' => 0,
     ) : ()
   ,
+  grep $_, @ENV{qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/}
+    ? (
+      'DateTime::Format::Strptime' => 0,
+    ) : ()
+  ,
 );
 #************************************************************************#
 # Make ABSOLUTELY SURE that nothing on the list above is a real require, #
