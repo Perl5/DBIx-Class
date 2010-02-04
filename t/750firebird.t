@@ -5,6 +5,7 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use Scope::Guard ();
 
 # tests stolen from 749sybase_asa.t
 
@@ -34,8 +35,9 @@ foreach my $info (@info) {
 
   push @handles_to_clean, $dbh;
 
-  eval { $dbh->do("DROP TABLE artist") };
+  my $sg = Scope::Guard->new(\&cleanup);
 
+  eval { $dbh->do("DROP TABLE artist") };
   $dbh->do(<<EOF);
   CREATE TABLE artist (
     artistid INT PRIMARY KEY,
@@ -44,7 +46,9 @@ foreach my $info (@info) {
     rank INT DEFAULT 13
   )
 EOF
+  eval { $dbh->do("DROP GENERATOR gen_artist_artistid") };
   $dbh->do('CREATE GENERATOR gen_artist_artistid');
+  eval { $dbh->do("DROP TRIGGER artist_bi") };
   $dbh->do(<<EOF);
   CREATE TRIGGER artist_bi FOR artist
   ACTIVE BEFORE INSERT POSITION 0
@@ -153,8 +157,16 @@ EOF
 done_testing;
 
 # clean up our mess
-END {
+
+sub cleanup {
   foreach my $dbh (@handles_to_clean) {
-    eval { $dbh->do("DROP TABLE $_") } for qw/artist bindtype_test/;
+    eval { $dbh->do('DROP TRIGGER artist_bi') };
+    diag $@ if $@;
+    eval { $dbh->do('DROP GENERATOR gen_artist_artistid') };
+    diag $@ if $@;
+    foreach my $table (qw/artist bindtype_test/) {
+      $dbh->do("DROP TABLE $table");
+      diag $@ if $@;
+    }
   }
 }
