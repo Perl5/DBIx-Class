@@ -459,12 +459,16 @@ sub _strip_cond_qualifiers {
        for (my $i = 0; $i < @cond; $i++) {
         my $entry = $cond[$i];
         my $hash;
-        if (ref $entry eq 'HASH') {
+        my $ref = ref $entry;
+        if ($ref eq 'HASH' or $ref eq 'ARRAY') {
           $hash = $self->_strip_cond_qualifiers($entry);
         }
-        else {
+        elsif (! $ref) {
           $entry =~ /([^.]+)$/;
           $hash->{$1} = $cond[++$i];
+        }
+        else {
+          $self->throw_exception ("_strip_cond_qualifiers() is unable to handle a condition reftype $ref");
         }
         push @{$cond->{-and}}, $hash;
       }

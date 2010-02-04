@@ -19,6 +19,8 @@ Revision history for DBIx::Class
           overloads
         - Fix ResultSetColumn improperly selecting more than the requested
           column when +columns/+select is present
+        - Fix failure when update/delete of resultsets with complex WHERE
+          SQLA structures
         - Fix regression in context sensitiveness of deployment_statements
         - Fix regression resulting in overcomplicated query on
           search_related from prefetching resultsets
