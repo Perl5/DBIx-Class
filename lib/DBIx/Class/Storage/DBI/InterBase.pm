@@ -19,17 +19,20 @@ sub _prep_for_execute {
   my ($sql, $bind) = $self->next::method (@_);
 
   if ($op eq 'insert') {
-    my $quote_char = $self->sql_maker->quote_char || '"';
+    my @auto_inc_cols = grep {
+      my $inserting = $args->[0]{$_};
 
-    my @auto_inc_cols =
-      grep $ident->column_info($_)->{is_auto_increment}, $ident->columns;
+      $ident->column_info($_)->{is_auto_increment} && (
+        (not defined $inserting)
+        ||
+        (ref $inserting eq 'SCALAR' && $$inserting eq 'NULL')
+      )
+    } $ident->columns;
 
     if (@auto_inc_cols) {
       my $auto_inc_cols =
         join ', ',
-# XXX quoting the columns breaks ODBC
-#      map qq{${quote_char}${_}${quote_char}},
-        @auto_inc_cols;
+        map $self->_quote_column_for_returning($_), @auto_inc_cols;
 
       $sql .= " RETURNING ($auto_inc_cols)";
 
@@ -39,6 +42,12 @@ sub _prep_for_execute {
   }
 
   return ($sql, $bind);
+}
+
+sub _quote_column_for_returning {
+  my ($self, $col) = @_;
+
+  return $self->sql_maker->_quote($col);
 }
 
 sub _execute {
