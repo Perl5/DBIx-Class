@@ -89,13 +89,13 @@ lives_ok(sub {
 }, 'columns 2nd rscolumn present');
 
 lives_ok(sub {
-  $rs->first->artist->get_column('name') 
-}, 'columns 3rd rscolumn present'); 
+  $rs->first->artist->get_column('name')
+}, 'columns 3rd rscolumn present');
 
 
 
 $rs = $schema->resultset('CD')->search({},
-    {  
+    {
         'join' => 'artist',
         '+columns' => ['cdid', 'title', 'artist.name'],
     }
@@ -109,7 +109,7 @@ is_same_sql_bind (
 );
 
 lives_ok(sub {
-  $rs->first->get_column('cdid') 
+  $rs->first->get_column('cdid')
 }, 'columns 1st rscolumn present');
 
 lives_ok(sub {
@@ -160,7 +160,6 @@ is_deeply (
     track_position => 2,
     tracks =>
       {
-        trackid => 17,
         title => 'Apiary',
       },
   },

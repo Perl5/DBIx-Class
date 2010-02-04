@@ -299,12 +299,8 @@ sub search_rs {
     $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
 
-  if (List::Util::first { exists $new_attrs->{$_} } qw{select as}) {
-     delete $new_attrs->{$_} for (qw{+select +as});
-  }
-
-  if (exists $new_attrs->{columns}) {
-     delete $new_attrs->{'+columns'};
+  if (List::Util::first { exists $new_attrs->{$_} } qw{select as columns}) {
+     delete $new_attrs->{$_} for (qw{+select +as +columns});
   }
 
   my $cond = (@_
