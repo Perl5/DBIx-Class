@@ -11,10 +11,8 @@ use mro 'c3';
 use List::Util();
 
 __PACKAGE__->mk_group_accessors(simple => qw/
-  _identity _identity_method
+  _identity
 /);
-
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::InterBase');
 
 sub insert_bulk {
   my $self = shift;
