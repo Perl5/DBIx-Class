@@ -102,6 +102,24 @@ sub _SkipFirst {
   );
 }
 
+# Firebird specific limit, reverse of _SkipFirst for Informix
+sub _FirstSkip {
+  my ($self, $sql, $order, $rows, $offset) = @_;
+
+  $sql =~ s/^ \s* SELECT \s+ //ix
+    or croak "Unrecognizable SELECT: $sql";
+
+  return sprintf ('SELECT %s%s%s%s',
+    sprintf ('FIRST %d ', $rows),
+    $offset
+      ? sprintf ('SKIP %d ', $offset)
+      : ''
+    ,
+    $sql,
+    $self->_order_by ($order),
+  );
+}
+
 # Crappy Top based Limit/Offset support. Legacy from MSSQL.
 sub _Top {
   my ( $self, $sql, $order, $rows, $offset ) = @_;

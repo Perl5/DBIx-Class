@@ -350,6 +350,27 @@ sub insert {
     $self->store_column($auto_pri[$_] => $ids[$_]) for 0 .. $#ids;
   }
 
+  # get non-PK auto-incs
+  {
+    my %pk;
+    @pk{ $self->primary_columns } = (); 
+
+    my @non_pk_autoincs = grep {
+      (not exists $pk{$_})
+      && $self->column_info($_)->{is_auto_increment}
+    } $self->columns;
+
+    if (@non_pk_autoincs) {
+      my @ids = $self->result_source->storage->last_insert_id(
+        $self->result_source,
+        @non_pk_autoincs
+      );
+
+      if (@ids == @non_pk_autoincs) {
+        $self->store_column($non_pk_autoincs[$_] => $ids[$_]) for 0 .. $#ids;
+      }
+    }
+  }
 
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
