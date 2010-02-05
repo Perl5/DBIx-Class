@@ -352,19 +352,17 @@ sub insert {
 
   # get non-PK auto-incs
   {
+    my $rsrc = $self->result_source;
     my %pk;
-    @pk{ $self->primary_columns } = (); 
+    @pk{ $rsrc->primary_columns } = (); 
 
     my @non_pk_autoincs = grep {
       (not exists $pk{$_})
-      && $self->column_info($_)->{is_auto_increment}
-    } $self->columns;
+      && $rsrc->column_info($_)->{is_auto_increment}
+    } $rsrc->columns;
 
     if (@non_pk_autoincs) {
-      my @ids = $self->result_source->storage->last_insert_id(
-        $self->result_source,
-        @non_pk_autoincs
-      );
+      my @ids = $rsrc->storage->last_insert_id($rsrc, @non_pk_autoincs);
 
       if (@ids == @non_pk_autoincs) {
         $self->store_column($non_pk_autoincs[$_] => $ids[$_]) for 0 .. $#ids;

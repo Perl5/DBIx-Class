@@ -56,7 +56,7 @@ sub _execute {
 
   my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
 
-  if ($op eq 'insert') {
+  if ($op eq 'insert' && $self->_fb_auto_incs) {
     local $@;
     my (@auto_incs) = eval {
       local $SIG{__WARN__} = sub {};
@@ -92,6 +92,31 @@ sub _sql_maker_opts {
   }
 
   return { limit_dialect => 'FirstSkip', %{$self->{_sql_maker_opts}||{}} };
+}
+
+sub datetime_parser_type { __PACKAGE__ }
+
+my ($parser, $formatter);
+
+sub parse_datetime {
+    shift;
+    require DateTime::Format::Strptime;
+    $parser ||= DateTime::Format::Strptime->new(
+        pattern => '%a %d %b %Y %r',
+# there should be a %Z (TZ) on the end, but it's ambiguous and not parsed
+        on_error => 'croak',
+    );
+    $parser->parse_datetime(shift);
+}
+
+sub format_datetime {
+    shift;
+    require DateTime::Format::Strptime;
+    $formatter ||= DateTime::Format::Strptime->new(
+        pattern => '%F %H:%M:%S.%4N',
+        on_error => 'croak',
+    );
+    $formatter->format_datetime(shift);
 }
 
 1;
