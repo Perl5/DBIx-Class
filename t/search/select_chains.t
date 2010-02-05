@@ -49,7 +49,7 @@ while (@chain) {
 
   is_same_sql_bind (
     $rs->as_query,
-    "x( $sql )", # the x-es are here until SQLA is fixed
+    "($sql)",
     [],
     "Test $testno of SELECT assembly ok",
   );
