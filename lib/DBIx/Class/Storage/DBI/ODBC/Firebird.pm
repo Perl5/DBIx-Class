@@ -24,16 +24,16 @@ sub _quote_column_for_returning {
 
 sub datetime_parser_type { __PACKAGE__ }
 
-my $parser;
+my $datetime_parser;
 
 sub parse_datetime {
     shift;
     require DateTime::Format::Strptime;
-    $parser ||= DateTime::Format::Strptime->new(
+    $datetime_parser ||= DateTime::Format::Strptime->new(
         pattern => '%F %H:%M:%S',
         on_error => 'croak',
     );
-    $parser->parse_datetime(shift);
+    $datetime_parser->parse_datetime(shift);
 }
 
 1;

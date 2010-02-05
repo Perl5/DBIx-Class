@@ -96,27 +96,27 @@ sub _sql_maker_opts {
 
 sub datetime_parser_type { __PACKAGE__ }
 
-my ($parser, $formatter);
+my ($datetime_parser, $datetime_formatter);
 
 sub parse_datetime {
     shift;
     require DateTime::Format::Strptime;
-    $parser ||= DateTime::Format::Strptime->new(
+    $datetime_parser ||= DateTime::Format::Strptime->new(
         pattern => '%a %d %b %Y %r',
 # there should be a %Z (TZ) on the end, but it's ambiguous and not parsed
         on_error => 'croak',
     );
-    $parser->parse_datetime(shift);
+    $datetime_parser->parse_datetime(shift);
 }
 
 sub format_datetime {
     shift;
     require DateTime::Format::Strptime;
-    $formatter ||= DateTime::Format::Strptime->new(
+    $datetime_formatter ||= DateTime::Format::Strptime->new(
         pattern => '%F %H:%M:%S.%4N',
         on_error => 'croak',
     );
-    $formatter->format_datetime(shift);
+    $datetime_formatter->format_datetime(shift);
 }
 
 1;
