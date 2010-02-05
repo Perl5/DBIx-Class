@@ -1833,7 +1833,7 @@ sub _select_args {
       &&
     (ref $ident eq 'ARRAY' && @$ident > 1)  # indicates a join
       &&
-    scalar $self->_parser_order_by ($attrs->{order_by})
+    scalar $self->_parse_order_by ($attrs->{order_by})
   ) {
     # the RNO limit dialect above mangles the SQL such that the join gets lost
     # wrap a subquery here
