@@ -84,7 +84,7 @@ my @tests = (
   {
     order_by => [ qw{ foo bar}   ],
     order_req => 'foo, bar',
-    order_inner => 'foo ASC,bar ASC',
+    order_inner => 'foo ASC, bar ASC',
     order_outer => 'foo DESC, bar DESC',
   },
   {

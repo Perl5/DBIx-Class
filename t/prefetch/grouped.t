@@ -87,12 +87,12 @@ for ($cd_rs->all) {
     '(
       SELECT me.cd, me.track_count, cd.cdid, cd.artist, cd.title, cd.year, cd.genreid, cd.single_track
         FROM (
-          SELECT me.cd, COUNT (me.trackid) AS track_count,
+          SELECT me.cd, COUNT (me.trackid) AS track_count
             FROM track me
             JOIN cd cd ON cd.cdid = me.cd
           WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
           GROUP BY me.cd
-          ) as me
+          ) me
         JOIN cd cd ON cd.cdid = me.cd
       WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
     )',
@@ -164,7 +164,7 @@ for ($cd_rs->all) {
               tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, tracks.small_dt,
               liner_notes.liner_id, liner_notes.notes
         FROM (
-          SELECT me.cdid, COUNT( tracks.trackid ) AS track_count, MAX( tracks.trackid ) AS maxtr,
+          SELECT me.cdid, COUNT( tracks.trackid ) AS track_count, MAX( tracks.trackid ) AS maxtr
             FROM cd me
             LEFT JOIN track tracks ON tracks.cd = me.cdid
           WHERE ( me.cdid IS NOT NULL )
