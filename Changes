@@ -1,6 +1,6 @@
 Revision history for DBIx::Class
 
-0.08116 2010-02-05 16:38:00 (UTC)
+0.08117 2010-02-05 17:10:00 (UTC)
         - Perl 5.8.1 is now the minimum supported version
         - Massive optimization of the join resolution code - now joins
           will be removed from the resulting SQL if DBIC can prove they
