@@ -2851,14 +2851,10 @@ sub _resolved_attrs {
       my %already_grouped = map { $_ => 1 } (@{$attrs->{group_by}});
 
       my $storage = $self->result_source->schema->storage;
-      my $sql_maker = $storage->sql_maker;
-      local $sql_maker->{quote_char}; #disable quoting
 
       my $rs_column_list = $storage->_resolve_column_info ($attrs->{from});
-      my @chunks = $sql_maker->_order_by_chunks ($attrs->{order_by});
 
-      for my $chunk (map { ref $_ ? @$_ : $_ } (@chunks) ) {
-        $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+      for my $chunk ($storage->_parse_order_by($attrs->{order_by})) {
         if ($rs_column_list->{$chunk} && not $already_grouped{$chunk}++) {
           push @{$attrs->{group_by}}, $chunk;
         }
