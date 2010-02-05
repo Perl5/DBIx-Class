@@ -66,10 +66,14 @@ sub new {
       ( $rs->result_source->schema->storage->_parse_order_by ($orig_attrs->{order_by} ) ) 
   ) {
     my $alias = $rs->current_source_alias;
+    # nuke the prefetch before collapsing to sql
+    my $subq_rs = $rs->search;
+    $subq_rs->{attrs}{join} = $subq_rs->_merge_attr( $subq_rs->{attrs}{join}, delete $subq_rs->{attrs}{prefetch} );
+
     $new_parent_rs = $rs->result_source->resultset->search ( {}, {
       alias => $alias,
       from => [{
-        $alias => $rs->as_query,
+        $alias => $subq_rs->as_query,
         -alias => $alias,
         -source_handle => $rs->result_source->handle,
       }]
@@ -88,7 +92,7 @@ sub new {
   # rs via the _resolved_attrs trick - we need to retain the separation between
   # +select/+as and select/as. At the same time we want to preserve any joins that the
   # prefetch would otherwise generate.
-  $new_attrs->{join} = $rs->_merge_attr( delete $new_attrs->{join}, delete $new_attrs->{prefetch} );
+  $new_attrs->{join} = $rs->_merge_attr( $new_attrs->{join}, delete $new_attrs->{prefetch} );
 
   # {collapse} would mean a has_many join was injected, which in turn means
   # we need to group *IF WE CAN* (only if the column in question is unique)
