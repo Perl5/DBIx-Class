@@ -19,10 +19,16 @@ sub _prep_for_execute {
   my ($sql, $bind) = $self->next::method (@_);
 
   if ($op eq 'insert') {
+    my @pk = $ident->primary_columns;
+    my %pk;
+    @pk{@pk} = ();
+
     my @auto_inc_cols = grep {
       my $inserting = $args->[0]{$_};
 
-      $ident->column_info($_)->{is_auto_increment} && (
+      ($ident->column_info($_)->{is_auto_increment}
+        || exists $pk{$_})
+      && (
         (not defined $inserting)
         ||
         (ref $inserting eq 'SCALAR' && $$inserting =~ /^null\z/i)
