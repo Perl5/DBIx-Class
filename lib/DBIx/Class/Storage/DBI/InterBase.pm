@@ -9,7 +9,7 @@ use mro 'c3';
 use List::Util();
 
 __PACKAGE__->mk_group_accessors(simple => qw/
-  _fb_auto_incs
+  _auto_incs
 /);
 
 sub _prep_for_execute {
@@ -25,7 +25,7 @@ sub _prep_for_execute {
       $ident->column_info($_)->{is_auto_increment} && (
         (not defined $inserting)
         ||
-        (ref $inserting eq 'SCALAR' && $$inserting eq 'NULL')
+        (ref $inserting eq 'SCALAR' && $$inserting =~ /^null\z/i)
       )
     } $ident->columns;
 
@@ -36,8 +36,8 @@ sub _prep_for_execute {
 
       $sql .= " RETURNING ($auto_inc_cols)";
 
-      $self->_fb_auto_incs([]);
-      $self->_fb_auto_incs->[0] = \@auto_inc_cols;
+      $self->_auto_incs([]);
+      $self->_auto_incs->[0] = \@auto_inc_cols;
     }
   }
 
@@ -56,13 +56,13 @@ sub _execute {
 
   my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
 
-  if ($op eq 'insert' && $self->_fb_auto_incs) {
+  if ($op eq 'insert' && $self->_auto_incs) {
     local $@;
     my (@auto_incs) = eval {
       local $SIG{__WARN__} = sub {};
       $sth->fetchrow_array
     };
-    $self->_fb_auto_incs->[1] = \@auto_incs;
+    $self->_auto_incs->[1] = \@auto_incs;
     $sth->finish;
   }
 
@@ -74,8 +74,8 @@ sub last_insert_id {
   my @result;
 
   my %auto_incs;
-  @auto_incs{ @{ $self->_fb_auto_incs->[0] } } =
-    @{ $self->_fb_auto_incs->[1] };
+  @auto_incs{ @{ $self->_auto_incs->[0] } } =
+    @{ $self->_auto_incs->[1] };
 
   push @result, $auto_incs{$_} for @cols;
 
