@@ -55,11 +55,11 @@ is_deeply (
 # test +select/+as for single column
 my $psrs = $schema->resultset('CD')->search({},
     {
-        '+select'   => \'COUNT(*)',
-        '+as'       => 'count'
+        '+select'   => \'MAX(year)',
+        '+as'       => 'last_year'
     }
 );
-lives_ok(sub { $psrs->get_column('count')->next }, '+select/+as additional column "count" present (scalar)');
+lives_ok(sub { $psrs->get_column('last_year')->next }, '+select/+as additional column "last_year" present (scalar)');
 dies_ok(sub { $psrs->get_column('noSuchColumn')->next }, '+select/+as nonexistent column throws exception');
 
 # test +select/+as for overriding a column
@@ -75,11 +75,11 @@ is($psrs->get_column('title')->next, 'The Final Countdown', '+select/+as overrid
 # test +select/+as for multiple columns
 $psrs = $schema->resultset('CD')->search({},
     {
-        '+select'   => [ \'COUNT(*) AS cnt', 'title' ],
-        '+as'       => [ 'count', 'addedtitle' ]
+        '+select'   => [ \'LENGTH(title) AS title_length', 'title' ],
+        '+as'       => [ 'tlength', 'addedtitle' ]
     }
 );
-lives_ok(sub { $psrs->get_column('count')->next }, '+select/+as multiple additional columns, "count" column present');
+lives_ok(sub { $psrs->get_column('tlength')->next }, '+select/+as multiple additional columns, "tlength" column present');
 lives_ok(sub { $psrs->get_column('addedtitle')->next }, '+select/+as multiple additional columns, "addedtitle" column present');
 
 # test that +select/+as specs do not leak
@@ -98,18 +98,24 @@ is_same_sql_bind (
 );
 
 is_same_sql_bind (
-  $psrs->get_column('count')->as_query,
-  '(SELECT COUNT(*) FROM cd me)',
+  $psrs->get_column('tlength')->as_query,
+  '(SELECT LENGTH(title) AS title_length FROM cd me)',
   [],
   'Correct SQL for get_column/+as func'
 );
 
-# test correct subquery with +select when necessary
+# test that order_by over a function forces a subquery
 lives_ok ( sub {
-  is (
-    scalar $psrs->search ({}, { order_by => 'cnt' })->get_column ('year')->all,
-    $psrs->count,
-    'Subquery count induced by aliased function',
+  is_deeply (
+    [ $psrs->search ({}, { order_by => { -desc => 'title_length' } })->get_column ('title')->all ],
+    [
+      "Generic Manufactured Singles",
+      "Come Be Depressed With Us",
+      "Caterwaulin' Blues",
+      "Spoonful of bees",
+      "Forkful of bees",
+    ],
+    'Subquery count induced by aliased ordering function',
   );
 });
 

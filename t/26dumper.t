@@ -1,6 +1,5 @@
 use strict;
 use Test::More;
-use IO::File;
 
 use Data::Dumper;
 $Data::Dumper::Sortkeys = 1;

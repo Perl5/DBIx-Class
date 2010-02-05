@@ -190,7 +190,7 @@ sub _select_args_to_query {
 
   # see if this is an ordered subquery
   my $attrs = $_[3];
-  if ( scalar $self->sql_maker->_order_by_chunks ($attrs->{order_by}) ) {
+  if ( scalar $self->_parse_order_by ($attrs->{order_by}) ) {
     $self->throw_exception(
       'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL
     ') unless $attrs->{unsafe_subselect_ok};

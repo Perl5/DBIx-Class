@@ -2,7 +2,6 @@ package DBIx::Class::Core;
 
 use strict;
 use warnings;
-no warnings 'qw';
 
 use base qw/DBIx::Class/;
 
@@ -12,7 +11,8 @@ __PACKAGE__->load_components(qw/
   PK::Auto
   PK
   Row
-  ResultSourceProxy::Table/);
+  ResultSourceProxy::Table
+/);
 
 1;
 

@@ -229,9 +229,6 @@ my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55
 is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
 
 SKIP: {
-  skip 'buggy BLOB support in DBD::Oracle 1.23', 8
-    if $DBD::Oracle::VERSION == 1.23;
-
   my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
   $binstr{'large'} = $binstr{'small'} x 1024;
 
@@ -241,6 +238,14 @@ SKIP: {
 
   my $rs = $schema->resultset('BindType');
   my $id = 0;
+
+  if ($DBD::Oracle::VERSION eq '1.23') {
+    throws_ok { $rs->create({ id => 1, blob => $binstr{large} }) }
+      qr/broken/,
+      'throws on blob insert with DBD::Oracle == 1.23';
+
+    skip 'buggy BLOB support in DBD::Oracle 1.23', 7;
+  }
 
   foreach my $type (qw( blob clob )) {
     foreach my $size (qw( small large )) {

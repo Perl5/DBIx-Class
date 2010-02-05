@@ -7,11 +7,8 @@ use lib qw(t/lib);
 use DBICTest;
 use IO::File;
 
-plan tests => 10;
-
 my $schema = DBICTest->init_schema();
 my $sdebug = $schema->storage->debug;
-
 
 # once the following TODO is complete, remove the 2 warning tests immediately
 # after the TODO block
@@ -102,44 +99,4 @@ TODO: {
     is (@w, 1, 'warning on attempt prefetching several same level has_manys (M -> 1 -> M + M)');
 }
 
-__END__
-The solution is to rewrite ResultSet->_collapse_result() and
-ResultSource->resolve_prefetch() to focus on the final results from the collapse
-of the data. Right now, the code doesn't treat the columns from the various
-tables as grouped entities. While there is a concept of hierarchy (so that
-prefetching down relationships does work as expected), there is no idea of what
-the final product should look like and how the various columns in the row would
-play together. So, the actual prefetch datastructure from the search would be
-very useful in working through this problem. We already have access to the PKs
-and sundry for those. So, when collapsing the search result, we know we are
-looking for 1 cd object. We also know we're looking for tracks and tags records
--independently- of each other. So, we can grab the data for tracks and data for
-tags separately, uniqueing on the PK as appropriate. Then, when we're done with
-the given cd object's datastream, we know we're good. This should work for all
-the various scenarios.
-
-My reccommendation is the row's data is preprocessed first, breaking it up into
-the data for each of the component tables. (This could be done in the single
-table case, too, but probably isn't necessary.) So, starting with something
-like:
-  my $row = {
-    t1.col1 => 1,
-    t1.col2 => 2,
-    t2.col1 => 3,
-    t2.col2 => 4,
-    t3.col1 => 5,
-    t3.col2 => 6,
-  };
-it is massaged to look something like:
-  my $row_massaged = {
-    t1 => { col1 => 1, col2 => 2 },
-    t2 => { col1 => 3, col2 => 4 },
-    t3 => { col1 => 5, col2 => 6 },
-  };
-At this point, find the stuff that's different is easy enough to do and slotting
-things into the right spot is, likewise, pretty straightforward. Instead of
-storing things in a AoH, store them in a HoH keyed on the PKs of the the table,
-then convert to an AoH after all collapsing is done.
-
-This implies that the collapse attribute can probably disappear or, at the
-least, be turned into a boolean (which is how it's used in every other place).
+done_testing;

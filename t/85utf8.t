@@ -7,22 +7,23 @@ use lib qw(t/lib);
 use DBICTest;
 use utf8;
 
-warning_like (sub {
+warning_like (
+  sub {
+    package A::Comp;
+    use base 'DBIx::Class';
+    sub store_column { shift->next::method (@_) };
+    1;
 
-  package A::Comp;
-  use base 'DBIx::Class';
-  sub store_column { shift->next::method (@_) };
-  1;
-
-  package A::Test;
-  use base 'DBIx::Class::Core';
-  __PACKAGE__->load_components(qw(UTF8Columns +A::Comp));
-  1;
-}, qr/Incorrect loading order of DBIx::Class::UTF8Columns/ );
-
+    package A::Test;
+    use base 'DBIx::Class::Core';
+    __PACKAGE__->load_components(qw(UTF8Columns +A::Comp));
+    1;
+  },
+  qr/Incorrect loading order of DBIx::Class::UTF8Columns.+affect other components overriding store_column \(A::Comp\)/,
+  'incorrect order warning issued',
+);
 
 my $schema = DBICTest->init_schema();
-
 DBICTest::Schema::CD->load_components('UTF8Columns');
 DBICTest::Schema::CD->utf8_columns('title');
 Class::C3->reinitialize();

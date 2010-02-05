@@ -39,14 +39,14 @@ requires 'MRO::Compat'              => '0.09';
 requires 'Module::Find'             => '0.06';
 requires 'Path::Class'              => '0.16';
 requires 'Scope::Guard'             => '0.03';
-requires 'SQL::Abstract'            => '1.60';
+requires 'SQL::Abstract'            => '1.61';
 requires 'SQL::Abstract::Limit'     => '0.13';
 requires 'Sub::Name'                => '0.04';
 requires 'Data::Dumper::Concise'    => '1.000';
 
 my %replication_requires = (
   'Moose',                    => '0.90',
-  'MooseX::Types',            => '0.16',
+  'MooseX::Types',            => '0.21',
   'namespace::clean'          => '0.11',
   'Hash::Merge',              => '0.11',
 );
@@ -121,6 +121,11 @@ my %force_requires_if_author = (
   $ENV{DBICTEST_SYBASE_DSN}
     ? (
       'DateTime::Format::Sybase' => 0,
+    ) : ()
+  ,
+  grep $_, @ENV{qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/}
+    ? (
+      'DateTime::Format::Strptime' => 0,
     ) : ()
   ,
 );

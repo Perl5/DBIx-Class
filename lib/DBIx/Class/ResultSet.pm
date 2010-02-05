@@ -1257,16 +1257,15 @@ sub _count_subq_rs {
   # extra selectors do not go in the subquery and there is no point of ordering it
   delete $sub_attrs->{$_} for qw/collapse select _prefetch_select as order_by/;
 
-  # if we prefetch, we group_by primary keys only as this is what we would get out
-  # of the rs via ->next/->all. We DO WANT to clobber old group_by regardless
-  if ( keys %{$attrs->{collapse}} ) {
+  # if we multi-prefetch we group_by primary keys only as this is what we would
+  # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
+  if ( keys %{$attrs->{collapse}}  ) {
     $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->primary_columns) ]
   }
 
   $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
 
   # this is so that the query can be simplified e.g.
-  # * non-limiting joins can be pruned
   # * ordering can be thrown away in things like Top limit
   $sub_attrs->{-for_count_only} = 1;
 
@@ -2678,21 +2677,13 @@ sub _chain_relationship {
 
   # we consider the last one thus reverse
   for my $j (reverse @requested_joins) {
-    if ($rel eq $j->[0]{-join_path}[-1]) {
+    my ($last_j) = keys %{$j->[0]{-join_path}[-1]};
+    if ($rel eq $last_j) {
       $j->[0]{-relation_chain_depth}++;
       $already_joined++;
       last;
     }
   }
-# alternative way to scan the entire chain - not backwards compatible
-#  for my $j (reverse @$from) {
-#    next unless ref $j eq 'ARRAY';
-#    if ($j->[0]{-join_path} && $j->[0]{-join_path}[-1] eq $rel) {
-#      $j->[0]{-relation_chain_depth}++;
-#      $already_joined++;
-#      last;
-#    }
-#  }
 
   unless ($already_joined) {
     push @$from, $source->_resolve_join(
@@ -2873,11 +2864,10 @@ sub _resolved_attrs {
       my %already_grouped = map { $_ => 1 } (@{$attrs->{group_by}});
 
       my $storage = $self->result_source->schema->storage;
-      my $rs_column_list = $storage->_resolve_column_info ($attrs->{from});
-      my @chunks = $storage->sql_maker->_order_by_chunks ($attrs->{order_by});
 
-      for my $chunk (map { ref $_ ? @$_ : $_ } (@chunks) ) {
-        $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+      my $rs_column_list = $storage->_resolve_column_info ($attrs->{from});
+
+      for my $chunk ($storage->_parse_order_by($attrs->{order_by})) {
         if ($rs_column_list->{$chunk} && not $already_grouped{$chunk}++) {
           push @{$attrs->{group_by}}, $chunk;
         }
@@ -2891,7 +2881,26 @@ sub _resolved_attrs {
 
     my $prefetch_ordering = [];
 
-    my $join_map = $self->_joinpath_aliases ($attrs->{from}, $attrs->{seen_join});
+    # this is a separate structure (we don't look in {from} directly)
+    # as the resolver needs to shift things off the lists to work
+    # properly (identical-prefetches on different branches)
+    my $join_map = {};
+    if (ref $attrs->{from} eq 'ARRAY') {
+
+      my $start_depth = $attrs->{seen_join}{-relation_chain_depth} || 0;
+
+      for my $j ( @{$attrs->{from}}[1 .. $#{$attrs->{from}} ] ) {
+        next unless $j->[0]{-alias};
+        next unless $j->[0]{-join_path};
+        next if ($j->[0]{-relation_chain_depth} || 0) < $start_depth;
+
+        my @jpath = map { keys %$_ } @{$j->[0]{-join_path}};
+
+        my $p = $join_map;
+        $p = $p->{$_} ||= {} for @jpath[ ($start_depth/2) .. $#jpath]; #only even depths are actual jpath boundaries
+        push @{$p->{-join_aliases} }, $j->[0]{-alias};
+      }
+    }
 
     my @prefetch =
       $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $attrs->{collapse} );
@@ -2918,33 +2927,6 @@ sub _resolved_attrs {
   }
 
   return $self->{_attrs} = $attrs;
-}
-
-sub _joinpath_aliases {
-  my ($self, $fromspec, $seen) = @_;
-
-  my $paths = {};
-  return $paths unless ref $fromspec eq 'ARRAY';
-
-  my $cur_depth = $seen->{-relation_chain_depth} || 0;
-
-  if ($cur_depth % 2) {
-    $self->throw_exception ("-relation_chain_depth is not even, something went horribly wrong ($cur_depth)");
-  }
-
-  for my $j (@$fromspec) {
-
-    next if ref $j ne 'ARRAY';
-    next if ($j->[0]{-relation_chain_depth} || 0) < $cur_depth;
-
-    my $jpath = $j->[0]{-join_path};
-
-    my $p = $paths;
-    $p = $p->{$_} ||= {} for @{$jpath}[$cur_depth/2 .. $#$jpath]; #only even depths are actual jpath boundaries
-    push @{$p->{-join_aliases} }, $j->[0]{-alias};
-  }
-
-  return $paths;
 }
 
 sub _rollout_attr {
