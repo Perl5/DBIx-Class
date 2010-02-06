@@ -42,6 +42,9 @@ sub _dbh_last_insert_id {
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $source, $col) = @_;
 
+	my $quote_char = $self->schema->storage->{'_sql_maker_opts'}->{'quote_char'};
+	my $name_sep   = $self->schema->storage->{'_sql_maker_opts'}->{'name_sep'};
+
   # look up the correct sequence automatically
   my $sql = q{
     SELECT trigger_body FROM ALL_TRIGGERS t
@@ -72,14 +75,16 @@ sub _dbh_get_autoinc_seq {
       AND t.status = 'ENABLED'
     };
     $sth = $dbh->prepare($sql);
-    $sth->execute( uc($schema), uc($table) );
+		my $table_name = $quote_char ? "$quote_char$table$quote_char" : uc($table);
+		die $table_name;
+    $sth->execute( uc($schema), $table_name );
   }
   else {
     $sth = $dbh->prepare($sql);
-    $sth->execute( uc( $source_name ) );
+    $sth->execute( $source_name );
   }
   while (my ($insert_trigger) = $sth->fetchrow_array) {
-    return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
+    return $1 if $insert_trigger =~ m!("?\w+"?)\.nextval!i; # col name goes here???
   }
   $self->throw_exception("Unable to find a sequence INSERT trigger on table '" . $source->name . "'.");
 }
