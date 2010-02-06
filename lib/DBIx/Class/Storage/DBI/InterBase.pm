@@ -12,6 +12,20 @@ __PACKAGE__->mk_group_accessors(simple => qw/
   _auto_incs
 /);
 
+=head1 NAME
+
+DBIx::Class::Storage::DBI::InterBase - Driver for the Firebird RDBMS
+
+=head1 DESCRIPTION
+
+This class implements autoincrements for Firebird using C<RETURNING>, sets the
+limit dialect to C<FIRST X SKIP X> and provides preliminary
+L<DBIx::Class::InflateColumn::DateTime> support.
+
+For ODBC support, see L<DBIx::Class::Storage::DBI::ODBC::Firebird>.
+
+=cut
+
 sub _prep_for_execute {
   my $self = shift;
   my ($op, $extra_bind, $ident, $args) = @_;
@@ -114,3 +128,35 @@ sub format_datetime {
 }
 
 1;
+
+=head1 CAVEATS
+
+=over 4
+
+=item *
+
+C<last_insert_id> support only works for Firebird versions 2 or greater. To
+work with earlier versions, we'll need to figure out how to retrieve the bodies
+of C<BEFORE INSERT> triggers and parse them for the C<GENERATOR> name.
+
+=item *
+
+C<TIMESTAMP> values are written with precision of 4 numbers after the decimal
+point for seconds, but read with only second precision.
+
+If you know of a session variable we can set to control how timestamps look as
+strings, please let us know (via RT.)
+
+Otherwise we'll need to rewrite the produced SQL for timestamps, at some point.
+
+=back
+
+=head1 AUTHOR
+
+See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut

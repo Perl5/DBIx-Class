@@ -9,6 +9,7 @@ __PACKAGE__->load_classes(qw/
   Artist
   SequenceTest
   BindType
+  BindType2
   Employee
   CD
   FileColumn

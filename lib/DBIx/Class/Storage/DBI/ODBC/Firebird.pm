@@ -15,6 +15,10 @@ through ODBC
 All functionality is provided by L<DBIx::Class::Storage::DBI::Interbase>, see
 that module for details.
 
+To build the ODBC driver for Firebird on Linux for unixODBC, see:
+
+L<http://www.firebirdnews.org/?p=1324>
+
 =cut
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::ODBC::Firebird');

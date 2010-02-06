@@ -24,8 +24,8 @@ my @info = (
 
 my $schema;
 
-foreach my $info (@info) {
-  my ($dsn, $user, $pass) = @$info;
+foreach my $conn_idx (0..1) {
+  my ($dsn, $user, $pass) = @{ $info[$conn_idx] };
 
   next unless $dsn;
 
@@ -118,9 +118,9 @@ EOF
 
 # test blobs (stolen from 73oracle.t)
   SKIP: {
-    eval { $dbh->do('DROP TABLE bindtype_test') };
+    eval { $dbh->do('DROP TABLE bindtype_test2') };
     $dbh->do(q[
-    CREATE TABLE bindtype_test
+    CREATE TABLE bindtype_test2
     (
       id     INT PRIMARY KEY,
       bytea  INT,
@@ -129,15 +129,13 @@ EOF
     )
     ]);
 
-    last SKIP; # XXX blob ops cause segfaults!
-
     my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
     $binstr{'large'} = $binstr{'small'} x 1024;
 
     my $maxloblen = length $binstr{'large'};
     local $dbh->{'LongReadLen'} = $maxloblen;
 
-    my $rs = $schema->resultset('BindType');
+    my $rs = $schema->resultset('BindType2');
     my $id = 0;
 
     foreach my $type (qw( a_blob a_clob )) {
