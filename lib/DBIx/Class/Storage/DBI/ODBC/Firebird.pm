@@ -17,10 +17,7 @@ that module for details.
 
 =cut
 
-# RETURNING ("foo") is broken in ODBC, but RETURNING (foo) works
-sub _quote_column_for_returning {
-  return $_[1];
-}
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::ODBC::Firebird');
 
 sub datetime_parser_type { __PACKAGE__ }
 

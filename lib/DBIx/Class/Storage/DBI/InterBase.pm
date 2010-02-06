@@ -16,8 +16,6 @@ sub _prep_for_execute {
   my $self = shift;
   my ($op, $extra_bind, $ident, $args) = @_;
 
-  my ($sql, $bind) = $self->next::method (@_);
-
   if ($op eq 'insert') {
     my @pk = $ident->primary_columns;
     my %pk;
@@ -36,24 +34,14 @@ sub _prep_for_execute {
     } $ident->columns;
 
     if (@auto_inc_cols) {
-      my $auto_inc_cols =
-        join ', ',
-        map $self->_quote_column_for_returning($_), @auto_inc_cols;
-
-      $sql .= " RETURNING ($auto_inc_cols)";
+      $args->[1]{returning} = \@auto_inc_cols;
 
       $self->_auto_incs([]);
       $self->_auto_incs->[0] = \@auto_inc_cols;
     }
   }
 
-  return ($sql, $bind);
-}
-
-sub _quote_column_for_returning {
-  my ($self, $col) = @_;
-
-  return $self->sql_maker->_quote($col);
+  return $self->next::method(@_);
 }
 
 sub _execute {

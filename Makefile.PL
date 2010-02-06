@@ -39,7 +39,7 @@ requires 'MRO::Compat'              => '0.09';
 requires 'Module::Find'             => '0.06';
 requires 'Path::Class'              => '0.16';
 requires 'Scope::Guard'             => '0.03';
-requires 'SQL::Abstract'            => '1.60';
+requires 'SQL::Abstract'            => '1.61';
 requires 'SQL::Abstract::Limit'     => '0.13';
 requires 'Sub::Name'                => '0.04';
 requires 'Data::Dumper::Concise'    => '1.000';
@@ -124,6 +124,11 @@ my %force_requires_if_author = (
     ) : ()
   ,
   grep $_, @ENV{qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/}
+    ? (
+      'DateTime::Format::Strptime' => 0,
+    ) : ()
+  ,
+  grep $_, @ENV{qw/DBICTEST_FIREBIRD_DSN DBICTEST_FIREBIRD_ODBC_DSN/}
     ? (
       'DateTime::Format::Strptime' => 0,
     ) : ()
