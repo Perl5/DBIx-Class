@@ -2629,9 +2629,9 @@ sub as_subselect_rs {
    my $self = shift;
 
    return $self->result_source->resultset->search( undef, {
-      alias => 'me',
+      alias => $self->current_source_alias,
       from => [{
-            me => $self->as_query,
+            $self->current_source_alias => $self->as_query,
             -alias         => $self->current_source_alias,
             -source_handle => $self->result_source->handle,
          }]
