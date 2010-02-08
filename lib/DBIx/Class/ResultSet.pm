@@ -2623,6 +2623,18 @@ it were simply where-filtered without joins).  For example:
  # works as expected: finds a 'table' row related to two x rows (abc and def)
  my $correctly_joined_rs = $rs2->search({'x.name' => 'def'});
 
+Another example of when one might use this would be to select a subset of
+columns in a group by clause:
+
+ my $rs = $schema->resultset('Bar')->search(undef, {
+   group_by => [qw{ id foo_id baz_id }],
+ })->as_subselect_rs->search(undef, {
+   columns => [qw{ id foo_id }]
+ });
+
+In the above example normally columns would have to be equal to the group by,
+but because we isolated the group by into a subselect the above works.
+
 =cut
 
 sub as_subselect_rs {
