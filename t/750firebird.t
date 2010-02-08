@@ -89,6 +89,12 @@ EOF
   $new->discard_changes;
   is($new->artistid, 66, 'Explicit PK assigned');
 
+  lives_ok {
+    $new->update({ name => 'baz' })
+  } 'update survived';
+  $new->discard_changes;
+  is $new->name, 'baz', 'row updated';
+
 # test populate
   lives_ok (sub {
     my @pop;
