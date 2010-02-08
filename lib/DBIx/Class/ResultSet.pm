@@ -2502,7 +2502,7 @@ sub related_resultset {
         ->relname_to_table_alias($rel, $join_count);
 
     # since this is search_related, and we already slid the select window inwards
-    # (the select/as attrs were deleted in the beginning), we need to flip all 
+    # (the select/as attrs were deleted in the beginning), we need to flip all
     # left joins to inner, so we get the expected results
     # read the comment on top of the actual function to see what this does
     $attrs->{from} = $rsrc->schema->storage->_straight_join_to_node ($attrs->{from}, $alias);
@@ -2586,6 +2586,68 @@ sub current_source_alias {
   my ($self) = @_;
 
   return ($self->{attrs} || {})->{alias} || 'me';
+}
+
+=head2 as_subselect_rs
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $resultset
+
+=back
+
+Act as a barrier to SQL symbols.  The resultset provided will be made into a
+"virtual view" by including it as a subquery within the from clause.  From this
+point on, any joined tables are inaccessible to ->search on the resultset (as if
+it were simply where-filtered without joins).  For example:
+
+ my $rs = $schema->resultset('Bar')->search({'x.name' => 'abc'},{ join => 'x' });
+
+ # 'x' now pollutes the query namespace
+
+ # So the following works as expected
+ my $ok_rs = $rs->search({'x.other' => 1});
+
+ # But this doesn't: instead of finding a 'Bar' related to two x rows (abc and
+ # def) we look for one row with contradictory terms and join in another table
+ # (aliased 'x_2') which we never use
+ my $broken_rs = $rs->search({'x.name' => 'def'});
+
+ my $rs2 = $rs->as_subselect_rs;
+
+ # doesn't work - 'x' is no longer accessible in $rs2, having been sealed away
+ my $not_joined_rs = $rs2->search({'x.other' => 1});
+
+ # works as expected: finds a 'table' row related to two x rows (abc and def)
+ my $correctly_joined_rs = $rs2->search({'x.name' => 'def'});
+
+Another example of when one might use this would be to select a subset of
+columns in a group by clause:
+
+ my $rs = $schema->resultset('Bar')->search(undef, {
+   group_by => [qw{ id foo_id baz_id }],
+ })->as_subselect_rs->search(undef, {
+   columns => [qw{ id foo_id }]
+ });
+
+In the above example normally columns would have to be equal to the group by,
+but because we isolated the group by into a subselect the above works.
+
+=cut
+
+sub as_subselect_rs {
+   my $self = shift;
+
+   return $self->result_source->resultset->search( undef, {
+      alias => $self->current_source_alias,
+      from => [{
+            $self->current_source_alias => $self->as_query,
+            -alias         => $self->current_source_alias,
+            -source_handle => $self->result_source->handle,
+         }]
+   });
 }
 
 # This code is called by search_related, and makes sure there
@@ -2851,14 +2913,10 @@ sub _resolved_attrs {
       my %already_grouped = map { $_ => 1 } (@{$attrs->{group_by}});
 
       my $storage = $self->result_source->schema->storage;
-      my $sql_maker = $storage->sql_maker;
-      local $sql_maker->{quote_char}; #disable quoting
 
       my $rs_column_list = $storage->_resolve_column_info ($attrs->{from});
-      my @chunks = $sql_maker->_order_by_chunks ($attrs->{order_by});
 
-      for my $chunk (map { ref $_ ? @$_ : $_ } (@chunks) ) {
-        $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+      for my $chunk ($storage->_parse_order_by($attrs->{order_by})) {
         if ($rs_column_list->{$chunk} && not $already_grouped{$chunk}++) {
           push @{$attrs->{group_by}}, $chunk;
         }

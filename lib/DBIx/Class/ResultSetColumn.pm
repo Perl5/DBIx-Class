@@ -45,18 +45,6 @@ sub new {
   $rs->throw_exception('column must be supplied') unless $column;
 
   my $orig_attrs = $rs->_resolved_attrs;
-  my $new_parent_rs = $rs->search_rs;
-  my $new_attrs = $new_parent_rs->{attrs} ||= {};
-
-  # since what we do is actually chain to the original resultset, we need to throw
-  # away all selectors (otherwise they'll chain)
-  delete $new_attrs->{$_} for (qw/columns +columns select +select as +as cols include_columns/);
-
-  # prefetch causes additional columns to be fetched, but we can not just make a new
-  # rs via the _resolved_attrs trick - we need to retain the separation between
-  # +select/+as and select/as. At the same time we want to preserve any joins that the
-  # prefetch would otherwise generate.
-  $new_attrs->{join} = $rs->_merge_attr( delete $new_attrs->{join}, delete $new_attrs->{prefetch} );
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
@@ -66,6 +54,45 @@ sub new {
   my $select_list = $orig_attrs->{select} || [];
   my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
+
+  my $new_parent_rs;
+  # analyze the order_by, and see if it is done over a function/nonexistentcolumn
+  # if this is the case we will need to wrap a subquery since the result of RSC
+  # *must* be a single column select
+  my %collist = map { $_ => 1 } ($rs->result_source->columns, $column);
+  if (
+    scalar grep
+      { ! $collist{$_} }
+      ( $rs->result_source->schema->storage->_parse_order_by ($orig_attrs->{order_by} ) ) 
+  ) {
+    my $alias = $rs->current_source_alias;
+    # nuke the prefetch before collapsing to sql
+    my $subq_rs = $rs->search;
+    $subq_rs->{attrs}{join} = $subq_rs->_merge_attr( $subq_rs->{attrs}{join}, delete $subq_rs->{attrs}{prefetch} );
+
+    $new_parent_rs = $rs->result_source->resultset->search ( {}, {
+      alias => $alias,
+      from => [{
+        $alias => $subq_rs->as_query,
+        -alias => $alias,
+        -source_handle => $rs->result_source->handle,
+      }]
+    });
+  }
+
+  $new_parent_rs ||= $rs->search_rs;
+  my $new_attrs = $new_parent_rs->{attrs} ||= {};
+
+  # FIXME - this should go away when the chaining branch is merged
+  # since what we do is actually chain to the original resultset, we need to throw
+  # away all selectors (otherwise they'll chain)
+  delete $new_attrs->{$_} for (qw/columns +columns select +select as +as cols include_columns/);
+
+  # prefetch causes additional columns to be fetched, but we can not just make a new
+  # rs via the _resolved_attrs trick - we need to retain the separation between
+  # +select/+as and select/as. At the same time we want to preserve any joins that the
+  # prefetch would otherwise generate.
+  $new_attrs->{join} = $rs->_merge_attr( $new_attrs->{join}, delete $new_attrs->{prefetch} );
 
   # {collapse} would mean a has_many join was injected, which in turn means
   # we need to group *IF WE CAN* (only if the column in question is unique)

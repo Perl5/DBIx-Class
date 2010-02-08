@@ -72,7 +72,7 @@ throws_ok (
       ],
     });
   },
-  qr/Recursive update is not supported over relationships of type multi/,
+  qr/Recursive update is not supported over relationships of type 'multi'/,
   'create via update of multi relationships throws an exception'
 );
 
