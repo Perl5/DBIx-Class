@@ -114,7 +114,7 @@ sub store_column {
 
 # override this if you want to force everything to be encoded/decoded
 sub _is_utf8_column {
-  return (shift->utf8_columns || {})->{shift};
+  return (shift->utf8_columns || {})->{shift @_};
 }
 
 =head1 AUTHORS
