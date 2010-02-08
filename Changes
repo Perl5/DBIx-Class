@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
         - Fix a bug causing UTF8 columns not to be decoded (RT #54395)
+        - Cleanup handling of relationship accessor types
 
 0.08117 2010-02-05 17:10:00 (UTC)
         - Perl 5.8.1 is now the minimum supported version
