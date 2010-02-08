@@ -2,7 +2,6 @@ package DBIx::Class::UTF8Columns;
 use strict;
 use warnings;
 use base qw/DBIx::Class/;
-use utf8;
 
 __PACKAGE__->mk_classdata( '_utf8_columns' );
 
