@@ -111,6 +111,17 @@ EOF
 # count what we did so far
   is ($ars->count, 6, 'Simple count works');
 
+# test UPDATE
+  lives_ok {
+    $schema->resultset('Artist')
+           ->search({name => 'foo'})
+           ->update({rank => 4 });
+  } 'Can update a column';
+
+  my ($updated) = $schema->resultset('Artist')->search({name => 'foo'});
+  is $updated->rank, 4, 'and the update made it to the database';
+
+
 # test LIMIT support
   my $lim = $ars->search( {},
     {
