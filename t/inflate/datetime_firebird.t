@@ -32,14 +32,12 @@ my @info = (
 
 my $schema;
 
-foreach my $info (@info) {
-  my ($dsn, $user, $pass) = @$info;
+foreach my $conn_idx (0..$#info) {
+  my ($dsn, $user, $pass) = @{ $info[$conn_idx] };
 
   next unless $dsn;
 
-  $schema = DBICTest::Schema->clone;
-
-  $schema->connection($dsn, $user, $pass, {
+  $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     on_connect_call => [ 'datetime_setup' ],
   });
 
@@ -53,6 +51,7 @@ foreach my $info (@info) {
   )
 SQL
   my $now = DateTime->now;
+  $now->set_nanosecond(555600000);
   my $row;
   ok( $row = $schema->resultset('Event')->create({
         id => 1,
@@ -62,7 +61,12 @@ SQL
     ->search({ id => 1 }, { select => ['created_on'] })
     ->first
   );
-  is( $row->created_on, $now, 'DateTime roundtrip' );
+  is $row->created_on, $now, 'DateTime roundtrip';
+
+  if ($conn_idx == 0) { # skip for ODBC
+    cmp_ok $row->created_on->nanosecond, '==', 555600000,
+      'fractional part of a second survived';
+  }
 }
 
 done_testing;

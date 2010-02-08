@@ -12,7 +12,7 @@ through ODBC
 
 =head1 SYNOPSIS
 
-All functionality is provided by L<DBIx::Class::Storage::DBI::Interbase>, see
+Most functionality is provided by L<DBIx::Class::Storage::DBI::Interbase>, see
 that module for details.
 
 To build the ODBC driver for Firebird on Linux for unixODBC, see:
@@ -21,23 +21,28 @@ L<http://www.firebirdnews.org/?p=1324>
 
 =cut
 
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::ODBC::Firebird');
+# XXX seemingly no equivalent to ib_time_all in DBD::InterBase via ODBC
+sub connect_call_datetime_setup { 1 }
 
-sub datetime_parser_type { __PACKAGE__ }
+# from MSSQL
 
-my $datetime_parser;
-
-sub parse_datetime {
-    shift;
-    require DateTime::Format::Strptime;
-    $datetime_parser ||= DateTime::Format::Strptime->new(
-        pattern => '%F %H:%M:%S',
-        on_error => 'croak',
-    );
-    $datetime_parser->parse_datetime(shift);
+sub build_datetime_parser {
+  my $self = shift;
+  my $type = "DateTime::Format::Strptime";
+  eval "use ${type}";
+  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  return $type->new(
+    pattern => '%Y-%m-%d %H:%M:%S', # %F %T
+    on_error => 'croak',
+  );
 }
 
 1;
+
+=head1 CAVEATS
+
+This driver (unlike L<DBD::InterBase>) does not currently support reading or
+writing C<TIMESTAMP> values with sub-second precision.
 
 =head1 AUTHOR
 

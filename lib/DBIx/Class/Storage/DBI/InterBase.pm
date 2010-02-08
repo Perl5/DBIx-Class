@@ -24,6 +24,12 @@ L<DBIx::Class::InflateColumn::DateTime> support.
 
 For ODBC support, see L<DBIx::Class::Storage::DBI::ODBC::Firebird>.
 
+To turn on L<DBIx::Class::InflateColumn::DateTime> support, add:
+
+    on_connect_call => 'datetime_setup'
+
+to your L<DBIx::Class::Storage::DBI/connect_info>.
+
 =cut
 
 sub _prep_for_execute {
@@ -102,29 +108,79 @@ sub _sql_maker_opts {
   return { limit_dialect => 'FirstSkip', %{$self->{_sql_maker_opts}||{}} };
 }
 
-sub datetime_parser_type { __PACKAGE__ }
+sub _svp_begin {
+    my ($self, $name) = @_;
 
-my ($datetime_parser, $datetime_formatter);
-
-sub parse_datetime {
-    shift;
-    require DateTime::Format::Strptime;
-    $datetime_parser ||= DateTime::Format::Strptime->new(
-        pattern => '%a %d %b %Y %r',
-# there should be a %Z (TZ) on the end, but it's ambiguous and not parsed
-        on_error => 'croak',
-    );
-    $datetime_parser->parse_datetime(shift);
+    $self->_get_dbh->do("SAVEPOINT $name");
 }
 
-sub format_datetime {
-    shift;
-    require DateTime::Format::Strptime;
-    $datetime_formatter ||= DateTime::Format::Strptime->new(
-        pattern => '%F %H:%M:%S.%4N',
-        on_error => 'croak',
-    );
-    $datetime_formatter->format_datetime(shift);
+sub _svp_release {
+    my ($self, $name) = @_;
+
+    $self->_get_dbh->do("RELEASE SAVEPOINT $name");
+}
+
+sub _svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+}
+
+sub _ping {
+  my $self = shift;
+
+  my $dbh = $self->_dbh or return 0;
+
+  local $dbh->{RaiseError} = 1;
+
+  eval {
+    $dbh->do('select 1 from rdb$database');
+  };
+
+  return $@ ? 0 : 1;
+}
+
+=head2 connect_call_datetime_setup
+
+Used as:
+
+  on_connect_call => 'datetime_setup'
+
+In L<DBIx::Class::Storage::DBI/connect_info> to set the date and timestamp
+formats using:
+
+  $dbh->{ib_time_all} = 'ISO';
+
+See L<DBD::InterBase> for more details.
+
+The C<TIMESTAMP> data type supports up to 4 digits after the decimal point for
+second precision. The full precision is used.
+
+You will need the L<DateTime::Format::Strptime> module for inflation to work.
+
+For L<DBIx::Class::Storage::DBI::ODBC::Firebird>, this is a noop and sub-second
+precision is not currently available.
+
+=cut
+
+sub connect_call_datetime_setup {
+  my $self = shift;
+
+  $self->_get_dbh->{ib_time_all} = 'ISO';
+}
+
+
+# from MSSQL
+
+sub build_datetime_parser {
+  my $self = shift;
+  my $type = "DateTime::Format::Strptime";
+  eval "use ${type}";
+  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  return $type->new(
+    pattern => '%Y-%m-%d %H:%M:%S.%4N', # %F %T
+    on_error => 'croak',
+  );
 }
 
 1;
@@ -138,16 +194,6 @@ sub format_datetime {
 C<last_insert_id> support only works for Firebird versions 2 or greater. To
 work with earlier versions, we'll need to figure out how to retrieve the bodies
 of C<BEFORE INSERT> triggers and parse them for the C<GENERATOR> name.
-
-=item *
-
-C<TIMESTAMP> values are written with precision of 4 numbers after the decimal
-point for seconds, but read with only second precision.
-
-If you know of a session variable we can set to control how timestamps look as
-strings, please let us know (via RT.)
-
-Otherwise we'll need to rewrite the produced SQL for timestamps, at some point.
 
 =back
 

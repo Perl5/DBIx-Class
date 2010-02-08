@@ -29,7 +29,9 @@ foreach my $conn_idx (0..1) {
 
   next unless $dsn;
 
-  $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+    auto_savepoint => 1
+  });
   my $dbh = $schema->storage->dbh;
 
   my $sg = Scope::Guard->new(\&cleanup);
@@ -62,6 +64,24 @@ EOF
 # test primary key handling
   my $new = $ars->create({ name => 'foo' });
   ok($new->artistid, "Auto-PK worked");
+
+# test savepoints
+#  eval {
+#    $schema->txn_do(sub {
+#      eval {
+#        $schema->txn_do(sub {
+#          $ars->create({ name => 'in_savepoint' });
+#          die "rolling back savepoint";
+#        });
+#      };
+#      ok ((not $ars->search({ name => 'in_savepoint' })->first),
+#        'savepoint rolled back');
+#      $ars->create({ name => 'in_outer_txn' });
+#      die "rolling back outer txn";
+#    });
+#  };
+#  ok ((not $ars->search({ name => 'in_outer_txn' })->first),
+#    'outer txn rolled back');
 
 # test explicit key spec
   $new = $ars->create ({ name => 'bar', artistid => 66 });
