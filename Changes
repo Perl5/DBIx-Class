@@ -1,6 +1,7 @@
 Revision history for DBIx::Class
 
-        - Fix a bug causing UTF8 columns not to be decoded (RT #54395)
+        - Fix a bug causing UTF8 columns not to be decoded (RT#54395)
+        - Fix bug in One->Many->One prefetch-collapse handling (RT#54039)
         - Cleanup handling of relationship accessor types
 
 0.08117 2010-02-05 17:10:00 (UTC)

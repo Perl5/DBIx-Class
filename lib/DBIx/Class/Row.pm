@@ -1062,9 +1062,10 @@ sub inflate_result {
   my ($source_handle) = $source;
 
   if ($source->isa('DBIx::Class::ResultSourceHandle')) {
-      $source = $source_handle->resolve
-  } else {
-      $source_handle = $source->handle
+    $source = $source_handle->resolve
+  } 
+  else {
+    $source_handle = $source->handle
   }
 
   my $new = {
@@ -1073,17 +1074,29 @@ sub inflate_result {
   };
   bless $new, (ref $class || $class);
 
-  my $schema;
   foreach my $pre (keys %{$prefetch||{}}) {
-    my $pre_val = $prefetch->{$pre};
-    my $pre_source = $source->related_source($pre);
-    $class->throw_exception("Can't prefetch non-existent relationship ${pre}")
-      unless $pre_source;
-    if (ref($pre_val->[0]) eq 'ARRAY') { # multi
-      my @pre_objects;
 
-      for my $me_pref (@$pre_val) {
+    my $pre_source = $source->related_source($pre)
+      or $class->throw_exception("Can't prefetch non-existent relationship ${pre}");
 
+    my $accessor = $source->relationship_info($pre)->{attrs}{accessor}
+      or $class->throw_exception("No accessor for prefetched $pre");
+
+    my @pre_vals;
+    if (ref $prefetch->{$pre}[0] eq 'ARRAY') {
+      @pre_vals = @{$prefetch->{$pre}};
+    }
+    elsif ($accessor eq 'multi') {
+      $class->throw_exception("Implicit prefetch (via select/columns) not supported with accessor 'multi'");
+    }
+    else {
+      @pre_vals = $prefetch->{$pre};
+    }
+
+    my @pre_objects;
+    for my $me_pref (@pre_vals) {
+
+        # FIXME - this should not be necessary
         # the collapser currently *could* return bogus elements with all
         # columns set to undef
         my $has_def;
@@ -1098,31 +1111,16 @@ sub inflate_result {
         push @pre_objects, $pre_source->result_class->inflate_result(
           $pre_source, @$me_pref
         );
-      }
-
-      $new->related_resultset($pre)->set_cache(\@pre_objects);
-    } elsif (defined $pre_val->[0]) {
-      my $fetched;
-      unless ($pre_source->primary_columns == grep { exists $pre_val->[0]{$_}
-         and !defined $pre_val->[0]{$_} } $pre_source->primary_columns)
-      {
-        $fetched = $pre_source->result_class->inflate_result(
-                      $pre_source, @{$pre_val});
-      }
-      my $acc_type = $source->relationship_info($pre)->{attrs}{accessor}
-        or $class->throw_exception("No accessor type for prefetched $pre");
-
-      if ($acc_type eq 'single') {
-        $new->{_relationship_data}{$pre} = $fetched;
-      }
-      elsif ($acc_type eq 'filter') {
-        $new->{_inflated_column}{$pre} = $fetched;
-      }
-      else {
-       $class->throw_exception("Implicit prefetch (via select/columns) not supported with accessor type '$acc_type'");
-      }
-      $new->related_resultset($pre)->set_cache([ $fetched ]);
     }
+
+    if ($accessor eq 'single') {
+      $new->{_relationship_data}{$pre} = $pre_objects[0];
+    }
+    elsif ($accessor eq 'filter') {
+      $new->{_inflated_column}{$pre} = $pre_objects[0];
+    }
+
+    $new->related_resultset($pre)->set_cache(\@pre_objects);
   }
 
   $new->in_storage (1);
