@@ -30,31 +30,33 @@ foreach my $conn_idx (0..1) {
   next unless $dsn;
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
-    auto_savepoint => 1
+    auto_savepoint => 1,
+    quote_char     => q["],
+    name_sep       => q[.],
   });
   my $dbh = $schema->storage->dbh;
 
   my $sg = Scope::Guard->new(\&cleanup);
 
-  eval { $dbh->do("DROP TABLE artist") };
+  eval { $dbh->do(q[DROP TABLE "artist"]) };
   $dbh->do(<<EOF);
-  CREATE TABLE artist (
-    artistid INT PRIMARY KEY,
-    name VARCHAR(255),
-    charfield CHAR(10),
-    rank INT DEFAULT 13
+  CREATE TABLE "artist" (
+    "artistid" INT PRIMARY KEY,
+    "name" VARCHAR(255),
+    "charfield" CHAR(10),
+    "rank" INT DEFAULT 13
   )
 EOF
-  eval { $dbh->do("DROP GENERATOR gen_artist_artistid") };
-  $dbh->do('CREATE GENERATOR gen_artist_artistid');
-  eval { $dbh->do("DROP TRIGGER artist_bi") };
+  eval { $dbh->do(q[DROP GENERATOR "gen_artist_artistid"]) };
+  $dbh->do('CREATE GENERATOR "gen_artist_artistid"');
+  eval { $dbh->do('DROP TRIGGER "artist_bi"') };
   $dbh->do(<<EOF);
-  CREATE TRIGGER artist_bi FOR artist
+  CREATE TRIGGER "artist_bi" FOR "artist"
   ACTIVE BEFORE INSERT POSITION 0
   AS
   BEGIN
-   IF (NEW.artistid IS NULL) THEN
-    NEW.artistid = GEN_ID(gen_artist_artistid,1);
+   IF (NEW."artistid" IS NULL) THEN
+    NEW."artistid" = GEN_ID("gen_artist_artistid",1);
   END
 EOF
 
@@ -155,14 +157,14 @@ EOF
 
 # test blobs (stolen from 73oracle.t)
   SKIP: {
-    eval { $dbh->do('DROP TABLE bindtype_test2') };
+    eval { $dbh->do('DROP TABLE "bindtype_test2"') };
     $dbh->do(q[
-    CREATE TABLE bindtype_test2
+    CREATE TABLE "bindtype_test2"
     (
-      id     INT PRIMARY KEY,
-      bytea  INT,
-      a_blob BLOB,
-      a_clob BLOB SUB_TYPE TEXT
+      "id"     INT PRIMARY KEY,
+      "bytea"  INT,
+      "a_blob" BLOB,
+      "a_clob" BLOB SUB_TYPE TEXT
     )
     ]);
 
@@ -203,14 +205,14 @@ sub cleanup {
   };
   return unless $dbh;
 
-  eval { $dbh->do('DROP TRIGGER artist_bi') };
+  eval { $dbh->do('DROP TRIGGER "artist_bi"') };
   diag $@ if $@;
 
-  eval { $dbh->do('DROP GENERATOR gen_artist_artistid') };
+  eval { $dbh->do('DROP GENERATOR "gen_artist_artistid"') };
   diag $@ if $@;
 
-  foreach my $table (qw/artist bindtype_test/) {
-    eval { $dbh->do("DROP TABLE $table") };
+  foreach my $table (qw/"artist" "bindtype_test"/) {
+    eval { $dbh->do(q[DROP TABLE "$table"]) };
     #diag $@ if $@;
   }
 }
