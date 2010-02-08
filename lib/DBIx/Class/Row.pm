@@ -758,9 +758,9 @@ sub get_inflated_columns {
 
   my %inflated;
   for my $col (keys %loaded_colinfo) {
-    my $acc = $loaded_colinfo{$col}{accessor};
-    if (defined $acc) {
-      $inflated{$col} = $self->$acc;
+    if (exists $loaded_colinfo{$col}{accessor}) {
+      my $acc = $loaded_colinfo{$col}{accessor};
+      $inflated{$col} = $self->$acc if defined $acc;
     }
     else {
       $inflated{$col} = $self->$col;
