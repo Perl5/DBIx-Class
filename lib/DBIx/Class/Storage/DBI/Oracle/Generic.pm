@@ -25,8 +25,34 @@ versions before 9.
 
 =cut
 
+my %ora_reserved = map { $_, 1 } qw(
+    ACCESS ADD ALL ALTER AND ANY AS ASC AUDIT BETWEEN BY CHAR CHECK
+    CLUSTER COLUMN COMMENT COMPRESS CONNECT CREATE CURRENT DATE DECIMAL
+    DEFAULT DELETE DESC DISTINCT DROP ELSE EXCLUSIVE EXISTS FILE FLOAT
+    FOR FROM GRANT GROUP HAVING IDENTIFIED IMMEDIATE IN INCREMENT
+    INDEX INITIAL INSERT INTEGER INTERSECT INTO IS LEVEL LIKE LOCK
+    LONG MAXEXTENTS MINUS MLSLABEL MODE MODIFY NOAUDIT NOCOMPRESS NOT
+    NOWAIT NULL NUMBER OF OFFLINE ON ONLINE OPTION OR ORDER PCTFREE
+    PRIOR PRIVILEGES PUBLIC RAW RENAME RESOURCE REVOKE ROW ROWID ROWNUM
+    ROWS SELECT SESSION SET SHARE SIZE SMALLINT START SUCCESSFUL SYNONYM
+    SYSDATE TABLE THEN TO TRIGGER UID UNION UNIQUE UPDATE USER VALIDATE
+    VALUES VARCHAR VARCHAR2 VIEW WHENEVER WHERE WITH
+);
+
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
+
+sub deployment_statements {
+  my $self = shift;;
+  my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
+
+  $sqltargs ||= {};
+	my $quote_char = $self->schema->storage->{'_sql_maker_opts'}->{'quote_char'};
+	$sqltargs->{quote_table_names} = 0 unless $quote_char;
+	$sqltargs->{quote_field_names} = 0 unless $quote_char;
+
+	$self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
+}
 
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, @columns) = @_;
@@ -42,8 +68,8 @@ sub _dbh_last_insert_id {
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $source, $col) = @_;
 
+	# check if quoting is on
 	my $quote_char = $self->schema->storage->{'_sql_maker_opts'}->{'quote_char'};
-	my $name_sep   = $self->schema->storage->{'_sql_maker_opts'}->{'name_sep'};
 
   # look up the correct sequence automatically
   my $sql = q{
@@ -65,6 +91,7 @@ sub _dbh_get_autoinc_seq {
   else {
       $source_name = ${$source->name};
   }
+	$source_name = uc($source_name) unless $quote_char;
 
   # check for fully-qualified name (eg. SCHEMA.TABLENAME)
   if ( my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/ ) {
@@ -75,9 +102,11 @@ sub _dbh_get_autoinc_seq {
       AND t.status = 'ENABLED'
     };
     $sth = $dbh->prepare($sql);
-		my $table_name = $quote_char ? "$quote_char$table$quote_char" : uc($table);
-		die $table_name;
-    $sth->execute( uc($schema), $table_name );
+		my $table_name = $self -> sql_maker -> _quote($table);
+		#my $schema_name = $self -> sql_maker -> _quote($schema);
+		my $schema_name = uc($schema);
+
+    $sth->execute( $schema_name, $table_name );
   }
   else {
     $sth = $dbh->prepare($sql);
@@ -165,7 +194,7 @@ names to uppercase
 sub columns_info_for {
   my ($self, $table) = @_;
 
-  $self->next::method(uc($table));
+  $self->next::method($table);
 }
 
 =head2 datetime_parser_type
