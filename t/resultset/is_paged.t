@@ -16,4 +16,3 @@ my $paginated = $tkfks->search(undef, { page => 5 });
 ok $paginated->is_paged, 'resultset is paginated now';
 
 done_testing;
-

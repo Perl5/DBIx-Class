@@ -1,10 +1,9 @@
 package DBICVersion::Table;
 
-use base 'DBIx::Class';
+use base 'DBIx::Class::Core';
 use strict;
 use warnings;
 
-__PACKAGE__->load_components(qw/ Core/);
 __PACKAGE__->table('TestVersion');
 
 __PACKAGE__->add_columns
@@ -41,6 +40,10 @@ __PACKAGE__->load_components('+DBIx::Class::Schema::Versioned');
 sub upgrade_directory
 {
     return 't/var/';
+}
+
+sub ordered_schema_versions {
+  return('1.0','2.0','3.0');
 }
 
 1;

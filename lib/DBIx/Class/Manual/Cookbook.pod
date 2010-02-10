@@ -113,9 +113,8 @@ almost like you would define a regular ResultSource.
   package My::Schema::Result::UserFriendsComplex;
   use strict;
   use warnings;
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components('Core');
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
   # ->table, ->add_columns, etc.
@@ -318,7 +317,7 @@ Please see L<DBIx::Class::ResultSet/ATTRIBUTES> documentation if you
 are in any way unsure about the use of the attributes above (C< join
 >, C< select >, C< as > and C< group_by >).
 
-=head2 Subqueries (EXPERIMENTAL)
+=head2 Subqueries
 
 You can write subqueries relatively easily in DBIC.
 
@@ -366,10 +365,6 @@ That creates the following SQL:
        WHERE artist_id = me.artist_id
       )
 
-=head3 EXPERIMENTAL
-
-Please note that subqueries are considered an experimental feature.
-
 =head2 Predefined searches
 
 You can write your own L<DBIx::Class::ResultSet> class by inheriting from it
@@ -391,11 +386,16 @@ and defining often used searches as methods:
 
   1;
 
-To use your resultset, first tell DBIx::Class to create an instance of it
-for you, in your My::DBIC::Schema::CD class:
+If you're using L<DBIx::Class::Schema/load_namespaces>, simply place the file
+into the C<ResultSet> directory next to your C<Result> directory, and it will
+be automatically loaded.
+
+If however you are still using L<DBIx::Class::Schema/load_classes>, first tell
+DBIx::Class to create an instance of the ResultSet class for you, in your
+My::DBIC::Schema::CD class:
 
   # class definition as normal
-  __PACKAGE__->load_components(qw/ Core /);
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('cd');
 
   # tell DBIC to use the custom ResultSet class
@@ -842,12 +842,10 @@ B<Proxy-Class definitions>
 
     use strict;
     use warnings;
-    use base qw/DBIx::Class/;
+    use base qw/DBIx::Class::Core/;
 
     ### Define what our admin class is, for ensure_class_loaded()
     my $admin_class = __PACKAGE__ . '::Admin';
-
-    __PACKAGE__->load_components(qw/Core/);
 
     __PACKAGE__->table('users');
 
@@ -1090,8 +1088,7 @@ If you want to get a filtered result set, you can just add add to $attr as follo
 This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_many>:
 
   package My::User;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components('Core');
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('user');
   __PACKAGE__->add_columns(qw/id name/);
   __PACKAGE__->set_primary_key('id');
@@ -1099,8 +1096,7 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->many_to_many('addresses' => 'user_address', 'address');
 
   package My::UserAddress;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components('Core');
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('user_address');
   __PACKAGE__->add_columns(qw/user address/);
   __PACKAGE__->set_primary_key(qw/user address/);
@@ -1108,8 +1104,7 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->belongs_to('address' => 'My::Address');
 
   package My::Address;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components('Core');
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('address');
   __PACKAGE__->add_columns(qw/id street town area_code country/);
   __PACKAGE__->set_primary_key('id');
@@ -1140,8 +1135,7 @@ To accomplish this one only needs to specify the DB schema name in the table
 declaration, like so...
 
   package MyDatabase::Main::Artist;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->table('database1.artist'); # will use "database1.artist" in FROM clause
 
@@ -1257,9 +1251,101 @@ example of the recommended way to use it:
 Nested transactions will work as expected. That is, only the outermost
 transaction will actually issue a commit to the $dbh, and a rollback
 at any level of any transaction will cause the entire nested
-transaction to fail. Support for savepoints and for true nested
-transactions (for databases that support them) will hopefully be added
-in the future.
+transaction to fail.
+ 
+=head2 Nested transactions and auto-savepoints
+
+If savepoints are supported by your RDBMS, it is possible to achieve true
+nested transactions with minimal effort. To enable auto-savepoints via nested
+transactions, supply the C<< auto_savepoint = 1 >> connection attribute.
+
+Here is an example of true nested transactions. In the example, we start a big
+task which will create several rows. Generation of data for each row is a
+fragile operation and might fail. If we fail creating something, depending on
+the type of failure, we want to abort the whole task, or only skip the failed
+row.
+
+  my $schema = MySchema->connect("dbi:Pg:dbname=my_db");
+
+  # Start a transaction. Every database change from here on will only be 
+  # commited into the database if the eval block succeeds.
+  eval {
+    $schema->txn_do(sub {
+      # SQL: BEGIN WORK;
+
+      my $job = $schema->resultset('Job')->create({ name=> 'big job' });
+      # SQL: INSERT INTO job ( name) VALUES ( 'big job' );
+
+      for (1..10) {
+
+        # Start a nested transaction, which in fact sets a savepoint.
+        eval {
+          $schema->txn_do(sub {
+            # SQL: SAVEPOINT savepoint_0;
+
+            my $thing = $schema->resultset('Thing')->create({ job=>$job->id });
+            # SQL: INSERT INTO thing ( job) VALUES ( 1 );
+
+            if (rand > 0.8) {
+              # This will generate an error, thus setting $@
+
+              $thing->update({force_fail=>'foo'});
+              # SQL: UPDATE thing SET force_fail = 'foo'
+              #      WHERE ( id = 42 );
+            }
+          });
+        };
+        if ($@) {
+          # SQL: ROLLBACK TO SAVEPOINT savepoint_0;
+
+          # There was an error while creating a $thing. Depending on the error
+          # we want to abort the whole transaction, or only rollback the
+          # changes related to the creation of this $thing
+
+          # Abort the whole job
+          if ($@ =~ /horrible_problem/) {
+            print "something horrible happend, aborting job!";
+            die $@;                # rethrow error
+          }
+
+          # Ignore this $thing, report the error, and continue with the
+          # next $thing
+          print "Cannot create thing: $@";
+        }
+        # There was no error, so save all changes since the last 
+        # savepoint.
+
+        # SQL: RELEASE SAVEPOINT savepoint_0;
+      }
+    });
+  };
+  if ($@) {
+    # There was an error while handling the $job. Rollback all changes
+    # since the transaction started, including the already commited
+    # ('released') savepoints. There will be neither a new $job nor any
+    # $thing entry in the database.
+
+    # SQL: ROLLBACK;
+
+    print "ERROR: $@\n";
+  }
+  else {
+    # There was no error while handling the $job. Commit all changes.
+    # Only now other connections can see the newly created $job and
+    # @things.
+
+    # SQL: COMMIT;
+
+    print "Ok\n";
+  }
+
+In this example it might be hard to see where the rollbacks, releases and
+commits are happening, but it works just the same as for plain L<<txn_do>>: If
+the C<eval>-block around C<txn_do> fails, a rollback is issued. If the C<eval>
+succeeds, the transaction is committed (or the savepoint released).
+
+While you can get more fine-grained controll using C<svp_begin>, C<svp_release>
+and C<svp_rollback>, it is strongly recommended to use C<txn_do> with coderefs.
 
 =head1 SQL
 
@@ -1296,7 +1382,7 @@ MySQL, SQLite and PostgreSQL, using the $VERSION from your Schema.pm.
 To create a new database using the schema:
 
  my $schema = My::Schema->connect($dsn);
- $schema->deploy({ add_drop_tables => 1});
+ $schema->deploy({ add_drop_table => 1});
 
 To import created .sql files using the mysql client:
 
@@ -1334,8 +1420,7 @@ Make a table class as you would for any other table
   package MyAppDB::Dual;
   use strict;
   use warnings;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components("Core");
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table("Dual");
   __PACKAGE__->add_columns(
     "dummy",
@@ -1920,15 +2005,15 @@ details on creating static schemas from a database).
 
 Typically L<DBIx::Class> result classes start off with
 
-    use base qw/DBIx::Class/;
-    __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
+    use base qw/DBIx::Class::Core/;
+    __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
 
 If this preamble is moved into a common base class:-
 
     package MyDBICbase;
 
-    use base qw/DBIx::Class/;
-    __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
+    use base qw/DBIx::Class::Core/;
+    __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
     1;
 
 and each result class then uses this as a base:-

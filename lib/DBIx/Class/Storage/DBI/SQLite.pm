@@ -10,11 +10,6 @@ use POSIX 'strftime';
 use File::Copy;
 use File::Spec;
 
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $source, $col) = @_;
-  $dbh->func('last_insert_rowid');
-}
-
 sub backup
 {
   my ($self, $dir) = @_;
@@ -74,7 +69,7 @@ DBIx::Class::Storage::DBI::SQLite - Automatic primary key class for SQLite
 =head1 SYNOPSIS
 
   # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  use base 'DBIx::Class::Core';
   __PACKAGE__->set_primary_key('id');
 
 =head1 DESCRIPTION

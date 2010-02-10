@@ -7,9 +7,8 @@ BEGIN {
   ## use, so we explicitly test for these.
 
   my %replication_required = (
-    'Moose' => '0.87',
-    'MooseX::AttributeHelpers' => '0.21',
-    'MooseX::Types' => '0.16',
+    'Moose' => '0.98',
+    'MooseX::Types' => '0.21',
     'namespace::clean' => '0.11',
     'Hash::Merge' => '0.11'
   );
@@ -51,7 +50,9 @@ You should set the 'storage_type attribute to a replicated type.  You should
 also define your arguments, such as which balancer you want and any arguments
 that the Pool object should get.
 
+  my $schema = Schema::Class->clone;
   $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
+  $schema->connection(...);
 
 Next, you need to add in the Replicants.  Basically this is an array of 
 arrayrefs, where each arrayref is database connect information.  Think of these
@@ -119,9 +120,8 @@ to force a query to run against Master when needed.
 
 Replicated Storage has additional requirements not currently part of L<DBIx::Class>
 
-  Moose => '0.87',
-  MooseX::AttributeHelpers => '0.20',
-  MooseX::Types => '0.16',
+  Moose => '0.98',
+  MooseX::Types => '0.21',
   namespace::clean => '0.11',
   Hash::Merge => '0.11'
 
@@ -328,6 +328,8 @@ has 'write_handler' => (
     svp_rollback
     svp_begin
     svp_release
+    relname_to_table_alias
+    _straight_join_to_node
   /],
 );
 
@@ -391,7 +393,11 @@ around connect_info => sub {
   my $master = $self->master;
   $master->_determine_driver;
   Moose::Meta::Class->initialize(ref $master);
+
   DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
+
+  # link pool back to master
+  $self->pool->master($master);
 
   $wantarray ? @res : $res;
 };
@@ -409,7 +415,7 @@ bits get put into the correct places.
 =cut
 
 sub BUILDARGS {
-  my ($class, $schema, $storage_type_args, @args) = @_;	
+  my ($class, $schema, $storage_type_args, @args) = @_;  
 
   return {
     schema=>$schema,
@@ -744,50 +750,35 @@ sub debug {
 
 =head2 debugobj
 
-set a debug object across all storages
+set a debug object
 
 =cut
 
 sub debugobj {
   my $self = shift @_;
-  if(@_) {
-    foreach my $source ($self->all_storages) {
-      $source->debugobj(@_);
-    }
-  }
-  return $self->master->debugobj;
+  return $self->master->debugobj(@_);
 }
 
 =head2 debugfh
 
-set a debugfh object across all storages
+set a debugfh object
 
 =cut
 
 sub debugfh {
   my $self = shift @_;
-  if(@_) {
-    foreach my $source ($self->all_storages) {
-      $source->debugfh(@_);
-    }
-  }
-  return $self->master->debugfh;
+  return $self->master->debugfh(@_);
 }
 
 =head2 debugcb
 
-set a debug callback across all storages
+set a debug callback
 
 =cut
 
 sub debugcb {
   my $self = shift @_;
-  if(@_) {
-    foreach my $source ($self->all_storages) {
-      $source->debugcb(@_);
-    }
-  }
-  return $self->master->debugcb;
+  return $self->master->debugcb(@_);
 }
 
 =head2 disconnect

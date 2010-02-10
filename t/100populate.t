@@ -296,4 +296,24 @@ for (
   ok ($row, "Stringification test row '$_' properly inserted");
 }
 
+lives_ok {
+   $schema->resultset('TwoKeys')->populate([{
+      artist => 1,
+      cd     => 5,
+      fourkeys_to_twokeys => [{
+            f_foo => 1,
+            f_bar => 1,
+            f_hello => 1,
+            f_goodbye => 1,
+            autopilot => 'a',
+      },{
+            f_foo => 2,
+            f_bar => 2,
+            f_hello => 2,
+            f_goodbye => 2,
+            autopilot => 'b',
+      }]
+   }])
+} 'multicol-PK has_many populate works';
+
 done_testing;

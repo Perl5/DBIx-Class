@@ -8,11 +8,11 @@ use DBICTest::Stats;
 
 my ($create_sql, $dsn, $user, $pass);
 
-if (exists $ENV{DBICTEST_PG_DSN}) {
+if ($ENV{DBICTEST_PG_DSN}) {
   ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
   $create_sql = "CREATE TABLE artist (artistid serial PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10))";
-} elsif (exists $ENV{DBICTEST_MYSQL_DSN}) {
+} elsif ($ENV{DBICTEST_MYSQL_DSN}) {
   ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
   $create_sql = "CREATE TABLE artist (artistid INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), rank INTEGER NOT NULL DEFAULT '13', charfield CHAR(10)) ENGINE=InnoDB";

@@ -1,6 +1,78 @@
 Revision history for DBIx::Class
 
+0.08118 2010-02-08 11:53:00 (UTC)
+        - Fix a bug causing UTF8 columns not to be decoded (RT#54395)
+        - Fix bug in One->Many->One prefetch-collapse handling (RT#54039)
+        - Cleanup handling of relationship accessor types
 
+0.08117 2010-02-05 17:10:00 (UTC)
+        - Perl 5.8.1 is now the minimum supported version
+        - Massive optimization of the join resolution code - now joins
+          will be removed from the resulting SQL if DBIC can prove they
+          are not referenced by anything
+        - Subqueries no longer marked experimental
+        - Support for Informix RDBMS (limit/offset and auto-inc columns)
+        - Support for Sybase SQLAnywhere, both native and via ODBC
+        - might_have/has_one now warn if applied calling class's column
+          has is_nullable set to true.
+        - Fixed regression in deploy() with a {sources} table limit applied
+          (RT#52812)
+        - Views without a view_definition will throw an exception when
+          parsed by SQL::Translator::Parser::DBIx::Class
+        - Stop the SQLT parser from auto-adding indexes identical to the
+          Primary Key
+        - InflateColumn::DateTime refactoring to allow fine grained method
+          overloads
+        - Fix ResultSetColumn improperly selecting more than the requested
+          column when +columns/+select is present
+        - Fix failure when update/delete of resultsets with complex WHERE
+          SQLA structures
+        - Fix regression in context sensitiveness of deployment_statements
+        - Fix regression resulting in overcomplicated query on
+          search_related from prefetching resultsets
+        - Fix regression on all-null returning searches (properly switch
+          LEFT JOIN to JOIN in order to distinguish between both cases)
+        - Fix regression in groupedresultset count() used on strict-mode
+          MySQL connections
+        - Better isolation of RNO-limited queries from the rest of a
+          prefetching resultset
+        - New MSSQL specific resultset attribute to allow hacky ordered
+          subquery support
+        - Fix nasty schema/dbhandle leak due to SQL::Translator
+        - Initial implementation of a mechanism for Schema::Version to
+          apply multiple step upgrades
+        - Fix regression on externally supplied $dbh with AutoCommit=0
+        - FAQ "Custom methods in Result classes"
+        - Cookbook POD fix for add_drop_table instead of add_drop_tables
+        - Schema POD improvement for dclone
+
+0.08115 2009-12-10 09:02:00 (CST)
+        - Real limit/offset support for MSSQL server (via Row_Number)
+        - Fix distinct => 1 with non-selecting order_by (the columns
+          in order_by also need to be aded to the resulting group_by)
+        - Do not attempt to deploy FK constraints pointing to a View
+        - Fix count/objects from search_related on limited resultset
+        - Stop propagating distinct => 1 over search_related chains
+        - Make sure populate() inherits the resultset conditions just
+          like create() does
+        - Make get_inflated_columns behave identically to get_columns
+          wrt +select/+as (RT#46953)
+        - Fix problems with scalarrefs under InflateColumn (RT#51559)
+        - Throw exception on delete/update of PK-less resultsets
+        - Refactored Sybase storage driver into a central ::DBI::Sybase
+          dispatcher, and a sybase-specific ::DBI::Sybase::ASE
+        - Fixed an atrocious DBD::ADO bind-value bug
+        - Cookbook/Intro POD improvements
+
+0.08114 2009-11-14 17:45:00 (UTC)
+        - Preliminary support for MSSQL via DBD::ADO
+        - Fix botched 0.08113 release (invalid tarball)
+
+0.08113 2009-11-13 23:13:00 (UTC)
+        - Fix populate with has_many bug
+          (RT #50828)
+        - Fix Oracle autoincrement broken for Resultsets with scalar refs
+          (RT #50874)
         - Complete Sybase RDBMS support including:
           - Support for TEXT/IMAGE columns
           - Support for the 'money' datatype
@@ -13,6 +85,7 @@ Revision history for DBIx::Class
           - Support for interpolated variables with proper quoting when
              connecting to an older Sybase and/or via FreeTDS
           - bulk API support for populate()
+        - Transaction support for MSSQL via DBD::Sybase
         - Add is_paged method to DBIx::Class::ResultSet so that we can
           check that if we want a pager
         - Skip versioning test on really old perls lacking Time::HiRes
@@ -20,6 +93,19 @@ Revision history for DBIx::Class
         - Fixed on_connect_do/call regression when used with a coderef
           connector (RT #50003)
         - A couple of fixes to Ordered to remedy subclassing issues
+        - Fixed another lingering problem with PostgreSQL
+          auto-increment support and its interaction with multiple
+          schemas
+        - Remove some IN workarounds, and require a recent version of
+          SQLA instead
+        - Improvements to populate's handling of mixed scalarref values
+        - Fixed regression losing result_class after $rs->find (introduced
+          in 0.08108)
+        - Fix in_storage() to return 1|0 as per existing documentation
+        - Centralize handling of _determine_driver calls prior to certain
+          ::Storage::DBI methods
+        - Fix update/delete arbitrary condition handling (RT#51409)
+        - POD improvements
 
 0.08112 2009-09-21 10:57:00 (UTC)
         - Remove the recommends from Makefile.PL, DBIx::Class is not

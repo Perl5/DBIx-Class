@@ -160,7 +160,7 @@ sub _execute {
 
     # this should bring back the result of SELECT SCOPE_IDENTITY() we tacked
     # on in _prep_for_execute above
-    my ($identity) = $sth->fetchrow_array;
+    my ($identity) = eval { $sth->fetchrow_array };
 
     # SCOPE_IDENTITY failed, but we can do something else
     if ( (! $identity) && $self->_identity_method) {
@@ -177,6 +177,33 @@ sub _execute {
 }
 
 sub last_insert_id { shift->_identity }
+
+#
+# MSSQL is retarded wrt ordered subselects. One needs to add a TOP
+# to *all* subqueries, but one also can't use TOP 100 PERCENT
+# http://sqladvice.com/forums/permalink/18496/22931/ShowThread.aspx#22931
+#
+sub _select_args_to_query {
+  my $self = shift;
+
+  my ($sql, $prep_bind, @rest) = $self->next::method (@_);
+
+  # see if this is an ordered subquery
+  my $attrs = $_[3];
+  if ( scalar $self->_parse_order_by ($attrs->{order_by}) ) {
+    $self->throw_exception(
+      'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL
+    ') unless $attrs->{unsafe_subselect_ok};
+    my $max = 2 ** 32;
+    $sql =~ s/^ \s* SELECT \s/SELECT TOP $max /xi;
+  }
+
+  return wantarray
+    ? ($sql, $prep_bind, @rest)
+    : \[ "($sql)", @$prep_bind ]
+  ;
+}
+
 
 # savepoint syntax is the same as in Sybase ASE
 
@@ -205,14 +232,35 @@ sub build_datetime_parser {
 
 sub sqlt_type { 'SQLServer' }
 
-sub _sql_maker_opts {
-  my ( $self, $opts ) = @_;
+sub _get_mssql_version {
+  my $self = shift;
 
-  if ( $opts ) {
-    $self->{_sql_maker_opts} = { %$opts };
+  my $data = $self->_get_dbh->selectrow_hashref('xp_msver ProductVersion');
+
+  if ($data->{Character_Value} =~ /^(\d+)\./) {
+    return $1;
+  } else {
+    $self->throw_exception(q{Your ProductVersion's Character_Value is missing or malformed!});
+  }
+}
+
+sub sql_maker {
+  my $self = shift;
+
+  unless ($self->_sql_maker) {
+    unless ($self->{_sql_maker_opts}{limit_dialect}) {
+      my $version = eval { $self->_get_mssql_version; } || 0;
+
+      $self->{_sql_maker_opts} = {
+        limit_dialect => ($version >= 9 ? 'RowNumberOver' : 'Top'),
+        %{$self->{_sql_maker_opts}||{}}
+      };
+    }
+
+    my $maker = $self->next::method (@_);
   }
 
-  return { limit_dialect => 'Top', %{$self->{_sql_maker_opts}||{}} };
+  return $self->_sql_maker;
 }
 
 1;
@@ -259,6 +307,54 @@ appropriate database call to make this possible, namely C<SET IDENTITY_INSERT
 $table_name ON>. Unfortunately this operation in MSSQL requires the
 C<db_ddladmin> privilege, which is normally not included in the standard
 write-permissions.
+
+=head2 Ordered Subselects
+
+If you attempted the following query (among many others) in Microsoft SQL
+Server
+
+ $rs->search ({}, {
+  prefetch => 'relation',
+  rows => 2,
+  offset => 3,
+ });
+
+You may be surprised to receive an exception. The reason for this is a quirk
+in the MSSQL engine itself, and sadly doesn't have a sensible workaround due
+to the way DBIC is built. DBIC can do truly wonderful things with the aid of
+subselects, and does so automatically when necessary. The list of situations
+when a subselect is necessary is long and still changes often, so it can not
+be exhaustively enumerated here. The general rule of thumb is a joined
+L<has_many|DBIx::Class::Relationship/has_many> relationship with limit/group
+applied to the left part of the join.
+
+In its "pursuit of standards" Microsft SQL Server goes to great lengths to
+forbid the use of ordered subselects. This breaks a very useful group of
+searches like "Give me things number 4 to 6 (ordered by name), and prefetch
+all their relations, no matter how many". While there is a hack which fools
+the syntax checker, the optimizer may B<still elect to break the subselect>.
+Testing has determined that while such breakage does occur (the test suite
+contains an explicit test which demonstrates the problem), it is relative
+rare. The benefits of ordered subselects are on the other hand too great to be
+outright disabled for MSSQL.
+
+Thus compromise between usability and perfection is the MSSQL-specific
+L<resultset attribute|DBIx::Class::ResultSet/ATTRIBUTES> C<unsafe_subselect_ok>.
+It is deliberately not possible to set this on the Storage level, as the user
+should inspect (and preferrably regression-test) the return of every such
+ResultSet individually. The example above would work if written like:
+
+ $rs->search ({}, {
+  unsafe_subselect_ok => 1,
+  prefetch => 'relation',
+  rows => 2,
+  offset => 3,
+ });
+
+If it is possible to rewrite the search() in a way that will avoid the need
+for this flag - you are urged to do so. If DBIC internals insist that an
+ordered subselect is necessary for an operation, and you believe there is a
+differnt/better way to get the same result - please file a bugreport.
 
 =head1 AUTHOR
 

@@ -2,7 +2,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use IO::File;
 
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
@@ -14,18 +13,24 @@ BEGIN {
         : ( tests => 7 );
 }
 
-
 use_ok('DBICTest');
 use_ok('DBIC::DebugObj');
+
 my $schema = DBICTest->init_schema();
 
 #diag('Testing against ' . join(' ', map { $schema->storage->dbh->get_info($_) } qw/17 18/));
 
-$schema->storage->sql_maker->quote_char('`');
-$schema->storage->sql_maker->name_sep('.');
+my $dsn = $schema->storage->_dbi_connect_info->[0];
+$schema->connection(
+  $dsn,
+  undef,
+  undef,
+  { AutoCommit => 1 },
+  { quote_char => '`', name_sep => '.' },
+);
 
 my ($sql, @bind);
-$schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind));
+$schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind)),
 $schema->storage->debug(1);
 
 my $rs;
@@ -51,8 +56,15 @@ $rs = $schema->resultset('CD')->search({},
 eval { $rs->first };
 like($sql, qr/ORDER BY \Q${order}\E/, 'did not quote ORDER BY with scalarref');
 
-$schema->storage->sql_maker->quote_char([qw/[ ]/]);
-$schema->storage->sql_maker->name_sep('.');
+$schema->connection(
+  $dsn,
+  undef,
+  undef,
+  { AutoCommit => 1, quote_char => [qw/[ ]/], name_sep => '.' }
+);
+
+$schema->storage->debugobj(DBIC::DebugObj->new(\$sql, \@bind)),
+$schema->storage->debug(1);
 
 $rs = $schema->resultset('CD')->search(
            { 'me.year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
@@ -69,7 +81,11 @@ my %data = (
        order => '12'
 );
 
-$schema->storage->sql_maker->quote_char('`');
-$schema->storage->sql_maker->name_sep('.');
+$schema->connection(
+  $dsn,
+  undef,
+  undef,
+  { AutoCommit => 1, quote_char => '`', name_sep => '.' }
+);
 
 is($schema->storage->sql_maker->update('group', \%data), 'UPDATE `group` SET `name` = ?, `order` = ?', 'quoted table names for UPDATE');

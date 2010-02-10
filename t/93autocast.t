@@ -71,7 +71,7 @@ is_same_sql_bind (
     WHERE
           cdid > CAST(? AS INT)
       AND tracks.last_updated_at IS NOT NULL
-      AND tracks.last_updated_on < CAST (? AS yyy)
+      AND tracks.last_updated_on < CAST (? AS DateTime)
       AND tracks.position = ?
       AND tracks.single_track = CAST(? AS INT)
   )',

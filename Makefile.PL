@@ -3,12 +3,12 @@ use strict;
 use warnings;
 use POSIX ();
 
-use 5.006001; # delete this line if you want to send patches for earlier.
+use 5.008001;
 
 # ****** DO NOT ADD OPTIONAL DEPENDENCIES. EVER. --mst ******
 
 name     'DBIx-Class';
-perl_version '5.006001';
+perl_version '5.008001';
 all_from 'lib/DBIx/Class.pm';
 
 
@@ -26,31 +26,27 @@ requires 'List::Util'               => '0';
 requires 'Scalar::Util'             => '0';
 requires 'Storable'                 => '0';
 
-# Perl 5.8.0 doesn't have utf8::is_utf8()
-requires 'Encode'                   => '0' if ($] <= 5.008000);
-
 # Dependencies (keep in alphabetical order)
 requires 'Carp::Clan'               => '6.0';
-requires 'Class::Accessor::Grouped' => '0.09000';
+requires 'Class::Accessor::Grouped' => '0.09002';
 requires 'Class::C3::Componentised' => '1.0005';
 requires 'Class::Inspector'         => '1.24';
 requires 'Data::Page'               => '2.00';
 requires 'DBD::SQLite'              => '1.25';
-requires 'DBI'                      => '1.605';
+requires 'DBI'                      => '1.609';
 requires 'JSON::Any'                => '1.18';
 requires 'MRO::Compat'              => '0.09';
 requires 'Module::Find'             => '0.06';
 requires 'Path::Class'              => '0.16';
 requires 'Scope::Guard'             => '0.03';
-requires 'SQL::Abstract'            => '1.60';
+requires 'SQL::Abstract'            => '1.61';
 requires 'SQL::Abstract::Limit'     => '0.13';
 requires 'Sub::Name'                => '0.04';
 requires 'Data::Dumper::Concise'    => '1.000';
 
 my %replication_requires = (
-  'Moose',                    => '0.87',
-  'MooseX::AttributeHelpers'  => '0.21',
-  'MooseX::Types',            => '0.16',
+  'Moose',                    => '0.90',
+  'MooseX::Types',            => '0.21',
   'namespace::clean'          => '0.11',
   'Hash::Merge',              => '0.11',
 );
@@ -70,6 +66,12 @@ my %force_requires_if_author = (
 
   # when changing also adjust version in t/02pod.t
   'Test::Pod'                 => '1.26',
+
+  # when changing also adjust version in t/06notabs.t
+#  'Test::NoTabs'              => '0.9',
+
+  # when changing also adjust version in t/07eol.t
+#  'Test::EOL'                 => '0.6',
 
   # when changing also adjust version in t/03podcoverage.t
   'Test::Pod::Coverage'       => '1.08',
@@ -110,7 +112,7 @@ my %force_requires_if_author = (
     ) : ()
   ,
 
-  $ENV{DBICTEST_ORACLE_DSN}
+  $ENV{DBICTEST_ORA_DSN}
     ? (
       'DateTime::Format::Oracle' => '0',
     ) : ()
@@ -119,6 +121,11 @@ my %force_requires_if_author = (
   $ENV{DBICTEST_SYBASE_DSN}
     ? (
       'DateTime::Format::Sybase' => 0,
+    ) : ()
+  ,
+  grep $_, @ENV{qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/}
+    ? (
+      'DateTime::Format::Strptime' => 0,
     ) : ()
   ,
 );
@@ -142,12 +149,15 @@ resources 'license'     => 'http://dev.perl.org/licenses/';
 resources 'repository'  => 'http://dev.catalyst.perl.org/repos/bast/DBIx-Class/';
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
 
-no_index 'DBIx::Class::Storage::DBI::Sybase::Common';
-no_index 'DBIx::Class::SQLAHacks';
-no_index 'DBIx::Class::SQLAHacks::MSSQL';
-no_index 'DBIx::Class::Storage::DBI::AmbiguousGlob';
-no_index 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server';
-no_index 'DBIx::Class::Storage::DBI::Sybase::Microsoft_SQL_Server::NoBindVars';
+# Deprecated/internal modules need no exposure
+no_index directory => $_ for (qw|
+  lib/DBIx/Class/SQLAHacks
+  lib/DBIx/Class/PK/Auto
+|);
+no_index package => $_ for (qw/
+  DBIx::Class::Storage::DBI::AmbiguousGlob
+  DBIx::Class::SQLAHacks DBIx::Class::Storage::DBIHacks
+/);
 
 # re-build README and require extra modules for testing if we're in a checkout
 
@@ -186,7 +196,7 @@ WriteAll();
 # Re-write META.yml to _exclude_ all forced requires (we do not want to ship this)
 if ($Module::Install::AUTHOR) {
 
-  Meta->{values}{build_requires} = [ grep 
+  Meta->{values}{build_requires} = [ grep
     { not exists $force_requires_if_author{$_->[0]} }
     ( @{Meta->{values}{build_requires}} )
   ];

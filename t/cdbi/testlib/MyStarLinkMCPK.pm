@@ -18,7 +18,7 @@ __PACKAGE__->has_a(film => 'MyFilm');
 __PACKAGE__->has_a(star => 'MyStar');
 
 sub create_sql {
-	return qq{
+  return qq{
     film    INTEGER NOT NULL,
     star    INTEGER NOT NULL,
     PRIMARY KEY (film, star)

@@ -9,14 +9,16 @@ if ($@) {
     next;
 }
 
+plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
+  unless ($ENV{DBICTEST_MYSQL_DSN} && $ENV{DBICTEST_MYSQL_USER});
+
 eval { require Time::Piece::MySQL };
 plan skip_all => "Need Time::Piece::MySQL for this test" if $@;
 
-use lib 't/cdbi/testlib';
-eval { require 't/cdbi/testlib/Log.pm' };
-plan skip_all => "Need MySQL for this test" if $@;
+plan tests => 3;
 
-plan tests => 2;
+use lib 't/cdbi/testlib';
+use_ok ('Log');
 
 package main;
 

@@ -50,4 +50,17 @@ __PACKAGE__->belongs_to( disc => 'DBICTest::Schema::CD' => 'cd');
 __PACKAGE__->might_have( cd_single => 'DBICTest::Schema::CD', 'single_track' );
 __PACKAGE__->might_have( lyrics => 'DBICTest::Schema::Lyrics', 'track_id' );
 
+__PACKAGE__->belongs_to(
+    "year1999cd",
+    "DBICTest::Schema::Year1999CDs",
+    { "foreign.cdid" => "self.cd" },
+    { join_type => 'left' },  # the relationship is of course optional
+);
+__PACKAGE__->belongs_to(
+    "year2000cd",
+    "DBICTest::Schema::Year2000CDs",
+    { "foreign.cdid" => "self.cd" },
+    { join_type => 'left' },
+);
+
 1;

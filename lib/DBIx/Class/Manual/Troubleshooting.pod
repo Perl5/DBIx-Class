@@ -100,28 +100,20 @@ The solution is to enable quoting - see
 L<DBIx::Class::Manual::Cookbook/Setting_quoting_for_the_generated_SQL> for
 details.
 
-Note that quoting may lead to problems with C<order_by> clauses, see
-L<... column "foo DESC" does not exist ...> for info on avoiding those.
-
 =head2 column "foo DESC" does not exist ...
 
-This can happen if you've turned on quoting and then done something like
-this:
+This can happen if you are still using the obsolete order hack, and also
+happen to turn on sql-quoting.
 
   $rs->search( {}, { order_by => [ 'name DESC' ] } );
 
-This results in SQL like this:
+Since L<DBIx::Class> >= 0.08100 and L<SQL::Abstract> >= 1.50 the above
+should be written as:
 
-  ... ORDER BY "name DESC"
+  $rs->search( {}, { order_by => { -desc => 'name' } } );
 
-The solution is to pass your order_by items as scalar references to avoid
-quoting:
-
-  $rs->search( {}, { order_by => [ \'name DESC' ] } );
-
-Now you'll get SQL like this:
-
-  ... ORDER BY name DESC
+For more ways to express order clauses refer to
+L<SQL::Abstract/ORDER_BY_CLAUSES>
 
 =head2 Perl Performance Issues on Red Hat Systems
 

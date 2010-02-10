@@ -133,7 +133,7 @@ $cd = $artist->find_or_new_related( 'cds', {
   year => 2007,
 } );
 is( $cd->title, 'Greatest Hits 2: Louder Than Ever', 'find_or_new_related new record ok' );
-ok( ! $cd->in_storage, 'find_or_new_related on a new record: not in_storage' );
+is( $cd->in_storage, 0, 'find_or_new_related on a new record: not in_storage' );
 
 $cd->artist(undef);
 my $newartist = $cd->find_or_new_related( 'artist', {
@@ -268,7 +268,7 @@ is_same_sql_bind (
   '(
     SELECT artist_undirected_maps.id1, artist_undirected_maps.id2
       FROM artist me
-      LEFT JOIN artist_undirected_map artist_undirected_maps
+      JOIN artist_undirected_map artist_undirected_maps
         ON artist_undirected_maps.id1 = me.artistid OR artist_undirected_maps.id2 = me.artistid
     WHERE ( artistid = ? )
   )',
