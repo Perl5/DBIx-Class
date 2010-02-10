@@ -43,6 +43,16 @@ sub insert {
       $source->column_info($_)->{is_auto_increment} 
   } $source->columns;
 
+# user might have an identity PK without is_auto_increment
+  if (not $identity_col) {
+    foreach my $pk_col ($source->primary_columns) {
+      if (not exists $to_insert->{$pk_col}) {
+        $identity_col = $pk_col;
+        last;
+      }
+    }
+  }
+
   if ($identity_col && (not exists $to_insert->{$identity_col})) {
     my $dbh = $self->_get_dbh;
     my $table_name = $source->from;

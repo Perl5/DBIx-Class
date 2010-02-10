@@ -391,7 +391,16 @@ around connect_info => sub {
   my $master = $self->master;
   $master->_determine_driver;
   Moose::Meta::Class->initialize(ref $master);
-  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
+
+  my $class = Moose::Meta::Class->create_anon_class(
+    superclasses => [ ref $master ],
+    roles        => [ 'DBIx::Class::Storage::DBI::Replicated::WithDSN' ],
+    cache        => 1,
+  );
+  $class->rebless_instance($master);
+
+  # link pool back to master
+  $self->pool->master($master);
 
   $wantarray ? @res : $res;
 };
@@ -744,50 +753,35 @@ sub debug {
 
 =head2 debugobj
 
-set a debug object across all storages
+set a debug object
 
 =cut
 
 sub debugobj {
   my $self = shift @_;
-  if(@_) {
-    foreach my $source ($self->all_storages) {
-      $source->debugobj(@_);
-    }
-  }
-  return $self->master->debugobj;
+  return $self->master->debugobj(@_);
 }
 
 =head2 debugfh
 
-set a debugfh object across all storages
+set a debugfh object
 
 =cut
 
 sub debugfh {
   my $self = shift @_;
-  if(@_) {
-    foreach my $source ($self->all_storages) {
-      $source->debugfh(@_);
-    }
-  }
-  return $self->master->debugfh;
+  return $self->master->debugfh(@_);
 }
 
 =head2 debugcb
 
-set a debug callback across all storages
+set a debug callback
 
 =cut
 
 sub debugcb {
   my $self = shift @_;
-  if(@_) {
-    foreach my $source ($self->all_storages) {
-      $source->debugcb(@_);
-    }
-  }
-  return $self->master->debugcb;
+  return $self->master->debugcb(@_);
 }
 
 =head2 disconnect
