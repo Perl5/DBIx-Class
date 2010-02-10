@@ -328,6 +328,8 @@ has 'write_handler' => (
     svp_rollback
     svp_begin
     svp_release
+    relname_to_table_alias
+    _straight_join_to_node
   /],
 );
 
