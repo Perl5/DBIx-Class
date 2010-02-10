@@ -43,6 +43,9 @@ sub _init { 1 }
 # ODBC uses dialect 3 by default, good
 sub _set_sql_dialect { 1 }
 
+# releasing savepoints doesn't work, but that shouldn't matter
+sub _svp_release { 1 }
+
 1;
 
 =head1 CAVEATS
@@ -53,6 +56,11 @@ sub _set_sql_dialect { 1 }
 
 This driver (unlike L<DBD::InterBase>) does not currently support reading or
 writing C<TIMESTAMP> values with sub-second precision.
+
+=item *
+
+Releasing savepoints does not work, but you should still be able to safely use
+savepoints.
 
 =back
 

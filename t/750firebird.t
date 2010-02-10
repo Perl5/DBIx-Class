@@ -24,7 +24,7 @@ my @info = (
 
 my $schema;
 
-foreach my $conn_idx (0..1) {
+foreach my $conn_idx (0..$#info) {
   my ($dsn, $user, $pass) = @{ $info[$conn_idx] || [] };
 
   next unless $dsn;
@@ -82,6 +82,10 @@ EOF
       die "rolling back outer txn";
     });
   };
+
+  like $@, qr/rolling back outer txn/,
+    'correct exception for rollback';
+
   ok ((not $ars->search({ name => 'in_outer_txn' })->first),
     'outer txn rolled back');
 
