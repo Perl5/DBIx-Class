@@ -163,6 +163,15 @@ sub _set_sql_dialect {
   }
 }
 
+# softcommit makes savepoints work
+sub _run_connection_actions {
+  my $self = shift;
+
+  $self->_dbh->{ib_softcommit} = 1;
+
+  $self->next::method(@_);
+}
+
 =head2 connect_call_datetime_setup
 
 Used as:

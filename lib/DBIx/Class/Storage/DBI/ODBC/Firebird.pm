@@ -47,8 +47,14 @@ sub _set_sql_dialect { 1 }
 
 =head1 CAVEATS
 
+=over 4
+
+=item *
+
 This driver (unlike L<DBD::InterBase>) does not currently support reading or
 writing C<TIMESTAMP> values with sub-second precision.
+
+=back
 
 =head1 AUTHOR
 

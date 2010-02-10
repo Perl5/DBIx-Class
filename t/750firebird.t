@@ -68,22 +68,22 @@ EOF
   ok($new->artistid, "Auto-PK worked");
 
 # test savepoints
-#  eval {
-#    $schema->txn_do(sub {
-#      eval {
-#        $schema->txn_do(sub {
-#          $ars->create({ name => 'in_savepoint' });
-#          die "rolling back savepoint";
-#        });
-#      };
-#      ok ((not $ars->search({ name => 'in_savepoint' })->first),
-#        'savepoint rolled back');
-#      $ars->create({ name => 'in_outer_txn' });
-#      die "rolling back outer txn";
-#    });
-#  };
-#  ok ((not $ars->search({ name => 'in_outer_txn' })->first),
-#    'outer txn rolled back');
+  eval {
+    $schema->txn_do(sub {
+      eval {
+        $schema->txn_do(sub {
+          $ars->create({ name => 'in_savepoint' });
+          die "rolling back savepoint";
+        });
+      };
+      ok ((not $ars->search({ name => 'in_savepoint' })->first),
+        'savepoint rolled back');
+      $ars->create({ name => 'in_outer_txn' });
+      die "rolling back outer txn";
+    });
+  };
+  ok ((not $ars->search({ name => 'in_outer_txn' })->first),
+    'outer txn rolled back');
 
 # test explicit key spec
   $new = $ars->create ({ name => 'bar', artistid => 66 });
