@@ -254,12 +254,7 @@ sub connect_replicant {
 
   Moose::Meta::Class->initialize(ref $replicant);
 
-  my $class = Moose::Meta::Class->create_anon_class(
-    superclasses => [ ref $replicant ],
-    roles        => [ 'DBIx::Class::Storage::DBI::Replicated::Replicant' ],
-    cache        => 1,
-  );
-  $class->rebless_instance($replicant);
+  DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
 
   # link back to master
   $replicant->master($self->master);

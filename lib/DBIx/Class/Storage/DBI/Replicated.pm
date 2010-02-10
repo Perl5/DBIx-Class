@@ -7,7 +7,7 @@ BEGIN {
   ## use, so we explicitly test for these.
 
   my %replication_required = (
-    'Moose' => '0.90',
+    'Moose' => '0.98',
     'MooseX::Types' => '0.21',
     'namespace::clean' => '0.11',
     'Hash::Merge' => '0.11'
@@ -120,7 +120,7 @@ to force a query to run against Master when needed.
 
 Replicated Storage has additional requirements not currently part of L<DBIx::Class>
 
-  Moose => '0.90',
+  Moose => '0.98',
   MooseX::Types => '0.21',
   namespace::clean => '0.11',
   Hash::Merge => '0.11'
@@ -392,12 +392,7 @@ around connect_info => sub {
   $master->_determine_driver;
   Moose::Meta::Class->initialize(ref $master);
 
-  my $class = Moose::Meta::Class->create_anon_class(
-    superclasses => [ ref $master ],
-    roles        => [ 'DBIx::Class::Storage::DBI::Replicated::WithDSN' ],
-    cache        => 1,
-  );
-  $class->rebless_instance($master);
+  DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
 
   # link pool back to master
   $self->pool->master($master);
