@@ -10,11 +10,6 @@ use POSIX 'strftime';
 use File::Copy;
 use File::Spec;
 
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $source, $col) = @_;
-  $dbh->func('last_insert_rowid');
-}
-
 sub backup
 {
   my ($self, $dir) = @_;

@@ -21,15 +21,6 @@ sub _rebless {
     }
 }
 
-sub _dbh_last_insert_id {
-    my ($self, $dbh, $source, $col) = @_;
-
-    # punt: if there is no derived class for the specific backend, attempt
-    # to use the DBI->last_insert_id, which may not be sufficient (see the
-    # discussion of last_insert_id in perldoc DBI)
-    return $dbh->last_insert_id(undef, undef, $source->from, $col);
-}
-
 1;
 
 =head1 NAME
