@@ -37,6 +37,12 @@ sub build_datetime_parser {
   );
 }
 
+# we don't need DBD::InterBase-specific initialization
+sub _init { 1 }
+
+# ODBC uses dialect 3 by default, good
+sub _set_sql_dialect { 1 }
+
 1;
 
 =head1 CAVEATS

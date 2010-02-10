@@ -25,7 +25,7 @@ my @info = (
 my $schema;
 
 foreach my $conn_idx (0..1) {
-  my ($dsn, $user, $pass) = @{ $info[$conn_idx] };
+  my ($dsn, $user, $pass) = @{ $info[$conn_idx] || [] };
 
   next unless $dsn;
 
@@ -211,8 +211,8 @@ sub cleanup {
   eval { $dbh->do('DROP GENERATOR "gen_artist_artistid"') };
   diag $@ if $@;
 
-  foreach my $table (qw/"artist" "bindtype_test"/) {
-    eval { $dbh->do(q[DROP TABLE "$table"]) };
+  foreach my $table (qw/artist bindtype_test/) {
+    eval { $dbh->do(qq[DROP TABLE "$table"]) };
     #diag $@ if $@;
   }
 }

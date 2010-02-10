@@ -140,6 +140,29 @@ sub _ping {
   return $@ ? 0 : 1;
 }
 
+# We want dialect 3 for new features and quoting to work, DBD::InterBase uses
+# dialect 1 (interbase compat) by default.
+sub _init {
+  my $self = shift;
+  $self->_set_sql_dialect(3);
+}
+
+sub _set_sql_dialect {
+  my $self = shift;
+  my $val  = shift || 3;
+
+  my $dsn = $self->_dbi_connect_info->[0];
+
+  return if ref($dsn) eq 'CODE';
+
+  if ($dsn !~ /ib_dialect=/) {
+    $self->_dbi_connect_info->[0] = "$dsn;ib_dialect=$val";
+    my $connected = defined $self->_dbh;
+    $self->disconnect;
+    $self->ensure_connected if $connected;
+  }
+}
+
 =head2 connect_call_datetime_setup
 
 Used as:
