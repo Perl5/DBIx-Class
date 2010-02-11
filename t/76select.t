@@ -160,6 +160,7 @@ is_deeply(
     track_position => 2,
     tracks => {
       title => 'Apiary',
+      trackid => 17,
     },
   },
   'columns/select/as fold properly on sub-searches',
