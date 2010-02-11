@@ -145,7 +145,7 @@ is_deeply (
   'limited prefetch via column works on a multi-relationship',
 );
 
-$sub_rs = $rs->search ({},
+my $sub_rs = $rs->search ({},
   {
     columns => [qw/artist tracks.trackid/],    # columns should not be merged but override $rs columns
     '+select' => ['tracks.title'],
