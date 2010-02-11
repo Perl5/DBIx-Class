@@ -122,6 +122,21 @@ sub connect_call_datetime_setup {
   );
 }
 
+sub _svp_begin {
+    my ($self, $name) = @_;
+
+    $self->_get_dbh->do("SAVEPOINT $name");
+}
+
+# can't release savepoints that have been rolled back
+sub _svp_release { 1 }
+
+sub _svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+}
+
 1;
 
 =head1 AUTHOR
