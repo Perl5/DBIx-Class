@@ -291,14 +291,15 @@ sub search_rs {
     $rows = $self->get_cache;
   }
 
+  # reset the selector list
   if (List::Util::first { exists $attrs->{$_} } qw{columns select as}) {
-     delete @{$our_attrs}{qw{select as columns +select +as +columns}};
+     delete @{$our_attrs}{qw{select as columns +select +as +columns include_columns}};
   }
 
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
   # merge new attrs into inherited
-  foreach my $key (qw/join prefetch +select +as +columns bind/) {
+  foreach my $key (qw/join prefetch +select +as +columns include_columns bind/) {
     next unless exists $attrs->{$key};
     $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
