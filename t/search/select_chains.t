@@ -23,7 +23,7 @@ my @chain = (
     '+columns'  => [ { max_year => { max => 'me.year' }}, ],
     '+select'   => [ { count => 'me.cdid' }, ],
     '+as'       => [ 'cnt' ],
-  } => 'SELECT me.cdid, MAX( me.year ), LOWER( title ), me.genreid, COUNT( me.cdid ) FROM cd me',
+  } => 'SELECT me.cdid, LOWER( title ), MAX( me.year ), me.genreid, COUNT( me.cdid ) FROM cd me',
 
   {
     select      => [ { min => 'me.cdid' }, ],
