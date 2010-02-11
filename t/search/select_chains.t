@@ -14,8 +14,9 @@ my $schema = DBICTest->init_schema();
 my @chain = (
   {
     columns     => [ 'cdid' ],
-    '+select'   => [ { lower => 'title' }, 'genreid' ],
-    '+as'       => [ qw/title_lc genreid/ ],
+    '+columns'  => [ { title_lc => { lower => 'title' } } ],
+    '+select'   => [ 'genreid' ],
+    '+as'       => [ 'genreid' ],
   } => 'SELECT me.cdid, LOWER( title ), me.genreid FROM cd me',
 
   {
