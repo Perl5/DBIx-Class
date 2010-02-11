@@ -157,10 +157,9 @@ is_deeply(
   $sub_rs->single,
   {
     artist         => 1,
-    track_position => 2,
-    tracks         => {
+    tracks => {
+      title => 'Apiary',
       trackid => 17,
-      title   => 'Apiary',
     },
   },
   'columns/select/as fold properly on sub-searches',
