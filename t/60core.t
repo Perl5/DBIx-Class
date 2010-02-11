@@ -421,9 +421,9 @@ SKIP: {
 
 # make sure we got rid of the compat shims
 SKIP: {
-    skip "Remove in 0.09", 5 if $DBIx::Class::VERSION < 0.09;
+    skip "Remove in 0.082", 3 if $DBIx::Class::VERSION < 0.082;
 
-    for (qw/compare_relationship_keys pk_depends_on resolve_condition resolve_join resolve_prefetch/) {
+    for (qw/compare_relationship_keys pk_depends_on resolve_condition/) {
       ok (! DBIx::Class::ResultSource->can ($_), "$_ no longer provided by DBIx::Class::ResultSource");
     }
 }

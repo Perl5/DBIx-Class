@@ -43,6 +43,16 @@ sub insert {
       $source->column_info($_)->{is_auto_increment} 
   } $source->columns;
 
+# user might have an identity PK without is_auto_increment
+  if (not $identity_col) {
+    foreach my $pk_col ($source->primary_columns) {
+      if (not exists $to_insert->{$pk_col}) {
+        $identity_col = $pk_col;
+        last;
+      }
+    }
+  }
+
   if ($identity_col && (not exists $to_insert->{$identity_col})) {
     my $dbh = $self->_get_dbh;
     my $table_name = $source->from;
@@ -110,6 +120,21 @@ sub connect_call_datetime_setup {
   $self->_do_query(
     "set temporary option date_format      = 'yyyy-mm-dd hh:mm:ss.ssssss'"
   );
+}
+
+sub _svp_begin {
+    my ($self, $name) = @_;
+
+    $self->_get_dbh->do("SAVEPOINT $name");
+}
+
+# can't release savepoints that have been rolled back
+sub _svp_release { 1 }
+
+sub _svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
 }
 
 1;
