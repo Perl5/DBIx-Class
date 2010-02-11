@@ -2,6 +2,7 @@ Revision history for DBIx::Class
 
         - Add as_subselect_rs to DBIC::ResultSet from
           DBIC::Helper::ResultSet::VirtualView::as_virtual_view
+        - Make resultset chaining consistent wrt selection specification
 
 0.08118 2010-02-08 11:53:00 (UTC)
         - Fix a bug causing UTF8 columns not to be decoded (RT#54395)
