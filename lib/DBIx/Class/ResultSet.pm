@@ -294,15 +294,10 @@ sub search_rs {
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
   # merge new attrs into inherited
-  foreach my $key (qw/join prefetch +select +as bind/) {
+  foreach my $key (qw/join prefetch +select +as +columns bind/) {
     next unless exists $attrs->{$key};
     $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
-
-  if (List::Util::first { exists $new_attrs->{$_} } qw{select as columns}) {
-     delete $new_attrs->{$_} for (qw{+select +as +columns});
-  }
-
   my $cond = (@_
     ? (
         (@_ == 1 || ref $_[0] eq "HASH")
@@ -2795,12 +2790,12 @@ sub _resolved_attrs {
   push @{ $attrs->{select} }, map values %{$_}, @colbits;
   push @{ $attrs->{as}     }, map keys   %{$_}, @colbits;
 
-  if ( my $adds = delete $attrs->{'+select'} ) {
+  if ( my $adds = $attrs->{'+select'} ) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
     push @{ $attrs->{select} },
       map { /\./ || ref $_ ? $_ : "$alias.$_" } @$adds;
   }
-  if ( my $adds = delete $attrs->{'+as'} ) {
+  if ( my $adds = $attrs->{'+as'} ) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
     push @{ $attrs->{as} }, @$adds;
   }
