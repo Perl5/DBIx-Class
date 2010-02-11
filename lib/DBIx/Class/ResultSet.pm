@@ -291,6 +291,10 @@ sub search_rs {
     $rows = $self->get_cache;
   }
 
+  if (List::Util::first { exists $attrs->{$_} } qw{select as columns}) {
+     delete $our_attrs->{$_} for (qw{+select +as +columns});
+  }
+
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
   # merge new attrs into inherited
@@ -298,6 +302,7 @@ sub search_rs {
     next unless exists $attrs->{$key};
     $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
+
   my $cond = (@_
     ? (
         (@_ == 1 || ref $_[0] eq "HASH")
@@ -2790,12 +2795,12 @@ sub _resolved_attrs {
   push @{ $attrs->{select} }, map values %{$_}, @colbits;
   push @{ $attrs->{as}     }, map keys   %{$_}, @colbits;
 
-  if ( my $adds = $attrs->{'+select'} ) {
+  if ( my $adds = delete $attrs->{'+select'} ) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
     push @{ $attrs->{select} },
       map { /\./ || ref $_ ? $_ : "$alias.$_" } @$adds;
   }
-  if ( my $adds = $attrs->{'+as'} ) {
+  if ( my $adds = delete $attrs->{'+as'} ) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
     push @{ $attrs->{as} }, @$adds;
   }
