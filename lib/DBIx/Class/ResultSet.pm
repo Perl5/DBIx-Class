@@ -291,8 +291,8 @@ sub search_rs {
     $rows = $self->get_cache;
   }
 
-  if (List::Util::first { exists $attrs->{$_} } qw{select as columns}) {
-     delete $our_attrs->{$_} for (qw{+select +as +columns});
+  if (List::Util::first { exists $attrs->{$_} } qw{columns select as}) {
+     delete @{$our_attrs}{qw{select as columns +select +as +columns}};
   }
 
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
