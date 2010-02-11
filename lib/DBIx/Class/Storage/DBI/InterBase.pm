@@ -24,11 +24,8 @@ L<DBIx::Class::InflateColumn::DateTime> support.
 
 For ODBC support, see L<DBIx::Class::Storage::DBI::ODBC::Firebird>.
 
-To turn on L<DBIx::Class::InflateColumn::DateTime> support, add:
-
-    on_connect_call => 'datetime_setup'
-
-to your L<DBIx::Class::Storage::DBI/connect_info>.
+To turn on L<DBIx::Class::InflateColumn::DateTime> support, see
+L</connect_call_datetime_setup>.
 
 =cut
 
@@ -188,6 +185,15 @@ See L<DBD::InterBase> for more details.
 The C<TIMESTAMP> data type supports up to 4 digits after the decimal point for
 second precision. The full precision is used.
 
+The C<DATE> data type stores the date portion only, and it B<MUST> be declared
+with:
+
+  data_type => 'date'
+
+in your Result class.
+
+Timestamp columns can be declared with either C<datetime> or C<timestamp>.
+
 You will need the L<DateTime::Format::Strptime> module for inflation to work.
 
 For L<DBIx::Class::Storage::DBI::ODBC::Firebird>, this is a noop and sub-second
@@ -201,18 +207,56 @@ sub connect_call_datetime_setup {
   $self->_get_dbh->{ib_time_all} = 'ISO';
 }
 
+sub datetime_parser_type {
+  'DBIx::Class::Storage::DBI::InterBase::DateTime::Format'
+}
 
-# from MSSQL
+package # hide from PAUSE
+  DBIx::Class::Storage::DBI::InterBase::DateTime::Format;
 
-sub build_datetime_parser {
-  my $self = shift;
-  my $type = "DateTime::Format::Strptime";
-  eval "use ${type}";
-  $self->throw_exception("Couldn't load ${type}: $@") if $@;
-  return $type->new(
-    pattern => '%Y-%m-%d %H:%M:%S.%4N', # %F %T
+my $timestamp_format = '%Y-%m-%d %H:%M:%S.%4N'; # %F %T
+my $date_format      = '%Y-%m-%d';
+
+my ($timestamp_parser, $date_parser);
+
+sub parse_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $timestamp_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $timestamp_format,
     on_error => 'croak',
   );
+  return $timestamp_parser->parse_datetime(shift);
+}
+
+sub format_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $timestamp_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $timestamp_format,
+    on_error => 'croak',
+  );
+  return $timestamp_parser->format_datetime(shift);
+}
+
+sub parse_date {
+  shift;
+  require DateTime::Format::Strptime;
+  $date_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $date_format,
+    on_error => 'croak',
+  );
+  return $date_parser->parse_datetime(shift);
+}
+
+sub format_date {
+  shift;
+  require DateTime::Format::Strptime;
+  $date_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $date_format,
+    on_error => 'croak',
+  );
+  return $date_parser->format_datetime(shift);
 }
 
 1;

@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat Feb  6 08:01:11 2010
+-- Created on Thu Feb 11 07:23:33 2010
 -- 
 ;
 
@@ -69,7 +69,7 @@ CREATE TABLE encoded (
 --
 CREATE TABLE event (
   id INTEGER PRIMARY KEY NOT NULL,
-  starts_at datetime NOT NULL,
+  starts_at date NOT NULL,
   created_on timestamp NOT NULL,
   varchar_date varchar(20),
   varchar_datetime varchar(20),

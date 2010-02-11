@@ -33,40 +33,50 @@ my @info = (
 my $schema;
 
 foreach my $conn_idx (0..$#info) {
-  my ($dsn, $user, $pass) = @{ $info[$conn_idx] };
+  my ($dsn, $user, $pass) = @{ $info[$conn_idx] || [] };
 
   next unless $dsn;
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+    quote_char => '"',
+    name_sep   => '.', 
     on_connect_call => [ 'datetime_setup' ],
   });
 
   my $sg = Scope::Guard->new(\&cleanup);
 
-  eval { $schema->storage->dbh->do("DROP TABLE event") };
-  $schema->storage->dbh->do(<<"SQL");
-  CREATE TABLE event (
-    id INT PRIMARY KEY,
-    created_on TIMESTAMP
+  eval { $schema->storage->dbh->do('DROP TABLE "event"') };
+  $schema->storage->dbh->do(<<'SQL');
+  CREATE TABLE "event" (
+    "id" INT PRIMARY KEY,
+    "starts_at" DATE,
+    "created_on" TIMESTAMP
   )
 SQL
-  my $now = DateTime->now;
-  $now->set_nanosecond(555600000);
+  my $rs   = $schema->resultset('Event');
+
+  my $dt = DateTime->now;
+  $dt->set_nanosecond($dsn =~ /odbc/i ? 0 : 555600000);
+
+  my $date_only = DateTime->new(
+    year => $dt->year, month => $dt->month, day => $dt->day
+  );
+
   my $row;
-  ok( $row = $schema->resultset('Event')->create({
-        id => 1,
-        created_on => $now,
-      }));
-  ok( $row = $schema->resultset('Event')
-    ->search({ id => 1 }, { select => ['created_on'] })
+  ok( $row = $rs->create({
+    id => 1,
+    starts_at => $date_only, 
+    created_on => $dt,
+  }));
+  ok( $row = $rs->search({ id => 1 }, { select => [qw/starts_at created_on/] })
     ->first
   );
-  is $row->created_on, $now, 'DateTime roundtrip';
+  is $row->created_on, $dt, 'TIMESTAMP as DateTime roundtrip';
 
-  if ($conn_idx == 0) { # skip for ODBC
-    cmp_ok $row->created_on->nanosecond, '==', 555600000,
-      'fractional part of a second survived';
-  }
+  cmp_ok $row->created_on->nanosecond, '==', $dt->nanosecond,
+    'fractional part of a second survived' if 0+$dt->nanosecond;
+
+  is $row->starts_at, $date_only, 'DATE as DateTime roundtrip';
 }
 
 done_testing;
@@ -80,5 +90,5 @@ sub cleanup {
   };
   return unless $dbh;
 
-  eval { $dbh->do("DROP TABLE $_") } for qw/event/;
+  eval { $dbh->do(qq{DROP TABLE "$_"}) } for qw/event/;
 }

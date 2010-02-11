@@ -21,21 +21,8 @@ L<http://www.firebirdnews.org/?p=1324>
 
 =cut
 
-# XXX seemingly no equivalent to ib_time_all in DBD::InterBase via ODBC
+# XXX seemingly no equivalent to ib_time_all from DBD::InterBase via ODBC
 sub connect_call_datetime_setup { 1 }
-
-# from MSSQL
-
-sub build_datetime_parser {
-  my $self = shift;
-  my $type = "DateTime::Format::Strptime";
-  eval "use ${type}";
-  $self->throw_exception("Couldn't load ${type}: $@") if $@;
-  return $type->new(
-    pattern => '%Y-%m-%d %H:%M:%S', # %F %T
-    on_error => 'croak',
-  );
-}
 
 # we don't need DBD::InterBase-specific initialization
 sub _init { 1 }
@@ -45,6 +32,39 @@ sub _set_sql_dialect { 1 }
 
 # releasing savepoints doesn't work, but that shouldn't matter
 sub _svp_release { 1 }
+
+sub datetime_parser_type {
+  'DBIx::Class::Storage::DBI::ODBC::Firebird::DateTime::Format'
+}
+
+package # hide from PAUSE
+  DBIx::Class::Storage::DBI::ODBC::Firebird::DateTime::Format;
+
+# inherit parse/format date
+our @ISA = 'DBIx::Class::Storage::DBI::InterBase::DateTime::Format';
+
+my $timestamp_format = '%Y-%m-%d %H:%M:%S'; # %F %T, no fractional part
+my $timestamp_parser;
+
+sub parse_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $timestamp_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $timestamp_format,
+    on_error => 'croak',
+  );
+  return $timestamp_parser->parse_datetime(shift);
+}
+
+sub format_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $timestamp_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $timestamp_format,
+    on_error => 'croak',
+  );
+  return $timestamp_parser->format_datetime(shift);
+}
 
 1;
 
@@ -56,11 +76,6 @@ sub _svp_release { 1 }
 
 This driver (unlike L<DBD::InterBase>) does not currently support reading or
 writing C<TIMESTAMP> values with sub-second precision.
-
-=item *
-
-Releasing savepoints does not work, but you should still be able to safely use
-savepoints.
 
 =back
 
