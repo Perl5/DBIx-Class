@@ -32,7 +32,7 @@ my @chain = (
 
   {
     '+columns' => [ { cnt => { count => 'cdid' } } ],
-  } => 'SELECT COUNT ( cdid ), MIN( me.cdid ) FROM cd me',
+  } => 'SELECT MIN( me.cdid ), COUNT ( cdid ) FROM cd me',
 
   {
     columns => [ 'year' ],
