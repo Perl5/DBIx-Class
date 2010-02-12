@@ -617,8 +617,9 @@ sub _create_db_to_schema_diff {
     return;
   }
 
-  $self->throw_exception($self->storage->_sqlt_version_error)
-    if (not $self->storage->_sqlt_version_ok);
+  unless (DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')) {
+    $self->throw_exception("Unable to proceed without " . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') );
+  }
 
   my $db_tr = SQL::Translator->new({
                                     add_drop_table => 1,
