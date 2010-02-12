@@ -13,16 +13,16 @@ perl_version '5.008001';
 all_from 'lib/DBIx/Class.pm';
 
 my $build_requires = {
-  'DBD::SQLite'             => '1.25',
+  'DBD::SQLite'              => '1.25',
 };
 
 my $test_requires = {
-  'File::Temp'              => '0.22',
-  'Test::Builder'           => '0.33',
-  'Test::Deep'              => '0',
-  'Test::Exception'         => '0',
-  'Test::More'              => '0.92',
-  'Test::Warn'              => '0.21',
+  'File::Temp'               => '0.22',
+  'Test::Builder'            => '0.33',
+  'Test::Deep'               => '0',
+  'Test::Exception'          => '0',
+  'Test::More'               => '0.92',
+  'Test::Warn'               => '0.21',
 };
 
 my $runtime_requires = {

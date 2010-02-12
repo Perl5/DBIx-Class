@@ -83,11 +83,6 @@ sub new {
   $new_parent_rs ||= $rs->search_rs;
   my $new_attrs = $new_parent_rs->{attrs} ||= {};
 
-  # FIXME - this should go away when the chaining branch is merged
-  # since what we do is actually chain to the original resultset, we need to throw
-  # away all selectors (otherwise they'll chain)
-  delete $new_attrs->{$_} for (qw/columns +columns select +select as +as cols include_columns/);
-
   # prefetch causes additional columns to be fetched, but we can not just make a new
   # rs via the _resolved_attrs trick - we need to retain the separation between
   # +select/+as and select/as. At the same time we want to preserve any joins that the

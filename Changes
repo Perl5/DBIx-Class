@@ -1,5 +1,12 @@
 Revision history for DBIx::Class
 
+        - Add as_subselect_rs to DBIC::ResultSet from
+          DBIC::Helper::ResultSet::VirtualView::as_virtual_view
+        - Depend on newest bugfixed Moose
+        - Make resultset chaining consistent wrt selection specification
+        - Storage::DBI::Replicated cleanup
+        - Fix autoinc PKs without an autoinc flag on Sybase ASA
+
 0.08118 2010-02-08 11:53:00 (UTC)
         - Fix a bug causing UTF8 columns not to be decoded (RT#54395)
         - Fix bug in One->Many->One prefetch-collapse handling (RT#54039)

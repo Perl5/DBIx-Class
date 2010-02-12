@@ -44,7 +44,7 @@ foreach my $info (@info) {
 
 # coltype, col, date
   my @dt_types = (
-    ['TIMESTAMP', 'last_updated_at', '2004-08-21 14:36:48.080444'],
+    ['TIMESTAMP', 'last_updated_at', '2004-08-21 14:36:48.080445'],
 # date only (but minute precision according to ASA docs)
     ['DATE', 'small_dt', '2004-08-21 00:00:00.000000'],
   );
@@ -73,6 +73,9 @@ SQL
       ->first
     );
     is( $row->$col, $dt, 'DateTime roundtrip' );
+
+    is $row->$col->nanosecond, $dt->nanosecond,
+        'nanoseconds survived' if 0+$dt->nanosecond;
   }
 }
 
