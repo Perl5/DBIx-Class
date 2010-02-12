@@ -2470,6 +2470,23 @@ sub is_paged {
   return !!$self->{attrs}{page};
 }
 
+=head2 is_ordered
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: true, if the resultset has been ordered with C<order_by>.
+
+=back
+
+=cut
+
+sub is_ordered {
+  my ($self) = @_;
+  return scalar $self->result_source->storage->_parse_order_by($self->{attrs}{order_by});
+}
+
 =head2 related_resultset
 
 =over 4

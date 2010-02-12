@@ -245,6 +245,8 @@ da5id: David Jack Olrik <djo@cpan.org>
 
 debolaz: Anders Nor Berle <berle@cpan.org>
 
+dew: Dan Thomas <dan@godders.org>
+
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
 dnm: Justin Wheeler <jwheeler@datademons.com>
