@@ -116,18 +116,17 @@ EOF
     for (1..2) {
       push @pop, { name => "Artist_expkey_$_", artistid => 100 + $_ };
     }
-    # XXX why does insert_bulk not work here?
-    my @foo = $ars->populate (\@pop);
+    $ars->populate (\@pop);
   });
 
 # count what we did so far
   is ($ars->count, 6, 'Simple count works');
 
 # test UPDATE
-  lives_ok {
-    $schema->resultset('Artist')
-           ->search({name => 'foo'})
-           ->update({rank => 4 });
+  lives_and {
+    $ars->search({ name => 'foo' })->update({ rank => 4 });
+
+    is $ars->search({ name => 'foo' })->first->rank, 4;
   } 'Can update a column';
 
   my ($updated) = $schema->resultset('Artist')->search({name => 'foo'});
@@ -150,6 +149,15 @@ EOF
   is( $lim->next->artistid, 101, "iterator->next ok" );
   is( $lim->next->artistid, 102, "iterator->next ok" );
   is( $lim->next, undef, "next past end of resultset ok" );
+
+# test multiple executing cursors
+  {
+    my $rs1 = $ars->search({}, { order_by => { -asc  => 'artistid' }});
+    my $rs2 = $ars->search({}, { order_by => { -desc => 'artistid' }});
+
+    is $rs1->first->artistid, 1,   'multiple cursors';
+    is $rs2->first->artistid, 102, 'multiple cursors';
+  }
 
 # test empty insert
   {
