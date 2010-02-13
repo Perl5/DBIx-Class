@@ -44,6 +44,10 @@ my $reqs = {
       'JSON::Any'                 => '1.22',
       'Text::CSV'                 => '1.16',
     },
+    pod => {
+      title => 'dbicadmin',
+      desc => 'Modules required for the CLI DBIx::Class interface dbicadmin',
+    },
   },
 
   deploy => {
