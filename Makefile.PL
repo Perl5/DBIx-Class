@@ -68,6 +68,10 @@ if ($Module::Install::AUTHOR) {
     unlink 'MANIFEST';
   }
 
+  print "Regenerating Optional/Dependencies.pod\n";
+  require DBIx::Class::Optional::Dependencies;
+  DBIx::Class::Optional::Dependencies->_gen_pod;
+
 # FIXME Disabled due to unsolved issues, ask theorbtwo
 #  require Module::Install::Pod::Inherit;
 #  PodInherit();
@@ -83,7 +87,6 @@ if ($Module::Install::AUTHOR) {
 
 EOW
 
-  require DBIx::Class::Optional::Dependencies;
   $reqs->{test_requires} = {
     %{$reqs->{test_requires}},
     %{DBIx::Class::Optional::Dependencies->all_optional_requirements},
