@@ -155,8 +155,8 @@ EOF
     my $rs1 = $ars->search({}, { order_by => { -asc  => 'artistid' }});
     my $rs2 = $ars->search({}, { order_by => { -desc => 'artistid' }});
 
-    is $rs1->first->artistid, 1,   'multiple cursors';
-    is $rs2->first->artistid, 102, 'multiple cursors';
+    is $rs1->next->artistid, 1,   'multiple cursors';
+    is $rs2->next->artistid, 102, 'multiple cursors';
   }
 
 # test empty insert
