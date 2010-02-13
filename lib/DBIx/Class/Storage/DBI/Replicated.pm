@@ -2,27 +2,9 @@ package DBIx::Class::Storage::DBI::Replicated;
 
 BEGIN {
   use Carp::Clan qw/^DBIx::Class/;
-
-  ## Modules required for Replication support not required for general DBIC
-  ## use, so we explicitly test for these.
-
-  my %replication_required = (
-    'Moose' => '0.98',
-    'MooseX::Types' => '0.21',
-    'namespace::clean' => '0.11',
-    'Hash::Merge' => '0.11'
-  );
-
-  my @didnt_load;
-
-  for my $module (keys %replication_required) {
-    eval "use $module $replication_required{$module}";
-    push @didnt_load, "$module $replication_required{$module}"
-      if $@;
-  }
-
-  croak("@{[ join ', ', @didnt_load ]} are missing and are required for Replication")
-    if @didnt_load;
+  use DBIx::Class;
+  croak('The following modules are required for Replication ' . DBIx::Class::Optional::Dependencies->req_missing_for ('replicated') )
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('replicated');
 }
 
 use Moose;
@@ -119,15 +101,8 @@ to force a query to run against Master when needed.
 
 =head1 REQUIREMENTS
 
-Replicated Storage has additional requirements not currently part of L<DBIx::Class>
-
-  Moose => '0.98',
-  MooseX::Types => '0.21',
-  namespace::clean => '0.11',
-  Hash::Merge => '0.11'
-
-You will need to install these modules manually via CPAN or make them part of the
-Makefile for your distribution.
+Replicated Storage has additional requirements not currently part of
+L<DBIx::Class>. See L<DBIx::Class::Optional::Dependencies> for more details.
 
 =head1 ATTRIBUTES
 

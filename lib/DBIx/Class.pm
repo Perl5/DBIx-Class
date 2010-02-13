@@ -6,6 +6,8 @@ use warnings;
 use MRO::Compat;
 use mro 'c3';
 
+use DBIx::Class::Optional::Dependencies;
+
 use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
