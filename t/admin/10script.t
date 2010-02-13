@@ -10,21 +10,11 @@ use DBICTest;
 
 
 BEGIN {
-    eval "require DBIx::Class::Admin";
-    plan skip_all => "Deps not installed: $@" if $@;
-
-    eval "require Getopt::Long::Descriptive";
-    plan skip_all => 'Install Getopt::Long::Descriptive to run this test' if ($@);
-
-    eval 'require JSON::Any';
-    plan skip_all => 'Install JSON::Any to run this test' if ($@);
-
-    eval 'require Text::CSV_XS';
-    if ($@) {
-        eval 'require Text::CSV_PP';
-        plan skip_all => 'Install Text::CSV_XS or Text::CSV_PP to run this test' if ($@);
-    }
+    require DBIx::Class;
+    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('dbicadmin')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for('dbicadmin');
 }
+
 my @json_backends = qw/XS JSON DWIW/;
 my $tests_per_run = 5;
 
@@ -43,8 +33,6 @@ for my $js (@json_backends) {
 }
 
 sub test_dbicadmin {
-#    $ENV{PERL5LIB} = join ':', @INC;
-
     my $schema = DBICTest->init_schema( sqlite_use_file => 1 );  # reinit a fresh db for every run
 
     my $employees = $schema->resultset('Employee');

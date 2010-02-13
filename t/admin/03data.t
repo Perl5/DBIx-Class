@@ -7,8 +7,9 @@ use Test::Exception;
 use Test::Deep;
 
 BEGIN {
-    eval "use DBIx::Class::Admin";
-    plan skip_all => "Deps not installed: $@" if $@;
+    require DBIx::Class;
+    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('admin')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for('admin');
 }
 
 use lib 't/lib';

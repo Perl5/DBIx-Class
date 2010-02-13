@@ -5,12 +5,14 @@ use Test::More;
 use Test::Exception;
 use Test::Warn;
 
-
 BEGIN {
-    eval "use DBIx::Class::Admin";
-    plan skip_all => "Deps not installed: $@" if $@;
-}
+    require DBIx::Class;
+    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('admin')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for('admin');
 
+    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('deploy')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for('deploy');
+}
 
 use lib qw(t/lib);
 use DBICTest;
@@ -51,7 +53,7 @@ lives_ok { $admin->create('SQLite'); } 'Can Create SQLite sql';
 #);
 
 clean_dir($sql_dir);
-require DBICVersionOrig;
+require DBICVersion_v1;
 
 my $admin = DBIx::Class::Admin->new(
   schema_class => 'DBICVersion::Schema', 
@@ -70,7 +72,7 @@ lives_ok { $schema = DBICVersion::Schema->connect(@{$schema->storage->connect_in
 is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema deployed and versions match');
 
 
-require DBICVersionNew;
+require DBICVersion_v2;
 
 $admin = DBIx::Class::Admin->new(
   schema_class => 'DBICVersion::Schema', 
@@ -79,9 +81,6 @@ $admin = DBIx::Class::Admin->new(
 );
 
 lives_ok { $admin->create($schema->storage->sqlt_type(), {}, "1.0" ); } 'Can create diff for ' . $schema->storage->sqlt_type;
-# sleep required for upgrade table to hold a distinct time of upgrade value
-# otherwise the returned of get_db_version can be undeterministic
-sleep 1;
 {
   local $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /DB version .+? is lower than the schema version/ };
   lives_ok {$admin->upgrade();} 'upgrade the schema';
@@ -106,7 +105,7 @@ $admin->version("3.0");
 lives_ok { $admin->install(); } 'install schema version 3.0';
 is($admin->schema->get_db_version, "3.0", 'db thinks its version 3.0');
 dies_ok { $admin->install("4.0"); } 'cannot install to allready existing version';
-sleep 1;
+
 $admin->force(1);
 warnings_exist ( sub {
   lives_ok { $admin->install("4.0") } 'can force install to allready existing version'
