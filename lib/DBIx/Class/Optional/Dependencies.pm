@@ -327,7 +327,10 @@ EOD
 Returns a hashref containing the actual errors that occured while attempting
 to load each module in the requirement group.
 EOD
-
+    '=head1 AUTHOR',
+    'See L<DBIx::Class/CONTRIBUTORS>.',
+    '=head1 LICENSE',
+    'You may distribute this code under the same terms as Perl itself',
   );
 
   my $fn = __FILE__;
