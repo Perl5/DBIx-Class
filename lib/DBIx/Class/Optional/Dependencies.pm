@@ -249,8 +249,20 @@ sub _check_deps {
 
 sub _gen_pod {
   my $class = shift;
+  my $modfn = __PACKAGE__ . '.pm';
+  $modfn =~ s/\:\:/\//g;
 
   my @chunks = (
+    <<"EOC",
+#########################################################################
+#####################  A U T O G E N E R A T E D ########################
+#########################################################################
+#
+# The contents of this POD file are auto-generated.  Any changes you make
+# will be lost. If you need to change the generated text edit _gen_pod()
+# at the end of $modfn
+#
+EOC
     '=head1 NAME',
     "$class - Optional module dependency specifications",
     '=head1 DESCRIPTION',
@@ -317,7 +329,7 @@ EOD
     '=item Arguments: $group_name',
     '=item Returns: 1|0',
     '=back',
-    'Returns true or false depending on whether all modules required by $group_name are present on the system and loadable',
+    'Returns true or false depending on whether all modules required by C<$group_name> are present on the system and loadable',
 
     '=head2 req_missing_for',
     '=over',
@@ -348,7 +360,10 @@ EOD
 Returns a hashref containing the actual errors that occured while attempting
 to load each module in the requirement group.
 EOD
-
+    '=head1 AUTHOR',
+    'See L<DBIx::Class/CONTRIBUTORS>.',
+    '=head1 LICENSE',
+    'You may distribute this code under the same terms as Perl itself',
   );
 
   my $fn = __FILE__;
