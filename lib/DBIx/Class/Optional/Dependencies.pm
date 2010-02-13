@@ -11,6 +11,20 @@ use Carp;
 # POD is generated automatically by calling _gen_pod from the
 # Makefile.PL in $AUTHOR mode
 
+my $moose_basic = {
+  'Moose'                      => '0.98',
+  'MooseX::Types'              => '0.21',
+};
+
+my $admin_basic = {
+  %$moose_basic,
+  'MooseX::Types::Path::Class' => '0.05',
+  'MooseX::Types::JSON'        => '0.02',
+  'JSON::Any'                  => '1.22',
+  'namespace::autoclean'       => '0.09',
+  'parent'                     => '0.223',
+};
+
 my $reqs = {
   dist => {
     #'Module::Install::Pod::Inherit' => '0.01',
@@ -18,8 +32,7 @@ my $reqs = {
 
   replicated => {
     req => {
-      'Moose'                     => '0.98',
-      'MooseX::Types'             => '0.21',
+      %$moose_basic,
       'namespace::clean'          => '0.11',
       'Hash::Merge'               => '0.11',
     },
@@ -30,6 +43,26 @@ my $reqs = {
   },
 
   admin => {
+    req => {
+      %$admin_basic,
+    },
+    pod => {
+      title => 'DBIx::Class::Admin',
+      desc => 'Modules required for the DBIx::Class administrative library',
+    },
+  },
+
+  admin_script => {
+    req => {
+      %$moose_basic,
+      %$admin_basic,
+      'Getopt::Long::Descriptive' => '0.081',
+      'Text::CSV'                 => '1.16',
+    },
+    pod => {
+      title => 'dbicadmin',
+      desc => 'Modules required for the CLI DBIx::Class interface dbicadmin',
+    },
   },
 
   deploy => {

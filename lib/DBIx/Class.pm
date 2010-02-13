@@ -259,6 +259,8 @@ dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 
 frew: Arthur Axel "fREW" Schmidt <frioux@gmail.com>
 
+goraxe: Gordon Irving <goraxe@cpan.org>
+
 gphat: Cory G Watson <gphat@cpan.org>
 
 groditi: Guillermo Roditi <groditi@cpan.org>

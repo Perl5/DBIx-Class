@@ -93,6 +93,7 @@ my $exceptions = {
         /]
     },
 
+    'DBIx::Class::Admin::Types'                     => { skip => 1 },
     'DBIx::Class::ClassResolver::PassThrough'       => { skip => 1 },
     'DBIx::Class::Componentised'                    => { skip => 1 },
     'DBIx::Class::Relationship::*'                  => { skip => 1 },
