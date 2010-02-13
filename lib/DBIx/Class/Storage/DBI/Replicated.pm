@@ -102,9 +102,7 @@ to force a query to run against Master when needed.
 =head1 REQUIREMENTS
 
 Replicated Storage has additional requirements not currently part of
-L<DBIx::Class> The missing requirements will be announced via an exception
-when you try to load this module. You will need to install these modules
-manually via CPAN or make them part of the Makefile for your distribution.
+L<DBIx::Class>. See L<DBIx::Class::Optional::Dependencies> for more details.
 
 =head1 ATTRIBUTES
 

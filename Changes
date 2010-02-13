@@ -2,6 +2,7 @@ Revision history for DBIx::Class
 
         - Add as_subselect_rs to DBIC::ResultSet from
           DBIC::Helper::ResultSet::VirtualView::as_virtual_view
+        - New optional dependency manager to aid extension writers
         - Depend on newest bugfixed Moose
         - Make resultset chaining consistent wrt selection specification
         - Storage::DBI::Replicated cleanup
