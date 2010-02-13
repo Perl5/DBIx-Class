@@ -7,6 +7,7 @@ use Scalar::Util 'reftype';
 use DBI ();
 use Carp::Clan qw/^DBIx::Class/;
 use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
+use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
 
 use namespace::clean -except => 'meta';
 
@@ -152,6 +153,14 @@ has next_unknown_replicant_id => (
   },
 );
 
+=head2 master
+
+Reference to the master Storage.
+
+=cut
+
+has master => (is => 'rw', isa => DBICStorageDBI, weak_ref => 1);
+
 =head1 METHODS
 
 This class defines the following methods.
@@ -243,7 +252,13 @@ sub connect_replicant {
     $replicant->_determine_driver
   });
 
-  DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);  
+  Moose::Meta::Class->initialize(ref $replicant);
+
+  DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
+
+  # link back to master
+  $replicant->master($self->master);
+
   return $replicant;
 }
 

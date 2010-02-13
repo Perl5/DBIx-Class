@@ -96,8 +96,6 @@ foreach my $cd_path (keys %$cd_paths) {
   }
 }
 
-plan tests => (scalar (keys %tests) * 3);
-
 foreach my $name (keys %tests) {
   foreach my $artwork ($tests{$name}->all()) {
     is($artwork->id, 1, $name . ', correct artwork');
@@ -105,3 +103,5 @@ foreach my $name (keys %tests) {
     is($artwork->artwork_to_artist->first->artist->artistid, 2, $name . ', correct artist_id over A2A');
   }
 }
+
+done_testing;

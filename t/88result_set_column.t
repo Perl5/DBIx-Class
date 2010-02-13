@@ -6,6 +6,7 @@ use Test::Warn;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
@@ -54,22 +55,12 @@ is_deeply (
 # test +select/+as for single column
 my $psrs = $schema->resultset('CD')->search({},
     {
-        '+select'   => \'COUNT(*)',
-        '+as'       => 'count'
+        '+select'   => \'MAX(year)',
+        '+as'       => 'last_year'
     }
 );
-lives_ok(sub { $psrs->get_column('count')->next }, '+select/+as additional column "count" present (scalar)');
+lives_ok(sub { $psrs->get_column('last_year')->next }, '+select/+as additional column "last_year" present (scalar)');
 dies_ok(sub { $psrs->get_column('noSuchColumn')->next }, '+select/+as nonexistent column throws exception');
-
-# test +select/+as for multiple columns
-$psrs = $schema->resultset('CD')->search({},
-    {
-        '+select'   => [ \'COUNT(*)', 'title' ],
-        '+as'       => [ 'count', 'addedtitle' ]
-    }
-);
-lives_ok(sub { $psrs->get_column('count')->next }, '+select/+as multiple additional columns, "count" column present');
-lives_ok(sub { $psrs->get_column('addedtitle')->next }, '+select/+as multiple additional columns, "addedtitle" column present');
 
 # test +select/+as for overriding a column
 $psrs = $schema->resultset('CD')->search({},
@@ -80,6 +71,55 @@ $psrs = $schema->resultset('CD')->search({},
 );
 is($psrs->get_column('title')->next, 'The Final Countdown', '+select/+as overridden column "title"');
 
+
+# test +select/+as for multiple columns
+$psrs = $schema->resultset('CD')->search({},
+    {
+        '+select'   => [ \'LENGTH(title) AS title_length', 'title' ],
+        '+as'       => [ 'tlength', 'addedtitle' ]
+    }
+);
+lives_ok(sub { $psrs->get_column('tlength')->next }, '+select/+as multiple additional columns, "tlength" column present');
+lives_ok(sub { $psrs->get_column('addedtitle')->next }, '+select/+as multiple additional columns, "addedtitle" column present');
+
+# test that +select/+as specs do not leak
+is_same_sql_bind (
+  $psrs->get_column('year')->as_query,
+  '(SELECT me.year FROM cd me)',
+  [],
+  'Correct SQL for get_column/as'
+);
+
+is_same_sql_bind (
+  $psrs->get_column('addedtitle')->as_query,
+  '(SELECT me.title FROM cd me)',
+  [],
+  'Correct SQL for get_column/+as col'
+);
+
+is_same_sql_bind (
+  $psrs->get_column('tlength')->as_query,
+  '(SELECT LENGTH(title) AS title_length FROM cd me)',
+  [],
+  'Correct SQL for get_column/+as func'
+);
+
+# test that order_by over a function forces a subquery
+lives_ok ( sub {
+  is_deeply (
+    [ $psrs->search ({}, { order_by => { -desc => 'title_length' } })->get_column ('title')->all ],
+    [
+      "Generic Manufactured Singles",
+      "Come Be Depressed With Us",
+      "Caterwaulin' Blues",
+      "Spoonful of bees",
+      "Forkful of bees",
+    ],
+    'Subquery count induced by aliased ordering function',
+  );
+});
+
+# test for prefetch not leaking
 {
   my $rs = $schema->resultset("CD")->search({}, { prefetch => 'artist' });
   my $rsc = $rs->get_column('year');

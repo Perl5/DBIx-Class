@@ -16,7 +16,7 @@ sub _carp { }
 sub stars { map $_->star, shift->_stars }
 
 sub create_sql {
-	return qq{
+  return qq{
     filmid  TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     title   VARCHAR(255)
   };

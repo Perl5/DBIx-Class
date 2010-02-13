@@ -84,6 +84,24 @@ sub _rno_default_order {
   return undef;
 }
 
+# Informix specific limit, almost like LIMIT/OFFSET
+sub _SkipFirst {
+  my ($self, $sql, $order, $rows, $offset) = @_;
+
+  $sql =~ s/^ \s* SELECT \s+ //ix
+    or croak "Unrecognizable SELECT: $sql";
+
+  return sprintf ('SELECT %s%s%s%s',
+    $offset
+      ? sprintf ('SKIP %d ', $offset)
+      : ''
+    ,
+    sprintf ('FIRST %d ', $rows),
+    $sql,
+    $self->_order_by ($order),
+  );
+}
+
 # Crappy Top based Limit/Offset support. Legacy from MSSQL.
 sub _Top {
   my ( $self, $sql, $order, $rows, $offset ) = @_;
@@ -389,7 +407,7 @@ sub _recurse_fields {
       $self->_sqlcase($func),
       $self->_recurse_fields($args),
       $as
-        ? sprintf (' %s %s', $self->_sqlcase('as'), $as)
+        ? sprintf (' %s %s', $self->_sqlcase('as'), $self->_quote ($as) )
         : ''
     );
 

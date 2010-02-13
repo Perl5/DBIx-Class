@@ -252,6 +252,13 @@ sub source_bind_attributes
     my %column_bind_attrs = $self->bind_attribute_by_data_type($data_type);
 
     if ($data_type =~ /^[BC]LOB$/i) {
+      if ($DBD::Oracle::VERSION eq '1.23') {
+        $self->throw_exception(
+"BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
+"version.\n\nSee: https://rt.cpan.org/Public/Bug/Display.html?id=46016\n"
+        );
+      }
+
       $column_bind_attrs{'ora_type'} = uc($data_type) eq 'CLOB'
         ? DBD::Oracle::ORA_CLOB()
         : DBD::Oracle::ORA_BLOB()

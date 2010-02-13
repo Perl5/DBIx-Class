@@ -16,11 +16,6 @@ use List::Util();
 use Data::Dumper::Concise();
 use Sub::Name ();
 
-# what version of sqlt do we require if deploy() without a ddl_dir is invoked
-# when changing also adjust the corresponding author_require in Makefile.PL
-my $minimum_sqlt_version = '0.11002';
-
-
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
      _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints/
@@ -493,7 +488,7 @@ sub connect_info {
 sub _normalize_connect_info {
   my ($self, $info_arg) = @_;
   my %info;
- 
+
   my @args = @$info_arg;  # take a shallow copy for further mutilation
 
   # combine/pre-parse arguments depending on invocation style
@@ -531,7 +526,7 @@ sub _normalize_connect_info {
     @args = @args[0,1,2];
   }
 
-  $info{arguments} = \@args; 
+  $info{arguments} = \@args;
 
   my @storage_opts = grep exists $attrs{$_},
     @storage_options, 'cursor_class';
@@ -1050,7 +1045,7 @@ sub _connect {
 
   eval {
     if(ref $info[0] eq 'CODE') {
-       $dbh = &{$info[0]}
+       $dbh = $info[0]->();
     }
     else {
        $dbh = DBI->connect(@info);
@@ -1172,6 +1167,11 @@ sub _svp_generate_name {
 
 sub txn_begin {
   my $self = shift;
+
+  # this means we have not yet connected and do not know the AC status
+  # (e.g. coderef $dbh)
+  $self->ensure_connected if (! defined $self->_dbh_autocommit);
+
   if($self->{transaction_depth} == 0) {
     $self->debugobj->txn_begin()
       if $self->debug;
@@ -1463,9 +1463,13 @@ sub insert_bulk {
     );
   }
 
+  # neither _execute_array, nor _execute_inserts_with_no_binds are
+  # atomic (even if _execute _array is a single call). Thus a safety
+  # scope guard
+  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
+
   $self->_query_start( $sql, ['__BULK__'] );
   my $sth = $self->sth($sql);
-
   my $rv = do {
     if ($empty_bind) {
       # bind_param_array doesn't work if there are no binds
@@ -1479,13 +1483,14 @@ sub insert_bulk {
 
   $self->_query_end( $sql, ['__BULK__'] );
 
+
+  $guard->commit if $guard;
+
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
 
 sub _execute_array {
   my ($self, $source, $sth, $bind, $cols, $data, @extra) = @_;
-
-  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
 
   ## This must be an arrayref, else nothing works!
   my $tuple_status = [];
@@ -1535,9 +1540,6 @@ sub _execute_array {
       }),
     );
   }
-
-  $guard->commit if $guard;
-
   return $rv;
 }
 
@@ -1549,8 +1551,6 @@ sub _dbh_execute_array {
 
 sub _dbh_execute_inserts_with_no_binds {
   my ($self, $sth, $count) = @_;
-
-  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
 
   eval {
     my $dbh = $self->_get_dbh;
@@ -1567,13 +1567,11 @@ sub _dbh_execute_inserts_with_no_binds {
 
   $self->throw_exception($exception) if $exception;
 
-  $guard->commit if $guard;
-
   return $count;
 }
 
 sub update {
-  my ($self, $source, @args) = @_; 
+  my ($self, $source, @args) = @_;
 
   my $bind_attrs = $self->source_bind_attributes($source);
 
@@ -1672,11 +1670,12 @@ sub _per_row_update_delete {
   my $row_cnt = '0E0';
 
   my $subrs_cur = $rs->cursor;
-  while (my @pks = $subrs_cur->next) {
+  my @all_pk = $subrs_cur->all;
+  for my $pks ( @all_pk) {
 
     my $cond;
     for my $i (0.. $#pcols) {
-      $cond->{$pcols[$i]} = $pks[$i];
+      $cond->{$pcols[$i]} = $pks->[$i];
     }
 
     $self->$op (
@@ -1740,7 +1739,7 @@ sub _select_args {
     select => $select,
     from => $ident,
     where => $where,
-    $rs_alias
+    $rs_alias && $alias2source->{$rs_alias}
       ? ( _source_handle => $alias2source->{$rs_alias}->handle )
       : ()
     ,
@@ -1829,7 +1828,7 @@ sub _select_args {
       &&
     (ref $ident eq 'ARRAY' && @$ident > 1)  # indicates a join
       &&
-    scalar $sql_maker->_order_by_chunks ($attrs->{order_by})
+    scalar $self->_parse_order_by ($attrs->{order_by})
   ) {
     # the RNO limit dialect above mangles the SQL such that the join gets lost
     # wrap a subquery here
@@ -1857,6 +1856,9 @@ sub _select_args {
   elsif (! $attrs->{software_limit} ) {
     push @limit, $attrs->{rows}, $attrs->{offset};
   }
+
+  # try to simplify the joinmap further (prune unreferenced type-single joins)
+  $ident = $self->_prune_unused_joins ($ident, $select, $where, $attrs);
 
 ###
   # This would be the point to deflate anything found in $where
@@ -2046,18 +2048,14 @@ Return the row id of the last insert.
 =cut
 
 sub _dbh_last_insert_id {
-    # All Storage's need to register their own _dbh_last_insert_id
-    # the old SQLite-based method was highly inappropriate
+    my ($self, $dbh, $source, $col) = @_;
 
-    my $self = shift;
+    my $id = eval { $dbh->last_insert_id (undef, undef, $source->name, $col) };
+
+    return $id if defined $id;
+
     my $class = ref $self;
-    $self->throw_exception (<<EOE);
-
-No _dbh_last_insert_id() method found in $class.
-Since the method of obtaining the autoincrement id of the last insert
-operation varies greatly between different databases, this method must be
-individually implemented for every storage class.
-EOE
+    $self->throw_exception ("No storage specific _dbh_last_insert_id() method implemented in $class, and the generic DBI::last_insert_id() failed");
 }
 
 sub last_insert_id {
@@ -2248,8 +2246,9 @@ sub create_ddl_dir {
     %{$sqltargs || {}}
   };
 
-  $self->throw_exception("Can't create a ddl file without SQL::Translator: " . $self->_sqlt_version_error)
-    if !$self->_sqlt_version_ok;
+  unless (DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')) {
+    $self->throw_exception("Can't create a ddl file without " . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') );
+  }
 
   my $sqlt = SQL::Translator->new( $sqltargs );
 
@@ -2391,8 +2390,9 @@ sub deployment_statements {
       return join('', @rows);
   }
 
-  $self->throw_exception("Can't deploy without either SQL::Translator or a ddl_dir: " . $self->_sqlt_version_error )
-    if !$self->_sqlt_version_ok;
+  unless (DBIx::Class::Optional::Dependencies->req_ok_for ('deploy') ) {
+    $self->throw_exception("Can't deploy without a ddl_dir or " . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') );
+  }
 
   # sources needs to be a parser arg, but for simplicty allow at top level
   # coming in
@@ -2516,33 +2516,6 @@ sub lag_behind_master {
     return;
 }
 
-# SQLT version handling
-{
-  my $_sqlt_version_ok;     # private
-  my $_sqlt_version_error;  # private
-
-  sub _sqlt_version_ok {
-    if (!defined $_sqlt_version_ok) {
-      eval "use SQL::Translator $minimum_sqlt_version";
-      if ($@) {
-        $_sqlt_version_ok = 0;
-        $_sqlt_version_error = $@;
-      }
-      else {
-        $_sqlt_version_ok = 1;
-      }
-    }
-    return $_sqlt_version_ok;
-  }
-
-  sub _sqlt_version_error {
-    shift->_sqlt_version_ok unless defined $_sqlt_version_ok;
-    return $_sqlt_version_error;
-  }
-
-  sub _sqlt_minimum_version { $minimum_sqlt_version };
-}
-
 =head2 relname_to_table_alias
 
 =over 4
@@ -2579,7 +2552,10 @@ sub DESTROY {
   # some databases need this to stop spewing warnings
   if (my $dbh = $self->_dbh) {
     local $@;
-    eval { $dbh->disconnect };
+    eval {
+      %{ $dbh->{CachedKids} } = ();
+      $dbh->disconnect;
+    };
   }
 
   $self->_dbh(undef);

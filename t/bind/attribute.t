@@ -38,7 +38,7 @@ TODO: {
         ->search({ artistid => 1});
 
     is ( $rs->count, 1, 'where/bind first' );
-            
+
     $rs = $schema->resultset('Artist')->search({ artistid => 1})
         ->search({}, $where_bind);
 
@@ -76,7 +76,7 @@ TODO: {
   $rs = $schema->resultset('Complex')->search({}, { bind => [ 1999 ] })->search({}, { where => \"title LIKE ?", bind => [ 'Spoon%' ] });
   is_same_sql_bind(
     $rs->as_query,
-    "(SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year FROM artist a JOIN cd ON cd.artist = a.artistid WHERE cd.year = ?) WHERE title LIKE ?)",
+    "(SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year FROM artist a JOIN cd ON cd.artist = a.artistid WHERE cd.year = ?) me WHERE title LIKE ?)",
     [
       [ '!!dummy' => '1999' ], 
       [ '!!dummy' => 'Spoon%' ]
@@ -105,7 +105,7 @@ TODO: {
   $rs = $schema->resultset('CustomSql')->search({}, { bind => [ 1999 ] })->search({}, { where => \"title LIKE ?", bind => [ 'Spoon%' ] });
   is_same_sql_bind(
     $rs->as_query,
-    "(SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year FROM artist a JOIN cd ON cd.artist = a.artistid WHERE cd.year = ?) WHERE title LIKE ?)",
+    "(SELECT me.artistid, me.name, me.rank, me.charfield FROM (SELECT a.*, cd.cdid AS cdid, cd.title AS title, cd.year AS year FROM artist a JOIN cd ON cd.artist = a.artistid WHERE cd.year = ?) me WHERE title LIKE ?)",
     [
       [ '!!dummy' => '1999' ], 
       [ '!!dummy' => 'Spoon%' ]

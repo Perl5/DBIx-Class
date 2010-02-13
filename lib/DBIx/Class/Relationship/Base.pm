@@ -30,6 +30,8 @@ methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
   __PACKAGE__->add_relationship('relname', 'Foreign::Class', $cond, $attrs);
 
+=head3 condition
+
 The condition needs to be an L<SQL::Abstract>-style representation of the
 join between the tables. When resolving the condition for use in a C<JOIN>,
 keys using the pseudo-table C<foreign> are resolved to mean "the Table on the
@@ -67,9 +69,18 @@ Each key-value pair provided in a hashref will be used as C<AND>ed conditions.
 To add an C<OR>ed condition, use an arrayref of hashrefs. See the
 L<SQL::Abstract> documentation for more details.
 
-In addition to the
-L<standard ResultSet attributes|DBIx::Class::ResultSet/ATTRIBUTES>,
-the following attributes are also valid:
+=head3 attributes
+
+The L<standard ResultSet attributes|DBIx::Class::ResultSet/ATTRIBUTES> may
+be used as relationship attributes. In particular, the 'where' attribute is
+useful for filtering relationships:
+
+     __PACKAGE__->has_many( 'valid_users', 'MyApp::Schema::User',
+        { 'foreign.user_id' => 'self.user_id' },
+        { where => { valid => 1 } }
+    );
+
+The following attributes are also valid:
 
 =over 4
 
@@ -195,7 +206,7 @@ sub related_resultset {
     if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
       my $reverse = $source->reverse_relationship_info($rel);
       foreach my $rev_rel (keys %$reverse) {
-        if ($reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
+        if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
           $attrs->{related_objects}{$rev_rel} = [ $self ];
           Scalar::Util::weaken($attrs->{related_object}{$rev_rel}[0]);
         } else {

@@ -12,28 +12,28 @@ BEGIN {
 }
 
 INIT {
-	use lib 't/cdbi/testlib';
-	use Film;
+  use lib 't/cdbi/testlib';
+  use Film;
 }
 
 ok(Film->can('db_Main'), 'set_db()');
 is(Film->__driver, "SQLite", "Driver set correctly");
 
 {
-	my $nul = eval { Film->retrieve() };
-	is $nul, undef, "Can't retrieve nothing";
-	like $@, qr/./, "retrieve needs parameters";    # TODO fix this...
+  my $nul = eval { Film->retrieve() };
+  is $nul, undef, "Can't retrieve nothing";
+  like $@, qr/./, "retrieve needs parameters";    # TODO fix this...
 }
 
 {
-	eval { my $id = Film->id };
-	like $@, qr/class method/, "Can't get id with no object";
+  eval { my $id = Film->id };
+  like $@, qr/class method/, "Can't get id with no object";
 }
 
 {
-	eval { my $id = Film->title };
-	#like $@, qr/class method/, "Can't get title with no object";
-	ok $@, "Can't get title with no object";
+  eval { my $id = Film->title };
+  #like $@, qr/class method/, "Can't get title with no object";
+  ok $@, "Can't get title with no object";
 } 
 
 eval { my $duh = Film->insert; };
@@ -49,24 +49,24 @@ is($btaste->Rating,            'R',             'Rating() get');
 is($btaste->NumExplodingSheep, 1,               'NumExplodingSheep() get');
 
 {
-	my $bt2 = Film->find_or_create(Title => 'Bad Taste');
-	is $bt2->Director, $btaste->Director, "find_or_create";
-	my @bt = Film->search(Title => 'Bad Taste');
-	is @bt, 1, " doesn't create a new one";
+  my $bt2 = Film->find_or_create(Title => 'Bad Taste');
+  is $bt2->Director, $btaste->Director, "find_or_create";
+  my @bt = Film->search(Title => 'Bad Taste');
+  is @bt, 1, " doesn't create a new one";
 }
 
 ok my $gone = Film->find_or_create(
-	{
-		Title             => 'Gone With The Wind',
-		Director          => 'Bob Baggadonuts',
-		Rating            => 'PG',
-		NumExplodingSheep => 0
-	}
-	),
-	"Add Gone With The Wind";
+  {
+    Title             => 'Gone With The Wind',
+    Director          => 'Bob Baggadonuts',
+    Rating            => 'PG',
+    NumExplodingSheep => 0
+  }
+  ),
+  "Add Gone With The Wind";
 isa_ok $gone, 'Film';
 ok $gone = Film->retrieve(Title => 'Gone With The Wind'),
-	"Fetch it back again";
+  "Fetch it back again";
 isa_ok $gone, 'Film';
 
 # Shocking new footage found reveals bizarre Scarlet/sheep scene!
@@ -81,8 +81,8 @@ is($gone->Rating, 'NC-17', 'Rating() set');
 $gone->update;
 
 {
-	my @films = eval { Film->retrieve_all };
-	cmp_ok(@films, '==', 2, "We have 2 films in total");
+  my @films = eval { Film->retrieve_all };
+  cmp_ok(@films, '==', 2, "We have 2 films in total");
 }
 
 # EXTRA TEST: added by mst to check a bug found by Numa
@@ -94,11 +94,11 @@ ok($gone->Rating eq 'NC-17', 'update() again');
 
 # Grab the 'Bladerunner' entry.
 Film->create(
-	{
-		Title    => 'Bladerunner',
-		Director => 'Bob Ridley Scott',
-		Rating   => 'R'
-	}
+  {
+    Title    => 'Bladerunner',
+    Director => 'Bob Ridley Scott',
+    Rating   => 'R'
+  }
 );
 
 my $blrunner = Film->retrieve('Bladerunner');
@@ -110,10 +110,10 @@ is $blrunner->NumExplodingSheep, undef, " and sheep";
 
 # Make a copy of 'Bladerunner' and create an entry of the directors cut
 my $blrunner_dc = $blrunner->copy(
-	{
-		title  => "Bladerunner: Director's Cut",
-		rating => "15",
-	}
+  {
+    title  => "Bladerunner: Director's Cut",
+    rating => "15",
+  }
 );
 is(ref $blrunner_dc, 'Film', "copy() produces a film");
 is($blrunner_dc->Title,    "Bladerunner: Director's Cut", 'Title correct');
@@ -123,78 +123,78 @@ is($blrunner_dc->NumExplodingSheep, undef, 'Sheep correct');
 
 # Set up own SQL:
 {
-	Film->add_constructor(title_asc  => "title LIKE ? ORDER BY title");
-	Film->add_constructor(title_desc => "title LIKE ? ORDER BY title DESC");
+  Film->add_constructor(title_asc  => "title LIKE ? ORDER BY title");
+  Film->add_constructor(title_desc => "title LIKE ? ORDER BY title DESC");
     Film->add_constructor(title_asc_nl => q{
         title LIKE ?
         ORDER BY title
         LIMIT 1
     });
 
-	{
-		my @films = Film->title_asc("Bladerunner%");
-		is @films, 2, "We have 2 Bladerunners";
-		is $films[0]->Title, $blrunner->Title, "Ordered correctly";
-	}
-	{
-		my @films = Film->title_desc("Bladerunner%");
-		is @films, 2, "We have 2 Bladerunners";
-		is $films[0]->Title, $blrunner_dc->Title, "Ordered correctly";
-	}
-	{
-		my @films = Film->title_asc_nl("Bladerunner%");
-		is @films, 1, "We have 2 Bladerunners";
-		is $films[0]->Title, $blrunner->Title, "Ordered correctly";
-	}
+  {
+    my @films = Film->title_asc("Bladerunner%");
+    is @films, 2, "We have 2 Bladerunners";
+    is $films[0]->Title, $blrunner->Title, "Ordered correctly";
+  }
+  {
+    my @films = Film->title_desc("Bladerunner%");
+    is @films, 2, "We have 2 Bladerunners";
+    is $films[0]->Title, $blrunner_dc->Title, "Ordered correctly";
+  }
+  {
+    my @films = Film->title_asc_nl("Bladerunner%");
+    is @films, 1, "We have 2 Bladerunners";
+    is $films[0]->Title, $blrunner->Title, "Ordered correctly";
+  }
 }
 
 # Multi-column search
 {
-	my @films = $blrunner->search (title => { -like => "Bladerunner%"}, rating => '15');
-	is @films, 1, "Only one Bladerunner is a 15";
+  my @films = $blrunner->search (title => { -like => "Bladerunner%"}, rating => '15');
+  is @films, 1, "Only one Bladerunner is a 15";
 }
 
 # Inline SQL
 {
-	my @films = Film->retrieve_from_sql("numexplodingsheep > 0 ORDER BY title");
-	is @films, 2, "Inline SQL";
-	is $films[0]->id, $btaste->id, "Correct film";
-	is $films[1]->id, $gone->id,   "Correct film";
+  my @films = Film->retrieve_from_sql("numexplodingsheep > 0 ORDER BY title");
+  is @films, 2, "Inline SQL";
+  is $films[0]->id, $btaste->id, "Correct film";
+  is $films[1]->id, $gone->id,   "Correct film";
 }
 
 # Inline SQL removes WHERE
 {
-	my @films =
-		Film->retrieve_from_sql(" WHErE numexplodingsheep > 0 ORDER BY title");
-	is @films, 2, "Inline SQL";
-	is $films[0]->id, $btaste->id, "Correct film";
-	is $films[1]->id, $gone->id,   "Correct film";
+  my @films =
+    Film->retrieve_from_sql(" WHErE numexplodingsheep > 0 ORDER BY title");
+  is @films, 2, "Inline SQL";
+  is $films[0]->id, $btaste->id, "Correct film";
+  is $films[1]->id, $gone->id,   "Correct film";
 }
 
 eval {
-	my $ishtar = Film->insert({ Title => 'Ishtar', Director => 'Elaine May' });
-	my $mandn =
-		Film->insert({ Title => 'Mikey and Nicky', Director => 'Elaine May' });
-	my $new_leaf =
-		Film->insert({ Title => 'A New Leaf', Director => 'Elaine May' });
+  my $ishtar = Film->insert({ Title => 'Ishtar', Director => 'Elaine May' });
+  my $mandn =
+    Film->insert({ Title => 'Mikey and Nicky', Director => 'Elaine May' });
+  my $new_leaf =
+    Film->insert({ Title => 'A New Leaf', Director => 'Elaine May' });
 
 #use Data::Dumper; die Dumper(Film->search( Director => 'Elaine May' ));
-	cmp_ok(Film->search(Director => 'Elaine May'), '==', 3,
-		"3 Films by Elaine May");
-	ok(Film->retrieve('Ishtar')->delete,
-		"Ishtar doesn't deserve an entry any more");
-	ok(!Film->retrieve('Ishtar'), 'Ishtar no longer there');
-	{
-		my $deprecated = 0;
-		local $SIG{__WARN__} = sub { $deprecated++ if $_[0] =~ /deprecated/ };
-		ok(
-			Film->delete(Director => 'Elaine May'),
-			"In fact, delete all films by Elaine May"
-		);
-		cmp_ok(Film->search(Director => 'Elaine May'), '==',
-			0, "0 Films by Elaine May");
-		is $deprecated, 0, "No deprecated warnings from compat layer";
-	}
+  cmp_ok(Film->search(Director => 'Elaine May'), '==', 3,
+    "3 Films by Elaine May");
+  ok(Film->retrieve('Ishtar')->delete,
+    "Ishtar doesn't deserve an entry any more");
+  ok(!Film->retrieve('Ishtar'), 'Ishtar no longer there');
+  {
+    my $deprecated = 0;
+    local $SIG{__WARN__} = sub { $deprecated++ if $_[0] =~ /deprecated/ };
+    ok(
+      Film->delete(Director => 'Elaine May'),
+      "In fact, delete all films by Elaine May"
+    );
+    cmp_ok(Film->search(Director => 'Elaine May'), '==',
+      0, "0 Films by Elaine May");
+    is $deprecated, 0, "No deprecated warnings from compat layer";
+  }
 };
 is $@, '', "No problems with deletes";
 
@@ -207,23 +207,23 @@ is($films[0]->id, $gone->id, ' ... the correct one');
 @films = Film->search ( { 'Director' => { -like => 'Bob %' } });
 is(scalar @films, 3, ' search_like returns 3 films');
 ok(
-	eq_array(
-		[ sort map { $_->id } @films ],
-		[ sort map { $_->id } $blrunner_dc, $gone, $blrunner ]
-	),
-	'the correct ones'
+  eq_array(
+    [ sort map { $_->id } @films ],
+    [ sort map { $_->id } $blrunner_dc, $gone, $blrunner ]
+  ),
+  'the correct ones'
 );
 
 # Find Ridley Scott films which don't have vomit
 @films =
-	Film->search(numExplodingSheep => undef, Director => 'Bob Ridley Scott');
+  Film->search(numExplodingSheep => undef, Director => 'Bob Ridley Scott');
 is(scalar @films, 2, ' search where attribute is null returns 2 films');
 ok(
-	eq_array(
-		[ sort map { $_->id } @films ],
-		[ sort map { $_->id } $blrunner_dc, $blrunner ]
-	),
-	'the correct ones'
+  eq_array(
+    [ sort map { $_->id } @films ],
+    [ sort map { $_->id } $blrunner_dc, $blrunner ]
+  ),
+  'the correct ones'
 );
 
 # Test that a disconnect doesnt harm anything.
@@ -248,166 +248,166 @@ ok(
 }
 
 SKIP: {
-	skip "ActiveState perl produces additional warnings", 3
+  skip "ActiveState perl produces additional warnings", 3
           if ($^O eq 'MSWin32');
 
-	Film->autoupdate(1);
-	my $btaste2 = Film->retrieve($btaste->id);
-	$btaste->NumExplodingSheep(18);
-	my @warnings;
-	local $SIG{__WARN__} = sub { push(@warnings, @_); };
-	{
+  Film->autoupdate(1);
+  my $btaste2 = Film->retrieve($btaste->id);
+  $btaste->NumExplodingSheep(18);
+  my @warnings;
+  local $SIG{__WARN__} = sub { push(@warnings, @_); };
+  {
 
-		# unhook from live object cache, so next one is not from cache
-		$btaste2->remove_from_object_index;
-		my $btaste3 = Film->retrieve($btaste->id);
-		is $btaste3->NumExplodingSheep, 18, "Class based AutoCommit";
-		$btaste3->autoupdate(0);    # obj a/c should override class a/c
-		is @warnings, 0, "No warnings so far";
-		$btaste3->NumExplodingSheep(13);
-	}
-	is @warnings, 1, "DESTROY without update warns";
-	Film->autoupdate(0);
+    # unhook from live object cache, so next one is not from cache
+    $btaste2->remove_from_object_index;
+    my $btaste3 = Film->retrieve($btaste->id);
+    is $btaste3->NumExplodingSheep, 18, "Class based AutoCommit";
+    $btaste3->autoupdate(0);    # obj a/c should override class a/c
+    is @warnings, 0, "No warnings so far";
+    $btaste3->NumExplodingSheep(13);
+  }
+  is @warnings, 1, "DESTROY without update warns";
+  Film->autoupdate(0);
 }
 
 {                               # update unchanged object
-	my $film   = Film->retrieve($btaste->id);
-	my $retval = $film->update;
-	is $retval, -1, "Unchanged object";
+  my $film   = Film->retrieve($btaste->id);
+  my $retval = $film->update;
+  is $retval, -1, "Unchanged object";
 }
 
 {                               # update deleted object
-	my $rt = "Royal Tenenbaums";
-	my $ten = Film->insert({ title => $rt, Rating => "R" });
-	$ten->rating(18);
-	Film->set_sql(drt => "DELETE FROM __TABLE__ WHERE title = ?");
-	Film->sql_drt->execute($rt);
-	my @films = Film->search({ title => $rt });
-	is @films, 0, "RT gone";
-	my $retval = eval { $ten->update };
-	like $@, qr/row not found/, "Update deleted object throws error";
-	$ten->discard_changes;
+  my $rt = "Royal Tenenbaums";
+  my $ten = Film->insert({ title => $rt, Rating => "R" });
+  $ten->rating(18);
+  Film->set_sql(drt => "DELETE FROM __TABLE__ WHERE title = ?");
+  Film->sql_drt->execute($rt);
+  my @films = Film->search({ title => $rt });
+  is @films, 0, "RT gone";
+  my $retval = eval { $ten->update };
+  like $@, qr/row not found/, "Update deleted object throws error";
+  $ten->discard_changes;
 }
 
 {
-	$btaste->autoupdate(1);
-	$btaste->NumExplodingSheep(32);
-	my $btaste2 = Film->retrieve($btaste->id);
-	is $btaste2->NumExplodingSheep, 32, "Object based AutoCommit";
-	$btaste->autoupdate(0);
+  $btaste->autoupdate(1);
+  $btaste->NumExplodingSheep(32);
+  my $btaste2 = Film->retrieve($btaste->id);
+  is $btaste2->NumExplodingSheep, 32, "Object based AutoCommit";
+  $btaste->autoupdate(0);
 }
 
 # Primary key of 0
 {
-	my $zero = Film->insert({ Title => 0, Rating => "U" });
-	ok defined $zero, "Create 0";
-	ok my $ret = Film->retrieve(0), "Retrieve 0";
-	is $ret->Title,  0,   "Title OK";
-	is $ret->Rating, "U", "Rating OK";
+  my $zero = Film->insert({ Title => 0, Rating => "U" });
+  ok defined $zero, "Create 0";
+  ok my $ret = Film->retrieve(0), "Retrieve 0";
+  is $ret->Title,  0,   "Title OK";
+  is $ret->Rating, "U", "Rating OK";
 }
 
 # Change after_update policy
 SKIP: {
         skip "DBIx::Class compat doesn't handle the exists stuff quite right yet", 4;
-	my $bt = Film->retrieve($btaste->id);
-	$bt->autoupdate(1);
+  my $bt = Film->retrieve($btaste->id);
+  $bt->autoupdate(1);
 
-	$bt->rating("17");
-	ok !$bt->_attribute_exists('rating'), "changed column needs reloaded";
-	ok $bt->_attribute_exists('title'), "but we still have the title";
+  $bt->rating("17");
+  ok !$bt->_attribute_exists('rating'), "changed column needs reloaded";
+  ok $bt->_attribute_exists('title'), "but we still have the title";
 
-	# Don't re-load
-	$bt->add_trigger(
-		after_update => sub {
-			my ($self, %args) = @_;
-			my $discard_columns = $args{discard_columns};
-			@$discard_columns = qw/title/;
-		}
-	);
-	$bt->rating("19");
-	ok $bt->_attribute_exists('rating'), "changed column needs reloaded";
-	ok !$bt->_attribute_exists('title'), "but no longer have the title";
+  # Don't re-load
+  $bt->add_trigger(
+    after_update => sub {
+      my ($self, %args) = @_;
+      my $discard_columns = $args{discard_columns};
+      @$discard_columns = qw/title/;
+    }
+  );
+  $bt->rating("19");
+  ok $bt->_attribute_exists('rating'), "changed column needs reloaded";
+  ok !$bt->_attribute_exists('title'), "but no longer have the title";
 }
 
 # Make sure that we can have other accessors. (Bugfix in 0.28)
 if (0) {
-	Film->mk_accessors(qw/temp1 temp2/);
-	my $blrunner = Film->retrieve('Bladerunner');
-	$blrunner->temp1("Foo");
-	$blrunner->NumExplodingSheep(2);
-	eval { $blrunner->update };
-	ok(!$@, "Other accessors");
+  Film->mk_accessors(qw/temp1 temp2/);
+  my $blrunner = Film->retrieve('Bladerunner');
+  $blrunner->temp1("Foo");
+  $blrunner->NumExplodingSheep(2);
+  eval { $blrunner->update };
+  ok(!$@, "Other accessors");
 }
 
 # overloading
 {
-	is "$blrunner", "Bladerunner", "stringify";
+  is "$blrunner", "Bladerunner", "stringify";
 
-	ok(Film->columns(Stringify => 'rating'), "Can change stringify column");
-	is "$blrunner", "R", "And still stringifies correctly";
+  ok(Film->columns(Stringify => 'rating'), "Can change stringify column");
+  is "$blrunner", "R", "And still stringifies correctly";
 
-	ok(
-		Film->columns(Stringify => qw/title rating/),
-		"Can have multiple stringify columns"
-	);
-	is "$blrunner", "Bladerunner/R", "And still stringifies correctly";
+  ok(
+    Film->columns(Stringify => qw/title rating/),
+    "Can have multiple stringify columns"
+  );
+  is "$blrunner", "Bladerunner/R", "And still stringifies correctly";
 
-	no warnings 'once';
-	local *Film::stringify_self = sub { join ":", $_[0]->title, $_[0]->rating };
-	is "$blrunner", "Bladerunner:R", "Provide stringify_self()";
+  no warnings 'once';
+  local *Film::stringify_self = sub { join ":", $_[0]->title, $_[0]->rating };
+  is "$blrunner", "Bladerunner:R", "Provide stringify_self()";
 }
 
 {
-	{
-		ok my $byebye = DeletingFilm->insert(
-			{
-				Title  => 'Goodbye Norma Jean',
-				Rating => 'PG',
-			}
-			),
-			"Add a deleting Film";
+  {
+    ok my $byebye = DeletingFilm->insert(
+      {
+        Title  => 'Goodbye Norma Jean',
+        Rating => 'PG',
+      }
+      ),
+      "Add a deleting Film";
 
-		isa_ok $byebye, 'DeletingFilm';
-		isa_ok $byebye, 'Film';
-		ok(Film->retrieve('Goodbye Norma Jean'), "Fetch it back again");
-	}
-	my $film;
-	eval { $film = Film->retrieve('Goodbye Norma Jean') };
-	ok !$film, "It destroys itself";
+    isa_ok $byebye, 'DeletingFilm';
+    isa_ok $byebye, 'Film';
+    ok(Film->retrieve('Goodbye Norma Jean'), "Fetch it back again");
+  }
+  my $film;
+  eval { $film = Film->retrieve('Goodbye Norma Jean') };
+  ok !$film, "It destroys itself";
 }
 
 SKIP: {
     skip "Caching has been removed", 5
         if Film->isa("DBIx::Class::CDBICompat::NoObjectIndex");
 
-	# my bad taste is your bad taste
-	my $btaste  = Film->retrieve('Bad Taste');
-	my $btaste2 = Film->retrieve('Bad Taste');
-	is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste2),
-		"Retrieving twice gives ref to same object";
+  # my bad taste is your bad taste
+  my $btaste  = Film->retrieve('Bad Taste');
+  my $btaste2 = Film->retrieve('Bad Taste');
+  is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste2),
+    "Retrieving twice gives ref to same object";
 
-	my ($btaste5) = Film->search(title=>'Bad Taste');
-	is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste5),
-		"Searching also gives ref to same object";
+  my ($btaste5) = Film->search(title=>'Bad Taste');
+  is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste5),
+    "Searching also gives ref to same object";
 
-	$btaste2->remove_from_object_index;
-	my $btaste3 = Film->retrieve('Bad Taste');
-	isnt Scalar::Util::refaddr($btaste2), Scalar::Util::refaddr($btaste3),
-		"Removing from object_index and retrieving again gives new object";
+  $btaste2->remove_from_object_index;
+  my $btaste3 = Film->retrieve('Bad Taste');
+  isnt Scalar::Util::refaddr($btaste2), Scalar::Util::refaddr($btaste3),
+    "Removing from object_index and retrieving again gives new object";
 
-	$btaste3->clear_object_index;
-	my $btaste4 = Film->retrieve('Bad Taste');
-	isnt Scalar::Util::refaddr($btaste2), Scalar::Util::refaddr($btaste4),
-		"Clearing cache and retrieving again gives new object";
+  $btaste3->clear_object_index;
+  my $btaste4 = Film->retrieve('Bad Taste');
+  isnt Scalar::Util::refaddr($btaste2), Scalar::Util::refaddr($btaste4),
+    "Clearing cache and retrieving again gives new object";
  
   $btaste=Film->insert({
-		Title             => 'Bad Taste 2',
-		Director          => 'Peter Jackson',
-		Rating            => 'R',
-		NumExplodingSheep => 2,
-	});
-	$btaste2 = Film->retrieve('Bad Taste 2');
-	is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste2),
-		"Creating and retrieving gives ref to same object";
+    Title             => 'Bad Taste 2',
+    Director          => 'Peter Jackson',
+    Rating            => 'R',
+    NumExplodingSheep => 2,
+  });
+  $btaste2 = Film->retrieve('Bad Taste 2');
+  is Scalar::Util::refaddr($btaste), Scalar::Util::refaddr($btaste2),
+    "Creating and retrieving gives ref to same object";
  
 }

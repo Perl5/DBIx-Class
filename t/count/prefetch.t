@@ -55,12 +55,13 @@ my $schema = DBICTest->init_schema();
           SELECT genre.genreid
             FROM (
               SELECT me.artistid, me.name, me.rank, me.charfield
-                FROM artist me GROUP BY me.artistid, me.name, me.rank, me.charfield
+                FROM artist me
+              GROUP BY me.artistid, me.name, me.rank, me.charfield
             ) me
             JOIN cd cds ON cds.artist = me.artistid
             JOIN genre genre ON genre.genreid = cds.genreid
-            LEFT JOIN cd cds_2 ON cds_2.genreid = genre.genreid
-          WHERE ( genre.name = ? ) GROUP BY genre.genreid
+          WHERE ( genre.name = ? )
+          GROUP BY genre.genreid
         )
       count_subq
     )',
@@ -72,7 +73,7 @@ my $schema = DBICTest->init_schema();
 {
   my $rs = $schema->resultset("CD")
             ->search_related('tracks',
-                { position => [1,2] },
+                { position => [1,2], 'lyrics.lyric_id' => undef },
                 { prefetch => [qw/disc lyrics/] },
             );
   is ($rs->all, 10, 'Correct number of objects');
@@ -88,7 +89,7 @@ my $schema = DBICTest->init_schema();
         JOIN track tracks ON tracks.cd = me.cdid
         JOIN cd disc ON disc.cdid = tracks.cd
         LEFT JOIN lyrics lyrics ON lyrics.track_id = tracks.trackid
-      WHERE position = ? OR position = ?
+      WHERE lyrics.lyric_id IS NULL AND (position = ? OR position = ?)
     )',
     [ map { [ position => $_ ] } (1, 2) ],
   );

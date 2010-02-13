@@ -6,6 +6,8 @@ use warnings;
 use MRO::Compat;
 use mro 'c3';
 
+use DBIx::Class::Optional::Dependencies;
+
 use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
@@ -25,7 +27,7 @@ sub component_base_class { 'DBIx::Class' }
 # Always remember to do all digits for the version even if they're 0
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
-$VERSION = '0.08115';
+$VERSION = '0.08118_01';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -227,6 +229,8 @@ blblack: Brandon L. Black <blblack@gmail.com>
 
 bluefeet: Aran Deltac <bluefeet@cpan.org>
 
+boghead: Bryan Beeley <cpan@beeley.org>
+
 bricas: Brian Cassidy <bricas@cpan.org>
 
 brunov: Bruno Vecchi <vecchi.b@gmail.com>
@@ -242,6 +246,8 @@ clkao: CL Kao
 da5id: David Jack Olrik <djo@cpan.org>
 
 debolaz: Anders Nor Berle <berle@cpan.org>
+
+dew: Dan Thomas <dan@godders.org>
 
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
@@ -268,6 +274,8 @@ jesper: Jesper Krogh
 jgoulah: John Goulah <jgoulah@cpan.org>
 
 jguenther: Justin Guenther <jguenther@cpan.org>
+
+jhannah: Jay Hannah <jay@jays.net>
 
 jnapiorkowski: John Napiorkowski <jjn1056@yahoo.com>
 
@@ -326,6 +334,8 @@ ribasushi: Peter Rabbitson <ribasushi@cpan.org>
 rjbs: Ricardo Signes <rjbs@cpan.org>
 
 robkinyon: Rob Kinyon <rkinyon@cpan.org>
+
+Roman: Roman Filippov <romanf@cpan.org>
 
 sc_: Just Another Perl Hacker
 
