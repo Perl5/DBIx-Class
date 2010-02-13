@@ -20,6 +20,7 @@ my $admin_basic = {
   %$moose_basic,
   'MooseX::Types::Path::Class' => '0.05',
   'MooseX::Types::JSON'        => '0.02',
+  'JSON::Any'                  => '1.22',
   'namespace::autoclean'       => '0.09',
   'parent'                     => '0.223',
 };
@@ -56,7 +57,6 @@ my $reqs = {
       %$moose_basic,
       %$admin_basic,
       'Getopt::Long::Descriptive' => '0.081',
-      'JSON::Any'                 => '1.22',
       'Text::CSV'                 => '1.16',
     },
     pod => {
