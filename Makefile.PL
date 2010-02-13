@@ -44,7 +44,6 @@ my $runtime_requires = {
   'Class::Inspector'         => '1.24',
   'Data::Page'               => '2.00',
   'DBI'                      => '1.609',
-  'JSON::Any'                => '1.18',
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.16',

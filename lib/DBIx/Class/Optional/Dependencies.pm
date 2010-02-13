@@ -11,6 +11,11 @@ use Carp;
 # POD is generated automatically by calling _gen_pod from the
 # Makefile.PL in $AUTHOR mode
 
+my $moose_basic = {
+  'Moose'                      => '0.98',
+  'MooseX::Types'              => '0.21',
+};
+
 my $reqs = {
   dist => {
     #'Module::Install::Pod::Inherit' => '0.01',
@@ -18,8 +23,7 @@ my $reqs = {
 
   replicated => {
     req => {
-      'Moose'                     => '0.98',
-      'MooseX::Types'             => '0.21',
+      %$moose_basic,
       'namespace::clean'          => '0.11',
       'Hash::Merge'               => '0.11',
     },
@@ -30,6 +34,17 @@ my $reqs = {
   },
 
   admin => {
+    req => {
+      %$moose_basic,
+      'MooseX::Types::Path::Class'=> '0.05',
+      'MooseX::Types::JSON'       => '0.02',
+      'Try::Tiny'                 => '0.02',
+      'namespace::autoclean'      => '0.09',
+      'parent'                    => '0.223',
+      'Getopt::Long::Descriptive' => '0.081',
+      'JSON::Any'                 => '1.22',
+      'Text::CSV'                 => '1.16',
+    },
   },
 
   deploy => {
