@@ -43,8 +43,7 @@ my ($opts, $usage) = describe_options(
   )
 );
 
-
-die "please only use one of --config or --connect-info" if ($opts->{config} and $opts->{connect_info});
+die "please only use one of --config or --connect-info\n" if ($opts->{config} and $opts->{connect_info});
 
 # option compatability mangle
 if($opts->{connect}) {
@@ -57,25 +56,21 @@ my $admin = DBIx::Class::Admin->new( %$opts );
 my $action = $opts->{action};
 
 $action = $opts->{op} if ($action eq 'op');
-my $res = $admin->$action();
 
-print "going to perform action $action\n";
+print "Performig action $action...\n";
+
+my $res = $admin->$action();
 if ($action eq 'select') {
 
-  my $csv_class;
   my $format = $opts->{format} || 'tsv';
   die('Invalid format') if ($format!~/^tsv|csv$/s);
-  $csv_class = 'Text::CSV_XS';
-  eval{ require Text::CSV_XS };
-  if ($@) {
-    $csv_class = 'Text::CSV_PP';
-    eval{ require Text::CSV_PP };
-    die('The select op requires either the Text::CSV_XS or the Text::CSV_PP module') if ($@);
-  }
 
-  my $csv = $csv_class->new({
-      sep_char => ( $format eq 'tsv' ? "\t" : ',' ),
-    });
+  require Text::CSV;
+
+  my $csv = Text::CSV->new({
+    sep_char => ( $format eq 'tsv' ? "\t" : ',' ),
+  });
+
   foreach my $row (@$res) {
     $csv->combine( @$row );
     print $csv->string()."\n";
