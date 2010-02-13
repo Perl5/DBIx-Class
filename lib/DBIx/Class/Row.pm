@@ -355,6 +355,7 @@ sub insert {
 
     my @non_pk_autoincs = grep {
       (not exists $pk{$_})
+      && (not defined $self->get_column($_))
       && $rsrc->column_info($_)->{is_auto_increment}
     } $rsrc->columns;
 
