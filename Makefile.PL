@@ -1,4 +1,4 @@
-use inc::Module::Install 0.89;
+use inc::Module::Install 0.93;
 use strict;
 use warnings;
 use POSIX ();
