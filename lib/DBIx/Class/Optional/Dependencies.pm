@@ -38,7 +38,6 @@ my $reqs = {
       %$moose_basic,
       'MooseX::Types::Path::Class'=> '0.05',
       'MooseX::Types::JSON'       => '0.02',
-      'Try::Tiny'                 => '0.02',
       'namespace::autoclean'      => '0.09',
       'parent'                    => '0.223',
       'Getopt::Long::Descriptive' => '0.081',

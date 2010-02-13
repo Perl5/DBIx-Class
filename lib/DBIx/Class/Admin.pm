@@ -244,7 +244,9 @@ has config => (
 
 sub _build_config {
   my ($self) = @_;
-  try { require Config::Any } catch { $self->throw_exception( "Config::Any is required to parse the config file"); };
+
+  eval { require Config::Any }
+    or $self->throw_exception( "Config::Any is required to parse the config file");
 
   my $cfg = Config::Any->load_files ( {files => [$self->config_file], use_ext =>1, flatten_to_hash=>1});
 
