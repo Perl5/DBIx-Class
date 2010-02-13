@@ -51,7 +51,7 @@ my $reqs = {
     },
   },
 
-  dbicadmin => {
+  admin_script => {
     req => {
       %$moose_basic,
       %$admin_basic,

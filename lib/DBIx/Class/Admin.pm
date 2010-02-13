@@ -2,28 +2,14 @@ package DBIx::Class::Admin;
 
 # check deps
 BEGIN {
-    my @_deps = qw(
-        Moose MooseX::Types MooseX::Types::JSON MooseX::Types::Path::Class
-        Try::Tiny parent JSON::Any Class::C3::Componentised
-        namespace::autoclean
-    );
-
-    my @_missing_deps;
-    foreach my $dep (@_deps) {
-      eval "require $dep";
-      if ($@) {
-        push @_missing_deps, $dep;
-      }
-    }
-
-    if (@_missing_deps > 0) {
-      die "The following dependecies are missing " . join ",", @_missing_deps;
-    }
+  use Carp::Clan qw/^DBIx::Class/;
+  use DBIx::Class;
+  croak('The following modules are required for DBIx::Class::Admin ' . DBIx::Class::Optional::Dependencies->req_missing_for ('admin') )
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('admin');
 }
 
 use Moose;
 use parent 'DBIx::Class::Schema';
-use Carp::Clan qw/^DBIx::Class/;
 
 use MooseX::Types::Moose qw/Int Str Any Bool/;
 use DBIx::Class::Admin::Types qw/DBICConnectInfo DBICHashRef/;
@@ -72,31 +58,10 @@ DBIx::Class::Admin - Administration object for schemas
 
 =head1 REQUIREMENTS
 
-The following CPAN modules are required to use C<dbicadmin> and this module:
+The Admin interface has additional requirements not currently part of
+L<DBIx::Class>. See L<DBIx::Class::Optional::Dependencies> for more details.
 
-L<Moose>
-
-L<MooseX::Types>
-
-L<MooseX::Types::JSON>
-
-L<MooseX::Types::Path::Class>
-
-L<Try::Tiny>
-
-L<parent>
-
-L<JSON::Any>
-
-(L<JSON::DWIW> preferred for barekey support)
-
-L<namespace::autoclean>
-
-L<Getopt::Long::Descriptive>
-
-L<Text::CSV>
-
-=head1 Attributes
+=head1 ATTRIBUTES
 
 =head2 schema_class
 

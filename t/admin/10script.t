@@ -11,8 +11,8 @@ use DBICTest;
 
 BEGIN {
     require DBIx::Class;
-    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('dbicadmin')
-      unless DBIx::Class::Optional::Dependencies->req_ok_for('dbicadmin');
+    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('admin_script')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for('admin_script');
 }
 
 my @json_backends = qw/XS JSON DWIW/;

@@ -3,6 +3,13 @@
 use strict;
 use warnings;
 
+BEGIN {
+  use DBIx::Class;
+  die (  "The following modules are required for the dbicadmin utility\n"
+       . DBIx::Class::Optional::Dependencies->req_missing_for ('admin_script')
+  ) unless DBIx::Class::Optional::Dependencies->req_ok_for ('admin_script');
+}
+
 use Getopt::Long::Descriptive;
 use DBIx::Class::Admin;
 
@@ -77,15 +84,12 @@ if ($action eq 'select') {
   }
 }
 
-
-
 =head1 AUTHOR
 
-Aran Deltac <bluefeet@cpan.org>
-
-refactored by
-Gordon Irving <goraxe@cpan.org>
+See L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
-You may distribute this code under the same terms as Perl itself.
+You may distribute this code under the same terms as Perl itself
+
+=cut
