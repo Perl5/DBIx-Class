@@ -89,7 +89,7 @@ EOW
 
   $reqs->{test_requires} = {
     %{$reqs->{test_requires}},
-    %{DBIx::Class::Optional::Dependencies->all_optional_requirements},
+    %{DBIx::Class::Optional::Dependencies->_all_optional_requirements},
   };
 }
 

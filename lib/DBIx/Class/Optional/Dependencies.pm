@@ -128,7 +128,7 @@ my $reqs = {
 };
 
 
-sub all_optional_requirements {
+sub _all_optional_requirements {
   return { map { %{ $reqs->{$_}{req} || {} } } (keys %$reqs) };
 }
 
