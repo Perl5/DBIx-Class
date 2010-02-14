@@ -139,6 +139,19 @@ sub _svp_rollback {
 
 1;
 
+=head1 MAXIMUM CURSORS
+
+A L<DBIx::Class>> application can use a lot of cursors, due to the usage of
+L<DBI/prepare_cached>.
+
+The default cursor maximum is C<50>, which can be a bit too low. This limit can
+be turned off (or increased) by the DBA by executing:
+
+  set option max_statement_count = 0
+  set option max_cursor_count    = 0
+
+Highly recommended.
+
 =head1 AUTHOR
 
 See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
