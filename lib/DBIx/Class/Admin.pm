@@ -68,8 +68,8 @@ the class of the schema to load
 =cut
 
 has 'schema_class' => (
-  is    => 'ro',
-  isa    => Str,
+  is  => 'ro',
+  isa => Str,
 );
 
 
@@ -80,8 +80,8 @@ A pre-connected schema object can be provided for manipulation
 =cut
 
 has 'schema' => (
-  is      => 'ro',
-  isa      => 'DBIx::Class::Schema',
+  is          => 'ro',
+  isa         => 'DBIx::Class::Schema',
   lazy_build  => 1,
 );
 
@@ -102,8 +102,8 @@ a resultset from the schema to operate on
 =cut
 
 has 'resultset' => (
-  is      => 'rw',
-  isa      => Str,
+  is  => 'rw',
+  isa => Str,
 );
 
 
@@ -115,8 +115,8 @@ a hash ref or json string to be used for identifying data to manipulate
 
 has 'where' => (
   is      => 'rw',
-  isa      => DBICHashRef,
-  coerce    => 1,
+  isa     => DBICHashRef,
+  coerce  => 1,
 );
 
 
@@ -128,8 +128,8 @@ a hash ref or json string to be used for inserting or updating data
 
 has 'set' => (
   is      => 'rw',
-  isa      => DBICHashRef,
-  coerce    => 1,
+  isa     => DBICHashRef,
+  coerce  => 1,
 );
 
 
@@ -140,9 +140,9 @@ a hash ref or json string to be used for passing additonal info to the ->search 
 =cut
 
 has 'attrs' => (
-  is       => 'rw',
-  isa      => DBICHashRef,
-  coerce    => 1,
+  is      => 'rw',
+  isa     => DBICHashRef,
+  coerce  => 1,
 );
 
 
@@ -153,10 +153,10 @@ connect_info the arguments to provide to the connect call of the schema_class
 =cut
 
 has 'connect_info' => (
-  is      => 'ro',
-  isa      => DBICConnectInfo,
+  is          => 'ro',
+  isa         => DBICConnectInfo,
   lazy_build  => 1,
-  coerce    => 1,
+  coerce      => 1,
 );
 
 sub _build_connect_info {
@@ -175,8 +175,8 @@ The config file should be in a format readable by Config::General
 
 has config_file => (
   is      => 'ro',
-  isa      => File,
-  coerce    => 1,
+  isa     => File,
+  coerce  => 1,
 );
 
 
@@ -188,8 +188,8 @@ designed for use with catalyst config files
 =cut
 
 has 'config_stanza' => (
-  is      => 'ro',
-  isa      => Str,
+  is  => 'ro',
+  isa => Str,
 );
 
 
@@ -201,8 +201,8 @@ config_stanza will still be required.
 =cut
 
 has config => (
-  is      => 'ro',
-  isa      => DBICHashRef,
+  is          => 'ro',
+  isa         => DBICHashRef,
   lazy_build  => 1,
 );
 
@@ -228,8 +228,8 @@ The location where sql ddl files should be created or found for an upgrade.
 
 has 'sql_dir' => (
   is      => 'ro',
-  isa      => Dir,
-  coerce    => 1,
+  isa     => Dir,
+  coerce  => 1,
 );
 
 
@@ -240,8 +240,8 @@ Used for install, the version which will be 'installed' in the schema
 =cut
 
 has version => (
-  is      => 'rw',
-  isa      => Str,
+  is  => 'rw',
+  isa => Str,
 );
 
 
@@ -252,8 +252,8 @@ Previouse version of the schema to create an upgrade diff for, the full sql for 
 =cut
 
 has preversion => (
-  is      => 'rw',
-  isa      => Str,
+  is  => 'rw',
+  isa => Str,
 );
 
 
@@ -264,8 +264,8 @@ Try and force certain operations.
 =cut
 
 has force => (
-  is      => 'rw',
-  isa      => Bool,
+  is  => 'rw',
+  isa => Bool,
 );
 
 
@@ -276,13 +276,13 @@ Be less verbose about actions
 =cut
 
 has quiet => (
-  is      => 'rw',
-  isa      => Bool,
+  is  => 'rw',
+  isa => Bool,
 );
 
 has '_confirm' => (
-  is    => 'bare',
-  isa    => Bool,
+  is  => 'bare',
+  isa => Bool,
 );
 
 
