@@ -79,7 +79,8 @@ sub inflate_column {
   $self->throw_exception("inflate_column needs attr hashref")
     unless ref $attrs eq 'HASH';
   $self->column_info($col)->{_inflate_info} = $attrs;
-  $self->mk_group_accessors('inflated_column' => [$self->column_info($col)->{accessor} || $col, $col]);
+  my $acc = $self->column_info($col)->{accessor};
+  $self->mk_group_accessors('inflated_column' => [ (defined $acc ? $acc : $col), $col]);
   return 1;
 }
 

@@ -9,10 +9,10 @@ use DBICTest::Schema;
 use Scalar::Util ();
 
 BEGIN {
-  require DBIx::Class::Storage::DBI;
+  require DBIx::Class;
   plan skip_all =>
-      'Test needs SQL::Translator ' . DBIx::Class::Storage::DBI->_sqlt_minimum_version
-    if not DBIx::Class::Storage::DBI->_sqlt_version_ok;
+      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
 
 # Test for SQLT-related leaks

@@ -1,11 +1,28 @@
 Revision history for DBIx::Class
 
+        - Add $rs->is_ordered to test for existing order_by on a resultset
+        - Add as_subselect_rs to DBIC::ResultSet from
+          DBIC::Helper::ResultSet::VirtualView::as_virtual_view
+        - Refactor dbicadmin adding DDL manipulation capabilities
+        - New optional dependency manager to aid extension writers
+        - Depend on newest bugfixed Moose
+        - Make resultset chaining consistent wrt selection specification
+        - Storage::DBI::Replicated cleanup
+        - Fix autoinc PKs without an autoinc flag on Sybase ASA
+
+0.08118 2010-02-08 11:53:00 (UTC)
+        - Fix a bug causing UTF8 columns not to be decoded (RT#54395)
+        - Fix bug in One->Many->One prefetch-collapse handling (RT#54039)
+        - Cleanup handling of relationship accessor types
+
+0.08117 2010-02-05 17:10:00 (UTC)
         - Perl 5.8.1 is now the minimum supported version
         - Massive optimization of the join resolution code - now joins
           will be removed from the resulting SQL if DBIC can prove they
           are not referenced by anything
         - Subqueries no longer marked experimental
         - Support for Informix RDBMS (limit/offset and auto-inc columns)
+        - Support for Sybase SQLAnywhere, both native and via ODBC
         - might_have/has_one now warn if applied calling class's column
           has is_nullable set to true.
         - Fixed regression in deploy() with a {sources} table limit applied
@@ -14,8 +31,12 @@ Revision history for DBIx::Class
           parsed by SQL::Translator::Parser::DBIx::Class
         - Stop the SQLT parser from auto-adding indexes identical to the
           Primary Key
+        - InflateColumn::DateTime refactoring to allow fine grained method
+          overloads
         - Fix ResultSetColumn improperly selecting more than the requested
           column when +columns/+select is present
+        - Fix failure when update/delete of resultsets with complex WHERE
+          SQLA structures
         - Fix regression in context sensitiveness of deployment_statements
         - Fix regression resulting in overcomplicated query on
           search_related from prefetching resultsets

@@ -228,10 +228,7 @@ sub _resolve_aliastypes_from_select_args {
   my $group_by_sql = $sql_maker->_order_by({
     map { $_ => $attrs->{$_} } qw/group_by having/
   });
-  my @order_by_chunks = (map
-    { ref $_ ? $_->[0] : $_ }
-    $sql_maker->_order_by_chunks ($attrs->{order_by})
-  );
+  my @order_by_chunks = ($self->_parse_order_by ($attrs->{order_by}) );
 
   # match every alias to the sql chunks above
   for my $alias (keys %$alias_list) {
@@ -459,12 +456,16 @@ sub _strip_cond_qualifiers {
        for (my $i = 0; $i < @cond; $i++) {
         my $entry = $cond[$i];
         my $hash;
-        if (ref $entry eq 'HASH') {
+        my $ref = ref $entry;
+        if ($ref eq 'HASH' or $ref eq 'ARRAY') {
           $hash = $self->_strip_cond_qualifiers($entry);
         }
-        else {
+        elsif (! $ref) {
           $entry =~ /([^.]+)$/;
           $hash->{$1} = $cond[++$i];
+        }
+        else {
+          $self->throw_exception ("_strip_cond_qualifiers() is unable to handle a condition reftype $ref");
         }
         push @{$cond->{-and}}, $hash;
       }
@@ -483,5 +484,21 @@ sub _strip_cond_qualifiers {
   return $cond;
 }
 
+sub _parse_order_by {
+  my ($self, $order_by) = @_;
+
+  return scalar $self->sql_maker->_order_by_chunks ($order_by)
+    unless wantarray;
+
+  my $sql_maker = $self->sql_maker;
+  local $sql_maker->{quote_char}; #disable quoting
+  my @chunks;
+  for my $chunk (map { ref $_ ? @$_ : $_ } ($sql_maker->_order_by_chunks ($order_by) ) ) {
+    $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+    push @chunks, $chunk;
+  }
+
+  return @chunks;
+}
 
 1;

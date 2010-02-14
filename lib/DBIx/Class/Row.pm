@@ -171,9 +171,8 @@ sub new {
         $new->throw_exception("Can't do multi-create without result source")
           unless $source;
         my $info = $source->relationship_info($key);
-        if ($info && $info->{attrs}{accessor}
-          && $info->{attrs}{accessor} eq 'single')
-        {
+        my $acc_type = $info->{attrs}{accessor} || '';
+        if ($acc_type eq 'single') {
           my $rel_obj = delete $attrs->{$key};
           if(!Scalar::Util::blessed($rel_obj)) {
             $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
@@ -188,9 +187,8 @@ sub new {
 
           $related->{$key} = $rel_obj;
           next;
-        } elsif ($info && $info->{attrs}{accessor}
-            && $info->{attrs}{accessor} eq 'multi'
-            && ref $attrs->{$key} eq 'ARRAY') {
+        }
+        elsif ($acc_type eq 'multi' && ref $attrs->{$key} eq 'ARRAY' ) {
           my $others = delete $attrs->{$key};
           my $total = @$others;
           my @objects;
@@ -210,9 +208,8 @@ sub new {
           }
           $related->{$key} = \@objects;
           next;
-        } elsif ($info && $info->{attrs}{accessor}
-          && $info->{attrs}{accessor} eq 'filter')
-        {
+        }
+        elsif ($acc_type eq 'filter') {
           ## 'filter' should disappear and get merged in with 'single' above!
           my $rel_obj = delete $attrs->{$key};
           if(!Scalar::Util::blessed($rel_obj)) {
@@ -763,9 +760,7 @@ sub get_inflated_columns {
   for my $col (keys %loaded_colinfo) {
     if (exists $loaded_colinfo{$col}{accessor}) {
       my $acc = $loaded_colinfo{$col}{accessor};
-      if (defined $acc) {
-        $inflated{$col} = $self->$acc;
-      }
+      $inflated{$col} = $self->$acc if defined $acc;
     }
     else {
       $inflated{$col} = $self->$col;
@@ -917,21 +912,18 @@ sub set_inflated_columns {
   foreach my $key (keys %$upd) {
     if (ref $upd->{$key}) {
       my $info = $self->relationship_info($key);
-      if ($info && $info->{attrs}{accessor}
-        && $info->{attrs}{accessor} eq 'single')
-      {
+      my $acc_type = $info->{attrs}{accessor} || '';
+      if ($acc_type eq 'single') {
         my $rel = delete $upd->{$key};
         $self->set_from_related($key => $rel);
         $self->{_relationship_data}{$key} = $rel;
-      } elsif ($info && $info->{attrs}{accessor}
-        && $info->{attrs}{accessor} eq 'multi') {
-          $self->throw_exception(
-            "Recursive update is not supported over relationships of type multi ($key)"
-          );
       }
-      elsif ($self->has_column($key)
-        && exists $self->column_info($key)->{_inflate_info})
-      {
+      elsif ($acc_type eq 'multi') {
+        $self->throw_exception(
+          "Recursive update is not supported over relationships of type '$acc_type' ($key)"
+        );
+      }
+      elsif ($self->has_column($key) && exists $self->column_info($key)->{_inflate_info}) {
         $self->set_inflated_column($key, delete $upd->{$key});
       }
     }
@@ -1070,9 +1062,10 @@ sub inflate_result {
   my ($source_handle) = $source;
 
   if ($source->isa('DBIx::Class::ResultSourceHandle')) {
-      $source = $source_handle->resolve
-  } else {
-      $source_handle = $source->handle
+    $source = $source_handle->resolve
+  } 
+  else {
+    $source_handle = $source->handle
   }
 
   my $new = {
@@ -1081,17 +1074,29 @@ sub inflate_result {
   };
   bless $new, (ref $class || $class);
 
-  my $schema;
   foreach my $pre (keys %{$prefetch||{}}) {
-    my $pre_val = $prefetch->{$pre};
-    my $pre_source = $source->related_source($pre);
-    $class->throw_exception("Can't prefetch non-existent relationship ${pre}")
-      unless $pre_source;
-    if (ref($pre_val->[0]) eq 'ARRAY') { # multi
-      my @pre_objects;
 
-      for my $me_pref (@$pre_val) {
+    my $pre_source = $source->related_source($pre)
+      or $class->throw_exception("Can't prefetch non-existent relationship ${pre}");
 
+    my $accessor = $source->relationship_info($pre)->{attrs}{accessor}
+      or $class->throw_exception("No accessor for prefetched $pre");
+
+    my @pre_vals;
+    if (ref $prefetch->{$pre}[0] eq 'ARRAY') {
+      @pre_vals = @{$prefetch->{$pre}};
+    }
+    elsif ($accessor eq 'multi') {
+      $class->throw_exception("Implicit prefetch (via select/columns) not supported with accessor 'multi'");
+    }
+    else {
+      @pre_vals = $prefetch->{$pre};
+    }
+
+    my @pre_objects;
+    for my $me_pref (@pre_vals) {
+
+        # FIXME - this should not be necessary
         # the collapser currently *could* return bogus elements with all
         # columns set to undef
         my $has_def;
@@ -1106,29 +1111,16 @@ sub inflate_result {
         push @pre_objects, $pre_source->result_class->inflate_result(
           $pre_source, @$me_pref
         );
-      }
-
-      $new->related_resultset($pre)->set_cache(\@pre_objects);
-    } elsif (defined $pre_val->[0]) {
-      my $fetched;
-      unless ($pre_source->primary_columns == grep { exists $pre_val->[0]{$_}
-         and !defined $pre_val->[0]{$_} } $pre_source->primary_columns)
-      {
-        $fetched = $pre_source->result_class->inflate_result(
-                      $pre_source, @{$pre_val});
-      }
-      my $accessor = $source->relationship_info($pre)->{attrs}{accessor};
-      $class->throw_exception("No accessor for prefetched $pre")
-       unless defined $accessor;
-      if ($accessor eq 'single') {
-        $new->{_relationship_data}{$pre} = $fetched;
-      } elsif ($accessor eq 'filter') {
-        $new->{_inflated_column}{$pre} = $fetched;
-      } else {
-       $class->throw_exception("Implicit prefetch (via select/columns) not supported with accessor '$accessor'");
-      }
-      $new->related_resultset($pre)->set_cache([ $fetched ]);
     }
+
+    if ($accessor eq 'single') {
+      $new->{_relationship_data}{$pre} = $pre_objects[0];
+    }
+    elsif ($accessor eq 'filter') {
+      $new->{_inflated_column}{$pre} = $pre_objects[0];
+    }
+
+    $new->related_resultset($pre)->set_cache(\@pre_objects);
   }
 
   $new->in_storage (1);

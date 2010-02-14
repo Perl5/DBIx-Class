@@ -407,7 +407,7 @@ sub _recurse_fields {
       $self->_sqlcase($func),
       $self->_recurse_fields($args),
       $as
-        ? sprintf (' %s %s', $self->_sqlcase('as'), $as)
+        ? sprintf (' %s %s', $self->_sqlcase('as'), $self->_quote ($as) )
         : ''
     );
 

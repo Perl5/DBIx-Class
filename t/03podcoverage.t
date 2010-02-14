@@ -86,6 +86,14 @@ my $exceptions = {
         /]
     },
 
+    'DBIx::Class::Storage::DBI::Replicated*'        => {
+        ignore => [ qw/
+            connect_call_do_sql
+            disconnect_call_do_sql
+        /]
+    },
+
+    'DBIx::Class::Admin::Types'                     => { skip => 1 },
     'DBIx::Class::ClassResolver::PassThrough'       => { skip => 1 },
     'DBIx::Class::Componentised'                    => { skip => 1 },
     'DBIx::Class::Relationship::*'                  => { skip => 1 },
@@ -95,7 +103,6 @@ my $exceptions = {
     'DBIx::Class::Storage::DBI::Replicated::Types'  => { skip => 1 },
 
 # test some specific components whose parents are exempt below
-    'DBIx::Class::Storage::DBI::Replicated*'        => {},
     'DBIx::Class::Relationship::Base'               => {},
 
 # internals
