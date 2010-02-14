@@ -9,8 +9,6 @@ BEGIN {
 }
 
 use Moose;
-use parent 'DBIx::Class::Schema';
-
 use MooseX::Types::Moose qw/Int Str Any Bool/;
 use DBIx::Class::Admin::Types qw/DBICConnectInfo DBICHashRef/;
 use MooseX::Types::JSON qw(JSON);
@@ -89,7 +87,8 @@ has 'schema' => (
 
 sub _build_schema {
   my ($self)  = @_;
-  $self->ensure_class_loaded($self->schema_class);
+  require Class::C3::Componentised;
+  Class::C3::Componentised->ensure_class_loaded($self->schema_class);
 
   $self->connect_info->[3]->{ignore_version} =1;
   return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );
@@ -211,7 +210,7 @@ sub _build_config {
   my ($self) = @_;
 
   eval { require Config::Any }
-    or $self->throw_exception( "Config::Any is required to parse the config file");
+    or die ("Config::Any is required to parse the config file.\n");
 
   my $cfg = Config::Any->load_files ( {files => [$self->config_file], use_ext =>1, flatten_to_hash=>1});
 
@@ -337,7 +336,7 @@ sub upgrade {
   my $schema = $self->schema();
   if (!$schema->get_db_version()) {
     # schema is unversioned
-    $self->throw_exception ("could not determin current schema version, please either install or deploy");
+    $schema->throw_exception ("Could not determin current schema version, please either install() or deploy().\n");
   } else {
     my $ret = $schema->upgrade();
     return $ret;
@@ -378,7 +377,7 @@ sub install {
     }
   }
   else {
-    $self->throw_exception ("schema already has a version not installing, try upgrade instead");
+    $schema->throw_exception ("Schema already has a version. Try upgrade instead.\n");
   }
 
 }
@@ -403,9 +402,9 @@ sub deploy {
   if (!$schema->get_db_version() ) {
     # schema is unversioned
     $schema->deploy( $args, $self->sql_dir)
-      or $self->throw_exception ("could not deploy schema");
+      or $schema->throw_exception ("Could not deploy schema.\n"); # FIXME deploy() does not return 1/0 on success/fail
   } else {
-    $self->throw_exception("there already is a database with a version here, try upgrade instead");
+    $schema->throw_exception("A versioned schema has already been deployed, try upgrade instead.\n");
   }
 }
 
@@ -550,7 +549,7 @@ sub _find_stanza {
       $cfg = $cfg->{$path};
     }
     else {
-      $self->throw_exception("could not find $stanza in config, $path did not seem to exist");
+      die ("Could not find $stanza in config, $path does not seem to exist.\n");
     }
   }
   return $cfg;

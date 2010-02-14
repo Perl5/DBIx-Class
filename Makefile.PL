@@ -105,7 +105,7 @@ for my $rtype (keys %$reqs) {
 
     # sanity check req duplications
     if ($final_req{$mod}) {
-      die "$mod specified as both a $rtype and a $final_req{$mod}[1]\n";
+      die "$mod specified as both a '$rtype' and a '$final_req{$mod}[0]'\n";
     }
 
     $final_req{$mod} = [ $rtype, $reqs->{$rtype}{$mod}||0 ],

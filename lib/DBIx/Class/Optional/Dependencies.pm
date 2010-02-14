@@ -22,7 +22,6 @@ my $admin_basic = {
   'MooseX::Types::JSON'        => '0.02',
   'JSON::Any'                  => '1.22',
   'namespace::autoclean'       => '0.09',
-  'parent'                     => '0.223',
 };
 
 my $reqs = {
