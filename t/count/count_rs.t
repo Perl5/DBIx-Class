@@ -35,7 +35,6 @@ my $schema = DBICTest->init_schema();
       FROM cd me
       JOIN track tracks ON tracks.cd = me.cdid
       JOIN cd disc ON disc.cdid = tracks.cd
-      LEFT JOIN lyrics lyrics ON lyrics.track_id = tracks.trackid 
      WHERE ( ( position = ? OR position = ? ) )
     ',
     [ qw/'1' '2'/ ],
@@ -53,7 +52,6 @@ my $schema = DBICTest->init_schema();
           FROM cd me
           JOIN track tracks ON tracks.cd = me.cdid
           JOIN cd disc ON disc.cdid = tracks.cd
-          LEFT JOIN lyrics lyrics ON lyrics.track_id = tracks.trackid 
         WHERE ( ( position = ? OR position = ? ) )
         LIMIT 3 OFFSET 8
        ) count_subq

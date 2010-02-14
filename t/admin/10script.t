@@ -1,19 +1,18 @@
 # vim: filetype=perl
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
+use Config;
 use lib qw(t/lib);
+$ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 use DBICTest;
 
 
-eval 'require JSON::Any';
-plan skip_all => 'Install JSON::Any to run this test' if ($@);
-
-eval 'require Text::CSV_XS';
-if ($@) {
-    eval 'require Text::CSV_PP';
-    plan skip_all => 'Install Text::CSV_XS or Text::CSV_PP to run this test' if ($@);
+BEGIN {
+    require DBIx::Class;
+    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for('admin_script')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for('admin_script');
 }
 
 my @json_backends = qw/XS JSON DWIW/;
@@ -56,7 +55,9 @@ sub test_dbicadmin {
         open(my $fh, "-|",  _prepare_system_args( qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
         my $data = do { local $/; <$fh> };
         close($fh);
-        ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" );
+        if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
+          diag ("data from select is $data")
+        };
     }
 
     system( _prepare_system_args( qw|--op=delete --where={"name":"Trout"}| ) );
@@ -71,10 +72,11 @@ sub test_dbicadmin {
 #
 sub _prepare_system_args {
     my $perl = $^X;
+
     my @args = (
-        qw|script/dbicadmin --quiet --schema=DBICTest::Schema --class=Employee --tlibs|,
+        qw|script/dbicadmin --quiet --schema=DBICTest::Schema --class=Employee|,
         q|--connect=["dbi:SQLite:dbname=t/var/DBIxClass.db","","",{"AutoCommit":1}]|,
-        qw|--force --tlibs|,
+        qw|--force|,
         @_,
     );
 

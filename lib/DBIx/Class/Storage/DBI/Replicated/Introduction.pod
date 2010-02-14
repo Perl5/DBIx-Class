@@ -89,26 +89,25 @@ may wish to do this.  Again, if you are using L<Catalyst>, I strongly recommend
 you use (or upgrade to) the latest L<Catalyst::Model::DBIC::Schema>, which makes
 this job even easier.
 
-First, you need to connect your L<DBIx::Class::Schema>.  Let's assume you have
-such a schema called, "MyApp::Schema".
+First, you need to get a C<$schema> object and set the storage_type:
 
-	use MyApp::Schema;
-	my $schema = MyApp::Schema->connect($dsn, $user, $pass);
+  my $schema = MyApp::Schema->clone;
+  $schema->storage_type([
+    '::DBI::Replicated' => {
+      balancer_type => '::Random',
+      balancer_args => {
+        auto_validate_every => 5,
+        master_read_weight => 1
+      },
+      pool_args => {
+        maximum_lag =>2,
+      },
+    }
+  ]);
 
-Next, you need to set the storage_type.
+Then, you need to connect your L<DBIx::Class::Schema>.
 
-	$schema->storage_type(
-		::DBI::Replicated' => {
-			balancer_type => '::Random',
-            balancer_args => {
-				auto_validate_every => 5,
-				master_read_weight => 1
-			},
-			pool_args => {
-				maximum_lag =>2,
-			},
-		}
-	);
+  $schema->connection($dsn, $user, $pass);
 
 Let's break down the settings.  The method L<DBIx::Class::Schema/storage_type>
 takes one mandatory parameter, a scalar value, and an option second value which
@@ -160,11 +159,11 @@ database.
 After you've configured the replicated storage, you need to add the connection
 information for the replicants:
 
-	$schema->storage->connect_replicants(
-		[$dsn1, $user, $pass, \%opts],
- 		[$dsn2, $user, $pass, \%opts],
- 		[$dsn3, $user, $pass, \%opts],
- 	);
+  $schema->storage->connect_replicants(
+    [$dsn1, $user, $pass, \%opts],
+    [$dsn2, $user, $pass, \%opts],
+    [$dsn3, $user, $pass, \%opts],
+  );
 
 These replicants should be configured as slaves to the master using the
 instructions for MySQL native replication, or if you are just learning, you

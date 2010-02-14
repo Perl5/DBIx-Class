@@ -30,11 +30,6 @@ sub _rebless {
 
 DBIx::Class::Storage::DBI::Oracle - Base class for Oracle driver
 
-=head1 SYNOPSIS
-
-  # In your table classes
-  __PACKAGE__->load_components(qw/Core/);
-
 =head1 DESCRIPTION
 
 This class simply provides a mechanism for discovering and loading a sub-class

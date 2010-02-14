@@ -41,7 +41,9 @@ sub add_columns {
   }
 }
 
-*add_column = \&add_columns;
+sub add_column {
+  shift->add_columns(@_);
+}
 
 sub has_column {
   shift->result_source_instance->has_column(@_);

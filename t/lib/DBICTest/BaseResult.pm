@@ -4,10 +4,9 @@ package #hide from pause
 use strict;
 use warnings;
 
-use base qw/DBIx::Class/;
+use base qw/DBIx::Class::Core/;
 use DBICTest::BaseResultSet;
 
-__PACKAGE__->load_components (qw/Core/);
 __PACKAGE__->table ('bogus');
 __PACKAGE__->resultset_class ('DBICTest::BaseResultSet');
 

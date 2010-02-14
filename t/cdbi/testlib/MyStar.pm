@@ -12,10 +12,10 @@ __PACKAGE__->has_many(films => [ MyStarLink => 'film' ]);
 # sub films { map $_->film, shift->_films }
 
 sub create_sql {
-	return qq{
-		starid  TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-		name   VARCHAR(255)
-	};
+  return qq{
+    starid  TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name   VARCHAR(255)
+  };
 }
 
 1;

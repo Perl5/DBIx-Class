@@ -8,7 +8,7 @@ use mro 'c3';
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::AmbiguousGlob - Storage component for RDBMS supporting multicolumn in clauses
+DBIx::Class::Storage::DBI::AmbiguousGlob - Storage component for RDBMS choking on count(*)
 
 =head1 DESCRIPTION
 
@@ -27,6 +27,9 @@ At this point the only overriden method is C<_subq_count_select()>
 
 sub _subq_count_select {
   my ($self, $source, $rs_attrs) = @_;
+
+  return $rs_attrs->{group_by} if $rs_attrs->{group_by};
+
   my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
   return @pcols ? \@pcols : [ 1 ];
 }

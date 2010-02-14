@@ -6,13 +6,6 @@ use Test::More;
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 12 );
-}
-
 use_ok('DBICTest');
 
 my $schema = DBICTest->init_schema();
@@ -235,6 +228,36 @@ is_same_sql_bind(
 );
 
 
+($sql, @bind) = $sql_maker->select(
+  [ { me => 'cd' }                  ],
+  [qw/ me.cdid me.artist me.title  /],
+  { cdid => \['rlike ?', [cdid => 'X'] ]       },
+  { group_by => 'title', having => \['count(me.artist) > ?', [ cnt => 2] ] },
+);
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title` FROM `cd` `me` WHERE ( `cdid` rlike ? ) GROUP BY `title` HAVING count(me.artist) > ?/,
+  [ [ cdid => 'X'], ['cnt' => '2'] ],
+  'Quoting works with where/having arrayrefsrefs',
+);
+
+
+($sql, @bind) = $sql_maker->select(
+  [ { me => 'cd' }                  ],
+  [qw/ me.cdid me.artist me.title  /],
+  { cdid => \'rlike X'              },
+  { group_by => 'title', having => \'count(me.artist) > 2' },
+);
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title` FROM `cd` `me` WHERE ( `cdid` rlike X ) GROUP BY `title` HAVING count(me.artist) > 2/,
+  [],
+  'Quoting works with where/having scalarrefs',
+);
+
+
 ($sql, @bind) = $sql_maker->update(
           'group',
           {
@@ -330,3 +353,5 @@ is_same_sql_bind(
   q/UPDATE [group] SET [name] = ?, [order] = ?/, [ ['name' => 'Bill'], ['order' => '12'] ],
   'bracket quoted table names for UPDATE'
 );
+
+done_testing;

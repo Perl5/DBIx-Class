@@ -113,7 +113,9 @@ DBIx::Class::InflateColumn::File -  map files from the Database to the filesyste
 
 In your L<DBIx::Class> table class:
 
-    __PACKAGE__->load_components( "PK::Auto", "InflateColumn::File", "Core" );
+    use base 'DBIx::Class::Core';
+
+    __PACKAGE__->load_components(qw/InflateColumn::File/);
 
     # define your columns
     __PACKAGE__->add_columns(

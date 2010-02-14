@@ -38,7 +38,7 @@ DBIx::Class::Storage::DBI::DB2 - Automatic primary key class for DB2
 =head1 SYNOPSIS
 
   # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  use base 'DBIx::Class::Core';
   __PACKAGE__->set_primary_key('id');
 
 =head1 DESCRIPTION

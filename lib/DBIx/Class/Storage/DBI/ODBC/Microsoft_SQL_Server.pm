@@ -61,7 +61,7 @@ sub connect_call_use_dynamic_cursors {
   my $self = shift;
 
   if (ref($self->_dbi_connect_info->[0]) eq 'CODE') {
-    $self->throw_exception ('cannot set DBI attributes on a CODE ref connect_info');
+    $self->throw_exception ('Cannot set DBI attributes on a CODE ref connect_info');
   }
 
   my $dbi_attrs = $self->_dbi_connect_info->[-1];
@@ -173,6 +173,14 @@ sub connect_call_use_MARS {
     $self->disconnect;
     $self->ensure_connected if $was_connected;
   }
+}
+
+sub _get_mssql_version {
+  my $self = shift;
+
+  my ($version) = $self->_get_dbh->get_info(18) =~ /^(\d+)/;
+
+  return $version;
 }
 
 1;

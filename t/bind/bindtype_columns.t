@@ -9,7 +9,7 @@ my ($dsn, $dbuser, $dbpass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/}
 
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $dbuser);
-  
+
 plan tests => 6;
 
 my $schema = DBICTest::Schema->connection($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
@@ -32,7 +32,7 @@ my $dbh = $schema->storage->dbh;
     ],{ RaiseError => 1, PrintError => 1 });
 }
 
-my $big_long_string	= "\x00\x01\x02 abcd" x 125000;
+my $big_long_string = "\x00\x01\x02 abcd" x 125000;
 
 my $new;
 # test inserting a row
@@ -40,7 +40,7 @@ my $new;
   $new = $schema->resultset('BindType')->create({ bytea => $big_long_string });
 
   ok($new->id, "Created a bytea row");
-  is($new->bytea, 	$big_long_string, "Set the blob correctly.");
+  is($new->bytea, $big_long_string, "Set the blob correctly.");
 }
 
 # test retrieval of the bytea column

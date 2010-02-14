@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
@@ -65,7 +65,7 @@ lives_ok (sub { $art->delete }, 'Cascading delete on Ordered has_many works' ); 
 
 is(@art, 2, 'And then there were two');
 
-ok(!$art->in_storage, "It knows it's dead");
+is($art->in_storage, 0, "It knows it's dead");
 
 dies_ok ( sub { $art->delete }, "Can't delete twice");
 
@@ -109,10 +109,12 @@ is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id gener
 {
   ok(my $artist = $schema->resultset('Artist')->create({name => 'store_column test'}));
   is($artist->name, 'X store_column test'); # used to be 'X X store...'
-  
+
   # call store_column even though the column doesn't seem to be dirty
-  ok($artist->update({name => 'X store_column test'}));
+  $artist->name($artist->name);
   is($artist->name, 'X X store_column test');
+  ok($artist->is_column_changed('name'), 'changed column marked as dirty');
+
   $artist->delete;
 }
 
@@ -144,7 +146,7 @@ is($schema->resultset("Artist")->count, 4, 'count ok');
   });
 
   is($new_obj->name, 'find_or_new', 'find_or_new: instantiated a new artist');
-  ok(! $new_obj->in_storage, 'new artist is not in storage');
+  is($new_obj->in_storage, 0, 'new artist is not in storage');
 }
 
 my $cd = $schema->resultset("CD")->find(1);

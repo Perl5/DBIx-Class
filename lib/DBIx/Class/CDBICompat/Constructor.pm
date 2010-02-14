@@ -3,6 +3,8 @@ package # hide from PAUSE
 
 use base qw(DBIx::Class::CDBICompat::ImaDBI);
 
+use Sub::Name();
+
 use strict;
 use warnings;
 
@@ -22,7 +24,7 @@ sub add_constructor {
     return carp("$method already exists in $class")
             if *$meth{CODE};
 
-    *$meth = sub {
+    *$meth = Sub::Name::subname $meth => sub {
             my $self = shift;
             $self->sth_to_objects($self->sql_Retrieve($fragment), \@_);
     };

@@ -5,7 +5,7 @@ use warnings;
 
 use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
-use Scalar::Util qw/weaken/;
+use Scalar::Util ();
 use File::Spec;
 use Sub::Name ();
 use Module::Find();
@@ -33,8 +33,9 @@ DBIx::Class::Schema - composable schemas
   __PACKAGE__->load_namespaces();
 
   package Library::Schema::Result::CD;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/); # for example
+  use base qw/DBIx::Class::Core/;
+
+  __PACKAGE__->load_components(qw/InflateColumn::DateTime/); # for example
   __PACKAGE__->table('cd');
 
   # Elsewhere in your code:
@@ -406,12 +407,10 @@ sub load_classes {
 
 Set the storage class that will be instantiated when L</connect> is called.
 If the classname starts with C<::>, the prefix C<DBIx::Class::Storage> is
-assumed by L</connect>.  
+assumed by L</connect>.
 
 You want to use this to set subclasses of L<DBIx::Class::Storage::DBI>
-in cases where the appropriate subclass is not autodetected, such as
-when dealing with MSSQL via L<DBD::Sybase>, in which case you'd set it
-to C<::DBI::Sybase::MSSQL>.
+in cases where the appropriate subclass is not autodetected.
 
 If your storage type requires instantiation arguments, those are
 defined as a second argument in the form of a hashref and the entire
@@ -631,13 +630,13 @@ See L<DBIx::Class::Storage/"txn_do"> for more information.
 This interface is preferred over using the individual methods L</txn_begin>,
 L</txn_commit>, and L</txn_rollback> below.
 
-WARNING: If you are connected with C<AutoCommit => 0> the transaction is
+WARNING: If you are connected with C<< AutoCommit => 0 >> the transaction is
 considered nested, and you will still need to call L</txn_commit> to write your
-changes when appropriate. You will also want to connect with C<auto_savepoint =>
-1> to get partial rollback to work, if the storage driver for your database
+changes when appropriate. You will also want to connect with C<< auto_savepoint =>
+1 >> to get partial rollback to work, if the storage driver for your database
 supports it.
 
-Connecting with C<AutoCommit => 1> is recommended.
+Connecting with C<< AutoCommit => 1 >> is recommended.
 
 =cut
 
@@ -910,7 +909,7 @@ sub compose_namespace {
     no strict 'refs';
     no warnings 'redefine';
     foreach my $meth (qw/class source resultset/) {
-      *{"${target}::${meth}"} =
+      *{"${target}::${meth}"} = Sub::Name::subname "${target}::${meth}" =>
         sub { shift->schema->$meth(@_) };
     }
   }
@@ -1084,7 +1083,7 @@ sub deployment_statements {
   $self->storage->deployment_statements($self, @_);
 }
 
-=head2 create_ddl_dir (EXPERIMENTAL)
+=head2 create_ddl_dir
 
 =over 4
 
@@ -1179,8 +1178,17 @@ sub freeze {
 
 =head2 dclone
 
-Recommeneded way of dcloning objects. This is needed to properly maintain
-references to the schema object (which itself is B<not> cloned.)
+=over 4
+
+=item Arguments: $object
+
+=item Return Value: dcloned $object
+
+=back
+
+Recommended way of dcloning L<DBIx::Class::Row> and L<DBIx::Class::ResultSet>
+objects so their references to the schema object
+(which itself is B<not> cloned) are properly maintained.
 
 =cut
 
@@ -1261,6 +1269,24 @@ sub register_source {
   $self->_register_source(@_);
 }
 
+=head2 unregister_source
+
+=over 4
+
+=item Arguments: $moniker
+
+=back
+
+Removes the L<DBIx::Class::ResultSource> from the schema for the given moniker.
+
+=cut
+
+sub unregister_source {
+  my $self = shift;
+
+  $self->_unregister_source(@_);
+}
+
 =head2 register_extra_source
 
 =over 4
@@ -1287,7 +1313,7 @@ sub _register_source {
 
   $source = $source->new({ %$source, source_name => $moniker });
   $source->schema($self);
-  weaken($source->{schema}) if ref($self);
+  Scalar::Util::weaken($source->{schema}) if ref($self);
 
   my $rs_class = $source->result_class;
 

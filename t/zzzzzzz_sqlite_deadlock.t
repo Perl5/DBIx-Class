@@ -10,7 +10,7 @@ use DBICTest;
 use DBICTest::Schema;
 
 plan tests => 2;
-my $wait_for = 10;  # how many seconds to wait
+my $wait_for = 30;  # how many seconds to wait
 
 for my $close (0,1) {
 

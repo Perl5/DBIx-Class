@@ -501,7 +501,7 @@ sub move_to_group {
     }
     else {
       my $bumped_pos_val = $self->_position_value ($to_position);
-      my @between = ($to_position, $new_group_last_position);
+      my @between = map { $self->_position_value ($_) } ($to_position, $new_group_last_position);
       $self->_shift_siblings (1, @between);   #shift right
       $self->set_column( $position_column => $bumped_pos_val );
     }
@@ -682,27 +682,9 @@ You would want to override the methods below if you use sparse
 if you are working with preexisting non-normalised position data,
 or if you need to work with materialized path columns.
 
-=head2 _position
-
-  my $num_pos = $item->_position;
-
-Returns the B<absolute numeric position> of the current object, with the
-first object being at position 1, its sibling at position 2 and so on.
-By default simply returns the value of L</position_column>.
-
-=cut
-sub _position {
-    my $self = shift;
-
-#    #the right way to do this
-#    return $self->previous_siblings->count + 1;
-
-    return $self->get_column ($self->position_column);
-}
-
 =head2 _position_from_value
 
-  my $num_pos = $item->_position_of_value ( $pos_value )
+  my $num_pos = $item->_position_from_value ( $pos_value )
 
 Returns the B<absolute numeric position> of an object with a B<position
 value> set to C<$pos_value>. By default simply returns C<$pos_value>.
@@ -862,6 +844,19 @@ sub _siblings {
     return $self->_group_rs->search(
         { $position_column => { '!=' => $self->get_column($position_column) } },
     );
+}
+
+=head2 _position
+
+  my $num_pos = $item->_position;
+
+Returns the B<absolute numeric position> of the current object, with the
+first object being at position 1, its sibling at position 2 and so on.
+
+=cut
+sub _position {
+    my $self = shift;
+    return $self->_position_from_value ($self->get_column ($self->position_column) );
 }
 
 =head2 _grouping_clause

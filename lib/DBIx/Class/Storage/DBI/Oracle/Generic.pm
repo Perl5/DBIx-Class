@@ -9,15 +9,17 @@ DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
 
 =head1 SYNOPSIS
 
-  # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  # In your result (table) classes
+  use base 'DBIx::Class::Core';
   __PACKAGE__->add_columns({ id => { sequence => 'mysequence', auto_nextval => 1 } });
   __PACKAGE__->set_primary_key('id');
   __PACKAGE__->sequence('mysequence');
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for Oracle.
+This class implements base Oracle support. The subclass
+L<DBIx::Class::Storage::DBI::Oracle::WhereJoins> is for C<(+)> joins in Oracle
+versions before 9.
 
 =head1 METHODS
 
@@ -53,8 +55,16 @@ sub _dbh_get_autoinc_seq {
 
   my $sth;
 
+  my $source_name;
+  if ( ref $source->name ne 'SCALAR' ) {
+      $source_name = $source->name;
+  }
+  else {
+      $source_name = ${$source->name};
+  }
+
   # check for fully-qualified name (eg. SCHEMA.TABLENAME)
-  if ( my ( $schema, $table ) = $source->name =~ /(\w+)\.(\w+)/ ) {
+  if ( my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/ ) {
     $sql = q{
       SELECT trigger_body FROM ALL_TRIGGERS t
       WHERE t.owner = ? AND t.table_name = ?
@@ -66,7 +76,7 @@ sub _dbh_get_autoinc_seq {
   }
   else {
     $sth = $dbh->prepare($sql);
-    $sth->execute( uc( $source->name ) );
+    $sth->execute( uc( $source_name ) );
   }
   while (my ($insert_trigger) = $sth->fetchrow_array) {
     return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
@@ -199,11 +209,15 @@ sub connect_call_datetime_setup {
   my $timestamp_tz_format = $ENV{NLS_TIMESTAMP_TZ_FORMAT} ||=
     'YYYY-MM-DD HH24:MI:SS.FF TZHTZM';
 
-  $self->_do_query("alter session set nls_date_format = '$date_format'");
   $self->_do_query(
-"alter session set nls_timestamp_format = '$timestamp_format'");
+    "alter session set nls_date_format = '$date_format'"
+  );
   $self->_do_query(
-"alter session set nls_timestamp_tz_format='$timestamp_tz_format'");
+    "alter session set nls_timestamp_format = '$timestamp_format'"
+  );
+  $self->_do_query(
+    "alter session set nls_timestamp_tz_format='$timestamp_tz_format'"
+  );
 }
 
 =head2 source_bind_attributes
@@ -223,37 +237,44 @@ table with more than one LOB column.
 
 =cut
 
-sub source_bind_attributes 
+sub source_bind_attributes
 {
-	require DBD::Oracle;
-	my $self = shift;
-	my($source) = @_;
+  require DBD::Oracle;
+  my $self = shift;
+  my($source) = @_;
 
-	my %bind_attributes;
+  my %bind_attributes;
 
-	foreach my $column ($source->columns) {
-		my $data_type = $source->column_info($column)->{data_type} || '';
-		next unless $data_type;
+  foreach my $column ($source->columns) {
+    my $data_type = $source->column_info($column)->{data_type} || '';
+    next unless $data_type;
 
-		my %column_bind_attrs = $self->bind_attribute_by_data_type($data_type);
+    my %column_bind_attrs = $self->bind_attribute_by_data_type($data_type);
 
-		if ($data_type =~ /^[BC]LOB$/i) {
-			$column_bind_attrs{'ora_type'} = uc($data_type) eq 'CLOB' ?
-				DBD::Oracle::ORA_CLOB() :
-				DBD::Oracle::ORA_BLOB();
-			$column_bind_attrs{'ora_field'} = $column;
-		}
+    if ($data_type =~ /^[BC]LOB$/i) {
+      if ($DBD::Oracle::VERSION eq '1.23') {
+        $self->throw_exception(
+"BLOB/CLOB support in DBD::Oracle == 1.23 is broken, use an earlier or later ".
+"version.\n\nSee: https://rt.cpan.org/Public/Bug/Display.html?id=46016\n"
+        );
+      }
 
-		$bind_attributes{$column} = \%column_bind_attrs;
-	}
+      $column_bind_attrs{'ora_type'} = uc($data_type) eq 'CLOB'
+        ? DBD::Oracle::ORA_CLOB()
+        : DBD::Oracle::ORA_BLOB()
+      ;
+      $column_bind_attrs{'ora_field'} = $column;
+    }
 
-	return \%bind_attributes;
+    $bind_attributes{$column} = \%column_bind_attrs;
+  }
+
+  return \%bind_attributes;
 }
 
 sub _svp_begin {
-    my ($self, $name) = @_;
-
-    $self->_get_dbh->do("SAVEPOINT $name");
+  my ($self, $name) = @_;
+  $self->_get_dbh->do("SAVEPOINT $name");
 }
 
 # Oracle automatically releases a savepoint when you start another one with the
@@ -261,9 +282,48 @@ sub _svp_begin {
 sub _svp_release { 1 }
 
 sub _svp_rollback {
-    my ($self, $name) = @_;
+  my ($self, $name) = @_;
+  $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+}
 
-    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+=head2 relname_to_table_alias
+
+L<DBIx::Class> uses L<DBIx::Class::Relationship> names as table aliases in
+queries.
+
+Unfortunately, Oracle doesn't support identifiers over 30 chars in length, so
+the L<DBIx::Class::Relationship> name is shortened and appended with half of an
+MD5 hash.
+
+See L<DBIx::Class::Storage/"relname_to_table_alias">.
+
+=cut
+
+sub relname_to_table_alias {
+  my $self = shift;
+  my ($relname, $join_count) = @_;
+
+  my $alias = $self->next::method(@_);
+
+  return $alias if length($alias) <= 30;
+
+  # get a base64 md5 of the alias with join_count
+  require Digest::MD5;
+  my $ctx = Digest::MD5->new;
+  $ctx->add($alias);
+  my $md5 = $ctx->b64digest;
+
+  # remove alignment mark just in case
+  $md5 =~ s/=*\z//;
+
+  # truncate and prepend to truncated relname without vowels
+  (my $devoweled = $relname) =~ s/[aeiou]//g;
+  my $shortened = substr($devoweled, 0, 18);
+
+  my $new_alias =
+    $shortened . '_' . substr($md5, 0, 30 - length($shortened) - 1);
+
+  return $new_alias;
 }
 
 =head1 AUTHOR

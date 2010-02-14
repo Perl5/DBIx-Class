@@ -16,8 +16,10 @@ $schema->class('CD') ->inflate_column( 'year',
       deflate => sub { shift->year } }
 );
 
+my $rs = $schema->resultset('CD');
+
 # inflation test
-my $cd = $schema->resultset("CD")->find(3);
+my $cd = $rs->find(3);
 
 is( ref($cd->year), 'DateTime', 'year is a DateTime, ok' );
 
@@ -45,7 +47,7 @@ my $now = DateTime->now;
 $cd->year( $now );
 $cd->update;
 
-$cd = $schema->resultset("CD")->find(3);
+$cd = $rs->find(3);
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 # set_inflated_column test
@@ -53,29 +55,23 @@ eval { $cd->set_inflated_column('year', $now) };
 ok(!$@, 'set_inflated_column with DateTime object');
 $cd->update;
 
-$cd = $schema->resultset("CD")->find(3);
+$cd = $rs->find(3);
 is( $cd->year->year, $now->year, 'deflate ok' );
 
-$cd = $schema->resultset("CD")->find(3);
+$cd = $rs->find(3);
 my $before_year = $cd->year->year;
 eval { $cd->set_inflated_column('year', \'year + 1') };
 ok(!$@, 'set_inflated_column to "year + 1"');
 $cd->update;
 
-TODO: {
-  local $TODO = 'this was left in without a TODO - should it work?';
+$cd->store_inflated_column('year', \'year + 1');
+is_deeply( $cd->year, \'year + 1', 'scalarref deflate passthrough ok' );
 
-  lives_ok (sub {
-    $cd->store_inflated_column('year', \'year + 1');
-    is_deeply( $cd->year, \'year + 1', 'deflate ok' );
-  }, 'store_inflated_column to "year + 1"');
-}
-
-$cd = $schema->resultset("CD")->find(3);
+$cd = $rs->find(3);
 is( $cd->year->year, $before_year+1, 'deflate ok' );
 
 # store_inflated_column test
-$cd = $schema->resultset("CD")->find(3);
+$cd = $rs->find(3);
 eval { $cd->store_inflated_column('year', $now) };
 ok(!$@, 'store_inflated_column with DateTime object');
 $cd->update;
@@ -83,21 +79,21 @@ $cd->update;
 is( $cd->year->year, $now->year, 'deflate ok' );
 
 # update tests
-$cd = $schema->resultset("CD")->find(3);
+$cd = $rs->find(3);
 eval { $cd->update({'year' => $now}) };
 ok(!$@, 'update using DateTime object ok');
 is($cd->year->year, $now->year, 'deflate ok');
 
-$cd = $schema->resultset("CD")->find(3);
+$cd = $rs->find(3);
 $before_year = $cd->year->year;
 eval { $cd->update({'year' => \'year + 1'}) };
 ok(!$@, 'update using scalarref ok');
 
-$cd = $schema->resultset("CD")->find(3);
+$cd = $rs->find(3);
 is($cd->year->year, $before_year + 1, 'deflate ok');
 
 # discard_changes test
-$cd = $schema->resultset("CD")->find(3);
+$cd = $rs->find(3);
 # inflate the year
 $before_year = $cd->year->year;
 $cd->update({ year => \'year + 1'});
@@ -107,6 +103,45 @@ is($cd->year->year, $before_year + 1, 'discard_changes clears the inflated value
 
 my $copy = $cd->copy({ year => $now, title => "zemoose" });
 
-isnt( $copy->year->year, $before_year, "copy" );
+is( $copy->year->year, $now->year, "copy" );
+
+
+
+my $artist = $cd->artist;
+my $sval = \ '2012';
+
+$cd = $rs->create ({
+        artist => $artist,
+        year => $sval,
+        title => 'create with scalarref',
+});
+
+is ($cd->year, $sval, 'scalar value retained');
+my $cd2 = $cd->copy ({ title => 'copy with scalar in coldata' });
+is ($cd2->year, $sval, 'copied scalar value retained');
+
+$cd->discard_changes;
+is ($cd->year->year, 2012, 'infation upon reload');
+
+$cd2->discard_changes;
+is ($cd2->year->year, 2012, 'infation upon reload of copy');
+
+
+my $precount = $rs->count;
+$cd = $rs->update_or_create ({artist => $artist, title => 'nonexisting update/create test row', year => $sval });
+is ($rs->count, $precount + 1, 'Row created');
+
+is ($cd->year, $sval, 'scalar value retained on creating update_or_create');
+$cd->discard_changes;
+is ($cd->year->year, 2012, 'infation upon reload');
+
+my $sval2 = \ '2013';
+
+$cd = $rs->update_or_create ({artist => $artist, title => 'nonexisting update/create test row', year => $sval2 });
+is ($rs->count, $precount + 1, 'No more rows created');
+
+is ($cd->year, $sval2, 'scalar value retained on updating update_or_create');
+$cd->discard_changes;
+is ($cd->year->year, 2013, 'infation upon reload');
 
 done_testing;

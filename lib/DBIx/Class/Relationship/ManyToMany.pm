@@ -64,15 +64,15 @@ EOW
       my $rs = $self->search_related($rel)->search_related(
         $f_rel, @_ > 0 ? @_ : undef, { %{$rel_attrs||{}}, %$attrs }
       );
-	  return $rs;
+      return $rs;
     };
 
     my $meth_name = join '::', $class, $meth;
     *$meth_name = Sub::Name::subname $meth_name, sub {
-		my $self = shift;
-		my $rs = $self->$rs_meth( @_ );
-  		return (wantarray ? $rs->all : $rs);
-	};
+      my $self = shift;
+      my $rs = $self->$rs_meth( @_ );
+      return (wantarray ? $rs->all : $rs);
+    };
 
     my $add_meth_name = join '::', $class, $add_meth;
     *$add_meth_name = Sub::Name::subname $add_meth_name, sub {
@@ -102,7 +102,7 @@ EOW
       my $link = $self->search_related($rel)->new_result($link_vals);
       $link->set_from_related($f_rel, $obj);
       $link->insert();
-	  return $obj;
+      return $obj;
     };
 
     my $set_meth_name = join '::', $class, $set_meth;

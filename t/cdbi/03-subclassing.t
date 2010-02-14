@@ -22,7 +22,7 @@ INIT { @Film::Threat::ISA = qw/Film/; }
 
 ok(Film::Threat->db_Main->ping, 'subclass db_Main()');
 is_deeply [ sort Film::Threat->columns ], [ sort Film->columns ],
-	'has the same columns';
+  'has the same columns';
 
 my $bt = Film->create_test_film;
 ok my $btaste = Film::Threat->retrieve('Bad Taste'), "subclass retrieve";

@@ -39,8 +39,11 @@ sub update {
   my @cascade = grep { $rels{$_}{attrs}{cascade_update} } keys %rels;
   foreach my $rel (@cascade) {
     next if (
+      $rels{$rel}{attrs}{accessor}
+        &&
       $rels{$rel}{attrs}{accessor} eq 'single'
-      && !exists($self->{_relationship_data}{$rel})
+        &&
+      !exists($self->{_relationship_data}{$rel})
     );
     $_->update for grep defined, $self->$rel;
   }

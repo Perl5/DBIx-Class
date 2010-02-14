@@ -43,8 +43,8 @@ over ODBC
 
 =head1 SYNOPSIS
 
-  # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  # In your result (table) classes
+  use base 'DBIx::Class::Core';
   __PACKAGE__->set_primary_key('id');
 
 

@@ -9,9 +9,9 @@ __PACKAGE__->columns('Primary', 'Title');
 __PACKAGE__->columns('Blurb',   qw/ blurb/);
 
 sub create_sql {
-	return qq{
-			title                   VARCHAR(255) PRIMARY KEY,
-			blurb                   VARCHAR(255) NOT NULL
+  return qq{
+      title                   VARCHAR(255) PRIMARY KEY,
+      blurb                   VARCHAR(255) NOT NULL
   }
 }
 

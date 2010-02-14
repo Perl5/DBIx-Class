@@ -1,10 +1,9 @@
 package DBICVersion::Table;
 
-use base 'DBIx::Class';
+use base 'DBIx::Class::Core';
 use strict;
 use warnings;
 
-__PACKAGE__->load_components(qw/ Core/);
 __PACKAGE__->table('TestVersion');
 
 __PACKAGE__->add_columns
@@ -31,6 +30,14 @@ __PACKAGE__->add_columns
         'is_foreign_key' => 0,
         'is_nullable' => 1,
         'size' => '20'
+        },
+      'ExtraColumn' => {
+        'data_type' => 'VARCHAR',
+        'is_auto_increment' => 0,
+        'default_value' => undef,
+        'is_foreign_key' => 0,
+        'is_nullable' => 1,
+        'size' => '20'
         }
       );
 
@@ -41,16 +48,11 @@ use base 'DBIx::Class::Schema';
 use strict;
 use warnings;
 
-our $VERSION = '2.0';
+our $VERSION = '3.0';
 
 __PACKAGE__->register_class('Table', 'DBICVersion::Table');
 __PACKAGE__->load_components('+DBIx::Class::Schema::Versioned');
 __PACKAGE__->upgrade_directory('t/var/');
 __PACKAGE__->backup_directory('t/var/backup/');
-
-#sub upgrade_directory
-#{
-#    return 't/var/';
-#}
 
 1;

@@ -24,15 +24,15 @@ State->columns(Other =>     qw/Capital Population/);
 #State->has_many(cities => "City");
 
 sub accessor_name_for {
-	my ($class, $column) = @_;
-	my $return = $column eq "Rain" ? "Rainfall" : $column;
-	return $return;
+  my ($class, $column) = @_;
+  my $return = $column eq "Rain" ? "Rainfall" : $column;
+  return $return;
 }
 
 sub mutator_name_for {
-	my ($class, $column) = @_;
-	my $return = $column eq "Rain" ? "set_Rainfall" : "set_$column";
-	return $return;
+  my ($class, $column) = @_;
+  my $return = $column eq "Rain" ? "set_Rainfall" : "set_$column";
+  return $return;
 }
 
 sub Snowfall { 1 }
@@ -69,61 +69,61 @@ package main;
 is(State->table,          'State', 'State table()');
 is(State->primary_column, 'name',  'State primary()');
 is_deeply [ State->columns('Primary') ] => [qw/name/],
-	'State Primary:' . join ", ", State->columns('Primary');
+  'State Primary:' . join ", ", State->columns('Primary');
 is_deeply [ sort State->columns('Essential') ] => [qw/abbreviation name/],
-	'State Essential:' . join ", ", State->columns('Essential');
+  'State Essential:' . join ", ", State->columns('Essential');
 is_deeply [ sort State->columns('All') ] =>
-	[ sort qw/name abbreviation rain snowfall capital population/ ],
-	'State All:' . join ", ", State->columns('All');
+  [ sort qw/name abbreviation rain snowfall capital population/ ],
+  'State All:' . join ", ", State->columns('All');
 
 is(CD->primary_column, 'artist', 'CD primary()');
 is_deeply [ CD->columns('Primary') ] => [qw/artist/],
-	'CD primary:' . join ", ", CD->columns('Primary');
+  'CD primary:' . join ", ", CD->columns('Primary');
 is_deeply [ sort CD->columns('All') ] => [qw/artist length title/],
-	'CD all:' . join ", ", CD->columns('All');
+  'CD all:' . join ", ", CD->columns('All');
 is_deeply [ sort CD->columns('Essential') ] => [qw/artist/],
-	'CD essential:' . join ", ", CD->columns('Essential');
+  'CD essential:' . join ", ", CD->columns('Essential');
 
 ok(State->find_column('Rain'), 'find_column Rain');
 ok(State->find_column('rain'), 'find_column rain');
 ok(!State->find_column('HGLAGAGlAG'), '!find_column HGLAGAGlAG');
 
 {
-    
+
     can_ok +State => qw/Rainfall _Rainfall_accessor set_Rainfall
-    	_set_Rainfall_accessor Snowfall _Snowfall_accessor set_Snowfall
-    	_set_Snowfall_accessor/;
-    
-    foreach my $method (qw/Rain _Rain_accessor rain snowfall/) { 
-    	ok !State->can($method), "State can't $method";
+      _set_Rainfall_accessor Snowfall _Snowfall_accessor set_Snowfall
+      _set_Snowfall_accessor/;
+
+    foreach my $method (qw/Rain _Rain_accessor rain snowfall/) {
+      ok !State->can($method), "State can't $method";
     }
 
 }
 
 {
-        SKIP: {
-          skip "No column objects", 1;
+  SKIP: {
+    skip "No column objects", 1;
 
-  	  eval { my @grps = State->__grouper->groups_for("Huh"); };
-	  ok $@, "Huh not in groups";
-        }
+    eval { my @grps = State->__grouper->groups_for("Huh"); };
+    ok $@, "Huh not in groups";
+  }
 
-	my @grps = sort State->__grouper->groups_for(State->_find_columns(qw/rain capital/));
-	is @grps, 2, "Rain and Capital = 2 groups";
+  my @grps = sort State->__grouper->groups_for(State->_find_columns(qw/rain capital/));
+  is @grps, 2, "Rain and Capital = 2 groups";
         @grps = sort @grps; # Because the underlying API is hash-based
-	is $grps[0], 'Other',   " - Other";
-	is $grps[1], 'Weather', " - Weather";
+  is $grps[0], 'Other',   " - Other";
+  is $grps[1], 'Weather', " - Weather";
 }
 
 #{
-#        
+#
 #        package DieTest;
 #        @DieTest::ISA = qw(DBIx::Class);
 #        DieTest->load_components(qw/CDBICompat::Retrieve Core/);
 #        package main;
-#	local $SIG{__WARN__} = sub { };
-#	eval { DieTest->retrieve(1) };
-#	like $@, qr/unless primary columns are defined/, "Need primary key for retrieve";
+#  local $SIG{__WARN__} = sub { };
+#  eval { DieTest->retrieve(1) };
+#  like $@, qr/unless primary columns are defined/, "Need primary key for retrieve";
 #}
 
 #-----------------------------------------------------------------------

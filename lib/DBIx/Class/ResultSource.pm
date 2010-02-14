@@ -28,9 +28,8 @@ DBIx::Class::ResultSource - Result source object
   # Create a table based result source, in a result class.
 
   package MyDB::Schema::Result::Artist;
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
@@ -40,8 +39,9 @@ DBIx::Class::ResultSource - Result source object
 
   # Create a query (view) based result source, in a result class
   package MyDB::Schema::Result::Year2000CDs;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components('Core');
+  __PACKAGE__->load_components('InflateColumn::DateTime');
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
   __PACKAGE__->table('year2000cds');
@@ -60,10 +60,10 @@ sources, for example L<DBIx::Class::ResultSource::Table>. Table is the
 default result source type, so one is created for you when defining a
 result class as described in the synopsis above.
 
-More specifically, the L<DBIx::Class::Core> component pulls in the
-L<DBIx::Class::ResultSourceProxy::Table> as a base class, which
-defines the L<table|DBIx::Class::ResultSourceProxy::Table/table>
-method. When called, C<table> creates and stores an instance of
+More specifically, the L<DBIx::Class::Core> base class pulls in the
+L<DBIx::Class::ResultSourceProxy::Table> component, which defines
+the L<table|DBIx::Class::ResultSourceProxy::Table/table> method.
+When called, C<table> creates and stores an instance of
 L<DBIx::Class::ResultSoure::Table>. Luckily, to use tables as result
 sources, you don't need to remember any of this.
 
@@ -389,7 +389,7 @@ sub columns {
   my $self = shift;
   $self->throw_exception(
     "columns() is a read-only accessor, did you mean add_columns()?"
-  ) if (@_ > 1);
+  ) if @_;
   return @{$self->{_ordered_columns}||[]};
 }
 
@@ -1199,7 +1199,7 @@ sub _resolve_join {
   $self->throw_exception ('You must supply a joinpath arrayref as the 4th argument to _resolve_join')
     unless ref $jpath eq 'ARRAY';
 
-  $jpath = [@$jpath];
+  $jpath = [@$jpath]; # copy
 
   if (not defined $join) {
     return ();
@@ -1222,12 +1222,14 @@ sub _resolve_join {
       $force_left ||= lc($rel_info->{attrs}{join_type}||'') eq 'left';
 
       # the actual seen value will be incremented by the recursion
-      my $as = ($seen->{$rel} ? join ('_', $rel, $seen->{$rel} + 1) : $rel);
+      my $as = $self->storage->relname_to_table_alias(
+        $rel, ($seen->{$rel} && $seen->{$rel} + 1)
+      );
 
       push @ret, (
         $self->_resolve_join($rel, $alias, $seen, [@$jpath], $force_left),
         $self->related_source($rel)->_resolve_join(
-          $join->{$rel}, $as, $seen, [@$jpath, $rel], $force_left
+          $join->{$rel}, $as, $seen, [@$jpath, { $rel => $as }], $force_left
         )
       );
     }
@@ -1239,7 +1241,9 @@ sub _resolve_join {
   }
   else {
     my $count = ++$seen->{$join};
-    my $as = ($count > 1 ? "${join}_${count}" : $join);
+    my $as = $self->storage->relname_to_table_alias(
+      $join, ($count > 1 && $count)
+    );
 
     my $rel_info = $self->relationship_info($join)
       or $self->throw_exception("No such relationship ${join}");
@@ -1251,7 +1255,12 @@ sub _resolve_join {
                   ? 'left'
                   : $rel_info->{attrs}{join_type}
                 ,
-               -join_path => [@$jpath, $join],
+               -join_path => [@$jpath, { $join => $as } ],
+               -is_single => (
+                  $rel_info->{attrs}{accessor}
+                    &&
+                  List::Util::first { $rel_info->{attrs}{accessor} eq $_ } (qw/single filter/)
+                ),
                -alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
              },
@@ -1328,13 +1337,13 @@ sub _resolve_condition {
         unless ($for->has_column_loaded($v)) {
           if ($for->in_storage) {
             $self->throw_exception(sprintf
-              'Unable to resolve relationship from %s to %s: column %s.%s not '
-            . 'loaded from storage (or not passed to new() prior to insert()). '
-            . 'Maybe you forgot to call ->discard_changes to get defaults from the db.',
-
-              $for->result_source->source_name,
+              "Unable to resolve relationship '%s' from object %s: column '%s' not "
+            . 'loaded from storage (or not passed to new() prior to insert()). You '
+            . 'probably need to call ->discard_changes to get the server-side defaults '
+            . 'from the database.',
               $as,
-              $as, $v,
+              $for,
+              $v,
             );
           }
           return $UNRESOLVABLE_CONDITION;
@@ -1366,8 +1375,7 @@ sub _resolve_condition {
 # Accepts one or more relationships for the current source and returns an
 # array of column names for each of those relationships. Column names are
 # prefixed relative to the current source, in accordance with where they appear
-# in the supplied relationships. Needs an alias_map generated by
-# $rs->_joinpath_aliases
+# in the supplied relationships.
 
 sub _resolve_prefetch {
   my ($self, $pre, $alias, $alias_map, $order, $collapse, $pref_path) = @_;
@@ -1411,8 +1419,7 @@ sub _resolve_prefetch {
     my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
     my $rel_source = $self->related_source($pre);
 
-    if (exists $rel_info->{attrs}{accessor}
-         && $rel_info->{attrs}{accessor} eq 'multi') {
+    if ($rel_info->{attrs}{accessor} && $rel_info->{attrs}{accessor} eq 'multi') {
       $self->throw_exception(
         "Can't prefetch has_many ${pre} (join cond too complex)")
         unless ref($rel_info->{cond}) eq 'HASH';
@@ -1427,7 +1434,8 @@ sub _resolve_prefetch {
                     keys %{$rel_info->{cond}};
       my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
                    ? @{$rel_info->{attrs}{order_by}}
-                   : (defined $rel_info->{attrs}{order_by}
+   
+                : (defined $rel_info->{attrs}{order_by}
                        ? ($rel_info->{attrs}{order_by})
                        : ()));
       push(@$order, map { "${as}.$_" } (@key, @ord));
@@ -1530,7 +1538,7 @@ L<DBIx::Class::ResultSourceHandle>.
 =cut
 
 sub handle {
-    return new DBIx::Class::ResultSourceHandle({
+    return DBIx::Class::ResultSourceHandle->new({
         schema         => $_[0]->schema,
         source_moniker => $_[0]->source_name
     });

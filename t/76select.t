@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
@@ -26,16 +26,6 @@ $rs = $schema->resultset('CD')->search({},
 );
 lives_ok(sub { $rs->first->get_column('count') }, 'multiple +select/+as columns, 1st rscolumn present');
 lives_ok(sub { $rs->first->get_column('addedtitle') }, 'multiple +select/+as columns, 2nd rscolumn present');
-
-# Tests a regression in ResultSetColumn wrt +select
-$rs = $schema->resultset('CD')->search(undef,
-    {
-        '+select'   => [ \'COUNT(*) AS year_count' ],
-		order_by => 'year_count'
-	}
-);
-my @counts = $rs->get_column('cdid')->all;
-ok(scalar(@counts), 'got rows from ->all using +select');
 
 $rs = $schema->resultset('CD')->search({},
     {
@@ -99,13 +89,13 @@ lives_ok(sub {
 }, 'columns 2nd rscolumn present');
 
 lives_ok(sub {
-  $rs->first->artist->get_column('name') 
-}, 'columns 3rd rscolumn present'); 
+  $rs->first->artist->get_column('name')
+}, 'columns 3rd rscolumn present');
 
 
 
 $rs = $schema->resultset('CD')->search({},
-    {  
+    {
         'join' => 'artist',
         '+columns' => ['cdid', 'title', 'artist.name'],
     }
@@ -119,7 +109,7 @@ is_same_sql_bind (
 );
 
 lives_ok(sub {
-  $rs->first->get_column('cdid') 
+  $rs->first->get_column('cdid')
 }, 'columns 1st rscolumn present');
 
 lives_ok(sub {
@@ -164,16 +154,15 @@ my $sub_rs = $rs->search ({},
 );
 
 is_deeply(
-    $sub_rs->single,
-    {
-        artist         => 1,
-        track_position => 2,
-        tracks         => {
-          trackid => 17,
-          title   => 'Apiary',
-        },
+  $sub_rs->single,
+  {
+    artist         => 1,
+    tracks => {
+      title => 'Apiary',
+      trackid => 17,
     },
-    'columns/select/as fold properly on sub-searches',
+  },
+  'columns/select/as fold properly on sub-searches',
 );
 
 done_testing;

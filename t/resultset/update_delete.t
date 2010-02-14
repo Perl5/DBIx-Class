@@ -79,8 +79,12 @@ throws_ok (
 );
 
 # grouping on PKs only should pass
-$sub_rs->search ({}, { group_by => [ reverse $sub_rs->result_source->primary_columns ] })     # reverse to make sure the comaprison works
-          ->update ({ pilot_sequence => \ 'pilot_sequence + 1' });
+$sub_rs->search (
+  {},
+  {
+    group_by => [ reverse $sub_rs->result_source->primary_columns ],     # reverse to make sure the PK-list comaprison works
+  },
+)->update ({ pilot_sequence => \ 'pilot_sequence + 1' });
 
 is_deeply (
   [ $tkfks->search ({ autopilot => [qw/a b x y/]}, { order_by => 'autopilot' })
@@ -88,6 +92,19 @@ is_deeply (
   ],
   [qw/11 21 30 40/],
   'Only two rows incremented',
+);
+
+# also make sure weird scalarref usage works (RT#51409)
+$tkfks->search (
+  \ 'pilot_sequence BETWEEN 11 AND 21',
+)->update ({ pilot_sequence => \ 'pilot_sequence + 1' });
+
+is_deeply (
+  [ $tkfks->search ({ autopilot => [qw/a b x y/]}, { order_by => 'autopilot' })
+            ->get_column ('pilot_sequence')->all 
+  ],
+  [qw/12 22 30 40/],
+  'Only two rows incremented (where => scalarref works)',
 );
 
 $sub_rs->delete;

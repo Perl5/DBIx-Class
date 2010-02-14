@@ -14,11 +14,11 @@ __PACKAGE__->has_a( actor => 'Actor' );
 __PACKAGE__->has_a( alias => 'Actor' );
 
 sub create_sql {
-	return qq{
-		id    INTEGER PRIMARY KEY,
-		actor INTEGER,
-		alias INTEGER
-	}
+  return qq{
+    id    INTEGER PRIMARY KEY,
+    actor INTEGER,
+    alias INTEGER
+  }
 }
 
 1;

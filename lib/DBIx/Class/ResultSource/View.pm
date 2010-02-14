@@ -19,9 +19,8 @@ DBIx::Class::ResultSource::View - ResultSource object representing a view
 
   package MyDB::Schema::Result::Year2000CDs;
 
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components('Core');
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
   __PACKAGE__->table('year2000cds');
