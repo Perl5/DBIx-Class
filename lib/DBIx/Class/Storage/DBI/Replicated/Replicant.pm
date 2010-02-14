@@ -4,6 +4,7 @@ use Moose::Role;
 requires qw/_query_start/;
 with 'DBIx::Class::Storage::DBI::Replicated::WithDSN';
 use MooseX::Types::Moose qw/Bool Str/;
+use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
 
 use namespace::clean -except => 'meta';
 
@@ -55,6 +56,14 @@ has 'active' => (
 has dsn => (is => 'rw', isa => Str);
 has id  => (is => 'rw', isa => Str);
 
+=head2 master
+
+Reference to the master Storage.
+
+=cut
+
+has master => (is => 'rw', isa => DBICStorageDBI, weak_ref => 1);
+
 =head1 METHODS
 
 This class defines the following methods.
@@ -66,7 +75,9 @@ Override the debugobj method to redirect this method call back to the master.
 =cut
 
 sub debugobj {
-    return shift->schema->storage->debugobj;
+  my $self = shift;
+
+  return $self->master->debugobj;
 }
 
 =head1 ALSO SEE

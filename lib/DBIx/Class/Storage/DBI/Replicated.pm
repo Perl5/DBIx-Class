@@ -2,27 +2,9 @@ package DBIx::Class::Storage::DBI::Replicated;
 
 BEGIN {
   use Carp::Clan qw/^DBIx::Class/;
-
-  ## Modules required for Replication support not required for general DBIC
-  ## use, so we explicitly test for these.
-
-  my %replication_required = (
-    'Moose' => '0.90',
-    'MooseX::Types' => '0.21',
-    'namespace::clean' => '0.11',
-    'Hash::Merge' => '0.11'
-  );
-
-  my @didnt_load;
-
-  for my $module (keys %replication_required) {
-    eval "use $module $replication_required{$module}";
-    push @didnt_load, "$module $replication_required{$module}"
-      if $@;
-  }
-
-  croak("@{[ join ', ', @didnt_load ]} are missing and are required for Replication")
-    if @didnt_load;
+  use DBIx::Class;
+  croak('The following modules are required for Replication ' . DBIx::Class::Optional::Dependencies->req_missing_for ('replicated') )
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('replicated');
 }
 
 use Moose;
@@ -33,6 +15,7 @@ use DBIx::Class::Storage::DBI::Replicated::Types qw/BalancerClassNamePart DBICSc
 use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
 use Hash::Merge 'merge';
+use List::Util qw/min max/;
 
 use namespace::clean -except => 'meta';
 
@@ -118,15 +101,8 @@ to force a query to run against Master when needed.
 
 =head1 REQUIREMENTS
 
-Replicated Storage has additional requirements not currently part of L<DBIx::Class>
-
-  Moose => '0.90',
-  MooseX::Types => '0.21',
-  namespace::clean => '0.11',
-  Hash::Merge => '0.11'
-
-You will need to install these modules manually via CPAN or make them part of the
-Makefile for your distribution.
+Replicated Storage has additional requirements not currently part of
+L<DBIx::Class>. See L<DBIx::Class::Optional::Dependencies> for more details.
 
 =head1 ATTRIBUTES
 
@@ -276,12 +252,17 @@ has 'read_handler' => (
     select
     select_single
     columns_info_for
+    _dbh_columns_info_for 
+    _select
   /],
 );
 
 =head2 write_handler
 
-Defines an object that implements the write side of L<BIx::Class::Storage::DBI>.
+Defines an object that implements the write side of L<BIx::Class::Storage::DBI>,
+as well as methods that don't write or read that can be called on only one
+storage, methods that return a C<$dbh>, and any methods that don't make sense to
+run on a replicant.
 
 =cut
 
@@ -292,7 +273,10 @@ has 'write_handler' => (
   handles=>[qw/
     on_connect_do
     on_disconnect_do
+    on_connect_call
+    on_disconnect_call
     connect_info
+    _connect_info
     throw_exception
     sql_maker
     sqlt_type
@@ -328,6 +312,59 @@ has 'write_handler' => (
     svp_rollback
     svp_begin
     svp_release
+    relname_to_table_alias
+    _straight_join_to_node
+    _dbh_last_insert_id
+    _fix_bind_params
+    _default_dbi_connect_attributes
+    _dbi_connect_info
+    auto_savepoint
+    _sqlt_version_ok
+    _query_end
+    bind_attribute_by_data_type
+    transaction_depth
+    _dbh
+    _select_args
+    _dbh_execute_array
+    _sql_maker_args
+    _sql_maker
+    _query_start
+    _sqlt_version_error
+    _per_row_update_delete
+    _dbh_begin_work
+    _dbh_execute_inserts_with_no_binds
+    _select_args_to_query
+    _svp_generate_name
+    _multipk_update_delete
+    source_bind_attributes
+    _normalize_connect_info
+    _parse_connect_do
+    _dbh_commit
+    _execute_array
+    _placeholders_supported
+    _verify_pid
+    savepoints
+    _sqlt_minimum_version
+    _sql_maker_opts
+    _conn_pid
+    _typeless_placeholders_supported
+    _conn_tid
+    _dbh_autocommit
+    _native_data_type
+    _get_dbh
+    sql_maker_class
+    _dbh_rollback
+    _adjust_select_args_for_complex_prefetch
+    _resolve_ident_sources
+    _resolve_column_info
+    _prune_unused_joins
+    _strip_cond_qualifiers
+    _parse_order_by
+    _resolve_aliastypes_from_select_args
+    _execute
+    _do_query
+    _dbh_sth
+    _dbh_execute
   /],
 );
 
@@ -391,7 +428,11 @@ around connect_info => sub {
   my $master = $self->master;
   $master->_determine_driver;
   Moose::Meta::Class->initialize(ref $master);
+
   DBIx::Class::Storage::DBI::Replicated::WithDSN->meta->apply($master);
+
+  # link pool back to master
+  $self->pool->master($master);
 
   $wantarray ? @res : $res;
 };
@@ -744,50 +785,35 @@ sub debug {
 
 =head2 debugobj
 
-set a debug object across all storages
+set a debug object
 
 =cut
 
 sub debugobj {
   my $self = shift @_;
-  if(@_) {
-    foreach my $source ($self->all_storages) {
-      $source->debugobj(@_);
-    }
-  }
-  return $self->master->debugobj;
+  return $self->master->debugobj(@_);
 }
 
 =head2 debugfh
 
-set a debugfh object across all storages
+set a debugfh object
 
 =cut
 
 sub debugfh {
   my $self = shift @_;
-  if(@_) {
-    foreach my $source ($self->all_storages) {
-      $source->debugfh(@_);
-    }
-  }
-  return $self->master->debugfh;
+  return $self->master->debugfh(@_);
 }
 
 =head2 debugcb
 
-set a debug callback across all storages
+set a debug callback
 
 =cut
 
 sub debugcb {
   my $self = shift @_;
-  if(@_) {
-    foreach my $source ($self->all_storages) {
-      $source->debugcb(@_);
-    }
-  }
-  return $self->master->debugcb;
+  return $self->master->debugcb(@_);
 }
 
 =head2 disconnect
@@ -816,6 +842,165 @@ sub cursor_class {
     $_->cursor_class($cursor_class) for $self->all_storages;
   }
   $self->master->cursor_class;
+}
+
+=head2 cursor
+
+set cursor class on all storages, or return master's, alias for L</cursor_class>
+above.
+
+=cut
+
+sub cursor {
+  my ($self, $cursor_class) = @_;
+
+  if ($cursor_class) {
+    $_->cursor($cursor_class) for $self->all_storages;
+  }
+  $self->master->cursor;
+}
+
+=head2 unsafe
+
+sets the L<DBIx::Class::Storage::DBI/unsafe> option on all storages or returns
+master's current setting
+
+=cut
+
+sub unsafe {
+  my $self = shift;
+
+  if (@_) {
+    $_->unsafe(@_) for $self->all_storages;
+  }
+
+  return $self->master->unsafe;
+}
+
+=head2 disable_sth_caching
+
+sets the L<DBIx::Class::Storage::DBI/disable_sth_caching> option on all storages
+or returns master's current setting
+
+=cut
+
+sub disable_sth_caching {
+  my $self = shift;
+
+  if (@_) {
+    $_->disable_sth_caching(@_) for $self->all_storages;
+  }
+
+  return $self->master->disable_sth_caching;
+}
+
+=head2 lag_behind_master
+
+returns the highest Replicant L<DBIx::Class::Storage::DBI/lag_behind_master>
+setting
+
+=cut
+
+sub lag_behind_master {
+  my $self = shift;
+
+  return max map $_->lag_behind_master, $self->replicants;
+} 
+
+=head2 is_replicating
+
+returns true if all replicants return true for
+L<DBIx::Class::Storage::DBI/is_replicating>
+
+=cut
+
+sub is_replicating {
+  my $self = shift;
+
+  return (grep $_->is_replicating, $self->replicants) == ($self->replicants);
+}
+
+=head2 connect_call_datetime_setup
+
+calls L<DBIx::Class::Storage::DBI/connect_call_datetime_setup> for all storages
+
+=cut
+
+sub connect_call_datetime_setup {
+  my $self = shift;
+  $_->connect_call_datetime_setup for $self->all_storages;
+}
+
+sub _populate_dbh {
+  my $self = shift;
+  $_->_populate_dbh for $self->all_storages;
+}
+
+sub _connect {
+  my $self = shift;
+  $_->_connect for $self->all_storages;
+}
+
+sub _rebless {
+  my $self = shift;
+  $_->_rebless for $self->all_storages;
+}
+
+sub _determine_driver {
+  my $self = shift;
+  $_->_determine_driver for $self->all_storages;
+}
+
+sub _driver_determined {
+  my $self = shift;
+  
+  if (@_) {
+    $_->_driver_determined(@_) for $self->all_storages;
+  }
+
+  return $self->master->_driver_determined;
+}
+
+sub _init {
+  my $self = shift;
+  
+  $_->_init for $self->all_storages;
+}
+
+sub _run_connection_actions {
+  my $self = shift;
+  
+  $_->_run_connection_actions for $self->all_storages;
+}
+
+sub _do_connection_actions {
+  my $self = shift;
+  
+  if (@_) {
+    $_->_do_connection_actions(@_) for $self->all_storages;
+  }
+}
+
+sub connect_call_do_sql {
+  my $self = shift;
+  $_->connect_call_do_sql(@_) for $self->all_storages;
+}
+
+sub disconnect_call_do_sql {
+  my $self = shift;
+  $_->disconnect_call_do_sql(@_) for $self->all_storages;
+}
+
+sub _seems_connected {
+  my $self = shift;
+
+  return min map $_->_seems_connected, $self->all_storages;
+}
+
+sub _ping {
+  my $self = shift;
+
+  return min map $_->_ping, $self->all_storages;
 }
 
 =head1 GOTCHAS

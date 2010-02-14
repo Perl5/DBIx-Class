@@ -291,10 +291,15 @@ sub search_rs {
     $rows = $self->get_cache;
   }
 
+  # reset the selector list
+  if (List::Util::first { exists $attrs->{$_} } qw{columns select as}) {
+     delete @{$our_attrs}{qw{select as columns +select +as +columns include_columns}};
+  }
+
   my $new_attrs = { %{$our_attrs}, %{$attrs} };
 
   # merge new attrs into inherited
-  foreach my $key (qw/join prefetch +select +as bind/) {
+  foreach my $key (qw/join prefetch +select +as +columns include_columns bind/) {
     next unless exists $attrs->{$key};
     $new_attrs->{$key} = $self->_merge_attr($our_attrs->{$key}, $attrs->{$key});
   }
@@ -2465,6 +2470,23 @@ sub is_paged {
   return !!$self->{attrs}{page};
 }
 
+=head2 is_ordered
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: true, if the resultset has been ordered with C<order_by>.
+
+=back
+
+=cut
+
+sub is_ordered {
+  my ($self) = @_;
+  return scalar $self->result_source->storage->_parse_order_by($self->{attrs}{order_by});
+}
+
 =head2 related_resultset
 
 =over 4
@@ -2502,7 +2524,7 @@ sub related_resultset {
         ->relname_to_table_alias($rel, $join_count);
 
     # since this is search_related, and we already slid the select window inwards
-    # (the select/as attrs were deleted in the beginning), we need to flip all 
+    # (the select/as attrs were deleted in the beginning), we need to flip all
     # left joins to inner, so we get the expected results
     # read the comment on top of the actual function to see what this does
     $attrs->{from} = $rsrc->schema->storage->_straight_join_to_node ($attrs->{from}, $alias);
@@ -2586,6 +2608,68 @@ sub current_source_alias {
   my ($self) = @_;
 
   return ($self->{attrs} || {})->{alias} || 'me';
+}
+
+=head2 as_subselect_rs
+
+=over 4
+
+=item Arguments: none
+
+=item Return Value: $resultset
+
+=back
+
+Act as a barrier to SQL symbols.  The resultset provided will be made into a
+"virtual view" by including it as a subquery within the from clause.  From this
+point on, any joined tables are inaccessible to ->search on the resultset (as if
+it were simply where-filtered without joins).  For example:
+
+ my $rs = $schema->resultset('Bar')->search({'x.name' => 'abc'},{ join => 'x' });
+
+ # 'x' now pollutes the query namespace
+
+ # So the following works as expected
+ my $ok_rs = $rs->search({'x.other' => 1});
+
+ # But this doesn't: instead of finding a 'Bar' related to two x rows (abc and
+ # def) we look for one row with contradictory terms and join in another table
+ # (aliased 'x_2') which we never use
+ my $broken_rs = $rs->search({'x.name' => 'def'});
+
+ my $rs2 = $rs->as_subselect_rs;
+
+ # doesn't work - 'x' is no longer accessible in $rs2, having been sealed away
+ my $not_joined_rs = $rs2->search({'x.other' => 1});
+
+ # works as expected: finds a 'table' row related to two x rows (abc and def)
+ my $correctly_joined_rs = $rs2->search({'x.name' => 'def'});
+
+Another example of when one might use this would be to select a subset of
+columns in a group by clause:
+
+ my $rs = $schema->resultset('Bar')->search(undef, {
+   group_by => [qw{ id foo_id baz_id }],
+ })->as_subselect_rs->search(undef, {
+   columns => [qw{ id foo_id }]
+ });
+
+In the above example normally columns would have to be equal to the group by,
+but because we isolated the group by into a subselect the above works.
+
+=cut
+
+sub as_subselect_rs {
+   my $self = shift;
+
+   return $self->result_source->resultset->search( undef, {
+      alias => $self->current_source_alias,
+      from => [{
+            $self->current_source_alias => $self->as_query,
+            -alias         => $self->current_source_alias,
+            -source_handle => $self->result_source->handle,
+         }]
+   });
 }
 
 # This code is called by search_related, and makes sure there
@@ -2715,41 +2799,46 @@ sub _resolved_attrs {
   # build columns (as long as select isn't set) into a set of as/select hashes
   unless ( $attrs->{select} ) {
 
-    my @cols = ( ref($attrs->{columns}) eq 'ARRAY' )
-      ? @{ delete $attrs->{columns}}
-      : (
-          ( delete $attrs->{columns} )
-            ||
-          $source->columns
-        )
-    ;
+    my @cols;
+    if ( ref $attrs->{columns} eq 'ARRAY' ) {
+      @cols = @{ delete $attrs->{columns}}
+    } elsif ( defined $attrs->{columns} ) {
+      @cols = delete $attrs->{columns}
+    } else {
+      @cols = $source->columns
+    }
 
-    @colbits = map {
-      ( ref($_) eq 'HASH' )
-      ? $_
-      : {
-          (
-            /^\Q${alias}.\E(.+)$/
-              ? "$1"
-              : "$_"
-          )
-            =>
-          (
-            /\./
-              ? "$_"
-              : "${alias}.$_"
-          )
-        }
-    } @cols;
+    for (@cols) {
+      if ( ref $_ eq 'HASH' ) {
+        push @colbits, $_
+      } else {
+        my $key = /^\Q${alias}.\E(.+)$/
+          ? "$1"
+          : "$_";
+        my $value = /\./
+          ? "$_"
+          : "${alias}.$_";
+        push @colbits, { $key => $value };
+      }
+    }
   }
 
   # add the additional columns on
-  foreach ( 'include_columns', '+columns' ) {
-      push @colbits, map {
-          ( ref($_) eq 'HASH' )
-            ? $_
-            : { ( split( /\./, $_ ) )[-1] => ( /\./ ? $_ : "${alias}.$_" ) }
-      } ( ref($attrs->{$_}) eq 'ARRAY' ) ? @{ delete $attrs->{$_} } : delete $attrs->{$_} if ( $attrs->{$_} );
+  foreach (qw{include_columns +columns}) {
+    if ( $attrs->{$_} ) {
+      my @list = ( ref($attrs->{$_}) eq 'ARRAY' )
+        ? @{ delete $attrs->{$_} }
+        : delete $attrs->{$_};
+      for (@list) {
+        if ( ref($_) eq 'HASH' ) {
+          push @colbits, $_
+        } else {
+          my $key = ( split /\./, $_ )[-1];
+          my $value = ( /\./ ? $_ : "$alias.$_" );
+          push @colbits, { $key => $value };
+        }
+      }
+    }
   }
 
   # start with initial select items
@@ -2758,15 +2847,22 @@ sub _resolved_attrs {
         ( ref $attrs->{select} eq 'ARRAY' )
       ? [ @{ $attrs->{select} } ]
       : [ $attrs->{select} ];
-    $attrs->{as} = (
-      $attrs->{as}
-      ? (
-        ref $attrs->{as} eq 'ARRAY'
-        ? [ @{ $attrs->{as} } ]
-        : [ $attrs->{as} ]
+
+    if ( $attrs->{as} ) {
+      $attrs->{as} =
+        (
+          ref $attrs->{as} eq 'ARRAY'
+            ? [ @{ $attrs->{as} } ]
+            : [ $attrs->{as} ]
         )
-      : [ map { m/^\Q${alias}.\E(.+)$/ ? $1 : $_ } @{ $attrs->{select} } ]
-    );
+    } else {
+      $attrs->{as} = [ map {
+         m/^\Q${alias}.\E(.+)$/
+           ? $1
+           : $_
+         } @{ $attrs->{select} }
+      ]
+    }
   }
   else {
 
@@ -2776,27 +2872,24 @@ sub _resolved_attrs {
   }
 
   # now add colbits to select/as
-  push( @{ $attrs->{select} }, map { values( %{$_} ) } @colbits );
-  push( @{ $attrs->{as} },     map { keys( %{$_} ) } @colbits );
+  push @{ $attrs->{select} }, map values %{$_}, @colbits;
+  push @{ $attrs->{as}     }, map keys   %{$_}, @colbits;
 
-  my $adds;
-  if ( $adds = delete $attrs->{'+select'} ) {
+  if ( my $adds = delete $attrs->{'+select'} ) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push(
-      @{ $attrs->{select} },
-      map { /\./ || ref $_ ? $_ : "${alias}.$_" } @$adds
-    );
+    push @{ $attrs->{select} },
+      map { /\./ || ref $_ ? $_ : "$alias.$_" } @$adds;
   }
-  if ( $adds = delete $attrs->{'+as'} ) {
+  if ( my $adds = delete $attrs->{'+as'} ) {
     $adds = [$adds] unless ref $adds eq 'ARRAY';
-    push( @{ $attrs->{as} }, @$adds );
+    push @{ $attrs->{as} }, @$adds;
   }
 
-  $attrs->{from} ||= [ {
+  $attrs->{from} ||= [{
     -source_handle => $source->handle,
     -alias => $self->{attrs}{alias},
     $self->{attrs}{alias} => $source->from,
-  } ];
+  }];
 
   if ( $attrs->{join} || $attrs->{prefetch} ) {
 
@@ -2816,7 +2909,7 @@ sub _resolved_attrs {
           $join,
           $alias,
           { %{ $attrs->{seen_join} || {} } },
-          ($attrs->{seen_join} && keys %{$attrs->{seen_join}})
+          ( $attrs->{seen_join} && keys %{$attrs->{seen_join}})
             ? $attrs->{from}[-1][0]{-join_path}
             : []
           ,

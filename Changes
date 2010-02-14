@@ -1,5 +1,20 @@
 Revision history for DBIx::Class
 
+        - Add $rs->is_ordered to test for existing order_by on a resultset
+        - Add as_subselect_rs to DBIC::ResultSet from
+          DBIC::Helper::ResultSet::VirtualView::as_virtual_view
+        - Refactor dbicadmin adding DDL manipulation capabilities
+        - New optional dependency manager to aid extension writers
+        - Depend on newest bugfixed Moose
+        - Make resultset chaining consistent wrt selection specification
+        - Storage::DBI::Replicated cleanup
+        - Fix autoinc PKs without an autoinc flag on Sybase ASA
+
+0.08118 2010-02-08 11:53:00 (UTC)
+        - Fix a bug causing UTF8 columns not to be decoded (RT#54395)
+        - Fix bug in One->Many->One prefetch-collapse handling (RT#54039)
+        - Cleanup handling of relationship accessor types
+
 0.08117 2010-02-05 17:10:00 (UTC)
         - Perl 5.8.1 is now the minimum supported version
         - Massive optimization of the join resolution code - now joins

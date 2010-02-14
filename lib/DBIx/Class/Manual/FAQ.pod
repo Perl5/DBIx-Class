@@ -641,7 +641,7 @@ Likely you have/had two copies of postgresql installed simultaneously, the
 second one will use a default port of 5433, while L<DBD::Pg> is compiled with a
 default port of 5432.
 
-You can chance the port setting in C<postgresql.conf>.
+You can change the port setting in C<postgresql.conf>.
 
 =item I've lost or forgotten my mysql password
 

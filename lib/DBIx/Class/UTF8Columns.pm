@@ -2,7 +2,6 @@ package DBIx::Class::UTF8Columns;
 use strict;
 use warnings;
 use base qw/DBIx::Class/;
-use utf8;
 
 __PACKAGE__->mk_classdata( '_utf8_columns' );
 
@@ -114,7 +113,8 @@ sub store_column {
 
 # override this if you want to force everything to be encoded/decoded
 sub _is_utf8_column {
-  return (shift->utf8_columns || {})->{shift};
+  # my ($self, $col) = @_;
+  return ($_[0]->utf8_columns || {})->{$_[1]};
 }
 
 =head1 AUTHORS
