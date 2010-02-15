@@ -46,7 +46,7 @@ of the arguments the method is expected to take, and an indication of
 what the method returns.
 
 The first item provides a list of all possible values for the
-arguments of the method in order, separated by C<, >, preceeded by the
+arguments of the method in order, separated by C<, >, preceded by the
 text "Arguments: "
 
 Example (for the belongs_to relationship):

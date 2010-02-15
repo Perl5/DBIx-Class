@@ -21,7 +21,7 @@ the time it gets to the *). Thus for any subquery count we select only the
 primary keys of the main table in the inner query. This hopefully still
 hits the indexes and keeps the server happy.
 
-At this point the only overriden method is C<_subq_count_select()>
+At this point the only overridden method is C<_subq_count_select()>
 
 =cut
 

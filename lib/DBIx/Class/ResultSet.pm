@@ -697,7 +697,7 @@ L<DBIx::Class::ResultSet> returned.
 
 =item B<Note>
 
-As of 0.08100, this method enforces the assumption that the preceeding
+As of 0.08100, this method enforces the assumption that the preceding
 query returns only one row. If more than one row is returned, you will receive
 a warning:
 

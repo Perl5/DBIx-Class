@@ -1565,7 +1565,7 @@ Creates a new ResultSource object.  Not normally called directly by end users.
   __PACKAGE__->column_info_from_storage(1);
 
 Enables the on-demand automatic loading of the above column
-metadata from storage as neccesary.  This is *deprecated*, and
+metadata from storage as necessary.  This is *deprecated*, and
 should not be used.  It will be removed before 1.0.
 
 

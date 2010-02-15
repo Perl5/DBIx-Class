@@ -814,7 +814,7 @@ this example we have a single user table that carries a boolean bit
 for admin.  We would like like to give the admin users
 objects (L<DBIx::Class::Row>) the same methods as a regular user but
 also special admin only methods.  It doesn't make sense to create two
-seperate proxy-class files for this.  We would be copying all the user
+separate proxy-class files for this.  We would be copying all the user
 methods into the Admin class.  There is a cleaner way to accomplish
 this.
 
@@ -1268,7 +1268,7 @@ row.
   my $schema = MySchema->connect("dbi:Pg:dbname=my_db");
 
   # Start a transaction. Every database change from here on will only be 
-  # commited into the database if the eval block succeeds.
+  # committed into the database if the eval block succeeds.
   eval {
     $schema->txn_do(sub {
       # SQL: BEGIN WORK;
@@ -1321,7 +1321,7 @@ row.
   };
   if ($@) {
     # There was an error while handling the $job. Rollback all changes
-    # since the transaction started, including the already commited
+    # since the transaction started, including the already committed
     # ('released') savepoints. There will be neither a new $job nor any
     # $thing entry in the database.
 

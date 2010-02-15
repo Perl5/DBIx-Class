@@ -258,7 +258,7 @@ sub deploy {
 
 =back
 
-Virtual method that should be overriden to create an upgrade file.
+Virtual method that should be overridden to create an upgrade file.
 This is useful in the case of upgrading across multiple versions
 to concatenate several files to create one upgrade file.
 
@@ -279,7 +279,7 @@ sub create_upgrade_path {
 
 =back
 
-Virtual method that should be overriden to return an ordered list
+Virtual method that should be overridden to return an ordered list
 of schema versions. This is then used to produce a set of steps to
 upgrade through to achieve the required schema version.
 

@@ -41,7 +41,7 @@ support for replication configuration options as well.
 
 By default, when you start L<DBIx::Class>, your Schema (L<DBIx::Class::Schema>)
 is assigned a storage_type, which when fully connected will reflect your
-underlying storage engine as defined by your choosen database driver.  For
+underlying storage engine as defined by your chosen database driver.  For
 example, if you connect to a MySQL database, your storage_type will be
 L<DBIx::Class::Storage::DBI::mysql>  Your storage type class will contain 
 database specific code to help smooth over the differences between databases
@@ -132,7 +132,7 @@ one that makes sense.
 balancers have the 'auto_validate_every' option.  This is the number of seconds
 we allow to pass between validation checks on a load balanced replicant. So
 the higher the number, the more possibility that your reads to the replicant 
-may be inconsistant with what's on the master.  Setting this number too low
+may be inconsistent with what's on the master.  Setting this number too low
 will result in increased database loads, so choose a number with care.  Our
 experience is that setting the number around 5 seconds results in a good
 performance / integrity balance.

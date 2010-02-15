@@ -94,7 +94,7 @@ selected algorithm.  The default algorithm is random weighted.
 
 =head1 NOTES
 
-The consistancy betweeen master and replicants is database specific.  The Pool
+The consistency betweeen master and replicants is database specific.  The Pool
 gives you a method to validate its replicants, removing and replacing them
 when they fail/pass predefined criteria.  Please make careful use of the ways
 to force a query to run against Master when needed.
