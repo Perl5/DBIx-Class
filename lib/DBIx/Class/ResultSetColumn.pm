@@ -59,7 +59,7 @@ sub new {
   my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
 
-  my ($new_parent_rs, $colmap);
+  my $colmap;
   for ($rsrc->columns, $column) {
     if ($_ =~ /^ \Q$alias\E \. ([^\.]+) $ /x) {
       $colmap->{$_} = $1;
@@ -70,6 +70,7 @@ sub new {
     }
   }
 
+  my $new_parent_rs;
   # analyze the order_by, and see if it is done over a function/nonexistentcolumn
   # if this is the case we will need to wrap a subquery since the result of RSC
   # *must* be a single column select
@@ -79,7 +80,7 @@ sub new {
       ( $rsrc->schema->storage->_extract_order_criteria ($orig_attrs->{order_by} ) )
   ) {
     # nuke the prefetch before collapsing to sql
-    my $subq_rs = $rs->search;
+    my $subq_rs = $rs->search_rs;
     $subq_rs->{attrs}{join} = $subq_rs->_merge_joinpref_attr( $subq_rs->{attrs}{join}, delete $subq_rs->{attrs}{prefetch} );
     $new_parent_rs = $subq_rs->as_subselect_rs;
   }
@@ -109,7 +110,13 @@ sub new {
     }
   }
 
-  my $new = bless { _select => $select, _as => $column, _parent_resultset => $new_parent_rs }, $class;
+  # collapse the selector to a literal so that it survives a possible distinct parse
+  # if it turns out to be an aggregate - at least the user will get a proper exception
+  # instead of silent drop of the group_by altogether
+  my $new = bless {
+    _select => \ $rsrc->storage->sql_maker->_recurse_fields($select),
+    _as => $column,
+    _parent_resultset => $new_parent_rs }, $class;
   return $new;
 }
 

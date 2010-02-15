@@ -217,7 +217,7 @@ is_same_sql_bind (
   'Correct SQL for prefetch/order_by/group_by'
 );
 
-# test aggregate on a function
+# test aggregate on a function (create an extra track on one cd)
 {
   my $tr_rs = $schema->resultset("Track");
   $tr_rs->create({ cd => 2, title => 'dealbreaker' });
@@ -240,6 +240,70 @@ is_same_sql_bind (
     '3.2',
     'Correct avg tracks per cd'
   );
+}
+
+# test exotic scenarious (create a track-less cd)
+# "How many CDs (not tracks) have been released per year where a given CD has at least one track and the artist isn't evancarroll?"
+{
+
+  $schema->resultset('CD')->create({ artist => 1, title => 'dealbroker no tracks', year => 2001 });
+
+  my $rs = $schema->resultset ('CD')->search (
+    { 'artist.name' => { '!=', 'evancarrol' }, 'tracks.trackid' => { '!=', undef } },
+    {
+      order_by => 'me.year',
+      join => [qw(artist tracks)],
+      columns => [ 'year', { cnt => { count => 'me.cdid' }} ],
+    },
+  );
+
+  my $rstypes = {
+    'explicitly grouped' => $rs->search_rs({}, { group_by => 'year' }),
+    'implicitly grouped' => $rs->search_rs({}, { distinct => 1 }),
+  };
+
+  for my $type (keys %$rstypes) {
+    is ($rstypes->{$type}->count, 4, "correct cd count with $type column");
+
+    is_deeply (
+      [ $rstypes->{$type}->get_column ('year')->all ],
+      [qw(1997 1998 1999 2001)],
+      "Getting $type column works",
+    );
+  }
+
+  # Why do we test this - we want to make sure that the selector *will* actually make
+  # it to the group_by as per the distinct => 1 contract. Before 0.08251 this situation
+  # would silently drop the group_by entirely, likely ending up with nonsensival results
+  # With the current behavior the user will at least get a nice fat exception from the
+  # RDBMS (or maybe the RDBMS will even decide to handle the situation sensibly...)
+  is_same_sql_bind(
+    $rstypes->{'implicitly grouped'}->get_column('cnt')->as_query,
+    '(
+      SELECT COUNT( me.cdid )
+        FROM cd me
+        JOIN artist artist
+          ON artist.artistid = me.artist
+        LEFT JOIN track tracks
+          ON tracks.cd = me.cdid
+      WHERE artist.name != ? AND tracks.trackid IS NOT NULL
+      GROUP BY COUNT( me.cdid )
+      ORDER BY MIN(me.year)
+    )',
+    [ [ { dbic_colname => 'artist.name', sqlt_datatype => 'varchar', sqlt_size => 100 }
+        => 'evancarrol'
+    ] ],
+    'Expected (though nonsensical) SQL generated on rscol-with-distinct-over-function',
+  );
+
+  {
+    local $TODO = 'multiplying join leaks through to the count aggregate... this may never actually work';
+    is_deeply (
+      [ $rstypes->{'explicitly grouped'}->get_column ('cnt')->all ],
+      [qw(1 1 1 2)],
+      "Get aggregate over group works",
+    );
+  }
 }
 
 done_testing;
