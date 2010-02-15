@@ -12,6 +12,14 @@ BEGIN {
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
 
+my $custom_deployment_statements_called = 0;
+
+sub DBICTest::Schema::deployment_statements {
+  $custom_deployment_statements_called = 1;
+  my $self = shift;
+  return $self->next::method(@_);
+}
+
 my $schema = DBICTest->init_schema (no_deploy => 1);
 
 
@@ -69,6 +77,7 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
 
   $schema->deploy; # do not remove, this fires the is() test in the callback above
   ok($deploy_hook_called, 'deploy hook got called');
+  ok($custom_deployment_statements_called, '->deploy used the schemas deploy_statements method');
 }
 
 
