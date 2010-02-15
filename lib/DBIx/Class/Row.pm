@@ -450,7 +450,7 @@ need to preserve the hashref, it is sufficient to pass a shallow copy
 to C<update>, e.g. ( { %{ $href } } )
 
 If the values passed or any of the column values set on the object
-contain scalar references, eg:
+contain scalar references, e.g.:
 
   $row->last_modified(\'NOW()');
   # OR
@@ -952,7 +952,7 @@ so that the database can insert its own autoincremented values into
 the new object.
 
 Relationships will be followed by the copy procedure B<only> if the
-relationship specifes a true value for its
+relationship specifies a true value for its
 L<cascade_copy|DBIx::Class::Relationship::Base> attribute. C<cascade_copy>
 is set by default on C<has_many> relationships and unset on all others.
 
@@ -975,7 +975,7 @@ sub copy {
   $new->insert;
 
   # Its possible we'll have 2 relations to the same Source. We need to make
-  # sure we don't try to insert the same row twice esle we'll violate unique
+  # sure we don't try to insert the same row twice else we'll violate unique
   # constraints
   my $rels_copied = {};
 

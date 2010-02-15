@@ -341,7 +341,7 @@ outright disabled for MSSQL.
 Thus compromise between usability and perfection is the MSSQL-specific
 L<resultset attribute|DBIx::Class::ResultSet/ATTRIBUTES> C<unsafe_subselect_ok>.
 It is deliberately not possible to set this on the Storage level, as the user
-should inspect (and preferrably regression-test) the return of every such
+should inspect (and preferably regression-test) the return of every such
 ResultSet individually. The example above would work if written like:
 
  $rs->search ({}, {
@@ -354,7 +354,7 @@ ResultSet individually. The example above would work if written like:
 If it is possible to rewrite the search() in a way that will avoid the need
 for this flag - you are urged to do so. If DBIC internals insist that an
 ordered subselect is necessary for an operation, and you believe there is a
-differnt/better way to get the same result - please file a bugreport.
+different/better way to get the same result - please file a bugreport.
 
 =head1 AUTHOR
 

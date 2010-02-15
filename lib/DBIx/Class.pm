@@ -303,6 +303,8 @@ Nniuq: Ron "Quinn" Straight" <quinnfazigu@gmail.org>
 
 norbi: Norbert Buchmuller <norbi@nix.hu>
 
+nuba: Nuba Princigalli <nuba@cpan.org>
+
 Numa: Dan Sully <daniel@cpan.org>
 
 ovid: Curtis "Ovid" Poe <ovid@cpan.org>
@@ -371,7 +373,7 @@ zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005 - 2009 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
+Copyright (c) 2005 - 2010 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
 as listed above.
 
 =head1 LICENSE

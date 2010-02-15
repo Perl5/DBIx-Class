@@ -977,7 +977,7 @@ for the C<CAST>s is taken from the L<DBIx::Class::ResultSource/data_type>
 definitions in your Result classes, and are mapped to a Sybase type (if it isn't
 already) using a mapping based on L<SQL::Translator>.
 
-In other configurations, placeholers will work just as they do with the Sybase
+In other configurations, placeholders will work just as they do with the Sybase
 Open Client libraries.
 
 Inserts or updates of TEXT/IMAGE columns will B<NOT> work with FreeTDS.
@@ -998,8 +998,8 @@ it's a session variable.
 
 =head1 TRANSACTIONS
 
-Due to limitations of the TDS protocol, L<DBD::Sybase>, or both; you cannot
-begin a transaction while there are active cursors; nor can you use multiple
+Due to limitations of the TDS protocol, L<DBD::Sybase>, or both, you cannot
+begin a transaction while there are active cursors, nor can you use multiple
 active cursors within a transaction. An active cursor is, for example, a
 L<ResultSet|DBIx::Class::ResultSet> that has been executed using C<next> or
 C<first> but has not been exhausted or L<reset|DBIx::Class::ResultSet/reset>.
