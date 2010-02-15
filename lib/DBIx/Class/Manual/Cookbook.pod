@@ -771,7 +771,7 @@ B<Schema definition>
 
     package My::App::Schema;
 
-    use base DBIx::Class::Schema;
+    use base 'DBIx::Class::Schema';
 
     # load subclassed classes from My::App::Schema::Result/ResultSet
     __PACKAGE__->load_namespaces;
@@ -791,7 +791,7 @@ B<Result-Subclass definition>
 
     use strict;
     use warnings;
-    use base My::Shared::Model::Result::Baz;
+    use base 'My::Shared::Model::Result::Baz';
 
     # WARNING: Make sure you call table() again in your subclass,
     # otherwise DBIx::Class::ResultSourceProxy::Table will not be called
