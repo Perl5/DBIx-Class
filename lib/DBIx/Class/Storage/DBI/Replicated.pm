@@ -384,7 +384,7 @@ around connect_info => sub {
 
   my $wantarray = wantarray;
 
-  my $merge = Hash::Merge->new;
+  my $merge = Hash::Merge->new('LEFT_PRECEDENT');
 
   my %opts;
   for my $arg (@$info) {
@@ -555,7 +555,7 @@ around connect_replicants => sub {
     $self->throw_exception('too many hashrefs in connect_info')
       if @hashes > 2;
 
-    my $merge = Hash::Merge->new;
+    my $merge = Hash::Merge->new('LEFT_PRECEDENT');
     my %opts = %{ $merge->merge(reverse @hashes) };
 
 # delete them
