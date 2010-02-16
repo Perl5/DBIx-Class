@@ -56,13 +56,20 @@ DBIx::Class - Extensible and flexible object <-> relational mapper.
 
 The community can be found via:
 
-  Mailing list: http://lists.scsys.co.uk/mailman/listinfo/dbix-class/
+=over
 
-  SVN: http://dev.catalyst.perl.org/repos/bast/DBIx-Class/
+=item * IRC: L<irc.perl.org#dbix-class (click for instant chatroom login)
+|http://mibbit.com/chat/#dbix-class@irc.perl.org>
 
-  SVNWeb: http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/
+=item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
 
-  IRC: irc.perl.org#dbix-class
+=item * RT Bug Tracker: L<https://rt.cpan.org/Dist/Display.html?Queue=DBIx-Class>
+
+=item * SVNWeb: L<http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/0.08>
+
+=item * SVN: L<http://dev.catalyst.perl.org/repos/bast/DBIx-Class/0.08>
+
+=back
 
 =head1 SYNOPSIS
 
