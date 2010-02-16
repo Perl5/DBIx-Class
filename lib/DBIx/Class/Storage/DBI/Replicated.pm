@@ -14,7 +14,7 @@ use DBIx::Class::Storage::DBI::Replicated::Balancer;
 use DBIx::Class::Storage::DBI::Replicated::Types qw/BalancerClassNamePart DBICSchema DBICStorageDBI/;
 use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
-use Hash::Merge 'merge';
+use Hash::Merge;
 use List::Util qw/min max/;
 
 use namespace::clean -except => 'meta';
@@ -384,10 +384,12 @@ around connect_info => sub {
 
   my $wantarray = wantarray;
 
+  my $merge = Hash::Merge->new;
+
   my %opts;
   for my $arg (@$info) {
     next unless (reftype($arg)||'') eq 'HASH';
-    %opts = %{ merge($arg, \%opts) };
+    %opts = %{ $merge->merge($arg, \%opts) };
   }
   delete $opts{dsn};
 
@@ -396,7 +398,7 @@ around connect_info => sub {
       if $opts{pool_type};
 
     $self->pool_args(
-      merge((delete $opts{pool_args} || {}), $self->pool_args)
+      $merge->merge((delete $opts{pool_args} || {}), $self->pool_args)
     );
 
     $self->pool($self->_build_pool)
@@ -408,7 +410,7 @@ around connect_info => sub {
       if $opts{balancer_type};
 
     $self->balancer_args(
-      merge((delete $opts{balancer_args} || {}), $self->balancer_args)
+      $merge->merge((delete $opts{balancer_args} || {}), $self->balancer_args)
     );
 
     $self->balancer($self->_build_balancer)
@@ -553,7 +555,8 @@ around connect_replicants => sub {
     $self->throw_exception('too many hashrefs in connect_info')
       if @hashes > 2;
 
-    my %opts = %{ merge(reverse @hashes) };
+    my $merge = Hash::Merge->new;
+    my %opts = %{ $merge->merge(reverse @hashes) };
 
 # delete them
     splice @$r, $i+1, ($#{$r} - $i), ();
@@ -566,7 +569,7 @@ around connect_replicants => sub {
     delete $master_opts{dbh_maker};
 
 # merge with master
-    %opts = %{ merge(\%opts, \%master_opts) };
+    %opts = %{ $merge->merge(\%opts, \%master_opts) };
 
 # update
     $r->[$i] = \%opts;

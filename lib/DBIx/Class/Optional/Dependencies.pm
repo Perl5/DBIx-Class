@@ -33,7 +33,7 @@ my $reqs = {
     req => {
       %$moose_basic,
       'namespace::clean'          => '0.11',
-      'Hash::Merge'               => '0.11',
+      'Hash::Merge'               => '0.12',
     },
     pod => {
       title => 'Storage::Replicated',
@@ -151,7 +151,7 @@ my $reqs = {
 
   rdbms_asa => {
     req => {
-      grep $_, @ENV{qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/}
+      (scalar grep $_, @ENV{qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/})
         ? (
           'DateTime::Format::Strptime' => 0,
         ) : ()
