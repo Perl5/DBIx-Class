@@ -175,8 +175,8 @@ Used as:
 
   on_connect_call => 'datetime_setup'
 
-In L<DBIx::Class::Storage::DBI/connect_info> to set the date and timestamp
-formats using:
+In L<connect_info|DBIx::Class::Storage::DBI/connect_info> to set the date and
+timestamp formats using:
 
   $dbh->{ib_time_all} = 'ISO';
 
