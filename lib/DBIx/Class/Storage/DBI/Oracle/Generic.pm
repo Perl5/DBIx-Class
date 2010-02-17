@@ -33,15 +33,15 @@ sub deployment_statements {
   my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
 
   $sqltargs ||= {};
-	my $quote_char = $self->schema->storage->{'_sql_maker_opts'}->{'quote_char'};
-	$sqltargs->{quote_table_names} = 0 unless $quote_char;
-	$sqltargs->{quote_field_names} = 0 unless $quote_char;
+  my $quote_char = $self->schema->storage->{'_sql_maker_opts'}->{'quote_char'};
+  $sqltargs->{quote_table_names} = 0 unless $quote_char;
+  $sqltargs->{quote_field_names} = 0 unless $quote_char;
 
-	my $oracle_version = eval { $self->_get_dbh->get_info(18) };
+  my $oracle_version = eval { $self->_get_dbh->get_info(18) };
 
   $sqltargs->{producer_args}{oracle_version} = $oracle_version;
 
-	$self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
+  $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 
 sub _dbh_last_insert_id {
@@ -57,9 +57,6 @@ sub _dbh_last_insert_id {
 
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $source, $col) = @_;
-
-	# check if quoting is on
-	my $quote_char = $self->schema->storage->{'_sql_maker_opts'}->{'quote_char'};
 
   # look up the correct sequence automatically
   my $sql = q{
@@ -81,7 +78,10 @@ sub _dbh_get_autoinc_seq {
   else {
       $source_name = ${$source->name};
   }
-	$source_name = uc($source_name) unless $quote_char;
+
+  unless ($self->schema->storage->{'_sql_maker_opts'}->{'quote_char'}) {
+    $source_name =  uc($source_name);
+  }
 
   # check for fully-qualified name (eg. SCHEMA.TABLENAME)
   if ( my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/ ) {
@@ -92,9 +92,8 @@ sub _dbh_get_autoinc_seq {
       AND t.status = 'ENABLED'
     };
     $sth = $dbh->prepare($sql);
-		my $table_name = $self -> sql_maker -> _quote($table);
-		#my $schema_name = $self -> sql_maker -> _quote($schema);
-		my $schema_name = uc($schema);
+  	my $table_name  = $self -> sql_maker -> _quote($table);
+  	my $schema_name = $self -> sql_maker -> _quote($schema);
 
     $sth->execute( $schema_name, $table_name );
   }
