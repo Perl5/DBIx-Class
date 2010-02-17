@@ -1378,7 +1378,7 @@ sub _resolve_condition {
 # in the supplied relationships.
 
 sub _resolve_prefetch {
-  my ($self, $pre, $alias, $alias_map, $order, $collapse, $pref_path) = @_;
+  my ($self, $pre, $alias, $alias_map, $order, $pref_path) = @_;
   $pref_path ||= [];
 
   if (not defined $pre) {
@@ -1386,15 +1386,15 @@ sub _resolve_prefetch {
   }
   elsif( ref $pre eq 'ARRAY' ) {
     return
-      map { $self->_resolve_prefetch( $_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ) }
+      map { $self->_resolve_prefetch( $_, $alias, $alias_map, $order, [ @$pref_path ] ) }
         @$pre;
   }
   elsif( ref $pre eq 'HASH' ) {
     my @ret =
     map {
-      $self->_resolve_prefetch($_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ),
+      $self->_resolve_prefetch($_, $alias, $alias_map, $order, [ @$pref_path ] ),
       $self->related_source($_)->_resolve_prefetch(
-               $pre->{$_}, "${alias}.$_", $alias_map, $order, $collapse, [ @$pref_path, $_] )
+               $pre->{$_}, "${alias}.$_", $alias_map, $order, [ @$pref_path, $_] )
     } keys %$pre;
     return @ret;
   }
@@ -1427,14 +1427,11 @@ sub _resolve_prefetch {
 
       #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
       #              values %{$rel_info->{cond}};
-      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->primary_columns ];
-        # action at a distance. prepending the '.' allows simpler code
-        # in ResultSet->_collapse_result
       my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
                     keys %{$rel_info->{cond}};
       my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
                    ? @{$rel_info->{attrs}{order_by}}
-   
+
                 : (defined $rel_info->{attrs}{order_by}
                        ? ($rel_info->{attrs}{order_by})
                        : ()));

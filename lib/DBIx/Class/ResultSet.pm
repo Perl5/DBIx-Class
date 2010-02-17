@@ -536,7 +536,7 @@ sub find {
 
   # Run the query
   my $rs = $self->search ($query, {result_class => $self->result_class, %$attrs});
-  if (keys %{$rs->_resolved_attrs->{collapse}}) {
+  if ($rs->_resolved_attrs->{collapse}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
     return $row;
@@ -723,7 +723,7 @@ sub single {
 
   my $attrs = $self->_resolved_attrs_copy;
 
-  if (keys %{$attrs->{collapse}}) {
+  if ($attrs->{collapse}) {
     $self->throw_exception(
       'single() can not be used on resultsets prefetching has_many. Use find( \%cond ) or next() instead'
     );
@@ -1001,7 +1001,7 @@ sub _collapse_result {
     }
     return undef unless $has_def;
 
-    my $collapse = keys %{ $self->{_attrs}{collapse} || {} };
+    my $collapse = $self->_resolved_attrs->{collapse};
     my $rows     = [];
     my @row      = @$row_ref;
     do {
@@ -1236,7 +1236,7 @@ sub _count_subq_rs {
 
   # if we multi-prefetch we group_by primary keys only as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
-  if ( keys %{$attrs->{collapse}}  ) {
+  if ($attrs->{collapse}) {
     $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->primary_columns) ]
   }
 
@@ -1306,7 +1306,7 @@ sub all {
 
   my @obj;
 
-  if (keys %{$self->_resolved_attrs->{collapse}}) {
+  if ($self->_resolved_attrs->{collapse}) {
     # Using $self->cursor->all is really just an optimisation.
     # If we're collapsing has_many prefetches it probably makes
     # very little difference, and this is cleaner than hacking
@@ -2841,7 +2841,6 @@ sub _resolved_attrs {
     }
   }
   else {
-
     # otherwise we intialise select & as to empty
     $attrs->{select} = [];
     $attrs->{as}     = [];
@@ -2931,9 +2930,8 @@ sub _resolved_attrs {
     }
   }
 
-  $attrs->{collapse} ||= {};
   if ( my $prefetch = delete $attrs->{prefetch} ) {
-    $prefetch = $self->_merge_attr( {}, $prefetch );
+    $attrs->{collapse} = 1;
 
     my $prefetch_ordering = [];
 
@@ -2958,8 +2956,7 @@ sub _resolved_attrs {
       }
     }
 
-    my @prefetch =
-      $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering, $attrs->{collapse} );
+    my @prefetch = $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering );
 
     # we need to somehow mark which columns came from prefetch
     $attrs->{_prefetch_select} = [ map { $_->[0] } @prefetch ];
@@ -2969,6 +2966,30 @@ sub _resolved_attrs {
 
     push( @{$attrs->{order_by}}, @$prefetch_ordering );
     $attrs->{_collapse_order_by} = \@$prefetch_ordering;
+  }
+
+  # run through the resulting joinstructure (starting from our current slot)
+  # and unset collapse if proven unnesessary
+  if ($attrs->{collapse} && ref $attrs->{from} eq 'ARRAY') {
+
+    if (@{$attrs->{from}} > 1) {
+
+      # find where our table-spec starts and consider only things after us
+      my @fromlist = @{$attrs->{from}};
+      while (@fromlist) {
+        my $t = shift @fromlist;
+        $t = $t->[0] if ref $t eq 'ARRAY';  #me vs join from-spec mismatch
+        last if ($t->{-alias} && $t->{-alias} eq $alias);
+      }
+
+      if (@fromlist) {
+        $attrs->{collapse} = scalar grep { ! $_->[0]{-is_single} } (@fromlist);
+      }
+    }
+    else {
+      # no joins - no collapse
+      $attrs->{collapse} = 0;
+    }
   }
 
   # if both page and offset are specified, produce a combined offset

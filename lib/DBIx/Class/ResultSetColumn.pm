@@ -44,7 +44,7 @@ sub new {
 
   $rs->throw_exception('column must be supplied') unless $column;
 
-  my $orig_attrs = $rs->_resolved_attrs;
+  my $orig_attrs = $rs->_resolved_attrs_copy;
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
@@ -91,7 +91,7 @@ sub new {
 
   # {collapse} would mean a has_many join was injected, which in turn means
   # we need to group *IF WE CAN* (only if the column in question is unique)
-  if (!$new_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
+  if (!$new_attrs->{group_by} && $orig_attrs->{collapse}) {
 
     # scan for a constraint that would contain our column only - that'd be proof
     # enough it is unique

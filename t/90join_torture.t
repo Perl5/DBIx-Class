@@ -1,37 +1,64 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
+use Test::Exception;
+
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 my $schema = DBICTest->init_schema();
 
-plan tests => 22;
+lives_ok (sub {
+  my $rs = $schema->resultset( 'CD' )->search(
+    {
+      'producer.name'   => 'blah',
+      'producer_2.name' => 'foo',
+    },
+    {
+      'join' => [
+        { cd_to_producer => 'producer' },
+        { cd_to_producer => 'producer' },
+      ],
+      'prefetch' => [
+        'artist',
+        { cd_to_producer => { producer => 'producer_to_cd' } },
+      ],
+    }
+  );
 
- {
-   my $rs = $schema->resultset( 'CD' )->search(
-     {
-       'producer.name'   => 'blah',
-       'producer_2.name' => 'foo',
-     },
-     {
-       'join' => [
-         { cd_to_producer => 'producer' },
-         { cd_to_producer => 'producer' },
-       ],
-       'prefetch' => [
-         'artist',
-         { cd_to_producer => 'producer' },
-       ],
-     }
-   );
-  
-   eval {
-     my @rows = $rs->all();
-   };
-   is( $@, '' );
- }
+  my @executed = $rs->all();
 
+  is_same_sql_bind (
+    $rs->as_query,
+    '(
+      SELECT  me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+              artist.artistid, artist.name, artist.rank, artist.charfield,
+              cd_to_producer.cd, cd_to_producer.producer, cd_to_producer.attribute,
+              producer.producerid, producer.name,
+              producer_to_cd.cd, producer_to_cd.producer, producer_to_cd.attribute
+        FROM cd me
+        LEFT JOIN cd_to_producer cd_to_producer
+          ON cd_to_producer.cd = me.cdid
+        LEFT JOIN producer producer
+          ON producer.producerid = cd_to_producer.producer
+        LEFT JOIN cd_to_producer producer_to_cd
+          ON producer_to_cd.producer = producer.producerid
+        LEFT JOIN cd_to_producer cd_to_producer_2
+          ON cd_to_producer_2.cd = me.cdid
+        LEFT JOIN producer producer_2
+          ON producer_2.producerid = cd_to_producer_2.producer
+        JOIN artist artist ON artist.artistid = me.artist
+      WHERE ( ( producer.name = ? AND producer_2.name = ? ) )
+      ORDER BY cd_to_producer.cd, producer_to_cd.producer
+    )',
+    [
+      [ 'producer.name' => 'blah' ],
+      [ 'producer_2.name' => 'foo' ],
+    ],
+  );
+
+}, 'Complex join parsed/executed properly');
 
 my @rs1a_results = $schema->resultset("Artist")->search_related('cds', {title => 'Forkful of bees'}, {order_by => 'title'});
 is($rs1a_results[0]->title, 'Forkful of bees', "bare field conditions okay after search related");
@@ -125,4 +152,4 @@ my $second_search_rs = $rs->search({ 'cds_2.cdid' => '2' }, { join =>
 is(scalar(@{$second_search_rs->{attrs}->{join}}), 3, 'both joins kept');
 ok($second_search_rs->next, 'query on double joined rel runs okay');
 
-1;
+done_testing;
