@@ -138,7 +138,6 @@ no_index directory => $_ for (qw|
   lib/DBIx/Class/PK/Auto
 |);
 no_index package => $_ for (qw/
-  DBIx::Class::Storage::DBI::AmbiguousGlob
   DBIx::Class::SQLAHacks DBIx::Class::Storage::DBIHacks
 /);
 
