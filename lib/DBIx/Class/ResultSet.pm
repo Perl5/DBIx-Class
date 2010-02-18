@@ -1264,7 +1264,7 @@ sub _count_subq_rs {
     $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->primary_columns) ]
   }
 
-  $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
+  $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $attrs);
 
   # this is so that the query can be simplified e.g.
   # * ordering can be thrown away in things like Top limit
