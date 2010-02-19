@@ -76,7 +76,7 @@ my $reqs = {
 
   author => {
     req => {
-      'Test::Pod'                 => '1.26',
+      'Test::Pod'                 => '1.41',
       'Test::Pod::Coverage'       => '1.08',
       'Pod::Coverage'             => '0.20',
       #'Test::NoTabs'              => '0.9',
