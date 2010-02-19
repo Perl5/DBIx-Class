@@ -74,22 +74,41 @@ my $reqs = {
     },
   },
 
-  author => {
+
+  test_pod => {
     req => {
       'Test::Pod'                 => '1.41',
+    },
+  },
+
+  test_podcoverage => {
+    req => {
       'Test::Pod::Coverage'       => '1.08',
       'Pod::Coverage'             => '0.20',
+    },
+  },
+
+  test_notabs => {
+    req => {
       #'Test::NoTabs'              => '0.9',
+    },
+  },
+
+  test_eol => {
+    req => {
       #'Test::EOL'                 => '0.6',
     },
   },
 
-  core => {
+  test_cycle => {
     req => {
-      # t/52cycle.t
       'Test::Memory::Cycle'       => '0',
       'Devel::Cycle'              => '1.10',
+    },
+  },
 
+  test_dtrelated => {
+    req => {
       # t/36datetime.t
       # t/60core.t
       'DateTime::Format::SQLite'  => '0',
