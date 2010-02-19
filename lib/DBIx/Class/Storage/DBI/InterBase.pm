@@ -34,7 +34,7 @@ sub _prep_for_execute {
   my ($op, $extra_bind, $ident, $args) = @_;
 
   if ($op eq 'insert') {
-    my @pk = $ident->primary_columns;
+    my @pk = $ident->_pri_cols;
     my %pk;
     @pk{@pk} = ();
 
