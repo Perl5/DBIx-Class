@@ -1261,7 +1261,7 @@ sub _count_subq_rs {
   # if we multi-prefetch we group_by primary keys only as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
   if ( keys %{$attrs->{collapse}}  ) {
-    $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->primary_columns) ]
+    $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->_pri_cols) ]
   }
 
   $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $attrs);
@@ -1420,7 +1420,7 @@ sub _rs_update_delete {
     my $attrs = $self->_resolved_attrs_copy;
 
     delete $attrs->{$_} for qw/collapse select as/;
-    $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
+    $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->_pri_cols) ];
 
     if ($needs_group_by_subq) {
       # make sure no group_by was supplied, or if there is one - make sure it matches
