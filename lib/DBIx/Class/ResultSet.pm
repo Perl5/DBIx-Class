@@ -535,7 +535,7 @@ sub find {
   }
 
   # Run the query
-  my $rs = $self->search ($query, {result_class => $self->result_class, %$attrs});
+  my $rs = $self->search ($query, $attrs);
   if (keys %{$rs->_resolved_attrs->{collapse}}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
@@ -1136,6 +1136,7 @@ sub result_class {
   if ($result_class) {
     $self->ensure_class_loaded($result_class);
     $self->_result_class($result_class);
+    $self->{attrs}{result_class} = $result_class if ref $self;
   }
   $self->_result_class;
 }
