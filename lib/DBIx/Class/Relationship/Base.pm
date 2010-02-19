@@ -200,9 +200,15 @@ sub related_resultset {
     my $query = ((@_ > 1) ? {@_} : shift);
 
     my $source = $self->result_source;
-    my $cond = $source->_resolve_condition(
-      $rel_info->{cond}, $rel, $self
-    );
+
+    # condition resolution may fail if an incomplete master-object prefetch
+    # is encountered
+    my $cond =
+      eval { $source->_resolve_condition( $rel_info->{cond}, $rel, $self ) }
+        ||
+      $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
+    ;
+
     if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
       my $reverse = $source->reverse_relationship_info($rel);
       foreach my $rev_rel (keys %$reverse) {
