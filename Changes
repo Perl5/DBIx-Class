@@ -3,6 +3,7 @@ Revision history for DBIx::Class
         - Make sure possibly overwritten deployment_statements methods in
           schemas get called on $schema->deploy
         - Fix count() with group_by aliased-function resultsets
+        - Massive refactor and cleanup of primary key handling
 
 0.08119 2010-02-15 09:36:00 (UTC)
         - Add $rs->is_ordered to test for existing order_by on a resultset
