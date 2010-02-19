@@ -22,10 +22,10 @@ BEGIN {
     || plan skip_all => 'Test needs Time::HiRes';
   Time::HiRes->import(qw/time sleep/);
 
-  require DBIx::Class::Storage::DBI;
+  require DBIx::Class;
   plan skip_all =>
-      'Test needs SQL::Translator ' . DBIx::Class::Storage::DBI->_sqlt_minimum_version
-    if not DBIx::Class::Storage::DBI->_sqlt_version_ok;
+      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
 
 use lib qw(t/lib);

@@ -1,5 +1,22 @@
 Revision history for DBIx::Class
 
+        - Make sure possibly overwritten deployment_statements methods in
+          schemas get called on $schema->deploy
+        - Fix count() with group_by aliased-function resultsets
+        - Massive refactor and cleanup of primary key handling
+        - Fixed regression losing custom result_class (really this time)
+
+0.08119 2010-02-15 09:36:00 (UTC)
+        - Add $rs->is_ordered to test for existing order_by on a resultset
+        - Add as_subselect_rs to DBIC::ResultSet from
+          DBIC::Helper::ResultSet::VirtualView::as_virtual_view
+        - Refactor dbicadmin adding DDL manipulation capabilities
+        - New optional dependency manager to aid extension writers
+        - Depend on newest bugfixed Moose
+        - Make resultset chaining consistent wrt selection specification
+        - Storage::DBI::Replicated cleanup
+        - Fix autoinc PKs without an autoinc flag on Sybase ASA
+
 0.08118 2010-02-08 11:53:00 (UTC)
         - Fix a bug causing UTF8 columns not to be decoded (RT#54395)
         - Fix bug in One->Many->One prefetch-collapse handling (RT#54039)

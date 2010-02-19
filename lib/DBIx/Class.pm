@@ -6,6 +6,8 @@ use warnings;
 use MRO::Compat;
 use mro 'c3';
 
+use DBIx::Class::Optional::Dependencies;
+
 use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
@@ -25,7 +27,7 @@ sub component_base_class { 'DBIx::Class' }
 # Always remember to do all digits for the version even if they're 0
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
-$VERSION = '0.08118_01';
+$VERSION = '0.08119_1';
 
 $VERSION = eval $VERSION; # numify for warning-free dev releases
 
@@ -54,13 +56,20 @@ DBIx::Class - Extensible and flexible object <-> relational mapper.
 
 The community can be found via:
 
-  Mailing list: http://lists.scsys.co.uk/mailman/listinfo/dbix-class/
+=over
 
-  SVN: http://dev.catalyst.perl.org/repos/bast/DBIx-Class/
+=item * IRC: L<irc.perl.org#dbix-class (click for instant chatroom login)
+|http://mibbit.com/chat/#dbix-class@irc.perl.org>
 
-  SVNWeb: http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/
+=item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
 
-  IRC: irc.perl.org#dbix-class
+=item * RT Bug Tracker: L<https://rt.cpan.org/Dist/Display.html?Queue=DBIx-Class>
+
+=item * SVNWeb: L<http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/0.08>
+
+=item * SVN: L<http://dev.catalyst.perl.org/repos/bast/DBIx-Class/0.08>
+
+=back
 
 =head1 SYNOPSIS
 
@@ -245,6 +254,8 @@ da5id: David Jack Olrik <djo@cpan.org>
 
 debolaz: Anders Nor Berle <berle@cpan.org>
 
+dew: Dan Thomas <dan@godders.org>
+
 dkubb: Dan Kubb <dan.kubb-cpan@onautopilot.com>
 
 dnm: Justin Wheeler <jwheeler@datademons.com>
@@ -254,6 +265,8 @@ dwc: Daniel Westermann-Clark <danieltwc@cpan.org>
 dyfrgi: Michael Leuchtenburg <michael@slashhome.org>
 
 frew: Arthur Axel "fREW" Schmidt <frioux@gmail.com>
+
+goraxe: Gordon Irving <goraxe@cpan.org>
 
 gphat: Cory G Watson <gphat@cpan.org>
 
@@ -296,6 +309,8 @@ ningu: David Kamholz <dkamholz@cpan.org>
 Nniuq: Ron "Quinn" Straight" <quinnfazigu@gmail.org>
 
 norbi: Norbert Buchmuller <norbi@nix.hu>
+
+nuba: Nuba Princigalli <nuba@cpan.org>
 
 Numa: Dan Sully <daniel@cpan.org>
 
@@ -365,7 +380,7 @@ zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005 - 2009 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
+Copyright (c) 2005 - 2010 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
 as listed above.
 
 =head1 LICENSE

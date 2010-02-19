@@ -89,7 +89,7 @@ L<DBIx::Class::Storage> object as its only argument.
 =head2 commit
 
 Commit the transaction, and stop guarding the scope. If this method is not
-called and this object goes out of scope (i.e. an exception is thrown) then
+called and this object goes out of scope (e.g. an exception is thrown) then
 the transaction is rolled back, via L<DBIx::Class::Storage/txn_rollback>
 
 =cut
@@ -102,7 +102,7 @@ L<DBIx::Class::Schema/txn_scope_guard>.
 
 Ash Berlin, 2008.
 
-Insipred by L<Scope::Guard> by chocolateboy.
+Inspired by L<Scope::Guard> by chocolateboy.
 
 This module is free software. It may be used, redistributed and/or modified
 under the same terms as Perl itself.

@@ -111,7 +111,7 @@ Both C<$cond> and C<$attrs> are optional. Pass C<undef> for C<$cond> if
 you want to use the default value for it, but still want to set C<\%attrs>.
 
 See L<DBIx::Class::Relationship::Base> for documentation on the
-attrubutes that are allowed in the C<\%attrs> argument.
+attributes that are allowed in the C<\%attrs> argument.
 
 
 =head2 belongs_to
@@ -234,7 +234,7 @@ which can be assigned to relationships as well.
 
 Creates a one-to-many relationship where the foreign class refers to
 this class's primary key. This relationship refers to zero or more
-records in the foreign table (ie, a C<LEFT JOIN>). This relationship 
+records in the foreign table (e.g. a C<LEFT JOIN>). This relationship 
 defaults to using the end of this classes namespace as the foreign key
 in C<$related_class> to resolve the join, unless C<$their_fk_column>
 specifies the foreign key column in C<$related_class> or C<cond>
