@@ -9,8 +9,8 @@ DBIx::Class::Storage::DBI::Replicated::Introduction - Minimum Need to Know
 This is an introductory document for L<DBIx::Class::Storage::Replication>.
 
 This document is not an overview of what replication is or why you should be
-using it.  It is not a document explaing how to setup MySQL native replication
-either.  Copious external resources are avialable for both.  This document
+using it.  It is not a document explaining how to setup MySQL native replication
+either.  Copious external resources are available for both.  This document
 presumes you have the basics down.
   
 =head1 DESCRIPTION
@@ -33,7 +33,7 @@ patches and ideas to the #dbix-class IRC channel or the mailing list.
 For an easy way to start playing with MySQL native replication, see:
 L<MySQL::Sandbox>.
 
-If you are using this with a L<Catalyst> based appplication, you may also wish
+If you are using this with a L<Catalyst> based application, you may also want
 to see more recent updates to L<Catalyst::Model::DBIC::Schema>, which has 
 support for replication configuration options as well.
 
@@ -41,15 +41,15 @@ support for replication configuration options as well.
 
 By default, when you start L<DBIx::Class>, your Schema (L<DBIx::Class::Schema>)
 is assigned a storage_type, which when fully connected will reflect your
-underlying storage engine as defined by your choosen database driver.  For
+underlying storage engine as defined by your chosen database driver.  For
 example, if you connect to a MySQL database, your storage_type will be
 L<DBIx::Class::Storage::DBI::mysql>  Your storage type class will contain 
 database specific code to help smooth over the differences between databases
 and let L<DBIx::Class> do its thing.
 
 If you want to use replication, you will override this setting so that the
-replicated storage engine will 'wrap' your underlying storages and present to
-the end programmer a unified interface.  This wrapper storage class will
+replicated storage engine will 'wrap' your underlying storages and present 
+a unified interface to the end programmer.  This wrapper storage class will
 delegate method calls to either a master database or one or more replicated
 databases based on if they are read only (by default sent to the replicants)
 or write (reserved for the master).  Additionally, the Replicated storage 
@@ -72,8 +72,8 @@ A replicated storage contains several parts.  First, there is the replicated
 storage itself (L<DBIx::Class::Storage::DBI::Replicated>).  A replicated storage
 takes a pool of replicants (L<DBIx::Class::Storage::DBI::Replicated::Pool>)
 and a software balancer (L<DBIx::Class::Storage::DBI::Replicated::Pool>).  The
-balancer does the job of splitting up all the read traffic amongst each
-replicant in the Pool. Currently there are two types of balancers, a Random one
+balancer does the job of splitting up all the read traffic amongst the
+replicants in the Pool. Currently there are two types of balancers, a Random one
 which chooses a Replicant in the Pool using a naive randomizer algorithm, and a
 First replicant, which just uses the first one in the Pool (and obviously is
 only of value when you have a single replicant).
@@ -132,7 +132,7 @@ one that makes sense.
 balancers have the 'auto_validate_every' option.  This is the number of seconds
 we allow to pass between validation checks on a load balanced replicant. So
 the higher the number, the more possibility that your reads to the replicant 
-may be inconsistant with what's on the master.  Setting this number too low
+may be inconsistent with what's on the master.  Setting this number too low
 will result in increased database loads, so choose a number with care.  Our
 experience is that setting the number around 5 seconds results in a good
 performance / integrity balance.
@@ -145,14 +145,14 @@ The 'pool_args' are configuration options associated with the replicant pool.
 This object (L<DBIx::Class::Storage::DBI::Replicated::Pool>) manages all the
 declared replicants.  'maximum_lag' is the number of seconds a replicant is
 allowed to lag behind the master before being temporarily removed from the pool.
-Keep in mind that the Balancer option 'auto_validate_every' determins how often
+Keep in mind that the Balancer option 'auto_validate_every' determines how often
 a replicant is tested against this condition, so the true possible lag can be
 higher than the number you set.  The default is zero.
 
 No matter how low you set the maximum_lag or the auto_validate_every settings,
 there is always the chance that your replicants will lag a bit behind the
 master for the supported replication system built into MySQL.  You can ensure
-reliabily reads by using a transaction, which will force both read and write
+reliable reads by using a transaction, which will force both read and write
 activity to the master, however this will increase the load on your master
 database.
 

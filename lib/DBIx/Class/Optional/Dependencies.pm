@@ -33,7 +33,7 @@ my $reqs = {
     req => {
       %$moose_basic,
       'namespace::clean'          => '0.11',
-      'Hash::Merge'               => '0.11',
+      'Hash::Merge'               => '0.12',
     },
     pod => {
       title => 'Storage::Replicated',
@@ -151,7 +151,7 @@ my $reqs = {
 
   rdbms_asa => {
     req => {
-      grep $_, @ENV{qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/}
+      (scalar grep $_, @ENV{qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/})
         ? (
           'DateTime::Format::Strptime' => 0,
         ) : ()
@@ -246,10 +246,14 @@ sub _check_deps {
   }
 }
 
+# This is to be called by the author onbly (automatically in Makefile.PL)
 sub _gen_pod {
   my $class = shift;
   my $modfn = __PACKAGE__ . '.pm';
   $modfn =~ s/\:\:/\//g;
+
+  require DBIx::Class;
+  my $distver = DBIx::Class->VERSION;
 
   my @chunks = (
     <<"EOC",
@@ -263,7 +267,30 @@ sub _gen_pod {
 #
 EOC
     '=head1 NAME',
-    "$class - Optional module dependency specifications",
+    "$class - Optional module dependency specifications (for module authors)",
+    '=head1 SYNOPSIS (EXPERIMENTAL)',
+    <<EOS,
+B<THE USAGE SHOWN HERE IS EXPERIMENTAL>
+
+Somewhere in your build-file (e.g. L<Module::Install>'s Makefile.PL):
+
+  ...
+
+  configure_requires 'DBIx::Class' => '$distver';
+
+  require $class;
+
+  my \$deploy_deps = $class->req_list_for ('deploy');
+
+  for (keys %\$deploy_deps) {
+    requires \$_ => \$deploy_deps->{\$_};
+  }
+
+  ...
+
+Note that there are some caveats regarding C<configure_requires()>, more info
+can be found at L<Module::Install/configure_requires>
+EOS
     '=head1 DESCRIPTION',
     <<'EOD',
 Some of the less-frequently used features of L<DBIx::Class> have external
@@ -272,7 +299,8 @@ with modules he will never use, these optional dependencies are not included
 in the base Makefile.PL. Instead an exception with a descriptive message is
 thrown when a specific feature is missing one or several modules required for
 its operation. This module is the central holding place for  the current list
-of such dependencies.
+of such dependencies, for DBIx::Class core authors, and DBIx::Class extension
+authors alike.
 EOD
     '=head1 CURRENT REQUIREMENT GROUPS',
     <<'EOD',
@@ -310,17 +338,9 @@ EOD
     '=back',
     <<EOD,
 This method should be used by DBIx::Class extension authors, to determine the
-version of modules which a specific feature requires in the current version of
-DBIx::Class. For example if you write a module/extension that requires
-DBIx::Class and also requires the availability of
-L<DBIx::Class::Storage::DBI/deploy>, you can do the following in your
-C<Makefile.PL> or C<Build.PL>
-
- require $class;
- my \$dep_list = $class->req_list_for ('deploy');
-
-Which will give you a list of module/version pairs necessary for the particular
-feature to function with this version of DBIx::Class.
+version of modules a specific feature requires in the B<current> version of
+DBIx::Class. See the L<SYNOPSIS|/SYNOPSIS (EXPERIMENTAL)> for a real-world
+example.
 EOD
 
     '=head2 req_ok_for',

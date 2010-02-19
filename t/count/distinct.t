@@ -74,7 +74,7 @@ for my $get_count (
   $rs = $schema->resultset('Tag')->search({ tag => 'Blue' }, { '+select' => { max => 'tagid' }, distinct => 1 });
   is($get_count->($rs), 4, 'Count with +select aggreggate');
 
-  $rs = $schema->resultset('Tag')->search({}, { select => 'length(me.tag)', distinct => 1 });
+  $rs = $schema->resultset('Tag')->search({}, { select => [\'length(me.tag)'], distinct => 1 });
   is($get_count->($rs), 3, 'Count by distinct function result as select literal');
 }
 

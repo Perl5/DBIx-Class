@@ -127,7 +127,7 @@ __PACKAGE__->mk_classdata( 'grouping_column' );
 This method specifies a value of L</position_column> which B<would
 never be assigned to a row> during normal operation. When
 a row is moved, its position is set to this value temporarily, so
-that any unique constrainst can not be violated. This value defaults
+that any unique constraints can not be violated. This value defaults
 to 0, which should work for all cases except when your positions do
 indeed start from 0.
 
@@ -921,7 +921,7 @@ module to update positioning values in isolation (i.e. without
 triggering any of the positioning integrity code).
 
 Some day you might get confronted by datasets that have ambiguous
-positioning data (i.e. duplicate position values within the same group,
+positioning data (e.g. duplicate position values within the same group,
 in a table without unique constraints). When manually fixing such data
 keep in mind that you can not invoke L<DBIx::Class::Row/update> like
 you normally would, as it will get confused by the wrong data before
@@ -956,14 +956,14 @@ will prevent such race conditions going undetected.
 
 =head2 Multiple Moves
 
-Be careful when issueing move_* methods to multiple objects.  If 
+Be careful when issuing move_* methods to multiple objects.  If 
 you've pre-loaded the objects then when you move one of the objects 
 the position of the other object will not reflect their new value 
 until you reload them from the database - see
 L<DBIx::Class::Row/discard_changes>.
 
 There are times when you will want to move objects as groups, such 
-as changeing the parent of several objects at once - this directly 
+as changing the parent of several objects at once - this directly 
 conflicts with this problem.  One solution is for us to write a 
 ResultSet class that supports a parent() method, for example.  Another 
 solution is to somehow automagically modify the objects that exist 
