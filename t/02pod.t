@@ -6,7 +6,7 @@ use lib qw(t/lib);
 use DBICTest;
 
 my @MODULES = (
-  'Test::Pod 1.26',
+  'Test::Pod 1.41',
 );
 
 # Don't run tests for installs
