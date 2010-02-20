@@ -25,7 +25,6 @@ my $build_requires = {
 my $test_requires = {
   'File::Temp'               => '0.22',
   'Test::Builder'            => '0.33',
-  'Test::Deep'               => '0',
   'Test::Exception'          => '0',
   'Test::More'               => '0.92',
   'Test::Warn'               => '0.21',
