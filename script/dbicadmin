@@ -45,7 +45,7 @@ my ($opts, $usage) = describe_options(
       ['help|h' => 'display this help', { implies => { schema_class => 'main' } } ],
       ['pod' => 'Output this usage as pod', { implies => { schema_class => 'main' } } ],
     ], required=> 1 }],
-    ['Options'],
+    ['Arguments'],
     ['schema-class|schema|C:s' => 'The class of the schema to load', { required => 1 } ],
     ['resultset|resultset_class|class|r:s' => 'The resultset to operate on for data manipulation' ],
     ['config-stanza|S:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
