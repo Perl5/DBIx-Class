@@ -31,12 +31,6 @@ my $test_requires = {
 };
 
 my $runtime_requires = {
-  # Core
-  'List::Util'               => '0',
-  'Scalar::Util'             => '0',
-  'Storable'                 => '0',
-
-  # Dependencies
   'Carp::Clan'               => '6.0',
   'Class::Accessor::Grouped' => '0.09002',
   'Class::C3::Componentised' => '1.0005',
