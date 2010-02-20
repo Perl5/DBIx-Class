@@ -67,7 +67,7 @@ if ($Module::Install::AUTHOR) {
 
   print "Regenerating README\n";
   system('pod2text lib/DBIx/Class.pm > README');
-
+  system('perl -Ilib ./script/dbicadmin --pod > lib/dbicadmin.pod');
   if (-f 'MANIFEST') {
     print "Removing MANIFEST\n";
     unlink 'MANIFEST';
