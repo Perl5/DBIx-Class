@@ -31,7 +31,7 @@ This returns the usage formated as a pod document
 
 sub pod {
   my ($self) = @_;
-  return join qq{\n}, $self->pod_leader_text, $self->pod_option_text;
+  return join qq{\n}, $self->pod_leader_text, $self->pod_option_text, $self->pod_authorlic_text;
 }
 
 sub pod_leader_text {
@@ -40,6 +40,19 @@ sub pod_leader_text {
   return qq{=head1 NAME\n\n}.prog_name()." - ".$self->short_description().qq{\n\n}.
          qq{=head1 SYNOPSIS\n\n}.$self->leader_text().qq{\n}.$self->synopsis().qq{\n\n};
 
+}
+
+sub pod_authorlic_text {
+
+  return <<'EOA'
+=head1 AUTHORS
+
+See L<DBIx::Class/CONTRIBUTORS>
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself
+EOA
 }
 
 
