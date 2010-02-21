@@ -797,15 +797,15 @@ sub _shift_siblings {
 
     if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) ) ) {
 
-        my @pcols = $rsrc->primary_columns;
+        my @pcols = $rsrc->_pri_cols;
         my $cursor = $shift_rs->search ({}, { order_by => { "-$ord", $position_column }, columns => \@pcols } )->cursor;
         my $rs = $self->result_source->resultset;
 
-        while (my @pks = $cursor->next ) {
-
+        my @all_pks = $cursor->all;
+        while (my $pks = shift @all_pks) {
           my $cond;
           for my $i (0.. $#pcols) {
-            $cond->{$pcols[$i]} = $pks[$i];
+            $cond->{$pcols[$i]} = $pks->[$i];
           }
 
           $rs->search($cond)->update ({ $position_column => \ "$position_column $op 1" } );

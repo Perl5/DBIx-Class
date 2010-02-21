@@ -728,10 +728,9 @@ sub _remove_blob_cols_array {
 sub _update_blobs {
   my ($self, $source, $blob_cols, $where) = @_;
 
-  my (@primary_cols) = $source->primary_columns;
-
-  $self->throw_exception('Cannot update TEXT/IMAGE column(s) without a primary key')
-    unless @primary_cols;
+  my @primary_cols = eval { $source->_pri_cols };
+  $self->throw_exception("Cannot update TEXT/IMAGE column(s): $@")
+    if $@;
 
 # check if we're updating a single row by PK
   my $pk_cols_in_where = 0;
@@ -763,10 +762,9 @@ sub _insert_blobs {
   my $table = $source->name;
 
   my %row = %$row;
-  my (@primary_cols) = $source->primary_columns;
-
-  $self->throw_exception('Cannot update TEXT/IMAGE column(s) without a primary key')
-    unless @primary_cols;
+  my @primary_cols = eval { $source->_pri_cols} ;
+  $self->throw_exception("Cannot update TEXT/IMAGE column(s): $@")
+    if $@;
 
   $self->throw_exception('Cannot update TEXT/IMAGE column(s) without primary key values')
     if ((grep { defined $row{$_} } @primary_cols) != @primary_cols);

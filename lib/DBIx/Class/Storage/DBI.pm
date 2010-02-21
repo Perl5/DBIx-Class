@@ -1601,15 +1601,7 @@ sub _subq_update_delete {
   my $rsrc = $rs->result_source;
 
   # quick check if we got a sane rs on our hands
-  my @pcols = $rsrc->primary_columns;
-  unless (@pcols) {
-    $self->throw_exception (
-      sprintf (
-        "You must declare primary key(s) on source '%s' (via set_primary_key) in order to update or delete complex resultsets",
-        $rsrc->source_name || $rsrc->from
-      )
-    );
-  }
+  my @pcols = $rsrc->_pri_cols;
 
   my $sel = $rs->_resolved_attrs->{select};
   $sel = [ $sel ] unless ref $sel eq 'ARRAY';
@@ -1662,7 +1654,7 @@ sub _per_row_update_delete {
   my ($rs, $op, $values) = @_;
 
   my $rsrc = $rs->result_source;
-  my @pcols = $rsrc->primary_columns;
+  my @pcols = $rsrc->_pri_cols;
 
   my $guard = $self->txn_scope_guard;
 
@@ -1896,7 +1888,33 @@ sub _count_select {
 #
 sub _subq_count_select {
   my ($self, $source, $rs_attrs) = @_;
-  return $rs_attrs->{group_by} if $rs_attrs->{group_by};
+
+  if (my $groupby = $rs_attrs->{group_by}) {
+
+    my $avail_columns = $self->_resolve_column_info ($rs_attrs->{from});
+
+    my $sel_index;
+    for my $sel (@{$rs_attrs->{select}}) {
+      if (ref $sel eq 'HASH' and $sel->{-as}) {
+        $sel_index->{$sel->{-as}} = $sel;
+      }
+    }
+
+    my @selection;
+    for my $g_part (@$groupby) {
+      if (ref $g_part or $avail_columns->{$g_part}) {
+        push @selection, $g_part;
+      }
+      elsif ($sel_index->{$g_part}) {
+        push @selection, $sel_index->{$g_part};
+      }
+      else {
+        $self->throw_exception ("group_by criteria '$g_part' not contained within current resultset source(s)");
+      }
+    }
+
+    return \@selection;
+  }
 
   my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
   return @pcols ? \@pcols : [ 1 ];

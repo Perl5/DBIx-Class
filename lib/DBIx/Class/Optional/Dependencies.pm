@@ -74,28 +74,55 @@ my $reqs = {
     },
   },
 
-  author => {
+
+  test_pod => {
     req => {
-      'Test::Pod'                 => '1.26',
+      'Test::Pod'                 => '1.41',
+    },
+  },
+
+  test_podcoverage => {
+    req => {
       'Test::Pod::Coverage'       => '1.08',
       'Pod::Coverage'             => '0.20',
+    },
+  },
+
+  test_notabs => {
+    req => {
       #'Test::NoTabs'              => '0.9',
+    },
+  },
+
+  test_eol => {
+    req => {
       #'Test::EOL'                 => '0.6',
     },
   },
 
-  core => {
+  test_cycle => {
     req => {
-      # t/52cycle.t
       'Test::Memory::Cycle'       => '0',
       'Devel::Cycle'              => '1.10',
+    },
+  },
 
+  test_dtrelated => {
+    req => {
       # t/36datetime.t
       # t/60core.t
       'DateTime::Format::SQLite'  => '0',
 
       # t/96_is_deteministic_value.t
       'DateTime::Format::Strptime'=> '0',
+
+      # t/inflate/datetime_mysql.t
+      # (doesn't need Mysql itself)
+      'DateTime::Format::MySQL' => '0',
+
+      # t/inflate/datetime_pg.t
+      # (doesn't need PG itself)
+      'DateTime::Format::Pg'  => '0',
     },
   },
 
@@ -116,7 +143,6 @@ my $reqs = {
         ? (
           'Sys::SigAction'        => '0',
           'DBD::Pg'               => '2.009002',
-          'DateTime::Format::Pg'  => '0',
         ) : ()
     },
   },
@@ -125,7 +151,6 @@ my $reqs = {
     req => {
       $ENV{DBICTEST_MYSQL_DSN}
         ? (
-          'DateTime::Format::MySQL' => '0',
           'DBD::mysql'              => '0',
         ) : ()
     },

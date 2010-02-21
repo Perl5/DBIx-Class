@@ -503,6 +503,16 @@ sub primary_columns {
   return @{shift->_primaries||[]};
 }
 
+sub _pri_cols {
+  my $self = shift;
+  my @pcols = $self->primary_columns
+    or $self->throw_exception (sprintf(
+      'Operation requires a primary key to be declared on %s via set_primary_key',
+      ref $self,
+    ));
+  return @pcols;
+}
+
 =head2 add_unique_constraint
 
 =over 4

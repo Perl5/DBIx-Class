@@ -30,19 +30,12 @@ my $build_requires = {
 my $test_requires = {
   'File::Temp'               => '0.22',
   'Test::Builder'            => '0.33',
-  'Test::Deep'               => '0',
   'Test::Exception'          => '0',
   'Test::More'               => '0.92',
   'Test::Warn'               => '0.21',
 };
 
 my $runtime_requires = {
-  # Core
-  'List::Util'               => '0',
-  'Scalar::Util'             => '0',
-  'Storable'                 => '0',
-
-  # Dependencies
   'Carp::Clan'               => '6.0',
   'Class::Accessor::Grouped' => '0.09002',
   'Class::C3::Componentised' => '1.0005',
@@ -52,7 +45,6 @@ my $runtime_requires = {
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.18',
-  'Scope::Guard'             => '0.03',
   'SQL::Abstract'            => '1.61',
   'SQL::Abstract::Limit'     => '0.13',
   'Sub::Name'                => '0.04',
@@ -146,7 +138,6 @@ no_index directory => $_ for (qw|
   lib/DBIx/Class/PK/Auto
 |);
 no_index package => $_ for (qw/
-  DBIx::Class::Storage::DBI::AmbiguousGlob
   DBIx::Class::SQLAHacks DBIx::Class::Storage::DBIHacks
 /);
 
