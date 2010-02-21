@@ -87,8 +87,8 @@ has 'schema' => (
 
 sub _build_schema {
   my ($self)  = @_;
-  require Class::C3::Componentised;
-  Class::C3::Componentised->ensure_class_loaded($self->schema_class);
+  require Class::MOP;
+  Class::MOP::load_class($self->schema_class);
 
   $self->connect_info->[3]->{ignore_version} =1;
   return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );

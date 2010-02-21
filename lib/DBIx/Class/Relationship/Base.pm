@@ -200,9 +200,15 @@ sub related_resultset {
     my $query = ((@_ > 1) ? {@_} : shift);
 
     my $source = $self->result_source;
-    my $cond = $source->_resolve_condition(
-      $rel_info->{cond}, $rel, $self
-    );
+
+    # condition resolution may fail if an incomplete master-object prefetch
+    # is encountered
+    my $cond =
+      eval { $source->_resolve_condition( $rel_info->{cond}, $rel, $self ) }
+        ||
+      $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
+    ;
+
     if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
       my $reverse = $source->reverse_relationship_info($rel);
       foreach my $rev_rel (keys %$reverse) {
@@ -260,7 +266,7 @@ sub search_related {
   ( $objects_rs ) = $rs->search_related_rs('relname', $cond, $attrs);
 
 This method works exactly the same as search_related, except that 
-it guarantees a restultset, even in list context.
+it guarantees a resultset, even in list context.
 
 =cut
 
@@ -392,7 +398,7 @@ example, to set the correct author for a book, find the Author object, then
 call set_from_related on the book.
 
 This is called internally when you pass existing objects as values to
-L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to acessor.
+L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to accessor.
 
 The columns are only set in the local copy of the object, call L</update> to
 set them in the storage.

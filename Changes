@@ -1,5 +1,15 @@
 Revision history for DBIx::Class
 
+        - Make sure possibly overwritten deployment_statements methods in
+          schemas get called on $schema->deploy
+        - Fix count() with group_by aliased-function resultsets
+        - Massive refactor and cleanup of primary key handling
+        - Fixed regression losing custom result_class (really this time)
+          (RT#54697)
+        - Fixed regression in DBIC SQLT::Parser failing with a classname
+          (as opposed to a schema object)
+
+0.08119 2010-02-15 09:36:00 (UTC)
         - Add $rs->is_ordered to test for existing order_by on a resultset
         - Add as_subselect_rs to DBIC::ResultSet from
           DBIC::Helper::ResultSet::VirtualView::as_virtual_view

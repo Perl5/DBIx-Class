@@ -141,7 +141,7 @@ See: L</search>, L</count>, L</get_column>, L</all>, L</create>.
 =head1 OVERLOADING
 
 If a resultset is used in a numeric context it returns the L</count>.
-However, if it is used in a booleand context it is always true.  So if
+However, if it is used in a boolean context it is always true.  So if
 you want to check if a resultset has any results use C<if $rs != 0>.
 C<if $rs> will always be true.
 
@@ -524,7 +524,7 @@ sub find {
     # in ::Relationship::Base::search_related (the row method), and furthermore
     # the relationship is of the 'single' type. This means that the condition
     # provided by the relationship (already attached to $self) is sufficient,
-    # as there can be only one row in the databse that would satisfy the
+    # as there can be only one row in the database that would satisfy the
     # relationship
   }
   else {
@@ -535,7 +535,7 @@ sub find {
   }
 
   # Run the query
-  my $rs = $self->search ($query, {result_class => $self->result_class, %$attrs});
+  my $rs = $self->search ($query, $attrs);
   if (keys %{$rs->_resolved_attrs->{collapse}}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
@@ -639,7 +639,7 @@ sub search_related {
 =head2 search_related_rs
 
 This method works exactly the same as search_related, except that
-it guarantees a restultset, even in list context.
+it guarantees a resultset, even in list context.
 
 =cut
 
@@ -697,7 +697,7 @@ L<DBIx::Class::ResultSet> returned.
 
 =item B<Note>
 
-As of 0.08100, this method enforces the assumption that the preceeding
+As of 0.08100, this method enforces the assumption that the preceding
 query returns only one row. If more than one row is returned, you will receive
 a warning:
 
@@ -1136,6 +1136,7 @@ sub result_class {
   if ($result_class) {
     $self->ensure_class_loaded($result_class);
     $self->_result_class($result_class);
+    $self->{attrs}{result_class} = $result_class if ref $self;
   }
   $self->_result_class;
 }
@@ -1261,10 +1262,10 @@ sub _count_subq_rs {
   # if we multi-prefetch we group_by primary keys only as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
   if ( keys %{$attrs->{collapse}}  ) {
-    $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->primary_columns) ]
+    $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->_pri_cols) ]
   }
 
-  $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $sub_attrs);
+  $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $attrs);
 
   # this is so that the query can be simplified e.g.
   # * ordering can be thrown away in things like Top limit
@@ -1420,7 +1421,7 @@ sub _rs_update_delete {
     my $attrs = $self->_resolved_attrs_copy;
 
     delete $attrs->{$_} for qw/collapse select as/;
-    $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->primary_columns) ];
+    $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->_pri_cols) ];
 
     if ($needs_group_by_subq) {
       # make sure no group_by was supplied, or if there is one - make sure it matches
@@ -1597,7 +1598,7 @@ Example:  Assuming an Artist Class that has many CDs Classes relating:
       ],
      },
      { artistid => 5, name => 'Angsty-Whiny Girl', cds => [
-        { title => 'My parents sold me to a record company' ,year => 2005 },
+        { title => 'My parents sold me to a record company', year => 2005 },
         { title => 'Why Am I So Ugly?', year => 2006 },
         { title => 'I Got Surgery and am now Popular', year => 2007 }
       ],
@@ -1625,7 +1626,7 @@ example:
     [qw/artistid name/],
     [100, 'A Formally Unknown Singer'],
     [101, 'A singer that jumped the shark two albums ago'],
-    [102, 'An actually cool singer.'],
+    [102, 'An actually cool singer'],
   ]);
 
 Please note an important effect on your data when choosing between void and
@@ -2132,7 +2133,7 @@ To create related objects, pass a hashref of related-object column values
 B<keyed on the relationship name>. If the relationship is of type C<multi>
 (L<DBIx::Class::Relationship/has_many>) - pass an arrayref of hashrefs.
 The process will correctly identify columns holding foreign keys, and will
-transparrently populate them from the keys of the corresponding relation.
+transparently populate them from the keys of the corresponding relation.
 This can be applied recursively, and will work correctly for a structure
 with an arbitrary depth and width, as long as the relationships actually
 exists and the correct column data has been supplied.
@@ -3329,7 +3330,7 @@ attempting to use the accessor in an C<order_by> clause or similar
 will fail miserably.
 
 To get around this limitation, you can supply literal SQL to your
-C<select> attibute that contains the C<AS alias> text, eg:
+C<select> attribute that contains the C<AS alias> text, e.g.
 
   select => [\'myfield AS alias']
 
@@ -3440,7 +3441,7 @@ for a C<join> attribute in the above search.
 C<prefetch> can be used with the following relationship types: C<belongs_to>,
 C<has_one> (or if you're using C<add_relationship>, any relationship declared
 with an accessor type of 'single' or 'filter'). A more complex example that
-prefetches an artists cds, the tracks on those cds, and the tags associted
+prefetches an artists cds, the tracks on those cds, and the tags associated
 with that artist is given below (assuming many-to-many from artists to tags):
 
  my $rs = $schema->resultset('Artist')->search(
@@ -3519,7 +3520,7 @@ C<total_entries> on it.
 
 =back
 
-Specifes the maximum number of rows for direct retrieval or the number of
+Specifies the maximum number of rows for direct retrieval or the number of
 rows per page if the page attribute or method is used.
 
 =head2 offset

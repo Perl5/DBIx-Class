@@ -4,7 +4,6 @@ use warnings;
 use Test::More;
 
 use Test::Exception;
-use Test::Deep;
 
 BEGIN {
     require DBIx::Class;
@@ -15,7 +14,7 @@ BEGIN {
 use lib 't/lib';
 use DBICTest;
 
-use ok 'DBIx::Class::Admin';
+use_ok 'DBIx::Class::Admin';
 
 
 { # test data maniplulation functions
@@ -54,7 +53,7 @@ use ok 'DBIx::Class::Admin';
   ];
   my $data;
   lives_ok { $data = $admin->select('Employee')} 'can retrive data from database';
-  cmp_deeply($data, $expected_data, 'DB matches whats expected');
+  is_deeply($data, $expected_data, 'DB matches whats expected');
 
   $admin->delete('Employee', {name=>'Trout'});
   my $del_rs  = $employees->search({name => 'Trout'});

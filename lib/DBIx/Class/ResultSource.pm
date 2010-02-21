@@ -503,6 +503,16 @@ sub primary_columns {
   return @{shift->_primaries||[]};
 }
 
+sub _pri_cols {
+  my $self = shift;
+  my @pcols = $self->primary_columns
+    or $self->throw_exception (sprintf(
+      'Operation requires a primary key to be declared on %s via set_primary_key',
+      ref $self,
+    ));
+  return @pcols;
+}
+
 =head2 add_unique_constraint
 
 =over 4
@@ -1565,7 +1575,7 @@ Creates a new ResultSource object.  Not normally called directly by end users.
   __PACKAGE__->column_info_from_storage(1);
 
 Enables the on-demand automatic loading of the above column
-metadata from storage as neccesary.  This is *deprecated*, and
+metadata from storage as necessary.  This is *deprecated*, and
 should not be used.  It will be removed before 1.0.
 
 

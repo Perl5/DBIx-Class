@@ -258,7 +258,7 @@ sub deploy {
 
 =back
 
-Virtual method that should be overriden to create an upgrade file.
+Virtual method that should be overridden to create an upgrade file.
 This is useful in the case of upgrading across multiple versions
 to concatenate several files to create one upgrade file.
 
@@ -279,7 +279,7 @@ sub create_upgrade_path {
 
 =back
 
-Virtual method that should be overriden to return an ordered list
+Virtual method that should be overridden to return an ordered list
 of schema versions. This is then used to produce a set of steps to
 upgrade through to achieve the required schema version.
 
@@ -303,7 +303,7 @@ list of schema versions (if ordered_schema_versions returns nothing
 then it is assumed you can do the upgrade as a single step). It
 then iterates through the list of versions between the current db
 version and the schema version applying one update at a time until
-all relvant updates are applied.
+all relevant updates are applied.
 
 The individual update steps are performed by using
 L</upgrade_single_step>, which will apply the update and also
@@ -544,7 +544,7 @@ warns if they are not the same or if the DB is unversioned. It also provides
 compatibility between the old versions table (SchemaVersions) and the new one
 (dbix_class_schema_versions).
 
-To avoid the checks on connect, set the env var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth argument like so:
+To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth argument like so:
 
   my $schema = MyApp::Schema->connect(
     $dsn,

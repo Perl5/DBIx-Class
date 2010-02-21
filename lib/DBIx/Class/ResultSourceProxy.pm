@@ -75,6 +75,10 @@ sub primary_columns {
   shift->result_source_instance->primary_columns(@_);
 }
 
+sub _pri_cols {
+  shift->result_source_instance->_pri_cols(@_);
+}
+
 sub add_unique_constraint {
   shift->result_source_instance->add_unique_constraint(@_);
 }

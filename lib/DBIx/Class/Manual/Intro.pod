@@ -225,7 +225,7 @@ second database you want to access:
 Note that L<DBIx::Class::Schema> does not cache connections for you. If you use
 multiple connections, you need to do this manually.
 
-To execute some sql statements on every connect you can add them as an option in
+To execute some SQL statements on every connect you can add them as an option in
 a special fifth argument to connect:
 
   my $another_schema = My::Schema->connect(

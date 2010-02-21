@@ -10,7 +10,7 @@ DBIx::Class::CDBICompat::AbstractSearch - Emulates Class::DBI::AbstractSearch
 
 =head1 SYNOPSIS
 
-See DBIx::Class::CDBICompat for directions for use.
+See DBIx::Class::CDBICompat for usage directions.
 
 =head1 DESCRIPTION
 
