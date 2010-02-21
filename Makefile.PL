@@ -8,6 +8,11 @@ use 5.008001;
 use FindBin;
 use lib "$FindBin::Bin/lib";
 
+# adjust ENV for $AUTHOR system() calls
+use Config;
+$ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
+
+
 ###
 ### DO NOT ADD OPTIONAL DEPENDENCIES HERE, EVEN AS recommends()
 ### All of them should go to DBIx::Class::Optional::Dependencies
@@ -62,16 +67,19 @@ my $reqs = {
   test_requires => { %$test_requires },
 };
 
-# re-build README and require extra modules for testing if we're in a checkout
+# autogenerate docs and require extra modules for testing if we're in a checkout
 if ($Module::Install::AUTHOR) {
 
   print "Regenerating README\n";
   system('pod2text lib/DBIx/Class.pm > README');
-  system('perl -Ilib ./script/dbicadmin --pod > lib/dbicadmin.pod');
+
   if (-f 'MANIFEST') {
     print "Removing MANIFEST\n";
     unlink 'MANIFEST';
   }
+
+  print "Regenerating dbicadmin.pod\n";
+  system('perl script/dbicadmin --pod > lib/dbicadmin.pod');
 
   print "Regenerating Optional/Dependencies.pod\n";
   require DBIx::Class::Optional::Dependencies;
