@@ -182,6 +182,16 @@ my $reqs = {
         ) : ()
     },
   },
+
+  rdbms_db2 => {
+    req => {
+      $ENV{DBICTEST_DB2_DSN}
+        ? (
+          'DBD::DB2' => 0,
+        ) : ()
+    },
+  },
+
 };
 
 
