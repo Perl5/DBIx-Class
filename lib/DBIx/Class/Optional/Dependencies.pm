@@ -115,6 +115,14 @@ my $reqs = {
 
       # t/96_is_deteministic_value.t
       'DateTime::Format::Strptime'=> '0',
+
+      # t/inflate/datetime_mysql.t
+      # (doesn't need Mysql itself)
+      'DateTime::Format::MySQL' => '0',
+
+      # t/inflate/datetime_pg.t
+      # (doesn't need PG itself)
+      'DateTime::Format::Pg'  => '0',
     },
   },
 
@@ -135,7 +143,6 @@ my $reqs = {
         ? (
           'Sys::SigAction'        => '0',
           'DBD::Pg'               => '2.009002',
-          'DateTime::Format::Pg'  => '0',
         ) : ()
     },
   },
@@ -144,7 +151,6 @@ my $reqs = {
     req => {
       $ENV{DBICTEST_MYSQL_DSN}
         ? (
-          'DateTime::Format::MySQL' => '0',
           'DBD::mysql'              => '0',
         ) : ()
     },
