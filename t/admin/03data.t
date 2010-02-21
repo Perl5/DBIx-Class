@@ -14,7 +14,7 @@ BEGIN {
 use lib 't/lib';
 use DBICTest;
 
-use ok 'DBIx::Class::Admin';
+use_ok 'DBIx::Class::Admin';
 
 
 { # test data maniplulation functions
