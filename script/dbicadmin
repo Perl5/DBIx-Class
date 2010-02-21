@@ -5,8 +5,9 @@ use warnings;
 
 BEGIN {
   use DBIx::Class;
-  die (  "The following modules are required for the dbicadmin utility\n"
+  die (  'The following modules are required for the dbicadmin utility: '
        . DBIx::Class::Optional::Dependencies->req_missing_for ('admin_script')
+       . "\n"
   ) unless DBIx::Class::Optional::Dependencies->req_ok_for ('admin_script');
 }
 
