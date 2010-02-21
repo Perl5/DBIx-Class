@@ -109,28 +109,30 @@ if ($action eq 'select') {
     print $csv->string()."\n";
   }
 }
-__END__
 
-=begin pod_begin
 
-BEGIN MARKER FOR DYNAMIC POD
-
-=end pod_begin
-
-=begin pod_end
-
-END MARKER FOR DYNAMIC POD
-
-=end pod_end
-
-=head1 AUTHOR
-
-See L<DBIx::Class/CONTRIBUTORS>.
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself
-
-=cut
+#__END__
+#
+#=begin pod_begin
+#
+#BEGIN MARKER FOR DYNAMIC POD
+#
+#=end pod_begin
+#
+#=begin pod_end
+#
+#END MARKER FOR DYNAMIC POD
+#
+#=end pod_end
+#
+#=head1 AUTHOR
+#
+#See L<DBIx::Class/CONTRIBUTORS>.
+#
+#=head1 LICENSE
+#
+#You may distribute this code under the same terms as Perl itself
+#
+#=cut
 
 # vim: et ft=perl
