@@ -53,22 +53,26 @@ eval {
   $dbh->do("DROP SEQUENCE nonpkid_seq");
   $dbh->do("DROP TABLE artist");
   $dbh->do("DROP TABLE sequence_test");
-  $dbh->do("DROP TABLE cd");
   $dbh->do("DROP TABLE track");
+  $dbh->do("DROP TABLE cd");
 };
 $dbh->do("CREATE SEQUENCE artist_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE cd_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE pkid1_seq START WITH 1 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE pkid2_seq START WITH 10 MAXVALUE 999999 MINVALUE 0");
 $dbh->do("CREATE SEQUENCE nonpkid_seq START WITH 20 MAXVALUE 999999 MINVALUE 0");
-$dbh->do("CREATE TABLE artist (artistid NUMBER(12), name VARCHAR(255), rank NUMBER(38), charfield VARCHAR2(10))");
-$dbh->do("CREATE TABLE sequence_test (pkid1 NUMBER(12), pkid2 NUMBER(12), nonpkid NUMBER(12), name VARCHAR(255))");
-$dbh->do("CREATE TABLE cd (cdid NUMBER(12), artist NUMBER(12), title VARCHAR(255), year VARCHAR(4), genreid NUMBER(12), single_track NUMBER(12))");
-$dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12), position NUMBER(12), title VARCHAR(255), last_updated_on DATE, last_updated_at DATE, small_dt DATE)");
 
+$dbh->do("CREATE TABLE artist (artistid NUMBER(12), name VARCHAR(255), rank NUMBER(38), charfield VARCHAR2(10))");
 $dbh->do("ALTER TABLE artist ADD (CONSTRAINT artist_pk PRIMARY KEY (artistid))");
-$dbh->do("ALTER TABLE cd ADD (CONSTRAINT cd_pk PRIMARY KEY (cdid))");
+
+$dbh->do("CREATE TABLE sequence_test (pkid1 NUMBER(12), pkid2 NUMBER(12), nonpkid NUMBER(12), name VARCHAR(255))");
 $dbh->do("ALTER TABLE sequence_test ADD (CONSTRAINT sequence_test_constraint PRIMARY KEY (pkid1, pkid2))");
+
+$dbh->do("CREATE TABLE cd (cdid NUMBER(12), artist NUMBER(12), title VARCHAR(255), year VARCHAR(4), genreid NUMBER(12), single_track NUMBER(12))");
+$dbh->do("ALTER TABLE cd ADD (CONSTRAINT cd_pk PRIMARY KEY (cdid))");
+
+$dbh->do("CREATE TABLE track (trackid NUMBER(12), cd NUMBER(12) REFERENCES cd(cdid) DEFERRABLE, position NUMBER(12), title VARCHAR(255), last_updated_on DATE, last_updated_at DATE, small_dt DATE)");
+
 $dbh->do(qq{
   CREATE OR REPLACE TRIGGER artist_insert_trg
   BEFORE INSERT ON artist
@@ -218,6 +222,27 @@ is( $it->next, undef, "next past end of resultset ok" );
   is( scalar @results, 1, "Group by with limit OK" );
 }
 
+# test with_deferred_fk_checks
+lives_ok {
+  $schema->storage->with_deferred_fk_checks(sub {
+    $schema->resultset('Track')->create({
+      trackid => 999, cd => 999, position => 1, title => 'deferred FK track'
+    });
+    $schema->resultset('CD')->create({
+      artist => 1, cdid => 999, year => '2003', title => 'deferred FK cd'
+    });
+  });
+} 'with_deferred_fk_checks code survived';
+
+is eval { $schema->resultset('Track')->find(999)->title }, 'deferred FK track',
+   'code in with_deferred_fk_checks worked'; 
+
+throws_ok {
+  $schema->resultset('Track')->create({
+    trackid => 1, cd => 9999, position => 1, title => 'Track1'
+  });
+} qr/constraint/i, 'with_deferred_fk_checks is off';
+
 # test auto increment using sequences WITHOUT triggers
 for (1..5) {
     my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
@@ -271,8 +296,8 @@ END {
         $dbh->do("DROP SEQUENCE nonpkid_seq");
         $dbh->do("DROP TABLE artist");
         $dbh->do("DROP TABLE sequence_test");
-        $dbh->do("DROP TABLE cd");
         $dbh->do("DROP TABLE track");
+        $dbh->do("DROP TABLE cd");
         $dbh->do("DROP TABLE bindtype_test");
     }
 }

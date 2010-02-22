@@ -2,6 +2,8 @@ package DBIx::Class::Storage::DBI::Oracle::Generic;
 
 use strict;
 use warnings;
+use Scope::Guard ();
+use Context::Preserve ();
 
 =head1 NAME
 
@@ -334,15 +336,25 @@ Runs a coderef between:
   ...
   alter session set constraints = immediate
 
-to defer FK checks.
+to defer foreign key checks.
+
+Constraints must be declared C<DEFERRABLE> for this to work.
 
 =cut
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
+
+  my $txn_scope_guard = $self->txn_scope_guard;
+
   $self->_do_query('alter session set constraints = deferred');
-  $sub->();
-  $self->_do_query('alter session set constraints = immediate');
+  
+  my $sg = Scope::Guard->new(sub {
+    $self->_do_query('alter session set constraints = immediate');
+  });
+
+  return Context::Preserve::preserve_context(sub { $sub->() },
+    after => sub { $txn_scope_guard->commit });
 }
 
 =head1 AUTHOR

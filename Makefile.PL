@@ -49,6 +49,8 @@ my $runtime_requires = {
   'SQL::Abstract::Limit'     => '0.13',
   'Sub::Name'                => '0.04',
   'Data::Dumper::Concise'    => '1.000',
+  'Scope::Guard'             => '0.03',
+  'Context::Preserve'        => '0.01',
 };
 
 # this is so we can order requires alphabetically
