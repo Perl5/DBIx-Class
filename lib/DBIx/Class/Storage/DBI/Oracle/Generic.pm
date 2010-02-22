@@ -326,6 +326,25 @@ sub relname_to_table_alias {
   return $new_alias;
 }
 
+=head2 with_deferred_fk_checks
+
+Runs a coderef between:
+
+  alter session set constraints = deferred
+  ...
+  alter session set constraints = immediate
+
+to defer FK checks.
+
+=cut
+
+sub with_deferred_fk_checks {
+  my ($self, $sub) = @_;
+  $self->_do_query('alter session set constraints = deferred');
+  $sub->();
+  $self->_do_query('alter session set constraints = immediate');
+}
+
 =head1 AUTHOR
 
 See L<DBIx::Class/CONTRIBUTORS>.
