@@ -116,9 +116,6 @@ if ($Module::Install::AUTHOR) {
     unlink 'MANIFEST';
   }
 
-  print "Regenerating dbicadmin.pod\n";
-  system('perl script/dbicadmin --pod > lib/dbicadmin.pod');
-
   print "Regenerating Optional/Dependencies.pod\n";
   require DBIx::Class::Optional::Dependencies;
   DBIx::Class::Optional::Dependencies->_gen_pod;
@@ -128,13 +125,38 @@ if ($Module::Install::AUTHOR) {
   #  PodInherit();
 }
 
+tests_recursive (qw|
+    t
+|);
+
 install_script (qw|
     script/dbicadmin
 |);
 
-tests_recursive (qw|
-    t
-|);
+
+### Mangle makefile - read the comments for more info
+#
+postamble <<"EOP";
+
+# This will add an extra dep-spec for the distdir target,
+# which `make` will fold together in a first-come first-serve
+# fashion. What we do here is essentially adding extra
+# commands to execute once the distdir is assembled (via
+# create_distdir), but before control is returned to a higher
+# calling rule.
+distdir : dbicadmin_pod_inject
+
+# The pod self-injection code is in fact a hidden option in
+# dbicadmin itself
+dbicadmin_pod_inject :
+\tcd \$(DISTVNAME) && \$(ABSPERL) -Ilib script/dbicadmin --selfinject-pod
+
+# Regenerate manifest before running create_distdir.
+create_distdir : manifest
+
+EOP
+
+
 
 resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
 resources 'license'     => 'http://dev.perl.org/licenses/';
