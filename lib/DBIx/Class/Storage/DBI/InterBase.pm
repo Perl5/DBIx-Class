@@ -22,6 +22,11 @@ This class implements autoincrements for Firebird using C<RETURNING>, sets the
 limit dialect to C<FIRST X SKIP X> and provides preliminary
 L<DBIx::Class::InflateColumn::DateTime> support.
 
+You need to use either the
+L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching> option or
+L</connect_call_use_softcommit> (see L</CAVEATS>) for your code to function
+correctly with this driver.
+
 For ODBC support, see L<DBIx::Class::Storage::DBI::ODBC::Firebird>.
 
 To turn on L<DBIx::Class::InflateColumn::DateTime> support, see
@@ -160,13 +165,27 @@ sub _set_sql_dialect {
   }
 }
 
-# softcommit makes savepoints work
-sub _run_connection_actions {
+=head2 connect_call_use_softcommit
+
+Used as:
+
+  on_connect_call => 'use_softcommit'
+
+In L<connect_info|DBIx::Class::Storage::DBI/connect_info> to set the
+L<DBD::InterBase> C<ib_softcommit> option.
+
+You need either this option or C<< disable_sth_caching => 1 >> for
+L<DBIx::Class> code to function correctly.
+
+The downside of using this option is that your process will B<NOT> see UPDATEs,
+INSERTs and DELETEs from other processes for already open statements.
+
+=cut
+
+sub connect_call_use_softcommit {
   my $self = shift;
 
   $self->_dbh->{ib_softcommit} = 1;
-
-  $self->next::method(@_);
 }
 
 =head2 connect_call_datetime_setup
@@ -264,6 +283,13 @@ sub format_date {
 =head1 CAVEATS
 
 =over 4
+
+=item *
+
+with L</connect_call_use_softcommit>, you will not be able to see changes made
+to data in other processes. If this is an issue, use
+L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching>, this of
+course adversely affects performance.
 
 =item *
 

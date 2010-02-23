@@ -30,9 +30,10 @@ foreach my $conn_idx (0..$#info) {
   next unless $dsn;
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
-    auto_savepoint => 1,
-    quote_char     => q["],
-    name_sep       => q[.],
+    auto_savepoint  => 1,
+    quote_char      => q["],
+    name_sep        => q[.],
+    on_connect_call => 'use_softcommit',
   });
   my $dbh = $schema->storage->dbh;
 
@@ -126,11 +127,11 @@ EOF
   lives_and {
     $ars->search({ name => 'foo' })->update({ rank => 4 });
 
-    is $ars->search({ name => 'foo' })->first->rank, 4;
+    is eval { $ars->search({ name => 'foo' })->first->rank }, 4;
   } 'Can update a column';
 
   my ($updated) = $schema->resultset('Artist')->search({name => 'foo'});
-  is $updated->rank, 4, 'and the update made it to the database';
+  is eval { $updated->rank }, 4, 'and the update made it to the database';
 
 
 # test LIMIT support
@@ -146,8 +147,8 @@ EOF
 
 # test iterator
   $lim->reset;
-  is( $lim->next->artistid, 101, "iterator->next ok" );
-  is( $lim->next->artistid, 102, "iterator->next ok" );
+  is( eval { $lim->next->artistid }, 101, "iterator->next ok" );
+  is( eval { $lim->next->artistid }, 102, "iterator->next ok" );
   is( $lim->next, undef, "next past end of resultset ok" );
 
 # test multiple executing cursors
