@@ -35,9 +35,9 @@ sub deployment_statements {
   my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
 
   $sqltargs ||= {};
-  my $quote_char = $self->schema->storage->{'_sql_maker_opts'}->{'quote_char'};
-  $sqltargs->{quote_table_names} = 0 unless $quote_char;
-  $sqltargs->{quote_field_names} = 0 unless $quote_char;
+  my $quote_char = $self->schema->storage->sql_maker->quote_char;
+  $sqltargs->{quote_table_names} = $quote_char ? 1 : 0;
+  $sqltargs->{quote_field_names} = $quote_char ? 1 : 0;
 
   my $oracle_version = eval { $self->_get_dbh->get_info(18) };
 
@@ -60,49 +60,38 @@ sub _dbh_last_insert_id {
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $source, $col) = @_;
 
-  # look up the correct sequence automatically
-  my $sql = q{
-    SELECT trigger_body FROM ALL_TRIGGERS t
-    WHERE t.table_name = ?
-    AND t.triggering_event = 'INSERT'
-    AND t.status = 'ENABLED'
-  };
+  my $sql_maker = $self->sql_maker;
+
+  my $source_name;
+  if ( ref $source->name eq 'SCALAR' ) {
+    $source_name = ${$source->name};
+  }
+  else {
+    $source_name = $source->name;
+    $source_name = uc($source_name) unless $sql_maker->quote_char;
+  }
 
   # trigger_body is a LONG
   local $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
 
-  my $sth;
+  # disable default bindtype
+  local $sql_maker->{bindtype} = 'normal';
 
-  my $source_name;
-  if ( ref $source->name ne 'SCALAR' ) {
-      $source_name = $source->name;
-  }
-  else {
-      $source_name = ${$source->name};
-  }
+  # look up the correct sequence automatically
+  my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/;
+  my ($sql, @bind) = $sql_maker->select (
+    'ALL_TRIGGERS',
+    ['trigger_body'],
+    {
+      $schema ? (owner => $schema) : (),
+      table_name => $table || $source_name,
+      triggering_event => 'INSERT',
+      status => 'ENABLED',
+     },
+  );
+  my $sth = $dbh->prepare($sql);
+  $sth->execute (@bind);
 
-  unless ($self->schema->storage->{'_sql_maker_opts'}->{'quote_char'}) {
-    $source_name =  uc($source_name);
-  }
-
-  # check for fully-qualified name (eg. SCHEMA.TABLENAME)
-  if ( my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/ ) {
-    $sql = q{
-      SELECT trigger_body FROM ALL_TRIGGERS t
-      WHERE t.owner = ? AND t.table_name = ?
-      AND t.triggering_event = 'INSERT'
-      AND t.status = 'ENABLED'
-    };
-    $sth = $dbh->prepare($sql);
-  	my $table_name  = $self -> sql_maker -> _quote($table);
-  	my $schema_name = $self -> sql_maker -> _quote($schema);
-
-    $sth->execute( $schema_name, $table_name );
-  }
-  else {
-    $sth = $dbh->prepare($sql);
-    $sth->execute( $source_name );
-  }
   while (my ($insert_trigger) = $sth->fetchrow_array) {
     return $1 if $insert_trigger =~ m!("?\w+"?)\.nextval!i; # col name goes here???
   }
