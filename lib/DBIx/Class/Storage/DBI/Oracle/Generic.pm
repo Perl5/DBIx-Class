@@ -68,8 +68,8 @@ sub _dbh_get_autoinc_seq {
   }
   else {
     $source_name = $source->name;
-    $source_name = uc($source_name) unless $sql_maker->quote_char;
   }
+  $source_name = uc($source_name) unless $sql_maker->quote_char;
 
   # trigger_body is a LONG
   local $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
