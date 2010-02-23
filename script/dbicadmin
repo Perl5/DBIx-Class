@@ -43,8 +43,8 @@ my ($opts, $usage) = describe_options(
       ['update|u'   => 'Update data in the schema', ], 
       ['delete|D'   => 'Delete data from the schema',],
       ['op:s' => 'compatiblity option all of the above can be suppied as --op=<action>'],
-      ['help|h' => 'display this help', { implies => { schema_class => 'main' } } ],
-      ['pod' => 'Output this usage as pod', { implies => { schema_class => 'main' } } ],
+      ['help|h' => 'display this help', { implies => { schema_class => '__dummy__' } } ],
+      ['selfinject-pod' => 'hidden', { implies => { schema_class => '__dummy__' } } ],
     ], required=> 1 }],
     ['Arguments'],
     ['schema-class|schema|C:s' => 'The class of the schema to load', { required => 1 } ],
@@ -68,11 +68,19 @@ my ($opts, $usage) = describe_options(
 
 die "please only use one of --config or --connect-info\n" if ($opts->{config} and $opts->{connect_info});
 
-if($opts->{pod}) {
+if($opts->{selfinject_pod}) {
     $usage->synopsis($synopsis_text);
     $usage->short_description($short_description);
-    print $usage->pod();
-    exit 0;
+    exec (
+      $^X,
+      qw/-p -0777 -i -e/,
+      (
+        's/^# auto_pod_begin.*^# auto_pod_end/'
+      . quotemeta($usage->pod)
+      . '/ms'
+      ),
+      __FILE__
+    );
 }
 
 if($opts->{help}) {
@@ -112,28 +120,12 @@ if ($action eq 'select') {
 }
 
 
-#__END__
+__END__
+
+# auto_pod_begin
 #
-#=begin pod_begin
+# This will be replaced by the actual pod when selfinject-pod is invoked
 #
-#BEGIN MARKER FOR DYNAMIC POD
-#
-#=end pod_begin
-#
-#=begin pod_end
-#
-#END MARKER FOR DYNAMIC POD
-#
-#=end pod_end
-#
-#=head1 AUTHOR
-#
-#See L<DBIx::Class/CONTRIBUTORS>.
-#
-#=head1 LICENSE
-#
-#You may distribute this code under the same terms as Perl itself
-#
-#=cut
+# auto_pod_end
 
 # vim: et ft=perl
