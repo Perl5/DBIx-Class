@@ -165,8 +165,10 @@ resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/db
 
 # Deprecated/internal modules need no exposure
 no_index directory => $_ for (qw|
+  lib/DBIx/Class/Admin
   lib/DBIx/Class/SQLAHacks
   lib/DBIx/Class/PK/Auto
+  lib/DBIx/Class/CDBICompat
 |);
 no_index package => $_ for (qw/
   DBIx::Class::SQLAHacks DBIx::Class::Storage::DBIHacks
