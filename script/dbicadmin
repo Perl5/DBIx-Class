@@ -16,7 +16,7 @@ use DBIx::Class::Admin::Descriptive;
 use DBIx::Class::Admin;
 
 my $short_description = "utility for administrating DBIx::Class schemata";
-my $synopsis_text =qq{ 
+my $synopsis_text =q|
   deploy a schema to a database
   %c --schema=MyApp::Schema \
     --connect='["dbi:SQLite:my.db", "", ""]' \
@@ -26,8 +26,7 @@ my $synopsis_text =qq{
   %c --schema=MyApp::Schema --class=Employee \
     --connect='["dbi:SQLite:my.db", "", ""]' \
     --op=update --set='{ "name": "New_Employee" }'
-}
-;
+|;
 
 my ($opts, $usage) = describe_options(
     "%c: %o",
