@@ -95,7 +95,7 @@ sub _dbh_get_autoinc_seq {
   while (my ($insert_trigger) = $sth->fetchrow_array) {
     return $1 if $insert_trigger =~ m!("?\w+"?)\.nextval!i; # col name goes here???
   }
-  $self->throw_exception("Unable to find a sequence INSERT trigger on table '" . $source->name . "'.");
+  $self->throw_exception("Unable to find a sequence INSERT trigger on table '$source_name'.");
 }
 
 sub _sequence_fetch {
