@@ -22,13 +22,8 @@ sub set_simple {
 }
 
 
-=head2 pod
 
-This returns the usage formated as a pod document
-
-=cut
-
-
+# This returns the usage formated as a pod document
 sub pod {
   my ($self) = @_;
   return join qq{\n}, $self->pod_leader_text, $self->pod_option_text, $self->pod_authorlic_text;
@@ -44,17 +39,13 @@ sub pod_leader_text {
 
 sub pod_authorlic_text {
 
-  return <<'EOA'
-=head1 AUTHORS
-
-See L<DBIx::Class/CONTRIBUTORS>
-
-=head1 LICENSE
-
-You may distribute this code under the same terms as Perl itself
-
-=cut
-EOA
+  return join ("\n\n",
+    '=head1 AUTHORS',
+    'See L<DBIx::Class/CONTRIBUTORS>',
+    '=head1 LICENSE',
+    'You may distribute this code under the same terms as Perl itself',
+    '=cut',
+  );
 }
 
 
