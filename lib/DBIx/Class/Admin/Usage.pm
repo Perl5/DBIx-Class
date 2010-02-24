@@ -60,6 +60,7 @@ sub pod_option_text {
   foreach my $opt (@options) {
     my $spec = $opt->{spec};
     my $desc = $opt->{desc};
+    next if ($desc eq 'hidden');
     if ($desc eq 'spacer') {
         $string .= "=back\n\n=head2 $spec\n\n=cut\n\n=over\n\n";
         next;
