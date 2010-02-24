@@ -66,7 +66,7 @@ my $reqs = {
 
   deploy => {
     req => {
-      'SQL::Translator'           => '0.11002',
+      'SQL::Translator'           => '0.11005',
     },
     pod => {
       title => 'Storage::DBI::deploy()',

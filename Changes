@@ -8,6 +8,8 @@ Revision history for DBIx::Class
           (RT#54697)
         - Fixed regression in DBIC SQLT::Parser failing with a classname
           (as opposed to a schema object)
+        - Changes to Storage::DBI::Oracle to accomodate changes in latest
+          SQL::Translator (quote handling)
 
 0.08119 2010-02-15 09:36:00 (UTC)
         - Add $rs->is_ordered to test for existing order_by on a resultset
