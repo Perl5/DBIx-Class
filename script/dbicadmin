@@ -68,6 +68,10 @@ my ($opts, $usage) = describe_options(
 die "please only use one of --config or --connect-info\n" if ($opts->{config} and $opts->{connect_info});
 
 if($opts->{selfinject_pod}) {
+
+    die "This is an internal method, do not call!!!\n"
+      unless $ENV{MAKELEVEL};
+
     $usage->synopsis($synopsis_text);
     $usage->short_description($short_description);
     exec (
