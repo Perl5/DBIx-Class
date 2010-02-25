@@ -2549,8 +2549,8 @@ queries.
 This hook is to allow specific L<DBIx::Class::Storage> drivers to change the
 way these aliases are named.
 
-The default behavior is C<"$relname_$join_count" if $join_count > 1>, otherwise
-C<"$relname">.
+The default behavior is C<< "$relname_$join_count" if $join_count > 1 >>,
+otherwise C<"$relname">.
 
 =cut
 
