@@ -40,6 +40,7 @@ __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
 # Each of these methods need _determine_driver called before itself
 # in order to function reliably. This is a purely DRY optimization
 my @rdbms_specific_methods = qw/
+  deployment_statements
   sqlt_type
   build_datetime_parser
   datetime_parser_type
@@ -2552,8 +2553,8 @@ queries.
 This hook is to allow specific L<DBIx::Class::Storage> drivers to change the
 way these aliases are named.
 
-The default behavior is C<"$relname_$join_count" if $join_count > 1>, otherwise
-C<"$relname">.
+The default behavior is C<< "$relname_$join_count" if $join_count > 1 >>,
+otherwise C<"$relname">.
 
 =cut
 

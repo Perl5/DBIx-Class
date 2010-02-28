@@ -16,7 +16,7 @@ use DBIx::Class::Admin::Descriptive;
 use DBIx::Class::Admin;
 
 my $short_description = "utility for administrating DBIx::Class schemata";
-my $synopsis_text =qq{ 
+my $synopsis_text =q|
   deploy a schema to a database
   %c --schema=MyApp::Schema \
     --connect='["dbi:SQLite:my.db", "", ""]' \
@@ -26,37 +26,36 @@ my $synopsis_text =qq{
   %c --schema=MyApp::Schema --class=Employee \
     --connect='["dbi:SQLite:my.db", "", ""]' \
     --op=update --set='{ "name": "New_Employee" }'
-}
-;
+|;
 
 my ($opts, $usage) = describe_options(
     "%c: %o",
   (
     ['Actions'],
     ["action" => hidden => { one_of => [
-      ['create|c' => 'Create version diffs needs preversion',],
-      ['upgrade|U' => 'Upgrade the database to the current schema '],
-      ['install|I' => 'Install the schema version tables to an existing database',],
-      ['deploy|d' => 'Deploy the schema to the database',],
-      ['select|s'   => 'Select data from the schema', ],
-      ['insert|i'   => 'Insert data into the schema', ],
-      ['update|u'   => 'Update data in the schema', ], 
-      ['delete|D'   => 'Delete data from the schema',],
+      ['create' => 'Create version diffs needs preversion',],
+      ['upgrade' => 'Upgrade the database to the current schema '],
+      ['install' => 'Install the schema version tables to an existing database',],
+      ['deploy' => 'Deploy the schema to the database',],
+      ['select'   => 'Select data from the schema', ],
+      ['insert'   => 'Insert data into the schema', ],
+      ['update'   => 'Update data in the schema', ], 
+      ['delete'   => 'Delete data from the schema',],
       ['op:s' => 'compatiblity option all of the above can be suppied as --op=<action>'],
-      ['help|h' => 'display this help', { implies => { schema_class => '__dummy__' } } ],
+      ['help' => 'display this help', { implies => { schema_class => '__dummy__' } } ],
       ['selfinject-pod' => 'hidden', { implies => { schema_class => '__dummy__' } } ],
     ], required=> 1 }],
     ['Arguments'],
-    ['schema-class|schema|C:s' => 'The class of the schema to load', { required => 1 } ],
-    ['resultset|resultset_class|class|r:s' => 'The resultset to operate on for data manipulation' ],
-    ['config-stanza|S:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
-    ['config|f:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
-    ['connect-info|n:s%' => 'Supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
+    ['schema-class:s' => 'The class of the schema to load', { required => 1 } ],
+    ['resultset|resultset-class|class:s' => 'The resultset to operate on for data manipulation' ],
+    ['config-stanza:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
+    ['config:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
+    ['connect-info:s%' => 'Supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
     ['connect:s' => 'Supply the connect info as a json string' ],
-    ['sql-dir|q:s' => 'The directory where sql diffs will be created'],
-    ['sql-type|t:s' => 'The RDBMs flavour you wish to use'],
-    ['version|v:i' => 'Supply a version install'],
-    ['preversion|p:s' => 'The previous version to diff against',],
+    ['sql-dir:s' => 'The directory where sql diffs will be created'],
+    ['sql-type:s' => 'The RDBMs flavour you wish to use'],
+    ['version:i' => 'Supply a version install'],
+    ['preversion:s' => 'The previous version to diff against',],
     ['set:s' => 'JSON data used to perform data operations' ],
     ['attrs:s' => 'JSON string to be used for the second argument for search'],
     ['where:s' => 'JSON string to be used for the where clause of search'],
@@ -69,6 +68,10 @@ my ($opts, $usage) = describe_options(
 die "please only use one of --config or --connect-info\n" if ($opts->{config} and $opts->{connect_info});
 
 if($opts->{selfinject_pod}) {
+
+    die "This is an internal method, do not call!!!\n"
+      unless $ENV{MAKELEVEL};
+
     $usage->synopsis($synopsis_text);
     $usage->short_description($short_description);
     exec (
