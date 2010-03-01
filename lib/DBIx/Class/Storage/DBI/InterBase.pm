@@ -19,13 +19,14 @@ DBIx::Class::Storage::DBI::InterBase - Driver for the Firebird RDBMS
 =head1 DESCRIPTION
 
 This class implements autoincrements for Firebird using C<RETURNING>, sets the
-limit dialect to C<FIRST X SKIP X> and provides preliminary
+limit dialect to C<FIRST X SKIP X> and provides
 L<DBIx::Class::InflateColumn::DateTime> support.
 
 You need to use either the
 L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching> option or
 L</connect_call_use_softcommit> (see L</CAVEATS>) for your code to function
-correctly with this driver.
+correctly with this driver. Otherwise you will likely get bizarre error messages
+such as C<no statement executing>.
 
 For ODBC support, see L<DBIx::Class::Storage::DBI::ODBC::Firebird>.
 
@@ -175,7 +176,8 @@ In L<connect_info|DBIx::Class::Storage::DBI/connect_info> to set the
 L<DBD::InterBase> C<ib_softcommit> option.
 
 You need either this option or C<< disable_sth_caching => 1 >> for
-L<DBIx::Class> code to function correctly.
+L<DBIx::Class> code to function correctly (otherwise you may get C<no statement
+executing> errors.)
 
 The downside of using this option is that your process will B<NOT> see UPDATEs,
 INSERTs and DELETEs from other processes for already open statements.
@@ -288,14 +290,19 @@ sub format_date {
 
 with L</connect_call_use_softcommit>, you will not be able to see changes made
 to data in other processes. If this is an issue, use
-L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching>, this of
-course adversely affects performance.
+L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching> as a
+workaround for the C<no statement executing> errors, this of course adversely
+affects performance.
 
 =item *
 
 C<last_insert_id> support only works for Firebird versions 2 or greater. To
 work with earlier versions, we'll need to figure out how to retrieve the bodies
 of C<BEFORE INSERT> triggers and parse them for the C<GENERATOR> name.
+
+=item *
+
+Sub-second precision for TIMESTAMPs is not currently available with ODBC.
 
 =back
 
