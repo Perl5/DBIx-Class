@@ -97,7 +97,7 @@ sub _adjust_select_args_for_complex_prefetch {
   }
 
   # construct the inner $from for the subquery
-  # we need to prune first, because this will determine if we need a group_bu below
+  # we need to prune first, because this will determine if we need a group_by below
   my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, $inner_attrs);
 
   # if a multi-type join was needed in the subquery - add a group_by to simulate the

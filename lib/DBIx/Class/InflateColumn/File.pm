@@ -176,7 +176,7 @@ InflateColumn::File
 
 =head2 _file_column_callback ($file,$ret,$target)
 
-method made to be overridden for callback purposes.
+Method made to be overridden for callback purposes.
 
 =cut
 

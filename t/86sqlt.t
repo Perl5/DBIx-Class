@@ -12,6 +12,14 @@ BEGIN {
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
 
+my $custom_deployment_statements_called = 0;
+
+sub DBICTest::Schema::deployment_statements {
+  $custom_deployment_statements_called = 1;
+  my $self = shift;
+  return $self->next::method(@_);
+}
+
 my $schema = DBICTest->init_schema (no_deploy => 1);
 
 
@@ -44,26 +52,33 @@ my $schema = DBICTest->init_schema (no_deploy => 1);
 
 
 
-# replace the sqlt calback with a custom version ading an index
-$schema->source('Track')->sqlt_deploy_callback(sub {
-  my ($self, $sqlt_table) = @_;
+{
+  my $deploy_hook_called = 0;
 
-  is (
-    $sqlt_table->schema->translator->producer_type,
-    join ('::', 'SQL::Translator::Producer', $schema->storage->sqlt_type),
-    'Production type passed to translator object',
-  );
+  # replace the sqlt calback with a custom version ading an index
+  $schema->source('Track')->sqlt_deploy_callback(sub {
+    my ($self, $sqlt_table) = @_;
 
-  if ($schema->storage->sqlt_type eq 'SQLite' ) {
-    $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
-      or die $sqlt_table->error;
-  }
+    $deploy_hook_called = 1;
 
-  $self->default_sqlt_deploy_hook($sqlt_table);
-});
+    is (
+      $sqlt_table->schema->translator->producer_type,
+      join ('::', 'SQL::Translator::Producer', $schema->storage->sqlt_type),
+      'Production type passed to translator object',
+    );
 
-$schema->deploy; # do not remove, this fires the is() test in the callback above
+    if ($schema->storage->sqlt_type eq 'SQLite' ) {
+      $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
+        or die $sqlt_table->error;
+    }
 
+    $self->default_sqlt_deploy_hook($sqlt_table);
+  });
+
+  $schema->deploy; # do not remove, this fires the is() test in the callback above
+  ok($deploy_hook_called, 'deploy hook got called');
+  ok($custom_deployment_statements_called, '->deploy used the schemas deploy_statements method');
+}
 
 
 my $translator = SQL::Translator->new( 

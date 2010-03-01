@@ -9,13 +9,6 @@ use_ok('DBICTest');
 
 my $schema = DBICTest->init_schema;
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 13 );
-}
-
 my $where_bind = {
     where => \'name like ?',
     bind  => [ 'Cat%' ],
@@ -122,3 +115,5 @@ TODO: {
             bind => [ 'Spoon%' ] });
     is ( $rs->count, 1, '...cookbook + chained search with extra bind' );
 }
+
+done_testing;

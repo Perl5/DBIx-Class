@@ -110,7 +110,7 @@ sub _build_current_replicant {
 This method should be defined in the class which consumes this role.
 
 Given a pool object, return the next replicant that will serve queries.  The
-default behavior is to grap the first replicant it finds but you can write 
+default behavior is to grab the first replicant it finds but you can write 
 your own subclasses of L<DBIx::Class::Storage::DBI::Replicated::Balancer> to 
 support other balance systems.
 

@@ -24,7 +24,7 @@ sub _has_one {
     $class->ensure_class_loaded($f_class);
 
     my $pri = $class->_get_primary_key;
-  
+
     $class->throw_exception(
       "might_have/has_one needs a primary key  to infer a join; ".
       "${class} has none"
@@ -60,7 +60,11 @@ sub _has_one {
 sub _get_primary_key {
   my ( $class, $target_class ) = @_;
   $target_class ||= $class;
-  my ($pri, $too_many) = $target_class->primary_columns;
+  my ($pri, $too_many) = eval { $target_class->_pri_cols };
+  $class->throw_exception(
+    "Can't infer join condition on ${target_class}: $@"
+  ) if $@;
+
   $class->throw_exception(
     "might_have/has_one can only infer join for a single primary key; ".
     "${class} has more"

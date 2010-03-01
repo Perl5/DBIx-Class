@@ -2,6 +2,8 @@ package DBIx::Class::Storage::DBI::Oracle::Generic;
 
 use strict;
 use warnings;
+use Scope::Guard ();
+use Context::Preserve ();
 
 =head1 NAME
 
@@ -28,6 +30,22 @@ versions before 9.
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
+sub deployment_statements {
+  my $self = shift;;
+  my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
+
+  $sqltargs ||= {};
+  my $quote_char = $self->schema->storage->sql_maker->quote_char;
+  $sqltargs->{quote_table_names} = $quote_char ? 1 : 0;
+  $sqltargs->{quote_field_names} = $quote_char ? 1 : 0;
+
+  my $oracle_version = eval { $self->_get_dbh->get_info(18) };
+
+  $sqltargs->{producer_args}{oracle_version} = $oracle_version;
+
+  $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
+}
+
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, @columns) = @_;
   my @ids = ();
@@ -42,46 +60,42 @@ sub _dbh_last_insert_id {
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $source, $col) = @_;
 
-  # look up the correct sequence automatically
-  my $sql = q{
-    SELECT trigger_body FROM ALL_TRIGGERS t
-    WHERE t.table_name = ?
-    AND t.triggering_event = 'INSERT'
-    AND t.status = 'ENABLED'
-  };
+  my $sql_maker = $self->sql_maker;
+
+  my $source_name;
+  if ( ref $source->name eq 'SCALAR' ) {
+    $source_name = ${$source->name};
+  }
+  else {
+    $source_name = $source->name;
+  }
+  $source_name = uc($source_name) unless $sql_maker->quote_char;
 
   # trigger_body is a LONG
   local $dbh->{LongReadLen} = 64 * 1024 if ($dbh->{LongReadLen} < 64 * 1024);
 
-  my $sth;
+  # disable default bindtype
+  local $sql_maker->{bindtype} = 'normal';
 
-  my $source_name;
-  if ( ref $source->name ne 'SCALAR' ) {
-      $source_name = $source->name;
-  }
-  else {
-      $source_name = ${$source->name};
-  }
+  # look up the correct sequence automatically
+  my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/;
+  my ($sql, @bind) = $sql_maker->select (
+    'ALL_TRIGGERS',
+    ['trigger_body'],
+    {
+      $schema ? (owner => $schema) : (),
+      table_name => $table || $source_name,
+      triggering_event => 'INSERT',
+      status => 'ENABLED',
+     },
+  );
+  my $sth = $dbh->prepare($sql);
+  $sth->execute (@bind);
 
-  # check for fully-qualified name (eg. SCHEMA.TABLENAME)
-  if ( my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/ ) {
-    $sql = q{
-      SELECT trigger_body FROM ALL_TRIGGERS t
-      WHERE t.owner = ? AND t.table_name = ?
-      AND t.triggering_event = 'INSERT'
-      AND t.status = 'ENABLED'
-    };
-    $sth = $dbh->prepare($sql);
-    $sth->execute( uc($schema), uc($table) );
-  }
-  else {
-    $sth = $dbh->prepare($sql);
-    $sth->execute( uc( $source_name ) );
-  }
   while (my ($insert_trigger) = $sth->fetchrow_array) {
-    return uc($1) if $insert_trigger =~ m!(\w+)\.nextval!i; # col name goes here???
+    return $1 if $insert_trigger =~ m!("?\w+"?)\.nextval!i; # col name goes here???
   }
-  $self->throw_exception("Unable to find a sequence INSERT trigger on table '" . $source->name . "'.");
+  $self->throw_exception("Unable to find a sequence INSERT trigger on table '$source_name'.");
 }
 
 sub _sequence_fetch {
@@ -160,7 +174,7 @@ names to uppercase
 sub columns_info_for {
   my ($self, $table) = @_;
 
-  $self->next::method(uc($table));
+  $self->next::method($table);
 }
 
 =head2 datetime_parser_type
@@ -324,6 +338,35 @@ sub relname_to_table_alias {
     $shortened . '_' . substr($md5, 0, 30 - length($shortened) - 1);
 
   return $new_alias;
+}
+
+=head2 with_deferred_fk_checks
+
+Runs a coderef between:
+
+  alter session set constraints = deferred
+  ...
+  alter session set constraints = immediate
+
+to defer foreign key checks.
+
+Constraints must be declared C<DEFERRABLE> for this to work.
+
+=cut
+
+sub with_deferred_fk_checks {
+  my ($self, $sub) = @_;
+
+  my $txn_scope_guard = $self->txn_scope_guard;
+
+  $self->_do_query('alter session set constraints = deferred');
+  
+  my $sg = Scope::Guard->new(sub {
+    $self->_do_query('alter session set constraints = immediate');
+  });
+
+  return Context::Preserve::preserve_context(sub { $sub->() },
+    after => sub { $txn_scope_guard->commit });
 }
 
 =head1 AUTHOR

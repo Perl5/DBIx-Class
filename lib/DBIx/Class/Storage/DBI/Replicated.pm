@@ -14,7 +14,7 @@ use DBIx::Class::Storage::DBI::Replicated::Balancer;
 use DBIx::Class::Storage::DBI::Replicated::Types qw/BalancerClassNamePart DBICSchema DBICStorageDBI/;
 use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
-use Hash::Merge 'merge';
+use Hash::Merge;
 use List::Util qw/min max/;
 
 use namespace::clean -except => 'meta';
@@ -26,7 +26,7 @@ DBIx::Class::Storage::DBI::Replicated - BETA Replicated database support
 =head1 SYNOPSIS
 
 The Following example shows how to change an existing $schema to a replicated
-storage type, add some replicated (readonly) databases, and perform reporting
+storage type, add some replicated (read-only) databases, and perform reporting
 tasks.
 
 You should set the 'storage_type attribute to a replicated type.  You should
@@ -75,7 +75,7 @@ walkthroughs.
 Warning: This class is marked BETA.  This has been running a production
 website using MySQL native replication as its backend and we have some decent
 test coverage but the code hasn't yet been stressed by a variety of databases.
-Individual DB's may have quirks we are not aware of.  Please use this in first
+Individual DBs may have quirks we are not aware of.  Please use this in first
 development and pass along your experiences/bug fixes.
 
 This class implements replicated data store for DBI. Currently you can define
@@ -89,12 +89,12 @@ L</write_handler>.  Additionally, some methods need to be distributed
 to all existing storages.  This way our storage class is a drop in replacement
 for L<DBIx::Class::Storage::DBI>.
 
-Read traffic is spread across the replicants (slaves) occuring to a user
+Read traffic is spread across the replicants (slaves) occurring to a user
 selected algorithm.  The default algorithm is random weighted.
 
 =head1 NOTES
 
-The consistancy betweeen master and replicants is database specific.  The Pool
+The consistency between master and replicants is database specific.  The Pool
 gives you a method to validate its replicants, removing and replacing them
 when they fail/pass predefined criteria.  Please make careful use of the ways
 to force a query to run against Master when needed.
@@ -373,8 +373,8 @@ has _master_connect_info_opts =>
 
 =head2 around: connect_info
 
-Preserve master's C<connect_info> options (for merging with replicants.)
-Also set any Replicated related options from connect_info, such as
+Preserves master's C<connect_info> options (for merging with replicants.)
+Also sets any Replicated-related options from connect_info, such as
 C<pool_type>, C<pool_args>, C<balancer_type> and C<balancer_args>.
 
 =cut
@@ -384,10 +384,12 @@ around connect_info => sub {
 
   my $wantarray = wantarray;
 
+  my $merge = Hash::Merge->new('LEFT_PRECEDENT');
+
   my %opts;
   for my $arg (@$info) {
     next unless (reftype($arg)||'') eq 'HASH';
-    %opts = %{ merge($arg, \%opts) };
+    %opts = %{ $merge->merge($arg, \%opts) };
   }
   delete $opts{dsn};
 
@@ -396,7 +398,7 @@ around connect_info => sub {
       if $opts{pool_type};
 
     $self->pool_args(
-      merge((delete $opts{pool_args} || {}), $self->pool_args)
+      $merge->merge((delete $opts{pool_args} || {}), $self->pool_args)
     );
 
     $self->pool($self->_build_pool)
@@ -408,7 +410,7 @@ around connect_info => sub {
       if $opts{balancer_type};
 
     $self->balancer_args(
-      merge((delete $opts{balancer_args} || {}), $self->balancer_args)
+      $merge->merge((delete $opts{balancer_args} || {}), $self->balancer_args)
     );
 
     $self->balancer($self->_build_balancer)
@@ -553,7 +555,8 @@ around connect_replicants => sub {
     $self->throw_exception('too many hashrefs in connect_info')
       if @hashes > 2;
 
-    my %opts = %{ merge(reverse @hashes) };
+    my $merge = Hash::Merge->new('LEFT_PRECEDENT');
+    my %opts = %{ $merge->merge(reverse @hashes) };
 
 # delete them
     splice @$r, $i+1, ($#{$r} - $i), ();
@@ -566,7 +569,7 @@ around connect_replicants => sub {
     delete $master_opts{dbh_maker};
 
 # merge with master
-    %opts = %{ merge(\%opts, \%master_opts) };
+    %opts = %{ $merge->merge(\%opts, \%master_opts) };
 
 # update
     $r->[$i] = \%opts;
@@ -594,7 +597,7 @@ sub all_storages {
 =head2 execute_reliably ($coderef, ?@args)
 
 Given a coderef, saves the current state of the L</read_handler>, forces it to
-use reliable storage (ie sets it to the master), executes a coderef and then
+use reliable storage (e.g. sets it to the master), executes a coderef and then
 restores the original state.
 
 Example:
@@ -674,7 +677,7 @@ sub set_reliable_storage {
 =head2 set_balanced_storage
 
 Sets the current $schema to be use the </balancer> for all reads, while all
-writea are sent to the master only
+writes are sent to the master only
 
 =cut
 

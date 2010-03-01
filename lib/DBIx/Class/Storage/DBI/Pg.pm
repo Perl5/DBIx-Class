@@ -9,7 +9,7 @@ use mro 'c3';
 use DBD::Pg qw(:pg_types);
 
 # Ask for a DBD::Pg with array support
-warn "DBD::Pg 2.9.2 or greater is strongly recommended\n"
+warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
   if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
 
 sub with_deferred_fk_checks {

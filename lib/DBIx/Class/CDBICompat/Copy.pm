@@ -12,7 +12,7 @@ DBIx::Class::CDBICompat::Copy - Emulates Class::DBI->copy($new_id)
 
 =head1 SYNOPSIS
 
-See DBIx::Class::CDBICompat for directions for use.
+See DBIx::Class::CDBICompat for usage directions.
 
 =head1 DESCRIPTION
 

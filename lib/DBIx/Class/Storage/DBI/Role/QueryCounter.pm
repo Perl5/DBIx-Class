@@ -19,7 +19,7 @@ Each time the schema does a query, increment the counter.
 
 This package defines the following attributes.
 
-head2 _query_count
+=head2 _query_count
 
 Is the attribute holding the current query count.  It defines a public reader
 called 'query_count' which you can use to access the total number of queries
@@ -42,7 +42,7 @@ This module defines the following methods.
 
 =head2 _query_start
 
-override on the method so that we count the queries.
+Override on the method so that we count the queries.
 
 =cut
 

@@ -5,7 +5,6 @@ use warnings;
 
 use base qw/
   DBIx::Class::Storage::DBI::MultiColumnIn
-  DBIx::Class::Storage::DBI::AmbiguousGlob
   DBIx::Class::Storage::DBI
 /;
 use mro 'c3';

@@ -31,13 +31,27 @@ sub id {
   my ($self) = @_;
   $self->throw_exception( "Can't call id() as a class method" )
     unless ref $self;
-  my @pk = $self->_ident_values;
-  return (wantarray ? @pk : $pk[0]);
+  my @id_vals = $self->_ident_values;
+  return (wantarray ? @id_vals : $id_vals[0]);
 }
 
 sub _ident_values {
   my ($self) = @_;
-  return (map { $self->{_column_data}{$_} } $self->primary_columns);
+  my (@ids, @missing);
+
+  for ($self->_pri_cols) {
+    push @ids, $self->get_column($_);
+    push @missing, $_ if (! defined $ids[-1] and ! $self->has_column_loaded ($_) );
+  }
+
+  if (@missing && $self->in_storage) {
+    $self->throw_exception (
+      'Unable to uniquely identify row object with missing PK columns: '
+      . join (', ', @missing )
+    );
+  }
+
+  return @ids;
 }
 
 =head2 ID
@@ -64,12 +78,11 @@ sub ID {
   $self->throw_exception( "Can't call ID() as a class method" )
     unless ref $self;
   return undef unless $self->in_storage;
-  return $self->_create_ID(map { $_ => $self->{_column_data}{$_} }
-                             $self->primary_columns);
+  return $self->_create_ID(%{$self->ident_condition});
 }
 
 sub _create_ID {
-  my ($self,%vals) = @_;
+  my ($self, %vals) = @_;
   return undef unless 0 == grep { !defined } values %vals;
   return join '|', ref $self || $self, $self->result_source->name,
     map { $_ . '=' . $vals{$_} } sort keys %vals;
@@ -87,9 +100,25 @@ Produces a condition hash to locate a row based on the primary key(s).
 
 sub ident_condition {
   my ($self, $alias) = @_;
-  my %cond;
+
+  my @pks = $self->_pri_cols;
+  my @vals = $self->_ident_values;
+
+  my (%cond, @undef);
   my $prefix = defined $alias ? $alias.'.' : '';
-  $cond{$prefix.$_} = $self->get_column($_) for $self->primary_columns;
+  for my $col (@pks) {
+    if (! defined ($cond{$prefix.$col} = shift @vals) ) {
+      push @undef, $col;
+    }
+  }
+
+  if (@undef && $self->in_storage) {
+    $self->throw_exception (
+      'Unable to construct row object identity condition due to NULL PK columns: '
+      . join (', ', @undef)
+    );
+  }
+
   return \%cond;
 }
 

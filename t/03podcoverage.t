@@ -6,24 +6,17 @@ use List::Util ();
 use lib qw(t/lib);
 use DBICTest;
 
-my @MODULES = (
-  'Test::Pod::Coverage 1.08',
-  'Pod::Coverage 0.20',
-);
-
 # Don't run tests for installs
 unless ( DBICTest::AuthorCheck->is_author || $ENV{AUTOMATED_TESTING} || $ENV{RELEASE_TESTING} ) {
   plan( skip_all => "Author tests not required for installation" );
 }
 
-# Load the testing modules
-foreach my $MODULE ( @MODULES ) {
-  eval "use $MODULE";
-  if ( $@ ) {
-    $ENV{RELEASE_TESTING}
-    ? die( "Failed to load required release-testing module $MODULE" )
-    : plan( skip_all => "$MODULE not available for testing" );
-  }
+require DBIx::Class;
+unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_podcoverage') ) {
+  my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_podcoverage');
+  $ENV{RELEASE_TESTING} || DBICTest::AuthorCheck->is_author
+    ? die ("Failed to load release-testing module requirements: $missing")
+    : plan skip_all => "Test needs: $missing"
 }
 
 # Since this is about checking documentation, a little documentation
@@ -93,7 +86,7 @@ my $exceptions = {
         /]
     },
 
-    'DBIx::Class::Admin::Types'                     => { skip => 1 },
+    'DBIx::Class::Admin::*'                         => { skip => 1 },
     'DBIx::Class::ClassResolver::PassThrough'       => { skip => 1 },
     'DBIx::Class::Componentised'                    => { skip => 1 },
     'DBIx::Class::Relationship::*'                  => { skip => 1 },
@@ -148,7 +141,7 @@ foreach my $module (@modules) {
         if exists($ex->{ignore});
 
     # run the test with the potentially modified parm set
-    pod_coverage_ok($module, $parms, "$module POD coverage");
+    Test::Pod::Coverage::pod_coverage_ok($module, $parms, "$module POD coverage");
   }
 }
 

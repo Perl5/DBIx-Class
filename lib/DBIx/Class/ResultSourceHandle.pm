@@ -87,7 +87,7 @@ sub STORABLE_freeze {
 =head2 STORABLE_thaw
 
 Thaws frozen handle. Resets the internal schema reference to the package
-variable C<$thaw_schema>. The recomened way of setting this is to use 
+variable C<$thaw_schema>. The recommended way of setting this is to use 
 C<< $schema->thaw($ice) >> which handles this for you.
 
 =cut

@@ -58,7 +58,7 @@ Save the following into a example.sql in the directory db
     title TEXT NOT NULL
   );
 
-and create the sqlite database file:
+and create the SQLite database file:
 
   sqlite3 example.db < example.sql
 
@@ -198,7 +198,7 @@ testdb.pl:
   use strict;
 
   my $schema = MyDatabase::Main->connect('dbi:SQLite:db/example.db');
-  # for other DSNs, e.g. MySql, see the perldoc for the relevant dbd
+  # for other DSNs, e.g. MySQL, see the perldoc for the relevant dbd
   # driver, e.g perldoc L<DBD::mysql>.
 
   get_tracks_by_cd('Bad');
@@ -345,7 +345,7 @@ It should output:
 
 =head1 Notes
 
-A reference implentation of the database and scripts in this example
+A reference implementation of the database and scripts in this example
 are available in the main distribution for DBIx::Class under the
 directory F<t/examples/Schema>.
 

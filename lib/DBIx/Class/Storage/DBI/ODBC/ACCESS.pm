@@ -79,7 +79,7 @@ Information about support for different version of MS Access is welcome.
 
 =head1 IMPLEMENTATION NOTES
 
-MS Access supports the @@IDENTITY function for retriving the id of the latest inserted row.
+MS Access supports the @@IDENTITY function for retrieving the id of the latest inserted row.
 @@IDENTITY is global to the connection, so to support the possibility of getting the last inserted
 id for different tables, the insert() function stores the inserted id on a per table basis.
 last_insert_id() then just returns the stored value.

@@ -17,7 +17,7 @@ all current Red Hat and Fedora distributions, but the old check still
 triggers, incorrectly flagging those versions of perl to be buggy. A
 more comprehensive check has been moved into the test suite in
 C<t/99rh_perl_perf_bug.t> and further information about the bug has been
-put in L<DBIx::Class::Manual::Troubleshooting>
+put in L<DBIx::Class::Manual::Troubleshooting>.
 
 Other checks may be added from time to time.
 

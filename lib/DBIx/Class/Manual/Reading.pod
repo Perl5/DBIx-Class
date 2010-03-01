@@ -17,14 +17,14 @@ additions are consistent with the rest of the documentation.
 Methods should be documented in the files which also contain the code
 for the method, or that file should be hidden from PAUSE completely,
 in which case the methods are documented in the file which loads
-it. Methods may also be documented and refered to in files
+it. Methods may also be documented and referred to in files
 representing the major objects or components on which they can be
 called.
 
 For example, L<DBIx::Class::Relationship> documents the methods
 actually coded in the helper relationship classes like
 DBIx::Class::Relationship::BelongsTo. The BelongsTo file itself is
-hidden from pause as it has no documentation. The accessors created by
+hidden from PAUSE as it has no documentation. The accessors created by
 relationships should be mentioned in L<DBIx::Class::Row>, the major
 object that they will be called on.
 
@@ -46,7 +46,7 @@ of the arguments the method is expected to take, and an indication of
 what the method returns.
 
 The first item provides a list of all possible values for the
-arguments of the method in order, separated by C<, >, preceeded by the
+arguments of the method in order, separated by C<, >, preceded by the
 text "Arguments: "
 
 Example (for the belongs_to relationship):
@@ -145,10 +145,10 @@ self-explanatory enough to not require it. Use best judgement.
 =item *
 
 The argument list is followed by some examples of how to use the
-method, using it's various types of arguments.
+method, using its various types of arguments.
 
 The examples can also include ways to use the results if
-applicable. For instance if the documentation is for a relationship
+applicable. For instance, if the documentation is for a relationship
 type, the examples can include how to call the resulting relation
 accessor, how to use the relation name in a search and so on.
 

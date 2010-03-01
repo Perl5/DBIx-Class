@@ -141,7 +141,7 @@ Next, you can execute your complex query using bind parameters like this:
   );
 
 ... and you'll get back a perfect L<DBIx::Class::ResultSet> (except, of course,
-that you cannot modify the rows it contains, ie. cannot call L</update>,
+that you cannot modify the rows it contains, e.g. cannot call L</update>,
 L</delete>, ...  on it).
 
 Note that you cannot have bind parameters unless is_virtual is set to true.
@@ -201,7 +201,7 @@ to access the returned value:
   # SELECT name name, LENGTH( name )
   # FROM artist
 
-Note that the C<as> attribute B<has absolutely nothing to do> with the sql
+Note that the C<as> attribute B<has absolutely nothing to do> with the SQL
 syntax C< SELECT foo AS bar > (see the documentation in 
 L<DBIx::Class::ResultSet/ATTRIBUTES>). You can control the C<AS> part of the
 generated SQL via the C<-as> field attribute as follows:
@@ -329,7 +329,7 @@ You can write subqueries relatively easily in DBIC.
     artist_id => { 'IN' => $inside_rs->get_column('id')->as_query },
   });
 
-The usual operators ( =, !=, IN, NOT IN, etc) are supported.
+The usual operators ( =, !=, IN, NOT IN, etc.) are supported.
 
 B<NOTE>: You have to explicitly use '=' when doing an equality comparison.
 The following will B<not> work:
@@ -411,7 +411,7 @@ Then call your new method in your code:
 
 Using SQL functions on the left hand side of a comparison is generally not a
 good idea since it requires a scan of the entire table. (Unless your RDBMS
-supports indexes on expressions - including return values of functions -, and
+supports indexes on expressions - including return values of functions - and
 you create an index on the return value of the function in question.) However,
 it can be accomplished with C<DBIx::Class> when necessary.
 
@@ -771,7 +771,7 @@ B<Schema definition>
 
     package My::App::Schema;
 
-    use base DBIx::Class::Schema;
+    use base 'DBIx::Class::Schema';
 
     # load subclassed classes from My::App::Schema::Result/ResultSet
     __PACKAGE__->load_namespaces;
@@ -791,7 +791,7 @@ B<Result-Subclass definition>
 
     use strict;
     use warnings;
-    use base My::Shared::Model::Result::Baz;
+    use base 'My::Shared::Model::Result::Baz';
 
     # WARNING: Make sure you call table() again in your subclass,
     # otherwise DBIx::Class::ResultSourceProxy::Table will not be called
@@ -814,7 +814,7 @@ this example we have a single user table that carries a boolean bit
 for admin.  We would like like to give the admin users
 objects (L<DBIx::Class::Row>) the same methods as a regular user but
 also special admin only methods.  It doesn't make sense to create two
-seperate proxy-class files for this.  We would be copying all the user
+separate proxy-class files for this.  We would be copying all the user
 methods into the Admin class.  There is a cleaner way to accomplish
 this.
 
@@ -1268,7 +1268,7 @@ row.
   my $schema = MySchema->connect("dbi:Pg:dbname=my_db");
 
   # Start a transaction. Every database change from here on will only be 
-  # commited into the database if the eval block succeeds.
+  # committed into the database if the eval block succeeds.
   eval {
     $schema->txn_do(sub {
       # SQL: BEGIN WORK;
@@ -1321,7 +1321,7 @@ row.
   };
   if ($@) {
     # There was an error while handling the $job. Rollback all changes
-    # since the transaction started, including the already commited
+    # since the transaction started, including the already committed
     # ('released') savepoints. There will be neither a new $job nor any
     # $thing entry in the database.
 
@@ -1621,10 +1621,10 @@ B<Deploy update to customers>
 Add the L<DBIx::Class::Schema::Versioned> schema component to your
 Schema class. This will add a new table to your database called
 C<dbix_class_schema_vesion> which will keep track of which version is installed
-and warn if the user trys to run a newer schema version than the
+and warn if the user tries to run a newer schema version than the
 database thinks it has.
 
-Alternatively, you can send the conversion sql scripts to your
+Alternatively, you can send the conversion SQL scripts to your
 customers as above.
 
 =head2 Setting quoting for the generated SQL
@@ -1706,7 +1706,7 @@ methods:
     }
   );
 
-In conditions (eg. C<\%cond> in the L<DBIx::Class::ResultSet/search> family of
+In conditions (e.g. C<\%cond> in the L<DBIx::Class::ResultSet/search> family of
 methods) you cannot directly use array references (since this is interpreted as
 a list of values to be C<OR>ed), but you can use the following syntax to force
 passing them as bind values:

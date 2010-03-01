@@ -7,11 +7,6 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@ ? (skip_all => 'needs DBD::SQLite for testing') : (tests => 10);
-}
-
 # test LIMIT
 my $it = $schema->resultset("CD")->search( {},
     { rows => 3,
@@ -77,3 +72,4 @@ $it = $schema->resultset("CD")->search(
 );
 is( $it->count, 1, "complex abstract count ok" );
 
+done_testing;

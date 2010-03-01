@@ -26,6 +26,9 @@ my $schema = DBICTest->init_schema();
 
     my $cd1 = $rs->find ({cdid => 1});
     is_deeply ( $cd1, $datahashref1, 'first/find return the same thing');
+
+    my $cd2 = $rs->search({ cdid => 1 })->single;
+    is_deeply ( $cd2, $datahashref1, 'first/search+single return the same thing');
 }
 
 sub check_cols_of {

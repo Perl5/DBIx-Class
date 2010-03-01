@@ -24,17 +24,12 @@ sub belongs_to {
   # no join condition or just a column name
   if (!ref $cond) {
     $class->ensure_class_loaded($f_class);
-    my %f_primaries = map { $_ => 1 } eval { $f_class->primary_columns };
+    my %f_primaries = map { $_ => 1 } eval { $f_class->_pri_cols };
     $class->throw_exception(
-      "Can't infer join condition for ${rel} on ${class}; ".
-      "unable to load ${f_class}: $@"
+      "Can't infer join condition for ${rel} on ${class}: $@"
     ) if $@;
 
     my ($pri, $too_many) = keys %f_primaries;
-    $class->throw_exception(
-      "Can't infer join condition for ${rel} on ${class}; ".
-      "${f_class} has no primary keys"
-    ) unless defined $pri;
     $class->throw_exception(
       "Can't infer join condition for ${rel} on ${class}; ".
       "${f_class} has multiple primary keys"

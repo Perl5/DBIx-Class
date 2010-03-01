@@ -18,11 +18,16 @@ BEGIN {
 # Test for SQLT-related leaks
 {
   my $s = DBICTest::Schema->clone;
-  create_schema ({ schema => $s });
+  my $sqlt_schema = create_schema ({ schema => $s });
   Scalar::Util::weaken ($s);
 
   ok (!$s, 'Schema not leaked');
+
+  isa_ok ($sqlt_schema, 'SQL::Translator::Schema', 'SQLT schema object produced');
 }
+
+# make sure classname-style works
+lives_ok { isa_ok (create_schema ({ schema => 'DBICTest::Schema' }), 'SQL::Translator::Schema', 'SQLT schema object produced') };
 
 
 my $schema = DBICTest->init_schema();

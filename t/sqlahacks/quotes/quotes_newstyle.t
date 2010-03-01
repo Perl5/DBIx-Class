@@ -6,13 +6,6 @@ use Test::More;
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 7 );
-}
-
 use_ok('DBICTest');
 use_ok('DBIC::DebugObj');
 
@@ -89,3 +82,5 @@ $schema->connection(
 );
 
 is($schema->storage->sql_maker->update('group', \%data), 'UPDATE `group` SET `name` = ?, `order` = ?', 'quoted table names for UPDATE');
+
+done_testing;

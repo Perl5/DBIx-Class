@@ -23,8 +23,7 @@ support (instead of ANSI).
 
 This module was originally written to support Oracle < 9i where ANSI joins
 weren't supported at all, but became the module for Oracle >= 8 because
-Oracle's optimising of ANSI joins is horrible.  (See:
-http://scsys.co.uk:8001/7495)
+Oracle's optimising of ANSI joins is horrible.
 
 =head1 SYNOPSIS
 
@@ -44,7 +43,7 @@ It will write:
 It should properly support left joins, and right joins.  Full outer joins are
 not possible due to the fact that Oracle requires the entire query be written
 to union the results of a left and right join, and by the time this module is
-called to create the where query and table definition part of the sql query,
+called to create the where query and table definition part of the SQL query,
 it's already too late.
 
 =head1 METHODS

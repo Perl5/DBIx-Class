@@ -19,7 +19,7 @@ use DBICTest;
 
 use Path::Class;
 
-use ok 'DBIx::Class::Admin';
+use_ok 'DBIx::Class::Admin';
 
 
 my $sql_dir = dir(qw/t var/);

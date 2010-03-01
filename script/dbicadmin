@@ -5,43 +5,58 @@ use warnings;
 
 BEGIN {
   use DBIx::Class;
-  die (  "The following modules are required for the dbicadmin utility\n"
+  die (  'The following modules are required for the dbicadmin utility: '
        . DBIx::Class::Optional::Dependencies->req_missing_for ('admin_script')
+       . "\n"
   ) unless DBIx::Class::Optional::Dependencies->req_ok_for ('admin_script');
 }
 
-use Getopt::Long::Descriptive;
+use DBIx::Class::Admin::Descriptive;
+#use Getopt::Long::Descriptive;
 use DBIx::Class::Admin;
 
+my $short_description = "utility for administrating DBIx::Class schemata";
+my $synopsis_text =q|
+  deploy a schema to a database
+  %c --schema=MyApp::Schema \
+    --connect='["dbi:SQLite:my.db", "", ""]' \
+    --deploy
+
+  update an existing record
+  %c --schema=MyApp::Schema --class=Employee \
+    --connect='["dbi:SQLite:my.db", "", ""]' \
+    --op=update --set='{ "name": "New_Employee" }'
+|;
+
 my ($opts, $usage) = describe_options(
-  "%c: %o",
+    "%c: %o",
   (
     ['Actions'],
     ["action" => hidden => { one_of => [
-      ['create|c' => 'Create version diffs needs preversion',],
-      ['upgrade|u' => 'Upgrade the database to the current schema '],
-      ['install|i' => 'Install the schema to the database',],
-      ['deploy|d' => 'Deploy the schema to the database',],
-      ['select|s'   => 'Select data from the schema', ],
-      ['insert|i'   => 'Insert data into the schema', ],
-      ['update|u'   => 'Update data in the schema', ], 
-      ['delete|D'   => 'Delete data from the schema',],
+      ['create' => 'Create version diffs needs preversion',],
+      ['upgrade' => 'Upgrade the database to the current schema '],
+      ['install' => 'Install the schema version tables to an existing database',],
+      ['deploy' => 'Deploy the schema to the database',],
+      ['select'   => 'Select data from the schema', ],
+      ['insert'   => 'Insert data into the schema', ],
+      ['update'   => 'Update data in the schema', ], 
+      ['delete'   => 'Delete data from the schema',],
       ['op:s' => 'compatiblity option all of the above can be suppied as --op=<action>'],
-      ['help|h' => 'display this help'],
+      ['help' => 'display this help', { implies => { schema_class => '__dummy__' } } ],
+      ['selfinject-pod' => 'hidden', { implies => { schema_class => '__dummy__' } } ],
     ], required=> 1 }],
-    ['Options'],
-    ['schema-class|schema|C:s' => 'The class of the schema to load', { required => 1 } ],
-    ['resultset|resultset_class|class|r:s' => 'The resultset to operate on for data manipulation' ],
-    ['config-stanza|S:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
-    ['config|f:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
-    ['connect-info|n:s%' => 'Supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
+    ['Arguments'],
+    ['schema-class:s' => 'The class of the schema to load', { required => 1 } ],
+    ['resultset|resultset-class|class:s' => 'The resultset to operate on for data manipulation' ],
+    ['config-stanza:s' => 'Where in the config to find the connection_info, supply in form MyApp::Model::DB',],
+    ['config:s' => 'Supply the config file for parsing by Config::Any', { depends => 'config_stanza'} ],
+    ['connect-info:s%' => 'Supply the connect info as additonal options ie -I dsn=<dsn> user=<user> password=<pass> '],
     ['connect:s' => 'Supply the connect info as a json string' ],
-    ['sql-dir|q:s' => 'The directory where sql diffs will be created'],
-    ['sql-type|t:s' => 'The RDBMs flavour you wish to use'],
-    ['version|v:i' => 'Supply a version install'],
-    ['preversion|p:s' => 'The previous version to diff against',],
+    ['sql-dir:s' => 'The directory where sql diffs will be created'],
+    ['sql-type:s' => 'The RDBMs flavour you wish to use'],
+    ['version:i' => 'Supply a version install'],
+    ['preversion:s' => 'The previous version to diff against',],
     ['set:s' => 'JSON data used to perform data operations' ],
-    ['lib|I:s' => 'Additonal library path to search in'], 
     ['attrs:s' => 'JSON string to be used for the second argument for search'],
     ['where:s' => 'JSON string to be used for the where clause of search'],
     ['force' => 'Be forceful with some operations'],
@@ -51,6 +66,29 @@ my ($opts, $usage) = describe_options(
 );
 
 die "please only use one of --config or --connect-info\n" if ($opts->{config} and $opts->{connect_info});
+
+if($opts->{selfinject_pod}) {
+
+    die "This is an internal method, do not call!!!\n"
+      unless $ENV{MAKELEVEL};
+
+    $usage->synopsis($synopsis_text);
+    $usage->short_description($short_description);
+    exec (
+      $^X,
+      qw/-p -0777 -i -e/,
+      (
+        's/^# auto_pod_begin.*^# auto_pod_end/'
+      . quotemeta($usage->pod)
+      . '/ms'
+      ),
+      __FILE__
+    );
+}
+
+if($opts->{help}) {
+    $usage->die();
+}
 
 # option compatability mangle
 if($opts->{connect}) {
@@ -84,12 +122,13 @@ if ($action eq 'select') {
   }
 }
 
-=head1 AUTHOR
 
-See L<DBIx::Class/CONTRIBUTORS>.
+__END__
 
-=head1 LICENSE
+# auto_pod_begin
+#
+# This will be replaced by the actual pod when selfinject-pod is invoked
+#
+# auto_pod_end
 
-You may distribute this code under the same terms as Perl itself
-
-=cut
+# vim: et ft=perl

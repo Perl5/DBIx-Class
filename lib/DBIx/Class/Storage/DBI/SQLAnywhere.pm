@@ -25,7 +25,7 @@ distribution, B<NOT> the one on CPAN. It is usually under a path such as:
 
   /opt/sqlanywhere11/sdk/perl
 
-Recommended L<DBIx::Class::Storage::DBI/connect_info> settings:
+Recommended L<connect_info|DBIx::Class::Storage::DBI/connect_info> settings:
 
   on_connect_call => 'datetime_setup'
 
@@ -96,8 +96,8 @@ Used as:
 
     on_connect_call => 'datetime_setup'
 
-In L<DBIx::Class::Storage::DBI/connect_info> to set the date and timestamp
-formats (as temporary options for the session) for use with
+In L<connect_info|DBIx::Class::Storage::DBI/connect_info> to set the date and
+timestamp formats (as temporary options for the session) for use with
 L<DBIx::Class::InflateColumn::DateTime>.
 
 The C<TIMESTAMP> data type supports up to 6 digits after the decimal point for
@@ -141,8 +141,8 @@ sub _svp_rollback {
 
 =head1 MAXIMUM CURSORS
 
-A L<DBIx::Class>> application can use a lot of cursors, due to the usage of
-L<DBI/prepare_cached>.
+A L<DBIx::Class> application can use a lot of cursors, due to the usage of
+L<prepare_cached|DBI/prepare_cached>.
 
 The default cursor maximum is C<50>, which can be a bit too low. This limit can
 be turned off (or increased) by the DBA by executing:

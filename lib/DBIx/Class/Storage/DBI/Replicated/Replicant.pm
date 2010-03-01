@@ -33,14 +33,14 @@ This class defines the following attributes.
 =head2 active
 
 This is a boolean which allows you to programmatically activate or deactivate a
-replicant from the pool.  This way to you do stuff like disallow a replicant
-when it get's too far behind the master, if it stops replicating, etc.
+replicant from the pool.  This way you can do stuff like disallow a replicant
+when it gets too far behind the master, if it stops replicating, etc.
 
 This attribute DOES NOT reflect a replicant's internal status, i.e. if it is
 properly replicating from a master and has not fallen too many seconds behind a
 reliability threshold.  For that, use L</is_replicating>  and L</lag_behind_master>.
 Since the implementation of those functions database specific (and not all DBIC
-supported DB's support replication) you should refer your database specific
+supported DBs support replication) you should refer your database-specific
 storage driver for more information.
 
 =cut
