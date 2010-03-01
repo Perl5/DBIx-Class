@@ -2,6 +2,7 @@ Revision history for DBIx::Class
 
         - Fix regression on not properly throwing when $obj->relationship
           is unresolvable
+        - Add has_relationship method to row objects
 
 0.08120 2010-02-24 08:58:00 (UTC)
         - Make sure possibly overwritten deployment_statements methods in

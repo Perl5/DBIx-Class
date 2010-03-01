@@ -110,4 +110,7 @@ sub relationship_info {
   shift->result_source_instance->relationship_info(@_);
 }
 
+sub has_relationship {
+  shift->result_source_instance->has_relationship(@_);
+}
 1;
