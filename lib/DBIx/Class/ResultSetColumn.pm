@@ -45,6 +45,7 @@ sub new {
   $rs->throw_exception('column must be supplied') unless $column;
 
   my $orig_attrs = $rs->_resolved_attrs;
+  my $alias = $rs->current_source_alias;
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
@@ -59,25 +60,19 @@ sub new {
   # analyze the order_by, and see if it is done over a function/nonexistentcolumn
   # if this is the case we will need to wrap a subquery since the result of RSC
   # *must* be a single column select
-  my %collist = map { $_ => 1 } ($rs->result_source->columns, $column);
+  my %collist = map 
+    { $_ => 1, ($_ =~ /\./) ? () : ( "$alias.$_" => 1 ) }
+    ($rs->result_source->columns, $column)
+  ;
   if (
     scalar grep
       { ! $collist{$_} }
       ( $rs->result_source->schema->storage->_parse_order_by ($orig_attrs->{order_by} ) ) 
   ) {
-    my $alias = $rs->current_source_alias;
     # nuke the prefetch before collapsing to sql
     my $subq_rs = $rs->search;
     $subq_rs->{attrs}{join} = $subq_rs->_merge_attr( $subq_rs->{attrs}{join}, delete $subq_rs->{attrs}{prefetch} );
-
-    $new_parent_rs = $rs->result_source->resultset->search ( {}, {
-      alias => $alias,
-      from => [{
-        $alias => $subq_rs->as_query,
-        -alias => $alias,
-        -source_handle => $rs->result_source->handle,
-      }]
-    });
+    $new_parent_rs = $subq_rs->as_subselect_rs;
   }
 
   $new_parent_rs ||= $rs->search_rs;
@@ -91,7 +86,7 @@ sub new {
 
   # {collapse} would mean a has_many join was injected, which in turn means
   # we need to group *IF WE CAN* (only if the column in question is unique)
-  if (!$new_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
+  if (!$orig_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
 
     # scan for a constraint that would contain our column only - that'd be proof
     # enough it is unique
