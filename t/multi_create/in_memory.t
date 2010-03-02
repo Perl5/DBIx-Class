@@ -6,8 +6,6 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 12;
-
 my $schema = DBICTest->init_schema();
 
 # Test various new() invocations - this is all about backcompat, making 
@@ -46,6 +44,23 @@ my $schema = DBICTest->init_schema();
 }
 
 {
+    my $new_cd = $schema->resultset('CD')->new ({ 'title' => 'Leave Loudly While Singing Off Key', 'year' => 1982});
+    my $new_artist = $schema->resultset("Artist")->new ({ 'name' => 'Depeche Mode 2: Insertion Boogaloo' });
+    $new_cd->artist ($new_artist);
+
+    eval {
+        $new_cd->insert;
+    };
+    is ($@, '', 'CD insertion survives by inserting artist');
+    ok($new_cd->in_storage, 'new_related_cd inserted');
+    ok($new_artist->in_storage, 'artist inserted');
+
+    my $retrieved_cd = $schema->resultset('CD')->find ({ 'title' => 'Leave Loudly While Singing Off Key'});
+    ok ($retrieved_cd, 'CD found in db');
+    is ($retrieved_cd->artist->name, 'Depeche Mode 2: Insertion Boogaloo', 'Correct artist attached to cd');
+}
+
+{
     my $new_cd = $schema->resultset("CD")->new_result({});
     my $new_related_artist = $new_cd->new_related('artist', { 'name' => 'Marillion',});
     lives_ok (
@@ -61,3 +76,5 @@ my $schema = DBICTest->init_schema();
     ok($new_related_artist->in_storage, 'related artist inserted');
     ok($new_cd->in_storage, 'cd inserted');
 }
+
+done_testing;
