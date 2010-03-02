@@ -46,17 +46,6 @@ my $schema = DBICTest->init_schema();
 }
 
 {
-    my $new_artist = $schema->resultset("Artist")->new_result({ 'name' => 'Depeche Mode 2: Insertion Boogaloo' });
-    my $new_related_cd = $new_artist->new_related('cds', { 'title' => 'Leave Loudly While Singing Off Key', 'year' => 1982});
-    eval {
-        $new_related_cd->insert;
-    };
-    is ($@, '', 'CD insertion survives by inserting artist');
-    ok($new_artist->in_storage, 'artist inserted');
-    ok($new_related_cd->in_storage, 'new_related_cd inserted');
-}
-
-{
     my $new_cd = $schema->resultset("CD")->new_result({});
     my $new_related_artist = $new_cd->new_related('artist', { 'name' => 'Marillion',});
     lives_ok (
