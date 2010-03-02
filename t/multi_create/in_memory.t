@@ -60,6 +60,82 @@ my $schema = DBICTest->init_schema();
     is ($retrieved_cd->artist->name, 'Depeche Mode 2: Insertion Boogaloo', 'Correct artist attached to cd');
 }
 
+# test both sides of a 1:(1|0)
+{
+  for my $reldir ('might_have', 'belongs_to') {
+    my $artist = $schema->resultset('Artist')->next;
+
+    my $new_track = $schema->resultset('Track')->new ({
+      title => "$reldir: First track of latest cd",
+      cd => {
+        title => "$reldir: Latest cd",
+        year => 2666,
+        artist => $artist,
+      },
+    });
+
+    my $new_single = $schema->resultset('CD')->new ({
+      artist => $artist,
+      title => "$reldir: Awesome first single",
+      year => 2666,
+    });
+
+    if ($reldir eq 'might_have') {
+      $new_track->cd_single ($new_single);
+      $new_track->insert;
+    }
+    else {
+      $new_single->single_track ($new_track);
+      $new_single->insert;
+    }
+
+    ok ($new_single->in_storage, "$reldir single inserted");
+    ok ($new_track->in_storage, "$reldir track inserted");
+
+    my $new_cds = $artist->search_related ('cds',
+      { year => '2666' },
+      { prefetch => 'tracks', order_by => 'cdid' }
+    );
+
+    is_deeply (
+      [$new_cds->search ({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator'})->all ],
+      [
+        {
+          artist => 1,
+          cdid => 9,
+          genreid => undef,
+          single_track => undef,
+          title => "$reldir: Latest cd",
+          tracks => [
+            {
+              cd => 9,
+              last_updated_at => undef,
+              last_updated_on => undef,
+              position => 1,
+              small_dt => undef,
+              title => "$reldir: First track of latest cd",
+              trackid => 19
+            }
+          ],
+          year => 2666
+        },
+        {
+          artist => 1,
+          cdid => 10,
+          genreid => undef,
+          single_track => 19,
+          title => "$reldir: Awesome first single",
+          tracks => [],
+          year => 2666
+        },
+      ],
+      'Expected rows created in database',
+    );
+
+    $new_cds->delete_all;
+  }
+}
+
 {
     my $new_cd = $schema->resultset("CD")->new_result({});
     my $new_related_artist = $new_cd->new_related('artist', { 'name' => 'Marillion',});
