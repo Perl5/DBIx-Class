@@ -176,7 +176,7 @@ my $reqs = {
 
   rdbms_asa => {
     req => {
-      (scalar grep $_, @ENV{qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/})
+      (scalar grep { $ENV{$_} } (qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/) )
         ? (
           'DateTime::Format::Strptime' => 0,
         ) : ()
