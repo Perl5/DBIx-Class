@@ -114,6 +114,10 @@ automatic row ordering:
   __PACKAGE__->load_components(qw/ Ordered /);
   __PACKAGE__->position_column('rank');
 
+Ordered will refer to a field called 'position' unless otherwise directed.  Here you are defining
+the ordering field to be named 'rank'.  (NOTE: Insert errors may occur if you use the Ordered 
+component, but have not defined a position column or have a 'position' field in your row.)
+
 Set the table for your class:
 
   __PACKAGE__->table('album');
