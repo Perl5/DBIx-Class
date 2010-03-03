@@ -25,6 +25,10 @@ DBIx::Class::ResultSet - Represents a query used for fetching a set of results.
 =head1 SYNOPSIS
 
   my $users_rs   = $schema->resultset('User');
+  while( $user = $users_rs->next) {
+    print $user->username;
+  }
+
   my $registered_users_rs   = $schema->resultset('User')->search({ registered => 1 });
   my @cds_in_2005 = $schema->resultset('CD')->search({ year => 2005 })->all();
 
@@ -1529,7 +1533,7 @@ Deletes the contents of the resultset from its result source. Note that this
 will not run DBIC cascade triggers. See L</delete_all> if you need triggers
 to run. See also L<DBIx::Class::Row/delete>.
 
-Return value will be the amount of rows deleted; exact type of return value
+Return value will be the number of rows deleted; exact type of return value
 is storage-dependent.
 
 =cut
