@@ -126,7 +126,7 @@ allow you to supply a hashref containing the condition across which
 the tables are to be joined. The condition may contain as many fields
 as you like. See L<DBIx::Class::Relationship::Base>.
 
-=item .. define a relatiopnship across an intermediate table? (many-to-many)
+=item .. define a relationship across an intermediate table? (many-to-many)
 
 Read the documentation on L<DBIx::Class::Relationship/many_to_many>.
 
