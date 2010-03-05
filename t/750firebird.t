@@ -60,6 +60,24 @@ EOF
     NEW."artistid" = GEN_ID("gen_artist_artistid",1);
   END
 EOF
+  eval { $dbh->do('DROP TABLE "sequence_test"') };
+  $dbh->do(<<EOF);
+  CREATE TABLE "sequence_test" (
+    "pkid1" INT NOT NULL,
+    "pkid2" INT NOT NULL,
+    "nonpkid" INT,
+    "name" VARCHAR(255)
+  )
+EOF
+  $dbh->do('ALTER TABLE "sequence_test" ADD CONSTRAINT "sequence_test_constraint" PRIMARY KEY ("pkid1", "pkid2")');
+  eval { $dbh->do('DROP GENERATOR "pkid1_seq"') };
+  eval { $dbh->do('DROP GENERATOR "pkid2_seq"') };
+  eval { $dbh->do('DROP GENERATOR "nonpkid_seq"') };
+  $dbh->do('CREATE GENERATOR "pkid1_seq"');
+  $dbh->do('CREATE GENERATOR "pkid2_seq"');
+  $dbh->do('SET GENERATOR "pkid2_seq" TO 9');
+  $dbh->do('CREATE GENERATOR "nonpkid_seq"');
+  $dbh->do('SET GENERATOR "nonpkid_seq" TO 19');
 
   my $ars = $schema->resultset('Artist');
   is ( $ars->count, 0, 'No rows at first' );
@@ -67,6 +85,16 @@ EOF
 # test primary key handling
   my $new = $ars->create({ name => 'foo' });
   ok($new->artistid, "Auto-PK worked");
+
+# test auto increment using generators WITHOUT triggers
+  for (1..5) {
+      my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
+      is($st->pkid1, $_, "Firebird Auto-PK without trigger: First primary key");
+      is($st->pkid2, $_ + 9, "Firebird Auto-PK without trigger: Second primary key");
+      is($st->nonpkid, $_ + 19, "Firebird Auto-PK without trigger: Non-primary key");
+  }
+  my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
+  is($st->pkid1, 55, "Firebird Auto-PK without trigger: First primary key set manually");
 
 # test savepoints
   eval {
@@ -96,6 +124,7 @@ EOF
   $new->discard_changes;
   is($new->artistid, 66, 'Explicit PK assigned');
 
+# row update
   lives_ok {
     $new->update({ name => 'baz' })
   } 'update survived';
@@ -123,7 +152,7 @@ EOF
 # count what we did so far
   is ($ars->count, 6, 'Simple count works');
 
-# test UPDATE
+# test ResultSet UPDATE
   lives_and {
     $ars->search({ name => 'foo' })->update({ rank => 4 });
 
@@ -169,39 +198,37 @@ EOF
   }
 
 # test blobs (stolen from 73oracle.t)
-  SKIP: {
-    eval { $dbh->do('DROP TABLE "bindtype_test2"') };
-    $dbh->do(q[
-    CREATE TABLE "bindtype_test2"
-    (
-      "id"     INT PRIMARY KEY,
-      "bytea"  INT,
-      "a_blob" BLOB,
-      "a_clob" BLOB SUB_TYPE TEXT
-    )
-    ]);
+  eval { $dbh->do('DROP TABLE "bindtype_test2"') };
+  $dbh->do(q[
+  CREATE TABLE "bindtype_test2"
+  (
+    "id"     INT PRIMARY KEY,
+    "bytea"  INT,
+    "a_blob" BLOB,
+    "a_clob" BLOB SUB_TYPE TEXT
+  )
+  ]);
 
-    my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
-    $binstr{'large'} = $binstr{'small'} x 1024;
+  my %binstr = ( 'small' => join('', map { chr($_) } ( 1 .. 127 )) );
+  $binstr{'large'} = $binstr{'small'} x 1024;
 
-    my $maxloblen = length $binstr{'large'};
-    local $dbh->{'LongReadLen'} = $maxloblen;
+  my $maxloblen = length $binstr{'large'};
+  local $dbh->{'LongReadLen'} = $maxloblen;
 
-    my $rs = $schema->resultset('BindType2');
-    my $id = 0;
+  my $rs = $schema->resultset('BindType2');
+  my $id = 0;
 
-    foreach my $type (qw( a_blob a_clob )) {
-      foreach my $size (qw( small large )) {
-        $id++;
+  foreach my $type (qw( a_blob a_clob )) {
+    foreach my $size (qw( small large )) {
+      $id++;
 
 # turn off horrendous binary DBIC_TRACE output
-        local $schema->storage->{debug} = 0;
+      local $schema->storage->{debug} = 0;
 
-        lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
-        "inserted $size $type without dying";
+      lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
+      "inserted $size $type without dying";
 
-        ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
-      }
+      ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
     }
   }
 }
@@ -221,11 +248,14 @@ sub cleanup {
   eval { $dbh->do('DROP TRIGGER "artist_bi"') };
   diag $@ if $@;
 
-  eval { $dbh->do('DROP GENERATOR "gen_artist_artistid"') };
-  diag $@ if $@;
+  foreach my $generator (qw/gen_artist_artistid pkid1_seq pkid2_seq
+                            nonpkid_seq/) {
+    eval { $dbh->do(qq{DROP GENERATOR "$generator"}) };
+    diag $@ if $@;
+  }
 
-  foreach my $table (qw/artist bindtype_test/) {
+  foreach my $table (qw/artist bindtype_test2 sequence_test/) {
     eval { $dbh->do(qq[DROP TABLE "$table"]) };
-    #diag $@ if $@;
+    diag $@ if $@;
   }
 }

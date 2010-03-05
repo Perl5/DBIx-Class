@@ -86,6 +86,62 @@ sub _execute {
   return wantarray ? ($rv, $sth, @bind) : $rv;
 }
 
+sub _sequence_fetch {
+  my ($self, $nextval, $sequence) = @_;
+
+  if ($nextval ne 'nextval') {
+    $self->throw_exception("Can only fetch 'nextval' for a sequence");
+  }
+
+  $self->throw_exception('No sequence to fetch') unless $sequence;
+  
+  my ($val) = $self->_get_dbh->selectrow_array(
+'SELECT GEN_ID(' . $self->sql_maker->_quote($sequence) .
+', 1) FROM rdb$database');
+
+  return $val;
+} 
+
+sub _dbh_get_autoinc_seq {
+  my ($self, $dbh, $source, $col) = @_;
+
+  my $table_name = $source->from;
+  $table_name    = $$table_name if ref $table_name;
+  $table_name    = $self->sql_maker->quote_char ? $table_name : uc($table_name);
+
+  local $dbh->{LongReadLen} = 100000;
+  local $dbh->{LongTruncOk} = 1;
+
+  my $sth = $dbh->prepare(<<'EOF');
+SELECT t.rdb$trigger_source
+FROM rdb$triggers t
+WHERE t.rdb$relation_name = ?
+AND t.rdb$system_flag = 0 -- user defined
+AND t.rdb$trigger_type = 1 -- BEFORE INSERT
+EOF
+  $sth->execute($table_name);
+
+  while (my ($trigger) = $sth->fetchrow_array) {
+    my @trig_cols = map {
+      /^"([^"]+)/ ? $1 : uc($1)
+    } $trigger =~ /new\.("?\w+"?)/ig;
+
+    my ($quoted, $generator) = $trigger =~
+/(?:gen_id\s* \( \s* |next \s* value \s* for \s*)(")?(\w+)/ix;
+
+    if ($generator) {
+      $generator = uc $generator unless $quoted;
+
+      return $generator
+        if List::Util::first {
+          $self->sql_maker->quote_char ? ($_ eq $col) : (uc($_) eq uc($col))
+        } @trig_cols;
+    }
+  }
+
+  return undef;
+}
+
 sub last_insert_id {
   my ($self, $source, @cols) = @_;
   my @result;
@@ -296,9 +352,9 @@ affects performance.
 
 =item *
 
-C<last_insert_id> support only works for Firebird versions 2 or greater. To
-work with earlier versions, we'll need to figure out how to retrieve the bodies
-of C<BEFORE INSERT> triggers and parse them for the C<GENERATOR> name.
+C<last_insert_id> support by default only works for Firebird versions 2 or
+greater, L<auto_nextval|DBIx::Class::ResultSource/auto_nextval> however should
+work with earlier versions.
 
 =item *
 

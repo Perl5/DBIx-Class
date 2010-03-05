@@ -1375,7 +1375,7 @@ sub insert {
         $updated_cols->{$col} = $to_insert->{$col} = $self->_sequence_fetch(
           'nextval',
           $col_info->{sequence} ||
-            $self->_dbh_get_autoinc_seq($self->_get_dbh, $source)
+            $self->_dbh_get_autoinc_seq($self->_get_dbh, $source, $col)
         );
       }
     }

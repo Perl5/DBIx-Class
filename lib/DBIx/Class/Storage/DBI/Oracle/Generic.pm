@@ -149,7 +149,7 @@ sub _dbh_execute {
 
   $self->throw_exception($exception) if $exception;
 
-  wantarray ? @res : $res[0]
+  $wantarray ? @res : $res[0]
 }
 
 =head2 get_autoinc_seq
