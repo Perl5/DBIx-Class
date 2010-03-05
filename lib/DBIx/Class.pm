@@ -222,6 +222,8 @@ abraxxa: Alexander Hartmaier <alex_hartmaier@hotmail.com>
 
 aherzog: Adam Herzog <adam@herzogdesigns.com>
 
+amoore: Andrew Moore <amoore@cpan.org>
+
 andyg: Andy Grundman <andy@hybridized.org>
 
 ank: Andres Kievsky

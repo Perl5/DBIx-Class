@@ -709,12 +709,12 @@ sub _read_sql_file {
   my @data = split /\n/, join '', <$fh>;
   close $fh;
 
-  @data = grep {
-     $_ &&
-     !/^--/ &&
-     !/^(BEGIN|BEGIN TRANSACTION|COMMIT)/m
-  } split /;/,
-     join '', @data;
+  @data = split /;/,
+     join '',
+       grep { $_ &&
+              !/^--/  &&
+              !/^(BEGIN|BEGIN TRANSACTION|COMMIT)/mi }
+         @data;
 
   return \@data;
 }
