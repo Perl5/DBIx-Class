@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - Fix regression where SQL files with comments were not
+          handled properly by ::Schema::Versioned.
         - Fix regression on not properly throwing when $obj->relationship
           is unresolvable
         - Add has_relationship method to row objects
