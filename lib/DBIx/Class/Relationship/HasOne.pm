@@ -47,7 +47,7 @@ sub _has_one {
     ) if $f_class_loaded && !$f_class->has_column($f_key);
     $cond = { "foreign.${f_key}" => "self.${pri}" };
   }
-  $class->_validate_cond($cond);
+  $class->_validate_has_one_condition($cond);
   $class->add_relationship($rel, $f_class,
    $cond,
    { accessor => 'single',
@@ -72,7 +72,7 @@ sub _get_primary_key {
   return $pri;
 }
 
-sub _validate_cond {
+sub _validate_has_one_condition {
   my ($class, $cond )  = @_;
 
   return if $ENV{DBIC_DONT_VALIDATE_RELS};
@@ -84,6 +84,8 @@ sub _validate_cond {
     # warning
     return unless $self_id =~ /^self\.(.*)$/;
     my $key = $1;
+    $class->throw_exception("Defining rel on ${class} that includes ${key} but no such column defined here yet")
+        unless $class->has_column($key);
     my $column_info = $class->column_info($key);
     if ( $column_info->{is_nullable} ) {
       carp(qq'"might_have/has_one" must not be on columns with is_nullable set to true ($class/$key). This might indicate an incorrect use of those relationship helpers instead of belongs_to.');
