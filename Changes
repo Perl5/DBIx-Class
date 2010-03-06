@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
         - DBIx::Class::InflateColumn::File entered deprecated state
+        - Cascading delete/update are now wrapped in a transaction
+          for atomicity
         - Fix regression where SQL files with comments were not
           handled properly by ::Schema::Versioned.
         - Fix regression on not properly throwing when $obj->relationship
