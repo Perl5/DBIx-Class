@@ -1821,12 +1821,27 @@ You can accomplish this by overriding C<insert> on your objects:
   sub insert {
     my ( $self, @args ) = @_;
     $self->next::method(@args);
-    $self->cds->new({})->fill_from_artist($self)->insert;
+    $self->create_related ('cds', \%initial_cd_data );
     return $self;
   }
 
-where C<fill_from_artist> is a method you specify in C<CD> which sets
-values in C<CD> based on the data in the C<Artist> object you pass in.
+If you want to wrap the two inserts in a transaction (for consistency,
+an excellent idea), you can use the awesome
+L<DBIx::Class::Storage::TxnScopeGuard>:
+
+  sub insert {
+    my ( $self, @args ) = @_;
+
+    my $guard = $self->result_source->schema->txn_scope_guard;
+
+    $self->next::method(@args);
+    $self->create_related ('cds', \%initial_cd_data );
+
+    $guard->commit;
+
+    return $self
+  }
+
 
 =head2 Wrapping/overloading a column accessor
 
