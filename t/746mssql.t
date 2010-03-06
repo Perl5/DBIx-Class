@@ -425,7 +425,7 @@ $schema->storage->_sql_maker->{name_sep} = '.';
       having => \['1 = ?', [ test => 1 ] ], #test having propagation
       prefetch => 'owner',
       rows     => 2,  # 3 results total
-      order_by => { -desc => 'owner' },
+      order_by => { -desc => 'me.owner' },
       unsafe_subselect_ok => 1,
     },
   );

@@ -10,10 +10,7 @@ use POSIX 'strftime';
 use File::Copy;
 use File::Spec;
 
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $source, $col) = @_;
-  $dbh->func('last_insert_rowid');
-}
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::SQLite');
 
 sub backup
 {

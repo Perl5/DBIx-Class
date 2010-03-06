@@ -5,10 +5,9 @@ use Test::More;
 use lib qw(t/lib);
 
 BEGIN {
-  eval { require Test::Memory::Cycle; require Devel::Cycle };
-  if ($@ or Devel::Cycle->VERSION < 1.10) {
-    plan skip_all => "leak test needs Test::Memory::Cycle and Devel::Cycle >= 1.10";
-  };
+  require DBIx::Class;
+  plan skip_all => 'Test needs: ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_cycle')
+    unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_cycle') );
 }
 
 use DBICTest;

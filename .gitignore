@@ -9,5 +9,6 @@ README
 _build/
 blib/
 inc/
+lib/DBIx/Class/Optional/Dependencies.pod
 pm_to_blib
 t/var/

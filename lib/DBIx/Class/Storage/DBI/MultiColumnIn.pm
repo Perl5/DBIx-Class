@@ -17,7 +17,7 @@ in fact understand WHERE (cola, colb) IN ( SELECT subcol_a, subcol_b ... )
 The storage class for any such RDBMS should inherit from this class, in order
 to dramatically speed up update/delete operations on joined multipk resultsets.
 
-At this point the only overriden method is C<_multipk_update_delete()>
+At this point the only overridden method is C<_multipk_update_delete()>
 
 =cut
 
@@ -26,7 +26,7 @@ sub _multipk_update_delete {
   my ($rs, $op, $values) = @_;
 
   my $rsrc = $rs->result_source;
-  my @pcols = $rsrc->primary_columns;
+  my @pcols = $rsrc->_pri_cols;
   my $attrs = $rs->_resolved_attrs;
 
   # naive check - this is an internal method after all, we should know what we are doing 

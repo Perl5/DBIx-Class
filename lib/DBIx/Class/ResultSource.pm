@@ -503,6 +503,16 @@ sub primary_columns {
   return @{shift->_primaries||[]};
 }
 
+sub _pri_cols {
+  my $self = shift;
+  my @pcols = $self->primary_columns
+    or $self->throw_exception (sprintf(
+      'Operation requires a primary key to be declared on %s via set_primary_key',
+      ref $self,
+    ));
+  return @pcols;
+}
+
 =head2 add_unique_constraint
 
 =over 4
@@ -1188,12 +1198,6 @@ sub _compare_relationship_keys {
   return $found;
 }
 
-sub resolve_join {
-  carp 'resolve_join is a private method, stop calling it';
-  my $self = shift;
-  $self->_resolve_join (@_);
-}
-
 # Returns the {from} structure used to express JOIN conditions
 sub _resolve_join {
   my ($self, $join, $alias, $seen, $jpath, $parent_force_left) = @_;
@@ -1262,7 +1266,11 @@ sub _resolve_join {
                   : $rel_info->{attrs}{join_type}
                 ,
                -join_path => [@$jpath, { $join => $as } ],
-               -is_single => (List::Util::first { $rel_info->{attrs}{accessor} eq $_ } (qw/single filter/) ),
+               -is_single => (
+                  $rel_info->{attrs}{accessor}
+                    &&
+                  List::Util::first { $rel_info->{attrs}{accessor} eq $_ } (qw/single filter/)
+                ),
                -alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
              },
@@ -1373,77 +1381,6 @@ sub _resolve_condition {
   }
 }
 
-# Legacy code, needs to go entirely away (fully replaced by _resolve_prefetch)
-sub resolve_prefetch {
-  carp 'resolve_prefetch is a private method, stop calling it';
-
-  my ($self, $pre, $alias, $seen, $order, $collapse) = @_;
-  $seen ||= {};
-  if( ref $pre eq 'ARRAY' ) {
-    return
-      map { $self->resolve_prefetch( $_, $alias, $seen, $order, $collapse ) }
-        @$pre;
-  }
-  elsif( ref $pre eq 'HASH' ) {
-    my @ret =
-    map {
-      $self->resolve_prefetch($_, $alias, $seen, $order, $collapse),
-      $self->related_source($_)->resolve_prefetch(
-               $pre->{$_}, "${alias}.$_", $seen, $order, $collapse)
-    } keys %$pre;
-    return @ret;
-  }
-  elsif( ref $pre ) {
-    $self->throw_exception(
-      "don't know how to resolve prefetch reftype ".ref($pre));
-  }
-  else {
-    my $count = ++$seen->{$pre};
-    my $as = ($count > 1 ? "${pre}_${count}" : $pre);
-    my $rel_info = $self->relationship_info( $pre );
-    $self->throw_exception( $self->name . " has no such relationship '$pre'" )
-      unless $rel_info;
-    my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
-    my $rel_source = $self->related_source($pre);
-
-    if (exists $rel_info->{attrs}{accessor}
-         && $rel_info->{attrs}{accessor} eq 'multi') {
-      $self->throw_exception(
-        "Can't prefetch has_many ${pre} (join cond too complex)")
-        unless ref($rel_info->{cond}) eq 'HASH';
-      my $dots = @{[$as_prefix =~ m/\./g]} + 1; # +1 to match the ".${as_prefix}"
-      if (my ($fail) = grep { @{[$_ =~ m/\./g]} == $dots }
-                         keys %{$collapse}) {
-        my ($last) = ($fail =~ /([^\.]+)$/);
-        carp (
-          "Prefetching multiple has_many rels ${last} and ${pre} "
-          .(length($as_prefix)
-            ? "at the same level (${as_prefix}) "
-            : "at top level "
-          )
-          . 'will explode the number of row objects retrievable via ->next or ->all. '
-          . 'Use at your own risk.'
-        );
-      }
-      #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
-      #              values %{$rel_info->{cond}};
-      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->primary_columns ];
-        # action at a distance. prepending the '.' allows simpler code
-        # in ResultSet->_collapse_result
-      my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
-                    keys %{$rel_info->{cond}};
-      my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
-                   ? @{$rel_info->{attrs}{order_by}}
-                   : (defined $rel_info->{attrs}{order_by}
-                       ? ($rel_info->{attrs}{order_by})
-                       : ()));
-      push(@$order, map { "${as}.$_" } (@key, @ord));
-    }
-
-    return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
-      $rel_source->columns;
-  }
-}
 
 # Accepts one or more relationships for the current source and returns an
 # array of column names for each of those relationships. Column names are
@@ -1492,8 +1429,7 @@ sub _resolve_prefetch {
     my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
     my $rel_source = $self->related_source($pre);
 
-    if (exists $rel_info->{attrs}{accessor}
-         && $rel_info->{attrs}{accessor} eq 'multi') {
+    if ($rel_info->{attrs}{accessor} && $rel_info->{attrs}{accessor} eq 'multi') {
       $self->throw_exception(
         "Can't prefetch has_many ${pre} (join cond too complex)")
         unless ref($rel_info->{cond}) eq 'HASH';
@@ -1520,7 +1456,8 @@ sub _resolve_prefetch {
                     keys %{$rel_info->{cond}};
       my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
                    ? @{$rel_info->{attrs}{order_by}}
-                   : (defined $rel_info->{attrs}{order_by}
+   
+                : (defined $rel_info->{attrs}{order_by}
                        ? ($rel_info->{attrs}{order_by})
                        : ()));
       push(@$order, map { "${as}.$_" } (@key, @ord));
@@ -1638,7 +1575,7 @@ Creates a new ResultSource object.  Not normally called directly by end users.
   __PACKAGE__->column_info_from_storage(1);
 
 Enables the on-demand automatic loading of the above column
-metadata from storage as neccesary.  This is *deprecated*, and
+metadata from storage as necessary.  This is *deprecated*, and
 should not be used.  It will be removed before 1.0.
 
 

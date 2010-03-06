@@ -68,8 +68,8 @@ Sybase ASE without placeholder support
 
 =head1 DESCRIPTION
 
-If you're using this driver than your version of Sybase, or the libraries you
-use to connect to it, do not support placeholders.
+If you're using this driver then your version of Sybase or the libraries you
+use to connect to it do not support placeholders.
 
 You can also enable this driver explicitly using:
 
@@ -81,7 +81,7 @@ See the discussion in L<< DBD::Sybase/Using ? Placeholders & bind parameters to
 $sth->execute >> for details on the pros and cons of using placeholders.
 
 One advantage of not using placeholders is that C<select @@identity> will work
-for obtainging the last insert id of an C<IDENTITY> column, instead of having to
+for obtaining the last insert id of an C<IDENTITY> column, instead of having to
 do C<select max(col)> in a transaction as the base Sybase driver does.
 
 When using this driver, bind variables will be interpolated (properly quoted of

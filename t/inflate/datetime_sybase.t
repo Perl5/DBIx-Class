@@ -17,9 +17,6 @@ if (not ($dsn && $user)) {
   if ($@) {
     plan skip_all => 'needs DateTime and DateTime::Format::Sybase for testing';
   }
-  else {
-    plan tests => (4 * 2 * 2) + 2; # (tests * dt_types * storage_types) + storage_tests
-  }
 }
 
 my @storage_types = (
@@ -57,9 +54,9 @@ for my $storage_type (@storage_types) {
     $schema->storage->dbh->do(<<"SQL");
 CREATE TABLE track (
    trackid INT IDENTITY PRIMARY KEY,
-   cd INT,
-   position INT,
-   $col $type,
+   cd INT NULL,
+   position INT NULL,
+   $col $type NULL
 )
 SQL
     ok(my $dt = DateTime::Format::Sybase->parse_datetime($sample_dt));
@@ -75,7 +72,32 @@ SQL
     );
     is( $row->$col, $dt, 'DateTime roundtrip' );
   }
+
+  # test a computed datetime column
+  eval { $schema->storage->dbh->do("DROP TABLE track") };
+  $schema->storage->dbh->do(<<"SQL");
+CREATE TABLE track (
+   trackid INT IDENTITY PRIMARY KEY,
+   cd INT NULL,
+   position INT NULL,
+   title VARCHAR(100) NULL,
+   last_updated_on DATETIME NULL,
+   last_updated_at AS getdate(),
+   small_dt SMALLDATETIME NULL
+)
+SQL
+
+  my $now     = DateTime->now;
+  sleep 1;
+  my $new_row = $schema->resultset('Track')->create({});
+  $new_row->discard_changes;
+
+  lives_and {
+    cmp_ok (($new_row->last_updated_at - $now)->seconds, '>=', 1)
+  } 'getdate() computed column works';
 }
+
+done_testing;
 
 # clean up our mess
 END {

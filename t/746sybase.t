@@ -9,7 +9,7 @@ use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 63 + 2;
+my $TESTS = 66 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -575,6 +575,35 @@ SQL
     'updated money value to NULL round-trip'
   );
   diag $@ if $@;
+
+# Test computed columns and timestamps
+  $schema->storage->dbh_do (sub {
+      my ($storage, $dbh) = @_;
+      eval { $dbh->do("DROP TABLE computed_column_test") };
+      $dbh->do(<<'SQL');
+CREATE TABLE computed_column_test (
+   id INT IDENTITY PRIMARY KEY,
+   a_computed_column AS getdate(),
+   a_timestamp timestamp,
+   charfield VARCHAR(20) DEFAULT 'foo' 
+)
+SQL
+  });
+
+  require DBICTest::Schema::ComputedColumn;
+  $schema->register_class(
+    ComputedColumn => 'DBICTest::Schema::ComputedColumn'
+  );
+
+  ok (($rs = $schema->resultset('ComputedColumn')),
+    'got rs for ComputedColumn');
+
+  lives_ok { $row = $rs->create({}) }
+    'empty insert for a table with computed columns survived';
+
+  lives_ok {
+    $row->update({ charfield => 'bar' })
+  } 'update of a table with computed columns survived';
 }
 
 is $ping_count, 0, 'no pings';
@@ -583,6 +612,6 @@ is $ping_count, 0, 'no pings';
 END {
   if (my $dbh = eval { $schema->storage->_dbh }) {
     eval { $dbh->do("DROP TABLE $_") }
-      for qw/artist bindtype_test money_test/;
+      for qw/artist bindtype_test money_test computed_column_test/;
   }
 }

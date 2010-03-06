@@ -96,8 +96,7 @@ DBIx::Class::SQLAHacks::OracleJoins - Pre-ANSI Joins-via-Where-Clause Syntax
 
 This module was originally written to support Oracle < 9i where ANSI joins
 weren't supported at all, but became the module for Oracle >= 8 because
-Oracle's optimising of ANSI joins is horrible.  (See:
-http://scsys.co.uk:8001/7495)
+Oracle's optimising of ANSI joins is horrible.
 
 =head1 SYNOPSIS
 

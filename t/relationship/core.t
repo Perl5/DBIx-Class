@@ -79,6 +79,10 @@ my $track = $schema->resultset("Track")->create( {
 } );
 $track->set_from_related( cd => $cd );
 
+# has_relationship
+ok(! $track->has_relationship( 'foo' ), 'Track has no relationship "foo"');
+ok($track->has_relationship( 'disc' ), 'Track has relationship "disk"' );
+
 is($track->disc->cdid, 4, 'set_from_related ok, including alternative accessor' );
 
 $track->set_from_related( cd => undef );

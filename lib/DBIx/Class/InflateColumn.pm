@@ -26,7 +26,7 @@ for the database.
 
 It can be used, for example, to automatically convert to and from
 L<DateTime> objects for your date and time fields. There's a
-conveniece component to actually do that though, try
+convenience component to actually do that though, try
 L<DBIx::Class::InflateColumn::DateTime>.
 
 It will handle all types of references except scalar references. It
@@ -79,7 +79,8 @@ sub inflate_column {
   $self->throw_exception("inflate_column needs attr hashref")
     unless ref $attrs eq 'HASH';
   $self->column_info($col)->{_inflate_info} = $attrs;
-  $self->mk_group_accessors('inflated_column' => [$self->column_info($col)->{accessor} || $col, $col]);
+  my $acc = $self->column_info($col)->{accessor};
+  $self->mk_group_accessors('inflated_column' => [ (defined $acc ? $acc : $col), $col]);
   return 1;
 }
 
@@ -113,7 +114,7 @@ sub _deflated_column {
 
 Fetch a column value in its inflated state.  This is directly
 analogous to L<DBIx::Class::Row/get_column> in that it only fetches a
-column already retreived from the database, and then inflates it.
+column already retrieved from the database, and then inflates it.
 Throws an exception if the column requested is not an inflated column.
 
 =cut

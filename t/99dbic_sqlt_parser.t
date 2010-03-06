@@ -9,20 +9,25 @@ use DBICTest::Schema;
 use Scalar::Util ();
 
 BEGIN {
-  require DBIx::Class::Storage::DBI;
+  require DBIx::Class;
   plan skip_all =>
-      'Test needs SQL::Translator ' . DBIx::Class::Storage::DBI->_sqlt_minimum_version
-    if not DBIx::Class::Storage::DBI->_sqlt_version_ok;
+      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
 
 # Test for SQLT-related leaks
 {
   my $s = DBICTest::Schema->clone;
-  create_schema ({ schema => $s });
+  my $sqlt_schema = create_schema ({ schema => $s });
   Scalar::Util::weaken ($s);
 
   ok (!$s, 'Schema not leaked');
+
+  isa_ok ($sqlt_schema, 'SQL::Translator::Schema', 'SQLT schema object produced');
 }
+
+# make sure classname-style works
+lives_ok { isa_ok (create_schema ({ schema => 'DBICTest::Schema' }), 'SQL::Translator::Schema', 'SQLT schema object produced') };
 
 
 my $schema = DBICTest->init_schema();

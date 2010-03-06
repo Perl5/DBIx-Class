@@ -91,7 +91,7 @@ This plugin will work, but it is more efficiently done using DBIC's native searc
 
 =head2 Choosing Features
 
-In fact, this class is just a receipe containing all the features emulated.
+In fact, this class is just a recipe containing all the features emulated.
 If you like, you can choose which features to emulate by building your 
 own class and loading it like this:
 
@@ -145,7 +145,7 @@ The semi-documented Class::DBI::Relationship objects returned by C<meta_info($ty
 
 =item Relationships
 
-Relationships between tables (has_a, has_many...) must be delcared after all tables in the relationship have been declared.  Thus the usual CDBI idiom of declaring columns and relationships for each class together will not work.  They must instead be done like so:
+Relationships between tables (has_a, has_many...) must be declared after all tables in the relationship have been declared.  Thus the usual CDBI idiom of declaring columns and relationships for each class together will not work.  They must instead be done like so:
 
     package Foo;
     use base qw(Class::DBI);

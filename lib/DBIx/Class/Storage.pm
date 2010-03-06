@@ -353,7 +353,7 @@ shell environment.
 =head2 debugfh
 
 Set or retrieve the filehandle used for trace/debug output.  This should be
-an IO::Handle compatible ojbect (only the C<print> method is used.  Initially
+an IO::Handle compatible object (only the C<print> method is used.  Initially
 set to be STDERR - although see information on the
 L<DBIC_TRACE> environment variable.
 

@@ -22,10 +22,10 @@ BEGIN {
     || plan skip_all => 'Test needs Time::HiRes';
   Time::HiRes->import(qw/time sleep/);
 
-  require DBIx::Class::Storage::DBI;
+  require DBIx::Class;
   plan skip_all =>
-      'Test needs SQL::Translator ' . DBIx::Class::Storage::DBI->_sqlt_minimum_version
-    if not DBIx::Class::Storage::DBI->_sqlt_version_ok;
+      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
 
 use lib qw(t/lib);
@@ -164,6 +164,37 @@ my $schema_v3 = DBICVersion::Schema->connect($dsn, $user, $pass, { ignore_versio
   $schema_v3->upgrade();
   is($schema_v3->get_db_version(), '3.0', 'db version number upgraded');
 }
+
+# Now, try a v1 -> v3 upgrade with a file that has comments strategically placed in it.
+# First put the v1 schema back again...
+{
+  # drop all the tables...
+  eval { $schema_v1->storage->dbh->do('drop table ' . $version_table_name) };
+  eval { $schema_v1->storage->dbh->do('drop table ' . $old_table_name) };
+  eval { $schema_v1->storage->dbh->do('drop table TestVersion') };
+
+  {
+    local $DBICVersion::Schema::VERSION = '1.0';
+    $schema_v1->deploy;
+  }
+  is($schema_v1->get_db_version(), '1.0', 'get_db_version 1.0 ok');
+}
+
+# add a "harmless" comment before one of the statements.
+system( qq($^X -pi -e "s/ALTER/-- this is a comment\nALTER/" $fn->{trans_v23};) );
+
+# Then attempt v1 -> v3 upgrade
+{
+  local $SIG{__WARN__} = sub { warn if $_[0] !~ /Attempting upgrade\.$/ };
+  $schema_v3->upgrade();
+  is($schema_v3->get_db_version(), '3.0', 'db version number upgraded to 3.0');
+
+  # make sure that the column added after the comment is actually added.
+  lives_ok ( sub {
+    $schema_v3->storage->dbh->do('select ExtraColumn from TestVersion');
+  }, 'new column created');
+}
+
 
 # check behaviour of DBIC_NO_VERSION_CHECK env var and ignore_version connect attr
 {

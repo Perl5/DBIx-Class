@@ -27,24 +27,35 @@ sub _check_author_makefile {
   my $root = _find_co_root()
     or return;
 
+  my $optdeps = file('lib/DBIx/Class/Optional/Dependencies.pm');
+
   # not using file->stat as it invokes File::stat which in turn breaks stat(_)
-  my ($mf_pl_mtime, $mf_mtime) = ( map
+  my ($mf_pl_mtime, $mf_mtime, $optdeps_mtime) = ( map
     { (stat ($root->file ($_)) )[9] }
-    qw/Makefile.PL Makefile/
+    (qw|Makefile.PL  Makefile|, $optdeps)
   );
 
   return unless $mf_pl_mtime;   # something went wrong during co_root detection ?
 
-  if (
-    not -d $root->subdir ('inc') 
-      or
-    not $mf_mtime
-      or
-    $mf_mtime < $mf_pl_mtime
-  ) {
+  my @fail_reasons;
+
+  if(not -d $root->subdir ('inc')) {
+    push @fail_reasons, "Missing ./inc directory";
+  }
+
+  if (not $mf_mtime) {
+    push @fail_reasons, "Missing ./Makefile";
+  }
+  elsif($mf_mtime < $mf_pl_mtime) {
+    push @fail_reasons, "./Makefile.PL is newer than ./Makefile";
+  }
+
+  if ($mf_mtime < $optdeps_mtime) {
+    push @fail_reasons, "./$optdeps is newer than ./Makefile";
+  }
+
+  if (@fail_reasons) {
     print STDERR <<'EOE';
-
-
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -68,8 +79,14 @@ http://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class.pm#GETTING_HELP/SUPPORT
 The DBIC team
 
 
+Reasons you received this message:
 
 EOE
+
+    foreach my $r (@fail_reasons) {
+      print STDERR "  * $r\n";
+    }
+    print STDERR "\n\n\n";
 
     exit 1;
   }
