@@ -403,23 +403,22 @@ The concept of a L<primary key|DBIx::Class::ResultSource/set_primary_key> in
 DBIx::Class warrants special discussion. The formal definition (which somewhat
 resembles that of a classic RDBMS) is I<a unique constraint that is least
 likely to change after initial row creation>. However this is where the
-similarity ends. While in a RDBMS you can safely change any column within a
-row, you can not do the same in DBIC because B<you will be breaking the tie
-between a specific L<DBIx::Class::Row> object and a specific row in your
-database>. Any time you call a CRUD operation on a row (e.g.
+similarity ends. Any time you call a CRUD operation on a row (e.g.
 L<delete|DBIx::Class::Row/delete>,
 L<update|DBIx::Class::Row/update>,
 L<discard_changes|DBIx::Class::Row/discard_changes>,
-etc.) DBIx::Class will use the B<current values> of the
+etc.) DBIx::Class will use the values of of the
 L<primary key|DBIx::Class::ResultSource/set_primary_key> columns to populate
-the C<WHERE> clause necessary to accomplish the operation.
-
-This is why it is important to declare a
-L<primary key|DBIx::Class::ResultSource/set_primary_key> on all your result
-sources B<even if the underlying RDBMS does not have one>. In a pinch one can
-always declare each row identifiable by all its columns:
+the C<WHERE> clause necessary to accomplish the operation. This is why it is
+important to declare a L<primary key|DBIx::Class::ResultSource/set_primary_key>
+on all your result sources B<even if the underlying RDBMS does not have one>.
+In a pinch one can always declare each row identifiable by all its columns:
 
  __PACKAGE__->set_primary_keys (__PACKAGE__->columns);
+
+Note that DBIx::Class is smart enough to store a copy of the PK values before
+any row-object changes take place, so even if you change the values of PK
+columns the C<WHERE> clause will remain correct.
 
 If you elect not to declare a C<primary key>, DBIx::Class will behave correctly
 by throwing exceptions on any row operation that relies on unique identifiable
@@ -430,18 +429,20 @@ L<search|DBIx::Class::ResultSet/search>,
 L<update|DBIx::Class::ResultSet/update>,
 L<delete|DBIx::Class::ResultSet/delete>
 
-For example, the following would not work:
+For example, the following would not work (assuming C<People> does not have
+a declared PK):
 
  my $row = $schema->resultset('People')
-   ->search({ last_name => 'Dantes' })
-   ->next;
+                   ->search({ last_name => 'Dantes' })
+                    ->next;
  $row->update({ children => 2 }); # <-- exception thrown because $row isn't
                                   # necessarily unique
 
 So instead the following should be done:
 
- $schema->resultset('People')->search({ last_name => 'Dantes' })
-   ->update({ children => 2 }); # <-- update's ALL Dantes to have children of 2
+ $schema->resultset('People')
+         ->search({ last_name => 'Dantes' })
+          ->update({ children => 2 }); # <-- update's ALL Dantes to have children of 2
 
 =head2 Problems on RHEL5/CentOS5
 
