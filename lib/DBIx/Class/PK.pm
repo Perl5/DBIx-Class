@@ -37,6 +37,7 @@ sub id {
 
 sub _ident_values {
   my ($self) = @_;
+
   my (@ids, @missing);
 
   for ($self->_pri_cols) {

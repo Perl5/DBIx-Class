@@ -465,10 +465,11 @@ called after L</add_columns>.
 Additionally, defines a L<unique constraint|add_unique_constraint>
 named C<primary>.
 
-The primary key columns are used by L<DBIx::Class::PK::Auto> to
-retrieve automatically created values from the database. They are also
-used as default joining columns when specifying relationships, see
-L<DBIx::Class::Relationship>.
+Note: you normally do want to define a primary key on your sources
+B<even if the underlying database table does not have a primary key>.
+See
+L<DBIx::Class::Intro/The Significance and Importance of Primary Keys>
+for more info.
 
 =cut
 

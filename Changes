@@ -1,12 +1,17 @@
 Revision history for DBIx::Class
 
+        - DBIx::Class::InflateColumn::File entered deprecated state
         - Fix regression where SQL files with comments were not
           handled properly by ::Schema::Versioned.
         - Fix regression on not properly throwing when $obj->relationship
           is unresolvable
         - Add has_relationship method to row objects
         - Fix regression in set_column on PK-less objects
-        - Fix for SQLite to ignore the { for => ... } attribute
+        - Add POD about the significance of PK columns
+        - Fix for SQLite to ignore the (unsupported) { for => ... }
+          attribute
+        - Fix ambiguity in default directory handling of create_ddl_dir
+          (RT#54063)
 
 0.08120 2010-02-24 08:58:00 (UTC)
         - Make sure possibly overwritten deployment_statements methods in
