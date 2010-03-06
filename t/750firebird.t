@@ -198,14 +198,14 @@ EOF
   }
 
 # test blobs (stolen from 73oracle.t)
-  eval { $dbh->do('DROP TABLE "bindtype_test2"') };
+  eval { $dbh->do('DROP TABLE "bindtype_test"') };
   $dbh->do(q[
-  CREATE TABLE "bindtype_test2"
+  CREATE TABLE "bindtype_test"
   (
     "id"     INT PRIMARY KEY,
     "bytea"  INT,
-    "a_blob" BLOB,
-    "a_clob" BLOB SUB_TYPE TEXT
+    "blob"   BLOB,
+    "clob"   BLOB SUB_TYPE TEXT
   )
   ]);
 
@@ -215,10 +215,10 @@ EOF
   my $maxloblen = length $binstr{'large'};
   local $dbh->{'LongReadLen'} = $maxloblen;
 
-  my $rs = $schema->resultset('BindType2');
+  my $rs = $schema->resultset('BindType');
   my $id = 0;
 
-  foreach my $type (qw( a_blob a_clob )) {
+  foreach my $type (qw( blob clob )) {
     foreach my $size (qw( small large )) {
       $id++;
 
@@ -254,7 +254,7 @@ sub cleanup {
     diag $@ if $@;
   }
 
-  foreach my $table (qw/artist bindtype_test2 sequence_test/) {
+  foreach my $table (qw/artist bindtype_test sequence_test/) {
     eval { $dbh->do(qq[DROP TABLE "$table"]) };
     diag $@ if $@;
   }
