@@ -18,9 +18,9 @@ DBIx::Class::Storage::DBI::InterBase - Driver for the Firebird RDBMS
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for Firebird using C<RETURNING>, sets the
-limit dialect to C<FIRST X SKIP X> and provides
-L<DBIx::Class::InflateColumn::DateTime> support.
+This class implements autoincrements for Firebird using C<RETURNING> as well as
+L<auto_nextval|DBIx::Class::ResultSource/auto_nextval> sets the limit dialect to
+C<FIRST X SKIP X> and provides L<DBIx::Class::InflateColumn::DateTime> support.
 
 You need to use either the
 L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching> option or
@@ -40,6 +40,8 @@ sub _prep_for_execute {
   my ($op, $extra_bind, $ident, $args) = @_;
 
   if ($op eq 'insert') {
+    $self->_auto_incs([]);
+
     my @pk = $ident->_pri_cols;
     my %pk;
     @pk{@pk} = ();
@@ -59,7 +61,6 @@ sub _prep_for_execute {
     if (@auto_inc_cols) {
       $args->[1]{returning} = \@auto_inc_cols;
 
-      $self->_auto_incs([]);
       $self->_auto_incs->[0] = \@auto_inc_cols;
     }
   }
@@ -153,6 +154,21 @@ sub last_insert_id {
   push @result, $auto_incs{$_} for @cols;
 
   return @result;
+}
+
+sub insert {
+  my $self = shift;
+
+  my $updated_cols = $self->next::method(@_);
+
+  if ($self->_auto_incs->[0]) {
+    my %auto_incs;
+    @auto_incs{ @{ $self->_auto_incs->[0] } } = @{ $self->_auto_incs->[1] };
+
+    $updated_cols = { %$updated_cols, %auto_incs };
+  }
+
+  return $updated_cols;
 }
 
 # this sub stolen from DB2
