@@ -1,13 +1,18 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
+use DBICTest::Schema;
 use File::Compare;
 use Path::Class qw/file/;
 
-my $schema = DBICTest->init_schema();
+$ENV{DBIC_IC_FILE_NOWARN} = 1;
+
+DBICTest::Schema->load_classes ('FileColumn');
+my $schema = DBICTest::Schema->connect(DBICTest->_database);
+DBICTest->deploy_schema ($schema);
 
 plan tests => 10;
 
