@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
         - DBIx::Class::InflateColumn::File entered deprecated state
+        - DBIx::Class::Optional::Dependencies left experimental state
+        - Add req_group_list to Opt::Deps (RT#55211)
         - Cascading delete/update are now wrapped in a transaction
           for atomicity
         - Fix regression where SQL files with comments were not
