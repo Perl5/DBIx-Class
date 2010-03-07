@@ -1472,7 +1472,7 @@ sub insert_bulk {
   # neither _execute_array, nor _execute_inserts_with_no_binds are
   # atomic (even if _execute _array is a single call). Thus a safety
   # scope guard
-  my $guard = $self->txn_scope_guard unless $self->{transaction_depth} != 0;
+  my $guard = $self->txn_scope_guard;
 
   $self->_query_start( $sql, ['__BULK__'] );
   my $sth = $self->sth($sql);
@@ -1489,8 +1489,7 @@ sub insert_bulk {
 
   $self->_query_end( $sql, ['__BULK__'] );
 
-
-  $guard->commit if $guard;
+  $guard->commit;
 
   return (wantarray ? ($rv, $sth, @bind) : $rv);
 }
