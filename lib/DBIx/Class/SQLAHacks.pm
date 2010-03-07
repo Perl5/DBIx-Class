@@ -360,7 +360,14 @@ sub insert {
   # which is sadly understood only by MySQL. Change default behavior here,
   # until SQLA2 comes with proper dialect support
   if (! $_[0] or (ref $_[0] eq 'HASH' and !keys %{$_[0]} ) ) {
-    return "INSERT INTO ${table} DEFAULT VALUES"
+    my $sql = "INSERT INTO ${table} DEFAULT VALUES";
+
+    if (my @returning = @{ ($_[1]||{})->{returning} || [] }) {
+      $sql .= ' RETURNING (' . (join ', ' => map $self->_quote($_), @returning)
+            . ')';
+    }
+
+    return $sql;
   }
 
   $self->SUPER::insert($table, @_);

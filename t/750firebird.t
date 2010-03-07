@@ -14,7 +14,11 @@ my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_FIREBIRD_ODBC_${_}" } qw/DSN U
 
 plan skip_all => <<'EOF' unless $dsn || $dsn2;
 Set $ENV{DBICTEST_FIREBIRD_DSN} and/or $ENV{DBICTEST_FIREBIRD_ODBC_DSN},
-_USER and _PASS to run these tests
+_USER and _PASS to run these tests.
+
+WARNING: this test creates and drops the tables "artist", "bindtype_test" and
+"sequence_test"; the generators "gen_artist_artistid", "pkid1_seq", "pkid2_seq"
+and "nonpkid_seq" and the trigger "artist_bi".
 EOF
 
 my @info = (
@@ -190,11 +194,20 @@ EOF
   }
 
 # test empty insert
-  {
-    local $ars->result_source->column_info('artistid')->{is_auto_increment} = 0;
+  lives_and {
+    my $row = $ars->create({});
+    ok $row->artistid;
+  } 'empty insert works';
 
-    lives_ok { $ars->create({}) }
-      'empty insert works';
+# test inferring the generator from the trigger source and using it with
+# auto_nextval
+  {
+    local $ars->result_source->column_info('artistid')->{auto_nextval} = 1;
+
+    lives_and {
+      my $row = $ars->create({ name => 'introspecting generator' });
+      ok $row->artistid;
+    } 'inferring generator from trigger source works';
   }
 
 # test blobs (stolen from 73oracle.t)

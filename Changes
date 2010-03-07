@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - Support for Firebird RDBMS with DBD::InterBase and ODBC
         - DBIx::Class::InflateColumn::File entered deprecated state
         - DBIx::Class::Optional::Dependencies left experimental state
         - Add req_group_list to Opt::Deps (RT#55211)

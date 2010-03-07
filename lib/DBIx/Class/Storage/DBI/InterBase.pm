@@ -42,6 +42,7 @@ sub _prep_for_execute {
   if ($op eq 'insert') {
     $self->_auto_incs([]);
 
+    my %pk;
     @pk{$ident->primary_columns} = ();
 
     my @auto_inc_cols = grep {
