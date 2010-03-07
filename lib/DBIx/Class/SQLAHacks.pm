@@ -102,6 +102,24 @@ sub _SkipFirst {
   );
 }
 
+# Firebird specific limit, reverse of _SkipFirst for Informix
+sub _FirstSkip {
+  my ($self, $sql, $order, $rows, $offset) = @_;
+
+  $sql =~ s/^ \s* SELECT \s+ //ix
+    or croak "Unrecognizable SELECT: $sql";
+
+  return sprintf ('SELECT %s%s%s%s',
+    sprintf ('FIRST %d ', $rows),
+    $offset
+      ? sprintf ('SKIP %d ', $offset)
+      : ''
+    ,
+    $sql,
+    $self->_order_by ($order),
+  );
+}
+
 # Crappy Top based Limit/Offset support. Legacy from MSSQL.
 sub _Top {
   my ( $self, $sql, $order, $rows, $offset ) = @_;
@@ -342,7 +360,14 @@ sub insert {
   # which is sadly understood only by MySQL. Change default behavior here,
   # until SQLA2 comes with proper dialect support
   if (! $_[0] or (ref $_[0] eq 'HASH' and !keys %{$_[0]} ) ) {
-    return "INSERT INTO ${table} DEFAULT VALUES"
+    my $sql = "INSERT INTO ${table} DEFAULT VALUES";
+
+    if (my @returning = @{ ($_[1]||{})->{returning} || [] }) {
+      $sql .= ' RETURNING (' . (join ', ' => map $self->_quote($_), @returning)
+            . ')';
+    }
+
+    return $sql;
   }
 
   $self->SUPER::insert($table, @_);

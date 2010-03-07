@@ -369,7 +369,6 @@ sub insert {
     $self->store_column($auto_pri[$_] => $ids[$_]) for 0 .. $#ids;
   }
 
-
   $self->{_dirty_columns} = {};
   $self->{related_resultsets} = {};
 

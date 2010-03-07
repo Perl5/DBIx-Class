@@ -250,9 +250,9 @@ sequence, if you do not use a trigger to get the nextval, you have to set the
 L</sequence> value as well.
 
 Also set this for MSSQL columns with the 'uniqueidentifier'
-L<DBIx::Class::ResultSource/data_type> whose values you want to automatically
-generate using C<NEWID()>, unless they are a primary key in which case this will
-be done anyway.
+L<data_type|DBIx::Class::ResultSource/data_type> whose values you want to
+automatically generate using C<NEWID()>, unless they are a primary key in which
+case this will be done anyway.
 
 =item extra
 
