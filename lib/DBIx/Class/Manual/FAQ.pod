@@ -182,15 +182,9 @@ attribute. See L<DBIx::Class::ResultSet/order_by>.
 
 =item .. sort my results based on fields I've aliased using C<as>?
 
-You don't. You'll need to supply the same functions/expressions to
-C<order_by>, as you did to C<select>.
-
-To get "fieldname AS alias" in your SQL, you'll need to supply a
-literal chunk of SQL in your C<select> attribute, such as:
-
- ->search({}, { select => [ \'now() AS currenttime'] })
-
-Then you can use the alias in your C<order_by> attribute.
+You didn't alias anything, since L<as|DBIx::Class::ResultSet/as>
+B<has nothing to do> with the produced SQL. See
+L<DBIx::Class::ResultSet/select> for details.
 
 =item .. group the results of my search?
 
@@ -199,15 +193,7 @@ attribute, see L<DBIx::Class::ResultSet/group_by>.
 
 =item .. group my results based on fields I've aliased using C<as>?
 
-You don't. You'll need to supply the same functions/expressions to
-C<group_by>, as you did to C<select>.
-
-To get "fieldname AS alias" in your SQL, you'll need to supply a
-literal chunk of SQL in your C<select> attribute, such as:
-
- ->search({}, { select => [ \'now() AS currenttime'] })
-
-Then you can use the alias in your C<group_by> attribute.
+You don't. See the explanation on ordering by an alias above.
 
 =item .. filter the results of my search?
 
