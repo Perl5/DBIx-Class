@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat Mar  6 13:01:48 2010
+-- Created on Sun Mar  7 11:14:14 2010
 -- 
 ;
 
@@ -32,18 +32,6 @@ CREATE TABLE bindtype_test (
 CREATE TABLE collection (
   collectionid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100) NOT NULL
-);
-
---
--- Table: employee
---
-CREATE TABLE employee (
-  employee_id INTEGER PRIMARY KEY NOT NULL,
-  position integer NOT NULL,
-  group_id integer,
-  group_id_2 integer,
-  group_id_3 integer,
-  name varchar(100)
 );
 
 --
@@ -251,6 +239,21 @@ CREATE TABLE books (
 );
 
 CREATE INDEX books_idx_owner ON books (owner);
+
+--
+-- Table: employee
+--
+CREATE TABLE employee (
+  employee_id INTEGER PRIMARY KEY NOT NULL,
+  position integer NOT NULL,
+  group_id integer,
+  group_id_2 integer,
+  group_id_3 integer,
+  name varchar(100),
+  encoded integer
+);
+
+CREATE INDEX employee_idx_encoded ON employee (encoded);
 
 --
 -- Table: forceforeign

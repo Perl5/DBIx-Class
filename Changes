@@ -5,6 +5,8 @@ Revision history for DBIx::Class
         - Add req_group_list to Opt::Deps (RT#55211)
         - Cascading delete/update are now wrapped in a transaction
           for atomicity
+        - Fix multiple deficiencies when using MultiCreate with
+          data-encoder components (e.g. ::EncodedColumn)
         - Fix regression where SQL files with comments were not
           handled properly by ::Schema::Versioned.
         - Fix regression on not properly throwing when $obj->relationship

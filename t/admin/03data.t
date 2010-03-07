@@ -48,8 +48,8 @@ use_ok 'DBIx::Class::Admin';
 
   my $expected_data = [ 
     [$employee->result_source->columns() ],
-    [1,1,undef,undef,undef,'Trout'],
-    [2,2,undef,undef,undef,'Aran']
+    [1,1,undef,undef,undef,'Trout',undef],
+    [2,2,undef,undef,undef,'Aran',undef]
   ];
   my $data;
   lives_ok { $data = $admin->select('Employee')} 'can retrive data from database';

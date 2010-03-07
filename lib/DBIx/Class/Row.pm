@@ -105,26 +105,40 @@ with NULL as the default, and save yourself a SELECT.
 
 sub __new_related_find_or_new_helper {
   my ($self, $relname, $data) = @_;
-  if ($self->__their_pk_needs_us($relname, $data)) {
+
+  # create a mock-object so all new/set_column component overrides will run:
+  my $rel_rs = $self->result_source
+                    ->related_source($relname)
+                    ->resultset;
+  my $new_rel_obj = $rel_rs->new_result($data);
+  my $proc_data = { $new_rel_obj->get_columns };
+
+  if ($self->__their_pk_needs_us($relname)) {
     MULTICREATE_DEBUG and warn "MC $self constructing $relname via new_result";
-    return $self->result_source
-                ->related_source($relname)
-                ->resultset
-                ->new_result($data);
+    return $new_rel_obj;
   }
-  if ($self->result_source->_pk_depends_on($relname, $data)) {
-    MULTICREATE_DEBUG and warn "MC $self constructing $relname via find_or_new";
-    return $self->result_source
-                ->related_source($relname)
-                ->resultset
-                ->find_or_new($data);
+  elsif ($self->result_source->_pk_depends_on($relname, $proc_data )) {
+    if (! keys %$proc_data) {
+      # there is nothing to search for - blind create
+      MULTICREATE_DEBUG and warn "MC $self constructing default-insert $relname";
+    }
+    else {
+      MULTICREATE_DEBUG and warn "MC $self constructing $relname via find_or_new";
+      # this is not *really* find or new, as we don't want to double-new the
+      # data (thus potentially double encoding or whatever)
+      my $exists = $rel_rs->find ($proc_data);
+      return $exists if $exists;
+    }
+    return $new_rel_obj;
   }
-  MULTICREATE_DEBUG and warn "MC $self constructing $relname via find_or_new_related";
-  return $self->find_or_new_related($relname, $data);
+  else {
+    my $us = $self->source_name;
+    $self->throw_exception ("'$us' neither depends nor is depended on by '$relname', something is wrong...");
+  }
 }
 
 sub __their_pk_needs_us { # this should maybe be in resultsource.
-  my ($self, $relname, $data) = @_;
+  my ($self, $relname) = @_;
   my $source = $self->result_source;
   my $reverse = $source->reverse_relationship_info($relname);
   my $rel_source = $source->related_source($relname);
@@ -301,12 +315,20 @@ sub insert {
       MULTICREATE_DEBUG and warn "MC $self pre-reconstructing $relname $rel_obj\n";
 
       my $them = { %{$rel_obj->{_relationship_data} || {} }, $rel_obj->get_inflated_columns };
-      my $re = $self->result_source
-                    ->related_source($relname)
-                    ->resultset
-                    ->find_or_create($them);
+      my $existing;
 
-      %{$rel_obj} = %{$re};
+      # if there are no keys - nothing to search for
+      if (keys %$them and $existing = $self->result_source
+                                           ->related_source($relname)
+                                           ->resultset
+                                           ->find($them)
+      ) {
+        %{$rel_obj} = %{$existing};
+      }
+      else {
+        $rel_obj->insert;
+      }
+
       $self->{_rel_in_storage}{$relname} = 1;
     }
 
@@ -367,7 +389,7 @@ sub insert {
       foreach my $obj (@cands) {
         $obj->set_from_related($_, $self) for keys %$reverse;
         my $them = { %{$obj->{_relationship_data} || {} }, $obj->get_inflated_columns };
-        if ($self->__their_pk_needs_us($relname, $them)) {
+        if ($self->__their_pk_needs_us($relname)) {
           if (exists $self->{_ignore_at_insert}{$relname}) {
             MULTICREATE_DEBUG and warn "MC $self skipping post-insert on $relname";
           } else {

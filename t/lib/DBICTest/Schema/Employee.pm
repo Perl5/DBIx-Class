@@ -32,6 +32,10 @@ __PACKAGE__->add_columns(
         size      => 100,
         is_nullable => 1,
     },
+    encoded => {
+        data_type => 'integer',
+        is_nullable => 1,
+    },
 );
 
 __PACKAGE__->set_primary_key('employee_id');
@@ -39,5 +43,9 @@ __PACKAGE__->position_column('position');
 
 # Do not add unique constraints here - different groups are used throughout
 # the ordered tests
+
+__PACKAGE__->belongs_to (secretkey => 'DBICTest::Schema::Encoded', 'encoded', {
+  join_type => 'left'
+});
 
 1;

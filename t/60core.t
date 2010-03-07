@@ -419,6 +419,47 @@ SKIP: {
   is($en_row->encoded, 'amliw', 'insert does not encode again');
 }
 
+#make sure multicreate encoding still works
+{
+  my $empl_rs = $schema->resultset('Employee');
+
+  my $empl = $empl_rs->create ({
+    name => 'Secret holder',
+    secretkey => {
+      encoded => 'CAN HAZ',
+    },
+  });
+  is($empl->secretkey->encoded, 'ZAH NAC', 'correctly encoding on multicreate');
+
+  my $empl2 = $empl_rs->create ({
+    name => 'Same secret holder',
+    secretkey => {
+      encoded => 'CAN HAZ',
+    },
+  });
+  is($empl2->secretkey->encoded, 'ZAH NAC', 'correctly encoding on preexisting multicreate');
+
+  $empl_rs->create ({
+    name => 'cat1',
+    secretkey => {
+      encoded => 'CHEEZBURGER',
+      keyholders => [
+        {
+          name => 'cat2',
+        },
+        {
+          name => 'cat3',
+        },
+      ],
+    },
+  });
+
+  is($empl_rs->find({name => 'cat1'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl1');
+  is($empl_rs->find({name => 'cat2'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl2');
+  is($empl_rs->find({name => 'cat3'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl3');
+
+}
+
 # make sure we got rid of the compat shims
 SKIP: {
     skip "Remove in 0.082", 3 if $DBIx::Class::VERSION < 0.082;
