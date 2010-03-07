@@ -90,13 +90,13 @@ my $reqs = {
 
   test_notabs => {
     req => {
-      #'Test::NoTabs'              => '0.9',
+      'Test::NoTabs'              => '0.9',
     },
   },
 
   test_eol => {
     req => {
-      #'Test::EOL'                 => '0.6',
+      'Test::EOL'                 => '0.6',
     },
   },
 

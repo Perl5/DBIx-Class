@@ -5,26 +5,20 @@ use Test::More;
 use lib 't/lib';
 use DBICTest;
 
-my @MODULES = (
-  'Test::NoTabs 0.9',
-);
-
-plan skip_all => 'Does not work with done_testing, temp disabled';
-
 # Don't run tests for installs
 unless ( DBICTest::AuthorCheck->is_author || $ENV{AUTOMATED_TESTING} || $ENV{RELEASE_TESTING} ) {
   plan( skip_all => "Author tests not required for installation" );
 }
-# Load the testing modules
-foreach my $MODULE ( @MODULES ) {
-  eval "use $MODULE";
-  if ( $@ ) {
-    $ENV{RELEASE_TESTING}
-    ? die( "Failed to load required release-testing module $MODULE" )
-    : plan( skip_all => "$MODULE not available for testing" );
-  }
+
+require DBIx::Class;
+unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_notabs') ) {
+  my $missing = DBIx::Class::Optional::Dependencies->req_missing_for ('test_notabs');
+  $ENV{RELEASE_TESTING} || DBICTest::AuthorCheck->is_author
+    ? die ("Failed to load release-testing module requirements: $missing")
+    : plan skip_all => "Test needs: $missing"
 }
 
-all_perl_files_ok(qw/t lib script maint/);
+Test::NoTabs::all_perl_files_ok(qw/t lib script maint/);
 
-done_testing;
+# FIXME - need to fix Test::NoTabs
+#done_testing;

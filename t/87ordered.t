@@ -64,36 +64,36 @@ $employee = $employees->search({group_id=>4})->first;
 $employee->group_id(1);
 $employee->update;
 ok(
-	check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
-	"overloaded update 3"
+  check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
+  "overloaded update 3"
 );
 $employee = $employees->search({group_id=>4})->first;
 $employee->update({group_id=>2});
 ok(
-	check_rs($employees->search_rs({group_id=>2})) && check_rs($employees->search_rs({group_id=>4})),
-	"overloaded update 4"
+  check_rs($employees->search_rs({group_id=>2})) && check_rs($employees->search_rs({group_id=>4})),
+  "overloaded update 4"
 );
 $employee = $employees->search({group_id=>4})->first;
 $employee->group_id(1);
 $employee->position(3);
 $employee->update;
 ok(
-	check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
-	"overloaded update 5"
+  check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
+  "overloaded update 5"
 );
 $employee = $employees->search({group_id=>4})->first;
 $employee->group_id(2);
 $employee->position(undef);
 $employee->update;
 ok(
-	check_rs($employees->search_rs({group_id=>2})) && check_rs($employees->search_rs({group_id=>4})),
-	"overloaded update 6"
+  check_rs($employees->search_rs({group_id=>2})) && check_rs($employees->search_rs({group_id=>4})),
+  "overloaded update 6"
 );
 $employee = $employees->search({group_id=>4})->first;
 $employee->update({group_id=>1,position=>undef});
 ok(
-	check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
-	"overloaded update 7"
+  check_rs($employees->search_rs({group_id=>1})) && check_rs($employees->search_rs({group_id=>4})),
+  "overloaded update 7"
 );
 
 # multicol tests begin here
@@ -154,7 +154,7 @@ $employees = $employees->search(undef,{order_by=>[qw/group_id_2 group_id_3 posit
 $employee = $employees->search({group_id_2=>4, group_id_3=>1})->first;
 $employee->group_id_2(1);
 $employee->update;
-ok( 
+ok(
     check_rs($employees->search_rs({group_id_2=>4, group_id_3=>1}))
     && check_rs($employees->search_rs({group_id_2=>1, group_id_3=>1})), 
     "overloaded multicol update 1" 
