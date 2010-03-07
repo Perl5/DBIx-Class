@@ -150,10 +150,9 @@ my $fail_code = sub {
   no warnings 'redefine';
   no strict 'refs';
 
-  # die in rollback, but maintain sanity for further tests ...
+  # die in rollback
   local *{"DBIx::Class::Storage::DBI::SQLite::txn_rollback"} = sub{
     my $storage = shift;
-    $storage->{transaction_depth}--;
     die 'FAILED';
   };
 
@@ -179,6 +178,9 @@ my $fail_code = sub {
   ok(!defined($cd), q{deleted the failed txn's cd});
   $schema->storage->_dbh->rollback;
 }
+
+# reset schema object (the txn_rollback meddling screws it up)
+$schema = DBICTest->init_schema();
 
 # Test nested failed txn_do()
 {

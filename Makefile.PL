@@ -78,7 +78,7 @@ EOW
   require DBIx::Class::Optional::Dependencies;
   $reqs->{test_requires} = {
     %{$reqs->{test_requires}},
-    %{DBIx::Class::Optional::Dependencies->_all_optional_requirements},
+    map { %$_ } (values %{DBIx::Class::Optional::Dependencies->req_group_list}),
   };
 }
 

@@ -37,13 +37,7 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('employee_id');
 __PACKAGE__->position_column('position');
 
-#__PACKAGE__->add_unique_constraint(position_group => [ qw/position group_id/ ]);
-
-__PACKAGE__->mk_classdata('field_name_for', {
-    employee_id => 'primary key',
-    position    => 'list position',
-    group_id    => 'collection column',
-    name        => 'employee name',
-});
+# Do not add unique constraints here - different groups are used throughout
+# the ordered tests
 
 1;

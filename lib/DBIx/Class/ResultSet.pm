@@ -3259,23 +3259,27 @@ names:
     select => [
       'name',
       { count => 'employeeid' },
-      { sum => 'salary' }
+      { max => { length => 'name' }, -as => 'longest_name' }
     ]
   });
 
-When you use function/stored procedure names and do not supply an C<as>
-attribute, the column names returned are storage-dependent. E.g. MySQL would
-return a column named C<count(employeeid)> in the above example.
+  # Equivalent SQL
+  SELECT name, COUNT( employeeid ), MAX( LENGTH( name ) ) AS longest_name FROM employee
 
-B<NOTE:> You will almost always need a corresponding 'as' entry when you use
-'select'.
+B<NOTE:> You will almost always need a corresponding L</as> attribute when you
+use L</select>, to instruct DBIx::Class how to store the result of the column.
+Also note that the L</as> attribute has nothing to do with the SQL-side 'AS'
+identifier aliasing. You can however alias a function, so you can use it in
+e.g. an C<ORDER BY> clause. This is done via the C<-as> B<select function
+attribute> supplied as shown in the example above.
 
 =head2 +select
 
 =over 4
 
 Indicates additional columns to be selected from storage.  Works the same as
-L</select> but adds columns to the selection.
+L</select> but adds columns to the default selection, instead of specifying
+an explicit list.
 
 =back
 
@@ -3295,24 +3299,25 @@ Indicates additional column names for those added via L</+select>. See L</as>.
 
 =back
 
-Indicates column names for object inflation. That is, C<as>
-indicates the name that the column can be accessed as via the
-C<get_column> method (or via the object accessor, B<if one already
-exists>).  It has nothing to do with the SQL code C<SELECT foo AS bar>.
-
-The C<as> attribute is used in conjunction with C<select>,
-usually when C<select> contains one or more function or stored
-procedure names:
+Indicates column names for object inflation. That is L</as> indicates the
+slot name in which the column value will be stored within the
+L<Row|DBIx::Class::Row> object. The value will then be accessible via this
+identifier by the C<get_column> method (or via the object accessor B<if one
+with the same name already exists>) as shown below. The L</as> attribute has
+B<nothing to do> with the SQL-side C<AS>. See L</select> for details.
 
   $rs = $schema->resultset('Employee')->search(undef, {
     select => [
       'name',
-      { count => 'employeeid' }
+      { count => 'employeeid' },
+      { max => { length => 'name' }, -as => 'longest_name' }
     ],
-    as => ['name', 'employee_count'],
+    as => [qw/
+      name
+      employee_count
+      max_name_length
+    /],
   });
-
-  my $employee = $rs->first(); # get the first Employee
 
 If the object against which the search is performed already has an accessor
 matching a column name specified in C<as>, the value can be retrieved using
@@ -3327,16 +3332,6 @@ use C<get_column> instead:
 
 You can create your own accessors if required - see
 L<DBIx::Class::Manual::Cookbook> for details.
-
-Please note: This will NOT insert an C<AS employee_count> into the SQL
-statement produced, it is used for internal access only. Thus
-attempting to use the accessor in an C<order_by> clause or similar
-will fail miserably.
-
-To get around this limitation, you can supply literal SQL to your
-C<select> attribute that contains the C<AS alias> text, e.g.
-
-  select => [\'myfield AS alias']
 
 =head2 join
 
