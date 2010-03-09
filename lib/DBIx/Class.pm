@@ -276,6 +276,8 @@ gphat: Cory G Watson <gphat@cpan.org>
 
 groditi: Guillermo Roditi <groditi@cpan.org>
 
+hobbs: Andrew Rodland <arodland@cpan.org>
+
 ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
 
 jasonmay: Jason May <jason.a.may@gmail.com>

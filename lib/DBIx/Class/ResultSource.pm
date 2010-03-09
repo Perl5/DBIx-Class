@@ -139,6 +139,13 @@ The column names given will be created as accessor methods on your
 L<DBIx::Class::Row> objects. You can change the name of the accessor
 by supplying an L</accessor> in the column_info hash.
 
+If a column name beginning with a plus sign ('+col1') is provided, the
+attributes provided will be merged with any existing attributes for the
+column, with the new attributes taking precedence in the case that an
+attribute already exists. Using this without a hashref 
+(C<< $source->add_columns(qw/+col1 +col2/) >>) is legal, but useless --
+it does the same thing it would do without the plus.
+
 The contents of the column_info are not set in stone. The following
 keys are currently recognised/used by DBIx::Class:
 
@@ -288,9 +295,17 @@ sub add_columns {
   my @added;
   my $columns = $self->_columns;
   while (my $col = shift @cols) {
+    my $column_info = {};
+    if ($col =~ s/^\+//) {
+      $column_info = $self->column_info($col);
+    }
+
     # If next entry is { ... } use that for the column info, if not
     # use an empty hashref
-    my $column_info = ref $cols[0] ? shift(@cols) : {};
+    if (ref $cols[0]) {
+      my $new_info = shift(@cols);
+      %$column_info = (%$column_info, %$new_info);
+    }
     push(@added, $col) unless exists $columns->{$col};
     $columns->{$col} = $column_info;
   }

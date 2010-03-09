@@ -19,6 +19,8 @@ Revision history for DBIx::Class
           attribute
         - Fix ambiguity in default directory handling of create_ddl_dir
           (RT#54063)
+        - Support add_columns('+colname' => { ... }) to augment column
+          definitions.
 
 0.08120 2010-02-24 08:58:00 (UTC)
         - Make sure possibly overwritten deployment_statements methods in
