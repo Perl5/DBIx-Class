@@ -45,14 +45,6 @@ my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
 my $dbh = $schema->storage->dbh;
 
-if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
-    plan tests => 46;
-}
-else {
-    plan tests => 36;
-}
-
-
 eval {
   $dbh->do("DROP SEQUENCE artist_seq");
   $dbh->do("DROP SEQUENCE cd_seq");
