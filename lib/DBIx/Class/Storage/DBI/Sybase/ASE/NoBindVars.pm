@@ -1,8 +1,8 @@
-package DBIx::Class::Storage::DBI::Sybase::NoBindVars;
+package DBIx::Class::Storage::DBI::Sybase::ASE::NoBindVars;
 
 use base qw/
   DBIx::Class::Storage::DBI::NoBindVars
-  DBIx::Class::Storage::DBI::Sybase
+  DBIx::Class::Storage::DBI::Sybase::ASE
 /;
 use mro 'c3';
 use List::Util ();
@@ -63,25 +63,25 @@ sub _prep_interpolated_value {
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Sybase::NoBindVars - Storage::DBI subclass for Sybase
-without placeholder support
+DBIx::Class::Storage::DBI::Sybase::ASE::NoBindVars - Storage::DBI subclass for
+Sybase ASE without placeholder support
 
 =head1 DESCRIPTION
 
-If you're using this driver than your version of Sybase, or the libraries you
-use to connect to it, do not support placeholders.
+If you're using this driver then your version of Sybase or the libraries you
+use to connect to it do not support placeholders.
 
 You can also enable this driver explicitly using:
 
   my $schema = SchemaClass->clone;
-  $schema->storage_type('::DBI::Sybase::NoBindVars');
+  $schema->storage_type('::DBI::Sybase::ASE::NoBindVars');
   $schema->connect($dsn, $user, $pass, \%opts);
 
 See the discussion in L<< DBD::Sybase/Using ? Placeholders & bind parameters to
 $sth->execute >> for details on the pros and cons of using placeholders.
 
 One advantage of not using placeholders is that C<select @@identity> will work
-for obtainging the last insert id of an C<IDENTITY> column, instead of having to
+for obtaining the last insert id of an C<IDENTITY> column, instead of having to
 do C<select max(col)> in a transaction as the base Sybase driver does.
 
 When using this driver, bind variables will be interpolated (properly quoted of

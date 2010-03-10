@@ -1,10 +1,8 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sun Nov 15 14:13:02 2009
+-- Created on Sat Mar  6 18:04:27 2010
 -- 
-
-
-BEGIN TRANSACTION;
+;
 
 --
 -- Table: artist
@@ -37,18 +35,6 @@ CREATE TABLE collection (
 );
 
 --
--- Table: employee
---
-CREATE TABLE employee (
-  employee_id INTEGER PRIMARY KEY NOT NULL,
-  position integer NOT NULL,
-  group_id integer,
-  group_id_2 integer,
-  group_id_3 integer,
-  name varchar(100)
-);
-
---
 -- Table: encoded
 --
 CREATE TABLE encoded (
@@ -61,7 +47,7 @@ CREATE TABLE encoded (
 --
 CREATE TABLE event (
   id INTEGER PRIMARY KEY NOT NULL,
-  starts_at datetime NOT NULL,
+  starts_at date NOT NULL,
   created_on timestamp NOT NULL,
   varchar_date varchar(20),
   varchar_datetime varchar(20),
@@ -255,14 +241,27 @@ CREATE TABLE books (
 CREATE INDEX books_idx_owner ON books (owner);
 
 --
+-- Table: employee
+--
+CREATE TABLE employee (
+  employee_id INTEGER PRIMARY KEY NOT NULL,
+  position integer NOT NULL,
+  group_id integer,
+  group_id_2 integer,
+  group_id_3 integer,
+  name varchar(100),
+  encoded integer
+);
+
+CREATE INDEX employee_idx_encoded ON employee (encoded);
+
+--
 -- Table: forceforeign
 --
 CREATE TABLE forceforeign (
   artist INTEGER PRIMARY KEY NOT NULL,
   cd integer NOT NULL
 );
-
-CREATE INDEX forceforeign_idx_artist ON forceforeign (artist);
 
 --
 -- Table: self_ref_alias
@@ -346,8 +345,6 @@ CREATE TABLE cd_artwork (
   cd_id INTEGER PRIMARY KEY NOT NULL
 );
 
-CREATE INDEX cd_artwork_idx_cd_id ON cd_artwork (cd_id);
-
 --
 -- Table: liner_notes
 --
@@ -355,8 +352,6 @@ CREATE TABLE liner_notes (
   liner_id INTEGER PRIMARY KEY NOT NULL,
   notes varchar(100) NOT NULL
 );
-
-CREATE INDEX liner_notes_idx_liner_id ON liner_notes (liner_id);
 
 --
 -- Table: lyric_versions
@@ -453,6 +448,4 @@ CREATE INDEX fourkeys_to_twokeys_idx_t_artist_t_cd ON fourkeys_to_twokeys (t_art
 -- View: year2000cds
 --
 CREATE VIEW year2000cds AS
-    SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = "2000";
-
-COMMIT;
+    SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = "2000"

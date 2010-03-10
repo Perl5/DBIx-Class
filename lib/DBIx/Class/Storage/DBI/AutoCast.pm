@@ -23,7 +23,7 @@ statements with values bound to columns or conditions that are not strings will
 throw implicit type conversion errors.
 
 As long as a column L<data_type|DBIx::Class::ResultSource/add_columns> is
-defined, and it resolves to a base RDBMS native type via L</_native_data_type> as
+defined and resolves to a base RDBMS native type via L</_native_data_type> as
 defined in your Storage driver, the placeholder for this column will be
 converted to:
 

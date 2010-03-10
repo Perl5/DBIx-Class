@@ -14,8 +14,8 @@ BEGIN {
 }
 
 INIT {
-	use lib 't/cdbi/testlib';
-	use Film;
+  use lib 't/cdbi/testlib';
+  use Film;
 }
 
 

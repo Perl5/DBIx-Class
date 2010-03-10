@@ -79,6 +79,10 @@ my $track = $schema->resultset("Track")->create( {
 } );
 $track->set_from_related( cd => $cd );
 
+# has_relationship
+ok(! $track->has_relationship( 'foo' ), 'Track has no relationship "foo"');
+ok($track->has_relationship( 'disc' ), 'Track has relationship "disk"' );
+
 is($track->disc->cdid, 4, 'set_from_related ok, including alternative accessor' );
 
 $track->set_from_related( cd => undef );
@@ -268,7 +272,7 @@ is_same_sql_bind (
   '(
     SELECT artist_undirected_maps.id1, artist_undirected_maps.id2
       FROM artist me
-      LEFT JOIN artist_undirected_map artist_undirected_maps
+      JOIN artist_undirected_map artist_undirected_maps
         ON artist_undirected_maps.id1 = me.artistid OR artist_undirected_maps.id2 = me.artistid
     WHERE ( artistid = ? )
   )',

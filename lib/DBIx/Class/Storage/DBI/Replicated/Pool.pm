@@ -1,13 +1,13 @@
 package DBIx::Class::Storage::DBI::Replicated::Pool;
 
 use Moose;
-use MooseX::AttributeHelpers;
 use DBIx::Class::Storage::DBI::Replicated::Replicant;
 use List::Util 'sum';
 use Scalar::Util 'reftype';
 use DBI ();
 use Carp::Clan qw/^DBIx::Class/;
 use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
+use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
 
 use namespace::clean -except => 'meta';
 
@@ -23,7 +23,7 @@ shouldn't need to create instances of this class.
 =head1 DESCRIPTION
 
 In a replicated storage type, there is at least one replicant to handle the
-read only traffic.  The Pool class manages this replicant, or list of 
+read-only traffic.  The Pool class manages this replicant, or list of 
 replicants, and gives some methods for querying information about their status.
 
 =head1 ATTRIBUTES
@@ -53,7 +53,7 @@ has 'maximum_lag' => (
 
 This is an integer representing a time since the last time the replicants were
 validated. It's nothing fancy, just an integer provided via the perl L<time|perlfunc/time>
-builtin.
+built-in.
 
 =cut
 
@@ -87,7 +87,7 @@ has 'replicant_type' => (
 =head2 replicants
 
 A hashref of replicant, with the key being the dsn and the value returning the
-actual replicant storage.  For example if the $dsn element is something like:
+actual replicant storage.  For example, if the $dsn element is something like:
 
   "dbi:SQLite:dbname=dbfile"
 
@@ -117,7 +117,7 @@ The number of replicants in the pool
 
 =item delete_replicant ($key)
 
-removes the replicant under $key from the pool
+Removes the replicant under $key from the pool
 
 =back
 
@@ -125,28 +125,41 @@ removes the replicant under $key from the pool
 
 has 'replicants' => (
   is=>'rw',
-  metaclass => 'Collection::Hash',
+  traits => ['Hash'],
   isa=>HashRef['Object'],
   default=>sub {{}},
-  provides  => {
-    'set' => 'set_replicant',
-    'get' => 'get_replicant',
-    'empty' => 'has_replicants',
-    'count' => 'num_replicants',
-    'delete' => 'delete_replicant',
-    'values' => 'all_replicant_storages',
+  handles  => {
+    'set_replicant' => 'set',
+    'get_replicant' => 'get',
+    'has_replicants' => 'is_empty',
+    'num_replicants' => 'count',
+    'delete_replicant' => 'delete',
+    'all_replicant_storages' => 'values',
   },
 );
 
+around has_replicants => sub {
+    my ($orig, $self) = @_;
+    return !$self->$orig;
+};
+
 has next_unknown_replicant_id => (
   is => 'rw',
-  metaclass => 'Counter',
+  traits => ['Counter'],
   isa => Int,
   default => 1,
-  provides => {
-    inc => 'inc_unknown_replicant_id'
+  handles => {
+    'inc_unknown_replicant_id' => 'inc',
   },
 );
+
+=head2 master
+
+Reference to the master Storage.
+
+=cut
+
+has master => (is => 'rw', isa => DBICStorageDBI, weak_ref => 1);
 
 =head1 METHODS
 
@@ -239,7 +252,13 @@ sub connect_replicant {
     $replicant->_determine_driver
   });
 
-  DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);  
+  Moose::Meta::Class->initialize(ref $replicant);
+
+  DBIx::Class::Storage::DBI::Replicated::Replicant->meta->apply($replicant);
+
+  # link back to master
+  $replicant->master($self->master);
+
   return $replicant;
 }
 
@@ -249,7 +268,7 @@ The standard ensure_connected method with throw an exception should it fail to
 connect.  For the master database this is desirable, but since replicants are
 allowed to fail, this behavior is not desirable.  This method wraps the call
 to ensure_connected in an eval in order to catch any generated errors.  That
-way a slave can go completely offline (ie, the box itself can die) without
+way a slave can go completely offline (e.g. the box itself can die) without
 bringing down your entire pool of databases.
 
 =cut
@@ -276,16 +295,15 @@ sub _safely {
 
   eval {
     $code->()
-  }; 
+  };
   if ($@) {
-    $replicant
-      ->debugobj
-      ->print(
-        sprintf( "Exception trying to $name for replicant %s, error is %s",
-          $replicant->_dbi_connect_info->[0], $@)
-        );
-  	return;
+    $replicant->debugobj->print(sprintf(
+      "Exception trying to $name for replicant %s, error is %s",
+      $replicant->_dbi_connect_info->[0], $@)
+    );
+    return undef;
   }
+
   return 1;
 }
 
@@ -347,7 +365,7 @@ defined by L</maximum_lag>.  Replicants that fail any of these tests are set to
 inactive, and thus removed from the replication pool.
 
 This tests L<all_replicants>, since a replicant that has been previous marked
-as inactive can be reactived should it start to pass the validation tests again.
+as inactive can be reactivated should it start to pass the validation tests again.
 
 See L<DBIx::Class::Storage::DBI> for more about checking if a replicating
 connection is not following a master or is lagging.

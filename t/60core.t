@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
@@ -109,10 +109,12 @@ is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id gener
 {
   ok(my $artist = $schema->resultset('Artist')->create({name => 'store_column test'}));
   is($artist->name, 'X store_column test'); # used to be 'X X store...'
-  
+
   # call store_column even though the column doesn't seem to be dirty
-  ok($artist->update({name => 'X store_column test'}));
+  $artist->name($artist->name);
   is($artist->name, 'X X store_column test');
+  ok($artist->is_column_changed('name'), 'changed column marked as dirty');
+
   $artist->delete;
 }
 
@@ -417,11 +419,52 @@ SKIP: {
   is($en_row->encoded, 'amliw', 'insert does not encode again');
 }
 
+#make sure multicreate encoding still works
+{
+  my $empl_rs = $schema->resultset('Employee');
+
+  my $empl = $empl_rs->create ({
+    name => 'Secret holder',
+    secretkey => {
+      encoded => 'CAN HAZ',
+    },
+  });
+  is($empl->secretkey->encoded, 'ZAH NAC', 'correctly encoding on multicreate');
+
+  my $empl2 = $empl_rs->create ({
+    name => 'Same secret holder',
+    secretkey => {
+      encoded => 'CAN HAZ',
+    },
+  });
+  is($empl2->secretkey->encoded, 'ZAH NAC', 'correctly encoding on preexisting multicreate');
+
+  $empl_rs->create ({
+    name => 'cat1',
+    secretkey => {
+      encoded => 'CHEEZBURGER',
+      keyholders => [
+        {
+          name => 'cat2',
+        },
+        {
+          name => 'cat3',
+        },
+      ],
+    },
+  });
+
+  is($empl_rs->find({name => 'cat1'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl1');
+  is($empl_rs->find({name => 'cat2'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl2');
+  is($empl_rs->find({name => 'cat3'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl3');
+
+}
+
 # make sure we got rid of the compat shims
 SKIP: {
-    skip "Remove in 0.09", 5 if $DBIx::Class::VERSION < 0.09;
+    skip "Remove in 0.082", 3 if $DBIx::Class::VERSION < 0.082;
 
-    for (qw/compare_relationship_keys pk_depends_on resolve_condition resolve_join resolve_prefetch/) {
+    for (qw/compare_relationship_keys pk_depends_on resolve_condition/) {
       ok (! DBIx::Class::ResultSource->can ($_), "$_ no longer provided by DBIx::Class::ResultSource");
     }
 }

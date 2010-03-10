@@ -30,6 +30,8 @@ methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
   __PACKAGE__->add_relationship('relname', 'Foreign::Class', $cond, $attrs);
 
+=head3 condition
+
 The condition needs to be an L<SQL::Abstract>-style representation of the
 join between the tables. When resolving the condition for use in a C<JOIN>,
 keys using the pseudo-table C<foreign> are resolved to mean "the Table on the
@@ -67,9 +69,18 @@ Each key-value pair provided in a hashref will be used as C<AND>ed conditions.
 To add an C<OR>ed condition, use an arrayref of hashrefs. See the
 L<SQL::Abstract> documentation for more details.
 
-In addition to the
-L<standard ResultSet attributes|DBIx::Class::ResultSet/ATTRIBUTES>,
-the following attributes are also valid:
+=head3 attributes
+
+The L<standard ResultSet attributes|DBIx::Class::ResultSet/ATTRIBUTES> may
+be used as relationship attributes. In particular, the 'where' attribute is
+useful for filtering relationships:
+
+     __PACKAGE__->has_many( 'valid_users', 'MyApp::Schema::User',
+        { 'foreign.user_id' => 'self.user_id' },
+        { where => { valid => 1 } }
+    );
+
+The following attributes are also valid:
 
 =over 4
 
@@ -189,13 +200,23 @@ sub related_resultset {
     my $query = ((@_ > 1) ? {@_} : shift);
 
     my $source = $self->result_source;
-    my $cond = $source->_resolve_condition(
-      $rel_info->{cond}, $rel, $self
-    );
+
+    # condition resolution may fail if an incomplete master-object prefetch
+    # is encountered - that is ok during prefetch construction (not yet in_storage)
+    my $cond = eval { $source->_resolve_condition( $rel_info->{cond}, $rel, $self ) };
+    if (my $err = $@) {
+      if ($self->in_storage) {
+        $self->throw_exception ($err);
+      }
+      else {
+        $cond = $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION;
+      }
+    }
+
     if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
       my $reverse = $source->reverse_relationship_info($rel);
       foreach my $rev_rel (keys %$reverse) {
-        if ($reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
+        if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
           $attrs->{related_objects}{$rev_rel} = [ $self ];
           Scalar::Util::weaken($attrs->{related_object}{$rev_rel}[0]);
         } else {
@@ -249,7 +270,7 @@ sub search_related {
   ( $objects_rs ) = $rs->search_related_rs('relname', $cond, $attrs);
 
 This method works exactly the same as search_related, except that 
-it guarantees a restultset, even in list context.
+it guarantees a resultset, even in list context.
 
 =cut
 
@@ -381,7 +402,7 @@ example, to set the correct author for a book, find the Author object, then
 call set_from_related on the book.
 
 This is called internally when you pass existing objects as values to
-L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to acessor.
+L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to accessor.
 
 The columns are only set in the local copy of the object, call L</update> to
 set them in the storage.

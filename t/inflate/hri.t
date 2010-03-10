@@ -26,11 +26,14 @@ my $schema = DBICTest->init_schema();
 
     my $cd1 = $rs->find ({cdid => 1});
     is_deeply ( $cd1, $datahashref1, 'first/find return the same thing');
+
+    my $cd2 = $rs->search({ cdid => 1 })->single;
+    is_deeply ( $cd2, $datahashref1, 'first/search+single return the same thing');
 }
 
 sub check_cols_of {
     my ($dbic_obj, $datahashref) = @_;
-    
+
     foreach my $col (keys %$datahashref) {
         # plain column
         if (not ref ($datahashref->{$col}) ) {
@@ -44,14 +47,14 @@ sub check_cols_of {
         elsif (ref ($datahashref->{$col}) eq 'ARRAY') {
             my @dbic_reltable = $dbic_obj->$col;
             my @hashref_reltable = @{$datahashref->{$col}};
-  
-            is (scalar @hashref_reltable, scalar @dbic_reltable, 'number of related entries');
+
+            is (scalar @dbic_reltable, scalar @hashref_reltable, 'number of related entries');
 
             # for my $index (0..scalar @hashref_reltable) {
             for my $index (0..scalar @dbic_reltable) {
                 my $dbic_reltable_obj       = $dbic_reltable[$index];
                 my $hashref_reltable_entry  = $hashref_reltable[$index];
-                
+
                 check_cols_of($dbic_reltable_obj, $hashref_reltable_entry);
             }
         }
@@ -139,3 +142,4 @@ is_deeply(
 );
 
 done_testing;
+

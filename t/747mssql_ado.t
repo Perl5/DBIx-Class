@@ -11,8 +11,6 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_ADO_${_}" } qw/DSN USER PAS
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_ADO_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
 
-plan tests => 12;
-
 my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 $schema->storage->ensure_connected;
 
@@ -48,7 +46,7 @@ is $found->artistid, $new->artistid, 'select with big column list';
 is $found->get_column('foo_50'), 'foo', 'last item in big column list';
 
 # create a few more rows
-for (1..6) {
+for (1..12) {
   $schema->resultset('Artist')->create({ name => 'Artist ' . $_ });
 }
 
@@ -59,6 +57,17 @@ my $rs2 = $schema->resultset('Artist')->search({}, { order_by => 'name' });
 while ($rs1->next) {
   ok eval { $rs2->next }, 'multiple active cursors';
 }
+
+# test bug where ADO blows up if the first bindparam is shorter than the second
+is $schema->resultset('Artist')->search({ artistid => 2 })->first->name,
+  'Artist 1',
+  'short bindparam';
+
+is $schema->resultset('Artist')->search({ artistid => 13 })->first->name,
+  'Artist 12',
+  'longer bindparam';
+
+done_testing;
 
 # clean up our mess
 END {

@@ -14,7 +14,10 @@ sub has_many {
 
   unless (ref $cond) {
     $class->ensure_class_loaded($f_class);
-    my ($pri, $too_many) = $class->primary_columns;
+    my ($pri, $too_many) = eval { $class->_pri_cols };
+    $class->throw_exception(
+      "Can't infer join condition for ${rel} on ${class}: $@"
+    ) if $@;
 
     $class->throw_exception(
       "has_many can only infer join for a single primary key; ".

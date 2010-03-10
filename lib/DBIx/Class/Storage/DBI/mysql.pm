@@ -5,7 +5,6 @@ use warnings;
 
 use base qw/
   DBIx::Class::Storage::DBI::MultiColumnIn
-  DBIx::Class::Storage::DBI::AmbiguousGlob
   DBIx::Class::Storage::DBI
 /;
 use mro 'c3';
@@ -105,6 +104,19 @@ This class implements MySQL specific bits of L<DBIx::Class::Storage::DBI>.
 It also provides a one-stop on-connect macro C<set_strict_mode> which sets
 session variables such that MySQL behaves more predictably as far as the
 SQL standard is concerned.
+
+=head1 STORAGE OPTIONS
+
+=head2 set_strict_mode
+
+Enables session-wide strict options upon connecting. Equivalent to:
+
+  ->connect ( ... , {
+    on_connect_do => [
+      q|SET SQL_MODE = CONCAT('ANSI,TRADITIONAL,ONLY_FULL_GROUP_BY,', @@sql_mode)|,
+      q|SET SQL_AUTO_IS_NULL = 0|,
+    ]
+  });
 
 =head1 AUTHORS
 

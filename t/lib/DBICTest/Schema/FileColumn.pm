@@ -6,8 +6,6 @@ use warnings;
 use base qw/DBICTest::BaseResult/;
 use File::Temp qw/tempdir/;
 
-__PACKAGE__->load_components(qw/InflateColumn::File/);
-
 __PACKAGE__->table('file_columns');
 
 __PACKAGE__->add_columns(

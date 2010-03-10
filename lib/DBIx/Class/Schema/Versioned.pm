@@ -1,10 +1,9 @@
 package # Hide from PAUSE
   DBIx::Class::Version::Table;
-use base 'DBIx::Class';
+use base 'DBIx::Class::Core';
 use strict;
 use warnings;
 
-__PACKAGE__->load_components(qw/ Core/);
 __PACKAGE__->table('dbix_class_schema_versions');
 
 __PACKAGE__->add_columns
@@ -31,8 +30,7 @@ __PACKAGE__->set_primary_key('version');
 
 package # Hide from PAUSE
   DBIx::Class::Version::TableCompat;
-use base 'DBIx::Class';
-__PACKAGE__->load_components(qw/ Core/);
+use base 'DBIx::Class::Core';
 __PACKAGE__->table('SchemaVersions');
 
 __PACKAGE__->add_columns
@@ -116,7 +114,7 @@ upgrades. Your creation script might look like a bit like this:
   use Getopt::Long;
   use MyApp::Schema;
 
-  my ( $preversion, $help ); 
+  my ( $preversion, $help );
   GetOptions(
     'p|preversion:s'  => \$preversion,
   ) or die pod2usage;
@@ -152,13 +150,13 @@ The script above assumes that if the database is unversioned then it is empty
 and we can safely deploy the DDL to it. However things are not always so simple.
 
 if you want to initialise a pre-existing database where the DDL is not the same
-as the DDL for your current schema version then you will need a diff which 
+as the DDL for your current schema version then you will need a diff which
 converts the database's DDL to the current DDL. The best way to do this is
 to get a dump of the database schema (without data) and save that in your
 SQL directory as version 0.000 (the filename must be as with
-L<DBIx::Class::Schema/ddl_filename>) then create a diff using your create DDL 
+L<DBIx::Class::Schema/ddl_filename>) then create a diff using your create DDL
 script given above from version 0.000 to the current version. Then hand check
-and if necessary edit the resulting diff to ensure that it will apply. Once you have 
+and if necessary edit the resulting diff to ensure that it will apply. Once you have
 done all that you can do this:
 
   if (!$schema->get_db_version()) {
@@ -170,7 +168,7 @@ done all that you can do this:
   $schema->upgrade();
 
 In the case of an unversioned database the above code will create the
-dbix_class_schema_versions table and write version 0.000 to it, then 
+dbix_class_schema_versions table and write version 0.000 to it, then
 upgrade will then apply the diff we talked about creating in the previous paragraph
 and then you're good to go.
 
@@ -180,10 +178,10 @@ package DBIx::Class::Schema::Versioned;
 
 use strict;
 use warnings;
-use base 'DBIx::Class';
+use base 'DBIx::Class::Schema';
 
 use Carp::Clan qw/^DBIx::Class/;
-use POSIX 'strftime';
+use Time::HiRes qw/gettimeofday/;
 
 __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
@@ -260,58 +258,155 @@ sub deploy {
 
 =back
 
-Virtual method that should be overriden to create an upgrade file. 
-This is useful in the case of upgrading across multiple versions 
+Virtual method that should be overridden to create an upgrade file.
+This is useful in the case of upgrading across multiple versions
 to concatenate several files to create one upgrade file.
 
 You'll probably want the db_version retrieved via $self->get_db_version
-and the schema_version which is retrieved via $self->schema_version 
+and the schema_version which is retrieved via $self->schema_version
 
 =cut
 
 sub create_upgrade_path {
-	## override this method
+  ## override this method
+}
+
+=head2 ordered_schema_versions
+
+=over 4
+
+=item Returns: a list of version numbers, ordered from lowest to highest
+
+=back
+
+Virtual method that should be overridden to return an ordered list
+of schema versions. This is then used to produce a set of steps to
+upgrade through to achieve the required schema version.
+
+You may want the db_version retrieved via $self->get_db_version
+and the schema_version which is retrieved via $self->schema_version
+
+=cut
+
+sub ordered_schema_versions {
+  ## override this method
 }
 
 =head2 upgrade
 
-Call this to attempt to upgrade your database from the version it is at to the version
-this DBIC schema is at. If they are the same it does nothing.
+Call this to attempt to upgrade your database from the version it
+is at to the version this DBIC schema is at. If they are the same
+it does nothing.
 
-It requires an SQL diff file to exist in you I<upgrade_directory>, normally you will
-have created this using L<DBIx::Class::Schema/create_ddl_dir>.
+It will call L</ordered_schema_versions> to retrieve an ordered
+list of schema versions (if ordered_schema_versions returns nothing
+then it is assumed you can do the upgrade as a single step). It
+then iterates through the list of versions between the current db
+version and the schema version applying one update at a time until
+all relevant updates are applied.
 
-If successful the dbix_class_schema_versions table is updated with the current
-DBIC schema version.
+The individual update steps are performed by using
+L</upgrade_single_step>, which will apply the update and also
+update the dbix_class_schema_versions table.
 
 =cut
 
-sub upgrade
-{
-  my ($self) = @_;
-  my $db_version = $self->get_db_version();
+sub upgrade {
+    my ($self) = @_;
+    my $db_version = $self->get_db_version();
 
-  # db unversioned
-  unless ($db_version) {
-    carp 'Upgrade not possible as database is unversioned. Please call install first.';
-    return;
-  }
+    # db unversioned
+    unless ($db_version) {
+        carp 'Upgrade not possible as database is unversioned. Please call install first.';
+        return;
+    }
+
+    # db and schema at same version. do nothing
+    if ( $db_version eq $self->schema_version ) {
+        carp "Upgrade not necessary\n";
+        return;
+    }
+
+    my @version_list = $self->ordered_schema_versions;
+
+    # if nothing returned then we preload with min/max
+    @version_list = ( $db_version, $self->schema_version )
+      unless ( scalar(@version_list) );
+
+    # catch the case of someone returning an arrayref
+    @version_list = @{ $version_list[0] }
+      if ( ref( $version_list[0] ) eq 'ARRAY' );
+
+    # remove all versions in list above the required version
+    while ( scalar(@version_list)
+        && ( $version_list[-1] ne $self->schema_version ) )
+    {
+        pop @version_list;
+    }
+
+    # remove all versions in list below the current version
+    while ( scalar(@version_list) && ( $version_list[0] ne $db_version ) ) {
+        shift @version_list;
+    }
+
+    # check we have an appropriate list of versions
+    if ( scalar(@version_list) < 2 ) {
+        die;
+    }
+
+    # do sets of upgrade
+    while ( scalar(@version_list) >= 2 ) {
+        $self->upgrade_single_step( $version_list[0], $version_list[1] );
+        shift @version_list;
+    }
+}
+
+=head2 upgrade_single_step
+
+=over 4
+
+=item Arguments: db_version - the version currently within the db
+
+=item Arguments: target_version - the version to upgrade to
+
+=back
+
+Call this to attempt to upgrade your database from the
+I<db_version> to the I<target_version>. If they are the same it
+does nothing.
+
+It requires an SQL diff file to exist in your I<upgrade_directory>,
+normally you will have created this using L<DBIx::Class::Schema/create_ddl_dir>.
+
+If successful the dbix_class_schema_versions table is updated with
+the I<target_version>.
+
+This method may be called repeatedly by the upgrade method to
+upgrade through a series of updates.
+
+=cut
+
+sub upgrade_single_step
+{
+  my ($self,
+      $db_version,
+      $target_version) = @_;
 
   # db and schema at same version. do nothing
-  if ($db_version eq $self->schema_version) {
+  if ($db_version eq $target_version) {
     carp "Upgrade not necessary\n";
     return;
   }
 
   # strangely the first time this is called can
-  # differ to subsequent times. so we call it 
+  # differ to subsequent times. so we call it
   # here to be sure.
   # XXX - just fix it
   $self->storage->sqlt_type;
 
   my $upgrade_file = $self->ddl_filename(
                                          $self->storage->sqlt_type,
-                                         $self->schema_version,
+                                         $target_version,
                                          $self->upgrade_directory,
                                          $db_version,
                                         );
@@ -323,7 +418,7 @@ sub upgrade
     return;
   }
 
-  carp "\nDB version ($db_version) is lower than the schema version (".$self->schema_version."). Attempting upgrade.\n";
+  carp "DB version ($db_version) is lower than the schema version (".$self->schema_version."). Attempting upgrade.\n";
 
   # backup if necessary then apply upgrade
   $self->_filedata($self->_read_sql_file($upgrade_file));
@@ -331,7 +426,7 @@ sub upgrade
   $self->txn_do(sub { $self->do_upgrade() });
 
   # set row in dbix_class_schema_versions table
-  $self->_set_db_version;
+  $self->_set_db_version({version => $target_version});
 }
 
 =head2 do_upgrade
@@ -340,7 +435,7 @@ This is an overwritable method used to run your upgrade. The freeform method
 allows you to run your upgrade any way you please, you can call C<run_upgrade>
 any number of times to run the actual SQL commands, and in between you can
 sandwich your data upgrading. For example, first run all the B<CREATE>
-commands, then migrate your data from old to new tables/formats, then 
+commands, then migrate your data from old to new tables/formats, then
 issue the DROP commands when you are finished. Will run the whole file as it is by default.
 
 =cut
@@ -349,7 +444,7 @@ sub do_upgrade
 {
   my ($self) = @_;
 
-  # just run all the commands (including inserts) in order                                                        
+  # just run all the commands (including inserts) in order
   $self->run_upgrade(qr/.*?/);
 }
 
@@ -374,7 +469,7 @@ sub run_upgrade
     $self->_filedata([ grep { $_ !~ /$stm/i } @{$self->_filedata} ]);
 
     for (@statements)
-    {      
+    {
         $self->storage->debugobj->query_start($_) if $self->storage->debug;
         $self->apply_statement($_);
         $self->storage->debugobj->query_end($_) if $self->storage->debug;
@@ -393,7 +488,7 @@ differently.
 sub apply_statement {
     my ($self, $statement) = @_;
 
-    $self->storage->dbh->do($_) or carp "SQL was:\n $_";
+    $self->storage->dbh->do($_) or carp "SQL was: $_";
 }
 
 =head2 get_db_version
@@ -408,12 +503,12 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version = 0;
-    eval {
-      my $stamp = $vtable->get_column('installed')->max;
-      $version = $vtable->search({ installed => $stamp })->first->version;
+    my $version = eval {
+      $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
+              ->get_column ('version')
+               ->next;
     };
-    return $version;
+    return $version || 0;
 }
 
 =head2 schema_version
@@ -427,7 +522,7 @@ Returns the current schema class' $VERSION
 This is an overwritable method which is called just before the upgrade, to
 allow you to make a backup of the database. Per default this method attempts
 to call C<< $self->storage->backup >>, to run the standard backup on each
-database type. 
+database type.
 
 This method should return the name of the backup file, if appropriate..
 
@@ -449,7 +544,7 @@ warns if they are not the same or if the DB is unversioned. It also provides
 compatibility between the old versions table (SchemaVersions) and the new one
 (dbix_class_schema_versions).
 
-To avoid the checks on connect, set the env var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth argument like so:
+To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or alternatively you can set the ignore_version attr in the forth argument like so:
 
   my $schema = MyApp::Schema->connect(
     $dsn,
@@ -472,8 +567,12 @@ sub _on_connect
   my ($self, $args) = @_;
 
   $args = {} unless $args;
+
   $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
   my $vtable = $self->{vschema}->resultset('Table');
+
+  # useful when connecting from scripts etc
+  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
 
   # check for legacy versions table and move to new if exists
   my $vschema_compat = DBIx::Class::VersionCompat->connect(@{$self->storage->connect_info()});
@@ -486,8 +585,6 @@ sub _on_connect
     }
   }
 
-  # useful when connecting from scripts etc
-  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
   my $pversion = $self->get_db_version();
 
   if($pversion eq $self->schema_version)
@@ -502,7 +599,7 @@ sub _on_connect
         return 1;
     }
 
-  carp "Versions out of sync. This is " . $self->schema_version . 
+  carp "Versions out of sync. This is " . $self->schema_version .
     ", your database contains version $pversion, please call upgrade on your Schema.\n";
 }
 
@@ -520,8 +617,9 @@ sub _create_db_to_schema_diff {
     return;
   }
 
-  $self->throw_exception($self->storage->_sqlt_version_error)
-    if (not $self->storage->_sqlt_version_ok);
+  unless (DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')) {
+    $self->throw_exception("Unable to proceed without " . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy') );
+  }
 
   my $db_tr = SQL::Translator->new({
                                     add_drop_table => 1,
@@ -544,7 +642,7 @@ sub _create_db_to_schema_diff {
     $tr->parser->($tr, $$data);
   }
 
-  my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db, 
+  my $diff = SQL::Translator::Diff::schema_diff($db_tr->schema, $db,
                                                 $dbic_tr->schema, $db,
                                                 { ignore_constraint_names => 1, ignore_index_names => 1, caseopt => 1 });
 
@@ -574,24 +672,50 @@ sub _set_db_version {
 
   my $version = $params->{version} ? $params->{version} : $self->schema_version;
   my $vtable = $self->{vschema}->resultset('Table');
-  $vtable->create({ version => $version,
-                      installed => strftime("%Y-%m-%d %H:%M:%S", gmtime())
-                      });
 
+  ##############################################################################
+  #                             !!! NOTE !!!
+  ##############################################################################
+  #
+  # The travesty below replaces the old nice timestamp format of %Y-%m-%d %H:%M:%S
+  # This is necessary since there are legitimate cases when upgrades can happen
+  # back to back within the same second. This breaks things since we relay on the
+  # ability to sort by the 'installed' value. The logical choice of an autoinc
+  # is not possible, as it will break multiple legacy installations. Also it is 
+  # not possible to format the string sanely, as the column is a varchar(20).
+  # The 'v' character is added to the front of the string, so that any version
+  # formatted by this new function will sort _after_ any existing 200... strings.
+  my @tm = gettimeofday();
+  my @dt = gmtime ($tm[0]);
+  my $o = $vtable->create({ 
+    version => $version,
+    installed => sprintf("v%04d%02d%02d_%02d%02d%02d.%03.0f",
+      $dt[5] + 1900,
+      $dt[4] + 1,
+      $dt[3],
+      $dt[2],
+      $dt[1],
+      $dt[0],
+      $tm[1] / 1000, # convert to millisecs, format as up/down rounded int above
+    ),
+  });
 }
 
 sub _read_sql_file {
   my $self = shift;
   my $file = shift || return;
 
-  my $fh;
-  open $fh, "<$file" or carp("Can't open upgrade file, $file ($!)");
-  my @data = split(/\n/, join('', <$fh>));
-  @data = grep(!/^--/, @data);
-  @data = split(/;/, join('', @data));
-  close($fh);
-  @data = grep { $_ && $_ !~ /^-- / } @data;
-  @data = grep { $_ !~ /^(BEGIN|BEGIN TRANSACTION|COMMIT)/m } @data;
+  open my $fh, '<', $file or carp("Can't open upgrade file, $file ($!)");
+  my @data = split /\n/, join '', <$fh>;
+  close $fh;
+
+  @data = split /;/,
+     join '',
+       grep { $_ &&
+              !/^--/  &&
+              !/^(BEGIN|BEGIN TRANSACTION|COMMIT)/mi }
+         @data;
+
   return \@data;
 }
 

@@ -7,12 +7,9 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-require DBIx::Class::Storage::DBI::Sybase;
-require DBIx::Class::Storage::DBI::Sybase::NoBindVars;
-
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_SYBASE_${_}" } qw/DSN USER PASS/};
 
-my $TESTS = 63 + 2;
+my $TESTS = 66 + 2;
 
 if (not ($dsn && $user)) {
   plan skip_all =>
@@ -24,9 +21,11 @@ if (not ($dsn && $user)) {
 }
 
 my @storage_types = (
-  'DBI::Sybase',
-  'DBI::Sybase::NoBindVars',
+  'DBI::Sybase::ASE',
+  'DBI::Sybase::ASE::NoBindVars',
 );
+eval "require DBIx::Class::Storage::$_;" for @storage_types;
+
 my $schema;
 my $storage_idx = -1;
 
@@ -40,8 +39,8 @@ sub get_schema {
 
 my $ping_count = 0;
 {
-  my $ping = DBIx::Class::Storage::DBI::Sybase->can('_ping');
-  *DBIx::Class::Storage::DBI::Sybase::_ping = sub {
+  my $ping = DBIx::Class::Storage::DBI::Sybase::ASE->can('_ping');
+  *DBIx::Class::Storage::DBI::Sybase::ASE::_ping = sub {
     $ping_count++;
     goto $ping;
   };
@@ -50,7 +49,7 @@ my $ping_count = 0;
 for my $storage_type (@storage_types) {
   $storage_idx++;
 
-  unless ($storage_type eq 'DBI::Sybase') { # autodetect
+  unless ($storage_type eq 'DBI::Sybase::ASE') { # autodetect
     DBICTest::Schema->storage_type("::$storage_type");
   }
 
@@ -59,7 +58,7 @@ for my $storage_type (@storage_types) {
   $schema->storage->ensure_connected;
 
   if ($storage_idx == 0 &&
-      $schema->storage->isa('DBIx::Class::Storage::DBI::Sybase::NoBindVars')) {
+      $schema->storage->isa('DBIx::Class::Storage::DBI::Sybase::ASE::NoBindVars')) {
 # no placeholders in this version of Sybase or DBD::Sybase (or using FreeTDS)
       my $tb = Test::More->builder;
       $tb->skip('no placeholders') for 1..$TESTS;
@@ -96,7 +95,7 @@ SQL
   $seen_id{$new->artistid}++;
 
 # check redispatch to storage-specific insert when auto-detected storage
-  if ($storage_type eq 'DBI::Sybase') {
+  if ($storage_type eq 'DBI::Sybase::ASE') {
     DBICTest::Schema->storage_type('::DBI');
     $schema = get_schema();
   }
@@ -402,7 +401,7 @@ SQL
     my $new_str = $binstr{large} . 'mtfnpy';
 
     # check redispatch to storage-specific update when auto-detected storage
-    if ($storage_type eq 'DBI::Sybase') {
+    if ($storage_type eq 'DBI::Sybase::ASE') {
       DBICTest::Schema->storage_type('::DBI');
       $schema = get_schema();
     }
@@ -576,6 +575,35 @@ SQL
     'updated money value to NULL round-trip'
   );
   diag $@ if $@;
+
+# Test computed columns and timestamps
+  $schema->storage->dbh_do (sub {
+      my ($storage, $dbh) = @_;
+      eval { $dbh->do("DROP TABLE computed_column_test") };
+      $dbh->do(<<'SQL');
+CREATE TABLE computed_column_test (
+   id INT IDENTITY PRIMARY KEY,
+   a_computed_column AS getdate(),
+   a_timestamp timestamp,
+   charfield VARCHAR(20) DEFAULT 'foo' 
+)
+SQL
+  });
+
+  require DBICTest::Schema::ComputedColumn;
+  $schema->register_class(
+    ComputedColumn => 'DBICTest::Schema::ComputedColumn'
+  );
+
+  ok (($rs = $schema->resultset('ComputedColumn')),
+    'got rs for ComputedColumn');
+
+  lives_ok { $row = $rs->create({}) }
+    'empty insert for a table with computed columns survived';
+
+  lives_ok {
+    $row->update({ charfield => 'bar' })
+  } 'update of a table with computed columns survived';
 }
 
 is $ping_count, 0, 'no pings';
@@ -584,6 +612,6 @@ is $ping_count, 0, 'no pings';
 END {
   if (my $dbh = eval { $schema->storage->_dbh }) {
     eval { $dbh->do("DROP TABLE $_") }
-      for qw/artist bindtype_test money_test/;
+      for qw/artist bindtype_test money_test computed_column_test/;
   }
 }

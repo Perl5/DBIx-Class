@@ -7,6 +7,17 @@ use File::Path;
 use File::Copy;
 use Path::Class;
 
+use Carp::Clan qw/^DBIx::Class/;
+carp 'InflateColumn::File has entered a deprecation cycle. This component '
+    .'has a number of architectural deficiencies that can quickly drive '
+    .'your filesystem and database out of sync and is not recommended '
+    .'for further use. It will be retained for backwards '
+    .'compatibility, but no new functionality patches will be accepted. '
+    .'Please consider using the much more mature and actively maintained '
+    .'DBIx::Class::InflateColumn::FS. You can set the environment variable '
+    .'DBIC_IC_FILE_NOWARN to a true value to disable  this warning.'
+unless $ENV{DBIC_IC_FILE_NOWARN};
+
 __PACKAGE__->load_components(qw/InflateColumn/);
 
 sub register_column {
@@ -107,13 +118,25 @@ sub _save_file_column {
 
 =head1 NAME
 
-DBIx::Class::InflateColumn::File -  map files from the Database to the filesystem.
+DBIx::Class::InflateColumn::File -  DEPRECATED (superseded by DBIx::Class::InflateColumn::FS)
+
+=head2 Deprecation Notice
+
+ This component has a number of architectural deficiencies that can quickly
+ drive your filesystem and database out of sync and is not recommended for
+ further use. It will be retained for backwards compatibility, but no new
+ functionality patches will be accepted. Please consider using the much more
+ mature and actively supported DBIx::Class::InflateColumn::FS. You can set
+ the environment variable DBIC_IC_FILE_NOWARN to a true value to disable
+ this warning.
 
 =head1 SYNOPSIS
 
 In your L<DBIx::Class> table class:
 
-    __PACKAGE__->load_components( "PK::Auto", "InflateColumn::File", "Core" );
+    use base 'DBIx::Class::Core';
+
+    __PACKAGE__->load_components(qw/InflateColumn::File/);
 
     # define your columns
     __PACKAGE__->add_columns(
@@ -174,7 +197,7 @@ InflateColumn::File
 
 =head2 _file_column_callback ($file,$ret,$target)
 
-method made to be overridden for callback purposes.
+Method made to be overridden for callback purposes.
 
 =cut
 

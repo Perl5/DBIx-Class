@@ -6,34 +6,79 @@ use lib qw(t/lib);
 use DBICTest;
 
 BEGIN {
-  require DBIx::Class::Storage::DBI;
+  require DBIx::Class;
   plan skip_all =>
-      'Test needs SQL::Translator ' . DBIx::Class::Storage::DBI->_sqlt_minimum_version
-    if not DBIx::Class::Storage::DBI->_sqlt_version_ok;
+      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
+}
+
+my $custom_deployment_statements_called = 0;
+
+sub DBICTest::Schema::deployment_statements {
+  $custom_deployment_statements_called = 1;
+  my $self = shift;
+  return $self->next::method(@_);
 }
 
 my $schema = DBICTest->init_schema (no_deploy => 1);
 
-# replace the sqlt calback with a custom version ading an index
-$schema->source('Track')->sqlt_deploy_callback(sub {
-  my ($self, $sqlt_table) = @_;
 
-  is (
-    $sqlt_table->schema->translator->producer_type,
-    join ('::', 'SQL::Translator::Producer', $schema->storage->sqlt_type),
-    'Production type passed to translator object',
+# Check deployment statements ctx sensitivity
+{
+  my $not_first_table_creation_re = qr/CREATE TABLE fourkeys_to_twokeys/;
+
+
+  my $statements = $schema->deployment_statements;
+  like (
+    $statements,
+    $not_first_table_creation_re,
+    'All create statements returned in 1 string in scalar ctx'
   );
 
-  if ($schema->storage->sqlt_type eq 'SQLite' ) {
-    $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
-      or die $sqlt_table->error;
+  my @statements = $schema->deployment_statements;
+  cmp_ok (scalar @statements, '>', 1, 'Multiple statement lines in array ctx');
+
+  my $i = 0;
+  while ($i <= $#statements) {
+    last if $statements[$i] =~ $not_first_table_creation_re;
+    $i++;
   }
 
-  $self->default_sqlt_deploy_hook($sqlt_table);
-});
+  ok (
+    ($i > 0) && ($i <= $#statements),
+    "Creation statement was found somewherere within array ($i)"
+  );
+}
 
-$schema->deploy; # do not remove, this fires the is() test in the callback above
 
+
+{
+  my $deploy_hook_called = 0;
+
+  # replace the sqlt calback with a custom version ading an index
+  $schema->source('Track')->sqlt_deploy_callback(sub {
+    my ($self, $sqlt_table) = @_;
+
+    $deploy_hook_called = 1;
+
+    is (
+      $sqlt_table->schema->translator->producer_type,
+      join ('::', 'SQL::Translator::Producer', $schema->storage->sqlt_type),
+      'Production type passed to translator object',
+    );
+
+    if ($schema->storage->sqlt_type eq 'SQLite' ) {
+      $sqlt_table->add_index( name => 'track_title', fields => ['title'] )
+        or die $sqlt_table->error;
+    }
+
+    $self->default_sqlt_deploy_hook($sqlt_table);
+  });
+
+  $schema->deploy; # do not remove, this fires the is() test in the callback above
+  ok($deploy_hook_called, 'deploy hook got called');
+  ok($custom_deployment_statements_called, '->deploy used the schemas deploy_statements method');
+}
 
 
 my $translator = SQL::Translator->new( 
@@ -239,6 +284,7 @@ my %fk_constraints = (
       'name' => 'forceforeign_fk_artist', 'index_name' => 'forceforeign_idx_artist',
       'selftable' => 'forceforeign', 'foreigntable' => 'artist', 
       'selfcols'  => ['artist'], 'foreigncols' => ['artistid'], 
+      'noindex'  => 1,
       on_delete => '', on_update => '', deferrable => 1,
     },
   ],
@@ -434,21 +480,21 @@ sub test_fk {
   my ($expected, $got) = @_;
   my $desc = $expected->{display};
   is( $got->name, $expected->{name},
-      "name parameter correct for `$desc'" );
+      "name parameter correct for '$desc'" );
   is( $got->on_delete, $expected->{on_delete},
-      "on_delete parameter correct for `$desc'" );
+      "on_delete parameter correct for '$desc'" );
   is( $got->on_update, $expected->{on_update},
-      "on_update parameter correct for `$desc'" );
+      "on_update parameter correct for '$desc'" );
   is( $got->deferrable, $expected->{deferrable},
-      "is_deferrable parameter correct for `$desc'" );
+      "is_deferrable parameter correct for '$desc'" );
 
   my $index = get_index( $got->table, { fields => $expected->{selfcols} } );
 
   if ($expected->{noindex}) {
-      ok( !defined $index, "index doesn't for `$desc'" );
+      ok( !defined $index, "index doesn't for '$desc'" );
   } else {
-      ok( defined $index, "index exists for `$desc'" );
-      is( $index->name, $expected->{index_name}, "index has correct name for `$desc'" );
+      ok( defined $index, "index exists for '$desc'" );
+      is( $index->name, $expected->{index_name}, "index has correct name for '$desc'" );
   }
 }
 
@@ -456,7 +502,7 @@ sub test_unique {
   my ($expected, $got) = @_;
   my $desc = $expected->{display};
   is( $got->name, $expected->{name},
-      "name parameter correct for `$desc'" );
+      "name parameter correct for '$desc'" );
 }
 
 done_testing;

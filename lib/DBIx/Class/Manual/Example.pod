@@ -58,7 +58,7 @@ Save the following into a example.sql in the directory db
     title TEXT NOT NULL
   );
 
-and create the sqlite database file:
+and create the SQLite database file:
 
   sqlite3 example.db < example.sql
 
@@ -89,8 +89,7 @@ MyDatabase/Main.pm:
 MyDatabase/Main/Result/Artist.pm:
 
   package MyDatabase::Main::Result::Artist;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
+  use base qw/DBIx::Class::Core/;
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
@@ -102,8 +101,8 @@ MyDatabase/Main/Result/Artist.pm:
 MyDatabase/Main/Result/Cd.pm:
 
   package MyDatabase::Main::Result::Cd;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
+  use base qw/DBIx::Class::Core/;
+  __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
   __PACKAGE__->table('cd');
   __PACKAGE__->add_columns(qw/ cdid artist title/);
   __PACKAGE__->set_primary_key('cdid');
@@ -116,10 +115,9 @@ MyDatabase/Main/Result/Cd.pm:
 MyDatabase/Main/Result/Track.pm:
 
   package MyDatabase::Main::Result::Track;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/Core/);
+  use base qw/DBIx::Class::Core/;
   __PACKAGE__->table('track');
-  __PACKAGE__->add_columns(qw/ trackid cd title/);
+  __PACKAGE__->add_columns(qw/ trackid cd title /);
   __PACKAGE__->set_primary_key('trackid');
   __PACKAGE__->belongs_to('cd' => 'MyDatabase::Main::Result::Cd');
 
@@ -200,7 +198,7 @@ testdb.pl:
   use strict;
 
   my $schema = MyDatabase::Main->connect('dbi:SQLite:db/example.db');
-  # for other DSNs, e.g. MySql, see the perldoc for the relevant dbd
+  # for other DSNs, e.g. MySQL, see the perldoc for the relevant dbd
   # driver, e.g perldoc L<DBD::mysql>.
 
   get_tracks_by_cd('Bad');
@@ -347,7 +345,7 @@ It should output:
 
 =head1 Notes
 
-A reference implentation of the database and scripts in this example
+A reference implementation of the database and scripts in this example
 are available in the main distribution for DBIx::Class under the
 directory F<t/examples/Schema>.
 

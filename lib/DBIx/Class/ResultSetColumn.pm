@@ -42,32 +42,51 @@ sub new {
   my ($class, $rs, $column) = @_;
   $class = ref $class if ref $class;
 
-  $rs->throw_exception("column must be supplied") unless $column;
+  $rs->throw_exception('column must be supplied') unless $column;
 
   my $orig_attrs = $rs->_resolved_attrs;
-  my $new_parent_rs = $rs->search_rs;
-
-  # prefetch causes additional columns to be fetched, but we can not just make a new
-  # rs via the _resolved_attrs trick - we need to retain the separation between
-  # +select/+as and select/as. At the same time we want to preserve any joins that the
-  # prefetch would otherwise generate.
-
-  my $new_attrs = $new_parent_rs->{attrs} ||= {};
-  $new_attrs->{join} = $rs->_merge_attr( delete $new_attrs->{join}, delete $new_attrs->{prefetch} );
+  my $alias = $rs->current_source_alias;
 
   # If $column can be found in the 'as' list of the parent resultset, use the
   # corresponding element of its 'select' list (to keep any custom column
   # definition set up with 'select' or '+select' attrs), otherwise use $column
   # (to create a new column definition on-the-fly).
-
   my $as_list = $orig_attrs->{as} || [];
   my $select_list = $orig_attrs->{select} || [];
   my $as_index = List::Util::first { ($as_list->[$_] || "") eq $column } 0..$#$as_list;
   my $select = defined $as_index ? $select_list->[$as_index] : $column;
 
+  my $new_parent_rs;
+  # analyze the order_by, and see if it is done over a function/nonexistentcolumn
+  # if this is the case we will need to wrap a subquery since the result of RSC
+  # *must* be a single column select
+  my %collist = map 
+    { $_ => 1, ($_ =~ /\./) ? () : ( "$alias.$_" => 1 ) }
+    ($rs->result_source->columns, $column)
+  ;
+  if (
+    scalar grep
+      { ! $collist{$_} }
+      ( $rs->result_source->schema->storage->_parse_order_by ($orig_attrs->{order_by} ) ) 
+  ) {
+    # nuke the prefetch before collapsing to sql
+    my $subq_rs = $rs->search;
+    $subq_rs->{attrs}{join} = $subq_rs->_merge_attr( $subq_rs->{attrs}{join}, delete $subq_rs->{attrs}{prefetch} );
+    $new_parent_rs = $subq_rs->as_subselect_rs;
+  }
+
+  $new_parent_rs ||= $rs->search_rs;
+  my $new_attrs = $new_parent_rs->{attrs} ||= {};
+
+  # prefetch causes additional columns to be fetched, but we can not just make a new
+  # rs via the _resolved_attrs trick - we need to retain the separation between
+  # +select/+as and select/as. At the same time we want to preserve any joins that the
+  # prefetch would otherwise generate.
+  $new_attrs->{join} = $rs->_merge_attr( $new_attrs->{join}, delete $new_attrs->{prefetch} );
+
   # {collapse} would mean a has_many join was injected, which in turn means
   # we need to group *IF WE CAN* (only if the column in question is unique)
-  if (!$new_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
+  if (!$orig_attrs->{group_by} && keys %{$orig_attrs->{collapse}}) {
 
     # scan for a constraint that would contain our column only - that'd be proof
     # enough it is unique
@@ -98,7 +117,7 @@ sub new {
   return $new;
 }
 
-=head2 as_query (EXPERIMENTAL)
+=head2 as_query
 
 =over 4
 
@@ -111,8 +130,6 @@ sub new {
 Returns the SQL query and bind vars associated with the invocant.
 
 This is generally used as the RHS for a subquery.
-
-B<NOTE>: This feature is still experimental.
 
 =cut
 

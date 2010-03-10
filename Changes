@@ -1,8 +1,114 @@
 Revision history for DBIx::Class
 
+        - Support for Firebird RDBMS with DBD::InterBase and ODBC
+        - DBIx::Class::InflateColumn::File entered deprecated state
+        - DBIx::Class::Optional::Dependencies left experimental state
+        - Add req_group_list to Opt::Deps (RT#55211)
+        - Cascading delete/update are now wrapped in a transaction
+          for atomicity
+        - Fix multiple deficiencies when using MultiCreate with
+          data-encoder components (e.g. ::EncodedColumn)
+        - Fix regression where SQL files with comments were not
+          handled properly by ::Schema::Versioned.
+        - Fix regression on not properly throwing when $obj->relationship
+          is unresolvable
+        - Add has_relationship method to row objects
+        - Fix regression in set_column on PK-less objects
+        - Add POD about the significance of PK columns
+        - Fix for SQLite to ignore the (unsupported) { for => ... }
+          attribute
+        - Fix ambiguity in default directory handling of create_ddl_dir
+          (RT#54063)
+
+0.08120 2010-02-24 08:58:00 (UTC)
+        - Make sure possibly overwritten deployment_statements methods in
+          schemas get called on $schema->deploy
+        - Fix count() with group_by aliased-function resultsets
+        - with_deferred_fk_checks() Oracle support
+        - Massive refactor and cleanup of primary key handling
+        - Fixed regression losing custom result_class (really this time)
+          (RT#54697)
+        - Fixed regression in DBIC SQLT::Parser failing with a classname
+          (as opposed to a schema object)
+        - Changes to Storage::DBI::Oracle to accomodate changes in latest
+          SQL::Translator (quote handling)
+        - Make sure deployment_statements is per-storage overridable
+        - Fix dbicadmin's (lack of) POD
+
+0.08119 2010-02-15 09:36:00 (UTC)
+        - Add $rs->is_ordered to test for existing order_by on a resultset
+        - Add as_subselect_rs to DBIC::ResultSet from
+          DBIC::Helper::ResultSet::VirtualView::as_virtual_view
+        - Refactor dbicadmin adding DDL manipulation capabilities
+        - New optional dependency manager to aid extension writers
+        - Depend on newest bugfixed Moose
+        - Make resultset chaining consistent wrt selection specification
+        - Storage::DBI::Replicated cleanup
+        - Fix autoinc PKs without an autoinc flag on Sybase ASA
+
+0.08118 2010-02-08 11:53:00 (UTC)
+        - Fix a bug causing UTF8 columns not to be decoded (RT#54395)
+        - Fix bug in One->Many->One prefetch-collapse handling (RT#54039)
+        - Cleanup handling of relationship accessor types
+
+0.08117 2010-02-05 17:10:00 (UTC)
+        - Perl 5.8.1 is now the minimum supported version
+        - Massive optimization of the join resolution code - now joins
+          will be removed from the resulting SQL if DBIC can prove they
+          are not referenced by anything
+        - Subqueries no longer marked experimental
+        - Support for Informix RDBMS (limit/offset and auto-inc columns)
+        - Support for Sybase SQLAnywhere, both native and via ODBC
+        - might_have/has_one now warn if applied calling class's column
+          has is_nullable set to true.
+        - Fixed regression in deploy() with a {sources} table limit applied
+          (RT#52812)
+        - Views without a view_definition will throw an exception when
+          parsed by SQL::Translator::Parser::DBIx::Class
+        - Stop the SQLT parser from auto-adding indexes identical to the
+          Primary Key
+        - InflateColumn::DateTime refactoring to allow fine grained method
+          overloads
+        - Fix ResultSetColumn improperly selecting more than the requested
+          column when +columns/+select is present
+        - Fix failure when update/delete of resultsets with complex WHERE
+          SQLA structures
+        - Fix regression in context sensitiveness of deployment_statements
+        - Fix regression resulting in overcomplicated query on
+          search_related from prefetching resultsets
+        - Fix regression on all-null returning searches (properly switch
+          LEFT JOIN to JOIN in order to distinguish between both cases)
+        - Fix regression in groupedresultset count() used on strict-mode
+          MySQL connections
+        - Better isolation of RNO-limited queries from the rest of a
+          prefetching resultset
+        - New MSSQL specific resultset attribute to allow hacky ordered
+          subquery support
+        - Fix nasty schema/dbhandle leak due to SQL::Translator
+        - Initial implementation of a mechanism for Schema::Version to
+          apply multiple step upgrades
+        - Fix regression on externally supplied $dbh with AutoCommit=0
+        - FAQ "Custom methods in Result classes"
+        - Cookbook POD fix for add_drop_table instead of add_drop_tables
+        - Schema POD improvement for dclone
+
+0.08115 2009-12-10 09:02:00 (CST)
+        - Real limit/offset support for MSSQL server (via Row_Number)
         - Fix distinct => 1 with non-selecting order_by (the columns
           in order_by also need to be aded to the resulting group_by)
         - Do not attempt to deploy FK constraints pointing to a View
+        - Fix count/objects from search_related on limited resultset
+        - Stop propagating distinct => 1 over search_related chains
+        - Make sure populate() inherits the resultset conditions just
+          like create() does
+        - Make get_inflated_columns behave identically to get_columns
+          wrt +select/+as (RT#46953)
+        - Fix problems with scalarrefs under InflateColumn (RT#51559)
+        - Throw exception on delete/update of PK-less resultsets
+        - Refactored Sybase storage driver into a central ::DBI::Sybase
+          dispatcher, and a sybase-specific ::DBI::Sybase::ASE
+        - Fixed an atrocious DBD::ADO bind-value bug
+        - Cookbook/Intro POD improvements
 
 0.08114 2009-11-14 17:45:00 (UTC)
         - Preliminary support for MSSQL via DBD::ADO

@@ -89,4 +89,3 @@ for my $s (qw/a2a artw cd artw_back/) {
 
   is_same_sql_bind ($rs->as_query, $q{$s}{query}, "$s resultset unmodified (as_query matches)" );
 }
-
