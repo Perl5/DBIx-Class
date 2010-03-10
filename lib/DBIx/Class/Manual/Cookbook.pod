@@ -1217,6 +1217,8 @@ callback routine.
 
 =head1 TRANSACTIONS
 
+=head2 Transactions with txn_do
+
 As of version 0.04001, there is improved transaction support in
 L<DBIx::Class::Storage> and L<DBIx::Class::Schema>.  Here is an
 example of the recommended way to use it:
@@ -1248,11 +1250,16 @@ example of the recommended way to use it:
     deal_with_failed_transaction();
   }
 
+Note: by default C<txn_do> will re-run the coderef one more time if an
+error occurs due to client disconnection (e.g. the server is bounced).
+You need to make sure that your coderef can be invoked multiple times
+without terrible side effects.
+
 Nested transactions will work as expected. That is, only the outermost
 transaction will actually issue a commit to the $dbh, and a rollback
 at any level of any transaction will cause the entire nested
 transaction to fail.
- 
+
 =head2 Nested transactions and auto-savepoints
 
 If savepoints are supported by your RDBMS, it is possible to achieve true
@@ -1344,8 +1351,18 @@ commits are happening, but it works just the same as for plain L<<txn_do>>: If
 the C<eval>-block around C<txn_do> fails, a rollback is issued. If the C<eval>
 succeeds, the transaction is committed (or the savepoint released).
 
-While you can get more fine-grained controll using C<svp_begin>, C<svp_release>
+While you can get more fine-grained control using C<svp_begin>, C<svp_release>
 and C<svp_rollback>, it is strongly recommended to use C<txn_do> with coderefs.
+
+=head2 Simple Transactions with DBIx::Class::Storage::TxnScopeGuard
+
+An easy way to use transactions is with
+L<DBIx::Class::Storage::TxnScopeGuard>. See L</Automatically creating
+related objects> for an example.
+
+Note that unlike txn_do, TxnScopeGuard will only make sure the connection is
+alive when issuing the C<BEGIN> statement. I will not (and really can not)
+retry if the server goes away mid-operations, unlike C<txn_do>.
 
 =head1 SQL
 
