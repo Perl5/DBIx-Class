@@ -1361,7 +1361,7 @@ L<DBIx::Class::Storage::TxnScopeGuard>. See L</Automatically creating
 related objects> for an example.
 
 Note that unlike txn_do, TxnScopeGuard will only make sure the connection is
-alive when issuing the C<BEGIN> statement. I will not (and really can not)
+alive when issuing the C<BEGIN> statement. It will not (and really can not)
 retry if the server goes away mid-operations, unlike C<txn_do>.
 
 =head1 SQL
