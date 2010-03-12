@@ -26,9 +26,9 @@ You need to use either the
 L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching> option or
 L</connect_call_use_softcommit> (see L</CAVEATS>) for your code to function
 correctly with this driver. Otherwise you will likely get bizarre error messages
-such as C<no statement executing>.
-
-For ODBC support, see L<DBIx::Class::Storage::DBI::ODBC::Firebird>.
+such as C<no statement executing>. The alternative is to use the
+L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird> driver, which is more suitable
+for long running processes such as under L<Catalyst>.
 
 To turn on L<DBIx::Class::InflateColumn::DateTime> support, see
 L</connect_call_datetime_setup>.
@@ -248,7 +248,8 @@ L<DBD::InterBase> C<ib_softcommit> option.
 
 You need either this option or C<< disable_sth_caching => 1 >> for
 L<DBIx::Class> code to function correctly (otherwise you may get C<no statement
-executing> errors.)
+executing> errors.) Or use the L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird>
+driver.
 
 The downside of using this option is that your process will B<NOT> see UPDATEs,
 INSERTs and DELETEs from other processes for already open statements.
@@ -365,6 +366,8 @@ L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching> as a
 workaround for the C<no statement executing> errors, this of course adversely
 affects performance.
 
+Alternately, use the L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird> driver.
+
 =item *
 
 C<last_insert_id> support by default only works for Firebird versions 2 or
@@ -373,7 +376,8 @@ work with earlier versions.
 
 =item *
 
-Sub-second precision for TIMESTAMPs is not currently available with ODBC.
+Sub-second precision for TIMESTAMPs is not currently available when using the
+L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird> driver.
 
 =back
 
