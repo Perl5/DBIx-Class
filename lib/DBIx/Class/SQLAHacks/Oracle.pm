@@ -6,27 +6,11 @@ use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 # 
 #  TODO:
-#   - Problems with such statements: parentid != PRIOR artistid
 #   - Check the parameter syntax of connect_by
-#   - Review review by experienced DBIC/SQL:A developers :-)
+#   - Review by experienced DBIC/SQL:A developers :-)
+#   - Check NOCYCLE parameter
+#       http://download.oracle.com/docs/cd/B19306_01/server.102/b14200/pseudocolumns001.htm#i1009434
 # 
-
-sub new {
-  my $self = shift->SUPER::new(@_);
-
-  push @{ $self->{unary_ops} },{
-      regex   => qr/^prior$/,
-      handler => '_prior_as_unary_op',
-  };
-
-  push @{ $self->{special_ops} },{
-      regex   => qr/^prior$/,
-      handler => '_prior_as_special_op',
-  };
-
-  return $self;
-}
-
 
 sub select {
     my ($self, $table, $fields, $where, $order, @rest) = @_;
@@ -93,85 +77,6 @@ sub _order_siblings_by {
     my $val = join ', ', map { $self->_quote($_) } @vals;
     return $val ? $self->_sqlcase(' order siblings by')." $val" : '';
 }
-
-sub _prior_as_special_op {
-    my ( $self, $field, $op, $arg ) = @_;
-
-    my ( $label, $and, $placeholder );
-    $label       = $self->_convert( $self->_quote($field) );
-    $and         = ' ' . $self->_sqlcase('and') . ' ';
-    $placeholder = $self->_convert('?');
-
-    # TODO: $op is prior, and not the operator
-    $op          = $self->_sqlcase('=');
-
-    my ( $sql, @bind ) = $self->_SWITCH_refkind(
-        $arg,
-        {
-            SCALARREF => sub {
-                my $sql = sprintf( "%s %s PRIOR %s", $label, $op, $$arg );
-                return $sql;
-            },
-            SCALAR => sub {
-                my $sql = sprintf( "%s %s PRIOR %s", $label, $op, $placeholder );
-                return ( $sql, $arg );
-            },
-            HASHREF => sub {    # case { '-prior' => { '=<' => 'nwiger'} }
-                                # no _convert and _quote from SCALARREF
-                my ( $sql, @bind ) = $self->_where_hashpair_HASHREF( $field, $arg, $op );
-                $sql = sprintf( " PRIOR %s", $sql );
-                return ( $sql, @bind );
-            },
-            FALLBACK => sub {
-                # TODO
-                $self->puke(" wrong way... :/");
-            },
-        }
-    );
-    return ( $sql, @bind );
-}
-
-sub _prior_as_unary_op {
-    my ( $self, $op, $arg ) = @_;
-
-    my $placeholder = $self->_convert('?');
-    my $and         = ' ' . $self->_sqlcase('and') . ' ';
-
-    my ( $sql, @bind ) = $self->_SWITCH_refkind(
-        $arg,
-        {
-            ARRAYREF => sub {
-                $self->puke("special op 'prior' accepts an arrayref with exactly two values")
-                  if @$arg != 2;
-
-                my ( @all_sql, @all_bind );
-
-                foreach my $val ( @{$arg} ) {
-                    my ( $sql, @bind ) = $self->_SWITCH_refkind($val,
-                        {
-                            SCALAR => sub {
-                                return ( $placeholder, ($val) );
-                            },
-                            SCALARREF => sub {
-                                return ( $$val, () );
-                            },
-                        }
-                    );
-                    push @all_sql, $sql;
-                    push @all_bind, @bind;
-                }
-                my $sql = sprintf("PRIOR %s ",join $self->_sqlcase('='), @all_sql);
-                return ($sql,@all_bind);
-            },
-            FALLBACK => sub {
-
-                # TODO
-                $self->puke(" wrong way... :/ ");
-            },
-        }
-    );
-    return ( $sql, @bind );
-};
 
 1;
 

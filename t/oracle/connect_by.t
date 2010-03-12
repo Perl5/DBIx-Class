@@ -17,36 +17,41 @@ use DBIx::Class::SQLAHacks::Oracle;
 my @handle_tests = (
     {
         connect_by  => { 'parentid' => { '-prior' => \'artistid' } },
-        stmt        => " parentid = PRIOR artistid ",
+        stmt        => "parentid = PRIOR( artistid )",
         bind        => [],
         msg         => 'Simple: parentid = PRIOR artistid',
     },
-    # {
-        # TODO: Can't handle this...
-        # connect_by  => { 'parentid' => { '!=' => { '-prior' => \'artistid' } } },
-        # connect_by  => [ \'parentid',  ],
-        # stmt        => "parentid != PRIOR artistid ",
-        # bind        => [],
-        # msg         => 'Simple: parentid != PRIOR artistid',
-    # },
+    {
+        connect_by  => { 'parentid' => { '!=' => { '-prior' => \'artistid' } } },
+        stmt        => "parentid != PRIOR( artistid )",
+        bind        => [],
+        msg         => 'Simple: parentid != PRIOR artistid',
+    },
+    # Example from http://download.oracle.com/docs/cd/B19306_01/server.102/b14200/queries003.htm
 
-    # Excample from http://download.oracle.com/docs/cd/B19306_01/server.102/b14200/queries003.htm
+    # CONNECT BY last_name != 'King' AND PRIOR employee_id = manager_id ...
     {
-        connect_by => [
-            'last_name' => { '!=' => 'King' },
-            '-prior' => [ \'employee_id', \'manager_id' ],
+        connect_by  => [
+            last_name => { '!=' => 'King' },
+            manager_id => { '-prior' => \'employee_id' },
         ],
-        stmt => "( last_name != ? AND PRIOR employee_id = manager_id )",
-        bind => ['King'],
+        stmt        => "( last_name != ? AND manager_id = PRIOR( employee_id ) )",
+        bind        => ['King'],
+        msg         => 'oracle.com excample #1',
     },
+    # CONNECT BY PRIOR employee_id = manager_id and 
+    #            PRIOR account_mgr_id = customer_id ...
     {
-        connect_by => [
-            '-prior' => [ \'employee_id', \'manager_id' ],
-            '-prior' => [ \'account_mgr_id', \'customer_id' ],
+        connect_by  => [
+            manager_id => { '-prior' => \'employee_id' },
+            customer_id => { '-prior' => \'account_mgr_id' },
         ],
-        stmt => "( PRIOR employee_id = manager_id AND PRIOR account_mgr_id = customer_id )",
-        bind => [],
+        stmt        => "( manager_id = PRIOR( employee_id ) AND customer_id = PRIOR( account_mgr_id ) )",
+        bind        => [],
+        msg         => 'oracle.com excample #2',
     },
+    # CONNECT BY NOCYCLE PRIOR employee_id = manager_id AND LEVEL <= 4;
+    # TODO: NOCYCLE parameter doesn't work
 );
 
 my $sqla_oracle = DBIx::Class::SQLAHacks::Oracle->new();
