@@ -1067,7 +1067,7 @@ sub store_column {
 
 =over
 
-=item Arguments: $result_source, \%columndata, \%prefetcheddata
+=item Arguments: $result_source, \%columndata, \%prefetcheddata, [$row]
 
 =item Returns: A Row object
 
@@ -1088,8 +1088,9 @@ L<DBIx::Class::ResultSet>, see L<DBIx::Class::ResultSet/result_class>.
 =cut
 
 sub inflate_result {
-  my ($class, $source, $me, $prefetch) = @_;
-
+  my ($class, $source, $me, $prefetch, $row) = @_;
+  return $row if (defined $row && (Scalar::Util::blessed $row));
+  
   my ($source_handle) = $source;
 
   if ($source->isa('DBIx::Class::ResultSourceHandle')) {
