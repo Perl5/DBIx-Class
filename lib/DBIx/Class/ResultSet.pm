@@ -1859,9 +1859,8 @@ sub new_result {
     -source_handle => $self->_source_handle,
     -result_source => $self->result_source, # DO NOT REMOVE THIS, REQUIRED
   );
-  my $row = $self->result_class->new(\%new);
-  #return $row;
-  return $self->result_class->inflate_result($self->result_source, $row->{_column_data}, undef, $row);
+
+  return $self->result_class->new(\%new);
 }
 
 # _merge_cond_with_data

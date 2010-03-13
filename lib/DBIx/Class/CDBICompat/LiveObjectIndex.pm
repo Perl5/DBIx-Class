@@ -73,11 +73,8 @@ sub insert {
 
 sub inflate_result {
   my ($class, @rest) = @_;
-  
-  # we don't want to inflate_result on new_result
-  return $rest[3] if(defined $rest[3] && Scalar::Util::blessed $rest[3]);
-  
   my $new = $class->next::method(@rest);
+
   return $new if $new->nocache;
 
   if (my $key = $new->ID) {
