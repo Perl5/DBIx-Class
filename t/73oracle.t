@@ -429,7 +429,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     START WITH
         name = ?
     CONNECT BY
-        parentid = prior artistid
+        parentid = PRIOR( artistid )
     ORDER SIBLINGS BY
         name DESC
 
@@ -446,7 +446,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       my $rs = $schema->resultset('Artist')->search({ parentid => undef },
                               {
                                 'start_with' => { 'name' => 'greatgrandchild' },
-                                'connect_by' => { '-prior' => [  \'parentid', \'artistid' ] } ,
+                                'connect_by' => { 'artistid' => { '-prior' => \'parentid' } },
                               });
 =pod
     SELECT
@@ -458,7 +458,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     START WITH
         name = ?
     CONNECT BY
-        prior parentid = artistid
+        artistid = PRIOR( parentid )
 
     Parameters: 'greatgrandchild'
 =cut
@@ -529,7 +529,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       my $rs = $schema->resultset('Artist')->search({},
                               {
                                 'start_with' => { 'name' => 'greatgrandchild' },
-                                'connect_by' => { '-prior' => [ \'parentid', \'artistid' ] },
+                                'connect_by' => { artistid => { '-prior' => \'parentid' } },
                                 'order_by' => 'name ASC',
                               });
       my $ok = 1;
@@ -541,7 +541,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     START WITH
         name = ?
     CONNECT BY
-        prior parentid = artistid
+        artistid = PRIOR( parentid )
     ORDER BY
         name ASC
 
@@ -558,7 +558,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       my $rs = $schema->resultset('Artist')->search({},
                               {
                                 'start_with' => { 'name' => 'greatgrandchild' },
-                                'connect_by' => { '-prior' => [ \'parentid', \'artistid' ] },
+                                'connect_by' => { 'artistid' => { '-prior' => \'parentid' } },
                                 'order_by' => 'name ASC',
                                 'rows' => 2,
                                 'page' => 1,
@@ -571,7 +571,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     START WITH
         name = ?
     CONNECT BY
-        prior parentid = artistid
+        artistid = PRIOR( parentid )
 
     Parameters: 'greatgrandchild'
 =cut
