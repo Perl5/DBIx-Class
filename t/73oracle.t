@@ -389,7 +389,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
           SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
             FROM artist me
           START WITH name = ?
-          CONNECT BY parentid = prior artistid
+          CONNECT BY parentid = PRIOR( artistid )
         )',
         [ [ name => 'root'] ],
       );
@@ -406,7 +406,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
           SELECT COUNT( * )
             FROM artist me
           START WITH name = ?
-          CONNECT BY parentid = prior artistid
+          CONNECT BY parentid = PRIOR( artistid )
         )',
         [ [ name => 'root'] ],
       );
