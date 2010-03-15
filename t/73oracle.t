@@ -506,7 +506,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
             LEFT JOIN cd cds ON cds.artist = me.artistid
           WHERE ( cds.title LIKE ? )
           START WITH me.name = ?
-          CONNECT BY parentid = prior artistid
+          CONNECT BY parentid = PRIOR( artistid )
         )',
         [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
       );
@@ -553,25 +553,57 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
 
       is_same_sql_bind (
         $rs->as_query,
-        '(
-          need to fill in correct sql
+        '( 
+            SELECT * FROM (
+                  SELECT A.*, ROWNUM r FROM (
+                      SELECT 
+                          me.artistid AS col1,
+                          me.name AS col2,
+                          me.rank AS col3,
+                          me.charfield AS col4,
+                          me.parentid AS col5 
+                      FROM artist me 
+                      START WITH name = ? 
+                      CONNECT BY artistid = PRIOR( parentid )
+                      ORDER BY name DESC
+                  ) A
+                  WHERE ROWNUM < 3
+              ) B
+              WHERE r >= 1 
         )',
-        [],
+        [ [ name => 'greatgrandchild' ] ],
       );
 
       is_deeply (
         [ $rs->get_column ('name')->all ],
-        [ qw/grandchild child1/ ],
+        [qw/root greatgrandchild/],
         'LIMIT a Connect By query - correct names'
       );
 
-
+      # TODO: 
+      # prints "START WITH name = ? 
+      # CONNECT BY artistid = PRIOR( parentid )"
+      # after count_subq, 
+      # I will fix this later...
+      # 
       is_same_sql_bind (
         $rs->count_rs->as_query,
-        '(
-          need to fill in correct sql
+        '( 
+            SELECT COUNT( * ) FROM (
+                SELECT * FROM (
+                    SELECT A.*, ROWNUM r FROM (
+                        SELECT 
+                            me.artistid AS col1 
+                        FROM artist me 
+                        START WITH name = ? 
+                        CONNECT BY artistid = PRIOR( parentid ) 
+                    ) A
+                    WHERE ROWNUM < 3
+                ) B
+                WHERE r >= 1
+            ) count_subq 
         )',
-        [],
+        [ [ name => 'greatgrandchild' ] ],
       );
 
       is( $rs->count, 2, 'Connect By; LIMIT count ok' );
