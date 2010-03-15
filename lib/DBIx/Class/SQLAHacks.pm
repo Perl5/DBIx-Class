@@ -362,9 +362,8 @@ sub insert {
   if (! $_[0] or (ref $_[0] eq 'HASH' and !keys %{$_[0]} ) ) {
     my $sql = "INSERT INTO ${table} DEFAULT VALUES";
 
-    if (my @returning = @{ ($_[1]||{})->{returning} || [] }) {
-      $sql .= ' RETURNING (' . (join ', ' => map $self->_quote($_), @returning)
-            . ')';
+    if (my $ret = ($_[1]||{})->{returning} ) {
+      $sql .= $self->_insert_returning ($ret);
     }
 
     return $sql;
