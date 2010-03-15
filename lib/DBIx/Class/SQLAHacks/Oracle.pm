@@ -66,16 +66,25 @@ sub _connect_by {
 }
 
 sub _order_siblings_by {
-    my $self = shift;
-    my $ref = ref $_[0];
+    my ( $self, $arg ) = @_;
 
-    my @vals = $ref eq 'ARRAY'  ? @{$_[0]} :
-               $ref eq 'SCALAR' ? ${$_[0]} :
-               $ref eq ''       ? $_[0]    :
-               puke( "Unsupported data struct $ref for ORDER SIBILINGS BY" );
+    my ( @sql, @bind );
+    for my $c ( $self->_order_by_chunks($arg) ) {
+        $self->_SWITCH_refkind(
+            $c,
+            {
+                SCALAR   => sub { push @sql, $c },
+                ARRAYREF => sub { push @sql, shift @$c; push @bind, @$c },
+            }
+        );
+    }
 
-    my $val = join ', ', map { $self->_quote($_) } @vals;
-    return $val ? $self->_sqlcase(' order siblings by')." $val" : '';
+    my $sql =
+      @sql
+      ? sprintf( '%s %s', $self->_sqlcase(' order siblings by'), join( ', ', @sql ) )
+      : '';
+
+    return wantarray ? ( $sql, @bind ) : $sql;
 }
 
 1;
