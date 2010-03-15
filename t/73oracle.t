@@ -311,7 +311,8 @@ SKIP: {
   }
 }
 
-# test hierarchical queries
+
+### test hierarchical queries
 if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     my $source = $schema->source('Artist');
 
@@ -373,241 +374,205 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
         ],
     });
 
+    # select the whole tree
     {
-      # select the whole tree
-      my $rs = $schema->resultset('Artist')->search({},
-                              {
-                                'start_with' => { 'name' => 'root' },
-                                'connect_by' => { 'parentid' => { '-prior' => \'artistid' } },
-                              });
-=pod
-    SELECT
-        COUNT( * )
-    FROM
-        artist me
-    START WITH
-        name = ?
-    CONNECT BY
-        parentid = prior artistid
+      my $rs = $schema->resultset('Artist')->search({}, {
+        start_with => { name => 'root' },
+        connect_by => { parentid => { -prior => \ 'artistid' } },
+      });
 
-    Parameters: 'root'
-=cut
+      is_same_sql_bind (
+        $rs->as_query,
+        '(
+          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
+            FROM artist me
+          START WITH name = ?
+          CONNECT BY parentid = prior artistid
+        )',
+        [ [ name => 'root'] ],
+      );
+      is_deeply (
+        [ $rs->get_column ('name')->all ],
+        [ qw/root child1 grandchild greatgrandchild child2/ ],
+        'got artist tree',
+      );
+
+
+      is_same_sql_bind (
+        $rs->count_rs->as_query,
+        '(
+          SELECT COUNT( * )
+            FROM artist me
+          START WITH name = ?
+          CONNECT BY parentid = prior artistid
+        )',
+        [ [ name => 'root'] ],
+      );
+
       is( $rs->count, 5, 'Connect By count ok' );
-      my $ok = 1;
-=pod
-    SELECT
-        me.artistid, me.name, me.rank, me.charfield, me.parentid
-    FROM
-        artist me
-    START WITH
-        name = ?
-    CONNECT BY
-        parentid = prior artistid
-
-    Parameters: 'root'
-=cut
-      foreach my $node_name (qw(root child1 grandchild greatgrandchild child2)) {
-        $ok = 0 if $rs->next->name ne $node_name;
-      }
-      ok( $ok, 'got artist tree');
     }
 
+    # use order siblings by statement
     {
-      # use order siblings by statement
-      my $rs = $schema->resultset('Artist')->search({},
-                              {
-                                'start_with' => { 'name' => 'root' },
-                                'connect_by' => { 'parentid' => { '-prior' => \'artistid' } },
-                                'order_siblings_by' => 'name DESC',
-                              });
-      my $ok = 1;
-=pod
-    SELECT
-        me.artistid, me.name, me.rank, me.charfield, me.parentid
-    FROM
-        artist me
-    START WITH
-        name = ?
-    CONNECT BY
-        parentid = PRIOR( artistid )
-    ORDER SIBLINGS BY
-        name DESC
+      my $rs = $schema->resultset('Artist')->search({}, {
+        start_with => { name => 'root' },
+        connect_by => { parentid => { -prior => \ 'artistid' } },
+        order_siblings_by => { -desc => 'name' },
+      });
 
-    Parameters: 'root'
-=cut
-      foreach my $node_name (qw(root child2 child1 grandchild greatgrandchild)) {
-        $ok = 0 if $rs->next->name ne $node_name;
-      }
-      ok( $ok, 'Order Siblings By ok');
+      is_same_sql_bind (
+        $rs->as_query,
+        '(
+          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
+            FROM artist me
+          START WITH name = ?
+          CONNECT BY parentid = PRIOR( artistid )
+          ORDER SIBLINGS BY name DESC
+        )',
+        [ [ name => 'root'] ],
+      );
+
+      is_deeply (
+        [ $rs->get_column ('name')->all ],
+        [ qw/root child2 child1 grandchild greatgrandchild/ ],
+        'Order Siblings By ok',
+      );
     }
 
+    # get the root node
     {
-      # get the root node
-      my $rs = $schema->resultset('Artist')->search({ parentid => undef },
-                              {
-                                'start_with' => { 'name' => 'greatgrandchild' },
-                                'connect_by' => { 'artistid' => { '-prior' => \'parentid' } },
-                              });
-=pod
-    SELECT
-        COUNT( * )
-    FROM
-        artist me
-    WHERE
-        ( parentid IS NULL )
-    START WITH
-        name = ?
-    CONNECT BY
-        artistid = PRIOR( parentid )
+      my $rs = $schema->resultset('Artist')->search({ parentid => undef }, {
+        start_with => { name => 'greatgrandchild' },
+        connect_by => { artistid => { -prior => \ 'parentid' } },
+      });
 
-    Parameters: 'greatgrandchild'
-=cut
-      is( $rs->count, 1, 'root node count ok' );
-=pod
-    SELECT
-        me.artistid, me.name, me.rank, me.charfield, me.parentid
-    FROM
-        artist me
-    WHERE
-        ( parentid IS NULL )
-    START WITH
-        name = ?
-    CONNECT BY
-        prior parentid = artistid
+      is_same_sql_bind (
+        $rs->as_query,
+        '(
+          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
+            FROM artist me
+          WHERE ( parentid IS NULL )
+          START WITH name = ?
+          CONNECT BY artistid = PRIOR( parentid )
+        )',
+        [ [ name => 'greatgrandchild'] ],
+      );
 
-    Parameters: 'greatgrandchild'
-=cut
-      ok( $rs->next->name eq 'root', 'found root node');
+      is_deeply(
+        [ $rs->get_column('name')->all ],
+        [ 'root' ],
+        'found root node',
+      );
     }
 
+    # combine a connect by with a join
     {
-      # combine a connect by with a join
-      my $rs = $schema->resultset('Artist')->search({'cds.title' => { 'like' => '%cd'}},
-                              {
-                                'join' => 'cds',
-                                'start_with' => { 'name' => 'root' },
-                                'connect_by' => { 'parentid' => { '-prior' => \'artistid' } },
-                              });
-=pod
-    SELECT
-        COUNT( * )
-    FROM
-        artist me
-    LEFT JOIN
-        cd cds ON cds.artist = me.artistid
-    WHERE
-        ( cds.title LIKE ? )
-    START WITH
-        name = ?
-    CONNECT BY
-        parentid = prior artistid
+      my $rs = $schema->resultset('Artist')->search(
+        {'cds.title' => { -like => '%cd'} },
+        {
+          join => 'cds',
+          start_with => { 'me.name' => 'root' },
+          connect_by => { parentid => { -prior => \ 'artistid' } },
+        }
+      );
 
-    Parameters: '%cd', 'root'
-=cut
+      is_same_sql_bind (
+        $rs->as_query,
+        '(
+          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
+            FROM artist me
+            LEFT JOIN cd cds ON cds.artist = me.artistid
+          WHERE ( cds.title LIKE ? )
+          START WITH me.name = ?
+          CONNECT BY parentid = PRIOR( artistid )
+        )',
+        [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
+      );
+
+      is_deeply(
+        [ $rs->get_column('name')->all ],
+        [ 'grandchild' ],
+        'Connect By with a join result name ok'
+      );
+
+
+      is_same_sql_bind (
+        $rs->count_rs->as_query,
+        '(
+          SELECT COUNT( * )
+            FROM artist me
+            LEFT JOIN cd cds ON cds.artist = me.artistid
+          WHERE ( cds.title LIKE ? )
+          START WITH me.name = ?
+          CONNECT BY parentid = prior artistid
+        )',
+        [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
+      );
+
       is( $rs->count, 1, 'Connect By with a join; count ok' );
-=pod
-    SELECT
-        me.artistid, me.name, me.rank, me.charfield, me.parentid
-    FROM
-        artist me
-    LEFT JOIN
-        cd cds ON cds.artist = me.artistid
-    WHERE
-        ( cds.title LIKE ? )
-    START WITH
-        name = ?
-    CONNECT BY
-        parentid = prior artistid
-
-    Parameters: '%cd', 'root'
-=cut
-      ok( $rs->next->name eq 'grandchild', 'Connect By with a join; result name ok')
     }
 
+    # combine a connect by with order_by
     {
-      # combine a connect by with order_by
-      my $rs = $schema->resultset('Artist')->search({},
-                              {
-                                'start_with' => { 'name' => 'greatgrandchild' },
-                                'connect_by' => { artistid => { '-prior' => \'parentid' } },
-                                'order_by' => 'name ASC',
-                              });
-      my $ok = 1;
-=pod
-    SELECT
-        me.artistid, me.name, me.rank, me.charfield, me.parentid
-    FROM
-        artist me
-    START WITH
-        name = ?
-    CONNECT BY
-        artistid = PRIOR( parentid )
-    ORDER BY
-        name ASC
+      my $rs = $schema->resultset('Artist')->search({}, {
+        start_with => { name => 'greatgrandchild' },
+        connect_by => { artistid => { -prior => \ 'parentid' } },
+        order_by => { -asc => 'name' },
+      });
 
-    Parameters: 'greatgrandchild'
-=cut
-      foreach my $node_name (qw(child1 grandchild greatgrandchild root)) {
-        $ok = 0 if $rs->next->name ne $node_name;
-      }
-      ok( $ok, 'Connect By with a order_by; result name ok');
+      is_same_sql_bind (
+        $rs->as_query,
+        '(
+          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
+            FROM artist me
+          START WITH name = ?
+          CONNECT BY artistid = PRIOR( parentid )
+          ORDER BY name ASC
+        )',
+        [ [ name => 'greatgrandchild' ] ],
+      );
+
+      is_deeply (
+        [ $rs->get_column ('name')->all ],
+        [ qw/child1 grandchild greatgrandchild root/ ],
+        'Connect By with a order_by - result name ok'
+      );
     }
 
-    {
-      # limit a connect by
-      my $rs = $schema->resultset('Artist')->search({},
-                              {
-                                'start_with' => { 'name' => 'greatgrandchild' },
-                                'connect_by' => { 'artistid' => { '-prior' => \'parentid' } },
-                                'order_by' => 'name ASC',
-                                'rows' => 2,
-                                'page' => 1,
-                              });
-=pod
-    SELECT
-        COUNT( * )
-    FROM
-        artist me
-    START WITH
-        name = ?
-    CONNECT BY
-        artistid = PRIOR( parentid )
 
-    Parameters: 'greatgrandchild'
-=cut
-      is( $rs->count(), 2, 'Connect By; LIMIT count ok' );
-      my $ok = 1;
-=pod
-    SELECT
-        *
-    FROM
-        (
-            SELECT
-                A.*,ROWNUM r
-            FROM
-                (
-                    SELECT
-                        me.artistid AS col1, me.name AS col2, me.rank AS col3, me.charfield AS col4, me.parentid AS col5
-                    FROM
-                        artist me
-                    START WITH
-                        name = ?
-                    CONNECT BY
-                        prior parentid = artistid
-                    ORDER BY
-                        name ASC
-                ) A
-            WHERE
-                ROWNUM < 3
-        ) B
-    WHERE
-        r >= 1
-    Parameters: 'greatgrandchild'
-=cut
-      foreach my $node_name (qw(child1 grandchild)) {
-        $ok = 0 if $rs->next->name ne $node_name;
-      }
-      ok( $ok, 'LIMIT a Connect By query ok');
+    # limit a connect by
+    {
+      my $rs = $schema->resultset('Artist')->search({}, {
+        start_with => { name => 'greatgrandchild' },
+        connect_by => { artistid => { -prior => \ 'parentid' } },
+        order_by => { -desc => 'name' },
+        rows => 2,
+      });
+
+      is_same_sql_bind (
+        $rs->as_query,
+        '(
+          need to fill in correct sql
+        )',
+        [],
+      );
+
+      is_deeply (
+        [ $rs->get_column ('name')->all ],
+        [ qw/grandchild child1/ ],
+        'LIMIT a Connect By query - correct names'
+      );
+
+
+      is_same_sql_bind (
+        $rs->count_rs->as_query,
+        '(
+          need to fill in correct sql
+        )',
+        [],
+      );
+
+      is( $rs->count, 2, 'Connect By; LIMIT count ok' );
     }
 }
 
