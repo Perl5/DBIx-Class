@@ -30,10 +30,10 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
-use DBIC::SqlMakerTest;
 
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_ORA_${_}" } qw/DSN USER PASS/};
 
