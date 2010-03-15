@@ -21,6 +21,7 @@ Revision history for DBIx::Class
           (RT#54063)
         - Support add_columns('+colname' => { ... }) to augment column
           definitions.
+        - Unicode support documentation in Cookbook and UTF8Columns
 
 0.08120 2010-02-24 08:58:00 (UTC)
         - Make sure possibly overwritten deployment_statements methods in

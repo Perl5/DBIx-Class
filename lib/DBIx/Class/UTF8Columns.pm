@@ -9,6 +9,9 @@ __PACKAGE__->mk_classdata( '_utf8_columns' );
 
 DBIx::Class::UTF8Columns - Force UTF8 (Unicode) flag on columns
 
+   Please ensure you understand the purpose of this module before use.
+   Read the warnings below to prevent data corruption through misuse.
+
 =head1 SYNOPSIS
 
     package Artist;
@@ -23,9 +26,24 @@ DBIx::Class::UTF8Columns - Force UTF8 (Unicode) flag on columns
 
 =head1 DESCRIPTION
 
-This module allows you to get columns data that have utf8 (Unicode) flag.
+This module allows you to get and store utf8 (unicode) column data
+in a database that does not natively support unicode. It ensures
+that column data is correctly serialised as a byte stream when
+stored and de-serialised to unicode strings on retrieval.
 
-=head2 Warning
+=head2 Warning - Native Database Unicode Support
+
+If your database natively supports Unicode (as does SQLite with the
+C<sqlite_unicode> connect flag, MySQL with C<mysql_enable_utf8>
+connect flag or Postgres with the C<pg_enable_utf8> connect flag),
+then this component should B<not> be used, and will corrupt unicode
+data in a subtle and unexpected manner.
+
+It is far better to do Unicode support within the database if
+possible rather convert data into and out of the database on every
+round trip.
+
+=head2 Warning - Component Overloading
 
 Note that this module overloads L<DBIx::Class::Row/store_column> in a way
 that may prevent other components overloading the same method from working
