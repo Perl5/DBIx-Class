@@ -30,6 +30,8 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
+use DBIC::SqlMakerTest;
+
 use lib qw(t/lib);
 use DBICTest;
 
