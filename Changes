@@ -12,6 +12,8 @@ Revision history for DBIx::Class
           handled properly by ::Schema::Versioned.
         - Fix regression on not properly throwing when $obj->relationship
           is unresolvable
+        - Fix the join-optimiser to consider unqualified column names
+          whenever possible
         - Add has_relationship method to row objects
         - Fix regression in set_column on PK-less objects
         - Add POD about the significance of PK columns

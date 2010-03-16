@@ -37,7 +37,6 @@ lives_ok ( sub {
 
 }, 'search_related prefetch with order_by works');
 
-TODO: { local $TODO = 'Unqualified columns in where clauses can not be fixed without an SQLA rewrite' if SQL::Abstract->VERSION < 2;
 lives_ok ( sub {
   my $no_prefetch = $schema->resultset('Track')->search_related(cd =>
     {
@@ -65,8 +64,6 @@ lives_ok ( sub {
   is($use_prefetch->count, $no_prefetch->count, 'counts with and without prefetch match');
 
 }, 'search_related prefetch with condition referencing unqualified column of a joined table works');
-}
-
 
 lives_ok (sub {
     my $rs = $schema->resultset("Artwork")->search(undef, {distinct => 1})

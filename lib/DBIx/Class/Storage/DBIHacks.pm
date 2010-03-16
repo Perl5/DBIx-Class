@@ -164,10 +164,10 @@ sub _adjust_select_args_for_complex_prefetch {
   while (my $j = shift @$from) {
     my $alias = $j->[0]{-alias};
 
-    if ($outer_aliastypes->{select}{$alias}) {
+    if ($outer_aliastypes->{selecting}{$alias}) {
       push @outer_from, $j;
     }
-    elsif ($outer_aliastypes->{restrict}{$alias}) {
+    elsif ($outer_aliastypes->{restricting}{$alias}) {
       push @outer_from, $j;
       $outer_attrs->{group_by} ||= $outer_select unless $j->[0]{-is_single};
     }
@@ -186,15 +186,17 @@ sub _adjust_select_args_for_complex_prefetch {
   return (\@outer_from, $outer_select, $where, $outer_attrs);
 }
 
+#
+# I KNOW THIS SUCKS! GET SQLA2 OUT THE DOOR SO THIS CAN DIE!
+#
 # Due to a lack of SQLA2 we fall back to crude scans of all the
 # select/where/order/group attributes, in order to determine what
 # aliases are neded to fulfill the query. This information is used
 # throughout the code to prune unnecessary JOINs from the queries
 # in an attempt to reduce the execution time.
 # Although the method is pretty horrific, the worst thing that can
-# happen is for it to fail due to an unqualified column, which in
-# turn will result in a vocal exception. Qualifying the column will
-# invariably solve the problem.
+# happen is for it to fail due to some scalar SQL, which in turn will
+# result in a vocal exception.
 sub _resolve_aliastypes_from_select_args {
   my ( $self, $from, $select, $where, $attrs ) = @_;
 
@@ -217,36 +219,84 @@ sub _resolve_aliastypes_from_select_args {
       unless $j->{-is_single};
   }
 
+  # get a column to source/alias map (including unqualified ones)
+  my $colinfo = $self->_resolve_column_info ($from);
+
   # set up a botched SQLA
   my $sql_maker = $self->sql_maker;
   my $sep = quotemeta ($self->_sql_maker_opts->{name_sep} || '.');
-  local $sql_maker->{quote_char}; # so that we can regex away
 
-
-  my $select_sql = $sql_maker->_recurse_fields ($select);
-  my $where_sql = $sql_maker->where ($where);
-  my $group_by_sql = $sql_maker->_order_by({
-    map { $_ => $attrs->{$_} } qw/group_by having/
+  my ($orig_lquote, $orig_rquote) = map { quotemeta $_ } (do {
+    if (ref $sql_maker->{quote_char} eq 'ARRAY') {
+      @{$sql_maker->{quote_char}}
+    }
+    else {
+      ($sql_maker->{quote_char} || '') x 2;
+    }
   });
-  my @order_by_chunks = ($self->_parse_order_by ($attrs->{order_by}) );
 
-  # match every alias to the sql chunks above
+  local $sql_maker->{quote_char} = "\x00"; # so that we can regex away
+
+  # generate sql chunks
+  my $to_scan = {
+    restricting => [
+      $sql_maker->_recurse_where ($where),
+      $sql_maker->_order_by({
+        map { $_ => $attrs->{$_} } (qw/group_by having/)
+      }),
+    ],
+    selecting => [
+      $self->_parse_order_by ($attrs->{order_by}, $sql_maker),
+      $sql_maker->_recurse_fields ($select),
+    ],
+  };
+
+  # throw away empty chunks
+  $_ = [ map { $_ || () } @$_ ] for values %$to_scan;
+
+  # first loop through all fully qualified columns and get the corresponding
+  # alias (should work even if they are in scalarrefs)
   for my $alias (keys %$alias_list) {
-    my $al_re = qr/\b $alias $sep/x;
+    my $al_re = qr/
+      \x00 $alias \x00 $sep
+        |
+      \b $alias $sep
+    /x;
 
-    for my $piece ($where_sql, $group_by_sql) {
-      $aliases_by_type->{restrict}{$alias} = 1 if ($piece =~ $al_re);
+    # add matching for possible quoted literal sql
+    $al_re = qr/ $al_re | $orig_lquote $alias $orig_rquote /x
+      if ($orig_lquote && $orig_rquote);
+
+
+    for my $type (keys %$to_scan) {
+      for my $piece (@{$to_scan->{$type}}) {
+        $aliases_by_type->{$type}{$alias} = 1 if ($piece =~ $al_re);
+      }
     }
 
-    for my $piece ($select_sql, @order_by_chunks ) {
-      $aliases_by_type->{select}{$alias} = 1 if ($piece =~ $al_re);
+  }
+
+  # now loop through unqualified column names, and try to locate them within
+  # the chunks
+  for my $col (keys %$colinfo) {
+    next if $col =~ $sep;   # if column is qualified it was caught by the above
+
+    my $col_re = qr/ \x00 $col \x00 /x;
+
+    $col_re = qr/ $col_re | $orig_lquote $col $orig_rquote /x
+      if ($orig_lquote && $orig_rquote);
+
+    for my $type (keys %$to_scan) {
+      for my $piece (@{$to_scan->{$type}}) {
+        $aliases_by_type->{$type}{$colinfo->{$col}{-source_alias}} = 1 if ($piece =~ $col_re);
+      }
     }
   }
 
   # Add any non-left joins to the restriction list (such joins are indeed restrictions)
   for my $j (values %$alias_list) {
     my $alias = $j->{-alias} or next;
-    $aliases_by_type->{restrict}{$alias} = 1 if (
+    $aliases_by_type->{restricting}{$alias} = 1 if (
       (not $j->{-join_type})
         or
       ($j->{-join_type} !~ /^left (?: \s+ outer)? $/xi)
@@ -485,20 +535,31 @@ sub _strip_cond_qualifiers {
 }
 
 sub _parse_order_by {
-  my ($self, $order_by) = @_;
+  my ($self, $order_by, $sql_maker) = @_;
 
-  return scalar $self->sql_maker->_order_by_chunks ($order_by)
-    unless wantarray;
+  my $parser = sub {
+    my ($sql_maker, $order_by) = @_;
 
-  my $sql_maker = $self->sql_maker;
-  local $sql_maker->{quote_char}; #disable quoting
-  my @chunks;
-  for my $chunk (map { ref $_ ? @$_ : $_ } ($sql_maker->_order_by_chunks ($order_by) ) ) {
-    $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
-    push @chunks, $chunk;
+    return scalar $sql_maker->_order_by_chunks ($order_by)
+      unless wantarray;
+
+    my @chunks;
+    for my $chunk (map { ref $_ ? @$_ : $_ } ($sql_maker->_order_by_chunks ($order_by) ) ) {
+      $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
+      push @chunks, $chunk;
+    }
+
+    return @chunks;
+  };
+
+  if ($sql_maker) {
+    return $parser->($sql_maker, $order_by);
   }
-
-  return @chunks;
+  else {
+    $sql_maker = $self->sql_maker;
+    local $sql_maker->{quote_char};
+    return $parser->($sql_maker, $order_by);
+  }
 }
 
 1;
