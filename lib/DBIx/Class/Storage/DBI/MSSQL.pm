@@ -263,6 +263,21 @@ sub sql_maker {
   return $self->_sql_maker;
 }
 
+sub _ping {
+  my $self = shift;
+
+  my $dbh = $self->_dbh or return 0;
+
+  local $dbh->{RaiseError} = 1;
+  local $dbh->{PrintError} = 0;
+
+  eval {
+    $dbh->do('select 1');
+  };
+
+  return $@ ? 0 : 1;
+}
+
 1;
 
 =head1 NAME

@@ -206,6 +206,7 @@ sub _ping {
   my $dbh = $self->_dbh or return 0;
 
   local $dbh->{RaiseError} = 1;
+  local $dbh->{PrintError} = 0;
 
   eval {
     $dbh->do('select 1 from rdb$database');

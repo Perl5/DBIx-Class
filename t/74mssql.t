@@ -52,13 +52,14 @@ for my $storage_type (@storage_types) {
 
   isa_ok($schema->storage, "DBIx::Class::Storage::$storage_type");
 
-# start disconnected to test reconnection
+# start disconnected to test _ping
   $schema->storage->_dbh->disconnect;
 
-  my $dbh;
-  lives_ok (sub {
-    $dbh = $schema->storage->dbh;
-  }, 'reconnect works');
+  lives_ok {
+    $schema->storage->dbh_do(sub { $_[1]->do('select 1') })
+  } '_ping works';
+
+  my $dbh = $schema->storage->dbh;
 
   $dbh->do("IF OBJECT_ID('artist', 'U') IS NOT NULL
       DROP TABLE artist");
