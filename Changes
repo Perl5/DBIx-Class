@@ -21,6 +21,7 @@ Revision history for DBIx::Class
           attribute
         - Fix ambiguity in default directory handling of create_ddl_dir
           (RT#54063)
+        - Fix update_all and delete_all to be wrapped in a transaction
         - Support add_columns('+colname' => { ... }) to augment column
           definitions.
         - Unicode support documentation in Cookbook and UTF8Columns
