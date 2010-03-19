@@ -24,6 +24,7 @@ Revision history for DBIx::Class
         - Fix update_all and delete_all to be wrapped in a transaction
         - Support add_columns('+colname' => { ... }) to augment column
           definitions.
+        - Fix spurious warnings on multiple UTF8Columns component loads
         - Unicode support documentation in Cookbook and UTF8Columns
 
 0.08120 2010-02-24 08:58:00 (UTC)
