@@ -68,8 +68,8 @@ Used as:
 
     on_connect_call => 'use_foreign_keys'
 
-In L<DBIx::Class::Storage::DBI/connect_info> to turn on foreign key (including
-cascading) support for recent versions of SQLite and L<DBD::SQLite>.
+In L<connect_info|DBIx::Class::Storage::DBI/connect_info> to turn on foreign key
+(including cascading) support for recent versions of SQLite and L<DBD::SQLite>.
 
 Executes:
 

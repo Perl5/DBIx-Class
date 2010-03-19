@@ -29,7 +29,8 @@ converted to:
 
   CAST(? as $mapped_type)
 
-This option can also be enabled in L<DBIx::Class::Storage::DBI/connect_info> as:
+This option can also be enabled in
+L<connect_info|DBIx::Class::Storage::DBI/connect_info> as:
 
   on_connect_call => ['set_auto_cast']
 
@@ -76,7 +77,7 @@ Used as:
 
     on_connect_call => ['set_auto_cast']
 
-in L<DBIx::Class::Storage::DBI/connect_info>.
+in L<connect_info|DBIx::Class::Storage::DBI/connect_info>.
 
 =cut
 

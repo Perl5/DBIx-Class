@@ -37,7 +37,7 @@ Use as:
 
   on_connect_call => 'use_dynamic_cursors'
 
-in your L<DBIx::Class::Storage::DBI/connect_info> as one way to enable multiple
+in your L<connect_info|DBIx::Class::Storage::DBI/connect_info> as one way to enable multiple
 concurrent statements.
 
 Will add C<< odbc_cursortype => 2 >> to your DBI connection attributes. See

@@ -193,10 +193,10 @@ Used as:
 
     on_connect_call => 'datetime_setup'
 
-In L<DBIx::Class::Storage::DBI/connect_info> to set the session nls date, and
-timestamp values for use with L<DBIx::Class::InflateColumn::DateTime> and the
-necessary environment variables for L<DateTime::Format::Oracle>, which is used
-by it.
+In L<connect_info|DBIx::Class::Storage::DBI/connect_info> to set the session nls
+date, and timestamp values for use with L<DBIx::Class::InflateColumn::DateTime>
+and the necessary environment variables for L<DateTime::Format::Oracle>, which
+is used by it.
 
 Maximum allowable precision is used, unless the environment variables have
 already been set.
