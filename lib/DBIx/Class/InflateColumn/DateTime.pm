@@ -138,16 +138,18 @@ sub register_column {
     }
   }
 
-  if ( defined $info->{extra}{timezone} ) {
-    carp "Putting timezone into extra => { timezone => '...' } has been deprecated, ".
-         "please put it directly into the '$column' column definition.";
-    $info->{timezone} = $info->{extra}{timezone} unless defined $info->{timezone};
-  }
+  if ($info->{extra}) {
+    if ( defined $info->{extra}{timezone} ) {
+      carp "Putting timezone into extra => { timezone => '...' } has been deprecated, ".
+           "please put it directly into the '$column' column definition.";
+      $info->{timezone} = $info->{extra}{timezone} unless defined $info->{timezone};
+    }
 
-  if ( defined $info->{extra}{locale} ) {
-    carp "Putting locale into extra => { locale => '...' } has been deprecated, ".
-         "please put it directly into the '$column' column definition.";
-    $info->{locale} = $info->{extra}{locale} unless defined $info->{locale};
+    if ( defined $info->{extra}{locale} ) {
+     carp "Putting locale into extra => { locale => '...' } has been deprecated, ".
+          "please put it directly into the '$column' column definition.";
+     $info->{locale} = $info->{extra}{locale} unless defined $info->{locale};
+    }
   }
 
   my $undef_if_invalid = $info->{datetime_undef_if_invalid};
