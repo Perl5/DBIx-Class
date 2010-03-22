@@ -1363,20 +1363,17 @@ sub _execute {
     $self->dbh_do('_dbh_execute', @_);  # retry over disconnects
 }
 
-sub insert {
+sub _prefetch_insert_auto_nextvals {
   my ($self, $source, $to_insert) = @_;
 
-  my $ident = $source->from;
-  my $bind_attributes = $self->source_bind_attributes($source);
-
-  my $updated_cols = {};
+  my $upd = {};
 
   foreach my $col ( $source->columns ) {
     if ( !defined $to_insert->{$col} ) {
       my $col_info = $source->column_info($col);
 
       if ( $col_info->{auto_nextval} ) {
-        $updated_cols->{$col} = $to_insert->{$col} = $self->_sequence_fetch(
+        $upd->{$col} = $to_insert->{$col} = $self->_sequence_fetch(
           'nextval',
           $col_info->{sequence} ||=
             $self->_dbh_get_autoinc_seq($self->_get_dbh, $source, $col)
@@ -1384,6 +1381,17 @@ sub insert {
       }
     }
   }
+
+  return $upd;
+}
+
+sub insert {
+  my $self = shift;
+  my ($source, $to_insert) = @_;
+
+  my $updated_cols = $self->_prefetch_insert_auto_nextvals (@_);
+
+  my $bind_attributes = $self->source_bind_attributes($source);
 
   $self->_execute('insert' => [], $source, $bind_attributes, $to_insert);
 

@@ -342,31 +342,48 @@ sub insert {
     $rollback_guard ||= $source->storage->txn_scope_guard
   }
 
+  ## PK::Auto
+  my %auto_pri;
+  my $auto_idx = 0;
+  for ($self->primary_columns) {
+    if (
+      not defined $self->get_column($_)
+        ||
+      (ref($self->get_column($_)) eq 'SCALAR')
+    ) {
+      my $col_info = $source->column_info($_);
+      $auto_pri{$_} = $auto_idx++ unless $col_info->{auto_nextval};   # auto_nextval's are pre-fetched in the storage
+    }
+  }
+
   MULTICREATE_DEBUG and do {
     no warnings 'uninitialized';
     warn "MC $self inserting (".join(', ', $self->get_columns).")\n";
   };
-  my $updated_cols = $source->storage->insert($source, { $self->get_columns });
+  my $updated_cols = $source->storage->insert(
+    $source,
+    { $self->get_columns },
+    keys %auto_pri
+      ? { returning => [ sort { $auto_pri{$a} <=> $auto_pri{$b} } keys %auto_pri ] }
+      : ()
+    ,
+  );
+
   foreach my $col (keys %$updated_cols) {
     $self->store_column($col, $updated_cols->{$col});
+    delete $auto_pri{$col};
   }
 
-  ## PK::Auto
-  my @auto_pri = grep {
-                  (not defined $self->get_column($_))
-                    ||
-                  (ref($self->get_column($_)) eq 'SCALAR')
-                 } $self->primary_columns;
-
-  if (@auto_pri) {
-    MULTICREATE_DEBUG and warn "MC $self fetching missing PKs ".join(', ', @auto_pri)."\n";
+  if (keys %auto_pri) {
+    my @missing = sort { $auto_pri{$a} <=> $auto_pri{$b} } keys %auto_pri;
+    MULTICREATE_DEBUG and warn "MC $self fetching missing PKs ".join(', ', @missing )."\n";
     my $storage = $self->result_source->storage;
     $self->throw_exception( "Missing primary key but Storage doesn't support last_insert_id" )
       unless $storage->can('last_insert_id');
-    my @ids = $storage->last_insert_id($self->result_source,@auto_pri);
+    my @ids = $storage->last_insert_id($self->result_source, @missing);
     $self->throw_exception( "Can't get last insert id" )
-      unless (@ids == @auto_pri);
-    $self->store_column($auto_pri[$_] => $ids[$_]) for 0 .. $#ids;
+      unless (@ids == @missing);
+    $self->store_column($missing[$_] => $ids[$_]) for 0 .. $#missing;
   }
 
   $self->{_dirty_columns} = {};
