@@ -1,7 +1,5 @@
 package DBIx::Class::Storage::DBI::InterBase;
 
-# partly stolen from DBIx::Class::Storage::DBI::MSSQL
-
 use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI/;

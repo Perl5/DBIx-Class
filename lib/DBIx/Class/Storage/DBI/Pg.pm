@@ -7,44 +7,124 @@ use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
 use mro 'c3';
 
 use DBD::Pg qw(:pg_types);
+use Scope::Guard ();
+use Context::Preserve ();
 
 # Ask for a DBD::Pg with array support
 warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
   if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
 
+__PACKAGE__->mk_group_accessors(simple => qw/
+  _auto_cols
+/);
+
+sub _prep_for_execute {
+  my $self = shift;
+  my ($op, $extra_bind, $ident, $args) = @_;
+
+  if ($op eq 'insert') {
+    $self->_auto_cols([]);
+
+    my %pk;
+    @pk{$ident->primary_columns} = ();
+
+    my @auto_inc_cols = grep {
+      my $inserting = $args->[0]{$_};
+
+      ($ident->column_info($_)->{is_auto_increment}
+        || exists $pk{$_})
+      && (
+        (not defined $inserting)
+        ||
+        (ref $inserting eq 'SCALAR' && $$inserting =~ /^null\z/i)
+      )
+    } $ident->columns;
+
+    if (@auto_inc_cols) {
+      $args->[1]{returning} = \@auto_inc_cols;
+
+      $self->_auto_cols->[0] = \@auto_inc_cols;
+    }
+  }
+
+  return $self->next::method(@_);
+}
+
+sub _execute {
+  my $self = shift;
+  my ($op) = @_;
+
+  my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
+
+  if ($op eq 'insert' && $self->_auto_cols) {
+    local $@;
+    my (@auto_cols) = eval {
+      local $SIG{__WARN__} = sub {};
+      $sth->fetchrow_array
+    };
+    $self->_auto_cols->[1] = \@auto_cols;
+    $sth->finish;
+  }
+
+  return wantarray ? ($rv, $sth, @bind) : $rv;
+}
+
+
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
 
-  $self->_get_dbh->do('SET CONSTRAINTS ALL DEFERRED');
-  $sub->();
+  my $txn_scope_guard = $self->txn_scope_guard;
+
+  $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
+  
+  my $sg = Scope::Guard->new(sub {
+    $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
+  });
+
+  return Context::Preserve::preserve_context(sub { $sub->() },
+    after => sub { $txn_scope_guard->commit });
+}
+
+sub insert {
+  my $self = shift;
+
+  my $updated_cols = $self->next::method(@_);
+
+  if ($self->_auto_cols->[0]) {
+    my %auto_cols;
+    @auto_cols{ @{ $self->_auto_cols->[0] } } = @{ $self->_auto_cols->[1] };
+
+    $updated_cols = { %$updated_cols, %auto_cols };
+  }
+
+  return $updated_cols;
 }
 
 sub last_insert_id {
-  my ($self,$source,@cols) = @_;
+  my ($self, $source, @cols) = @_;
+  my @result;
 
-  my @values;
+  my %auto_cols;
+  @auto_cols{ @{ $self->_auto_cols->[0] } } =
+    @{ $self->_auto_cols->[1] };
 
-  for my $col (@cols) {
-    my $seq = ( $source->column_info($col)->{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
-      or $self->throw_exception( sprintf(
-        'could not determine sequence for column %s.%s, please consider adding a schema-qualified sequence to its column info',
-          $source->name,
-          $col,
-      ));
+  push @result, $auto_cols{$_} for @cols;
 
-    push @values, $self->_dbh_last_insert_id ($self->_dbh, $seq);
-  }
-
-  return @values;
+  return @result;
 }
 
-# there seems to be absolutely no reason to have this as a separate method,
-# but leaving intact in case someone is already overriding it
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $seq) = @_;
-  $dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
-}
+sub _sequence_fetch {
+  my ($self, $function, $sequence) = @_;
 
+  $self->throw_exception('No sequence to fetch') unless $sequence;
+  
+  my ($val) = $self->_get_dbh->selectrow_array(
+    sprintf "select $function('%s')",
+      $sequence
+  );
+
+  return $val;
+} 
 
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $source, $col) = @_;
@@ -153,12 +233,6 @@ sub bind_attribute_by_data_type {
   else {
     return;
   }
-}
-
-sub _sequence_fetch {
-  my ( $self, $type, $seq ) = @_;
-  my ($id) = $self->_get_dbh->selectrow_array("SELECT nextval('${seq}')");
-  return $id;
 }
 
 sub _svp_begin {

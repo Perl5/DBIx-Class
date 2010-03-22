@@ -257,12 +257,19 @@ SKIP: {
 $schema->source("SequenceTest")->name("dbic_t_schema.sequence_test");
 for (1..5) {
     my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
-    is($st->pkid1, $_, "Oracle Auto-PK without trigger: First primary key");
-    is($st->pkid2, $_ + 9, "Oracle Auto-PK without trigger: Second primary key");
-    is($st->nonpkid, $_ + 19, "Oracle Auto-PK without trigger: Non-primary key");
+    is($st->pkid1, $_, "Auto-PK for sequence without default: First primary key");
+    is($st->pkid2, $_ + 9, "Auto-PK for sequence without default: Second primary key");
+    is($st->nonpkid, $_ + 19, "Auto-PK for sequence without default: Non-primary key");
 }
 my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
-is($st->pkid1, 55, "Oracle Auto-PK without trigger: First primary key set manually");
+is($st->pkid1, 55, "Auto-PK for sequence without default: First primary key set manually");
+
+
+######## test non-integer non-serial auto-pk
+
+$schema->source('TimestampPrimaryKey')->name('dbic_t_schema.timestamp_primary_key_test');
+my $row = $schema->resultset('TimestampPrimaryKey')->create({});
+ok $row->id;
 
 done_testing;
 
@@ -296,6 +303,12 @@ EOS
 
       $dbh->do("CREATE SCHEMA dbic_t_schema");
       $dbh->do("CREATE TABLE dbic_t_schema.artist $std_artist_table");
+
+      $dbh->do(<<EOS);
+CREATE TABLE dbic_t_schema.timestamp_primary_key_test (
+    id timestamp default current_timestamp
+)
+EOS
       $dbh->do(<<EOS);
 CREATE TABLE dbic_t_schema.sequence_test (
     pkid1 integer

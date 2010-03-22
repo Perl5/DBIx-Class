@@ -1,7 +1,8 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Tue Mar 16 16:49:23 2010
+-- Created on Mon Mar 22 11:08:33 2010
 -- 
+;
 
 --
 -- Table: artist
@@ -165,6 +166,14 @@ CREATE TABLE sequence_test (
 CREATE TABLE serialized (
   id INTEGER PRIMARY KEY NOT NULL,
   serialized text NOT NULL
+);
+
+--
+-- Table: timestamp_primary_key_test
+--
+CREATE TABLE timestamp_primary_key_test (
+  id timestamp NOT NULL DEFAULT current_timestamp,
+  PRIMARY KEY (id)
 );
 
 --
@@ -447,4 +456,4 @@ CREATE INDEX fourkeys_to_twokeys_idx_t_artist_t_cd ON fourkeys_to_twokeys (t_art
 -- View: year2000cds
 --
 CREATE VIEW year2000cds AS
-    SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = "2000";
+    SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = "2000"
