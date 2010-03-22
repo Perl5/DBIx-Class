@@ -271,6 +271,30 @@ $schema->source('TimestampPrimaryKey')->name('dbic_t_schema.timestamp_primary_ke
 my $row = $schema->resultset('TimestampPrimaryKey')->create({});
 ok $row->id;
 
+######## test with_deferred_fk_checks
+
+$schema->source('CD')->name('dbic_t_schema.cd');
+$schema->source('Track')->name('dbic_t_schema.track');
+lives_ok {
+  $schema->storage->with_deferred_fk_checks(sub {
+    $schema->resultset('Track')->create({
+      trackid => 999, cd => 999, position => 1, title => 'deferred FK track'
+    });
+    $schema->resultset('CD')->create({
+      artist => 1, cdid => 999, year => '2003', title => 'deferred FK cd'
+    });
+  });
+} 'with_deferred_fk_checks code survived';
+
+is eval { $schema->resultset('Track')->find(999)->title }, 'deferred FK track',
+   'code in with_deferred_fk_checks worked'; 
+
+throws_ok {
+  $schema->resultset('Track')->create({
+    trackid => 1, cd => 9999, position => 1, title => 'Track1'
+  });
+} qr/constraint/i, 'with_deferred_fk_checks is off';
+
 done_testing;
 
 exit;
@@ -306,9 +330,31 @@ EOS
 
       $dbh->do(<<EOS);
 CREATE TABLE dbic_t_schema.timestamp_primary_key_test (
-    id timestamp default current_timestamp
+  id timestamp default current_timestamp
 )
 EOS
+      $dbh->do(<<EOS);
+CREATE TABLE dbic_t_schema.cd (
+  cdid int PRIMARY KEY,
+  artist int,
+  title varchar(255),
+  year varchar(4),
+  genreid int,
+  single_track int
+)
+EOS
+      $dbh->do(<<EOS);
+CREATE TABLE dbic_t_schema.track (
+  trackid int,
+  cd int REFERENCES dbic_t_schema.cd(cdid) DEFERRABLE,
+  position int,
+  title varchar(255),
+  last_updated_on date,
+  last_updated_at date,
+  small_dt date
+)
+EOS
+
       $dbh->do(<<EOS);
 CREATE TABLE dbic_t_schema.sequence_test (
     pkid1 integer

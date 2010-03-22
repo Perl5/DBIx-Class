@@ -3,7 +3,10 @@ package DBIx::Class::Storage::DBI::Pg;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
+use base qw/
+    DBIx::Class::Storage::DBI::MultiColumnIn
+    DBIx::Class::Storage::DBI::InsertReturning
+/;
 use mro 'c3';
 
 use DBD::Pg qw(:pg_types);
@@ -13,62 +16,6 @@ use Context::Preserve ();
 # Ask for a DBD::Pg with array support
 warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
   if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
-
-__PACKAGE__->mk_group_accessors(simple => qw/
-  _auto_cols
-/);
-
-sub _prep_for_execute {
-  my $self = shift;
-  my ($op, $extra_bind, $ident, $args) = @_;
-
-  if ($op eq 'insert') {
-    $self->_auto_cols([]);
-
-    my %pk;
-    @pk{$ident->primary_columns} = ();
-
-    my @auto_inc_cols = grep {
-      my $inserting = $args->[0]{$_};
-
-      ($ident->column_info($_)->{is_auto_increment}
-        || exists $pk{$_})
-      && (
-        (not defined $inserting)
-        ||
-        (ref $inserting eq 'SCALAR' && $$inserting =~ /^null\z/i)
-      )
-    } $ident->columns;
-
-    if (@auto_inc_cols) {
-      $args->[1]{returning} = \@auto_inc_cols;
-
-      $self->_auto_cols->[0] = \@auto_inc_cols;
-    }
-  }
-
-  return $self->next::method(@_);
-}
-
-sub _execute {
-  my $self = shift;
-  my ($op) = @_;
-
-  my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
-
-  if ($op eq 'insert' && $self->_auto_cols) {
-    local $@;
-    my (@auto_cols) = eval {
-      local $SIG{__WARN__} = sub {};
-      $sth->fetchrow_array
-    };
-    $self->_auto_cols->[1] = \@auto_cols;
-    $sth->finish;
-  }
-
-  return wantarray ? ($rv, $sth, @bind) : $rv;
-}
-
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
@@ -83,34 +30,6 @@ sub with_deferred_fk_checks {
 
   return Context::Preserve::preserve_context(sub { $sub->() },
     after => sub { $txn_scope_guard->commit });
-}
-
-sub insert {
-  my $self = shift;
-
-  my $updated_cols = $self->next::method(@_);
-
-  if ($self->_auto_cols->[0]) {
-    my %auto_cols;
-    @auto_cols{ @{ $self->_auto_cols->[0] } } = @{ $self->_auto_cols->[1] };
-
-    $updated_cols = { %$updated_cols, %auto_cols };
-  }
-
-  return $updated_cols;
-}
-
-sub last_insert_id {
-  my ($self, $source, @cols) = @_;
-  my @result;
-
-  my %auto_cols;
-  @auto_cols{ @{ $self->_auto_cols->[0] } } =
-    @{ $self->_auto_cols->[1] };
-
-  push @result, $auto_cols{$_} for @cols;
-
-  return @result;
 }
 
 sub _sequence_fetch {

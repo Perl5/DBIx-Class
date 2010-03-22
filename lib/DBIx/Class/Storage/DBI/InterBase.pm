@@ -2,13 +2,9 @@ package DBIx::Class::Storage::DBI::InterBase;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::InsertReturning/;
 use mro 'c3';
 use List::Util();
-
-__PACKAGE__->mk_group_accessors(simple => qw/
-  _auto_incs
-/);
 
 =head1 NAME
 
@@ -32,57 +28,6 @@ To turn on L<DBIx::Class::InflateColumn::DateTime> support, see
 L</connect_call_datetime_setup>.
 
 =cut
-
-sub _prep_for_execute {
-  my $self = shift;
-  my ($op, $extra_bind, $ident, $args) = @_;
-
-  if ($op eq 'insert') {
-    $self->_auto_incs([]);
-
-    my %pk;
-    @pk{$ident->primary_columns} = ();
-
-    my @auto_inc_cols = grep {
-      my $inserting = $args->[0]{$_};
-
-      ($ident->column_info($_)->{is_auto_increment}
-        || exists $pk{$_})
-      && (
-        (not defined $inserting)
-        ||
-        (ref $inserting eq 'SCALAR' && $$inserting =~ /^null\z/i)
-      )
-    } $ident->columns;
-
-    if (@auto_inc_cols) {
-      $args->[1]{returning} = \@auto_inc_cols;
-
-      $self->_auto_incs->[0] = \@auto_inc_cols;
-    }
-  }
-
-  return $self->next::method(@_);
-}
-
-sub _execute {
-  my $self = shift;
-  my ($op) = @_;
-
-  my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
-
-  if ($op eq 'insert' && $self->_auto_incs) {
-    local $@;
-    my (@auto_incs) = eval {
-      local $SIG{__WARN__} = sub {};
-      $sth->fetchrow_array
-    };
-    $self->_auto_incs->[1] = \@auto_incs;
-    $sth->finish;
-  }
-
-  return wantarray ? ($rv, $sth, @bind) : $rv;
-}
 
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;
@@ -138,34 +83,6 @@ EOF
   }
 
   return undef;
-}
-
-sub last_insert_id {
-  my ($self, $source, @cols) = @_;
-  my @result;
-
-  my %auto_incs;
-  @auto_incs{ @{ $self->_auto_incs->[0] } } =
-    @{ $self->_auto_incs->[1] };
-
-  push @result, $auto_incs{$_} for @cols;
-
-  return @result;
-}
-
-sub insert {
-  my $self = shift;
-
-  my $updated_cols = $self->next::method(@_);
-
-  if ($self->_auto_incs->[0]) {
-    my %auto_incs;
-    @auto_incs{ @{ $self->_auto_incs->[0] } } = @{ $self->_auto_incs->[1] };
-
-    $updated_cols = { %$updated_cols, %auto_incs };
-  }
-
-  return $updated_cols;
 }
 
 # this sub stolen from DB2
