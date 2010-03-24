@@ -17,9 +17,16 @@ warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
   if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
 
 sub can_insert_returning {
-  # FIXME !!!
-  # pg before 8.2 doesn't support this, need to check version
-  return 1;
+  my $self = shift;
+
+  my $pg_ver = $self->_get_dbh->get_info(18);
+
+  my ($major, $minor) = $pg_ver =~ /^(\d+)\.(\d+)/;
+
+  return 1
+    if ($major > 8) || ($major == 8 && $minor >= 2);
+
+  return 0;
 }
 
 sub with_deferred_fk_checks {
@@ -37,6 +44,7 @@ sub with_deferred_fk_checks {
     after => sub { $txn_scope_guard->commit });
 }
 
+# only used when INSERT ... RETURNING is disabled
 sub last_insert_id {
   my ($self,$source,@cols) = @_;
 

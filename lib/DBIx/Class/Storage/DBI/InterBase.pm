@@ -2,7 +2,7 @@ package DBIx::Class::Storage::DBI::InterBase;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class::Storage::DBI::InsertReturning/;
+use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 use List::Util();
 
@@ -28,6 +28,8 @@ To turn on L<DBIx::Class::InflateColumn::DateTime> support, see
 L</connect_call_datetime_setup>.
 
 =cut
+
+sub can_insert_returning { 1 }
 
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;

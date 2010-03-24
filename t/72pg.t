@@ -11,12 +11,11 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => <<EOM unless $dsn && $user;
 Set \$ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test
-( NOTE: This test drops and creates tables called 'artist', 'casecheck',
-  'array_test' and 'sequence_test' as well as following sequences:
-  'pkid1_seq', 'pkid2_seq' and 'nonpkid_seq''.  as well as following
-  schemas: 'dbic_t_schema', 'dbic_t_schema_2', 'dbic_t_schema_3',
-  'dbic_t_schema_4', and 'dbic_t_schema_5'
-)
+( NOTE: This test drops and creates tables called 'artist', 'cd',
+'timestamp_primary_key_test', 'track', 'casecheck', 'array_test' and
+'sequence_test' as well as following sequences: 'pkid1_seq', 'pkid2_seq' and
+'nonpkid_seq''. as well as following schemas: 'dbic_t_schema',
+'dbic_t_schema_2', 'dbic_t_schema_3', 'dbic_t_schema_4', and 'dbic_t_schema_5')
 EOM
 
 ### load any test classes that are defined further down in the file via BEGIN blocks
@@ -24,282 +23,284 @@ EOM
 our @test_classes; #< array that will be pushed into by test classes defined in this file
 DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_classes;
 
+my $schema;
+
+for my $use_insert_returning (0..1) {
+  no warnings qw/redefine once/;
+  require DBIx::Class::Storage::DBI::Pg;
+  local *DBIx::Class::Storage::DBI::Pg::can_insert_returning = sub {
+    $use_insert_returning
+  };
 
 ###  pre-connect tests (keep each test separate as to make sure rebless() runs)
-{
-  my $s = DBICTest::Schema->connect($dsn, $user, $pass);
+  {
+    my $s = DBICTest::Schema->connect($dsn, $user, $pass);
 
-  ok (!$s->storage->_dbh, 'definitely not connected');
+    ok (!$s->storage->_dbh, 'definitely not connected');
 
-  # Check that datetime_parser returns correctly before we explicitly connect.
-  SKIP: {
-      eval { require DateTime::Format::Pg };
-      skip "DateTime::Format::Pg required", 2 if $@;
+    # Check that datetime_parser returns correctly before we explicitly connect.
+    SKIP: {
+        eval { require DateTime::Format::Pg };
+        skip "DateTime::Format::Pg required", 2 if $@;
 
-      my $store = ref $s->storage;
-      is($store, 'DBIx::Class::Storage::DBI', 'Started with generic storage');
+        my $store = ref $s->storage;
+        is($store, 'DBIx::Class::Storage::DBI', 'Started with generic storage');
 
-      my $parser = $s->storage->datetime_parser;
-      is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
+        my $parser = $s->storage->datetime_parser;
+        is( $parser, 'DateTime::Format::Pg', 'datetime_parser is as expected');
+    }
+
+    ok (!$s->storage->_dbh, 'still not connected');
   }
-
-  ok (!$s->storage->_dbh, 'still not connected');
-}
-{
-  my $s = DBICTest::Schema->connect($dsn, $user, $pass);
-  # make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
-  ok (!$s->storage->_dbh, 'definitely not connected');
-  is ($s->storage->sqlt_type, 'PostgreSQL', 'sqlt_type correct pre-connection');
-  ok (!$s->storage->_dbh, 'still not connected');
-}
+  {
+    my $s = DBICTest::Schema->connect($dsn, $user, $pass);
+    # make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
+    ok (!$s->storage->_dbh, 'definitely not connected');
+    is ($s->storage->sqlt_type, 'PostgreSQL', 'sqlt_type correct pre-connection');
+    ok (!$s->storage->_dbh, 'still not connected');
+  }
 
 ### connect, create postgres-specific test schema
 
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
-drop_test_schema($schema);
-create_test_schema($schema);
+  drop_test_schema($schema);
+  create_test_schema($schema);
 
 ### begin main tests
 
-
 # run a BIG bunch of tests for last-insert-id / Auto-PK / sequence
 # discovery
-run_apk_tests($schema); #< older set of auto-pk tests
-run_extended_apk_tests($schema); #< new extended set of auto-pk tests
-
-
-
-
+  run_apk_tests($schema); #< older set of auto-pk tests
+  run_extended_apk_tests($schema); #< new extended set of auto-pk tests
 
 ### type_info tests
 
-my $test_type_info = {
-    'artistid' => {
-        'data_type' => 'integer',
-        'is_nullable' => 0,
-        'size' => 4,
-    },
-    'name' => {
-        'data_type' => 'character varying',
-        'is_nullable' => 1,
-        'size' => 100,
-        'default_value' => undef,
-    },
-    'rank' => {
-        'data_type' => 'integer',
-        'is_nullable' => 0,
-        'size' => 4,
-        'default_value' => 13,
+  my $test_type_info = {
+      'artistid' => {
+          'data_type' => 'integer',
+          'is_nullable' => 0,
+          'size' => 4,
+      },
+      'name' => {
+          'data_type' => 'character varying',
+          'is_nullable' => 1,
+          'size' => 100,
+          'default_value' => undef,
+      },
+      'rank' => {
+          'data_type' => 'integer',
+          'is_nullable' => 0,
+          'size' => 4,
+          'default_value' => 13,
 
-    },
-    'charfield' => {
-        'data_type' => 'character',
-        'is_nullable' => 1,
-        'size' => 10,
-        'default_value' => undef,
-    },
-    'arrayfield' => {
-        'data_type' => 'integer[]',
-        'is_nullable' => 1,
-        'size' => undef,
-        'default_value' => undef,
-    },
-};
+      },
+      'charfield' => {
+          'data_type' => 'character',
+          'is_nullable' => 1,
+          'size' => 10,
+          'default_value' => undef,
+      },
+      'arrayfield' => {
+          'data_type' => 'integer[]',
+          'is_nullable' => 1,
+          'size' => undef,
+          'default_value' => undef,
+      },
+  };
 
-my $type_info = $schema->storage->columns_info_for('dbic_t_schema.artist');
-my $artistid_defval = delete $type_info->{artistid}->{default_value};
-like($artistid_defval,
-     qr/^nextval\('([^\.]*\.){0,1}artist_artistid_seq'::(?:text|regclass)\)/,
-     'columns_info_for - sequence matches Pg get_autoinc_seq expectations');
-is_deeply($type_info, $test_type_info,
-          'columns_info_for - column data types');
+  my $type_info = $schema->storage->columns_info_for('dbic_t_schema.artist');
+  my $artistid_defval = delete $type_info->{artistid}->{default_value};
+  like($artistid_defval,
+       qr/^nextval\('([^\.]*\.){0,1}artist_artistid_seq'::(?:text|regclass)\)/,
+       'columns_info_for - sequence matches Pg get_autoinc_seq expectations');
+  is_deeply($type_info, $test_type_info,
+            'columns_info_for - column data types');
 
 
 
 
 ####### Array tests
 
-BEGIN {
-  package DBICTest::Schema::ArrayTest;
-  push @main::test_classes, __PACKAGE__;
+  BEGIN {
+    package DBICTest::Schema::ArrayTest;
+    push @main::test_classes, __PACKAGE__;
 
-  use strict;
-  use warnings;
-  use base 'DBIx::Class::Core';
+    use strict;
+    use warnings;
+    use base 'DBIx::Class::Core';
 
-  __PACKAGE__->table('dbic_t_schema.array_test');
-  __PACKAGE__->add_columns(qw/id arrayfield/);
-  __PACKAGE__->column_info_from_storage(1);
-  __PACKAGE__->set_primary_key('id');
+    __PACKAGE__->table('dbic_t_schema.array_test');
+    __PACKAGE__->add_columns(qw/id arrayfield/);
+    __PACKAGE__->column_info_from_storage(1);
+    __PACKAGE__->set_primary_key('id');
 
-}
-SKIP: {
-  skip "Need DBD::Pg 2.9.2 or newer for array tests", 4 if $DBD::Pg::VERSION < 2.009002;
+  }
+  SKIP: {
+    skip "Need DBD::Pg 2.9.2 or newer for array tests", 4 if $DBD::Pg::VERSION < 2.009002;
 
-  lives_ok {
+    lives_ok {
+      $schema->resultset('ArrayTest')->create({
+        arrayfield => [1, 2],
+      });
+    } 'inserting arrayref as pg array data';
+
+    lives_ok {
+      $schema->resultset('ArrayTest')->update({
+        arrayfield => [3, 4],
+      });
+    } 'updating arrayref as pg array data';
+
     $schema->resultset('ArrayTest')->create({
-      arrayfield => [1, 2],
+      arrayfield => [5, 6],
     });
-  } 'inserting arrayref as pg array data';
 
-  lives_ok {
-    $schema->resultset('ArrayTest')->update({
-      arrayfield => [3, 4],
-    });
-  } 'updating arrayref as pg array data';
-
-  $schema->resultset('ArrayTest')->create({
-    arrayfield => [5, 6],
-  });
-
-  my $count;
-  lives_ok {
-    $count = $schema->resultset('ArrayTest')->search({
-      arrayfield => \[ '= ?' => [arrayfield => [3, 4]] ],   #Todo anything less ugly than this?
-    })->count;
-  } 'comparing arrayref to pg array data does not blow up';
-  is($count, 1, 'comparing arrayref to pg array data gives correct result');
-}
+    my $count;
+    lives_ok {
+      $count = $schema->resultset('ArrayTest')->search({
+        arrayfield => \[ '= ?' => [arrayfield => [3, 4]] ],   #Todo anything less ugly than this?
+      })->count;
+    } 'comparing arrayref to pg array data does not blow up';
+    is($count, 1, 'comparing arrayref to pg array data gives correct result');
+  }
 
 
 
 ########## Case check
 
-BEGIN {
-  package DBICTest::Schema::Casecheck;
-  push @main::test_classes, __PACKAGE__;
+  BEGIN {
+    package DBICTest::Schema::Casecheck;
+    push @main::test_classes, __PACKAGE__;
 
-  use strict;
-  use warnings;
-  use base 'DBIx::Class::Core';
+    use strict;
+    use warnings;
+    use base 'DBIx::Class::Core';
 
-  __PACKAGE__->table('dbic_t_schema.casecheck');
-  __PACKAGE__->add_columns(qw/id name NAME uc_name/);
-  __PACKAGE__->column_info_from_storage(1);
-  __PACKAGE__->set_primary_key('id');
-}
+    __PACKAGE__->table('dbic_t_schema.casecheck');
+    __PACKAGE__->add_columns(qw/id name NAME uc_name/);
+    __PACKAGE__->column_info_from_storage(1);
+    __PACKAGE__->set_primary_key('id');
+  }
 
-my $name_info = $schema->source('Casecheck')->column_info( 'name' );
-is( $name_info->{size}, 1, "Case sensitive matching info for 'name'" );
+  my $name_info = $schema->source('Casecheck')->column_info( 'name' );
+  is( $name_info->{size}, 1, "Case sensitive matching info for 'name'" );
 
-my $NAME_info = $schema->source('Casecheck')->column_info( 'NAME' );
-is( $NAME_info->{size}, 2, "Case sensitive matching info for 'NAME'" );
+  my $NAME_info = $schema->source('Casecheck')->column_info( 'NAME' );
+  is( $NAME_info->{size}, 2, "Case sensitive matching info for 'NAME'" );
 
-my $uc_name_info = $schema->source('Casecheck')->column_info( 'uc_name' );
-is( $uc_name_info->{size}, 3, "Case insensitive matching info for 'uc_name'" );
+  my $uc_name_info = $schema->source('Casecheck')->column_info( 'uc_name' );
+  is( $uc_name_info->{size}, 3, "Case insensitive matching info for 'uc_name'" );
 
 
 
 
 ## Test SELECT ... FOR UPDATE
 
-SKIP: {
-    if(eval "require Sys::SigAction" && !$@) {
-        Sys::SigAction->import( 'set_sig_handler' );
-    }
-    else {
-      skip "Sys::SigAction is not available", 6;
-    }
+  SKIP: {
+      if(eval "require Sys::SigAction" && !$@) {
+          Sys::SigAction->import( 'set_sig_handler' );
+      }
+      else {
+        skip "Sys::SigAction is not available", 6;
+      }
 
-    my ($timed_out, $artist2);
+      my ($timed_out, $artist2);
 
-    for my $t (
-      {
-        # Make sure that an error was raised, and that the update failed
-        update_lock => 1,
-        test_sub => sub {
-          ok($timed_out, "update from second schema times out");
-          ok($artist2->is_column_changed('name'), "'name' column is still dirty from second schema");
+      for my $t (
+        {
+          # Make sure that an error was raised, and that the update failed
+          update_lock => 1,
+          test_sub => sub {
+            ok($timed_out, "update from second schema times out");
+            ok($artist2->is_column_changed('name'), "'name' column is still dirty from second schema");
+          },
         },
-      },
-      {
-        # Make sure that an error was NOT raised, and that the update succeeded
-        update_lock => 0,
-        test_sub => sub {
-          ok(! $timed_out, "update from second schema DOES NOT timeout");
-          ok(! $artist2->is_column_changed('name'), "'name' column is NOT dirty from second schema");
+        {
+          # Make sure that an error was NOT raised, and that the update succeeded
+          update_lock => 0,
+          test_sub => sub {
+            ok(! $timed_out, "update from second schema DOES NOT timeout");
+            ok(! $artist2->is_column_changed('name'), "'name' column is NOT dirty from second schema");
+          },
         },
-      },
-    ) {
-      # create a new schema
-      my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
-      $schema2->source("Artist")->name("dbic_t_schema.artist");
+      ) {
+        # create a new schema
+        my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
+        $schema2->source("Artist")->name("dbic_t_schema.artist");
 
-      $schema->txn_do( sub {
-        my $artist = $schema->resultset('Artist')->search(
-            {
-                artistid => 1
-            },
-            $t->{update_lock} ? { for => 'update' } : {}
-        )->first;
-        is($artist->artistid, 1, "select returns artistid = 1");
+        $schema->txn_do( sub {
+          my $artist = $schema->resultset('Artist')->search(
+              {
+                  artistid => 1
+              },
+              $t->{update_lock} ? { for => 'update' } : {}
+          )->first;
+          is($artist->artistid, 1, "select returns artistid = 1");
 
-        $timed_out = 0;
-        eval {
-            my $h = set_sig_handler( 'ALRM', sub { die "DBICTestTimeout" } );
-            alarm(2);
-            $artist2 = $schema2->resultset('Artist')->find(1);
-            $artist2->name('fooey');
-            $artist2->update;
-            alarm(0);
-        };
-        $timed_out = $@ =~ /DBICTestTimeout/;
-      });
+          $timed_out = 0;
+          eval {
+              my $h = set_sig_handler( 'ALRM', sub { die "DBICTestTimeout" } );
+              alarm(2);
+              $artist2 = $schema2->resultset('Artist')->find(1);
+              $artist2->name('fooey');
+              $artist2->update;
+              alarm(0);
+          };
+          $timed_out = $@ =~ /DBICTestTimeout/;
+        });
 
-      $t->{test_sub}->();
-    }
-}
+        $t->{test_sub}->();
+      }
+  }
 
 
 ######## other older Auto-pk tests
 
-$schema->source("SequenceTest")->name("dbic_t_schema.sequence_test");
-for (1..5) {
-    my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
-    is($st->pkid1, $_, "Auto-PK for sequence without default: First primary key");
-    is($st->pkid2, $_ + 9, "Auto-PK for sequence without default: Second primary key");
-    is($st->nonpkid, $_ + 19, "Auto-PK for sequence without default: Non-primary key");
-}
-my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
-is($st->pkid1, 55, "Auto-PK for sequence without default: First primary key set manually");
+  $schema->source("SequenceTest")->name("dbic_t_schema.sequence_test");
+  for (1..5) {
+      my $st = $schema->resultset('SequenceTest')->create({ name => 'foo' });
+      is($st->pkid1, $_, "Auto-PK for sequence without default: First primary key");
+      is($st->pkid2, $_ + 9, "Auto-PK for sequence without default: Second primary key");
+      is($st->nonpkid, $_ + 19, "Auto-PK for sequence without default: Non-primary key");
+  }
+  my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55 });
+  is($st->pkid1, 55, "Auto-PK for sequence without default: First primary key set manually");
 
 
 ######## test non-serial auto-pk
 
-if ($schema->storage->can_insert_returning) {
-  $schema->source('TimestampPrimaryKey')->name('dbic_t_schema.timestamp_primary_key_test');
-  my $row = $schema->resultset('TimestampPrimaryKey')->create({});
-  ok $row->id;
-}
+  if ($schema->storage->can_insert_returning) {
+    $schema->source('TimestampPrimaryKey')->name('dbic_t_schema.timestamp_primary_key_test');
+    my $row = $schema->resultset('TimestampPrimaryKey')->create({});
+    ok $row->id;
+  }
 
 ######## test with_deferred_fk_checks
 
-$schema->source('CD')->name('dbic_t_schema.cd');
-$schema->source('Track')->name('dbic_t_schema.track');
-lives_ok {
-  $schema->storage->with_deferred_fk_checks(sub {
+  $schema->source('CD')->name('dbic_t_schema.cd');
+  $schema->source('Track')->name('dbic_t_schema.track');
+  lives_ok {
+    $schema->storage->with_deferred_fk_checks(sub {
+      $schema->resultset('Track')->create({
+        trackid => 999, cd => 999, position => 1, title => 'deferred FK track'
+      });
+      $schema->resultset('CD')->create({
+        artist => 1, cdid => 999, year => '2003', title => 'deferred FK cd'
+      });
+    });
+  } 'with_deferred_fk_checks code survived';
+
+  is eval { $schema->resultset('Track')->find(999)->title }, 'deferred FK track',
+     'code in with_deferred_fk_checks worked'; 
+
+  throws_ok {
     $schema->resultset('Track')->create({
-      trackid => 999, cd => 999, position => 1, title => 'deferred FK track'
+      trackid => 1, cd => 9999, position => 1, title => 'Track1'
     });
-    $schema->resultset('CD')->create({
-      artist => 1, cdid => 999, year => '2003', title => 'deferred FK cd'
-    });
-  });
-} 'with_deferred_fk_checks code survived';
-
-is eval { $schema->resultset('Track')->find(999)->title }, 'deferred FK track',
-   'code in with_deferred_fk_checks worked'; 
-
-throws_ok {
-  $schema->resultset('Track')->create({
-    trackid => 1, cd => 9999, position => 1, title => 'Track1'
-  });
-} qr/constraint/i, 'with_deferred_fk_checks is off';
+  } qr/constraint/i, 'with_deferred_fk_checks is off';
+}
 
 done_testing;
-
-exit;
 
 END {
     return unless $schema;
@@ -539,6 +540,7 @@ sub run_extended_apk_tests {
   my $search_path_save = eapk_get_search_path($schema);
 
   eapk_drop_all($schema);
+  %seqs = ();
 
   # make the test schemas and sequences
   $schema->storage->dbh_do(sub {
