@@ -16,6 +16,7 @@ Revision history for DBIx::Class
           whenever possible
         - Add has_relationship method to row objects
         - Fix regression in set_column on PK-less objects
+        - Better error text on malformed/missing relationships
         - Add POD about the significance of PK columns
         - Fix for SQLite to ignore the (unsupported) { for => ... }
           attribute

@@ -1007,7 +1007,7 @@ sub _collapse_result {
   # without having to contruct the full hash
 
   if (keys %collapse) {
-    my %pri = map { ($_ => 1) } $self->result_source->primary_columns;
+    my %pri = map { ($_ => 1) } $self->result_source->_pri_cols;
     foreach my $i (0 .. $#construct_as) {
       next if defined($construct_as[$i][0]); # only self table
       if (delete $pri{$construct_as[$i][1]}) {

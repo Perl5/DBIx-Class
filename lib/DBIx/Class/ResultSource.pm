@@ -523,8 +523,8 @@ sub _pri_cols {
   my $self = shift;
   my @pcols = $self->primary_columns
     or $self->throw_exception (sprintf(
-      'Operation requires a primary key to be declared on %s via set_primary_key',
-      ref $self,
+      "Operation requires a primary key to be declared on '%s' via set_primary_key",
+      $self->source_name,
     ));
   return @pcols;
 }
@@ -1242,7 +1242,7 @@ sub _resolve_join {
     for my $rel (keys %$join) {
 
       my $rel_info = $self->relationship_info($rel)
-        or $self->throw_exception("No such relationship ${rel}");
+        or $self->throw_exception("No such relationship '$rel' on " . $self->source_name);
 
       my $force_left = $parent_force_left;
       $force_left ||= lc($rel_info->{attrs}{join_type}||'') eq 'left';
@@ -1272,7 +1272,7 @@ sub _resolve_join {
     );
 
     my $rel_info = $self->relationship_info($join)
-      or $self->throw_exception("No such relationship ${join}");
+      or $self->throw_exception("No such relationship $join on " . $self->source_name);
 
     my $rel_src = $self->related_source($join);
     return [ { $as => $rel_src->from,
@@ -1440,7 +1440,7 @@ sub _resolve_prefetch {
     my $as = shift @{$p->{-join_aliases}};
 
     my $rel_info = $self->relationship_info( $pre );
-    $self->throw_exception( $self->name . " has no such relationship '$pre'" )
+    $self->throw_exception( $self->source_name . " has no such relationship '$pre'" )
       unless $rel_info;
     my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
     my $rel_source = $self->related_source($pre);
@@ -1501,7 +1501,7 @@ Returns the result source object for the given relationship.
 sub related_source {
   my ($self, $rel) = @_;
   if( !$self->has_relationship( $rel ) ) {
-    $self->throw_exception("No such relationship '$rel'");
+    $self->throw_exception("No such relationship '$rel' on " . $self->source_name);
   }
   return $self->schema->source($self->relationship_info($rel)->{source});
 }
@@ -1523,7 +1523,7 @@ Returns the class name for objects in the given relationship.
 sub related_class {
   my ($self, $rel) = @_;
   if( !$self->has_relationship( $rel ) ) {
-    $self->throw_exception("No such relationship '$rel'");
+    $self->throw_exception("No such relationship '$rel' on " . $self->source_name);
   }
   return $self->schema->class($self->relationship_info($rel)->{source});
 }
