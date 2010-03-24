@@ -519,6 +519,9 @@ sub primary_columns {
   return @{shift->_primaries||[]};
 }
 
+# a helper method that will automatically die with a descriptive message if
+# no pk is defined on the source in question. For internal use to save
+# on if @pks... boilerplate
 sub _pri_cols {
   my $self = shift;
   my @pcols = $self->primary_columns
@@ -1465,7 +1468,7 @@ sub _resolve_prefetch {
       }
       #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
       #              values %{$rel_info->{cond}};
-      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->primary_columns ];
+      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->_pri_cols ];
         # action at a distance. prepending the '.' allows simpler code
         # in ResultSet->_collapse_result
       my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
