@@ -21,4 +21,14 @@ sub insert {
   return $self->SUPER::insert (@_);
 }
 
+# Allow STRAIGHT_JOIN's
+sub _generate_join_clause {
+    my ($self, $join_type) = @_;
+
+    if( $join_type && $join_type =~ /^STRAIGHT\z/i ) {
+        return ' STRAIGHT_JOIN '
+    }
+
+    return $self->SUPER::_generate_join_clause( $join_type );
+}
 1;

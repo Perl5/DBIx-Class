@@ -509,6 +509,14 @@ sub _table {
   }
 }
 
+sub _generate_join_clause {
+    my ($self, $join_type) = @_;
+
+    return sprintf ('%s JOIN ',
+      $join_type ?  ' ' . uc($join_type) : ''
+    );
+}
+
 sub _recurse_from {
   my ($self, $from, @join) = @_;
   my @sqlf;
@@ -527,10 +535,7 @@ sub _recurse_from {
 
     $join_type = $self->{_default_jointype} if not defined $join_type;
 
-    my $join_clause = sprintf ('%s JOIN ',
-      $join_type ?  ' ' . uc($join_type) : ''
-    );
-    push @sqlf, $join_clause;
+    push @sqlf, $self->_generate_join_clause( $join_type );
 
     if (ref $to eq 'ARRAY') {
       push(@sqlf, '(', $self->_recurse_from(@$to), ')');

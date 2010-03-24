@@ -4,6 +4,7 @@ Revision history for DBIx::Class
         - DBIx::Class::InflateColumn::File entered deprecated state
         - DBIx::Class::Optional::Dependencies left experimental state
         - Add req_group_list to Opt::Deps (RT#55211)
+        - Add support for mysql-specific STRAIGHT_JOIN (RT#55579)
         - Cascading delete/update are now wrapped in a transaction
           for atomicity
         - Fix multiple deficiencies when using MultiCreate with
