@@ -178,7 +178,7 @@ sub connect_call_use_MARS {
 sub _get_mssql_version {
   my $self = shift;
 
-  my ($version) = $self->_get_dbh->get_info(18) =~ /^(\d+)/;
+  my ($version) = $self->_server_info->{dbms_ver} =~ /^(\d+)/;
 
   return $version;
 }

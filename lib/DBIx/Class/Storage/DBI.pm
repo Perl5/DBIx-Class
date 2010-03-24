@@ -18,7 +18,8 @@ use Sub::Name ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
-     _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints/
+     _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints
+     _server_info/
 );
 
 # the values for these accessors are picked out (and deleted) from
@@ -919,6 +920,8 @@ sub _populate_dbh {
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
 
   $self->_run_connection_actions unless $self->{_in_determine_driver};
+
+  $self->_get_server_info;
 }
 
 sub _run_connection_actions {
@@ -929,6 +932,17 @@ sub _run_connection_actions {
   push @actions, $self->_parse_connect_do ('on_connect_do');
 
   $self->_do_connection_actions(connect_call_ => $_) for @actions;
+}
+
+sub _get_server_info {
+  my $self = shift;
+  my %info;
+
+  $info{dbms_ver} = $self->_get_dbh->get_info(18);
+
+  $self->_server_info(\%info);
+
+  return \%info;
 }
 
 sub _determine_driver {

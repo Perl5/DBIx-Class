@@ -25,9 +25,13 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
 
 my $schema;
 
+require DBIx::Class::Storage::DBI::Pg;
+
+my $can_insert_returning =
+  DBIx::Class::Storage::DBI::Pg->can('can_insert_returning');
+
 for my $use_insert_returning (0..1) {
   no warnings qw/redefine once/;
-  require DBIx::Class::Storage::DBI::Pg;
   local *DBIx::Class::Storage::DBI::Pg::can_insert_returning = sub {
     $use_insert_returning
   };
@@ -63,6 +67,14 @@ for my $use_insert_returning (0..1) {
 ### connect, create postgres-specific test schema
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  $schema->storage->ensure_connected;
+
+  if ($use_insert_returning && (not $can_insert_returning->($schema->storage)))
+  {
+    diag "Your version of PostgreSQL does not support INSERT ... RETURNING.";
+    diag "*** SKIPPING FURTHER TESTS";
+    last;
+  }
 
   drop_test_schema($schema);
   create_test_schema($schema);
