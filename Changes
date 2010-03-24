@@ -1,6 +1,8 @@
 Revision history for DBIx::Class
 
         - Support for Firebird RDBMS with DBD::InterBase and ODBC
+        - Add core support for INSERT RETURNING (for storages that
+          supports this syntax, currently PostgreSQL and Firebird)
         - DBIx::Class::InflateColumn::File entered deprecated state
         - DBIx::Class::Optional::Dependencies left experimental state
         - Add req_group_list to Opt::Deps (RT#55211)

@@ -364,7 +364,7 @@ sub insert {
     $source,
     { $self->get_columns },
     (keys %auto_pri) && $source->storage->can_insert_returning
-      ? { returning => [ sort { $auto_pri{$a} cmp $auto_pri{$b} } keys %auto_pri ] }
+      ? { returning => [ sort { $auto_pri{$a} <=> $auto_pri{$b} } keys %auto_pri ] }
       : ()
     ,
   );

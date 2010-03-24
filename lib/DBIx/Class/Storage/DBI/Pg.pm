@@ -62,8 +62,7 @@ sub _sequence_fetch {
   $self->throw_exception('No sequence to fetch') unless $sequence;
 
   my ($val) = $self->_get_dbh->selectrow_array(
-    sprintf "select $function('%s')",
-      $sequence
+    sprintf ("select %s('%s')", $function, $sequence)
   );
 
   return $val;
