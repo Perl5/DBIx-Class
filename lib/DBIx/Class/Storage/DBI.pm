@@ -921,7 +921,7 @@ sub _populate_dbh {
 
   $self->_run_connection_actions unless $self->{_in_determine_driver};
 
-  $self->_get_server_info;
+  $self->_populate_server_info;
 }
 
 sub _run_connection_actions {
@@ -934,11 +934,13 @@ sub _run_connection_actions {
   $self->_do_connection_actions(connect_call_ => $_) for @actions;
 }
 
-sub _get_server_info {
+sub _populate_server_info {
   my $self = shift;
   my %info;
 
-  $info{dbms_ver} = $self->_get_dbh->get_info(18);
+  my $dbms_ver = eval { local $@; $self->_get_dbh->get_info(18) };
+
+  $info{dbms_ver} = $dbms_ver if defined $dbms_ver;
 
   $self->_server_info(\%info);
 
