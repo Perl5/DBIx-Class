@@ -265,11 +265,13 @@ my $st = $schema->resultset('SequenceTest')->create({ name => 'foo', pkid1 => 55
 is($st->pkid1, 55, "Auto-PK for sequence without default: First primary key set manually");
 
 
-######## test non-integer non-serial auto-pk
+######## test non-serial auto-pk
 
-$schema->source('TimestampPrimaryKey')->name('dbic_t_schema.timestamp_primary_key_test');
-my $row = $schema->resultset('TimestampPrimaryKey')->create({});
-ok $row->id;
+if ($schema->storage->can_insert_returning) {
+  $schema->source('TimestampPrimaryKey')->name('dbic_t_schema.timestamp_primary_key_test');
+  my $row = $schema->resultset('TimestampPrimaryKey')->create({});
+  ok $row->id;
+}
 
 ######## test with_deferred_fk_checks
 

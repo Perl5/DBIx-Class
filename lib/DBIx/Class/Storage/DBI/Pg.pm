@@ -5,7 +5,6 @@ use warnings;
 
 use base qw/
     DBIx::Class::Storage::DBI::MultiColumnIn
-    DBIx::Class::Storage::DBI::InsertReturning
 /;
 use mro 'c3';
 
@@ -17,13 +16,19 @@ use Context::Preserve ();
 warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
   if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
 
+sub can_insert_returning {
+  # FIXME !!!
+  # pg before 8.2 doesn't support this, need to check version
+  return 1;
+}
+
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
 
   my $txn_scope_guard = $self->txn_scope_guard;
 
   $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
-  
+
   my $sg = Scope::Guard->new(sub {
     $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
   });
@@ -32,18 +37,37 @@ sub with_deferred_fk_checks {
     after => sub { $txn_scope_guard->commit });
 }
 
+sub last_insert_id {
+  my ($self,$source,@cols) = @_;
+
+  my @values;
+
+  for my $col (@cols) {
+    my $seq = ( $source->column_info($col)->{sequence} ||= $self->dbh_do('_dbh_get_autoinc_seq', $source, $col) )
+      or $self->throw_exception( sprintf(
+        'could not determine sequence for column %s.%s, please consider adding a schema-qualified sequence to its column info',
+          $source->name,
+          $col,
+      ));
+
+    push @values, $self->_dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
+  }
+
+  return @values;
+}
+
 sub _sequence_fetch {
   my ($self, $function, $sequence) = @_;
 
   $self->throw_exception('No sequence to fetch') unless $sequence;
-  
+
   my ($val) = $self->_get_dbh->selectrow_array(
     sprintf "select $function('%s')",
       $sequence
   );
 
   return $val;
-} 
+}
 
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $source, $col) = @_;

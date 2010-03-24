@@ -33,7 +33,10 @@ __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 # default cursor class, overridable in connect_info attributes
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
-__PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class/);
+__PACKAGE__->mk_group_accessors('inherited' => qw/
+  sql_maker_class
+  can_insert_returning
+/);
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
 
 
@@ -1387,13 +1390,32 @@ sub _prefetch_insert_auto_nextvals {
 
 sub insert {
   my $self = shift;
-  my ($source, $to_insert) = @_;
+  my ($source, $to_insert, $opts) = @_;
 
   my $updated_cols = $self->_prefetch_insert_auto_nextvals (@_);
 
   my $bind_attributes = $self->source_bind_attributes($source);
 
-  $self->_execute('insert' => [], $source, $bind_attributes, $to_insert);
+  my ($rv, $sth) = $self->_execute('insert' => [], $source, $bind_attributes, $to_insert, $opts);
+
+  if ($opts->{returning}) {
+    my @ret_cols = @{$opts->{returning}};
+
+    my @ret_vals = eval {
+      local $SIG{__WARN__} = sub {};
+      my @r = $sth->fetchrow_array;
+      $sth->finish;
+      @r;
+    };
+
+    my %ret;
+    @ret{@ret_cols} = @ret_vals if (@ret_vals);
+
+    $updated_cols = {
+      %$updated_cols,
+      %ret,
+    };
+  }
 
   return $updated_cols;
 }
