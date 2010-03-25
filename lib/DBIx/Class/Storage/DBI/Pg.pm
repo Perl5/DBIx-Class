@@ -19,10 +19,8 @@ warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
 sub can_insert_returning {
   my $self = shift;
 
-  my ($major, $minor) = $self->_server_info->{dbms_ver} =~ /^(\d+)\.(\d+)/;
-
   return 1
-    if ($major > 8) || ($major == 8 && $minor >= 2);
+    if $self->_server_info->{dbms_ver_normalized} >= 8.002;
 
   return 0;
 }

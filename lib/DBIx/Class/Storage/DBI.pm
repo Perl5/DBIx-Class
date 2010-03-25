@@ -940,7 +940,12 @@ sub _populate_server_info {
 
   my $dbms_ver = eval { local $@; $self->_get_dbh->get_info(18) };
 
-  $info{dbms_ver} = $dbms_ver if defined $dbms_ver;
+  if (defined $dbms_ver) {
+    $info{dbms_ver} = $dbms_ver;
+
+    my @verparts = split /\./, $dbms_ver;
+    $info{dbms_ver_normalized} = sprintf "%d.%03d%03d", @verparts;
+  }
 
   $self->__server_info(\%info);
 
