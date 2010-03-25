@@ -50,7 +50,7 @@ sub deployment_statements {
 
   $sqltargs ||= {};
 
-  my $sqlite_version = $self->_get_dbh->{sqlite_version};
+  my $sqlite_version = $self->_server_info->{dbms_ver};
 
   # numify, SQLT does a numeric comparison
   $sqlite_version =~ s/^(\d+) \. (\d+) (?: \. (\d+))? .*/${1}.${2}/x;

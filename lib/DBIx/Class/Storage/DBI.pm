@@ -19,7 +19,7 @@ use Sub::Name ();
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
      _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints
-     _server_info/
+     __server_info/
 );
 
 # the values for these accessors are picked out (and deleted) from
@@ -942,9 +942,17 @@ sub _populate_server_info {
 
   $info{dbms_ver} = $dbms_ver if defined $dbms_ver;
 
-  $self->_server_info(\%info);
+  $self->__server_info(\%info);
 
   return \%info;
+}
+
+sub _server_info {
+  my $self = shift;
+
+  $self->_get_dbh;
+
+  return $self->__server_info(@_);
 }
 
 sub _determine_driver {
