@@ -3,8 +3,10 @@ use strict;
 use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
-
 use mro 'c3';
+
+use Scope::Guard ();
+use Context::Preserve ();
 
 __PACKAGE__->mk_group_accessors('simple' => '__last_insert_id');
 
@@ -57,6 +59,21 @@ sub _svp_rollback {
     my ($self, $name) = @_;
 
     $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+}
+
+sub with_deferred_fk_checks {
+  my ($self, $sub) = @_;
+
+  my $txn_scope_guard = $self->txn_scope_guard;
+
+  $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
+
+  my $sg = Scope::Guard->new(sub {
+    $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
+  });
+
+  return Context::Preserve::preserve_context(sub { $sub->() },
+    after => sub { $txn_scope_guard->commit });
 }
 
 =head2 connect_call_datetime_setup
