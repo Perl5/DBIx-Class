@@ -38,10 +38,6 @@ sub _set_sql_dialect { 1 }
 # releasing savepoints doesn't work, but that shouldn't matter
 sub _svp_release { 1 }
 
-sub _populate_server_info {
-  goto &DBIx::Class::Storage::DBI::_populate_server_info
-}
-
 sub datetime_parser_type {
   'DBIx::Class::Storage::DBI::ODBC::Firebird::DateTime::Format'
 }

@@ -158,6 +158,8 @@ sub _set_sql_dialect {
 sub _populate_server_info {
   my $self = shift;
 
+  return $self->next::method(@_) if ref $self ne __PACKAGE__;
+
   local $SIG{__WARN__} = sub {}; # silence warning due to bug in DBD::InterBase
 
   return $self->next::method(@_);
