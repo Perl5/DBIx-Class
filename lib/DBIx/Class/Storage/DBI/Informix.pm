@@ -32,6 +32,22 @@ sub _sql_maker_opts {
   return { limit_dialect => 'SkipFirst', %{$self->{_sql_maker_opts}||{}} };
 }
 
+sub _svp_begin {
+    my ($self, $name) = @_;
+
+    $self->_get_dbh->do("SAVEPOINT $name");
+}
+
+# can't release savepoints
+sub _svp_release { 1 }
+
+sub _svp_rollback {
+    my ($self, $name) = @_;
+
+    $self->_get_dbh->do("ROLLBACK TO SAVEPOINT $name")
+}
+
+
 1;
 
 __END__

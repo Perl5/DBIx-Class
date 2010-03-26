@@ -13,7 +13,9 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_INFORMIX_${_}" } qw/DSN USER PASS
 plan skip_all => 'Set $ENV{DBICTEST_INFORMIX_DSN}, _USER and _PASS to run this test'
   unless $dsn;
 
-my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+  auto_savepoint => 1
+});
 
 my $dbh = $schema->storage->dbh;
 
@@ -72,6 +74,27 @@ is( $lim->next->artistid, 101, "iterator->next ok" );
 is( $lim->next->artistid, 102, "iterator->next ok" );
 is( $lim->next, undef, "next past end of resultset ok" );
 
+# test savepoints
+eval {
+  $schema->txn_do(sub {
+    eval {
+      $schema->txn_do(sub {
+        $ars->create({ name => 'in_savepoint' });
+        die "rolling back savepoint";
+      });
+    };
+    ok ((not $ars->search({ name => 'in_savepoint' })->first),
+      'savepoint rolled back');
+    $ars->create({ name => 'in_outer_txn' });
+    die "rolling back outer txn";
+  });
+};
+
+like $@, qr/rolling back outer txn/,
+  'correct exception for rollback';
+
+ok ((not $ars->search({ name => 'in_outer_txn' })->first),
+  'outer txn rolled back');
 
 done_testing;
 
