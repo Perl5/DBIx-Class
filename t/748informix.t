@@ -97,7 +97,7 @@ is( $lim->next->artistid, 102, "iterator->next ok" );
 is( $lim->next, undef, "next past end of resultset ok" );
 
 # test savepoints
-eval {
+throws_ok {
   $schema->txn_do(sub {
     eval {
       $schema->txn_do(sub {
@@ -110,9 +110,7 @@ eval {
     $ars->create({ name => 'in_outer_txn' });
     die "rolling back outer txn";
   });
-};
-
-like $@, qr/rolling back outer txn/,
+} qr/rolling back outer txn/,
   'correct exception for rollback';
 
 ok ((not $ars->search({ name => 'in_outer_txn' })->first),

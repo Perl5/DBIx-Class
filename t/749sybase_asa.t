@@ -61,7 +61,7 @@ EOF
   is($new->artistid, 66, 'Explicit PK assigned');
 
 # test savepoints
-  eval {
+  throws_ok {
     $schema->txn_do(sub {
       eval {
         $schema->txn_do(sub {
@@ -74,9 +74,7 @@ EOF
       $ars->create({ name => 'in_outer_txn' });
       die "rolling back outer txn";
     });
-  };
-
-  like $@, qr/rolling back outer txn/,
+  } qr/rolling back outer txn/,
     'correct exception for rollback';
 
   ok ((not $ars->search({ name => 'in_outer_txn' })->first),

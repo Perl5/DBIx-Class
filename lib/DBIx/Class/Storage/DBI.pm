@@ -938,7 +938,11 @@ sub _populate_server_info {
   my $self = shift;
   my %info;
 
-  my $dbms_ver = eval { local $@; $self->_get_dbh->get_info(18) };
+  my $dbms_ver = eval {
+      local $@;
+      $SIG{__WARN__} = sub {};
+      $self->_get_dbh->get_info(18)
+  };
 
   if (defined $dbms_ver) {
     $info{dbms_ver} = $dbms_ver;
