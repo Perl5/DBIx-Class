@@ -155,6 +155,14 @@ sub _set_sql_dialect {
   }
 }
 
+sub _populate_server_info {
+  my $self = shift;
+
+  local $SIG{__WARN__} = sub {}; # silence warning due to bug in DBD::InterBase
+
+  return $self->next::method(@_);
+}
+
 =head2 connect_call_use_softcommit
 
 Used as:

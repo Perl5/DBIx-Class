@@ -940,7 +940,6 @@ sub _populate_server_info {
 
   my $dbms_ver = eval {
       local $@;
-      local $SIG{__WARN__} = sub {};
       $self->_get_dbh->get_info(18)
   };
 
