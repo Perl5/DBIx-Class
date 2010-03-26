@@ -943,6 +943,8 @@ sub _populate_server_info {
   if (defined $dbms_ver) {
     $info{dbms_ver} = $dbms_ver;
 
+    ($dbms_ver) = $dbms_ver =~ /^(\S+)/;
+
     my @verparts = split /\./, $dbms_ver;
     $info{dbms_ver_normalized} = sprintf "%d.%03d%03d", @verparts;
   }
