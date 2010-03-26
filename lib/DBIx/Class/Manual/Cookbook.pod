@@ -415,6 +415,12 @@ supports indexes on expressions - including return values of functions - and
 you create an index on the return value of the function in question.) However,
 it can be accomplished with C<DBIx::Class> when necessary.
 
+Your approach for doing so will depend on whether you have turned
+quoting on via the C<quote_char> and C<name_sep> attributes. If you
+explicitly defined C<quote_char> and C<name_sep> in your
+C<connect_info> (see L<DBIx::Class::Storage::DBI/"connect_info">) then
+you are using quoting, otherwise not.
+
 If you do not have quoting on, simply include the function in your search
 specification as you would any column:
 
