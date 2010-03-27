@@ -27,7 +27,7 @@ my @handle_tests = (
         bind        => [],
         msg         => 'Simple: parentid != PRIOR artistid',
     },
-    # Example from http://download.oracle.com/docs/cd/B19306_01/server.102/b14200/queries003.htm
+    # Examples from http://download.oracle.com/docs/cd/B19306_01/server.102/b14200/queries003.htm
 
     # CONNECT BY last_name != 'King' AND PRIOR employee_id = manager_id ...
     {
@@ -37,7 +37,7 @@ my @handle_tests = (
         ],
         stmt        => "( last_name != ? AND manager_id = PRIOR( employee_id ) )",
         bind        => ['King'],
-        msg         => 'oracle.com excample #1',
+        msg         => 'oracle.com example #1',
     },
     # CONNECT BY PRIOR employee_id = manager_id and 
     #            PRIOR account_mgr_id = customer_id ...
@@ -48,7 +48,7 @@ my @handle_tests = (
         ],
         stmt        => "( manager_id = PRIOR( employee_id ) AND customer_id = PRIOR( account_mgr_id ) )",
         bind        => [],
-        msg         => 'oracle.com excample #2',
+        msg         => 'oracle.com example #2',
     },
     # CONNECT BY NOCYCLE PRIOR employee_id = manager_id AND LEVEL <= 4;
     # TODO: NOCYCLE parameter doesn't work
