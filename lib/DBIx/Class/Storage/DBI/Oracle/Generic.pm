@@ -420,9 +420,10 @@ sub _select_args {
     my ($self, $ident, $select, $where, $attrs) = @_;
 
     my $connect_by_args = {};
-    if ( $attrs->{connect_by} || $attrs->{start_with} || $attrs->{order_siblings_by} ) {
+    if ( $attrs->{connect_by} || $attrs->{start_with} || $attrs->{order_siblings_by} || $attrs->{nocycle} ) {
         $connect_by_args = {
             connect_by => $attrs->{connect_by},
+            nocycle => $attrs->{nocycle},
             start_with => $attrs->{start_with},
             order_siblings_by => $attrs->{order_siblings_by},
         }
@@ -457,6 +458,28 @@ and child rows of the hierarchy.
   #     person me
   # CONNECT BY
   #     parentid = prior persionid
+
+=head2 nocycle
+
+=over 4
+
+=item Value: [1|0]
+
+=back
+
+If you want to use NOCYCLE set to 1.
+
+    connect_by => { parentid => 'prior personid' },
+    nocycle    => 1
+
+    # adds a connect by statement to the query:
+    # SELECT
+    #     me.persionid me.firstname, me.lastname, me.parentid
+    # FROM
+    #     person me
+    # CONNECT BY NOCYCLE
+    #     parentid = prior persionid
+
 
 =head2 start_with
 

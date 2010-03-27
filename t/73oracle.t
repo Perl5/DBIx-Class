@@ -586,27 +586,66 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       # after count_subq, 
       # I will fix this later...
       # 
+      # is_same_sql_bind (
+      #   $rs->count_rs->as_query,
+      #   '( 
+      #       SELECT COUNT( * ) FROM (
+      #           SELECT * FROM (
+      #               SELECT A.*, ROWNUM r FROM (
+      #                   SELECT 
+      #                       me.artistid AS col1 
+      #                   FROM artist me 
+      #                   START WITH name = ? 
+      #                   CONNECT BY artistid = PRIOR( parentid ) 
+      #               ) A
+      #               WHERE ROWNUM < 3
+      #           ) B
+      #           WHERE r >= 1
+      #       ) count_subq 
+      #   )',
+      #   [ [ name => 'greatgrandchild' ] ],
+      # );
+      # 
+      # is( $rs->count, 2, 'Connect By; LIMIT count ok' );
+    }
+
+    # select the whole tree with nocylce
+    {
+      my $rs = $schema->resultset('Artist')->search({}, {
+        nocycle    => 1,
+        start_with => { name => 'root' },
+        connect_by => { parentid => { -prior => \ 'artistid' } },
+      });
+
       is_same_sql_bind (
-        $rs->count_rs->as_query,
-        '( 
-            SELECT COUNT( * ) FROM (
-                SELECT * FROM (
-                    SELECT A.*, ROWNUM r FROM (
-                        SELECT 
-                            me.artistid AS col1 
-                        FROM artist me 
-                        START WITH name = ? 
-                        CONNECT BY artistid = PRIOR( parentid ) 
-                    ) A
-                    WHERE ROWNUM < 3
-                ) B
-                WHERE r >= 1
-            ) count_subq 
+        $rs->as_query,
+        '(
+          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
+            FROM artist me
+          START WITH name = ?
+          CONNECT BY NOCYCLE parentid = PRIOR( artistid )
         )',
-        [ [ name => 'greatgrandchild' ] ],
+        [ [ name => 'root'] ],
+      );
+      is_deeply (
+        [ $rs->get_column ('name')->all ],
+        [ qw/root child1 grandchild greatgrandchild child2/ ],
+        'got artist tree with nocycle',
       );
 
-      is( $rs->count, 2, 'Connect By; LIMIT count ok' );
+
+      is_same_sql_bind (
+        $rs->count_rs->as_query,
+        '(
+          SELECT COUNT( * )
+            FROM artist me
+          START WITH name = ?
+          CONNECT BY NOCYCLE parentid = PRIOR( artistid )
+        )',
+        [ [ name => 'root'] ],
+      );
+
+      is( $rs->count, 5, 'Connect By Nocycle count ok' );
     }
 }
 

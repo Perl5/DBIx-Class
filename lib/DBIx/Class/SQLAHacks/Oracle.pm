@@ -8,8 +8,7 @@ use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 #  TODO:
 #   - Check the parameter syntax of connect_by
 #   - Review by experienced DBIC/SQL:A developers :-)
-#   - Check NOCYCLE parameter
-#       http://download.oracle.com/docs/cd/B19306_01/server.102/b14200/pseudocolumns001.htm#i1009434
+#   - Problem with count and connect_by look the TODO in t/73oracle.t
 # 
 
 sub select {
@@ -45,10 +44,11 @@ sub _connect_by {
             $sql .= $self->_sqlcase(' start with ') . $ws;
             push @bind, @wb;
         }
-        if ( my $connect_by = $attrs->{'connect_by'}) {
+        if ( my $connect_by = $attrs->{'connect_by'} ) {
             my ($connect_by_sql, @connect_by_sql_bind) = $self->_recurse_where( $attrs->{'connect_by'} );
             $sql .= sprintf(" %s %s",
-                $self->_sqlcase('connect by'),
+                ( $attrs->{'nocycle'} ) ? $self->_sqlcase('connect by nocycle')
+                    : $self->_sqlcase('connect by'),
                 $connect_by_sql,
             );
             push @bind, @connect_by_sql_bind;
