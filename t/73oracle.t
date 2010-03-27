@@ -444,8 +444,8 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     # get the root node
     {
       my $rs = $schema->resultset('Artist')->search({ parentid => undef }, {
-        start_with => { name => 'greatgrandchild' },
-        connect_by => { artistid => { -prior => \ 'parentid' } },
+        start_with => { name => 'root' },
+        connect_by => { parentid => { -prior => \ 'artistid' } },
       });
 
       is_same_sql_bind (
@@ -455,9 +455,9 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
             FROM artist me
           WHERE ( parentid IS NULL )
           START WITH name = ?
-          CONNECT BY artistid = PRIOR( parentid )
+          CONNECT BY parentid = PRIOR( artistid )
         )',
-        [ [ name => 'greatgrandchild'] ],
+        [ [ name => 'root'] ],
       );
 
       is_deeply(
@@ -517,9 +517,9 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     # combine a connect by with order_by
     {
       my $rs = $schema->resultset('Artist')->search({}, {
-        start_with => { name => 'greatgrandchild' },
-        connect_by => { artistid => { -prior => \ 'parentid' } },
-        order_by => { -asc => 'name' },
+        start_with => { name => 'root' },
+        connect_by => { parentid => { -prior => \ 'artistid' } },
+        order_by => { -asc => [ 'LEVEL', 'name' ] },
       });
 
       is_same_sql_bind (
@@ -528,15 +528,15 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
           SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
             FROM artist me
           START WITH name = ?
-          CONNECT BY artistid = PRIOR( parentid )
-          ORDER BY name ASC
+          CONNECT BY parentid = PRIOR( artistid )
+          ORDER BY LEVEL ASC, name ASC
         )',
-        [ [ name => 'greatgrandchild' ] ],
+        [ [ name => 'root' ] ],
       );
 
       is_deeply (
         [ $rs->get_column ('name')->all ],
-        [ qw/child1 grandchild greatgrandchild root/ ],
+        [ qw/root child1 child2 grandchild greatgrandchild/ ],
         'Connect By with a order_by - result name ok'
       );
     }
@@ -545,9 +545,9 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     # limit a connect by
     {
       my $rs = $schema->resultset('Artist')->search({}, {
-        start_with => { name => 'greatgrandchild' },
-        connect_by => { artistid => { -prior => \ 'parentid' } },
-        order_by => { -desc => 'name' },
+        start_with => { name => 'root' },
+        connect_by => { parentid => { -prior => \ 'artistid' } },
+        order_by => { -asc => 'name' },
         rows => 2,
       });
 
@@ -564,19 +564,19 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
                           me.parentid AS col5 
                       FROM artist me 
                       START WITH name = ? 
-                      CONNECT BY artistid = PRIOR( parentid )
-                      ORDER BY name DESC
+                      CONNECT BY parentid = PRIOR( artistid )
+                      ORDER BY name ASC
                   ) A
                   WHERE ROWNUM < 3
               ) B
               WHERE r >= 1 
         )',
-        [ [ name => 'greatgrandchild' ] ],
+        [ [ name => 'root' ] ],
       );
 
       is_deeply (
         [ $rs->get_column ('name')->all ],
-        [qw/root greatgrandchild/],
+        [qw/child1 child2/],
         'LIMIT a Connect By query - correct names'
       );
 
