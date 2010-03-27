@@ -44,8 +44,8 @@ DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
   my $rs = $schema->resultset('Person')->search({},
     {
       'start_with' => { 'firstname' => 'foo', 'lastname' => 'bar' },
-      'connect_by' => { 'parentid' => 'prior persionid'},
-      'order_siblings_by' => 'firstname ASC',
+      'connect_by' => { 'parentid' => { '-prior' => \'persionid' },
+      'order_siblings_by' => { -asc => 'name' },
     };
   );
 
