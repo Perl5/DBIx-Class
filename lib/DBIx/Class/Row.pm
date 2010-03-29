@@ -484,7 +484,7 @@ the database row can not be constructed (see
 L<significance of primary keys|DBIx::Class::Manual::Intro/The Significance and Importance of Primary Keys>
 for more details).
 
-Also takes an optional hashref of C<< column_name => value> >> pairs
+Also takes an optional hashref of C<< column_name => value >> pairs
 to update on the object first. Be aware that the hashref will be
 passed to C<set_inflated_columns>, which might edit it in place, so
 don't rely on it being the same after a call to C<update>.  If you
