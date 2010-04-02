@@ -367,8 +367,8 @@ That creates the following SQL:
 
 =head2 Predefined searches
 
-You can write your own L<DBIx::Class::ResultSet> class by inheriting from it
-and defining often used searches as methods:
+You can define frequently used searches as methods by subclassing
+L<DBIx::Class::ResultSet>:
 
   package My::DBIC::ResultSet::CD;
   use strict;
