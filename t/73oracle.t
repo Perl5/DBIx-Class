@@ -376,6 +376,22 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
         ],
     });
 
+    $schema->resultset('Artist')->create(
+        {
+            name     => 'cycle-root',
+            children => [
+                {
+                    name     => 'cycle-child1',
+                    children => [ { name => 'cycle-grandchild' } ],
+                },
+                { name => 'cycle-child2' },
+            ],
+        }
+    );
+
+    $schema->resultset('Artist')->find({ name => 'cycle-root' })
+      ->update({ parentid => \'artistid' });
+
     # select the whole tree
     {
       my $rs = $schema->resultset('Artist')->search({}, {
@@ -609,28 +625,48 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       # is( $rs->count, 2, 'Connect By; LIMIT count ok' );
     }
 
-    # select the whole tree with nocylce
+    # select the whole cycle tree without nocylce
+    {
+      my $rs = $schema->resultset('Artist')->search({}, {
+        start_with => { name => 'cycle-root' },
+        connect_by => { parentid => { -prior => \ 'artistid' } },
+      });
+      eval { $rs->get_column ('name')->all };
+      if ( $@ =~ /ORA-01436/ ){ # ORA-01436:	CONNECT BY loop in user data
+        pass "connect by initify loop detection without nocycle";
+      }else{
+        fail "connect by initify loop detection without nocycle, not detected by oracle";
+      }
+    }
+
+    # select the whole cycle tree with nocylce
     {
       my $rs = $schema->resultset('Artist')->search({}, {
         nocycle    => 1,
-        start_with => { name => 'root' },
+        start_with => { name => 'cycle-root' },
+        '+select'  => [ \ 'CONNECT_BY_ISCYCLE' ],
         connect_by => { parentid => { -prior => \ 'artistid' } },
       });
 
       is_same_sql_bind (
         $rs->as_query,
         '(
-          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
+          SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid, CONNECT_BY_ISCYCLE
             FROM artist me
           START WITH name = ?
           CONNECT BY NOCYCLE parentid = PRIOR( artistid )
         )',
-        [ [ name => 'root'] ],
+        [ [ name => 'cycle-root'] ],
       );
       is_deeply (
         [ $rs->get_column ('name')->all ],
-        [ qw/root child1 grandchild greatgrandchild child2/ ],
-        'got artist tree with nocycle',
+        [ qw/cycle-root cycle-child1 cycle-grandchild cycle-child2/ ],
+        'got artist tree with nocycle (name)',
+      );
+      is_deeply (
+        [ $rs->get_column ('CONNECT_BY_ISCYCLE')->all ],
+        [ qw/1 0 0 0/ ],
+        'got artist tree with nocycle (CONNECT_BY_ISCYCLE)',
       );
 
 
@@ -642,10 +678,10 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
           START WITH name = ?
           CONNECT BY NOCYCLE parentid = PRIOR( artistid )
         )',
-        [ [ name => 'root'] ],
+        [ [ name => 'cycle-root'] ],
       );
 
-      is( $rs->count, 5, 'Connect By Nocycle count ok' );
+      is( $rs->count, 4, 'Connect By Nocycle count ok' );
     }
 }
 
