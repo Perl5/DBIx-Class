@@ -6,7 +6,6 @@ use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 # 
 #  TODO:
-#   - Check the parameter syntax of connect_by
 #   - Review by experienced DBIC/SQL:A developers :-)
 #   - Problem with count and connect_by look the TODO in t/73oracle.t
 # 
