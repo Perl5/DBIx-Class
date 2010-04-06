@@ -273,7 +273,6 @@ sub _resolve_aliastypes_from_select_args {
         $aliases_by_type->{$type}{$alias} = 1 if ($piece =~ $al_re);
       }
     }
-
   }
 
   # now loop through unqualified column names, and try to locate them within
@@ -308,7 +307,7 @@ sub _resolve_aliastypes_from_select_args {
   for my $type (keys %$aliases_by_type) {
     for my $alias (keys %{$aliases_by_type->{$type}}) {
       $aliases_by_type->{$type}{$_} = 1
-        for (map { keys %$_ } @{ $alias_list->{$alias}{-join_path} || [] });
+        for (map { values %$_ } @{ $alias_list->{$alias}{-join_path} || [] });
     }
   }
 
@@ -453,7 +452,7 @@ sub _straight_join_to_node {
   # anyway, and deep cloning is just too fucking expensive
   # So replace the first hashref in the node arrayref manually 
   my @new_from = ($from->[0]);
-  my $sw_idx = { map { values %$_ => 1 } @$switch_branch };
+  my $sw_idx = { map { (values %$_), 1 } @$switch_branch }; #there's one k/v per join-path
 
   for my $j (@{$from}[1 .. $#$from]) {
     my $jalias = $j->[0]{-alias};

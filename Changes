@@ -17,6 +17,8 @@ Revision history for DBIx::Class
           is unresolvable
         - Fix the join-optimiser to consider unqualified column names
           whenever possible
+        - Fix an issue with multiple same-table joins confusing the join
+          optimizier
         - Add has_relationship method to row objects
         - Fix regression in set_column on PK-less objects
         - Better error text on malformed/missing relationships
