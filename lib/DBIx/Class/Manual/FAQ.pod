@@ -56,6 +56,12 @@ Create your classes manually, as above. Write a script that calls
 L<DBIx::Class::Schema/deploy>. See there for details, or the
 L<DBIx::Class::Manual::Cookbook>.
 
+=item .. store/retrieve Unicode data in my database?
+
+Make sure you database supports Unicode and set the connect
+attributes appropriately - see
+L<DBIx::Class::Manual::Cookbook/Using Unicode>
+
 =item .. connect to my database?
 
 Once you have created all the appropriate table/source classes, and an

@@ -49,7 +49,7 @@ With this driver there is unfortunately no way to get the C<last_insert_id>
 without doing a C<SELECT MAX(col)>. This is done safely in a transaction
 (locking the table.) See L</INSERTS WITH PLACEHOLDERS>.
 
-A recommended L<DBIx::Class::Storage::DBI/connect_info> setting:
+A recommended L<connect_info|DBIx::Class::Storage::DBI/connect_info> setting:
 
   on_connect_call => [['datetime_setup'], ['blob_setup', log_on_update => 0]]
 
@@ -846,7 +846,7 @@ Used as:
 
   on_connect_call => 'datetime_setup'
 
-In L<DBIx::Class::Storage::DBI/connect_info> to set:
+In L<connect_info|DBIx::Class::Storage::DBI/connect_info> to set:
 
   $dbh->syb_date_fmt('ISO_strict'); # output fmt: 2004-08-21T14:36:48.080Z
   $dbh->do('set dateformat mdy');   # input fmt:  08/13/1979 18:08:55.080
@@ -1069,11 +1069,12 @@ or
 instead.
 
 However, the C<LongReadLen> you pass in
-L<DBIx::Class::Storage::DBI/connect_info> is used to execute the equivalent
-C<SET TEXTSIZE> command on connection.
+L<connect_info|DBIx::Class::Storage::DBI/connect_info> is used to execute the
+equivalent C<SET TEXTSIZE> command on connection.
 
-See L</connect_call_blob_setup> for a L<DBIx::Class::Storage::DBI/connect_info>
-setting you need to work with C<IMAGE> columns.
+See L</connect_call_blob_setup> for a
+L<connect_info|DBIx::Class::Storage::DBI/connect_info> setting you need to work
+with C<IMAGE> columns.
 
 =head1 BULK API
 

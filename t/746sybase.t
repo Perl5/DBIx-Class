@@ -569,12 +569,10 @@ SQL
     $row->update({ amount => undef });
   } 'updated a money value to NULL';
 
-  my $null_amount = eval { $rs->find($row->id)->amount };
-  ok(
-    (($null_amount == undef) && (not $@)),
-    'updated money value to NULL round-trip'
-  );
-  diag $@ if $@;
+  lives_and {
+    my $null_amount = $rs->find($row->id)->amount;
+    is $null_amount, undef;
+  } 'updated money value to NULL round-trip';
 
 # Test computed columns and timestamps
   $schema->storage->dbh_do (sub {

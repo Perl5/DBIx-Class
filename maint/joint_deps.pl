@@ -19,15 +19,27 @@ use Data::Dumper::Concise;
 my $s = CPANDB::Schema->connect (sub { CPANDB->dbh } );
 
 # reference names are unstable - just create rels manually
-# is there a saner way to do that?
-my $distclass = $s->class('Distribution');
-$distclass->has_many (
+my $distrsrc = $s->source('Distribution');
+
+# the has_many helper is a class-only method (why?), thus
+# manual add_rel
+$distrsrc->add_relationship (
   'deps',
   $s->class('Dependency'),
-  'distribution',
+  { 'foreign.distribution' => 'self.' . ($distrsrc->primary_columns)[0] },
+  { accessor => 'multi', join_type => 'left' },
 );
-$s->unregister_source ('Distribution');
-$s->register_class ('Distribution', $distclass);
+
+# here is how one could use the helper currently:
+#
+#my $distresult = $s->class('Distribution');
+#$distresult->has_many (
+#  'deps',
+#  $s->class('Dependency'),
+#  'distribution',
+#);
+#$s->unregister_source ('Distribution');
+#$s->register_class ('Distribution', $distresult);
 
 
 # a proof of concept how to find out who uses us *AND* SQLT

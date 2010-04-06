@@ -1,16 +1,10 @@
 package DBIx::Class::Storage::DBI::InterBase;
 
-# partly stolen from DBIx::Class::Storage::DBI::MSSQL
-
 use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 use List::Util();
-
-__PACKAGE__->mk_group_accessors(simple => qw/
-  _auto_incs
-/);
 
 =head1 NAME
 
@@ -26,65 +20,16 @@ You need to use either the
 L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching> option or
 L</connect_call_use_softcommit> (see L</CAVEATS>) for your code to function
 correctly with this driver. Otherwise you will likely get bizarre error messages
-such as C<no statement executing>.
-
-For ODBC support, see L<DBIx::Class::Storage::DBI::ODBC::Firebird>.
+such as C<no statement executing>. The alternative is to use the
+L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird> driver, which is more suitable
+for long running processes such as under L<Catalyst>.
 
 To turn on L<DBIx::Class::InflateColumn::DateTime> support, see
 L</connect_call_datetime_setup>.
 
 =cut
 
-sub _prep_for_execute {
-  my $self = shift;
-  my ($op, $extra_bind, $ident, $args) = @_;
-
-  if ($op eq 'insert') {
-    $self->_auto_incs([]);
-
-    my %pk;
-    @pk{$ident->primary_columns} = ();
-
-    my @auto_inc_cols = grep {
-      my $inserting = $args->[0]{$_};
-
-      ($ident->column_info($_)->{is_auto_increment}
-        || exists $pk{$_})
-      && (
-        (not defined $inserting)
-        ||
-        (ref $inserting eq 'SCALAR' && $$inserting =~ /^null\z/i)
-      )
-    } $ident->columns;
-
-    if (@auto_inc_cols) {
-      $args->[1]{returning} = \@auto_inc_cols;
-
-      $self->_auto_incs->[0] = \@auto_inc_cols;
-    }
-  }
-
-  return $self->next::method(@_);
-}
-
-sub _execute {
-  my $self = shift;
-  my ($op) = @_;
-
-  my ($rv, $sth, @bind) = $self->dbh_do($self->can('_dbh_execute'), @_);
-
-  if ($op eq 'insert' && $self->_auto_incs) {
-    local $@;
-    my (@auto_incs) = eval {
-      local $SIG{__WARN__} = sub {};
-      $sth->fetchrow_array
-    };
-    $self->_auto_incs->[1] = \@auto_incs;
-    $sth->finish;
-  }
-
-  return wantarray ? ($rv, $sth, @bind) : $rv;
-}
+sub can_insert_returning { 1 }
 
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;
@@ -142,34 +87,6 @@ EOF
   return undef;
 }
 
-sub last_insert_id {
-  my ($self, $source, @cols) = @_;
-  my @result;
-
-  my %auto_incs;
-  @auto_incs{ @{ $self->_auto_incs->[0] } } =
-    @{ $self->_auto_incs->[1] };
-
-  push @result, $auto_incs{$_} for @cols;
-
-  return @result;
-}
-
-sub insert {
-  my $self = shift;
-
-  my $updated_cols = $self->next::method(@_);
-
-  if ($self->_auto_incs->[0]) {
-    my %auto_incs;
-    @auto_incs{ @{ $self->_auto_incs->[0] } } = @{ $self->_auto_incs->[1] };
-
-    $updated_cols = { %$updated_cols, %auto_incs };
-  }
-
-  return $updated_cols;
-}
-
 # this sub stolen from DB2
 
 sub _sql_maker_opts {
@@ -206,6 +123,7 @@ sub _ping {
   my $dbh = $self->_dbh or return 0;
 
   local $dbh->{RaiseError} = 1;
+  local $dbh->{PrintError} = 0;
 
   eval {
     $dbh->do('select 1 from rdb$database');
@@ -237,6 +155,16 @@ sub _set_sql_dialect {
   }
 }
 
+sub _populate_server_info {
+  my $self = shift;
+
+  return $self->next::method(@_) if ref $self ne __PACKAGE__;
+
+  local $SIG{__WARN__} = sub {}; # silence warning due to bug in DBD::InterBase
+
+  return $self->next::method(@_);
+}
+
 =head2 connect_call_use_softcommit
 
 Used as:
@@ -248,7 +176,8 @@ L<DBD::InterBase> C<ib_softcommit> option.
 
 You need either this option or C<< disable_sth_caching => 1 >> for
 L<DBIx::Class> code to function correctly (otherwise you may get C<no statement
-executing> errors.)
+executing> errors.) Or use the L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird>
+driver.
 
 The downside of using this option is that your process will B<NOT> see UPDATEs,
 INSERTs and DELETEs from other processes for already open statements.
@@ -365,6 +294,8 @@ L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching> as a
 workaround for the C<no statement executing> errors, this of course adversely
 affects performance.
 
+Alternately, use the L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird> driver.
+
 =item *
 
 C<last_insert_id> support by default only works for Firebird versions 2 or
@@ -373,7 +304,8 @@ work with earlier versions.
 
 =item *
 
-Sub-second precision for TIMESTAMPs is not currently available with ODBC.
+Sub-second precision for TIMESTAMPs is not currently available when using the
+L<ODBC|DBIx::Class::Storage::DBI::ODBC::Firebird> driver.
 
 =back
 

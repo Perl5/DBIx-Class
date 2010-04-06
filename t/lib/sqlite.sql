@@ -1,6 +1,6 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Sat Mar  6 18:04:27 2010
+-- Created on Mon Mar 22 11:08:33 2010
 -- 
 ;
 
@@ -166,6 +166,14 @@ CREATE TABLE sequence_test (
 CREATE TABLE serialized (
   id INTEGER PRIMARY KEY NOT NULL,
   serialized text NOT NULL
+);
+
+--
+-- Table: timestamp_primary_key_test
+--
+CREATE TABLE timestamp_primary_key_test (
+  id timestamp NOT NULL DEFAULT current_timestamp,
+  PRIMARY KEY (id)
 );
 
 --

@@ -232,24 +232,14 @@ sub build_datetime_parser {
 
 sub sqlt_type { 'SQLServer' }
 
-sub _get_mssql_version {
-  my $self = shift;
-
-  my $data = $self->_get_dbh->selectrow_hashref('xp_msver ProductVersion');
-
-  if ($data->{Character_Value} =~ /^(\d+)\./) {
-    return $1;
-  } else {
-    $self->throw_exception(q{Your ProductVersion's Character_Value is missing or malformed!});
-  }
-}
-
 sub sql_maker {
   my $self = shift;
 
   unless ($self->_sql_maker) {
     unless ($self->{_sql_maker_opts}{limit_dialect}) {
-      my $version = eval { $self->_get_mssql_version; } || 0;
+
+      my ($version) = $self->_server_info->{dbms_ver} =~ /^(\d+)/;
+      $version ||= 0;
 
       $self->{_sql_maker_opts} = {
         limit_dialect => ($version >= 9 ? 'RowNumberOver' : 'Top'),
@@ -261,6 +251,21 @@ sub sql_maker {
   }
 
   return $self->_sql_maker;
+}
+
+sub _ping {
+  my $self = shift;
+
+  my $dbh = $self->_dbh or return 0;
+
+  local $dbh->{RaiseError} = 1;
+  local $dbh->{PrintError} = 0;
+
+  eval {
+    $dbh->do('select 1');
+  };
+
+  return $@ ? 0 : 1;
 }
 
 1;

@@ -33,6 +33,12 @@ isa_ok( $schema->storage, 'DBIx::Class::Storage::DBI::ODBC::Microsoft_SQL_Server
   ok (! $schema2->storage->connected, 'a re-connected cloned schema starts unconnected');
 }
 
+$schema->storage->_dbh->disconnect;
+
+lives_ok {
+  $schema->storage->dbh_do(sub { $_[1]->do('select 1') })
+} '_ping works';
+
 $schema->storage->dbh_do (sub {
     my ($storage, $dbh) = @_;
     eval { $dbh->do("DROP TABLE artist") };

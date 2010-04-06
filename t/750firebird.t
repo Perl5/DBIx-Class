@@ -101,7 +101,7 @@ EOF
   is($st->pkid1, 55, "Firebird Auto-PK without trigger: First primary key set manually");
 
 # test savepoints
-  eval {
+  throws_ok {
     $schema->txn_do(sub {
       eval {
         $schema->txn_do(sub {
@@ -114,9 +114,7 @@ EOF
       $ars->create({ name => 'in_outer_txn' });
       die "rolling back outer txn";
     });
-  };
-
-  like $@, qr/rolling back outer txn/,
+  } qr/rolling back outer txn/,
     'correct exception for rollback';
 
   ok ((not $ars->search({ name => 'in_outer_txn' })->first),
@@ -184,13 +182,15 @@ EOF
   is( eval { $lim->next->artistid }, 102, "iterator->next ok" );
   is( $lim->next, undef, "next past end of resultset ok" );
 
-# test multiple executing cursors
+# test nested cursors
   {
     my $rs1 = $ars->search({}, { order_by => { -asc  => 'artistid' }});
-    my $rs2 = $ars->search({}, { order_by => { -desc => 'artistid' }});
 
-    is $rs1->next->artistid, 1,   'multiple cursors';
-    is $rs2->next->artistid, 102, 'multiple cursors';
+    my $rs2 = $ars->search({ artistid => $rs1->next->artistid }, {
+      order_by => { -desc => 'artistid' }
+    });
+
+    is $rs2->next->artistid, 1, 'nested cursors';
   }
 
 # test empty insert

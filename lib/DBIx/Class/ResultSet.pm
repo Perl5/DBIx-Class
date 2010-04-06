@@ -1007,7 +1007,7 @@ sub _collapse_result {
   # without having to contruct the full hash
 
   if (keys %collapse) {
-    my %pri = map { ($_ => 1) } $self->result_source->primary_columns;
+    my %pri = map { ($_ => 1) } $self->result_source->_pri_cols;
     foreach my $i (0 .. $#construct_as) {
       next if defined($construct_as[$i][0]); # only self table
       if (delete $pri{$construct_as[$i][1]}) {
@@ -1513,9 +1513,10 @@ sub update_all {
   my ($self, $values) = @_;
   $self->throw_exception('Values for update_all must be a hash')
     unless ref $values eq 'HASH';
-  foreach my $obj ($self->all) {
-    $obj->set_columns($values)->update;
-  }
+
+  my $guard = $self->result_source->schema->txn_scope_guard;
+  $_->update($values) for $self->all;
+  $guard->commit;
   return 1;
 }
 
@@ -1566,7 +1567,9 @@ sub delete_all {
   $self->throw_exception('delete_all does not accept any arguments')
     if @_;
 
+  my $guard = $self->result_source->schema->txn_scope_guard;
   $_->delete for $self->all;
+  $guard->commit;
   return 1;
 }
 

@@ -10,7 +10,7 @@ use mro 'c3';
 DBIx::Class::Storage::DBI::ODBC::Firebird - Driver for using the Firebird RDBMS
 through ODBC
 
-=head1 SYNOPSIS
+=head1 DESCRIPTION
 
 Most functionality is provided by L<DBIx::Class::Storage::DBI::Interbase>, see
 that module for details.
@@ -18,6 +18,11 @@ that module for details.
 To build the ODBC driver for Firebird on Linux for unixODBC, see:
 
 L<http://www.firebirdnews.org/?p=1324>
+
+This driver does not suffer from the nested statement handles across commits
+issue that the L<DBD::InterBase|DBIx::Class::Storage::DBI::InterBase> based
+driver does. This makes it more suitable for long running processes such as
+under L<Catalyst>.
 
 =cut
 

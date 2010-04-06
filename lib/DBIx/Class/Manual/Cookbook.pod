@@ -367,8 +367,8 @@ That creates the following SQL:
 
 =head2 Predefined searches
 
-You can write your own L<DBIx::Class::ResultSet> class by inheriting from it
-and defining often used searches as methods:
+You can define frequently used searches as methods by subclassing
+L<DBIx::Class::ResultSet>:
 
   package My::DBIC::ResultSet::CD;
   use strict;
@@ -414,6 +414,12 @@ good idea since it requires a scan of the entire table. (Unless your RDBMS
 supports indexes on expressions - including return values of functions - and
 you create an index on the return value of the function in question.) However,
 it can be accomplished with C<DBIx::Class> when necessary.
+
+Your approach for doing so will depend on whether you have turned
+quoting on via the C<quote_char> and C<name_sep> attributes. If you
+explicitly defined C<quote_char> and C<name_sep> in your
+C<connect_info> (see L<DBIx::Class::Storage::DBI/"connect_info">) then
+you are using quoting, otherwise not.
 
 If you do not have quoting on, simply include the function in your search
 specification as you would any column:
@@ -1217,6 +1223,8 @@ callback routine.
 
 =head1 TRANSACTIONS
 
+=head2 Transactions with txn_do
+
 As of version 0.04001, there is improved transaction support in
 L<DBIx::Class::Storage> and L<DBIx::Class::Schema>.  Here is an
 example of the recommended way to use it:
@@ -1248,11 +1256,16 @@ example of the recommended way to use it:
     deal_with_failed_transaction();
   }
 
+Note: by default C<txn_do> will re-run the coderef one more time if an
+error occurs due to client disconnection (e.g. the server is bounced).
+You need to make sure that your coderef can be invoked multiple times
+without terrible side effects.
+
 Nested transactions will work as expected. That is, only the outermost
 transaction will actually issue a commit to the $dbh, and a rollback
 at any level of any transaction will cause the entire nested
 transaction to fail.
- 
+
 =head2 Nested transactions and auto-savepoints
 
 If savepoints are supported by your RDBMS, it is possible to achieve true
@@ -1344,8 +1357,18 @@ commits are happening, but it works just the same as for plain L<<txn_do>>: If
 the C<eval>-block around C<txn_do> fails, a rollback is issued. If the C<eval>
 succeeds, the transaction is committed (or the savepoint released).
 
-While you can get more fine-grained controll using C<svp_begin>, C<svp_release>
+While you can get more fine-grained control using C<svp_begin>, C<svp_release>
 and C<svp_rollback>, it is strongly recommended to use C<txn_do> with coderefs.
+
+=head2 Simple Transactions with DBIx::Class::Storage::TxnScopeGuard
+
+An easy way to use transactions is with
+L<DBIx::Class::Storage::TxnScopeGuard>. See L</Automatically creating
+related objects> for an example.
+
+Note that unlike txn_do, TxnScopeGuard will only make sure the connection is
+alive when issuing the C<BEGIN> statement. It will not (and really can not)
+retry if the server goes away mid-operations, unlike C<txn_do>.
 
 =head1 SQL
 
@@ -1723,6 +1746,75 @@ L<DBIx::Class> sets L<SQL::Abstract/bindtype> to C<columns>, so you must pass
 the bind values (the C<[1, 2, 3]> arrayref in the above example) wrapped in
 arrayrefs together with the column name, like this: C<< [column_name => value]
 >>.
+
+=head2 Using Unicode
+
+When using unicode character data there are two alternatives -
+either your database supports unicode characters (including setting
+the utf8 flag on the returned string), or you need to encode/decode
+data appropriately each time a string field is inserted into or
+retrieved from the database. It is better to avoid
+encoding/decoding data and to use your database's own unicode
+capabilities if at all possible.
+
+The L<DBIx::Class::UTF8Columns> component handles storing selected
+unicode columns in a database that does not directly support
+unicode. If used with a database that does correctly handle unicode
+then strange and unexpected data corrupt B<will> occur.
+
+The Catalyst Wiki Unicode page at
+L<http://wiki.catalystframework.org/wiki/tutorialsandhowtos/using_unicode>
+has additional information on the use of Unicode with Catalyst and
+DBIx::Class.
+
+The following databases do correctly handle unicode data:-
+
+=head3 MySQL
+
+MySQL supports unicode, and will correctly flag utf8 data from the
+database if the C<mysql_enable_utf8> is set in the connect options.
+
+  my $schema = My::Schema->connection('dbi:mysql:dbname=test',
+                                      $user, $pass,
+                                      { mysql_enable_utf8 => 1} );
+  
+
+When set, a data retrieved from a textual column type (char,
+varchar, etc) will have the UTF-8 flag turned on if necessary. This
+enables character semantics on that string. You will also need to
+ensure that your database / table / column is configured to use
+UTF8. See Chapter 10 of the mysql manual for details.
+
+See L<DBD::mysql> for further details.
+
+=head3 Oracle
+
+Information about Oracle support for unicode can be found in
+L<DBD::Oracle/Unicode>.
+
+=head3 PostgreSQL
+
+PostgreSQL supports unicode if the character set is correctly set
+at database creation time. Additionally the C<pg_enable_utf8>
+should be set to ensure unicode data is correctly marked.
+
+  my $schema = My::Schema->connection('dbi:Pg:dbname=test',
+                                      $user, $pass,
+                                      { pg_enable_utf8 => 1} );
+
+Further information can be found in L<DBD::Pg>.
+
+=head3 SQLite
+
+SQLite version 3 and above natively use unicode internally. To
+correctly mark unicode strings taken from the database, the
+C<sqlite_unicode> flag should be set at connect time (in versions
+of L<DBD::SQLite> prior to 1.27 this attribute was named
+C<unicode>).
+
+  my $schema = My::Schema->connection('dbi:SQLite:/tmp/test.db',
+                                      '', '',
+                                      { sqlite_unicode => 1} );
 
 =head1 BOOTSTRAPPING/MIGRATING
 

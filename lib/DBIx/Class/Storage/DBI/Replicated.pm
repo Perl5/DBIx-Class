@@ -306,6 +306,7 @@ has 'write_handler' => (
 
     backup
     is_datatype_numeric
+    can_insert_returning
     _count_select
     _subq_count_select
     _subq_update_delete
@@ -365,6 +366,7 @@ has 'write_handler' => (
     _do_query
     _dbh_sth
     _dbh_execute
+    _prefetch_insert_auto_nextvals
   /],
 );
 

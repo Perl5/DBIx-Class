@@ -18,7 +18,8 @@ use Sub::Name ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
-     _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints/
+     _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints
+     __server_info/
 );
 
 # the values for these accessors are picked out (and deleted) from
@@ -33,7 +34,10 @@ __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 # default cursor class, overridable in connect_info attributes
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
-__PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class/);
+__PACKAGE__->mk_group_accessors('inherited' => qw/
+  sql_maker_class
+  can_insert_returning
+/);
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
 
 
@@ -89,7 +93,7 @@ DBIx::Class::Storage::DBI - DBI storage handler
   );
 
   $schema->resultset('Book')->search({
-     written_on => $schema->storage->datetime_parser(DateTime->now)
+     written_on => $schema->storage->datetime_parser->format_datetime(DateTime->now)
   });
 
 =head1 DESCRIPTION
@@ -916,6 +920,8 @@ sub _populate_dbh {
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
 
   $self->_run_connection_actions unless $self->{_in_determine_driver};
+
+  $self->_populate_server_info;
 }
 
 sub _run_connection_actions {
@@ -926,6 +932,37 @@ sub _run_connection_actions {
   push @actions, $self->_parse_connect_do ('on_connect_do');
 
   $self->_do_connection_actions(connect_call_ => $_) for @actions;
+}
+
+sub _populate_server_info {
+  my $self = shift;
+  my %info;
+
+  my $dbms_ver = eval {
+      local $@;
+      $self->_get_dbh->get_info(18)
+  };
+
+  if (defined $dbms_ver) {
+    $info{dbms_ver} = $dbms_ver;
+
+    ($dbms_ver) = $dbms_ver =~ /^(\S+)/;
+
+    my @verparts = split /\./, $dbms_ver;
+    $info{dbms_ver_normalized} = sprintf "%d.%03d%03d", @verparts;
+  }
+
+  $self->__server_info(\%info);
+
+  return \%info;
+}
+
+sub _server_info {
+  my $self = shift;
+
+  $self->_get_dbh;
+
+  return $self->__server_info(@_);
 }
 
 sub _determine_driver {
@@ -1363,20 +1400,17 @@ sub _execute {
     $self->dbh_do('_dbh_execute', @_);  # retry over disconnects
 }
 
-sub insert {
+sub _prefetch_insert_auto_nextvals {
   my ($self, $source, $to_insert) = @_;
 
-  my $ident = $source->from;
-  my $bind_attributes = $self->source_bind_attributes($source);
-
-  my $updated_cols = {};
+  my $upd = {};
 
   foreach my $col ( $source->columns ) {
     if ( !defined $to_insert->{$col} ) {
       my $col_info = $source->column_info($col);
 
       if ( $col_info->{auto_nextval} ) {
-        $updated_cols->{$col} = $to_insert->{$col} = $self->_sequence_fetch(
+        $upd->{$col} = $to_insert->{$col} = $self->_sequence_fetch(
           'nextval',
           $col_info->{sequence} ||=
             $self->_dbh_get_autoinc_seq($self->_get_dbh, $source, $col)
@@ -1385,7 +1419,37 @@ sub insert {
     }
   }
 
-  $self->_execute('insert' => [], $source, $bind_attributes, $to_insert);
+  return $upd;
+}
+
+sub insert {
+  my $self = shift;
+  my ($source, $to_insert, $opts) = @_;
+
+  my $updated_cols = $self->_prefetch_insert_auto_nextvals (@_);
+
+  my $bind_attributes = $self->source_bind_attributes($source);
+
+  my ($rv, $sth) = $self->_execute('insert' => [], $source, $bind_attributes, $to_insert, $opts);
+
+  if ($opts->{returning}) {
+    my @ret_cols = @{$opts->{returning}};
+
+    my @ret_vals = eval {
+      local $SIG{__WARN__} = sub {};
+      my @r = $sth->fetchrow_array;
+      $sth->finish;
+      @r;
+    };
+
+    my %ret;
+    @ret{@ret_cols} = @ret_vals if (@ret_vals);
+
+    $updated_cols = {
+      %$updated_cols,
+      %ret,
+    };
+  }
 
   return $updated_cols;
 }

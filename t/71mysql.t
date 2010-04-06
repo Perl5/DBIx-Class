@@ -194,6 +194,29 @@ lives_ok { $cd->set_producers ([ $producer ]) } 'set_relationship doesnt die';
   );
 }
 
+{
+  # Test support for straight joins
+  my $cdsrc = $schema->source('CD');
+  my $artrel_info = $cdsrc->relationship_info ('artist');
+  $cdsrc->add_relationship(
+    'straight_artist',
+    $artrel_info->{class},
+    $artrel_info->{cond},
+    { %{$artrel_info->{attrs}}, join_type => 'straight' },
+  );
+  is_same_sql_bind (
+    $cdsrc->resultset->search({}, { prefetch => 'straight_artist' })->as_query,
+    '(
+      SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+             straight_artist.artistid, straight_artist.name, straight_artist.rank, straight_artist.charfield
+        FROM cd me
+        STRAIGHT_JOIN artist straight_artist ON straight_artist.artistid = me.artist
+    )',
+    [],
+    'straight joins correctly supported for mysql'
+  );
+}
+
 ## Can we properly deal with the null search problem?
 ##
 ## Only way is to do a SET SQL_AUTO_IS_NULL = 0; on connect

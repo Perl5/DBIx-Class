@@ -103,8 +103,8 @@ use this function instead. It does:
   $dbh->do("SET TEXTSIZE $bytes");
 
 Takes the number of bytes, or uses the C<LongReadLen> value from your
-L<DBIx::Class/connect_info> if omitted, lastly falls back to the C<32768> which
-is the L<DBD::Sybase> default.
+L<connect_info|DBIx::Class::Storage::DBI/connect_info> if omitted, lastly falls
+back to the C<32768> which is the L<DBD::Sybase> default.
 
 =cut
 

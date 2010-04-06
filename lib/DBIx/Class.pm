@@ -218,7 +218,7 @@ is traditional :)
 
 =head1 CONTRIBUTORS
 
-abraxxa: Alexander Hartmaier <alex_hartmaier@hotmail.com>
+abraxxa: Alexander Hartmaier <abraxxa@cpan.org>
 
 aherzog: Adam Herzog <adam@herzogdesigns.com>
 
@@ -275,6 +275,8 @@ goraxe: Gordon Irving <goraxe@cpan.org>
 gphat: Cory G Watson <gphat@cpan.org>
 
 groditi: Guillermo Roditi <groditi@cpan.org>
+
+hobbs: Andrew Rodland <arodland@cpan.org>
 
 ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
 

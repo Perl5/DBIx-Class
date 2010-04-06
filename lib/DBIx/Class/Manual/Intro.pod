@@ -240,7 +240,7 @@ a special fifth argument to connect:
       { on_connect_do => \@on_connect_sql_statments }
   );
 
-See L<DBIx::Class::Schema::Storage::DBI/connect_info> for more information about
+See L<DBIx::Class::Storage::DBI/connect_info> for more information about
 this and other special C<connect>-time options.
 
 =head3 Via a database handle

@@ -3,22 +3,44 @@ package DBIx::Class::Storage::DBI::Pg;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI::MultiColumnIn/;
+use base qw/
+    DBIx::Class::Storage::DBI::MultiColumnIn
+/;
 use mro 'c3';
 
 use DBD::Pg qw(:pg_types);
+use Scope::Guard ();
+use Context::Preserve ();
 
 # Ask for a DBD::Pg with array support
 warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
   if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
 
+sub can_insert_returning {
+  my $self = shift;
+
+  return 1
+    if $self->_server_info->{dbms_ver_normalized} >= 8.002;
+
+  return 0;
+}
+
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
 
-  $self->_get_dbh->do('SET CONSTRAINTS ALL DEFERRED');
-  $sub->();
+  my $txn_scope_guard = $self->txn_scope_guard;
+
+  $self->_do_query('SET CONSTRAINTS ALL DEFERRED');
+
+  my $sg = Scope::Guard->new(sub {
+    $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
+  });
+
+  return Context::Preserve::preserve_context(sub { $sub->() },
+    after => sub { $txn_scope_guard->commit });
 }
 
+# only used when INSERT ... RETURNING is disabled
 sub last_insert_id {
   my ($self,$source,@cols) = @_;
 
@@ -32,19 +54,23 @@ sub last_insert_id {
           $col,
       ));
 
-    push @values, $self->_dbh_last_insert_id ($self->_dbh, $seq);
+    push @values, $self->_dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
   }
 
   return @values;
 }
 
-# there seems to be absolutely no reason to have this as a separate method,
-# but leaving intact in case someone is already overriding it
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $seq) = @_;
-  $dbh->last_insert_id(undef, undef, undef, undef, {sequence => $seq});
-}
+sub _sequence_fetch {
+  my ($self, $function, $sequence) = @_;
 
+  $self->throw_exception('No sequence to fetch') unless $sequence;
+
+  my ($val) = $self->_get_dbh->selectrow_array(
+    sprintf ("select %s('%s')", $function, $sequence)
+  );
+
+  return $val;
+}
 
 sub _dbh_get_autoinc_seq {
   my ($self, $dbh, $source, $col) = @_;
@@ -153,12 +179,6 @@ sub bind_attribute_by_data_type {
   else {
     return;
   }
-}
-
-sub _sequence_fetch {
-  my ( $self, $type, $seq ) = @_;
-  my ($id) = $self->_get_dbh->selectrow_array("SELECT nextval('${seq}')");
-  return $id;
 }
 
 sub _svp_begin {

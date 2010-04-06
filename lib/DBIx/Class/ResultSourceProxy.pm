@@ -37,6 +37,9 @@ sub add_columns {
   my $source = $class->result_source_instance;
   $source->add_columns(@cols);
   foreach my $c (grep { !ref } @cols) {
+    # If this is an augment definition get the real colname.
+    $c =~ s/^\+//;
+
     $class->register_column($c => $source->column_info($c));
   }
 }

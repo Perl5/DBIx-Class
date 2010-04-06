@@ -14,18 +14,23 @@ sub inject_base {
   my $target = shift;
 
   my @present_components = (@{mro::get_linear_isa ($target)||[]});
+  shift @present_components;    # don't need to interrogate myself
 
   no strict 'refs';
   for my $comp (reverse @_) {
 
-    if ($comp->isa ('DBIx::Class::UTF8Columns') ) {
+    # if we are trying add a UTF8Columns component *for the first time*
+    if ($comp->isa ('DBIx::Class::UTF8Columns') && ! $target->isa ('DBIx::Class::UTF8Columns') ) {
       require B;
       my @broken;
 
       for (@present_components) {
+        last if $_ eq 'DBIx::Class::Row'; # don't care about anything further down the chain
+
         my $cref = $_->can ('store_column')
          or next;
-        push @broken, $_ if B::svref_2object($cref)->STASH->NAME ne 'DBIx::Class::Row';
+
+        push @broken, $_ if B::svref_2object($cref)->STASH->NAME eq $_;
       }
 
       carp "Incorrect loading order of $comp by ${target} will affect other components overriding store_column ("
