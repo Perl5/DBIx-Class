@@ -80,19 +80,14 @@ sub _select_args {
   my $self = shift;
   my ($ident, $select) = @_;
 
-  my ($alias2source, $rs_alias) = $self->_resolve_ident_sources($ident);
+  my $col_info = $self->_resolve_column_info($ident);
 
   for my $select_idx (0..$#$select) {
     my $selected = $select->[$select_idx];
 
     next if ref $selected;
 
-    my ($alias, $col) = split /\./, $selected;
-       ($alias, $col) = ($rs_alias, $selected) if not defined $col;
-
-    my $data_type = eval {
-        $alias2source->{$alias}->column_info($col)->{data_type}
-    };
+    my $data_type = $col_info->{$selected}{data_type};
 
     if ($data_type && $data_type =~ /^uniqueidentifier\z/i) {
       $select->[$select_idx] = { UUIDTOSTR => $selected };
