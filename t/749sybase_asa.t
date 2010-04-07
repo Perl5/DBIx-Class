@@ -3,8 +3,11 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Scope::Guard ();
 use lib qw(t/lib);
 use DBICTest;
+
+DBICTest::Schema->load_classes('ArtistGUID');
 
 # tests stolen from 748informix.t
 
@@ -21,20 +24,20 @@ my @info = (
   [ $dsn2, $user2, $pass2 ],
 );
 
-my @handles_to_clean;
+my $schema;
 
 foreach my $info (@info) {
   my ($dsn, $user, $pass) = @$info;
 
   next unless $dsn;
 
-  my $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
+  $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     auto_savepoint => 1
   });
 
-  my $dbh = $schema->storage->dbh;
+  my $guard = Scope::Guard->new(\&cleanup);
 
-  push @handles_to_clean, $dbh;
+  my $dbh = $schema->storage->dbh;
 
   eval { $dbh->do("DROP TABLE artist") };
 
@@ -160,13 +163,62 @@ EOF
       ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
     }
   }
+ 
+  my @uuid_types = qw/uniqueidentifier uniqueidentifierstr/;
+
+# test uniqueidentifiers
+  for my $uuid_type (@uuid_types) {
+    local $schema->source('ArtistGUID')->column_info('artistid')->{data_type}
+      = $uuid_type;
+
+    local $schema->source('ArtistGUID')->column_info('a_guid')->{data_type}
+      = $uuid_type;
+
+    $schema->storage->dbh_do (sub {
+      my ($storage, $dbh) = @_;
+      eval { $dbh->do("DROP TABLE artist") };
+      $dbh->do(<<"SQL");
+CREATE TABLE artist (
+   artistid $uuid_type NOT NULL,
+   name VARCHAR(100),
+   rank INT NOT NULL DEFAULT '13',
+   charfield CHAR(10) NULL,
+   a_guid $uuid_type,
+   primary key(artistid)
+)
+SQL
+    });
+
+    my $row;
+    lives_ok {
+      $row = $schema->resultset('ArtistGUID')->create({ name => 'mtfnpy' })
+    } 'created a row with a GUID';
+
+    ok(
+      eval { $row->artistid },
+      'row has GUID PK col populated',
+    );
+    diag $@ if $@;
+
+    ok(
+      eval { $row->a_guid },
+      'row has a GUID col with auto_nextval populated',
+    );
+    diag $@ if $@;
+
+    my $row_from_db = $schema->resultset('ArtistGUID')
+      ->search({ name => 'mtfnpy' })->first;
+
+    is $row_from_db->artistid, $row->artistid,
+      'PK GUID round trip';
+
+    is $row_from_db->a_guid, $row->a_guid,
+      'NON-PK GUID round trip';
+  }
 }
 
 done_testing;
 
-# clean up our mess
-END {
-  foreach my $dbh (@handles_to_clean) {
-    eval { $dbh->do("DROP TABLE $_") } for qw/artist bindtype_test/;
-  }
+sub cleanup {
+  eval { $schema->storage->dbh->do("DROP TABLE $_") } for qw/artist bindtype_test/;
 }

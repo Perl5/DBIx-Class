@@ -2,7 +2,7 @@ package DBIx::Class::Storage::DBI::SQLAnywhere;
 
 use strict;
 use warnings;
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
 use List::Util ();
 
@@ -35,6 +35,8 @@ Recommended L<connect_info|DBIx::Class::Storage::DBI/connect_info> settings:
 
 sub last_insert_id { shift->_identity }
 
+sub _new_uuid { 'UUIDTOSTR(NEWID())' }
+
 sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
@@ -46,7 +48,9 @@ sub insert {
 # user might have an identity PK without is_auto_increment
   if (not $identity_col) {
     foreach my $pk_col ($source->primary_columns) {
-      if (not exists $to_insert->{$pk_col}) {
+      if (not exists $to_insert->{$pk_col} &&
+          $source->column_info($pk_col)->{data_type} !~ /^uniqueidentifier/i)
+      {
         $identity_col = $pk_col;
         last;
       }
@@ -58,11 +62,41 @@ sub insert {
     my $table_name = $source->from;
     $table_name    = $$table_name if ref $table_name;
 
-    my ($identity) = $dbh->selectrow_array("SELECT GET_IDENTITY('$table_name')");
+    my ($identity) = eval {
+      local $@; $dbh->selectrow_array("SELECT GET_IDENTITY('$table_name')")
+    };
 
-    $to_insert->{$identity_col} = $identity;
+    if (defined $identity) {
+      $to_insert->{$identity_col} = $identity;
+      $self->_identity($identity);
+    }
+  }
 
-    $self->_identity($identity);
+  return $self->next::method(@_);
+}
+
+# convert UUIDs to strings in selects
+sub _select_args {
+  my $self = shift;
+  my ($ident, $select) = @_;
+
+  my ($alias2source, $rs_alias) = $self->_resolve_ident_sources($ident);
+
+  for my $select_idx (0..$#$select) {
+    my $selected = $select->[$select_idx];
+
+    next if ref $selected;
+
+    my ($alias, $col) = split /\./, $selected;
+       ($alias, $col) = ($rs_alias, $selected) if not defined $col;
+
+    my $data_type = eval {
+        $alias2source->{$alias}->column_info($col)->{data_type}
+    };
+
+    if ($data_type && $data_type =~ /^uniqueidentifier\z/i) {
+      $select->[$select_idx] = { UUIDTOSTR => $selected };
+    }
   }
 
   return $self->next::method(@_);

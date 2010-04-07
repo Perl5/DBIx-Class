@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI::MSSQL;
 use strict;
 use warnings;
 
-use base qw/DBIx::Class::Storage::DBI/;
+use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
 
 use List::Util();
@@ -66,42 +66,11 @@ sub insert_bulk {
   }
 }
 
-# support MSSQL GUID column types
-
 sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
   my $supplied_col_info = $self->_resolve_column_info($source, [keys %$to_insert] );
-
-  my %guid_cols;
-  my @pk_cols = $source->primary_columns;
-  my %pk_cols;
-  @pk_cols{@pk_cols} = ();
-
-  my @pk_guids = grep {
-    $source->column_info($_)->{data_type}
-    &&
-    $source->column_info($_)->{data_type} =~ /^uniqueidentifier/i
-  } @pk_cols;
-
-  my @auto_guids = grep {
-    $source->column_info($_)->{data_type}
-    &&
-    $source->column_info($_)->{data_type} =~ /^uniqueidentifier/i
-    &&
-    $source->column_info($_)->{auto_nextval}
-  } grep { not exists $pk_cols{$_} } $source->columns;
-
-  my @get_guids_for =
-    grep { not exists $to_insert->{$_} } (@pk_guids, @auto_guids);
-
-  my $updated_cols = {};
-
-  for my $guid_col (@get_guids_for) {
-    my ($new_guid) = $self->_get_dbh->selectrow_array('SELECT NEWID()');
-    $updated_cols->{$guid_col} = $to_insert->{$guid_col} = $new_guid;
-  }
 
   my $is_identity_insert = (List::Util::first { $_->{is_auto_increment} } (values %$supplied_col_info) )
      ? 1
@@ -111,12 +80,11 @@ sub insert {
      $self->_set_identity_insert ($source->name);
   }
 
-  $updated_cols = { %$updated_cols, %{ $self->next::method(@_) } };
+  my $updated_cols = $self->next::method(@_);
 
   if ($is_identity_insert) {
      $self->_unset_identity_insert ($source->name);
   }
-
 
   return $updated_cols;
 }
@@ -363,7 +331,7 @@ different/better way to get the same result - please file a bugreport.
 
 =head1 AUTHOR
 
-See L<DBIx::Class/CONTRIBUTORS>.
+See L<DBIx::Class/AUTHOR> and L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
