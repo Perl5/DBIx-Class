@@ -9,6 +9,8 @@ Revision history for DBIx::Class
         - Add support for mysql-specific STRAIGHT_JOIN (RT#55579)
         - Cascading delete/update are now wrapped in a transaction
           for atomicity
+        - Fix accidental autovivification of ENV vars
+        - Fix update_all and delete_all to be wrapped in a transaction
         - Fix multiple deficiencies when using MultiCreate with
           data-encoder components (e.g. ::EncodedColumn)
         - Fix regression where SQL files with comments were not
@@ -27,7 +29,6 @@ Revision history for DBIx::Class
           attribute
         - Fix ambiguity in default directory handling of create_ddl_dir
           (RT#54063)
-        - Fix update_all and delete_all to be wrapped in a transaction
         - Support add_columns('+colname' => { ... }) to augment column
           definitions.
         - Fix spurious warnings on multiple UTF8Columns component loads
