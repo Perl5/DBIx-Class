@@ -306,7 +306,7 @@ has 'write_handler' => (
 
     backup
     is_datatype_numeric
-    can_insert_returning
+    _supports_insert_returning
     _count_select
     _subq_count_select
     _subq_update_delete

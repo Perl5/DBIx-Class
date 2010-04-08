@@ -29,7 +29,7 @@ L</connect_call_datetime_setup>.
 
 =cut
 
-sub can_insert_returning { 1 }
+sub _supports_insert_returning { 1 }
 
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;

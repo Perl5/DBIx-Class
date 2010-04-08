@@ -36,7 +36,7 @@ __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
 __PACKAGE__->mk_group_accessors('inherited' => qw/
   sql_maker_class
-  can_insert_returning
+  _supports_insert_returning
 /);
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
 
