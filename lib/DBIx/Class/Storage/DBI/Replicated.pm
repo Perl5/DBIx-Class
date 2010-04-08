@@ -367,12 +367,6 @@ has 'write_handler' => (
     _dbh_sth
     _dbh_execute
     _prefetch_insert_auto_nextvals
-  /,
-
-  # TODO these need to be spread out to ALL servers not just the master
-  qw/
-    _get_server_version
-    _server_info
     _server_info_hash
   /],
 );
@@ -1014,6 +1008,33 @@ sub _ping {
   my $self = shift;
 
   return min map $_->_ping, $self->all_storages;
+}
+
+sub _server_info {
+  my $self = shift;
+
+  if (not $self->_server_info_hash) {
+    no warnings 'numeric'; # in case dbms_version doesn't normalize
+
+    my @infos = 
+      map $_->[1],
+      sort { $a->[0] <=> $b->[0] } 
+      map [ (defined $_->{normalized_dbms_version} ? $_->{normalized_dbms_version}
+              : $_->{dbms_version}), $_ ],
+      map $_->_server_info, $self->all_storages;
+
+    my $min_version_info = $infos[0];
+
+    $self->_server_info_hash($min_version_info); # on master
+  }
+
+  return $self->_server_info_hash;
+}
+
+sub _get_server_version {
+  my $self = shift;
+
+  return $self->_server_info->{dbms_version};
 }
 
 =head1 GOTCHAS
