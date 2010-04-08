@@ -206,8 +206,7 @@ sub sql_maker {
   unless ($self->_sql_maker) {
     unless ($self->{_sql_maker_opts}{limit_dialect}) {
 
-      my ($version) = $self->_server_info->{dbms_ver} =~ /^(\d+)/;
-      $version ||= 0;
+      my $version = $self->_server_info->{normalized_dbms_version} || 0;
 
       $self->{_sql_maker_opts} = {
         limit_dialect => ($version >= 9 ? 'RowNumberOver' : 'Top'),

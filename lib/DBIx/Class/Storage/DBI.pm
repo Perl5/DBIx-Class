@@ -19,7 +19,7 @@ use Sub::Name ();
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
      _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints
-     __server_info/
+     _server_info_hash/
 );
 
 # the values for these accessors are picked out (and deleted) from
@@ -908,6 +908,7 @@ sub _populate_dbh {
 
   my @info = @{$self->_dbi_connect_info || []};
   $self->_dbh(undef); # in case ->connected failed we might get sent here
+  $self->_server_info_hash (undef);
   $self->_dbh($self->_connect(@info));
 
   $self->_conn_pid($$);
@@ -920,8 +921,6 @@ sub _populate_dbh {
   $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
 
   $self->_run_connection_actions unless $self->{_in_determine_driver};
-
-  $self->_populate_server_info;
 }
 
 sub _run_connection_actions {
@@ -934,35 +933,39 @@ sub _run_connection_actions {
   $self->_do_connection_actions(connect_call_ => $_) for @actions;
 }
 
-sub _populate_server_info {
-  my $self = shift;
-  my %info;
-
-  my $dbms_ver = eval {
-      local $@;
-      $self->_get_dbh->get_info(18)
-  };
-
-  if (defined $dbms_ver) {
-    $info{dbms_ver} = $dbms_ver;
-
-    ($dbms_ver) = $dbms_ver =~ /^(\S+)/;
-
-    my @verparts = split /\./, $dbms_ver;
-    $info{dbms_ver_normalized} = sprintf "%d.%03d%03d", @verparts;
-  }
-
-  $self->__server_info(\%info);
-
-  return \%info;
-}
-
 sub _server_info {
   my $self = shift;
 
-  $self->_get_dbh;
+  unless ($self->_server_info_hash) {
 
-  return $self->__server_info(@_);
+    my %info;
+
+    my $server_version = $self->_get_server_version;
+
+    if (defined $server_version) {
+      $info{dbms_version} = $server_version;
+
+      my ($numeric_version) = $server_version =~ /^([\d\.]+)/;
+      my @verparts = split (/\./, $numeric_version);
+      if (
+        @verparts
+          &&
+        @verparts <= 3
+          &&
+        ! grep { $_ > 999 } (@verparts)
+      ) {
+        $info{normalized_dbms_version} = sprintf "%d.%03d%03d", @verparts;
+      }
+    }
+
+    $self->_server_info_hash(\%info);
+  }
+
+  return $self->_server_info_hash
+}
+
+sub _get_server_version {
+  eval { shift->_get_dbh->get_info(18) };
 }
 
 sub _determine_driver {

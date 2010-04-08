@@ -55,23 +55,19 @@ sub _dbh_rollback {
   $dbh->do('ROLLBACK');
 }
 
-sub _populate_server_info {
+sub _get_server_version {
   my $self = shift;
-
-  my $info = $self->next::method(@_);
 
   my $product_version = $self->_get_dbh->selectrow_hashref('xp_msver ProductVersion');
 
   if ((my $version = $data->{Character_Value}) =~ /^(\d+)\./) {
-    $info->{dbms_ver} = $version;
-  } else {
-    $self->throw_exception(q{
-MSSQL Version Retrieval Failed, Your ProductVersion's Character_Value is missing
-or malformed!
+    return $version;
+  }
+  else {
+    $self->throw_exception(
+      "MSSQL Version Retrieval Failed, Your ProductVersion's Character_Value is missing or malformed!"
     });
   }
-
-  return $info;
 }
 
 1;

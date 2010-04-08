@@ -367,8 +367,16 @@ has 'write_handler' => (
     _dbh_sth
     _dbh_execute
     _prefetch_insert_auto_nextvals
+  /,
+
+  # TODO these need to be spread out to ALL servers not just the master
+  qw/
+    _get_server_version
+    _server_info
+    _server_info_hash
   /],
 );
+
 
 has _master_connect_info_opts =>
   (is => 'rw', isa => HashRef, default => sub { {} });

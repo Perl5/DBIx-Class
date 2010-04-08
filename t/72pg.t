@@ -23,16 +23,20 @@ EOM
 our @test_classes; #< array that will be pushed into by test classes defined in this file
 DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_classes;
 
+my $test_server_supports_insert_returning = do {
+  my $s = DBICTest::Schema->connect($dsn, $user, $pass);
+  $s->storage->_determine_driver;
+  $s->storage->_supports_insert_returning;
+};
+
 my $schema;
 
-require DBIx::Class::Storage::DBI::Pg;
-
-my $can_insert_returning =
-  DBIx::Class::Storage::DBI::Pg->can('can_insert_returning');
-
-for my $use_insert_returning (0..1) {
+for my $use_insert_returning ($test_server_supports_insert_returning
+  ? (0,1)
+  : (0)
+) {
   no warnings qw/redefine once/;
-  local *DBIx::Class::Storage::DBI::Pg::can_insert_returning = sub {
+  local *DBIx::Class::Storage::DBI::Pg::_supports_insert_returning = sub {
     $use_insert_returning
   };
 
@@ -68,13 +72,6 @@ for my $use_insert_returning (0..1) {
 
   $schema = DBICTest::Schema->connect($dsn, $user, $pass);
   $schema->storage->ensure_connected;
-
-  if ($use_insert_returning && (not $can_insert_returning->($schema->storage)))
-  {
-    diag "Your version of PostgreSQL does not support INSERT ... RETURNING.";
-    diag "*** SKIPPING FURTHER TESTS";
-    last;
-  }
 
   drop_test_schema($schema);
   create_test_schema($schema);
@@ -281,7 +278,7 @@ for my $use_insert_returning (0..1) {
 
 ######## test non-serial auto-pk
 
-  if ($schema->storage->can_insert_returning) {
+  if ($schema->storage->_supports_insert_returning) {
     $schema->source('TimestampPrimaryKey')->name('dbic_t_schema.timestamp_primary_key_test');
     my $row = $schema->resultset('TimestampPrimaryKey')->create({});
     ok $row->id;
