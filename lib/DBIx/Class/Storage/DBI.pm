@@ -950,11 +950,18 @@ sub _server_info {
       if (
         @verparts
           &&
-        @verparts <= 3
-          &&
-        ! grep { $_ > 999 } (@verparts)
+        $verparts[0] <= 999
       ) {
-        $info{normalized_dbms_version} = sprintf "%d.%03d%03d", @verparts;
+        # consider only up to 3 version parts, iff not more than 3 digits
+        my @use_parts;
+        while (@verparts && @use_parts < 3) {
+          my $p = shift @verparts;
+          last if $p > 999;
+          push @use_parts, $p;
+        }
+        push @use_parts, 0 while @use_parts < 3;
+
+        $info{normalized_dbms_version} = sprintf "%d.%03d%03d", @use_parts;
       }
     }
 
