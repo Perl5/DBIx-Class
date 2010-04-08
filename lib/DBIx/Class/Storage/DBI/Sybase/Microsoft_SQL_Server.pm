@@ -60,13 +60,13 @@ sub _get_server_version {
 
   my $product_version = $self->_get_dbh->selectrow_hashref('xp_msver ProductVersion');
 
-  if ((my $version = $data->{Character_Value}) =~ /^(\d+)\./) {
+  if ((my $version = $product_version->{Character_Value}) =~ /^(\d+)\./) {
     return $version;
   }
   else {
     $self->throw_exception(
       "MSSQL Version Retrieval Failed, Your ProductVersion's Character_Value is missing or malformed!"
-    });
+    );
   }
 }
 
