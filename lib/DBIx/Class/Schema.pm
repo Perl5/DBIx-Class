@@ -669,7 +669,7 @@ sub txn_scope_guard {
 
 Begins a transaction (does nothing if AutoCommit is off). Equivalent to
 calling $schema->storage->txn_begin. See
-L<DBIx::Class::Storage::DBI/"txn_begin"> for more information.
+L<DBIx::Class::Storage/"txn_begin"> for more information.
 
 =cut
 
@@ -685,7 +685,7 @@ sub txn_begin {
 =head2 txn_commit
 
 Commits the current transaction. Equivalent to calling
-$schema->storage->txn_commit. See L<DBIx::Class::Storage::DBI/"txn_commit">
+$schema->storage->txn_commit. See L<DBIx::Class::Storage/"txn_commit">
 for more information.
 
 =cut
@@ -703,7 +703,7 @@ sub txn_commit {
 
 Rolls back the current transaction. Equivalent to calling
 $schema->storage->txn_rollback. See
-L<DBIx::Class::Storage::DBI/"txn_rollback"> for more information.
+L<DBIx::Class::Storage/"txn_rollback"> for more information.
 
 =cut
 
@@ -927,7 +927,7 @@ sub setup_connection_class {
 
 Creates a new savepoint (does nothing outside a transaction). 
 Equivalent to calling $schema->storage->svp_begin.  See
-L<DBIx::Class::Storage::DBI/"svp_begin"> for more information.
+L<DBIx::Class::Storage/"svp_begin"> for more information.
 
 =cut
 
@@ -944,7 +944,7 @@ sub svp_begin {
 
 Releases a savepoint (does nothing outside a transaction). 
 Equivalent to calling $schema->storage->svp_release.  See
-L<DBIx::Class::Storage::DBI/"svp_release"> for more information.
+L<DBIx::Class::Storage/"svp_release"> for more information.
 
 =cut
 
@@ -961,7 +961,7 @@ sub svp_release {
 
 Rollback to a savepoint (does nothing outside a transaction). 
 Equivalent to calling $schema->storage->svp_rollback.  See
-L<DBIx::Class::Storage::DBI/"svp_rollback"> for more information.
+L<DBIx::Class::Storage/"svp_rollback"> for more information.
 
 =cut
 
