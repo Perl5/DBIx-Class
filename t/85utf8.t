@@ -91,9 +91,8 @@ Class::C3->reinitialize();
   }
 }
 
-# there's some weird bug in Test::Builder that spews out wide-character warnings
-# without any print taking place
-$SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /Wide character in print/ };
+# as per http://search.cpan.org/dist/Test-Simple/lib/Test/More.pm#utf8
+binmode (Test::More->builder->$_, ':utf8') for qw/output failure_output todo_output/;
 
 my $bytestream_title = my $utf8_title = "weird \x{466} stuff";
 utf8::encode($bytestream_title);
