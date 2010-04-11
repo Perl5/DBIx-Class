@@ -8,6 +8,8 @@ use base 'Class::C3::Componentised';
 use Carp::Clan qw/^DBIx::Class|^Class::C3::Componentised/;
 use mro 'c3';
 
+my $warned;
+
 # this warns of subtle bugs introduced by UTF8Columns hacky handling of store_column
 # if and only if it is placed before something overriding store_column
 sub inject_base {
@@ -21,7 +23,7 @@ sub inject_base {
     $target->isa ('DBIx::Class::ForceUTF8')
   );
 
-  my (@target_isa, $base_store_column);
+  my @target_isa;
 
   while ($keep_checking && @complist) {
 
@@ -30,13 +32,21 @@ sub inject_base {
 
     my $comp = pop @complist;
 
-    if ($comp->isa ('DBIx::Class::UTF8Columns') || $comp->isa ('DBIx::Class::ForceUTF8') {
+    # warn here on use of either component, as we have no access to ForceUTF8,
+    # the author does not respond, and the Catalyst wiki used to recommend it
+    for (qw/DBIx::Class::UTF8Columns DBIx::Class::ForceUTF8/) {
+      if ($comp->isa ($_) ) {
+        $keep_checking = 0; # no use to check from this point on
+        carp "Use of $_ is strongly discouraged. See documentationm of DBIx::Class::UTF8Columns for more info\n"
+          unless ($warned->{UTF8Columns}++ || $ENV{DBIC_UTF8COLUMNS_OK});
+        last;
+      }
+    }
 
-      $keep_checking = 0;
+    # something unset $keep_checking - we got a unicode mangler
+    if (! $keep_checking) {
 
-      $base_store_column ||=
-        do { require DBIx::Class::Row; DBIx::Class::Row->can ('store_column') };
-
+      my $base_store_column = do { require DBIx::Class::Row; DBIx::Class::Row->can ('store_column') };
 
       my @broken;
       for my $existing_comp (@target_isa) {

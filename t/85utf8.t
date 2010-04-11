@@ -22,6 +22,7 @@ use DBICTest;
 
 warnings_are (
   sub {
+    local $ENV{DBIC_UTF8COLUMNS_OK} = 1;
     package A::Test1;
     use base 'DBIx::Class::Core';
     __PACKAGE__->load_components(qw(Core +A::Comp Ordered UTF8Columns));
