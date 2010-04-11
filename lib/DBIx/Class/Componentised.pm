@@ -15,21 +15,28 @@ sub inject_base {
   my ($target, @complist) = @_;
 
   # we already did load the component
-  my $keep_checking = ! $target->isa ('DBIx::Class::UTF8Columns');
+  my $keep_checking = ! (
+    $target->isa ('DBIx::Class::UTF8Columns')
+      ||
+    $target->isa ('DBIx::Class::ForceUTF8')
+  );
 
-  my @target_isa = do { no strict 'refs'; @{"$target\::ISA"} };
-  my $base_store_column;
+  my (@target_isa, $base_store_column);
 
   while ($keep_checking && @complist) {
 
+    @target_isa = do { no strict 'refs'; @{"$target\::ISA"} }
+      unless @target_isa;
+
     my $comp = pop @complist;
 
-    if ($comp->isa ('DBIx::Class::UTF8Columns')) {
+    if ($comp->isa ('DBIx::Class::UTF8Columns') || $comp->isa ('DBIx::Class::ForceUTF8') {
 
       $keep_checking = 0;
 
       $base_store_column ||=
         do { require DBIx::Class::Row; DBIx::Class::Row->can ('store_column') };
+
 
       my @broken;
       for my $existing_comp (@target_isa) {
