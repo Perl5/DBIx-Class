@@ -15,7 +15,7 @@ use DBIx::Class::Storage::DBI::Replicated::Types qw/BalancerClassNamePart DBICSc
 use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
 use Hash::Merge;
-use List::Util qw/min max/;
+use List::Util qw/min max reduce/;
 
 use namespace::clean -except => 'meta';
 
@@ -1010,20 +1010,23 @@ sub _ping {
   return min map $_->_ping, $self->all_storages;
 }
 
+my $numify_ver = sub {
+  my $ver = shift;
+  my @numparts = split /\D+/, $ver;
+  my $format = '%d.' . (join '', ('%05d') x (@numparts - 1));
+
+  return sprintf $format, @numparts;
+};
+
 sub _server_info {
   my $self = shift;
 
   if (not $self->_server_info_hash) {
-    no warnings 'numeric'; # in case dbms_version doesn't normalize
-
-    my @infos = 
-      map $_->[1],
-      sort { $a->[0] <=> $b->[0] } 
-      map [ (defined $_->{normalized_dbms_version} ? $_->{normalized_dbms_version}
-              : $_->{dbms_version}), $_ ],
-      map $_->_server_info, $self->all_storages;
-
-    my $min_version_info = $infos[0];
+    my $min_version_info = (
+      reduce { $a->[0] < $b->[0] ? $a : $b } 
+      map [ $numify_ver->($_->{dbms_version}), $_ ],
+      map $_->_server_info, $self->all_storages
+    )->[1];
 
     $self->_server_info_hash($min_version_info); # on master
   }
