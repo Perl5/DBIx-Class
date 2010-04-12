@@ -158,5 +158,13 @@ can grow very large.
 
 The solution is to use the smallest practical value for LongReadLen.
 
+=head2 create_ddl_dir does not produce DDL for MySQL views
+
+L<SQL::Translator> does not create DDL for MySQL views if it doesn't know you
+are using mysql version 5.000001 or higher.  To explicity set this version, add
+C<mysql_version> to the C<producer_args> in the C<%sqlt> options.
+
+  $schema->create_ddl_dir(['MySQL'], '1.0', './sql/', undef, { producer_args => { mysql_version => 5.000058 } })
+
 =cut
 

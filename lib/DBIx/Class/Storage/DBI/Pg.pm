@@ -16,11 +16,11 @@ use Context::Preserve ();
 warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
   if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
 
-sub can_insert_returning {
+sub _supports_insert_returning {
   my $self = shift;
 
   return 1
-    if $self->_server_info->{dbms_ver_normalized} >= 8.002;
+    if $self->_server_info->{normalized_dbms_version} >= 8.002;
 
   return 0;
 }

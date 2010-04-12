@@ -1,14 +1,19 @@
 Revision history for DBIx::Class
 
+0.08121 2010-04-11 18:43:00 (UTC)
         - Support for Firebird RDBMS with DBD::InterBase and ODBC
         - Add core support for INSERT RETURNING (for storages that
           supports this syntax, currently PostgreSQL and Firebird)
+        - Fix spurious warnings on multiple UTF8Columns component loads
+        - DBIx::Class::UTF8Columns entered deprecated state
         - DBIx::Class::InflateColumn::File entered deprecated state
         - DBIx::Class::Optional::Dependencies left experimental state
         - Add req_group_list to Opt::Deps (RT#55211)
         - Add support for mysql-specific STRAIGHT_JOIN (RT#55579)
         - Cascading delete/update are now wrapped in a transaction
           for atomicity
+        - Fix accidental autovivification of ENV vars
+        - Fix update_all and delete_all to be wrapped in a transaction
         - Fix multiple deficiencies when using MultiCreate with
           data-encoder components (e.g. ::EncodedColumn)
         - Fix regression where SQL files with comments were not
@@ -27,11 +32,8 @@ Revision history for DBIx::Class
           attribute
         - Fix ambiguity in default directory handling of create_ddl_dir
           (RT#54063)
-        - Fix update_all and delete_all to be wrapped in a transaction
         - Support add_columns('+colname' => { ... }) to augment column
           definitions.
-        - Fix spurious warnings on multiple UTF8Columns component loads
-        - Unicode support documentation in Cookbook and UTF8Columns
 
 0.08120 2010-02-24 08:58:00 (UTC)
         - Make sure possibly overwritten deployment_statements methods in

@@ -50,13 +50,13 @@ sub deployment_statements {
 
   $sqltargs ||= {};
 
-  my $sqlite_version = eval { $self->_server_info->{dbms_ver} };
-  $sqlite_version ||= '';
+  # it'd be cool to use the normalized perl-style version but this needs sqlt hacking as well
+  if (my $sqlite_version = $self->_server_info->{dbms_version}) {
+    # numify, SQLT does a numeric comparison
+    $sqlite_version =~ s/^(\d+) \. (\d+) (?: \. (\d+))? .*/${1}.${2}/x;
 
-  # numify, SQLT does a numeric comparison
-  $sqlite_version =~ s/^(\d+) \. (\d+) (?: \. (\d+))? .*/${1}.${2}/x;
-
-  $sqltargs->{producer_args}{sqlite_version} = $sqlite_version if $sqlite_version;
+    $sqltargs->{producer_args}{sqlite_version} = $sqlite_version if $sqlite_version;
+  }
 
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }

@@ -363,7 +363,7 @@ sub insert {
   my $updated_cols = $source->storage->insert(
     $source,
     { $self->get_columns },
-    (keys %auto_pri) && $source->storage->can_insert_returning
+    (keys %auto_pri) && $source->storage->_supports_insert_returning
       ? { returning => [ sort { $auto_pri{$a} <=> $auto_pri{$b} } keys %auto_pri ] }
       : ()
     ,

@@ -29,7 +29,7 @@ L</connect_call_datetime_setup>.
 
 =cut
 
-sub can_insert_returning { 1 }
+sub _supports_insert_returning { 1 }
 
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;
@@ -155,7 +155,7 @@ sub _set_sql_dialect {
   }
 }
 
-sub _populate_server_info {
+sub _get_server_version {
   my $self = shift;
 
   return $self->next::method(@_) if ref $self ne __PACKAGE__;

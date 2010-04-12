@@ -8,41 +8,71 @@ use base 'Class::C3::Componentised';
 use Carp::Clan qw/^DBIx::Class|^Class::C3::Componentised/;
 use mro 'c3';
 
+my $warned;
+
 # this warns of subtle bugs introduced by UTF8Columns hacky handling of store_column
+# if and only if it is placed before something overriding store_column
 sub inject_base {
   my $class = shift;
-  my $target = shift;
+  my ($target, @complist) = @_;
 
-  my @present_components = (@{mro::get_linear_isa ($target)||[]});
-  shift @present_components;    # don't need to interrogate myself
+  # we already did load the component
+  my $keep_checking = ! (
+    $target->isa ('DBIx::Class::UTF8Columns')
+      ||
+    $target->isa ('DBIx::Class::ForceUTF8')
+  );
 
-  no strict 'refs';
-  for my $comp (reverse @_) {
+  my @target_isa;
 
-    # if we are trying add a UTF8Columns component *for the first time*
-    if ($comp->isa ('DBIx::Class::UTF8Columns') && ! $target->isa ('DBIx::Class::UTF8Columns') ) {
-      require B;
-      my @broken;
+  while ($keep_checking && @complist) {
 
-      for (@present_components) {
-        last if $_ eq 'DBIx::Class::Row'; # don't care about anything further down the chain
+    @target_isa = do { no strict 'refs'; @{"$target\::ISA"} }
+      unless @target_isa;
 
-        my $cref = $_->can ('store_column')
-         or next;
+    my $comp = pop @complist;
 
-        push @broken, $_ if B::svref_2object($cref)->STASH->NAME eq $_;
+    # warn here on use of either component, as we have no access to ForceUTF8,
+    # the author does not respond, and the Catalyst wiki used to recommend it
+    for (qw/DBIx::Class::UTF8Columns DBIx::Class::ForceUTF8/) {
+      if ($comp->isa ($_) ) {
+        $keep_checking = 0; # no use to check from this point on
+        carp "Use of $_ is strongly discouraged. See documentationm of DBIx::Class::UTF8Columns for more info\n"
+          unless ($warned->{UTF8Columns}++ || $ENV{DBIC_UTF8COLUMNS_OK});
+        last;
       }
-
-      carp "Incorrect loading order of $comp by ${target} will affect other components overriding store_column ("
-          . join (', ', @broken)
-          .'). Refer to the documentation of DBIx::Class::UTF8Columns for more info'
-       if @broken;
     }
 
-    unshift @present_components, $comp;
+    # something unset $keep_checking - we got a unicode mangler
+    if (! $keep_checking) {
+
+      my $base_store_column = do { require DBIx::Class::Row; DBIx::Class::Row->can ('store_column') };
+
+      my @broken;
+      for my $existing_comp (@target_isa) {
+        my $sc = $existing_comp->can ('store_column')
+          or next;
+
+        if ($sc ne $base_store_column) {
+          require B;
+          my $definer = B::svref_2object($sc)->STASH->NAME;
+          push @broken, ($definer eq $existing_comp)
+            ? $existing_comp
+            : "$existing_comp (via $definer)"
+          ;
+        }
+      }
+
+      carp "Incorrect loading order of $comp by $target will affect other components overriding 'store_column' ("
+          . join (', ', @broken)
+          .'). Refer to the documentation of DBIx::Class::UTF8Columns for more info'
+        if @broken;
+    }
+
+    unshift @target_isa, $comp;
   }
 
-  $class->next::method($target, @_);
+  $class->next::method(@_);
 }
 
 1;
