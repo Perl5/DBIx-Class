@@ -632,7 +632,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
         connect_by => { parentid => { -prior => \ 'artistid' } },
       });
       eval { $rs->get_column ('name')->all };
-      if ( $@ =~ /ORA-01436/ ){ # ORA-01436:	CONNECT BY loop in user data
+      if ( $@ =~ /ORA-01436/ ){ # ORA-01436:  CONNECT BY loop in user data
         pass "connect by initify loop detection without nocycle";
       }else{
         fail "connect by initify loop detection without nocycle, not detected by oracle";
