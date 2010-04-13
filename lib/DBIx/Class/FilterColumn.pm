@@ -49,7 +49,7 @@ sub _unfiltered_column {
   return $self->$unfilter($value);
 }
 
-sub get_filtered_column {
+sub get_value {
   my ($self, $col) = @_;
 
   $self->throw_exception("$col is not a filtered column")
@@ -63,7 +63,7 @@ sub get_filtered_column {
   return $self->{_filtered_column}{$col} = $self->_filtered_column($col, $val);
 }
 
-sub set_filtered_column {
+sub set_value {
   my ($self, $col, $filtered) = @_;
 
   $self->set_column($col, $self->_unfiltered_column($col, $filtered));
@@ -73,15 +73,18 @@ sub set_filtered_column {
   return $filtered;
 }
 
-sub get_column {
-  my ($self, $column) = @_;
-
-  if (exists $self->{_filtered_column}{$column}) {
-    return $self->store_column($column,
-      $self->_unfiltered_column($column, $self->{_filtered_column}{$column}));
+sub register_column {
+  my ($class, $col, $info) = @_;
+  my $acc = $col;
+  if (exists $info->{accessor}) {
+    return unless defined $info->{accessor};
+    $acc = [ $info->{accessor}, $col ];
   }
-
-  return $self->next::method($column);
+  if ( exists $self->column_info($col)->{_filter_info} ) {
+     $class->mk_group_accessors(value => $acc);
+  } else {
+     $class->mk_group_accessors(column => $acc);
+  }
 }
 
 1;
