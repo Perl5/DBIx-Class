@@ -49,4 +49,13 @@ $artist->discard_changes;
 $artist->rank(40);
 ok( !$artist->is_column_changed('rank'), 'column is not dirty after setting the same value' );
 
+MC: {
+   my $cd = $schema->resultset('CD')->create({
+      artist => { rank => 20 },
+      title => 'fun time city!',
+      year => 'forevertime',
+   });
+   is $cd->artist->rank, 20, 'artist rank gets correctly unfiltered then filtered on MC';
+}
+
 done_testing;
