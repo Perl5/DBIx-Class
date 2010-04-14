@@ -16,7 +16,7 @@ sub filter_column {
 
   $self->column_info($col)->{_filter_info} = $attrs;
   my $acc = $self->column_info($col)->{accessor};
-  $self->mk_group_accessors('filtered_column' => [ (defined $acc ? $acc : $col), $col]);
+  $self->mk_group_accessors('value' => [ (defined $acc ? $acc : $col), $col]);
   return 1;
 }
 
@@ -71,20 +71,6 @@ sub set_value {
   delete $self->{_filtered_column}{$col};
 
   return $filtered;
-}
-
-sub register_column {
-  my ($class, $col, $info) = @_;
-  my $acc = $col;
-  if (exists $info->{accessor}) {
-    return unless defined $info->{accessor};
-    $acc = [ $info->{accessor}, $col ];
-  }
-  if ( exists $self->column_info($col)->{_filter_info} ) {
-     $class->mk_group_accessors(value => $acc);
-  } else {
-     $class->mk_group_accessors(column => $acc);
-  }
 }
 
 1;
