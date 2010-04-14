@@ -998,8 +998,9 @@ sub _determine_driver {
           # try to use dsn to not require being connected, the driver may still
           # force a connection in _rebless to determine version
           # (dsn may not be supplied at all if all we do is make a mock-schema)
-          my $dsn = $self->_dbi_connect_info->[0] || '';
+          my $dsn = $self->_dbi_connect_info->[0] || $ENV{DBI_DSN} || '';
           ($driver) = $dsn =~ /dbi:([^:]+):/i;
+          $driver ||= $ENV{DBI_DRIVER};
         }
       }
 

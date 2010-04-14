@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - support connecting using $ENV{DBI_DSN} and $ENV{DBI_DRIVER}
         - current_source_alias method on ResultSet objects to
           determine the alias to use in programatically assembled
           search()es (originally added in 0.08100 but unmentioned)

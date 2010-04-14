@@ -384,6 +384,8 @@ wreis: Wallace Reis <wreis@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
 
+Possum: Daniel LeWarne <possum@cpan.org>
+
 =head1 COPYRIGHT
 
 Copyright (c) 2005 - 2010 the DBIx::Class L</AUTHOR> and L</CONTRIBUTORS>
