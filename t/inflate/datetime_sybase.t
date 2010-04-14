@@ -70,7 +70,11 @@ SQL
       ->search({ trackid => $row->trackid }, { select => [$col] })
       ->first
     );
-    is( $row->$col, $dt, 'DateTime roundtrip' );
+    is( $row->$col, $dt, "$type roundtrip" );
+
+    is( $row->$col->nanosecond, $dt->nanosecond,
+      'fractional DateTime portion roundtrip' )
+      if $dt->nanosecond > 0;
   }
 
   # test a computed datetime column
