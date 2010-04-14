@@ -89,7 +89,6 @@ sub update {
 
 sub new {
   my ($class, $attrs, @rest) = @_;
-  my $filtered;
   foreach my $key (keys %{$attrs||{}}) {
     if ($class->has_column($key) &&
           exists $class->column_info($key)->{_filter_info} ) {
