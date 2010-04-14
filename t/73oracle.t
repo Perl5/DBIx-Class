@@ -405,7 +405,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
           SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
             FROM artist me
           START WITH name = ?
-          CONNECT BY parentid = PRIOR( artistid )
+          CONNECT BY parentid = PRIOR artistid 
         )',
         [ [ name => 'root'] ],
       );
@@ -422,7 +422,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
           SELECT COUNT( * )
             FROM artist me
           START WITH name = ?
-          CONNECT BY parentid = PRIOR( artistid )
+          CONNECT BY parentid = PRIOR artistid 
         )',
         [ [ name => 'root'] ],
       );
@@ -444,7 +444,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
           SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
             FROM artist me
           START WITH name = ?
-          CONNECT BY parentid = PRIOR( artistid )
+          CONNECT BY parentid = PRIOR artistid 
           ORDER SIBLINGS BY name DESC
         )',
         [ [ name => 'root'] ],
@@ -471,7 +471,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
             FROM artist me
           WHERE ( parentid IS NULL )
           START WITH name = ?
-          CONNECT BY parentid = PRIOR( artistid )
+          CONNECT BY parentid = PRIOR artistid 
         )',
         [ [ name => 'root'] ],
       );
@@ -502,7 +502,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
             LEFT JOIN cd cds ON cds.artist = me.artistid
           WHERE ( cds.title LIKE ? )
           START WITH me.name = ?
-          CONNECT BY parentid = PRIOR( artistid )
+          CONNECT BY parentid = PRIOR artistid 
         )',
         [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
       );
@@ -522,7 +522,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
             LEFT JOIN cd cds ON cds.artist = me.artistid
           WHERE ( cds.title LIKE ? )
           START WITH me.name = ?
-          CONNECT BY parentid = PRIOR( artistid )
+          CONNECT BY parentid = PRIOR artistid 
         )',
         [ [ 'cds.title' => '%cd' ], [ 'me.name' => 'root' ] ],
       );
@@ -544,7 +544,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
           SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid
             FROM artist me
           START WITH name = ?
-          CONNECT BY parentid = PRIOR( artistid )
+          CONNECT BY parentid = PRIOR artistid 
           ORDER BY LEVEL ASC, name ASC
         )',
         [ [ name => 'root' ] ],
@@ -580,7 +580,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
                           me.parentid AS col5 
                       FROM artist me 
                       START WITH name = ? 
-                      CONNECT BY parentid = PRIOR( artistid )
+                      CONNECT BY parentid = PRIOR artistid
                       ORDER BY name ASC
                   ) A
                   WHERE ROWNUM < 3
@@ -598,7 +598,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
 
       # TODO: 
       # prints "START WITH name = ? 
-      # CONNECT BY artistid = PRIOR( parentid )"
+      # CONNECT BY artistid = PRIOR parentid "
       # after count_subq, 
       # I will fix this later...
       # 
@@ -612,7 +612,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       #                       me.artistid AS col1 
       #                   FROM artist me 
       #                   START WITH name = ? 
-      #                   CONNECT BY artistid = PRIOR( parentid ) 
+      #                   CONNECT BY artistid = PRIOR parentid 
       #               ) A
       #               WHERE ROWNUM < 3
       #           ) B
@@ -654,7 +654,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
           SELECT me.artistid, me.name, me.rank, me.charfield, me.parentid, CONNECT_BY_ISCYCLE
             FROM artist me
           START WITH name = ?
-          CONNECT BY NOCYCLE parentid = PRIOR( artistid )
+          CONNECT BY NOCYCLE parentid = PRIOR artistid 
         )',
         [ [ name => 'cycle-root'] ],
       );
@@ -676,7 +676,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
           SELECT COUNT( * )
             FROM artist me
           START WITH name = ?
-          CONNECT BY NOCYCLE parentid = PRIOR( artistid )
+          CONNECT BY NOCYCLE parentid = PRIOR artistid 
         )',
         [ [ name => 'cycle-root'] ],
       );
