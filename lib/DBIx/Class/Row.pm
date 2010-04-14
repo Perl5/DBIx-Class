@@ -314,7 +314,7 @@ sub insert {
 
       MULTICREATE_DEBUG and warn "MC $self pre-reconstructing $relname $rel_obj\n";
 
-      my $them = { %{$rel_obj->{_relationship_data} || {} }, $rel_obj->get_inflated_columns };
+      my $them = { %{$rel_obj->{_relationship_data} || {} }, $rel_obj->get_columns };
       my $existing;
 
       # if there are no keys - nothing to search for
