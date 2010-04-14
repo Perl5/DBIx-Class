@@ -55,7 +55,15 @@ MC: {
       title => 'fun time city!',
       year => 'forevertime',
    });
-   is $cd->artist->rank, 20, 'artist rank gets correctly unfiltered then filtered on MC';
+   ($raw_db_rank) = $schema->resultset('Artist')
+                                ->search ($cd->artist->ident_condition)
+                                  ->get_column('rank')
+                                   ->_resultset
+                                    ->cursor
+                                     ->next;
+
+   is $raw_db_rank, 10, 'artist rank gets correctly unfiltered w/ MC';
+   is $cd->artist->rank, 20, 'artist rank gets correctly filtered w/ MC';
 }
 
 done_testing;
