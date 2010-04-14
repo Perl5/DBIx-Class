@@ -8,8 +8,8 @@ use DBICTest;
 my $schema = DBICTest->init_schema();
 DBICTest::Schema::Artist->load_components('FilterColumn');
 DBICTest::Schema::Artist->filter_column(rank => {
-  filter   => sub { warn "FILTERING!"; $_[1] * 2 },
-  unfilter => sub {warn "UNFILTERING!";  $_[1] / 2 },
+  filter   => sub { $_[1] * 2 },
+  unfilter => sub { $_[1] / 2 },
 });
 Class::C3->reinitialize();
 

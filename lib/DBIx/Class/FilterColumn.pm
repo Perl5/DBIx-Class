@@ -73,4 +73,32 @@ sub set_value {
   return $filtered;
 }
 
+sub update {
+  my ($self, $attrs, @rest) = @_;
+  foreach my $key (keys %{$attrs||{}}) {
+    if ($self->has_column($key) &&
+          exists $self->column_info($key)->{_filter_info}) {
+      my $val = delete $attrs->{$key};
+      $self->set_value($key, $val);
+      $attrs->{$key} = $self->_unfiltered_column($key, $val)
+    }
+  }
+  return $self->next::method($attrs, @rest);
+}
+
+
+sub new {
+  my ($class, $attrs, @rest) = @_;
+  my $filtered;
+  foreach my $key (keys %{$attrs||{}}) {
+    if ($class->has_column($key) &&
+          exists $class->column_info($key)->{_filter_info} ) {
+      $attrs->{$key} = $class->_unfiltered_column($key, delete $attrs->{$key})
+    }
+  }
+  my $obj = $class->next::method($attrs, @rest);
+  return $obj;
+}
+
+
 1;
