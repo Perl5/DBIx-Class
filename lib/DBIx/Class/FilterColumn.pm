@@ -20,7 +20,7 @@ sub filter_column {
   return 1;
 }
 
-sub _filtered_column {
+sub _column_from_storage {
   my ($self, $col, $value) = @_;
 
   return $value unless defined $value;
@@ -30,13 +30,13 @@ sub _filtered_column {
 
   return $value unless exists $info->{_filter_info};
 
-  my $filter = $info->{_filter_info}{filter};
+  my $filter = $info->{_filter_info}{from_storage};
   $self->throw_exception("No inflator for $col") unless defined $filter;
 
   return $self->$filter($value);
 }
 
-sub _unfiltered_column {
+sub _column_to_storage {
   my ($self, $col, $value) = @_;
 
   my $info = $self->column_info($col) or
@@ -44,7 +44,7 @@ sub _unfiltered_column {
 
   return $value unless exists $info->{_filter_info};
 
-  my $unfilter = $info->{_filter_info}{unfilter};
+  my $unfilter = $info->{_filter_info}{to_storage};
   $self->throw_exception("No unfilter for $col") unless defined $unfilter;
   return $self->$unfilter($value);
 }
@@ -60,13 +60,13 @@ sub get_value {
 
   my $val = $self->get_column($col);
 
-  return $self->{_filtered_column}{$col} = $self->_filtered_column($col, $val);
+  return $self->{_filtered_column}{$col} = $self->_column_from_storage($col, $val);
 }
 
 sub set_value {
   my ($self, $col, $filtered) = @_;
 
-  $self->set_column($col, $self->_unfiltered_column($col, $filtered));
+  $self->set_column($col, $self->_column_to_storage($col, $filtered));
 
   delete $self->{_filtered_column}{$col};
 
@@ -80,7 +80,7 @@ sub update {
           exists $self->column_info($key)->{_filter_info}) {
       my $val = delete $attrs->{$key};
       $self->set_value($key, $val);
-      $attrs->{$key} = $self->_unfiltered_column($key, $val)
+      $attrs->{$key} = $self->_column_to_storage($key, $val)
     }
   }
   return $self->next::method($attrs, @rest);
@@ -92,7 +92,7 @@ sub new {
   foreach my $key (keys %{$attrs||{}}) {
     if ($class->has_column($key) &&
           exists $class->column_info($key)->{_filter_info} ) {
-      $attrs->{$key} = $class->_unfiltered_column($key, delete $attrs->{$key})
+      $attrs->{$key} = $class->_column_to_storage($key, delete $attrs->{$key})
     }
   }
   my $obj = $class->next::method($attrs, @rest);
