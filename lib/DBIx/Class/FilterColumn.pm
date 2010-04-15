@@ -21,7 +21,7 @@ sub filter_column {
 }
 
 sub _column_from_storage {
-  my ($self, $col, $value) = @_;
+  my ($self, $source, $col, $value) = @_;
 
   return $value unless defined $value;
 
@@ -33,11 +33,11 @@ sub _column_from_storage {
   my $filter = $info->{_filter_info}{filter_from_storage};
   $self->throw_exception("No inflator for $col") unless defined $filter;
 
-  return $self->$filter($value);
+  return $source->$filter($value);
 }
 
 sub _column_to_storage {
-  my ($self, $col, $value) = @_;
+  my ($self, $source, $col, $value) = @_;
 
   my $info = $self->column_info($col) or
     $self->throw_exception("No column info for $col");
@@ -46,7 +46,7 @@ sub _column_to_storage {
 
   my $unfilter = $info->{_filter_info}{filter_to_storage};
   $self->throw_exception("No unfilter for $col") unless defined $unfilter;
-  return $self->$unfilter($value);
+  return $source->$unfilter($value);
 }
 
 sub get_filtered_column {
@@ -60,13 +60,13 @@ sub get_filtered_column {
 
   my $val = $self->get_column($col);
 
-  return $self->{_filtered_column}{$col} = $self->_column_from_storage($col, $val);
+  return $self->{_filtered_column}{$col} = $self->_column_from_storage($self->result_source, $col, $val);
 }
 
 sub set_filtered_column {
   my ($self, $col, $filtered) = @_;
 
-  $self->set_column($col, $self->_column_to_storage($col, $filtered));
+  $self->set_column($col, $self->_column_to_storage($self->result_source, $col, $filtered));
 
   delete $self->{_filtered_column}{$col};
 
@@ -80,7 +80,7 @@ sub update {
           exists $self->column_info($key)->{_filter_info}) {
       my $val = delete $attrs->{$key};
       $self->set_filtered_column($key, $val);
-      $attrs->{$key} = $self->_column_to_storage($key, $val)
+      $attrs->{$key} = $self->_column_to_storage($self->result_source, $key, $val)
     }
   }
   return $self->next::method($attrs, @rest);
@@ -89,10 +89,13 @@ sub update {
 
 sub new {
   my ($class, $attrs, @rest) = @_;
+  my $source = delete $attrs->{-result_source}
+    or $class->throw_exception('Sourceless rows are not supported with DBIx::Class::FilterColumn');
+
   foreach my $key (keys %{$attrs||{}}) {
     if ($class->has_column($key) &&
           exists $class->column_info($key)->{_filter_info} ) {
-      $attrs->{$key} = $class->_column_to_storage($key, delete $attrs->{$key})
+      $attrs->{$key} = $class->_column_to_storage($source, $key, delete $attrs->{$key})
     }
   }
   my $obj = $class->next::method($attrs, @rest);
