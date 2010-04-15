@@ -102,5 +102,42 @@ sub new {
   return $obj;
 }
 
-
 1;
+
+=head1 THE ONE TRUE WAY
+
+ package My::Reusable::Filter;
+
+ sub to_pennies   { $_[1] * 100 }
+ sub from_pennies { $_[1] / 100 }
+
+ 1;
+
+ package My::Schema::Result::Account;
+
+ use strict;
+ use warnings;
+
+ use base 'DBIx::Class::Core';
+
+ __PACKAGE->load_components('FilterColumn');
+
+ __PACKAGE__->add_columns(
+   id => {
+     data_type => 'int',
+     is_auto_increment => 1,
+   },
+   total_money => {
+     data_type => 'int',
+   },
+ );
+
+ __PACKAGE__->set_primary_key('id');
+
+ __PACKAGE__->filter_column(total_money => {
+   filter_to_storage   => 'to_pennies',
+   filter_from_storage => 'from_pennies',
+ });
+
+ 1;
+
