@@ -16,7 +16,7 @@ sub filter_column {
 
   $self->column_info($col)->{_filter_info} = $attrs;
   my $acc = $self->column_info($col)->{accessor};
-  $self->mk_group_accessors('value' => [ (defined $acc ? $acc : $col), $col]);
+  $self->mk_group_accessors(filtered_column => [ (defined $acc ? $acc : $col), $col]);
   return 1;
 }
 
@@ -30,7 +30,7 @@ sub _column_from_storage {
 
   return $value unless exists $info->{_filter_info};
 
-  my $filter = $info->{_filter_info}{from_storage};
+  my $filter = $info->{_filter_info}{filter_from_storage};
   $self->throw_exception("No inflator for $col") unless defined $filter;
 
   return $self->$filter($value);
@@ -44,12 +44,12 @@ sub _column_to_storage {
 
   return $value unless exists $info->{_filter_info};
 
-  my $unfilter = $info->{_filter_info}{to_storage};
+  my $unfilter = $info->{_filter_info}{filter_to_storage};
   $self->throw_exception("No unfilter for $col") unless defined $unfilter;
   return $self->$unfilter($value);
 }
 
-sub get_value {
+sub get_filtered_column {
   my ($self, $col) = @_;
 
   $self->throw_exception("$col is not a filtered column")
@@ -63,7 +63,7 @@ sub get_value {
   return $self->{_filtered_column}{$col} = $self->_column_from_storage($col, $val);
 }
 
-sub set_value {
+sub set_filtered_column {
   my ($self, $col, $filtered) = @_;
 
   $self->set_column($col, $self->_column_to_storage($col, $filtered));
@@ -79,7 +79,7 @@ sub update {
     if ($self->has_column($key) &&
           exists $self->column_info($key)->{_filter_info}) {
       my $val = delete $attrs->{$key};
-      $self->set_value($key, $val);
+      $self->set_filtered_column($key, $val);
       $attrs->{$key} = $self->_column_to_storage($key, $val)
     }
   }

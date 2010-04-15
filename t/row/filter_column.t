@@ -8,8 +8,8 @@ use DBICTest;
 my $schema = DBICTest->init_schema();
 DBICTest::Schema::Artist->load_components('FilterColumn');
 DBICTest::Schema::Artist->filter_column(rank => {
-  from_storage => sub { $_[1] * 2 },
-  to_storage   => sub { $_[1] / 2 },
+  filter_from_storage => sub { $_[1] * 2 },
+  filter_to_storage   => sub { $_[1] / 2 },
 });
 Class::C3->reinitialize();
 
