@@ -16,6 +16,8 @@ use List::Util();
 use Data::Dumper::Concise();
 use Sub::Name ();
 
+use File::Path ();
+
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
      _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints
@@ -2334,6 +2336,9 @@ sub create_ddl_dir {
   unless ($dir) {
     carp "No directory given, using ./\n";
     $dir = './';
+  } else {
+      -d $dir or File::Path::mkpath($dir)
+          or croak "create_ddl_dir: could not create dir '$dir'";
   }
 
   $self->throw_exception ("Directory '$dir' does not exist\n") unless(-d $dir);
