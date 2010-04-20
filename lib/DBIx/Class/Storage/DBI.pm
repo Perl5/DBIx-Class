@@ -2338,7 +2338,7 @@ sub create_ddl_dir {
     $dir = './';
   } else {
       -d $dir or File::Path::mkpath($dir)
-          or croak "create_ddl_dir: could not create dir '$dir'";
+          or $self->throw_exception("create_ddl_dir: $! creating dir '$dir'");
   }
 
   $self->throw_exception ("Directory '$dir' does not exist\n") unless(-d $dir);
