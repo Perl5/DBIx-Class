@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - Add a warning to load_namespaces if a class in ResultSet/ is not a subclass of DBIx::Class::ResultSet
         - InflateColumn::DateTime support for MSSQL via DBD::Sybase
         - millisecond precision support for MSSQL datetimes for
           InflateColumn::DateTime
