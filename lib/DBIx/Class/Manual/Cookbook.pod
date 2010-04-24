@@ -2084,6 +2084,47 @@ You could then create average, high and low execution times for an SQL
 statement and dig down to see if certain parameters cause aberrant behavior.
 You might want to check out L<DBIx::Class::QueryLog> as well.
 
+=head1 IMPROVING PERFORMANCE
+
+=over
+
+=item *
+
+Install L<Class::XSAccessor> to speed up L<Class::Accessor::Grouped>.
+
+=item *
+
+On Perl 5.8 install L<Class::C3::XS>.
+
+=item *
+
+L<prefetch|DBIx::Class::ResultSet/prefetch> relationships, where possible. See
+L</Using joins and prefetch>.
+
+=item *
+
+Use L<populate|DBIx::Class::ResultSet/populate> in void context to insert data
+when you don't need the resulting L<DBIx::Class::Row> objects, if possible, but
+see the caveats.
+
+When inserting many rows, for best results, populate a large number of rows at a
+time, but not so large that the table is locked for an unacceptably long time.
+
+If using L<create|DBIx::Class::ResultSet/create> instead, use a transaction and
+commit every C<X> rows; where C<X> gives you the best performance without
+locking the table for too long. 
+
+=item *
+
+When selecting many rows, if you don't need full-blown L<DBIx::Class::Row>
+objects, consider using L<DBIx::Class::ResultClass::HashRefInflator>.
+
+=item *
+
+See also L</STARTUP SPEED> and L</MEMORY USAGE> in this document.
+
+=back
+
 =head1 STARTUP SPEED
 
 L<DBIx::Class|DBIx::Class> programs can have a significant startup delay
