@@ -146,7 +146,7 @@ for my $use_insert_returning ($test_server_supports_insert_returning
 
   }
   SKIP: {
-    skip "Need DBD::Pg 2.9.2 or newer for array tests", 5 if $DBD::Pg::VERSION < 2.009002;
+    skip "Need DBD::Pg 2.9.2 or newer for array tests", 4 if $DBD::Pg::VERSION < 2.009002;
 
     lives_ok {
       $schema->resultset('ArrayTest')->create({
@@ -160,14 +160,8 @@ for my $use_insert_returning ($test_server_supports_insert_returning
       });
     } 'updating arrayref as pg array data';
 
-    lives_ok {
-      my $row = $schema->resultset('ArrayTest')->next;
-      $row->arrayfield ([5, 6]);
-      $row->update;
-    } 'updating dirty arrayref as pg array data';
-
     $schema->resultset('ArrayTest')->create({
-      arrayfield => [7, 8],
+      arrayfield => [5, 6],
     });
 
     my $count;
@@ -267,11 +261,6 @@ for my $use_insert_returning ($test_server_supports_insert_returning
         $t->{test_sub}->();
       }
   }
-
-  # make sure subqueried count still works
-  lives_ok ( sub {
-
-  }, 'for does not propagate on count subqueries');
 
 
 ######## other older Auto-pk tests

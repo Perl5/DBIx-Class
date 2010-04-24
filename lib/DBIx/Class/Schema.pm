@@ -198,9 +198,7 @@ sub _ns_get_rsrc_instance {
   my $rs = ref ($_[0]) || $_[0];
 
   if ($rs->can ('result_source_instance') ) {
-    my $x = $rs->result_source_instance;
-    use Data::Dumper;
-    die Dumper $x;
+    return $rs->result_source_instance;
   }
   else {
     $class->throw_exception (
@@ -1318,8 +1316,6 @@ sub _register_source {
   my $orig_source = $source;
 
   $source = $source->new({ %$source, source_name => $moniker });
-  use Data::Dumper;
-  die Dumper $source;
   $source->schema($self);
   Scalar::Util::weaken($source->{schema}) if ref($self);
 
