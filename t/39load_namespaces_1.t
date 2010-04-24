@@ -3,21 +3,23 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Warn;
 
 use lib qw(t/lib);
 use DBICTest; # do not remove even though it is not used
 
-my $warnings;
-eval {
-    local $SIG{__WARN__} = sub { $warnings .= shift };
+warnings_exist (
+  sub {
     package DBICNSTest;
     use base qw/DBIx::Class::Schema/;
     __PACKAGE__->load_namespaces;
-};
-ok(!$@, 'load_namespaces doesnt die') or diag $@;
-like($warnings, qr/load_namespaces found ResultSet class C with no corresponding Result class/, 'Found warning about extra ResultSet classes');
-
-like($warnings, qr/load_namespaces found ResultSet class DBICNSTest::ResultSet::D that does not subclass DBIx::Class::ResultSet/, 'Found warning about ResultSets with incorrect subclass');
+  },
+  [
+    qr/load_namespaces found ResultSet class C with no corresponding Result class/,
+    qr/load_namespaces found ResultSet class DBICNSTest::ResultSet::D that does not subclass DBIx::Class::ResultSet/,
+  ],
+  'Found warning about extra ResultSet classes, and incorrectly subclassed ResultSets',
+);
 
 my $source_a = DBICNSTest->source('A');
 isa_ok($source_a, 'DBIx::Class::ResultSource::Table');
