@@ -596,23 +596,6 @@ sub _join_condition {
   }
 }
 
-sub _quote {
-  my ($self, $label) = @_;
-  return '' unless defined $label;
-  return $$label if ref($label) eq 'SCALAR';
-  return "*" if $label eq '*';
-  return $label unless $self->{quote_char};
-  if(ref $self->{quote_char} eq "ARRAY"){
-    return $self->{quote_char}->[0] . $label . $self->{quote_char}->[1]
-      if !defined $self->{name_sep};
-    my $sep = $self->{name_sep};
-    return join($self->{name_sep},
-        map { $self->{quote_char}->[0] . $_ . $self->{quote_char}->[1]  }
-       split(/\Q$sep\E/,$label));
-  }
-  return $self->SUPER::_quote($label);
-}
-
 sub limit_dialect {
     my $self = shift;
     $self->{limit_dialect} = shift if @_;

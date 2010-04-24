@@ -2,12 +2,13 @@ Revision history for DBIx::Class
 
         - Add a warning to load_namespaces if a class in ResultSet/ is not a subclass of DBIx::Class::ResultSet
         - InflateColumn::DateTime support for MSSQL via DBD::Sybase
-        - millisecond precision support for MSSQL datetimes for
+        - Millisecond precision support for MSSQL datetimes for
           InflateColumn::DateTime
-        - support connecting using $ENV{DBI_DSN} and $ENV{DBI_DRIVER}
+        - Support connecting using $ENV{DBI_DSN} and $ENV{DBI_DRIVER}
         - current_source_alias method on ResultSet objects to
           determine the alias to use in programatically assembled
           search()es (originally added in 0.08100 but unmentioned)
+        - Depend on optimized SQL::Abstract (faster SQL generation)
 
 0.08121 2010-04-11 18:43:00 (UTC)
         - Support for Firebird RDBMS with DBD::InterBase and ODBC
