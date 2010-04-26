@@ -37,7 +37,7 @@ my $test_requires = {
 
 my $runtime_requires = {
   'Carp::Clan'               => '6.0',
-  'Class::Accessor::Grouped' => '0.09002',
+  'Class::Accessor::Grouped' => '0.09003',
   'Class::C3::Componentised' => '1.0005',
   'Class::Inspector'         => '1.24',
   'Data::Page'               => '2.00',
@@ -45,7 +45,7 @@ my $runtime_requires = {
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.18',
-  'SQL::Abstract'            => '1.65_02',
+  'SQL::Abstract'            => '1.66',
   'SQL::Abstract::Limit'     => '0.13',
   'Sub::Name'                => '0.04',
   'Data::Dumper::Concise'    => '1.000',
