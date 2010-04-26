@@ -18,7 +18,6 @@ $ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 ### All of them should go to DBIx::Class::Optional::Dependencies
 ###
 
-
 name     'DBIx-Class';
 perl_version '5.008001';
 all_from 'lib/DBIx/Class.pm';
