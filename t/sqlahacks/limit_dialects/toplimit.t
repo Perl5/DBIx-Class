@@ -119,7 +119,7 @@ my @tests = (
 
 my @default_tests = ( undef, '', {}, [] );
 
-plan (tests => scalar @tests + scalar @default_tests + 1);
+# plan (tests => scalar @tests + scalar @default_tests + 1);
 
 test_order ($_) for @tests;
 default_test_order ($_) for @default_tests;
@@ -150,3 +150,19 @@ me.id, me.source, me.owner, me.title, me.price, owner.id, owner.name FROM
    ORDER BY title)' ,
   [ [ source => 'Library' ], [ source => 'Library' ] ],
 );
+
+my $rs_selectas_top = $schema->resultset ('BooksInLibrary')->search ({}, { '+select' => ['owner.name'], '+as' => ['owner_name'], join => 'owner', rows => 1 });
+
+is_same_sql_bind( $rs_selectas_top->search({})->as_query,
+                  "(SELECT 
+                      TOP 1 me.id, me.source, me.owner, me.title, me.price, 
+                      owner.name 
+                    FROM books me 
+                    JOIN owners owner ON owner.id = me.owner 
+                    WHERE ( source = ? )  
+                    ORDER BY me.id ASC
+                   )",
+                   [ [ 'source', 'Library' ] ],
+                );
+
+done_testing;
