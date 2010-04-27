@@ -34,9 +34,12 @@ for my $type (qw/PG MYSQL/) {
           skip "Fork failed: $!", 1 if (! defined $pid);
 
           if ($pid) {
-            sleep 1;
+            note "Parent $$ sleeping...";
+            wait();
+            note "Parent $$ woken up after child $pid exit";
           }
           else {
+            note "Child $$ terminating";
             exit 0;
           }
 
