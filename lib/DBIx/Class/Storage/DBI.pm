@@ -42,7 +42,6 @@ __PACKAGE__->mk_group_accessors('inherited' => qw/
 /);
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
 
-
 # Each of these methods need _determine_driver called before itself
 # in order to function reliably. This is a purely DRY optimization
 my @rdbms_specific_methods = qw/
@@ -1874,7 +1873,7 @@ sub _select_args {
     #limited has_many
     ( $attrs->{rows} && keys %{$attrs->{collapse}} )
        ||
-    # limited prefetch with RNO subqueries
+    # limited prefetch with RNO subqueries (otherwise a risk of column name clashes)
     (
       $attrs->{rows}
         &&
@@ -1885,7 +1884,7 @@ sub _select_args {
       @{$attrs->{_prefetch_select}}
     )
       ||
-    # grouped prefetch
+    # grouped prefetch (to satisfy group_by == select)
     ( $attrs->{group_by}
         &&
       @{$attrs->{group_by}}
@@ -1900,6 +1899,8 @@ sub _select_args {
   }
 
   elsif (
+    # the RNO limit dialect mangles the SQL such that the join gets lost
+    # wrap a subquery here
     ($attrs->{rows} || $attrs->{offset})
       &&
     $sql_maker->limit_dialect eq 'RowNumberOver'
@@ -1908,8 +1909,6 @@ sub _select_args {
       &&
     scalar $self->_parse_order_by ($attrs->{order_by})
   ) {
-    # the RNO limit dialect above mangles the SQL such that the join gets lost
-    # wrap a subquery here
 
     push @limit, delete @{$attrs}{qw/rows offset/};
 
