@@ -16,7 +16,7 @@ for my $type (qw/PG MYSQL/) {
     my $schema = DBICTest::Schema->connect (@ENV{map { "DBICTEST_${type}_${_}" } qw/DSN USER PASS/});
 
     # emulate a singleton-factory, just cache the object *somewhere in a different package*
-    # without this everything works
+    # to induce out-of-order destruction
     $DBICTest::FakeSchemaFactory::schema = $schema;
 
     # so we can see the retry exceptions (if any)
