@@ -2298,7 +2298,7 @@ For example:
     producer => $producer,
     name => 'harry',
   }, {
-    key => 'primary,
+    key => 'primary',
   });
 
 
