@@ -1842,31 +1842,18 @@ sub _per_row_update_delete {
 
 sub _select {
   my $self = shift;
-
-  # localization is neccessary as
-  # 1) there is no infrastructure to pass this around before SQLA2
-  # 2) _select_args sets it and _prep_for_execute consumes it
-  my $sql_maker = $self->sql_maker;
-  local $sql_maker->{_dbic_rs_attrs};
-
-  return $self->_execute($self->_select_args(@_));
+  $self->_execute($self->_select_args(@_));
 }
 
 sub _select_args_to_query {
   my $self = shift;
 
-  # localization is neccessary as
-  # 1) there is no infrastructure to pass this around before SQLA2
-  # 2) _select_args sets it and _prep_for_execute consumes it
-  my $sql_maker = $self->sql_maker;
-  local $sql_maker->{_dbic_rs_attrs};
-
-  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset)
+  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $rs_attrs, $rows, $offset)
   #  = $self->_select_args($ident, $select, $cond, $attrs);
   my ($op, $bind, $ident, $bind_attrs, @args) =
     $self->_select_args(@_);
 
-  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
+  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $rs_attrs, $rows, $offset ]);
   my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, \@args);
   $prepared_bind ||= [];
 
@@ -1879,16 +1866,16 @@ sub _select_args_to_query {
 sub _select_args {
   my ($self, $ident, $select, $where, $attrs) = @_;
 
+  my $sql_maker = $self->sql_maker;
   my ($alias2source, $rs_alias) = $self->_resolve_ident_sources ($ident);
 
-  my $sql_maker = $self->sql_maker;
-  $sql_maker->{_dbic_rs_attrs} = {
+  $attrs = {
     %$attrs,
     select => $select,
     from => $ident,
     where => $where,
     $rs_alias && $alias2source->{$rs_alias}
-      ? ( _source_handle => $alias2source->{$rs_alias}->handle )
+      ? ( _rsroot_source_handle => $alias2source->{$rs_alias}->handle )
       : ()
     ,
   };
@@ -2018,12 +2005,7 @@ sub _select_args {
   # invoked, and that's just bad...
 ###
 
-  my $order = { map
-    { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
-    (qw/order_by group_by having/ )
-  };
-
-  return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $order, @limit);
+  return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $attrs, @limit);
 }
 
 # Returns a counting SELECT for a simple count

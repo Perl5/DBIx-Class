@@ -5,13 +5,13 @@ use base qw( DBIx::Class::SQLAHacks );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 sub select {
-  my ($self, $table, $fields, $where, $order, @rest) = @_;
+  my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
 
   if (ref($table) eq 'ARRAY') {
     $where = $self->_oracle_joins($where, @{ $table });
   }
 
-  return $self->SUPER::select($table, $fields, $where, $order, @rest);
+  return $self->SUPER::select($table, $fields, $where, $rs_attrs, @rest);
 }
 
 sub _recurse_from {
