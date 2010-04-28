@@ -26,7 +26,7 @@ local $ENV{DBIC_CDBICOMPAT_HASH_WARN} = 0;
         my $rating = $waves->{rating};
         $waves->Rating("PG");
         is $rating, "R", 'evaluation of column value is not deferred';
-    } qr{^Column 'rating' of 'Film/$waves' was fetched as a hash at \Q$0};
+    } qr{^Column 'rating' of 'Film/$waves' was fetched as a hash at\b};
 
     warnings_like {
         is $waves->{title}, $waves->Title, "columns can be accessed as hashes";
