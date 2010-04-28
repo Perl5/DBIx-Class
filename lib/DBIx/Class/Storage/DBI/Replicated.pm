@@ -373,6 +373,8 @@ has 'write_handler' => (
 my @unimplemented = qw(
   _arm_global_destructor
   _preserve_foreign_dbh
+  _verify_pid
+  _verify_tid
 );
 
 for my $method (@unimplemented) {
@@ -1047,22 +1049,6 @@ sub _get_server_version {
   my $self = shift;
 
   return $self->_server_info->{dbms_version};
-}
-
-sub _verify_pid {
-  my $self = shift;
-
-  for my $storage ($self->all_storages) {
-    $storage->_verify_pid;
-  }
-}
-
-sub _verify_tid {
-  my $self = shift;
-
-  for my $storage ($self->all_storages) {
-    $storage->_verify_tid;
-  }
 }
 
 =head1 GOTCHAS
