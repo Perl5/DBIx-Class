@@ -1,5 +1,4 @@
 package DBIx::Class::FilterColumn;
-
 use strict;
 use warnings;
 
@@ -21,7 +20,7 @@ sub filter_column {
 }
 
 sub _column_from_storage {
-  my ($self, $source, $col, $value) = @_;
+  my ($self, $col, $value) = @_;
 
   return $value unless defined $value;
 
@@ -33,11 +32,11 @@ sub _column_from_storage {
   my $filter = $info->{_filter_info}{filter_from_storage};
   $self->throw_exception("No inflator for $col") unless defined $filter;
 
-  return $source->$filter($value);
+  return $self->$filter($value);
 }
 
 sub _column_to_storage {
-  my ($self, $source, $col, $value) = @_;
+  my ($self, $col, $value) = @_;
 
   my $info = $self->column_info($col) or
     $self->throw_exception("No column info for $col");
@@ -46,7 +45,7 @@ sub _column_to_storage {
 
   my $unfilter = $info->{_filter_info}{filter_to_storage};
   $self->throw_exception("No unfilter for $col") unless defined $unfilter;
-  return $source->$unfilter($value);
+  return $self->$unfilter($value);
 }
 
 sub get_filtered_column {
@@ -60,13 +59,13 @@ sub get_filtered_column {
 
   my $val = $self->get_column($col);
 
-  return $self->{_filtered_column}{$col} = $self->_column_from_storage($self->result_source, $col, $val);
+  return $self->{_filtered_column}{$col} = $self->_column_from_storage($col, $val);
 }
 
 sub set_filtered_column {
   my ($self, $col, $filtered) = @_;
 
-  $self->set_column($col, $self->_column_to_storage($self->result_source, $col, $filtered));
+  $self->set_column($col, $self->_column_to_storage($col, $filtered));
 
   delete $self->{_filtered_column}{$col};
 
@@ -80,64 +79,86 @@ sub update {
           exists $self->column_info($key)->{_filter_info}) {
       my $val = delete $attrs->{$key};
       $self->set_filtered_column($key, $val);
-      $attrs->{$key} = $self->_column_to_storage($self->result_source, $key, $val)
+      $attrs->{$key} = $self->_column_to_storage($key, $val)
     }
   }
   return $self->next::method($attrs, @rest);
 }
 
-
 sub new {
   my ($class, $attrs, @rest) = @_;
-  my $source = delete $attrs->{-result_source}
+  my $source = $attrs->{-result_source}
     or $class->throw_exception('Sourceless rows are not supported with DBIx::Class::FilterColumn');
 
+  my $obj = $class->next::method($attrs, @rest);
   foreach my $key (keys %{$attrs||{}}) {
-    if ($class->has_column($key) &&
-          exists $class->column_info($key)->{_filter_info} ) {
-      $attrs->{$key} = $class->_column_to_storage($source, $key, delete $attrs->{$key})
+    if ($obj->has_column($key) &&
+          exists $obj->column_info($key)->{_filter_info} ) {
+      my $val = delete $attrs->{$key};
+      $obj->set_filtered_column($key, $val);
     }
   }
-  my $obj = $class->next::method($attrs, @rest);
   return $obj;
 }
 
 1;
 
-=head1 THE ONE TRUE WAY
+=head1 NAME
 
- package My::Reusable::Filter;
+DBIx::Class::FilterColumn - Automatically convert column data
+
+=head1 SYNOPSIS
+
+ # In your result classes
+ __PACKAGE__->filter_column( money => {
+     filter_to_storage => 'to_pennies',
+     filter_from_storage => 'from_pennies',
+ });
 
  sub to_pennies   { $_[1] * 100 }
+
  sub from_pennies { $_[1] / 100 }
 
  1;
 
- package My::Schema::Result::Account;
+=head1 DESCRIPTION
 
- use strict;
- use warnings;
+This component is meant to be a more powerful, but less DWIM-y,
+L<DBIx::Class::InflateColumn>.  One of the major issues with said component is
+that it B<only> works with references.  Generally speaking anything that can
+be done with L<DBIx::Class::InflateColumn> can be done with this component.
 
- use base 'DBIx::Class::Core';
+=head1 METHODS
 
- __PACKAGE->load_components('FilterColumn');
+=head2 filter_column
 
- __PACKAGE__->add_columns(
-   id => {
-     data_type => 'int',
-     is_auto_increment => 1,
-   },
-   total_money => {
-     data_type => 'int',
-   },
- );
+ __PACKAGE__->filter_column( colname => {
+     filter_from_storage => 'method',
+     filter_to_storage   => 'method',
+ })
 
- __PACKAGE__->set_primary_key('id');
+This is the method that you need to call to set up a filtered column.  It takes
+exactly two arguments; the first being the column name the second being a
+C<HashRef> with C<filter_from_storage> and C<filter_to_storage> having
+something that can be called as a method.  The method will be called with
+the value of the column as the first non-C<$self> argument.
 
- __PACKAGE__->filter_column(total_money => {
-   filter_to_storage   => 'to_pennies',
-   filter_from_storage => 'from_pennies',
- });
+=head2 get_filtered_column
 
- 1;
+ $obj->get_filtered_column('colname')
 
+Returns the filtered value of the column
+
+=head2 set_filtered_column
+
+ $obj->set_filtered_column(colname => 'new_value')
+
+Sets the filtered value of the column
+
+=head2 update
+
+Just overridden to filter changed columns through this component
+
+=head2 new
+
+Just overridden to filter columns through this component

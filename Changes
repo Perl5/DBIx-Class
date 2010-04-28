@@ -1,5 +1,8 @@
 Revision history for DBIx::Class
 
+        - Add DBIx::Class::FilterColumn for non-ref filtering
+
+
 0.08121 2010-04-11 18:43:00 (UTC)
         - Support for Firebird RDBMS with DBD::InterBase and ODBC
         - Add core support for INSERT RETURNING (for storages that

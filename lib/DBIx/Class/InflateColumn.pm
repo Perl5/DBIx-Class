@@ -37,7 +37,7 @@ deal with, to allow such settings as C< \'year + 1'> and C< \'DEFAULT' >
 to work.
 
 If you want to filter plain scalar values and replace them with
-something else, contribute a filtering component.
+something else, see L<DBIx::Class::FilterColumn>.
 
 =head1 METHODS
 
@@ -146,9 +146,9 @@ sub set_inflated_column {
   $self->set_column($col, $self->_deflated_column($col, $inflated));
 #  if (blessed $inflated) {
   if (ref $inflated && ref($inflated) ne 'SCALAR') {
-    $self->{_inflated_column}{$col} = $inflated; 
+    $self->{_inflated_column}{$col} = $inflated;
   } else {
-    delete $self->{_inflated_column}{$col};      
+    delete $self->{_inflated_column}{$col};
   }
   return $inflated;
 }
