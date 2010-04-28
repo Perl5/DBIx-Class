@@ -343,7 +343,6 @@ has 'write_handler' => (
     _dbh_commit
     _execute_array
     _placeholders_supported
-    _verify_pid
     savepoints
     _sqlt_minimum_version
     _sql_maker_opts
@@ -371,6 +370,16 @@ has 'write_handler' => (
   /],
 );
 
+my @unimplemented = qw(
+  _arm_global_destructor
+  _preserve_foreign_dbh
+);
+
+for my $method (@unimplemented) {
+  __PACKAGE__->meta->add_method($method, sub {
+    croak "$method must not be called on ".(blessed shift).' objects';
+  });
+}
 
 has _master_connect_info_opts =>
   (is => 'rw', isa => HashRef, default => sub { {} });
@@ -1038,6 +1047,22 @@ sub _get_server_version {
   my $self = shift;
 
   return $self->_server_info->{dbms_version};
+}
+
+sub _verify_pid {
+  my $self = shift;
+
+  for my $storage ($self->all_storages) {
+    $storage->_verify_pid;
+  }
+}
+
+sub _verify_tid {
+  my $self = shift;
+
+  for my $storage ($self->all_storages) {
+    $storage->_verify_tid;
+  }
 }
 
 =head1 GOTCHAS
