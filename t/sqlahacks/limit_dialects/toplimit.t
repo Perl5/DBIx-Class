@@ -11,7 +11,6 @@ my $schema = DBICTest->init_schema;
 # Trick the sqlite DB to use Top limit emulation
 # We could test all of this via $sq->$op directly,
 # but some conditions need a $rsrc
-delete $schema->storage->_sql_maker->{_cached_syntax};
 $schema->storage->_sql_maker->limit_dialect ('Top');
 
 my $rs = $schema->resultset ('BooksInLibrary')->search ({}, { prefetch => 'owner', rows => 1, offset => 3 });

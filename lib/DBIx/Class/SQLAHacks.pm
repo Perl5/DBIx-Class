@@ -609,7 +609,10 @@ sub _join_condition {
 
 sub limit_dialect {
     my $self = shift;
-    $self->{limit_dialect} = shift if @_;
+    if (@_) {
+      $self->{limit_dialect} = shift;
+      undef $self->{_cached_syntax};
+    }
     return $self->{limit_dialect};
 }
 

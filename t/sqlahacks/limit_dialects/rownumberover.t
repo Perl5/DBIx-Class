@@ -8,7 +8,6 @@ use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema;
 
-delete $schema->storage->_sql_maker->{_cached_syntax};
 $schema->storage->_sql_maker->limit_dialect ('RowNumberOver');
 
 my $rs_selectas_col = $schema->resultset ('BooksInLibrary')->search ({}, {
@@ -17,10 +16,6 @@ my $rs_selectas_col = $schema->resultset ('BooksInLibrary')->search ({}, {
   join => 'owner',
   rows => 1,
 });
-
-use Data::Dumper;
-$Data::Dumper::Maxdepth = 4;
-#die Dumper $rs_selectas_col->_resolved_attrs;
 
 is_same_sql_bind(
   $rs_selectas_col->as_query,
