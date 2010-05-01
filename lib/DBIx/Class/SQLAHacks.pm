@@ -46,32 +46,89 @@ sub new {
   $self;
 }
 
+# generate inner/outer select lists for various limit dialects
+# which result in one or more subqueries (e.g. RNO, Top, RowNum)
+# Any non-root-table columns need to have their table qualifier
+# turned into a column name (otherwise names in subqueries clash
+# and/or lose their source table)
+sub _subqueried_selection {
+  my ($self, $rs_attrs) = @_;
+
+  croak 'Limit usable only in the context of DBIC (missing $rs_attrs)' unless $rs_attrs;
+
+  # correlate select and as
+  my @sel;
+  for my $i (0 .. $#{$rs_attrs->{select}}) {
+    my $s = $rs_attrs->{select}[$i];
+    push @sel, {
+      sql => $self->_recurse_fields ($s),
+      unquoted_sql => do { local $self->{quote_char}; $self->_recurse_fields ($s) },
+      as =>
+        ( (ref $s) eq 'HASH' ? $s->{-as} : undef)
+          ||
+        $rs_attrs->{as}[$i]
+          ||
+        croak "Select argument $i ($s) without corresponding 'as'"
+      ,
+    };
+  }
+
+  my ($qsep, $qalias) = map { quotemeta $_ } (
+    $self->name_sep || '.',
+    $rs_attrs->{alias},
+  );
+
+  # re-alias and remove any name separators from aliases,
+  # unless we are dealing with the current source alias
+  # (which will transcend the subqueries and is necessary
+  # for possible further chaining)
+  my (@insel, @outsel);
+  for my $node (@sel) {
+    if (List::Util::first { $_ =~ / (?<! $qalias ) $qsep /x } ($node->{as}, $node->{unquoted_sql}) )  {
+      $node->{as} =~ s/ $qsep /__/xg;
+      push @insel, sprintf '%s AS %s', $node->{sql}, $self->_quote($node->{as});
+      push @outsel, $self->_quote ($node->{as});
+    }
+    else {
+      push @insel, $node->{sql};
+      push @outsel, $self->_quote ($node->{as});
+    }
+  }
+
+  return map { join (', ', @$_ ) } (\@insel, \@outsel);
+}
+
 
 # ANSI standard Limit/Offset implementation. DB2 and MSSQL use this
 sub _RowNumberOver {
   my ($self, $sql, $rs_attrs, $rows, $offset ) = @_;
 
-  # get the select to make the final amount of columns equal the original one
-  my ($select) = $sql =~ /^ \s* SELECT \s+ (.+?) \s+ FROM/ix
+  # mangle the input sql as we will be replacing the selector
+  $sql =~ s/^ \s* SELECT \s+ .+? \s+ (?= \b FROM \b )//ix
     or croak "Unrecognizable SELECT: $sql";
+
+  # get selectors
+  my ($insel, $outsel) = $self->_subqueried_selection ($rs_attrs);
 
   # make up an order if none exists
   my $order_by = $self->_order_by(
     (delete $rs_attrs->{order_by}) || $self->_rno_default_order
   );
 
-  # whatever is left of the order_by
+  # whatever is left of the order_by (only where is processed at this point)
   my $group_having = $self->_parse_rs_attrs($rs_attrs);
 
   my $qalias = $self->_quote ($rs_attrs->{alias});
 
+  my $idx_name = $self->_quote ('rno__row__index');
+
   $sql = sprintf (<<EOS, $offset + 1, $offset + $rows, );
 
-SELECT $select FROM (
-  SELECT $qalias.*, ROW_NUMBER() OVER($order_by ) AS rno__row__index FROM (
-    ${sql}${group_having}
+SELECT $outsel FROM (
+  SELECT $outsel, ROW_NUMBER() OVER($order_by ) AS $idx_name FROM (
+    SELECT $insel ${sql}${group_having}
   ) $qalias
-) $qalias WHERE rno__row__index BETWEEN %d AND %d
+) $qalias WHERE $idx_name BETWEEN %d AND %d
 
 EOS
 
@@ -120,32 +177,69 @@ sub _FirstSkip {
   );
 }
 
+# WhOracle limits
+sub _RowNum {
+  my ( $self, $sql, $rs_attrs, $rows, $offset ) = @_;
+
+  # mangle the input sql as we will be replacing the selector
+  $sql =~ s/^ \s* SELECT \s+ .+? \s+ (?= \b FROM \b )//ix
+    or croak "Unrecognizable SELECT: $sql";
+
+  my ($insel, $outsel) = $self->_subqueried_selection ($rs_attrs);
+
+  my $qalias = $self->_quote ($rs_attrs->{alias});
+  my $idx_name = $self->_quote ('rownum__index');
+  my $order_group_having = $self->_parse_rs_attrs($rs_attrs);
+
+  $sql = sprintf (<<EOS, $offset + 1, $offset + $rows, );
+
+SELECT $outsel FROM (
+  SELECT $outsel, ROWNUM $idx_name FROM (
+    SELECT $insel ${sql}${order_group_having}
+  ) $qalias
+) $qalias WHERE $idx_name BETWEEN %d AND %d
+
+EOS
+
+  $sql =~ s/\s*\n\s*/ /g;   # easier to read in the debugger
+  return $sql;
+}
+
+=begin
 # Crappy Top based Limit/Offset support. Legacy from MSSQL.
 sub _Top {
   my ( $self, $sql, $rs_attrs, $rows, $offset ) = @_;
 
-  # mangle the input sql so it can be properly aliased in the outer queries
-  $sql =~ s/^ \s* SELECT \s+ (.+?) \s+ (?=FROM)//ix
+  # mangle the input sql as we will be replacing the selector
+  $sql =~ s/^ \s* SELECT \s+ .+? \s+ (?= \b FROM \b )//ix
     or croak "Unrecognizable SELECT: $sql";
-  my $sql_select = $1;
-  my @sql_select = split (/\s*,\s*/, $sql_select);
 
-  # we can't support subqueries (in fact MSSQL can't) - croak
-  if (@sql_select != @{$rs_attrs->{select}}) {
-    croak (sprintf (
-      'SQL SELECT did not parse cleanly - retrieved %d comma separated elements, while '
-    . 'the resultset select attribure contains %d elements: %s',
-      scalar @sql_select,
-      scalar @{$rs_attrs->{select}},
-      $sql_select,
-    ));
-  }
+  # get selectors
+  my ($insel, $outsel) = $self->_subqueried_selection ($rs_attrs);
 
+  # deal with order
+  my $rs_alias = $rs_attrs->{alias};
+  my $req_order = delete $rs_attrs->{order_by};
   my $name_sep = $self->name_sep || '.';
+
+  # examine normalized version, collapses nesting
+  my $limit_order = scalar $self->_order_by_chunks ($req_order)
+    ? $req_order
+    : [ map
+      { join ('', $rs_alias, $name_sep, $_ ) }
+      ( $rs_attrs->{_rsroot_source_handle}->resolve->primary_columns )
+    ]
+  ;
+
+  my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
+  my $order_by_requested = $self->_order_by ($req_order);
+
+
+
+
   my $esc_name_sep = "\Q$name_sep\E";
   my $col_re = qr/ ^ (?: (.+) $esc_name_sep )? ([^$esc_name_sep]+) $ /x;
 
-  my $rs_alias = $rs_attrs->{alias};
   my $quoted_rs_alias = $self->_quote ($rs_alias);
 
   # construct the new select lists, rename(alias) some columns if necessary
@@ -216,26 +310,10 @@ sub _Top {
 
   %outer_col_aliases = (%outer_col_aliases, %col_aliases);
 
-  # deal with order
-  croak '$order/attr container supplied to SQLAHacks limit emulators must be a hash'
-    if (ref $rs_attrs ne 'HASH');
 
-  my $req_order = $rs_attrs->{order_by};
 
-  # examine normalized version, collapses nesting
-  my $limit_order = scalar $self->_order_by_chunks ($req_order)
-    ? $req_order
-    : [ map
-      { join ('', $rs_alias, $name_sep, $_ ) }
-      ( $rs_attrs->{_rsroot_source_handle}->resolve->primary_columns )
-    ]
-  ;
-
-  my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
-  my $order_by_requested = $self->_order_by ($req_order);
 
   # generate the rest
-  delete $rs_attrs->{order_by};
   my $grpby_having = $self->_parse_rs_attrs ($rs_attrs);
 
   # short circuit for counts - the ordering complexity is needless
@@ -284,29 +362,7 @@ SQL
   $sql =~ s/\s*\n\s*/ /g; # parsing out multiline statements is harder than a single line
   return $sql;
 }
-
-# action at a distance to shorten Top code above
-sub __record_alias {
-  my ($self, $register, $alias, $fqcol, $col) = @_;
-
-  # record qualified name
-  $register->{$fqcol} = $alias;
-  $register->{$self->_quote($fqcol)} = $alias;
-
-  return unless $col;
-
-  # record unqualified name, undef (no adjustment) if a duplicate is found
-  if (exists $register->{$col}) {
-    $register->{$col} = undef;
-  }
-  else {
-    $register->{$col} = $alias;
-  }
-
-  $register->{$self->_quote($col)} = $register->{$col};
-}
-
-
+=cut
 
 # While we're at it, this should make LIMIT queries more efficient,
 #  without digging into things too deeply
@@ -388,26 +444,25 @@ sub _emulate_limit {
 }
 
 sub _recurse_fields {
-  my ($self, $fields, $params) = @_;
+  my ($self, $fields) = @_;
   my $ref = ref $fields;
   return $self->_quote($fields) unless $ref;
   return $$fields if $ref eq 'SCALAR';
 
   if ($ref eq 'ARRAY') {
-    return join(', ', map {
-      $self->_recurse_fields($_)
-        .(exists $self->{rownum_hack_count} && !($params && $params->{no_rownum_hack})
-          ? ' AS col'.$self->{rownum_hack_count}++
-          : '')
-      } @$fields);
+    return join(', ', map { $self->_recurse_fields($_) } @$fields);
   }
   elsif ($ref eq 'HASH') {
-    my %hash = %$fields;
+    my %hash = %$fields;  # shallow copy
 
     my $as = delete $hash{-as};   # if supplied
 
-    my ($func, $args) = each %hash;
-    delete $hash{$func};
+    my ($func, $args, @toomany) = %hash;
+
+    # there should be only one pair
+    if (@toomany) {
+      croak "Malformed select argument - too many keys in hash: " . join (',', keys %$fields );
+    }
 
     if (lc ($func) eq 'distinct' && ref $args eq 'ARRAY' && @$args > 1) {
       croak (
@@ -424,11 +479,6 @@ sub _recurse_fields {
         ? sprintf (' %s %s', $self->_sqlcase('as'), $self->_quote ($as) )
         : ''
     );
-
-    # there should be nothing left
-    if (keys %hash) {
-      croak "Malformed select argument - too many keys in hash: " . join (',', keys %$fields );
-    }
 
     return $select;
   }
