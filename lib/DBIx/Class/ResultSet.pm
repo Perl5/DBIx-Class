@@ -1271,10 +1271,6 @@ sub _count_subq_rs {
 
   $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $attrs);
 
-  # this is so that the query can be simplified e.g.
-  # * ordering can be thrown away in things like Top limit
-  $sub_attrs->{-for_count_only} = 1;
-
   my $sub_rs = $rsrc->resultset_class->new ($rsrc, $sub_attrs);
 
   $attrs->{from} = [{
