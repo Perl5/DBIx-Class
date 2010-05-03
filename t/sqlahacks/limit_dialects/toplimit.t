@@ -47,58 +47,58 @@ for my $ord_set (
   {
     order_by => \'foo DESC',
     order_inner => 'foo DESC',
-    order_outer => '__ORDER_BY_1 ASC',
-    order_req => '__ORDER_BY_1 DESC',
-    exselect_outer => '__ORDER_BY_1',
-    exselect_inner => 'foo AS __ORDER_BY_1',
+    order_outer => 'ORDER__BY__1 ASC',
+    order_req => 'ORDER__BY__1 DESC',
+    exselect_outer => 'ORDER__BY__1',
+    exselect_inner => 'foo AS ORDER__BY__1',
   },
   {
     order_by => { -asc => 'foo'  },
     order_inner => 'foo ASC',
-    order_outer => '__ORDER_BY_1 DESC',
-    order_req => '__ORDER_BY_1 ASC',
-    exselect_outer => '__ORDER_BY_1',
-    exselect_inner => 'foo AS __ORDER_BY_1',
+    order_outer => 'ORDER__BY__1 DESC',
+    order_req => 'ORDER__BY__1 ASC',
+    exselect_outer => 'ORDER__BY__1',
+    exselect_inner => 'foo AS ORDER__BY__1',
   },
   {
     order_by => { -desc => 'foo' },
     order_inner => 'foo DESC',
-    order_outer => '__ORDER_BY_1 ASC',
-    order_req => '__ORDER_BY_1 DESC',
-    exselect_outer => '__ORDER_BY_1',
-    exselect_inner => 'foo AS __ORDER_BY_1',
+    order_outer => 'ORDER__BY__1 ASC',
+    order_req => 'ORDER__BY__1 DESC',
+    exselect_outer => 'ORDER__BY__1',
+    exselect_inner => 'foo AS ORDER__BY__1',
   },
   {
     order_by => 'foo',
     order_inner => 'foo',
-    order_outer => '__ORDER_BY_1 DESC',
-    order_req => '__ORDER_BY_1',
-    exselect_outer => '__ORDER_BY_1',
-    exselect_inner => 'foo AS __ORDER_BY_1',
+    order_outer => 'ORDER__BY__1 DESC',
+    order_req => 'ORDER__BY__1',
+    exselect_outer => 'ORDER__BY__1',
+    exselect_inner => 'foo AS ORDER__BY__1',
   },
   {
     order_by => [ qw{ foo me.owner}   ],
     order_inner => 'foo, me.owner',
-    order_outer => '__ORDER_BY_1 DESC, me.owner DESC',
-    order_req => '__ORDER_BY_1, me.owner',
-    exselect_outer => '__ORDER_BY_1',
-    exselect_inner => 'foo AS __ORDER_BY_1',
+    order_outer => 'ORDER__BY__1 DESC, me.owner DESC',
+    order_req => 'ORDER__BY__1, me.owner',
+    exselect_outer => 'ORDER__BY__1',
+    exselect_inner => 'foo AS ORDER__BY__1',
   },
   {
     order_by => ['foo', { -desc => 'bar' } ],
     order_inner => 'foo, bar DESC',
-    order_outer => '__ORDER_BY_1 DESC, __ORDER_BY_2 ASC',
-    order_req => '__ORDER_BY_1, __ORDER_BY_2 DESC',
-    exselect_outer => '__ORDER_BY_1, __ORDER_BY_2',
-    exselect_inner => 'foo AS __ORDER_BY_1, bar AS __ORDER_BY_2',
+    order_outer => 'ORDER__BY__1 DESC, ORDER__BY__2 ASC',
+    order_req => 'ORDER__BY__1, ORDER__BY__2 DESC',
+    exselect_outer => 'ORDER__BY__1, ORDER__BY__2',
+    exselect_inner => 'foo AS ORDER__BY__1, bar AS ORDER__BY__2',
   },
   {
     order_by => { -asc => [qw{ foo bar }] },
     order_inner => 'foo ASC, bar ASC',
-    order_outer => '__ORDER_BY_1 DESC, __ORDER_BY_2 DESC',
-    order_req => '__ORDER_BY_1 ASC, __ORDER_BY_2 ASC',
-    exselect_outer => '__ORDER_BY_1, __ORDER_BY_2',
-    exselect_inner => 'foo AS __ORDER_BY_1, bar AS __ORDER_BY_2',
+    order_outer => 'ORDER__BY__1 DESC, ORDER__BY__2 DESC',
+    order_req => 'ORDER__BY__1 ASC, ORDER__BY__2 ASC',
+    exselect_outer => 'ORDER__BY__1, ORDER__BY__2',
+    exselect_inner => 'foo AS ORDER__BY__1, bar AS ORDER__BY__2',
   },
   {
     order_by => [
@@ -107,10 +107,10 @@ for my $ord_set (
       { -asc  => [qw{me.owner sensors}]},
     ],
     order_inner => 'foo, bar DESC, me.owner ASC, sensors ASC',
-    order_outer => '__ORDER_BY_1 DESC, __ORDER_BY_2 ASC, me.owner DESC, __ORDER_BY_3 DESC',
-    order_req => '__ORDER_BY_1, __ORDER_BY_2 DESC, me.owner ASC, __ORDER_BY_3 ASC',
-    exselect_outer => '__ORDER_BY_1, __ORDER_BY_2, __ORDER_BY_3',
-    exselect_inner => 'foo AS __ORDER_BY_1, bar AS __ORDER_BY_2, sensors AS __ORDER_BY_3',
+    order_outer => 'ORDER__BY__1 DESC, ORDER__BY__2 ASC, me.owner DESC, ORDER__BY__3 DESC',
+    order_req => 'ORDER__BY__1, ORDER__BY__2 DESC, me.owner ASC, ORDER__BY__3 ASC',
+    exselect_outer => 'ORDER__BY__1, ORDER__BY__2, ORDER__BY__3',
+    exselect_inner => 'foo AS ORDER__BY__1, bar AS ORDER__BY__2, sensors AS ORDER__BY__3',
   },
 ) {
   my $o_sel = $ord_set->{exselect_outer}
@@ -142,7 +142,7 @@ for my $ord_set (
       ORDER BY $ord_set->{order_req}
     )",
     [ [ source => 'Library' ] ],
-  ) || die;
+  );
 }
 
 # with groupby
@@ -153,19 +153,19 @@ is_same_sql_bind (
         SELECT TOP 2 id, source, owner, title, price
           FROM (
             SELECT TOP 2
-                id, source, owner, title, price, __ORDER_BY_1
+                id, source, owner, title, price, ORDER__BY__1
               FROM (
                 SELECT TOP 5
-                    me.id, me.source, me.owner, me.title, me.price, title AS __ORDER_BY_1
+                    me.id, me.source, me.owner, me.title, me.price, title AS ORDER__BY__1
                   FROM books me
                   JOIN owners owner ON owner.id = me.owner
                 WHERE ( source = ? )
                 GROUP BY title
                 ORDER BY title
               ) me
-            ORDER BY __ORDER_BY_1 DESC
+            ORDER BY ORDER__BY__1 DESC
           ) me
-        ORDER BY __ORDER_BY_1
+        ORDER BY ORDER__BY__1
       ) me
       JOIN owners owner ON owner.id = me.owner
     WHERE ( source = ? )

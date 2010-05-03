@@ -140,7 +140,7 @@ sub _subqueried_limit_attrs {
       next if $in_sel_index->{$chunk};
 
       $extra_order_sel{$chunk} ||= $self->_quote (
-        '__ORDER_BY_' . scalar keys %extra_order_sel
+        'ORDER__BY__' . scalar keys %extra_order_sel
       );
     }
   }
