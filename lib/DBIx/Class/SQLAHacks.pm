@@ -132,11 +132,7 @@ sub _subqueried_limit_attrs {
 
   my %extra_order_sel;
   if ($scan_order) {
-    for my $chunk ($self->_order_by_chunks (
-      ref $rs_attrs->{order_by} eq 'ARRAY'
-        ? @{$rs_attrs->{order_by}}
-        : $rs_attrs->{order_by}
-    )) {
+    for my $chunk ($self->_order_by_chunks ($rs_attrs->{order_by})) {
       # order with bind
       $chunk = $chunk->[0] if (ref $chunk) eq 'ARRAY';
       $chunk =~ s/\s+ (?: ASC|DESC ) \s* $//ix;
@@ -178,7 +174,10 @@ sub _RowNumberOver {
   # this is the order supplement magic
   my $mid_sel = $out_sel;
   if ($extra_order_sel) {
-    for my $extra_col (keys %$extra_order_sel) {
+    for my $extra_col (sort
+      { $extra_order_sel->{$a} cmp $extra_order_sel->{$b} }
+      keys %$extra_order_sel
+    ) {
       $in_sel .= sprintf (', %s AS %s',
         $extra_col,
         $extra_order_sel->{$extra_col},
@@ -320,19 +319,23 @@ sub _Top {
     my @out_chunks;
     for my $ch ($self->_order_by_chunks ($inner_order)) {
       $ch = $ch->[0] if ref $ch eq 'ARRAY';
+
       $ch =~ s/\s+ ( ASC|DESC ) \s* $//ix;
       my $dir = uc ($1||'ASC');
 
       push @out_chunks, \join (' ', $ch, $dir eq 'ASC' ? 'DESC' : 'ASC' );
     }
 
-    $order_by_reversed = $self->_order_by (@out_chunks);
+    $order_by_reversed = $self->_order_by (\@out_chunks);
   }
 
   # this is the order supplement magic
   my $mid_sel = $out_sel;
   if ($extra_order_sel) {
-    for my $extra_col (keys %$extra_order_sel) {
+    for my $extra_col (sort
+      { $extra_order_sel->{$a} cmp $extra_order_sel->{$b} }
+      keys %$extra_order_sel
+    ) {
       $in_sel .= sprintf (', %s AS %s',
         $extra_col,
         $extra_order_sel->{$extra_col},
@@ -374,18 +377,11 @@ sub _Top {
 
   $sql = sprintf ('SELECT TOP %d %s FROM ( %s ) %s %s',
     $rows,
-    $mid_sel,
-    $sql,
-    $quoted_rs_alias,
-    $order_by_requested,
-  ) if $order_by_requested;
-
-  $sql = sprintf ('SELECT TOP %d %s FROM ( %s ) %s',
-    $rows,
     $out_sel,
     $sql,
     $quoted_rs_alias,
-  ) if ($mid_sel ne $out_sel);
+    $order_by_requested,
+  ) if ($order_by_requested || ($mid_sel ne $out_sel));
 
   return $sql;
 }
