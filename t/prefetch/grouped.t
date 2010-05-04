@@ -76,7 +76,7 @@ for ($cd_rs->all) {
           WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
           GROUP BY me.cd
         )
-      count_subq
+      me
     )',
     [ map { [ 'me.cd' => $_] } ($cd_rs->get_column ('cdid')->all) ],
     'count() query generated expected SQL',
@@ -151,7 +151,7 @@ for ($cd_rs->all) {
           WHERE ( me.cdid IS NOT NULL )
           GROUP BY me.cdid
           LIMIT 2
-        ) count_subq
+        ) me
     )',
     [],
     'count() query generated expected SQL',
@@ -262,7 +262,7 @@ for ($cd_rs->all) {
           WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
           GROUP BY SUBSTR(me.cd, 1, 1)
         )
-      count_subq
+      me
     )',
     [ map { [ 'me.cd' => $_] } ($cd_rs->get_column ('cdid')->all) ],
     'count() query generated expected SQL',

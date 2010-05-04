@@ -31,7 +31,7 @@ my $schema = DBICTest->init_schema();
             JOIN artist artist ON artist.artistid = cds.artist
           WHERE tracks.position = ? OR tracks.position = ?
           GROUP BY cds.cdid
-        ) count_subq
+        ) cds
     )',
     [ map { [ 'tracks.position' => $_ ] } (1, 2) ],
   );
@@ -63,7 +63,7 @@ my $schema = DBICTest->init_schema();
           WHERE ( genre.name = ? )
           GROUP BY genre.genreid
         )
-      count_subq
+      genre
     )',
     [ [ 'genre.name' => 'emo' ] ],
   );

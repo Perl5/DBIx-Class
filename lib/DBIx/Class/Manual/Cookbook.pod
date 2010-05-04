@@ -292,7 +292,7 @@ See also L</Using SQL functions on the left hand side of a comparison>.
   my $count = $rs->count;
 
   # Equivalent SQL:
-  # SELECT COUNT( * ) FROM (SELECT me.name FROM artist me GROUP BY me.name) count_subq:
+  # SELECT COUNT( * ) FROM (SELECT me.name FROM artist me GROUP BY me.name) me:
 
 =head2 Grouping results
 
