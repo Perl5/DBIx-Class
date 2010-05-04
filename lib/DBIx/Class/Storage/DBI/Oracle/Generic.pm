@@ -417,24 +417,6 @@ sub with_deferred_fk_checks {
     after => sub { $txn_scope_guard->commit });
 }
 
-sub _select_args {
-    my ($self, $ident, $select, $where, $attrs) = @_;
-
-    my $connect_by_args = {};
-    if ( $attrs->{connect_by} || $attrs->{start_with} || $attrs->{order_siblings_by} || $attrs->{nocycle} ) {
-        $connect_by_args = {
-            connect_by => $attrs->{connect_by},
-            nocycle => $attrs->{nocycle},
-            start_with => $attrs->{start_with},
-            order_siblings_by => $attrs->{order_siblings_by},
-        }
-    }
-
-    my @rv = $self->next::method($ident, $select, $where, $attrs);
-
-    return (@rv, $connect_by_args);
-}
-
 =head1 ATTRIBUTES
 
 Following additional attributes can be used in resultsets.

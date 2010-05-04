@@ -25,29 +25,27 @@ sub new {
 }
 
 sub select {
-    my ($self, $table, $fields, $where, $order, @rest) = @_;
+    my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
 
-    $self->{_db_specific_attrs} = pop @rest;
-
-    my ($sql, @bind) = $self->SUPER::select($table, $fields, $where, $order, @rest);
+    my ($sql, @bind) = $self->SUPER::select($table, $fields, $where, $rs_attrs, @rest);
     push @bind, @{$self->{_oracle_connect_by_binds}};
 
     return wantarray ? ($sql, @bind) : $sql;
 }
 
 sub _emulate_limit {
-    my ( $self, $syntax, $sql, $order, $rows, $offset ) = @_;
+    my ( $self, $syntax, $sql, $rs_attrs, $rows, $offset ) = @_;
 
-    my ($cb_sql, @cb_bind) = $self->_connect_by();
+    my ($cb_sql, @cb_bind) = $self->_connect_by($rs_attrs);
     $sql .= $cb_sql;
     $self->{_oracle_connect_by_binds} = \@cb_bind;
 
-    return $self->SUPER::_emulate_limit($syntax, $sql, $order, $rows, $offset);
+    return $self->SUPER::_emulate_limit($syntax, $sql, $rs_attrs, $rows, $offset);
 }
 
 sub _connect_by {
-    my ($self) = @_;
-    my $attrs = $self->{_db_specific_attrs};
+    my ($self, $attrs) = @_;
+
     my $sql = '';
     my @bind;
 
