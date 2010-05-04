@@ -49,21 +49,21 @@ sub new {
 
 # ANSI standard Limit/Offset implementation. DB2 and MSSQL use this
 sub _RowNumberOver {
-  my ($self, $sql, $order, $rows, $offset ) = @_;
+  my ($self, $sql, $rs_attrs, $rows, $offset ) = @_;
 
   # get the select to make the final amount of columns equal the original one
   my ($select) = $sql =~ /^ \s* SELECT \s+ (.+?) \s+ FROM/ix
     or croak "Unrecognizable SELECT: $sql";
 
-  # get the order_by only (or make up an order if none exists)
+  # make up an order if none exists
   my $order_by = $self->_order_by(
-    (delete $order->{order_by}) || $self->_rno_default_order
+    (delete $rs_attrs->{order_by}) || $self->_rno_default_order
   );
 
   # whatever is left of the order_by
-  my $group_having = $self->_order_by($order);
+  my $group_having = $self->_parse_rs_attrs($rs_attrs);
 
-  my $qalias = $self->_quote ($self->{_dbic_rs_attrs}{alias});
+  my $qalias = $self->_quote ($rs_attrs->{alias});
 
   $sql = sprintf (<<EOS, $offset + 1, $offset + $rows, );
 
@@ -86,7 +86,7 @@ sub _rno_default_order {
 
 # Informix specific limit, almost like LIMIT/OFFSET
 sub _SkipFirst {
-  my ($self, $sql, $order, $rows, $offset) = @_;
+  my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
   $sql =~ s/^ \s* SELECT \s+ //ix
     or croak "Unrecognizable SELECT: $sql";
@@ -98,13 +98,13 @@ sub _SkipFirst {
     ,
     sprintf ('FIRST %d ', $rows),
     $sql,
-    $self->_order_by ($order),
+    $self->_parse_rs_attrs ($rs_attrs),
   );
 }
 
 # Firebird specific limit, reverse of _SkipFirst for Informix
 sub _FirstSkip {
-  my ($self, $sql, $order, $rows, $offset) = @_;
+  my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
   $sql =~ s/^ \s* SELECT \s+ //ix
     or croak "Unrecognizable SELECT: $sql";
@@ -116,13 +116,13 @@ sub _FirstSkip {
       : ''
     ,
     $sql,
-    $self->_order_by ($order),
+    $self->_parse_rs_attrs ($rs_attrs),
   );
 }
 
 # Crappy Top based Limit/Offset support. Legacy from MSSQL.
 sub _Top {
-  my ( $self, $sql, $order, $rows, $offset ) = @_;
+  my ( $self, $sql, $rs_attrs, $rows, $offset ) = @_;
 
   # mangle the input sql so it can be properly aliased in the outer queries
   $sql =~ s/^ \s* SELECT \s+ (.+?) \s+ (?=FROM)//ix
@@ -131,12 +131,12 @@ sub _Top {
   my @sql_select = split (/\s*,\s*/, $sql_select);
 
   # we can't support subqueries (in fact MSSQL can't) - croak
-  if (@sql_select != @{$self->{_dbic_rs_attrs}{select}}) {
+  if (@sql_select != @{$rs_attrs->{select}}) {
     croak (sprintf (
       'SQL SELECT did not parse cleanly - retrieved %d comma separated elements, while '
     . 'the resultset select attribure contains %d elements: %s',
       scalar @sql_select,
-      scalar @{$self->{_dbic_rs_attrs}{select}},
+      scalar @{$rs_attrs->{select}},
       $sql_select,
     ));
   }
@@ -145,13 +145,13 @@ sub _Top {
   my $esc_name_sep = "\Q$name_sep\E";
   my $col_re = qr/ ^ (?: (.+) $esc_name_sep )? ([^$esc_name_sep]+) $ /x;
 
-  my $rs_alias = $self->{_dbic_rs_attrs}{alias};
+  my $rs_alias = $rs_attrs->{alias};
   my $quoted_rs_alias = $self->_quote ($rs_alias);
 
   # construct the new select lists, rename(alias) some columns if necessary
   my (@outer_select, @inner_select, %seen_names, %col_aliases, %outer_col_aliases);
 
-  for (@{$self->{_dbic_rs_attrs}{select}}) {
+  for (@{$rs_attrs->{select}}) {
     next if ref $_;
     my ($table, $orig_colname) = ( $_ =~ $col_re );
     next unless $table;
@@ -160,7 +160,7 @@ sub _Top {
 
   for my $i (0 .. $#sql_select) {
 
-    my $colsel_arg = $self->{_dbic_rs_attrs}{select}[$i];
+    my $colsel_arg = $rs_attrs->{select}[$i];
     my $colsel_sql = $sql_select[$i];
 
     # this may or may not work (in case of a scalarref or something)
@@ -217,34 +217,29 @@ sub _Top {
   %outer_col_aliases = (%outer_col_aliases, %col_aliases);
 
   # deal with order
-  croak '$order supplied to SQLAHacks limit emulators must be a hash'
-    if (ref $order ne 'HASH');
+  croak '$order/attr container supplied to SQLAHacks limit emulators must be a hash'
+    if (ref $rs_attrs ne 'HASH');
 
-  $order = { %$order }; #copy
-
-  my $req_order = $order->{order_by};
+  my $req_order = $rs_attrs->{order_by};
 
   # examine normalized version, collapses nesting
-  my $limit_order;
-  if (scalar $self->_order_by_chunks ($req_order)) {
-    $limit_order = $req_order;
-  }
-  else {
-    $limit_order = [ map
+  my $limit_order = scalar $self->_order_by_chunks ($req_order)
+    ? $req_order
+    : [ map
       { join ('', $rs_alias, $name_sep, $_ ) }
-      ( $self->{_dbic_rs_attrs}{_source_handle}->resolve->primary_columns )
-    ];
-  }
+      ( $rs_attrs->{_rsroot_source_handle}->resolve->primary_columns )
+    ]
+  ;
 
   my ( $order_by_inner, $order_by_outer ) = $self->_order_directions($limit_order);
   my $order_by_requested = $self->_order_by ($req_order);
 
   # generate the rest
-  delete $order->{order_by};
-  my $grpby_having = $self->_order_by ($order);
+  delete $rs_attrs->{order_by};
+  my $grpby_having = $self->_parse_rs_attrs ($rs_attrs);
 
   # short circuit for counts - the ordering complexity is needless
-  if ($self->{_dbic_rs_attrs}{-for_count_only}) {
+  if ($rs_attrs->{-for_count_only}) {
     return "SELECT TOP $rows $inner_select $sql $grpby_having $order_by_outer";
   }
 
@@ -320,14 +315,10 @@ sub _find_syntax {
   return $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
 }
 
-my $for_syntax = {
-  update => 'FOR UPDATE',
-  shared => 'FOR SHARE',
-};
 # Quotes table names, handles "limit" dialects (e.g. where rownum between x and
-# y), supports SELECT ... FOR UPDATE and SELECT ... FOR SHARE.
+# y)
 sub select {
-  my ($self, $table, $fields, $where, $order, @rest) = @_;
+  my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
 
   $self->{"${_}_bind"} = [] for (qw/having from order/);
 
@@ -340,13 +331,10 @@ sub select {
   @rest = (-1) unless defined $rest[0];
   croak "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
-  my ($sql, @where_bind) = $self->SUPER::select(
-    $table, $self->_recurse_fields($fields), $where, $order, @rest
-  );
-  if (my $for = delete $self->{_dbic_rs_attrs}{for}) {
-    $sql .= " $for_syntax->{$for}" if $for_syntax->{$for};
-  }
 
+  my ($sql, @where_bind) = $self->SUPER::select(
+    $table, $self->_recurse_fields($fields), $where, $rs_attrs, @rest
+  );
   return wantarray ? ($sql, @{$self->{from_bind}}, @where_bind, @{$self->{having_bind}}, @{$self->{order_bind}} ) : $sql;
 }
 
@@ -390,8 +378,10 @@ sub delete {
 
 sub _emulate_limit {
   my $self = shift;
+  # my ( $syntax, $sql, $order, $rows, $offset ) = @_;
+
   if ($_[3] == -1) {
-    return $_[1].$self->_order_by($_[2]);
+    return $_[1] . $self->_parse_rs_attrs($_[2]);
   } else {
     return $self->SUPER::_emulate_limit(@_);
   }
@@ -451,34 +441,55 @@ sub _recurse_fields {
   }
 }
 
+my $for_syntax = {
+  update => 'FOR UPDATE',
+  shared => 'FOR SHARE',
+};
+
+# this used to be a part of _order_by but is broken out for clarity.
+# What we have been doing forever is hijacking the $order arg of
+# SQLA::select to pass in arbitrary pieces of data (first the group_by,
+# then pretty much the entire resultset attr-hash, as more and more
+# things in the SQLA space need to have mopre info about the $rs they
+# create SQL for. The alternative would be to keep expanding the
+# signature of _select with more and more positional parameters, which
+# is just gross. All hail SQLA2!
+sub _parse_rs_attrs {
+  my ($self, $arg) = @_;
+
+  my $sql = '';
+
+  if (my $g = $self->_recurse_fields($arg->{group_by}, { no_rownum_hack => 1 }) ) {
+    $sql .= $self->_sqlcase(' group by ') . $g;
+  }
+
+  if (defined $arg->{having}) {
+    my ($frag, @bind) = $self->_recurse_where($arg->{having});
+    push(@{$self->{having_bind}}, @bind);
+    $sql .= $self->_sqlcase(' having ') . $frag;
+  }
+
+  if (defined $arg->{order_by}) {
+    $sql .= $self->_order_by ($arg->{order_by});
+  }
+
+  if (my $for = $arg->{for}) {
+    $sql .= " $for_syntax->{$for}" if $for_syntax->{$for};
+  }
+
+  return $sql;
+}
+
 sub _order_by {
   my ($self, $arg) = @_;
 
-  if (ref $arg eq 'HASH' and keys %$arg and not grep { $_ =~ /^-(?:desc|asc)/i } keys %$arg ) {
-
-    my $ret = '';
-
-    if (my $g = $self->_recurse_fields($arg->{group_by}, { no_rownum_hack => 1 }) ) {
-      $ret = $self->_sqlcase(' group by ') . $g;
-    }
-
-    if (defined $arg->{having}) {
-      my ($frag, @bind) = $self->_recurse_where($arg->{having});
-      push(@{$self->{having_bind}}, @bind);
-      $ret .= $self->_sqlcase(' having ').$frag;
-    }
-
-    if (defined $arg->{order_by}) {
-      my ($frag, @bind) = $self->SUPER::_order_by($arg->{order_by});
-      push(@{$self->{order_bind}}, @bind);
-      $ret .= $frag;
-    }
-
-    return $ret;
+  # check that we are not called in legacy mode (order_by as 4th argument)
+  if (ref $arg eq 'HASH' and not grep { $_ =~ /^-(?:desc|asc)/i } keys %$arg ) {
+    return $self->_parse_rs_attrs ($arg);
   }
   else {
     my ($sql, @bind) = $self->SUPER::_order_by ($arg);
-    push(@{$self->{order_bind}}, @bind);
+    push @{$self->{order_bind}}, @bind;
     return $sql;
   }
 }
@@ -596,26 +607,12 @@ sub _join_condition {
   }
 }
 
-sub _quote {
-  my ($self, $label) = @_;
-  return '' unless defined $label;
-  return $$label if ref($label) eq 'SCALAR';
-  return "*" if $label eq '*';
-  return $label unless $self->{quote_char};
-  if(ref $self->{quote_char} eq "ARRAY"){
-    return $self->{quote_char}->[0] . $label . $self->{quote_char}->[1]
-      if !defined $self->{name_sep};
-    my $sep = $self->{name_sep};
-    return join($self->{name_sep},
-        map { $self->{quote_char}->[0] . $_ . $self->{quote_char}->[1]  }
-       split(/\Q$sep\E/,$label));
-  }
-  return $self->SUPER::_quote($label);
-}
-
 sub limit_dialect {
     my $self = shift;
-    $self->{limit_dialect} = shift if @_;
+    if (@_) {
+      $self->{limit_dialect} = shift;
+      undef $self->{_cached_syntax};
+    }
     return $self->{limit_dialect};
 }
 

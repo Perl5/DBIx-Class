@@ -271,6 +271,10 @@ sub load_namespaces {
       }
       elsif($rs_class ||= $default_resultset_class) {
         $class->ensure_class_loaded($rs_class);
+        if(!$rs_class->isa("DBIx::Class::ResultSet")) {
+            carp "load_namespaces found ResultSet class $rs_class that does not subclass DBIx::Class::ResultSet";
+        }
+
         $class->_ns_get_rsrc_instance ($result_class)->resultset_class($rs_class);
       }
 

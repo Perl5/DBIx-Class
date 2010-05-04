@@ -89,7 +89,7 @@ sub _select_args {
 
     my $data_type = $col_info->{$selected}{data_type};
 
-    if ($data_type && $data_type =~ /^uniqueidentifier\z/i) {
+    if ($data_type && lc($data_type) eq 'uniqueidentifier') {
       $select->[$select_idx] = { UUIDTOSTR => $selected };
     }
   }

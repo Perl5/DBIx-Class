@@ -48,7 +48,7 @@ my ($sql, @bind) = $sql_maker->select(
             'artist.name' => 'Caterwauler McCrae',
             'me.year' => 2001
           },
-          [],
+          {},
           undef,
           undef
 );
@@ -80,7 +80,7 @@ is_same_sql_bind(
             'me.year'
           ],
           undef,
-          'year DESC',
+          { order_by => 'year DESC' },
           undef,
           undef
 );
@@ -105,10 +105,10 @@ is_same_sql_bind(
             'me.year'
           ],
           undef,
-          [
+          { order_by => [
             'year DESC',
             'title ASC'
-          ],
+          ]},
           undef,
           undef
 );
@@ -133,7 +133,7 @@ is_same_sql_bind(
               'me.year'
             ],
             undef,
-            { -desc => 'year' },
+            { order_by => { -desc => 'year' } },
             undef,
             undef
   );
@@ -158,10 +158,10 @@ is_same_sql_bind(
               'me.year'
             ],
             undef,
-            [
+            { order_by => [
               { -desc => 'year' },
-              { -asc => 'title' }
-            ],
+              { -asc => 'title' },
+            ]},
             undef,
             undef
   );
@@ -188,7 +188,7 @@ is_same_sql_bind(
             'me.year'
           ],
           undef,
-          \'year DESC',
+          { order_by => \'year DESC' },
           undef,
           undef
 );
@@ -213,10 +213,10 @@ is_same_sql_bind(
             'me.year'
           ],
           undef,
-          [
+          { order_by => [
             \'year DESC',
             \'title ASC'
-          ],
+          ]},
           undef,
           undef
 );
@@ -283,9 +283,9 @@ is_same_sql_bind(
           'me.*'
         ],
         undef,
-        [],
         undef,
-        undef    
+        undef,
+        undef,
   );
 
   is_same_sql_bind(
@@ -328,9 +328,9 @@ $sql_maker->quote_char([qw/[ ]/]);
             'artist.name' => 'Caterwauler McCrae',
             'me.year' => 2001
           },
-          [],
           undef,
-          undef
+          undef,
+          undef,
 );
 
 is_same_sql_bind(

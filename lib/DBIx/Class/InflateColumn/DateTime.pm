@@ -132,7 +132,7 @@ sub register_column {
       $info->{_ic_dt_method} ||= "timestamp_without_timezone";
     } elsif ($type eq "smalldatetime") {
       $type = "datetime";
-      $info->{_ic_dt_method} ||= "datetime";
+      $info->{_ic_dt_method} ||= "smalldatetime";
     }
   }
 

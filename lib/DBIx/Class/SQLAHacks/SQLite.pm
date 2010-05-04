@@ -6,12 +6,16 @@ use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 #
 # SQLite does not understand SELECT ... FOR UPDATE
-# Adjust SQL here instead
+# Disable it here
 #
-sub select {
-  my $self = shift;
-  local $self->{_dbic_rs_attrs}{for} = undef;
-  return $self->SUPER::select (@_);
+sub _parse_rs_attrs {
+  my ($self, $attrs) = @_;
+
+  return $self->SUPER::_parse_rs_attrs ($attrs)
+    if ref $attrs ne 'HASH';
+
+  local $attrs->{for};
+  return $self->SUPER::_parse_rs_attrs ($attrs);
 }
 
 1;
