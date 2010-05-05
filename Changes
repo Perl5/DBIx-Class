@@ -17,6 +17,8 @@ Revision history for DBIx::Class
           resultsets
         - MSSQL limits now don't require nearly as many applications of
           the unsafe_subselect_ok attribute, due to optimized queries
+        - Fix as_subselect_rs to not inject resultset class-wide where
+          conditions outside of the resulting subquery
         - Depend on optimized SQL::Abstract (faster SQL generation)
 
 0.08121 2010-04-11 18:43:00 (UTC)
