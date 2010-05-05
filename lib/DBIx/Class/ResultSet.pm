@@ -1289,11 +1289,6 @@ sub _count_subq_rs {
     $sub_attrs->{select} = @pcols ? \@pcols : [ 1 ];
   }
 
-
-  # this is so that the query can be simplified e.g.
-  # * ordering can be thrown away in things like Top limit
-  $sub_attrs->{-for_count_only} = 1;
-
   return $rsrc->resultset_class
                ->new ($rsrc, $sub_attrs)
                 ->as_subselect_rs
@@ -2684,15 +2679,22 @@ sub as_subselect_rs {
 
   my $attrs = $self->_resolved_attrs;
 
-  return $self->result_source->resultset->search( undef, {
+  my $fresh_rs = (ref $self)->new (
+    $self->result_source
+  );
+
+  # these pieces will be locked in the subquery
+  delete $fresh_rs->{cond};
+  delete @{$fresh_rs->{attrs}}{qw/where bind/};
+
+  return $fresh_rs->search( {}, {
     from => [{
       $attrs->{alias} => $self->as_query,
       -alias         => $attrs->{alias},
       -source_handle => $self->result_source->handle,
     }],
-    map { $_ => $attrs->{$_} } qw/select as alias/
-
-   });
+    alias => $attrs->{alias},
+  });
 }
 
 # This code is called by search_related, and makes sure there
