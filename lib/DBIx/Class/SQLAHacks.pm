@@ -405,8 +405,6 @@ sub select {
     $table = $self->_quote($table);
   }
 
-  local $self->{rownum_hack_count} = 1
-    if (defined $rest[0] && $self->{limit_dialect} eq 'RowNum');
   @rest = (-1) unless defined $rest[0];
   croak "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
@@ -532,7 +530,7 @@ sub _parse_rs_attrs {
 
   my $sql = '';
 
-  if (my $g = $self->_recurse_fields($arg->{group_by}, { no_rownum_hack => 1 }) ) {
+  if (my $g = $self->_recurse_fields($arg->{group_by}) ) {
     $sql .= $self->_sqlcase(' group by ') . $g;
   }
 
