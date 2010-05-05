@@ -146,7 +146,7 @@ lives_ok ( sub {
             JOIN cd cd ON cd.cdid = me.cd_id
             JOIN artist artist_2 ON artist_2.artistid = cd.artist
           GROUP BY me.cd_id
-        ) count_subq
+        ) me
     )',
     [],
   );

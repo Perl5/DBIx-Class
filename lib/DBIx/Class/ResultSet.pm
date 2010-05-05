@@ -1235,10 +1235,11 @@ sub _count_rs {
   my $rsrc = $self->result_source;
   $attrs ||= $self->_resolved_attrs;
 
-  my $tmp_attrs = { %$attrs };
-
-  # take off any limits, record_filter is cdbi, and no point of ordering a count
-  delete $tmp_attrs->{$_} for (qw/select as rows offset order_by record_filter/);
+  # only take pieces we need for a simple count
+  my $tmp_attrs = { map
+    { $_ => $attrs->{$_} }
+    qw/ alias from where bind join /
+  };
 
   # overwrite the selector (supplied by the storage)
   $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $tmp_attrs);
@@ -1256,12 +1257,12 @@ sub _count_subq_rs {
   my ($self, $attrs) = @_;
 
   my $rsrc = $self->result_source;
-  $attrs ||= $self->_resolved_attrs_copy;
+  $attrs ||= $self->_resolved_attrs;
 
-  my $sub_attrs = { %$attrs };
-
-  # extra selectors do not go in the subquery and there is no point of ordering it
-  delete $sub_attrs->{$_} for qw/collapse select _prefetch_select as order_by/;
+  my $sub_attrs = { map
+    { $_ => $attrs->{$_} }
+    qw/ alias from where bind join group_by having rows offset /
+  };
 
   # if we multi-prefetch we group_by primary keys only as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
@@ -1269,20 +1270,35 @@ sub _count_subq_rs {
     $sub_attrs->{group_by} = [ map { "$attrs->{alias}.$_" } ($rsrc->_pri_cols) ]
   }
 
-  $sub_attrs->{select} = $rsrc->storage->_subq_count_select ($rsrc, $attrs);
+  # Calculate subquery selector
+  if (my $g = $sub_attrs->{group_by}) {
 
-  my $sub_rs = $rsrc->resultset_class->new ($rsrc, $sub_attrs);
+    # necessary as the group_by may refer to aliased functions
+    my $sel_index;
+    for my $sel (@{$attrs->{select}}) {
+      $sel_index->{$sel->{-as}} = $sel
+        if (ref $sel eq 'HASH' and $sel->{-as});
+    }
 
-  $attrs->{from} = [{
-    -alias => 'count_subq',
-    -source_handle => $rsrc->handle,
-    count_subq => $sub_rs->as_query,
-  }];
+    for my $g_part (@$g) {
+      push @{$sub_attrs->{select}}, $sel_index->{$g_part} || $g_part;
+    }
+  }
+  else {
+    my @pcols = map { "$attrs->{alias}.$_" } ($rsrc->primary_columns);
+    $sub_attrs->{select} = @pcols ? \@pcols : [ 1 ];
+  }
 
-  # the subquery replaces this
-  delete $attrs->{$_} for qw/where bind collapse group_by having having_bind rows offset/;
 
-  return $self->_count_rs ($attrs);
+  # this is so that the query can be simplified e.g.
+  # * ordering can be thrown away in things like Top limit
+  $sub_attrs->{-for_count_only} = 1;
+
+  return $rsrc->resultset_class
+               ->new ($rsrc, $sub_attrs)
+                ->as_subselect_rs
+                 ->search ({}, { columns => { count => $rsrc->storage->_count_select ($rsrc, $attrs) } })
+                  -> get_column ('count');
 }
 
 sub _bool {
@@ -2664,15 +2680,18 @@ but because we isolated the group by into a subselect the above works.
 =cut
 
 sub as_subselect_rs {
-   my $self = shift;
+  my $self = shift;
 
-   return $self->result_source->resultset->search( undef, {
-      alias => $self->current_source_alias,
-      from => [{
-            $self->current_source_alias => $self->as_query,
-            -alias         => $self->current_source_alias,
-            -source_handle => $self->result_source->handle,
-         }]
+  my $attrs = $self->_resolved_attrs;
+
+  return $self->result_source->resultset->search( undef, {
+    from => [{
+      $attrs->{alias} => $self->as_query,
+      -alias         => $attrs->{alias},
+      -source_handle => $self->result_source->handle,
+    }],
+    map { $_ => $attrs->{$_} } qw/select as alias/
+
    });
 }
 
@@ -2698,7 +2717,7 @@ sub _chain_relationship {
   # ->_resolve_join as otherwise they get lost - captainL
   my $join = $self->_merge_attr( $attrs->{join}, $attrs->{prefetch} );
 
-  delete @{$attrs}{qw/join prefetch collapse distinct select as columns +select +as +columns/};
+  delete @{$attrs}{qw/join prefetch collapse group_by distinct select as columns +select +as +columns/};
 
   my $seen = { %{ (delete $attrs->{seen_join}) || {} } };
 
@@ -2724,7 +2743,7 @@ sub _chain_relationship {
       -alias => $attrs->{alias},
       $attrs->{alias} => $rs_copy->as_query,
     }];
-    delete @{$attrs}{@force_subq_attrs, 'where'};
+    delete @{$attrs}{@force_subq_attrs, qw/where bind/};
     $seen->{-relation_chain_depth} = 0;
   }
   elsif ($attrs->{from}) {  #shallow copy suffices

@@ -308,7 +308,6 @@ has 'write_handler' => (
     is_datatype_numeric
     _supports_insert_returning
     _count_select
-    _subq_count_select
     _subq_update_delete
     svp_rollback
     svp_begin
