@@ -16,6 +16,8 @@ use List::Util();
 use Data::Dumper::Concise();
 use Sub::Name ();
 
+use File::Path ();
+
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
      _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints
@@ -39,7 +41,6 @@ __PACKAGE__->mk_group_accessors('inherited' => qw/
   _supports_insert_returning
 /);
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
-
 
 # Each of these methods need _determine_driver called before itself
 # in order to function reliably. This is a purely DRY optimization
@@ -115,8 +116,101 @@ sub new {
   $new->{_in_dbh_do} = 0;
   $new->{_dbh_gen} = 0;
 
+  # read below to see what this does
+  $new->_arm_global_destructor;
+
   $new;
 }
+
+# This is hack to work around perl shooting stuff in random
+# order on exit(). If we do not walk the remaining storage
+# objects in an END block, there is a *small but real* chance
+# of a fork()ed child to kill the parent's shared DBI handle,
+# *before perl reaches the DESTROY in this package*
+# Yes, it is ugly and effective.
+{
+  my %seek_and_destroy;
+
+  sub _arm_global_destructor {
+    my $self = shift;
+    my $key = Scalar::Util::refaddr ($self);
+    $seek_and_destroy{$key} = $self;
+    Scalar::Util::weaken ($seek_and_destroy{$key});
+  }
+
+  END {
+    local $?; # just in case the DBI destructor changes it somehow
+
+    # destroy just the object if not native to this process/thread
+    $_->_preserve_foreign_dbh for (grep
+      { defined $_ }
+      values %seek_and_destroy
+    );
+  }
+}
+
+sub DESTROY {
+  my $self = shift;
+
+  # destroy just the object if not native to this process/thread
+  $self->_preserve_foreign_dbh;
+
+  # some databases need this to stop spewing warnings
+  if (my $dbh = $self->_dbh) {
+    local $@;
+    eval {
+      %{ $dbh->{CachedKids} } = ();
+      $dbh->disconnect;
+    };
+  }
+
+  $self->_dbh(undef);
+}
+
+sub _preserve_foreign_dbh {
+  my $self = shift;
+
+  return unless $self->_dbh;
+
+  $self->_verify_tid;
+
+  return unless $self->_dbh;
+
+  $self->_verify_pid;
+
+}
+
+# handle pid changes correctly - do not destroy parent's connection
+sub _verify_pid {
+  my $self = shift;
+
+  return if ( defined $self->_conn_pid and $self->_conn_pid == $$ );
+
+  $self->_dbh->{InactiveDestroy} = 1;
+  $self->_dbh(undef);
+  $self->{_dbh_gen}++;
+
+  return;
+}
+
+# very similar to above, but seems to FAIL if I set InactiveDestroy
+sub _verify_tid {
+  my $self = shift;
+
+  if ( ! defined $self->_conn_tid ) {
+    return; # no threads
+  }
+  elsif ( $self->_conn_tid == threads->tid ) {
+    return; # same thread
+  }
+
+  #$self->_dbh->{InactiveDestroy} = 1;  # why does t/51threads.t fail...?
+  $self->_dbh(undef);
+  $self->{_dbh_gen}++;
+
+  return;
+}
+
 
 =head2 connect_info
 
@@ -803,18 +897,10 @@ sub connected {
 sub _seems_connected {
   my $self = shift;
 
+  $self->_preserve_foreign_dbh;
+
   my $dbh = $self->_dbh
     or return 0;
-
-  if(defined $self->_conn_tid && $self->_conn_tid != threads->tid) {
-    $self->_dbh(undef);
-    $self->{_dbh_gen}++;
-    return 0;
-  }
-  else {
-    $self->_verify_pid;
-    return 0 if !$self->_dbh;
-  }
 
   return $dbh->FETCH('Active');
 }
@@ -825,20 +911,6 @@ sub _ping {
   my $dbh = $self->_dbh or return 0;
 
   return $dbh->ping;
-}
-
-# handle pid changes correctly
-#  NOTE: assumes $self->_dbh is a valid $dbh
-sub _verify_pid {
-  my ($self) = @_;
-
-  return if defined $self->_conn_pid && $self->_conn_pid == $$;
-
-  $self->_dbh->{InactiveDestroy} = 1;
-  $self->_dbh(undef);
-  $self->{_dbh_gen}++;
-
-  return;
 }
 
 sub ensure_connected {
@@ -873,7 +945,7 @@ sub dbh {
 # this is the internal "get dbh or connect (don't check)" method
 sub _get_dbh {
   my $self = shift;
-  $self->_verify_pid if $self->_dbh;
+  $self->_preserve_foreign_dbh;
   $self->_populate_dbh unless $self->_dbh;
   return $self->_dbh;
 }
@@ -998,8 +1070,9 @@ sub _determine_driver {
           # try to use dsn to not require being connected, the driver may still
           # force a connection in _rebless to determine version
           # (dsn may not be supplied at all if all we do is make a mock-schema)
-          my $dsn = $self->_dbi_connect_info->[0] || '';
+          my $dsn = $self->_dbi_connect_info->[0] || $ENV{DBI_DSN} || '';
           ($driver) = $dsn =~ /dbi:([^:]+):/i;
+          $driver ||= $ENV{DBI_DRIVER};
         }
       }
 
@@ -1769,31 +1842,18 @@ sub _per_row_update_delete {
 
 sub _select {
   my $self = shift;
-
-  # localization is neccessary as
-  # 1) there is no infrastructure to pass this around before SQLA2
-  # 2) _select_args sets it and _prep_for_execute consumes it
-  my $sql_maker = $self->sql_maker;
-  local $sql_maker->{_dbic_rs_attrs};
-
-  return $self->_execute($self->_select_args(@_));
+  $self->_execute($self->_select_args(@_));
 }
 
 sub _select_args_to_query {
   my $self = shift;
 
-  # localization is neccessary as
-  # 1) there is no infrastructure to pass this around before SQLA2
-  # 2) _select_args sets it and _prep_for_execute consumes it
-  my $sql_maker = $self->sql_maker;
-  local $sql_maker->{_dbic_rs_attrs};
-
-  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $order, $rows, $offset)
+  # my ($op, $bind, $ident, $bind_attrs, $select, $cond, $rs_attrs, $rows, $offset)
   #  = $self->_select_args($ident, $select, $cond, $attrs);
   my ($op, $bind, $ident, $bind_attrs, @args) =
     $self->_select_args(@_);
 
-  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $order, $rows, $offset ]);
+  # my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, [ $select, $cond, $rs_attrs, $rows, $offset ]);
   my ($sql, $prepared_bind) = $self->_prep_for_execute($op, $bind, $ident, \@args);
   $prepared_bind ||= [];
 
@@ -1806,16 +1866,16 @@ sub _select_args_to_query {
 sub _select_args {
   my ($self, $ident, $select, $where, $attrs) = @_;
 
+  my $sql_maker = $self->sql_maker;
   my ($alias2source, $rs_alias) = $self->_resolve_ident_sources ($ident);
 
-  my $sql_maker = $self->sql_maker;
-  $sql_maker->{_dbic_rs_attrs} = {
+  $attrs = {
     %$attrs,
     select => $select,
     from => $ident,
     where => $where,
     $rs_alias && $alias2source->{$rs_alias}
-      ? ( _source_handle => $alias2source->{$rs_alias}->handle )
+      ? ( _rsroot_source_handle => $alias2source->{$rs_alias}->handle )
       : ()
     ,
   };
@@ -1871,18 +1931,7 @@ sub _select_args {
     #limited has_many
     ( $attrs->{rows} && keys %{$attrs->{collapse}} )
        ||
-    # limited prefetch with RNO subqueries
-    (
-      $attrs->{rows}
-        &&
-      $sql_maker->limit_dialect eq 'RowNumberOver'
-        &&
-      $attrs->{_prefetch_select}
-        &&
-      @{$attrs->{_prefetch_select}}
-    )
-      ||
-    # grouped prefetch
+    # grouped prefetch (to satisfy group_by == select)
     ( $attrs->{group_by}
         &&
       @{$attrs->{group_by}}
@@ -1895,39 +1944,6 @@ sub _select_args {
     ($ident, $select, $where, $attrs)
       = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
   }
-
-  elsif (
-    ($attrs->{rows} || $attrs->{offset})
-      &&
-    $sql_maker->limit_dialect eq 'RowNumberOver'
-      &&
-    (ref $ident eq 'ARRAY' && @$ident > 1)  # indicates a join
-      &&
-    scalar $self->_parse_order_by ($attrs->{order_by})
-  ) {
-    # the RNO limit dialect above mangles the SQL such that the join gets lost
-    # wrap a subquery here
-
-    push @limit, delete @{$attrs}{qw/rows offset/};
-
-    my $subq = $self->_select_args_to_query (
-      $ident,
-      $select,
-      $where,
-      $attrs,
-    );
-
-    $ident = {
-      -alias => $attrs->{alias},
-      -source_handle => $ident->[0]{-source_handle},
-      $attrs->{alias} => $subq,
-    };
-
-    # all part of the subquery now
-    delete @{$attrs}{qw/order_by group_by having/};
-    $where = undef;
-  }
-
   elsif (! $attrs->{software_limit} ) {
     push @limit, $attrs->{rows}, $attrs->{offset};
   }
@@ -1945,12 +1961,7 @@ sub _select_args {
   # invoked, and that's just bad...
 ###
 
-  my $order = { map
-    { $attrs->{$_} ? ( $_ => $attrs->{$_} ) : ()  }
-    (qw/order_by group_by having/ )
-  };
-
-  return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $order, @limit);
+  return ('select', $attrs->{bind}, $ident, $bind_attrs, $select, $where, $attrs, @limit);
 }
 
 # Returns a counting SELECT for a simple count
@@ -1962,46 +1973,6 @@ sub _count_select {
   return { count => '*' };
 }
 
-# Returns a SELECT which will end up in the subselect
-# There may or may not be a group_by, as the subquery
-# might have been called to accomodate a limit
-#
-# Most databases would be happy with whatever ends up
-# here, but some choke in various ways.
-#
-sub _subq_count_select {
-  my ($self, $source, $rs_attrs) = @_;
-
-  if (my $groupby = $rs_attrs->{group_by}) {
-
-    my $avail_columns = $self->_resolve_column_info ($rs_attrs->{from});
-
-    my $sel_index;
-    for my $sel (@{$rs_attrs->{select}}) {
-      if (ref $sel eq 'HASH' and $sel->{-as}) {
-        $sel_index->{$sel->{-as}} = $sel;
-      }
-    }
-
-    my @selection;
-    for my $g_part (@$groupby) {
-      if (ref $g_part or $avail_columns->{$g_part}) {
-        push @selection, $g_part;
-      }
-      elsif ($sel_index->{$g_part}) {
-        push @selection, $sel_index->{$g_part};
-      }
-      else {
-        $self->throw_exception ("group_by criteria '$g_part' not contained within current resultset source(s)");
-      }
-    }
-
-    return \@selection;
-  }
-
-  my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
-  return @pcols ? \@pcols : [ 1 ];
-}
 
 sub source_bind_attributes {
   my ($self, $source) = @_;
@@ -2333,6 +2304,9 @@ sub create_ddl_dir {
   unless ($dir) {
     carp "No directory given, using ./\n";
     $dir = './';
+  } else {
+      -d $dir or File::Path::mkpath($dir)
+          or $self->throw_exception("create_ddl_dir: $! creating dir '$dir'");
   }
 
   $self->throw_exception ("Directory '$dir' does not exist\n") unless(-d $dir);
@@ -2646,23 +2620,6 @@ sub relname_to_table_alias {
     join('_', $relname, $join_count) : $relname);
 
   return $alias;
-}
-
-sub DESTROY {
-  my $self = shift;
-
-  $self->_verify_pid if $self->_dbh;
-
-  # some databases need this to stop spewing warnings
-  if (my $dbh = $self->_dbh) {
-    local $@;
-    eval {
-      %{ $dbh->{CachedKids} } = ();
-      $dbh->disconnect;
-    };
-  }
-
-  $self->_dbh(undef);
 }
 
 1;

@@ -308,7 +308,6 @@ has 'write_handler' => (
     is_datatype_numeric
     _supports_insert_returning
     _count_select
-    _subq_count_select
     _subq_update_delete
     svp_rollback
     svp_begin
@@ -343,7 +342,6 @@ has 'write_handler' => (
     _dbh_commit
     _execute_array
     _placeholders_supported
-    _verify_pid
     savepoints
     _sqlt_minimum_version
     _sql_maker_opts
@@ -371,6 +369,18 @@ has 'write_handler' => (
   /],
 );
 
+my @unimplemented = qw(
+  _arm_global_destructor
+  _preserve_foreign_dbh
+  _verify_pid
+  _verify_tid
+);
+
+for my $method (@unimplemented) {
+  __PACKAGE__->meta->add_method($method, sub {
+    croak "$method must not be called on ".(blessed shift).' objects';
+  });
+}
 
 has _master_connect_info_opts =>
   (is => 'rw', isa => HashRef, default => sub { {} });

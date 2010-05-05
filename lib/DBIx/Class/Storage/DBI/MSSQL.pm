@@ -158,7 +158,11 @@ sub _select_args_to_query {
 
   # see if this is an ordered subquery
   my $attrs = $_[3];
-  if ( scalar $self->_parse_order_by ($attrs->{order_by}) ) {
+  if (
+    $sql !~ /^ \s* SELECT \s+ TOP \s+ \d+ \s+ /xi
+      &&
+    scalar $self->_parse_order_by ($attrs->{order_by}) 
+  ) {
     $self->throw_exception(
       'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL
     ') unless $attrs->{unsafe_subselect_ok};
@@ -190,13 +194,9 @@ sub _svp_rollback {
   $self->_get_dbh->do("ROLLBACK TRANSACTION $name");
 }
 
-sub build_datetime_parser {
-  my $self = shift;
-  my $type = "DateTime::Format::Strptime";
-  eval "use ${type}";
-  $self->throw_exception("Couldn't load ${type}: $@") if $@;
-  return $type->new( pattern => '%Y-%m-%d %H:%M:%S' );  # %F %T
-}
+sub datetime_parser_type {
+  'DBIx::Class::Storage::DBI::MSSQL::DateTime::Format'
+} 
 
 sub sqlt_type { 'SQLServer' }
 
@@ -233,6 +233,54 @@ sub _ping {
   };
 
   return $@ ? 0 : 1;
+}
+
+package # hide from PAUSE
+  DBIx::Class::Storage::DBI::MSSQL::DateTime::Format;
+
+my $datetime_format      = '%Y-%m-%d %H:%M:%S.%3N'; # %F %T 
+my $smalldatetime_format = '%Y-%m-%d %H:%M:%S';
+
+my ($datetime_parser, $smalldatetime_parser);
+
+sub parse_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $datetime_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $datetime_format,
+    on_error => 'croak',
+  );
+  return $datetime_parser->parse_datetime(shift);
+}
+
+sub format_datetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $datetime_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $datetime_format,
+    on_error => 'croak',
+  );
+  return $datetime_parser->format_datetime(shift);
+}
+
+sub parse_smalldatetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $smalldatetime_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $smalldatetime_format,
+    on_error => 'croak',
+  );
+  return $smalldatetime_parser->parse_datetime(shift);
+}
+
+sub format_smalldatetime {
+  shift;
+  require DateTime::Format::Strptime;
+  $smalldatetime_parser ||= DateTime::Format::Strptime->new(
+    pattern  => $smalldatetime_format,
+    on_error => 'croak',
+  );
+  return $smalldatetime_parser->format_datetime(shift);
 }
 
 1;

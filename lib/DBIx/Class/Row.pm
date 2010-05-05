@@ -106,10 +106,10 @@ with NULL as the default, and save yourself a SELECT.
 sub __new_related_find_or_new_helper {
   my ($self, $relname, $data) = @_;
 
+  my $rsrc = $self->result_source;
+
   # create a mock-object so all new/set_column component overrides will run:
-  my $rel_rs = $self->result_source
-                    ->related_source($relname)
-                    ->resultset;
+  my $rel_rs = $rsrc->related_source($relname)->resultset;
   my $new_rel_obj = $rel_rs->new_result($data);
   my $proc_data = { $new_rel_obj->get_columns };
 
@@ -117,7 +117,7 @@ sub __new_related_find_or_new_helper {
     MULTICREATE_DEBUG and warn "MC $self constructing $relname via new_result";
     return $new_rel_obj;
   }
-  elsif ($self->result_source->_pk_depends_on($relname, $proc_data )) {
+  elsif ($rsrc->_pk_depends_on($relname, $proc_data )) {
     if (! keys %$proc_data) {
       # there is nothing to search for - blind create
       MULTICREATE_DEBUG and warn "MC $self constructing default-insert $relname";
@@ -132,7 +132,7 @@ sub __new_related_find_or_new_helper {
     return $new_rel_obj;
   }
   else {
-    my $us = $self->source_name;
+    my $us = $rsrc->source_name;
     $self->throw_exception ("'$us' neither depends nor is depended on by '$relname', something is wrong...");
   }
 }
