@@ -5,11 +5,13 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
+my $from_storage_ran = 0;
+my $to_storage_ran = 0;
 my $schema = DBICTest->init_schema();
 DBICTest::Schema::Artist->load_components('FilterColumn');
 DBICTest::Schema::Artist->filter_column(rank => {
-  filter_from_storage => sub { $_[1] * 2 },
-  filter_to_storage   => sub { $_[1] / 2 },
+  filter_from_storage => sub { $from_storage_ran++; $_[1] * 2 },
+  filter_to_storage   => sub { $to_storage_ran++; $_[1] / 2 },
 });
 Class::C3->reinitialize();
 
@@ -65,5 +67,52 @@ MC: {
    is $raw_db_rank, 10, 'artist rank gets correctly unfiltered w/ MC';
    is $cd->artist->rank, 20, 'artist rank gets correctly filtered w/ MC';
 }
+
+my $initial_from = $from_storage_ran;
+my $initial_to   = $to_storage_ran;
+
+# ensure we are creating a fresh obj
+$artist = $schema->resultset('Artist')->single($artist->ident_condition);
+
+is $initial_from, $from_storage_ran, 'from has not run yet';
+is $initial_from, $from_storage_ran, 'to has not run yet';
+
+$artist->rank;
+$artist->get_filtered_column('rank');
+$artist->get_column('rank');
+
+is $from_storage_ran, $initial_from + 1, 'from ran once, therefor caches';
+is $to_storage_ran, $initial_to,  'to ran none';
+$initial_from = $from_storage_ran;
+$initial_to   = $to_storage_ran;
+
+$artist->rank(1);
+
+is $from_storage_ran, $initial_from, 'from ran none';
+is $to_storage_ran, $initial_to + 1,  'to ran once';
+$initial_from = $from_storage_ran;
+$initial_to   = $to_storage_ran;
+
+$artist->rank;
+
+is $from_storage_ran, $initial_from + 1, 'from ran once';
+is $to_storage_ran, $initial_to,  'to ran none';
+$initial_from = $from_storage_ran;
+$initial_to   = $to_storage_ran;
+
+$artist->rank;
+
+is $from_storage_ran, $initial_from, 'from ran none';
+is $to_storage_ran, $initial_to,  'to ran none';
+$initial_from = $from_storage_ran;
+$initial_to   = $to_storage_ran;
+
+$artist->set_column(rank => 1);
+$artist->rank;
+
+is $from_storage_ran, $initial_from + 1, 'from ran once (set column blows cache)';
+is $to_storage_ran, $initial_to,  'to ran none';
+$initial_from = $from_storage_ran;
+$initial_to   = $to_storage_ran;
 
 done_testing;

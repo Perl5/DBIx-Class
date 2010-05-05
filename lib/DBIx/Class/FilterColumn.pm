@@ -62,6 +62,15 @@ sub get_filtered_column {
   return $self->{_filtered_column}{$col} = $self->_column_from_storage($col, $val);
 }
 
+sub set_column {
+  my ($self, $col) = (shift, @_);
+
+  # blow cache
+  delete $self->{_filtered_column}{$col};
+
+  $self->next::method(@_);
+}
+
 sub set_filtered_column {
   my ($self, $col, $filtered) = @_;
 
