@@ -70,7 +70,7 @@ $schema = DBICTest::Schema->connect("dbi::$dbname");
 lives_ok { count_sheep($schema) } 'SQLite in DBI_DRIVER';
 isa_ok $schema->storage, 'DBIx::Class::Storage::DBI::SQLite';
 
-undef $ENV{DBI_DRIVER};
+delete $ENV{DBI_DRIVER};
 $ENV{DBI_DSN} = "dbi:SQLite:$dbname";
 $schema = DBICTest::Schema->connect;
 lives_ok { count_sheep($schema) } 'SQLite in DBI_DSN';

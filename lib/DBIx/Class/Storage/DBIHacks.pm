@@ -94,6 +94,8 @@ sub _adjust_select_args_for_complex_prefetch {
     }
 
     push @$inner_select, $sel;
+
+    push @{$inner_attrs->{as}}, $attrs->{as}[$i];
   }
 
   # construct the inner $from for the subquery

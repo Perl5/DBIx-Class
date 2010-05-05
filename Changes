@@ -3,7 +3,7 @@ Revision history for DBIx::Class
         - Add a warning to load_namespaces if a class in ResultSet/
           is not a subclass of DBIx::Class::ResultSet
         - ::Storage::DBI now correctly preserves a parent $dbh from
-          terminating children, even during interpreter global
+          terminating children, even during interpreter-global
           out-of-order destruction
         - InflateColumn::DateTime support for MSSQL via DBD::Sybase
         - Millisecond precision support for MSSQL datetimes for
@@ -12,6 +12,11 @@ Revision history for DBIx::Class
         - current_source_alias method on ResultSet objects to
           determine the alias to use in programatically assembled
           search()es (originally added in 0.08100 but unmentioned)
+        - Rewrite/unification of all subselecting limit emulations
+          (RNO, Top, RowNum) to be much more robust wrt complex joined
+          resultsets
+        - MSSQL limits now don't require nearly as many applications of
+          the unsafe_subselect_ok attribute, due to optimized queries
         - Depend on optimized SQL::Abstract (faster SQL generation)
 
 0.08121 2010-04-11 18:43:00 (UTC)
