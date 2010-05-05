@@ -381,7 +381,7 @@ sub _Top {
     $sql,
     $quoted_rs_alias,
     $order_by_requested,
-  ) if ($order_by_requested || ($mid_sel ne $out_sel));
+  ) if ( ($offset && $order_by_requested) || ($mid_sel ne $out_sel) );
 
   return $sql;
 }
