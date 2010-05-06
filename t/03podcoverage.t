@@ -46,6 +46,13 @@ my $exceptions = {
             MULTICREATE_DEBUG
         /],
     },
+    'DBIx::Class::FilterColumn' => {
+        ignore => [qw/
+            new
+            update
+            set_column
+        /],
+    },
     'DBIx::Class::ResultSource' => {
         ignore => [qw/
             compare_relationship_keys

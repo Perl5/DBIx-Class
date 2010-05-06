@@ -68,51 +68,66 @@ MC: {
    is $cd->artist->rank, 20, 'artist rank gets correctly filtered w/ MC';
 }
 
-my $initial_from = $from_storage_ran;
-my $initial_to   = $to_storage_ran;
+my $expected_from = $from_storage_ran;
+my $expected_to   = $to_storage_ran;
 
 # ensure we are creating a fresh obj
 $artist = $schema->resultset('Artist')->single($artist->ident_condition);
 
-is $initial_from, $from_storage_ran, 'from has not run yet';
-is $initial_from, $from_storage_ran, 'to has not run yet';
+is $from_storage_ran, $expected_from, 'from has not run yet';
+is $to_storage_ran, $expected_to, 'to has not run yet';
 
 $artist->rank;
-$artist->get_filtered_column('rank');
-$artist->get_column('rank');
+cmp_ok (
+  $artist->get_filtered_column('rank'),
+    '!=',
+  $artist->get_column('rank'),
+  'filter/unfilter differ'
+);
+is $from_storage_ran, ++$expected_from, 'from ran once, therefor caches';
+is $to_storage_ran, $expected_to,  'to did not run';
 
-is $from_storage_ran, $initial_from + 1, 'from ran once, therefor caches';
-is $to_storage_ran, $initial_to,  'to ran none';
-$initial_from = $from_storage_ran;
-$initial_to   = $to_storage_ran;
+$artist->rank(6);
+is $from_storage_ran, $expected_from, 'from did not run';
+is $to_storage_ran, ++$expected_to,  'to ran once';
 
-$artist->rank(1);
-
-is $from_storage_ran, $initial_from, 'from ran none';
-is $to_storage_ran, $initial_to + 1,  'to ran once';
-$initial_from = $from_storage_ran;
-$initial_to   = $to_storage_ran;
-
-$artist->rank;
-
-is $from_storage_ran, $initial_from + 1, 'from ran once';
-is $to_storage_ran, $initial_to,  'to ran none';
-$initial_from = $from_storage_ran;
-$initial_to   = $to_storage_ran;
+ok ($artist->is_column_changed ('rank'), 'Column marked as dirty');
 
 $artist->rank;
+is $from_storage_ran, ++$expected_from, 'from ran once';
+is $to_storage_ran, $expected_to,  'to did not run';
 
-is $from_storage_ran, $initial_from, 'from ran none';
-is $to_storage_ran, $initial_to,  'to ran none';
-$initial_from = $from_storage_ran;
-$initial_to   = $to_storage_ran;
-
-$artist->set_column(rank => 1);
 $artist->rank;
+is $from_storage_ran, $expected_from, 'from did not run';
+is $to_storage_ran, $expected_to,  'to did not run';
 
-is $from_storage_ran, $initial_from + 1, 'from ran once (set column blows cache)';
-is $to_storage_ran, $initial_to,  'to ran none';
-$initial_from = $from_storage_ran;
-$initial_to   = $to_storage_ran;
+$artist->update;
+
+$artist->set_column(rank => 3);
+ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on same set_column value');
+is ($artist->rank, '6', 'Column set properly (cache blown)');
+is $from_storage_ran, ++$expected_from, 'from ran once (set_column blew cache)';
+is $to_storage_ran, $expected_to,  'to did not run';
+
+$artist->rank(6);
+ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on same accessor-set value');
+is ($artist->rank, '6', 'Column set properly');
+is $from_storage_ran, $expected_from, 'from did not run';
+is $to_storage_ran, $expected_to,  'to did not run';
+
+$artist->store_column(rank => 4);
+ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on differing store_column value');
+is ($artist->rank, '6', 'Filtered column still contains old value (cache not blown)');
+is $from_storage_ran, $expected_from, 'from did not run';
+is $to_storage_ran, $expected_to,  'to did not run';
+
+$artist->set_column(rank => 4);
+TODO: {
+  local $TODO = 'There seems to be no way around that much wizardry... which is ok';
+  ok ($artist->is_column_changed ('rank'), 'Column marked as dirty on out-of-sync set_column value');
+}
+is ($artist->rank, '8', 'Column set properly (cache blown)');
+is $from_storage_ran, ++$expected_from, 'from ran once (set_column blew cache)';
+is $to_storage_ran, $expected_to,  'to did not run';
 
 done_testing;

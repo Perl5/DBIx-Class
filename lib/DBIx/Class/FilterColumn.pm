@@ -74,9 +74,16 @@ sub set_column {
 sub set_filtered_column {
   my ($self, $col, $filtered) = @_;
 
-  $self->set_column($col, $self->_column_to_storage($col, $filtered));
+  # do not blow up the cache via set_column unless necessary
+  # (filtering may be expensive!)
+  if (exists $self->{_filtered_column}{$col}) {
+    return $filtered
+      if ($self->_eq_column_values ($col, $filtered, $self->{_filtered_column}{$col} ) );
 
-  delete $self->{_filtered_column}{$col};
+    $self->make_column_dirty ($col); # so the comparison won't run again
+  }
+
+  $self->set_column($col, $self->_column_to_storage($col, $filtered));
 
   return $filtered;
 }
@@ -163,11 +170,3 @@ Returns the filtered value of the column
  $obj->set_filtered_column(colname => 'new_value')
 
 Sets the filtered value of the column
-
-=head2 update
-
-Just overridden to filter changed columns through this component
-
-=head2 new
-
-Just overridden to filter columns through this component
