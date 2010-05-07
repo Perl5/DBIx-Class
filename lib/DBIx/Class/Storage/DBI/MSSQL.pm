@@ -217,7 +217,7 @@ sub sql_maker {
         # So, we use a query to check if RNO is implemented.
         $have_rno = 1 if (eval { local $@; ($self->_get_dbh
           ->selectrow_array('SELECT row_number() OVER (ORDER BY rand())')
-          )[0] } || 0);
+          )[0] });
       }
 
       $self->{_sql_maker_opts} = {
