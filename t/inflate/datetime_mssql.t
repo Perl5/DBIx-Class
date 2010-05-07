@@ -95,8 +95,8 @@ SQL
       ->first
     );
     is( $row->$col, $dt, "$type roundtrip" );
-    
-    is( $row->$col->nanosecond, $sample_dt->{nanosecond},
+
+    cmp_ok( $row->$col->nanosecond, '==', $sample_dt->{nanosecond},
       'DateTime fractional portion roundtrip' )
       if exists $sample_dt->{nanosecond};
   }

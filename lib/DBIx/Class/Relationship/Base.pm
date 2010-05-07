@@ -122,6 +122,40 @@ is creating constraints where it shouldn't, or not creating them where it
 should, set this attribute to a true or false value to override the detection
 of when to create constraints.
 
+=item cascade_copy
+
+If C<cascade_copy> is true on a C<has_many> relationship for an
+object, then when you copy the object all the related objects will
+be copied too. To turn this behaviour off, pass C<< cascade_copy => 0 >> 
+in the C<$attr> hashref. 
+
+The behaviour defaults to C<< cascade_copy => 1 >> for C<has_many>
+relationships.
+
+=item cascade_delete
+
+By default, DBIx::Class cascades deletes across C<has_many>,
+C<has_one> and C<might_have> relationships. You can disable this
+behaviour on a per-relationship basis by supplying 
+C<< cascade_delete => 0 >> in the relationship attributes.
+
+The cascaded operations are performed after the requested delete,
+so if your database has a constraint on the relationship, it will
+have deleted/updated the related records or raised an exception
+before DBIx::Class gets to perform the cascaded operation.
+
+=item cascade_update
+
+By default, DBIx::Class cascades updates across C<has_one> and
+C<might_have> relationships. You can disable this behaviour on a
+per-relationship basis by supplying C<< cascade_update => 0 >> in
+the relationship attributes.
+
+This is not a RDMS style cascade update - it purely means that when
+an object has update called on it, all the related objects also
+have update called. It will not change foreign keys automatically -
+you must arrange to do this yourself.
+
 =item on_delete / on_update
 
 If you are using L<SQL::Translator> to create SQL for you, you can use these

@@ -1012,7 +1012,10 @@ sub _server_info {
 
     my %info;
 
-    my $server_version = $self->_get_server_version;
+    my $server_version = do {
+      local $@; # might be happenin in some sort of destructor
+      eval { $self->_get_server_version };
+    };
 
     if (defined $server_version) {
       $info{dbms_version} = $server_version;
@@ -1044,7 +1047,7 @@ sub _server_info {
 }
 
 sub _get_server_version {
-  eval { shift->_get_dbh->get_info(18) };
+  shift->_get_dbh->get_info(18);
 }
 
 sub _determine_driver {
@@ -1931,17 +1934,6 @@ sub _select_args {
     #limited has_many
     ( $attrs->{rows} && keys %{$attrs->{collapse}} )
        ||
-    # limited prefetch with RNO subqueries (otherwise a risk of column name clashes)
-    (
-      $attrs->{rows}
-        &&
-      $sql_maker->limit_dialect eq 'RowNumberOver'
-        &&
-      $attrs->{_prefetch_select}
-        &&
-      @{$attrs->{_prefetch_select}}
-    )
-      ||
     # grouped prefetch (to satisfy group_by == select)
     ( $attrs->{group_by}
         &&
@@ -1955,39 +1947,6 @@ sub _select_args {
     ($ident, $select, $where, $attrs)
       = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
   }
-
-  elsif (
-    # the RNO limit dialect mangles the SQL such that the join gets lost
-    # wrap a subquery here
-    ($attrs->{rows} || $attrs->{offset})
-      &&
-    $sql_maker->limit_dialect eq 'RowNumberOver'
-      &&
-    (ref $ident eq 'ARRAY' && @$ident > 1)  # indicates a join
-      &&
-    scalar $self->_parse_order_by ($attrs->{order_by})
-  ) {
-
-    push @limit, delete @{$attrs}{qw/rows offset/};
-
-    my $subq = $self->_select_args_to_query (
-      $ident,
-      $select,
-      $where,
-      $attrs,
-    );
-
-    $ident = {
-      -alias => $attrs->{alias},
-      -source_handle => $ident->[0]{-source_handle},
-      $attrs->{alias} => $subq,
-    };
-
-    # all part of the subquery now
-    delete @{$attrs}{qw/order_by group_by having/};
-    $where = undef;
-  }
-
   elsif (! $attrs->{software_limit} ) {
     push @limit, $attrs->{rows}, $attrs->{offset};
   }

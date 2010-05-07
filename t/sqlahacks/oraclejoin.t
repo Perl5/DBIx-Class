@@ -2,33 +2,14 @@ use strict;
 use warnings;
 
 use Test::More;
-use DBIx::Class::SQLAHacks::OracleJoins;
 
 use lib qw(t/lib);
-use DBICTest; # do not remove even though it is not used
+use DBIx::Class::SQLAHacks::OracleJoins;
+use DBICTest;
 use DBIC::SqlMakerTest;
-
-plan tests => 4;
 
 my $sa = new DBIx::Class::SQLAHacks::OracleJoins;
 
-$sa->limit_dialect('RowNum');
-
-is($sa->select('rubbish',
-                  [ 'foo.id', 'bar.id', \'TO_CHAR(foo.womble, "blah")' ],
-                  undef, undef, 1, 3),
-   'SELECT * FROM
-(
-    SELECT A.*, ROWNUM r FROM
-    (
-        SELECT foo.id AS col1, bar.id AS col2, TO_CHAR(foo.womble, "blah") AS col3 FROM rubbish 
-    ) A
-    WHERE ROWNUM < 5
-) B
-WHERE r >= 4
-', 'Munged stuff to make Oracle not explode');
-
-# test WhereJoins
 # search with undefined or empty $cond
 
 #  my ($self, $table, $fields, $where, $order, @rest) = @_;
@@ -86,4 +67,5 @@ is_same_sql_bind(
   'WhereJoins search with or in where clause'
 );
 
+done_testing;
 
