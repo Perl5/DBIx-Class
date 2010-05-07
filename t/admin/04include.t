@@ -12,7 +12,7 @@ BEGIN {
 
 if(use_ok 'DBIx::Class::Admin') {
   my $admin = DBIx::Class::Admin->new(
-      include_dirs => ['t/var/dbicadmincrap/lib'],
+      include_dirs => ['t/dbicadmin-test-include/lib'],
       schema_class => 'Foo',
       config => { Foo => {} },
       config_stanza => 'Foo'
