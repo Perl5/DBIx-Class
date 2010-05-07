@@ -74,6 +74,11 @@ used in the database layer.
 
 sub inflate_column {
   my ($self, $col, $attrs) = @_;
+
+  $self->throw_exception("InflateColumn does not work with FilterColumn")
+    if $self->isa('DBIx::Class::FilterColumn') &&
+      defined $self->column_info($col)->{_filter_info};
+
   $self->throw_exception("No such column $col to inflate")
     unless $self->has_column($col);
   $self->throw_exception("inflate_column needs attr hashref")

@@ -2,13 +2,14 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
 my $from_storage_ran = 0;
 my $to_storage_ran = 0;
 my $schema = DBICTest->init_schema();
-DBICTest::Schema::Artist->load_components('FilterColumn');
+DBICTest::Schema::Artist->load_components(qw(FilterColumn InflateColumn));
 DBICTest::Schema::Artist->filter_column(rank => {
   filter_from_storage => sub { $from_storage_ran++; $_[1] * 2 },
   filter_to_storage   => sub { $to_storage_ran++; $_[1] / 2 },
@@ -68,66 +69,87 @@ MC: {
    is $cd->artist->rank, 20, 'artist rank gets correctly filtered w/ MC';
 }
 
-my $expected_from = $from_storage_ran;
-my $expected_to   = $to_storage_ran;
+CACHE_TEST: {
+  my $expected_from = $from_storage_ran;
+  my $expected_to   = $to_storage_ran;
 
-# ensure we are creating a fresh obj
-$artist = $schema->resultset('Artist')->single($artist->ident_condition);
+  # ensure we are creating a fresh obj
+  $artist = $schema->resultset('Artist')->single($artist->ident_condition);
 
-is $from_storage_ran, $expected_from, 'from has not run yet';
-is $to_storage_ran, $expected_to, 'to has not run yet';
+  is $from_storage_ran, $expected_from, 'from has not run yet';
+  is $to_storage_ran, $expected_to, 'to has not run yet';
 
-$artist->rank;
-cmp_ok (
-  $artist->get_filtered_column('rank'),
-    '!=',
-  $artist->get_column('rank'),
-  'filter/unfilter differ'
-);
-is $from_storage_ran, ++$expected_from, 'from ran once, therefor caches';
-is $to_storage_ran, $expected_to,  'to did not run';
+  $artist->rank;
+  cmp_ok (
+    $artist->get_filtered_column('rank'),
+      '!=',
+    $artist->get_column('rank'),
+    'filter/unfilter differ'
+  );
+  is $from_storage_ran, ++$expected_from, 'from ran once, therefor caches';
+  is $to_storage_ran, $expected_to,  'to did not run';
 
-$artist->rank(6);
-is $from_storage_ran, $expected_from, 'from did not run';
-is $to_storage_ran, ++$expected_to,  'to ran once';
+  $artist->rank(6);
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, ++$expected_to,  'to ran once';
 
-ok ($artist->is_column_changed ('rank'), 'Column marked as dirty');
+  ok ($artist->is_column_changed ('rank'), 'Column marked as dirty');
 
-$artist->rank;
-is $from_storage_ran, ++$expected_from, 'from ran once';
-is $to_storage_ran, $expected_to,  'to did not run';
+  $artist->rank;
+  is $from_storage_ran, ++$expected_from, 'from ran once';
+  is $to_storage_ran, $expected_to,  'to did not run';
 
-$artist->rank;
-is $from_storage_ran, $expected_from, 'from did not run';
-is $to_storage_ran, $expected_to,  'to did not run';
+  $artist->rank;
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, $expected_to,  'to did not run';
 
-$artist->update;
+  $artist->update;
 
-$artist->set_column(rank => 3);
-ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on same set_column value');
-is ($artist->rank, '6', 'Column set properly (cache blown)');
-is $from_storage_ran, ++$expected_from, 'from ran once (set_column blew cache)';
-is $to_storage_ran, $expected_to,  'to did not run';
+  $artist->set_column(rank => 3);
+  ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on same set_column value');
+  is ($artist->rank, '6', 'Column set properly (cache blown)');
+  is $from_storage_ran, ++$expected_from, 'from ran once (set_column blew cache)';
+  is $to_storage_ran, $expected_to,  'to did not run';
 
-$artist->rank(6);
-ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on same accessor-set value');
-is ($artist->rank, '6', 'Column set properly');
-is $from_storage_ran, $expected_from, 'from did not run';
-is $to_storage_ran, $expected_to,  'to did not run';
+  $artist->rank(6);
+  ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on same accessor-set value');
+  is ($artist->rank, '6', 'Column set properly');
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, $expected_to,  'to did not run';
 
-$artist->store_column(rank => 4);
-ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on differing store_column value');
-is ($artist->rank, '6', 'Filtered column still contains old value (cache not blown)');
-is $from_storage_ran, $expected_from, 'from did not run';
-is $to_storage_ran, $expected_to,  'to did not run';
+  $artist->store_column(rank => 4);
+  ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on differing store_column value');
+  is ($artist->rank, '6', 'Filtered column still contains old value (cache not blown)');
+  is $from_storage_ran, $expected_from, 'from did not run';
+  is $to_storage_ran, $expected_to,  'to did not run';
 
-$artist->set_column(rank => 4);
-TODO: {
-  local $TODO = 'There seems to be no way around that much wizardry... which is ok';
-  ok ($artist->is_column_changed ('rank'), 'Column marked as dirty on out-of-sync set_column value');
+  $artist->set_column(rank => 4);
+  TODO: {
+    local $TODO = 'There seems to be no way around that much wizardry... which is ok';
+    ok ($artist->is_column_changed ('rank'), 'Column marked as dirty on out-of-sync set_column value');
+  }
+  is ($artist->rank, '8', 'Column set properly (cache blown)');
+  is $from_storage_ran, ++$expected_from, 'from ran once (set_column blew cache)';
+  is $to_storage_ran, $expected_to,  'to did not run';
 }
-is ($artist->rank, '8', 'Column set properly (cache blown)');
-is $from_storage_ran, ++$expected_from, 'from ran once (set_column blew cache)';
-is $to_storage_ran, $expected_to,  'to did not run';
+
+IC_DIE: {
+  dies_ok {
+     DBICTest::Schema::Artist->inflate_column(rank =>
+        { inflate => sub {}, deflate => sub {} }
+     );
+  } q(Can't inflate column after filter column);
+
+  DBICTest::Schema::Artist->inflate_column(name =>
+     { inflate => sub {}, deflate => sub {} }
+  );
+
+  dies_ok {
+     DBICTest::Schema::Artist->filter_column(name => {
+        filter_to_storage => sub {},
+        filter_from_storage => sub {}
+     });
+  } q(Can't filter column after inflate column);
+}
 
 done_testing;

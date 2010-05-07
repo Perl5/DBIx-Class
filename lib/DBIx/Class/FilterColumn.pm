@@ -7,6 +7,10 @@ use base qw/DBIx::Class::Row/;
 sub filter_column {
   my ($self, $col, $attrs) = @_;
 
+  $self->throw_exception("FilterColumn does not work with InflateColumn")
+    if $self->isa('DBIx::Class::InflateColumn') &&
+      defined $self->column_info($col)->{_inflate_info};
+
   $self->throw_exception("No such column $col to filter")
     unless $self->has_column($col);
 
@@ -30,7 +34,7 @@ sub _column_from_storage {
   return $value unless exists $info->{_filter_info};
 
   my $filter = $info->{_filter_info}{filter_from_storage};
-  $self->throw_exception("No inflator for $col") unless defined $filter;
+  $self->throw_exception("No filter for $col") unless defined $filter;
 
   return $self->$filter($value);
 }
