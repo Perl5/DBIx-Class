@@ -20,6 +20,9 @@ Revision history for DBIx::Class
         - Fix as_subselect_rs to not inject resultset class-wide where
           conditions outside of the resulting subquery
         - Depend on optimized SQL::Abstract (faster SQL generation)
+        - update on row not in database now OK if no changes - 
+          fixes problems with cascaded unnecessary updates
+
 
 0.08121 2010-04-11 18:43:00 (UTC)
         - Support for Firebird RDBMS with DBD::InterBase and ODBC
