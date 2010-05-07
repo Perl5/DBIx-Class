@@ -519,16 +519,16 @@ this method.
 sub update {
   my ($self, $upd) = @_;
 
-  my $ident_cond = $self->{_orig_ident} || $self->ident_condition;
-
-  $self->throw_exception('Unable to update a row with incomplete or no identity')
-    if ! keys %$ident_cond;
-
   $self->set_inflated_columns($upd) if $upd;
   my %to_update = $self->get_dirty_columns;
   return $self unless keys %to_update;
 
   $self->throw_exception( "Not in database" ) unless $self->in_storage;
+
+  my $ident_cond = $self->{_orig_ident} || $self->ident_condition;
+
+  $self->throw_exception('Unable to update a row with incomplete or no identity')
+    if ! keys %$ident_cond;
 
   my $rows = $self->result_source->storage->update(
     $self->result_source, \%to_update, $ident_cond
