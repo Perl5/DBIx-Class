@@ -148,10 +148,10 @@ C<might_have> relationships. You can disable this behaviour on a
 per-relationship basis by supplying C<< cascade_update => 0 >> in the
 relationship attributes.
 
-The cascaded operations are performed after the requested update,
-so if your database has a constraint on the relationship, it will
-have updated/updated the related records or raised an exception
-before DBIx::Class gets to perform the cascaded operation.
+This is not a RDMS style cascade update - it purely means that when
+an object has update called on it, all the related objects also
+have update called. It will not change foreign keys automatically -
+you must arrange to do this yourself.
 
 =item on_delete / on_update
 
