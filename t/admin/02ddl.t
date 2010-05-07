@@ -37,11 +37,12 @@ clean_dir($sql_dir);
 my $admin = DBIx::Class::Admin->new(
   schema_class=> "DBICTest::Schema",
   sql_dir=> $sql_dir,
-  connect_info => \@connect_info, 
+  connect_info => \@connect_info,
 );
 isa_ok ($admin, 'DBIx::Class::Admin', 'create the admin object');
 lives_ok { $admin->create('MySQL'); } 'Can create MySQL sql';
 lives_ok { $admin->create('SQLite'); } 'Can Create SQLite sql';
+lives_ok { $admin->deploy() } 'Can Deploy schema';
 }
 
 { # upgrade schema
@@ -56,7 +57,7 @@ clean_dir($sql_dir);
 require DBICVersion_v1;
 
 my $admin = DBIx::Class::Admin->new(
-  schema_class => 'DBICVersion::Schema', 
+  schema_class => 'DBICVersion::Schema',
   sql_dir =>  $sql_dir,
   connect_info => \@connect_info,
 );
@@ -75,7 +76,7 @@ is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema deployed and 
 require DBICVersion_v2;
 
 $admin = DBIx::Class::Admin->new(
-  schema_class => 'DBICVersion::Schema', 
+  schema_class => 'DBICVersion::Schema',
   sql_dir =>  $sql_dir,
   connect_info => \@connect_info
 );
@@ -84,6 +85,7 @@ lives_ok { $admin->create($schema->storage->sqlt_type(), {}, "1.0" ); } 'Can cre
 {
   local $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /DB version .+? is lower than the schema version/ };
   lives_ok {$admin->upgrade();} 'upgrade the schema';
+  dies_ok {$admin->deploy} 'cannot deploy installed schema, should upgrade instead';
 }
 
 is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema and db versions match');
@@ -95,7 +97,7 @@ is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema and db versio
 clean_dir($sql_dir);
 
 my $admin = DBIx::Class::Admin->new(
-  schema_class  => 'DBICVersion::Schema', 
+  schema_class  => 'DBICVersion::Schema',
   sql_dir      => $sql_dir,
   _confirm    => 1,
   connect_info  => \@connect_info,
@@ -122,7 +124,7 @@ sub clean_dir {
   }
   foreach my $file ($dir->children) {
     # skip any hidden files
-    next if ($file =~ /^\./); 
+    next if ($file =~ /^\./);
     unlink $file;
   }
 }
