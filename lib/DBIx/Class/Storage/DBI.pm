@@ -1012,7 +1012,10 @@ sub _server_info {
 
     my %info;
 
-    my $server_version = $self->_get_server_version;
+    my $server_version = do {
+      local $@; # might be happenin in some sort of destructor
+      eval { $self->_get_server_version };
+    };
 
     if (defined $server_version) {
       $info{dbms_version} = $server_version;
@@ -1044,7 +1047,7 @@ sub _server_info {
 }
 
 sub _get_server_version {
-  eval { shift->_get_dbh->get_info(18) };
+  shift->_get_dbh->get_info(18);
 }
 
 sub _determine_driver {
