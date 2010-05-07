@@ -1012,7 +1012,10 @@ sub _server_info {
 
     my %info;
 
-    my $server_version = $self->_get_server_version;
+    my $server_version = do {
+      local $@; # might be happenin in some sort of destructor
+      eval { $self->_get_server_version };
+    };
 
     if (defined $server_version) {
       $info{dbms_version} = $server_version;
@@ -1044,7 +1047,7 @@ sub _server_info {
 }
 
 sub _get_server_version {
-  eval { shift->_get_dbh->get_info(18) };
+  shift->_get_dbh->get_info(18);
 }
 
 sub _determine_driver {
@@ -1931,17 +1934,6 @@ sub _select_args {
     #limited has_many
     ( $attrs->{rows} && keys %{$attrs->{collapse}} )
        ||
-    # limited prefetch with RNO subqueries (otherwise a risk of column name clashes)
-    (
-      $attrs->{rows}
-        &&
-      $sql_maker->limit_dialect eq 'RowNumberOver'
-        &&
-      $attrs->{_prefetch_select}
-        &&
-      @{$attrs->{_prefetch_select}}
-    )
-      ||
     # grouped prefetch (to satisfy group_by == select)
     ( $attrs->{group_by}
         &&
@@ -1955,39 +1947,6 @@ sub _select_args {
     ($ident, $select, $where, $attrs)
       = $self->_adjust_select_args_for_complex_prefetch ($ident, $select, $where, $attrs);
   }
-
-  elsif (
-    # the RNO limit dialect mangles the SQL such that the join gets lost
-    # wrap a subquery here
-    ($attrs->{rows} || $attrs->{offset})
-      &&
-    $sql_maker->limit_dialect eq 'RowNumberOver'
-      &&
-    (ref $ident eq 'ARRAY' && @$ident > 1)  # indicates a join
-      &&
-    scalar $self->_parse_order_by ($attrs->{order_by})
-  ) {
-
-    push @limit, delete @{$attrs}{qw/rows offset/};
-
-    my $subq = $self->_select_args_to_query (
-      $ident,
-      $select,
-      $where,
-      $attrs,
-    );
-
-    $ident = {
-      -alias => $attrs->{alias},
-      -source_handle => $ident->[0]{-source_handle},
-      $attrs->{alias} => $subq,
-    };
-
-    # all part of the subquery now
-    delete @{$attrs}{qw/order_by group_by having/};
-    $where = undef;
-  }
-
   elsif (! $attrs->{software_limit} ) {
     push @limit, $attrs->{rows}, $attrs->{offset};
   }
@@ -2017,46 +1976,6 @@ sub _count_select {
   return { count => '*' };
 }
 
-# Returns a SELECT which will end up in the subselect
-# There may or may not be a group_by, as the subquery
-# might have been called to accomodate a limit
-#
-# Most databases would be happy with whatever ends up
-# here, but some choke in various ways.
-#
-sub _subq_count_select {
-  my ($self, $source, $rs_attrs) = @_;
-
-  if (my $groupby = $rs_attrs->{group_by}) {
-
-    my $avail_columns = $self->_resolve_column_info ($rs_attrs->{from});
-
-    my $sel_index;
-    for my $sel (@{$rs_attrs->{select}}) {
-      if (ref $sel eq 'HASH' and $sel->{-as}) {
-        $sel_index->{$sel->{-as}} = $sel;
-      }
-    }
-
-    my @selection;
-    for my $g_part (@$groupby) {
-      if (ref $g_part or $avail_columns->{$g_part}) {
-        push @selection, $g_part;
-      }
-      elsif ($sel_index->{$g_part}) {
-        push @selection, $sel_index->{$g_part};
-      }
-      else {
-        $self->throw_exception ("group_by criteria '$g_part' not contained within current resultset source(s)");
-      }
-    }
-
-    return \@selection;
-  }
-
-  my @pcols = map { join '.', $rs_attrs->{alias}, $_ } ($source->primary_columns);
-  return @pcols ? \@pcols : [ 1 ];
-}
 
 sub source_bind_attributes {
   my ($self, $source) = @_;

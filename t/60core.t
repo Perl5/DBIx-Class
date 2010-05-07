@@ -45,6 +45,8 @@ my %fake_dirty = $art->get_dirty_columns();
 is(scalar(keys(%fake_dirty)), 1, '1 fake dirty column');
 ok(grep($_ eq 'name', keys(%fake_dirty)), 'name is fake dirty');
 
+ok($art->update, 'Update run');
+
 my $record_jp = $schema->resultset("Artist")->search(undef, { join => 'cds' })->search(undef, { prefetch => 'cds' })->next;
 
 ok($record_jp, "prefetch on same rel okay");
@@ -66,6 +68,8 @@ lives_ok (sub { $art->delete }, 'Cascading delete on Ordered has_many works' ); 
 is(@art, 2, 'And then there were two');
 
 is($art->in_storage, 0, "It knows it's dead");
+
+lives_ok { $art->update } 'No changes so update should be OK';
 
 dies_ok ( sub { $art->delete }, "Can't delete twice");
 

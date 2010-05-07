@@ -158,7 +158,11 @@ sub _select_args_to_query {
 
   # see if this is an ordered subquery
   my $attrs = $_[3];
-  if ( scalar $self->_parse_order_by ($attrs->{order_by}) ) {
+  if (
+    $sql !~ /^ \s* SELECT \s+ TOP \s+ \d+ \s+ /xi
+      &&
+    scalar $self->_parse_order_by ($attrs->{order_by}) 
+  ) {
     $self->throw_exception(
       'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL
     ') unless $attrs->{unsafe_subselect_ok};
@@ -201,11 +205,23 @@ sub sql_maker {
 
   unless ($self->_sql_maker) {
     unless ($self->{_sql_maker_opts}{limit_dialect}) {
+      my $have_rno = 0;
 
-      my $version = $self->_server_info->{normalized_dbms_version} || 0;
+      if (exists $self->_server_info->{normalized_dbms_version}) {
+        $have_rno = 1 if $self->_server_info->{normalized_dbms_version} >= 9;
+      }
+      else {
+        # User is connecting via DBD::Sybase and has no permission to run
+        # stored procedures like xp_msver, or version detection failed for some
+        # other reason.
+        # So, we use a query to check if RNO is implemented.
+        $have_rno = 1 if (eval { local $@; ($self->_get_dbh
+          ->selectrow_array('SELECT row_number() OVER (ORDER BY rand())')
+          )[0] });
+      }
 
       $self->{_sql_maker_opts} = {
-        limit_dialect => ($version >= 9 ? 'RowNumberOver' : 'Top'),
+        limit_dialect => ($have_rno ? 'RowNumberOver' : 'Top'),
         %{$self->{_sql_maker_opts}||{}}
       };
     }
