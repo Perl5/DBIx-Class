@@ -28,6 +28,7 @@ my @connect_info = DBICTest->_database(
   no_populate=>1,
   sqlite_use_file  => 1,
 );
+
 { # create the schema
 
 #  make sure we are  clean
@@ -42,7 +43,10 @@ my $admin = DBIx::Class::Admin->new(
 isa_ok ($admin, 'DBIx::Class::Admin', 'create the admin object');
 lives_ok { $admin->create('MySQL'); } 'Can create MySQL sql';
 lives_ok { $admin->create('SQLite'); } 'Can Create SQLite sql';
-lives_ok { $admin->deploy() } 'Can Deploy schema';
+lives_ok {
+  $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /no such table.+DROP TABLE/s };
+  $admin->deploy()
+} 'Can Deploy schema';
 }
 
 { # upgrade schema
