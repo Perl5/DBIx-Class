@@ -195,7 +195,7 @@ has 'config_stanza' => (
 
 =head2 config
 
-Instead of loading from a file the configuration can be provided directly as a hash ref.  Please note 
+Instead of loading from a file the configuration can be provided directly as a hash ref.  Please note
 config_stanza will still be required.
 
 =cut
@@ -296,8 +296,8 @@ has '_confirm' => (
 
 =back
 
-L<create> will generate sql for the supplied schema_class in sql_dir.  The flavour of sql to 
-generate can be controlled by suppling a sqlt_type which should be a L<SQL::Translator> name.  
+L<create> will generate sql for the supplied schema_class in sql_dir.  The flavour of sql to
+generate can be controlled by suppling a sqlt_type which should be a L<SQL::Translator> name.
 
 Arguments for L<SQL::Translator> can be supplied in the sqlt_args hashref.
 
@@ -352,9 +352,9 @@ sub upgrade {
 
 =back
 
-install is here to help when you want to move to L<DBIx::Class::Schema::Versioned> and have an existing 
-database.  install will take a version and add the version tracking tables and 'install' the version.  No 
-further ddl modification takes place.  Setting the force attribute to a true value will allow overriding of 
+install is here to help when you want to move to L<DBIx::Class::Schema::Versioned> and have an existing
+database.  install will take a version and add the version tracking tables and 'install' the version.  No
+further ddl modification takes place.  Setting the force attribute to a true value will allow overriding of
 already versioned databases.
 
 =cut
@@ -391,7 +391,7 @@ sub install {
 
 =back
 
-deploy will create the schema at the connected database.  C<$args> are passed straight to 
+deploy will create the schema at the connected database.  C<$args> are passed straight to
 L<DBIx::Class::Schema/deploy>.
 
 =cut
@@ -399,13 +399,7 @@ L<DBIx::Class::Schema/deploy>.
 sub deploy {
   my ($self, $args) = @_;
   my $schema = $self->schema();
-  if (!$schema->get_db_version() ) {
-    # schema is unversioned
-    $schema->deploy( $args, $self->sql_dir)
-      or $schema->throw_exception ("Could not deploy schema.\n"); # FIXME deploy() does not return 1/0 on success/fail
-  } else {
-    $schema->throw_exception("A versioned schema has already been deployed, try upgrade instead.\n");
-  }
+  $schema->deploy( $args, $self->sql_dir );
 }
 
 =head2 insert
@@ -502,7 +496,7 @@ sub delete {
 
 =back
 
-select takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search. 
+select takes the name of a resultset from the schema_class, a where hashref and a attrs to pass to ->search.
 The found data is returned in a array ref where the first row will be the columns list.
 
 =cut
@@ -518,7 +512,7 @@ sub select {
 
   my @data;
   my @columns = $resultset->result_source->columns();
-  push @data, [@columns];# 
+  push @data, [@columns];#
 
   while (my $row = $resultset->next()) {
     my @fields;
