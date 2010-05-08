@@ -283,12 +283,29 @@ sub req_group_list {
 
 # This is to be called by the author only (automatically in Makefile.PL)
 sub _gen_pod {
+
   my $class = shift;
   my $modfn = __PACKAGE__ . '.pm';
   $modfn =~ s/\:\:/\//g;
 
-  require DBIx::Class;
-  my $distver = DBIx::Class->VERSION;
+  my $podfn = __FILE__;
+  $podfn =~ s/\.pm$/\.pod/;
+
+  my $distver =
+    eval { require DBIx::Class; DBIx::Class->VERSION; }
+      ||
+    do {
+      warn
+"\n\n---------------------------------------------------------------------\n" .
+'Unable to load core DBIx::Class module to determine current version, '.
+'possibly due to missing dependencies. Author-mode autodocumentation ' .
+"halted\n\n" . $@ .
+"\n\n---------------------------------------------------------------------\n"
+      ;
+      '*UNKNOWN*';  # rv
+    }
+  ;
+
   my $sqltver = $class->req_list_for ('deploy')->{'SQL::Translator'}
     or die "Hrmm? No sqlt dep?";
 
@@ -431,10 +448,7 @@ EOD
     'You may distribute this code under the same terms as Perl itself',
   );
 
-  my $fn = __FILE__;
-  $fn =~ s/\.pm$/\.pod/;
-
-  open (my $fh, '>', $fn) or croak "Unable to write to $fn: $!";
+  open (my $fh, '>', $podfn) or croak "Unable to write to $podfn: $!";
   print $fh join ("\n\n", @chunks);
   close ($fh);
 }
