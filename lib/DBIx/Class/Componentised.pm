@@ -37,7 +37,7 @@ sub inject_base {
     for (qw/DBIx::Class::UTF8Columns DBIx::Class::ForceUTF8/) {
       if ($comp->isa ($_) ) {
         $keep_checking = 0; # no use to check from this point on
-        carp "Use of $_ is strongly discouraged. See documentationm of DBIx::Class::UTF8Columns for more info\n"
+        carp "Use of $_ is strongly discouraged. See documentation of DBIx::Class::UTF8Columns for more info\n"
           unless ($warned->{UTF8Columns}++ || $ENV{DBIC_UTF8COLUMNS_OK});
         last;
       }
