@@ -66,7 +66,28 @@ sub get_filtered_column {
   return $self->{_filtered_column}{$col} = $self->_column_from_storage($col, $val);
 }
 
-sub set_column {
+sub get_column {
+  my ($self, $col) = @_;
+  if (exists $self->{_filtered_column}{$col}) {
+    return $self->{_column_data}{$col} ||= $self->_column_to_storage ($col, $self->{_filtered_column}{$col});
+  }
+
+  return $self->next::method ($col);
+}
+
+# sadly a separate codepath in Row.pm ( used by insert() )
+sub get_columns {
+  my $self = shift;
+
+  foreach my $col (keys %{$self->{_filtered_column}||{}}) {
+    $self->{_column_data}{$col} ||= $self->_column_to_storage ($col, $self->{_filtered_column}{$col})
+      if exists $self->{_filtered_column}{$col};
+  }
+
+  $self->next::method (@_);
+}
+
+sub store_column {
   my ($self, $col) = (shift, @_);
 
   # blow cache
@@ -89,19 +110,23 @@ sub set_filtered_column {
 
   $self->set_column($col, $self->_column_to_storage($col, $filtered));
 
-  return $filtered;
+  return $self->{_filtered_column}{$col} = $filtered;
 }
 
 sub update {
   my ($self, $attrs, @rest) = @_;
+
   foreach my $key (keys %{$attrs||{}}) {
-    if ($self->has_column($key) &&
-          exists $self->column_info($key)->{_filter_info}) {
-      my $val = delete $attrs->{$key};
-      $self->set_filtered_column($key, $val);
-      $attrs->{$key} = $self->_column_to_storage($key, $val)
+    if (
+      $self->has_column($key)
+        &&
+      exists $self->column_info($key)->{_filter_info}
+    ) {
+      $self->set_filtered_column($key, delete $attrs->{$key});
+      $self->get_column($key);
     }
   }
+
   return $self->next::method($attrs, @rest);
 }
 
@@ -114,10 +139,10 @@ sub new {
   foreach my $key (keys %{$attrs||{}}) {
     if ($obj->has_column($key) &&
           exists $obj->column_info($key)->{_filter_info} ) {
-      my $val = delete $attrs->{$key};
-      $obj->set_filtered_column($key, $val);
+      $obj->set_filtered_column($key, $attrs->{$key});
     }
   }
+
   return $obj;
 }
 

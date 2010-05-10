@@ -50,7 +50,9 @@ my $exceptions = {
         ignore => [qw/
             new
             update
-            set_column
+            store_column
+            get_column
+            get_columns
         /],
     },
     'DBIx::Class::ResultSource' => {

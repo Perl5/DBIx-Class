@@ -96,10 +96,6 @@ CACHE_TEST: {
   ok ($artist->is_column_changed ('rank'), 'Column marked as dirty');
 
   $artist->rank;
-  is $from_storage_ran, ++$expected_from, 'from ran once';
-  is $to_storage_ran, $expected_to,  'to did not run';
-
-  $artist->rank;
   is $from_storage_ran, $expected_from, 'from did not run';
   is $to_storage_ran, $expected_to,  'to did not run';
 
@@ -119,17 +115,8 @@ CACHE_TEST: {
 
   $artist->store_column(rank => 4);
   ok (! $artist->is_column_changed ('rank'), 'Column not marked as dirty on differing store_column value');
-  is ($artist->rank, '6', 'Filtered column still contains old value (cache not blown)');
-  is $from_storage_ran, $expected_from, 'from did not run';
-  is $to_storage_ran, $expected_to,  'to did not run';
-
-  $artist->set_column(rank => 4);
-  TODO: {
-    local $TODO = 'There seems to be no way around that much wizardry... which is ok';
-    ok ($artist->is_column_changed ('rank'), 'Column marked as dirty on out-of-sync set_column value');
-  }
-  is ($artist->rank, '8', 'Column set properly (cache blown)');
-  is $from_storage_ran, ++$expected_from, 'from ran once (set_column blew cache)';
+  is ($artist->rank, '8', 'Cache properly blown');
+  is $from_storage_ran, ++$expected_from, 'from did not run';
   is $to_storage_ran, $expected_to,  'to did not run';
 }
 
