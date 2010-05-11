@@ -314,7 +314,7 @@ sub insert {
 
       MULTICREATE_DEBUG and warn "MC $self pre-reconstructing $relname $rel_obj\n";
 
-      my $them = { %{$rel_obj->{_relationship_data} || {} }, $rel_obj->get_inflated_columns };
+      my $them = { %{$rel_obj->{_relationship_data} || {} }, $rel_obj->get_columns };
       my $existing;
 
       # if there are no keys - nothing to search for
@@ -867,35 +867,41 @@ sub set_column {
   my $old_value = $self->get_column($column);
   $new_value = $self->store_column($column, $new_value);
 
-  my $dirty;
-  if (!$self->in_storage) { # no point tracking dirtyness on uninserted data
-    $dirty = 1;
-  }
-  elsif (defined $old_value xor defined $new_value) {
-    $dirty = 1;
-  }
-  elsif (not defined $old_value) {  # both undef
-    $dirty = 0;
-  }
-  elsif ($old_value eq $new_value) {
-    $dirty = 0;
-  }
-  else {  # do a numeric comparison if datatype allows it
-    if ($self->_is_column_numeric($column)) {
-      $dirty = $old_value != $new_value;
-    }
-    else {
-      $dirty = 1;
-    }
-  }
+  my $dirty =
+    $self->{_dirty_columns}{$column}
+      ||
+    $self->in_storage # no point tracking dirtyness on uninserted data
+      ? ! $self->_eq_column_values ($column, $old_value, $new_value)
+      : 1
+  ;
 
-  # sadly the update code just checks for keys, not for their value
+  # FIXME sadly the update code just checks for keys, not for their value
   $self->{_dirty_columns}{$column} = 1 if $dirty;
 
   # XXX clear out the relation cache for this column
   delete $self->{related_resultsets}{$column};
 
   return $new_value;
+}
+
+sub _eq_column_values {
+  my ($self, $col, $old, $new) = @_;
+
+  if (defined $old xor defined $new) {
+    return 0;
+  }
+  elsif (not defined $old) {  # both undef
+    return 1;
+  }
+  elsif ($old eq $new) {
+    return 1;
+  }
+  elsif ($self->_is_column_numeric($col)) {  # do a numeric comparison if datatype allows it
+    return $old == $new;
+  }
+  else {
+    return 0;
+  }
 }
 
 =head2 set_columns
@@ -1377,7 +1383,6 @@ second argument to $resultset->search($cond, $attrs);
 
 sub discard_changes {
   my ($self, $attrs) = @_;
-  delete $self->{_dirty_columns};
   return unless $self->in_storage; # Don't reload if we aren't real!
 
   # add a replication default to read from the master only
