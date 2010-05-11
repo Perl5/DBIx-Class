@@ -123,7 +123,11 @@ sub update {
       exists $self->column_info($key)->{_filter_info}
     ) {
       $self->set_filtered_column($key, delete $attrs->{$key});
-      $self->get_column($key);
+
+      # FIXME update() reaches directly into the object-hash
+      # and we may *not* have a filtered value there - thus
+      # the void-ctx filter-trigger
+      $self->get_column($key) unless exists $self->{_column_data}{$key};
     }
   }
 
