@@ -199,9 +199,9 @@ SQL
     $storage->sql_maker;
 
     my $rno_detected =
-      ($storage->{_sql_maker_opts}{limit_dialect} eq 'RowNumberOver');
+      ($storage->{_sql_maker_opts}{limit_dialect} eq 'RowNumberOver') ? 1 : 0;
 
-    ok ((not ($have_rno xor $rno_detected)),
+    ok (($have_rno == $rno_detected),
       'row_number() over support detected correctly');
   }
 }
