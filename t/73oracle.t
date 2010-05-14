@@ -601,26 +601,26 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       # after count_subq, 
       # I will fix this later...
       # 
-      # is_same_sql_bind (
-      #   $rs->count_rs->as_query,
-      #   '( 
-      #       SELECT COUNT( * ) FROM (
-      #           SELECT artistid FROM (
-      #               SELECT artistid, ROWNUM rownum__index FROM (
-      #                   SELECT 
-      #                       me.artistid
-      #                   FROM artist me 
-      #                   START WITH name = ? 
-      #                   CONNECT BY artistid = PRIOR parentid 
-      #               ) me
-      #           ) me 
-      #           WHERE rownum__index BETWEEN 1 AND 2
-      #       ) me
-      #   )',
-      #   [ [ name => 'greatgrandchild' ] ],
-      # );
-      # 
-      # is( $rs->count, 2, 'Connect By; LIMIT count ok' );
+      is_same_sql_bind (
+        $rs->count_rs->as_query,
+        '( 
+            SELECT COUNT( * ) FROM (
+                SELECT artistid FROM (
+                    SELECT artistid, ROWNUM rownum__index FROM (
+                        SELECT 
+                            me.artistid
+                        FROM artist me 
+                        START WITH name = ? 
+                        CONNECT BY parentid = PRIOR artistid
+                    ) me
+                ) me 
+                WHERE rownum__index BETWEEN 1 AND 2
+            ) me
+        )',
+        [ [ name => 'root' ] ],
+      );
+
+      is( $rs->count, 2, 'Connect By; LIMIT count ok' );
     }
 
     # select the whole cycle tree without nocylce
