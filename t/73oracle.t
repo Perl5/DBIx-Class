@@ -570,22 +570,21 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       is_same_sql_bind (
         $rs->as_query,
         '( 
-            SELECT * FROM (
-                  SELECT A.*, ROWNUM r FROM (
+            SELECT artistid, name, rank, charfield, parentid FROM (
+                  SELECT artistid, name, rank, charfield, parentid, ROWNUM rownum__index FROM (
                       SELECT 
-                          me.artistid AS col1,
-                          me.name AS col2,
-                          me.rank AS col3,
-                          me.charfield AS col4,
-                          me.parentid AS col5 
+                          me.artistid,
+                          me.name,
+                          me.rank,
+                          me.charfield,
+                          me.parentid 
                       FROM artist me 
                       START WITH name = ? 
                       CONNECT BY parentid = PRIOR artistid
-                      ORDER BY name ASC
-                  ) A
-                  WHERE ROWNUM < 3
-              ) B
-              WHERE r >= 1 
+                      ORDER BY name ASC 
+                  ) me 
+            ) me
+            WHERE rownum__index BETWEEN 1 AND 2
         )',
         [ [ name => 'root' ] ],
       );
