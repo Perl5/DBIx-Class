@@ -776,30 +776,32 @@ sub txn_do {
 
   my $tried = 0;
   while(1) {
-    eval {
+    my $exception;
+    my @args = @_;
+    try {
       $self->_get_dbh;
 
       $self->txn_begin;
       if($want_array) {
-          @result = $coderef->(@_);
+          @result = $coderef->(@args);
       }
       elsif(defined $want_array) {
-          $result[0] = $coderef->(@_);
+          $result[0] = $coderef->(@args);
       }
       else {
-          $coderef->(@_);
+          $coderef->(@args);
       }
       $self->txn_commit;
+    } catch {
+      $exception = $_;
     };
 
-    # ->connected might unset $@ - copy
-    my $exception = $@;
-    if(!$exception) { return $want_array ? @result : $result[0] }
+    if(! defined $exception) { return $want_array ? @result : $result[0] }
 
     if($tried++ || $self->connected) {
-      eval { $self->txn_rollback };
-      my $rollback_exception = $@;
-      if($rollback_exception) {
+      my $rollback_exception;
+      try { $self->txn_rollback } catch { $rollback_exception = shift };
+      if(defined $rollback_exception) {
         my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
         $self->throw_exception($exception)  # propagate nested rollback
           if $rollback_exception =~ /$exception_class/;
