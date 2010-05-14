@@ -730,22 +730,24 @@ sub dbh_do {
   my @result;
   my $want_array = wantarray;
 
-  eval {
+  my $exception;
+  my @args = @_;
+  try {
 
     if($want_array) {
-        @result = $self->$code($dbh, @_);
+        @result = $self->$code($dbh, @args);
     }
     elsif(defined $want_array) {
-        $result[0] = $self->$code($dbh, @_);
+        $result[0] = $self->$code($dbh, @args);
     }
     else {
-        $self->$code($dbh, @_);
+        $self->$code($dbh, @args);
     }
+  } catch {
+    $exception = shift;
   };
 
-  # ->connected might unset $@ - copy
-  my $exception = $@;
-  if(!$exception) { return $want_array ? @result : $result[0] }
+  if(! defined $exception) { return $want_array ? @result : $result[0] }
 
   $self->throw_exception($exception) if $self->connected;
 
@@ -1358,7 +1360,7 @@ sub _dbh_commit {
 sub txn_rollback {
   my $self = shift;
   my $dbh = $self->_dbh;
-  eval {
+  try {
     if ($self->{transaction_depth} == 1) {
       $self->debugobj->txn_rollback()
         if ($self->debug);
@@ -1376,9 +1378,8 @@ sub txn_rollback {
     else {
       die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
     }
-  };
-  if ($@) {
-    my $error = $@;
+  } catch {
+    my $error = shift;
     my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
     $error =~ /$exception_class/ and $self->throw_exception($error);
     # ensure that a failed rollback resets the transaction depth
@@ -1681,16 +1682,20 @@ sub _execute_array {
     $placeholder_index++;
   }
 
-  my $rv = eval {
-    $self->_dbh_execute_array($sth, $tuple_status, @extra);
+  my $rv;
+  my $err;
+  try {
+    $rv = $self->_dbh_execute_array($sth, $tuple_status, @extra);
+  } catch {
+    $err = shift;
   };
-  my $err = $@ || $sth->errstr;
+  $err = defined $err ? $err : ($sth->err ? $sth->errstr : undef );
 
 # Statement must finish even if there was an exception.
-  eval { $sth->finish };
-  $err = $@ unless $err;
+  try { $sth->finish } 
+  catch { $err = shift unless defined $err };
 
-  if ($err) {
+  if (defined $err) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
 
@@ -2069,7 +2074,8 @@ sub _dbh_columns_info_for {
 
   if ($dbh->can('column_info')) {
     my %result;
-    eval {
+    my $caught;
+    try {
       my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
       my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
       $sth->execute();
@@ -2084,8 +2090,10 @@ sub _dbh_columns_info_for {
 
         $result{$col_name} = \%column_info;
       }
+    } catch {
+      $caught = 1;
     };
-    return \%result if !$@ && scalar keys %result;
+    return \%result if !$caught && scalar keys %result;
   }
 
   my %result;
@@ -2186,12 +2194,15 @@ sub _placeholders_supported {
 
   # some drivers provide a $dbh attribute (e.g. Sybase and $dbh->{syb_dynamic_supported})
   # but it is inaccurate more often than not
-  eval {
+  my $rc = 1;
+  try {
     local $dbh->{PrintError} = 0;
     local $dbh->{RaiseError} = 1;
     $dbh->do('select ?', {}, 1);
+  } catch {
+    $rc = 0;
   };
-  return $@ ? 0 : 1;
+  return $rc;
 }
 
 # Check if placeholders bound to non-string types throw exceptions
@@ -2200,13 +2211,16 @@ sub _typeless_placeholders_supported {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
 
-  eval {
+  my $rc = 1;
+  try {
     local $dbh->{PrintError} = 0;
     local $dbh->{RaiseError} = 1;
     # this specifically tests a bind that is NOT a string
     $dbh->do('select 1 where 1 = ?', {}, 1);
+  } catch {
+    $rc = 0;
   };
-  return $@ ? 0 : 1;
+  return $rc;
 }
 
 =head2 sqlt_type
@@ -2523,14 +2537,13 @@ sub deploy {
     return if($line =~ /^COMMIT/m);
     return if $line =~ /^\s+$/; # skip whitespace only
     $self->_query_start($line);
-    eval {
+    try {
       # do a dbh_do cycle here, as we need some error checking in
       # place (even though we will ignore errors)
       $self->dbh_do (sub { $_[1]->do($line) });
-    };
-    if ($@) {
+    } catch {
       carp qq{$@ (running "${line}")};
-    }
+    };
     $self->_query_end($line);
   };
   my @statements = $schema->deployment_statements($type, undef, $dir, { %{ $sqltargs || {} }, no_comments => 1 } );
