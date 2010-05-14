@@ -89,7 +89,10 @@ sub _build_schema {
   my ($self)  = @_;
   require Class::MOP;
   {
-    local @INC = (@{$self->include_dirs}, @INC);
+    my @include_dirs = @{$self->include_dirs};
+    $self->_debug("Adding to \@INC:\n".join "\n",@include_dirs)
+        if $self->debug;
+    local @INC = (@include_dirs, @INC);
     Class::MOP::load_class($self->schema_class);
   }
   $self->connect_info->[3]->{ignore_version} =1;
@@ -292,6 +295,20 @@ has quiet => (
   is  => 'rw',
   isa => Bool,
 );
+
+=head2 debug
+
+Print debug information
+
+=cut
+
+has debug => (
+  is => 'rw',
+  isa => Bool,
+  default => 0
+);
+
+sub _debug { shift; print @_ }
 
 has '_confirm' => (
   is  => 'bare',
