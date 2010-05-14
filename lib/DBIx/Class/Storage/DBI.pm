@@ -1014,7 +1014,7 @@ sub _server_info {
 
     my $server_version = do {
       local $@; # might be happenin in some sort of destructor
-      eval { $self->_get_server_version };
+      try { $self->_get_server_version };
     };
 
     if (defined $server_version) {
@@ -1172,7 +1172,8 @@ sub _connect {
     $DBI::connect_via = 'connect';
   }
 
-  eval {
+  my $caught;
+  try {
     if(ref $info[0] eq 'CODE') {
        $dbh = $info[0]->();
     }
@@ -1197,12 +1198,14 @@ sub _connect {
       $dbh->{RaiseError} = 1;
       $dbh->{PrintError} = 0;
     }
+  } catch {
+    $caught = 1;
   };
 
   $DBI::connect_via = $old_connect_via if $old_connect_via;
 
   $self->throw_exception("DBI Connection failed: " . ($@||$DBI::errstr))
-    if !$dbh || $@;
+    if !$dbh || $caught;
 
   $self->_dbh_autocommit($dbh->{AutoCommit});
 
