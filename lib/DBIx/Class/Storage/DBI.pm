@@ -1714,20 +1714,25 @@ sub _dbh_execute_array {
 sub _dbh_execute_inserts_with_no_binds {
   my ($self, $sth, $count) = @_;
 
-  eval {
+  my $exception;
+  try {
     my $dbh = $self->_get_dbh;
     local $dbh->{RaiseError} = 1;
     local $dbh->{PrintError} = 0;
 
     $sth->execute foreach 1..$count;
+  } catch {
+    $exception = shift;
   };
-  my $exception = $@;
 
 # Make sure statement is finished even if there was an exception.
-  eval { $sth->finish };
-  $exception = $@ unless $exception;
+  try { 
+    $sth->finish 
+  } catch {
+    $exception = shift unless defined $exception;
+  };
 
-  $self->throw_exception($exception) if $exception;
+  $self->throw_exception($exception) if defined $exception;
 
   return $count;
 }
