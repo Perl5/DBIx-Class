@@ -605,18 +605,17 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
       #   $rs->count_rs->as_query,
       #   '( 
       #       SELECT COUNT( * ) FROM (
-      #           SELECT * FROM (
-      #               SELECT A.*, ROWNUM r FROM (
+      #           SELECT artistid FROM (
+      #               SELECT artistid, ROWNUM rownum__index FROM (
       #                   SELECT 
-      #                       me.artistid AS col1 
+      #                       me.artistid
       #                   FROM artist me 
       #                   START WITH name = ? 
       #                   CONNECT BY artistid = PRIOR parentid 
-      #               ) A
-      #               WHERE ROWNUM < 3
-      #           ) B
-      #           WHERE r >= 1
-      #       ) count_subq 
+      #               ) me
+      #           ) me 
+      #           WHERE rownum__index BETWEEN 1 AND 2
+      #       ) me
       #   )',
       #   [ [ name => 'greatgrandchild' ] ],
       # );
