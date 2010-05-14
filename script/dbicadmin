@@ -62,7 +62,8 @@ my ($opts, $usage) = describe_options(
     ['force' => 'Be forceful with some operations'],
     ['trace' => 'Turn on DBIx::Class trace output'],
     ['quiet' => 'Be less verbose'],
-    ['I:s@' => 'Same as perl\'s -I']
+    ['debug' => 'Print debug information'],
+    ['I:s@' => 'Same as perl\'s -I'],
   )
 );
 
@@ -87,8 +88,8 @@ if($opts->{selfinject_pod}) {
     );
 }
 
-if($opts->{I}) {
-    $opts->{include} = delete $opts->{I};
+if($opts->{i}) {
+    $opts->{include_dirs} = delete $opts->{i};
 }
 
 if($opts->{help}) {
@@ -99,9 +100,7 @@ if($opts->{help}) {
 if($opts->{connect}) {
   $opts->{connect_info} = delete $opts->{connect};
 }
-
 my $admin = DBIx::Class::Admin->new( %$opts );
-
 
 my $action = $opts->{action};
 
