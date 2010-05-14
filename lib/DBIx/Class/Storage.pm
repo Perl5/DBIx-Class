@@ -161,9 +161,10 @@ For example,
   try {
     $rs = $schema->txn_do($coderef);
   } catch {
+    my $error = shift;
     # Transaction failed
     die "something terrible has happened!"   #
-      if ($@ =~ /Rollback failed/);          # Rollback failed
+      if ($error =~ /Rollback failed/);          # Rollback failed
 
     deal_with_failed_transaction();
   };
@@ -212,12 +213,12 @@ sub txn_do {
     }
     $self->txn_commit;
   } catch {
-    my $error = $@;
+    my $error = shift;
 
     try {
       $self->txn_rollback;
     } catch {
-      my $rollback_error = $@;
+      my $rollback_error = shift;
       my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
       $self->throw_exception($error)  # propagate nested rollback
         if $rollback_error =~ /$exception_class/;
