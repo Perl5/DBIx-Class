@@ -55,18 +55,14 @@ sub _connect_by {
             $sql .= $self->_sqlcase(' start with ') . $ws;
             push @bind, @wb;
         }
-        if ( my $connect_by = $attrs->{'connect_by'} ) {
-            my ($connect_by_sql, @connect_by_sql_bind) = $self->_recurse_where( $attrs->{'connect_by'} );
+        if ( my $connect_by = $attrs->{'connect_by'} || $attrs->{'connect_by_nocycle'} ) {
+            my ($connect_by_sql, @connect_by_sql_bind) = $self->_recurse_where( $connect_by );
             $sql .= sprintf(" %s %s",
                 ( $attrs->{'connect_by_nocycle'} ) ? $self->_sqlcase('connect by nocycle')
                     : $self->_sqlcase('connect by'),
                 $connect_by_sql,
             );
             push @bind, @connect_by_sql_bind;
-            # $sql .= $self->_sqlcase(' connect by');
-            #             foreach my $key ( keys %$connect_by ) {
-            #                 $sql .= " $key = " . $connect_by->{$key};
-            #             }
         }
         if ( $attrs->{'order_siblings_by'} ) {
             $sql .= $self->_order_siblings_by( $attrs->{'order_siblings_by'} );

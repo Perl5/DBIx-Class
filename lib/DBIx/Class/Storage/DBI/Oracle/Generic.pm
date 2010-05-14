@@ -421,7 +421,7 @@ sub with_deferred_fk_checks {
 
 Following additional attributes can be used in resultsets.
 
-=head2 connect_by
+=head2 connect_by or connect_by_nocycle
 
 =over 4
 
@@ -432,6 +432,7 @@ Following additional attributes can be used in resultsets.
 A hashref of conditions used to specify the relationship between parent rows
 and child rows of the hierarchy.
 
+
   connect_by => { parentid => 'prior personid' }
 
   # adds a connect by statement to the query:
@@ -441,27 +442,17 @@ and child rows of the hierarchy.
   #     person me
   # CONNECT BY
   #     parentid = prior persionid
+  
 
-=head2 connect_by_nocycle
+  connect_by_nocycle => { parentid => 'prior personid' }
 
-=over 4
-
-=item Value: [1|0]
-
-=back
-
-If you want to use NOCYCLE set to 1.
-
-    connect_by => { parentid => 'prior personid' },
-    connect_by_nocycle => 1
-
-    # adds a connect by statement to the query:
-    # SELECT
-    #     me.persionid me.firstname, me.lastname, me.parentid
-    # FROM
-    #     person me
-    # CONNECT BY NOCYCLE
-    #     parentid = prior persionid
+  # adds a connect by statement to the query:
+  # SELECT
+  #     me.persionid me.firstname, me.lastname, me.parentid
+  # FROM
+  #     person me
+  # CONNECT BY NOCYCLE
+  #     parentid = prior persionid
 
 
 =head2 start_with
