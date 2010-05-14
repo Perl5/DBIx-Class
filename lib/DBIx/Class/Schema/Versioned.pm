@@ -503,8 +503,9 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version = eval {
-      $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
+    my $version;
+    try {
+      $version = $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
                ->next;
     };
@@ -723,10 +724,14 @@ sub _source_exists
 {
     my ($self, $rs) = @_;
 
-    my $c = eval {
-        $rs->search({ 1, 0 })->count;
+    my $c;
+    my $exception;
+    try {
+        $c = $rs->search({ 1, 0 })->count;
+    } catch {
+        $exception=1;
     };
-    return 0 if $@ || !defined $c;
+    return 0 if $exception || !defined $c;
 
     return 1;
 }

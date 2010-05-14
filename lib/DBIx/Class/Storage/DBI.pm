@@ -15,6 +15,7 @@ use Scalar::Util();
 use List::Util();
 use Data::Dumper::Concise();
 use Sub::Name ();
+use Try::Tiny;
 
 use File::Path ();
 
@@ -157,8 +158,7 @@ sub DESTROY {
 
   # some databases need this to stop spewing warnings
   if (my $dbh = $self->_dbh) {
-    local $@;
-    eval {
+    try {
       %{ $dbh->{CachedKids} } = ();
       $dbh->disconnect;
     };

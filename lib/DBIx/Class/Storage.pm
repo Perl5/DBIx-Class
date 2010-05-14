@@ -158,16 +158,15 @@ For example,
   };
 
   my $rs;
-  eval {
+  try {
     $rs = $schema->txn_do($coderef);
-  };
-
-  if ($@) {                                  # Transaction failed
+  } catch {
+    # Transaction failed
     die "something terrible has happened!"   #
       if ($@ =~ /Rollback failed/);          # Rollback failed
 
     deal_with_failed_transaction();
-  }
+  };
 
 In a nested transaction (calling txn_do() from within a txn_do() coderef) only
 the outermost transaction will issue a L</txn_commit>, and txn_do() can be
@@ -197,7 +196,7 @@ sub txn_do {
   my $wantarray = wantarray; # Need to save this since the context
                              # inside the eval{} block is independent
                              # of the context that called txn_do()
-  eval {
+  try {
 
     # Need to differentiate between scalar/list context to allow for
     # returning a list in scalar context to get the size of the list
@@ -212,16 +211,12 @@ sub txn_do {
       $coderef->(@args);
     }
     $self->txn_commit;
-  };
-
-  if ($@) {
+  } catch {
     my $error = $@;
 
-    eval {
+    try {
       $self->txn_rollback;
-    };
-
-    if ($@) {
+    } catch {
       my $rollback_error = $@;
       my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
       $self->throw_exception($error)  # propagate nested rollback
@@ -230,9 +225,8 @@ sub txn_do {
       $self->throw_exception(
         "Transaction aborted: $error. Rollback failed: ${rollback_error}"
       );
-    } else {
-      $self->throw_exception($error); # txn failed but rollback succeeded
     }
+    $self->throw_exception($error); # txn failed but rollback succeeded
   }
 
   return $wantarray ? @return_values : $return_value;

@@ -11,6 +11,7 @@ use DBIx::Class::Optional::Dependencies;
 use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
+use Try::Tiny;
 
 sub mk_classdata {
   shift->mk_classaccessor(@_);
@@ -42,8 +43,14 @@ sub MODIFY_CODE_ATTRIBUTES {
 sub _attr_cache {
   my $self = shift;
   my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
-  my $rest = eval { $self->next::method };
-  return $@ ? $cache : { %$cache, %$rest };
+  my $rest;
+  my $exception;
+  try {
+    $rest = $self->next::method;
+  } catch {
+    $exception = 1;
+  };
+  return $exception ? $cache : { %$cache, %$rest };
 }
 
 1;
