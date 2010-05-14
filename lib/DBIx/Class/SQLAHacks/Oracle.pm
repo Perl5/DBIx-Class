@@ -11,7 +11,6 @@ use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 #  TODO:
 #   - Review by experienced DBIC/SQL:A developers :-)
 #   - Problem with count and connect_by look the TODO in t/73oracle.t
-#   - Rename option nocycle to connect_by_nocycle
 # 
 
 sub new {
@@ -59,7 +58,7 @@ sub _connect_by {
         if ( my $connect_by = $attrs->{'connect_by'} ) {
             my ($connect_by_sql, @connect_by_sql_bind) = $self->_recurse_where( $attrs->{'connect_by'} );
             $sql .= sprintf(" %s %s",
-                ( $attrs->{'nocycle'} ) ? $self->_sqlcase('connect by nocycle')
+                ( $attrs->{'connect_by_nocycle'} ) ? $self->_sqlcase('connect by nocycle')
                     : $self->_sqlcase('connect by'),
                 $connect_by_sql,
             );

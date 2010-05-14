@@ -641,7 +641,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
     # select the whole cycle tree with nocylce
     {
       my $rs = $schema->resultset('Artist')->search({}, {
-        nocycle    => 1,
+        connect_by_nocycle    => 1,
         start_with => { name => 'cycle-root' },
         '+select'  => [ \ 'CONNECT_BY_ISCYCLE' ],
         connect_by => { parentid => { -prior => \ 'artistid' } },

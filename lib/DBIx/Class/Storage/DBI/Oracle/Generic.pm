@@ -442,7 +442,7 @@ and child rows of the hierarchy.
   # CONNECT BY
   #     parentid = prior persionid
 
-=head2 nocycle
+=head2 connect_by_nocycle
 
 =over 4
 
@@ -453,7 +453,7 @@ and child rows of the hierarchy.
 If you want to use NOCYCLE set to 1.
 
     connect_by => { parentid => 'prior personid' },
-    nocycle    => 1
+    connect_by_nocycle => 1
 
     # adds a connect by statement to the query:
     # SELECT
