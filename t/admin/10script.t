@@ -16,7 +16,7 @@ BEGIN {
 }
 
 my @json_backends = qw/XS JSON DWIW/;
-my $tests_per_run = 5;
+my $tests_per_run = 6;
 
 plan tests => $tests_per_run * @json_backends;
 
@@ -29,6 +29,11 @@ for my $js (@json_backends) {
         $ENV{JSON_ANY_ORDER} = $js;
         eval { test_dbicadmin () };
         diag $@ if $@;
+
+        # test the script is setting @INC properly
+        like(`script/dbicadmin -It/dbicadmin-test-include/lib --schema=Foo --op=deploy --connect=[] --debug`,
+           qr|Adding to \@INC:\nt/dbicadmin-test-include/lib|
+        );
     }
 }
 
