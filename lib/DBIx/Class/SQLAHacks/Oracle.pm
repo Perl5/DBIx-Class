@@ -11,6 +11,7 @@ use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 #  TODO:
 #   - Review by experienced DBIC/SQL:A developers :-)
 #   - Problem with count and connect_by look the TODO in t/73oracle.t
+#   - Rename option nocycle to connect_by_nocycle
 # 
 
 sub new {
