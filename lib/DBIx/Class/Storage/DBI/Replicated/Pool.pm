@@ -8,6 +8,7 @@ use DBI ();
 use Carp::Clan qw/^DBIx::Class/;
 use MooseX::Types::Moose qw/Num Int ClassName HashRef/;
 use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
+use Try::Tiny;
 
 use namespace::clean -except => 'meta';
 
@@ -293,18 +294,18 @@ Returns 1 on success and undef on failure.
 sub _safely {
   my ($self, $replicant, $name, $code) = @_;
 
-  eval {
+  my $rc = 1;
+  try {
     $code->()
-  };
-  if ($@) {
+  } catch {
     $replicant->debugobj->print(sprintf(
       "Exception trying to $name for replicant %s, error is %s",
       $replicant->_dbi_connect_info->[0], $@)
     );
-    return undef;
-  }
+    $rc = undef;
+  };
 
-  return 1;
+  return $rc;
 }
 
 =head2 connected_replicants

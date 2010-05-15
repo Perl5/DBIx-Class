@@ -4,13 +4,17 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
+use Try::Tiny;
 
 sub _rebless {
     my ($self) = @_;
 
-    my $dbtype = eval { $self->_get_dbh->get_info(17) };
+    my $caught;
+    my $dbtype;
+    try { $self->_get_dbh->get_info(17) }
+    catch { $caught = 1 };
 
-    unless ( $@ ) {
+    unless ( $caught ) {
         # Translate the backend name into a perl identifier
         $dbtype =~ s/\W/_/gi;
         my $subclass = "DBIx::Class::Storage::DBI::ODBC::${dbtype}";

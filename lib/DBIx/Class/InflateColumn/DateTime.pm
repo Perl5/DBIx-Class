@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
+use Try::Tiny;
 
 =head1 NAME
 
@@ -167,11 +168,12 @@ sub register_column {
           inflate => sub {
             my ($value, $obj) = @_;
 
-            my $dt = eval { $obj->_inflate_to_datetime( $value, \%info ) };
-            if (my $err = $@ ) {
+            my ($dt, $err);
+            try { $dt = $obj->_inflate_to_datetime( $value, \%info ) }
+            catch {;
               return undef if ($undef_if_invalid);
-              $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $err");
-            }
+              $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $_");
+            };
 
             return $obj->_post_inflate_datetime( $dt, \%info );
           },

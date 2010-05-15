@@ -5,13 +5,17 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
+use Try::Tiny;
 
 sub _rebless {
     my ($self) = @_;
 
-    my $version = eval { $self->_get_dbh->get_info(18); };
+    my $caught;
+    my $version;
+    try { $self->_get_dbh->get_info(18); }
+    catch { $caught = 1 };
 
-    if ( !$@ ) {
+    if ( ! $caught ) {
         my ($major, $minor, $patchlevel) = split(/\./, $version);
 
         # Default driver

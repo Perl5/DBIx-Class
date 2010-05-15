@@ -5,6 +5,7 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
+use Try::Tiny;
 
 use List::Util();
 
@@ -23,13 +24,13 @@ sub _set_identity_insert {
   );
 
   my $dbh = $self->_get_dbh;
-  eval { $dbh->do ($sql) };
-  if ($@) {
+  try { $dbh->do ($sql) }
+  catch {
     $self->throw_exception (sprintf "Error executing '%s': %s",
       $sql,
       $dbh->errstr,
     );
-  }
+  };
 }
 
 sub _unset_identity_insert {
@@ -240,11 +241,14 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  eval {
+  my $rc = 1;
+  try {
     $dbh->do('select 1');
+  } catch {
+    $rc = 0;
   };
 
-  return $@ ? 0 : 1;
+  return $rc;
 }
 
 package # hide from PAUSE

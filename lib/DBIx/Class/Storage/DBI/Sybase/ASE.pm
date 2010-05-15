@@ -13,6 +13,7 @@ use Scalar::Util();
 use List::Util();
 use Sub::Name();
 use Data::Dumper::Concise();
+use Try::Tiny;
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_identity _blob_log_on_update _writer_storage _is_extra_storage
@@ -596,7 +597,8 @@ EOF
       return 0;
   });
 
-  eval {
+  my $exception;
+  try {
     my $bulk = $self->_bulk_storage;
 
     my $guard = $bulk->txn_scope_guard;
@@ -640,9 +642,10 @@ EOF
     );
 
     $bulk->_query_end($sql);
+  } catch {
+    $exception = shift;
   };
 
-  my $exception = $@;
   DBD::Sybase::set_cslib_cb($orig_cslib_cb);
 
   if ($exception =~ /-Y option/) {

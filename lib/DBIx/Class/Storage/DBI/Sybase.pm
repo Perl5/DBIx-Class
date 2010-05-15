@@ -2,6 +2,7 @@ package DBIx::Class::Storage::DBI::Sybase;
 
 use strict;
 use warnings;
+use Try::Tiny;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
@@ -22,12 +23,12 @@ L<DBD::Sybase>
 sub _rebless {
   my $self = shift;
 
-  my $dbtype = eval {
-    @{$self->_get_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
+  my $dbtype;
+  try {
+    $dbtype = @{$self->_get_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
+  } catch {
+    $self->throw_exception("Unable to estable connection to determine database type: $_")
   };
-
-  $self->throw_exception("Unable to estable connection to determine database type: $@")
-    if $@;
 
   if ($dbtype) {
     $dbtype =~ s/\W/_/gi;
@@ -57,13 +58,16 @@ sub _ping {
     return $@ ? 0 : $ping;
   }
 
-  eval {
+  my $rc = 1;
+  try {
 # XXX if the main connection goes stale, does opening another for this statement
 # really determine anything?
     $dbh->do('select 1');
+  } catch {
+    $rc = 0;
   };
 
-  return $@ ? 0 : 1;
+  return $rc;
 }
 
 sub _set_max_connect {

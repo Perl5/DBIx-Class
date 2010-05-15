@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Scope::Guard ();
 use Context::Preserve ();
+use Try::Tiny;
 
 =head1 NAME
 
@@ -112,11 +113,14 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  eval {
+  my $rc = 1;
+  try {
     $dbh->do('select 1 from dual');
+  } catch {
+    $rc = 0;
   };
 
-  return $@ ? 0 : 1;
+  return $rc;
 }
 
 sub _dbh_execute {
@@ -129,14 +133,16 @@ sub _dbh_execute {
 
   RETRY: {
     do {
-      eval {
+      my $exception;
+      try {
         if ($wantarray) {
           @res    = $self->next::method(@_);
         } else {
           $res[0] = $self->next::method(@_);
         }
+      } catch {
+        $exception = shift;
       };
-      $exception = $@;
       if ($exception =~ /ORA-01003/) {
         # ORA-01003: no statement parsed (someone changed the table somehow,
         # invalidating your cursor.)

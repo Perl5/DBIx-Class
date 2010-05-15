@@ -1244,17 +1244,17 @@ example of the recommended way to use it:
     return $genus->species;
   };
 
+  use Try::Tiny;
   my $rs;
-  eval {
+  try {
     $rs = $schema->txn_do($coderef1);
-  };
-
-  if ($@) {                             # Transaction failed
+  } catch {
+    # Transaction failed
     die "the sky is falling!"           #
-      if ($@ =~ /Rollback failed/);     # Rollback failed
+      if ($_ =~ /Rollback failed/);     # Rollback failed
 
     deal_with_failed_transaction();
-  }
+  };
 
 Note: by default C<txn_do> will re-run the coderef one more time if an
 error occurs due to client disconnection (e.g. the server is bounced).
@@ -1281,8 +1281,10 @@ row.
   my $schema = MySchema->connect("dbi:Pg:dbname=my_db");
 
   # Start a transaction. Every database change from here on will only be 
-  # committed into the database if the eval block succeeds.
-  eval {
+  # committed into the database if the try block succeeds.
+  use Try::Tiny;
+  my $exception;
+  try {
     $schema->txn_do(sub {
       # SQL: BEGIN WORK;
 
@@ -1292,7 +1294,7 @@ row.
       for (1..10) {
 
         # Start a nested transaction, which in fact sets a savepoint.
-        eval {
+        try {
           $schema->txn_do(sub {
             # SQL: SAVEPOINT savepoint_0;
 
@@ -1307,8 +1309,7 @@ row.
               #      WHERE ( id = 42 );
             }
           });
-        };
-        if ($@) {
+        } catch {
           # SQL: ROLLBACK TO SAVEPOINT savepoint_0;
 
           # There was an error while creating a $thing. Depending on the error
@@ -1316,14 +1317,14 @@ row.
           # changes related to the creation of this $thing
 
           # Abort the whole job
-          if ($@ =~ /horrible_problem/) {
+          if ($_ =~ /horrible_problem/) {
             print "something horrible happend, aborting job!";
-            die $@;                # rethrow error
+            die $_;                # rethrow error
           }
 
           # Ignore this $thing, report the error, and continue with the
           # next $thing
-          print "Cannot create thing: $@";
+          print "Cannot create thing: $_";
         }
         # There was no error, so save all changes since the last 
         # savepoint.
@@ -1331,8 +1332,11 @@ row.
         # SQL: RELEASE SAVEPOINT savepoint_0;
       }
     });
-  };
-  if ($@) {
+  } catch {
+    $exception = $_;
+  }
+
+  if ($caught) {
     # There was an error while handling the $job. Rollback all changes
     # since the transaction started, including the already committed
     # ('released') savepoints. There will be neither a new $job nor any
@@ -1340,7 +1344,7 @@ row.
 
     # SQL: ROLLBACK;
 
-    print "ERROR: $@\n";
+    print "ERROR: $exception\n";
   }
   else {
     # There was no error while handling the $job. Commit all changes.
@@ -1354,7 +1358,7 @@ row.
 
 In this example it might be hard to see where the rollbacks, releases and
 commits are happening, but it works just the same as for plain L<<txn_do>>: If
-the C<eval>-block around C<txn_do> fails, a rollback is issued. If the C<eval>
+the C<try>-block around C<txn_do> fails, a rollback is issued. If the C<try>
 succeeds, the transaction is committed (or the savepoint released).
 
 While you can get more fine-grained control using C<svp_begin>, C<svp_release>
