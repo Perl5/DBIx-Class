@@ -20,10 +20,12 @@ Revision history for DBIx::Class
           the unsafe_subselect_ok attribute, due to optimized queries
         - Fix as_subselect_rs to not inject resultset class-wide where
           conditions outside of the resulting subquery
+        - Fix nasty potentially data-eating bug when deleting/updating
+          a limited resultset
         - Depend on optimized SQL::Abstract (faster SQL generation)
-        - update on row not in database now OK if no changes - 
-          fixes problems with cascaded unnecessary updates
-
+        - update() on row not in_storage no longer throws an exception
+          if there are no dirty columns to update (fixes cascaded update
+          annoyances)
 
 0.08121 2010-04-11 18:43:00 (UTC)
         - Support for Firebird RDBMS with DBD::InterBase and ODBC
