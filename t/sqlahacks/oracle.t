@@ -3,12 +3,10 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
-use Data::Dumper;
+use Data::Dumper::Concise;
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 use DBIx::Class::SQLAHacks::Oracle;
-
-
 
 # 
 #  Offline test for connect_by 
@@ -61,7 +59,6 @@ isa_ok($sqla_oracle, 'DBIx::Class::SQLAHacks::Oracle');
 my $test_count = ( @handle_tests * 2 ) + 1;
 
 for my $case (@handle_tests) {
-    local $Data::Dumper::Terse = 1;
     my ( $stmt, @bind );
     my $msg = sprintf("Offline: %s",
         $case->{msg} || substr($case->{stmt},0,25),
