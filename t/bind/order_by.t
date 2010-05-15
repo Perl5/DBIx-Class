@@ -103,3 +103,4 @@ my @tests = (
 plan( tests => scalar @tests * 2 );
 
 test_order($_) for @tests;
+
