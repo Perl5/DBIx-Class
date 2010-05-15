@@ -633,6 +633,8 @@ sub _recurse_fields {
       croak "Malformed select argument - too many keys in hash: " . join (',', keys %$fields );
     }
 
+    $func =~ s/^\-+//;  # strip leading dash, at some point the dash itself should become mandatory
+
     if (lc ($func) eq 'distinct' && ref $args eq 'ARRAY' && @$args > 1) {
       croak (
         'The select => { distinct => ... } syntax is not supported for multiple columns.'
@@ -711,6 +713,27 @@ sub _order_by {
     push @{$self->{order_bind}}, @bind;
     return $sql;
   }
+}
+
+sub _order_by_chunks {
+  my ($self, $arg) = @_;
+
+  return $self->_recurse_where ($arg) if ($self->{_order_by_recurse});
+
+  if (  # non-empty hash with neither an -asc or a -desc
+    ref $arg eq 'HASH'
+      &&
+    keys %$arg
+      &&
+    ! exists $arg->{-desc}
+      &&
+    ! exists $arg->{-asc}
+  ) {
+    local $self->{_order_by_recurse} = 1;
+    return $self->_recurse_where ($arg);
+  }
+
+  return $self->SUPER::_order_by_chunks ($arg);
 }
 
 sub _order_directions {
