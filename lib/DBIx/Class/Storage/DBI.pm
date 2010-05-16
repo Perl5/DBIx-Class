@@ -47,6 +47,7 @@ __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
 my @rdbms_specific_methods = qw/
   deployment_statements
   sqlt_type
+  sql_maker
   build_datetime_parser
   datetime_parser_type
 
