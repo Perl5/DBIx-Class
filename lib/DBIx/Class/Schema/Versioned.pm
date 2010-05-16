@@ -558,24 +558,25 @@ To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or
 sub connection {
   my $self = shift;
   $self->next::method(@_);
-  $self->_on_connect($_[3]);
+  $self->_on_connect();
   return $self;
 }
 
 sub _on_connect
 {
-  my ($self, $args) = @_;
+  my ($self) = @_;
 
-  $args = {} unless $args;
+  my $info = $self->storage->connect_info;
+  my $args = $info->[-1];
 
-  $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
+  $self->{vschema} = DBIx::Class::Version->connect(@$info);
   my $vtable = $self->{vschema}->resultset('Table');
 
   # useful when connecting from scripts etc
   return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
 
   # check for legacy versions table and move to new if exists
-  my $vschema_compat = DBIx::Class::VersionCompat->connect(@{$self->storage->connect_info()});
+  my $vschema_compat = DBIx::Class::VersionCompat->connect(@$info);
   unless ($self->_source_exists($vtable)) {
     my $vtable_compat = $vschema_compat->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {

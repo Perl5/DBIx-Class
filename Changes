@@ -26,6 +26,7 @@ Revision history for DBIx::Class
         - update() on row not in_storage no longer throws an exception
           if there are no dirty columns to update (fixes cascaded update
           annoyances)
+        - Update Schema::Versioned to respect hashref style of connection_info
 
 0.08121 2010-04-11 18:43:00 (UTC)
         - Support for Firebird RDBMS with DBD::InterBase and ODBC
