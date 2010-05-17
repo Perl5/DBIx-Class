@@ -204,6 +204,15 @@ SQL
     ok (($have_rno == $rno_detected),
       'row_number() over support detected correctly');
   }
+
+  {
+    my $schema = DBICTest::Schema->clone;
+    $schema->connection($dsn, $user, $pass);
+
+    like $schema->storage->sql_maker->{limit_dialect},
+      qr/^(?:Top|RowNumberOver)\z/,
+      'sql_maker is correct on unconnected schema';
+  }
 }
 
 # test op-induced autoconnect
