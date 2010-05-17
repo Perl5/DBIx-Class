@@ -503,9 +503,8 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version;
-    try {
-      $version = $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
+    my $version = eval {
+      $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
                ->next;
     };
