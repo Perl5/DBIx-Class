@@ -5,13 +5,13 @@ use base qw( DBIx::Class::SQLAHacks );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 sub select {
-  my ($self, $table, $fields, $where, $order, @rest) = @_;
+  my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
 
   if (ref($table) eq 'ARRAY') {
     $where = $self->_oracle_joins($where, @{ $table });
   }
 
-  return $self->SUPER::select($table, $fields, $where, $order, @rest);
+  return $self->SUPER::select($table, $fields, $where, $rs_attrs, @rest);
 }
 
 sub _recurse_from {
@@ -96,8 +96,7 @@ DBIx::Class::SQLAHacks::OracleJoins - Pre-ANSI Joins-via-Where-Clause Syntax
 
 This module was originally written to support Oracle < 9i where ANSI joins
 weren't supported at all, but became the module for Oracle >= 8 because
-Oracle's optimising of ANSI joins is horrible.  (See:
-http://scsys.co.uk:8001/7495)
+Oracle's optimising of ANSI joins is horrible.
 
 =head1 SYNOPSIS
 

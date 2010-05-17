@@ -4,7 +4,6 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use Sub::Name ();
-use Class::Inspector ();
 
 our %_pod_inherit_config = 
   (

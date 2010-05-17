@@ -11,7 +11,7 @@ DBIx::Class::CDBICompat::ColumnsAsHash - Emulates the behavior of Class::DBI whe
 
 =head1 SYNOPSIS
 
-See DBIx::Class::CDBICompat for directions for use.
+See DBIx::Class::CDBICompat for usage directions.
 
 =head1 DESCRIPTION
 

@@ -30,6 +30,8 @@ methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
   __PACKAGE__->add_relationship('relname', 'Foreign::Class', $cond, $attrs);
 
+=head3 condition
+
 The condition needs to be an L<SQL::Abstract>-style representation of the
 join between the tables. When resolving the condition for use in a C<JOIN>,
 keys using the pseudo-table C<foreign> are resolved to mean "the Table on the
@@ -67,9 +69,18 @@ Each key-value pair provided in a hashref will be used as C<AND>ed conditions.
 To add an C<OR>ed condition, use an arrayref of hashrefs. See the
 L<SQL::Abstract> documentation for more details.
 
-In addition to the
-L<standard ResultSet attributes|DBIx::Class::ResultSet/ATTRIBUTES>,
-the following attributes are also valid:
+=head3 attributes
+
+The L<standard ResultSet attributes|DBIx::Class::ResultSet/ATTRIBUTES> may
+be used as relationship attributes. In particular, the 'where' attribute is
+useful for filtering relationships:
+
+     __PACKAGE__->has_many( 'valid_users', 'MyApp::Schema::User',
+        { 'foreign.user_id' => 'self.user_id' },
+        { where => { valid => 1 } }
+    );
+
+The following attributes are also valid:
 
 =over 4
 
@@ -110,6 +121,40 @@ If you are using L<SQL::Translator> to create SQL for you and you find that it
 is creating constraints where it shouldn't, or not creating them where it 
 should, set this attribute to a true or false value to override the detection
 of when to create constraints.
+
+=item cascade_copy
+
+If C<cascade_copy> is true on a C<has_many> relationship for an
+object, then when you copy the object all the related objects will
+be copied too. To turn this behaviour off, pass C<< cascade_copy => 0 >> 
+in the C<$attr> hashref. 
+
+The behaviour defaults to C<< cascade_copy => 1 >> for C<has_many>
+relationships.
+
+=item cascade_delete
+
+By default, DBIx::Class cascades deletes across C<has_many>,
+C<has_one> and C<might_have> relationships. You can disable this
+behaviour on a per-relationship basis by supplying 
+C<< cascade_delete => 0 >> in the relationship attributes.
+
+The cascaded operations are performed after the requested delete,
+so if your database has a constraint on the relationship, it will
+have deleted/updated the related records or raised an exception
+before DBIx::Class gets to perform the cascaded operation.
+
+=item cascade_update
+
+By default, DBIx::Class cascades updates across C<has_one> and
+C<might_have> relationships. You can disable this behaviour on a
+per-relationship basis by supplying C<< cascade_update => 0 >> in
+the relationship attributes.
+
+This is not a RDMS style cascade update - it purely means that when
+an object has update called on it, all the related objects also
+have update called. It will not change foreign keys automatically -
+you must arrange to do this yourself.
 
 =item on_delete / on_update
 
@@ -189,13 +234,23 @@ sub related_resultset {
     my $query = ((@_ > 1) ? {@_} : shift);
 
     my $source = $self->result_source;
-    my $cond = $source->_resolve_condition(
-      $rel_info->{cond}, $rel, $self
-    );
+
+    # condition resolution may fail if an incomplete master-object prefetch
+    # is encountered - that is ok during prefetch construction (not yet in_storage)
+    my $cond = eval { $source->_resolve_condition( $rel_info->{cond}, $rel, $self ) };
+    if (my $err = $@) {
+      if ($self->in_storage) {
+        $self->throw_exception ($err);
+      }
+      else {
+        $cond = $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION;
+      }
+    }
+
     if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
       my $reverse = $source->reverse_relationship_info($rel);
       foreach my $rev_rel (keys %$reverse) {
-        if ($reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
+        if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
           $attrs->{related_objects}{$rev_rel} = [ $self ];
           Scalar::Util::weaken($attrs->{related_object}{$rev_rel}[0]);
         } else {
@@ -249,7 +304,7 @@ sub search_related {
   ( $objects_rs ) = $rs->search_related_rs('relname', $cond, $attrs);
 
 This method works exactly the same as search_related, except that 
-it guarantees a restultset, even in list context.
+it guarantees a resultset, even in list context.
 
 =cut
 
@@ -381,7 +436,7 @@ example, to set the correct author for a book, find the Author object, then
 call set_from_related on the book.
 
 This is called internally when you pass existing objects as values to
-L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to acessor.
+L<DBIx::Class::ResultSet/create>, or pass an object to a belongs_to accessor.
 
 The columns are only set in the local copy of the object, call L</update> to
 set them in the storage.

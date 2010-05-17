@@ -10,10 +10,7 @@ use POSIX 'strftime';
 use File::Copy;
 use File::Spec;
 
-sub _dbh_last_insert_id {
-  my ($self, $dbh, $source, $col) = @_;
-  $dbh->func('last_insert_rowid');
-}
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::SQLite');
 
 sub backup
 {
@@ -47,7 +44,49 @@ sub backup
   return $backupfile;
 }
 
+sub deployment_statements {
+  my $self = shift;;
+  my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
+
+  $sqltargs ||= {};
+
+  # it'd be cool to use the normalized perl-style version but this needs sqlt hacking as well
+  if (my $sqlite_version = $self->_server_info->{dbms_version}) {
+    # numify, SQLT does a numeric comparison
+    $sqlite_version =~ s/^(\d+) \. (\d+) (?: \. (\d+))? .*/${1}.${2}/x;
+
+    $sqltargs->{producer_args}{sqlite_version} = $sqlite_version if $sqlite_version;
+  }
+
+  $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
+}
+
 sub datetime_parser_type { return "DateTime::Format::SQLite"; } 
+
+=head2 connect_call_use_foreign_keys
+
+Used as:
+
+    on_connect_call => 'use_foreign_keys'
+
+In L<connect_info|DBIx::Class::Storage::DBI/connect_info> to turn on foreign key
+(including cascading) support for recent versions of SQLite and L<DBD::SQLite>.
+
+Executes:
+
+  PRAGMA foreign_keys = ON 
+
+See L<http://www.sqlite.org/foreignkeys.html> for more information.
+
+=cut
+
+sub connect_call_use_foreign_keys {
+  my $self = shift;
+
+  $self->_do_query(
+    'PRAGMA foreign_keys = ON'
+  );
+}
 
 1;
 
@@ -58,7 +97,7 @@ DBIx::Class::Storage::DBI::SQLite - Automatic primary key class for SQLite
 =head1 SYNOPSIS
 
   # In your table classes
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  use base 'DBIx::Class::Core';
   __PACKAGE__->set_primary_key('id');
 
 =head1 DESCRIPTION

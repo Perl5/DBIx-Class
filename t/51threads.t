@@ -1,6 +1,9 @@
 use strict;
 use warnings;
+
 use Test::More;
+use Test::Exception;
+
 use Config;
 
 # README: If you set the env var to a number greater than 10,
@@ -8,7 +11,7 @@ use Config;
 
 BEGIN {
     plan skip_all => 'Your perl does not support ithreads'
-        if !$Config{useithreads} || $] < 5.008;
+        if !$Config{useithreads};
 }
 
 use threads;
@@ -38,7 +41,7 @@ my $schema = DBICTest::Schema->connection($dsn, $user, $pass, { AutoCommit => 1,
 
 my $parent_rs;
 
-eval {
+lives_ok (sub {
     my $dbh = $schema->storage->dbh;
 
     {
@@ -52,8 +55,7 @@ eval {
 
     $parent_rs = $schema->resultset('CD')->search({ year => 1901 });
     $parent_rs->next;
-};
-ok(!$@) or diag "Creation eval failed: $@";
+}, 'populate successfull');
 
 my @children;
 while(@children < $num_children) {

@@ -1,8 +1,9 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
@@ -35,14 +36,16 @@ ok($art->update, 'Update run');
 my %not_dirty = $art->get_dirty_columns();
 is(scalar(keys(%not_dirty)), 0, 'Nothing is dirty');
 
-eval {
+throws_ok ( sub {
   my $ret = $art->make_column_dirty('name2');
-};
-ok(defined($@), 'Failed to make non-existent column dirty');
+}, qr/No such column 'name2'/, 'Failed to make non-existent column dirty');
+
 $art->make_column_dirty('name');
 my %fake_dirty = $art->get_dirty_columns();
 is(scalar(keys(%fake_dirty)), 1, '1 fake dirty column');
 ok(grep($_ eq 'name', keys(%fake_dirty)), 'name is fake dirty');
+
+ok($art->update, 'Update run');
 
 my $record_jp = $schema->resultset("Artist")->search(undef, { join => 'cds' })->search(undef, { prefetch => 'cds' })->next;
 
@@ -64,7 +67,9 @@ lives_ok (sub { $art->delete }, 'Cascading delete on Ordered has_many works' ); 
 
 is(@art, 2, 'And then there were two');
 
-ok(!$art->in_storage, "It knows it's dead");
+is($art->in_storage, 0, "It knows it's dead");
+
+lives_ok { $art->update } 'No changes so update should be OK';
 
 dies_ok ( sub { $art->delete }, "Can't delete twice");
 
@@ -104,6 +109,19 @@ is($new_again->name, 'Man With A Spoon', 'Retrieved correctly');
 
 is($new_again->ID, 'DBICTest::Artist|artist|artistid=4', 'unique object id generated correctly');
 
+# test that store_column is called once for create() for non sequence columns 
+{
+  ok(my $artist = $schema->resultset('Artist')->create({name => 'store_column test'}));
+  is($artist->name, 'X store_column test'); # used to be 'X X store...'
+
+  # call store_column even though the column doesn't seem to be dirty
+  $artist->name($artist->name);
+  is($artist->name, 'X X store_column test');
+  ok($artist->is_column_changed('name'), 'changed column marked as dirty');
+
+  $artist->delete;
+}
+
 # Test backwards compatibility
 {
   my $warnings = '';
@@ -132,7 +150,7 @@ is($schema->resultset("Artist")->count, 4, 'count ok');
   });
 
   is($new_obj->name, 'find_or_new', 'find_or_new: instantiated a new artist');
-  ok(! $new_obj->in_storage, 'new artist is not in storage');
+  is($new_obj->in_storage, 0, 'new artist is not in storage');
 }
 
 my $cd = $schema->resultset("CD")->find(1);
@@ -210,9 +228,9 @@ SKIP: {
     isa_ok($tdata{'last_updated_on'}, 'DateTime', 'inflated accessored column');
 }
 
-eval { $schema->class("Track")->load_components('DoesNotExist'); };
-
-ok $@, $@;
+throws_ok (sub {
+  $schema->class("Track")->load_components('DoesNotExist');
+}, qr!Can't locate DBIx/Class/DoesNotExist.pm!, 'exception on nonexisting component');
 
 is($schema->class("Artist")->field_name_for->{name}, 'artist name', 'mk_classdata usage ok');
 
@@ -226,6 +244,13 @@ is($or_rs->count, 5, 'Search count with OR ok');
 my $collapsed_or_rs = $or_rs->search ({}, { distinct => 1 }); # induce collapse
 is ($collapsed_or_rs->all, 4, 'Collapsed joined search with OR returned correct number of rows');
 is ($collapsed_or_rs->count, 4, 'Collapsed search count with OR ok');
+
+# make sure sure distinct on a grouped rs is warned about
+my $cd_rs = $schema->resultset ('CD')
+              ->search ({}, { distinct => 1, group_by => 'title' });
+warnings_exist (sub {
+  $cd_rs->next;
+}, qr/Useless use of distinct/, 'UUoD warning');
 
 {
   my $tcount = $schema->resultset('Track')->search(
@@ -398,11 +423,52 @@ SKIP: {
   is($en_row->encoded, 'amliw', 'insert does not encode again');
 }
 
+#make sure multicreate encoding still works
+{
+  my $empl_rs = $schema->resultset('Employee');
+
+  my $empl = $empl_rs->create ({
+    name => 'Secret holder',
+    secretkey => {
+      encoded => 'CAN HAZ',
+    },
+  });
+  is($empl->secretkey->encoded, 'ZAH NAC', 'correctly encoding on multicreate');
+
+  my $empl2 = $empl_rs->create ({
+    name => 'Same secret holder',
+    secretkey => {
+      encoded => 'CAN HAZ',
+    },
+  });
+  is($empl2->secretkey->encoded, 'ZAH NAC', 'correctly encoding on preexisting multicreate');
+
+  $empl_rs->create ({
+    name => 'cat1',
+    secretkey => {
+      encoded => 'CHEEZBURGER',
+      keyholders => [
+        {
+          name => 'cat2',
+        },
+        {
+          name => 'cat3',
+        },
+      ],
+    },
+  });
+
+  is($empl_rs->find({name => 'cat1'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl1');
+  is($empl_rs->find({name => 'cat2'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl2');
+  is($empl_rs->find({name => 'cat3'})->secretkey->encoded, 'REGRUBZEEHC', 'correct secret in database for empl3');
+
+}
+
 # make sure we got rid of the compat shims
 SKIP: {
-    skip "Remove in 0.09", 5 if $DBIx::Class::VERSION < 0.09;
+    skip "Remove in 0.082", 3 if $DBIx::Class::VERSION < 0.082;
 
-    for (qw/compare_relationship_keys pk_depends_on resolve_condition resolve_join resolve_prefetch/) {
+    for (qw/compare_relationship_keys pk_depends_on resolve_condition/) {
       ok (! DBIx::Class::ResultSource->can ($_), "$_ no longer provided by DBIx::Class::ResultSource");
     }
 }

@@ -19,10 +19,8 @@ sub _rebless {
           ? 'DBIx::Class::Storage::DBI::Oracle::WhereJoins'
           : 'DBIx::Class::Storage::DBI::Oracle::Generic';
 
-        # Load and rebless
-        eval "require $class";
-
-        bless $self, $class unless $@;
+        $self->ensure_class_loaded ($class);
+        bless $self, $class;
     }
 }
 
@@ -31,11 +29,6 @@ sub _rebless {
 =head1 NAME
 
 DBIx::Class::Storage::DBI::Oracle - Base class for Oracle driver
-
-=head1 SYNOPSIS
-
-  # In your table classes
-  __PACKAGE__->load_components(qw/Core/);
 
 =head1 DESCRIPTION
 

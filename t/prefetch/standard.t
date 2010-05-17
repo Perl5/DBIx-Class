@@ -5,8 +5,6 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
-use Data::Dumper;
-use IO::File;
 
 my $schema = DBICTest->init_schema();
 my $orig_debug = $schema->storage->debug;
@@ -20,8 +18,6 @@ $schema->storage->debug(1);
 my $search = { 'artist.name' => 'Caterwauler McCrae' };
 my $attr = { prefetch => [ qw/artist liner_notes/ ],
              order_by => 'me.cdid' };
-my $search_str = Dumper($search);
-my $attr_str = Dumper($attr);
 
 my $rs = $schema->resultset("CD")->search($search, $attr);
 my @cd = $rs->all;

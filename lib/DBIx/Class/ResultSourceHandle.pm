@@ -78,25 +78,26 @@ sub STORABLE_freeze {
 
     my $to_serialize = { %$self };
 
-    my $class = $self->schema->class($self->source_moniker);
-    $to_serialize->{schema} = $class;
+    delete $to_serialize->{schema};
+    $to_serialize->{_frozen_from_class} = $self->schema->class($self->source_moniker);
+
     return (Storable::freeze($to_serialize));
 }
 
 =head2 STORABLE_thaw
 
 Thaws frozen handle. Resets the internal schema reference to the package
-variable C<$thaw_schema>. The recomened way of setting this is to use 
+variable C<$thaw_schema>. The recommended way of setting this is to use 
 C<< $schema->thaw($ice) >> which handles this for you.
 
 =cut
 
 
 sub STORABLE_thaw {
-    my ($self, $cloning,$ice) = @_;
+    my ($self, $cloning, $ice) = @_;
     %$self = %{ Storable::thaw($ice) };
 
-    my $class = delete $self->{schema};
+    my $class = delete $self->{_frozen_from_class};
     if( $thaw_schema ) {
         $self->{schema} = $thaw_schema;
     }
@@ -105,7 +106,8 @@ sub STORABLE_thaw {
         $self->{schema} = $rs->schema if $rs;
     }
 
-    carp "Unable to restore schema" unless $self->{schema};
+    carp "Unable to restore schema. Look at 'freeze' and 'thaw' methods in DBIx::Class::Schema."
+        unless $self->{schema};
 }
 
 =head1 AUTHOR

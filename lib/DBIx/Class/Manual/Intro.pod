@@ -105,13 +105,18 @@ required resultset classes.
 Next, create each of the classes you want to load as specified above:
 
   package My::Schema::Result::Album;
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-Load any components required by each class with the load_components() method.
-This should consist of "Core" plus any additional components you want to use.
-For example, if you want to force columns to use UTF-8 encoding:
+Load any additional components you may need with the load_components() method,
+and provide component configuration if required. For example, if you want
+automatic row ordering:
 
-  __PACKAGE__->load_components(qw/ ForceUTF8 Core /);
+  __PACKAGE__->load_components(qw/ Ordered /);
+  __PACKAGE__->position_column('rank');
+
+Ordered will refer to a field called 'position' unless otherwise directed.  Here you are defining
+the ordering field to be named 'rank'.  (NOTE: Insert errors may occur if you use the Ordered 
+component, but have not defined a position column or have a 'position' field in your row.)
 
 Set the table for your class:
 
@@ -119,7 +124,7 @@ Set the table for your class:
 
 Add columns to your class:
 
-  __PACKAGE__->add_columns(qw/ albumid artist title /);
+  __PACKAGE__->add_columns(qw/ albumid artist title rank /);
 
 Each column can also be set up with its own accessor, data_type and other pieces
 of information that it may be useful to have -- just pass C<add_columns> a hash:
@@ -145,13 +150,20 @@ of information that it may be useful to have -- just pass C<add_columns> a hash:
                               is_nullable => 0,
                               is_auto_increment => 0,
                               default_value => '',
+                            },
+                          rank =>
+                            { data_type => 'integer',
+                              size      => 16,
+                              is_nullable => 0,
+                              is_auto_increment => 0,
+                              default_value => '',
                             }
                          );
 
 DBIx::Class doesn't directly use most of this data yet, but various related
 modules such as L<DBIx::Class::WebForm> make use of it. Also it allows you to
 create your database tables from your Schema, instead of the other way around.
-See L<SQL::Translator> for details.
+See L<DBIx::Class::Schema/deploy> for details.
 
 See L<DBIx::Class::ResultSource> for more details of the possible column
 attributes.
@@ -217,7 +229,7 @@ second database you want to access:
 Note that L<DBIx::Class::Schema> does not cache connections for you. If you use
 multiple connections, you need to do this manually.
 
-To execute some sql statements on every connect you can add them as an option in
+To execute some SQL statements on every connect you can add them as an option in
 a special fifth argument to connect:
 
   my $another_schema = My::Schema->connect(
@@ -228,7 +240,7 @@ a special fifth argument to connect:
       { on_connect_do => \@on_connect_sql_statments }
   );
 
-See L<DBIx::Class::Schema::Storage::DBI/connect_info> for more information about
+See L<DBIx::Class::Storage::DBI/connect_info> for more information about
 this and other special C<connect>-time options.
 
 =head3 Via a database handle
@@ -267,8 +279,8 @@ instead:
   $album->set_column('title', 'Presence');
   $title = $album->get_column('title');
 
-Just like with L<Class::DBI>, you call C<update> to commit your changes to the
-database:
+Just like with L<Class::DBI>, you call C<update> to save your changes to the
+database (by executing the actual C<UPDATE> statement):
 
   $album->update;
 
@@ -388,6 +400,53 @@ For a complete overview of the available attributes, see
 L<DBIx::Class::ResultSet/ATTRIBUTES>.
 
 =head1 NOTES
+
+=head2 The Significance and Importance of Primary Keys
+
+The concept of a L<primary key|DBIx::Class::ResultSource/set_primary_key> in
+DBIx::Class warrants special discussion. The formal definition (which somewhat
+resembles that of a classic RDBMS) is I<a unique constraint that is least
+likely to change after initial row creation>. However this is where the
+similarity ends. Any time you call a CRUD operation on a row (e.g.
+L<delete|DBIx::Class::Row/delete>,
+L<update|DBIx::Class::Row/update>,
+L<discard_changes|DBIx::Class::Row/discard_changes>,
+etc.) DBIx::Class will use the values of of the
+L<primary key|DBIx::Class::ResultSource/set_primary_key> columns to populate
+the C<WHERE> clause necessary to accomplish the operation. This is why it is
+important to declare a L<primary key|DBIx::Class::ResultSource/set_primary_key>
+on all your result sources B<even if the underlying RDBMS does not have one>.
+In a pinch one can always declare each row identifiable by all its columns:
+
+ __PACKAGE__->set_primary_keys (__PACKAGE__->columns);
+
+Note that DBIx::Class is smart enough to store a copy of the PK values before
+any row-object changes take place, so even if you change the values of PK
+columns the C<WHERE> clause will remain correct.
+
+If you elect not to declare a C<primary key>, DBIx::Class will behave correctly
+by throwing exceptions on any row operation that relies on unique identifiable
+rows. If you inherited datasets with multiple identical rows in them, you can
+still operate with such sets provided you only utilize
+L<DBIx::Class::ResultSet> CRUD methods:
+L<search|DBIx::Class::ResultSet/search>,
+L<update|DBIx::Class::ResultSet/update>,
+L<delete|DBIx::Class::ResultSet/delete>
+
+For example, the following would not work (assuming C<People> does not have
+a declared PK):
+
+ my $row = $schema->resultset('People')
+                   ->search({ last_name => 'Dantes' })
+                    ->next;
+ $row->update({ children => 2 }); # <-- exception thrown because $row isn't
+                                  # necessarily unique
+
+So instead the following should be done:
+
+ $schema->resultset('People')
+         ->search({ last_name => 'Dantes' })
+          ->update({ children => 2 }); # <-- update's ALL Dantes to have children of 2
 
 =head2 Problems on RHEL5/CentOS5
 

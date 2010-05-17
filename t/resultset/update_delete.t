@@ -6,9 +6,6 @@ use Test::More;
 use Test::Exception;
 use DBICTest;
 
-#plan tests => 5;
-plan 'no_plan';
-
 my $schema = DBICTest->init_schema();
 
 my $tkfks = $schema->resultset('FourKeys_to_TwoKeys');
@@ -79,8 +76,12 @@ throws_ok (
 );
 
 # grouping on PKs only should pass
-$sub_rs->search ({}, { group_by => [ reverse $sub_rs->result_source->primary_columns ] })     # reverse to make sure the comaprison works
-          ->update ({ pilot_sequence => \ 'pilot_sequence + 1' });
+$sub_rs->search (
+  {},
+  {
+    group_by => [ reverse $sub_rs->result_source->primary_columns ],     # reverse to make sure the PK-list comaprison works
+  },
+)->update ({ pilot_sequence => \ 'pilot_sequence + 1' });
 
 is_deeply (
   [ $tkfks->search ({ autopilot => [qw/a b x y/]}, { order_by => 'autopilot' })
@@ -90,6 +91,26 @@ is_deeply (
   'Only two rows incremented',
 );
 
+# also make sure weird scalarref usage works (RT#51409)
+$tkfks->search (
+  \ 'pilot_sequence BETWEEN 11 AND 21',
+)->update ({ pilot_sequence => \ 'pilot_sequence + 1' });
+
+is_deeply (
+  [ $tkfks->search ({ autopilot => [qw/a b x y/]}, { order_by => 'autopilot' })
+            ->get_column ('pilot_sequence')->all 
+  ],
+  [qw/12 22 30 40/],
+  'Only two rows incremented (where => scalarref works)',
+);
+
 $sub_rs->delete;
 
 is ($tkfks->count, $tkfk_cnt -= 2, 'Only two rows deleted');
+
+# make sure limit-only deletion works
+cmp_ok ($tkfk_cnt, '>', 1, 'More than 1 row left');
+$tkfks->search ({}, { rows => 1 })->delete;
+is ($tkfks->count, $tkfk_cnt -= 1, 'Only one row deleted');
+
+done_testing;

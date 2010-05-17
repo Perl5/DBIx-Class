@@ -37,7 +37,10 @@ Sometimes you need to formulate a query using specific operators:
 
 This results in something like the following C<WHERE> clause:
 
-  WHERE artist LIKE '%Lamb%' AND title LIKE '%Fear of Fours%'
+  WHERE artist LIKE ? AND title LIKE ?
+
+And the following bind values for the placeholders: C<'%Lamb%'>, C<'%Fear of
+Fours%'>.
 
 Other queries might require slightly more complex logic:
 
@@ -110,9 +113,8 @@ almost like you would define a regular ResultSource.
   package My::Schema::Result::UserFriendsComplex;
   use strict;
   use warnings;
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components('Core');
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
   # ->table, ->add_columns, etc.
@@ -139,7 +141,7 @@ Next, you can execute your complex query using bind parameters like this:
   );
 
 ... and you'll get back a perfect L<DBIx::Class::ResultSet> (except, of course,
-that you cannot modify the rows it contains, ie. cannot call L</update>,
+that you cannot modify the rows it contains, e.g. cannot call L</update>,
 L</delete>, ...  on it).
 
 Note that you cannot have bind parameters unless is_virtual is set to true.
@@ -199,7 +201,7 @@ to access the returned value:
   # SELECT name name, LENGTH( name )
   # FROM artist
 
-Note that the C<as> attribute B<has absolutely nothing to do> with the sql
+Note that the C<as> attribute B<has absolutely nothing to do> with the SQL
 syntax C< SELECT foo AS bar > (see the documentation in 
 L<DBIx::Class::ResultSet/ATTRIBUTES>). You can control the C<AS> part of the
 generated SQL via the C<-as> field attribute as follows:
@@ -243,6 +245,8 @@ any of your aliases using either of these:
 
   # Or use DBIx::Class::AccessorGroup:
   __PACKAGE__->mk_group_accessors('column' => 'name_length');
+
+See also L</Using SQL functions on the left hand side of a comparison>.
 
 =head2 SELECT DISTINCT with multiple columns
 
@@ -288,7 +292,7 @@ any of your aliases using either of these:
   my $count = $rs->count;
 
   # Equivalent SQL:
-  # SELECT COUNT( * ) FROM (SELECT me.name FROM artist me GROUP BY me.name) count_subq:
+  # SELECT COUNT( * ) FROM (SELECT me.name FROM artist me GROUP BY me.name) me:
 
 =head2 Grouping results
 
@@ -313,7 +317,7 @@ Please see L<DBIx::Class::ResultSet/ATTRIBUTES> documentation if you
 are in any way unsure about the use of the attributes above (C< join
 >, C< select >, C< as > and C< group_by >).
 
-=head2 Subqueries (EXPERIMENTAL)
+=head2 Subqueries
 
 You can write subqueries relatively easily in DBIC.
 
@@ -325,13 +329,13 @@ You can write subqueries relatively easily in DBIC.
     artist_id => { 'IN' => $inside_rs->get_column('id')->as_query },
   });
 
-The usual operators ( =, !=, IN, NOT IN, etc) are supported.
+The usual operators ( =, !=, IN, NOT IN, etc.) are supported.
 
 B<NOTE>: You have to explicitly use '=' when doing an equality comparison.
 The following will B<not> work:
 
   my $rs = $schema->resultset('CD')->search({
-    artist_id => $inside_rs->get_column('id')->as_query,
+    artist_id => $inside_rs->get_column('id')->as_query,  # does NOT work
   });
 
 =head3 Support
@@ -361,14 +365,10 @@ That creates the following SQL:
        WHERE artist_id = me.artist_id
       )
 
-=head3 EXPERIMENTAL
-
-Please note that subqueries are considered an experimental feature.
-
 =head2 Predefined searches
 
-You can write your own L<DBIx::Class::ResultSet> class by inheriting from it
-and defining often used searches as methods:
+You can define frequently used searches as methods by subclassing
+L<DBIx::Class::ResultSet>:
 
   package My::DBIC::ResultSet::CD;
   use strict;
@@ -386,11 +386,16 @@ and defining often used searches as methods:
 
   1;
 
-To use your resultset, first tell DBIx::Class to create an instance of it
-for you, in your My::DBIC::Schema::CD class:
+If you're using L<DBIx::Class::Schema/load_namespaces>, simply place the file
+into the C<ResultSet> directory next to your C<Result> directory, and it will
+be automatically loaded.
+
+If however you are still using L<DBIx::Class::Schema/load_classes>, first tell
+DBIx::Class to create an instance of the ResultSet class for you, in your
+My::DBIC::Schema::CD class:
 
   # class definition as normal
-  __PACKAGE__->load_components(qw/ Core /);
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('cd');
 
   # tell DBIC to use the custom ResultSet class
@@ -404,34 +409,47 @@ Then call your new method in your code:
 
 =head2 Using SQL functions on the left hand side of a comparison
 
-Using SQL functions on the left hand side of a comparison is generally
-not a good idea since it requires a scan of the entire table.  However,
+Using SQL functions on the left hand side of a comparison is generally not a
+good idea since it requires a scan of the entire table. (Unless your RDBMS
+supports indexes on expressions - including return values of functions - and
+you create an index on the return value of the function in question.) However,
 it can be accomplished with C<DBIx::Class> when necessary.
+
+Your approach for doing so will depend on whether you have turned
+quoting on via the C<quote_char> and C<name_sep> attributes. If you
+explicitly defined C<quote_char> and C<name_sep> in your
+C<connect_info> (see L<DBIx::Class::Storage::DBI/"connect_info">) then
+you are using quoting, otherwise not.
 
 If you do not have quoting on, simply include the function in your search
 specification as you would any column:
 
   $rs->search({ 'YEAR(date_of_birth)' => 1979 });
 
-With quoting on, or for a more portable solution, use the C<where>
-attribute:
+With quoting on, or for a more portable solution, use literal SQL values with
+placeholders:
 
-  $rs->search({}, { where => \'YEAR(date_of_birth) = 1979' });
+  $rs->search(\[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ]);
 
-=begin hidden
+  # Equivalent SQL:
+  # SELECT * FROM employee WHERE YEAR(date_of_birth) = ?
 
-(When the bind args ordering bug is fixed, this technique will be better
-and can replace the one above.)
-
-With quoting on, or for a more portable solution, use the C<where> and
-C<bind> attributes:
-
-  $rs->search({}, {
-      where => \'YEAR(date_of_birth) = ?',
-      bind  => [ 1979 ]
+  $rs->search({
+    name => 'Bob',
+    -nest => \[ 'YEAR(date_of_birth) = ?', [ plain_value => 1979 ] ],
   });
 
-=end hidden
+  # Equivalent SQL:
+  # SELECT * FROM employee WHERE name = ? AND YEAR(date_of_birth) = ?
+
+Note: the C<plain_value> string in the C<< [ plain_value => 1979 ] >> part
+should be either the same as the name of the column (do this if the type of the
+return value of the function is the same as the type of the column) or
+otherwise it's essentially a dummy string currently (use C<plain_value> as a
+habit). It is used by L<DBIx::Class> to handle special column types.
+
+See also L<SQL::Abstract/Literal SQL with placeholders and bind values
+(subqueries)>.
 
 =head1 JOINS AND PREFETCHING
 
@@ -759,7 +777,7 @@ B<Schema definition>
 
     package My::App::Schema;
 
-    use base DBIx::Class::Schema;
+    use base 'DBIx::Class::Schema';
 
     # load subclassed classes from My::App::Schema::Result/ResultSet
     __PACKAGE__->load_namespaces;
@@ -779,7 +797,7 @@ B<Result-Subclass definition>
 
     use strict;
     use warnings;
-    use base My::Shared::Model::Result::Baz;
+    use base 'My::Shared::Model::Result::Baz';
 
     # WARNING: Make sure you call table() again in your subclass,
     # otherwise DBIx::Class::ResultSourceProxy::Table will not be called
@@ -802,7 +820,7 @@ this example we have a single user table that carries a boolean bit
 for admin.  We would like like to give the admin users
 objects (L<DBIx::Class::Row>) the same methods as a regular user but
 also special admin only methods.  It doesn't make sense to create two
-seperate proxy-class files for this.  We would be copying all the user
+separate proxy-class files for this.  We would be copying all the user
 methods into the Admin class.  There is a cleaner way to accomplish
 this.
 
@@ -830,12 +848,10 @@ B<Proxy-Class definitions>
 
     use strict;
     use warnings;
-    use base qw/DBIx::Class/;
+    use base qw/DBIx::Class::Core/;
 
     ### Define what our admin class is, for ensure_class_loaded()
     my $admin_class = __PACKAGE__ . '::Admin';
-
-    __PACKAGE__->load_components(qw/Core/);
 
     __PACKAGE__->table('users');
 
@@ -921,6 +937,9 @@ B<Test File> test.pl
     print "I can do admin stuff\n" if $user->can('do_admin_stuff');
     ### The statement below will print
     print "I can do admin stuff\n" if $admin->can('do_admin_stuff');
+
+Alternatively you can use L<DBIx::Class::DynamicSubclass> that implements
+exactly the above functionality.
 
 =head2 Skip row object creation for faster results
 
@@ -1062,7 +1081,7 @@ create the relationship.
 To order C<< $book->pages >> by descending page_number, create the relation
 as follows:
 
-  __PACKAGE__->has_many('pages' => 'Page', 'book', { order_by => \'page_number DESC'} );
+  __PACKAGE__->has_many('pages' => 'Page', 'book', { order_by => { -desc => 'page_number'} } );
 
 =head2 Filtering a relationship result set
 
@@ -1075,8 +1094,7 @@ If you want to get a filtered result set, you can just add add to $attr as follo
 This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_many>:
 
   package My::User;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components('Core');
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('user');
   __PACKAGE__->add_columns(qw/id name/);
   __PACKAGE__->set_primary_key('id');
@@ -1084,8 +1102,7 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->many_to_many('addresses' => 'user_address', 'address');
 
   package My::UserAddress;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components('Core');
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('user_address');
   __PACKAGE__->add_columns(qw/user address/);
   __PACKAGE__->set_primary_key(qw/user address/);
@@ -1093,8 +1110,7 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
   __PACKAGE__->belongs_to('address' => 'My::Address');
 
   package My::Address;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components('Core');
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table('address');
   __PACKAGE__->add_columns(qw/id street town area_code country/);
   __PACKAGE__->set_primary_key('id');
@@ -1103,6 +1119,16 @@ This is straightforward using L<ManyToMany|DBIx::Class::Relationship/many_to_man
 
   $rs = $user->addresses(); # get all addresses for a user
   $rs = $address->users(); # get all users for an address
+
+  my $address = $user->add_to_addresses(    # returns a My::Address instance,
+                                            # NOT a My::UserAddress instance!
+    {
+      country => 'United Kingdom',
+      area_code => 'XYZ',
+      town => 'London',
+      street => 'Sesame',
+    }
+  );
 
 =head2 Relationships across DB schemas
 
@@ -1115,8 +1141,7 @@ To accomplish this one only needs to specify the DB schema name in the table
 declaration, like so...
 
   package MyDatabase::Main::Artist;
-  use base qw/DBIx::Class/;
-  __PACKAGE__->load_components(qw/PK::Auto Core/);
+  use base qw/DBIx::Class::Core/;
 
   __PACKAGE__->table('database1.artist'); # will use "database1.artist" in FROM clause
 
@@ -1198,6 +1223,8 @@ callback routine.
 
 =head1 TRANSACTIONS
 
+=head2 Transactions with txn_do
+
 As of version 0.04001, there is improved transaction support in
 L<DBIx::Class::Storage> and L<DBIx::Class::Schema>.  Here is an
 example of the recommended way to use it:
@@ -1229,12 +1256,119 @@ example of the recommended way to use it:
     deal_with_failed_transaction();
   }
 
+Note: by default C<txn_do> will re-run the coderef one more time if an
+error occurs due to client disconnection (e.g. the server is bounced).
+You need to make sure that your coderef can be invoked multiple times
+without terrible side effects.
+
 Nested transactions will work as expected. That is, only the outermost
 transaction will actually issue a commit to the $dbh, and a rollback
 at any level of any transaction will cause the entire nested
-transaction to fail. Support for savepoints and for true nested
-transactions (for databases that support them) will hopefully be added
-in the future.
+transaction to fail.
+
+=head2 Nested transactions and auto-savepoints
+
+If savepoints are supported by your RDBMS, it is possible to achieve true
+nested transactions with minimal effort. To enable auto-savepoints via nested
+transactions, supply the C<< auto_savepoint = 1 >> connection attribute.
+
+Here is an example of true nested transactions. In the example, we start a big
+task which will create several rows. Generation of data for each row is a
+fragile operation and might fail. If we fail creating something, depending on
+the type of failure, we want to abort the whole task, or only skip the failed
+row.
+
+  my $schema = MySchema->connect("dbi:Pg:dbname=my_db");
+
+  # Start a transaction. Every database change from here on will only be 
+  # committed into the database if the eval block succeeds.
+  eval {
+    $schema->txn_do(sub {
+      # SQL: BEGIN WORK;
+
+      my $job = $schema->resultset('Job')->create({ name=> 'big job' });
+      # SQL: INSERT INTO job ( name) VALUES ( 'big job' );
+
+      for (1..10) {
+
+        # Start a nested transaction, which in fact sets a savepoint.
+        eval {
+          $schema->txn_do(sub {
+            # SQL: SAVEPOINT savepoint_0;
+
+            my $thing = $schema->resultset('Thing')->create({ job=>$job->id });
+            # SQL: INSERT INTO thing ( job) VALUES ( 1 );
+
+            if (rand > 0.8) {
+              # This will generate an error, thus setting $@
+
+              $thing->update({force_fail=>'foo'});
+              # SQL: UPDATE thing SET force_fail = 'foo'
+              #      WHERE ( id = 42 );
+            }
+          });
+        };
+        if ($@) {
+          # SQL: ROLLBACK TO SAVEPOINT savepoint_0;
+
+          # There was an error while creating a $thing. Depending on the error
+          # we want to abort the whole transaction, or only rollback the
+          # changes related to the creation of this $thing
+
+          # Abort the whole job
+          if ($@ =~ /horrible_problem/) {
+            print "something horrible happend, aborting job!";
+            die $@;                # rethrow error
+          }
+
+          # Ignore this $thing, report the error, and continue with the
+          # next $thing
+          print "Cannot create thing: $@";
+        }
+        # There was no error, so save all changes since the last 
+        # savepoint.
+
+        # SQL: RELEASE SAVEPOINT savepoint_0;
+      }
+    });
+  };
+  if ($@) {
+    # There was an error while handling the $job. Rollback all changes
+    # since the transaction started, including the already committed
+    # ('released') savepoints. There will be neither a new $job nor any
+    # $thing entry in the database.
+
+    # SQL: ROLLBACK;
+
+    print "ERROR: $@\n";
+  }
+  else {
+    # There was no error while handling the $job. Commit all changes.
+    # Only now other connections can see the newly created $job and
+    # @things.
+
+    # SQL: COMMIT;
+
+    print "Ok\n";
+  }
+
+In this example it might be hard to see where the rollbacks, releases and
+commits are happening, but it works just the same as for plain L<<txn_do>>: If
+the C<eval>-block around C<txn_do> fails, a rollback is issued. If the C<eval>
+succeeds, the transaction is committed (or the savepoint released).
+
+While you can get more fine-grained control using C<svp_begin>, C<svp_release>
+and C<svp_rollback>, it is strongly recommended to use C<txn_do> with coderefs.
+
+=head2 Simple Transactions with DBIx::Class::Storage::TxnScopeGuard
+
+An easy way to use transactions is with
+L<DBIx::Class::Storage::TxnScopeGuard>. See L</Automatically creating
+related objects> for an example.
+
+Note that unlike txn_do, TxnScopeGuard will only make sure the connection is
+alive when issuing the C<BEGIN> statement. It will not (and really can not)
+retry if the server goes away mid-operations, unlike C<txn_do>.
 
 =head1 SQL
 
@@ -1271,7 +1405,7 @@ MySQL, SQLite and PostgreSQL, using the $VERSION from your Schema.pm.
 To create a new database using the schema:
 
  my $schema = My::Schema->connect($dsn);
- $schema->deploy({ add_drop_tables => 1});
+ $schema->deploy({ add_drop_table => 1});
 
 To import created .sql files using the mysql client:
 
@@ -1309,8 +1443,7 @@ Make a table class as you would for any other table
   package MyAppDB::Dual;
   use strict;
   use warnings;
-  use base 'DBIx::Class';
-  __PACKAGE__->load_components("Core");
+  use base 'DBIx::Class::Core';
   __PACKAGE__->table("Dual");
   __PACKAGE__->add_columns(
     "dummy",
@@ -1511,24 +1644,24 @@ B<Deploy update to customers>
 Add the L<DBIx::Class::Schema::Versioned> schema component to your
 Schema class. This will add a new table to your database called
 C<dbix_class_schema_vesion> which will keep track of which version is installed
-and warn if the user trys to run a newer schema version than the
+and warn if the user tries to run a newer schema version than the
 database thinks it has.
 
-Alternatively, you can send the conversion sql scripts to your
+Alternatively, you can send the conversion SQL scripts to your
 customers as above.
 
-=head2 Setting quoting for the generated SQL.
+=head2 Setting quoting for the generated SQL
 
 If the database contains column names with spaces and/or reserved words, they
 need to be quoted in the SQL queries. This is done using:
 
- __PACKAGE__->storage->sql_maker->quote_char([ qw/[ ]/] );
- __PACKAGE__->storage->sql_maker->name_sep('.');
+ $schema->storage->sql_maker->quote_char([ qw/[ ]/] );
+ $schema->storage->sql_maker->name_sep('.');
 
 The first sets the quote characters. Either a pair of matching
 brackets, or a C<"> or C<'>:
 
- __PACKAGE__->storage->sql_maker->quote_char('"');
+ $schema->storage->sql_maker->quote_char('"');
 
 Check the documentation of your database for the correct quote
 characters to use. C<name_sep> needs to be set to allow the SQL
@@ -1546,6 +1679,17 @@ L<DBIx::Class::Schema/connect>:
     name_sep   => '.'
   }
  )
+
+In some cases, quoting will be required for all users of a schema. To enforce
+this, you can also overload the C<connection> method for your schema class:
+
+ sub connection {
+     my $self = shift;
+     my $rv = $self->next::method( @_ );
+     $rv->storage->sql_maker->quote_char([ qw/[ ]/ ]);
+     $rv->storage->sql_maker->name_sep('.');
+     return $rv;
+ }
 
 =head2 Setting limit dialect for SQL::Abstract::Limit
 
@@ -1585,7 +1729,7 @@ methods:
     }
   );
 
-In conditions (eg. C<\%cond> in the L<DBIx::Class::ResultSet/search> family of
+In conditions (e.g. C<\%cond> in the L<DBIx::Class::ResultSet/search> family of
 methods) you cannot directly use array references (since this is interpreted as
 a list of values to be C<OR>ed), but you can use the following syntax to force
 passing them as bind values:
@@ -1602,6 +1746,75 @@ L<DBIx::Class> sets L<SQL::Abstract/bindtype> to C<columns>, so you must pass
 the bind values (the C<[1, 2, 3]> arrayref in the above example) wrapped in
 arrayrefs together with the column name, like this: C<< [column_name => value]
 >>.
+
+=head2 Using Unicode
+
+When using unicode character data there are two alternatives -
+either your database supports unicode characters (including setting
+the utf8 flag on the returned string), or you need to encode/decode
+data appropriately each time a string field is inserted into or
+retrieved from the database. It is better to avoid
+encoding/decoding data and to use your database's own unicode
+capabilities if at all possible.
+
+The L<DBIx::Class::UTF8Columns> component handles storing selected
+unicode columns in a database that does not directly support
+unicode. If used with a database that does correctly handle unicode
+then strange and unexpected data corrupt B<will> occur.
+
+The Catalyst Wiki Unicode page at
+L<http://wiki.catalystframework.org/wiki/tutorialsandhowtos/using_unicode>
+has additional information on the use of Unicode with Catalyst and
+DBIx::Class.
+
+The following databases do correctly handle unicode data:-
+
+=head3 MySQL
+
+MySQL supports unicode, and will correctly flag utf8 data from the
+database if the C<mysql_enable_utf8> is set in the connect options.
+
+  my $schema = My::Schema->connection('dbi:mysql:dbname=test',
+                                      $user, $pass,
+                                      { mysql_enable_utf8 => 1} );
+  
+
+When set, a data retrieved from a textual column type (char,
+varchar, etc) will have the UTF-8 flag turned on if necessary. This
+enables character semantics on that string. You will also need to
+ensure that your database / table / column is configured to use
+UTF8. See Chapter 10 of the mysql manual for details.
+
+See L<DBD::mysql> for further details.
+
+=head3 Oracle
+
+Information about Oracle support for unicode can be found in
+L<DBD::Oracle/Unicode>.
+
+=head3 PostgreSQL
+
+PostgreSQL supports unicode if the character set is correctly set
+at database creation time. Additionally the C<pg_enable_utf8>
+should be set to ensure unicode data is correctly marked.
+
+  my $schema = My::Schema->connection('dbi:Pg:dbname=test',
+                                      $user, $pass,
+                                      { pg_enable_utf8 => 1} );
+
+Further information can be found in L<DBD::Pg>.
+
+=head3 SQLite
+
+SQLite version 3 and above natively use unicode internally. To
+correctly mark unicode strings taken from the database, the
+C<sqlite_unicode> flag should be set at connect time (in versions
+of L<DBD::SQLite> prior to 1.27 this attribute was named
+C<unicode>).
+
+  my $schema = My::Schema->connection('dbi:SQLite:/tmp/test.db',
+                                      '', '',
+                                      { sqlite_unicode => 1} );
 
 =head1 BOOTSTRAPPING/MIGRATING
 
@@ -1700,12 +1913,27 @@ You can accomplish this by overriding C<insert> on your objects:
   sub insert {
     my ( $self, @args ) = @_;
     $self->next::method(@args);
-    $self->cds->new({})->fill_from_artist($self)->insert;
+    $self->create_related ('cds', \%initial_cd_data );
     return $self;
   }
 
-where C<fill_from_artist> is a method you specify in C<CD> which sets
-values in C<CD> based on the data in the C<Artist> object you pass in.
+If you want to wrap the two inserts in a transaction (for consistency,
+an excellent idea), you can use the awesome
+L<DBIx::Class::Storage::TxnScopeGuard>:
+
+  sub insert {
+    my ( $self, @args ) = @_;
+
+    my $guard = $self->result_source->schema->txn_scope_guard;
+
+    $self->next::method(@args);
+    $self->create_related ('cds', \%initial_cd_data );
+
+    $guard->commit;
+
+    return $self
+  }
+
 
 =head2 Wrapping/overloading a column accessor
 
@@ -1856,6 +2084,47 @@ You could then create average, high and low execution times for an SQL
 statement and dig down to see if certain parameters cause aberrant behavior.
 You might want to check out L<DBIx::Class::QueryLog> as well.
 
+=head1 IMPROVING PERFORMANCE
+
+=over
+
+=item *
+
+Install L<Class::XSAccessor> to speed up L<Class::Accessor::Grouped>.
+
+=item *
+
+On Perl 5.8 install L<Class::C3::XS>.
+
+=item *
+
+L<prefetch|DBIx::Class::ResultSet/prefetch> relationships, where possible. See
+L</Using joins and prefetch>.
+
+=item *
+
+Use L<populate|DBIx::Class::ResultSet/populate> in void context to insert data
+when you don't need the resulting L<DBIx::Class::Row> objects, if possible, but
+see the caveats.
+
+When inserting many rows, for best results, populate a large number of rows at a
+time, but not so large that the table is locked for an unacceptably long time.
+
+If using L<create|DBIx::Class::ResultSet/create> instead, use a transaction and
+commit every C<X> rows; where C<X> gives you the best performance without
+locking the table for too long. 
+
+=item *
+
+When selecting many rows, if you don't need full-blown L<DBIx::Class::Row>
+objects, consider using L<DBIx::Class::ResultClass::HashRefInflator>.
+
+=item *
+
+See also L</STARTUP SPEED> and L</MEMORY USAGE> in this document.
+
+=back
+
 =head1 STARTUP SPEED
 
 L<DBIx::Class|DBIx::Class> programs can have a significant startup delay
@@ -1884,15 +2153,15 @@ details on creating static schemas from a database).
 
 Typically L<DBIx::Class> result classes start off with
 
-    use base qw/DBIx::Class/;
-    __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
+    use base qw/DBIx::Class::Core/;
+    __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
 
 If this preamble is moved into a common base class:-
 
     package MyDBICbase;
 
-    use base qw/DBIx::Class/;
-    __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
+    use base qw/DBIx::Class::Core/;
+    __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
     1;
 
 and each result class then uses this as a base:-

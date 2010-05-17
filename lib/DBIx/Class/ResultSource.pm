@@ -5,8 +5,9 @@ use warnings;
 
 use DBIx::Class::ResultSet;
 use DBIx::Class::ResultSourceHandle;
+
+use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
-use Storable;
 
 use base qw/DBIx::Class/;
 
@@ -27,9 +28,8 @@ DBIx::Class::ResultSource - Result source object
   # Create a table based result source, in a result class.
 
   package MyDB::Schema::Result::Artist;
-  use base qw/DBIx::Class/;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components(qw/Core/);
   __PACKAGE__->table('artist');
   __PACKAGE__->add_columns(qw/ artistid name /);
   __PACKAGE__->set_primary_key('artistid');
@@ -39,8 +39,9 @@ DBIx::Class::ResultSource - Result source object
 
   # Create a query (view) based result source, in a result class
   package MyDB::Schema::Result::Year2000CDs;
+  use base qw/DBIx::Class::Core/;
 
-  __PACKAGE__->load_components('Core');
+  __PACKAGE__->load_components('InflateColumn::DateTime');
   __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 
   __PACKAGE__->table('year2000cds');
@@ -59,10 +60,10 @@ sources, for example L<DBIx::Class::ResultSource::Table>. Table is the
 default result source type, so one is created for you when defining a
 result class as described in the synopsis above.
 
-More specifically, the L<DBIx::Class::Core> component pulls in the
-L<DBIx::Class::ResultSourceProxy::Table> as a base class, which
-defines the L<table|DBIx::Class::ResultSourceProxy::Table/table>
-method. When called, C<table> creates and stores an instance of
+More specifically, the L<DBIx::Class::Core> base class pulls in the
+L<DBIx::Class::ResultSourceProxy::Table> component, which defines
+the L<table|DBIx::Class::ResultSourceProxy::Table/table> method.
+When called, C<table> creates and stores an instance of
 L<DBIx::Class::ResultSoure::Table>. Luckily, to use tables as result
 sources, you don't need to remember any of this.
 
@@ -137,6 +138,13 @@ calls of this method will add more columns, not replace them.
 The column names given will be created as accessor methods on your
 L<DBIx::Class::Row> objects. You can change the name of the accessor
 by supplying an L</accessor> in the column_info hash.
+
+If a column name beginning with a plus sign ('+col1') is provided, the
+attributes provided will be merged with any existing attributes for the
+column, with the new attributes taking precedence in the case that an
+attribute already exists. Using this without a hashref 
+(C<< $source->add_columns(qw/+col1 +col2/) >>) is legal, but useless --
+it does the same thing it would do without the plus.
 
 The contents of the column_info are not set in stone. The following
 keys are currently recognised/used by DBIx::Class:
@@ -249,9 +257,9 @@ sequence, if you do not use a trigger to get the nextval, you have to set the
 L</sequence> value as well.
 
 Also set this for MSSQL columns with the 'uniqueidentifier'
-L<DBIx::Class::ResultSource/data_type> whose values you want to automatically
-generate using C<NEWID()>, unless they are a primary key in which case this will
-be done anyway.
+L<data_type|DBIx::Class::ResultSource/data_type> whose values you want to
+automatically generate using C<NEWID()>, unless they are a primary key in which
+case this will be done anyway.
 
 =item extra
 
@@ -287,9 +295,17 @@ sub add_columns {
   my @added;
   my $columns = $self->_columns;
   while (my $col = shift @cols) {
+    my $column_info = {};
+    if ($col =~ s/^\+//) {
+      $column_info = $self->column_info($col);
+    }
+
     # If next entry is { ... } use that for the column info, if not
     # use an empty hashref
-    my $column_info = ref $cols[0] ? shift(@cols) : {};
+    if (ref $cols[0]) {
+      my $new_info = shift(@cols);
+      %$column_info = (%$column_info, %$new_info);
+    }
     push(@added, $col) unless exists $columns->{$col};
     $columns->{$col} = $column_info;
   }
@@ -388,7 +404,7 @@ sub columns {
   my $self = shift;
   $self->throw_exception(
     "columns() is a read-only accessor, did you mean add_columns()?"
-  ) if (@_ > 1);
+  ) if @_;
   return @{$self->{_ordered_columns}||[]};
 }
 
@@ -464,10 +480,11 @@ called after L</add_columns>.
 Additionally, defines a L<unique constraint|add_unique_constraint>
 named C<primary>.
 
-The primary key columns are used by L<DBIx::Class::PK::Auto> to
-retrieve automatically created values from the database. They are also
-used as default joining columns when specifying relationships, see
-L<DBIx::Class::Relationship>.
+Note: you normally do want to define a primary key on your sources
+B<even if the underlying database table does not have a primary key>.
+See
+L<DBIx::Class::Intro/The Significance and Importance of Primary Keys>
+for more info.
 
 =cut
 
@@ -500,6 +517,19 @@ L</set_primary_key>.
 
 sub primary_columns {
   return @{shift->_primaries||[]};
+}
+
+# a helper method that will automatically die with a descriptive message if
+# no pk is defined on the source in question. For internal use to save
+# on if @pks... boilerplate
+sub _pri_cols {
+  my $self = shift;
+  my @pcols = $self->primary_columns
+    or $self->throw_exception (sprintf(
+      "Operation requires a primary key to be declared on '%s' via set_primary_key",
+      $self->source_name,
+    ));
+  return @pcols;
 }
 
 =head2 add_unique_constraint
@@ -1187,15 +1217,9 @@ sub _compare_relationship_keys {
   return $found;
 }
 
-sub resolve_join {
-  carp 'resolve_join is a private method, stop calling it';
-  my $self = shift;
-  $self->_resolve_join (@_);
-}
-
 # Returns the {from} structure used to express JOIN conditions
 sub _resolve_join {
-  my ($self, $join, $alias, $seen, $jpath, $force_left) = @_;
+  my ($self, $join, $alias, $seen, $jpath, $parent_force_left) = @_;
 
   # we need a supplied one, because we do in-place modifications, no returns
   $self->throw_exception ('You must supply a seen hashref as the 3rd argument to _resolve_join')
@@ -1204,49 +1228,68 @@ sub _resolve_join {
   $self->throw_exception ('You must supply a joinpath arrayref as the 4th argument to _resolve_join')
     unless ref $jpath eq 'ARRAY';
 
-  $jpath = [@$jpath];
+  $jpath = [@$jpath]; # copy
 
-  if (ref $join eq 'ARRAY') {
+  if (not defined $join) {
+    return ();
+  }
+  elsif (ref $join eq 'ARRAY') {
     return
       map {
-        $self->_resolve_join($_, $alias, $seen, $jpath, $force_left);
+        $self->_resolve_join($_, $alias, $seen, $jpath, $parent_force_left);
       } @$join;
-  } elsif (ref $join eq 'HASH') {
-    return
-      map {
-        my $as = ($seen->{$_} ? join ('_', $_, $seen->{$_} + 1) : $_);  # the actual seen value will be incremented below
-        local $force_left->{force} = $force_left->{force};
-        (
-          $self->_resolve_join($_, $alias, $seen, [@$jpath], $force_left),
-          $self->related_source($_)->_resolve_join(
-            $join->{$_}, $as, $seen, [@$jpath, $_], $force_left
-          )
-        );
-      } keys %$join;
-  } elsif (ref $join) {
-    $self->throw_exception("No idea how to resolve join reftype ".ref $join);
-  } else {
+  }
+  elsif (ref $join eq 'HASH') {
 
-    return() unless defined $join;
+    my @ret;
+    for my $rel (keys %$join) {
 
-    my $count = ++$seen->{$join};
-    my $as = ($count > 1 ? "${join}_${count}" : $join);
+      my $rel_info = $self->relationship_info($rel)
+        or $self->throw_exception("No such relationship '$rel' on " . $self->source_name);
 
-    my $rel_info = $self->relationship_info($join);
-    $self->throw_exception("No such relationship ${join}") unless $rel_info;
-    my $type;
-    if ($force_left) {
-      $type = 'left';
-    } else {
-      $type = $rel_info->{attrs}{join_type} || '';
-      $force_left = 1 if lc($type) eq 'left';
+      my $force_left = $parent_force_left;
+      $force_left ||= lc($rel_info->{attrs}{join_type}||'') eq 'left';
+
+      # the actual seen value will be incremented by the recursion
+      my $as = $self->storage->relname_to_table_alias(
+        $rel, ($seen->{$rel} && $seen->{$rel} + 1)
+      );
+
+      push @ret, (
+        $self->_resolve_join($rel, $alias, $seen, [@$jpath], $force_left),
+        $self->related_source($rel)->_resolve_join(
+          $join->{$rel}, $as, $seen, [@$jpath, { $rel => $as }], $force_left
+        )
+      );
     }
+    return @ret;
+
+  }
+  elsif (ref $join) {
+    $self->throw_exception("No idea how to resolve join reftype ".ref $join);
+  }
+  else {
+    my $count = ++$seen->{$join};
+    my $as = $self->storage->relname_to_table_alias(
+      $join, ($count > 1 && $count)
+    );
+
+    my $rel_info = $self->relationship_info($join)
+      or $self->throw_exception("No such relationship $join on " . $self->source_name);
 
     my $rel_src = $self->related_source($join);
     return [ { $as => $rel_src->from,
                -source_handle => $rel_src->handle,
-               -join_type => $type,
-               -join_path => [@$jpath, $join],
+               -join_type => $parent_force_left
+                  ? 'left'
+                  : $rel_info->{attrs}{join_type}
+                ,
+               -join_path => [@$jpath, { $join => $as } ],
+               -is_single => (
+                  $rel_info->{attrs}{accessor}
+                    &&
+                  List::Util::first { $rel_info->{attrs}{accessor} eq $_ } (qw/single filter/)
+                ),
                -alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
              },
@@ -1322,10 +1365,14 @@ sub _resolve_condition {
         #warn "$self $k $for $v";
         unless ($for->has_column_loaded($v)) {
           if ($for->in_storage) {
-            $self->throw_exception(
-              "Column ${v} not loaded or not passed to new() prior to insert()"
-                ." on ${for} trying to resolve relationship (maybe you forgot "
-                  ."to call ->discard_changes to get defaults from the db)"
+            $self->throw_exception(sprintf
+              "Unable to resolve relationship '%s' from object %s: column '%s' not "
+            . 'loaded from storage (or not passed to new() prior to insert()). You '
+            . 'probably need to call ->discard_changes to get the server-side defaults '
+            . 'from the database.',
+              $as,
+              $for,
+              $v,
             );
           }
           return $UNRESOLVABLE_CONDITION;
@@ -1353,89 +1400,20 @@ sub _resolve_condition {
   }
 }
 
-# Legacy code, needs to go entirely away (fully replaced by _resolve_prefetch)
-sub resolve_prefetch {
-  carp 'resolve_prefetch is a private method, stop calling it';
-
-  my ($self, $pre, $alias, $seen, $order, $collapse) = @_;
-  $seen ||= {};
-  if( ref $pre eq 'ARRAY' ) {
-    return
-      map { $self->resolve_prefetch( $_, $alias, $seen, $order, $collapse ) }
-        @$pre;
-  }
-  elsif( ref $pre eq 'HASH' ) {
-    my @ret =
-    map {
-      $self->resolve_prefetch($_, $alias, $seen, $order, $collapse),
-      $self->related_source($_)->resolve_prefetch(
-               $pre->{$_}, "${alias}.$_", $seen, $order, $collapse)
-    } keys %$pre;
-    return @ret;
-  }
-  elsif( ref $pre ) {
-    $self->throw_exception(
-      "don't know how to resolve prefetch reftype ".ref($pre));
-  }
-  else {
-    my $count = ++$seen->{$pre};
-    my $as = ($count > 1 ? "${pre}_${count}" : $pre);
-    my $rel_info = $self->relationship_info( $pre );
-    $self->throw_exception( $self->name . " has no such relationship '$pre'" )
-      unless $rel_info;
-    my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
-    my $rel_source = $self->related_source($pre);
-
-    if (exists $rel_info->{attrs}{accessor}
-         && $rel_info->{attrs}{accessor} eq 'multi') {
-      $self->throw_exception(
-        "Can't prefetch has_many ${pre} (join cond too complex)")
-        unless ref($rel_info->{cond}) eq 'HASH';
-      my $dots = @{[$as_prefix =~ m/\./g]} + 1; # +1 to match the ".${as_prefix}"
-      if (my ($fail) = grep { @{[$_ =~ m/\./g]} == $dots }
-                         keys %{$collapse}) {
-        my ($last) = ($fail =~ /([^\.]+)$/);
-        carp (
-          "Prefetching multiple has_many rels ${last} and ${pre} "
-          .(length($as_prefix)
-            ? "at the same level (${as_prefix}) "
-            : "at top level "
-          )
-          . 'will explode the number of row objects retrievable via ->next or ->all. '
-          . 'Use at your own risk.'
-        );
-      }
-      #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
-      #              values %{$rel_info->{cond}};
-      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->primary_columns ];
-        # action at a distance. prepending the '.' allows simpler code
-        # in ResultSet->_collapse_result
-      my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
-                    keys %{$rel_info->{cond}};
-      my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
-                   ? @{$rel_info->{attrs}{order_by}}
-                   : (defined $rel_info->{attrs}{order_by}
-                       ? ($rel_info->{attrs}{order_by})
-                       : ()));
-      push(@$order, map { "${as}.$_" } (@key, @ord));
-    }
-
-    return map { [ "${as}.$_", "${as_prefix}${pre}.$_", ] }
-      $rel_source->columns;
-  }
-}
 
 # Accepts one or more relationships for the current source and returns an
 # array of column names for each of those relationships. Column names are
 # prefixed relative to the current source, in accordance with where they appear
-# in the supplied relationships. Needs an alias_map generated by
-# $rs->_joinpath_aliases
+# in the supplied relationships.
 
 sub _resolve_prefetch {
   my ($self, $pre, $alias, $alias_map, $order, $collapse, $pref_path) = @_;
   $pref_path ||= [];
 
-  if( ref $pre eq 'ARRAY' ) {
+  if (not defined $pre) {
+    return ();
+  }
+  elsif( ref $pre eq 'ARRAY' ) {
     return
       map { $self->_resolve_prefetch( $_, $alias, $alias_map, $order, $collapse, [ @$pref_path ] ) }
         @$pre;
@@ -1458,20 +1436,19 @@ sub _resolve_prefetch {
     $p = $p->{$_} for (@$pref_path, $pre);
 
     $self->throw_exception (
-      "Unable to resolve prefetch $pre - join alias map does not contain an entry for path: "
+      "Unable to resolve prefetch '$pre' - join alias map does not contain an entry for path: "
       . join (' -> ', @$pref_path, $pre)
     ) if (ref $p->{-join_aliases} ne 'ARRAY' or not @{$p->{-join_aliases}} );
 
     my $as = shift @{$p->{-join_aliases}};
 
     my $rel_info = $self->relationship_info( $pre );
-    $self->throw_exception( $self->name . " has no such relationship '$pre'" )
+    $self->throw_exception( $self->source_name . " has no such relationship '$pre'" )
       unless $rel_info;
     my $as_prefix = ($alias =~ /^.*?\.(.+)$/ ? $1.'.' : '');
     my $rel_source = $self->related_source($pre);
 
-    if (exists $rel_info->{attrs}{accessor}
-         && $rel_info->{attrs}{accessor} eq 'multi') {
+    if ($rel_info->{attrs}{accessor} && $rel_info->{attrs}{accessor} eq 'multi') {
       $self->throw_exception(
         "Can't prefetch has_many ${pre} (join cond too complex)")
         unless ref($rel_info->{cond}) eq 'HASH';
@@ -1491,14 +1468,15 @@ sub _resolve_prefetch {
       }
       #my @col = map { (/^self\.(.+)$/ ? ("${as_prefix}.$1") : ()); }
       #              values %{$rel_info->{cond}};
-      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->primary_columns ];
+      $collapse->{".${as_prefix}${pre}"} = [ $rel_source->_pri_cols ];
         # action at a distance. prepending the '.' allows simpler code
         # in ResultSet->_collapse_result
       my @key = map { (/^foreign\.(.+)$/ ? ($1) : ()); }
                     keys %{$rel_info->{cond}};
       my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
                    ? @{$rel_info->{attrs}{order_by}}
-                   : (defined $rel_info->{attrs}{order_by}
+   
+                : (defined $rel_info->{attrs}{order_by}
                        ? ($rel_info->{attrs}{order_by})
                        : ()));
       push(@$order, map { "${as}.$_" } (@key, @ord));
@@ -1526,7 +1504,7 @@ Returns the result source object for the given relationship.
 sub related_source {
   my ($self, $rel) = @_;
   if( !$self->has_relationship( $rel ) ) {
-    $self->throw_exception("No such relationship '$rel'");
+    $self->throw_exception("No such relationship '$rel' on " . $self->source_name);
   }
   return $self->schema->source($self->relationship_info($rel)->{source});
 }
@@ -1548,7 +1526,7 @@ Returns the class name for objects in the given relationship.
 sub related_class {
   my ($self, $rel) = @_;
   if( !$self->has_relationship( $rel ) ) {
-    $self->throw_exception("No such relationship '$rel'");
+    $self->throw_exception("No such relationship '$rel' on " . $self->source_name);
   }
   return $self->schema->class($self->relationship_info($rel)->{source});
 }
@@ -1561,7 +1539,7 @@ L<DBIx::Class::ResultSourceHandle>.
 =cut
 
 sub handle {
-    return new DBIx::Class::ResultSourceHandle({
+    return DBIx::Class::ResultSourceHandle->new({
         schema         => $_[0]->schema,
         source_moniker => $_[0]->source_name
     });
@@ -1575,10 +1553,12 @@ See L<DBIx::Class::Schema/"throw_exception">.
 
 sub throw_exception {
   my $self = shift;
+
   if (defined $self->schema) {
     $self->schema->throw_exception(@_);
-  } else {
-    croak(@_);
+  }
+  else {
+    DBIx::Class::Exception->throw(@_);
   }
 }
 
@@ -1614,7 +1594,7 @@ Creates a new ResultSource object.  Not normally called directly by end users.
   __PACKAGE__->column_info_from_storage(1);
 
 Enables the on-demand automatic loading of the above column
-metadata from storage as neccesary.  This is *deprecated*, and
+metadata from storage as necessary.  This is *deprecated*, and
 should not be used.  It will be removed before 1.0.
 
 

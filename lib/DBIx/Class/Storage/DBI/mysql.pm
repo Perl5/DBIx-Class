@@ -5,7 +5,6 @@ use warnings;
 
 use base qw/
   DBIx::Class::Storage::DBI::MultiColumnIn
-  DBIx::Class::Storage::DBI::AmbiguousGlob
   DBIx::Class::Storage::DBI
 /;
 use mro 'c3';
@@ -31,6 +30,21 @@ sub connect_call_set_strict_mode {
 sub _dbh_last_insert_id {
   my ($self, $dbh, $source, $col) = @_;
   $dbh->{mysql_insertid};
+}
+
+# we need to figure out what mysql version we're running
+sub sql_maker {
+  my $self = shift;
+
+  unless ($self->_sql_maker) {
+    my $maker = $self->next::method (@_);
+
+    # mysql 3 does not understand a bare JOIN
+    my $mysql_ver = $self->_get_dbh->get_info(18);
+    $maker->{_default_jointype} = 'INNER' if $mysql_ver =~ /^3/;
+  }
+
+  return $self->_sql_maker;
 }
 
 sub sqlt_type {
@@ -85,11 +99,29 @@ C<$storage> object into this class.
 
 =head1 DESCRIPTION
 
-This class implements MySQL specific bits of L<DBIx::Class::Storage::DBI>.
+This class implements MySQL specific bits of L<DBIx::Class::Storage::DBI>,
+like AutoIncrement column support and savepoints. Also it augments the
+SQL maker to support the MySQL-specific C<STRAIGHT_JOIN> join type, which
+you can use by specifying C<< join_type => 'straight' >> in the
+L<relationship attributes|DBIx::Class::Relationship::Base/join_type>
+
 
 It also provides a one-stop on-connect macro C<set_strict_mode> which sets
 session variables such that MySQL behaves more predictably as far as the
 SQL standard is concerned.
+
+=head1 STORAGE OPTIONS
+
+=head2 set_strict_mode
+
+Enables session-wide strict options upon connecting. Equivalent to:
+
+  ->connect ( ... , {
+    on_connect_do => [
+      q|SET SQL_MODE = CONCAT('ANSI,TRADITIONAL,ONLY_FULL_GROUP_BY,', @@sql_mode)|,
+      q|SET SQL_AUTO_IS_NULL = 0|,
+    ]
+  });
 
 =head1 AUTHORS
 

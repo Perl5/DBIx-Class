@@ -15,11 +15,11 @@ use lib 't/cdbi/testlib';
 use Film;
 
 my @film  = (
-	Film->create({ Title => 'Film 1' }),
-	Film->create({ Title => 'Film 2' }),
-	Film->create({ Title => 'Film 3' }),
-	Film->create({ Title => 'Film 4' }),
-	Film->create({ Title => 'Film 5' }),
+  Film->create({ Title => 'Film 1' }),
+  Film->create({ Title => 'Film 2' }),
+  Film->create({ Title => 'Film 3' }),
+  Film->create({ Title => 'Film 4' }),
+  Film->create({ Title => 'Film 5' }),
 );
 
 # first page

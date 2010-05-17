@@ -35,7 +35,6 @@ my $schema = DBICTest->init_schema();
       FROM cd me
       JOIN track tracks ON tracks.cd = me.cdid
       JOIN cd disc ON disc.cdid = tracks.cd
-      LEFT JOIN lyrics lyrics ON lyrics.track_id = tracks.trackid 
      WHERE ( ( position = ? OR position = ? ) )
     ',
     [ qw/'1' '2'/ ],
@@ -53,10 +52,9 @@ my $schema = DBICTest->init_schema();
           FROM cd me
           JOIN track tracks ON tracks.cd = me.cdid
           JOIN cd disc ON disc.cdid = tracks.cd
-          LEFT JOIN lyrics lyrics ON lyrics.track_id = tracks.trackid 
         WHERE ( ( position = ? OR position = ? ) )
         LIMIT 3 OFFSET 8
-       ) count_subq
+       ) tracks
     )',
     [ [ position => 1 ], [ position => 2 ] ],
     'count_rs db-side limit applied',
@@ -90,7 +88,7 @@ my $schema = DBICTest->init_schema();
           JOIN artist artist ON artist.artistid = cds.artist
         WHERE tracks.position = ? OR tracks.position = ?
         GROUP BY cds.cdid
-      ) count_subq
+      ) cds
     ',
     [ qw/'1' '2'/ ],
     'count softlimit applied',
@@ -111,7 +109,7 @@ my $schema = DBICTest->init_schema();
         WHERE tracks.position = ? OR tracks.position = ?
         GROUP BY cds.cdid
         LIMIT 3 OFFSET 4
-      ) count_subq
+      ) cds
     )',
     [ [ 'tracks.position' => 1 ], [ 'tracks.position' => 2 ] ],
     'count_rs db-side limit applied',

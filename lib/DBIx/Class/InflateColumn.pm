@@ -26,7 +26,7 @@ for the database.
 
 It can be used, for example, to automatically convert to and from
 L<DateTime> objects for your date and time fields. There's a
-conveniece component to actually do that though, try
+convenience component to actually do that though, try
 L<DBIx::Class::InflateColumn::DateTime>.
 
 It will handle all types of references except scalar references. It
@@ -37,7 +37,7 @@ deal with, to allow such settings as C< \'year + 1'> and C< \'DEFAULT' >
 to work.
 
 If you want to filter plain scalar values and replace them with
-something else, contribute a filtering component.
+something else, see L<DBIx::Class::FilterColumn>.
 
 =head1 METHODS
 
@@ -74,12 +74,18 @@ used in the database layer.
 
 sub inflate_column {
   my ($self, $col, $attrs) = @_;
+
+  $self->throw_exception("InflateColumn does not work with FilterColumn")
+    if $self->isa('DBIx::Class::FilterColumn') &&
+      defined $self->column_info($col)->{_filter_info};
+
   $self->throw_exception("No such column $col to inflate")
     unless $self->has_column($col);
   $self->throw_exception("inflate_column needs attr hashref")
     unless ref $attrs eq 'HASH';
   $self->column_info($col)->{_inflate_info} = $attrs;
-  $self->mk_group_accessors('inflated_column' => [$self->column_info($col)->{accessor} || $col, $col]);
+  my $acc = $self->column_info($col)->{accessor};
+  $self->mk_group_accessors('inflated_column' => [ (defined $acc ? $acc : $col), $col]);
   return 1;
 }
 
@@ -113,7 +119,7 @@ sub _deflated_column {
 
 Fetch a column value in its inflated state.  This is directly
 analogous to L<DBIx::Class::Row/get_column> in that it only fetches a
-column already retreived from the database, and then inflates it.
+column already retrieved from the database, and then inflates it.
 Throws an exception if the column requested is not an inflated column.
 
 =cut
@@ -124,8 +130,11 @@ sub get_inflated_column {
     unless exists $self->column_info($col)->{_inflate_info};
   return $self->{_inflated_column}{$col}
     if exists $self->{_inflated_column}{$col};
-  return $self->{_inflated_column}{$col} =
-           $self->_inflated_column($col, $self->get_column($col));
+
+  my $val = $self->get_column($col);
+  return $val if ref $val eq 'SCALAR';  #that would be a not-yet-reloaded sclarref update
+
+  return $self->{_inflated_column}{$col} = $self->_inflated_column($col, $val);
 }
 
 =head2 set_inflated_column
@@ -142,9 +151,9 @@ sub set_inflated_column {
   $self->set_column($col, $self->_deflated_column($col, $inflated));
 #  if (blessed $inflated) {
   if (ref $inflated && ref($inflated) ne 'SCALAR') {
-    $self->{_inflated_column}{$col} = $inflated; 
+    $self->{_inflated_column}{$col} = $inflated;
   } else {
-    delete $self->{_inflated_column}{$col};      
+    delete $self->{_inflated_column}{$col};
   }
   return $inflated;
 }
@@ -175,7 +184,7 @@ sub store_inflated_column {
 =over 4
 
 =item L<DBIx::Class::Core> - This component is loaded as part of the
-      "core" L<DBIx::Class> components; generally there is no need to
+      C<core> L<DBIx::Class> components; generally there is no need to
       load it directly
 
 =back

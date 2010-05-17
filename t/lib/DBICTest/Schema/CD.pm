@@ -26,6 +26,7 @@ __PACKAGE__->add_columns(
   'genreid' => { 
     data_type => 'integer',
     is_nullable => 1,
+    accessor => undef,
   },
   'single_track' => {
     data_type => 'integer',

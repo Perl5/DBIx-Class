@@ -76,7 +76,7 @@ for ($cd_rs->all) {
           WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
           GROUP BY me.cd
         )
-      count_subq
+      me
     )',
     [ map { [ 'me.cd' => $_] } ($cd_rs->get_column ('cdid')->all) ],
     'count() query generated expected SQL',
@@ -87,12 +87,12 @@ for ($cd_rs->all) {
     '(
       SELECT me.cd, me.track_count, cd.cdid, cd.artist, cd.title, cd.year, cd.genreid, cd.single_track
         FROM (
-          SELECT me.cd, COUNT (me.trackid) AS track_count,
+          SELECT me.cd, COUNT (me.trackid) AS track_count
             FROM track me
             JOIN cd cd ON cd.cdid = me.cd
           WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
           GROUP BY me.cd
-          ) as me
+          ) me
         JOIN cd cd ON cd.cdid = me.cd
       WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
     )',
@@ -148,12 +148,10 @@ for ($cd_rs->all) {
         FROM (
           SELECT me.cdid
             FROM cd me
-            LEFT JOIN track tracks ON tracks.cd = me.cdid
-            LEFT JOIN liner_notes liner_notes ON liner_notes.liner_id = me.cdid
           WHERE ( me.cdid IS NOT NULL )
           GROUP BY me.cdid
           LIMIT 2
-        ) count_subq
+        ) me
     )',
     [],
     'count() query generated expected SQL',
@@ -166,7 +164,7 @@ for ($cd_rs->all) {
               tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, tracks.small_dt,
               liner_notes.liner_id, liner_notes.notes
         FROM (
-          SELECT me.cdid, COUNT( tracks.trackid ) AS track_count, MAX( tracks.trackid ) AS maxtr,
+          SELECT me.cdid, COUNT( tracks.trackid ) AS track_count, MAX( tracks.trackid ) AS maxtr
             FROM cd me
             LEFT JOIN track tracks ON tracks.cd = me.cdid
           WHERE ( me.cdid IS NOT NULL )
@@ -217,11 +215,11 @@ for ($cd_rs->all) {
     $rs->as_query,
     '(
       SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
-             tags.tagid, tags.cd, tags.tag 
+             tags.tagid, tags.cd, tags.tag
         FROM (
           SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
             FROM cd me
-          GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, cdid
           ORDER BY cdid
         ) me
         LEFT JOIN tags tags ON tags.cd = me.cdid
@@ -264,11 +262,93 @@ for ($cd_rs->all) {
           WHERE ( me.cd IN ( ?, ?, ?, ?, ? ) )
           GROUP BY SUBSTR(me.cd, 1, 1)
         )
-      count_subq
+      me
     )',
     [ map { [ 'me.cd' => $_] } ($cd_rs->get_column ('cdid')->all) ],
     'count() query generated expected SQL',
   );
+}
+
+{
+    my $cd_rs = $schema->resultset('CD')->search({}, {
+            distinct => 1,
+            join     => [qw/ tracks /],
+            prefetch => [qw/ artist /],
+        });
+    is($cd_rs->count, 5, 'complex prefetch + non-prefetching has_many join count correct');
+    is($cd_rs->all, 5, 'complex prefetch + non-prefetching has_many join number of objects correct');
+
+    # make sure join tracks was thrown out
+    is_same_sql_bind (
+      $cd_rs->as_query,
+      '(
+        SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+               artist.artistid, artist.name, artist.rank, artist.charfield
+          FROM (
+            SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+              FROM cd me
+              JOIN artist artist ON artist.artistid = me.artist
+            GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          ) me
+          JOIN artist artist ON artist.artistid = me.artist
+      )',
+      [],
+    );
+
+
+
+    # try the same as above, but add a condition so the tracks join can not be thrown away
+    my $cd_rs2 = $cd_rs->search ({ 'tracks.title' => { '!=' => 'ugabuganoexist' } });
+    is($cd_rs2->count, 5, 'complex prefetch + non-prefetching restricted has_many join count correct');
+    is($cd_rs2->all, 5, 'complex prefetch + non-prefetching restricted has_many join number of objects correct');
+
+    # the outer group_by seems like a necessary evil, if someone can figure out how to take it away
+    # without breaking compat - be my guest
+    is_same_sql_bind (
+      $cd_rs2->as_query,
+      '(
+        SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+               artist.artistid, artist.name, artist.rank, artist.charfield
+          FROM (
+            SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+              FROM cd me
+              LEFT JOIN track tracks ON tracks.cd = me.cdid
+              JOIN artist artist ON artist.artistid = me.artist
+            WHERE ( tracks.title != ? )
+            GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          ) me
+          LEFT JOIN track tracks ON tracks.cd = me.cdid
+          JOIN artist artist ON artist.artistid = me.artist
+        WHERE ( tracks.title != ? )
+        GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+                 artist.artistid, artist.name, artist.rank, artist.charfield
+      )',
+      [ map { [ 'tracks.title' => 'ugabuganoexist' ] } (1 .. 2) ],
+    );
+}
+
+{
+    my $rs = $schema->resultset('CD')->search({},
+        {
+           '+select' => [{ count => 'tags.tag' }],
+           '+as' => ['test_count'],
+           prefetch => ['tags'],
+           distinct => 1,
+           order_by => {'-asc' => 'tags.tag'},
+           rows => 1
+        }
+    );
+    is_same_sql_bind($rs->as_query, q{
+        (SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, me.test_count, tags.tagid, tags.cd, tags.tag
+          FROM (SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, COUNT( tags.tag ) AS test_count
+                FROM cd me LEFT JOIN tags tags ON tags.cd = me.cdid
+            GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, tags.tag
+            ORDER BY tags.tag ASC LIMIT 1)
+            me
+          LEFT JOIN tags tags ON tags.cd = me.cdid
+         ORDER BY tags.tag ASC, tags.cd, tags.tag
+        )
+    }, []);
 }
 
 done_testing;

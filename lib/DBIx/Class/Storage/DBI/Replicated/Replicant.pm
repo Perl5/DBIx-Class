@@ -3,7 +3,8 @@ package DBIx::Class::Storage::DBI::Replicated::Replicant;
 use Moose::Role;
 requires qw/_query_start/;
 with 'DBIx::Class::Storage::DBI::Replicated::WithDSN';
-use MooseX::Types::Moose 'Bool';
+use MooseX::Types::Moose qw/Bool Str/;
+use DBIx::Class::Storage::DBI::Replicated::Types 'DBICStorageDBI';
 
 use namespace::clean -except => 'meta';
 
@@ -32,14 +33,14 @@ This class defines the following attributes.
 =head2 active
 
 This is a boolean which allows you to programmatically activate or deactivate a
-replicant from the pool.  This way to you do stuff like disallow a replicant
-when it get's too far behind the master, if it stops replicating, etc.
+replicant from the pool.  This way you can do stuff like disallow a replicant
+when it gets too far behind the master, if it stops replicating, etc.
 
 This attribute DOES NOT reflect a replicant's internal status, i.e. if it is
 properly replicating from a master and has not fallen too many seconds behind a
 reliability threshold.  For that, use L</is_replicating>  and L</lag_behind_master>.
 Since the implementation of those functions database specific (and not all DBIC
-supported DB's support replication) you should refer your database specific
+supported DBs support replication) you should refer your database-specific
 storage driver for more information.
 
 =cut
@@ -52,6 +53,17 @@ has 'active' => (
   default=>1,
 );
 
+has dsn => (is => 'rw', isa => Str);
+has id  => (is => 'rw', isa => Str);
+
+=head2 master
+
+Reference to the master Storage.
+
+=cut
+
+has master => (is => 'rw', isa => DBICStorageDBI, weak_ref => 1);
+
 =head1 METHODS
 
 This class defines the following methods.
@@ -63,7 +75,9 @@ Override the debugobj method to redirect this method call back to the master.
 =cut
 
 sub debugobj {
-    return shift->schema->storage->debugobj;
+  my $self = shift;
+
+  return $self->master->debugobj;
 }
 
 =head1 ALSO SEE

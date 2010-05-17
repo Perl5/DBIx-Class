@@ -4,21 +4,11 @@ use warnings;
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
-use Data::Dumper;
 use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
 my $orig_debug = $schema->storage->debug;
-
-use IO::File;
-
-BEGIN {
-    eval "use DBD::SQLite";
-    plan $@
-        ? ( skip_all => 'needs DBD::SQLite for testing' )
-        : ( tests => 33 );
-}
 
 # test the abstract join => SQL generator
 my $sa = new DBIx::Class::SQLAHacks;
@@ -243,3 +233,5 @@ is($rs->first->name, 'We Are Goth', 'Correct record returned');
     is(cd_count(), 5, '5 rows in table cd');
     is(tk_count(), 3, '3 rows in table twokeys');
 }
+
+done_testing;

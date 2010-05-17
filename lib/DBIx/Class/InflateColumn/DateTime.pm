@@ -15,13 +15,13 @@ Load this component and then declare one or more
 columns to be of the datetime, timestamp or date datatype.
 
   package Event;
-  __PACKAGE__->load_components(qw/InflateColumn::DateTime Core/);
+  use base 'DBIx::Class::Core';
+
+  __PACKAGE__->load_components(qw/InflateColumn::DateTime/);
   __PACKAGE__->add_columns(
     starts_when => { data_type => 'datetime' }
+    create_date => { data_type => 'date' }
   );
-
-NOTE: You B<must> load C<InflateColumn::DateTime> B<before> C<Core>. See
-L<DBIx::Class::Manual::Component> for details.
 
 Then you can treat the specified column as a L<DateTime> object.
 
@@ -69,13 +69,21 @@ one your code should continue to work without modification (though note
 that this feature is new as of 0.07, so it may not be perfect yet - bug
 reports to the list very much welcome).
 
+If the data_type of a field is C<date>, C<datetime> or C<timestamp> (or
+a derivative of these datatypes, e.g. C<timestamp with timezone>), this
+module will automatically call the appropriate parse/format method for
+deflation/inflation as defined in the storage class. For instance, for
+a C<datetime> field the methods C<parse_datetime> and C<format_datetime>
+would be called on deflation/inflation. If the storage class does not
+provide a specialized inflator/deflator, C<[parse|format]_datetime> will
+be used as a fallback. See L<DateTime::Format> for more information on
+date formatting.
+
 For more help with using components, see L<DBIx::Class::Manual::Component/USING>.
 
 =cut
 
 __PACKAGE__->load_components(qw/InflateColumn/);
-
-__PACKAGE__->mk_group_accessors('simple' => '__datetime_parser');
 
 =head2 register_column
 
@@ -124,26 +132,21 @@ sub register_column {
       $info->{_ic_dt_method} ||= "timestamp_without_timezone";
     } elsif ($type eq "smalldatetime") {
       $type = "datetime";
-      $info->{_ic_dt_method} ||= "datetime";
+      $info->{_ic_dt_method} ||= "smalldatetime";
     }
   }
 
-  my $timezone;
   if ( defined $info->{extra}{timezone} ) {
     carp "Putting timezone into extra => { timezone => '...' } has been deprecated, ".
          "please put it directly into the '$column' column definition.";
-    $timezone = $info->{extra}{timezone};
+    $info->{timezone} = $info->{extra}{timezone} unless defined $info->{timezone};
   }
 
-  my $locale;
   if ( defined $info->{extra}{locale} ) {
     carp "Putting locale into extra => { locale => '...' } has been deprecated, ".
          "please put it directly into the '$column' column definition.";
-    $locale = $info->{extra}{locale};
+    $info->{locale} = $info->{extra}{locale} unless defined $info->{locale};
   }
-
-  $locale   = $info->{locale}   if defined $info->{locale};
-  $timezone = $info->{timezone} if defined $info->{timezone};
 
   my $undef_if_invalid = $info->{datetime_undef_if_invalid};
 
@@ -170,21 +173,12 @@ sub register_column {
               $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $err");
             }
 
-            $dt->set_time_zone($timezone) if $timezone;
-            $dt->set_locale($locale) if $locale;
-            return $dt;
+            return $obj->_post_inflate_datetime( $dt, \%info );
           },
           deflate => sub {
             my ($value, $obj) = @_;
-            if ($timezone) {
-                carp "You're using a floating timezone, please see the documentation of"
-                  . " DBIx::Class::InflateColumn::DateTime for an explanation"
-                  if ref( $value->time_zone ) eq 'DateTime::TimeZone::Floating'
-                      and not $info{floating_tz_ok}
-                      and not $ENV{DBIC_FLOATING_TZ_OK};
-                $value->set_time_zone($timezone);
-                $value->set_locale($locale) if $locale;
-            }
+
+            $value = $obj->_pre_deflate_datetime( $value, \%info );
             $obj->_deflate_from_datetime( $value, \%info );
           },
         }
@@ -213,12 +207,34 @@ sub _deflate_from_datetime {
 }
 
 sub _datetime_parser {
-  my $self = shift;
-  if (my $parser = $self->__datetime_parser) {
-    return $parser;
+  shift->result_source->storage->datetime_parser (@_);
+}
+
+sub _post_inflate_datetime {
+  my( $self, $dt, $info ) = @_;
+
+  $dt->set_time_zone($info->{timezone}) if defined $info->{timezone};
+  $dt->set_locale($info->{locale}) if defined $info->{locale};
+
+  return $dt;
+}
+
+sub _pre_deflate_datetime {
+  my( $self, $dt, $info ) = @_;
+
+  if (defined $info->{timezone}) {
+    carp "You're using a floating timezone, please see the documentation of"
+      . " DBIx::Class::InflateColumn::DateTime for an explanation"
+      if ref( $dt->time_zone ) eq 'DateTime::TimeZone::Floating'
+          and not $info->{floating_tz_ok}
+          and not $ENV{DBIC_FLOATING_TZ_OK};
+
+    $dt->set_time_zone($info->{timezone});
   }
-  my $parser = $self->result_source->storage->datetime_parser(@_);
-  return $self->__datetime_parser($parser);
+
+  $dt->set_locale($info->{locale}) if defined $info->{locale};
+
+  return $dt;
 }
 
 1;

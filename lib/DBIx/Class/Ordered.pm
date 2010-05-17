@@ -127,7 +127,7 @@ __PACKAGE__->mk_classdata( 'grouping_column' );
 This method specifies a value of L</position_column> which B<would
 never be assigned to a row> during normal operation. When
 a row is moved, its position is set to this value temporarily, so
-that any unique constrainst can not be violated. This value defaults
+that any unique constraints can not be violated. This value defaults
 to 0, which should work for all cases except when your positions do
 indeed start from 0.
 
@@ -434,10 +434,7 @@ if multiple grouping columns are in use.
 sub move_to_group {
     my( $self, $to_group, $to_position ) = @_;
 
-    $self->throw_exception ('move_to_group() expects a group specification')
-        unless defined $to_group;
-
-    # if we're given a string, turn it into a hashref
+    # if we're given a single value, turn it into a hashref
     unless (ref $to_group eq 'HASH') {
         my @gcols = $self->_grouping_columns;
 
@@ -504,7 +501,7 @@ sub move_to_group {
     }
     else {
       my $bumped_pos_val = $self->_position_value ($to_position);
-      my @between = ($to_position, $new_group_last_position);
+      my @between = map { $self->_position_value ($_) } ($to_position, $new_group_last_position);
       $self->_shift_siblings (1, @between);   #shift right
       $self->set_column( $position_column => $bumped_pos_val );
     }
@@ -685,27 +682,9 @@ You would want to override the methods below if you use sparse
 if you are working with preexisting non-normalised position data,
 or if you need to work with materialized path columns.
 
-=head2 _position
-
-  my $num_pos = $item->_position;
-
-Returns the B<absolute numeric position> of the current object, with the
-first object being at position 1, its sibling at position 2 and so on.
-By default simply returns the value of L</position_column>.
-
-=cut
-sub _position {
-    my $self = shift;
-
-#    #the right way to do this
-#    return $self->previous_siblings->count + 1;
-
-    return $self->get_column ($self->position_column);
-}
-
 =head2 _position_from_value
 
-  my $num_pos = $item->_position_of_value ( $pos_value )
+  my $num_pos = $item->_position_from_value ( $pos_value )
 
 Returns the B<absolute numeric position> of an object with a B<position
 value> set to C<$pos_value>. By default simply returns C<$pos_value>.
@@ -818,15 +797,15 @@ sub _shift_siblings {
 
     if (grep { $_ eq $position_column } ( map { @$_ } (values %{{ $rsrc->unique_constraints }} ) ) ) {
 
-        my @pcols = $rsrc->primary_columns;
+        my @pcols = $rsrc->_pri_cols;
         my $cursor = $shift_rs->search ({}, { order_by => { "-$ord", $position_column }, columns => \@pcols } )->cursor;
         my $rs = $self->result_source->resultset;
 
-        while (my @pks = $cursor->next ) {
-
+        my @all_pks = $cursor->all;
+        while (my $pks = shift @all_pks) {
           my $cond;
           for my $i (0.. $#pcols) {
-            $cond->{$pcols[$i]} = $pks[$i];
+            $cond->{$pcols[$i]} = $pks->[$i];
           }
 
           $rs->search($cond)->update ({ $position_column => \ "$position_column $op 1" } );
@@ -865,6 +844,19 @@ sub _siblings {
     return $self->_group_rs->search(
         { $position_column => { '!=' => $self->get_column($position_column) } },
     );
+}
+
+=head2 _position
+
+  my $num_pos = $item->_position;
+
+Returns the B<absolute numeric position> of the current object, with the
+first object being at position 1, its sibling at position 2 and so on.
+
+=cut
+sub _position {
+    my $self = shift;
+    return $self->_position_from_value ($self->get_column ($self->position_column) );
 }
 
 =head2 _grouping_clause
@@ -929,7 +921,7 @@ module to update positioning values in isolation (i.e. without
 triggering any of the positioning integrity code).
 
 Some day you might get confronted by datasets that have ambiguous
-positioning data (i.e. duplicate position values within the same group,
+positioning data (e.g. duplicate position values within the same group,
 in a table without unique constraints). When manually fixing such data
 keep in mind that you can not invoke L<DBIx::Class::Row/update> like
 you normally would, as it will get confused by the wrong data before
@@ -964,14 +956,14 @@ will prevent such race conditions going undetected.
 
 =head2 Multiple Moves
 
-Be careful when issueing move_* methods to multiple objects.  If 
+Be careful when issuing move_* methods to multiple objects.  If 
 you've pre-loaded the objects then when you move one of the objects 
 the position of the other object will not reflect their new value 
 until you reload them from the database - see
 L<DBIx::Class::Row/discard_changes>.
 
 There are times when you will want to move objects as groups, such 
-as changeing the parent of several objects at once - this directly 
+as changing the parent of several objects at once - this directly 
 conflicts with this problem.  One solution is for us to write a 
 ResultSet class that supports a parent() method, for example.  Another 
 solution is to somehow automagically modify the objects that exist 
