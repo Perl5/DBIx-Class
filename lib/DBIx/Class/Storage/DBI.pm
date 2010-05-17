@@ -1177,7 +1177,7 @@ sub _connect {
     $DBI::connect_via = 'connect';
   }
 
-  my $caught;
+  my $exception;
   try {
     if(ref $info[0] eq 'CODE') {
        $dbh = $info[0]->();
@@ -1204,13 +1204,13 @@ sub _connect {
       $dbh->{PrintError} = 0;
     }
   } catch {
-    $caught = 1;
+    $exception = $_;
   };
 
   $DBI::connect_via = $old_connect_via if $old_connect_via;
 
-  $self->throw_exception("DBI Connection failed: " . ($@||$DBI::errstr))
-    if !$dbh || $caught;
+  $self->throw_exception("DBI Connection failed: " . ((defined $exception && $exception) || $DBI::errstr))
+    if !$dbh || defined $exception;
 
   $self->_dbh_autocommit($dbh->{AutoCommit});
 
