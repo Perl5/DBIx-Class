@@ -377,6 +377,8 @@ Todd Lipcon
 
 Tom Hukins
 
+tonvoon: Ton Voon <tonvoon@cpan.org>
+
 triode: Pete Gamache <gamache@cpan.org>
 
 typester: Daisuke Murase <typester@cpan.org>
