@@ -173,7 +173,7 @@ sub register_column {
             catch {
               $err = 1;
               if (! $undef_if_invalid) {
-	        $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $_");
+                $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $_");
               }
             };
             return undef if $err;
