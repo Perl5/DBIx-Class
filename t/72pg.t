@@ -201,6 +201,15 @@ for my $use_insert_returning ($test_server_supports_insert_returning
   is( $uc_name_info->{size}, 3, "Case insensitive matching info for 'uc_name'" );
 
 
+## Test ResultSet->update
+my $artist = $schema->resultset('Artist')->first;
+my $cds = $artist->cds_unordered->search({
+    year => { '!=' => 2010 }
+}, { prefetch => 'liner_notes' });
+TODO: {
+    todo_skip 'update resultset with a prefetch over a might_have rel', 1;
+    $cds->update({ year => '2010' });
+}
 
 
 ## Test SELECT ... FOR UPDATE
