@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+        - Fix find() to use result_class set on object
         - Fix result_class setter behaviour to not mistakenly stuff attrs.
         - Don't try and ensure_class_loaded an object. This doesn't work.
         - Add a warning to load_namespaces if a class in ResultSet/

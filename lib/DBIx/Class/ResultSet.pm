@@ -538,8 +538,8 @@ sub find {
       : $self->_add_alias($input_query, $alias);
   }
 
-  # Run the query
-  my $rs = $self->search ($query, $attrs);
+  # Run the query, passing the result_class since it should propagate for find
+  my $rs = $self->search ($query, {result_class => $self->result_class, %$attrs});
   if (keys %{$rs->_resolved_attrs->{collapse}}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
