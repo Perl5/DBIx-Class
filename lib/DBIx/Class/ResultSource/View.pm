@@ -11,12 +11,6 @@ __PACKAGE__->mk_group_accessors(
   'simple' => qw(is_virtual view_definition depends_on)
 );
 
-sub new {
-  my $new = shift->next::method(@_);
-  $new->{depends_on} = { %{$new->{depends_on}||{}} };
-  return $new;
-}
-
 =head1 NAME
 
 DBIx::Class::ResultSource::View - ResultSource object representing a view
@@ -136,8 +130,20 @@ database-based view.
 An SQL query for your view. Will not be translated across database
 syntaxes.
 
-
 =head1 OVERRIDDEN METHODS
+
+=head2 new
+
+The constructor. This is a private method, as only other DBIC modules
+should call this. See L<DBIx::Class::ResultSource::MultipleTableInheritance>.
+
+=cut
+
+sub new {
+  my $new = shift->next::method(@_);
+  $new->{depends_on} = { %{$new->{depends_on}||{}} };
+  return $new;
+}
 
 =head2 from
 
@@ -151,6 +157,17 @@ sub from {
   return \"(${\$self->view_definition})" if $self->is_virtual;
   return $self->name;
 }
+
+=head1 PRIVATE METHODS
+
+=head2 depends_on
+
+An internal method for the construction of a hashref of the view's
+superclasses, e.g., the sources that comprise it.
+
+See L<DBIx::Class::ResultSource::MultipleTableInheritance>.
+
+=cut
 
 1;
 

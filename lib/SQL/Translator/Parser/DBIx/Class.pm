@@ -298,7 +298,7 @@ EOW
         <=>
         (exists $b->depends_on->{$a->source_name} ? 1 : 0)
       }
-      map { $dbicschema->source($_) } (sort keys %@view_monikers);
+      map { $dbicschema->source($_) } (sort keys %view_monikers);
 
     foreach my $source (@view_sources)
     {
