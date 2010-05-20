@@ -85,7 +85,7 @@ sub _dbh_get_autoinc_seq {
     {
       $schema ? (owner => $schema) : (),
       table_name => $table || $source_name,
-      triggering_event => 'INSERT',
+      triggering_event => { -like => '%INSERT%' },
       status => 'ENABLED',
      },
   );
