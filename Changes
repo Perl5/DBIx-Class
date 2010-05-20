@@ -1,5 +1,7 @@
 Revision history for DBIx::Class
 
+        - Fix result_class setter behaviour to not mistakenly stuff attrs.
+        - Don't try and ensure_class_loaded an object. This doesn't work.
         - Add a warning to load_namespaces if a class in ResultSet/
           is not a subclass of DBIx::Class::ResultSet
         - ::Storage::DBI now correctly preserves a parent $dbh from

@@ -1142,7 +1142,10 @@ sub result_class {
       $self->ensure_class_loaded($result_class);
     }
     $self->_result_class($result_class);
-    $self->{attrs}{result_class} = $result_class if ref $self;
+    # THIS LINE WOULD BE A BUG - this accessor specifically exists to
+    # permit the user to set result class on one result set only; it only
+    # chains if provided to search()
+    #$self->{attrs}{result_class} = $result_class if ref $self;
   }
   $self->_result_class;
 }
