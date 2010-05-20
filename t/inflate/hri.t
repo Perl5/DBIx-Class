@@ -9,13 +9,14 @@ my $schema = DBICTest->init_schema();
 # Under some versions of SQLite if the $rs is left hanging around it will lock
 # So we create a scope here cos I'm lazy
 {
-    my $rs = $schema->resultset('CD')->search ({}, { order_by => 'cdid' });
+    my $rs = $schema->resultset('CD')->search ({}, {
+        order_by => 'cdid',
+        # use the hashref inflator class as result class
+        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+    });
 
     # get the defined columns
     my @dbic_cols = sort $rs->result_source->columns;
-
-    # use the hashref inflator class as result class
-    $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
 
     # fetch first record
     my $datahashref1 = $rs->first;
@@ -29,6 +30,16 @@ my $schema = DBICTest->init_schema();
 
     my $cd2 = $rs->search({ cdid => 1 })->single;
     is_deeply ( $cd2, $datahashref1, 'first/search+single return the same thing');
+
+    $rs->result_class('DBIx::Class::Row');
+
+    is( $rs->result_class, 'DBIx::Class::Row', 'result_class set' );
+
+    is(
+        $rs->search->result_class, 'DBIx::Class::ResultClass::HashRefInflator',
+        'result_class set using accessor does not propagate over search'
+    );
+
 }
 
 sub check_cols_of {
