@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use parent qw(ViewDeps::Result::Foo);
 
-require ViewDeps::Result::Mixin;
+use ViewDeps::Result::Mixin;
 
 __PACKAGE__->table('bar');
 
@@ -18,7 +18,7 @@ __PACKAGE__->add_columns(
 );
 
 __PACKAGE__->belongs_to(
-  'b_thang',
+  'table',
   'ViewDeps::Result::JustATable',
   { 'foreign.id' => 'self.b' },
 );
@@ -26,7 +26,7 @@ __PACKAGE__->belongs_to(
 __PACKAGE__->has_many(
   'foos',
   'ViewDeps::Result::Foo',
-  { 'foreign.a' => 'self.id' }
+  { 'foreign.id' => 'self.id' }
 );
 
 1;

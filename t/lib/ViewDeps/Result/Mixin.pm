@@ -1,5 +1,6 @@
 package # hide from PAUSE
     ViewDeps::Result::Mixin;
+## Used in 105view_deps.t
 
 use strict;
 use warnings;
