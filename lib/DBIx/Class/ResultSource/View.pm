@@ -4,12 +4,11 @@ use strict;
 use warnings;
 
 use DBIx::Class::ResultSet;
-
+use SQL::Translator::Parser::DBIx::Class;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/ResultSource/);
 __PACKAGE__->mk_group_accessors(
-  'simple' => qw(is_virtual view_definition depends_on)
-);
+    'simple' => qw(is_virtual view_definition deploy_depends_on) );
 
 =head1 NAME
 
@@ -130,19 +129,32 @@ database-based view.
 An SQL query for your view. Will not be translated across database
 syntaxes.
 
+=head2 deploy_depends_on 
+
+  __PACKAGE__->result_source_instance->deploy_depends_on(
+      "MyDB::Schema::Result::Year","MyDB::Schema::Result::CD"
+      );
+
+Specify the result classes that comprise this view. Pass this
+method a list.
+
 =head1 OVERRIDDEN METHODS
 
 =head2 new
 
 The constructor. This is a private method, as only other DBIC modules
-should call this. See L<DBIx::Class::ResultSource::MultipleTableInheritance>.
+should call this.
 
 =cut
 
 sub new {
-  my $new = shift->next::method(@_);
-  $new->{depends_on} = { %{$new->{depends_on}||{}} };
-  return $new;
+    my ( $self, @args ) = @_;
+    my $new = $self->next::method(@args);
+    $new->{deploy_depends_on}
+        = { map { $_ => 1 } @{ ($new->{deploy_depends_on} || []) } };
+    use Data::Dumper;
+    print STDERR Dumper $new;
+    return $new;
 }
 
 =head2 from
@@ -153,19 +165,17 @@ or the SQL as a subselect if this is a virtual view.
 =cut
 
 sub from {
-  my $self = shift;
-  return \"(${\$self->view_definition})" if $self->is_virtual;
-  return $self->name;
+    my $self = shift;
+    return \"(${\$self->view_definition})" if $self->is_virtual;
+    return $self->name;
 }
 
 =head1 PRIVATE METHODS
 
-=head2 depends_on
+=head2 deploy_depends_on
 
 An internal method for the construction of a hashref of the view's
 superclasses, e.g., the sources that comprise it.
-
-See L<DBIx::Class::ResultSource::MultipleTableInheritance>.
 
 =cut
 
@@ -182,6 +192,8 @@ Guillermo Roditi E<lt>groditi@cpan.orgE<gt>
 Jess Robinson <castaway@desert-island.me.uk>
 
 Wallace Reis <wreis@cpan.org>
+
+Amiri Barksdale <amiri@metalabel.com>
 
 =head1 LICENSE
 

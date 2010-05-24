@@ -3,14 +3,15 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use parent qw(ViewDeps::Result::Foo);
+use base qw(ViewDeps::Result::Foo);
 
 use ViewDeps::Result::Mixin;
+use ViewDeps::Result::Baz;
 
 __PACKAGE__->table('bar');
 
-__PACKAGE__->result_source_instance->depends_on(
-    {  ViewDeps::Result::Mixin->result_source_instance->name => 1 }
+__PACKAGE__->result_source_instance->deploy_depends_on(
+ "ViewDeps::Result::Baz", "ViewDeps::Result::Mixin"  
 );
 
 __PACKAGE__->add_columns(

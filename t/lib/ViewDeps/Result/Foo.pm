@@ -3,7 +3,7 @@ package    # hide from PAUSE
 
 use strict;
 use warnings;
-use parent qw(DBIx::Class::Core);
+use base qw(DBIx::Class::Core);
 use aliased 'DBIx::Class::ResultSource::View';
 
 __PACKAGE__->table_class(View);

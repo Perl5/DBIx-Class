@@ -4,7 +4,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use parent qw(DBIx::Class::Core);
+use base qw(DBIx::Class::Core);
 
 __PACKAGE__->table('mixin');
 
