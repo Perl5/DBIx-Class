@@ -10,6 +10,7 @@ use DBIx::Class::Exception;
 use Scalar::Util();
 use IO::File;
 use DBIx::Class::Storage::TxnScopeGuard;
+use Try::Tiny;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
 __PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
