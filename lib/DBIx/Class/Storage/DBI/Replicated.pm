@@ -379,6 +379,7 @@ my @unimplemented = qw(
   _group_over_selection
   _prefetch_autovalues
   _extract_order_criteria
+  _max_column_bytesize
 );
 
 # the capability framework

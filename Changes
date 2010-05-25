@@ -12,6 +12,7 @@ Revision history for DBIx::Class
           values to DBI: search({ array_col => { -value => [1,2,3] }})
         - +columns now behaves just like columns by not stripping a
           fully-qualified 'as' spec (i.e. foo.bar results in $obj->foo->bar)
+        - Add full INSERT...RETURNING support for Oracle
 
     * Fixes
         - Fixed read-only attribute set attempt in ::Storage::Replicated

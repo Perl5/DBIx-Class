@@ -80,6 +80,20 @@ use mro 'c3';
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::Oracle');
 
+sub _determine_supports_insert_returning {
+  my $self = shift;
+
+# TODO find out which version supports the RETURNING syntax
+# 8i has it and earlier docs are a 404 on oracle.com
+
+  return 1
+    if $self->_server_info->{normalized_dbms_version} >= 8.001;
+
+  return 0;
+}
+
+__PACKAGE__->_use_insert_returning_bound (1);
+
 sub deployment_statements {
   my $self = shift;;
   my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;

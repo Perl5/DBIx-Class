@@ -183,4 +183,48 @@ sub _unqualify_colname {
   return $self->_shorten_identifier($self->next::method($fqcn));
 }
 
+#
+# Oracle has a different INSERT...RETURNING syntax
+#
+
+sub _insert_returning {
+  my ($self, $options) = @_;
+
+  my $f = $options->{returning};
+
+  my ($f_list, @f_names) = $self->_SWITCH_refkind($f, {
+    ARRAYREF => sub {
+      (join ', ', map { $self->_quote($_) } @$f),
+      @$f
+    },
+    SCALAR => sub {
+      $self->_quote($f),
+      $f,
+    },
+    SCALARREF => sub {
+      $$f,
+      $$f,
+    },
+  });
+
+  my $rc_ref = $options->{returning_container}
+    or croak ('No returning container supplied for IR values');
+
+  @$rc_ref = (undef) x @f_names;
+
+  return (
+    ( join (' ',
+      $self->_sqlcase(' returning'),
+      $f_list,
+      $self->_sqlcase('into'),
+      join (', ', ('?') x @f_names ),
+    )),
+    map {
+      $self->{bindtype} eq 'columns'
+        ? [ $f_names[$_] => \$rc_ref->[$_] ]
+        : \$rc_ref->[$_]
+    } (0 .. $#f_names),
+  );
+}
+
 1;

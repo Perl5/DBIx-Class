@@ -24,7 +24,7 @@
       is_auto_increment => 1,
     },
   );
-  __PACKAGE__->set_primary_key('artistid');
+  __PACKAGE__->set_primary_key(qw/ artistid autoinc_col /);
 
   1;
 }
@@ -34,6 +34,7 @@ use warnings;
 
 use Test::Exception;
 use Test::More;
+use Sub::Name;
 
 use lib qw(t/lib);
 use DBICTest;
@@ -69,34 +70,82 @@ my @tryopt = (
 # keep a database handle open for cleanup
 my $dbh;
 
-for my $opt (@tryopt) {
-  # clean all cached sequences from previous run
-  for (map { values %{DBICTest::Schema->source($_)->columns_info} } (qw/Artist CD Track/) ) {
-    delete $_->{sequence};
+# test insert returning
+
+# check if we indeed do support stuff
+my $test_server_supports_insert_returning = do {
+  my $v = DBICTest::Schema->connect($dsn, $user, $pass)
+                   ->storage
+                    ->_get_dbh
+                     ->get_info(18);
+  $v =~ /^(\d+)\.(\d+)/
+    or die "Unparseable Oracle server version: $v\n";
+
+# TODO find out which version supports the RETURNING syntax
+# 8i has it and earlier docs are a 404 on oracle.com
+  ( $1 > 8 || ($1 == 8 && $2 >= 1) ) ? 1 : 0;
+};
+is (
+  DBICTest::Schema->connect($dsn, $user, $pass)->storage->_use_insert_returning,
+  $test_server_supports_insert_returning,
+  'insert returning capability guessed correctly'
+);
+
+my $schema;
+for my $use_insert_returning ($test_server_supports_insert_returning
+  ? (1,0)
+  : (0)
+) {
+
+  no warnings qw/once/;
+  local *DBICTest::Schema::connection = subname 'DBICTest::Schema::connection' => sub {
+    my $s = shift->next::method (@_);
+    $s->storage->_use_insert_returning ($use_insert_returning);
+    $s;
+  };
+
+  for my $opt (@tryopt) {
+    # clean all cached sequences from previous run
+    for (map { values %{DBICTest::Schema->source($_)->columns_info} } (qw/Artist CD Track/) ) {
+      delete $_->{sequence};
+    }
+
+    my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opt);
+
+    $dbh = $schema->storage->dbh;
+    my $q = $schema->storage->sql_maker->quote_char || '';
+
+    do_creates($dbh, $q);
+
+    _run_tests($schema, $opt);
   }
+}
 
-  my $schema = DBICTest::Schema->connect($dsn, $user, $pass, $opt);
-  my $q = $schema -> storage -> sql_maker -> quote_char || '';
+sub _run_tests {
+  my ($schema, $opt) = @_;
 
-  $dbh = $schema->storage->dbh;
-
-  do_creates($dbh, $q);
+  my $q = $schema->storage->sql_maker->quote_char || '';
 
 # test primary key handling with multiple triggers
   my ($new, $seq);
 
-  $new = $schema->resultset('Artist')->create({ name => 'foo' });
-  is($new->artistid, 1, "Oracle Auto-PK worked for standard sqlt-like trigger");
-  $seq = $new->result_source->column_info('artistid')->{sequence};
-  $seq = $$seq if ref $seq;
-  like ($seq, qr/\.${q}artist_pk_seq${q}$/, 'Correct PK sequence selected for sqlt-like trigger');
+  my $new_artist = $schema->resultset('Artist')->create({ name => 'foo' });
+  my $new_cd     = $schema->resultset('CD')->create({ artist => 1, title => 'EP C', year => '2003' });
 
-  $new = $schema->resultset('CD')->create({ artist => 1, title => 'EP C', year => '2003' });
-  is($new->cdid, 1, 'Oracle Auto-PK worked - using scalar ref as table name/custom weird trigger');
-  $seq = $new->result_source->column_info('cdid')->{sequence};
-  $seq = $$seq if ref $seq;
-  like ($seq, qr/\.${q}cd_seq${q}$/, 'Correct PK sequence selected for custom trigger');
+  SKIP: {
+    skip 'not detecting sequences when using INSERT ... RETURNING', 4
+      if $schema->storage->_use_insert_returning;
 
+    is($new_artist->artistid, 1, "Oracle Auto-PK worked for standard sqlt-like trigger");
+    $seq = $new_artist->result_source->column_info('artistid')->{sequence};
+    $seq = $$seq if ref $seq;
+    like ($seq, qr/\.${q}artist_pk_seq${q}$/, 'Correct PK sequence selected for sqlt-like trigger');
+
+    is($new_cd->cdid, 1, 'Oracle Auto-PK worked - using scalar ref as table name/custom weird trigger');
+    $seq = $new_cd->result_source->column_info('cdid')->{sequence};
+    $seq = $$seq if ref $seq;
+    like ($seq, qr/\.${q}cd_seq${q}$/, 'Correct PK sequence selected for custom trigger');
+  }
 
 # test PKs again with fully-qualified table name
   my $artistfqn_rs = $schema->resultset('ArtistFQN');
@@ -105,7 +154,9 @@ for my $opt (@tryopt) {
   delete $artist_rsrc->column_info('artistid')->{sequence};
   $new = $artistfqn_rs->create( { name => 'bar' } );
 
-  is( $new->artistid, 2, "Oracle Auto-PK worked with fully-qualified tablename" );
+  is_deeply( {map { $_ => $new->$_ } $artist_rsrc->primary_columns},
+    { artistid => 2, autoinc_col => 2},
+    "Oracle Multi-Auto-PK worked with fully-qualified tablename" );
 
 
   delete $artist_rsrc->column_info('artistid')->{sequence};
@@ -113,9 +164,15 @@ for my $opt (@tryopt) {
 
   is( $new->artistid, 3, "Oracle Auto-PK worked with fully-qualified tablename" );
   is( $new->autoinc_col, 1000, "Oracle Auto-Inc overruled with fully-qualified tablename");
-  $seq = $new->result_source->column_info('artistid')->{sequence};
-  $seq = $$seq if ref $seq;
-  like ($seq, qr/\.${q}artist_pk_seq${q}$/, 'Correct PK sequence selected for sqlt-like trigger');
+
+  SKIP: {
+    skip 'not detecting sequences when using INSERT ... RETURNING', 1
+      if $schema->storage->_use_insert_returning;
+
+    $seq = $new->result_source->column_info('artistid')->{sequence};
+    $seq = $$seq if ref $seq;
+    like ($seq, qr/\.${q}artist_pk_seq${q}$/, 'Correct PK sequence selected for sqlt-like trigger');
+  }
 
 
 # test LIMIT support
@@ -301,8 +358,11 @@ for my $opt (@tryopt) {
   TODO: {
     skip ((join '',
       'Set DBICTEST_ORA_EXTRAUSER_DSN, _USER and _PASS to a *DIFFERENT* Oracle user',
-      ' to run the cross-schema autoincrement test.'),
+      ' to run the cross-schema sequence detection test.'),
     1) unless $dsn2 && $user2 && $user2 ne $user;
+
+    skip 'not detecting cross-schema sequence name when using INSERT ... RETURNING', 1
+      if $schema->storage->_use_insert_returning;
 
     # Oracle8i Reference Release 2 (8.1.6) 
     #   http://download.oracle.com/docs/cd/A87860_01/doc/server.817/a76961/ch294.htm#993
@@ -311,18 +371,17 @@ for my $opt (@tryopt) {
     local $TODO = "On Oracle8i all_triggers view is empty, i don't yet know why..."
       if $schema->storage->_server_info->{normalized_dbms_version} < 9;
 
-    my $schema2 = DBICTest::Schema->connect($dsn2, $user2, $pass2, $opt);
-
+    my $schema2 = $schema->connect($dsn2, $user2, $pass2, $opt);
 
     my $schema1_dbh  = $schema->storage->dbh;
     $schema1_dbh->do("GRANT INSERT ON ${q}artist${q} TO " . uc $user2);
     $schema1_dbh->do("GRANT SELECT ON ${q}artist_pk_seq${q} TO " . uc $user2);
+    $schema1_dbh->do("GRANT SELECT ON ${q}artist_autoinc_seq${q} TO " . uc $user2);
 
 
     my $rs = $schema2->resultset('ArtistFQN');
     delete $rs->result_source->column_info('artistid')->{sequence};
 
-    # first test with unquoted (default) sequence name in trigger body
     lives_and {
       my $row = $rs->create({ name => 'From Different Schema' });
       ok $row->artistid;

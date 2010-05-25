@@ -16,6 +16,7 @@ use Data::Dumper::Concise 'Dumper';
 use Sub::Name 'subname';
 use Try::Tiny;
 use File::Path 'make_path';
+use overload ();
 use namespace::clean;
 
 
@@ -54,7 +55,13 @@ __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 # will get the same rdbms version). _determine_supports_X does not need to
 # exist on a driver, as we ->can for it before calling.
 
-my @capabilities = (qw/insert_returning placeholders typeless_placeholders join_optimizer/);
+my @capabilities = (qw/
+  insert_returning
+  insert_returning_bound
+  placeholders
+  typeless_placeholders
+  join_optimizer
+/);
 __PACKAGE__->mk_group_accessors( dbms_capability => map { "_supports_$_" } @capabilities );
 __PACKAGE__->mk_group_accessors( use_dbms_capability => map { "_use_$_" } (@capabilities ) );
 
@@ -1554,10 +1561,21 @@ sub _dbh_execute {
 
     foreach my $data (@data) {
       my $ref = ref $data;
-      $data = $ref && $ref ne 'ARRAY' ? ''.$data : $data; # stringify args (except arrayrefs)
 
-      $sth->bind_param($placeholder_index, $data, $attributes);
-      $placeholder_index++;
+      if ($ref and overload::Method($data, '""') ) {
+        $data = "$data";
+      }
+      elsif ($ref eq 'SCALAR') {  # any scalarrefs are assumed to be bind_inouts
+        $sth->bind_param_inout(
+          $placeholder_index++,
+          $data,
+          $self->_max_column_bytesize($ident, $column_name),
+          $attributes
+        );
+        next;
+      }
+
+      $sth->bind_param($placeholder_index++, $data, $attributes);
     }
   }
 
@@ -1616,19 +1634,19 @@ sub insert {
   # list of primary keys we try to fetch from the database
   # both not-exsists and scalarrefs are considered
   my %fetch_pks;
-  %fetch_pks = ( map
-    { $_ => scalar keys %fetch_pks }  # so we can preserve order for prettyness
-    grep
-      { ! exists $to_insert->{$_} or ref $to_insert->{$_} eq 'SCALAR' }
-      $source->primary_columns
-  );
+  for ($source->primary_columns) {
+    $fetch_pks{$_} = scalar keys %fetch_pks  # so we can preserve order for prettyness
+      if ! exists $to_insert->{$_} or ref $to_insert->{$_} eq 'SCALAR';
+  }
 
-  my $sqla_opts;
+  my ($sqla_opts, @ir_container);
   if ($self->_use_insert_returning) {
 
     # retain order as declared in the resultsource
     for (sort { $fetch_pks{$a} <=> $fetch_pks{$b} } keys %fetch_pks ) {
       push @{$sqla_opts->{returning}}, $_;
+      $sqla_opts->{returning_container} = \@ir_container
+        if $self->_use_insert_returning_bound;
     }
   }
 
@@ -1639,14 +1657,14 @@ sub insert {
   my %returned_cols;
 
   if (my $retlist = $sqla_opts->{returning}) {
-    my @ret_vals = try {
+    @ir_container = try {
       local $SIG{__WARN__} = sub {};
       my @r = $sth->fetchrow_array;
       $sth->finish;
       @r;
-    };
+    } unless @ir_container;
 
-    @returned_cols{@$retlist} = @ret_vals if @ret_vals;
+    @returned_cols{@$retlist} = @ir_container if @ir_container;
   }
 
   return { %$prefetched_values, %returned_cols };
@@ -2774,6 +2792,50 @@ sub relname_to_table_alias {
     join('_', $relname, $join_count) : $relname);
 
   return $alias;
+}
+
+# The size in bytes to use for DBI's ->bind_param_inout, this is the generic
+# version and it may be necessary to amend or override it for a specific storage
+# if such binds are necessary.
+sub _max_column_bytesize {
+  my ($self, $source, $col) = @_;
+
+  my $inf = $source->column_info($col);
+  return $inf->{_max_bytesize} ||= do {
+
+    my $max_size;
+
+    if (my $data_type = $inf->{data_type}) {
+      $data_type = lc($data_type);
+
+      # String/sized-binary types
+      if ($data_type =~ /^(?:l?(?:var)?char(?:acter)?(?:\s*varying)?
+                             |(?:var)?binary(?:\s*varying)?|raw)\b/x
+      ) {
+        $max_size = $inf->{size};
+      }
+      # Other charset/unicode types, assume scale of 4
+      elsif ($data_type =~ /^(?:national\s*character(?:\s*varying)?|nchar
+                              |univarchar
+                              |nvarchar)\b/x
+      ) {
+        $max_size = $inf->{size} * 4 if $inf->{size};
+      }
+      # Blob types
+      elsif ($data_type =~ /(?:blob|clob|bfile|text|image|bytea)/
+          || $data_type =~ /^long(?:\s*(?:raw|bit\s*varying|varbit|binary
+                                        |varchar|character\s*varying|nvarchar
+                                        |national\s*character\s*varying))?$/
+      ) {
+        # default to longreadlen
+      }
+      else {
+        $max_size = 100;  # for all other (numeric?) datatypes
+      }
+    }
+
+    $max_size ||= $self->_get_dbh->{LongReadLen} || 8000;
+  };
 }
 
 1;

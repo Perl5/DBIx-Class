@@ -68,7 +68,7 @@ my $runtime_requires = {
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.18',
   'Scope::Guard'             => '0.03',
-  'SQL::Abstract'            => '1.71',
+  'SQL::Abstract'            => '1.72',
   'Try::Tiny'                => '0.04',
 
   # XS (or XS-dependent) libs

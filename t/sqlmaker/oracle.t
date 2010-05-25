@@ -1,4 +1,3 @@
-
 use strict;
 use warnings;
 use Test::More;
@@ -8,10 +7,10 @@ use lib qw(t/lib);
 use DBIC::SqlMakerTest;
 use DBIx::Class::SQLMaker::Oracle;
 
-# 
+#
 #  Offline test for connect_by 
 #  ( without acitve database connection)
-# 
+#
 my @handle_tests = (
     {
         connect_by  => { 'parentid' => { '-prior' => \'artistid' } },
@@ -104,5 +103,70 @@ is (
   'FooBarBaz_72M8CIDTM7KBAUPXG48B',
   '_shorten_identifier with keywords ok',
 );
+
+# test SQL generation for INSERT ... RETURNING
+
+sub UREF { \do { my $x } };
+
+$sqla_oracle->{bindtype} = 'columns';
+
+for my $q ('', '"') {
+  local $sqla_oracle->{quote_char} = $q;
+
+  my ($sql, @bind) = $sqla_oracle->insert(
+    'artist',
+    {
+      'name' => 'Testartist',
+    },
+    {
+      'returning' => 'artistid',
+      'returning_container' => [],
+    },
+  );
+
+  is_same_sql_bind(
+    $sql, \@bind,
+    "INSERT INTO ${q}artist${q} (${q}name${q}) VALUES (?) RETURNING ${q}artistid${q} INTO ?",
+    [ [ name => 'Testartist' ], [ artistid => UREF ] ],
+    'sql_maker generates insert returning for one column'
+  );
+
+  ($sql, @bind) = $sqla_oracle->insert(
+    'artist',
+    {
+      'name' => 'Testartist',
+    },
+    {
+      'returning' => \'artistid',
+      'returning_container' => [],
+    },
+  );
+
+  is_same_sql_bind(
+    $sql, \@bind,
+    "INSERT INTO ${q}artist${q} (${q}name${q}) VALUES (?) RETURNING artistid INTO ?",
+    [ [ name => 'Testartist' ], [ artistid => UREF ] ],
+    'sql_maker generates insert returning for one column'
+  );
+
+
+  ($sql, @bind) = $sqla_oracle->insert(
+    'computed_column_test',
+    {
+      'a_timestamp' => '2010-05-26 18:22:00',
+    },
+    {
+      'returning' => [ 'id', 'a_computed_column', 'charfield' ],
+      'returning_container' => [],
+    },
+  );
+
+  is_same_sql_bind(
+    $sql, \@bind,
+    "INSERT INTO ${q}computed_column_test${q} (${q}a_timestamp${q}) VALUES (?) RETURNING ${q}id${q}, ${q}a_computed_column${q}, ${q}charfield${q} INTO ?, ?, ?",
+    [ [ a_timestamp => '2010-05-26 18:22:00' ], [ id => UREF ], [ a_computed_column => UREF ], [ charfield => UREF ] ],
+    'sql_maker generates insert returning for multiple columns'
+  );
+}
 
 done_testing;
