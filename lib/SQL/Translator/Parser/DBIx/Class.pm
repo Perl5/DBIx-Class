@@ -14,8 +14,9 @@ $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
-use Carp::Clan qw/^SQL::Translator|^DBIx::Class/;
+use Carp::Clan qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
 use Scalar::Util ();
+use Try::Tiny;
 
 use base qw(Exporter);
 
@@ -43,8 +44,12 @@ sub parse {
 
     croak 'No DBIx::Class::Schema' unless ($dbicschema);
     if (!ref $dbicschema) {
-      eval "use $dbicschema;";
-      croak "Can't load $dbicschema ($@)" if($@);
+      try {
+        eval "require $dbicschema;"
+      }
+      catch {
+        croak "Can't load $dbicschema ($_)";
+      }
     }
 
     my $schema      = $tr->schema;

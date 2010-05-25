@@ -8,6 +8,7 @@ Revision history for DBIx::Class
         - ::Storage::DBI now correctly preserves a parent $dbh from
           terminating children, even during interpreter-global
           out-of-order destruction
+        - All DBIC exception-handling switched to Try::Tiny
         - Add DBIx::Class::FilterColumn for non-ref filtering
         - InflateColumn::DateTime support for MSSQL via DBD::Sybase
         - Millisecond precision support for MSSQL datetimes for

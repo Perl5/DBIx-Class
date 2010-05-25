@@ -2,6 +2,7 @@ package # hide from PAUSE
     DBIx::Class::Storage::DBI::ADO;
 
 use base 'DBIx::Class::Storage::DBI';
+use Try::Tiny;
 
 sub _rebless {
   my $self = shift;
@@ -10,20 +11,18 @@ sub _rebless {
 # XXX This should be using an OpenSchema method of some sort, but I don't know
 # how.
 # Current version is stolen from Sybase.pm
-  my $dbtype = eval {
-    @{$self->_get_dbh
+  try {
+    my $dbtype = @{$self->_get_dbh
       ->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})
-    }[2]
-  };
+    }[2];
 
-  unless ($@) {
     $dbtype =~ s/\W/_/gi;
     my $subclass = "DBIx::Class::Storage::DBI::ADO::${dbtype}";
     if ($self->load_optional_class($subclass) && !$self->isa($subclass)) {
       bless $self, $subclass;
       $self->_rebless;
     }
-  }
+  };
 }
 
 # Here I was just experimenting with ADO cursor types, left in as a comment in
