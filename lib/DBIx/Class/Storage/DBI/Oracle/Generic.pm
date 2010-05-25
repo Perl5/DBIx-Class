@@ -125,13 +125,21 @@ sub _dbh_execute {
   my $self = shift;
   my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
 
-  my $retried;
+  my $wantarray = wantarray;
+  my ($retried, @res);
+  my $next = $self->next::can;
   do {
     try {
-      return $self->next::method($dbh, $op, $extra_bind, $ident, $bind_attributes, @args);
+      if ($wantarray) {
+        @res = $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args);
+      }
+      else {
+        $res[0] = $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args);
+      }
+      $retried++;
     }
     catch {
-      if (!$retried and $_ =~ /ORA-01003/) {
+      if (/ORA-01003/) {
         # ORA-01003: no statement parsed (someone changed the table somehow,
         # invalidating your cursor.)
         my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
@@ -142,6 +150,8 @@ sub _dbh_execute {
       }
     };
   } while (not $retried++);
+
+  return $wantarray ? @res : $res[0];
 }
 
 =head2 get_autoinc_seq
@@ -154,19 +164,6 @@ sub get_autoinc_seq {
   my ($self, $source, $col) = @_;
 
   $self->dbh_do('_dbh_get_autoinc_seq', $source, $col);
-}
-
-=head2 columns_info_for
-
-This wraps the superclass version of this method to force table
-names to uppercase
-
-=cut
-
-sub columns_info_for {
-  my ($self, $table) = @_;
-
-  $self->next::method($table);
 }
 
 =head2 datetime_parser_type
