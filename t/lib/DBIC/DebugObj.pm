@@ -41,7 +41,7 @@ sub query_start {
 
 sub query_end { }
 
-sub txn_start { }
+sub txn_begin { }
 
 sub txn_commit { }
 
