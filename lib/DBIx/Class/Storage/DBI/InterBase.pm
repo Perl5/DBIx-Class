@@ -126,14 +126,12 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  my $rc = 1;
-  try {
+  return try {
     $dbh->do('select 1 from rdb$database');
+    1;
   } catch {
-    $rc = 0;
+    0;
   };
-
-  return $rc;
 }
 
 # We want dialect 3 for new features and quoting to work, DBD::InterBase uses

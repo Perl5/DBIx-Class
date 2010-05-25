@@ -294,18 +294,16 @@ Returns 1 on success and undef on failure.
 sub _safely {
   my ($self, $replicant, $name, $code) = @_;
 
-  my $rc = 1;
-  try {
-    $code->()
+  return try {
+    $code->();
+    1;
   } catch {
     $replicant->debugobj->print(sprintf(
       "Exception trying to $name for replicant %s, error is %s",
       $replicant->_dbi_connect_info->[0], $_)
     );
-    $rc = undef;
+    undef;
   };
-
-  return $rc;
 }
 
 =head2 connected_replicants

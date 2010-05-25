@@ -54,21 +54,17 @@ sub _ping {
 
   if ($dbh->{syb_no_child_con}) {
 # if extra connections are not allowed, then ->ping is reliable
-    my $alive;
-    try { $alive = $dbh->ping } catch { $alive = 0 };
-    return $alive;
+    return try { $dbh->ping } catch { 0; };
   }
 
-  my $rc = 1;
-  try {
+  return try {
 # XXX if the main connection goes stale, does opening another for this statement
 # really determine anything?
     $dbh->do('select 1');
+    1;
   } catch {
-    $rc = 0;
+    0;
   };
-
-  return $rc;
 }
 
 sub _set_max_connect {

@@ -212,23 +212,23 @@ sub txn_do {
       $coderef->(@args);
     }
     $self->txn_commit;
-  } catch {
+  }
+  catch {
     my $error = shift;
 
     try {
       $self->txn_rollback;
     } catch {
-      my $rollback_error = shift;
       my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
       $self->throw_exception($error)  # propagate nested rollback
-        if $rollback_error =~ /$exception_class/;
+        if $_ =~ /$exception_class/;
 
       $self->throw_exception(
-        "Transaction aborted: $error. Rollback failed: ${rollback_error}"
+        "Transaction aborted: $error. Rollback failed: $_"
       );
     }
     $self->throw_exception($error); # txn failed but rollback succeeded
-  }
+  };
 
   return $wantarray ? @return_values : $return_value;
 }

@@ -152,7 +152,8 @@ sub reset {
   my ($self) = @_;
 
   # No need to care about failures here
-  try { $self->sth->finish if $self->sth && $self->sth->{Active} };
+  try { $self->sth->finish }
+    if $self->sth && $self->sth->{Active};
   $self->_soft_reset;
   return undef;
 }
@@ -178,7 +179,8 @@ sub DESTROY {
   my ($self) = @_;
 
   # None of the reasons this would die matter if we're in DESTROY anyways
-  try { $self->sth->finish if $self->sth && $self->sth->{Active} };
+  try { $self->sth->finish }
+    if $self->sth && $self->sth->{Active};
 }
 
 1;

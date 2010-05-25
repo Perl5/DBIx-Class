@@ -5,6 +5,7 @@ use Scalar::Util 'reftype';
 requires qw/_query_start/;
 
 use namespace::clean -except => 'meta';
+use Try::Tiny;
 
 =head1 NAME
 

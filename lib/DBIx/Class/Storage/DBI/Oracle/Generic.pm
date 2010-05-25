@@ -113,50 +113,35 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  my $rc = 1;
-  try {
+  return try {
     $dbh->do('select 1 from dual');
+    1;
   } catch {
-    $rc = 0;
+    0;
   };
-
-  return $rc;
 }
 
 sub _dbh_execute {
   my $self = shift;
   my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
 
-  my $wantarray = wantarray;
-
-  my (@res, $exception, $retried);
-
-  RETRY: {
-    do {
-      my $exception;
-      try {
-        if ($wantarray) {
-          @res    = $self->next::method(@_);
-        } else {
-          $res[0] = $self->next::method(@_);
-        }
-      } catch {
-        $exception = shift;
-      };
-      if ($exception =~ /ORA-01003/) {
+  my $retried;
+  do {
+    try {
+      return $self->next::method($dbh, $op, $extra_bind, $ident, $bind_attributes, @args);
+    }
+    catch {
+      if (!$retried and $_ =~ /ORA-01003/) {
         # ORA-01003: no statement parsed (someone changed the table somehow,
         # invalidating your cursor.)
         my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
         delete $dbh->{CachedKids}{$sql};
-      } else {
-        last RETRY;
       }
-    } while (not $retried++);
-  }
-
-  $self->throw_exception($exception) if $exception;
-
-  $wantarray ? @res : $res[0]
+      else {
+        $self->throw_exception($_);
+      }
+    };
+  } while (not $retried++);
 }
 
 =head2 get_autoinc_seq

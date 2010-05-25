@@ -11,7 +11,6 @@ use DBIx::Class::Optional::Dependencies;
 use vars qw($VERSION);
 use base qw/DBIx::Class::Componentised Class::Accessor::Grouped/;
 use DBIx::Class::StartupCheck;
-use Try::Tiny;
 
 sub mk_classdata {
   shift->mk_classaccessor(@_);

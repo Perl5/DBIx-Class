@@ -238,15 +238,15 @@ sub related_resultset {
 
     # condition resolution may fail if an incomplete master-object prefetch
     # is encountered - that is ok during prefetch construction (not yet in_storage)
-    my $cond;
-    try { $cond = $source->_resolve_condition( $rel_info->{cond}, $rel, $self ) }
+    my $cond = try {
+      $source->_resolve_condition( $rel_info->{cond}, $rel, $self )
+    }
     catch {
       if ($self->in_storage) {
         $self->throw_exception ($_);
       }
-      else {
-        $cond = $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION;
-      }
+
+      $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION;  # RV
     };
 
     if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {

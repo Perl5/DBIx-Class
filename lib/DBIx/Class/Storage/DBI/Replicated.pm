@@ -651,7 +651,6 @@ sub execute_reliably {
   my @result;
   my $want_array = wantarray;
 
-  my $exception;
   try {
     if($want_array) {
       @result = $coderef->(@args);

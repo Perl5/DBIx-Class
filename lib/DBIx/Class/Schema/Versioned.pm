@@ -725,16 +725,9 @@ sub _source_exists
 {
     my ($self, $rs) = @_;
 
-    my $c;
-    my $exception;
-    try {
-        $c = $rs->search({ 1, 0 })->count;
-    } catch {
-        $exception=1;
-    };
-    return 0 if $exception || !defined $c;
+    my $c = try { $rs->search({ 1, 0 })->count };
 
-    return 1;
+    return (defined $c) ? 1 : 0;
 }
 
 1;

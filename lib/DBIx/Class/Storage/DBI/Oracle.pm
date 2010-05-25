@@ -10,22 +10,19 @@ use Try::Tiny;
 sub _rebless {
     my ($self) = @_;
 
-    my $caught;
-    my $version;
-    try { $self->_get_dbh->get_info(18); }
-    catch { $caught = 1 };
+    try {
+      my $version = $self->_get_dbh->get_info(18);
 
-    if ( ! $caught ) {
-        my ($major, $minor, $patchlevel) = split(/\./, $version);
+      my ($major, $minor, $patchlevel) = split(/\./, $version);
 
-        # Default driver
-        my $class = $major <= 8
-          ? 'DBIx::Class::Storage::DBI::Oracle::WhereJoins'
-          : 'DBIx::Class::Storage::DBI::Oracle::Generic';
+      # Default driver
+      my $class = $major <= 8
+        ? 'DBIx::Class::Storage::DBI::Oracle::WhereJoins'
+        : 'DBIx::Class::Storage::DBI::Oracle::Generic';
 
-        $self->ensure_class_loaded ($class);
-        bless $self, $class;
-    }
+      $self->ensure_class_loaded ($class);
+      bless $self, $class;
+    };
 }
 
 1;

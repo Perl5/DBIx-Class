@@ -16,7 +16,6 @@ use List::Util();
 use Data::Dumper::Concise();
 use Sub::Name ();
 use Try::Tiny;
-
 use File::Path ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
@@ -723,41 +722,25 @@ sub dbh_do {
 
   my $dbh = $self->_get_dbh;
 
-  return $self->$code($dbh, @_) if $self->{_in_dbh_do}
-      || $self->{transaction_depth};
+  return $self->$code($dbh, @_)
+    if ( $self->{_in_dbh_do} || $self->{transaction_depth} );
 
   local $self->{_in_dbh_do} = 1;
 
-  my @result;
-  my $want_array = wantarray;
-
-  my $exception;
   my @args = @_;
   try {
-
-    if($want_array) {
-        @result = $self->$code($dbh, @args);
-    }
-    elsif(defined $want_array) {
-        $result[0] = $self->$code($dbh, @args);
-    }
-    else {
-        $self->$code($dbh, @args);
-    }
+    return $self->$code ($dbh, @args);
   } catch {
-    $exception = shift;
+    $self->throw_exception($_) if $self->connected;
+
+    # We were not connected - reconnect and retry, but let any
+    #  exception fall right through this time
+    carp "Retrying $code after catching disconnected exception: $_"
+      if $ENV{DBIC_DBIRETRY_DEBUG};
+
+    $self->_populate_dbh;
+    $self->$code($self->_dbh, @args);
   };
-
-  if(! defined $exception) { return $want_array ? @result : $result[0] }
-
-  $self->throw_exception($exception) if $self->connected;
-
-  # We were not connected - reconnect and retry, but let any
-  #  exception fall right through this time
-  carp "Retrying $code after catching disconnected exception: $exception"
-    if $ENV{DBIC_DBIRETRY_DEBUG};
-  $self->_populate_dbh;
-  $self->$code($self->_dbh, @_);
 }
 
 # This is basically a blend of dbh_do above and DBIx::Class::Storage::txn_do.
@@ -1174,7 +1157,6 @@ sub _connect {
     $DBI::connect_via = 'connect';
   }
 
-  my $exception;
   try {
     if(ref $info[0] eq 'CODE') {
        $dbh = $info[0]->();
@@ -1183,7 +1165,11 @@ sub _connect {
        $dbh = DBI->connect(@info);
     }
 
-    if($dbh && !$self->unsafe) {
+    if (!$dbh) {
+      die $DBI::errstr;
+    }
+
+    unless ($self->unsafe) {
       my $weak_self = $self;
       Scalar::Util::weaken($weak_self);
       $dbh->{HandleError} = sub {
@@ -1200,17 +1186,15 @@ sub _connect {
       $dbh->{RaiseError} = 1;
       $dbh->{PrintError} = 0;
     }
-  } catch {
-    $exception = $_;
+  }
+  catch {
+    $self->throw_exception("DBI Connection failed: $_")
+  }
+  finally {
+    $DBI::connect_via = $old_connect_via if $old_connect_via;
   };
 
-  $DBI::connect_via = $old_connect_via if $old_connect_via;
-
-  $self->throw_exception("DBI Connection failed: " . ((defined $exception && $exception) || $DBI::errstr))
-    if !$dbh || defined $exception;
-
   $self->_dbh_autocommit($dbh->{AutoCommit});
-
   $dbh;
 }
 
@@ -1376,14 +1360,17 @@ sub txn_rollback {
     else {
       die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
     }
-  } catch {
-    my $error = shift;
-    my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
-    $error =~ /$exception_class/ and $self->throw_exception($error);
-    # ensure that a failed rollback resets the transaction depth
-    $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
-    $self->throw_exception($error);
   }
+  catch {
+    my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
+
+    if ($_ !~ /$exception_class/) {
+      # ensure that a failed rollback resets the transaction depth
+      $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
+    }
+
+    $self->throw_exception($_)
+  };
 }
 
 sub _dbh_rollback {
@@ -1680,18 +1667,25 @@ sub _execute_array {
     $placeholder_index++;
   }
 
-  my $rv;
-  my $err;
+  my ($rv, $err);
   try {
     $rv = $self->_dbh_execute_array($sth, $tuple_status, @extra);
-  } catch {
+  }
+  catch {
     $err = shift;
+  }
+  finally {
+    # Statement must finish even if there was an exception.
+    try {
+      $sth->finish
+    }
+    catch {
+      $err = shift unless defined $err 
+    };
   };
-  $err = defined $err ? $err : ($sth->err ? $sth->errstr : undef );
 
-# Statement must finish even if there was an exception.
-  try { $sth->finish } 
-  catch { $err = shift unless defined $err };
+  $err = $sth->errstr
+    if (! defined $err and $sth->err);
 
   if (defined $err) {
     my $i = 0;
@@ -1707,6 +1701,7 @@ sub _execute_array {
       }),
     );
   }
+
   return $rv;
 }
 
@@ -1719,25 +1714,28 @@ sub _dbh_execute_array {
 sub _dbh_execute_inserts_with_no_binds {
   my ($self, $sth, $count) = @_;
 
-  my $exception;
+  my $err;
   try {
     my $dbh = $self->_get_dbh;
     local $dbh->{RaiseError} = 1;
     local $dbh->{PrintError} = 0;
 
     $sth->execute foreach 1..$count;
-  } catch {
-    $exception = shift;
+  }
+  catch {
+    $err = shift;
+  }
+  finally {
+    # Make sure statement is finished even if there was an exception.
+    try {
+      $sth->finish
+    }
+    catch {
+      $err = shift unless defined $err;
+    };
   };
 
-# Make sure statement is finished even if there was an exception.
-  try { 
-    $sth->finish 
-  } catch {
-    $exception = shift unless defined $exception;
-  };
-
-  $self->throw_exception($exception) if defined $exception;
+  $self->throw_exception($err) if defined $err;
 
   return $count;
 }
@@ -2192,15 +2190,15 @@ sub _placeholders_supported {
 
   # some drivers provide a $dbh attribute (e.g. Sybase and $dbh->{syb_dynamic_supported})
   # but it is inaccurate more often than not
-  my $rc = 1;
-  try {
+  return try {
     local $dbh->{PrintError} = 0;
     local $dbh->{RaiseError} = 1;
     $dbh->do('select ?', {}, 1);
-  } catch {
-    $rc = 0;
+    1;
+  }
+  catch {
+    0;
   };
-  return $rc;
 }
 
 # Check if placeholders bound to non-string types throw exceptions
@@ -2209,16 +2207,16 @@ sub _typeless_placeholders_supported {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
 
-  my $rc = 1;
-  try {
+  return try {
     local $dbh->{PrintError} = 0;
     local $dbh->{RaiseError} = 1;
     # this specifically tests a bind that is NOT a string
     $dbh->do('select 1 where 1 = ?', {}, 1);
-  } catch {
-    $rc = 0;
+    1;
+  }
+  catch {
+    0;
   };
-  return $rc;
 }
 
 =head2 sqlt_type

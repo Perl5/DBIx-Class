@@ -242,14 +242,12 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  my $rc = 1;
-  try {
+  return try {
     $dbh->do('select 1');
+    1;
   } catch {
-    $rc = 0;
+    0;
   };
-
-  return $rc;
 }
 
 package # hide from PAUSE

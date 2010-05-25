@@ -5,6 +5,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
 use List::Util ();
+use Try::Tiny;
 
 __PACKAGE__->mk_group_accessors(simple => qw/
   _identity
@@ -115,7 +116,7 @@ sub build_datetime_parser {
   my $self = shift;
   my $type = "DateTime::Format::Strptime";
   try {
-    eval "use ${type}"
+    eval "require ${type}"
   }
   catch {
     $self->throw_exception("Couldn't load ${type}: $_");
