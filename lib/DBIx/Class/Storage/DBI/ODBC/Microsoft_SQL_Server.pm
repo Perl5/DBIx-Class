@@ -95,7 +95,7 @@ sub _set_dynamic_cursors {
 Your drivers do not seem to support dynamic cursors (odbc_cursortype => 2),
 if you're using FreeTDS, make sure to set tds_version to 8.0 or greater.
 EOF
-  }
+  };
 
   $self->_using_dynamic_cursors(1);
   $self->_identity_method('@@identity');
