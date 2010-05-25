@@ -5,6 +5,7 @@ use Test::More;
 use Test::Warn;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::DebugObj;
 
 {
   package A::Comp;
@@ -74,24 +75,6 @@ DBICTest::Schema::CD->load_components('UTF8Columns');
 DBICTest::Schema::CD->utf8_columns('title');
 Class::C3->reinitialize();
 
-{
-  package DBICTest::UTF8::Debugger;
-
-  use base 'DBIx::Class::Storage::Statistics';
-
-  __PACKAGE__->mk_group_accessors(simple => 'call_stack');
-
-  sub query_start {
-    my $self = shift;
-    my $sql = shift;
-
-    my @bind = map { substr $_, 1, -1 } (@_); # undo the effect of _fix_bind_params
-
-    $self->call_stack ( [ @{$self->call_stack || [] }, [$sql, @bind] ] );
-    $self->next::method ($sql, @_);
-  }
-}
-
 # as per http://search.cpan.org/dist/Test-Simple/lib/Test/More.pm#utf8
 binmode (Test::More->builder->$_, ':utf8') for qw/output failure_output todo_output/;
 
@@ -100,16 +83,22 @@ utf8::encode($bytestream_title);
 cmp_ok ($bytestream_title, 'ne', $utf8_title, 'unicode/raw differ (sanity check)');
 
 my $storage = $schema->storage;
-$storage->debugobj (DBICTest::UTF8::Debugger->new);
-$storage->debugobj->silence (1);
+my ($sql, @bind);
+my $debugobj = DBIC::DebugObj->new (\$sql, \@bind);
+my ($orig_debug, $orig_debugobj) = ($storage->debug, $storage->debugobj);
+$storage->debugobj ($debugobj);
 $storage->debug (1);
 
 my $cd = $schema->resultset('CD')->create( { artist => 1, title => $utf8_title, year => '2048' } );
 
-# bind values are always alphabetically ordered by column, thus [2]
+$storage->debugobj ($orig_debugobj);
+$storage->debug ($orig_debug);
+
+# bind values are always alphabetically ordered by column, thus [1]
+# the single quotes are an artefact of the debug-system
 TODO: {
   local $TODO = "This has been broken since rev 1191, Mar 2006";
-  is ($storage->debugobj->call_stack->[-1][2], $bytestream_title, 'INSERT: raw bytes sent to the database');
+  is ($bind[1], "'$bytestream_title'", 'INSERT: raw bytes sent to the database');
 }
 
 # this should be using the cursor directly, no inflation/processing of any sort
@@ -145,8 +134,16 @@ ok(! utf8::is_utf8( $cd->{_column_data}{title} ), 'reloaded utf8-less title' );
 $bytestream_title = $utf8_title = "something \x{219} else";
 utf8::encode($bytestream_title);
 
+
+$storage->debugobj ($debugobj);
+$storage->debug (1);
+
 $cd->update ({ title => $utf8_title });
-is ($storage->debugobj->call_stack->[-1][1], $bytestream_title, 'UPDATE: raw bytes sent to the database');
+
+$storage->debugobj ($orig_debugobj);
+$storage->debug ($orig_debug);
+
+is ($bind[0], "'$bytestream_title'", 'UPDATE: raw bytes sent to the database');
 ($raw_db_title) = $schema->resultset('CD')
                              ->search ($cd->ident_condition)
                                ->get_column('title')

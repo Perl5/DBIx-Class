@@ -538,8 +538,8 @@ sub find {
       : $self->_add_alias($input_query, $alias);
   }
 
-  # Run the query
-  my $rs = $self->search ($query, $attrs);
+  # Run the query, passing the result_class since it should propagate for find
+  my $rs = $self->search ($query, {result_class => $self->result_class, %$attrs});
   if (keys %{$rs->_resolved_attrs->{collapse}}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
@@ -1138,9 +1138,14 @@ in the original source class will not run.
 sub result_class {
   my ($self, $result_class) = @_;
   if ($result_class) {
-    $self->ensure_class_loaded($result_class);
+    unless (ref $result_class) { # don't fire this for an object
+      $self->ensure_class_loaded($result_class);
+    }
     $self->_result_class($result_class);
-    $self->{attrs}{result_class} = $result_class if ref $self;
+    # THIS LINE WOULD BE A BUG - this accessor specifically exists to
+    # permit the user to set result class on one result set only; it only
+    # chains if provided to search()
+    #$self->{attrs}{result_class} = $result_class if ref $self;
   }
   $self->_result_class;
 }
