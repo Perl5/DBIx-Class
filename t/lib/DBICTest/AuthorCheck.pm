@@ -43,15 +43,16 @@ sub _check_author_makefile {
     push @fail_reasons, "Missing ./inc directory";
   }
 
-  if (not $mf_mtime) {
+  if(not $mf_mtime) {
     push @fail_reasons, "Missing ./Makefile";
   }
-  elsif($mf_mtime < $mf_pl_mtime) {
-    push @fail_reasons, "./Makefile.PL is newer than ./Makefile";
-  }
-
-  if ($mf_mtime < $optdeps_mtime) {
-    push @fail_reasons, "./$optdeps is newer than ./Makefile";
+  else {
+    if($mf_mtime < $mf_pl_mtime) {
+      push @fail_reasons, "./Makefile.PL is newer than ./Makefile";
+    }
+    if($mf_mtime < $optdeps_mtime) {
+      push @fail_reasons, "./$optdeps is newer than ./Makefile";
+    }
   }
 
   if (@fail_reasons) {
