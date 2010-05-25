@@ -49,12 +49,12 @@ __PACKAGE__->has_many(
 __PACKAGE__->has_many(
     cds_80s => 'DBICTest::Schema::CD',
     sub {
-        my ( $self_alias, $rel_alias, $self_rsrc, $rel_name ) = @_;
-        return {
-            "${rel_alias}.artist" => \ "${self_alias}.artistid",
-            "${rel_alias}.year"   => { '>', "1979" },
-            "${rel_alias}.year"   => { '<', "1990" }
-        };
+      my ( $me, $as, $self_rsrc, $rel ) = @_;
+      return {
+        "${as}.artist" => (ref $me ? $me->artistid : { '=' => \"${me}.artistid"}),
+        "${as}.year"   => { '>', "1979",
+                            '<', "1990" }
+      };
     }
 );
 

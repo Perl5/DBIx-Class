@@ -10,6 +10,7 @@ my $schema = DBICTest->init_schema();
 
 
 my $artist = $schema->resultset("Artist")->create({ name => 'Michael Jackson' });
+
 foreach my $year (1975..1985) {
   $artist->create_related('cds', { year => $year, title => 'Compilation from ' . $year });
 }
@@ -38,7 +39,7 @@ my $last_tracks = $schema->resultset('Track')->search (
 
 is_deeply (
   [$last_tracks->get_column ('trackid')->all],
-  \@last_track_ids,
+  [ grep { $_ } @last_track_ids ],
   'last group-entry via self-join works',
 );
 

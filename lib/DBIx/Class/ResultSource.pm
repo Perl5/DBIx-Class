@@ -1493,7 +1493,7 @@ sub _resolve_join {
                -alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,
              },
-             $self->_resolve_condition($rel_info->{cond}, $as, $alias) ];
+             $self->_resolve_condition($rel_info->{cond}, $as, $alias, $join) ];
   }
 }
 
@@ -1551,8 +1551,31 @@ sub resolve_condition {
 our $UNRESOLVABLE_CONDITION = \'1 = 0';
 
 sub _resolve_condition {
-  my ($self, $cond, $as, $for) = @_;
-  if (ref $cond eq 'HASH') {
+  my ($self, $cond, $as, $for, $rel) = @_;
+  if (ref $cond eq 'CODE') {
+
+    # heuristic for the actual relname
+    if (! defined $rel) {
+      if (!ref $as) {
+        $rel = $as;
+      }
+      elsif (!ref $for) {
+        $rel = $for;
+      }
+    }
+
+    if (! defined $rel) {
+      $self->throw_exception ('Unable to determine relationship name for condition resolution');
+    }
+
+    $cond = $cond->(
+      $for,
+      ref $for ? 'me' : $as,
+      $self,
+      $rel,
+    );
+
+  } elsif (ref $cond eq 'HASH') {
     my %ret;
     foreach my $k (keys %{$cond}) {
       my $v = $cond->{$k};
@@ -1596,7 +1619,7 @@ sub _resolve_condition {
   } elsif (ref $cond eq 'ARRAY') {
     return [ map { $self->_resolve_condition($_, $as, $for) } @$cond ];
   } else {
-   die("Can't handle condition $cond yet :(");
+    $self->throw_exception ("Can't handle condition $cond yet :(");
   }
 }
 

@@ -442,8 +442,8 @@ sub _join_condition {
     for (keys %$cond) {
       my $v = $cond->{$_};
       if (ref $v) {
-        croak (ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
-            if ref($v) ne 'SCALAR';
+        #croak (ref($v) . qq{ reference arguments are not supported in JOINS - try using \"..." instead'})
+        #    if ref($v) ne 'SCALAR';
         $j{$_} = $v;
       }
       else {
