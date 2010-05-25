@@ -62,8 +62,8 @@ sub insert {
     my $table_name = $source->from;
     $table_name    = $$table_name if ref $table_name;
 
-    my ($identity) = eval {
-      local $@; $dbh->selectrow_array("SELECT GET_IDENTITY('$table_name')")
+    my ($identity) = try {
+      $dbh->selectrow_array("SELECT GET_IDENTITY('$table_name')")
     };
 
     if (defined $identity) {
@@ -114,8 +114,13 @@ sub _sql_maker_opts {
 sub build_datetime_parser {
   my $self = shift;
   my $type = "DateTime::Format::Strptime";
-  eval "use ${type}";
-  $self->throw_exception("Couldn't load ${type}: $@") if $@;
+  try {
+    eval "use ${type}"
+  }
+  catch {
+    $self->throw_exception("Couldn't load ${type}: $_");
+  };
+
   return $type->new( pattern => '%Y-%m-%d %H:%M:%S.%6N' );
 }
 

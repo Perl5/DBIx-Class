@@ -129,7 +129,7 @@ sub _execute {
 
     # this should bring back the result of SELECT SCOPE_IDENTITY() we tacked
     # on in _prep_for_execute above
-    my ($identity) = eval { $sth->fetchrow_array };
+    my ($identity) = try { $sth->fetchrow_array };
 
     # SCOPE_IDENTITY failed, but we can do something else
     if ( (! $identity) && $self->_identity_method) {
@@ -216,9 +216,10 @@ sub sql_maker {
         # stored procedures like xp_msver, or version detection failed for some
         # other reason.
         # So, we use a query to check if RNO is implemented.
-        $have_rno = 1 if (eval { local $@; ($self->_get_dbh
-          ->selectrow_array('SELECT row_number() OVER (ORDER BY rand())')
-          )[0] });
+        try {
+          $self->_get_dbh->selectrow_array('SELECT row_number() OVER (ORDER BY rand())');
+          $have_rno = 1;
+        };
       }
 
       $self->{_sql_maker_opts} = {

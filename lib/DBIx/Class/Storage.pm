@@ -195,7 +195,7 @@ sub txn_do {
   $self->txn_begin; # If this throws an exception, no rollback is needed
 
   my $wantarray = wantarray; # Need to save this since the context
-                             # inside the eval{} block is independent
+                             # inside the try{} block is independent
                              # of the context that called txn_do()
   try {
 

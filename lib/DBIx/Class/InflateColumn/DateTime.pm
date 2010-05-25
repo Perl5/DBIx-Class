@@ -168,17 +168,18 @@ sub register_column {
           inflate => sub {
             my ($value, $obj) = @_;
 
-            my ($dt, $err);
-            try { $dt = $obj->_inflate_to_datetime( $value, \%info ) }
-            catch {
-              $err = 1;
-              if (! $undef_if_invalid) {
-                $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $_");
-              }
-            };
-            return undef if $err;
+            my $dt = try
+              { $obj->_inflate_to_datetime( $value, \%info ) }
+              catch {
+                $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $_")
+                  unless $undef_if_invalid;
+                undef;  # rv
+              };
 
-            return $obj->_post_inflate_datetime( $dt, \%info );
+            return (defined $dt)
+              ? $obj->_post_inflate_datetime( $dt, \%info )
+              : undef
+            ;
           },
           deflate => sub {
             my ($value, $obj) = @_;

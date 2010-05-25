@@ -40,7 +40,7 @@ sub has_many {
       $guess = "using our class name '$class' as foreign key";
     }
 
-    my $f_class_loaded = eval { $f_class->columns };
+    my $f_class_loaded = try { $f_class->columns };
     $class->throw_exception(
       "No such column ${f_key} on foreign class ${f_class} ($guess)"
     ) if $f_class_loaded && !$f_class->has_column($f_key);

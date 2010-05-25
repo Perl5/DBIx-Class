@@ -31,7 +31,7 @@ sub _has_one {
       "${class} has none"
     ) if !defined $pri && (!defined $cond || !length $cond);
 
-    my $f_class_loaded = eval { $f_class->columns };
+    my $f_class_loaded = try { $f_class->columns };
     my ($f_key,$too_many,$guess);
     if (defined $cond && length $cond) {
       $f_key = $cond;
@@ -63,7 +63,7 @@ sub _get_primary_key {
   $target_class ||= $class;
   my ($pri, $too_many) = try { $target_class->_pri_cols }
     catch {
-      $class->throw_exception("Can't infer join condition on ${target_class}: $@");
+      $class->throw_exception("Can't infer join condition on ${target_class}: $_");
     };
 
   $class->throw_exception(

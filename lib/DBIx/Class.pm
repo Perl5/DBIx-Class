@@ -43,14 +43,11 @@ sub MODIFY_CODE_ATTRIBUTES {
 sub _attr_cache {
   my $self = shift;
   my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
-  my $rest;
-  my $exception;
-  try {
-    $rest = $self->next::method;
-  } catch {
-    $exception = 1;
+
+  return {
+    %$cache,
+    %{ $self->maybe::next::method || {} },
   };
-  return $exception ? $cache : { %$cache, %$rest };
 }
 
 1;

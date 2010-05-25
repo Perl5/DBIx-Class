@@ -182,6 +182,7 @@ use base 'DBIx::Class::Schema';
 
 use Carp::Clan qw/^DBIx::Class/;
 use Time::HiRes qw/gettimeofday/;
+use Try::Tiny;
 
 __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
@@ -503,7 +504,7 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version = eval {
+    my $version = try {
       $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
                ->next;

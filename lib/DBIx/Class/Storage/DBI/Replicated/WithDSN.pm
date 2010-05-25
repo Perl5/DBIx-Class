@@ -32,7 +32,7 @@ Add C<DSN: > to debugging output.
 around '_query_start' => sub {
   my ($method, $self, $sql, @bind) = @_;
 
-  my $dsn = eval { $self->dsn } || $self->_dbi_connect_info->[0];
+  my $dsn = (try { $self->dsn }) || $self->_dbi_connect_info->[0];
 
   my($op, $rest) = (($sql=~m/^(\w+)(.+)$/),'NOP', 'NO SQL');
   my $storage_type = $self->can('active') ? 'REPLICANT' : 'MASTER';
@@ -41,7 +41,7 @@ around '_query_start' => sub {
     if ((reftype($dsn)||'') ne 'CODE') {
       "$op [DSN_$storage_type=$dsn]$rest";
     }
-    elsif (my $id = eval { $self->id }) {
+    elsif (my $id = try { $self->id }) {
       "$op [$storage_type=$id]$rest";
     }
     else {

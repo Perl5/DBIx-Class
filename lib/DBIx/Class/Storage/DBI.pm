@@ -1017,10 +1017,7 @@ sub _server_info {
 
     my %info;
 
-    my $server_version = do {
-      local $@; # might be happenin in some sort of destructor
-      try { $self->_get_server_version };
-    };
+    my $server_version = try { $self->_get_server_version };
 
     if (defined $server_version) {
       $info{dbms_version} = $server_version;
@@ -1528,7 +1525,7 @@ sub insert {
   if ($opts->{returning}) {
     my @ret_cols = @{$opts->{returning}};
 
-    my @ret_vals = eval {
+    my @ret_vals = try {
       local $SIG{__WARN__} = sub {};
       my @r = $sth->fetchrow_array;
       $sth->finish;
@@ -2144,7 +2141,7 @@ Return the row id of the last insert.
 sub _dbh_last_insert_id {
     my ($self, $dbh, $source, $col) = @_;
 
-    my $id = eval { $dbh->last_insert_id (undef, undef, $source->name, $col) };
+    my $id = try { $dbh->last_insert_id (undef, undef, $source->name, $col) };
 
     return $id if defined $id;
 
@@ -2543,7 +2540,7 @@ sub deploy {
       # place (even though we will ignore errors)
       $self->dbh_do (sub { $_[1]->do($line) });
     } catch {
-      carp qq{$@ (running "${line}")};
+      carp qq{$_ (running "${line}")};
     };
     $self->_query_end($line);
   };

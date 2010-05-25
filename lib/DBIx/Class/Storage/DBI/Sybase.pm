@@ -54,8 +54,9 @@ sub _ping {
 
   if ($dbh->{syb_no_child_con}) {
 # if extra connections are not allowed, then ->ping is reliable
-    my $ping = eval { $dbh->ping };
-    return $@ ? 0 : $ping;
+    my $alive;
+    try { $alive = $dbh->ping } catch { $alive = 0 };
+    return $alive;
   }
 
   my $rc = 1;
@@ -114,8 +115,11 @@ back to the C<32768> which is the L<DBD::Sybase> default.
 
 sub set_textsize {
   my $self = shift;
-  my $text_size = shift ||
-    eval { $self->_dbi_connect_info->[-1]->{LongReadLen} } ||
+  my $text_size =
+    shift
+      ||
+    try { $self->_dbi_connect_info->[-1]->{LongReadLen} }
+      ||
     32768; # the DBD::Sybase default
 
   return unless defined $text_size;

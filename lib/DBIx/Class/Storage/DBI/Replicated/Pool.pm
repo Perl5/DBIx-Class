@@ -300,7 +300,7 @@ sub _safely {
   } catch {
     $replicant->debugobj->print(sprintf(
       "Exception trying to $name for replicant %s, error is %s",
-      $replicant->_dbi_connect_info->[0], $@)
+      $replicant->_dbi_connect_info->[0], $_)
     );
     $rc = undef;
   };

@@ -40,7 +40,7 @@ sub deployment_statements {
   $sqltargs->{quote_table_names} = $quote_char ? 1 : 0;
   $sqltargs->{quote_field_names} = $quote_char ? 1 : 0;
 
-  my $oracle_version = eval { $self->_get_dbh->get_info(18) };
+  my $oracle_version = try { $self->_get_dbh->get_info(18) };
 
   $sqltargs->{producer_args}{oracle_version} = $oracle_version;
 
