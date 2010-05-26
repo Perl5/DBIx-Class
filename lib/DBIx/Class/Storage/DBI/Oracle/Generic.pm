@@ -125,10 +125,10 @@ sub _dbh_execute {
   my $self = shift;
   my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
 
-  my (@res, $retried);
+  my (@res, $tried);
   my $wantarray = wantarray();
   my $next = $self->next::can;
-  while (1) {
+  do {
     try {
       my $exec = sub { $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) };
 
@@ -141,9 +141,11 @@ sub _dbh_execute {
       else {
         @res = $exec->();
       }
+
+      $tried++;
     }
     catch {
-      if (!$retried++ and $_ =~ /ORA-01003/) {
+      if (! $tried and $_ =~ /ORA-01003/) {
         # ORA-01003: no statement parsed (someone changed the table somehow,
         # invalidating your cursor.)
         my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
@@ -153,7 +155,7 @@ sub _dbh_execute {
         $self->throw_exception($_);
       }
     };
-  }
+  } while (! $tried++);
 
   return $wantarray ? @res : $res[0];
 }
