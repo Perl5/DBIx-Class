@@ -125,11 +125,22 @@ sub _dbh_execute {
   my $self = shift;
   my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
 
-  my $retried;
+  my (@res, $retried);
+  my $wantarray = wantarray();
   my $next = $self->next::can;
   while (1) {
     try {
-      return $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args);
+      my $exec = sub { $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) };
+
+      if (!defined $wantarray) {
+        $exec->();
+      }
+      elsif (! $wantarray) {
+        $res[0] = $exec->();
+      }
+      else {
+        @res = $exec->();
+      }
     }
     catch {
       if (!$retried++ and $_ =~ /ORA-01003/) {
@@ -143,6 +154,8 @@ sub _dbh_execute {
       }
     };
   }
+
+  return $wantarray ? @res : $res[0];
 }
 
 =head2 get_autoinc_seq

@@ -728,8 +728,8 @@ sub dbh_do {
   local $self->{_in_dbh_do} = 1;
 
   my @args = @_;
-  try {
-    return $self->$code ($dbh, @args);
+  return try {
+    $self->$code ($dbh, @args);
   } catch {
     $self->throw_exception($_) if $self->connected;
 
