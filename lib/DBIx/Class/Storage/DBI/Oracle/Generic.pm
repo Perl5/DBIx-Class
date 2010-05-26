@@ -125,21 +125,14 @@ sub _dbh_execute {
   my $self = shift;
   my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
 
-  my $wantarray = wantarray;
-  my ($retried, @res);
+  my $retried;
   my $next = $self->next::can;
-  do {
+  while (1) {
     try {
-      if ($wantarray) {
-        @res = $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args);
-      }
-      else {
-        $res[0] = $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args);
-      }
-      $retried++;
+      return $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args);
     }
     catch {
-      if (/ORA-01003/) {
+      if (!$retried++ and $_ =~ /ORA-01003/) {
         # ORA-01003: no statement parsed (someone changed the table somehow,
         # invalidating your cursor.)
         my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
@@ -149,9 +142,7 @@ sub _dbh_execute {
         $self->throw_exception($_);
       }
     };
-  } while (not $retried++);
-
-  return $wantarray ? @res : $res[0];
+  }
 }
 
 =head2 get_autoinc_seq
