@@ -57,7 +57,12 @@ represents.
 
 The query that the ResultSet represents is B<only> executed against
 the database when these methods are called:
-L</find> L</next> L</all> L</first> L</single> L</count>
+L</find>, L</next>, L</all>, L</first>, L</single>, L</count>.
+
+If a resultset is used in a numeric context it returns the L</count>.
+However, if it is used in a boolean context it is B<always> true.  So if
+you want to check if a resultset has any results, you must use C<if $rs
+!= 0>.
 
 =head1 EXAMPLES
 
@@ -101,7 +106,7 @@ attributes with the same keys need resolving.
 L</join>, L</prefetch>, L</+select>, L</+as> attributes are merged
 into the existing ones from the original resultset.
 
-The L</where>, L</having> attribute, and any search conditions are
+The L</where> and L</having> attributes, and any search conditions, are
 merged with an SQL C<AND> to the existing condition from the original
 resultset.
 
@@ -141,13 +146,6 @@ Which is the same as:
   });
 
 See: L</search>, L</count>, L</get_column>, L</all>, L</create>.
-
-=head1 OVERLOADING
-
-If a resultset is used in a numeric context it returns the L</count>.
-However, if it is used in a boolean context it is always true.  So if
-you want to check if a resultset has any results use C<if $rs != 0>.
-C<if $rs> will always be true.
 
 =head1 METHODS
 
