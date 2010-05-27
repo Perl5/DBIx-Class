@@ -5,6 +5,8 @@ use warnings;
 
 use DBIx::Class::ResultSet;
 use SQL::Translator::Parser::DBIx::Class;
+use Data::Dumper::Concise;
+
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/ResultSource/);
 __PACKAGE__->mk_group_accessors(
@@ -151,9 +153,8 @@ sub new {
     my ( $self, @args ) = @_;
     my $new = $self->next::method(@args);
     $new->{deploy_depends_on}
-        = { map { $_ => 1 } @{ ($new->{deploy_depends_on} || []) } };
-    use Data::Dumper;
-    print STDERR Dumper $new;
+        = { map { $_->result_source_instance->name => 1 } @{ $new->{deploy_depends_on}||[] } }
+        unless ref $new->{deploy_depends_on} eq 'HASH';
     return $new;
 }
 

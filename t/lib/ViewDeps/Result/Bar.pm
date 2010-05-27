@@ -11,7 +11,7 @@ use ViewDeps::Result::Baz;
 __PACKAGE__->table('bar');
 
 __PACKAGE__->result_source_instance->deploy_depends_on(
- "ViewDeps::Result::Baz", "ViewDeps::Result::Mixin"  
+["ViewDeps::Result::Baz", "ViewDeps::Result::Mixin"]
 );
 
 __PACKAGE__->add_columns(

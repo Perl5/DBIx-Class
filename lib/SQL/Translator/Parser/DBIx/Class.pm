@@ -11,12 +11,11 @@ use warnings;
 use vars qw($DEBUG $VERSION @EXPORT_OK);
 $VERSION = '1.10';
 $DEBUG = 0 unless defined $DEBUG;
-
+use Data::Dumper;
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use Carp::Clan qw/^SQL::Translator|^DBIx::Class/;
 use Scalar::Util ();
-
 use base qw(Exporter);
 
 @EXPORT_OK = qw(parse);
@@ -264,6 +263,7 @@ sub parse {
     my $dependencies = {
       map { $_ => _resolve_deps ($_, \%tables) } (keys %tables)
     };
+    
     for my $table (sort
       {
         keys %{$dependencies->{$a} || {} } <=> keys %{ $dependencies->{$b} || {} }
@@ -292,13 +292,39 @@ EOW
     }
 
     my %views;
+    #my @view_sources =
+      #sort {
+        #(exists $a->deploy_depends_on->{$b->source_name} ? 1 : 0)
+        #<=>
+        #(exists $b->deploy_depends_on->{$a->source_name} ? 1 : 0)
+      #}
+      #map { $dbicschema->source($_) } (sort keys %view_monikers);
+
+    #my @view_sources =
+        #grep { $_->can('view_definition') } # make sure it's a view
+        #map    { $dbicschema->source($_) } # have to get a source
+        #map    { $tables{$_}{source}{source_name} } # have to get a sourcename
+        #sort {
+            #keys %{ $dependencies->{$a} || {} }
+            #<=>
+            #keys %{ $dependencies->{$b} || {} }
+            #||
+            #$a cmp $b
+        #}
+        #keys %$dependencies;
+    
     my @view_sources =
-      sort {
-        (exists $a->depends_on->{$b->source_name} ? 1 : 0)
-        <=>
-        (exists $b->depends_on->{$a->source_name} ? 1 : 0)
-      }
-      map { $dbicschema->source($_) } (sort keys %view_monikers);
+        sort {
+            keys %{ $dependencies->{$a} || {} }
+            <=>
+            keys %{ $dependencies->{$b} || {} }
+            ||
+            $a cmp $b
+        }
+        map { $dbicschema->source($_) } (sort keys %view_monikers);
+
+        print STDERR Dumper @view_sources;
+        print STDERR Dumper "Dependencies: ", $dependencies;
 
     foreach my $source (@view_sources)
     {

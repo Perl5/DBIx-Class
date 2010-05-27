@@ -36,7 +36,8 @@ my @foo_deps = keys %{ $schema->resultset('Foo')->result_source->deploy_depends_
 isa_ok( $schema->resultset('Bar')->result_source,
     'DBIx::Class::ResultSource::View', 'Bar' );
 
-is( $bar_deps[0], 'mixin', 'which is reported to depend on mixin.' );
+is( $bar_deps[0], 'baz', 'which is reported to depend on baz...' );
+is( $bar_deps[1], 'mixin', 'and on mixin.' );
 is( $foo_deps[0], undef,   'Foo has no dependencies...' );
 
 isa_ok(
@@ -54,5 +55,11 @@ dies_ok {
         { ViewDeps::Result::Mixin->result_source_instance->name => 1 } );
 }
 "...and you cannot use deploy_depends_on with that";
+
+diag("ViewDeps::Foo view definition: ", ViewDeps->source('Foo')->view_definition);
+diag("schema->rs(Bar) view definition: ", $schema->resultset('Bar')->result_source->view_definition);
+
+my $dir = "t/sql"; # tempdir(CLEANUP => 0);
+$schema->create_ddl_dir([ 'PostgreSQL' ], 0.1, $dir);
 
 done_testing;
