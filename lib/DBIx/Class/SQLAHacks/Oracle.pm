@@ -27,10 +27,9 @@ sub new {
 sub select {
     my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
 
-    my ($sql, @bind) = $self->SUPER::select($table, $fields, $where, $rs_attrs, @rest);
-    push @bind, @{$self->{_oracle_connect_by_binds}};
+    my $sql = $self->SUPER::select($table, $fields, $where, $rs_attrs, @rest);
 
-    return wantarray ? ($sql, @bind) : $sql;
+    return wantarray ? ($sql, @{$self->{from_bind}}, @{$self->{where_bind}}, @{$self->{_oracle_connect_by_binds}}, @{$self->{having_bind}}, @{$self->{order_bind}} ) : $sql;
 }
 
 sub _emulate_limit {

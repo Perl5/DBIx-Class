@@ -343,13 +343,16 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
 
     $schema->resultset('Artist')->create ({
         name => 'root',
+        rank => 1,
         cds => [],
         children => [
             {
                 name => 'child1',
+                rank => 2,
                 children => [
                     {
                         name => 'grandchild',
+                        rank => 3,
                         cds => [
                             {
                                 title => "grandchilds's cd" ,
@@ -365,6 +368,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
                         children => [
                             {
                                 name => 'greatgrandchild',
+                                rank => 3,
                             }
                         ],
                     }
@@ -372,6 +376,7 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
             },
             {
                 name => 'child2',
+                rank => 3,
             },
         ],
     });
@@ -622,6 +627,36 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
 
       is( $rs->count, 2, 'Connect By; LIMIT count ok' );
     }
+
+    # combine a connect_by with group_by and having
+    {
+      my $rs = $schema->resultset('Artist')->search({}, {
+        select => ['count(rank)'],
+        start_with => { name => 'root' },
+        connect_by => { parentid => { -prior => \ 'artistid' } },
+        group_by => ['rank'],
+        having => { 'count(rank)' => { '<', 2 } },
+      });
+
+      is_same_sql_bind (
+        $rs->as_query,
+        '(
+            SELECT count(rank)
+            FROM artist me
+            START WITH name = ?
+            CONNECT BY parentid = PRIOR artistid
+            GROUP BY rank HAVING count(rank) < ?
+        )',
+        [ [ name => 'root' ], [ 'count(rank)' => 2 ] ],
+      );
+
+      is_deeply (
+        [ $rs->get_column ('count(rank)')->all ],
+        [1, 1],
+        'Group By a Connect By query - correct values'
+      );
+    }
+
 
     # select the whole cycle tree without nocylce
     {
