@@ -299,19 +299,6 @@ EOW
         #(exists $b->deploy_depends_on->{$a->source_name} ? 1 : 0)
       #}
       #map { $dbicschema->source($_) } (sort keys %view_monikers);
-
-    #my @view_sources =
-        #grep { $_->can('view_definition') } # make sure it's a view
-        #map    { $dbicschema->source($_) } # have to get a source
-        #map    { $tables{$_}{source}{source_name} } # have to get a sourcename
-        #sort {
-            #keys %{ $dependencies->{$a} || {} }
-            #<=>
-            #keys %{ $dependencies->{$b} || {} }
-            #||
-            #$a cmp $b
-        #}
-        #keys %$dependencies;
     
     my @view_sources =
         sort {
@@ -322,8 +309,10 @@ EOW
             $a cmp $b
         }
         map { $dbicschema->source($_) } (sort keys %view_monikers);
-
-        print STDERR Dumper @view_sources;
+        
+        
+        print STDERR "View monikers: ", Dumper %view_monikers;
+        print STDERR "Source name of view source: ", $_->source_name, "\n" for @view_sources;
         print STDERR Dumper "Dependencies: ", $dependencies;
 
     foreach my $source (@view_sources)
