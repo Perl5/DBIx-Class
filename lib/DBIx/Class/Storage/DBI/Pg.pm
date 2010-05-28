@@ -20,6 +20,9 @@ __PACKAGE__->_use_multicolumn_in (1);
 __PACKAGE__->mk_group_accessors('simple' =>
                                     '_pg_cursor_number');
 
+our $DEFAULT_USE_PG_CURSORS=0;
+our $DEFAULT_PG_CURSORS_PAGE_SIZE=1000;
+
 sub _determine_supports_insert_returning {
   return shift->_server_info->{normalized_dbms_version} >= 8.002
     ? 1
@@ -247,14 +250,61 @@ sub _get_next_pg_cursor_number {
     return $ret;
 }
 
+sub __get_tweak_value {
+    my ($self,$attrs,$slot,$default,$extra_test)=@_;
+
+    $extra_test||=sub{1};
+
+    if (   exists $attrs->{$slot}
+        && defined $attrs->{$slot}
+        && $extra_test->($attrs->{$slot})
+    ) {
+        return $attrs->{$slot};
+    }
+    my @info=@{$self->_dbi_connect_info};
+    if (   @info
+        && ref($info[-1]) eq 'HASH'
+        && exists $info[-1]->{$slot}
+        && defined $info[-1]->{$slot}
+        && $extra_test->($info[-1]->{$slot})
+    ) {
+        return $info[-1]->{$slot};
+    }
+    return $default;
+}
+
+sub _should_use_pg_cursors {
+    my ($self,$attrs) = @_;
+
+    return $self->__get_tweak_value($attrs,'use_pg_cursors',$DEFAULT_USE_PG_CURSORS);
+}
+
+sub _get_pg_cursor_page_size {
+    my ($self,$attrs) = @_;
+
+    return $self->__get_tweak_value($attrs,'pg_cursors_page_size',$DEFAULT_PG_CURSORS_PAGE_SIZE,
+                                    sub { $_[0] =~ /^\d+$/ });
+}
+
+sub _select {
+    my $self = shift;
+    my ($ident, $select, $where, $attrs) = @_;
+
+    local $self->{_use_pg_cursors}=$self->_should_use_pg_cursors($attrs);
+    local $self->{_pg_cursor_page_size}=$self->_get_pg_cursor_page_size($attrs);
+
+    return $self->next::method(@_);
+}
+
 sub _dbh_sth {
     my ($self, $dbh, $sql) = @_;
 
-    if ($sql =~ /^SELECT\b/i) {
-        return DBIx::Class::Storage::DBI::Pg::Sth->new($self,$dbh,$sql);
+    if ($self->{_use_pg_cursors} && $sql =~ /^SELECT\b/i) {
+        return DBIx::Class::Storage::DBI::Pg::Sth
+            ->new($self,$dbh,$sql,$self->{_pg_cursor_page_size});
     }
     else { # short-circuit
-        return $self->SUPER::_dbh_sth($dbh,$sql);
+        return $self->next::method($dbh,$sql);
     }
 }
 

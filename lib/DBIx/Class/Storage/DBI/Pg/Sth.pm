@@ -7,10 +7,11 @@ __PACKAGE__->mk_group_accessors('simple' =>
                                     'storage',
                                     'cursor_id', 'cursor_created',
                                     'cursor_sth', 'fetch_sth',
+                                    'page_size',
                             );
 
 sub new {
-    my ($class, $storage, $dbh, $sql) = @_;
+    my ($class, $storage, $dbh, $sql, $page_size) = @_;
 
     if ($sql =~ /^SELECT\b/i) {
         my $self=bless {},$class;
@@ -24,6 +25,7 @@ sub new {
         $self->cursor_id($csr_id);
         $self->cursor_sth($storage->_dbh_sth($dbh,$sql));
         $self->cursor_created(0);
+        $self->page_size($page_size);
         return $self;
     }
     else {
@@ -105,7 +107,11 @@ sub _run_fetch_sth {
     }
 
     $self->fetch_sth->finish if $self->fetch_sth;
-    $self->fetch_sth($self->storage->sth("fetch 1000 from ".$self->cursor_id));
+    $self->fetch_sth($self->storage->sth(
+        sprintf 'fetch %d from %s',
+        $self->page_size,
+        $self->cursor_id
+    ));
     $self->fetch_sth->execute;
 }
 
