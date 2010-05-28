@@ -5,7 +5,8 @@ use base 'Class::Accessor::Grouped';
 
 __PACKAGE__->mk_group_accessors('simple' =>
                                     'storage',
-                                    'cursor_id', 'cursor_created',
+                                    'cursor_id', 'cursor_sql',
+                                    'cursor_created',
                                     'cursor_sth', 'fetch_sth',
                                     'page_size',
                             );
@@ -21,20 +22,28 @@ sub new {
             $storage->_get_next_pg_cursor_number()
         );
         my $hold= ($sql =~ /\bFOR\s+UPDATE\s*\z/i) ? '' : 'WITH HOLD';
-        $sql="DECLARE $csr_id CURSOR $hold FOR $sql";
+        $self->cursor_sql("DECLARE $csr_id CURSOR $hold FOR $sql");
         $self->cursor_id($csr_id);
-        $self->cursor_sth($storage->_dbh_sth($dbh,$sql));
+        $self->cursor_sth(undef);
         $self->cursor_created(0);
         $self->page_size($page_size);
         return $self;
     }
     else {
-        die "Can only be used for SELECTS";
+        die "Can only be used for SELECTs";
     }
 }
 
 sub _cursor_name_from_number {
     return 'dbic_pg_cursor_'.$_[1];
+}
+
+sub _prepare_cursor_sth {
+    my ($self)=@_;
+
+    return if $self->cursor_sth;
+
+    $self->cursor_sth($self->storage->sth($self->cursor_sql));
 }
 
 sub _cleanup_sth {
@@ -62,14 +71,19 @@ sub DESTROY {
 sub bind_param {
     my ($self,@bind_args)=@_;
 
+    $self->_prepare_cursor_sth;
+
     return $self->cursor_sth->bind_param(@bind_args);
 }
 
 sub execute {
     my ($self,@bind_values)=@_;
 
-    $self->cursor_created(1);
-    return $self->cursor_sth->execute(@bind_values);
+    $self->_prepare_cursor_sth;
+
+    my $ret=$self->cursor_sth->execute(@bind_values);
+    $self->cursor_created(1) if $ret;
+    return $ret;
 }
 
 # bind_param_array & execute_array not used for SELECT statements, so
@@ -86,7 +100,7 @@ sub finish {
 
     $self->fetch_sth->finish if $self->fetch_sth;
     return $self->cursor_sth->finish if $self->cursor_sth;
-    return 0;
+    return 1;
 }
 
 sub _check_cursor_end {
@@ -103,7 +117,7 @@ sub _run_fetch_sth {
     my ($self)=@_;
 
     if (!$self->cursor_created) {
-        $self->cursor_sth->execute();
+        $self->execute();
     }
 
     $self->fetch_sth->finish if $self->fetch_sth;

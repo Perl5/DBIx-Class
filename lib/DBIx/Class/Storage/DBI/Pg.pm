@@ -20,6 +20,7 @@ __PACKAGE__->_use_multicolumn_in (1);
 __PACKAGE__->mk_group_accessors('simple' =>
                                     '_pg_cursor_number');
 
+# these are package-vars to allow for evil global overrides
 our $DEFAULT_USE_PG_CURSORS=0;
 our $DEFAULT_PG_CURSORS_PAGE_SIZE=1000;
 
@@ -237,6 +238,7 @@ sub deployment_statements {
 sub _populate_dbh {
     my ($self) = @_;
 
+    # cursors are per-connection, so reset the numbering
     $self->_pg_cursor_number(1);
     return $self->SUPER::_populate_dbh();
 }
@@ -290,6 +292,7 @@ sub _select {
     my $self = shift;
     my ($ident, $select, $where, $attrs) = @_;
 
+    # ugly ugly ugly, but this is the last sub in the call chain that receives $attrs
     local $self->{_use_pg_cursors}=$self->_should_use_pg_cursors($attrs);
     local $self->{_pg_cursor_page_size}=$self->_get_pg_cursor_page_size($attrs);
 
@@ -314,17 +317,46 @@ __END__
 
 =head1 NAME
 
-DBIx::Class::Storage::DBI::Pg - Automatic primary key class for PostgreSQL
+DBIx::Class::Storage::DBI::Pg - PostgreSQL-specific storage
 
 =head1 SYNOPSIS
+
+Automatic primary key support:
 
   # In your result (table) classes
   use base 'DBIx::Class::Core';
   __PACKAGE__->set_primary_key('id');
 
+Using PostgreSQL cursors on fetches:
+
+  my $schema = MySchemaClass->connection(
+                   $dsn, $user, $pass,
+                   {
+                      use_pg_cursors => 1,
+                      pg_cursors_page_size => 1000,
+                   });
+
+  # override at ResultSet level
+  my $rs = $schema->resultset('Something')
+                  ->search({}, { use_pg_cursors => 0});
+
 =head1 DESCRIPTION
 
 This class implements autoincrements for PostgreSQL.
+
+It also implements fetching data via PostgreSQL cursors, as explained
+in the documentation for L<DBD::Pg>.
+
+=head1 CURSORS FETCHING SUPPORT
+
+By default, PostgreSQL cursors are not used. You can turn them on (or
+off again) either via the connection attributes, or via the ResultSet
+attributes (the latter take precedence).
+
+Fetching data using PostgreSQL cursors uses less memory, but is
+slightly slower. You can tune the memory / speed trade-off using the
+C<pg_cursors_page_size> attribute, which defines how many rows to
+fetch at a time (defaults to 1000).
 
 =head1 POSTGRESQL SCHEMA SUPPORT
 
