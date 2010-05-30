@@ -3,6 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use Try::Tiny;
 
 our %_pod_inherit_config = 
   (
@@ -14,10 +15,10 @@ sub has_many {
 
   unless (ref $cond) {
     $class->ensure_class_loaded($f_class);
-    my ($pri, $too_many) = eval { $class->_pri_cols };
-    $class->throw_exception(
-      "Can't infer join condition for ${rel} on ${class}: $@"
-    ) if $@;
+    my ($pri, $too_many) = try { $class->_pri_cols } 
+      catch {
+        $class->throw_exception("Can't infer join condition for ${rel} on ${class}: $_");
+      };
 
     $class->throw_exception(
       "has_many can only infer join for a single primary key; ".
@@ -39,7 +40,7 @@ sub has_many {
       $guess = "using our class name '$class' as foreign key";
     }
 
-    my $f_class_loaded = eval { $f_class->columns };
+    my $f_class_loaded = try { $f_class->columns };
     $class->throw_exception(
       "No such column ${f_key} on foreign class ${f_class} ($guess)"
     ) if $f_class_loaded && !$f_class->has_column($f_key);

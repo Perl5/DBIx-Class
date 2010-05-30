@@ -1,10 +1,14 @@
 Revision history for DBIx::Class
 
+        - Fix find() to use result_class set on object
+        - Fix result_class setter behaviour to not mistakenly stuff attrs.
+        - Don't try and ensure_class_loaded an object. This doesn't work.
         - Add a warning to load_namespaces if a class in ResultSet/
           is not a subclass of DBIx::Class::ResultSet
         - ::Storage::DBI now correctly preserves a parent $dbh from
           terminating children, even during interpreter-global
           out-of-order destruction
+        - All DBIC exception-handling switched to Try::Tiny
         - Add DBIx::Class::FilterColumn for non-ref filtering
         - InflateColumn::DateTime support for MSSQL via DBD::Sybase
         - Millisecond precision support for MSSQL datetimes for
@@ -20,10 +24,13 @@ Revision history for DBIx::Class
           the unsafe_subselect_ok attribute, due to optimized queries
         - Fix as_subselect_rs to not inject resultset class-wide where
           conditions outside of the resulting subquery
+        - Fix nasty potentially data-eating bug when deleting/updating
+          a limited resultset
         - Depend on optimized SQL::Abstract (faster SQL generation)
-        - update on row not in database now OK if no changes - 
-          fixes problems with cascaded unnecessary updates
-
+        - update() on row not in_storage no longer throws an exception
+          if there are no dirty columns to update (fixes cascaded update
+          annoyances)
+        - Update Schema::Versioned to respect hashref style of connection_info
 
 0.08121 2010-04-11 18:43:00 (UTC)
         - Support for Firebird RDBMS with DBD::InterBase and ODBC

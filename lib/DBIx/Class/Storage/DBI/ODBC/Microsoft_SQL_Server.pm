@@ -7,6 +7,7 @@ use mro 'c3';
 
 use List::Util();
 use Scalar::Util ();
+use Try::Tiny;
 
 __PACKAGE__->mk_group_accessors(simple => qw/
   _using_dynamic_cursors
@@ -84,18 +85,17 @@ sub _set_dynamic_cursors {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
 
-  eval {
+  try {
     local $dbh->{RaiseError} = 1;
     local $dbh->{PrintError} = 0;
     $dbh->do('SELECT @@IDENTITY');
-  };
-  if ($@) {
+  } catch {
     $self->throw_exception (<<'EOF');
 
 Your drivers do not seem to support dynamic cursors (odbc_cursortype => 2),
 if you're using FreeTDS, make sure to set tds_version to 8.0 or greater.
 EOF
-  }
+  };
 
   $self->_using_dynamic_cursors(1);
   $self->_identity_method('@@identity');

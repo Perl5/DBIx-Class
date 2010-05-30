@@ -5,6 +5,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 use List::Util();
+use Try::Tiny;
 
 =head1 NAME
 
@@ -125,11 +126,12 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  eval {
+  return try {
     $dbh->do('select 1 from rdb$database');
+    1;
+  } catch {
+    0;
   };
-
-  return $@ ? 0 : 1;
 }
 
 # We want dialect 3 for new features and quoting to work, DBD::InterBase uses

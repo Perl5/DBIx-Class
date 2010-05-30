@@ -5,6 +5,7 @@ use warnings;
 
 use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
+use Try::Tiny;
 use Scalar::Util ();
 use File::Spec;
 use Sub::Name ();
@@ -817,10 +818,14 @@ sub connection {
 
   $storage_class = 'DBIx::Class::Storage'.$storage_class
     if $storage_class =~ m/^::/;
-  eval { $self->ensure_class_loaded ($storage_class) };
-  $self->throw_exception(
-    "No arguments to load_classes and couldn't load ${storage_class} ($@)"
-  ) if $@;
+  try {
+    $self->ensure_class_loaded ($storage_class);
+  }
+  catch {
+    $self->throw_exception(
+      "No arguments to load_classes and couldn't load ${storage_class} ($_)"
+    );
+  };
   my $storage = $storage_class->new($self=>$args);
   $storage->connect_info(\@info);
   $self->storage($storage);
@@ -1400,10 +1405,13 @@ more information.
       unless ($INC{"DBIx/Class/CDBICompat.pm"} || $warn++);
 
     my $base = 'DBIx::Class::ResultSetProxy';
-    eval "require ${base};";
-    $self->throw_exception
-      ("No arguments to load_classes and couldn't load ${base} ($@)")
-        if $@;
+    try {
+      eval "require ${base};"
+    }
+    catch {
+      $self->throw_exception
+        ("No arguments to load_classes and couldn't load ${base} ($_)")
+    };
 
     if ($self eq $target) {
       # Pathological case, largely caused by the docs on early C::M::DBIC::Plain

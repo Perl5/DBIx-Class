@@ -182,6 +182,7 @@ use base 'DBIx::Class::Schema';
 
 use Carp::Clan qw/^DBIx::Class/;
 use Time::HiRes qw/gettimeofday/;
+use Try::Tiny;
 
 __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
@@ -503,7 +504,7 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version = eval {
+    my $version = try {
       $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
                ->next;
@@ -558,24 +559,25 @@ To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or
 sub connection {
   my $self = shift;
   $self->next::method(@_);
-  $self->_on_connect($_[3]);
+  $self->_on_connect();
   return $self;
 }
 
 sub _on_connect
 {
-  my ($self, $args) = @_;
+  my ($self) = @_;
 
-  $args = {} unless $args;
+  my $info = $self->storage->connect_info;
+  my $args = $info->[-1];
 
-  $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
+  $self->{vschema} = DBIx::Class::Version->connect(@$info);
   my $vtable = $self->{vschema}->resultset('Table');
 
   # useful when connecting from scripts etc
   return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
 
   # check for legacy versions table and move to new if exists
-  my $vschema_compat = DBIx::Class::VersionCompat->connect(@{$self->storage->connect_info()});
+  my $vschema_compat = DBIx::Class::VersionCompat->connect(@$info);
   unless ($self->_source_exists($vtable)) {
     my $vtable_compat = $vschema_compat->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
@@ -723,12 +725,9 @@ sub _source_exists
 {
     my ($self, $rs) = @_;
 
-    my $c = eval {
-        $rs->search({ 1, 0 })->count;
-    };
-    return 0 if $@ || !defined $c;
+    my $c = try { $rs->search({ 1, 0 })->count };
 
-    return 1;
+    return (defined $c) ? 1 : 0;
 }
 
 1;

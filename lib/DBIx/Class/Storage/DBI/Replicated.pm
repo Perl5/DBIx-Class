@@ -16,6 +16,7 @@ use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
 use Hash::Merge;
 use List::Util qw/min max reduce/;
+use Try::Tiny;
 
 use namespace::clean -except => 'meta';
 
@@ -650,7 +651,7 @@ sub execute_reliably {
   my @result;
   my $want_array = wantarray;
 
-  eval {
+  try {
     if($want_array) {
       @result = $coderef->(@args);
     } elsif(defined $want_array) {
@@ -658,19 +659,14 @@ sub execute_reliably {
     } else {
       $coderef->(@args);
     }
+  } catch {
+    $self->throw_exception("coderef returned an error: $_");
+  } finally {
+    ##Reset to the original state
+    $self->read_handler($current);
   };
 
-  ##Reset to the original state
-  $self->read_handler($current);
-
-  ##Exception testing has to come last, otherwise you might leave the 
-  ##read_handler set to master.
-
-  if($@) {
-    $self->throw_exception("coderef returned an error: $@");
-  } else {
-    return $want_array ? @result : $result[0];
-  }
+  return $want_array ? @result : $result[0];
 }
 
 =head2 set_reliable_storage

@@ -7,6 +7,7 @@ use base qw/DBIx::Class/;
 
 use DBIx::Class::Exception;
 use Scalar::Util ();
+use Try::Tiny;
 
 ###
 ### Internal method
@@ -862,7 +863,7 @@ sub set_column {
   my ($self, $column, $new_value) = @_;
 
   # if we can't get an ident condition on first try - mark the object as unidentifiable
-  $self->{_orig_ident} ||= (eval { $self->ident_condition }) || {};
+  $self->{_orig_ident} ||= (try { $self->ident_condition }) || {};
 
   my $old_value = $self->get_column($column);
   $new_value = $self->store_column($column, $new_value);

@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Scope::Guard ();
 use Context::Preserve ();
+use Try::Tiny;
 
 =head1 NAME
 
@@ -39,7 +40,7 @@ sub deployment_statements {
   $sqltargs->{quote_table_names} = $quote_char ? 1 : 0;
   $sqltargs->{quote_field_names} = $quote_char ? 1 : 0;
 
-  my $oracle_version = eval { $self->_get_dbh->get_info(18) };
+  my $oracle_version = try { $self->_get_dbh->get_info(18) };
 
   $sqltargs->{producer_args}{oracle_version} = $oracle_version;
 
@@ -85,7 +86,7 @@ sub _dbh_get_autoinc_seq {
     {
       $schema ? (owner => $schema) : (),
       table_name => $table || $source_name,
-      triggering_event => 'INSERT',
+      triggering_event => { -like => '%INSERT%' },
       status => 'ENABLED',
      },
   );
@@ -112,45 +113,51 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  eval {
+  return try {
     $dbh->do('select 1 from dual');
+    1;
+  } catch {
+    0;
   };
-
-  return $@ ? 0 : 1;
 }
 
 sub _dbh_execute {
   my $self = shift;
   my ($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) = @_;
 
-  my $wantarray = wantarray;
+  my (@res, $tried);
+  my $wantarray = wantarray();
+  my $next = $self->next::can;
+  do {
+    try {
+      my $exec = sub { $self->$next($dbh, $op, $extra_bind, $ident, $bind_attributes, @args) };
 
-  my (@res, $exception, $retried);
+      if (!defined $wantarray) {
+        $exec->();
+      }
+      elsif (! $wantarray) {
+        $res[0] = $exec->();
+      }
+      else {
+        @res = $exec->();
+      }
 
-  RETRY: {
-    do {
-      eval {
-        if ($wantarray) {
-          @res    = $self->next::method(@_);
-        } else {
-          $res[0] = $self->next::method(@_);
-        }
-      };
-      $exception = $@;
-      if ($exception =~ /ORA-01003/) {
+      $tried++;
+    }
+    catch {
+      if (! $tried and $_ =~ /ORA-01003/) {
         # ORA-01003: no statement parsed (someone changed the table somehow,
         # invalidating your cursor.)
         my ($sql, $bind) = $self->_prep_for_execute($op, $extra_bind, $ident, \@args);
         delete $dbh->{CachedKids}{$sql};
-      } else {
-        last RETRY;
       }
-    } while (not $retried++);
-  }
+      else {
+        $self->throw_exception($_);
+      }
+    };
+  } while (! $tried++);
 
-  $self->throw_exception($exception) if $exception;
-
-  $wantarray ? @res : $res[0]
+  return $wantarray ? @res : $res[0];
 }
 
 =head2 get_autoinc_seq
@@ -163,19 +170,6 @@ sub get_autoinc_seq {
   my ($self, $source, $col) = @_;
 
   $self->dbh_do('_dbh_get_autoinc_seq', $source, $col);
-}
-
-=head2 columns_info_for
-
-This wraps the superclass version of this method to force table
-names to uppercase
-
-=cut
-
-sub columns_info_for {
-  my ($self, $table) = @_;
-
-  $self->next::method($table);
 }
 
 =head2 datetime_parser_type

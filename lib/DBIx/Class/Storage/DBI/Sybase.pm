@@ -2,6 +2,7 @@ package DBIx::Class::Storage::DBI::Sybase;
 
 use strict;
 use warnings;
+use Try::Tiny;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
@@ -22,12 +23,12 @@ L<DBD::Sybase>
 sub _rebless {
   my $self = shift;
 
-  my $dbtype = eval {
-    @{$self->_get_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
+  my $dbtype;
+  try {
+    $dbtype = @{$self->_get_dbh->selectrow_arrayref(qq{sp_server_info \@attribute_id=1})}[2]
+  } catch {
+    $self->throw_exception("Unable to estable connection to determine database type: $_")
   };
-
-  $self->throw_exception("Unable to estable connection to determine database type: $@")
-    if $@;
 
   if ($dbtype) {
     $dbtype =~ s/\W/_/gi;
@@ -53,17 +54,17 @@ sub _ping {
 
   if ($dbh->{syb_no_child_con}) {
 # if extra connections are not allowed, then ->ping is reliable
-    my $ping = eval { $dbh->ping };
-    return $@ ? 0 : $ping;
+    return try { $dbh->ping } catch { 0; };
   }
 
-  eval {
+  return try {
 # XXX if the main connection goes stale, does opening another for this statement
 # really determine anything?
     $dbh->do('select 1');
+    1;
+  } catch {
+    0;
   };
-
-  return $@ ? 0 : 1;
 }
 
 sub _set_max_connect {
@@ -110,8 +111,11 @@ back to the C<32768> which is the L<DBD::Sybase> default.
 
 sub set_textsize {
   my $self = shift;
-  my $text_size = shift ||
-    eval { $self->_dbi_connect_info->[-1]->{LongReadLen} } ||
+  my $text_size =
+    shift
+      ||
+    try { $self->_dbi_connect_info->[-1]->{LongReadLen} }
+      ||
     32768; # the DBD::Sybase default
 
   return unless defined $text_size;

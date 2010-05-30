@@ -5,6 +5,7 @@ use warnings;
 
 use Scalar::Util ();
 use base qw/DBIx::Class/;
+use Try::Tiny;
 
 =head1 NAME
 
@@ -237,15 +238,16 @@ sub related_resultset {
 
     # condition resolution may fail if an incomplete master-object prefetch
     # is encountered - that is ok during prefetch construction (not yet in_storage)
-    my $cond = eval { $source->_resolve_condition( $rel_info->{cond}, $rel, $self ) };
-    if (my $err = $@) {
-      if ($self->in_storage) {
-        $self->throw_exception ($err);
-      }
-      else {
-        $cond = $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION;
-      }
+    my $cond = try {
+      $source->_resolve_condition( $rel_info->{cond}, $rel, $self )
     }
+    catch {
+      if ($self->in_storage) {
+        $self->throw_exception ($_);
+      }
+
+      $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION;  # RV
+    };
 
     if ($cond eq $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION) {
       my $reverse = $source->reverse_relationship_info($rel);

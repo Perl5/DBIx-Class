@@ -15,7 +15,7 @@ use Scalar::Util();
 use List::Util();
 use Data::Dumper::Concise();
 use Sub::Name ();
-
+use Try::Tiny;
 use File::Path ();
 
 __PACKAGE__->mk_group_accessors('simple' =>
@@ -47,6 +47,7 @@ __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
 my @rdbms_specific_methods = qw/
   deployment_statements
   sqlt_type
+  sql_maker
   build_datetime_parser
   datetime_parser_type
 
@@ -157,8 +158,7 @@ sub DESTROY {
 
   # some databases need this to stop spewing warnings
   if (my $dbh = $self->_dbh) {
-    local $@;
-    eval {
+    try {
       %{ $dbh->{CachedKids} } = ();
       $dbh->disconnect;
     };
@@ -722,39 +722,25 @@ sub dbh_do {
 
   my $dbh = $self->_get_dbh;
 
-  return $self->$code($dbh, @_) if $self->{_in_dbh_do}
-      || $self->{transaction_depth};
+  return $self->$code($dbh, @_)
+    if ( $self->{_in_dbh_do} || $self->{transaction_depth} );
 
   local $self->{_in_dbh_do} = 1;
 
-  my @result;
-  my $want_array = wantarray;
+  my @args = @_;
+  return try {
+    $self->$code ($dbh, @args);
+  } catch {
+    $self->throw_exception($_) if $self->connected;
 
-  eval {
+    # We were not connected - reconnect and retry, but let any
+    #  exception fall right through this time
+    carp "Retrying $code after catching disconnected exception: $_"
+      if $ENV{DBIC_DBIRETRY_DEBUG};
 
-    if($want_array) {
-        @result = $self->$code($dbh, @_);
-    }
-    elsif(defined $want_array) {
-        $result[0] = $self->$code($dbh, @_);
-    }
-    else {
-        $self->$code($dbh, @_);
-    }
+    $self->_populate_dbh;
+    $self->$code($self->_dbh, @args);
   };
-
-  # ->connected might unset $@ - copy
-  my $exception = $@;
-  if(!$exception) { return $want_array ? @result : $result[0] }
-
-  $self->throw_exception($exception) if $self->connected;
-
-  # We were not connected - reconnect and retry, but let any
-  #  exception fall right through this time
-  carp "Retrying $code after catching disconnected exception: $exception"
-    if $ENV{DBIC_DBIRETRY_DEBUG};
-  $self->_populate_dbh;
-  $self->$code($self->_dbh, @_);
 }
 
 # This is basically a blend of dbh_do above and DBIx::Class::Storage::txn_do.
@@ -776,30 +762,32 @@ sub txn_do {
 
   my $tried = 0;
   while(1) {
-    eval {
+    my $exception;
+    my @args = @_;
+    try {
       $self->_get_dbh;
 
       $self->txn_begin;
       if($want_array) {
-          @result = $coderef->(@_);
+          @result = $coderef->(@args);
       }
       elsif(defined $want_array) {
-          $result[0] = $coderef->(@_);
+          $result[0] = $coderef->(@args);
       }
       else {
-          $coderef->(@_);
+          $coderef->(@args);
       }
       $self->txn_commit;
+    } catch {
+      $exception = $_;
     };
 
-    # ->connected might unset $@ - copy
-    my $exception = $@;
-    if(!$exception) { return $want_array ? @result : $result[0] }
+    if(! defined $exception) { return $want_array ? @result : $result[0] }
 
     if($tried++ || $self->connected) {
-      eval { $self->txn_rollback };
-      my $rollback_exception = $@;
-      if($rollback_exception) {
+      my $rollback_exception;
+      try { $self->txn_rollback } catch { $rollback_exception = shift };
+      if(defined $rollback_exception) {
         my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
         $self->throw_exception($exception)  # propagate nested rollback
           if $rollback_exception =~ /$exception_class/;
@@ -1012,10 +1000,7 @@ sub _server_info {
 
     my %info;
 
-    my $server_version = do {
-      local $@; # might be happenin in some sort of destructor
-      eval { $self->_get_server_version };
-    };
+    my $server_version = try { $self->_get_server_version };
 
     if (defined $server_version) {
       $info{dbms_version} = $server_version;
@@ -1172,7 +1157,7 @@ sub _connect {
     $DBI::connect_via = 'connect';
   }
 
-  eval {
+  try {
     if(ref $info[0] eq 'CODE') {
        $dbh = $info[0]->();
     }
@@ -1180,7 +1165,11 @@ sub _connect {
        $dbh = DBI->connect(@info);
     }
 
-    if($dbh && !$self->unsafe) {
+    if (!$dbh) {
+      die $DBI::errstr;
+    }
+
+    unless ($self->unsafe) {
       my $weak_self = $self;
       Scalar::Util::weaken($weak_self);
       $dbh->{HandleError} = sub {
@@ -1197,15 +1186,15 @@ sub _connect {
       $dbh->{RaiseError} = 1;
       $dbh->{PrintError} = 0;
     }
+  }
+  catch {
+    $self->throw_exception("DBI Connection failed: $_")
+  }
+  finally {
+    $DBI::connect_via = $old_connect_via if $old_connect_via;
   };
 
-  $DBI::connect_via = $old_connect_via if $old_connect_via;
-
-  $self->throw_exception("DBI Connection failed: " . ($@||$DBI::errstr))
-    if !$dbh || $@;
-
   $self->_dbh_autocommit($dbh->{AutoCommit});
-
   $dbh;
 }
 
@@ -1353,7 +1342,7 @@ sub _dbh_commit {
 sub txn_rollback {
   my $self = shift;
   my $dbh = $self->_dbh;
-  eval {
+  try {
     if ($self->{transaction_depth} == 1) {
       $self->debugobj->txn_rollback()
         if ($self->debug);
@@ -1371,15 +1360,17 @@ sub txn_rollback {
     else {
       die DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION->new;
     }
-  };
-  if ($@) {
-    my $error = $@;
-    my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
-    $error =~ /$exception_class/ and $self->throw_exception($error);
-    # ensure that a failed rollback resets the transaction depth
-    $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
-    $self->throw_exception($error);
   }
+  catch {
+    my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
+
+    if ($_ !~ /$exception_class/) {
+      # ensure that a failed rollback resets the transaction depth
+      $self->{transaction_depth} = $self->_dbh_autocommit ? 0 : 1;
+    }
+
+    $self->throw_exception($_)
+  };
 }
 
 sub _dbh_rollback {
@@ -1521,7 +1512,7 @@ sub insert {
   if ($opts->{returning}) {
     my @ret_cols = @{$opts->{returning}};
 
-    my @ret_vals = eval {
+    my @ret_vals = try {
       local $SIG{__WARN__} = sub {};
       my @r = $sth->fetchrow_array;
       $sth->finish;
@@ -1676,16 +1667,27 @@ sub _execute_array {
     $placeholder_index++;
   }
 
-  my $rv = eval {
-    $self->_dbh_execute_array($sth, $tuple_status, @extra);
+  my ($rv, $err);
+  try {
+    $rv = $self->_dbh_execute_array($sth, $tuple_status, @extra);
+  }
+  catch {
+    $err = shift;
+  }
+  finally {
+    # Statement must finish even if there was an exception.
+    try {
+      $sth->finish
+    }
+    catch {
+      $err = shift unless defined $err 
+    };
   };
-  my $err = $@ || $sth->errstr;
 
-# Statement must finish even if there was an exception.
-  eval { $sth->finish };
-  $err = $@ unless $err;
+  $err = $sth->errstr
+    if (! defined $err and $sth->err);
 
-  if ($err) {
+  if (defined $err) {
     my $i = 0;
     ++$i while $i <= $#$tuple_status && !ref $tuple_status->[$i];
 
@@ -1699,6 +1701,7 @@ sub _execute_array {
       }),
     );
   }
+
   return $rv;
 }
 
@@ -1711,20 +1714,28 @@ sub _dbh_execute_array {
 sub _dbh_execute_inserts_with_no_binds {
   my ($self, $sth, $count) = @_;
 
-  eval {
+  my $err;
+  try {
     my $dbh = $self->_get_dbh;
     local $dbh->{RaiseError} = 1;
     local $dbh->{PrintError} = 0;
 
     $sth->execute foreach 1..$count;
+  }
+  catch {
+    $err = shift;
+  }
+  finally {
+    # Make sure statement is finished even if there was an exception.
+    try {
+      $sth->finish
+    }
+    catch {
+      $err = shift unless defined $err;
+    };
   };
-  my $exception = $@;
 
-# Make sure statement is finished even if there was an exception.
-  eval { $sth->finish };
-  $exception = $@ unless $exception;
-
-  $self->throw_exception($exception) if $exception;
+  $self->throw_exception($err) if defined $err;
 
   return $count;
 }
@@ -2059,7 +2070,8 @@ sub _dbh_columns_info_for {
 
   if ($dbh->can('column_info')) {
     my %result;
-    eval {
+    my $caught;
+    try {
       my ($schema,$tab) = $table =~ /^(.+?)\.(.+)$/ ? ($1,$2) : (undef,$table);
       my $sth = $dbh->column_info( undef,$schema, $tab, '%' );
       $sth->execute();
@@ -2074,8 +2086,10 @@ sub _dbh_columns_info_for {
 
         $result{$col_name} = \%column_info;
       }
+    } catch {
+      $caught = 1;
     };
-    return \%result if !$@ && scalar keys %result;
+    return \%result if !$caught && scalar keys %result;
   }
 
   my %result;
@@ -2125,7 +2139,7 @@ Return the row id of the last insert.
 sub _dbh_last_insert_id {
     my ($self, $dbh, $source, $col) = @_;
 
-    my $id = eval { $dbh->last_insert_id (undef, undef, $source->name, $col) };
+    my $id = try { $dbh->last_insert_id (undef, undef, $source->name, $col) };
 
     return $id if defined $id;
 
@@ -2176,12 +2190,15 @@ sub _placeholders_supported {
 
   # some drivers provide a $dbh attribute (e.g. Sybase and $dbh->{syb_dynamic_supported})
   # but it is inaccurate more often than not
-  eval {
+  return try {
     local $dbh->{PrintError} = 0;
     local $dbh->{RaiseError} = 1;
     $dbh->do('select ?', {}, 1);
+    1;
+  }
+  catch {
+    0;
   };
-  return $@ ? 0 : 1;
 }
 
 # Check if placeholders bound to non-string types throw exceptions
@@ -2190,13 +2207,16 @@ sub _typeless_placeholders_supported {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
 
-  eval {
+  return try {
     local $dbh->{PrintError} = 0;
     local $dbh->{RaiseError} = 1;
     # this specifically tests a bind that is NOT a string
     $dbh->do('select 1 where 1 = ?', {}, 1);
+    1;
+  }
+  catch {
+    0;
   };
-  return $@ ? 0 : 1;
 }
 
 =head2 sqlt_type
@@ -2513,14 +2533,13 @@ sub deploy {
     return if($line =~ /^COMMIT/m);
     return if $line =~ /^\s+$/; # skip whitespace only
     $self->_query_start($line);
-    eval {
+    try {
       # do a dbh_do cycle here, as we need some error checking in
       # place (even though we will ignore errors)
       $self->dbh_do (sub { $_[1]->do($line) });
+    } catch {
+      carp qq{$_ (running "${line}")};
     };
-    if ($@) {
-      carp qq{$@ (running "${line}")};
-    }
     $self->_query_end($line);
   };
   my @statements = $schema->deployment_statements($type, undef, $dir, { %{ $sqltargs || {} }, no_comments => 1 } );
