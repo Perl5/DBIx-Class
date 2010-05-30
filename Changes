@@ -32,7 +32,10 @@ Revision history for DBIx::Class
         - update() on row not in_storage no longer throws an exception
           if there are no dirty columns to update (fixes cascaded update
           annoyances)
-        - Update Schema::Versioned to respect hashref style of connection_info
+        - Update Schema::Versioned to respect hashref style of
+          connection_info
+        - Do not recreate the same related object twice during MultiCreate
+          (solves the problem of orphaned IC::FS files)
 
     * Misc
         - Add a warning to load_namespaces if a class in ResultSet/
