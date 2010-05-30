@@ -1922,19 +1922,13 @@ sub _select_args {
   }
 
   # adjust limits
-  if (
-    $attrs->{software_limit}
-      ||
-    $sql_maker->_default_limit_syntax eq "GenericSubQ"
-  ) {
-    $attrs->{software_limit} = 1;
-  }
-  else {
+  if (defined $attrs->{rows}) {
     $self->throw_exception("rows attribute must be positive if present")
-      if (defined($attrs->{rows}) && !($attrs->{rows} > 0));
-
+      unless $attrs->{rows} > 0;
+  }
+  elsif (defined $attrs->{offset}) {
     # MySQL actually recommends this approach.  I cringe.
-    $attrs->{rows} = 2**48 if not defined $attrs->{rows} and defined $attrs->{offset};
+    $attrs->{rows} = 2**32;
   }
 
   my @limit;

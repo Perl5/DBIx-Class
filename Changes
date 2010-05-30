@@ -22,6 +22,9 @@ Revision history for DBIx::Class
           resultsets
         - MSSQL limits now don't require nearly as many applications of
           the unsafe_subselect_ok attribute, due to optimized queries
+        - Support for Generic Subquery limit "emulation" - awfully slow
+          and inefficient but works on almost any db, and is preferred
+          to a soft-limit
         - Fix as_subselect_rs to not inject resultset class-wide where
           conditions outside of the resulting subquery
         - Fix nasty potentially data-eating bug when deleting/updating
