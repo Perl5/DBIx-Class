@@ -7,7 +7,6 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use ViewDeps;
-use Devel::Dwarn;
 
 BEGIN {
     use_ok('DBIx::Class::ResultSource::View');
@@ -26,9 +25,9 @@ can_ok( $view, $_ ) for qw/new from deploy_depends_on/;
 
 my $schema = ViewDeps->connect;
 ok( $schema, 'Connected to ViewDeps schema OK' );
-my $bar_rs = $schema->resultset('Bar');
 
-#diag(DwarnS $bar_rs->result_source);
+
+my $bar_rs = $schema->resultset('Bar');
 
 my @bar_deps
     = keys %{ $schema->resultset('Bar')->result_source->deploy_depends_on };
@@ -59,14 +58,9 @@ dies_ok {
 }
 "...and you cannot use deploy_depends_on with that";
 
-diag(
-    "ViewDeps::Foo view definition: ",
-    ViewDeps->source('Foo')->view_definition
-);
-diag( "schema->rs(Bar) view definition: ",
-    $schema->resultset('Bar')->result_source->view_definition );
+is(ViewDeps->source('Foo')->view_definition, $schema->resultset('Bar')->result_source->view_definition, "Package Foo's view definition is equivalent to resultset Bar's view definition");
 
-my $dir = "t/sql";    # tempdir(CLEANUP => 0);
+my $dir = "t/sql";
 $schema->create_ddl_dir( ['PostgreSQL','SQLite'], 0.1, $dir );
 
 done_testing;

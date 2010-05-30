@@ -11,7 +11,7 @@ use warnings;
 use vars qw($DEBUG $VERSION @EXPORT_OK);
 $VERSION = '1.10';
 $DEBUG = 0 unless defined $DEBUG;
-use Data::Dumper;
+
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use Carp::Clan qw/^SQL::Translator|^DBIx::Class/;
@@ -292,28 +292,17 @@ EOW
     }
 
     my %views;
-    #my @view_sources =
-      #sort {
-        #(exists $a->deploy_depends_on->{$b->source_name} ? 1 : 0)
-        #<=>
-        #(exists $b->deploy_depends_on->{$a->source_name} ? 1 : 0)
-      #}
-      #map { $dbicschema->source($_) } (sort keys %view_monikers);
-    
+        
     my @view_sources =
-        sort {
-            keys %{ $dependencies->{$a} || {} }
-            <=>
-            keys %{ $dependencies->{$b} || {} }
-            ||
-            $a cmp $b
-        }
-        map { $dbicschema->source($_) } (sort keys %view_monikers);
-        
-        
-        print STDERR "View monikers: ", Dumper %view_monikers;
-        print STDERR "Source name of view source: ", $_->source_name, "\n" for @view_sources;
-        print STDERR Dumper "Dependencies: ", $dependencies;
+    sort {
+        keys %{ $dependencies->{$a} || {} }
+        <=>
+        keys %{ $dependencies->{$b} || {} }
+        ||
+        $a cmp $b
+    }
+    map { $dbicschema->source($_) }
+    keys %view_monikers;
 
     foreach my $source (@view_sources)
     {
