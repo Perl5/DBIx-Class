@@ -209,8 +209,8 @@ has config => (
 sub _build_config {
   my ($self) = @_;
 
-  eval { require Config::Any }
-    or die ("Config::Any is required to parse the config file.\n");
+  try { require Config::Any }
+    catch { die ("Config::Any is required to parse the config file.\n") };
 
   my $cfg = Config::Any->load_files ( {files => [$self->config_file], use_ext =>1, flatten_to_hash=>1});
 

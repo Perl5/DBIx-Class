@@ -50,6 +50,7 @@ my $runtime_requires = {
   'Data::Dumper::Concise'    => '1.000',
   'Scope::Guard'             => '0.03',
   'Context::Preserve'        => '0.01',
+  'Try::Tiny'                => '0.04',
 };
 
 # this is so we can order requires alphabetically

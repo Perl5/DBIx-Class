@@ -182,6 +182,7 @@ use base 'DBIx::Class::Schema';
 
 use Carp::Clan qw/^DBIx::Class/;
 use Time::HiRes qw/gettimeofday/;
+use Try::Tiny;
 
 __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
@@ -503,7 +504,7 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version = eval {
+    my $version = try {
       $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
                ->next;
@@ -724,12 +725,9 @@ sub _source_exists
 {
     my ($self, $rs) = @_;
 
-    my $c = eval {
-        $rs->search({ 1, 0 })->count;
-    };
-    return 0 if $@ || !defined $c;
+    my $c = try { $rs->search({ 1, 0 })->count };
 
-    return 1;
+    return (defined $c) ? 1 : 0;
 }
 
 1;

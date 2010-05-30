@@ -6,6 +6,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use Try::Tiny;
 
 our %_pod_inherit_config = 
   (
@@ -24,10 +25,10 @@ sub belongs_to {
   # no join condition or just a column name
   if (!ref $cond) {
     $class->ensure_class_loaded($f_class);
-    my %f_primaries = map { $_ => 1 } eval { $f_class->_pri_cols };
-    $class->throw_exception(
-      "Can't infer join condition for ${rel} on ${class}: $@"
-    ) if $@;
+    my %f_primaries = map { $_ => 1 } try { $f_class->_pri_cols }
+      catch {
+        $class->throw_exception( "Can't infer join condition for ${rel} on ${class}: $_");
+      };
 
     my ($pri, $too_many) = keys %f_primaries;
     $class->throw_exception(

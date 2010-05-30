@@ -7,6 +7,7 @@ use base qw/DBIx::Class/;
 
 use DBIx::Class::Exception;
 use Scalar::Util ();
+use Try::Tiny;
 
 ###
 ### Internal method
@@ -404,18 +405,13 @@ sub insert {
       my $reverse = $source->reverse_relationship_info($relname);
       foreach my $obj (@cands) {
         $obj->set_from_related($_, $self) for keys %$reverse;
-        my $them = { %{$obj->{_relationship_data} || {} }, $obj->get_inflated_columns };
         if ($self->__their_pk_needs_us($relname)) {
           if (exists $self->{_ignore_at_insert}{$relname}) {
             MULTICREATE_DEBUG and warn "MC $self skipping post-insert on $relname";
-          } else {
-            MULTICREATE_DEBUG and warn "MC $self re-creating $relname $obj";
-            my $re = $self->result_source
-                          ->related_source($relname)
-                          ->resultset
-                          ->create($them);
-            %{$obj} = %{$re};
-            MULTICREATE_DEBUG and warn "MC $self new $relname $obj";
+          }
+          else {
+            MULTICREATE_DEBUG and warn "MC $self inserting $relname $obj";
+            $obj->insert;
           }
         } else {
           MULTICREATE_DEBUG and warn "MC $self post-inserting $obj";
@@ -862,7 +858,7 @@ sub set_column {
   my ($self, $column, $new_value) = @_;
 
   # if we can't get an ident condition on first try - mark the object as unidentifiable
-  $self->{_orig_ident} ||= (eval { $self->ident_condition }) || {};
+  $self->{_orig_ident} ||= (try { $self->ident_condition }) || {};
 
   my $old_value = $self->get_column($column);
   $new_value = $self->store_column($column, $new_value);

@@ -4,6 +4,7 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class/;
+use Try::Tiny;
 
 our %_pod_inherit_config = 
   (
@@ -30,7 +31,7 @@ sub _has_one {
       "${class} has none"
     ) if !defined $pri && (!defined $cond || !length $cond);
 
-    my $f_class_loaded = eval { $f_class->columns };
+    my $f_class_loaded = try { $f_class->columns };
     my ($f_key,$too_many,$guess);
     if (defined $cond && length $cond) {
       $f_key = $cond;
@@ -60,10 +61,10 @@ sub _has_one {
 sub _get_primary_key {
   my ( $class, $target_class ) = @_;
   $target_class ||= $class;
-  my ($pri, $too_many) = eval { $target_class->_pri_cols };
-  $class->throw_exception(
-    "Can't infer join condition on ${target_class}: $@"
-  ) if $@;
+  my ($pri, $too_many) = try { $target_class->_pri_cols }
+    catch {
+      $class->throw_exception("Can't infer join condition on ${target_class}: $_");
+    };
 
   $class->throw_exception(
     "might_have/has_one can only infer join for a single primary key; ".

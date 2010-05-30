@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Scope::Guard ();
 use lib qw(t/lib);
 use DBICTest;
 
@@ -27,20 +28,20 @@ my @info = (
   [ $dsn2, $user2, $pass2 ],
 );
 
-my @handles_to_clean;
+my $schema;
 
 foreach my $info (@info) {
   my ($dsn, $user, $pass) = @$info;
 
   next unless $dsn;
 
-  my $schema = DBICTest::Schema->clone;
+  $schema = DBICTest::Schema->clone;
 
   $schema->connection($dsn, $user, $pass, {
     on_connect_call => [ 'datetime_setup' ],
   });
 
-  push @handles_to_clean, $schema->storage->dbh;
+  my $sg = Scope::Guard->new(\&cleanup); 
 
 # coltype, col, date
   my @dt_types = (
@@ -72,7 +73,7 @@ SQL
       ->search({ trackid => $row->trackid }, { select => [$col] })
       ->first
     );
-    is( $row->$col, $dt, 'DateTime roundtrip' );
+    is( $row->$col, $dt, "$type roundtrip" );
 
     is $row->$col->nanosecond, $dt->nanosecond,
         'nanoseconds survived' if 0+$dt->nanosecond;
@@ -82,8 +83,8 @@ SQL
 done_testing;
 
 # clean up our mess
-END {
-  foreach my $dbh (@handles_to_clean) {
+sub cleanup {
+  if (my $dbh = $schema->storage->dbh) {
     eval { $dbh->do("DROP TABLE $_") } for qw/track/;
   }
 }

@@ -13,6 +13,7 @@ use Scalar::Util();
 use List::Util();
 use Sub::Name();
 use Data::Dumper::Concise();
+use Try::Tiny;
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_identity _blob_log_on_update _writer_storage _is_extra_storage
@@ -596,7 +597,8 @@ EOF
       return 0;
   });
 
-  eval {
+  my $exception;
+  try {
     my $bulk = $self->_bulk_storage;
 
     my $guard = $bulk->txn_scope_guard;
@@ -640,9 +642,10 @@ EOF
     );
 
     $bulk->_query_end($sql);
+  } catch {
+    $exception = shift;
   };
 
-  my $exception = $@;
   DBD::Sybase::set_cslib_cb($orig_cslib_cb);
 
   if ($exception =~ /-Y option/) {
@@ -728,9 +731,11 @@ sub _remove_blob_cols_array {
 sub _update_blobs {
   my ($self, $source, $blob_cols, $where) = @_;
 
-  my @primary_cols = eval { $source->_pri_cols };
-  $self->throw_exception("Cannot update TEXT/IMAGE column(s): $@")
-    if $@;
+  my @primary_cols = try
+    { $source->_pri_cols }
+    catch {
+      $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
+    };
 
 # check if we're updating a single row by PK
   my $pk_cols_in_where = 0;
@@ -762,9 +767,11 @@ sub _insert_blobs {
   my $table = $source->name;
 
   my %row = %$row;
-  my @primary_cols = eval { $source->_pri_cols} ;
-  $self->throw_exception("Cannot update TEXT/IMAGE column(s): $@")
-    if $@;
+  my @primary_cols = try
+    { $source->_pri_cols }
+    catch {
+      $self->throw_exception("Cannot update TEXT/IMAGE column(s): $_")
+    };
 
   $self->throw_exception('Cannot update TEXT/IMAGE column(s) without primary key values')
     if ((grep { defined $row{$_} } @primary_cols) != @primary_cols);
@@ -779,14 +786,13 @@ sub _insert_blobs {
     my $sth = $cursor->sth;
 
     if (not $sth) {
-
       $self->throw_exception(
           "Could not find row in table '$table' for blob update:\n"
         . Data::Dumper::Concise::Dumper (\%where)
       );
     }
 
-    eval {
+    try {
       do {
         $sth->func('CS_GET', 1, 'ct_data_info') or die $sth->errstr;
       } while $sth->fetch;
@@ -804,19 +810,20 @@ sub _insert_blobs {
       $sth->func($blob, length($blob), 'ct_send_data') or die $sth->errstr;
 
       $sth->func('ct_finish_send') or die $sth->errstr;
-    };
-    my $exception = $@;
-    $sth->finish if $sth;
-    if ($exception) {
+    }
+    catch {
       if ($self->using_freetds) {
         $self->throw_exception (
-          'TEXT/IMAGE operation failed, probably because you are using FreeTDS: '
-          . $exception
+          "TEXT/IMAGE operation failed, probably because you are using FreeTDS: $_"
         );
-      } else {
-        $self->throw_exception($exception);
+      }
+      else {
+        $self->throw_exception($_);
       }
     }
+    finally {
+      $sth->finish if $sth;
+    };
   }
 }
 

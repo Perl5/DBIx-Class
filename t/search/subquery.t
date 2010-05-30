@@ -16,12 +16,12 @@ my $cdrs = $schema->resultset('CD');
 my @tests = (
   {
     rs => $cdrs,
-    search => \[ "title = ? AND year LIKE ?", 'buahaha', '20%' ],
+    search => \[ "title = ? AND year LIKE ?", [ title => 'buahaha' ], [ year => '20%' ] ],
     attrs => { rows => 5 },
     sqlbind => \[
       "( SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track FROM cd me WHERE (title = ? AND year LIKE ?) LIMIT 5)",
-      'buahaha',
-      '20%',
+      [ title => 'buahaha' ],
+      [ year => '20%' ],
     ],
   },
 
@@ -157,8 +157,6 @@ my @tests = (
 );
 
 
-plan tests => @tests * 2;
-
 for my $i (0 .. $#tests) {
   my $t = $tests[$i];
   for my $p (1, 2) {  # repeat everything twice, make sure we do not clobber search arguments
@@ -169,3 +167,5 @@ for my $i (0 .. $#tests) {
     );
   }
 }
+
+done_testing;
