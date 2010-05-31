@@ -301,6 +301,7 @@ for my $dialect (
       is ($limited_rs->count_rs->next, 6, "$test_type: Correct count_rs of limited right-sorted joined resultset");
 
       my $queries;
+      my $orig_debug = $schema->storage->debug;
       $schema->storage->debugcb(sub { $queries++; });
       $schema->storage->debug(1);
 
@@ -312,7 +313,7 @@ for my $dialect (
       is ($queries, 1, "$test_type: Only one query with prefetch");
 
       $schema->storage->debugcb(undef);
-      $schema->storage->debug(0);
+      $schema->storage->debug($orig_debug);
 
       is_deeply (
         [map { $_->name } ($limited_rs->search_related ('owner')->all) ],
@@ -338,7 +339,10 @@ for my $dialect (
     my ($sql, @bind) = @${$owners->page(3)->as_query};
     is_deeply (
       \@bind,
-      [ ([ 'me.name' => 'somebogusstring' ], [ test => 'xxx' ]) x 2 ],  # double because of the prefetch subq
+      [
+        $dialect eq 'Top' ? [ test => 'xxx' ] : (),                 # the extra re-order bind
+        ([ 'me.name' => 'somebogusstring' ], [ test => 'xxx' ]) x 2 # double because of the prefetch subq
+      ],
     );
 
     is ($owners->page(1)->all, 3, "$test_type: has_many prefetch returns correct number of rows");

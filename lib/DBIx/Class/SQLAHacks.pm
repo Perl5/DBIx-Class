@@ -340,6 +340,12 @@ sub _Top {
 
       $mid_sel .= ', ' . $extra_order_sel->{$extra_col};
     }
+
+    # since whatever order bindvals there are, they will be realiased
+    # and need to show up in front of the entire initial inner subquery
+    # Unshift *from_bind* to make this happen (horrible, horrible, but
+    # we don't have another mechanism yet)
+    unshift @{$self->{from_bind}}, @{$self->{order_bind}};
   }
 
   # and this is order re-alias magic

@@ -1466,7 +1466,9 @@ sub _dbh_execute {
 
   # Can this fail without throwing an exception anyways???
   my $rv = $sth->execute();
-  $self->throw_exception($sth->errstr) if !$rv;
+  $self->throw_exception(
+    $sth->errstr || $sth->err || 'Unknown error: execute() returned false, but error flags were not set...'
+  ) if !$rv;
 
   $self->_query_end( $sql, @$bind );
 
