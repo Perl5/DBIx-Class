@@ -8,6 +8,8 @@ use DBIx::Class::ResultSourceHandle;
 
 use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
+use Try::Tiny;
+use namespace::clean;
 
 use base qw/DBIx::Class/;
 
@@ -142,7 +144,7 @@ by supplying an L</accessor> in the column_info hash.
 If a column name beginning with a plus sign ('+col1') is provided, the
 attributes provided will be merged with any existing attributes for the
 column, with the new attributes taking precedence in the case that an
-attribute already exists. Using this without a hashref 
+attribute already exists. Using this without a hashref
 (C<< $source->add_columns(qw/+col1 +col2/) >>) is legal, but useless --
 it does the same thing it would do without the plus.
 
@@ -174,7 +176,7 @@ the name of the column will be used.
 
 This contains the column type. It is automatically filled if you use the
 L<SQL::Translator::Producer::DBIx::Class::File> producer, or the
-L<DBIx::Class::Schema::Loader> module. 
+L<DBIx::Class::Schema::Loader> module.
 
 Currently there is no standard set of values for the data_type. Use
 whatever your database supports.
@@ -367,9 +369,10 @@ sub column_info {
     $self->{_columns_info_loaded}++;
     my $info = {};
     my $lc_info = {};
-    # eval for the case of storage without table
-    eval { $info = $self->storage->columns_info_for( $self->from ) };
-    unless ($@) {
+
+    # try for the case of storage without table
+    try {
+      $info = $self->storage->columns_info_for( $self->from );
       for my $realcol ( keys %{$info} ) {
         $lc_info->{lc $realcol} = $info->{$realcol};
       }
@@ -379,7 +382,7 @@ sub column_info {
           %{ $info->{$col} || $lc_info->{lc $col} || {} }
         };
       }
-    }
+    };
   }
   return $self->_columns->{$column};
 }
@@ -897,7 +900,7 @@ clause contents.
 
   my $schema = $source->schema();
 
-Returns the L<DBIx::Class::Schema> object that this result source 
+Returns the L<DBIx::Class::Schema> object that this result source
 belongs to.
 
 =head2 storage
@@ -1022,7 +1025,7 @@ sub add_relationship {
 
   return $self;
 
-  # XXX disabled. doesn't work properly currently. skip in tests.
+# XXX disabled. doesn't work properly currently. skip in tests.
 
   my $f_source = $self->schema->source($f_source_name);
   unless ($f_source) {
@@ -1035,13 +1038,14 @@ sub add_relationship {
   }
   return unless $f_source; # Can't test rel without f_source
 
-  eval { $self->_resolve_join($rel, 'me', {}, []) };
-
-  if ($@) { # If the resolve failed, back out and re-throw the error
-    delete $rels{$rel}; #
+  try { $self->_resolve_join($rel, 'me', {}, []) }
+  catch {
+    # If the resolve failed, back out and re-throw the error
+    delete $rels{$rel};
     $self->_relationships(\%rels);
-    $self->throw_exception("Error creating relationship $rel: $@");
-  }
+    $self->throw_exception("Error creating relationship $rel: $_");
+  };
+
   1;
 }
 
@@ -1475,7 +1479,7 @@ sub _resolve_prefetch {
                     keys %{$rel_info->{cond}};
       my @ord = (ref($rel_info->{attrs}{order_by}) eq 'ARRAY'
                    ? @{$rel_info->{attrs}{order_by}}
-   
+
                 : (defined $rel_info->{attrs}{order_by}
                        ? ($rel_info->{attrs}{order_by})
                        : ()));
@@ -1533,7 +1537,7 @@ sub related_class {
 
 =head2 handle
 
-Obtain a new handle to this source. Returns an instance of a 
+Obtain a new handle to this source. Returns an instance of a
 L<DBIx::Class::ResultSourceHandle>.
 
 =cut

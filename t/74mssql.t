@@ -52,12 +52,16 @@ for my $storage_type (@storage_types) {
 
   isa_ok($schema->storage, "DBIx::Class::Storage::$storage_type");
 
-# start disconnected to test _ping
-  $schema->storage->_dbh->disconnect;
+  SKIP: {
+    skip 'This version of DBD::Sybase segfaults on disconnect', 1 if DBD::Sybase->VERSION < 1.08;
 
-  lives_ok {
-    $schema->storage->dbh_do(sub { $_[1]->do('select 1') })
-  } '_ping works';
+    # start disconnected to test _ping
+    $schema->storage->_dbh->disconnect;
+
+    lives_ok {
+      $schema->storage->dbh_do(sub { $_[1]->do('select 1') })
+    } '_ping works';
+  }
 
   my $dbh = $schema->storage->dbh;
 
@@ -177,8 +181,8 @@ SQL
   SKIP: {
     my $storage = $schema->storage;
     my $version = $storage->_server_info->{normalized_dbms_version};
-    
-    skip 1, 'could not detect SQL Server version' if not defined $version;
+
+    skip 'could not detect SQL Server version', 1 if not defined $version;
 
     my $have_rno = $version >= 9 ? 1 : 0;
 
@@ -199,10 +203,19 @@ SQL
     $storage->sql_maker;
 
     my $rno_detected =
-      ($storage->{_sql_maker_opts}{limit_dialect} eq 'RowNumberOver');
+      ($storage->{_sql_maker_opts}{limit_dialect} eq 'RowNumberOver') ? 1 : 0;
 
-    ok ((not ($have_rno xor $rno_detected)),
+    ok (($have_rno == $rno_detected),
       'row_number() over support detected correctly');
+  }
+
+  {
+    my $schema = DBICTest::Schema->clone;
+    $schema->connection($dsn, $user, $pass);
+
+    like $schema->storage->sql_maker->{limit_dialect},
+      qr/^(?:Top|RowNumberOver)\z/,
+      'sql_maker is correct on unconnected schema';
   }
 }
 

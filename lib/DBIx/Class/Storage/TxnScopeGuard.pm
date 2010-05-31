@@ -3,6 +3,8 @@ package DBIx::Class::Storage::TxnScopeGuard;
 use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class/;
+use Try::Tiny;
+use namespace::clean;
 
 sub new {
   my ($class, $storage) = @_;
@@ -31,10 +33,11 @@ sub DESTROY {
     carp 'A DBIx::Class::Storage::TxnScopeGuard went out of scope without explicit commit or error. Rolling back.'
       unless $exception;
 
-    eval { $storage->txn_rollback };
-    my $rollback_exception = $@;
+    my $rollback_exception;
+    try { $storage->txn_rollback }
+    catch { $rollback_exception = shift };
 
-    if ($rollback_exception && $rollback_exception !~ /DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION/) {
+    if (defined $rollback_exception && $rollback_exception !~ /DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION/) {
       if ($exception) {
         $exception = "Transaction aborted: ${exception} "
           ."Rollback failed: ${rollback_exception}";
@@ -76,7 +79,7 @@ DBIx::Class::Storage::TxnScopeGuard - Scope-based transaction handling
 =head1 DESCRIPTION
 
 An object that behaves much like L<Scope::Guard>, but hardcoded to do the
-right thing with transactions in DBIx::Class. 
+right thing with transactions in DBIx::Class.
 
 =head1 METHODS
 

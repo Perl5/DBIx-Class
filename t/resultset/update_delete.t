@@ -6,9 +6,6 @@ use Test::More;
 use Test::Exception;
 use DBICTest;
 
-#plan tests => 5;
-plan 'no_plan';
-
 my $schema = DBICTest->init_schema();
 
 my $tkfks = $schema->resultset('FourKeys_to_TwoKeys');
@@ -110,3 +107,10 @@ is_deeply (
 $sub_rs->delete;
 
 is ($tkfks->count, $tkfk_cnt -= 2, 'Only two rows deleted');
+
+# make sure limit-only deletion works
+cmp_ok ($tkfk_cnt, '>', 1, 'More than 1 row left');
+$tkfks->search ({}, { rows => 1 })->delete;
+is ($tkfks->count, $tkfk_cnt -= 1, 'Only one row deleted');
+
+done_testing;

@@ -4,6 +4,8 @@ use strict;
 use warnings;
 use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
+use Try::Tiny;
+use namespace::clean;
 
 =head1 NAME
 
@@ -11,7 +13,7 @@ DBIx::Class::InflateColumn::DateTime - Auto-create DateTime objects from date an
 
 =head1 SYNOPSIS
 
-Load this component and then declare one or more 
+Load this component and then declare one or more
 columns to be of the datetime, timestamp or date datatype.
 
   package Event;
@@ -62,9 +64,9 @@ use C<DateTime::Format::ISO8601> thusly:
 
 =head1 DESCRIPTION
 
-This module figures out the type of DateTime::Format::* class to 
-inflate/deflate with based on the type of DBIx::Class::Storage::DBI::* 
-that you are using.  If you switch from one database to a different 
+This module figures out the type of DateTime::Format::* class to
+inflate/deflate with based on the type of DBIx::Class::Storage::DBI::*
+that you are using.  If you switch from one database to a different
 one your code should continue to work without modification (though note
 that this feature is new as of 0.07, so it may not be perfect yet - bug
 reports to the list very much welcome).
@@ -167,13 +169,18 @@ sub register_column {
           inflate => sub {
             my ($value, $obj) = @_;
 
-            my $dt = eval { $obj->_inflate_to_datetime( $value, \%info ) };
-            if (my $err = $@ ) {
-              return undef if ($undef_if_invalid);
-              $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $err");
-            }
+            my $dt = try
+              { $obj->_inflate_to_datetime( $value, \%info ) }
+              catch {
+                $self->throw_exception ("Error while inflating ${value} for ${column} on ${self}: $_")
+                  unless $undef_if_invalid;
+                undef;  # rv
+              };
 
-            return $obj->_post_inflate_datetime( $dt, \%info );
+            return (defined $dt)
+              ? $obj->_post_inflate_datetime( $dt, \%info )
+              : undef
+            ;
           },
           deflate => sub {
             my ($value, $obj) = @_;
@@ -290,11 +297,11 @@ use the old way you'll see a warning - please fix your code then!
 
 =over 4
 
-=item More information about the add_columns method, and column metadata, 
+=item More information about the add_columns method, and column metadata,
       can be found in the documentation for L<DBIx::Class::ResultSource>.
 
 =item Further discussion of problems inherent to the Floating timezone:
-      L<Floating DateTimes|DateTime/Floating_DateTimes> 
+      L<Floating DateTimes|DateTime/Floating_DateTimes>
       and L<< $dt->set_time_zone|DateTime/"Set" Methods >>
 
 =back

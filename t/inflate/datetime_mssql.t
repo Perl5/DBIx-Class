@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
@@ -36,6 +36,7 @@ my @connect_info = (
 
 my $schema;
 
+SKIP:
 for my $connect_info (@connect_info) {
   my ($dsn, $user, $pass) = @$connect_info;
 
@@ -44,6 +45,15 @@ for my $connect_info (@connect_info) {
   $schema = DBICTest::Schema->connect($dsn, $user, $pass, {
     on_connect_call => 'datetime_setup'
   });
+
+  {
+    my $w;
+    local $SIG{__WARN__} = sub { $w = shift };
+    $schema->storage->ensure_connected;
+    if ($w =~ /Your DBD::Sybase is too old to support DBIx::Class::InflateColumn::DateTime/) {
+      skip "Skipping tests on old DBD::Sybase " . DBD::Sybase->VERSION, 1;
+    }
+  }
 
   my $guard = Scope::Guard->new(\&cleanup);
 

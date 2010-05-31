@@ -10,6 +10,8 @@ use DBIx::Class::Exception;
 use Scalar::Util();
 use IO::File;
 use DBIx::Class::Storage::TxnScopeGuard;
+use Try::Tiny;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
 __PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
@@ -158,16 +160,16 @@ For example,
   };
 
   my $rs;
-  eval {
+  try {
     $rs = $schema->txn_do($coderef);
-  };
-
-  if ($@) {                                  # Transaction failed
+  } catch {
+    my $error = shift;
+    # Transaction failed
     die "something terrible has happened!"   #
-      if ($@ =~ /Rollback failed/);          # Rollback failed
+      if ($error =~ /Rollback failed/);          # Rollback failed
 
     deal_with_failed_transaction();
-  }
+  };
 
 In a nested transaction (calling txn_do() from within a txn_do() coderef) only
 the outermost transaction will issue a L</txn_commit>, and txn_do() can be
@@ -195,9 +197,9 @@ sub txn_do {
   $self->txn_begin; # If this throws an exception, no rollback is needed
 
   my $wantarray = wantarray; # Need to save this since the context
-                             # inside the eval{} block is independent
+                             # inside the try{} block is independent
                              # of the context that called txn_do()
-  eval {
+  try {
 
     # Need to differentiate between scalar/list context to allow for
     # returning a list in scalar context to get the size of the list
@@ -212,28 +214,23 @@ sub txn_do {
       $coderef->(@args);
     }
     $self->txn_commit;
-  };
+  }
+  catch {
+    my $error = shift;
 
-  if ($@) {
-    my $error = $@;
-
-    eval {
+    try {
       $self->txn_rollback;
-    };
-
-    if ($@) {
-      my $rollback_error = $@;
+    } catch {
       my $exception_class = "DBIx::Class::Storage::NESTED_ROLLBACK_EXCEPTION";
       $self->throw_exception($error)  # propagate nested rollback
-        if $rollback_error =~ /$exception_class/;
+        if $_ =~ /$exception_class/;
 
       $self->throw_exception(
-        "Transaction aborted: $error. Rollback failed: ${rollback_error}"
+        "Transaction aborted: $error. Rollback failed: $_"
       );
-    } else {
-      $self->throw_exception($error); # txn failed but rollback succeeded
     }
-  }
+    $self->throw_exception($error); # txn failed but rollback succeeded
+  };
 
   return $wantarray ? @return_values : $return_value;
 }
@@ -483,8 +480,8 @@ If the value is of the form C<1=/path/name> then the trace output is
 written to the file C</path/name>.
 
 This environment variable is checked when the storage object is first
-created (when you call connect on your schema).  So, run-time changes 
-to this environment variable will not take effect unless you also 
+created (when you call connect on your schema).  So, run-time changes
+to this environment variable will not take effect unless you also
 re-connect on your schema.
 
 =head2 DBIX_CLASS_STORAGE_DBI_DEBUG

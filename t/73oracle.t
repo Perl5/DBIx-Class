@@ -87,7 +87,7 @@ $dbh->do(qq{
 });
 $dbh->do(qq{
   CREATE OR REPLACE TRIGGER cd_insert_trg
-  BEFORE INSERT ON cd
+  BEFORE INSERT OR UPDATE ON cd
   FOR EACH ROW
   BEGIN
     IF :new.cdid IS NULL THEN

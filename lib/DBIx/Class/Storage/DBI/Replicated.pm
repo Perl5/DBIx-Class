@@ -16,6 +16,8 @@ use MooseX::Types::Moose qw/ClassName HashRef Object/;
 use Scalar::Util 'reftype';
 use Hash::Merge;
 use List::Util qw/min max reduce/;
+use Try::Tiny;
+use namespace::clean;
 
 use namespace::clean -except => 'meta';
 
@@ -37,7 +39,7 @@ that the Pool object should get.
   $schema->storage_type( ['::DBI::Replicated', {balancer=>'::Random'}] );
   $schema->connection(...);
 
-Next, you need to add in the Replicants.  Basically this is an array of 
+Next, you need to add in the Replicants.  Basically this is an array of
 arrayrefs, where each arrayref is database connect information.  Think of these
 arguments as what you'd pass to the 'normal' $schema->connect method.
 
@@ -58,7 +60,7 @@ attribute 'force_pool'.  For example:
   my $RS = $schema->resultset('Source')->search(undef, {force_pool=>'master'});
 
 Now $RS will force everything (both reads and writes) to use whatever was setup
-as the master storage.  'master' is hardcoded to always point to the Master, 
+as the master storage.  'master' is hardcoded to always point to the Master,
 but you can also use any Replicant name.  Please see:
 L<DBIx::Class::Storage::DBI::Replicated::Pool> and the replicants attribute for more.
 
@@ -123,7 +125,7 @@ has 'schema' => (
 
 =head2 pool_type
 
-Contains the classname which will instantiate the L</pool> object.  Defaults 
+Contains the classname which will instantiate the L</pool> object.  Defaults
 to: L<DBIx::Class::Storage::DBI::Replicated::Pool>.
 
 =cut
@@ -205,7 +207,7 @@ has 'pool' => (
 
 =head2 balancer
 
-Is a <DBIx::Class::Storage::DBI::Replicated::Balancer> or derived class.  This 
+Is a <DBIx::Class::Storage::DBI::Replicated::Balancer> or derived class.  This
 is a class that takes a pool (<DBIx::Class::Storage::DBI::Replicated::Pool>)
 
 =cut
@@ -235,7 +237,7 @@ has 'master' => (
 
 =head1 ATTRIBUTES IMPLEMENTING THE DBIx::Storage::DBI INTERFACE
 
-The following methods are delegated all the methods required for the 
+The following methods are delegated all the methods required for the
 L<DBIx::Class::Storage::DBI> interface.
 
 =head2 read_handler
@@ -252,7 +254,7 @@ has 'read_handler' => (
     select
     select_single
     columns_info_for
-    _dbh_columns_info_for 
+    _dbh_columns_info_for
     _select
   /],
 );
@@ -466,7 +468,7 @@ bits get put into the correct places.
 =cut
 
 sub BUILDARGS {
-  my ($class, $schema, $storage_type_args, @args) = @_;  
+  my ($class, $schema, $storage_type_args, @args) = @_;
 
   return {
     schema=>$schema,
@@ -619,7 +621,7 @@ Example:
   my $reliably = sub {
     my $name = shift @_;
     $schema->resultset('User')->create({name=>$name});
-    my $user_rs = $schema->resultset('User')->find({name=>$name}); 
+    my $user_rs = $schema->resultset('User')->find({name=>$name});
     return $user_rs;
   };
 
@@ -650,7 +652,7 @@ sub execute_reliably {
   my @result;
   my $want_array = wantarray;
 
-  eval {
+  try {
     if($want_array) {
       @result = $coderef->(@args);
     } elsif(defined $want_array) {
@@ -658,19 +660,14 @@ sub execute_reliably {
     } else {
       $coderef->(@args);
     }
+  } catch {
+    $self->throw_exception("coderef returned an error: $_");
+  } finally {
+    ##Reset to the original state
+    $self->read_handler($current);
   };
 
-  ##Reset to the original state
-  $self->read_handler($current);
-
-  ##Exception testing has to come last, otherwise you might leave the 
-  ##read_handler set to master.
-
-  if($@) {
-    $self->throw_exception("coderef returned an error: $@");
-  } else {
-    return $want_array ? @result : $result[0];
-  }
+  return $want_array ? @result : $result[0];
 }
 
 =head2 set_reliable_storage
@@ -922,7 +919,7 @@ sub lag_behind_master {
   my $self = shift;
 
   return max map $_->lag_behind_master, $self->replicants;
-} 
+}
 
 =head2 is_replicating
 
@@ -970,7 +967,7 @@ sub _determine_driver {
 
 sub _driver_determined {
   my $self = shift;
-  
+
   if (@_) {
     $_->_driver_determined(@_) for $self->all_storages;
   }
@@ -980,19 +977,19 @@ sub _driver_determined {
 
 sub _init {
   my $self = shift;
-  
+
   $_->_init for $self->all_storages;
 }
 
 sub _run_connection_actions {
   my $self = shift;
-  
+
   $_->_run_connection_actions for $self->all_storages;
 }
 
 sub _do_connection_actions {
   my $self = shift;
-  
+
   if (@_) {
     $_->_do_connection_actions(@_) for $self->all_storages;
   }
@@ -1033,7 +1030,7 @@ sub _server_info {
 
   if (not $self->_server_info_hash) {
     my $min_version_info = (
-      reduce { $a->[0] < $b->[0] ? $a : $b } 
+      reduce { $a->[0] < $b->[0] ? $a : $b }
       map [ $numify_ver->($_->{dbms_version}), $_ ],
       map $_->_server_info, $self->all_storages
     )->[1];

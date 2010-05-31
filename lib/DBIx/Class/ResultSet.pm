@@ -57,7 +57,12 @@ represents.
 
 The query that the ResultSet represents is B<only> executed against
 the database when these methods are called:
-L</find> L</next> L</all> L</first> L</single> L</count>
+L</find>, L</next>, L</all>, L</first>, L</single>, L</count>.
+
+If a resultset is used in a numeric context it returns the L</count>.
+However, if it is used in a boolean context it is B<always> true.  So if
+you want to check if a resultset has any results, you must use C<if $rs
+!= 0>.
 
 =head1 EXAMPLES
 
@@ -101,7 +106,7 @@ attributes with the same keys need resolving.
 L</join>, L</prefetch>, L</+select>, L</+as> attributes are merged
 into the existing ones from the original resultset.
 
-The L</where>, L</having> attribute, and any search conditions are
+The L</where> and L</having> attributes, and any search conditions, are
 merged with an SQL C<AND> to the existing condition from the original
 resultset.
 
@@ -141,13 +146,6 @@ Which is the same as:
   });
 
 See: L</search>, L</count>, L</get_column>, L</all>, L</create>.
-
-=head1 OVERLOADING
-
-If a resultset is used in a numeric context it returns the L</count>.
-However, if it is used in a boolean context it is always true.  So if
-you want to check if a resultset has any results use C<if $rs != 0>.
-C<if $rs> will always be true.
 
 =head1 METHODS
 
@@ -538,8 +536,8 @@ sub find {
       : $self->_add_alias($input_query, $alias);
   }
 
-  # Run the query
-  my $rs = $self->search ($query, $attrs);
+  # Run the query, passing the result_class since it should propagate for find
+  my $rs = $self->search ($query, {result_class => $self->result_class, %$attrs});
   if (keys %{$rs->_resolved_attrs->{collapse}}) {
     my $row = $rs->next;
     carp "Query returned more than one row" if $rs->next;
@@ -1138,9 +1136,14 @@ in the original source class will not run.
 sub result_class {
   my ($self, $result_class) = @_;
   if ($result_class) {
-    $self->ensure_class_loaded($result_class);
+    unless (ref $result_class) { # don't fire this for an object
+      $self->ensure_class_loaded($result_class);
+    }
     $self->_result_class($result_class);
-    $self->{attrs}{result_class} = $result_class if ref $self;
+    # THIS LINE WOULD BE A BUG - this accessor specifically exists to
+    # permit the user to set result class on one result set only; it only
+    # chains if provided to search()
+    #$self->{attrs}{result_class} = $result_class if ref $self;
   }
   $self->_result_class;
 }
@@ -1424,7 +1427,7 @@ sub _rs_update_delete {
   my $cond = $rsrc->schema->storage->_strip_cond_qualifiers ($self->{cond});
 
   my $needs_group_by_subq = $self->_has_resolved_attr (qw/collapse group_by -join/);
-  my $needs_subq = $needs_group_by_subq || (not defined $cond) || $self->_has_resolved_attr(qw/row offset/);
+  my $needs_subq = $needs_group_by_subq || (not defined $cond) || $self->_has_resolved_attr(qw/rows offset/);
 
   if ($needs_group_by_subq or $needs_subq) {
 

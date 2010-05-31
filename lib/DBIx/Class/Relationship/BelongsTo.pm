@@ -6,8 +6,10 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use Try::Tiny;
+use namespace::clean;
 
-our %_pod_inherit_config = 
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::BelongsTo' => 'DBIx::Class::Relationship' }
   );
@@ -16,7 +18,7 @@ sub belongs_to {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
 
   # assume a foreign key contraint unless defined otherwise
-  $attrs->{is_foreign_key_constraint} = 1 
+  $attrs->{is_foreign_key_constraint} = 1
     if not exists $attrs->{is_foreign_key_constraint};
   $attrs->{undef_on_null_fk} = 1
     if not exists $attrs->{undef_on_null_fk};
@@ -24,10 +26,10 @@ sub belongs_to {
   # no join condition or just a column name
   if (!ref $cond) {
     $class->ensure_class_loaded($f_class);
-    my %f_primaries = map { $_ => 1 } eval { $f_class->_pri_cols };
-    $class->throw_exception(
-      "Can't infer join condition for ${rel} on ${class}: $@"
-    ) if $@;
+    my %f_primaries = map { $_ => 1 } try { $f_class->_pri_cols }
+      catch {
+        $class->throw_exception( "Can't infer join condition for ${rel} on ${class}: $_");
+      };
 
     my ($pri, $too_many) = keys %f_primaries;
     $class->throw_exception(
