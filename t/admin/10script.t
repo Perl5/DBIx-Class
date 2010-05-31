@@ -17,8 +17,12 @@ BEGIN {
 
 my @json_backends = qw/XS JSON DWIW/;
 my $tests_per_run = 5;
-
 plan tests => ($tests_per_run * @json_backends) + 1;
+
+
+# test the script is setting @INC properly
+test_exec (qw| -It/lib/testinclude --schema=DBICTestAdminInc --op=deploy --connect=[] |);
+cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from deploying a custom INC schema' );
 
 for my $js (@json_backends) {
 
@@ -29,13 +33,8 @@ for my $js (@json_backends) {
         $ENV{JSON_ANY_ORDER} = $js;
         eval { test_dbicadmin () };
         diag $@ if $@;
-
     }
 }
-
-# test the script is setting @INC properly
-test_exec (qw| -It/lib/testinclude --schema=DBICTestAdminInc --op=deploy --connect=[] |);
-cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from deploying a custom INC schema' );
 
 sub test_dbicadmin {
     my $schema = DBICTest->init_schema( sqlite_use_file => 1 );  # reinit a fresh db for every run
@@ -73,7 +72,7 @@ sub default_args {
   return (
     qw|--quiet --schema=DBICTest::Schema --class=Employee|,
     q|--connect=["dbi:SQLite:dbname=t/var/DBIxClass.db","","",{"AutoCommit":1}]|,
-    qw|--force|,
+    qw|--force -I testincludenoniterference|,
   );
 }
 
