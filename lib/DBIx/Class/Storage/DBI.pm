@@ -62,8 +62,12 @@ __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 my @capabilities = (qw/
   insert_returning
   insert_returning_bound
+
+  multicolumn_in
+
   placeholders
   typeless_placeholders
+
   join_optimizer
 /);
 __PACKAGE__->mk_group_accessors( dbms_capability => map { "_supports_$_" } @capabilities );
@@ -2091,103 +2095,6 @@ sub update {
 sub delete {
   #my ($self, $source, @args) = @_;
   shift->_execute('delete', @_);
-}
-
-# We were sent here because the $rs contains a complex search
-# which will require a subquery to select the correct rows
-# (i.e. joined or limited resultsets, or non-introspectable conditions)
-#
-# Generating a single PK column subquery is trivial and supported
-# by all RDBMS. However if we have a multicolumn PK, things get ugly.
-# Look at _multipk_update_delete()
-sub _subq_update_delete {
-  my $self = shift;
-  my ($rs, $op, $values) = @_;
-
-  my $rsrc = $rs->result_source;
-
-  # quick check if we got a sane rs on our hands
-  my @pcols = $rsrc->_pri_cols;
-
-  my $sel = $rs->_resolved_attrs->{select};
-  $sel = [ $sel ] unless ref $sel eq 'ARRAY';
-
-  if (
-      join ("\x00", map { join '.', $rs->{attrs}{alias}, $_ } sort @pcols)
-        ne
-      join ("\x00", sort @$sel )
-  ) {
-    $self->throw_exception (
-      '_subq_update_delete can not be called on resultsets selecting columns other than the primary keys'
-    );
-  }
-
-  if (@pcols == 1) {
-    return $self->$op (
-      $rsrc,
-      $op eq 'update' ? $values : (),
-      { $pcols[0] => { -in => $rs->as_query } },
-    );
-  }
-
-  else {
-    return $self->_multipk_update_delete (@_);
-  }
-}
-
-# ANSI SQL does not provide a reliable way to perform a multicol-PK
-# resultset update/delete involving subqueries. So by default resort
-# to simple (and inefficient) delete_all style per-row opearations,
-# while allowing specific storages to override this with a faster
-# implementation.
-#
-sub _multipk_update_delete {
-  return shift->_per_row_update_delete (@_);
-}
-
-# This is the default loop used to delete/update rows for multi PK
-# resultsets, and used by mysql exclusively (because it can't do anything
-# else).
-#
-# We do not use $row->$op style queries, because resultset update/delete
-# is not expected to cascade (this is what delete_all/update_all is for).
-#
-# There should be no race conditions as the entire operation is rolled
-# in a transaction.
-#
-sub _per_row_update_delete {
-  my $self = shift;
-  my ($rs, $op, $values) = @_;
-
-  my $rsrc = $rs->result_source;
-  my @pcols = $rsrc->_pri_cols;
-
-  my $guard = $self->txn_scope_guard;
-
-  # emulate the return value of $sth->execute for non-selects
-  my $row_cnt = '0E0';
-
-  my $subrs_cur = $rs->cursor;
-  my @all_pk = $subrs_cur->all;
-  for my $pks ( @all_pk) {
-
-    my $cond;
-    for my $i (0.. $#pcols) {
-      $cond->{$pcols[$i]} = $pks->[$i];
-    }
-
-    $self->$op (
-      $rsrc,
-      $op eq 'update' ? $values : (),
-      $cond,
-    );
-
-    $row_cnt++;
-  }
-
-  $guard->commit;
-
-  return $row_cnt;
 }
 
 sub _select {

@@ -299,8 +299,6 @@ NULLINSEARCH: {
       join => 'books', group_by => [ 'me.id', 'books.id' ]
     })->count();
   }, 'count on grouped columns with the same name does not throw');
-
-
 }
 
 ZEROINSEARCH: {

@@ -6,11 +6,17 @@ Revision history for DBIx::Class
           going directly through execute_for_fetch bypassing execute_array
 
     * Fixes
+        - Fix update()/delete() on complex resultsets to no longer fall back
+          to silly row-by-row deletion, construct a massive OR statement
+          instead
         - Fix SkipFirst and FirstSkip limit dialects (Informix and Firebird)
         - A number of corner case fixes of void context populate() with \[]
 
     * Misc
         - Codebase is now trailing-whitespace-free
+        - Cleanup of complex resultset update/delete oprations - storage
+          specific code moved back to ResultSet and replaced by checks
+          of storage capabilities
 
 0.08196 2011-11-29 05:35 (UTC)
     * Fixes

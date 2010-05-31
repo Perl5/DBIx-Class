@@ -1737,54 +1737,43 @@ sub first {
 sub _rs_update_delete {
   my ($self, $op, $values) = @_;
 
+  my $cond = $self->{cond};
   my $rsrc = $self->result_source;
+  my $storage = $rsrc->schema->storage;
 
-  my $needs_group_by_subq = $self->_has_resolved_attr (qw/collapse group_by -join/);
-  my $needs_subq = $needs_group_by_subq || $self->_has_resolved_attr(qw/rows offset/);
+  my $attrs = { %{$self->_resolved_attrs} };
 
-  if ($needs_group_by_subq or $needs_subq) {
+  # "needs" is a strong word here - if the subquery is part of an IN clause - no point of
+  # even adding the group_by. It will really be used only when composing a poor-man's
+  # multicolumn-IN equivalent OR set
+  my $needs_group_by_subq = defined $attrs->{group_by};
 
-    # make a new $rs selecting only the PKs (that's all we really need)
-    my $attrs = $self->_resolved_attrs_copy;
+  # simplify the joinmap and maybe decide if a grouping (and thus subquery) is necessary
+  my $relation_classifications;
+  if (ref($attrs->{from}) eq 'ARRAY') {
+    $attrs->{from} = $storage->_prune_unused_joins ($attrs->{from}, $attrs->{select}, $cond, $attrs);
 
-
-    delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_selector_range as/;
-    $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->_pri_cols) ];
-
-    if ($needs_group_by_subq) {
-      # make sure no group_by was supplied, or if there is one - make sure it matches
-      # the columns compiled above perfectly. Anything else can not be sanely executed
-      # on most databases so croak right then and there
-
-      if (my $g = $attrs->{group_by}) {
-        my @current_group_by = map
-          { $_ =~ /\./ ? $_ : "$attrs->{alias}.$_" }
-          @$g
-        ;
-
-        if (
-          join ("\x00", sort @current_group_by)
-            ne
-          join ("\x00", sort @{$attrs->{columns}} )
-        ) {
-          $self->throw_exception (
-            "You have just attempted a $op operation on a resultset which does group_by"
-            . ' on columns other than the primary keys, while DBIC internally needs to retrieve'
-            . ' the primary keys in a subselect. All sane RDBMS engines do not support this'
-            . ' kind of queries. Please retry the operation with a modified group_by or'
-            . ' without using one at all.'
-          );
-        }
-      }
-      else {
-        $attrs->{group_by} = $attrs->{columns};
-      }
-    }
-
-    my $subrs = (ref $self)->new($rsrc, $attrs);
-    return $self->result_source->storage->_subq_update_delete($subrs, $op, $values);
+    $relation_classifications = $storage->_resolve_aliastypes_from_select_args (
+      [ @{$attrs->{from}}[1 .. $#{$attrs->{from}}] ],
+      $attrs->{select},
+      $cond,
+      $attrs
+    ) unless $needs_group_by_subq;  # we already know we need a group, no point of resolving them
   }
   else {
+    $needs_group_by_subq ||= 1; # if {from} is unparseable assume the worst
+  }
+
+  $needs_group_by_subq ||= exists $relation_classifications->{multiplying};
+
+  # if no subquery - life is easy-ish
+  unless (
+    $needs_group_by_subq
+      or
+    keys %$relation_classifications # if any joins at all - need to wrap a subq
+      or
+    $self->_has_resolved_attr(qw/rows offset/) # limits call for a subq
+  ) {
     # Most databases do not allow aliasing of tables in UPDATE/DELETE. Thus
     # a condition containing 'me' or other table prefixes will not work
     # at all. What this code tries to do (badly) is to generate a condition
@@ -1803,6 +1792,92 @@ sub _rs_update_delete {
       $op eq 'update' ? $values : (),
       $self->{cond} ? \[$sql, @bind] : (),
     );
+  }
+
+  # we got this far - means it is time to wrap a subquery
+  my $pcols = [ $rsrc->_pri_cols ];
+  my $existing_group_by = delete $attrs->{group_by};
+
+  # make a new $rs selecting only the PKs (that's all we really need for the subq)
+  delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_selector_range as/;
+  $attrs->{columns} = [ map { "$attrs->{alias}.$_" } @$pcols ];
+  $attrs->{group_by} = \ '';  # FIXME - this is an evil hack, it causes the optimiser to kick in and throw away the LEFT joins
+  my $subrs = (ref $self)->new($rsrc, $attrs);
+
+  if (@$pcols == 1) {
+    return $storage->$op (
+      $rsrc,
+      $op eq 'update' ? $values : (),
+      { $pcols->[0] => { -in => $subrs->as_query } },
+    );
+  }
+  elsif ($storage->_use_multicolumn_in) {
+    # This is hideously ugly, but SQLA does not understand multicol IN expressions
+    my $sql_maker = $storage->sql_maker;
+    my ($sql, @bind) = @${$subrs->as_query};
+    $sql = sprintf ('(%s) IN %s', # the as_query already comes with a set of parenthesis
+      join (', ', map { $sql_maker->_quote ($_) } @$pcols),
+      $sql,
+    );
+
+    return $storage->$op (
+      $rsrc,
+      $op eq 'update' ? $values : (),
+      \[$sql, @bind],
+    );
+  }
+  else {
+    # if all else fails - get all primary keys and operate over a ORed set
+    # wrap in a transaction for consistency
+    # this is where the group_by starts to matter
+    my $subq_group_by;
+    if ($needs_group_by_subq) {
+      $subq_group_by = $attrs->{columns};
+
+      # make sure if there is a supplied group_by it matches the columns compiled above
+      # perfectly. Anything else can not be sanely executed on most databases so croak
+      # right then and there
+      if ($existing_group_by) {
+        my @current_group_by = map
+          { $_ =~ /\./ ? $_ : "$attrs->{alias}.$_" }
+          @$existing_group_by
+        ;
+
+        if (
+          join ("\x00", sort @current_group_by)
+            ne
+          join ("\x00", sort @$subq_group_by )
+        ) {
+          $self->throw_exception (
+            "You have just attempted a $op operation on a resultset which does group_by"
+            . ' on columns other than the primary keys, while DBIC internally needs to retrieve'
+            . ' the primary keys in a subselect. All sane RDBMS engines do not support this'
+            . ' kind of queries. Please retry the operation with a modified group_by or'
+            . ' without using one at all.'
+          );
+        }
+      }
+    }
+
+    my $guard = $storage->txn_scope_guard;
+
+    my @op_condition;
+    for my $row ($subrs->search({}, { group_by => $subq_group_by })->cursor->all) {
+      push @op_condition, { map
+        { $pcols->[$_] => $row->[$_] }
+        (0 .. $#$pcols)
+      };
+    }
+
+    my $res = $storage->$op (
+      $rsrc,
+      $op eq 'update' ? $values : (),
+      \@op_condition,
+    );
+
+    $guard->commit;
+
+    return $res;
   }
 }
 

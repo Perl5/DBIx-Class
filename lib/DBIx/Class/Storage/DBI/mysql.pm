@@ -3,15 +3,13 @@ package DBIx::Class::Storage::DBI::mysql;
 use strict;
 use warnings;
 
-use base qw/
-  DBIx::Class::Storage::DBI::MultiColumnIn
-  DBIx::Class::Storage::DBI
-/;
-use mro 'c3';
+use base qw/DBIx::Class::Storage::DBI/;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MySQL');
 __PACKAGE__->sql_limit_dialect ('LimitXY');
 __PACKAGE__->sql_quote_char ('`');
+
+__PACKAGE__->_use_multicolumn_in (1);
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
@@ -113,12 +111,6 @@ sub is_replicating {
 
 sub lag_behind_master {
     return shift->_get_dbh->selectrow_hashref('show slave status')->{Seconds_Behind_Master};
-}
-
-# MySql can not do subquery update/deletes, only way is slow per-row operations.
-# This assumes you have set proper transaction isolation and use innodb.
-sub _subq_update_delete {
-  return shift->_per_row_update_delete (@_);
 }
 
 1;

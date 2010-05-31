@@ -281,7 +281,6 @@ my $method_dispatch = {
     _prep_for_execute
     is_datatype_numeric
     _count_select
-    _subq_update_delete
     svp_rollback
     svp_begin
     svp_release
@@ -301,12 +300,10 @@ my $method_dispatch = {
     _select_args
     _dbh_execute_for_fetch
     _sql_maker
-    _per_row_update_delete
     _dbh_execute_inserts_with_no_binds
     _select_args_to_query
     _gen_sql_bind
     _svp_generate_name
-    _multipk_update_delete
     _normalize_connect_info
     _parse_connect_do
     savepoints
