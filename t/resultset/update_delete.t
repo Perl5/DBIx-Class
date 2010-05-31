@@ -5,6 +5,8 @@ use lib qw(t/lib);
 use Test::More;
 use Test::Exception;
 use DBICTest;
+use DBIC::DebugObj;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
@@ -105,12 +107,33 @@ is_deeply (
 );
 
 $sub_rs->delete;
-
 is ($tkfks->count, $tkfk_cnt -= 2, 'Only two rows deleted');
 
 # make sure limit-only deletion works
 cmp_ok ($tkfk_cnt, '>', 1, 'More than 1 row left');
 $tkfks->search ({}, { rows => 1 })->delete;
 is ($tkfks->count, $tkfk_cnt -= 1, 'Only one row deleted');
+
+
+# Make sure prefetch is properly stripped too
+# check with sql-equality, as sqlite will accept bad sql just fine
+my ($sql, @bind);
+my $orig_debugobj = $schema->storage->debugobj;
+my $orig_debug = $schema->storage->debug;
+
+$schema->storage->debugobj (DBIC::DebugObj->new (\$sql, \@bind) );
+$schema->storage->debug (1);
+$schema->resultset('CD')->search(
+  { year => { '!=' => 2010 } },
+  { prefetch => 'liner_notes' },
+)->delete;
+
+is_same_sql_bind (
+  $sql,
+  \@bind,
+  'DELETE FROM cd WHERE ( cdid IN ( SELECT me.cdid FROM cd me WHERE ( year != ? ) GROUP BY me.cdid ) )',
+  ["'2010'"],
+  'Update on prefetching resultset strips prefetch correctly'
+);
 
 done_testing;

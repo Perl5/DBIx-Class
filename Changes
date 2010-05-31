@@ -34,6 +34,8 @@ Revision history for DBIx::Class
         - update() on row not in_storage no longer throws an exception
           if there are no dirty columns to update (fixes cascaded update
           annoyances)
+        - update()/delete() on prefetching resultsets no longer results
+          in malformed SQL (some $rs attributes were erroneously left in)
         - Fix dbicadmin to allow deploy() on non-versioned schema
         - Fix dbicadmin to respect sql_dir on upgrade() (RT#57732)
         - Update Schema::Versioned to respect hashref style of

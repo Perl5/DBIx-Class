@@ -197,7 +197,6 @@ sub new {
   my $self = {
     _source_handle => $source,
     cond => $attrs->{where},
-    count => undef,
     pager => undef,
     attrs => $attrs
   };
@@ -1434,7 +1433,8 @@ sub _rs_update_delete {
     # make a new $rs selecting only the PKs (that's all we really need)
     my $attrs = $self->_resolved_attrs_copy;
 
-    delete $attrs->{$_} for qw/collapse select as/;
+
+    delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_select as/;
     $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->_pri_cols) ];
 
     if ($needs_group_by_subq) {
@@ -1468,7 +1468,6 @@ sub _rs_update_delete {
     }
 
     my $subrs = (ref $self)->new($rsrc, $attrs);
-
     return $self->result_source->storage->_subq_update_delete($subrs, $op, $values);
   }
   else {
