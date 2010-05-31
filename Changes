@@ -5,6 +5,8 @@ Revision history for DBIx::Class
         - ::Storage::DBI now correctly preserves a parent $dbh from
           terminating children, even during interpreter-global
           out-of-order destruction
+        - dbicadmin supports an -I option with the same semantics as
+          perl itself
         - InflateColumn::DateTime support for MSSQL via DBD::Sybase
         - Millisecond precision support for MSSQL datetimes for
           InflateColumn::DateTime
@@ -32,6 +34,8 @@ Revision history for DBIx::Class
         - update() on row not in_storage no longer throws an exception
           if there are no dirty columns to update (fixes cascaded update
           annoyances)
+        - Fix dbicadmin to allow deploy() on non-versioned schema
+        - Fix dbicadmin to respect sql_dir on upgrade() (RT#57732)
         - Update Schema::Versioned to respect hashref style of
           connection_info
         - Do not recreate the same related object twice during MultiCreate
