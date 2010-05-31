@@ -320,6 +320,7 @@ has 'write_handler' => (
     _fix_bind_params
     _default_dbi_connect_attributes
     _dbi_connect_info
+    _dbic_connect_attributes
     auto_savepoint
     _sqlt_version_ok
     _query_end
