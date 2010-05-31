@@ -353,6 +353,7 @@ sub upgrade {
     # schema is unversioned
     $schema->throw_exception ("Could not determin current schema version, please either install() or deploy().\n");
   } else {
+    $schema->upgrade_directory ($self->sql_dir) if $self->sql_dir;  # this will override whatever default the schema has
     my $ret = $schema->upgrade();
     return $ret;
   }

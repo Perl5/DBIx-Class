@@ -51,12 +51,6 @@ lives_ok {
 
 { # upgrade schema
 
-#my $schema = DBICTest->init_schema(
-#  no_deploy    => 1,
-#  no_populat    => 1,
-#  sqlite_use_file  => 1,
-#);
-
 clean_dir($sql_dir);
 require DBICVersion_v1;
 
@@ -78,6 +72,7 @@ is($schema->get_db_version, $DBICVersion::Schema::VERSION, 'Schema deployed and 
 
 
 require DBICVersion_v2;
+DBICVersion::Schema->upgrade_directory (undef);  # so that we can test use of $sql_dir
 
 $admin = DBIx::Class::Admin->new(
   schema_class => 'DBICVersion::Schema',
