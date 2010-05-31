@@ -227,7 +227,7 @@ sub install
 
   # must be called on a fresh database
   if ($self->get_db_version()) {
-    carp 'Install not possible as versions table already exists in database';
+      $self->throw_exception("A versioned schema has already been deployed, try upgrade instead.\n");
   }
 
   # default to current version if none passed
