@@ -12,15 +12,15 @@ BEGIN {
 
 if(use_ok 'DBIx::Class::Admin') {
   my $admin = DBIx::Class::Admin->new(
-      include_dirs => ['t/dbicadmin-test-include/lib'],
-      schema_class => 'Foo',
-      config => { Foo => {} },
-      config_stanza => 'Foo'
+      include_dirs => ['t/lib/testinclude'],
+      schema_class => 'DBICTestAdminInc',
+      config => { DBICTestAdminInc => {} },
+      config_stanza => 'DBICTestAdminInc'
   );
   lives_ok { $admin->_build_schema } 'should survive attempt to load module located in include_dirs';
   {
     no warnings 'once';
-    ok($Foo::loaded);
+    ok($DBICTestAdminInc::loaded);
   }
 }
 
