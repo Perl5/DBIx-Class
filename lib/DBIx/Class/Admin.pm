@@ -348,6 +348,7 @@ B<MAKE SURE YOU BACKUP YOUR DB FIRST>
 sub upgrade {
   my ($self) = @_;
   my $schema = $self->schema();
+
   if (!$schema->get_db_version()) {
     # schema is unversioned
     $schema->throw_exception ("Could not determin current schema version, please either install() or deploy().\n");
@@ -380,9 +381,9 @@ sub install {
   $version ||= $self->version();
   if (!$schema->get_db_version() ) {
     # schema is unversioned
-    print "Going to install schema version\n";
+    print "Going to install schema version\n" if (!$self->quiet);
     my $ret = $schema->install($version);
-    print "retun is $ret\n";
+    print "return is $ret\n" if (!$self->quiet);
   }
   elsif ($schema->get_db_version() and $self->force ) {
     carp "Forcing install may not be a good idea";
@@ -541,12 +542,14 @@ sub select {
 
 sub _confirm {
   my ($self) = @_;
-  print "Are you sure you want to do this? (type YES to confirm) \n";
+
   # mainly here for testing
   return 1 if ($self->meta->get_attribute('_confirm')->get_value($self));
+
+  print "Are you sure you want to do this? (type YES to confirm) \n";
   my $response = <STDIN>;
-  return 1 if ($response=~/^YES/);
-  return;
+
+  return ($response=~/^YES/);
 }
 
 sub _find_stanza {
