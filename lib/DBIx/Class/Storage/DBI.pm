@@ -17,6 +17,7 @@ use Data::Dumper::Concise();
 use Sub::Name ();
 use Try::Tiny;
 use File::Path ();
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' =>
   qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
@@ -1680,7 +1681,7 @@ sub _execute_array {
       $sth->finish
     }
     catch {
-      $err = shift unless defined $err 
+      $err = shift unless defined $err
     };
   };
 

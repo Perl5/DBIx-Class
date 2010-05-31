@@ -11,6 +11,7 @@ use Scalar::Util();
 use IO::File;
 use DBIx::Class::Storage::TxnScopeGuard;
 use Try::Tiny;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
 __PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
@@ -479,8 +480,8 @@ If the value is of the form C<1=/path/name> then the trace output is
 written to the file C</path/name>.
 
 This environment variable is checked when the storage object is first
-created (when you call connect on your schema).  So, run-time changes 
-to this environment variable will not take effect unless you also 
+created (when you call connect on your schema).  So, run-time changes
+to this environment variable will not take effect unless you also
 re-connect on your schema.
 
 =head2 DBIX_CLASS_STORAGE_DBI_DEBUG

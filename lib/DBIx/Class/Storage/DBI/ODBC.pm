@@ -5,6 +5,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 use Try::Tiny;
+use namespace::clean;
 
 sub _rebless {
   my ($self) = @_;

@@ -183,6 +183,7 @@ use base 'DBIx::Class::Schema';
 use Carp::Clan qw/^DBIx::Class/;
 use Time::HiRes qw/gettimeofday/;
 use Try::Tiny;
+use namespace::clean;
 
 __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
@@ -683,13 +684,13 @@ sub _set_db_version {
   # This is necessary since there are legitimate cases when upgrades can happen
   # back to back within the same second. This breaks things since we relay on the
   # ability to sort by the 'installed' value. The logical choice of an autoinc
-  # is not possible, as it will break multiple legacy installations. Also it is 
+  # is not possible, as it will break multiple legacy installations. Also it is
   # not possible to format the string sanely, as the column is a varchar(20).
   # The 'v' character is added to the front of the string, so that any version
   # formatted by this new function will sort _after_ any existing 200... strings.
   my @tm = gettimeofday();
   my @dt = gmtime ($tm[0]);
-  my $o = $vtable->create({ 
+  my $o = $vtable->create({
     version => $version,
     installed => sprintf("v%04d%02d%02d_%02d%02d%02d.%03.0f",
       $dt[5] + 1900,

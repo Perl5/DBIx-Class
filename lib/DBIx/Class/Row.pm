@@ -8,6 +8,7 @@ use base qw/DBIx::Class/;
 use DBIx::Class::Exception;
 use Scalar::Util ();
 use Try::Tiny;
+use namespace::clean;
 
 ###
 ### Internal method
@@ -1115,7 +1116,7 @@ sub inflate_result {
 
   if ($source->isa('DBIx::Class::ResultSourceHandle')) {
     $source = $source_handle->resolve
-  } 
+  }
   else {
     $source_handle = $source->handle
   }

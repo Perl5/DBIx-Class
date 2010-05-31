@@ -8,6 +8,7 @@ use mro 'c3';
 use List::Util();
 use Scalar::Util ();
 use Try::Tiny;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/
   _using_dynamic_cursors

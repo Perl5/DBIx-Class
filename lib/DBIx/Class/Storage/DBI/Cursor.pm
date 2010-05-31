@@ -6,6 +6,7 @@ use warnings;
 use base qw/DBIx::Class::Cursor/;
 
 use Try::Tiny;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/sth/
