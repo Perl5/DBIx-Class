@@ -42,8 +42,11 @@ sub MODIFY_CODE_ATTRIBUTES {
 sub _attr_cache {
   my $self = shift;
   my $cache = $self->can('__attr_cache') ? $self->__attr_cache : {};
-  my $rest = eval { $self->next::method };
-  return $@ ? $cache : { %$cache, %$rest };
+
+  return {
+    %$cache,
+    %{ $self->maybe::next::method || {} },
+  };
 }
 
 1;
@@ -369,6 +372,8 @@ teejay : Aaron Trevena <teejay@cpan.org>
 Todd Lipcon
 
 Tom Hukins
+
+tonvoon: Ton Voon <tonvoon@cpan.org>
 
 triode: Pete Gamache <gamache@cpan.org>
 

@@ -182,6 +182,8 @@ use base 'DBIx::Class::Schema';
 
 use Carp::Clan qw/^DBIx::Class/;
 use Time::HiRes qw/gettimeofday/;
+use Try::Tiny;
+use namespace::clean;
 
 __PACKAGE__->mk_classdata('_filedata');
 __PACKAGE__->mk_classdata('upgrade_directory');
@@ -225,7 +227,7 @@ sub install
 
   # must be called on a fresh database
   if ($self->get_db_version()) {
-    carp 'Install not possible as versions table already exists in database';
+      $self->throw_exception("A versioned schema has already been deployed, try upgrade instead.\n");
   }
 
   # default to current version if none passed
@@ -503,7 +505,7 @@ sub get_db_version
     my ($self, $rs) = @_;
 
     my $vtable = $self->{vschema}->resultset('Table');
-    my $version = eval {
+    my $version = try {
       $vtable->search({}, { order_by => { -desc => 'installed' }, rows => 1 } )
               ->get_column ('version')
                ->next;
@@ -558,30 +560,31 @@ To avoid the checks on connect, set the environment var DBIC_NO_VERSION_CHECK or
 sub connection {
   my $self = shift;
   $self->next::method(@_);
-  $self->_on_connect($_[3]);
+  $self->_on_connect();
   return $self;
 }
 
 sub _on_connect
 {
-  my ($self, $args) = @_;
+  my ($self) = @_;
 
-  $args = {} unless $args;
+  my $conn_info = $self->storage->connect_info;
+  $self->{vschema} = DBIx::Class::Version->connect(@$conn_info);
+  my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
 
-  $self->{vschema} = DBIx::Class::Version->connect(@{$self->storage->connect_info()});
   my $vtable = $self->{vschema}->resultset('Table');
 
   # useful when connecting from scripts etc
-  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
+  return if ($conn_attrs->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $conn_attrs->{ignore_version}));
 
   # check for legacy versions table and move to new if exists
-  my $vschema_compat = DBIx::Class::VersionCompat->connect(@{$self->storage->connect_info()});
+  my $vschema_compat = DBIx::Class::VersionCompat->connect(@$conn_info);
   unless ($self->_source_exists($vtable)) {
     my $vtable_compat = $vschema_compat->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
       map { $vtable->create({ installed => $_->Installed, version => $_->Version }) } $vtable_compat->all;
-      $self->storage->dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
+      $self->storage->_get_dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
     }
   }
 
@@ -681,13 +684,13 @@ sub _set_db_version {
   # This is necessary since there are legitimate cases when upgrades can happen
   # back to back within the same second. This breaks things since we relay on the
   # ability to sort by the 'installed' value. The logical choice of an autoinc
-  # is not possible, as it will break multiple legacy installations. Also it is 
+  # is not possible, as it will break multiple legacy installations. Also it is
   # not possible to format the string sanely, as the column is a varchar(20).
   # The 'v' character is added to the front of the string, so that any version
   # formatted by this new function will sort _after_ any existing 200... strings.
   my @tm = gettimeofday();
   my @dt = gmtime ($tm[0]);
-  my $o = $vtable->create({ 
+  my $o = $vtable->create({
     version => $version,
     installed => sprintf("v%04d%02d%02d_%02d%02d%02d.%03.0f",
       $dt[5] + 1900,
@@ -723,12 +726,9 @@ sub _source_exists
 {
     my ($self, $rs) = @_;
 
-    my $c = eval {
-        $rs->search({ 1, 0 })->count;
-    };
-    return 0 if $@ || !defined $c;
+    my $c = try { $rs->search({ 1, 0 })->count };
 
-    return 1;
+    return (defined $c) ? 1 : 0;
 }
 
 1;

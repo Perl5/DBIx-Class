@@ -44,12 +44,14 @@ my $runtime_requires = {
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.18',
-  'SQL::Abstract'            => '1.66',
+  'SQL::Abstract'            => '1.67',
   'SQL::Abstract::Limit'     => '0.13',
   'Sub::Name'                => '0.04',
   'Data::Dumper::Concise'    => '1.000',
   'Scope::Guard'             => '0.03',
   'Context::Preserve'        => '0.01',
+  'Try::Tiny'                => '0.04',
+  'namespace::clean'         => '0.14',
 };
 
 # this is so we can order requires alphabetically

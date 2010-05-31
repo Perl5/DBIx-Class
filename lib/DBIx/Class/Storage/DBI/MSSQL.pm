@@ -5,6 +5,8 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
+use Try::Tiny;
+use namespace::clean;
 
 use List::Util();
 
@@ -23,13 +25,13 @@ sub _set_identity_insert {
   );
 
   my $dbh = $self->_get_dbh;
-  eval { $dbh->do ($sql) };
-  if ($@) {
+  try { $dbh->do ($sql) }
+  catch {
     $self->throw_exception (sprintf "Error executing '%s': %s",
       $sql,
       $dbh->errstr,
     );
-  }
+  };
 }
 
 sub _unset_identity_insert {
@@ -128,7 +130,7 @@ sub _execute {
 
     # this should bring back the result of SELECT SCOPE_IDENTITY() we tacked
     # on in _prep_for_execute above
-    my ($identity) = eval { $sth->fetchrow_array };
+    my ($identity) = try { $sth->fetchrow_array };
 
     # SCOPE_IDENTITY failed, but we can do something else
     if ( (! $identity) && $self->_identity_method) {
@@ -161,7 +163,7 @@ sub _select_args_to_query {
   if (
     $sql !~ /^ \s* SELECT \s+ TOP \s+ \d+ \s+ /xi
       &&
-    scalar $self->_parse_order_by ($attrs->{order_by}) 
+    scalar $self->_parse_order_by ($attrs->{order_by})
   ) {
     $self->throw_exception(
       'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL
@@ -196,7 +198,7 @@ sub _svp_rollback {
 
 sub datetime_parser_type {
   'DBIx::Class::Storage::DBI::MSSQL::DateTime::Format'
-} 
+}
 
 sub sqlt_type { 'SQLServer' }
 
@@ -215,9 +217,10 @@ sub sql_maker {
         # stored procedures like xp_msver, or version detection failed for some
         # other reason.
         # So, we use a query to check if RNO is implemented.
-        $have_rno = 1 if (eval { local $@; ($self->_get_dbh
-          ->selectrow_array('SELECT row_number() OVER (ORDER BY rand())')
-          )[0] });
+        try {
+          $self->_get_dbh->selectrow_array('SELECT row_number() OVER (ORDER BY rand())');
+          $have_rno = 1;
+        };
       }
 
       $self->{_sql_maker_opts} = {
@@ -240,17 +243,18 @@ sub _ping {
   local $dbh->{RaiseError} = 1;
   local $dbh->{PrintError} = 0;
 
-  eval {
+  return try {
     $dbh->do('select 1');
+    1;
+  } catch {
+    0;
   };
-
-  return $@ ? 0 : 1;
 }
 
 package # hide from PAUSE
   DBIx::Class::Storage::DBI::MSSQL::DateTime::Format;
 
-my $datetime_format      = '%Y-%m-%d %H:%M:%S.%3N'; # %F %T 
+my $datetime_format      = '%Y-%m-%d %H:%M:%S.%3N'; # %F %T
 my $smalldatetime_format = '%Y-%m-%d %H:%M:%S';
 
 my ($datetime_parser, $smalldatetime_parser);

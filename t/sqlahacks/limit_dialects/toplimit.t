@@ -153,19 +153,19 @@ is_same_sql_bind (
         SELECT TOP 2 id, source, owner, title, price
           FROM (
             SELECT TOP 2
-                id, source, owner, title, price, ORDER__BY__1
+                id, source, owner, title, price
               FROM (
                 SELECT TOP 5
-                    me.id, me.source, me.owner, me.title, me.price, title AS ORDER__BY__1
+                    me.id, me.source, me.owner, me.title, me.price
                   FROM books me
                   JOIN owners owner ON owner.id = me.owner
                 WHERE ( source = ? )
                 GROUP BY title
                 ORDER BY title
               ) me
-            ORDER BY ORDER__BY__1 DESC
+            ORDER BY title DESC
           ) me
-        ORDER BY ORDER__BY__1
+        ORDER BY title
       ) me
       JOIN owners owner ON owner.id = me.owner
     WHERE ( source = ? )

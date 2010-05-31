@@ -1,10 +1,12 @@
 Revision history for DBIx::Class
 
-        - Add a warning to load_namespaces if a class in ResultSet/
-          is not a subclass of DBIx::Class::ResultSet
+    * New Features
+        - Add DBIx::Class::FilterColumn for non-ref filtering
         - ::Storage::DBI now correctly preserves a parent $dbh from
           terminating children, even during interpreter-global
           out-of-order destruction
+        - dbicadmin supports an -I option with the same semantics as
+          perl itself
         - InflateColumn::DateTime support for MSSQL via DBD::Sybase
         - Millisecond precision support for MSSQL datetimes for
           InflateColumn::DateTime
@@ -17,12 +19,39 @@ Revision history for DBIx::Class
           resultsets
         - MSSQL limits now don't require nearly as many applications of
           the unsafe_subselect_ok attribute, due to optimized queries
+        - Support for Generic Subquery limit "emulation" - awfully slow
+          and inefficient but works on almost any db, and is preferred
+          to a soft-limit
+
+    * Fixes
+        - Fix nasty potentially data-eating bug when deleting/updating
+          a limited resultset
+        - Fix find() to use result_class set on object
+        - Fix result_class setter behaviour to not mistakenly stuff attrs.
+        - Don't try and ensure_class_loaded an object. This doesn't work.
         - Fix as_subselect_rs to not inject resultset class-wide where
           conditions outside of the resulting subquery
-        - Depend on optimized SQL::Abstract (faster SQL generation)
-        - update on row not in database now OK if no changes - 
-          fixes problems with cascaded unnecessary updates
+        - update() on row not in_storage no longer throws an exception
+          if there are no dirty columns to update (fixes cascaded update
+          annoyances)
+        - update()/delete() on prefetching resultsets no longer results
+          in malformed SQL (some $rs attributes were erroneously left in)
+        - Fix dbicadmin to allow deploy() on non-versioned schema
+        - Fix dbicadmin to respect sql_dir on upgrade() (RT#57732)
+        - Update Schema::Versioned to respect hashref style of
+          connection_info
+        - Do not recreate the same related object twice during MultiCreate
+          (solves the problem of orphaned IC::FS files)
+        - Fully qualify xp_msver selector when using DBD::Sybase with
+          MSSQL (RT#57467)
+        - Fix ::DBI::Storage to always be able to present a full set of
+          connect() attributes to e.g. Schema::Versioned
 
+    * Misc
+        - Add a warning to load_namespaces if a class in ResultSet/
+          is not a subclass of DBIx::Class::ResultSet
+        - All DBIC exception-handling switched to Try::Tiny
+        - Depend on optimized SQL::Abstract (faster SQL generation)
 
 0.08121 2010-04-11 18:43:00 (UTC)
         - Support for Firebird RDBMS with DBD::InterBase and ODBC

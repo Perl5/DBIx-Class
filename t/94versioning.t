@@ -245,6 +245,33 @@ system( qq($^X -pi -e "s/ALTER/-- this is a comment\nALTER/" $fn->{trans_v23};) 
   is($schema_v2->get_db_version(), '3.0', 'Fast deploy/upgrade');
 };
 
+# Check that it Schema::Versioned deals with new/all forms of connect arguments.
+{
+  my $get_db_version_run = 0;
+
+  no warnings qw/once redefine/;
+  local *DBIx::Class::Schema::Versioned::get_db_version = sub {
+    $get_db_version_run = 1;
+    return $_[0]->schema_version;
+  };
+
+  # Make sure the env var isn't whats triggering it
+  local $ENV{DBIC_NO_VERSION_CHECK} = 0;
+
+  DBICVersion::Schema->connect({
+    dsn => $dsn,
+    user => $user, 
+    pass => $pass,
+    ignore_version => 1
+  });
+  
+  ok($get_db_version_run == 0, "attributes pulled from hashref connect_info");
+  $get_db_version_run = 0;
+
+  DBICVersion::Schema->connect( $dsn, $user, $pass, { ignore_version => 1 } );
+  ok($get_db_version_run == 0, "attributes pulled from list connect_info");
+}
+
 unless ($ENV{DBICTEST_KEEP_VERSIONING_DDL}) {
     unlink $_ for (values %$fn);
 }

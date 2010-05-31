@@ -17,8 +17,12 @@ BEGIN {
 
 my @json_backends = qw/XS JSON DWIW/;
 my $tests_per_run = 5;
+plan tests => ($tests_per_run * @json_backends) + 1;
 
-plan tests => $tests_per_run * @json_backends;
+
+# test the script is setting @INC properly
+test_exec (qw| -It/lib/testinclude --schema=DBICTestAdminInc --op=deploy --connect=[] |);
+cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from deploying a custom INC schema' );
 
 for my $js (@json_backends) {
 
@@ -37,22 +41,22 @@ sub test_dbicadmin {
 
     my $employees = $schema->resultset('Employee');
 
-    system( _prepare_system_args( qw|--op=insert --set={"name":"Matt"}| ) );
+    test_exec( default_args(), qw|--op=insert --set={"name":"Matt"}| );
     ok( ($employees->count()==1), "$ENV{JSON_ANY_ORDER}: insert count" );
 
     my $employee = $employees->find(1);
     ok( ($employee->name() eq 'Matt'), "$ENV{JSON_ANY_ORDER}: insert valid" );
 
-    system( _prepare_system_args( qw|--op=update --set={"name":"Trout"}| ) );
+    test_exec( default_args(), qw|--op=update --set={"name":"Trout"}| );
     $employee = $employees->find(1);
     ok( ($employee->name() eq 'Trout'), "$ENV{JSON_ANY_ORDER}: update" );
 
-    system( _prepare_system_args( qw|--op=insert --set={"name":"Aran"}| ) );
+    test_exec( default_args(), qw|--op=insert --set={"name":"Aran"}| );
 
     SKIP: {
         skip ("MSWin32 doesn't support -| either", 1) if $^O eq 'MSWin32';
 
-        open(my $fh, "-|",  _prepare_system_args( qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
+        open(my $fh, "-|",  ( 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
         my $data = do { local $/; <$fh> };
         close($fh);
         if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
@@ -60,8 +64,16 @@ sub test_dbicadmin {
         };
     }
 
-    system( _prepare_system_args( qw|--op=delete --where={"name":"Trout"}| ) );
+    test_exec( default_args(), qw|--op=delete --where={"name":"Trout"}| );
     ok( ($employees->count()==1), "$ENV{JSON_ANY_ORDER}: delete" );
+}
+
+sub default_args {
+  return (
+    qw|--quiet --schema=DBICTest::Schema --class=Employee|,
+    q|--connect=["dbi:SQLite:dbname=t/var/DBIxClass.db","","",{"AutoCommit":1}]|,
+    qw|--force -I testincludenoniterference|,
+  );
 }
 
 # Why do we need this crap? Apparently MSWin32 can not pass through quotes properly
@@ -70,22 +82,17 @@ sub test_dbicadmin {
 # of ", because JSON::XS (proudly) does not support "malformed JSON" as the author
 # calls it. Bleh.
 #
-sub _prepare_system_args {
-    my $perl = $^X;
+sub test_exec {
+  my $perl = $^X;
 
-    my @args = (
-        qw|script/dbicadmin --quiet --schema=DBICTest::Schema --class=Employee|,
-        q|--connect=["dbi:SQLite:dbname=t/var/DBIxClass.db","","",{"AutoCommit":1}]|,
-        qw|--force|,
-        @_,
-    );
+  my @args = ('script/dbicadmin', @_);
 
-    if ( $^O eq 'MSWin32' ) {
-        $perl = qq|"$perl"|;    # execution will fail if $^X contains paths
-        for (@args) {
-            $_ =~ s/"/\\"/g;
-        }
+  if ( $^O eq 'MSWin32' ) {
+    $perl = qq|"$perl"|;    # execution will fail if $^X contains paths
+    for (@args) {
+      $_ =~ s/"/\\"/g;
     }
+  }
 
-    return ($perl, @args);
+  system ($perl, @args);
 }

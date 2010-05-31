@@ -14,8 +14,10 @@ $DEBUG = 0 unless defined $DEBUG;
 
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
-use Carp::Clan qw/^SQL::Translator|^DBIx::Class/;
+use Carp::Clan qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
 use Scalar::Util ();
+use Try::Tiny;
+use namespace::clean;
 
 use base qw(Exporter);
 
@@ -43,8 +45,12 @@ sub parse {
 
     croak 'No DBIx::Class::Schema' unless ($dbicschema);
     if (!ref $dbicschema) {
-      eval "use $dbicschema;";
-      croak "Can't load $dbicschema ($@)" if($@);
+      try {
+        eval "require $dbicschema;"
+      }
+      catch {
+        croak "Can't load $dbicschema ($_)";
+      }
     }
 
     my $schema      = $tr->schema;
@@ -59,7 +65,7 @@ sub parse {
         $dbicschema->throw_exception ("'sources' parameter must be an array or hash ref")
           unless( $ref eq 'ARRAY' || ref eq 'HASH' );
 
-        # limit monikers to those specified in 
+        # limit monikers to those specified in
         my $sources;
         if ($ref eq 'ARRAY') {
             $sources->{$_} = 1 for (@$limit_sources);
@@ -165,7 +171,7 @@ sub parse {
             # Force the order of @cond to match the order of ->add_columns
             my $idx;
             my %other_columns_idx = map {'foreign.'.$_ => ++$idx } $relsource->columns;
-            my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}}); 
+            my @cond = sort { $other_columns_idx{$a} cmp $other_columns_idx{$b} } keys(%{$rel_info->{cond}});
 
             # Get the key information, mapping off the foreign/self markers
             my @refkeys = map {/^\w+\.(\w+)$/} @cond;
