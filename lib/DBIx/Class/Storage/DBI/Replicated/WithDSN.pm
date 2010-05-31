@@ -4,8 +4,8 @@ use Moose::Role;
 use Scalar::Util 'reftype';
 requires qw/_query_start/;
 
-use namespace::clean -except => 'meta';
 use Try::Tiny;
+use namespace::clean -except => 'meta';
 
 =head1 NAME
 

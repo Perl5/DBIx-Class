@@ -17,12 +17,13 @@ use Data::Dumper::Concise();
 use Sub::Name ();
 use Try::Tiny;
 use File::Path ();
+use namespace::clean;
 
-__PACKAGE__->mk_group_accessors('simple' =>
-  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
-     _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints
-     _server_info_hash/
-);
+__PACKAGE__->mk_group_accessors('simple' => qw/
+  _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
+  _dbh _server_info_hash _conn_pid _conn_tid _sql_maker _sql_maker_opts
+  transaction_depth _dbh_autocommit  savepoints
+/);
 
 # the values for these accessors are picked out (and deleted) from
 # the attribute hashref passed to connect_info
@@ -580,6 +581,11 @@ sub connect_info {
 
   $self->_dbi_connect_info([@args,
     %attrs && !(ref $args[0] eq 'CODE') ? \%attrs : ()]);
+
+  # FIXME - dirty:
+  # save attributes them in a separate accessor so they are always
+  # introspectable, even in case of a CODE $dbhmaker
+  $self->_dbic_connect_attributes (\%attrs);
 
   return $self->_connect_info;
 }
@@ -1465,7 +1471,9 @@ sub _dbh_execute {
 
   # Can this fail without throwing an exception anyways???
   my $rv = $sth->execute();
-  $self->throw_exception($sth->errstr) if !$rv;
+  $self->throw_exception(
+    $sth->errstr || $sth->err || 'Unknown error: execute() returned false, but error flags were not set...'
+  ) if !$rv;
 
   $self->_query_end( $sql, @$bind );
 
@@ -1680,7 +1688,7 @@ sub _execute_array {
       $sth->finish
     }
     catch {
-      $err = shift unless defined $err 
+      $err = shift unless defined $err
     };
   };
 
@@ -1922,19 +1930,13 @@ sub _select_args {
   }
 
   # adjust limits
-  if (
-    $attrs->{software_limit}
-      ||
-    $sql_maker->_default_limit_syntax eq "GenericSubQ"
-  ) {
-    $attrs->{software_limit} = 1;
-  }
-  else {
+  if (defined $attrs->{rows}) {
     $self->throw_exception("rows attribute must be positive if present")
-      if (defined($attrs->{rows}) && !($attrs->{rows} > 0));
-
+      unless $attrs->{rows} > 0;
+  }
+  elsif (defined $attrs->{offset}) {
     # MySQL actually recommends this approach.  I cringe.
-    $attrs->{rows} = 2**48 if not defined $attrs->{rows} and defined $attrs->{offset};
+    $attrs->{rows} = 2**32;
   }
 
   my @limit;

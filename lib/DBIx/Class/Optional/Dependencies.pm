@@ -32,7 +32,6 @@ my $reqs = {
   replicated => {
     req => {
       %$moose_basic,
-      'namespace::clean'          => '0.11',
       'Hash::Merge'               => '0.12',
     },
     pod => {
@@ -358,7 +357,7 @@ EOD
     <<'EOD',
 Dependencies are organized in C<groups> and each group can list one or more
 required modules, with an optional minimum version (or 0 for any version).
-The group name can be used in the 
+The group name can be used in the
 EOD
   );
 

@@ -14,6 +14,7 @@ use List::Util();
 use Sub::Name();
 use Data::Dumper::Concise();
 use Try::Tiny;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_identity _blob_log_on_update _writer_storage _is_extra_storage

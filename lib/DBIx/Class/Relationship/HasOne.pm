@@ -5,8 +5,9 @@ use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
+use namespace::clean;
 
-our %_pod_inherit_config = 
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::HasOne' => 'DBIx::Class::Relationship' }
   );

@@ -10,6 +10,7 @@ use Scalar::Util ();
 use File::Spec;
 use Sub::Name ();
 use Module::Find();
+use namespace::clean;
 
 use base qw/DBIx::Class/;
 
@@ -99,7 +100,7 @@ are no matching Result classes like this:
 If a Result class is found to already have a ResultSet class set using
 L</resultset_class> to some other class, you will be warned like this:
 
-  We found ResultSet class '$rs_class' for '$result', but it seems 
+  We found ResultSet class '$rs_class' for '$result', but it seems
   that you had already set '$result' to use '$rs_set' instead
 
 Both of the sub-namespaces are configurable if you don't like the defaults,
@@ -320,7 +321,7 @@ need to add C<no warnings 'qw';> before your load_classes call.
 If any classes found do not appear to be Result class files, you will
 get the following warning:
 
-   Failed to load $comp_class. Can't find source_name method. Is 
+   Failed to load $comp_class. Can't find source_name method. Is
    $comp_class really a full DBIC result class? Fix it, move it elsewhere,
    or make your load_classes call more specific.
 
@@ -480,11 +481,11 @@ is true.
 
 =back
 
-An optional sub which you can declare in your own Schema class that will get 
+An optional sub which you can declare in your own Schema class that will get
 passed the L<SQL::Translator::Schema> object when you deploy the schema via
 L</create_ddl_dir> or L</deploy>.
 
-For an example of what you can do with this, see 
+For an example of what you can do with this, see
 L<DBIx::Class::Manual::Cookbook/Adding Indexes And Functions To Your SQL>.
 
 Note that sqlt_deploy_hook is called by L</deployment_statements>, which in turn
@@ -656,7 +657,7 @@ sub txn_do {
 
 =head2 txn_scope_guard
 
-Runs C<txn_scope_guard> on the schema's storage. See 
+Runs C<txn_scope_guard> on the schema's storage. See
 L<DBIx::Class::Storage/txn_scope_guard>.
 
 =cut
@@ -742,7 +743,7 @@ found in L<DBIx::Class::Storage::DBI>.
 
 Pass this method a resultsource name, and an arrayref of
 arrayrefs. The arrayrefs should contain a list of column names,
-followed by one or many sets of matching data for the given columns. 
+followed by one or many sets of matching data for the given columns.
 
 In void context, C<insert_bulk> in L<DBIx::Class::Storage::DBI> is used
 to insert the data, as this is a fast method. However, insert_bulk currently
@@ -762,16 +763,16 @@ e.g.
     ...
   ]);
 
-Since wantarray context is basically the same as looping over $rs->create(...) 
+Since wantarray context is basically the same as looping over $rs->create(...)
 you won't see any performance benefits and in this case the method is more for
 convenience. Void context sends the column information directly to storage
-using <DBI>s bulk insert method. So the performance will be much better for 
+using <DBI>s bulk insert method. So the performance will be much better for
 storages that support this method.
 
-Because of this difference in the way void context inserts rows into your 
+Because of this difference in the way void context inserts rows into your
 database you need to note how this will effect any loaded components that
-override or augment insert.  For example if you are using a component such 
-as L<DBIx::Class::UUIDColumns> to populate your primary keys you MUST use 
+override or augment insert.  For example if you are using a component such
+as L<DBIx::Class::UUIDColumns> to populate your primary keys you MUST use
 wantarray context if you want the PKs automatically created.
 
 =cut
@@ -785,7 +786,7 @@ sub populate {
         $rs->populate($data);
     }
   } else {
-      $self->throw_exception("$name is not a resultset"); 
+      $self->throw_exception("$name is not a resultset");
   }
 }
 
@@ -813,7 +814,7 @@ sub connection {
   my ($self, @info) = @_;
   return $self if !@info && $self->storage;
 
-  my ($storage_class, $args) = ref $self->storage_type ? 
+  my ($storage_class, $args) = ref $self->storage_type ?
     ($self->_normalize_storage_type($self->storage_type),{}) : ($self->storage_type, {});
 
   $storage_class = 'DBIx::Class::Storage'.$storage_class
@@ -934,7 +935,7 @@ sub setup_connection_class {
 
 =head2 svp_begin
 
-Creates a new savepoint (does nothing outside a transaction). 
+Creates a new savepoint (does nothing outside a transaction).
 Equivalent to calling $schema->storage->svp_begin.  See
 L<DBIx::Class::Storage/"svp_begin"> for more information.
 
@@ -951,7 +952,7 @@ sub svp_begin {
 
 =head2 svp_release
 
-Releases a savepoint (does nothing outside a transaction). 
+Releases a savepoint (does nothing outside a transaction).
 Equivalent to calling $schema->storage->svp_release.  See
 L<DBIx::Class::Storage/"svp_release"> for more information.
 
@@ -968,7 +969,7 @@ sub svp_release {
 
 =head2 svp_rollback
 
-Rollback to a savepoint (does nothing outside a transaction). 
+Rollback to a savepoint (does nothing outside a transaction).
 Equivalent to calling $schema->storage->svp_rollback.  See
 L<DBIx::Class::Storage/"svp_rollback"> for more information.
 
@@ -1052,8 +1053,8 @@ to have the SQL produced include a C<DROP TABLE> statement for each table
 created. For quoting purposes supply C<quote_table_names> and
 C<quote_field_names>.
 
-Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash 
-ref or an array ref, containing a list of source to deploy. If present, then 
+Additionally, the DBIx::Class parser accepts a C<sources> parameter as a hash
+ref or an array ref, containing a list of source to deploy. If present, then
 only the sources listed will get deployed. Furthermore, you can use the
 C<add_fk_index> parser parameter to prevent the parser from creating an index for each
 FK.
@@ -1100,7 +1101,7 @@ sub deployment_statements {
 
 =back
 
-A convenient shortcut to 
+A convenient shortcut to
 C<< $self->storage->create_ddl_dir($self, @args) >>.
 
 Creates an SQL file based on the Schema, for each of the specified
@@ -1141,7 +1142,7 @@ format.
     my $filename = $table->ddl_filename($type, $dir, $version, $preversion)
 
  In recent versions variables $dir and $version were reversed in order to
- bring the signature in line with other Schema/Storage methods. If you 
+ bring the signature in line with other Schema/Storage methods. If you
  really need to maintain backward compatibility, you can do the following
  in any overriding methods:
 
@@ -1162,7 +1163,7 @@ sub ddl_filename {
 
 =head2 thaw
 
-Provided as the recommended way of thawing schema objects. You can call 
+Provided as the recommended way of thawing schema objects. You can call
 C<Storable::thaw> directly if you wish, but the thawed objects will not have a
 reference to any schema, so are rather useless.
 
@@ -1239,7 +1240,7 @@ sub schema_version {
 
 =back
 
-This method is called by L</load_namespaces> and L</load_classes> to install the found classes into your Schema. You should be using those instead of this one. 
+This method is called by L</load_namespaces> and L</load_classes> to install the found classes into your Schema. You should be using those instead of this one.
 
 You will only need this method if you have your Result classes in
 files which are not named after the packages (or all in the same
@@ -1304,7 +1305,7 @@ sub unregister_source {
 
 =back
 
-As L</register_source> but should be used if the result class already 
+As L</register_source> but should be used if the result class already
 has a source and you want to register an extra one.
 
 =cut
@@ -1349,7 +1350,7 @@ sub _register_source {
 
 sub _unregister_source {
     my ($self, $moniker) = @_;
-    my %reg = %{$self->source_registrations}; 
+    my %reg = %{$self->source_registrations};
 
     my $source = delete $reg{$moniker};
     $self->source_registrations(\%reg);

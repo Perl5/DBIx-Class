@@ -5,6 +5,7 @@ use warnings;
 use Scope::Guard ();
 use Context::Preserve ();
 use Try::Tiny;
+use namespace::clean;
 
 =head1 NAME
 
@@ -355,7 +356,7 @@ sub with_deferred_fk_checks {
   my $txn_scope_guard = $self->txn_scope_guard;
 
   $self->_do_query('alter session set constraints = deferred');
-  
+
   my $sg = Scope::Guard->new(sub {
     $self->_do_query('alter session set constraints = immediate');
   });
