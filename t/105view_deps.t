@@ -40,7 +40,9 @@ isa_ok( $schema->resultset('Bar')->result_source,
 
 is( $bar_deps[0], 'baz',   'which is reported to depend on baz...' );
 is( $bar_deps[1], 'mixin', 'and on mixin.' );
-is( $foo_deps[0], undef,   'Foo has no dependencies...' );
+is( $foo_deps[0], undef,   'Foo has no declared dependencies...' );
+
+
 
 isa_ok(
     $schema->resultset('Foo')->result_source,

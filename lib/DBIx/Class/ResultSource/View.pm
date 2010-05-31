@@ -4,8 +4,6 @@ use strict;
 use warnings;
 
 use DBIx::Class::ResultSet;
-use SQL::Translator::Parser::DBIx::Class;
-use Data::Dumper::Concise;
 
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/ResultSource/);
