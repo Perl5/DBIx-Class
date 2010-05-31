@@ -38,6 +38,8 @@ Revision history for DBIx::Class
           (solves the problem of orphaned IC::FS files)
         - Fully qualify xp_msver selector when using DBD::Sybase with
           MSSQL (RT#57467)
+        - Fix ::DBI::Storage to always be able to present a full set of
+          connect() attributes to e.g. Schema::Versioned
 
     * Misc
         - Add a warning to load_namespaces if a class in ResultSet/
