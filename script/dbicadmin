@@ -87,7 +87,7 @@ if($opts->{selfinject_pod}) {
     );
 }
 
-# FIXME - lowercasin will eventually go away when Getopt::Long::Descriptive is fixed
+# FIXME - lowercasing will eventually go away when Getopt::Long::Descriptive is fixed
 if($opts->{i}) {
     $opts->{include_dirs} = delete $opts->{i};
 }
