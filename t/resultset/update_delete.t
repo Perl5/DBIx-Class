@@ -128,6 +128,9 @@ $schema->resultset('CD')->search(
   { prefetch => 'liner_notes' },
 )->delete;
 
+$schema->storage->debugobj ($orig_debugobj);
+$schema->storage->debug ($orig_debug);
+
 is_same_sql_bind (
   $sql,
   \@bind,
