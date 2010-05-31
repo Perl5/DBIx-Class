@@ -52,12 +52,16 @@ for my $storage_type (@storage_types) {
 
   isa_ok($schema->storage, "DBIx::Class::Storage::$storage_type");
 
-# start disconnected to test _ping
-  $schema->storage->_dbh->disconnect;
+  SKIP: {
+    skip 'This version of DBD::Sybase segfaults on disconnect', 1 if DBD::Sybase->VERSION < 1.08;
 
-  lives_ok {
-    $schema->storage->dbh_do(sub { $_[1]->do('select 1') })
-  } '_ping works';
+    # start disconnected to test _ping
+    $schema->storage->_dbh->disconnect;
+
+    lives_ok {
+      $schema->storage->dbh_do(sub { $_[1]->do('select 1') })
+    } '_ping works';
+  }
 
   my $dbh = $schema->storage->dbh;
 
@@ -177,8 +181,8 @@ SQL
   SKIP: {
     my $storage = $schema->storage;
     my $version = $storage->_server_info->{normalized_dbms_version};
-    
-    skip 1, 'could not detect SQL Server version' if not defined $version;
+
+    skip 'could not detect SQL Server version', 1 if not defined $version;
 
     my $have_rno = $version >= 9 ? 1 : 0;
 
