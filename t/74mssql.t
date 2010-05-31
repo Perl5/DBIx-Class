@@ -186,19 +186,11 @@ SQL
 
     my $have_rno = $version >= 9 ? 1 : 0;
 
-    # Delete version information to force RNO check when rebuilding SQLA
-    # instance.
-    no strict 'refs';
-    no warnings 'redefine';
-    local *{(ref $storage).'::_get_server_version'} = sub { undef };
-
-    my $server_info = { %{ $storage->_server_info_hash } }; # clone
-
-    delete @$server_info{qw/dbms_version normalized_dbms_version/};
-
-    local $storage->{_server_info_hash} = $server_info;
     local $storage->{_sql_maker}        = undef;
     local $storage->{_sql_maker_opts}   = undef;
+
+    local $storage->{_server_info_hash} = { %{ $storage->_server_info_hash } }; # clone
+    delete @{$storage->{_server_info_hash}}{qw/dbms_version normalized_dbms_version/};
 
     $storage->sql_maker;
 

@@ -568,23 +568,23 @@ sub _on_connect
 {
   my ($self) = @_;
 
-  my $info = $self->storage->connect_info;
-  my $args = $info->[-1];
+  my $conn_info = $self->storage->connect_info;
+  $self->{vschema} = DBIx::Class::Version->connect(@$conn_info);
+  my $conn_attrs = $self->{vschema}->storage->_dbic_connect_attributes || {};
 
-  $self->{vschema} = DBIx::Class::Version->connect(@$info);
   my $vtable = $self->{vschema}->resultset('Table');
 
   # useful when connecting from scripts etc
-  return if ($args->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $args->{ignore_version}));
+  return if ($conn_attrs->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $conn_attrs->{ignore_version}));
 
   # check for legacy versions table and move to new if exists
-  my $vschema_compat = DBIx::Class::VersionCompat->connect(@$info);
+  my $vschema_compat = DBIx::Class::VersionCompat->connect(@$conn_info);
   unless ($self->_source_exists($vtable)) {
     my $vtable_compat = $vschema_compat->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
       map { $vtable->create({ installed => $_->Installed, version => $_->Version }) } $vtable_compat->all;
-      $self->storage->dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
+      $self->storage->_get_dbh->do("DROP TABLE " . $vtable_compat->result_source->from);
     }
   }
 
