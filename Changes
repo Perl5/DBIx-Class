@@ -36,6 +36,8 @@ Revision history for DBIx::Class
           connection_info
         - Do not recreate the same related object twice during MultiCreate
           (solves the problem of orphaned IC::FS files)
+        - Fully qualify xp_msver selector when using DBD::Sybase with
+          MSSQL (RT#57467)
 
     * Misc
         - Add a warning to load_namespaces if a class in ResultSet/

@@ -59,7 +59,7 @@ sub _dbh_rollback {
 sub _get_server_version {
   my $self = shift;
 
-  my $product_version = $self->_get_dbh->selectrow_hashref('xp_msver ProductVersion');
+  my $product_version = $self->_get_dbh->selectrow_hashref('master.dbo.xp_msver ProductVersion');
 
   if ((my $version = $product_version->{Character_Value}) =~ /^(\d+)\./) {
     return $version;
