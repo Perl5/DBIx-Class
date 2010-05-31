@@ -310,8 +310,9 @@ has '_confirm' => (
 
 =back
 
-L<create> will generate sql for the supplied schema_class in sql_dir.  The flavour of sql to
-generate can be controlled by suppling a sqlt_type which should be a L<SQL::Translator> name.
+L<create> will generate sql for the supplied schema_class in sql_dir. The
+flavour of sql to generate can be controlled by supplying a sqlt_type which
+should be a L<SQL::Translator> name.
 
 Arguments for L<SQL::Translator> can be supplied in the sqlt_args hashref.
 
