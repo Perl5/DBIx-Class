@@ -1237,14 +1237,12 @@ sub _count_rs {
   my $rsrc = $self->result_source;
   $attrs ||= $self->_resolved_attrs;
 
-  # only take pieces we need for a simple count
-  my $tmp_attrs = { map
-    { $_ => $attrs->{$_} }
-    qw/ alias from where bind join /
-  };
+  my $tmp_attrs = { %$attrs };
+  # take off any limits, record_filter is cdbi, and no point of ordering nor locking a count
+  delete @{$tmp_attrs}{qw/rows offset order_by record_filter for/};
 
   # overwrite the selector (supplied by the storage)
-  $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $tmp_attrs);
+  $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $attrs);
   $tmp_attrs->{as} = 'count';
 
   my $tmp_rs = $rsrc->resultset_class->new($rsrc, $tmp_attrs)->get_column ('count');
@@ -1261,10 +1259,9 @@ sub _count_subq_rs {
   my $rsrc = $self->result_source;
   $attrs ||= $self->_resolved_attrs;
 
-  my $sub_attrs = { map
-    { $_ => $attrs->{$_} }
-    qw/ alias from where bind join group_by having rows offset /
-  };
+  my $sub_attrs = { %$attrs };
+  # extra selectors do not go in the subquery and there is no point of ordering it, nor locking it
+  delete @{$sub_attrs}{qw/collapse select _prefetch_select as order_by for/};
 
   # if we multi-prefetch we group_by primary keys only as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
@@ -1295,7 +1292,7 @@ sub _count_subq_rs {
                ->new ($rsrc, $sub_attrs)
                 ->as_subselect_rs
                  ->search ({}, { columns => { count => $rsrc->storage->_count_select ($rsrc, $attrs) } })
-                  -> get_column ('count');
+                  ->get_column ('count');
 }
 
 sub _bool {

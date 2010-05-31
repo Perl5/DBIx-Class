@@ -508,8 +508,6 @@ sub _find_syntax {
 sub select {
   my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
 
-  $self->{"${_}_bind"} = [] for (qw/having from order where/);
-
   if (not ref($table) or ref($table) eq 'SCALAR') {
     $table = $self->_quote($table);
   }
@@ -522,7 +520,16 @@ sub select {
   ($sql, @{$self->{where_bind}}) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $rs_attrs, @rest
   );
-  return wantarray ? ($sql, @{$self->{from_bind}}, @{$self->{where_bind}}, @{$self->{having_bind}}, @{$self->{order_bind}} ) : $sql;
+
+# this *must* be called, otherwise extra binds will remain in the sql-maker
+  my @bind = $self->_assemble_binds;
+
+  return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub _assemble_binds {
+  my $self = shift;
+  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/from where having order/);
 }
 
 # Quotes table names, and handles default inserts

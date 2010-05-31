@@ -24,20 +24,18 @@ sub new {
   $self->SUPER::new (\%opts);
 }
 
-sub select {
-    my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
-
-    my $sql = $self->SUPER::select($table, $fields, $where, $rs_attrs, @rest);
-
-    return wantarray ? ($sql, @{$self->{from_bind}}, @{$self->{where_bind}}, @{$self->{_oracle_connect_by_binds}}, @{$self->{having_bind}}, @{$self->{order_bind}} ) : $sql;
+sub _assemble_binds {
+  my $self = shift;
+  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/from where oracle_connect_by having order/);
 }
+
 
 sub _emulate_limit {
     my ( $self, $syntax, $sql, $rs_attrs, $rows, $offset ) = @_;
 
     my ($cb_sql, @cb_bind) = $self->_connect_by($rs_attrs);
     $sql .= $cb_sql;
-    $self->{_oracle_connect_by_binds} = \@cb_bind;
+    $self->{oracle_connect_by_bind} = \@cb_bind;
 
     return $self->SUPER::_emulate_limit($syntax, $sql, $rs_attrs, $rows, $offset);
 }
