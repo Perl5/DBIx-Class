@@ -85,16 +85,19 @@ has 'schema' => (
   lazy_build  => 1,
 );
 
+sub BUILD {
+   my $self = shift;
+   require Class::MOP;
+
+   my @include_dirs = @{$self->include_dirs};
+   @INC = (@include_dirs, @INC);
+   Class::MOP::load_class($self->schema_class);
+}
+
 sub _build_schema {
   my ($self)  = @_;
-  require Class::MOP;
-  {
-    my @include_dirs = @{$self->include_dirs};
-    local @INC = (@include_dirs, @INC);
-    Class::MOP::load_class($self->schema_class);
-  }
-  $self->connect_info->[3]->{ignore_version} =1;
-  return $self->schema_class->connect(@{$self->connect_info()} ); # ,  $self->connect_info->[3], { ignore_version => 1} );
+  $self->connect_info->[3]{ignore_version} = 1;
+  return $self->schema_class->connect(@{$self->connect_info});
 }
 
 =head2 include_dirs

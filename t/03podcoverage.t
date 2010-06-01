@@ -23,7 +23,7 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_podcoverage') ) 
 # of what this is doing might be in order.
 # The exceptions structure below is a hash keyed by the module
 # name. Any * in a name is treated like a wildcard and will behave
-# as expected. Modules are matched by longest string first, so 
+# as expected. Modules are matched by longest string first, so
 # A::B::C will match even if there is A::B*
 
 # The value for each is a hash, which contains one or more
@@ -87,6 +87,12 @@ my $exceptions = {
             connection
         /]
     },
+
+    'DBIx::Class::Admin'        => {
+        ignore => [ qw/
+            BUILD
+        /]
+     },
 
     'DBIx::Class::Storage::DBI::Replicated*'        => {
         ignore => [ qw/
