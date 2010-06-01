@@ -1,4 +1,4 @@
-package # hide from PAUSE
+package    # hide from PAUSE
     ViewDeps;
 ## Used in 105view_deps.t
 
