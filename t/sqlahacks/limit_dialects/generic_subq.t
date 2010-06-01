@@ -28,7 +28,6 @@ is_same_sql_bind(
           FROM books me
           JOIN owners owner ON owner.id = me.owner
         WHERE ( source = ? )
-        ORDER BY me.title
       ) me
     WHERE
       (
@@ -36,6 +35,7 @@ is_same_sql_bind(
           FROM books rownum__emulation
         WHERE rownum__emulation.title < me.title
       ) < 2
+    ORDER BY me.title
   )',
   [  [ 'source', 'Library' ] ],
 );
@@ -69,7 +69,6 @@ is_same_sql_bind(
           FROM "books" "me"
           JOIN "owners" "owner" ON "owner"."id" = "me"."owner"
         WHERE ( "source" = ? )
-        ORDER BY "title" DESC
       ) "me"
     WHERE
       (
@@ -77,6 +76,7 @@ is_same_sql_bind(
           FROM "books" "rownum__emulation"
         WHERE "rownum__emulation"."title" > "me"."title"
       ) BETWEEN 1 AND 3
+    ORDER BY "title" DESC
   )',
   [ [ 'source', 'Library' ] ],
 );
@@ -104,7 +104,6 @@ is_same_sql_bind(
           FROM "books" "me"
           JOIN "owners" "owner" ON "owner"."id" = "me"."owner"
         WHERE ( "source" = ? )
-        ORDER BY "title"
       ) "me"
     WHERE
       (
@@ -112,6 +111,7 @@ is_same_sql_bind(
           FROM "books" "rownum__emulation"
         WHERE "rownum__emulation"."title" < "me"."title"
       ) BETWEEN 1 AND 4294967295
+    ORDER BY "title"
   )',
   [ [ 'source', 'Library' ] ],
 );

@@ -466,7 +466,8 @@ sub _GenericSubQ {
   my $cmp_op = $direction eq 'desc' ? '>' : '<';
   my $count_tbl_alias = 'rownum__emulation';
 
-  my $order_group_having = $self->_parse_rs_attrs($rs_attrs);
+  my $order_sql = $self->_order_by (delete $rs_attrs->{order_by});
+  my $group_having_sql = $self->_parse_rs_attrs($rs_attrs);
 
   # add the order supplement (if any) as this is what will be used for the outer WHERE
   $in_sel .= ", $_" for keys %{$extra_order_sel||{}};
@@ -474,9 +475,10 @@ sub _GenericSubQ {
   $sql = sprintf (<<EOS,
 SELECT $out_sel
   FROM (
-    SELECT $in_sel ${sql}${order_group_having}
+    SELECT $in_sel ${sql}${group_having_sql}
   ) %s
 WHERE ( SELECT COUNT(*) FROM %s %s WHERE %s $cmp_op %s ) %s
+$order_sql
 EOS
     ( map { $self->_quote ($_) } (
       $rs_attrs->{alias},
