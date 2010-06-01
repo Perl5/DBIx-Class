@@ -578,9 +578,8 @@ sub _on_connect
   return if ($conn_attrs->{ignore_version} || ($ENV{DBIC_NO_VERSION_CHECK} && !exists $conn_attrs->{ignore_version}));
 
   # check for legacy versions table and move to new if exists
-  my $vschema_compat = DBIx::Class::VersionCompat->connect(@$conn_info);
   unless ($self->_source_exists($vtable)) {
-    my $vtable_compat = $vschema_compat->resultset('TableCompat');
+    my $vtable_compat = DBIx::Class::VersionCompat->connect(@$conn_info)->resultset('TableCompat');
     if ($self->_source_exists($vtable_compat)) {
       $self->{vschema}->deploy;
       map { $vtable->create({ installed => $_->Installed, version => $_->Version }) } $vtable_compat->all;
