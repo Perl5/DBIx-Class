@@ -5,8 +5,9 @@ use base qw/
   DBIx::Class::Storage::DBI::Sybase::ASE
 /;
 use mro 'c3';
-use List::Util ();
-use Scalar::Util ();
+use List::Util 'first';
+use Scalar::Util 'looks_like_number';
+use namespace::clean;
 
 sub _init {
   my $self = shift;
@@ -17,7 +18,7 @@ sub _init {
 
 sub _fetch_identity_sql { 'SELECT ' . $_[0]->_identity_method }
 
-my $number = sub { Scalar::Util::looks_like_number($_[0]) };
+my $number = sub { looks_like_number $_[0] };
 
 my $decimal = sub { $_[0] =~ /^ [-+]? \d+ (?:\.\d*)? \z/x };
 
@@ -38,7 +39,7 @@ sub interpolate_unquoted {
 
   return $self->next::method(@_) if not defined $value or not defined $type;
 
-  if (my $key = List::Util::first { $type =~ /$_/i } keys %noquote) {
+  if (my $key = first { $type =~ /$_/i } keys %noquote) {
     return 1 if $noquote{$key}->($value);
   }
   elsif ($self->is_datatype_numeric($type) && $number->($value)) {

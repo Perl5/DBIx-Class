@@ -11,12 +11,11 @@ use Carp::Clan qw/^DBIx::Class/;
 use DBI;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
-use Scalar::Util();
-use List::Util();
-use Data::Dumper::Concise();
-use Sub::Name ();
+use Scalar::Util qw/refaddr weaken reftype blessed/;
+use Data::Dumper::Concise 'Dumper';
+use Sub::Name 'subname';
 use Try::Tiny;
-use File::Path ();
+use File::Path 'mkpath';
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/
@@ -67,7 +66,7 @@ for my $meth (@rdbms_specific_methods) {
 
   no strict qw/refs/;
   no warnings qw/redefine/;
-  *{__PACKAGE__ ."::$meth"} = Sub::Name::subname $meth => sub {
+  *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
     if (not $_[0]->_driver_determined) {
       $_[0]->_determine_driver;
       goto $_[0]->can($meth);
@@ -1056,7 +1055,7 @@ sub _determine_driver {
       } else {
         # if connect_info is a CODEREF, we have no choice but to connect
         if (ref $self->_dbi_connect_info->[0] &&
-            Scalar::Util::reftype($self->_dbi_connect_info->[0]) eq 'CODE') {
+            reftype $self->_dbi_connect_info->[0] eq 'CODE') {
           $self->_populate_dbh;
           $driver = $self->_dbh->{Driver}{Name};
         }
@@ -1177,7 +1176,7 @@ sub _connect {
 
     unless ($self->unsafe) {
       my $weak_self = $self;
-      Scalar::Util::weaken($weak_self);
+      weaken $weak_self;
       $dbh->{HandleError} = sub {
           if ($weak_self) {
             $weak_self->throw_exception("DBI Exception: $_[0]");
@@ -1392,7 +1391,7 @@ sub _dbh_rollback {
 sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, $args) = @_;
 
-  if( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+  if( blessed $ident && $ident->isa("DBIx::Class::ResultSource") ) {
     $ident = $ident->from();
   }
 
@@ -1563,9 +1562,9 @@ sub insert_bulk {
       $cols->[$col_idx],
       do {
         local $Data::Dumper::Maxdepth = 1; # don't dump objects, if any
-        Data::Dumper::Concise::Dumper({
+        Dumper {
           map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
-        }),
+        },
       }
     );
   };
@@ -1704,9 +1703,7 @@ sub _execute_array {
 
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
       ($tuple_status->[$i][1] || $err),
-      Data::Dumper::Concise::Dumper({
-        map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols)
-      }),
+      Dumper { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) },
     );
   }
 
@@ -2330,7 +2327,7 @@ sub create_ddl_dir {
     carp "No directory given, using ./\n";
     $dir = './';
   } else {
-      -d $dir or File::Path::mkpath($dir)
+      -d $dir or mkpath $dir
           or $self->throw_exception("create_ddl_dir: $! creating dir '$dir'");
   }
 

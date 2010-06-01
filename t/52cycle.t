@@ -12,7 +12,8 @@ BEGIN {
 
 use DBICTest;
 use DBICTest::Schema;
-use Scalar::Util ();
+use Scalar::Util 'weaken';
+use namespace::clean;
 
 import Test::Memory::Cycle;
 
@@ -31,7 +32,7 @@ my $weak;
   my $row = $weak->{row} = $rs->first;
   memory_cycle_ok($row, 'No cycles in row');
 
-  Scalar::Util::weaken ($_) for values %$weak;
+  weaken $_ for values %$weak;
   memory_cycle_ok($weak, 'No cycles in weak object collection');
 }
 

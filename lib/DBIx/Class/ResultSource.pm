@@ -9,6 +9,7 @@ use DBIx::Class::ResultSourceHandle;
 use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
+use List::Util 'first';
 use namespace::clean;
 
 use base qw/DBIx::Class/;
@@ -1292,7 +1293,7 @@ sub _resolve_join {
                -is_single => (
                   $rel_info->{attrs}{accessor}
                     &&
-                  List::Util::first { $rel_info->{attrs}{accessor} eq $_ } (qw/single filter/)
+                  first { $rel_info->{attrs}{accessor} eq $_ } (qw/single filter/)
                 ),
                -alias => $as,
                -relation_chain_depth => $seen->{-relation_chain_depth} || 0,

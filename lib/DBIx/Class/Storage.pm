@@ -7,7 +7,7 @@ use base qw/DBIx::Class/;
 use mro 'c3';
 
 use DBIx::Class::Exception;
-use Scalar::Util();
+use Scalar::Util 'weaken';
 use IO::File;
 use DBIx::Class::Storage::TxnScopeGuard;
 use Try::Tiny;
@@ -85,7 +85,7 @@ storage object, such as during L<DBIx::Class::Schema/clone>.
 sub set_schema {
   my ($self, $schema) = @_;
   $self->schema($schema);
-  Scalar::Util::weaken($self->{schema}) if ref $self->{schema};
+  weaken $self->{schema} if ref $self->{schema};
 }
 
 =head2 connected

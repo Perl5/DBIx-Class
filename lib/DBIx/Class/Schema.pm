@@ -6,10 +6,11 @@ use warnings;
 use DBIx::Class::Exception;
 use Carp::Clan qw/^DBIx::Class/;
 use Try::Tiny;
-use Scalar::Util ();
+use Scalar::Util 'weaken';
 use File::Spec;
-use Sub::Name ();
+use Sub::Name 'subname';
 use Module::Find();
+use Storable();
 use namespace::clean;
 
 use base qw/DBIx::Class/;
@@ -919,7 +920,7 @@ sub compose_namespace {
     no strict 'refs';
     no warnings 'redefine';
     foreach my $meth (qw/class source resultset/) {
-      *{"${target}::${meth}"} = Sub::Name::subname "${target}::${meth}" =>
+      *{"${target}::${meth}"} = subname "${target}::${meth}" =>
         sub { shift->schema->$meth(@_) };
     }
   }
@@ -1323,7 +1324,7 @@ sub _register_source {
 
   $source = $source->new({ %$source, source_name => $moniker });
   $source->schema($self);
-  Scalar::Util::weaken($source->{schema}) if ref($self);
+  weaken $source->{schema} if ref($self);
 
   my $rs_class = $source->result_class;
 
@@ -1431,7 +1432,7 @@ more information.
     {
       no strict 'refs';
       my $name = join '::', $target, 'schema';
-      *$name = Sub::Name::subname $name, sub { $schema };
+      *$name = subname $name, sub { $schema };
     }
 
     $schema->connection(@info);

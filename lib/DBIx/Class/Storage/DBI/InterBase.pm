@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
-use List::Util();
+use List::Util 'first';
 use Try::Tiny;
 use namespace::clean;
 
@@ -80,7 +80,7 @@ EOF
       $generator = uc $generator unless $quoted;
 
       return $generator
-        if List::Util::first {
+        if first {
           $self->sql_maker->quote_char ? ($_ eq $col) : (uc($_) eq uc($col))
         } @trig_cols;
     }

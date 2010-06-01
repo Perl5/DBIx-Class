@@ -6,7 +6,8 @@ use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
 use Scope::Guard ();
-use Context::Preserve ();
+use Context::Preserve 'preserve_context';
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' => '__last_insert_id');
 
@@ -72,8 +73,7 @@ sub with_deferred_fk_checks {
     $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
   });
 
-  return Context::Preserve::preserve_context(sub { $sub->() },
-    after => sub { $txn_scope_guard->commit });
+  return preserve_context { $sub->() } after => sub { $txn_scope_guard->commit };
 }
 
 =head2 connect_call_datetime_setup

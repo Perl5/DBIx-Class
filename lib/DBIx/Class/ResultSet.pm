@@ -2,10 +2,7 @@ package DBIx::Class::ResultSet;
 
 use strict;
 use warnings;
-use overload
-        '0+'     => "count",
-        'bool'   => "_bool",
-        fallback => 1;
+use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
 use DBIx::Class::Exception;
 use Data::Page;
@@ -13,8 +10,13 @@ use Storable;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultSourceHandle;
 use List::Util ();
-use Scalar::Util ();
-use base qw/DBIx::Class/;
+use Scalar::Util 'blessed';
+use namespace::clean;
+
+use overload
+        '0+'     => "count",
+        'bool'   => "_bool",
+        fallback => 1;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_result_class _source_handle/);
 
@@ -1933,7 +1935,7 @@ sub _is_deterministic_value {
   my $value = shift;
   my $ref_type = ref $value;
   return 1 if $ref_type eq '' || $ref_type eq 'SCALAR';
-  return 1 if Scalar::Util::blessed($value);
+  return 1 if blessed $value;
   return 0;
 }
 
