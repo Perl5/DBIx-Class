@@ -598,7 +598,7 @@ EOF
       return 0;
   });
 
-  my $exception;
+  my $exception = '';
   try {
     my $bulk = $self->_bulk_storage;
 
