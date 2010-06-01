@@ -50,7 +50,7 @@ sub deployment_statements {
 
   $sqltargs ||= {};
 
-  if (my $version = $self->_server_info->{normalized_dbms_version}) {
+  if (my $version = $self->_server_info->{dbms_version}) {
     $sqltargs->{producer_args}{sqlite_version} = $version;
   }
 
