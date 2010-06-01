@@ -199,6 +199,19 @@ sub _svp_rollback {
     $self->_get_dbh->pg_rollback_to($name);
 }
 
+sub deployment_statements {
+  my $self = shift;;
+  my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
+
+  $sqltargs ||= {};
+
+  if (my $version = $self->_server_info->{normalized_dbms_version}) {
+    $sqltargs->{producer_args}{postgres_version} = $version;
+  }
+
+  $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
+}
+
 1;
 
 __END__
