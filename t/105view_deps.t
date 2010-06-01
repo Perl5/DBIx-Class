@@ -86,6 +86,6 @@ sort {
 
 #diag(Dwarn @sqlt_sources);
 
-is_deeply(\@sorted_sources,\@sqlt_sources,"SQLT view order triumphantly matchs our order.");
+is_deeply(\@sorted_sources,\@sqlt_sources,"SQLT view order triumphantly matches our order.");
 
 done_testing;
