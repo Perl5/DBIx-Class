@@ -33,4 +33,10 @@ is_deeply (
   [ $storage, $storage->dbh, "baz", "buz" ],
 );
 
+# test aliasing
+my $res = 'original';
+$storage->dbh_do (sub { $_[2] = 'changed' }, $res);
+
+is ($res, 'changed', "Arguments properly aliased for dbh_do");
+
 done_testing;

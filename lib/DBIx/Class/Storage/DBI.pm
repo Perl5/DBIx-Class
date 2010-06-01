@@ -732,9 +732,10 @@ sub dbh_do {
 
   local $self->{_in_dbh_do} = 1;
 
-  my @args = @_;
+  # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
+  my $args = \@_;
   return try {
-    $self->$code ($dbh, @args);
+    $self->$code ($dbh, @$args);
   } catch {
     $self->throw_exception($_) if $self->connected;
 
@@ -744,7 +745,7 @@ sub dbh_do {
       if $ENV{DBIC_DBIRETRY_DEBUG};
 
     $self->_populate_dbh;
-    $self->$code($self->_dbh, @args);
+    $self->$code($self->_dbh, @$args);
   };
 }
 
@@ -768,19 +769,22 @@ sub txn_do {
   my $tried = 0;
   while(1) {
     my $exception;
-    my @args = @_;
+
+    # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
+    my $args = \@_;
+
     try {
       $self->_get_dbh;
 
       $self->txn_begin;
       if($want_array) {
-          @result = $coderef->(@args);
+          @result = $coderef->(@$args);
       }
       elsif(defined $want_array) {
-          $result[0] = $coderef->(@args);
+          $result[0] = $coderef->(@$args);
       }
       else {
-          $coderef->(@args);
+          $coderef->(@$args);
       }
       $self->txn_commit;
     } catch {

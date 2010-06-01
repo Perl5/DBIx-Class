@@ -187,7 +187,8 @@ transaction failure.
 =cut
 
 sub txn_do {
-  my ($self, $coderef, @args) = @_;
+  my $self = shift;
+  my $coderef = shift;
 
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
@@ -199,19 +200,21 @@ sub txn_do {
   my $wantarray = wantarray; # Need to save this since the context
                              # inside the try{} block is independent
                              # of the context that called txn_do()
+  my $args = \@_;
+
   try {
 
     # Need to differentiate between scalar/list context to allow for
     # returning a list in scalar context to get the size of the list
     if ($wantarray) {
       # list context
-      @return_values = $coderef->(@args);
+      @return_values = $coderef->(@$args);
     } elsif (defined $wantarray) {
       # scalar context
-      $return_value = $coderef->(@args);
+      $return_value = $coderef->(@$args);
     } else {
       # void context
-      $coderef->(@args);
+      $coderef->(@$args);
     }
     $self->txn_commit;
   }
