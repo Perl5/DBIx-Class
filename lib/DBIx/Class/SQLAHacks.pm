@@ -516,15 +516,15 @@ sub select {
   croak "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
 
-  my $sql = '';
-  ($sql, @{$self->{where_bind}}) = $self->SUPER::select(
+  my ($sql, @bind) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $rs_attrs, @rest
   );
+  push @{$self->{where_bind}}, @bind;
 
 # this *must* be called, otherwise extra binds will remain in the sql-maker
-  my @bind = $self->_assemble_binds;
+  my @all_bind = $self->_assemble_binds;
 
-  return wantarray ? ($sql, @bind) : $sql;
+  return wantarray ? ($sql, @all_bind) : $sql;
 }
 
 sub _assemble_binds {

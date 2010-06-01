@@ -7,12 +7,6 @@ use strict;
 use base qw( DBIx::Class::SQLAHacks );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
-# 
-#  TODO:
-#   - Review by experienced DBIC/SQL:A developers :-)
-#   - Problem with count and connect_by look the TODO in t/73oracle.t
-# 
-
 sub new {
   my $self = shift;
   my %opts = (ref $_[0] eq 'HASH') ? %{$_[0]} : @_;
@@ -30,14 +24,16 @@ sub _assemble_binds {
 }
 
 
-sub _emulate_limit {
-    my ( $self, $syntax, $sql, $rs_attrs, $rows, $offset ) = @_;
+sub _parse_rs_attrs {
+    my $self = shift;
+    my ($rs_attrs) = @_;
 
     my ($cb_sql, @cb_bind) = $self->_connect_by($rs_attrs);
-    $sql .= $cb_sql;
-    $self->{oracle_connect_by_bind} = \@cb_bind;
+    push @{$self->{oracle_connect_by_bind}}, @cb_bind;
 
-    return $self->SUPER::_emulate_limit($syntax, $sql, $rs_attrs, $rows, $offset);
+    my $sql = $self->SUPER::_parse_rs_attrs(@_);
+
+    return "$cb_sql $sql";
 }
 
 sub _connect_by {
