@@ -8,10 +8,10 @@ package # Hide from PAUSE
 use base qw/SQL::Abstract::Limit/;
 use strict;
 use warnings;
-use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
 use List::Util 'first';
 use Sub::Name 'subname';
 use namespace::clean;
+use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
 
 BEGIN {
   # reinstall the carp()/croak() functions imported into SQL::Abstract
