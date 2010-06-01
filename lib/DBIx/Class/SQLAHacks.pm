@@ -510,8 +510,6 @@ sub _find_syntax {
 sub select {
   my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
 
-  $self->{"${_}_bind"} = [] for (qw/having from order/);
-
   if (not ref($table) or ref($table) eq 'SCALAR') {
     $table = $self->_quote($table);
   }
@@ -520,10 +518,20 @@ sub select {
   croak "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
 
-  my ($sql, @where_bind) = $self->SUPER::select(
+  my ($sql, @bind) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $rs_attrs, @rest
   );
-  return wantarray ? ($sql, @{$self->{from_bind}}, @where_bind, @{$self->{having_bind}}, @{$self->{order_bind}} ) : $sql;
+  push @{$self->{where_bind}}, @bind;
+
+# this *must* be called, otherwise extra binds will remain in the sql-maker
+  my @all_bind = $self->_assemble_binds;
+
+  return wantarray ? ($sql, @all_bind) : $sql;
+}
+
+sub _assemble_binds {
+  my $self = shift;
+  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/from where having order/);
 }
 
 # Quotes table names, and handles default inserts

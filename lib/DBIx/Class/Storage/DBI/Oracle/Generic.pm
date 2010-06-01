@@ -19,6 +19,51 @@ DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class
   __PACKAGE__->set_primary_key('id');
   __PACKAGE__->sequence('mysequence');
 
+  # Somewhere in your Code
+  # add some data to a table with a hierarchical relationship
+  $schema->resultset('Person')->create ({
+        firstname => 'foo',
+        lastname => 'bar',
+        children => [
+            {
+                firstname => 'child1',
+                lastname => 'bar',
+                children => [
+                    {
+                        firstname => 'grandchild',
+                        lastname => 'bar',
+                    }
+                ],
+            },
+            {
+                firstname => 'child2',
+                lastname => 'bar',
+            },
+        ],
+    });
+
+  # select from the hierarchical relationship
+  my $rs = $schema->resultset('Person')->search({},
+    {
+      'start_with' => { 'firstname' => 'foo', 'lastname' => 'bar' },
+      'connect_by' => { 'parentid' => { '-prior' => \'persionid' },
+      'order_siblings_by' => { -asc => 'name' },
+    };
+  );
+
+  # this will select the whole tree starting from person "foo bar", creating
+  # following query:
+  # SELECT
+  #     me.persionid me.firstname, me.lastname, me.parentid
+  # FROM
+  #     person me
+  # START WITH
+  #     firstname = 'foo' and lastname = 'bar'
+  # CONNECT BY
+  #     parentid = prior persionid
+  # ORDER SIBLINGS BY
+  #     firstname ASC
+
 =head1 DESCRIPTION
 
 This class implements base Oracle support. The subclass
@@ -31,6 +76,8 @@ versions before 9.
 
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
+
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::Oracle');
 
 sub deployment_statements {
   my $self = shift;;
@@ -364,6 +411,90 @@ sub with_deferred_fk_checks {
   return Context::Preserve::preserve_context(sub { $sub->() },
     after => sub { $txn_scope_guard->commit });
 }
+
+=head1 ATTRIBUTES
+
+Following additional attributes can be used in resultsets.
+
+=head2 connect_by or connect_by_nocycle
+
+=over 4
+
+=item Value: \%connect_by
+
+=back
+
+A hashref of conditions used to specify the relationship between parent rows
+and child rows of the hierarchy.
+
+
+  connect_by => { parentid => 'prior personid' }
+
+  # adds a connect by statement to the query:
+  # SELECT
+  #     me.persionid me.firstname, me.lastname, me.parentid
+  # FROM
+  #     person me
+  # CONNECT BY
+  #     parentid = prior persionid
+  
+
+  connect_by_nocycle => { parentid => 'prior personid' }
+
+  # adds a connect by statement to the query:
+  # SELECT
+  #     me.persionid me.firstname, me.lastname, me.parentid
+  # FROM
+  #     person me
+  # CONNECT BY NOCYCLE
+  #     parentid = prior persionid
+
+
+=head2 start_with
+
+=over 4
+
+=item Value: \%condition
+
+=back
+
+A hashref of conditions which specify the root row(s) of the hierarchy.
+
+It uses the same syntax as L<DBIx::Class::ResultSet/search>
+
+  start_with => { firstname => 'Foo', lastname => 'Bar' }
+
+  # SELECT
+  #     me.persionid me.firstname, me.lastname, me.parentid
+  # FROM
+  #     person me
+  # START WITH
+  #     firstname = 'foo' and lastname = 'bar'
+  # CONNECT BY
+  #     parentid = prior persionid
+
+=head2 order_siblings_by
+
+=over 4
+
+=item Value: ($order_siblings_by | \@order_siblings_by)
+
+=back
+
+Which column(s) to order the siblings by.
+
+It uses the same syntax as L<DBIx::Class::ResultSet/order_by>
+
+  'order_siblings_by' => 'firstname ASC'
+
+  # SELECT
+  #     me.persionid me.firstname, me.lastname, me.parentid
+  # FROM
+  #     person me
+  # CONNECT BY
+  #     parentid = prior persionid
+  # ORDER SIBLINGS BY
+  #     firstname ASC
 
 =head1 AUTHOR
 

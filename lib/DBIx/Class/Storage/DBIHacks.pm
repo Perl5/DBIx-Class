@@ -240,10 +240,11 @@ sub _resolve_aliastypes_from_select_args {
   local $sql_maker->{quote_char} = "\x00"; # so that we can regex away
 
   # generate sql chunks
+  local $sql_maker->{having_bind};  # these are throw away results
   my $to_scan = {
     restricting => [
       $sql_maker->_recurse_where ($where),
-      $sql_maker->_order_by({
+      $sql_maker->_parse_rs_attrs ({
         map { $_ => $attrs->{$_} } (qw/group_by having/)
       }),
     ],
