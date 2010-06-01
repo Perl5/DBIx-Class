@@ -9,8 +9,10 @@ use lib qw(t/lib);
 use ViewDeps;
 use Devel::Dwarn;
 use Data::Dumper;
+use Carp::Always;
 
 BEGIN {
+    $ENV{DBIC_TRACE} = 1;
     use_ok('DBIx::Class::ResultSource::View');
 }
 
@@ -24,8 +26,16 @@ isa_ok( $view, 'DBIx::Class', 'A new view also' );
 can_ok( $view, $_ ) for qw/new from deploy_depends_on/;
 
 ### DEPS
+#if (-e "t/var/viewdeps.db") {
+#ok(unlink("t/var/viewdeps.db"),"Deleted old DB OK");
+#}
+my @sql_files = glob("t/sql/ViewDeps*.sql");
+for (@sql_files) {
+    ok( unlink($_), "Deleted old SQL $_ OK" );
+}
 
-my $schema = ViewDeps->connect;
+my $schema = ViewDeps->connect( 'dbi:SQLite:dbname=t/var/viewdeps.db',
+    { quote_char => '"', } );
 ok( $schema, 'Connected to ViewDeps schema OK' );
 
 my $deps_ref = {
@@ -41,33 +51,29 @@ my $deps_ref = {
 
 diag( Dwarn $deps_ref);
 
+my @sorted_sources = sort {
+    keys %{ $deps_ref->{$a} || {} } <=> keys %{ $deps_ref->{$b} || {} }
+        || $a cmp $b
+    }
+    keys %$deps_ref;
 
-#isa_ok( $schema->resultset('Bar')->result_source,
-#'DBIx::Class::ResultSource::View', 'Bar' );
-
-#is( $bar_deps[0], 'baz',   'which is reported to depend on baz...' );
-#is( $bar_deps[1], 'mixin', 'and on mixin.' );
-#is( $foo_deps[0], undef,   'Foo has no declared dependencies...' );
-
-#isa_ok(
-#$schema->resultset('Foo')->result_source,
-#'DBIx::Class::ResultSource::View',
-#'though Foo'
-#);
-#isa_ok(
-#$schema->resultset('Baz')->result_source,
-#'DBIx::Class::ResultSource::Table',
-#"Baz on the other hand"
-#);
-#dies_ok {
-#ViewDeps::Result::Baz->result_source_instance
-#->deploy_depends_on("ViewDeps::Result::Mixin");
-#}
-#"...and you cannot use deploy_depends_on with that";
+diag( Dwarn @sorted_sources );
 
 ### DEPLOY
 
-my $dir = "t/sql";
-$schema->create_ddl_dir( [ 'PostgreSQL', 'SQLite' ], 0.1, $dir );
+my $ddl_dir = "t/sql";
+$schema->create_ddl_dir( [ 'PostgreSQL', 'MySQL', 'SQLite' ], 0.1, $ddl_dir );
+
+ok( -e $_, "$_ was created successfully" ) for @sql_files;
+
+$schema->deploy( { add_drop_table => 1 } );
+
+### DOES ORDERING WORK?
+
+my $tr = SQL::Translator->new( add_drop_table => 1 );
+$tr->{parser_args}->{'DBIx::Class::Schema'} = $schema;
+my $sqlt = SQL::Translator::Parser::DBIx::Class::parse( $tr, $schema );
+
+diag( Dwarn $sqlt);    # Nope. A 1.
 
 done_testing;

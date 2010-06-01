@@ -8,7 +8,7 @@ use base 'ViewDeps::Result::Year2010CDs';
 __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 __PACKAGE__->table('year_2010_cds_with_many_tracks');
 __PACKAGE__->result_source_instance->view_definition(
-    "SELECT cd.id,cd.title,cd.artist,cd.year,cd.number_tracks,artwork.id FROM year_2010_cds cd,artwork artwork WHERE cd.number_tracks > 10 AND artwork.cd = cd.id"
+    "SELECT cd.id,cd.title,cd.artist,cd.year,cd.number_tracks,art.id FROM year_2010_cds cd,artwork art WHERE cd.number_tracks > 10 AND art.cd = cd.id"
 );
 
 __PACKAGE__->result_source_instance->deploy_depends_on(
