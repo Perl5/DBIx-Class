@@ -225,6 +225,8 @@ abraxxa: Alexander Hartmaier <abraxxa@cpan.org>
 
 aherzog: Adam Herzog <adam@herzogdesigns.com>
 
+Alexander Keusch <cpan@keusch.at>
+
 amoore: Andrew Moore <amoore@cpan.org>
 
 andyg: Andy Grundman <andy@hybridized.org>
