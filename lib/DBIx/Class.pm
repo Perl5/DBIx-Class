@@ -343,6 +343,8 @@ quicksilver: Jules Bean
 
 rafl: Florian Ragwitz <rafl@debian.org>
 
+rbo: Robert Bohne <rbo@cpan.org>
+
 rbuels: Robert Buels <rmb32@cornell.edu>
 
 rdj: Ryan D Johnson <ryan@innerfence.com>

@@ -11,7 +11,7 @@ Revision history for DBIx::Class
         - Millisecond precision support for MSSQL datetimes for
           InflateColumn::DateTime
         - Oracle-specific hierarchical query syntax support:
-          CONNECT BY (NOCYCLE) / START WOTH / ORDER SIBLINGS BY
+          CONNECT BY (NOCYCLE) / START WITH / ORDER SIBLINGS BY
         - Support connecting using $ENV{DBI_DSN} and $ENV{DBI_DRIVER}
         - current_source_alias method on ResultSet objects to
           determine the alias to use in programatically assembled
