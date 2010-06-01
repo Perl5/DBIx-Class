@@ -4,7 +4,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
-use parent qw(DBIx::Class::Schema);
+use base 'DBIx::Class::Schema';
 
 __PACKAGE__->load_namespaces;
 

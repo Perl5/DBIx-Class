@@ -301,11 +301,11 @@ EOW
 
     my @view_sources =
     sort {
-        keys %{ $dependencies->{$a} || {} }
+        keys %{ $a->deploy_depends_on || {} }
         <=>
-        keys %{ $dependencies->{$b} || {} }
+        keys %{ $b->deploy_depends_on || {} }
         ||
-        $a cmp $b
+        $a->source_name cmp $b->source_name
     }
     map { $dbicschema->source($_) }
     keys %view_monikers;

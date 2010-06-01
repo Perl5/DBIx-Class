@@ -135,26 +135,10 @@ syntaxes.
       "MyDB::Schema::Result::Year","MyDB::Schema::Result::CD"
       );
 
-Specify the result classes that comprise this view. Pass this
-method a list.
+Specify the result classes or other views that comprise this view.
+Pass this method an array reference.
 
 =head1 OVERRIDDEN METHODS
-
-=head2 new
-
-The constructor. This is a private method, as only other DBIC modules
-should call this.
-
-=cut
-
-sub new {
-    my ( $self, @args ) = @_;
-    my $new = $self->next::method(@args);
-    $new->{deploy_depends_on}
-        = { map { $_->result_source_instance->name => 1 } @{ $new->{deploy_depends_on}||[] } }
-        unless ref $new->{deploy_depends_on} eq 'HASH';
-    return $new;
-}
 
 =head2 from
 
@@ -169,14 +153,14 @@ sub from {
     return $self->name;
 }
 
-=head1 PRIVATE METHODS
-
-=head2 deploy_depends_on
-
-An internal method for the construction of a hashref of the view's
-superclasses, e.g., the sources that comprise it.
-
-=cut
+sub new {
+    my ( $self, @args ) = @_;
+    my $new = $self->next::method(@args);
+    $new->{deploy_depends_on}
+        = { map { $_->result_source_instance->name => 1 } @{ $new->{deploy_depends_on}||[] } }
+        unless ref $new->{deploy_depends_on} eq 'HASH';
+    return $new;
+}
 
 1;
 
