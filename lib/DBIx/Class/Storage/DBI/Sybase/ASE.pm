@@ -9,10 +9,10 @@ use base qw/
 /;
 use mro 'c3';
 use Carp::Clan qw/^DBIx::Class/;
-use Scalar::Util();
-use List::Util();
+use Scalar::Util 'blessed';
+use List::Util 'first';
 use Sub::Name();
-use Data::Dumper::Concise();
+use Data::Dumper::Concise 'Dumper';
 use Try::Tiny;
 use namespace::clean;
 
@@ -249,19 +249,18 @@ sub _prep_for_execute {
 
   my ($sql, $bind) = $self->next::method (@_);
 
-  my $table = Scalar::Util::blessed($ident) ? $ident->from : $ident;
+  my $table = blessed $ident ? $ident->from : $ident;
 
   my $bind_info = $self->_resolve_column_info(
     $ident, [map $_->[0], @{$bind}]
   );
-  my $bound_identity_col = List::Util::first
-    { $bind_info->{$_}{is_auto_increment} }
-    (keys %$bind_info)
+  my $bound_identity_col =
+    first { $bind_info->{$_}{is_auto_increment} }
+    keys %$bind_info
   ;
-  my $identity_col = Scalar::Util::blessed($ident) &&
-    List::Util::first
-    { $ident->column_info($_)->{is_auto_increment} }
-    $ident->columns
+  my $identity_col =
+    blessed $ident &&
+    first { $ident->column_info($_)->{is_auto_increment} } $ident->columns
   ;
 
   if (($op eq 'insert' && $bound_identity_col) ||
@@ -349,9 +348,9 @@ sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
-  my $identity_col = (List::Util::first
-    { $source->column_info($_)->{is_auto_increment} }
-    $source->columns) || '';
+  my $identity_col =
+    (first { $source->column_info($_)->{is_auto_increment} } $source->columns)
+    || '';
 
   # check for empty insert
   # INSERT INTO foo DEFAULT VALUES -- does not work with Sybase
@@ -434,9 +433,8 @@ sub update {
 
   my $table = $source->name;
 
-  my $identity_col = List::Util::first
-    { $source->column_info($_)->{is_auto_increment} }
-    $source->columns;
+  my $identity_col =
+    first { $source->column_info($_)->{is_auto_increment} } $source->columns;
 
   my $is_identity_update = $identity_col && defined $fields->{$identity_col};
 
@@ -485,14 +483,10 @@ sub insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
-  my $identity_col = List::Util::first
-    { $source->column_info($_)->{is_auto_increment} }
-    $source->columns;
+  my $identity_col =
+    first { $source->column_info($_)->{is_auto_increment} } $source->columns;
 
-  my $is_identity_insert = (List::Util::first
-    { $_ eq $identity_col }
-    @{$cols}
-  ) ? 1 : 0;
+  my $is_identity_insert = (first { $_ eq $identity_col } @{$cols}) ? 1 : 0;
 
   my @source_columns = $source->columns;
 
@@ -789,7 +783,7 @@ sub _insert_blobs {
     if (not $sth) {
       $self->throw_exception(
           "Could not find row in table '$table' for blob update:\n"
-        . Data::Dumper::Concise::Dumper (\%where)
+        . (Dumper \%where)
       );
     }
 

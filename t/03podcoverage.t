@@ -2,9 +2,10 @@ use warnings;
 use strict;
 
 use Test::More;
-use List::Util ();
+use List::Util 'first';
 use lib qw(t/lib);
 use DBICTest;
+use namespace::clean;
 
 # Don't run tests for installs
 unless ( DBICTest::AuthorCheck->is_author || $ENV{AUTOMATED_TESTING} || $ENV{RELEASE_TESTING} ) {
@@ -140,8 +141,8 @@ my @modules = sort { $a cmp $b } (Test::Pod::Coverage::all_modules());
 foreach my $module (@modules) {
   SKIP: {
 
-    my ($match) = List::Util::first
-      { $module =~ $_ }
+    my ($match) =
+      first { $module =~ $_ }
       (sort { length $b <=> length $a || $b cmp $a } (keys %$ex_lookup) )
     ;
 

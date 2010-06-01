@@ -9,7 +9,9 @@ use base qw/SQL::Abstract::Limit/;
 use strict;
 use warnings;
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
-use Sub::Name();
+use List::Util 'first';
+use Sub::Name 'subname';
+use namespace::clean;
 
 BEGIN {
   # reinstall the carp()/croak() functions imported into SQL::Abstract
@@ -19,7 +21,7 @@ BEGIN {
   for my $f (qw/carp croak/) {
 
     my $orig = \&{"SQL::Abstract::$f"};
-    *{"SQL::Abstract::$f"} = Sub::Name::subname "SQL::Abstract::$f" =>
+    *{"SQL::Abstract::$f"} = subname "SQL::Abstract::$f" =>
       sub {
         if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+ .+? called \s at/x) {
           __PACKAGE__->can($f)->(@_);
@@ -115,7 +117,7 @@ sub _subqueried_limit_attrs {
   # for possible further chaining)
   my (@in_sel, @out_sel, %renamed);
   for my $node (@sel) {
-    if (List::Util::first { $_ =~ / (?<! $re_alias ) $re_sep /x } ($node->{as}, $node->{unquoted_sql}) )  {
+    if (first { $_ =~ / (?<! $re_alias ) $re_sep /x } ($node->{as}, $node->{unquoted_sql}) )  {
       $node->{as} =~ s/ $re_sep /__/xg;
       my $quoted_as = $self->_quote($node->{as});
       push @in_sel, sprintf '%s AS %s', $node->{sql}, $quoted_as;

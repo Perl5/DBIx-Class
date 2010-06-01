@@ -4,9 +4,7 @@ use warnings;
 
 use base qw/DBIx::Class::Storage::DBI::MSSQL/;
 use mro 'c3';
-
-use List::Util();
-use Scalar::Util ();
+use Scalar::Util 'reftype';
 use Try::Tiny;
 use namespace::clean;
 
@@ -68,7 +66,7 @@ sub connect_call_use_dynamic_cursors {
 
   my $dbi_attrs = $self->_dbi_connect_info->[-1];
 
-  unless (ref($dbi_attrs) && Scalar::Util::reftype($dbi_attrs) eq 'HASH') {
+  unless (ref($dbi_attrs) && reftype $dbi_attrs eq 'HASH') {
     $dbi_attrs = {};
     push @{ $self->_dbi_connect_info }, $dbi_attrs;
   }

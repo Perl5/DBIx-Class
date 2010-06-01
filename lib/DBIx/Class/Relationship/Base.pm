@@ -3,8 +3,9 @@ package DBIx::Class::Relationship::Base;
 use strict;
 use warnings;
 
-use Scalar::Util ();
 use base qw/DBIx::Class/;
+
+use Scalar::Util qw/weaken blessed/;
 use Try::Tiny;
 use namespace::clean;
 
@@ -255,10 +256,10 @@ sub related_resultset {
       foreach my $rev_rel (keys %$reverse) {
         if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
           $attrs->{related_objects}{$rev_rel} = [ $self ];
-          Scalar::Util::weaken($attrs->{related_object}{$rev_rel}[0]);
+          weaken $attrs->{related_object}{$rev_rel}[0];
         } else {
           $attrs->{related_objects}{$rev_rel} = $self;
-          Scalar::Util::weaken($attrs->{related_object}{$rev_rel});
+          weaken $attrs->{related_object}{$rev_rel};
         }
       }
     }
@@ -459,7 +460,7 @@ sub set_from_related {
   if (defined $f_obj) {
     my $f_class = $rel_info->{class};
     $self->throw_exception( "Object $f_obj isn't a ".$f_class )
-      unless Scalar::Util::blessed($f_obj) and $f_obj->isa($f_class);
+      unless blessed $f_obj and $f_obj->isa($f_class);
   }
   $self->set_columns(
     $self->result_source->_resolve_condition(

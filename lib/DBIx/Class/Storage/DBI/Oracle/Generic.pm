@@ -3,7 +3,7 @@ package DBIx::Class::Storage::DBI::Oracle::Generic;
 use strict;
 use warnings;
 use Scope::Guard ();
-use Context::Preserve ();
+use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use namespace::clean;
 
@@ -408,8 +408,8 @@ sub with_deferred_fk_checks {
     $self->_do_query('alter session set constraints = immediate');
   });
 
-  return Context::Preserve::preserve_context(sub { $sub->() },
-    after => sub { $txn_scope_guard->commit });
+  return
+    preserve_context { $sub->() } after => sub { $txn_scope_guard->commit };
 }
 
 =head1 ATTRIBUTES

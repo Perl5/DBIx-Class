@@ -8,7 +8,8 @@ use DBIx::Class::Schema;
 use DBIx::Class::Storage::DBI;
 use DBIx::Class::ClassResolver::PassThrough;
 use DBI;
-use Scalar::Util;
+use Scalar::Util 'blessed';
+use namespace::clean;
 
 unless ($INC{"DBIx/Class/CDBICompat.pm"}) {
   warn "IMPORTANT: DBIx::Class::DB is DEPRECATED AND *WILL* BE REMOVED. DO NOT USE.\n";
@@ -183,7 +184,7 @@ sub result_source_instance {
   }
 
   my($source, $result_class) = @{$class->_result_source_instance};
-  return unless Scalar::Util::blessed($source);
+  return unless blessed $source;
 
   if ($result_class ne $class) {  # new class
     # Give this new class its own source and register it.

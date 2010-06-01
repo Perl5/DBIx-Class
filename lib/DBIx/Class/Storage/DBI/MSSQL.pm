@@ -6,9 +6,8 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
 use Try::Tiny;
+use List::Util 'first';
 use namespace::clean;
-
-use List::Util();
 
 __PACKAGE__->mk_group_accessors(simple => qw/
   _identity _identity_method
@@ -50,12 +49,8 @@ sub insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
-  my $is_identity_insert = (List::Util::first
-      { $source->column_info ($_)->{is_auto_increment} }
-      (@{$cols})
-  )
-     ? 1
-     : 0;
+  my $is_identity_insert =
+    (first { $source->column_info ($_)->{is_auto_increment} } @{$cols}) ? 1 : 0;
 
   if ($is_identity_insert) {
      $self->_set_identity_insert ($source->name);
@@ -74,9 +69,8 @@ sub insert {
 
   my $supplied_col_info = $self->_resolve_column_info($source, [keys %$to_insert] );
 
-  my $is_identity_insert = (List::Util::first { $_->{is_auto_increment} } (values %$supplied_col_info) )
-     ? 1
-     : 0;
+  my $is_identity_insert =
+    (first { $_->{is_auto_increment} } values %$supplied_col_info) ? 1 : 0;
 
   if ($is_identity_insert) {
      $self->_set_identity_insert ($source->name);

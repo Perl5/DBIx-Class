@@ -15,7 +15,7 @@ $DEBUG = 0 unless defined $DEBUG;
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use Carp::Clan qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
-use Scalar::Util ();
+use Scalar::Util 'weaken';
 use Try::Tiny;
 use namespace::clean;
 
@@ -35,7 +35,7 @@ use base qw(Exporter);
 sub parse {
     # this is a hack to prevent schema leaks due to a retarded SQLT implementation
     # DO NOT REMOVE (until SQLT2 is out, the all of this will be rewritten anyway)
-    Scalar::Util::weaken ($_[1]) if ref ($_[1]);
+    weaken $_[1] if ref ($_[1]);
 
     my ($tr, $data)   = @_;
     my $args          = $tr->parser_args;
