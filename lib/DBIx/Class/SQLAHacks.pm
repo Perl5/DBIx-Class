@@ -8,7 +8,7 @@ package # Hide from PAUSE
 use base qw/SQL::Abstract::Limit/;
 use strict;
 use warnings;
-use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
+use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
 use Sub::Name();
 
 BEGIN {
