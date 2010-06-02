@@ -68,9 +68,9 @@ The community can be found via:
 
 =item * RT Bug Tracker: L<https://rt.cpan.org/Dist/Display.html?Queue=DBIx-Class>
 
-=item * SVNWeb: L<http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/0.08>
+=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
 
-=item * SVN: L<http://dev.catalyst.perl.org/repos/bast/DBIx-Class/0.08>
+=item * git: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
 
 =back
 
