@@ -21,8 +21,8 @@ plan tests => ($tests_per_run * @json_backends) + 1;
 
 
 # test the script is setting @INC properly
-test_exec (qw| -It/lib/testinclude --schema=DBICTestAdminInc --op=deploy --connect=[] |);
-cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from deploying a custom INC schema' );
+test_exec (qw| -It/lib/testinclude --schema=DBICTestAdminInc --insert --connect=[] |);
+cmp_ok ( $? >> 8, '==', 70, 'Correct exit code from connecting a custom INC schema' );
 
 for my $js (@json_backends) {
 

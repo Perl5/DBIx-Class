@@ -14,7 +14,6 @@ BEGIN {
 use DBIx::Class::Admin::Descriptive;
 #use Getopt::Long::Descriptive;
 use DBIx::Class::Admin;
-require lib;
 
 my $short_description = "utility for administrating DBIx::Class schemata";
 my $synopsis_text =q|
@@ -90,11 +89,12 @@ if($opts->{selfinject_pod}) {
 
 # FIXME - lowercasing will eventually go away when Getopt::Long::Descriptive is fixed
 if($opts->{i}) {
-    lib->import(delete $opts->{i});
+  require lib;
+  lib->import( @{delete $opts->{i}} );
 }
 
 if($opts->{help}) {
-    $usage->die();
+  $usage->die();
 }
 
 # option compatability mangle
