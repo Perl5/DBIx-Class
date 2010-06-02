@@ -6,9 +6,15 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
+BEGIN {
+  require DBIx::Class;
+  plan skip_all =>
+      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
+}
+
 use File::Spec;
 use File::Path qw/ mkpath rmtree /;
-
 
 my $schema = DBICTest->init_schema();
 
