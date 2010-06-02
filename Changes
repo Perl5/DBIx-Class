@@ -38,6 +38,8 @@ Revision history for DBIx::Class
         - Don't try and ensure_class_loaded an object. This doesn't work.
         - Fix as_subselect_rs to not inject resultset class-wide where
           conditions outside of the resulting subquery
+        - Fix count() failing with {for} resultset attribute (RT#56257)
+        - Fixed incorrect detection of Limit dialect on unconnected $schema
         - update() on row not in_storage no longer throws an exception
           if there are no dirty columns to update (fixes cascaded update
           annoyances)
@@ -53,6 +55,8 @@ Revision history for DBIx::Class
           MSSQL (RT#57467)
         - Fix ::DBI::Storage to always be able to present a full set of
           connect() attributes to e.g. Schema::Versioned
+        - Fix Oracle auto-inc trigger detection of "INSERT OR UPDATE"-type
+          triggers
 
     * Misc
         - Reformatted Changelog \o/
@@ -61,7 +65,11 @@ Revision history for DBIx::Class
         - Add a warning to load_namespaces if a class in ResultSet/ is not
           a subclass of DBIx::Class::ResultSet
         - All DBIC exception-handling switched to Try::Tiny
+        - All DBIC modules are now free of imports via namespace::clean
         - Depend on optimized SQL::Abstract (faster SQL generation)
+        - Depend on new Class::Accessor::Grouped reintroducing optional use
+          of Class::XSAccessor (just install C::XSA and get lightning fast
+          column accessors)
 
 0.08121 2010-04-11 18:43:00 (UTC)
         - Support for Firebird RDBMS with DBD::InterBase and ODBC
