@@ -153,6 +153,14 @@ sub from {
     return $self->name;
 }
 
+=head1 OTHER METHODS
+
+=head2 new
+
+The constructor.
+
+=cut
+
 sub new {
     my ( $self, @args ) = @_;
     my $new = $self->next::method(@args);
