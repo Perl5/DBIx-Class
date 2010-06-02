@@ -28,7 +28,7 @@ for (@sql_files) {
     ok( unlink($_), "Deleted old SQL $_ OK" );
 }
 
-my $schema = ViewDeps->connect( 'dbi:SQLite:dbname=t/var/viewdeps.db',
+my $schema = ViewDeps->connect( 'dbi:SQLite::memory:',
     { quote_char => '"', } );
 ok( $schema, 'Connected to ViewDeps schema OK' );
 
@@ -76,5 +76,23 @@ my @sqlt_sources =
     @keys;
 
 is_deeply(\@sorted_sources,\@sqlt_sources,"SQLT view order triumphantly matches our order.");
+
+#################### AND WHAT ABOUT USING THE SCHEMA?
+
+my $a_name_rs = $schema->resultset('ANameArtists');
+my $ab_name_rs = $schema->resultset('AbNameArtists');
+my $aba_name_rs = $schema->resultset('AbaNameArtists');
+my $aba_name_cds_rs = $schema->resultset('AbaNameArtistsAnd2010CDsWithManyTracks');
+my $track_five_rs = $schema->resultset('TrackNumberFives');
+my $year_2010_rs = $schema->resultset('Year2010CDs');
+my $year_2010_cds_rs = $schema->resultset('Year2010CDsWithManyTracks');
+
+ok($a_name_rs, "ANameArtists resultset is OK");
+ok($ab_name_rs, "AbNameArtists resultset is OK");
+ok($aba_name_rs, "AbaNameArtists resultset is OK");
+ok($aba_name_cds_rs, "AbaNameArtistsAnd2010CDsWithManyTracks resultset is OK");
+ok($track_five_rs, "TrackNumberFives resultset is OK");
+ok($year_2010_rs, "Year2010CDs resultset is OK");
+ok($year_2010_cds_rs, "Year2010CDsWithManyTracks resultset is OK");
 
 done_testing;
