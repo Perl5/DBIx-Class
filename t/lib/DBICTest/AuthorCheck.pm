@@ -31,7 +31,7 @@ sub _check_author_makefile {
 
   # not using file->stat as it invokes File::stat which in turn breaks stat(_)
   my ($mf_pl_mtime, $mf_mtime, $optdeps_mtime) = ( map
-    { (stat ($root->file ($_)) )[9] }
+    { (stat ($root->file ($_)) )[9] || undef }  # stat returns () on nonexistent files
     (qw|Makefile.PL  Makefile|, $optdeps)
   );
 
