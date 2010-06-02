@@ -263,7 +263,13 @@ sub related_resultset {
 
     # condition resolution may fail if an incomplete master-object prefetch
     # is encountered - that is ok during prefetch construction (not yet in_storage)
-    my $cond = try {
+
+    # if $rel_info->{cond} is a CODE, we might need to join from the
+    # current resultsource instead of just querying the target
+    # resultsource, in that case, the condition might provide an
+    # additional condition in order to avoid an unecessary join if
+    # that is at all possible.
+    my ($cond, $cond2) = try {
       $source->_resolve_condition( $rel_info->{cond}, $rel, $self )
     }
     catch {
@@ -300,10 +306,31 @@ sub related_resultset {
         }
       } @$cond ];
     } elsif (ref $cond eq 'HASH') {
-      foreach my $key (grep { ! /\./ } keys %$cond) {
-        $cond->{"me.$key"} = delete $cond->{$key};
+
+      # this is where we're going to check if we have an extended
+      # rel. In that case, we need to: 1) If there's a second
+      # condition, we use that instead.  2) If there is only one
+      # condition, we need to join the current resultsource and have
+      # additional conditions.
+      if (ref $rel_info->{cond} eq 'CODE') {
+        # this is an extended relationship.
+        if ($cond2) {
+          $cond = $cond2;
+        } else {
+          if (exists $attrs->{join} && $attrs->{join}) {
+            # it's a bit hard to find out what to do here.
+            $self->throw_exception('Extended relationship '.$rel.' with additional join not supported');
+          } else {
+            $attrs->{join} = $rel;
+          }
+        }
+      } else {
+        foreach my $key (grep { ! /\./ } keys %$cond) {
+          $cond->{"me.$key"} = delete $cond->{$key};
+        }
       }
     }
+
     $query = ($query ? { '-and' => [ $cond, $query ] } : $cond);
     $self->result_source->related_source($rel)->resultset->search(
       $query, $attrs
@@ -485,9 +512,16 @@ sub set_from_related {
     $self->throw_exception( "Object $f_obj isn't a ".$f_class )
       unless blessed $f_obj and $f_obj->isa($f_class);
   }
-  $self->set_columns(
-    $self->result_source->_resolve_condition(
-       $rel_info->{cond}, $f_obj, $rel));
+
+  # _resolve_condition might return two hashrefs, specially in the
+  # current case, since we know $f_object is an object.
+  my ($condref1, $condref2) = $self->result_source->_resolve_condition
+    ($rel_info->{cond}, $f_obj, $rel);
+
+  # if we get two condrefs, we need to use the second, otherwise we
+  # use the first.
+  $self->set_columns($condref2 ? $condref2 : $condref1);
+
   return 1;
 }
 

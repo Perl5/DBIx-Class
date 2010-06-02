@@ -133,9 +133,20 @@ EOW
         unless blessed ($obj);
       my $rel_source = $self->search_related($rel)->result_source;
       my $cond = $rel_source->relationship_info($f_rel)->{cond};
-      my $link_cond = $rel_source->_resolve_condition(
-        $cond, $obj, $f_rel
-      );
+      my $link_cond;
+      if (ref $cond eq 'CODE') {
+        my ($cond1, $cond2) = $rel_source->_resolve_condition
+          ($cond, $obj, $f_rel);
+        if ($cond2) {
+          $link_cond = $cond2;
+        } else {
+          $self->throw_exception('Extended relationship '.$rel.
+                                 ' requires optimized version for ManyToMany.');
+        }
+      } else {
+        $link_cond = $rel_source->_resolve_condition
+          ($cond, $obj, $f_rel);
+      }
       $self->search_related($rel, $link_cond)->delete;
     };
 

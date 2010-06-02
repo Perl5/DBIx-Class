@@ -67,11 +67,15 @@ __PACKAGE__->might_have (
     'next_track',
     __PACKAGE__,
     sub {
-        my ( $me, $as, $self_rsrc, $rel_name ) = @_;
-        return {
-            "${as}.cd" => (ref $me ? $me->cd : { '=' => \"${me}.cd" }),
-            "${as}.position" => { '>', (ref $me ? $me->position : \"${me}.position" )},
-        };
+        my ( $me_alias, $rel_alias, $me_result_source, $rel_name, $optional_me_object ) = @_;
+        return
+          ({ "${rel_alias}.cd"       => { '=', \"${me_alias}.cd" },
+             "${rel_alias}.position" => { '>', \"${me_alias}.position" },
+           },
+           $optional_me_object &&
+           { "${rel_alias}.cd"       => $optional_me_object->cd,
+             "${rel_alias}.position" => { '>', $optional_me_object->position },
+           });
     },
 );
 
