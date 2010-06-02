@@ -177,17 +177,7 @@ sub new {
 
 =head1 AUTHORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
-
-With Contributions from:
-
-Guillermo Roditi E<lt>groditi@cpan.orgE<gt>
-
-Jess Robinson <castaway@desert-island.me.uk>
-
-Wallace Reis <wreis@cpan.org>
-
-Amiri Barksdale <amiri@metalabel.com>
+See L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
