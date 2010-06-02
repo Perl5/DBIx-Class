@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 my $schema = DBICTest->init_schema();
@@ -11,35 +12,62 @@ my $schema = DBICTest->init_schema();
 {
     my $rs = $schema->resultset('CD')->search ({}, {
         order_by => 'cdid',
-        # use the hashref inflator class as result class
-        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
     });
 
-    # get the defined columns
-    my @dbic_cols = sort $rs->result_source->columns;
+    my $orig_resclass = $rs->result_class;
+    eval "package DBICTest::CDSubclass; use base '$orig_resclass'";
 
-    # fetch first record
-    my $datahashref1 = $rs->first;
+# override on a specific $rs object, should not chain
+    $rs->result_class ('DBICTest::CDSubclass');
 
-    my @hashref_cols = sort keys %$datahashref1;
+    my $cd = $rs->find ({cdid => 1});
+    is (ref $cd, 'DBICTest::CDSubclass', 'result_class override propagates to find');
 
-    is_deeply( \@dbic_cols, \@hashref_cols, 'returned columns' );
+    $cd = $rs->search({ cdid => 1 })->single;
+    is (ref $cd, $orig_resclass, 'result_class override does not propagate over seach+single');
 
-    my $cd1 = $rs->find ({cdid => 1});
-    is_deeply ( $cd1, $datahashref1, 'first/find return the same thing');
+    $cd = $rs->search()->find ({ cdid => 1 });
+    is (ref $cd, $orig_resclass, 'result_class override does not propagate over seach+find');
 
-    my $cd2 = $rs->search({ cdid => 1 })->single;
-    is_deeply ( $cd2, $datahashref1, 'first/search+single return the same thing');
+# set as attr - should propagate
+    my $hri_rs = $rs->search ({}, { result_class => 'DBIx::Class::ResultClass::HashRefInflator' });
+    is ($rs->result_class, 'DBICTest::CDSubclass', 'original class unchanged');
+    is ($hri_rs->result_class, 'DBIx::Class::ResultClass::HashRefInflator', 'result_class accessor pre-set via attribute');
 
-    $rs->result_class('DBIx::Class::Row');
 
-    is( $rs->result_class, 'DBIx::Class::Row', 'result_class set' );
-
-    is(
-        $rs->search->result_class, 'DBIx::Class::ResultClass::HashRefInflator',
-        'result_class set using accessor does not propagate over search'
+    my $datahashref1 = $hri_rs->next;
+    is_deeply(
+      [ sort keys %$datahashref1 ],
+      [ sort $rs->result_source->columns ],
+      'returned correct columns',
     );
 
+    $cd = $hri_rs->find ({cdid => 1});
+    is_deeply ( $cd, $datahashref1, 'first/find return the same thing (result_class attr propagates)');
+
+    $cd = $hri_rs->search({ cdid => 1 })->single;
+    is_deeply ( $cd, $datahashref1, 'first/search+single return the same thing (result_class attr propagates)');
+
+    $hri_rs->result_class ('DBIx::Class::Row'); # something bogus
+    is(
+        $hri_rs->search->result_class, 'DBIx::Class::ResultClass::HashRefInflator',
+        'result_class set using accessor does not propagate over unused search'
+    );
+
+# test result class auto-loading
+    throws_ok (
+      sub { $rs->result_class ('nonexsitant_bogus_class') },
+      qr/Can't locate nonexsitant_bogus_class.pm/,
+      'Attempt to load on accessor override',
+    );
+    is ($rs->result_class, 'DBICTest::CDSubclass', 'class unchanged');
+
+    throws_ok (
+      sub { $rs->search ({}, { result_class => 'nonexsitant_bogus_class' }) },
+      qr/Can't locate nonexsitant_bogus_class.pm/,
+      'Attempt to load on accessor override',
+    );
+    is ($rs->result_class, 'DBICTest::CDSubclass', 'class unchanged');
 }
 
 sub check_cols_of {
