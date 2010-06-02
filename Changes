@@ -53,8 +53,11 @@ Revision history for DBIx::Class
           connect() attributes to e.g. Schema::Versioned
 
     * Misc
-        - Add a warning to load_namespaces if a class in ResultSet/
-          is not a subclass of DBIx::Class::ResultSet
+        - Reformatted Changelog \o/
+        - Allow developers to skip optional dependency forcing when working
+          from a checkout
+        - Add a warning to load_namespaces if a class in ResultSet/ is not
+          a subclass of DBIx::Class::ResultSet
         - All DBIC exception-handling switched to Try::Tiny
         - Depend on optimized SQL::Abstract (faster SQL generation)
 
