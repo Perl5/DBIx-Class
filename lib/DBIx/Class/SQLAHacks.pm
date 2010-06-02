@@ -392,6 +392,21 @@ sub _Top {
   return $sql;
 }
 
+# This for Sybase ASE, to use SET ROWCOUNT when there is no offset, and
+# GenericSubQ otherwise.
+sub _RowCountOrGenericSubQ {
+  my $self = shift;
+  my ($sql, $rs_attrs, $rows, $offset) = @_;
+
+  return $self->_GenericSubQ(@_) if $offset;
+
+  return sprintf <<"EOF", $rows, $sql;
+SET ROWCOUNT %d
+%s
+SET ROWCOUNT 0
+EOF
+}
+
 # This is the most evil limit "dialect" (more of a hack) for *really*
 # stupid databases. It works by ordering the set by some unique column,
 # and calculating amount of rows that have a less-er value (thus

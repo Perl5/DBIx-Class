@@ -152,6 +152,16 @@ for my $method (@also_proxy_to_extra_storages) {
   };
 }
 
+sub _sql_maker_opts {
+  my ( $self, $opts ) = @_;
+
+  if ( $opts ) {
+    $self->{_sql_maker_opts} = { %$opts };
+  }
+
+  return { limit_dialect => 'RowCountOrGenericSubQ', %{$self->{_sql_maker_opts}||{}} };
+}
+
 sub disconnect {
   my $self = shift;
 
