@@ -45,13 +45,17 @@ sub backup
 }
 
 sub deployment_statements {
-  my $self = shift;;
+  my $self = shift;
   my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
 
   $sqltargs ||= {};
 
-  if (my $version = $self->_server_info->{dbms_version}) {
-    $sqltargs->{producer_args}{sqlite_version} = $version;
+  if (
+    ! exists $sqltargs->{producer_args}{sqlite_version}
+      and
+    my $dver = $self->_server_info->{normalized_dbms_version}
+  ) {
+    $sqltargs->{producer_args}{sqlite_version} = $dver;
   }
 
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);

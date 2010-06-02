@@ -29,6 +29,8 @@ Revision history for DBIx::Class
           using software limit emulation
         - create_ddl_dir (and derivatives) now attempt to create the given
           $ddl_dir if it does not already exist
+        - deployment_statements now automatically supplies the current RDBMS
+          version to SQLT producer_args for MySQL, Pg, SQLite and Oracle
 
     * Fixes
         - Fix nasty potentially data-eating bug when deleting/updating

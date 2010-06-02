@@ -88,9 +88,13 @@ sub deployment_statements {
   $sqltargs->{quote_table_names} = $quote_char ? 1 : 0;
   $sqltargs->{quote_field_names} = $quote_char ? 1 : 0;
 
-  my $oracle_version = try { $self->_get_dbh->get_info(18) };
-
-  $sqltargs->{producer_args}{oracle_version} = $oracle_version;
+  if (
+    ! exists $sqltargs->{producer_args}{oracle_version}
+      and
+    my $dver = $self->_server_info->{dbms_version}
+  ) {
+    $sqltargs->{producer_args}{oracle_version} = $dver;
+  }
 
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
