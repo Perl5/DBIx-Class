@@ -23,7 +23,10 @@ Revision history for DBIx::Class
           the unsafe_subselect_ok attribute, due to optimized queries
         - Support for Generic Subquery limit "emulation" - awfully slow
           and inefficient but works on almost any db, and is preferred
-          to a soft-limit
+          to software limit emulation
+        - Sybase ASE driver now uses SET ROWCOUNT where possible, and
+          Generic Subquery otherwise for limit support instead of always
+          using software limit emulation
 
     * Fixes
         - Fix nasty potentially data-eating bug when deleting/updating
