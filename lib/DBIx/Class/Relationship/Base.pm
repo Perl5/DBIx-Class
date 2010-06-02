@@ -3,9 +3,11 @@ package DBIx::Class::Relationship::Base;
 use strict;
 use warnings;
 
-use Scalar::Util ();
 use base qw/DBIx::Class/;
+
+use Scalar::Util qw/weaken blessed/;
 use Try::Tiny;
+use namespace::clean;
 
 =head1 NAME
 
@@ -119,7 +121,7 @@ created, which calls C<create_related> for the relationship.
 =item is_foreign_key_constraint
 
 If you are using L<SQL::Translator> to create SQL for you and you find that it
-is creating constraints where it shouldn't, or not creating them where it 
+is creating constraints where it shouldn't, or not creating them where it
 should, set this attribute to a true or false value to override the detection
 of when to create constraints.
 
@@ -127,8 +129,8 @@ of when to create constraints.
 
 If C<cascade_copy> is true on a C<has_many> relationship for an
 object, then when you copy the object all the related objects will
-be copied too. To turn this behaviour off, pass C<< cascade_copy => 0 >> 
-in the C<$attr> hashref. 
+be copied too. To turn this behaviour off, pass C<< cascade_copy => 0 >>
+in the C<$attr> hashref.
 
 The behaviour defaults to C<< cascade_copy => 1 >> for C<has_many>
 relationships.
@@ -137,7 +139,7 @@ relationships.
 
 By default, DBIx::Class cascades deletes across C<has_many>,
 C<has_one> and C<might_have> relationships. You can disable this
-behaviour on a per-relationship basis by supplying 
+behaviour on a per-relationship basis by supplying
 C<< cascade_delete => 0 >> in the relationship attributes.
 
 The cascaded operations are performed after the requested delete,
@@ -160,14 +162,14 @@ you must arrange to do this yourself.
 =item on_delete / on_update
 
 If you are using L<SQL::Translator> to create SQL for you, you can use these
-attributes to explicitly set the desired C<ON DELETE> or C<ON UPDATE> constraint 
-type. If not supplied the SQLT parser will attempt to infer the constraint type by 
+attributes to explicitly set the desired C<ON DELETE> or C<ON UPDATE> constraint
+type. If not supplied the SQLT parser will attempt to infer the constraint type by
 interrogating the attributes of the B<opposite> relationship. For any 'multi'
-relationship with C<< cascade_delete => 1 >>, the corresponding belongs_to 
-relationship will be created with an C<ON DELETE CASCADE> constraint. For any 
+relationship with C<< cascade_delete => 1 >>, the corresponding belongs_to
+relationship will be created with an C<ON DELETE CASCADE> constraint. For any
 relationship bearing C<< cascade_copy => 1 >> the resulting belongs_to constraint
 will be C<ON UPDATE CASCADE>. If you wish to disable this autodetection, and just
-use the RDBMS' default constraint type, pass C<< on_delete => undef >> or 
+use the RDBMS' default constraint type, pass C<< on_delete => undef >> or
 C<< on_delete => '' >>, and the same for C<on_update> respectively.
 
 =item is_deferrable
@@ -254,10 +256,10 @@ sub related_resultset {
       foreach my $rev_rel (keys %$reverse) {
         if ($reverse->{$rev_rel}{attrs}{accessor} && $reverse->{$rev_rel}{attrs}{accessor} eq 'multi') {
           $attrs->{related_objects}{$rev_rel} = [ $self ];
-          Scalar::Util::weaken($attrs->{related_object}{$rev_rel}[0]);
+          weaken $attrs->{related_object}{$rev_rel}[0];
         } else {
           $attrs->{related_objects}{$rev_rel} = $self;
-          Scalar::Util::weaken($attrs->{related_object}{$rev_rel});
+          weaken $attrs->{related_object}{$rev_rel};
         }
       }
     }
@@ -305,7 +307,7 @@ sub search_related {
 
   ( $objects_rs ) = $rs->search_related_rs('relname', $cond, $attrs);
 
-This method works exactly the same as search_related, except that 
+This method works exactly the same as search_related, except that
 it guarantees a resultset, even in list context.
 
 =cut
@@ -335,9 +337,9 @@ sub count_related {
   my $new_obj = $obj->new_related('relname', \%col_data);
 
 Create a new item of the related foreign class. If called on a
-L<Row|DBIx::Class::Manual::Glossary/"Row"> object, it will magically 
-set any foreign key columns of the new object to the related primary 
-key columns of the source object for you.  The newly created item will 
+L<Row|DBIx::Class::Manual::Glossary/"Row"> object, it will magically
+set any foreign key columns of the new object to the related primary
+key columns of the source object for you.  The newly created item will
 not be saved into your storage until you call L<DBIx::Class::Row/insert>
 on it.
 
@@ -458,7 +460,7 @@ sub set_from_related {
   if (defined $f_obj) {
     my $f_class = $rel_info->{class};
     $self->throw_exception( "Object $f_obj isn't a ".$f_class )
-      unless Scalar::Util::blessed($f_obj) and $f_obj->isa($f_class);
+      unless blessed $f_obj and $f_obj->isa($f_class);
   }
   $self->set_columns(
     $self->result_source->_resolve_condition(
@@ -532,7 +534,7 @@ B<Currently only available for C<many-to-many> relationships.>
 =back
 
   my $actor = $schema->resultset('Actor')->find(1);
-  my @roles = $schema->resultset('Role')->search({ role => 
+  my @roles = $schema->resultset('Role')->search({ role =>
      { '-in' => ['Fred', 'Barney'] } } );
 
   $actor->set_roles(\@roles);

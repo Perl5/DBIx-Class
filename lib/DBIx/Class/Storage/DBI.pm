@@ -11,18 +11,18 @@ use Carp::Clan qw/^DBIx::Class/;
 use DBI;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
-use Scalar::Util();
-use List::Util();
-use Data::Dumper::Concise();
-use Sub::Name ();
+use Scalar::Util qw/refaddr weaken reftype blessed/;
+use Data::Dumper::Concise 'Dumper';
+use Sub::Name 'subname';
 use Try::Tiny;
-use File::Path ();
+use File::Path 'make_path';
+use namespace::clean;
 
-__PACKAGE__->mk_group_accessors('simple' =>
-  qw/_connect_info _dbi_connect_info _dbh _sql_maker _sql_maker_opts _conn_pid
-     _conn_tid transaction_depth _dbh_autocommit _driver_determined savepoints
-     _server_info_hash/
-);
+__PACKAGE__->mk_group_accessors('simple' => qw/
+  _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
+  _dbh _server_info_hash _conn_pid _conn_tid _sql_maker _sql_maker_opts
+  transaction_depth _dbh_autocommit  savepoints
+/);
 
 # the values for these accessors are picked out (and deleted) from
 # the attribute hashref passed to connect_info
@@ -66,7 +66,7 @@ for my $meth (@rdbms_specific_methods) {
 
   no strict qw/refs/;
   no warnings qw/redefine/;
-  *{__PACKAGE__ ."::$meth"} = Sub::Name::subname $meth => sub {
+  *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
     if (not $_[0]->_driver_determined) {
       $_[0]->_determine_driver;
       goto $_[0]->can($meth);
@@ -581,6 +581,11 @@ sub connect_info {
   $self->_dbi_connect_info([@args,
     %attrs && !(ref $args[0] eq 'CODE') ? \%attrs : ()]);
 
+  # FIXME - dirty:
+  # save attributes them in a separate accessor so they are always
+  # introspectable, even in case of a CODE $dbhmaker
+  $self->_dbic_connect_attributes (\%attrs);
+
   return $self->_connect_info;
 }
 
@@ -727,9 +732,10 @@ sub dbh_do {
 
   local $self->{_in_dbh_do} = 1;
 
-  my @args = @_;
+  # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
+  my $args = \@_;
   return try {
-    $self->$code ($dbh, @args);
+    $self->$code ($dbh, @$args);
   } catch {
     $self->throw_exception($_) if $self->connected;
 
@@ -739,7 +745,7 @@ sub dbh_do {
       if $ENV{DBIC_DBIRETRY_DEBUG};
 
     $self->_populate_dbh;
-    $self->$code($self->_dbh, @args);
+    $self->$code($self->_dbh, @$args);
   };
 }
 
@@ -763,19 +769,22 @@ sub txn_do {
   my $tried = 0;
   while(1) {
     my $exception;
-    my @args = @_;
+
+    # take a ref instead of a copy, to preserve coderef @_ aliasing semantics
+    my $args = \@_;
+
     try {
       $self->_get_dbh;
 
       $self->txn_begin;
       if($want_array) {
-          @result = $coderef->(@args);
+          @result = $coderef->(@$args);
       }
       elsif(defined $want_array) {
-          $result[0] = $coderef->(@args);
+          $result[0] = $coderef->(@$args);
       }
       else {
-          $coderef->(@args);
+          $coderef->(@$args);
       }
       $self->txn_commit;
     } catch {
@@ -1050,7 +1059,7 @@ sub _determine_driver {
       } else {
         # if connect_info is a CODEREF, we have no choice but to connect
         if (ref $self->_dbi_connect_info->[0] &&
-            Scalar::Util::reftype($self->_dbi_connect_info->[0]) eq 'CODE') {
+            reftype $self->_dbi_connect_info->[0] eq 'CODE') {
           $self->_populate_dbh;
           $driver = $self->_dbh->{Driver}{Name};
         }
@@ -1171,7 +1180,7 @@ sub _connect {
 
     unless ($self->unsafe) {
       my $weak_self = $self;
-      Scalar::Util::weaken($weak_self);
+      weaken $weak_self;
       $dbh->{HandleError} = sub {
           if ($weak_self) {
             $weak_self->throw_exception("DBI Exception: $_[0]");
@@ -1386,7 +1395,7 @@ sub _dbh_rollback {
 sub _prep_for_execute {
   my ($self, $op, $extra_bind, $ident, $args) = @_;
 
-  if( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+  if( blessed $ident && $ident->isa("DBIx::Class::ResultSource") ) {
     $ident = $ident->from();
   }
 
@@ -1465,7 +1474,9 @@ sub _dbh_execute {
 
   # Can this fail without throwing an exception anyways???
   my $rv = $sth->execute();
-  $self->throw_exception($sth->errstr) if !$rv;
+  $self->throw_exception(
+    $sth->errstr || $sth->err || 'Unknown error: execute() returned false, but error flags were not set...'
+  ) if !$rv;
 
   $self->_query_end( $sql, @$bind );
 
@@ -1555,9 +1566,9 @@ sub insert_bulk {
       $cols->[$col_idx],
       do {
         local $Data::Dumper::Maxdepth = 1; # don't dump objects, if any
-        Data::Dumper::Concise::Dumper({
+        Dumper {
           map { $cols->[$_] => $data->[$slice_idx][$_] } (0 .. $#$cols)
-        }),
+        },
       }
     );
   };
@@ -1680,7 +1691,7 @@ sub _execute_array {
       $sth->finish
     }
     catch {
-      $err = shift unless defined $err 
+      $err = shift unless defined $err
     };
   };
 
@@ -1696,9 +1707,7 @@ sub _execute_array {
 
     $self->throw_exception(sprintf "%s for populate slice:\n%s",
       ($tuple_status->[$i][1] || $err),
-      Data::Dumper::Concise::Dumper({
-        map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols)
-      }),
+      Dumper { map { $cols->[$_] => $data->[$i][$_] } (0 .. $#$cols) },
     );
   }
 
@@ -1928,7 +1937,7 @@ sub _select_args {
   }
   elsif (defined $attrs->{offset}) {
     # MySQL actually recommends this approach.  I cringe.
-    $attrs->{rows} = 2**32;
+    $attrs->{rows} = $sql_maker->__max_int;
   }
 
   my @limit;
@@ -2322,8 +2331,13 @@ sub create_ddl_dir {
     carp "No directory given, using ./\n";
     $dir = './';
   } else {
-      -d $dir or File::Path::mkpath($dir)
-          or $self->throw_exception("create_ddl_dir: $! creating dir '$dir'");
+      -d $dir
+        or
+      make_path ("$dir")  # make_path does not like objects (i.e. Path::Class::Dir)
+        or
+      $self->throw_exception(
+        "Failed to create '$dir': " . ($! || $@ || 'error unknow')
+      );
   }
 
   $self->throw_exception ("Directory '$dir' does not exist\n") unless(-d $dir);

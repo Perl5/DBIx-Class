@@ -2,9 +2,10 @@ use warnings;
 use strict;
 
 use Test::More;
-use List::Util ();
+use List::Util 'first';
 use lib qw(t/lib);
 use DBICTest;
+use namespace::clean;
 
 # Don't run tests for installs
 unless ( DBICTest::AuthorCheck->is_author || $ENV{AUTOMATED_TESTING} || $ENV{RELEASE_TESTING} ) {
@@ -23,7 +24,7 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_podcoverage') ) 
 # of what this is doing might be in order.
 # The exceptions structure below is a hash keyed by the module
 # name. Any * in a name is treated like a wildcard and will behave
-# as expected. Modules are matched by longest string first, so 
+# as expected. Modules are matched by longest string first, so
 # A::B::C will match even if there is A::B*
 
 # The value for each is a hash, which contains one or more
@@ -88,6 +89,12 @@ my $exceptions = {
         /]
     },
 
+    'DBIx::Class::Admin'        => {
+        ignore => [ qw/
+            BUILD
+        /]
+     },
+
     'DBIx::Class::Storage::DBI::Replicated*'        => {
         ignore => [ qw/
             connect_call_do_sql
@@ -134,8 +141,8 @@ my @modules = sort { $a cmp $b } (Test::Pod::Coverage::all_modules());
 foreach my $module (@modules) {
   SKIP: {
 
-    my ($match) = List::Util::first
-      { $module =~ $_ }
+    my ($match) =
+      first { $module =~ $_ }
       (sort { length $b <=> length $a || $b cmp $a } (keys %$ex_lookup) )
     ;
 

@@ -7,8 +7,9 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use Try::Tiny;
+use namespace::clean;
 
-our %_pod_inherit_config = 
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::BelongsTo' => 'DBIx::Class::Relationship' }
   );
@@ -17,7 +18,7 @@ sub belongs_to {
   my ($class, $rel, $f_class, $cond, $attrs) = @_;
 
   # assume a foreign key contraint unless defined otherwise
-  $attrs->{is_foreign_key_constraint} = 1 
+  $attrs->{is_foreign_key_constraint} = 1
     if not exists $attrs->{is_foreign_key_constraint};
   $attrs->{undef_on_null_fk} = 1
     if not exists $attrs->{undef_on_null_fk};

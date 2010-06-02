@@ -7,7 +7,7 @@ use base 'DBIx::Class';
 
 use Carp::Clan qw/^DBIx::Class/;
 use DBIx::Class::Exception;
-use List::Util;
+use List::Util ();
 
 =head1 NAME
 

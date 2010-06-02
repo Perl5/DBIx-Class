@@ -6,22 +6,28 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
+BEGIN {
+  require DBIx::Class;
+  plan skip_all =>
+      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
+}
+
 use File::Spec;
-use File::Path qw/ mkpath rmtree /;
-
-
+use Path::Class qw/dir/;
+use File::Path qw/make_path remove_tree/;
 my $schema = DBICTest->init_schema();
 
-my $var = File::Spec->catfile(qw| t var create_ddl_dir |);
+my $var = dir (qw| t var create_ddl_dir |);
 -d $var
-    or mkpath($var)
-    or die "can't create $var";
+    or make_path( "$var" )
+    or die "can't create $var: $!";
 
-my $test_dir_1 =  File::Spec->catdir( $var, 'test1', 'foo', 'bar' );
-rmtree( $test_dir_1 ) if -d $test_dir_1;
+my $test_dir_1 = $var->subdir ('test1', 'foo', 'bar' );
+remove_tree( "$test_dir_1" ) if -d $test_dir_1;
 $schema->create_ddl_dir( undef, undef, $test_dir_1 );
 
-ok( -d $test_dir_1, 'create_ddl_dir did a mkpath on its target dir' );
+ok( -d $test_dir_1, 'create_ddl_dir did a make_path on its target dir' );
 ok( scalar( glob $test_dir_1.'/*.sql' ), 'there are sql files in there' );
 
 TODO: {

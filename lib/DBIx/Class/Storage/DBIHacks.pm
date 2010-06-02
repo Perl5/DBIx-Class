@@ -14,6 +14,9 @@ use base 'DBIx::Class::Storage';
 use mro 'c3';
 
 use Carp::Clan qw/^DBIx::Class/;
+use List::Util 'first';
+use Scalar::Util 'blessed';
+use namespace::clean;
 
 #
 # This code will remove non-selecting/non-restricting joins from
@@ -105,10 +108,7 @@ sub _adjust_select_args_for_complex_prefetch {
   # if a multi-type join was needed in the subquery - add a group_by to simulate the
   # collapse in the subq
   $inner_attrs->{group_by} ||= $inner_select
-    if List::Util::first
-      { ! $_->[0]{-is_single} }
-      (@{$inner_from}[1 .. $#$inner_from])
-  ;
+    if first { ! $_->[0]{-is_single} } (@{$inner_from}[1 .. $#$inner_from]);
 
   # generate the subquery
   my $subq = $self->_select_args_to_query (
@@ -240,10 +240,11 @@ sub _resolve_aliastypes_from_select_args {
   local $sql_maker->{quote_char} = "\x00"; # so that we can regex away
 
   # generate sql chunks
+  local $sql_maker->{having_bind};  # these are throw away results
   my $to_scan = {
     restricting => [
       $sql_maker->_recurse_where ($where),
-      $sql_maker->_order_by({
+      $sql_maker->_parse_rs_attrs ({
         map { $_ => $attrs->{$_} } (qw/group_by having/)
       }),
     ],
@@ -324,7 +325,7 @@ sub _resolve_ident_sources {
 
   # the reason this is so contrived is that $ident may be a {from}
   # structure, specifying multiple tables to join
-  if ( Scalar::Util::blessed($ident) && $ident->isa("DBIx::Class::ResultSource") ) {
+  if ( blessed $ident && $ident->isa("DBIx::Class::ResultSource") ) {
     # this is compat mode for insert/update/delete which do not deal with aliases
     $alias2source->{me} = $ident;
     $rs_alias = 'me';

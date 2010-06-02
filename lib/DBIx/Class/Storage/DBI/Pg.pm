@@ -10,7 +10,8 @@ use mro 'c3';
 
 use DBD::Pg qw(:pg_types);
 use Scope::Guard ();
-use Context::Preserve ();
+use Context::Preserve 'preserve_context';
+use namespace::clean;
 
 # Ask for a DBD::Pg with array support
 warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
@@ -36,8 +37,7 @@ sub with_deferred_fk_checks {
     $self->_do_query('SET CONSTRAINTS ALL IMMEDIATE');
   });
 
-  return Context::Preserve::preserve_context(sub { $sub->() },
-    after => sub { $txn_scope_guard->commit });
+  return preserve_context { $sub->() } after => sub { $txn_scope_guard->commit };
 }
 
 # only used when INSERT ... RETURNING is disabled
@@ -197,6 +197,23 @@ sub _svp_rollback {
     my ($self, $name) = @_;
 
     $self->_get_dbh->pg_rollback_to($name);
+}
+
+sub deployment_statements {
+  my $self = shift;;
+  my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
+
+  $sqltargs ||= {};
+
+  if (
+    ! exists $sqltargs->{producer_args}{postgres_version}
+      and
+    my $dver = $self->_server_info->{normalized_dbms_version}
+  ) {
+    $sqltargs->{producer_args}{postgres_version} = $dver;
+  }
+
+  $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);
 }
 
 1;

@@ -7,10 +7,11 @@ use base qw/DBIx::Class/;
 use mro 'c3';
 
 use DBIx::Class::Exception;
-use Scalar::Util();
+use Scalar::Util 'weaken';
 use IO::File;
 use DBIx::Class::Storage::TxnScopeGuard;
 use Try::Tiny;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/debug debugobj schema/);
 __PACKAGE__->mk_group_accessors('inherited' => 'cursor_class');
@@ -84,7 +85,7 @@ storage object, such as during L<DBIx::Class::Schema/clone>.
 sub set_schema {
   my ($self, $schema) = @_;
   $self->schema($schema);
-  Scalar::Util::weaken($self->{schema}) if ref $self->{schema};
+  weaken $self->{schema} if ref $self->{schema};
 }
 
 =head2 connected
@@ -186,7 +187,8 @@ transaction failure.
 =cut
 
 sub txn_do {
-  my ($self, $coderef, @args) = @_;
+  my $self = shift;
+  my $coderef = shift;
 
   ref $coderef eq 'CODE' or $self->throw_exception
     ('$coderef must be a CODE reference');
@@ -198,19 +200,21 @@ sub txn_do {
   my $wantarray = wantarray; # Need to save this since the context
                              # inside the try{} block is independent
                              # of the context that called txn_do()
+  my $args = \@_;
+
   try {
 
     # Need to differentiate between scalar/list context to allow for
     # returning a list in scalar context to get the size of the list
     if ($wantarray) {
       # list context
-      @return_values = $coderef->(@args);
+      @return_values = $coderef->(@$args);
     } elsif (defined $wantarray) {
       # scalar context
-      $return_value = $coderef->(@args);
+      $return_value = $coderef->(@$args);
     } else {
       # void context
-      $coderef->(@args);
+      $coderef->(@$args);
     }
     $self->txn_commit;
   }
@@ -479,8 +483,8 @@ If the value is of the form C<1=/path/name> then the trace output is
 written to the file C</path/name>.
 
 This environment variable is checked when the storage object is first
-created (when you call connect on your schema).  So, run-time changes 
-to this environment variable will not take effect unless you also 
+created (when you call connect on your schema).  So, run-time changes
+to this environment variable will not take effect unless you also
 re-connect on your schema.
 
 =head2 DBIX_CLASS_STORAGE_DBI_DEBUG

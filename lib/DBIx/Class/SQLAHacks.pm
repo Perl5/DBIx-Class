@@ -8,8 +8,10 @@ package # Hide from PAUSE
 use base qw/SQL::Abstract::Limit/;
 use strict;
 use warnings;
-use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
-use Sub::Name();
+use List::Util 'first';
+use Sub::Name 'subname';
+use namespace::clean;
+use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
 
 BEGIN {
   # reinstall the carp()/croak() functions imported into SQL::Abstract
@@ -19,7 +21,7 @@ BEGIN {
   for my $f (qw/carp croak/) {
 
     my $orig = \&{"SQL::Abstract::$f"};
-    *{"SQL::Abstract::$f"} = Sub::Name::subname "SQL::Abstract::$f" =>
+    *{"SQL::Abstract::$f"} = subname "SQL::Abstract::$f" =>
       sub {
         if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+ .+? called \s at/x) {
           __PACKAGE__->can($f)->(@_);
@@ -30,6 +32,11 @@ BEGIN {
       };
   }
 }
+
+# the "oh noes offset/top without limit" constant
+# limited to 32 bits for sanity (and since it is fed
+# to sprintf %u)
+sub __max_int { 0xFFFFFFFF };
 
 
 # Tries to determine limit dialect.
@@ -115,7 +122,7 @@ sub _subqueried_limit_attrs {
   # for possible further chaining)
   my (@in_sel, @out_sel, %renamed);
   for my $node (@sel) {
-    if (List::Util::first { $_ =~ / (?<! $re_alias ) $re_sep /x } ($node->{as}, $node->{unquoted_sql}) )  {
+    if (first { $_ =~ / (?<! $re_alias ) $re_sep /x } ($node->{as}, $node->{unquoted_sql}) )  {
       $node->{as} =~ s/ $re_sep /__/xg;
       my $quoted_as = $self->_quote($node->{as});
       push @in_sel, sprintf '%s AS %s', $node->{sql}, $quoted_as;
@@ -340,6 +347,12 @@ sub _Top {
 
       $mid_sel .= ', ' . $extra_order_sel->{$extra_col};
     }
+
+    # since whatever order bindvals there are, they will be realiased
+    # and need to show up in front of the entire initial inner subquery
+    # Unshift *from_bind* to make this happen (horrible, horrible, but
+    # we don't have another mechanism yet)
+    unshift @{$self->{from_bind}}, @{$self->{order_bind}};
   }
 
   # and this is order re-alias magic
@@ -382,6 +395,21 @@ sub _Top {
 
   $sql =~ s/\s*\n\s*/ /g;   # easier to read in the debugger
   return $sql;
+}
+
+# This for Sybase ASE, to use SET ROWCOUNT when there is no offset, and
+# GenericSubQ otherwise.
+sub _RowCountOrGenericSubQ {
+  my $self = shift;
+  my ($sql, $rs_attrs, $rows, $offset) = @_;
+
+  return $self->_GenericSubQ(@_) if $offset;
+
+  return sprintf <<"EOF", $rows, $sql;
+SET ROWCOUNT %d
+%s
+SET ROWCOUNT 0
+EOF
 }
 
 # This is the most evil limit "dialect" (more of a hack) for *really*
@@ -460,7 +488,8 @@ sub _GenericSubQ {
   my $cmp_op = $direction eq 'desc' ? '>' : '<';
   my $count_tbl_alias = 'rownum__emulation';
 
-  my $order_group_having = $self->_parse_rs_attrs($rs_attrs);
+  my $order_sql = $self->_order_by (delete $rs_attrs->{order_by});
+  my $group_having_sql = $self->_parse_rs_attrs($rs_attrs);
 
   # add the order supplement (if any) as this is what will be used for the outer WHERE
   $in_sel .= ", $_" for keys %{$extra_order_sel||{}};
@@ -468,9 +497,10 @@ sub _GenericSubQ {
   $sql = sprintf (<<EOS,
 SELECT $out_sel
   FROM (
-    SELECT $in_sel ${sql}${order_group_having}
+    SELECT $in_sel ${sql}${group_having_sql}
   ) %s
 WHERE ( SELECT COUNT(*) FROM %s %s WHERE %s $cmp_op %s ) %s
+$order_sql
 EOS
     ( map { $self->_quote ($_) } (
       $rs_attrs->{alias},
@@ -502,8 +532,6 @@ sub _find_syntax {
 sub select {
   my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
 
-  $self->{"${_}_bind"} = [] for (qw/having from order/);
-
   if (not ref($table) or ref($table) eq 'SCALAR') {
     $table = $self->_quote($table);
   }
@@ -512,10 +540,20 @@ sub select {
   croak "LIMIT 0 Does Not Compute" if $rest[0] == 0;
     # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
 
-  my ($sql, @where_bind) = $self->SUPER::select(
+  my ($sql, @bind) = $self->SUPER::select(
     $table, $self->_recurse_fields($fields), $where, $rs_attrs, @rest
   );
-  return wantarray ? ($sql, @{$self->{from_bind}}, @where_bind, @{$self->{having_bind}}, @{$self->{order_bind}} ) : $sql;
+  push @{$self->{where_bind}}, @bind;
+
+# this *must* be called, otherwise extra binds will remain in the sql-maker
+  my @all_bind = $self->_assemble_binds;
+
+  return wantarray ? ($sql, @all_bind) : $sql;
+}
+
+sub _assemble_binds {
+  my $self = shift;
+  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/from where having order/);
 }
 
 # Quotes table names, and handles default inserts

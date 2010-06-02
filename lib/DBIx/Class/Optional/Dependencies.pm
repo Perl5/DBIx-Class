@@ -32,7 +32,6 @@ my $reqs = {
   replicated => {
     req => {
       %$moose_basic,
-      'namespace::clean'          => '0.11',
       'Hash::Merge'               => '0.12',
     },
     pod => {
@@ -66,7 +65,7 @@ my $reqs = {
 
   deploy => {
     req => {
-      'SQL::Translator'           => '0.11005',
+      'SQL::Translator'           => '0.11006',
     },
     pod => {
       title => 'Storage::DBI::deploy()',
@@ -358,7 +357,7 @@ EOD
     <<'EOD',
 Dependencies are organized in C<groups> and each group can list one or more
 required modules, with an optional minimum version (or 0 for any version).
-The group name can be used in the 
+The group name can be used in the
 EOD
   );
 

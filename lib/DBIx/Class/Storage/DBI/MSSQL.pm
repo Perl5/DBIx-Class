@@ -6,8 +6,8 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
 use Try::Tiny;
-
-use List::Util();
+use List::Util 'first';
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/
   _identity _identity_method
@@ -49,12 +49,8 @@ sub insert_bulk {
   my $self = shift;
   my ($source, $cols, $data) = @_;
 
-  my $is_identity_insert = (List::Util::first
-      { $source->column_info ($_)->{is_auto_increment} }
-      (@{$cols})
-  )
-     ? 1
-     : 0;
+  my $is_identity_insert =
+    (first { $source->column_info ($_)->{is_auto_increment} } @{$cols}) ? 1 : 0;
 
   if ($is_identity_insert) {
      $self->_set_identity_insert ($source->name);
@@ -73,9 +69,8 @@ sub insert {
 
   my $supplied_col_info = $self->_resolve_column_info($source, [keys %$to_insert] );
 
-  my $is_identity_insert = (List::Util::first { $_->{is_auto_increment} } (values %$supplied_col_info) )
-     ? 1
-     : 0;
+  my $is_identity_insert =
+    (first { $_->{is_auto_increment} } values %$supplied_col_info) ? 1 : 0;
 
   if ($is_identity_insert) {
      $self->_set_identity_insert ($source->name);
@@ -162,12 +157,12 @@ sub _select_args_to_query {
   if (
     $sql !~ /^ \s* SELECT \s+ TOP \s+ \d+ \s+ /xi
       &&
-    scalar $self->_parse_order_by ($attrs->{order_by}) 
+    scalar $self->_parse_order_by ($attrs->{order_by})
   ) {
     $self->throw_exception(
       'An ordered subselect encountered - this is not safe! Please see "Ordered Subselects" in DBIx::Class::Storage::DBI::MSSQL
     ') unless $attrs->{unsafe_subselect_ok};
-    my $max = 2 ** 32;
+    my $max = $self->sql_maker->__max_int;
     $sql =~ s/^ \s* SELECT \s/SELECT TOP $max /xi;
   }
 
@@ -197,7 +192,7 @@ sub _svp_rollback {
 
 sub datetime_parser_type {
   'DBIx::Class::Storage::DBI::MSSQL::DateTime::Format'
-} 
+}
 
 sub sqlt_type { 'SQLServer' }
 
@@ -253,7 +248,7 @@ sub _ping {
 package # hide from PAUSE
   DBIx::Class::Storage::DBI::MSSQL::DateTime::Format;
 
-my $datetime_format      = '%Y-%m-%d %H:%M:%S.%3N'; # %F %T 
+my $datetime_format      = '%Y-%m-%d %H:%M:%S.%3N'; # %F %T
 my $smalldatetime_format = '%Y-%m-%d %H:%M:%S';
 
 my ($datetime_parser, $smalldatetime_parser);

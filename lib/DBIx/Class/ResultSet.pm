@@ -2,10 +2,7 @@ package DBIx::Class::ResultSet;
 
 use strict;
 use warnings;
-use overload
-        '0+'     => "count",
-        'bool'   => "_bool",
-        fallback => 1;
+use base qw/DBIx::Class/;
 use Carp::Clan qw/^DBIx::Class/;
 use DBIx::Class::Exception;
 use Data::Page;
@@ -13,8 +10,13 @@ use Storable;
 use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultSourceHandle;
 use List::Util ();
-use Scalar::Util ();
-use base qw/DBIx::Class/;
+use Scalar::Util 'blessed';
+use namespace::clean;
+
+use overload
+        '0+'     => "count",
+        'bool'   => "_bool",
+        fallback => 1;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_result_class _source_handle/);
 
@@ -197,7 +199,6 @@ sub new {
   my $self = {
     _source_handle => $source,
     cond => $attrs->{where},
-    count => undef,
     pager => undef,
     attrs => $attrs
   };
@@ -1238,14 +1239,12 @@ sub _count_rs {
   my $rsrc = $self->result_source;
   $attrs ||= $self->_resolved_attrs;
 
-  # only take pieces we need for a simple count
-  my $tmp_attrs = { map
-    { $_ => $attrs->{$_} }
-    qw/ alias from where bind join /
-  };
+  my $tmp_attrs = { %$attrs };
+  # take off any limits, record_filter is cdbi, and no point of ordering nor locking a count
+  delete @{$tmp_attrs}{qw/rows offset order_by record_filter for/};
 
   # overwrite the selector (supplied by the storage)
-  $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $tmp_attrs);
+  $tmp_attrs->{select} = $rsrc->storage->_count_select ($rsrc, $attrs);
   $tmp_attrs->{as} = 'count';
 
   my $tmp_rs = $rsrc->resultset_class->new($rsrc, $tmp_attrs)->get_column ('count');
@@ -1262,10 +1261,9 @@ sub _count_subq_rs {
   my $rsrc = $self->result_source;
   $attrs ||= $self->_resolved_attrs;
 
-  my $sub_attrs = { map
-    { $_ => $attrs->{$_} }
-    qw/ alias from where bind join group_by having rows offset /
-  };
+  my $sub_attrs = { %$attrs };
+  # extra selectors do not go in the subquery and there is no point of ordering it, nor locking it
+  delete @{$sub_attrs}{qw/collapse select _prefetch_select as order_by for/};
 
   # if we multi-prefetch we group_by primary keys only as this is what we would
   # get out of the rs via ->next/->all. We *DO WANT* to clobber old group_by regardless
@@ -1296,7 +1294,7 @@ sub _count_subq_rs {
                ->new ($rsrc, $sub_attrs)
                 ->as_subselect_rs
                  ->search ({}, { columns => { count => $rsrc->storage->_count_select ($rsrc, $attrs) } })
-                  -> get_column ('count');
+                  ->get_column ('count');
 }
 
 sub _bool {
@@ -1434,7 +1432,8 @@ sub _rs_update_delete {
     # make a new $rs selecting only the PKs (that's all we really need)
     my $attrs = $self->_resolved_attrs_copy;
 
-    delete $attrs->{$_} for qw/collapse select as/;
+
+    delete $attrs->{$_} for qw/collapse _collapse_order_by select _prefetch_select as/;
     $attrs->{columns} = [ map { "$attrs->{alias}.$_" } ($self->result_source->_pri_cols) ];
 
     if ($needs_group_by_subq) {
@@ -1468,7 +1467,6 @@ sub _rs_update_delete {
     }
 
     my $subrs = (ref $self)->new($rsrc, $attrs);
-
     return $self->result_source->storage->_subq_update_delete($subrs, $op, $values);
   }
   else {
@@ -1934,7 +1932,7 @@ sub _is_deterministic_value {
   my $value = shift;
   my $ref_type = ref $value;
   return 1 if $ref_type eq '' || $ref_type eq 'SCALAR';
-  return 1 if Scalar::Util::blessed($value);
+  return 1 if blessed $value;
   return 0;
 }
 

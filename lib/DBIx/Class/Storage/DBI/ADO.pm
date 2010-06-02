@@ -3,6 +3,7 @@ package # hide from PAUSE
 
 use base 'DBIx::Class::Storage::DBI';
 use Try::Tiny;
+use namespace::clean;
 
 sub _rebless {
   my $self = shift;

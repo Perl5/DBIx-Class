@@ -63,6 +63,13 @@ my $code = sub {
   is( $schema->storage->{transaction_depth}, 0, 'txn depth has been reset');
 }
 
+# Test txn_do() @_ aliasing support
+{
+  my $res = 'original';
+  $schema->storage->txn_do (sub { $_[0] = 'changed' }, $res);
+  is ($res, 'changed', "Arguments properly aliased for txn_do");
+}
+
 # Test nested successful txn_do()
 {
   is( $schema->storage->{transaction_depth}, 0, 'txn depth starts at 0');
@@ -233,6 +240,7 @@ $schema->storage->disconnect;
 
   is($schema->storage->transaction_depth, 0, "Correct transaction depth");
   my $artist_rs = $schema->resultset('Artist');
+  my $fn = __FILE__;
   throws_ok {
    my $guard = $schema->txn_scope_guard;
 
@@ -243,7 +251,7 @@ $schema->storage->disconnect;
     });
 
    $guard->commit;
-  } qr/No such column made_up_column .*? at .*?81transactions.t line \d+/s, "Error propogated okay";
+  } qr/No such column made_up_column .*? at .*?$fn line \d+/s, "Error propogated okay";
 
   ok(!$artist_rs->find({name => 'Death Cab for Cutie'}), "Artist not created");
 

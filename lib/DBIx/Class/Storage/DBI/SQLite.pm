@@ -45,17 +45,17 @@ sub backup
 }
 
 sub deployment_statements {
-  my $self = shift;;
+  my $self = shift;
   my ($schema, $type, $version, $dir, $sqltargs, @rest) = @_;
 
   $sqltargs ||= {};
 
-  # it'd be cool to use the normalized perl-style version but this needs sqlt hacking as well
-  if (my $sqlite_version = $self->_server_info->{dbms_version}) {
-    # numify, SQLT does a numeric comparison
-    $sqlite_version =~ s/^(\d+) \. (\d+) (?: \. (\d+))? .*/${1}.${2}/x;
-
-    $sqltargs->{producer_args}{sqlite_version} = $sqlite_version if $sqlite_version;
+  if (
+    ! exists $sqltargs->{producer_args}{sqlite_version}
+      and
+    my $dver = $self->_server_info->{normalized_dbms_version}
+  ) {
+    $sqltargs->{producer_args}{sqlite_version} = $dver;
   }
 
   $self->next::method($schema, $type, $version, $dir, $sqltargs, @rest);

@@ -6,8 +6,9 @@ use warnings;
 use base qw/DBIx::Class/;
 
 use DBIx::Class::Exception;
-use Scalar::Util ();
+use Scalar::Util 'blessed';
 use Try::Tiny;
+use namespace::clean;
 
 ###
 ### Internal method
@@ -189,7 +190,7 @@ sub new {
         my $acc_type = $info->{attrs}{accessor} || '';
         if ($acc_type eq 'single') {
           my $rel_obj = delete $attrs->{$key};
-          if(!Scalar::Util::blessed($rel_obj)) {
+          if(!blessed $rel_obj) {
             $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
           }
 
@@ -209,7 +210,7 @@ sub new {
           my @objects;
           foreach my $idx (0 .. $#$others) {
             my $rel_obj = $others->[$idx];
-            if(!Scalar::Util::blessed($rel_obj)) {
+            if(!blessed $rel_obj) {
               $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
             }
 
@@ -227,7 +228,7 @@ sub new {
         elsif ($acc_type eq 'filter') {
           ## 'filter' should disappear and get merged in with 'single' above!
           my $rel_obj = delete $attrs->{$key};
-          if(!Scalar::Util::blessed($rel_obj)) {
+          if(!blessed $rel_obj) {
             $rel_obj = $new->__new_related_find_or_new_helper($key, $rel_obj);
           }
           if ($rel_obj->in_storage) {
@@ -303,8 +304,7 @@ sub insert {
     my $rel_obj = $related_stuff{$relname};
 
     if (! $self->{_rel_in_storage}{$relname}) {
-      next unless (Scalar::Util::blessed($rel_obj)
-                    && $rel_obj->isa('DBIx::Class::Row'));
+      next unless (blessed $rel_obj && $rel_obj->isa('DBIx::Class::Row'));
 
       next unless $source->_pk_depends_on(
                     $relname, { $rel_obj->get_columns }
@@ -398,9 +398,7 @@ sub insert {
       : $related_stuff{$relname}
     ;
 
-    if (@cands
-          && Scalar::Util::blessed($cands[0])
-            && $cands[0]->isa('DBIx::Class::Row')
+    if (@cands && blessed $cands[0] && $cands[0]->isa('DBIx::Class::Row')
     ) {
       my $reverse = $source->reverse_relationship_info($relname);
       foreach my $obj (@cands) {
@@ -1115,7 +1113,7 @@ sub inflate_result {
 
   if ($source->isa('DBIx::Class::ResultSourceHandle')) {
     $source = $source_handle->resolve
-  } 
+  }
   else {
     $source_handle = $source->handle
   }

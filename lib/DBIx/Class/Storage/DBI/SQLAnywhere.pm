@@ -4,8 +4,9 @@ use strict;
 use warnings;
 use base qw/DBIx::Class::Storage::DBI::UniqueIdentifier/;
 use mro 'c3';
-use List::Util ();
+use List::Util 'first';
 use Try::Tiny;
+use namespace::clean;
 
 __PACKAGE__->mk_group_accessors(simple => qw/
   _identity
@@ -42,9 +43,8 @@ sub insert {
   my $self = shift;
   my ($source, $to_insert) = @_;
 
-  my $identity_col = List::Util::first {
-      $source->column_info($_)->{is_auto_increment} 
-  } $source->columns;
+  my $identity_col =
+    first { $source->column_info($_)->{is_auto_increment} } $source->columns;
 
 # user might have an identity PK without is_auto_increment
   if (not $identity_col) {

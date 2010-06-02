@@ -225,6 +225,8 @@ abraxxa: Alexander Hartmaier <abraxxa@cpan.org>
 
 aherzog: Adam Herzog <adam@herzogdesigns.com>
 
+Alexander Keusch <cpan@keusch.at>
+
 amiri: Amiri Barksdale <amiri@metalabel.com>
 
 amoore: Andrew Moore <amoore@cpan.org>
@@ -344,6 +346,8 @@ plu: Johannes Plunien <plu@cpan.org>
 quicksilver: Jules Bean
 
 rafl: Florian Ragwitz <rafl@debian.org>
+
+rbo: Robert Bohne <rbo@cpan.org>
 
 rbuels: Robert Buels <rmb32@cornell.edu>
 

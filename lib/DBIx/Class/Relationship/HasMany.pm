@@ -4,8 +4,9 @@ package # hide from PAUSE
 use strict;
 use warnings;
 use Try::Tiny;
+use namespace::clean;
 
-our %_pod_inherit_config = 
+our %_pod_inherit_config =
   (
    class_map => { 'DBIx::Class::Relationship::HasMany' => 'DBIx::Class::Relationship' }
   );
@@ -15,7 +16,7 @@ sub has_many {
 
   unless (ref $cond) {
     $class->ensure_class_loaded($f_class);
-    my ($pri, $too_many) = try { $class->_pri_cols } 
+    my ($pri, $too_many) = try { $class->_pri_cols }
       catch {
         $class->throw_exception("Can't infer join condition for ${rel} on ${class}: $_");
       };

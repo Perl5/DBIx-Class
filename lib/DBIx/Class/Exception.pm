@@ -6,6 +6,7 @@ use warnings;
 use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
 use Scalar::Util qw/blessed/;
 use Try::Tiny;
+use namespace::clean;
 
 use overload
     '""' => sub { shift->{msg} },

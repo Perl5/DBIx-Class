@@ -5,9 +5,13 @@ Revision history for DBIx::Class
         - ::Storage::DBI now correctly preserves a parent $dbh from
           terminating children, even during interpreter-global
           out-of-order destruction
+        - dbicadmin supports an -I option with the same semantics as
+          perl itself
         - InflateColumn::DateTime support for MSSQL via DBD::Sybase
         - Millisecond precision support for MSSQL datetimes for
           InflateColumn::DateTime
+        - Oracle-specific hierarchical query syntax support:
+          CONNECT BY (NOCYCLE) / START WITH / ORDER SIBLINGS BY
         - Support connecting using $ENV{DBI_DSN} and $ENV{DBI_DRIVER}
         - current_source_alias method on ResultSet objects to
           determine the alias to use in programatically assembled
@@ -19,7 +23,14 @@ Revision history for DBIx::Class
           the unsafe_subselect_ok attribute, due to optimized queries
         - Support for Generic Subquery limit "emulation" - awfully slow
           and inefficient but works on almost any db, and is preferred
-          to a soft-limit
+          to software limit emulation
+        - Sybase ASE driver now uses SET ROWCOUNT where possible, and
+          Generic Subquery otherwise for limit support instead of always
+          using software limit emulation
+        - create_ddl_dir (and derivatives) now attempt to create the given
+          $ddl_dir if it does not already exist
+        - deployment_statements now automatically supplies the current RDBMS
+          version to SQLT producer_args for MySQL, Pg, SQLite and Oracle
 
     * Fixes
         - Fix nasty potentially data-eating bug when deleting/updating
@@ -29,19 +40,38 @@ Revision history for DBIx::Class
         - Don't try and ensure_class_loaded an object. This doesn't work.
         - Fix as_subselect_rs to not inject resultset class-wide where
           conditions outside of the resulting subquery
+        - Fix count() failing with {for} resultset attribute (RT#56257)
+        - Fixed incorrect detection of Limit dialect on unconnected $schema
         - update() on row not in_storage no longer throws an exception
           if there are no dirty columns to update (fixes cascaded update
           annoyances)
+        - update()/delete() on prefetching resultsets no longer results
+          in malformed SQL (some $rs attributes were erroneously left in)
+        - Fix dbicadmin to allow deploy() on non-versioned schema
+        - Fix dbicadmin to respect sql_dir on upgrade() (RT#57732)
         - Update Schema::Versioned to respect hashref style of
           connection_info
         - Do not recreate the same related object twice during MultiCreate
           (solves the problem of orphaned IC::FS files)
+        - Fully qualify xp_msver selector when using DBD::Sybase with
+          MSSQL (RT#57467)
+        - Fix ::DBI::Storage to always be able to present a full set of
+          connect() attributes to e.g. Schema::Versioned
+        - Fix Oracle auto-inc trigger detection of "INSERT OR UPDATE"-type
+          triggers
 
     * Misc
-        - Add a warning to load_namespaces if a class in ResultSet/
-          is not a subclass of DBIx::Class::ResultSet
+        - Reformatted Changelog \o/
+        - Allow developers to skip optional dependency forcing when working
+          from a checkout
+        - Add a warning to load_namespaces if a class in ResultSet/ is not
+          a subclass of DBIx::Class::ResultSet
         - All DBIC exception-handling switched to Try::Tiny
+        - All DBIC modules are now free of imports via namespace::clean
         - Depend on optimized SQL::Abstract (faster SQL generation)
+        - Depend on new Class::Accessor::Grouped reintroducing optional use
+          of Class::XSAccessor (just install C::XSA and get lightning fast
+          column accessors)
 
 0.08121 2010-04-11 18:43:00 (UTC)
         - Support for Firebird RDBMS with DBD::InterBase and ODBC

@@ -3,6 +3,7 @@ package DBIx::Class::Storage::DBI::Sybase;
 use strict;
 use warnings;
 use Try::Tiny;
+use namespace::clean;
 
 use base qw/DBIx::Class::Storage::DBI/;
 
