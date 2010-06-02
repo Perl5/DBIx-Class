@@ -34,6 +34,8 @@ BEGIN {
 }
 
 # the "oh noes offset/top without limit" constant
+# limited to 32 bits for sanity (and since it is fed
+# to sprintf %u)
 sub __max_int { 0xFFFFFFFF };
 
 
