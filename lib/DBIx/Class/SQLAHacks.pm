@@ -33,6 +33,9 @@ BEGIN {
   }
 }
 
+# the "oh noes offset/top without limit" constant
+sub __max_int { 0xFFFFFFFF };
+
 
 # Tries to determine limit dialect.
 #

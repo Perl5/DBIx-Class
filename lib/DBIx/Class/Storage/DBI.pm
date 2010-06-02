@@ -1937,7 +1937,7 @@ sub _select_args {
   }
   elsif (defined $attrs->{offset}) {
     # MySQL actually recommends this approach.  I cringe.
-    $attrs->{rows} = 2**32;
+    $attrs->{rows} = $sql_maker->__max_int;
   }
 
   my @limit;
