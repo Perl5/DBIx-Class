@@ -63,6 +63,30 @@ __PACKAGE__->has_many(
   }
 );
 
+__PACKAGE__->has_many(
+    cds_80s_noopt => 'DBICTest::Schema::CD',
+    sub {
+      my ( $me_alias, $rel_alias, $me_result_source, $rel_name, $optional_me_object ) = @_;
+      return
+        ({ "${rel_alias}.artist"  => { '=' => \"${me_alias}.artistid"},
+           "${rel_alias}.year"    => { '>', "1979",
+                                       '<', "1990" }
+         });
+  }
+);
+
+__PACKAGE__->has_many(
+    cds_90s => 'DBICTest::Schema::CD',
+    sub {
+      my ( $me_alias, $rel_alias, $me_result_source, $rel_name, $optional_me_object ) = @_;
+      return
+        ({ "${rel_alias}.artist"  => { '=' => \"${me_alias}.artistid"},
+           "${rel_alias}.year"    => { '>', "1989",
+                                       '<', "2000" }
+         });
+  }
+);
+
 
 __PACKAGE__->has_many(
     cds_unordered => 'DBICTest::Schema::CD'

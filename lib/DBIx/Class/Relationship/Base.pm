@@ -269,7 +269,7 @@ sub related_resultset {
     # resultsource, in that case, the condition might provide an
     # additional condition in order to avoid an unecessary join if
     # that is at all possible.
-    my ($cond, $cond2) = try {
+    my ($cond, $extended_cond) = try {
       $source->_resolve_condition( $rel_info->{cond}, $rel, $self )
     }
     catch {
@@ -292,6 +292,35 @@ sub related_resultset {
         }
       }
     }
+
+    # this is where we're going to check if we have an extended
+    # rel. In that case, we need to: 1) If there's a second
+    # condition, we use that instead.  2) If there is only one
+    # condition, we need to join the current resultsource and have
+    # additional conditions.
+    if (ref $rel_info->{cond} eq 'CODE') {
+      # this is an extended relationship.
+      if ($extended_cond) {
+        $cond = $extended_cond;
+
+      } else {
+
+        # it's a bit hard to find out what to do with other joins
+        $self->throw_exception('Extended relationship '.$rel.' with additional join requires optimized declaration')
+          if exists $attrs->{join} && $attrs->{join};
+
+        # aliases get a bit more complicated, so we won't accept additional queries
+        $self->throw_exception('Extended relationship '.$rel.' with additional query requires optimized declaration')
+          if $query;
+
+        $attrs->{from} =
+          [ { $rel => $self->result_source->from },
+            [ { 'me' => $self->result_source->related_source($rel)->from }, { 1 => 1 } ] ];
+
+        $cond->{"${rel}.${_}"} = $self->get_column($_) for $self->result_source->primary_columns;
+      }
+    }
+
     if (ref $cond eq 'ARRAY') {
       $cond = [ map {
         if (ref $_ eq 'HASH') {
@@ -306,28 +335,8 @@ sub related_resultset {
         }
       } @$cond ];
     } elsif (ref $cond eq 'HASH') {
-
-      # this is where we're going to check if we have an extended
-      # rel. In that case, we need to: 1) If there's a second
-      # condition, we use that instead.  2) If there is only one
-      # condition, we need to join the current resultsource and have
-      # additional conditions.
-      if (ref $rel_info->{cond} eq 'CODE') {
-        # this is an extended relationship.
-        if ($cond2) {
-          $cond = $cond2;
-        } else {
-          if (exists $attrs->{join} && $attrs->{join}) {
-            # it's a bit hard to find out what to do here.
-            $self->throw_exception('Extended relationship '.$rel.' with additional join not supported');
-          } else {
-            $attrs->{join} = $rel;
-          }
-        }
-      } else {
-        foreach my $key (grep { ! /\./ } keys %$cond) {
-          $cond->{"me.$key"} = delete $cond->{$key};
-        }
+      foreach my $key (grep { ! /\./ } keys %$cond) {
+        $cond->{"me.$key"} = delete $cond->{$key};
       }
     }
 
