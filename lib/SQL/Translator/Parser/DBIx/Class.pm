@@ -454,15 +454,9 @@ Limit the amount of parsed sources by supplying an explicit list of source names
 
 L<SQL::Translator>, L<DBIx::Class::Schema>
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-Jess Robinson
-
-=head2 CONTRIBUTORS
-
-Matt Trout
-Ash Berlin
-Amiri Barksdale
+See L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 
