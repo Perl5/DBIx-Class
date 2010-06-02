@@ -85,32 +85,14 @@ has 'schema' => (
   lazy_build  => 1,
 );
 
-sub BUILD {
-   my $self = shift;
-   require Class::MOP;
-
-   my @include_dirs = @{$self->include_dirs};
-   @INC = (@include_dirs, @INC);
-   Class::MOP::load_class($self->schema_class);
-}
-
 sub _build_schema {
   my ($self)  = @_;
+
+  require Class::MOP;
+  Class::MOP::load_class($self->schema_class);
   $self->connect_info->[3]{ignore_version} = 1;
   return $self->schema_class->connect(@{$self->connect_info});
 }
-
-=head2 include_dirs
-
-Extra include directories to look when loading C<schema_class>
-
-=cut
-
-has 'include_dirs' => (
-    is => 'rw',
-    isa => 'ArrayRef',
-    default => sub {[]}
-);
 
 =head2 resultset
 
