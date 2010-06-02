@@ -27,6 +27,8 @@ Revision history for DBIx::Class
         - Sybase ASE driver now uses SET ROWCOUNT where possible, and
           Generic Subquery otherwise for limit support instead of always
           using software limit emulation
+        - create_ddl_dir (and derivatives) now attempt to create the given
+          $ddl_dir if it does not already exist
 
     * Fixes
         - Fix nasty potentially data-eating bug when deleting/updating

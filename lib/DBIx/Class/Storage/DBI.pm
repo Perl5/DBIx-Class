@@ -15,7 +15,7 @@ use Scalar::Util qw/refaddr weaken reftype blessed/;
 use Data::Dumper::Concise 'Dumper';
 use Sub::Name 'subname';
 use Try::Tiny;
-use File::Path 'mkpath';
+use File::Path 'make_path';
 use namespace::clean;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/
@@ -2331,8 +2331,13 @@ sub create_ddl_dir {
     carp "No directory given, using ./\n";
     $dir = './';
   } else {
-      -d $dir or mkpath $dir
-          or $self->throw_exception("create_ddl_dir: $! creating dir '$dir'");
+      -d $dir
+        or
+      make_path ("$dir")  # make_path does not like objects (i.e. Path::Class::Dir)
+        or
+      $self->throw_exception(
+        "Failed to create '$dir': " . ($! || $@ || 'error unknow')
+      );
   }
 
   $self->throw_exception ("Directory '$dir' does not exist\n") unless(-d $dir);
