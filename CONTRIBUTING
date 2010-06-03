@@ -1,7 +1,7 @@
 With DBIx::Class on git now, this is the process for contributing.
 
 1) Clone the DBIx::Class master branch
-   > git clone dbsrgits@git.shadowcat.co.uk:dbsrgits/DBIx-Class.git
+   > git clone dbsrgits@git.shadowcat.co.uk:DBIx-Class.git
 2) Do your work on your machine. This is git - everything is local!
 3) When you think you're ready, push it back out to the origin as a
    remote branch.  See rebasing for what you should do before pushing.
