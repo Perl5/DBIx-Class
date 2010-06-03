@@ -62,6 +62,7 @@ Revision history for DBIx::Class
 
     * Misc
         - Reformatted Changelog \o/
+        - DBIC goes git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git
         - Allow developers to skip optional dependency forcing when working
           from a checkout
         - Add a warning to load_namespaces if a class in ResultSet/ is not
