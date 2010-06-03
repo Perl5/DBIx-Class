@@ -421,6 +421,7 @@ sub insert {
 
   $self->in_storage(1);
   delete $self->{_orig_ident};
+  delete $self->{_orig_ident_failreason};
   delete $self->{_ignore_at_insert};
   $rollback_guard->commit if $rollback_guard;
 
@@ -521,7 +522,7 @@ sub update {
 
   $self->throw_exception( "Not in database" ) unless $self->in_storage;
 
-  $self->throw_exception('Unable to update a row with incomplete or no identity')
+  $self->throw_exception($self->{_orig_ident_failreason})
     if ! keys %$ident_cond;
 
   my $rows = $self->result_source->storage->update(
@@ -587,14 +588,14 @@ sub delete {
     $self->throw_exception( "Not in database" ) unless $self->in_storage;
 
     my $ident_cond = $self->{_orig_ident} || $self->ident_condition;
-    $self->throw_exception('Unable to delete a row with incomplete or no identity')
+    $self->throw_exception($self->{_orig_ident_failreason})
       if ! keys %$ident_cond;
 
     $self->result_source->storage->delete(
       $self->result_source, $ident_cond
     );
 
-    delete $self->{_orig_ident};
+    delete $self->{_orig_ident};  # no longer identifiable
     $self->in_storage(undef);
   }
   else {
@@ -856,7 +857,16 @@ sub set_column {
   my ($self, $column, $new_value) = @_;
 
   # if we can't get an ident condition on first try - mark the object as unidentifiable
-  $self->{_orig_ident} ||= (try { $self->ident_condition }) || {};
+  # (by using an empty hashref) and store the error for further diag
+  unless ($self->{_orig_ident}) {
+    try {
+      $self->{_orig_ident} = $self->ident_condition
+    }
+    catch {
+      $self->{_orig_ident_failreason} = $_;
+      $self->{_orig_ident} = {};
+    };
+  }
 
   my $old_value = $self->get_column($column);
   $new_value = $self->store_column($column, $new_value);
@@ -1352,7 +1362,7 @@ sub get_from_storage {
 
     my $ident_cond = $self->{_orig_ident} || $self->ident_condition;
 
-    $self->throw_exception('Unable to requery a row with incomplete or no identity')
+    $self->throw_exception($self->{_orig_ident_failreason})
       if ! keys %$ident_cond;
 
     return $resultset->find($ident_cond);
