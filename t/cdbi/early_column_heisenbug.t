@@ -4,8 +4,7 @@ use Test::More;
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@")
-          : ('no_plan');
+  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@" if $@;
 }
 
 
@@ -25,4 +24,4 @@ is_deeply [Stuff->columns("Essential")], [];
 Thing->columns(Essential => qw(foo bar baz));
 is_deeply [Stuff->columns("Essential")], [];
 
-1;
+done_testing;

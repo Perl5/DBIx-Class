@@ -4,8 +4,7 @@ use Test::Warn;
 
 BEGIN {
   eval "use DBIx::Class::CDBICompat;";
-  plan $@ ? (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@")
-          : ('no_plan');
+  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@" if $@;
 }
 
 use lib 't/cdbi/testlib';
@@ -102,3 +101,5 @@ SKIP: {
     isa_ok $foo->{tdate}, 'Date::Simple';
     is $foo->{tdate}->year, 1949;
 }
+
+done_testing;

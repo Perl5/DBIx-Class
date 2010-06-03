@@ -9,7 +9,6 @@ use DBICTest;
 plan skip_all => "DateTime required" unless eval { require DateTime };
 eval "use DateTime::Format::Strptime";
 plan skip_all => 'DateTime::Format::Strptime required' if $@;
-plan 'no_plan';
 use Test::Exception;
 
 my $schema = DBICTest->init_schema();
@@ -63,5 +62,4 @@ my $cd_rs = $schema->resultset('CD');
   is($artist->name, undef);
 }
 
-
-1;
+done_testing;

@@ -1,7 +1,7 @@
 use strict;
-use warnings;  
+use warnings;
 
-use Test::More qw(no_plan);
+use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -100,3 +100,5 @@ my $row = $schema->resultset('CD')->search({}, {
 })->single;
 
 is($row->cdid, $it->first->cdid, 'page with offset');
+
+done_testing;
