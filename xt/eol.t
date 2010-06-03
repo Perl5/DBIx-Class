@@ -22,7 +22,10 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_eol') ) {
 
 TODO: {
   local $TODO = 'Do not fix those yet - we have way too many branches out there, merging will be hell';
-  Test::EOL::all_perl_files_ok({ trailing_whitespace => 1}, qw/t lib script maint/);
+  Test::EOL::all_perl_files_ok({ trailing_whitespace => 1},
+    qw/t xt lib script/,
+    DBICTest::AuthorCheck->is_author ? ('maint') : (),
+  );
 }
 
 # FIXME - need to fix Test::EOL
