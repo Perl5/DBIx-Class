@@ -1,0 +1,10 @@
+With DBIx::Class on git now, this is the process for contributing.
+
+1) Clone the DBIx::Class master branch at ABCDEFGH
+2) Do your work on your machine. This is git - everything is local!
+3) When you think you're ready, push it back out to ABCDEFGH as a remote branch.
+4) Notify the other contributors that you're ready to have your branch reviewed.
+5) Another contributor will merge it back into master.
+
+Yes, this does mean that DBIx::Class is moving to a formal code review process.
+Yes, this does mean that you will never merge your own code to master.
