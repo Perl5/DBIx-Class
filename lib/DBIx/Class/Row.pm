@@ -135,7 +135,10 @@ sub __new_related_find_or_new_helper {
   }
   else {
     my $us = $rsrc->source_name;
-    $self->throw_exception ("'$us' neither depends nor is depended on by '$relname', something is wrong...");
+    $self->throw_exception (
+      "Unable to determine relationship '$relname' direction from '$us', "
+    . "possibly due to a missing reverse-relationship on '$relname' to '$us'."
+    );
   }
 }
 
