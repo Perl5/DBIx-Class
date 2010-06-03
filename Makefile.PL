@@ -166,7 +166,15 @@ tests_recursive (qw|
 
 # temporary(?) until I get around to fix M::I wrt xt/
 # needs Module::Install::AuthorTests
-recursive_author_tests (qw/xt/);
+eval { 
+  recursive_author_tests (qw/xt/);
+  1;
+} || do {
+  my $err = $@;
+  eval { require Module::Install::AuthorTests }
+    || die "\nYou need Module::Install::AuthorTests installed to run this Makefile.PL:\n\n$@\n";
+  die $@;
+};
 
 
 install_script (qw|
