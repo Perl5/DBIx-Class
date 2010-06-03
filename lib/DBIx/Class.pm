@@ -283,6 +283,8 @@ gphat: Cory G Watson <gphat@cpan.org>
 
 groditi: Guillermo Roditi <groditi@cpan.org>
 
+Haarg: Graham Knop <haarg@haarg.org>
+
 hobbs: Andrew Rodland <arodland@cpan.org>
 
 ilmari: Dagfinn Ilmari MannsE<aring>ker <ilmari@ilmari.org>
