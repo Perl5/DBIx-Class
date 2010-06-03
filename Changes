@@ -1,5 +1,6 @@
 Revision history for DBIx::Class
 
+0.08122 2010-05-03 17:41 (UTC)
     * New Features
         - Add DBIx::Class::FilterColumn for non-ref filtering
         - ::Storage::DBI now correctly preserves a parent $dbh from
