@@ -189,7 +189,7 @@ has 'balancer_args' => (
 
 =head2 pool
 
-Is a <DBIx::Class::Storage::DBI::Replicated::Pool> or derived class.  This is a
+Is a L<DBIx::Class::Storage::DBI::Replicated::Pool> or derived class.  This is a
 container class for one or more replicated databases.
 
 =cut
@@ -207,8 +207,8 @@ has 'pool' => (
 
 =head2 balancer
 
-Is a <DBIx::Class::Storage::DBI::Replicated::Balancer> or derived class.  This
-is a class that takes a pool (<DBIx::Class::Storage::DBI::Replicated::Pool>)
+Is a L<DBIx::Class::Storage::DBI::Replicated::Balancer> or derived class.  This
+is a class that takes a pool (L<DBIx::Class::Storage::DBI::Replicated::Pool>)
 
 =cut
 

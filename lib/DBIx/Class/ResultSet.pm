@@ -2179,7 +2179,7 @@ or C<has_one> resultset.  Note Arrayref.
   );
 
 Example of creating a new row and also creating a row in a related
-C<belongs_to>resultset. Note Hashref.
+C<belongs_to> resultset. Note Hashref.
 
   $cd_rs->create({
     title=>"Music for Silly Walks",
