@@ -17,6 +17,7 @@ use SQL::Translator::Utils qw(debug normalize_name);
 use Carp::Clan qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
 use Scalar::Util 'weaken';
 use Try::Tiny;
+use Devel::Dwarn;
 use namespace::clean;
 
 use base qw(Exporter);
@@ -299,17 +300,26 @@ EOW
     }
 
     my %views;
+    my @views = map { $dbicschema->source($_) } keys %view_monikers;
+    my $view_dependencies;
+
+    ### This is a loop instead of a map because
+    ### passing an object to the sub failed--gave
+    ### $view->name instead of the $view!
+
+    for my $view (@views) {
+        $view_dependencies->{ $view->name } =
+          _resolve_view_deps ( { view => $view }, \%view_monikers );
+    }
 
     my @view_sources =
-    sort {
-        keys %{ $a->deploy_depends_on || {} }
-        <=>
-        keys %{ $b->deploy_depends_on || {} }
-        ||
-        $a->source_name cmp $b->source_name
-    }
-    map { $dbicschema->source($_) }
-    keys %view_monikers;
+      sort {
+        keys %{ $view_dependencies->{ $a->name }   || {} } <=>
+          keys %{ $view_dependencies->{ $b->name } || {} }
+          || $a->source_name cmp $b->source_name
+      }
+      map { $dbicschema->source($_) }
+      keys %view_monikers;
 
     foreach my $source (@view_sources)
     {
@@ -378,6 +388,33 @@ sub _resolve_deps {
   }
 
   return $ret;
+}
+
+sub _resolve_view_deps {
+    my ( $view0, $monikers, $seen ) = @_;
+    my $view = $view0->{view};
+    my $ret  = {};
+    $seen ||= {};
+
+    # copy and bump all deps by one (so we can reconstruct the chain)
+    my %seen = map { $_ => $seen->{$_} + 1 } ( keys %$seen );
+    $seen{ $view->source_name } = 1;
+
+    for my $dep ( keys %{ $view->{deploy_depends_on} } ) {
+        if ( $seen->{$dep} ) {
+            return {};
+        }
+        my ($new_source_name) =
+          grep { $view->schema->source($_)->name eq $dep }
+          @{ [ $view->schema->sources ] };
+        my $subdeps = _resolve_view_deps(
+            { view => $view->schema->source($new_source_name) },
+            $monikers, \%seen, );
+        $ret->{$_} += $subdeps->{$_} for ( keys %$subdeps );
+
+        ++$ret->{$dep};
+    }
+    return $ret;
 }
 
 1;
