@@ -97,7 +97,13 @@ dies_ok(
     sub {
         $schema2->resultset('AbaNameArtistsAnd2010CDsWithManyTracks')->next;
     },
-    "Query on AbaNameArtistsAnd2010CDsWithManyTracks fails, because of incorrect deploy_depends_on in AbaNameArtists"
+    "Query on AbaNameArtistsAnd2010CDsWithManyTracks dies, because of incorrect deploy_depends_on in AbaNameArtists"
 );
+
+throws_ok {
+    $schema2->resultset('AbaNameArtistsAnd2010CDsWithManyTracks')->next;
+}
+qr/no such table: aba_name_artists_and_2010_cds_with_many_tracks/,
+    "Query on AbaNameArtistsAnd2010CDsWithManyTracks throws, because the table does not exist";
 
 done_testing;

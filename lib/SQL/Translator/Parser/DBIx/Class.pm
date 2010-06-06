@@ -17,7 +17,6 @@ use SQL::Translator::Utils qw(debug normalize_name);
 use Carp::Clan qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
 use Scalar::Util 'weaken';
 use Try::Tiny;
-use Devel::Dwarn;
 use namespace::clean;
 
 use base qw(Exporter);
@@ -301,21 +300,17 @@ EOW
 
     my %views;
     my @views = map { $dbicschema->source($_) } keys %view_monikers;
-    my $view_dependencies;
 
-    ### This is a loop instead of a map because
-    ### passing an object to the sub failed--gave
-    ### $view->name instead of the $view!
-
-    for my $view (@views) {
-        $view_dependencies->{ $view->name } =
-          _resolve_view_deps ( { view => $view }, \%view_monikers );
-    }
+    my $view_dependencies = {
+        map {
+            $_ => _resolve_view_deps( $dbicschema->source($_), \%view_monikers )
+          } ( keys %view_monikers )
+    };
 
     my @view_sources =
       sort {
-        keys %{ $view_dependencies->{ $a->name }   || {} } <=>
-          keys %{ $view_dependencies->{ $b->name } || {} }
+        keys %{ $view_dependencies->{ $a->source_name }   || {} } <=>
+          keys %{ $view_dependencies->{ $b->source_name } || {} }
           || $a->source_name cmp $b->source_name
       }
       map { $dbicschema->source($_) }
@@ -391,15 +386,14 @@ sub _resolve_deps {
 }
 
 sub _resolve_view_deps {
-    my ( $view0, $monikers, $seen ) = @_;
-    my $view = $view0->{view};
-    my $ret  = {};
+    my ( $view, $monikers, $seen ) = @_;
+
+    my $ret = {};
     $seen ||= {};
 
     # copy and bump all deps by one (so we can reconstruct the chain)
     my %seen = map { $_ => $seen->{$_} + 1 } ( keys %$seen );
     $seen{ $view->source_name } = 1;
-
     for my $dep ( keys %{ $view->{deploy_depends_on} } ) {
         if ( $seen->{$dep} ) {
             return {};
@@ -407,8 +401,8 @@ sub _resolve_view_deps {
         my ($new_source_name) =
           grep { $view->schema->source($_)->name eq $dep }
           @{ [ $view->schema->sources ] };
-        my $subdeps = _resolve_view_deps(
-            { view => $view->schema->source($new_source_name) },
+        my $subdeps =
+          _resolve_view_deps( $view->schema->source($new_source_name),
             $monikers, \%seen, );
         $ret->{$_} += $subdeps->{$_} for ( keys %$subdeps );
 
