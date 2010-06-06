@@ -1,5 +1,10 @@
 Revision history for DBIx::Class
 
+    * Misc
+        - Test suite default on-disk database now checks for Win32
+          fail-conditions even when running on other OSes
+
+
 0.08122 2010-05-03 17:41 (UTC)
     * New Features
         - Add DBIx::Class::FilterColumn for non-ref filtering
