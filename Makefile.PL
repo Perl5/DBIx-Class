@@ -49,6 +49,7 @@ my $runtime_requires = {
   'Class::Inspector'         => '1.24',
   'Data::Page'               => '2.00',
   'DBI'                      => '1.609',
+  'File::Path'               => '2.07',
   'MRO::Compat'              => '0.09',
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.18',
@@ -166,7 +167,7 @@ tests_recursive (qw|
 
 # temporary(?) until I get around to fix M::I wrt xt/
 # needs Module::Install::AuthorTests
-eval { 
+eval {
   recursive_author_tests (qw/xt/);
   1;
 } || do {
