@@ -171,10 +171,12 @@ eval {
   recursive_author_tests (qw/xt/);
   1;
 } || do {
-  my $err = $@;
-  eval { require Module::Install::AuthorTests }
-    || die "\nYou need Module::Install::AuthorTests installed to run this Makefile.PL:\n\n$@\n";
-  die $@;
+  unless ($args->{skip_author_deps}) {
+    my $err = $@;
+    eval { require Module::Install::AuthorTests }
+      || die "\nYou need Module::Install::AuthorTests installed to run this Makefile.PL:\n\n$@\n";
+    die $@;
+  }
 };
 
 
