@@ -102,6 +102,87 @@ sub _where_field_PRIOR {
   return ($sql, @bind);
 }
 
+# this takes an identifier and shortens it if necessary
+# optionally keywords can be passed as an arrayref to generate useful
+# identifiers
+sub _shorten_identifier {
+  my ($self, $to_shorten, $keywords) = @_;
+
+  # 30 characters is the identifier limit for Oracle
+  my $max_len = 30;
+  # we want at least 10 characters of the base36 md5
+  my $min_entropy = 10;
+
+  my $max_trunc = $max_len - $min_entropy - 1;
+
+  return $to_shorten
+    if length($to_shorten) <= $max_len;
+
+  croak 'keywords needs to be an arrayref'
+    if defined $keywords && ref $keywords ne 'ARRAY';
+
+  # if no keywords are passed use the identifier as one
+  my @keywords = @{$keywords || []};
+  @keywords = $to_shorten unless @keywords;
+
+  # get a base36 md5 of the identifier
+  require Digest::MD5;
+  require Math::BigInt;
+  require Math::Base36;
+  my $b36sum = Math::Base36::encode_base36(
+    Math::BigInt->from_hex (
+      '0x' . Digest::MD5::md5_hex ($to_shorten)
+    )
+  );
+
+  # switch from perl to java
+  # get run-length
+  my ($concat_len, @lengths);
+  for (@keywords) {
+    $_ = ucfirst (lc ($_));
+    $_ =~ s/\_+(\w)/uc ($1)/eg;
+
+    push @lengths, length ($_);
+    $concat_len += $lengths[-1];
+  }
+
+  # if we are still too long - try to disemvowel non-capitals (not keyword starts)
+  if ($concat_len > $max_trunc) {
+    $concat_len = 0;
+    @lengths = ();
+
+    for (@keywords) {
+      $_ =~ s/[aeiou]//g;
+
+      push @lengths, length ($_);
+      $concat_len += $lengths[-1];
+    }
+  }
+
+  # still too long - just start cuting proportionally
+  if ($concat_len > $max_trunc) {
+    my $trim_ratio = $max_trunc / $concat_len;
+
+    for my $i (0 .. $#keywords) {
+      $keywords[$i] = substr ($keywords[$i], 0, int ($trim_ratio * $lengths[$i] ) );
+    }
+  }
+
+  my $fin = join ('', @keywords);
+  my $fin_len = length $fin;
+
+  return sprintf ('%s_%s',
+    $fin,
+    substr ($b36sum, 0, $max_len - $fin_len - 1),
+  );
+}
+
+sub _unqualify_colname {
+  my ($self, $fqcn) = @_;
+
+  return $self->_shorten_identifier($self->next::method($fqcn));
+}
+
 1;
 
 __END__

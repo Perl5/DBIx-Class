@@ -56,8 +56,6 @@ my $sqla_oracle = DBIx::Class::SQLAHacks::Oracle->new( quote_char => '"', name_s
 isa_ok($sqla_oracle, 'DBIx::Class::SQLAHacks::Oracle');
 
 
-my $test_count = ( @handle_tests * 2 ) + 1;
-
 for my $case (@handle_tests) {
     my ( $stmt, @bind );
     my $msg = sprintf("Offline: %s",
@@ -72,9 +70,39 @@ for my $case (@handle_tests) {
     ,sprintf("lives is ok from '%s'",$msg));
 }
 
-# 
-#   Online Tests?
-# 
-$test_count += 0;
+is (
+  $sqla_oracle->_shorten_identifier('short_id'),
+  'short_id',
+  '_shorten_identifier for short id without keywords ok'
+);
 
-done_testing( $test_count );
+is (
+  $sqla_oracle->_shorten_identifier('short_id', [qw/ foo /]),
+  'short_id',
+  '_shorten_identifier for short id with one keyword ok'
+);
+
+is (
+  $sqla_oracle->_shorten_identifier('short_id', [qw/ foo bar baz /]),
+  'short_id',
+  '_shorten_identifier for short id with keywords ok'
+);
+
+is (
+  $sqla_oracle->_shorten_identifier('very_long_identifier_which_exceeds_the_30char_limit'),
+  'VryLngIdntfrWhchExc_72M8CIDTM7',
+  '_shorten_identifier without keywords ok',
+);
+
+is (
+  $sqla_oracle->_shorten_identifier('very_long_identifier_which_exceeds_the_30char_limit',[qw/ foo /]),
+  'Foo_72M8CIDTM7KBAUPXG48B22P4E',
+  '_shorten_identifier with one keyword ok',
+);
+is (
+  $sqla_oracle->_shorten_identifier('very_long_identifier_which_exceeds_the_30char_limit',[qw/ foo bar baz /]),
+  'FooBarBaz_72M8CIDTM7KBAUPXG48B',
+  '_shorten_identifier with keywords ok',
+);
+
+done_testing;

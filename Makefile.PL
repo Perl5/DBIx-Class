@@ -61,6 +61,7 @@ my $runtime_requires = {
   'Context::Preserve'        => '0.01',
   'Try::Tiny'                => '0.04',
   'namespace::clean'         => '0.14',
+  'Math::Base36'             => '0.07',
 };
 
 # this is so we can order requires alphabetically
