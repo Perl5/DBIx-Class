@@ -508,7 +508,7 @@ sub _pri_cols {
   my @pcols = $self->primary_columns
     or $self->throw_exception (sprintf(
       'Operation requires a primary key to be declared on %s via set_primary_key',
-      ref $self,
+      $self->source_name,
     ));
   return @pcols;
 }
@@ -1453,6 +1453,199 @@ sub _resolve_prefetch {
   }
 }
 
+# Takes a selection list and generates a collapse-map representing
+# row-object fold-points. Every relationship is assigned a set of unique,
+# non-nullable columns (which may *not even be* from the same resultset)
+# and the collapser will use this information to correctly distinguish
+# data of individual to-be-row-objects. Also returns a sort criteria
+# for the entire resultset, such that when the resultset is sorted
+# this way ->next will just work
+sub _resolve_collapse {
+  my ($self, $as, $collapse_map, $rel_chain, $multi_join, $parent_underdefined) = @_;
+
+  my ($my_cols, $rel_cols, $rel_col_idx);
+  for (@$as) {
+    if ($_ =~ /^ ([^\.]+) \. (.+) /x) {
+      push @{$rel_cols->{$1}}, $2;
+      $rel_col_idx->{$1}{$2}++;
+    }
+    else {
+      $my_cols->{$_} = {};  # important for ||= below
+    }
+  }
+
+  my $relinfo;
+  # run through relationships, collect metadata, inject fk-bridges immediately (if any)
+  for my $rel (keys %$rel_cols) {
+    my $rel_src = $self->related_source ($rel);
+    my $inf = $self->relationship_info ($rel);
+
+    $relinfo->{$rel}{is_single} = $inf->{attrs}{accessor} && $inf->{attrs}{accessor} ne 'multi';
+    $relinfo->{$rel}{is_inner} = ( $inf->{attrs}{join_type} || '' ) !~ /^left/i;
+    $relinfo->{$rel}{rsrc} = $rel_src;
+
+    my $cond = $inf->{cond};
+    if (
+      ref $cond eq 'HASH'
+        and
+      keys %$cond
+        and
+      ! List::Util::first { $_ !~ /^foreign\./ } (keys %$cond)
+        and
+      ! List::Util::first { $_ !~ /^self\./ } (values %$cond)
+    ) {
+      for my $f (keys %$cond) {
+        my $s = $cond->{$f};
+        $_ =~ s/^ (?: foreign | self ) \.//x for ($f, $s);
+        $relinfo->{$rel}{fk_map}{$s} = $f;
+
+        $my_cols->{$s} ||= { via_fk => "$rel.$f" }  # need to know source from *our* pov
+          if $rel_col_idx->{$rel}{$f};  # only if it is in fact selected of course
+      }
+    }
+  }
+
+  # get colinfo for everything
+  if ($my_cols) {
+    $my_cols->{$_}{colinfo} = (
+      $self->has_column ($_) ? $self->column_info ($_) : undef
+    ) for keys %$my_cols;
+  }
+
+  # if collapser not passed down try to resolve based on our columns
+  # (plus already inserted FK bridges)
+  if (
+    $my_cols
+      and
+    ! $collapse_map->{-collapse_on}
+      and
+    my $uset = $self->_unique_column_set ($my_cols)
+  ) {
+    $collapse_map->{-collapse_on} = { map
+      {
+        join ('.',
+          @{$rel_chain||[]},
+          ( $my_cols->{$_}{via_fk} || $_ ),
+        )
+          =>
+        1
+      }
+      keys %$uset
+    };
+  }
+
+  # still don't know how to collapse - keep descending down 1:1 chains - if
+  # a related non-LEFT (or not-yet-multijoined) 1:1 is resolvable - it will collapse us too
+  unless ($collapse_map->{-collapse_on}) {
+    for my $rel (keys %$relinfo) {
+      next unless $relinfo->{$rel}{is_single};
+      next if ( $multi_join && ! $relinfo->{$rel}{is_inner} );
+
+      if ( my ($rel_collapse) = $relinfo->{$rel}{rsrc}->_resolve_collapse (
+        $rel_cols->{$rel},
+        undef,
+        [ @{$rel_chain||[]}, $rel],
+        $multi_join || ! $relinfo->{$rel}{is_single},
+        'parent_underdefined',
+      )) {
+        $collapse_map->{-collapse_on} = $rel_collapse->{-collapse_on};
+        last;
+      }
+    }
+  }
+
+  # nothing down the chain resolves - can't calculate a collapse-map
+  unless ($collapse_map->{-collapse_on}) {
+    # FIXME - error message is very vague
+    $self->throw_exception ( sprintf
+      "Unable to calculate a definitive collapse column set for %s%s - fetch more unique non-nullable columns",
+      $self->source_name,
+      $rel_chain ? sprintf (' (or a %s chain member)', join ' -> ', @$rel_chain ) : '',
+    );
+  }
+
+  return $collapse_map if $parent_underdefined; # we will come here again and go through the children then
+
+  # now that we are collapsable - go down the entire chain a second time,
+  # and fill in the rest
+  for my $rel (keys %$relinfo) {
+
+    # inject *all* FK columns (even if we do not directly define them)
+    # since us being defined means that we can cheat about having e.g.
+    # a particular PK, which in turn will re-assemble with a unique
+    # constraint on some related column and our bridged-fk
+    # when/if the resolution comes back - we take back out everything
+    # we injected and pass things back up the chain
+
+    my $implied_defined = { map
+      { $rel_col_idx->{$rel}{$_}
+        ? ()
+        : ( join ('.', @{$rel_chain||[]}, $rel, $_ ) => $_ )
+      }
+      values %{$relinfo->{$rel}{fk_map}}
+    };
+
+    my ($rel_collapse) = $relinfo->{$rel}{rsrc}->_resolve_collapse (
+      [ @{$rel_cols->{$rel}}, values %$implied_defined ],
+
+      $relinfo->{$rel}{is_single}  # if this is a 1:1 - we simply pass our collapser to it
+        ? { -collapse_on => { %{$collapse_map->{-collapse_on}} } }
+        : undef
+      ,
+
+      [ @{$rel_chain||[]}, $rel],
+
+      $multi_join || ! $relinfo->{$rel}{is_single},
+    );
+
+    # if we implied our definition - we inject our own collapser in addition to whatever is left
+    if (keys %$implied_defined) {
+      $rel_collapse->{-collapse_on} = {
+        ( map {( $_ => 1 )} keys %{$collapse_map->{-collapse_on}} ),
+        ( map
+          {( $_ => 1 )}
+          grep
+            { ! $implied_defined->{$_} }
+            keys %{$rel_collapse->{-collapse_on}}
+        ),
+      };
+    };
+
+    $collapse_map->{$rel} = $rel_collapse;
+
+  }
+
+  # if no relchain (i.e. we are toplevel) - generate an order_by
+  # here we can take the easy route and compose an order_by out of
+  # actual unique column names, regardless of whether they were
+  # selected or not. If nothing ... maybe bad idea
+  my $order_by = do {
+    undef;
+  } if ! $rel_chain;
+
+  return $collapse_map, ($order_by || () );
+}
+
+sub _unique_column_set {
+  my ($self, $cols) = @_;
+
+  my %unique = $self->unique_constraints;
+
+  # always prefer the PK first, and then shortest constraints first
+  USET:
+  for my $set (delete $unique{primary}, sort { @$a <=> @$b } (values %unique) ) {
+    next unless $set && @$set;
+
+    for (@$set) {
+      next USET unless ($cols->{$_} && $cols->{$_}{colinfo} && !$cols->{$_}{colinfo}{is_nullable} );
+    }
+
+    return { map { $_ => 1 } @$set };
+  }
+
+  return undef;
+}
+
 # Takes a hashref of $sth->fetchrow values keyed to the corresponding
 # {as} dbic aliases, and splits it into a native columns hashref
 # (as in $row->get_columns), followed by any non-native (prefetched)
@@ -1487,7 +1680,10 @@ sub _parse_row {
           $self->related_source($rel)->_parse_row( $pref->{$rel}, $will_collapse );
 
         $pref->{$rel} = [ $pref->{$rel} ]
-          if ( $will_collapse && $rel_info->{attrs}{accessor} eq 'multi' );
+          if (  $will_collapse
+             && $rel_info->{attrs}{accessor}
+             && $rel_info->{attrs}{accessor} eq 'multi'
+          );
     }
 
     return [ $me||{}, $pref||() ];
@@ -1510,7 +1706,7 @@ Returns the result source object for the given relationship.
 sub related_source {
   my ($self, $rel) = @_;
   if( !$self->has_relationship( $rel ) ) {
-    $self->throw_exception("No such relationship '$rel'");
+    $self->throw_exception("No such relationship '$rel' on " . $self->source_name);
   }
   return $self->schema->source($self->relationship_info($rel)->{source});
 }

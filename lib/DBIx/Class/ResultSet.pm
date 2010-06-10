@@ -14,7 +14,11 @@ use DBIx::Class::ResultSetColumn;
 use DBIx::Class::ResultSourceHandle;
 use List::Util ();
 use Scalar::Util ();
+
 use base qw/DBIx::Class/;
+
+#use Test::Deep::NoTest (qw/eq_deeply/);
+use Data::Dumper::Concise;
 
 __PACKAGE__->mk_group_accessors('simple' => qw/_result_class _source_handle/);
 
@@ -976,6 +980,7 @@ sub _construct_object {
   return @new;
 }
 
+=begin
 # two arguments: $as_proto is an arrayref of column names,
 # $row_ref is an arrayref of the data. If none of the row data
 # is defined we return undef (that's copied from the old
@@ -1061,17 +1066,121 @@ sub _merge_result {
                 : $rels->{$rel}->[0]
             );
 
-        }
+  my $attrs = $self->_resolved_attrs;
+  my ($keep_collapsing, $set_ident) = @{$attrs}{qw/collapse _collapse_ident/};
 
-    }
-    else {
-        push( @$rows, $row );
-        return undef;
-    }
+  # FIXME this is temporary, need to calculate in _resolved_attrs
+  $set_ident ||= { me => [ $self->result_source->_pri_cols ], pref => {} };
 
-    return 1;
+  my @cur_row = @$row_ref;
+  my (@to_collapse, $last_ident);
+
+  do {
+    my $row_hr = { map { $as_proto->[$_] => $cur_row[$_] } (0 .. $#$as_proto) };
+
+    # see if we are switching to another object
+    # this can be turned off and things will still work
+    # since _merge_prefetch knows about _collapse_ident
+#    my $cur_ident = [ @{$row_hr}{@$set_ident} ];
+    my $cur_ident = [];
+    $last_ident ||= $cur_ident;
+
+#    if ($keep_collapsing = Test::Deep::eq_deeply ($cur_ident, $last_ident)) {
+#      push @to_collapse, $self->result_source->_parse_row (
+#        $row_hr,
+#      );
+#    }
+  } while (
+    $keep_collapsing
+      &&
+    do { @cur_row = $self->cursor->next; $self->{stashed_row} = \@cur_row if @cur_row; }
+  );
+
+  die Dumper \@to_collapse;
+
+
+  # attempt collapse all rows with same collapse identity
+  if (@to_collapse > 1) {
+    my @collapsed;
+    while (@to_collapse) {
+      $self->_merge_result(\@collapsed, shift @to_collapse);
+    }
+    @to_collapse = @collapsed;
+  }
+
+  # still didn't fully collapse
+  $self->throw_exception ('Resultset collapse failed (theoretically impossible). Maybe a wrong collapse_ident...?')
+    if (@to_collapse > 1);
+
+  return $to_collapse[0];
+}
+=cut
+
+# two arguments: $as_proto is an arrayref of 'as' column names,
+# $row_ref is an arrayref of the data. The do-while loop will run
+# once if we do not need to collapse the result and will run as long as
+# _merge_result returns a true value. It will return undef if the
+# current added row does not match the previous row, which in turn
+# means we need to stash the row for the subsequent ->next call
+sub _collapse_result {
+  my ( $self, $as_proto, $row_ref ) = @_;
+
+  my $attrs = $self->_resolved_attrs;
+  my ($keep_collapsing, $set_ident) = @{$attrs}{qw/collapse _collapse_ident/};
+
+  die Dumper [$as_proto, $row_ref, $keep_collapsing, $set_ident ];
+
+
+  my @cur_row = @$row_ref;
+  my (@to_collapse, $last_ident);
+
+  do {
+    my $row_hr = { map { $as_proto->[$_] => $cur_row[$_] } (0 .. $#$as_proto) };
+
+    # see if we are switching to another object
+    # this can be turned off and things will still work
+    # since _merge_prefetch knows about _collapse_ident
+#    my $cur_ident = [ @{$row_hr}{@$set_ident} ];
+    my $cur_ident = [];
+    $last_ident ||= $cur_ident;
+
+#    if ($keep_collapsing = eq_deeply ($cur_ident, $last_ident)) {
+#      push @to_collapse, $self->result_source->_parse_row (
+#        $row_hr,
+#      );
+#    }
+  } while (
+    $keep_collapsing
+      &&
+    do { @cur_row = $self->cursor->next; $self->{stashed_row} = \@cur_row if @cur_row; }
+  );
+
+  # attempt collapse all rows with same collapse identity
+  if (@to_collapse > 1) {
+    my @collapsed;
+    while (@to_collapse) {
+      $self->_merge_result(\@collapsed, shift @to_collapse);
+    }
+  }
+
+  return 1;
 }
 
+# Takes an arrayref of me/pref pairs and a new me/pref pair that should
+# be merged on a preexisting matching me (or should be pushed into $merged
+# as a new me/pref pair for further invocations). It should be possible to
+# use this function to collapse complete ->all results,  provided _collapse_result() is adjusted
+# to provide everything to this sub not to barf when $merged contains more than one 
+# arrayref)
+sub _merge_prefetch {
+  my ($self, $merged, $next_row) = @_;
+
+  unless (@$merged) {
+    push @$merged, $next_row;
+    return;
+  }
+
+}
 
 =head2 result_source
 
@@ -2931,10 +3040,9 @@ sub _resolved_attrs {
     }
   }
 
+  # generate selections based on the prefetch helper
   if ( my $prefetch = delete $attrs->{prefetch} ) {
     $attrs->{collapse} = 1;
-
-    my $prefetch_ordering = [];
 
     # this is a separate structure (we don't look in {from} directly)
     # as the resolver needs to shift things off the lists to work
@@ -2957,16 +3065,13 @@ sub _resolved_attrs {
       }
     }
 
-    my @prefetch = $source->_resolve_prefetch( $prefetch, $alias, $join_map, $prefetch_ordering );
+    my @prefetch = $source->_resolve_prefetch( $prefetch, $alias, $join_map );
 
     # we need to somehow mark which columns came from prefetch
     $attrs->{_prefetch_select} = [ map { $_->[0] } @prefetch ];
 
     push @{ $attrs->{select} }, @{$attrs->{_prefetch_select}};
     push @{ $attrs->{as} }, (map { $_->[1] } @prefetch);
-
-    push( @{$attrs->{order_by}}, @$prefetch_ordering );
-    $attrs->{_collapse_order_by} = \@$prefetch_ordering;
   }
 
   # run through the resulting joinstructure (starting from our current slot)
@@ -2983,14 +3088,31 @@ sub _resolved_attrs {
         last if ($t->{-alias} && $t->{-alias} eq $alias);
       }
 
-      if (@fromlist) {
-        $attrs->{collapse} = scalar grep { ! $_->[0]{-is_single} } (@fromlist);
+      for (@fromlist) {
+        $attrs->{collapse} = ! $_->[0]{-is_single}
+          and last;
       }
     }
     else {
       # no joins - no collapse
       $attrs->{collapse} = 0;
     }
+  }
+
+  # if collapsing (via prefetch or otherwise) calculate row-idents and necessary order_by
+  if ($attrs->{collapse}) {
+
+    # only consider real columns (not functions) during collapse resolution
+    # this check shouldn't really be here, as fucktards are not supposed to
+    # alias random crap to declared columns anyway, but still - just in
+    # case
+    my @plain_selects = map
+      { ( ! ref $attrs->{select}[$_] &&  $attrs->{as}[$_] ) || () }
+      ( 0 .. $#{$attrs->{select}} )
+    ;
+
+    @{$attrs}{qw/_collapse_ident _collapse_order/} =
+      $source->_resolve_collapse( \@plain_selects );
   }
 
   # if both page and offset are specified, produce a combined offset
