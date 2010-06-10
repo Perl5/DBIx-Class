@@ -251,6 +251,18 @@ is( $it->next, undef, "next past end of resultset ok" );
   is( scalar @results, 1, "Group by with limit OK" );
 }
 
+# test identifiers over the 30 char limit
+{
+  lives_ok {
+    my @results = $schema->resultset('CD')->search(undef, {
+      prefetch => 'very_long_artist_relationship',
+      rows => 3,
+      offset => 0,
+    })->all;
+    ok( scalar @results > 0, 'limit with long identifiers returned something');
+  } 'limit with long identifiers executed successfully';
+}
+
 # test with_deferred_fk_checks
 lives_ok {
   $schema->storage->with_deferred_fk_checks(sub {
