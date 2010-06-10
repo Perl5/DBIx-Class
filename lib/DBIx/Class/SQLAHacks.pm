@@ -815,7 +815,7 @@ sub _join_condition {
   } elsif (ref $cond eq 'ARRAY') {
     return join(' OR ', map { $self->_join_condition($_) } @$cond);
   } else {
-    die "Can't handle this yet!";
+    croak "Can't handle this yet!";
   }
 }
 
