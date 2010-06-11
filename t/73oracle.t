@@ -238,6 +238,10 @@ SKIP: {
     skip 'buggy BLOB support in DBD::Oracle 1.23', 7;
   }
 
+  # disable BLOB mega-output
+  my $orig_debug = $schema->storage->debug;
+  $schema->storage->debug (0);
+
   foreach my $type (qw( blob clob )) {
     foreach my $size (qw( small large )) {
       $id++;
@@ -248,6 +252,8 @@ SKIP: {
       ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
     }
   }
+
+  $schema->storage->debug ($orig_debug);
 }
 
 
