@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Make sure Oracle identifier shortener applies to auto-generated
+          column names, so we stay within the 30-char limit
+
 0.08122 2010-05-03 17:41 (UTC)
     * New Features
         - Add DBIx::Class::FilterColumn for non-ref filtering
