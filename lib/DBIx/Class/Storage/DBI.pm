@@ -1166,7 +1166,9 @@ sub _connect {
     $DBI::connect_via = 'connect';
   }
 
-  try {
+  # FIXME - this should have been Try::Tiny, but triggers a leak-bug in perl(!)
+  # related to coderef refcounting. A failing test has been submitted to T::T
+  my $connect_ok = eval {
     if(ref $info[0] eq 'CODE') {
        $dbh = $info[0]->();
     }
@@ -1195,13 +1197,16 @@ sub _connect {
       $dbh->{RaiseError} = 1;
       $dbh->{PrintError} = 0;
     }
-  }
-  catch {
-    $self->throw_exception("DBI Connection failed: $_")
-  }
-  finally {
-    $DBI::connect_via = $old_connect_via if $old_connect_via;
+
+    1;
   };
+
+  my $possible_err = $@;
+  $DBI::connect_via = $old_connect_via if $old_connect_via;
+
+  unless ($connect_ok) {
+    $self->throw_exception("DBI Connection failed: $possible_err")
+  }
 
   $self->_dbh_autocommit($dbh->{AutoCommit});
   $dbh;

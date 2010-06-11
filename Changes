@@ -3,6 +3,12 @@ Revision history for DBIx::Class
     * Fixes
         - Make sure Oracle identifier shortener applies to auto-generated
           column names, so we stay within the 30-char limit
+        - Fix a Storage/$dbh leak introduced by th migration to
+          Try::Tiny (this is *not* a Try::Tiny bug)
+
+    * Misc
+        - Test suite default on-disk database now checks for Win32
+          fail-conditions even when running on other OSes
 
 0.08122 2010-05-03 17:41 (UTC)
     * New Features
