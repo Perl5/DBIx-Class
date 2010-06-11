@@ -1,5 +1,9 @@
 Revision history for DBIx::Class
 
+    * Fixes
+        - Fix a Storage/$dbh leak introduced by th migration to
+          Try::Tiny (this is *not* a Try::Tiny bug)
+
     * Misc
         - Test suite default on-disk database now checks for Win32
           fail-conditions even when running on other OSes
