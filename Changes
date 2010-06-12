@@ -5,6 +5,8 @@ Revision history for DBIx::Class
           column names, so we stay within the 30-char limit (RT#58271)
         - Fix a Storage/$dbh leak introduced by th migration to
           Try::Tiny (this is *not* a Try::Tiny bug)
+        - Fix corner case of count with group-by over a 1:1 join column
+          where the selector ends up with column name clashes
 
     * Misc
         - Test suite default on-disk database now checks for Win32

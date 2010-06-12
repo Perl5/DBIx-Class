@@ -1274,6 +1274,8 @@ sub _count_subq_rs {
   # Calculate subquery selector
   if (my $g = $sub_attrs->{group_by}) {
 
+    my $sql_maker = $rsrc->storage->sql_maker;
+
     # necessary as the group_by may refer to aliased functions
     my $sel_index;
     for my $sel (@{$attrs->{select}}) {
@@ -1282,7 +1284,17 @@ sub _count_subq_rs {
     }
 
     for my $g_part (@$g) {
-      push @{$sub_attrs->{select}}, $sel_index->{$g_part} || $g_part;
+      my $colpiece = $sel_index->{$g_part} || $g_part;
+
+      # disqualify join-based group_by's. Arcane but possible query
+      # also horrible horrible hack to alias a column (not a func.)
+      # (probably need to introduce SQLA syntax)
+      if ($colpiece =~ /\./ && $colpiece !~ /^$attrs->{alias}\./) {
+        my $as = $colpiece;
+        $as =~ s/\./__/;
+        $colpiece = \ sprintf ('%s AS %s', map { $sql_maker->_quote ($_) } ($colpiece, $as) );
+      }
+      push @{$sub_attrs->{select}}, $colpiece;
     }
   }
   else {
