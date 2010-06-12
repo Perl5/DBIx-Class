@@ -7,6 +7,7 @@ Revision history for DBIx::Class
           Try::Tiny (this is *not* a Try::Tiny bug)
         - Fix corner case of count with group-by over a 1:1 join column
           where the selector ends up with column name clashes
+        - POD fixes (RT#58247)
 
     * Misc
         - Test suite default on-disk database now checks for Win32

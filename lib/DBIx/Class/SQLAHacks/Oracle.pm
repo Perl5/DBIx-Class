@@ -195,7 +195,7 @@ DBIx::Class::SQLAHacks::Oracle - adds hierarchical query support for Oracle to S
 
 =head1 DESCRIPTION
 
-See L<DBIx::Class::Storage::DBI::Oracle::Generic> for more informations about
+See L<DBIx::Class::Storage::DBI::Oracle::Generic> for more information about
 how to use hierarchical queries with DBIx::Class.
 
 =cut

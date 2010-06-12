@@ -31,7 +31,7 @@ stored and de-serialised to unicode strings on retrieval.
   THE USE OF THIS MODULE (AND ITS COUSIN DBIx::Class::ForceUTF8) IS VERY
   STRONGLY DISCOURAGED, PLEASE READ THE WARNINGS BELOW FOR AN EXPLANATION.
 
-If you want to continue using this module and do not want to recieve
+If you want to continue using this module and do not want to receive
 further warnings set the environmane variable C<DBIC_UTF8COLUMNS_OK>
 to a true value.
 
