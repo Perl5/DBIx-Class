@@ -16,6 +16,8 @@ Revision history for DBIx::Class
           failures
         - Fixed distinct with order_by to not double-specify the same
           column in the GROUP BY clause
+        - Properly support column names with symbols (e.g. single quote)
+          via custom accessors
 
     * Misc
         - Refactored capability handling in Storage::DBI, allows for

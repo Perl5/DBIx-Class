@@ -48,7 +48,7 @@ my $test_requires = {
 
 my $runtime_requires = {
   'Carp::Clan'               => '6.0',
-  'Class::Accessor::Grouped' => '0.09003',
+  'Class::Accessor::Grouped' => '0.09004',
   'Class::C3::Componentised' => '1.0005',
   'Class::Inspector'         => '1.24',
   'Data::Page'               => '2.00',
