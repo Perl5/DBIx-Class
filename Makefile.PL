@@ -228,18 +228,39 @@ no_index package => $_ for (qw/
 
 WriteAll();
 
-
 # Re-write META.yml to _exclude_ all forced requires (we do not want to ship this)
+# We are also not using M::I::AuthorRequires as this will be an extra dep, and
+# deps in Makefile.PL suck (no autoinstall)
 if ($Module::Install::AUTHOR && ! $args->{skip_author_deps} ) {
 
   # FIXME test_requires is not yet part of META
   my %original_build_requires = ( %$build_requires, %$test_requires );
+  my @all_build_requires = @{delete Meta->{values}{build_requires}};
+  my %removed_build_requires;
+
+  for (@all_build_requires) {
+    if ($original_build_requires{$_->[0]}) {
+      push @{Meta->{values}{build_requires}}, $_;
+    }
+    else {
+      $removed_build_requires{$_->[0]} = $_->[1]
+        unless $_->[0] eq 'ExtUtils::MakeMaker';
+    }
+  }
 
   print "Regenerating META with author requires excluded\n";
-  Meta->{values}{build_requires} = [ grep
-    { exists $original_build_requires{$_->[0]} }
-   ( @{Meta->{values}{build_requires}} )
-  ];
-
   Meta->write;
+
+  # test that we really took things away (just in case)
+  my $meta = do { local @ARGV = 'META.yml'; local $/; <> };
+  for (keys %removed_build_requires) {
+    delete $removed_build_requires{$_}
+      unless $meta =~ /^ \s+ $_: \s+ $removed_build_requires{$_} \s* $/mx
+  }
+
+  if (keys %removed_build_requires) {
+    die join ("\n", "\n\nFATAL FAIL! It looks like some author dependencies made it to the META.yml:\n",
+      map { "\t$_" } (keys %removed_build_requires)
+    ) . "\n\n";
+  }
 }
