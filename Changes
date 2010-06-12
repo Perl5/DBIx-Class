@@ -3,6 +3,7 @@ Revision history for DBIx::Class
     * Fixes
         - Make sure Oracle identifier shortener applies to auto-generated
           column names, so we stay within the 30-char limit (RT#58271)
+        - Oracle sequence detection now works across schemas
         - Fix a Storage/$dbh leak introduced by th migration to
           Try::Tiny (this is *not* a Try::Tiny bug)
         - Fix corner case of count with group-by over a 1:1 join column

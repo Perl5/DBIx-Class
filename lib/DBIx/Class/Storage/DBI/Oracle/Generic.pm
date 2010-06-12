@@ -134,7 +134,7 @@ sub _dbh_get_autoinc_seq {
   my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/;
   my ($sql, @bind) = $sql_maker->select (
     'ALL_TRIGGERS',
-    ['trigger_body'],
+    ['trigger_body', 'table_owner'],
     {
       $schema ? (owner => $schema) : (),
       table_name => $table || $source_name,
@@ -145,10 +145,18 @@ sub _dbh_get_autoinc_seq {
   my $sth = $dbh->prepare($sql);
   $sth->execute (@bind);
 
-  while (my ($insert_trigger) = $sth->fetchrow_array) {
-    return $1 if $insert_trigger =~ m!("?\w+"?)\.nextval!i; # col name goes here???
+  while (my ($insert_trigger, $schema) = $sth->fetchrow_array) {
+    my ($seq_name) = $insert_trigger =~ m!("?[.\w]+"?)\.nextval!i;
+
+    next unless $seq_name;
+
+    if ($seq_name !~ /\./) {
+      $seq_name = "${schema}.${seq_name}";
+    }
+
+    return $seq_name;
   }
-  $self->throw_exception("Unable to find a sequence INSERT trigger on table '$source_name'.");
+  $self->throw_exception("Unable to find a sequence %INSERT% trigger on table '$source_name'.");
 }
 
 sub _sequence_fetch {
