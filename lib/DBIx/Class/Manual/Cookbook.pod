@@ -151,7 +151,7 @@ Note that you cannot have bind parameters unless is_virtual is set to true.
 =item * NOTE
 
 If you're using the old deprecated C<< $rsrc_instance->name(\'( SELECT ...') >>
-method for custom SQL execution, you are highly encouraged to update your code 
+method for custom SQL execution, you are highly encouraged to update your code
 to use a virtual view as above. If you do not want to change your code, and just
 want to suppress the deprecation warning when you call
 L<DBIx::Class::Schema/deploy>, add this line to your source definition, so that
@@ -202,7 +202,7 @@ to access the returned value:
   # FROM artist
 
 Note that the C<as> attribute B<has absolutely nothing to do> with the SQL
-syntax C< SELECT foo AS bar > (see the documentation in 
+syntax C< SELECT foo AS bar > (see the documentation in
 L<DBIx::Class::ResultSet/ATTRIBUTES>). You can control the C<AS> part of the
 generated SQL via the C<-as> field attribute as follows:
 
@@ -218,10 +218,10 @@ generated SQL via the C<-as> field attribute as follows:
   );
 
   # Equivalent SQL
-  # SELECT me.artistid, me.name, me.rank, me.charfield, COUNT( cds.cdid ) AS amount_of_cds 
-  #   FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid 
-  # GROUP BY me.artistid, me.name, me.rank, me.charfield 
-  # ORDER BY amount_of_cds DESC 
+  # SELECT me.artistid, me.name, me.rank, me.charfield, COUNT( cds.cdid ) AS amount_of_cds
+  #   FROM artist me LEFT JOIN cd cds ON cds.artist = me.artistid
+  # GROUP BY me.artistid, me.name, me.rank, me.charfield
+  # ORDER BY amount_of_cds DESC
 
 
 If your alias exists as a column in your base class (i.e. it was added with
@@ -1280,7 +1280,7 @@ row.
 
   my $schema = MySchema->connect("dbi:Pg:dbname=my_db");
 
-  # Start a transaction. Every database change from here on will only be 
+  # Start a transaction. Every database change from here on will only be
   # committed into the database if the try block succeeds.
   use Try::Tiny;
   my $exception;
@@ -1326,7 +1326,7 @@ row.
           # next $thing
           print "Cannot create thing: $_";
         }
-        # There was no error, so save all changes since the last 
+        # There was no error, so save all changes since the last
         # savepoint.
 
         # SQL: RELEASE SAVEPOINT savepoint_0;
@@ -1781,7 +1781,7 @@ database if the C<mysql_enable_utf8> is set in the connect options.
   my $schema = My::Schema->connection('dbi:mysql:dbname=test',
                                       $user, $pass,
                                       { mysql_enable_utf8 => 1} );
-  
+
 
 When set, a data retrieved from a textual column type (char,
 varchar, etc) will have the UTF-8 flag turned on if necessary. This
@@ -2046,7 +2046,7 @@ mechanism:
   sub query_start {
     my $self = shift();
     my $sql = shift();
-    my $params = @_;
+    my @params = @_;
 
     $self->print("Executing $sql: ".join(', ', @params)."\n");
     $start = time();
@@ -2116,7 +2116,7 @@ time, but not so large that the table is locked for an unacceptably long time.
 
 If using L<create|DBIx::Class::ResultSet/create> instead, use a transaction and
 commit every C<X> rows; where C<X> gives you the best performance without
-locking the table for too long. 
+locking the table for too long.
 
 =item *
 

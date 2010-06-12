@@ -7,8 +7,6 @@ BEGIN {
 
     eval "use DBD::SQLite";
     plan skip_all => 'needs DBD::SQLite for testing' if $@;
-
-    plan 'no_plan';
 }
 
 INIT {
@@ -67,3 +65,5 @@ sub Film::mutator_name_for {
     $film->wibble_thing(23);
     is $film->wibble_thing, 23;
 }
+
+done_testing;

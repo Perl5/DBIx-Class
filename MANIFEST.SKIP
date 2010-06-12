@@ -1,4 +1,4 @@
-^(?!script/|examples/|lib/|inc/|t/|Makefile.PL$|README$|MANIFEST$|Changes$|META.yml$)
+^(?!script/|examples/|lib/|inc/|t/|xt/|Makefile.PL$|README$|MANIFEST$|Changes$|META.yml$)
 
 
 # Avoid version control files.

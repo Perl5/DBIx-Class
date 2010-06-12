@@ -250,7 +250,11 @@ NULLINSEARCH: {
 
 # check for proper grouped counts
 {
-  my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, { on_connect_call => 'set_strict_mode' });
+  my $ansi_schema = DBICTest::Schema->connect ($dsn, $user, $pass, {
+    on_connect_call => 'set_strict_mode',
+    quote_char => '`',
+    name_sep => '.'
+  });
   my $rs = $ansi_schema->resultset('CD');
 
   my $years;
@@ -263,6 +267,14 @@ NULLINSEARCH: {
       'grouped count correct',
     );
   }, 'Grouped count does not throw');
+
+  lives_ok( sub {
+    $ansi_schema->resultset('Owners')->search({}, {
+      join => 'books', group_by => [ 'me.id', 'books.id' ]
+    })->count();
+  }, 'count on grouped columns with the same name does not throw');
+
+
 }
 
 ZEROINSEARCH: {

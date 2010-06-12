@@ -1,8 +1,7 @@
 -- 
 -- Created by SQL::Translator::Producer::SQLite
--- Created on Mon Mar 22 11:08:33 2010
+-- Created on Thu Jun  3 11:52:50 2010
 -- 
-;
 
 --
 -- Table: artist
@@ -10,7 +9,7 @@
 CREATE TABLE artist (
   artistid INTEGER PRIMARY KEY NOT NULL,
   name varchar(100),
-  rank integer NOT NULL DEFAULT '13',
+  rank integer NOT NULL DEFAULT 13,
   charfield char(10)
 );
 
@@ -248,6 +247,8 @@ CREATE TABLE books (
 
 CREATE INDEX books_idx_owner ON books (owner);
 
+CREATE UNIQUE INDEX books_title ON books (title);
+
 --
 -- Table: employee
 --
@@ -456,4 +457,4 @@ CREATE INDEX fourkeys_to_twokeys_idx_t_artist_t_cd ON fourkeys_to_twokeys (t_art
 -- View: year2000cds
 --
 CREATE VIEW year2000cds AS
-    SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = "2000"
+    SELECT cdid, artist, title, year, genreid, single_track FROM cd WHERE year = "2000";

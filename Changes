@@ -1,5 +1,21 @@
 Revision history for DBIx::Class
 
+0.08123 2010-06-12 14:46 (UTC)
+    * Fixes
+        - Make sure Oracle identifier shortener applies to auto-generated
+          column names, so we stay within the 30-char limit (RT#58271)
+        - Oracle sequence detection now works across schemas
+        - Fix a Storage/$dbh leak introduced by the migration to
+          Try::Tiny (this is *not* a Try::Tiny bug)
+        - Fix corner case of count with group-by over a 1:1 join column
+          where the selector ends up with column name clashes
+        - POD fixes (RT#58247)
+
+    * Misc
+        - Test suite default on-disk database now checks for Win32
+          fail-conditions even when running on other OSes
+
+0.08122 2010-06-03 17:41 (UTC)
     * New Features
         - Add DBIx::Class::FilterColumn for non-ref filtering
         - ::Storage::DBI now correctly preserves a parent $dbh from
@@ -62,6 +78,7 @@ Revision history for DBIx::Class
 
     * Misc
         - Reformatted Changelog \o/
+        - DBIC goes git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git
         - Allow developers to skip optional dependency forcing when working
           from a checkout
         - Add a warning to load_namespaces if a class in ResultSet/ is not

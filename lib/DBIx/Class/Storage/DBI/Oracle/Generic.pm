@@ -134,7 +134,7 @@ sub _dbh_get_autoinc_seq {
   my ( $schema, $table ) = $source_name =~ /(\w+)\.(\w+)/;
   my ($sql, @bind) = $sql_maker->select (
     'ALL_TRIGGERS',
-    ['trigger_body'],
+    ['trigger_body', 'table_owner'],
     {
       $schema ? (owner => $schema) : (),
       table_name => $table || $source_name,
@@ -145,10 +145,18 @@ sub _dbh_get_autoinc_seq {
   my $sth = $dbh->prepare($sql);
   $sth->execute (@bind);
 
-  while (my ($insert_trigger) = $sth->fetchrow_array) {
-    return $1 if $insert_trigger =~ m!("?\w+"?)\.nextval!i; # col name goes here???
+  while (my ($insert_trigger, $schema) = $sth->fetchrow_array) {
+    my ($seq_name) = $insert_trigger =~ m!("?[.\w"]+?"?)\.nextval!i;
+
+    next unless $seq_name;
+
+    if ($seq_name !~ /\./) {
+      $seq_name = join '.' => map $self->sql_maker->_quote($_), $schema, $seq_name;
+    }
+
+    return $seq_name;
   }
-  $self->throw_exception("Unable to find a sequence INSERT trigger on table '$source_name'.");
+  $self->throw_exception("Unable to find a sequence %INSERT% trigger on table '$source_name'.");
 }
 
 sub _sequence_fetch {
@@ -366,25 +374,7 @@ sub relname_to_table_alias {
 
   my $alias = $self->next::method(@_);
 
-  return $alias if length($alias) <= 30;
-
-  # get a base64 md5 of the alias with join_count
-  require Digest::MD5;
-  my $ctx = Digest::MD5->new;
-  $ctx->add($alias);
-  my $md5 = $ctx->b64digest;
-
-  # remove alignment mark just in case
-  $md5 =~ s/=*\z//;
-
-  # truncate and prepend to truncated relname without vowels
-  (my $devoweled = $relname) =~ s/[aeiou]//g;
-  my $shortened = substr($devoweled, 0, 18);
-
-  my $new_alias =
-    $shortened . '_' . substr($md5, 0, 30 - length($shortened) - 1);
-
-  return $new_alias;
+  return $self->sql_maker->_shorten_identifier($alias, [$relname]);
 }
 
 =head2 with_deferred_fk_checks

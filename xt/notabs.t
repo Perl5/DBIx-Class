@@ -18,7 +18,10 @@ unless ( DBIx::Class::Optional::Dependencies->req_ok_for ('test_notabs') ) {
     : plan skip_all => "Test needs: $missing"
 }
 
-Test::NoTabs::all_perl_files_ok(qw/t lib script maint/);
+Test::NoTabs::all_perl_files_ok(
+  qw/t xt lib script/,
+  DBICTest::AuthorCheck->is_author ? ('maint') : (),
+);
 
-# FIXME - need to fix Test::NoTabs
+# FIXME - need to fix Test::NoTabs - doesn't work with done_testing
 #done_testing;

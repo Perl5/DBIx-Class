@@ -123,7 +123,7 @@ sub _subqueried_limit_attrs {
   my (@in_sel, @out_sel, %renamed);
   for my $node (@sel) {
     if (first { $_ =~ / (?<! $re_alias ) $re_sep /x } ($node->{as}, $node->{unquoted_sql}) )  {
-      $node->{as} =~ s/ $re_sep /__/xg;
+      $node->{as} = $self->_unqualify_colname($node->{as});
       my $quoted_as = $self->_quote($node->{as});
       push @in_sel, sprintf '%s AS %s', $node->{sql}, $quoted_as;
       push @out_sel, $quoted_as;
@@ -157,6 +157,13 @@ sub _subqueried_limit_attrs {
     \%renamed,
     keys %extra_order_sel ? \%extra_order_sel : (),
   );
+}
+
+sub _unqualify_colname {
+  my ($self, $fqcn) = @_;
+  my $re_sep = quotemeta($self->name_sep || '.');
+  $fqcn =~ s/ $re_sep /__/xg;
+  return $fqcn;
 }
 
 # ANSI standard Limit/Offset implementation. DB2 and MSSQL >= 2005 use this
@@ -815,7 +822,7 @@ sub _join_condition {
   } elsif (ref $cond eq 'ARRAY') {
     return join(' OR ', map { $self->_join_condition($_) } @$cond);
   } else {
-    die "Can't handle this yet!";
+    croak "Can't handle this yet!";
   }
 }
 

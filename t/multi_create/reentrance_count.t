@@ -6,8 +6,6 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan 'no_plan';
-
 my $schema = DBICTest->init_schema();
 
 my $query_stats;
@@ -177,4 +175,4 @@ lives_ok (sub {
 
 }
 
-1;
+done_testing;

@@ -40,6 +40,9 @@ __PACKAGE__->add_unique_constraint([ qw/artist title/ ]);
 __PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist', undef, { 
     is_deferrable => 1, 
 });
+__PACKAGE__->belongs_to( very_long_artist_relationship => 'DBICTest::Schema::Artist', 'artist', { 
+    is_deferrable => 1, 
+});
 
 # in case this is a single-cd it promotes a track from another cd
 __PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track', 'single_track', 

@@ -1,0 +1,19 @@
+With DBIx::Class on git now, this is the process for contributing.
+
+1) Clone the DBIx::Class master branch
+   > git clone dbsrgits@git.shadowcat.co.uk:DBIx-Class.git
+2) Do your work on your machine. This is git - everything is local!
+3) When you think you're ready, push it back out to the origin as a
+   remote branch.  See rebasing for what you should do before pushing.
+   > git push origin my-branch
+4) Notify the other contributors that you're ready to have your branch
+   reviewed.
+5) Another contributor will merge it back into master.  See rebasing for
+   what you should do before merging.
+
+Rebasing: Please rebase before merging and pushing; we'd rather not have
+commit messages that say, "Oops" and "typo", in master, and furthermore
+fast-forward merges lead to a cleaner history.
+
+Yes, this does mean that DBIx::Class is moving to a formal code review process.
+Yes, this does mean that you will never merge your own code to master.

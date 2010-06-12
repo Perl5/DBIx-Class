@@ -27,7 +27,7 @@ sub component_base_class { 'DBIx::Class' }
 # Always remember to do all digits for the version even if they're 0
 # i.e. first release of 0.XX *must* be 0.XX000. This avoids fBSD ports
 # brain damage and presumably various other packaging systems too
-$VERSION = '0.08121_01';
+$VERSION = '0.08123_01';
 
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
@@ -61,16 +61,18 @@ The community can be found via:
 
 =over
 
-=item * IRC: L<irc.perl.org#dbix-class (click for instant chatroom login)
-|http://mibbit.com/chat/#dbix-class@irc.perl.org>
+=item * IRC: irc.perl.org#dbix-class
+
+=for html
+<a href="http://mibbit.com/chat/#dbix-class@irc.perl.org">(click for instant chatroom login)</a>
 
 =item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
 
 =item * RT Bug Tracker: L<https://rt.cpan.org/Dist/Display.html?Queue=DBIx-Class>
 
-=item * SVNWeb: L<http://dev.catalyst.perl.org/svnweb/bast/browse/DBIx-Class/0.08>
+=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
 
-=item * SVN: L<http://dev.catalyst.perl.org/repos/bast/DBIx-Class/0.08>
+=item * git: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
 
 =back
 
@@ -282,6 +284,8 @@ goraxe: Gordon Irving <goraxe@cpan.org>
 gphat: Cory G Watson <gphat@cpan.org>
 
 groditi: Guillermo Roditi <groditi@cpan.org>
+
+Haarg: Graham Knop <haarg@haarg.org>
 
 hobbs: Andrew Rodland <arodland@cpan.org>
 

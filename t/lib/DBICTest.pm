@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use DBICTest::AuthorCheck;
 use DBICTest::Schema;
+use Carp;
 
 =head1 NAME
 
@@ -65,19 +66,96 @@ sub _sqlite_dbname {
 sub _database {
     my $self = shift;
     my %args = @_;
+
+    if ($ENV{DBICTEST_DSN}) {
+      return (
+        (map { $ENV{"DBICTEST_${_}"} || '' } qw/DSN DBUSER DBPASS/),
+        { AutoCommit => 1, %args },
+      );
+    }
     my $db_file = $self->_sqlite_dbname(%args);
 
-    unlink($db_file) if -e $db_file;
-    unlink($db_file . "-journal") if -e $db_file . "-journal";
+    for ($db_file, "${db_file}-journal") {
+      next unless -e $_;
+      unlink ($_) or carp (
+        "Unable to unlink existing test database file $_ ($!), creation of fresh database / further tests may fail!\n"
+      );
+    }
+
     mkdir("t/var") unless -d "t/var";
 
-    my $dsn = $ENV{"DBICTEST_DSN"} || "dbi:SQLite:${db_file}";
-    my $dbuser = $ENV{"DBICTEST_DBUSER"} || '';
-    my $dbpass = $ENV{"DBICTEST_DBPASS"} || '';
+    return ("dbi:SQLite:${db_file}", '', '', {
+      AutoCommit => 1,
 
-    my @connect_info = ($dsn, $dbuser, $dbpass, { AutoCommit => 1, %args });
+      # this is executed on every connect, and thus installs a disconnect/DESTROY
+      # guard for every new $dbh
+      on_connect_do => sub {
+        my $storage = shift;
+        my $dbh = $storage->_get_dbh;
 
-    return @connect_info;
+        # no fsync on commit
+        $dbh->do ('PRAGMA synchronous = OFF');
+
+        # set a *DBI* disconnect callback, to make sure the physical SQLite
+        # file is still there (i.e. the test does not attempt to delete
+        # an open database, which fails on Win32)
+        if (-e $db_file and my $orig_inode = (stat($db_file))[1] ) {
+
+          my $failed_once;
+          my $connected = 1;
+          my $cb = sub {
+            return if $failed_once;
+
+            my $event = shift;
+            if ($event eq 'connect') {
+              # this is necessary in case we are disconnected and connected again, all within the same $dbh object
+              $connected = 1;
+              return;
+            }
+            elsif ($event eq 'disconnect') {
+              $connected = 0;
+            }
+            elsif ($event eq 'DESTROY' and ! $connected ) {
+              return;
+            }
+
+            my $fail_reason;
+            if (! -e $db_file) {
+              $fail_reason = 'is missing';
+            }
+            else {
+              my $cur_inode = (stat($db_file))[1];
+
+              $fail_reason ||= sprintf 'was recreated (inode %s vs %s)', ($orig_inode, $cur_inode)
+                if $orig_inode != $cur_inode;
+            }
+
+            if ($fail_reason) {
+              $failed_once++;
+
+              require Test::Builder;
+              my $t = Test::Builder->new;
+              local $Test::Builder::Level = $Test::Builder::Level + 1;
+
+              $t->ok (0,
+                  "$db_file $fail_reason before $event of DBI handle - a strong indicator that "
+                . 'the SQLite file was tampered with while still being open. This action would '
+                . 'fail massively if running under Win32, hence DBICTest makes sure it fails '
+                . 'on any OS :)'
+              );
+            }
+
+            return; # this empty return is a DBI requirement
+          };
+          $dbh->{Callbacks} = {
+            connect => sub { $cb->('connect') },
+            disconnect => sub { $cb->('disconnect') },
+            DESTROY => sub { $cb->('DESTROY') },
+          };
+        }
+      },
+      %args,
+    });
 }
 
 sub init_schema {
@@ -93,14 +171,15 @@ sub init_schema {
     } else {
       $schema = DBICTest::Schema->compose_namespace('DBICTest');
     }
+
     if( $args{storage_type}) {
       $schema->storage_type($args{storage_type});
     }
+
     if ( !$args{no_connect} ) {
       $schema = $schema->connect($self->_database(%args));
-      $schema->storage->on_connect_do(['PRAGMA synchronous = OFF'])
-       unless $self->has_custom_dsn;
     }
+
     if ( !$args{no_deploy} ) {
         __PACKAGE__->deploy_schema( $schema, $args{deploy_args} );
         __PACKAGE__->populate_schema( $schema )

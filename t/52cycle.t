@@ -21,7 +21,17 @@ my $weak;
 
 {
   my $s = $weak->{schema} = DBICTest->init_schema;
+  ok ($s->storage->connected, 'we are connected');
   memory_cycle_ok($s, 'No cycles in schema');
+
+  my $storage = $weak->{storage} = $s->storage;
+  memory_cycle_ok($storage, 'No cycles in storage');
+
+  my $dbh = $weak->{dbh} = $s->storage->_get_dbh;
+  memory_cycle_ok($dbh, 'No cycles in DBI handle');
+
+  my $sqla = $weak->{sqla} = $s->storage->sql_maker;
+  memory_cycle_ok($sqla, 'No cycles in SQL maker');
 
   my $rs = $weak->{resultset} = $s->resultset ('Artist');
   memory_cycle_ok($rs, 'No cycles in resultset');
