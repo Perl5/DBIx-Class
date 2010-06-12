@@ -2,7 +2,7 @@ Revision history for DBIx::Class
 
     * Fixes
         - Make sure Oracle identifier shortener applies to auto-generated
-          column names, so we stay within the 30-char limit
+          column names, so we stay within the 30-char limit (RT#58271)
         - Fix a Storage/$dbh leak introduced by th migration to
           Try::Tiny (this is *not* a Try::Tiny bug)
 
