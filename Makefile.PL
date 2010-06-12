@@ -61,6 +61,7 @@ my $runtime_requires = {
   'Context::Preserve'        => '0.01',
   'Try::Tiny'                => '0.04',
   'namespace::clean'         => '0.14',
+  'Math::BigInt'             => '1.89',
   'Math::Base36'             => '0.07',
 };
 
