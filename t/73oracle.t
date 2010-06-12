@@ -38,7 +38,7 @@ use DBIC::SqlMakerTest;
 my ($dsn,  $user,  $pass)  = @ENV{map { "DBICTEST_ORA_${_}" }  qw/DSN USER PASS/};
 
 # optional:
-my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_ORA2_${_}" } qw/DSN USER PASS/};
+my ($dsn2, $user2, $pass2) = @ENV{map { "DBICTEST_ORA_EXTRAUSER_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. ' .
   'Warning: This test drops and creates tables called \'artist\', \'cd\', \'track\' and \'sequence_test\''.
@@ -657,14 +657,18 @@ if ( $schema->storage->isa('DBIx::Class::Storage::DBI::Oracle::Generic') ) {
 my $schema2;
 
 # test sequence detection from a different schema
-if ($dsn2 && $user2) {
+SKIP: {
+  skip ((join '',
+'Set DBICTEST_ORA_EXTRAUSER_DSN, _USER and _PASS to a *DIFFERENT* Oracle user',
+' to run the cross-schema autoincrement test.'),
+    1) unless $dsn2 && $user2 && $user2 ne $user;
+
   $schema2 = DBICTest::Schema->connect($dsn2, $user2, $pass2);
 
-  my $dbh  = $schema->storage->dbh;
-  my $dbh2 = $schema2->storage->dbh;
+  my $schema1_dbh  = $schema->storage->dbh;
 
-  $dbh->do("GRANT INSERT ON artist TO $user2");
-  $dbh->do("GRANT SELECT ON artist_seq TO $user2");
+  $schema1_dbh->do("GRANT INSERT ON artist TO $user2");
+  $schema1_dbh->do("GRANT SELECT ON artist_seq TO $user2");
 
   my $rs = $schema2->resultset('Artist');
 
@@ -672,9 +676,9 @@ if ($dsn2 && $user2) {
   local $rs->result_source->{name} = "${user}.artist";
 
   lives_and {
-    my $row = $rs->create({ name => 'Different Schema' });
+    my $row = $rs->create({ name => 'From Different Schema' });
     ok $row->artistid;
-  } 'detected autoinc sequence across schemas';
+  } 'used autoinc sequence across schemas';
 }
 
 done_testing;
@@ -779,7 +783,5 @@ END {
       $dbh->do("DROP TABLE cd");
       $dbh->do("DROP TABLE bindtype_test");
     };
-
-    eval { $dbh->do('DROP SYNONYM artist') };
   }
 }
