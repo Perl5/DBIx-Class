@@ -11,10 +11,10 @@ use ViewDeps;
 use ViewDepsBad;
 
 BEGIN {
-  require DBIx::Class;
-  plan skip_all =>
-      'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
-    unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy');
+    require DBIx::Class;
+    plan skip_all => 'Test needs '
+        . DBIx::Class::Optional::Dependencies->req_missing_for('deploy')
+        unless DBIx::Class::Optional::Dependencies->req_ok_for('deploy');
     use_ok('DBIx::Class::ResultSource::View');
 }
 
@@ -70,7 +70,9 @@ ok( $schema2, 'Connected to ViewDepsBad schema OK' );
 
 #################### DEPLOY2
 
-warnings_exist { $schema2->deploy( { add_drop_table => 1 } ); } [qr/no such table: main.aba_name_artists/], "Deploying the bad schema produces a warning: aba_name_artists was not created.";
+warnings_exist { $schema2->deploy( { add_drop_table => 1 } ); }
+[qr/no such table: main.aba_name_artists/],
+    "Deploying the bad schema produces a warning: aba_name_artists was not created.";
 
 #################### DOES ORDERING WORK 2?
 

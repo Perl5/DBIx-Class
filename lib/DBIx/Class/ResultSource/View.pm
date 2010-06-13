@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use DBIx::Class::ResultSet;
-use Devel::Dwarn;
 
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/ResultSource/);
