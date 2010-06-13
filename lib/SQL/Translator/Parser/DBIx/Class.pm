@@ -399,7 +399,7 @@ sub _resolve_view_deps {
             return {};
         }
         my ($new_source_name) =
-          grep { $view->schema->source($_)->name eq $dep }
+          grep { $view->schema->source($_)->source_name eq $dep }
           @{ [ $view->schema->sources ] };
         my $subdeps =
           _resolve_view_deps( $view->schema->source($new_source_name),

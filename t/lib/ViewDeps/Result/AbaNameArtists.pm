@@ -10,7 +10,7 @@ __PACKAGE__->table('aba_name_artists');
 __PACKAGE__->result_source_instance->view_definition(
     "SELECT id,name FROM ab_name_artists WHERE name like 'aba%'" );
 __PACKAGE__->result_source_instance->deploy_depends_on(
-    ["ViewDeps::Result::AbNameArtists"] );
+    ["AbNameArtists"] );
 
 __PACKAGE__->add_columns(
     id   => { data_type => 'integer', is_auto_increment => 1 },

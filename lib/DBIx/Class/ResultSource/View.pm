@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use DBIx::Class::ResultSet;
+use Devel::Dwarn;
 
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/ResultSource/);
@@ -132,11 +133,11 @@ syntaxes.
 =head2 deploy_depends_on 
 
   __PACKAGE__->result_source_instance->deploy_depends_on(
-      "MyDB::Schema::Result::Year","MyDB::Schema::Result::CD"
+      ["Year","CD"]
       );
 
 Specify the views (and only the views) that this view depends on.
-Pass this an array reference.
+Pass this an array reference of source names.
 
 =head1 OVERRIDDEN METHODS
 
@@ -164,12 +165,10 @@ The constructor.
 sub new {
     my ( $self, @args ) = @_;
     my $new = $self->next::method(@args);
-    $new->{deploy_depends_on}
-        = {
-            map { $_->result_source_instance->name => 1 }
-            @{ $new->{deploy_depends_on}||[] }
-          }
-        unless ref $new->{deploy_depends_on} eq 'HASH';
+    $new->{deploy_depends_on} =
+      { map { $_ => 1 }
+          @{ $new->{deploy_depends_on} || [] } }
+      unless ref $new->{deploy_depends_on} eq 'HASH';
     return $new;
 }
 
