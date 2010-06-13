@@ -80,3 +80,7 @@ What needs to be adjusted (non-exhaustive summary):
   and multiple codepaths expect _resolve_condition to always return something
   akin to $vals_from_related above. A grep for _resolve_condition will
   highlight the problematic use-cases
+
+Additional Note:
+
+When using extended_rels all cascade options default to 0.
