@@ -1,7 +1,7 @@
 package # Hide from PAUSE
   DBIx::Class::SQLMaker::OracleJoins;
 
-use base qw( DBIx::Class::SQLMaker );
+use base qw( DBIx::Class::SQLMaker::Oracle );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 sub select {
