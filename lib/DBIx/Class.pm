@@ -345,9 +345,13 @@ phaylon: Robert Sedlacek <phaylon@dunkelheit.at>
 
 plu: Johannes Plunien <plu@cpan.org>
 
+Possum: Daniel LeWarne <possum@cpan.org>
+
 quicksilver: Jules Bean
 
 rafl: Florian Ragwitz <rafl@debian.org>
+
+rainboxx: Matthias Dietrich <perl@rb.ly>
 
 rbo: Robert Bohne <rbo@cpan.org>
 
@@ -396,8 +400,6 @@ willert: Sebastian Willert <willert@cpan.org>
 wreis: Wallace Reis <wreis@cpan.org>
 
 zamolxes: Bogdan Lucaciu <bogdan@wiz.ro>
-
-Possum: Daniel LeWarne <possum@cpan.org>
 
 =head1 COPYRIGHT
 

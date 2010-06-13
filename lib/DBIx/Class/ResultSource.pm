@@ -487,7 +487,7 @@ named C<primary>.
 Note: you normally do want to define a primary key on your sources
 B<even if the underlying database table does not have a primary key>.
 See
-L<DBIx::Class::Intro/The Significance and Importance of Primary Keys>
+L<DBIx::Class::Manual::Intro/The Significance and Importance of Primary Keys>
 for more info.
 
 =cut
