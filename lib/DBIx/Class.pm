@@ -266,6 +266,8 @@ brunov: Bruno Vecchi <vecchi.b@gmail.com>
 
 caelum: Rafael Kitover <rkitover@cpan.org>
 
+caldrin: Maik Hentsche <maik.hentsche@amd.com>
+
 castaway: Jess Robinson
 
 claco: Christopher H. Laco
