@@ -122,7 +122,7 @@ sub _subqueried_limit_attrs {
   # for possible further chaining)
   my (@in_sel, @out_sel, %renamed);
   for my $node (@sel) {
-    if (first { $_ =~ / (?<! $re_alias ) $re_sep /x } ($node->{as}, $node->{unquoted_sql}) )  {
+    if (first { $_ =~ / (?<! ^ $re_alias ) $re_sep /x } ($node->{as}, $node->{unquoted_sql}) )  {
       $node->{as} = $self->_unqualify_colname($node->{as});
       my $quoted_as = $self->_quote($node->{as});
       push @in_sel, sprintf '%s AS %s', $node->{sql}, $quoted_as;

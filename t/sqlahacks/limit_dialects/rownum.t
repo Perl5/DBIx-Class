@@ -32,4 +32,23 @@ is_same_sql_bind (
   'Rownum subsel aliasing works correctly'
 );
 
+is_same_sql_bind (
+  $rs->search ({}, { rows => 1, offset => 3,columns => [
+      { id => 'foo.id' },
+      { 'ends_with_me.id' => 'ends_with_me.id' },
+    ]})->as_query,
+  '(SELECT id, ends_with_me__id
+      FROM (
+        SELECT id, ends_with_me__id, ROWNUM rownum__index
+          FROM (
+            SELECT foo.id AS id, ends_with_me.id AS ends_with_me__id
+              FROM cd me
+          ) me
+      ) me
+    WHERE rownum__index BETWEEN 4 AND 4
+  )',
+  [],
+  'Rownum subsel aliasing works correctly'
+);
+
 done_testing;
