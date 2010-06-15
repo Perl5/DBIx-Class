@@ -132,11 +132,11 @@ syntaxes.
 =head2 deploy_depends_on 
 
   __PACKAGE__->result_source_instance->deploy_depends_on(
-      ["Year","CD"]
+      ["MyDB::Schema::Result::Year","MyDB::Schema::Result::CD"]
       );
 
 Specify the views (and only the views) that this view depends on.
-Pass this an array reference of source names.
+Pass this an array reference of fully qualified result classes.
 
 =head1 OVERRIDDEN METHODS
 

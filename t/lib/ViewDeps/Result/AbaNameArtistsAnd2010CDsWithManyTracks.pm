@@ -11,7 +11,7 @@ __PACKAGE__->result_source_instance->view_definition(
     "SELECT aba.id,aba.name,cd.title,cd.year,cd.number_tracks FROM aba_name_artists aba JOIN year_2010_cds_with_many_tracks cd on (aba.id = cd.artist)"
 );
 __PACKAGE__->result_source_instance->deploy_depends_on(
-    ["AbNameArtists","Year2010CDsWithManyTracks"] );
+    ["ViewDeps::Result::AbNameArtists","ViewDeps::Result::Year2010CDsWithManyTracks"] );
 
 __PACKAGE__->add_columns(
     id            => { data_type => 'integer', is_auto_increment => 1 },

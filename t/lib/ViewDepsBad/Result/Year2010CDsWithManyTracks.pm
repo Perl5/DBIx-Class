@@ -12,7 +12,7 @@ __PACKAGE__->result_source_instance->view_definition(
 );
 
 __PACKAGE__->result_source_instance->deploy_depends_on(
-    ["Year2010CDs"] );
+    ["ViewDepsBad::Result::Year2010CDs"] );
 
 __PACKAGE__->add_columns(
     id            => { data_type => 'integer', is_auto_increment => 1 },

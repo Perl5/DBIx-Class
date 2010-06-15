@@ -393,13 +393,13 @@ sub _resolve_view_deps {
 
     # copy and bump all deps by one (so we can reconstruct the chain)
     my %seen = map { $_ => $seen->{$_} + 1 } ( keys %$seen );
-    $seen{ $view->source_name } = 1;
+    $seen{ $view->result_class } = 1;
     for my $dep ( keys %{ $view->{deploy_depends_on} } ) {
         if ( $seen->{$dep} ) {
             return {};
         }
         my ($new_source_name) =
-          grep { $view->schema->source($_)->source_name eq $dep }
+          grep { $view->schema->source($_)->result_class eq $dep }
           @{ [ $view->schema->sources ] };
         my $subdeps =
           _resolve_view_deps( $view->schema->source($new_source_name),

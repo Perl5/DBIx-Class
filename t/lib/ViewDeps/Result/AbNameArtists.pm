@@ -11,7 +11,7 @@ __PACKAGE__->result_source_instance->view_definition(
     "SELECT id,name FROM a_name_artists WHERE name like 'ab%'"
 );
 __PACKAGE__->result_source_instance->deploy_depends_on(
-    ["ANameArtists"]
+    ["ViewDeps::Result::ANameArtists"]
 );
 
 __PACKAGE__->add_columns(
