@@ -943,9 +943,23 @@ __END__
 
 =head1 CAVEATS
 
+=head2 Resultset Methods
+
+Note that all Insert/Create/Delete overrides are happening on
+L<DBIx::Class::Row> methods only. If you use the
+L<DBIx::Class::ResultSet> versions of
+L<update|DBIx::Class::ResultSet/update> or
+L<delete|DBIx::Class::ResultSet/delete>, all logic present in this
+module will be bypassed entirely (possibly resulting in a broken
+order-tree). Instead always use the
+L<update_all|DBIx::Class::ResultSet/update_all> and
+L<delete_all|DBIx::Class::ResultSet/delete_all> methods, which will
+invoke the corresponding L<row|DBIx::Class::Row> method on every
+member of the given resultset.
+
 =head2 Race Condition on Insert
 
-If a position is not specified for an insert than a position 
+If a position is not specified for an insert, a position
 will be chosen based either on L</_initial_position_value> or
 L</_next_position_value>, depending if there are already some
 items in the current group. The space of time between the
