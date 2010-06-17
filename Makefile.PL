@@ -12,11 +12,15 @@ use lib "$FindBin::Bin/lib";
 use Config;
 $ENV{PERL5LIB} = join ($Config{path_sep}, @INC);
 
-use Getopt::Long qw/:config gnu_getopt bundling_override no_ignore_case pass_through/;
+use Getopt::Long ();
+
+my $getopt = Getopt::Long::Parser->new(
+  config => [qw/gnu_getopt bundling_override no_ignore_case pass_through/]
+);
 my $args = {
   skip_author_deps => undef,
 };
-GetOptions ($args, 'skip_author_deps');
+$getopt->getoptions($args, 'skip_author_deps');
 if (@ARGV) {
   warn "\nIgnoring unrecognized option(s): @ARGV\n\n";
 }

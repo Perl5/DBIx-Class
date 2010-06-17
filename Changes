@@ -3,6 +3,10 @@ Revision history for DBIx::Class
     * Fixes
         - Fixed rels ending with me breaking subqueried limit realiasing
 
+    * Misc
+        - Makefile.PL no longer imports GetOptions() to interoperate better
+          with Catalyst installers
+
 0.08123 2010-06-12 14:46 (UTC)
     * Fixes
         - Make sure Oracle identifier shortener applies to auto-generated
