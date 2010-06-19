@@ -64,7 +64,7 @@ The community can be found via:
 =item * IRC: irc.perl.org#dbix-class
 
 =for html
-<a href="http://mibbit.com/chat/#dbix-class@irc.perl.org">(click for instant chatroom login)</a>
+<a href="http://chat.mibbit.com/#dbix-class@irc.perl.org">(click for instant chatroom login)</a>
 
 =item * Mailing list: L<http://lists.scsys.co.uk/mailman/listinfo/dbix-class>
 
