@@ -264,7 +264,9 @@ if ($Module::Install::AUTHOR && ! $args->{skip_author_deps} ) {
   }
 
   if (keys %removed_build_requires) {
-    die join ("\n", "\n\nFATAL FAIL! It looks like some author dependencies made it to the META.yml:\n",
+    die join ("\n",
+      "\n\nFATAL FAIL! It looks like some author dependencies made it to the META.yml:",
+      "(most likely a broken Module::Install)\n",
       map { "\t$_" } (keys %removed_build_requires)
     ) . "\n\n";
   }
