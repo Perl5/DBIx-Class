@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 use DBIC::SqlMakerTest;
@@ -24,6 +25,11 @@ is_deeply(
   [ sort $schema->source('Track')->unique_constraint_names ],
   [ qw/primary track_cd_position track_cd_title/ ],
   'Track source has three unique constraints'
+);
+is_deeply(
+  [ sort $schema->source('Tag')->unique_constraint_names ],
+  [ qw/primary tagid_cd tagid_cd_tag tags_tagid_tag tags_tagid_tag_cd/ ],
+  'Tag source has five unique constraints (from add_unique_constraings)'
 );
 
 my $artistid = 1;
@@ -232,4 +238,29 @@ is($row->baz, 3, 'baz is correct');
   $schema->storage->debugobj(undef);
 }
 
+{
+  throws_ok {
+    eval <<'MOD' or die $@;
+      package # hide from PAUSE
+        DBICTest::Schema::UniqueConstraintWarningTest;
+
+      use base qw/DBIx::Class::Core/;
+
+      __PACKAGE__->table('dummy');
+
+      __PACKAGE__->add_column(qw/ foo bar /);
+
+      __PACKAGE__->add_unique_constraint(
+        constraint1 => [qw/ foo /],
+        constraint2 => [qw/ bar /],
+      );
+
+      1;
+MOD
+  } qr/\Qadd_unique_constraint() does not accept multiple constraints, use add_unique_constraints() instead\E/,
+    'add_unique_constraint throws when more than one constraint specified';
+}
+
+
 done_testing;
+

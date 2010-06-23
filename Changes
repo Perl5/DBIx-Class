@@ -4,6 +4,10 @@ Revision history for DBIx::Class
         - Fixed rels ending with me breaking subqueried limit realiasing
         - Oracle sequence detection now *really* works across schemas
           (fixed some ommissions from 0.08123)
+        - add_unique_constraint() now throws if called with multiple constraint
+          definitions
+        - Implemented add_unique_constraints() which delegates to
+          add_unique_constraint() as appropriate
 
     * Misc
         - Makefile.PL no longer imports GetOptions() to interoperate better

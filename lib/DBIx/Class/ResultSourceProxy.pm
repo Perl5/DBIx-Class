@@ -86,6 +86,10 @@ sub add_unique_constraint {
   shift->result_source_instance->add_unique_constraint(@_);
 }
 
+sub add_unique_constraints {
+  shift->result_source_instance->add_unique_constraints(@_);
+}
+
 sub unique_constraints {
   shift->result_source_instance->unique_constraints(@_);
 }

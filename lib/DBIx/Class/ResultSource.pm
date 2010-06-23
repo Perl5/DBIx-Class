@@ -573,8 +573,22 @@ the result source.
 
 sub add_unique_constraint {
   my $self = shift;
+
+  if (@_ > 2) {
+    $self->throw_exception(
+        'add_unique_constraint() does not accept multiple constraints, use '
+      . 'add_unique_constraints() instead'
+    );
+  }
+
   my $cols = pop @_;
-  my $name = shift;
+  if (ref $cols ne 'ARRAY') {
+    $self->throw_exception (
+      'Expecting an arrayref of constraint columns, got ' . ($cols||'NOTHING')
+    );
+  }
+
+  my $name = shift @_;
 
   $name ||= $self->name_unique_constraint($cols);
 
@@ -586,6 +600,58 @@ sub add_unique_constraint {
   my %unique_constraints = $self->unique_constraints;
   $unique_constraints{$name} = $cols;
   $self->_unique_constraints(\%unique_constraints);
+}
+
+=head2 add_unique_constraints
+
+=over 4
+
+=item Arguments: @constraints
+
+=item Return value: undefined
+
+=back
+
+Declare multiple unique constraints on this source.
+
+  __PACKAGE__->add_unique_constraints(
+    constraint_name1 => [ qw/column1 column2/ ],
+    constraint_name2 => [ qw/column2 column3/ ],
+  );
+
+Alternatively, you can specify only the columns:
+
+  __PACKAGE__->add_unique_constraints(
+    [ qw/column1 column2/ ],
+    [ qw/column3 column4/ ]
+  );
+
+This will result in unique constraints named C<table_column1_column2> and
+C<table_column3_column4>, where C<table> is replaced with the table name.
+
+Throws an error if any of the given column names do not yet exist on
+the result source.
+
+See also L</add_unique_constraint>.
+
+=cut
+
+sub add_unique_constraints {
+  my $self = shift;
+  my @constraints = @_;
+
+  if ( !(@constraints % 2) && first { ref $_ ne 'ARRAY' } @constraints ) {
+    # with constraint name
+    while (my ($name, $constraint) = splice @constraints, 0, 2) {
+      $self->add_unique_constraint($name => $constraint);
+    }
+  }
+  else {
+    # no constraint name
+    foreach my $constraint (@constraints) {
+      $self->add_unique_constraint($constraint);
+    }
+  }
 }
 
 =head2 name_unique_constraint
