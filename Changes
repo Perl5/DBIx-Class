@@ -2,6 +2,8 @@ Revision history for DBIx::Class
 
     * Fixes
         - Fixed rels ending with me breaking subqueried limit realiasing
+        - Oracle sequence detection now *really* works across schemas
+          (fixed some ommissions from 0.08123)
 
     * Misc
         - Makefile.PL no longer imports GetOptions() to interoperate better
