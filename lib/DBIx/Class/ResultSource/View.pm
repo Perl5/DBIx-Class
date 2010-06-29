@@ -77,7 +77,7 @@ above, you can then:
 If you modified the schema to include a placeholder
 
   __PACKAGE__->result_source_instance->view_definition(
-      "SELECT cdid, artist, title FROM cd WHERE year ='?'"
+      "SELECT cdid, artist, title FROM cd WHERE year = ?"
   );
 
 and ensuring you have is_virtual set to true:
