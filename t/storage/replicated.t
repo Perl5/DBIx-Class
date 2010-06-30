@@ -25,7 +25,7 @@ use_ok 'DBIx::Class::Storage::DBI::Replicated';
 
 use Moose();
 use MooseX::Types();
-diag "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
+note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
 
 =head1 HOW TO USE
 
