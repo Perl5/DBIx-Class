@@ -1825,9 +1825,9 @@ C<unicode>).
 =head2 Easy migration from class-based to schema-based setup
 
 You want to start using the schema-based approach to L<DBIx::Class>
-(see L<SchemaIntro.pod>), but have an established class-based setup with lots
-of existing classes that you don't want to move by hand. Try this nifty script
-instead:
+(see L<DBIx::Class::Manual::Intro/Setting it up manually>), but have an
+established class-based setup with lots of existing classes that you don't
+want to move by hand. Try this nifty script instead:
 
   use MyDB;
   use SQL::Translator;
