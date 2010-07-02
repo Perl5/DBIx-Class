@@ -592,14 +592,14 @@ sub add_unique_constraint {
 
 =over 4
 
-=item Arguments: @colnames
+=item Arguments: \@colnames
 
 =item Return value: Constraint name
 
 =back
 
   $source->table('mytable');
-  $source->name_unique_constraint('col1', 'col2');
+  $source->name_unique_constraint(['col1', 'col2']);
   # returns
   'mytable_col1_col2'
 
