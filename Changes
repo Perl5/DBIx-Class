@@ -12,6 +12,7 @@ Revision history for DBIx::Class
     * Misc
         - Makefile.PL no longer imports GetOptions() to interoperate better
           with Catalyst installers
+        - Bumped minimum Module::Install for developers
 
 0.08123 2010-06-12 14:46 (UTC)
     * Fixes
