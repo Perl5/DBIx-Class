@@ -105,7 +105,7 @@ EOW
 ******************************************************************************
 ***                                                                        ***
 *** AUTHOR MODE: all optional test dependencies converted to hard requires ***
-***      ( to disabled re-run Makefile.PL with --skip_author_deps )        ***
+***       ( to disable re-run Makefile.PL with --skip_author_deps )        ***
 ***                                                                        ***
 ******************************************************************************
 ******************************************************************************
