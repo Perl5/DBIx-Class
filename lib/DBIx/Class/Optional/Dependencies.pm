@@ -160,6 +160,7 @@ my $reqs = {
       $ENV{DBICTEST_ORA_DSN}
         ? (
           'DateTime::Format::Oracle' => '0',
+          'DBD::Oracle'              => '1.24',
         ) : ()
     },
   },
