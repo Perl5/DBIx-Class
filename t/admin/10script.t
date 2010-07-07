@@ -28,7 +28,7 @@ for my $js (@json_backends) {
 
     eval {JSON::Any->import ($js) };
     SKIP: {
-        skip ("Json backend $js is not available, skip testing", $tests_per_run) if $@;
+        skip ("JSON backend $js is not available, skip testing", $tests_per_run) if $@;
 
         $ENV{JSON_ANY_ORDER} = $js;
         eval { test_dbicadmin () };
@@ -56,7 +56,7 @@ sub test_dbicadmin {
     SKIP: {
         skip ("MSWin32 doesn't support -| either", 1) if $^O eq 'MSWin32';
 
-        open(my $fh, "-|",  ( 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
+        open(my $fh, "-|",  ( $^X, 'script/dbicadmin', default_args(), qw|--op=select --attrs={"order_by":"name"}| ) ) or die $!;
         my $data = do { local $/; <$fh> };
         close($fh);
         if (!ok( ($data=~/Aran.*Trout/s), "$ENV{JSON_ANY_ORDER}: select with attrs" )) {
