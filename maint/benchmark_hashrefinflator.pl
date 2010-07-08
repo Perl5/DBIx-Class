@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 #
 # So you wrote a new mk_hash implementation which passed all tests (particularly 

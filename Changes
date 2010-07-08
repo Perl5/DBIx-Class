@@ -8,6 +8,8 @@ Revision history for DBIx::Class
           definitions
         - Implemented add_unique_constraints() which delegates to
           add_unique_constraint() as appropriate
+        - dbicadmin now uses a /usr/bin/env shebang to work better with
+          perlbrew and other local perl builds
 
     * Misc
         - Makefile.PL no longer imports GetOptions() to interoperate better

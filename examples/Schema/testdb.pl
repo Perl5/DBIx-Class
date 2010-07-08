@@ -1,7 +1,9 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
+
+use warnings;
+use strict;
 
 use MyDatabase::Main;
-use strict;
 
 my $schema = MyDatabase::Main->connect('dbi:SQLite:db/example.db');
 # for other DSNs, e.g. MySql, see the perldoc for the relevant dbd

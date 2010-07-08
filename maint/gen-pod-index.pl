@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 
 # Originally by: Zbigniew Lukasiak, C<zz bb yy@gmail.com>
 #  but refactored and modified to our nefarious purposes
