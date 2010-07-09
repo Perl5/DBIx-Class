@@ -158,7 +158,12 @@ DBIx::Class::FilterColumn - Automatically convert column data
 
 =head1 SYNOPSIS
 
- # In your result classes
+In your Schema or DB class add "FilterColumn" to the top of the component list.
+
+  __PACKAGE__->load_components(qw( FilterColumn ... ));
+
+Set up filters for the columns you want to convert.
+
  __PACKAGE__->filter_column( money => {
      filter_to_storage => 'to_pennies',
      filter_from_storage => 'from_pennies',
@@ -169,6 +174,7 @@ DBIx::Class::FilterColumn - Automatically convert column data
  sub from_pennies { $_[1] / 100 }
 
  1;
+
 
 =head1 DESCRIPTION
 
