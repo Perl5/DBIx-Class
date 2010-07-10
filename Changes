@@ -20,6 +20,8 @@ Revision history for DBIx::Class
         - $rs->pager now uses a lazy count to determine the amount of
           total entries only when really needed, instead of doing it
           at instantiation time
+        - New documentation map organized by features
+          (DBIx::Class::Manual::Features)
 
     * Fixes
         - Fix memory leak during populate() on 5.8.x perls
