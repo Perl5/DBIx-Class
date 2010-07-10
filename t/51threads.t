@@ -2,41 +2,35 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Exception;
 
 use Config;
-
-# README: If you set the env var to a number greater than 10,
-#   we will use that many children
-
 BEGIN {
     plan skip_all => 'Your perl does not support ithreads'
         if !$Config{useithreads};
 }
 
 use threads;
+use Test::Exception;
+use lib qw(t/lib);
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
+plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
+      . ' (note: creates and drops a table named artist!)' unless ($dsn && $user);
+
+# README: If you set the env var to a number greater than 10,
+#   we will use that many children
 my $num_children = $ENV{DBICTEST_THREAD_STRESS};
 
 plan skip_all => 'Set $ENV{DBICTEST_THREAD_STRESS} to run this test'
     unless $num_children;
 
-plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
-      . ' (note: creates and drops a table named artist!)' unless ($dsn && $user);
-
-diag 'It is normal to see a series of "Scalars leaked: ..." messages during this test';
-
 if($num_children !~ /^[0-9]+$/ || $num_children < 10) {
    $num_children = 10;
 }
 
-plan tests => $num_children + 5;
-
-use lib qw(t/lib);
+diag 'It is normal to see a series of "Scalars leaked: ..." warnings during this test';
 
 use_ok('DBICTest::Schema');
-
 my $schema = DBICTest::Schema->connection($dsn, $user, $pass, { AutoCommit => 1, RaiseError => 1, PrintError => 0 });
 
 my $parent_rs;
@@ -92,3 +86,5 @@ while(@children) {
 ok(1, "Made it to the end");
 
 $schema->storage->dbh->do("DROP TABLE cd");
+
+done_testing;
