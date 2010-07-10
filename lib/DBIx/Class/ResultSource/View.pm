@@ -8,8 +8,7 @@ use DBIx::Class::ResultSet;
 use base qw/DBIx::Class/;
 __PACKAGE__->load_components(qw/ResultSource/);
 __PACKAGE__->mk_group_accessors(
-  'simple' => qw(is_virtual view_definition)
-);
+    'simple' => qw(is_virtual view_definition deploy_depends_on) );
 
 =head1 NAME
 
@@ -130,6 +129,14 @@ database-based view.
 An SQL query for your view. Will not be translated across database
 syntaxes.
 
+=head2 deploy_depends_on 
+
+  __PACKAGE__->result_source_instance->deploy_depends_on(
+      ["MyDB::Schema::Result::Year","MyDB::Schema::Result::CD"]
+      );
+
+Specify the views (and only the views) that this view depends on.
+Pass this an array reference of fully qualified result classes.
 
 =head1 OVERRIDDEN METHODS
 
@@ -141,24 +148,34 @@ or the SQL as a subselect if this is a virtual view.
 =cut
 
 sub from {
-  my $self = shift;
-  return \"(${\$self->view_definition})" if $self->is_virtual;
-  return $self->name;
+    my $self = shift;
+    return \"(${\$self->view_definition})" if $self->is_virtual;
+    return $self->name;
+}
+
+=head1 OTHER METHODS
+
+=head2 new
+
+The constructor.
+
+=cut
+
+sub new {
+    my ( $self, @args ) = @_;
+    my $new = $self->next::method(@args);
+    $new->{deploy_depends_on} =
+      { map { $_ => 1 }
+          @{ $new->{deploy_depends_on} || [] } }
+      unless ref $new->{deploy_depends_on} eq 'HASH';
+    return $new;
 }
 
 1;
 
 =head1 AUTHORS
 
-Matt S. Trout <mst@shadowcatsystems.co.uk>
-
-With Contributions from:
-
-Guillermo Roditi E<lt>groditi@cpan.orgE<gt>
-
-Jess Robinson <castaway@desert-island.me.uk>
-
-Wallace Reis <wreis@cpan.org>
+See L<DBIx::Class/CONTRIBUTORS>.
 
 =head1 LICENSE
 

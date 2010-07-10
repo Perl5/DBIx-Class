@@ -270,6 +270,7 @@ sub parse {
     my $dependencies = {
       map { $_ => _resolve_deps ($_, \%tables) } (keys %tables)
     };
+
     for my $table (sort
       {
         keys %{$dependencies->{$a} || {} } <=> keys %{ $dependencies->{$b} || {} }
@@ -298,9 +299,25 @@ EOW
     }
 
     my %views;
-    foreach my $moniker (sort keys %view_monikers)
+    my @views = map { $dbicschema->source($_) } keys %view_monikers;
+
+    my $view_dependencies = {
+        map {
+            $_ => _resolve_deps( $dbicschema->source($_), \%view_monikers )
+          } ( keys %view_monikers )
+    };
+
+    my @view_sources =
+      sort {
+        keys %{ $view_dependencies->{ $a->source_name }   || {} } <=>
+          keys %{ $view_dependencies->{ $b->source_name } || {} }
+          || $a->source_name cmp $b->source_name
+      }
+      map { $dbicschema->source($_) }
+      keys %view_monikers;
+
+    foreach my $source (@view_sources)
     {
-        my $source = $dbicschema->source($moniker);
         my $view_name = $source->name;
 
         # FIXME - this isn't the right way to do it, but sqlt does not
@@ -337,35 +354,42 @@ EOW
 # Quick and dirty dependency graph calculator
 #
 sub _resolve_deps {
-  my ($table, $tables, $seen) = @_;
+    my ( $question, $answers, $seen ) = @_;
+    my $ret = {};
+    $seen ||= {};
+    my @deps;
 
-  my $ret = {};
-  $seen ||= {};
-
-  # copy and bump all deps by one (so we can reconstruct the chain)
-  my %seen = map { $_ => $seen->{$_} + 1 } (keys %$seen);
-  $seen{$table} = 1;
-
-  for my $dep (keys %{$tables->{$table}{foreign_table_deps}} ) {
-
-    if ($seen->{$dep}) {
-
-      # warn and remove the circular constraint so we don't get flooded with the same warning over and over
-      #carp sprintf ("Circular dependency detected, schema may not be deployable:\n%s\n",
-      #  join (' -> ', (sort { $seen->{$b} <=> $seen->{$a} } (keys %$seen) ), $table, $dep )
-      #);
-      #delete $tables->{$table}{foreign_table_deps}{$dep};
-
-      return {};
+    # copy and bump all deps by one (so we can reconstruct the chain)
+    my %seen = map { $_ => $seen->{$_} + 1 } ( keys %$seen );
+    if ( ref($question) =~ /View/ ) {
+        $seen{ $question->result_class } = 1;
+        @deps = keys %{ $question->{deploy_depends_on} };
+    }
+    else {
+        $seen{$question} = 1;
+        @deps = keys %{ $answers->{$question}{foreign_table_deps} };
     }
 
-    my $subdeps = _resolve_deps ($dep, $tables, \%seen);
-    $ret->{$_} += $subdeps->{$_} for ( keys %$subdeps );
+    for my $dep (@deps) {
+        if ( $seen->{$dep} ) {
+            return {};
+        }
+        my $next_dep;
 
-    ++$ret->{$dep};
-  }
-
-  return $ret;
+        if ( ref($question) =~ /View/ ) {
+            my ($next_dep_source_name) =
+              grep { $question->schema->source($_)->result_class eq $dep }
+              @{ [ $question->schema->sources ] };
+            $next_dep = $question->schema->source($next_dep_source_name);
+        }
+        else {
+            $next_dep = $dep;
+        }
+        my $subdeps = _resolve_deps( $next_dep, $answers, \%seen );
+        $ret->{$_} += $subdeps->{$_} for ( keys %$subdeps );
+        ++$ret->{$dep};
+    }
+    return $ret;
 }
 
 1;

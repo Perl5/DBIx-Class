@@ -229,6 +229,8 @@ aherzog: Adam Herzog <adam@herzogdesigns.com>
 
 Alexander Keusch <cpan@keusch.at>
 
+amiri: Amiri Barksdale <amiri@metalabel.com>
+
 amoore: Andrew Moore <amoore@cpan.org>
 
 andyg: Andy Grundman <andy@hybridized.org>
