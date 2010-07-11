@@ -4,16 +4,18 @@ Revision history for DBIx::Class
         - Fixed rels ending with me breaking subqueried limit realiasing
         - Oracle sequence detection now *really* works across schemas
           (fixed some ommissions from 0.08123)
-        - add_unique_constraint() now throws if called with multiple constraint
-          definitions
+        - add_unique_constraint() now throws if called with multiple
+          constraint definitions
         - Implemented add_unique_constraints() which delegates to
           add_unique_constraint() as appropriate
         - dbicadmin now uses a /usr/bin/env shebang to work better with
           perlbrew and other local perl builds
+        - bulk-inserts via $dbh->bind_array (void $rs->populate) now
+          display properly in DBIC_TRACE
 
     * Misc
-        - Makefile.PL no longer imports GetOptions() to interoperate better
-          with Catalyst installers
+        - Makefile.PL no longer imports GetOptions() to interoperate
+          better with Catalyst installers
         - Bumped minimum Module::Install for developers
 
 0.08123 2010-06-12 14:46 (UTC)

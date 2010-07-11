@@ -1631,7 +1631,7 @@ sub insert_bulk {
   # scope guard
   my $guard = $self->txn_scope_guard;
 
-  $self->_query_start( $sql, ['__BULK__'] );
+  $self->_query_start( $sql, [ dummy => '__BULK_INSERT__' ] );
   my $sth = $self->sth($sql);
   my $rv = do {
     if ($empty_bind) {
@@ -1644,7 +1644,7 @@ sub insert_bulk {
     }
   };
 
-  $self->_query_end( $sql, ['__BULK__'] );
+  $self->_query_end( $sql, [ dummy => '__BULK_INSERT__' ] );
 
   $guard->commit;
 
