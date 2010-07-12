@@ -1166,9 +1166,7 @@ sub _connect {
     $DBI::connect_via = 'connect';
   }
 
-  # FIXME - this should have been Try::Tiny, but triggers a leak-bug in perl(!)
-  # related to coderef refcounting. A failing test has been submitted to T::T
-  my $connect_ok = eval {
+  try {
     if(ref $info[0] eq 'CODE') {
        $dbh = $info[0]->();
     }
@@ -1181,32 +1179,37 @@ sub _connect {
     }
 
     unless ($self->unsafe) {
-      my $weak_self = $self;
-      weaken $weak_self;
-      $dbh->{HandleError} = sub {
+
+      # this odd anonymous coderef dereference is in fact really
+      # necessary to avoid the unwanted effect described in perl5
+      # RT#75792
+      sub {
+        my $weak_self = $_[0];
+        weaken $weak_self;
+
+        $_[1]->{HandleError} = sub {
           if ($weak_self) {
             $weak_self->throw_exception("DBI Exception: $_[0]");
           }
           else {
             # the handler may be invoked by something totally out of
             # the scope of DBIC
-            croak ("DBI Exception: $_[0]");
+            croak ("DBI Exception (unhandled by DBIC, ::Schema GCed): $_[0]");
           }
-      };
+        };
+      }->($self, $dbh);
+
       $dbh->{ShowErrorStatement} = 1;
       $dbh->{RaiseError} = 1;
       $dbh->{PrintError} = 0;
     }
-
-    1;
-  };
-
-  my $possible_err = $@;
-  $DBI::connect_via = $old_connect_via if $old_connect_via;
-
-  unless ($connect_ok) {
-    $self->throw_exception("DBI Connection failed: $possible_err")
   }
+  catch {
+    $self->throw_exception("DBI Connection failed: $_")
+  }
+  finally {
+    $DBI::connect_via = $old_connect_via if $old_connect_via;
+  };
 
   $self->_dbh_autocommit($dbh->{AutoCommit});
   $dbh;
