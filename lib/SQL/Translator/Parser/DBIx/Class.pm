@@ -15,7 +15,7 @@ $DEBUG = 0 unless defined $DEBUG;
 use Exporter;
 use SQL::Translator::Utils qw(debug normalize_name);
 use Carp::Clan qw/^SQL::Translator|^DBIx::Class|^Try::Tiny/;
-use Scalar::Util 'weaken';
+use Scalar::Util qw/weaken blessed/;
 use Try::Tiny;
 use namespace::clean;
 
@@ -361,7 +361,9 @@ sub _resolve_deps {
 
     # copy and bump all deps by one (so we can reconstruct the chain)
     my %seen = map { $_ => $seen->{$_} + 1 } ( keys %$seen );
-    if ( ref($question) =~ /View/ ) {
+    if ( blessed($question)
+        && $question->isa('DBIx::Class::ResultSource::View') )
+    {
         $seen{ $question->result_class } = 1;
         @deps = keys %{ $question->{deploy_depends_on} };
     }
@@ -376,10 +378,17 @@ sub _resolve_deps {
         }
         my $next_dep;
 
-        if ( ref($question) =~ /View/ ) {
+        if ( blessed($question)
+            && $question->isa('DBIx::Class::ResultSource::View') )
+        {
+            no warnings 'uninitialized';
             my ($next_dep_source_name) =
-              grep { $question->schema->source($_)->result_class eq $dep }
-              @{ [ $question->schema->sources ] };
+              grep {
+                $question->schema->source($_)->result_class eq $dep
+                  && !( $question->schema->source($_)
+                    ->isa('DBIx::Class::ResultSource::Table') )
+              } @{ [ $question->schema->sources ] };
+            return {} unless $next_dep_source_name;
             $next_dep = $question->schema->source($next_dep_source_name);
         }
         else {
