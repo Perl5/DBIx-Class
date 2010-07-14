@@ -1,0 +1,39 @@
+Jun 15 17:17:13 <ribasushi>     mst: can you tell frew what you told me about FilterColumn @ GPW
+Jun 15 17:18:11 <mst>   I said two methods
+Jun 15 17:18:15 <mst>   filter_column(...
+Jun 15 17:18:20 <mst>   and filter_column_row(...
+Jun 15 17:18:28 <mst>   frew: the idea being if the row object is only in one signature
+Jun 15 17:18:36 <mst>   hashrefinflator can assume the non-row ones are safe
+Jun 15 17:29:31 <frew>  oh clever
+Jun 15 17:29:44 <frew>  hmmmm
+Jun 15 17:29:55 *       frew wonders why we didn't do this when we discussed it before
+Jun 15 17:30:07 <robkinyon>     frew: mst did suggest this
+Jun 15 17:30:14 <frew>  I think I was hung up on that if we did that we'd need a FC and an FCLite
+Jun 15 17:30:27 <frew>  I don't remember the suggestion of two sep methods at al
+Jun 15 17:30:33 <frew>  but I don't doubt that he said it
+Jun 15 17:31:44 <ribasushi>     when he said it to me in .de I still didn't get it
+Jun 15 17:31:51 <ribasushi>     so obv. the problem is in mst
+Jun 15 17:32:05 <frew>  so I am getting it right?
+Jun 15 17:32:08 <frew>  two sep methods?
+Jun 15 17:32:09 <frew>  yeah
+Jun 15 17:32:12 <frew>  that's totally simple
+Jun 15 17:32:20 <ribasushi>     except we use the already existing method for objs
+Jun 15 17:32:37 <ribasushi>     and make a new one for ($data, $rsrc)
+Jun 15 17:32:42 <frew>  exactly
+Jun 15 17:41:09 <ribasushi>     mst: I already said - I might be overtinking this, two sep. coderefs are fine
+Jun 15 17:41:24 <ribasushi>     mst: two non-overlapping signatures
+Jun 15 17:41:47 <ribasushi>     mst: the original name is obj-first filters
+Jun 15 17:41:47 <mst>   yeah
+Jun 15 17:41:57 <ribasushi>     a new name for $val, $rsrc filters
+Jun 15 17:41:58 <ribasushi>     happy?
+Jun 15 17:42:17 <ribasushi>     frew: ^^ please note the bastard is happy
+Jun 15 17:42:23 <mst>   $source, $val though
+Jun 15 17:42:32 <mst>   so you can use method names on the source, as originally discussed
+Jun 15 17:42:56 <ribasushi>     wtf... (wrt originally discussed)
+Jun 15 17:43:02 <ribasushi>     fine $source, $val
+Jun 15 17:43:10 <mst>   I dunno if we'll ever use that
+Jun 15 17:43:17 <mst>   but applying a role to the source smells like fun
+Jun 15 17:43:22 <ribasushi>     mst: meh, it's proactive I like it
+Jun 15 17:43:49 <ribasushi>     mst: the wtf is you assuming you said what you were thinking  :)
+Jun 15 17:45:27 <frew>  ribasushi: I'm ignoring this till I have to code on it
+Jun 15 17:45:39 <ribasushi>     frew++ # smart man
