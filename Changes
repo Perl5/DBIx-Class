@@ -12,6 +12,8 @@ Revision history for DBIx::Class
           perlbrew and other local perl builds
         - bulk-inserts via $dbh->bind_array (void $rs->populate) now
           display properly in DBIC_TRACE
+        - Incomplete exception thrown on relationship auto-fk-inference
+          failures
 
     * Misc
         - Makefile.PL no longer imports GetOptions() to interoperate

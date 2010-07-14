@@ -531,7 +531,8 @@ sub _pri_cols {
   my @pcols = $self->primary_columns
     or $self->throw_exception (sprintf(
       "Operation requires a primary key to be declared on '%s' via set_primary_key",
-      $self->source_name,
+      # source_name is set only after schema-registration
+      $self->source_name || $self->result_class || $self->name || 'Unknown source...?',
     ));
   return @pcols;
 }
