@@ -11,4 +11,6 @@ my $schema = DBICTest->init_schema;
 isa_ok $schema->resultset('Artist'), 'A::Useless', 'Artist RS';
 ok !$schema->resultset('CD')->isa('A::Useless'), 'CD RS is not A::Useless';
 
+isa_ok $schema->resultset('Employee'), 'A::Useless', 'Employee RS';
+
 done_testing;

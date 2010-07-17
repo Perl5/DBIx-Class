@@ -1,9 +1,9 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::Employee;
 
 use base qw/DBICTest::BaseResult/;
 
-__PACKAGE__->load_components(qw( Ordered ));
+__PACKAGE__->load_components(qw( Ordered +A::UselessRSLoader));
 
 __PACKAGE__->table('employee');
 
