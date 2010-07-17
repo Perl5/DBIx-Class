@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest::Schema::Artist;
 
 use base qw/DBICTest::BaseResult/;
@@ -65,6 +65,7 @@ __PACKAGE__->has_many(
 );
 __PACKAGE__->many_to_many('artworks', 'artwork_to_artist', 'artwork');
 
+__PACKAGE__->result_source_instance->inject_resultset_components(['+A::Useless']);
 
 sub sqlt_deploy_hook {
   my ($self, $sqlt_table) = @_;

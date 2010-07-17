@@ -1884,4 +1884,16 @@ You may distribute this code under the same terms as Perl itself.
 
 =cut
 
+sub inject_resultset_components {
+   my $self       = shift;
+   my @components = @{shift @_};
+
+   # this generation of class bit needs to go into CCC
+   my $class = $self->resultset_class . '::' . rand(100);
+   Class::C3::Componentised->inject_base($class, $self->resultset_class);
+   $self->resultset_class($class);
+
+   $self->resultset_class->load_components(@components);
+}
+
 1;

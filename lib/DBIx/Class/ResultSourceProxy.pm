@@ -80,6 +80,8 @@ for my $method_to_proxy (qw/
   relationships
   relationship_info
   has_relationship
+
+  inject_resultset_components
 /) {
   no strict qw/refs/;
   *{__PACKAGE__."::$method_to_proxy"} = subname $method_to_proxy => sub {
