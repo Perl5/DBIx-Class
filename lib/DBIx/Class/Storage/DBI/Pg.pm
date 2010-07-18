@@ -17,13 +17,11 @@ use namespace::clean;
 warn __PACKAGE__.": DBD::Pg 2.9.2 or greater is strongly recommended\n"
   if ($DBD::Pg::VERSION < 2.009002);  # pg uses (used?) version::qv()
 
-sub _supports_insert_returning {
-  my $self = shift;
-
-  return 1
-    if $self->_server_info->{normalized_dbms_version} >= 8.002;
-
-  return 0;
+sub _determine_supports_insert_returning {
+  return shift->_server_info->{normalized_dbms_version} >= 8.002
+    ? 1
+    : 0
+  ;
 }
 
 sub with_deferred_fk_checks {

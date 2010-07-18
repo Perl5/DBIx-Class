@@ -18,9 +18,16 @@ use Try::Tiny;
 use File::Path 'make_path';
 use namespace::clean;
 
+# default cursor class, overridable in connect_info attributes
+__PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
+
+__PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class/);
+# default
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
+
 __PACKAGE__->mk_group_accessors('simple' => qw/
   _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
-  _dbh _server_info_hash _conn_pid _conn_tid _sql_maker _sql_maker_opts
+  _dbh _dbh_details _conn_pid _conn_tid _sql_maker _sql_maker_opts
   transaction_depth _dbh_autocommit  savepoints
 /);
 
@@ -33,17 +40,31 @@ my @storage_options = qw/
 __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 
 
-# default cursor class, overridable in connect_info attributes
-__PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
+# capability definitions, using a 2-tiered accessor system
+# The rationale is:
+#
+# A driver/user may define _use_X, which blindly without any checks says:
+# "(do not) use this capability", (use_dbms_capability is an "inherited"
+# type accessor)
+#
+# If _use_X is undef, _supports_X is then queried. This is a "simple" style
+# accessor, which in turn calls _determine_supports_X, and stores the return
+# in a special slot on the storage object, which is wiped every time a $dbh
+# reconnection takes place (it is not guaranteed that upon reconnection we
+# will get the same rdbms version). _determine_supports_X does not need to
+# exist on a driver, as we ->can for it before calling.
 
-__PACKAGE__->mk_group_accessors('inherited' => qw/
-  sql_maker_class
-  _supports_insert_returning
-/);
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
+my @capabilities = (qw/insert_returning placeholders typeless_placeholders/);
+__PACKAGE__->mk_group_accessors( dbms_capability => map { "_supports_$_" } @capabilities );
+__PACKAGE__->mk_group_accessors( use_dbms_capability => map { "_use_$_" } @capabilities );
+
 
 # Each of these methods need _determine_driver called before itself
 # in order to function reliably. This is a purely DRY optimization
+#
+# get_(use)_dbms_capability need to be called on the correct Storage
+# class, as _use_X may be hardcoded class-wide, and _supports_X calls
+# _determine_supports_X which obv. needs a correct driver as well
 my @rdbms_specific_methods = qw/
   deployment_statements
   sqlt_type
@@ -51,23 +72,27 @@ my @rdbms_specific_methods = qw/
   build_datetime_parser
   datetime_parser_type
 
+
   insert
   insert_bulk
   update
   delete
   select
   select_single
+
+  get_use_dbms_capability
+  get_dbms_capability
 /;
 
 for my $meth (@rdbms_specific_methods) {
 
   my $orig = __PACKAGE__->can ($meth)
-    or next;
+    or die "$meth is not a ::Storage::DBI method!";
 
   no strict qw/refs/;
   no warnings qw/redefine/;
   *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
-    if (not $_[0]->_driver_determined) {
+    if (not $_[0]->_driver_determined and not $_[0]->{_in_determine_driver}) {
       $_[0]->_determine_driver;
       goto $_[0]->can($meth);
     }
@@ -113,6 +138,7 @@ sub new {
 
   $new->transaction_depth(0);
   $new->_sql_maker_opts({});
+  $new->_dbh_details({});
   $new->{savepoints} = [];
   $new->{_in_dbh_do} = 0;
   $new->{_dbh_gen} = 0;
@@ -977,7 +1003,8 @@ sub _populate_dbh {
 
   my @info = @{$self->_dbi_connect_info || []};
   $self->_dbh(undef); # in case ->connected failed we might get sent here
-  $self->_server_info_hash (undef);
+  $self->_dbh_details({}); # reset everything we know
+
   $self->_dbh($self->_connect(@info));
 
   $self->_conn_pid($$);
@@ -1002,17 +1029,57 @@ sub _run_connection_actions {
   $self->_do_connection_actions(connect_call_ => $_) for @actions;
 }
 
+
+
+sub set_use_dbms_capability {
+  $_[0]->set_inherited ($_[1], $_[2]);
+}
+
+sub get_use_dbms_capability {
+  my ($self, $capname) = @_;
+
+  my $use = $self->get_inherited ($capname);
+  return defined $use
+    ? $use
+    : do { $capname =~ s/^_use_/_supports_/; $self->get_dbms_capability ($capname) }
+  ;
+}
+
+sub set_dbms_capability {
+  $_[0]->_dbh_details->{capability}{$_[1]} = $_[2];
+}
+
+sub get_dbms_capability {
+  my ($self, $capname) = @_;
+
+  my $cap = $self->_dbh_details->{capability}{$capname};
+
+  unless (defined $cap) {
+    if (my $meth = $self->can ("_determine$capname")) {
+      $cap = $self->$meth ? 1 : 0;
+    }
+    else {
+      $cap = 0;
+    }
+
+    $self->set_dbms_capability ($capname, $cap);
+  }
+
+  return $cap;
+}
+
 sub _server_info {
   my $self = shift;
 
-  unless ($self->_server_info_hash) {
+  my $info;
+  unless ($info = $self->_dbh_details->{info}) {
 
-    my %info;
+    $info = {};
 
     my $server_version = try { $self->_get_server_version };
 
     if (defined $server_version) {
-      $info{dbms_version} = $server_version;
+      $info->{dbms_version} = $server_version;
 
       my ($numeric_version) = $server_version =~ /^([\d\.]+)/;
       my @verparts = split (/\./, $numeric_version);
@@ -1030,14 +1097,14 @@ sub _server_info {
         }
         push @use_parts, 0 while @use_parts < 3;
 
-        $info{normalized_dbms_version} = sprintf "%d.%03d%03d", @use_parts;
+        $info->{normalized_dbms_version} = sprintf "%d.%03d%03d", @use_parts;
       }
     }
 
-    $self->_server_info_hash(\%info);
+    $self->_dbh_details->{info} = $info;
   }
 
-  return $self->_server_info_hash
+  return $info;
 }
 
 sub _get_server_version {
@@ -2195,7 +2262,7 @@ sub _native_data_type {
 }
 
 # Check if placeholders are supported at all
-sub _placeholders_supported {
+sub _determine_supports_placeholders {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
 
@@ -2214,7 +2281,7 @@ sub _placeholders_supported {
 
 # Check if placeholders bound to non-string types throw exceptions
 #
-sub _typeless_placeholders_supported {
+sub _determine_supports_typeless_placeholders {
   my $self = shift;
   my $dbh  = $self->_get_dbh;
 

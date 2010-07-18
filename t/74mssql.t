@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 # use this if you keep a copy of DBD::Sybase linked to FreeTDS somewhere else
 BEGIN {
@@ -18,38 +18,25 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MSSQL_${_}" } qw/DSN USER PASS/};
 plan skip_all => 'Set $ENV{DBICTEST_MSSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn);
 
-my @storage_types = (
-  'DBI::Sybase::Microsoft_SQL_Server',
+my $testdb_supports_placeholders = DBICTest::Schema->connect($dsn, $user, $pass)
+                                                    ->storage
+                                                     ->_supports_typeless_placeholders;
+my @test_storages = (
+  $testdb_supports_placeholders ? 'DBI::Sybase::Microsoft_SQL_Server' : (),
   'DBI::Sybase::Microsoft_SQL_Server::NoBindVars',
 );
-my $storage_idx = -1;
+
 my $schema;
+for my $storage_type (@test_storages) {
+  $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 
-my $NUMBER_OF_TESTS_IN_BLOCK = 18;
-for my $storage_type (@storage_types) {
-  $storage_idx++;
-
-  $schema = DBICTest::Schema->clone;
-
-  $schema->connection($dsn, $user, $pass);
-
-  if ($storage_idx != 0) { # autodetect
-    no warnings 'redefine';
-    local *DBIx::Class::Storage::DBI::_typeless_placeholders_supported =
-      sub { 0 };
-#    $schema->storage_type("::$storage_type");
-    $schema->storage->ensure_connected;
-  }
-  else {
-    $schema->storage->ensure_connected;
+  if ($storage_type =~ /NoBindVars\z/) {
+    # since we want to use the nobindvar - disable the capability so the
+    # rebless happens to the correct class
+    $schema->storage->_use_typeless_placeholders (0);
   }
 
-  if ($storage_idx == 0 && ref($schema->storage) =~ /NoBindVars\z/) {
-    my $tb = Test::More->builder;
-    $tb->skip('no placeholders') for 1..$NUMBER_OF_TESTS_IN_BLOCK;
-    next;
-  }
-
+  $schema->storage->ensure_connected;
   isa_ok($schema->storage, "DBIx::Class::Storage::$storage_type");
 
   SKIP: {
@@ -189,8 +176,7 @@ SQL
     local $storage->{_sql_maker}        = undef;
     local $storage->{_sql_maker_opts}   = undef;
 
-    local $storage->{_server_info_hash} = { %{ $storage->_server_info_hash } }; # clone
-    delete @{$storage->{_server_info_hash}}{qw/dbms_version normalized_dbms_version/};
+    local $storage->{_dbh_details}{info} = {}; # delete cache
 
     $storage->sql_maker;
 

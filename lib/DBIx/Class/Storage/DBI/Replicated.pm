@@ -308,7 +308,6 @@ has 'write_handler' => (
 
     backup
     is_datatype_numeric
-    _supports_insert_returning
     _count_select
     _subq_update_delete
     svp_rollback
@@ -344,12 +343,10 @@ has 'write_handler' => (
     _parse_connect_do
     _dbh_commit
     _execute_array
-    _placeholders_supported
     savepoints
     _sqlt_minimum_version
     _sql_maker_opts
     _conn_pid
-    _typeless_placeholders_supported
     _conn_tid
     _dbh_autocommit
     _native_data_type
@@ -368,7 +365,6 @@ has 'write_handler' => (
     _dbh_sth
     _dbh_execute
     _prefetch_insert_auto_nextvals
-    _server_info_hash
   /],
 );
 
@@ -377,6 +373,24 @@ my @unimplemented = qw(
   _preserve_foreign_dbh
   _verify_pid
   _verify_tid
+
+  get_use_dbms_capability
+  set_use_dbms_capability
+  get_dbms_capability
+  set_dbms_capability
+
+  _dbh_details
+
+  _use_insert_returning
+  _supports_insert_returning
+
+  _use_placeholders
+  _supports_placeholders
+  _determine_supports_placeholders
+
+  _use_typeless_placeholders
+  _supports_typeless_placeholders
+  _determine_supports_typeless_placeholders
 );
 
 for my $method (@unimplemented) {
@@ -1018,28 +1032,27 @@ sub _ping {
   return min map $_->_ping, $self->all_storages;
 }
 
+# not using the normalized_version, because we want to preserve
+# version numbers much longer than the conventional xxx.yyyzzz
 my $numify_ver = sub {
   my $ver = shift;
   my @numparts = split /\D+/, $ver;
-  my $format = '%d.' . (join '', ('%05d') x (@numparts - 1));
+  my $format = '%d.' . (join '', ('%06d') x (@numparts - 1));
 
   return sprintf $format, @numparts;
 };
-
 sub _server_info {
   my $self = shift;
 
-  if (not $self->_server_info_hash) {
-    my $min_version_info = (
+  if (not $self->_dbh_details->{info}) {
+    $self->_dbh_details->{info} = (
       reduce { $a->[0] < $b->[0] ? $a : $b }
       map [ $numify_ver->($_->{dbms_version}), $_ ],
       map $_->_server_info, $self->all_storages
     )->[1];
-
-    $self->_server_info_hash($min_version_info); # on master
   }
 
-  return $self->_server_info_hash;
+  return $self->next::method;
 }
 
 sub _get_server_version {

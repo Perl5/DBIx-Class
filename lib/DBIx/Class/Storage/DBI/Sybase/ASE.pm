@@ -83,8 +83,8 @@ To turn off this warning set the DBIC_SYBASE_FREETDS_NOWARN environment
 variable.
 EOF
 
-    if (not $self->_typeless_placeholders_supported) {
-      if ($self->_placeholders_supported) {
+    if (not $self->_use_typeless_placeholders) {
+      if ($self->_use_placeholders) {
         $self->auto_cast(1);
       }
       else {
@@ -102,7 +102,7 @@ EOF
     $self->_rebless;
   }
   # this is highly unlikely, but we check just in case
-  elsif (not $self->_typeless_placeholders_supported) {
+  elsif (not $self->_use_typeless_placeholders) {
     $self->auto_cast(1);
   }
 }

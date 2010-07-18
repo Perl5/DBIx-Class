@@ -31,7 +31,8 @@ L</connect_call_datetime_setup>.
 
 =cut
 
-sub _supports_insert_returning { 1 }
+# set default
+__PACKAGE__->_use_insert_returning (1);
 
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;

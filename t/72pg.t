@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Sub::Name;
 use lib qw(t/lib);
 use DBICTest;
 
@@ -22,23 +23,6 @@ EOM
 
 our @test_classes; #< array that will be pushed into by test classes defined in this file
 DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_classes;
-
-my $test_server_supports_insert_returning = do {
-  my $s = DBICTest::Schema->connect($dsn, $user, $pass);
-  $s->storage->_determine_driver;
-  $s->storage->_supports_insert_returning;
-};
-
-my $schema;
-
-for my $use_insert_returning ($test_server_supports_insert_returning
-  ? (0,1)
-  : (0)
-) {
-  no warnings qw/redefine once/;
-  local *DBIx::Class::Storage::DBI::Pg::_supports_insert_returning = sub {
-    $use_insert_returning
-  };
 
 ###  pre-connect tests (keep each test separate as to make sure rebless() runs)
   {
@@ -60,12 +44,56 @@ for my $use_insert_returning ($test_server_supports_insert_returning
 
     ok (!$s->storage->_dbh, 'still not connected');
   }
+
   {
     my $s = DBICTest::Schema->connect($dsn, $user, $pass);
     # make sure sqlt_type overrides work (::Storage::DBI::Pg does this)
     ok (!$s->storage->_dbh, 'definitely not connected');
     is ($s->storage->sqlt_type, 'PostgreSQL', 'sqlt_type correct pre-connection');
     ok (!$s->storage->_dbh, 'still not connected');
+  }
+
+# check if we indeed do support stuff
+my $test_server_supports_insert_returning = do {
+  my $v = DBICTest::Schema->connect($dsn, $user, $pass)
+                   ->storage
+                    ->_get_dbh
+                     ->get_info(18);
+  $v =~ /^(\d+)\.(\d+)/
+    or die "Unparseable Pg server version: $v\n";
+
+  ( sprintf ('%d.%d', $1, $2) >= 8.2 ) ? 1 : 0;
+};
+is (
+  DBICTest::Schema->connect($dsn, $user, $pass)->storage->_use_insert_returning,
+  $test_server_supports_insert_returning,
+  'insert returning capability guessed correctly'
+);
+
+my $schema;
+for my $use_insert_returning ($test_server_supports_insert_returning
+  ? (0,1)
+  : (0)
+) {
+
+  no warnings qw/once/;
+  local *DBICTest::Schema::connection = subname 'DBICTest::Schema::connection' => sub {
+    my $s = shift->next::method (@_);
+    $s->storage->_use_insert_returning ($use_insert_returning);
+    $s;
+  };
+
+### test capability override
+  {
+    my $s = DBICTest::Schema->connect($dsn, $user, $pass);
+
+    ok (!$s->storage->_dbh, 'definitely not connected');
+
+    ok (
+      ! ($s->storage->_use_insert_returning xor $use_insert_returning),
+      'insert returning capability set correctly',
+    );
+    ok (!$s->storage->_dbh, 'still not connected (capability override works)');
   }
 
 ### connect, create postgres-specific test schema
@@ -290,7 +318,7 @@ TODO: {
 
 ######## test non-serial auto-pk
 
-  if ($schema->storage->_supports_insert_returning) {
+  if ($schema->storage->_use_insert_returning) {
     $schema->source('TimestampPrimaryKey')->name('dbic_t_schema.timestamp_primary_key_test');
     my $row = $schema->resultset('TimestampPrimaryKey')->create({});
     ok $row->id;
