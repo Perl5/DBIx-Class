@@ -7,6 +7,7 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIC::SqlMakerTest;
 
 my $schema = DBICTest->init_schema();
 
@@ -89,5 +90,42 @@ is($artist->cds->count, 1, "count on search limiting prefetched has_many");
 # try with double limit
 my $artist2 = $use_prefetch->search({'cds.title' => { '!=' => $artist_many_cds->cds->first->title } })->slice (0,0)->next;
 is($artist2->cds->count, 2, "count on search limiting prefetched has_many");
+
+# make sure 1:1 joins do not force a subquery (no point to exercise the optimizer, if at all available)
+# get cd's that have any tracks and their artists
+my $single_prefetch_rs = $schema->resultset ('CD')->search (
+  { 'me.year' => 2010, 'artist.name' => 'foo' },
+  { prefetch => ['tracks', 'artist'], rows => 15 },
+);
+is_same_sql_bind (
+  $single_prefetch_rs->as_query,
+  '(
+    SELECT
+        me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track,
+        tracks.trackid, tracks.cd, tracks.position, tracks.title, tracks.last_updated_on, tracks.last_updated_at, tracks.small_dt,
+        artist.artistid, artist.name, artist.rank, artist.charfield
+      FROM (
+        SELECT
+            me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+          FROM cd me
+          JOIN artist artist ON artist.artistid = me.artist
+        WHERE ( ( artist.name = ? AND me.year = ? ) )
+        LIMIT 15
+      ) me
+      LEFT JOIN track tracks
+        ON tracks.cd = me.cdid
+      JOIN artist artist
+        ON artist.artistid = me.artist
+    WHERE ( ( artist.name = ? AND me.year = ? ) )
+    ORDER BY tracks.cd
+  )',
+  [
+    [ 'artist.name' => 'foo' ],
+    [ 'me.year'     => 2010  ],
+    [ 'artist.name' => 'foo' ],
+    [ 'me.year'     => 2010  ],
+  ],
+  'No grouping of non-multiplying resultsets',
+);
 
 done_testing;

@@ -30,6 +30,8 @@ Revision history for DBIx::Class
           due to badly-written handlers (the mechanism was never meant
           to be able to suppress exceptions)
         - Fixed rels ending with me breaking subqueried limit realiasing
+        - Remove rogue GROUP BY on non-multiplying prefetch-induced
+          subqueries
         - Oracle sequence detection now *really* works across schemas
           (fixed some ommissions from 0.08123)
         - dbicadmin now uses a /usr/bin/env shebang to work better with

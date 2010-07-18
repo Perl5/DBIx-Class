@@ -37,7 +37,6 @@ sub _prune_unused_joins {
   # {multiplying} joins can go
   delete $aliastypes->{multiplying} if $attrs->{group_by};
 
-
   my @newfrom = $from->[0]; # FROM head is always present
 
   my %need_joins = (map { %{$_||{}} } (values %$aliastypes) );
@@ -103,7 +102,11 @@ sub _adjust_select_args_for_complex_prefetch {
 
   # construct the inner $from for the subquery
   # we need to prune first, because this will determine if we need a group_by below
-  my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, $inner_attrs);
+  # the fake group_by is so that the pruner throws away all non-selecting, non-restricting
+  # multijoins (since we def. do not care about those inside the subquery)
+  my $inner_from = $self->_prune_unused_joins ($from, $inner_select, $where, {
+    group_by => ['dummy'], %$inner_attrs,
+  });
 
   # if a multi-type join was needed in the subquery - add a group_by to simulate the
   # collapse in the subq
@@ -134,14 +137,13 @@ sub _adjust_select_args_for_complex_prefetch {
   # - it is part of the restrictions, in which case we need to collapse the outer
   #   result by tackling yet another group_by to the outside of the query
 
-  # normalize a copy of $from, so it will be easier to work with further
-  # down (i.e. promote the initial hashref to an AoH)
   $from = [ @$from ];
-  $from->[0] = [ $from->[0] ];
 
   # so first generate the outer_from, up to the substitution point
   my @outer_from;
   while (my $j = shift @$from) {
+    $j = [ $j ] unless ref $j eq 'ARRAY'; # promote the head-from to an AoH
+
     if ($j->[0]{-alias} eq $attrs->{alias}) { # time to swap
       push @outer_from, [
         $subq_joinspec,
@@ -218,7 +220,7 @@ sub _resolve_aliastypes_from_select_args {
 
     $alias_list->{$al} = $j;
     $aliases_by_type->{multiplying}{$al} = 1
-      unless $j->{-is_single};
+      if ref($_) eq 'ARRAY' and ! $j->{-is_single}; # not array == {from} head == can't be multiplying
   }
 
   # get a column to source/alias map (including unqualified ones)
