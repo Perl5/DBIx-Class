@@ -556,14 +556,15 @@ SQL
     $row = $rs->create({ amount => 100 });
   } 'inserted a money value';
 
-  is eval { $rs->find($row->id)->amount }, 100, 'money value round-trip';
+  cmp_ok eval { $rs->find($row->id)->amount }, '==', 100,
+    'money value round-trip';
 
   lives_ok {
     $row->update({ amount => 200 });
   } 'updated a money value';
 
-  is eval { $rs->find($row->id)->amount },
-    200, 'updated money value round-trip';
+  cmp_ok eval { $rs->find($row->id)->amount }, '==', 200,
+    'updated money value round-trip';
 
   lives_ok {
     $row->update({ amount => undef });

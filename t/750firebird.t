@@ -241,7 +241,18 @@ EOF
       lives_ok { $rs->create( { 'id' => $id, $type => $binstr{$size} } ) }
       "inserted $size $type without dying";
 
-      ok($rs->find($id)->$type eq $binstr{$size}, "verified inserted $size $type" );
+      my $got = $rs->find($id)->$type;
+
+      my $hexdump = sub { join '', map sprintf('%02X', ord), split //, shift };
+
+      ok($got eq $binstr{$size}, "verified inserted $size $type" )
+        or do {
+            diag "For " . (ref $schema->storage) . "\n";
+            diag "Got blob:\n";
+            diag $hexdump->(substr($got,0,50));
+            diag "Expecting blob:\n";
+            diag $hexdump->(substr($binstr{$size},0,50));
+        };
     }
   }
 }
