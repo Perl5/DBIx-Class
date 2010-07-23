@@ -7,6 +7,9 @@ use lib qw(t/lib);
 use DBICTest;
 use DBI::Const::GetInfoType;
 use DBIC::SqlMakerTest;
+use Try::Tiny;
+
+DBICTest::Schema->load_classes('BitField');
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
@@ -42,6 +45,18 @@ $dbh->do("CREATE TABLE owners (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, n
 $dbh->do("DROP TABLE IF EXISTS books;");
 
 $dbh->do("CREATE TABLE books (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, source VARCHAR(100) NOT NULL, owner integer NOT NULL, title varchar(100) NOT NULL,  price integer);");
+
+$dbh->do("DROP TABLE IF EXISTS bitfield_test;");
+
+my $have_binary_bit =
+  $schema->storage->_server_info->{normalized_dbms_version} > 5.000002;
+
+if ($have_binary_bit) {
+  $dbh->do("CREATE TABLE bitfield_test (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, bitfield_1 BIT(1), bitfield_32 bit(32), bitfield_64 bit(64));");
+}
+else {
+  $dbh->do("CREATE TABLE bitfield_test (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, bitfield_1 BIT(1));");
+}
 
 #'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
 
@@ -325,6 +340,73 @@ ZEROINSEARCH: {
   );
 }
 
+# test bit fields as binary
+SKIP: {
+  skip 'no binary BIT(X) support in your MySQL', 4 unless $have_binary_bit;
+
+  my $rs = $schema->resultset('BitField');
+
+  my $b1_bit   = "\01";
+  my $b32_bits = "\0xFFFFFFFF";
+  my $b64_bits = "\0xFFFFFFFFFFFFFFFF";
+
+  ok((my $row1 = $rs->create({
+    bitfield_1 => $b1_bit, bitfield_32 => $b32_bits, bitfield_64 => $b64_bits
+  })), 'created a row with bit columns');
+
+  is $row1->bitfield_1,  $b1_bit,   'bit(1)  field set correctly';
+  is $row1->bitfield_32, $b32_bits, 'bit(32) field set correctly';
+  is $row1->bitfield_64, $b64_bits, 'bit(64) field set correctly';
+
+  $row1->delete;
+}
+
+# test bit fields with bit_as_unsigned
+{
+  my $bit_schema = DBICTest::Schema->connect ($dsn, $user, $pass, {
+    on_connect_call => 'bit_as_unsigned'
+  });
+
+  my $rs = $bit_schema->resultset('BitField');
+
+  require Math::BigInt;
+
+  my $i32_bits = Math::BigInt->new('0xFFFFFFFF');
+  my $i64_bits = Math::BigInt->new('0xFFFFFFFFFFFFFFFF');
+
+  ok((my $row1 = $rs->create({
+    bitfield_1 => 1,
+    ($have_binary_bit ?
+      (bitfield_32 => $i32_bits, bitfield_64 => $i64_bits) :
+      ()
+    ),
+  })), 'created a row with bit columns');
+
+  $row1->discard_changes;
+
+  is $row1->bitfield_1,  1, 'bit(1) field set to 1 correctly';
+
+  SKIP: {
+    skip 'no binary BIT(X) support in your MySQL', 2 unless $have_binary_bit;
+
+    is $row1->bitfield_32, $i32_bits, 'bit(32) field set correctly';
+    is $row1->bitfield_64, $i64_bits, 'bit(64) field set correctly';
+  };
+
+  ok((my $row2 = $rs->create({ bitfield_1 => 0 })),
+    'created a row with bit columns');
+
+  $row2->discard_changes;
+
+  is $row2->bitfield_1, 0, 'bit(1) field set to 0 correctly';
+
+  is $rs->search({ bitfield_1 => 0 })->count, 1,
+  'correct count of rows with bit field set to 0';
+
+  is $rs->search({ bitfield_1 => 1 })->count, 1,
+  'correct count of rows with bit field set to 1';
+}
+
 ## If find() is the first query after connect()
 ## DBI::Storage::sql_maker() will be called before
 ## _determine_driver() and so the ::SQLHacks class for MySQL
@@ -335,3 +417,12 @@ $schema2->resultset("Artist")->find(4);
 isa_ok($schema2->storage->sql_maker, 'DBIx::Class::SQLAHacks::MySQL');
 
 done_testing;
+
+END {
+  if (my $dbh = try { $schema->storage->dbh }) {
+    foreach my $table (qw/artist cd producer cd_to_producer owners books
+                          bitfield_test/) {
+      $dbh->do("DROP TABLE $table");
+    }
+  }
+}

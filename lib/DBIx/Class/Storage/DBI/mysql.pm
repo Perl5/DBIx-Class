@@ -8,8 +8,12 @@ use base qw/
   DBIx::Class::Storage::DBI
 /;
 use mro 'c3';
+use DBI ':sql_types';
+use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MySQL');
+
+__PACKAGE__->mk_group_accessors(simple => qw/_bit_as/);
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
@@ -99,6 +103,73 @@ sub lag_behind_master {
 # This assumes you have set proper transaction isolation and use innodb.
 sub _subq_update_delete {
   return shift->_per_row_update_delete (@_);
+}
+
+# handle bit fields properly
+
+=head2 connect_call_bit_as_unsigned
+
+Used as:
+
+  on_connect_call => 'bit_as_unsigned'
+
+in your L<connect_info|DBIx::Class::Storage::DBI/connect_info>.
+
+Beginning in MySQL 5.0.3 C<BIT> columns are stored as binary data, where before
+they were an alias for C<TINYINT>.
+
+See L<http://dev.mysql.com/doc/refman/5.0/en/numeric-types.html> for details.
+
+This option allows you to use C<BIT> columns as C<UNSIGNED> integers in all
+versions of MySQL.
+
+B<NOTE:> do not insert negative values when using this option, they will not be
+inserted correctly.
+
+=cut
+
+sub connect_call_bit_as_unsigned {
+  my $self = shift;
+
+  $self->_bit_as('UNSIGNED');
+}
+
+sub bind_attribute_by_data_type {
+  my $self        = shift;
+  my ($data_type) = @_;
+
+  my $res = $self->next::method(@_) || {};
+
+  if ($data_type && $self->_bit_as && lc($data_type) eq 'bit') {
+    $res->{TYPE} = SQL_INTEGER;
+  }
+
+  return $res;
+}
+
+sub _select_args {
+  my $self             = shift;
+  my ($ident, $select) = @_;
+
+  return $self->next::method(@_) unless $self->_bit_as;
+
+  my $col_info = $self->_resolve_column_info($ident);
+
+  for my $select_idx (0..$#$select) {
+    my $selected = $select->[$select_idx];
+
+    next if ref $selected;
+
+    my $data_type = $col_info->{$selected}{data_type};
+
+    if ($data_type && lc($data_type) eq 'bit') {
+      $selected = $self->sql_maker->_quote($selected);
+
+      $select->[$select_idx] = \("CAST($selected AS " . $self->_bit_as . ")");
+    }
+  }
+
+  return $self->next::method(@_);
 }
 
 1;
