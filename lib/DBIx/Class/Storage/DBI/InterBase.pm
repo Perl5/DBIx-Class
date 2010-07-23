@@ -38,15 +38,15 @@ __PACKAGE__->sql_limit_dialect ('FirstSkip');
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;
 
-  if ($nextval ne 'nextval') {
-    $self->throw_exception("Can only fetch 'nextval' for a sequence");
-  }
+  $self->throw_exception("Can only fetch 'nextval' for a sequence")
+    if $nextval !~ /^nextval$/i;
 
   $self->throw_exception('No sequence to fetch') unless $sequence;
 
-  my ($val) = $self->_get_dbh->selectrow_array(
-'SELECT GEN_ID(' . $self->sql_maker->_quote($sequence) .
-', 1) FROM rdb$database');
+  my ($val) = $self->_get_dbh->selectrow_array(sprintf
+    'SELECT GEN_ID(%s, 1) FROM rdb$database',
+    $self->sql_maker->_quote($sequence)
+  );
 
   return $val;
 }

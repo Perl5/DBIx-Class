@@ -75,11 +75,11 @@ EOF
 EOF
   $dbh->do('ALTER TABLE "sequence_test" ADD CONSTRAINT "sequence_test_constraint" PRIMARY KEY ("pkid1", "pkid2")');
   eval { $dbh->do('DROP GENERATOR "pkid1_seq"') };
-  eval { $dbh->do('DROP GENERATOR "pkid2_seq"') };
+  eval { $dbh->do('DROP GENERATOR pkid2_seq') };
   eval { $dbh->do('DROP GENERATOR "nonpkid_seq"') };
   $dbh->do('CREATE GENERATOR "pkid1_seq"');
-  $dbh->do('CREATE GENERATOR "pkid2_seq"');
-  $dbh->do('SET GENERATOR "pkid2_seq" TO 9');
+  $dbh->do('CREATE GENERATOR pkid2_seq');
+  $dbh->do('SET GENERATOR pkid2_seq TO 9');
   $dbh->do('CREATE GENERATOR "nonpkid_seq"');
   $dbh->do('SET GENERATOR "nonpkid_seq" TO 19');
 
@@ -272,9 +272,13 @@ sub cleanup {
   eval { $dbh->do('DROP TRIGGER "artist_bi"') };
   diag $@ if $@;
 
-  foreach my $generator (qw/gen_artist_artistid pkid1_seq pkid2_seq
-                            nonpkid_seq/) {
-    eval { $dbh->do(qq{DROP GENERATOR "$generator"}) };
+  foreach my $generator (qw/
+    "gen_artist_artistid"
+    "pkid1_seq"
+    pkid2_seq
+    "nonpkid_seq"
+  /) {
+    eval { $dbh->do(qq{DROP GENERATOR $generator}) };
     diag $@ if $@;
   }
 

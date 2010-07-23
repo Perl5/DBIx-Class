@@ -68,7 +68,7 @@ sub _sequence_fetch {
   $self->throw_exception('No sequence to fetch') unless $sequence;
 
   my ($val) = $self->_get_dbh->selectrow_array(
-    sprintf ("select %s('%s')", $function, $sequence)
+    sprintf ("select %s('%s')", $function, (ref $sequence eq 'SCALAR') ? $$sequence : $sequence)
   );
 
   return $val;

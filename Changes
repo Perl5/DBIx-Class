@@ -16,6 +16,7 @@ Revision history for DBIx::Class
           (RT#62642)
         - Fix incomplete logic while detecting correct Oracle sequence
           on insert
+        - Major overhaul of Storage::Oracle to handle enabled quoting
         - Fixed incorrect composition of select/as/columns attributes during
           chaining (RT#61235)
         - Proper serialization of resultsets with open cursors

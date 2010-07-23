@@ -1594,7 +1594,7 @@ sub _prefetch_autovalues {
       )
     ) {
       $values{$col} = $self->_sequence_fetch(
-        'nextval',
+        'NEXTVAL',
         ( $colinfo->{$col}{sequence} ||=
             $self->_dbh_get_autoinc_seq($self->_get_dbh, $source, $col)
         ),
