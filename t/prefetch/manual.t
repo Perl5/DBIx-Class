@@ -16,11 +16,13 @@ my $rs = $schema->resultset ('CD')->search ({}, {
     { 'genreid'                                 => 'me.genreid' },            # nullable
     { 'tracks.title'                            => 'tracks.title' },          # non-unique (no me.id)
     { 'single_track.cd.artist.cds.cdid'         => 'cds.cdid' },              # to give uniquiness to ...tracks.title below
-    { 'single_track.cd.artist.cds.artist'       => 'cds.artist' },            # non-unique
+    { 'single_track.cd.artist.artistid'         => 'artist.artistid' },       # uniqufies entire parental chain
     { 'single_track.cd.artist.cds.year'         => 'cds.year' },              # non-unique
     { 'single_track.cd.artist.cds.genreid'      => 'cds.genreid' },           # nullable
     { 'single_track.cd.artist.cds.tracks.title' => 'tracks_2.title' },        # unique when combined with ...cds.cdid above
     { 'latest_cd'                               => { max => 'cds.year' } },   # random function
+    { 'title'                                   => 'me.title' },              # uniquiness for me
+    { 'artist'                                  => 'me.artist' },             # uniquiness for me
   ],
   result_class => 'DBIx::Class::ResultClass::HashRefInflator',
 });

@@ -756,7 +756,10 @@ sub single {
     $attrs->{where}, $attrs
   );
 
-  return (@data ? ($self->_construct_object(@data))[0] : undef);
+  return @data
+    ? ($self->_construct_objects(@data))[0]
+    : undef
+  ;
 }
 
 
@@ -964,23 +967,99 @@ sub next {
       : $self->cursor->next
   );
   return undef unless (@row);
-  my ($row, @more) = $self->_construct_object(@row);
+  my ($row, @more) = $self->_construct_objects(@row);
   $self->{stashed_objects} = \@more if @more;
   return $row;
 }
 
-sub _construct_object {
+# takes a single DBI-row of data and coinstructs as many objects
+# as the resultset attributes call for.
+# This can be a bit of an action at a distance - it takes as an argument
+# the *current* cursor-row (already taken off the $sth), but if
+# collapsing is requested it will keep advancing the cursor either
+# until the current row-object is assembled (the collapser was able to
+# order the result sensibly) OR until the cursor is exhausted (an
+# unordered collapsing resultset effectively triggers ->all)
+
+# FIXME: why the *FUCK* do we pass around DBI data by copy?! Sadly needs
+# assessment before changing...
+#
+sub _construct_objects {
   my ($self, @row) = @_;
 
-  my $info = $self->_collapse_result($self->{_attrs}{as}, \@row)
+  my $attrs = $self->_resolved_attrs;
+  my $keep_collapsing = $attrs->{collapse};
+
+  my $res_index;
+=begin
+  do {
+    my $me_pref_col = $attrs->{_row_parser}->($row_ref);
+
+    my $container;
+    if ($keep_collapsing) {
+
+      # FIXME - we should be able to remove these 2 checks after the design validates
+      $self->throw_exception ('Collapsing without a top-level collapse-set... can not happen')
+        unless @{$me_ref_col->[2]};
+      $self->throw_exception ('Top-level collapse-set contains a NULL-value... can not happen')
+        if grep { ! defined $_ }  @{$me_pref_col->[2]};
+
+      my $main_ident = join "\x00", @{$me_pref_col->[2]};
+
+      if (! $res_index->{$main_ident}) {
+        # this is where we bail out IFF we are ordered, and the $main_ident changes
+
+        $res_index->{$main_ident} = {
+          all_me_pref => [,
+          index => scalar keys %$res_index,
+        };
+      }
+    }
+
+
+
+      $container = $res_index->{$main_ident}{container};
+    };
+
+    push @$container, [ @{$me_pref_col}[0,1] ];
+
+
+
+  } while (
+    $keep_collapsing
+      &&
+    do { $row_ref = [$self->cursor->next]; $self->{stashed_row} = $row_ref if @$row_ref; scalar @$row_ref }
+  );
+
+  # attempt collapse all rows with same collapse identity
+  if (@to_collapse > 1) {
+    my @collapsed;
+    while (@to_collapse) {
+      $self->_merge_result(\@collapsed, shift @to_collapse);
+    }
+  }
+=cut
+
+  my $mepref_structs = $self->_collapse_result(\@row)
     or return ();
-  my @new = $self->result_class->inflate_result($self->result_source, @$info);
-  @new = $self->{_attrs}{record_filter}->(@new)
-    if exists $self->{_attrs}{record_filter};
-  return @new;
+
+  my $rsrc = $self->result_source;
+  my $res_class = $self->result_class;
+  my $inflator = $res_class->can ('inflate_result');
+
+  my @objs = map {
+    $res_class->$inflator ($rsrc, @$_)
+  } (@$mepref_structs);
+
+  if (my $f = $attrs->{record_filter}) {
+    @objs = map { $f->($_) } @objs;
+  }
+
+  return @objs;
 }
 
 =begin
+
 # two arguments: $as_proto is an arrayref of column names,
 # $row_ref is an arrayref of the data. If none of the row data
 # is defined we return undef (that's copied from the old
@@ -1114,7 +1193,7 @@ sub _merge_result {
 
   return $to_collapse[0];
 }
-=cut
+
 
 # two arguments: $as_proto is an arrayref of 'as' column names,
 # $row_ref is an arrayref of the data. The do-while loop will run
@@ -1156,15 +1235,8 @@ sub _collapse_result {
   );
 
   # attempt collapse all rows with same collapse identity
-  if (@to_collapse > 1) {
-    my @collapsed;
-    while (@to_collapse) {
-      $self->_merge_result(\@collapsed, shift @to_collapse);
-    }
-  }
-
-  return 1;
 }
+=cut
 
 # Takes an arrayref of me/pref pairs and a new me/pref pair that should
 # be merged on a preexisting matching me (or should be pushed into $merged
@@ -1412,30 +1484,32 @@ sub all {
       $self->throw_exception("all() doesn't take any arguments, you probably wanted ->search(...)->all()");
   }
 
-  return @{ $self->get_cache } if $self->get_cache;
+  if (my $c = $self->get_cache) {
+    return @$c;
+  }
 
-  my @obj;
+  my @objects;
 
   if ($self->_resolved_attrs->{collapse}) {
     # Using $self->cursor->all is really just an optimisation.
     # If we're collapsing has_many prefetches it probably makes
     # very little difference, and this is cleaner than hacking
-    # _construct_object to survive the approach
+    # _construct_objects to survive the approach
     $self->cursor->reset;
     my @row = $self->cursor->next;
     while (@row) {
-      push(@obj, $self->_construct_object(@row));
+      push(@objects, $self->_construct_objects(@row));
       @row = (exists $self->{stashed_row}
                ? @{delete $self->{stashed_row}}
                : $self->cursor->next);
     }
   } else {
-    @obj = map { $self->_construct_object(@$_) } $self->cursor->all;
+    @objects = map { $self->_construct_objects($_) } $self->cursor->all;
   }
 
-  $self->set_cache(\@obj) if $self->{attrs}{cache};
+  $self->set_cache(\@objects) if $self->{attrs}{cache};
 
-  return @obj;
+  return @objects;
 }
 
 =head2 reset
@@ -3099,21 +3173,11 @@ sub _resolved_attrs {
     }
   }
 
-  # if collapsing (via prefetch or otherwise) calculate row-idents and necessary order_by
-  if ($attrs->{collapse}) {
-
-    # only consider real columns (not functions) during collapse resolution
-    # this check shouldn't really be here, as fucktards are not supposed to
-    # alias random crap to declared columns anyway, but still - just in
-    # case
-    my @plain_selects = map
-      { ( ! ref $attrs->{select}[$_] &&  $attrs->{as}[$_] ) || () }
-      ( 0 .. $#{$attrs->{select}} )
-    ;
-
-    @{$attrs}{qw/_collapse_ident _collapse_order/} =
-      $source->_resolve_collapse( \@plain_selects );
-  }
+  # the row parser generates differently depending on whether collapsing is requested
+  # the need to look at {select} is temporary
+  $attrs->{_row_parser} = $source->_mk_row_parser (
+    @{$attrs}{qw/as collapse select/}
+  );
 
   # if both page and offset are specified, produce a combined offset
   # even though it doesn't make much sense, this is what pre 081xx has
