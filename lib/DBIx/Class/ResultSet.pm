@@ -2974,21 +2974,33 @@ sub _resolved_attrs {
       carp ("Useless use of distinct on a grouped resultset ('distinct' is ignored when a 'group_by' is present)");
     }
     else {
-      $attrs->{group_by} = [ grep { !ref($_) || (ref($_) ne 'HASH') } @{$attrs->{select}} ];
+      my $storage = $self->result_source->schema->storage;
+      my $rs_column_list = $storage->_resolve_column_info ($attrs->{from});
 
+      my $group_spec = $attrs->{group_by} = [];
+      my %group_index;
+
+      for (@{$attrs->{select}}) {
+        if (! ref($_) or ref ($_) ne 'HASH' ) {
+          push @$group_spec, $_;
+          $group_index{$_}++;
+          if ($rs_column_list->{$_} and $_ !~ /\./ ) {
+            # add a fully qualified version as well
+            $group_index{"$rs_column_list->{$_}{-source_alias}.$_"}++;
+          }
+        }
+      }
       # add any order_by parts that are not already present in the group_by
       # we need to be careful not to add any named functions/aggregates
       # i.e. select => [ ... { count => 'foo', -as 'foocount' } ... ]
-      my %already_grouped = map { $_ => 1 } (@{$attrs->{group_by}});
-
-      my $storage = $self->result_source->schema->storage;
-
-      my $rs_column_list = $storage->_resolve_column_info ($attrs->{from});
-
       for my $chunk ($storage->_parse_order_by($attrs->{order_by})) {
-        if ($rs_column_list->{$chunk} && not $already_grouped{$chunk}++) {
-          push @{$attrs->{group_by}}, $chunk;
-        }
+
+        # only consider real columns (for functions the user got to do an explicit group_by)
+        my $colinfo = $rs_column_list->{$chunk}
+          or next;
+
+        $chunk = "$colinfo->{-source_alias}.$chunk" if $chunk !~ /\./;
+        push @$group_spec, $chunk unless $group_index{$chunk}++;
       }
     }
   }

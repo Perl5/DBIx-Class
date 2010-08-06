@@ -14,6 +14,8 @@ Revision history for DBIx::Class
           display properly in DBIC_TRACE
         - Incomplete exception thrown on relationship auto-fk-inference
           failures
+        - Fixed distinct with order_by to not double-specify the same
+          column in the GROUP BY clause
 
     * Misc
         - Makefile.PL no longer imports GetOptions() to interoperate

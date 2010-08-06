@@ -219,7 +219,7 @@ for ($cd_rs->all) {
         FROM (
           SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
             FROM cd me
-          GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track, cdid
+          GROUP BY me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
           ORDER BY cdid
         ) me
         LEFT JOIN tags tags ON tags.cd = me.cdid
