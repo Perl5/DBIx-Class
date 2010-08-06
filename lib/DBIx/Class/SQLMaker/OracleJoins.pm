@@ -17,16 +17,16 @@ sub select {
 sub _recurse_from {
   my ($self, $from, @join) = @_;
 
-  my @sqlf = $self->_make_as($from);
+  my @sqlf = $self->_from_chunk_to_sql($from);
 
-  foreach my $j (@join) {
-    my ($to, $on) = @{ $j };
+  for (@join) {
+    my ($to, $on) = @$_;
 
     if (ref $to eq 'ARRAY') {
       push (@sqlf, $self->_recurse_from(@{ $to }));
     }
     else {
-      push (@sqlf, $self->_make_as($to));
+      push (@sqlf, $self->_from_chunk_to_sql($to));
     }
   }
 

@@ -32,6 +32,7 @@ Revision history for DBIx::Class
           regression of inserts into a Postgres / ::Replicated combination
         - Missing dependency check in t/60core.t (RT#62635)
         - Fix regressions in IC::DT registration logic
+        - Fix regression in select-associated bind value handling (RT#61025)
         - Fix infinite loops on old perls with a recent Try::Tiny
         - Improve "fork()" on Win32 by reimplementing a more robust DBIC
           thread support (still problematic, pending a DBI fix)

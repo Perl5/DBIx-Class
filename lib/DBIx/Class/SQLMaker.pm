@@ -215,7 +215,7 @@ sub select {
 
 sub _assemble_binds {
   my $self = shift;
-  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/from where having order/);
+  return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/select from where having order/);
 }
 
 my $for_syntax = {
@@ -295,7 +295,8 @@ sub _recurse_fields {
   }
   # Is the second check absolutely necessary?
   elsif ( $ref eq 'REF' and ref($$fields) eq 'ARRAY' ) {
-    return $self->_fold_sqlbind( $fields );
+    push @{$self->{select_bind}}, @{$$fields}[1..$#$$fields];
+    return $$fields->[0];
   }
   else {
     croak($ref . qq{ unexpected in _recurse_fields()})
@@ -355,7 +356,7 @@ sub _table {
       return $_[0]->_recurse_from(@{$_[1]});
     }
     elsif ($ref eq 'HASH') {
-      return $_[0]->_make_as($_[1]);
+      return $_[0]->_recurse_from($_[1]);
     }
   }
 
@@ -366,17 +367,17 @@ sub _generate_join_clause {
     my ($self, $join_type) = @_;
 
     return sprintf ('%s JOIN ',
-      $join_type ?  ' ' . uc($join_type) : ''
+      $join_type ?  ' ' . $self->_sqlcase($join_type) : ''
     );
 }
 
 sub _recurse_from {
   my ($self, $from, @join) = @_;
   my @sqlf;
-  push(@sqlf, $self->_make_as($from));
-  foreach my $j (@join) {
-    my ($to, $on) = @$j;
+  push @sqlf, $self->_from_chunk_to_sql($from);
 
+  for (@join) {
+    my ($to, $on) = @$_;
 
     # check whether a join type exists
     my $to_jt = ref($to) eq 'ARRAY' ? $to->[0] : $to;
@@ -393,41 +394,44 @@ sub _recurse_from {
     if (ref $to eq 'ARRAY') {
       push(@sqlf, '(', $self->_recurse_from(@$to), ')');
     } else {
-      push(@sqlf, $self->_make_as($to));
+      push(@sqlf, $self->_from_chunk_to_sql($to));
     }
     push(@sqlf, ' ON ', $self->_join_condition($on));
   }
   return join('', @sqlf);
 }
 
-sub _fold_sqlbind {
-  my ($self, $sqlbind) = @_;
+sub _from_chunk_to_sql {
+  my ($self, $fromspec) = @_;
 
-  my @sqlbind = @$$sqlbind; # copy
-  my $sql = shift @sqlbind;
-  push @{$self->{from_bind}}, @sqlbind;
+  return join (' ', $self->_SWITCH_refkind($fromspec, {
+    SCALARREF => sub {
+      $$fromspec;
+    },
+    ARRAYREFREF => sub {
+      push @{$self->{from_bind}}, @{$$fromspec}[1..$#$$fromspec];
+      $$fromspec->[0];
+    },
+    HASHREF => sub {
+      my ($as, $table, $toomuch) = ( map
+        { $_ => $fromspec->{$_} }
+        ( grep { $_ !~ /^\-/ } keys %$fromspec )
+      );
 
-  return $sql;
-}
+      croak "Only one table/as pair expected in from-spec but an exra '$toomuch' key present"
+        if defined $toomuch;
 
-sub _make_as {
-  my ($self, $from) = @_;
-  return join(' ', map { (ref $_ eq 'SCALAR' ? $$_
-                        : ref $_ eq 'REF'    ? $self->_fold_sqlbind($_)
-                        : $self->_quote($_))
-                       } reverse each %{$self->_skip_options($from)});
-}
-
-sub _skip_options {
-  my ($self, $hash) = @_;
-  my $clean_hash = {};
-  $clean_hash->{$_} = $hash->{$_}
-    for grep {!/^-/} keys %$hash;
-  return $clean_hash;
+      ($self->_from_chunk_to_sql($table), $self->_quote($as) );
+    },
+    SCALAR => sub {
+      $self->_quote($fromspec);
+    },
+  }));
 }
 
 sub _join_condition {
   my ($self, $cond) = @_;
+
   if (ref $cond eq 'HASH') {
     my %j;
     for (keys %$cond) {
