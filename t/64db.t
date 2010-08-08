@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -47,9 +47,7 @@ is_deeply (
   'Correctly retrieve column info (no size or is_nullable)'
 );
 
-TODO: {
-  local $TODO = 'All current versions of SQLite seem to mis-report is_nullable';
-
+{
   is_deeply (
     get_storage_column_info ($schema->storage, 'artist', qw/size/),
     {

@@ -91,7 +91,6 @@ TODO: {
 
     is( ref $user,  'My::Schema::Result::User' );
     is( ref $admin, 'My::Schema::Result::User::Admin' );
-
 }
 
 my $user  = $schema->resultset('User')->single($user_data);

@@ -27,6 +27,8 @@ Revision history for DBIx::Class
         - Makefile.PL no longer imports GetOptions() to interoperate
           better with Catalyst installers
         - Bumped minimum Module::Install for developers
+        - Bumped DBD::SQLite dependency and removed some TODO markers
+          from tests
 
 0.08123 2010-06-12 14:46 (UTC)
     * Fixes

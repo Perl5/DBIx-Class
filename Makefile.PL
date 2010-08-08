@@ -35,7 +35,7 @@ perl_version '5.008001';
 all_from 'lib/DBIx/Class.pm';
 
 my $build_requires = {
-  'DBD::SQLite'              => '1.25',
+  'DBD::SQLite'              => '1.29',
 };
 
 my $test_requires = {
