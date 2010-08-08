@@ -218,6 +218,7 @@ resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
 resources 'license'     => 'http://dev.perl.org/licenses/';
 resources 'repository'  => 'git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git';
 resources 'MailingList' => 'http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/dbix-class';
+resources 'bugtracker'  => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class';
 
 # Deprecated/internal modules need no exposure
 no_index directory => $_ for (qw|
