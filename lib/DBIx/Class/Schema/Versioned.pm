@@ -725,9 +725,12 @@ sub _source_exists
 {
     my ($self, $rs) = @_;
 
-    my $c = try { $rs->search({ 1, 0 })->count };
-
-    return (defined $c) ? 1 : 0;
+    return try {
+      $rs->search(\'1=0')->cursor->next;
+      1;
+    } catch {
+      0;
+    };
 }
 
 1;
