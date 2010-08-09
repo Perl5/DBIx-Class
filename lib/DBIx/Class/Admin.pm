@@ -232,6 +232,17 @@ has 'sql_dir' => (
 );
 
 
+=head2 sql_type
+
+The type of sql dialect to use for creating sql files from schema
+
+=cut
+
+has 'sql_type' => (
+  is     => 'ro',
+  isa    => Str,
+);
+
 =head2 version
 
 Used for install, the version which will be 'installed' in the schema
@@ -285,6 +296,24 @@ has '_confirm' => (
 );
 
 
+=head2 trace
+
+Toggle DBIx::Class debug output
+
+=cut
+
+has trace => (
+    is => 'rw',
+    isa => Bool,
+    trigger => \&_trigger_trace,
+);
+
+sub _trigger_trace {
+    my ($self, $new, $old) = @_;
+    $self->schema->storage->debug($new);
+}
+
+
 =head1 METHODS
 
 =head2 create
@@ -309,6 +338,7 @@ sub create {
   my ($self, $sqlt_type, $sqlt_args, $preversion) = @_;
 
   $preversion ||= $self->preversion();
+  $sqlt_type ||= $self->sql_type();
 
   my $schema = $self->schema();
   # create the dir if does not exist

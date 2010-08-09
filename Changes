@@ -39,6 +39,7 @@ Revision history for DBIx::Class
           FK value and related object out of sync
         - Stop stripping newlines from SQL statements in the limit emulators
           as it is possible that custom sql with comments was provided
+        - Add forgotten attributes to Admin.pm
 
     * Misc
         - Switch all serialization to use Storable::nfreeze for portable
