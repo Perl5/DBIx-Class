@@ -10,6 +10,7 @@ BEGIN {
 }
 
 use_ok 'DBIx::Class::Admin';
+use_ok 'DBIx::Class::Admin::Diff';
 
 
 done_testing;
