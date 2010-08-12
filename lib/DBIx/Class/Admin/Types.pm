@@ -12,12 +12,12 @@ use MooseX::Types::JSON qw(JSON);
 subtype DBICArrayRef,
     as ArrayRef;
 
-subtype DBICHashRef,
-    as HashRef;
-
 coerce DBICArrayRef,
   from JSON,
   via { _json_to_data ($_) };
+
+subtype DBICHashRef,
+    as HashRef;
 
 coerce DBICHashRef,
   from JSON,
@@ -28,15 +28,12 @@ subtype DBICConnectInfo,
 
 coerce DBICConnectInfo,
   from JSON,
-   via { return _json_to_data($_) } ;
-
-coerce DBICConnectInfo,
+   via { return _json_to_data($_) },
   from Str,
-    via { return _json_to_data($_) };
-
-coerce DBICConnectInfo,
+    via { return _json_to_data($_) },
   from HashRef,
-   via { [ $_ ] };
+   via { [ $_ ] }
+  ;
 
 sub _json_to_data {
   my ($json_str) = @_;
