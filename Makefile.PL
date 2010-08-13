@@ -1,7 +1,6 @@
 use inc::Module::Install 1.00;
 use strict;
 use warnings;
-use POSIX ();
 
 use 5.008001;
 
