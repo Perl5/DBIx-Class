@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
@@ -58,9 +58,7 @@ else {
   $dbh->do("CREATE TABLE bitfield_test (id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY, bitfield_1 BIT(1));");
 }
 
-#'dbi:mysql:host=localhost;database=dbic_test', 'dbic_test', '');
-
-# make sure sqlt_type overrides work (::Storage::DBI::mysql does this) 
+# make sure sqlt_type overrides work (::Storage::DBI::mysql does this)
 {
   my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
 

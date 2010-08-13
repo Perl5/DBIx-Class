@@ -54,10 +54,12 @@ __PACKAGE__->mk_group_accessors('simple' => @storage_options);
 # will get the same rdbms version). _determine_supports_X does not need to
 # exist on a driver, as we ->can for it before calling.
 
-my @capabilities = (qw/insert_returning placeholders typeless_placeholders/);
-__PACKAGE__->mk_group_accessors( dbms_capability => map { "_supports_$_" } @capabilities );
-__PACKAGE__->mk_group_accessors( use_dbms_capability => map { "_use_$_" } @capabilities );
-
+__PACKAGE__->mk_dbi_capability_accessors (qw/insert_returning placeholders typeless_placeholders/);
+sub mk_dbi_capability_accessors {
+  my $class = shift;
+  $class->mk_group_accessors( dbms_capability => map { "_supports_$_" } @_ );
+  $class->mk_group_accessors( use_dbms_capability => map { "_use_$_" } @_ );
+}
 
 # Each of these methods need _determine_driver called before itself
 # in order to function reliably. This is a purely DRY optimization

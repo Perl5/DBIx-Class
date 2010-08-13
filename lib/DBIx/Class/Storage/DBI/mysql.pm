@@ -13,7 +13,8 @@ use namespace::clean;
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MySQL');
 
-__PACKAGE__->mk_group_accessors(simple => qw/_bit_as/);
+__PACKAGE__->mk_dbi_capability_accessors(qw/bit_as_unsigned/);
+__PACKAGE__->mk_group_accessors(inherited => qw/_cast_bit_bit_as/);
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
@@ -29,6 +30,12 @@ sub connect_call_set_strict_mode {
   # the @@sql_mode puts back what was previously set on the session handle
   $self->_do_query(q|SET SQL_MODE = CONCAT('ANSI,TRADITIONAL,ONLY_FULL_GROUP_BY,', @@sql_mode)|);
   $self->_do_query(q|SET SQL_AUTO_IS_NULL = 0|);
+}
+
+sub connect_call_bit_as_unsigned {
+  my $self = shift;
+
+  $self->_bit_as('UNSIGNED');
 }
 
 sub _dbh_last_insert_id {
@@ -128,19 +135,14 @@ inserted correctly.
 
 =cut
 
-sub connect_call_bit_as_unsigned {
-  my $self = shift;
-
-  $self->_bit_as('UNSIGNED');
-}
 
 sub bind_attribute_by_data_type {
   my $self        = shift;
   my ($data_type) = @_;
 
-  my $res = $self->next::method(@_) || {};
+  my $res = $self->next::method(@_);
 
-  if ($data_type && $self->_bit_as && lc($data_type) eq 'bit') {
+  if ($data_type && lc($data_type) eq 'bit' && $self->_bit_as && ) {
     $res->{TYPE} = SQL_INTEGER;
   }
 
