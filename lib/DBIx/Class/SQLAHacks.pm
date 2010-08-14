@@ -10,8 +10,8 @@ use strict;
 use warnings;
 use List::Util 'first';
 use Sub::Name 'subname';
-use namespace::clean;
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
+use namespace::clean;
 
 BEGIN {
   # reinstall the carp()/croak() functions imported into SQL::Abstract
@@ -21,10 +21,11 @@ BEGIN {
   for my $f (qw/carp croak/) {
 
     my $orig = \&{"SQL::Abstract::$f"};
+    my $clan_import = \&{$f};
     *{"SQL::Abstract::$f"} = subname "SQL::Abstract::$f" =>
       sub {
         if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+ .+? called \s at/x) {
-          __PACKAGE__->can($f)->(@_);
+          $clan_import->(@_);
         }
         else {
           goto $orig;
