@@ -7,6 +7,8 @@ use Context::Preserve 'preserve_context';
 use Try::Tiny;
 use namespace::clean;
 
+__PACKAGE__->sql_limit_dialect ('RowNum');
+
 =head1 NAME
 
 DBIx::Class::Storage::DBI::Oracle::Generic - Oracle Support for DBIx::Class

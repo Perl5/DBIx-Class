@@ -173,15 +173,10 @@ SQL
 
     my $have_rno = $version >= 9 ? 1 : 0;
 
-    local $storage->{_sql_maker}        = undef;
-    local $storage->{_sql_maker_opts}   = undef;
-
     local $storage->{_dbh_details}{info} = {}; # delete cache
 
-    $storage->sql_maker;
-
     my $rno_detected =
-      ($storage->{_sql_maker_opts}{limit_dialect} eq 'RowNumberOver') ? 1 : 0;
+      ($storage->sql_limit_dialect eq 'RowNumberOver') ? 1 : 0;
 
     ok (($have_rno == $rno_detected),
       'row_number() over support detected correctly');

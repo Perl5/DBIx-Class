@@ -328,7 +328,6 @@ has 'write_handler' => (
     _dbh
     _select_args
     _dbh_execute_array
-    _sql_maker_args
     _sql_maker
     _query_start
     _sqlt_version_error
@@ -378,6 +377,8 @@ my @unimplemented = qw(
   set_use_dbms_capability
   get_dbms_capability
   set_dbms_capability
+
+  sql_limit_dialect
 
   _dbh_details
 

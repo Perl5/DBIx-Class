@@ -1,17 +1,25 @@
 package # Hide from PAUSE
   DBIx::Class::SQLAHacks;
 
-# This module is a subclass of SQL::Abstract::Limit and includes a number
-# of DBIC-specific workarounds, not yet suitable for inclusion into the
-# SQLA core
+# This module is a subclass of SQL::Abstract and includes a number of
+# DBIC-specific workarounds, not yet suitable for inclusion into the
+# SQLA core.
+# It also provides all (and more than) the functionality of
+# SQL::Abstract::Limit, which proved to be very hard to keep updated
 
-use base qw/SQL::Abstract::Limit/;
+use base qw/
+  SQL::Abstract
+  Class::Accessor::Grouped
+/;
+use mro 'c3';
 use strict;
 use warnings;
 use List::Util 'first';
 use Sub::Name 'subname';
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
 use namespace::clean;
+
+__PACKAGE__->mk_group_accessors (simple => qw/quote_char name_sep limit_dialect/);
 
 BEGIN {
   # reinstall the carp()/croak() functions imported into SQL::Abstract
@@ -35,24 +43,12 @@ BEGIN {
 }
 
 # the "oh noes offset/top without limit" constant
-# limited to 32 bits for sanity (and since it is fed
-# to sprintf %u)
+# limited to 32 bits for sanity (and consistency,
+# since it is ultimately handed to sprintf %u)
+# Implemented as a method, since ::Storage::DBI also
+# refers to it (i.e. for the case of software_limit or
+# as the value to abuse with MSSQL ordered subqueries)
 sub __max_int { 0xFFFFFFFF };
-
-
-# Tries to determine limit dialect.
-#
-sub new {
-  my $self = shift->SUPER::new(@_);
-
-  # This prevents the caching of $dbh in S::A::L, I believe
-  # If limit_dialect is a ref (like a $dbh), go ahead and replace
-  #   it with what it resolves to:
-  $self->{limit_dialect} = $self->_find_syntax($self->{limit_dialect})
-    if ref $self->{limit_dialect};
-
-  $self;
-}
 
 # !!! THIS IS ALSO HORRIFIC !!! /me ashamed
 #
@@ -167,6 +163,27 @@ sub _unqualify_colname {
   return $fqcn;
 }
 
+#
+# Follow limit dialect implementations
+#
+
+# PostgreSQL and SQLite
+sub _LimitOffset {
+    my ( $self, $sql, $order, $rows, $offset ) = @_;
+    $sql .= $self->_order_by( $order ) . " LIMIT $rows";
+    $sql .= " OFFSET $offset" if +$offset;
+    return $sql;
+}
+
+# MySQL and any SQL::Statement based DBD
+sub _LimitXY {
+    my ( $self, $sql, $order, $rows, $offset ) = @_;
+    $sql .= $self->_order_by( $order ) . " LIMIT ";
+    $sql .= "$offset, " if +$offset;
+    $sql .= $rows;
+    return $sql;
+}
+
 # ANSI standard Limit/Offset implementation. DB2 and MSSQL >= 2005 use this
 sub _RowNumberOver {
   my ($self, $sql, $rs_attrs, $rows, $offset ) = @_;
@@ -233,6 +250,8 @@ sub _rno_default_order {
 }
 
 # Informix specific limit, almost like LIMIT/OFFSET
+# According to SQLA::Limit informix also supports
+# SKIP X LIMIT Y (in addition to SKIP X FIRST Y)
 sub _SkipFirst {
   my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
@@ -251,6 +270,8 @@ sub _SkipFirst {
 }
 
 # Firebird specific limit, reverse of _SkipFirst for Informix
+# According to SQLA::Limit firebird/interbase also supports
+# ROWS X TO Y (in addition to FIRST X SKIP Y)
 sub _FirstSkip {
   my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
@@ -527,30 +548,55 @@ EOS
   return $sql;
 }
 
+#
+# Actual SQL::Abstract overrid^Whacks
+#
 
-# While we're at it, this should make LIMIT queries more efficient,
-#  without digging into things too deeply
-sub _find_syntax {
-  my ($self, $syntax) = @_;
-  return $self->{_cached_syntax} ||= $self->SUPER::_find_syntax($syntax);
-}
-
-# Quotes table names, handles "limit" dialects (e.g. where rownum between x and
-# y)
+# Handle limit-dialect selection
 sub select {
-  my ($self, $table, $fields, $where, $rs_attrs, @rest) = @_;
+  my ($self, $table, $fields, $where, $rs_attrs, $limit, $offset) = @_;
 
-  if (not ref($table) or ref($table) eq 'SCALAR') {
-    $table = $self->_quote($table);
+
+  $fields = $self->_recurse_fields($fields);
+
+  if (defined $offset) {
+    croak ('A supplied offset must be a non-negative integer')
+      if ( $offset =~ /\D/ or $offset < 0 );
+  }
+  $offset ||= 0;
+
+  if (defined $limit) {
+    croak ('A supplied limit must be a positive integer')
+      if ( $limit =~ /\D/ or $limit <= 0 );
+  }
+  elsif ($offset) {
+    $limit = $self->__max_int;
   }
 
-  @rest = (-1) unless defined $rest[0];
-  croak "LIMIT 0 Does Not Compute" if $rest[0] == 0;
-    # and anyway, SQL::Abstract::Limit will cause a barf if we don't first
 
-  my ($sql, @bind) = $self->SUPER::select(
-    $table, $self->_recurse_fields($fields), $where, $rs_attrs, @rest
-  );
+  my ($sql, @bind);
+  if ($limit) {
+    # this is legacy code-flow from SQLA::Limit, it is not set in stone
+
+    ($sql, @bind) = $self->next::method ($table, $fields, $where);
+
+    my $limiter =
+      $self->can ('emulate_limit')  # also backcompat hook from SQLA::Limit
+        ||
+      do {
+        my $dialect = $self->limit_dialect
+          or croak "Unable to generate SQL-limit - no limit dialect specified on $self, and no emulate_limit method found";
+        $self->can ("_$dialect")
+          or croak "SQLAHacks does not implement the requested dialect '$dialect'";
+      }
+    ;
+
+    $sql = $self->$limiter ($sql, $rs_attrs, $limit, $offset);
+  }
+  else {
+    ($sql, @bind) = $self->next::method ($table, $fields, $where, $rs_attrs);
+  }
+
   push @{$self->{where_bind}}, @bind;
 
 # this *must* be called, otherwise extra binds will remain in the sql-maker
@@ -564,53 +610,25 @@ sub _assemble_binds {
   return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/from where having order/);
 }
 
-# Quotes table names, and handles default inserts
+# Handle default inserts
 sub insert {
-  my $self = shift;
-  my $table = shift;
-  $table = $self->_quote($table);
+# optimized due to hotttnesss
+#  my ($self, $table, $data, $options) = @_;
 
   # SQLA will emit INSERT INTO $table ( ) VALUES ( )
   # which is sadly understood only by MySQL. Change default behavior here,
   # until SQLA2 comes with proper dialect support
-  if (! $_[0] or (ref $_[0] eq 'HASH' and !keys %{$_[0]} ) ) {
-    my $sql = "INSERT INTO ${table} DEFAULT VALUES";
+  if (! $_[2] or (ref $_[2] eq 'HASH' and !keys %{$_[2]} ) ) {
+    my $sql = "INSERT INTO $_[1] DEFAULT VALUES";
 
-    if (my $ret = ($_[1]||{})->{returning} ) {
-      $sql .= $self->_insert_returning ($ret);
+    if (my $ret = ($_[3]||{})->{returning} ) {
+      $sql .= $_[0]->_insert_returning ($ret);
     }
 
     return $sql;
   }
 
-  $self->SUPER::insert($table, @_);
-}
-
-# Just quotes table names.
-sub update {
-  my $self = shift;
-  my $table = shift;
-  $table = $self->_quote($table);
-  $self->SUPER::update($table, @_);
-}
-
-# Just quotes table names.
-sub delete {
-  my $self = shift;
-  my $table = shift;
-  $table = $self->_quote($table);
-  $self->SUPER::delete($table, @_);
-}
-
-sub _emulate_limit {
-  my $self = shift;
-  # my ( $syntax, $sql, $order, $rows, $offset ) = @_;
-
-  if ($_[3] == -1) {
-    return $_[1] . $self->_parse_rs_attrs($_[2]);
-  } else {
-    return $self->SUPER::_emulate_limit(@_);
-  }
+  next::method(@_);
 }
 
 sub _recurse_fields {
@@ -708,36 +726,25 @@ sub _order_by {
     return $self->_parse_rs_attrs ($arg);
   }
   else {
-    my ($sql, @bind) = $self->SUPER::_order_by ($arg);
+    my ($sql, @bind) = $self->next::method($arg);
     push @{$self->{order_bind}}, @bind;
     return $sql;
   }
 }
 
-sub _order_directions {
-  my ($self, $order) = @_;
-
-  # strip bind values - none of the current _order_directions users support them
-  return $self->SUPER::_order_directions( [ map
-    { ref $_ ? $_->[0] : $_ }
-    $self->_order_by_chunks ($order)
-  ]);
-}
-
 sub _table {
-  my ($self, $from) = @_;
-  if (ref $from eq 'ARRAY') {
-    return $self->_recurse_from(@$from);
-  } elsif (ref $from eq 'HASH') {
-    return $self->_make_as($from);
-  } else {
-    return $from; # would love to quote here but _table ends up getting called
-                  # twice during an ->select without a limit clause due to
-                  # the way S::A::Limit->select works. should maybe consider
-                  # bypassing this and doing S::A::select($self, ...) in
-                  # our select method above. meantime, quoting shims have
-                  # been added to select/insert/update/delete here
+# optimized due to hotttnesss
+#  my ($self, $from) = @_;
+  if (my $ref = ref $_[1] ) {
+    if ($ref eq 'ARRAY') {
+      return $_[0]->_recurse_from(@{$_[1]});
+    }
+    elsif ($ref eq 'HASH') {
+      return $_[0]->_make_as($_[1]);
+    }
   }
+
+  return $_[0]->next::method ($_[1]);
 }
 
 sub _generate_join_clause {
@@ -827,28 +834,5 @@ sub _join_condition {
   }
 }
 
-sub limit_dialect {
-    my $self = shift;
-    if (@_) {
-      $self->{limit_dialect} = shift;
-      undef $self->{_cached_syntax};
-    }
-    return $self->{limit_dialect};
-}
-
-# Set to an array-ref to specify separate left and right quotes for table names.
-# A single scalar is equivalen to [ $char, $char ]
-sub quote_char {
-    my $self = shift;
-    $self->{quote_char} = shift if @_;
-    return $self->{quote_char};
-}
-
-# Character separating quoted table names.
-sub name_sep {
-    my $self = shift;
-    $self->{name_sep} = shift if @_;
-    return $self->{name_sep};
-}
 
 1;

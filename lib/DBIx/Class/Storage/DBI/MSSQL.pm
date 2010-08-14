@@ -144,7 +144,7 @@ sub last_insert_id { shift->_identity }
 
 #
 # MSSQL is retarded wrt ordered subselects. One needs to add a TOP
-# to *all* subqueries, but one also can't use TOP 100 PERCENT
+# to *all* subqueries, but one also *can't* use TOP 100 PERCENT
 # http://sqladvice.com/forums/permalink/18496/22931/ShowThread.aspx#22931
 #
 sub _select_args_to_query {
@@ -196,37 +196,26 @@ sub datetime_parser_type {
 
 sub sqlt_type { 'SQLServer' }
 
-sub sql_maker {
+sub sql_limit_dialect {
   my $self = shift;
 
-  unless ($self->_sql_maker) {
-    unless ($self->{_sql_maker_opts}{limit_dialect}) {
-      my $have_rno = 0;
+  my $supports_rno = 0;
 
-      if (exists $self->_server_info->{normalized_dbms_version}) {
-        $have_rno = 1 if $self->_server_info->{normalized_dbms_version} >= 9;
-      }
-      else {
-        # User is connecting via DBD::Sybase and has no permission to run
-        # stored procedures like xp_msver, or version detection failed for some
-        # other reason.
-        # So, we use a query to check if RNO is implemented.
-        try {
-          $self->_get_dbh->selectrow_array('SELECT row_number() OVER (ORDER BY rand())');
-          $have_rno = 1;
-        };
-      }
-
-      $self->{_sql_maker_opts} = {
-        limit_dialect => ($have_rno ? 'RowNumberOver' : 'Top'),
-        %{$self->{_sql_maker_opts}||{}}
-      };
-    }
-
-    my $maker = $self->next::method (@_);
+  if (exists $self->_server_info->{normalized_dbms_version}) {
+    $supports_rno = 1 if $self->_server_info->{normalized_dbms_version} >= 9;
+  }
+  else {
+    # User is connecting via DBD::Sybase and has no permission to run
+    # stored procedures like xp_msver, or version detection failed for some
+    # other reason.
+    # So, we use a query to check if RNO is implemented.
+    try {
+      $self->_get_dbh->selectrow_array('SELECT row_number() OVER (ORDER BY rand())');
+      $supports_rno = 1;
+    };
   }
 
-  return $self->_sql_maker;
+  return $supports_rno ? 'RowNumberOver' : 'Top';
 }
 
 sub _ping {

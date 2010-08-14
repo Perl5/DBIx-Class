@@ -16,6 +16,8 @@ use Data::Dumper::Concise 'Dumper';
 use Try::Tiny;
 use namespace::clean;
 
+__PACKAGE__->sql_limit_dialect ('RowCountOrGenericSubQ');
+
 __PACKAGE__->mk_group_accessors('simple' =>
     qw/_identity _blob_log_on_update _writer_storage _is_extra_storage
        _bulk_storage _is_bulk_storage _began_bulk_work
@@ -150,16 +152,6 @@ for my $method (@also_proxy_to_extra_storages) {
     $self->_bulk_storage->$replaced(@_)   if $self->_bulk_storage;
     return $self->$replaced(@_);
   };
-}
-
-sub _sql_maker_opts {
-  my ( $self, $opts ) = @_;
-
-  if ( $opts ) {
-    $self->{_sql_maker_opts} = { %$opts };
-  }
-
-  return { limit_dialect => 'RowCountOrGenericSubQ', %{$self->{_sql_maker_opts}||{}} };
 }
 
 sub disconnect {

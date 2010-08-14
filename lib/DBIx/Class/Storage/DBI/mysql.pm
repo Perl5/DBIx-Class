@@ -10,6 +10,7 @@ use base qw/
 use mro 'c3';
 
 __PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MySQL');
+__PACKAGE__->sql_limit_dialect ('LimitXY');
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;

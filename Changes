@@ -29,6 +29,8 @@ Revision history for DBIx::Class
         - Bumped minimum Module::Install for developers
         - Bumped DBD::SQLite dependency and removed some TODO markers
           from tests
+        - No longer depend on SQL::Abstract::Limit - DBIC has been doing
+          most of the heavy lifting for a while anyway
 
 0.08123 2010-06-12 14:46 (UTC)
     * Fixes

@@ -8,9 +8,8 @@ use List::Util 'first';
 use Try::Tiny;
 use namespace::clean;
 
-__PACKAGE__->mk_group_accessors(simple => qw/
-  _identity
-/);
+__PACKAGE__->mk_group_accessors(simple => qw/_identity/);
+__PACKAGE__->sql_limit_dialect ('RowNumberOver');
 
 =head1 NAME
 
@@ -96,18 +95,6 @@ sub _select_args {
   }
 
   return $self->next::method(@_);
-}
-
-# this sub stolen from DB2
-
-sub _sql_maker_opts {
-  my ( $self, $opts ) = @_;
-
-  if ( $opts ) {
-    $self->{_sql_maker_opts} = { %$opts };
-  }
-
-  return { limit_dialect => 'RowNumberOver', %{$self->{_sql_maker_opts}||{}} };
 }
 
 # this sub stolen from MSSQL

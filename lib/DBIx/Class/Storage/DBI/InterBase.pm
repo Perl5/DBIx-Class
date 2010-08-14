@@ -33,6 +33,7 @@ L</connect_call_datetime_setup>.
 
 # set default
 __PACKAGE__->_use_insert_returning (1);
+__PACKAGE__->sql_limit_dialect ('FirstSkip');
 
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;
@@ -88,18 +89,6 @@ EOF
   }
 
   return undef;
-}
-
-# this sub stolen from DB2
-
-sub _sql_maker_opts {
-  my ( $self, $opts ) = @_;
-
-  if ( $opts ) {
-    $self->{_sql_maker_opts} = { %$opts };
-  }
-
-  return { limit_dialect => 'FirstSkip', %{$self->{_sql_maker_opts}||{}} };
 }
 
 sub _svp_begin {

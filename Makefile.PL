@@ -57,7 +57,6 @@ my $runtime_requires = {
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.18',
   'SQL::Abstract'            => '1.67',
-  'SQL::Abstract::Limit'     => '0.13',
   'Sub::Name'                => '0.04',
   'Data::Dumper::Concise'    => '1.000',
   'Scope::Guard'             => '0.03',

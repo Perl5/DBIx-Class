@@ -6,6 +6,8 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
+__PACKAGE__->sql_limit_dialect ('RowNumberOver');
+
 sub _dbh_last_insert_id {
     my ($self, $dbh, $source, $col) = @_;
 
@@ -18,16 +20,6 @@ sub _dbh_last_insert_id {
 }
 
 sub datetime_parser_type { "DateTime::Format::DB2"; }
-
-sub _sql_maker_opts {
-    my ( $self, $opts ) = @_;
-
-    if ( $opts ) {
-        $self->{_sql_maker_opts} = { %$opts };
-    }
-
-    return { limit_dialect => 'RowNumberOver', %{$self->{_sql_maker_opts}||{}} };
-}
 
 1;
 
