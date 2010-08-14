@@ -5,6 +5,21 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBI::ODBC/;
 use mro 'c3';
 
+warn 'Major advances took place in the DBIC codebase since this driver'
+  .' (::Storage::DBI::ODBC::DB2_400_SQL) was written. However since the'
+  .' RDBMS in question is so rare it is not possible for us to test any'
+  .' of the "new hottness". If you are using DB2 on AS-400 please get'
+  .' in contact with the developer team:'
+  .' http://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class.pm#GETTING_HELP/SUPPORT'
+  ."\n"
+;
+
+# FIXME
+# Most likely all of this code is redundant and unnecessary. We should
+# be able to simply use base qw/DBIx::Class::Storage::DBI::DB2/;
+# Unfortunately nobody has an RDBMS engine to test with, so keeping
+# things as-is for the time being
+
 sub _dbh_last_insert_id {
     my ($self, $dbh, $source, $col) = @_;
 

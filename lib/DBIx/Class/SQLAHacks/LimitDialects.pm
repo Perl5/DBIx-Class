@@ -7,6 +7,78 @@ use Carp::Clan qw/^DBIx::Class|^SQL::Abstract|^Try::Tiny/;
 use List::Util 'first';
 use namespace::clean;
 
+# FIXME
+# This dialect has not been ported to the subquery-realiasing code
+# that all other subquerying dialects are using. It is very possible
+# that this dialect is entirely unnecessary - it is currently only
+# used by ::Storage::DBI::ODBC::DB2_400_SQL which *should* be able to
+# just subclass ::Storage::DBI::DB2 and use the already rewritten
+# RowNumberOver. However nobody has access to this specific database
+# engine, thus keeping legacy code as-is
+# IF someone ever manages to test DB2-AS/400 with RNO, all the code
+# in this block should go on to meet its maker
+{
+  sub _FetchFirst {
+    my ( $self, $sql, $order, $rows, $offset ) = @_;
+
+    my $last = $rows + $offset;
+
+    my ( $order_by_up, $order_by_down ) = $self->_order_directions( $order );
+
+    $sql = "
+      SELECT * FROM (
+        SELECT * FROM (
+          $sql
+          $order_by_up
+          FETCH FIRST $last ROWS ONLY
+        ) foo
+        $order_by_down
+        FETCH FIRST $rows ROWS ONLY
+      ) bar
+      $order_by_up
+    ";
+
+    return $sql;
+  }
+
+  sub _order_directions {
+    my ( $self, $order ) = @_;
+
+    return unless $order;
+
+    my $ref = ref $order;
+
+    my @order;
+
+    CASE: {
+      @order = @$order,     last CASE if $ref eq 'ARRAY';
+      @order = ( $order ),  last CASE unless $ref;
+      @order = ( $$order ), last CASE if $ref eq 'SCALAR';
+      croak __PACKAGE__ . ": Unsupported data struct $ref for ORDER BY";
+    }
+
+    my ( $order_by_up, $order_by_down );
+
+    foreach my $spec ( @order )
+    {
+        my @spec = split ' ', $spec;
+        croak( "bad column order spec: $spec" ) if @spec > 2;
+        push( @spec, 'ASC' ) unless @spec == 2;
+        my ( $col, $up ) = @spec; # or maybe down
+        $up = uc( $up );
+        croak( "bad direction: $up" ) unless $up =~ /^(?:ASC|DESC)$/;
+        $order_by_up .= ", $col $up";
+        my $down = $up eq 'ASC' ? 'DESC' : 'ASC';
+        $order_by_down .= ", $col $down";
+    }
+
+    s/^,/ORDER BY/ for ( $order_by_up, $order_by_down );
+
+    return $order_by_up, $order_by_down;
+  }
+}
+### end-of-FIXME
+
 # PostgreSQL and SQLite
 sub _LimitOffset {
     my ( $self, $sql, $order, $rows, $offset ) = @_;
