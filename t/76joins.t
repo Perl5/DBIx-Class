@@ -100,15 +100,6 @@ is_same_sql(
   'join 5 (SCALAR reference for ON statement) ok'
 );
 
-my @j6 = (
-    { child => 'person' },
-    [ { father => 'person' }, { 'father.person_id' => { '!=', '42' } }, ],
-    [ { mother => 'person' }, { 'mother.person_id' => 'child.mother_id' } ],
-);
-$match = qr/HASH reference arguments are not supported in JOINS/;
-eval { $sa->_recurse_from(@j6) };
-like( $@, $match, 'join 6 (HASH reference for ON statement dies) ok' );
-
 my $rs = $schema->resultset("CD")->search(
            { 'year' => 2001, 'artist.name' => 'Caterwauler McCrae' },
            { from => [ { 'me' => 'cd' },
