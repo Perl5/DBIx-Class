@@ -6,6 +6,17 @@
 use strict;
 use warnings;
 
+# When in taint mode, PERL5LIB is ignored (but *not* unset)
+# Put it back in INC so that local-lib users can actually
+# run this test
+use Config;
+BEGIN {
+  for (map { defined $ENV{$_} ? $ENV{$_} : () } (qw/PERLLIB PERL5LIB/) ) {  # we unshift, so reverse precedence
+    my ($envvar) = ($_ =~ /^(.+)$/);  # untaint
+    unshift @INC, map { length($_) ? $_ : () } (split /\Q$Config{path_sep}\E/, $envvar);
+  }
+}
+
 use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
