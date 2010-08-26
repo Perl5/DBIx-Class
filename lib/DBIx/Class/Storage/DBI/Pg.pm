@@ -255,54 +255,16 @@ sub _get_next_pg_cursor_number {
     return $ret;
 }
 
-sub _should_use_pg_cursors {
-    my ($self,$attrs) = @_;
-
-    if (   exists $attrs->{server_cursors}
-        && defined $attrs->{server_cursors}
-    ) {
-        return $attrs->{server_cursors};
-    }
-
-    return $self->get_use_dbms_capability('server_cursors');
-}
-
-sub _get_pg_cursor_page_size {
-    my ($self,$attrs) = @_;
-
-    if (   exists $attrs->{cursor_page_size}
-        && defined $attrs->{cursor_page_size}
-    ) {
-        return $attrs->{cursor_page_size};
-    }
-
-    if (defined $self->cursor_page_size) {
-        return $self->cursor_page_size;
-    }
-
-    return 1000;
-}
-
-sub _select {
-    my $self = shift;
-    my ($ident, $select, $where, $attrs) = @_;
-
-    # ugly ugly ugly, but this is the last sub in the call chain that
-    # receives $attrs
-    local $self->{_use_pg_cursors}=$self->_should_use_pg_cursors($attrs);
-    local $self->{_pg_cursor_page_size}=$self->_get_pg_cursor_page_size($attrs);
-
-    return $self->next::method(@_);
-}
-
 sub _dbh_sth {
     my ($self, $dbh, $sql) = @_;
 
     # here we have to use the ugly local attributes because we no
     # longer have access to the resultset attributes
-    if ($self->{_use_pg_cursors} && $sql =~ /^SELECT\b/i) {
+    if ($self->get_use_dbms_capability('server_cursors')
+            && $sql =~ /^SELECT\b/i) {
         return DBIx::Class::Storage::DBI::Pg::Sth
-            ->new($self,$dbh,$sql,$self->{_pg_cursor_page_size});
+            ->new($self,$dbh,$sql,
+                  $self->cursor_page_size||1000);
     }
     else { # short-circuit
         return $self->next::method($dbh,$sql);

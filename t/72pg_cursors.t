@@ -11,7 +11,7 @@ my ($dsn, $dbuser, $dbpass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/}
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $dbuser);
 
-plan tests => 14;
+plan tests => 16;
 
 sub create_test_schema {
     my ($schema)=@_;
@@ -106,6 +106,16 @@ is (
     is(scalar(@rows),$rows,'get all the rows (all)');
     is($called,1,'Pg::Sth called again per rs');
     is($page_size,1000,'default page size used again');
+}
+
+{
+    $called=0;
+    my $rs=$schema->resultset('Artist')->search({});
+    $schema->storage->set_use_dbms_capability('server_cursors',0);
+    my @rows=$rs->all;
+    is(scalar(@rows),$rows,'get all the rows (all)');
+    is($called,0,'Pg::Sth *not* called');
+    $schema->storage->set_use_dbms_capability('server_cursors',1);
 }
 
 {
