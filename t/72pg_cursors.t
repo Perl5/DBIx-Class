@@ -11,7 +11,7 @@ my ($dsn, $dbuser, $dbpass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/}
 plan skip_all => 'Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $dbuser);
 
-plan tests => 10;
+plan tests => 14;
 
 sub create_test_schema {
     my ($schema)=@_;
@@ -42,7 +42,8 @@ sub drop_test_schema {
         });
 }
 
-my $schema = DBICTest::Schema->connection($dsn, $dbuser, $dbpass, { AutoCommit => 1, use_pg_cursors => 1 });
+my $schema = DBICTest::Schema->connection($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
+$schema->storage->set_use_dbms_capability('server_cursors',1);
 drop_test_schema($schema);create_test_schema($schema);
 
 my ($called,$page_size)=(0,0);
@@ -77,12 +78,12 @@ is (
     $count++ while $rs->next;
     is($count,$rows,'get all the rows (loop)');
     is($called,1,'Pg::Sth called once per rs');
-    is($page_size,$DBIx::Class::Storage::DBI::Pg::DEFAULT_PG_CURSORS_PAGE_SIZE,'default page size used');
+    is($page_size,1000,'default page size used');
 }
 
 {
     $called=0;
-    my $rs=$schema->resultset('Artist')->search({},{pg_cursors_page_size=>10});
+    my $rs=$schema->resultset('Artist')->search({},{cursor_page_size=>10});
     $rs->first;
     is($called,1,'Pg::Sth called again per rs');
     is($page_size,10,'page size from attrs used');
@@ -91,9 +92,27 @@ is (
 {
     $called=0;
     my $rs=$schema->resultset('Artist')->search({});
+    $schema->storage->cursor_page_size(20);
+    $rs->first;
+    is($called,1,'Pg::Sth called again per rs');
+    is($page_size,20,'page size from storage used');
+    $schema->storage->cursor_page_size(undef);
+}
+
+{
+    $called=0;
+    my $rs=$schema->resultset('Artist')->search({});
     my @rows=$rs->all;
     is(scalar(@rows),$rows,'get all the rows (all)');
     is($called,1,'Pg::Sth called again per rs');
-    is($page_size,$DBIx::Class::Storage::DBI::Pg::DEFAULT_PG_CURSORS_PAGE_SIZE,'default page size used again');
+    is($page_size,1000,'default page size used again');
+}
+
+{
+    $called=0;
+    my $rs=$schema->resultset('Artist')->search({},{server_cursors=>0});
+    my @rows=$rs->all;
+    is(scalar(@rows),$rows,'get all the rows (all)');
+    is($called,0,'Pg::Sth *not* called');
 }
 

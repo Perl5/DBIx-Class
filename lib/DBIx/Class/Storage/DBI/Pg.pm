@@ -18,11 +18,9 @@ __PACKAGE__->datetime_parser_type ('DateTime::Format::Pg');
 __PACKAGE__->_use_multicolumn_in (1);
 
 __PACKAGE__->mk_group_accessors('simple' =>
-                                    '_pg_cursor_number');
-
-# these are package-vars to allow for evil global overrides
-our $DEFAULT_USE_PG_CURSORS=0;
-our $DEFAULT_PG_CURSORS_PAGE_SIZE=1000;
+                                    '_pg_cursor_number',
+                                    'cursor_page_size',
+                            );
 
 sub _determine_supports_insert_returning {
   return shift->_server_info->{normalized_dbms_version} >= 8.002
@@ -30,6 +28,10 @@ sub _determine_supports_insert_returning {
     : 0
   ;
 }
+
+sub _determine_supports_server_cursors { 1 }
+
+sub _use_server_cursors { 0 } # temporary global off switch
 
 sub with_deferred_fk_checks {
   my ($self, $sub) = @_;
@@ -252,40 +254,31 @@ sub _get_next_pg_cursor_number {
     return $ret;
 }
 
-sub __get_tweak_value {
-    my ($self,$attrs,$slot,$default,$extra_test)=@_;
-
-    $extra_test||=sub{1};
-
-    if (   exists $attrs->{$slot}
-        && defined $attrs->{$slot}
-        && $extra_test->($attrs->{$slot})
-    ) {
-        return $attrs->{$slot};
-    }
-    my @info=@{$self->_dbi_connect_info};
-    if (   @info
-        && ref($info[-1]) eq 'HASH'
-        && exists $info[-1]->{$slot}
-        && defined $info[-1]->{$slot}
-        && $extra_test->($info[-1]->{$slot})
-    ) {
-        return $info[-1]->{$slot};
-    }
-    return $default;
-}
-
 sub _should_use_pg_cursors {
     my ($self,$attrs) = @_;
 
-    return $self->__get_tweak_value($attrs,'use_pg_cursors',$DEFAULT_USE_PG_CURSORS);
+    if (   exists $attrs->{server_cursors}
+        && defined $attrs->{server_cursors}
+    ) {
+        return $attrs->{server_cursors};
+    }
+
+    return $self->get_use_dbms_capability('server_cursors');
 }
 
 sub _get_pg_cursor_page_size {
     my ($self,$attrs) = @_;
 
-    return $self->__get_tweak_value($attrs,'pg_cursors_page_size',$DEFAULT_PG_CURSORS_PAGE_SIZE,
-                                    sub { $_[0] =~ /^\d+$/ });
+    if (   exists $attrs->{cursor_page_size}
+        && defined $attrs->{cursor_page_size}
+    ) {
+        return $attrs->{cursor_page_size};
+    }
+
+    if (defined $self->cursor_page_size) {
+        return $self->cursor_page_size;
+    }
+    return 1000;
 }
 
 sub _select {
@@ -331,14 +324,13 @@ Using PostgreSQL cursors on fetches:
 
   my $schema = MySchemaClass->connection(
                    $dsn, $user, $pass,
-                   {
-                      use_pg_cursors => 1,
-                      pg_cursors_page_size => 1000,
-                   });
+               );
+  $schema->storage->set_use_dbms_capability('sever_cursors');
+  $schema->storage->cursor_page_size(1000);
 
   # override at ResultSet level
   my $rs = $schema->resultset('Something')
-                  ->search({}, { use_pg_cursors => 0});
+                  ->search({}, { server_cursors => 0});
 
 =head1 DESCRIPTION
 
@@ -355,7 +347,7 @@ attributes (the latter take precedence).
 
 Fetching data using PostgreSQL cursors uses less memory, but is
 slightly slower. You can tune the memory / speed trade-off using the
-C<pg_cursors_page_size> attribute, which defines how many rows to
+C<cursor_page_size> attribute, which defines how many rows to
 fetch at a time (defaults to 1000).
 
 =head1 POSTGRESQL SCHEMA SUPPORT
