@@ -240,7 +240,8 @@ sub deployment_statements {
 sub _populate_dbh {
     my ($self) = @_;
 
-    # cursors are per-connection, so reset the numbering
+    # cursors are per-connection, so we can reset the numbering
+    # without fear of collisions
     $self->_pg_cursor_number(1);
     return $self->SUPER::_populate_dbh();
 }
@@ -278,6 +279,7 @@ sub _get_pg_cursor_page_size {
     if (defined $self->cursor_page_size) {
         return $self->cursor_page_size;
     }
+
     return 1000;
 }
 
@@ -285,7 +287,8 @@ sub _select {
     my $self = shift;
     my ($ident, $select, $where, $attrs) = @_;
 
-    # ugly ugly ugly, but this is the last sub in the call chain that receives $attrs
+    # ugly ugly ugly, but this is the last sub in the call chain that
+    # receives $attrs
     local $self->{_use_pg_cursors}=$self->_should_use_pg_cursors($attrs);
     local $self->{_pg_cursor_page_size}=$self->_get_pg_cursor_page_size($attrs);
 
@@ -295,6 +298,8 @@ sub _select {
 sub _dbh_sth {
     my ($self, $dbh, $sql) = @_;
 
+    # here we have to use the ugly local attributes because we no
+    # longer have access to the resultset attributes
     if ($self->{_use_pg_cursors} && $sql =~ /^SELECT\b/i) {
         return DBIx::Class::Storage::DBI::Pg::Sth
             ->new($self,$dbh,$sql,$self->{_pg_cursor_page_size});
