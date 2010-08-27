@@ -1152,7 +1152,7 @@ Real limits and limited counts using stored procedures deployed on startup.
 
 =item *
 
-Adaptive Server Anywhere (ASA) support, with possible SQLA::Limit support.
+Adaptive Server Anywhere (ASA) support
 
 =item *
 

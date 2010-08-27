@@ -1695,24 +1695,6 @@ this, you can also overload the C<connection> method for your schema class:
      return $rv;
  }
 
-=head2 Setting limit dialect for SQL::Abstract::Limit
-
-In some cases, SQL::Abstract::Limit cannot determine the dialect of
-the remote SQL server by looking at the database handle. This is a
-common problem when using the DBD::JDBC, since the DBD-driver only
-know that in has a Java-driver available, not which JDBC driver the
-Java component has loaded.  This specifically sets the limit_dialect
-to Microsoft SQL-server (See more names in SQL::Abstract::Limit
--documentation.
-
-  __PACKAGE__->storage->sql_maker->limit_dialect('mssql');
-
-The JDBC bridge is one way of getting access to a MSSQL server from a platform
-that Microsoft doesn't deliver native client libraries for. (e.g. Linux)
-
-The limit dialect can also be set at connect time by specifying a
-C<limit_dialect> key in the final hash as shown above.
-
 =head2 Working with PostgreSQL array types
 
 You can also assign values to PostgreSQL array columns by passing array

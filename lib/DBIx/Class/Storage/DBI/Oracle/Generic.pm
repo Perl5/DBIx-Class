@@ -79,7 +79,7 @@ versions before 9.
 use base qw/DBIx::Class::Storage::DBI/;
 use mro 'c3';
 
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::Oracle');
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::Oracle');
 
 sub deployment_statements {
   my $self = shift;;

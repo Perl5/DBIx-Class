@@ -4,11 +4,11 @@ use warnings;
 use Test::More;
 
 use lib qw(t/lib);
-use DBIx::Class::SQLAHacks::OracleJoins;
+use DBIx::Class::SQLMaker::OracleJoins;
 use DBICTest;
 use DBIC::SqlMakerTest;
 
-my $sa = new DBIx::Class::SQLAHacks::OracleJoins;
+my $sa = new DBIx::Class::SQLMaker::OracleJoins;
 
 # search with undefined or empty $cond
 

@@ -1,4 +1,4 @@
-package DBIx::Class::SQLAHacks::LimitDialects;
+package DBIx::Class::SQLMaker::LimitDialects;
 
 use warnings;
 use strict;
@@ -79,7 +79,39 @@ use namespace::clean;
 }
 ### end-of-FIXME
 
-# PostgreSQL and SQLite
+=head1 NAME
+
+DBIx::Class::SQLMaker::LimitDialects - SQL::Abstract::Limit-like functionality for DBIx::Class::SQLMaker
+
+=head1 DESCRIPTION
+
+This module replicates a lot of the functionality originally found in
+L<SQL::Abstract::Limit>. While simple limits would work as-is, the more
+complex dialects that require e.g. subqueries could not be reliably
+implemented without taking full advantage of the metadata locked within
+L<DBIx::Class::ResultSource> classes. After reimplementation of close to
+80% of the L<SQL::Abstract::Limit> functionality it was deemed more
+practical to simply make an independent DBIx::Class-specific limit-dialect
+provider.
+
+=head1 SQL LIMIT DIALECTS
+
+Note that the actual implementations listed below never use C<*> literally.
+Instead proper re-aliasing of selectors and order criteria is done, so that
+the limit dialect are safe to use on joined resultsets with clashing column
+names.
+
+Currently the provided dialects are:
+
+=cut
+
+=head2 LimitOffset
+
+ SELECT ... LIMIT $limit OFFSET $offset
+
+Supported by B<PostgreSQL> and B<SQLite>
+
+=cut
 sub _LimitOffset {
     my ( $self, $sql, $order, $rows, $offset ) = @_;
     $sql .= $self->_order_by( $order ) . " LIMIT $rows";
@@ -87,7 +119,13 @@ sub _LimitOffset {
     return $sql;
 }
 
-# MySQL and any SQL::Statement based DBD
+=head2 LimitXY
+
+ SELECT ... LIMIT $offset $limit
+
+Supported by B<MySQL> and any L<SQL::Statement> based DBD
+
+=cut
 sub _LimitXY {
     my ( $self, $sql, $order, $rows, $offset ) = @_;
     $sql .= $self->_order_by( $order ) . " LIMIT ";
@@ -95,7 +133,20 @@ sub _LimitXY {
     $sql .= $rows;
     return $sql;
 }
-# ANSI standard Limit/Offset implementation. DB2 and MSSQL >= 2005 use this
+
+=head2 RowNumberOver
+
+ SELECT * FROM (
+  SELECT *, ROW_NUMBER() OVER( ORDER BY ... ) AS RNO__ROW__INDEX FROM (
+   SELECT ...
+  )
+ ) WHERE RNO__ROW__INDEX BETWEEN ($offset+1) AND ($limit+$offset)
+
+
+ANSI standard Limit/Offset implementation. Supported by B<DB2> and
+B<< MSSQL >= 2005 >>.
+
+=cut
 sub _RowNumberOver {
   my ($self, $sql, $rs_attrs, $rows, $offset ) = @_;
 
@@ -160,9 +211,14 @@ sub _rno_default_order {
   return undef;
 }
 
-# Informix specific limit, almost like LIMIT/OFFSET
-# According to SQLA::Limit informix also supports
-# SKIP X LIMIT Y (in addition to SKIP X FIRST Y)
+=head2 SkipFirst
+
+ SELECT SKIP $offset FIRST $limit * FROM ...
+
+Suported by B<Informix>, almost like LimitOffset. According to
+L<SQL::Abstract::Limit> C<... SKIP $offset LIMIT $limit ...> is also supported.
+
+=cut
 sub _SkipFirst {
   my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
@@ -180,9 +236,14 @@ sub _SkipFirst {
   );
 }
 
-# Firebird specific limit, reverse of _SkipFirst for Informix
-# According to SQLA::Limit firebird/interbase also supports
-# ROWS X TO Y (in addition to FIRST X SKIP Y)
+=head2 FirstSkip
+
+ SELECT FIRST $limit SKIP $offset * FROM ...
+
+Supported by B<Firebird/Interbase>, reverse of SkipFirst. According to
+L<SQL::Abstract::Limit> C<... ROWS $limit TO $offset ...> is also supported.
+
+=cut
 sub _FirstSkip {
   my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
@@ -200,7 +261,17 @@ sub _FirstSkip {
   );
 }
 
-# WhOracle limits
+=head2 RowNum
+
+ SELECT * FROM (
+  SELECT *, ROWNUM rownum__index FROM (
+   SELECT ...
+  )
+ ) WHERE rownum__index BETWEEN ($offset+1) AND ($limit+$offset)
+
+Supported by B<Oracle>.
+
+=cut
 sub _RowNum {
   my ( $self, $sql, $rs_attrs, $rows, $offset ) = @_;
 
@@ -228,7 +299,24 @@ EOS
   return $sql;
 }
 
-# Crappy Top based Limit/Offset support. Legacy for MSSQL < 2005
+=head2 Top
+
+ SELECT * FROM
+
+ SELECT TOP $limit FROM (
+  SELECT TOP $limit FROM (
+   SELECT TOP ($limit+$offset) ...
+  ) ORDER BY $reversed_original_order
+ ) ORDER BY $original_order
+
+Unreliable Top-based implementation, supported by B<< MSSQL < 2005 >>.
+
+=head3 CAVEAT
+
+Due to its implementation, this limit dialect returns B<incorrect results>
+when $limit+$offset > total amount of rows in the resultset.
+
+=cut
 sub _Top {
   my ( $self, $sql, $rs_attrs, $rows, $offset ) = @_;
 
@@ -337,8 +425,18 @@ sub _Top {
   return $sql;
 }
 
-# This for Sybase ASE, to use SET ROWCOUNT when there is no offset, and
-# GenericSubQ otherwise.
+=head2 RowCountOrGenericSubQ
+
+This is not exactly a limit dialect, but more of a proxy for B<Sybase ASE>.
+If no $offset is supplied the limit is simply performed as:
+
+ SET ROWCOUNT $limit
+ SELECT ...
+ SET ROWCOUNT 0
+
+Otherwise we fall back to L</GenericSubQ>
+
+=cut
 sub _RowCountOrGenericSubQ {
   my $self = shift;
   my ($sql, $rs_attrs, $rows, $offset) = @_;
@@ -352,11 +450,25 @@ SET ROWCOUNT 0
 EOF
 }
 
-# This is the most evil limit "dialect" (more of a hack) for *really*
-# stupid databases. It works by ordering the set by some unique column,
-# and calculating amount of rows that have a less-er value (thus
-# emulating a RowNum-like index). Of course this implies the set can
-# only be ordered by a single unique columns.
+=head2 GenericSubQ
+
+ SELECT * FROM (
+  SELECT ...
+ )
+ WHERE (
+  SELECT COUNT(*) FROM $original_table cnt WHERE cnt.id < $original_table.id
+ ) BETWEEN $offset AND ($offset+$rows-1)
+
+This is the most evil limit "dialect" (more of a hack) for I<really> stupid
+databases. It works by ordering the set by some unique column, and calculating
+the amount of rows that have a less-er value (thus emulating a L</RowNum>-like
+index). Of course this implies the set can only be ordered by a single unique
+column. Also note that this technique can be and often is B<excruciatingly
+slow>.
+
+Currently used by B<Sybase ASE>, due to lack of any other option.
+
+=cut
 sub _GenericSubQ {
   my ($self, $sql, $rs_attrs, $rows, $offset) = @_;
 
@@ -574,3 +686,13 @@ sub _unqualify_colname {
 }
 
 1;
+
+=head1 AUTHORS
+
+See L<DBIx::Class/CONTRIBUTORS>.
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut

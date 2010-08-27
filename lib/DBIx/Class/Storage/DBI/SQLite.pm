@@ -10,7 +10,7 @@ use POSIX 'strftime';
 use File::Copy;
 use File::Spec;
 
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::SQLite');
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::SQLite');
 __PACKAGE__->sql_limit_dialect ('LimitOffset');
 
 sub backup

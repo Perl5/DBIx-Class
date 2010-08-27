@@ -1,7 +1,7 @@
 package # Hide from PAUSE
-  DBIx::Class::SQLAHacks::OracleJoins;
+  DBIx::Class::SQLMaker::OracleJoins;
 
-use base qw( DBIx::Class::SQLAHacks );
+use base qw( DBIx::Class::SQLMaker );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 sub select {
@@ -90,7 +90,7 @@ sub _recurse_oracle_joins {
 
 =head1 NAME
 
-DBIx::Class::SQLAHacks::OracleJoins - Pre-ANSI Joins-via-Where-Clause Syntax
+DBIx::Class::SQLMaker::OracleJoins - Pre-ANSI Joins-via-Where-Clause Syntax
 
 =head1 PURPOSE
 
@@ -124,7 +124,7 @@ it's already too late.
 
 =item select ($\@$;$$@)
 
-Replaces DBIx::Class::SQLAHacks's select() method, which calls _oracle_joins()
+Replaces DBIx::Class::SQLMaker's select() method, which calls _oracle_joins()
 to modify the column and table list before calling SUPER::select().
 
 =item _recurse_from ($$\@)
@@ -148,7 +148,7 @@ Probably lots more.
 
 =item L<DBIx::Class::Storage::DBI::Oracle::WhereJoins> - Storage class using this
 
-=item L<DBIx::Class::SQLAHacks> - Parent module
+=item L<DBIx::Class::SQLMaker> - Parent module
 
 =item L<DBIx::Class> - Duh
 

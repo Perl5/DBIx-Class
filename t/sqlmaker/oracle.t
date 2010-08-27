@@ -6,7 +6,7 @@ use Test::Exception;
 use Data::Dumper::Concise;
 use lib qw(t/lib);
 use DBIC::SqlMakerTest;
-use DBIx::Class::SQLAHacks::Oracle;
+use DBIx::Class::SQLMaker::Oracle;
 
 # 
 #  Offline test for connect_by 
@@ -52,8 +52,8 @@ my @handle_tests = (
     # TODO: NOCYCLE parameter doesn't work
 );
 
-my $sqla_oracle = DBIx::Class::SQLAHacks::Oracle->new( quote_char => '"', name_sep => '.' );
-isa_ok($sqla_oracle, 'DBIx::Class::SQLAHacks::Oracle');
+my $sqla_oracle = DBIx::Class::SQLMaker::Oracle->new( quote_char => '"', name_sep => '.' );
+isa_ok($sqla_oracle, 'DBIx::Class::SQLMaker::Oracle');
 
 
 for my $case (@handle_tests) {

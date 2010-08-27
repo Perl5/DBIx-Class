@@ -17,8 +17,7 @@ DBIx::Class::Storage::DBI::SQLAnywhere - Driver for Sybase SQL Anywhere
 
 =head1 DESCRIPTION
 
-This class implements autoincrements for Sybase SQL Anywhere, selects the
-RowNumberOver limit implementation and provides
+This class implements autoincrements for Sybase SQL Anywhere and provides
 L<DBIx::Class::InflateColumn::DateTime> support.
 
 You need the C<DBD::SQLAnywhere> driver that comes with the SQL Anywhere

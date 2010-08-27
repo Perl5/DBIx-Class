@@ -1,7 +1,7 @@
 package # Hide from PAUSE
-  DBIx::Class::SQLAHacks::MSSQL;
+  DBIx::Class::SQLMaker::MSSQL;
 
-use base qw( DBIx::Class::SQLAHacks );
+use base qw( DBIx::Class::SQLMaker );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 #

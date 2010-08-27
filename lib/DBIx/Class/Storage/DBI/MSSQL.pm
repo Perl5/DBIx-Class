@@ -13,7 +13,7 @@ __PACKAGE__->mk_group_accessors(simple => qw/
   _identity _identity_method
 /);
 
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::MSSQL');
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::MSSQL');
 
 sub _set_identity_insert {
   my ($self, $table) = @_;

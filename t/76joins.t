@@ -11,7 +11,7 @@ my $schema = DBICTest->init_schema();
 my $orig_debug = $schema->storage->debug;
 
 # test the abstract join => SQL generator
-my $sa = new DBIx::Class::SQLAHacks;
+my $sa = new DBIx::Class::SQLMaker;
 
 my @j = (
     { child => 'person' },

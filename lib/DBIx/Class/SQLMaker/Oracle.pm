@@ -1,10 +1,10 @@
 package # Hide from PAUSE
-  DBIx::Class::SQLAHacks::Oracle;
+  DBIx::Class::SQLMaker::Oracle;
 
 use warnings;
 use strict;
 
-use base qw( DBIx::Class::SQLAHacks );
+use base qw( DBIx::Class::SQLMaker );
 use Carp::Clan qw/^DBIx::Class|^SQL::Abstract/;
 
 sub new {
@@ -184,18 +184,3 @@ sub _unqualify_colname {
 }
 
 1;
-
-__END__
-
-=pod
-
-=head1 NAME
-
-DBIx::Class::SQLAHacks::Oracle - adds hierarchical query support for Oracle to SQL::Abstract
-
-=head1 DESCRIPTION
-
-See L<DBIx::Class::Storage::DBI::Oracle::Generic> for more information about
-how to use hierarchical queries with DBIx::Class.
-
-=cut

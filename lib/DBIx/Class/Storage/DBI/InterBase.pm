@@ -15,8 +15,8 @@ DBIx::Class::Storage::DBI::InterBase - Driver for the Firebird RDBMS
 =head1 DESCRIPTION
 
 This class implements autoincrements for Firebird using C<RETURNING> as well as
-L<auto_nextval|DBIx::Class::ResultSource/auto_nextval> sets the limit dialect to
-C<FIRST X SKIP X> and provides L<DBIx::Class::InflateColumn::DateTime> support.
+L<auto_nextval|DBIx::Class::ResultSource/auto_nextval> and provides
+L<DBIx::Class::InflateColumn::DateTime> support.
 
 You need to use either the
 L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching> option or

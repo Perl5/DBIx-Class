@@ -1,14 +1,35 @@
-package # Hide from PAUSE
-  DBIx::Class::SQLAHacks;
+package DBIx::Class::SQLMaker;
 
-# This module is a subclass of SQL::Abstract and includes a number of
-# DBIC-specific workarounds, not yet suitable for inclusion into the
-# SQLA core.
-# It also provides all (and more than) the functionality of
-# SQL::Abstract::Limit, which proved to be very hard to keep updated
+=head1 NAME
+
+DBIx::Class::SQLMaker - An SQL::Abstract-based SQL maker class
+
+=head1 DESCRIPTION
+
+This module is a subclass of L<SQL::Abstract> and includes a number of
+DBIC-specific workarounds, not yet suitable for inclusion into the
+L<SQL::Abstract> core. It also provides all (and more than) the functionality
+of L<SQL::Abstract::Limit>, see L<DBIx::Class::SQLMaker::LimitDialects> for
+more info.
+
+Currently the enhancements to L<SQL::Abstract> are:
+
+=over
+
+=item * Support for C<JOIN> statements (via extended C<table/from> support)
+
+=item * Support of functions in C<SELECT> lists
+
+=item * C<GROUP BY>/C<HAVING> support (via extensions to the order_by parameter)
+
+=item * Support of C<...FOR UPDATE> type of select statement modifiers
+
+=back
+
+=cut
 
 use base qw/
-  DBIx::Class::SQLAHacks::LimitDialects
+  DBIx::Class::SQLMaker::LimitDialects
   SQL::Abstract
   Class::Accessor::Grouped
 /;
@@ -32,7 +53,7 @@ BEGIN {
     my $clan_import = \&{$f};
     *{"SQL::Abstract::$f"} = subname "SQL::Abstract::$f" =>
       sub {
-        if (Carp::longmess() =~ /DBIx::Class::SQLAHacks::[\w]+ .+? called \s at/x) {
+        if (Carp::longmess() =~ /DBIx::Class::SQLMaker::[\w]+ .+? called \s at/x) {
           $clan_import->(@_);
         }
         else {
@@ -85,7 +106,7 @@ sub select {
         my $dialect = $self->limit_dialect
           or croak "Unable to generate SQL-limit - no limit dialect specified on $self, and no emulate_limit method found";
         $self->can ("_$dialect")
-          or croak "SQLAHacks does not implement the requested dialect '$dialect'";
+          or croak (__PACKAGE__ . " does not implement the requested dialect '$dialect'");
       }
     ;
 
@@ -333,3 +354,13 @@ sub _join_condition {
 }
 
 1;
+
+=head1 AUTHORS
+
+See L<DBIx::Class/CONTRIBUTORS>.
+
+=head1 LICENSE
+
+You may distribute this code under the same terms as Perl itself.
+
+=cut

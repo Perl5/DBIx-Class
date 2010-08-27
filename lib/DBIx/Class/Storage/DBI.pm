@@ -23,7 +23,7 @@ use namespace::clean;
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
 __PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class sql_limit_dialect/);
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker');
 
 __PACKAGE__->mk_group_accessors('simple' => qw/
   _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
@@ -448,9 +448,9 @@ statement handles via L<DBI/prepare_cached>.
 
 =item limit_dialect
 
-Sets the limit dialect. This is useful for JDBC-bridge among others
-where the remote SQL-dialect cannot be determined by the name of the
-driver alone. See also L<SQL::Abstract::Limit>.
+Sets a specific SQL::Abstract::Limit-style limit dialect, overriding the
+default L</sql_limit_dialect> setting of the storage (if any). For a list
+of available limit dialects see L<DBIx::Class::SQLMaker::LimitDialects>.
 
 =item quote_char
 
@@ -2019,7 +2019,7 @@ sub _select_args {
     }
   }
 
-  # Sanity check the attributes (SQLAHacks does it too, but
+  # Sanity check the attributes (SQLMaker does it too, but
   # in case of a software_limit we'll never reach there)
   if (defined $attrs->{offset}) {
     $self->throw_exception('A supplied offset attribute must be a non-negative integer')
@@ -2131,6 +2131,13 @@ sub select_single {
   $sth->finish();
   return @row;
 }
+
+=head2 sql_limit_dialect
+
+This is an accessor for the default SQL limit dialect used by a particular
+storage driver. Can be overriden by supplying an explicit L</limit_dialect>
+to L<DBIx::Class::Schema/connect>. For a list of available limit dialects
+see L<DBIx::Class::SQLMaker::LimitDialects>.
 
 =head2 sth
 
