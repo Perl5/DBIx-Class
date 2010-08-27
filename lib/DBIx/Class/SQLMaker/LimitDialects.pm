@@ -590,7 +590,6 @@ EOS
 # also return a hashref (order doesn't matter) of QUOTED EXTRA-SEL =>
 # QUOTED ALIAS pairs, which is a list of extra selectors that do *not*
 # exist in the original select list
-
 sub _subqueried_limit_attrs {
   my ($self, $rs_attrs) = @_;
 
@@ -609,7 +608,6 @@ sub _subqueried_limit_attrs {
     my $s = $rs_attrs->{select}[$i];
     my $sql_sel = $self->_recurse_fields ($s);
     my $sql_alias = (ref $s) eq 'HASH' ? $s->{-as} : undef;
-
 
     push @sel, {
       sql => $sql_sel,

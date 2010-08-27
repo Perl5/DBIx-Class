@@ -121,12 +121,25 @@ sub select {
 # this *must* be called, otherwise extra binds will remain in the sql-maker
   my @all_bind = $self->_assemble_binds;
 
+  $sql .= $self->_lock_select ($rs_attrs->{for})
+    if $rs_attrs->{for};
+
   return wantarray ? ($sql, @all_bind) : $sql;
 }
 
 sub _assemble_binds {
   my $self = shift;
   return map { @{ (delete $self->{"${_}_bind"}) || [] } } (qw/from where having order/);
+}
+
+my $for_syntax = {
+  update => 'FOR UPDATE',
+  shared => 'FOR SHARE',
+};
+sub _lock_select {
+  my ($self, $type) = @_;
+  my $sql = $for_syntax->{$type} || croak "Unknown SELECT .. FOR type '$type' requested";
+  return " $sql";
 }
 
 # Handle default inserts
@@ -198,10 +211,6 @@ sub _recurse_fields {
   }
 }
 
-my $for_syntax = {
-  update => 'FOR UPDATE',
-  shared => 'FOR SHARE',
-};
 
 # this used to be a part of _order_by but is broken out for clarity.
 # What we have been doing forever is hijacking the $order arg of
@@ -228,10 +237,6 @@ sub _parse_rs_attrs {
 
   if (defined $arg->{order_by}) {
     $sql .= $self->_order_by ($arg->{order_by});
-  }
-
-  if (my $for = $arg->{for}) {
-    $sql .= " $for_syntax->{$for}" if $for_syntax->{$for};
   }
 
   return $sql;

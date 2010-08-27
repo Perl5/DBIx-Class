@@ -75,6 +75,16 @@ $it->next;
 $it->next;
 is( $it->next, undef, "next past end of resultset ok" );
 
+# Limit with select-lock
+lives_ok {
+  $schema->txn_do (sub {
+    isa_ok (
+      $schema->resultset('Artist')->find({artistid => 1}, {for => 'update', rows => 1}),
+      'DBICTest::Schema::Artist',
+    );
+  });
+} 'Limited FOR UPDATE select works';
+
 my $test_type_info = {
     'artistid' => {
         'data_type' => 'INT',

@@ -21,6 +21,7 @@ Revision history for DBIx::Class
         - Fixed ::Schema::Versioned to work properly with quoting on
           (RT#59619)
         - Fixed t/54taint fails under local-lib
+        - Fixed SELECT ... FOR UPDATE with LIMIT regression (RT#58554)
 
     * Misc
         - Refactored capability handling in Storage::DBI, allows for

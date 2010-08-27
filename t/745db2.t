@@ -66,6 +66,19 @@ my $lim = $ars->search( {},
 is( $lim->count, 2, 'ROWS+OFFSET count ok' );
 is( $lim->all, 2, 'Number of ->all objects matches count' );
 
+# Limit with select-lock
+TODO: {
+  local $TODO = "Seems we can't SELECT ... FOR ... on subqueries";
+  lives_ok {
+    $schema->txn_do (sub {
+      isa_ok (
+        $schema->resultset('Artist')->find({artistid => 1}, {for => 'update', rows => 1}),
+        'DBICTest::Schema::Artist',
+      );
+    });
+  } 'Limited FOR UPDATE select works';
+}
+
 # test iterator
 $lim->reset;
 is( $lim->next->artistid, 101, "iterator->next ok" );

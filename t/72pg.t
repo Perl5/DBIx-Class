@@ -72,6 +72,16 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
   $it->next;
   $it->next;
   is( $it->next, undef, "next past end of resultset ok" );
+
+  # Limit with select-lock
+  lives_ok {
+    $schema->txn_do (sub {
+      isa_ok (
+        $schema->resultset('Artist')->find({artistid => 1}, {for => 'update', rows => 1}),
+        'DBICTest::Schema::Artist',
+      );
+    });
+  } 'Limited FOR UPDATE select works';
 }
 
 # check if we indeed do support stuff
