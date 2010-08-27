@@ -33,6 +33,8 @@ Revision history for DBIx::Class
           from tests
         - No longer depend on SQL::Abstract::Limit - DBIC has been doing
           most of the heavy lifting for a while anyway
+        - Do not execute t/zzzzzzz_sqlite_deadlock.t for regular module
+          installs - test is prone to spontaneous blow up
 
 0.08123 2010-06-12 14:46 (UTC)
     * Fixes
