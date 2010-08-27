@@ -332,6 +332,6 @@ ZEROINSEARCH: {
 
 my $schema2 = DBICTest::Schema->connect($dsn, $user, $pass);
 $schema2->resultset("Artist")->find(4);
-isa_ok($schema2->storage->sql_maker, 'DBIx::Class::SQLAHacks::MySQL');
+isa_ok($schema2->storage->sql_maker, 'DBIx::Class::SQLMaker::MySQL');
 
 done_testing;

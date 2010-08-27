@@ -7,7 +7,7 @@ use warnings;
 use base qw/DBIx::Class::Storage::DBIHacks DBIx::Class::Storage/;
 use mro 'c3';
 
-use Carp::Clan qw/^DBIx::Class/;
+use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
 use DBI;
 use DBIx::Class::Storage::DBI::Cursor;
 use DBIx::Class::Storage::Statistics;
@@ -18,12 +18,12 @@ use Try::Tiny;
 use File::Path 'make_path';
 use namespace::clean;
 
+
 # default cursor class, overridable in connect_info attributes
 __PACKAGE__->cursor_class('DBIx::Class::Storage::DBI::Cursor');
 
-__PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class/);
-# default
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks');
+__PACKAGE__->mk_group_accessors('inherited' => qw/sql_maker_class sql_limit_dialect/);
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker');
 
 __PACKAGE__->mk_group_accessors('simple' => qw/
   _connect_info _dbi_connect_info _dbic_connect_attributes _driver_determined
@@ -448,9 +448,9 @@ statement handles via L<DBI/prepare_cached>.
 
 =item limit_dialect
 
-Sets the limit dialect. This is useful for JDBC-bridge among others
-where the remote SQL-dialect cannot be determined by the name of the
-driver alone. See also L<SQL::Abstract::Limit>.
+Sets a specific SQL::Abstract::Limit-style limit dialect, overriding the
+default L</sql_limit_dialect> setting of the storage (if any). For a list
+of available limit dialects see L<DBIx::Class::SQLMaker::LimitDialects>.
 
 =item quote_char
 
@@ -973,23 +973,37 @@ sub _get_dbh {
   return $self->_dbh;
 }
 
-sub _sql_maker_args {
-    my ($self) = @_;
-
-    return (
-      bindtype=>'columns',
-      array_datatypes => 1,
-      limit_dialect => $self->_get_dbh,
-      %{$self->_sql_maker_opts}
-    );
-}
-
 sub sql_maker {
   my ($self) = @_;
   unless ($self->_sql_maker) {
     my $sql_maker_class = $self->sql_maker_class;
     $self->ensure_class_loaded ($sql_maker_class);
-    $self->_sql_maker($sql_maker_class->new( $self->_sql_maker_args ));
+
+    my %opts = %{$self->_sql_maker_opts||{}};
+    my $dialect =
+      $opts{limit_dialect}
+        ||
+      $self->sql_limit_dialect
+        ||
+      do {
+        my $s_class = (ref $self) || $self;
+        carp (
+          "Your storage class ($s_class) does not set sql_limit_dialect and you "
+        . 'have not supplied an explicit limit_dialect in your connection_info. '
+        . 'DBIC will attempt to use the GenericSubQ dialect, which works on most '
+        . 'databases but can be (and often is) painfully slow.'
+        );
+
+        'GenericSubQ';
+      }
+    ;
+
+    $self->_sql_maker($sql_maker_class->new(
+      bindtype=>'columns',
+      array_datatypes => 1,
+      limit_dialect => $dialect,
+      %opts,
+    ));
   }
   return $self->_sql_maker;
 }
@@ -2005,12 +2019,19 @@ sub _select_args {
     }
   }
 
-  # adjust limits
-  if (defined $attrs->{rows}) {
-    $self->throw_exception("rows attribute must be positive if present")
-      unless $attrs->{rows} > 0;
+  # Sanity check the attributes (SQLMaker does it too, but
+  # in case of a software_limit we'll never reach there)
+  if (defined $attrs->{offset}) {
+    $self->throw_exception('A supplied offset attribute must be a non-negative integer')
+      if ( $attrs->{offset} =~ /\D/ or $attrs->{offset} < 0 );
   }
-  elsif (defined $attrs->{offset}) {
+  $attrs->{offset} ||= 0;
+
+  if (defined $attrs->{rows}) {
+    $self->throw_exception("The rows attribute must be a positive integer if present")
+      if ( $attrs->{rows} =~ /\D/ or $attrs->{rows} <= 0 );
+  }
+  elsif ($attrs->{offset}) {
     # MySQL actually recommends this approach.  I cringe.
     $attrs->{rows} = $sql_maker->__max_int;
   }
@@ -2110,6 +2131,13 @@ sub select_single {
   $sth->finish();
   return @row;
 }
+
+=head2 sql_limit_dialect
+
+This is an accessor for the default SQL limit dialect used by a particular
+storage driver. Can be overriden by supplying an explicit L</limit_dialect>
+to L<DBIx::Class::Schema/connect>. For a list of available limit dialects
+see L<DBIx::Class::SQLMaker::LimitDialects>.
 
 =head2 sth
 

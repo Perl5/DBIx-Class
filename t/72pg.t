@@ -53,6 +53,27 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
     ok (!$s->storage->_dbh, 'still not connected');
   }
 
+# test LIMIT support
+{
+  my $schema = DBICTest::Schema->connect($dsn, $user, $pass);
+  drop_test_schema($schema);
+  create_test_schema($schema);
+  for (1..6) {
+    $schema->resultset('Artist')->create({ name => 'Artist ' . $_ });
+  }
+  my $it = $schema->resultset('Artist')->search( {},
+    { rows => 3,
+      offset => 2,
+      order_by => 'artistid' }
+  );
+  is( $it->count, 3, "LIMIT count ok" );  # ask for 3 rows out of 6 artists
+  is( $it->next->name, "Artist 3", "iterator->next ok" );
+  $it->next;
+  $it->next;
+  $it->next;
+  is( $it->next, undef, "next past end of resultset ok" );
+}
+
 # check if we indeed do support stuff
 my $test_server_supports_insert_returning = do {
   my $v = DBICTest::Schema->connect($dsn, $user, $pass)

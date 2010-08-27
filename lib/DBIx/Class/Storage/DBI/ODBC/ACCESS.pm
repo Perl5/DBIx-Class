@@ -9,6 +9,8 @@ use DBI;
 
 my $ERR_MSG_START = __PACKAGE__ . ' failed: ';
 
+__PACKAGE__->sql_limit_dialect ('Top');
+
 sub insert {
     my $self = shift;
     my ( $source, $to_insert ) = @_;

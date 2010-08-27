@@ -69,7 +69,7 @@ my $sql_maker = $schema->storage->sql_maker;
   );
 }
 
-# Make sure the carp/croak override in SQLA works (via SQLAHacks)
+# Make sure the carp/croak override in SQLA works (via SQLMaker)
 my $file = quotemeta (__FILE__);
 throws_ok (sub {
   $schema->resultset ('Artist')->search ({}, { order_by => { -asc => 'stuff', -desc => 'staff' } } )->as_query;

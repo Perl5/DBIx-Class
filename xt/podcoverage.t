@@ -113,9 +113,10 @@ my $exceptions = {
 
 # test some specific components whose parents are exempt below
     'DBIx::Class::Relationship::Base'               => {},
+    'DBIx::Class::SQLMaker::LimitDialects'          => {},
 
 # internals
-    'DBIx::Class::SQLAHacks*'                       => { skip => 1 },
+    'DBIx::Class::SQLMaker*'                        => { skip => 1 },
     'DBIx::Class::Storage::DBI*'                    => { skip => 1 },
     'SQL::Translator::*'                            => { skip => 1 },
 

@@ -6,7 +6,7 @@ use warnings;
 use base qw( DBIx::Class::Storage::DBI::Oracle::Generic );
 use mro 'c3';
 
-__PACKAGE__->sql_maker_class('DBIx::Class::SQLAHacks::OracleJoins');
+__PACKAGE__->sql_maker_class('DBIx::Class::SQLMaker::OracleJoins');
 
 1;
 
@@ -48,7 +48,7 @@ it's already too late.
 
 =head1 METHODS
 
-See L<DBIx::Class::SQLAHacks::OracleJoins> for implementation details.
+See L<DBIx::Class::SQLMaker::OracleJoins> for implementation details.
 
 =head1 BUGS
 
@@ -59,9 +59,9 @@ Probably lots more.
 
 =over
 
-=item L<DBIx::Class::SQLAHacks>
+=item L<DBIx::Class::SQLMaker>
 
-=item L<DBIx::Class::SQLAHacks::OracleJoins>
+=item L<DBIx::Class::SQLMaker::OracleJoins>
 
 =item L<DBIx::Class::Storage::DBI::Oracle::Generic>
 

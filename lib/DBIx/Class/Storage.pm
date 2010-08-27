@@ -336,7 +336,7 @@ sub txn_scope_guard {
 =head2 sql_maker
 
 Returns a C<sql_maker> object - normally an object of class
-C<DBIx::Class::SQLAHacks>.
+C<DBIx::Class::SQLMaker>.
 
 =cut
 

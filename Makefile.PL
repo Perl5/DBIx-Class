@@ -57,7 +57,6 @@ my $runtime_requires = {
   'Module::Find'             => '0.06',
   'Path::Class'              => '0.18',
   'SQL::Abstract'            => '1.67',
-  'SQL::Abstract::Limit'     => '0.13',
   'Sub::Name'                => '0.04',
   'Data::Dumper::Concise'    => '1.000',
   'Scope::Guard'             => '0.03',
@@ -222,14 +221,12 @@ resources 'bugtracker'  => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=DBIx-Class'
 # Deprecated/internal modules need no exposure
 no_index directory => $_ for (qw|
   lib/DBIx/Class/Admin
-  lib/DBIx/Class/SQLAHacks
   lib/DBIx/Class/PK/Auto
   lib/DBIx/Class/CDBICompat
 |);
 no_index package => $_ for (qw/
-  DBIx::Class::SQLAHacks DBIx::Class::Storage::DBIHacks
+  DBIx::Class::Storage::DBIHacks
 /);
-
 
 WriteAll();
 

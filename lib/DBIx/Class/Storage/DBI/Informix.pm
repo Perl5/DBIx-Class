@@ -9,6 +9,8 @@ use Scope::Guard ();
 use Context::Preserve 'preserve_context';
 use namespace::clean;
 
+__PACKAGE__->sql_limit_dialect ('SkipFirst');
+
 __PACKAGE__->mk_group_accessors('simple' => '__last_insert_id');
 
 =head1 NAME
@@ -35,16 +37,6 @@ sub _execute {
 
 sub last_insert_id {
   shift->__last_insert_id;
-}
-
-sub _sql_maker_opts {
-  my ( $self, $opts ) = @_;
-
-  if ( $opts ) {
-    $self->{_sql_maker_opts} = { %$opts };
-  }
-
-  return { limit_dialect => 'SkipFirst', %{$self->{_sql_maker_opts}||{}} };
 }
 
 sub _svp_begin {

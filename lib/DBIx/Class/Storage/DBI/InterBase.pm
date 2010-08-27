@@ -15,8 +15,8 @@ DBIx::Class::Storage::DBI::InterBase - Driver for the Firebird RDBMS
 =head1 DESCRIPTION
 
 This class implements autoincrements for Firebird using C<RETURNING> as well as
-L<auto_nextval|DBIx::Class::ResultSource/auto_nextval> sets the limit dialect to
-C<FIRST X SKIP X> and provides L<DBIx::Class::InflateColumn::DateTime> support.
+L<auto_nextval|DBIx::Class::ResultSource/auto_nextval> and provides
+L<DBIx::Class::InflateColumn::DateTime> support.
 
 You need to use either the
 L<disable_sth_caching|DBIx::Class::Storage::DBI/disable_sth_caching> option or
@@ -33,6 +33,7 @@ L</connect_call_datetime_setup>.
 
 # set default
 __PACKAGE__->_use_insert_returning (1);
+__PACKAGE__->sql_limit_dialect ('FirstSkip');
 
 sub _sequence_fetch {
   my ($self, $nextval, $sequence) = @_;
@@ -88,18 +89,6 @@ EOF
   }
 
   return undef;
-}
-
-# this sub stolen from DB2
-
-sub _sql_maker_opts {
-  my ( $self, $opts ) = @_;
-
-  if ( $opts ) {
-    $self->{_sql_maker_opts} = { %$opts };
-  }
-
-  return { limit_dialect => 'FirstSkip', %{$self->{_sql_maker_opts}||{}} };
 }
 
 sub _svp_begin {
