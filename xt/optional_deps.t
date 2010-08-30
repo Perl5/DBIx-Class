@@ -5,7 +5,7 @@ no warnings qw/once/;
 use Test::More;
 use lib qw(t/lib);
 use Scalar::Util; # load before we break require()
-use Carp ();      # Carp is not used in the test, but we want to have it loaded for proper %INC comparison
+use Carp ();   # Carp is not used in the test, but we want to have it loaded for proper %INC comparison
 
 # a dummy test which lazy-loads more modules (so we can compare INC below)
 ok (1);
@@ -33,25 +33,26 @@ is_deeply (
 );
 
 # make module loading impossible, regardless of actual libpath contents
-@INC = (sub { die('Optional Dep Test') } );
+{
+  local @INC = (sub { die('Optional Dep Test') } );
 
-ok (
-  ! DBIx::Class::Optional::Dependencies->req_ok_for ('deploy'),
-  'deploy() deps missing',
-);
+  ok (
+    ! DBIx::Class::Optional::Dependencies->req_ok_for ('deploy'),
+    'deploy() deps missing',
+  );
 
-like (
-  DBIx::Class::Optional::Dependencies->req_missing_for ('deploy'),
-  qr/^SQL::Translator \>\= \d/,
-  'expected missing string contents',
-);
+  like (
+    DBIx::Class::Optional::Dependencies->req_missing_for ('deploy'),
+    qr/^SQL::Translator \>\= \d/,
+    'expected missing string contents',
+  );
 
-like (
-  DBIx::Class::Optional::Dependencies->req_errorlist_for ('deploy')->{'SQL::Translator'},
-  qr/Optional Dep Test/,
-  'custom exception found in errorlist',
-);
-
+  like (
+    DBIx::Class::Optional::Dependencies->req_errorlist_for ('deploy')->{'SQL::Translator'},
+    qr/Optional Dep Test/,
+    'custom exception found in errorlist',
+  );
+}
 
 #make it so module appears loaded
 $INC{'SQL/Translator.pm'} = 1;
@@ -82,6 +83,5 @@ is_deeply (
   {},
   'expected empty errorlist',
 );
-
 
 done_testing;
