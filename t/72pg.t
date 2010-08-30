@@ -10,12 +10,12 @@ use DBICTest;
 
 my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_PG_${_}" } qw/DSN USER PASS/};
 
-plan skip_all => <<EOM unless $dsn && $user;
-Set \$ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test
+plan skip_all => <<'EOM' unless $dsn && $user;
+Set $ENV{DBICTEST_PG_DSN}, _USER and _PASS to run this test
 ( NOTE: This test drops and creates tables called 'artist', 'cd',
 'timestamp_primary_key_test', 'track', 'casecheck', 'array_test' and
 'sequence_test' as well as following sequences: 'pkid1_seq', 'pkid2_seq' and
-'nonpkid_seq''. as well as following schemas: 'dbic_t_schema',
+'nonpkid_seq'. as well as following schemas: 'dbic_t_schema',
 'dbic_t_schema_2', 'dbic_t_schema_3', 'dbic_t_schema_4', and 'dbic_t_schema_5')
 EOM
 
@@ -265,16 +265,12 @@ my $artist = $schema->resultset('Artist')->first;
 my $cds = $artist->cds_unordered->search({
     year => { '!=' => 2010 }
 }, { prefetch => 'liner_notes' });
-TODO: {
-    todo_skip 'update resultset with a prefetch over a might_have rel', 1;
-    $cds->update({ year => '2010' });
-}
-
+lives_ok { $cds->update({ year => '2010' }) } 'Update on prefetched rs';
 
 ## Test SELECT ... FOR UPDATE
 
   SKIP: {
-      if(eval "require Sys::SigAction" && !$@) {
+      if(eval { require Sys::SigAction }) {
           Sys::SigAction->import( 'set_sig_handler' );
       }
       else {
