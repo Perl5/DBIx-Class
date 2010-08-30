@@ -32,8 +32,10 @@ DBICTest::Schema->load_classes( map {s/.+:://;$_} @test_classes ) if @test_class
 
     # Check that datetime_parser returns correctly before we explicitly connect.
     SKIP: {
-        eval { require DateTime::Format::Pg };
-        skip "DateTime::Format::Pg required", 2 if $@;
+        skip (
+          "Pg parser detection test needs " . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_pg'),
+          2
+        ) unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_pg');
 
         my $store = ref $s->storage;
         is($store, 'DBIx::Class::Storage::DBI', 'Started with generic storage');

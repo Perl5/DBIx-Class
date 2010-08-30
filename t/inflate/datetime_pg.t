@@ -5,17 +5,13 @@ use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_pg')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_pg');
+
 {
   local $SIG{__WARN__} = sub { warn @_ if $_[0] !~ /extra \=\> .+? has been deprecated/ };
   DBICTest::Schema->load_classes('EventTZPg');
 }
-
-eval { require DateTime::Format::Pg };
-plan $@
-  ? ( skip_all =>  'Need DateTime::Format::Pg for timestamp inflation tests')
-  : ( tests => 6 )
-;
-
 
 my $schema = DBICTest->init_schema();
 
@@ -38,3 +34,5 @@ my $schema = DBICTest->init_schema();
   is($event->ts_without_tz->microsecond, $dt->microsecond,
     'timestamp without time zone microseconds survived');
 }
+
+done_testing;

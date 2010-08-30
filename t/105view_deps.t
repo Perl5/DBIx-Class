@@ -12,11 +12,12 @@ use ViewDepsBad;
 
 BEGIN {
     require DBIx::Class;
-    plan skip_all => 'Test needs '
-        . DBIx::Class::Optional::Dependencies->req_missing_for('deploy')
-        unless DBIx::Class::Optional::Dependencies->req_ok_for('deploy');
-    use_ok('DBIx::Class::ResultSource::View');
+    plan skip_all => 'Test needs ' .
+        DBIx::Class::Optional::Dependencies->req_missing_for('deploy')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for('deploy');
 }
+
+use_ok('DBIx::Class::ResultSource::View');
 
 #################### SANITY
 

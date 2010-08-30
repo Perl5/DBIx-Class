@@ -37,6 +37,7 @@ Revision history for DBIx::Class
           from tests (RT#59565)
         - Do not execute t/zzzzzzz_sqlite_deadlock.t for regular module
           installs - test is prone to spontaneous blow up
+        - DT-related tests now require a DateTime >= 0.55 (RT#60324)
 
 0.08123 2010-06-12 14:46 (UTC)
     * Fixes

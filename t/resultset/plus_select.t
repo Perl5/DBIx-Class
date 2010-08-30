@@ -43,8 +43,10 @@ is_deeply (
 );
 
 SKIP: {
-  eval { require DateTime };
-  skip "Need DateTime for +select/get_inflated_columns tests", 1 if $@;
+  skip (
+    "+select/get_inflated_columns tests need " . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt'),
+    1
+  ) unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
 
   $schema->class('CD')->inflate_column( 'year',
     { inflate => sub { DateTime->new( year => shift ) },

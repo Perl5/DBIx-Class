@@ -1,13 +1,12 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
 use DBICTest;
 
-eval { require DateTime::Format::SQLite };
-plan $@ ? ( skip_all => 'Requires DateTime::Format::SQLite' )
-        : ( tests => 3 );
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt_sqlite')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt_sqlite');
 
 my $schema = DBICTest->init_schema(
     no_deploy => 1, # Deploying would cause an early rebless
@@ -26,3 +25,4 @@ my $parser = $schema->storage->datetime_parser();
 is($parser, 'DateTime::Format::SQLite', 'Got expected storage-set datetime_parser');
 isa_ok($schema->storage, 'DBIx::Class::Storage::DBI::SQLite', 'storage');
 
+done_testing;

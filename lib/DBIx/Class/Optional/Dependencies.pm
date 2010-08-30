@@ -12,16 +12,26 @@ use Carp;
 # Makefile.PL in $AUTHOR mode
 
 my $moose_basic = {
-  'Moose'                      => '0.98',
-  'MooseX::Types'              => '0.21',
+  'Moose'                         => '0.98',
+  'MooseX::Types'                 => '0.21',
+};
+
+my $replicated = {
+  %$moose_basic,
+  'Hash::Merge'                   => '0.12',
 };
 
 my $admin_basic = {
   %$moose_basic,
-  'MooseX::Types::Path::Class' => '0.05',
-  'MooseX::Types::JSON'        => '0.02',
-  'JSON::Any'                  => '1.22',
-  'namespace::autoclean'       => '0.09',
+  'MooseX::Types::Path::Class'    => '0.05',
+  'MooseX::Types::JSON'           => '0.02',
+  'JSON::Any'                     => '1.22',
+  'namespace::autoclean'          => '0.09',
+};
+
+my $datetime_basic = {
+  'DateTime'                      => '0.55',
+  'DateTime::Format::Strptime'    => '1.2',
 };
 
 my $reqs = {
@@ -30,15 +40,20 @@ my $reqs = {
   },
 
   replicated => {
-    req => {
-      %$moose_basic,
-      'Hash::Merge'               => '0.12',
-    },
+    req => $replicated,
     pod => {
       title => 'Storage::Replicated',
       desc => 'Modules required for L<DBIx::Class::Storage::DBI::Replicated>',
     },
   },
+
+  test_replicated => {
+    req => {
+      %$replicated,
+      'Test::Moose'               => '0',
+    },
+  },
+
 
   admin => {
     req => {
@@ -106,26 +121,38 @@ my $reqs = {
     },
   },
 
-  test_dtrelated => {
+  test_dt => {
+    req => $datetime_basic,
+  },
+
+  test_dt_sqlite => {
     req => {
+      %$datetime_basic,
       # t/36datetime.t
       # t/60core.t
       'DateTime::Format::SQLite'  => '0',
-
-      # t/96_is_deteministic_value.t
-      'DateTime::Format::Strptime'=> '0',
-
-      # t/inflate/datetime_mysql.t
-      # (doesn't need Mysql itself)
-      'DateTime::Format::MySQL' => '0',
-
-      # t/inflate/datetime_pg.t
-      # (doesn't need PG itself)
-      'DateTime::Format::Pg'  => '0',
     },
   },
 
-  cdbicompat => {
+  test_dt_mysql => {
+    req => {
+      %$datetime_basic,
+      # t/inflate/datetime_mysql.t
+      # (doesn't need Mysql itself)
+      'DateTime::Format::MySQL'   => '0',
+    },
+  },
+
+  test_dt_pg => {
+    req => {
+      %$datetime_basic,
+      # t/inflate/datetime_pg.t
+      # (doesn't need PG itself)
+      'DateTime::Format::Pg'      => '0',
+    },
+  },
+
+  test_cdbicompat => {
     req => {
       'DBIx::ContextualFetch'     => '0',
       'Class::DBI::Plugin::DeepAbstractSearch' => '0',
@@ -136,7 +163,7 @@ my $reqs = {
     },
   },
 
-  rdbms_pg => {
+  test_rdbms_pg => {
     req => {
       $ENV{DBICTEST_PG_DSN}
         ? (
@@ -146,7 +173,7 @@ my $reqs = {
     },
   },
 
-  rdbms_mysql => {
+  test_rdbms_mysql => {
     req => {
       $ENV{DBICTEST_MYSQL_DSN}
         ? (
@@ -155,7 +182,7 @@ my $reqs = {
     },
   },
 
-  rdbms_oracle => {
+  test_rdbms_oracle => {
     req => {
       $ENV{DBICTEST_ORA_DSN}
         ? (
@@ -165,7 +192,7 @@ my $reqs = {
     },
   },
 
-  rdbms_ase => {
+  test_rdbms_ase => {
     req => {
       $ENV{DBICTEST_SYBASE_DSN}
         ? (
@@ -174,16 +201,7 @@ my $reqs = {
     },
   },
 
-  rdbms_asa => {
-    req => {
-      (scalar grep { $ENV{$_} } (qw/DBICTEST_SYBASE_ASA_DSN DBICTEST_SYBASE_ASA_ODBC_DSN/) )
-        ? (
-          'DateTime::Format::Strptime' => 0,
-        ) : ()
-    },
-  },
-
-  rdbms_db2 => {
+  test_rdbms_db2 => {
     req => {
       $ENV{DBICTEST_DB2_DSN}
         ? (

@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 no warnings 'uninitialized';
 
 use Test::More;

@@ -8,7 +8,6 @@ BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   if ($@) {
     plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
-    next;
   }
   plan tests => 98;
 }

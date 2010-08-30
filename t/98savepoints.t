@@ -2,9 +2,6 @@ use strict;
 use warnings;
 
 use Test::More;
-use lib qw(t/lib);
-use DBICTest;
-use DBICTest::Stats;
 
 my ($create_sql, $dsn, $user, $pass);
 
@@ -19,6 +16,10 @@ if ($ENV{DBICTEST_PG_DSN}) {
 } else {
   plan skip_all => 'Set DBICTEST_(PG|MYSQL)_DSN _USER and _PASS if you want to run savepoint tests';
 }
+
+use lib qw(t/lib);
+use DBICTest;
+use DBICTest::Stats;
 
 plan tests => 16;
 

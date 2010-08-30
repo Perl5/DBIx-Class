@@ -3,15 +3,9 @@ use warnings;
 use Test::More;
 
 BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required"
+  eval "use DBIx::Class::CDBICompat; use DateTime 0.55; use Clone;";
+  plan skip_all => "Clone, DateTime 0.55, Class::Trigger and DBIx::ContextualFetch required"
     if $@;
-
-  eval { require DateTime };
-  plan skip_all => "Need DateTime for inflation tests" if $@;
-
-  eval { require Clone };
-  plan skip_all => "Need Clone for CDBICompat inflation tests" if $@;
 }
 
 plan tests => 6;

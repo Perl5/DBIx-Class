@@ -7,9 +7,6 @@ BEGIN {
   if ($@) {
     plan (skip_all => 'Class::Trigger and DBIx::ContextualFetch required');
   }
-  
-  eval "use DBD::SQLite";
-  plan skip_all => 'needs DBD::SQLite for testing' if $@;
 }
 
 INIT {

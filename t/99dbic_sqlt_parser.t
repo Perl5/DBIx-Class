@@ -3,9 +3,6 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use lib qw(t/lib);
-use DBICTest;
-use DBICTest::Schema;
 use Scalar::Util ();
 
 BEGIN {
@@ -14,6 +11,10 @@ BEGIN {
       'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
+
+use lib qw(t/lib);
+use DBICTest;
+use DBICTest::Schema;
 
 # Test for SQLT-related leaks
 {

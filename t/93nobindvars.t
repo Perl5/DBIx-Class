@@ -1,9 +1,5 @@
 use strict;
-use warnings;  
-
-# Copied from 71mysql.t, manually using NoBindVars.  This is to give that code
-#  wider testing, since virtually nobody who regularly runs the test suite
-#  is using DBD::Sybase+FreeTDS+MSSQL -- blblack
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -16,8 +12,6 @@ my ($dsn, $user, $pass) = @ENV{map { "DBICTEST_MYSQL_${_}" } qw/DSN USER PASS/};
 
 plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
   unless ($dsn && $user);
-
-plan tests => 4;
 
 { # Fake storage driver for mysql + no bind variables
     package DBIx::Class::Storage::DBI::MySQLNoBindVars;
@@ -68,3 +62,5 @@ END {
     my $dbh = eval { $schema->storage->_dbh };
     $dbh->do("DROP TABLE artist") if $dbh;
 }
+
+done_testing;

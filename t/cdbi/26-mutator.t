@@ -5,13 +5,7 @@ BEGIN {
   eval "use DBIx::Class::CDBICompat;";
   plan skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@"
     if $@;
-}
-
-BEGIN {
-  eval "use DBD::SQLite";
-  plan $@
-    ? (skip_all => 'needs DBD::SQLite for testing')
-    : (tests => 6);
+  plan tests => 6;
 }
 
 use lib 't/cdbi/testlib';

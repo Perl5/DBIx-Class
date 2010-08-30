@@ -3,10 +3,9 @@ use Test::More;
 use lib 't/cdbi/testlib';
 
 BEGIN {
-  eval "use DBIx::Class::CDBICompat;";
-  plan skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@"
+  eval "use DBIx::Class::CDBICompat;use DateTime 0.55;";
+  plan skip_all => "DateTime 0.55, Class::Trigger and DBIx::ContextualFetch required: $@"
     if $@;
-  plan skip_all => "DateTime required" unless eval { require DateTime };
   plan tests => 2;
 }
 

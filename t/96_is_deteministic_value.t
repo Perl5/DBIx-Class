@@ -1,15 +1,17 @@
 use strict;
 use warnings;
 
-# 6 tests
-
 use Test::More;
+use Test::Exception;
+
+BEGIN {
+  require DBIx::Class;
+  plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
+    unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
+}
+
 use lib qw(t/lib);
 use DBICTest;
-plan skip_all => "DateTime required" unless eval { require DateTime };
-eval "use DateTime::Format::Strptime";
-plan skip_all => 'DateTime::Format::Strptime required' if $@;
-use Test::Exception;
 
 my $schema = DBICTest->init_schema();
 my $artist_rs = $schema->resultset('Artist');

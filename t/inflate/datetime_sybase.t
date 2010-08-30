@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use Test::Exception;
@@ -12,12 +12,10 @@ if (not ($dsn && $user)) {
   plan skip_all =>
     'Set $ENV{DBICTEST_SYBASE_DSN}, _USER and _PASS to run this test' .
     "\nWarning: This test drops and creates a table called 'track'";
-} else {
-  eval "use DateTime; use DateTime::Format::Sybase;";
-  if ($@) {
-    plan skip_all => 'needs DateTime and DateTime::Format::Sybase for testing';
-  }
 }
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_ase')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_ase');
 
 my @storage_types = (
   'DBI::Sybase::ASE',
@@ -46,7 +44,7 @@ for my $storage_type (@storage_types) {
 # minute precision
     ['SMALLDATETIME', 'small_dt', '2004-08-21T14:36:00.000Z'],
   );
-  
+
   for my $dt_type (@dt_types) {
     my ($type, $col, $sample_dt) = @$dt_type;
 

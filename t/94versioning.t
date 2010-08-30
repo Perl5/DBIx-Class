@@ -1,13 +1,10 @@
 use strict;
 use warnings;
+
 use Test::More;
 use Test::Warn;
 use Test::Exception;
 
-use Path::Class;
-use File::Copy;
-
-#warn "$dsn $user $pass";
 my ($dsn, $user, $pass);
 
 BEGIN {
@@ -16,15 +13,15 @@ BEGIN {
   plan skip_all => 'Set $ENV{DBICTEST_MYSQL_DSN}, _USER and _PASS to run this test'
     unless ($dsn);
 
-  eval { require Time::HiRes }
-    || plan skip_all => 'Test needs Time::HiRes';
-  Time::HiRes->import(qw/time sleep/);
-
   require DBIx::Class;
   plan skip_all =>
       'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('deploy')
     unless DBIx::Class::Optional::Dependencies->req_ok_for ('deploy')
 }
+
+use Path::Class;
+use File::Copy;
+use Time::HiRes qw/time sleep/;
 
 use lib qw(t/lib);
 use DBICTest; # do not remove even though it is not used

@@ -1,31 +1,32 @@
 use strict;
 use warnings;
-use lib qw(t/lib);
+
 use Test::More;
+
+BEGIN {
+    require DBIx::Class;
+    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_replicated')
+      unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_replicated');
+}
+
+use Test::Moose;
 use Test::Exception;
-use DBICTest;
 use List::Util 'first';
 use Scalar::Util 'reftype';
 use File::Spec;
 use IO::Handle;
+use Moose();
+use MooseX::Types();
+note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
 
-BEGIN {
-    eval { require Test::Moose; Test::Moose->import() };
-    plan skip_all => "Need Test::Moose to run this test" if $@;
-      require DBIx::Class;
-
-    plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('replicated')
-      unless DBIx::Class::Optional::Dependencies->req_ok_for ('replicated');
-}
+use lib qw(t/lib);
+use DBICTest;
 
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Pool';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Balancer';
 use_ok 'DBIx::Class::Storage::DBI::Replicated::Replicant';
 use_ok 'DBIx::Class::Storage::DBI::Replicated';
 
-use Moose();
-use MooseX::Types();
-note "Using Moose version $Moose::VERSION and MooseX::Types version $MooseX::Types::VERSION";
 
 =head1 HOW TO USE
 

@@ -7,11 +7,8 @@ use DBICTest;
 
 my $schema = DBICTest->init_schema();
 
-eval { require DateTime::Format::SQLite };
-plan $@
-  ? ( skip_all => "Need DateTime::Format::SQLite for DT inflation tests" )
-  : ( tests => 18 )
-;
+plan skip_all => 'DT inflation tests need ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
 
 # inflation test
 my $event = $schema->resultset("Event")->find(1);
@@ -74,3 +71,5 @@ is("$varchar_datetime", '2006-05-22T19:05:07', 'Correct date/time');
 ## skip inflation field
 my $skip_inflation = $event->skip_inflation;
 is ("$skip_inflation", '2006-04-21 18:04:06', 'Correct date/time');
+
+done_testing;

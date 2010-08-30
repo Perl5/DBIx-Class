@@ -22,12 +22,10 @@ if (not ($dsn || $dsn2)) {
     'Set $ENV{DBICTEST_MSSQL_ODBC_DSN} and/or $ENV{DBICTEST_MSSQL_DSN} _USER '
     .'and _PASS to run this test' .
     "\nWarning: This test drops and creates a table called 'track'";
-} else {
-  eval "use DateTime; use DateTime::Format::Strptime;";
-  if ($@) {
-    plan skip_all => 'needs DateTime and DateTime::Format::Strptime for testing';
-  }
 }
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_dt')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_dt');
 
 my @connect_info = (
   [ $dsn,  $user,  $pass ],

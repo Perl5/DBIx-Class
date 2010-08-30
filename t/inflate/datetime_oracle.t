@@ -1,5 +1,5 @@
 use strict;
-use warnings;  
+use warnings;
 
 use Test::More;
 use lib qw(t/lib);
@@ -11,15 +11,9 @@ if (not ($dsn && $user && $pass)) {
     plan skip_all => 'Set $ENV{DBICTEST_ORA_DSN}, _USER and _PASS to run this test. ' .
          'Warning: This test drops and creates a table called \'track\'';
 }
-else {
-    eval "use DateTime; use DateTime::Format::Oracle;";
-    if ($@) {
-        plan skip_all => 'needs DateTime and DateTime::Format::Oracle for testing';
-    }
-    else {
-        plan tests => 10;
-    }
-}
+
+plan skip_all => 'Test needs ' . DBIx::Class::Optional::Dependencies->req_missing_for ('test_rdbms_oracle')
+  unless DBIx::Class::Optional::Dependencies->req_ok_for ('test_rdbms_oracle');
 
 # DateTime::Format::Oracle needs this set
 $ENV{NLS_DATE_FORMAT} = 'DD-MON-YY';
@@ -93,6 +87,8 @@ is( $track->last_updated_at, $timestamp, 'DateTime round-trip as TIMESTAMP' );
 
 is( int $track->last_updated_at->nanosecond, int 500_000_000,
   'TIMESTAMP nanoseconds survived' );
+
+done_testing;
 
 # clean up our mess
 END {

@@ -2,18 +2,10 @@ use strict;
 use Test::More;
 
 BEGIN {
-    eval "use DBIx::Class::CDBICompat;";
+    eval "use DBIx::Class::CDBICompat; require Class::DBI::Plugin::DeepAbstractSearch;";
     if ($@) {
-        plan (skip_all => "Class::Trigger and DBIx::ContextualFetch required: $@");
-        next;
+        plan (skip_all => "Class::DBI::Plugin::DeepAbstractSearch, Class::Trigger and DBIx::ContextualFetch required: $@");
     }
-
-    plan skip_all => 'needs DBD::SQLite for testing'
-        unless eval { require DBD::SQLite };
-    
-    plan skip_all => 'needs Class::DBI::Plugin::DeepAbstractSearch'
-        unless eval { require Class::DBI::Plugin::DeepAbstractSearch };
-    
     plan tests => 19;
 }
 
