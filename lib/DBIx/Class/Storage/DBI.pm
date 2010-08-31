@@ -72,7 +72,6 @@ my @rdbms_specific_methods = qw/
   build_datetime_parser
   datetime_parser_type
 
-
   insert
   insert_bulk
   update
@@ -96,7 +95,7 @@ for my $meth (@rdbms_specific_methods) {
       $_[0]->_determine_driver;
       goto $_[0]->can($meth);
     }
-    $orig->(@_);
+    goto $orig;
   };
 }
 

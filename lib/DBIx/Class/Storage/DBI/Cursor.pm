@@ -177,11 +177,10 @@ sub _check_dbh_gen {
 }
 
 sub DESTROY {
-  my ($self) = @_;
-
   # None of the reasons this would die matter if we're in DESTROY anyways
-  try { $self->sth->finish }
-    if $self->sth && $self->sth->{Active};
+  if (my $sth = $_[0]->sth) {
+    try { $sth->finish if $sth->{Active} };
+  }
 }
 
 1;
