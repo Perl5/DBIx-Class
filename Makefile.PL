@@ -157,7 +157,7 @@ if ($Module::Install::AUTHOR) {
 
   print "Regenerating Optional/Dependencies.pod\n";
   require DBIx::Class::Optional::Dependencies;
-  DBIx::Class::Optional::Dependencies->_gen_pod;
+  DBIx::Class::Optional::Dependencies->_gen_pod (Meta->version);
 
   # FIXME Disabled due to unsolved issues, ask theorbtwo
   #  require Module::Install::Pod::Inherit;

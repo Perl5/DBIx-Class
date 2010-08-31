@@ -302,27 +302,23 @@ sub req_group_list {
 
 # This is to be called by the author only (automatically in Makefile.PL)
 sub _gen_pod {
+  my ($class, $distver) = @_;
 
-  my $class = shift;
   my $modfn = __PACKAGE__ . '.pm';
   $modfn =~ s/\:\:/\//g;
 
   my $podfn = __FILE__;
   $podfn =~ s/\.pm$/\.pod/;
 
-  my $distver =
+  $distver ||=
     eval { require DBIx::Class; DBIx::Class->VERSION; }
       ||
-    do {
-      warn
+    die
 "\n\n---------------------------------------------------------------------\n" .
 'Unable to load core DBIx::Class module to determine current version, '.
 'possibly due to missing dependencies. Author-mode autodocumentation ' .
 "halted\n\n" . $@ .
 "\n\n---------------------------------------------------------------------\n"
-      ;
-      '*UNKNOWN*';  # rv
-    }
   ;
 
   my $sqltver = $class->req_list_for ('deploy')->{'SQL::Translator'}

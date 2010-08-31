@@ -42,6 +42,8 @@ Revision history for DBIx::Class
         - Do not execute t/zzzzzzz_sqlite_deadlock.t for regular module
           installs - test is prone to spontaneous blow up
         - DT-related tests now require a DateTime >= 0.55 (RT#60324)
+        - Makefile.PL now provides a pre-parsed DBIC version to the
+          Opt::Dep pod generator
 
 0.08123 2010-06-12 14:46 (UTC)
     * Fixes
