@@ -32,6 +32,8 @@ my $dbh = $schema->storage->dbh;
     ],{ RaiseError => 1, PrintError => 1 });
 }
 
+$schema->storage->debug(0); # these tests spew up way too much stuff, disable trace
+
 my $big_long_string = "\x00\x01\x02 abcd" x 125000;
 
 my $new;

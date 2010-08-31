@@ -11,14 +11,12 @@ use_ok( 'DBICTest::Schema' );
 
 my $schema = DBICTest->init_schema;
 
-my $e_start = quotemeta('DBIx::Class::');
-
 warnings_are ( sub {
   throws_ok (
     sub {
       $schema->resultset('CD')->create({ title => 'vacation in antarctica' })
     },
-    qr/$e_start.+constraint failed.+NULL/s
+    qr/DBI Exception.+constraint failed.+cd\.artist.+NULL/s
   );  # as opposed to some other error
 }, [], 'No warnings besides exception' );
 
@@ -28,7 +26,7 @@ throws_ok (
   sub {
     $dbh->do ('INSERT INTO nonexistent_table VALUES (1)')
   },
-  qr/$e_start.+DBI Exception.+no such table/,
+  qr/DBI Exception.+no such table.+nonexistent_table/s,
   'DBI exceptions properly handled by dbic-installed callback'
 );
 
@@ -42,7 +40,7 @@ throws_ok (
     sub {
       $dbh->do ('INSERT INTO nonexistent_table VALUES (1)')
     },
-    qr/DBI Exception.+unhandled by DBIC.+no such table/,
+    qr/DBI Exception.+unhandled by DBIC.+no such table.+nonexistent_table/s,
     'callback works after $schema is gone'
   );
 }
