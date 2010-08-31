@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use Sub::Name ();
 use Storable 'dclone';
+use List::Util ();
 
 use base qw/DBIx::Class::Row/;
 
@@ -19,7 +20,10 @@ sub columns {
   $class->_add_column_group($group => @_) if @_;
   return $class->all_columns    if $group eq "All";
   return $class->primary_column if $group eq "Primary";
-  return keys %{$class->_column_groups->{$group}};
+
+  my $grp = $class->_column_groups->{$group};
+  my @grp_cols = sort { $grp->{$b} <=> $grp->{$a} } (keys %$grp);
+  return @grp_cols;
 }
 
 sub _add_column_group {
@@ -43,7 +47,9 @@ sub _register_column_group {
 
   if ($group eq 'Primary') {
     $class->set_primary_key(@cols);
-    $groups->{'Essential'}{$_} ||= 1 for @cols;
+    delete $groups->{'Essential'}{$_} for @cols;
+    my $first = List::Util::max(values %{$groups->{'Essential'}});
+    $groups->{'Essential'}{$_} = ++$first for reverse @cols;
   }
 
   if ($group eq 'All') {
@@ -56,7 +62,9 @@ sub _register_column_group {
     }
   }
 
-  $groups->{$group}{$_} ||= 1 for @cols;
+  delete $groups->{$group}{$_} for @cols;
+  my $first = List::Util::max(values %{$groups->{$group}});
+  $groups->{$group}{$_} = ++$first for reverse @cols;
 
   $class->_column_groups($groups);
 }
