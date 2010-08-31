@@ -93,7 +93,13 @@ for my $meth (@rdbms_specific_methods) {
   *{__PACKAGE__ ."::$meth"} = subname $meth => sub {
     if (not $_[0]->_driver_determined and not $_[0]->{_in_determine_driver}) {
       $_[0]->_determine_driver;
-      goto $_[0]->can($meth);
+
+      # This for some reason crashes and burns on perl 5.8.1
+      # IFF the method ends up throwing an exception
+      #goto $_[0]->can ($meth);
+
+      my $cref = $_[0]->can ($meth);
+      goto $cref;
     }
     goto $orig;
   };
