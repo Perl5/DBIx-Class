@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use Carp::Clan qw/^DBIx::Class|^Try::Tiny/;
-use Scalar::Util qw/blessed/;
 use Try::Tiny;
 use namespace::clean;
 
@@ -52,7 +51,7 @@ sub throw {
     my ($class, $msg, $stacktrace) = @_;
 
     # Don't re-encapsulate exception objects of any kind
-    die $msg if blessed($msg);
+    die $msg if ref($msg);
 
     # use Carp::Clan's croak if we're not stack tracing
     if(!$stacktrace) {
