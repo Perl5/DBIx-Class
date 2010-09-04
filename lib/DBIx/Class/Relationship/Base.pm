@@ -15,6 +15,17 @@ DBIx::Class::Relationship::Base - Inter-table relationships
 
 =head1 SYNOPSIS
 
+    __PACKAGE__->add_relationship('spiders',
+                                  'My::DB::Result::Creatures',
+                                  sub {
+                                    my ( $me_alias, $rel_alias) = @_;
+                                    return
+                                       { "${rel_alias}.id"    => { '=' => \"${me_alias}.id"},
+                                         "${rel_alias}.type"  => { '=', "arachnid" },
+                                        };
+                                     
+                                  });
+
 =head1 DESCRIPTION
 
 This class provides methods to describe the relationships between the
@@ -27,50 +38,146 @@ methods, for predefined ones, look in L<DBIx::Class::Relationship>.
 
 =over 4
 
-=item Arguments: 'relname', 'Foreign::Class', $cond, $attrs
+=item Arguments: 'relname', 'Foreign::Class', $condition, $attrs
 
 =back
 
-  __PACKAGE__->add_relationship('relname', 'Foreign::Class', $cond, $attrs);
+  __PACKAGE__->add_relationship('relname', 
+                                'Foreign::Class', 
+                                $condition, $attrs);
+
+Create a custom relationship between one result source and another
+source, indicated by its class name.
 
 =head3 condition
 
-The condition needs to be an L<SQL::Abstract>-style representation of the
-join between the tables. When resolving the condition for use in a C<JOIN>,
-keys using the pseudo-table C<foreign> are resolved to mean "the Table on the
-other side of the relationship", and values using the pseudo-table C<self>
-are resolved to mean "the Table this class is representing". Other
-restrictions, such as by value, sub-select and other tables, may also be
-used. Please check your database for C<JOIN> parameter support.
+The condition argument describes the JOIN expression used to connect
+the two sources when creating SQL queries.
 
-For example, if you're creating a relationship from C<Author> to C<Book>, where
-the C<Book> table has a column C<author_id> containing the ID of the C<Author>
-row:
+To create simple equality joins, supply a hashref containing the
+remote table column name as the key(s), and the local table column
+name as the value(s), for example:
 
   { 'foreign.author_id' => 'self.id' }
 
-will result in the C<JOIN> clause
+will result in the C<JOIN> clause:
 
   author me JOIN book book ON book.author_id = me.id
 
-For multi-column foreign keys, you will need to specify a C<foreign>-to-C<self>
-mapping for each column in the key. For example, if you're creating a
-relationship from C<Book> to C<Edition>, where the C<Edition> table refers to a
-publisher and a type (e.g. "paperback"):
+This describes a relationship between the C<Author> table and the
+C<Book> table where the C<Book> table has a column C<author_id>
+containing the ID value of the C<Author>.
+
+C<foreign> and C<self> are psuedo aliases and must be entered
+literally. They will be replaced with the actual correct table alias
+when the SQL is produced.
+
+Similarly:
 
   {
     'foreign.publisher_id' => 'self.publisher_id',
     'foreign.type_id'      => 'self.type_id',
   }
 
-This will result in the C<JOIN> clause:
+will result in the C<JOIN> clause:
 
   book me JOIN edition edition ON edition.publisher_id = me.publisher_id
     AND edition.type_id = me.type_id
 
-Each key-value pair provided in a hashref will be used as C<AND>ed conditions.
-To add an C<OR>ed condition, use an arrayref of hashrefs. See the
-L<SQL::Abstract> documentation for more details.
+This describes the relationship from C<Book> to C<Edition>, where the
+C<Edition> table refers to a publisher and a type (e.g. "paperback"):
+
+As is the default in L<SQL::Abstract>, the key-value pairs will be
+C<AND>ed in the result. C<OR> can be achieved with an arrayref, for
+example:
+
+  [
+    { 'foreign.left_itemid' => 'self.id' },
+    { 'foreign.right_itemid' => 'self.id' },
+  ]
+
+which results in the C<JOIN> clause:
+
+  items me JOIN related_items rel_link ON rel_link.left_itemid = me.id
+    OR rel_link.right_itemid = me.id
+
+This describes the relationship from C<Items> to C<RelatedItems>,
+where C<RelatedItems> is a many-to-many linking table, linking Items
+back to themselves.
+
+To create joins which describe more than a simple equality of column
+values, the custom join condition coderef syntax can be used:
+
+    sub {
+      my ( $me_alias, $rel_alias ) = @_;
+      return
+        ({ "${rel_alias}.artist"  => { '=' => \"${me_alias}.artistid"},
+           "${rel_alias}.year"    => { '>', "1979",
+                                       '<', "1990" }
+         });
+  }
+
+this will result in the C<JOIN> clause:
+
+  artist me LEFT JOIN cd cds_80s_noopt ON 
+   ( cds_80s_noopt.artist = me.artistid 
+     AND ( cds_80s_noopt.year < ? AND cds_80s_noopt.year > ? )
+   )
+
+with the bind values:
+
+   '1990', '1979'
+
+C<$rel_alias> is the equivalent to C<foreign> in the simple syntax,
+and will be replaced by the actual remote table alias in the produced
+SQL. Similarly, C<$me_alias> is the equivalent to C<self> and will be
+replaced with the local table alias in the SQL.
+
+The actual syntax returned by the coderef should be valid
+L<SQL::Abstract> syntax, similar to normal
+L<DBIx::Class::ResultSet/search> conditions.
+
+To help optimise the SQL produced, a second optional hashref can be
+returned to be used when the relationship accessor is called directly
+on a Row object:
+
+    sub {
+      my ( $me_alias, $rel_alias, $me_result_source, 
+           $rel_name, $optional_me_object ) = @_;
+      return
+        ({ "${rel_alias}.artist"  => { '=' => \"${me_alias}.artistid"},
+           "${rel_alias}.year"    => { '>', "1979",
+                                       '<', "1990" }
+         },
+         $optional_me_object &&
+         { "${rel_alias}.artist" => $optional_me_object->artistid,
+           "${rel_alias}.year"   => { '>', "1979",
+                                      '<', "1990" }
+       });
+  }
+
+Now this code:
+
+    my $artist = $schema->resultset("Artist")->find({ id => 4 });
+    $artist->cds_80s->all;
+
+Produces:
+
+    SELECT me.cdid, me.artist, me.title, me.year, me.genreid, me.single_track
+      FROM cd me 
+      WHERE ( ( me.artist = ? AND ( me.year < ? AND me.year > ? ) ) )
+
+With the bind values:
+
+    '4', '1990', '1979'
+
+The C<$optional_me_object> used to create the second hashref contains
+a row object, the object that the relation accessor was called on.
+
+C<$me_result_source> the L<DBIx::Class::ResultSource> of the table
+being searched on, and C<$rel_name>, the name of the relation
+containing this condition, are also provided as arguments. These may
+be useful to more complicated condition calculation.
 
 =head3 attributes
 
