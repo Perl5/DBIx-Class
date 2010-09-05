@@ -421,7 +421,7 @@ sub _resolve_column_info {
 # the top of the stack, and if not - make sure the chain is inner-joined down
 # to the root.
 #
-sub _straight_join_to_node {
+sub _inner_join_to_node {
   my ($self, $from, $alias) = @_;
 
   # subqueries and other oddness are naturally not supported

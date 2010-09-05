@@ -314,7 +314,6 @@ has 'write_handler' => (
     svp_begin
     svp_release
     relname_to_table_alias
-    _straight_join_to_node
     _dbh_last_insert_id
     _fix_bind_params
     _default_dbi_connect_attributes
@@ -392,6 +391,8 @@ my @unimplemented = qw(
   _use_typeless_placeholders
   _supports_typeless_placeholders
   _determine_supports_typeless_placeholders
+
+  _inner_join_to_node
 );
 
 for my $method (@unimplemented) {
