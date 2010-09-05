@@ -15,6 +15,10 @@ from your SQL database.
 
 Short answers and doc pointers to questions.
 
+=head2 L<DBIx::Class::Manual::Glossary>
+
+Explanations of terms used in this documentation.
+
 =head2 L<DBIx::Class::Manual::Intro>
 
 Beginner guide to using DBIx::Class. 
@@ -30,6 +34,10 @@ How to translate known SQL JOINs into DBIx-Class-ish.
 =head2 L<DBIx::Class::Manual::Cookbook>
 
 Convenient recipes for DBIC usage.
+
+=head2 L<DBIx::Class::Manual::Reading>
+
+How to read (and write) the reference documentation.
 
 =head2 L<DBIx::Class::Manual::DocMap>
 
